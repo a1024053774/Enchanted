@@ -12,6 +12,7 @@
 ## Notes
 
 - [2026-10-06 框架、实现与操作报告](../reports/herdr-a2a-2026-10-06.zh-CN.md)：日期记录，含 STE 简明英文对照、命令步骤及已验证边界。
+- [2026-10-06 session 复盘](../reports/a2a-session-retrospective-2026-10-06.zh-CN.md)：原始记录扫描、可复核的流程不足和待办；不替代产品验收。
 - Core goal: collaboration must not depend on the model continuously remembering the operating manual.
 - First experiment: Codex workers in the current Herdr workflow; multi-CLI support is a later capability-contract validation, not the first success claim.
 - Control rule: the Astra Max controller may dispatch and reclaim workers through Herdr within approved scope; it must pause for major decisions or direction changes and never bypass claim, submit, acceptance, or integration gates.
@@ -24,6 +25,7 @@
 - [T-003 Roles and evidence](tickets/T-003-roles-and-evidence.md): Astra Max controller, 6.1 xhigh Fast workers, high-reasoning read-only monitor, append-only run evidence, and exploratory claims only
 - [T-004 Major-decision stop boundary](tickets/T-004-major-decision-stop-boundary.md): explicit escalation triggers; routine dispatch, status checking, policy-bounded retry, and reclaim remain autonomous
 - [T-005 First seam and baseline](tickets/T-005-first-seam-and-baseline.md): 固定本地源码、真实 Herdr 入口及已有红/绿证据的分页 oracle
+- [T-009 Audit recorded a2a work sessions](tickets/T-009-session-retrospective.md): 20 份 session 已扫描并保存定位，重复流程缺口登记为 T-010 至 T-014
 
 ## Not yet specified
 
