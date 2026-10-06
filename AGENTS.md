@@ -1,10 +1,10 @@
-# Herdr A2A 项目规则
+# a2a 项目规则
 
 ## 规范源
 
 - `.project-map/MAP.md` 是项目地图；它索引目的地、已关闭决策、开放 ticket、fog 和 living docs。
-- `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。
-- 当前执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
+- `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。2026-10-06 起为第二阶段版本：a2a 多 Agent 工作台，第一个里程碑为 M1。工作台的 spec 尚未写出；实现前须先有 spec 和 tracer-bullet build ticket。
+- `coop.py` 的执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
 - T-007 恢复语义以 `.project-map/specs/recovery-2026-10-06.md` 为准；真实故障只注入隔离测试所创建的 CLI 子进程。
 - 验收与集成必须经过持操作锁的 CLI 入口；锁释放只允许核对中断状态，不能替代验收证据。
 - 自动 run 必须显式设置 submit 等待期限；其验收、集成和清理都绑定原 attempt，不得因 current_attempt 改变而接管新执行者。
@@ -13,9 +13,20 @@
 - 内嵌测试 Git repo/worktree 不登记为项目 gitlink；保留原目录并归档完整现场，顶层报告及归档进入版本控制。
 - Ticket 内容和运行证据可以在各自 session 中变化；只有地图、术语表或治理规则本身变化时才需要同步更新本文件。
 - `CONTEXT.md` 只保存统一术语。`herdr-a2a-research-and-plan-2026-10-06.md` 是 dated 初始研究记录，不把它当作最新规范，也不要在普通任务中改写。
-- `.grilling/` 是决策会话控制状态，不是第二套项目事实源。
+- `.grilling/` 是决策会话控制状态，不是第二套项目事实源。第二阶段的决策记录见 `.grilling/a2a-gui-client.md`。
 - `findings/` 集中开发发现、模型行为记录与相关日期报告；`reports/` 只保留旧链接入口，原始证据保留在 `evidence/`。操作前以项目地图索引的当前规格和 README 为准。
 - 用户要求报告只保留中文版本；借用清晰表达与语义保真原则，不再为这些报告生成英文副本。
+
+## 第二阶段：工作台约束
+
+- 门禁优先：工作台对受管任务的验收、集成和回收，只调用 `coop.py` 的同一入口，不另做一套门禁；在受管 worker 的 pane 里直接输入，记为人工介入。
+- 引擎是 Herdr 0.9.3（`c4653a4`）的硬分叉。不自动拉取 Herdr 的在线检测清单；检测清单与上游修复以后单独同步。
+- 工作台使用独立的命名空间（可执行文件名、环境变量、socket 目录、集成 hook），切换完成前与已安装的 Herdr 并存；不得修改或重启用户正在使用的 Herdr server。
+- 切换条件：工作台运行时上，交付、恢复、编排三套验收和一次真实 `run` 全部通过。切换前主控与 worker 继续经已安装的 Herdr 分派；切换后删除 Herdr 路径，不保留双路径。
+- a2a 与 Enchanted 的构建输出和缓存默认放在外置盘 `/Volumes/WD-Elements`；外置盘未挂载时构建必须报错，不回退到内置盘。
+- 项目开源，允许直接复用 GPL 代码；并入 GPL 代码后整体以 GPL-3.0 发布。复用不能改变已定方向。
+- 不基于 Zed 二次开发。
+- Enchanted 已于 2026-10-06 做 git 快照并冻结；其功能在 M1 之后并入工作台，不在 Enchanted 仓库继续开发。
 
 ## 每次 session 的开始与结束
 
@@ -27,7 +38,7 @@
 
 ## 主控、worker 和 monitor
 
-- 主控使用 `gpt-6-astra` max reasoning。它在已批准范围内通过 Herdr 分派任务、读取当前状态、回收不再需要的 worker，并汇总证据。
+- 主控使用 `gpt-6-astra` max reasoning。它在已批准范围内通过 Herdr 分派任务（切换完成后改用工作台的控制接口）、读取当前状态、回收不再需要的 worker，并汇总证据。
 - worker 使用 `gpt-6.1-sol` xhigh reasoning / Fast service tier，只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。
 - monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
@@ -43,7 +54,7 @@
 ## 证据和交付
 
 - 每个交付绑定 task、attempt、session/fence、规格版本和完整代码版本。
-- 运行记录追加写入，至少保留模型、CLI、Herdr/skill 版本、输入、事件、人工介入、失败和独立验收结果。
+- 运行记录追加写入，至少保留模型、CLI、Herdr 或引擎版本、skill 版本、输入、事件、人工介入、失败和独立验收结果。
 - 旧 session、过期规格、未通过验收或无法核对的候选必须拒绝并保留诊断证据；未知状态进入可恢复暂停。
 - 首轮运行是探索性基线，不据此宣称可靠性、吞吐或成本已经改善。任何收益主张都需要独立对照实验。
 - 原始 session 复盘须记录范围与截止点，区分主控、worker、monitor 和独立验收来源；事后复盘不能补称为当时的独立监控。
@@ -57,6 +68,7 @@
 - `design-integrity-review`：候选变更引入异常吞噬、fallback/retry、兼容分支或平行 API 时，在完成检查点做只读审查。
 - `behavioral-acceptance-review`：触及 eval、benchmark、公开 API 或 Agent 用户行为时，检查独立 oracle 和已知坏实现。
 - `document-writing`：所有项目文档起草、改写和编码交付。
+- `frontend-less-ai-tone`、`same-visual-family`：工作台的界面文案、视觉方向，以及多来源界面的拼装。
 - `grilling`：只用于决策会话；写完 canonical artifact 和 handoff 后停止，不在 grilling session 内实现。
 
 ## 设计与变更原则
