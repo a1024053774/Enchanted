@@ -70,3 +70,15 @@ python3 -B acceptance/test_coop_e2e.py
 ```
 
 该套件使用独立临时 repo 和 CLI 子进程。实现 worker 的结果见 [build-result.json](evidence/2026-10-06-managed-01/build-result.json)，expected-red 见 [build-red.json](evidence/2026-10-06-managed-01/build-red.json)。真实 Herdr/Codex dispatch、交付和回收，以及 known-bad 检查由主控单独执行；CLI 通过不能替代这些外部边界证据。
+
+真实入口检查使用独立分页夹具：
+
+```sh
+python3 -B acceptance/live_herdr.py --parent-pane LIVE_PARENT_ID --output NEW_OUTPUT_DIRECTORY
+```
+
+首次启动新 Git 夹具可能等待 Codex 目录信任。程序会暂停并保留绑定，不自动批准。
+主控核对夹具并完成已授权的目录信任后，先用 `reclaim` 撤销旧 attempt、回收 pane，
+再指定 `--fixture-repo /absolute/inspected-fixture` 和新的输出目录重跑。测试会核对夹具仍为
+干净的原始输入；旧失败产物不覆盖。它等待显式 submit，检查未验收集成被拒，再执行
+独立 oracle、CAS 集成、重复调用以及受管引用的独立代码回读。

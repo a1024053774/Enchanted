@@ -14,14 +14,19 @@ def main():
     parser.add_argument('--parent-pane', required=True)
     parser.add_argument('--output', required=True)
     parser.add_argument('--timeout', type=int, default=900)
+    parser.add_argument('--fixture-repo', help='Reuse an already inspected isolated fixture repository after explicit trust setup')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     runtime = root / '.runtime' / output.name
     runtime.mkdir(parents=True, exist_ok=False)
-    repo = runtime / 'fixture'
-    repo.mkdir()
+    repo = Path(args.fixture_repo).resolve() if args.fixture_repo else runtime / 'fixture'
+    if args.fixture_repo:
+        if not (repo / '.git').is_dir():
+            raise ValueError('--fixture-repo must be an existing isolated fixture repository')
+    else:
+        repo.mkdir()
     task = 'pagination-live'
     state = runtime / 'state'
     events = output / 'commands.jsonl'
@@ -55,13 +60,18 @@ def main():
     try:
         command(['herdr', 'status', '--json'])
         command(['codex', '--version'])
-        git('init', '-b', 'main')
-        git('config', 'user.name', 'A2A Isolated Fixture')
-        git('config', 'user.email', 'fixture@localhost')
-        for name in ('pager.py', 'CONTRACT.md'):
-            shutil.copyfile(root / 'fixtures' / 'pagination' / name, repo / name)
-        git('add', 'pager.py', 'CONTRACT.md')
-        git('commit', '-m', 'test: incomplete pagination task')
+        if not args.fixture_repo:
+            git('init', '-b', 'main')
+            git('config', 'user.name', 'A2A Isolated Fixture')
+            git('config', 'user.email', 'fixture@localhost')
+            for name in ('pager.py', 'CONTRACT.md'):
+                shutil.copyfile(root / 'fixtures' / 'pagination' / name, repo / name)
+            git('add', 'pager.py', 'CONTRACT.md')
+            git('commit', '-m', 'test: incomplete pagination task')
+        else:
+            assert not git('status', '--porcelain'), 'Isolated fixture has unpreserved edits'
+            for name in ('pager.py', 'CONTRACT.md'):
+                assert (repo / name).read_bytes() == (root / 'fixtures' / 'pagination' / name).read_bytes(), 'Fixture baseline differs from the registered input'
         base = git('rev-parse', 'HEAD')
         result['base'] = base
         coop('create', '--task', task, '--repo', str(repo), '--base', base,
