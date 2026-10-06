@@ -79,7 +79,7 @@ M1 前几张切片期间，引擎内部和控制接口暂时沿用 Herdr 的 wor
 - Zig 0.16（依据 Herdr 的 `flake.nix`；用于编译 libghostty-vt，本机未安装）；
 - gpui-kit 0.7.1（要求 Rust 1.92 及以上、macOS 15 及以上、Command Line Tools）。
 
-## 验证接缝（待用户确认）
+## 验证接缝（用户于 2026-10-06 确认）
 
 1. **引擎与 a2a**：在独立命名会话中运行真实的 `muster` CLI，作为程序可以核对的接缝。a2a 沿用三套验收和 live run 入口。
 2. **桌面应用**：真实的 Muster.app 连接同一个引擎。终端内容与 `muster pane read` 比对；输入用系统输入法实测；状态到视图的逻辑用 GPUI 的无头测试检查；外观以截图和录屏交给用户判断。

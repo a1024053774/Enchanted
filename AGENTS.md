@@ -39,7 +39,7 @@
 
 ## 主控、worker 和 monitor
 
-- 主控使用 `gpt-6-astra` max reasoning。它在已批准范围内通过 Herdr 分派任务（切换完成后改用工作台的控制接口）、读取当前状态、回收不再需要的 worker，并汇总证据。
+- 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）。它在已批准范围内通过 Herdr 分派任务（切换完成后改用工作台的控制接口）、读取当前状态、回收不再需要的 worker，并汇总证据。
 - worker 使用 `gpt-6.1-sol` xhigh reasoning / Fast service tier，只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。
 - monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
