@@ -69,7 +69,7 @@ python3 coop.py --state /absolute/state reclaim --task example
 python3 -B acceptance/test_coop_e2e.py
 ```
 
-该套件使用独立临时 repo 和 CLI 子进程。实现 worker 的结果见 [build-result.json](evidence/2026-10-06-managed-01/build-result.json)，expected-red 见 [build-red.json](evidence/2026-10-06-managed-01/build-red.json)。真实 Herdr/Codex dispatch、交付和回收，以及 known-bad 检查由主控单独执行；CLI 通过不能替代这些外部边界证据。
+该套件使用独立临时 repo 和 CLI 子进程。当前第一切片 T-006 为 PASS：8 个端到端场景、有效的 gate/oracle 反事实、真实 Herdr/Codex 交付与回收，以及一次独立审查和定向复核。详情见 [运行与验收结果](evidence/2026-10-06-managed-01/RESULTS.md)。这不覆盖完整故障恢复、第二 CLI 或长期收益。
 
 真实入口检查使用独立分页夹具：
 

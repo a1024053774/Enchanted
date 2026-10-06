@@ -1,6 +1,6 @@
 # Run: managed-2026-10-06-01
 
-状态：INCOMPLETE，工作进行中。所有结果以原始文件和指定版本为准。
+状态：PASS（T-006 限定范围）。结论与原始记录索引见 [RESULTS.md](RESULTS.md)；原失败及初审记录保留。
 
 ## 起点与分工
 
@@ -35,4 +35,4 @@ live fixture 位于 .runtime，仍保留原始坏 starter；最终 live run 使�
 
 复现本地验收：python3 -B acceptance/test_coop_e2e.py。
 复现真实入口：python3 -B acceptance/live_herdr.py --parent-pane LIVE_PANE --output NEW_OUTPUT_DIRECTORY。
-两条命令都必须指向最终候选版本；此刻还未运行最终验收。
+两条命令都必须指向指定候选版本；当前已完成最终验收，完整复现参数及限制见 RESULTS.md。

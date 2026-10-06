@@ -1,0 +1,80 @@
+• Ran git show '033631dd84e020591e6879c48ebdfe6d11a4ce9e:acceptance/test_coop_e2e.py' | nl -ba | sed -n '235,335p'
+  └    235            return after
+       236
+       237        def assert_novel_pagination_inputs(self, workspace):
+    +98 lines (ctrl+t to view transcript)
+
+• Ran git ls-tree -r -l '033631dd84e020591e6879c48ebdfe6d11a4ce9e' evidence/2026-10-06-managed-01 | rg
+  │ 'check-20261006T051215.814686Z-74ea90a1.json|check-20261006T051250.900302Z-868b0dd9.json|oracle-upper-before.json|
+  │ oracle-upper-after.json'
+  └ 100644 blob ef884f70694b9513048d7ab434d1baad4d38c95f 2029340    evidence/2026-10-06-managed-01/
+    check-20261006T051215.814686Z-74ea90a1.json
+    100644 blob 3d10b264d03d47eb7c67e9b1d4d093a71a7f8ec4 2113301    evidence/2026-10-06-managed-01/
+    +3 lines (ctrl+t to view transcript)
+
+• Ran git show '033631dd84e020591e6879c48ebdfe6d11a4ce9e:acceptance/test_coop_e2e.py' | rg -n -A 55 -B 5 'def
+  │ test_oracle_rejects_candidate_missing_limit_upper_bound'
+  └ 374-        events = self.events()
+    375-        denied = self.cli("integrate", "--task", self.task, ok=False)
+    376-        self.assertEqual(self.ref(), self.base)
+    +58 lines (ctrl+t to view transcript)
+
+• Ran /Library/Developer/CommandLineTools/usr/bin/python3 -B -c 'import subprocess,json
+  │ rev="033631dd84e020591e6879c48ebdfe6d11a4ce9e"
+  │ prefix="evidence/2026-10-06-managed-01/"
+  │ … +16 lines
+  └ FILE oracle-upper-before.json TOP_KEYS ['classification', 'candidate_from', 'argv', 'exit', 'stdout', 'stderr']
+    FIELD classification TYPE str KEYS None LEN 64
+    FIELD candidate_from TYPE str KEYS None LEN 40
+    +8 lines (ctrl+t to view transcript)
+
+• Ran /Library/Developer/CommandLineTools/usr/bin/python3 -B -c 'import subprocess,json,re
+  │ rev="033631dd84e020591e6879c48ebdfe6d11a4ce9e"
+  │ prefix="evidence/2026-10-06-managed-01/"
+  │ … +47 lines
+  └ BEFORE {"candidate_from": "reference with limit upper bound removed", "argv": ["python3", "-I", "-B", "acceptance/
+    pagination_oracle.py", "/Users/luckye/Documents/Code/a2a/.runtime/no-limit-upper-bound"], "exit": 0, "stderr": ""}
+    BEFORE_RESULTS PASS 10 [('unordered-ties', 0, True, True), ('continuation', 0, True, True), ('missing-cursor', 0, True, True),
+    +65 lines (ctrl+t to view transcript)
+
+• STATUS: PASS
+  TARGET: 033631dd84e020591e6879c48ebdfe6d11a4ce9e；仅复核 limit 上界 P2 及其反事实证据。
+
+  EVIDENCE:
+
+  • acceptance/pagination_oracle.py:26、:28 新增 limit=100 正控制和 limit=101 负控制，预期符合 CONTRACT.md:13。
+  • acceptance/test_coop_e2e.py:379 构造遗漏上界的坏候选，通过真实 CLI 提交、验证，并检查拒绝后的业务状态和 Git 引用。
+  • check-20261006T051215.814686Z-74ea90a1.json:24、:3414：旧 oracle 错误放行坏候选，新增测试因业务断言 0 != 1 失败；没有环境错误。
+  • check-20261006T051250.900302Z-868b0dd9.json:31、:3414、:3433、:3452：修复后 8/8 通过；坏候选返回 oracle_failed，状态保持 submitted，
+    引用仍为基线。
+
+  • oracle-upper-after.json:15、:30 的完整 oracle 源码与新冻结候选完全一致；:28 的真实集成产物十二用例全部通过，:40、:52、:64 确认工作树
+    干净，HEAD 和集成引用均为 349b26fb9ec8c10b7fa0b12e020aaa8d9f2322c4。
+
+  FINDINGS:
+
+  • 原 [P2] 已关闭，本次限定复核无未关闭发现。
+  • 对整体 T-006：上次唯一导致 INCOMPLETE 的缺口已解除。结合上次已核对的证据，以及未变的产品代码和旧 live 记录，原限定的本地可信协作者交
+    付声明可标 PASS。
+
+  COUNTEREXAMPLE:
+
+  • oracle-upper-before.json:11：遗漏上界的坏候选通过旧十用例 oracle。
+  • oracle-upper-after.json:12、:13：同一路径坏候选被新 oracle 拒绝；唯一失败为 limit=101 响应内容错误，pager 自身退出码为 0，属于有效行
+    为反事实。
+
+  LIMITATIONS:
+
+  • 本次没有重复完整审查或 Herdr 执行；旧 live 验收快照保持原样，新十二用例结果是对同一已集成 commit 的独立补充读回。
+  • PASS 仅承接 T-006 原有范围，不扩展到后续能力或可靠性收益。
+
+  RULE:
+
+  • 上界正负控制保留在独立分页 oracle；遗漏上界候选的拒绝检查保留在真实 CLI 验收入口。
+
+  Worked for 49s • 01:14
+
+
+› Ask Codex to do anything
+
+  GPT-6.1-Sol xhigh fast · ~/Documents/Code/a2a · 审查冻结候选行为验收                                         ⚠ 3 warnings · f2 to view
