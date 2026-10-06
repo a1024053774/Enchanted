@@ -490,7 +490,8 @@ class RunCLI(recovery.RecoveryCLI):
         self.check(after["status"]["candidate_commit"] is None and
                    len(self.entries(self.oracle_control)) == 0,
                    "No submit means no persisted candidate and no oracle", None,
-                   [after["status"]["candidate_commit"], self.entries(self.oracle_control)])
+                   [after["status"]["candidate_commit"],
+                    [(str(path), data) for path, data in self.entries(self.oracle_control)]])
         self.check(self.git("rev-parse", "HEAD", cwd=attempt["workspace"]).stdout.strip() == candidate,
                    "Timeout preserves the unsubmitted real candidate", candidate,
                    self.git("rev-parse", "HEAD", cwd=attempt["workspace"]).stdout.strip())
@@ -666,7 +667,7 @@ class RunCLI(recovery.RecoveryCLI):
             after = self.snapshot("after-stale-" + command)
             self.unchanged(before, after, "Stale " + command + " guard")
         self.check(not self.entries(self.oracle_control), "Stale guards start no oracle", [],
-                   self.entries(self.oracle_control))
+                   [(str(path), data) for path, data in self.entries(self.oracle_control)])
         self.guard("verify", current["attempt_id"])
         self.guard("integrate", current["attempt_id"])
         self.check(self.ref() == candidate and self.status()["state"] == "accepted",
@@ -833,6 +834,8 @@ def main():
     argv = [sys.executable, "-B", str(Path(__file__).resolve()), "--run-suite"]
     started = helper.utc_now()
     p = subprocess.run(argv, cwd=str(ROOT), env=env, text=True, capture_output=True)
+    (artifact_root / "suite.stdout").write_text(p.stdout, encoding="utf-8")
+    (artifact_root / "suite.stderr").write_text(p.stderr, encoding="utf-8")
     trace = json.loads(trace_path.read_text(encoding="utf-8")) if trace_path.is_file() else None
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT), text=True, capture_output=True)
     write_new(evidence_path, {
