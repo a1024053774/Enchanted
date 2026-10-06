@@ -11,6 +11,7 @@
 
 ## Notes
 
+- [2026-10-06 框架、实现与操作报告](../reports/herdr-a2a-2026-10-06.zh-CN.md)：日期记录，含 STE 简明英文对照、命令步骤及已验证边界。
 - Core goal: collaboration must not depend on the model continuously remembering the operating manual.
 - First experiment: Codex workers in the current Herdr workflow; multi-CLI support is a later capability-contract validation, not the first success claim.
 - Control rule: the Astra Max controller may dispatch and reclaim workers through Herdr within approved scope; it must pause for major decisions or direction changes and never bypass claim, submit, acceptance, or integration gates.
