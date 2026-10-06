@@ -4,8 +4,8 @@
 
 - `.project-map/MAP.md` 是项目地图；它索引目的地、已关闭决策、开放 ticket、fog 和 living docs。
 - `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。
-- 当前设计记录是 `.project-map/specs/herdr-a2a.md`；`T-005` 关闭并给出真实入口和独立验收 seam 前，不创建或执行产品实现 ticket。
-- 当前阶段是 Spec + seam research；T-005 的 `INCOMPLETE` 结果必须先解决，不能被 routine worker dispatch 绕过。
+- 当前执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
+- 当前阶段是首个 Tracer bullet 实现。按 ticket 边界分配实现、验收与观察职责；不得跳过红态证据或独立验收。
 - Ticket 内容和运行证据可以在各自 session 中变化；只有地图、术语表或治理规则本身变化时才需要同步更新本文件。
 - `CONTEXT.md` 只保存统一术语。`herdr-a2a-research-and-plan-2026-10-06.md` 是 dated 初始研究记录，不把它当作最新规范，也不要在普通任务中改写。
 - `.grilling/` 是决策会话控制状态，不是第二套项目事实源。
@@ -14,7 +14,7 @@
 
 1. 运行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`。
 2. 读取 `MAP.md`、相关 ticket、`CONTEXT.md` 和当前阶段 canonical artifact；不要靠对话历史恢复状态。
-3. 一个 session 只 claim 一个 ticket。完成前再次运行 `status`，确认没有 stale living doc、未记录的决策或未保存证据。
+3. 每个 worker session 只负责一个 ticket 内的明确子任务；主控跨子任务协调，同一文件只分配给一个写入者。完成前运行 `status` 并保存证据。
 4. 任何结论都报告 `PASS`、`INCOMPLETE`、`BLOCKED` 或 `NO_GO`，不把未知或未运行的检查写成通过。
 5. 修改项目地图或术语表后，在报告完成前重新运行 `project_map.py status`，并处理所有 stale living doc。
 
@@ -25,6 +25,8 @@
 - monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
 - 主控可以自主进行日常分派、状态检查、策略内重试和回收。
+- 新建 worker 必须显式传入 `-c 'service_tier="fast"'` 并保存启动 argv；不把请求配置当作供应商实际 tier 的证明。
+- Herdr wait 超时不是 worker 挂起证明；核对可见进展、产物与权限状态再处置。记录 live pane/terminal 身份，不依赖可能过期的继承环境或 UI 焦点。
 
 ## 必须停下并问用户的情况
 

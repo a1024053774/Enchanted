@@ -2,10 +2,9 @@
 
 ## Destination
 
-`intent.md` is accepted for the Herdr-based multi-agent coding project. The current
-destination is the first usable Spec and seam research before any implementation ticket. The
-existing `herdr-a2a-research-and-plan-2026-10-06.md` remains the dated initial research record
-and is not rewritten by this effort. The design record is [specs/herdr-a2a.md](specs/herdr-a2a.md).
+实现首个受管理交付闭环，方向由 [intent.md](../intent.md) 固定；
+执行契约见 [managed-delivery](specs/managed-delivery-2026-10-06.md)。
+原研究稿与 [初始设计](specs/herdr-a2a.md) 是保留的日期记录。
 
 ## Notes
 
@@ -20,18 +19,17 @@ and is not rewritten by this effort. The design record is [specs/herdr-a2a.md](s
 - [T-002 First experiment contract](tickets/T-002-first-experiment-contract.md): Codex/Herdr experiment targets stale or unverified result acceptance and must reject invalid state with evidence
 - [T-003 Roles and evidence](tickets/T-003-roles-and-evidence.md): Astra Max controller, 6.1 xhigh Fast workers, high-reasoning read-only monitor, append-only run evidence, and exploratory claims only
 - [T-004 Major-decision stop boundary](tickets/T-004-major-decision-stop-boundary.md): explicit escalation triggers; routine dispatch, status checking, policy-bounded retry, and reclaim remain autonomous
+- [T-005 First seam and baseline](tickets/T-005-first-seam-and-baseline.md): 固定本地源码、真实 Herdr 入口及已有红/绿证据的分页 oracle
 
 ## Not yet specified
 
-- First representative task and Herdr entry point for the Codex experiment
-- The acceptance suite and independent test seam for the first run
 - When and how a second CLI validates the capability contract
 - Numeric budget and risk thresholds
-- [T-005 First seam and baseline](tickets/T-005-first-seam-and-baseline.md) is the next research ticket before any implementation ticket
+- 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化
 
 ## Out of scope
 
-- Implementation, release, and deployment | reason: they belong to later Design, Slice, Work, and release sessions after this accepted intent.
+- 生产发布、对外 push 和重启用户 Herdr server；本轮只做本地实现与隔离验收
 - Rewriting the dated research draft | reason: it is the project's initial research record.
 
 ## Living docs
