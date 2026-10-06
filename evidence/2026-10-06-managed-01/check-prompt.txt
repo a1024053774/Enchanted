@@ -1,0 +1,6 @@
+你是 T-006 的独立验收作者 a2a-check。你不是仓库中的唯一 agent，不得覆盖/撤销他人改动；你的独占文件只有 acceptance/test_coop_e2e.py 和 evidence/2026-10-06-managed-01/check-*。不得改 coop.py、README、规格、其他文档或旧 evidence。主控负责 git 和 ticket。
+读取 AGENTS.md、冻结契约 .project-map/specs/managed-delivery-2026-10-06.md、fixtures/pagination/CONTRACT.md、acceptance/pagination_oracle.py 和 reference fixture。不要读取正在编写的 coop.py，不从其输出导出期望。
+用 Python 3.9 标准库 unittest/subprocess 写真实 CLI 端到端验收：自建隔离临时 Git repo、state，外部驱动 create/claim/submit/verify/integrate/status/events。运行路径可由 COOP_SCRIPT 环境指定，用于之后 known-bad mutant 验证。断言依据冻结契约。
+覆盖并发 claim 唯一有效、错误 session/fence/spec 和 revoke 后旧 attempt 被拒、持久状态、无验收 integrate 拒、坏候选 oracle_failed 且 ref 不变、好候选验收后只集成一次、验收后基线变化拒、拒绝事件留存。好候选可在测试准备时复制 acceptance/reference/pager.py，断言绝不从实现派生。独立新输入/对不同任务 id 变体验证。只测试真实本地依赖，不 mock Herdr 来宣称真实 CLI 调度通过；真实模型调用由主控另跑。
+测试入口为 python3 -B acceptance/test_coop_e2e.py。保存每次运行的退出码与原始输出到新 check-*.json，不覆盖红态。如果产品文件还未存在，允许明确 expected-red missing feature，稍后主控重跑。不要等一串睡眠循环；写好后就汇报。与你所用接口存在歧义时发给主控而非改生产。
+最终给出测试命令、文件、当前 PASS/INCOMPLETE 和你从契约得到的 failure modes。

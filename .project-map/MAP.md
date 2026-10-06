@@ -36,5 +36,6 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [CONTEXT.md](../CONTEXT.md) | `intent.md` | |
+| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | |
 | [AGENTS.md](../AGENTS.md) | `.project-map/MAP.md`, `CONTEXT.md` | |
+| [README.md](../README.md) | `coop.py`, `acceptance/live_herdr.py` | |

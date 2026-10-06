@@ -4,7 +4,7 @@ title: 受管理候选从 Herdr 分派到独立验收
 type: build
 status: open
 blocked_by: [T-005]
-claimed_by:
+claimed_by: a2a-build
 supersedes:
 ---
 

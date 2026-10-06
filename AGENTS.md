@@ -27,6 +27,7 @@
 - 主控可以自主进行日常分派、状态检查、策略内重试和回收。
 - 新建 worker 必须显式传入 `-c 'service_tier="fast"'` 并保存启动 argv；不把请求配置当作供应商实际 tier 的证明。
 - Herdr wait 超时不是 worker 挂起证明；核对可见进展、产物与权限状态再处置。记录 live pane/terminal 身份，不依赖可能过期的继承环境或 UI 焦点。
+- 受管实验固定 Codex CLI 版本并使用启动参数 `check_for_update_on_startup=false`；更新提示不由任务输入触发。启动被阻断时保存现场，禁止把下一条任务或 Enter 当作默认批准。
 
 ## 必须停下并问用户的情况
 
