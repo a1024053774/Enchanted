@@ -27,3 +27,9 @@
 - [T-008 自动运行](../evidence/2026-10-06-run-01/RESULTS.md)。
 
 产品通过范围、监控覆盖范围和 GPT 模型行为是不同结论。各报告保留自己的来源与限制。
+
+## Claude Code 外部项目经验
+
+[SiteCraft 对话索引](../evidence/2026-10-06-claude-a94ba246/README.md)对应用户指定的
+`a94ba246-5f01-45e5-b06b-4024882c4ff2`。原始对话覆盖 2026-10-02 至 2026-10-05，
+与 a2a 的 20 份 session 分开计数。中文经验文档见[这里](claude-sitecraft-experience-2026-10-06.zh-CN.md)。

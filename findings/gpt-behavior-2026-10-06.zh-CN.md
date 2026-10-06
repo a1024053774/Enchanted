@@ -2,7 +2,7 @@
 
 日期：2026-10-06。分类依据：用户明确更正“有继续工作的时候结束回合”是 GPT 模型问题，不属于分工协调问题。
 
-[English](gpt-behavior-2026-10-06.en.md) · [发现目录](README.md) · [原始选录](../evidence/2026-10-06-session-review-01/excerpts.json)
+[发现目录](README.md) · [原始选录](../evidence/2026-10-06-session-review-01/excerpts.json)
 
 本文件记录本次主控 GPT 的执行行为。F01 从分工协调摘要和相应整改范围中移出，原始 session 事实继续保留。本次整理完成，不代表模型行为已经修复。
 

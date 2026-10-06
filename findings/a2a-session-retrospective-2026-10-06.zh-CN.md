@@ -3,7 +3,7 @@
 日期：2026-10-06。项目基准：`7069dc271541fb801616d17e11815cffc287d83e`。
 记录截止：`2026-10-06T11:14:05.292Z`，不包含本次复盘自身的活动。
 
-[English](a2a-session-retrospective-2026-10-06.en.md) · [原框架报告](herdr-a2a-2026-10-06.zh-CN.md) · [记录索引](../evidence/2026-10-06-session-review-01/README.md) · [T-009](../.project-map/tickets/T-009-session-retrospective.md)
+[原框架报告](herdr-a2a-2026-10-06.zh-CN.md) · [记录索引](../evidence/2026-10-06-session-review-01/README.md) · [T-009](../.project-map/tickets/T-009-session-retrospective.md)
 
 分类修订：2026-10-06，按用户更正，F01“有已授权工作仍结束回合”归入主控 GPT 的模型执行行为，不计入分工协调问题。原始事实保留在[模型行为记录](gpt-behavior-2026-10-06.zh-CN.md)。
 

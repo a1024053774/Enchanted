@@ -1,4 +1,0 @@
-# Report location
-
-Read the [report in the findings directory](../findings/a2a-session-retrospective-2026-10-06.en.md).
-This file preserves the earlier link. The new location contains the report.

@@ -12,8 +12,9 @@
 ## Notes
 
 - [开发发现目录](../findings/README.md)：集中相关报告，分别记录 GPT 模型行为、分工协调、工程与证据处理。
-- [2026-10-06 框架、实现与操作报告](../findings/herdr-a2a-2026-10-06.zh-CN.md)：日期记录，含 STE 简明英文对照、命令步骤及已验证边界。
+- [2026-10-06 框架、实现与操作报告](../findings/herdr-a2a-2026-10-06.zh-CN.md)：中文日期报告，含命令步骤及已验证边界。
 - [2026-10-06 session 复盘](../findings/a2a-session-retrospective-2026-10-06.zh-CN.md)：协调与工程发现；F01 模型提前结束回合已另列，不计入协调问题。
+- [Claude / SiteCraft 实际经验](../findings/claude-sitecraft-experience-2026-10-06.zh-CN.md)：用户指定对话的日期记录，保留外部项目与 a2a 的证据边界。
 - Core goal: collaboration must not depend on the model continuously remembering the operating manual.
 - First experiment: Codex workers in the current Herdr workflow; multi-CLI support is a later capability-contract validation, not the first success claim.
 - Control rule: the Astra Max controller may dispatch and reclaim workers through Herdr within approved scope; it must pause for major decisions or direction changes and never bypass claim, submit, acceptance, or integration gates.
@@ -27,6 +28,7 @@
 - [T-004 Major-decision stop boundary](tickets/T-004-major-decision-stop-boundary.md): explicit escalation triggers; routine dispatch, status checking, policy-bounded retry, and reclaim remain autonomous
 - [T-005 First seam and baseline](tickets/T-005-first-seam-and-baseline.md): 固定本地源码、真实 Herdr 入口及已有红/绿证据的分页 oracle
 - [T-009 Audit recorded a2a work sessions](tickets/T-009-session-retrospective.md): 20 份 session 已扫描；F01 按用户更正另列为模型行为，T-012 仅保留研究交付范围
+- [T-015 Review the specified Claude Code collaboration session](tickets/T-015-claude-session-experience.md): 指定对话已回读并整理中文经验，报告只保留中文版本
 
 ## Not yet specified
 
