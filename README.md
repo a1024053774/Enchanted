@@ -17,6 +17,8 @@ python3 coop.py --state /absolute/state claim --task example --owner worker
 
 `create` 冻结任务输入并复制 oracle 和 instructions。`refs/a2a/integration` 不存在时以 base 初始化；已存在时必须等于 base。`claim` 原子分配 attempt/session/fence/spec_rev，并在 state 下创建独立 detached worktree。worker 只在返回的 workspace 工作，创建本地 commit，保持 worktree 干净，再用 claim 返回的精确身份交付：
 
+后续任务以 `git rev-parse refs/a2a/integration` 得到的受管集成头作为 base；用户工作分支不会自动移动。
+
 ```sh
 python3 coop.py --state /absolute/state submit --task example \
   --attempt ATTEMPT_ID --session SESSION_ID --fence FENCE \
@@ -86,6 +88,11 @@ python3 coop.py --state /absolute/state run --task example \
 
 ## 证据与限制
 
+首轮范围已通过：[受管交付](evidence/2026-10-06-managed-01/RESULTS.md)、
+[验收/集成中断恢复](evidence/2026-10-06-recovery-01/RESULTS.md)、
+[自动运行](evidence/2026-10-06-run-01/RESULTS.md)。自动运行包含一次真实 Codex 交付及独立引用读回；
+隔离编排负例与真实模型证据分别记录，不延伸为跨 CLI 或长期收益。
+
 `state/state.sqlite3` 保存任务、历史 attempt、验收记录及按序追加事件；`tasks/` 保存输入快照，`worktrees/` 和 `verification/` 保存执行与验证目录，`locks/` 保存任务操作锁和 run 互斥锁文件。Git、Herdr 和 oracle 子进程均使用 argv，不通过 shell 拼接。失败、超时和未知状态留在记录中，工作区保留供诊断；没有 worktree 自动删除、租约或后台重试。验收/集成中断恢复通过再次调用原 `verify` / `integrate` 命令进行。
 
 本地 CLI 独立验收：
@@ -96,7 +103,14 @@ python3 -B acceptance/test_recovery_e2e.py
 python3 -B acceptance/test_run_e2e.py
 ```
 
-这三个套件使用隔离 repo 和 CLI 子进程；恢复套件保留真实进程中断、SQLite、Git refs/reflog 和 oracle 屏障的原始证据。run 套件使用可控 Herdr/Codex 边界替身，证明隔离编排行为；真实模型入口由主控另外验证。T-006、T-007 的已验收结果见 [交付结果](evidence/2026-10-06-managed-01/RESULTS.md) 和 [恢复结果](evidence/2026-10-06-recovery-01/RESULTS.md)。这些历史结论不替 T-008 候选背书；新运行证据保存在 [自动运行目录](evidence/2026-10-06-run-01/)，独立审查与 ticket 关闭由主控完成。当前检查不证明第二 CLI、完整 run 进程恢复或长期收益。
+三个套件分别为交付8项、恢复9项和编排18项。恢复使用真实中断及 Git/SQLite；编排负例的 Herdr/Codex 是替身。另有真实自动运行与独立审查，具体候选、原始结果和适用范围见上方报告。当前检查不证明第二 CLI、完整 run 进程恢复或长期收益。
+
+只调用一次产品 run 的真实验收入口为：
+
+```sh
+python3 -B acceptance/live_run.py --parent-pane LIVE_PARENT_ID \
+  --fixture-repo /absolute/inspected-fixture --output NEW_OUTPUT_DIRECTORY
+```
 
 真实入口检查使用独立分页夹具：
 

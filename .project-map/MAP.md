@@ -2,8 +2,9 @@
 
 ## Destination
 
-首个受管理交付闭环 [T-006](tickets/T-006-managed-delivery.md) 已通过；
-恢复切片 [T-007](tickets/T-007-recovery.md) 已通过；当前目的地是 [T-008](tickets/T-008-supervised-run.md) 自动运行。方向由 [intent.md](../intent.md) 固定，
+首轮已排定范围完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
+[T-007](tickets/T-007-recovery.md) 中断恢复、[T-008](tickets/T-008-supervised-run.md) 自动运行均通过。
+方向由 [intent.md](../intent.md) 固定，
 执行契约见 [managed-delivery](specs/managed-delivery-2026-10-06.md)。
 恢复契约见 [recovery](specs/recovery-2026-10-06.md)，当前契约见 [supervised-run](specs/supervised-run-2026-10-06.md)。
 原研究稿与 [初始设计](specs/herdr-a2a.md) 是保留的日期记录。
