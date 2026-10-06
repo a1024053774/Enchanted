@@ -41,6 +41,8 @@
 - [T-021 Enchanted 的搁置与并入](tickets/T-021-enchanted-freeze.md): 快照 `3e2ad91` 后冻结，功能在 M1 之后并入工作台
 - [T-022 工作台的代码位置与正式名称](tickets/T-022-workbench-location-and-name.md): 名为 Muster，代码放在本仓库 `muster/`，命名空间前缀 `muster`/`MUSTER_`
 - [T-023 主控放在项目级还是任务级](tickets/T-023-controller-placement.md): 主控是角色不分层级，经控制接口同时操作项目级与任务级，做法沿用 Herdr
+- [T-026 把构建缓存与工具链放到外置盘](tickets/T-026-external-build-cache.md): `scripts/build` 缺盘拒绝，Cargo/Zig/tmp 在外置盘；同 target 构建串行等待，按 worktree 分槽
+- [T-024 一个引擎能否让多个窗口各看不同项目](tickets/T-024-per-window-project-focus.md): 可以，各连接焦点、尺寸与输入独立；窗口导航须走各自连接，同一任务共享 PTY 尺寸
 
 ## Not yet specified
 
@@ -63,5 +65,5 @@
 | --- | --- | --- |
 | [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | |
 | [AGENTS.md](../AGENTS.md) | `.project-map/MAP.md`, `CONTEXT.md`, `intent.md` | |
-| [README.md](../README.md) | `coop.py`, `acceptance/live_herdr.py`, `intent.md`, `muster/**` | |
+| [README.md](../README.md) | `coop.py`, `acceptance/live_herdr.py`, `intent.md`, `muster/**`, `scripts/build` | |
 | [findings/README.md](../findings/README.md) | `findings/*.md` | |

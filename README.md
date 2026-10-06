@@ -7,6 +7,47 @@ a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。项
 
 文档入口：[项目地图](.project-map/MAP.md)、[术语表](CONTEXT.md)、[项目规则](AGENTS.md)、[开发发现](findings/README.md)。
 
+## Rust 构建：外置盘入口
+
+Muster 引擎、Muster.app 和 T-025 探针统一经仓库内的 `scripts/build` 调用 Cargo。在仓库根目录运行，例如：
+
+```sh
+./scripts/build build --locked --manifest-path muster/Cargo.toml
+MUSTER_BUILD_SLOT=worker-t027 ./scripts/build test --locked --manifest-path muster/Cargo.toml
+```
+
+入口默认检查 `/Volumes/WD-Elements` 是独立于仓库所在内置文件系统的真实挂载点，随后固定 Rust 1.96.1 与 Zig 0.16.0，并设置下表的路径。缺盘、普通目录冒充挂载点、缓存路径经符号链接逃出该卷或 Zig 缺失时，在启动 Cargo 前报错。`MUSTER_BUILD_VOLUME` 仅供明确指定另一外置挂载点或模拟缺盘；不自动创建挂载点。
+
+| 内容 | `/Volumes/WD-Elements/dev-cache/a2a/` 下的路径 |
+| --- | --- |
+| Cargo registry、git 与元数据（`CARGO_HOME`） | `cargo-home/`，所有 worker 共享 |
+| 编译输出与中间产物（`CARGO_TARGET_DIR`、`CARGO_BUILD_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR`） | `target/<slot>/` |
+| Zig 全局缓存（`ZIG_GLOBAL_CACHE_DIR`） | `zig-cache/global/`，所有 worker 共享 |
+| Zig 本地缓存（`ZIG_LOCAL_CACHE_DIR`） | `zig-cache/local/<slot>/` |
+| 构建临时目录（`TMPDIR`） | `tmp/<slot>/` |
+| 子进程的 npm 缓存（`npm_config_cache`） | `npm-cache/` |
+| Zig 发布包与安装目录（`ZIG`） | `toolchains/zig-aarch64-macos-0.16.0/zig` |
+
+`<slot>` 默认是 `default`，可用 `MUSTER_BUILD_SLOT` 设置单个目录名。多个 worker/worktree 各用固定且不同的 slot，以免 Cargo 的同 target 锁让构建串行等待；同一个 worktree 的重复构建继续使用同一 slot，保留增量产物。共享 registry/git 与 Zig 全局缓存节省下载和磁盘空间，独立 target 会增加总占用。
+
+本项目迁移整个 `CARGO_HOME`，让 registry/git 也留在外置盘；不复制用户的凭据或全局配置，不迁移已有 Rust 安装。挂盘且依赖已缓存时可加 `--offline`；缺盘时仍报错。直接执行 `cargo`、`zig build` 或 IDE 自己的构建命令会绕过入口，必须改为调用 `scripts/build`。入口拒绝 Cargo 的 `--target-dir`、`--artifact-dir` 和 `--config`，避免命令行覆盖受管路径；`cargo run/test` 的 `--` 后参数原样交给程序或测试。
+
+Zig 已在本机按 T-026 安装。其他 macOS arm64 机器先确认已有 Rust 1.96.1，再从 [Zig 官方发布索引](https://ziglang.org/download/index.json) 核对 `0.16.0`。安装时在子 shell 中先检查挂载，然后把官方包下载、解压到外置盘：
+
+```sh
+(
+  set -eu
+  python3 -c 'from pathlib import Path; import os; p=Path("/Volumes/WD-Elements"); assert p.is_mount() and p.stat().st_dev != os.stat(".").st_dev, "external volume not mounted"'
+  muster_tools=/Volumes/WD-Elements/dev-cache/a2a/toolchains
+  mkdir -p "$muster_tools"
+  curl -fL https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz -o "$muster_tools/zig-aarch64-macos-0.16.0.tar.xz"
+  tar -xf "$muster_tools/zig-aarch64-macos-0.16.0.tar.xz" -C "$muster_tools"
+  "$muster_tools/zig-aarch64-macos-0.16.0/zig" version
+)
+```
+
+不改 `~/.zshrc`、`~/.cargo/config.toml` 或全局 Git 配置。Enchanted 保持冻结；以后并入工作台时，其 Rust 构建使用同一入口，npm 的独立构建入口也须先做相同挂载检查再设置外置盘缓存。测量、缺盘反例与适用边界见 [T-026 证据](evidence/2026-10-06-m1-batch1/T-026/RESULTS.md)。
+
 ## 协作门禁：coop.py
 
 `coop.py` 是单机受管理交付入口。它用 Python 3.9 标准库、SQLite、Git 和已安装的 Herdr，把 task、attempt、submit、acceptance 和 integration 记录在磁盘上。冻结 CLI 契约见 [执行规格](.project-map/specs/managed-delivery-2026-10-06.md)、[恢复契约](.project-map/specs/recovery-2026-10-06.md) 和 [自动运行契约](.project-map/specs/supervised-run-2026-10-06.md)。

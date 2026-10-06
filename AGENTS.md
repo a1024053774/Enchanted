@@ -25,6 +25,7 @@
 - 主控是角色，不绑定层级：它可以在任意 pane 中运行，经控制接口操作项目级对象（窗口、任务页）和任务级对象（pane、agent），做法与 Herdr 一致。
 - 切换条件：工作台运行时上，交付、恢复、编排三套验收和一次真实 `run` 全部通过。切换前主控与 worker 继续经已安装的 Herdr 分派；切换后删除 Herdr 路径，不保留双路径。
 - a2a 与 Enchanted 的构建输出和缓存默认放在外置盘 `/Volumes/WD-Elements`；外置盘未挂载时构建必须报错，不回退到内置盘。
+- a2a 的 Rust 构建统一经仓库内 `scripts/build` 调用 Cargo；路径、工具链与 worker 构建槽的用法见 README 的“Rust 构建：外置盘入口”。直接 Cargo/Zig 或 IDE 构建绕过该入口不满足 T-026。
 - 项目开源，允许直接复用 GPL 代码；并入 GPL 代码后整体以 GPL-3.0 发布。复用不能改变已定方向。
 - 不基于 Zed 二次开发。
 - Enchanted 已于 2026-10-06 做 git 快照并冻结；其功能在 M1 之后并入工作台，不在 Enchanted 仓库继续开发。
