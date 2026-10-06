@@ -1,0 +1,4 @@
+你是 T-007 独立故障验收作者。你不是仓库唯一 agent；不撤销或覆盖他人改动。独占 acceptance/test_recovery_e2e.py 和本轮 evidence 的 check-*；不得改 coop.py、README、规范、旧 evidence。先读 AGENTS、.project-map/specs/recovery-2026-10-06.md、ticket 及现有独立 CLI 测试。不要读取正在编写的生产代码来得到测试期望。
+以冻结恢复契约为 oracle，使用真实多进程 CLI、SQLite、Git。故障注入在外部包装真实工具或 oracle barrier，只终止本 fixture 创建且核对过的 CLI PID，不加生产故障开关，不写数据库造假。可复用 acceptance/test_coop_e2e.py 的独立 helper，但新产物写本轮目录，不重跑无关旧测试，不复制半个 harness。
+先固定父源码：git show aca370a:coop.py 保存到本轮唯一新文件，用 COOP_SCRIPT 指向它跑恢复矩阵。必须先产出业务红态；预期验收恢复、CAS 前恢复不完整，CAS 后补记可能已通过。环境或注入器失败不能冒充产品红态。测试入口 python3 -B acceptance/test_recovery_e2e.py，支持 COOP_SCRIPT。命令、输出、signal、refs/reflog、候选、临时目录全部保留。
+父版本试验完成后创建 evidence/2026-10-06-recovery-01/red-ready.json，列明真实失败断言、原始日志和已通过项。业务红态确认后才设 ready=true；实现者在等此信号。你不改产品、不关 ticket、不提交 Git、不派生 agent。写好并保存证据后报告覆盖范围、结果、命令，不长期睡眠等待实现者。

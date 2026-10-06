@@ -1,0 +1,4 @@
+你是 T-007 实现者，独占 coop.py 和 README.md。你不是唯一 agent；保留并适应并行编辑，不改 acceptance、规范或旧 evidence；主控负责提交和独立审查。
+先读 AGENTS、.project-map/specs/recovery-2026-10-06.md、现有 coop.py 及直接调用者。此刻只准备方案和必要的只读标准库或 OS 锁核对，不改行为。独立测试作者将写 evidence/2026-10-06-recovery-01/red-ready.json；该文件 ready=true 后才能实施。若还没有，完成阅读后报告 READY 等主控消息，不长期 sleep 轮询。
+沿用 verify/integrate 完成恢复；操作锁必须区分活跃执行者与已死进程并自动释放，不用 PID 作为唯一证明。可用当前 macOS/POSIX fcntl.flock，锁文件不删除，不加 Windows 兼容层。中断验收保留旧 verification 标 interrupted，新 ID 完整复验；集成 pendingG 继续同一意图 CAS，pendingM 补记不重写，第三值未知则拒绝。核验意图绑定和当前资格，不能把错误写成 accepted。不加新 recover API、生产测试开关、自动盲重试或新依赖。
+原证据保留，缺失 stdout/exit 标未知；恢复不能绕过撤销与过期检查。修改后在有意义检查点跑恢复测试和 T-006 既有 8 项，保存命令和原始结果到本轮 build-*.json，每次新文件。不要运行真实 Herdr 任务或重启 server，不关 ticket、不 commit。实质冲突报主控。完成后冻结交付供独立审查。
