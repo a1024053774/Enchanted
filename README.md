@@ -1,6 +1,6 @@
 # Herdr A2A
 
-`coop.py` 是单机受管理交付入口。它用 Python 3.9 标准库、SQLite、Git 和已安装的 Herdr，把 task、attempt、submit、acceptance 和 integration 记录在磁盘上。冻结 CLI 契约见 [执行规格](.project-map/specs/managed-delivery-2026-10-06.md)。
+`coop.py` 是单机受管理交付入口。它用 Python 3.9 标准库、SQLite、Git 和已安装的 Herdr，把 task、attempt、submit、acceptance 和 integration 记录在磁盘上。冻结 CLI 契约见 [执行规格](.project-map/specs/managed-delivery-2026-10-06.md) 和 [恢复契约](.project-map/specs/recovery-2026-10-06.md)。
 
 这是同一用户下可信协作者的流程门禁。worker 仍拥有该用户的磁盘和进程权限，worktree、随机 session 和 oracle 快照都不是安全沙箱。程序不更新用户工作分支，也不 push。
 
@@ -31,7 +31,11 @@ python3 coop.py --state /absolute/state events --task example
 
 `verify` 从集成头 G 和候选 C 构造 M，在新的 detached worktree 执行 `python3 -I -B SNAPSHOT_ORACLE CANDIDATE_DIRECTORY`，超时为 60 秒。oracle 退出 0 才进入 verified；非零返回 `oracle_failed`，仍可查询完整输出。验收记录绑定 task、attempt/session/fence/spec、G/C/M 和 oracle 路径。验证目录保留，不修改 worker 的工作区。
 
-`integrate` 先持久记录 intent，再用 `git update-ref refs/a2a/integration M G` 做 CAS。集成头变化会拒绝并使旧验收失效。成功进入 accepted；重复调用不再写引用。若中断发生在引用更新后、记账前，重放仅在引用仍为 M 时补记；其他状态返回 `needs_reconciliation`，交由主控核对。
+`verify` 与 `integrate` 共用本任务的操作锁，在 SQLite 初始化前取得锁。活跃执行者持锁时，重复调用这两个命令立即返回 `operation_busy`。当前 macOS/POSIX 平台使用 `fcntl.flock`；锁由操作进程持有，子进程不继承，进程退出自动释放。锁文件保留，不根据 PID 判断所有权；`status`、`events` 等命令不取得操作锁。
+
+验收进程中断后，重新调用 `verify` 会先核验当前 attempt/session/fence/spec 和候选，将旧 verification 保留并标为 interrupted，追加 `verification_interrupted` 事件。原候选、oracle、worktree 和 command_intent 保留；缺失的旧 stdout/stderr/exit 标为未知。新 verification 使用新 ID 和独立 worktree，完整重跑冻结 oracle；孤儿 oracle 的结束不能使它通过。已撤销或过期的候选不能恢复。
+
+`integrate` 先持久记录 intent，再用 `git update-ref refs/a2a/integration M G` 做 CAS。建立 intent 前集成头变化会拒绝并使旧验收失效。成功进入 accepted；重复调用不再写引用。中断后重放须核验当前资格，以及 intent 与 verification 的身份、候选、G/C/M 和 ID 绑定。引用仍为 G 时继续同一 intent 的 CAS；已为 M 时只补记 accepted，不再次写 Git，遗失的原命令输出与退出码仍标未知。引用为第三值或不存在时返回 `needs_reconciliation`，保留 intent 和证据，交由主控核对；CAS 失败或成功后回读无法确认 M 时也保留待核对状态。
 
 ```sh
 python3 coop.py --state /absolute/state revoke --task example --reason 'retry after diagnosis'
@@ -61,15 +65,16 @@ python3 coop.py --state /absolute/state reclaim --task example
 
 ## 证据与限制
 
-`state/state.sqlite3` 保存任务、历史 attempt、验收记录及按序追加事件；`tasks/` 保存输入快照，`worktrees/` 和 `verification/` 保存执行与验证目录。Git、Herdr 和 oracle 子进程均使用 argv，不通过 shell 拼接。失败、超时和未知状态留在记录中，工作区保留供诊断；本切片没有自动清理、租约或后台重试。
+`state/state.sqlite3` 保存任务、历史 attempt、验收记录及按序追加事件；`tasks/` 保存输入快照，`worktrees/` 和 `verification/` 保存执行与验证目录，`locks/` 保存任务操作锁文件。Git、Herdr 和 oracle 子进程均使用 argv，不通过 shell 拼接。失败、超时和未知状态留在记录中，工作区保留供诊断；本切片没有自动清理、租约或后台重试。中断恢复通过再次调用原 `verify` / `integrate` 命令进行。
 
 本地 CLI 独立验收：
 
 ```sh
 python3 -B acceptance/test_coop_e2e.py
+python3 -B acceptance/test_recovery_e2e.py
 ```
 
-该套件使用独立临时 repo 和 CLI 子进程。当前第一切片 T-006 为 PASS：8 个端到端场景、有效的 gate/oracle 反事实、真实 Herdr/Codex 交付与回收，以及一次独立审查和定向复核。详情见 [运行与验收结果](evidence/2026-10-06-managed-01/RESULTS.md)。这不覆盖完整故障恢复、第二 CLI 或长期收益。
+这两个套件使用独立临时 repo 和 CLI 子进程；恢复套件保留真实进程中断、SQLite、Git refs/reflog 和 oracle 屏障的原始证据。已验收的第一切片 T-006 为 PASS：8 个端到端场景、有效的 gate/oracle 反事实、真实 Herdr/Codex 交付与回收，以及一次独立审查和定向复核。详情见 [运行与验收结果](evidence/2026-10-06-managed-01/RESULTS.md)。该历史结论不替新恢复候选背书；T-007 的本轮证据保存在 [恢复运行目录](evidence/2026-10-06-recovery-01/)，独立审查与 ticket 关闭由主控完成。当前检查不证明第二 CLI、完整故障恢复或长期收益。
 
 真实入口检查使用独立分页夹具：
 

@@ -1,0 +1,1036 @@
+{
+  "ready": true,
+  "status": "PASS",
+  "claim": "parent-business-red-established",
+  "parent_suite_status": "INCOMPLETE",
+  "ticket": "T-007",
+  "role": "recovery-check",
+  "created_at": "2026-10-06T06:07:00.250371+00:00",
+  "parent_revision": "aca370a30fb1fdd938cf89c29ffe2e2f75a21583",
+  "parent_source": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+  "parent_source_command": [
+    "git",
+    "show",
+    "aca370a:coop.py"
+  ],
+  "contract": ".project-map/specs/recovery-2026-10-06.md",
+  "command": "COOP_SCRIPT=/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py python3 -B acceptance/test_recovery_e2e.py",
+  "exit_code": 1,
+  "tests_run": 9,
+  "business_red_tests": [
+    {
+      "test": "__main__.RecoveryCLI.test_live_verify_excludes_verify_and_integrate",
+      "status": "INCOMPLETE",
+      "classification": "business-red",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 452, in test_live_verify_excludes_verify_and_integrate\n    self.finish_checks()\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 153, in finish_checks\n    self.fail(\"BUSINESS_RED \" + json.dumps(self.business_failures,\nAssertionError: BUSINESS_RED [{\"test\": \"__main__.RecoveryCLI.test_live_verify_excludes_verify_and_integrate\", \"claim\": \"Live operation excludes concurrent verify\", \"expected\": {\"ok\": false, \"error\": \"operation_busy\"}, \"observed\": {\"ok\": false, \"error\": \"not_submitted\", \"details\": {\"state\": \"verifying\"}}, \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_live_verify_excludes_verify_and_integrate\", \"claim\": \"Live operation excludes concurrent integrate\", \"expected\": {\"ok\": false, \"error\": \"operation_busy\"}, \"observed\": {\"ok\": false, \"error\": \"not_verified\", \"details\": {}}, \"pass\": false}]\n"
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_live_integrate_excludes_verify_and_integrate",
+      "status": "INCOMPLETE",
+      "classification": "business-red",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 472, in test_live_integrate_excludes_verify_and_integrate\n    self.finish_checks()\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 153, in finish_checks\n    self.fail(\"BUSINESS_RED \" + json.dumps(self.business_failures,\nAssertionError: BUSINESS_RED [{\"test\": \"__main__.RecoveryCLI.test_live_integrate_excludes_verify_and_integrate\", \"claim\": \"Concurrent verify rejects immediately\", \"expected\": \"exit within 2s\", \"observed\": \"still running after 2s\", \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_live_integrate_excludes_verify_and_integrate\", \"claim\": \"Concurrent integrate rejects immediately\", \"expected\": \"exit within 2s\", \"observed\": \"still running after 2s\", \"pass\": false}]\n"
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+      "status": "INCOMPLETE",
+      "classification": "business-red",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 540, in test_interrupted_verify_gets_new_id_worktree_and_full_oracle\n    self.finish_checks()\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 153, in finish_checks\n    self.fail(\"BUSINESS_RED \" + json.dumps(self.business_failures,\nAssertionError: BUSINESS_RED [{\"test\": \"__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle\", \"claim\": \"Recovery starts a new real independent oracle\", \"expected\": \"new oracle barrier\", \"observed\": null, \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle\", \"claim\": \"Fresh verify recovers after original CLI SIGKILL\", \"expected\": {\"ok\": true, \"error\": null}, \"observed\": {\"ok\": false, \"error\": \"not_submitted\", \"details\": {\"state\": \"verifying\"}}, \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle\", \"claim\": \"Recovery creates a new verification ID\", \"expected\": \"different from d9462209ebd94a889159f980307a9a24\", \"observed\": \"d9462209ebd94a889159f980307a9a24\", \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle\", \"claim\": \"Old verification persists with explicit interrupted status\", \"expected\": \"interrupted\", \"observed\": [{\"verification_id\": \"d9462209ebd94a889159f980307a9a24\", \"task_id\": \"check-30413ab910e341dca22125b350b7cbad\", \"attempt_id\": \"99bee2960a2f4453b793183cf41e60ee\", \"session_id\": \"68f4203fe4b64a3dbcaed31e84a19af7\", \"fence\": 1, \"spec_rev\": 1, \"G\": \"33c822aba405d6b95c7c0782dcea2878c800db22\", \"C\": \"743f56086f357fa7d7ba16990ee17cc5f47bed15\", \"M\": \"743f56086f357fa7d7ba16990ee17cc5f47bed15\", \"oracle\": \"/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state/tasks/check-30413ab910e341dca22125b350b7cbad-0b6ceb10ecb84719b1a98eca7ea428bc/oracle.py\", \"state\": \"running\", \"started\": \"2026-10-06T06:06:23.229916+00:00\", \"workspace\": \"/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state/verification/d9462209ebd94a889159f980307a9a24\"}], \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle\", \"claim\": \"Recovery appends verification_interrupted event\", \"expected\": \"verification_interrupted\", \"observed\": [{\"seq\": 37, \"time\": \"2026-10-06T06:06:23.450438+00:00\", \"type\": \"rejected\", \"task\": \"check-30413ab910e341dca22125b350b7cbad\", \"attempt\": null, \"details\": {\"command\": \"verify\", \"error\": \"not_submitted\", \"details\": {\"state\": \"verifying\"}, \"input\": {\"state\": \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state\", \"command\": \"verify\", \"task\": \"check-30413ab910e341dca22125b350b7cbad\"}}}], \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle\", \"claim\": \"Verified state is bound to the complete new oracle exit\", \"expected\": \"new oracle exit 0\", \"observed\": {}, \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle\", \"claim\": \"Only the complete new oracle verifies\", \"expected\": \"verified\", \"observed\": \"verifying\", \"pass\": false}]\n"
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once",
+      "status": "INCOMPLETE",
+      "classification": "business-red",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 582, in test_before_CAS_recovers_same_intent_once\n    self.recover_integration(\"before\")\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 579, in recover_integration\n    self.finish_checks()\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py\", line 153, in finish_checks\n    self.fail(\"BUSINESS_RED \" + json.dumps(self.business_failures,\nAssertionError: BUSINESS_RED [{\"test\": \"__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once\", \"claim\": \"Integrate recovers the original before-CAS intent\", \"expected\": {\"ok\": true, \"error\": null}, \"observed\": {\"ok\": false, \"error\": \"needs_reconciliation\", \"details\": {\"integration_intent\": {\"intent_id\": \"6ea11cce59b9466e8a1330c89c2ca2e5\", \"G\": \"73963727561c0f44c5a1533bba7c082542d934ac\", \"M\": \"448d70b1a32e665e6a186359c0afe5b8c0bcd2ce\", \"verification_id\": \"0e28bbda3c964272b3645e42272268f6\", \"attempt_id\": \"f32d16a98cfa4e9a9871e6b2aa553313\", \"state\": \"pending\", \"created\": \"2026-10-06T06:06:25.149245+00:00\"}, \"actual\": \"73963727561c0f44c5a1533bba7c082542d934ac\"}}, \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once\", \"claim\": \"Recovered integration becomes accepted\", \"expected\": \"accepted\", \"observed\": \"integrating\", \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once\", \"claim\": \"Recovered integration points at the verified candidate\", \"expected\": \"448d70b1a32e665e6a186359c0afe5b8c0bcd2ce\", \"observed\": \"73963727561c0f44c5a1533bba7c082542d934ac\", \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once\", \"claim\": \"Recovery performs exactly the missing Git effect\", \"expected\": 1, \"observed\": 0, \"pass\": false}, {\"test\": \"__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once\", \"claim\": \"Recovery does not issue a duplicate CAS after Git already changed\", \"expected\": 1, \"observed\": 0, \"pass\": false}]\n"
+    }
+  ],
+  "failed_assertions": [
+    {
+      "test": "__main__.RecoveryCLI.test_live_verify_excludes_verify_and_integrate",
+      "claim": "Live operation excludes concurrent verify",
+      "expected": {
+        "ok": false,
+        "error": "operation_busy"
+      },
+      "observed": {
+        "ok": false,
+        "error": "not_submitted",
+        "details": {
+          "state": "verifying"
+        }
+      },
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_live_verify_excludes_verify_and_integrate",
+      "claim": "Live operation excludes concurrent integrate",
+      "expected": {
+        "ok": false,
+        "error": "operation_busy"
+      },
+      "observed": {
+        "ok": false,
+        "error": "not_verified",
+        "details": {}
+      },
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_live_integrate_excludes_verify_and_integrate",
+      "claim": "Concurrent verify rejects immediately",
+      "expected": "exit within 2s",
+      "observed": "still running after 2s",
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_live_integrate_excludes_verify_and_integrate",
+      "claim": "Concurrent integrate rejects immediately",
+      "expected": "exit within 2s",
+      "observed": "still running after 2s",
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+      "claim": "Recovery starts a new real independent oracle",
+      "expected": "new oracle barrier",
+      "observed": null,
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+      "claim": "Fresh verify recovers after original CLI SIGKILL",
+      "expected": {
+        "ok": true,
+        "error": null
+      },
+      "observed": {
+        "ok": false,
+        "error": "not_submitted",
+        "details": {
+          "state": "verifying"
+        }
+      },
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+      "claim": "Recovery creates a new verification ID",
+      "expected": "different from d9462209ebd94a889159f980307a9a24",
+      "observed": "d9462209ebd94a889159f980307a9a24",
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+      "claim": "Old verification persists with explicit interrupted status",
+      "expected": "interrupted",
+      "observed": [
+        {
+          "verification_id": "d9462209ebd94a889159f980307a9a24",
+          "task_id": "check-30413ab910e341dca22125b350b7cbad",
+          "attempt_id": "99bee2960a2f4453b793183cf41e60ee",
+          "session_id": "68f4203fe4b64a3dbcaed31e84a19af7",
+          "fence": 1,
+          "spec_rev": 1,
+          "G": "33c822aba405d6b95c7c0782dcea2878c800db22",
+          "C": "743f56086f357fa7d7ba16990ee17cc5f47bed15",
+          "M": "743f56086f357fa7d7ba16990ee17cc5f47bed15",
+          "oracle": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state/tasks/check-30413ab910e341dca22125b350b7cbad-0b6ceb10ecb84719b1a98eca7ea428bc/oracle.py",
+          "state": "running",
+          "started": "2026-10-06T06:06:23.229916+00:00",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state/verification/d9462209ebd94a889159f980307a9a24"
+        }
+      ],
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+      "claim": "Recovery appends verification_interrupted event",
+      "expected": "verification_interrupted",
+      "observed": [
+        {
+          "seq": 37,
+          "time": "2026-10-06T06:06:23.450438+00:00",
+          "type": "rejected",
+          "task": "check-30413ab910e341dca22125b350b7cbad",
+          "attempt": null,
+          "details": {
+            "command": "verify",
+            "error": "not_submitted",
+            "details": {
+              "state": "verifying"
+            },
+            "input": {
+              "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state",
+              "command": "verify",
+              "task": "check-30413ab910e341dca22125b350b7cbad"
+            }
+          }
+        }
+      ],
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+      "claim": "Verified state is bound to the complete new oracle exit",
+      "expected": "new oracle exit 0",
+      "observed": {},
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+      "claim": "Only the complete new oracle verifies",
+      "expected": "verified",
+      "observed": "verifying",
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once",
+      "claim": "Integrate recovers the original before-CAS intent",
+      "expected": {
+        "ok": true,
+        "error": null
+      },
+      "observed": {
+        "ok": false,
+        "error": "needs_reconciliation",
+        "details": {
+          "integration_intent": {
+            "intent_id": "6ea11cce59b9466e8a1330c89c2ca2e5",
+            "G": "73963727561c0f44c5a1533bba7c082542d934ac",
+            "M": "448d70b1a32e665e6a186359c0afe5b8c0bcd2ce",
+            "verification_id": "0e28bbda3c964272b3645e42272268f6",
+            "attempt_id": "f32d16a98cfa4e9a9871e6b2aa553313",
+            "state": "pending",
+            "created": "2026-10-06T06:06:25.149245+00:00"
+          },
+          "actual": "73963727561c0f44c5a1533bba7c082542d934ac"
+        }
+      },
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once",
+      "claim": "Recovered integration becomes accepted",
+      "expected": "accepted",
+      "observed": "integrating",
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once",
+      "claim": "Recovered integration points at the verified candidate",
+      "expected": "448d70b1a32e665e6a186359c0afe5b8c0bcd2ce",
+      "observed": "73963727561c0f44c5a1533bba7c082542d934ac",
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once",
+      "claim": "Recovery performs exactly the missing Git effect",
+      "expected": 1,
+      "observed": 0,
+      "pass": false
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once",
+      "claim": "Recovery does not issue a duplicate CAS after Git already changed",
+      "expected": 1,
+      "observed": 0,
+      "pass": false
+    }
+  ],
+  "passed_items": [
+    {
+      "test": "__main__.RecoveryCLI.test_after_CAS_recovers_bookkeeping_without_Git_write",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_after_CAS_external_X_requires_reconciliation",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_after_CAS_deleted_ref_requires_reconciliation",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_revoke_reclaim_rejects_old_identity",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.RecoveryCLI.test_interrupted_verify_spec_change_rejects_old_candidate",
+      "status": "PASS"
+    }
+  ],
+  "fixture_errors": [],
+  "raw_logs": {
+    "evidence": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-20261006T060615.461887Z-464eb642.json",
+    "stdout_and_stderr": "Preserved verbatim in evidence stdout/stderr fields.",
+    "trace_path": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/subprocess-trace.json",
+    "artifact_root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql",
+    "per_test_artifacts": [
+      {
+        "test": "__main__.RecoveryCLI.test_live_verify_excludes_verify_and_integrate",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/isolated state",
+        "base_commit": "b7b03cafb076b0b2ade5a9b2e01711e4d8e55a43",
+        "task": "check-250e59331f6a48a4a25222f66c8ea01b",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/snapshot-002-live-oracle.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/snapshot-005-live-oracle-released.json"
+        ],
+        "signals": [],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/oracle barrier/9e21d81811cc4744b9495f4813e22df7.entry.json",
+            "pid": 4874,
+            "ppid": 4868,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/isolated state/tasks/check-250e59331f6a48a4a25222f66c8ea01b-da5057f0711c4a23baa9c9739ed6f8eb/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/isolated state/verification/2552ea10b7d942b4bfb6f600b1344763"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/isolated state/verification/2552ea10b7d942b4bfb6f600b1344763",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/oracle barrier/9e21d81811cc4744b9495f4813e22df7.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/oracle barrier/9e21d81811cc4744b9495f4813e22df7.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:16.153207+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-250e59331f6a48a4a25222f66c8ea01b",
+          "attempt_id": "f4d0a370c6b54b258f1403df79b7dcf5",
+          "session_id": "ebf3ca4ecee0497480b1c832d4f9c4c5",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_verify_excludes_verify_and_integrate-rflo4fse/isolated state/worktrees/f4d0a370c6b54b258f1403df79b7dcf5",
+          "base_commit": "b7b03cafb076b0b2ade5a9b2e01711e4d8e55a43",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "a42217b76801080ae9985e0dcea58fe34a82016e"
+      },
+      {
+        "test": "__main__.RecoveryCLI.test_live_integrate_excludes_verify_and_integrate",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state",
+        "base_commit": "00d3142e42c7bb4dfa925c124c08c06ba1f9c13a",
+        "task": "check-36bf60ea20c2490dbc301fbc057dd56a",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/snapshot-003-live-integrate.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/snapshot-006-live-integrate-released.json"
+        ],
+        "signals": [
+          {
+            "pid": 4976,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state",
+              "verify",
+              "--task",
+              "check-36bf60ea20c2490dbc301fbc057dd56a"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "concurrent command did not reject promptly",
+            "identity_check": " 4976  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state verify --task check-36bf60ea20c2490dbc301fbc057dd56a\n",
+            "at": "2026-10-06T06:06:20.713108+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          },
+          {
+            "pid": 4984,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state",
+              "integrate",
+              "--task",
+              "check-36bf60ea20c2490dbc301fbc057dd56a"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "concurrent command did not reject promptly",
+            "identity_check": " 4984  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state integrate --task check-36bf60ea20c2490dbc301fbc057dd56a\n",
+            "at": "2026-10-06T06:06:22.733218+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          }
+        ],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/oracle barrier/62ece6e8735041fea1e56f1585c65362.entry.json",
+            "pid": 4937,
+            "ppid": 4931,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state/tasks/check-36bf60ea20c2490dbc301fbc057dd56a-148fb8cb92ed43d5b0ea05af2d6adaf6/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state/verification/429c2895fd8f46469cc6afa6b41f2262"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state/verification/429c2895fd8f46469cc6afa6b41f2262",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/oracle barrier/62ece6e8735041fea1e56f1585c65362.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/oracle barrier/62ece6e8735041fea1e56f1585c65362.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:17.019540+00:00"
+          },
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/git barrier before/cebea0426196488297f87911b72a8c68.entry.json",
+            "pid": 4962,
+            "ppid": 4950,
+            "argv": [
+              "/opt/homebrew/bin/git",
+              "-C",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated repo",
+              "update-ref",
+              "refs/a2a/integration",
+              "42cc438e2635948165beddbdd30161f3f20cd193",
+              "00d3142e42c7bb4dfa925c124c08c06ba1f9c13a"
+            ],
+            "phase": "before",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/git barrier before/cebea0426196488297f87911b72a8c68.release"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/git barrier before/cebea0426196488297f87911b72a8c68.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:22.738594+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-36bf60ea20c2490dbc301fbc057dd56a",
+          "attempt_id": "4091d56c489e4dc3bb2783f11738ee1c",
+          "session_id": "ccb9cbbe1f6c4678890cd04ffb75f274",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_live_integrate_excludes_verify_and_integrate-l0f6jdr4/isolated state/worktrees/4091d56c489e4dc3bb2783f11738ee1c",
+          "base_commit": "00d3142e42c7bb4dfa925c124c08c06ba1f9c13a",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "42cc438e2635948165beddbdd30161f3f20cd193"
+      },
+      {
+        "test": "__main__.RecoveryCLI.test_interrupted_verify_gets_new_id_worktree_and_full_oracle",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state",
+        "base_commit": "33c822aba405d6b95c7c0782dcea2878c800db22",
+        "task": "check-30413ab910e341dca22125b350b7cbad",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/snapshot-002-before-verify-kill.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/snapshot-004-after-verify-recovery.json"
+        ],
+        "signals": [
+          {
+            "pid": 5024,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state",
+              "verify",
+              "--task",
+              "check-30413ab910e341dca22125b350b7cbad"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "active independent oracle",
+            "identity_check": " 5024  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state verify --task check-30413ab910e341dca22125b350b7cbad\n",
+            "at": "2026-10-06T06:06:23.418069+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          }
+        ],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/oracle barrier/9429db84b8ba4e69b72de126d6b6120a.entry.json",
+            "pid": 5030,
+            "ppid": 5024,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state/tasks/check-30413ab910e341dca22125b350b7cbad-0b6ceb10ecb84719b1a98eca7ea428bc/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state/verification/d9462209ebd94a889159f980307a9a24"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state/verification/d9462209ebd94a889159f980307a9a24",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/oracle barrier/9429db84b8ba4e69b72de126d6b6120a.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/oracle barrier/9429db84b8ba4e69b72de126d6b6120a.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:23.471673+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-30413ab910e341dca22125b350b7cbad",
+          "attempt_id": "99bee2960a2f4453b793183cf41e60ee",
+          "session_id": "68f4203fe4b64a3dbcaed31e84a19af7",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_gets_new_id_worktree_and_full_oracle-1jymn94i/isolated state/worktrees/99bee2960a2f4453b793183cf41e60ee",
+          "base_commit": "33c822aba405d6b95c7c0782dcea2878c800db22",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "743f56086f357fa7d7ba16990ee17cc5f47bed15"
+      },
+      {
+        "test": "__main__.RecoveryCLI.test_before_CAS_recovers_same_intent_once",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated state",
+        "base_commit": "73963727561c0f44c5a1533bba7c082542d934ac",
+        "task": "check-442ef460e99148f3a6007cef8d8c8343",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/snapshot-003-at-before-CAS-barrier.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/snapshot-004-after-before-CAS-recovery.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/snapshot-005-after-integration-replay.json"
+        ],
+        "signals": [
+          {
+            "pid": 5112,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated state",
+              "integrate",
+              "--task",
+              "check-442ef460e99148f3a6007cef8d8c8343"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "before real Git CAS",
+            "identity_check": " 5112  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated state integrate --task check-442ef460e99148f3a6007cef8d8c8343\n",
+            "at": "2026-10-06T06:06:25.373098+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          }
+        ],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/oracle barrier/591f9eb6ff084f12bc8c8c734f204dab.entry.json",
+            "pid": 5099,
+            "ppid": 5093,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated state/tasks/check-442ef460e99148f3a6007cef8d8c8343-62819ad0f0464826928fdb469624fd2e/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated state/verification/0e28bbda3c964272b3645e42272268f6"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated state/verification/0e28bbda3c964272b3645e42272268f6",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/oracle barrier/591f9eb6ff084f12bc8c8c734f204dab.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/oracle barrier/591f9eb6ff084f12bc8c8c734f204dab.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:24.223786+00:00"
+          },
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/git barrier before/ebeddd1359e545b99c11445e658389ff.entry.json",
+            "pid": 5114,
+            "ppid": 5112,
+            "argv": [
+              "/opt/homebrew/bin/git",
+              "-C",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated repo",
+              "update-ref",
+              "refs/a2a/integration",
+              "448d70b1a32e665e6a186359c0afe5b8c0bcd2ce",
+              "73963727561c0f44c5a1533bba7c082542d934ac"
+            ],
+            "phase": "before",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/git barrier before/ebeddd1359e545b99c11445e658389ff.release"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/git barrier before/ebeddd1359e545b99c11445e658389ff.entry.json",
+            "action": "abort",
+            "at": "2026-10-06T06:06:25.374835+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-442ef460e99148f3a6007cef8d8c8343",
+          "attempt_id": "f32d16a98cfa4e9a9871e6b2aa553313",
+          "session_id": "3c062d3423124572b4009249504c0822",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_before_CAS_recovers_same_intent_once-1qx85hsu/isolated state/worktrees/f32d16a98cfa4e9a9871e6b2aa553313",
+          "base_commit": "73963727561c0f44c5a1533bba7c082542d934ac",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "448d70b1a32e665e6a186359c0afe5b8c0bcd2ce"
+      },
+      {
+        "test": "__main__.RecoveryCLI.test_after_CAS_recovers_bookkeeping_without_Git_write",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated state",
+        "base_commit": "f87379b93f92f0a7fcdb1762f2187ddb57d4a789",
+        "task": "check-a07ed245b4df4f45bd9e720e48bb5c7c",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/snapshot-003-at-after-CAS-barrier.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/snapshot-004-after-after-CAS-recovery.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/snapshot-005-after-integration-replay.json"
+        ],
+        "signals": [
+          {
+            "pid": 5197,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated state",
+              "integrate",
+              "--task",
+              "check-a07ed245b4df4f45bd9e720e48bb5c7c"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "after real Git CAS",
+            "identity_check": " 5197  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated state integrate --task check-a07ed245b4df4f45bd9e720e48bb5c7c\n",
+            "at": "2026-10-06T06:06:27.699845+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          }
+        ],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/oracle barrier/723ad86a72384f289224e471a148fdbb.entry.json",
+            "pid": 5184,
+            "ppid": 5177,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated state/tasks/check-a07ed245b4df4f45bd9e720e48bb5c7c-2f741ad7116a47769d3bc28fe820268f/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated state/verification/657d099ebdf64bd88727fb2afb13f91b"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated state/verification/657d099ebdf64bd88727fb2afb13f91b",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/oracle barrier/723ad86a72384f289224e471a148fdbb.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/oracle barrier/723ad86a72384f289224e471a148fdbb.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:26.502950+00:00"
+          },
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/git barrier after/c86d22d925e54cb7af0077a99e8b287e.entry.json",
+            "pid": 5199,
+            "ppid": 5197,
+            "argv": [
+              "/opt/homebrew/bin/git",
+              "-C",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated repo",
+              "update-ref",
+              "refs/a2a/integration",
+              "13b71f46a65c80c62821ee8abfcf4b6b6c17efb7",
+              "f87379b93f92f0a7fcdb1762f2187ddb57d4a789"
+            ],
+            "phase": "after",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/git barrier after/c86d22d925e54cb7af0077a99e8b287e.release",
+            "executed_real_git": true,
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/git barrier after/c86d22d925e54cb7af0077a99e8b287e.entry.json",
+            "action": "abort",
+            "at": "2026-10-06T06:06:27.701567+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-a07ed245b4df4f45bd9e720e48bb5c7c",
+          "attempt_id": "835684c7a32f41a5a90c20586567a773",
+          "session_id": "79a40a2ba96f43ed8f410b5e09649365",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_recovers_bookkeeping_without_Git_write-d6cgssb3/isolated state/worktrees/835684c7a32f41a5a90c20586567a773",
+          "base_commit": "f87379b93f92f0a7fcdb1762f2187ddb57d4a789",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "13b71f46a65c80c62821ee8abfcf4b6b6c17efb7"
+      },
+      {
+        "test": "__main__.RecoveryCLI.test_after_CAS_external_X_requires_reconciliation",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated state",
+        "base_commit": "ba71825ba683af3f281ab2b2bd616c1d4ee8613e",
+        "task": "check-8c39bddb050e48e99f9f3fc09b1e9ff9",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/snapshot-003-at-after-CAS-barrier.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/snapshot-004-unknown-ref-rejected.json"
+        ],
+        "signals": [
+          {
+            "pid": 5298,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated state",
+              "integrate",
+              "--task",
+              "check-8c39bddb050e48e99f9f3fc09b1e9ff9"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "after real Git CAS",
+            "identity_check": " 5298  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated state integrate --task check-8c39bddb050e48e99f9f3fc09b1e9ff9\n",
+            "at": "2026-10-06T06:06:29.848535+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          }
+        ],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/oracle barrier/483c075bf99a4088a0ffc448e139dc94.entry.json",
+            "pid": 5282,
+            "ppid": 5274,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated state/tasks/check-8c39bddb050e48e99f9f3fc09b1e9ff9-393336e7d660463bab5f86f9ed9d5ac6/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated state/verification/cd1846fd077c4cd1b5219a695a50aa29"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated state/verification/cd1846fd077c4cd1b5219a695a50aa29",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/oracle barrier/483c075bf99a4088a0ffc448e139dc94.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/oracle barrier/483c075bf99a4088a0ffc448e139dc94.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:28.724712+00:00"
+          },
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/git barrier after/b0f07d992c444bc9bf32b2e9485b040b.entry.json",
+            "pid": 5306,
+            "ppid": 5298,
+            "argv": [
+              "/opt/homebrew/bin/git",
+              "-C",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated repo",
+              "update-ref",
+              "refs/a2a/integration",
+              "6e5dfa1f68673fdae14ff355be9f99ccf0aed789",
+              "ba71825ba683af3f281ab2b2bd616c1d4ee8613e"
+            ],
+            "phase": "after",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/git barrier after/b0f07d992c444bc9bf32b2e9485b040b.release",
+            "executed_real_git": true,
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/git barrier after/b0f07d992c444bc9bf32b2e9485b040b.entry.json",
+            "action": "abort",
+            "at": "2026-10-06T06:06:29.850203+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-8c39bddb050e48e99f9f3fc09b1e9ff9",
+          "attempt_id": "3ce6e47013b34963bd770f38f1a5c7cf",
+          "session_id": "9a4982e3c650413e8785b1dbfa7dabd0",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_external_X_requires_reconciliation-otp_b0rp/isolated state/worktrees/3ce6e47013b34963bd770f38f1a5c7cf",
+          "base_commit": "ba71825ba683af3f281ab2b2bd616c1d4ee8613e",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "6e5dfa1f68673fdae14ff355be9f99ccf0aed789"
+      },
+      {
+        "test": "__main__.RecoveryCLI.test_after_CAS_deleted_ref_requires_reconciliation",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated state",
+        "base_commit": "6cc1b70e5bc8e71029c4770cd88e041675164949",
+        "task": "check-1b233d1ec2434c7a924a88d5b88cd54e",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/snapshot-003-at-after-CAS-barrier.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/snapshot-004-unknown-ref-rejected.json"
+        ],
+        "signals": [
+          {
+            "pid": 5415,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated state",
+              "integrate",
+              "--task",
+              "check-1b233d1ec2434c7a924a88d5b88cd54e"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "after real Git CAS",
+            "identity_check": " 5415  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated state integrate --task check-1b233d1ec2434c7a924a88d5b88cd54e\n",
+            "at": "2026-10-06T06:06:32.390753+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          }
+        ],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/oracle barrier/70e8e96825684d04aed04d032b5b497e.entry.json",
+            "pid": 5398,
+            "ppid": 5392,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated state/tasks/check-1b233d1ec2434c7a924a88d5b88cd54e-f6d5002fc6b048da8b6d2d247fb9c8d6/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated state/verification/56599d6beedb47ee8d19c9f7fdf63e0c"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated state/verification/56599d6beedb47ee8d19c9f7fdf63e0c",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/oracle barrier/70e8e96825684d04aed04d032b5b497e.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/oracle barrier/70e8e96825684d04aed04d032b5b497e.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:31.206140+00:00"
+          },
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/git barrier after/5947af3531ad463ba1fb86d859455b99.entry.json",
+            "pid": 5418,
+            "ppid": 5415,
+            "argv": [
+              "/opt/homebrew/bin/git",
+              "-C",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated repo",
+              "update-ref",
+              "refs/a2a/integration",
+              "9b18dc0be1ea2e151c16f7c74895c5800d25331e",
+              "6cc1b70e5bc8e71029c4770cd88e041675164949"
+            ],
+            "phase": "after",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/git barrier after/5947af3531ad463ba1fb86d859455b99.release",
+            "executed_real_git": true,
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/git barrier after/5947af3531ad463ba1fb86d859455b99.entry.json",
+            "action": "abort",
+            "at": "2026-10-06T06:06:32.392525+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-1b233d1ec2434c7a924a88d5b88cd54e",
+          "attempt_id": "4f39bc74dd07463aa0b8395c65135335",
+          "session_id": "2e813514416343a1ad92457a6ea71435",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_after_CAS_deleted_ref_requires_reconciliation-h58_qh_p/isolated state/worktrees/4f39bc74dd07463aa0b8395c65135335",
+          "base_commit": "6cc1b70e5bc8e71029c4770cd88e041675164949",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "9b18dc0be1ea2e151c16f7c74895c5800d25331e"
+      },
+      {
+        "test": "__main__.RecoveryCLI.test_interrupted_verify_revoke_reclaim_rejects_old_identity",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state",
+        "base_commit": "3a86a0e914237a1f91a30bfe202e0f5200197228",
+        "task": "check-be7adc69c2094dd7a3311668c4fd722a",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/snapshot-002-before-stale-verify-kill.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/snapshot-004-replacement-accepted.json"
+        ],
+        "signals": [
+          {
+            "pid": 5495,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state",
+              "verify",
+              "--task",
+              "check-be7adc69c2094dd7a3311668c4fd722a"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "verify before identity invalidation",
+            "identity_check": " 5495  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state verify --task check-be7adc69c2094dd7a3311668c4fd722a\n",
+            "at": "2026-10-06T06:06:33.804603+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          }
+        ],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/oracle barrier/855092d9138049f7ab39b9e549392e24.entry.json",
+            "pid": 5501,
+            "ppid": 5495,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state/tasks/check-be7adc69c2094dd7a3311668c4fd722a-370046ea66e84145ada35b42a8e40ea6/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state/verification/c023a83fcb4f4e898a1e7c727dcbcb91"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state/verification/c023a83fcb4f4e898a1e7c727dcbcb91",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/oracle barrier/855092d9138049f7ab39b9e549392e24.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/oracle barrier/855092d9138049f7ab39b9e549392e24.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:34.001915+00:00"
+          },
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/oracle barrier/f06f65eb4d174793abbce6a470ba0b45.entry.json",
+            "pid": 5552,
+            "ppid": 5546,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state/tasks/check-be7adc69c2094dd7a3311668c4fd722a-370046ea66e84145ada35b42a8e40ea6/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state/verification/130c123f2b514d0caacd4d8eb1685d06"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state/verification/130c123f2b514d0caacd4d8eb1685d06",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/oracle barrier/f06f65eb4d174793abbce6a470ba0b45.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/oracle barrier/f06f65eb4d174793abbce6a470ba0b45.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:34.793290+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-be7adc69c2094dd7a3311668c4fd722a",
+          "attempt_id": "31f6ef4c3b044fab8a2bf17041ec970f",
+          "session_id": "2f711536d1d440989fb5c8a136d7adf7",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_revoke_reclaim_rejects_old_identity-3t_pxccl/isolated state/worktrees/31f6ef4c3b044fab8a2bf17041ec970f",
+          "base_commit": "3a86a0e914237a1f91a30bfe202e0f5200197228",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "fd9228ebd4abdab7180461c6064695281fd1ea29"
+      },
+      {
+        "test": "__main__.RecoveryCLI.test_interrupted_verify_spec_change_rejects_old_candidate",
+        "root": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p",
+        "repo": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated repo",
+        "state": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state",
+        "base_commit": "7875ae562d61bb3e6f919baeba9d89f786a543cf",
+        "task": "check-aac3239beac54b23b32b69520ba7fad9",
+        "oracle_control": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/oracle barrier",
+        "snapshots": [
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/snapshot-002-before-stale-verify-kill.json",
+          "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/snapshot-004-replacement-accepted.json"
+        ],
+        "signals": [
+          {
+            "pid": 5606,
+            "argv": [
+              "/Library/Developer/CommandLineTools/usr/bin/python3",
+              "-B",
+              "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py",
+              "--state",
+              "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state",
+              "verify",
+              "--task",
+              "check-aac3239beac54b23b32b69520ba7fad9"
+            ],
+            "signal": "SIGKILL",
+            "signal_number": 9,
+            "reason": "verify before identity invalidation",
+            "identity_check": " 5606  4837 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-parent-aca370a-aa00373174a0.py --state /var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state verify --task check-aac3239beac54b23b32b69520ba7fad9\n",
+            "at": "2026-10-06T06:06:35.850771+00:00",
+            "exit_code": -9,
+            "alive_after": false
+          }
+        ],
+        "barriers": [
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/oracle barrier/a22c0c7813114b818a7c061fcbbd77dd.entry.json",
+            "pid": 5612,
+            "ppid": 5606,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state/tasks/check-aac3239beac54b23b32b69520ba7fad9-b9f525aadcfa4124a1e85cfa99b681e5/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state/verification/06d78ce4df5645f7a50e841494471b46"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state/verification/06d78ce4df5645f7a50e841494471b46",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/oracle barrier/a22c0c7813114b818a7c061fcbbd77dd.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/oracle barrier/a22c0c7813114b818a7c061fcbbd77dd.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:36.100319+00:00"
+          },
+          {
+            "entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/oracle barrier/d3c8ab8439b64bd899c2b12e38a0209d.entry.json",
+            "pid": 5697,
+            "ppid": 5691,
+            "argv": [
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state/tasks/check-aac3239beac54b23b32b69520ba7fad9-b9f525aadcfa4124a1e85cfa99b681e5/oracle.py",
+              "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state/verification/f16e3e5613f44db5b6ffb2960eb0c648"
+            ],
+            "candidate_directory": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state/verification/f16e3e5613f44db5b6ffb2960eb0c648",
+            "release": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/oracle barrier/d3c8ab8439b64bd899c2b12e38a0209d.release",
+            "phase": "oracle"
+          },
+          {
+            "released_entry": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/oracle barrier/d3c8ab8439b64bd899c2b12e38a0209d.entry.json",
+            "action": "continue",
+            "at": "2026-10-06T06:06:36.789479+00:00"
+          }
+        ],
+        "attempt": {
+          "task_id": "check-aac3239beac54b23b32b69520ba7fad9",
+          "attempt_id": "7caeff39a6c74b45b74f7b58b8691643",
+          "session_id": "7a8368fd9a8f4a28837189eb7cf2e873",
+          "fence": 1,
+          "spec_rev": 1,
+          "owner": "independent-check",
+          "workspace": "/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-recovery-check-pz7n_9ql/test_interrupted_verify_spec_change_rejects_old_candidate-jczqti9p/isolated state/worktrees/7caeff39a6c74b45b74f7b58b8691643",
+          "base_commit": "7875ae562d61bb3e6f919baeba9d89f786a543cf",
+          "state": "claimed",
+          "dispatch": null
+        },
+        "candidate_commit": "40640e11305bd441d7c90d59a52e96059bc65398"
+      }
+    ]
+  },
+  "previous_runs_retained": [
+    "check-20261006T060434.951455Z-8674cac3.json",
+    "check-20261006T060526.582230Z-9dac2832.json"
+  ],
+  "excluded_evidence": "First run had five observer-schema fixture errors; none count as product red. Final run has zero fixture errors.",
+  "final_state_evidence": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-06-recovery-01/check-final-state-712dd55a41f0.json",
+  "limitations": [
+    "No repaired production candidate run in this author session.",
+    "No T-006 suite rerun or new gate mutant; controller follow-up.",
+    "Independent completion review remains controller-owned."
+  ]
+}

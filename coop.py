@@ -2,8 +2,9 @@
 """Single-host managed delivery for trusted collaborators, not an OS sandbox."""
 
 import argparse
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from datetime import datetime, timezone
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -69,6 +70,20 @@ def text_input(value):
     require(bool(value.strip()) and not any(ord(c) < 32 for c in value),
             "invalid_text")
     return value
+
+
+@contextmanager
+def operation_lock(state, task_id):
+    directory = absolute(state) / "locks"
+    directory.mkdir(parents=True, exist_ok=True)
+    # Keep the inode: unlinking could let another caller lock a different file.
+    # Python opens this descriptor non-inheritable; subprocesses do not own it.
+    with (directory / (identifier(task_id) + ".lock")).open("a") as lock:
+        try:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise Refusal("operation_busy")
+        yield
 
 
 class Coop:
@@ -314,11 +329,44 @@ class Coop:
             self.event("submitted", {"commit": args.commit, "spec_rev": args.spec_rev}, args.attempt)
         return {"task": self.public_task(task)}
 
+    def check_verification(self, task, attempt, verification):
+        require(isinstance(verification, dict) and
+                task["task_id"] == attempt["task_id"] == verification.get("task_id") == self.task_id and
+                task["current_attempt"] == attempt["attempt_id"] == verification.get("attempt_id") and
+                attempt["state"] == "submitted" and
+                verification.get("session_id") == attempt["session_id"] and
+                verification.get("fence") == attempt["fence"] == task["fence"] and
+                verification.get("spec_rev") == attempt["spec_rev"] == task["spec_rev"] and
+                verification.get("C") == task["candidate_commit"] and
+                verification.get("oracle") == task["oracle"], "stale_verification")
+        require(self.load("verifications", verification["verification_id"]) == verification,
+                "stale_verification")
+
     def verify(self, args):
+        with self.transaction():
+            task = self.task()
+            if task["state"] == "verifying":
+                previous = task["verification"]
+                self.check_verification(task, self.current(task), previous)
+                require(previous["state"] == "running" and task["integration_intent"] is None,
+                        "needs_reconciliation")
+                previous.update(state="interrupted", ended=now())
+                if "result" not in previous:
+                    previous["result"] = {"outcome": "unknown", "returncode": None,
+                                          "stdout": None, "stderr": None}
+                self.save("verifications", previous["verification_id"], previous)
+                task.update(state="submitted", verification=previous)
+                self.save("tasks", self.task_id, task)
+                self.event("verification_interrupted", previous, previous["attempt_id"])
         with self.transaction():
             task = self.task()
             require(task["state"] == "submitted", "not_submitted", state=task["state"])
             attempt = self.current(task)
+            require(attempt["state"] == "submitted" and attempt["task_id"] == self.task_id and
+                    attempt["fence"] == task["fence"] and
+                    attempt["spec_rev"] == task["spec_rev"] and task["candidate_commit"] is not None,
+                    "stale_attempt")
+            require(task["integration_intent"] is None, "needs_reconciliation")
             g = self.integration_head(task["repo"])
             require(g is not None, "integration_conflict")
             self.commit_exists(task["repo"], g)
@@ -403,24 +451,30 @@ class Coop:
             verification = task["verification"]
             attempt = self.current(task)
             require(verification is not None and verification["state"] == "passed", "not_verified")
-            require(verification["attempt_id"] == attempt["attempt_id"] and
-                    verification["session_id"] == attempt["session_id"] and
-                    verification["fence"] == attempt["fence"] and
-                    verification["spec_rev"] == task["spec_rev"] and
-                    verification["C"] == task["candidate_commit"], "stale_verification")
+            self.check_verification(task, attempt, verification)
+            binding = {key: verification[key] for key in
+                       ("task_id", "attempt_id", "session_id", "fence", "spec_rev",
+                        "G", "C", "M", "verification_id")}
             actual = self.integration_head(task["repo"])
             if intent is not None:
-                require(intent["state"] == "pending" and actual == intent["M"],
+                require(task["state"] == "integrating" and intent["state"] == "pending" and
+                        all(intent.get(key) == value for key, value in binding.items()) and
+                        actual in (intent["G"], intent["M"]),
                         "needs_reconciliation", integration_intent=intent, actual=actual)
-                task["state"] = "accepted"
-                intent["state"] = "completed"
-                task["integration_intent"] = intent
-                attempt["state"] = "accepted"
-                self.save("attempts", attempt["attempt_id"], attempt)
-                self.save("tasks", self.task_id, task)
-                self.event("integrated_reconciled", intent, attempt["attempt_id"])
-                return {"task": self.public_task(task), "reconciled": True}
-            if actual != verification["G"]:
+                if actual == intent["M"]:
+                    task["state"] = "accepted"
+                    intent["state"] = "completed"
+                    if "result" not in intent:
+                        intent["result"] = {"outcome": "unknown", "returncode": None,
+                                            "stdout": None, "stderr": None}
+                    task["integration_intent"] = intent
+                    attempt["state"] = "accepted"
+                    self.save("attempts", attempt["attempt_id"], attempt)
+                    self.save("tasks", self.task_id, task)
+                    self.event("integrated_reconciled", intent, attempt["attempt_id"])
+                    return {"task": self.public_task(task), "reconciled": True}
+                conflict = False
+            elif actual != verification["G"]:
                 task.update(state="submitted", verification=None)
                 self.save("tasks", self.task_id, task)
                 self.event("integration_conflict", {"expected": verification["G"], "actual": actual},
@@ -428,9 +482,9 @@ class Coop:
                 conflict = True
             else:
                 conflict = False
-                intent = {"intent_id": token(), "G": verification["G"], "M": verification["M"],
-                          "verification_id": verification["verification_id"],
-                          "attempt_id": attempt["attempt_id"], "state": "pending", "created": now()}
+                intent = dict(binding, intent_id=token(), state="pending", created=now(),
+                              command_intent={"argv": ["git", "-C", task["repo"], "update-ref", REF,
+                                                       verification["M"], verification["G"]]})
                 task.update(state="integrating", integration_intent=intent)
                 self.save("tasks", self.task_id, task)
                 self.event("integration_intent", intent, attempt["attempt_id"])
@@ -438,10 +492,14 @@ class Coop:
         with self.transaction():
             task = self.task()
             require(task["integration_intent"] == intent, "needs_reconciliation")
+            attempt = self.current(task)
+            self.check_verification(task, attempt, task["verification"])
             r = self.git(task["repo"], "update-ref", REF, intent["M"], intent["G"], allowed=(0, 128))
-            if r["returncode"] != 0:
-                intent.update(state="conflict", result=r)
-                task.update(state="submitted", verification=None, integration_intent=None)
+            actual = self.integration_head(task["repo"])
+            intent["result"] = r
+            completed = r["returncode"] == 0 and actual == intent["M"]
+            if not completed:
+                task["integration_intent"] = intent
                 self.save("tasks", self.task_id, task)
                 self.event("integration_conflict", intent, attempt["attempt_id"])
             else:
@@ -451,7 +509,8 @@ class Coop:
                 self.save("attempts", attempt["attempt_id"], attempt)
                 self.save("tasks", self.task_id, task)
                 self.event("integrated", intent, attempt["attempt_id"])
-        require(r["returncode"] == 0, "integration_conflict", command=r)
+        require(completed, "needs_reconciliation", command=r, actual=actual,
+                integration_intent=intent)
         return {"task": self.public_task(task)}
 
     def status(self, args):
@@ -727,7 +786,10 @@ def parser():
 def main():
     args = parser().parse_args()
     coop = None
+    operations = ExitStack()
     try:
+        if args.command in ("verify", "integrate"):
+            operations.enter_context(operation_lock(args.state, args.task))
         coop = Coop(args.state, args.task)
         result = getattr(coop, args.command)(args)
     except Refusal as exc:
@@ -747,6 +809,7 @@ def main():
     finally:
         if coop is not None:
             coop.db.close()
+        operations.close()
     print(json.dumps({"ok": True, **result}, ensure_ascii=False))
     return 0
 
