@@ -601,6 +601,18 @@ class Coop:
             snapshot["read_response"] = raw
         return snapshot
 
+    def foreground_agent_pid(self, info):
+        leader = info.get("foreground_process_group_id")
+        require(type(leader) is int and leader > 0, "identity_unknown", process_info=info)
+        processes = [p for p in info.get("foreground_processes", []) if p.get("pid") == leader]
+        require(len(processes) == 1, "identity_unknown", process_info=info)
+        process = processes[0]
+        argv0 = process.get("argv0")
+        require(process.get("name") == "codex" and
+                isinstance(argv0, str) and Path(argv0).name == "codex",
+                "identity_conflict", process_info=info)
+        return leader
+
     def bind_agent(self, dispatch, snapshot):
         agent = snapshot.get("agent")
         require(agent is not None and agent.get("agent") == "codex" and
@@ -609,9 +621,7 @@ class Coop:
                 "identity_conflict", snapshot=snapshot)
         info = snapshot["process_info"]
         require(info.get("shell_pid") == dispatch["shell_pid"], "identity_conflict", snapshot=snapshot)
-        pids = sorted(p["pid"] for p in info.get("foreground_processes", []) if "pid" in p)
-        require(bool(pids), "identity_unknown", snapshot=snapshot)
-        dispatch.update(agent_pids=pids, native_session=agent.get("agent_session"),
+        dispatch.update(agent_pids=[self.foreground_agent_pid(info)], native_session=agent.get("agent_session"),
                         agent_identity={"agent": agent["agent"], "name": agent["name"]})
 
     def dispatch(self, args):
@@ -750,8 +760,7 @@ class Coop:
                 require(agent.get("agent") == "codex" and agent.get("name") == dispatch["name"] and
                         agent.get("terminal_id") == dispatch["terminal_id"],
                         "identity_conflict", snapshot=snapshot)
-                pids = sorted(p["pid"] for p in info.get("foreground_processes", []) if "pid" in p)
-                require(bool(pids) and dispatch.get("agent_pids") == pids,
+                require(dispatch.get("agent_pids") == [self.foreground_agent_pid(info)],
                         "identity_conflict", snapshot=snapshot)
                 require(not dispatch.get("native_session") or
                         agent.get("agent_session") == dispatch["native_session"],

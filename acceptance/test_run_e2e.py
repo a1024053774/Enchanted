@@ -123,6 +123,14 @@ with (control / "lock").open("a") as lock:
                     "foreground_process_group_id": pid,
                     "foreground_processes": [{"pid": pid, "name": name, "argv": args,
                                               "argv0": name, "cmdline": " ".join(args), "cwd": p["cwd"]}]}
+            if is_agent and p.get("prompted") and store["scenario"] == "helper-joins":
+                # Shape observed in the real live-auto-01 failure: same Codex
+                # group leader, a transient shell member without argv metadata.
+                info["foreground_processes"].append({"pid": pid + 1000, "name": "zsh", "cwd": p["cwd"]})
+            elif is_agent and p.get("prompted") and store["scenario"] == "leader-changed":
+                info["foreground_process_group_id"] = pid + 2000
+                info["foreground_processes"].append({"pid": pid + 2000, "name": "codex",
+                    "argv": args, "argv0": "codex", "cmdline": " ".join(args), "cwd": p["cwd"]})
             stdout = json.dumps(reply("pane_process_info", process_info=info)) + "\n"
         elif argv[:2] == ["agent", "start"]:
             p = target(store)
@@ -400,6 +408,22 @@ class RunCLI(recovery.RecoveryCLI):
                    len(self.store()["prompts"]))
         self.check(Path(attempt["workspace"]).is_dir(), "Reclaim preserves attempt worktree", True,
                    Path(attempt["workspace"]).is_dir())
+        self.finish_checks()
+
+    def test_transient_shell_member_keeps_same_agent_owner(self):
+        self.scenario("helper-joins")
+        self.test_run_entry_point_completes_registered_task()
+
+    def test_new_foreground_leader_is_not_owned_even_with_old_pid_present(self):
+        self.create()
+        self.scenario("leader-changed")
+        handle = self.start_run(seconds=2)
+        pane = self.wait_prompt(handle)
+        self.failed_run(self.complete(handle))
+        self.check(pane in self.store()["panes"] and not self.store()["closes"],
+                   "Changed leader is not reclaimed as the old worker", "pane retained", self.store())
+        self.check(self.ref() == self.base and not self.entries(self.oracle_control),
+                   "Changed leader does not verify or integrate", self.base, self.ref())
         self.finish_checks()
 
     def test_verify_expected_attempt_uses_real_gate(self):

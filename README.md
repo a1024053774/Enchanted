@@ -63,7 +63,7 @@ python3 coop.py --state /absolute/state reclaim --task example
 
 启动被识别为 blocked/unknown 或未确认 interactive ready 时暂停，不自动回答或重发。确认 ready 后仅投递一次任务摘要和精确 submit 命令；部分副作用未知时保留绑定，拒绝重复 dispatch。`idle`、`done` 和 prompt 投递成功都不推进业务验收。
 
-`observe` 仅记录绑定 pane 的真实状态，不改变业务成功状态。`reclaim` 核对原 pane/terminal、shell、agent 名称、PID 和已记录 native session；在关闭前撤销非终态任务的有效 attempt。目标已不存在时用权威 pane 清单核对。身份冲突或未知前台进程会拒绝，不关闭父 pane 或其他 pane。
+`observe` 仅记录绑定 pane 的真实状态，不改变业务成功状态。dispatch 将 Codex 前台进程组领导者的 PID 保存到 `agent_pids`。run 与 reclaim 核对同一组领导者的 Codex 身份、原 pane/terminal、shell、agent 名称和已记录 native session；正常辅助进程的增减不算身份变化，组领导者改变则拒绝，即使旧 PID 仍在进程清单中。`reclaim` 在关闭前撤销非终态任务的有效 attempt。目标已不存在时用权威 pane 清单核对。身份冲突或未知前台进程会拒绝，不关闭父 pane 或其他 pane。
 
 `reclaim --attempt ATTEMPT_ID` 精确选择该 task 的历史 attempt，只回收它绑定的 pane；仅当它仍是 current_attempt 时才撤销业务状态。已回收的同一历史 attempt 可无副作用重放。其他 task、未知 attempt 或不确定身份会拒绝。
 

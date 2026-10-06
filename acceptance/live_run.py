@@ -32,7 +32,7 @@ def main():
                                   'argv': argv, 'exit': p.returncode, 'stdout': p.stdout, 'stderr': p.stderr},
                                  ensure_ascii=False) + '\n')
         if p.returncode:
-            raise AssertionError('Command failed: {} {}'.format(argv, p.stderr or p.stdout))
+            raise AssertionError('Command failed (exit {}): {}. Raw output is in commands.jsonl'.format(p.returncode, argv))
         return p.stdout
 
     def cli(*argv, timeout=60):
