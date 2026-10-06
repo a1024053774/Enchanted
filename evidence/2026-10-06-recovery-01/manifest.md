@@ -1,6 +1,6 @@
 # T-007 运行清单（2026-10-06）
 
-状态：INCOMPLETE，等待独立父版本故障证据。
+状态：PASS，限 T-007 声明。完整结果与原始证据索引见 [RESULTS.md](RESULTS.md)。
 
 - 源码基线 aca370a30fb1fdd938cf89c29ffe2e2f75a21583；T-006 8 项与真实模型闭环已通过。
 - 范围：真实本地 CLI 进程、Git、SQLite 的验收及集成中断恢复。不是 Herdr server 崩溃，也不杀用户已有进程。

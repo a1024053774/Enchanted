@@ -4,7 +4,7 @@ title: 受管任务自动推进与有界结束
 type: build
 status: open
 blocked_by: [T-007]
-claimed_by:
+claimed_by: run-build
 supersedes:
 ---
 
@@ -14,7 +14,7 @@ supersedes:
 让 controller 不必记住并逐条调用操作手册。沿用现有门禁和数据来源，不新增第二套任务状态。
 调用方显式指定等待期限；到期、被撤销、验收失败或外部副作用未知时保留诊断并结束，
 不以终端 done 代替交付，不自动重发模型任务。只处理该 run 启动的 attempt，不能接管后续替换者。
-首个目标仍为单机 Codex/Herdr；详细契约在 T-007 结果出来后按其实际行为冻结。
+首个目标仍为单机 Codex/Herdr；[冻结运行契约](../specs/supervised-run-2026-10-06.md) 已依据 T-007 定义。
 
 ## Acceptance
 
@@ -26,4 +26,4 @@ supersedes:
 
 ## Resolution
 
-等待 T-007；属于已接受的自动触发和主控自治范围，无新增发布或权限。
+进行中；属于已接受的自动触发和主控自治范围，无新增发布或权限。

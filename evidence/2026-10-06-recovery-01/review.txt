@@ -1,0 +1,85 @@
+  │ rev="95cc3a25cf31f56dde85728c5798888d1e311de8"
+  │ prefix="evidence/2026-10-06-recovery-01/"
+  │ … +24 lines
+  └ FILE build-20261006T061127.787949Z-8297ca5e-freeze.json
+    SOURCE_EQUAL coop.py True
+    SOURCE_EQUAL README.md True
+    +54 lines (ctrl+t to view transcript)
+
+• Ran /Users/luckye/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -B -c 'import json,subprocess
+  │ rev="95cc3a25cf31f56dde85728c5798888d1e311de8";prefix="evidence/2026-10-06-recovery-01/"
+  │ def raw(path): return subprocess.check_output(["git","--no-optional-locks","show",rev+":"+path]).decode()
+  │ … +33 lines
+  └ FROZEN_SUITE build-20261006T061047.473588Z-d87835c0.json {"suite": "test_recovery_e2e.py", "command": ["python3", "-B", "acceptance/
+    test_recovery_e2e.py"], "actual_command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-B", "/Users/luckye/Documents/
+    Code/a2a/acceptance/test_recovery_e2e.py"], "environment": {"COOP_SCRIPT": "/Users/luckye/Documents/Code/a2a/coop.py"}, "exit_code":
+    +194 lines (ctrl+t to view transcript)
+
+• 原始记录确认：父版有 4 项业务失败、5 项通过、0 项夹具错误；修复版 9 项通过；忽略真实引用的 mutant 有 3 项业务失败。两份测试运行记录及冻
+  结记录中的 coop.py 源码都与候选逐字一致。剩余核对聚焦于状态、身份门禁和 Git 引用断言是否有独立观测依据。
+
+• Ran git --no-optional-locks show 95cc3a25cf31f56dde85728c5798888d1e311de8:acceptance/test_coop_e2e.py | nl -ba | sed -n '547,601p'
+  └    547    def main():
+       548        if sys.argv[1:] == ["--run-suite"]:
+       549            return run_suite()
+    +47 lines (ctrl+t to view transcript)
+
+• Ran git --no-optional-locks show 95cc3a25cf31f56dde85728c5798888d1e311de8:coop.py | nl -ba | sed -n '719,822p'
+  └    719                info = snapshot["process_info"]
+       720                require(info.get("shell_pid") == dispatch.get("shell_pid"), "identity_conflict")
+       721                agent = snapshot.get("agent")
+    +97 lines (ctrl+t to view transcript)
+
+• Ran /Users/luckye/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -B -c 'import json,subprocess,collections
+  │ rev="95cc3a25cf31f56dde85728c5798888d1e311de8"
+  │ path="evidence/2026-10-06-recovery-01/check-20261006T061047.540153Z-cc60e8f8.json"
+  │ … +23 lines
+  └ {"test": "__main__.RecoveryCLI.test_live_verify_excludes_verify_and_integrate", "CLI_gate_readbacks": [{"label": "coop:verify",
+    "exit": 1, "error": "operation_busy", "state": null}, {"label": "coop:integrate", "exit": 1, "error": "operation_busy", "state":
+    null}], "effect_assertions": [{"claim": "Busy commands never start a second oracle", "expected": 1, "observed": 1}],
+    +11 lines (ctrl+t to view transcript)
+
+• STATUS: PASS
+
+  TARGET: 95cc3a25cf31f56dde85728c5798888d1e311de8，相对 aca370a；仅限所声明的 POSIX 本地 CLI 恢复契约。
+
+  EVIDENCE:
+
+  • 规范依据：intent.md:69、恢复规格 recovery-2026-10-06.md:12、T-007-recovery.md:17。
+  • 父版原始记录：4 项业务失败、5 项通过、0 项夹具错误；保存的父版源码与 aca370a:coop.py 完全一致。
+  • 修复版原始记录：9 项通过、117 条断言通过；T-006 原始输出为 8 项通过。两份运行记录及冻结记录中的 coop.py 均与候选逐字一致；运行时旧
+    HEAD 和模型 status 未作为通过依据。
+
+  • 注入器确实执行真实 Git：非目标命令直接转交真实工具，after-CAS 先取得真实更新成功再设屏障（acceptance/
+    test_recovery_e2e.py:77、:102、:376）。7 次故障注入均核对所创建 CLI 的身份，记录 SIGKILL、退出码 -9 和死亡状态（:196）。
+
+  • 活跃操作的四次重入均返回 operation_busy；pendingG 恢复增加一次 CAS/reflog，pendingM 恢复增加零次；X/删除引用拒绝且保留引用、意图和历
+    史。
+
+  • 断言期待来自冻结契约、外部生成的身份/提交及前后不变量；状态通过新 CLI 和只读 SQLite 观察，引用与副作用次数通过真实 Git 核对。未导入产
+    品实现或复用产品常量（测试 :258、:308、:542、:587、:647；helper :185、:314）。
+
+  FINDINGS:
+
+  • 未确认声明范围内的可达违规或阻断验收的证据缺口。父版及 mutant 的业务失败均有具体行为断言和原始命令支持；未发现环境故障被充作反证。
+
+  COUNTEREXAMPLE:
+
+  • 保存的 mutant 仅将真实引用读回值替换为 intent["M"]；原始运行出现 3 项业务失败、0 项夹具错误，分别揭露 pendingG 未执行副作用、X 被接
+    受、删除引用被接受。
+
+  LIMITATIONS:
+
+  • 本次只读审查保存的证据，未重跑会写入文件的套件；commit 外的临时快照未读取。
+  • 证据支持本地真实 CLI/Git/SQLite 边界；模型理解、检索、网络部署、新 Herdr 崩溃及跨 CLI 保证为 N/A。无可靠性、成本或吞吐改善结论。
+
+  RULE:
+
+  • N/A；无需要新增规则的重复缺陷。
+
+  Worked for 3m 4s • 02:22
+
+
+› Ask Codex to do anything
+
+  GPT-6.1-Sol xhigh fast · ~/Documents/Code/a2a · 执行固定候选只读审查                                         ⚠ 3 warnings · f2 to view
