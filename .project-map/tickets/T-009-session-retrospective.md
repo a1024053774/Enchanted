@@ -31,13 +31,17 @@ PASS（限记录扫描与复盘交付），2026-10-06。输入项目版本为
 保存 1,355 条消息/工具定位和 24 项选录或配置记录。结构化扫描后定向核对异常链路，
 没有将关键字命中当作故障统计，也未将内部推理当行为证据。
 
-产物：[中文复盘](../../reports/a2a-session-retrospective-2026-10-06.zh-CN.md)、
-[英文复盘](../../reports/a2a-session-retrospective-2026-10-06.en.md)、
+产物：[中文复盘](../../findings/a2a-session-retrospective-2026-10-06.zh-CN.md)、
+[英文复盘](../../findings/a2a-session-retrospective-2026-10-06.en.md)、
 [证据与重建命令](../../evidence/2026-10-06-session-review-01/README.md)。
-发现包括主控停止与研究交接、夹具规范适用范围、未完整登记的子 agent、监控覆盖与处置缺口、
-证据采集和归档返工。重复且可检查的问题已登记 T-010 至 T-014，均未实施。
+发现分为模型行为、分工协调、工程与证据处理三类。F01 主控提前结束回合单独记录为 GPT 模型行为。
+研究交付、夹具规范范围、子 agent 清单、监控处置及证据工具的跟进保留 T-010 至 T-014，均未实施。
 
 没有修改原始 session、运行新模型、重跑产品验收或改变原产品 PASS 范围。
 本票关闭只表示复盘交付完成，不表示后续流程机制完成。
 校核记录见 [validation.json](../../evidence/2026-10-06-session-review-01/validation.json)：
 原始位置边界、UTF-8、JSON/JSONL、链接及 STE 英文检查通过，地图无问题或 stale living doc。
+
+2026-10-06 分类修订：按用户明确更正，F01 不属于分工协调问题；T-012 已剥离模型续执行检查，
+仅保留 F02 的研究阶段产物与移交证据。发现文档统一移至 [findings](../../findings/README.md)，
+旧 reports 路径保留入口，原始 session、选录和采集数据不改写。

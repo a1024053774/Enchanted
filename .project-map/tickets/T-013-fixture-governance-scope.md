@@ -12,7 +12,7 @@ supersedes:
 
 如何在任务分派时明确任务仓库、治理根目录、适用规则与验收入口，避免夹具 worker 误用主项目规范？
 三个真实分页 worker 都对不含项目地图的 worktree 执行 project-map status，并得到缺失提示。
-证据：[F03](../../reports/a2a-session-retrospective-2026-10-06.zh-CN.md)、
+证据：[F03](../../findings/a2a-session-retrospective-2026-10-06.zh-CN.md)、
 [E09–E11](../../evidence/2026-10-06-session-review-01/excerpts.json)。
 
 先定义当前 Codex 任务实际需要的范围合同，不预制通用适配器，也不复制全部主项目规则。

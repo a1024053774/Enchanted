@@ -71,3 +71,10 @@ python3 -B evidence/2026-10-06-session-review-01/scan_sessions.py \
 | E17–E18 | Python 写文件 API 与故障夹具观察器错误。 |
 | E19–E20 | 内嵌 Git 仓库警告与大段工具输出截断。 |
 | E21 | 初版 create 遇到不存在的集成引用时失败，阻止后续验收场景运行。 |
+
+## 2026-10-06 分类修订与资料入口
+
+用户明确将 F01“有已授权工作仍结束回合”归为主控 GPT 模型行为，不计作分工协调问题。
+E01、E06–E08 的事实保留，当前归类见 [模型行为记录](../../findings/gpt-behavior-2026-10-06.zh-CN.md)。
+研究交付合同的 F02 独立保留，T-012 仅处理该范围。
+相关报告统一从 [findings](../../findings/README.md) 进入；原始 session、扫描清单、逐条索引和选录未改写。

@@ -12,7 +12,7 @@ supersedes:
 
 如何让开发运行的人员与模型清单覆盖 worker 内部创建的子 agent，而不只覆盖 Herdr pane？
 本次复盘发现三次内部分派，两份子审查记录为 gpt-5.6-luna / max，原清单未完整覆盖。
-证据：[F04](../../reports/a2a-session-retrospective-2026-10-06.zh-CN.md)、
+证据：[F04](../../findings/a2a-session-retrospective-2026-10-06.zh-CN.md)、
 [E12–E14 与子配置](../../evidence/2026-10-06-session-review-01/excerpts.json)。
 
 交付边界是记录与配置检查，不扩展到多机调度或第二 CLI。先核对可用 session 关联入口，

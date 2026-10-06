@@ -1,0 +1,23 @@
+# a2a 开发发现
+
+这里集中保存开发过程的发现、复盘与相关报告。任务状态仍由 [project-map](../.project-map/MAP.md) 管理，原始证据保留在 `evidence/` 和对应 session 中。
+
+## 分类口径
+
+2026-10-06 按用户更正：**有已授权工作可继续却结束回合，属于主控 GPT 的模型行为问题，不属于分工协调问题。**
+
+| 类别 | 本次内容 | 文档 |
+| --- | --- | --- |
+| GPT 模型行为 | F01 提前结束回合，以及具体状态解读和中断判断。责任归主控模型，不转成协调层整改目标。 | [中文记录](gpt-behavior-2026-10-06.zh-CN.md) / [English](gpt-behavior-2026-10-06.en.md) |
+| 分工协调 | F02–F05：研究交付合同、夹具规范范围、子 agent 清单、监控任务及发现处置。 | [中文复盘](a2a-session-retrospective-2026-10-06.zh-CN.md) / [English](a2a-session-retrospective-2026-10-06.en.md) |
+| 工程与证据处理 | F06–F07：采集脚本、失败分类、大段输出与归档。 | 同上报告的“工程与证据处理发现”部分。 |
+
+T-012 已缩小为[研究阶段产物与移交证据](../.project-map/tickets/T-012-research-handoff.md)。它不再包含模型续执行或回合结束检查。其他协调、工程待办的状态以项目地图为准。
+
+## 相关资料
+
+- [框架、实现与操作说明](herdr-a2a-2026-10-06.zh-CN.md) / [English](herdr-a2a-2026-10-06.en.md)：包含实际架构、使用步骤和第 10 节的 monitor 观察与利用记录。
+- [证据入口](evidence-index.md)：连接三份原始 monitor 报告、20 份 session 的扫描索引、关键选录和产品验收结果。
+- [复盘研究 ticket T-009](../.project-map/tickets/T-009-session-retrospective.md)：保存扫描范围、截止点及本次分类修订。
+
+`reports/` 中的旧文件只保留跳转入口，正文以本目录为准。分类调整不改写历史消息，不把已经登记的待办写成已经完成的改进。

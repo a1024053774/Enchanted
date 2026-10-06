@@ -11,8 +11,9 @@
 
 ## Notes
 
-- [2026-10-06 框架、实现与操作报告](../reports/herdr-a2a-2026-10-06.zh-CN.md)：日期记录，含 STE 简明英文对照、命令步骤及已验证边界。
-- [2026-10-06 session 复盘](../reports/a2a-session-retrospective-2026-10-06.zh-CN.md)：原始记录扫描、可复核的流程不足和待办；不替代产品验收。
+- [开发发现目录](../findings/README.md)：集中相关报告，分别记录 GPT 模型行为、分工协调、工程与证据处理。
+- [2026-10-06 框架、实现与操作报告](../findings/herdr-a2a-2026-10-06.zh-CN.md)：日期记录，含 STE 简明英文对照、命令步骤及已验证边界。
+- [2026-10-06 session 复盘](../findings/a2a-session-retrospective-2026-10-06.zh-CN.md)：协调与工程发现；F01 模型提前结束回合已另列，不计入协调问题。
 - Core goal: collaboration must not depend on the model continuously remembering the operating manual.
 - First experiment: Codex workers in the current Herdr workflow; multi-CLI support is a later capability-contract validation, not the first success claim.
 - Control rule: the Astra Max controller may dispatch and reclaim workers through Herdr within approved scope; it must pause for major decisions or direction changes and never bypass claim, submit, acceptance, or integration gates.
@@ -25,7 +26,7 @@
 - [T-003 Roles and evidence](tickets/T-003-roles-and-evidence.md): Astra Max controller, 6.1 xhigh Fast workers, high-reasoning read-only monitor, append-only run evidence, and exploratory claims only
 - [T-004 Major-decision stop boundary](tickets/T-004-major-decision-stop-boundary.md): explicit escalation triggers; routine dispatch, status checking, policy-bounded retry, and reclaim remain autonomous
 - [T-005 First seam and baseline](tickets/T-005-first-seam-and-baseline.md): 固定本地源码、真实 Herdr 入口及已有红/绿证据的分页 oracle
-- [T-009 Audit recorded a2a work sessions](tickets/T-009-session-retrospective.md): 20 份 session 已扫描并保存定位，重复流程缺口登记为 T-010 至 T-014
+- [T-009 Audit recorded a2a work sessions](tickets/T-009-session-retrospective.md): 20 份 session 已扫描；F01 按用户更正另列为模型行为，T-012 仅保留研究交付范围
 
 ## Not yet specified
 
@@ -36,6 +37,7 @@
 ## Out of scope
 
 - 生产发布、对外 push 和重启用户 Herdr server；本轮只做本地实现与隔离验收
+- 将 F01 主控 GPT 提前结束回合归为分工协调缺陷并据此改造协调层；用户已明确将其归为模型行为，记录保留在 findings。
 - Rewriting the dated research draft | reason: it is the project's initial research record.
 
 ## Living docs
@@ -45,3 +47,4 @@
 | [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | |
 | [AGENTS.md](../AGENTS.md) | `.project-map/MAP.md`, `CONTEXT.md` | |
 | [README.md](../README.md) | `coop.py`, `acceptance/live_herdr.py` | |
+| [findings/README.md](../findings/README.md) | `findings/*.md` | |

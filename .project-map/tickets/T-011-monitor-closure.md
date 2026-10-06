@@ -12,7 +12,7 @@ supersedes:
 
 如何机械检查计划中的监控阶段是否交付，以及有行动价值的发现是否有人接收、处置并复验？
 T-006 缺少承诺的第二阶段报告，T-008 未找到独立 monitor，配置措辞告警未及时关闭。
-证据：[F05](../../reports/a2a-session-retrospective-2026-10-06.zh-CN.md)。
+证据：[F05](../../findings/a2a-session-retrospective-2026-10-06.zh-CN.md)。
 
 利用现有 project-map 与证据目录，避免建立第二套项目 ledger。
 检查至少识别缺少阶段报告、来源被错误标作独立 monitor、发现无处置依据三类缺口。
