@@ -1,4 +1,13 @@
-# Herdr A2A
+# a2a
+
+a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。项目分两部分：
+
+- **协作门禁（首轮，已完成）**：`coop.py` 运行在已安装的 Herdr 上，用程序约束认领、交付、独立验收和集成。用法见下文。
+- **Muster 工作台（第二阶段，未实现）**：自建的 GPUI 多 agent 工作台。它以 Herdr 0.9.3 引擎的硬分叉取代 Herdr CLI：每个项目一个窗口，任务是标签页，任务里的多个 pane 供 agent 分工。目标与范围见 [intent.md](intent.md)，设计与任务顺序见 [M1 spec 与初步任务书](.project-map/specs/workbench-m1-2026-10-06.md)。
+
+文档入口：[项目地图](.project-map/MAP.md)、[术语表](CONTEXT.md)、[项目规则](AGENTS.md)、[开发发现](findings/README.md)。
+
+## 协作门禁：coop.py
 
 `coop.py` 是单机受管理交付入口。它用 Python 3.9 标准库、SQLite、Git 和已安装的 Herdr，把 task、attempt、submit、acceptance 和 integration 记录在磁盘上。冻结 CLI 契约见 [执行规格](.project-map/specs/managed-delivery-2026-10-06.md)、[恢复契约](.project-map/specs/recovery-2026-10-06.md) 和 [自动运行契约](.project-map/specs/supervised-run-2026-10-06.md)。
 

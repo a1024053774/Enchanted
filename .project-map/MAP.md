@@ -4,7 +4,8 @@
 
 第二阶段：a2a 多 Agent 工作台，目标与 M1 见 [intent.md](../intent.md)（2026-10-06 accepted，决策见 T-016～T-021）。
 工作台以 Herdr 0.9.3 引擎的硬分叉加 GPUI 界面取代 Herdr CLI；`coop.py` 的门禁保留，改接工作台的控制接口。
-下一步：关闭 T-022～T-026 后写工作台 spec，再切 tracer-bullet build ticket。
+工作台名为 Muster（T-022）；执行规格与初步任务书见 [workbench-m1](specs/workbench-m1-2026-10-06.md)。
+执行顺序：T-026，与之并行 T-024 → T-025、T-027 → T-029、T-028。
 
 首轮已完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
 [T-007](tickets/T-007-recovery.md) 中断恢复、[T-008](tickets/T-008-supervised-run.md) 自动运行均在 Herdr 上通过；
@@ -38,12 +39,15 @@
 - [T-019 第二阶段术语](tickets/T-019-phase2-terms.md): 工作台、引擎、项目、Task、Pane、原生会话写入 CONTEXT.md
 - [T-020 构建缓存、开源许可与代码复用](tickets/T-020-build-cache-license-reuse.md): 缓存放外置盘且缺盘即报错；开源，允许 GPL，并入后整体 GPL-3.0
 - [T-021 Enchanted 的搁置与并入](tickets/T-021-enchanted-freeze.md): 快照 `3e2ad91` 后冻结，功能在 M1 之后并入工作台
+- [T-022 工作台的代码位置与正式名称](tickets/T-022-workbench-location-and-name.md): 名为 Muster，代码放在本仓库 `muster/`，命名空间前缀 `muster`/`MUSTER_`
+- [T-023 主控放在项目级还是任务级](tickets/T-023-controller-placement.md): 主控是角色不分层级，经控制接口同时操作项目级与任务级，做法沿用 Herdr
 
 ## Not yet specified
 
 - When and how a second CLI validates the capability contract
 - Numeric budget and risk thresholds
 - 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化
+- M1 后续切片（第一批 ticket 关闭后再切）：多项目多窗口、侧栏与状态汇总、玻璃质感与强调色、Claude Code 端到端与已装 CLI 冒烟、界面上的受管任务操作与人工介入记录、引擎名词由 workspace/tab 改为 project/task、面向 agent 的 Muster 控制指南、切换后删除 Herdr 路径
 
 ## Out of scope
 
@@ -59,5 +63,5 @@
 | --- | --- | --- |
 | [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | |
 | [AGENTS.md](../AGENTS.md) | `.project-map/MAP.md`, `CONTEXT.md`, `intent.md` | |
-| [README.md](../README.md) | `coop.py`, `acceptance/live_herdr.py` | |
+| [README.md](../README.md) | `coop.py`, `acceptance/live_herdr.py`, `intent.md`, `muster/**` | |
 | [findings/README.md](../findings/README.md) | `findings/*.md` | |

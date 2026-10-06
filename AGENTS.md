@@ -3,7 +3,7 @@
 ## 规范源
 
 - `.project-map/MAP.md` 是项目地图；它索引目的地、已关闭决策、开放 ticket、fog 和 living docs。
-- `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。2026-10-06 起为第二阶段版本：a2a 多 Agent 工作台，第一个里程碑为 M1。工作台的 spec 尚未写出；实现前须先有 spec 和 tracer-bullet build ticket。
+- `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。2026-10-06 起为第二阶段版本：a2a 多 Agent 工作台，第一个里程碑为 M1。工作台名为 Muster，代码放在本仓库的 `muster/` 目录；M1 的执行规格与初步任务书见 `.project-map/specs/workbench-m1-2026-10-06.md`。
 - `coop.py` 的执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
 - T-007 恢复语义以 `.project-map/specs/recovery-2026-10-06.md` 为准；真实故障只注入隔离测试所创建的 CLI 子进程。
 - 验收与集成必须经过持操作锁的 CLI 入口；锁释放只允许核对中断状态，不能替代验收证据。
@@ -21,7 +21,8 @@
 
 - 门禁优先：工作台对受管任务的验收、集成和回收，只调用 `coop.py` 的同一入口，不另做一套门禁；在受管 worker 的 pane 里直接输入，记为人工介入。
 - 引擎是 Herdr 0.9.3（`c4653a4`）的硬分叉。不自动拉取 Herdr 的在线检测清单；检测清单与上游修复以后单独同步。
-- 工作台使用独立的命名空间（可执行文件名、环境变量、socket 目录、集成 hook），切换完成前与已安装的 Herdr 并存；不得修改或重启用户正在使用的 Herdr server。
+- 工作台使用独立的命名空间：可执行文件 `muster`、环境变量前缀 `MUSTER_`，socket、配置目录与集成 hook 也都用 `muster` 命名；切换完成前与已安装的 Herdr 并存。不得修改或重启用户正在使用的 Herdr server，探针与验收一律使用独立命名会话。
+- 主控是角色，不绑定层级：它可以在任意 pane 中运行，经控制接口操作项目级对象（窗口、任务页）和任务级对象（pane、agent），做法与 Herdr 一致。
 - 切换条件：工作台运行时上，交付、恢复、编排三套验收和一次真实 `run` 全部通过。切换前主控与 worker 继续经已安装的 Herdr 分派；切换后删除 Herdr 路径，不保留双路径。
 - a2a 与 Enchanted 的构建输出和缓存默认放在外置盘 `/Volumes/WD-Elements`；外置盘未挂载时构建必须报错，不回退到内置盘。
 - 项目开源，允许直接复用 GPL 代码；并入 GPL 代码后整体以 GPL-3.0 发布。复用不能改变已定方向。

@@ -125,4 +125,4 @@ T-006～T-008 已在已安装的 Herdr 上通过：[受管交付](evidence/2026-
 
 这是影响代码、Git 工作区、进程和 agent 权限的 consequential 项目，采用人工门控。本 intent 允许在批准范围内开始 Design / Spec 和后续切片，不授权把未知状态写成成功。
 
-下一步：在 project-map 中写工作台的 spec（架构与代码位置、应用名称、命名空间、控制接口、构建缓存配置、主控放在项目级还是任务级），再切 tracer-bullet build ticket。Enchanted 在交接后先确认快照范围，再做 git 快照并冻结。
+下一步：按 [Muster 工作台 M1 spec 与初步任务书](.project-map/specs/workbench-m1-2026-10-06.md) 执行；工作台名为 Muster，代码位于本仓库。Enchanted 已于 2026-10-06 做 git 快照并冻结（T-021）。
