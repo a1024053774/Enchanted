@@ -9,3 +9,12 @@
 - 失败只影响各自生成的隔离 fixture；不会覆盖以前的运行产物。
 - 父版本失败、实现后同一入口结果、known-bad 反事实和固定候选审查分别保存。
 - 主控继续按 project-map 推进：T-007 完成后进入 T-008 程序自动推进，避免模型记忆每个操作步骤。
+
+## 2026-10-06 补充核对：观察者配置
+
+上文“请求配置均为 gpt-6.1-sol xhigh Fast”遗漏了观察者，不能概括所有参与者。
+`recovery-check`、`recovery-build` 和 `recovery-audit` 请求 xhigh Fast；
+`recovery-monitor` 请求 `gpt-6.1-sol`、high，未显式请求 Fast。
+依据为 [commands.jsonl](commands.jsonl) 第 2、5、17、26 行的启动 argv，
+以及 [monitor-phase1.md](monitor-phase1.md)。原句保留以记录这项当时未关闭的措辞遗漏。
+本次更正不改变原始命令、监控记录或产品验收结果。
