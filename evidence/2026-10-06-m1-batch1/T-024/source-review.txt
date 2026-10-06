@@ -1,0 +1,1265 @@
+
+.upstream/herdr/src/server/clients.rs:60-131
+   60:     Full,
+   61: }
+   62:
+   63: #[derive(Clone, Debug, Default, PartialEq, Eq)]
+   64: pub(crate) struct ClientShellLocation {
+   65:     pub(crate) focused_workspace_id: Option<String>,
+   66:     pub(crate) active_tab_ids: HashMap<String, String>,
+   67: }
+   68:
+   69: pub(crate) struct ClientShellTopology {
+   70:     pub(crate) focused_workspace_id: Option<String>,
+   71:     pub(crate) fallback_workspace_id: Option<String>,
+   72:     pub(crate) active_tab_ids: HashMap<String, String>,
+   73:     pub(crate) tab_workspace_ids: HashMap<String, String>,
+   74: }
+   75:
+   76: impl ClientShellLocation {
+   77:     pub(crate) fn from_snapshot(snapshot: &crate::protocol::ClientShellSnapshot) -> Self {
+   78:         Self {
+   79:             focused_workspace_id: snapshot.focused_workspace_id.clone(),
+   80:             active_tab_ids: snapshot
+   81:                 .workspaces
+   82:                 .iter()
+   83:                 .map(|workspace| {
+   84:                     (
+   85:                         workspace.workspace_id.clone(),
+   86:                         workspace.active_tab_id.clone(),
+   87:                     )
+   88:                 })
+   89:                 .collect(),
+   90:         }
+   91:     }
+   92:
+   93:     pub(crate) fn focused_tab_id(&self) -> Option<&str> {
+   94:         self.focused_workspace_id
+   95:             .as_deref()
+   96:             .and_then(|workspace_id| self.active_tab_ids.get(workspace_id))
+   97:             .map(String::as_str)
+   98:     }
+   99:
+  100:     pub(crate) fn focus_workspace(&mut self, workspace_id: String) {
+  101:         self.focused_workspace_id = Some(workspace_id);
+  102:     }
+  103:
+  104:     pub(crate) fn focus_tab(&mut self, workspace_id: String, tab_id: String) {
+  105:         self.focused_workspace_id = Some(workspace_id.clone());
+  106:         self.active_tab_ids.insert(workspace_id, tab_id);
+  107:     }
+  108:
+  109:     pub(crate) fn reconcile(&mut self, topology: &ClientShellTopology) {
+  110:         self.active_tab_ids.retain(|workspace_id, tab_id| {
+  111:             topology.active_tab_ids.contains_key(workspace_id)
+  112:                 && topology.tab_workspace_ids.get(tab_id) == Some(workspace_id)
+  113:         });
+  114:         for (workspace_id, tab_id) in &topology.active_tab_ids {
+  115:             self.active_tab_ids
+  116:                 .entry(workspace_id.clone())
+  117:                 .or_insert_with(|| tab_id.clone());
+  118:         }
+  119:         if self
+  120:             .focused_workspace_id
+  121:             .as_ref()
+  122:             .is_none_or(|workspace_id| !topology.active_tab_ids.contains_key(workspace_id))
+  123:         {
+  124:             self.focused_workspace_id = topology
+  125:                 .focused_workspace_id
+  126:                 .clone()
+  127:                 .or_else(|| topology.fallback_workspace_id.clone());
+  128:         }
+  129:     }
+  130: }
+  131:
+
+.upstream/herdr/src/server/clients.rs:131-196
+  131:
+  132: /// A connected client tracked by the server.
+  133: pub(crate) struct ClientConnection {
+  134:     /// Whether this connection owns the Herdr shell or one direct terminal stream.
+  135:     pub(crate) mode: ClientConnectionMode,
+  136:     /// The client's terminal size after clamping.
+  137:     pub(crate) terminal_size: (u16, u16),
+  138:     /// Pixel size of one client terminal cell.
+  139:     pub(crate) cell_size: crate::kitty_graphics::HostCellSize,
+  140:     /// Monotonic activity stamp used to choose the fallback foreground client.
+  141:     pub(crate) last_activity: u64,
+  142:     /// Render baseline for the negotiated client encoding.
+  143:     pub(crate) render_state: ClientRenderState,
+  144:     /// Image assets already included in the selected ClientShell scene.
+  145:     pub(crate) shell_graphics_delivery: crate::kitty_graphics::surface::DeliveryCache,
+  146:     /// Passive eligibility for audited local Kitty regular-file graphics.
+  147:     pub(crate) direct_graphics: bool,
+  148:     /// Whether this frontend preserves exact SGR pixel reports.
+  149:     pub(crate) pixel_mouse: bool,
+  150:     /// Last host terminal default colors reported by this client.
+  151:     pub(crate) host_terminal_theme: crate::terminal_theme::TerminalTheme,
+  152:     /// Last host light/dark appearance reported by this client.
+  153:     pub(crate) host_terminal_appearance: Option<crate::terminal_theme::HostAppearance>,
+  154:     /// Whether appearance came from an explicit host color-scheme report.
+  155:     pub(crate) host_terminal_appearance_explicit: bool,
+  156:     /// Last reported focus state for this client's outer terminal.
+  157:     pub(crate) outer_terminal_focus: Option<bool>,
+  158:     /// Last focused-pane report-all demand sent to a client-owned shell.
+  159:     pub(crate) host_keyboard_report_all_active: Option<bool>,
+  160:     /// Whether an ordinary render was skipped because the render channel was full.
+  161:     pub(crate) render_pending: bool,
+  162:     /// Whether this connection receives pane surfaces and may affect presentation state.
+  163:     pub(crate) shell_surface_active: bool,
+  164:     /// Whether this shell wants host mouse capture without pane demand.
+  165:     pub(crate) shell_mouse_capture: bool,
+  166:     /// Last host mouse capture mode sent to this client.
+  167:     pub(crate) host_mouse_capture_active: Option<bool>,
+  168:     /// Last SGR pixel provenance mode sent to this client.
+  169:     pub(crate) host_sgr_pixels_active: Option<bool>,
+  170:     /// Last keyboard protocol state sent to a directly attached terminal client.
+  171:     pub(crate) host_keyboard_protocol_active: Option<(u16, u8)>,
+  172:     /// Presses forwarded by this shell that need release on abrupt teardown.
+  173:     shell_held_inputs: HashMap<ClientShellPressId, ClientShellHeldInput>,
+  174:     /// Temporary files staged from this client's local clipboard image pastes.
+  175:     pub(crate) staged_clipboard_files: Vec<PathBuf>,
+  176:     /// Connection-local workspace and tab projection for a client-owned shell.
+  177:     pub(crate) shell_location: Option<ClientShellLocation>,
+  178:     /// Last coherent shell replacement sent to this client.
+  179:     pub(crate) shell_snapshot: Option<crate::protocol::ClientShellSnapshot>,
+  180:     pub(crate) shell_agent_completions: Option<crate::protocol::endpoint::EndpointAgentCompletions>,
+  181:     /// View policy paired with the last coherent shell replacement.
+  182:     pub(crate) shell_agent_view: Option<crate::api::schema::AgentViewSetParams>,
+  183:     /// Monotonic shell replacement revision for this connection.
+  184:     pub(crate) shell_projection_revision: u64,
+  185:     /// Whether this shell is waiting for one ordered endpoint command response.
+  186:     pub(crate) shell_endpoint_command_in_flight: bool,
+  187:     /// Surface projection epoch that owned the in-flight command. Deferred navigation may run
+  188:     /// only if this exact presentation lease is still active when its response arrives.
+  189:     pub(crate) shell_endpoint_command_surface_revision: Option<u64>,
+  190:     /// Request id and buffered response for a deferred worktree-created navigation.
+  191:     pub(crate) shell_deferred_navigation_request_id: Option<String>,
+  192:     pub(crate) shell_deferred_navigation_response: Option<Vec<u8>>,
+  193:     /// Whether this shell uses the endpoint-owned keymap rather than a client-owned keymap.
+  194:     pub(crate) shell_uses_endpoint_keybindings: bool,
+  195:     /// Channels for sending framed ServerMessage data to the client writer thread.
+  196:     pub(crate) writer: Option<ClientWriter>,
+
+.upstream/herdr/src/server/clients.rs:465-475
+  465:     }
+  466:
+  467:     pub(crate) fn is_shell_client(&self) -> bool {
+  468:         matches!(self.mode, ClientConnectionMode::ClientShell)
+  469:     }
+  470:
+  471:     pub(crate) fn is_active_shell_client(&self) -> bool {
+  472:         self.is_shell_client() && self.shell_surface_active
+  473:     }
+  474: }
+  475:
+
+.upstream/herdr/src/server/headless/client_views.rs:54-95
+   54:     pub(super) fn default_shell_target(&self) -> Option<crate::ui::TabSurfaceTarget> {
+   55:         let workspace_index = self.app.state.active?;
+   56:         let workspace = self.app.state.workspaces.get(workspace_index)?;
+   57:         Some(crate::ui::TabSurfaceTarget {
+   58:             workspace_index,
+   59:             tab_index: workspace.active_tab_index(),
+   60:         })
+   61:     }
+   62:
+   63:     pub(super) fn shell_target_for_client(
+   64:         &self,
+   65:         client_id: u64,
+   66:     ) -> Option<crate::ui::TabSurfaceTarget> {
+   67:         let tab_id = self
+   68:             .clients
+   69:             .get(&client_id)?
+   70:             .shell_location
+   71:             .as_ref()
+   72:             .and_then(crate::server::clients::ClientShellLocation::focused_tab_id);
+   73:         tab_id
+   74:             .and_then(|tab_id| self.app.parse_tab_id(tab_id))
+   75:             .map(|(workspace_index, tab_index)| crate::ui::TabSurfaceTarget {
+   76:                 workspace_index,
+   77:                 tab_index,
+   78:             })
+   79:             .or_else(|| self.default_shell_target())
+   80:     }
+   81:
+   82:     fn tab_id_for_target(&self, target: crate::ui::TabSurfaceTarget) -> Option<String> {
+   83:         self.app
+   84:             .public_tab_id(target.workspace_index, target.tab_index)
+   85:     }
+   86:
+   87:     pub(super) fn shell_tab_id_for_client(&self, client_id: u64) -> Option<String> {
+   88:         self.shell_target_for_client(client_id)
+   89:             .and_then(|target| self.tab_id_for_target(target))
+   90:     }
+   91:
+   92:     fn client_shell_topology(&self) -> ClientShellTopology {
+   93:         let focused_workspace_id = self
+   94:             .app
+   95:             .state
+
+.upstream/herdr/src/server/headless/client_views.rs:174-224
+  174:             .clients
+  175:             .values_mut()
+  176:             .filter(|client| client.is_shell_client())
+  177:         {
+  178:             if let Some(location) = client.shell_location.as_mut() {
+  179:                 location.focus_tab(workspace_id.clone(), tab_id.clone());
+  180:             }
+  181:         }
+  182:         let (lost, gained) =
+  183:             self.shell_location_focus_transitions(focus_before, &focused_tabs_before);
+  184:         self.app.accept_current_focus_with_api_events();
+  185:         self.send_shell_focus_transitions(&lost, &gained);
+  186:     }
+  187:
+  188:     pub(super) fn focus_shell_client_on_tab(&mut self, client_id: u64, tab_id: &str) -> bool {
+  189:         let Some((workspace_index, _)) = self.app.parse_tab_id(tab_id) else {
+  190:             return false;
+  191:         };
+  192:         let workspace_id = self.app.public_workspace_id(workspace_index);
+  193:         let Some(client) = self.clients.get_mut(&client_id) else {
+  194:             return false;
+  195:         };
+  196:         let Some(location) = client.shell_location.as_mut() else {
+  197:             return false;
+  198:         };
+  199:         location.focus_tab(workspace_id, tab_id.to_owned());
+  200:         true
+  201:     }
+  202:
+  203:     fn set_default_shell_target_from_client(&mut self, client_id: u64) -> bool {
+  204:         let Some(target) = self.shell_target_for_client(client_id) else {
+  205:             return false;
+  206:         };
+  207:         if self.default_shell_target() == Some(target) {
+  208:             return false;
+  209:         }
+  210:         self.app
+  211:             .state
+  212:             .switch_workspace_tab(target.workspace_index, target.tab_index)
+  213:     }
+  214:
+  215:     fn focus_shell_client_on_default_target(&mut self, client_id: u64) -> bool {
+  216:         let Some(tab_id) = self
+  217:             .default_shell_target()
+  218:             .and_then(|target| self.tab_id_for_target(target))
+  219:         else {
+  220:             return false;
+  221:         };
+  222:         self.focus_shell_client_on_tab(client_id, &tab_id)
+  223:     }
+  224:
+
+.upstream/herdr/src/server/headless/client_views.rs:322-364
+  322:         response
+  323:             .pointer("/result/tab/tab_id")?
+  324:             .as_str()
+  325:             .map(str::to_owned)
+  326:     }
+  327:
+  328:     fn apply_shell_navigation_request(
+  329:         &mut self,
+  330:         client_id: u64,
+  331:         method: &api::schema::Method,
+  332:     ) -> bool {
+  333:         match method {
+  334:             api::schema::Method::WorkspaceFocus(target) => {
+  335:                 let Some(workspace_index) = self.app.parse_workspace_id(&target.workspace_id)
+  336:                 else {
+  337:                     return false;
+  338:                 };
+  339:                 let workspace_id = self.app.public_workspace_id(workspace_index);
+  340:                 let Some(client) = self.clients.get_mut(&client_id) else {
+  341:                     return false;
+  342:                 };
+  343:                 let Some(location) = client.shell_location.as_mut() else {
+  344:                     return false;
+  345:                 };
+  346:                 location.focus_workspace(workspace_id);
+  347:                 true
+  348:             }
+  349:             api::schema::Method::TabFocus(target) => {
+  350:                 self.focus_shell_client_on_tab(client_id, &target.tab_id)
+  351:             }
+  352:             api::schema::Method::PaneFocus(target) => self
+  353:                 .app
+  354:                 .parse_pane_id(&target.pane_id)
+  355:                 .and_then(|(workspace_index, pane_id)| {
+  356:                     let tab_index = self.app.state.workspaces[workspace_index]
+  357:                         .find_tab_index_for_pane(pane_id)?;
+  358:                     self.app.public_tab_id(workspace_index, tab_index)
+  359:                 })
+  360:                 .is_some_and(|tab_id| self.focus_shell_client_on_tab(client_id, &tab_id)),
+  361:             api::schema::Method::CommandInvoke(params) => params
+  362:                 .tab_id
+  363:                 .as_deref()
+  364:                 .is_some_and(|tab_id| self.focus_shell_client_on_tab(client_id, tab_id)),
+
+.upstream/herdr/src/server/headless/client_views.rs:490-520
+  490:         }
+  491:     }
+  492:
+  493:     pub(super) fn shell_client_views_pane(
+  494:         &self,
+  495:         client_id: u64,
+  496:         workspace_index: usize,
+  497:         pane_id: crate::layout::PaneId,
+  498:     ) -> bool {
+  499:         let Some(target) = self.shell_target_for_client(client_id) else {
+  500:             return false;
+  501:         };
+  502:         if target.workspace_index != workspace_index {
+  503:             return false;
+  504:         }
+  505:         let Some(tab) = self
+  506:             .app
+  507:             .state
+  508:             .workspaces
+  509:             .get(workspace_index)
+  510:             .and_then(|workspace| workspace.tabs.get(target.tab_index))
+  511:         else {
+  512:             return false;
+  513:         };
+  514:         if tab.zoomed {
+  515:             tab.layout.focused() == pane_id
+  516:         } else {
+  517:             tab.layout.pane_ids().contains(&pane_id)
+  518:         }
+  519:     }
+  520:
+
+.upstream/herdr/src/server/headless/client_views.rs:543-765
+  543:         client_id: u64,
+  544:         start_pending_agent_resumes: bool,
+  545:     ) -> bool {
+  546:         let Some(target) = self.shell_target_for_client(client_id) else {
+  547:             return false;
+  548:         };
+  549:         self.apply_shell_tab_geometry_to_target(client_id, target, start_pending_agent_resumes)
+  550:     }
+  551:
+  552:     fn apply_shell_tab_geometry_to_target(
+  553:         &mut self,
+  554:         client_id: u64,
+  555:         target: crate::ui::TabSurfaceTarget,
+  556:         start_pending_agent_resumes: bool,
+  557:     ) -> bool {
+  558:         if !self.resize_shell_tab_geometry_to_target(client_id, target) {
+  559:             return false;
+  560:         }
+  561:         self.finish_shell_tab_geometry_change(start_pending_agent_resumes);
+  562:         true
+  563:     }
+  564:
+  565:     fn resize_shell_tab_geometry_to_target(
+  566:         &mut self,
+  567:         client_id: u64,
+  568:         target: crate::ui::TabSurfaceTarget,
+  569:     ) -> bool {
+  570:         let Some(client) = self.clients.get(&client_id) else {
+  571:             return false;
+  572:         };
+  573:         let (cols, rows) = client.terminal_size;
+  574:         let cell_size = if client.cell_size.is_known() {
+  575:             client.cell_size
+  576:         } else {
+  577:             crate::kitty_graphics::HostCellSize::default()
+  578:         };
+  579:         let area = Rect::new(0, 0, cols, rows);
+  580:         if self.app_client_count() == 1 {
+  581:             for (workspace_index, workspace) in self.app.state.workspaces.iter().enumerate() {
+  582:                 for tab_index in 0..workspace.tabs.len() {
+  583:                     crate::ui::resize_tab_surface(
+  584:                         &self.app.state,
+  585:                         &self.app.terminal_runtimes,
+  586:                         workspace_index,
+  587:                         tab_index,
+  588:                         area,
+  589:                         cell_size,
+  590:                     );
+  591:                 }
+  592:             }
+  593:         } else {
+  594:             crate::ui::compute_tab_surface_for(
+  595:                 &self.app.state,
+  596:                 &self.app.terminal_runtimes,
+  597:                 Some(target),
+  598:                 area,
+  599:                 true,
+  600:                 cell_size,
+  601:             );
+  602:         }
+  603:         if self
+  604:             .popup_owner_tab_id
+  605:             .as_deref()
+  606:             .is_some_and(|owner| self.tab_id_for_target(target).as_deref() == Some(owner))
+  607:         {
+  608:             let _ = resize_popup_runtime(&self.app, Rect::new(0, 0, cols, rows), cell_size);
+  609:         }
+  610:         true
+  611:     }
+  612:
+  613:     pub(super) fn resize_tabs_for_only_shell_client(
+  614:         &mut self,
+  615:         start_pending_agent_resumes: bool,
+  616:     ) -> bool {
+  617:         let active_shell_count = self
+  618:             .clients
+  619:             .values()
+  620:             .filter(|client| client.is_active_shell_client() && client.writer.is_some())
+  621:             .count();
+  622:         if active_shell_count != 1 {
+  623:             return false;
+  624:         }
+  625:         let Some(client_id) = self.clients.iter().find_map(|(&client_id, client)| {
+  626:             (client.is_active_shell_client() && client.writer.is_some()).then_some(client_id)
+  627:         }) else {
+  628:             return false;
+  629:         };
+  630:         self.apply_shell_tab_geometry(client_id, start_pending_agent_resumes)
+  631:     }
+  632:
+  633:     pub(super) fn reapply_controlled_shell_tab_geometry(
+  634:         &mut self,
+  635:         start_pending_agent_resumes: bool,
+  636:     ) -> bool {
+  637:         let mut viewed_tabs = HashMap::<String, Vec<u64>>::new();
+  638:         for (&client_id, client) in &self.clients {
+  639:             if !client.is_active_shell_client() || client.writer.is_none() {
+  640:                 continue;
+  641:             }
+  642:             let Some(tab_id) = self.shell_tab_id_for_client(client_id) else {
+  643:                 continue;
+  644:             };
+  645:             viewed_tabs.entry(tab_id).or_default().push(client_id);
+  646:         }
+  647:         for viewers in viewed_tabs.values_mut() {
+  648:             viewers.sort_unstable();
+  649:         }
+  650:         for (tab_id, viewers) in viewed_tabs {
+  651:             let controller_is_viewing = self
+  652:                 .tab_geometry_controllers
+  653:                 .get(&tab_id)
+  654:                 .is_some_and(|controller| viewers.contains(controller));
+  655:             if !controller_is_viewing {
+  656:                 self.tab_geometry_controllers.insert(tab_id, viewers[0]);
+  657:             }
+  658:         }
+  659:
+  660:         if self.resize_tabs_for_only_shell_client(start_pending_agent_resumes) {
+  661:             return true;
+  662:         }
+  663:
+  664:         let mut controlled_tabs = self
+  665:             .tab_geometry_controllers
+  666:             .iter()
+  667:             .filter_map(|(tab_id, &client_id)| {
+  668:                 self.app
+  669:                     .parse_tab_id(tab_id)
+  670:                     .map(|(workspace_index, tab_index)| {
+  671:                         (
+  672:                             tab_id.clone(),
+  673:                             client_id,
+  674:                             crate::ui::TabSurfaceTarget {
+  675:                                 workspace_index,
+  676:                                 tab_index,
+  677:                             },
+  678:                         )
+  679:                     })
+  680:             })
+  681:             .collect::<Vec<_>>();
+  682:         controlled_tabs.sort_unstable_by(|left, right| left.0.cmp(&right.0));
+  683:         let mut reapplied = false;
+  684:         for (_, client_id, target) in controlled_tabs {
+  685:             reapplied |= self.resize_shell_tab_geometry_to_target(client_id, target);
+  686:         }
+  687:         if reapplied {
+  688:             self.finish_shell_tab_geometry_change(start_pending_agent_resumes);
+  689:         }
+  690:         reapplied
+  691:     }
+  692:
+  693:     pub(super) fn claim_shell_tab_geometry(
+  694:         &mut self,
+  695:         client_id: u64,
+  696:         start_pending_agent_resumes: bool,
+  697:     ) -> bool {
+  698:         if !self
+  699:             .clients
+  700:             .get(&client_id)
+  701:             .is_some_and(|client| client.shell_surface_active)
+  702:         {
+  703:             return false;
+  704:         }
+  705:         let Some(tab_id) = self.shell_tab_id_for_client(client_id) else {
+  706:             return false;
+  707:         };
+  708:         if self.tab_geometry_controllers.insert(tab_id, client_id) == Some(client_id) {
+  709:             return false;
+  710:         }
+  711:         self.apply_shell_tab_geometry(client_id, start_pending_agent_resumes)
+  712:     }
+  713:
+  714:     pub(super) fn claim_unowned_shell_tab_geometry(
+  715:         &mut self,
+  716:         client_id: u64,
+  717:         start_pending_agent_resumes: bool,
+  718:     ) -> bool {
+  719:         if !self
+  720:             .clients
+  721:             .get(&client_id)
+  722:             .is_some_and(|client| client.shell_surface_active)
+  723:         {
+  724:             return false;
+  725:         }
+  726:         let Some(tab_id) = self.shell_tab_id_for_client(client_id) else {
+  727:             return false;
+  728:         };
+  729:         if self.tab_geometry_controllers.contains_key(&tab_id) {
+  730:             return false;
+  731:         }
+  732:         self.tab_geometry_controllers.insert(tab_id, client_id);
+  733:         self.apply_shell_tab_geometry(client_id, start_pending_agent_resumes)
+  734:     }
+  735:
+  736:     pub(super) fn resize_shell_tab_if_controller(
+  737:         &mut self,
+  738:         client_id: u64,
+  739:         start_pending_agent_resumes: bool,
+  740:     ) -> bool {
+  741:         if !self
+  742:             .clients
+  743:             .get(&client_id)
+  744:             .is_some_and(|client| client.shell_surface_active)
+  745:         {
+  746:             return false;
+  747:         }
+  748:         let Some(tab_id) = self.shell_tab_id_for_client(client_id) else {
+  749:             return false;
+  750:         };
+  751:         if self.tab_geometry_controllers.get(&tab_id) != Some(&client_id) {
+  752:             return false;
+  753:         }
+  754:         self.apply_shell_tab_geometry(client_id, start_pending_agent_resumes)
+  755:     }
+  756:
+  757:     pub(super) fn shell_geometry_controller_for_terminal(
+  758:         &self,
+  759:         terminal_id: &str,
+  760:     ) -> Option<(u64, crate::ui::TabSurfaceTarget)> {
+  761:         let target = if self
+  762:             .app
+  763:             .state
+  764:             .popup_pane
+  765:             .as_ref()
+
+.upstream/herdr/src/server/headless/client_views.rs:806-972
+  806:         self.apply_shell_tab_geometry_to_target(client_id, target, true)
+  807:     }
+  808:
+  809:     /// Applies a public socket request, including its session-wide focus projection.
+  810:     pub(super) fn handle_api_request_with_shutdown_check(
+  811:         &mut self,
+  812:         mut msg: api::ApiRequestMessage,
+  813:     ) -> bool {
+  814:         let target_before = self.default_shell_target();
+  815:         let popup_before = self.app.state.popup_pane.is_some();
+  816:         let method_claims_geometry = Self::public_request_may_change_geometry(&msg.request.method);
+  817:         let explicit_public_focus_target = match &msg.request.method {
+  818:             api::schema::Method::WorkspaceFocus(params) => self
+  819:                 .app
+  820:                 .parse_workspace_id(&params.workspace_id)
+  821:                 .and_then(|workspace_index| {
+  822:                     let workspace = self.app.state.workspaces.get(workspace_index)?;
+  823:                     Some(crate::ui::TabSurfaceTarget {
+  824:                         workspace_index,
+  825:                         tab_index: workspace.active_tab_index(),
+  826:                     })
+  827:                 }),
+  828:             api::schema::Method::TabFocus(params) => {
+  829:                 self.app
+  830:                     .parse_tab_id(&params.tab_id)
+  831:                     .map(|(workspace_index, tab_index)| crate::ui::TabSurfaceTarget {
+  832:                         workspace_index,
+  833:                         tab_index,
+  834:                     })
+  835:             }
+  836:             api::schema::Method::PaneFocus(params) => self
+  837:                 .app
+  838:                 .parse_pane_id(&params.pane_id)
+  839:                 .and_then(|(workspace_index, pane_id)| {
+  840:                     let workspace = self.app.state.workspaces.get(workspace_index)?;
+  841:                     Some(crate::ui::TabSurfaceTarget {
+  842:                         workspace_index,
+  843:                         tab_index: workspace.find_tab_index_for_pane(pane_id)?,
+  844:                     })
+  845:                 }),
+  846:             _ => None,
+  847:         };
+  848:         let agent_focus_target = match &msg.request.method {
+  849:             api::schema::Method::AgentFocus(params) => Some(params.target.clone()),
+  850:             _ => None,
+  851:         };
+  852:         let create_focus_requested = match &msg.request.method {
+  853:             api::schema::Method::WorkspaceCreate(params) => params.focus,
+  854:             api::schema::Method::TabCreate(params) => params.focus,
+  855:             _ => false,
+  856:         };
+  857:         let inspect_pane_move = matches!(
+  858:             &msg.request.method,
+  859:             api::schema::Method::PaneMove(params) if params.focus
+  860:         );
+  861:         let response_proxy = (agent_focus_target.is_some() || inspect_pane_move).then(|| {
+  862:             let (proxy_tx, proxy_rx) = std::sync::mpsc::channel();
+  863:             let original = std::mem::replace(&mut msg.respond_to, proxy_tx);
+  864:             (original, proxy_rx)
+  865:         });
+  866:         let reconcile = Self::shell_locations_may_need_reconcile(&msg.request.method);
+  867:         let changed = self.handle_api_request_with_shutdown_check_inner(msg, false, false);
+  868:         let proxied_result = forward_proxied_api_response(response_proxy);
+  869:         let proxied_request_succeeded = proxied_result.is_some();
+  870:         // Same-tab and zoomed moves succeed without moving or requesting focus.
+  871:         let pane_move_focus_succeeded = inspect_pane_move
+  872:             && matches!(
+  873:                 &proxied_result,
+  874:                 Some(api::schema::ResponseResult::PaneMove { move_result }) if move_result.changed
+  875:             );
+  876:         let successful_agent_focus_target = proxied_request_succeeded
+  877:             .then(|| {
+  878:                 agent_focus_target.as_deref().and_then(|target| {
+  879:                     self.app.resolve_agent_target(target).ok().map(|resolved| {
+  880:                         crate::ui::TabSurfaceTarget {
+  881:                             workspace_index: resolved.ws_idx,
+  882:                             tab_index: resolved.tab_idx,
+  883:                         }
+  884:                     })
+  885:                 })
+  886:             })
+  887:             .flatten();
+  888:         let target_changed = self.default_shell_target() != target_before;
+  889:         let explicit_focus_succeeded = successful_agent_focus_target
+  890:             .or(explicit_public_focus_target)
+  891:             .is_some_and(|target| self.default_shell_target() == Some(target));
+  892:         let public_focus_succeeded = explicit_focus_succeeded
+  893:             || (create_focus_requested && target_changed)
+  894:             || pane_move_focus_succeeded;
+  895:         if public_focus_succeeded {
+  896:             self.focus_all_shell_clients_on_default_target();
+  897:         }
+  898:         if reconcile
+  899:             || target_changed
+  900:             || pane_move_focus_succeeded
+  901:             || self.app.state.popup_pane.is_some() != popup_before
+  902:         {
+  903:             self.reconcile_client_shell_locations();
+  904:         }
+  905:         let geometry_changed =
+  906:             method_claims_geometry && self.reapply_controlled_shell_tab_geometry(false);
+  907:         changed | geometry_changed
+  908:     }
+  909:
+  910:     pub(super) fn handle_client_shell_api_request(
+  911:         &mut self,
+  912:         client_id: u64,
+  913:         msg: api::ApiRequestMessage,
+  914:     ) -> bool {
+  915:         let focus_before = self.shell_focus_target(client_id);
+  916:         let focused_tabs_before = self.focused_shell_tabs();
+  917:         let method_claims_geometry = Self::shell_endpoint_claims_geometry(&msg.request.method);
+  918:         let reconcile = Self::shell_locations_may_need_reconcile(&msg.request.method);
+  919:         let all_focus_before = reconcile.then(|| self.shell_focus_targets());
+  920:         let navigation_changed =
+  921:             self.apply_shell_navigation_request(client_id, &msg.request.method);
+  922:         self.set_default_shell_target_from_client(client_id);
+  923:         let popup_before = self.app.state.popup_pane.is_some();
+  924:         let popup_owner = self.shell_tab_id_for_client(client_id);
+  925:         let changed = self.handle_api_request_with_shutdown_check_inner(msg, false, true);
+  926:         self.focus_shell_client_on_default_target(client_id);
+  927:         if !popup_before && self.app.state.popup_pane.is_some() {
+  928:             self.popup_owner_tab_id = popup_owner;
+  929:         }
+  930:         if reconcile || self.app.state.popup_pane.is_some() != popup_before {
+  931:             self.reconcile_client_shell_locations();
+  932:         }
+  933:         let focus_after = self.shell_focus_target(client_id);
+  934:         if let Some(all_focus_before) = all_focus_before {
+  935:             self.finish_shell_location_reconciliation(all_focus_before, &focused_tabs_before);
+  936:         } else {
+  937:             let focused_tabs_after = self.focused_shell_tabs();
+  938:             self.app.accept_current_focus_without_events();
+  939:             self.send_shell_navigation_focus_events(
+  940:                 focus_before.as_ref(),
+  941:                 focus_after.as_ref(),
+  942:                 &focused_tabs_before,
+  943:                 &focused_tabs_after,
+  944:             );
+  945:         }
+  946:         if focus_before != focus_after {
+  947:             if let Some(target) = focus_after {
+  948:                 self.app
+  949:                     .emit_focus_api_events(target.workspace_index, target.pane_id);
+  950:             }
+  951:         }
+  952:         let geometry_changed = method_claims_geometry
+  953:             && if reconcile {
+  954:                 self.reapply_controlled_shell_tab_geometry(false)
+  955:             } else {
+  956:                 self.claim_shell_tab_geometry(client_id, false)
+  957:                     || self.resize_shell_tab_if_controller(client_id, false)
+  958:             };
+  959:         changed | navigation_changed | geometry_changed
+  960:     }
+  961: }
+
+.upstream/herdr/src/server/headless/surface_interest.rs:1-110
+    1: use super::*;
+    2:
+    3: impl HeadlessServer {
+    4:     /// Apply a client-shell surface lease and return the resulting projection floor.
+    5:     ///
+    6:     /// Every `active: true` request advances the floor, even if the server already considered
+    7:     /// the connection active. That makes a new client activation epoch distinguishable from a
+    8:     /// delayed same-boot PaneSurface that was prepared for an earlier epoch.
+    9:     pub(super) fn set_client_shell_surface_active(
+   10:         &mut self,
+   11:         client_id: u64,
+   12:         active: bool,
+   13:     ) -> Option<(bool, u64)> {
+   14:         let focus_before = self.shell_focus_targets();
+   15:         let focused_tabs_before = self.focused_shell_tabs();
+   16:         let (changed, projection_revision) = {
+   17:             let client = self.clients.get_mut(&client_id)?;
+   18:             if !client.is_shell_client() {
+   19:                 return None;
+   20:             }
+   21:             let changed = client.shell_surface_active != active;
+   22:             if active {
+   23:                 client.shell_projection_revision =
+   24:                     client.shell_projection_revision.saturating_add(1);
+   25:                 // Force the next control snapshot to carry this new floor instead of reusing a
+   26:                 // same-boot cached snapshot from the prior surface epoch.
+   27:                 client.shell_snapshot = None;
+   28:             }
+   29:             if !changed && !active {
+   30:                 return Some((false, client.shell_projection_revision));
+   31:             }
+   32:             client.shell_surface_active = active;
+   33:             client.request_repaint();
+   34:             client.shell_graphics_delivery = Default::default();
+   35:             // The client drops target effects while its old source frame is frozen. Reset the
+   36:             // dedupe state whenever a viewer is (re)activated so the post-commit replay can
+   37:             // produce mouse/keyboard modes and graphics even when runtime demand is unchanged.
+   38:             if active {
+   39:                 client.host_mouse_capture_active = None;
+   40:                 client.host_sgr_pixels_active = None;
+   41:                 client.host_keyboard_report_all_active = None;
+   42:             }
+   43:             client.clear_deferred_render();
+   44:             if !active {
+   45:                 if let Some(writer) = &client.writer {
+   46:                     writer.discard_pending_render();
+   47:                 }
+   48:             }
+   49:             (changed, client.shell_projection_revision)
+   50:         };
+   51:         let held_inputs = (!active && changed).then(|| {
+   52:             self.clients
+   53:                 .get_mut(&client_id)
+   54:                 .expect("checked client")
+   55:                 .drain_shell_held_inputs()
+   56:         });
+   57:
+   58:         if let Some(held_inputs) = held_inputs {
+   59:             self.release_client_shell_inputs(client_id, held_inputs);
+   60:             self.retire_native_graphics_for_client(client_id);
+   61:         }
+   62:         if changed {
+   63:             self.finish_shell_location_reconciliation(focus_before, &focused_tabs_before);
+   64:         }
+   65:
+   66:         if active {
+   67:             self.promote_client_to_foreground(client_id);
+   68:             // Do not emit/cache a title during a frozen target activation. A committed client
+   69:             // explicitly requests the bounded replay after its coherent frame is visible.
+   70:             self.sent_window_title = None;
+   71:             self.resize_shared_runtime_to_effective_size_with_pending_agent_resumes(true);
+   72:             let focused_viewer_already_owns_tab = self
+   73:                 .shell_tab_id_for_client(client_id)
+   74:                 .is_some_and(|tab_id| {
+   75:                     self.clients.iter().any(|(&other_id, client)| {
+   76:                         other_id != client_id
+   77:                             && client.is_active_shell_client()
+   78:                             && client.outer_terminal_focus == Some(true)
+   79:                             && self.shell_tab_id_for_client(other_id).as_deref()
+   80:                                 == Some(tab_id.as_str())
+   81:                     })
+   82:                 });
+   83:             if !focused_viewer_already_owns_tab {
+   84:                 self.claim_shell_tab_geometry(client_id, true);
+   85:             }
+   86:         } else {
+   87:             self.tab_geometry_controllers
+   88:                 .retain(|_, controller_id| *controller_id != client_id);
+   89:             if self.foreground_client_id == Some(client_id) {
+   90:                 self.promote_latest_remaining_client();
+   91:                 self.resize_shared_runtime_to_effective_size_with_pending_agent_resumes(true);
+   92:             } else {
+   93:                 self.sync_foreground_client_state();
+   94:             }
+   95:             self.reapply_controlled_shell_tab_geometry(true);
+   96:         }
+   97:         Some((changed || active, projection_revision))
+   98:     }
+   99: }
+
+.upstream/herdr/src/server/headless.rs:884-894
+  884:     fn app_client_count(&self) -> usize {
+  885:         self.clients
+  886:             .values()
+  887:             .filter(|client| client.is_active_shell_client() && client.writer.is_some())
+  888:             .count()
+  889:     }
+  890:
+  891:     fn client_supports_direct_graphics(&self, client_id: u64) -> bool {
+  892:         self.clients.get(&client_id).is_some_and(|client| {
+  893:             client.is_active_shell_client()
+  894:                 && client.writer.is_some()
+
+.upstream/herdr/src/server/headless.rs:2187-2222
+ 2187:             ServerEvent::ClientShellResize {
+ 2188:                 client_id,
+ 2189:                 surface_cols,
+ 2190:                 surface_rows,
+ 2191:                 cell_width_px,
+ 2192:                 cell_height_px,
+ 2193:                 pixel_mouse,
+ 2194:             } => {
+ 2195:                 let Some(client) = self.clients.get_mut(&client_id) else {
+ 2196:                     return false;
+ 2197:                 };
+ 2198:                 if !matches!(client.mode, ClientConnectionMode::ClientShell) {
+ 2199:                     return false;
+ 2200:                 }
+ 2201:                 client.terminal_size = (surface_cols, surface_rows);
+ 2202:                 let observed = crate::kitty_graphics::HostCellSize {
+ 2203:                     width_px: cell_width_px,
+ 2204:                     height_px: cell_height_px,
+ 2205:                 };
+ 2206:                 if observed.is_known() {
+ 2207:                     client.cell_size = observed;
+ 2208:                 }
+ 2209:                 client.pixel_mouse = pixel_mouse && observed.is_known();
+ 2210:                 if !client.shell_surface_active {
+ 2211:                     return false;
+ 2212:                 }
+ 2213:                 client.request_repaint();
+ 2214:                 self.promote_client_to_foreground(client_id);
+ 2215:                 self.resize_shell_tab_if_controller(client_id, true);
+ 2216:                 true
+ 2217:             }
+ 2218:             ServerEvent::ClientShellHostTheme { client_id, update } => {
+ 2219:                 let Some(client) = self.clients.get_mut(&client_id) else {
+ 2220:                     return false;
+ 2221:                 };
+ 2222:                 if !matches!(client.mode, ClientConnectionMode::ClientShell) {
+
+.upstream/herdr/src/server/headless.rs:2318-2413
+ 2318:             ServerEvent::ClientShellPaneInput {
+ 2319:                 client_id,
+ 2320:                 pane_id,
+ 2321:                 events,
+ 2322:             } => {
+ 2323:                 if self.handoff_in_progress
+ 2324:                     || !self
+ 2325:                         .clients
+ 2326:                         .get(&client_id)
+ 2327:                         .is_some_and(ClientConnection::is_active_shell_client)
+ 2328:                 {
+ 2329:                     return false;
+ 2330:                 }
+ 2331:                 let pixel_mouse = self.clients.get(&client_id).is_some_and(|client| {
+ 2332:                     client.pixel_mouse && client.host_sgr_pixels_active == Some(true)
+ 2333:                 });
+ 2334:                 let mut events = events;
+ 2335:                 let Some((workspace_index, runtime_pane_id)) = self.app.parse_pane_id(&pane_id)
+ 2336:                 else {
+ 2337:                     return false;
+ 2338:                 };
+ 2339:                 let Some(runtime) = self.app.state.runtime_for_pane_in_workspace(
+ 2340:                     &self.app.terminal_runtimes,
+ 2341:                     workspace_index,
+ 2342:                     runtime_pane_id,
+ 2343:                 ) else {
+ 2344:                     return false;
+ 2345:                 };
+ 2346:                 super::pane_input::downgrade_ineligible_pixel_mouse(
+ 2347:                     &mut events,
+ 2348:                     pixel_mouse,
+ 2349:                     runtime.current_size(),
+ 2350:                     runtime.pixel_size(),
+ 2351:                 );
+ 2352:                 let popup_blocks_input = self.app.state.popup_pane.is_some()
+ 2353:                     && self.popup_owner_tab_id == self.shell_tab_id_for_client(client_id);
+ 2354:                 if popup_blocks_input
+ 2355:                     || !self.shell_client_views_pane(client_id, workspace_index, runtime_pane_id)
+ 2356:                 {
+ 2357:                     let Some(runtime) = self.app.state.runtime_for_pane_in_workspace(
+ 2358:                         &self.app.terminal_runtimes,
+ 2359:                         workspace_index,
+ 2360:                         runtime_pane_id,
+ 2361:                     ) else {
+ 2362:                         return false;
+ 2363:                     };
+ 2364:                     let releases = events
+ 2365:                         .into_iter()
+ 2366:                         .filter(client_pane_input_releases_press)
+ 2367:                         .collect::<Vec<_>>();
+ 2368:                     if releases.is_empty() {
+ 2369:                         return false;
+ 2370:                     }
+ 2371:                     if let Some(client) = self.clients.get_mut(&client_id) {
+ 2372:                         client.track_shell_input(
+ 2373:                             ClientShellInputTarget::Pane(pane_id.clone()),
+ 2374:                             &releases,
+ 2375:                         );
+ 2376:                     }
+ 2377:                     let scroll_before = runtime.scroll_metrics();
+ 2378:                     if let Err(err) = apply_client_pane_input_events(runtime, &releases) {
+ 2379:                         warn!(client_id, pane_id, err = %err, "targeted client shell release failed");
+ 2380:                     }
+ 2381:                     return runtime.scroll_metrics() != scroll_before;
+ 2382:                 }
+ 2383:                 let interaction = client_pane_input_has_interaction(&events);
+ 2384:                 if let Some(client) = self.clients.get_mut(&client_id) {
+ 2385:                     client
+ 2386:                         .track_shell_input(ClientShellInputTarget::Pane(pane_id.clone()), &events);
+ 2387:                 }
+ 2388:                 let foreground_changed =
+ 2389:                     interaction && self.promote_client_to_foreground(client_id);
+ 2390:                 let geometry_changed =
+ 2391:                     interaction && self.claim_shell_tab_geometry(client_id, false);
+ 2392:                 let Some(runtime) = self.app.state.runtime_for_pane_in_workspace(
+ 2393:                     &self.app.terminal_runtimes,
+ 2394:                     workspace_index,
+ 2395:                     runtime_pane_id,
+ 2396:                 ) else {
+ 2397:                     return foreground_changed | geometry_changed;
+ 2398:                 };
+ 2399:                 let scroll_before = runtime.scroll_metrics();
+ 2400:                 if let Err(err) = apply_client_pane_input_events(runtime, &events) {
+ 2401:                     warn!(client_id, pane_id, err = %err, "targeted client shell input failed");
+ 2402:                 }
+ 2403:                 foreground_changed | geometry_changed || runtime.scroll_metrics() != scroll_before
+ 2404:             }
+ 2405:             ServerEvent::ClientShellPopupInput {
+ 2406:                 client_id,
+ 2407:                 terminal_id,
+ 2408:                 events,
+ 2409:             } => {
+ 2410:                 if self.handoff_in_progress
+ 2411:                     || !self
+ 2412:                         .clients
+ 2413:                         .get(&client_id)
+
+.upstream/herdr/src/server/client_shell.rs:36-61
+   36:     };
+   37:     let focused_workspace_id = location
+   38:         .and_then(|location| location.focused_workspace_id.clone())
+   39:         .or_else(|| snapshot.focused_workspace_id.clone());
+   40:     let focused_tab_id = location
+   41:         .and_then(|location| location.focused_tab_id().map(str::to_owned))
+   42:         .or_else(|| snapshot.focused_tab_id.clone());
+   43:     let focused_pane_id = focused_tab_id
+   44:         .as_deref()
+   45:         .and_then(|tab_id| app.parse_tab_id(tab_id))
+   46:         .and_then(|(workspace_index, tab_index)| {
+   47:             let pane_id = app
+   48:                 .state
+   49:                 .workspaces
+   50:                 .get(workspace_index)?
+   51:                 .tabs
+   52:                 .get(tab_index)?
+   53:                 .layout
+   54:                 .focused();
+   55:             app.public_pane_id(workspace_index, pane_id)
+   56:         })
+   57:         .or_else(|| snapshot.focused_pane_id.clone());
+   58:     let workspaces = snapshot
+   59:         .workspaces
+   60:         .into_iter()
+   61:         .zip(&app.state.workspaces)
+
+.upstream/herdr/src/server/headless/endpoint_requests.rs:1-100
+    1: use super::*;
+    2:
+    3: impl HeadlessServer {
+    4:     pub(super) fn handle_client_shell_endpoint_request(
+    5:         &mut self,
+    6:         client_id: u64,
+    7:         boot_id: String,
+    8:         mut request: Box<api::schema::Request>,
+    9:     ) -> bool {
+   10:         let Some(client) = self.clients.get(&client_id) else {
+   11:             return false;
+   12:         };
+   13:         if !matches!(client.mode, ClientConnectionMode::ClientShell) {
+   14:             self.remove_client_and_resize_if_needed(client_id);
+   15:             return true;
+   16:         }
+   17:         let request_id = request.id.clone();
+   18:         if !crate::server::client_commands::supports_client_shell_method(&request.method) {
+   19:             let message = crate::server::client_commands::error_message(
+   20:                 boot_id,
+   21:                 request_id,
+   22:                 "unsupported_endpoint_command",
+   23:                 "this method is not available through the client shell command lane",
+   24:             );
+   25:             self.send_to_client(client_id, message);
+   26:             return false;
+   27:         }
+   28:         if boot_id != self.client_shell_boot_id {
+   29:             let message = crate::server::client_commands::error_message(
+   30:                 boot_id,
+   31:                 request_id,
+   32:                 "stale_boot",
+   33:                 "endpoint command targeted an earlier server boot",
+   34:             );
+   35:             self.send_to_client(client_id, message);
+   36:             return false;
+   37:         }
+   38:         let surface_active = client.shell_surface_active;
+   39:         if let api::schema::Method::ClientShellSurfaceSet(params) = &request.method {
+   40:             let Some((changed, projection_revision)) =
+   41:                 self.set_client_shell_surface_active(client_id, params.active)
+   42:             else {
+   43:                 return false;
+   44:             };
+   45:             self.send_to_client(
+   46:                 client_id,
+   47:                 crate::server::client_commands::success_message_with_result(
+   48:                     boot_id,
+   49:                     request_id,
+   50:                     api::schema::ResponseResult::ClientShellSurfaceSet {
+   51:                         active: params.active,
+   52:                         projection_revision,
+   53:                     },
+   54:                 ),
+   55:             );
+   56:             return changed;
+   57:         }
+   58:         if client.shell_endpoint_command_in_flight {
+   59:             let message = crate::server::client_commands::error_message(
+   60:                 boot_id,
+   61:                 request_id,
+   62:                 "endpoint_busy",
+   63:                 "this endpoint is still processing another command",
+   64:             );
+   65:             self.send_to_client(client_id, message);
+   66:             return false;
+   67:         }
+   68:         if !surface_active {
+   69:             let message = crate::server::client_commands::error_message(
+   70:                 boot_id,
+   71:                 request_id,
+   72:                 "surface_inactive",
+   73:                 "this method requires an active client shell surface",
+   74:             );
+   75:             self.send_to_client(client_id, message);
+   76:             return false;
+   77:         }
+   78:
+   79:         let api_request_id = format!(
+   80:             "endpoint:{}:{client_id}:{request_id}",
+   81:             self.client_shell_boot_id
+   82:         );
+   83:         request.id = api_request_id.clone();
+   84:         let (respond_to, response_rx) = std::sync::mpsc::channel();
+   85:         if let Err(err) = crate::server::client_commands::spawn_response_waiter(
+   86:             client_id,
+   87:             boot_id.clone(),
+   88:             request_id.clone(),
+   89:             response_rx,
+   90:             self.server_event_tx.clone(),
+   91:         ) {
+   92:             let message = crate::server::client_commands::error_message(
+   93:                 boot_id,
+   94:                 request_id,
+   95:                 "server_unavailable",
+   96:                 format!("failed to start endpoint response bridge: {err}"),
+   97:             );
+   98:             self.send_to_client(client_id, message);
+   99:             return false;
+  100:         }
+
+.upstream/herdr/src/protocol/endpoint.rs:1-70
+    1: //! Stable endpoint compatibility contract for client-owned shells.
+    2: //!
+    3: //! The endpoint generation is intentionally independent from the private
+    4: //! binary protocol used by same-install CLI, direct-terminal, and handoff
+    5: //! paths. Generation 1 is the compatibility floor for Local, SSH, and Cloud
+    6: //! shell endpoints and must remain available indefinitely unless retired for a
+    7: //! security reason. New JSON fields must be optional or have serde defaults;
+    8: //! new enum values need an `Unknown` fallback. Unknown named controls are
+    9: //! optional and ignored unless negotiated as part of the core.
+   10:
+   11: use serde::{Deserialize, Serialize};
+   12:
+   13: use super::{ClientShellSnapshot, ClientSurfaceSize, ServerMessage};
+   14:
+   15: pub const ENDPOINT_PROTOCOL_GENERATION: u32 = 1;
+   16: pub const ENDPOINT_HELLO_KIND: &str = "endpoint.hello.v1";
+   17: pub const ENDPOINT_WELCOME_KIND: &str = "endpoint.welcome.v1";
+   18: pub const SNAPSHOT_CODEC_V1: &str = "shell.snapshot.v1";
+   19: pub const ENDPOINT_SNAPSHOT_KIND: &str = SNAPSHOT_CODEC_V1;
+   20: pub const SURFACE_CODEC_V1: &str = "shell.surface.v1";
+   21: pub const INPUT_CODEC_V1: &str = "shell.input.semantic.v1";
+   22: pub const BLOB_CODEC_V1: &str = "shell.blob.v1";
+   23: pub const SURFACE_INTEREST_CAPABILITY: &str = "surface_interest";
+   24: pub const PRESENTATION_EFFECTS_FENCE_CAPABILITY: &str = "presentation_effects_fence";
+   25: pub const PRESENTATION_EFFECTS_SYNC_KIND: &str = "endpoint.presentation.sync.v1";
+   26: pub const PRESENTATION_EFFECTS_READY_KIND: &str = "endpoint.presentation.ready.v1";
+   27: pub const HEALTH_CHECK_CAPABILITY: &str = "health_check";
+   28: pub const HEALTH_PING_KIND: &str = "endpoint.health.ping.v1";
+   29: pub const HEALTH_PONG_KIND: &str = "endpoint.health.pong.v1";
+   30: pub const AGENT_VIEW_PROJECTION_CAPABILITY: &str = "agent_view_projection";
+   31: pub const AGENT_VIEW_PROJECTION_KIND: &str = "endpoint.agent-view.v1";
+   32: pub const AGENT_COMPLETIONS_CAPABILITY: &str = "agent_completions";
+   33: pub const AGENT_COMPLETIONS_KIND: &str = "endpoint.agent-completions.v1";
+   34:
+   35: #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+   36: pub struct EndpointAgentCompletions {
+   37:     pub boot_id: String,
+   38:     pub revision: u64,
+   39:     pub completions: std::collections::BTreeMap<String, u64>,
+   40: }
+   41:
+   42: fn default_true() -> bool {
+   43:     true
+   44: }
+   45:
+   46: #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+   47: pub struct EndpointClientHello {
+   48:     pub generation: u32,
+   49:     pub cell_width_px: u32,
+   50:     pub cell_height_px: u32,
+   51:     pub surface_size: ClientSurfaceSize,
+   52:     pub pixel_mouse: bool,
+   53:     pub direct_graphics: bool,
+   54:     pub endpoint_keybindings: bool,
+   55:     pub mouse_capture: bool,
+   56:     #[serde(default = "default_true")]
+   57:     pub surface_active: bool,
+   58:     /// Accept the optional cell-retaining surface encoding on this connection.
+   59:     #[serde(default)]
+   60:     pub surface_reuse: bool,
+   61:     /// Accept the optional surface-delta encoding on this connection.
+   62:     #[serde(default)]
+   63:     pub surface_delta: bool,
+   64:     /// Accept the optional scroll-aware patch encoding on this connection.
+   65:     #[serde(default)]
+   66:     pub surface_scroll: bool,
+   67:     #[serde(default)]
+   68:     pub snapshot_codecs: Vec<String>,
+   69:     #[serde(default)]
+   70:     pub surface_codecs: Vec<String>,
+
+.upstream/herdr/tests/support/mod.rs:313-361
+  313: pub fn client_shell_handshake(
+  314:     stream: &mut UnixStream,
+  315:     endpoint_generation: u32,
+  316:     surface_cols: u16,
+  317:     surface_rows: u16,
+  318: ) -> Result<(u32, Option<String>), String> {
+  319:     let data = serde_json::json!({
+  320:         "generation": endpoint_generation,
+  321:         "cell_width_px": 8,
+  322:         "cell_height_px": 16,
+  323:         "surface_size": {"cols": surface_cols, "rows": surface_rows},
+  324:         "pixel_mouse": false,
+  325:         "direct_graphics": false,
+  326:         "endpoint_keybindings": false,
+  327:         "mouse_capture": false,
+  328:         "snapshot_codecs": ["shell.snapshot.v1"],
+  329:         "surface_codecs": ["shell.surface.v1"],
+  330:         "input_codecs": ["shell.input.semantic.v1"],
+  331:         "blob_codecs": ["shell.blob.v1"]
+  332:     })
+  333:     .to_string();
+  334:     let hello_payload = encode_varint_enum(
+  335:         CLIENT_MESSAGE_ENDPOINT_CONTROL,
+  336:         &[&encode_string("endpoint.hello.v1"), &encode_string(&data)],
+  337:     );
+  338:     let response = read_handshake_response(stream, &hello_payload)?;
+  339:     let mut offset = 0;
+  340:     let (variant, consumed) = decode_varint_u32(&response, offset)?;
+  341:     offset += consumed;
+  342:     if variant != SERVER_MESSAGE_ENDPOINT_CONTROL {
+  343:         return Err(format!(
+  344:             "expected EndpointControl (variant {SERVER_MESSAGE_ENDPOINT_CONTROL}), got variant {variant}"
+  345:         ));
+  346:     }
+  347:     let kind = decode_string(&response, &mut offset)?;
+  348:     if kind != "endpoint.welcome.v1" {
+  349:         return Err(format!("expected endpoint.welcome.v1, got {kind}"));
+  350:     }
+  351:     let data = decode_string(&response, &mut offset)?;
+  352:     let value: serde_json::Value = serde_json::from_str(&data).map_err(|err| err.to_string())?;
+  353:     let generation = value["generation"]
+  354:         .as_u64()
+  355:         .ok_or_else(|| "endpoint welcome omitted generation".to_owned())?
+  356:         as u32;
+  357:     let error = value["error"]
+  358:         .as_object()
+  359:         .and_then(|error| error.get("message"))
+  360:         .and_then(serde_json::Value::as_str)
+  361:         .map(str::to_owned);
+
+.upstream/herdr/tests/support/mod.rs:387-424
+  387: pub fn send_client_shell_shift_enter(stream: &mut UnixStream, pane_id: &str) -> Result<(), String> {
+  388:     let mut payload = encode_varint_u32(CLIENT_MESSAGE_CLIENT_SHELL_PANE_INPUT);
+  389:     payload.extend_from_slice(&encode_varint_u32(pane_id.len() as u32));
+  390:     payload.extend_from_slice(pane_id.as_bytes());
+  391:     payload.extend_from_slice(&encode_varint_u32(1)); // one pane input event
+  392:     payload.extend_from_slice(&encode_varint_u32(0)); // Key
+  393:     payload.extend_from_slice(&encode_varint_u32(1)); // Enter
+  394:     payload.push(1); // Shift
+  395:     payload.extend_from_slice(&encode_varint_u32(0)); // Press
+  396:     payload.extend_from_slice(&encode_varint_u16(1));
+  397:     payload.push(0); // no shifted codepoint
+  398:     payload.push(0); // no generated text
+  399:     payload.push(0); // does not track release
+  400:     payload.push(0); // no physical key id
+  401:     payload.push(0); // no Windows key record
+  402:
+  403:     stream
+  404:         .write_all(&frame_message(&payload))
+  405:         .map_err(|e| format!("write client shell key: {e}"))?;
+  406:     stream
+  407:         .flush()
+  408:         .map_err(|e| format!("flush client shell key: {e}"))
+  409: }
+  410:
+  411: pub fn send_client_shell_focus(stream: &mut UnixStream, focused: bool) -> Result<(), String> {
+  412:     let mut payload = encode_varint_u32(CLIENT_MESSAGE_CLIENT_SHELL_FOCUS);
+  413:     payload.push(u8::from(focused));
+  414:     stream
+  415:         .write_all(&frame_message(&payload))
+  416:         .map_err(|e| format!("write client shell focus: {e}"))?;
+  417:     stream
+  418:         .flush()
+  419:         .map_err(|e| format!("flush client shell focus: {e}"))
+  420: }
+  421:
+  422: pub fn send_detach(stream: &mut UnixStream) -> Result<(), String> {
+  423:     let detach_payload = encode_varint_u32(4);
+  424:     let framed = frame_message(&detach_payload);
+
+.upstream/herdr/docs/versions/0.9.3/website/src/data/config-reference.json:978-984
+  978:         {
+  979:           "key": "ui.pane_scrollbars",
+  980:           "type": "boolean",
+  981:           "default": "true",
+  982:           "description": "Draw interactive scrollbars beside terminal panes. Disable to reclaim the scrollbar column and keep it out of terminal-native selections."
+  983:         },
+  984:         {
