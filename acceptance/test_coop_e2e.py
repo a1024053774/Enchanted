@@ -376,6 +376,22 @@ class ManagedDeliveryCLI(unittest.TestCase):
         self.assertEqual(self.ref(), self.base)
         self.assert_rejection_recorded(denied["error"], events)
 
+    def test_oracle_rejects_candidate_missing_limit_upper_bound(self):
+        self.create()
+        attempt = self.claim()
+        workspace = Path(attempt["workspace"])
+        reference = REFERENCE.read_text(encoding="utf-8")
+        self.assertEqual(reference.count("not 1 <= limit <= 100"), 1)
+        (workspace / "pager.py").write_text(
+            reference.replace("not 1 <= limit <= 100", "limit < 1", 1), encoding="utf-8")
+        self.git("add", "pager.py", cwd=workspace)
+        self.git("commit", "-m", "Known-bad candidate omits limit upper bound", cwd=workspace)
+        commit = self.git("rev-parse", "HEAD", cwd=workspace).stdout.strip()
+        self.submit(attempt, commit)
+        self.cli("verify", "--task", self.task, ok=False, error="oracle_failed")
+        self.assertNotIn(self.status()["state"], ("verified", "accepted"))
+        self.assertEqual(self.ref(), self.base)
+
     def test_good_candidate_uses_oracle_snapshot_and_integrates_once(self):
         self.create()
         attempt = self.claim()
