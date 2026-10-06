@@ -1,0 +1,5 @@
+你是 T-008 独立验收作者 run-check。独占 acceptance/test_run_e2e.py 和 evidence/2026-10-06-run-01/check-*、red-ready.json。你不是唯一 agent，不覆盖或撤销别人编辑。不得修改生产代码、README、规范或旧证据；主控提交与审查。
+先读 AGENTS、.project-map/specs/supervised-run-2026-10-06.md、T-008 和现有独立测试 helper。不要从产品实现读取期望值。用冻结 CLI 契约写新 run 与可选 --attempt guards 的验收，入口 python3 -B acceptance/test_run_e2e.py，支持 COOP_SCRIPT。
+测试应通过真实 CLI、Git、SQLite；若外部可控 Herdr 替身用于构造 no-submit/done、blocked、replacement、并发和超时，明确标为隔离编排证据，禁止把它当真实 Herdr/模型通过。不能在生产加入测试开关。主控会单独跑真实 Codex/Herdr。优先复用现有独立夹具 helper，而非复制大量代码；新记录写本轮目录。
+覆盖：正常自动流程确实改 Git、done 无 submit 不成功、重复 run 只投递一次、非法等待参数无副作用、旧 run 不验收/集成/关闭替换 attempt、oracle失败或身份未知不成功、仅回收自己的资源。verify/integrate/reclaim --attempt guards 用真实 CLI 与状态/引用不变证明。替身真实边界日志必须保存，已知缺陷不能只查字符串。
+先固定父源码 571b45a:coop.py 的唯一新文件，跑 COOP_SCRIPT=父源码 测试并分类为新命令缺失的 expected-red；不要冒充旧缺陷。保存原始结果，正确区分环境/夹具错误。业务契约红态确认后写 red-ready.json ready=true，包含 concise summary 和证据路径；实现者在等信号。不派生agent，不 commit、不关ticket。结束后汇报可观察契约、红态与局限。

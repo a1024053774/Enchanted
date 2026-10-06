@@ -7,6 +7,7 @@
 - 当前执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
 - T-007 恢复语义以 `.project-map/specs/recovery-2026-10-06.md` 为准；真实故障只注入隔离测试所创建的 CLI 子进程。
 - 验收与集成必须经过持操作锁的 CLI 入口；锁释放只允许核对中断状态，不能替代验收证据。
+- 自动 run 必须显式设置 submit 等待期限；其验收、集成和清理都绑定原 attempt，不得因 current_attempt 改变而接管新执行者。
 - T-006 与 T-007 已验收；当前是 T-008，契约见 `.project-map/specs/supervised-run-2026-10-06.md`。继续按 ticket 分配实现、验收与观察职责；不得复用旧候选的通过结论替新变更背书。
 - Ticket 内容和运行证据可以在各自 session 中变化；只有地图、术语表或治理规则本身变化时才需要同步更新本文件。
 - `CONTEXT.md` 只保存统一术语。`herdr-a2a-research-and-plan-2026-10-06.md` 是 dated 初始研究记录，不把它当作最新规范，也不要在普通任务中改写。

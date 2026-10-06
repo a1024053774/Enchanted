@@ -13,6 +13,7 @@ import shlex
 import sqlite3
 import subprocess
 import sys
+import time
 import uuid
 
 
@@ -72,17 +73,24 @@ def text_input(value):
     return value
 
 
+def dispatch_input(args):
+    require(PANE.fullmatch(args.parent_pane) is not None, "invalid_pane")
+    require(NAME.fullmatch(args.name) is not None, "invalid_name")
+    require(os.environ.get("HERDR_ENV") == "1", "herdr_context_required")
+
+
 @contextmanager
-def operation_lock(state, task_id):
+def operation_lock(state, task_id, *, run=False):
     directory = absolute(state) / "locks"
     directory.mkdir(parents=True, exist_ok=True)
     # Keep the inode: unlinking could let another caller lock a different file.
     # Python opens this descriptor non-inheritable; subprocesses do not own it.
-    with (directory / (identifier(task_id) + ".lock")).open("a") as lock:
+    suffix = ".run.lock" if run else ".lock"
+    with (directory / (identifier(task_id) + suffix)).open("a") as lock:
         try:
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise Refusal("operation_busy")
+            raise Refusal("run_busy" if run else "operation_busy")
         yield
 
 
@@ -91,6 +99,7 @@ class Coop:
         self.root = absolute(state)
         self.root.mkdir(parents=True, exist_ok=True)
         self.task_id = identifier(task_id)
+        self.run_receipt = None
         self.db = sqlite3.connect(str(self.root / "state.sqlite3"), timeout=30,
                                   isolation_level=None)
         self.db.execute("PRAGMA foreign_keys=ON")
@@ -142,9 +151,10 @@ class Coop:
             result["current_attempt"] = self.current(task)
         return result
 
-    def run(self, argv, *, cwd=None, timeout=TIMEOUT, env=None, attempt=None):
+    def execute(self, argv, *, cwd=None, timeout=TIMEOUT, env=None, attempt=None, journal=True):
         record = {"argv": argv, "cwd": str(cwd) if cwd else None, "started": now()}
-        self.event("command_intent", record, attempt)
+        if journal:
+            self.event("command_intent", record, attempt)
         try:
             p = subprocess.run(argv, cwd=cwd, env=env, capture_output=True,
                                text=True, encoding="utf-8", errors="replace", timeout=timeout)
@@ -153,18 +163,21 @@ class Coop:
                 return value.decode("utf-8", "replace") if isinstance(value, bytes) else value
             record.update(returncode=None, stdout=decoded(exc.stdout), stderr=decoded(exc.stderr),
                           ended=now(), outcome="timeout")
-            self.event("command_result", record, attempt)
+            if journal:
+                self.event("command_result", record, attempt)
             raise Refusal("command_timeout", **record)
         except (FileNotFoundError, PermissionError) as exc:
             record.update(returncode=None, ended=now(), outcome="not_started", reason=str(exc))
-            self.event("command_result", record, attempt)
+            if journal:
+                self.event("command_result", record, attempt)
             raise Refusal("command_unavailable", **record)
         record.update(returncode=p.returncode, stdout=p.stdout, stderr=p.stderr, ended=now())
-        self.event("command_result", record, attempt)
+        if journal:
+            self.event("command_result", record, attempt)
         return record
 
     def git(self, repo, *args, allowed=(0,), attempt=None, env=None):
-        r = self.run(["git", "-C", str(repo), *args], attempt=attempt, env=env)
+        r = self.execute(["git", "-C", str(repo), *args], attempt=attempt, env=env)
         require(r["returncode"] in allowed, "git_failed", command=r)
         return r
 
@@ -240,6 +253,10 @@ class Coop:
         self.save("tasks", self.task_id, task)
         self.save("attempts", attempt_id, attempt)
         self.event("claim_intent", {"attempt": attempt}, attempt_id)
+        if self.run_receipt is not None:
+            self.run_receipt.update({key: attempt[key] for key in
+                                     ("attempt_id", "session_id", "fence", "spec_rev")})
+            self.event("run_bound", self.run_receipt, attempt_id)
         return task, attempt
 
     def prepare_claim(self, task, attempt):
@@ -345,6 +362,7 @@ class Coop:
     def verify(self, args):
         with self.transaction():
             task = self.task()
+            self.expected_attempt(task, args)
             if task["state"] == "verifying":
                 previous = task["verification"]
                 self.check_verification(task, self.current(task), previous)
@@ -360,6 +378,7 @@ class Coop:
                 self.event("verification_interrupted", previous, previous["attempt_id"])
         with self.transaction():
             task = self.task()
+            self.expected_attempt(task, args)
             require(task["state"] == "submitted", "not_submitted", state=task["state"])
             attempt = self.current(task)
             require(attempt["state"] == "submitted" and attempt["task_id"] == self.task_id and
@@ -411,7 +430,7 @@ class Coop:
                                            "workspace": str(workspace)}, attempt["attempt_id"])
         argv = ["python3", "-I", "-B", task["oracle"], str(workspace)]
         try:
-            result = self.run(argv, cwd=workspace, timeout=ORACLE_TIMEOUT,
+            result = self.execute(argv, cwd=workspace, timeout=ORACLE_TIMEOUT,
                               attempt=attempt["attempt_id"])
         except Refusal as exc:
             verification.update(state="unknown", result=exc.details, ended=now())
@@ -444,6 +463,7 @@ class Coop:
     def integrate(self, args):
         with self.transaction():
             task = self.task()
+            self.expected_attempt(task, args)
             if task["state"] == "accepted":
                 return {"task": self.public_task(task), "replayed": True}
             intent = task["integration_intent"]
@@ -491,6 +511,7 @@ class Coop:
         require(not conflict, "integration_conflict", expected=verification["G"], actual=actual)
         with self.transaction():
             task = self.task()
+            self.expected_attempt(task, args)
             require(task["integration_intent"] == intent, "needs_reconciliation")
             attempt = self.current(task)
             self.check_verification(task, attempt, task["verification"])
@@ -522,12 +543,19 @@ class Coop:
         return {"events": [{"seq": r[0], "time": r[1], "type": r[2], "task": r[3],
                             "attempt": r[4], "details": json.loads(r[5])} for r in rows]}
 
-    def herdr(self, *args, mutation=False, attempt=None):
+    def expected_attempt(self, task, args):
+        expected = getattr(args, "attempt", None)
+        if expected is not None:
+            identifier(expected)
+            require(task["current_attempt"] == expected, "stale_attempt",
+                    expected=expected, actual=task["current_attempt"])
+
+    def herdr(self, *args, mutation=False, attempt=None, journal=True):
         require(os.environ.get("HERDR_ENV") == "1", "herdr_context_required")
         # The session/socket context remains; every pane target is an explicit live handle.
         env = {k: v for k, v in os.environ.items()
                if k not in ("HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID")}
-        r = self.run(["herdr", *args], env=env, attempt=attempt)
+        r = self.execute(["herdr", *args], env=env, attempt=attempt, journal=journal)
         if r["returncode"] != 0:
             raise Refusal("herdr_side_effect_unknown" if mutation else "herdr_failed", response=r)
         try:
@@ -538,8 +566,8 @@ class Coop:
                 "herdr_response_unknown", response=r)
         return response["result"], r
 
-    def inventory(self):
-        result, raw = self.herdr("pane", "list")
+    def inventory(self, *, journal=True):
+        result, raw = self.herdr("pane", "list", journal=journal)
         require(isinstance(result.get("panes"), list), "herdr_response_unknown", response=raw)
         return result["panes"]
 
@@ -550,23 +578,25 @@ class Coop:
             self.save("attempts", attempt_id, attempt)
             self.event(kind, dispatch, attempt_id)
 
-    def snapshot_bound(self, dispatch, attempt_id):
-        panes = self.inventory()
+    def snapshot_bound(self, dispatch, attempt_id, *, journal=True):
+        panes = self.inventory(journal=journal)
         pane = next((p for p in panes if p.get("pane_id") == dispatch.get("pane_id")), None)
         if pane is None:
             return {"absent": True, "inventory": panes}
         require(pane.get("terminal_id") == dispatch.get("terminal_id"), "identity_conflict", pane=pane)
-        result, raw = self.herdr("pane", "process-info", "--pane", pane["pane_id"], attempt=attempt_id)
+        result, raw = self.herdr("pane", "process-info", "--pane", pane["pane_id"],
+                                attempt=attempt_id, journal=journal)
         require(isinstance(result.get("process_info"), dict), "herdr_response_unknown", response=raw)
         snapshot = {"pane": pane, "process_info": result["process_info"], "process_response": raw}
         if pane.get("agent"):
-            result, raw = self.herdr("agent", "get", pane["pane_id"], attempt=attempt_id)
+            result, raw = self.herdr("agent", "get", pane["pane_id"],
+                                    attempt=attempt_id, journal=journal)
             require(isinstance(result.get("agent"), dict), "herdr_response_unknown", response=raw)
             snapshot.update(agent=result["agent"], agent_response=raw)
             env = {k: v for k, v in os.environ.items()
                    if k not in ("HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID")}
-            raw = self.run(["herdr", "agent", "read", pane["pane_id"], "--source", "detection",
-                            "--lines", "80"], env=env, attempt=attempt_id)
+            raw = self.execute(["herdr", "agent", "read", pane["pane_id"], "--source", "detection",
+                                "--lines", "80"], env=env, attempt=attempt_id, journal=journal)
             require(raw["returncode"] == 0, "herdr_failed", response=raw)
             snapshot["read_response"] = raw
         return snapshot
@@ -585,19 +615,17 @@ class Coop:
                         agent_identity={"agent": agent["agent"], "name": agent["name"]})
 
     def dispatch(self, args):
-        require(PANE.fullmatch(args.parent_pane) is not None, "invalid_pane")
-        require(NAME.fullmatch(args.name) is not None, "invalid_name")
-        require(os.environ.get("HERDR_ENV") == "1", "herdr_context_required")
+        dispatch_input(args)
         panes = self.inventory()
         parent = next((p for p in panes if p.get("pane_id") == args.parent_pane), None)
         require(parent is not None, "parent_not_live")
         agents, raw = self.herdr("agent", "list")
         require(isinstance(agents.get("agents"), list), "herdr_response_unknown", response=raw)
         require(not any(a.get("name") == args.name for a in agents["agents"]), "name_in_use")
-        version = self.run(["codex", "--version"])
+        version = self.execute(["codex", "--version"])
         require(version["returncode"] == 0 and version["stdout"].strip() == "codex-cli 0.160.1",
                 "cli_version_mismatch", response=version, expected="codex-cli 0.160.1")
-        runtime = self.run(["herdr", "status"])
+        runtime = self.execute(["herdr", "status"])
         require(runtime["returncode"] == 0, "herdr_failed", response=runtime)
         record = {"state": "reserved", "name": args.name, "parent_pane": args.parent_pane,
                   "parent_terminal": parent["terminal_id"], "cli_version": version,
@@ -690,7 +718,12 @@ class Coop:
             raise
         return {"attempt": self.load("attempts", aid), "dispatch": record}
 
-    def bound_attempt(self):
+    def bound_attempt(self, expected=None):
+        if expected is not None:
+            attempt = self.load("attempts", identifier(expected))
+            require(attempt["task_id"] == self.task_id, "stale_attempt")
+            require(attempt.get("dispatch") is not None, "no_bound_pane")
+            return attempt
         # Revocation retains the pane binding even after current_attempt is cleared.
         records = [json.loads(row[0]) for row in self.db.execute("SELECT data FROM attempts").fetchall()]
         bound = [a for a in records if a["task_id"] == self.task_id and a.get("dispatch") and
@@ -707,23 +740,19 @@ class Coop:
         self.event("observed", snapshot, attempt["attempt_id"])
         return {"observation": snapshot, "attempt": attempt}
 
-    def reclaim(self, args):
-        attempt = self.bound_attempt()
-        aid = attempt["attempt_id"]
-        dispatch = attempt["dispatch"]
-        require(dispatch.get("pane_id") and dispatch["pane_id"] != dispatch["parent_pane"],
-                "needs_reconciliation", dispatch=dispatch)
-        snapshot = self.snapshot_bound(dispatch, aid)
-        self.event("reclaim_observation", snapshot, aid)
+    def check_bound_identity(self, dispatch, snapshot):
         if not snapshot.get("absent"):
             info = snapshot["process_info"]
-            require(info.get("shell_pid") == dispatch.get("shell_pid"), "identity_conflict")
+            require(dispatch.get("shell_pid") is not None and
+                    info.get("shell_pid") == dispatch["shell_pid"], "identity_conflict")
             agent = snapshot.get("agent")
             if agent:
-                require(agent.get("agent") == "codex" and agent.get("name") == dispatch["name"],
+                require(agent.get("agent") == "codex" and agent.get("name") == dispatch["name"] and
+                        agent.get("terminal_id") == dispatch["terminal_id"],
                         "identity_conflict", snapshot=snapshot)
                 pids = sorted(p["pid"] for p in info.get("foreground_processes", []) if "pid" in p)
-                require(dispatch.get("agent_pids") == pids, "identity_conflict", snapshot=snapshot)
+                require(bool(pids) and dispatch.get("agent_pids") == pids,
+                        "identity_conflict", snapshot=snapshot)
                 require(not dispatch.get("native_session") or
                         agent.get("agent_session") == dispatch["native_session"],
                         "identity_conflict", snapshot=snapshot)
@@ -731,9 +760,27 @@ class Coop:
                 require(info.get("foreground_process_group_id") == info.get("shell_pid") and
                         all(p.get("pid") == info["shell_pid"] for p in info.get("foreground_processes", [])),
                         "identity_unknown", snapshot=snapshot)
+
+    def reclaim(self, args, *, automatic=False):
+        attempt = self.bound_attempt(getattr(args, "attempt", None))
+        aid = attempt["attempt_id"]
+        dispatch = attempt["dispatch"]
+        if dispatch["state"] == "reclaimed":
+            return {"task": self.public_task(self.task()), "attempt": attempt, "replayed": True}
+        require(dispatch.get("pane_id") and dispatch["pane_id"] != dispatch["parent_pane"],
+                "needs_reconciliation", dispatch=dispatch)
+        snapshot = self.snapshot_bound(dispatch, aid)
+        self.event("reclaim_observation", snapshot, aid)
+        self.check_bound_identity(dispatch, snapshot)
+        if automatic and not snapshot.get("absent"):
+            agent = snapshot.get("agent")
+            require(agent is not None and agent.get("agent_status") in ("idle", "done", "working"),
+                    "run_blocked" if agent and agent.get("agent_status") == "blocked"
+                    else "run_external_unknown", snapshot=snapshot)
         with self.transaction():
             task = self.task()
-            if task["state"] != "accepted" and task["current_attempt"] is not None:
+            require(self.load("attempts", aid)["dispatch"] == dispatch, "identity_conflict")
+            if task["state"] != "accepted" and task["current_attempt"] == aid:
                 require(task["integration_intent"] is None, "needs_reconciliation")
                 self.invalidate(task, "controller reclaim")
             dispatch["state"] = "close_pending"
@@ -754,13 +801,110 @@ class Coop:
         self.set_dispatch(aid, dispatch, "reclaimed")
         return {"task": self.public_task(self.task()), "attempt": self.load("attempts", aid)}
 
+    def run_phase(self, phase, **details):
+        self.run_receipt.update(phase=phase, **details)
+        self.event("run_phase", self.run_receipt, self.run_receipt.get("attempt_id"))
+
+    def finish_run(self, outcome, **details):
+        self.run_receipt.update(outcome=outcome, ended=now(), **details)
+        self.event("run_finished", self.run_receipt, self.run_receipt.get("attempt_id"))
+
+    def wait_submission(self, args):
+        aid = self.run_receipt["attempt_id"]
+        deadline = time.monotonic() + args.wait_seconds
+        self.run_phase("waiting_submit", wait_started=now())
+        previous = None
+        while True:
+            task = self.task()
+            require(task["current_attempt"] == aid, "run_superseded",
+                    expected=aid, actual=task["current_attempt"])
+            require(time.monotonic() < deadline, "run_deadline")
+            attempt = self.load("attempts", aid)
+            dispatch = attempt["dispatch"]
+            try:
+                snapshot = self.snapshot_bound(dispatch, aid, journal=False)
+            except Refusal:
+                current = self.task()["current_attempt"]
+                require(current == aid, "run_superseded", expected=aid, actual=current)
+                raise
+            # External observation can block while a controller replaces the attempt.
+            task = self.task()
+            require(task["current_attempt"] == aid, "run_superseded",
+                    expected=aid, actual=task["current_attempt"])
+            self.check_bound_identity(dispatch, snapshot)
+            agent = snapshot.get("agent")
+            require(not snapshot.get("absent") and agent is not None,
+                    "run_external_unknown", snapshot=snapshot)
+            status = agent.get("agent_status")
+            change = {"task_state": task["state"], "agent_status": status,
+                      "interactive_ready": agent.get("interactive_ready"),
+                      "state_change_seq": agent.get("state_change_seq")}
+            if change != previous:
+                self.event("run_observed", {"run_id": self.run_receipt["run_id"],
+                                            "change": change, "snapshot": snapshot}, aid)
+                previous = change
+            require(status != "blocked", "run_blocked", snapshot=snapshot)
+            require(status in ("idle", "done", "working"), "run_external_unknown", snapshot=snapshot)
+            require(time.monotonic() < deadline, "run_deadline")
+            require(task["state"] in ("claimed", "submitted"),
+                    "run_state_changed", state=task["state"])
+            if task["state"] == "submitted":
+                return
+            time.sleep(min(0.5, max(0, deadline - time.monotonic())))
+
+    def run(self, args):
+        try:
+            with operation_lock(str(self.root), self.task_id):
+                with self.transaction():
+                    self.task()
+                    self.run_receipt = {"run_id": token(), "task_id": self.task_id,
+                                        "attempt_id": None, "started": now(), "outcome": "running",
+                                        "phase": "dispatching", "parent_pane": args.parent_pane,
+                                        "name": args.name, "wait_seconds": args.wait_seconds}
+                    self.event("run_started", self.run_receipt)
+                result = self.dispatch(args)
+                self.run_receipt.update(pane_id=result["dispatch"]["pane_id"],
+                                        terminal_id=result["dispatch"]["terminal_id"])
+            self.wait_submission(args)
+            bound = argparse.Namespace(attempt=self.run_receipt["attempt_id"])
+            with operation_lock(str(self.root), self.task_id):
+                self.run_phase("verifying")
+                self.verify(bound)
+                self.run_phase("integrating")
+                self.integrate(bound)
+                self.run_phase("reclaiming", integration_intent_id=self.task()["integration_intent"]["intent_id"])
+                try:
+                    self.reclaim(bound, automatic=True)
+                except Refusal as exc:
+                    raise Refusal("run_reclaim_failed", cause=exc.code, **exc.details)
+            self.finish_run("completed", reclaimed=True)
+            return {"task": self.public_task(self.task()), "run": self.run_receipt}
+        except Refusal as exc:
+            if self.run_receipt is None:
+                raise
+            if exc.code == "stale_attempt":
+                exc = Refusal("run_superseded", **exc.details)
+            if exc.code in ("run_deadline", "run_superseded", "oracle_failed", "merge_conflict"):
+                bound = argparse.Namespace(attempt=self.run_receipt["attempt_id"])
+                try:
+                    with operation_lock(str(self.root), self.task_id):
+                        self.reclaim(bound, automatic=True)
+                    self.run_receipt["reclaimed"] = True
+                except Refusal as cleanup:
+                    self.run_receipt["cleanup_failure"] = {"error": cleanup.code, "details": cleanup.details}
+            outcomes = {"run_deadline": "deadline", "run_superseded": "superseded",
+                        "oracle_failed": "verification_failed", "merge_conflict": "verification_failed",
+                        "run_reclaim_failed": "integrated_reclaim_failed"}
+            self.finish_run(outcomes.get(exc.code, "paused"), error=exc.code, details=exc.details)
+            raise exc
+
 
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--state", required=True)
     commands = p.add_subparsers(dest="command", required=True)
     for name in ("create", "claim", "revoke", "revise", "submit", "verify", "integrate", "status",
-                 "events", "dispatch", "observe", "reclaim"):
+                 "events", "dispatch", "observe", "reclaim", "run"):
         s = commands.add_parser(name)
         s.add_argument("--task", required=True)
         if name == "create":
@@ -777,9 +921,13 @@ def parser():
                 s.add_argument("--" + field, required=True)
             for field in ("fence", "spec-rev"):
                 s.add_argument("--" + field, type=int, required=True)
-        elif name == "dispatch":
+        elif name in ("dispatch", "run"):
             s.add_argument("--parent-pane", required=True)
             s.add_argument("--name", required=True)
+            if name == "run":
+                s.add_argument("--wait-seconds", type=int, required=True)
+        elif name in ("verify", "integrate", "reclaim"):
+            s.add_argument("--attempt")
     return p
 
 
@@ -788,7 +936,13 @@ def main():
     coop = None
     operations = ExitStack()
     try:
-        if args.command in ("verify", "integrate"):
+        if args.command == "run":
+            require(args.wait_seconds > 0, "invalid_wait_seconds")
+            absolute(args.state)
+            identifier(args.task)
+            dispatch_input(args)
+            operations.enter_context(operation_lock(args.state, args.task, run=True))
+        if args.command in ("verify", "integrate", "reclaim"):
             operations.enter_context(operation_lock(args.state, args.task))
         coop = Coop(args.state, args.task)
         result = getattr(coop, args.command)(args)
@@ -797,14 +951,19 @@ def main():
             coop.event("rejected", {"command": args.command, "error": exc.code,
                                     "details": exc.details, "input": vars(args)},
                        getattr(args, "attempt", None))
-        print(json.dumps({"ok": False, "error": exc.code, "details": exc.details}, ensure_ascii=False))
+        receipt = {"run": coop.run_receipt} if coop is not None and coop.run_receipt else {}
+        print(json.dumps({"ok": False, "error": exc.code, "details": exc.details, **receipt}, ensure_ascii=False))
         return 1
     except (FileNotFoundError, PermissionError, FileExistsError, IsADirectoryError,
             NotADirectoryError, UnicodeDecodeError) as exc:
         detail = {"command": args.command, "exception": type(exc).__name__, "reason": str(exc)}
         if coop is not None:
             coop.event("local_io_failed", detail)
-        print(json.dumps({"ok": False, "error": "local_io_failed", "details": detail}, ensure_ascii=False))
+            if coop.run_receipt is not None:
+                outcome = "integrated_reclaim_failed" if coop.run_receipt["phase"] == "reclaiming" else "paused"
+                coop.finish_run(outcome, error="local_io_failed", details=detail)
+        receipt = {"run": coop.run_receipt} if coop is not None and coop.run_receipt else {}
+        print(json.dumps({"ok": False, "error": "local_io_failed", "details": detail, **receipt}, ensure_ascii=False))
         return 1
     finally:
         if coop is not None:

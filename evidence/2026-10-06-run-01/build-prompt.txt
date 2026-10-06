@@ -1,0 +1,5 @@
+你是 T-008 实现 worker run-build。独占 coop.py / README.md；若确需新增一个承担实质职责的内部模块可在本任务内新增并说明理由，禁止架构重写。你不是唯一 agent，不撤销或覆盖他人改动，不写 acceptance/规范/旧evidence。主控负责提交与独立审查。
+先读 AGENTS、.project-map/specs/supervised-run-2026-10-06.md、现有入口和 T-008；这轮只做方案与只读核对，先不改行为。独立验收作者会写 evidence/2026-10-06-run-01/red-ready.json；ready=true 才能实施。若尚无信号，报告 READY 并等待主控，不长期轮询。
+目标 run 一条命令自动推进自己的 attempt：dispatch、等待显式submit、锁保护且指定expected attempt的verify/integrate、核对回收。保留现有门禁；不把done当完成，不重发prompt，不自动权限批准。明确wait-seconds只作用于成功投递后的submit等待。相同task活跃run互斥；另一个原操作可能已活跃也不得绕过T007锁。CLI方法 run 与当前 subprocess helper同名要清楚处理，避免破坏现有调用者。
+核心竞态：run看到旧attempt后，事务前可能被替换；verify/integrate --attempt 必须在原子边界核对（包括accepted幂等返回前）。reclaim --attempt 必须选该task下指定历史attempt，只清理自己的pane；task已换人不能撤销新attempt。当前attempt或者外部身份未知则停止推进保留现场，不能盲目关闭。blocked/权限等待不要自动答复。失败收据清楚区分已集成但回收失败、等待超时、superseded、oracle失败和未知外部状态。
+复用同一state事实，不发明第二套task成功状态；run收据只记录协调过程与身份。代码不包含测试mock或后门，不增加依赖。先红后绿；完成时跑新run测试、T006和T007既有套件，保存新 build-*.json 和源码快照。真实模型运行由主控做；你不直接启动任务pane、不派生agent、不关ticket或commit。写完冻结交付，不做自我二次审查。
