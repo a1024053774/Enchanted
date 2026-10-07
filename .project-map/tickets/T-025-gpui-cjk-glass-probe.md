@@ -2,9 +2,9 @@
 id: T-025
 title: 本机 GPUI 的中文输入、复制与玻璃质感
 type: research
-status: open
+status: out-of-scope
 blocked_by: [T-026]
-claimed_by: 用户手测（主控协调，等待 MANUAL-CHECK.md 结果）
+claimed_by:
 supersedes:
 ---
 
@@ -30,3 +30,5 @@ supersedes:
 - [独立只读审查](../../evidence/2026-10-06-m1-batch2/T-025/acceptance-review.md) 认可本次自动证据及 INCOMPLETE 交付；审查 PASS 不等于本 ticket 通过，真人边界仍未知。
 
 后续由主控协调用户手测并据实际文本、录屏和观感结论决定是否关闭；旧自动通过不能代替真人验收。
+
+**2026-10-07：out-of-scope。** 用户手测录屏（`/Users/luckye/Desktop/屏幕录制 2026-10-07 at 10.24.20.mp4`，抽帧见 grilling ledger F5）显示拼音、emoji、粘贴可用，但界面观感不可接受；方向改为 fork Synara（T-030），不再继续 GPUI 探针。自动证据保留。

@@ -2,10 +2,9 @@
 
 ## Destination
 
-第二阶段：a2a 多 Agent 工作台，目标与 M1 见 [intent.md](../intent.md)（2026-10-06 accepted，决策见 T-016～T-021）。
-工作台以 Herdr 0.9.3 引擎的硬分叉加 GPUI 界面取代 Herdr CLI；`coop.py` 的门禁保留，改接工作台的控制接口。
-工作台名为 Muster（T-022）；执行规格与初步任务书见 [workbench-m1](specs/workbench-m1-2026-10-06.md)。
-进度：T-024、T-026、T-027、T-029 已关闭；T-025 等用户手测中文输入与玻璃质感；T-028（Muster.app）依赖 T-025。
+第二阶段（2026-10-07 修订）：基于 Synara fork（`a1024053774/synara`）的 a2a 多 Agent 工作台，目标与 M1 见 [intent.md](../intent.md)，决策见 T-030～T-033。
+门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。下一步：写基于 Synara 的 M1 spec，再切 tracer-bullet build ticket。
+[workbench-m1](specs/workbench-m1-2026-10-06.md) 是被取代的 GPUI/Muster 方案的日期记录；其中 T-024、T-026、T-027、T-029 已完成并保留为证据。
 
 首轮已完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
 [T-007](tickets/T-007-recovery.md) 中断恢复、[T-008](tickets/T-008-supervised-run.md) 自动运行均在 Herdr 上通过；
@@ -33,13 +32,12 @@
 - [T-005 First seam and baseline](tickets/T-005-first-seam-and-baseline.md): 固定本地源码、真实 Herdr 入口及已有红/绿证据的分页 oracle
 - [T-009 Audit recorded a2a work sessions](tickets/T-009-session-retrospective.md): 20 份 session 已扫描；F01 按用户更正另列为模型行为，T-012 仅保留研究交付范围
 - [T-015 Review the specified Claude Code collaboration session](tickets/T-015-claude-session-experience.md): 指定对话已回读并整理中文经验，报告只保留中文版本
-- [T-016 第二阶段目的地与 M1](tickets/T-016-phase2-destination.md): 自建类 Herdr 的 GPUI 工作台，项目窗口、任务页、pane 分工；M1 为接替 Herdr 承担 a2a 日常工作
-- [T-017 工作台的技术底座](tickets/T-017-workbench-base.md): Herdr 0.9.3 引擎硬分叉加 GPUI；否决 Zed 二开、muxel fork、从头重写和跟随上游 rebase
-- [T-018 运行时切换与门禁优先](tickets/T-018-runtime-switch-and-gates.md): 工作台取代 Herdr；三套验收与一次真实 run 通过后切换；界面操作受管任务只走 `coop.py`
-- [T-019 第二阶段术语](tickets/T-019-phase2-terms.md): 工作台、引擎、项目、Task、Pane、原生会话写入 CONTEXT.md
+- [T-032 修订后的 M1 与层级要求](tickets/T-032-m1-revised.md): 项目 → 任务 → agent 会话；M1 六项含原生门禁、真实闭环与切换（取代 T-016）
+- [T-030 工作台改为基于 Synara 的 fork](tickets/T-030-synara-fork-base.md): fork Synara v1.0.1-beta.2，原生协议会话，持续跟进上游，独立 clone（取代 T-017、T-022）
+- [T-031 a2a 门禁在 Synara 中原生实现](tickets/T-031-native-gates.md): TypeScript 独立 package、唯一门禁入口、契约不变、移植场景重新证明（取代 T-018）
+- [T-033 第二阶段术语修订](tickets/T-033-terms-revised.md): 门禁入口、Agent 会话、冻结的 Muster 引擎（取代 T-019）
 - [T-020 构建缓存、开源许可与代码复用](tickets/T-020-build-cache-license-reuse.md): 缓存放外置盘且缺盘即报错；开源，允许 GPL，并入后整体 GPL-3.0
 - [T-021 Enchanted 的搁置与并入](tickets/T-021-enchanted-freeze.md): 快照 `3e2ad91` 后冻结，功能在 M1 之后并入工作台
-- [T-022 工作台的代码位置与正式名称](tickets/T-022-workbench-location-and-name.md): 名为 Muster，代码放在本仓库 `muster/`，命名空间前缀 `muster`/`MUSTER_`
 - [T-023 主控放在项目级还是任务级](tickets/T-023-controller-placement.md): 主控是角色不分层级，经控制接口同时操作项目级与任务级，做法沿用 Herdr
 - [T-026 把构建缓存与工具链放到外置盘](tickets/T-026-external-build-cache.md): `scripts/build` 缺盘拒绝，Cargo/Zig/tmp 在外置盘；同 target 构建串行等待，按 worktree 分槽
 - [T-024 一个引擎能否让多个窗口各看不同项目](tickets/T-024-per-window-project-focus.md): 可以，各连接焦点、尺寸与输入独立；窗口导航须走各自连接，同一任务共享 PTY 尺寸
@@ -49,14 +47,14 @@
 - When and how a second CLI validates the capability contract
 - Numeric budget and risk thresholds
 - 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化
-- M1 后续切片（第一批 ticket 关闭后再切）：多项目多窗口、侧栏与状态汇总、玻璃质感与强调色、Claude Code 端到端与已装 CLI 冒烟、界面上的受管任务操作与人工介入记录、引擎名词由 workspace/tab 改为 project/task、面向 agent 的 Muster 控制指南、切换后删除 Herdr 路径
+- 基于 Synara 的 M1 细节：任务内多 agent 分组的实现、门禁接入会话的位置与外部入口形态、构建缓存配置——在 spec 中解决
 
 ## Out of scope
 
 - 生产发布、对外 push 和重启用户 Herdr server；本轮只做本地实现与隔离验收
 - 将 F01 主控 GPT 提前结束回合归为分工协调缺陷并据此改造协调层；用户已明确将其归为模型行为，记录保留在 findings。
 - Rewriting the dated research draft | reason: it is the project's initial research record.
-- 基于 Zed 二次开发 | reason: NO_GO，见 T-017。
+- 基于 Zed 二次开发、从零自建 GPUI 界面 | reason: 见 T-030；T-025、T-028 以 out-of-scope 关闭。
 - M1 之外的工作：对话视图、Enchanted 其他功能、远程机器、插件、Windows/Linux、元素级背景模糊、上游同步 | reason: 见 intent.md 的范围。
 
 ## Living docs

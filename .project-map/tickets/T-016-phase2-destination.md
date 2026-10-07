@@ -2,7 +2,7 @@
 id: T-016
 title: 第二阶段目的地与 M1
 type: decide
-status: closed
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,3 +21,5 @@ supersedes:
 M1：工作台完全接替 Herdr，承担 a2a 的日常工作。包括引擎在后台持久运行并能恢复窗口；项目窗口、任务页、pane 与四种状态；Codex 与 Claude Code 端到端实测；`coop.py` 改接工作台，三套验收与一次真实 `run` 通过；Codex、Synara 式外观，窗口级玻璃质感和可选强调色。M1 只面向 macOS。完整内容见 [intent.md](../../intent.md)。
 
 被否决：评估中提议的"GPUI 作为已安装 Herdr 的客户端"，以及"以对话投影为主"的形态。
+
+**2026-10-07：被 T-032 取代**（改为基于 Synara 的 fork，见 `.grilling/synara-fork.md`）。

@@ -2,7 +2,7 @@
 id: T-018
 title: 运行时切换与门禁优先
 type: decide
-status: closed
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
@@ -22,3 +22,5 @@ supersedes:
 - 工作台使用独立命名空间，切换完成前与已安装的 Herdr 并存。
 
 本决定取代首轮 intent 中"保留 Herdr"的表述。T-006～T-008 的证据只对 Herdr 运行时成立，切换后要重跑。
+
+**2026-10-07：被 T-031 取代**（改为基于 Synara 的 fork，见 `.grilling/synara-fork.md`）。

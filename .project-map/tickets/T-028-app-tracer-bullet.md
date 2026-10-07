@@ -2,7 +2,7 @@
 id: T-028
 title: Muster.app 的第一颗 tracer bullet
 type: build
-status: open
+status: out-of-scope
 blocked_by: [T-027, T-025]
 claimed_by:
 supersedes:
@@ -26,3 +26,5 @@ supersedes:
 ## Resolution
 
 未执行。
+
+**2026-10-07：out-of-scope。** GPUI 的 Muster.app 不再建设，见 T-030、T-032。

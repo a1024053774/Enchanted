@@ -2,7 +2,7 @@
 id: T-022
 title: 工作台的代码位置与正式名称
 type: decide
-status: closed
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
@@ -28,3 +28,5 @@ supersedes:
 - 代码放在本仓库的 `muster/` 目录。
 - 命令行程序叫 `muster`，桌面应用叫 Muster.app，环境变量前缀为 `MUSTER_`，目录和 hook 文件名用 `muster`。详见 [spec](../specs/workbench-m1-2026-10-06.md)。
 - GitHub 私有仓库沿用项目名 `a2a`，开源时可以再改名。
+
+**2026-10-07：被 T-030 取代**（改为基于 Synara 的 fork，见 `.grilling/synara-fork.md`）。

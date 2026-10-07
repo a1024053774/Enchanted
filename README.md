@@ -2,17 +2,17 @@
 
 a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。项目分两部分：
 
-- **协作门禁（首轮已完成，2026-10-07 起运行在 Muster 上）**：`coop.py` 用程序约束认领、交付、独立验收和集成，通过 `muster` 控制接口分派 worker。用法见下文。
-- **Muster 工作台（第二阶段，开发中）**：自建的 GPUI 多 agent 工作台。它以 Herdr 0.9.3 引擎的硬分叉取代 Herdr CLI：每个项目一个窗口，任务是标签页，任务里的多个 pane 供 agent 分工。目标与范围见 [intent.md](intent.md)，设计与任务顺序见 [M1 spec 与初步任务书](.project-map/specs/workbench-m1-2026-10-06.md)。
-  - **引擎（T-027 已验收，2026-10-07）**：源码在 `muster/engine/`，是 Herdr 0.9.3（`c4653a4`）的硬分叉，来源与许可见其中的 NOTICE 和 LICENSE。可执行文件为 `muster`，环境变量前缀 `MUSTER_`，socket、配置目录与集成 hook 都用 `muster` 命名，可与已安装的 Herdr 并存；不访问 herdr.dev。构建只经下文的 `scripts/build`：
+- **工作台（第二阶段，2026-10-07 起基于 Synara）**：在 Synara 的 fork（[`a1024053774/synara`](https://github.com/a1024053774/synara)，起点 v1.0.1-beta.2）上构建多 agent 工作台，按“项目 → 任务 → agent 会话”组织，a2a 门禁在其服务端原生实现。fork 单独 clone，不放进本仓库；本仓库保管规范、门禁契约、验收场景与证据。目标与 M1 见 [intent.md](intent.md)，决策见 [.grilling/synara-fork.md](.grilling/synara-fork.md)。尚未实现。
+- **协作门禁 `coop.py`（首轮已完成；2026-10-07 起冻结为参考实现）**：用程序约束认领、交付、独立验收和集成，当前通过 Muster 引擎分派 worker。新门禁就绪前，它仍是唯一的门禁入口。用法见下文。
+- **Muster 引擎（冻结的参考实现）**：`muster/engine/` 是 Herdr 0.9.3（`c4653a4`）的硬分叉，来源与许可见其中的 NOTICE 和 LICENSE；只供现有 `coop.py` 运行，新门禁通过同样验收后删除。可执行文件为 `muster`，与已安装的 Herdr 并存，不访问 herdr.dev。构建只经下文的 `scripts/build`：
 
-    ```sh
-    ./scripts/build build --locked --manifest-path muster/Cargo.toml
-    ```
+  ```sh
+  ./scripts/build build --locked --manifest-path muster/Cargo.toml
+  ```
 
-    产物在 `/Volumes/WD-Elements/dev-cache/a2a/target/<slot>/debug/muster`。试用时一律开独立命名会话（`muster --session <name>`），不要动正在使用的 Herdr。验收范围与限制见 [T-027 证据](evidence/2026-10-06-m1-batch2/T-027/RESULTS.md)。
-  - **coop.py 已改接 Muster（T-029 已验收，2026-10-07）**：三套验收与一次真实 `run` 在 Muster 运行时上通过，见 [T-029 证据](evidence/2026-10-07-m1-batch3/T-029/RESULTS.md)。
-  - **尚未完成**：桌面应用 Muster.app（T-028）及 M1 的其余切片。主控与 worker 的日常分派在切换完成前仍经已安装的 Herdr。
+  产物在 `/Volumes/WD-Elements/dev-cache/a2a/target/<slot>/debug/muster`。试用时一律开独立命名会话（`muster --session <name>`），不要动正在使用的 Herdr。验收证据见 [T-027](evidence/2026-10-06-m1-batch2/T-027/RESULTS.md)、[T-029](evidence/2026-10-07-m1-batch3/T-029/RESULTS.md)。
+
+切换完成前，主控与 worker 的日常分派仍经已安装的 Herdr。
 
 文档入口：[项目地图](.project-map/MAP.md)、[术语表](CONTEXT.md)、[项目规则](AGENTS.md)、[开发发现](findings/README.md)。
 

@@ -2,7 +2,7 @@
 id: T-017
 title: 工作台的技术底座
 type: compare
-status: closed
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
@@ -23,3 +23,5 @@ supersedes:
 - fork muxel：GPL，依赖 tmux，约 10 个预设，没有给 agent 用的控制接口；
 - 从头新建：基本等于重写 Herdr；
 - 跟随上游 rebase：改名和结构调整会让冲突持续增加。
+
+**2026-10-07：被 T-030 取代**（改为基于 Synara 的 fork，见 `.grilling/synara-fork.md`）。
