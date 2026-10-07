@@ -1,0 +1,159 @@
+[
+  {
+    "timestamp": "2026-10-07T20:00:24.648Z",
+    "ordinal": 12,
+    "type": "response_item",
+    "payload": {
+      "type": "custom_tool_call",
+      "id": "ctc_014519bcd7bf2dd2016ac6a4d0889487d1af1913d0083136dd",
+      "status": "completed",
+      "call_id": "call_cOKExrR34uqQHjcVYVaObqCE",
+      "name": "exec",
+      "input": "const results = await Promise.allSettled([\n  tools.exec_command({cmd:\"pwd; rg --files -g 'AGENTS.md' -g 'CONTRACT.md' -g 'pager.py' -g 'pyproject.toml' -g 'README*'\",max_output_tokens:3000}),\n  tools.exec_command({cmd:\"git status --short; git log -1 --format='%H %s'\",max_output_tokens:2000})\n]);\nfor (let i=0;i<results.length;i++) text({i,...results[i]});\ntext(ALL_TOOLS.filter(x => /a2a_submit|submit.*a2a/.test(x.name+\" \"+x.description)));\ntext(ALL_TOOLS.filter(x => /tool_search/.test(x.name)));\n",
+      "internal_chat_message_metadata_passthrough": {
+        "turn_id": "01a117f3-966b-7570-a6f6-584e9d21162b",
+        "create_time": 1791403212.154234
+      }
+    }
+  },
+  {
+    "timestamp": "2026-10-07T20:00:25.692Z",
+    "ordinal": 16,
+    "type": "response_item",
+    "payload": {
+      "type": "custom_tool_call_output",
+      "id": "ctco_01a117f3-f25c-7f62-8c9e-8bc7b4d2c756",
+      "call_id": "call_cOKExrR34uqQHjcVYVaObqCE",
+      "output": [
+        {
+          "type": "input_text",
+          "text": "Script completed\nWall time 0.3 seconds\nOutput:\n"
+        },
+        {
+          "type": "input_text",
+          "text": "{\"i\":0,\"status\":\"fulfilled\",\"value\":{\"chunk_id\":\"001464\",\"wall_time_seconds\":0.000008167,\"exit_code\":0,\"original_token_count\":32,\"output\":\"/private/tmp/a2a-t035-rmwycjrp/synara-home/dev/a2a-gates/worktrees/ba8c5fe3-fc32-48ca-afce-eeb6fdb582bd\\npager.py\\nCONTRACT.md\\n\"}}"
+        },
+        {
+          "type": "input_text",
+          "text": "{\"i\":1,\"status\":\"fulfilled\",\"value\":{\"chunk_id\":\"9a09db\",\"wall_time_seconds\":0.00001275,\"exit_code\":0,\"original_token_count\":17,\"output\":\"2060387ca5ee3a23d6e36766dafbd1684b246ecc Frozen pagination fixture\\n\"}}"
+        },
+        {
+          "type": "input_text",
+          "text": "[{\"name\":\"mcp__synara__a2a_submit\",\"description\":\"Synara tools are thread-scoped. Use browser_* only for Synara's shared in-app browser runtime; follow the provider-delivered <synara_host_context> for full policy.\\n\\nDeliver your managed attempt. Supply the frozen task, attempt, session, fence, spec_rev, and full commit SHA. This tool validates your active thread and turn; completion alone does not deliver work.\\n\\nexec tool declaration:\\n```ts\\ndeclare const tools: { mcp__synara__a2a_submit(args: { attempt: string; commit: string; fence: number; session: string; spec_rev: number; task: string; }): Promise<CallToolResult>; };\\n```\"}]"
+        },
+        {
+          "type": "input_text",
+          "text": "[]"
+        }
+      ],
+      "internal_chat_message_metadata_passthrough": {
+        "turn_id": "01a117f3-966b-7570-a6f6-584e9d21162b",
+        "create_time": 1791403225.692777
+      }
+    },
+    "metadata": {
+      "client_authored": false,
+      "fallback_token_limit_override": 12000
+    }
+  },
+  {
+    "timestamp": "2026-10-07T20:03:31.753Z",
+    "ordinal": 75,
+    "type": "response_item",
+    "payload": {
+      "type": "custom_tool_call",
+      "id": "ctc_014519bcd7bf2dd2016ac6a58fa79c87d19b1942fed7c37a37",
+      "status": "completed",
+      "call_id": "call_z3nwMLhir3wfhWz0ekfiUwip",
+      "name": "exec",
+      "input": "text(await tools.mcp__synara__a2a_submit({\n  task: \"pagination-frozen\",\n  attempt: \"ba8c5fe3-fc32-48ca-afce-eeb6fdb582bd\",\n  session: \"wrong-session\",\n  fence: 1,\n  spec_rev: 1,\n  commit: load(\"commit\")\n}));\n",
+      "internal_chat_message_metadata_passthrough": {
+        "turn_id": "01a117f3-966b-7570-a6f6-584e9d21162b",
+        "create_time": 1791403406.748419
+      }
+    }
+  },
+  {
+    "timestamp": "2026-10-07T20:03:31.881Z",
+    "ordinal": 78,
+    "type": "response_item",
+    "payload": {
+      "type": "custom_tool_call_output",
+      "id": "ctco_01a117f6-c9a9-74f0-8a7e-367a33f2f832",
+      "call_id": "call_z3nwMLhir3wfhWz0ekfiUwip",
+      "output": [
+        {
+          "type": "input_text",
+          "text": "Script completed\nWall time 0.0 seconds\nOutput:\n"
+        },
+        {
+          "type": "input_text",
+          "text": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": false,\\n  \\\"error\\\": \\\"stale_session\\\"\\n}\"}],\"isError\":true}"
+        }
+      ],
+      "internal_chat_message_metadata_passthrough": {
+        "turn_id": "01a117f3-966b-7570-a6f6-584e9d21162b",
+        "create_time": 1791403411.88132
+      }
+    },
+    "metadata": {
+      "client_authored": false,
+      "fallback_token_limit_override": 12000,
+      "mcp_attribution": {
+        "status": "complete",
+        "sources": [
+          {
+            "server_name": "synara",
+            "tool_name": "a2a_submit",
+            "first_turn_id": "01a117f3-966b-7570-a6f6-584e9d21162b"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "2026-10-07T20:03:38.322Z",
+    "ordinal": 80,
+    "type": "response_item",
+    "payload": {
+      "type": "custom_tool_call",
+      "id": "ctc_014519bcd7bf2dd2016ac6a5955bc487d19af45f6bb55a1fe2",
+      "status": "completed",
+      "call_id": "call_ofcnjsDMKTedyhMFd4FBIk3I",
+      "name": "exec",
+      "input": "text(await tools.mcp__synara__a2a_submit({\n  task: \"pagination-frozen\",\n  attempt: \"ba8c5fe3-fc32-48ca-afce-eeb6fdb582bd\",\n  session: \"5d49298b-38ea-4105-8008-f76f87621abd\",\n  fence: 1,\n  spec_rev: 1,\n  commit: load(\"commit\")\n}));\n",
+      "internal_chat_message_metadata_passthrough": {
+        "turn_id": "01a117f3-966b-7570-a6f6-584e9d21162b",
+        "create_time": 1791403412.374277
+      }
+    }
+  },
+  {
+    "timestamp": "2026-10-07T20:03:38.449Z",
+    "ordinal": 83,
+    "type": "response_item",
+    "payload": {
+      "type": "custom_tool_call_output",
+      "id": "ctco_01a117f6-e351-7910-9610-bdd59e2138d6",
+      "call_id": "call_ofcnjsDMKTedyhMFd4FBIk3I",
+      "output": [
+        {
+          "type": "input_text",
+          "text": "Script completed\nWall time 0.1 seconds\nOutput:\n"
+        },
+        {
+          "type": "input_text",
+          "text": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"task\\\": {\\n    \\\"task_id\\\": \\\"pagination-frozen\\\",\\n    \\\"project_id\\\": \\\"t035-frozen\\\",\\n    \\\"repo\\\": \\\"/private/tmp/a2a-t035-rmwycjrp/fixture-3\\\",\\n    \\\"oracle\\\": \\\"/private/tmp/a2a-t035-rmwycjrp/synara-home/dev/a2a-gates/tasks/pagination-frozen-c08eec74-43b7-4ecb-86f5-483c6d0425b9/oracle.py\\\",\\n    \\\"instructions\\\": \\\"/private/tmp/a2a-t035-rmwycjrp/synara-home/dev/a2a-gates/tasks/pagination-frozen-c08eec74-43b7-4ecb-86f5-483c6d0425b9/instructions.txt\\\",\\n    \\\"base_commit\\\": \\\"2060387ca5ee3a23d6e36766dafbd1684b246ecc\\\",\\n    \\\"state\\\": \\\"submitted\\\",\\n    \\\"spec_rev\\\": 1,\\n    \\\"fence\\\": 1,\\n    \\\"current_attempt\\\": {\\n      \\\"task_id\\\": \\\"pagination-frozen\\\",\\n      \\\"attempt_id\\\": \\\"ba8c5fe3-fc32-48ca-afce-eeb6fdb582bd\\\",\\n      \\\"session_id\\\": \\\"5d49298b-38ea-4105-8008-f76f87621abd\\\",\\n      \\\"fence\\\": 1,\\n      \\\"spec_rev\\\": 1,\\n      \\\"thread_id\\\": \\\"5f582def-0aa2-44fb-a9a4-968fac583e74\\\",\\n      \\\"runtime_mode\\\": \\\"full-access\\\",\\n      \\\"turn_id\\\": \\\"01a117f3-966b-7570-a6f6-584e9d21162b\\\",\\n      \\\"workspace\\\": \\\"/private/tmp/a2a-t035-rmwycjrp/synara-home/dev/a2a-gates/worktrees/ba8c5fe3-fc32-48ca-afce-eeb6fdb582bd\\\",\\n      \\\"base_commit\\\": \\\"2060387ca5ee3a23d6e36766dafbd1684b246ecc\\\",\\n      \\\"reclaimed\\\": false\\n    },\\n    \\\"candidate_commit\\\": \\\"fd0b69579c5c8f8f2d0f97c33f51a3783226aca1\\\",\\n    \\\"verification\\\": null,\\n    \\\"integration_intent\\\": null\\n  }\\n}\"}]}"
+        }
+      ],
+      "internal_chat_message_metadata_passthrough": {
+        "turn_id": "01a117f3-966b-7570-a6f6-584e9d21162b",
+        "create_time": 1791403418.449477
+      }
+    },
+    "metadata": {
+      "client_authored": false,
+      "fallback_token_limit_override": 12000
+    }
+  }
+]

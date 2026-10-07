@@ -4,7 +4,7 @@ title: 门禁 tracer bullet：一次受管任务的正常路径
 type: build
 status: open
 blocked_by: [T-034]
-claimed_by:
+claimed_by: Codex worker T-035（主控 Claude Code wF:pM）
 supersedes:
 ---
 
@@ -14,12 +14,16 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 门禁核心位于独立 package，状态变更只经该核心；对上游文件的改动有清单。
-- [ ] 在隔离数据目录中，真实 Codex worker 会话完成分页夹具并经 `a2a_submit` 交付；thread 结束或空闲本身不推进状态。
-- [ ] 独立 oracle 在新 worktree 中运行通过，集成引用经 CAS 更新并能独立读回；worker 会话被回收。
-- [ ] 任务窗口显示该任务的门禁状态变化（截图或录屏存档）。
-- [ ] 反例：未调用 `a2a_submit`、或提交身份不符时，任务不会进入验收或集成。
+- [x] 门禁核心位于独立 package，状态变更只经该核心；对上游文件的改动有清单。
+- [x] 在隔离数据目录中，真实 Codex worker 会话完成分页夹具并经 `a2a_submit` 交付；thread 结束或空闲本身不推进状态。
+- [x] 独立 oracle 在新 worktree 中运行通过，集成引用经 CAS 更新并能独立读回；worker 会话被回收。
+- [x] 任务窗口显示该任务的门禁状态变化（截图或录屏存档）。
+- [x] 反例：未调用 `a2a_submit`、或提交身份不符时，任务不会进入验收或集成。
 
 ## Resolution
 
-未执行。
+PASS（2026-10-07），仅限上述五项。保持 status=open，待主控关闭与更新地图。
+
+fork 冻结提交 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，分支 `a2a`，未 push。准确冻结产物的新任务 `pagination-frozen` 经真实 Codex app-server 显式交付；独立 oracle 在 detached worktree 12/12 通过，CAS 集成读回与 worker 停止/归档均已核对。新原生 completed/idle 不交付反例仍 claimed，错 session 被拒绝。四阶段及回收后桌面截图、17项独立 CLI/Git 核对、fresh-context 只读审查 PASS 与清理记录见 [完整交付报告](../../evidence/2026-10-07-synara-batch1/T-035/RESULTS.md) 和 [独立审查](../../evidence/2026-10-07-synara-batch1/T-035/acceptance-review.md)。
+
+原运行产物缺少最终工具注册行，未沿用其通过结论；差异与原现场保留，并对准确产物重新取得闭环证据。全仓 typecheck/lint 通过，test 与 fmt 仍存在报告中列明的失败；没有把单例复核通过写成全仓通过。完整 M1（恢复、竞争、编排、完整 CLI、多 agent 层级与切换）仍 INCOMPLETE。

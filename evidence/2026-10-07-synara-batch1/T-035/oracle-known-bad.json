@@ -1,0 +1,514 @@
+{
+  "status": "FAIL",
+  "candidate": "/Users/luckye/Documents/Code/a2a/fixtures/pagination",
+  "cases": [
+    {
+      "case": "unordered-ties",
+      "input": {
+        "items": [
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          },
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          },
+          {
+            "id": "c",
+            "ts": 3,
+            "value": "gamma"
+          },
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "limit": 2
+      },
+      "expected": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          },
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          }
+        ],
+        "next_cursor": [
+          2,
+          "b"
+        ]
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          },
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "continuation",
+      "input": {
+        "items": [
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          },
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          },
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          },
+          {
+            "id": "c",
+            "ts": 3,
+            "value": "gamma"
+          }
+        ],
+        "limit": 2,
+        "after": [
+          2,
+          "b"
+        ]
+      },
+      "expected": {
+        "items": [
+          {
+            "id": "c",
+            "ts": 3,
+            "value": "gamma"
+          },
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          }
+        ],
+        "next_cursor": null
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          },
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "missing-cursor",
+      "input": {
+        "items": [
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          },
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          },
+          {
+            "id": "c",
+            "ts": 3,
+            "value": "gamma"
+          },
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "limit": 1,
+        "after": [
+          2,
+          "az"
+        ]
+      },
+      "expected": {
+        "items": [
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          }
+        ],
+        "next_cursor": [
+          2,
+          "b"
+        ]
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "past-end",
+      "input": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          },
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          }
+        ],
+        "limit": 3,
+        "after": [
+          9,
+          "z"
+        ]
+      },
+      "expected": {
+        "items": [],
+        "next_cursor": null
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          },
+          {
+            "id": "d",
+            "ts": 5,
+            "value": "delta"
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "empty",
+      "input": {
+        "items": [],
+        "limit": 5
+      },
+      "expected": {
+        "items": [],
+        "next_cursor": null
+      },
+      "actual": {
+        "items": [],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "case": "exact-boundary",
+      "input": {
+        "items": [
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          },
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "limit": 2
+      },
+      "expected": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          },
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          }
+        ],
+        "next_cursor": null
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          },
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "unseen-input",
+      "input": {
+        "items": [
+          {
+            "id": "unique-47",
+            "ts": -7,
+            "extra": [
+              1,
+              9
+            ]
+          }
+        ],
+        "limit": 1
+      },
+      "expected": {
+        "items": [
+          {
+            "id": "unique-47",
+            "ts": -7,
+            "extra": [
+              1,
+              9
+            ]
+          }
+        ],
+        "next_cursor": null
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "unique-47",
+            "ts": -7,
+            "extra": [
+              1,
+              9
+            ]
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "case": "invalid-limit",
+      "input": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "limit": 0
+      },
+      "expected": {
+        "error": "invalid_limit"
+      },
+      "actual": {
+        "items": [],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "maximum-limit",
+      "input": {
+        "items": [
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          },
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "limit": 100
+      },
+      "expected": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          },
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          }
+        ],
+        "next_cursor": null
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "b",
+            "ts": 2,
+            "value": "beta"
+          },
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "above-maximum-limit",
+      "input": {
+        "items": [
+          {
+            "id": "boundary-101",
+            "ts": 1
+          }
+        ],
+        "limit": 101
+      },
+      "expected": {
+        "error": "invalid_limit"
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "boundary-101",
+            "ts": 1
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "boolean-limit",
+      "input": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "limit": true
+      },
+      "expected": {
+        "error": "invalid_limit"
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    },
+    {
+      "case": "invalid-cursor",
+      "input": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "limit": 2,
+        "after": [
+          true,
+          "a"
+        ]
+      },
+      "expected": {
+        "error": "invalid_cursor"
+      },
+      "actual": {
+        "items": [
+          {
+            "id": "a",
+            "ts": 2,
+            "value": "alpha"
+          }
+        ],
+        "next_cursor": null
+      },
+      "exit": 0,
+      "stderr": "",
+      "pass": false
+    }
+  ]
+}
