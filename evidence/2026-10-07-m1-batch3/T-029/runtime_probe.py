@@ -167,25 +167,15 @@ def main():
         panes = muster('pane', 'list')
         if isolated is not None:
             native_metadata = []
-            mutation_calls = []
             for rollout in isolated.rglob('rollout*.jsonl'):
-                selected_calls = set()
                 for line in rollout.read_text(encoding='utf-8').splitlines():
                     event = json.loads(line)
                     payload = event.get('payload', {})
                     if event.get('type') == 'session_meta':
                         native_metadata.append({key: payload.get(key) for key in
                                                 ('id', 'cwd', 'cli_version', 'originator', 'timestamp', 'model_provider')})
-                    if event.get('type') != 'response_item':
-                        continue
-                    if payload.get('type') == 'function_call' and any(
-                            command in payload.get('arguments', '') for command in ('git add', 'git commit', ' submit ')):
-                        selected_calls.add(payload['call_id'])
-                        mutation_calls.append(event)
-                    elif payload.get('type') == 'function_call_output' and payload.get('call_id') in selected_calls:
-                        mutation_calls.append(event)
+                        break
             (out / 'native-session-metadata.json').write_text(json.dumps(native_metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-            (out / 'native-git-submit-tool-calls.json').write_text(json.dumps(mutation_calls, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         for item in panes['panes']:
             text = command([args.binary.resolve(), '--session', session, 'pane', 'read', item['pane_id'],
                             '--source', 'recent-unwrapped', '--lines', '160'], required=False)

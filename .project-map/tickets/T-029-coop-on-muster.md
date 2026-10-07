@@ -18,15 +18,13 @@ supersedes:
 
 - [x] `coop.py` 只调用 `muster`，不再调用 `herdr`；版本检查和启动参数规则保留。
 - [x] 交付 8 项、恢复 9 项、编排 18 项在 Muster 运行时上通过；编排负例的替身改为模拟 muster 边界，并标明是隔离证据。
-- [ ] 完成一次真实 `run`：Codex worker 在 muster pane 中完成分页夹具、显式 submit，经独立 oracle 验收、CAS 集成后回收 pane；运行记录以追加方式保存。
+- [x] 完成一次真实 `run`：Codex worker 在 muster pane 中完成分页夹具、显式 submit，经独立 oracle 验收、CAS 集成后回收 pane；运行记录以追加方式保存。
 - [x] 反事实检查：去掉 attempt 绑定或 fence 校验的错误实现，会被 Muster 运行时上的验收抓住。
 
 ## Resolution
 
-**BLOCKED（2026-10-07）**。当前冻结候选 `09a576b37f0e3f303cdb70f389a3da76cfedb1fd` 的构建、8/9/18、fence mutant 通过。原 b102c2a0ec3b447f8a022c1c042d2b13 的 Git 请求仅按一次 Esc 拒绝，确认 idle 后 CLI reclaim，dirty worktree 与历史保留。
+**INCOMPLETE：四项验收均 PASS，待独立只读审查（2026-10-07）**。生产候选 `66565453cf3f188c7b368fc91a512222b6cab0bc` 已在 Muster 运行时上通过 8/9/18、fence mutant 和真实 run。当前 task=accepted，attempt=`afa79f067af44952b5d03d70c76051fa`，fence=4，独立 oracle 12 项通过，CAS 写入 `47976b1538721d9d58fa6787c23f48a2c2e72b37`，agent idle 后 pane 回收。旧三次失败与全部历史保留。
 
-修复前真实 index.lock 拒绝及实际 argv 红态均保留。dispatch 现在只追加 task.repo 的 Git common dir 写目录，参数回归绿态，实际 Codex 进程 argv 已核对相同；但新 attempt `a4107e835c8a4b17aec0fea46f1a87f2`、fence=3 在相同 Git 暂存请求上再次 blocked。因此目录声明合同通过，无人值守 Git 提交的真实绿态尚未成立，不能称该缺陷已完整修复。未回答当前 UI，未再增加目录、规则、hook 或改变沙箱。
+按主控第三份决定，已回退无效的 Git common dir 声明；隔离 home 只复制 auth、仅信任已核对夹具，并逐字加入用户的 git add / git commit 两条 allow 规则，无其他规则/config/hooks。此次未出现权限对话，用户 config/hooks/rules 字节未变，整个隔离 home 和 owned server 已清理。无人值守 run 依赖 worker Codex 允许 git add / git commit，生产配置前提由主控写入 README；worker 不安装生产规则、不改根文档。
 
-按已生效 AGENTS 66fa604 的 idle 规则，自动回收旧实现的提前关闭被业务红态抓住，加入有界只读等待后绿态；业务门禁不变。当前真实 run=paused、task=claimed，未 commit/submit/verify/integrate/reclaim，独立审查仍未执行，ticket 保持 open。
-
-server、blocked pane、dirty worktree 与证据保留。auth/config/hook 副本删除且未重建；后台曾重建临时缓存目录，已再次清理，最终结束客户端后须再核对。当前请求见 [APPROVAL-REQUEST-03](../../evidence/2026-10-07-m1-batch3/T-029/APPROVAL-REQUEST-03.md)，全部证据与旧失败见 [RESULTS](../../evidence/2026-10-07-m1-batch3/T-029/RESULTS.md)。根文档 stale 项交主控处理，worker 未改根文档。
+当前四项证据见 [RESULTS](../../evidence/2026-10-07-m1-batch3/T-029/RESULTS.md)，完整实际 argv、身份、Git/Oracle 与 idle 关闭核对见 final-runtime-04/delivery-checks.json。独立审查完成前保持 open，不能复用 T-027 审查或宣布 M1 完成。README/CONTEXT stale 项交主控处理。
