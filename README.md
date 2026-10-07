@@ -2,7 +2,7 @@
 
 a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。项目分两部分：
 
-- **协作门禁（首轮，已完成）**：`coop.py` 运行在已安装的 Herdr 上，用程序约束认领、交付、独立验收和集成。用法见下文。
+- **协作门禁（首轮已完成，2026-10-07 起运行在 Muster 上）**：`coop.py` 用程序约束认领、交付、独立验收和集成，通过 `muster` 控制接口分派 worker。用法见下文。
 - **Muster 工作台（第二阶段，开发中）**：自建的 GPUI 多 agent 工作台。它以 Herdr 0.9.3 引擎的硬分叉取代 Herdr CLI：每个项目一个窗口，任务是标签页，任务里的多个 pane 供 agent 分工。目标与范围见 [intent.md](intent.md)，设计与任务顺序见 [M1 spec 与初步任务书](.project-map/specs/workbench-m1-2026-10-06.md)。
   - **引擎（T-027 已验收，2026-10-07）**：源码在 `muster/engine/`，是 Herdr 0.9.3（`c4653a4`）的硬分叉，来源与许可见其中的 NOTICE 和 LICENSE。可执行文件为 `muster`，环境变量前缀 `MUSTER_`，socket、配置目录与集成 hook 都用 `muster` 命名，可与已安装的 Herdr 并存；不访问 herdr.dev。构建只经下文的 `scripts/build`：
 
@@ -11,7 +11,8 @@ a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。项
     ```
 
     产物在 `/Volumes/WD-Elements/dev-cache/a2a/target/<slot>/debug/muster`。试用时一律开独立命名会话（`muster --session <name>`），不要动正在使用的 Herdr。验收范围与限制见 [T-027 证据](evidence/2026-10-06-m1-batch2/T-027/RESULTS.md)。
-  - **尚未完成**：`coop.py` 仍运行在 Herdr 上（改接 Muster 是 T-029）；桌面应用 Muster.app 尚未开始（T-028）。在这两项和切换条件满足前，Muster 不替代 Herdr 的日常使用。
+  - **coop.py 已改接 Muster（T-029 已验收，2026-10-07）**：三套验收与一次真实 `run` 在 Muster 运行时上通过，见 [T-029 证据](evidence/2026-10-07-m1-batch3/T-029/RESULTS.md)。
+  - **尚未完成**：桌面应用 Muster.app（T-028）及 M1 的其余切片。主控与 worker 的日常分派在切换完成前仍经已安装的 Herdr。
 
 文档入口：[项目地图](.project-map/MAP.md)、[术语表](CONTEXT.md)、[项目规则](AGENTS.md)、[开发发现](findings/README.md)。
 
@@ -58,7 +59,7 @@ Zig 已在本机按 T-026 安装。其他 macOS arm64 机器先确认已有 Rust
 
 ## 协作门禁：coop.py
 
-`coop.py` 是单机受管理交付入口。它用 Python 3.9 标准库、SQLite、Git 和已安装的 Herdr，把 task、attempt、submit、acceptance 和 integration 记录在磁盘上。冻结 CLI 契约见 [执行规格](.project-map/specs/managed-delivery-2026-10-06.md)、[恢复契约](.project-map/specs/recovery-2026-10-06.md) 和 [自动运行契约](.project-map/specs/supervised-run-2026-10-06.md)。
+`coop.py` 是单机受管理交付入口。它用 Python 3.9 标准库、SQLite、Git 和 Muster 引擎（`muster`），把 task、attempt、submit、acceptance 和 integration 记录在磁盘上。冻结 CLI 契约见 [执行规格](.project-map/specs/managed-delivery-2026-10-06.md)、[恢复契约](.project-map/specs/recovery-2026-10-06.md) 和 [自动运行契约](.project-map/specs/supervised-run-2026-10-06.md)。
 
 这是同一用户下可信协作者的流程门禁。worker 仍拥有该用户的磁盘和进程权限，worktree、随机 session 和 oracle 快照都不是安全沙箱。程序不更新用户工作分支，也不 push。
 
@@ -106,20 +107,21 @@ python3 coop.py --state /absolute/state revise --task example --spec-rev 2
 
 `revoke` 和递增的 `revise` 使当前执行、候选和验收失效，保留历史及 worktree。accepted 不能撤销。未核对的 integration intent 也不能撤销。`revise` 由 controller 使用，真实验收要求变化仍需人工方向门禁。
 
-## Herdr 生命周期
+## Muster 生命周期
 
-主控须在 `HERDR_ENV=1` 的 Herdr 环境内运行。先从权威清单取得 live 父 pane，使用当前服务器的句柄；不使用继承的 pane ID 或 UI 焦点。
+主控须在 `MUSTER_ENV=1` 的 Muster pane 内调用 `coop.py`，并用环境变量 `MUSTER_BIN` 给出 `muster` 可执行文件的绝对路径；缺失或不可执行时直接拒绝，不回退到 Herdr。先从权威清单取得 live 父 pane，使用当前服务器的句柄；不使用继承的 pane ID 或 UI 焦点。
 
 ```sh
-herdr pane list
-herdr agent list
+export MUSTER_BIN=/absolute/path/to/muster
+"$MUSTER_BIN" pane list
+"$MUSTER_BIN" agent list
 python3 coop.py --state /absolute/state dispatch --task example \
   --parent-pane LIVE_PARENT_ID --name unique-worker
 python3 coop.py --state /absolute/state observe --task example
 python3 coop.py --state /absolute/state reclaim --task example
 ```
 
-`dispatch` 自行 claim，在 attempt worktree 创建 no-focus pane，启动 Codex 0.160.1、`gpt-6.1-sol`、xhigh、`service_tier="fast"`、`check_for_update_on_startup=false`、`--no-alt-screen`，为 submit 提供 state 的可写目录。不同 CLI 版本会拒绝。启动 argv、版本输出、Herdr 原始响应、pane/terminal、shell/agent PID 和可观察 native session 都保留。Fast 是请求配置，不是供应商实际 tier 的证明。
+`dispatch` 自行 claim，在 attempt worktree 创建 no-focus pane，启动 Codex 0.160.1、`gpt-6.1-sol`、xhigh、`service_tier="fast"`、`check_for_update_on_startup=false`、`--no-alt-screen`，为 submit 提供 state 的可写目录。不同 CLI 版本会拒绝。启动 argv、版本输出、Muster 原始响应、pane/terminal、shell/agent PID 和可观察 native session 都保留。Fast 是请求配置，不是供应商实际 tier 的证明。
 
 启动被识别为 blocked/unknown 或未确认 interactive ready 时暂停，不自动回答或重发。确认 ready 后仅投递一次任务摘要和精确 submit 命令；部分副作用未知时保留绑定，拒绝重复 dispatch。`idle`、`done` 和 prompt 投递成功都不推进业务验收。
 
@@ -136,7 +138,9 @@ python3 coop.py --state /absolute/state run --task example \
   --parent-pane LIVE_PARENT_ID --name unique-worker --wait-seconds 300
 ```
 
-`run` 自动 dispatch，等待该 attempt 的显式 submit，再用原有门禁 verify、integrate 并核对回收自己的 pane。`--wait-seconds` 必须为正整数，只约束成功投递后等待 submit 的阶段，按单调时钟计量；启动、oracle 和 Herdr 子进程各自仍有原超时，不构成完整运行的总时限。没有 submit 的 idle/done 不会推进，程序不重发 prompt、不编造候选、不答复权限请求。
+`run` 自动 dispatch，等待该 attempt 的显式 submit，再用原有门禁 verify、integrate 并核对回收自己的 pane。`--wait-seconds` 必须为正整数，只约束成功投递后等待 submit 的阶段，按单调时钟计量；启动、oracle 和 Muster 子进程各自仍有原超时，不构成完整运行的总时限。没有 submit 的 idle/done 不会推进，程序不重发 prompt、不编造候选、不答复权限请求。
+
+无人值守的 `run` 依赖 worker 的 Codex 允许 `git add` 与 `git commit` 在沙箱外执行：Codex 沙箱专门保护 worktree 的 Git 元数据，额外的可写目录不能让 worker 提交。日常使用靠用户 Codex 规则中的这两条 allow 规则；隔离测试环境需要显式复现这两条，否则 worker 停在审批对话，run 会暂停。证据见 [T-029 主控决定之三](evidence/2026-10-07-m1-batch3/T-029/controller-decision-03.md)。
 
 相同 task 的活跃 run 互斥，第二个立即返回 `run_busy`。run 在分派、验收/集成和回收阶段取得同一操作锁；等待 submit 时释放操作锁，允许 controller 核对、撤销或替换 attempt。旧 run 发现替换后返回 `run_superseded`，最多核对清理自己的历史 pane。blocked、未知身份或未知外部副作用会暂停并保留现场；可核对的等待超时和 oracle 拒绝会尝试回收自己的 pane，保留候选及 worktree。
 
@@ -149,9 +153,9 @@ python3 coop.py --state /absolute/state run --task example \
 首轮范围已通过：[受管交付](evidence/2026-10-06-managed-01/RESULTS.md)、
 [验收/集成中断恢复](evidence/2026-10-06-recovery-01/RESULTS.md)、
 [自动运行](evidence/2026-10-06-run-01/RESULTS.md)。自动运行包含一次真实 Codex 交付及独立引用读回；
-隔离编排负例与真实模型证据分别记录，不延伸为跨 CLI 或长期收益。
+隔离编排负例与真实模型证据分别记录，不延伸为跨 CLI 或长期收益。以上首轮结果都在已安装的 Herdr 上取得；改接 Muster 后的重跑结果见 [T-029](evidence/2026-10-07-m1-batch3/T-029/RESULTS.md)。
 
-`state/state.sqlite3` 保存任务、历史 attempt、验收记录及按序追加事件；`tasks/` 保存输入快照，`worktrees/` 和 `verification/` 保存执行与验证目录，`locks/` 保存任务操作锁和 run 互斥锁文件。Git、Herdr 和 oracle 子进程均使用 argv，不通过 shell 拼接。失败、超时和未知状态留在记录中，工作区保留供诊断；没有 worktree 自动删除、租约或后台重试。验收/集成中断恢复通过再次调用原 `verify` / `integrate` 命令进行。
+`state/state.sqlite3` 保存任务、历史 attempt、验收记录及按序追加事件；`tasks/` 保存输入快照，`worktrees/` 和 `verification/` 保存执行与验证目录，`locks/` 保存任务操作锁和 run 互斥锁文件。Git、Muster 和 oracle 子进程均使用 argv，不通过 shell 拼接。失败、超时和未知状态留在记录中，工作区保留供诊断；没有 worktree 自动删除、租约或后台重试。验收/集成中断恢复通过再次调用原 `verify` / `integrate` 命令进行。
 
 本地 CLI 独立验收：
 
@@ -161,19 +165,19 @@ python3 -B acceptance/test_recovery_e2e.py
 python3 -B acceptance/test_run_e2e.py
 ```
 
-三个套件分别为交付8项、恢复9项和编排18项。恢复使用真实中断及 Git/SQLite；编排负例的 Herdr/Codex 是替身。另有真实自动运行与独立审查，具体候选、原始结果和适用范围见上方报告。当前检查不证明第二 CLI、完整 run 进程恢复或长期收益。
+三个套件分别为交付8项、恢复9项和编排18项。恢复使用真实中断及 Git/SQLite；编排负例的 Muster/Codex 是替身。另有真实自动运行与独立审查，具体候选、原始结果和适用范围见上方报告。当前检查不证明第二 CLI、完整 run 进程恢复或长期收益。
 
 只调用一次产品 run 的真实验收入口为：
 
 ```sh
-python3 -B acceptance/live_run.py --parent-pane LIVE_PARENT_ID \
+python3 -B acceptance/live_run.py --parent-pane LIVE_PARENT_ID --muster-bin "$MUSTER_BIN" \
   --fixture-repo /absolute/inspected-fixture --output NEW_OUTPUT_DIRECTORY
 ```
 
 真实入口检查使用独立分页夹具：
 
 ```sh
-python3 -B acceptance/live_herdr.py --parent-pane LIVE_PARENT_ID --output NEW_OUTPUT_DIRECTORY
+python3 -B acceptance/live_muster.py --parent-pane LIVE_PARENT_ID --muster-bin "$MUSTER_BIN" --output NEW_OUTPUT_DIRECTORY
 ```
 
 首次启动新 Git 夹具可能等待 Codex 目录信任。程序会暂停并保留绑定，不自动批准。

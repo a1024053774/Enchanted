@@ -5,7 +5,7 @@
 第二阶段：a2a 多 Agent 工作台，目标与 M1 见 [intent.md](../intent.md)（2026-10-06 accepted，决策见 T-016～T-021）。
 工作台以 Herdr 0.9.3 引擎的硬分叉加 GPUI 界面取代 Herdr CLI；`coop.py` 的门禁保留，改接工作台的控制接口。
 工作台名为 Muster（T-022）；执行规格与初步任务书见 [workbench-m1](specs/workbench-m1-2026-10-06.md)。
-执行顺序：T-026，与之并行 T-024 → T-025、T-027 → T-029、T-028。
+进度：T-024、T-026、T-027、T-029 已关闭；T-025 等用户手测中文输入与玻璃质感；T-028（Muster.app）依赖 T-025。
 
 首轮已完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
 [T-007](tickets/T-007-recovery.md) 中断恢复、[T-008](tickets/T-008-supervised-run.md) 自动运行均在 Herdr 上通过；
@@ -63,7 +63,7 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | 9247c5c |
+| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | 6656545 |
 | [AGENTS.md](../AGENTS.md) | `.project-map/MAP.md`, `CONTEXT.md`, `intent.md` | |
-| [README.md](../README.md) | `coop.py`, `acceptance/live_herdr.py`, `intent.md`, `muster/**`, `scripts/build` | |
+| [README.md](../README.md) | `coop.py`, `acceptance/live_muster.py`, `intent.md`, `muster/**`, `scripts/build` | |
 | [findings/README.md](../findings/README.md) | `findings/*.md` | |
