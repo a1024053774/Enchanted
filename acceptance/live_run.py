@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--muster-bin', default=os.environ.get('MUSTER_BIN'),
                         help='Explicit absolute path to the Muster executable')
     parser.add_argument('--fixture-repo', required=True)
+    parser.add_argument('--existing-state', help='Absolute state directory of a reclaimed registered task')
     parser.add_argument('--output', required=True)
     parser.add_argument('--wait-seconds', type=int, default=600)
     args = parser.parse_args()
@@ -24,8 +25,11 @@ def main():
     repo = Path(args.fixture_repo).resolve()
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
-    state = root / '.runtime' / output.name / 'state'
-    state.parent.mkdir(parents=True, exist_ok=False)
+    if args.existing_state and not Path(args.existing_state).is_absolute():
+        parser.error('--existing-state must be absolute')
+    state = Path(args.existing_state).resolve() if args.existing_state else root / '.runtime' / output.name / 'state'
+    if not args.existing_state:
+        state.parent.mkdir(parents=True, exist_ok=False)
     task = 'automatic-pagination'
     result = {'status': 'INCOMPLETE', 'task': task, 'state': str(state), 'repo': str(repo)}
 
@@ -61,8 +65,20 @@ def main():
         before = json.loads(command([args.muster_bin, 'pane', 'list', '--workspace', workspace_id]))
         before_ids = {p['pane_id'] for p in before['result']['panes']}
         assert args.parent_pane in before_ids
-        cli('create', '--task', task, '--repo', repo, '--base', base,
-            '--oracle', root / 'acceptance/pagination_oracle.py', '--instructions', repo / 'CONTRACT.md')
+        prior_fence = None
+        if args.existing_state:
+            registered = cli('status', '--task', task)['task']
+            assert registered['state'] == 'ready' and registered['current_attempt'] is None
+            assert registered['candidate_commit'] is None
+            assert Path(registered['repo']).resolve() == repo and registered['base_commit'] == base
+            assert Path(registered['oracle']).read_bytes() == (root / 'acceptance/pagination_oracle.py').read_bytes()
+            assert Path(registered['instructions']).read_bytes() == (repo / 'CONTRACT.md').read_bytes()
+            prior_fence = registered['fence']
+            prior_events = cli('events', '--task', task)['events']
+            (output / 'events-before.json').write_text(json.dumps(prior_events, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        else:
+            cli('create', '--task', task, '--repo', repo, '--base', base,
+                '--oracle', root / 'acceptance/pagination_oracle.py', '--instructions', repo / 'CONTRACT.md')
         # This is the only workflow-driving call. The test never calls verify/integrate/reclaim.
         outcome = cli('run', '--task', task, '--parent-pane', args.parent_pane,
                       '--name', 'a2a-auto-pager', '--wait-seconds', args.wait_seconds,
@@ -72,10 +88,12 @@ def main():
         assert outcome['run']['outcome'] == 'completed'
         current = cli('status', '--task', task)['task']
         assert current['state'] == 'accepted'
+        if prior_fence is not None:
+            assert current['current_attempt']['fence'] > prior_fence
         accepted = command(['git', '-C', repo, 'rev-parse', 'refs/a2a/integration']).strip()
         assert accepted != base
         assert command(['git', '-C', repo, 'rev-parse', 'HEAD']).strip() == base
-        checked = state.parent / 'independent-readback'
+        checked = state.parent / ('independent-readback-' + output.name)
         command(['git', '-C', repo, 'worktree', 'add', '--detach', checked, accepted])
         oracle = json.loads(command([sys.executable, '-I', '-B', root / 'acceptance/pagination_oracle.py', checked]))
         assert oracle['status'] == 'PASS' and all(v['pass'] for v in oracle['cases'])
@@ -86,6 +104,8 @@ def main():
         assert before_ids <= after_ids, 'A pre-existing pane was closed'
         assert owned_pane not in after_ids, 'Owned pane still exists after claimed completion'
         events = cli('events', '--task', task)
+        if prior_fence is not None:
+            assert events['events'][:len(prior_events)] == prior_events, 'Earlier attempt events changed'
         (output / 'events.json').write_text(json.dumps(events, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         result.update(status='PASS', accepted_commit=accepted, run_id=outcome['run']['run_id'],
                       attempt_id=outcome['run']['attempt_id'], oracle_cases=len(oracle['cases']),

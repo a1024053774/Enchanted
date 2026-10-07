@@ -18,7 +18,7 @@ def main():
     args = p.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
-    runtime = ROOT / '.runtime' / ('t029-fence-' + out.name)
+    runtime = ROOT / '.runtime' / ('t029-fence-' + out.parent.name + '-' + out.name)
     runtime.mkdir(parents=True, exist_ok=False)
     repo = runtime / 'repo'
     repo.mkdir()

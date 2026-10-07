@@ -21,7 +21,7 @@ def main():
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     head_at_start = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-    runtime = ROOT / '.runtime' / ('t029-' + out.name)
+    runtime = ROOT / '.runtime' / ('t029-' + out.parent.name + '-' + out.name)
     runtime.mkdir(parents=True, exist_ok=False)
     sources = runtime / 'acceptance'
     sources.mkdir()
