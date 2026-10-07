@@ -27,6 +27,8 @@
 - a2a 与 Enchanted 的构建输出和缓存默认放在外置盘 `/Volumes/WD-Elements`；外置盘未挂载时构建必须报错，不回退到内置盘。
 - a2a 的 Rust 构建统一经仓库内 `scripts/build` 调用 Cargo；路径、工具链与 worker 构建槽的用法见 README 的“Rust 构建：外置盘入口”。直接 Cargo/Zig 或 IDE 构建绕过该入口不满足 T-026。
 - 项目开源，允许直接复用 GPL 代码；并入 GPL 代码后整体以 GPL-3.0 发布。复用不能改变已定方向。
+- 真实 Codex 验收使用 /tmp 下的隔离 CODEX_HOME：只复制 auth.json；只信任已核对的夹具根目录；只复现用户规则中的 `git add`、`git commit` 两条 allow prefix_rule；hook 只在主控逐次批准后安装。副本不入证据或 Git，结束后删除整个 home。不写用户 ~/.codex。Codex 沙箱专门保护 worktree 的 Git 元数据，额外可写目录不能替代这两条规则。
+- 测试中启动的 muster server 必须脱离调用者的进程组（例如 start_new_session），否则命令调用结束时会被一并回收。
 - 不基于 Zed 二次开发。
 - Enchanted 已于 2026-10-06 做 git 快照并冻结；其功能在 M1 之后并入工作台，不在 Enchanted 仓库继续开发。
 
