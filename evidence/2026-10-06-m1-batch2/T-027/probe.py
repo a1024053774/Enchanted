@@ -238,7 +238,7 @@ def main():
                     event = json.loads(line)
                     if event.get('type') == 'response_item' and event.get('payload', {}).get('role') == 'assistant':
                         item = event['payload']
-                        if item.get('channel') == 'final':
+                        if item.get('phase') == 'final_answer':
                             native_replies.extend(c['text'] for c in item.get('content', []) if c.get('type') == 'output_text')
                     if event.get('type') == 'session_meta':
                         payload = event['payload']
