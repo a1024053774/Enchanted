@@ -1,5 +1,6 @@
 """One real run command, followed by independent Git/oracle/pane readback."""
 import argparse
+import os
 import datetime
 import json
 from pathlib import Path
@@ -10,10 +11,15 @@ import sys
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--parent-pane', required=True)
+    parser.add_argument('--muster-bin', default=os.environ.get('MUSTER_BIN'),
+                        help='Explicit absolute path to the Muster executable')
     parser.add_argument('--fixture-repo', required=True)
     parser.add_argument('--output', required=True)
     parser.add_argument('--wait-seconds', type=int, default=600)
     args = parser.parse_args()
+    if not args.muster_bin or not Path(args.muster_bin).is_absolute():
+        parser.error('--muster-bin or MUSTER_BIN must give an absolute executable path')
+    os.environ['MUSTER_BIN'] = args.muster_bin
     root = Path(__file__).resolve().parents[1]
     repo = Path(args.fixture_repo).resolve()
     output = Path(args.output).resolve()
@@ -50,9 +56,9 @@ def main():
         result['product_commit'] = command(['git', 'rev-parse', 'HEAD']).strip()
         result['product_diff'] = command(['git', 'diff', '--', 'coop.py'])
         assert not result['product_diff'], 'Freeze product source before real acceptance'
-        parent = json.loads(command(['herdr', 'pane', 'get', args.parent_pane]))['result']['pane']
+        parent = json.loads(command([args.muster_bin, 'pane', 'get', args.parent_pane]))['result']['pane']
         workspace_id = parent['workspace_id']
-        before = json.loads(command(['herdr', 'pane', 'list', '--workspace', workspace_id]))
+        before = json.loads(command([args.muster_bin, 'pane', 'list', '--workspace', workspace_id]))
         before_ids = {p['pane_id'] for p in before['result']['panes']}
         assert args.parent_pane in before_ids
         cli('create', '--task', task, '--repo', repo, '--base', base,
@@ -75,7 +81,7 @@ def main():
         assert oracle['status'] == 'PASS' and all(v['pass'] for v in oracle['cases'])
         owned_pane = current['current_attempt']['dispatch']['pane_id']
         assert owned_pane not in before_ids, 'Run must own a newly created pane'
-        after = json.loads(command(['herdr', 'pane', 'list', '--workspace', workspace_id]))
+        after = json.loads(command([args.muster_bin, 'pane', 'list', '--workspace', workspace_id]))
         after_ids = {p['pane_id'] for p in after['result']['panes']}
         assert before_ids <= after_ids, 'A pre-existing pane was closed'
         assert owned_pane not in after_ids, 'Owned pane still exists after claimed completion'

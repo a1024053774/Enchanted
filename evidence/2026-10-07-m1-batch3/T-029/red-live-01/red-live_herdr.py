@@ -1,5 +1,6 @@
 """Run one real Herdr/Codex task; do not infer success from terminal state."""
 import argparse
+import os
 import datetime
 import json
 from pathlib import Path
@@ -16,7 +17,7 @@ def main():
     parser.add_argument('--timeout', type=int, default=900)
     parser.add_argument('--fixture-repo', help='Reuse an already inspected isolated fixture repository after explicit trust setup')
     args = parser.parse_args()
-    root = Path(__file__).resolve().parents[1]
+    root = Path('/Users/luckye/Documents/Code/a2a')
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     runtime = root / '.runtime' / output.name
@@ -58,7 +59,7 @@ def main():
               'reproduce': 'python3 -B acceptance/live_herdr.py --parent-pane LIVE_PANE --output NEW_OUTPUT_DIRECTORY',
               'claim_scope': 'one actual Herdr/Codex task, independent pagination acceptance, local Git ref'}
     try:
-        command(['herdr', 'status', '--json'])
+        command([os.environ['MUSTER_BIN'], 'status', '--json'])
         command(['codex', '--version'])
         if not args.fixture_repo:
             git('init', '-b', 'main')

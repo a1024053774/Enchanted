@@ -76,7 +76,16 @@ def text_input(value):
 def dispatch_input(args):
     require(PANE.fullmatch(args.parent_pane) is not None, "invalid_pane")
     require(NAME.fullmatch(args.name) is not None, "invalid_name")
-    require(os.environ.get("HERDR_ENV") == "1", "herdr_context_required")
+    require(os.environ.get("MUSTER_ENV") == "1", "muster_context_required")
+    muster_binary()
+
+
+def muster_binary():
+    value = os.environ.get("MUSTER_BIN")
+    require(value is not None, "muster_binary_required")
+    path = absolute(value, "file")
+    require(os.access(path, os.X_OK), "muster_binary_not_executable", path=str(path))
+    return str(path)
 
 
 @contextmanager
@@ -550,25 +559,26 @@ class Coop:
             require(task["current_attempt"] == expected, "stale_attempt",
                     expected=expected, actual=task["current_attempt"])
 
-    def herdr(self, *args, mutation=False, attempt=None, journal=True):
-        require(os.environ.get("HERDR_ENV") == "1", "herdr_context_required")
+    def muster(self, *args, mutation=False, attempt=None, journal=True):
+        require(os.environ.get("MUSTER_ENV") == "1", "muster_context_required")
         # The session/socket context remains; every pane target is an explicit live handle.
         env = {k: v for k, v in os.environ.items()
-               if k not in ("HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID")}
-        r = self.execute(["herdr", *args], env=env, attempt=attempt, journal=journal)
+               if not k.startswith("HERDR_") and
+               k not in ("MUSTER_PANE_ID", "MUSTER_TAB_ID", "MUSTER_WORKSPACE_ID")}
+        r = self.execute([muster_binary(), *args], env=env, attempt=attempt, journal=journal)
         if r["returncode"] != 0:
-            raise Refusal("herdr_side_effect_unknown" if mutation else "herdr_failed", response=r)
+            raise Refusal("muster_side_effect_unknown" if mutation else "muster_failed", response=r)
         try:
             response = json.loads(r["stdout"])
         except json.JSONDecodeError as exc:
-            raise Refusal("herdr_response_unknown", response=r, reason=str(exc))
+            raise Refusal("muster_response_unknown", response=r, reason=str(exc))
         require(isinstance(response, dict) and isinstance(response.get("result"), dict),
-                "herdr_response_unknown", response=r)
+                "muster_response_unknown", response=r)
         return response["result"], r
 
     def inventory(self, *, journal=True):
-        result, raw = self.herdr("pane", "list", journal=journal)
-        require(isinstance(result.get("panes"), list), "herdr_response_unknown", response=raw)
+        result, raw = self.muster("pane", "list", journal=journal)
+        require(isinstance(result.get("panes"), list), "muster_response_unknown", response=raw)
         return result["panes"]
 
     def set_dispatch(self, attempt_id, dispatch, kind):
@@ -584,20 +594,21 @@ class Coop:
         if pane is None:
             return {"absent": True, "inventory": panes}
         require(pane.get("terminal_id") == dispatch.get("terminal_id"), "identity_conflict", pane=pane)
-        result, raw = self.herdr("pane", "process-info", "--pane", pane["pane_id"],
+        result, raw = self.muster("pane", "process-info", "--pane", pane["pane_id"],
                                 attempt=attempt_id, journal=journal)
-        require(isinstance(result.get("process_info"), dict), "herdr_response_unknown", response=raw)
+        require(isinstance(result.get("process_info"), dict), "muster_response_unknown", response=raw)
         snapshot = {"pane": pane, "process_info": result["process_info"], "process_response": raw}
         if pane.get("agent"):
-            result, raw = self.herdr("agent", "get", pane["pane_id"],
+            result, raw = self.muster("agent", "get", pane["pane_id"],
                                     attempt=attempt_id, journal=journal)
-            require(isinstance(result.get("agent"), dict), "herdr_response_unknown", response=raw)
+            require(isinstance(result.get("agent"), dict), "muster_response_unknown", response=raw)
             snapshot.update(agent=result["agent"], agent_response=raw)
             env = {k: v for k, v in os.environ.items()
-                   if k not in ("HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID")}
-            raw = self.execute(["herdr", "agent", "read", pane["pane_id"], "--source", "detection",
+                   if not k.startswith("HERDR_") and
+                   k not in ("MUSTER_PANE_ID", "MUSTER_TAB_ID", "MUSTER_WORKSPACE_ID")}
+            raw = self.execute([muster_binary(), "agent", "read", pane["pane_id"], "--source", "detection",
                                 "--lines", "80"], env=env, attempt=attempt_id, journal=journal)
-            require(raw["returncode"] == 0, "herdr_failed", response=raw)
+            require(raw["returncode"] == 0, "muster_failed", response=raw)
             snapshot["read_response"] = raw
         return snapshot
 
@@ -629,17 +640,20 @@ class Coop:
         panes = self.inventory()
         parent = next((p for p in panes if p.get("pane_id") == args.parent_pane), None)
         require(parent is not None, "parent_not_live")
-        agents, raw = self.herdr("agent", "list")
-        require(isinstance(agents.get("agents"), list), "herdr_response_unknown", response=raw)
+        agents, raw = self.muster("agent", "list")
+        require(isinstance(agents.get("agents"), list), "muster_response_unknown", response=raw)
         require(not any(a.get("name") == args.name for a in agents["agents"]), "name_in_use")
         version = self.execute(["codex", "--version"])
         require(version["returncode"] == 0 and version["stdout"].strip() == "codex-cli 0.160.1",
                 "cli_version_mismatch", response=version, expected="codex-cli 0.160.1")
-        runtime = self.execute(["herdr", "status"])
-        require(runtime["returncode"] == 0, "herdr_failed", response=runtime)
+        runtime = self.execute([muster_binary(), "status"])
+        require(runtime["returncode"] == 0, "muster_failed", response=runtime)
+        engine_version = self.execute([muster_binary(), "--version"])
+        require(engine_version["returncode"] == 0, "muster_failed", response=engine_version)
         record = {"state": "reserved", "name": args.name, "parent_pane": args.parent_pane,
                   "parent_terminal": parent["terminal_id"], "cli_version": version,
-                  "herdr_version": runtime, "prompt_sent": False, "created": now()}
+                  "muster_status": runtime, "muster_version": engine_version,
+                  "prompt_sent": False, "created": now()}
         with self.transaction():
             for row in self.db.execute("SELECT data FROM attempts").fetchall():
                 previous = json.loads(row[0])
@@ -652,16 +666,16 @@ class Coop:
         record["state"] = "split_pending"
         self.set_dispatch(aid, record, "dispatch_split_intent")
         try:
-            result, raw = self.herdr("pane", "split", args.parent_pane, "--direction", "down",
+            result, raw = self.muster("pane", "split", args.parent_pane, "--direction", "down",
                                      "--cwd", attempt["workspace"], "--no-focus", mutation=True, attempt=aid)
             pane = result.get("pane")
             require(isinstance(pane, dict) and PANE.fullmatch(pane.get("pane_id", "")) is not None and
                     pane.get("terminal_id") and pane["pane_id"] != args.parent_pane,
-                    "herdr_response_unknown", response=raw)
+                    "muster_response_unknown", response=raw)
             record.update(state="pane_created", pane_id=pane["pane_id"],
                           terminal_id=pane["terminal_id"], split_response=raw)
             self.set_dispatch(aid, record, "dispatch_pane_created")
-            result, raw = self.herdr("pane", "process-info", "--pane", pane["pane_id"], attempt=aid)
+            result, raw = self.muster("pane", "process-info", "--pane", pane["pane_id"], attempt=aid)
             info = result.get("process_info")
             require(isinstance(info, dict) and info.get("shell_pid"),
                     "identity_unknown", response=raw)
@@ -671,10 +685,10 @@ class Coop:
                        'model_reasoning_effort="xhigh"', "-c", 'service_tier="fast"',
                        "-c", "check_for_update_on_startup=false", "--no-alt-screen",
                        "-C", attempt["workspace"], "--add-dir", str(self.root)]
-            record.update(state="start_pending", startup_argv=["herdr", *startup])
+            record.update(state="start_pending", startup_argv=[muster_binary(), *startup])
             self.set_dispatch(aid, record, "dispatch_start_intent")
             try:
-                result, raw = self.herdr(*startup, mutation=True, attempt=aid)
+                result, raw = self.muster(*startup, mutation=True, attempt=aid)
             except Refusal as exc:
                 record.update(state="startup_unknown", startup_error=exc.code,
                               startup_response=exc.details)
@@ -693,6 +707,10 @@ class Coop:
             self.bind_agent(record, snapshot)
             self.set_dispatch(aid, record, "dispatch_identity_bound")
             agent = snapshot["agent"]
+            # T-027 observed hook review reported as idle by terminal detection.
+            # It must remain paused until the controller handles the permission UI.
+            require("Hooks need review" not in snapshot["read_response"]["stdout"],
+                    "startup_permission_required", snapshot=snapshot)
             require(agent.get("agent_status") in ("idle", "done") and
                     agent.get("interactive_ready") is True, "startup_not_ready", snapshot=snapshot)
             submit_argv = ["python3", str(Path(__file__).resolve()), "--state", str(self.root), "submit",
@@ -712,7 +730,7 @@ class Coop:
                       "遇到权限/启动问题停止并报告；不要自动答复、重发或扩大范围。")
             record.update(state="prompt_pending", submit_argv=submit_argv, prompt=prompt)
             self.set_dispatch(aid, record, "dispatch_prompt_intent")
-            result, raw = self.herdr("agent", "prompt", pane["pane_id"], prompt,
+            result, raw = self.muster("agent", "prompt", pane["pane_id"], prompt,
                                      mutation=True, attempt=aid)
             record.update(state="dispatched", prompt_sent=True, prompt_response=raw)
             self.set_dispatch(aid, record, "dispatched")
@@ -798,7 +816,7 @@ class Coop:
             self.save("attempts", aid, attempt)
             self.event("reclaim_intent", dispatch, aid)
         if not snapshot.get("absent"):
-            result, raw = self.herdr("pane", "close", dispatch["pane_id"], mutation=True, attempt=aid)
+            result, raw = self.muster("pane", "close", dispatch["pane_id"], mutation=True, attempt=aid)
             dispatch["close_response"] = raw
             panes = self.inventory()
             require(not any(p.get("pane_id") == dispatch["pane_id"] for p in panes),

@@ -4,7 +4,7 @@ title: coop.py 改接 Muster 控制接口
 type: build
 status: open
 blocked_by: [T-027]
-claimed_by:
+claimed_by: Codex worker T-029
 supersedes:
 ---
 

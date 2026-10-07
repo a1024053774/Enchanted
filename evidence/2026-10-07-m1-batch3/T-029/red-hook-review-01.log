@@ -1,0 +1,16 @@
+runTest (__main__.StartupPermission) ... FAIL
+
+======================================================================
+FAIL: runTest (__main__.StartupPermission)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/evidence/2026-10-07-m1-batch3/T-029/check_startup_permissions.py", line 27, in runTest
+    self.finish_checks()
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 153, in finish_checks
+    self.fail("BUSINESS_RED " + json.dumps(self.business_failures,
+AssertionError: BUSINESS_RED [{"test": "__main__.StartupPermission.runTest", "claim": "Hook trust UI receives no prompt or Enter", "expected": [], "observed": [{"pane_id": "wcheck:p3", "name": "check-run", "text": "你是本地受管理任务的 worker。只执行当前 task/attempt；你不是唯一 agent，保留其他人的改动。不要改变验收 oracle、状态数据库、规格或其他任务。\ntask=check-38b77453d42d49239138dc9f39c66f96 attempt=82ccd68d91254dde99dc3094b7b6bc48 session=2c1ac6543a5844889147ae82ffeb90fa fence=1 spec_rev=1\nworkspace=/Users/luckye/Documents/Code/a2a/.runtime/t029-red-hook-review-01/runTest-skhhe1gt/isolated state/worktrees/82ccd68d91254dde99dc3094b7b6bc48 base_commit=5fb9c70b161a6ecee2e488af1a7ce944418ef307\n任务说明（已冻结）：\n# Cursor pagination fixture v1\n\nThis is an isolated coding task for the Herdr A2A experiment.\n\nRun `python3 pager.py`. Read one JSON request from stdin and write one JSON response to stdout.\nRequests contain `items` (records with distinct string `id` and integer `ts`), `limit`,\nand optional `after` (null or [integer timestamp, string id]).\nSort records by (ts, id) ascending. Return at most limit records strictly after that pair.\nPreserve all record fields. Return `{\"items\": [...], \"next_cursor\": ...}`.\nThe next cursor is the last returned pair only if additional eligible records remain;\notherwise it is null. Input order must not matter. Do not mutate input records.\n\nLimits must be integers in [1, 100]; booleans are invalid. Invalid limit returns only\n`{\"error\": \"invalid_limit\"}`. An after value with a wrong shape/type returns only\n`{\"error\": \"invalid_cursor\"}`. Check limit before cursor. A cursor need not exist in the input.\nEmpty results have items=[] and next_cursor=null.\n\nThe initial program is deliberately incomplete. Implement this contract without modifying\nthis document or acceptance tools. A successful model turn is not delivery acceptance.\n\n完成本地实现后，在该 worktree 创建 commit 并保持 worktree 干净。通过 git rev-parse HEAD 获取完整 SHA，替换下面 FULL_COMMIT_SHA，精确提交一次：\npython3 /Users/luckye/Documents/Code/a2a/coop.py --state '/Users/luckye/Documents/Code/a2a/.runtime/t029-red-hook-review-01/runTest-skhhe1gt/isolated state' submit --task check-38b77453d42d49239138dc9f39c66f96 --attempt 82ccd68d91254dde99dc3094b7b6bc48 --session 2c1ac6543a5844889147ae82ffeb90fa --fence 1 --spec-rev 1 --commit FULL_COMMIT_SHA\n成功交付只进入 submitted。不要 verify、integrate 或自行宣布 accepted。遇到权限/启动问题停止并报告；不要自动答复、重发或扩大范围。"}], "pass": false}, {"test": "__main__.StartupPermission.runTest", "claim": "Permission waiting preserves the owned pane for controller approval", "expected": [[], 3], "observed": [["wcheck:p3"], 2], "pass": false}]
+
+----------------------------------------------------------------------
+Ran 1 test in 5.304s
+
+FAILED (failures=1)

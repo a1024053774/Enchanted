@@ -2,8 +2,8 @@
 
 Run: python3 -B acceptance/test_run_e2e.py
 COOP_SCRIPT selects a frozen parent or a controller-owned candidate/mutant.
-Herdr/Codex substitutes below establish isolated orchestration evidence only.
-They do not establish a real Herdr, model, service-tier or reliability claim.
+Muster/Codex substitutes below establish isolated orchestration evidence only.
+They do not establish a real Muster, model, service-tier or reliability claim.
 """
 import datetime
 import json
@@ -31,10 +31,10 @@ TEST_RESULTS = []
 write_new = recovery.write_new
 
 
-# This external executable implements only the public Herdr shapes documented
-# by the skill and recorded in managed-01/live-02. It never calls real Herdr or
+# This external executable implements only the public Muster shapes documented
+# by the skill and recorded in managed-01/live-02. It never calls real Muster or
 # runs a model. All requests, raw replies and simulated identities are retained.
-HERDR_BOUNDARY = r'''
+MUSTER_BOUNDARY = r'''
 import fcntl, json, os, pathlib, sys, time, traceback, uuid
 control = pathlib.Path(CONTROL)
 argv = sys.argv[1:]
@@ -56,7 +56,7 @@ code, stdout, stderr = 0, "", ""
 # Freeze one post-prompt observation outside the store lock so the controller
 # can replace the attempt before the old run continues. This is a boundary
 # scheduling fixture, not a production fault switch.
-if tool == "herdr" and argv[:2] == ["agent", "get"]:
+if tool == "muster" and argv[:2] == ["agent", "get"]:
     observed = json.loads((control / "store.json").read_text())
     try:
         p = target(observed)
@@ -87,6 +87,8 @@ with (control / "lock").open("a") as lock:
             if argv != ["--version"]:
                 raise RuntimeError("Fixture forbids actual model execution")
             stdout = "codex-cli 0.160.1\n"
+        elif argv == ["--version"]:
+            stdout = "muster 0.9.3 (isolated boundary)\n"
         elif argv == ["status"] or argv == ["status", "--json"]:
             stdout = json.dumps({"client": {"version": "isolated-0.9.3"},
                                  "server": {"status": "running", "version": "isolated-0.9.1"}}) + "\n"
@@ -186,7 +188,7 @@ with (control / "lock").open("a") as lock:
     temporary.write_text(json.dumps(store), encoding="utf-8")
     temporary.replace(control / "store.json")
     with (control / "boundary.jsonl").open("a", encoding="utf-8") as out:
-        out.write(json.dumps({"layer": "isolated-herdr-codex-substitute", "pid": os.getpid(),
+        out.write(json.dumps({"layer": "isolated-muster-codex-substitute", "pid": os.getpid(),
             "argv": sys.argv, "cwd": os.getcwd(), "started_epoch": started,
             "finished_epoch": time.time(), "exit_code": code, "stdout": stdout,
             "stderr": stderr, "panes_after": store["panes"], "prompts_after": len(store["prompts"]),
@@ -242,14 +244,14 @@ class RunCLI(recovery.RecoveryCLI):
                               "agent_pid": 42000 + number, "agent_argv": ["codex"]}
         write_new(self.boundary / "store.json", {"panes": panes, "next": 3,
                   "scenario": "done-no-submit", "prompts": [], "closes": []})
-        for tool in ("herdr", "codex"):
+        for tool in ("muster", "codex"):
             executable = self.bin / tool
             executable.write_text("#!" + sys.executable + "\nCONTROL = " + repr(str(self.boundary)) +
-                                  "\n" + HERDR_BOUNDARY, encoding="utf-8")
+                                  "\n" + MUSTER_BOUNDARY, encoding="utf-8")
             executable.chmod(0o700)
         self.env.update({"PATH": str(self.bin) + os.pathsep + self.original_path,
-                         "HERDR_ENV": "1", "HERDR_PANE_ID": self.parent_pane,
-                         "HERDR_WORKSPACE_ID": "wcheck", "HERDR_TAB_ID": "wcheck:t1"})
+                         "MUSTER_ENV": "1", "MUSTER_BIN": str(self.bin / "muster"), "MUSTER_PANE_ID": self.parent_pane,
+                         "MUSTER_WORKSPACE_ID": "wcheck", "MUSTER_TAB_ID": "wcheck:t1"})
         self.artifact.update({"evidence_layer": "isolated-orchestration",
                               "boundary": str(self.boundary),
                               "boundary_log": str(self.boundary / "boundary.jsonl")})
@@ -258,7 +260,7 @@ class RunCLI(recovery.RecoveryCLI):
 
     def boundary_health(self):
         # Release only the external fixture barrier before the inherited owned
-        # CLI cleanup. Never signal Herdr or simulated process identities.
+        # CLI cleanup. Never signal Muster or simulated process identities.
         (self.boundary / "release-observe").write_text("release", encoding="utf-8")
         marker = self.boundary / "fixture-error"
         if marker.exists():
@@ -850,9 +852,9 @@ def main():
         "trace_path": str(trace_path), "trace": trace,
         "independence": "Frozen contract; no product import or source-derived expected values. "
                         "Real CLI subprocesses, real Git and read-only SQLite observations.",
-        "fixture_authorities": ["/Users/luckye/.agents/skills/herdr/SKILL.md",
+        "fixture_authorities": ["/Users/luckye/.agents/skills/muster/SKILL.md",
                                 "evidence/2026-10-06-managed-01/live-02/dispatch.json"],
-        "limitations": ["Isolated orchestration only; real Herdr/Codex run is controller-owned.",
+        "limitations": ["Isolated orchestration only; real Muster/Codex run is controller-owned.",
                         "New-command expected-red is not evidence of an old defect.",
                         "Counterfactual, candidate approval and ticket closure are controller-owned."]})
     sys.stdout.write(p.stdout)
