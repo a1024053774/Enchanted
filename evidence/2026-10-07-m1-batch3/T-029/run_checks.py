@@ -20,6 +20,7 @@ def main():
     args = p.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
+    head_at_start = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     runtime = ROOT / '.runtime' / ('t029-' + out.name)
     runtime.mkdir(parents=True, exist_ok=False)
     sources = runtime / 'acceptance'
@@ -71,6 +72,7 @@ def main():
                   repository_head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                   selected_source=str(args.coop.resolve()), removed_environment=inherited, records=records)
     result['invocation_runtime'] = {k: os.environ.get(k) for k in ('MUSTER_ENV', 'MUSTER_PANE_ID', 'MUSTER_SOCKET_PATH', 'MUSTER_BIN')}
+    result['repository_head_at_start'] = head_at_start
     (out / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     return 0 if result['status'] == 'PASS' else 1
 

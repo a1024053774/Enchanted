@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tarfile
 import time
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -29,6 +30,8 @@ def main():
     env = {k: v for k, v in os.environ.items() if k not in removed}
     env.update(XDG_CONFIG_HOME=str(runtime / 'c'), XDG_STATE_HOME=str(runtime / 's'),
                XDG_CACHE_HOME=str(runtime / 'k'), SHELL='/bin/sh', MUSTER_DISABLE_SOUND='1')
+    home_files = [Path.home() / '.codex' / name for name in ('config.toml', 'hooks.json', 'herdr-agent-state.sh')]
+    home_before = {str(path): path.read_bytes() if path.exists() else None for path in home_files}
     config = runtime / 'c/muster/config.toml'
     config.parent.mkdir(parents=True)
     config.write_text('onboarding = false\n[terminal]\ndefault_shell = "/bin/sh"\n', encoding='utf-8')
@@ -139,6 +142,20 @@ def main():
     final = dict(status='INCOMPLETE' if args.red else 'BLOCKED' if paused else 'PASS',
                  results=results, paused=paused, context=str(out / 'context.json'),
                  server_stopped=server.poll() is not None)
+    final['user_configuration_unchanged'] = {str(path): home_before[str(path)] == (path.read_bytes() if path.exists() else None)
+                                              for path in home_files}
+    assert all(final['user_configuration_unchanged'].values()), 'User configuration changed; preserve and ask controller'
+    # Archive only isolated runtime/state; the normal Codex home is never copied.
+    with tarfile.open(out / 'runtime-artifacts.tar.gz', 'w:gz') as archive:
+        archive.add(runtime, arcname=runtime.name)
+        for item in results:
+            state = Path(item['state']) if 'state' in item else Path(item['runtime']) / 'state'
+            archive.add(state.parent, arcname='managed-' + state.parent.name)
+        for label in ('fence-correct', 'fence-mutant'):
+            fence_result = out / label / 'result.json'
+            if fence_result.exists():
+                retained = Path(json.loads(fence_result.read_text(encoding='utf-8'))['runtime'])
+                archive.add(retained, arcname=retained.name)
     (out / 'result.json').write_text(json.dumps(final, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(final, ensure_ascii=False), flush=True)
     return 0 if final['status'] == 'PASS' else 1
