@@ -1,0 +1,13 @@
+muster build: CARGO_TARGET_DIR=/Volumes/WD-Elements/dev-cache/a2a/target/worker-t027
+Diff in /Users/luckye/Documents/Code/a2a/muster/engine/src/integration/tests.rs:3723:
+     // (T-027 letta-in-place-test-diagnostic.log). Prepare the capture fixture, then remove
+     // its output so the hook must create fresh evidence. Remove this preparation when
+     // fixture startup no longer crosses that budget; this test does not measure latency.
+[31m-    let warmup = Command::new(&fake_muster).arg("fixture-ready").output().unwrap();
+(B[m[32m+    let warmup = Command::new(&fake_muster)
+(B[m[32m+        .arg("fixture-ready")
+(B[m[32m+        .output()
+(B[m[32m+        .unwrap();
+(B[m     assert!(warmup.status.success());
+     fs::remove_file(&capture).unwrap();
+ 

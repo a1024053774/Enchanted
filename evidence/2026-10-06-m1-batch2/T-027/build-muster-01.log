@@ -1,0 +1,36 @@
+muster build: CARGO_TARGET_DIR=/Volumes/WD-Elements/dev-cache/a2a/target/worker-t027
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling ghostty-vt v0.0.0 (/Users/luckye/Documents/Code/a2a/muster/engine/crates/ghostty-vt)
+   Compiling muster v0.9.3 (/Users/luckye/Documents/Code/a2a/muster/engine)
+error[E0425]: cannot find value `WINDOWS_INSTALLER` in module `crate::update`
+   --> engine/src/remote/attach.rs:969:75
+    |
+969 |         if let Err(err) = fs::write(&local_installer_path, crate::update::WINDOWS_INSTALLER) {
+    |                                                                           ^^^^^^^^^^^^^^^^^ not found in `crate::update`
+    |
+note: found an item that was configured out
+   --> engine/src/update.rs:5:18
+    |
+  4 | #[cfg(windows)]
+    |       ------- the item is gated here
+  5 | pub(crate) const WINDOWS_INSTALLER: &str = include_str!("../distribution/install.ps1");
+    |                  ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `UpdateChannelConfig`
+  --> engine/src/config.rs:29:9
+   |
+29 |         UpdateChannelConfig, MAX_TOAST_DELAY_SECONDS,
+   |         ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `end_cli_output`
+   --> engine/src/platform/mod.rs:375:23
+    |
+375 |     begin_cli_output, end_cli_output, forward_remote_bridge_stdio, ignore_server_hangup,
+    |                       ^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0425`.
+warning: `muster` (bin "muster") generated 2 warnings
+error: could not compile `muster` (bin "muster") due to 1 previous error; 2 warnings emitted

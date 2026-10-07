@@ -1,0 +1,5 @@
+# T-027 hook 许可请求
+
+T-027 BLOCKED：真实 Muster shell/endpoint/网络拒绝已通过；隔离 CODEX_HOME 的 Codex 显示 Hooks need review（17 项 = 复制的现有条目 + Muster 新 hook）。未批准、未在对话输入，原始现场已保存到 evidence/2026-10-06-m1-batch2/T-027/hook-approval-dialog.txt。建议下一次隔离 home 只安装 Muster 的4个hook，现有 Herdr hook 保留检查放在独立配置副本；请求主控明确批准在这个测试 home 中信任这4个Muster hook后继续真实working/idle与session ID验收。全程不写用户 ~/.codex，不修改/重启默认Herdr。源代码为 muster/engine/src/integration/assets/codex/muster-agent-state.sh；仅上报 Muster socket。
+
+任务书原文：“遇到权限请求、需要写用户级配置或需要用户决定的事，停下说明，不要猜。”当前确有 Codex 权限 UI；不能把已有安装任务授权当作对这次 trust dialog 的回答。
