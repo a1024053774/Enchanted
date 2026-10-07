@@ -3,7 +3,7 @@
 ## Destination
 
 第二阶段（2026-10-07 修订）：基于 Synara fork（`a1024053774/synara`）的 a2a 多 Agent 工作台，目标与 M1 见 [intent.md](../intent.md)，决策见 T-030～T-033。
-门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。执行规格见 [synara-m1](specs/synara-m1-2026-10-07.md)；第一批：T-034 → T-035 → T-036。
+门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。执行规格见 [synara-m1](specs/synara-m1-2026-10-07.md)；第一批：T-034 已关闭 → T-035 → T-036。
 [workbench-m1](specs/workbench-m1-2026-10-06.md) 是被取代的 GPUI/Muster 方案的日期记录；其中 T-024、T-026、T-027、T-029 已完成并保留为证据。
 
 首轮已完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
@@ -36,6 +36,7 @@
 - [T-030 工作台改为基于 Synara 的 fork](tickets/T-030-synara-fork-base.md): fork Synara v1.0.1-beta.2，原生协议会话，持续跟进上游，独立 clone（取代 T-017、T-022）
 - [T-031 a2a 门禁在 Synara 中原生实现](tickets/T-031-native-gates.md): TypeScript 独立 package、唯一门禁入口、契约不变、移植场景重新证明（取代 T-018）
 - [T-033 第二阶段术语修订](tickets/T-033-terms-revised.md): 门禁入口、Agent 会话、冻结的 Muster 引擎（取代 T-019）
+- [T-034 Synara fork 能构建运行](tickets/T-034-synara-fork-builds.md): 入口 `a2a/scripts/bun`，缺盘即退出 2；Node 24.13.1 与缓存在外置盘；checkout 约 3.4 GiB、首次安装约 41 分钟；上游合并演练无冲突
 - [T-020 构建缓存、开源许可与代码复用](tickets/T-020-build-cache-license-reuse.md): 缓存放外置盘且缺盘即报错；开源，允许 GPL，并入后整体 GPL-3.0
 - [T-021 Enchanted 的搁置与并入](tickets/T-021-enchanted-freeze.md): 快照 `3e2ad91` 后冻结，功能在 M1 之后并入工作台
 - [T-023 主控放在项目级还是任务级](tickets/T-023-controller-placement.md): 主控是角色不分层级，经控制接口同时操作项目级与任务级，做法沿用 Herdr

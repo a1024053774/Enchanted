@@ -2,7 +2,7 @@
 id: T-034
 title: Synara fork 能构建运行
 type: task
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex s1-t034 (wF:pV)
 supersedes:
@@ -20,7 +20,7 @@ supersedes:
 
 ## Resolution
 
-INCOMPLETE（2026-10-07，待主控地图收尾）。实现与行为验收为 PASS，独立只读审查对冻结候选与证据给出 PASS。关闭 ticket 时 `project_map.py status` 报 closed decision 缺少 MAP 索引；任务书禁止 worker 改 MAP，因此暂留 open，主控补索引后关闭。确切错误、命令与最小收尾步骤见 [controller-handoff.md](../../evidence/2026-10-07-synara-batch1/T-034/controller-handoff.md)。
+**PASS（2026-10-07）。** 主控补入地图索引后关闭；主控抽查：缺盘时入口真实退出码 2，演练合并 `00a856f8` 不在 `a2a` 分支，无残留进程。原收尾说明：实现与行为验收为 PASS，独立只读审查对冻结候选与证据给出 PASS。关闭 ticket 时 `project_map.py status` 报 closed decision 缺少 MAP 索引；任务书禁止 worker 改 MAP，因此暂留 open，主控补索引后关闭。确切错误、命令与最小收尾步骤见 [controller-handoff.md](../../evidence/2026-10-07-synara-batch1/T-034/controller-handoff.md)。
 
 [完整命令、测量、反例、失败和证据](../../evidence/2026-10-07-synara-batch1/T-034/RESULTS.md)。
 
