@@ -1,0 +1,160 @@
+  Empty results have items=[] and next_cursor=null.
+
+  The initial program is deliberately incomplete. Implement this contract without modifying
+  this document or acceptance tools. A successful model turn is not delivery acceptance.
+
+  完成本地实现后，在该 worktree 创建 commit 并保持 worktree 干净。通过 git rev-parse HEAD 获取完整 SHA，替换下面
+  FULL_COMMIT_SHA，精确提交一次：
+  python3 /Users/luckye/Documents/Code/a2a/coop.py --state /Users/luckye/Documents/Code/a2a/.runtime/final-runtime-
+  01-live_run/state submit --task automatic-pagination --attempt b102c2a0ec3b447f8a022c1c042d2b13 --session
+  8eca1e6c59f94b44aca000e5360c5bdd --fence 2 --spec-rev 1 --commit FULL_COMMIT_SHA
+  成功交付只进入 submitted。不要 verify、integrate 或自行宣布 accepted。遇到权限/启动问题停止并报告；不要自动答复、
+  重发或扩大范围。
+
+
+• 我会先检查 worktree 和现有实现，只修改当前任务的代码；完成本地检查后创建 commit，再按指定命令提交一次。
+
+• Ran pwd
+  └ /Users/luckye/Documents/Code/a2a/.runtime/final-runtime-01-live_run/state/worktrees/
+    b102c2a0ec3b447f8a022c1c042d2b13
+
+• Explored
+  └ Read SKILL.md
+
+• Ran git status --short
+  └ (no output)
+
+• Explored
+  └ List rg --files -g AGENTS.md -g pager.py -g '*test*' -g 'README*' -g '*spec*' -g pyproject.toml
+
+• worktree 当前干净。我会使用 evidence-first-testing 技能，先通过程序入口记录一个失败用例，再用同一用例检查修复结果。
+
+• Explored
+  └ Read pager.py
+    List git ls-files
+
+• Ran git rev-parse HEAD
+  └ ab88533b745582141a1cd47f0181332039e1d272
+
+• Ran python3 -c 'from pathlib import Path; p=Path.cwd(); paths=[p,*p.parents]; [(print(str(q)),print(q.read_text()))
+  │ for d in paths if (q:=d/"AGENTS.md").is_file()]'
+  └ /Users/luckye/Documents/Code/a2a/AGENTS.md
+    # a2a 项目规则
+
+    +81 lines (ctrl+t to view transcript)
+
+• Explored
+  └ Read SKILL.md, CONTRACT.md
+
+• Ran python3 - <<'PY'
+  │ import json
+  │ import subprocess
+  │ … +12 lines
+  └ Traceback (most recent call last):
+      File "<stdin>", line 12, in <module>
+    request: {"items": [{"id": "c", "ts": 2, "label": "later"}, {"id": "b", "ts": 1}, {"id": "a", "ts": 1}], "limit":
+    +5 lines (ctrl+t to view transcript)
+
+• 已记录失败：给定乱序输入和游标 [1, "a"]，程序返回了 c，预期应返回 b 并给出下一页游标。接下来只修改 pager.py，实现参
+  数校验、排序和分页。
+
+• Ran python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .
+  └ Problems (1):
+      - /Users/luckye/Documents/Code/a2a/.runtime/final-runtime-01-live_run/state/worktrees/
+    b102c2a0ec3b447f8a022c1c042d2b13/.project-map/MAP.md not found; run init
+    +2 lines (ctrl+t to view transcript)
+
+• Edited pager.py (+30 -3)
+     1 -"""Deliberately faulty starter: ignores ordering and cursor; used to preserve red evidence."""
+     1 +"""Paginate records in ascending timestamp and ID order."""
+     2  import json
+       ⋮
+     4
+     5 -request = json.load(sys.stdin)
+     6 -print(json.dumps({"items": request["items"][:request["limit"]], "next_cursor": None}))
+     5 +
+     6 +def paginate(request):
+     7 +    limit = request["limit"]
+     8 +    if type(limit) is not int or not 1 <= limit <= 100:
+     9 +        return {"error": "invalid_limit"}
+    10 +
+    11 +    after = request.get("after")
+    12 +    if after is not None:
+    13 +        if (
+    14 +            not isinstance(after, list)
+    15 +            or len(after) != 2
+    16 +            or type(after[0]) is not int
+    17 +            or not isinstance(after[1], str)
+    18 +        ):
+    19 +            return {"error": "invalid_cursor"}
+    20 +        after = tuple(after)
+    21 +
+    22 +    ordered = sorted(request["items"], key=lambda item: (item["ts"], item["id"]))
+    23 +    eligible = [
+    24 +        item for item in ordered
+    25 +        if after is None or (item["ts"], item["id"]) > after
+    26 +    ]
+    27 +    items = eligible[:limit]
+    28 +    next_cursor = [items[-1]["ts"], items[-1]["id"]] if len(eligible) > limit else None
+    29 +    return {"items": items, "next_cursor": next_cursor}
+    30 +
+    31 +
+    32 +if __name__ == "__main__":
+    33 +    print(json.dumps(paginate(json.load(sys.stdin))))
+
+• Explored
+  └ Read SKILL.md
+
+• Ran git diff --check
+  └ (no output)
+
+• Ran python3 - <<'PY'
+  │ import json
+  │ import subprocess
+  │ … +13 lines
+  └ request: {"items": [{"id": "c", "ts": 2, "label": "later"}, {"id": "b", "ts": 1}, {"id": "a", "ts": 1}], "limit":
+    1, "after": [1, "a"]}
+    expected: {"items": [{"id": "b", "ts": 1}], "next_cursor": [1, "b"]}
+    +3 lines (ctrl+t to view transcript)
+
+• Ran python3 - <<'PY'
+  │ import copy
+  │ import itertools
+  │ … +58 lines
+  └ PASS: 72 entry-point checks and direct input-preservation check
+
+• 修复后的原始失败用例已通过；另外 72 个入口检查和输入不变性检查也通过，覆盖了参数边界、校验顺序、同时间戳排序、非现
+  存游标和末页行为。现在检查最终差异并创建 commit，随后只执行指定的 submit。
+
+• Ran git status --short
+  └  M pager.py
+
+• Ran git diff -- pager.py
+  └ diff --git a/pager.py b/pager.py
+    index a556960..ac1c6f1 100644
+    --- a/pager.py
+    +38 lines (ctrl+t to view transcript)
+
+• Ran python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .
+  └ Problems (1):
+      - /Users/luckye/Documents/Code/a2a/.runtime/final-runtime-01-live_run/state/worktrees/
+    b102c2a0ec3b447f8a022c1c042d2b13/.project-map/MAP.md not found; run init
+    +2 lines (ctrl+t to view transcript)
+
+• Running git add -- pager.py
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  Reason: 沙箱禁止写入 Git 的 index.lock。是否允许暂存本任务的 pager.py，以创建你要求的 commit？
+
+  $ git add -- pager.py
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `git add -- pager.py` (p)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel
