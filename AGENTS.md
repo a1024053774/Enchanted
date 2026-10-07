@@ -46,6 +46,7 @@
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
 - 主控可以自主进行日常分派、状态检查、策略内重试和回收。
 - 新建 worker 必须显式传入 `-c 'service_tier="fast"'` 并保存启动 argv；不把请求配置当作供应商实际 tier 的证明。
+- 回收 worker pane 前须确认该 agent 已 idle，且它的交付已提交；只看到提交落地、agent 仍为 working 时不得关闭 pane（2026-10-07 T-027 收尾时出现过一次）。
 - Herdr wait 超时不是 worker 挂起证明；核对可见进展、产物与权限状态再处置。记录 live pane/terminal 身份，不依赖可能过期的继承环境或 UI 焦点。
 - 受管实验固定 Codex CLI 版本并使用启动参数 `check_for_update_on_startup=false`；更新提示不由任务输入触发。启动被阻断时保存现场，禁止把下一条任务或 Enter 当作默认批准。
 
