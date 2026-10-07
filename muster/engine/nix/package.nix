@@ -83,7 +83,7 @@ rustPlatform.buildRustPackage {
 
   meta = {
     description = "Terminal workspace manager for AI coding agents";
-    homepage = "https://muster.dev";
+    homepage = "https://herdr.dev";
     license = lib.licenses.asl20;
     mainProgram = "muster";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;

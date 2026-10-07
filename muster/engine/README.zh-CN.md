@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://muster.dev">muster.dev</a> · <a href="#安装">安装</a> · <a href="https://muster.dev/zh-cn/docs/quick-start/">快速开始</a> · <a href="https://muster.dev/zh-cn/docs/">文档</a></p>
+  <a href="https://herdr.dev">herdr.dev</a> · <a href="#安装">安装</a> · <a href="https://herdr.dev/zh-cn/docs/quick-start/">快速开始</a> · <a href="https://herdr.dev/zh-cn/docs/">文档</a></p>
 
 <p align="center">
   <a href="README.md">English</a> · 简体中文
@@ -14,11 +14,11 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-666666?labelColor=333333" alt="Apache 2.0 license" /></a>
-  <a href="https://github.com/musterdev/muster/releases"><img src="https://img.shields.io/github/downloads/musterdev/muster/total?labelColor=333333&color=666666" alt="total GitHub release downloads" /></a>
-  <a href="https://github.com/musterdev/muster/stargazers"><img src="https://img.shields.io/github/stars/musterdev/muster?labelColor=333333&color=666666&logo=github" alt="GitHub stars" /></a>
-  <a href="https://github.com/musterdev/muster/releases/latest"><img src="https://img.shields.io/github/v/release/musterdev/muster?label=release&labelColor=333333&color=666666" alt="latest stable release" /></a>
+  <a href="https://github.com/herdrdev/herdr/releases"><img src="https://img.shields.io/github/downloads/herdrdev/herdr/total?labelColor=333333&color=666666" alt="total GitHub release downloads" /></a>
+  <a href="https://github.com/herdrdev/herdr/stargazers"><img src="https://img.shields.io/github/stars/herdrdev/herdr?labelColor=333333&color=666666&logo=github" alt="GitHub stars" /></a>
+  <a href="https://github.com/herdrdev/herdr/releases/latest"><img src="https://img.shields.io/github/v/release/herdrdev/herdr?label=release&labelColor=333333&color=666666" alt="latest stable release" /></a>
   <a href="https://formulae.brew.sh/formula/muster"><img src="https://img.shields.io/homebrew/v/muster?label=homebrew&labelColor=333333&color=666666" alt="Homebrew version" /></a>
-  <a href="https://x.com/musterdev"><img src="https://img.shields.io/badge/follow-%40musterdev-000000?logo=x&logoColor=white" alt="follow @musterdev on X" /></a>
+  <a href="https://x.com/herdrdev"><img src="https://img.shields.io/badge/follow-%40herdrdev-000000?logo=x&logoColor=white" alt="follow @herdrdev on X" /></a>
 </p>
 
 ---
@@ -28,11 +28,11 @@ https://github.com/user-attachments/assets/043ec09f-4bdd-41d5-aee0-8fda6b83e267
 **智能体复用器，住在你的终端里。**
 
 - **每个智能体一目了然**——`blocked`、`working`、`done`。真实的终端视图，而不是包装过的转述。
-- **分离后工作继续运行**——关闭客户端或 SSH 断线后，后台服务器仍会保持终端运行。服务器或机器重启后，Muster 会恢复已保存的布局，并可恢复受支持的智能体会话；原有进程不会保留。[会话状态 →](https://muster.dev/zh-cn/docs/session-state/)
-- **多台机器，一个窗口**——将本地工作和已保存的 SSH 机器放在一起，使用汇总的智能体列表，各连接独立重连。[远程机器 →](https://muster.dev/zh-cn/docs/connecting-machines/)
-- **智能体也能使用 muster**——纯 socket api：智能体可以创建窗格、读取输出、互相等待。[智能体技能 →](https://muster.dev/zh-cn/docs/agent-skill/) 在开发智能体？[为你的智能体添加 muster 支持 →](https://muster.dev/zh-cn/docs/add-muster-support/)
+- **分离后工作继续运行**——关闭客户端或 SSH 断线后，后台服务器仍会保持终端运行。服务器或机器重启后，Muster 会恢复已保存的布局，并可恢复受支持的智能体会话；原有进程不会保留。[会话状态 →](https://herdr.dev/zh-cn/docs/session-state/)
+- **多台机器，一个窗口**——将本地工作和已保存的 SSH 机器放在一起，使用汇总的智能体列表，各连接独立重连。[远程机器 →](https://herdr.dev/zh-cn/docs/connecting-machines/)
+- **智能体也能使用 muster**——纯 socket api：智能体可以创建窗格、读取输出、互相等待。[智能体技能 →](https://herdr.dev/zh-cn/docs/agent-skill/) 在开发智能体？[为你的智能体添加 muster 支持 →](https://herdr.dev/zh-cn/docs/add-muster-support/)
 - **键盘和鼠标都是一等公民**——tmux 风格的前缀键，*以及*点击、拖动、分割。按当下的场景选择，而不是被工具锁死。
-- **插件**——扩展窗格和工作流。[浏览插件市场 →](https://muster.dev/plugins/)
+- **插件**——扩展窗格和工作流。[浏览插件市场 →](https://herdr.dev/plugins/)
 - **单个 rust 二进制，没有 electron**——运行在你已经在用的任何终端里。
 
 ---
@@ -40,10 +40,10 @@ https://github.com/user-attachments/assets/043ec09f-4bdd-41d5-aee0-8fda6b83e267
 ## 安装
 
 ```bash
-curl -fsSL https://muster.dev/install.sh | sh
+curl -fsSL https://herdr.dev/install.sh | sh
 ```
 
-或者 `brew install muster` · `mise use -g muster` · Windows：`powershell -ExecutionPolicy Bypass -c "irm https://muster.dev/install.ps1 | iex"` · [受端点保护的 Windows](https://muster.dev/zh-cn/docs/windows-beta/) · [二进制文件](https://github.com/musterdev/muster/releases)
+或者 `brew install muster` · `mise use -g muster` · Windows：`powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"` · [受端点保护的 Windows](https://herdr.dev/zh-cn/docs/windows-beta/) · [二进制文件](https://github.com/herdrdev/herdr/releases)
 
 然后在工作所在的目录启动它：
 
@@ -51,11 +51,11 @@ curl -fsSL https://muster.dev/install.sh | sh
 muster
 ```
 
-运行你的智能体、分割窗格，然后安心离开。`ctrl+b q` 分离，`muster` 重新连接。[快速开始 →](https://muster.dev/zh-cn/docs/quick-start/)
+运行你的智能体、分割窗格，然后安心离开。`ctrl+b q` 分离，`muster` 重新连接。[快速开始 →](https://herdr.dev/zh-cn/docs/quick-start/)
 
 ## 文档
 
-所有文档都在 [muster.dev/docs](https://muster.dev/zh-cn/docs/)：[快速开始](https://muster.dev/zh-cn/docs/quick-start/) · [核心概念](https://muster.dev/zh-cn/docs/concepts/) · [受支持的智能体](https://muster.dev/zh-cn/docs/agents/) · [键盘](https://muster.dev/zh-cn/docs/keyboard/) · [配置](https://muster.dev/zh-cn/docs/configuration/) · [会话状态](https://muster.dev/zh-cn/docs/session-state/) · [连接机器](https://muster.dev/zh-cn/docs/connecting-machines/) · [远程访问](https://muster.dev/zh-cn/docs/persistence-remote/) · [集成](https://muster.dev/zh-cn/docs/integrations/) · [为智能体添加 muster 支持](https://muster.dev/zh-cn/docs/add-muster-support/) · [插件](https://muster.dev/zh-cn/docs/plugins/) · [socket api](https://muster.dev/zh-cn/docs/socket-api/)
+所有文档都在 [herdr.dev/docs](https://herdr.dev/zh-cn/docs/)：[快速开始](https://herdr.dev/zh-cn/docs/quick-start/) · [核心概念](https://herdr.dev/zh-cn/docs/concepts/) · [受支持的智能体](https://herdr.dev/zh-cn/docs/agents/) · [键盘](https://herdr.dev/zh-cn/docs/keyboard/) · [配置](https://herdr.dev/zh-cn/docs/configuration/) · [会话状态](https://herdr.dev/zh-cn/docs/session-state/) · [连接机器](https://herdr.dev/zh-cn/docs/connecting-machines/) · [远程访问](https://herdr.dev/zh-cn/docs/persistence-remote/) · [集成](https://herdr.dev/zh-cn/docs/integrations/) · [为智能体添加 muster 支持](https://herdr.dev/zh-cn/docs/add-muster-support/) · [插件](https://herdr.dev/zh-cn/docs/plugins/) · [socket api](https://herdr.dev/zh-cn/docs/socket-api/)
 
 ## 致谢
 
@@ -63,7 +63,7 @@ muster
 
 [Terminal Trove](https://terminaltrove.com/) 以及 [SPONSORS.md](./SPONSORS.md) 中列出的每一位支持者——谢谢 🐑
 
-企业/合作：hey@muster.dev
+企业/合作：hey@herdr.dev
 
 ## 智能体须知
 
@@ -72,7 +72,7 @@ muster
 ## 开发
 
 ```bash
-git clone https://github.com/musterdev/muster
+git clone https://github.com/herdrdev/herdr
 cd muster
 cargo build --release
 

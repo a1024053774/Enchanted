@@ -40,7 +40,7 @@ if [[ -z "$baseline" ]]; then
   baseline_version=$(jq -er '.version' "$repo_root/distribution/latest.json")
   baseline="$root/muster-baseline"
   curl -fL --retry 3 \
-    "https://github.com/musterdev/muster/releases/download/v${baseline_version}/muster-${platform}-${arch}" \
+    "https://github.com/herdrdev/herdr/releases/download/v${baseline_version}/muster-${platform}-${arch}" \
     -o "$baseline"
   chmod +x "$baseline"
 else

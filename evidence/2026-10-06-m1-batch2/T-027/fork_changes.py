@@ -47,9 +47,10 @@ replace_file('src/main.rs', lambda s: span(s, '    if args.get(1).map(|s| s.as_s
     '    if args.get(1).map(String::as_str) == Some("update") {\n'
     '        eprintln!("Muster online updates are disabled; build from the local source.");\n'
     '        std::process::exit(1);\n    }\n\n'))
-replace_file('src/main.rs', lambda s: s.replace('        println!("Home:   https://muster.dev");\n', '')
-    .replace('# Check muster.dev for new Muster versions in the background.', '# Online version checks are disabled in this fork.')
-    .replace('# Check muster.dev for remote agent-detection manifest updates in the background.', '# Online detection manifest checks are disabled in this fork.')
+renamed_upstream_host = 'muster' + '.dev'
+replace_file('src/main.rs', lambda s: s.replace('        println!("Home:   https://' + renamed_upstream_host + '");\n', '')
+    .replace('# Check ' + renamed_upstream_host + ' for new Muster versions in the background.', '# Online version checks are disabled in this fork.')
+    .replace('# Check ' + renamed_upstream_host + ' for remote agent-detection manifest updates in the background.', '# Online detection manifest checks are disabled in this fork.')
     .replace('# version_check = true', '# version_check = false').replace('# manifest_check = true', '# manifest_check = false')
     .replace('Download and install the latest version', 'Online updates are disabled in this fork')
     .replace('Choose the stable or preview update channel', 'Online release channels are disabled in this fork')
@@ -157,7 +158,20 @@ replace_file('src/cli/spec.rs', lambda s: s.replace('Download and install the la
 
 replace_file('src/server/headless/tests/mod.rs', lambda s: s.replace('Some(\"detach, run `muster update`, then run Muster again to reconnect\")', 'Some(\"Online updates are disabled; build Muster from the local source.\")'))
 
-replace_file('Cargo.toml', lambda s: s.replace('repository = \"https://github.com/musterdev/muster\"\n', ''))
+replace_file('Cargo.toml', lambda s: s.replace('repository = \"https://github.com/herdrdev/herdr\"\n', ''))
 
 # The Letta capture fixture's first execution must finish before its one-second hook probe.
 # This local test preparation is retained in src/integration/tests.rs; see test-isolation.md.
+
+# Product spelling does not change upstream URLs.
+for original_file in root.rglob('*'):
+    if 'zig-pkg' in original_file.parts or not original_file.is_file():
+        continue
+    try:
+        original_text = original_file.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        continue
+    revised_text = original_text.replace('muster' + 'dev/muster', 'herdrdev/herdr').replace('muster' + '.dev', 'herdr.dev')
+    if revised_text != original_text:
+        original_file.write_text(revised_text, encoding='utf-8')
+replace_file('Cargo.toml', lambda s: s.replace('license = "Apache-2.0"', 'license = "Apache-2.0"\nrepository = "https://github.com/a1024053774/a2a"') if 'repository =' not in s else s)

@@ -3,7 +3,7 @@
 muster's sponsorship program is closed to new sponsors.
 This file permanently lists everyone who backed muster.
 
-→ Enterprise / partnership: hey@muster.dev
+→ Enterprise / partnership: hey@herdr.dev
 
 ## Gold
 

@@ -202,7 +202,7 @@ def main():
                 command(['agent', 'read', 't027-codex', '--lines', '120'], required=False)
                 raise AssertionError('Codex not ready; preserve startup UI; do not approve a dialog')
             # User/controller grant applies only to this next fresh home and exactly four hooks.
-            grant = ROOT / 'evidence/2026-10-06-m1-batch2/T-027/approval-granted.md'
+            grant = ROOT / 'evidence/2026-10-06-m1-batch2/T-027/final-approval-granted.md'
             assert grant.is_file(), 'explicit hook approval is required'
             def approved_hook_dialog():
                 text = command(['agent', 'read', 't027-codex', '--lines', '120']).stdout

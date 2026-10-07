@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set "INSTALLER_URL=https://muster.dev/install.ps1"
+set "INSTALLER_URL=https://herdr.dev/install.ps1"
 set "CURL_PROTOCOL=--proto =https --tlsv1.2"
 if defined MUSTER_INSTALLER_URL (
     set "INSTALLER_URL=%MUSTER_INSTALLER_URL%"
