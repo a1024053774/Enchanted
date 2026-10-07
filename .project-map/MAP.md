@@ -3,7 +3,7 @@
 ## Destination
 
 第二阶段（2026-10-07 修订）：基于 Synara fork（`a1024053774/synara`）的 a2a 多 Agent 工作台，目标与 M1 见 [intent.md](../intent.md)，决策见 T-030～T-033。
-门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。下一步：写基于 Synara 的 M1 spec，再切 tracer-bullet build ticket。
+门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。执行规格见 [synara-m1](specs/synara-m1-2026-10-07.md)；下一步：确认验证接缝并切 tracer-bullet build ticket。
 [workbench-m1](specs/workbench-m1-2026-10-06.md) 是被取代的 GPUI/Muster 方案的日期记录；其中 T-024、T-026、T-027、T-029 已完成并保留为证据。
 
 首轮已完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
@@ -47,7 +47,7 @@
 - When and how a second CLI validates the capability contract
 - Numeric budget and risk thresholds
 - 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化
-- 基于 Synara 的 M1 细节：任务内多 agent 分组的实现、门禁接入会话的位置与外部入口形态、构建缓存配置——在 spec 中解决
+- synara-m1 中尚未切片的部分：完整编排场景移植、界面上的任务窗口与人工介入记录、切换与删除 Muster/`coop.py` 运行路径
 
 ## Out of scope
 
