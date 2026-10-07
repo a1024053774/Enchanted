@@ -1,6 +1,6 @@
 # T-034 构建与隔离运行记录（2026-10-07）
 
-状态：INCOMPLETE（执行项已完成，待独立验收审查）。范围为 T-034 本地构建与运行任务。
+交付状态：INCOMPLETE。实现与行为验收为 PASS；[独立只读验收审查](acceptance-review.md) 对冻结候选与证据给出 PASS，所列验证限制保留。关闭 ticket 时，项目状态检查要求补 MAP 索引，而任务书禁止 worker 改 MAP；唯一剩余项及可直接应用的索引行见 [主控收尾](controller-handoff.md)。
 
 生产 fork 提交：`0b1740fd4e385baf389095e5cfa16dd67adcd3b4`，分支 `a2a`；起点 `f176e8967aa5a4a7faf1dc4bd070360d5fceabec`（v1.0.1-beta.2）。仅新增 `a2a/scripts/bun` 与 `a2a/README.md`，上游脚本未修改。主控 Claude Code（wF:pM）；worker s1-t034（wF:pV），身份及启动参数见 [runtime.json](runtime.json)。实际供应商 service tier 未核对；没有以请求参数作为实际 tier 的证明。
 
@@ -29,7 +29,7 @@ Node 来自 `https://nodejs.org/dist/v24.13.1/` 的官方 macOS arm64 包。下�
 
 卷经 `is_mount`、设备号及 `diskutil` 检查：真实 APFS 挂载点、USB、External。Bun 缓存的实际打开文件位于外置盘；Electron 43.4.1 下载 ZIP 位于外置盘 `electron/`，约 117 MiB。electron-builder 下载缓存变量指向外置盘，目录本轮未产生下载文件。见 [cache-use.json](cache-use.json)、[environment.log](environment.log)。
 
-dev home 为 `instances/t034/home`；桌面 home 为 `instances/t034-desktop/home`，SQLite 在其 `userdata/state.sqlite`，Electron profile 为 `instances/t034-desktop/electron-profile`。原生进程打开的 profile 文件都在外置盘，默认 `.synara-cua` 与 Application Support profile 未生成；已有 `.synara` 的占用与目录 mtime 未改变。见 [desktop-isolation.json](desktop-isolation.json)、[disk-before.json](disk-before.json)、[disk-final.json](disk-final.json)。没有执行 agent 任务或提交模型消息。
+dev home 为 `instances/t034/home`；桌面 home 为 `instances/t034-desktop/home`，SQLite 在其 `userdata/state.sqlite`，Electron profile 为 `instances/t034-desktop/electron-profile`。原生进程打开的 profile 文件都在外置盘，默认 `.synara-cua` 与 Application Support profile 未生成；已有 `.synara` 的占用与目录 mtime 未改变。见 [desktop-isolation.json](desktop-isolation.json)、[disk-before.json](disk-before.json)、[disk-final.json](disk-final.json)。worker 未执行 agent 任务或提交模型消息。
 
 缺盘用不存在路径模拟，未卸载外置盘。不存在路径、内置普通目录和内置根目录共 3 类输入，覆盖安装、构建、dev、桌面、Node 准备 5 个命令：15 项均在 Bun 启动前退出 2，测试目录未变化，Bun 哨兵未执行。忽略指定卷的坏版本会执行 Bun 哨兵，被同一验收条件识别。冻结提交结果见 [guard-frozen-result.json](guard-frozen-result.json)。复现命令：
 
