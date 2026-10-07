@@ -1,6 +1,6 @@
 # T-029：coop.py 改接 Muster（2026-10-07）
 
-状态：**INCOMPLETE：四项当前候选验收均 PASS，独立审查待执行。** 当前业务 task 已 accepted；这不代表 M1、GUI 或生产发布通过。
+状态：**PASS：四项当前候选验收和独立只读审查均通过，T-029 closed。** 当前业务 task 已 accepted；这不代表 M1、GUI 或生产发布通过。
 
 ## 当前验收与证据
 
@@ -49,7 +49,7 @@ prefix_rule(pattern=["git", "commit"], decision="allow")
 
 所有继承 HERDR/MUSTER 变量与旧 CODEX_THREAD_ID/CODEX_HOME 在 server 启动前剥离；只控制自己创建的含 t029 名称的会话，不修改或重启用户 Herdr。实际 server 用 start_new_session=True 和文件 stdio。验收、集成、回收走持锁 CLI，不直接改 SQLite、不替用户移动工作分支或 push。final-runtime-04/result.json 核对用户 config.toml、hooks.json、Herdr hook、default.rules 原字节均未变。
 
-成功后 worker/owned server 均退出，再删整个隔离 home；isolated-home-cleanup.json 与 delivery-checks.json 在工具调用结束后确认不存在。归档成员检查不含 auth.json 或该 home，认证副本没有进入 evidence/Git。前次 blocked 客户端重建临时缓存的现象保留；其客户端在本次恢复前拒绝/idle/reclaim 后已结束，对应 home 最终完整清理，不把此前瞬时 absent 当永久清理。
+成功后 worker/owned server 均退出，再删整个隔离 home；isolated-home-cleanup.json 与 delivery-checks.json 在工具调用结束后确认不存在。归档成员检查不含 auth.json 或该 home，认证副本没有进入 evidence/Git。前次 blocked 客户端重建临时缓存的现象保留；其客户端在恢复前拒绝/idle/reclaim 后已结束；最终又核对了全部三处已创建的 home，清除第二次留下的无 auth 缓存目录，确认全部不存在，见 all-isolated-homes-final-cleanup.json。没有把此前瞬时 absent 当永久清理。
 
 ## 红态、被拒候选和恢复记录
 
@@ -65,6 +65,6 @@ prefix_rule(pattern=["git", "commit"], decision="allow")
 
 ## 独立审查与主控交接
 
-四项已具备当前证据，待冻结后进行一次 fresh-context 独立只读审查，记录模型与冻结提交。不得拿 T-027 审查替本候选背书；审查期间不修改跟踪文件。
+冻结证据提交为 `a9515126501051c7bfcde96d810b1eaee8b95101`。一次 fresh-context acceptance-auditor 审查返回 PASS、无发现，固定模型 gpt-5.6-luna、max reasoning。冻结 worktree `/tmp/t029-review-a951512` 前后 HEAD/空 tracked diff 核对；review-01-pass.txt 为未经改写的原文，review-01-metadata.json 记录模型、范围、提交与代码一致性。未读取实现者聊天/RESULTS，未复用 T-027 结论，未重新启动模型或引擎。审查期间没有修改跟踪文件。之后仅将审查原文/元数据和本 ticket 完成状态归档，生产代码及已验证验收脚本未改。
 
 worker 未改根 README、MAP、AGENTS、CONTEXT。README 需要改为 MUSTER_BIN / live_muster.py 入口，并说明上述 Codex Git 规则前提、single-user trusted-collaborator 边界和当前验收范围；README Covers 替换已删除的 live_herdr.py；CONTEXT 术语未变，由主控核对后更新 Verified。结构问题为 0，根 living doc stale 按任务书交主控处理。范围不含 GUI、第二 CLI、生产发布、完整 run 进程自动恢复或长期收益。

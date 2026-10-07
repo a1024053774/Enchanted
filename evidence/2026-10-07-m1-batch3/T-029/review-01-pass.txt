@@ -1,0 +1,23 @@
+STATUS: PASS
+TARGET: 冻结快照 `a9515126501051c7bfcde96d810b1eaee8b95101`；生产候选 `66565453cf3f188c7b368fc91a512222b6cab0bc`
+
+EVIDENCE:
+- 冻结 worktree HEAD 正确、tracked diff 为空；候选与冻结的 `coop.py` 及验收脚本一致。
+- `coop.py:83-88,562-570,638-736` 仅使用显式 `MUSTER_BIN`，实际事件记录调用 Muster 0.9.3、启动参数和门禁；未发现 Herdr 调用或回退。
+- `final-runtime-04/suites/result.json` 显示 8、9、18 项分别全部通过；前两套是真实 CLI/Git/SQLite，编排套件明确标记为 isolated Muster/Codex substitute。验收通过独立 CLI、外部 fixture、独立 oracle 和 unseen pagination 输入。
+- 真实 `muster pane run` 启动 Codex worker；事件追加记录 `submitted`、独立 oracle `passed`、CAS `integrated`、身份核对后 `reclaimed`，最终 `run_finished=completed`。只读 SQLite 显示 task accepted、fence=4、candidate=`47976b...`；Git ref 指向该提交而原工作分支 HEAD 保持 base，父 pane 保留。
+- 正确 fence 检查通过；`coop-ignore-fence.py` mutant 的业务断言失败并以非零退出，被真实入口验收抓住。
+- 用户配置保持不变；隔离 home 只复制 auth 和两条已核对 Git 规则，随后删除。auth 不在 Git、证据或归档中；失败红态材料保留。
+
+FINDINGS:
+- 无。
+
+COUNTEREXAMPLE:
+- 移除 `stale_fence` 校验的 mutant 接受错误 fence 并改变 task 状态；`check_fence.py` 断言失败、返回非零，因此被拒绝。
+
+LIMITATIONS:
+- `native-git-submit-tool-calls.json` 为空；提交、submit、oracle、CAS 和权威读回由独立 Git/SQLite/事件证据覆盖。
+- project map 仍报告 README/CONTEXT stale；本审查不据此宣称 M1 或生产发布完成。
+
+RULE:
+- N/A（未发现需新增的重复失败规则）。
