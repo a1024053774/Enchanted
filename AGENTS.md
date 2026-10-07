@@ -3,7 +3,7 @@
 ## 规范源
 
 - `.project-map/MAP.md` 是项目地图；它索引目的地、已关闭决策、开放 ticket、fog 和 living docs。
-- `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。2026-10-07 起为第二阶段修订版：基于 Synara fork 的 a2a 多 Agent 工作台，第一个里程碑为 M1；决策记录见 `.grilling/synara-fork.md`。`.project-map/specs/workbench-m1-2026-10-06.md` 是被取代的 GPUI/Muster 方案的日期记录。
+- `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。2026-10-07 起为第二阶段修订版：基于 Synara fork 的 a2a 多 Agent 工作台，第一个里程碑为 M1；决策记录见 `.grilling/synara-fork.md`，M1 执行规格见 `.project-map/specs/synara-m1-2026-10-07.md`。`.project-map/specs/workbench-m1-2026-10-06.md` 是被取代的 GPUI/Muster 方案的日期记录。
 - `coop.py` 的执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
 - T-007 恢复语义以 `.project-map/specs/recovery-2026-10-06.md` 为准；真实故障只注入隔离测试所创建的 CLI 子进程。
 - 验收与集成必须经过唯一的门禁入口，并保持操作锁语义；锁释放只允许核对中断状态，不能替代验收证据。
