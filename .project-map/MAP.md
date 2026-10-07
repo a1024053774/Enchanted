@@ -63,7 +63,7 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | |
+| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | 9247c5c |
 | [AGENTS.md](../AGENTS.md) | `.project-map/MAP.md`, `CONTEXT.md`, `intent.md` | |
 | [README.md](../README.md) | `coop.py`, `acceptance/live_herdr.py`, `intent.md`, `muster/**`, `scripts/build` | |
 | [findings/README.md](../findings/README.md) | `findings/*.md` | |
