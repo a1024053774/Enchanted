@@ -4,7 +4,7 @@ title: Synara fork 能构建运行
 type: task
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Codex s1-t034 (wF:pV)
 supersedes:
 ---
 
@@ -20,4 +20,8 @@ supersedes:
 
 ## Resolution
 
-未执行。
+INCOMPLETE（执行项已完成，待独立验收审查）。
+
+[完整命令、测量、反例、失败和证据](../../evidence/2026-10-07-synara-batch1/T-034/RESULTS.md)。
+
+Fork 生产提交 `0b1740fd4e385baf389095e5cfa16dd67adcd3b4`；临时合并分支 `a2a-merge-drill`，提交 `00a856f8beb96c1db065048a98cd81b6a9be9a9a`，无冲突，7 个 workspace 类型检查和 28 个 skills catalog 测试通过。两仓库未 push。
