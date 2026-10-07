@@ -37,7 +37,7 @@ def main():
         env = {k: v for k, v in os.environ.items() if k not in removed}
         env.update(XDG_CONFIG_HOME=str(runtime / 'c'), XDG_STATE_HOME=str(runtime / 's'),
                    XDG_CACHE_HOME=str(runtime / 'k'), SHELL='/bin/sh', MUSTER_DISABLE_SOUND='1')
-        home_files = [Path.home() / '.codex' / name for name in ('config.toml', 'hooks.json', 'herdr-agent-state.sh')]
+        home_files = [Path.home() / '.codex' / name for name in ('config.toml', 'hooks.json', 'herdr-agent-state.sh', 'rules/default.rules')]
         home_before = {str(path): path.read_bytes() if path.exists() else None for path in home_files}
         config = runtime / 'c/muster/config.toml'
         config.parent.mkdir(parents=True)
@@ -78,11 +78,19 @@ def main():
             (isolated / 'auth.json').chmod(0o600)
             trust = '[projects.' + json.dumps(str(fixture)) + ']\ntrust_level = "trusted"\n'
             (isolated / 'config.toml').write_text(trust, encoding='utf-8')
+            source_rules = Path.home() / '.codex/rules/default.rules'
+            permitted = [b'prefix_rule(pattern=["git", "add"], decision="allow")\n',
+                         b'prefix_rule(pattern=["git", "commit"], decision="allow")\n']
+            selected = [line for line in source_rules.read_bytes().splitlines(keepends=True) if line in permitted]
+            assert selected == permitted, 'The grant requires exactly the two unchanged user rule lines'
+            (isolated / 'rules').mkdir()
+            (isolated / 'rules/default.rules').write_bytes(b''.join(selected))
             assert not (isolated / 'hooks.json').exists()
             env['CODEX_HOME'] = str(isolated)
             (out / 'isolated-home-scope.json').write_text(json.dumps(dict(path=str(isolated), trusted_root=str(fixture),
                 copied_files=['auth.json'], auth_mode=oct((isolated / 'auth.json').stat().st_mode & 0o777),
-                hooks_installed=False, config_text=trust, grant='controller-decision.md'), indent=2) + '\n', encoding='utf-8')
+                selected_rule_source=str(source_rules), selected_rules=b''.join(selected).decode('utf-8'),
+                hooks_installed=False, config_text=trust, grant='controller-decision-03.md'), indent=2) + '\n', encoding='utf-8')
         start = [str(args.binary.resolve()), '--session', session, 'server']
         stdio = (out / 'server-stdio.txt').open('w', encoding='utf-8')
         server = subprocess.Popen(start, env=env, stdin=subprocess.DEVNULL, stdout=stdio, stderr=stdio, start_new_session=True)
@@ -157,6 +165,27 @@ def main():
                 paused = True
                 break
         panes = muster('pane', 'list')
+        if isolated is not None:
+            native_metadata = []
+            mutation_calls = []
+            for rollout in isolated.rglob('rollout*.jsonl'):
+                selected_calls = set()
+                for line in rollout.read_text(encoding='utf-8').splitlines():
+                    event = json.loads(line)
+                    payload = event.get('payload', {})
+                    if event.get('type') == 'session_meta':
+                        native_metadata.append({key: payload.get(key) for key in
+                                                ('id', 'cwd', 'cli_version', 'originator', 'timestamp', 'model_provider')})
+                    if event.get('type') != 'response_item':
+                        continue
+                    if payload.get('type') == 'function_call' and any(
+                            command in payload.get('arguments', '') for command in ('git add', 'git commit', ' submit ')):
+                        selected_calls.add(payload['call_id'])
+                        mutation_calls.append(event)
+                    elif payload.get('type') == 'function_call_output' and payload.get('call_id') in selected_calls:
+                        mutation_calls.append(event)
+            (out / 'native-session-metadata.json').write_text(json.dumps(native_metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            (out / 'native-git-submit-tool-calls.json').write_text(json.dumps(mutation_calls, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         for item in panes['panes']:
             text = command([args.binary.resolve(), '--session', session, 'pane', 'read', item['pane_id'],
                             '--source', 'recent-unwrapped', '--lines', '160'], required=False)

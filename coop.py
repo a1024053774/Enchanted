@@ -666,8 +666,6 @@ class Coop:
         record["state"] = "split_pending"
         self.set_dispatch(aid, record, "dispatch_split_intent")
         try:
-            git_common_dir = absolute(self.git(task["repo"], "rev-parse", "--path-format=absolute",
-                                               "--git-common-dir", attempt=aid)["stdout"].strip(), "directory")
             result, raw = self.muster("pane", "split", args.parent_pane, "--direction", "down",
                                      "--cwd", attempt["workspace"], "--no-focus", mutation=True, attempt=aid)
             pane = result.get("pane")
@@ -686,8 +684,7 @@ class Coop:
                        "--timeout", "30000", "--", "-m", "gpt-6.1-sol", "-c",
                        'model_reasoning_effort="xhigh"', "-c", 'service_tier="fast"',
                        "-c", "check_for_update_on_startup=false", "--no-alt-screen",
-                       "-C", attempt["workspace"], "--add-dir", str(self.root),
-                       "--add-dir", str(git_common_dir)]
+                       "-C", attempt["workspace"], "--add-dir", str(self.root)]
             record.update(state="start_pending", startup_argv=[muster_binary(), *startup])
             self.set_dispatch(aid, record, "dispatch_start_intent")
             try:
