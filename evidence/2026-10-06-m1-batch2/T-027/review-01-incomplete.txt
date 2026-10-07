@@ -1,0 +1,12 @@
+STATUS: INCOMPLETE
+TARGET: 冻结候选 `3316be04af56ed7b141e659ea26dd7ddc9e90887`
+EVIDENCE:
+- 开始检查时 `git rev-parse HEAD` 为候选提交，且候选相对工作树无已跟踪 diff。
+- 检查期间 `git diff --quiet --exit-code` 返回 1；`git diff --stat` 显示 `evidence/2026-10-06-m1-batch2/T-027/RESULTS.md` 有 26 行已跟踪修改。
+- `candidate-freeze-3316.json` 将候选固定为 `3316be04…`，但工作树已不再是该冻结快照。
+FINDINGS:
+- [P1] `evidence/2026-10-06-m1-batch2/T-027/RESULTS.md` — 审查期间候选工作树发生变化，无法保证所有证据对应同一冻结差异；重新冻结后再审查。
+COUNTEREXAMPLE:
+- 未执行；快照变化使已读证据不能形成当前候选的独立裁定。
+LIMITATIONS:
+- 按冻结快照规则停止，未对六项 Acceptance 给出 PASS 或 FAIL；未读取变更中的 `RESULTS.md`。
