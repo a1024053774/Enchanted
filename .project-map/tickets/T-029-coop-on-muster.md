@@ -23,10 +23,10 @@ supersedes:
 
 ## Resolution
 
-**BLOCKED（2026-10-07）**。当前冻结候选 `328922f94cb24ed05a4cb5d448427d87be3fb445` 的构建、交付/恢复/编排 8/9/18 和 fence mutant 检查通过，生产门禁与上一候选一致。
+**BLOCKED（2026-10-07）**。当前冻结候选 `09a576b37f0e3f303cdb70f389a3da76cfedb1fd` 的构建、8/9/18、fence mutant 通过。原 b102c2a0ec3b447f8a022c1c042d2b13 的 Git 请求仅按一次 Esc 拒绝，确认 idle 后 CLI reclaim，dirty worktree 与历史保留。
 
-主控许可后，最小复现证实同组 server 随启动工具结束而消失，独立进程组则持续运行；已修夹具生命周期，不改引擎。原 attempt 经真实同命名空间权威清单与原 attempt CLI reclaim，历史/worktree/布局保留。新的隔离 CODEX_HOME 只复制 auth.json 与已批准夹具的信任配置，不安装 hook，已整目录删除，用户配置字节未变。
+修复前真实 index.lock 拒绝及实际 argv 红态均保留。dispatch 现在只追加 task.repo 的 Git common dir 写目录，参数回归绿态，实际 Codex 进程 argv 已核对相同；但新 attempt `a4107e835c8a4b17aec0fea46f1a87f2`、fence=3 在相同 Git 暂存请求上再次 blocked。因此目录声明合同通过，无人值守 Git 提交的真实绿态尚未成立，不能称该缺陷已完整修复。未回答当前 UI，未再增加目录、规则、hook 或改变沙箱。
 
-同一注册 task 的新 attempt `b102c2a0ec3b447f8a022c1c042d2b13`、fence=2 已投递并修改 pager.py，但 Git 的 index.lock 写入触发 `git add -- pager.py` 权限对话。主控许可不包括其他权限；worker 没有答复，run=paused、task=claimed，当前脱离进程组的 server 与 blocked pane 仍保留。尚未 commit/submit/verify/integrate/reclaim 当前 attempt，不能关闭 ticket 或声明切换通过。fresh-context 独立审查仍待完整真实 run 后执行。
+按已生效 AGENTS 66fa604 的 idle 规则，自动回收旧实现的提前关闭被业务红态抓住，加入有界只读等待后绿态；业务门禁不变。当前真实 run=paused、task=claimed，未 commit/submit/verify/integrate/reclaim，独立审查仍未执行，ticket 保持 open。
 
-当前权限请求见 [APPROVAL-REQUEST-02](../../evidence/2026-10-07-m1-batch3/T-029/APPROVAL-REQUEST-02.md)，逐项证据及前次失败见 [RESULTS](../../evidence/2026-10-07-m1-batch3/T-029/RESULTS.md)。当前 README stale 项交主控处理，worker 未改根文档。
+server、blocked pane、dirty worktree 与证据保留。auth/config/hook 副本删除且未重建；后台曾重建临时缓存目录，已再次清理，最终结束客户端后须再核对。当前请求见 [APPROVAL-REQUEST-03](../../evidence/2026-10-07-m1-batch3/T-029/APPROVAL-REQUEST-03.md)，全部证据与旧失败见 [RESULTS](../../evidence/2026-10-07-m1-batch3/T-029/RESULTS.md)。根文档 stale 项交主控处理，worker 未改根文档。
