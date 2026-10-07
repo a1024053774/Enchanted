@@ -19,6 +19,7 @@ def main():
     p.add_argument('--binary', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--red', action='store_true')
+    p.add_argument('--checks', action='store_true')
     args = p.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -67,6 +68,26 @@ def main():
     context['environment'] = {k: env[k] for k in ('XDG_CONFIG_HOME', 'XDG_STATE_HOME', 'XDG_CACHE_HOME', 'SHELL', 'MUSTER_DISABLE_SOUND')}
     (out / 'context.json').write_text(json.dumps(context, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     command([args.binary.resolve(), '--session', session, 'status', '--json'])
+    if args.checks:
+        jobs = [(ROOT / 'evidence/2026-10-07-m1-batch3/T-029/run_checks.py', out / 'suites', [])]
+        mutant = out / 'coop-ignore-fence.py'
+        code = (ROOT / 'coop.py').read_text(encoding='utf-8')
+        line = '            require(attempt["fence"] == args.fence, "stale_fence")\n'
+        assert code.count(line) == 1
+        mutant.write_text(code.replace(line, '', 1), encoding='utf-8')
+        for label, script in [('fence-correct', ROOT / 'coop.py'), ('fence-mutant', mutant)]:
+            jobs.append((ROOT / 'evidence/2026-10-07-m1-batch3/T-029/check_fence.py', out / label,
+                         ['--coop', str(script)]))
+        for script, destination, extra in jobs:
+            argv = [sys.executable, '-B', str(script), '--output', str(destination), *extra]
+            shell = shlex.join(argv) + ' > ' + shlex.quote(str(out / (destination.name + '.log'))) + ' 2>&1'
+            command([args.binary.resolve(), '--session', session, 'pane', 'run', pane, shell])
+            deadline = time.monotonic() + 300
+            while not (destination / 'result.json').exists():
+                assert time.monotonic() < deadline, 'Check has no saved result: ' + str(destination)
+                time.sleep(2)
+            status = json.loads((destination / 'result.json').read_text(encoding='utf-8'))['status']
+            assert status == ('INCOMPLETE' if destination.name == 'fence-mutant' else 'PASS'), str(destination)
     fixture = runtime / 'fixture'
     fixture.mkdir()
     for name in ('pager.py', 'CONTRACT.md'):

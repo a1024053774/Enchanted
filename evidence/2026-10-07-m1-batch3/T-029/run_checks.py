@@ -70,6 +70,7 @@ def main():
     result = dict(status='PASS' if all(r['exit_code'] == 0 and r['tests_run'] == r['expected_tests'] for r in records) else 'INCOMPLETE',
                   repository_head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                   selected_source=str(args.coop.resolve()), removed_environment=inherited, records=records)
+    result['invocation_runtime'] = {k: os.environ.get(k) for k in ('MUSTER_ENV', 'MUSTER_PANE_ID', 'MUSTER_SOCKET_PATH', 'MUSTER_BIN')}
     (out / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     return 0 if result['status'] == 'PASS' else 1
 

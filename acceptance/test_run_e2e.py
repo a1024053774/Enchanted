@@ -852,7 +852,7 @@ def main():
         "trace_path": str(trace_path), "trace": trace,
         "independence": "Frozen contract; no product import or source-derived expected values. "
                         "Real CLI subprocesses, real Git and read-only SQLite observations.",
-        "fixture_authorities": ["/Users/luckye/.agents/skills/muster/SKILL.md",
+        "fixture_authorities": ["muster/engine/skills/muster/SKILL.md",
                                 "evidence/2026-10-06-managed-01/live-02/dispatch.json"],
         "limitations": ["Isolated orchestration only; real Muster/Codex run is controller-owned.",
                         "New-command expected-red is not evidence of an old defect.",
