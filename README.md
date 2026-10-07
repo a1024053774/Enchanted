@@ -4,7 +4,14 @@ a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。项
 
 - **协作门禁（首轮，已完成）**：`coop.py` 运行在已安装的 Herdr 上，用程序约束认领、交付、独立验收和集成。用法见下文。
 - **Muster 工作台（第二阶段，开发中）**：自建的 GPUI 多 agent 工作台。它以 Herdr 0.9.3 引擎的硬分叉取代 Herdr CLI：每个项目一个窗口，任务是标签页，任务里的多个 pane 供 agent 分工。目标与范围见 [intent.md](intent.md)，设计与任务顺序见 [M1 spec 与初步任务书](.project-map/specs/workbench-m1-2026-10-06.md)。
-  - 引擎源码在 `muster/engine/`（来源与许可见其中的 NOTICE 和 LICENSE），正由 T-027 验收，尚不能替代 Herdr 日常使用；桌面应用 Muster.app 尚未开始。构建只经下文的 `scripts/build`。
+  - **引擎（T-027 已验收，2026-10-07）**：源码在 `muster/engine/`，是 Herdr 0.9.3（`c4653a4`）的硬分叉，来源与许可见其中的 NOTICE 和 LICENSE。可执行文件为 `muster`，环境变量前缀 `MUSTER_`，socket、配置目录与集成 hook 都用 `muster` 命名，可与已安装的 Herdr 并存；不访问 herdr.dev。构建只经下文的 `scripts/build`：
+
+    ```sh
+    ./scripts/build build --locked --manifest-path muster/Cargo.toml
+    ```
+
+    产物在 `/Volumes/WD-Elements/dev-cache/a2a/target/<slot>/debug/muster`。试用时一律开独立命名会话（`muster --session <name>`），不要动正在使用的 Herdr。验收范围与限制见 [T-027 证据](evidence/2026-10-06-m1-batch2/T-027/RESULTS.md)。
+  - **尚未完成**：`coop.py` 仍运行在 Herdr 上（改接 Muster 是 T-029）；桌面应用 Muster.app 尚未开始（T-028）。在这两项和切换条件满足前，Muster 不替代 Herdr 的日常使用。
 
 文档入口：[项目地图](.project-map/MAP.md)、[术语表](CONTEXT.md)、[项目规则](AGENTS.md)、[开发发现](findings/README.md)。
 
