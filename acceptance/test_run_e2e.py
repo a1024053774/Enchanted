@@ -385,6 +385,12 @@ class RunCLI(recovery.RecoveryCLI):
         handle = self.start_run(seconds=8)
         pane = self.wait_prompt(handle)
         attempt = self.current_attempt()
+        native = self.store()["panes"][pane]["agent_argv"]
+        writable = [native[index + 1] for index, arg in enumerate(native[:-1]) if arg == "--add-dir"]
+        common = self.git("rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip()
+        self.check(writable == [str(self.state.resolve()), common],
+                   "Worker write grants are exactly its state root and this task's Git common dir",
+                   [str(self.state.resolve()), common], writable)
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
         value = self.new_result(self.complete(handle), "run")

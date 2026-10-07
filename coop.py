@@ -666,6 +666,8 @@ class Coop:
         record["state"] = "split_pending"
         self.set_dispatch(aid, record, "dispatch_split_intent")
         try:
+            git_common_dir = absolute(self.git(task["repo"], "rev-parse", "--path-format=absolute",
+                                               "--git-common-dir", attempt=aid)["stdout"].strip(), "directory")
             result, raw = self.muster("pane", "split", args.parent_pane, "--direction", "down",
                                      "--cwd", attempt["workspace"], "--no-focus", mutation=True, attempt=aid)
             pane = result.get("pane")
@@ -684,7 +686,8 @@ class Coop:
                        "--timeout", "30000", "--", "-m", "gpt-6.1-sol", "-c",
                        'model_reasoning_effort="xhigh"', "-c", 'service_tier="fast"',
                        "-c", "check_for_update_on_startup=false", "--no-alt-screen",
-                       "-C", attempt["workspace"], "--add-dir", str(self.root)]
+                       "-C", attempt["workspace"], "--add-dir", str(self.root),
+                       "--add-dir", str(git_common_dir)]
             record.update(state="start_pending", startup_argv=[muster_binary(), *startup])
             self.set_dispatch(aid, record, "dispatch_start_intent")
             try:
@@ -800,10 +803,21 @@ class Coop:
         self.event("reclaim_observation", snapshot, aid)
         self.check_bound_identity(dispatch, snapshot)
         if automatic and not snapshot.get("absent"):
-            agent = snapshot.get("agent")
-            require(agent is not None and agent.get("agent_status") in ("idle", "done", "working"),
-                    "run_blocked" if agent and agent.get("agent_status") == "blocked"
-                    else "run_external_unknown", snapshot=snapshot)
+            idle_deadline = time.monotonic() + TIMEOUT
+            while not snapshot.get("absent"):
+                agent = snapshot.get("agent")
+                require(agent is not None and agent.get("agent_status") in ("idle", "done", "working"),
+                        "run_blocked" if agent and agent.get("agent_status") == "blocked"
+                        else "run_external_unknown", snapshot=snapshot)
+                if agent["agent_status"] in ("idle", "done"):
+                    break
+                require(time.monotonic() < idle_deadline, "run_reclaim_deadline", snapshot=snapshot)
+                time.sleep(0.5)
+                snapshot = self.snapshot_bound(dispatch, aid, journal=False)
+                self.check_bound_identity(dispatch, snapshot)
+            # The final authority used for closure is retained separately from
+            # the first observation; a submit alone cannot close a working agent.
+            self.event("reclaim_ready", snapshot, aid)
         with self.transaction():
             task = self.task()
             require(self.load("attempts", aid)["dispatch"] == dispatch, "identity_conflict")
