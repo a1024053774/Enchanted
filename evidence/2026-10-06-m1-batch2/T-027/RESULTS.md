@@ -1,6 +1,6 @@
 # T-027：Muster 引擎独立命名空间（2026-10-06）
 
-状态：**INCOMPLETE：最终候选六项运行证据已通过，首次只读审查因报告变化停止，重新冻结后待审。** 冻结候选为 `3316be04af56ed7b141e659ea26dd7ddc9e90887`，最终复验于 2026-10-07 完成。本记录只对应 T-027，不代表 M1 或运行时切换通过。
+状态：**PASS：T-027 六项当前候选验收通过，独立只读审查通过。** 冻结候选为 `3316be04af56ed7b141e659ea26dd7ddc9e90887`，最终复验于 2026-10-07 完成。本记录只对应 T-027，不代表 M1 或运行时切换通过。
 
 ## 当前验收
 
@@ -61,7 +61,9 @@ python3 evidence/2026-10-06-m1-batch2/T-027/probe.py --binary /Volumes/WD-Elemen
 
 ## 独立审查
 
-首次独立只读审查为 `INCOMPLETE`：主实现者在审查期间更新了已跟踪报告，审查器依冻结规则停止，未对六项 Acceptance 作出裁定。原文见 [review-01-incomplete.txt](review-01-incomplete.txt)、模型与处理记录见 [review-01-metadata.json](review-01-metadata.json)。报告和原始证据先提交冻结，再以 fresh context 审查；生产代码与已通过真实运行的 `3316be0` 相同，不重建 Codex home。审查器使用 `acceptance-auditor` 角色（固定 `gpt-5.6-luna`、max），不读取实现者对话或本报告，不修改任何源码或证据。后续验收结论尚未产生。
+首次独立只读审查为 `INCOMPLETE`：主实现者在审查期间更新了已跟踪报告，审查器依冻结规则停止，未对六项 Acceptance 作出裁定。原文见 [review-01-incomplete.txt](review-01-incomplete.txt)、模型与处理记录见 [review-01-metadata.json](review-01-metadata.json)。报告和原始证据先提交冻结，再以 fresh context 审查；生产代码与已通过真实运行的 `3316be0` 相同，不重建 Codex home。审查器使用 `acceptance-auditor` 角色（固定 `gpt-5.6-luna`、max），不读取实现者对话或本报告，不修改任何源码或证据。
+
+重新冻结报告及证据到 `fd3beb70bcc1add0eb0428e8c062e3d68e694e10` 后，fresh-context 审查返回 **PASS**，无发现；原文见 [review-02-pass.txt](review-02-pass.txt)，模型与范围记录见 [review-02-metadata.json](review-02-metadata.json)。审查器确认生产代码及探针与真实运行的 `3316be0` 差异为空，审查前后已跟踪工作树干净；结论仅限 T-027。其反事实段落称“四个相关测试”，准确数量是四次执行命令、六个失败断言；原始审查文字保持不改，以 mutant 原始日志为准。原始日志的尾部空行/空格使 whitespace check 返回 2，见 [记录](evidence-whitespace-check.json)，按原样保留，未当作代码检查通过。
 
 ## 主控收尾与局限
 

@@ -1,0 +1,18 @@
+STATUS: PASS
+TARGET: 冻结候选 `fd3beb70bcc1add0eb0428e8c062e3d68e694e10`（真实运行绑定 `3316be04af56ed7b141e659ea26dd7ddc9e90887`）
+EVIDENCE:
+- `muster/`、`probe.py` 与真实运行候选 diff 为空；跟踪工作树审查前后均干净。
+- 构建日志证明经 `./scripts/build` 使用外置盘；缺盘退出码为 2；Zig 包为外置盘 symlink，Git 无缓存包路径。
+- `run-04/events.ndjson`：22 项检查、0 失败；`run-05/events.ndjson`：35 项检查、0 失败。真实 CLI 创建项目、任务、pane，shell marker 可读写，generation-1 endpoint 握手成功；断开 endpoint client 后 server 仍存活且 pane 继续输出。
+- run-05 真实 Codex 0.160.1 观察到 working→idle；`muster:codex` hook ID 与原生 `session_meta` ID 相符；原生 `final_answer` 返回动态 nonce；用户 hooks 与默认 Herdr PID/启动时间保持不变。
+- 冻结源码 exact grep 无 `herdr.dev`、`HERDR_`、`curl_command`；运行时在线命令均拒绝，network wrapper 日志与 server TCP 连接为空。
+- LICENSE/NOTICE 来源完整；50 个测试组均 exit 0，3470 项中 3459 PASS、11 个原有 ignored；离线 mutant、上游候选、endpoint shape 和 socket 反事实均被拒绝。
+FINDINGS:
+- 无。
+COUNTEREXAMPLE:
+- `offline-mutant` 恢复旧在线行为后，4 个相关测试均以预期失败退出 101；上游/旧候选因产品名检查失败。固定输出或忽略输入无法通过动态 shell、detach、session ID 和 Codex nonce 检查。
+LIMITATIONS:
+- 仅审查 T-027 六项；不覆盖 M1、GUI、coop、切换、多平台、供应商实际 tier 或 trust UI blocked 状态。
+- 未重新启动服务或 Codex；结论基于冻结提交中的真实边界原始证据。未跟踪文件未作为 oracle，许可依据为冻结的 `controller-final-grant.md.gz`。
+RULE:
+- N/A（无重复 failure class）。
