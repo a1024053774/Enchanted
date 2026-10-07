@@ -6,7 +6,7 @@
 
 | 条目 | 当前结论 | 命令、观察和证据 |
 | --- | --- | --- |
-| 源码构建、外置盘、缺盘拒绝 | PASS | `MUSTER_BUILD_SLOT=worker-t027 ./scripts/build build --locked --manifest-path muster/Cargo.toml`；[build-muster-frozen.log](build-muster-frozen.log)、[build-layout.json](build-layout.json)。缺盘调用退出 2，见 [missing-volume-result.json](missing-volume-result.json)。 |
+| 源码构建、外置盘、缺盘拒绝 | PASS | `MUSTER_BUILD_SLOT=worker-t027 ./scripts/build build --locked --manifest-path muster/Cargo.toml`；[build-package-final.log](build-package-final.log)、[build-layout.json](build-layout.json)。缺盘调用退出 2，见 [missing-volume-result.json](missing-volume-result.json)。 |
 | 独立 server、项目/任务/pane、shell、断开后持续 | 最终候选待复验 | run-03 已通过真实 CLI 与 generation 1 endpoint 连接、shell nonce 输出、客户端断开后的延迟输出；[run-03/result.json](run-03/result.json)。其后修正了 wire 值，不复用旧候选的 PASS。 |
 | Codex working/idle、Muster hook 原生会话 ID | 最终候选待复验 | run-03 观察到 working→settled，来源为 `muster:codex`。下一轮会明确观察 idle，并与 Codex 自己的会话 metadata 对照 ID。 |
 | Herdr 与 Muster 共存、socket/config/hook 隔离 | 最终候选待复验 | run-03 核对 Herdr 0.9.1 server 的 PID/启动时间，以及主控的 shell PID/前台进程组未变；用户 hook 原始字节未变。原始记录保留在该运行目录。这个检查不等于核对默认会话全部业务状态。 |
@@ -26,6 +26,8 @@ Reality gate 为 PASS：固定源码、外置盘入口与隔离命名会话均�
 源码移除了在线版本/公告/发布说明获取、检测清单获取和远程发布包下载；即使配置将两种 check 设置为 true，也不能开启它们。已有本地数据解析和显示仍保留；没有把禁用网络当成禁用模型供应商连接。
 
 ## 红态、失败与反事实
+
+首个源码提交 `1a64cdb` 为拒绝候选：强制暂存错误纳入源码旁的 Zig 0.16 解包缓存；该缓存实际仍在内置盘。原提交保留，缓存完整移到外置盘，新候选移除 Git cache 记录，并由 build.rs 创建 ignored 外置盘 symlink。此事实以 [package-cache-fix.md](package-cache-fix.md)、[cache-contamination.json](cache-contamination.json)、[package-cache-layout.json](package-cache-layout.json) 为准；早先仅检查 cache 环境变量的通过结论无效。
 
 - 改名前：同一名称 oracle 拒绝已安装上游 CLI 和从固定源码构建的基线，分别见 [red-installed-upstream](red-installed-upstream/)、[red-source-baseline](red-source-baseline/)。这是新合同的预期红态，不宣称上游有缺陷。[source-red.txt](source-red.txt) 保存原在线 transport 检索。
 - 工具/编译错误：Python 3.9 不支持 tar extraction 的 filter 参数；首次提取未写出文件。第一次候选编译把 Windows installer 文本错误限定在 Windows，macOS 的远程代码也需要它。原日志 `build-before.log`、`build-muster-01.log` 均保留；这些不计入合同红态。

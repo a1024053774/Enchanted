@@ -3,6 +3,49 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+// Zig 0.16 extracts dependencies beside build.zig by default. Keep that package
+// directory on the managed external volume too; ZIG_GLOBAL_CACHE_DIR alone only
+// controls the compressed/compiler cache. T-027 records the original violation.
+fn external_package_directory(vendored_dir: &std::path::Path) {
+    let global_cache = PathBuf::from(
+        env::var_os("ZIG_GLOBAL_CACHE_DIR").expect("build through a2a scripts/build"),
+    )
+    .canonicalize()
+    .expect("resolve managed global Zig cache");
+    let packages = global_cache.join("packages-ghostty-vt-c4653a4");
+    fs::create_dir_all(&packages).expect("create external Zig package directory");
+    let packages = packages
+        .canonicalize()
+        .expect("resolve external Zig packages");
+    assert!(
+        packages.starts_with(&global_cache),
+        "Zig packages must not escape the managed cache"
+    );
+    let link = vendored_dir.join("zig-pkg");
+    match fs::symlink_metadata(&link) {
+        Ok(metadata) => {
+            assert!(
+                metadata.file_type().is_symlink(),
+                "archive the existing source-local zig-pkg directory before building: {}",
+                link.display()
+            );
+            assert_eq!(
+                link.canonicalize().expect("resolve Zig package link"),
+                packages,
+                "zig-pkg must point to the managed external package directory"
+            );
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&packages, &link).expect("link external Zig packages");
+            #[cfg(windows)]
+            std::os::windows::fs::symlink_dir(&packages, &link)
+                .expect("link external Zig packages");
+        }
+        Err(error) => panic!("inspect Zig package directory: {error}"),
+    }
+}
+
 fn zig_target(target: &str) -> &str {
     match target {
         "x86_64-unknown-linux-gnu" => "x86_64-linux-gnu",
@@ -36,6 +79,7 @@ fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let vendor_dir = manifest_dir.join("../../vendor");
     let vendored_dir = vendor_dir.join("libghostty-vt");
+    external_package_directory(&vendored_dir);
 
     println!("cargo:rerun-if-changed=build.rs");
     for path in [
