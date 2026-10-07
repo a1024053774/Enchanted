@@ -4,7 +4,7 @@ title: 本机 GPUI 的中文输入、复制与玻璃质感
 type: research
 status: open
 blocked_by: [T-026]
-claimed_by: Codex worker wF:pR
+claimed_by: 用户手测（主控协调，等待 MANUAL-CHECK.md 结果）
 supersedes:
 ---
 
