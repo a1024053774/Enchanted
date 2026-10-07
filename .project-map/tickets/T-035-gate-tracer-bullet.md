@@ -2,7 +2,7 @@
 id: T-035
 title: 门禁 tracer bullet：一次受管任务的正常路径
 type: build
-status: open
+status: closed
 blocked_by: [T-034]
 claimed_by: Codex worker T-035（主控 Claude Code wF:pM）
 supersedes:
@@ -27,3 +27,5 @@ PASS（2026-10-07），仅限上述五项。保持 status=open，待主控关闭
 fork 冻结提交 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，分支 `a2a`，未 push。准确冻结产物的新任务 `pagination-frozen` 经真实 Codex app-server 显式交付；独立 oracle 在 detached worktree 12/12 通过，CAS 集成读回与 worker 停止/归档均已核对。新原生 completed/idle 不交付反例仍 claimed，错 session 被拒绝。四阶段及回收后桌面截图、17项独立 CLI/Git 核对、fresh-context 只读审查 PASS 与清理记录见 [完整交付报告](../../evidence/2026-10-07-synara-batch1/T-035/RESULTS.md) 和 [独立审查](../../evidence/2026-10-07-synara-batch1/T-035/acceptance-review.md)。
 
 原运行产物缺少最终工具注册行，未沿用其通过结论；差异与原现场保留，并对准确产物重新取得闭环证据。全仓 typecheck/lint 通过，test 与 fmt 仍存在报告中列明的失败；没有把单例复核通过写成全仓通过。完整 M1（恢复、竞争、编排、完整 CLI、多 agent 层级与切换）仍 INCOMPLETE。
+
+**主控关闭（2026-10-07）。** 主控核对：fork `7cb0ac0` 中 `SYNARA_GATEWAY_TOOL_NAME_SET`（`apps/server/src/agentGateway/computerToolPermission.ts` 约 246 行）只决定 Synara 网关工具能否跳过 provider 自己的交互式权限确认（`autoApproveSynaraTools`），调用授权由服务端会话令牌决定；worker 以 full-access（approvalPolicy `never`）运行，不会出现该确认，因此旧产物缺少 `a2a_submit` 一行不影响调用，不构成绕过门禁的路径。门禁对 attempt 身份的校验在门禁核心中，与此集合无关。准确冻结产物已重跑并通过。全仓 `run test` 的 1 个失败（`ProviderCommandReactor.test.ts:7200`，相对基线无 diff、单例通过）与 `.grok/` 格式问题不属于本 ticket，记入地图雾区。
