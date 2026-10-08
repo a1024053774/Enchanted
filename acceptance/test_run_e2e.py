@@ -2,8 +2,8 @@
 
 Run: python3 -B acceptance/test_run_e2e.py
 COOP_SCRIPT selects a frozen parent or a controller-owned candidate/mutant.
-Muster/Codex substitutes below establish isolated orchestration evidence only.
-They do not establish a real Muster, model, service-tier or reliability claim.
+Native thread-service substitutes below establish isolated orchestration evidence only.
+They do not establish a real Synara provider, model, service-tier or reliability claim.
 """
 import datetime
 import json
@@ -16,13 +16,15 @@ import time
 import unittest
 import uuid
 
+os.environ.setdefault("COOP_SCRIPT", str(Path(__file__).resolve().parent / "entry/native-entry.py"))
+
 import test_coop_e2e as helper
 import test_recovery_e2e as recovery
 
 
 ROOT = helper.ROOT
 SCRIPT = helper.SCRIPT
-EVIDENCE = ROOT / "evidence/2026-10-06-run-01"
+EVIDENCE = ROOT / "evidence/native-run"
 CONTRACT = ROOT / ".project-map/specs/supervised-run-2026-10-06.md"
 COMMANDS = helper.COMMANDS
 ARTIFACTS = helper.ARTIFACTS
@@ -31,172 +33,8 @@ TEST_RESULTS = []
 write_new = recovery.write_new
 
 
-# This external executable implements only the public Muster shapes documented
-# by the skill and recorded in managed-01/live-02. It never calls real Muster or
-# runs a model. All requests, raw replies and simulated identities are retained.
-MUSTER_BOUNDARY = r'''
-import fcntl, json, os, pathlib, sys, time, traceback, uuid
-control = pathlib.Path(CONTROL)
-argv = sys.argv[1:]
-tool = pathlib.Path(sys.argv[0]).name
-started = time.time()
-def option(flag):
-    return argv[argv.index(flag) + 1]
-def reply(kind, **values):
-    return {"id": "isolated:" + kind, "result": dict(type=kind, **values)}
-def target(store):
-    value = option("--pane") if "--pane" in argv else argv[2]
-    for p in store["panes"].values():
-        if value in (p["pane_id"], p.get("name")):
-            return p
-    raise LookupError(value)
-def public(p):
-    return {k: v for k, v in p.items() if k not in ("shell_pid", "agent_pid", "agent_argv", "prompted")}
-code, stdout, stderr = 0, "", ""
-# Freeze one post-prompt observation outside the store lock so the controller
-# can replace the attempt before the old run continues. This is a boundary
-# scheduling fixture, not a production fault switch.
-if tool == "muster" and argv[:2] == ["agent", "get"]:
-    observed = json.loads((control / "store.json").read_text())
-    try:
-        p = target(observed)
-        if (observed["scenario"] == "hold-observe" and p.get("prompted") and
-                p.get("name") == "check-run" and not (control / "release-observe").exists()):
-            # Only the old run's first observation owns this barrier. A later
-            # controller reclaim must inspect the same pane without deadlocking.
-            try:
-                (control / "observe-once").mkdir()
-            except FileExistsError:
-                pass
-            else:
-                entry = control / (uuid.uuid4().hex + ".observe-entry.json")
-                entry.write_text(json.dumps({"argv": sys.argv, "pid": os.getpid(), "pane_id": p["pane_id"]}))
-                deadline = time.monotonic() + 12
-                while not (control / "release-observe").exists():
-                    if time.monotonic() >= deadline:
-                        (control / "fixture-error").write_text("observation barrier expired")
-                        break
-                    time.sleep(0.02)
-    except LookupError:
-        pass
-with (control / "lock").open("a") as lock:
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    store = json.loads((control / "store.json").read_text())
-    try:
-        if tool == "codex":
-            if argv != ["--version"]:
-                raise RuntimeError("Fixture forbids actual model execution")
-            stdout = "codex-cli 0.160.1\n"
-        elif argv == ["--version"]:
-            stdout = "muster 0.9.3 (isolated boundary)\n"
-        elif argv == ["status"] or argv == ["status", "--json"]:
-            stdout = json.dumps({"client": {"version": "isolated-0.9.3"},
-                                 "server": {"status": "running", "version": "isolated-0.9.1"}}) + "\n"
-        elif argv[:2] in (["pane", "list"], ["agent", "list"]):
-            agents = argv[0] == "agent"
-            key = "agents" if agents else "panes"
-            value = reply(key + "_list", **{key: [public(p) for p in store["panes"].values()
-                                                     if not agents or p.get("agent")]})
-            stdout = json.dumps(value) + "\n"
-        elif argv[:2] == ["pane", "split"]:
-            if "--no-focus" not in argv:
-                raise RuntimeError("Fixture requires explicit --no-focus")
-            parent = target(store)
-            number = store["next"]
-            store["next"] += 1
-            pane_id = "wcheck:p" + str(number)
-            cwd = option("--cwd")
-            p = {"pane_id": pane_id, "terminal_id": "isolated-term-" + str(number),
-                 "workspace_id": "wcheck", "tab_id": "wcheck:t1", "cwd": cwd,
-                 "foreground_cwd": cwd, "focused": False, "revision": 0,
-                 "agent_status": "unknown", "shell_pid": 31000 + number,
-                 "agent_pid": 42000 + number}
-            store["panes"][pane_id] = p
-            stdout = json.dumps(reply("pane_info", pane=public(p))) + "\n"
-        elif argv[:2] == ["pane", "get"]:
-            stdout = json.dumps(reply("pane_info", pane=public(target(store)))) + "\n"
-        elif argv[:2] == ["pane", "process-info"]:
-            p = target(store)
-            is_agent = bool(p.get("agent"))
-            pid = p["agent_pid"] if is_agent else p["shell_pid"]
-            args = p.get("agent_argv", ["-zsh"])
-            name = "codex" if is_agent else "zsh"
-            info = {"pane_id": p["pane_id"], "shell_pid": p["shell_pid"],
-                    "foreground_process_group_id": pid,
-                    "foreground_processes": [{"pid": pid, "name": name, "argv": args,
-                                              "argv0": name, "cmdline": " ".join(args), "cwd": p["cwd"]}]}
-            if is_agent and p.get("prompted") and store["scenario"] == "helper-joins":
-                # Shape observed in the real live-auto-01 failure: same Codex
-                # group leader, a transient shell member without argv metadata.
-                info["foreground_processes"].append({"pid": pid + 1000, "name": "zsh", "cwd": p["cwd"]})
-            elif is_agent and p.get("prompted") and store["scenario"] == "leader-changed":
-                info["foreground_process_group_id"] = pid + 2000
-                info["foreground_processes"].append({"pid": pid + 2000, "name": "codex",
-                    "argv": args, "argv0": "codex", "cmdline": " ".join(args), "cwd": p["cwd"]})
-            stdout = json.dumps(reply("pane_process_info", process_info=info)) + "\n"
-        elif argv[:2] == ["agent", "start"]:
-            p = target(store)
-            native = argv[argv.index("--") + 1:]
-            p.update({"agent": "codex", "name": argv[2], "agent_status": "idle",
-                      "interactive_ready": True, "revision": 2, "state_change_seq": 1,
-                      "agent_argv": ["codex"] + native})
-            if store["scenario"] == "startup-blocked":
-                p["agent_status"] = "blocked"
-                p["interactive_ready"] = False
-                code = 1
-                stderr = json.dumps({"error": {"code": "agent_not_ready",
-                                               "message": "isolated approval waiting"}}) + "\n"
-            else:
-                stdout = json.dumps(reply("agent_started", agent=public(p), argv=p["agent_argv"])) + "\n"
-        elif argv[:2] in (["agent", "get"], ["agent", "wait"]):
-            stdout = json.dumps(reply("agent_info", agent=public(target(store)))) + "\n"
-        elif argv[:2] in (["agent", "read"], ["pane", "read"]):
-            p = target(store)
-            stdout = "Isolated boundary: " + p["agent_status"] + ".\n"
-            if p["agent_status"] == "blocked":
-                stdout += "Permission required. Awaiting explicit approval.\n"
-        elif argv[:2] == ["agent", "prompt"]:
-            p = target(store)
-            p["prompted"] = True
-            p["agent_status"] = "done"
-            p["state_change_seq"] += 1
-            store["prompts"].append({"pane_id": p["pane_id"], "name": p["name"], "text": argv[3]})
-            # The successful reply describes delivery, before subsequent live
-            # identity changes. Nothing in this fixture submits a candidate.
-            stdout = json.dumps(reply("agent_prompted", agent=public(p))) + "\n"
-            if store["scenario"] == "identity-changed":
-                p["terminal_id"] = "isolated-replaced-terminal"
-                p["agent_status"] = "unknown"
-            elif store["scenario"] == "post-prompt-blocked":
-                p["agent_status"] = "blocked"
-                p["interactive_ready"] = False
-        elif argv[:2] == ["pane", "close"]:
-            p = target(store)
-            store["closes"].append(p["pane_id"])
-            del store["panes"][p["pane_id"]]
-            stdout = json.dumps(reply("pane_closed", pane_id=p["pane_id"])) + "\n"
-        else:
-            raise RuntimeError("Unsupported isolated boundary command: " + repr(argv))
-    except LookupError as exc:
-        code = 1
-        stderr = json.dumps({"error": {"code": "pane_not_found", "message": str(exc)}}) + "\n"
-    except Exception:
-        code = 97
-        stderr = traceback.format_exc()
-        (control / "fixture-error").write_text(stderr)
-    temporary = control / (uuid.uuid4().hex + ".store.tmp")
-    temporary.write_text(json.dumps(store), encoding="utf-8")
-    temporary.replace(control / "store.json")
-    with (control / "boundary.jsonl").open("a", encoding="utf-8") as out:
-        out.write(json.dumps({"layer": "isolated-muster-codex-substitute", "pid": os.getpid(),
-            "argv": sys.argv, "cwd": os.getcwd(), "started_epoch": started,
-            "finished_epoch": time.time(), "exit_code": code, "stdout": stdout,
-            "stderr": stderr, "panes_after": store["panes"], "prompts_after": len(store["prompts"]),
-            "closes_after": store["closes"]}, ensure_ascii=False) + "\n")
-sys.stdout.write(stdout)
-sys.stderr.write(stderr)
-sys.exit(code)
-'''
+# Native thread service boundary lives in acceptance/entry/.
+# Only the external runtime is substituted; core state, CLI, Git and oracle are real.
 
 
 class ContractMissing(AssertionError):
@@ -229,38 +67,25 @@ class RunCLI(recovery.RecoveryCLI):
         (self.oracle_control / "release-all").write_text("continue", encoding="utf-8")
         self.boundary = self.root / "isolated boundary"
         self.boundary.mkdir()
-        self.bin = self.root / "external bin"
-        self.bin.mkdir()
-        self.parent_pane = "wcheck:p1"
-        self.unrelated_pane = "wcheck:p2"
-        panes = {}
-        for number, name in ((1, "controller-sentinel"), (2, "unrelated-sentinel")):
-            pane_id = "wcheck:p" + str(number)
-            panes[pane_id] = {"pane_id": pane_id, "terminal_id": "sentinel-term-" + str(number),
-                              "workspace_id": "wcheck", "tab_id": "wcheck:t1", "cwd": str(self.root),
-                              "foreground_cwd": str(self.root), "focused": number == 1,
-                              "agent": "codex", "name": name, "agent_status": "working",
-                              "interactive_ready": False, "shell_pid": 31000 + number,
-                              "agent_pid": 42000 + number, "agent_argv": ["codex"]}
-        write_new(self.boundary / "store.json", {"panes": panes, "next": 3,
-                  "scenario": "done-no-submit", "prompts": [], "closes": []})
-        for tool in ("muster", "codex"):
-            executable = self.bin / tool
-            executable.write_text("#!" + sys.executable + "\nCONTROL = " + repr(str(self.boundary)) +
-                                  "\n" + MUSTER_BOUNDARY, encoding="utf-8")
-            executable.chmod(0o700)
-        self.env.update({"PATH": str(self.bin) + os.pathsep + self.original_path,
-                         "MUSTER_ENV": "1", "MUSTER_BIN": str(self.bin / "muster"), "MUSTER_PANE_ID": self.parent_pane,
-                         "MUSTER_WORKSPACE_ID": "wcheck", "MUSTER_TAB_ID": "wcheck:t1"})
+        self.parent_thread = "controller-sentinel"
+        self.unrelated_thread = "unrelated-sentinel"
+        threads = {}
+        for thread_id in (self.parent_thread, self.unrelated_thread):
+            threads[thread_id] = dict(thread_id=thread_id, workspace=str(self.root),
+                turn="sentinel-turn:" + thread_id, provider="codex", running=True,
+                stopped=False, archived=False, blocked=False)
+        write_new(self.boundary / "store.json", {"threads": threads, "next": 3,
+            "scenario": "done-no-submit", "prompts": [], "closes": [], "archived": {}})
+        self.env.update({"A2A_TEST_THREAD_CONTROL": str(self.boundary)})
         self.artifact.update({"evidence_layer": "isolated-orchestration",
                               "boundary": str(self.boundary),
                               "boundary_log": str(self.boundary / "boundary.jsonl")})
         self.addCleanup(self.boundary_health)
-        self.sentinels = dict(panes)
+        self.sentinels = dict(threads)
 
     def boundary_health(self):
         # Release only the external fixture barrier before the inherited owned
-        # CLI cleanup. Never signal Muster or simulated process identities.
+        # CLI cleanup. Never signal simulated thread identities.
         (self.boundary / "release-observe").write_text("release", encoding="utf-8")
         marker = self.boundary / "fixture-error"
         if marker.exists():
@@ -281,8 +106,8 @@ class RunCLI(recovery.RecoveryCLI):
             temp.replace(self.boundary / "store.json")
 
     def run_args(self, seconds=3, name="check-run"):
-        return ("--task", self.task, "--parent-pane", self.parent_pane,
-                "--name", name, "--wait-seconds", str(seconds))
+        return ("--task", self.task, "--runtime-mode", "approval-required",
+                "--wait-seconds", str(seconds))
 
     def start_run(self, seconds=3):
         return self.start_cli("run", *self.run_args(seconds))
@@ -292,7 +117,7 @@ class RunCLI(recovery.RecoveryCLI):
         while time.monotonic() < deadline:
             store = self.store()
             if len(store["prompts"]) > prior:
-                return store["prompts"][-1]["pane_id"]
+                return store["prompts"][-1]["thread_id"]
             if handle["process"].poll() is not None:
                 self.new_result(self.complete(handle), "run")
                 self.check(False, "Valid run dispatches one prompt before ending", True, store)
@@ -328,12 +153,12 @@ class RunCLI(recovery.RecoveryCLI):
 
     def only_own_close(self, *own):
         store = self.store()
-        self.check(store["closes"] == list(own), "Only explicitly owned panes are closed",
+        self.check(store["closes"] == list(own), "Only explicitly owned threads are closed",
                    list(own), store["closes"])
-        for pane_id, sentinel in self.sentinels.items():
-            self.check(store["panes"].get(pane_id) == sentinel,
-                       "Parent and unrelated pane identities remain unchanged: " + pane_id,
-                       sentinel, store["panes"].get(pane_id))
+        for thread_id, sentinel in self.sentinels.items():
+            self.check(store["threads"].get(thread_id) == sentinel,
+                       "Parent and unrelated thread identities remain unchanged: " + thread_id,
+                       sentinel, store["threads"].get(thread_id))
 
     def failed_run(self, process, error=None):
         value = self.new_result(process, "run", ok=False, error=error)
@@ -359,7 +184,7 @@ class RunCLI(recovery.RecoveryCLI):
 
     def new_result(self, process, command, ok=True, error=None):
         missing = process.returncode == 2 and (
-            (command == "run" and "invalid choice: 'run'" in process.stderr) or
+            (command == "run" and ("invalid choice: 'run'" in process.stderr or "state, command and task required" in process.stderr)) or
             (command in ("verify", "integrate", "reclaim") and
              "unrecognized arguments: --attempt" in process.stderr))
         if missing:
@@ -383,13 +208,14 @@ class RunCLI(recovery.RecoveryCLI):
         self.create()
         original_head = self.git("rev-parse", "HEAD").stdout.strip()
         handle = self.start_run(seconds=8)
-        pane = self.wait_prompt(handle)
+        thread = self.wait_prompt(handle)
         attempt = self.current_attempt()
-        native = self.store()["panes"][pane]["agent_argv"]
-        writable = [native[index + 1] for index, arg in enumerate(native[:-1]) if arg == "--add-dir"]
-        self.check(writable == [str(self.state.resolve())],
-                   "Worker declares only its state root; Git commands use configured approval rules",
-                   [str(self.state.resolve())], writable)
+        native = self.store()["threads"][thread]
+        self.check(native["envMode"] == "worktree" and native["workspace"] == attempt["workspace"] and
+                   native["baseRef"] == self.base,
+                   "Worker uses its owned worktree and the authoritative integration head",
+                   ["worktree", attempt["workspace"], self.base],
+                   [native["envMode"], native["workspace"], native["baseRef"]])
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
         value = self.new_result(self.complete(handle), "run")
@@ -410,27 +236,27 @@ class RunCLI(recovery.RecoveryCLI):
         readback = self.root / "authoritative accepted readback"
         self.git("worktree", "add", "--detach", str(readback), self.ref())
         self.assert_novel_pagination_inputs(readback)
-        self.only_own_close(pane)
+        self.only_own_close(thread)
         self.check(len(self.store()["prompts"]) == 1, "Normal run prompts exactly once", 1,
                    len(self.store()["prompts"]))
         self.check(Path(attempt["workspace"]).is_dir(), "Reclaim preserves attempt worktree", True,
                    Path(attempt["workspace"]).is_dir())
         self.finish_checks()
 
-    def test_transient_shell_member_keeps_same_agent_owner(self):
+    def test_transient_tool_activity_keeps_same_thread_owner(self):
         self.scenario("helper-joins")
         self.test_run_entry_point_completes_registered_task()
 
-    def test_new_foreground_leader_is_not_owned_even_with_old_pid_present(self):
+    def test_new_native_turn_is_not_owned_even_with_old_thread_present(self):
         self.create()
         self.scenario("leader-changed")
         handle = self.start_run(seconds=2)
-        pane = self.wait_prompt(handle)
+        thread = self.wait_prompt(handle)
         self.failed_run(self.complete(handle))
-        self.check(pane in self.store()["panes"] and not self.store()["closes"],
-                   "Changed leader is not reclaimed as the old worker", "pane retained", self.store())
+        self.check(thread in self.store()["threads"] and not self.store()["closes"],
+                   "Changed turn is not reclaimed as the old worker", "thread retained", self.store())
         self.check(self.ref() == self.base and not self.entries(self.oracle_control),
-                   "Changed leader does not verify or integrate", self.base, self.ref())
+                   "Changed turn does not verify or integrate", self.base, self.ref())
         self.finish_checks()
 
     def test_verify_expected_attempt_uses_real_gate(self):
@@ -463,10 +289,9 @@ class RunCLI(recovery.RecoveryCLI):
     def test_fixture_existing_dispatch_submit_oracle_integration_and_reclaim(self):
         """Trust preparation for the new external fixture on the old public API."""
         self.create()
-        value = self.cli("dispatch", "--task", self.task, "--parent-pane", self.parent_pane,
-                         "--name", "fixture-preparation")
+        value = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")
         attempt = value["attempt"]
-        pane = self.store()["prompts"][0]["pane_id"]
+        thread = self.store()["prompts"][0]["thread_id"]
         self.check(self.status()["state"] != "accepted" and self.ref() == self.base,
                    "Simulated done never accepts during fixture preparation", self.base, self.ref())
         candidate = self.candidate(attempt, good=True)
@@ -479,14 +304,14 @@ class RunCLI(recovery.RecoveryCLI):
         self.check(len(self.entries(self.oracle_control)) == 1,
                    "Real frozen independent oracle executes once", 1,
                    len(self.entries(self.oracle_control)))
-        self.only_own_close(pane)
+        self.only_own_close(thread)
         self.finish_checks()
 
     def test_done_without_submit_hits_deadline_and_cannot_accept_committed_candidate(self):
         self.create()
         before = self.snapshot("before-done-run")
         handle = self.start_run(seconds=2)
-        pane = self.wait_prompt(handle)
+        thread = self.wait_prompt(handle)
         attempt = self.current_attempt()
         candidate = self.candidate(attempt, good=True)
         # An eligible real commit exists, but no explicit submit is sent.
@@ -502,17 +327,17 @@ class RunCLI(recovery.RecoveryCLI):
         self.check(self.git("rev-parse", "HEAD", cwd=attempt["workspace"]).stdout.strip() == candidate,
                    "Timeout preserves the unsubmitted real candidate", candidate,
                    self.git("rev-parse", "HEAD", cwd=attempt["workspace"]).stdout.strip())
-        self.only_own_close(pane)
+        self.only_own_close(thread)
         self.finish_checks()
 
     def test_concurrent_duplicate_run_has_one_prompt_and_one_attempt(self):
         self.create()
-        first = self.start_run(seconds=8)
-        pane = self.wait_prompt(first)
+        first = self.start_run(seconds=30)
+        thread = self.wait_prompt(first)
         attempt = self.current_attempt()
         before = self.snapshot("before-concurrent-run")
         started = time.monotonic()
-        p = self.process(self.cli_argv("run", *self.run_args(8, "duplicate-run")),
+        p = self.process(self.cli_argv("run", *self.run_args(30, "duplicate-run")),
                          label="coop:duplicate-run")
         elapsed = time.monotonic() - started
         self.new_result(p, "run", ok=False, error="run_busy")
@@ -526,7 +351,7 @@ class RunCLI(recovery.RecoveryCLI):
         self.submit(attempt, candidate)
         self.new_result(self.complete(first), "run")
         self.check(self.ref() == candidate, "First executor still completes", candidate, self.ref())
-        self.only_own_close(pane)
+        self.only_own_close(thread)
         self.finish_checks()
 
     def test_invalid_wait_values_have_no_worker_or_business_side_effect(self):
@@ -547,7 +372,7 @@ class RunCLI(recovery.RecoveryCLI):
             self.check(not named_values(after["events"][len(before["events"]):], "run_id"),
                        "Invalid wait has no public run receipt", "no new run_id", after["events"])
             self.check(not self.store()["prompts"] and self.store()["next"] == 3,
-                       "Invalid wait cannot split a pane or prompt", [0, 3],
+                       "Invalid wait cannot split a thread or prompt", [0, 3],
                        [len(self.store()["prompts"]), self.store()["next"]])
         self.only_own_close()
         self.finish_checks()
@@ -555,27 +380,26 @@ class RunCLI(recovery.RecoveryCLI):
     def test_replacement_attempt_is_not_verified_integrated_or_closed_by_old_run(self):
         self.create()
         self.scenario("hold-observe")
-        old_run = self.start_run(seconds=10)
-        old_pane = self.wait_prompt(old_run)
+        old_run = self.start_run(seconds=30)
+        old_thread = self.wait_prompt(old_run)
         old = self.current_attempt()
         deadline = time.monotonic() + 5
         while not list(self.boundary.glob("*.observe-entry.json")):
             if old_run["process"].poll() is not None:
                 self.new_result(self.complete(old_run), "run")
-                self.check(False, "Run observes its bound pane before completion", True, False)
+                self.check(False, "Run observes its bound thread before completion", True, False)
                 self.finish_checks()
             if time.monotonic() >= deadline:
                 raise recovery.FixtureError("Cannot synchronize the old run's observation")
             time.sleep(0.03)
         self.cli("revoke", "--task", self.task, "--reason", "Independent attempt replacement")
-        # The existing dispatch gate requires the old pane to be explicitly
+        # The existing dispatch gate requires the old thread to be explicitly
         # reclaimed before dispatching another bound worker for this task.
         # The old run is still frozen at its external observation boundary.
         self.guard("reclaim", old["attempt_id"])
-        value = self.cli("dispatch", "--task", self.task, "--parent-pane", self.parent_pane,
-                         "--name", "replacement-worker")
+        value = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")
         replacement = value["attempt"]
-        new_pane = self.store()["prompts"][-1]["pane_id"]
+        new_thread = self.store()["prompts"][-1]["thread_id"]
         candidate = self.candidate(replacement, good=True)
         self.submit(replacement, candidate)
         before = self.snapshot("replacement-submitted-before-old-run-resumes")
@@ -589,11 +413,11 @@ class RunCLI(recovery.RecoveryCLI):
         self.check(after["refs"] == before["refs"] and after["reflog"] == before["reflog"] and
                    not self.entries(self.oracle_control),
                    "Old run cannot verify or integrate the replacement", before["refs"], after["refs"])
-        self.check(new_pane in self.store()["panes"] and new_pane not in self.store()["closes"],
-                   "Replacement worker stays live", new_pane, self.store())
+        self.check(new_thread in self.store()["threads"] and new_thread not in self.store()["closes"],
+                   "Replacement worker stays live", new_thread, self.store())
         closed = self.store()["closes"]
-        self.check(closed in ([], [old_pane]), "Superseded run may clean only its historical pane",
-                   [[], [old_pane]], closed)
+        self.check(closed in ([], [old_thread]), "Superseded run may clean only its historical thread",
+                   [[], [old_thread]], closed)
         self.check(Path(old["workspace"]).is_dir() and Path(replacement["workspace"]).is_dir(),
                    "Both attempt worktrees remain inspectable", True,
                    [old["workspace"], replacement["workspace"]])
@@ -601,10 +425,10 @@ class RunCLI(recovery.RecoveryCLI):
         self.preserved_history(before, after)
         self.finish_checks()
 
-    def test_oracle_failure_is_not_success_and_reclaims_only_owned_pane(self):
+    def test_oracle_failure_is_not_success_and_reclaims_only_owned_thread(self):
         self.create()
         handle = self.start_run(seconds=8)
-        pane = self.wait_prompt(handle)
+        thread = self.wait_prompt(handle)
         attempt = self.current_attempt()
         candidate = self.candidate(attempt, good=False)
         self.submit(attempt, candidate)
@@ -617,7 +441,7 @@ class RunCLI(recovery.RecoveryCLI):
         self.check(len(results) == 1 and results[0]["exit_code"] != 0,
                    "Actual frozen independent oracle rejects the bad candidate", "one nonzero oracle",
                    results)
-        self.only_own_close(pane)
+        self.only_own_close(thread)
         self.check(Path(attempt["workspace"]).is_dir(), "Rejected candidate worktree survives", True,
                    Path(attempt["workspace"]).is_dir())
         self.finish_checks()
@@ -627,9 +451,9 @@ class RunCLI(recovery.RecoveryCLI):
         self.scenario("startup-blocked")
         p = self.process(self.cli_argv("run", *self.run_args(2)), label="coop:startup-blocked-run")
         self.failed_run(p)
-        self.check(not self.store()["prompts"] and len(self.store()["panes"]) == 3,
-                   "Startup approval waiting preserves pane and sends no task", [0, 3],
-                   [len(self.store()["prompts"]), len(self.store()["panes"])])
+        self.check(not self.store()["prompts"] and len(self.store()["threads"]) == 3,
+                   "Startup approval waiting preserves thread and sends no task", [0, 3],
+                   [len(self.store()["prompts"]), len(self.store()["threads"])])
         self.only_own_close()
         self.finish_checks()
 
@@ -637,24 +461,24 @@ class RunCLI(recovery.RecoveryCLI):
         self.create()
         self.scenario("post-prompt-blocked")
         handle = self.start_run(seconds=2)
-        pane = self.wait_prompt(handle)
+        thread = self.wait_prompt(handle)
         self.failed_run(self.complete(handle))
-        self.check(pane in self.store()["panes"] and len(self.store()["prompts"]) == 1,
+        self.check(thread in self.store()["threads"] and len(self.store()["prompts"]) == 1,
                    "Approval waiting preserves worker and sends no second prompt", [True, 1],
-                   [pane in self.store()["panes"], len(self.store()["prompts"])])
+                   [thread in self.store()["threads"], len(self.store()["prompts"])])
         self.only_own_close()
         self.finish_checks()
 
-    def test_unknown_identity_cannot_succeed_or_close_replaced_terminal(self):
+    def test_unknown_identity_cannot_succeed_or_close_replaced_worktree(self):
         self.create()
         self.scenario("identity-changed")
         handle = self.start_run(seconds=2)
-        pane = self.wait_prompt(handle)
+        thread = self.wait_prompt(handle)
         self.failed_run(self.complete(handle))
-        self.check(pane in self.store()["panes"] and
-                   self.store()["panes"][pane]["terminal_id"] == "isolated-replaced-terminal",
-                   "Unknown terminal identity is retained without guessed cleanup",
-                   "isolated-replaced-terminal", self.store()["panes"].get(pane))
+        self.check(thread in self.store()["threads"] and
+                   self.store()["threads"][thread]["workspace"] == "/unknown/replaced-worktree",
+                   "Unknown worktree identity is retained without guessed cleanup",
+                   "/unknown/replaced-worktree", self.store()["threads"].get(thread))
         self.check(not self.entries(self.oracle_control) and len(self.store()["prompts"]) == 1,
                    "Unknown identity has no oracle execution or automatic retry", [0, 1],
                    [len(self.entries(self.oracle_control)), len(self.store()["prompts"])])
@@ -692,18 +516,16 @@ class RunCLI(recovery.RecoveryCLI):
 
     def test_reclaim_guard_targets_history_and_rejects_foreign_and_unknown_attempt(self):
         self.create()
-        old = self.cli("dispatch", "--task", self.task, "--parent-pane", self.parent_pane,
-                       "--name", "historical-owner")["attempt"]
-        old_pane = self.store()["prompts"][-1]["pane_id"]
+        old = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")["attempt"]
+        old_thread = self.store()["prompts"][-1]["thread_id"]
         self.cli("revoke", "--task", self.task, "--reason", "Preserve history for guarded reclaim")
         current = self.claim(owner="current-owner")
         candidate = self.candidate(current, good=True)
         self.submit(current, candidate)
         other_task = "foreign-" + uuid.uuid4().hex
         self.create(task=other_task)
-        foreign = self.cli("dispatch", "--task", other_task, "--parent-pane", self.parent_pane,
-                           "--name", "foreign-owner")["attempt"]
-        foreign_pane = self.store()["prompts"][-1]["pane_id"]
+        foreign = self.cli("dispatch", "--task", other_task, "--runtime-mode", "approval-required")["attempt"]
+        foreign_thread = self.store()["prompts"][-1]["thread_id"]
         before = self.snapshot("before-historical-reclaim")
         self.guard("reclaim", old["attempt_id"])
         after = self.snapshot("after-historical-reclaim")
@@ -711,22 +533,21 @@ class RunCLI(recovery.RecoveryCLI):
                    after["reflog"] == before["reflog"],
                    "Historical reclaim does not revoke the current task or change Git", before["status"],
                    after["status"])
-        self.only_own_close(old_pane)
-        self.check(foreign_pane in self.store()["panes"],
-                   "Foreign worker remains live", foreign_pane, self.store())
+        self.only_own_close(old_thread)
+        self.check(foreign_thread in self.store()["threads"],
+                   "Foreign worker remains live", foreign_thread, self.store())
         # A second dispatch is legal after historical reclaim. Replaying the
         # old historical ID must then leave this new binding untouched.
         self.cli("revoke", "--task", self.task, "--reason", "Bind current replacement after cleanup")
-        replacement = self.cli("dispatch", "--task", self.task, "--parent-pane", self.parent_pane,
-                               "--name", "current-bound-owner")["attempt"]
-        current_pane = self.store()["prompts"][-1]["pane_id"]
+        replacement = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")["attempt"]
+        current_thread = self.store()["prompts"][-1]["thread_id"]
         before = self.snapshot("before-historical-reclaim-replay")
         self.guard("reclaim", old["attempt_id"])
         after = self.snapshot("after-historical-reclaim-replay")
         self.unchanged(before, after, "Historical reclaim replay is harmless")
-        self.only_own_close(old_pane)
-        self.check(current_pane in self.store()["panes"] and foreign_pane in self.store()["panes"],
-                   "Current and foreign bound workers remain live", [current_pane, foreign_pane], self.store())
+        self.only_own_close(old_thread)
+        self.check(current_thread in self.store()["threads"] and foreign_thread in self.store()["threads"],
+                   "Current and foreign bound workers remain live", [current_thread, foreign_thread], self.store())
         for invalid in (foreign["attempt_id"], "unknown-" + uuid.uuid4().hex):
             before = self.snapshot("before-invalid-reclaim")
             foreign_before = self.business_state(other_task)
@@ -736,7 +557,7 @@ class RunCLI(recovery.RecoveryCLI):
             self.check(self.business_state(other_task) == foreign_before,
                        "Cross-task reclaim does not revoke foreign task", foreign_before,
                        self.business_state(other_task))
-            self.only_own_close(old_pane)
+            self.only_own_close(old_thread)
         self.check(all(Path(a["workspace"]).is_dir() for a in (old, current, replacement, foreign)),
                    "Guarded reclaim preserves every attempt worktree", True,
                    [a["workspace"] for a in (old, current, replacement, foreign)])
@@ -745,7 +566,7 @@ class RunCLI(recovery.RecoveryCLI):
     def test_matching_reclaim_guard_is_idempotent_after_automatic_success(self):
         self.create()
         handle = self.start_run(seconds=8)
-        pane = self.wait_prompt(handle)
+        thread = self.wait_prompt(handle)
         attempt = self.current_attempt()
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
@@ -755,7 +576,7 @@ class RunCLI(recovery.RecoveryCLI):
         self.guard("reclaim", attempt["attempt_id"])
         after = self.snapshot("after-accepted-reclaim-replay")
         self.unchanged(before, after, "Accepted own reclaim replay retains task and Git")
-        self.only_own_close(pane)
+        self.only_own_close(thread)
         self.finish_checks()
 
     def test_attempt_guards_preserve_existing_live_operation_lock(self):
@@ -832,9 +653,14 @@ def main():
                          (Path(recovery.__file__), "recovery-helper-source.py"),
                          (CONTRACT, "run-contract.md"), (SCRIPT, "selected-entry-point.py")):
         shutil.copyfile(source, artifact_root / name)
+    if SCRIPT.name == "native-entry.py":
+        for source, name in ((SCRIPT.with_suffix(".ts"), "selected-entry-point.ts"),
+                             (SCRIPT.parent / "native-runtime.ts", "native-runtime.ts"),
+                             (SCRIPT.parent / "thread-boundary.py", "thread-boundary.py")):
+            shutil.copyfile(source, artifact_root / name)
     trace_path = artifact_root / "subprocess-trace.json"
-    # Freeze executable bytes once: concurrent production edits cannot mix code
-    # versions within this suite. No expected value is read from these bytes.
+    # Snapshot the selected transport and external fixture. Production gate
+    # code remains in the fork and must stay on the recorded revision.
     frozen_script = artifact_root / "selected-entry-point.py"
     env = dict(os.environ, COOP_E2E_ARTIFACT_ROOT=str(artifact_root), COOP_E2E_TRACE=str(trace_path),
                COOP_SCRIPT=str(frozen_script))
@@ -845,21 +671,23 @@ def main():
     (artifact_root / "suite.stderr").write_text(p.stderr, encoding="utf-8")
     trace = json.loads(trace_path.read_text(encoding="utf-8")) if trace_path.is_file() else None
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT), text=True, capture_output=True)
+    fork_head = subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                        cwd=str(ROOT.parent / "synara"), text=True).strip()
     write_new(evidence_path, {
         "role": "run-check", "ticket": "T-008", "contract": str(CONTRACT.relative_to(ROOT)),
         "status": "PASS" if p.returncode == 0 else "INCOMPLETE",
         "started": started, "finished": helper.utc_now(),
         "command": ["python3", "-B", "acceptance/test_run_e2e.py"], "actual_command": argv,
         "COOP_SCRIPT": str(SCRIPT), "executed_source_snapshot": str(frozen_script),
-        "cwd": str(ROOT), "repository_head": head.stdout.strip(),
+        "cwd": str(ROOT), "repository_head": head.stdout.strip(), "fork_head": fork_head,
         "python": sys.version, "real_git": recovery.REAL_GIT, "exit_code": p.returncode,
         "stdout": p.stdout, "stderr": p.stderr, "artifact_root": str(artifact_root),
         "trace_path": str(trace_path), "trace": trace,
         "independence": "Frozen contract; no product import or source-derived expected values. "
                         "Real CLI subprocesses, real Git and read-only SQLite observations.",
-        "fixture_authorities": ["muster/engine/skills/muster/SKILL.md",
-                                "evidence/2026-10-06-managed-01/live-02/dispatch.json"],
-        "limitations": ["Isolated orchestration only; real Muster/Codex run is controller-owned.",
+        "fixture_authorities": [".project-map/specs/supervised-run-2026-10-06.md",
+                                "evidence/2026-10-07-synara-batch2/T-037/acceptance-differences.md"],
+        "limitations": ["Isolated orchestration only; real Synara/Codex run is controller-owned.",
                         "New-command expected-red is not evidence of an old defect.",
                         "Counterfactual, candidate approval and ticket closure are controller-owned."]})
     sys.stdout.write(p.stdout)

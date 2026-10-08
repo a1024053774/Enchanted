@@ -20,7 +20,7 @@ import uuid
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = Path(os.environ.get("COOP_SCRIPT", str(ROOT / "coop.py"))).resolve()
+SCRIPT = Path(os.environ.get("COOP_SCRIPT", str(ROOT / "acceptance/entry/a2a_gates.py"))).resolve()
 EVIDENCE = ROOT / "evidence" / "2026-10-06-managed-01"
 REFERENCE = ROOT / "acceptance" / "reference" / "pager.py"
 ORACLE = ROOT / "acceptance" / "pagination_oracle.py"
