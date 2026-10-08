@@ -4,7 +4,7 @@ title: 真实 Codex 闭环
 type: build
 status: open
 blocked_by: [T-037]
-claimed_by:
+claimed_by: s2-t039
 supersedes:
 ---
 
@@ -16,6 +16,15 @@ supersedes:
 
 - [ ] 一次真实 run 经完整入口 accepted，集成引用读回为 worker 提交；追加式运行记录含精确 argv、版本、task/attempt/thread、原始外部结果。
 - [ ] 隔离 home 在结束后删除；用户 Herdr、Codex 配置与 Synara 数据不变。
-- [ ] 无人值守期间若出现权限对话，停下保存现场，不作为通过。
+- [x] 无人值守期间若出现权限对话，停下保存现场，不作为通过。
 
 ## Resolution
+
+**BLOCKED，待主控决定；ticket 保持 open，待主控关闭。** 固定 fork 候选 `fa3fc3352805d00e41c454fa6f810807528de3a9`，仅一次真实 Codex 模型 turn。完整闭环未通过，未修改产品代码或 push。
+
+- 门禁 `create` 成功；`run`（`full-access`、600 秒 submit deadline）在 `waiting_submit` 返回 `identity_conflict` / `paused`。同一 thread 的 provider 已有 active turn，而投影仍为 ready / null；后续真实 thread 读回出现相同 turn。尚无 submit、候选、oracle 验证或 CAS 集成；引用保持夹具基线。
+- 原生中断仅用于清理；随后绑定原 attempt 的门禁 `reclaim` 返回 `run_external_unknown`，没有绕过门禁归档。业务回收未完成。本次 server 和 app-server 已停止；源 CODEX_HOME、Synara overlay 与私有 bootstrap token 已删除，原夹具和诊断现场保留并归档。
+- 人工输入事件为空，observer 在失败及清理请求时均为 healthy。截止原生读回无 pending approval / user-input；本次没有批准或回答权限、问题对话。原生中断为资源清理事件，不能作为通过证据。
+- 第二项为 INCOMPLETE：隔离配置、六个 overlay 链接、固定 CLI argv 与清理检查证明 home 删除及本次隔离边界；未操作用户 Herdr，不连接用户 Synara 实例，用户 auth.json 仅按授权复制。但没有用户数据的独立前后快照/审计，不能勾选整个条件。独立审查判 FAIL，审查时原稿保存在 review-frozen-docs；此后仅更正文档结论，产品与原始证据未变。
+
+命令、版本、身份、原始输出与最小修复选项见 [交付报告](../../evidence/2026-10-07-synara-batch2/T-039/RESULTS.md)。入口结果：[run-01](../../evidence/2026-10-07-synara-batch2/T-039/run-01.json)、[回收拒绝](../../evidence/2026-10-07-synara-batch2/T-039/reclaim-01.json)、[清理](../../evidence/2026-10-07-synara-batch2/T-039/cleanup.json)。冻结范围见 [frozen-manifest](../../evidence/2026-10-07-synara-batch2/T-039/frozen-manifest.json)，fresh-context 只读独立审查见 [acceptance-review](../../evidence/2026-10-07-synara-batch2/T-039/acceptance-review.md)。a2a 本地提交号以最终 `T-039 DONE` 回执为准。
