@@ -49,7 +49,7 @@
 - When and how a second CLI validates the capability contract
 - Numeric budget and risk thresholds
 - 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化
-- 上游测试 `ProviderCommandReactor.test.ts:7200` 在全仓运行时失败、单例通过（无 a2a 改动）；T-037 全仓顺序运行另有服务端 4 项失败（GitCore、CheckpointReactor 单例复跑通过；`CodexTextGeneration` 两项假 CLI 场景单例仍失败，文件与基线无差异，未在基线上复跑），desktop `cuaDriverHost` 用例经 T-038 基线/候选交替各 3 次，两边首轮超时、后两轮通过，判为上游不稳定用例；`workspaceUpload` 候选单跑通过；T-039 全仓运行 desktop 另 3 项失败（长 tmp 路径 EINVAL、目录清理、5 秒超时），外置盘短路径下单跑 67/67 通过，尚未定性；fork 中未跟踪的 `.grok/` 来源不明——待核实归属
+- 上游测试 `ProviderCommandReactor.test.ts:7200` 在全仓运行时失败、单例通过（无 a2a 改动）；T-037 全仓顺序运行另有服务端 4 项失败（GitCore、CheckpointReactor 单例复跑通过；`CodexTextGeneration` 两项假 CLI 场景单例仍失败，文件与基线无差异，未在基线上复跑），desktop `cuaDriverHost` 用例经 T-038 基线/候选交替各 3 次，两边首轮超时、后两轮通过，判为上游不稳定用例；`workspaceUpload` 候选单跑通过；T-039 全仓运行 desktop 另 3 项失败（长 tmp 路径 EINVAL、目录清理、5 秒超时），外置盘短路径下单跑 67/67 通过，尚未定性；T-040 B 对 appSnapManager、cuaDriverHost、macAppIcon、ProviderCommandReactor 在父修订与候选上各 3 次全过。T-040 A 删除旧路径后恢复 9 项首轮出现一次并发 verify/integrate 超过 2 秒，之后 160 次计时与 54/54 复跑（含重负载）未复现，原因未明；fork 中未跟踪的 `.grok/` 来源不明——待核实归属
 - synara-m1 中尚未切片的部分：完整编排场景移植、界面上的任务窗口与人工介入记录、切换与删除 Muster/`coop.py` 运行路径
 
 ## Out of scope
