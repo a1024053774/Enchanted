@@ -2,7 +2,7 @@
 id: T-036
 title: 门禁完整契约与交付、恢复验收
 type: build
-status: open
+status: closed
 blocked_by: [T-035]
 claimed_by: Codex T-036 worker
 supersedes:
@@ -27,4 +27,6 @@ supersedes:
 
 收尾又发现空 expected attempt 被视为省略、空 thread 查询匹配未绑定本地 attempt 的边界缺陷。`26cb210a9` 上保留红态，最终候选做三行输入/查询保护并转绿；旧候选的审查与全仓通过不替最终版本背书。最终候选的类型、lint、聚焦测试与 17 项通过；最后一次全仓 PASS 绑定 `26cb210a9`，最终三行修复后没有再次运行约 33 分钟的全仓套件。
 
-命令、完整日志、差异、冻结版本与验收边界见 [T-036 交付记录](../../evidence/2026-10-07-synara-batch1/T-036/RESULTS.md)。ticket 保持 open；真实原生会话回收、run 编排和 M1 切换不在本次通过结论内。
+命令、完整日志、差异、冻结版本与验收边界见 [T-036 交付记录](../../evidence/2026-10-07-synara-batch1/T-036/RESULTS.md)。真实原生会话回收、run 编排和 M1 切换不在本次通过结论内。
+
+**主控关闭（2026-10-07，Claude Code）：PASS。** 已核对：副本 diff 与 `controller-decision-01.md` 的条件一致（仍同时核对 PID、门禁 CLI 入口、state 与 task；业务断言、预期与场景数不变）；原 `acceptance/test_coop_e2e.py`、`test_recovery_e2e.py` 未改，只新增 `acceptance/entry/a2a_gates.py` 转接；原文件在转接入口下的拒绝注入记录保留。遗留：最终候选 `a9cc30c` 未重跑全仓测试（最后全仓 PASS 绑定 `26cb210a9`，其后只有三行输入保护），fmt 仍只因范围外 `.grok/` 失败；fork `a2a` 分支未 push。
