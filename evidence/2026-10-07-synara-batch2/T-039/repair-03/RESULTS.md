@@ -21,3 +21,5 @@
 当前fork HEAD仍为 `fc9e36c75af3bbcf701551abbb911883b94217c2`，新增工作区改动保存在 [in-progress-approved-files.patch](in-progress-approved-files.patch)与 `working-service-before-counterfactual.txt`，未提交fork、未push。每次命令的argv、cwd、退出码及输出保存在相应JSON/日志。测试夹具位于外置盘缓存tmp，未创建真实CODEX_HOME，不读写用户凭据或用户Synara数据。
 
 主控授权注册点后：应用该已核对补丁，完成typecheck/lint/fmt、35项重跑，冻结完整候选，再用新隔离根取得原自动run的completed收据和用户前后核对，最后做一次新的fresh-context独立审查。本轮不为这一待完成候选背书。
+
+收尾status记录为exit1：主控同期关闭的T-038仍有一项未勾选，见 `project-map-status.txt`；stale living docs为0。该ticket不归本worker，未修改。受控夹具完整归档已读回验证，共2626个成员；原目录保留，归档未登记为gitlink。没有把这个地图结构问题写成健康检查通过。
