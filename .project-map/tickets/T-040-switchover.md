@@ -3,7 +3,7 @@ id: T-040
 title: 切换到工作台并删除旧运行路径
 type: build
 status: open
-blocked_by: [T-037, T-038, T-039]
+blocked_by: [T-037, T-038, T-039, T-042]
 claimed_by:
 supersedes:
 ---

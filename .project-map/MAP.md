@@ -3,7 +3,7 @@
 ## Destination
 
 第二阶段（2026-10-07 修订）：基于 Synara fork（`a1024053774/synara`）的 a2a 多 Agent 工作台，目标与 M1 见 [intent.md](../intent.md)，决策见 T-030～T-033。
-门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。执行规格见 [synara-m1](specs/synara-m1-2026-10-07.md)；第一批：T-034、T-035、T-036 已关闭；第二批：T-037 已关闭，T-038 进行中 → T-039 → T-040；T-041 核实 provider 登录条款。
+门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。执行规格见 [synara-m1](specs/synara-m1-2026-10-07.md)；第一批：T-034、T-035、T-036 已关闭；第二批：T-037、T-038 已关闭；T-039 进行中 → T-042（合并与桌面复验）→ T-040；T-041 核实 provider 登录条款。
 [workbench-m1](specs/workbench-m1-2026-10-06.md) 是被取代的 GPUI/Muster 方案的日期记录；其中 T-024、T-026、T-027、T-029 已完成并保留为证据。
 
 首轮已完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
@@ -48,7 +48,7 @@
 - When and how a second CLI validates the capability contract
 - Numeric budget and risk thresholds
 - 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化
-- 上游测试 `ProviderCommandReactor.test.ts:7200` 在全仓运行时失败、单例通过（无 a2a 改动）；T-037 全仓顺序运行另有服务端 4 项失败（GitCore、CheckpointReactor 单例复跑通过；`CodexTextGeneration` 两项假 CLI 场景单例仍失败，文件与基线无差异，未在基线上复跑），T-038 报告 desktop `cuaDriverHost`、`workspaceUpload` 失败——是否上游原有待基线复跑判定；fork 中未跟踪的 `.grok/` 来源不明——待核实归属
+- 上游测试 `ProviderCommandReactor.test.ts:7200` 在全仓运行时失败、单例通过（无 a2a 改动）；T-037 全仓顺序运行另有服务端 4 项失败（GitCore、CheckpointReactor 单例复跑通过；`CodexTextGeneration` 两项假 CLI 场景单例仍失败，文件与基线无差异，未在基线上复跑），desktop `cuaDriverHost` 用例经 T-038 基线/候选交替各 3 次，两边首轮超时、后两轮通过，判为上游不稳定用例；`workspaceUpload` 候选单跑通过；fork 中未跟踪的 `.grok/` 来源不明——待核实归属
 - synara-m1 中尚未切片的部分：完整编排场景移植、界面上的任务窗口与人工介入记录、切换与删除 Muster/`coop.py` 运行路径
 
 ## Out of scope
