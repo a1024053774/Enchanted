@@ -1,6 +1,6 @@
 # T-036 交付记录（2026-10-07）
 
-**INCOMPLETE，仅余最终冻结复核与收尾；待主控关闭。** 主控 Claude Code（`wF:pM`）；worker 为 `s1-t036`（`wF:pX`）。最终候选为 `a9cc30c395af9ffd51476a1841d80bca66568993`（[绑定记录](final-candidate.json)），基线 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，未 push。最终候选经批准的同一副本入口重新证明交付 8/8、恢复 9/9 与两个业务反例。此前全仓失败、旧候选的通过和异常都按版本保留。
+**PASS，仅限 T-036 四项及输入、作用域逻辑；待主控关闭。** 主控 Claude Code（`wF:pM`）；worker 为 `s1-t036`（`wF:pX`）。最终候选为 `a9cc30c395af9ffd51476a1841d80bca66568993`（[绑定记录](final-candidate.json)），基线 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，未 push。最终候选经批准的同一副本入口重新证明交付 8/8、恢复 9/9 与两个业务反例，并取得 [范围明确的独立 PASS](acceptance-review-a9-pass.md)。完整 M1 为 INCOMPLETE；最终版本的全仓测试未重跑，fmt 为 NO_GO。此前失败、旧版本通过和异常均保留。
 
 ## 四项验收
 
@@ -39,7 +39,7 @@
 | `run windows-runtime:check`、`run migrations:check` | PASS；不代表 Windows 运行验收 | [进程边界](final-windows-runtime.log)、[迁移检查](final-migrations.log) |
 | `run fmt:check` | NO_GO；最终候选仍仅报告范围外原有 `.grok/settings.json` | [identity-final-fmt-check.log](identity-final-fmt-check.log)；没有改该文件 |
 | `run test` | NO_GO；scripts 三项 5 秒超时，其他 workspace 被 Turbo 中止 | [final-workspace-test.log](final-workspace-test.log)。三个失败文件的单独复核 PASS：[affected-scripts-retest.log](affected-scripts-retest.log)，不替代全仓失败 |
-| 独立审查 | 首次 FAIL；历史回收与批准副本复核 PASS；最终输入保护版本尚待一次冻结复核 | [首次](acceptance-review-first.md)、[`26cb210a9` 复核](acceptance-review-final.md)。旧审查不替最终版本背书 |
+| 独立审查 | 最终候选 PASS，范围限定 | [首次 FAIL](acceptance-review-first.md)、[旧候选复核](acceptance-review-final.md)、[过宽冻结声明的 INCOMPLETE](acceptance-review-a9-incomplete.md)、[当前候选 PASS](acceptance-review-a9-pass.md)。没有覆盖或改判旧记录 |
 | 全仓复核 | `26cb210a9` 上 7/7 工作区 PASS，约 32 分 52 秒；不是最终候选全仓通过 | [完整日志](corrected-candidate-workspace-test.log)、[命令](corrected-candidate-workspace-test.json)。最终三行输入修复后运行了全仓类型/lint、聚焦测试及全部 17 场景；没有再次执行约 33 分钟的全仓测试。此前两轮 timeout 失败仍保留 |
 
 ## 独立审查发现的历史回收缺陷
@@ -54,6 +54,8 @@
 
 最终 [同一聚焦检查](empty-identity-green.log) 转绿，包含错误输入拒绝与业务状态不变；全部 17 场景与两个同版本 mutant 重新运行。没有改原验收预期，边界检查没有真实 provider 调用。最终代码冻结后再取得当前版本的独立复核。
 
+最终独立审查已核对行为、实际源码、副本完整 diff、22 次信号与候选聚焦检查。首次委派把“已跟踪文件不变”写成整个工作树，主控持续追加日志因此触发 INCOMPLETE；候选源码与 T-036 文件并未变化。随后只限定复核冻结条件：候选代码、治理/规格、原验收与 T-036 证据都在初末检查中不变，批准材料相同。主控三份持续日志明确排除，不能作行为证据。新报告 PASS 不覆盖此前 INCOMPLETE，亦不冒称重新运行行为测试。
+
 ## 批准副本的复现与红态
 
 主控决定原样留在本目录 `controller-decision-01.md`，由主控自己提交；worker 的提交不包含该文件。只复制恢复脚本，其 helper 仍是原 `acceptance/test_coop_e2e.py`。`native-suite.py` 只选取原交付 8 项和恢复副本 9 项，不增删场景、预期或断言。确切环境与 argv 见每轮 `command.json`，基本命令为：
@@ -67,3 +69,5 @@ PYTHONPATH=/Users/luckye/Documents/Code/a2a/acceptance python3 -B evidence/2026-
 实现前的原脚本红态已经保留。授权后，同一副本组合入口又对 `7cb0ac0` 的缺失 CLI 取到 [反事实红态](mutant-baseline-native-suite/command.json)，不是补称为实现前运行。副本的独立 9 项绿态、完整 17 项绿态、两个 mutant 均保留，信号、SQLite/Git 快照与业务断言未丢弃。原文件在转接入口下拒绝注入的结果不是产品恢复失败，也不算恢复通过。
 
 未触碰用户 Herdr、用户配置或 Synara 数据；未 push、未执行真实产品模型调用、未删除现场。原验收自身释放了本次创建的屏障和 CLI；临时仓库、worktree 和失败记录保留，归档不登记 gitlink。针对性独立复核结束后只补记报告，不再改冻结代码。
+
+完整最终现场见 [归档](retained-fixtures-complete.tar.gz) 与 [原路径清单](retained-fixtures-complete.json)；先前归档保留。[版本与 skill 来源](versions-and-skills.json)记录 Python 3.9.6、Git 2.52.0、观测到的 Codex CLI 0.161.0、Bun 1.4.2、Node v24.13.1 与 skill Git 版本；T-036 没有以该 Codex 版本进行真实模型验收。测试、wrapper 与归档只涉及本次创建的夹具；没有把临时 repo/worktree 登记为 gitlink。
