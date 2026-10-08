@@ -1,0 +1,22 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038
+59 |   await page.screenshot({ path: join(root, label + ".png"), fullPage: true });
+60 |   writeFileSync(join(root, label + ".json"), JSON.stringify({ argv: process.argv.slice(1), input, readback,
+61 |     concurrent, afterRefusal, failure, text: await page.locator("body").innerText() }, null, 2) + "\n", "utf8");
+62 |   await browser.close();
+63 | }
+64 | if (failure) throw new Error(failure);
+                            ^
+error: Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('main', { name: '任务窗口', exact: true }).getByRole('heading', { name: 'GUI 归属复验 · membership-gui-01', exact: true })
+Expected: visible
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "to.be.visible" with timeout 5000ms
+  - waiting for getByRole('main', { name: '任务窗口', exact: true }).getByRole('heading', { name: 'GUI 归属复验 · membership-gui-01', exact: true })
+
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/membership-gui-probe.mjs:64:24
+
+Bun v1.4.2 (macOS arm64)

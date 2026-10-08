@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "./a2a/scripts/bun",
+    "run",
+    "--cwd",
+    "apps/web",
+    "test",
+    "src/a2a/humanIntervention.test.ts"
+  ],
+  "exit": 1,
+  "stdout": "\n RUN  v4.1.10 /Users/luckye/Documents/Code/synara-t038/apps/web\n\n ❯ src/a2a/humanIntervention.test.ts (2 tests | 2 failed) 5ms\n     × deduplicates event_id, preserves the historical thread, and excludes other tasks and agent input 4ms\n     × does not silently hide malformed or inconsistently bound human records 1ms\n\n Test Files  1 failed (1)\n      Tests  2 failed (2)\n   Start at  00:28:19\n   Duration  241ms (transform 156ms, setup 0ms, import 163ms, tests 5ms, environment 0ms)\n\n",
+  "stderr": "a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038\n$ vitest run --passWithNoTests \"src/a2a/humanIntervention.test.ts\"\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  src/a2a/humanIntervention.test.ts > human intervention protocol fixtures > deduplicates event_id, preserves the historical thread, and excludes other tasks and agent input\nAssertionError: expected [] to deeply equal [ …(2) ]\n\n- Expected\n+ Received\n\n- [\n-   {\n-     \"attemptId\": \"old-attempt-A\",\n-     \"eventId\": \"user-event-A\",\n-     \"text\": \"检查分页边界\",\n-     \"threadId\": \"worker-A\",\n-     \"time\": \"2026-10-08T01:02:03Z\",\n-   },\n-   {\n-     \"attemptId\": \"review-attempt-R\",\n-     \"eventId\": \"user-event-R\",\n-     \"text\": \"只审查，不集成\",\n-     \"threadId\": \"reviewer-R\",\n-     \"time\": \"2026-10-08T01:03:04Z\",\n-   },\n- ]\n+ []\n\n ❯ src/a2a/humanIntervention.test.ts:60:50\n     58|       { seq: 16, time: \"2026-10-08T01:04:00Z\", type: \"submitted\", deta…\n     59|     ];\n     60|     expect(humanInterventions(events, \"task-A\")).toEqual([\n       |                                                  ^\n     61|       {\n     62|         eventId: \"user-event-A\",\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  src/a2a/humanIntervention.test.ts > human intervention protocol fixtures > does not silently hide malformed or inconsistently bound human records\nAssertionError: expected [Function] to throw an error\n ❯ src/a2a/humanIntervention.test.ts:79:80\n     77|   });\n     78|   it(\"does not silently hide malformed or inconsistently bound human r…\n     79|     expect(() => humanInterventions([{ ...worker, details: null }], \"t…\n       |                                                                                ^\n     80|     expect(() =>\n     81|       humanInterventions(\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\nerror: script \"test\" exited with code 1\n",
+  "restored_bytes_equal": true
+}

@@ -1,0 +1,31 @@
+[
+  {
+    "input": {
+      "taskId": "t038-42c57d2d4fd1-wrong-member",
+      "projectId": "t038-42c57d2d4fd1",
+      "title": "跨项目成员反例",
+      "revision": 0,
+      "members": [
+        {
+          "threadId": "t038-42c57d2d4fd1-foreign-thread",
+          "role": "reviewer"
+        }
+      ]
+    },
+    "expected_error": "thread_project_mismatch",
+    "status": 400,
+    "body": "{\"ok\":false,\"error\":\"thread_project_mismatch\"}"
+  },
+  {
+    "input": {
+      "taskId": "t038-42c57d2d4fd1",
+      "projectId": "t038-42c57d2d4fd1-foreign",
+      "title": "门禁项目反例",
+      "revision": 1,
+      "members": []
+    },
+    "expected_error": "gate_project_mismatch",
+    "status": 400,
+    "body": "{\"ok\":false,\"error\":\"gate_project_mismatch\"}"
+  }
+]

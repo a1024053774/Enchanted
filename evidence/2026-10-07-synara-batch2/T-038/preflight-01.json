@@ -1,0 +1,62 @@
+[
+  {
+    "endpoint": "/api/a2a",
+    "origin": "http://localhost:7771",
+    "expected_status": 204,
+    "status": 204,
+    "headers": {
+      "access-control-allow-origin": "http://localhost:7771",
+      "access-control-allow-credentials": "true",
+      "vary": "Origin",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "Content-Type",
+      "access-control-max-age": "600",
+      "Date": "Thu, 08 Oct 2026 04:30:26 GMT",
+      "Connection": "close"
+    },
+    "body": ""
+  },
+  {
+    "endpoint": "/api/a2a",
+    "origin": "https://untrusted.invalid",
+    "expected_status": 403,
+    "status": 403,
+    "headers": {
+      "content-type": "application/json",
+      "content-length": "46",
+      "Date": "Thu, 08 Oct 2026 04:30:26 GMT",
+      "Connection": "close"
+    },
+    "body": "{\"ok\":false,\"error\":\"trusted_origin_required\"}"
+  },
+  {
+    "endpoint": "/api/a2a/membership",
+    "origin": "http://localhost:7771",
+    "expected_status": 204,
+    "status": 204,
+    "headers": {
+      "access-control-allow-origin": "http://localhost:7771",
+      "access-control-allow-credentials": "true",
+      "vary": "Origin",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "Content-Type",
+      "access-control-max-age": "600",
+      "Date": "Thu, 08 Oct 2026 04:30:26 GMT",
+      "Connection": "close"
+    },
+    "body": ""
+  },
+  {
+    "endpoint": "/api/a2a/membership",
+    "origin": "https://untrusted.invalid",
+    "expected_status": 403,
+    "status": 403,
+    "headers": {
+      "content-type": "application/json",
+      "content-length": "46",
+      "Date": "Thu, 08 Oct 2026 04:30:26 GMT",
+      "Connection": "close"
+    },
+    "body": "{\"ok\":false,\"error\":\"trusted_origin_required\"}"
+  }
+]

@@ -1,0 +1,22 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038
+30 |   await page.screenshot({ path: join(root, label + ".png"), fullPage: true });
+31 |   writeFileSync(output, JSON.stringify({ argv: process.argv.slice(1), surface: "dev web in isolated headless Chrome; not desktop", url: page.url(),
+32 |     browserVersion: browser.version(), errors, failure, text: await page.locator("body").innerText() }, null, 2) + "\n", "utf8");
+33 |   await browser.close();
+34 | }
+35 | if (failure) throw new Error(failure);
+                            ^
+error: Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('main', { name: '任务窗口', exact: true }).getByRole('heading', { name: '分页交付', exact: true })
+Expected: visible
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "to.be.visible" with timeout 5000ms
+  - waiting for getByRole('main', { name: '任务窗口', exact: true }).getByRole('heading', { name: '分页交付', exact: true })
+
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/ui-probe.mjs:35:24
+
+Bun v1.4.2 (macOS arm64)

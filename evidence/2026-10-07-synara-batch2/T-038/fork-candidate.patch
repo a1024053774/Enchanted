@@ -1,0 +1,1371 @@
+diff --git a/apps/server/src/a2a/httpRoute.ts b/apps/server/src/a2a/httpRoute.ts
+index 2c147745a..89024d543 100644
+--- a/apps/server/src/a2a/httpRoute.ts
++++ b/apps/server/src/a2a/httpRoute.ts
+@@ -8,6 +8,7 @@ import { ServerConfig } from "../config";
+ import { shouldRejectUntrustedRequestOrigin, normalizeCorsOrigin } from "../trustedOrigins";
+ import { authenticateRpcWebSocketUpgrade } from "../wsRpc";
+ import { readMcpJsonBody } from "../agentGateway/httpRoute";
++import { membershipRoute } from "./membershipRoute";
+ 
+ const route = Effect.gen(function* () {
+   const request = yield* HttpServerRequest.HttpServerRequest;
+@@ -45,6 +46,16 @@ const route = Effect.gen(function* () {
+       }
+     : {};
+   const gates = yield* A2AGateService;
++  if (request.method === "OPTIONS")
++    return HttpServerResponse.empty({
++      headers: {
++        ...headers,
++        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
++        "Access-Control-Allow-Headers": "Content-Type",
++        "Access-Control-Max-Age": "600",
++      },
++    });
++  if (url.pathname === "/api/a2a/membership") return yield* membershipRoute(request, headers);
+   if (request.method === "GET") {
+     const task = gates.taskForThread(url.searchParams.get("thread") ?? "");
+     return HttpServerResponse.jsonUnsafe({ ok: true, task }, { headers });
+@@ -68,4 +79,8 @@ const route = Effect.gen(function* () {
+ export const a2aGateRouteLayer = Layer.mergeAll(
+   HttpRouter.add("POST", "/api/a2a", route),
+   HttpRouter.add("GET", "/api/a2a", route),
++  HttpRouter.add("OPTIONS", "/api/a2a", route),
++  HttpRouter.add("GET", "/api/a2a/membership", route),
++  HttpRouter.add("POST", "/api/a2a/membership", route),
++  HttpRouter.add("OPTIONS", "/api/a2a/membership", route),
+ );
+diff --git a/apps/server/src/a2a/membershipRoute.ts b/apps/server/src/a2a/membershipRoute.ts
+new file mode 100644
+index 000000000..8bce39ffe
+--- /dev/null
++++ b/apps/server/src/a2a/membershipRoute.ts
+@@ -0,0 +1,83 @@
++import { join } from "node:path";
++import { A2AMembership, MembershipRefusal } from "@synara/a2a-gates/membership";
++import { A2AMembershipSaveRequest } from "@synara/contracts";
++import { Effect, Option, Schema } from "effect";
++import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
++import { ServerConfig } from "../config";
++import { ProjectionSnapshotQuery } from "../orchestration/Services/ProjectionSnapshotQuery";
++import { readMcpJsonBody } from "../agentGateway/httpRoute";
++import { A2AGateService } from "./service";
++
++/** Called only after the existing gate route's origin and owner checks. */
++export function membershipRoute(
++  request: HttpServerRequest.HttpServerRequest,
++  headers: Record<string, string>,
++) {
++  return Effect.gen(function* () {
++    const config = yield* ServerConfig;
++    const url = HttpServerRequest.toURL(request)!;
++    const store = new A2AMembership(join(config.stateDir, "a2a-gates"));
++    try {
++      if (request.method === "GET")
++        return HttpServerResponse.jsonUnsafe(
++          { ok: true, tasks: store.list(url.searchParams.get("project") ?? undefined) },
++          { headers },
++        );
++      const body = yield* readMcpJsonBody(request);
++      if (body.kind !== "ok")
++        return HttpServerResponse.jsonUnsafe(
++          { ok: false, error: "invalid_body" },
++          { status: 400, headers },
++        );
++      const { task } = yield* Schema.decodeUnknownEffect(A2AMembershipSaveRequest)(body.body);
++      const query = yield* ProjectionSnapshotQuery;
++      const project = yield* query.getProjectShellById(task.projectId);
++      if (Option.isNone(project))
++        return HttpServerResponse.jsonUnsafe(
++          { ok: false, error: "unknown_project" },
++          { status: 400, headers },
++        );
++      const gates = yield* A2AGateService;
++      const status = yield* Effect.promise(() =>
++        gates.call({ command: "status", task: task.taskId }),
++      );
++      if (!status.ok && status.error !== "unknown_task")
++        return HttpServerResponse.jsonUnsafe(status, { status: 400, headers });
++      if (status.task && status.task.project_id !== task.projectId)
++        return HttpServerResponse.jsonUnsafe(
++          { ok: false, error: "gate_project_mismatch" },
++          { status: 400, headers },
++        );
++      const threads = yield* query.getThreadShellsByIds(
++        task.members.map((member) => member.threadId),
++      );
++      for (const member of task.members) {
++        const thread = threads.find((thread) => thread.id === member.threadId);
++        if (!thread)
++          return HttpServerResponse.jsonUnsafe(
++            { ok: false, error: "unknown_thread" },
++            { status: 400, headers },
++          );
++        if (thread.projectId !== task.projectId)
++          return HttpServerResponse.jsonUnsafe(
++            { ok: false, error: "thread_project_mismatch" },
++            { status: 400, headers },
++          );
++      }
++      try {
++        return HttpServerResponse.jsonUnsafe({ ok: true, task: store.save(task) }, { headers });
++      } catch (error) {
++        if (!(error instanceof MembershipRefusal)) throw error;
++        return HttpServerResponse.jsonUnsafe(
++          { ok: false, error: error.code },
++          {
++            status: error.code === "duplicate_member" ? 400 : 409,
++            headers,
++          },
++        );
++      }
++    } finally {
++      store.close();
++    }
++  });
++}
+diff --git a/apps/web/src/a2a/GateActions.tsx b/apps/web/src/a2a/GateActions.tsx
+new file mode 100644
+index 000000000..87a7aad70
+--- /dev/null
++++ b/apps/web/src/a2a/GateActions.tsx
+@@ -0,0 +1,59 @@
++import type { A2AGateRequest, A2AGateResult, A2ATask } from "@synara/contracts";
++import { useMutation, useQueryClient } from "@tanstack/react-query";
++import { Button } from "../components/ui/button";
++import { requestA2A } from "./api";
++
++export function GateActions({ task, observerFailed }: { task: A2ATask; observerFailed: boolean }) {
++  const queryClient = useQueryClient();
++  const mutation = useMutation({
++    mutationFn: async (request: A2AGateRequest) => {
++      const result = await requestA2A<A2AGateResult>("/api/a2a", request);
++      if (!result.ok) throw new Error(result.error ?? "门禁拒绝请求");
++    },
++    onSettled: () => queryClient.invalidateQueries({ queryKey: ["a2a-task", task.task_id] }),
++  });
++  const attempt = task.current_attempt;
++  const call = (command: "verify" | "integrate" | "reclaim") => {
++    if (!attempt || mutation.isPending || observerFailed) return;
++    mutation.mutate({ command, task: task.task_id, attempt: attempt.attempt_id });
++  };
++  return (
++    <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-ui-xs">
++      {task.state === "claimed" && <span className="text-muted-foreground">等待显式交付</span>}
++      {task.state === "submitted" && (
++        <Button
++          size="sm"
++          variant="outline"
++          disabled={!attempt || mutation.isPending || observerFailed}
++          onClick={() => call("verify")}
++        >
++          验收候选
++        </Button>
++      )}
++      {task.state === "verified" && (
++        <Button
++          size="sm"
++          disabled={!attempt || mutation.isPending || observerFailed}
++          onClick={() => call("integrate")}
++        >
++          集成候选
++        </Button>
++      )}
++      {task.state === "accepted" && attempt && !attempt.reclaimed && (
++        <Button
++          size="sm"
++          variant="outline"
++          disabled={mutation.isPending || observerFailed}
++          onClick={() => call("reclaim")}
++        >
++          回收执行者
++        </Button>
++      )}
++      {mutation.error && (
++        <span role="alert" className="text-destructive">
++          {mutation.error.message}
++        </span>
++      )}
++    </div>
++  );
++}
+diff --git a/apps/web/src/a2a/GateStatus.tsx b/apps/web/src/a2a/GateStatus.tsx
+index f16a51efb..a8094941b 100644
+--- a/apps/web/src/a2a/GateStatus.tsx
++++ b/apps/web/src/a2a/GateStatus.tsx
+@@ -1,7 +1,9 @@
+ import { useQuery } from "@tanstack/react-query";
+-import type { A2AGateResult } from "@synara/contracts";
++import type { A2AGateResult, A2ATask } from "@synara/contracts";
+ import { Badge } from "../components/ui/badge";
+ import { resolveWsHttpUrl } from "../lib/wsHttpUrl";
++import { humanObserverView } from "./humanObserver";
++import { HumanObserverStatus } from "./HumanObserverStatus";
+ 
+ export function GateStatus({ threadId }: { threadId: string }) {
+   const query = useQuery({
+@@ -14,7 +16,7 @@ export function GateStatus({ threadId }: { threadId: string }) {
+       if (!response.ok) throw new Error(`门禁状态读取失败 (${response.status})`);
+       const result = (await response.json()) as A2AGateResult;
+       if (!result.ok) throw new Error(result.error ?? "门禁状态未知");
+-      return result.task ?? null;
++      return { task: result.task ?? null, observer: humanObserverView(result) };
+     },
+     refetchInterval: 1000,
+   });
+@@ -24,8 +26,17 @@ export function GateStatus({ threadId }: { threadId: string }) {
+         {query.error.message}
+       </p>
+     );
+-  const task = query.data;
++  const task = query.data?.task;
+   if (!task) return null;
++  return (
++    <>
++      <GateState task={task} />
++      <HumanObserverStatus observer={query.data!.observer} />
++    </>
++  );
++}
++
++export function GateState({ task }: { task: A2ATask }) {
+   const states = ["claimed", "submitted", "verified", "accepted"];
+   return (
+     <section
+@@ -36,12 +47,28 @@ export function GateStatus({ threadId }: { threadId: string }) {
+       {states.map((state) => (
+         <Badge
+           key={state}
++          aria-current={task.state === state ? "step" : undefined}
+           variant={task.state === state ? (state === "accepted" ? "success" : "info") : "outline"}
+         >
+           {state}
+         </Badge>
+       ))}
+-      {!states.includes(task.state) && <Badge variant="warning">{task.state}</Badge>}
++      {!states.includes(task.state) && (
++        <Badge variant="warning" aria-current="step">
++          {task.state}
++        </Badge>
++      )}
++      {task.verification &&
++        ["failed", "merge_failed", "unknown", "interrupted"].includes(task.verification.state) && (
++          <details className="w-full text-destructive">
++            <summary className="cursor-pointer">失败原因 · {task.verification.state}</summary>
++            <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap break-all font-mono text-ui-xs">
++              {task.verification.result?.stderr ||
++                task.verification.result?.stdout ||
++                "验收没有完整结果"}
++            </pre>
++          </details>
++        )}
+       {task.current_attempt?.reclaimed && (
+         <span className="text-muted-foreground">worker 已回收</span>
+       )}
+diff --git a/apps/web/src/a2a/HumanObserverStatus.tsx b/apps/web/src/a2a/HumanObserverStatus.tsx
+new file mode 100644
+index 000000000..8e5bc5c71
+--- /dev/null
++++ b/apps/web/src/a2a/HumanObserverStatus.tsx
+@@ -0,0 +1,34 @@
++import { Badge } from "../components/ui/badge";
++import type { HumanObserverView } from "./humanObserver";
++
++export function HumanObserverStatus({ observer }: { observer: HumanObserverView }) {
++  return (
++    <section
++      aria-label="人工输入记录器状态"
++      className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 text-ui-xs"
++    >
++      <Badge
++        variant={
++          observer.state === "healthy"
++            ? "success"
++            : observer.state === "failed"
++              ? "error"
++              : "warning"
++        }
++        title={observer.updatedAt}
++      >
++        {observer.state === "missing"
++          ? "人工输入记录器：未安装"
++          : `人工输入记录器：${observer.state}`}
++      </Badge>
++      {observer.state === "failed" && (
++        <>
++          <span className="text-destructive">{observer.failureReason}</span>
++          <span className="text-destructive">
++            门禁会拒绝改变任务状态的操作（human_input_observer_failed）。
++          </span>
++        </>
++      )}
++    </section>
++  );
++}
+diff --git a/apps/web/src/a2a/MembershipEditor.tsx b/apps/web/src/a2a/MembershipEditor.tsx
+new file mode 100644
+index 000000000..afb014068
+--- /dev/null
++++ b/apps/web/src/a2a/MembershipEditor.tsx
+@@ -0,0 +1,159 @@
++import type {
++  A2AMemberRole,
++  A2AMembershipResult,
++  A2ATaskMembership,
++  ThreadId,
++} from "@synara/contracts";
++import { useMutation } from "@tanstack/react-query";
++import { useState } from "react";
++import { Button } from "../components/ui/button";
++import { Input } from "../components/ui/input";
++import {
++  Select,
++  SelectItem,
++  SelectPopup,
++  SelectTrigger,
++  SelectValue,
++} from "../components/ui/select";
++import type { ThreadShell } from "../types";
++import { requestA2A } from "./api";
++
++const roles: ReadonlyArray<A2AMemberRole> = ["controller", "worker", "reviewer", "monitor"];
++
++export function MembershipEditor({
++  task,
++  threads,
++  onSaved,
++  onClose,
++}: {
++  task: A2ATaskMembership;
++  threads: ReadonlyArray<ThreadShell>;
++  onSaved: (task: A2ATaskMembership) => void;
++  onClose: () => void;
++}) {
++  // Keep the opened revision while editing. A concurrent save must be rejected by CAS.
++  const [draft, setDraft] = useState(task);
++  const [threadId, setThreadId] = useState<ThreadId | null>(null);
++  const [role, setRole] = useState<A2AMemberRole>("worker");
++  const mutation = useMutation({
++    mutationFn: async () => {
++      const result = await requestA2A<A2AMembershipResult>("/api/a2a/membership", {
++        command: "save",
++        task: draft,
++      });
++      if (!result.ok || !result.task) throw new Error(result.error ?? "归属保存没有返回任务");
++      return result.task;
++    },
++    onSuccess: onSaved,
++  });
++  const available = threads.filter(
++    (thread) =>
++      thread.projectId === task.projectId &&
++      !draft.members.some((member) => member.threadId === thread.id),
++  );
++  return (
++    <form
++      aria-label="编辑会话归属"
++      className="space-y-3 border-b border-border p-4 text-ui"
++      onSubmit={(event) => {
++        event.preventDefault();
++        if (!mutation.isPending) mutation.mutate();
++      }}
++    >
++      <label className="block space-y-1">
++        <span className="text-ui-xs text-muted-foreground">任务标题</span>
++        <Input
++          required
++          maxLength={240}
++          value={draft.title}
++          onChange={(event) => setDraft({ ...draft, title: event.target.value })}
++        />
++      </label>
++      <div className="flex flex-wrap items-center gap-2">
++        {draft.members.map((member) => (
++          <Button
++            key={member.threadId}
++            variant="outline"
++            size="sm"
++            type="button"
++            onClick={() =>
++              setDraft({
++                ...draft,
++                members: draft.members.filter((item) => item.threadId !== member.threadId),
++              })
++            }
++          >
++            {threads.find((thread) => thread.id === member.threadId)?.title ?? member.threadId} ·{" "}
++            {member.role} ×
++          </Button>
++        ))}
++      </div>
++      <div className="flex flex-wrap items-center gap-2">
++        <Select value={threadId} onValueChange={(value) => setThreadId(value as ThreadId | null)}>
++          <SelectTrigger aria-label="选择 agent 会话">
++            <SelectValue placeholder="选择已有会话" />
++          </SelectTrigger>
++          <SelectPopup surface="composer">
++            {available.map((thread) => (
++              <SelectItem key={thread.id} value={thread.id}>
++                {thread.title}
++              </SelectItem>
++            ))}
++          </SelectPopup>
++        </Select>
++        <Select
++          value={role}
++          onValueChange={(value) => {
++            if (value) setRole(value);
++          }}
++        >
++          <SelectTrigger aria-label="会话角色">
++            <SelectValue />
++          </SelectTrigger>
++          <SelectPopup surface="composer">
++            {roles.map((role) => (
++              <SelectItem key={role} value={role}>
++                {role}
++              </SelectItem>
++            ))}
++          </SelectPopup>
++        </Select>
++        <Button
++          type="button"
++          size="sm"
++          variant="outline"
++          disabled={!threadId}
++          onClick={() => {
++            if (!threadId) return;
++            setDraft({ ...draft, members: [...draft.members, { threadId, role }] });
++            setThreadId(null);
++          }}
++        >
++          添加会话
++        </Button>
++      </div>
++      {available.length === 0 && (
++        <p className="text-ui-xs text-muted-foreground">可在项目中创建会话后再添加归属。</p>
++      )}
++      {mutation.error && (
++        <p role="alert" className="text-ui-xs text-destructive">
++          {mutation.error.message}
++        </p>
++      )}
++      <div className="flex gap-2">
++        <Button type="submit" size="sm" disabled={mutation.isPending || !draft.title.trim()}>
++          保存归属
++        </Button>
++        <Button
++          size="sm"
++          type="button"
++          variant="ghost"
++          disabled={mutation.isPending}
++          onClick={onClose}
++        >
++          取消
++        </Button>
++      </div>
++    </form>
++  );
++}
+diff --git a/apps/web/src/a2a/TaskWindow.tsx b/apps/web/src/a2a/TaskWindow.tsx
+new file mode 100644
+index 000000000..ace517b01
+--- /dev/null
++++ b/apps/web/src/a2a/TaskWindow.tsx
+@@ -0,0 +1,361 @@
++import { type A2AMembershipResult, type A2ATaskMembership, type ThreadId } from "@synara/contracts";
++import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
++import { Link } from "@tanstack/react-router";
++import { useEffect, useState } from "react";
++import ChatView from "../components/ChatView";
++import { PanelStateMessage } from "../components/chat/PanelStateMessage";
++import { Badge } from "../components/ui/badge";
++import { Button } from "../components/ui/button";
++import { Input } from "../components/ui/input";
++import { isOrdinarySpaceProject } from "../lib/spaces";
++import { useStore } from "../store";
++import { createThreadShellsSelector } from "../storeSelectors";
++import { retainThreadDetailSubscription } from "../threadDetailSubscriptionRetention";
++import { useWorkspacePathsStore } from "../workspacePathsStore";
++import { GateState } from "./GateStatus";
++import { GateActions } from "./GateActions";
++import { MembershipEditor } from "./MembershipEditor";
++import { requestA2A } from "./api";
++import { useGateTask } from "./useGateTask";
++import { HumanObserverStatus } from "./HumanObserverStatus";
++import type { Project } from "../types";
++
++const selectThreadShells = createThreadShellsSelector();
++
++function NewTask({
++  project,
++  onSaved,
++  onClose,
++}: {
++  project: Project;
++  onSaved: (task: A2ATaskMembership) => void;
++  onClose: () => void;
++}) {
++  const [title, setTitle] = useState("");
++  const [taskId, setTaskId] = useState("");
++  const [generatedTaskId] = useState(() => crypto.randomUUID());
++  const mutation = useMutation({
++    mutationFn: async () => {
++      const task: A2ATaskMembership = {
++        taskId: taskId.trim() || generatedTaskId,
++        projectId: project.id,
++        title: title.trim(),
++        revision: 0,
++        members: [],
++      };
++      const result = await requestA2A<A2AMembershipResult>("/api/a2a/membership", {
++        command: "save",
++        task,
++      });
++      if (!result.ok || !result.task) throw new Error(result.error ?? "任务保存没有返回归属");
++      return result.task;
++    },
++    onSuccess: onSaved,
++  });
++  return (
++    <form
++      aria-label="添加任务"
++      className="space-y-3 p-4"
++      onSubmit={(event) => {
++        event.preventDefault();
++        if (!mutation.isPending) mutation.mutate();
++      }}
++    >
++      <h2 className="font-medium">{project.name} · 添加任务</h2>
++      <label className="block space-y-1">
++        <span className="text-ui-xs text-muted-foreground">任务标题</span>
++        <Input
++          required
++          maxLength={240}
++          value={title}
++          onChange={(event) => setTitle(event.target.value)}
++        />
++      </label>
++      <label className="block space-y-1">
++        <span className="text-ui-xs text-muted-foreground">任务 ID（已有门禁任务时填写）</span>
++        <Input
++          maxLength={128}
++          value={taskId}
++          onChange={(event) => setTaskId(event.target.value)}
++          placeholder="留空创建未挂合同的任务"
++        />
++      </label>
++      {mutation.error && (
++        <p role="alert" className="text-ui-xs text-destructive">
++          {mutation.error.message}
++        </p>
++      )}
++      <div className="flex gap-2">
++        <Button type="submit" size="sm" disabled={mutation.isPending || !title.trim()}>
++          添加任务
++        </Button>
++        <Button
++          type="button"
++          size="sm"
++          variant="ghost"
++          disabled={mutation.isPending}
++          onClick={onClose}
++        >
++          取消
++        </Button>
++      </div>
++    </form>
++  );
++}
++
++export function TaskWindow() {
++  const allProjects = useStore((state) => state.projects);
++  const threads = useStore(selectThreadShells);
++  const homeDir = useWorkspacePathsStore((state) => state.homeDir);
++  const chatWorkspaceRoot = useWorkspacePathsStore((state) => state.chatWorkspaceRoot);
++  const studioWorkspaceRoot = useWorkspacePathsStore((state) => state.studioWorkspaceRoot);
++  const groupsWorkspaceRoot = useWorkspacePathsStore((state) => state.groupsWorkspaceRoot);
++  const projects = allProjects.filter((project) =>
++    isOrdinarySpaceProject(project, {
++      homeDir,
++      chatWorkspaceRoot,
++      studioWorkspaceRoot,
++      groupsWorkspaceRoot,
++    }),
++  );
++  const [selected, setSelected] = useState<string | null>(null);
++  const [creating, setCreating] = useState<Project | null>(null);
++  const [editing, setEditing] = useState(false);
++  const [focused, setFocused] = useState<ThreadId | null>(null);
++  const queryClient = useQueryClient();
++  const query = useQuery({
++    queryKey: ["a2a-memberships"],
++    retry: false,
++    queryFn: async ({ signal }) => {
++      const result = await requestA2A<A2AMembershipResult>(
++        "/api/a2a/membership",
++        undefined,
++        signal,
++      );
++      if (!result.ok || !result.tasks) throw new Error(result.error ?? "归属读取失败");
++      return result.tasks;
++    },
++    refetchInterval: 1000,
++  });
++  const task = query.error
++    ? undefined
++    : (query.data?.find((task) => task.taskId === selected) ?? query.data?.[0]);
++  const visibleMembers = creating ? undefined : task?.members;
++  useEffect(() => {
++    const releases = visibleMembers?.map((member) =>
++      retainThreadDetailSubscription(member.threadId),
++    );
++    return () => releases?.forEach((release) => release());
++  }, [visibleMembers]);
++  const gate = useGateTask(task?.taskId ?? null, task?.projectId ?? null);
++  const focus = task?.members.some((member) => member.threadId === focused)
++    ? focused
++    : task?.members[0]?.threadId;
++  const saved = (saved: A2ATaskMembership) => {
++    setSelected(saved.taskId);
++    setCreating(null);
++    setEditing(false);
++    void queryClient.invalidateQueries({ queryKey: ["a2a-memberships"] });
++  };
++
++  return (
++    <main aria-label="任务窗口" className="flex min-h-0 min-w-0 flex-1 text-ui">
++      <nav
++        aria-label="项目与任务"
++        className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border p-3"
++      >
++        <h1 className="font-medium">任务窗口</h1>
++        {query.error && (
++          <p role="alert" className="text-ui-xs text-destructive">
++            {query.error.message}
++          </p>
++        )}
++        {projects.map((project) => (
++          <section key={project.id}>
++            <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
++              <h2 className="truncate text-ui-sm font-medium" title={project.name}>
++                {project.name}
++              </h2>
++              <Button
++                size="xs"
++                variant="ghost"
++                aria-label={`为${project.name}添加任务`}
++                onClick={() => {
++                  setCreating(project);
++                  setEditing(false);
++                }}
++              >
++                ＋
++              </Button>
++            </div>
++            {query.data
++              ?.filter((task) => task.projectId === project.id)
++              .map((item) => (
++                <Button
++                  key={item.taskId}
++                  variant={item.taskId === task?.taskId ? "secondary" : "ghost"}
++                  className="w-full justify-start"
++                  aria-current={item.taskId === task?.taskId ? "page" : undefined}
++                  onClick={() => {
++                    setSelected(item.taskId);
++                    setCreating(null);
++                    setEditing(false);
++                  }}
++                >
++                  <span className="truncate">{item.title}</span>
++                </Button>
++              ))}
++          </section>
++        ))}
++        {projects.length === 0 && (
++          <p className="text-ui-xs text-muted-foreground">先在 Synara 中打开仓库项目。</p>
++        )}
++      </nav>
++      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
++        {creating ? (
++          <NewTask
++            key={creating.id}
++            project={creating}
++            onSaved={saved}
++            onClose={() => setCreating(null)}
++          />
++        ) : task ? (
++          <>
++            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
++              <div className="min-w-0">
++                <h2 className="truncate font-medium">{task.title}</h2>
++                <p className="mt-0.5 truncate font-mono text-ui-xs text-muted-foreground">
++                  {task.taskId}
++                </p>
++              </div>
++              <div className="flex shrink-0 items-center gap-2">
++                <span className="text-ui-xs text-muted-foreground">
++                  {task.members.length} 个 agent 会话
++                </span>
++                <Button size="sm" variant="outline" onClick={() => setEditing(!editing)}>
++                  会话归属
++                </Button>
++              </div>
++            </header>
++            {gate.error ? (
++              <p
++                role="alert"
++                className="border-b border-border px-4 py-2 text-ui-xs text-destructive"
++              >
++                门禁读取失败：{gate.error.message}
++              </p>
++            ) : gate.data ? (
++              gate.data.task ? (
++                <>
++                  <GateState task={gate.data.task} />
++                  <GateActions
++                    task={gate.data.task}
++                    observerFailed={gate.data.observer.state === "failed"}
++                  />
++                </>
++              ) : (
++                <p className="border-b border-border px-4 py-2 text-ui-xs text-muted-foreground">
++                  未挂验收合同
++                </p>
++              )
++            ) : (
++              <p className="border-b border-border px-4 py-2 text-ui-xs text-muted-foreground">
++                读取门禁…
++              </p>
++            )}
++            {gate.data && !gate.error && <HumanObserverStatus observer={gate.data.observer} />}
++            {editing && (
++              <MembershipEditor
++                key={task.taskId}
++                task={task}
++                threads={threads}
++                onSaved={saved}
++                onClose={() => setEditing(false)}
++              />
++            )}
++            {task.members.length ? (
++              <div className="flex min-h-0 flex-1 overflow-x-auto">
++                {task.members.map((member) => {
++                  const thread = threads.find((thread) => thread.id === member.threadId);
++                  const interventions = gate.error
++                    ? []
++                    : (gate.data?.interventions.filter(
++                        (event) => event.threadId === member.threadId,
++                      ) ?? []);
++                  return (
++                    <section
++                      key={member.threadId}
++                      aria-label={`${member.role} agent 会话`}
++                      className="flex min-h-0 min-w-80 flex-1 flex-col border-r border-border last:border-r-0"
++                      onFocusCapture={() => setFocused(member.threadId)}
++                      onPointerDown={() => setFocused(member.threadId)}
++                    >
++                      <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2 text-ui-xs">
++                        <Badge variant="outline">{member.role}</Badge>
++                        <h3 className="min-w-0 flex-1 truncate">
++                          {thread?.title ?? member.threadId}
++                        </h3>
++                        {interventions.length > 0 ? (
++                          <Badge
++                            variant="warning"
++                            title={interventions[interventions.length - 1]?.time}
++                          >
++                            人工介入 · {interventions.length}
++                          </Badge>
++                        ) : (
++                          <span className="text-muted-foreground">人工介入 —</span>
++                        )}
++                        {thread && (
++                          <Link
++                            to="/$threadId"
++                            params={{ threadId: thread.id }}
++                            className="text-muted-foreground hover:text-foreground focus-visible:underline"
++                          >
++                            打开会话
++                          </Link>
++                        )}
++                      </header>
++                      {interventions.length > 0 && (
++                        <details className="border-b border-border px-3 py-2 text-ui-xs">
++                          <summary className="cursor-pointer text-warning">
++                            查看人工介入记录
++                          </summary>
++                          {interventions.map((event) => (
++                            <p key={event.eventId} className="mt-2 whitespace-pre-wrap break-words">
++                              <span className="text-muted-foreground">
++                                {event.time} · {event.attemptId}
++                              </span>
++                              <br />
++                              {event.text}
++                            </p>
++                          ))}
++                        </details>
++                      )}
++                      {thread && thread.projectId === task.projectId ? (
++                        <ChatView
++                          threadId={member.threadId}
++                          hideHeader
++                          paneScopeId={`a2a:${task.taskId}:${member.threadId}`}
++                          surfaceMode="split"
++                          isFocusedPane={focus === member.threadId}
++                        />
++                      ) : (
++                        <PanelStateMessage fill="flex">会话不可用，请核对归属。</PanelStateMessage>
++                      )}
++                    </section>
++                  );
++                })}
++              </div>
++            ) : (
++              <PanelStateMessage fill="flex">
++                点击“会话归属”添加本项目的 agent 会话。
++              </PanelStateMessage>
++            )}
++          </>
++        ) : (
++          <PanelStateMessage fill="flex">选择项目并添加任务。</PanelStateMessage>
++        )}
++      </section>
++    </main>
++  );
++}
+diff --git a/apps/web/src/a2a/api.ts b/apps/web/src/a2a/api.ts
+new file mode 100644
+index 000000000..adefebbce
+--- /dev/null
++++ b/apps/web/src/a2a/api.ts
+@@ -0,0 +1,22 @@
++import { resolveWsHttpUrl } from "../lib/wsHttpUrl";
++
++export async function requestA2A<T>(
++  path: string,
++  body?: unknown,
++  signal?: AbortSignal,
++): Promise<T> {
++  const response = await fetch(resolveWsHttpUrl(path), {
++    credentials: "include",
++    ...(signal ? { signal } : {}),
++    ...(body === undefined
++      ? {}
++      : {
++          method: "POST",
++          headers: { "Content-Type": "application/json" },
++          body: JSON.stringify(body),
++        }),
++  });
++  const result = await response.json();
++  if (!response.ok) throw new Error(result.error ?? `请求失败 (${response.status})`);
++  return result as T;
++}
+diff --git a/apps/web/src/a2a/humanIntervention.test.ts b/apps/web/src/a2a/humanIntervention.test.ts
+new file mode 100644
+index 000000000..b766301a8
+--- /dev/null
++++ b/apps/web/src/a2a/humanIntervention.test.ts
+@@ -0,0 +1,89 @@
++import { describe, expect, it } from "vitest";
++import { humanInterventions } from "./humanIntervention";
++
++// Explicit protocol fixtures from T-037's contract. No real input-listener claim.
++const worker = {
++  seq: 11,
++  time: "2026-10-08T01:02:03Z",
++  task: "task-A",
++  attempt: "old-attempt-A",
++  type: "human_intervention",
++  details: {
++    task_id: "task-A",
++    attempt_id: "old-attempt-A",
++    session_id: "session-A",
++    fence: 1,
++    spec_rev: 1,
++    thread_id: "worker-A",
++    turn_id: null,
++    message_id: "message-A",
++    event_id: "user-event-A",
++    source_sequence: 20,
++    created_at: "2026-10-08T01:02:03Z",
++    dispatch_origin: "user",
++    text: "检查分页边界",
++  },
++};
++const reviewer = {
++  ...worker,
++  seq: 15,
++  attempt: "review-attempt-R",
++  time: "2026-10-08T01:03:04Z",
++  details: {
++    ...worker.details,
++    attempt_id: "review-attempt-R",
++    thread_id: "reviewer-R",
++    event_id: "user-event-R",
++    text: "只审查，不集成",
++  },
++};
++
++describe("human intervention protocol fixtures", () => {
++  it("deduplicates event_id, preserves the historical thread, and excludes other tasks and agent input", () => {
++    const events = [
++      worker,
++      { ...worker, seq: 12 },
++      {
++        ...worker,
++        seq: 13,
++        details: { ...worker.details, event_id: "agent-event", dispatch_origin: "agent" },
++      },
++      {
++        ...worker,
++        seq: 14,
++        task: "task-B",
++        details: { ...worker.details, task_id: "task-B", event_id: "foreign-event" },
++      },
++      reviewer,
++      { seq: 16, time: "2026-10-08T01:04:00Z", type: "submitted", details: {} },
++    ];
++    expect(humanInterventions(events, "task-A")).toEqual([
++      {
++        eventId: "user-event-A",
++        threadId: "worker-A",
++        attemptId: "old-attempt-A",
++        time: "2026-10-08T01:02:03Z",
++        text: "检查分页边界",
++      },
++      {
++        eventId: "user-event-R",
++        threadId: "reviewer-R",
++        attemptId: "review-attempt-R",
++        time: "2026-10-08T01:03:04Z",
++        text: "只审查，不集成",
++      },
++    ]);
++    expect(humanInterventions(events, "task-sentinel-unseen")).toEqual([]);
++  });
++  it("does not silently hide malformed or inconsistently bound human records", () => {
++    expect(() => humanInterventions([{ ...worker, details: null }], "task-A")).toThrow();
++    expect(() =>
++      humanInterventions(
++        [{ ...worker, details: { ...worker.details, thread_id: null } }],
++        "task-A",
++      ),
++    ).toThrow();
++    const mismatched = { ...worker, attempt: "another-attempt" };
++    expect(() => humanInterventions([mismatched], "task-A")).toThrow();
++  });
++});
+diff --git a/apps/web/src/a2a/humanIntervention.ts b/apps/web/src/a2a/humanIntervention.ts
+new file mode 100644
+index 000000000..40af6d135
+--- /dev/null
++++ b/apps/web/src/a2a/humanIntervention.ts
+@@ -0,0 +1,50 @@
++import type { A2AGateResult } from "@synara/contracts";
++
++export interface HumanIntervention {
++  eventId: string;
++  threadId: string;
++  attemptId: string;
++  time: string;
++  text: string;
++}
++
++/** Reads the T-037 event contract; historical attempts keep their original thread. */
++export function humanInterventions(
++  events: NonNullable<A2AGateResult["events"]>,
++  taskId: string,
++): ReadonlyArray<HumanIntervention> {
++  const seen = new Set<string>();
++  const result: HumanIntervention[] = [];
++  for (const event of events) {
++    if (event.type !== "human_intervention") continue;
++    const details = event.details as Record<string, unknown> | null;
++    if (!details || typeof details !== "object") throw new Error("人工介入事件格式错误");
++    if (typeof details.dispatch_origin !== "string") throw new Error("人工介入事件缺少来源");
++    if (details.dispatch_origin !== "user") continue;
++    if (!("task" in event) || typeof event.task !== "string" || typeof details.task_id !== "string")
++      throw new Error("人工介入事件缺少任务绑定");
++    if (event.task !== taskId || details.task_id !== taskId) continue;
++    if (
++      typeof details.event_id !== "string" ||
++      !details.event_id ||
++      typeof details.thread_id !== "string" ||
++      !details.thread_id ||
++      typeof details.attempt_id !== "string" ||
++      !details.attempt_id ||
++      typeof details.text !== "string"
++    )
++      throw new Error("人工介入事件缺少身份或正文");
++    if (!("attempt" in event) || event.attempt !== details.attempt_id)
++      throw new Error("人工介入事件的 attempt 绑定不一致");
++    if (seen.has(details.event_id)) continue;
++    seen.add(details.event_id);
++    result.push({
++      eventId: details.event_id,
++      threadId: details.thread_id,
++      attemptId: details.attempt_id,
++      time: event.time,
++      text: details.text,
++    });
++  }
++  return result;
++}
+diff --git a/apps/web/src/a2a/humanObserver.ts b/apps/web/src/a2a/humanObserver.ts
+new file mode 100644
+index 000000000..539896c12
+--- /dev/null
++++ b/apps/web/src/a2a/humanObserver.ts
+@@ -0,0 +1,36 @@
++export interface HumanObserverView {
++  state: "missing" | "starting" | "healthy" | "failed" | "stopped";
++  updatedAt?: string;
++  failureReason?: string;
++}
++
++/** View of T-037's optional observer status. Missing data never means healthy. */
++export function humanObserverView(result: unknown): HumanObserverView {
++  if (!result || typeof result !== "object") throw new Error("人工输入记录器响应格式错误");
++  if (!("human_input_observer" in result) || result.human_input_observer === undefined)
++    return { state: "missing" };
++  const value = result.human_input_observer;
++  if (
++    !value ||
++    typeof value !== "object" ||
++    !("state" in value) ||
++    !("updated_at" in value) ||
++    typeof value.updated_at !== "string"
++  )
++    throw new Error("人工输入记录器状态格式错误");
++  const state = value.state;
++  if (state !== "starting" && state !== "healthy" && state !== "failed" && state !== "stopped")
++    throw new Error("人工输入记录器状态不可识别");
++  if (state === "failed") {
++    if (
++      !("failure" in value) ||
++      !value.failure ||
++      typeof value.failure !== "object" ||
++      !("reason" in value.failure) ||
++      typeof value.failure.reason !== "string"
++    )
++      throw new Error("人工输入记录器故障缺少原因");
++    return { state, updatedAt: value.updated_at, failureReason: value.failure.reason };
++  }
++  return { state, updatedAt: value.updated_at };
++}
+diff --git a/apps/web/src/a2a/useGateTask.ts b/apps/web/src/a2a/useGateTask.ts
+new file mode 100644
+index 000000000..798699779
+--- /dev/null
++++ b/apps/web/src/a2a/useGateTask.ts
+@@ -0,0 +1,39 @@
++import type { A2AGateResult } from "@synara/contracts";
++import { useQuery } from "@tanstack/react-query";
++import { requestA2A } from "./api";
++import { humanInterventions } from "./humanIntervention";
++import { humanObserverView } from "./humanObserver";
++
++export function useGateTask(taskId: string | null, projectId: string | null) {
++  return useQuery({
++    queryKey: ["a2a-task", taskId, projectId],
++    enabled: taskId !== null,
++    retry: false,
++    queryFn: async ({ signal }) => {
++      const status = await requestA2A<A2AGateResult>(
++        "/api/a2a",
++        { command: "status", task: taskId },
++        signal,
++      );
++      if (!status.ok) {
++        if (status.error === "unknown_task")
++          return { task: null, interventions: [], observer: humanObserverView(status) };
++        throw new Error(status.error ?? "门禁状态读取失败");
++      }
++      if (!status.task || status.task.project_id !== projectId)
++        throw new Error("门禁任务与项目不一致");
++      const events = await requestA2A<A2AGateResult>(
++        "/api/a2a",
++        { command: "events", task: taskId },
++        signal,
++      );
++      if (!events.ok || !events.events) throw new Error(events.error ?? "门禁事件读取失败");
++      return {
++        task: status.task,
++        interventions: humanInterventions(events.events, status.task.task_id),
++        observer: humanObserverView(events),
++      };
++    },
++    refetchInterval: 1000,
++  });
++}
+diff --git a/apps/web/src/routeTree.gen.ts b/apps/web/src/routeTree.gen.ts
+index 485f8837e..574324789 100644
+--- a/apps/web/src/routeTree.gen.ts
++++ b/apps/web/src/routeTree.gen.ts
+@@ -16,6 +16,7 @@ import { Route as ChatPullRequestsRouteImport } from './routes/_chat.pull-reques
+ import { Route as ChatPluginsRouteImport } from './routes/_chat.plugins'
+ import { Route as ChatInboxRouteImport } from './routes/_chat.inbox'
+ import { Route as ChatAutomationsRouteImport } from './routes/_chat.automations'
++import { Route as ChatA2aRouteImport } from './routes/_chat.a2a'
+ import { Route as ChatThreadIdRouteImport } from './routes/_chat.$threadId'
+ import { Route as ChatTasksIndexRouteImport } from './routes/_chat.tasks.index'
+ import { Route as ChatStudioIndexRouteImport } from './routes/_chat.studio.index'
+@@ -61,6 +62,11 @@ const ChatAutomationsRoute = ChatAutomationsRouteImport.update({
+   path: '/automations',
+   getParentRoute: () => ChatRoute,
+ } as any)
++const ChatA2aRoute = ChatA2aRouteImport.update({
++  id: '/a2a',
++  path: '/a2a',
++  getParentRoute: () => ChatRoute,
++} as any)
+ const ChatThreadIdRoute = ChatThreadIdRouteImport.update({
+   id: '/$threadId',
+   path: '/$threadId',
+@@ -116,6 +122,7 @@ const ChatAutomationsAutomationIdRoute =
+ export interface FileRoutesByFullPath {
+   '/': typeof ChatIndexRoute
+   '/$threadId': typeof ChatThreadIdRoute
++  '/a2a': typeof ChatA2aRoute
+   '/automations': typeof ChatAutomationsRouteWithChildren
+   '/inbox': typeof ChatInboxRoute
+   '/plugins': typeof ChatPluginsRoute
+@@ -133,6 +140,7 @@ export interface FileRoutesByFullPath {
+ }
+ export interface FileRoutesByTo {
+   '/$threadId': typeof ChatThreadIdRoute
++  '/a2a': typeof ChatA2aRoute
+   '/inbox': typeof ChatInboxRoute
+   '/plugins': typeof ChatPluginsRoute
+   '/settings': typeof ChatSettingsRoute
+@@ -151,6 +159,7 @@ export interface FileRoutesById {
+   __root__: typeof rootRouteImport
+   '/_chat': typeof ChatRouteWithChildren
+   '/_chat/$threadId': typeof ChatThreadIdRoute
++  '/_chat/a2a': typeof ChatA2aRoute
+   '/_chat/automations': typeof ChatAutomationsRouteWithChildren
+   '/_chat/inbox': typeof ChatInboxRoute
+   '/_chat/plugins': typeof ChatPluginsRoute
+@@ -172,6 +181,7 @@ export interface FileRouteTypes {
+   fullPaths:
+     | '/'
+     | '/$threadId'
++    | '/a2a'
+     | '/automations'
+     | '/inbox'
+     | '/plugins'
+@@ -189,6 +199,7 @@ export interface FileRouteTypes {
+   fileRoutesByTo: FileRoutesByTo
+   to:
+     | '/$threadId'
++    | '/a2a'
+     | '/inbox'
+     | '/plugins'
+     | '/settings'
+@@ -206,6 +217,7 @@ export interface FileRouteTypes {
+     | '__root__'
+     | '/_chat'
+     | '/_chat/$threadId'
++    | '/_chat/a2a'
+     | '/_chat/automations'
+     | '/_chat/inbox'
+     | '/_chat/plugins'
+@@ -278,6 +290,13 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof ChatAutomationsRouteImport
+       parentRoute: typeof ChatRoute
+     }
++    '/_chat/a2a': {
++      id: '/_chat/a2a'
++      path: '/a2a'
++      fullPath: '/a2a'
++      preLoaderRoute: typeof ChatA2aRouteImport
++      parentRoute: typeof ChatRoute
++    }
+     '/_chat/$threadId': {
+       id: '/_chat/$threadId'
+       path: '/$threadId'
+@@ -378,6 +397,7 @@ const ChatPullRequestsRouteWithChildren =
+ 
+ interface ChatRouteChildren {
+   ChatThreadIdRoute: typeof ChatThreadIdRoute
++  ChatA2aRoute: typeof ChatA2aRoute
+   ChatAutomationsRoute: typeof ChatAutomationsRouteWithChildren
+   ChatInboxRoute: typeof ChatInboxRoute
+   ChatPluginsRoute: typeof ChatPluginsRoute
+@@ -394,6 +414,7 @@ interface ChatRouteChildren {
+ 
+ const ChatRouteChildren: ChatRouteChildren = {
+   ChatThreadIdRoute: ChatThreadIdRoute,
++  ChatA2aRoute: ChatA2aRoute,
+   ChatAutomationsRoute: ChatAutomationsRouteWithChildren,
+   ChatInboxRoute: ChatInboxRoute,
+   ChatPluginsRoute: ChatPluginsRoute,
+diff --git a/apps/web/src/routes/_chat.a2a.tsx b/apps/web/src/routes/_chat.a2a.tsx
+new file mode 100644
+index 000000000..071ced26a
+--- /dev/null
++++ b/apps/web/src/routes/_chat.a2a.tsx
+@@ -0,0 +1,4 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { TaskWindow } from "../a2a/TaskWindow";
++
++export const Route = createFileRoute("/_chat/a2a")({ component: TaskWindow });
+diff --git a/apps/web/src/routes/_chat.tsx b/apps/web/src/routes/_chat.tsx
+index c7a8822b3..2f592f3fb 100644
+--- a/apps/web/src/routes/_chat.tsx
++++ b/apps/web/src/routes/_chat.tsx
+@@ -1,8 +1,9 @@
+ import type { ResolvedKeybindingsConfig } from "@synara/contracts";
+ import { CHAT_SURFACE_HEADER_HEIGHT_PX } from "@synara/shared/desktopChrome";
+ import { useQuery } from "@tanstack/react-query";
+-import { Outlet, createFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
++import { Link, Outlet, createFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
+ import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
++import { Button } from "../components/ui/button";
+ 
+ import {
+   goBackInAppHistory,
+@@ -600,7 +601,19 @@ function ChatRouteLayout() {
+       transparentSurface
+       resizable={THREAD_SIDEBAR_RESIZABLE}
+     >
+-      <ThreadSidebar />
++      <div className="shrink-0 border-b border-border px-3 py-2">
++        <Button
++          variant="ghost"
++          size="sm"
++          className="w-full justify-start"
++          render={<Link to="/a2a" />}
++        >
++          任务窗口
++        </Button>
++      </div>
++      <div className="min-h-0 flex-1">
++        <ThreadSidebar />
++      </div>
+     </Sidebar>
+   );
+ 
+diff --git a/packages/a2a-gates/package.json b/packages/a2a-gates/package.json
+index 6e1e7fd6b..723ed1423 100644
+--- a/packages/a2a-gates/package.json
++++ b/packages/a2a-gates/package.json
+@@ -5,7 +5,8 @@
+   "license": "MIT",
+   "type": "module",
+   "exports": {
+-    ".": "./src/core.ts"
++    ".": "./src/core.ts",
++    "./membership": "./src/membership.ts"
+   },
+   "scripts": {
+     "typecheck": "node ../../node_modules/@typescript/native/bin/tsc --noEmit",
+diff --git a/packages/a2a-gates/src/membership.ts b/packages/a2a-gates/src/membership.ts
+new file mode 100644
+index 000000000..125fe65d8
+--- /dev/null
++++ b/packages/a2a-gates/src/membership.ts
+@@ -0,0 +1,59 @@
++import { mkdirSync } from "node:fs";
++import { join } from "node:path";
++import { DatabaseSync } from "node:sqlite";
++import type { A2ATaskMembership } from "@synara/contracts";
++
++export class MembershipRefusal extends Error {
++  constructor(readonly code: string) {
++    super(code);
++  }
++}
++
++/** Display grouping only. Gate state and attempt authority stay in A2AGates. */
++export class A2AMembership {
++  private readonly db: DatabaseSync;
++
++  constructor(root: string) {
++    mkdirSync(root, { recursive: true, mode: 0o700 });
++    this.db = new DatabaseSync(join(root, "membership.sqlite3"));
++    this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
++      CREATE TABLE IF NOT EXISTS memberships (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
++  }
++
++  close() {
++    this.db.close();
++  }
++
++  list(project?: string): ReadonlyArray<A2ATaskMembership> {
++    const tasks = this.db
++      .prepare("SELECT data FROM memberships ORDER BY id")
++      .all()
++      .map((row) => JSON.parse(String(row.data)) as A2ATaskMembership);
++    return project === undefined ? tasks : tasks.filter((task) => task.projectId === project);
++  }
++
++  save(input: A2ATaskMembership): A2ATaskMembership {
++    if (new Set(input.members.map((member) => member.threadId)).size !== input.members.length)
++      throw new MembershipRefusal("duplicate_member");
++    this.db.exec("BEGIN IMMEDIATE");
++    try {
++      const row = this.db.prepare("SELECT data FROM memberships WHERE id=?").get(input.taskId);
++      const current = row ? (JSON.parse(String(row.data)) as A2ATaskMembership) : null;
++      if ((current?.revision ?? 0) !== input.revision)
++        throw new MembershipRefusal("stale_revision");
++      if (current && current.projectId !== input.projectId)
++        throw new MembershipRefusal("task_project_mismatch");
++      const task = { ...input, revision: input.revision + 1 };
++      this.db
++        .prepare(
++          "INSERT INTO memberships(id,data) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
++        )
++        .run(task.taskId, JSON.stringify(task));
++      this.db.exec("COMMIT");
++      return task;
++    } catch (error) {
++      this.db.exec("ROLLBACK");
++      throw error;
++    }
++  }
++}
+diff --git a/packages/contracts/src/a2aMembership.ts b/packages/contracts/src/a2aMembership.ts
+new file mode 100644
+index 000000000..1bf7f4eb0
+--- /dev/null
++++ b/packages/contracts/src/a2aMembership.ts
+@@ -0,0 +1,26 @@
++import { Schema } from "effect";
++import { NonNegativeInt, ProjectId, ThreadId, TrimmedNonEmptyString } from "./baseSchemas";
++
++export const A2AMemberRole = Schema.Literals(["controller", "worker", "reviewer", "monitor"]);
++export type A2AMemberRole = typeof A2AMemberRole.Type;
++
++export const A2ATaskMembership = Schema.Struct({
++  taskId: TrimmedNonEmptyString.check(Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/)),
++  projectId: ProjectId,
++  title: TrimmedNonEmptyString.check(Schema.isMaxLength(240)),
++  revision: NonNegativeInt,
++  members: Schema.Array(Schema.Struct({ threadId: ThreadId, role: A2AMemberRole })),
++});
++export type A2ATaskMembership = typeof A2ATaskMembership.Type;
++
++export const A2AMembershipSaveRequest = Schema.Struct({
++  command: Schema.Literal("save"),
++  task: A2ATaskMembership,
++});
++
++export interface A2AMembershipResult {
++  ok: boolean;
++  tasks?: ReadonlyArray<A2ATaskMembership>;
++  task?: A2ATaskMembership;
++  error?: string;
++}
+diff --git a/packages/contracts/src/index.ts b/packages/contracts/src/index.ts
+index ea69a9c68..a8aef3369 100644
+--- a/packages/contracts/src/index.ts
++++ b/packages/contracts/src/index.ts
+@@ -53,3 +53,4 @@ export * from "./rpc";
+ export * from "./claudeCache";
+ export * from "./todo";
+ export * from "./a2aGates";
++export * from "./a2aMembership";

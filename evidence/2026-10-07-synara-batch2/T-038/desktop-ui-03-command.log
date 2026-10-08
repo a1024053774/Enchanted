@@ -1,0 +1,26 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038
+130 |     const closing = app.close();
+131 |     const settled = await Promise.race([closing.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), 15000))]);
+132 |     if (!settled) app.process().kill("SIGKILL");
+133 |   }
+134 | }
+135 | if (failure) throw new Error(failure);
+                             ^
+error: Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('main', { name: '任务窗口', exact: true }).getByRole('heading', { name: '分页交付', exact: true })
+Expected: visible
+Timeout: 45000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "to.be.visible" with timeout 45000ms
+  - waiting for getByRole('main', { name: '任务窗口', exact: true }).getByRole('heading', { name: '分页交付', exact: true })
+
+    at captureRawStack (/Users/luckye/Documents/Code/synara-t038/node_modules/.bun/playwright-core@1.62.1/node_modules/playwright-core/lib/coreBundle.js:9681:21)
+    at callMatcherAsStep (/Users/luckye/Documents/Code/synara-t038/node_modules/.bun/playwright@1.62.1/node_modules/playwright/lib/matchers/expect.js:13310:57)
+    at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/desktop-ui.mjs:94:74
+    at processTicksAndRejections (native:7:39)
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/desktop-ui.mjs:135:24
+
+Bun v1.4.2 (macOS arm64)

@@ -1,0 +1,38 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038
+$ vitest run --passWithNoTests src/cuaDriverHost.test.ts -t "stays fail-closed when the crash cleanup is unconfirmed"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara-t038/apps/desktop
+
+stdout | src/cuaDriverHost.test.ts > physical Escape interrupt > stays fail-closed when the crash cleanup is unconfirmed, with no Escape latch involved
+[desktop-cua] {"event":"computer_action","ts":"2026-10-08T05:51:02.355Z","tool":"type_text","layer":"driver-host","effect":"not-dispatched","failed":true,"ms":1562}
+
+ ❯ src/cuaDriverHost.test.ts (150 tests | 1 failed | 149 skipped) 1619ms
+     × stays fail-closed when the crash cleanup is unconfirmed, with no Escape latch involved 1618ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/cuaDriverHost.test.ts > physical Escape interrupt > stays fail-closed when the crash cleanup is unconfirmed, with no Escape latch involved
+AssertionError: promise rejected "Error: Computer request timed out; do not… { effect: '…' }" instead of resolving
+ ❯ src/cuaDriverHost.test.ts:2491:6
+    2489|         { timeoutMs: 1_000, mutation: true },
+    2490|       ),
+    2491|     ).resolves.toMatchObject({ ok: false });
+       |      ^
+    2492|     // The driver died mid-input and nothing confirmed the OS-level re…
+    2493|     // the generation stays referenced, and the interrupt cannot reope…
+
+Caused by: Error: Computer request timed out; do not replay an uncertain action.
+ ❯ fail ../../packages/shared/src/cuaDriverProtocol.ts:284:9
+ ❯ Timeout.<anonymous> ../../packages/shared/src/cuaDriverProtocol.ts:294:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { effect: 'dispatched-unknown' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 149 skipped (150)
+   Start at  01:50:59
+   Duration  2.79s (transform 598ms, setup 0ms, import 659ms, tests 1.62s, environment 0ms)
+
+error: script "test" exited with code 1

@@ -1,0 +1,22 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038
+60 |   writeFileSync(join(root, label + ".json"), JSON.stringify({ argv: process.argv.slice(1), fixture: true,
+61 |     claim: "T-037 protocol fixture only; no real human-input producer or model turn", fixtureEvents,
+62 |     requests, before, after, failure, text: await page.locator("body").innerText() }, null, 2) + "\n", "utf8");
+63 |   await browser.close();
+64 | }
+65 | if (failure) throw new Error(failure);
+                            ^
+error: Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('region', { name: 'worker agent 会话', exact: true }).getByText('人工介入协议夹具：历史 worker 输入；未执行 turn', { exact: true })
+Expected: visible
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "to.be.visible" with timeout 5000ms
+  - waiting for getByRole('region', { name: 'worker agent 会话', exact: true }).getByText('人工介入协议夹具：历史 worker 输入；未执行 turn', { exact: true })
+
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/human-gui-probe.mjs:65:24
+
+Bun v1.4.2 (macOS arm64)

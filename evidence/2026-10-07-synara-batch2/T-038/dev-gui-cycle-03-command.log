@@ -1,0 +1,23 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038
+143 |     const settled = await Promise.race([closing.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), 15000))]);
+144 |     if (!settled) app.process().kill("SIGKILL");
+145 |   }
+146 |   if (browser) await browser.close();
+147 | }
+148 | if (failure) throw new Error(failure);
+                             ^
+error: Error: Command failed: python3 /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/gate-step.py submit-bad /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/fixture.json submit-bad
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/gate-step.py", line 61, in <module>
+    attempt = candidate["attempt"]
+KeyError: 'attempt'
+
+    at genericNodeError (node:child_process:1081:22)
+    at exitHandler (node:child_process:115:28)
+    at emit (node:events:124:23)
+    at #maybeClose (node:child_process:827:16)
+    at #handleOnExit (node:child_process:570:72)
+    at processTicksAndRejections (native:7:39)
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/desktop-ui.mjs:148:24
+
+Bun v1.4.2 (macOS arm64)

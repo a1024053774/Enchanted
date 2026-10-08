@@ -1,0 +1,19 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038
+42 |   writeFileSync(path, JSON.stringify(input, null, 2) + "\n", "utf8");
+43 |   await command(["./a2a/scripts/bun", join(root, "native-rpc.mjs"), name, endpoint, path], { A2A_GATE_BEARER: token });
+44 | }
+45 | async function screenshot(name) {
+46 |   const path = join(root, name + ".png"); if (existsSync(path)) throw new Error("Screenshot already exists");
+47 |   await page.screenshot({ path, fullPage: true });
+                  ^
+error: screenshot: Protocol error (Page.captureScreenshot): Cannot take screenshot with 0 width.
+Call log:
+[2m  - taking page screenshot[22m
+[2m  - waiting for fonts to load...[22m
+[2m  - fonts loaded[22m
+
+  log: [ "  - taking page screenshot", "  - waiting for fonts to load...", "  - fonts loaded" ],
+
+      at screenshot (/Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/desktop-ui.mjs:47:14)
+
+Bun v1.4.2 (macOS arm64)

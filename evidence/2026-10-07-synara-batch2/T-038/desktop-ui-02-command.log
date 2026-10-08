@@ -1,0 +1,17 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t038
+118 |   steps.push({ fixture: true, kind: "observer failure display only", input: fixtureObserver, expected: "real task stays verified; integrate button disabled; not a real listener failure" });
+119 |   await page.unroute("**/api/a2a*", observerHandler);
+120 |   await expect(page.getByText("人工输入记录器：未安装", { exact: true })).toBeVisible({ timeout: 15000 });
+121 |   await gate("integrate-good"); await expectState("accepted"); await screenshot("desktop-accepted");
+122 | } catch (error) {
+123 |   failure = clean(error.stack ?? error);
+                             ^
+error: click: Timeout 45000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: 'Not now', exact: true })[22m
+
+    at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/desktop-ui.mjs:83:68
+    at processTicksAndRejections (native:7:39)
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-038/desktop-ui.mjs:123:24
+
+Bun v1.4.2 (macOS arm64)
