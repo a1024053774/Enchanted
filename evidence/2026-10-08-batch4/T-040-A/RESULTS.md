@@ -1,6 +1,6 @@
 # T-040 A 交付记录（2026-10-08）
 
-**INCOMPLETE：实现与指定复验已完成，等待一次 fresh-context 只读独立审查。T-040 整体保持 open。** 本记录只覆盖 A 部分的旧运行路径删除、验收迁移和 README；不宣布工作台启动器、真实模型或首次日常派发完成。未 push，未修改 fork、用户 Codex 配置、Herdr 或共享构建输出。
+**INCOMPLETE：删除与验收迁移已完成；独立审查 FAIL，恢复时限验收为 NO_GO，需要主控决定。T-040 整体保持 open。** 冻结代码候选 `1279adb73c06308fc71eebf35002628730f320d5`。本记录只覆盖 A 部分的旧运行路径删除、验收迁移和 README；不宣布工作台启动器、真实模型或首次日常派发完成。未 push，未修改 fork、用户 Codex 配置、Herdr 或共享构建输出。
 
 ## 删除与验收迁移
 
@@ -52,3 +52,7 @@ baseline 是删除前使用的原生验收版本：交付 helper 不含业务改
 README 已改为原生本地 CLI、服务端 HTTP/MCP 用法与新验收命令。`git diff --check` 通过，保存后的中文文档按 UTF-8、无 BOM、LF 回读；不改历史记录。
 
 项目地图开始为 0 problems / 0 stale。删除后 `CONTEXT.md` 因其覆盖的 `coop.py` 被删除而 stale；简报明确由主控更新 AGENTS.md、CONTEXT.md 和地图，worker 不越过写入归属。该治理更新及 B 部分、首次日常派发仍是主控待办，不将全局地图状态写为 PASS。T-040 只在 Resolution 追加 A 部分交付，不关闭 ticket。
+
+唯一一次 fresh-context 只读独立审查由 `/root/t040a_acceptance_review` 完成，未继承实现对话；最终报告原样保存为 [独立审查](独立审查.md)。它确认删除清单、归档、原生副本保真与真实 Git/SQLite 证据，同时报告 P1：首轮两个并发 CLI 在 2 秒后仍存活并被夹具终止。同源重跑通过不能解释或排除该业务红态，因此不能无条件接受 A 的恢复验收。
+
+**主控决定点**：保留两轮完整现场，定位超时发生在入口启动、锁拒绝还是其他边界；依据实际证据决定必要修正与真实入口复验。worker 不自行扩大到 fork 修复，也不放宽断言。独立审查后仅补交付文档和 ticket Resolution，冻结源码未再改变；不再请求第二次 reviewer 替失败结论背书。
