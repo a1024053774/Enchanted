@@ -1,0 +1,12 @@
+const {spawn}=require('node:child_process');
+const fs=require('node:fs');
+const path=require('node:path');
+const out=__dirname;
+const base='/Volumes/WD-Elements/dev-cache/synara/instances/t042-verify-recovery-01';
+const executable='/Volumes/WD-Elements/dev-cache/synara/instances/t038/tools/electron-43.4.1/Electron.app/Contents/MacOS/Electron';
+const args=['/Users/luckye/Documents/Code/synara/apps/desktop/dist-electron/main.js'];
+const env={...process.env,SYNARA_HOME:base+'/desktop-home',SYNARA_DESKTOP_SMOKE_USER_DATA:base+'/profile',SYNARA_DESKTOP_FLAVOR:'cua',SYNARA_SOURCE_DESKTOP_BUILD_MARKER:'synara-source-desktop-build-v2',SYNARA_DISABLE_AUTO_UPDATE:'1',VITE_DEV_SERVER_URL:'http://localhost:7771/'};
+const fd=fs.openSync(path.join(out,'electron.log'),'wx');
+const child=spawn(executable,args,{cwd:'/Users/luckye/Documents/Code/synara/apps/desktop',env,detached:true,stdio:['ignore',fd,fd]});
+fs.writeFileSync(path.join(out,'electron-start.json'),JSON.stringify({executable,args,cwd:'/Users/luckye/Documents/Code/synara/apps/desktop',pid:child.pid,pgid:child.pid,env:Object.fromEntries(Object.entries(env).filter(([k])=>/^(SYNARA_|VITE_|HOME$|CODEX_HOME|CLAUDE_CONFIG|XDG_)/.test(k)))},null,2)+'\n');
+child.unref();
