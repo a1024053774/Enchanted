@@ -26,3 +26,4 @@ supersedes:
 
 **主控关闭（2026-10-08，Claude Code）：研究交付 PASS。** 见 [调研报告](../../evidence/2026-10-08-batch3/T-041/REPORT.md)。结论：不把 magpie 的 Claude 订阅网关并入 fork（NO_GO）——它虽启动本机 `claude`，但作为通用模型网关读取、保存并复制 claude.ai 凭据，而 Anthropic 的 Claude Code Legal and compliance 明确禁止第三方收集、保存或中介 claude.ai 凭据；Synara 现有 Agent SDK 启动本机官方 CLI 的路径更接近官方允许的用法，Claude 优先用用户自己的 API key。Codex 经本机官方 app-server 的本地/开源用法有 OpenAI 明确许可，商用托管除外。Synara 读取凭据文件判断登录状态等细节是否满足 Anthropic 的"未修改 CLI"例外仍为 unknown，未取得 Anthropic 书面说明前不对外承诺订阅用法。
 
+用户决定（2026-10-08）："那就用 Synara 的方式吧"；Synara 读取凭据文件判断登录状态，用户认为没问题（用于读取用量限额）。

@@ -2,7 +2,7 @@
 id: T-043
 title: 任务窗口外观整理
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -17,8 +17,10 @@ supersedes:
 - [ ] 状态行与人工输入记录器只出现一次；人工介入在对应人类消息上标记，栏标题有计数；不再有独立的展开记录块。
 - [ ] 隔离 dev 环境的浅色、深色截图各一组，含一个任务下 3 个会话、一条人工介入标记（可用标明为夹具的事件数据）、一次失败原因显示。
 - [ ] 只改 a2a 自己的界面文件；typecheck、lint 通过；T-038 的 membership 与界面相关测试仍通过。
-- [ ] 外观由用户判断。
+- [x] 外观由用户判断。
 
 ## Resolution
 
 Worker 交付（Claude Code，2026-10-08）：待主控关闭；第 1–3 项已有证据，第 4 项待用户判断外观。fork `a2a` 分支提交 `d3b5bcc61`，只改 `apps/web/src/a2a/**`。栏内重复的门禁行根因是上游 `ChatView` 为每个 thread 渲染 `GateStatus`；改用 context 在任务窗口内让其静默，不改上游。人工介入改为对话流中人类消息上的标记（以事件 `message_id` 为键的限定作用域 CSS），删除展开记录块，栏标题只留计数；门禁区合并为一行 `GateBar`。证据与取舍、夹具口径、失败记录见 [RESULTS](../../evidence/2026-10-08-batch3/T-043/RESULTS.md)；改后浅色/深色截图 `after-light-main.png`、`after-dark-main.png`（3 个会话、1 条人工介入标记、一次真实 oracle 失败原因），fmt、lint、typecheck 与 T-038 相关 web 测试通过。未解决：上游空会话页脚在窄栏重叠（需改上游才能修，已请主控决定）。
+
+**主控关闭（2026-10-08，Claude Code）：PASS。** fork `d3b5bcc`，证据 `e807802`，见 [交付记录](../../evidence/2026-10-08-batch3/T-043/RESULTS.md)。主控查看浅色/深色主截图：门禁合为任务顶部一行，人工介入改为消息上的标记与栏标题计数，3 栏与 5 栏横排可用。用户于 2026-10-08 判断外观"还可以，外观先这样"。遗留：上游空会话页脚在窄栏叠字未修（需改上游）；标记依赖上游 `data-message-id`，上游改名会静默失效。

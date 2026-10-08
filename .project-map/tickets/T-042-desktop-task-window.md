@@ -2,7 +2,7 @@
 id: T-042
 title: 合并任务窗口并在隔离桌面版中复验
 type: build
-status: open
+status: closed
 blocked_by: [T-038, T-039]
 claimed_by:
 supersedes:
@@ -17,7 +17,7 @@ T-039 交接后，主控把 fork 分支 `a2a-t038`（`ad13b72`）合并进 `a2a`
 - [x] 合并后的 `a2a` 上，typecheck、lint 通过；T-036/T-037 的 35 项与 T-038 的 membership 场景重跑通过。
 - [x] 隔离桌面版截图或录屏：一个项目下至少两个任务，其中一个任务含 worker 与 reviewer 两个会话，并显示门禁状态。
 - [x] 真实（非夹具）observer 状态与人工介入标记在界面上显示：受管 worker thread 中由人输入一条消息后，任务窗口出现对应标记。
-- [ ] 外观由用户判断。
+- [x] 外观由用户判断。
 
 ## Resolution
 
@@ -27,3 +27,4 @@ T-039 交接后，主控把 fork 分支 `a2a-t038`（`ad13b72`）合并进 `a2a`
 
 主控记录（2026-10-08）：第 3 项 PASS（用户批准方案 A：隔离环境启用 Codex，至多 2 次短 turn），见 [人工介入复验](../../evidence/2026-10-07-synara-batch2/T-042/intervention/RESULTS.md)。受管 worker 中的人工消息产生 1 条 `human_intervention` 事件（thread、message、dispatch_origin=user 与原生消息一致），任务窗口显示"人工介入 · 1"与展开记录，task 保持 claimed 未推进；非受管会话消息实际发出后门禁事件仍为 21 条。observer 真实显示 healthy。共 2 次真实 turn，隔离 home 已删除，用户配置与 Herdr status 前后一致；主控已查看截图 `03-managed-expanded.jpg` 并核对事件文件。第 4 项待用户判断外观。
 
+**主控关闭（2026-10-08，Claude Code）：PASS。** 第 4 项：用户审阅后提出的重复状态行与人工介入块外观问题由 [T-043](T-043-task-window-polish.md) 处理，用户于 2026-10-08 认可整理后的外观。
