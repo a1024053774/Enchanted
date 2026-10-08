@@ -2,7 +2,7 @@
 id: T-039
 title: 真实 Codex 闭环
 type: build
-status: open
+status: closed
 blocked_by: [T-037]
 claimed_by: s2-t039
 supersedes:
@@ -50,3 +50,5 @@ supersedes:
 - 第二项为 INCOMPLETE：隔离配置、六个 overlay 链接、固定 CLI argv 与清理检查证明 home 删除及本次隔离边界；未操作用户 Herdr，不连接用户 Synara 实例，用户 auth.json 仅按授权复制。但没有用户数据的独立前后快照/审计，不能勾选整个条件。独立审查判 FAIL，审查时原稿保存在 review-frozen-docs；此后仅更正文档结论，产品与原始证据未变。
 
 命令、版本、身份、原始输出与最小修复选项见 [交付报告](../../evidence/2026-10-07-synara-batch2/T-039/RESULTS.md)。入口结果：[run-01](../../evidence/2026-10-07-synara-batch2/T-039/run-01.json)、[回收拒绝](../../evidence/2026-10-07-synara-batch2/T-039/reclaim-01.json)、[清理](../../evidence/2026-10-07-synara-batch2/T-039/cleanup.json)。冻结范围见 [frozen-manifest](../../evidence/2026-10-07-synara-batch2/T-039/frozen-manifest.json)，fresh-context 只读独立审查见 [acceptance-review](../../evidence/2026-10-07-synara-batch2/T-039/acceptance-review.md)。a2a 本地提交号以最终 `T-039 DONE` 回执为准。
+
+**主控关闭（2026-10-08，Claude Code）：PASS。** fork 候选 `8aba12a`（父版 `fc9e36c`），证据 `f18db2f`，见 [最终记录](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/FINAL-RESULTS.md) 与 [独立审查](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/acceptance-review-final.md)。主控核对：原自动 run 本身 exit 0、outcome=completed、reclaimed=true，未手工补回收；真实 Codex 一个 turn 经 `a2a_submit` 交付，独立 oracle 12/12，CAS 读回等于 worker 提交；隔离 home 已删除，用户配置、Synara 顶层元数据与 Herdr status 前后一致。两次 BLOCKED（turn 未投影误判冲突、interrupted 不可回收）与一次自动回收失败均保留；根因是门禁拼接了两个时刻的 provider 与 SQLite 投影状态，最终改为复用 Synara 已有的 ingestion/command drain 与 snapshot 已处理序号作屏障，上游只改 `serverLayers.ts` 一处注册，并用 Layer.fresh mutant 证明 ingestion/command reactor 为单一实例。遗留：全仓 test 仍 NO_GO（desktop 3 失败，短路径下单跑 67/67 通过，疑为长 tmp 路径 EINVAL 与超时），记入地图 fog；模型进程的 OS argv 未捕获，tier 只证明配置。
