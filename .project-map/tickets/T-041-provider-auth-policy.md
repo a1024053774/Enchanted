@@ -4,7 +4,7 @@ title: 各 provider 登录方式的条款核实
 type: research
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Codex worker T-041 (2026-10-08)
 supersedes:
 ---
 
@@ -15,3 +15,11 @@ supersedes:
 2026-10-08 用户补充：研究 [yetone/magpie](https://github.com/yetone/magpie) 如何接入 Claude，判断它是否比 Synara 现有做法（Claude Agent SDK 启动本机官方 `claude` CLI，`apps/server/src/provider/Layers/ClaudeAdapter.ts`）更合理、能否降低封号风险。要回答：magpie 的实际调用链（是否启动官方 CLI、是否转发或改写请求、凭据如何使用）；与 Anthropic 条款的关系；与 Synara 现有链路的差异；是否值得在 fork 中采用，以及最小接入方式。只做调查，不安装或运行带凭据的 magpie，不改代码。
 
 ## Resolution
+
+2026-10-08 worker 研究交付 **PASS，待主控关闭**。保持 `status: open`；本结论不替代独立主控验收或 provider 的发布许可。
+
+- 中文报告：[T-041/REPORT.md](../../evidence/2026-10-08-batch3/T-041/REPORT.md)；固定源码摘录、版本/技能来源和交付检查均在同目录。
+- magpie 在外置盘浅克隆，固定为 `de3b1c646afb156b6b35c1dd7a13b5c11187421b`。订阅推理经本机 Claude CLI、stream-json 和 MCP；它还读取、保存和复制订阅凭据。未安装、运行或读取用户凭据。
+- 对照 Synara `3566ef4eb34b18c480c7a49e4b5d741681b72426` 的 SDK/CLI、app-server、ACP、OpenCode 及账号环境，建议不移入 magpie 的 Claude 订阅网关（**NO_GO**）；没有封号概率改善证据。
+- 初步检索需细化：OpenAI 明确允许现有本地/开源 app-server 认证，商用/托管排除的是该认证方式；Anthropic 有未修改官方 CLI 的有条件路径，不能简化成所有第三方使用一律禁止，也不能凭启动官方 CLI 宣称 Synara 满足例外。
+- 事实门 **INCOMPLETE**：Synara 的 Claude SDK 包装/登录及凭据读取边界、Antigravity 普通条款的第三方访问限制、其余 provider 的实际计划/插件/商业合同仍需主控核实。官方链接、核实日、生效/更新日与 unknown 均见报告。无代码修改或外部发布。

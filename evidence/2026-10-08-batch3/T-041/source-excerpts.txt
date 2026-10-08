@@ -1,0 +1,2118 @@
+T-041：按固定 Git 提交保存的只读源码摘录。仅包含受控源码，不包含用户凭据。
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b LICENSE
+MIT License
+
+Copyright (c) 2026 yetone
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 LICENSE
+MIT License
+
+Copyright (c) 2026 T3 Tools Inc.
+Copyright (c) 2026 Emanuele Di Pietro
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/gateway/gateway.go
+--- 原文件 41–47 行 ---
+   41	// DefaultAddr is where the gateway listens unless Settings' port or
+   42	// MAGPIE_ADDR says otherwise.
+   43	const DefaultAddr = "127.0.0.1:3425"
+   44	
+   45	// Token is the bearer token agents are told to use. The gateway only
+   46	// listens on loopback and accepts anything, but agents insist on one.
+   47	const Token = "magpie"
+--- 原文件 500–515 行 ---
+  500		mux.HandleFunc("POST "+provider.RemoteRefreshPath, s.quotaCardsRefresh)
+  501		mux.HandleFunc("GET /v1/magpie/route", s.sessionRoute)
+  502		mux.HandleFunc("GET /v1/magpie/concurrency", s.concurrency)
+  503		mux.HandleFunc("GET /v1/magpie/limit", s.keyLimit)
+  504		mux.HandleFunc("GET /v1/magpie/omarchy", s.omarchyTheme)
+  505		mux.HandleFunc("OPTIONS /v1/magpie/omarchy", s.omarchyTheme)
+  506		mux.HandleFunc("POST /v1/chat/completions", s.handle(provider.Chat))
+  507		mux.HandleFunc("POST /chat/completions", s.handle(provider.Chat))
+  508		mux.HandleFunc("POST /v1/responses", s.handle(provider.Responses))
+  509		mux.HandleFunc("POST /responses", s.handle(provider.Responses))
+  510		mux.HandleFunc("GET /v1/responses", responsesOverHTTP)
+  511		mux.HandleFunc("GET /responses", responsesOverHTTP)
+  512		mux.HandleFunc("POST /v1/messages", keepsSignIn(s.handle(provider.Anthropic)))
+  513		mux.HandleFunc("POST /messages", keepsSignIn(s.handle(provider.Anthropic)))
+  514		mux.HandleFunc("POST /v1/systemone", s.serveSystemOne)
+  515		mux.HandleFunc("POST /v1/messages/count_tokens", keepsSignIn(s.countTokens))
+--- 原文件 2502–2508 行 ---
+ 2502		// A Claude Code subscription must run through the genuine binary. Direct
+ 2503		// OAuth HTTP requests are content-classified as third-party traffic when
+ 2504		// they carry another agent's harness (Pi, OpenCode, and others).
+ 2505		if p.Account != nil && p.Account.Agent == "claude" {
+ 2506			call.To = provider.Anthropic
+ 2507			return s.serveClaudeSubscription(w, r, from, p, model, body, &call.Usage)
+ 2508		}
+--- 原文件 2747–2780 行 ---
+ 2747		req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.Base(to)+path, bytes.NewReader(body))
+ 2748		if err != nil {
+ 2749			return nil, err
+ 2750		}
+ 2751		req.Header.Set("Content-Type", "application/json")
+ 2752		req.Header.Set("Accept", "application/json, text/event-stream")
+ 2753		req.Header.Set("User-Agent", "magpie/"+Version)
+ 2754		if to == provider.Anthropic {
+ 2755			req.Header.Set("anthropic-version", "2023-06-01")
+ 2756			for _, h := range []string{"anthropic-version", "anthropic-beta"} {
+ 2757				if v := in.Get(h); v != "" {
+ 2758					req.Header.Set(h, v)
+ 2759				}
+ 2760			}
+ 2761			if p.Account == nil && fromClaudeCode(in) {
+ 2762				// a relay that serves only Claude Code (#179: "only accessible
+ 2763				// via the official Claude CLI") knows it by its own headers,
+ 2764				// which go on as it sent them; its key to magpie never does
+ 2765				for k, vs := range in {
+ 2766					if claudeCodeHeader(k) {
+ 2767						req.Header[k] = slices.Clone(vs)
+ 2768					}
+ 2769				}
+ 2770			}
+ 2771			asked := askedBetas(in)
+ 2772			if gjson.GetBytes(body, "speed").String() == "fast" && provider.HostOf(p.Base(to)) == "api.anthropic.com" {
+ 2773				asked = append(slices.Clone(asked), claudeFastBeta) // a group's member sent fast
+ 2774			}
+ 2775			if bs := s.betas(p, asked); len(bs) > 0 {
+ 2776				req.Header.Set("anthropic-beta", strings.Join(bs, ","))
+ 2777			} else {
+ 2778				req.Header.Del("anthropic-beta")
+ 2779			}
+ 2780		}
+--- 原文件 2842–2862 行 ---
+ 2842	// fromClaudeCode is a request Claude Code sent, by the User-Agent it gives
+ 2843	// (claude-cli/2.1.0 (external, cli)).
+ 2844	func fromClaudeCode(in http.Header) bool {
+ 2845		return strings.HasPrefix(in.Get("User-Agent"), "claude-cli/")
+ 2846	}
+ 2847	
+ 2848	// claudeCodeHeader is one of the headers Claude Code tells itself by: its
+ 2849	// User-Agent, x-app, the anthropic- ones, its SDK's X-Stainless- ones and
+ 2850	// its x-claude-code- ones. Never the key it was given.
+ 2851	func claudeCodeHeader(k string) bool {
+ 2852		k = strings.ToLower(k)
+ 2853		if k == "user-agent" || k == "x-app" {
+ 2854			return true
+ 2855		}
+ 2856		for _, p := range []string{"anthropic-", "x-stainless-", "x-claude-code-"} {
+ 2857			if strings.HasPrefix(k, p) {
+ 2858				return true
+ 2859			}
+ 2860		}
+ 2861		return false
+ 2862	}
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/gateway/claude_subscription.go
+--- 原文件 421–443 行 ---
+  421	// claudeCLI is the Claude Code magpie runs: this machine's, or, on Windows
+  422	// without one, the one installed in a running WSL distro, run there with
+  423	// its own login and quota (wslrun).
+  424	type claudeCLI struct {
+  425		path string
+  426		wsl  *wslrun.Tool
+  427	}
+  428	
+  429	func claudeBinary() (claudeCLI, error) {
+  430		if p := proc.FindTool("claude"); p != "" {
+  431			return claudeCLI{path: p}, nil
+  432		}
+  433		if t, ok := wslrun.Find("claude"); ok {
+  434			return claudeCLI{wsl: &t}, nil
+  435		}
+  436		return claudeCLI{}, errors.New("Claude Code is not installed; install it and run `claude auth login`")
+  437	}
+  438	
+  439	func (c claudeCLI) command(ctx context.Context, args ...string) *exec.Cmd {
+  440		if c.wsl != nil {
+  441			return c.wsl.Command(ctx, args...)
+  442		}
+  443		return proc.CommandContext(ctx, c.path, args...)
+--- 原文件 509–528 行 ---
+  509		tools := bridgeTools(req)
+  510		toolsPath := filepath.Join(tmp, "tools.json")
+  511		toolBytes, _ := json.Marshal(tools)
+  512		if err := os.WriteFile(toolsPath, toolBytes, 0o600); err != nil {
+  513			cleanup()
+  514			return nil, nil, err
+  515		}
+  516	
+  517		token := randomToken()
+  518		callback := callbackBaseURL() + "/_magpie/claude-mcp/" + token
+  519		mcpConfig, _ := json.Marshal(map[string]any{"mcpServers": map[string]any{
+  520			"magpie": map[string]any{"command": exe, "args": []string{"claude-mcp-helper", callback, toolsPath}},
+  521		}})
+  522		args := claudeCLIArgs(model, string(mcpConfig), req.Effort, req.WebSearch)
+  523		if req.ThinkOff {
+  524			// the client turned thinking off, as Claude Code's auto mode
+  525			// classifier and its small asks do: a run at Claude Code's own
+  526			// default thought before its 64-token verdict, thousands of output
+  527			// tokens a check on the subscription (0xAncientTwo)
+  528			args = append(args, "--thinking", "disabled")
+--- 原文件 554–563 行 ---
+  554		if from != nil {
+  555			args = append(args, "--resume", from.session)
+  556		}
+  557		cmd := binary.command(context.Background(), args...)
+  558		cmd.Dir = work
+  559		env := netproxy.EnvWith(claudeProxy(ctx), cleanClaudeEnv(os.Environ()))
+  560		if len(req.Safeguards) > 0 {
+  561			env = append(env, "ANTHROPIC_BETAS="+req.SafeguardBeta)
+  562		}
+  563		cmd.Env = binary.env(env, configDir)
+--- 原文件 618–648 行 ---
+  618		if len(req.Safeguards) > 0 {
+  619			// Initialize the SDK before applying settings. Send the potentially
+  620			// large context over stdin rather than an environment entry.
+  621			if err := run.cliControl(map[string]any{"subtype": "initialize"}); err != nil {
+  622				run.abort()
+  623				return nil, nil, err
+  624			}
+  625		}
+  626		if err := run.setSafeguards(req); err != nil {
+  627			run.abort()
+  628			return nil, nil, err
+  629		}
+  630		var prompt []map[string]any
+  631		if from != nil {
+  632			// the session is the run's now: its file goes when the run does,
+  633			// unless the run is shelved in turn
+  634			from.taken()
+  635			run.mu.Lock()
+  636			run.sessionID = from.session
+  637			run.mu.Unlock()
+  638			prompt = renderClaudeTurn(req.Messages[len(req.Messages)-len(from.since):], req.Tools)
+  639		} else if prompt, err = renderClaudePrompt(req); err != nil {
+  640			run.abort()
+  641			return nil, nil, err
+  642		}
+  643		line, _ := json.Marshal(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": prompt}})
+  644		if err := run.tell(line); err != nil {
+  645			run.abort()
+  646			return nil, nil, err
+  647		}
+  648		return run, segment, nil
+--- 原文件 1642–1709 行 ---
+ 1642	// claudeCLIArgs runs Claude Code with none of its own tools but, when the
+ 1643	// client offered a web search (Claude Code's own WebSearch tool asks for
+ 1644	// Anthropic's), its WebSearch, which searches as the subscription does.
+ 1645	func claudeCLIArgs(model, mcpConfig, effort string, web bool) []string {
+ 1646		own := ""
+ 1647		if web {
+ 1648			own = "WebSearch"
+ 1649		}
+ 1650		args := []string{
+ 1651			"-p", "--output-format", "stream-json", "--input-format", "stream-json",
+ 1652			"--include-partial-messages", "--verbose", "--model", model,
+ 1653			"--tools", own, "--strict-mcp-config", "--mcp-config", mcpConfig,
+ 1654			"--setting-sources", "", "--dangerously-skip-permissions",
+ 1655			// the run's history lives in the process; start keeps it on disk
+ 1656			// where a turn after the run is let go can go on with it
+ 1657			// (savedSession), in the folder all runs share
+ 1658			"--no-session-persistence",
+ 1659		}
+ 1660		if effort != "" {
+ 1661			// Claude Code takes xhigh as its own level, below max (#385)
+ 1662			args = append(args, "--effort", effort, "--thinking-display", "summarized")
+ 1663		}
+ 1664		return args
+ 1665	}
+ 1666	
+ 1667	// inClaudeDir is env for a Claude Code run on a saved account in use beside
+ 1668	// the one it is signed in to: in the account's config directory
+ 1669	// (provider's claude_dirs.go), where Claude Code keeps the sign-in fresh
+ 1670	// itself. configDir "" is the account Claude Code is signed in to, and env
+ 1671	// is kept as it is.
+ 1672	func inClaudeDir(env []string, configDir string) []string {
+ 1673		if configDir == "" {
+ 1674			return env
+ 1675		}
+ 1676		out := make([]string, 0, len(env)+1)
+ 1677		for _, e := range env {
+ 1678			switch k, _, _ := strings.Cut(e, "="); k {
+ 1679			case "CLAUDE_CONFIG_DIR", "CLAUDE_SECURESTORAGE_CONFIG_DIR":
+ 1680				continue
+ 1681			}
+ 1682			out = append(out, e)
+ 1683		}
+ 1684		return append(out, "CLAUDE_CONFIG_DIR="+configDir)
+ 1685	}
+ 1686	
+ 1687	func cleanClaudeEnv(env []string) []string {
+ 1688		blocked := map[string]bool{
+ 1689			"ANTHROPIC_BASE_URL": true, "ANTHROPIC_API_KEY": true, "ANTHROPIC_AUTH_TOKEN": true,
+ 1690			"CLAUDECODE": true, "CLAUDE_CODE_ENTRYPOINT": true, "CLAUDE_CODE_SSE_PORT": true,
+ 1691			"CLAUDE_CODE_OAUTH_TOKEN": true, "CLAUDE_CODE_PROMPT_CACHE_TTL": true,
+ 1692			"CLAUDE_CODE_EXTRA_BODY": true, "ANTHROPIC_BETAS": true,
+ 1693		}
+ 1694		out := make([]string, 0, len(env)+3)
+ 1695		for _, e := range env {
+ 1696			k, _, _ := strings.Cut(e, "=")
+ 1697			if !blocked[k] {
+ 1698				out = append(out, e)
+ 1699			}
+ 1700		}
+ 1701		// no auto memory: every run works in one folder (claudeWorkDir), so a
+ 1702		// memory one conversation's caller wrote there would be in the system
+ 1703		// prompt of all the account's others, and a change to it would undo
+ 1704		// the cache from there on
+ 1705		return append(out, "ENABLE_CLAUDEAI_MCP_SERVERS=0", "DISABLE_AUTO_COMPACT=1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", "CLAUDE_CODE_DISABLE_AUTO_MEMORY=1",
+ 1706			// an hour's cache, as Claude Code writes it on a subscription within
+ 1707			// its limits, always: the mark on the caller's instructions
+ 1708			// (renderClaudePrompt) is an hour's, which may not follow a 5m one
+ 1709			"CLAUDE_CODE_PROMPT_CACHE_TTL=1h")
+--- 原文件 2240–2274 行 ---
+ 2240	func renderClaudePrompt(req *Request) ([]map[string]any, error) {
+ 2241		var blocks []map[string]any
+ 2242		var text strings.Builder
+ 2243		if req.System != "" || req.ToolChoice == "required" || strings.HasPrefix(req.ToolChoice, "name:") {
+ 2244			text.WriteString("<external_system_instructions>\n")
+ 2245			text.WriteString(withoutBillingHeader(req.System))
+ 2246			switch {
+ 2247			case req.ToolChoice == "required":
+ 2248				text.WriteString("\nYou must call at least one available tool before answering.")
+ 2249			case strings.HasPrefix(req.ToolChoice, "name:"):
+ 2250				fmt.Fprintf(&text, "\nYou must call the %s tool.", bridgeName(strings.TrimPrefix(req.ToolChoice, "name:")))
+ 2251			}
+ 2252			text.WriteString("\n</external_system_instructions>\n\n")
+ 2253			// The caller's instructions are a block of their own, marked for the
+ 2254			// cache: Claude Code marks only the end of the message, so with them
+ 2255			// in one block with the conversation a request whose messages differ
+ 2256			// (the next item of a batch, a new conversation under the same
+ 2257			// instructions) found nothing cached past Claude Code's own prompt.
+ 2258			// The mark's TTL is the one Claude Code uses (claudeCacheTTL, pinned
+ 2259			// in cleanClaudeEnv): Anthropic refuses a 1h mark after a 5m one.
+ 2260			blocks = append(blocks, map[string]any{"type": "text", "text": text.String(), "cache_control": map[string]string{"type": "ephemeral", "ttl": "1h"}})
+ 2261			text.Reset()
+ 2262		}
+ 2263		offered := offeredTools(req.Tools)
+ 2264		for _, m := range req.Messages {
+ 2265			label := "Human"
+ 2266			if m.Role == "assistant" {
+ 2267				label = "Assistant"
+ 2268			}
+ 2269			text.WriteString(label + ": ")
+ 2270			blocks = renderParts(blocks, &text, m.Parts, offered)
+ 2271			text.WriteString("\n\n")
+ 2272		}
+ 2273		return closeBlocks(blocks, &text), nil
+ 2274	}
+--- 原文件 2296–2310 行 ---
+ 2296	// withoutBillingHeader is a system prompt without the billing line Claude
+ 2297	// Code puts first in its own (x-anthropic-billing-header: cc_version=…),
+ 2298	// whose last part is a hash of the request's first user message. Its auto
+ 2299	// mode classifier sends its policy, about 35k tokens, with the transcript
+ 2300	// so far as that message: kept, every check's instructions began with
+ 2301	// another line, so none was read from the cache and each check wrote all of
+ 2302	// it again at twice the input price, on the session's model (X, AncientTwo).
+ 2303	// The run's Claude Code sends its own.
+ 2304	func withoutBillingHeader(system string) string {
+ 2305		return billingHeader.ReplaceAllString(system, "")
+ 2306	}
+ 2307	
+ 2308	// billingHeader is the line with its fields (cc_version=…; cc_entrypoint=…;
+ 2309	// cch=…;), which the block after follows with no newline between.
+ 2310	var billingHeader = regexp.MustCompile(`^x-anthropic-billing-header:(\s*[A-Za-z_]+=[^;\s]*;)*\s*`)
+--- 原文件 3032–3065 行 ---
+ 3032	func (s *Server) serveClaudeSubscription(w http.ResponseWriter, r *http.Request, from provider.Protocol, p provider.Provider, model string, body []byte, usage *Usage) (int, string) {
+ 3033		owner := p.ID
+ 3034		if p.Account != nil {
+ 3035			owner += "\x00" + p.Account.User
+ 3036			if p.Account.AgentsOwn() {
+ 3037				// A process in the agent's home reads that home's current sign-in.
+ 3038				// A saved account must not resume it after the sign-in moves.
+ 3039				owner += "\x00" + ownHome
+ 3040			}
+ 3041		}
+ 3042		start := func(ctx context.Context, req *Request) (*subscriptionRun, <-chan Event, error) {
+ 3043			ctx = p.Via(ctx) // the account's own proxy, its CLI run's too
+ 3044			if run, events := s.subscription.resume(req, owner); run != nil {
+ 3045				return run, events, nil
+ 3046			}
+ 3047			// a run let go past idleMost left its session for this turn
+ 3048			from := s.subscription.unshelve(req, owner)
+ 3049			s.subscription.retire(owner, req.Messages)
+ 3050			if req.Effort == "" && autoModeClassifier(req) {
+ 3051				// Claude Code's auto mode classifier asks a verdict of a few
+ 3052				// words within a minute; a Claude Code run at its default
+ 3053				// effort can think past that (#250)
+ 3054				req.Effort = "low"
+ 3055			}
+ 3056			dir, _, err := p.Account.Token(ctx)
+ 3057			if err != nil {
+ 3058				if from != nil {
+ 3059					from.discard()
+ 3060				}
+ 3061				return nil, nil, err
+ 3062			}
+ 3063			return s.subscription.start(ctx, req, model, dir, owner, from)
+ 3064		}
+ 3065		return s.serveSubscription(w, r, from, "Claude Code", model, owner, body, usage, start)
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/claudebridge/mcp.go
+--- 原文件 1–4 行 ---
+    1	// Package claudebridge contains the small stdio MCP helper used by magpie's
+    2	// Claude Subscription bridge. The helper is launched by the genuine Claude
+    3	// Code binary; tool execution is handed back to the parent magpie process.
+    4	package claudebridge
+--- 原文件 53–68 行 ---
+   53	// RunMCP runs the hidden stdio MCP subprocess. args are callback URL and tools
+   54	// JSON path, or, for an agent whose MCP servers are set once for every run
+   55	// (Grok), MAGPIE_MCP_CALLBACK and MAGPIE_MCP_TOOLS in the environment it
+   56	// hands down. It intentionally implements only the MCP methods Claude Code needs.
+   57	func RunMCP(args []string) error {
+   58		if len(args) == 0 && os.Getenv("MAGPIE_MCP_CALLBACK") != "" {
+   59			args = []string{os.Getenv("MAGPIE_MCP_CALLBACK"), os.Getenv("MAGPIE_MCP_TOOLS")}
+   60		}
+   61		if len(args) != 2 {
+   62			return errors.New("claude MCP helper expects callback URL and tools file")
+   63		}
+   64		callbackURL, toolsPath := args[0], args[1]
+   65		b, err := os.ReadFile(toolsPath)
+   66		if err != nil {
+   67			return err
+   68		}
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/provider/account.go
+--- 原文件 332–360 行 ---
+  332	
+  333	type claudeAuth struct {
+  334		AccessToken      string   `json:"accessToken"`
+  335		RefreshToken     string   `json:"refreshToken"`
+  336		ExpiresAt        int64    `json:"expiresAt"` // milliseconds since the Unix epoch
+  337		RefreshExpiresAt int64    `json:"refreshTokenExpiresAt"`
+  338		Scopes           []string `json:"scopes"`
+  339		SubscriptionType string   `json:"subscriptionType"`
+  340		RateLimitTier    string   `json:"rateLimitTier"`
+  341	}
+  342	
+  343	// claudeCredentials keeps the whole credential blob in raw, so refreshing a
+  344	// token writes back everything else — MCP OAuth state included — untouched.
+  345	type claudeCredentials struct {
+  346		raw   map[string]any
+  347		OAuth claudeAuth
+  348	}
+  349	
+  350	func parseClaudeCredentials(b []byte) (claudeCredentials, bool) {
+  351		var raw map[string]any
+  352		if json.Unmarshal(b, &raw) != nil {
+  353			return claudeCredentials{}, false
+  354		}
+  355		c := claudeCredentials{raw: raw}
+  356		if o, ok := raw["claudeAiOauth"].(map[string]any); ok {
+  357			ob, _ := json.Marshal(o)
+  358			json.Unmarshal(ob, &c.OAuth)
+  359		}
+  360		return c, c.OAuth.AccessToken != ""
+--- 原文件 400–441 行 ---
+  400	// claudeCredentialsPath is Claude Code's credentials file, where it keeps
+  401	// its sign-in off the Mac's keychain.
+  402	func claudeCredentialsPath() string {
+  403		dir := appdir.Getenv("CLAUDE_CONFIG_DIR")
+  404		if dir == "" {
+  405			home, _ := os.UserHomeDir()
+  406			dir = filepath.Join(home, ".claude")
+  407		}
+  408		return filepath.Join(dir, ".credentials.json")
+  409	}
+  410	
+  411	func readClaudeCredential() (claudeCredentials, claudeCredentialLocation, bool) {
+  412		path := claudeCredentialsPath()
+  413		if b, err := os.ReadFile(path); err == nil {
+  414			if c, ok := parseClaudeCredentials(b); ok {
+  415				return c, claudeCredentialLocation{path: path}, true
+  416			}
+  417		}
+  418		if !claudeKeychain {
+  419			return claudeCredentials{}, claudeCredentialLocation{}, false
+  420		}
+  421		// Claude Code reads the item under its account ($USER); by service
+  422		// alone the keychain may hand back another one — left from an earlier
+  423		// sign-in — which isn't the sign-in in use
+  424		account := claudeKeychainAccount()
+  425		var c claudeCredentials
+  426		var ok, wasHex bool
+  427		for _, args := range [][]string{{"-a", account}, nil} {
+  428			out, err := proc.Command("security", append([]string{"find-generic-password", "-s", "Claude Code-credentials", "-w"}, args...)...).Output()
+  429			if err != nil {
+  430				continue
+  431			}
+  432			var b []byte
+  433			b, wasHex = keychainText(bytes.TrimSpace(out))
+  434			if c, ok = parseClaudeCredentials(b); ok {
+  435				break
+  436			}
+  437		}
+  438		if !ok {
+  439			return claudeCredentials{}, claudeCredentialLocation{}, false
+  440		}
+  441		loc := claudeCredentialLocation{keychain: true, account: account}
+--- 原文件 656–670 行 ---
+  656	// claudeProvider is the Claude Code provider of acct.
+  657	func claudeProvider(acct *Account) Provider {
+  658		// nothing is sent to Anthropic in Claude Code's name: a request on the
+  659		// account runs Claude Code itself (the gateway's bridge, a test), so
+  660		// one that would go straight to the API with its sign-in is refused
+  661		acct.sign = func(context.Context, *http.Request, []byte) error { return errClaudeViaCLI }
+  662		acct.models = func() []catalog.Model { return catalog.Provider("anthropic") }
+  663		// Claude's models are the ones magpie knows: listing them would ask
+  664		// Anthropic with the account's sign-in, which magpie never does
+  665		acct.fetch = func(context.Context) ([]catalog.Model, error) {
+  666			ms := catalog.Provider("anthropic")
+  667			return ms, catalog.SaveLive("claude", claudeBase, ms)
+  668		}
+  669		return Provider{ID: "claude", Name: "Claude Code", Icon: "claudecode-color", Anthropic: claudeBase,
+  670			Catalog: "anthropic", Website: "https://claude.ai", Account: acct}
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/provider/claude_signin.go
+--- 原文件 141–162 行 ---
+  141	func startClaudeSignIn(s *signInFlow) error {
+  142		cli, ok := findClaudeCLI()
+  143		if !ok {
+  144			return errors.New("install Claude Code first: magpie signs in to Claude through it")
+  145		}
+  146		if err := os.MkdirAll(claudeDirsRoot(), 0o700); err != nil {
+  147			return err
+  148		}
+  149		dir, err := os.MkdirTemp(claudeDirsRoot(), "signin-")
+  150		if err != nil {
+  151			return err
+  152		}
+  153		cleanup := func() {
+  154			clearClaudeDir(dir)
+  155			_ = os.RemoveAll(dir)
+  156		}
+  157		opened := filepath.Join(dir, ".opened-url")
+  158		env := append(claudeSignInEnv(os.Environ(), dir), "BROWSER="+claudeURLOpener(), openedURLEnv+"="+opened)
+  159		ctx, cancel := context.WithCancel(context.Background())
+  160		cmd := cli.command(ctx, "auth", "login", "--claudeai")
+  161		cmd.Dir = dir
+  162		cmd.Env = cli.env(netproxy.Env(env))
+--- 原文件 289–324 行 ---
+  289	func claudeSignedIn(cli claudeCLI, dir string) (savedLogin, error) {
+  290		c, ok := readClaudeDir(dir)
+  291		if !ok {
+  292			return savedLogin{}, errors.New("Claude Code signed in, but kept no sign-in magpie can read")
+  293		}
+  294		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+  295		defer cancel()
+  296		cmd := cli.probe(ctx, "auth", "status", "--json")
+  297		cmd.Dir = dir
+  298		cmd.Env = cli.env(claudeSignInEnv(os.Environ(), dir))
+  299		b, _ := cmd.Output()
+  300		var status struct {
+  301			Email            string `json:"email"`
+  302			OrgName          string `json:"orgName"`
+  303			SubscriptionType string `json:"subscriptionType"`
+  304		}
+  305		_ = json.Unmarshal(b, &status)
+  306		acct := map[string]any{}
+  307		if pb, err := os.ReadFile(filepath.Join(dir, ".claude.json")); err == nil {
+  308			var profile struct {
+  309				OAuthAccount map[string]any `json:"oauthAccount"`
+  310			}
+  311			if json.Unmarshal(pb, &profile) == nil && profile.OAuthAccount != nil {
+  312				acct = profile.OAuthAccount
+  313			}
+  314		}
+  315		if _, ok := acct["emailAddress"].(string); !ok && status.Email != "" {
+  316			acct["emailAddress"] = status.Email
+  317		}
+  318		if _, ok := acct["organizationName"].(string); !ok && status.OrgName != "" {
+  319			acct["organizationName"] = status.OrgName
+  320		}
+  321		if c.OAuth.SubscriptionType == "" {
+  322			c.OAuth.SubscriptionType = status.SubscriptionType
+  323		}
+  324		return claudeLogin(c, acct)
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/provider/logins.go
+--- 原文件 75–84 行 ---
+   75		Seen      time.Time `json:"seen"`
+   76		// On puts the account in use beside the one the agent is signed in to:
+   77		// requests go to it when that one is out of quota (see logins_on.go).
+   78		On bool `json:"on,omitempty"`
+   79		// Auth is the agent's credential blob as the agent stores it: Codex's
+   80		// auth.json, Claude Code's keychain item / .credentials.json.
+   81		Auth json.RawMessage `json:"auth"`
+   82		// Profile is Claude Code's oauthAccount from .claude.json, which says
+   83		// whose credentials those are.
+   84		Profile json.RawMessage `json:"profile,omitempty"`
+--- 原文件 151–155 行 ---
+  151	func loginsPath() string { return filepath.Join(filepath.Dir(Path()), "logins.json") }
+  152	
+  153	// lastLogins is the accounts last read from logins.json: a read that fails
+  154	// (a file half there, one magpie can't open for a moment) is them, not no
+  155	// accounts, which the next change of an account would write back over
+--- 原文件 217–255 行 ---
+  217	func writeLogins(ls []savedLogin) error {
+  218		// every account gets its stable id before it is written (#905): the
+  219		// one it has, or the stand-in made of its name, there to stay
+  220		for i := range ls {
+  221			ls[i].ID = loginID(ls[i])
+  222		}
+  223		sort.SliceStable(ls, func(i, j int) bool {
+  224			if ls[i].Agent != ls[j].Agent {
+  225				return ls[i].Agent < ls[j].Agent
+  226			}
+  227			if ls[i].Order != ls[j].Order {
+  228				if ls[i].Order == 0 {
+  229					return false
+  230				}
+  231				if ls[j].Order == 0 {
+  232					return true
+  233				}
+  234				return ls[i].Order < ls[j].Order
+  235			}
+  236			return strings.ToLower(ls[i].User) < strings.ToLower(ls[j].User)
+  237		})
+  238		// a Copilot account renamed on read is written under its new name
+  239		// once its settings have moved to it; until they can, under its old
+  240		disk := renameSettled(ls)
+  241		b, err := json.MarshalIndent(disk, "", "  ")
+  242		if err != nil {
+  243			return err
+  244		}
+  245		defer Changed() // an account added, switched or gone: All builds anew
+  246		if err := keepUnreadLogins(loginsPath()); err != nil {
+  247			return err
+  248		}
+  249		if err := writePrivate(loginsPath(), append(b, '\n')); err != nil {
+  250			return err
+  251		}
+  252		lastLoginsMu.Lock()
+  253		lastLogins = slices.Clone(ls)
+  254		lastLoginsMu.Unlock()
+  255		return nil
+--- 原文件 258–283 行 ---
+  258	// writePrivate replaces a file readable by the user alone, atomically, so
+  259	// an agent reading it at that moment sees either version, never half.
+  260	func writePrivate(path string, b []byte) error {
+  261		defer filememo.Forget()        // read again, where a request holds it
+  262		path, err := edit.Target(path) // a symlink stays, its target written
+  263		if err != nil {
+  264			return err
+  265		}
+  266		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+  267			return err
+  268		}
+  269		tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+  270		if err != nil {
+  271			return err
+  272		}
+  273		defer os.Remove(tmp.Name())
+  274		if _, err := tmp.Write(b); err != nil {
+  275			tmp.Close()
+  276			return err
+  277		}
+  278		if err := tmp.Chmod(0o600); err != nil {
+  279			tmp.Close()
+  280			return err
+  281		}
+  282		if err := tmp.Close(); err != nil {
+  283			return err
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/provider/claude_dirs.go
+--- 原文件 29–61 行 ---
+   29	func claudeDirsRoot() string { return filepath.Join(filepath.Dir(Path()), "claude-accounts") }
+   30	
+   31	// claudeAccountDir is the config directory a saved Claude account runs
+   32	// Claude Code in.
+   33	func claudeAccountDir(user string) string {
+   34		sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(user))))
+   35		return filepath.Join(claudeDirsRoot(), hex.EncodeToString(sum[:])[:16])
+   36	}
+   37	
+   38	// claudeDirService is the keychain item Claude Code keeps its sign-in in
+   39	// when CLAUDE_CONFIG_DIR is dir: its own name, told apart by the directory.
+   40	func claudeDirService(dir string) string {
+   41		sum := sha256.Sum256([]byte(norm.NFC.String(dir)))
+   42		return "Claude Code-credentials-" + hex.EncodeToString(sum[:])[:8]
+   43	}
+   44	
+   45	// readClaudeDir is the sign-in Claude Code keeps in config directory dir,
+   46	// where it looks first: the keychain on a Mac, then the file.
+   47	func readClaudeDir(dir string) (claudeCredentials, bool) {
+   48		if claudeKeychain {
+   49			out, err := proc.Command("security", "find-generic-password", "-s", claudeDirService(dir), "-a", claudeKeychainAccount(), "-w").Output()
+   50			if err == nil {
+   51				b, _ := keychainText(bytes.TrimSpace(out))
+   52				if c, ok := parseClaudeCredentials(b); c.raw != nil {
+   53					// the item there is the sign-in, emptied or not: Claude
+   54					// Code reads no file beside it
+   55					return c, ok
+   56				}
+   57			}
+   58		}
+   59		b, err := os.ReadFile(filepath.Join(dir, ".credentials.json"))
+   60		if err != nil {
+   61			return claudeCredentials{}, false
+--- 原文件 96–142 行 ---
+   96	// claudeSavedDir is the config directory to run Claude Code in for the
+   97	// saved account user: its sign-in is put there from logins.json when there
+   98	// is none yet, and what Claude Code has made of it since is read back. An
+   99	// account that can't be used (claudeSignedOut) gets none.
+  100	func claudeSavedDir(user string) (string, error) {
+  101		savedTokenMu.Lock()
+  102		defer savedTokenMu.Unlock()
+  103		loginsMu.Lock()
+  104		defer loginsMu.Unlock()
+  105		ls := readLogins()
+  106		i := -1
+  107		for j := range ls {
+  108			if ls[j].Agent == "claude" && strings.EqualFold(ls[j].User, user) {
+  109				i = j
+  110			}
+  111		}
+  112		if i < 0 {
+  113			return "", fmt.Errorf("no saved claude account %q", user)
+  114		}
+  115		dir := claudeAccountDir(user)
+  116		has, changed, err := syncClaudeDir(&ls[i])
+  117		if err != nil {
+  118			return "", err
+  119		}
+  120		if changed {
+  121			if err := writeLogins(ls); err != nil {
+  122				return "", err
+  123			}
+  124		}
+  125		if why := claudeSignedOut(ls[i]); why != "" {
+  126			return "", errors.New(why)
+  127		}
+  128		if has {
+  129			return dir, nil
+  130		}
+  131		c, _ := parseClaudeCredentials(ls[i].Auth)
+  132		b, err := c.marshal()
+  133		if err != nil {
+  134			return "", err
+  135		}
+  136		if err := os.MkdirAll(dir, 0o700); err != nil {
+  137			return "", err
+  138		}
+  139		if err := writePrivate(filepath.Join(dir, ".credentials.json"), append(b, '\n')); err != nil {
+  140			return "", err
+  141		}
+  142		// who it is, as Claude Code keeps it beside a sign-in it made
+--- 原文件 159–185 行 ---
+  159	func syncClaudeDir(l *savedLogin) (has, changed bool, err error) {
+  160		c, ok := readClaudeDir(claudeAccountDir(l.User))
+  161		switch {
+  162		case ok:
+  163			changed, err = takeClaudeDir(l, c)
+  164			return true, changed, err
+  165		case c.cleared():
+  166			return false, refuseClaudeLogin(l, claudeLoginVersion(*l)), nil
+  167		}
+  168		return false, false, nil
+  169	}
+  170	
+  171	// takeClaudeDir puts the sign-in Claude Code keeps in an account's config
+  172	// directory into its saved login, and says whether that changed it.
+  173	func takeClaudeDir(l *savedLogin, c claudeCredentials) (bool, error) {
+  174		if old, ok := parseClaudeCredentials(l.Auth); ok && old.OAuth.AccessToken == c.OAuth.AccessToken &&
+  175			old.OAuth.RefreshToken == c.OAuth.RefreshToken {
+  176			return false, nil
+  177		}
+  178		b, err := c.marshal()
+  179		if err != nil {
+  180			return false, err
+  181		}
+  182		l.Auth = b
+  183		if c.OAuth.SubscriptionType != "" {
+  184			l.Plan = c.OAuth.SubscriptionType
+  185		}
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/provider/google.go
+--- 原文件 105–112 行 ---
+  105	// AntigravityRisk is what magpie says before an Antigravity account is
+  106	// added.
+  107	const AntigravityRisk = "Google may suspend an Antigravity account it sees used outside Antigravity. Use one you can afford to lose."
+  108	
+  109	// ClaudeRisk is what magpie says before a Claude account is added, as the
+  110	// window does.
+  111	const ClaudeRisk = "Anthropic may suspend or ban a Claude account it sees used outside its own apps. magpie sends requests through Claude Code, but Anthropic may still act on them; you use it at your own risk. Use an account you can afford to lose."
+  112	
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/agent/claude.go
+--- 原文件 23–35 行 ---
+   23	
+   24	// Claude Code reads its endpoint from the `env` block of settings.json.
+   25	// Pointing ANTHROPIC_BASE_URL at the gateway and naming a catalog model as
+   26	// its model (and in the variables the aliases opus/sonnet/haiku resolve
+   27	// through) is all it takes to run it on any provider.
+   28	
+   29	// env vars magpie sets while routing through the gateway. ANTHROPIC_MODEL
+   30	// only an older magpie set: it outranks settings.json's model, so a model
+   31	// picked in Claude Code's /model lasted only the session; it is taken out.
+   32	var claudeEnv = append([]string{
+   33		"ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL",
+   34		"ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL",
+   35		"ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_DEFAULT_FABLE_MODEL",
+--- 原文件 857–885 行 ---
+  857		// writeTiers routes Claude Code through the gateway with main as its
+  858		// model and each tier on the model given.
+  859		writeTiers = func(main string, tiers map[string]string) error {
+  860			// a 1M model goes in marked [1m] however it was named, or Claude
+  861			// Code takes it for 200K
+  862			mark1M := claude1M()
+  863			mark := func(v string) string { m, e := tierAt(v); return tierWith(mark1M(m), e) }
+  864			main = mark1M(main)
+  865			for t, v := range tiers {
+  866				tiers[t] = mark(v)
+  867			}
+  868			// what the env says about a tier's model goes with the model
+  869			if err := dropAbout(tiers); err != nil {
+  870				return err
+  871			}
+  872			// subagents given a model of their own keep it; the others run on
+  873			// the session's, whatever /model picked, or on the tier they ask for
+  874			sub := subagentOwn()
+  875			// the main model is settings.json's alone: ANTHROPIC_MODEL would
+  876			// outrank a pick in /model
+  877			if _, has := edit.GetJSON(path, "env.ANTHROPIC_MODEL"); has {
+  878				if err := edit.DelJSON(path, "env.ANTHROPIC_MODEL"); err != nil {
+  879					return err
+  880				}
+  881			}
+  882			kvs := []edit.KV{
+  883				{Path: "env.ANTHROPIC_BASE_URL", Value: at.gw()},
+  884				{Path: "env.ANTHROPIC_AUTH_TOKEN", Value: wiredKey()},
+  885				{Path: "env.ANTHROPIC_SMALL_FAST_MODEL", Value: tiers["haiku"]},
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/appdir/appdir.go
+--- 原文件 1–18 行 ---
+    1	// Package appdir decides where magpie keeps its own files: the one place
+    2	// every other package asks (#508).
+    3	//
+    4	// Installed, that is ~/.config/magpie ($XDG_CONFIG_HOME/magpie) for what
+    5	// magpie keeps and ~/.cache/magpie ($XDG_CACHE_HOME/magpie) for what it
+    6	// can fetch again, as it always was. Portable, when a folder named "data"
+    7	// (or a file named ".portable") sits beside magpie, everything magpie
+    8	// keeps goes into that data folder, its caches into data/cache and the
+    9	// Windows webview's profile into data/webview2 (no Start-menu shortcut or
+   10	// App Paths entry is made either), and
+   11	// nothing of magpie's own is written to the user's profile, the way VS
+   12	// Code's portable mode works. "Beside magpie" is the folder holding the
+   13	// executable, with links followed; for a Mac app it is the folder holding
+   14	// Magpie.app (a file put inside the bundle would break its signature), and
+   15	// for an AppImage the folder holding the .AppImage file, not the folder it
+   16	// is mounted at while it runs.
+   17	//
+   18	// What isn't magpie's own stays where its owner reads it: the agents'
+--- 原文件 175–185 行 ---
+  175	// installed is the folder an installed magpie keeps its files in, or ""
+  176	// with no home folder.
+  177	func installed() string {
+  178		if x := os.Getenv("XDG_CONFIG_HOME"); rooted(x) {
+  179			return filepath.Join(x, "magpie")
+  180		}
+  181		h, err := Home()
+  182		if err != nil {
+  183			return ""
+  184		}
+  185		return filepath.Join(h, ".config", "magpie")
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/netproxy/netproxy.go
+--- 原文件 174–184 行 ---
+  174	func Env(env []string) []string { return EnvWith("", env) }
+  175	
+  176	// EnvWith is Env for a CLI run on one provider's behalf, whose own proxy
+  177	// is choice (see With): "" is Env's.
+  178	func EnvWith(choice string, env []string) []string {
+  179		if env == nil {
+  180			env = os.Environ()
+  181		}
+  182		var p string
+  183		var bypass []string
+  184		s := strings.TrimSpace(choice)
+--- 原文件 235–243 行 ---
+  235			switch b = strings.TrimPrefix(strings.TrimSpace(b), "*"); b {
+  236			case "", "<local>":
+  237			default:
+  238				no = append(no, b)
+  239			}
+  240		}
+  241		nos := strings.Join(no, ",")
+  242		return append(out, "HTTPS_PROXY="+p, "https_proxy="+p, "HTTP_PROXY="+p, "http_proxy="+p,
+  243			"ALL_PROXY="+p, "all_proxy="+p, "NO_PROXY="+nos, "no_proxy="+nos)
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/Layers/ClaudeAdapter.ts
+--- 原文件 1–45 行 ---
+    1	import { providerProcessPriorityEnabled } from "../../providerProcessPriority";
+    2	import { claudeTurnResultUsage, type ClaudeResultUsageBaseline } from "../claudeResultUsage.ts";
+    3	import { restoreClaudeImportedCopyDates } from "../claudeImportedCopyDates.ts";
+    4	/**
+    5	 * ClaudeAdapterLive - Scoped live implementation for the Claude Agent provider adapter.
+    6	 *
+    7	 * Wraps `@anthropic-ai/claude-agent-sdk` query sessions behind the generic
+    8	 * provider adapter contract and emits canonical runtime events.
+    9	 *
+   10	 * @module ClaudeAdapterLive
+   11	 */
+   12	import { execProcessFile, spawnProcess } from "@synara/shared/processRuntime";
+   13	import type {
+   14	  AgentInfo,
+   15	  CanUseTool,
+   16	  AgentDefinition,
+   17	  HookInput,
+   18	  HookJSONOutput,
+   19	  Options as ClaudeQueryOptions,
+   20	  ModelInfo,
+   21	  PermissionMode,
+   22	  PermissionResult,
+   23	  PermissionUpdate,
+   24	  SDKAssistantMessageError,
+   25	  SDKMessage,
+   26	  SDKResultMessage,
+   27	  SDKControlGetContextUsageResponse,
+   28	  Settings,
+   29	  SettingSource,
+   30	  SDKUserMessage,
+   31	  SlashCommand,
+   32	  SpawnOptions as ClaudeSpawnOptions,
+   33	  SpawnedProcess as ClaudeSpawnedProcess,
+   34	  SessionMessage,
+   35	} from "@anthropic-ai/claude-agent-sdk";
+   36	import {
+   37	  ApprovalRequestId,
+   38	  type CanonicalItemType,
+   39	  type ClaudeApiEffort,
+   40	  ClaudeCacheObservation,
+   41	  type CanonicalRequestType,
+   42	  EventId,
+   43	  type ProviderApprovalDecision,
+   44	  type ProviderInteractionMode,
+   45	  ProviderItemId,
+--- 原文件 579–590 行 ---
+  579	function spawnOwnedClaudeCodeProcess(
+  580	  options: ClaudeSpawnOptions,
+  581	  lowerPriority: boolean,
+  582	): ClaudeOwnedProcess {
+  583	  return spawnProcess(options.command, options.args, {
+  584	    lowerPriority,
+  585	    requireExecutable: true,
+  586	    ...(options.cwd ? { cwd: options.cwd } : {}),
+  587	    env: options.env,
+  588	    signal: options.signal,
+  589	    stdio: ["pipe", "pipe", "inherit"],
+  590	  }) as unknown as ClaudeOwnedProcess;
+--- 原文件 2086–2095 行 ---
+ 2086	      readonly options: ClaudeQueryOptions;
+ 2087	    }): Promise<ClaudeQueryRuntime> => {
+ 2088	      const override = options?.createQuery;
+ 2089	      if (override) {
+ 2090	        return override(input);
+ 2091	      }
+ 2092	      const { query } = await loadClaudeAgentSdk();
+ 2093	      return query({ prompt: input.prompt, options: input.options }) as ClaudeQueryRuntime;
+ 2094	    };
+ 2095	    const forkNativeSession = async (
+--- 原文件 6171–6190 行 ---
+ 6171	        const queryOptions: ClaudeQueryOptions = {
+ 6172	          ...(input.cwd ? { cwd: input.cwd } : {}),
+ 6173	          // Model identity and the spawn-fixed compaction override are separate settings.
+ 6174	          ...(apiModelId ? { model: apiModelId } : {}),
+ 6175	          pathToClaudeCodeExecutable: providerOptions?.binaryPath ?? "claude",
+ 6176	          settingSources: [...CLAUDE_SETTING_SOURCES],
+ 6177	          systemPrompt: {
+ 6178	            type: "preset",
+ 6179	            preset: "claude_code",
+ 6180	            append: buildEmbeddedClaudeSystemPromptAppend(
+ 6181	              agentGatewayCredentials !== undefined,
+ 6182	              input.enableComputerControl === true,
+ 6183	            ),
+ 6184	            // Strip per-user dynamic sections (working directory, auto-memory
+ 6185	            // path) into the first user message so the cached system-prompt
+ 6186	            // prefix stays static across sessions and users. Tradeoff: that
+ 6187	            // context steers marginally less authoritatively from a user turn.
+ 6188	            excludeDynamicSections: true,
+ 6189	            ...(snapshotSupported ? { snapshot: true } : {}),
+ 6190	          },
+--- 原文件 6214–6220 行 ---
+ 6214	          env: withClaudeArtifactOptIn(claudeSdkEnv, providerOptions?.enableArtifacts),
+ 6215	          spawnClaudeCodeProcess: bindClaudeProcessOwner(
+ 6216	            processOwner,
+ 6217	            yield* providerProcessPriorityEnabled,
+ 6218	          ),
+ 6219	          ...(input.cwd || input.additionalDirectories?.length
+ 6220	            ? {
+--- 原文件 6233–6248 行 ---
+ 6233	
+ 6234	        const queryRuntime = yield* Effect.tryPromise({
+ 6235	          try: () =>
+ 6236	            createQuery({
+ 6237	              prompt,
+ 6238	              options: queryOptions,
+ 6239	            }),
+ 6240	          catch: (cause) =>
+ 6241	            new ProviderAdapterProcessError({
+ 6242	              provider: PROVIDER,
+ 6243	              threadId,
+ 6244	              detail: toMessage(cause, "Failed to start Claude runtime session."),
+ 6245	              cause,
+ 6246	            }),
+ 6247	        }).pipe(
+ 6248	          Effect.tapError(() =>
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/claudeProcessEnv.ts
+--- 原文件 11–24 行 ---
+   11	export const CLAUDE_DIRECT_CREDENTIAL_ENV_KEYS = [
+   12	  "ANTHROPIC_API_KEY",
+   13	  "ANTHROPIC_AUTH_TOKEN",
+   14	  "CLAUDE_CODE_OAUTH_TOKEN",
+   15	] as const;
+   16	
+   17	export const CLAUDE_EXTERNAL_AUTH_ENV_KEYS = [
+   18	  "ANTHROPIC_BASE_URL",
+   19	  "CLAUDE_CODE_USE_BEDROCK",
+   20	  "CLAUDE_CODE_USE_VERTEX",
+   21	  "CLAUDE_CODE_USE_FOUNDRY",
+   22	  "CLAUDE_CODE_USE_MANTLE",
+   23	  "CLAUDE_CODE_USE_ANTHROPIC_AWS",
+   24	] as const;
+--- 原文件 175–237 行 ---
+  175	}
+  176	
+  177	export function resolveClaudeCredentialsPaths(input?: {
+  178	  readonly env?: NodeJS.ProcessEnv;
+  179	  readonly homeDir?: string;
+  180	}): ReadonlyArray<string> {
+  181	  const env = input?.env ?? process.env;
+  182	  const homeDir = trimToUndefined(input?.homeDir) ?? trimToUndefined(env.HOME) ?? OS.homedir();
+  183	  const paths: string[] = [];
+  184	  const configDir = trimToUndefined(env.CLAUDE_CONFIG_DIR);
+  185	  if (configDir) {
+  186	    paths.push(nodePath.join(configDir, ".credentials.json"));
+  187	  }
+  188	  paths.push(nodePath.join(homeDir, ".claude", ".credentials.json"));
+  189	  return [...new Set(paths)];
+  190	}
+  191	
+  192	export function readClaudeCliCredentialsContentSummary(
+  193	  content: string,
+  194	  nowMs = Date.now(),
+  195	): ClaudeCliCredentialsSummary {
+  196	  const root = tryParseJsonRecord(content);
+  197	  const oauth = readRecord(root?.claudeAiOauth);
+  198	  const accessToken = readNonEmptyString(oauth?.accessToken);
+  199	  const refreshToken = readNonEmptyString(oauth?.refreshToken);
+  200	  if (!accessToken && !refreshToken) {
+  201	    return { usable: false };
+  202	  }
+  203	
+  204	  const expiresAtMs = typeof oauth?.expiresAt === "number" ? oauth.expiresAt : undefined;
+  205	  const usable = expiresAtMs === undefined || expiresAtMs > nowMs || refreshToken !== undefined;
+  206	  const subscriptionType = readNonEmptyString(oauth?.subscriptionType);
+  207	  return {
+  208	    usable,
+  209	    ...(subscriptionType ? { subscriptionType } : {}),
+  210	  };
+  211	}
+  212	
+  213	export function hasUsableClaudeCliCredentials(input?: {
+  214	  readonly env?: NodeJS.ProcessEnv;
+  215	  readonly homeDir?: string;
+  216	  readonly nowMs?: number;
+  217	  readonly readFile?: (path: string) => string;
+  218	}): boolean {
+  219	  return readClaudeCliCredentialsSummary(input).usable;
+  220	}
+  221	
+  222	export function readClaudeCliCredentialsSummary(input?: {
+  223	  readonly env?: NodeJS.ProcessEnv;
+  224	  readonly homeDir?: string;
+  225	  readonly nowMs?: number;
+  226	  readonly readFile?: (path: string) => string;
+  227	}): ClaudeCliCredentialsSummary {
+  228	  const readFile = input?.readFile ?? ((path: string) => readFileSync(path, "utf8"));
+  229	  for (const path of resolveClaudeCredentialsPaths(input)) {
+  230	    try {
+  231	      const summary = readClaudeCliCredentialsContentSummary(readFile(path), input?.nowMs);
+  232	      if (summary.usable) {
+  233	        return summary;
+  234	      }
+  235	    } catch {
+  236	      continue;
+  237	    }
+--- 原文件 242–268 行 ---
+  242	export function buildClaudeProcessEnv(input?: {
+  243	  readonly env?: NodeJS.ProcessEnv;
+  244	  readonly homeDir?: string;
+  245	  readonly hasClaudeCliCredentials?: boolean;
+  246	  readonly preserveDirectCredentialKeys?: ReadonlySet<string>;
+  247	}): NodeJS.ProcessEnv {
+  248	  const env = { ...(input?.env ?? process.env) };
+  249	  if (input?.homeDir) {
+  250	    env.HOME = input.homeDir;
+  251	  }
+  252	  const credentialInput = input?.homeDir ? { env, homeDir: input.homeDir } : { env };
+  253	  const hasLocalClaudeAuth =
+  254	    input?.hasClaudeCliCredentials ?? hasUsableClaudeCliCredentials(credentialInput);
+  255	
+  256	  if (!hasLocalClaudeAuth || hasClaudeExternalAuthEnv(env)) {
+  257	    return buildProviderChildEnvironment({ provider: "claude", baseEnv: env });
+  258	  }
+  259	
+  260	  // Claude gives direct request credentials precedence over local OAuth. Drop stale
+  261	  // app-process keys when a real Claude CLI login can satisfy the subprocess.
+  262	  for (const key of CLAUDE_DIRECT_CREDENTIAL_ENV_KEYS) {
+  263	    if (input?.preserveDirectCredentialKeys?.has(key)) {
+  264	      continue;
+  265	    }
+  266	    delete env[key];
+  267	  }
+  268	  return buildProviderChildEnvironment({ provider: "claude", baseEnv: env });
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/claudeEnvironment.ts
+--- 原文件 88–111 行 ---
+   88	export function buildClaudeInstanceProcessEnv(
+   89	  homePath: string | null | undefined,
+   90	  environment?: Readonly<Record<string, string>> | undefined,
+   91	  options?: {
+   92	    readonly homeDir?: string;
+   93	    readonly isolationRootDir?: string;
+   94	    readonly providerInstanceId?: string;
+   95	    readonly platform?: NodeJS.Platform;
+   96	    /** Deterministic test seam; production callers inherit process.env. */
+   97	    readonly baseEnvironment?: NodeJS.ProcessEnv;
+   98	  },
+   99	): NodeJS.ProcessEnv {
+  100	  const platform = options?.platform ?? process.platform;
+  101	  const selectedEnvironment =
+  102	    environment === undefined ? undefined : normalizeEnvironmentKeys(environment, platform);
+  103	  const env = normalizeEnvironmentKeys(options?.baseEnvironment ?? process.env, platform);
+  104	  const trimmedHomePath = homePath?.trim();
+  105	  const resolvedHomePath = trimmedHomePath
+  106	    ? expandProviderAccountHomePath(trimmedHomePath, options?.homeDir ?? homedir())
+  107	    : undefined;
+  108	  const explicitEnvironmentHome =
+  109	    selectedEnvironment?.HOME?.trim() ||
+  110	    (platform === "win32" ? selectedEnvironment?.USERPROFILE?.trim() : undefined);
+  111	  const resolvedEnvironmentHomePath = explicitEnvironmentHome
+--- 原文件 121–185 行 ---
+  121	    ? claudeIsolatedHomePath({
+  122	        ...(options?.isolationRootDir ? { isolationRootDir: options.isolationRootDir } : {}),
+  123	        ...(options?.homeDir ? { homeDir: options.homeDir } : {}),
+  124	        ...(providerInstanceId ? { providerInstanceId } : {}),
+  125	      })
+  126	    : undefined;
+  127	  const useMacOSConfigIsolation = platform === "darwin" && isolatedHomePath !== undefined;
+  128	  const effectiveHomePath =
+  129	    resolvedHomePath ??
+  130	    resolvedEnvironmentHomePath ??
+  131	    (useMacOSConfigIsolation ? undefined : isolatedHomePath);
+  132	  if (!effectiveHomePath && options?.homeDir) {
+  133	    env.HOME = options.homeDir;
+  134	  }
+  135	  // An explicit provider home or environment selects a distinct account
+  136	  // boundary. Remove account-scoped ambient values first, then overlay only
+  137	  // values deliberately supplied by the selected instance.
+  138	  if (effectiveHomePath || isolatedHomePath || selectedEnvironment !== undefined) {
+  139	    for (const key of Object.keys(env)) {
+  140	      if (
+  141	        isClaudeAccountIsolationEnvKey(key) ||
+  142	        key === "CLAUDE_CONFIG_DIR" ||
+  143	        key === "CLAUDE_SECURESTORAGE_CONFIG_DIR"
+  144	      ) {
+  145	        delete env[key];
+  146	      }
+  147	    }
+  148	  }
+  149	  if (selectedEnvironment) {
+  150	    Object.assign(env, selectedEnvironment);
+  151	  }
+  152	  if (useMacOSConfigIsolation) {
+  153	    // Keep the system Keychain reachable, retaining existing account files in place.
+  154	    env.HOME = options?.homeDir ?? env.HOME ?? homedir();
+  155	    env.CLAUDE_CONFIG_DIR =
+  156	      selectedEnvironment?.CLAUDE_CONFIG_DIR?.trim() || NodePath.join(isolatedHomePath, ".claude");
+  157	    env.CLAUDE_SECURESTORAGE_CONFIG_DIR =
+  158	      selectedEnvironment?.CLAUDE_SECURESTORAGE_CONFIG_DIR?.trim() || env.CLAUDE_CONFIG_DIR;
+  159	  }
+  160	  if (effectiveHomePath) {
+  161	    Object.assign(env, claudeHomeEnvironment(effectiveHomePath, platform));
+  162	    if (!resolvedHomePath && selectedEnvironment) {
+  163	      if (selectedEnvironment.HOME?.trim()) {
+  164	        env.HOME = resolvedEnvironmentHomePath;
+  165	      }
+  166	      if (platform === "win32") {
+  167	        for (const key of WINDOWS_PROFILE_ENV_KEYS) {
+  168	          if (!(key in selectedEnvironment)) continue;
+  169	          const profileValue = selectedEnvironment[key];
+  170	          if (key === "USERPROFILE" && profileValue?.trim()) {
+  171	            env[key] = expandProviderAccountHomePath(profileValue, options?.homeDir ?? homedir());
+  172	          } else {
+  173	            env[key] = profileValue;
+  174	          }
+  175	        }
+  176	      }
+  177	    }
+  178	  }
+  179	  if (effectiveHomePath) {
+  180	    if (!selectedEnvironment || !("CLAUDE_CONFIG_DIR" in selectedEnvironment)) {
+  181	      delete env.CLAUDE_CONFIG_DIR;
+  182	    }
+  183	  }
+  184	  return buildClaudeProcessEnv({
+  185	    env,
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/claudeCredentialKeepalive.ts
+--- 原文件 47–67 行 ---
+   47	export const CLAUDE_CREDENTIAL_KEEPALIVE_AUTH_STATUS_ARGS = ["auth", "status"] as const;
+   48	
+   49	function envFlagEnabled(value: string | undefined): boolean {
+   50	  const normalized = value?.trim().toLowerCase();
+   51	  return normalized === "1" || normalized === "true" || normalized === "on" || normalized === "yes";
+   52	}
+   53	
+   54	export function isClaudeCredentialKeepaliveEnabled(
+   55	  input: {
+   56	    readonly platform?: NodeJS.Platform;
+   57	    readonly env?: NodeJS.ProcessEnv;
+   58	  } = {},
+   59	): boolean {
+   60	  const platform = input.platform ?? process.platform;
+   61	  const env = input.env ?? process.env;
+   62	  return platform === "darwin" && envFlagEnabled(env.SYNARA_CLAUDE_KEEPALIVE);
+   63	}
+   64	
+   65	// Mirrors the Claude Agent adapter default while honoring persisted custom CLI paths.
+   66	export function resolveClaudeCredentialKeepaliveBinaryPath(binaryPath: string | undefined): string {
+   67	  return binaryPath?.trim() || "claude";
+--- 原文件 88–102 行 ---
+   88	  homeDir: string | undefined,
+   89	  signal: AbortSignal,
+   90	  processEnv: NodeJS.ProcessEnv | undefined,
+   91	): Promise<void> {
+   92	  const release = await acquireClaudeAuthStatusLockWithSignal(signal);
+   93	  try {
+   94	    await execFileAsync(binaryPath, [...CLAUDE_CREDENTIAL_KEEPALIVE_AUTH_STATUS_ARGS], {
+   95	      encoding: "utf8",
+   96	      timeout: COMMAND_TIMEOUT_MS,
+   97	      signal,
+   98	      env: processEnv ?? buildClaudeProcessEnv(homeDir ? { homeDir } : undefined),
+   99	      requireExecutable: true,
+  100	    });
+  101	  } finally {
+  102	    release();
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/codexAppServerManager.ts
+--- 原文件 868–884 行 ---
+  868	function spawnCodexAppServer(input: {
+  869	  readonly lowerPriority: boolean;
+  870	  readonly binaryPath: string;
+  871	  readonly cwd: string;
+  872	  readonly env: NodeJS.ProcessEnv;
+  873	}): ChildProcessWithoutNullStreams {
+  874	  const sourceHomePath = input.env.CODEX_SQLITE_HOME?.trim();
+  875	  if (!sourceHomePath) {
+  876	    throw new Error("Codex app-server requires a verified shared continuation home.");
+  877	  }
+  878	  return spawnProcess(input.binaryPath, buildCodexAppServerArgs(sourceHomePath), {
+  879	    lowerPriority: input.lowerPriority,
+  880	    requireExecutable: true,
+  881	    cwd: input.cwd,
+  882	    env: input.env,
+  883	    stdio: ["pipe", "pipe", "pipe"],
+  884	  });
+--- 原文件 1412–1428 行 ---
+ 1412	      const processLaunch = await this.buildSessionProcessEnv(
+ 1413	        normalizedCodexOptions,
+ 1414	        gatewaySessionLease?.connection.bearerToken,
+ 1415	        input.expectedCodexContinuationGeneration,
+ 1416	      );
+ 1417	      const launchAuthFingerprint = processLaunch.authFingerprint;
+ 1418	      const child = this.spawnAppServer({
+ 1419	        lowerPriority: (await this.runPromise(providerProcessPriorityEnabled)) as boolean,
+ 1420	        binaryPath: codexBinaryPath,
+ 1421	        cwd: resolvedCwd,
+ 1422	        env: processLaunch.env,
+ 1423	      });
+ 1424	
+ 1425	      context = {
+ 1426	        autoApproveSynaraTools: input.autoApproveSynaraTools === true,
+ 1427	        enableComputerControl:
+ 1428	          gatewaySessionLease !== undefined &&
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/codexProcessEnv.ts
+--- 原文件 44–46 行 ---
+   44	const CODEX_OVERLAY_SHARED_STATE_FILES = new Set(["auth.json"]);
+   45	const CODEX_ACCOUNT_PRIVATE_STATE_FILES = new Set(["auth.json", "models_cache.json"]);
+   46	// SQLite databases and their WAL/SHM/journal sidecars are never mirrored into
+--- 原文件 185–196 行 ---
+  185	export function buildCodexAppServerArgs(sourceHomePath: string): readonly string[] {
+  186	  const absoluteSourceHomePath = path.resolve(sourceHomePath);
+  187	  // These are global clap options in the minimum supported Codex 0.105.0 and
+  188	  // remain valid after the app-server subcommand. Keeping them last gives the
+  189	  // managed values precedence over every user and project config layer.
+  190	  return [
+  191	    "app-server",
+  192	    "--config",
+  193	    `sqlite_home=${JSON.stringify(absoluteSourceHomePath)}`,
+  194	    "--config",
+  195	    'cli_auth_credentials_store="file"',
+  196	  ];
+--- 原文件 985–997 行 ---
+  985	    symlink: fs.symlink,
+  986	    copyFile: fs.copyFile,
+  987	  },
+  988	): Promise<void> {
+  989	  try {
+  990	    await linker.symlink(input.sourcePath, input.targetPath, input.type);
+  991	  } catch (error: unknown) {
+  992	    if (input.type === "file" && CODEX_OVERLAY_SHARED_STATE_FILES.has(input.entryName)) {
+  993	      await linker.copyFile(input.sourcePath, input.targetPath);
+  994	      return;
+  995	    }
+  996	    throw error;
+  997	  }
+--- 原文件 2503–2545 行 ---
+ 2503	  try {
+ 2504	    // Auth must get a best-effort link/copy before optional entries whose
+ 2505	    // symlinks may fail on restricted Windows installs.
+ 2506	    for (const entry of prioritizeCodexOverlayEntries(await fs.readdir(sourceHomePath))) {
+ 2507	      if (
+ 2508	        entry === "config.toml" ||
+ 2509	        entry === LEGACY_SYNARA_SHARED_CONTINUATION_MARKER_FILE ||
+ 2510	        entry === SYNARA_SHARED_CONTINUATION_MARKER_FILE ||
+ 2511	        isSharedContinuationLockEntry(entry) ||
+ 2512	        isCodexSqliteStateEntry(entry) ||
+ 2513	        isSharedContinuationEntry(entry)
+ 2514	      ) {
+ 2515	        continue;
+ 2516	      }
+ 2517	      // Account overlays only inherit account-private state when the source
+ 2518	      // home is the account's own dedicated home. With a shadow home the
+ 2519	      // private files are linked from there below; with a shared source home
+ 2520	      // the account keeps its own login inside the overlay instead of
+ 2521	      // silently reusing the default account's credentials.
+ 2522	      if (
+ 2523	        accountSegment &&
+ 2524	        CODEX_ACCOUNT_PRIVATE_STATE_FILES.has(entry) &&
+ 2525	        (shadowHomePath || !hasDedicatedAccountHome)
+ 2526	      ) {
+ 2527	        continue;
+ 2528	      }
+ 2529	      const sourcePath = path.join(sourceHomePath, entry);
+ 2530	      const targetPath = path.join(overlayHomePath, entry);
+ 2531	      const stat = await fs.lstat(sourcePath);
+ 2532	      await ensureCodexOverlaySymlink(
+ 2533	        {
+ 2534	          entryName: entry,
+ 2535	          sourcePath,
+ 2536	          targetPath,
+ 2537	          type: stat.isDirectory() ? "dir" : "file",
+ 2538	        },
+ 2539	        input.overlayEntryLinker,
+ 2540	      );
+ 2541	    }
+ 2542	  } catch {
+ 2543	    // If the source home is partially missing, Codex can still start with the
+ 2544	    // overlay config and create any required state lazily.
+ 2545	  }
+--- 原文件 2547–2559 行 ---
+ 2547	  if (accountSegment && !shadowHomePath && !hasDedicatedAccountHome) {
+ 2548	    for (const entry of CODEX_ACCOUNT_PRIVATE_STATE_FILES) {
+ 2549	      const targetPath = path.join(overlayHomePath, entry);
+ 2550	      try {
+ 2551	        // Earlier builds symlinked shared auth into account overlays; drop the
+ 2552	        // stale alias so the account's own login (a real file) takes its place.
+ 2553	        if ((await fs.lstat(targetPath)).isSymbolicLink()) {
+ 2554	          await fs.rm(targetPath, { force: true });
+ 2555	        }
+ 2556	      } catch {
+ 2557	        // Missing private state is created lazily by the account's own login.
+ 2558	      }
+ 2559	    }
+--- 原文件 2562–2589 行 ---
+ 2562	  if (shadowHomePath) {
+ 2563	    for (const entry of CODEX_ACCOUNT_PRIVATE_STATE_FILES) {
+ 2564	      const sourcePath = path.join(shadowHomePath, entry);
+ 2565	      let sourceStat: Awaited<ReturnType<typeof fs.lstat>>;
+ 2566	      try {
+ 2567	        sourceStat = await fs.lstat(sourcePath);
+ 2568	      } catch {
+ 2569	        // Missing shadow homes should not prevent Codex from creating account
+ 2570	        // state lazily, but existing private files must never be read or logged.
+ 2571	        continue;
+ 2572	      }
+ 2573	      // Symlinked account-private state can silently alias another account's
+ 2574	      // credentials, so it must always be a real file in the shadow home.
+ 2575	      if (sourceStat.isSymbolicLink()) {
+ 2576	        throw new Error(
+ 2577	          `Codex account private state at ${sourcePath} is a symlink; it must be a real file so accounts cannot alias each other's private state.`,
+ 2578	        );
+ 2579	      }
+ 2580	      const targetPath = path.join(overlayHomePath, entry);
+ 2581	      await ensureCodexOverlaySymlink(
+ 2582	        {
+ 2583	          entryName: entry,
+ 2584	          sourcePath,
+ 2585	          targetPath,
+ 2586	          type: sourceStat.isDirectory() ? "dir" : "file",
+ 2587	          force: true,
+ 2588	        },
+ 2589	        input.overlayEntryLinker,
+--- 原文件 2752–2774 行 ---
+ 2752	      ? await prepareCodexHomeOverlayFromPreparedContinuationSource(overlayPreparationInput)
+ 2753	      : await prepareCodexHomeOverlay(overlayPreparationInput);
+ 2754	  const directAccountHomePath = input.shadowHomePath
+ 2755	    ? resolveBaseCodexHomePath(baseEnv, input.shadowHomePath)
+ 2756	    : input.homePath
+ 2757	      ? resolveBaseCodexHomePath(baseEnv, input.homePath)
+ 2758	      : undefined;
+ 2759	  const configuredEnv: NodeJS.ProcessEnv = {
+ 2760	    ...baseEnv,
+ 2761	    ...(overlayHomePath || directAccountHomePath
+ 2762	      ? { CODEX_HOME: overlayHomePath ?? directAccountHomePath }
+ 2763	      : {}),
+ 2764	    // Config sqlite_home has higher precedence and was validated before any
+ 2765	    // overlay mutation. Route all future DB names and sidecars to one source.
+ 2766	    [CODEX_SQLITE_HOME_ENV_NAME]: path.resolve(sourceHomePath),
+ 2767	  };
+ 2768	  const platform = input.platform ?? process.platform;
+ 2769	  const effectiveEnv = buildProviderChildEnvironment({
+ 2770	    provider: "codex",
+ 2771	    baseEnv: configuredEnv,
+ 2772	  });
+ 2773	  const providerEnvKey = readActiveCodexProviderEnvKey(effectiveEnv);
+ 2774	  if (providerEnvKey) {
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/codexHomePaths.ts
+--- 原文件 24–46 行 ---
+   24	}
+   25	
+   26	export function resolveBaseCodexHomePath(
+   27	  env: NodeJS.ProcessEnv,
+   28	  explicitHomePath?: string,
+   29	): string {
+   30	  return expandProviderAccountHomePath(
+   31	    explicitHomePath?.trim() || env.CODEX_HOME?.trim() || path.join(homedir(), ".codex"),
+   32	  );
+   33	}
+   34	
+   35	export function resolveSynaraCodexHomeOverlayPath(
+   36	  env: NodeJS.ProcessEnv,
+   37	  sourceHomePath: string,
+   38	  accountSegment?: string,
+   39	): string {
+   40	  const runtimeHome = env.SYNARA_HOME?.trim();
+   41	  const overlayRoot = runtimeHome || path.join(path.dirname(sourceHomePath), ".synara", "runtime");
+   42	  const overlayHome = path.join(overlayRoot, SYNARA_CODEX_HOME_OVERLAY_DIR);
+   43	  return accountSegment
+   44	    ? path.join(overlayHome, SYNARA_CODEX_HOME_ACCOUNT_OVERLAYS_DIR, accountSegment)
+   45	    : overlayHome;
+   46	}
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/acp/AcpSessionRuntime.ts
+--- 原文件 1486–1500 行 ---
+ 1486	    // stripped control-plane credentials and launcher capabilities.
+ 1487	    const env = yield* Effect.try({
+ 1488	      try: () => buildAcpSpawnProcessEnv(options.spawn),
+ 1489	      catch: (cause) => new AcpErrors.AcpSpawnError({ command: options.spawn.command, cause }),
+ 1490	    });
+ 1491	    const child = yield* spawnProviderProcess(spawner, options.spawn.command, options.spawn.args, {
+ 1492	      ...(options.spawn.cwd ? { cwd: options.spawn.cwd } : {}),
+ 1493	      env,
+ 1494	    }).pipe(
+ 1495	      Effect.provideService(Scope.Scope, runtimeScope),
+ 1496	      Effect.mapError(
+ 1497	        (cause) =>
+ 1498	          new AcpErrors.AcpSpawnError({
+ 1499	            command: options.spawn.command,
+ 1500	            cause,
+--- 原文件 1825–1853 行 ---
+ 1825	          const authMethodId =
+ 1826	            options.resolveAuthMethodId !== undefined
+ 1827	              ? yield* options.resolveAuthMethodId(initializeResult)
+ 1828	              : options.authMethodId;
+ 1829	
+ 1830	          if (!authMethodId) {
+ 1831	            return yield* new AcpErrors.AcpRequestError({
+ 1832	              code: -32602,
+ 1833	              errorMessage: "ACP agent did not provide an authentication method.",
+ 1834	              data: { authMethods: initializeResult.authMethods ?? [] },
+ 1835	            });
+ 1836	          }
+ 1837	
+ 1838	          const authenticatePayload = {
+ 1839	            methodId: authMethodId,
+ 1840	            ...(options.authenticateMeta ? { _meta: options.authenticateMeta } : {}),
+ 1841	          } satisfies Acp.AuthenticateRequest;
+ 1842	
+ 1843	          yield* withStartupTimeout(
+ 1844	            "authenticate",
+ 1845	            startupTimeouts.authenticateMs,
+ 1846	            runLoggedRequest(
+ 1847	              "authenticate",
+ 1848	              authenticatePayload,
+ 1849	              acp.agent.authenticate(authenticatePayload),
+ 1850	            ),
+ 1851	          );
+ 1852	
+ 1853	          yield* Ref.set(authenticatedRef, true);
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/acp/CursorAcpSupport.ts
+--- 原文件 92–107 行 ---
+   92	export function buildCursorAcpSpawnInput(
+   93	  cursorSettings: CursorAcpRuntimeCursorSettings | null | undefined,
+   94	  cwd: string,
+   95	  commandOptions?: CursorAgentCommandOptions,
+   96	): AcpSpawnInput {
+   97	  const command = buildCursorAgentCommand(
+   98	    cursorSettings?.binaryPath,
+   99	    [...(cursorSettings?.apiEndpoint ? (["-e", cursorSettings.apiEndpoint] as const) : []), "acp"],
+  100	    commandOptions,
+  101	  );
+  102	  return {
+  103	    command: command.command,
+  104	    args: command.args,
+  105	    cwd,
+  106	    // Keep ACP startup browserless without forcing CI/noninteractive flags onto user
+  107	    // turns. The ACP runtime applies the account boundary before this overlay.
+--- 原文件 147–155 行 ---
+  147	      AcpSessionRuntime.layer({
+  148	        ...input,
+  149	        spawn: buildCursorAcpSpawnInput(input.cursorSettings, input.cwd),
+  150	        // Authenticate on demand only: always-auth makes cursor-agent re-open the
+  151	        // OAuth login page on every session start (#1341); same pattern as Devin.
+  152	        authPolicy: "on-demand",
+  153	        authMethodId: "cursor_login",
+  154	        authenticateMeta: { headless: true },
+  155	        clientCapabilities: CURSOR_PARAMETERIZED_MODEL_PICKER_CAPABILITIES,
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/acp/DevinAcpSupport.ts
+--- 原文件 333–359 行 ---
+  333	export function buildDevinAcpSpawnInput(
+  334	  devinSettings: DevinAcpRuntimeSettings | null | undefined,
+  335	  cwd: string,
+  336	  runtimeMode: RuntimeMode,
+  337	  childEnvironment?: NodeJS.ProcessEnv,
+  338	): AcpSpawnInput {
+  339	  // Devin's permission prompts surface through ACP request_permission events;
+  340	  // the session itself needs no permission-mode flag to keep that flow intact.
+  341	  void runtimeMode;
+  342	  const args = ["acp"];
+  343	  const model = devinSettings?.model?.trim();
+  344	  if (model) {
+  345	    args.push("--model", model);
+  346	  }
+  347	
+  348	  // The Devin ACP server expects `WINDSURF_API_KEY`. If only the lowercase
+  349	  // variant is present, normalize it to the canonical key for the child.
+  350	  const baseEnv = childEnvironment ?? process.env;
+  351	  const apiKey = getDevinApiKeyEnv(baseEnv);
+  352	  const overrides: NodeJS.ProcessEnv = apiKey ? { WINDSURF_API_KEY: apiKey } : {};
+  353	
+  354	  return {
+  355	    command: resolveDevinBinaryPath(devinSettings?.binaryPath, { env: baseEnv }),
+  356	    args,
+  357	    cwd,
+  358	    env: buildProviderChildEnvironment({ provider: "devin", baseEnv, overrides }),
+  359	  };
+--- 原文件 374–405 行 ---
+  374	export const resolveDevinAcpAuthMethodId = (
+  375	  initializeResult: Acp.InitializeResponse,
+  376	  input: DevinAcpAuthInput = {},
+  377	): Effect.Effect<string, AcpErrors.AcpError> =>
+  378	  Effect.gen(function* () {
+  379	    const authMethodIds = availableAuthMethodIds(initializeResult);
+  380	    const hasApiKey = (input.apiKey?.trim() || getDevinApiKeyEnv()) !== undefined;
+  381	    if (hasApiKey) {
+  382	      const apiKeyMethod = [...authMethodIds].find((methodId) =>
+  383	        DEVIN_API_KEY_AUTH_METHOD_IDS.has(methodId),
+  384	      );
+  385	      if (apiKeyMethod) {
+  386	        return apiKeyMethod;
+  387	      }
+  388	      // Devin 3000.3.x advertises only `devin-browser` even when the ACP host
+  389	      // supplies a valid API key. The CLI still accepts the canonical
+  390	      // `windsurf-api-key` method with `_meta.api_key`, so keep auth headless.
+  391	      if (authMethodIds.has("devin-browser")) {
+  392	        return DEVIN_PRIMARY_API_KEY_AUTH_METHOD_ID;
+  393	      }
+  394	    }
+  395	    if (authMethodIds.has(DEVIN_CACHED_TOKEN_AUTH_METHOD_ID)) {
+  396	      return DEVIN_CACHED_TOKEN_AUTH_METHOD_ID;
+  397	    }
+  398	    // Devin also accepts `devin auth login` stored credentials. Prefer any
+  399	    // advertised non-interactive method before giving up.
+  400	    const nonInteractive = [...authMethodIds].find(
+  401	      (methodId) => !DEVIN_INTERACTIVE_AUTH_METHOD_IDS.has(methodId),
+  402	    );
+  403	    if (nonInteractive) {
+  404	      return nonInteractive;
+  405	    }
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/acp/DroidAcpSupport.ts
+--- 原文件 119–145 行 ---
+  119	export function buildDroidAcpSpawnInput(
+  120	  droidSettings: DroidAcpRuntimeSettings | null | undefined,
+  121	  cwd: string,
+  122	): AcpSpawnInput {
+  123	  const childEnvironment = {
+  124	    ...process.env,
+  125	    ...(droidSettings?.environment ?? {}),
+  126	  };
+  127	  const args = ["exec", "--output-format", "acp"];
+  128	  const appendSystemPrompt = droidSettings?.appendSystemPrompt?.trim();
+  129	  if (appendSystemPrompt) {
+  130	    args.push("--append-system-prompt", appendSystemPrompt);
+  131	  }
+  132	  const model = droidSettings?.model?.trim();
+  133	  if (model) {
+  134	    args.push("-m", model);
+  135	  }
+  136	  const reasoningEffort = droidSettings?.reasoningEffort?.trim();
+  137	  if (reasoningEffort) {
+  138	    args.push("-r", reasoningEffort);
+  139	  }
+  140	
+  141	  return {
+  142	    command: resolveDroidCliBinaryPath(droidSettings?.binaryPath, { env: childEnvironment }),
+  143	    args,
+  144	    cwd,
+  145	    env: buildProviderChildEnvironment({ provider: "droid", baseEnv: childEnvironment }),
+--- 原文件 149–168 行 ---
+  149	export const resolveDroidAcpAuthMethodId = (
+  150	  initializeResult: Acp.InitializeResponse,
+  151	  environment: NodeJS.ProcessEnv = process.env,
+  152	): Effect.Effect<string, AcpErrors.AcpError> =>
+  153	  Effect.gen(function* () {
+  154	    const authMethodIds = availableAuthMethodIds(initializeResult);
+  155	    if (hasDroidApiKeyEnv(environment) && authMethodIds.has(DROID_API_KEY_AUTH_METHOD_ID)) {
+  156	      return DROID_API_KEY_AUTH_METHOD_ID;
+  157	    }
+  158	    if (authMethodIds.has(DROID_DEVICE_PAIRING_AUTH_METHOD_ID)) {
+  159	      return DROID_DEVICE_PAIRING_AUTH_METHOD_ID;
+  160	    }
+  161	    return yield* new AcpErrors.AcpRequestError({
+  162	      code: -32602,
+  163	      errorMessage: "Droid ACP authentication is unavailable.",
+  164	      data: {
+  165	        authMethods: [...authMethodIds],
+  166	        detail: "Run `droid` to authenticate locally, or set FACTORY_API_KEY.",
+  167	      },
+  168	    });
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/acp/GrokAcpSupport.ts
+--- 原文件 105–131 行 ---
+  105	export function buildGrokAcpSpawnInput(
+  106	  grokSettings: GrokAcpRuntimeSettings | null | undefined,
+  107	  cwd: string,
+  108	  runtimeMode: RuntimeMode,
+  109	): AcpSpawnInput {
+  110	  // Keep Grok's request-based mode as the explicit baseline. Full Access also
+  111	  // needs the process-scoped override because some Grok builds deny before
+  112	  // emitting an ACP permission request. Runtime-mode changes restart the Grok
+  113	  // process, while native Plan mode plus Synara's pre-tool hook still gate
+  114	  // writes on Plan turns.
+  115	  const args = ["--permission-mode", "default", "agent", "--no-leader"];
+  116	  if (runtimeMode === "full-access") {
+  117	    args.push("--always-approve");
+  118	  }
+  119	  const model = grokSettings?.model?.trim();
+  120	  if (model) {
+  121	    args.push("-m", model);
+  122	  }
+  123	  const reasoningEffort = grokSettings?.reasoningEffort?.trim();
+  124	  if (reasoningEffort) {
+  125	    args.push("--reasoning-effort", reasoningEffort);
+  126	  }
+  127	  args.push("stdio");
+  128	
+  129	  return {
+  130	    command: grokSettings?.binaryPath || "grok",
+  131	    args,
+--- 原文件 182–187 行 ---
+  182	      if (hasApiKey && authMethodIds.has(GROK_API_KEY_AUTH_METHOD_ID)) {
+  183	        return GROK_API_KEY_AUTH_METHOD_ID;
+  184	      }
+  185	      if (authMethodIds.has(GROK_CACHED_TOKEN_AUTH_METHOD_ID)) {
+  186	        return GROK_CACHED_TOKEN_AUTH_METHOD_ID;
+  187	      }
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/acp/OmpAcpSupport.ts
+--- 原文件 185–211 行 ---
+  185	export function buildOmpAcpSpawnInput(
+  186	  ompSettings: OmpAcpRuntimeSettings | null | undefined,
+  187	  cwd: string,
+  188	): AcpSpawnInput {
+  189	  return {
+  190	    command: resolveOmpCliBinaryPath(ompSettings?.binaryPath),
+  191	    args: ["acp"],
+  192	    cwd,
+  193	    env: buildOmpProcessEnv(ompSettings ?? {}),
+  194	  };
+  195	}
+  196	
+  197	export const resolveOmpAcpAuthMethodId = (
+  198	  initializeResult: Acp.InitializeResponse,
+  199	  agentDir?: string,
+  200	): Effect.Effect<string, AcpErrors.AcpError> =>
+  201	  Effect.gen(function* () {
+  202	    const authMethodIds = availableAuthMethodIds(initializeResult);
+  203	    if (authMethodIds.has(OMP_AGENT_AUTH_METHOD_ID)) {
+  204	      return OMP_AGENT_AUTH_METHOD_ID;
+  205	    }
+  206	    return yield* new AcpErrors.AcpRequestError({
+  207	      code: -32602,
+  208	      errorMessage: "OMP ACP authentication is unavailable.",
+  209	      data: {
+  210	        authMethods: [...authMethodIds],
+  211	        detail: `Run \`omp\` to authenticate locally so ${agentDir?.trim() || "~/.omp"} credentials exist.`,
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/Layers/AntigravityAdapter.ts
+--- 原文件 2500–2529 行 ---
+ 2500	        const conversationId = context.conversationId;
+ 2501	        const args: string[] = [
+ 2502	          ...(conversationId ? ["--conversation", conversationId] : ["--new-project"]),
+ 2503	          "--dangerously-skip-permissions",
+ 2504	          "--model",
+ 2505	          cliModel,
+ 2506	          "--output-format",
+ 2507	          "stream-json",
+ 2508	          "--log-file",
+ 2509	          logFile,
+ 2510	          "--print-timeout",
+ 2511	          PRINT_TIMEOUT,
+ 2512	          "-p",
+ 2513	          providerPrompt,
+ 2514	        ];
+ 2515	        let child: AntigravityChildProcess;
+ 2516	        try {
+ 2517	          const spawnProcess =
+ 2518	            dependencies.spawnProcess ??
+ 2519	            ((command: string, spawnArgs: readonly string[], options: RuntimeSpawnOptions) =>
+ 2520	              spawnPlatformProcess(command, spawnArgs, {
+ 2521	                ...options,
+ 2522	                requireExecutable: true,
+ 2523	              }) as AntigravityChildProcess);
+ 2524	          child = spawnProcess(context.binaryPath, args, {
+ 2525	            lowerPriority: yield* providerProcessPriorityEnabled,
+ 2526	            cwd: context.session.cwd ?? serverConfig.cwd,
+ 2527	            env: buildAntigravityTurnProcessEnvironment({
+ 2528	              eventFile,
+ 2529	              baseEnv: context.environment,
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/opencodeRuntime.ts
+--- 原文件 1007–1057 行 ---
+ 1007	        const hostname = input.hostname ?? DEFAULT_HOSTNAME;
+ 1008	        const port =
+ 1009	          input.port ??
+ 1010	          (yield* netService.findAvailablePort(0).pipe(
+ 1011	            Effect.mapError(
+ 1012	              (cause) =>
+ 1013	                new OpenCodeRuntimeError({
+ 1014	                  operation: "startOpenCodeServerProcess",
+ 1015	                  detail: `Failed to find available port: ${openCodeRuntimeErrorDetail(cause)}`,
+ 1016	                  cause,
+ 1017	                }),
+ 1018	            ),
+ 1019	          ));
+ 1020	        const timeoutMs = input.timeoutMs ?? DEFAULT_OPENCODE_SERVER_TIMEOUT_MS;
+ 1021	        const args = ["serve", "--hostname", hostname, "--port", String(port)];
+ 1022	        // Protect managed servers that support the environment-based auth contract.
+ 1023	        // Keep the credential with the process so every SDK client can authenticate.
+ 1024	        const configuredServerPassword = process.env.OPENCODE_SERVER_PASSWORD;
+ 1025	        const serverPassword =
+ 1026	          configuredServerPassword && configuredServerPassword.length > 0
+ 1027	            ? configuredServerPassword
+ 1028	            : randomBytes(32).toString("base64url");
+ 1029	        const childEnv = yield* Effect.try({
+ 1030	          try: () =>
+ 1031	            buildOpenCodeServerProcessEnv({
+ 1032	              cliSpec,
+ 1033	              ...(input.environment !== undefined ? { environment: input.environment } : {}),
+ 1034	              ...(input.instanceId !== undefined ? { instanceId: input.instanceId } : {}),
+ 1035	              ...(input.homeDir !== undefined ? { homeDir: input.homeDir } : {}),
+ 1036	              ...(input.isolationRootDir !== undefined
+ 1037	                ? { isolationRootDir: input.isolationRootDir }
+ 1038	                : {}),
+ 1039	              ...(input.experimentalWebSockets !== undefined
+ 1040	                ? { experimentalWebSockets: input.experimentalWebSockets }
+ 1041	                : {}),
+ 1042	            }),
+ 1043	          catch: (cause) =>
+ 1044	            new OpenCodeRuntimeError({
+ 1045	              operation: "startOpenCodeServerProcess",
+ 1046	              detail: `Failed to prepare private account home: ${openCodeRuntimeErrorDetail(cause)}`,
+ 1047	              cause,
+ 1048	            }),
+ 1049	        });
+ 1050	        childEnv.OPENCODE_SERVER_USERNAME = cliSpec.serverAuthUsername;
+ 1051	        childEnv.OPENCODE_SERVER_PASSWORD = serverPassword;
+ 1052	        const child = yield* spawnProviderProcess(spawner, expandHomePath(input.binaryPath), args, {
+ 1053	          env: childEnv,
+ 1054	          ...(input.cwd ? { cwd: expandHomePath(input.cwd) } : {}),
+ 1055	          detached: false,
+ 1056	          killSignal: "SIGKILL",
+ 1057	          forceKillAfter: "1500 millis",
+--- 原文件 1431–1438 行 ---
+ 1431	    const connectToOpenCodeServer: OpenCodeRuntimeShape["connectToOpenCodeServer"] = (input) => {
+ 1432	      const serverUrl = input.serverUrl?.trim();
+ 1433	      if (serverUrl) {
+ 1434	        return Effect.succeed({
+ 1435	          url: serverUrl,
+ 1436	          exitCode: null,
+ 1437	          external: true,
+ 1438	        });
+--- 原文件 1475–1487 行 ---
+ 1475	    const createOpenCodeSdkClient: OpenCodeRuntimeShape["createOpenCodeSdkClient"] = (input) =>
+ 1476	      createOpencodeClient({
+ 1477	        baseUrl: input.baseUrl,
+ 1478	        directory: input.directory,
+ 1479	        ...(input.serverPassword
+ 1480	          ? {
+ 1481	              headers: {
+ 1482	                Authorization: `Basic ${Buffer.from(`${(input.cliSpec ?? OPENCODE_CLI_SPEC).serverAuthUsername}:${input.serverPassword}`, "utf8").toString("base64")}`,
+ 1483	              },
+ 1484	            }
+ 1485	          : {}),
+ 1486	        throwOnError: true,
+ 1487	      });
+--- 原文件 1616–1672 行 ---
+ 1616	                readonly stdout?: string;
+ 1617	                readonly stderr?: string;
+ 1618	              }
+ 1619	            | undefined;
+ 1620	          if (
+ 1621	            !supportsVerboseModelsCommandFailure(cause?.stdout ?? "", cause?.stderr ?? "") &&
+ 1622	            !supportsVerboseModelsCommandFailure("", error.detail)
+ 1623	          ) {
+ 1624	            return Effect.fail(error);
+ 1625	          }
+ 1626	
+ 1627	          return listOpenCodeCliModelsFromArgs({
+ 1628	            binaryPath: input.binaryPath,
+ 1629	            ...(input.cliSpec !== undefined ? { cliSpec: input.cliSpec } : {}),
+ 1630	            ...(input.cwd !== undefined ? { cwd: input.cwd } : {}),
+ 1631	            ...(input.environment !== undefined ? { environment: input.environment } : {}),
+ 1632	            ...(input.instanceId !== undefined ? { instanceId: input.instanceId } : {}),
+ 1633	            ...(input.homeDir !== undefined ? { homeDir: input.homeDir } : {}),
+ 1634	            ...(input.isolationRootDir !== undefined
+ 1635	              ? { isolationRootDir: input.isolationRootDir }
+ 1636	              : {}),
+ 1637	            args: ["models"],
+ 1638	          });
+ 1639	        }),
+ 1640	      );
+ 1641	
+ 1642	    const loadOpenCodeCredentialProviderIDs: OpenCodeRuntimeShape["loadOpenCodeCredentialProviderIDs"] =
+ 1643	      (client, cliSpec = OPENCODE_CLI_SPEC) =>
+ 1644	        loadOpenCodePaths(client).pipe(
+ 1645	          Effect.flatMap((pathInfo) =>
+ 1646	            Effect.tryPromise({
+ 1647	              try: () =>
+ 1648	                readOpenCodeAuthFileUtf8({
+ 1649	                  homeDir: pathInfo.home,
+ 1650	                  env: process.env,
+ 1651	                  platform: process.platform,
+ 1652	                  dataDirectoryName: cliSpec.dataDirectoryName,
+ 1653	                }),
+ 1654	              catch: (cause) =>
+ 1655	                new OpenCodeRuntimeError({
+ 1656	                  operation: "readOpenCodeCredentialProviderIDs",
+ 1657	                  detail: openCodeRuntimeErrorDetail(cause),
+ 1658	                  cause,
+ 1659	                }),
+ 1660	            }),
+ 1661	          ),
+ 1662	          Effect.flatMap((content) =>
+ 1663	            Effect.try({
+ 1664	              try: () => parseOpenCodeCredentialProviderIDs(content),
+ 1665	              catch: (cause) =>
+ 1666	                new OpenCodeRuntimeError({
+ 1667	                  operation: "parseOpenCodeCredentialProviderIDs",
+ 1668	                  detail: openCodeRuntimeErrorDetail(cause),
+ 1669	                  cause,
+ 1670	                }),
+ 1671	            }),
+ 1672	          ),
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/openCodeAuthPaths.ts
+--- 原文件 26–61 行 ---
+   26	  const env = input.env ?? {};
+   27	  const paths: string[] = [];
+   28	  const push = (value: string) => {
+   29	    if (!paths.includes(value)) paths.push(value);
+   30	  };
+   31	
+   32	  const override = dataDirectoryOverride(env, input.dataDirectoryName);
+   33	  if (override) push(nodePath.join(override, "auth.json"));
+   34	
+   35	  const xdg = env.XDG_DATA_HOME?.trim();
+   36	  if (xdg) push(nodePath.join(xdg, input.dataDirectoryName, "auth.json"));
+   37	
+   38	  // Canonical OpenCode path on Linux, macOS, and Windows (`xdg-basedir`).
+   39	  push(nodePath.join(input.homeDir, ".local", "share", input.dataDirectoryName, "auth.json"));
+   40	
+   41	  if (input.platform === "win32") {
+   42	    const roaming = env.APPDATA?.trim() || nodePath.join(input.homeDir, "AppData", "Roaming");
+   43	    const local = env.LOCALAPPDATA?.trim() || nodePath.join(input.homeDir, "AppData", "Local");
+   44	    push(nodePath.join(roaming, input.dataDirectoryName, "auth.json"));
+   45	    push(nodePath.join(local, input.dataDirectoryName, "auth.json"));
+   46	  }
+   47	
+   48	  return paths;
+   49	}
+   50	
+   51	export async function readOpenCodeAuthFileUtf8(input: OpenCodeAuthPathInput): Promise<string> {
+   52	  const paths = resolveOpenCodeCompatibleAuthPaths(input);
+   53	  let lastError: unknown;
+   54	  for (const filePath of paths) {
+   55	    try {
+   56	      return await readFile(filePath, "utf8");
+   57	    } catch (cause) {
+   58	      lastError = cause;
+   59	    }
+   60	  }
+   61	  throw lastError instanceof Error ? lastError : new Error("OpenCode auth.json not found");
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/Layers/PiAdapter.ts
+--- 原文件 1834–1844 行 ---
+ 1834	  const runtime = await piSdk.ModelRuntime.create({
+ 1835	    authPath: path.join(agentDir, "auth.json"),
+ 1836	    modelsPath: path.join(agentDir, "models.json"),
+ 1837	    ...(hasAccountBoundary ? { refreshOnCreate: false } : {}),
+ 1838	  });
+ 1839	  if (hasAccountBoundary) {
+ 1840	    isolatePiModelRuntimeFromAmbientEnvironment(runtime, runtimeEnvironment ?? {});
+ 1841	  }
+ 1842	  await applyPiRuntimeApiKeysFromEnvironment(runtime, runtimeEnvironment);
+ 1843	  if (hasAccountBoundary) {
+ 1844	    await runtime.refresh({ allowNetwork: false });
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 packages/shared/src/providerCliProfiles.ts
+--- 原文件 66–107 行 ---
+   66	export const PROVIDER_AUTHENTICATION = {
+   67	  codex: {
+   68	    args: ["login"],
+   69	    instructions: "Complete the browser sign-in. Synara will check this account afterward.",
+   70	  },
+   71	  claudeAgent: {
+   72	    args: ["auth", "login"],
+   73	    instructions:
+   74	      "Choose your login method and complete the browser sign-in, including any Apple or organization prompts.",
+   75	  },
+   76	  cursor: { args: ["login"], instructions: "Complete the Cursor browser sign-in." },
+   77	  devin: {
+   78	    args: ["auth", "login"],
+   79	    instructions:
+   80	      "Choose your Devin or Windsurf login and follow the browser or enterprise sign-in prompts.",
+   81	  },
+   82	  antigravity: {
+   83	    args: [],
+   84	    instructions:
+   85	      "Follow Antigravity's sign-in prompts. Your browser or system credential store may ask for approval.",
+   86	  },
+   87	  grok: {
+   88	    args: ["login"],
+   89	    instructions: "Complete the Grok browser sign-in or the authorization steps shown below.",
+   90	  },
+   91	  droid: { args: [], instructions: "Follow Droid's startup and browser sign-in prompts." },
+   92	  opencode: {
+   93	    args: ["auth", "login"],
+   94	    instructions: "Choose a model provider, then complete its OAuth or API-key setup.",
+   95	  },
+   96	  pi: {
+   97	    args: [],
+   98	    instructions:
+   99	      "Complete any startup prompts, then choose Sign-in options to select a model provider and authenticate.",
+  100	    interactiveCommand: "/login",
+  101	  },
+  102	  omp: {
+  103	    args: [],
+  104	    instructions:
+  105	      "Complete any startup prompts, then choose Sign-in options to select a model provider and authenticate.",
+  106	    interactiveCommand: "/login",
+  107	  },
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/package.json
+--- 原文件 28–40 行 ---
+   28	  "dependencies": {
+   29	    "@agentclientprotocol/sdk": "1.2.1",
+   30	    "@anthropic-ai/claude-agent-sdk": "0.3.259",
+   31	    "@anthropic-ai/sdk": "^0.100.0",
+   32	    "@earendil-works/pi-agent-core": "^0.87.1",
+   33	    "@earendil-works/pi-ai": "^0.87.1",
+   34	    "@earendil-works/pi-coding-agent": "^0.87.1",
+   35	    "@effect/platform-node": "catalog:",
+   36	    "@effect/sql-sqlite-bun": "catalog:",
+   37	    "@opencode-ai/sdk": "1.18.31",
+   38	    "@pierre/diffs": "^1.2.12",
+   39	    "@synara/a2a-gates": "workspace:*",
+   40	    "@xterm/headless": "^6.0.0",
+
+追加核对：2026-10-08T13:15:47.192477+00:00
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/claudebridge/mcp.go
+--- 原文件 123–176 行 ---
+  123				case "tools/list":
+  124					toolsMu.Lock()
+  125					result = map[string]any{"tools": tools}
+  126					if listed != nil {
+  127						// answered before the calls waiting on it go on
+  128						defer close(listed)
+  129						listed = nil
+  130					}
+  131					toolsMu.Unlock()
+  132				case "tools/call":
+  133					var p struct {
+  134						Name      string          `json:"name"`
+  135						Arguments json.RawMessage `json:"arguments"`
+  136						Meta      map[string]any  `json:"_meta"`
+  137					}
+  138					if err := json.Unmarshal(req.Params, &p); err != nil {
+  139						rpcErr = map[string]any{"code": -32602, "message": err.Error()}
+  140						break
+  141					}
+  142					// Claude Code names the call it is making; an agent that does
+  143					// not (Cursor) gets an id of the helper's own.
+  144					id, _ := p.Meta["claudecode/toolUseId"].(string)
+  145					if id == "" {
+  146						id = newCallID()
+  147					}
+  148					payload, _ := json.Marshal(callbackRequest{ToolCallID: id, Name: p.Name, Arguments: p.Arguments})
+  149					httpReq, _ := http.NewRequest(http.MethodPost, callbackURL, bytes.NewReader(payload))
+  150					httpReq.Header.Set("Content-Type", "application/json")
+  151					res, err := client.Do(httpReq)
+  152					if err != nil {
+  153						rpcErr = map[string]any{"code": -32000, "message": err.Error()}
+  154						break
+  155					}
+  156					body, _ := io.ReadAll(io.LimitReader(res.Body, 32<<20))
+  157					res.Body.Close()
+  158					if res.StatusCode != http.StatusOK {
+  159						rpcErr = map[string]any{"code": -32000, "message": string(body)}
+  160						break
+  161					}
+  162					var cb callbackResponse
+  163					if err := json.Unmarshal(body, &cb); err != nil {
+  164						rpcErr = map[string]any{"code": -32000, "message": err.Error()}
+  165						break
+  166					}
+  167					if len(cb.Tools) > 0 {
+  168						// Claude Code takes up the tools before the result: its
+  169						// next request offers them
+  170						retool(cb.Tools)
+  171					}
+  172					result = map[string]any{"content": cb.Content, "isError": cb.IsError}
+  173				default:
+  174					rpcErr = map[string]any{"code": -32601, "message": "method not found"}
+  175				}
+  176				response := map[string]any{"jsonrpc": "2.0", "id": json.RawMessage(req.ID)}
+
+magpie de3b1c646afb156b6b35c1dd7a13b5c11187421b internal/provider/subscription_usage.go
+--- 原文件 562–566 行 ---
+  562	// claudeUsage keeps each Claude account's allowance as Claude Code last
+  563	// told it: its /usage, run when the user asks (AskClaudeUsage) and only for
+  564	// the account it is signed in to, or what it said as it answered
+  565	// (NoteClaudeLimits). magpie never asks Anthropic for it itself; the Usage
+  566	// page's timer, the switch list and routing show what is kept here.
+
+追加 Codex direct caller 核对：2026-10-08T13:16:30.034588+00:00
+
+synara 3566ef4eb34b18c480c7a49e4b5d741681b72426 apps/server/src/provider/Layers/CodexAdapter.ts
+--- 原文件 2140–2185 行 ---
+ 2140	    const startSession: CodexAdapterShape["startSession"] = (input) => {
+ 2141	      if (input.provider !== undefined && input.provider !== PROVIDER) {
+ 2142	        return Effect.fail(
+ 2143	          new ProviderAdapterValidationError({
+ 2144	            provider: PROVIDER,
+ 2145	            operation: "startSession",
+ 2146	            issue: `Expected provider '${PROVIDER}' but received '${input.provider}'.`,
+ 2147	          }),
+ 2148	        );
+ 2149	      }
+ 2150	
+ 2151	      const managerInput: CodexAppServerStartSessionInput = {
+ 2152	        threadId: input.threadId,
+ 2153	        provider: "codex",
+ 2154	        ...(input.providerInstanceId ? { providerInstanceId: input.providerInstanceId } : {}),
+ 2155	        ...(input.lifecycleGeneration !== undefined
+ 2156	          ? { lifecycleGeneration: input.lifecycleGeneration }
+ 2157	          : {}),
+ 2158	        ...(input.cwd !== undefined ? { cwd: input.cwd } : {}),
+ 2159	        ...(input.resumeCursor !== undefined ? { resumeCursor: input.resumeCursor } : {}),
+ 2160	        ...(input.expectedCodexContinuationGeneration
+ 2161	          ? { expectedCodexContinuationGeneration: input.expectedCodexContinuationGeneration }
+ 2162	          : {}),
+ 2163	        ...(input.forkSourceResumeCursor !== undefined
+ 2164	          ? { forkSourceResumeCursor: input.forkSourceResumeCursor }
+ 2165	          : {}),
+ 2166	        ...(input.providerOptions !== undefined ? { providerOptions: input.providerOptions } : {}),
+ 2167	        ...(input.additionalDirectories !== undefined
+ 2168	          ? { additionalDirectories: input.additionalDirectories }
+ 2169	          : {}),
+ 2170	        agentGatewayCapabilityInput: captureAgentGatewayCapabilityInput(input),
+ 2171	        ...(input.autoApproveSynaraTools !== undefined
+ 2172	          ? { autoApproveSynaraTools: input.autoApproveSynaraTools }
+ 2173	          : {}),
+ 2174	        runtimeMode: input.runtimeMode,
+ 2175	        ...codexModelSelectionOverrides(input.modelSelection),
+ 2176	      };
+ 2177	
+ 2178	      return Effect.tryPromise({
+ 2179	        try: () => manager.startSession(managerInput),
+ 2180	        catch: (cause) =>
+ 2181	          new ProviderAdapterProcessError({
+ 2182	            provider: PROVIDER,
+ 2183	            threadId: input.threadId,
+ 2184	            detail: toMessage(cause, "Failed to start Codex adapter session."),
+ 2185	            ...(cause instanceof CodexSessionStartError
+--- 原文件 2191–2204 行 ---
+ 2191	    };
+ 2192	
+ 2193	    const sendTurn: CodexAdapterShape["sendTurn"] = (input) =>
+ 2194	      Effect.gen(function* () {
+ 2195	        const managerInput = yield* prepareCodexManagerTurnInput(input, "turn/start");
+ 2196	
+ 2197	        return yield* Effect.tryPromise({
+ 2198	          try: () => manager.sendTurn(managerInput),
+ 2199	          catch: (cause) => toRequestError(input.threadId, "turn/start", cause),
+ 2200	        }).pipe(
+ 2201	          // Armed here as well as on `turn.started`, so a child that goes silent
+ 2202	          // before its first notification is still covered.
+ 2203	          Effect.tap((result) => Effect.sync(() => armTurnWatchdog(input.threadId, result.turnId))),
+ 2204	          Effect.map((result) => ({
