@@ -1,0 +1,12 @@
+--- original/test_recovery_e2e.py
++++ native-acceptance/test_recovery_e2e.py
+@@ -199,7 +199,8 @@
+             raise FixtureError("Target CLI exited before injection: " + reason)
+         observation = self.process(["ps", "-p", str(p.pid), "-o", "pid=,ppid=,command="],
+                                    label="fixture:confirm-owned-cli")
+-        if (observation.returncode != 0 or str(SCRIPT) not in observation.stdout or
++        identity_entry = os.environ.get("COOP_NATIVE_ENTRY", str(SCRIPT))
++        if (observation.returncode != 0 or identity_entry not in observation.stdout or
+                 str(self.state) not in observation.stdout or
+                 self.task not in observation.stdout or p.poll() is not None):
+             raise FixtureError("CLI PID identity could not be confirmed: " + observation.stdout)

@@ -1,21 +1,21 @@
 # T-036 交付记录（2026-10-07）
 
-**INCOMPLETE，待主控关闭。** 主控 Claude Code（`wF:pM`）；执行 worker 为主控启动的 `s1-t036`（`wF:pX`）。fork 修正候选为 `26cb210a9`（完整版本见 [绑定记录](corrected-candidate.json)），基线 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，未 push。该候选重新证明交付 8 项与 fence 反例；恢复的中断场景与 Git 回读反例尚未证明。
+**INCOMPLETE，仅余针对性独立复核与收尾；待主控关闭。** 主控 Claude Code（`wF:pM`）；执行 worker 为主控启动的 `s1-t036`（`wF:pX`）。fork 修正候选为 `26cb210a99fc74a43ef341278c6ef4e19ab0565e`（[绑定记录](corrected-candidate.json)），基线 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，未 push。该候选现已经批准的同一副本入口证明交付 8/8、恢复 9/9、两个业务反例。全仓失败与旧候选异常继续保留。
 
 ## 四项验收
 
 | 条件 | 结论 | 命令与证据 |
 | --- | --- | --- |
 | 交付 8 项与先验红态 | PASS | `python3 -B evidence/2026-10-07-synara-batch1/T-036/run-acceptance.py corrected-candidate-delivery test_coop_e2e.py`；修正候选 8/8。原 CLI 对 `--state … create` 返回 exit 2：[契约红态](red-delivery-entry-fixed/command.json)、[修正候选绿态](corrected-candidate-delivery/command.json)、各自 `trace.json` |
-| 恢复 9 项 | INCOMPLETE | `…/run-acceptance.py candidate-recovery-01 test_recovery_e2e.py`；2 项操作锁检查通过，7 项原夹具在注入前拒绝。没有实际 SIGKILL：[原始结果](candidate-recovery-01/command.json)、[SQLite/Git/命令快照](candidate-recovery-01/trace.json)。该轮早于最终冻结；不把它称为冻结版本的恢复验收 |
-| fence 与 Git 回读 mutant | INCOMPLETE | `…/run-mutant.py fence-corrected test_coop_e2e.py` 的原套件在错 fence 的 `0 != 1` 业务断言失败：[修正候选结果](mutant-fence-corrected-test_coop_e2e/command.json)。`…/run-mutant.py readback test_recovery_e2e.py entry-fixed` 只有夹具错误：[历史结果](mutant-readback-test_recovery_e2e-entry-fixed/command.json)；它不能证明 Git 回读 mutant 被抓住。完整错误实现与差异保存在 [mutants](mutants/) |
+| 恢复 9 项 | PASS | 批准副本单独 9/9：[结果](native-recovery-green/command.json)；同一组合入口交付 8+恢复 9 共 17/17：[结果](native-combined-green/command.json)、[完整 trace](native-combined-green/trace.json)。该轮针对冻结修正候选，真实 SIGKILL 只向各夹具创建并核对的 CLI PID 发出 |
+| fence 与 Git 回读 mutant | PASS（反例被抓住） | 同一组合入口：错 fence 在 `0 != 1` 业务断言失败：[结果](mutant-fence-corrected-native-suite/command.json)；忽略回读在 CAS 前恢复、外部 X、引用删除 3 个恢复场景为 BUSINESS_RED：[结果](mutant-readback-corrected-native-suite/command.json)、[业务断言](mutant-readback-corrected-native-suite/trace.json)。无 setup/import/夹具错误充数。完整错误实现与 diff 在 [mutants](mutants/) |
 | CLI 差异记录、不改预期 | PASS（记录） | 下表记录原生运行差异；未修改 `acceptance/test_coop_e2e.py`、`acceptance/test_recovery_e2e.py` 或 oracle。只新增薄转接脚本，原样转交参数 |
 
 ## CLI 与运行时差异
 
 | 项目 | 原因与影响 | 处理建议 / 状态 |
 | --- | --- | --- |
-| 中断前的入口身份核对 | `test_recovery_e2e.py:201` 要求 `ps` 含 `COOP_SCRIPT` 的 Python 路径。`os.execv` 保持 PID，但最终进程为 `bun …/packages/a2a-gates/src/cli.ts --state … COMMAND --task …`，路径已改变。夹具先拒绝、没有发信号，因此 7 项恢复及 Git 回读反例缺少业务证据 | [proposed-native-identity.diff](proposed-native-identity.diff) 只参数化进程入口路径，保留 PID 活跃检查、state/task 限制和所有业务断言。提议只用于证据副本，不改原文件；**等待主控批准，尚未执行** |
+| 中断前的入口身份核对 | `test_recovery_e2e.py:201` 要求 `ps` 含 Python 的 `COOP_SCRIPT` 路径。`os.execv` 保持 PID，但最终进程为 `bun …/cli.ts --state … COMMAND --task …`。原夹具拒绝且没有信号：[原记录](candidate-recovery-01/command.json) | 主控在 `controller-decision-01.md` 明确批准证据副本。[完整 diff](native-acceptance/complete.diff) 只有入口路径参数化的两行，仍检查活跃 Popen PID、原生 CLI 路径、state/task 和信号结果。原文件和业务断言未改。独立复核须逐行确认 |
 | 原生 thread 的 submit | `dispatch` 的 attempt 仍核对 MCP caller、thread、turn、worktree 与运行状态；运行时无关的 `claim` 没有 thread，CLI 只接受其已分配 attempt/session/fence/spec | 对应冻结的本地受管合同；没有把原生 attempt 降级为 CLI 身份。T-036 未调用模型、未运行原生 thread 闭环 |
 | 传输与状态输入 | 新 CLI 接受冻结的 `--state ABS_DIR COMMAND …`；已有 URL+JSON 形式保留为原生生命周期的 HTTP 传输。两者汇入同一核心。核心 DB 仍为 `state.sqlite3`，旧事件表只增加 attempt 列 | 不新增业务状态入口；本次对上游既有接入点的改动只有 `packages/contracts/src/a2aGates.ts`，扩展命令、记录与结果类型 |
 | 路径及数字边界 | 本地 CLI 的 state 需绝对路径。整数解析限制为 JS safe integer；非法语法返回 2；业务拒绝返回 1 且 `ok=false,error`。HTTP 请求沿用 schema 校验 | 未声称 argparse 的所有帮助、巨大整数和错误文案逐字一致；冻结套件使用的合法输入、业务代码与退出码已验证 |
@@ -48,4 +48,16 @@
 
 修复仍走同一个受锁 reclaim 路径：选择指定历史记录并核对其绑定，业务 task 只在 current_attempt 匹配时改变；历史重放、外来 task 和仍工作执行者继续受保护。事件绑定实际回收的 attempt。`26cb210a9` 的 [针对性检查](corrected-candidate-core-test.log) 通过，原交付套件与同版本 fence mutant 也重新运行。检查使用真实 Git/SQLite 和受控 thread 替身，只证明所有权作用域，不称为真实原生会话验收。该新测试此前对错误候选失败；未从实现输出提取预期。
 
-当前暂停的是恢复夹具身份核对的后续推进。主控最小决定是批准所列证据副本差异，随后重跑冻结恢复套件与 readback mutant；也可保持 T-036 open，交下一轮处理。未触碰用户 Herdr、用户配置或 Synara 数据；未 push、未执行真实模型调用、未删除现场。原验收自身释放了本次创建的屏障和 CLI；临时仓库、worktree 和失败记录保留。
+## 批准副本的复现与红态
+
+主控决定原样留在本目录 `controller-decision-01.md`，由主控自己提交；worker 的提交不包含该文件。只复制恢复脚本，其 helper 仍是原 `acceptance/test_coop_e2e.py`。`native-suite.py` 只选取原交付 8 项和恢复副本 9 项，不增删场景、预期或断言。确切环境与 argv 见每轮 `command.json`，基本命令为：
+
+```sh
+PYTHONPATH=/Users/luckye/Documents/Code/a2a/acceptance COOP_NATIVE_ENTRY=/Users/luckye/Documents/Code/synara/packages/a2a-gates/src/cli.ts python3 -B evidence/2026-10-07-synara-batch1/T-036/run-acceptance.py UNIQUE_LABEL /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch1/T-036/native-acceptance/native-suite.py
+PYTHONPATH=/Users/luckye/Documents/Code/a2a/acceptance python3 -B evidence/2026-10-07-synara-batch1/T-036/run-mutant.py fence-corrected /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch1/T-036/native-acceptance/native-suite.py UNIQUE_SUFFIX
+PYTHONPATH=/Users/luckye/Documents/Code/a2a/acceptance python3 -B evidence/2026-10-07-synara-batch1/T-036/run-mutant.py readback-corrected /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch1/T-036/native-acceptance/native-suite.py UNIQUE_SUFFIX
+```
+
+实现前的原脚本红态已经保留。授权后，同一副本组合入口又对 `7cb0ac0` 的缺失 CLI 取到 [反事实红态](mutant-baseline-native-suite/command.json)，不是补称为实现前运行。副本的独立 9 项绿态、完整 17 项绿态、两个 mutant 均保留，信号、SQLite/Git 快照与业务断言未丢弃。原文件在转接入口下拒绝注入的结果不是产品恢复失败，也不算恢复通过。
+
+未触碰用户 Herdr、用户配置或 Synara 数据；未 push、未执行真实产品模型调用、未删除现场。原验收自身释放了本次创建的屏障和 CLI；临时仓库、worktree 和失败记录保留，归档不登记 gitlink。针对性独立复核结束后只补记报告，不再改冻结代码。

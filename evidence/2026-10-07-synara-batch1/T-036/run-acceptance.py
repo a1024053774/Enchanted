@@ -21,7 +21,7 @@ started = datetime.datetime.now(datetime.timezone.utc).isoformat()
 p = subprocess.run(argv, cwd=root, env=env, text=True, capture_output=True)
 record = dict(argv=argv, cwd=str(root), started=started, finished=datetime.datetime.now(datetime.timezone.utc).isoformat(),
               exit_code=p.returncode, stdout=p.stdout, stderr=p.stderr, artifacts=str(artifacts),
-              environment={k: env[k] for k in ("A2A_SYNARA_SLOT", "COOP_SCRIPT", "COOP_E2E_ARTIFACT_ROOT", "COOP_E2E_TRACE")})
+              environment={k: env[k] for k in ("A2A_SYNARA_SLOT", "COOP_SCRIPT", "COOP_E2E_ARTIFACT_ROOT", "COOP_E2E_TRACE", "PYTHONPATH", "COOP_NATIVE_ENTRY", "A2A_MUTANT_ENTRY") if k in env})
 with (run / "command.json").open("x", encoding="utf-8") as out:
     json.dump(record, out, ensure_ascii=False, indent=2)
     out.write("\n")

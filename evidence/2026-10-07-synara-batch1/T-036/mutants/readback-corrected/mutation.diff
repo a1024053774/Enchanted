@@ -1,0 +1,20 @@
+--- 26cb210/core.ts
++++ readback/core.ts
+@@ -651,7 +651,7 @@
+         requireGate((task.state === "verified" || intent) && v?.state === "passed", "not_verified");
+         this.checkVerification(task, attempt, v);
+         requireGate(v.M, "not_verified");
+-        const actual = await this.integration(task);
++        const actual = intent ? intent.M : await this.integration(task);
+         if (intent) {
+           requireGate(
+             task.state === "integrating" &&
+@@ -707,7 +707,7 @@
+         const result = await this.execute(taskId, intent.command_intent!.argv, task.repo);
+         const readback = await this.integration(task);
+         intent.result = result;
+-        const completed = result.returncode === 0 && readback === intent.M;
++        const completed = result.returncode === 0;
+         if (completed) {
+           intent.state = "completed";
+           task.state = "accepted";
