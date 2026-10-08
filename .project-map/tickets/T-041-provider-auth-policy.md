@@ -1,0 +1,15 @@
+---
+id: T-041
+title: 各 provider 登录方式的条款核实
+type: research
+status: open
+blocked_by: []
+claimed_by:
+supersedes:
+---
+
+## Question
+
+工作台经 Codex app-server、Claude Agent SDK、ACP、OpenCode SDK 运行 agent。逐家核实：自用、本地、开源发布时，使用订阅登录（ChatGPT、Claude.ai 等）是否被条款允许；哪些用法会被视为第三方转发或共享凭据。初步检索（2026-10-07）：Anthropic 不允许第三方产品提供 Claude.ai 登录、要求用 API key；OpenAI 对本地或开源的 app-server 使用 ChatGPT 登录未禁止，但商用或托管不允许。需以官方文档原文为准，并核实 Synara 各 provider 的实际认证路径。
+
+## Resolution

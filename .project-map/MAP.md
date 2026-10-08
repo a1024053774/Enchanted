@@ -3,7 +3,7 @@
 ## Destination
 
 第二阶段（2026-10-07 修订）：基于 Synara fork（`a1024053774/synara`）的 a2a 多 Agent 工作台，目标与 M1 见 [intent.md](../intent.md)，决策见 T-030～T-033。
-门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。执行规格见 [synara-m1](specs/synara-m1-2026-10-07.md)；第一批：T-034、T-035、T-036 已关闭；下一批待切片。
+门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎冻结为参考实现。执行规格见 [synara-m1](specs/synara-m1-2026-10-07.md)；第一批：T-034、T-035、T-036 已关闭；第二批：T-037、T-038 进行中 → T-039 → T-040；T-041 核实 provider 登录条款。
 [workbench-m1](specs/workbench-m1-2026-10-06.md) 是被取代的 GPUI/Muster 方案的日期记录；其中 T-024、T-026、T-027、T-029 已完成并保留为证据。
 
 首轮已完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
