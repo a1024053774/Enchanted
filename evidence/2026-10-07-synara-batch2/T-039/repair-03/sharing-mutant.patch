@@ -1,0 +1,13 @@
+--- a/apps/server/src/serverLayers.ts
++++ b/apps/server/src/serverLayers.ts
+@@ -271,8 +271,8 @@
+     Layer.provideMerge(
+       A2AGateServiceLive.pipe(
+         Layer.provide(runtimeServicesLayer),
+-        Layer.provide(runtimeIngestionLayer),
+-        Layer.provide(providerCommandReactorLayer),
++        Layer.provide(Layer.fresh(runtimeIngestionLayer)),
++        Layer.provide(Layer.fresh(providerCommandReactorLayer)),
+       ),
+     ),
+   );

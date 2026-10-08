@@ -14,11 +14,19 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 一次真实 run 经完整入口 accepted，集成引用读回为 worker 提交；追加式运行记录含精确 argv、版本、task/attempt/thread、原始外部结果。
+- [x] 一次真实 run 经完整入口 accepted，集成引用读回为 worker 提交；追加式运行记录含精确 argv、版本、task/attempt/thread、原始外部结果。
 - [x] 隔离 home 在结束后删除；用户 Herdr、Codex 配置与 Synara 数据不变。
 - [x] 无人值守期间若出现权限对话，停下保存现场，不作为通过。
 
 ## Resolution
+
+**PASS（仅T-039三项，待主控关闭；ticket保持open）。** 决定02/03后候选 `8aba12a4911ce6bc682dbb75d343b3ae08529202`，原自动run `5866aa6c-db6e-4f6d-b137-d76d16fc03d8` exit0、completed/reclaimed；worker显式a2a_submit，oracle12/12，CAS独立读回为 `8ea88d43ae99c7d805347aa06edff6ad43105594`。没有手工补回收、二次任务输入或新模型turn。两个producer的同实例证明与重复实例反例、12项相关检查、35项重跑、新的独立审查均有证据。
+
+隔离home和进程已清理，用户指定前后元数据/herdr status相同；observer healthy，人工输入为空。源码/配置/精确launcher请求argv及原始外部结果绑定候选；模型退出早于ps捕获，不能声称观察了其OS argv或供应商tier。全仓test为NO_GO，desktop失败文件短外盘tmp复核67/67通过但不改判全仓；server全仓覆盖未完成。完整M1、发布与全机内容审计不在本PASS范围。
+
+报告与命令索引见 [FINAL-RESULTS](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/FINAL-RESULTS.md)，独立审查 [PASS](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/acceptance-review-final.md)及 [来源](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/review-provenance-final.json)。旧BLOCKED/FAIL、注册阻断及首次审查误读导致的INCOMPLETE均保留，不倒改历史。未push；a2a提交号以最后DONE回执为准。
+
+### 决定02阶段阻断记录（保留）
 
 **决定02执行中：BLOCKED，待主控授权注册点修改。** [机制对照](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/projection-settlement-comparison.md)已核对runtime ingestion ACK、domain high-water、snapshot最小已处理序号和provider intent ACK。`service.ts`接入已有机制与期限，受控测试10/10；最终测试在父版service上3失败/7通过。两个授权文件的工作区改动保留，尚未提交fork。
 

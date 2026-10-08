@@ -1,0 +1,55 @@
+{
+  "checks": {
+    "original_auto_run_completed": true,
+    "candidate_worker_integration_equal": true,
+    "contract_bytes_unchanged": true,
+    "oracle_bytes_unchanged": true,
+    "oracle_12_pass": true,
+    "native_stopped_archived": true,
+    "same_original_attempt_reclaimed": true,
+    "human_intervention_empty": true,
+    "observer_healthy": true,
+    "no_pending_dialogs": true,
+    "homes_removed": true
+  },
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2a-t039-r03-c6ls9k43/fixture",
+        "rev-parse",
+        "refs/a2a/integration"
+      ],
+      "stdout": "8ea88d43ae99c7d805347aa06edff6ad43105594\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2a-t039-r03-c6ls9k43/synara-home/userdata/a2a-gates/worktrees/3fb08360-c88e-40f6-b94c-34383c6449d1",
+        "rev-parse",
+        "HEAD"
+      ],
+      "stdout": "8ea88d43ae99c7d805347aa06edff6ad43105594\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2a-t039-r03-c6ls9k43/fixture",
+        "show",
+        "8ea88d43ae99c7d805347aa06edff6ad43105594:CONTRACT.md"
+      ],
+      "stdout": "# Cursor pagination fixture v1\n\nThis is an isolated coding task for the Herdr A2A experiment.\n\nRun `python3 pager.py`. Read one JSON request from stdin and write one JSON response to stdout.\nRequests contain `items` (records with distinct string `id` and integer `ts`), `limit`,\nand optional `after` (null or [integer timestamp, string id]).\nSort records by (ts, id) ascending. Return at most limit records strictly after that pair.\nPreserve all record fields. Return `{\"items\": [...], \"next_cursor\": ...}`.\nThe next cursor is the last returned pair only if additional eligible records remain;\notherwise it is null. Input order must not matter. Do not mutate input records.\n\nLimits must be integers in [1, 100]; booleans are invalid. Invalid limit returns only\n`{\"error\": \"invalid_limit\"}`. An after value with a wrong shape/type returns only\n`{\"error\": \"invalid_cursor\"}`. Check limit before cursor. A cursor need not exist in the input.\nEmpty results have items=[] and next_cursor=null.\n\nThe initial program is deliberately incomplete. Implement this contract without modifying\nthis document or acceptance tools. A successful model turn is not delivery acceptance.\n",
+      "stderr": "",
+      "exit": 0
+    }
+  ],
+  "run_id": "5866aa6c-db6e-4f6d-b137-d76d16fc03d8",
+  "candidate": "8ea88d43ae99c7d805347aa06edff6ad43105594"
+}
