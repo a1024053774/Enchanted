@@ -1,0 +1,86 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t039-repair
+$ vitest run --maxWorkers=1 --no-file-parallelism "src/a2a/service.test.ts"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/apps/server
+
+(node:74731) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/a2a/service.test.ts (6 tests | 3 failed) 3053ms
+     × keeps an unprojected turn unbound and rejects delivery until projected 541ms
+     × uses the existing deadline while projection remains absent without business progress 833ms
+     × reclaims an interrupted bound attempt through stop, archive and confirmed readback 505ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/a2a/service.test.ts > a2a native observation seam > keeps an unprojected turn unbound and rejects delivery until projected
+AssertionError: {"ok":false,"error":"identity_conflict","details":{"shell":{"id":"59f94007-878c-443c-a876-81c89ee22bc9","projectId":"controlled-project","modelSelection":{"provider":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh","fastMode":true}},"worktreePath":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-6glH2C/state/a2a-gates/worktrees/39b2fc5d-4116-4d7c-b3c9-a77691a64753","archivedAt":null,"latestTurn":null,"session":{"threadId":"59f94007-878c-443c-a876-81c89ee22bc9","providerName":"codex","status":"ready","activeTurnId":null},"hasPendingApprovals":false,"hasPendingUserInput":false},"active":{"threadId":"59f94007-878c-443c-a876-81c89ee22bc9","provider":"codex","status":"running","cwd":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-6glH2C/state/a2a-gates/worktrees/39b2fc5d-4116-4d7c-b3c9-a77691a64753","activeTurnId":"literal-turn-a","runtimeMode":"full-access","createdAt":"2026-10-08T00:00:00.000Z","updatedAt":"2026-10-08T00:00:01.000Z"}},"human_input_observer":{"state":"healthy","updated_at":"2026-10-08T06:24:55.073Z"}}
+
+false !== true
+
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/a2a/service.test.ts:130:14
+    128|     try {
+    129|       const dispatched = await f.gates.call({ command: "dispatch", tas…
+    130|       assert.equal(dispatched.ok, true, JSON.stringify(dispatched));
+       |              ^
+    131|       const a = dispatched.attempt!;
+    132|       assert.equal(a.turn_id, null);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/a2a/service.test.ts > a2a native observation seam > uses the existing deadline while projection remains absent without business progress
+AssertionError: {"ok":false,"error":"identity_conflict","details":{"shell":{"id":"c472abfb-e100-40c2-8f50-8bd6d4a9ba08","projectId":"controlled-project","modelSelection":{"provider":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh","fastMode":true}},"worktreePath":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-mi4UgP/state/a2a-gates/worktrees/d490fef9-6778-4df9-b11b-740593249a26","archivedAt":null,"latestTurn":null,"session":{"threadId":"c472abfb-e100-40c2-8f50-8bd6d4a9ba08","providerName":"codex","status":"ready","activeTurnId":null},"hasPendingApprovals":false,"hasPendingUserInput":false},"active":{"threadId":"c472abfb-e100-40c2-8f50-8bd6d4a9ba08","provider":"codex","status":"running","cwd":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-mi4UgP/state/a2a-gates/worktrees/d490fef9-6778-4df9-b11b-740593249a26","activeTurnId":"literal-turn-a","runtimeMode":"full-access","createdAt":"2026-10-08T00:00:00.000Z","updatedAt":"2026-10-08T00:00:01.000Z"}},"task":{"task_id":"controlled","project_id":"controlled-project","repo":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-mi4UgP/repo","oracle":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-mi4UgP/state/a2a-gates/tasks/controlled-c275dd2e-286c-41da-9144-fd3526537227/oracle.py","instructions":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-mi4UgP/state/a2a-gates/tasks/controlled-c275dd2e-286c-41da-9144-fd3526537227/instructions.txt","base_commit":"d73fa4ad3baa6797ea31949762bb0c9048de5f36","state":"claimed","spec_rev":1,"fence":1,"current_attempt":{"task_id":"controlled","attempt_id":"d490fef9-6778-4df9-b11b-740593249a26","session_id":"a49f63f6-860e-4f0c-9b3e-52b596534cfe","fence":1,"spec_rev":1,"thread_id":"c472abfb-e100-40c2-8f50-8bd6d4a9ba08","runtime_mode":"full-access","turn_id":null,"workspace":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-mi4UgP/state/a2a-gates/worktrees/d490fef9-6778-4df9-b11b-740593249a26","base_commit":"d73fa4ad3baa6797ea31949762bb0c9048de5f36","reclaimed":false,"owner":"controlled","state":"claimed"},"candidate_commit":null,"verification":null,"integration_intent":null},"run":{"run_id":"03effceb-9802-4a3c-b64b-5321fe9c5f30","task_id":"controlled","attempt_id":"d490fef9-6778-4df9-b11b-740593249a26","thread_id":"c472abfb-e100-40c2-8f50-8bd6d4a9ba08","started":"2026-10-08T06:24:56.089Z","wait_seconds":1,"phase":"dispatching","outcome":"paused","error":"identity_conflict","details":{"shell":{"id":"c472abfb-e100-40c2-8f50-8bd6d4a9ba08","projectId":"controlled-project","modelSelection":{"provider":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh","fastMode":true}},"worktreePath":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-mi4UgP/state/a2a-gates/worktrees/d490fef9-6778-4df9-b11b-740593249a26","archivedAt":null,"latestTurn":null,"session":{"threadId":"c472abfb-e100-40c2-8f50-8bd6d4a9ba08","providerName":"codex","status":"ready","activeTurnId":null},"hasPendingApprovals":false,"hasPendingUserInput":false},"active":{"threadId":"c472abfb-e100-40c2-8f50-8bd6d4a9ba08","provider":"codex","status":"running","cwd":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-mi4UgP/state/a2a-gates/worktrees/d490fef9-6778-4df9-b11b-740593249a26","activeTurnId":"literal-turn-a","runtimeMode":"full-access","createdAt":"2026-10-08T00:00:00.000Z","updatedAt":"2026-10-08T00:00:01.000Z"}},"ended":"2026-10-08T06:24:56.188Z"},"human_input_observer":{"state":"healthy","updated_at":"2026-10-08T06:24:55.863Z"}}
++ actual - expected
+
++ 'identity_conflict'
+- 'run_deadline'
+
+
+Expected: "run_deadline"
+Received: "identity_conflict"
+
+ ❯ src/a2a/service.test.ts:150:14
+    148|       f.releaseAtDeadline();
+    149|       const result = await f.gates.call({ command: "run", task: "contr…
+    150|       assert.equal(result.error, "run_deadline", JSON.stringify(result…
+       |              ^
+    151|       assert.equal(result.run!.outcome, "deadline");
+    152|       const events = (await f.gates.call({ command: "events", task: "c…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/a2a/service.test.ts > a2a native observation seam > reclaims an interrupted bound attempt through stop, archive and confirmed readback
+AssertionError: {"ok":false,"error":"run_external_unknown","details":{"shell":{"id":"3c75333f-b188-4074-b39f-ba41b4bd4163","projectId":"controlled-project","modelSelection":{"provider":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh","fastMode":true}},"worktreePath":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-0qdLvM/state/a2a-gates/worktrees/fe5be710-9763-45ac-a40f-1a9690ee10db","archivedAt":null,"latestTurn":{"turnId":"literal-turn-a","state":"interrupted"},"session":{"threadId":"3c75333f-b188-4074-b39f-ba41b4bd4163","providerName":"codex","status":"interrupted","activeTurnId":null},"hasPendingApprovals":false,"hasPendingUserInput":false}},"human_input_observer":{"state":"healthy","updated_at":"2026-10-08T06:24:56.432Z"}}
+
+false !== true
+
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/a2a/service.test.ts:171:14
+    169|       f.sessions = [];
+    170|       const result = await f.gates.call({ command: "reclaim", task: "c…
+    171|       assert.equal(result.ok, true, JSON.stringify(result));
+       |              ^
+    172|       assert.deepEqual(f.effects, ["stop", "project-stopped", "archive…
+    173|       const events = (await f.gates.call({ command: "events", task: "c…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 3 passed (6)
+   Start at  02:24:52
+   Duration  5.57s (transform 1.38s, setup 0ms, import 2.23s, tests 3.05s, environment 0ms)
+
+error: script "test" exited with code 1

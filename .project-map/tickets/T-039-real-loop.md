@@ -15,10 +15,18 @@ supersedes:
 ## Acceptance
 
 - [ ] 一次真实 run 经完整入口 accepted，集成引用读回为 worker 提交；追加式运行记录含精确 argv、版本、task/attempt/thread、原始外部结果。
-- [ ] 隔离 home 在结束后删除；用户 Herdr、Codex 配置与 Synara 数据不变。
+- [x] 隔离 home 在结束后删除；用户 Herdr、Codex 配置与 Synara 数据不变。
 - [x] 无人值守期间若出现权限对话，停下保存现场，不作为通过。
 
 ## Resolution
+
+**本轮 BLOCKED，待主控决定；ticket 保持 open，待主控关闭。** 按 [主控决定01](../../evidence/2026-10-07-synara-batch2/T-039/controller-decision-01.md) 修复后，fork 候选为 `fc9e36c75af3bbcf701551abbb911883b94217c2`。只修改原生观察转换与新增服务测试；最终测试在旧候选上有3项业务红态，新候选6/6，移植场景35/35，typecheck/lint通过。
+
+全新真实根的 worker 已显式 submit；独立 oracle 12/12通过，CAS引用与 worker提交均为 `b1f5f5178585377150ae046b5ee3fc27f4b10970`。但原 run 在回收时因 provider 已退出、投影仍 running 被 `run_external_unknown` 拒绝，收据为 `integrated_reclaim_failed`。在主控决定要求未知仍拒绝的边界内，没有添加第三类状态的容错或再次调用模型。后续同 attempt 的清理请求先遇到 `stop_unconfirmed`，核对实际 stopped 后再经原门禁成功停止、归档、读回；不改判原 run 成功，因此第一项未勾选。
+
+隔离源 home、overlay和本次进程已清理。按主控指定的只读前后核对，用户 config/rules 的大小与mtime、Synara顶层目录元数据及 herdr status 均相同；这只是指定范围的元数据证据。人工输入事件为空，无权限或问题回答。全仓fmt仅原有 `.grok/settings.json`失败；全仓test在新状态差异的决策点未继续运行。报告和完整证据见 [repair-02/RESULTS](../../evidence/2026-10-07-synara-batch2/T-039/repair-02/RESULTS.md)，新的独立审查见 [repair-02/acceptance-review](../../evidence/2026-10-07-synara-batch2/T-039/repair-02/acceptance-review.md)。
+
+### 首轮记录（原结论保留）
 
 **BLOCKED，待主控决定；ticket 保持 open，待主控关闭。** 固定 fork 候选 `fa3fc3352805d00e41c454fa6f810807528de3a9`，仅一次真实 Codex 模型 turn。完整闭环未通过，未修改产品代码或 push。
 

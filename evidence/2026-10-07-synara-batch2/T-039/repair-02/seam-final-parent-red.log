@@ -1,0 +1,86 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t039-repair
+$ vitest run --maxWorkers=1 --no-file-parallelism "src/a2a/service.test.ts"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/apps/server
+
+(node:78349) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/a2a/service.test.ts (6 tests | 3 failed) 2125ms
+     × keeps an unprojected turn unbound and rejects delivery until projected 309ms
+     × uses the existing deadline while projection remains absent without business progress 300ms
+     × reclaims an interrupted bound attempt through stop, archive and confirmed readback 512ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/a2a/service.test.ts > a2a native observation seam > keeps an unprojected turn unbound and rejects delivery until projected
+AssertionError: {"ok":false,"error":"identity_conflict","details":{"shell":{"id":"e275fc64-0faf-41db-ad74-66b990c451d5","projectId":"controlled-project","modelSelection":{"provider":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh","fastMode":true}},"worktreePath":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-I0IlU8/state/a2a-gates/worktrees/5523ae34-bfe2-4762-9b62-c20060cf80c3","archivedAt":null,"latestTurn":null,"session":{"threadId":"e275fc64-0faf-41db-ad74-66b990c451d5","providerName":"codex","status":"ready","activeTurnId":null},"hasPendingApprovals":false,"hasPendingUserInput":false},"active":{"threadId":"e275fc64-0faf-41db-ad74-66b990c451d5","provider":"codex","status":"running","cwd":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-I0IlU8/state/a2a-gates/worktrees/5523ae34-bfe2-4762-9b62-c20060cf80c3","activeTurnId":"literal-turn-a","runtimeMode":"full-access","createdAt":"2026-10-08T00:00:00.000Z","updatedAt":"2026-10-08T00:00:01.000Z"}},"human_input_observer":{"state":"healthy","updated_at":"2026-10-08T06:30:00.618Z"}}
+
+false !== true
+
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/a2a/service.test.ts:192:14
+    190|         runtimeMode: "full-access",
+    191|       });
+    192|       assert.equal(dispatched.ok, true, JSON.stringify(dispatched));
+       |              ^
+    193|       const a = dispatched.attempt!;
+    194|       assert.equal(a.turn_id, null);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/a2a/service.test.ts > a2a native observation seam > uses the existing deadline while projection remains absent without business progress
+AssertionError: {"ok":false,"error":"identity_conflict","details":{"shell":{"id":"ac2bb44e-a0c7-4fe9-ac48-4b4e85ac9c2f","projectId":"controlled-project","modelSelection":{"provider":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh","fastMode":true}},"worktreePath":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-kekDHJ/state/a2a-gates/worktrees/c6f9995d-5446-48ba-921a-56a2e608f942","archivedAt":null,"latestTurn":null,"session":{"threadId":"ac2bb44e-a0c7-4fe9-ac48-4b4e85ac9c2f","providerName":"codex","status":"ready","activeTurnId":null},"hasPendingApprovals":false,"hasPendingUserInput":false},"active":{"threadId":"ac2bb44e-a0c7-4fe9-ac48-4b4e85ac9c2f","provider":"codex","status":"running","cwd":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-kekDHJ/state/a2a-gates/worktrees/c6f9995d-5446-48ba-921a-56a2e608f942","activeTurnId":"literal-turn-a","runtimeMode":"full-access","createdAt":"2026-10-08T00:00:00.000Z","updatedAt":"2026-10-08T00:00:01.000Z"}},"task":{"task_id":"controlled","project_id":"controlled-project","repo":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-kekDHJ/repo","oracle":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-kekDHJ/state/a2a-gates/tasks/controlled-8df6bb07-b91b-4f2a-9c40-a05d420e795e/oracle.py","instructions":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-kekDHJ/state/a2a-gates/tasks/controlled-8df6bb07-b91b-4f2a-9c40-a05d420e795e/instructions.txt","base_commit":"59c4e237694a4c2b8e7466510cc3d0e1444de65a","state":"claimed","spec_rev":1,"fence":1,"current_attempt":{"task_id":"controlled","attempt_id":"c6f9995d-5446-48ba-921a-56a2e608f942","session_id":"cb042fe8-7dc7-480a-86ca-a616a54cb568","fence":1,"spec_rev":1,"thread_id":"ac2bb44e-a0c7-4fe9-ac48-4b4e85ac9c2f","runtime_mode":"full-access","turn_id":null,"workspace":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-kekDHJ/state/a2a-gates/worktrees/c6f9995d-5446-48ba-921a-56a2e608f942","base_commit":"59c4e237694a4c2b8e7466510cc3d0e1444de65a","reclaimed":false,"owner":"controlled","state":"claimed"},"candidate_commit":null,"verification":null,"integration_intent":null},"run":{"run_id":"84e600c0-34c0-4ad7-92ae-1da9a672ef80","task_id":"controlled","attempt_id":"c6f9995d-5446-48ba-921a-56a2e608f942","thread_id":"ac2bb44e-a0c7-4fe9-ac48-4b4e85ac9c2f","started":"2026-10-08T06:30:01.015Z","wait_seconds":1,"phase":"dispatching","outcome":"paused","error":"identity_conflict","details":{"shell":{"id":"ac2bb44e-a0c7-4fe9-ac48-4b4e85ac9c2f","projectId":"controlled-project","modelSelection":{"provider":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh","fastMode":true}},"worktreePath":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-kekDHJ/state/a2a-gates/worktrees/c6f9995d-5446-48ba-921a-56a2e608f942","archivedAt":null,"latestTurn":null,"session":{"threadId":"ac2bb44e-a0c7-4fe9-ac48-4b4e85ac9c2f","providerName":"codex","status":"ready","activeTurnId":null},"hasPendingApprovals":false,"hasPendingUserInput":false},"active":{"threadId":"ac2bb44e-a0c7-4fe9-ac48-4b4e85ac9c2f","provider":"codex","status":"running","cwd":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-kekDHJ/state/a2a-gates/worktrees/c6f9995d-5446-48ba-921a-56a2e608f942","activeTurnId":"literal-turn-a","runtimeMode":"full-access","createdAt":"2026-10-08T00:00:00.000Z","updatedAt":"2026-10-08T00:00:01.000Z"}},"ended":"2026-10-08T06:30:01.083Z"},"human_input_observer":{"state":"healthy","updated_at":"2026-10-08T06:30:00.923Z"}}
++ actual - expected
+
++ 'identity_conflict'
+- 'run_deadline'
+
+
+Expected: "run_deadline"
+Received: "identity_conflict"
+
+ ❯ src/a2a/service.test.ts:228:14
+    226|         wait_seconds: 1,
+    227|       });
+    228|       assert.equal(result.error, "run_deadline", JSON.stringify(result…
+       |              ^
+    229|       assert.equal(result.run!.outcome, "deadline");
+    230|       const events = (await f.gates.call({ command: "events", task: "c…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/a2a/service.test.ts > a2a native observation seam > reclaims an interrupted bound attempt through stop, archive and confirmed readback
+AssertionError: {"ok":false,"error":"run_external_unknown","details":{"shell":{"id":"9ffdeec8-330d-4289-92e8-b43eff246a9f","projectId":"controlled-project","modelSelection":{"provider":"codex","model":"gpt-6.1-sol","options":{"reasoningEffort":"xhigh","fastMode":true}},"worktreePath":"/Volumes/WD-Elements/dev-cache/synara/tmp/t039-repair/a2a-t039-service-loHo30/state/a2a-gates/worktrees/31df3356-f349-4e5f-a692-7f69ea45979a","archivedAt":null,"latestTurn":{"turnId":"literal-turn-a","state":"interrupted"},"session":{"threadId":"9ffdeec8-330d-4289-92e8-b43eff246a9f","providerName":"codex","status":"interrupted","activeTurnId":null},"hasPendingApprovals":false,"hasPendingUserInput":false}},"human_input_observer":{"state":"healthy","updated_at":"2026-10-08T06:30:01.220Z"}}
+
+false !== true
+
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/a2a/service.test.ts:265:14
+    263|         attempt: a.attempt_id,
+    264|       });
+    265|       assert.equal(result.ok, true, JSON.stringify(result));
+       |              ^
+    266|       assert.deepEqual(f.effects, ["stop", "project-stopped", "archive…
+    267|       const events = (await f.gates.call({ command: "events", task: "c…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 3 passed (6)
+   Start at  02:29:58
+   Duration  4.07s (transform 1.00s, setup 0ms, import 1.81s, tests 2.12s, environment 0ms)
+
+error: script "test" exited with code 1

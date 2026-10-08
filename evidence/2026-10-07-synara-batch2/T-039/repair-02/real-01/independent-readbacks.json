@@ -1,0 +1,55 @@
+{
+  "checks": {
+    "worker_and_integration_and_candidate_match": true,
+    "frozen_contract_unchanged": true,
+    "independent_oracle_12_pass": true,
+    "oracle_bytes_unchanged": true,
+    "same_attempt_reclaimed": true,
+    "native_stopped_and_archived": true,
+    "human_intervention_events_empty": true,
+    "observer_healthy_before_stop": true,
+    "original_run_remains_failed": true,
+    "cleanup_not_automatic_run_success": true
+  },
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2a-t039-r02-lp49osng/fixture",
+        "rev-parse",
+        "refs/a2a/integration"
+      ],
+      "exit": 0,
+      "stdout": "b1f5f5178585377150ae046b5ee3fc27f4b10970\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2a-t039-r02-lp49osng/synara-home/userdata/a2a-gates/worktrees/c7407179-e223-422d-b45a-06ca6ba8cef7",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "b1f5f5178585377150ae046b5ee3fc27f4b10970\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2a-t039-r02-lp49osng/fixture",
+        "show",
+        "b1f5f5178585377150ae046b5ee3fc27f4b10970:CONTRACT.md"
+      ],
+      "exit": 0,
+      "stdout": "# Cursor pagination fixture v1\n\nThis is an isolated coding task for the Herdr A2A experiment.\n\nRun `python3 pager.py`. Read one JSON request from stdin and write one JSON response to stdout.\nRequests contain `items` (records with distinct string `id` and integer `ts`), `limit`,\nand optional `after` (null or [integer timestamp, string id]).\nSort records by (ts, id) ascending. Return at most limit records strictly after that pair.\nPreserve all record fields. Return `{\"items\": [...], \"next_cursor\": ...}`.\nThe next cursor is the last returned pair only if additional eligible records remain;\notherwise it is null. Input order must not matter. Do not mutate input records.\n\nLimits must be integers in [1, 100]; booleans are invalid. Invalid limit returns only\n`{\"error\": \"invalid_limit\"}`. An after value with a wrong shape/type returns only\n`{\"error\": \"invalid_cursor\"}`. Check limit before cursor. A cursor need not exist in the input.\nEmpty results have items=[] and next_cursor=null.\n\nThe initial program is deliberately incomplete. Implement this contract without modifying\nthis document or acceptance tools. A successful model turn is not delivery acceptance.\n",
+      "stderr": ""
+    }
+  ],
+  "original_run_outcome": "integrated_reclaim_failed",
+  "business_task_state_after_controller_cleanup": "accepted",
+  "scope": "版本、oracle、业务集成与清理回读；不把失败自动 run 改判为成功"
+}
