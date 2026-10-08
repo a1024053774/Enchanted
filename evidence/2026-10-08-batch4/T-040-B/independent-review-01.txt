@@ -1,0 +1,28 @@
+STATUS: FAIL
+TARGET: /Users/luckye/Documents/Code/synara，c426a5f939e26a69606616cc88df59cd898efe25；仅 T-040 B 部分。审查前后 HEAD 未变化，受控文件无差异。
+
+EVIDENCE:
+- 独立合同：evidence/2026-10-08-batch4/brief-T-040-B.md。
+- live-02/result.json、命令日志和 run-e2e.py 覆盖真实 Electron 启动、脱离进程组、重复启动、随机任务创建及状态读回、未知任务拒绝、0600 endpoint、错误 token 拒绝、重启后凭据轮换及停止后的 IPv4/IPv6 无监听。默认数据目录前后均不存在。
+- live-02/start.log 记录标准 build:desktop，4/4 构建任务成功；缺盘命令退出 2，未创建测试数据目录。
+- live-01 的 invalid_id 失败、停止超时和人工退出后的 cleanup.json 均保留。
+- 只读内存探针执行候选中的判定表达式：HTTP 200、startupReady=false 被判为就绪；输入版本相同且四个入口文件存在时，过期或不完整产物仍被跳过。
+
+FINDINGS:
+- [P1] a2a/scripts/workbench:107 — 只检查 HTTP 200 就宣布启动成功。apps/server/src/http.ts:360 在尚未就绪时也返回 200；effectServer.ts:228 开始服务后，直到第 280～281 行才完成订阅初始化。延迟或失败初始化可让启动器成功返回，而桌面仍未就绪。应读取并要求 startupReady=true，沿用现有桌面的就绪语义。
+- [P2] a2a/scripts/workbench:41 — 构建缓存只核对源码版本和四个文件是否存在，不核对产物变化或完整性。保留四个入口文件、替换过期 main.js 或缺失 guestPreload.js，仍直接跳过构建，违背“产物不存在或过期就标准构建”的合同。应每次调用标准 build:desktop，由既有构建系统处理缓存与产物恢复。
+
+COUNTEREXAMPLE:
+- 随机任务名与未知任务反例能拒绝固定状态、忽略输入和始终成功的 CLI；644 endpoint 与错误 token 均被拒绝。
+- HTTP 200、startupReady=false：候选接受，未拒绝。
+- 输入未变、入口文件仍在、其他产物缺失或入口产物过期：候选跳过构建，未拒绝。
+- red-entry.json 仅证明旧版本没有入口，不能替代上述行为反例。
+
+LIMITATIONS:
+- 两项缺陷由可达代码路径及内存判定探针证明；未启动桌面复现延迟初始化或损坏产物。
+- workspace-test.log 已失败；继续运行日志已有 desktop 三项失败及 ProviderCommandReactor 两项失败，尚无完整结束结论，未核定其与候选的因果关系。不得声明全仓测试通过。
+- 不覆盖真实登录、模型调用、日常派发、T-040 整体完成或生产发布；未读取认证文件或 endpoint token。
+- 项目地图检查仍报告 CONTEXT.md stale，本次只读审查未修改。
+
+RULE:
+- 在真实隔离启动器验收中加入“HTTP 已监听但 startupReady=false”的阶段，要求启动器不得成功返回，直到独立观察到就绪。该检查应进入 run-e2e.py，捕获已知的“健康 HTTP 状态被当作业务就绪”失败类。

@@ -37,6 +37,6 @@ M1 第 1～5 项通过且用户认可界面后，主控与 worker 的日常分�
 
 ### B 部分：启动器与主控入口（2026-10-08）
 
-INCOMPLETE：真实隔离的启动、重复启动、HTTP gate status、0600/错误 token 反例、停止无监听、重启 token 轮换和数据保留均已 PASS；全仓测试存在失败，未在父修订证明基线情况。fork `a2a` 分支提交 `c426a5f939e26a69606616cc88df59cd898efe25`，新增 `a2a/scripts/workbench`、`gate` 与中文使用说明。默认专用目录前后未创建，未登录、未调用模型、未 push。
+INCOMPLETE：最终真实隔离的启动、重复启动、HTTP gate status、0600/错误 token 反例、停止无监听、重启 token 轮换和数据保留均已 PASS；审查发现的就绪/构建判断问题已修正并取得旧提交红态、新提交绿态及限定复审 PASS。全仓测试有 5 项失败，未在父修订证明基线情况。fork `a2a` 分支最终提交 `28e2f1b4ca6634d4faba9bd921a55a51640407e4`，新增 `a2a/scripts/workbench`、`gate` 与中文使用说明。默认专用目录前后未创建，未登录、未调用 Synara provider、未 push。
 
-完整结果、失败记录、隔离输入、原始命令和收尾归档见 [T-040-B RESULTS](../../evidence/2026-10-08-batch4/T-040-B/RESULTS.md)。T-040 继续 open；全仓失败的基线核对、A 部分触发的 stale living doc、专用目录首次启动和日常真实分派交回主控。
+完整结果、失败记录、隔离输入、原始命令和收尾归档见 [T-040-B RESULTS](../../evidence/2026-10-08-batch4/T-040-B/RESULTS.md)。T-040 继续 open；最终地图 0 problems / 0 stale。全仓失败的基线核对、专用目录首次启动和日常真实分派交回主控。

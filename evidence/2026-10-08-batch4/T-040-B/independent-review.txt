@@ -1,0 +1,25 @@
+STATUS: PASS
+TARGET: /Users/luckye/Documents/Code/synara，28e2f1b4ca6634d4faba9bd921a55a51640407e4；仅复核原 P1/P2 修正，不代表整体交付通过。审查前后冻结提交和受控源码未变化。
+
+EVIDENCE:
+- 独立合同仍为 brief-T-040-B.md。
+- probe-review.py 使用外部提供的真实 loopback HTTP 响应；旧候选在第一次 startupReady=false 时成功返回，新候选经历 false、false、true 后才返回。
+- 旧候选保留构建 stamp 时不调用标准构建；新候选调用 a2a/scripts/bun run build:desktop。对应红态、绿态均绑定完整提交。
+- live-03 在新候选上完成实际 Electron 复验，并独立读回 startupReady=true；首次标准构建 4/4 成功，重启标准构建 4/4 cached，门禁状态读回及停止后无监听通过。
+
+FINDINGS:
+- 原 [P1] a2a/scripts/workbench:98 — 已解决：成功返回要求 HTTP 200 且 startupReady is True。分阶段 HTTP 反例拒绝旧候选、通过新候选。
+- 原 [P2] a2a/scripts/workbench:36 — 已解决：删除自建 stamp 的跳过路径，每次新启动交给标准构建系统处理缓存，并检查必要入口产物。实际运行日志确认标准命令确实执行。
+- 此限定复审未发现原两项缺陷仍可达。
+
+COUNTEREXAMPLE:
+- HTTP 200、startupReady=false：旧候选误报成功；新候选继续等待。
+- 保留旧 stamp、缺失非入口产物：旧候选跳过标准构建；新候选调用标准构建。
+
+LIMITATIONS:
+- 构建及桌面 spawn 在限定探针中是替代进程；它证明调用与等待逻辑，未证明真实损坏或缺失产物的恢复。live-03 证明正常标准构建、缓存重启和真实 Electron 启动。
+- 全仓继续运行已退出 1：desktop 三项失败、服务端 ProviderCommandReactor 两项失败；与候选的因果关系未核定。本结论不授权整体交付报 PASS。
+- 未调用模型、启动桌面、操作 Herdr、读取秘密或编辑文件。项目地图检查为 0 problems、0 stale。
+
+RULE:
+- 保留分阶段 startupReady=false/true 探针及旧候选红态；run-e2e.py 保留实际启动后的独立就绪读回。两层分别验证等待逻辑与真实边界。
