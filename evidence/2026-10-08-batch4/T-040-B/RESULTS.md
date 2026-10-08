@@ -52,3 +52,26 @@ python3 evidence/2026-10-08-batch4/T-040-B/probe-review.py --output NEW_GREEN.js
 中途项目地图报告过 A 部分删除 `coop.py` 所触发的 `CONTEXT.md` stale，原记录保留；最终 `project-map-reviewed.txt` 为 0 problems / 0 stale。B 未改地图、术语或治理规则，仅在 T-040 Resolution 追加本部分结果。原有 `.grok/`、其他 worker 的改动、官方 Synara/用户浏览器数据和 Herdr 未处理。
 
 中文报告、使用说明和 ticket 已回读，UTF-8 无 BOM、无替换字符。`git diff --cached --check` 退出 2，原因是原始 lint/build 日志中的尾部空格和空行，原输出保留在 `diff-check.txt`；未为格式检查改写运行证据。产品源码的 diff 检查通过。
+
+## 追加：主控决定 01 的父修订对照（2026-10-08）
+
+**PASS，仅指本轮有界对照执行完成；原全仓失败及上文 INCOMPLETE 记录不覆盖。** 按 [主控决定 01](controller-decision-01.md)，4 个完整测试文件在父修订 `d3b5bcc61cc212572f38e01139e1b9af2196b820` 和候选 `28e2f1b4ca6634d4faba9bd921a55a51640407e4` 上，各单独运行 3 次，共 24 次。每一对都是父 → 候选，全部串行，24 次退出码均为 0。原 5 个失败用例在两边分别 3/3 通过，其余同文件用例也没有父过候选挂的信号。
+
+| 完整测试文件 | 每次实际用例数 | 父修订三次 | 候选三次 |
+| --- | ---: | --- | --- |
+| `appSnapManager.test.ts` | 52 | 52/52、52/52、52/52 | 52/52、52/52、52/52 |
+| `cuaDriverHost.test.ts` | 150 | 150/150、150/150、150/150 | 150/150、150/150、150/150 |
+| `macAppIcon.native.test.ts` | 1 | 1/1、1/1、1/1 | 1/1、1/1、1/1 |
+| `ProviderCommandReactor.test.ts` | 436 | 436/436、436/436、436/436 | 436/436、436/436、436/436 |
+
+完整原始输出、Vitest JSON 与版本/时间/argv 绑定记录在 [parent-comparison-01](parent-comparison-01/summary.json)。`summary.json` 核对 24 个文件/版本/轮次组合、串行时间与 5 个原失败用例；同时扫描同文件全部用例，没有发现基线各次通过而候选失败的用例。没有修改产品代码、上游测试、测试断言或用例超时，没有执行真实 provider 调用，因此 fork 不新增提交。
+
+准备阶段首先建立两个 detached worktree，尝试标准 frozen-lockfile 安装；父安装持续读取外置缓存，在我自设的 1,800 秒安装保护期限到达时被收尾，未执行或计入任何测试。部分安装目录、原日志和 INCOMPLETE 事件原样保留。随后使用主控已经允许的共享 checkout 方式：重新确认 A 的 160 次计时已结束、无活动的 A 计时/恢复测试/门禁 `--state` CLI，且受控文件干净，才开始切换。`switch-preflight.json`、`execution-method.json` 与 `switches.jsonl` 保存这一过程；没有移动、替换或链接任何构建输出或依赖目录。
+
+每次测试经该修订的 `a2a/scripts/bun` → `env TMPDIR=/Volumes/WD-Elements/b4-dzu7pil6/t` → `bun run --cwd apps/desktop|apps/server test FILE --reporter=json --outputFile=...`。使用既有依赖、空的隔离 HOME/CODEX_HOME/Claude/XDG 数据；Bun/Node 仍为 1.4.2/24.13.1。运行前检查 A 进程，运行中每秒采样；24 次均未观察到 A 重叠。采样不能证明任何亚秒级活动都不存在，不据此宣称全机无并发负载。结束后恢复 `a2a` 分支和候选完整提交，受控源码无差异，测试进程无残留，默认专用目录仍不存在，隔离根无 auth.json。
+
+此轮没有触发回归修复条件。准确结论是“原全仓失败在短 tmp、单文件串行及隔离 HOME 的本轮条件下未复现，未检出 B 候选独有失败”。这些条件同时变化，不能锁定路径或负载为根因，也不能把两边均通过直接当作已证明的上游缺陷。原全仓退出 1 仍是真实失败，T-040 整体继续 open，由主控结合 A 的结果决定后续切换。
+
+复现入口为 `parent-comparison-01/run-shared.py`；再次运行必须创建新的证据目录与短路径 setup，脚本拒绝覆盖已存在的结果矩阵。原始脚本、失败安装现场、源码与 Git worktree 元数据归档均保留。独立只读核对另存 `parent-comparison-01/independent-review.txt`，其结论只覆盖本轮比较的完整性和上述限定声明。
+
+独立审查对冻结证据提交 `62c4618689981814cfe641b8afbe3f9f4facb3fa` 返回 PASS，逐份核对了 24 份原始 JSON、3,834 个断言、原 5 项的全部出现次数、交替顺序和完整版本绑定，没有仅相信汇总。它同样保留“一秒采样不能排除未观察到的短暂并发”及“原全仓失败根因 INCOMPLETE”的边界，不授权把 B/T-040 整体或全仓验收改称 PASS。

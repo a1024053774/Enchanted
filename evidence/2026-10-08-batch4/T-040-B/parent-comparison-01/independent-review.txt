@@ -1,0 +1,24 @@
+STATUS: PASS
+
+TARGET: 62c4618689981814cfe641b8afbe3f9f4facb3fa 的 evidence/2026-10-08-batch4/T-040-B/parent-comparison-01；仅验收所述对照声明。
+
+EVIDENCE:
+- 独立合同：controller-decision-01.md:5。核对全部 24 份原始 Vitest JSON、对应日志及 JSONL，没有只依赖 summary。
+- commands.jsonl:2 起有 24 组测试 start/end；results.jsonl:1 起有 24 条结果。四个文件分别包含 52、150、1、436 项，双方各三轮，共 3,834 个断言全部通过，无 pending/todo/failed。
+- 原 5 项在每份相应原始 JSON 中各出现一次，双方分别连续三次 passed。所有轮次的完整用例名称集合一致，没有候选独有失败。
+- switches.jsonl:1～:24、命令和结果的完整提交号逐项一致；每次测试结束后才切换、启动下一次。:25 记录退出 0、恢复 a2a/28e2f1b；cleanup.json:3 起记录无自有残留进程和 tracked dirty。
+- fork 的 d3b5bcc…28e2f1b 差异只有五个 a2a 操作文件与 desktop main.ts；测试、Vitest 配置、package scripts 和锁文件无改动。命令未增加测试超时参数；600 秒为外层保护期限。
+- 安装中断保留于 install-parent.log、conflicts.jsonl:1、completion.jsonl:1，没有计入 24 次测试。旧全仓失败日志及旧 RESULTS 在本次提交中未修改或删除。
+
+FINDINGS:
+- 无违反限定对照声明的已证实问题。
+
+COUNTEREXAMPLE:
+- workspace-test-continue.log:389、:401、:414、:700、:701 保留原五项真实失败；本轮没有把安装中断、夹具错误或其他红态算作候选回归。
+- 空测试或跳过原五项不能满足本次独立核对的数量、名称和 passed 状态条件。没有启动新测试或 mutant。
+
+LIMITATIONS:
+- A 的独立完成记录为 14:13:31 UTC，早于 B 测试开始；切换前无匹配活动进程，运行期间未观察到冲突。但 run-comparison.py:37、:69 使用进程命令特征和约一秒采样，没有保存每次完整进程快照或使用双方互斥锁，不能排除短暂或不匹配特征的并发活动。
+- 仅证明四文件单独串行、外置短 tmp 条件下的结果。原全仓失败根因仍为 INCOMPLETE；不能据未复现认定上游 bug、全仓通过或 B/T-040 完整通过。
+- 冻结的 RESULTS 尚未追加本轮对照结论，因此本 PASS 只覆盖原始对照证据。
+- 审查全程只读；未启动测试、桌面、模型、安装或 Herdr。会话末地图检查为 0 problems / 0 stale。
