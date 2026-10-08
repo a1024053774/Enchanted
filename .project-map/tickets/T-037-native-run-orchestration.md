@@ -4,7 +4,7 @@ title: 原生 run 编排与人工介入记录
 type: build
 status: open
 blocked_by: [T-036]
-claimed_by:
+claimed_by: s2-t037
 supersedes:
 ---
 
@@ -14,10 +14,18 @@ supersedes:
 
 ## Acceptance
 
-- [ ] `acceptance/test_run_e2e.py` 的 18 项按新运行时改写边界替身后通过，替身明确标为隔离编排证据；先在缺失实现时取得红态。
-- [ ] 反例："thread 空闲或 done 而无 submit 即接受"、"忽略 expected attempt"两种错误实现在业务断言上失败。
-- [ ] 交付 8 项、恢复 9 项在新候选上仍通过。
-- [ ] 在受管 worker thread 中由人直接输入，产生绑定 task/attempt/thread 的人工介入事件；非受管 thread 的输入不产生。
-- [ ] 改写替身与原 18 项的差异逐条记录，不改原预期答案。
+- [x] `acceptance/test_run_e2e.py` 的 18 项按新运行时改写边界替身后通过，替身明确标为隔离编排证据；先在缺失实现时取得红态。
+- [x] 反例："thread 空闲或 done 而无 submit 即接受"、"忽略 expected attempt"两种错误实现在业务断言上失败。
+- [x] 交付 8 项、恢复 9 项在新候选上仍通过。
+- [x] 在受管 worker thread 中由人直接输入，产生绑定 task/attempt/thread 的人工介入事件；非受管 thread 的输入不产生。
+- [x] 改写替身与原 18 项的差异逐条记录，不改原预期答案。
 
 ## Resolution
+
+PASS（仅限上述 T-037 契约及主控补充的记录故障处理），待主控关闭；status 保持 open。候选 `fa3fc3352805d00e41c454fa6f810807528de3a9`，本地提交 `df9686144`、`a49342189`、`fa3fc3352`，未 push。
+
+- 最终同版本：编排 18/18；交付 8/8、恢复 9/9。无 submit 与忽略 expected attempt 两个 mutant 取得业务红态。
+- 人工介入经真实本地 engine/服务订阅证明，来源过滤、原 attempt 绑定、去重均通过。真实 SQLite 写锁故障后只读 status/events/GET 可见失败，全部变更命令（含 reclaim）拒绝；重启记录器回放遗漏消息；在途 oracle 结果记录失败返回结构化拒绝并保留旧验证阶段。
+- 原验收未改，18 项边界差异与主控批准的时间输入变化逐项记录。fresh-context 独立只读审查 PASS，限制见报告。
+- 证据：[交付记录](../../evidence/2026-10-07-synara-batch2/T-037/RESULTS.md)、[冻结候选](../../evidence/2026-10-07-synara-batch2/T-037/frozen-candidate-03.json)、[同版本摘要](../../evidence/2026-10-07-synara-batch2/T-037/acceptance-summary-03.json)、[独立审查](../../evidence/2026-10-07-synara-batch2/T-037/acceptance-review-03.md)。全仓检查 NO_GO：服务端 4 项失败，其他 workspace 被中止；两个单例复核通过，CodexTextGeneration 的两项隔离进程失败仍存在。源码与基线无差异，范围外未修复。最终检查、归档与 a2a 提交见交付记录。
+- 没有真实 provider/model 调用、UI 证明、M1 闭环或切换声明；这些结论仍为 INCOMPLETE，归 T-039/T-040。

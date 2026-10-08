@@ -1,0 +1,102 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t037
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t037/a2a-t037-native-service-z3HlAf"}
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+[23:44:25.025] WARN (#3): SQLite WAL journal mode could not be enabled {
+  resultingJournalMode: "memory",
+}
+[23:44:25.034] INFO (#3): Running all migrations...
+[23:44:25.269] INFO (#3): Migrations ran successfully {
+  migrations: [
+    "1_OrchestrationEvents", "2_OrchestrationCommandReceipts", "3_CheckpointDiffBlobs",
+    "4_ProviderSessionRuntime", "5_Projections", "6_ProjectionThreadSessionRuntimeModeColumns",
+    "7_ProjectionThreadMessageAttachments", "8_ProjectionThreadActivitySequence", "9_ProviderSessionRuntimeMode",
+    "10_ProjectionThreadsRuntimeMode", "11_OrchestrationThreadCreatedRuntimeMode", "12_ProjectionThreadsInteractionMode",
+    "13_ProjectionThreadProposedPlans", "14_ProjectionThreadProposedPlanImplementation",
+    "15_ProjectionTurnsSourceProposedPlan", "16_CanonicalizeModelSelections", "17_ThreadHandoffMetadata",
+    "18_ProjectionThreadMessageMentions", "19_ProjectionThreadsEnvMode", "20_ProjectionThreadsForkSource",
+    "21_ProjectionThreadsAssociatedWorktree", "22_ProjectionThreadsAssociatedWorktreeBranch",
+    "23_ProjectionThreadsAssociatedWorktreeRef", "24_ProjectionThreadsArchivedAt", "25_ProjectionThreadsSubagents",
+    "26_ProjectionThreadShellSummary", "27_BackfillProjectionThreadShellSummary", "28_ProjectionProjectsKind",
+    "29_ProjectionThreadsLastKnownPr", "30_ProjectionThreadMessagesDispatchMode", "31_ProjectionThreadsCreateBranchFlowCompleted",
+    "32_ReconcileImportedSchemaLineage", "33_ProjectionThreadsSidechatSource", "34_AuthAccessManagement",
+    "35_NormalizeLegacyModelSelectionOptions", "36_ProjectionThreadsPinned", "37_ProjectionSnapshotCapIndexes",
+    "38_ReconcileLegacySidechatSource", "39_ReconcileLegacyPinnedThreads", "40_ProjectionThreadsPinnedMessagesNotes",
+    "41_ProjectionProjectsPinned", "42_ProjectionThreadsMarkers", "43_ProfileStatsIndexes",
+    "44_Automations", "45_AutomationPolicies", "46_AutomationCompletionPolicy", "47_AutomationCompletionPolicyVersion",
+    "48_AutomationCompletionEvaluationBacklog", "49_ProjectionThreadMessagesDispatchOrigin",
+    "50_ProfileStatsArchive", "51_ProfileStatsDeletedTokensModel", "52_ProjectionThreadUserMessageSummaryIndex",
+    "53_BackfillThreadActivitySequence", "54_DurableProviderCommandDelivery", "55_ManagedAttachments",
+    "56_CommandReceiptFingerprints", "57_ThreadScopedProjectionMessageIdentity", "58_ThreadScopedPendingApprovalIdentity",
+    "59_ProviderSessionLifecycleGeneration", "60_PendingApprovalLifecycleGeneration",
+    "61_PendingApprovalSettlementState", "62_PendingInteractionSettlementParity", "63_ProjectionMessageCausalSequence",
+    "64_DurableProviderCommandDeliveryCutover", "65_DurableQueuedTurnPromotions", "66_DurableProviderRuntimeEvents",
+    "67_ProviderDeliveryReconciliation", "68_GitHandoffOperations", "69_ProjectPullRequestPins",
+    "70_AgentGatewayOperations", "71_ProjectionThreadsGatewayProvenance", "72_AgentGatewayOperationRetention",
+    "73_OperationalDiagnostics", "74_ExternalMcpIntegrations", "75_ExternalMcpActiveCapacity",
+    "76_ExternalMcpHardening", "77_ExternalMcpCompensatingCapacity", "78_ExternalMcpLiveTurnCapacity",
+    "79_Spaces", "80_ExternalMcpProjectScope", "81_AutomationProposals", "82_AutomationMemory",
+    "83_AutomationHeartbeatEligibility", "84_AutomationNotificationPolicy", "85_AutomationSettings",
+    "86_NormalizeStudioThreadWorkspaces", "87_DropUnusedOrchestrationEventIndexes", "88_ProjectionThreadsSettledAt",
+    "89_RecoverRetentionHiddenThreads", "90_ProjectionThreadMessageTextSegments", "91_AutomationFailureTolerance",
+    "92_BackfillAutomationRunThreadSource", "93_BackfillMaxIterationsDisabledReason",
+    "94_ProjectionThreadsGoal", "95_ProjectionThreadsGoalTiming", "96_ProjectionThreadsGoalAchievements",
+    "97_ProjectionThreadsSidechatLifecycle", "98_MigrateKiloToOpenCode", "99_InvalidateProjectionThreadsCursor",
+    "100_MessageTextChunks",
+    ... 31 more items
+  ],
+}
+[23:44:25.299] INFO (#3): orchestration projection pipeline bootstrapped {
+  projectors: 10,
+}
+[23:44:25.308] INFO (#3): orchestration engine started {
+  sequence: 0,
+}
+49 |  writeFileSync(join(repo,"input.txt"),"Independent advanced integration\n");git("add","input.txt");git("commit","-m","Independent integration advance");const head=git("rev-parse","HEAD");git("update-ref","refs/a2a/integration",head,base);
+50 |  const dispatch=await gates.call({command:"dispatch",task:"native-service",runtimeMode:"approval-required"});assert.equal(dispatch.ok,true,JSON.stringify(dispatch));
+51 |  const attempt=dispatch.task!.current_attempt!;
+52 |  assert.equal(attempt.base_commit,head);assert.equal(execFileSync("git",["-C",attempt.workspace,"rev-parse","HEAD"],{encoding:"utf8"}).trim(),head);
+53 |  const shell:any=await runtime.runPromise(query.getThreadShellById(attempt.thread_id as any));assert.equal(shell._tag,"Some");
+54 |  assert.deepEqual(shell.value.modelSelection,{provider:"codex",model:"gpt-6.1-sol",options:{reasoningEffort:"xhigh",fastMode:true}});
+             ^
+AssertionError: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
++   instanceId: 'codex',
+    model: 'gpt-6.1-sol',
+    options: {
+      fastMode: true,
+      reasoningEffort: 'xhigh'
+    },
+
+ generatedMessage: true,
+     actual: {
+  provider: "codex",
+  instanceId: "codex",
+  model: "gpt-6.1-sol",
+  options: [Object ...],
+},
+   expected: {
+  provider: "codex",
+  model: "gpt-6.1-sol",
+  options: [Object ...],
+},
+   operator: "deepStrictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-037/native-service-check.ts:54:9
+
+Bun v1.4.2 (macOS arm64)

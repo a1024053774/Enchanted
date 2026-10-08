@@ -1,0 +1,26 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t037
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t037/a2a-t037-human-input-NeJvW9"}
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+22 | try {
+23 |  const created=await gates.call({command:"create",task:"human-input",project:"project",repo,base:git("rev-parse","HEAD"),oracle,instructions});assert.equal(created.ok,true,JSON.stringify(created));
+24 |  const dispatched=await gates.call({command:"dispatch",task:"human-input",runtimeMode:"approval-required"});assert.equal(dispatched.ok,true,JSON.stringify(dispatched));
+25 |  const attempt=dispatched.task!.current_attempt!;
+26 |  const messagesBefore=(await gates.call({command:"events",task:"human-input"})).events!;
+27 |  if(typeof (gates as any).recordHumanInput !== "function") throw new Error("EXPECTED_CONTRACT_RED managed human input has no gate event recorder");
+                                                                          ^
+error: EXPECTED_CONTRACT_RED managed human input has no gate event recorder
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-037/human-input-check.ts:27:70
+
+Bun v1.4.2 (macOS arm64)

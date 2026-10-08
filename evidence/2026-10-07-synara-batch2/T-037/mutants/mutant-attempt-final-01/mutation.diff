@@ -1,0 +1,20 @@
+--- candidate/core.ts
++++ ignore-expected-attempt/core.ts
+@@ -336,7 +336,7 @@
+   }
+   private current(task: A2ATask, expected?: string) {
+     const attempt = task.current_attempt;
+-    requireGate(attempt && (!expected || attempt.attempt_id === expected), "stale_attempt");
++    requireGate(attempt, "stale_attempt");
+     requireGate(
+       attempt.task_id === task.task_id &&
+         attempt.fence === task.fence &&
+@@ -758,7 +758,7 @@
+         if (previous.reclaimed) return { ok: true, task };
+         historicalAttempt = previous;
+       }
+-      if (args.attempt && !historicalAttempt)
++      if (false && args.attempt && !historicalAttempt)
+         requireGate(task.current_attempt?.attempt_id === args.attempt, "stale_attempt");
+       if (args.command === "verify")
+         requireGate(task.state === "submitted" || task.state === "verifying", "not_submitted");

@@ -1,0 +1,39 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t037
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t037/a2a-t037-runtime-refusal-NUxkFs"}
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+{"result":{"ok":false,"error":"run_external_unknown","details":"Error: identity_conflict","task":{"task_id":"refusal","project_id":"literal-project","repo":"/Volumes/WD-Elements/dev-cache/synara/tmp/t037/a2a-t037-runtime-refusal-NUxkFs/repo","oracle":"/Volumes/WD-Elements/dev-cache/synara/tmp/t037/a2a-t037-runtime-refusal-NUxkFs/state/tasks/refusal-826991b0-89e2-44a0-96f1-0ff485dfd350/oracle.py","instructions":"/Volumes/WD-Elements/dev-cache/synara/tmp/t037/a2a-t037-runtime-refusal-NUxkFs/state/tasks/refusal-826991b0-89e2-44a0-96f1-0ff485dfd350/instructions.txt","base_commit":"149a4070cac9b2071d631bc9852d8df61d7febea","state":"claimed","spec_rev":1,"fence":1,"current_attempt":{"task_id":"refusal","attempt_id":"37dc636c-86ea-448a-8962-b4f988fdd84b","session_id":"a8951586-b2d1-46c0-b634-575bcb8245ed","fence":1,"spec_rev":1,"thread_id":"f200affb-e129-4e83-b424-c37a4e3764cf","runtime_mode":"approval-required","turn_id":"owned-turn","workspace":"/Volumes/WD-Elements/dev-cache/synara/tmp/t037/a2a-t037-runtime-refusal-NUxkFs/state/worktrees/37dc636c-86ea-448a-8962-b4f988fdd84b","base_commit":"149a4070cac9b2071d631bc9852d8df61d7febea","reclaimed":false,"owner":"refusal","state":"claimed"},"candidate_commit":null,"verification":null,"integration_intent":null},"run":{"run_id":"e2d13c28-000e-4577-b1f6-004bd7068218","task_id":"refusal","attempt_id":"37dc636c-86ea-448a-8962-b4f988fdd84b","thread_id":"f200affb-e129-4e83-b424-c37a4e3764cf","started":"2026-10-08T04:09:41.415Z","wait_seconds":2,"phase":"waiting_submit","outcome":"paused","error":"run_external_unknown","details":"Error: identity_conflict","ended":"2026-10-08T04:09:41.864Z"}},"closes":[]}
+16 | const observation={nonce:"independent-native-cwd-change",actual_workspace:join(root,"foreign-worktree")};
+17 | const gates=new A2AGates(join(root,"state"),{ensureProject:async()=>{},createThread:async(_t,a)=>{live={workspace:a.workspace,provider:"codex",turn:null,running:false,stopped:false,archived:false};},startThread:async()=>{live.turn="owned-turn";},readThread:async()=>{if(++reads===3)throw new Refusal("identity_conflict",observation);return {...live};},stopThread:async t=>{closes.push(t);},archiveThread:async t=>{closes.push(t);}});
+18 | try {
+19 |  assert.equal((await gates.call({command:"create",task:"refusal",project:"literal-project",repo,base,oracle,instructions})).ok,true);
+20 |  const result=await gates.call({command:"run",task:"refusal",runtimeMode:"approval-required",wait_seconds:2});console.log(JSON.stringify({result,closes}));
+21 |  assert.equal(result.ok,false);assert.equal(result.error,"identity_conflict","BUSINESS_RED known native refusal was relabeled as unknown");assert.deepEqual(result.details,observation,"Raw identity observation must survive");
+                                           ^
+AssertionError: BUSINESS_RED known native refusal was relabeled as unknown
++ actual - expected
+
++ 'run_external_unknown'
+- 'identity_conflict'
+
+ generatedMessage: false,
+     actual: "run_external_unknown",
+   expected: "identity_conflict",
+   operator: "strictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-07-synara-batch2/T-037/runtime-refusal-check.ts:21:39
+
+Bun v1.4.2 (macOS arm64)

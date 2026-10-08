@@ -1,0 +1,1053 @@
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import {
+  A2AGateRequest,
+  type A2AAttempt,
+  type A2ARun,
+  type A2AGateResult,
+  type A2AVerification,
+  type A2ACommandResult,
+  type A2ATask,
+} from "@synara/contracts";
+import { execProcessFile } from "@synara/shared/processRuntime";
+import { Schema } from "effect";
+
+const REF = "refs/a2a/integration";
+export class Refusal extends Error {
+  constructor(
+    readonly code: string,
+    readonly details?: unknown,
+  ) {
+    super(code);
+  }
+}
+function requireGate(value: unknown, code: string, details?: unknown): asserts value {
+  if (!value) throw new Refusal(code, details);
+}
+function id(value: string | undefined): string {
+  requireGate(value && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(value), "invalid_id");
+  return value;
+}
+function sha(value: string | undefined): string {
+  requireGate(value && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value), "invalid_commit");
+  return value;
+}
+function text(value: string | undefined): string {
+  requireGate(value && value.trim() && !/[\x00-\x1f]/.test(value), "invalid_text");
+  return value;
+}
+function inputPath(value: string | undefined, directory = false): string {
+  requireGate(value && isAbsolute(value) && !/[\x00-\x1f]/.test(value), "invalid_path");
+  const path = realpathSync(value);
+  requireGate(directory ? statSync(path).isDirectory() : statSync(path).isFile(), "invalid_path");
+  return path;
+}
+
+export interface GateRuntime {
+  ensureProject(project: string, repo: string): Promise<void>;
+  createThread(task: A2ATask, attempt: A2AAttempt): Promise<void>;
+  startThread(task: A2ATask, attempt: A2AAttempt, prompt: string): Promise<void>;
+  readThread(thread: string): Promise<{
+    workspace: string;
+    provider: string;
+    turn: string | null;
+    running: boolean;
+    stopped: boolean;
+    archived: boolean;
+    blocked?: boolean;
+  }>;
+  stopThread(thread: string): Promise<void>;
+  archiveThread(thread: string): Promise<void>;
+}
+export interface SubmitCaller {
+  thread: string;
+  turn: string;
+  assertActive(): Promise<void>;
+}
+
+/** The sole mutation owner. Thread lifecycle signals never invoke this core. */
+export class A2AGates {
+  private readonly db: DatabaseSync;
+  constructor(
+    readonly root: string,
+    private readonly runtime?: GateRuntime,
+  ) {
+    requireGate(isAbsolute(root), "invalid_path");
+    mkdirSync(root, { recursive: true, mode: 0o700 });
+    this.db = new DatabaseSync(join(root, "state.sqlite3"));
+    this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
+      CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS verifications (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, task TEXT NOT NULL, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS human_inputs (event_id TEXT PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, time TEXT NOT NULL, task TEXT NOT NULL, attempt TEXT, type TEXT NOT NULL, details TEXT NOT NULL);
+      CREATE TRIGGER IF NOT EXISTS events_no_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT,'append only'); END;
+      CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT,'append only'); END;`);
+    if (
+      !this.db
+        .prepare("PRAGMA table_info(events)")
+        .all()
+        .some((column) => column.name === "attempt")
+    )
+      this.db.exec("ALTER TABLE events ADD COLUMN attempt TEXT");
+    mkdirSync(join(root, "locks"), { recursive: true });
+  }
+  close() {
+    this.db.close();
+  }
+  taskForThread(thread: string): A2ATask | null {
+    if (!thread) return null;
+    const rows = this.db.prepare("SELECT data FROM tasks").all();
+    for (const row of rows) {
+      const task = JSON.parse(String(row.data)) as A2ATask;
+      if (task.current_attempt?.thread_id === thread) return task;
+    }
+    return null;
+  }
+  recordHumanInput(input: {
+    thread_id: string;
+    message_id: string;
+    event_id: string;
+    source_sequence: number;
+    turn_id: string | null;
+    created_at: string;
+    text: string;
+    dispatch_origin: "user";
+  }): boolean {
+    const row = this.db
+      .prepare("SELECT data FROM attempts WHERE json_extract(data,'$.thread_id')=?")
+      .get(input.thread_id);
+    if (!input.thread_id || !row) return false;
+    const attempt = JSON.parse(String(row.data)) as A2AAttempt;
+    requireGate(
+      input.event_id && input.message_id && input.dispatch_origin === "user",
+      "invalid_human_input",
+    );
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const inserted = this.db
+        .prepare("INSERT OR IGNORE INTO human_inputs(event_id) VALUES (?)")
+        .run(input.event_id);
+      if (!inserted.changes) return false;
+      this.event(
+        attempt.task_id,
+        "human_intervention",
+        {
+          ...input,
+          task_id: attempt.task_id,
+          attempt_id: attempt.attempt_id,
+          session_id: attempt.session_id,
+          fence: attempt.fence,
+          spec_rev: attempt.spec_rev,
+        },
+        attempt.attempt_id,
+      );
+      this.db.exec("COMMIT");
+      return true;
+    } finally {
+      if (this.db.isTransaction) this.db.exec("ROLLBACK");
+    }
+  }
+  private event(task: string, type: string, details: unknown, expectedAttempt?: string) {
+    const row = this.db.prepare("SELECT data FROM tasks WHERE id=?").get(task);
+    const current = row ? (JSON.parse(String(row.data)) as A2ATask).current_attempt : null;
+    this.db
+      .prepare("INSERT INTO events(time,task,attempt,type,details) VALUES (?,?,?,?,?)")
+      .run(
+        new Date().toISOString(),
+        task,
+        expectedAttempt ?? current?.attempt_id ?? null,
+        type,
+        JSON.stringify(details),
+      );
+  }
+  private load(task: string): A2ATask {
+    const row = this.db.prepare("SELECT data FROM tasks WHERE id=?").get(task);
+    requireGate(row, "unknown_task");
+    return JSON.parse(String(row.data)) as A2ATask;
+  }
+  private save(
+    task: A2ATask,
+    type: string,
+    details: unknown = task,
+    historicalAttempt?: A2AAttempt,
+  ) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare(
+          "INSERT INTO tasks(id,data) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+        )
+        .run(task.task_id, JSON.stringify(task));
+      if (task.current_attempt)
+        this.db
+          .prepare(
+            "INSERT INTO attempts(id,data) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+          )
+          .run(task.current_attempt.attempt_id, JSON.stringify(task.current_attempt));
+      if (historicalAttempt)
+        this.db
+          .prepare(
+            "INSERT INTO attempts(id,data) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+          )
+          .run(historicalAttempt.attempt_id, JSON.stringify(historicalAttempt));
+      if (task.verification)
+        this.db
+          .prepare(
+            "INSERT INTO verifications(id,data) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+          )
+          .run(task.verification.verification_id, JSON.stringify(task.verification));
+      this.event(task.task_id, type, details, historicalAttempt?.attempt_id);
+      this.db.exec("COMMIT");
+    } finally {
+      if (this.db.isTransaction) this.db.exec("ROLLBACK");
+    }
+  }
+  private async execute(
+    task: string,
+    argv: string[],
+    cwd: string,
+    env?: NodeJS.ProcessEnv,
+  ): Promise<A2ACommandResult> {
+    const command = argv[0];
+    requireGate(command, "invalid_command");
+    this.event(task, "command_intent", { argv, cwd });
+    const result = await new Promise<A2ACommandResult>((resolve, reject) => {
+      execProcessFile(
+        command,
+        argv.slice(1),
+        { cwd, env, encoding: "utf8", timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
+        (error, stdout, stderr) => {
+          const code = error && typeof error.code === "number" ? error.code : error ? null : 0;
+          const record: A2ACommandResult = {
+            argv,
+            cwd,
+            stdout,
+            stderr,
+            exit: code,
+            returncode: code,
+          };
+          this.event(task, "command_result", record);
+          if (error && code === null) {
+            const refusal = error.killed ? "command_timeout" : "command_unavailable";
+            reject(new Refusal(refusal, { ...record, reason: error.message }));
+          } else resolve(record);
+        },
+      );
+    });
+    return result;
+  }
+  private async git(
+    task: string,
+    repo: string,
+    args: string[],
+    allowed = [0],
+    env?: NodeJS.ProcessEnv,
+  ) {
+    const result = await this.execute(task, ["git", "-C", repo, ...args], repo, env);
+    requireGate(
+      result.returncode !== null && allowed.includes(result.returncode),
+      "git_failed",
+      result,
+    );
+    requireGate(result.stdout !== null, "command_unknown", result);
+    return result.stdout.trim();
+  }
+  private async commitExists(task: string, repo: string, commit: string) {
+    sha(commit);
+    requireGate(
+      (await this.git(task, repo, ["cat-file", "-t", commit], [0, 128])) === "commit",
+      "invalid_commit",
+    );
+  }
+  private async ancestor(task: string, repo: string, old: string, candidate: string) {
+    const result = await this.execute(
+      task,
+      ["git", "-C", repo, "merge-base", "--is-ancestor", old, candidate],
+      repo,
+    );
+    requireGate(result.returncode === 0 || result.returncode === 1, "git_failed", result);
+    return result.returncode === 0;
+  }
+  private checkVerification(
+    task: A2ATask,
+    attempt: A2AAttempt,
+    v: A2AVerification | null,
+  ): asserts v is A2AVerification {
+    requireGate(
+      v &&
+        v.attempt.task_id === task.task_id &&
+        v.attempt.attempt_id === attempt.attempt_id &&
+        v.attempt.session_id === attempt.session_id &&
+        v.attempt.fence === attempt.fence &&
+        v.attempt.spec_rev === attempt.spec_rev &&
+        v.attempt.base_commit === attempt.base_commit &&
+        v.spec_rev === task.spec_rev &&
+        v.C === task.candidate_commit &&
+        v.oracle === task.oracle,
+      "stale_verification",
+    );
+    const row = this.db.prepare("SELECT data FROM verifications WHERE id=?").get(v.verification_id);
+    requireGate(row && String(row.data) === JSON.stringify(v), "stale_verification");
+  }
+  private interruptVerification(task: A2ATask) {
+    if (task.state !== "verifying") return;
+    const v = task.verification;
+    this.checkVerification(task, this.current(task), v);
+    requireGate(v.state === "running" && !task.integration_intent, "needs_reconciliation");
+    v.state = "interrupted";
+    v.ended = new Date().toISOString();
+    v.result ??= {
+      argv: v.command_intent?.argv ?? [],
+      cwd: v.workspace,
+      exit: null,
+      returncode: null,
+      stdout: null,
+      stderr: null,
+      outcome: "unknown",
+    };
+    task.state = "submitted";
+    this.save(task, "verification_interrupted", v);
+  }
+  private invalidate(task: A2ATask, reason: string) {
+    this.interruptVerification(task);
+    const previous = task.current_attempt;
+    if (previous) {
+      previous.state = "revoked";
+      previous.revocation_reason = reason;
+    }
+    task.current_attempt = null;
+    task.state = "ready";
+    task.candidate_commit = null;
+    task.verification = null;
+    task.integration_intent = null;
+    this.save(
+      task,
+      "revoked",
+      { reason, attempt: previous?.attempt_id, spec_rev: task.spec_rev },
+      previous ?? undefined,
+    );
+  }
+  private async integration(task: A2ATask) {
+    return this.git(task.task_id, task.repo, ["rev-parse", "--verify", "--quiet", REF], [0, 1]);
+  }
+  private current(task: A2ATask, expected?: string) {
+    const attempt = task.current_attempt;
+    requireGate(attempt, "stale_attempt");
+    requireGate(
+      attempt.task_id === task.task_id &&
+        attempt.fence === task.fence &&
+        attempt.spec_rev === task.spec_rev,
+      "stale_attempt",
+    );
+    return attempt;
+  }
+
+  private saveRun(run: A2ARun, type: string) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare(
+          "INSERT INTO runs(id,task,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+        )
+        .run(run.run_id, run.task_id, JSON.stringify(run));
+      this.event(run.task_id, type, run, run.attempt_id ?? undefined);
+      this.db.exec("COMMIT");
+    } finally {
+      if (this.db.isTransaction) this.db.exec("ROLLBACK");
+    }
+  }
+  private checkThread(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
+    requireGate(
+      live.workspace === attempt.workspace &&
+        live.provider === "codex" &&
+        (!attempt.turn_id || live.turn === attempt.turn_id),
+      "identity_conflict",
+      { attempt, live },
+    );
+  }
+  private async observeRun(run: A2ARun) {
+    const attempt = this.current(this.load(run.task_id), run.attempt_id!);
+    let live: Awaited<ReturnType<GateRuntime["readThread"]>>;
+    try {
+      live = await this.runtime!.readThread(attempt.thread_id);
+    } catch (error) {
+      this.current(this.load(run.task_id), run.attempt_id!);
+      if (error instanceof Refusal) throw error;
+      throw new Refusal("run_external_unknown", String(error));
+    }
+    this.current(this.load(run.task_id), run.attempt_id!);
+    this.checkThread(attempt, live);
+    requireGate(!live.blocked, "run_blocked", live);
+    requireGate(!live.archived && !live.stopped, "run_external_unknown", live);
+    if (!attempt.turn_id && live.turn) {
+      // Binding is an ordinary task mutation. Refuse a concurrent gate owner.
+      const lock = new DatabaseSync(join(this.root, "locks", `${run.task_id}.sqlite3`));
+      try {
+        lock.exec("PRAGMA busy_timeout=0; BEGIN IMMEDIATE");
+        const task = this.load(run.task_id);
+        const current = this.current(task, run.attempt_id!);
+        requireGate(!current.turn_id || current.turn_id === live.turn, "identity_conflict");
+        current.turn_id = live.turn;
+        this.save(task, "turn_bound", { attempt: current });
+      } finally {
+        lock.close();
+      }
+    }
+    return live;
+  }
+  private async waitForIdle(run: A2ARun) {
+    const deadline = performance.now() + 60_000;
+    for (;;) {
+      const row = this.db.prepare("SELECT data FROM attempts WHERE id=?").get(run.attempt_id!);
+      requireGate(row, "unknown_attempt");
+      const attempt = JSON.parse(String(row.data)) as A2AAttempt;
+      requireGate(
+        attempt.task_id === run.task_id && attempt.thread_id === run.thread_id,
+        "identity_conflict",
+      );
+      if (attempt.reclaimed) return;
+      const live = await this.runtime!.readThread(attempt.thread_id);
+      this.checkThread(attempt, live);
+      requireGate(!live.blocked, "run_blocked", live);
+      if (!live.running) return;
+      requireGate(performance.now() < deadline, "run_reclaim_deadline", live);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  private async run(args: A2AGateRequest): Promise<A2AGateResult> {
+    requireGate(Number.isSafeInteger(args.wait_seconds) && args.wait_seconds! > 0, "invalid_wait");
+    requireGate(args.runtimeMode, "runtime_mode_required");
+    requireGate(this.runtime, "runtime_required");
+    this.load(args.task);
+    const lock = new DatabaseSync(join(this.root, "locks", `${args.task}.run.sqlite3`));
+    let run: A2ARun | undefined;
+    try {
+      lock.exec("PRAGMA busy_timeout=0");
+      try {
+        lock.exec("BEGIN IMMEDIATE");
+      } catch (error) {
+        if (
+          (error as { errcode?: number }).errcode === 5 ||
+          (error as Error).message.includes("database is locked")
+        )
+          throw new Refusal("run_busy");
+        throw error;
+      }
+      run = {
+        run_id: randomUUID(),
+        task_id: args.task,
+        attempt_id: null,
+        thread_id: null,
+        started: new Date().toISOString(),
+        wait_seconds: args.wait_seconds!,
+        phase: "dispatching",
+        outcome: "running",
+      };
+      this.saveRun(run, "run_started");
+      const dispatch = await this.request(
+        { command: "dispatch", task: args.task, runtimeMode: args.runtimeMode },
+        undefined,
+        run,
+      );
+      requireGate(dispatch.ok, dispatch.error ?? "gate_failure", dispatch.details);
+      run.phase = "waiting_submit";
+      this.saveRun(run, "run_phase");
+      const deadline = performance.now() + args.wait_seconds! * 1000;
+      let previous = "";
+      for (;;) {
+        this.current(this.load(args.task), run.attempt_id!);
+        requireGate(performance.now() < deadline, "run_deadline");
+        const live = await this.observeRun(run);
+        const task = this.load(args.task);
+        const change = JSON.stringify({
+          task_state: task.state,
+          turn: live.turn,
+          running: live.running,
+          blocked: live.blocked ?? false,
+        });
+        if (change !== previous) {
+          this.event(
+            args.task,
+            "run_observed",
+            { run_id: run.run_id, live, task_state: task.state },
+            run.attempt_id!,
+          );
+          previous = change;
+        }
+        requireGate(performance.now() < deadline, "run_deadline");
+        requireGate(["claimed", "submitted"].includes(task.state), "run_state_changed", task.state);
+        if (task.state === "submitted") break;
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.min(100, Math.max(0, deadline - performance.now()))),
+        );
+      }
+      for (const command of ["verify", "integrate"] as const) {
+        run.phase = command === "verify" ? "verifying" : "integrating";
+        this.saveRun(run, "run_phase");
+        const result = await this.request({ command, task: args.task, attempt: run.attempt_id! });
+        requireGate(result.ok, result.error ?? "gate_failure", result.details);
+      }
+      run.phase = "reclaiming";
+      this.saveRun(run, "run_phase");
+      await this.waitForIdle(run);
+      const cleanup = await this.request({
+        command: "reclaim",
+        task: args.task,
+        attempt: run.attempt_id!,
+      });
+      requireGate(cleanup.ok, "run_reclaim_failed", cleanup);
+      run.reclaimed = true;
+      run.outcome = "completed";
+      run.ended = new Date().toISOString();
+      this.saveRun(run, "run_finished");
+      return { ok: true, task: this.load(args.task), run };
+    } catch (error) {
+      if (!run) throw error;
+      const code =
+        error instanceof Refusal
+          ? error.code === "stale_attempt"
+            ? "run_superseded"
+            : error.code
+          : "run_external_unknown";
+      const details = error instanceof Refusal ? error.details : String(error);
+      if (
+        run.attempt_id &&
+        ["run_deadline", "run_superseded", "oracle_failed", "merge_failed"].includes(code)
+      ) {
+        try {
+          await this.waitForIdle(run);
+          const cleanup = await this.request({
+            command: "reclaim",
+            task: args.task,
+            attempt: run.attempt_id,
+          });
+          requireGate(cleanup.ok, cleanup.error ?? "run_reclaim_failed", cleanup.details);
+          run.reclaimed = true;
+        } catch (cleanup) {
+          run.cleanup_failure =
+            cleanup instanceof Refusal
+              ? { error: cleanup.code, details: cleanup.details }
+              : String(cleanup);
+        }
+      }
+      run.error = code;
+      run.details = details;
+      run.outcome =
+        code === "run_deadline"
+          ? "deadline"
+          : code === "run_superseded"
+            ? "superseded"
+            : ["oracle_failed", "merge_failed"].includes(code)
+              ? "verification_failed"
+              : run.phase === "reclaiming"
+                ? "integrated_reclaim_failed"
+                : "paused";
+      run.ended = new Date().toISOString();
+      this.saveRun(run, "run_finished");
+      return { ok: false, error: code, details, task: this.load(args.task), run };
+    } finally {
+      lock.close();
+    }
+  }
+
+  async call(raw: unknown, caller?: SubmitCaller): Promise<A2AGateResult> {
+    return this.request(raw, caller);
+  }
+
+  private async request(raw: unknown, caller?: SubmitCaller, run?: A2ARun): Promise<A2AGateResult> {
+    let taskId: string | undefined;
+    let lock: DatabaseSync | undefined;
+    try {
+      const args = Schema.decodeUnknownSync(A2AGateRequest)(raw);
+      taskId = id(args.task);
+      if (args.attempt !== undefined) id(args.attempt);
+      if (args.session !== undefined) id(args.session);
+      if (args.command === "run") return await this.run(args);
+      if (args.command === "status") return { ok: true, task: this.load(taskId) };
+      if (args.command === "events") {
+        const rows = this.db
+          .prepare(
+            "SELECT seq,time,task,attempt,type,details FROM events WHERE task=? ORDER BY seq",
+          )
+          .all(taskId);
+        return {
+          ok: true,
+          events: rows.map((r) => ({
+            seq: Number(r.seq),
+            time: String(r.time),
+            task: String(r.task),
+            attempt: r.attempt === null ? null : String(r.attempt),
+            type: String(r.type),
+            details: JSON.parse(String(r.details)) as unknown,
+          })),
+        };
+      }
+      // A separate SQLite write transaction is the OS-released task operation lock.
+      // Keep the inode, never unlink it. Main-state reads remain available during an oracle.
+      lock = new DatabaseSync(join(this.root, "locks", `${taskId}.sqlite3`));
+      lock.exec("PRAGMA busy_timeout=0");
+      try {
+        lock.exec("BEGIN IMMEDIATE");
+      } catch (error) {
+        if (
+          (error as { errcode?: number }).errcode === 5 ||
+          (error as Error).message.includes("database is locked")
+        )
+          throw new Refusal("operation_busy");
+        throw error;
+      }
+      if (args.command === "create") {
+        requireGate(!this.db.prepare("SELECT 1 FROM tasks WHERE id=?").get(taskId), "task_exists");
+        const repo = inputPath(args.repo, true),
+          oracle = inputPath(args.oracle),
+          instructions = inputPath(args.instructions),
+          base = sha(args.base);
+        requireGate(
+          (await this.git(taskId, repo, ["rev-parse", "--show-toplevel"])) === repo,
+          "invalid_repo",
+        );
+        await this.commitExists(taskId, repo, base);
+        const snapshot = join(this.root, "tasks", `${taskId}-${randomUUID()}`);
+        const task: A2ATask = {
+          task_id: taskId,
+          project_id: id(args.project ?? (this.runtime ? undefined : taskId)),
+          repo,
+          oracle: join(snapshot, "oracle.py"),
+          instructions: join(snapshot, "instructions.txt"),
+          base_commit: base,
+          state: "creating",
+          spec_rev: 1,
+          fence: 0,
+          current_attempt: null,
+          candidate_commit: null,
+          verification: null,
+          integration_intent: null,
+        };
+        const actual = await this.integration(task);
+        requireGate(!actual || actual === base, "integration_conflict");
+        const instructionBytes = readFileSync(instructions);
+        new TextDecoder("utf-8", { fatal: true }).decode(instructionBytes);
+        const oracleBytes = readFileSync(oracle);
+        this.save(task, "create_intent", {
+          task,
+          oracle_source: oracle,
+          instructions_source: instructions,
+        });
+        mkdirSync(snapshot, { recursive: true });
+        writeFileSync(task.oracle, oracleBytes, { flag: "wx", mode: 0o400 });
+        writeFileSync(task.instructions, instructionBytes, { flag: "wx", mode: 0o400 });
+        if (!actual)
+          await this.git(taskId, repo, ["update-ref", REF, base, "0".repeat(base.length)]);
+        requireGate((await this.integration(task)) === base, "integration_conflict");
+        await this.runtime?.ensureProject(task.project_id, repo);
+        task.state = "ready";
+        this.save(task, "created");
+        return { ok: true, task };
+      }
+      const task = this.load(taskId);
+      if (args.command === "revoke" || args.command === "revise") {
+        requireGate(task.state !== "accepted", "already_accepted");
+        requireGate(!task.integration_intent, "needs_reconciliation");
+        const reason = args.command === "revoke" ? text(args.reason) : "spec revised";
+        if (args.command === "revise")
+          requireGate(
+            Number.isSafeInteger(args.spec_rev) && args.spec_rev! > task.spec_rev,
+            "stale_spec",
+          );
+        // Retain the interrupted record under its old spec before revising.
+        this.interruptVerification(task);
+        if (args.command === "revise") task.spec_rev = args.spec_rev!;
+        this.invalidate(task, reason);
+        return { ok: true, task };
+      }
+      if (args.command === "dispatch" || args.command === "claim") {
+        if (args.command === "dispatch") {
+          requireGate(this.runtime, "runtime_required");
+          requireGate(args.runtimeMode, "runtime_mode_required");
+        }
+        const owner = text(args.command === "claim" ? args.owner : taskId);
+        requireGate(task.state === "ready" && !task.current_attempt, "already_claimed");
+        const base =
+          args.command === "dispatch" ? sha(await this.integration(task)) : task.base_commit;
+        const attempt: A2AAttempt = {
+          task_id: taskId,
+          attempt_id: randomUUID(),
+          session_id: randomUUID(),
+          fence: task.fence + 1,
+          spec_rev: task.spec_rev,
+          thread_id: args.command === "dispatch" ? randomUUID() : "",
+          runtime_mode: args.runtimeMode ?? "approval-required",
+          turn_id: null,
+          workspace: "",
+          base_commit: base,
+          reclaimed: false,
+          owner,
+          state: "preparing",
+        };
+        attempt.workspace = join(this.root, "worktrees", attempt.attempt_id);
+        task.current_attempt = attempt;
+        task.fence = attempt.fence;
+        task.state = "preparing";
+        this.save(task, args.command === "dispatch" ? "dispatch_intent" : "claim_intent", {
+          attempt,
+          ...(args.command === "dispatch"
+            ? { model: "gpt-6.1-sol", reasoning_effort: "xhigh", requested_service_tier: "fast" }
+            : {}),
+        });
+        if (run) {
+          run.attempt_id = attempt.attempt_id;
+          run.thread_id = attempt.thread_id;
+          this.saveRun(run, "run_bound");
+        }
+        mkdirSync(join(this.root, "worktrees"), { recursive: true });
+        try {
+          await this.git(taskId, task.repo, [
+            "worktree",
+            "add",
+            "--detach",
+            attempt.workspace,
+            base,
+          ]);
+        } catch (error) {
+          task.state = "paused";
+          attempt.state = "worktree_failed";
+          this.save(task, "worktree_failed", { reason: String(error) });
+          throw new Refusal("worktree_failed");
+        }
+        if (args.command === "dispatch") {
+          await this.runtime!.createThread(task, attempt);
+          const live = await this.runtime!.readThread(attempt.thread_id);
+          this.checkThread(attempt, live);
+          requireGate(!live.blocked, "run_blocked", live);
+        }
+        attempt.state = "claimed";
+        task.state = "claimed";
+        this.save(task, "claimed");
+        if (args.command === "claim") return { ok: true, attempt };
+        const submit = {
+          command: "submit",
+          task: taskId,
+          attempt: attempt.attempt_id,
+          session: attempt.session_id,
+          fence: attempt.fence,
+          spec_rev: attempt.spec_rev,
+          commit: "<FULL_COMMIT_SHA>",
+        };
+        const prompt = `${readFileSync(task.instructions, "utf8")}\n\nManaged attempt identity: ${JSON.stringify(submit)}\nAfter implementing and committing, explicitly call the a2a_submit MCP tool with this identity and your full commit SHA. Never submit passed=true. Only this tool delivers your work; turn completion does not. Do not modify the contract or any acceptance tool. If any unexpected approval is requested, stop and report it.`;
+        this.event(taskId, "prompt_intent", { thread: attempt.thread_id, prompt });
+        await this.runtime!.startThread(task, attempt, prompt);
+        const live = await this.runtime!.readThread(attempt.thread_id);
+        this.checkThread(attempt, live);
+        attempt.turn_id = live.turn;
+        this.save(task, "dispatched", { attempt });
+        return { ok: true, task, attempt };
+      }
+      let historicalAttempt: A2AAttempt | undefined;
+      if (
+        args.command === "reclaim" &&
+        args.attempt &&
+        task.current_attempt?.attempt_id !== args.attempt
+      ) {
+        const row = this.db.prepare("SELECT data FROM attempts WHERE id=?").get(id(args.attempt));
+        requireGate(row, "unknown_attempt");
+        const previous = JSON.parse(String(row.data)) as A2AAttempt;
+        requireGate(previous.task_id === taskId, "stale_attempt");
+        if (previous.reclaimed) return { ok: true, task };
+        historicalAttempt = previous;
+      }
+      if (false && args.attempt && !historicalAttempt)
+        requireGate(task.current_attempt?.attempt_id === args.attempt, "stale_attempt");
+      if (args.command === "verify")
+        requireGate(task.state === "submitted" || task.state === "verifying", "not_submitted");
+      if (args.command === "integrate")
+        requireGate(
+          task.state === "verified" || task.state === "accepted" || task.integration_intent,
+          "not_verified",
+        );
+      const attempt = historicalAttempt ?? this.current(task, args.attempt);
+      if (args.command === "submit") {
+        requireGate(args.attempt === attempt.attempt_id, "stale_attempt");
+        requireGate(args.session === attempt.session_id, "stale_session");
+        requireGate(args.fence === attempt.fence, "stale_fence");
+        requireGate(args.spec_rev === task.spec_rev, "stale_spec");
+        if (attempt.thread_id) {
+          requireGate(
+            this.runtime && caller && caller.thread === attempt.thread_id,
+            "stale_thread",
+          );
+          await caller.assertActive();
+          const live = await this.runtime.readThread(attempt.thread_id);
+          requireGate(
+            live.workspace === attempt.workspace &&
+              live.provider === "codex" &&
+              live.running &&
+              !live.blocked &&
+              live.turn === caller.turn,
+            "identity_conflict",
+          );
+          requireGate(!attempt.turn_id || attempt.turn_id === caller.turn, "stale_turn");
+        } else requireGate(!caller, "stale_thread");
+        requireGate(["claimed", "submitted"].includes(task.state), "invalid_state");
+        const commit = sha(args.commit);
+        requireGate(
+          !task.candidate_commit || task.candidate_commit === commit,
+          "candidate_conflict",
+        );
+        await this.commitExists(taskId, task.repo, commit);
+        requireGate(
+          await this.ancestor(taskId, task.repo, attempt.base_commit, commit),
+          "not_descendant",
+        );
+        requireGate(
+          (await this.git(taskId, attempt.workspace, ["rev-parse", "HEAD"])) === commit,
+          "workspace_head_mismatch",
+        );
+        requireGate(
+          !(await this.git(taskId, attempt.workspace, [
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+          ])),
+          "dirty_worktree",
+        );
+        if (caller) {
+          await caller.assertActive();
+          attempt.turn_id = caller.turn;
+        }
+        attempt.state = "submitted";
+        task.candidate_commit = commit;
+        task.state = "submitted";
+        this.save(task, "submitted", { attempt, commit });
+        return { ok: true, task };
+      }
+      if (args.command === "verify") {
+        this.interruptVerification(task);
+        requireGate(task.state === "submitted" && task.candidate_commit, "not_submitted");
+        requireGate(!task.integration_intent, "needs_reconciliation");
+        const G = sha(await this.integration(task)),
+          C = task.candidate_commit;
+        await this.commitExists(taskId, task.repo, G);
+        const verification_id = randomUUID(),
+          workspace = join(this.root, "verification", verification_id);
+        const v: A2AVerification = {
+          verification_id,
+          attempt: { ...attempt },
+          spec_rev: task.spec_rev,
+          G,
+          C,
+          M: null,
+          oracle: task.oracle,
+          workspace,
+          state: "running",
+          command_intent: { argv: ["python3", "-I", "-B", task.oracle, workspace], cwd: workspace },
+        };
+        task.verification = v;
+        task.state = "verifying";
+        this.save(task, "verification_intent", v);
+        mkdirSync(join(this.root, "verification"), { recursive: true });
+        if (await this.ancestor(taskId, task.repo, G, C)) {
+          v.M = C;
+          await this.git(taskId, task.repo, ["worktree", "add", "--detach", workspace, C]);
+        } else {
+          await this.git(taskId, task.repo, ["worktree", "add", "--detach", workspace, G]);
+          const env = {
+            ...process.env,
+            GIT_AUTHOR_NAME: "A2A",
+            GIT_AUTHOR_EMAIL: "a2a@localhost",
+            GIT_COMMITTER_NAME: "A2A",
+            GIT_COMMITTER_EMAIL: "a2a@localhost",
+          };
+          const merge = await this.execute(
+            taskId,
+            [
+              "git",
+              "-C",
+              workspace,
+              "-c",
+              "core.hooksPath=/dev/null",
+              "merge",
+              "--no-ff",
+              "--no-commit",
+              "--no-edit",
+              C,
+            ],
+            workspace,
+            env,
+          );
+          if (merge.returncode !== 0) {
+            v.state = "merge_failed";
+            v.result = merge;
+            task.state = "submitted";
+            this.save(task, "verification_result", v);
+            throw new Refusal("merge_conflict", v);
+          }
+          const tree = await this.git(taskId, workspace, ["write-tree"]);
+          v.M = await this.git(
+            taskId,
+            workspace,
+            ["commit-tree", tree, "-p", G, "-p", C, "-m", `A2A managed integration ${taskId}`],
+            [0],
+            env,
+          );
+          await this.git(taskId, workspace, ["reset", "--hard", v.M]);
+        }
+        this.save(task, "merge_candidate", v);
+        try {
+          const result = await this.execute(taskId, v.command_intent!.argv, workspace);
+          v.result = result;
+          v.state = result.returncode === 0 ? "passed" : "failed";
+          task.state = result.returncode === 0 ? "verified" : "submitted";
+        } catch (error) {
+          if (!(error instanceof Refusal)) throw error;
+          v.state = "unknown";
+          task.state = "paused";
+          v.result = {
+            argv: v.command_intent!.argv,
+            cwd: workspace,
+            returncode: null,
+            exit: null,
+            stdout: null,
+            stderr: null,
+            outcome: "unknown",
+          };
+          v.ended = new Date().toISOString();
+          this.save(task, "verification_result", { verification: v, failure: error.details });
+          throw new Refusal("verification_unknown", v);
+        }
+        v.ended = new Date().toISOString();
+        this.save(task, "verification_result", v);
+        requireGate(v.state === "passed", "oracle_failed", v);
+        return { ok: true, task, verification: v };
+      }
+      if (args.command === "integrate") {
+        if (task.state === "accepted") return { ok: true, task, replayed: true };
+        let intent = task.integration_intent;
+        const v = task.verification;
+        requireGate((task.state === "verified" || intent) && v?.state === "passed", "not_verified");
+        this.checkVerification(task, attempt, v);
+        requireGate(v.M, "not_verified");
+        const actual = await this.integration(task);
+        if (intent) {
+          requireGate(
+            task.state === "integrating" &&
+              intent.state === "pending" &&
+              intent.verification_id === v.verification_id &&
+              intent.G === v.G &&
+              intent.M === v.M &&
+              intent.C === v.C &&
+              intent.spec_rev === v.spec_rev &&
+              intent.oracle === v.oracle &&
+              intent.attempt.task_id === taskId &&
+              intent.attempt.attempt_id === attempt.attempt_id &&
+              intent.attempt.session_id === attempt.session_id &&
+              intent.attempt.fence === attempt.fence &&
+              intent.attempt.spec_rev === task.spec_rev &&
+              (actual === intent.G || actual === intent.M),
+            "needs_reconciliation",
+            { intent, actual },
+          );
+          if (actual === intent.M) {
+            intent.state = "completed";
+            task.state = "accepted";
+            attempt.state = "accepted";
+            this.save(task, "integrated_reconciled", intent);
+            return { ok: true, task, reconciled: true };
+          }
+        } else {
+          if (actual !== v.G) {
+            task.state = "submitted";
+            task.verification = null;
+            this.save(task, "integration_conflict", { expected: v.G, actual });
+            throw new Refusal("integration_conflict");
+          }
+          intent = {
+            G: v.G,
+            C: v.C,
+            M: v.M,
+            verification_id: v.verification_id,
+            attempt: { ...attempt },
+            spec_rev: v.spec_rev,
+            oracle: v.oracle,
+            intent_id: randomUUID(),
+            state: "pending",
+            command_intent: {
+              argv: ["git", "-C", task.repo, "update-ref", REF, v.M, v.G],
+              cwd: task.repo,
+            },
+          };
+          task.integration_intent = intent;
+          task.state = "integrating";
+          this.save(task, "integration_intent", intent);
+        }
+        const result = await this.execute(taskId, intent.command_intent!.argv, task.repo);
+        const readback = await this.integration(task);
+        intent.result = result;
+        const completed = result.returncode === 0 && readback === intent.M;
+        if (completed) {
+          intent.state = "completed";
+          task.state = "accepted";
+          attempt.state = "accepted";
+        }
+        this.save(task, completed ? "integrated" : "integration_conflict", { intent, readback });
+        requireGate(completed, "needs_reconciliation", { intent, readback });
+        return { ok: true, task };
+      }
+      requireGate(args.command === "reclaim", "invalid_command");
+      const ownsTask = task.current_attempt?.attempt_id === attempt.attempt_id;
+      if (attempt.reclaimed) {
+        if (ownsTask && task.state !== "accepted") this.invalidate(task, "controller reclaim");
+        return { ok: true, task };
+      }
+      requireGate(
+        !ownsTask || !task.integration_intent || task.integration_intent.state === "completed",
+        "needs_reconciliation",
+      );
+      requireGate(this.runtime && attempt.thread_id, "no_bound_thread");
+      const live = await this.runtime.readThread(attempt.thread_id);
+      requireGate(
+        live.workspace === attempt.workspace && live.provider === "codex",
+        "identity_conflict",
+      );
+      this.checkThread(attempt, live);
+      requireGate(!live.blocked, "run_blocked", live);
+      requireGate(!live.running, "worker_working");
+      this.event(taskId, "reclaim_intent", { attempt, live }, attempt.attempt_id);
+      if (ownsTask && task.state !== "accepted") this.invalidate(task, "controller reclaim");
+      await this.runtime.stopThread(attempt.thread_id);
+      const stopped = await this.runtime.readThread(attempt.thread_id);
+      this.checkThread(attempt, stopped);
+      requireGate(stopped.stopped, "stop_unconfirmed");
+      await this.runtime.archiveThread(attempt.thread_id);
+      const archived = await this.runtime.readThread(attempt.thread_id);
+      this.checkThread(attempt, archived);
+      requireGate(archived.archived && archived.stopped, "reclaim_unconfirmed");
+      attempt.reclaimed = true;
+      this.save(task, "reclaimed", { attempt, archived }, attempt);
+      return { ok: true, task };
+    } catch (error) {
+      const ioCode = (error as NodeJS.ErrnoException).code;
+      const code =
+        error instanceof Refusal
+          ? error.code
+          : [
+                "ENOENT",
+                "EACCES",
+                "EEXIST",
+                "EISDIR",
+                "ENOTDIR",
+                "ERR_ENCODING_INVALID_ENCODED_DATA",
+              ].includes(ioCode ?? "")
+            ? "local_io_failed"
+            : "gate_failure";
+      const details = error instanceof Refusal ? error.details : String(error);
+      if (taskId) this.event(taskId, "rejected", { error: code, details, input: raw });
+      return { ok: false, error: code, details };
+    } finally {
+      lock?.close();
+    }
+  }
+}

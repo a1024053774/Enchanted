@@ -1,0 +1,46 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t037
+$ vitest run --maxWorkers=1 --no-file-parallelism src/git/Layers/CodexTextGeneration.test.ts -t "stops authentication retries and reports cleanup"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/apps/server
+
+stdout | src/git/Layers/CodexTextGeneration.test.ts > stops authentication retries and reports cleanup (denied=true, long=false): ERROR: unexpected status 401 Unauthorized: Your login did not make it to this service.
+[01:46:13.402] ERROR (#37): Error: ENOENT: no such file or directory, open '/Volumes/WD-Elements/dev-cache/synara/tmp/t037/synara-codex-auth-failure-kVwISe/pid'
+    at readFileSync (node:fs:439:20)
+    at Array.<anonymous> (/Users/luckye/Documents/Code/synara/apps/server/src/git/Layers/CodexTextGeneration.test.ts:2196:28) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Volumes/WD-Elements/dev-cache/synara/tmp/t037/synara-codex-auth-failure-kVwISe/pid',
+  [cause]: undefined
+}
+
+ ❯ src/git/Layers/CodexTextGeneration.test.ts (36 tests | 1 failed | 33 skipped) 5423ms
+   × stops authentication retries and reports cleanup (denied=true, long=false): ERROR: unexpected status 401 Unauthorized: Your login did not make it to this service. 1454ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/git/Layers/CodexTextGeneration.test.ts > stops authentication retries and reports cleanup (denied=true, long=false): ERROR: unexpected status 401 Unauthorized: Your login did not make it to this service.
+Error: ENOENT: no such file or directory, open '/Volumes/WD-Elements/dev-cache/synara/tmp/t037/synara-codex-auth-failure-kVwISe/pid'
+ ❯ Array.<anonymous> src/git/Layers/CodexTextGeneration.test.ts:2196:28
+    2194|           expect(error.detail).toContain("Settings");
+    2195|         }
+    2196|         const pid = Number(readFileSync(pidMarkerPath, "utf8"));
+       |                            ^
+    2197|         yield* Effect.promise(() => waitForProcessExit(pid));
+    2198|         const resourcePaths = JSON.parse(readFileSync(resourceManifest…
+ ❯ next ../../node_modules/.bun/effect@https+++pkg.pr.new+Effect-TS+effect-smol+effect@8881a9b/node_modules/effect/src/internal/effect.ts:1264:25
+ ❯ Object.~effect/Effect/evaluate ../../node_modules/.bun/effect@https+++pkg.pr.new+Effect-TS+effect-smol+effect@8881a9b/node_modules/effect/src/internal/core.ts:531:30
+ ❯ FiberImpl.runLoop ../../node_modules/.bun/effect@https+++pkg.pr.new+Effect-TS+effect-smol+effect@8881a9b/node_modules/effect/src/internal/effect.ts:626:39
+ ❯ runLoop ../../node_modules/.bun/effect@https+++pkg.pr.new+Effect-TS+effect-smol+effect@8881a9b/node_modules/effect/src/internal/effect.ts:587:22
+ ❯ evaluate ../../node_modules/.bun/effect@https+++pkg.pr.new+Effect-TS+effect-smol+effect@8881a9b/node_modules/effect/src/internal/effect.ts:1018:14
+ ❯ resume ../../node_modules/.bun/effect@https+++pkg.pr.new+Effect-TS+effect-smol+effect@8881a9b/node_modules/effect/src/Effect.ts:23146:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed | 33 skipped (36)
+   Start at  01:46:06
+   Duration  8.86s (transform 2.18s, setup 0ms, import 3.23s, tests 5.42s, environment 0ms)
+
+error: script "test" exited with code 1

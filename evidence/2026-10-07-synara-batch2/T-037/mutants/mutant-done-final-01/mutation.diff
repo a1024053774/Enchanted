@@ -1,0 +1,20 @@
+--- candidate/core.ts
++++ done-no-submit/core.ts
+@@ -478,6 +478,17 @@
+           previous = change;
+         }
+         requireGate(performance.now() < deadline, "run_deadline");
++        // Intentional wrong implementation: idle plus a commit impersonates submit.
++        if (!live.running && task.state === "claimed") {
++          const attempt = this.current(task, run.attempt_id!);
++          const commit = await this.git(args.task, attempt.workspace, ["rev-parse", "HEAD"]);
++          if (commit !== attempt.base_commit) {
++            task.candidate_commit = commit;
++            task.state = "submitted";
++            attempt.state = "submitted";
++            this.save(task, "implicit_done_delivery", { attempt, commit });
++          }
++        }
+         requireGate(["claimed", "submitted"].includes(task.state), "run_state_changed", task.state);
+         if (task.state === "submitted") break;
+         await new Promise((resolve) =>
