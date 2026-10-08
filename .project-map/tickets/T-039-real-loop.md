@@ -20,6 +20,12 @@ supersedes:
 
 ## Resolution
 
+**决定02执行中：BLOCKED，待主控授权注册点修改。** [机制对照](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/projection-settlement-comparison.md)已核对runtime ingestion ACK、domain high-water、snapshot最小已处理序号和provider intent ACK。`service.ts`接入已有机制与期限，受控测试10/10；最终测试在父版service上3失败/7通过。两个授权文件的工作区改动保留，尚未提交fork。
+
+真实服务图typecheck失败：`serverLayers.test.ts:26`暴露 `ProviderCommandReactor | ProviderRuntimeIngestionService` 未提供。最小修复是在 `apps/server/src/serverLayers.ts` 的 A2AGateServiceLive 注册点提供现有的两个layer，具体 [补丁](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/proposed-server-layer-wiring.patch)已用git apply --check核对、未应用。该文件超出主控决定02的授权范围，已请求确认。未启动新模型调用，35项与新根真实闭环及独立审查仍待完整候选；不复用旧轮通过结论。详情见 [repair-03/RESULTS](../../evidence/2026-10-07-synara-batch2/T-039/repair-03/RESULTS.md)。
+
+### 决定01记录（原结论保留）
+
 **本轮 BLOCKED，待主控决定；ticket 保持 open，待主控关闭。** 按 [主控决定01](../../evidence/2026-10-07-synara-batch2/T-039/controller-decision-01.md) 修复后，fork 候选为 `fc9e36c75af3bbcf701551abbb911883b94217c2`。只修改原生观察转换与新增服务测试；最终测试在旧候选上有3项业务红态，新候选6/6，移植场景35/35，typecheck/lint通过。
 
 全新真实根的 worker 已显式 submit；独立 oracle 12/12通过，CAS引用与 worker提交均为 `b1f5f5178585377150ae046b5ee3fc27f4b10970`。但原 run 在回收时因 provider 已退出、投影仍 running 被 `run_external_unknown` 拒绝，收据为 `integrated_reclaim_failed`。在主控决定要求未知仍拒绝的边界内，没有添加第三类状态的容错或再次调用模型。后续同 attempt 的清理请求先遇到 `stop_unconfirmed`，核对实际 stopped 后再经原门禁成功停止、归档、读回；不改判原 run 成功，因此第一项未勾选。
