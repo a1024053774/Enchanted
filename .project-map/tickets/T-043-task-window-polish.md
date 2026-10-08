@@ -20,3 +20,5 @@ supersedes:
 - [ ] 外观由用户判断。
 
 ## Resolution
+
+Worker 交付（Claude Code，2026-10-08）：待主控关闭；第 1–3 项已有证据，第 4 项待用户判断外观。fork `a2a` 分支提交 `d3b5bcc61`，只改 `apps/web/src/a2a/**`。栏内重复的门禁行根因是上游 `ChatView` 为每个 thread 渲染 `GateStatus`；改用 context 在任务窗口内让其静默，不改上游。人工介入改为对话流中人类消息上的标记（以事件 `message_id` 为键的限定作用域 CSS），删除展开记录块，栏标题只留计数；门禁区合并为一行 `GateBar`。证据与取舍、夹具口径、失败记录见 [RESULTS](../../evidence/2026-10-08-batch3/T-043/RESULTS.md)；改后浅色/深色截图 `after-light-main.png`、`after-dark-main.png`（3 个会话、1 条人工介入标记、一次真实 oracle 失败原因），fmt、lint、typecheck 与 T-038 相关 web 测试通过。未解决：上游空会话页脚在窄栏重叠（需改上游才能修，已请主控决定）。
