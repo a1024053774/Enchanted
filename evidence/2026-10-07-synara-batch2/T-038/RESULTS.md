@@ -61,3 +61,5 @@ dev Chrome 使用相同 web 源码、真实服务端 HTTP/WebSocket 和持久数
 冻结后的 fresh-context 只读 [独立审查](independent-review.md) 返回 INCOMPLETE，在所声明的有限范围内没有确认缺陷；[原始工具输出](independent-review-raw.json) 保留，不追改为 PASS。原生桌面任务窗口与 T-037 合并后的真实 observer/人工输入 GUI 仍为 INCOMPLETE。ticket 保持 open，待主控关闭。
 
 主控随后要求审查返回后用同一候选再试 Electron。已完成 [补充复验](post-review-electron.md)：根页面渲染，Not now 点击后导入弹窗仍可见，关闭等待超时，未进入任务窗口；[有效失败截图](desktop-final-proof-failure.png) 与命令、日志已保存，不计通过。日志另有 router `_nonReactive` 异常，具体因果未确定；没有修改源码，第一项继续未勾选。
+
+按 [决定 06](controller-decision-06.md) 完成一轮 [有限复验](round6/RESULTS.md)：dev Chrome 的基线/候选相同公共导航均成功，候选新增入口悬停/打开也成功，两边均未复现 `_nonReactive`，只有共有的 editor-icon 404，故未认定路由回归、未改代码。随后唯一 Electron 会话直接导航到 `/a2a`，45 秒加载等待超时，记录 WebSocket Invalid frame header 与连接拒绝；[桌面失败现场](round6/desktop-direct-proof-failure.png) 不满足第一项。保持 INCOMPLETE；本轮结束即交接，不扩大排查。旧结论不覆盖。
