@@ -29,6 +29,7 @@
 - 构建：外置盘 `/Volumes/WD-Elements` 存放构建缓存，未挂载时构建必须报错，不回退到内置盘。Synara fork 的 checkout 放内置盘，Bun 全局缓存与 Electron 下载放外置盘。本仓库的 Rust 构建统一经 `scripts/build`（见 README）。
 - 项目开源；Synara 为 MIT，保留其版权声明；允许直接复用 GPL 代码，并入后整体以 GPL-3.0 发布。复用不能改变已定方向。
 - 真实 Codex 验收使用 /tmp 下的隔离 CODEX_HOME：只复制 auth.json；只信任已核对的夹具根目录；只复现用户规则中的 `git add`、`git commit` 两条 allow prefix_rule；hook 只在主控逐次批准后安装。副本不入证据或 Git，结束后删除整个 home。不写用户 ~/.codex。Codex 沙箱专门保护 worktree 的 Git 元数据，额外可写目录不能替代这两条规则。
+- 不得移动、替换或链接共享 checkout 的构建输出目录（如 `apps/server/dist`），也不得在构建输出目录中放指向源码或依赖的链接：构建工具清理输出时会沿链接删除源码与依赖（2026-10-08 T-042 复验事故，误删 6,186 个受控文件）。需要新构建时用产品的标准构建命令。
 - 测试中启动的后台服务（如 muster server）必须脱离调用者的进程组（例如 start_new_session），否则命令调用结束时会被一并回收。
 - 不从零自建 GPUI 界面，不基于 Zed 二次开发。
 - Enchanted 已于 2026-10-06 做 git 快照并冻结；其功能在 a2a 门禁接入工作台之后再并入，不在 Enchanted 仓库继续开发。
