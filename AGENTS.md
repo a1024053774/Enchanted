@@ -20,7 +20,7 @@
 ## 第二阶段：工作台约束
 
 - 工作台基于 Synara 的 fork：GitHub `a1024053774/synara`，起点 v1.0.1-beta.2，单独 clone，不放进本仓库。持续跟进上游：我们的功能做成独立 package 或模块，对 Synara 核心只做少量接入，通用修复回馈作者。本仓库保管规范、门禁契约、验收场景与证据。
-- agent 以 Synara 的原生协议会话为主（Codex app-server、Claude Agent SDK、ACP、OpenCode SDK），终端为辅；界面按“项目 → 任务 → agent 会话”组织。
+- agent 以 Synara 的原生协议会话为主（Codex app-server、Claude Agent SDK、ACP、OpenCode SDK），终端为辅；界面按“项目 → 任务 → agent 会话”组织。任务与 agent 会话的归属由 a2a 自己保存（受管任务以门禁 task id 为身份），不读写 Synara 原生 ProjectTask、HubWorkItem 的状态（2026-10-07，T-038）。
 - 门禁优先：认领、交付、验收、集成和回收只经唯一的门禁入口，保持操作锁、fence、CAS、attempt 绑定与中断恢复语义；界面不另做一套门禁。在受管 worker 会话中直接输入，记为人工介入。新门禁在 Synara 服务端用 TypeScript 原生实现，就绪前由 `coop.py` 的 CLI 担任门禁入口。
 - 重新证明：旧实现的通过结论不替新实现背书；交付、恢复、编排场景移植后须重新取得红态、绿态与反例。
 - `coop.py` 与 Muster 引擎（`muster/engine/`，Herdr 0.9.3 硬分叉）自 2026-10-07 起冻结为参考实现，不再开发；新门禁通过同样验收后删除 Muster，不保留两套路径。运行 Muster 仍须使用独立命名会话和 `muster` 命名空间，不得修改或重启用户正在使用的 Herdr server。
