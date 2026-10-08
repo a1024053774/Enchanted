@@ -1,14 +1,14 @@
 # T-036 交付记录（2026-10-07）
 
-**INCOMPLETE，仅余针对性独立复核与收尾；待主控关闭。** 主控 Claude Code（`wF:pM`）；执行 worker 为主控启动的 `s1-t036`（`wF:pX`）。fork 修正候选为 `26cb210a99fc74a43ef341278c6ef4e19ab0565e`（[绑定记录](corrected-candidate.json)），基线 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，未 push。该候选现已经批准的同一副本入口证明交付 8/8、恢复 9/9、两个业务反例。全仓失败与旧候选异常继续保留。
+**INCOMPLETE，仅余最终冻结复核与收尾；待主控关闭。** 主控 Claude Code（`wF:pM`）；worker 为 `s1-t036`（`wF:pX`）。最终候选为 `a9cc30c395af9ffd51476a1841d80bca66568993`（[绑定记录](final-candidate.json)），基线 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，未 push。最终候选经批准的同一副本入口重新证明交付 8/8、恢复 9/9 与两个业务反例。此前全仓失败、旧候选的通过和异常都按版本保留。
 
 ## 四项验收
 
 | 条件 | 结论 | 命令与证据 |
 | --- | --- | --- |
-| 交付 8 项与先验红态 | PASS | `python3 -B evidence/2026-10-07-synara-batch1/T-036/run-acceptance.py corrected-candidate-delivery test_coop_e2e.py`；修正候选 8/8。原 CLI 对 `--state … create` 返回 exit 2：[契约红态](red-delivery-entry-fixed/command.json)、[修正候选绿态](corrected-candidate-delivery/command.json)、各自 `trace.json` |
-| 恢复 9 项 | PASS | 批准副本单独 9/9：[结果](native-recovery-green/command.json)；同一组合入口交付 8+恢复 9 共 17/17：[结果](native-combined-green/command.json)、[完整 trace](native-combined-green/trace.json)。该轮针对冻结修正候选，真实 SIGKILL 只向各夹具创建并核对的 CLI PID 发出 |
-| fence 与 Git 回读 mutant | PASS（反例被抓住） | 同一组合入口：错 fence 在 `0 != 1` 业务断言失败：[结果](mutant-fence-corrected-native-suite/command.json)；忽略回读在 CAS 前恢复、外部 X、引用删除 3 个恢复场景为 BUSINESS_RED：[结果](mutant-readback-corrected-native-suite/command.json)、[业务断言](mutant-readback-corrected-native-suite/trace.json)。无 setup/import/夹具错误充数。完整错误实现与 diff 在 [mutants](mutants/) |
+| 交付 8 项与先验红态 | PASS | 最终组合入口交付 8 项全部通过：[结果](final-native-green/command.json)、[trace](final-native-green/trace.json)。实现前原 CLI 对 `--state … create` 返回 exit 2：[红态](red-delivery-entry-fixed/command.json)；另有原交付脚本单独重跑记录 |
+| 恢复 9 项 | PASS | 最终组合入口共 17/17，含全部 9 个恢复场景；真实 SIGKILL 只向夹具创建并核对的 CLI PID 发出：[最终结果](final-native-green/command.json)。授权副本此前还单独取得 9/9：[历史结果](native-recovery-green/command.json) |
+| fence 与 Git 回读 mutant | PASS（反例被抓住） | 最终同版本 mutant 经同一入口：错 fence 在 `0 != 1` 业务断言失败：[结果](mutant-fence-final-native-suite/command.json)；忽略回读在 CAS 前、外部 X、删除引用 3 个场景为 BUSINESS_RED：[结果](mutant-readback-final-native-suite/command.json)、[断言](mutant-readback-final-native-suite/trace.json)。fence 轮还保留一次 busy 时间断言失败，未把它归因于 fence 或用于证明反例；主要证据是错 fence 被接受。所有失败原样保存 |
 | CLI 差异记录、不改预期 | PASS（记录） | 下表记录原生运行差异；未修改 `acceptance/test_coop_e2e.py`、`acceptance/test_recovery_e2e.py` 或 oracle。只新增薄转接脚本，原样转交参数 |
 
 ## CLI 与运行时差异
@@ -34,19 +34,25 @@
 
 | 检查 | 结论 | 证据 |
 | --- | --- | --- |
-| `run typecheck` | PASS | [final-typecheck.log](final-typecheck.log) |
-| `run lint` | PASS | [final-lint.log](final-lint.log) |
+| `run typecheck` | PASS，最终候选 | [identity-final-typecheck.log](identity-final-typecheck.log) |
+| `run lint` | PASS，最终候选 | [identity-final-lint.log](identity-final-lint.log) |
 | `run windows-runtime:check`、`run migrations:check` | PASS；不代表 Windows 运行验收 | [进程边界](final-windows-runtime.log)、[迁移检查](final-migrations.log) |
-| `run fmt:check` | NO_GO；仅报告范围外原有 `.grok/settings.json` | [final-fmt-check.log](final-fmt-check.log)；没有改该文件 |
+| `run fmt:check` | NO_GO；最终候选仍仅报告范围外原有 `.grok/settings.json` | [identity-final-fmt-check.log](identity-final-fmt-check.log)；没有改该文件 |
 | `run test` | NO_GO；scripts 三项 5 秒超时，其他 workspace 被 Turbo 中止 | [final-workspace-test.log](final-workspace-test.log)。三个失败文件的单独复核 PASS：[affected-scripts-retest.log](affected-scripts-retest.log)，不替代全仓失败 |
-| 独立审查 | 首次 FAIL，已修复其 P1；修复范围的针对性复核尚未完成 | [首次报告](acceptance-review-first.md)，审查者另外重跑原交付套件 8/8；修正候选不借用首次结论 |
-| 串行入口的全仓复核 | NO_GO；scripts 4 项超时，其他 workspace 被中止 | [final-workspace-test-serial.log](final-workspace-test-serial.log)。原失败未覆盖；随后修正候选还需最后一轮范围内检查 |
+| 独立审查 | 首次 FAIL；历史回收与批准副本复核 PASS；最终输入保护版本尚待一次冻结复核 | [首次](acceptance-review-first.md)、[`26cb210a9` 复核](acceptance-review-final.md)。旧审查不替最终版本背书 |
+| 全仓复核 | `26cb210a9` 上 7/7 工作区 PASS，约 32 分 52 秒；不是最终候选全仓通过 | [完整日志](corrected-candidate-workspace-test.log)、[命令](corrected-candidate-workspace-test.json)。最终三行输入修复后运行了全仓类型/lint、聚焦测试及全部 17 场景；没有再次执行约 33 分钟的全仓测试。此前两轮 timeout 失败仍保留 |
 
 ## 独立审查发现的历史回收缺陷
 
 首次审查冻结 `5cae1072d` 后发现 P1：`revoke A → claim B → reclaim --attempt A` 对尚未回收的历史 A 返回 `stale_attempt`。该问题属 T-036 的冻结契约。先运行 `…/run-fork-check.py history-contract-idle-red run --cwd packages/a2a-gates test`，[红态](history-contract-idle-red.log) 明确在合法历史回收应成功的业务断言上失败；未修复实现前保存。
 
 修复仍走同一个受锁 reclaim 路径：选择指定历史记录并核对其绑定，业务 task 只在 current_attempt 匹配时改变；历史重放、外来 task 和仍工作执行者继续受保护。事件绑定实际回收的 attempt。`26cb210a9` 的 [针对性检查](corrected-candidate-core-test.log) 通过，原交付套件与同版本 fence mutant 也重新运行。检查使用真实 Git/SQLite 和受控 thread 替身，只证明所有权作用域，不称为真实原生会话验收。该新测试此前对错误候选失败；未从实现输出提取预期。
+
+## 最终输入边界修复
+
+在 `26cb210a9` 上，空 `attempt` 被 truthy 判断当作未提供，实际对当前候选完成 verify/integrate；缺少 thread 身份的查询会返回未绑定原生 thread 的本地 attempt。先用 [红态](empty-identity-red.log) 保存实际成功与状态改变的错误结果，再补上三行保护：显式提供的 attempt/session 均经已有 ID 校验；空 thread 查询直接返回 null。原 HTTP GET 调用的缺省值即为空字符串，故该查询检查覆盖真实直接调用边界。
+
+最终 [同一聚焦检查](empty-identity-green.log) 转绿，包含错误输入拒绝与业务状态不变；全部 17 场景与两个同版本 mutant 重新运行。没有改原验收预期，边界检查没有真实 provider 调用。最终代码冻结后再取得当前版本的独立复核。
 
 ## 批准副本的复现与红态
 

@@ -1,0 +1,11 @@
+--- a9cc30c395af9ffd51476a1841d80bca66568993/core.ts
++++ fence-final/core.ts
+@@ -497,7 +497,7 @@
+       if (args.command === "submit") {
+         requireGate(args.attempt === attempt.attempt_id, "stale_attempt");
+         requireGate(args.session === attempt.session_id, "stale_session");
+-        requireGate(args.fence === attempt.fence, "stale_fence");
++        // Mutant: omitted the submitted fence check.
+         requireGate(args.spec_rev === task.spec_rev, "stale_spec");
+         if (attempt.thread_id) {
+           requireGate(

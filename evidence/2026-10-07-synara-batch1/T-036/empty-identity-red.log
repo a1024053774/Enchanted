@@ -1,0 +1,342 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t036
+$ vitest run --passWithNoTests
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:81357) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40"}
+
+ ❯ src/core.test.ts (1 test | 1 failed) 2108ms
+   × reclaims only the specified historical attempt and preserves the replacement 2105ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+AssertionError: expected { task_id: 'foreign', …(12) } to be null
+
+- Expected:
+null
+
++ Received:
+{
+  "base_commit": "c7dba7925bac916fdc52725f616ba2e0498dd729",
+  "candidate_commit": "c7dba7925bac916fdc52725f616ba2e0498dd729",
+  "current_attempt": {
+    "attempt_id": "915121b5-c83a-4465-a0c5-838b41c11e3d",
+    "base_commit": "c7dba7925bac916fdc52725f616ba2e0498dd729",
+    "fence": 1,
+    "owner": "Local identity boundary",
+    "reclaimed": false,
+    "runtime_mode": "approval-required",
+    "session_id": "330a699d-d7e6-40e1-a5e6-664c88b8f1a0",
+    "spec_rev": 1,
+    "state": "submitted",
+    "task_id": "foreign",
+    "thread_id": "",
+    "turn_id": null,
+    "workspace": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/worktrees/915121b5-c83a-4465-a0c5-838b41c11e3d",
+  },
+  "fence": 1,
+  "instructions": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/instructions.txt",
+  "integration_intent": null,
+  "oracle": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
+  "project_id": "project",
+  "repo": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/repo",
+  "spec_rev": 1,
+  "state": "submitted",
+  "task_id": "foreign",
+  "verification": null,
+}
+
+ ❯ src/core.test.ts:176:42
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/core.test.ts:179:30
+    177|     for (const command of ["verify", "integrate", "reclaim"]) {
+    178|       const denied = await gates.call({ command, task: "foreign", atte…
+    179|       expect.soft(denied.ok).toBe(false);
+       |                              ^
+    180|       expect.soft(denied.error).toBe("invalid_id");
+    181|       expect.soft((await gates.call({ command: "status", task: "foreig…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+AssertionError: expected undefined to be 'invalid_id' // Object.is equality
+
+- Expected:
+"invalid_id"
+
++ Received:
+undefined
+
+ ❯ src/core.test.ts:180:33
+    178|       const denied = await gates.call({ command, task: "foreign", atte…
+    179|       expect.soft(denied.ok).toBe(false);
+    180|       expect.soft(denied.error).toBe("invalid_id");
+       |                                 ^
+    181|       expect.soft((await gates.call({ command: "status", task: "foreig…
+    182|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+AssertionError: expected { task_id: 'foreign', …(12) } to deeply equal { task_id: 'foreign', …(12) }
+
+- Expected
++ Received
+
+@@ -21,9 +21,58 @@
+    "integration_intent": null,
+    "oracle": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
+    "project_id": "project",
+    "repo": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/repo",
+    "spec_rev": 1,
++   "state": "verified",
++   "task_id": "foreign",
++   "verification": {
++     "C": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "G": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "M": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "attempt": {
++       "attempt_id": "915121b5-c83a-4465-a0c5-838b41c11e3d",
++       "base_commit": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++       "fence": 1,
++       "owner": "Local identity boundary",
++       "reclaimed": false,
++       "runtime_mode": "approval-required",
++       "session_id": "330a699d-d7e6-40e1-a5e6-664c88b8f1a0",
++       "spec_rev": 1,
+        "state": "submitted",
+        "task_id": "foreign",
+-   "verification": null,
++       "thread_id": "",
++       "turn_id": null,
++       "workspace": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/worktrees/915121b5-c83a-4465-a0c5-838b41c11e3d",
++     },
++     "command_intent": {
++       "argv": [
++         "python3",
++         "-I",
++         "-B",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++       ],
++       "cwd": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++     },
++     "ended": "2026-10-08T02:45:10.733Z",
++     "oracle": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
++     "result": {
++       "argv": [
++         "python3",
++         "-I",
++         "-B",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++       ],
++       "cwd": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++       "exit": 0,
++       "returncode": 0,
++       "stderr": "",
++       "stdout": "",
++     },
++     "spec_rev": 1,
++     "state": "passed",
++     "verification_id": "22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++     "workspace": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++   },
+  }
+
+ ❯ src/core.test.ts:181:84
+    179|       expect.soft(denied.ok).toBe(false);
+    180|       expect.soft(denied.error).toBe("invalid_id");
+    181|       expect.soft((await gates.call({ command: "status", task: "foreig…
+       |                                                                                    ^
+    182|     }
+    183|   } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+AssertionError: expected { task_id: 'foreign', …(12) } to deeply equal { task_id: 'foreign', …(12) }
+
+- Expected
++ Received
+
+@@ -8,22 +8,123 @@
+      "owner": "Local identity boundary",
+      "reclaimed": false,
+      "runtime_mode": "approval-required",
+      "session_id": "330a699d-d7e6-40e1-a5e6-664c88b8f1a0",
+      "spec_rev": 1,
+-     "state": "submitted",
++     "state": "accepted",
+      "task_id": "foreign",
+      "thread_id": "",
+      "turn_id": null,
+      "workspace": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/worktrees/915121b5-c83a-4465-a0c5-838b41c11e3d",
+    },
+    "fence": 1,
+    "instructions": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/instructions.txt",
+-   "integration_intent": null,
++   "integration_intent": {
++     "C": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "G": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "M": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "attempt": {
++       "attempt_id": "915121b5-c83a-4465-a0c5-838b41c11e3d",
++       "base_commit": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++       "fence": 1,
++       "owner": "Local identity boundary",
++       "reclaimed": false,
++       "runtime_mode": "approval-required",
++       "session_id": "330a699d-d7e6-40e1-a5e6-664c88b8f1a0",
++       "spec_rev": 1,
++       "state": "submitted",
++       "task_id": "foreign",
++       "thread_id": "",
++       "turn_id": null,
++       "workspace": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/worktrees/915121b5-c83a-4465-a0c5-838b41c11e3d",
++     },
++     "command_intent": {
++       "argv": [
++         "git",
++         "-C",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/repo",
++         "update-ref",
++         "refs/a2a/integration",
++         "c7dba7925bac916fdc52725f616ba2e0498dd729",
++         "c7dba7925bac916fdc52725f616ba2e0498dd729",
++       ],
++       "cwd": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/repo",
++     },
++     "intent_id": "0015715c-e8e7-4313-9b44-ae56e9a7bc4a",
++     "oracle": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
++     "result": {
++       "argv": [
++         "git",
++         "-C",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/repo",
++         "update-ref",
++         "refs/a2a/integration",
++         "c7dba7925bac916fdc52725f616ba2e0498dd729",
++         "c7dba7925bac916fdc52725f616ba2e0498dd729",
++       ],
++       "cwd": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/repo",
++       "exit": 0,
++       "returncode": 0,
++       "stderr": "",
++       "stdout": "",
++     },
++     "spec_rev": 1,
++     "state": "completed",
++     "verification_id": "22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++   },
+    "oracle": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
+    "project_id": "project",
+    "repo": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/repo",
++   "spec_rev": 1,
++   "state": "accepted",
++   "task_id": "foreign",
++   "verification": {
++     "C": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "G": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "M": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++     "attempt": {
++       "attempt_id": "915121b5-c83a-4465-a0c5-838b41c11e3d",
++       "base_commit": "c7dba7925bac916fdc52725f616ba2e0498dd729",
++       "fence": 1,
++       "owner": "Local identity boundary",
++       "reclaimed": false,
++       "runtime_mode": "approval-required",
++       "session_id": "330a699d-d7e6-40e1-a5e6-664c88b8f1a0",
+        "spec_rev": 1,
+        "state": "submitted",
+        "task_id": "foreign",
+-   "verification": null,
++       "thread_id": "",
++       "turn_id": null,
++       "workspace": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/worktrees/915121b5-c83a-4465-a0c5-838b41c11e3d",
++     },
++     "command_intent": {
++       "argv": [
++         "python3",
++         "-I",
++         "-B",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++       ],
++       "cwd": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++     },
++     "ended": "2026-10-08T02:45:10.733Z",
++     "oracle": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
++     "result": {
++       "argv": [
++         "python3",
++         "-I",
++         "-B",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/tasks/foreign-a16b30a1-6976-46f2-99b3-dce4abc0911e/oracle.py",
++         "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++       ],
++       "cwd": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++       "exit": 0,
++       "returncode": 0,
++       "stderr": "",
++       "stdout": "",
++     },
++     "spec_rev": 1,
++     "state": "passed",
++     "verification_id": "22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++     "workspace": "/Volumes/WD-Elements/dev-cache/synara/tmp/t036/a2a-history-contract-AF9n40/state/verification/22606ea2-0930-4eb6-b8be-5dfbe0041de2",
++   },
+  }
+
+ ❯ src/core.test.ts:181:84
+    179|       expect.soft(denied.ok).toBe(false);
+    180|       expect.soft(denied.error).toBe("invalid_id");
+    181|       expect.soft((await gates.call({ command: "status", task: "foreig…
+       |                                                                                    ^
+    182|     }
+    183|   } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  src/core.test.ts > reclaims only the specified historical attempt and preserves the replacement
+AssertionError: expected 'no_bound_thread' to be 'invalid_id' // Object.is equality
+
+Expected: "invalid_id"
+Received: "no_bound_thread"
+
+ ❯ src/core.test.ts:180:33
+    178|       const denied = await gates.call({ command, task: "foreign", atte…
+    179|       expect.soft(denied.ok).toBe(false);
+    180|       expect.soft(denied.error).toBe("invalid_id");
+       |                                 ^
+    181|       expect.soft((await gates.call({ command: "status", task: "foreig…
+    182|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  22:45:04
+   Duration  6.05s (transform 2.54s, setup 0ms, import 3.77s, tests 2.11s, environment 0ms)
+
+error: script "test" exited with code 1
