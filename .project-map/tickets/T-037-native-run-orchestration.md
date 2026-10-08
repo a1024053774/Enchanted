@@ -2,7 +2,7 @@
 id: T-037
 title: 原生 run 编排与人工介入记录
 type: build
-status: open
+status: closed
 blocked_by: [T-036]
 claimed_by: s2-t037
 supersedes:
@@ -29,3 +29,5 @@ PASS（仅限上述 T-037 契约及主控补充的记录故障处理），待主
 - 原验收未改，18 项边界差异与主控批准的时间输入变化逐项记录。fresh-context 独立只读审查 PASS，限制见报告。
 - 证据：[交付记录](../../evidence/2026-10-07-synara-batch2/T-037/RESULTS.md)、[冻结候选](../../evidence/2026-10-07-synara-batch2/T-037/frozen-candidate-03.json)、[同版本摘要](../../evidence/2026-10-07-synara-batch2/T-037/acceptance-summary-03.json)、[独立审查](../../evidence/2026-10-07-synara-batch2/T-037/acceptance-review-03.md)。全仓检查 NO_GO：服务端 4 项失败，其他 workspace 被中止；两个单例复核通过，CodexTextGeneration 的两项隔离进程失败仍存在。源码与基线无差异，范围外未修复。最终检查、归档与 a2a 提交见交付记录。
 - 没有真实 provider/model 调用、UI 证明、M1 闭环或切换声明；这些结论仍为 INCOMPLETE，归 T-039/T-040。
+
+**主控关闭（2026-10-08，Claude Code）：PASS，限本 ticket 五项及 observer 故障处理。** 候选 fork `fa3fc33`，证据 `e17e6c4`，见 [RESULTS](../../evidence/2026-10-07-synara-batch2/T-037/RESULTS.md) 与 [独立审查](../../evidence/2026-10-07-synara-batch2/T-037/acceptance-review-03.md)。主控抽查：18 项副本 diff 主要替换 Herdr 边界替身，2 秒 deadline 与 3 秒 run_busy 断言未放宽；两个 mutant 在业务断言（accepted、Git 引用、oracle）上失败；observer 失败处理经 [主控审阅](../../evidence/2026-10-07-synara-batch2/T-037/controller-note-01.md) 提出并以红绿修复。遗留：全仓 test NO_GO（CodexTextGeneration 两项假 CLI 失败，文件与基线无差异，尚未在基线上复跑），fmt 仅 `.grok/` 失败；均记入地图 fog。
