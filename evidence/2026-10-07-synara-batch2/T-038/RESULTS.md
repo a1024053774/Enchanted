@@ -58,4 +58,6 @@ dev Chrome 使用相同 web 源码、真实服务端 HTTP/WebSocket 和持久数
 
 复现命令见各 `*-command.json`、CLI JSON 和脚本；核心入口均经 fork `a2a/scripts/bun`。例如重建基线用 `A2A_SYNARA_SLOT=t038-baseline ./a2a/scripts/bun run build:desktop`，顺序 CUA 对照用 `python3 paired-cua.py`（新运行需新记录名，脚本拒绝覆盖）。重新 GUI 闭环需新夹具目录，现有 accepted attempt 不回滚；脚本与全部输入在 cycle2 中保存。
 
-冻结后按 behavioral-acceptance-review 做 fresh-context 只读审查；审查结果另存，不用自报替代独立结论。原生桌面任务窗口与 T-037 合并后的真实 observer/人工输入 GUI 仍为 INCOMPLETE。ticket 保持 open，待主控关闭。
+冻结后的 fresh-context 只读 [独立审查](independent-review.md) 返回 INCOMPLETE，在所声明的有限范围内没有确认缺陷；[原始工具输出](independent-review-raw.json) 保留，不追改为 PASS。原生桌面任务窗口与 T-037 合并后的真实 observer/人工输入 GUI 仍为 INCOMPLETE。ticket 保持 open，待主控关闭。
+
+主控随后要求审查返回后用同一候选再试 Electron。已完成 [补充复验](post-review-electron.md)：根页面渲染，Not now 点击后导入弹窗仍可见，关闭等待超时，未进入任务窗口；[有效失败截图](desktop-final-proof-failure.png) 与命令、日志已保存，不计通过。日志另有 router `_nonReactive` 异常，具体因果未确定；没有修改源码，第一项继续未勾选。
