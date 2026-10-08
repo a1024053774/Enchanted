@@ -1,0 +1,35 @@
+{
+  "classification": "execution-agent environment incident; do not replay",
+  "preparation": [
+    {
+      "operation": "shutil.move",
+      "source": "/Users/luckye/Documents/Code/synara/apps/server/dist",
+      "destination": "/Volumes/WD-Elements/dev-cache/synara/instances/t042-verify/original-server-dist"
+    },
+    {
+      "operation": "mkdir",
+      "path": "/Volumes/WD-Elements/dev-cache/synara/instances/t042-verify/build/server"
+    },
+    {
+      "operation": "symlink",
+      "path": "/Users/luckye/Documents/Code/synara/apps/server/dist",
+      "target": "/Volumes/WD-Elements/dev-cache/synara/instances/t042-verify/build/server"
+    },
+    {
+      "operation": "symlink",
+      "path": "/Volumes/WD-Elements/dev-cache/synara/instances/t042-verify/build/server/node_modules",
+      "target": "/Users/luckye/Documents/Code/synara/apps/server/node_modules"
+    },
+    {
+      "operation": "symlink",
+      "path": "/Volumes/WD-Elements/dev-cache/synara/instances/t042-verify/build/node_modules",
+      "target": "/Users/luckye/Documents/Code/synara/node_modules"
+    }
+  ],
+  "recovery": [
+    "git restore only 6186 deleted tracked paths, see tracked-source-restoration.json",
+    "unlink only newly created apps/server/dist symlink",
+    "shutil.copytree(original-server-dist, apps/server/dist, symlinks=True)"
+  ],
+  "outstanding": "Ignored dependencies and build products may have been deleted through dependency links. No complete pre-incident inventory exists. Dependency restoration not performed."
+}
