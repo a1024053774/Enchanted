@@ -2,7 +2,7 @@
 id: T-041
 title: 各 provider 登录方式的条款核实
 type: research
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex worker T-041 (2026-10-08)
 supersedes:
@@ -23,3 +23,6 @@ supersedes:
 - 对照 Synara `3566ef4eb34b18c480c7a49e4b5d741681b72426` 的 SDK/CLI、app-server、ACP、OpenCode 及账号环境，建议不移入 magpie 的 Claude 订阅网关（**NO_GO**）；没有封号概率改善证据。
 - 初步检索需细化：OpenAI 明确允许现有本地/开源 app-server 认证，商用/托管排除的是该认证方式；Anthropic 有未修改官方 CLI 的有条件路径，不能简化成所有第三方使用一律禁止，也不能凭启动官方 CLI 宣称 Synara 满足例外。
 - 事实门 **INCOMPLETE**：Synara 的 Claude SDK 包装/登录及凭据读取边界、Antigravity 普通条款的第三方访问限制、其余 provider 的实际计划/插件/商业合同仍需主控核实。官方链接、核实日、生效/更新日与 unknown 均见报告。无代码修改或外部发布。
+
+**主控关闭（2026-10-08，Claude Code）：研究交付 PASS。** 见 [调研报告](../../evidence/2026-10-08-batch3/T-041/REPORT.md)。结论：不把 magpie 的 Claude 订阅网关并入 fork（NO_GO）——它虽启动本机 `claude`，但作为通用模型网关读取、保存并复制 claude.ai 凭据，而 Anthropic 的 Claude Code Legal and compliance 明确禁止第三方收集、保存或中介 claude.ai 凭据；Synara 现有 Agent SDK 启动本机官方 CLI 的路径更接近官方允许的用法，Claude 优先用用户自己的 API key。Codex 经本机官方 app-server 的本地/开源用法有 OpenAI 明确许可，商用托管除外。Synara 读取凭据文件判断登录状态等细节是否满足 Anthropic 的"未修改 CLI"例外仍为 unknown，未取得 Anthropic 书面说明前不对外承诺订阅用法。
+
