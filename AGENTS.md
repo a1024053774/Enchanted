@@ -52,6 +52,7 @@
 - 新建 worker 必须显式传入 `-c 'service_tier="fast"'` 并保存启动 argv；不把请求配置当作供应商实际 tier 的证明。
 - 回收 worker pane 前须确认该 agent 已 idle，且它的交付已提交；只看到提交落地、agent 仍为 working 时不得关闭 pane（2026-10-07 T-027 收尾时出现过一次）。
 - Herdr wait 超时不是 worker 挂起证明；核对可见进展、产物与权限状态再处置。记录 live pane/terminal 身份，不依赖可能过期的继承环境或 UI 焦点。
+- 界面验证可让 worker（Codex CLI）使用 Computer Use；需要时主控在任务书中明确说明。用户于 2026-10-08 授权主控在用户不在时代为批准 worker 的 Computer Use 权限请求，范围限：任务书已列出的界面验证，只操作该 worker 自己启动的应用窗口（如隔离 Electron）。主控不得代批：系统设置或隐私授权、登录与密码、付款、发送消息或发布内容、操作用户自己的应用或数据、删除文件；遇到这些停下等用户。每次代批记入该批次证据（时间、worker、请求原文、批准理由）。
 - 受管实验固定 Codex CLI 版本并使用启动参数 `check_for_update_on_startup=false`；更新提示不由任务输入触发。启动被阻断时保存现场，禁止把下一条任务或 Enter 当作默认批准。
 
 ## 必须停下并问用户的情况
