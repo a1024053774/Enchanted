@@ -64,7 +64,7 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `coop.py` | 6656545 |
+| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `acceptance/entry/a2a_gates.py` | 6656545 |
 | [AGENTS.md](../AGENTS.md) | `CONTEXT.md`, `intent.md` | |
 | [README.md](../README.md) | `coop.py`, `acceptance/live_muster.py`, `intent.md`, `muster/**`, `scripts/build` | |
 | [findings/README.md](../findings/README.md) | `findings/*.md` | |

@@ -4,8 +4,8 @@
 - **Worker（执行 agent）**：在已分配的 task/attempt 范围内实现代码或分析，不拥有其他任务的权限。
 - **Monitor（监控 agent）**：只读观察者，记录运行事件并标记异常；不能认领、提交、集成或宣布成功。
 - **工作台（workbench）**：第二阶段基于 Synara 的 fork（`a1024053774/synara`）构建的多 agent 应用，按“项目 → 任务 → agent 会话”组织；切换完成后取代 Herdr 的日常使用。
-- **Muster 引擎**：Herdr 0.9.3 的硬分叉（`muster/engine/`），曾计划作为工作台后台；2026-10-07 起冻结为参考实现，仅供现有 `coop.py` 运行，新门禁通过同样验收后删除。
-- **门禁入口（gate entry）**：a2a 门禁对外唯一的调用入口；认领、交付、验收、集成与回收只经它，并保持操作锁语义。新门禁就绪前由 `coop.py` 的 CLI 担任。
+- **Muster 引擎**：Herdr 0.9.3 的硬分叉，曾计划作为工作台后台；2026-10-07 冻结，2026-10-08 与 `coop.py` 一起从仓库删除（T-040），源码留在 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。
+- **门禁入口（gate entry）**：a2a 门禁对外唯一的调用入口；认领、交付、验收、集成与回收只经它，并保持操作锁语义。现为 Synara fork 中的原生门禁（`packages/a2a-gates`），对外有本地 CLI、服务端 HTTP 与 MCP 工具三种传输，共用同一核心；本仓库验收经 `acceptance/entry/a2a_gates.py` 调用它。
 - **项目（Project）**：对应一个仓库目录的工作范围；在工作台中包含多个任务。
 - **Task（任务）**：项目中的一个工作单元；在工作台中是项目下的一个任务窗口（应用内区域，不要求独立系统窗口），可以包含多个 agent 会话。验收合同（规格、依赖和验收条件）可以稍后再挂，挂上验收合同的任务称为受管任务，只有受管任务走 claim、submit、验收和集成门禁。任务与 agent 会话的归属由 a2a 保存（受管任务以门禁 task id 为身份）。Synara 原生的 ProjectTask、ProjectTaskAttempt、HubWorkItem 属于其 Hub 编排，不是这里的任务或 attempt，提及时用原名。
 - **Agent 会话（agent session）**：任务中一个 agent 的一次运行，经原生协议（如 Codex app-server）或终端进行；一个任务可以有多个，供不同角色分工。它不同于原生会话。

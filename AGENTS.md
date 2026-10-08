@@ -4,7 +4,7 @@
 
 - `.project-map/MAP.md` 是项目地图；它索引目的地、已关闭决策、开放 ticket、fog 和 living docs。
 - `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。2026-10-07 起为第二阶段修订版：基于 Synara fork 的 a2a 多 Agent 工作台，第一个里程碑为 M1；决策记录见 `.grilling/synara-fork.md`，M1 执行规格见 `.project-map/specs/synara-m1-2026-10-07.md`。`.project-map/specs/workbench-m1-2026-10-06.md` 是被取代的 GPUI/Muster 方案的日期记录。
-- `coop.py` 的执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
+- 门禁契约的执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`（最初为 `coop.py` 编写，原生门禁沿用同一契约）；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
 - T-007 恢复语义以 `.project-map/specs/recovery-2026-10-06.md` 为准；真实故障只注入隔离测试所创建的 CLI 子进程。
 - 验收与集成必须经过唯一的门禁入口，并保持操作锁语义；锁释放只允许核对中断状态，不能替代验收证据。
 - 自动 run 必须显式设置 submit 等待期限；其验收、集成和清理都绑定原 attempt，不得因 current_attempt 改变而接管新执行者。
@@ -21,16 +21,16 @@
 
 - 工作台基于 Synara 的 fork：GitHub `a1024053774/synara`，起点 v1.0.1-beta.2，单独 clone，不放进本仓库。持续跟进上游：我们的功能做成独立 package 或模块，对 Synara 核心只做少量接入，通用修复回馈作者。本仓库保管规范、门禁契约、验收场景与证据。
 - agent 以 Synara 的原生协议会话为主（Codex app-server、Claude Agent SDK、ACP、OpenCode SDK），终端为辅；界面按“项目 → 任务 → agent 会话”组织。任务与 agent 会话的归属由 a2a 自己保存（受管任务以门禁 task id 为身份），不读写 Synara 原生 ProjectTask、HubWorkItem 的状态（2026-10-07，T-038）。
-- 门禁优先：认领、交付、验收、集成和回收只经唯一的门禁入口，保持操作锁、fence、CAS、attempt 绑定与中断恢复语义；界面不另做一套门禁。在受管 worker 会话中直接输入，记为人工介入。新门禁在 Synara 服务端用 TypeScript 原生实现，就绪前由 `coop.py` 的 CLI 担任门禁入口。
+- 门禁优先：认领、交付、验收、集成和回收只经唯一的门禁入口，保持操作锁、fence、CAS、attempt 绑定与中断恢复语义；界面不另做一套门禁。在受管 worker 会话中直接输入，记为人工介入。门禁在 Synara 服务端用 TypeScript 原生实现（`packages/a2a-gates`），本仓库验收经 `acceptance/entry/a2a_gates.py` 调用。
 - 重新证明：旧实现的通过结论不替新实现背书；交付、恢复、编排场景移植后须重新取得红态、绿态与反例。
-- `coop.py` 与 Muster 引擎（`muster/engine/`，Herdr 0.9.3 硬分叉）自 2026-10-07 起冻结为参考实现，不再开发；新门禁通过同样验收后删除 Muster，不保留两套路径。运行 Muster 仍须使用独立命名会话和 `muster` 命名空间，不得修改或重启用户正在使用的 Herdr server。
+- `coop.py` 与 Muster 引擎已于 2026-10-08 删除（T-040 A），不保留两套路径；参考实现见 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。不得修改或重启用户正在使用的 Herdr server。
 - 切换条件：新门禁的移植场景与一次真实闭环通过，界面显示门禁状态。切换前主控与 worker 继续经已安装的 Herdr 分派。
 - 主控是角色，不绑定层级，可以同时操作项目级与任务级对象。
 - 构建：外置盘 `/Volumes/WD-Elements` 存放构建缓存，未挂载时构建必须报错，不回退到内置盘。Synara fork 的 checkout 放内置盘，Bun 全局缓存与 Electron 下载放外置盘。本仓库的 Rust 构建统一经 `scripts/build`（见 README）。
 - 项目开源；Synara 为 MIT，保留其版权声明；允许直接复用 GPL 代码，并入后整体以 GPL-3.0 发布。复用不能改变已定方向。
 - 真实 Codex 验收使用 /tmp 下的隔离 CODEX_HOME：只复制 auth.json；只信任已核对的夹具根目录；只复现用户规则中的 `git add`、`git commit` 两条 allow prefix_rule；hook 只在主控逐次批准后安装。副本不入证据或 Git，结束后删除整个 home。不写用户 ~/.codex。Codex 沙箱专门保护 worktree 的 Git 元数据，额外可写目录不能替代这两条规则。
 - 不得移动、替换或链接共享 checkout 的构建输出目录（如 `apps/server/dist`），也不得在构建输出目录中放指向源码或依赖的链接：构建工具清理输出时会沿链接删除源码与依赖（2026-10-08 T-042 复验事故，误删 6,186 个受控文件）。需要新构建时用产品的标准构建命令。
-- 测试中启动的后台服务（如 muster server）必须脱离调用者的进程组（例如 start_new_session），否则命令调用结束时会被一并回收。
+- 测试中启动的后台服务（如 Synara 服务端）必须脱离调用者的进程组（例如 start_new_session），否则命令调用结束时会被一并回收。
 - 不从零自建 GPUI 界面，不基于 Zed 二次开发。
 - Enchanted 已于 2026-10-06 做 git 快照并冻结；其功能在 a2a 门禁接入工作台之后再并入，不在 Enchanted 仓库继续开发。
 
