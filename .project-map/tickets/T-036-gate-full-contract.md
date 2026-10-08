@@ -21,6 +21,6 @@ supersedes:
 
 ## Resolution
 
-**INCOMPLETE，待主控关闭。** fork 冻结候选 `5cae1072db94ccd1af20ef161481163484aecfe5`；交付 8/8 PASS，去掉 fence 的 mutant 被错 fence 的业务断言抓住。恢复套件 2/9 PASS、7 项在 SIGKILL 前因 execv 后的进程命令行变化被原夹具拒绝；忽略 Git 回读的 mutant 同样受夹具阻断，不能称为业务反例通过。没有改原 acceptance 或预期答案。主控需决定是否批准证据副本中的原生入口身份核对参数化；提议尚未执行。
+**INCOMPLETE，待主控关闭。** fork 修正候选 `26cb210a9`；该候选重新取得交付 8/8 PASS，去掉 fence 的同版本 mutant 被错 fence 的业务断言抓住。首次独立审查对 `5cae1072d` 为 FAIL，发现历史 attempt 的首次回收错误拒绝；该缺陷已先取得明确红态，再修复并转绿（真实 Git/SQLite、thread 边界替身，只证明作用域逻辑）。恢复套件此前为 2/9 PASS、7 项在 SIGKILL 前因 execv 后的进程命令行变化被原夹具拒绝；忽略 Git 回读的 mutant 同样受夹具阻断，不能称为业务反例通过。没有改原 acceptance 或预期答案。主控需决定是否批准证据副本中的原生入口身份核对参数化；提议尚未执行。
 
-命令、完整日志、差异、冻结版本与缺失证据见 [T-036 交付记录](../../evidence/2026-10-07-synara-batch1/T-036/RESULTS.md)。独立冻结审查与最终全仓检查在本次交接前补记，ticket 始终保持 open。
+命令、完整日志、差异、冻结版本与缺失证据见 [T-036 交付记录](../../evidence/2026-10-07-synara-batch1/T-036/RESULTS.md)。修复范围的针对性只读复核在交接前补记，ticket 始终保持 open。

@@ -1,14 +1,14 @@
 # T-036 交付记录（2026-10-07）
 
-**INCOMPLETE，待主控关闭。** 主控 Claude Code（`wF:pM`）；执行 worker 为主控启动的 `s1-t036`（`wF:pX`）。fork 本地候选为 `5cae1072db94ccd1af20ef161481163484aecfe5`，基线 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，未 push。当前只证明交付契约；恢复的中断场景与 Git 回读反例尚未证明。
+**INCOMPLETE，待主控关闭。** 主控 Claude Code（`wF:pM`）；执行 worker 为主控启动的 `s1-t036`（`wF:pX`）。fork 修正候选为 `26cb210a9`（完整版本见 [绑定记录](corrected-candidate.json)），基线 `7cb0ac0a3d5232e90ab2db1fb7eb9ee696d1af73`，未 push。该候选重新证明交付 8 项与 fence 反例；恢复的中断场景与 Git 回读反例尚未证明。
 
 ## 四项验收
 
 | 条件 | 结论 | 命令与证据 |
 | --- | --- | --- |
-| 交付 8 项与先验红态 | PASS | `python3 -B evidence/2026-10-07-synara-batch1/T-036/run-acceptance.py frozen-delivery test_coop_e2e.py`；冻结候选 8/8。原 CLI 对 `--state … create` 返回 exit 2：[契约红态](red-delivery-entry-fixed/command.json)、[冻结绿态](frozen-delivery/command.json)、各自 `trace.json` |
+| 交付 8 项与先验红态 | PASS | `python3 -B evidence/2026-10-07-synara-batch1/T-036/run-acceptance.py corrected-candidate-delivery test_coop_e2e.py`；修正候选 8/8。原 CLI 对 `--state … create` 返回 exit 2：[契约红态](red-delivery-entry-fixed/command.json)、[修正候选绿态](corrected-candidate-delivery/command.json)、各自 `trace.json` |
 | 恢复 9 项 | INCOMPLETE | `…/run-acceptance.py candidate-recovery-01 test_recovery_e2e.py`；2 项操作锁检查通过，7 项原夹具在注入前拒绝。没有实际 SIGKILL：[原始结果](candidate-recovery-01/command.json)、[SQLite/Git/命令快照](candidate-recovery-01/trace.json)。该轮早于最终冻结；不把它称为冻结版本的恢复验收 |
-| fence 与 Git 回读 mutant | INCOMPLETE | `…/run-mutant.py fence test_coop_e2e.py entry-fixed` 的原套件在错 fence 的 `0 != 1` 业务断言失败：[结果](mutant-fence-test_coop_e2e-entry-fixed/command.json)。`…/run-mutant.py readback test_recovery_e2e.py entry-fixed` 只有夹具错误：[结果](mutant-readback-test_recovery_e2e-entry-fixed/command.json)；它不能证明 Git 回读 mutant 被抓住。两份完整错误实现与差异保存在 [mutants](mutants/) |
+| fence 与 Git 回读 mutant | INCOMPLETE | `…/run-mutant.py fence-corrected test_coop_e2e.py` 的原套件在错 fence 的 `0 != 1` 业务断言失败：[修正候选结果](mutant-fence-corrected-test_coop_e2e/command.json)。`…/run-mutant.py readback test_recovery_e2e.py entry-fixed` 只有夹具错误：[历史结果](mutant-readback-test_recovery_e2e-entry-fixed/command.json)；它不能证明 Git 回读 mutant 被抓住。完整错误实现与差异保存在 [mutants](mutants/) |
 | CLI 差异记录、不改预期 | PASS（记录） | 下表记录原生运行差异；未修改 `acceptance/test_coop_e2e.py`、`acceptance/test_recovery_e2e.py` 或 oracle。只新增薄转接脚本，原样转交参数 |
 
 ## CLI 与运行时差异
@@ -39,6 +39,13 @@
 | `run windows-runtime:check`、`run migrations:check` | PASS；不代表 Windows 运行验收 | [进程边界](final-windows-runtime.log)、[迁移检查](final-migrations.log) |
 | `run fmt:check` | NO_GO；仅报告范围外原有 `.grok/settings.json` | [final-fmt-check.log](final-fmt-check.log)；没有改该文件 |
 | `run test` | NO_GO；scripts 三项 5 秒超时，其他 workspace 被 Turbo 中止 | [final-workspace-test.log](final-workspace-test.log)。三个失败文件的单独复核 PASS：[affected-scripts-retest.log](affected-scripts-retest.log)，不替代全仓失败 |
-| 冻结独立审查、串行全仓复核 | INCOMPLETE，正在保存最终结果 | 完成后只补记证据，不改变冻结代码 |
+| 独立审查 | 首次 FAIL，已修复其 P1；修复范围的针对性复核尚未完成 | [首次报告](acceptance-review-first.md)，审查者另外重跑原交付套件 8/8；修正候选不借用首次结论 |
+| 串行入口的全仓复核 | NO_GO；scripts 4 项超时，其他 workspace 被中止 | [final-workspace-test-serial.log](final-workspace-test-serial.log)。原失败未覆盖；随后修正候选还需最后一轮范围内检查 |
+
+## 独立审查发现的历史回收缺陷
+
+首次审查冻结 `5cae1072d` 后发现 P1：`revoke A → claim B → reclaim --attempt A` 对尚未回收的历史 A 返回 `stale_attempt`。该问题属 T-036 的冻结契约。先运行 `…/run-fork-check.py history-contract-idle-red run --cwd packages/a2a-gates test`，[红态](history-contract-idle-red.log) 明确在合法历史回收应成功的业务断言上失败；未修复实现前保存。
+
+修复仍走同一个受锁 reclaim 路径：选择指定历史记录并核对其绑定，业务 task 只在 current_attempt 匹配时改变；历史重放、外来 task 和仍工作执行者继续受保护。事件绑定实际回收的 attempt。`26cb210a9` 的 [针对性检查](corrected-candidate-core-test.log) 通过，原交付套件与同版本 fence mutant 也重新运行。检查使用真实 Git/SQLite 和受控 thread 替身，只证明所有权作用域，不称为真实原生会话验收。该新测试此前对错误候选失败；未从实现输出提取预期。
 
 当前暂停的是恢复夹具身份核对的后续推进。主控最小决定是批准所列证据副本差异，随后重跑冻结恢复套件与 readback mutant；也可保持 T-036 open，交下一轮处理。未触碰用户 Herdr、用户配置或 Synara 数据；未 push、未执行真实模型调用、未删除现场。原验收自身释放了本次创建的屏障和 CLI；临时仓库、worktree 和失败记录保留。
