@@ -54,4 +54,6 @@ Tracer bullet 经真实 Synara 应用服务层、MCP 凭据、门禁核心 SQLit
 
 只停止本次创建并核对 PID/命令的进程，最终 server/Vite/provider 均退出；没有操作正式工作台或用户 Herdr。SQL/Git/worktree 完整现场在 retained-final-fixtures.tar.gz（索引 JSON），不登记 gitlink、不删除失败现场。未 push，其他人的 dirty 文件与 .grok/ 保留。
 
+源码格式检查通过；a2a 证据提交的 diff --check 返回 2，报告原始 lint/Vitest 日志中的尾部空格、末尾空行，完整输出见 diff-check-delivery.json。原始日志未为格式检查改写，不将该结果写成通过。
+
 重放命令在每个 *.command.json；真实完整场景用 start-server.py、prepare-real.py（full-access）、panel-send.mjs、reply-phase.py、boundaries-and-cli.py，必须换新 evidence label/root，避免覆盖原场景。模型额度与隔离规则继续适用。当前需要执行主控对最终独立验收缺项作决定。
