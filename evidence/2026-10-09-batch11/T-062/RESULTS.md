@@ -1,6 +1,6 @@
 # T-062：问题上报标题遮挡
 
-状态：**INCOMPLETE**（聚焦红/绿验证完成，等待一次独立只读审查）；ticket 保持 open，待主控关闭。依据 brief 与 `ready_rev: 1`，未调用门禁 submit。
+状态：**INCOMPLETE**（聚焦红/绿验证通过，唯一一次独立审查无效）；ticket 保持 open，待主控关闭。依据 brief 与 `ready_rev: 1`，未调用门禁 submit。
 
 本次截图浮层是 Synara 的首次使用 **Activity** 提示，不是问题上报面板残留。它在 `Skip tour` 后出现，约 8 秒自然关闭。隔离夹具使用空浏览器 profile，旧脚本跳过导览后立即拍图，正好拍到提示。该提示并非 dev 专属：正式产品的全新 profile 也可能首次看到它；本轮未访问正式实例，不能声称正式产品从不出现。
 
@@ -56,8 +56,12 @@ python3 evidence/2026-10-09-batch11/T-062/stop-isolated.py replay01
 
 未运行 fork 全仓 fmt/lint/typecheck/测试：产品文件未改，ticket 此项以“若是产品缺陷”为条件。没有重建、停止或读写正式工作台，未访问用户认证数据，未 push。只停止本任务启动的 server/web（`probe01-stop.json`），原隔离目录仍保留。`fixture-state.tar.gz` 保存测试 repo/worktree、服务端状态与控制记录；浏览器 profile、服务器私钥不入 Git，原位置见 `retained-fixture.json`。
 
-Bun 1.4.2、Node 24.13.1、Codex CLI 0.162.0；worker 请求 gpt-6.1-sol / xhigh / Fast，实际供应商 tier 未独立核验，模型验收调用 0 次。版本与 skill 来源修订见 `versions-and-fork.json`、`checks-and-skills.json`。其他人的 `controller-poll.log` 与 fork `.grok/` 保持原样。
+Bun 1.4.2、Node 24.13.1、Codex CLI 0.162.0；worker 请求 gpt-6.1-sol / xhigh / Fast，实际供应商 tier 未独立核验，工作台真实 provider 调用 0 次。审查使用配置的 acceptance-auditor（gpt-5.6-luna / max），不涉及工作台 provider 调用。版本与 skill 来源修订见 `versions-and-fork.json`、`checks-and-skills.json`。其他人的 `controller-poll.log` 与 fork `.grok/` 保持原样。
 
 ## 独立审查与提交
 
-一次 fresh-context、只读审查待执行，针对冻结夹具与原始证据，不沿用旧任务通过结论。完成后记录实际结论与提交版本。
+冻结候选：`45893b7c70b30b2659337875b043795127819686`。唯一一次 fresh-context 只读审查返回 **INCOMPLETE**，原文见 `acceptance-review-raw.txt`，不作为通过证据。
+
+审查者在原文第 15 行自报读入了指令禁止的 RESULTS、Resolution 与 issue 正文，破坏独立上下文；它还把冻结提交之外的主控日志增长认作候选变化。本 worker 未修改该日志，固定候选提交未变。上述是审查过程问题，不能通过改他人的日志修复，也不能据此宣称代码存在 P1 缺陷。已上报 `20261009T224344Z-worker:s11-t062-issue-001`，正文见 `issue-review.md`；最初 ref 的 L16 行号笔误已在报告更正为 L15。
+
+遵守 brief 的“只审查一次”，未自行追审。标题红/绿与截图仍有效，但总体交付 **INCOMPLETE**：缺少有效独立审查结论；正式/普通用户的首次使用状态未验证。提交本报告与证据后交执行主控处理，ticket 待主控关闭。

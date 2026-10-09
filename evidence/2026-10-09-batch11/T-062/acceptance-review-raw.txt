@@ -1,0 +1,15 @@
+STATUS: INCOMPLETE
+TARGET: a2a `45893b7c70b30b2659337875b043795127819686`; Synara `d9fc40a5f8b14d22ec7568c7ccef542572e79102`
+EVIDENCE:
+- `red03-command.json`：真实 dev UI 入口，缺少等待的已知坏夹具 exit 1；`red03.json` 记录标题与 Activity tooltip 相交 351 px²。
+- `green03-command.json`：等待提示自然隐藏后 exit 0；两个视口的标题命中点均无遮挡。
+- 冻结产品 `Sidebar.tsx:1156-1200,1245-1260` 显示该提示由产品代码在未标记 `seen` 的 profile 中显示并持续 8 秒。
+- 审查开始时 a2a 未提交 diff 为 `controller-poll.log` 13 行新增；结束复核为 14 行新增，候选 diff 已变化。
+FINDINGS:
+- [P1] `evidence/2026-10-09-batch11/controller-poll.log:14` — 审查期间冻结候选之外的 diff 发生变化，无法对单一快照出具合规 PASS/FAIL；重新冻结候选后再审查。
+COUNTEREXAMPLE:
+- `panel-title-red03.mjs:69-72` 省略提示隐藏等待；真实入口 exit 1，标题遮挡被拒绝。
+LIMITATIONS:
+- 冻结条件已失效，必须返回 INCOMPLETE。
+- 证据证明 dev UI 中的时序差异，但未证明正式/普通用户环境不会触发同一产品提示。
+- fresh-context 边界被意外污染：静态检查过程中读取了禁止读取的 RESULTS、Resolution 和 issue 正文材料，独立审查结论无效。
