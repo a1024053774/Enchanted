@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "reviewer": "/root/t047_acceptance_review",
+  "reviewer_role": "acceptance-auditor",
+  "reviewer_configured_model": "gpt-5.6-luna",
+  "configured_reasoning": "max",
+  "target": "5aaf90ac1406250a037593448725730973849102",
+  "time_utc": "2026-10-09T08:48:19.020760+00:00",
+  "raw_verdict": "STATUS: PASS\nTARGET: frozen candidate `5aaf90ac1406250a037593448725730973849102` (parent `09fc57f8a67ea2a1ed70397c04e49e9bb4849a5b`)\nEVIDENCE:\n- Target readback stayed clean at the declared commit; candidate diff matched `evidence/2026-10-09-batch7/T-047/candidate.diff`, and `git diff --check` passed.\n- `a2a/scripts/gate` invoked the real HTTP CLI path; candidate `cli.ts:43-56` applies `timeout: false` only to `run`.\n- `green-long` used external fixture inputs (`delay=610`, `wait=660`), completed in 614.65 seconds, returned exit 0 with `ok=true`, accepted state, completed outcome, matching run/attempt IDs, and `reclaimed=true`.\n- Authoritative fixture Git readback resolved `refs/a2a/integration` to `2641d6944bcbdd77fe3d684e04c31c64361730c1` and read the expected `delivery.txt`.\n- Independent strict parsing found zero unescaped control bytes in `events-final.json`; decoded verification output preserved `control: \\x00\\x01\\x1b\\t\\r\\n`.\n- Deadline, paused, and concurrent cases preserved `run_deadline`, `run_blocked`, and `run_busy` semantics with the original attempt unchanged.\nFINDINGS:\n- None.\nCOUNTEREXAMPLE:\n- Parent CLI without `timeout: false` was rejected: `red-default` failed after 360.335 seconds and `red-idle-one` failed after 8.195 seconds with Bun `TimeoutError`, despite the server later recording `completed`.\nLIMITATIONS:\n- Evidence exercises the actual local HTTP route and bounded Node server with a controlled native thread boundary; it does not exercise a provider/model or production desktop/workbench deployment.",
+  "note": "原始审查输出仅作为证据保留；中文结论见 RESULTS.md。审查建议不替代主控关闭 ticket。"
+}
