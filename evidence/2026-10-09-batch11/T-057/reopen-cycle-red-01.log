@@ -1,0 +1,41 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t057-checks
+$ vitest run --passWithNoTests src/issues.test.ts -t "reopen restores"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:14177) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/issues.test.ts > reopen restores the reply cycle even when it is snoozed afterwards
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t057-checks/a2a-issue-contract-JRcJQa"}
+
+ ❯ src/issues.test.ts (8 tests | 1 failed | 7 skipped) 225ms
+   × reopen restores the reply cycle even when it is snoozed afterwards 224ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/issues.test.ts > reopen restores the reply cycle even when it is snoozed afterwards
+AssertionError: {"ok":false,"error":"issue_answered"}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/issues.test.ts:290:47
+    288|     expect((await f.call("disposition", { issue, action: "snooze" })).…
+    289|     const second = await f.call("answer_issue", { issue, answer: "重开后的…
+    290|     expect(second.ok, JSON.stringify(second)).toBe(true);
+       |                                               ^
+    291|     expect(second.user_inputs!.map((input) => input.text)).toEqual(["第…
+    292|     expect(second.issues![0]!.answer!.body).toBe("重开后的答复");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 skipped (8)
+   Start at  10:24:25
+   Duration  982ms (transform 410ms, setup 0ms, import 642ms, tests 225ms, environment 0ms)
+
+error: script "test" exited with code 1

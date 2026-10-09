@@ -1,0 +1,41 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t057-checks
+$ vitest run --passWithNoTests src/issues.test.ts -t "needs-user permits"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:25541) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/issues.test.ts > needs-user permits the requested follow-up answer without discarding the previous one
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t057-checks/a2a-issue-contract-fJuHRZ"}
+
+ ❯ src/issues.test.ts (9 tests | 1 failed | 8 skipped) 246ms
+   × needs-user permits the requested follow-up answer without discarding the previous one 245ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/issues.test.ts > needs-user permits the requested follow-up answer without discarding the previous one
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/issues.test.ts:303:74
+    301|     const requested = await f.call("disposition", { issue, action: "ne…
+    302|     expect(requested.issues![0]!.state).toBe("等你决定");
+    303|     expect((await f.call("answer_issue", { issue, answer: "新的决定" })).o…
+       |                                                                          ^
+    304|     expect((await f.call("issues")).user_inputs!.map((input) => input.…
+    305|   } finally { f.gates.close(); }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  11:05:22
+   Duration  1.03s (transform 493ms, setup 0ms, import 709ms, tests 246ms, environment 0ms)
+
+error: script "test" exited with code 1

@@ -1,0 +1,124 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t057-checks
+$ vitest run --passWithNoTests src/issues.test.ts
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:1277) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/issues.test.ts > dispositions are append-only and expire from the injected clock
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t057-checks/a2a-issue-contract-F7Uwy9"}
+
+stdout | src/issues.test.ts > controller credentials cannot close blocking issues, dismiss, or answer
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t057-checks/a2a-issue-contract-bmozzF"}
+
+stdout | src/issues.test.ts > bundle keeps independent question numbers, exact Unicode text and one native message
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t057-checks/a2a-issue-contract-S52ljU"}
+
+stdout | src/issues.test.ts > duplicates and close/answer overlap preserve one recorded answer
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t057-checks/a2a-issue-contract-DwJ5SV"}
+
+stdout | src/issues.test.ts > close notices wait for the next successful message and are sent once
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/tmp/t057-checks/a2a-issue-contract-tICH0u"}
+
+ ❯ src/issues.test.ts (5 tests | 5 failed) 1186ms
+   × dispositions are append-only and expire from the injected clock 333ms
+   × controller credentials cannot close blocking issues, dismiss, or answer 240ms
+   × bundle keeps independent question numbers, exact Unicode text and one native message 265ms
+   × duplicates and close/answer overlap preserve one recorded answer 178ms
+   × close notices wait for the next successful message and are sent once 170ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/issues.test.ts > dispositions are append-only and expire from the injected clock
+AssertionError: expected '待判断' to be '等你决定' // Object.is equality
+
+Expected: "等你决定"
+Received: "待判断"
+
+ ❯ src/issues.test.ts:94:56
+     92|     expect((await f.call("issues")).issues![0]!.state).toBe("待判断");
+     93|     f.time(f.now() + 900_000);
+     94|     expect((await f.call("issues")).issues![0]!.state).toBe("等你决定");
+       |                                                        ^
+     95|     expect((await f.call("disposition", { issue, action: "close", reas…
+     96|     const close = await f.call("disposition", { issue, action: "close"…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/issues.test.ts > controller credentials cannot close blocking issues, dismiss, or answer
+AssertionError: expected 'gate_failure' to be 'blocking_requires_user' // Object.is equality
+
+Expected: "blocking_requires_user"
+Received: "gate_failure"
+
+ ❯ src/issues.test.ts:138:40
+    136|     const act = (action: string) => f.gates.call({ command: "dispositi…
+    137|       reason: "原因", basis: "外部依据", actor: "user" }, caller);
+    138|     expect((await act("close")).error).toBe("blocking_requires_user");
+       |                                        ^
+    139|     expect((await act("dismiss")).error).toBe("user_required");
+    140|     expect((await act("needs-user")).ok).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/issues.test.ts > bundle keeps independent question numbers, exact Unicode text and one native message
+AssertionError: {"ok":false,"error":"gate_failure","details":"Error: Expected \"create\" | \"claim\" | \"revoke\" | \"revise\" | \"dispatch\" | \"attach\" | \"run\" | \"submit\" | \"verify\" | \"integrate\" | \"reclaim\" | \"status\" | \"events\" | \"issues\" | \"answer_issue\", got \"answer_issues\"\n  at [\"command\"]"}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/issues.test.ts:157:47
+    155|     const result = await f.call("answer_issues", { answers: [{ issue: …
+    156|       { issue: three, answer: "不用管，T-050 会重写。" }], mode: "bundle" });
+    157|     expect(result.ok, JSON.stringify(result)).toBe(true);
+       |                                               ^
+    158|     expect(f.messages.map((m) => m.message)).toEqual([
+    159|       "问题 1：oracle 漏了空页\n分页夹具没有覆盖最后一页为空的情况。\n用户答复：补上，并在 RESULTS 里写明。\n…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/issues.test.ts > duplicates and close/answer overlap preserve one recorded answer
+AssertionError: expected 'gate_failure' to be 'operation_busy' // Object.is equality
+
+Expected: "operation_busy"
+Received: "gate_failure"
+
+ ❯ src/issues.test.ts:197:104
+    195|     const second = await f.call("answer_issue", { issue, answer: "重复窗口…
+    196|     expect(second.error).toBe("operation_busy");
+    197|     expect((await f.call("disposition", { issue, action: "close", reas…
+       |                                                                                                        ^
+    198|     release();
+    199|     expect((await first).ok).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/issues.test.ts > close notices wait for the next successful message and are sent once
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/issues.test.ts:211:126
+    209|     const closed = await f.raised("重复问题");
+    210|     const active = await f.raised("另一题");
+    211|     expect((await f.call("disposition", { issue: closed, action: "clos…
+       |                                                                                                                              ^
+    212|     expect(f.messages).toHaveLength(0);
+    213|     expect((await f.call("answer_issue", { issue: active, answer: "继续"…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed (5)
+   Start at  09:33:43
+   Duration  2.13s (transform 585ms, setup 0ms, import 849ms, tests 1.19s, environment 0ms)
+
+error: script "test" exited with code 1

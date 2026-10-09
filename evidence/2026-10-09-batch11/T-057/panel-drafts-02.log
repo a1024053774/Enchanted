@@ -1,0 +1,33 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t057-checks
+134 |   if (page && !page.isClosed()) await page.screenshot({ path: join(out, label + "-failure.png") });
+135 | } finally {
+136 |   writeFileSync(join(out, label + ".json"), JSON.stringify({ argv:process.argv.slice(1), phase, failure, geometry, receipts, result, diagnostics },null,2)+"\n");
+137 |   await context?.close();
+138 | }
+139 | if (failure) throw new Error(failure);
+                             ^
+error: waitFor: Target page, context or browser has been closed
+Browser logs:
+
+<launching> /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/Volumes/WD-Elements/dev-cache/synara/instances/t057-slice01/browser-profile --remote-debugging-pipe about:blank
+<launched> pid=8972
+[pid=8972][err] Trying to load the allocator multiple times. This is *not* supported.
+[pid=8972][err] [8987:7724866:1009/100433.207514:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724905:1009/100433.207942:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724866:1009/100433.210509:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724905:1009/100433.210696:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724866:1009/100433.210787:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724905:1009/100433.210814:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724866:1009/100433.210893:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724905:1009/100433.210915:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724866:1009/100433.210979:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8987:7724905:1009/100433.211000:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=8972][err] [8972:7724839:1009/100442.062722:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+Call log:
+[2m  - waiting for getByRole('main', { name: '任务窗口', exact: true }) to be visible[22m
+
+    at open (/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-057/panel-complete.mjs:22:14)
+    at processTicksAndRejections (native:7:39)
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-057/panel-complete.mjs:139:24
+
+Bun v1.4.2 (macOS arm64)

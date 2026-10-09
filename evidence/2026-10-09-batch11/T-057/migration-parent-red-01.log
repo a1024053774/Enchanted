@@ -1,0 +1,31 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t057-checks
+$ vitest run --passWithNoTests "src/t057-parent-issues.test.ts" -t "legacy message uniqueness"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:7579) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/t057-parent-issues.test.ts (7 tests | 1 failed | 6 skipped) 125ms
+   × legacy message uniqueness migrates without changing input bytes or append-only guards 124ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/t057-parent-issues.test.ts > legacy message uniqueness migrates without changing input bytes or append-only guards
+Error: UNIQUE constraint failed: user_inputs.message
+ ❯ src/t057-parent-issues.test.ts:246:63
+    244|   try {
+    245|     expect(after.prepare("SELECT data FROM user_inputs WHERE id='legac…
+    246|     after.prepare("INSERT INTO user_inputs VALUES (?,?,?,?)").run("sec…
+       |                                                               ^
+    247|     expect(after.prepare("SELECT count(*) AS count FROM user_inputs WH…
+    248|     expect(() => after.exec("UPDATE user_inputs SET data='rewritten'")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 skipped (7)
+   Start at  09:58:17
+   Duration  999ms (transform 586ms, setup 0ms, import 804ms, tests 125ms, environment 0ms)
+
+error: script "test" exited with code 1
