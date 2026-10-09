@@ -1,0 +1,76 @@
+[
+  {
+    "name": "missing-marker",
+    "mutation_file": "dispatch",
+    "before": "sent = f\"⟦主控 #{sequence}⟧\\n\" + text",
+    "after": "sent = text",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_dispatch_session_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/missing-marker/run-artifacts",
+      "Contract.test_dispatch_multiline_roles_and_append"
+    ],
+    "exit_code": 1,
+    "selectors": {
+      "DISPATCH_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/missing-marker/dispatch",
+      "SESSION_COPY_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/missing-marker/session-copy"
+    }
+  },
+  {
+    "name": "overwrite-log",
+    "mutation_file": "record_io.py",
+    "before": "os.O_WRONLY | os.O_APPEND | os.O_CREAT",
+    "after": "os.O_WRONLY | os.O_TRUNC | os.O_CREAT",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_dispatch_session_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/overwrite-log/run-artifacts",
+      "Contract.test_dispatch_multiline_roles_and_append"
+    ],
+    "exit_code": 1,
+    "selectors": {
+      "DISPATCH_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/overwrite-log/dispatch",
+      "SESSION_COPY_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/overwrite-log/session-copy"
+    }
+  },
+  {
+    "name": "overlap-copy",
+    "mutation_file": "session-copy",
+    "before": "start = previous[-1][\"end_byte\"] if previous else 0",
+    "after": "start = max(0, previous[-1][\"end_byte\"] - 1) if previous else 0",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_dispatch_session_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/overlap-copy/run-artifacts",
+      "Contract.test_copy_incremental_cross_batch_and_git"
+    ],
+    "exit_code": 1,
+    "selectors": {
+      "DISPATCH_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/overlap-copy/dispatch",
+      "SESSION_COPY_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/overlap-copy/session-copy"
+    }
+  },
+  {
+    "name": "missing-parent-added-cases",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_dispatch_session_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/missing-parent-artifacts",
+      "Contract.test_body_file_preserves_crlf_and_claude_bytes",
+      "Contract.test_copy_concurrent_requests_do_not_duplicate_range"
+    ],
+    "exit_code": 1,
+    "selectors": {
+      "DISPATCH_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/absent-dispatch",
+      "SESSION_COPY_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-054/counterexamples-01-artifacts/absent-copy"
+    }
+  }
+]

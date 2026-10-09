@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Copy only new opaque native-session bytes; keep cross-batch manifests."""
+import argparse
+import datetime as dt
+import os
+from pathlib import Path
+import stat
+import sys
+import uuid
+
+from record_io import append_record, locked, read_records, sync_directory, token, utc_now
+
+
+def manifests(evidence):
+    chains = {}
+    for manifest in sorted(evidence.glob("*/sessions/manifest.jsonl")):
+        listed = set()
+        for row in read_records(manifest):
+            if row["schema"] != 1 or row["provider"] not in ("codex", "claude"):
+                raise ValueError("会话副本清单版本或 provider 损坏")
+            token(row["session_id"])
+            start, end, size = row["start_byte"], row["end_byte"], row["size_bytes"]
+            if any(type(n) is not int for n in (start, end, size)) or start < 0 or end <= start or size != end - start:
+                raise ValueError("会话副本清单字节范围损坏")
+            cutoff = dt.datetime.fromisoformat(row["cutoff_at"].replace("Z", "+00:00"))
+            if cutoff.tzinfo is None or not Path(row["source_path"]).is_absolute():
+                raise ValueError("会话副本清单来源或截止时间损坏")
+            expected_name = f"{row['provider']}-{row['session_id']}-{start}-{end}.bin"
+            if row["copy_file"] != expected_name or row["copy_file"] in listed:
+                raise ValueError("会话副本清单文件名重复或损坏")
+            copied = manifest.parent / row["copy_file"]
+            if not copied.is_file() or copied.stat().st_size != size:
+                raise ValueError("会话副本缺失或大小与清单不符：" + str(copied))
+            listed.add(row["copy_file"])
+            chains.setdefault((row["provider"], row["session_id"]), []).append(row)
+        if {p.name for p in manifest.parent.glob("*.bin")} != listed or list(manifest.parent.glob("*.part")):
+            raise ValueError("会话副本存在未登记文件，保留现场：" + str(manifest.parent))
+    # Also refuse a interrupted first publication with no manifest yet.
+    for directory in evidence.glob("*/sessions"):
+        if not (directory / "manifest.jsonl").exists() and any(directory.iterdir()):
+            raise ValueError("会话副本没有清单，保留现场：" + str(directory))
+    for rows in chains.values():
+        rows.sort(key=lambda r: r["start_byte"])
+        expected = 0
+        identity = (rows[0]["source_path"], rows[0]["source_device"], rows[0]["source_inode"])
+        for row in rows:
+            if row["start_byte"] != expected or (row["source_path"], row["source_device"], row["source_inode"]) != identity:
+                raise ValueError("跨批次清单重叠、空洞或来源身份不一致")
+            expected = row["end_byte"]
+    return chains
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--batch", required=True, type=token)
+    parser.add_argument("--provider", required=True, choices=("codex", "claude"))
+    parser.add_argument("--session-id", required=True, type=token)
+    parser.add_argument("--source", required=True, type=Path)
+    args = parser.parse_args()
+    evidence = args.root.resolve() / "evidence"
+    with locked(evidence / ".session-copy.lock"):
+        chains = manifests(evidence)
+        previous = chains.get((args.provider, args.session_id), [])
+        source = args.source.resolve(strict=True)
+        with source.open("rb") as reader:
+            info = os.fstat(reader.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                raise ValueError("来源必须是普通文件")
+            if previous and (str(source), info.st_dev, info.st_ino) != (previous[-1]["source_path"], previous[-1]["source_device"], previous[-1]["source_inode"]):
+                raise ValueError("来源被轮转或替换，拒绝接续")
+            start = previous[-1]["end_byte"] if previous else 0
+            end, cutoff = info.st_size, utc_now()
+            if end < start:
+                raise ValueError("来源变短，拒绝覆盖已有副本")
+            if end == start:
+                print("没有新增字节")
+                return 0
+            directory = evidence / args.batch / "sessions"
+            directory.mkdir(parents=True, exist_ok=True)
+            filename = f"{args.provider}-{args.session_id}-{start}-{end}.bin"
+            temporary = directory / (uuid.uuid4().hex + ".part")
+            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as writer:
+                reader.seek(start)
+                remaining = end - start
+                while remaining:
+                    chunk = reader.read(min(remaining, 1024 * 1024))
+                    if not chunk:
+                        raise ValueError("复制期间来源变短；保留未完成副本")
+                    writer.write(chunk)
+                    remaining -= len(chunk)
+                writer.flush()
+                os.fsync(writer.fileno())
+            current = source.stat()
+            if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino) or current.st_size < end:
+                raise ValueError("复制期间来源变化；保留未完成副本")
+            os.link(temporary, directory / filename)
+            temporary.unlink()
+            sync_directory(directory)
+            append_record(directory / "manifest.jsonl", dict(
+                schema=1, provider=args.provider, session_id=args.session_id,
+                source_path=str(source), source_device=info.st_dev, source_inode=info.st_ino,
+                start_byte=start, end_byte=end, cutoff_at=cutoff, size_bytes=end-start,
+                copy_file=filename))
+            print(f"已复制 {end-start} 字节，范围 [{start}, {end})；清单：{directory / 'manifest.jsonl'}")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print("会话副本未完成，保留现场：" + str(exc), file=sys.stderr)
+        sys.exit(1)

@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Record controller-origin text, then invoke Herdr exactly once."""
+import argparse
+from pathlib import Path
+import subprocess
+import sys
+
+from record_io import append_record, locked, read_records, token, utc_now
+
+
+def validate(rows):
+    prepared, completed = {}, set()
+    for row in rows:
+        sequence = row["sequence"]
+        if type(sequence) is not int or sequence < 1 or row["phase"] not in ("prepared", "completed"):
+            raise ValueError("派发日志序号或阶段损坏")
+        for key in ("created_at", "agent", "role", "text"):
+            if not isinstance(row[key], str):
+                raise ValueError("派发日志字段损坏：" + key)
+        if row["phase"] == "prepared":
+            if sequence != len(prepared) + 1 or row["exit_code"] is not None:
+                raise ValueError("派发预备记录重复、断号或损坏")
+            prepared[sequence] = row
+        else:
+            if sequence not in prepared or sequence in completed or type(row["exit_code"]) is not int:
+                raise ValueError("派发结果重复或没有预备记录")
+            original = prepared[sequence]
+            if any(row[key] != original[key] for key in ("agent", "role", "text", "role_card_attached")):
+                raise ValueError("派发结果与预备记录不符")
+            completed.add(sequence)
+    return prepared
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--batch", required=True, type=token)
+    parser.add_argument("--agent", required=True)
+    parser.add_argument("--role", required=True, choices=("worker", "reviewer", "monitor"))
+    body = parser.add_mutually_exclusive_group(required=True)
+    body.add_argument("--body")
+    body.add_argument("--body-file", type=Path)
+    parser.add_argument("--wait", action="store_true")
+    parser.add_argument("--timeout", type=int)
+    args = parser.parse_args()
+    if not args.agent or args.agent.startswith("-") or any(c.isspace() for c in args.agent):
+        raise ValueError("目标必须是 Herdr agent 名或 pane id")
+    if args.timeout is not None and args.timeout <= 0:
+        raise ValueError("timeout 必须大于零")
+    root = args.root.resolve()
+    text = args.body if args.body is not None else args.body_file.read_bytes().decode("utf-8")
+    directory = root / "evidence" / args.batch
+    logfile = directory / "dispatch.jsonl"
+    lockfile = directory / ".dispatch.lock"
+    with locked(lockfile):
+        prepared = validate(read_records(logfile))
+        sequence = len(prepared) + 1
+        first = not any(r["agent"] == args.agent for r in prepared.values())
+        if any(r["agent"] == args.agent and r["role"] != args.role for r in prepared.values()):
+            raise ValueError("同一 agent 在本批的角色不一致")
+        sent = f"⟦主控 #{sequence}⟧\n" + text
+        if first:
+            card = root / ".project-map/roles" / (args.role + ".md")
+            sent += "\n\n" + card.read_bytes().decode("utf-8")
+        argv = ["herdr", "agent", "prompt", args.agent, sent]
+        if args.wait:
+            argv.append("--wait")
+        if args.timeout is not None:
+            argv.extend(["--timeout", str(args.timeout)])
+        row = dict(schema=1, phase="prepared", sequence=sequence, created_at=utc_now(),
+                   agent=args.agent, role=args.role, text=sent, role_card_attached=first,
+                   argv=argv, exit_code=None)
+        append_record(logfile, row)
+    # Inherit stdout/stderr: Herdr's bytes and error wording pass through.
+    try:
+        code = subprocess.run(argv, check=False).returncode
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        code = 127
+    row = dict(row, phase="completed", created_at=utc_now(), exit_code=code)
+    try:
+        with locked(lockfile):
+            validate(read_records(logfile))
+            append_record(logfile, row)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print("派发结果未能记录；可能已送达，不得重试：" + str(exc), file=sys.stderr)
+        return code if code else 1
+    # A child killed by a signal has a negative subprocess status; retain it in
+    # the log and expose the conventional shell status to the caller.
+    return 128 - code if code < 0 else code
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print("派发未完成：" + str(exc), file=sys.stderr)
+        sys.exit(1)

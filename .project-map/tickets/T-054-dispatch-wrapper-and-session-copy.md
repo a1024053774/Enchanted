@@ -39,3 +39,10 @@ Herdr 期要做到两件事：一是把"执行主控发给 worker 的文本"和"
 - 授权来源：`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+2026-10-09，worker `s9-t054` 交付，**INCOMPLETE（整票），待主控关闭**。
+
+- 已实现 `scripts/dispatch`、`scripts/session-copy` 与共用的持久追加操作；权限建议文件只供审阅，未修改任何 Claude Code 设置。
+- 六项入口缺失红态保留；完整 CLI/文件系统契约 8/8 PASS；忘记标记、覆盖日志、重叠复制三个 mutant 均被拒绝。只读复制当前 worker 的 Codex 与执行主控的 Claude 原生会话；副本忽略、清单提交。
+- [中文交付与用法](../../evidence/2026-10-09-batch9/T-054/RESULTS.md)、[反例记录](../../evidence/2026-10-09-batch9/T-054/counterexamples-01.json)。冻结候选版本与 fresh-context 审查随证据提交。
+- 任务书明确由执行主控在交付后完成“下一次真实派发”；worker 没有向真实 pane 发送文本。该验收项未完成，不关闭 ticket，不把替身 PASS 上调为整票 PASS。
