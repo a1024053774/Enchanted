@@ -1,0 +1,1442 @@
+diff --git a/apps/server/src/a2a/httpRoute.ts b/apps/server/src/a2a/httpRoute.ts
+index cfe9f3c2a..ed9583cc7 100644
+--- a/apps/server/src/a2a/httpRoute.ts
++++ b/apps/server/src/a2a/httpRoute.ts
+@@ -69,7 +69,7 @@ const route = Effect.gen(function* () {
+   if (request.method === "GET") {
+     const task = gates.taskForThread(url.searchParams.get("thread") ?? "");
+     return HttpServerResponse.jsonUnsafe(
+-      { ok: true, task, human_input_observer: gates.humanInputObserverStatus() },
++      { ok: true, task, user_input_observer: gates.userInputObserverStatus() },
+       { headers },
+     );
+   }
+diff --git a/apps/server/src/a2a/orchestration.ts b/apps/server/src/a2a/orchestration.ts
+index fee1f4127..da587ebdd 100644
+--- a/apps/server/src/a2a/orchestration.ts
++++ b/apps/server/src/a2a/orchestration.ts
+@@ -61,11 +61,21 @@ export function readManagedThread(
+ }
+ 
+ /** Observe authoritative server provenance. Input never delivers a candidate. */
+-export function recordHumanMessage(gates: A2AGates, event: OrchestrationEvent): void {
++export function recordUserMessage(
++  gates: A2AGates,
++  event: OrchestrationEvent,
++  project?: string | null,
++  answer?: { request: string; content: unknown },
++): void {
+   if (event.type !== "thread.message-sent") return;
+   const message = event.payload;
+-  if (message.role !== "user" || message.dispatchOrigin !== "user") return;
+-  gates.recordHumanInput({
++  if (
++    message.role !== "user" ||
++    message.dispatchOrigin !== "user" ||
++    event.commandId?.startsWith("a2a:")
++  )
++    return;
++  gates.recordUserInput({
+     thread_id: message.threadId,
+     turn_id: message.turnId ?? null,
+     message_id: message.messageId,
+@@ -74,51 +84,222 @@ export function recordHumanMessage(gates: A2AGates, event: OrchestrationEvent):
+     created_at: message.createdAt,
+     text: message.text,
+     dispatch_origin: "user",
++    project_id: project ?? null,
++    ...(answer ? { answer } : {}),
++    ...(message.attachments
++      ? {
++          attachments: message.attachments.map((attachment) => ({
++            id: attachment.id,
++            type: attachment.type,
++            ...(attachment.type === "assistant-selection"
++              ? { message_id: attachment.assistantMessageId }
++              : {}),
++          })),
++        }
++      : {}),
+   });
+ }
+ 
+-export const installHumanInputRecording = Effect.fn("a2a.installHumanInputRecording")(function* (
++export const installUserInputRecording = Effect.fn("a2a.installUserInputRecording")(function* (
+   gates: A2AGates,
+   engine: OrchestrationEngineShape,
+ ) {
+-  // Attach before replay; the core deduplicates overlapping event IDs. Replay
+-  // also records messages committed while this service was not running.
+-  gates.setHumanInputObserverStatus("starting");
++  gates.setUserInputObserverStatus("starting");
+   const events = yield* engine.subscribeDomainEvents;
+   const highWater = yield* engine.getEventHighWaterSequence;
++  const checkpoint = gates.userInputCheckpoint();
++  const gaps = new Map<string, { first: OrchestrationEvent; last: number }>();
++  let replaying = true;
++  let replayFailed = false;
++  const replayCommandTypes = new Set([
++    "thread.approval-response-requested",
++    "thread.user-input-response-requested",
++    "thread.turn-interrupt-requested",
++    "thread.session-stop-requested",
++    "thread.task-stop-requested",
++    "thread.archived",
++    "thread.unarchived",
++    "thread.message-edit-resend-requested",
++    "thread.checkpoint-revert-requested",
++  ]);
++  const projects = new Map<string, string>();
++  const answers = new Map<string, { request: string; content: unknown }>();
+   const record = (event: OrchestrationEvent) =>
+-    Effect.try({
+-      try: () => recordHumanMessage(gates, event),
+-      catch: (cause) => ({
+-        event_id: event.eventId,
+-        source_sequence: event.sequence,
+-        ...(event.type === "thread.message-sent"
+-          ? {
+-              thread_id: event.payload.threadId,
+-              message_id: event.payload.messageId,
+-            }
+-          : {}),
+-        reason: String(cause),
+-      }),
++    Effect.gen(function* () {
++      if (event.type === "thread.async-user-input-answered") {
++        answers.set(event.payload.response.messageId, {
++          request: event.payload.messageId,
++          content: event.payload.response.answers,
++        });
++      }
++      if (event.type === "thread.created")
++        projects.set(event.payload.threadId, event.payload.projectId);
++      const project = projects.get(event.aggregateId);
++      // Only non-managed failures enter the deferred queue. Its replay must
++      // retain that scope even when an unrelated managed thread emits an event.
++      const deferredReplay = yield* Effect.try({
++        try: () => gates.flushDeferredUserInputs(),
++        catch: (cause) => String(cause),
++      }).pipe(Effect.result);
++      if (deferredReplay._tag === "Failure") {
++        if (replaying) replayFailed = true;
++        yield* Effect.logError("a2a non-managed input replay failed", {
++          reason: deferredReplay.failure,
++        });
++      }
++      let inputAttempt: string | null = null;
++      let inputThread: string = event.aggregateId;
++      const failure = yield* Effect.try({
++        try: () => {
++          if (
++            event.type === "thread.message-sent" &&
++            event.payload.role === "user" &&
++            event.payload.dispatchOrigin === "user" &&
++            !event.commandId?.startsWith("a2a:")
++          ) {
++            inputThread = event.payload.threadId;
++            inputAttempt = gates.userInputTarget(inputThread).attempt;
++          }
++          recordUserMessage(
++            gates,
++            event,
++            project,
++            event.type === "thread.message-sent" ? answers.get(event.payload.messageId) : undefined,
++          );
++          const registered = event.commandId ? gates.userInputCommand(event.commandId) : undefined;
++          if (
++            replaying &&
++            checkpoint !== undefined &&
++            event.sequence > checkpoint &&
++            replayCommandTypes.has(event.type) &&
++            !registered &&
++            !event.commandId?.startsWith("a2a:")
++          ) {
++            const previous = gaps.get(event.aggregateId);
++            gaps.set(event.aggregateId, { first: previous?.first ?? event, last: event.sequence });
++          }
++          if (registered && event.type !== "thread.message-sent") {
++            inputThread = registered.target.thread;
++            inputAttempt = registered.target.attempt;
++            gates.appendUserInput(
++              {
++                ...registered,
++                source_ref: {
++                  ...registered.source_ref,
++                  event_id: event.eventId,
++                  source_sequence: event.sequence,
++                },
++              },
++              `rpc:${event.commandId}`,
++            );
++          }
++        },
++        catch: (cause) => ({
++          event_id: event.eventId,
++          source_sequence: event.sequence,
++          thread_id: inputThread,
++          reason: String(cause),
++        }),
++      }).pipe(Effect.result);
++      if (failure._tag === "Failure") {
++        if (replaying) replayFailed = true;
++        // Managed failures retain the existing global fail-closed latch. Other
++        // failures leave business commands available; startup replays the journal.
++        if (inputAttempt) {
++          gates.setUserInputObserverStatus("failed", failure.failure);
++        }
++        yield* Effect.logError("a2a user input recording failed", failure.failure);
++      }
++      if (!replaying && deferredReplay._tag === "Success" && failure._tag === "Success") {
++        const progress = yield* Effect.try({
++          try: () => gates.advanceUserInputCheckpoint(event.sequence),
++          catch: (cause) => String(cause),
++        }).pipe(Effect.result);
++        if (progress._tag === "Failure")
++          yield* Effect.logError("a2a user input progress unavailable", {
++            reason: progress.failure,
++          });
++      }
+     });
+   yield* Stream.runForEach(engine.readEventsThrough(0, highWater), record);
++  for (const [thread, { first, last }] of gaps) {
++    const recovered = yield* Effect.try({
++      try: () =>
++        gates.appendUserInput(
++          {
++            id: `gap:${first.eventId}:${last}`,
++            schema: 1,
++            form: "gap",
++            text: "",
++            target: gates.userInputTarget(thread, projects.get(thread)),
++            channel: "ws-rpc",
++            reply_to: null,
++            source_ref: { event_id: first.eventId, source_sequence: first.sequence },
++            certainty: "observed",
++            created_at: first.occurredAt,
++            content: {
++              from_sequence: first.sequence,
++              through_sequence: last,
++              reason:
++                "RPC origin unavailable after recorder outage; these events may be user, ui-derived or internal commands",
++            },
++          },
++          `gap:${first.eventId}:${last}`,
++        ),
++      catch: (error) => error,
++    }).pipe(Effect.result);
++    if (recovered._tag === "Failure") {
++      replayFailed = true;
++      yield* Effect.logError("a2a input gap recovery failed", {
++        reason: String(recovered.failure),
++      });
++    }
++  }
++  if (!replayFailed) {
++    const progress = yield* Effect.try({
++      try: () => gates.advanceUserInputCheckpoint(highWater),
++      catch: (cause) => String(cause),
++    }).pipe(Effect.result);
++    if (progress._tag === "Failure")
++      yield* Effect.logError("a2a user input progress unavailable", { reason: progress.failure });
++  }
++  replaying = false;
++  // prepareQuitResume has no command event of its own. Its authoritative entry
++  // receipts also recover any write interrupted after registration.
++  for (const { commandId, input } of gates.userInputCommands()) {
++    const recovered = yield* Effect.try({
++      try: () => gates.appendUserInput(input, `rpc:${commandId}`),
++      catch: (error) => error,
++    }).pipe(Effect.result);
++    if (recovered._tag === "Failure") {
++      if (input.target.attempt)
++        gates.setUserInputObserverStatus("failed", {
++          thread_id: input.target.thread,
++          reason: String(recovered.failure),
++        });
++      yield* Effect.logError("a2a input receipt recovery failed", {
++        reason: String(recovered.failure),
++      });
++    }
++  }
+   yield* Effect.forkScoped(
+     Stream.runForEach(events, record).pipe(
+       Effect.onExit((exit) => {
+-        if (Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)) {
+-          return Effect.sync(() => gates.setHumanInputObserverStatus("stopped"));
+-        }
++        if (Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause))
++          return Effect.sync(() => gates.setUserInputObserverStatus("stopped"));
+         const failure = Exit.isFailure(exit)
+           ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
+           : undefined;
+-        const details = failure ?? {
+-          reason: Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "Human input stream ended",
+-        };
+-        return Effect.sync(() => gates.setHumanInputObserverStatus("failed", details)).pipe(
+-          Effect.andThen(Effect.logError("a2a human input observer failed", details)),
++        return Effect.sync(() =>
++          gates.setUserInputObserverStatus(
++            "failed",
++            failure ?? {
++              reason: Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "User input stream ended",
++            },
++          ),
+         );
+       }),
+     ),
+   );
+-  gates.setHumanInputObserverStatus("healthy");
++  gates.setUserInputObserverStatus("healthy");
+ });
+diff --git a/apps/server/src/a2a/service.ts b/apps/server/src/a2a/service.ts
+index c932a462a..b6eaaa169 100644
+--- a/apps/server/src/a2a/service.ts
++++ b/apps/server/src/a2a/service.ts
+@@ -10,7 +10,7 @@ import {
+   type A2ARun,
+ } from "@synara/contracts";
+ import { Effect, Layer, Option, ServiceMap } from "effect";
+-import { installHumanInputRecording, readManagedThread } from "./orchestration";
++import { installUserInputRecording, readManagedThread } from "./orchestration";
+ import { ServerConfig } from "../config";
+ import { OrchestrationEngineService } from "../orchestration/Services/OrchestrationEngine";
+ import { ProjectionSnapshotQuery } from "../orchestration/Services/ProjectionSnapshotQuery";
+@@ -266,7 +266,7 @@ export const A2AGateServiceLive = Layer.effect(
+       },
+     });
+     yield* Effect.addFinalizer(() => Effect.sync(() => core.close()));
+-    yield* installHumanInputRecording(core, engine);
++    yield* installUserInputRecording(core, engine);
+     return core;
+   }),
+ );
+diff --git a/apps/server/src/a2a/userInput.ts b/apps/server/src/a2a/userInput.ts
+new file mode 100644
+index 000000000..1b547f507
+--- /dev/null
++++ b/apps/server/src/a2a/userInput.ts
+@@ -0,0 +1,160 @@
++import { randomUUID } from "node:crypto";
++import type { A2AGates } from "@synara/a2a-gates";
++import type {
++  A2AUserInput,
++  OrchestrationCommand,
++  OrchestrationPrepareQuitResumeInput,
++  OrchestrationReconcileProviderDeliveryInput,
++} from "@synara/contracts";
++import { Effect } from "effect";
++import type { OrchestrationEngineShape } from "../orchestration/Services/OrchestrationEngine";
++
++/** Enumerated channel shape, never a classification of the text's meaning. */
++export function userCommandInput(
++  gates: A2AGates,
++  command: OrchestrationCommand,
++  project?: string,
++): A2AUserInput | undefined {
++  if (command.commandId.startsWith("a2a:")) return;
++  let form: A2AUserInput["form"];
++  switch (command.type) {
++    case "thread.approval.respond":
++      form =
++        command.decision === "decline" || command.decision === "cancel" ? "denial" : "approval";
++      break;
++    case "thread.user-input.respond":
++      form = "answer";
++      break;
++    case "thread.turn.interrupt":
++    case "thread.session.stop":
++    case "thread.task.stop":
++    case "thread.archive":
++    case "thread.unarchive":
++    case "thread.message.edit-and-resend":
++    case "thread.checkpoint.revert":
++      form = "action";
++      break;
++    default:
++      return;
++  }
++  const request = "requestId" in command ? command.requestId : null;
++  return {
++    id: randomUUID(),
++    schema: 1,
++    form,
++    text: "",
++    target: {
++      ...gates.userInputTarget(command.threadId, project),
++      turn: "turnId" in command ? (command.turnId ?? null) : null,
++      message: "messageId" in command ? command.messageId : null,
++      request,
++    },
++    channel: command.origin === "ui-derived" ? "ui-derived" : "ws-rpc",
++    reply_to: request,
++    source_ref: { command_id: command.commandId, rpc: "orchestration.dispatchCommand" },
++    content: command,
++    certainty: "observed",
++    created_at: "createdAt" in command ? command.createdAt : new Date().toISOString(),
++  };
++}
++
++/** The same ingress and failure policy serves all three WS observation points. */
++const persistUserInput = Effect.fn("a2a.persistUserInput")(function* (
++  gates: A2AGates,
++  commandId: string,
++  input: A2AUserInput,
++) {
++  const result = yield* Effect.try({
++    try: () => {
++      gates.registerUserInputCommand(commandId, input);
++      gates.appendUserInput(input, `rpc:${commandId}`);
++    },
++    catch: (error) => error,
++  }).pipe(Effect.result);
++  if (result._tag === "Failure") {
++    if (input.target.attempt) {
++      gates.setUserInputObserverStatus("failed", {
++        thread_id: input.target.thread,
++        reason: String(result.failure),
++      });
++      return yield* Effect.fail(result.failure);
++    }
++    gates.deferUserInput(commandId, input);
++    yield* Effect.logError("a2a user input recording failed; replay required", {
++      command_id: commandId,
++      reason: String(result.failure),
++    });
++  }
++});
++
++/** Register before admission so replay retains the RPC observation's source. */
++export const recordUserCommand = Effect.fn("a2a.recordUserCommand")(function* (
++  gates: A2AGates,
++  engine: OrchestrationEngineShape,
++  command: OrchestrationCommand,
++) {
++  const model = yield* engine.getReadModel();
++  const project =
++    "threadId" in command
++      ? model.threads.find((thread) => thread.id === command.threadId)?.projectId
++      : undefined;
++  const input = userCommandInput(gates, command, project);
++  if (input) yield* persistUserInput(gates, command.commandId, input);
++});
++
++export const recordReconcileInput = Effect.fn("a2a.recordReconcileInput")(function* (
++  gates: A2AGates,
++  engine: OrchestrationEngineShape,
++  request: OrchestrationReconcileProviderDeliveryInput,
++) {
++  const model = yield* engine.getReadModel();
++  const project = model.threads.find((thread) => thread.id === request.threadId)?.projectId;
++  // This RPC has no command ID. Each server receipt is a distinct observation,
++  // including a repeated request that the business CAS rejects as stale.
++  const commandId = `reconcile:${randomUUID()}`;
++  yield* persistUserInput(gates, commandId, {
++    id: randomUUID(),
++    schema: 1,
++    form: "action",
++    text: "",
++    target: {
++      ...gates.userInputTarget(request.threadId, project),
++      eventSequence: request.eventSequence,
++    },
++    channel: "ws-rpc",
++    reply_to: null,
++    source_ref: { command_id: commandId, rpc: "orchestration.reconcileProviderDelivery" },
++    content: { type: "orchestration.reconcileProviderDelivery", ...request },
++    certainty: "observed",
++    created_at: new Date().toISOString(),
++  });
++});
++
++export const recordQuitResumeInput = Effect.fn("a2a.recordQuitResumeInput")(function* (
++  gates: A2AGates,
++  engine: OrchestrationEngineShape,
++  request: OrchestrationPrepareQuitResumeInput,
++) {
++  const id = randomUUID();
++  const model = yield* engine.getReadModel();
++  for (const thread of new Set(request.threadIds)) {
++    const input: A2AUserInput = {
++      id: randomUUID(),
++      schema: 1,
++      form: "action",
++      text: "",
++      target: gates.userInputTarget(
++        thread,
++        model.threads.find((item) => item.id === thread)?.projectId,
++      ),
++      channel: "ui-derived",
++      reply_to: null,
++      source_ref: { command_id: id, rpc: "orchestration.prepareQuitResume" },
++      content: { type: "orchestration.prepareQuitResume", threadIds: request.threadIds },
++      certainty: "observed",
++      created_at: new Date().toISOString(),
++    };
++    const commandId = `quit:${id}:${thread}`;
++    yield* persistUserInput(gates, commandId, input);
++  }
++});
+diff --git a/apps/server/src/wsRpc.ts b/apps/server/src/wsRpc.ts
+index dd521efa7..1fae82188 100644
+--- a/apps/server/src/wsRpc.ts
++++ b/apps/server/src/wsRpc.ts
+@@ -1,3 +1,5 @@
++import { A2AGateService } from "./a2a/service";
++import { recordUserCommand, recordQuitResumeInput, recordReconcileInput } from "./a2a/userInput";
+ import { readEventLoopStatus } from "./eventLoopMonitor";
+ import { makeGitActionRunner } from "./git/gitActionRunner";
+ import { AgentGatewaySessionRegistry } from "./agentGateway/Services/AgentGatewaySessionRegistry";
+@@ -1335,6 +1337,11 @@ const makeWsRpcHandlersLayer = () =>
+                   threadId: normalizedCommand.threadId,
+                 });
+               }
++              yield* recordUserCommand(
++                yield* A2AGateService,
++                orchestrationEngine,
++                normalizedCommand,
++              );
+               const result = yield* dispatchOrchestrationCommand(normalizedCommand);
+               // Only scaffold managed workspace-root subdirectories (Inbox/Outbox/work/outputs)
+               // AFTER the decider has accepted the command. A rejected dispatch (e.g. a
+@@ -1426,11 +1433,14 @@ const makeWsRpcHandlersLayer = () =>
+             // Gated as a whole (not just its dispatches) so the record can never be
+             // written while startup is still claiming the previous quit's record.
+             runtimeStartup.enqueueCommand(
+-              prepareQuitResume({
+-                request: input,
+-                recordPath: config.quitResumeStatePath,
+-                getReadModel: orchestrationEngine.getReadModel,
+-                dispatch: dispatchOrchestrationCommand,
++              Effect.gen(function* () {
++                yield* recordQuitResumeInput(yield* A2AGateService, orchestrationEngine, input);
++                return yield* prepareQuitResume({
++                  request: input,
++                  recordPath: config.quitResumeStatePath,
++                  getReadModel: orchestrationEngine.getReadModel,
++                  dispatch: dispatchOrchestrationCommand,
++                });
+               }),
+             ),
+             "Failed to prepare chats for resume after quit",
+@@ -1438,6 +1448,7 @@ const makeWsRpcHandlersLayer = () =>
+         [ORCHESTRATION_WS_METHODS.reconcileProviderDelivery]: (input) =>
+           rpcEffect(
+             Effect.gen(function* () {
++              yield* recordReconcileInput(yield* A2AGateService, orchestrationEngine, input);
+               const principal = yield* CurrentManagedAttachmentPrincipal;
+               const result = yield* providerCommandReactor.reconcileDelivery({
+                 eventSequence: input.eventSequence,
+diff --git a/apps/web/src/a2a/GateStatus.tsx b/apps/web/src/a2a/GateStatus.tsx
+index 7c354a9d1..c450395f3 100644
+--- a/apps/web/src/a2a/GateStatus.tsx
++++ b/apps/web/src/a2a/GateStatus.tsx
+@@ -6,8 +6,8 @@ import { DisclosureChevron } from "../components/ui/DisclosureChevron";
+ import { StatusChip } from "../components/ui/status-chip";
+ import { resolveWsHttpUrl } from "../lib/wsHttpUrl";
+ import { cn } from "../lib/utils";
+-import { humanObserverView, type HumanObserverView } from "./humanObserver";
+-import { ObserverFailureNote, ObserverIndicator } from "./HumanObserverStatus";
++import { userInputObserverView, type UserInputObserverView } from "./userInputObserver";
++import { ObserverFailureNote, ObserverIndicator } from "./UserInputObserverStatus";
+ 
+ /**
+  * The task window shows the gate once, in its own header. ChatView renders a
+@@ -39,7 +39,7 @@ function ThreadGateStatus({ threadId }: { threadId: string }) {
+       if (!response.ok) throw new Error(`门禁状态读取失败 (${response.status})`);
+       const result = (await response.json()) as A2AGateResult;
+       if (!result.ok) throw new Error(result.error ?? "门禁状态未知");
+-      return { task: result.task ?? null, observer: humanObserverView(result) };
++      return { task: result.task ?? null, observer: userInputObserverView(result) };
+     },
+     refetchInterval: 1000,
+   });
+@@ -72,7 +72,7 @@ export function GateBar({
+   actions,
+ }: {
+   task: A2ATask;
+-  observer: HumanObserverView;
++  observer: UserInputObserverView;
+   actions?: ReactNode;
+ }) {
+   const known = (STEPS as readonly string[]).includes(task.state);
+diff --git a/apps/web/src/a2a/HumanObserverStatus.tsx b/apps/web/src/a2a/UserInputObserverStatus.tsx
+similarity index 57%
+rename from apps/web/src/a2a/HumanObserverStatus.tsx
+rename to apps/web/src/a2a/UserInputObserverStatus.tsx
+index ed881f9d9..bf96ceb04 100644
+--- a/apps/web/src/a2a/HumanObserverStatus.tsx
++++ b/apps/web/src/a2a/UserInputObserverStatus.tsx
+@@ -1,7 +1,7 @@
+ import { StatusChip } from "../components/ui/status-chip";
+-import type { HumanObserverView } from "./humanObserver";
++import type { UserInputObserverView } from "./userInputObserver";
+ 
+-const OBSERVER_LABEL: Record<HumanObserverView["state"], string> = {
++const OBSERVER_LABEL: Record<UserInputObserverView["state"], string> = {
+   missing: "未安装",
+   starting: "启动中",
+   healthy: "正常",
+@@ -10,9 +10,9 @@ const OBSERVER_LABEL: Record<HumanObserverView["state"], string> = {
+ };
+ 
+ /** Small status chip; the failure explanation lives in ObserverFailureNote. */
+-export function ObserverIndicator({ observer }: { observer: HumanObserverView }) {
++export function ObserverIndicator({ observer }: { observer: UserInputObserverView }) {
+   return (
+-    <span aria-label="人工输入记录器状态" title={observer.updatedAt}>
++    <span aria-label="用户输入记录器状态" title={observer.updatedAt}>
+       <StatusChip
+         dotClassName={
+           observer.state === "healthy"
+@@ -23,17 +23,17 @@ export function ObserverIndicator({ observer }: { observer: HumanObserverView })
+         }
+         className="text-ui-xs text-muted-foreground"
+       >
+-        人工输入记录器 · {OBSERVER_LABEL[observer.state]}
++        用户输入记录器 · {OBSERVER_LABEL[observer.state]}
+       </StatusChip>
+     </span>
+   );
+ }
+ 
+-export function ObserverFailureNote({ observer }: { observer: HumanObserverView }) {
++export function ObserverFailureNote({ observer }: { observer: UserInputObserverView }) {
+   return (
+     <p className="border-t border-border/60 bg-muted/30 px-4 py-1.5 text-muted-foreground">
+-      记录器没有在记录人工输入：{observer.failureReason}。恢复前，门禁拒绝改变任务状态的操作{" "}
+-      <code className="font-mono text-ui-2xs">human_input_observer_failed</code>。
++      记录器没有在记录用户输入：{observer.failureReason}。恢复前，门禁拒绝改变任务状态的操作{" "}
++      <code className="font-mono text-ui-2xs">user_input_observer_failed</code>。
+     </p>
+   );
+ }
+diff --git a/apps/web/src/a2a/humanIntervention.ts b/apps/web/src/a2a/humanIntervention.ts
+index 4cf58bdcc..d50c313ca 100644
+--- a/apps/web/src/a2a/humanIntervention.ts
++++ b/apps/web/src/a2a/humanIntervention.ts
+@@ -30,8 +30,10 @@ export function humanInterventions(
+       !details.event_id ||
+       typeof details.thread_id !== "string" ||
+       !details.thread_id ||
+-      typeof details.message_id !== "string" ||
+-      !details.message_id ||
++      (details.form === undefined || details.form === "message" || details.form === "answer"
++        ? typeof details.message_id !== "string" || !details.message_id
++        : details.message_id !== null &&
++          (typeof details.message_id !== "string" || !details.message_id)) ||
+       typeof details.attempt_id !== "string" ||
+       !details.attempt_id ||
+       typeof details.text !== "string"
+@@ -44,7 +46,7 @@ export function humanInterventions(
+     result.push({
+       eventId: details.event_id,
+       threadId: details.thread_id,
+-      messageId: details.message_id,
++      messageId: typeof details.message_id === "string" ? details.message_id : "",
+       attemptId: details.attempt_id,
+       time: event.time,
+       text: details.text,
+diff --git a/apps/web/src/a2a/useGateTask.ts b/apps/web/src/a2a/useGateTask.ts
+index 798699779..6a2a3228b 100644
+--- a/apps/web/src/a2a/useGateTask.ts
++++ b/apps/web/src/a2a/useGateTask.ts
+@@ -2,7 +2,7 @@ import type { A2AGateResult } from "@synara/contracts";
+ import { useQuery } from "@tanstack/react-query";
+ import { requestA2A } from "./api";
+ import { humanInterventions } from "./humanIntervention";
+-import { humanObserverView } from "./humanObserver";
++import { userInputObserverView } from "./userInputObserver";
+ 
+ export function useGateTask(taskId: string | null, projectId: string | null) {
+   return useQuery({
+@@ -17,7 +17,7 @@ export function useGateTask(taskId: string | null, projectId: string | null) {
+       );
+       if (!status.ok) {
+         if (status.error === "unknown_task")
+-          return { task: null, interventions: [], observer: humanObserverView(status) };
++          return { task: null, interventions: [], observer: userInputObserverView(status) };
+         throw new Error(status.error ?? "门禁状态读取失败");
+       }
+       if (!status.task || status.task.project_id !== projectId)
+@@ -31,7 +31,7 @@ export function useGateTask(taskId: string | null, projectId: string | null) {
+       return {
+         task: status.task,
+         interventions: humanInterventions(events.events, status.task.task_id),
+-        observer: humanObserverView(events),
++        observer: userInputObserverView(events),
+       };
+     },
+     refetchInterval: 1000,
+diff --git a/apps/web/src/a2a/humanObserver.ts b/apps/web/src/a2a/userInputObserver.ts
+similarity index 61%
+rename from apps/web/src/a2a/humanObserver.ts
+rename to apps/web/src/a2a/userInputObserver.ts
+index 539896c12..45e8cb6b7 100644
+--- a/apps/web/src/a2a/humanObserver.ts
++++ b/apps/web/src/a2a/userInputObserver.ts
+@@ -1,15 +1,15 @@
+-export interface HumanObserverView {
++export interface UserInputObserverView {
+   state: "missing" | "starting" | "healthy" | "failed" | "stopped";
+   updatedAt?: string;
+   failureReason?: string;
+ }
+ 
+ /** View of T-037's optional observer status. Missing data never means healthy. */
+-export function humanObserverView(result: unknown): HumanObserverView {
+-  if (!result || typeof result !== "object") throw new Error("人工输入记录器响应格式错误");
+-  if (!("human_input_observer" in result) || result.human_input_observer === undefined)
++export function userInputObserverView(result: unknown): UserInputObserverView {
++  if (!result || typeof result !== "object") throw new Error("用户输入记录器响应格式错误");
++  if (!("user_input_observer" in result) || result.user_input_observer === undefined)
+     return { state: "missing" };
+-  const value = result.human_input_observer;
++  const value = result.user_input_observer;
+   if (
+     !value ||
+     typeof value !== "object" ||
+@@ -17,10 +17,10 @@ export function humanObserverView(result: unknown): HumanObserverView {
+     !("updated_at" in value) ||
+     typeof value.updated_at !== "string"
+   )
+-    throw new Error("人工输入记录器状态格式错误");
++    throw new Error("用户输入记录器状态格式错误");
+   const state = value.state;
+   if (state !== "starting" && state !== "healthy" && state !== "failed" && state !== "stopped")
+-    throw new Error("人工输入记录器状态不可识别");
++    throw new Error("用户输入记录器状态不可识别");
+   if (state === "failed") {
+     if (
+       !("failure" in value) ||
+@@ -29,7 +29,7 @@ export function humanObserverView(result: unknown): HumanObserverView {
+       !("reason" in value.failure) ||
+       typeof value.failure.reason !== "string"
+     )
+-      throw new Error("人工输入记录器故障缺少原因");
++      throw new Error("用户输入记录器故障缺少原因");
+     return { state, updatedAt: value.updated_at, failureReason: value.failure.reason };
+   }
+   return { state, updatedAt: value.updated_at };
+diff --git a/apps/web/src/components/BranchToolbar.tsx b/apps/web/src/components/BranchToolbar.tsx
+index 086a5e9d2..f716feec8 100644
+--- a/apps/web/src/components/BranchToolbar.tsx
++++ b/apps/web/src/components/BranchToolbar.tsx
+@@ -341,6 +341,7 @@ export default function BranchToolbar({
+           void api.orchestration
+             .dispatchCommand({
+               type: "thread.session.stop",
++              origin: "ui-derived",
+               commandId: newCommandId(),
+               threadId: activeThreadId,
+               createdAt: new Date().toISOString(),
+@@ -391,6 +392,7 @@ export default function BranchToolbar({
+         void api.orchestration
+           .dispatchCommand({
+             type: "thread.session.stop",
++            origin: "ui-derived",
+             commandId: newCommandId(),
+             threadId: activeThreadId,
+             createdAt: new Date().toISOString(),
+diff --git a/apps/web/src/components/RunningChatsQuitCoordinator.tsx b/apps/web/src/components/RunningChatsQuitCoordinator.tsx
+index 52223cbd3..54a3858d5 100644
+--- a/apps/web/src/components/RunningChatsQuitCoordinator.tsx
++++ b/apps/web/src/components/RunningChatsQuitCoordinator.tsx
+@@ -61,6 +61,7 @@ export function RunningChatsQuitCoordinator() {
+           }
+           return api.orchestration.dispatchCommand({
+             type: "thread.turn.interrupt",
++            origin: "ui-derived",
+             commandId: newCommandId(),
+             threadId: ThreadId.makeUnsafe(threadId),
+             createdAt: new Date().toISOString(),
+diff --git a/apps/web/src/hooks/useTemporaryThreadLifecycle.ts b/apps/web/src/hooks/useTemporaryThreadLifecycle.ts
+index 182945454..71a0bc4b5 100644
+--- a/apps/web/src/hooks/useTemporaryThreadLifecycle.ts
++++ b/apps/web/src/hooks/useTemporaryThreadLifecycle.ts
+@@ -99,6 +99,7 @@ async function disposeTemporaryThread(input: {
+         await api.orchestration
+           .dispatchCommand({
+             type: "thread.session.stop",
++            origin: "ui-derived",
+             commandId: newCommandId(),
+             threadId: temporaryThreadId,
+             createdAt: new Date().toISOString(),
+diff --git a/packages/a2a-gates/README.md b/packages/a2a-gates/README.md
+index db3f42fb5..96d9e2774 100644
+--- a/packages/a2a-gates/README.md
++++ b/packages/a2a-gates/README.md
+@@ -5,7 +5,14 @@
+ HTTP、工作台 CLI 与 MCP 共用门禁核心。以下请求可经现有 `a2a/scripts/gate` 发送：
+ 
+ ```json
+-{"command":"disposition","task":"TASK_ID","issue":"ISSUE_ID","action":"close","reason":"重复问题","basis":"ticket:T-099"}
++{
++  "command": "disposition",
++  "task": "TASK_ID",
++  "issue": "ISSUE_ID",
++  "action": "close",
++  "reason": "重复问题",
++  "basis": "ticket:T-099"
++}
+ ```
+ 
+ 动作包括 `close`、`needs-user`、`forward`、`reopen`、`snooze`、`dismiss`、`delivered`。关闭必须有理由与依据；`delivered` 只接受已有的真实发送回执，不能用来伪造送达。认证的本机 owner/CLI 操作者代表用户；MCP 的身份来自凭据绑定的活跃会话与任务归属，不能从参数指定。处置 MCP 工具 `a2a_disposition` 只允许主控会话使用；主控不能关闭 blocking 问题，也不能替用户 reopen、snooze、dismiss 或回答。该工具走普通权限确认路径。
+@@ -13,9 +20,27 @@ HTTP、工作台 CLI 与 MCP 共用门禁核心。以下请求可经现有 `a2a/
+ 单条答复保持 `answer_issue` 接口；多条使用同一答复实现：
+ 
+ ```json
+-{"command":"answer_issues","task":"TASK_ID","mode":"bundle","answers":[{"issue":"ISSUE_ID_1","answer":"第一条答复"},{"issue":"ISSUE_ID_3","answer":"第三条答复"}]}
++{
++  "command": "answer_issues",
++  "task": "TASK_ID",
++  "mode": "bundle",
++  "answers": [
++    { "issue": "ISSUE_ID_1", "answer": "第一条答复" },
++    { "issue": "ISSUE_ID_3", "answer": "第三条答复" }
++  ]
++}
+ ```
+ 
+ `bundle` 按会话各送一条消息，同包每题各有一条 answer，共享 bundle ID 与消息 ID；`individual` 每题各送一条消息。消息使用会话内问题号，正文最多 600 个 Unicode 字符，超出以“…”结束；空正文省略该行，答复只去掉末尾空白，题间一个空行。关闭告知附在该会话下一条面板/门禁答复消息末尾，并留下只发送一次的回执。结束会话保留答复并追加 `forward/session-ended`；未知发送错误保留已答复状态并返回失败。
+ 
+ 工作台的问题面板默认显示等你决定，可切到全部或已关闭。草稿使用既有本机存储编码器，每题一个键；多个会话视图共享草稿，发送后清除。任务汇总可按会话打包，面板清单可滚动，批量操作区保留在清单之外。徽标仅计等你决定，稍后项在 1 小时内不计入；后台通知复用现有桌面通知桥与开关，静音，并合并同一批新问题。
++
++# 用户输入记录
++
++记录器覆盖受管 worker、attach、普通会话和主控会话。消息按服务端 `dispatchOrigin=user` 的域事件记录；异步问题答复保存问题 id 与答案。审批、结构化答复、停止、中断、编辑重发、检查点回退和归档在 WS RPC 入口记录。编辑重发保留被编辑消息的目标键与请求原文。退出批量中断、临时线程清理和退出恢复标为 `ui-derived`，不派生人工介入。v1 不判断内容含义。
++
++解除阻塞的 `reconcileProviderDelivery` 也在 WS 入口记录：每个收到的请求一条 action，目标包含 `thread` 与原请求的 `eventSequence`，业务 CAS 拒绝的重复请求仍保留各自的输入记录。工作目录切换触发的停止标 `ui-derived`；退出恢复的项目键从服务端线程快照取得。
++
++`user_input_observer` 对外提供记录器状态。受管 attempt 的记录失败保持门禁 fail-closed；其他范围失败不阻断业务。启动时重放事件日志和已登记的 RPC 来源；来源无法核对的中断区间保存 `form: gap`、序号范围与原因，不推断为用户决定。消息、RPC 与重放按稳定的来源键去重；受管输入与指向 `input_id` 的 `human_intervention` 在同一事务写入。面板答复仍使用其原有登记与去重路径。
++
++旧 `human_inputs` 去重表迁入 `user_input_events`；`user_inputs` 的 task、message 可为空，历史正文和事件保留。迁移在事务中执行，允许中断后重跑；用户输入和 RPC 来源登记为追加式记录。
+diff --git a/packages/a2a-gates/src/core.ts b/packages/a2a-gates/src/core.ts
+index 4ff9f8a5f..ea8a5500e 100644
+--- a/packages/a2a-gates/src/core.ts
++++ b/packages/a2a-gates/src/core.ts
+@@ -6,7 +6,7 @@ import {
+   A2AGateRequest,
+   type A2AAttempt,
+   type A2ARun,
+-  type A2AHumanInputObserver,
++  type A2AUserInputObserver,
+   type A2AGateResult,
+   type A2AVerification,
+   type A2ACommandResult,
+@@ -83,7 +83,8 @@ export interface SubmitCaller {
+ export class A2AGates {
+   private readonly db: DatabaseSync;
+   private readonly membership: A2AMembership;
+-  private humanInputObserver?: A2AHumanInputObserver;
++  private userInputObserver?: A2AUserInputObserver;
++  private readonly deferredUserInputs = new Map<string, A2AUserInput>();
+   constructor(
+     readonly root: string,
+     private readonly runtime?: GateRuntime,
+@@ -99,9 +100,13 @@ export class A2AGates {
+       CREATE TABLE IF NOT EXISTS verifications (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+       CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, task TEXT NOT NULL, data TEXT NOT NULL);
+       CREATE TABLE IF NOT EXISTS attachments (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+-      CREATE TABLE IF NOT EXISTS human_inputs (event_id TEXT PRIMARY KEY);
++      CREATE TABLE IF NOT EXISTS user_input_events (event_id TEXT PRIMARY KEY);
++      CREATE TABLE IF NOT EXISTS user_input_checkpoint (id INTEGER PRIMARY KEY CHECK(id=1), sequence INTEGER NOT NULL);
++      CREATE TABLE IF NOT EXISTS user_input_ingress (command_id TEXT PRIMARY KEY, data TEXT NOT NULL);
++      CREATE TRIGGER IF NOT EXISTS user_input_ingress_no_update BEFORE UPDATE ON user_input_ingress BEGIN SELECT RAISE(ABORT,'append only'); END;
++      CREATE TRIGGER IF NOT EXISTS user_input_ingress_no_delete BEFORE DELETE ON user_input_ingress BEGIN SELECT RAISE(ABORT,'append only'); END;
+       CREATE TABLE IF NOT EXISTS issue_records (id TEXT PRIMARY KEY, task TEXT NOT NULL, thread TEXT NOT NULL, data TEXT NOT NULL);
+-      CREATE TABLE IF NOT EXISTS user_inputs (id TEXT PRIMARY KEY, task TEXT NOT NULL, message TEXT NOT NULL, data TEXT NOT NULL);
++      CREATE TABLE IF NOT EXISTS user_inputs (id TEXT PRIMARY KEY, task TEXT, message TEXT, data TEXT NOT NULL);
+       CREATE TRIGGER IF NOT EXISTS issue_records_no_update BEFORE UPDATE ON issue_records BEGIN SELECT RAISE(ABORT,'append only'); END;
+       CREATE TRIGGER IF NOT EXISTS issue_records_no_delete BEFORE DELETE ON issue_records BEGIN SELECT RAISE(ABORT,'append only'); END;
+       CREATE TRIGGER IF NOT EXISTS user_inputs_no_update BEFORE UPDATE ON user_inputs BEGIN SELECT RAISE(ABORT,'append only'); END;
+@@ -123,17 +128,32 @@ export class A2AGates {
+             .all();
+           return index.unique === 1 && columns.length === 1 && columns[0]!.name === "message";
+         });
+-      if (messageUnique)
++      const legacyColumns = this.db.prepare("PRAGMA table_info(user_inputs)").all();
++      if (
++        messageUnique ||
++        legacyColumns.some(
++          (column) => (column.name === "task" || column.name === "message") && column.notnull === 1,
++        )
++      )
+         this.db.exec(`
+-        CREATE TABLE user_inputs_bundle (id TEXT PRIMARY KEY, task TEXT NOT NULL, message TEXT NOT NULL, data TEXT NOT NULL);
++        CREATE TABLE user_inputs_bundle (id TEXT PRIMARY KEY, task TEXT, message TEXT, data TEXT NOT NULL);
+         INSERT INTO user_inputs_bundle SELECT id,task,message,data FROM user_inputs ORDER BY rowid;
+         DROP TABLE user_inputs;
+         ALTER TABLE user_inputs_bundle RENAME TO user_inputs;
+         CREATE TRIGGER user_inputs_no_update BEFORE UPDATE ON user_inputs BEGIN SELECT RAISE(ABORT,'append only'); END;
+         CREATE TRIGGER user_inputs_no_delete BEFORE DELETE ON user_inputs BEGIN SELECT RAISE(ABORT,'append only'); END;`);
+-      this.db.exec(
+-        "CREATE INDEX IF NOT EXISTS user_inputs_message ON user_inputs(message); COMMIT",
+-      );
++      this.db.exec("CREATE INDEX IF NOT EXISTS user_inputs_message ON user_inputs(message)");
++      // Copy the old dedup ledger atomically. Historical immutable events remain unchanged.
++      if (
++        this.db
++          .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='human_inputs'")
++          .get()
++      ) {
++        this.db.exec(
++          "INSERT OR IGNORE INTO user_input_events SELECT event_id FROM human_inputs; DROP TABLE human_inputs",
++        );
++      }
++      this.db.exec("COMMIT");
+     } finally {
+       if (this.db.isTransaction) this.db.exec("ROLLBACK");
+     }
+@@ -170,7 +190,7 @@ export class A2AGates {
+   saveMembership(input: A2ATaskMembership): A2ATaskMembership {
+     const lock = this.operationLock(id(input.taskId));
+     try {
+-      this.checkHumanInputObserver();
++      this.checkUserInputObserver();
+       const row = this.db.prepare("SELECT data FROM tasks WHERE id=?").get(input.taskId);
+       if (row)
+         requireGate(
+@@ -251,30 +271,30 @@ export class A2AGates {
+       )
+       .run(attachment.thread_id, JSON.stringify(attachment));
+   }
+-  humanInputObserverStatus(): A2AHumanInputObserver | undefined {
+-    const status = this.humanInputObserver;
++  userInputObserverStatus(): A2AUserInputObserver | undefined {
++    const status = this.userInputObserver;
+     return status
+       ? { ...status, ...(status.failure ? { failure: { ...status.failure } } : {}) }
+       : undefined;
+   }
+-  setHumanInputObserverStatus(
+-    state: A2AHumanInputObserver["state"],
+-    failure?: A2AHumanInputObserver["failure"],
++  setUserInputObserverStatus(
++    state: A2AUserInputObserver["state"],
++    failure?: A2AUserInputObserver["failure"],
+   ) {
+     // A failed recorder cannot reset itself. A new service instance must replay
+     // the durable Synara journal before reporting healthy again.
+-    if (this.humanInputObserver?.state === "failed") return;
+-    this.humanInputObserver = {
++    if (this.userInputObserver?.state === "failed") return;
++    this.userInputObserver = {
+       state,
+       updated_at: new Date().toISOString(),
+       ...(failure ? { failure } : {}),
+     };
+   }
+-  private checkHumanInputObserver() {
++  private checkUserInputObserver() {
+     requireGate(
+-      this.humanInputObserver?.state !== "failed",
+-      "human_input_observer_failed",
+-      this.humanInputObserverStatus(),
++      this.userInputObserver?.state !== "failed",
++      "user_input_observer_failed",
++      this.userInputObserverStatus(),
+     );
+   }
+   taskForThread(thread: string): A2ATask | null {
+@@ -286,7 +306,73 @@ export class A2AGates {
+     }
+     return null;
+   }
+-  recordHumanInput(input: {
++  userInputTarget(thread: string, project?: string | null): A2AUserInput["target"] {
++    const row = this.db
++      .prepare("SELECT data FROM attempts WHERE json_extract(data,'$.thread_id')=?")
++      .get(thread);
++    const attempt = row ? (JSON.parse(String(row.data)) as A2AAttempt) : undefined;
++    const member = this.membership
++      .list()
++      .find((task) => task.members.some((m) => m.threadId === thread));
++    const taskId = attempt?.task_id ?? member?.taskId ?? null;
++    const taskRow = taskId
++      ? this.db.prepare("SELECT data FROM tasks WHERE id=?").get(taskId)
++      : undefined;
++    const task = taskRow ? (JSON.parse(String(taskRow.data)) as A2ATask) : undefined;
++    return {
++      project: task?.project_id ?? member?.projectId ?? project ?? null,
++      task: taskId,
++      attempt: attempt?.attempt_id ?? null,
++      thread,
++      turn: null,
++      message: null,
++      request: null,
++    };
++  }
++  /** Only the WS entry registers these receipts; domain replay never guesses command provenance. */
++  registerUserInputCommand(commandId: string, input: A2AUserInput): void {
++    this.db
++      .prepare("INSERT OR IGNORE INTO user_input_ingress(command_id,data) VALUES (?,?)")
++      .run(commandId, JSON.stringify(input));
++  }
++  userInputCommand(commandId: string): A2AUserInput | undefined {
++    const row = this.db
++      .prepare("SELECT data FROM user_input_ingress WHERE command_id=?")
++      .get(commandId);
++    return row ? (JSON.parse(String(row.data)) as A2AUserInput) : undefined;
++  }
++  userInputCheckpoint(): number | undefined {
++    const row = this.db.prepare("SELECT sequence FROM user_input_checkpoint WHERE id=1").get();
++    return row ? Number(row.sequence) : undefined;
++  }
++  advanceUserInputCheckpoint(sequence: number): void {
++    this.db
++      .prepare(
++        "INSERT INTO user_input_checkpoint(id,sequence) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET sequence=max(sequence,excluded.sequence)",
++      )
++      .run(sequence);
++  }
++  userInputCommands(): ReadonlyArray<{ commandId: string; input: A2AUserInput }> {
++    return this.db
++      .prepare("SELECT command_id,data FROM user_input_ingress ORDER BY rowid")
++      .all()
++      .map((row) => ({
++        commandId: String(row.command_id),
++        input: JSON.parse(String(row.data)) as A2AUserInput,
++      }));
++  }
++  deferUserInput(commandId: string, input: A2AUserInput): void {
++    // The RPC observation is still authoritative while this process retains it.
++    this.deferredUserInputs.set(commandId, input);
++  }
++  flushDeferredUserInputs(): void {
++    for (const [commandId, input] of this.deferredUserInputs) {
++      this.registerUserInputCommand(commandId, input);
++      this.appendUserInput(input, `rpc:${commandId}`);
++      this.deferredUserInputs.delete(commandId);
++    }
++  }
++  recordUserInput(input: {
+     thread_id: string;
+     message_id: string;
+     event_id: string;
+@@ -295,41 +381,32 @@ export class A2AGates {
+     created_at: string;
+     text: string;
+     dispatch_origin: "user";
++    project_id?: string | null;
++    answer?: { request: string; content: unknown };
++    attachments?: unknown;
+   }): boolean {
+-    const row = this.db
+-      .prepare("SELECT data FROM attempts WHERE json_extract(data,'$.thread_id')=?")
+-      .get(input.thread_id);
+-    if (!input.thread_id || !row) return false;
+-    const attempt = JSON.parse(String(row.data)) as A2AAttempt;
+-    // The issue-panel RPC registers its message before dispatch. Replay must
+-    // not turn that answer into another input or intervention.
+-    if (this.db.prepare("SELECT 1 FROM user_inputs WHERE message=?").get(input.message_id))
+-      return false;
+     requireGate(
+       input.event_id && input.message_id && input.dispatch_origin === "user",
+-      "invalid_human_input",
++      "invalid_user_input",
+     );
+-    this.db.exec("BEGIN IMMEDIATE");
+-    try {
+-      const inserted = this.db
+-        .prepare("INSERT OR IGNORE INTO human_inputs(event_id) VALUES (?)")
+-        .run(input.event_id);
+-      if (!inserted.changes) return false;
+-      const inputId = randomUUID();
+-      this.saveUserInput({
+-        id: inputId,
++    // Answer registration suppresses its dispatched message, including replay overlap.
++    if (this.db.prepare("SELECT 1 FROM user_inputs WHERE message=?").get(input.message_id))
++      return false;
++    const target = this.userInputTarget(input.thread_id, input.project_id);
++    return this.appendUserInput(
++      {
++        id: randomUUID(),
+         schema: 1,
+-        form: "message",
++        form: input.answer ? "answer" : "message",
+         text: input.text,
+         target: {
+-          task: attempt.task_id,
+-          attempt: attempt.attempt_id,
+-          thread: input.thread_id,
++          ...target,
+           turn: input.turn_id,
+           message: input.message_id,
++          request: input.answer?.request ?? null,
+         },
+         channel: "thread-message",
+-        reply_to: null,
++        reply_to: input.answer?.request ?? null,
+         source_ref: {
+           message_id: input.message_id,
+           event_id: input.event_id,
+@@ -337,21 +414,55 @@ export class A2AGates {
+         },
+         certainty: "observed",
+         created_at: input.created_at,
+-      });
+-      this.event(
+-        attempt.task_id,
+-        "human_intervention",
+-        {
+-          ...input,
+-          input_id: inputId,
+-          task_id: attempt.task_id,
+-          attempt_id: attempt.attempt_id,
+-          session_id: attempt.session_id,
+-          fence: attempt.fence,
+-          spec_rev: attempt.spec_rev,
+-        },
+-        attempt.attempt_id,
+-      );
++        ...(input.answer
++          ? { content: input.answer.content }
++          : input.attachments
++            ? { content: { attachments: input.attachments } }
++            : {}),
++      },
++      input.event_id,
++    );
++  }
++  appendUserInput(input: A2AUserInput, source: string): boolean {
++    this.db.exec("BEGIN IMMEDIATE");
++    try {
++      const inserted = this.db
++        .prepare("INSERT OR IGNORE INTO user_input_events(event_id) VALUES (?)")
++        .run(source);
++      if (!inserted.changes) return false;
++      this.saveUserInput(input);
++      if (
++        input.target.attempt &&
++        input.target.task &&
++        input.channel !== "ui-derived" &&
++        input.form !== "gap"
++      ) {
++        const row = this.db
++          .prepare("SELECT data FROM attempts WHERE id=?")
++          .get(input.target.attempt)!;
++        const attempt = JSON.parse(String(row.data)) as A2AAttempt;
++        this.event(
++          input.target.task,
++          "human_intervention",
++          {
++            input_id: input.id,
++            task_id: input.target.task,
++            attempt_id: input.target.attempt,
++            thread_id: input.target.thread,
++            turn_id: input.target.turn,
++            message_id: input.target.message,
++            form: input.form,
++            event_id: input.source_ref.event_id ?? input.source_ref.command_id,
++            source_sequence: input.source_ref.source_sequence,
++            session_id: attempt.session_id,
++            fence: attempt.fence,
++            spec_rev: attempt.spec_rev,
++            dispatch_origin: "user",
++            text: input.text,
++          },
++          input.target.attempt,
++        );
++      }
+       this.db.exec("COMMIT");
+       return true;
+     } finally {
+@@ -359,9 +470,15 @@ export class A2AGates {
+     }
+   }
+   private saveUserInput(input: A2AUserInput) {
+-    this.db
+-      .prepare("INSERT INTO user_inputs(id,task,message,data) VALUES (?,?,?,?)")
+-      .run(input.id, input.target.task, input.target.message, JSON.stringify(input));
++    this.db.prepare("INSERT INTO user_inputs(id,task,message,data) VALUES (?,?,?,?)").run(
++      input.id,
++      input.target.task,
++      input.target.message,
++      JSON.stringify({
++        ...input,
++        target: { ...this.userInputTarget(input.target.thread), ...input.target },
++      }),
++    );
+   }
+   private appendIssue(record: A2AIssueRecord) {
+     const ownsTransaction = !this.db.isTransaction;
+@@ -440,7 +557,7 @@ export class A2AGates {
+     requireGate(task, "stale_thread");
+     const lock = this.operationLock(task.task_id);
+     try {
+-      this.checkHumanInputObserver();
++      this.checkUserInputObserver();
+       const current = this.load(task.task_id);
+       const attempt = current.current_attempt;
+       requireGate(
+@@ -748,7 +865,7 @@ export class A2AGates {
+     return { ok: true, ...this.readIssues(args.task) };
+   }
+   private event(task: string, type: string, details: unknown, expectedAttempt?: string | null) {
+-    this.checkHumanInputObserver();
++    this.checkUserInputObserver();
+     const row = this.db.prepare("SELECT data FROM tasks WHERE id=?").get(task);
+     const current = row ? (JSON.parse(String(row.data)) as A2ATask).current_attempt : null;
+     const inserted = this.db
+@@ -773,7 +890,7 @@ export class A2AGates {
+     details: unknown = task,
+     historicalAttempt?: A2AAttempt,
+   ) {
+-    this.checkHumanInputObserver();
++    this.checkUserInputObserver();
+     this.db.exec("BEGIN IMMEDIATE");
+     try {
+       this.db
+@@ -811,7 +928,7 @@ export class A2AGates {
+     cwd: string,
+     env?: NodeJS.ProcessEnv,
+   ): Promise<A2ACommandResult> {
+-    this.checkHumanInputObserver();
++    this.checkUserInputObserver();
+     const command = argv[0];
+     requireGate(command, "invalid_command");
+     this.event(task, "command_intent", { argv, cwd });
+@@ -952,7 +1069,7 @@ export class A2AGates {
+   }
+ 
+   private saveRun(run: A2ARun, type: string) {
+-    this.checkHumanInputObserver();
++    this.checkUserInputObserver();
+     this.db.exec("BEGIN IMMEDIATE");
+     try {
+       this.db
+@@ -987,7 +1104,7 @@ export class A2AGates {
+     );
+   }
+   private async observeRun(run: A2ARun) {
+-    this.checkHumanInputObserver();
++    this.checkUserInputObserver();
+     const attempt = this.current(this.load(run.task_id), run.attempt_id!);
+     let live: Awaited<ReturnType<GateRuntime["readThread"]>>;
+     try {
+@@ -1167,7 +1284,7 @@ export class A2AGates {
+                 ? "integrated_reclaim_failed"
+                 : "paused";
+       run.ended = new Date().toISOString();
+-      if (this.humanInputObserver?.state === "failed") {
++      if (this.userInputObserver?.state === "failed") {
+         // The write that failed may also prevent a final receipt. Keep the last
+         // durable phase and expose the pause; never invent persisted evidence.
+         return { ok: false, error: code, details, run };
+@@ -1181,8 +1298,8 @@ export class A2AGates {
+ 
+   async call(raw: unknown, caller?: SubmitCaller): Promise<A2AGateResult> {
+     const result = await this.request(raw, caller);
+-    const observer = this.humanInputObserverStatus();
+-    return { ...result, ...(observer ? { human_input_observer: observer } : {}) };
++    const observer = this.userInputObserverStatus();
++    return { ...result, ...(observer ? { user_input_observer: observer } : {}) };
+   }
+ 
+   private async request(raw: unknown, caller?: SubmitCaller, run?: A2ARun): Promise<A2AGateResult> {
+@@ -1224,7 +1341,7 @@ export class A2AGates {
+             "stale_thread",
+           );
+       }
+-      this.checkHumanInputObserver();
++      this.checkUserInputObserver();
+       if (args.command === "run") return await this.run(args);
+       // A separate SQLite write transaction is the OS-released task operation lock.
+       // Keep the inode, never unlink it. Main-state reads remain available during an oracle.
+@@ -1303,7 +1420,7 @@ export class A2AGates {
+         if (!actual)
+           await this.git(taskId, repo, ["update-ref", REF, base, "0".repeat(base.length)]);
+         requireGate((await this.integration(task)) === base, "integration_conflict");
+-        this.checkHumanInputObserver();
++        this.checkUserInputObserver();
+         await this.runtime?.ensureProject(task.project_id, repo);
+         this.taskMembership(task);
+         task.state = "ready";
+@@ -1462,7 +1579,7 @@ export class A2AGates {
+           throw new Refusal("worktree_failed");
+         }
+         if (args.command === "dispatch") {
+-          this.checkHumanInputObserver();
++          this.checkUserInputObserver();
+           await this.runtime!.createThread(task, attempt);
+           this.member(task, attempt.thread_id, "worker");
+           const live = await this.runtime!.readThread(attempt.thread_id);
+@@ -1484,7 +1601,7 @@ export class A2AGates {
+         };
+         const prompt = `${readFileSync(task.instructions, "utf8")}\n\nManaged attempt identity: ${JSON.stringify(submit)}\nAfter implementing and committing, explicitly call the a2a_submit MCP tool with this identity and your full commit SHA. Never submit passed=true. Only this tool delivers your work; turn completion does not. Do not modify the contract or any acceptance tool. If any unexpected approval is requested, stop and report it.`;
+         this.event(taskId, "prompt_intent", { thread: attempt.thread_id, prompt });
+-        this.checkHumanInputObserver();
++        this.checkUserInputObserver();
+         await this.runtime!.startThread(task, attempt, prompt);
+         const live = await this.runtime!.readThread(attempt.thread_id);
+         this.checkThread(attempt, live);
+@@ -1765,12 +1882,12 @@ export class A2AGates {
+       requireGate(!live.running, "worker_working");
+       this.event(taskId, "reclaim_intent", { attempt, live }, attempt.attempt_id);
+       if (ownsTask && task.state !== "accepted") this.invalidate(task, "controller reclaim");
+-      this.checkHumanInputObserver();
++      this.checkUserInputObserver();
+       await this.runtime.stopThread(attempt.thread_id);
+       const stopped = await this.runtime.readThread(attempt.thread_id);
+       this.checkThread(attempt, stopped);
+       requireGate(stopped.stopped, "stop_unconfirmed");
+-      this.checkHumanInputObserver();
++      this.checkUserInputObserver();
+       await this.runtime.archiveThread(attempt.thread_id);
+       const archived = await this.runtime.readThread(attempt.thread_id);
+       this.checkThread(attempt, archived);
+@@ -1797,7 +1914,7 @@ export class A2AGates {
+             : "gate_failure";
+       const details = error instanceof Refusal ? error.details : String(error);
+       // A failed observer must remain queryable even when SQLite cannot append.
+-      if (taskId && this.humanInputObserver?.state !== "failed")
++      if (taskId && this.userInputObserver?.state !== "failed")
+         this.event(taskId, "rejected", { error: code, details, input: raw });
+       return { ok: false, error: code, details };
+     } finally {
+diff --git a/packages/a2a-gates/src/issues.test.ts b/packages/a2a-gates/src/issues.test.ts
+index cf05dbfac..10ba2fbed 100644
+--- a/packages/a2a-gates/src/issues.test.ts
++++ b/packages/a2a-gates/src/issues.test.ts
+@@ -297,7 +297,7 @@ test("bundle keeps independent question numbers, exact Unicode text and one nati
+     expect(result.issues!.map((v) => v.state)).toEqual(["已送达", "待判断", "已送达"]);
+     expect((await f.call("status")).task).toEqual(before);
+     expect(
+-      f.gates.recordHumanInput({
++      f.gates.recordUserInput({
+         thread_id: f.worker.thread_id,
+         message_id: f.messages[0]!.messageId,
+         event_id: randomUUID(),
+diff --git a/packages/contracts/src/a2aGates.ts b/packages/contracts/src/a2aGates.ts
+index 44877e7b3..edecde1a6 100644
+--- a/packages/contracts/src/a2aGates.ts
++++ b/packages/contracts/src/a2aGates.ts
+@@ -162,7 +162,7 @@ export interface A2ARun {
+   cleanup_failure?: unknown;
+ }
+ 
+-export interface A2AHumanInputObserver {
++export interface A2AUserInputObserver {
+   state: "starting" | "healthy" | "failed" | "stopped";
+   updated_at: string;
+   failure?: {
+@@ -178,7 +178,7 @@ export interface A2AGateResult {
+   ok: boolean;
+   task?: A2ATask;
+   run?: A2ARun;
+-  human_input_observer?: A2AHumanInputObserver;
++  user_input_observer?: A2AUserInputObserver;
+   attempt?: A2AAttempt;
+   attachment?: A2AAttachment;
+   verification?: A2AVerification;
+@@ -228,14 +228,30 @@ export interface A2AIssueView {
+ export interface A2AUserInput {
+   id: string;
+   schema: 1;
+-  form: "message" | "answer";
++  form: "message" | "answer" | "approval" | "denial" | "choice" | "action" | "gap";
+   text: string;
+-  target: { task: string; attempt: string; thread: string; turn: string | null; message: string };
+-  channel: "thread-message" | "issue-panel";
++  target: {
++    project?: string | null;
++    task: string | null;
++    attempt: string | null;
++    thread: string;
++    turn: string | null;
++    message: string | null;
++    request?: string | null;
++    eventSequence?: number;
++  };
++  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived";
+   reply_to: string | null;
+-  source_ref: { message_id: string; event_id?: string; source_sequence?: number };
++  source_ref: {
++    message_id?: string;
++    event_id?: string;
++    source_sequence?: number;
++    command_id?: string;
++    rpc?: string;
++  };
+   certainty: "observed";
+   created_at: string;
+   bundle_id?: string;
+   question?: { number: number; title: string; body: string };
++  content?: unknown;
+ }
+diff --git a/packages/contracts/src/orchestration.ts b/packages/contracts/src/orchestration.ts
+index 75a0186c6..2582e3179 100644
+--- a/packages/contracts/src/orchestration.ts
++++ b/packages/contracts/src/orchestration.ts
+@@ -1528,12 +1528,14 @@ const ThreadDeleteCommand = Schema.Struct({
+ });
+ 
+ const ThreadArchiveCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.archive"),
+   commandId: CommandId,
+   threadId: ThreadId,
+ });
+ 
+ const ThreadUnarchiveCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.unarchive"),
+   commandId: CommandId,
+   threadId: ThreadId,
+@@ -1736,6 +1738,7 @@ const ThreadClaudeCacheCompactedCommand = Schema.Struct({
+ });
+ 
+ const ThreadTurnInterruptCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.turn.interrupt"),
+   commandId: CommandId,
+   threadId: ThreadId,
+@@ -1744,6 +1747,7 @@ const ThreadTurnInterruptCommand = Schema.Struct({
+ });
+ 
+ const ThreadTaskStopCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.task.stop"),
+   commandId: CommandId,
+   threadId: ThreadId,
+@@ -1784,6 +1788,7 @@ const ThreadDispatchQueuedTurnCommand = Schema.Struct({
+ });
+ 
+ const ThreadApprovalRespondCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.approval.respond"),
+   commandId: CommandId,
+   threadId: ThreadId,
+@@ -1794,6 +1799,7 @@ const ThreadApprovalRespondCommand = Schema.Struct({
+ });
+ 
+ const ThreadUserInputRespondCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.user-input.respond"),
+   commandId: CommandId,
+   threadId: ThreadId,
+@@ -1804,6 +1810,7 @@ const ThreadUserInputRespondCommand = Schema.Struct({
+ });
+ 
+ const ThreadCheckpointRevertCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.checkpoint.revert"),
+   commandId: CommandId,
+   threadId: ThreadId,
+@@ -1822,6 +1829,7 @@ const ThreadConversationRollbackCommand = Schema.Struct({
+ });
+ 
+ const ThreadMessageEditAndResendCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.message.edit-and-resend"),
+   commandId: CommandId,
+   threadId: ThreadId,
+@@ -1839,6 +1847,7 @@ const ThreadMessageEditAndResendCommand = Schema.Struct({
+ });
+ 
+ const ThreadSessionStopCommand = Schema.Struct({
++  origin: Schema.optional(Schema.Literal("ui-derived")),
+   type: Schema.Literal("thread.session.stop"),
+   commandId: CommandId,
+   threadId: ThreadId,
