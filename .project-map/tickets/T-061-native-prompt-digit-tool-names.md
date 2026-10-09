@@ -27,3 +27,5 @@ T-055 的范围外发现（收件箱 `20261009T115645Z-worker:t055-issue-001`，
 - 授权来源：用户 2026-10-09 对该问题上报选 B，逐字："问题 1：B"（权限解析所在的上游文件，已获用户授权）。不在关键路径上，排在 T-056～T-058 之后或插空；也可整理成通用修复回馈 Synara 上游。
 
 ## Resolution
+
+2026-10-09 worker：**BLOCKED**，依据 ready_rev 1；ticket 保持 open，待主控决定与关闭。已保留两个 a2a 工具缺字段时的 4 个预期失败、44 个通过及 116 个目录名字的逐项父修订观测。目录中的 `synara_e2e_review` 也含数字、缺字段时同样 pending；通用修复会改变它，和“其他工具逐一相同”的验收冲突，阻塞上报 `20261009T130400Z-worker:s11-t061-issue-001`。未修改解析器。fork 红态测试快照 `1ec64d866c6a37985ddfada5f22c39f9fcb15e54`，只有 `raise-permission.test.ts`；不是通过候选，不供集成。完整证据、重放命令和未执行检查见 [RESULTS](../../evidence/2026-10-09-batch11/T-061/RESULTS.md)。另有非阻塞 submit 身份问题 `20261009T130123Z-worker:s11-t061-issue-001`；未擅自创建/接管 attempt。
