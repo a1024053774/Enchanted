@@ -29,3 +29,5 @@ T-055 的范围外发现（收件箱 `20261009T115645Z-worker:t055-issue-001`，
 ## Resolution
 
 2026-10-09 worker：**BLOCKED**，依据 ready_rev 1；ticket 保持 open，待主控决定与关闭。已保留两个 a2a 工具缺字段时的 4 个预期失败、44 个通过及 116 个目录名字的逐项父修订观测。目录中的 `synara_e2e_review` 也含数字、缺字段时同样 pending；通用修复会改变它，和“其他工具逐一相同”的验收冲突，阻塞上报 `20261009T130400Z-worker:s11-t061-issue-001`。未修改解析器。fork 红态测试快照 `1ec64d866c6a37985ddfada5f22c39f9fcb15e54`，只有 `raise-permission.test.ts`；不是通过候选，不供集成。完整证据、重放命令和未执行检查见 [RESULTS](../../evidence/2026-10-09-batch11/T-061/RESULTS.md)。另有非阻塞 submit 身份问题 `20261009T130123Z-worker:s11-t061-issue-001`；未擅自创建/接管 attempt。
+
+2026-10-09 恢复 worker s11-t061b：**PASS**，依据 ready_rev 2，ticket 保持 open，待主控关闭。fork 候选 `aff04b5f05fefc1113cdad876b18917f387dc975` 仅改解析字符范围与测试；新增第三个目录数字名字的红绿，合计红态 6 个预期业务失败/57 通过、绿态 63/63 通过。116 个名字同探针对照：仅 `a2a_submit`、`a2a_raise`、`synara_e2e_review` 的缺字段帧由 pending 转为单次 accept，其余 113 个逐项不变，目录与授权条件未改。相关套件 295 通过、2 个真实 Codex resume 用例按配置跳过；fmt:check、lint、typecheck 均退出 0；一次 fixed-candidate fresh-context 审查 PASS。中文报告、精确命令、收据、反例及局限见 [恢复结果](../../evidence/2026-10-09-batch11/T-061/RESULTS-resume.md)。按恢复 brief 做 Herdr 期提交与终端 DONE 交付，不走门禁 submit，未验收/集成；新问题上报 0，旧证据与条目保留。

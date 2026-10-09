@@ -1,0 +1,23 @@
+{
+  "task": "T-061",
+  "ready_rev": 2,
+  "worker": "s11-t061b",
+  "cwd": "/Users/luckye/Documents/Code/synara-t045",
+  "argv": [
+    "./a2a/scripts/bun",
+    "run",
+    "--cwd",
+    "apps/server",
+    "test",
+    "src/codexAppServerManager.test.ts",
+    "src/agentGateway/computerToolPermission.test.ts",
+    "src/a2a/raise-permission.test.ts",
+    "--reporter=verbose"
+  ],
+  "A2A_SYNARA_SLOT": "t061",
+  "started_at": "2026-10-09T13:13:50.059992+00:00",
+  "fork_revision": "1ec64d866c6a37985ddfada5f22c39f9fcb15e54",
+  "fork_diff": "diff --git a/apps/server/src/a2a/raise-permission.test.ts b/apps/server/src/a2a/raise-permission.test.ts\nindex a46e3132a..563c948f7 100644\n--- a/apps/server/src/a2a/raise-permission.test.ts\n+++ b/apps/server/src/a2a/raise-permission.test.ts\n@@ -155,12 +155,14 @@ describe(\"a2a_raise native approval contract\", () => {\n \n // T-061 failure list: digit names rejected; absent/stale identity or grant\n // accepted; unknown digit names accepted; prose or metadata precedence widened.\n-describe(\"a2a digit names without native tool_name\", () => {\n+describe(\"gateway digit names without native tool_name\", () => {\n   it.each([\n     [\"a2a_raise\", \"full-access\", false],\n     [\"a2a_submit\", \"full-access\", false],\n     [\"a2a_raise\", \"approval-required\", true],\n     [\"a2a_submit\", \"approval-required\", true],\n+    [\"synara_e2e_review\", \"full-access\", false],\n+    [\"synara_e2e_review\", \"approval-required\", true],\n   ] as const)(\n     \"accepts %s in %s with coordinator grant=%s once without persistence\",\n     async (toolName, runtimeMode, grant) => {\n@@ -193,7 +195,9 @@ describe(\"a2a digit names without native tool_name\", () => {\n     \"unrelated-digit-tool\",\n   ];\n   it.each(\n-    [\"a2a_raise\", \"a2a_submit\"].flatMap((tool) => conditions.map((condition) => [tool, condition])),\n+    [\"a2a_raise\", \"a2a_submit\", \"synara_e2e_review\"].flatMap((tool) =>\n+      conditions.map((condition) => [tool, condition]),\n+    ),\n   )(\"keeps %s interactive without tool_name for %s\", async (toolName, condition) => {\n     const f = fixture(toolName);\n     Reflect.deleteProperty(f.params._meta, \"tool_name\");\ndiff --git a/apps/server/src/codexAppServerManager.ts b/apps/server/src/codexAppServerManager.ts\nindex 58cfac920..f69726e32 100644\n--- a/apps/server/src/codexAppServerManager.ts\n+++ b/apps/server/src/codexAppServerManager.ts\n@@ -4987,7 +4987,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve\n     // Current Codex builds omit tool_name from native MCP approvals. Accept\n     // only their complete generated message, after checking the reserved\n     // server and native approval kind above; never infer from descriptions.\n-    const name = /^Allow the synara MCP server to run tool \"([a-z_]+)\"\\?$/.exec(\n+    const name = /^Allow the synara MCP server to run tool \"([a-z0-9_]+)\"\\?$/.exec(\n       this.readString(params, \"message\") ?? \"\",\n     )?.[1];\n     return name === undefined ? undefined : `mcp__synara__${name}`;\n",
+  "exit_code": 0,
+  "ended_at": "2026-10-09T13:14:14.680476+00:00"
+}

@@ -41,3 +41,7 @@ A2A_SYNARA_SLOT=t061 ./a2a/scripts/bun /Users/luckye/Documents/Code/a2a/evidence
 未执行解析修复、绿态、前后目录对照、更广既有套件、typecheck/lint/fmt:check、最终独立审查、门禁 submit/验收/集成。未停止或重启服务，未读取正式工作台数据，未改用户配置，没有 push。
 
 请主控明确：是否允许目录中已有的 `synara_e2e_review` 同样修复，并让其余 113 个工具前后保持一致；或明确批准保留其确认的工具级解析特例。收到更新的 ready_rev 与口径后再恢复实现。本票不因已保留红态而宣称 PASS。
+
+## 后续恢复入口（ready_rev 2）
+
+以上为上一轮 BLOCKED 截止记录，原样保留。主控修订验收并明确 Herdr 期交付方式后，s11-t061b 已恢复执行；当前恢复结论 **PASS**，fork 候选 `aff04b5f05fefc1113cdad876b18917f387dc975`，见 [RESULTS-resume.md](RESULTS-resume.md)。ticket 仍 open，待主控关闭；本地交付不替代主控验收或集成。
