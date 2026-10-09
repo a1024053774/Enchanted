@@ -4,7 +4,7 @@ a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。
 
 工作台基于 Synara 的 fork（[`a1024053774/synara`](https://github.com/a1024053774/synara)，起点 v1.0.1-beta.2），按“项目 → 任务 → agent 会话”组织。原生门禁在 fork 的服务端实现；fork 单独 clone，本仓库保管规范、门禁契约、验收场景与证据。目标与 M1 见 [intent.md](intent.md)，切换进度见 [T-040](.project-map/tickets/T-040-switchover.md)。
 
-旧运行源码与 Rust 构建入口已删除。历史实现保存在 Git 历史和日期证据中。工作台专用数据目录、启动器及首次日常派发由 T-040 的其余部分交付；A 部分的隔离验收不代表这些工作已经完成。
+旧运行源码与 Rust 构建入口已删除，历史实现保存在 Git 历史和日期证据中。工作台启动器与专用数据目录见 fork 的 `a2a/WORKBENCH.md`；第一次经工作台门禁的真实派发已由 T-046 跑通（2026-10-09）。用户认为工作台可用之前，日常派发仍经 Herdr（见 AGENTS.md）。
 
 文档入口：[项目地图](.project-map/MAP.md)、[术语表](CONTEXT.md)、[项目规则](AGENTS.md)、[开发发现](findings/README.md)。
 
