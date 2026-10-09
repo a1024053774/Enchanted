@@ -1,0 +1,29 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/default
+79 | } finally {
+80 |   writeFileSync(join(out,label+".json"),JSON.stringify({argv:process.argv.slice(1),profile,
+81 |     fork:"d9fc40a5f8b14d22ec7568c7ccef542572e79102",failure,observations,diagnostics},null,2)+"\n",{flag:"wx"});
+82 |   await context.close();
+83 | }
+84 | if (failure) throw new Error(failure);
+                            ^
+error: Error: expect(locator).toHaveCount(expected) failed
+
+Locator:  getByRole('main', { name: '任务窗口', exact: true }).locator('[data-a2a-pane=\'3d4542d2-ba77-4248-bfce-e7ad1cc1a600\']').getByRole('complementary', { name: '问题上报', exact: true }).locator('article')
+Expected: 5
+Received: 3
+
+Call log:
+  - Expect "to.have.count" with timeout 30000ms
+  - waiting for getByRole('main', { name: '任务窗口', exact: true }).locator('[data-a2a-pane=\'3d4542d2-ba77-4248-bfce-e7ad1cc1a600\']').getByRole('complementary', { name: '问题上报', exact: true }).locator('article')
+    36 × locator resolved to 3 elements
+       - unexpected value "3"
+  - Protocol error (Runtime.callFunctionOn): Internal server error, session closed.
+
+    at captureRawStack (/Users/luckye/Documents/Code/synara/node_modules/.bun/playwright-core@1.62.1/node_modules/playwright-core/lib/coreBundle.js:9681:21)
+    at callMatcherAsStep (/Users/luckye/Documents/Code/synara/node_modules/.bun/playwright@1.62.1/node_modules/playwright/lib/matchers/expect.js:13310:57)
+    at openPanel (/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-062/panel-title-red.mjs:26:42)
+    at processTicksAndRejections (native:7:39)
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-062/panel-title-red.mjs:84:24
+
+Bun v1.4.2 (macOS arm64)
+error: "node" exited with code 1

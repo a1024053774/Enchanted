@@ -1,0 +1,9 @@
+T-062 范围外诊断：隔离 dev UI 使用已有 Chrome profile 重开后停在启动画面。
+
+位置：`evidence/2026-10-09-batch11/T-062/green02.json` 的失败和 `resume01.json` 的六次观察；`resume01-5.png`。重放命令见 `resume01-command.json`，隔离根为 `/Volumes/WD-Elements/dev-cache/synara/instances/t062-probe01`。
+
+首次启动的新 profile 能显示真实任务窗口和问题上报；等待 Activity 提示关闭后，标题无遮挡。重开 `browser-green02` 后，页面只显示启动 logo，连续约 11 秒观察的 body 文本为空，无 pageerror。localStorage 中导览、项目导入和 Activity 的已看标记均已持久化。此前 reload/reopen 的主界面等待也失败，现场未删除。
+
+这不能证明正式工作台有相同问题；正式实例未访问。隔离 server/web 仍由本 worker 的两个进程监听 7977/7978，健康页和 HTML 均返回 200。原因尚未查明，可能涉及持久浏览器状态与连接/启动门控。它不属于标题遮挡修复，不能靠改 SQLite 或自动重置 profile 掩盖。
+
+建议另建缺陷调查任务，检查持久 profile 的连接与 hydration。T-062 继续只证明首次使用提示自然结束后的截图无标题遮挡；不声称重开行为通过。本上报不阻塞该范围内的夹具修正。
