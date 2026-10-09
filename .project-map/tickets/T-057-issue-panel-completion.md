@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 1
+ready_rev: 2
 ---
 
 ## What to build
@@ -32,6 +32,7 @@ ready_rev: 1
 - [ ] 送达：已送达的题派生为"已送达"；会话已结束时不送达，答复照记，并对执行主控产生一条 `forward`（理由 `session-ended`），在其未确认列表里可见。
 - [ ] 关闭告知：issue 被关闭后不单独起 turn；提问会话的下一条经面板或门禁送达的消息末尾附一段告知（格式见 spec 第 4 节），只附一次。
 - [ ] 通知：应用不在前台时，对 blocking 和新的"等你决定"发系统通知（同一批合并），不发声音，设置里可关。
+- [ ] 面板高度随内容增长或可滚动：多题时每一题的"发送答复"/"打包发送"按钮都完整可见、可点击，不被面板底边截断（T-055 面板截图里第二题按钮被截掉一半；用户 2026-10-09 要求修，逐字："T-057 也修"）。截图作证。
 - [ ] 既有套件、typecheck、lint 通过；对上游文件的改动列清单。
 
 ## 说明
@@ -39,6 +40,6 @@ ready_rev: 1
 - 开工前对照 T-055 的实际结果重读 spec；发现不符，停下发 `needs-decision`，不绕开。
 - 失败方式清单（处理方式写进 RESULTS）：同一题被两个窗口同时答复；答复送达时会话正在跑 turn；会话在送达前结束；关闭与答复交叠；时钟回拨；正文含与格式分隔相同的文字（原样保留，不转义）。
 - 与 [T-056](T-056-user-input-coverage.md)、[T-058](T-058-server-inbox-capabilities-wake.md) 会改同一批文件，同一文件同一时间只能有一个写入者，由执行主控串行安排。
-- 授权来源：`ready_by: ideation`，`ready_rev: 1`。
+- 授权来源：`ready_by: ideation`，`ready_rev: 2`（2026-10-09 增加按钮不被截断一项，见 revise 条目）。
 
 ## Resolution
