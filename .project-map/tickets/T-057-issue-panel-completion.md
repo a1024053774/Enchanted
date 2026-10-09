@@ -4,7 +4,7 @@ title: 问题上报面板完整化：处置、视图、草稿、逐个与打包�
 type: build
 status: open
 blocked_by: [T-055]
-claimed_by:
+claimed_by: s11-t057
 supersedes:
 ready: yes
 ready_by: ideation
