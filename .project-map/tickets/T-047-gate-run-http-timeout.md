@@ -4,7 +4,7 @@ title: 门禁 CLI 经 HTTP 调用 run 时提前超时
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Codex T-047 worker
 supersedes:
 ---
 

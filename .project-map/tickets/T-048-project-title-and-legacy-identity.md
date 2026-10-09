@@ -2,7 +2,7 @@
 id: T-048
 title: 门禁自动建项目的标题与启动器旧记录兼容代码
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -16,11 +16,13 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 门禁 create 新建的项目在侧栏显示有意义的名称；已有项目不受影响。
-- [ ] `launch-workbench.mjs` 写入的身份在任何调用者 locale 下与 `workbench_runtime.py` 读取的格式一致（用临时数据目录与受控子进程验证，不启动正式工作台）；工作台重启后新记录为新格式，删除兼容分支后 `acceptance/workbench_identity_oracle.py` 中新格式与拒绝用例仍通过（旧格式用例相应调整并说明）。
+- [x] 门禁 create 新建的项目在侧栏显示有意义的名称；已有项目不受影响。
+- [x] `launch-workbench.mjs` 写入的身份在任何调用者 locale 下与 `workbench_runtime.py` 读取的格式一致（用临时数据目录与受控子进程验证，不启动正式工作台）；工作台重启后新记录为新格式，删除兼容分支后 `acceptance/workbench_identity_oracle.py` 中新格式与拒绝用例仍通过（旧格式用例相应调整并说明）。
 
 ## Resolution
 
 **PASS（worker 实现与隔离验收）；待主控关闭。** fork 提交 `42376b018616d56a2f0774913bf85c7a9cf82940`：新项目标题直接取 create 请求中的 project id，已有项目不改名；身份写入与读取统一 `LC_ALL=C`，删除 locale 遍历兼容分支。项目标题取得父版本红态并通过真实门禁/原生 SQLite 侧栏快照复验；相关服务测试 11/11，实际 launcher 写入与 status 读取 oracle 红态 50/61、绿态 61/61。
 
 报告、原始输出、精确命令、完整测试夹具归档与 oracle 快照/patch 见 [T-048 RESULTS](../../evidence/2026-10-09-batch7/T-048/RESULTS.md)。按任务书提交范围，`acceptance/workbench_identity_oracle.py` 的已验证源文件改动留给主控单独收录。正式工作台未停止或重启；主控仍须用旧代码停止、更新后启动并核对新记录，取得正式验收/集成证据后关闭 ticket。验收框保持未勾选，避免把 worker 隔离结果写成正式迁移完成。
+
+**主控关闭（2026-10-09，Claude Code）：PASS。** fork `42376b0`（分支 `a2a`），证据 `c3cf7a7`，见 [交付记录](../../evidence/2026-10-09-batch7/T-048/RESULTS.md)。新项目以 create 请求的 project id 命名（父版本红态、真实投影读回绿态）；启动器写入与读取统一在 `LC_ALL=C` 下采集身份，删除遍历 locale 的兼容分支；身份 oracle 61/61（父版本 50/61）。正式工作台迁移由主控完成：新代码先按合同拒绝了旧中文记录；主控临时恢复两份旧脚本停止工作台，恢复新代码后启动（PID 4279），新记录为 C 格式，`workbench status` 在 zh_CN 与 en_US 下均识别。限制：项目名称未做界面截图。
