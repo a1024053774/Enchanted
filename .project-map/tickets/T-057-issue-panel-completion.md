@@ -43,3 +43,5 @@ ready_rev: 2
 - 授权来源：`ready_by: ideation`，`ready_rev: 2`（2026-10-09 增加按钮不被截断一项，见 revise 条目）。
 
 ## Resolution
+
+2026-10-09，worker `s11-t057`：**BLOCKED，待主控决定，保持 open、待主控关闭**。按 `ready_rev: 2` 完成开工对照和只读定位，未修改产品代码。项目侧栏徽标、全局通知和 MCP 处置需要四处指定目录外的上游接入，任务书要求先停下说明；详见 [决定请求](../../evidence/2026-10-09-batch11/T-057/needs-decision.md)、[RESULTS](../../evidence/2026-10-09-batch11/T-057/RESULTS.md)。验收项均未完成，不勾选；接入获批后继续先红后绿。

@@ -2,7 +2,7 @@
 id: T-061
 title: 原生提示解析放宽到允许数字，a2a 工具缺 tool_name 时也免确认
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: s11-t061b
 supersedes:
@@ -17,10 +17,10 @@ T-055 的范围外发现（收件箱 `20261009T115645Z-worker:t055-issue-001`，
 
 ## Acceptance
 
-- [ ] 红态在先：沿用 T-055 的 13 项探针，缺 `tool_name` 的帧下 `a2a_submit`、`a2a_raise` 仍弹确认，用例失败；保存输出与重放命令。
-- [ ] 修复后这两个工具在该帧下按既有条件（受管 worker、有效身份、活跃 turn、已授权自动批准）免确认；非受管会话、非活跃 turn、目录外的名字（含带数字的目录外名字）仍要提示，反例逐条。
-- [ ] 目录内除 `synara_e2e_review` 外的其余 113 个工具，免确认结果与修复前逐一相同，列出对照表；已在目录中的 `synara_e2e_review` 同样被修复（缺 `tool_name` 帧下免确认），补它的红绿证据；目录成员与授权条件不变（用户 2026-10-09 选 1）。
-- [ ] 改动限于该解析与其测试，列入上游文件改动清单；既有套件、typecheck、lint 通过。
+- [x] 红态在先：沿用 T-055 的 13 项探针，缺 `tool_name` 的帧下 `a2a_submit`、`a2a_raise` 仍弹确认，用例失败；保存输出与重放命令。
+- [x] 修复后这两个工具在该帧下按既有条件（受管 worker、有效身份、活跃 turn、已授权自动批准）免确认；非受管会话、非活跃 turn、目录外的名字（含带数字的目录外名字）仍要提示，反例逐条。
+- [x] 目录内除 `synara_e2e_review` 外的其余 113 个工具，免确认结果与修复前逐一相同，列出对照表；已在目录中的 `synara_e2e_review` 同样被修复（缺 `tool_name` 帧下免确认），补它的红绿证据；目录成员与授权条件不变（用户 2026-10-09 选 1）。
+- [x] 改动限于该解析与其测试，列入上游文件改动清单；既有套件、typecheck、lint 通过。
 
 ## 说明
 
@@ -31,3 +31,5 @@ T-055 的范围外发现（收件箱 `20261009T115645Z-worker:t055-issue-001`，
 2026-10-09 worker：**BLOCKED**，依据 ready_rev 1；ticket 保持 open，待主控决定与关闭。已保留两个 a2a 工具缺字段时的 4 个预期失败、44 个通过及 116 个目录名字的逐项父修订观测。目录中的 `synara_e2e_review` 也含数字、缺字段时同样 pending；通用修复会改变它，和“其他工具逐一相同”的验收冲突，阻塞上报 `20261009T130400Z-worker:s11-t061-issue-001`。未修改解析器。fork 红态测试快照 `1ec64d866c6a37985ddfada5f22c39f9fcb15e54`，只有 `raise-permission.test.ts`；不是通过候选，不供集成。完整证据、重放命令和未执行检查见 [RESULTS](../../evidence/2026-10-09-batch11/T-061/RESULTS.md)。另有非阻塞 submit 身份问题 `20261009T130123Z-worker:s11-t061-issue-001`；未擅自创建/接管 attempt。
 
 2026-10-09 恢复 worker s11-t061b：**PASS**，依据 ready_rev 2，ticket 保持 open，待主控关闭。fork 候选 `aff04b5f05fefc1113cdad876b18917f387dc975` 仅改解析字符范围与测试；新增第三个目录数字名字的红绿，合计红态 6 个预期业务失败/57 通过、绿态 63/63 通过。116 个名字同探针对照：仅 `a2a_submit`、`a2a_raise`、`synara_e2e_review` 的缺字段帧由 pending 转为单次 accept，其余 113 个逐项不变，目录与授权条件未改。相关套件 295 通过、2 个真实 Codex resume 用例按配置跳过；fmt:check、lint、typecheck 均退出 0；一次 fixed-candidate fresh-context 审查 PASS。中文报告、精确命令、收据、反例及局限见 [恢复结果](../../evidence/2026-10-09-batch11/T-061/RESULTS-resume.md)。按恢复 brief 做 Herdr 期提交与终端 DONE 交付，不走门禁 submit，未验收/集成；本轮新问题上报 1（非阻塞）：`20261009T132317Z-worker:s11-t061b-issue-001`，共享 index 被主控并发提交带入其他提交，完整证据已保留并校正交付记录；旧证据与条目保留。
+
+**执行主控关闭（2026-10-09）：PASS，依据 ready_rev 2。** fork 候选 `aff04b5`（worktree `synara-t045` 分支 `a2a-t061`），证据至 `d5ff0f0`，见 [恢复结果](../../evidence/2026-10-09-batch11/T-061/RESULTS-resume.md) 与 [独立审查](../../evidence/2026-10-09-batch11/T-061/acceptance-review-resume.md)。生产改动只有 `codexAppServerManager.ts` 中原生提示工具名字符范围 `[a-z_]`→`[a-z0-9_]`；116 个目录工具对照：显式字段帧全部不变，缺字段帧仅 `a2a_submit`、`a2a_raise`、`synara_e2e_review` 由待确认变为单次 accept，其余 113 个逐项一致；红态 6 失败→绿态 63/63，身份与授权反例逐条保持；相关套件 295 通过，fmt/lint/typecheck 通过。上一轮 BLOCKED（验收口径冲突，用户选 1）保留。合并进 fork `a2a`：待 T-057 在同一 checkout 交付后进行，合并后重跑 typecheck。
