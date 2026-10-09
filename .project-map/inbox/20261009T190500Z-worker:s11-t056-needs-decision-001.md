@@ -1,0 +1,36 @@
+---
+from: "worker:s11-t056"
+to: "executor"
+kind: "needs-decision"
+reply_to: ""
+refs: ["ticket:T-056", "commit:2ad957d359281215ad3bf21fe47595ad6ad39c80"]
+created_at: "2026-10-09T19:05:00.944780Z"
+schema: 1
+title: "T-056 新入口范围待决定，候选已保留"
+id: "20261009T190500Z-worker:s11-t056-needs-decision-001"
+---
+
+# T-056：新界面入口绕过记录点，待决定后继续
+
+状态：**BLOCKED**。依据 ready_rev 2。已有代码候选为 fork `2ad957d359281215ad3bf21fe47595ad6ad39c80`；不是已验收交付，未向业务门禁 submit。没有改正式数据或工作台。以下发现后停止产品编辑，保留当前候选与现场。
+
+## 需要决定的入口
+
+真实代码链为：`apps/web/src/components/chat/ThreadErrorBanner.tsx:116` 的 Unblock 按钮 → `useThreadUnblock.ts:53` → `lib/threadUnblock.ts:61` → WS `orchestration.reconcileProviderDelivery` → `apps/server/src/wsRpc.ts:1449`。调用内容是 `eventSequence / threadId / expectedState / outcome: abandon`，不是 `dispatchCommand`。它也不是 `prepareQuitResume`。该 handler 没有用户输入记录挂接。
+
+这是源码中的用户操作入口与传输链，未执行真实解除阻塞或重发消息，不把静态发现写成运行验收。原文与版本见 `ui-path-scope-25.json`。不能把按钮操作按内容猜成普通消息、自动化或已有停止命令。
+
+brief 第 5 行只批准 `dispatchCommand` 和 `prepareQuitResume` 各挂一次。第 11 行要求："发现 spec 与已建成的行为不符：停下，向主控说明（主控写 needs-decision），不绕开。" spec 第 3 节观测点 4 要求发现界面绕过入口后提给核心。当前不能自行给第三个 RPC 加挂接或改变记录范围。
+
+请主控核对：Unblock 是否属于本票的用户输入覆盖范围。若属于，明确额外入口的授权，以及一条输入对应单次按钮操作还是每个 blocker 的请求（现有 UI 会循环发出请求）；若不属于，明确后续责任与本票验收边界。后一种不能由 worker 自行缩小规格。
+
+## 同时保留的已知缺口
+
+- `apps/web/src/components/BranchToolbar.tsx:343/:393`：工作目录/工作树切换时自动派发 `thread.session.stop`，没有 `origin`。当前会被记录成缺省用户 action。这两个点属于已批准的自动派生点类别；在新绕过路径触发停止前尚未补齐，恢复后应加 `ui-derived`，业务停止逻辑不改。
+- `recordQuitResumeInput` 对普通非受管 thread 的 `target.project` 取自门禁绑定，可能为 null，尽管服务端 thread 快照已有 projectId。`boundaries-14/after-restart-inputs.json` 的 prepareQuitResume 记录可见该值；建议恢复后补齐已知项目键并加字段断言。这是记录关联字段的核对项，不是来源含义判断。
+
+## 审查与提交状态
+
+唯一一次 fresh-context 审查固定 `c7aaaa433`，返回 **FAIL/P1**：非受管补录失败被无关受管元数据事件错误升级为 fail-closed。原结论在 `acceptance-review-18.md` 保留。已在本票范围内修复，真实入口红绿及进度表故障的范围反例见 `scope-18/`、`scope-19/`、`scope-22/`、`checkpoint-21/`、`checkpoint-23/`；后续候选不能继承该审查结论。brief 限一次独立审查，未自行再次启动。
+
+submit 身份与传输仍未提供：问题 `20261009T175417Z-worker:s11-t056-issue-001`，交执行主控的条目 `20261009T180305Z-worker:s11-t056-needs-decision-001`。当前只有代码候选与证据报告，不能把它们称为门禁 submit 收据。

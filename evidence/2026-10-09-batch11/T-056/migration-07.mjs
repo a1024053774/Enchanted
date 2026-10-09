@@ -1,0 +1,27 @@
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { A2AGates } from '/Users/luckye/Documents/Code/synara/packages/a2a-gates/src/core.ts';
+const root=process.argv[2], out=process.argv[3];
+const dbpath=join(root,'state.sqlite3');
+const rows=()=>{ const db=new DatabaseSync(dbpath); const r={inputs:db.prepare('SELECT id,task,message,data FROM user_inputs ORDER BY rowid').all(),ledger:db.prepare("SELECT event_id FROM human_inputs ORDER BY event_id").all()};db.close();return r; };
+const before=rows();
+const original=DatabaseSync.prototype.exec;
+DatabaseSync.prototype.exec=function(sql){const result=original.call(this,sql);if(sql.includes('CREATE TABLE user_inputs_bundle')) throw new Error('T056 migration interruption after rebuild before commit');return result;};
+let interrupted;
+try{new A2AGates(root);}catch(error){interrupted=String(error);}
+DatabaseSync.prototype.exec=original;
+const afterInterrupted=rows();
+if(!interrupted?.includes('T056 migration interruption')) throw new Error('fault not reached');
+if(JSON.stringify(before)!==JSON.stringify(afterInterrupted)) throw new Error('migration rollback changed legacy records');
+const first=new A2AGates(root); first.close();
+let db=new DatabaseSync(dbpath);
+const afterFirst=db.prepare('SELECT id,task,message,data FROM user_inputs ORDER BY rowid').all();
+const ledger=db.prepare('SELECT event_id FROM user_input_events ORDER BY event_id').all();
+const oldTable=db.prepare("SELECT 1 FROM sqlite_master WHERE name='human_inputs'").get();
+const columns=db.prepare('PRAGMA table_info(user_inputs)').all();db.close();
+const second=new A2AGates(root);second.close();
+db=new DatabaseSync(dbpath);const afterSecond=db.prepare('SELECT id,task,message,data FROM user_inputs ORDER BY rowid').all();db.close();
+if(JSON.stringify(before.inputs)!==JSON.stringify(afterFirst)||JSON.stringify(afterFirst)!==JSON.stringify(afterSecond)||JSON.stringify(before.ledger)!==JSON.stringify(ledger)||oldTable)throw new Error('historical records not preserved or migration not idempotent');
+if(columns.some(c=>(c.name==='task'||c.name==='message')&&c.notnull))throw new Error('ordinary/action records still require task/message');
+writeFileSync(out,JSON.stringify({status:'PASS',root,before,afterInterrupted,afterFirst,afterSecond,ledger,columns,interrupted,limits:'Fault is injected in actual SQLite exec after migration DDL and before COMMIT; verifies transaction rollback and re-run, not OS crash timing.'},null,2)+'\n');

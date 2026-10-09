@@ -1,0 +1,49 @@
+{
+  "status": "BLOCKED",
+  "layer": "static source inspection only",
+  "fork": "2ad957d359281215ad3bf21fe47595ad6ad39c80",
+  "records": [
+    {
+      "path": "apps/web/src/components/chat/ThreadErrorBanner.tsx",
+      "first": 108,
+      "last": 124,
+      "source": "108:               Change model\n109:             </Button>\n110:           ) : null}\n111:           {canUnblock ? (\n112:             <Button\n113:               size=\"xs\"\n114:               variant=\"destructive-outline\"\n115:               disabled={unblocking}\n116:               onClick={() => onUnblock?.()}\n117:             >\n118:               {unblocking ? \"Unblocking…\" : \"Unblock thread\"}\n119:             </Button>\n120:           ) : null}\n121:         </div>\n122:       </AlertDescription>\n123:       {onDismiss ? (\n124:         <AlertAction className=\"items-center\">"
+    },
+    {
+      "path": "apps/web/src/hooks/useThreadUnblock.ts",
+      "first": 38,
+      "last": 62,
+      "source": "38:     return () => {\n39:       mountedRef.current = false;\n40:     };\n41:   }, []);\n42: \n43:   const unblockThread = useCallback(\n44:     (targetThreadId?: ThreadId) => {\n45:       const resolvedThreadId = resolveThreadUnblockTarget(targetThreadId, threadId);\n46:       if (!resolvedThreadId || inFlightThreadIdRef.current !== null) return;\n47:       inFlightThreadIdRef.current = resolvedThreadId;\n48:       setUnblockingThreadId(resolvedThreadId);\n49:       void (async () => {\n50:         try {\n51:           const api = readNativeApi();\n52:           if (!api) throw new Error(\"Not connected to the Synara server.\");\n53:           const result = await unblockThreadFromClient(api.orchestration, resolvedThreadId);\n54:           onUnblocked(resolvedThreadId);\n55:           toastManager.add(describeThreadUnblockResult(result));\n56:         } catch (error) {\n57:           toastManager.add({\n58:             type: \"error\",\n59:             title: \"Could not unblock thread\",\n60:             description:\n61:               error instanceof Error\n62:                 ? error.message"
+    },
+    {
+      "path": "apps/web/src/lib/threadUnblock.ts",
+      "first": 49,
+      "last": 70,
+      "source": "49: export async function unblockThreadFromClient(\n50:   api: ThreadUnblockApi,\n51:   threadId: ThreadId,\n52: ): Promise<ThreadUnblockResult> {\n53:   const blockers = await api.listProviderDeliveryBlockers({ threadId });\n54:   if (blockers.length === 0) return { kind: \"already-clear\" };\n55: \n56:   const ordered = blockers.toSorted((left, right) => left.eventSequence - right.eventSequence);\n57:   let reconciledCount = 0;\n58:   let conflictCount = 0;\n59:   for (const blocker of ordered) {\n60:     try {\n61:       await api.reconcileProviderDelivery({\n62:         eventSequence: blocker.eventSequence,\n63:         threadId,\n64:         expectedState: blocker.state,\n65:         outcome: \"abandon\",\n66:         note: UNBLOCK_NOTE,\n67:       });\n68:       reconciledCount += 1;\n69:     } catch (error) {\n70:       if (!isProviderDeliveryReconciliationConflict(error)) throw error;"
+    },
+    {
+      "path": "apps/server/src/wsRpc.ts",
+      "first": 1447,
+      "last": 1474,
+      "source": "1447:           ),\n1448:         [ORCHESTRATION_WS_METHODS.reconcileProviderDelivery]: (input) =>\n1449:           rpcEffect(\n1450:             Effect.gen(function* () {\n1451:               const principal = yield* CurrentManagedAttachmentPrincipal;\n1452:               const result = yield* providerCommandReactor.reconcileDelivery({\n1453:                 eventSequence: input.eventSequence,\n1454:                 threadId: input.threadId,\n1455:                 expectedState: input.expectedState,\n1456:                 outcome: input.outcome,\n1457:                 reconciledBy: `${principal.ownerKind}:${principal.ownerId}`,\n1458:                 ...(input.note === undefined ? {} : { note: input.note }),\n1459:               });\n1460:               if (result === null) {\n1461:                 return yield* new WsRpcError({\n1462:                   message:\n1463:                     \"Provider delivery no longer matches the requested thread and blocking state.\",\n1464:                   code: \"PROVIDER_DELIVERY_RECONCILIATION_CONFLICT\",\n1465:                   retryable: false,\n1466:                 });\n1467:               }\n1468:               return result;\n1469:             }),\n1470:             \"Failed to reconcile provider delivery\",\n1471:           ),\n1472:         [ORCHESTRATION_WS_METHODS.subscribeShell]: (_, { clientId }) =>\n1473:           streamAdmission.guard(\n1474:             clientId,"
+    },
+    {
+      "path": "apps/web/src/components/BranchToolbar.tsx",
+      "first": 329,
+      "last": 354,
+      "source": "329:       if (usesFixedLocalWorkspace) {\n330:         const nextWorkspace = resolveFixedLocalWorkspacePatch({\n331:           currentWorkingDirectory: activeWorkingDirectory,\n332:           patch,\n333:         });\n334:         const nextWorkingDirectory = nextWorkspace.workingDirectory ?? null;\n335:         if (nextWorkingDirectory === activeWorkingDirectory) {\n336:           return;\n337:         }\n338: \n339:         const api = readNativeApi();\n340:         if (serverThreadSession && api) {\n341:           void api.orchestration\n342:             .dispatchCommand({\n343:               type: \"thread.session.stop\",\n344:               commandId: newCommandId(),\n345:               threadId: activeThreadId,\n346:               createdAt: new Date().toISOString(),\n347:             })\n348:             .catch(() => undefined);\n349:         }\n350:         if (api && hasServerThread) {\n351:           void api.orchestration.dispatchCommand({\n352:             type: \"thread.meta.update\",\n353:             commandId: newCommandId(),\n354:             threadId: activeThreadId,"
+    },
+    {
+      "path": "apps/web/src/components/BranchToolbar.tsx",
+      "first": 384,
+      "last": 402,
+      "source": "384:           ? { patchAssociatedWorktreeRef: patch.associatedWorktreeRef }\n385:           : {}),\n386:       });\n387:       const api = readNativeApi();\n388:       // If the effective cwd is about to change, stop the running session so the\n389:       // next message creates a new one with the correct cwd.\n390:       if (serverThreadSession && worktreePath !== activeWorktreePath && api) {\n391:         void api.orchestration\n392:           .dispatchCommand({\n393:             type: \"thread.session.stop\",\n394:             commandId: newCommandId(),\n395:             threadId: activeThreadId,\n396:             createdAt: new Date().toISOString(),\n397:           })\n398:           .catch(() => undefined);\n399:       }\n400:       if (api && hasServerThread) {\n401:         void api.orchestration.dispatchCommand({\n402:           type: \"thread.meta.update\","
+    },
+    {
+      "path": "apps/server/src/a2a/userInput.ts",
+      "first": 105,
+      "last": 155,
+      "source": "105:       channel: \"ui-derived\",\n106:       reply_to: null,\n107:       source_ref: { command_id: id, rpc: \"orchestration.prepareQuitResume\" },\n108:       content: { type: \"orchestration.prepareQuitResume\", threadIds: request.threadIds },\n109:       certainty: \"observed\",\n110:       created_at: new Date().toISOString(),\n111:     };\n112:     const commandId = `quit:${id}:${thread}`;\n113:     const result = yield* Effect.try({\n114:       try: () => {\n115:         gates.registerUserInputCommand(commandId, input);\n116:         gates.appendUserInput(input, `rpc:${commandId}`);\n117:       },\n118:       catch: (error) => error,\n119:     }).pipe(Effect.result);\n120:     if (result._tag === \"Failure\") {\n121:       if (input.target.attempt) {\n122:         gates.setUserInputObserverStatus(\"failed\", {\n123:           thread_id: thread,\n124:           reason: String(result.failure),\n125:         });\n126:         return yield* Effect.fail(result.failure);\n127:       }\n128:       gates.deferUserInput(commandId, input);\n129:       yield* Effect.logError(\"a2a quit resume recording failed\", {\n130:         reason: String(result.failure),\n131:       });\n132:     }\n133:   }\n134: });"
+    }
+  ]
+}

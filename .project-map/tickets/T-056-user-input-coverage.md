@@ -45,3 +45,8 @@ ready_rev: 2
 执行主控决定 01 已解决上述接入范围阻塞。2026-10-09 第二轮：**BLOCKED**，待主控决定，保持 open，待主控关闭。真实隔离服务的父修订红态已取得：worker 消息 1 条，其余 9 项无用户输入记录，全部 RPC 接受且有域事件；provider 禁用，未调用模型，不主张原生提问交互验收。窄探针确认用户操作与自动派生的停止/中断在现有合同中不可区分；另发现 `prepareQuitResume` 绕过 `dispatchCommand` handler。按 ticket、spec 第 3 节及决定 01 再次在产品编辑前停止，未改命令契约。
 
 证据见 [第二轮待决说明](../../evidence/2026-10-09-batch11/T-056/needs-decision-02.md)、[红态矩阵](../../evidence/2026-10-09-batch11/T-056/red-matrix-02/summary.json)、[来源窄探针](../../evidence/2026-10-09-batch11/T-056/origin-probe-02.json)。新 blocking 问题为 `20261009T131628Z-worker:s11-t056-issue-001`，needs-decision 为 `20261009T131629Z-worker:s11-t056-needs-decision-001`。产品代码无改动，fork 父修订不变；仅核对并停止本次隔离服务，完整现场已归档。未 submit，迁移/绿态/既有套件/独立审查未运行。
+
+
+2026-10-09，恢复轮（ready_rev 2）：**BLOCKED，待主控决定，保持 open，待主控关闭。** fork 父修订 `d479dab2a1608c3219b7a4e1c07e9056bfb63a9e`，已保存实现候选 `2ad957d359281215ad3bf21fe47595ad6ad39c80`。实际父修订矩阵先红，已实现矩阵、来源与去重、迁移、原生 Codex 问答、恢复与 gap；唯一一次独立审查在 `c7aaaa433` 上 FAIL/P1，故障归因已在真实入口先红后绿修复，修复后没有再次独立审查，不继承旧候选判定。
+
+新发现 Unblock 直接走 `reconcileProviderDelivery`，绕过两个获批入口；按 brief 停下，未自行增加第三个挂接或减少范围。BranchToolbar 的两处派生停止与 prepareQuitResume 普通项目键核对仍列为缺口。blocking 问题 `20261009T190952Z-worker:s11-t056-issue-001`，执行主控 needs-decision `20261009T190500Z-worker:s11-t056-needs-decision-001`。submit 身份/传输此前已上报，未提供；未向业务门禁 submit、未验收或集成，Acceptance 未勾选。详见 [恢复交接](../../evidence/2026-10-09-batch11/T-056/RESULTS-02.md)、[新范围待决](../../evidence/2026-10-09-batch11/T-056/needs-decision-25.md)、[唯一审查](../../evidence/2026-10-09-batch11/T-056/acceptance-review-18.md)。旧失败现场与报告保留，正式数据与工作台未动，未 push。

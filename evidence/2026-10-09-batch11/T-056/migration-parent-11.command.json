@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "./a2a/scripts/bun",
+    "run",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-056/migration-counterfactual-11.mjs",
+    "/Volumes/WD-Elements/dev-cache/synara/instances/t056-parent-migration-11",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-056/migration-counterfactual-11.json"
+  ],
+  "environment": {
+    "T056_MIGRATION_CORE": "/Users/luckye/Documents/Code/synara/packages/a2a-gates/src/t056-parent-migration-11.ts"
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/default\n15 | if(!interrupted?.includes('T056 migration interruption')) throw new Error('fault not reached');\n16 | if(JSON.stringify(before)!==JSON.stringify(afterInterrupted)) throw new Error('migration rollback changed legacy records');\n17 | const first=new A2AGates(root); first.close();\n18 | let db=new DatabaseSync(dbpath);\n19 | const afterFirst=db.prepare('SELECT id,task,message,data FROM user_inputs ORDER BY rowid').all();\n20 | const ledger=db.prepare('SELECT event_id FROM user_input_events ORDER BY event_id').all();\n                     ^\nerror: no such table: user_input_events\n errcode: 1,\n  errstr: \"SQL logic error\",\n    code: \"ERR_SQLITE_ERROR\"\n\n      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-056/migration-counterfactual-11.mjs:20:17\n\nBun v1.4.2 (macOS arm64)\n"
+}
