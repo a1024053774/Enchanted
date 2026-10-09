@@ -51,6 +51,7 @@ Tracer bullet 的状态写入集中在门禁核心，Deep modules 的接口仍�
 - 所有本次启动进程使用 start_new_session；停止前核对命令，再仅向自己的实例发送 SIGTERM。服务/provider 已退出，未批准 pending request；停止记录见 stop-green-01.json、stop-permission-01.json。
 - 原始 rollout 保存后，已删除整个认证 home；隔离服务根无 auth.json。用户 config/rules 的 size、mtime、mode 与 herdr status 原始输出前后完全相等，见 [cleanup-real.json](cleanup-real.json)、user-before-real.json、user-after-real.json。未操作正式工作台目录、用户配置或用户 Herdr。
 - 测试 Git repo/worktree、门禁 SQLite 与原生数据库归档为 retained-green-02.tar.gz、retained-red-03.tar.gz，不登记 gitlink。归档不含认证 home、secrets 或 endpoint。其他 worker/主控的 dirty 文件与 fork `.grok/` 保留。
+- a2a 证据提交的 diff --check 返回 2，仅报告原始 partial-candidate.diff 中空白上下文行的尾部空格；原始差异未改写，完整输出见 [diff-check-02.json](diff-check-02.json)。这不冒称为通过；fork 源码提交前的 diff --check 为 0。
 
 ## 重放入口
 
