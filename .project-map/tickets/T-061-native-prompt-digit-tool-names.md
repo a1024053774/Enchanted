@@ -4,7 +4,7 @@ title: 原生提示解析放宽到允许数字，a2a 工具缺 tool_name 时也�
 type: build
 status: open
 blocked_by: []
-claimed_by: s11-t061
+claimed_by: s11-t061b
 supersedes:
 ready: yes
 ready_by: ideation
