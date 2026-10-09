@@ -1,0 +1,79 @@
+[
+  {
+    "label": "quit-rpc-entry",
+    "argv": [
+      "sed",
+      "-n",
+      "1420,1443p",
+      "apps/server/src/wsRpc.ts"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/synara",
+    "exit_code": 0,
+    "stdout": "              limit: input.limit ?? 50,\n            }),\n            \"Failed to load provider delivery blockers\",\n          ),\n        [ORCHESTRATION_WS_METHODS.prepareQuitResume]: (input) =>\n          rpcEffect(\n            // Gated as a whole (not just its dispatches) so the record can never be\n            // written while startup is still claiming the previous quit's record.\n            runtimeStartup.enqueueCommand(\n              prepareQuitResume({\n                request: input,\n                recordPath: config.quitResumeStatePath,\n                getReadModel: orchestrationEngine.getReadModel,\n                dispatch: dispatchOrchestrationCommand,\n              }),\n            ),\n            \"Failed to prepare chats for resume after quit\",\n          ),\n        [ORCHESTRATION_WS_METHODS.reconcileProviderDelivery]: (input) =>\n          rpcEffect(\n            Effect.gen(function* () {\n              const principal = yield* CurrentManagedAttachmentPrincipal;\n              const result = yield* providerCommandReactor.reconcileDelivery({\n                eventSequence: input.eventSequence,\n",
+    "stderr": ""
+  },
+  {
+    "label": "quit-ui-entry",
+    "argv": [
+      "sed",
+      "-n",
+      "55,88p",
+      "apps/web/src/components/RunningChatsQuitCoordinator.tsx"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/synara",
+    "exit_code": 0,
+    "stdout": "      const stopped = stopRunningChatsForQuit({\n        chats: chatsToStop,\n        dispatchInterrupt: (threadId) => {\n          const api = readNativeApi();\n          if (!api) {\n            return;\n          }\n          return api.orchestration.dispatchCommand({\n            type: \"thread.turn.interrupt\",\n            commandId: newCommandId(),\n            threadId: ThreadId.makeUnsafe(threadId),\n            createdAt: new Date().toISOString(),\n          });\n        },\n        ...(decision.resume\n          ? {\n              resume: {\n                prepare: (threadIds: ReadonlyArray<string>) => {\n                  const api = readNativeApi();\n                  if (!api) {\n                    return Promise.reject(new Error(\"Native API unavailable\"));\n                  }\n                  return api.orchestration.prepareQuitResume({\n                    threadIds: threadIds.map((threadId) => ThreadId.makeUnsafe(threadId)),\n                    continuationPrompt: quitResumeContinuationPrompt(APP_DISPLAY_NAME),\n                  });\n                },\n              },\n            }\n          : {}),\n      });\n\n      if (decision.resume) {\n        // The resume record must be durable before the desktop is allowed to stop the\n",
+    "stderr": ""
+  },
+  {
+    "label": "quit-ui-routing",
+    "argv": [
+      "sed",
+      "-n",
+      "133,178p",
+      "apps/web/src/lib/runningChatsQuitConfirmation.ts"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/synara",
+    "exit_code": 0,
+    "stdout": "}\n\nexport async function stopRunningChatsForQuit(\n  input: StopRunningChatsForQuitInput,\n): Promise<StopRunningChatsForQuitResult> {\n  if (input.chats.length === 0) {\n    return { resumeRecorded: false };\n  }\n  const threadIds = input.chats.map((chat) => chat.id);\n\n  if (input.resume) {\n    const recorded = await withBoundedWait(\n      () => input.resume!.prepare(threadIds),\n      input.resume.timeoutMs ?? QUIT_RESUME_PREPARE_TIMEOUT_MS,\n    );\n    if (recorded) {\n      return { resumeRecorded: true };\n    }\n  }\n\n  // Fire-and-forget: the window must close as soon as the outcome is known, and an\n  // interrupt RPC against an unresponsive server could otherwise hold quit for its\n  // full transport timeout.\n  for (const threadId of threadIds) {\n    void new Promise((resolve) => resolve(input.dispatchInterrupt(threadId))).catch(() => {});\n  }\n  return { resumeRecorded: false };\n}\n\n/** Resolves true only when `run` settles successfully within `timeoutMs`. */\nasync function withBoundedWait(run: () => Promise<unknown>, timeoutMs: number): Promise<boolean> {\n  let timer: ReturnType<typeof setTimeout> | undefined;\n  const timeout = new Promise<false>((resolve) => {\n    timer = setTimeout(() => resolve(false), timeoutMs);\n  });\n  try {\n    return await Promise.race([\n      Promise.resolve()\n        .then(run)\n        .then(\n          () => true,\n          () => false,\n        ),\n      timeout,\n    ]);\n  } finally {\n",
+    "stderr": ""
+  },
+  {
+    "label": "quit-server-derived",
+    "argv": [
+      "sed",
+      "-n",
+      "426,460p",
+      "apps/server/src/orchestration/quitResume.ts"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/synara",
+    "exit_code": 0,
+    "stdout": "    // The durable write is the RPC acknowledgement contract. Interrupts are\n    // best-effort and must not make the renderer miss its bounded quit wait;\n    // process shutdown itself will stop any provider command that remains live.\n    yield* Effect.forEach(\n      record.threads,\n      (entry) =>\n        input\n          .dispatch(\n            buildQuitInterruptCommand({\n              threadId: entry.threadId,\n              turnId: entry.turnId,\n              recordId: record.recordId,\n              recordedAt: record.recordedAt,\n            }),\n          )\n          .pipe(\n            Effect.catchCause((cause) =>\n              Effect.logWarning(\"failed to interrupt chat for quit\", {\n                threadId: entry.threadId,\n                cause,\n              }),\n            ),\n          ),\n      { discard: true, concurrency: \"unbounded\" },\n    ).pipe(Effect.forkDetach);\n\n    return {\n      recordedThreadIds: record.threads.map((entry) => entry.threadId),\n      recordedAt: record.recordedAt,\n    };\n  });\n\n/**\n * Boot-time claim. Must run before commands are admitted so no quit prepared by\n * a freshly connected client can interleave with it; cheap when there is nothing\n",
+    "stderr": ""
+  },
+  {
+    "label": "fork-revision",
+    "argv": [
+      "git",
+      "log",
+      "-1",
+      "--format=%H"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/synara",
+    "exit_code": 0,
+    "stdout": "2330534b2cf906b9d8f0a0b643adb370683d7fe0\n",
+    "stderr": ""
+  },
+  {
+    "label": "fork-status",
+    "argv": [
+      "git",
+      "status",
+      "--short"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/synara",
+    "exit_code": 0,
+    "stdout": "?? .grok/\n",
+    "stderr": ""
+  }
+]

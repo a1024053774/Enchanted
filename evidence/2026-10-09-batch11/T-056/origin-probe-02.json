@@ -1,0 +1,64 @@
+{
+  "purpose": "Can the existing dispatchCommand contract distinguish explicit UI input from UI-derived commands?",
+  "controlled": [
+    "UUID",
+    "timestamp",
+    "same target thread"
+  ],
+  "pairs": [
+    {
+      "name": "interrupt",
+      "explicit": {
+        "path": "apps/web/src/components/ChatView.tsx",
+        "line": 3564,
+        "expression": "{\n      type: \"thread.turn.interrupt\",\n      commandId: newCommandId(),\n      threadId: activeThread.id,\n      createdAt: new Date().toISOString(),\n    }",
+        "rpc": {
+          "type": "thread.turn.interrupt",
+          "commandId": "00000000-0000-4000-8000-000000000002",
+          "threadId": "00000000-0000-4000-8000-000000000056",
+          "createdAt": "2026-10-09T13:20:00.000Z"
+        }
+      },
+      "derived": {
+        "path": "apps/web/src/components/RunningChatsQuitCoordinator.tsx",
+        "line": 62,
+        "expression": "{\n            type: \"thread.turn.interrupt\",\n            commandId: newCommandId(),\n            threadId: ThreadId.makeUnsafe(threadId),\n            createdAt: new Date().toISOString(),\n          }",
+        "rpc": {
+          "type": "thread.turn.interrupt",
+          "commandId": "00000000-0000-4000-8000-000000000002",
+          "threadId": "00000000-0000-4000-8000-000000000056",
+          "createdAt": "2026-10-09T13:20:00.000Z"
+        }
+      },
+      "identicalRPC": true
+    },
+    {
+      "name": "stop",
+      "explicit": {
+        "path": "apps/web/src/components/ChatView.tsx",
+        "line": 3133,
+        "expression": "{\n      type: \"thread.session.stop\",\n      commandId: newCommandId(),\n      threadId: activeThread.id,\n      createdAt: new Date().toISOString(),\n    }",
+        "rpc": {
+          "type": "thread.session.stop",
+          "commandId": "00000000-0000-4000-8000-000000000002",
+          "threadId": "00000000-0000-4000-8000-000000000056",
+          "createdAt": "2026-10-09T13:20:00.000Z"
+        }
+      },
+      "derived": {
+        "path": "apps/web/src/hooks/useTemporaryThreadLifecycle.ts",
+        "line": 100,
+        "expression": "{\n            type: \"thread.session.stop\",\n            commandId: newCommandId(),\n            threadId: temporaryThreadId,\n            createdAt: new Date().toISOString(),\n          }",
+        "rpc": {
+          "type": "thread.session.stop",
+          "commandId": "00000000-0000-4000-8000-000000000002",
+          "threadId": "00000000-0000-4000-8000-000000000056",
+          "createdAt": "2026-10-09T13:20:00.000Z"
+        }
+      },
+      "identicalRPC": true
+    }
+  ],
+  "result": "BLOCKED: indistinguishable RPC inputs",
+  "limitations": "Source constructors and actual contract codec executed; not a browser interaction or real user input. No content classifier or new command field."
+}

@@ -1,0 +1,6 @@
+准备失败 01：Python stdin 创建 red-matrix-02.py 时收到 SyntaxError: Non-UTF-8 code starting with '\xe8' in file <stdin> on line 4, but no encoding declared。
+准备失败 02：文件未创建，随后执行返回 exit 2，can't open file red-matrix-02.py: [Errno 2] No such file or directory。
+两次都是证据脚本的准备失败，不是父修订的合同红态。改用 apply_patch 创建 UTF-8 文件，保留失败。
+准备失败 03：origin-probe-02.ts 错用根目录的 node_modules/typescript，Bun 返回 Cannot find module、exit 1。核对该包在 apps/server/node_modules 后改为其现有位置，不新增依赖；这也不是来源探针的红态。
+准备失败 04：来源探针遍历并执行了 ChatView 的所有同类型构造器，第二个分支用到未提供的 localSubagentThreadId，返回 ReferenceError、exit 1。探针只需要比较已选的第一个显式用户构造器，现只执行首个匹配，未改产品代码。
+报告写入准备失败 05：apply_patch 在同一 patch 中 Delete/Add 同一路径 RESULTS.md 被拒（multiple operations target），整个 patch 未落地。改为局部 Update；原报告已在之前保存为 RESULTS-01.md。

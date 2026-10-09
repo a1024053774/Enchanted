@@ -41,3 +41,7 @@ ready_rev: 1
 2026-10-09，s11-t056：**BLOCKED**，待主控决定，保持 open，待主控关闭。开工核对发现 ticket 指定的 WS RPC `dispatchCommand` 入口在 fork 的 `apps/server/src/wsRpc.ts:1322`，超出 brief 允许目录；按 brief 在产品编辑前停止。请求只额外批准该文件的 import 与入口调用，记录实现仍留在 a2a 模块，不改命令契约。
 
 依据 `ready_rev: 1`；fork 父修订 `2330534b2cf906b9d8f0a0b643adb370683d7fe0`。证据与重放命令见 [RESULTS](../../evidence/2026-10-09-batch11/T-056/RESULTS.md)、[待决说明](../../evidence/2026-10-09-batch11/T-056/needs-decision-01.md)、[只读输出](../../evidence/2026-10-09-batch11/T-056/preflight-01.json)。收件箱 blocking 问题为 `20261009T130122Z-worker:s11-t056-issue-001`，发给执行主控的 needs-decision 为 `20261009T130122Z-worker:s11-t056-needs-decision-001`。未实现、未运行业务验收或独立审查、未 submit；Acceptance 均未勾选。
+
+执行主控决定 01 已解决上述接入范围阻塞。2026-10-09 第二轮：**BLOCKED**，待主控决定，保持 open，待主控关闭。真实隔离服务的父修订红态已取得：worker 消息 1 条，其余 9 项无用户输入记录，全部 RPC 接受且有域事件；provider 禁用，未调用模型，不主张原生提问交互验收。窄探针确认用户操作与自动派生的停止/中断在现有合同中不可区分；另发现 `prepareQuitResume` 绕过 `dispatchCommand` handler。按 ticket、spec 第 3 节及决定 01 再次在产品编辑前停止，未改命令契约。
+
+证据见 [第二轮待决说明](../../evidence/2026-10-09-batch11/T-056/needs-decision-02.md)、[红态矩阵](../../evidence/2026-10-09-batch11/T-056/red-matrix-02/summary.json)、[来源窄探针](../../evidence/2026-10-09-batch11/T-056/origin-probe-02.json)。新 blocking 问题为 `20261009T131628Z-worker:s11-t056-issue-001`，needs-decision 为 `20261009T131629Z-worker:s11-t056-needs-decision-001`。产品代码无改动，fork 父修订不变；仅核对并停止本次隔离服务，完整现场已归档。未 submit，迁移/绿态/既有套件/独立审查未运行。
