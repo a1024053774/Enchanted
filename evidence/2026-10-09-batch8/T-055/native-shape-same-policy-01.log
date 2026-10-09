@@ -1,0 +1,22 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t055-checks
+16 |  await manager.handleServerRequest(context,{id:19,method:"mcpServer/elicitation/request",params:{threadId:"native-worker",turnId:"active-turn",serverName:"synara",mode:"form",message:`Allow the synara MCP server to run tool "${tool}"?`,requestedSchema:{type:"object",properties:{}},_meta:{codex_approval_kind:"mcp_tool_call",persist:["session"]}}});
+17 |  results.push({tool,accepted,pending:context.pendingApprovals.size});
+18 | }
+19 | writeFileSync(process.argv[2],JSON.stringify({results,source:"controlled protocol frame without tool_name",baselineSourceUnchanged:"codexAppServerManager.ts"},null,2)+"\n");
+20 | assert.equal(results[0]!.accepted,results[1]!.accepted,"T-055 must retain the existing submit policy");
+21 | assert.equal(results[0]!.accepted,true,"Separate existing parser defect: native generated names containing digits");
+            ^
+AssertionError: Separate existing parser defect: native generated names containing digits
+
+false !== true
+
+ generatedMessage: false,
+     actual: false,
+   expected: true,
+   operator: "strictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch8/T-055/native-shape-probe.ts:21:8
+
+Bun v1.4.2 (macOS arm64)

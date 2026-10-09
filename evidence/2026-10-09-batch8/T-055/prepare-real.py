@@ -3,6 +3,8 @@ from pathlib import Path
 out=Path(__file__).resolve().parent
 spec=importlib.util.spec_from_file_location('fixture_api',out/'fixture-api.py')
 api=importlib.util.module_from_spec(spec);spec.loader.exec_module(api)
+if len(sys.argv) > 2:
+    out=Path(sys.argv[2]);out.mkdir()
 fixture=api.Fixture(sys.argv[1]);root=fixture.root
 repo=root/'repo';repo.mkdir()
 def git(*args):
@@ -40,7 +42,8 @@ assert enabled['providers']['codex']['enabled'] is True
 created=fixture.gate('create',task='t055',project='t055-project',title='T055 问题答复',repo=str(repo),base=git('rev-parse','HEAD'),oracle=str(root/'oracle.py'),instructions=str(root/'instructions.txt'))
 with (out/'real-create.json').open('x') as file:json.dump(created,file,ensure_ascii=False,indent=2)
 assert created['ok'],created
-dispatched=fixture.gate('dispatch',task='t055',runtimeMode='approval-required')
+runtime_mode=sys.argv[3] if len(sys.argv)>3 else 'approval-required'
+dispatched=fixture.gate('dispatch',task='t055',runtimeMode=runtime_mode)
 with (out/'real-dispatch.json').open('x') as file:json.dump(dispatched,file,ensure_ascii=False,indent=2)
 print(json.dumps(dispatched,ensure_ascii=False))
 assert dispatched['ok'],dispatched

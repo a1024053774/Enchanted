@@ -2,7 +2,7 @@
 // orchestration and provider adapters are the actual product. The private
 // control directory supplies setup commands; it does not implement gate tools.
 import { join } from "node:path";
-import { mkdirSync, readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, readdirSync, existsSync, renameSync } from "node:fs";
 const fork = process.env.T055_FORK!;
 const root = process.env.T055_ROOT!;
 const dep = (name: string) => join(fork, "apps/server/node_modules", name);
@@ -39,7 +39,7 @@ const runtime = ManagedRuntime.make(Layer.empty.pipe(
   Layer.provideMerge(runtimeServicesLayer), Layer.provideMerge(providerLayer),
   Layer.provideMerge(reaper), Layer.provideMerge(reconciler), Layer.provideMerge(ServerLive),
   Layer.provideMerge(Sqlite.layerConfig),
-  Layer.provideMerge(ServerConfig.layerTest(fork, root, { host:"127.0.0.1", port:Number(process.env.T055_PORT ?? 0), noBrowser:true, homeDir:root, chatWorkspaceRoot:root, studioWorkspaceRoot:root, groupsWorkspaceRoot:root })),
+  Layer.provideMerge(ServerConfig.layerTest(fork, root, { host:"127.0.0.1", port:Number(process.env.T055_PORT ?? 0), devUrl:process.env.T055_WEB ? new URL(process.env.T055_WEB) : undefined, noBrowser:true, homeDir:root, chatWorkspaceRoot:root, studioWorkspaceRoot:root, groupsWorkspaceRoot:root })),
   Layer.provideMerge(OpenLive), Layer.provideMerge(NetService.layer),
   Layer.provideMerge(FetchHttpClient.layer), Layer.provideMerge(NodeServices.layer),
 ));
@@ -52,11 +52,16 @@ const settings = await runtime.runPromise(Effect.service(ServerSettingsService))
 mkdirSync(join(root,"control"), { recursive:true, mode:0o700 });
 writeFileSync(join(root,"ready.json"), JSON.stringify({ origin:`http://127.0.0.1:${server.address().port}`, pid:process.pid }));
 console.log("T055 ready", process.pid);
+function publish(path: string, value: unknown) {
+  const temporary = path + ".part";
+  writeFileSync(temporary, JSON.stringify(value));
+  renameSync(temporary, path);
+}
 const timer = setInterval(async () => {
   for (const name of readdirSync(join(root,"control")).filter((n:string)=>n.endsWith(".request.json"))) {
     const resultPath = join(root,"control",name.replace(".request.json",".result.json"));
     if (existsSync(resultPath)) continue;
-    writeFileSync(resultPath, "{\"pending\":true}");
+    publish(resultPath, { pending: true });
     const input = JSON.parse(readFileSync(join(root,"control",name),"utf8"));
     try {
       let result;
@@ -69,8 +74,8 @@ const timer = setInterval(async () => {
         writeFileSync(input.path, token, {mode:0o600});
         result = { issued:true, thread:input.thread };
       } else throw new Error("unknown fixture operation");
-      writeFileSync(resultPath,JSON.stringify({ok:true,result}));
-    } catch (error) { writeFileSync(resultPath,JSON.stringify({ok:false,error:String(error)})); }
+      publish(resultPath, {ok:true,result});
+    } catch (error) { publish(resultPath,{ok:false,error:String(error)}); }
   }
 },100);
 process.on("SIGTERM", async () => {

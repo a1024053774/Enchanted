@@ -1,0 +1,37 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t055-checks
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+25 |  const result=await core.call({command:"answer_issue",task:"source",issue:issue.id,answer:"  保留开头空格。 \n"});assert.equal(result.ok,true);
+26 |  const event=(await core.call({command:"events",task:"source"})).events!.find((e:any)=>e.type==="issue_answer")!;
+27 |  artifact.input=result.user_inputs![0];artifact.answerEvent=event;artifact.result=result;
+28 |  // Failure list: absent event identity/sequence, wrong journal row, altered
+29 |  // answer whitespace. Expected source fields come from spec section 3.
+30 |  assert.equal(artifact.input.source_ref.event_id,event.details.id);
+             ^
+AssertionError: Expected values to be strictly equal:
++ actual - expected
+
++ undefined
+- '466105ca-55b7-473d-9e15-afc864b2a5c4'
+
+ generatedMessage: true,
+     actual: undefined,
+   expected: "466105ca-55b7-473d-9e15-afc864b2a5c4",
+   operator: "strictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch8/T-055/source-ref-probe.ts:30:9
+
+Bun v1.4.2 (macOS arm64)

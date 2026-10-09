@@ -49,3 +49,5 @@ ready_rev: 2
 2026-10-09 worker：**BLOCKED**，尚未开始实现，待主控决定；ticket 保持 open，待主控关闭。实际 MCP 注册入口为允许目录之外的 `apps/server/src/agentGateway/Layers/AgentGateway.ts`，需要主控批准两处最小接入才能让 `a2a_raise` 出现在正式 `tools/list`。定位证据、拟议差异与未运行检查见 [RESULTS](../../evidence/2026-10-09-batch8/T-055/RESULTS.md)。依据 `ready_rev: 1`，未更改正文或验收条件。
 
 2026-10-09 worker 续轮：**BLOCKED**，已执行主控决定 01 的两处接入，父修订真实 HTTP/MCP 红态与未验收实现已保存（fork `13ec64ce6b6b19b913fe69bfc71dbf49c0f54bb0`）。一次真实 Codex 0.162.0 在 `a2a_raise` 发出 provider 工具批准请求，依决定原样保存并停止；没有批准、没有改 `computerToolPermission.ts`。三包类型检查通过，但上报/答复闭环、既有套件、截图和最终独立审查未完成；Acceptance 保持未勾选。详见 [RESULTS-02](../../evidence/2026-10-09-batch8/T-055/RESULTS-02.md)。ticket 保持 open，待主控决定与关闭。
+
+2026-10-09 ready_rev 2 交接：**INCOMPLETE（工程验收 PASS，最终独立审查待主控决定）**。fork 最终候选 `2330534b2cf906b9d8f0a0b643adb370683d7fe0`；真实 Codex full-access 无人批准上报/接收答复、身份反例、面板/精确消息、一次记录、重启重放、CLI/HTTP 链、35 项与 membership、type/lint/fmt 均有证据。唯一 fresh-context 审查对 `27344e471` 为 FAIL，结束会话转交 P1 已经真实红绿修复；随后补齐原生 archive 幂等回收，最终候选未再独立审查，未自行超出“一次”限制。[RESULTS-03](../../evidence/2026-10-09-batch8/T-055/RESULTS-03.md) 记录版本边界、反例、收尾与未关闭范围外 issue。用户确认 config mtime 变化为外部已知改动。ticket 保持 open，待主控关闭；正文/Acceptance 未改。
