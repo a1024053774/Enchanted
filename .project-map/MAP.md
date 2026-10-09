@@ -6,6 +6,8 @@
 门禁在 Synara 服务端原生实现（T-031）；`coop.py` 与 Muster 引擎已于 2026-10-08 删除（T-040）。执行规格见 [synara-m1](specs/synara-m1-2026-10-07.md)；第一批：T-034、T-035、T-036 已关闭；第二批：T-037、T-038、T-039 已关闭；T-040～T-046 已关闭（2026-10-09 第一次真实派发 T-046 经 Synara 跑通；用户决定日常派发暂仍经 Herdr，直到工作台可用）；T-047、T-048 已关闭。
 [workbench-m1](specs/workbench-m1-2026-10-06.md) 是被取代的 GPUI/Muster 方案的日期记录；其中 T-024、T-026、T-027、T-029 已完成并保留为证据。
 
+2026-10-09：主控拆为构思主控与执行主控，并定下用户输入记录与问题上报。设计见 [spec](specs/controller-split-user-input-2026-10-09.md)（决定 T-049～T-052；用户确认与委托决定见 [基线确认记录](specs/controller-split-user-input-baseline-2026-10-09.md)）。交付切片 T-053～T-059 已标就绪；它们完成并经用户试用后，日常派发才改走工作台（AGENTS.md）。
+
 首轮已完成：[T-006](tickets/T-006-managed-delivery.md) 受管交付、
 [T-007](tickets/T-007-recovery.md) 中断恢复、[T-008](tickets/T-008-supervised-run.md) 自动运行均在 Herdr 上通过；
 契约见 [managed-delivery](specs/managed-delivery-2026-10-06.md)、[recovery](specs/recovery-2026-10-06.md)、[supervised-run](specs/supervised-run-2026-10-06.md)。
@@ -18,6 +20,7 @@
 - [2026-10-06 session 复盘](../findings/a2a-session-retrospective-2026-10-06.zh-CN.md)：协调与工程发现；F01 模型提前结束回合已另列，不计入协调问题。
 - [Claude / SiteCraft 实际经验](../findings/claude-sitecraft-experience-2026-10-06.zh-CN.md)：用户指定对话的日期记录，保留外部项目与 a2a 的证据边界。
 - [图形客户端方向评估](../findings/gui-client-assessment-2026-10-06.zh-CN.md)：2026-10-06 日期记录；其推荐的"Herdr 客户端"路线未被采用，最终方向见 intent.md 与 [grilling ledger](../.grilling/a2a-gui-client.md)。
+- `.project-map/inbox/` 是构思主控与执行主控之间的追加式收件箱（Herdr 期），`.project-map/roles/` 是各角色的角色卡；它们不是 ticket，格式见 [spec](specs/controller-split-user-input-2026-10-09.md) 第 5 节。
 - Core goal: collaboration must not depend on the model continuously remembering the operating manual.
 - First experiment: Codex workers in the current Herdr workflow; multi-CLI support is a later capability-contract validation, not the first success claim.
 - Control rule: the Astra Max controller may dispatch and reclaim workers through Herdr (the workbench control interface after the switch) within approved scope; it must pause for major decisions or direction changes and never bypass claim, submit, acceptance, or integration gates.
@@ -43,12 +46,17 @@
 - [T-026 把构建缓存与工具链放到外置盘](tickets/T-026-external-build-cache.md): `scripts/build` 缺盘拒绝，Cargo/Zig/tmp 在外置盘；同 target 构建串行等待，按 worktree 分槽
 - [T-041 provider 登录条款与 magpie 调研](tickets/T-041-provider-auth-policy.md): 不采用 magpie 的 Claude 订阅网关；保留 Synara 经 Agent SDK 启动本机官方 CLI（用户确认采用，读凭据判断登录与限额可接受），Claude 优先 API key；Codex 本地/开源用 app-server 有官方许可
 - [T-024 一个引擎能否让多个窗口各看不同项目](tickets/T-024-per-window-project-focus.md): 可以，各连接焦点、尺寸与输入独立；窗口导航须走各自连接，同一任务共享 PTY 尺寸
+- [T-049 构思主控与执行主控的分工、层级与权限](tickets/T-049-controller-roles-and-permissions.md): 用户 ⇄ 构思主控 → 执行主控 → worker；权限三层、提示词为主，不做策略引擎；执行主控在 T-004 边界内可自建缺陷级 ticket
+- [T-050 用户输入记录：类型、存放、与人工介入的关系、过渡期](tickets/T-050-user-input-records.md): 形态与含义两层，含义判断不用正则；服务端追加式表，人工介入改为派生事件，仅受管 attempt fail-closed；Herdr 期靠派发包装、日志与会话副本
+- [T-051 问题上报与面板：语义、处置、发送](tickets/T-051-issue-reports-and-panel.md): 默认不阻塞；每会话一个面板，逐个或打包发送；主控可判断并关闭但不删除，拿不准留给用户
+- [T-052 主控交接协议：就绪、收件箱、唤醒、完成报告、紧急停止](tickets/T-052-controller-handoff-protocol.md): `ready` 字段加追加式收件箱，跨会话消息唤醒；完成报告逐字报状态；紧急停止分层，限时 break-glass
 
 ## Not yet specified
 
 - When and how a second CLI validates the capability contract
 - Numeric budget and risk thresholds
-- 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化
+- 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化（主控之间的收件箱已由 T-052 定义，worker 侧邮箱与心跳仍待细化）
+- 用户输入的抽取、含义标注与 Enchanted 消费：以后再说（用户 2026-10-09）；两个主控进入工作台后，Herdr 期做法（收件箱文件、`scripts/inbox`、`scripts/dispatch`、`scripts/session-copy`）的停用与删除，在切换 ticket 里切片
 - 上游测试 `ProviderCommandReactor.test.ts:7200` 在全仓运行时失败、单例通过（无 a2a 改动）；T-037 全仓顺序运行另有服务端 4 项失败（GitCore、CheckpointReactor 单例复跑通过；`CodexTextGeneration` 两项假 CLI 场景单例仍失败，文件与基线无差异，未在基线上复跑），desktop `cuaDriverHost` 用例经 T-038 基线/候选交替各 3 次，两边首轮超时、后两轮通过，判为上游不稳定用例；`workspaceUpload` 候选单跑通过；T-039 全仓运行 desktop 另 3 项失败（长 tmp 路径 EINVAL、目录清理、5 秒超时），外置盘短路径下单跑 67/67 通过，尚未定性；T-040 B 对 appSnapManager、cuaDriverHost、macAppIcon、ProviderCommandReactor 在父修订与候选上各 3 次全过。T-040 A 删除旧路径后恢复 9 项首轮出现一次并发 verify/integrate 超过 2 秒，之后 160 次计时与 54/54 复跑（含重负载）未复现，原因未明；fork 中未跟踪的 `.grok/` 来源不明——待核实归属
 - synara-m1 中尚未切片的部分：完整编排场景移植、界面上的任务窗口与人工介入记录、切换与删除 Muster/`coop.py` 运行路径
 

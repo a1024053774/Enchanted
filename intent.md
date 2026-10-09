@@ -5,7 +5,8 @@
 阶段：Plan / intent（第二阶段，2026-10-07 修订）  
 规范地图：[`.project-map/MAP.md`](.project-map/MAP.md)  
 决策记录：[`.grilling/synara-fork.md`](.grilling/synara-fork.md)（本次修订）、[`.grilling/a2a-gui-client.md`](.grilling/a2a-gui-client.md)（被部分取代的上一版）  
-初始研究记录：[herdr-a2a-research-and-plan-2026-10-06.md](herdr-a2a-research-and-plan-2026-10-06.md)
+初始研究记录：[herdr-a2a-research-and-plan-2026-10-06.md](herdr-a2a-research-and-plan-2026-10-06.md)  
+角色修订：2026-10-09 主控拆为构思主控与执行主控，见 [spec](.project-map/specs/controller-split-user-input-2026-10-09.md)；本文件只改了“角色、模型与权限”一节
 
 ## 用户目标
 
@@ -74,12 +75,13 @@
 
 | 角色 | 当前配置 | 权限边界 |
 | --- | --- | --- |
-| 主控 controller | Claude Code（用户 2026-10-06 指定） | 在已批准范围内理解目标、分派和回收 worker、汇总证据；不得越过门禁，也不得替未知结果判成功 |
+| 构思主控 ideation controller | Claude Code（用户 2026-10-09 定为上层主控） | 接收想法、澄清、写决定/spec/ticket、标就绪、向执行主控分发任务、转述完成报告；不直接派发、验收、集成、回收 worker |
+| 执行主控 executor controller | Claude Code（用户 2026-10-06 指定，原称主控） | 在已批准范围内监督就绪 ticket 的执行：分派和回收 worker、汇总证据；不得越过门禁，也不得替未知结果判成功 |
 | 执行 worker | `gpt-6.1-sol`，xhigh reasoning，Fast service tier | 只在分配的 task/attempt 范围内实现或分析 |
 | 监控 monitor | `gpt-6.1-sol`，high reasoning | 只读记录和报警；不得 claim、submit、集成或宣布成功 |
 | 用户 | 人工负责人 | 决定目标与范围、验收与权限变化、不可逆外部效果、方向性取舍和发布 |
 
-主控可以自主完成日常分派、状态检查、策略内重试和回收。遇到下列任一情况必须停下并问用户：
+执行主控可以自主完成日常分派、状态检查、策略内重试和回收，并在已批准范围内自建缺陷级 ticket。遇到下列任一情况必须停下并问用户（执行主控经构思主控向用户说明）：
 
 - 目标或范围发生变化；
 - 验收条件、权限或允许的外部操作需要变化；
@@ -88,7 +90,7 @@
 - 设计取舍会改变本 intent 的目的地；
 - 预算或风险越界。
 
-切换完成前，主控与 worker 仍经已安装的 Herdr 分派。
+日常派发何时改走工作台由用户判断：切换的技术条件已于 2026-10-09 具备，用户决定工作台可用后再改，条件见 AGENTS.md 与上面的 spec。
 
 ## 可观察成功条件
 

@@ -1,6 +1,8 @@
 # Domain glossary
 
-- **主控（controller）**：负责理解已批准目标、分派和回收常规 worker 任务、汇总证据；不能越过任务门禁，也不能把未知结果宣布为成功。主控是角色，不绑定项目级或任务级，可以同时操作两者。
+- **主控（controller）**：角色的统称，有构思主控与执行主控两个实例；不绑定项目级或任务级，可以同时操作两者；都不能越过任务门禁，也不能把未知结果宣布为成功。2026-10-09 之前文档里无前缀的“主控”指执行主控，新文档一律带前缀。
+- **构思主控（ideation controller）**：上层主控，用户日常只看它：接收想法、澄清、写决定/spec/ticket、标就绪、向执行主控分发任务、转述完成报告；不直接派发、验收、集成、回收 worker。
+- **执行主控（executor controller）**：监督执行的主控：执行就绪 ticket，派发、盯进度、审查、验收/集成/回收（全经门禁），没有可执行的就绪 ticket 时才停并写完成报告。它自己不写代码，写代码的是 worker（执行 agent）。
 - **Worker（执行 agent）**：在已分配的 task/attempt 范围内实现代码或分析，不拥有其他任务的权限。
 - **Monitor（监控 agent）**：只读观察者，记录运行事件并标记异常；不能认领、提交、集成或宣布成功。
 - **工作台（workbench）**：第二阶段基于 Synara 的 fork（`a1024053774/synara`）构建的多 agent 应用，按“项目 → 任务 → agent 会话”组织；切换完成后取代 Herdr 的日常使用。
@@ -19,8 +21,16 @@
 - **Capability contract（能力合同）**：适配不同 CLI 时必须提供的可观察能力集合，不预先等同于某个具体 CLI 的实现。
 - **原生会话（native session）**：agent CLI 自己保存的会话记录，例如 Codex rollout 或 Claude JSONL；不单独用“会话”“session”或“线程”指代它。
 - **Herdr**：上游开源的终端工作区（Apache-2.0）。首轮 a2a 运行在已安装的 Herdr 上；第二阶段改为基于 Synara 的工作台；切换完成前，日常分派仍经已安装的 Herdr。
-- **重大决策（major decision）**：会改变目标、范围、验收、权限、不可逆外部效果、目的地、预算或风险边界的选择；触发时主控必须停下询问用户。
+- **重大决策（major decision）**：会改变目标、范围、验收、权限、不可逆外部效果、目的地、预算或风险边界的选择；触发时主控必须停下询问用户（执行主控经构思主控）。
 - **操作锁（operation lock）**：区分某个任务是否仍有活跃验收或集成执行者的互斥凭据；锁释放不等于任务通过。
 - **中断验收（interrupted verification）**：验收执行者已结束但缺少完整结果的旧验证记录；它保留输入与未知结果，不能作为新的通过证据。
 - **受管运行（run）**：协调一次已注册 task 从分派到结束的过程，只绑定它启动的 attempt；run 收据描述协调结果，不替代 task 的验收事实。
 - **运行时 agent 身份**：绑定的终端、shell 和 Codex 前台进程组领导者，以及可观测的原生会话；同组辅助进程的出现不构成身份更换。
+- **用户输入（user input）**：用户本人的输入记录，形态有 message、answer、approval/denial、choice、action；含义（建议、指令、纠正、偏好……）是事后的推断标注，v1 不产生。不含主控、agent、自动化发出的提示词。
+- **人工介入（human intervention）**：落进受管 attempt 的用户输入；在门禁里是指向该输入的派生事件 `human_intervention`。不另称“人工输入”。
+- **派发记录（dispatch record）**：主控发给 worker 的文本及其标记与日志，与用户输入分开保存。
+- **问题上报（issue report）**：worker、reviewer、monitor 在执行中主动上报的待处理条目；状态为待判断、等你决定、已转交、已关闭、稍后、已答复、已送达。有别于 `findings/` 里事后复盘的“发现”。
+- **收件箱（inbox）**：带收件人的追加式条目流（assign、report、issue 等）；确认、处置也是新条目，不改旧条目。
+- **就绪（ready）**：ticket 已获执行授权，由构思主控标记，或由执行主控在自主边界内自建；正文冻结，修订时 `ready_rev` 加 1。
+- **角色卡（role card）**：每个角色一张短指令卡，位于 `.project-map/roles/`，由脚本或派发包装附带或打印。
+- **完成报告（completion report）**：执行主控在没有可执行的就绪 ticket 时写给构思主控的 `report`，状态逐字，不上调。

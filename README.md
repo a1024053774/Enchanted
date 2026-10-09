@@ -8,6 +8,8 @@ a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。
 
 文档入口：[项目地图](.project-map/MAP.md)、[术语表](CONTEXT.md)、[项目规则](AGENTS.md)、[开发发现](findings/README.md)。
 
+主控分为构思主控与执行主控（2026-10-09 起）：分工、用户输入记录和问题上报的设计见 [spec](.project-map/specs/controller-split-user-input-2026-10-09.md)。本文里无前缀的“主控”指执行主控。
+
 ## 原生门禁入口
 
 门禁核心位于相邻 checkout `../synara/packages/a2a-gates/`。需要已安装依赖的 fork 和挂载的 `/Volumes/WD-Elements`；Bun、Node、缓存与构建统一经 fork 的 `a2a/scripts/bun`。缺盘时入口报错，不回退到内置盘。构建与环境约束见 [T-034](.project-map/tickets/T-034-synara-fork-builds.md)。

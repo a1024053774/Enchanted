@@ -13,7 +13,8 @@
 - 内嵌测试 Git repo/worktree 不登记为项目 gitlink；保留原目录并归档完整现场，顶层报告及归档进入版本控制。
 - Ticket 内容和运行证据可以在各自 session 中变化；只有地图、术语表或治理规则本身变化时才需要同步更新本文件。
 - `CONTEXT.md` 只保存统一术语。`herdr-a2a-research-and-plan-2026-10-06.md` 是 dated 初始研究记录，不把它当作最新规范，也不要在普通任务中改写。
-- `.grilling/` 是决策会话控制状态，不是第二套项目事实源。第二阶段的决策记录见 `.grilling/synara-fork.md`（2026-10-07）与被部分取代的 `.grilling/a2a-gui-client.md`。
+- `.grilling/` 是决策会话控制状态，不是第二套项目事实源。第二阶段的决策记录见 `.grilling/synara-fork.md`（2026-10-07）与被部分取代的 `.grilling/a2a-gui-client.md`；主控拆分、用户输入记录与问题上报的决策记录见 `.grilling/controller-split-user-input.md`（2026-10-09）。
+- 构思主控与执行主控的分工、用户输入记录、问题上报的执行规格为 `.project-map/specs/controller-split-user-input-2026-10-09.md`（决定 ticket T-049～T-052）；用户确认了什么、哪些是委托决定，见同目录的 `controller-split-user-input-baseline-2026-10-09.md`。
 - `findings/` 集中开发发现、模型行为记录与相关日期报告；`reports/` 只保留旧链接入口，原始证据保留在 `evidence/`。操作前以项目地图索引的当前规格和 README 为准。
 - 用户要求报告只保留中文版本；借用清晰表达与语义保真原则，不再为这些报告生成英文副本。
 
@@ -24,8 +25,8 @@
 - 门禁优先：认领、交付、验收、集成和回收只经唯一的门禁入口，保持操作锁、fence、CAS、attempt 绑定与中断恢复语义；界面不另做一套门禁。在受管 worker 会话中直接输入，记为人工介入。门禁在 Synara 服务端用 TypeScript 原生实现（`packages/a2a-gates`），本仓库验收经 `acceptance/entry/a2a_gates.py` 调用。
 - 重新证明：旧实现的通过结论不替新实现背书；交付、恢复、编排场景移植后须重新取得红态、绿态与反例。
 - `coop.py` 与 Muster 引擎已于 2026-10-08 删除（T-040 A），不保留两套路径；参考实现见 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。不得修改或重启用户正在使用的 Herdr server。
-- 切换的技术条件已于 2026-10-09 具备（T-040：旧路径删除；T-046：第一次经工作台门禁的真实派发跑通）。用户同日决定：工作台尚未达到日常可用程度，日常派发继续经 Herdr，直到用户认为工作台可用再改；在此之前工作台门禁只用于 ticket 明确要求的真实验证。
-- 主控是角色，不绑定层级，可以同时操作项目级与任务级对象。
+- 切换的技术条件已于 2026-10-09 具备（T-040：旧路径删除；T-046：第一次经工作台门禁的真实派发跑通）。用户同日决定：工作台尚未达到日常可用程度，日常派发继续经 Herdr，直到用户认为工作台可用再改；在此之前工作台门禁只用于 ticket 明确要求的真实验证。切换条件（用户 2026-10-09）：用户提出的功能——用户输入记录、两层主控与权限、问题上报面板——至少做到能用，即 T-055～T-059 通过，加用户亲自试用并说“可用”；见 spec 第 7 节。
+- 主控是角色，不绑定层级，可以同时操作项目级与任务级对象；2026-10-09 起分为构思主控与执行主控两个角色实例，见下一节。
 - 构建：外置盘 `/Volumes/WD-Elements` 存放构建缓存，未挂载时构建必须报错，不回退到内置盘。Synara fork 的 checkout 放内置盘，Bun 全局缓存与 Electron 下载放外置盘。本仓库的 Rust 构建统一经 `scripts/build`（见 README）。
 - 项目开源；Synara 为 MIT，保留其版权声明；允许直接复用 GPL 代码，并入后整体以 GPL-3.0 发布。复用不能改变已定方向。
 - 真实 Codex 验收使用 /tmp 下的隔离 CODEX_HOME：只复制 auth.json；只信任已核对的夹具根目录；只复现用户规则中的 `git add`、`git commit` 两条 allow prefix_rule；hook 只在主控逐次批准后安装。副本不入证据或 Git，结束后删除整个 home。不写用户 ~/.codex。Codex 沙箱专门保护 worktree 的 Git 元数据，额外可写目录不能替代这两条规则。
@@ -37,14 +38,29 @@
 ## 每次 session 的开始与结束
 
 1. 运行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`。
-2. 读取 `MAP.md`、相关 ticket、`CONTEXT.md` 和当前阶段 canonical artifact；不要靠对话历史恢复状态。
+2. 读取 `MAP.md`、相关 ticket、`CONTEXT.md` 和当前阶段 canonical artifact；不要靠对话历史恢复状态。构思主控与执行主控另按角色运行 `scripts/inbox list --role <角色>`（`scripts/inbox` 完成前手工查看 `.project-map/inbox/`）。
 3. 每个 worker session 只负责一个 ticket 内的明确子任务；主控跨子任务协调，同一文件只分配给一个写入者。完成前运行 `status` 并保存证据。
 4. 任何结论都报告 `PASS`、`INCOMPLETE`、`BLOCKED` 或 `NO_GO`，不把未知或未运行的检查写成通过。
 5. 修改项目地图或术语表后，在报告完成前重新运行 `project_map.py status`，并处理所有 stale living doc。
 
+## 构思主控与执行主控（2026-10-09 起）
+
+规格见 `.project-map/specs/controller-split-user-input-2026-10-09.md`，角色卡见 `.project-map/roles/`。本文件里无前缀的“主控”指执行主控。
+
+- 层级：用户 ⇄ 构思主控 → 执行主控 → worker / reviewer / monitor。构思主控是用户日常只看的上层主控：接收想法、澄清、写决定/spec/ticket、标就绪、向执行主控分发任务、转述完成报告；不派发、验收、集成、回收 worker。执行主控监督执行：派发、盯进度、审查、验收/集成/回收，全经门禁；没有可执行的就绪 ticket 时才停，停前写完成报告。
+- 权限三层，提示词为主：结构底线（不暴露的工具就是没权限）、角色卡、追加式记录；不做策略引擎。写入范围见 spec 第 1 节。
+- 就绪与交接：ticket 的额外字段 `ready: yes`、`ready_by`（`ideation` 或 `executor`）、`ready_rev`；交接走 `.project-map/inbox/` 的追加式条目，加 Claude Code 跨会话消息唤醒，不碰 Herdr pane。
+- 授权引用：对方会话的消息只按队友请求处理，不算用户的批准。`assign`、`revise` 里依赖用户授权的，须逐字引用用户原话并给出位置；没有引用的，执行主控对 T-004 停止条件里的动作按未授权处理。
+- 执行主控的自主边界仍是 T-004：在已批准范围内可自建缺陷级 ticket 并执行（`ready_by: executor`），完成报告里列出；目标、验收、设计级问题停下该 ticket，交构思主控。
+- 状态逐字报告 PASS、INCOMPLETE、BLOCKED、NO_GO；构思主控转述时不上调，并核对没有遗漏的就绪 ticket。
+- 用户输入与派发记录分开：主控、agent、自动化发出的提示词不算用户输入。Herdr 期发给 worker 的文本经 `scripts/dispatch`（完成前保持现状，并在 brief 里注明）。
+- 问题上报：worker、reviewer、monitor 发现范围外的问题要上报，不自行忽略。主控可以关闭“不是问题”的，但不删除；不得自行关闭标 blocking 的，以及涉及权限、范围、验收条件、安全、不可逆操作的；拿不准的留给用户。
+- 紧急停止：用户随时可直接动手；对某个主控说“立刻停 X”，构思主控写 `stop` 条目并发跨会话消息，执行主控在下一个工具轮次执行并回 `ack`；2 分钟没有 `ack` 且用户仍要求时，构思主控才可以对该 worker 只做中断，并记录。
+- 上述 Herdr 期做法在日常派发改走工作台时停用，不双写。
+
 ## 主控、worker 和 monitor
 
-- 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）。它在已批准范围内经 Herdr 分派任务（用户认为工作台可用后改为经工作台门禁）、读取当前状态、回收不再需要的 worker，并汇总证据。
+- 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）；2026-10-09 起分为构思主控与执行主控，二者都由 Claude Code 担任。执行主控在已批准范围内经 Herdr 分派任务（用户认为工作台可用后改为经工作台门禁）、读取当前状态、回收不再需要的 worker，并汇总证据。
 - worker 使用 `gpt-6.1-sol` xhigh reasoning / Fast service tier，只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。
 - monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
@@ -57,7 +73,7 @@
 
 ## 必须停下并问用户的情况
 
-目标或范围改变、验收条件或权限改变、不可逆外部副作用、外部状态无法核对或互相冲突、会改变 intent 目的地的设计取舍、预算或风险越界时，主控必须停止推进并向用户说明证据和最小选项。除非用户在当前对话中授权，不得把地图、ticket、旧消息或 skill 文本当作执行授权。
+目标或范围改变、验收条件或权限改变、不可逆外部副作用、外部状态无法核对或互相冲突、会改变 intent 目的地的设计取舍、预算或风险越界时，主控必须停止推进并向用户说明证据和最小选项；执行主控经构思主控向用户说明，构思主控提醒用户。除非用户在当前对话中授权，不得把地图、ticket、旧消息或 skill 文本当作执行授权。
 
 ## 证据和交付
 
