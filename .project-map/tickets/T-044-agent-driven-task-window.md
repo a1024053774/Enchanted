@@ -20,12 +20,18 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 经 `a2a/scripts/gate`（或同一 CLI 的 HTTP 传输）依次 create → dispatch → attach reviewer，任务窗口无需任何手动操作即显示该任务、worker 与 reviewer；有截图与命令输出。
-- [ ] attach 的会话调用 `a2a_submit` 被拒绝；不能经它推进门禁状态。先在缺失实现时取得红态。
-- [ ] 回收后会话在任务中标为已结束；membership 与门禁事件读回一致。
-- [ ] T-036/T-037 的 35 项与 T-038 membership 场景仍通过；typecheck、lint 通过。
+- [x] 经 `a2a/scripts/gate`（或同一 CLI 的 HTTP 传输）依次 create → dispatch → attach reviewer，任务窗口无需任何手动操作即显示该任务、worker 与 reviewer；有截图与命令输出。
+- [x] attach 的会话调用 `a2a_submit` 被拒绝；不能经它推进门禁状态。先在缺失实现时取得红态。
+- [x] 回收后会话在任务中标为已结束；membership 与门禁事件读回一致。
+- [x] T-036/T-037 的 35 项与 T-038 membership 场景仍通过；typecheck、lint 通过。
 
 ## Resolution
+
+2026-10-09 第二轮：**PASS（T-044 与主控决定 01 的明确隔离范围），保持 open 待主控关闭**。授权见 [主控决定](../../evidence/2026-10-09-batch5/T-044/controller-decision-01.md)；最终 fork 候选 `90e38b667e224caca75318591fac43e676bf77e3`，未 push。完整 [第二轮中文报告](../../evidence/2026-10-09-batch5/T-044/round2/RESULTS.md)、[新 fresh-context 审查 PASS](../../evidence/2026-10-09-batch5/T-044/round2/acceptance-review.md) 与截图、原始 argv/事件、红绿态、坏候选和 19 个夹具 root 归档已保存。
+
+REALITY GATE: PASS。operation_busy/KeyError 两类原失败均来自夹具在固定 submit 窗口内读取全量 snapshot，迟到后触发门禁的正常期限清理；原时间线与受控慢观察红绿态证明，修复仅改公开 status 身份读取，不改业务断言/期限。最终候选 35/35、membership、fmt/lint/typecheck 与相关核心/服务测试通过；error 正例可回收，22 种反例在任何 stop/archive 副作用前拒绝，run error 仍非成功；真实 CLI HTTP 回收与 dev 截图显示两角色“已结束”且历史保留。签名 Gateway/真实 app 模型/生产/Electron 原生不在此通过声明内。
+
+以下首轮 BLOCKED 记录原样保留，不作为第二轮候选的通过背书。
 
 2026-10-09 worker 交接：**BLOCKED，保持 open**。代码已在 fork `a2a` 分支提交，最终候选 `808156d63ef8e265a0e2c017fae7851e50a51019`，未 push；[中文报告](../../evidence/2026-10-09-batch5/T-044/RESULTS.md) 保存全部红态、检查、截图失败、两次审查原文与边界。
 

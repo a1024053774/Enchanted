@@ -1,0 +1,24 @@
+--- evidence/2026-10-07-synara-batch2/T-037/test_run_native_e2e.py
++++ evidence/2026-10-09-batch5/T-044/round2/test_run_native_e2e.py
+@@ -124,14 +124,13 @@
+         raise recovery.FixtureError("Run did not reach the isolated prompt boundary in 5 seconds")
+ 
+     def current_attempt(self):
+-        snapshot = self.snapshot("read-current-attempt")
+-        current = snapshot["status"]["current_attempt"]
+-        if isinstance(current, dict):
+-            return current
+-        matches = [r for r in self.rows(snapshot, "attempt") if r.get("attempt_id") == current]
+-        if len(matches) != 1:
+-            raise recovery.FixtureError("Cannot observe the current attempt: " + repr(current))
+-        return matches[0]
++        # Only the identity is needed before delivery. A full Git/SQLite/events
++        # snapshot consumes the fixed submit window; retain full snapshots at
++        # the existing business checkpoints after the run instead.
++        current = self.status()["current_attempt"]
++        if not isinstance(current, dict):
++            raise recovery.FixtureError("Cannot observe the native current attempt: " + repr(current))
++        return current
+ 
+     def guard(self, command, attempt, ok=True, error=None, task=None):
+         p = self.process(self.cli_argv(command, "--task", task or self.task,
