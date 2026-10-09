@@ -337,8 +337,14 @@ def ready(root):
             tickets[item["id"]] = item
         except (InboxError, OSError, UnicodeError) as exc:
             errors.append(f"{path.name}: {exc}")
+    ready_fields = ("ready", "ready_by", "ready_rev")
     for ident, item in sorted(tickets.items()):
-        missing = [field for field in ("ready", "ready_by", "ready_rev") if field not in item or item[field] == ""]
+        if item.get("status") != "open":
+            continue
+        if not any(field in item for field in ready_fields):
+            print(f"未标就绪：{ident} {item.get('title', '')}")
+            continue
+        missing = [field for field in ready_fields if field not in item or item[field] == ""]
         if missing:
             errors.append(ident + " 缺少 " + ", ".join(missing))
             continue
@@ -351,7 +357,7 @@ def ready(root):
         if not isinstance(dependencies, list) or not all(isinstance(dep, str) for dep in dependencies):
             errors.append(ident + " blocked_by 必须为列表")
             continue
-        if item.get("type") not in ("build", "task", "research") or item.get("status") != "open" or item.get("claimed_by"):
+        if item.get("type") not in ("build", "task", "research") or item.get("claimed_by"):
             continue
         if all(dep in tickets and tickets[dep].get("status") in ("closed", "superseded") for dep in dependencies):
             print(f"READY {ident} {item['type']} rev={item['ready_rev']} by={item['ready_by']} {item.get('title', '')}")

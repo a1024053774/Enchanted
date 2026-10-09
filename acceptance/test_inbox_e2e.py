@@ -317,6 +317,37 @@ runpy.run_path(script, run_name="__main__")
         for ident in ("T-001", "T-003", "T-004"):
             self.assertIn(ident, p.stderr)
 
+    def test_ready_ended_tickets_not_diagnosed(self):
+        # Controller decision 01: ended tickets have no readiness obligation.
+        for ident, status in (("T-921", "closed"), ("T-922", "superseded"), ("T-923", "out-of-scope")):
+            text = f"---\nid: {ident}\ntitle: ended-{ident}\ntype: build\nstatus: {status}\nblocked_by: []\nclaimed_by:\n---\n"
+            (self.tickets / (ident + "-ended.md")).write_text(text, encoding="utf-8")
+        # Dependencies still use the ended records, even without readiness fields.
+        (self.tickets / "T-924-dependent.md").write_text(
+            "---\nid: T-924\ntitle: dependent\ntype: build\nstatus: open\nblocked_by: [T-921, T-922]\nclaimed_by:\nready: yes\nready_by: ideation\nready_rev: 1\n---\n", encoding="utf-8")
+        p = self.cli("ready")
+        self.assertEqual(p.stderr, "")
+        self.assertEqual([line.split()[1] for line in p.stdout.splitlines() if line.startswith("READY ")], ["T-924"])
+        self.assertNotIn("未标就绪", p.stdout)
+
+    def test_ready_unmarked_vs_partial_fields(self):
+        # No readiness fields means unmarked; some fields means a partial record.
+        (self.tickets / "T-931-legacy.md").write_text(
+            "---\nid: T-931\ntitle: legacy\ntype: task\nstatus: open\nblocked_by: []\nclaimed_by:\n---\n", encoding="utf-8")
+        p = self.cli("ready")
+        self.assertIn("未标就绪：T-931", p.stdout)
+        self.assertEqual(p.stderr, "")
+        self.assertNotIn("READY ", p.stdout)
+        for ident, fields in (("T-932", "ready: yes\nready_by: ideation\n"),
+                              ("T-933", "ready_by: executor\nready_rev: 2\n")):
+            (self.tickets / (ident + "-partial.md")).write_text(
+                f"---\nid: {ident}\ntitle: partial\ntype: research\nstatus: open\nblocked_by: []\nclaimed_by:\n{fields}---\n", encoding="utf-8")
+        p = self.cli("ready", code=1)
+        self.assertIn("未标就绪：T-931", p.stdout)
+        self.assertNotIn("T-931", p.stderr)
+        self.assertEqual(p.stderr.splitlines(), ["不合规：T-932 缺少 ready_rev", "不合规：T-933 缺少 ready"])
+        self.assertNotIn("READY ", p.stdout)
+
     def test_missing_card_and_session_copy_reminder(self):
         # Missing-card fixture removal only; product has no deletion entry point.
         (self.roles / "executor.md").unlink()
