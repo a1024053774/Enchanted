@@ -28,7 +28,7 @@
 
 `catalog-compare-02` 曾因本机 Python 3.9.6 不支持 `zip(strict=True)` 而退出 1。这是证据脚本环境错误，不是产品红态；原脚本和失败日志保留。`compare-catalog-resume-03.py` 在已明确验证名字列表完全相同、长度均为 116 后做逐项核对，退出 0。没有覆盖异常结果。
 
-a2a 的 staged `git diff --check` 对工具原始日志的行尾空白及 EOF 空行报告退出 2，原始输出见 `evidence-diff-check-02.log`；日志按证据保真要求原样提交。排除原始 `.log` 后，文档、脚本与收据的同一检查退出 0；fork 源码 diff 检查也通过。中文文件已回读核对 UTF-8、无 BOM、LF 及本地链接。
+a2a 的首次 staged `git diff --check` 对工具原始日志的行尾空白及 EOF 空行报告退出 2；共享 index 被并发提交取走后，`evidence-diff-check-02` 检查暂存区实际退出 0，日志为空。固定 `b8195eb^..b8195eb` 重放到 `evidence-diff-check-03.log`，退出 2，保留原始空白诊断；原始工具日志不改写。排除 `.log` 后，文档、脚本与收据的同一检查退出 0；fork 源码 diff 检查也通过。中文文件已回读核对 UTF-8、无 BOM、LF 及本地链接。
 
 ## 重放与版本
 
@@ -56,4 +56,4 @@ fork 改动限于：
 
 没有修改目录或生产授权条件，没有新的异常处理、fallback、兼容分支或平行 API，故不另做 design-integrity-review。本次为受控帧的解析与许可逻辑证据，不宣称真实 CLI 已经发生缺字段故障或正式工作台通过。两个跳过项是 `CODEX_BINARY_PATH` 未设置时默认跳过的真实 Codex resume/rollback 用例，符合本票不需真实模型调用的范围；没有运行全仓测试、桌面 build、UI、平台/迁移检查。
 
-本轮新问题上报 0；上一轮的 submit 身份问题由恢复 brief 明确 Herdr 期交付方式，验收口径冲突由 ready_rev 2 明确三个既有数字名字同样修复。原收件箱条目与旧报告不改写，处置由主控负责。没有停止或重启任何服务，没有访问正式工作台数据，没有改用户配置，没有 push；其他 worker 的 dirty files 保留。
+本轮新问题上报 1（非阻塞，`20261009T132317Z-worker:s11-t061b-issue-001`）：共享 main 的并发提交 `b8195eb5bb193f236df9d81a221be86a02b6934f` 带入了本票主体证据，随后 worker 提交 `bb7feae14226f0537d00bc9c316b01746b4db37d` 只包含新增收尾文件；完整内容都保留，见 [问题正文](shared-index-issue.md)。最终 DONE 行引用包含完整证据与校正的交付提交。上一轮的 submit 身份问题由恢复 brief 明确 Herdr 期交付方式，验收口径冲突由 ready_rev 2 明确三个既有数字名字同样修复。原收件箱条目与旧报告不改写，处置由主控负责。没有停止或重启任何服务，没有访问正式工作台数据，没有改用户配置，没有 push；其他 worker 的 dirty files 保留。
