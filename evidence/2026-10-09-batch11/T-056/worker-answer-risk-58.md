@@ -1,0 +1,15 @@
+# 受管结构化答复的人工介入显示待核对
+
+**INCOMPLETE（worker 静态风险，未做真实入口探针；不是第三次独立审查的 finding）。** 保存审查交付时核对冻结源码快照，看到一个目标键与显示解析的组合风险，按角色卡上报，不自行忽略或修复。
+
+位置（fork 的 dd 冻结快照，副本在 final-source-47）：
+
+- `apps/server/src/a2a/userInput.ts:25` 将 `thread.user-input.respond` 记作 answer；`:49` 对没有 messageId 的命令设置 `target.message: null`。
+- `packages/a2a-gates/src/core.ts:435` 对受管 attempt 的非派生输入生成 human_intervention，`:453` 原样使用 input.target.message，并保留 form。
+- `apps/web/src/a2a/humanIntervention.ts:33` 对 form 为 answer 的事件仍要求非空 message_id 字符串，`:41` 不满足时抛出格式错误。
+
+因此，受管 attempt 的 WS 结构化答复可能已经被记录，却在人工介入视图读取时被拒绝。原 10 项矩阵把结构化答复发给普通 thread，没有覆盖这一路径。消息形式的异步答复与面板登记答复有 message 键，不能单独排除此风险。
+
+建议执行主控另行安排一个有真实 request 目标的受管结构化答复场景，核对 SQLite 派生事件并交给实际显示解析器。若确认，最小修正是让解析器按输入实际形态接受无 message 的结构化 answer，同时继续拒绝消息答复缺失身份；用真实入口红绿证明。不要发明 messageId，也不要吞掉所有格式错误。
+
+本轮没有为此启动服务、补测试、改代码或追审；目前只做静态风险上报，不能冒称已复现为独立 FAIL，也不能冒称没有问题。
