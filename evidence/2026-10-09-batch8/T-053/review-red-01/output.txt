@@ -1,0 +1,28 @@
+test_answer_metadata_contract (__main__.InboxCLI) ... FAIL
+test_envelope_refs_and_offset_timestamps (__main__.InboxCLI) ... FAIL
+
+======================================================================
+FAIL: test_answer_metadata_contract (__main__.InboxCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 268, in test_answer_metadata_contract
+    self.assertEqual(fields.get("certainty"), "relayed")
+AssertionError: None != 'relayed'
+
+======================================================================
+FAIL: test_envelope_refs_and_offset_timestamps (__main__.InboxCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 279, in test_envelope_refs_and_offset_timestamps
+    self.send("--id", "with-typed-refs", *arguments)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 78, in send
+    return self.cli("send", "--from", "worker:sentinel", "--to", "executor",
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 74, in cli
+    self.assertEqual(p.returncode, code, p.stdout + p.stderr)
+AssertionError: 1 != 0 : 错误：引用文件不存在或越出项目：task:task-nonce
+
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.068s
+
+FAILED (failures=2)

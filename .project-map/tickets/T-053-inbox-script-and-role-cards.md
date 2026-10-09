@@ -41,3 +41,11 @@ Herdr 期两个主控之间的交接靠文件完成，格式和"哪些条目还�
 - 授权来源：`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+2026-10-09，worker：**PASS；保持 open，待主控关闭**。依据 `ready_rev: 1`。
+
+实现 `scripts/inbox`（Python 3 标准库）与真实 CLI 端到端测试。最终代码提交 `a4d502407e5d593300f84b2b82f899d0624f0949`（首刀 `251ce27694d28aef54079ab8c1bc691e7d5a4b0b`）；fork none；角色卡只读，无参数改名。
+
+12/12 用例通过；20 进程同秒发送、实际短写后 SIGKILL、手写未确认清单、14 个 ready 夹具、处置时限、只读真实地图、两个 mutant 均有原始证据。唯一 fresh-context 审查对首刀为 FAIL，发现答复字段、类型引用和时区三项遗漏；新增用例先红后绿，原独立探针逐字重放 13/13，保留原 FAIL，不上调旧结论。
+
+报告与重放命令：[RESULTS](../../evidence/2026-10-09-batch8/T-053/RESULTS.md)；独立审查：[REVIEW](../../evidence/2026-10-09-batch8/T-053/REVIEW.md)；完整版本绑定：[final-candidate](../../evidence/2026-10-09-batch8/T-053/final-candidate.json)。T-054 清单对接为 `evidence/*/sessions/manifest.jsonl` 的 `cutoff_at`；只用夹具验证，实际联合运行待 T-054。真实 ready 因旧 ticket 缺就绪字段退出 1，三种角色 list 退出 0，前后工作区与地图字节一致。

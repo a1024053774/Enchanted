@@ -1,0 +1,52 @@
+[
+  {
+    "name": "seconds-only",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch8/T-053/mutants-reviewed-candidate/mutant-seconds-only-01",
+      "InboxCLI.test_concurrent_twenty_and_clock_rollback"
+    ],
+    "env": {
+      "INBOX_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch8/T-053/mutants-reviewed-candidate/mutant-seconds-only.py"
+    },
+    "exit_code": 1,
+    "stdout": "test_concurrent_twenty_and_clock_rollback (__main__.InboxCLI) ... FAIL\n\n======================================================================\nFAIL: test_concurrent_twenty_and_clock_rollback (__main__.InboxCLI)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 143, in test_concurrent_twenty_and_clock_rollback\n    self.assertEqual([code for code, _, _ in results], [0] * 20, repr(results))\nAssertionError: Lists differ: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1] != [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]\n\nFirst differing element 0:\n1\n0\n\n- [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1]\n+ [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] : [(1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (0, '20261009T120000Z\\n', ''), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n'), (1, '', '错误：秒级文件名冲突\\n')]\n\n----------------------------------------------------------------------\nRan 1 test in 0.526s\n\nFAILED (failures=1)\n\n",
+    "stderr": "",
+    "changes": [
+      [
+        "candidate = ident or f\"{now.strftime('%Y%m%dT%H%M%SZ')}-{item['from']}-{item['kind']}-{sequence:03d}\"",
+        "candidate = ident or now.strftime('%Y%m%dT%H%M%SZ')"
+      ],
+      [
+        "sequence += 1",
+        "raise InboxError(\"秒级文件名冲突\")"
+      ]
+    ]
+  },
+  {
+    "name": "ack-sender-ignored",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch8/T-053/mutants-reviewed-candidate/mutant-ack-sender-ignored-01",
+      "InboxCLI.test_recipient_ack_and_dangling_reply"
+    ],
+    "env": {
+      "INBOX_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch8/T-053/mutants-reviewed-candidate/mutant-ack-sender-ignored.py"
+    },
+    "exit_code": 1,
+    "stdout": "test_recipient_ack_and_dangling_reply (__main__.InboxCLI) ... FAIL\n\n======================================================================\nFAIL: test_recipient_ack_and_dangling_reply (__main__.InboxCLI)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 108, in test_recipient_ack_and_dangling_reply\n    self.assertEqual(output_ids(self.cli(\"list\", \"--role\", \"executor\").stdout), [\"b\", \"d\"])\nAssertionError: Lists differ: ['d'] != ['b', 'd']\n\nFirst differing element 0:\n'd'\n'b'\n\nSecond list contains 1 additional elements.\nFirst extra element 1:\n'd'\n\n- ['d']\n+ ['b', 'd']\n\n----------------------------------------------------------------------\nRan 1 test in 0.353s\n\nFAILED (failures=1)\n\n",
+    "stderr": "",
+    "changes": [
+      [
+        " and item[\"from\"] == role",
+        ""
+      ]
+    ]
+  }
+]
