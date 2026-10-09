@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 1
+ready_rev: 2
 ---
 
 ## What to build
@@ -33,6 +33,7 @@ ready_rev: 1
 - [ ] 发送：点发送后 worker thread 里出现一条用户消息，内容逐字等于 spec 第 4 节单条格式的预期串（预期串由需求手写，不从实现输出复制），消息来源字段是 `user`。
 - [ ] 记录：该次答复产生恰好 1 条形态为 `answer` 的用户输入（`reply_to` = 问题 id），受管 attempt 上有 1 条指向它的 `human_intervention`；不产生形态为 `message` 的重复记录；重放事件日志不增加记录。
 - [ ] 一次真实 Codex worker 经 MCP 上报并收到答复，证据保存（隔离 `CODEX_HOME`，遵守 AGENTS.md 的真实 Codex 验收规则；额度紧，只用最少的 turn）。无法运行时明确记 INCOMPLETE，不用替身顶替。
+- [ ] `a2a_raise` 与 `a2a_submit` 同口径免确认（用户 2026-10-09 选 A，逐字：“A，然后你开”）：把 `a2a_raise` 加入网关工具名目录；受管 worker、有效运行身份、活跃 turn、已授权自动批准时不再弹权限提示；非受管会话、非活跃 turn 仍要提示。先红后绿，反例逐条；改动限于该工具名目录，列入上游文件改动清单。上一项的真实 Codex 上报因此要在无人批准的情况下完成。
 - [ ] 既有套件仍通过（交付 8、恢复 9、编排 18、membership、T-044 的 35 项）；typecheck、lint 通过；对上游文件的改动列清单。
 - [ ] 不使用正则或关键词规则判断任何内容的含义。
 
@@ -41,7 +42,7 @@ ready_rev: 1
 - 这是第一条 tracer bullet，目的之一是暴露 spec 的错误：发现 spec 与已建成的行为不符，停下发 `needs-decision`，不绕开。
 - 重复计数的做法（面板发送接口在派发消息前登记 `message_id`，记录器跳过已登记的）见 spec 第 3 节；如有更好的做法，写进 RESULTS 并说明理由。
 - 与 [T-053](T-053-inbox-script-and-role-cards.md)、[T-054](T-054-dispatch-wrapper-and-session-copy.md) 互不依赖，可并行；改动在 fork `a2a` 分支（`packages/a2a-gates`、`packages/contracts`、`apps/server/src/a2a`、`apps/web/src/a2a`）。
-- 授权来源：`ready_by: ideation`，`ready_rev: 1`。
+- 授权来源：`ready_by: ideation`，`ready_rev: 2`（2026-10-09 用户对“a2a_raise 是否免确认”选 A 后，由 1 修订为 2，只增加一项验收；见 inbox 里的 revise 条目）。
 
 ## Resolution
 
