@@ -1,0 +1,108 @@
+diff --git a/apps/web/src/a2a/humanIntervention.test.ts b/apps/web/src/a2a/humanIntervention.test.ts
+index 26f4762d2..6445ef2a1 100644
+--- a/apps/web/src/a2a/humanIntervention.test.ts
++++ b/apps/web/src/a2a/humanIntervention.test.ts
+@@ -92,4 +92,54 @@ describe("human intervention protocol fixtures", () => {
+     const mismatched = { ...worker, attempt: "another-attempt" };
+     expect(() => humanInterventions([mismatched], "task-A")).toThrow();
+   });
++  it("accepts request-bound WS answers while retaining message and attempt identity checks", () => {
++    const answer = {
++      ...worker,
++      details: {
++        ...worker.details,
++        form: "answer",
++        channel: "ws-rpc",
++        message_id: null,
++        request_id: "external-request-A",
++      },
++    };
++    expect(humanInterventions([answer, answer], "task-A")).toEqual([
++      {
++        eventId: "user-event-A",
++        threadId: "worker-A",
++        messageId: "",
++        attemptId: "old-attempt-A",
++        time: worker.time,
++        text: worker.details.text,
++      },
++    ]);
++    for (const patch of [
++      { request_id: undefined },
++      { request_id: null },
++      { request_id: "" },
++      { request_id: " " },
++      { request_id: 42 },
++      { channel: undefined },
++      { channel: "thread-message" },
++      { channel: "issue-panel" },
++      { message_id: "" },
++      { message_id: 42 },
++      { form: "message" },
++    ]) {
++      expect(() =>
++        humanInterventions([{ ...answer, details: { ...answer.details, ...patch } }], "task-A"),
++      ).toThrow();
++    }
++    const mismatchedAnswer = { ...answer, attempt: "foreign-attempt" };
++    expect(() => humanInterventions([mismatchedAnswer], "task-A")).toThrow();
++    for (const channel of ["thread-message", "issue-panel", undefined]) {
++      const messageAnswer = {
++        ...answer,
++        details: { ...answer.details, channel, message_id: "external-message-A" },
++      };
++      expect(humanInterventions([messageAnswer], "task-A")[0]?.messageId).toBe(
++        "external-message-A",
++      );
++    }
++  });
+ });
+diff --git a/apps/web/src/a2a/humanIntervention.ts b/apps/web/src/a2a/humanIntervention.ts
+index d50c313ca..1cef55486 100644
+--- a/apps/web/src/a2a/humanIntervention.ts
++++ b/apps/web/src/a2a/humanIntervention.ts
+@@ -25,13 +25,19 @@ export function humanInterventions(
+     if (!("task" in event) || typeof event.task !== "string" || typeof details.task_id !== "string")
+       throw new Error("人工介入事件缺少任务绑定");
+     if (event.task !== taskId || details.task_id !== taskId) continue;
++    const structuredAnswer =
++      details.form === "answer" &&
++      details.channel === "ws-rpc" &&
++      details.message_id === null &&
++      typeof details.request_id === "string" &&
++      details.request_id.trim().length > 0;
+     if (
+       typeof details.event_id !== "string" ||
+       !details.event_id ||
+       typeof details.thread_id !== "string" ||
+       !details.thread_id ||
+       (details.form === undefined || details.form === "message" || details.form === "answer"
+-        ? typeof details.message_id !== "string" || !details.message_id
++        ? !structuredAnswer && (typeof details.message_id !== "string" || !details.message_id)
+         : details.message_id !== null &&
+           (typeof details.message_id !== "string" || !details.message_id)) ||
+       typeof details.attempt_id !== "string" ||
+diff --git a/packages/a2a-gates/README.md b/packages/a2a-gates/README.md
+index 96d9e2774..58dccfd39 100644
+--- a/packages/a2a-gates/README.md
++++ b/packages/a2a-gates/README.md
+@@ -43,4 +43,6 @@ HTTP、工作台 CLI 与 MCP 共用门禁核心。以下请求可经现有 `a2a/
+ 
+ `user_input_observer` 对外提供记录器状态。受管 attempt 的记录失败保持门禁 fail-closed；其他范围失败不阻断业务。启动时重放事件日志和已登记的 RPC 来源；来源无法核对的中断区间保存 `form: gap`、序号范围与原因，不推断为用户决定。消息、RPC 与重放按稳定的来源键去重；受管输入与指向 `input_id` 的 `human_intervention` 在同一事务写入。面板答复仍使用其原有登记与去重路径。
+ 
++人工介入事件保留输入的 `channel` 和目标 `request_id`。WS 结构化答复可以没有 message 键，但必须有 request；消息渠道的答复仍要求有效 message 身份，界面不会为结构化答复发明消息 id。
++
+ 旧 `human_inputs` 去重表迁入 `user_input_events`；`user_inputs` 的 task、message 可为空，历史正文和事件保留。迁移在事务中执行，允许中断后重跑；用户输入和 RPC 来源登记为追加式记录。
+diff --git a/packages/a2a-gates/src/core.ts b/packages/a2a-gates/src/core.ts
+index ea8a5500e..238edb2cc 100644
+--- a/packages/a2a-gates/src/core.ts
++++ b/packages/a2a-gates/src/core.ts
+@@ -451,6 +451,8 @@ export class A2AGates {
+             thread_id: input.target.thread,
+             turn_id: input.target.turn,
+             message_id: input.target.message,
++            request_id: input.target.request ?? null,
++            channel: input.channel,
+             form: input.form,
+             event_id: input.source_ref.event_id ?? input.source_ref.command_id,
+             source_sequence: input.source_ref.source_sequence,
