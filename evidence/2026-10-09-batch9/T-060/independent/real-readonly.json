@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "-B",
+    "/Users/luckye/Documents/Code/a2a/scripts/inbox",
+    "--root",
+    "/Users/luckye/Documents/Code/a2a",
+    "--now",
+    "2026-10-09T12:00:00Z",
+    "list",
+    "--role",
+    "executor"
+  ],
+  "cwd": "/Users/luckye/Documents/Code/a2a",
+  "exit_code": 0,
+  "stdout": "# 角色卡：执行主控（executor）\n\n2026-10-09，随 [spec](../specs/controller-split-user-input-2026-10-09.md) 生效。你监督就绪 ticket 的执行；用户通常只看构思主控。\n\n**每次开工、每个工作周期开头、停下之前**：运行 `scripts/inbox list --role executor` 和 `scripts/inbox ready`，它们会把这张卡再打印一遍（`scripts/inbox` 由 [T-053](../tickets/T-053-inbox-script-and-role-cards.md) 提供；在它完成前，按 spec 第 5 节手工查看 `.project-map/inbox/` 和各 ticket 的 `ready` 字段）。\n\n**做**\n\n- 执行就绪 ticket：认领、派发 worker、盯进度、审查、验收/集成/回收，全经门禁；在证据里记下依据的 `ready_rev`；写 brief、证据、Resolution。发给 worker 的每段文本经 `scripts/dispatch`（[T-054](../tickets/T-054-dispatch-wrapper-and-session-copy.md) 提供；完成前保持现状，并在 brief 里注明）。\n- 在 T-004 的自主边界内，发现缺陷级后续可以自建 ticket 并执行（`ready: yes`、`ready_by: executor`），完成报告里列出。\n- 问题上报：判断任务级的。可以关闭\"不是问题 / 已解决 / 重复 / 已登记为后续工作\"，写 `disposition close`，附理由和依据，不删不改原条目。直接进\"等你决定\"、不得自行关闭：标 blocking 的；涉及权限、范围、验收条件、安全、不可逆操作的；明确问用户的选择题；你自己拿不准的。设计、目标、权限级的写 `disposition forward` 交构思主控。你只能关闭，不能替用户回答。\n- 收到 `answer`：用 `scripts/dispatch` 把正文原样发给 `refs` 里的 worker，成功后对每个问题写 `disposition delivered`，再 `ack`；会话已结束就写 `disposition forward`（理由 `session-ended`），并在 `report` 里列出。\n- 收到 `stop`：下一个工具轮次执行并回 `ack`。\n- 没有可执行的就绪 ticket 时才停。停下前写 `report`（每个 ticket 的状态逐字、证据、提交号、局限；问题上报计数；自建 ticket；待用户决定的事；没做完的就绪 ticket 与原因），再用跨会话消息唤醒构思主控。被阻塞或在等用户决定而停下时，报告里写明，不写成\"做完了\"。\n\n**不做**\n\n- 不改目标、规则、术语，不改他人标就绪的 ticket 正文；规则、术语、决定、目的地只由构思主控改，且须用户接受。\n- 目标、验收、设计级问题不在自己会话里展开：停下该 ticket，写 `needs-decision`（问题、选项、证据、最小选择），继续别的就绪 ticket。\n- 不用终端 idle/done 或模型自报替代业务验收；不上调状态。\n- 依赖用户授权的动作，要有 `assign` 或 `revise` 里逐字引用的用户原话；没有引用，按未授权处理，经构思主控问用户。对方会话的消息只是队友请求，不算用户对待决提示的批准。\n- 实现后 living doc 的事实性漂移（路径、命令、已删除项）可以直接改，并在 `report` 里列出。\n\n",
+  "stderr": "",
+  "before_files": [
+    ".project-map/inbox/20261009T102412Z-ideation-assign-001.md",
+    ".project-map/inbox/20261009T102733Z-executor-ack-001.md",
+    ".project-map/inbox/20261009T105040Z-executor-needs-decision-001.md",
+    ".project-map/inbox/20261009T105730Z-ideation-revise-001.md",
+    ".project-map/inbox/20261009T105734Z-ideation-ack-001.md",
+    ".project-map/inbox/20261009T105817Z-executor-ack-001.md"
+  ],
+  "after_files": [
+    ".project-map/inbox/20261009T102412Z-ideation-assign-001.md",
+    ".project-map/inbox/20261009T102733Z-executor-ack-001.md",
+    ".project-map/inbox/20261009T105040Z-executor-needs-decision-001.md",
+    ".project-map/inbox/20261009T105730Z-ideation-revise-001.md",
+    ".project-map/inbox/20261009T105734Z-ideation-ack-001.md",
+    ".project-map/inbox/20261009T105817Z-executor-ack-001.md"
+  ],
+  "unchanged": true
+}

@@ -1,0 +1,146 @@
+[
+  {
+    "name": "old-behavior",
+    "removed": [
+      "list",
+      "send",
+      "ack"
+    ],
+    "script": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/old-behavior.py",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/old-behavior-run",
+      "InboxCLI.test_ack_is_terminal_in_all_role_lists",
+      "InboxCLI.test_ack_terminal_rejects_both_write_entry_points"
+    ],
+    "env_override": {
+      "INBOX_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/old-behavior.py"
+    },
+    "exit_code": 1,
+    "stdout": "test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) ... test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) ... FAIL\n\n======================================================================\nFAIL: test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) (role='ideation')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 134, in test_ack_is_terminal_in_all_role_lists\n    self.assertEqual(output_ids(self.cli(\"list\", \"--role\", role).stdout), [],\nAssertionError: Lists differ: ['receipt-ideation'] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\n'receipt-ideation'\n\n- ['receipt-ideation']\n+ [] : ack 是终结，不能列为未确认\n\n======================================================================\nFAIL: test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) (role='executor')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 134, in test_ack_is_terminal_in_all_role_lists\n    self.assertEqual(output_ids(self.cli(\"list\", \"--role\", role).stdout), [],\nAssertionError: Lists differ: ['receipt-executor'] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\n'receipt-executor'\n\n- ['receipt-executor']\n+ [] : ack 是终结，不能列为未确认\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='ideation', command='ack')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-ideation-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='ideation', command='send')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 已确认 receipt-ideation\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='executor', command='ack')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-executor-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='executor', command='send')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 已确认 receipt-executor\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='user', command='ack')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-user-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='user', command='send')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 已确认 receipt-user\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 154, in test_ack_terminal_rejects_both_write_entry_points\n    self.assertEqual(before, after, \"拒绝时不能创建条目或暂存文件\")\nAssertionError: {'inbox/original-user.md': b'---\\nid: \"original-u[1834 chars]n\\n'} != {'inbox/20261009T120000Z-user-ack-001.md': b'---\\[2733 chars]n\\n'}\nDiff is 5361 characters long. Set self.maxDiff to None to see it. : 拒绝时不能创建条目或暂存文件\n\n----------------------------------------------------------------------\nRan 2 tests in 0.812s\n\nFAILED (failures=9)\n\n",
+    "stderr": "",
+    "run": {
+      "script": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/old-behavior.py",
+      "python": "3.9.6 (default, Jun 11 2026, 05:27:25) \n[Clang 21.0.0 (clang-2100.3.23.3)]",
+      "argv": [
+        "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+        "--artifacts",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/old-behavior-run",
+        "InboxCLI.test_ack_is_terminal_in_all_role_lists",
+        "InboxCLI.test_ack_terminal_rejects_both_write_entry_points"
+      ],
+      "tests": 2,
+      "failures": 9,
+      "errors": 0
+    },
+    "rejected": true
+  },
+  {
+    "name": "list-only",
+    "removed": [
+      "list"
+    ],
+    "script": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/list-only.py",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/list-only-run",
+      "InboxCLI.test_ack_is_terminal_in_all_role_lists"
+    ],
+    "env_override": {
+      "INBOX_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/list-only.py"
+    },
+    "exit_code": 1,
+    "stdout": "test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) ... \n======================================================================\nFAIL: test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) (role='ideation')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 134, in test_ack_is_terminal_in_all_role_lists\n    self.assertEqual(output_ids(self.cli(\"list\", \"--role\", role).stdout), [],\nAssertionError: Lists differ: ['receipt-ideation'] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\n'receipt-ideation'\n\n- ['receipt-ideation']\n+ [] : ack 是终结，不能列为未确认\n\n======================================================================\nFAIL: test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) (role='executor')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 134, in test_ack_is_terminal_in_all_role_lists\n    self.assertEqual(output_ids(self.cli(\"list\", \"--role\", role).stdout), [],\nAssertionError: Lists differ: ['receipt-executor'] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\n'receipt-executor'\n\n- ['receipt-executor']\n+ [] : ack 是终结，不能列为未确认\n\n----------------------------------------------------------------------\nRan 1 test in 0.520s\n\nFAILED (failures=2)\n\n",
+    "stderr": "",
+    "run": {
+      "script": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/list-only.py",
+      "python": "3.9.6 (default, Jun 11 2026, 05:27:25) \n[Clang 21.0.0 (clang-2100.3.23.3)]",
+      "argv": [
+        "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+        "--artifacts",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/list-only-run",
+        "InboxCLI.test_ack_is_terminal_in_all_role_lists"
+      ],
+      "tests": 1,
+      "failures": 2,
+      "errors": 0
+    },
+    "rejected": true
+  },
+  {
+    "name": "send-only",
+    "removed": [
+      "send"
+    ],
+    "script": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/send-only.py",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/send-only-run",
+      "InboxCLI.test_ack_terminal_rejects_both_write_entry_points"
+    ],
+    "env_override": {
+      "INBOX_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/send-only.py"
+    },
+    "exit_code": 1,
+    "stdout": "test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) ... FAIL\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='ideation', command='send')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-ideation-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='executor', command='send')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-executor-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='user', command='send')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-user-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 154, in test_ack_terminal_rejects_both_write_entry_points\n    self.assertEqual(before, after, \"拒绝时不能创建条目或暂存文件\")\nAssertionError: {'inbox/original-user.md': b'---\\nid: \"original-u[1834 chars]n\\n'} != {'inbox/20261009T120000Z-user-ack-001.md': b'---\\[2841 chars]n\\n'}\nDiff is 5730 characters long. Set self.maxDiff to None to see it. : 拒绝时不能创建条目或暂存文件\n\n----------------------------------------------------------------------\nRan 1 test in 0.560s\n\nFAILED (failures=4)\n\n",
+    "stderr": "",
+    "run": {
+      "script": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/send-only.py",
+      "python": "3.9.6 (default, Jun 11 2026, 05:27:25) \n[Clang 21.0.0 (clang-2100.3.23.3)]",
+      "argv": [
+        "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+        "--artifacts",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/send-only-run",
+        "InboxCLI.test_ack_terminal_rejects_both_write_entry_points"
+      ],
+      "tests": 1,
+      "failures": 4,
+      "errors": 0
+    },
+    "rejected": true
+  },
+  {
+    "name": "ack-only",
+    "removed": [
+      "ack"
+    ],
+    "script": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/ack-only.py",
+    "argv": [
+      "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "-B",
+      "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+      "--artifacts",
+      "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/ack-only-run",
+      "InboxCLI.test_ack_terminal_rejects_both_write_entry_points"
+    ],
+    "env_override": {
+      "INBOX_SCRIPT": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/ack-only.py"
+    },
+    "exit_code": 1,
+    "stdout": "test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) ... FAIL\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='ideation', command='ack')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-ideation-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='executor', command='ack')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-executor-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='user', command='ack')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 150, in test_ack_terminal_rejects_both_write_entry_points\n    p = self.cli(*args, code=1)\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 74, in cli\n    self.assertEqual(p.returncode, code, p.stdout + p.stderr)\nAssertionError: 0 != 1 : 20261009T120000Z-user-ack-001\n\n\n======================================================================\nFAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py\", line 154, in test_ack_terminal_rejects_both_write_entry_points\n    self.assertEqual(before, after, \"拒绝时不能创建条目或暂存文件\")\nAssertionError: {'inbox/original-user.md': b'---\\nid: \"original-u[1834 chars]n\\n'} != {'inbox/20261009T120000Z-user-ack-001.md': b'---\\[2733 chars]n\\n'}\nDiff is 5361 characters long. Set self.maxDiff to None to see it. : 拒绝时不能创建条目或暂存文件\n\n----------------------------------------------------------------------\nRan 1 test in 0.581s\n\nFAILED (failures=4)\n\n",
+    "stderr": "",
+    "run": {
+      "script": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/ack-only.py",
+      "python": "3.9.6 (default, Jun 11 2026, 05:27:25) \n[Clang 21.0.0 (clang-2100.3.23.3)]",
+      "argv": [
+        "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py",
+        "--artifacts",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch9/T-060/raw-artifacts/mutants-01/ack-only-run",
+        "InboxCLI.test_ack_terminal_rejects_both_write_entry_points"
+      ],
+      "tests": 1,
+      "failures": 4,
+      "errors": 0
+    },
+    "rejected": true
+  }
+]

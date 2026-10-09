@@ -1,0 +1,111 @@
+test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) ... test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) ... FAIL
+
+======================================================================
+FAIL: test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) (role='ideation')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 134, in test_ack_is_terminal_in_all_role_lists
+    self.assertEqual(output_ids(self.cli("list", "--role", role).stdout), [],
+AssertionError: Lists differ: ['receipt-ideation'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'receipt-ideation'
+
+- ['receipt-ideation']
++ [] : ack 是终结，不能列为未确认
+
+======================================================================
+FAIL: test_ack_is_terminal_in_all_role_lists (__main__.InboxCLI) (role='executor')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 134, in test_ack_is_terminal_in_all_role_lists
+    self.assertEqual(output_ids(self.cli("list", "--role", role).stdout), [],
+AssertionError: Lists differ: ['receipt-executor'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'receipt-executor'
+
+- ['receipt-executor']
++ [] : ack 是终结，不能列为未确认
+
+======================================================================
+FAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='ideation', command='ack')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 150, in test_ack_terminal_rejects_both_write_entry_points
+    p = self.cli(*args, code=1)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 74, in cli
+    self.assertEqual(p.returncode, code, p.stdout + p.stderr)
+AssertionError: 0 != 1 : 20261009T120000Z-ideation-ack-001
+
+
+======================================================================
+FAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='ideation', command='send')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 150, in test_ack_terminal_rejects_both_write_entry_points
+    p = self.cli(*args, code=1)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 74, in cli
+    self.assertEqual(p.returncode, code, p.stdout + p.stderr)
+AssertionError: 0 != 1 : 已确认 receipt-ideation
+
+
+======================================================================
+FAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='executor', command='ack')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 150, in test_ack_terminal_rejects_both_write_entry_points
+    p = self.cli(*args, code=1)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 74, in cli
+    self.assertEqual(p.returncode, code, p.stdout + p.stderr)
+AssertionError: 0 != 1 : 20261009T120000Z-executor-ack-001
+
+
+======================================================================
+FAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='executor', command='send')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 150, in test_ack_terminal_rejects_both_write_entry_points
+    p = self.cli(*args, code=1)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 74, in cli
+    self.assertEqual(p.returncode, code, p.stdout + p.stderr)
+AssertionError: 0 != 1 : 已确认 receipt-executor
+
+
+======================================================================
+FAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='user', command='ack')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 150, in test_ack_terminal_rejects_both_write_entry_points
+    p = self.cli(*args, code=1)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 74, in cli
+    self.assertEqual(p.returncode, code, p.stdout + p.stderr)
+AssertionError: 0 != 1 : 20261009T120000Z-user-ack-001
+
+
+======================================================================
+FAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI) (role='user', command='send')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 150, in test_ack_terminal_rejects_both_write_entry_points
+    p = self.cli(*args, code=1)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 74, in cli
+    self.assertEqual(p.returncode, code, p.stdout + p.stderr)
+AssertionError: 0 != 1 : 已确认 receipt-user
+
+
+======================================================================
+FAIL: test_ack_terminal_rejects_both_write_entry_points (__main__.InboxCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_inbox_e2e.py", line 154, in test_ack_terminal_rejects_both_write_entry_points
+    self.assertEqual(before, after, "拒绝时不能创建条目或暂存文件")
+AssertionError: {'inbox/original-user.md': b'---\nid: "original-u[1834 chars]n\n'} != {'inbox/20261009T120000Z-user-ack-001.md': b'---\[2733 chars]n\n'}
+Diff is 5361 characters long. Set self.maxDiff to None to see it. : 拒绝时不能创建条目或暂存文件
+
+----------------------------------------------------------------------
+Ran 2 tests in 2.557s
+
+FAILED (failures=9)
