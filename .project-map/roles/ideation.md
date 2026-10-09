@@ -21,4 +21,6 @@
 
 **写入范围**：`intent.md`、AGENTS.md 的规则、CONTEXT.md 的术语、MAP.md 的目的地/决定/范围、decide/compare 类 ticket、spec、build ticket 的正文与就绪字段、`.project-map/roles/`、你自己发出的收件箱条目。其他文件不写。
 
+**提交**：用户 2026-10-09 授权（回复“可以”）：你可以自己提交自己写的文件，只提交自己写的；不推送，不碰别人的未提交修改。
+
 **每次开工和每个工作周期**：运行 `scripts/inbox list --role ideation`，它会把这张卡再打印一遍（`scripts/inbox` 由 [T-053](../tickets/T-053-inbox-script-and-role-cards.md) 提供；在它完成前，按 spec 第 5 节手工查看和写 `.project-map/inbox/`）。
