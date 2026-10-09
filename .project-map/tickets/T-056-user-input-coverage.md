@@ -4,7 +4,7 @@ title: 用户输入记录覆盖全部范围，观察器改名
 type: build
 status: open
 blocked_by: [T-055]
-claimed_by:
+claimed_by: s11-t056
 supersedes:
 ready: yes
 ready_by: ideation
