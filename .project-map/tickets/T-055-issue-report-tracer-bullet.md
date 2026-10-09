@@ -44,3 +44,5 @@ ready_rev: 1
 - 授权来源：`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+2026-10-09 worker：**BLOCKED**，尚未开始实现，待主控决定；ticket 保持 open，待主控关闭。实际 MCP 注册入口为允许目录之外的 `apps/server/src/agentGateway/Layers/AgentGateway.ts`，需要主控批准两处最小接入才能让 `a2a_raise` 出现在正式 `tools/list`。定位证据、拟议差异与未运行检查见 [RESULTS](../../evidence/2026-10-09-batch8/T-055/RESULTS.md)。依据 `ready_rev: 1`，未更改正文或验收条件。

@@ -1,0 +1,83 @@
+时间：2026-10-09T10:30:20.106965+00:00
+cwd: /Users/luckye/Documents/Code/synara
+仅静态定位；未运行服务或 provider。
+
+argv: ['git', 'rev-parse', 'HEAD']
+exit: 0
+6efac8432d7ae37e74b76e42d4e9fd3004d9a0e2
+
+
+
+argv: ['git', 'branch', '--show-current']
+exit: 0
+a2a
+
+
+
+argv: ['git', 'status', '--short']
+exit: 0
+?? .grok/
+
+
+
+argv: ['rg', '-n', 'a2aSubmitTool|const tools:|tools,|makeAgentGatewayMcpTransport', 'apps/server/src/agentGateway/Layers/AgentGateway.ts']
+exit: 0
+85:import { makeAgentGatewayMcpTransport } from "../mcpTransport.ts";
+1101:    Parameters<typeof makeAgentGatewayMcpTransport>[0]["onCapabilityDenied"]
+1339:   * The Computer approval path, shared by the desktop tools, the
+1540:  const tools: ReadonlyArray<ToolEntry> = [
+1541:    ...(a2aGates ? [a2aSubmitTool(a2aGates)] : []),
+1588:    handleMcpPost: makeAgentGatewayMcpTransport({
+1591:      tools,
+1609:import { a2aSubmitTool } from "../../a2a/tools";
+
+
+
+argv: ['sed', '-n', '1540,1545p', 'apps/server/src/agentGateway/Layers/AgentGateway.ts']
+exit: 0
+  const tools: ReadonlyArray<ToolEntry> = [
+    ...(a2aGates ? [a2aSubmitTool(a2aGates)] : []),
+    ...readTools,
+    ...diagnosticTools,
+    createThreads,
+    createThread,
+
+
+
+argv: ['sed', '-n', '1587,1610p', 'apps/server/src/agentGateway/Layers/AgentGateway.ts']
+exit: 0
+  return {
+    handleMcpPost: makeAgentGatewayMcpTransport({
+      credentials,
+      snapshotQuery,
+      tools,
+      onCapabilityDenied: surfaceCapabilityDenial,
+      // Namespace-insensitive: a session that never saw the catalog reaches
+      // for prefixed spellings (synara_computer_click,
+      // mcp__synara__computer_click). Those must deny with the card, never die
+      // as Unknown-tool. The exact set stays as a backstop for any catalog
+      // computer name outside the static family list.
+      isComputerToolName: (toolName) =>
+        computerToolNames.has(toolName) || isSynaraComputerToolFamilyName(toolName),
+      computerControlCapability: COMPUTER_CONTROL_CAPABILITY,
+      instructions: AGENT_GATEWAY_INSTRUCTIONS,
+      requireThreadShell,
+    }),
+  } satisfies AgentGatewayShape;
+});
+
+export const AgentGatewayLive = Layer.effect(AgentGateway, makeAgentGateway);
+import { A2AGateService } from "../../a2a/service";
+import { a2aSubmitTool } from "../../a2a/tools";
+
+
+
+argv: ['sed', '-n', '245,252p', 'apps/server/src/agentGateway/computerToolPermission.ts']
+exit: 0
+/** Every tool name the agent gateway serves, from the shared catalogs. */
+const SYNARA_GATEWAY_TOOL_NAME_SET: ReadonlySet<string> = new Set<string>([
+  "a2a_submit",
+  ...SYNARA_GATEWAY_OWNED_TOOL_NAMES,
+  ...SYNARA_COMPUTER_TOOL_NAMES,
+  ...BROWSER_TOOL_NAMES,
+]);
