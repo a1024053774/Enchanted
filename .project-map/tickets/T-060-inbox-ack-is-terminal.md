@@ -2,7 +2,7 @@
 id: T-060
 title: scripts/inbox：ack 是终结，不再被列为未确认，也不能被确认
 type: build
-status: open
+status: closed
 blocked_by: [T-053]
 claimed_by: s9-t060
 supersedes:
@@ -38,3 +38,5 @@ ready_rev: 1
 代码候选 `c4ce31d73914fd5afa9eae59b5cb76a1fa5c1331`，fork none。list 排除所有 ack；ack 与 send --kind ack 两个现有入口均拒绝确认 ack，退出 1、不写文件。先在 T-053 最终入口 `8e260461f32e49c3b1bce50bedeceb4fad38aa8a` 取得缺陷红态，再运行修复后 17/17 套件，原 14 项预期未改；四个 mutant 被业务断言拒绝；真实三个角色 list 的 Git 状态与地图字节前后一致。
 
 中文报告及行为说明：[RESULTS](../../evidence/2026-10-09-batch9/T-060/RESULTS.md)。独立探针确认功能行为、拒绝父行为；但审查者把其他任务的并发改动视为冻结快照变化，且未核验允许写在 RESULTS 的文档条件，原结论见 [REVIEW](../../evidence/2026-10-09-batch9/T-060/REVIEW.md)。冻结候选与目标文件未变的补充证据及文档位置已保存；没有追加第二次审查或把原结论上调为 PASS。需主控判定现有证据是否足够关闭，或另行授权补审。
+
+**执行主控关闭（2026-10-09）：PASS，依据 ready_rev 1；独立审查结论 INCOMPLETE 原样保留。** 代码 `c4ce31d`，证据 `f9b0a5b`，见 [交付记录](../../evidence/2026-10-09-batch9/T-060/RESULTS.md) 与 [审查](../../evidence/2026-10-09-batch9/T-060/REVIEW.md)。审查确认了全部功能行为与父版本反例，INCOMPLETE 的两个原因由执行主控核对：(1) 审查期间工作树出现的并发改动来自 T-054、T-055 的其他 worker，`scripts/inbox` 与 `acceptance/test_inbox_e2e.py` 自 `c4ce31d` 起未变（`git diff c4ce31d HEAD` 为空），执行主控在当前 HEAD 重跑套件 17/17；(2) 验收允许行为说明写在 `--help` 或 RESULTS，RESULTS"行为说明"一节已写明两种列表写法与损坏条目拒绝写入的原因。真实收件箱 `list --role executor` 不再列出 ack。
