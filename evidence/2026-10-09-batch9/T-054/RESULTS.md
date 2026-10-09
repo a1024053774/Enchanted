@@ -91,3 +91,18 @@ DISPATCH_SCRIPT=/path/to/missing-marker/dispatch SESSION_COPY_SCRIPT=/path/to/mi
 2. 下一次真实派发以本包装发送该 agent 本批首条，核对标记、角色卡、全文与完成记录；不重发未知结果。将该次证据追加进本票。
 3. 核对所需两个主控的原生会话副本，在回收/批次结束前续拷。真实副本不得进 Git。
 4. 经既有门禁验收交付；补勾验收项并关闭 T-054。本 worker 未执行验收、集成、回收或 push。
+
+## 真实派发
+
+**PASS（2026-10-09，本次真实派发核对）**。执行主控通过 `scripts/dispatch` 向本 worker 发送 batch10 首条提示词；本 worker 实际收到并执行核对，补齐此前交付截止时未运行的“下一次真实派发”证据。此前独立审查的 INCOMPLETE 是当时的结论，原样保留；ticket 仍由主控验收关闭。
+
+来源为 [batch10 原始派发日志](../../2026-10-09-batch10/dispatch.jsonl) 的 `sequence: 1`、`agent: s9-t054` 两条记录：
+
+| 阶段 | UTC 时间 | 退出码 |
+| --- | --- | --- |
+| prepared | 2026-10-09T11:25:46.670754Z | null（调用前） |
+| completed | 2026-10-09T11:25:46.979357Z | 0 |
+
+以本次实际收到的完整消息独立转录为比较输入，对两条记录的 `text` 及 `argv[4]` 做字符串全等核对，没有去掉首尾空白、改换行或做 Unicode 规范化：均 PASS。全文为 1,235 个字符、2,321 个 UTF-8 字节，包含开头 `⟦主控 #1⟧`、全部核对指令、分隔空行及完整 worker 角色卡（含末尾换行）。两条记录均为序号 1、目标 `s9-t054`、角色 `worker`、`role_card_attached: true`，调用参数为 `herdr agent prompt s9-t054 <全文>`；prepared 与 completed 的全文一致。
+
+本次只读核对日志并更新两份记录，没有改代码、角色卡、Claude Code 设置或 Herdr server，没有再次发送提示词。提交范围仅为本报告、T-054 Resolution 与 batch10 `dispatch.jsonl`。

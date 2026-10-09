@@ -47,3 +47,4 @@ Herdr 期要做到两件事：一是把"执行主控发给 worker 的文本"和"
 - [中文交付与用法](../../evidence/2026-10-09-batch9/T-054/RESULTS.md)、[反例记录](../../evidence/2026-10-09-batch9/T-054/counterexamples-01.json)。冻结候选版本与 fresh-context 审查随证据提交。
 - 冻结候选 `b32fbc8375bb9d757d93a2e6b8d91439a2afcd2f` 的 [独立审查](../../evidence/2026-10-09-batch9/T-054/independent-review.md) 返回 INCOMPLETE（真实派发证据未完成）；未确认行为违规或结构绕过，worker 本地范围可判 PASS。
 - 任务书明确由执行主控在交付后完成“下一次真实派发”；worker 没有向真实 pane 发送文本。该验收项未完成，不关闭 ticket，不把替身 PASS 上调为整票 PASS。
+- 2026-10-09 补验 **PASS**：[batch10 首条真实派发](../../evidence/2026-10-09-batch10/dispatch.jsonl) 的 prepared/completed 与本 worker 实收全文逐字一致，序号 1、目标 `s9-t054`、角色 worker、角色卡及退出码 0 均核对通过；补齐真实派发证据，ticket 保持 open，待主控关闭。
