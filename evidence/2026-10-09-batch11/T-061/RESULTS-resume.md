@@ -28,6 +28,8 @@
 
 `catalog-compare-02` 曾因本机 Python 3.9.6 不支持 `zip(strict=True)` 而退出 1。这是证据脚本环境错误，不是产品红态；原脚本和失败日志保留。`compare-catalog-resume-03.py` 在已明确验证名字列表完全相同、长度均为 116 后做逐项核对，退出 0。没有覆盖异常结果。
 
+a2a 的 staged `git diff --check` 对工具原始日志的行尾空白及 EOF 空行报告退出 2，原始输出见 `evidence-diff-check-02.log`；日志按证据保真要求原样提交。排除原始 `.log` 后，文档、脚本与收据的同一检查退出 0；fork 源码 diff 检查也通过。中文文件已回读核对 UTF-8、无 BOM、LF 及本地链接。
+
 ## 重放与版本
 
 fork 根目录中执行；已有输出不覆盖，目录探针的输出使用新路径：
