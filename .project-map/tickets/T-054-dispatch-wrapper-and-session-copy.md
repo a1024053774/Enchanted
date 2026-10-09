@@ -45,4 +45,5 @@ Herdr 期要做到两件事：一是把"执行主控发给 worker 的文本"和"
 - 已实现 `scripts/dispatch`、`scripts/session-copy` 与共用的持久追加操作；权限建议文件只供审阅，未修改任何 Claude Code 设置。
 - 六项入口缺失红态保留；完整 CLI/文件系统契约 8/8 PASS；忘记标记、覆盖日志、重叠复制三个 mutant 均被拒绝。只读复制当前 worker 的 Codex 与执行主控的 Claude 原生会话；副本忽略、清单提交。
 - [中文交付与用法](../../evidence/2026-10-09-batch9/T-054/RESULTS.md)、[反例记录](../../evidence/2026-10-09-batch9/T-054/counterexamples-01.json)。冻结候选版本与 fresh-context 审查随证据提交。
+- 冻结候选 `b32fbc8375bb9d757d93a2e6b8d91439a2afcd2f` 的 [独立审查](../../evidence/2026-10-09-batch9/T-054/independent-review.md) 返回 INCOMPLETE（真实派发证据未完成）；未确认行为违规或结构绕过，worker 本地范围可判 PASS。
 - 任务书明确由执行主控在交付后完成“下一次真实派发”；worker 没有向真实 pane 发送文本。该验收项未完成，不关闭 ticket，不把替身 PASS 上调为整票 PASS。

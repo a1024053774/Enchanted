@@ -5,7 +5,7 @@
 ## 范围与候选
 
 - 任务：T-054，`ready_rev: 1`；worker `s9-t054`，pane `wF:p1G`，原生会话 `01a12058-489c-74d0-9aed-9a9351bd94fc`。本任务书没有分配门禁 attempt/fence，不能把这些字段伪造为已核对身份。
-- 规范：[ticket](../../../../.project-map/tickets/T-054-dispatch-wrapper-and-session-copy.md)、[spec 第 3、6 节](../../../../.project-map/specs/controller-split-user-input-2026-10-09.md)、[任务书](../brief-T-054.md)。
+- 规范：[ticket](../../../.project-map/tickets/T-054-dispatch-wrapper-and-session-copy.md)、[spec 第 3、6 节](../../../.project-map/specs/controller-split-user-input-2026-10-09.md)、[任务书](../brief-T-054.md)。
 - 基线及模型/CLI/技能来源见 [run-metadata.json](run-metadata.json)；请求了 Fast tier，供应商实际 tier 未核实。候选完整提交在交付终端及 `candidate-revision.txt`；最终交付可能另含审查报告的证据提交。
 - 目标：区分执行主控派发与用户输入，保留原生会话新增字节。非目标：提取输入、判断内容含义、策略引擎、真实派发、工作台修改。
 
@@ -44,7 +44,7 @@ scripts/session-copy --batch 2026-10-09-batch9 --provider claude --session-id NA
 | 语法 | 列出的 Python 文件编译 PASS；[syntax-check.json](syntax-check.json) |
 | 差异检查 | 源码与文档 `git diff --cached --check` PASS；全量检查在 `missing-marker-01.log` 两行报告 trailing whitespace，这是 unittest 原始失败差异输出，按证据保留要求未清洗 |
 | 项目地图 | status 的 problems/stale living docs 均为 0；[审查前记录](project-map-status-before-review.log)。未改地图、术语、治理规则 |
-| fresh-context 独立审查 | 见交付时保存的 `independent-review.md`；审查针对 `candidate-revision.txt` 指定的冻结候选 |
+| fresh-context 独立审查 | **INCOMPLETE（整票）**；未确认行为违规或结构绕过，worker 本地范围可判 PASS，真实派发仍缺。见 [原样报告](independent-review.md)，针对 [冻结版本](candidate-revision.txt) |
 | 下一次真实派发 | **未运行**，按 brief 由执行主控亲自完成，保存批次 `dispatch.jsonl` 后再验收 |
 
 期望来自 ticket/spec 与独立夹具，测试不导入生产模块。Herdr 替身位于每个测试 root 的 `explicitly-fake-herdr-bin/herdr`，PATH 前置，只落参数文件，不连接 server。测试保留全部输入、文件与 stdout/stderr、退出码；[完整夹具归档](contract-artifacts-01.tar.gz) 包含合成测试目录、嵌入测试 Git repo 的完整现场和 mutant 源码。原目录也保留，没有顶层 gitlink。归档不含真实原生会话副本。
@@ -81,7 +81,9 @@ DISPATCH_SCRIPT=/path/to/missing-marker/dispatch SESSION_COPY_SCRIPT=/path/to/mi
 
 本票只有 macOS 运行证据（`fcntl`）；未宣称 Windows 可用。未执行 fork 的 Bun 构建/测试，因为没有改 fork，且任务书禁止改写其构建产物。未更改用户 `~/.codex`、`~/.claude`；只读来源；没有 hook、权限批准或真实 provider 测试 turn。未做收益或可靠性主张。
 
-权限建议为 [scripts/dispatch-permissions.md](../../../../scripts/dispatch-permissions.md) 和 [JSON](../../../../scripts/dispatch-permissions.proposed.json)，**待用户批准后应用**。规则依据 [Claude Code 官方权限文档](https://code.claude.com/docs/en/permissions)，不把建议文件等同于已生效权限。主控仍须沿既有唯一门禁验收、集成与回收，worker 自报和本报告不替代门禁。
+独立审查后只补报告、定位/截止记录与项目地图检查，不改变冻结产品源码或测试。交付本地链接检查曾失败（四个相对路径多一层），已在本报告纠正；[失败记录](delivery-links-red-01.log) 与 [复查结果](delivery-checks-01.json) 保留。原生会话副本续拷只覆盖记录中的截止点，终端最终回复之后的尾部须由执行主控在回收前补拷。
+
+权限建议为 [scripts/dispatch-permissions.md](../../../scripts/dispatch-permissions.md) 和 [JSON](../../../scripts/dispatch-permissions.proposed.json)，**待用户批准后应用**。规则依据 [Claude Code 官方权限文档](https://code.claude.com/docs/en/permissions)，不把建议文件等同于已生效权限。主控仍须沿既有唯一门禁验收、集成与回收，worker 自报和本报告不替代门禁。
 
 ## 执行主控下一步
 
