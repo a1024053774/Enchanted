@@ -43,3 +43,5 @@ ready_rev: 1
 - 授权来源：`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+2026-10-09 worker `s11-t058` 首轮：**BLOCKED，保持 open，待主控关闭**。fork 基线 `e9545960c50e4d0f8d687aef0da8073b2419adaa`，未改产品代码、无 fork 提交。现有 registry 总是授予通用能力，落实精确预设需要 brief 明确要求先批准的两处额外上游接入；blocking 问题 `20261009T205838Z-worker:s11-t058-issue-001`。位置、最小选项与父修订红态探针见 [RESULTS](../../evidence/2026-10-09-batch11/T-058/RESULTS.md) 和 [needs-decision](../../evidence/2026-10-09-batch11/T-058/needs-decision-01.md)。35 项、真实服务/模型及独立审查尚未运行，未勾选 Acceptance。

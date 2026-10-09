@@ -1,0 +1,33 @@
+# T-058：角色预设需要两处额外上游接入
+
+状态：**BLOCKED（等待 brief 指定的主控批准，未改产品代码）**。
+
+依据主控 #13、brief-T-058.md、T-058 ready_rev 1 与 spec 第 1、5 节。fork 基线为 `e9545960c50e4d0f8d687aef0da8073b2419adaa`，受控文件干净，既存 `.grok/` 保留。T-055、T-056、T-057 的指定 RESULTS 已核对；其独立审查、OS 通知与未确认列表的缺项保持原结论，本票不替它们上调。T-057 的 executor 未确认列表证据仍在本票范围内。
+
+## 看到了什么
+
+- `apps/server/src/agentGateway/Services/AgentGatewaySessionRegistry.ts:4` 的能力 union 没有 a2a 能力；`:41` 的 `issue` 只接受追加能力，不能选择一套精确的能力集合。
+- `apps/server/src/agentGateway/Layers/AgentGatewaySessionRegistry.ts:13` 定义六种自动授予的通用能力；`:68` 的签发总是把它们与追加能力合并。仅在 a2a 模块增加工具无法移除主控的通用 `thread:write`，也无法做到 worker/reviewer 的精确工具集。
+- `apps/server/src/a2a/tools.ts:28`、`:80`、`:142` 的既有三个工具共用 `thread:write`；现有凭据无法区分 submit、raise 与 disposition。
+- 真实 registry 与真实工具定义/筛选器的探针退出 1，worker 期望手写为 `a2a_raise`、`a2a_submit`，实得还包括 `a2a_disposition`。见 [capability-preflight-01.json](capability-preflight-01.json)。这是新合同未实现的红态，只覆盖既有 a2a 工具目录，不是完整 MCP tools/list 或真实模型验收。
+
+## 最小接入
+
+请求批准仅在以下两个额外上游文件接入：
+
+1. `Services/AgentGatewaySessionRegistry.ts`：扩展 a2a 能力类型，增加按 thread 绑定角色预设的窄接口。
+2. `Layers/AgentGatewaySessionRegistry.ts`：在签发时读取已绑定的预设并冻结能力集合；没有 a2a 预设的原生会话仍使用现有能力。预设改动不修改已签发凭据，必须重新签发。
+
+预设定义、持久角色、恢复与调用留在获批 `apps/server/src/a2a`、`packages/a2a-gates`、`packages/contracts`；`AgentGateway.ts` 只做 brief 已许可的工具注册。无需为此修改 provider adapter、`sessionLease.ts` 或 `AgentGatewayCredentials.ts`。不改 `computerToolPermission.ts`，不增加免确认项，不改变正式工作台。
+
+这不是请求新的业务权限；它是落实已定能力预设所必需、但 brief 明确要求逐次批准的源码接入范围。
+
+## 后续工作与边界
+
+批准后先走 Tracer bullet：attach 选择 worker 预设 → 原生签发凭据 → 实际 MCP tools/list/调用与独立反例，再扩展收件箱/唤醒/停止。Deep modules：角色能力定义仍归 a2a，registry 只签发冻结权限；Ubiquitous language 沿用 ideation、executor、worker、reviewer、monitor、thread 和追加式条目。
+
+尚未修改产品代码、启动服务、调用模型、运行 35 项或建立冻结候选，故这些项目均未验收。preflight helper 保存 exact argv、cwd、环境覆盖、版本、stdout/stderr 和原退出码；helper 自身退出 0 表示证据保存成功，不表示合同 PASS。没有 token 或认证副本写入证据。
+
+重放使用相同 probe 文件经 fork 的 `a2a/scripts/bun` 执行；`run-preflight-01.py` 对输出使用独占创建，再次运行须新编号，不能覆盖首轮失败。
+
+建议主控批准上述两处接入后续做；否则保持 BLOCKED 并明确替代范围。worker 按 brief 的“先停下说明位置与最小接入，主控批准后再改”停止产品实现。
