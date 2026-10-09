@@ -4,7 +4,7 @@ title: 问题上报最薄一刀：worker 上报，用户在面板答复，答复
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: s8-t055
 supersedes:
 ready: yes
 ready_by: ideation

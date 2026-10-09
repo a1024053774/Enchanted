@@ -4,7 +4,7 @@ title: scripts/inbox：ack 是终结，不再被列为未确认，也不能被�
 type: build
 status: open
 blocked_by: [T-053]
-claimed_by:
+claimed_by: s9-t060
 supersedes:
 ready: yes
 ready_by: ideation

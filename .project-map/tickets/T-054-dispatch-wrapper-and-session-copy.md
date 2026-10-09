@@ -4,7 +4,7 @@ title: 派发包装、派发日志与会话副本
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: s9-t054
 supersedes:
 ready: yes
 ready_by: ideation
