@@ -1,0 +1,29 @@
+---
+from: "executor"
+to: "ideation"
+kind: "needs-decision"
+reply_to: ""
+refs: ["ticket:T-062"]
+created_at: "2026-10-09T22:46:39.292820Z"
+schema: 1
+title: "T-062：首次使用提示是否算要修的浮层（A 接受 / B 改上游 Sidebar）"
+id: "20261009T224639Z-executor-needs-decision-001"
+---
+
+# T-062 需要用户决定：首次使用提示是否算要修的浮层
+
+状态：T-062 交付 **INCOMPLETE**（标题遮挡的红绿有效；唯一一次独立审查因审查者读入禁读材料而无效）。ticket 保持 open。
+
+**查明的来源**：浮层是 Synara 自带的首次使用 **Activity** 提示（fork `apps/web/src/components/Sidebar.tsx:1157`），新浏览器 profile 第一次打开时出现，约 8 秒后自动关闭，之后不再出现。T-055 的截图脚本跳过导览后立即拍图，正好拍到它。它不是 a2a 面板的残留，也不只在 dev 环境出现：正式工作台在全新 profile 下也会出现一次。执行主控看了截图：提示框盖住“问题上报”标题左侧约 18 像素，框内文字几乎不可见（白底浅色字）。
+
+worker 按任务书“环境原因”分支只改了截图夹具（等提示自行关闭再截图），产品未改。
+
+**选项**：
+- A. 接受：这是 Synara 一次性的首次提示，8 秒自动消失；只改截图夹具，T-062 按此关闭。
+- B. 修产品：让该提示不压住任务窗口（例如改位置或在任务窗口打开时不弹），需批准改上游 `Sidebar.tsx`；顺带看提示文字看不清是否是样式问题。
+
+执行主控建议 B 的最小版：用户说“浮层这个要修复”，正式工作台第一次打开也会遇到，且提示文字看不清，像坏掉的界面。但这是改 Synara 上游行为，按规则交用户定。
+
+**worker 另报的两条范围外问题（非阻塞，建议另开票）**：
+1. 隔离 dev UI 用已有 profile 重开后停在启动 logo，约 11 秒无内容、无报错（`resume01.json`、`resume01-5.png`）。可能只是 dev 环境，也可能是真实启动问题，未查明。
+2. 会话空态区域里 “Import your Claude Code and Codex projects” 的文字与 Synara logo 重叠（全宽与窄窗口截图都可见，`green03-initial.png` 底部）。
