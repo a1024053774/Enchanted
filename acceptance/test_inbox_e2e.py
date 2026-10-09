@@ -230,7 +230,7 @@ runpy.run_path(script, run_name="__main__")
                           created="2026-10-09T11:55:00Z", action=action, reason="独立理由", basis="独立依据")
         for target in ("answered", "delivered"):
             fixture_entry(self.inbox, "answer-" + target, sender="ideation", recipient="executor", kind="answer",
-                          reply=target, created="2026-10-09T11:56:00Z")
+                          reply=target, created="2026-10-09T11:56:00Z", certainty="relayed", bundle_id="fixture-bundle")
         fixture_entry(self.inbox, "disp-delivered", sender="executor", recipient="triage", kind="disposition",
                       reply="delivered", created="2026-10-09T11:57:00Z", action="delivered")
         p = self.cli("list", "--role", "executor")
@@ -256,6 +256,38 @@ runpy.run_path(script, run_name="__main__")
         self.cli("send", "--from", "executor", "--to", "triage", "--kind", "disposition", "--reply-to", "pending",
                  "--action", "close", "--reason", "确已解决", "--basis", "证据 nonce", "--body", "")
         self.assertNotIn("pending", output_ids(self.cli("list", "--role", "user", now="2026-10-09T13:00:00Z").stdout))
+
+    def test_answer_metadata_contract(self):
+        fixture_entry(self.inbox, "question", recipient="triage", kind="issue", title="独立问题", blocking=True)
+        for ident, extra in (("answer-auto", []), ("answer-explicit", ["--bundle-id", "sentinel-bundle", "--certainty", "relayed"])):
+            self.cli("send", "--from", "ideation", "--to", "executor", "--kind", "answer", "--reply-to", "question",
+                     "--ref", "issue:question", "--ref", "worker:sentinel", "--id", ident,
+                     "--body", "问题 1：独立问题\n用户答复：逐字 café Ω", *extra)
+            text = (self.inbox / (ident + ".md")).read_text(encoding="utf-8")
+            fields = {key: json.loads(raw.strip()) for key, raw in (line.split(":", 1) for line in text.split("---\n", 2)[1].splitlines())}
+            self.assertEqual(fields.get("certainty"), "relayed")
+            self.assertTrue(fields.get("bundle_id"))
+            if extra:
+                self.assertEqual(fields["bundle_id"], "sentinel-bundle")
+            self.assertEqual(text.split("---\n", 2)[2], "\n问题 1：独立问题\n用户答复：逐字 café Ω")
+        self.send("--bundle-id", "not-an-answer", code=1)
+
+    def test_envelope_typed_refs(self):
+        refs = ["task:task-nonce", "thread:thread-nonce", "turn:turn-nonce", "message:message-nonce",
+                "request:request-nonce", "input:input-nonce", "commit:abcdef123456"]
+        arguments = [argument for ref in refs for argument in ("--ref", ref)]
+        self.send("--id", "with-typed-refs", *arguments)
+        listed = self.cli("list", "--role", "executor")
+        for ref in refs:
+            self.assertIn(ref, listed.stdout)
+
+    def test_offset_timestamps(self):
+        self.send("--id", "with-typed-refs")
+        fixture_entry(self.inbox, "offset-earlier", created="2026-10-09T07:59:00-04:00")
+        self.assertEqual(output_ids(self.cli("list", "--role", "executor").stdout), ["offset-earlier", "with-typed-refs"])
+        self.send("--id", "offset-now", now="2026-10-09T14:01:00+02:00")
+        text = (self.inbox / "offset-now.md").read_text(encoding="utf-8")
+        self.assertIn('created_at: "2026-10-09T12:01:00Z"', text)
 
     def test_ready_contract(self):
         cases = [

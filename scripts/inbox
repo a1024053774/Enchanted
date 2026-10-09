@@ -16,6 +16,7 @@ KINDS = {"assign", "revise", "cancel", "stop", "report", "needs-decision",
          "issue", "disposition", "answer", "ack"}
 ACTIONS = {"close", "dismiss", "forward", "snooze", "reopen", "needs-user", "delivered"}
 ENVELOPE = {"id", "from", "to", "kind", "reply_to", "refs", "created_at", "schema"}
+KEY_REFS = {"ticket", "task", "attempt", "thread", "turn", "message", "request", "input", "issue", "commit", "worker"}
 
 
 class InboxError(ValueError):
@@ -32,9 +33,9 @@ def timestamp(value):
         parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (ValueError, AttributeError) as exc:
         raise InboxError("无效 UTC 时间：" + str(value)) from exc
-    if parsed.tzinfo is None or parsed.utcoffset() != dt.timedelta(0):
-        raise InboxError("时间必须显式使用 UTC：" + str(value))
-    return parsed
+    if parsed.tzinfo is None:
+        raise InboxError("时间必须显式带时区：" + str(value))
+    return parsed.astimezone(dt.timezone.utc)
 
 
 def token(value):
@@ -96,6 +97,10 @@ def entries(root):
                 raise InboxError("issue 需要标题与布尔 blocking")
             if item["kind"] == "disposition" and item.get("action") not in ACTIONS:
                 raise InboxError("disposition 缺少有效 action")
+            if item["kind"] == "answer":
+                if item.get("certainty") != "relayed" or not isinstance(item.get("bundle_id"), str):
+                    raise InboxError("answer 需要 certainty: relayed 与 bundle_id")
+                token(item["bundle_id"])
             item["_time"], item["_body"], item["_path"] = timestamp(item["created_at"]), body, path
             result[item["id"]] = item
         except (InboxError, OSError, UnicodeError) as exc:
@@ -122,7 +127,7 @@ def local_file(root, value):
 
 def reference(root, value, items):
     prefix, separator, rest = value.partition(":")
-    if separator and prefix in ("ticket", "issue", "worker", "attempt"):
+    if separator and prefix in KEY_REFS:
         token(rest)
         if prefix == "ticket" and not any(path.stem == rest or path.name.startswith(rest + "-") for path in (root / ".project-map/tickets").glob("*.md")):
             raise InboxError("ticket 引用不存在：" + value)
@@ -216,6 +221,12 @@ def send(root, args, now):
         if confirmed(items, target["id"], sender):
             print("已确认 " + target["id"])
             return
+    if args.kind == "answer":
+        # Herdr answers are explicitly relayed by the ideation controller.
+        item["certainty"] = args.certainty or "relayed"
+        item["bundle_id"] = token(args.bundle_id) if args.bundle_id is not None else uuid.uuid4().hex
+    elif args.certainty or args.bundle_id is not None:
+        raise InboxError("答复字段只用于 answer")
     if args.kind == "disposition":
         target = items.get(args.reply_to)
         if not target or target["kind"] != "issue" or args.action not in ACTIONS:
@@ -350,7 +361,7 @@ def ready(root):
 def main():
     parser = Parser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1], help="项目根目录（夹具也使用此参数）")
-    parser.add_argument("--now", help="显式 UTC 读取/写入时间；默认当前时间")
+    parser.add_argument("--now", help="显式带时区的读取/写入时间；归一化 UTC，默认当前时间")
     sub = parser.add_subparsers(dest="command", required=True, parser_class=Parser)
     sending = sub.add_parser("send", help="追加条目")
     sending.add_argument("--from", dest="sender", required=True)
@@ -364,6 +375,8 @@ def main():
     sending.add_argument("--action", choices=sorted(ACTIONS))
     sending.add_argument("--reason")
     sending.add_argument("--basis")
+    sending.add_argument("--certainty", choices=("relayed",), help="Herdr answer 的来源；默认 relayed")
+    sending.add_argument("--bundle-id", help="answer 所属答复包；省略时生成新的稳定 id")
     bodies = sending.add_mutually_exclusive_group(required=True)
     bodies.add_argument("--body")
     bodies.add_argument("--body-file")
