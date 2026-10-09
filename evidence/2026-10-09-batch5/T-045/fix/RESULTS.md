@@ -74,3 +74,7 @@ python3 evidence/2026-10-09-batch5/T-045/fix/run.py types-server
 主控下一步合并本独立提交、按授权重启正式工作台，再由用户确认 Codex、Claude 用量显示。此项完成前 T-045 的最终业务验收仍为 INCOMPLETE。
 
 交付检查见 [checks-final.txt](checks-final.txt)：项目地图 Problems 0、Stale living docs 0；fork 干净；实际被测父版本与候选源码已与完整 Git 版本逐字节核对，JSON/Python/UTF-8 与链接检查通过。staged 原始证据 whitespace 检查退出 2，详情见 [raw-whitespace-check.txt](raw-whitespace-check.txt)，原始日志/生成检查记录的末尾空行与 patch context 空白保留；只检查起草文档、配置与脚本退出 0，见 [authored-whitespace-check.txt](authored-whitespace-check.txt)。首次将生成记录 `checks-final.txt` 纳入起草文件检查时也退出 2；该原始记录保留，没有裁剪空行来制造通过。
+
+## 主控合并（2026-10-09，Claude Code）
+
+主控逐行查看 `outboundHttp.ts` 改动：例外只在用量 policy 显式开启、origin 为三个固定 HTTPS 主机之一、地址为 IPv4 且在 `198.18.0.0/15` 时生效；重定向逐跳重新核对 origin 与地址。fork `a2a` 分支合并提交 `3f274dd`（合入 `4b64e4c`），合并后 typecheck 8/8 通过（[日志](merge-typecheck.log)）。正式工作台重启与界面确认待用户安排。
