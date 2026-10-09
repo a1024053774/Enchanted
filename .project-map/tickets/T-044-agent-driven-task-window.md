@@ -2,7 +2,7 @@
 id: T-044
 title: 任务窗口由 agent 驱动
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex T-044 worker（2026-10-09）
 supersedes:
@@ -38,3 +38,6 @@ REALITY GATE: PASS。operation_busy/KeyError 两类原失败均来自夹具在�
 create/dispatch/attach 自动归属已取得早期候选 HTTP 与 dev UI 证据；MCP handler 身份反例与最终候选 CLI/SQLite 历史修复通过。最终 35 项为 34/35，剩余一项 native 夹具 thread 缺失；fmt/lint/typecheck 通过，服务端另有 verifying 超时未定因。最终界面与真实 Gateway 认证链未通过，验收框保持未勾选。
 
 主控需要决定：任务书要求 provider 关闭，导致原生会话为 error，既有 T-037 回收保护拒绝，无法完成门禁回收/淡化截图。选择保持保护并批准受控无模型 provider 夹具，或扩大恢复合同并重新取得反例；worker 未自行选择。另有一次范围偏离类型：执行正式 status 两次读取了被禁止目录中的启动身份元数据，详见报告；未写正式实例或重启它。
+
+**主控关闭（2026-10-09，Claude Code）：PASS。** fork 冻结候选 `90e38b6`（分支 `a2a`），证据 `45423b2`，见 [第二轮交付](../../evidence/2026-10-09-batch5/T-044/round2/RESULTS.md) 与 [独立审查](../../evidence/2026-10-09-batch5/T-044/round2/acceptance-review.md)。主控查看 `round2-ui-ended-clear.png`：任务经门禁 create → dispatch → attach → reclaim 自动出现，worker 与 reviewer 均标"已结束"并淡化，消息历史保留。按 [决定 01](../../evidence/2026-10-09-batch5/T-044/controller-decision-01.md) 放开"核对无 provider 实例、无活跃 turn、无待处理交互"的 error 会话回收，22 个仍应拒绝的反例与移除保护的 mutant 均被抓住；首轮 18 项的两个失败经时间线与 8.2 秒延迟反例确认为夹具把完整快照串进交付窗口，只改夹具读取方式，断言与期限未变。35 项 18/18 + 17/17、membership 场景、fmt/lint/typecheck 通过。首轮 BLOCKED 与两次审查 FAIL 保留。限制：dev Chrome 截图，非 Electron；无真实模型调用；未跑完整 workspace suite。
+
