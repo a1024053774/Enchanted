@@ -1,8 +1,8 @@
-"""T-053 contract evidence through the real CLI and filesystem (Python stdlib).
+"""T-053/T-060 contract evidence through the real CLI and filesystem (Python stdlib).
 
 Run: python3 -B acceptance/test_inbox_e2e.py --artifacts <new-directory>
 INBOX_SCRIPT selects a frozen candidate/mutant. No product module is imported.
-Fixtures and expected lists were authored from T-053 rev 1 / spec sections 3–5.
+Fixtures and expected lists come from T-053 rev 1 / spec sections 3–5 and T-060 rev 1.
 Each run retains fixture files and every command/output, including failures.
 """
 import argparse
@@ -122,6 +122,58 @@ class InboxCLI(unittest.TestCase):
         self.assertEqual(output_ids(p.stdout), ["d"])
         self.assertIn("dangling.md", p.stderr)
         self.assertIn("chain.md", p.stderr)
+
+    def test_ack_is_terminal_in_all_role_lists(self):
+        for role in ("ideation", "executor", "user"):
+            fixture_entry(self.inbox, "original-" + role, sender=role, recipient="worker:terminal")
+            fixture_entry(self.inbox, "receipt-" + role, sender="worker:terminal", recipient=role,
+                          kind="ack", reply="original-" + role)
+        before = self.snapshot()
+        for role in ("ideation", "executor", "user"):
+            with self.subTest(role=role):
+                self.assertEqual(output_ids(self.cli("list", "--role", role).stdout), [],
+                                 "ack 是终结，不能列为未确认")
+        self.assertEqual(before, self.snapshot())
+
+    def test_ack_terminal_rejects_both_write_entry_points(self):
+        for role in ("ideation", "executor", "user"):
+            fixture_entry(self.inbox, "original-" + role, sender=role, recipient="worker:terminal")
+            fixture_entry(self.inbox, "receipt-" + role, sender="worker:terminal", recipient=role,
+                          kind="ack", reply="original-" + role)
+        before = {str(p.relative_to(self.map)): p.read_bytes()
+                  for p in self.map.rglob("*") if p.is_file()}
+        for role in ("ideation", "executor", "user"):
+            for args in (("ack", "--role", role, "--id", "receipt-" + role),
+                         ("send", "--from", role, "--to", "worker:terminal", "--kind", "ack",
+                          "--reply-to", "receipt-" + role, "--body", "不能确认终结条目")):
+                with self.subTest(role=role, command=args[0]):
+                    p = self.cli(*args, code=1)
+                    self.assertIn("ack 是终结", p.stderr)
+        after = {str(p.relative_to(self.map)): p.read_bytes()
+                 for p in self.map.rglob("*") if p.is_file()}
+        self.assertEqual(before, after, "拒绝时不能创建条目或暂存文件")
+
+    def test_non_ack_kinds_keep_unconfirmed_rule(self):
+        # All nine non-terminal kinds keep T-053's recipient-specific ack rule.
+        kinds = ("assign", "revise", "cancel", "stop", "report", "needs-decision",
+                 "issue", "disposition", "answer")
+        for kind in kinds:
+            extra = {"title": "问题", "blocking": False} if kind == "issue" else {}
+            if kind == "disposition":
+                extra = {"action": "needs-user"}
+            if kind == "answer":
+                extra = {"certainty": "relayed", "bundle_id": "non-terminal-bundle"}
+            fixture_entry(self.inbox, kind, reply="issue" if kind in ("disposition", "answer") else "",
+                          **extra)
+            fixture_entry(self.inbox, "wrong-" + kind, sender="ideation", recipient="worker:sentinel",
+                          kind="ack", reply=kind)
+        self.assertEqual(output_ids(self.cli("list", "--role", "executor").stdout), sorted(kinds))
+        before = self.snapshot()
+        for kind in kinds:
+            self.cli("ack", "--role", "executor", "--id", kind)
+        for name, data in before.items():
+            self.assertEqual(data, (self.inbox / name).read_bytes())
+        self.assertEqual(output_ids(self.cli("list", "--role", "executor").stdout), [])
 
     def test_concurrent_twenty_and_clock_rollback(self):
         handles = []

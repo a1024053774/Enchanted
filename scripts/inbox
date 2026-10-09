@@ -218,6 +218,8 @@ def send(root, args, now):
         target = items.get(args.reply_to)
         if not target or target["to"] != sender or recipient != target["from"]:
             raise InboxError("ack 必须由原收件人发给原发送人")
+        if target["kind"] == "ack":
+            raise InboxError("ack 是终结，不能再确认：" + target["id"])
         if confirmed(items, target["id"], sender):
             print("已确认 " + target["id"])
             return
@@ -297,6 +299,8 @@ def list_entries(root, role, now):
         print("等你决定")
     items, errors = entries(root)
     for item in sorted(items.values(), key=lambda entry: (entry["_time"], entry["id"])):
+        if item["kind"] == "ack":
+            continue
         status, last = issue_state(item, items, now) if item["kind"] == "issue" else (None, None)
         if role == "user":
             visible = status == "等你决定"
@@ -410,6 +414,8 @@ def main():
     target = items.get(args.id)
     if target is None:
         raise InboxError("待确认条目不存在：" + args.id)
+    if target["kind"] == "ack":
+        raise InboxError("ack 是终结，不能再确认：" + target["id"])
     if target["to"] != args.role:
         raise InboxError("只有原收件人可以 ack")
     if confirmed(items, target["id"], args.role):
