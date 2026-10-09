@@ -6,7 +6,7 @@
 
 | 文件（相对 Synara fork） | 当前位置 | 最小接入 |
 | --- | --- | --- |
-| `apps/web/src/components/Sidebar.tsx` | 5721、5790 行，现有项目名称行 | 从 a2a 模块挂载“等你决定”计数徽标，不复制项目行逻辑 |
+| `apps/web/src/components/Sidebar.tsx` | 5721、5788 行，现有项目名称行 | 从 a2a 模块挂载“等你决定”计数徽标，不复制项目行逻辑 |
 | `apps/web/src/routes/__root.tsx` | 109、359 行，全局通知运行组件 | 导入并挂载 a2a 提醒组件，离开任务窗口也继续观察；逻辑留在 `apps/web/src/a2a` |
 | `apps/server/src/agentGateway/Layers/AgentGateway.ts` | 1541、1609 行，a2a 工具注册与导入 | 注册新的问题处置 MCP 工具，处理、身份校验与状态派生留在 a2a 核心/服务 |
 | `apps/server/src/agentGateway/computerToolPermission.ts` | 246～248 行，网关工具目录 | 将新工具名加入既有目录，保持真实注册与目录一致，沿用已有 grant/lease/turn 保护 |

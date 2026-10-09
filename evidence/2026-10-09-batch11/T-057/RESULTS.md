@@ -18,6 +18,7 @@ T-055 最终独立审查 PASS 与当前 fork 基线一致；其报告里的历�
 
 - [scope-probe.json](scope-probe.json)：只读源码位置、完整版本、argv、cwd、退出码和输出；[scope-probe.py](scope-probe.py) 可重放。它不证明产品行为。
 - 已按 worker 角色卡追加 blocking issue：[20261009T132451Z-worker:s11-t057-issue-001](../../../.project-map/inbox/20261009T132451Z-worker:s11-t057-issue-001.md)。命令为 `scripts/inbox send --from worker:s11-t057 --to triage --kind issue --title 'T-057 需要批准四处上游接入' --body-file evidence/2026-10-09-batch11/T-057/needs-decision.md --blocking --ref ticket:T-057 --ref file:evidence/2026-10-09-batch11/T-057/needs-decision.md`，退出码 0。
+- 收件箱正文快照中的侧栏名称行号 5790 应为 5788；实际输出见 scope-probe，决定请求已校正，追加式原条目保留。
 - 项目地图开工检查：Problems 0，Stale living docs 0；结束检查保存为 `map-status-final.log`。
 - 没有产品代码改动，因此未运行合同红绿、真实 HTTP/MCP/CLI 行为、截图、真实模型、typecheck、lint、fmt 或既有套件；未执行 fresh-context 独立审查，尚无冻结实现候选。这些均不写为通过。
 - ticket 指定的六种失败方式（并发答复、活跃 turn、送达前结束、关闭与答复交叠、时钟回拨、分隔文字原样保存）尚未实现或验证，后续必须逐项保留实际处理与证据。
