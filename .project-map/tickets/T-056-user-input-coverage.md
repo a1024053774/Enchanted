@@ -37,3 +37,7 @@ ready_rev: 1
 - 授权来源：`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+2026-10-09，s11-t056：**BLOCKED**，待主控决定，保持 open，待主控关闭。开工核对发现 ticket 指定的 WS RPC `dispatchCommand` 入口在 fork 的 `apps/server/src/wsRpc.ts:1322`，超出 brief 允许目录；按 brief 在产品编辑前停止。请求只额外批准该文件的 import 与入口调用，记录实现仍留在 a2a 模块，不改命令契约。
+
+依据 `ready_rev: 1`；fork 父修订 `2330534b2cf906b9d8f0a0b643adb370683d7fe0`。证据与重放命令见 [RESULTS](../../evidence/2026-10-09-batch11/T-056/RESULTS.md)、[待决说明](../../evidence/2026-10-09-batch11/T-056/needs-decision-01.md)、[只读输出](../../evidence/2026-10-09-batch11/T-056/preflight-01.json)。收件箱 blocking 问题为 `20261009T130122Z-worker:s11-t056-issue-001`，发给执行主控的 needs-decision 为 `20261009T130122Z-worker:s11-t056-needs-decision-001`。未实现、未运行业务验收或独立审查、未 submit；Acceptance 均未勾选。

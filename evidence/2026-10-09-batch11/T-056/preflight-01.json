@@ -1,0 +1,114 @@
+{
+  "created_at": "2026-10-09T13:01:09.596055+00:00",
+  "ticket": "T-056",
+  "ready_rev": 1,
+  "worker": "s11-t056",
+  "fork_revision": "2330534b2cf906b9d8f0a0b643adb370683d7fe0",
+  "gate_attempt": null,
+  "gate_attempt_reason": "brief 未指定受管 task/attempt；本轮为 Herdr worker 的开工核对，未调用门禁业务命令。",
+  "commands": [
+    {
+      "label": "fork-head",
+      "argv": [
+        "git",
+        "log",
+        "-1",
+        "--format=%H %D"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/synara",
+      "exit_code": 0,
+      "stdout": "2330534b2cf906b9d8f0a0b643adb370683d7fe0 HEAD -> a2a, a2a-t061\n",
+      "stderr": ""
+    },
+    {
+      "label": "fork-status",
+      "argv": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/synara",
+      "exit_code": 0,
+      "stdout": "?? .grok/\n",
+      "stderr": ""
+    },
+    {
+      "label": "ws-entry",
+      "argv": [
+        "sed",
+        "-n",
+        "1318,1354p",
+        "apps/server/src/wsRpc.ts"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/synara",
+      "exit_code": 0,
+      "stdout": "                );\n            }),\n            \"Failed to resolve the original message delivery.\",\n          ),\n        [ORCHESTRATION_WS_METHODS.dispatchCommand]: (command) =>\n          rpcEffect(\n            Effect.gen(function* () {\n              // Groups is Beta-only: Stable refuses to create or re-kind a group.\n              if (!isServerGroupsEnabled() && isGroupProjectCommand(command)) {\n                return yield* Effect.fail(new WsRpcError({ message: GROUPS_BETA_ONLY_MESSAGE }));\n              }\n              const { command: normalizedCommand, prepareWorkspaceRoot } =\n                yield* normalizeDispatchCommand({ command });\n              // A paused/archived group's coordinator must not run turns —\n              // the picker filters them out, but the server enforces it.\n              if (normalizedCommand.type === \"thread.turn.start\") {\n                yield* projectAgentService.assertGroupCoordinatorTurnAllowed({\n                  threadId: normalizedCommand.threadId,\n                });\n              }\n              const result = yield* dispatchOrchestrationCommand(normalizedCommand);\n              // Only scaffold managed workspace-root subdirectories (Inbox/Outbox/work/outputs)\n              // AFTER the decider has accepted the command. A rejected dispatch (e.g. a\n              // cross-kind workspace-root ownership conflict) must never mutate the filesystem.\n              if (prepareWorkspaceRoot) {\n                yield* prepareWorkspaceRoot;\n              }\n              if (normalizedCommand.type === \"thread.archive\") {\n                yield* Effect.forkDetach(pruneManagedWorktrees);\n              }\n              return result;\n            }),\n            \"Failed to dispatch orchestration command\",\n          ),\n        [ORCHESTRATION_WS_METHODS.importThread]: (input) =>\n          rpcEffect(importThread(input), \"Failed to import thread\"),\n        [ORCHESTRATION_WS_METHODS.listProjectImports]: (input) =>\n",
+      "stderr": ""
+    },
+    {
+      "label": "message-observer",
+      "argv": [
+        "sed",
+        "-n",
+        "68,125p",
+        "apps/server/src/a2a/orchestration.ts"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/synara",
+      "exit_code": 0,
+      "stdout": "  gates.recordHumanInput({\n    thread_id: message.threadId,\n    turn_id: message.turnId ?? null,\n    message_id: message.messageId,\n    event_id: event.eventId,\n    source_sequence: event.sequence,\n    created_at: message.createdAt,\n    text: message.text,\n    dispatch_origin: \"user\",\n  });\n}\n\nexport const installHumanInputRecording = Effect.fn(\"a2a.installHumanInputRecording\")(function* (\n  gates: A2AGates,\n  engine: OrchestrationEngineShape,\n) {\n  // Attach before replay; the core deduplicates overlapping event IDs. Replay\n  // also records messages committed while this service was not running.\n  gates.setHumanInputObserverStatus(\"starting\");\n  const events = yield* engine.subscribeDomainEvents;\n  const highWater = yield* engine.getEventHighWaterSequence;\n  const record = (event: OrchestrationEvent) =>\n    Effect.try({\n      try: () => recordHumanMessage(gates, event),\n      catch: (cause) => ({\n        event_id: event.eventId,\n        source_sequence: event.sequence,\n        ...(event.type === \"thread.message-sent\"\n          ? {\n              thread_id: event.payload.threadId,\n              message_id: event.payload.messageId,\n            }\n          : {}),\n        reason: String(cause),\n      }),\n    });\n  yield* Stream.runForEach(engine.readEventsThrough(0, highWater), record);\n  yield* Effect.forkScoped(\n    Stream.runForEach(events, record).pipe(\n      Effect.onExit((exit) => {\n        if (Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)) {\n          return Effect.sync(() => gates.setHumanInputObserverStatus(\"stopped\"));\n        }\n        const failure = Exit.isFailure(exit)\n          ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))\n          : undefined;\n        const details = failure ?? {\n          reason: Exit.isFailure(exit) ? Cause.pretty(exit.cause) : \"Human input stream ended\",\n        };\n        return Effect.sync(() => gates.setHumanInputObserverStatus(\"failed\", details)).pipe(\n          Effect.andThen(Effect.logError(\"a2a human input observer failed\", details)),\n        );\n      }),\n    ),\n  );\n  gates.setHumanInputObserverStatus(\"healthy\");\n});\n",
+      "stderr": ""
+    },
+    {
+      "label": "temporary-derived",
+      "argv": [
+        "sed",
+        "-n",
+        "82,125p",
+        "apps/web/src/hooks/useTemporaryThreadLifecycle.ts"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/synara",
+      "exit_code": 0,
+      "stdout": "// optimizing the whole hook.\nasync function disposeTemporaryThread(input: {\n  temporaryThreadId: ThreadId;\n  disposingThreadIds: Set<ThreadId>;\n  clearDraftThread: (threadId: ThreadId) => void;\n  clearTerminalState: (threadId: ThreadId) => void;\n  removeThreadFromSplitViews: (threadId: ThreadId) => void;\n  clearTemporaryThread: (threadId: ThreadId) => void;\n}): Promise<void> {\n  const { temporaryThreadId } = input;\n  try {\n    const api = readNativeApi();\n    const storeState = useStore.getState();\n    const serverThread = getThreadFromState(storeState, temporaryThreadId) ?? null;\n\n    if (api) {\n      if (serverThread?.session && serverThread.session.status !== \"closed\") {\n        await api.orchestration\n          .dispatchCommand({\n            type: \"thread.session.stop\",\n            commandId: newCommandId(),\n            threadId: temporaryThreadId,\n            createdAt: new Date().toISOString(),\n          })\n          .catch(() => undefined);\n      }\n\n      await api.terminal\n        .close({ threadId: temporaryThreadId, deleteHistory: true })\n        .catch(() => undefined);\n\n      if (serverThread) {\n        const deletedOnServer = await api.orchestration\n          .dispatchCommand({\n            type: \"thread.delete\",\n            commandId: newCommandId(),\n            threadId: temporaryThreadId,\n          })\n          .then(() => true)\n          .catch(() => false);\n        if (deletedOnServer) {\n          void reconcileDeletedThreadFromClient({\n            threadId: temporaryThreadId,\n            removeDeletedThreadFromClientState:\n",
+      "stderr": ""
+    },
+    {
+      "label": "project-status",
+      "argv": [
+        "python3",
+        "/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py",
+        "status",
+        "--root",
+        "."
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a",
+      "exit_code": 0,
+      "stdout": "Problems (0):\nStale living docs (0):\nFrontier (8):\n  - T-010 [task] Account for descendant agent sessions and model settings\n  - T-011 [task] Check monitor coverage and finding disposition\n  - T-012 [task] Define research deliverables and handoff evidence\n  - T-013 [task] Make fixture governance scope explicit\n  - T-014 [task] Check evidence capture and artifact packaging before model runs\n  - T-057 [build] 问题上报面板完整化：处置、视图、草稿、逐个与打包发送\n  - T-058 [build] 服务端收件箱、能力预设与写条目即唤醒\n  - T-062 [build] 修复任务窗口里残留的浮层，它盖住问题上报面板的标题\nClaimed (2):\n  - T-056 用户输入记录覆盖全部范围，观察器改名 (by s11-t056)\n  - T-061 原生提示解析放宽到允许数字，a2a 工具缺 tool_name 时也免确认 (by s11-t061)\n",
+      "stderr": ""
+    },
+    {
+      "label": "a2a-head",
+      "argv": [
+        "git",
+        "log",
+        "-1",
+        "--format=%H"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a",
+      "exit_code": 0,
+      "stdout": "dd6080aa0e6c5625da8174c227a513c636031473\n",
+      "stderr": ""
+    },
+    {
+      "label": "a2a-status",
+      "argv": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a",
+      "exit_code": 0,
+      "stdout": " M evidence/2026-10-09-batch9/controller-poll.log\n?? evidence/2026-10-09-batch11/controller-poll.log\n?? evidence/2026-10-09-batch11/dispatch.jsonl\n?? evidence/2026-10-09-batch11/launch-argv.txt\n?? evidence/2026-10-09-batch11/panes.txt\n",
+      "stderr": ""
+    }
+  ]
+}

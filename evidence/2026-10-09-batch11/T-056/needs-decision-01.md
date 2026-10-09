@@ -1,0 +1,29 @@
+# T-056 开工范围门禁：需要主控决定
+
+状态：**BLOCKED**。本轮只做只读核对，尚未改产品代码，未运行红绿用例、未 submit，不能称为交付完成。ticket 保持 open，待主控决定；所有 Acceptance 复选框保持未勾选。
+
+## 已核对
+
+- 依据 T-056 `ready_rev: 1`、brief-T-056.md 与 spec 第 3 节；fork 固定在 `a2a@2330534b2cf906b9d8f0a0b643adb370683d7fe0`。
+- T-055 的 RESULTS-03 保留最终独立审查待决的 INCOMPLETE；随后 acceptance-review-final 对同一候选给出 PASS。其答复去重、`user_inputs` 与带 `input_id` 的 `human_intervention` 可作为父修订事实，不作为 T-056 验收证据。未发现此次只读核对范围内的 T-055/spec 冲突。
+- 现有消息观测器在 `apps/server/src/a2a/orchestration.ts:70`，只订阅 `thread.message-sent`、role=user、dispatchOrigin=user，并调用 `recordHumanInput`。非消息类输入需要 ticket 指定的 RPC 入口。
+- 该入口实际位于 **`apps/server/src/wsRpc.ts:1322`**；调用位置是 `:1338`。该文件在 brief 允许目录之外。现有文件未引入 a2a service（`rg` 只找到 dispatch helper 的定义与调用）。
+- 原始位置、revision、工作树状态及重放命令见 [preflight-01.json](preflight-01.json)。fork 的未知 `.grok/` 和 a2a 的主控 dirty 文件均未修改。
+
+## 需要决定的最小接入
+
+请主控批准本票仅额外修改 `apps/server/src/wsRpc.ts`：引入并调用放在 `apps/server/src/a2a` 内的用户输入记录函数，在 `ORCHESTRATION_WS_METHODS.dispatchCommand` 的入口按命令类型枚举记录非消息输入。存储、关联、去重、失败策略与重放仍由 a2a 模块负责；不修改命令契约，不在上游 helper 的所有内部调用点统一埋点，避免把门禁或自动化命令误记为用户输入。
+
+具体记录与 dispatch 的执行顺序在批准后按 fail-closed 及独立红态收敛，当前不声称已经解决。若不批准这一个上游文件，当前范围无法完成 ticket 指定的非消息观测点，需要主控修订范围或挂起本票。
+
+还有一个需要在批准后的窄探针中核对的事实：临时线程清理 `apps/web/src/hooks/useTemporaryThreadLifecycle.ts:99` 与 `:115` 也调用同一个 `dispatchCommand`，并使用随机 `newCommandId()`。当前尚未证明服务端能按现有字段区分这些自动派生命令和用户点击；不根据内容猜来源，也不自行添加 origin 字段。若探针证明现有契约不足或存在绕过入口的路径，会再次停下上报。
+
+## 批准后的目标与验收
+
+目标：只完成 T-056 的覆盖矩阵、观察器改名与幂等迁移。非目标：正式数据迁移、重启正式工作台、修其他 ticket、改命令契约、语义标注、push。
+
+先保留父修订的覆盖矩阵红态，再以 **Tracer bullet** 跑通一个 RPC 非消息输入到门禁 SQLite 的薄切片，随后扩展矩阵与重放/迁移。**Deep modules**：记录逻辑留在 a2a 模块，上游只接入口。**Ubiquitous language**：统一用户输入与 `user_input_*`，`human_intervention` 保留为派生事件。预期从 ticket/spec 手写，真实服务使用隔离数据目录；只在覆盖确需真实 provider 时使用隔离 Codex。
+
+## 验证边界
+
+project-map status：PASS，Problems 0、Stale living docs 0。业务验收、迁移、typecheck、lint、既有套件与 fresh-context 审查：均未运行，原因是 brief 要求先批准目录外观测点。未碰正式工作台数据、dist、依赖、用户 Herdr 或用户配置。
