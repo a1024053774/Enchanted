@@ -46,3 +46,5 @@ ready_rev: 1
 ## Resolution
 
 2026-10-09 worker：**BLOCKED**，尚未开始实现，待主控决定；ticket 保持 open，待主控关闭。实际 MCP 注册入口为允许目录之外的 `apps/server/src/agentGateway/Layers/AgentGateway.ts`，需要主控批准两处最小接入才能让 `a2a_raise` 出现在正式 `tools/list`。定位证据、拟议差异与未运行检查见 [RESULTS](../../evidence/2026-10-09-batch8/T-055/RESULTS.md)。依据 `ready_rev: 1`，未更改正文或验收条件。
+
+2026-10-09 worker 续轮：**BLOCKED**，已执行主控决定 01 的两处接入，父修订真实 HTTP/MCP 红态与未验收实现已保存（fork `13ec64ce6b6b19b913fe69bfc71dbf49c0f54bb0`）。一次真实 Codex 0.162.0 在 `a2a_raise` 发出 provider 工具批准请求，依决定原样保存并停止；没有批准、没有改 `computerToolPermission.ts`。三包类型检查通过，但上报/答复闭环、既有套件、截图和最终独立审查未完成；Acceptance 保持未勾选。详见 [RESULTS-02](../../evidence/2026-10-09-batch8/T-055/RESULTS-02.md)。ticket 保持 open，待主控决定与关闭。
