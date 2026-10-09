@@ -24,7 +24,7 @@
 - 门禁优先：认领、交付、验收、集成和回收只经唯一的门禁入口，保持操作锁、fence、CAS、attempt 绑定与中断恢复语义；界面不另做一套门禁。在受管 worker 会话中直接输入，记为人工介入。门禁在 Synara 服务端用 TypeScript 原生实现（`packages/a2a-gates`），本仓库验收经 `acceptance/entry/a2a_gates.py` 调用。
 - 重新证明：旧实现的通过结论不替新实现背书；交付、恢复、编排场景移植后须重新取得红态、绿态与反例。
 - `coop.py` 与 Muster 引擎已于 2026-10-08 删除（T-040 A），不保留两套路径；参考实现见 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。不得修改或重启用户正在使用的 Herdr server。
-- 切换条件：新门禁的移植场景与一次真实闭环通过，界面显示门禁状态。切换前主控与 worker 继续经已安装的 Herdr 分派。
+- 切换已于 2026-10-09 完成（T-040、T-046）：能预先写出独立 oracle 的受管任务，经正式工作台的门禁派发（fork 中 `./a2a/scripts/gate` create → run，说明见 fork `a2a/WORKBENCH.md`），worker 是 Synara 原生 Codex 会话，用户在任务窗口查看。无法预先写 oracle 的 ticket 级工作（设计调研、跨多文件的大改、需要 Computer Use 的界面验证）暂时仍可经 Herdr 派发 worker，按 ticket 流程验收；这条过渡安排在门禁支持此类工作后取消。
 - 主控是角色，不绑定层级，可以同时操作项目级与任务级对象。
 - 构建：外置盘 `/Volumes/WD-Elements` 存放构建缓存，未挂载时构建必须报错，不回退到内置盘。Synara fork 的 checkout 放内置盘，Bun 全局缓存与 Electron 下载放外置盘。本仓库的 Rust 构建统一经 `scripts/build`（见 README）。
 - 项目开源；Synara 为 MIT，保留其版权声明；允许直接复用 GPL 代码，并入后整体以 GPL-3.0 发布。复用不能改变已定方向。
@@ -44,7 +44,7 @@
 
 ## 主控、worker 和 monitor
 
-- 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）。它在已批准范围内通过 Herdr 分派任务（切换完成后改用工作台）、读取当前状态、回收不再需要的 worker，并汇总证据。
+- 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）。它在已批准范围内经工作台门禁分派受管任务（过渡期 ticket 级工作仍可经 Herdr）、读取当前状态、回收不再需要的 worker，并汇总证据。
 - worker 使用 `gpt-6.1-sol` xhigh reasoning / Fast service tier，只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。
 - monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
