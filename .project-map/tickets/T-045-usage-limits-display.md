@@ -27,3 +27,12 @@ supersedes:
 还记录了独立的启动器 `status` locale 误拒绝，同一 PID/启动时间的中文、英文 `ps` 文本不同；中文 locale 下完整身份匹配。它不解释用量失败，不在 T-045 扩修。
 
 证据与未验证项见 [RESULTS.md](../../evidence/2026-10-09-batch5/T-045/RESULTS.md)。fork `a2a-t045` 固定于 `28e2f1b4ca6634d4faba9bd921a55a51640407e4`，没有新提交或上游文件改动。真实凭据路径未运行，正式工作台未重启，未取得最终界面通过证据；本交付不代替主控的验收与 integration。
+
+
+### 2026-10-09 修复交付
+
+执行 `brief-T-045-fix.md` 与主控决定 01 后，离线修复交付 **PASS**，正式工作台显示仍 **INCOMPLETE**，保持 `status: open` 与界面验收复选框未勾选。fork 分支 `a2a-t045` 的独立提交为 `4b64e4cdd43e1e8e4c1f7bfaa2c66776f3985fa8`：共享出站边界只为用量 helper 显式启用的三个固定 HTTPS origins 放行 IPv4 `198.18.0.0/15`，其余主机名/保留地址及普通出站策略不变。
+
+新边界测试在父版本 3 个正例为红，候选 18/18 为绿；同一离线 batch 夹具在父版本被地址策略拒绝，候选三个 provider 均 ok，并保留输入 17/47 的用量值；删除 origin 限制的 mutant 被 5 个反例拒绝。47/47 既有相关用量测试、13/13 共享策略测试、修改文件格式/lint 和 shared/server 包 typecheck 均通过。真实网络、凭据刷新/写入、正式应用重启及 push 均未执行。
+
+改动清单、原始红绿与异常现场、复现命令和未验证项见 [修复 RESULTS.md](../../evidence/2026-10-09-batch5/T-045/fix/RESULTS.md)。主控合并、重启及用户界面确认尚待完成；本提交不代替门禁 acceptance 或 integration。

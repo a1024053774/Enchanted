@@ -1,0 +1,55 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t045
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch5/T-045/fix
+
+(node:25326) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | offline-usage.test.ts > reads supplied usage 17 through the production batch entry without real sockets or refresh
+06:39:05.743 WARN [provider-usage:codex] codex usage endpoint unreachable message="Outbound destination resolved to a private, local, reserved, or invalid address."
+
+stderr | offline-usage.test.ts > reads supplied usage 17 through the production batch entry without real sockets or refresh
+06:39:05.743 WARN [provider-usage:claude] claude usage endpoint unreachable message="Outbound destination resolved to a private, local, reserved, or invalid address."
+
+stdout | offline-usage.test.ts > reads supplied usage 17 through the production batch entry without real sockets or refresh
+{"fixtureHome":"/Volumes/WD-Elements/dev-cache/synara/tmp/t045/t045-fake-home-6cdPSH","snapshots":[{"provider":"codex","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"codex-wham-usage","status":"error","detail":"Could not reach the Codex usage endpoint."},{"provider":"claudeAgent","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"claude-oauth-usage","status":"error","detail":"Could not reach the Claude usage endpoint."},{"provider":"cursor","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"cursor-dashboard","status":"error","detail":"Could not reach the Cursor dashboard."}],"dnsHosts":["api2.cursor.sh","chatgpt.com","api.anthropic.com"],"realSockets":0,"mockedTransports":0,"refreshes":0,"writes":0}
+
+stderr | offline-usage.test.ts > reads supplied usage 47 through the production batch entry without real sockets or refresh
+06:39:05.749 WARN [provider-usage:codex] codex usage endpoint unreachable message="Outbound destination resolved to a private, local, reserved, or invalid address."
+
+stderr | offline-usage.test.ts > reads supplied usage 47 through the production batch entry without real sockets or refresh
+06:39:05.749 WARN [provider-usage:claude] claude usage endpoint unreachable message="Outbound destination resolved to a private, local, reserved, or invalid address."
+
+stdout | offline-usage.test.ts > reads supplied usage 47 through the production batch entry without real sockets or refresh
+{"fixtureHome":"/Volumes/WD-Elements/dev-cache/synara/tmp/t045/t045-fake-home-brjUQL","snapshots":[{"provider":"codex","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"codex-wham-usage","status":"error","detail":"Could not reach the Codex usage endpoint."},{"provider":"claudeAgent","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"claude-oauth-usage","status":"error","detail":"Could not reach the Claude usage endpoint."},{"provider":"cursor","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"cursor-dashboard","status":"error","detail":"Could not reach the Cursor dashboard."}],"dnsHosts":["api2.cursor.sh","chatgpt.com","api.anthropic.com"],"realSockets":0,"mockedTransports":0,"refreshes":0,"writes":0}
+
+stdout | offline-usage.test.ts > distinguishes credential absence and unsupported auth from an unreachable endpoint
+{"authCases":{"missing":{"provider":"codex","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"codex-wham-usage","status":"needs-auth","detail":"Sign in with `codex login` to see usage."},"environmentToken":{"provider":"claudeAgent","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"claude-oauth-usage","status":"unsupported","detail":"Live usage is unavailable for environment-token authentication. Tokens from `claude setup-token` support chats but do not include the user:profile scope needed for usage."},"apiKey":{"provider":"codex","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"codex-wham-usage","status":"unsupported","detail":"Codex API-key auth has no usage endpoint. Sign in with ChatGPT to see usage."}}}
+
+ × offline-usage.test.ts > reads supplied usage 17 through the production batch entry without real sockets or refresh 14ms
+   → expected "vi.fn()" to be called 4 times, but got 0 times
+ × offline-usage.test.ts > reads supplied usage 47 through the production batch entry without real sockets or refresh 5ms
+   → expected "vi.fn()" to be called 4 times, but got 0 times
+ ✓ offline-usage.test.ts > distinguishes credential absence and unsupported auth from an unreachable endpoint 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  offline-usage.test.ts > reads supplied usage 17 through the production batch entry without real sockets or refresh
+ FAIL  offline-usage.test.ts > reads supplied usage 47 through the production batch entry without real sockets or refresh
+AssertionError: expected "vi.fn()" to be called 4 times, but got 0 times
+ ❯ offline-usage.test.ts:114:24
+    112|   ]);
+    113|   expect(httpRequest).not.toHaveBeenCalled();
+    114|   expect(httpsRequest).toHaveBeenCalledTimes(4);
+       |                        ^
+    115|   expect(keychain).not.toHaveBeenCalled();
+    116|   expect(refresh).not.toHaveBeenCalled();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  02:39:04
+   Duration  1.24s (transform 579ms, setup 0ms, import 1.16s, tests 20ms, environment 0ms)
+
+error: "node" exited with code 1

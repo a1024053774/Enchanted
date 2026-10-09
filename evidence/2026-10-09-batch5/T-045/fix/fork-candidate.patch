@@ -1,0 +1,212 @@
+commit 4b64e4cdd43e1e8e4c1f7bfaa2c66776f3985fa8
+Author:     LuckyE <50726334+a1024053774@users.noreply.github.com>
+AuthorDate: Fri Oct 9 02:41:22 2026 -0400
+Commit:     LuckyE <50726334+a1024053774@users.noreply.github.com>
+CommitDate: Fri Oct 9 02:41:22 2026 -0400
+
+    fix(provider-usage): admit proxy fake IPs only for fixed usage origins
+---
+ apps/server/src/providerUsage/http.ts              |   1 +
+ .../src/providerUsage/httpProxyFakeIp.test.ts      | 103 +++++++++++++++++++++
+ packages/shared/src/outboundHttp.ts                |  29 +++++-
+ 3 files changed, 132 insertions(+), 1 deletion(-)
+
+diff --git a/apps/server/src/providerUsage/http.ts b/apps/server/src/providerUsage/http.ts
+index 3f6e61a18..ddcfb6beb 100644
+--- a/apps/server/src/providerUsage/http.ts
++++ b/apps/server/src/providerUsage/http.ts
+@@ -41,6 +41,7 @@ export async function fetchJson(input: {
+       maxConcurrent: 4,
+       maxQueued: 8,
+       requirePublicAddress: true,
++      allowProviderUsageProxyFakeIp: true,
+       ...(input.allowLoopbackHttp === true ? { allowLoopbackHttp: true } : {}),
+     },
+     url: input.url,
+diff --git a/apps/server/src/providerUsage/httpProxyFakeIp.test.ts b/apps/server/src/providerUsage/httpProxyFakeIp.test.ts
+new file mode 100644
+index 000000000..249ac6b48
+--- /dev/null
++++ b/apps/server/src/providerUsage/httpProxyFakeIp.test.ts
+@@ -0,0 +1,103 @@
++import { afterEach, expect, it, vi } from "vitest";
++
++const { lookup, request } = vi.hoisted(() => ({
++  lookup: vi.fn(),
++  request: vi.fn((_url: URL, _options: unknown, _callback: unknown) => {
++    throw new Error("Offline transport sentinel");
++  }),
++}));
++vi.mock("node:dns/promises", () => ({ lookup }));
++vi.mock("node:https", () => ({ request }));
++
++import { outboundHttp } from "@synara/shared/outboundHttp";
++import { fetchJson } from "./http";
++
++// Failure modes: broad hostname opt-in, another reserved subnet, mixed DNS results,
++// literal/mapped IPs, or bypassing the pinned transport/default outbound policy.
++// The sentinel proves admission without opening a socket; rejection must precede it.
++afterEach(() => {
++  lookup.mockReset();
++  request.mockClear();
++});
++
++function usage(url: string) {
++  return fetchJson({ service: "fake-ip-test", url, allowedOrigins: [new URL(url).origin] });
++}
++
++it.each(["chatgpt.com", "api.anthropic.com", "api2.cursor.sh"])(
++  "admits only the proxy subnet for the fixed usage host %s",
++  async (host) => {
++    for (const address of ["198.18.0.0", "198.18.0.79", "198.19.255.255"]) {
++      lookup.mockResolvedValue([{ address, family: 4 }]);
++      await expect(usage(`https://${host}/usage`)).rejects.toThrow("Offline transport sentinel");
++    }
++    expect(request).toHaveBeenCalledTimes(3);
++    expect(request.mock.calls[0]?.[0]).toEqual(new URL(`https://${host}/usage`));
++  },
++);
++
++it.each([
++  "10.0.0.1",
++  "172.16.0.1",
++  "192.168.0.1",
++  "127.0.0.1",
++  "169.254.0.1",
++  "198.17.255.255",
++  "198.20.0.0",
++  "::1",
++  "fc00::1",
++  "::ffff:198.18.0.79",
++])("preserves the address policy for %s on each fixed usage host", async (address) => {
++  for (const host of ["chatgpt.com", "api.anthropic.com", "api2.cursor.sh"]) {
++    lookup.mockResolvedValue([{ address, family: address.includes(":") ? 6 : 4 }]);
++    // 198.17/198.20 are outside the fake-IP subnet and public, so they reach transport.
++    if (address.startsWith("198.17") || address.startsWith("198.20")) {
++      await expect(usage(`https://${host}/usage`)).rejects.toThrow("Offline transport sentinel");
++    } else {
++      await expect(usage(`https://${host}/usage`)).rejects.toMatchObject({
++        code: "private-address",
++      });
++      expect(request).not.toHaveBeenCalled();
++    }
++  }
++});
++
++it.each(["other.example", "chatgpt.com.other.example", "sub.chatgpt.com", "198.18.0.79"])(
++  "rejects caller-supplied non-allowlisted host %s in the same subnet",
++  async (host) => {
++    lookup.mockResolvedValue([{ address: "198.18.0.79", family: 4 }]);
++    await expect(usage(`https://${host}/usage`)).rejects.toMatchObject({ code: "private-address" });
++    expect(request).not.toHaveBeenCalled();
++  },
++);
++
++it("rejects a mixed DNS answer, alternate port, and a non-usage outbound request", async () => {
++  lookup.mockResolvedValue([
++    { address: "198.18.0.79", family: 4 },
++    { address: "10.0.0.1", family: 4 },
++  ]);
++  await expect(usage("https://chatgpt.com/usage")).rejects.toMatchObject({
++    code: "private-address",
++  });
++  lookup.mockResolvedValue([{ address: "198.18.0.79", family: 4 }]);
++  await expect(usage("https://chatgpt.com:444/usage")).rejects.toMatchObject({
++    code: "private-address",
++  });
++  await expect(
++    outboundHttp.request({
++      url: "https://chatgpt.com/usage",
++      policy: {
++        service: "other-outbound",
++        allowedOrigins: ["https://chatgpt.com"],
++        timeoutMs: 1000,
++        maxRequestBytes: 0,
++        maxResponseBytes: 1024,
++        maxRedirects: 0,
++        maxConcurrent: 1,
++        maxQueued: 1,
++        requirePublicAddress: true,
++      },
++    }),
++  ).rejects.toMatchObject({ code: "private-address" });
++  expect(request).not.toHaveBeenCalled();
++});
+diff --git a/packages/shared/src/outboundHttp.ts b/packages/shared/src/outboundHttp.ts
+index 2d3725660..36a67e49c 100644
+--- a/packages/shared/src/outboundHttp.ts
++++ b/packages/shared/src/outboundHttp.ts
+@@ -54,6 +54,8 @@ export interface OutboundHttpPolicy {
+   readonly requirePublicAddress?: boolean;
+   /** Permits HTTP only for localhost, 127.0.0.1, or ::1. */
+   readonly allowLoopbackHttp?: boolean;
++  /** Enables the fixed provider-usage hosts' proxy fake-IP exception only. */
++  readonly allowProviderUsageProxyFakeIp?: boolean;
+ }
+ 
+ export interface OutboundHttpRequest {
+@@ -262,10 +264,19 @@ function requestHeaders(headers: Headers): Record<string, string> {
+   return result;
+ }
+ 
++const providerUsageProxyOrigins = new Set([
++  "https://chatgpt.com",
++  "https://api.anthropic.com",
++  "https://api2.cursor.sh",
++]);
++const proxyFakeIpAddresses = new Net.BlockList();
++proxyFakeIpAddresses.addSubnet("198.18.0.0", 15, "ipv4");
++
+ async function resolvePinnedAddress(
+   url: URL,
+   requirePublicAddress: boolean,
+   allowLoopbackHttp: boolean,
++  allowProviderUsageProxyFakeIp: boolean,
+   signal: AbortSignal,
+ ): Promise<{ readonly address: string; readonly family: 4 | 6 }> {
+   if (signal.aborted) throw abortedError(signal.reason);
+@@ -276,7 +287,20 @@ async function resolvePinnedAddress(
+   const requireLoopbackAddress = allowLoopbackHttp && url.protocol === "http:";
+   const assertAddressAllowed = (address: string) => {
+     if (requireLoopbackAddress) assertExactLoopbackIpAddress(address);
+-    else if (requirePublicAddress) assertPublicIpAddress(address);
++    else if (requirePublicAddress) {
++      // DNS proxy fake-IP mode maps these fixed usage origins into 198.18.0.0/15.
++      // Keep all other destinations/address ranges under the normal SSRF policy.
++      // Remove this exception when usage transport supports fake-IP proxies without it.
++      if (
++        allowProviderUsageProxyFakeIp &&
++        providerUsageProxyOrigins.has(url.origin) &&
++        Net.isIP(address) === 4 &&
++        proxyFakeIpAddresses.check(address, "ipv4")
++      ) {
++        return;
++      }
++      assertPublicIpAddress(address);
++    }
+   };
+   const literalFamily = Net.isIP(hostname);
+   if (literalFamily === 4 || literalFamily === 6) {
+@@ -344,12 +368,14 @@ async function requestHop(input: {
+   readonly maxResponseBytes: number;
+   readonly requirePublicAddress: boolean;
+   readonly allowLoopbackHttp: boolean;
++  readonly allowProviderUsageProxyFakeIp: boolean;
+   readonly signal: AbortSignal;
+ }): Promise<OutboundHttpResponse> {
+   const pinned = await resolvePinnedAddress(
+     input.url,
+     input.requirePublicAddress,
+     input.allowLoopbackHttp,
++    input.allowProviderUsageProxyFakeIp,
+     input.signal,
+   );
+ 
+@@ -513,6 +539,7 @@ export class OutboundHttpClient {
+           maxResponseBytes: policy.maxResponseBytes,
+           requirePublicAddress: policy.requirePublicAddress ?? true,
+           allowLoopbackHttp,
++          allowProviderUsageProxyFakeIp: policy.allowProviderUsageProxyFakeIp === true,
+           signal: controller.signal,
+         });
+         if (!isRedirectStatus(response.status)) return response;

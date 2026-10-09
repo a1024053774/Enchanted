@@ -1,0 +1,68 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t045
+$ vitest run --maxWorkers=1 --no-file-parallelism src/providerUsage/httpProxyFakeIp.test.ts
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara-t045/apps/server
+
+ ❯ src/providerUsage/httpProxyFakeIp.test.ts (18 tests | 5 failed) 14ms
+   × rejects caller-supplied non-allowlisted host other.example in the same subnet 3ms
+   × rejects caller-supplied non-allowlisted host chatgpt.com.other.example in the same subnet 0ms
+   × rejects caller-supplied non-allowlisted host sub.chatgpt.com in the same subnet 0ms
+   × rejects caller-supplied non-allowlisted host 198.18.0.79 in the same subnet 0ms
+   × rejects a mixed DNS answer, alternate port, and a non-usage outbound request 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/providerUsage/httpProxyFakeIp.test.ts > rejects caller-supplied non-allowlisted host other.example in the same subnet
+ FAIL  src/providerUsage/httpProxyFakeIp.test.ts > rejects caller-supplied non-allowlisted host chatgpt.com.other.example in the same subnet
+ FAIL  src/providerUsage/httpProxyFakeIp.test.ts > rejects caller-supplied non-allowlisted host sub.chatgpt.com in the same subnet
+ FAIL  src/providerUsage/httpProxyFakeIp.test.ts > rejects caller-supplied non-allowlisted host 198.18.0.79 in the same subnet
+AssertionError: expected Error: Offline transport sentinel to match object { code: 'private-address' }
+
+- Expected
++ Received
+
+- {
+-   "code": "private-address",
++ Error {
++   "message": "Offline transport sentinel",
+  }
+
+ ❯ src/providerUsage/httpProxyFakeIp.test.ts:59:49
+     57|   async (host) => {
+     58|     lookup.mockResolvedValue([{ address: "198.18.0.79", family: 4 }]);
+     59|     await expect(usage(`https://${host}/usage`)).rejects.toMatchObject…
+       |                                                 ^
+     60|     expect(request).not.toHaveBeenCalled();
+     61|   },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/providerUsage/httpProxyFakeIp.test.ts > rejects a mixed DNS answer, alternate port, and a non-usage outbound request
+AssertionError: expected Error: Offline transport sentinel to match object { code: 'private-address' }
+
+- Expected
++ Received
+
+- {
+-   "code": "private-address",
++ Error {
++   "message": "Offline transport sentinel",
+  }
+
+ ❯ src/providerUsage/httpProxyFakeIp.test.ts:70:55
+     68|   await expect(usage("https://chatgpt.com/usage")).rejects.toMatchObje…
+     69|   lookup.mockResolvedValue([{ address: "198.18.0.79", family: 4 }]);
+     70|   await expect(usage("https://chatgpt.com:444/usage")).rejects.toMatch…
+       |                                                       ^
+     71|   await expect(outboundHttp.request({
+     72|     url: "https://chatgpt.com/usage",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 13 passed (18)
+   Start at  02:40:31
+   Duration  145ms (transform 28ms, setup 0ms, import 56ms, tests 14ms, environment 0ms)
+
+error: script "test" exited with code 1
