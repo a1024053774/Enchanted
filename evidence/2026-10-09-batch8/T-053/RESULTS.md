@@ -1,5 +1,7 @@
 # T-053 收件箱脚本交付
 
+本文件记录首次交付；后续 ready 诊断修正与新的真实仓库结果见 [执行主控决定 01 补验收](decision-01-RESULTS.md)。
+
 **PASS（worker 实现与端到端验证）；ticket 保持 open，待主控关闭。**
 
 执行依据：T-053 `ready_rev: 1`，任务书 `brief-T-053.md`，controller-split-user-input spec 第 2～5、8 节。代码提交：`a4d502407e5d593300f84b2b82f899d0624f0949`（含首刀 `251ce27694d28aef54079ab8c1bc691e7d5a4b0b`）。fork 提交：none。没有修改角色卡参数名或内容。

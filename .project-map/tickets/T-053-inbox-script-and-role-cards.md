@@ -49,3 +49,5 @@ Herdr 期两个主控之间的交接靠文件完成，格式和"哪些条目还�
 12/12 用例通过；20 进程同秒发送、实际短写后 SIGKILL、手写未确认清单、14 个 ready 夹具、处置时限、只读真实地图、两个 mutant 均有原始证据。唯一 fresh-context 审查对首刀为 FAIL，发现答复字段、类型引用和时区三项遗漏；新增用例先红后绿，原独立探针逐字重放 13/13，保留原 FAIL，不上调旧结论。
 
 报告与重放命令：[RESULTS](../../evidence/2026-10-09-batch8/T-053/RESULTS.md)；独立审查：[REVIEW](../../evidence/2026-10-09-batch8/T-053/REVIEW.md)；完整版本绑定：[final-candidate](../../evidence/2026-10-09-batch8/T-053/final-candidate.json)。T-054 清单对接为 `evidence/*/sessions/manifest.jsonl` 的 `cutoff_at`；只用夹具验证，实际联合运行待 T-054。真实 ready 因旧 ticket 缺就绪字段退出 1，三种角色 list 退出 0，前后工作区与地图字节一致。
+
+2026-10-09 执行主控决定 01 补验收：**PASS；仍待主控关闭**。代码 `8e260461f32e49c3b1bce50bedeceb4fad38aa8a`：只检查 open 的就绪字段，完全没有字段的旧 open ticket 列“未标就绪”，部分缺字段才报“不合规”。两个新用例先红后绿，14/14 通过；真实仓库由 52 行不合规、退出 1 变为 5 行未标就绪、0 行不合规、退出 0，3 条 READY 保留；每次只读运行前后 Git 状态和地图字节一致。[补验收报告](../../evidence/2026-10-09-batch8/T-053/decision-01-RESULTS.md) 保留全部输出与重放命令；fork none。

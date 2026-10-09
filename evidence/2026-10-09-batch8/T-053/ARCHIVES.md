@@ -3,6 +3,8 @@
 - `raw-runs.tar.gz`：最初入口缺失红态、早期绿态、初始候选绿态和两轮 mutant 的完整原始目录。
 - `independent-review-raw.tar.gz`：唯一 fresh-context 审查的独立临时目录，含冻结源码、9 项复跑、13 项探针、FAIL 的命令/输出/夹具。
 - `review-correction-raw.tar.gz`：审查发现的红态、修复后 12 项绿态、独立探针重放、修复后两个 mutant 的完整目录。
+- `decision-01-raw.tar.gz`：执行主控决定 01 的两个回归红态与修复后 14 项绿态，完整夹具和失败现场。
+- `decision-01-independent-raw.tar.gz`：仅针对决定 01 的独立 sentinel 输入、预期、候选/父修订源码、原始结果与判定。
 
 归档保留 UTF-8 与故意构造的非 UTF-8 文件、未发布的 17 字节 tmp、symlink 和完整正文，不沿 symlink 读取。工作区内原始运行目录移到被现有 gitignore 覆盖的 `raw-artifacts/`，内容不删不改；原位置留下命令、结果和必要的可重放快照。记录内旧绝对路径对应归档中的原布局，解包到独立目录即可检查。
 
