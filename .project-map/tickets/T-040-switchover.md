@@ -2,7 +2,7 @@
 id: T-040
 title: 切换到工作台并删除旧运行路径
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -16,7 +16,7 @@ M1 第 1～5 项通过且用户认可界面后，主控与 worker 的日常分�
 
 - [x] 用户确认界面外观与切换时机。
 - [x] 删除后仓库内无 Muster/coop.py 运行入口；门禁 8/9/18 项经原生入口仍通过。
-- [ ] 一次日常分派经 Synara 完成并留证据。
+- [x] 一次日常分派经 Synara 完成并留证据。
 
 ## 用户决定（2026-10-08）
 
@@ -63,3 +63,4 @@ PASS，仅指有界对照完成：父 `d3b5bcc61cc212572f38e01139e1b9af2196b820`
 
 主控记录（2026-10-08）：A 部分按 [决定 03](../../evidence/2026-10-08-batch4/T-040-A/controller-decision-03.md) 接受：删除 2,966 个受控文件，8/8、18/18、9/9 经原生入口通过，恢复 9 项另在重负载下 6 轮 54/54；首轮一次 2 秒超时原因未明，记入 fog。B 部分接受：`a2a/scripts/workbench`、`a2a/scripts/gate`、`a2a/WORKBENCH.md`（fork `28e2f1b`），真实隔离启动、重复启动、鉴权反例、停止与重启通过；5 项全仓失败经父修订对照 24 次全通过，未检出 B 引入的回归。剩第 3 项：经 Synara 完成一次日常分派。
 
+**主控关闭（2026-10-09）：PASS。** 第 3 项由 [T-046](T-046-workbench-locale-identity.md) 完成。AGENTS.md 中"切换前经 Herdr 分派"的条款待下次会话更新。
