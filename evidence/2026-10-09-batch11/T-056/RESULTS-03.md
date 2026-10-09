@@ -36,7 +36,7 @@ Unblock 的业务失败依赖状态由 server-fixture-30 控制，经实际 deli
 
 ## 独立审查缺口
 
-决定 02 授权的一次追加审查已用于 cb9，返回 [FAIL/P1](acceptance-review-35.md)。修复后没有把旧审查变成 PASS，也没有自行启动第三次。已交执行主控 [审查次数待决](needs-decision-44.md)，收件箱 `20261009T201420Z-worker:s11-t056-needs-decision-001`。
+决定 02 授权的一次追加审查已用于 cb9，返回 [FAIL/P1](acceptance-review-35.md)。修复后没有把旧审查变成 PASS，也没有自行启动第三次。已交执行主控 [审查次数待决](needs-decision-44.md)，收件箱 `20261009T201420Z-worker:s11-t056-needs-decision-001`；权限缺项另按 worker 角色卡报 triage，问题 `20261009T202020Z-worker:s11-t056-issue-001`，默认不阻塞，完成了其余授权工作。
 
 [behavioral-acceptance-review](/Users/luckye/.agents/skills/behavioral-acceptance-review/SKILL.md) 要求 “Review one frozen candidate snapshot in a fresh, read-only context.” 当前 dd 的审查缺项由此单列；不以工程绿态代替独立审查。此前故障归因 P1 的修正证据仍见 RESULTS-02 与 scope/checkpoint 专项。
 
