@@ -2,7 +2,7 @@
 id: T-047
 title: 门禁 CLI 经 HTTP 调用 run 时提前超时
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex T-047 worker
 supersedes:
@@ -27,3 +27,5 @@ T-046 中 `./a2a/scripts/gate` 的 run 请求在约 6 分钟时报 `TimeoutError
 - T-046 指定的 events 原件严格 JSON 解析已通过；本次含 NUL、SOH、ESC、tab、CR、LF 的原始 events 亦通过。未证实序列化缺陷，未增加修补路径。
 - 格式、lint、相关类型检查和 Vitest 通过；冻结候选一次独立 behavioral-acceptance-review 返回 PASS、无发现。只验证本地 HTTP 门禁和受控原生线程边界，没有调用模型、构建桌面或重启正式工作台。已停本任务创建的 7 个服务并保留完整夹具归档。
 - 完整命令、红绿态、反例、源码版本、审查及限制见 [中文报告](../../evidence/2026-10-09-batch7/T-047/RESULTS.md)。
+
+**主控关闭（2026-10-09，Claude Code）：PASS。** fork 候选 `5aaf90a`，合并为 `6efac84`（`a2a`，合并 `a2a/WORKBENCH.md` 的文档冲突时两段说明都保留，合并后 typecheck 通过），证据 `4b34463`，见 [交付记录](../../evidence/2026-10-09-batch7/T-047/RESULTS.md)。根因是 Bun fetch 客户端约 5 分钟的空闲超时：旧 CLI 默认在 360 秒、客户端空闲期限设为 1 秒时在 8 秒失败，服务端 run 均照常完成；修复只对 run 请求设 `timeout: false`，期限仍由门禁控制。候选在 611 秒长时 run 拿到最终回执，deadline、blocked、run_busy 反例行为不变，独立审查 PASS。控制字符：T-046 的 events 文件与含 NUL/ESC 等字符的 oracle 输出均能被严格 JSON 解析，未修改序列化；主控当时轮询中的解析失败原因未复现。
