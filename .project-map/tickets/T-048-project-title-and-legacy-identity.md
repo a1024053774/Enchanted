@@ -20,3 +20,7 @@ supersedes:
 - [ ] `launch-workbench.mjs` 写入的身份在任何调用者 locale 下与 `workbench_runtime.py` 读取的格式一致（用临时数据目录与受控子进程验证，不启动正式工作台）；工作台重启后新记录为新格式，删除兼容分支后 `acceptance/workbench_identity_oracle.py` 中新格式与拒绝用例仍通过（旧格式用例相应调整并说明）。
 
 ## Resolution
+
+**PASS（worker 实现与隔离验收）；待主控关闭。** fork 提交 `42376b018616d56a2f0774913bf85c7a9cf82940`：新项目标题直接取 create 请求中的 project id，已有项目不改名；身份写入与读取统一 `LC_ALL=C`，删除 locale 遍历兼容分支。项目标题取得父版本红态并通过真实门禁/原生 SQLite 侧栏快照复验；相关服务测试 11/11，实际 launcher 写入与 status 读取 oracle 红态 50/61、绿态 61/61。
+
+报告、原始输出、精确命令、完整测试夹具归档与 oracle 快照/patch 见 [T-048 RESULTS](../../evidence/2026-10-09-batch7/T-048/RESULTS.md)。按任务书提交范围，`acceptance/workbench_identity_oracle.py` 的已验证源文件改动留给主控单独收录。正式工作台未停止或重启；主控仍须用旧代码停止、更新后启动并核对新记录，取得正式验收/集成证据后关闭 ticket。验收框保持未勾选，避免把 worker 隔离结果写成正式迁移完成。

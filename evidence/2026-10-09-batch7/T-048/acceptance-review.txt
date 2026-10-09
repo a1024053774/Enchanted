@@ -1,0 +1,17 @@
+STATUS: PASS
+TARGET: 42376b018616d56a2f0774913bf85c7a9cf82940（仅 worker 声明范围）
+EVIDENCE:
+- 依据任务书与 T-048 还原要求；审查结束时 HEAD 与冻结候选一致，受控文件无差异。
+- 标题断言预期来自 create 请求，两个不同项目输入排除固定标题；保留证据证明已有项目完整记录不变、仓库不匹配被拒绝。候选相关测试记录为 11/11 通过。
+- 独立执行 `python3 -B evidence/2026-10-09-batch7/T-048/workbench_identity_oracle.py /Users/luckye/Documents/Code/synara`：退出 0，61/61 通过。
+- oracle 使用真实启动器写记录、真实系统 ps 与真实 workbench status；只替换 Electron 可执行文件为隔离受控进程，未导入生产身份助手作为预期。
+FINDINGS:
+- 无阻断发现。未发现预期值泄漏或生产代码中的测试专用分支。
+COUNTEREXAMPLE:
+- 旧固定标题实现被业务断言拒绝：实际 `a2a pagination`，预期 `release-catalogue`。
+- `identity-red02.json` 中旧实现有 5 个写入格式断言、6 个旧身份拒绝断言失败；候选全部通过。空的 `identity-red.json` 不计为有效红态。
+- 候选拒绝非规范旧身份和其他进程身份；已退出 PID 返回未运行。
+LIMITATIONS:
+- 标题证据到门禁服务、真实领域引擎与 SQLite 投影；未独立复跑标题测试，也没有 HTTP/CLI 到侧栏的完整 UI 验证。
+- 没有正式工作台重启、新记录迁移或 UI 截图证据；这些仍由主控完成，本 PASS 不关闭整张 T-048。
+- 未调用 provider 或模型，未操作正式工作台数据、endpoint 或 token。
