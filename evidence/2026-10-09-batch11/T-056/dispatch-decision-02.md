@@ -1,0 +1,1 @@
+执行主控决定见 /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-056/controller-decision-02.md：Unblock 纳入本票（wsRpc.ts 内挂接，每请求一条输入）；BranchToolbar 补 ui-derived；补普通 thread 项目键；Herdr 期不走门禁 submit；授权最终候选再做一次独立审查。请继续，完成后回复 DONE 行，不要在计划说明后结束回合。
