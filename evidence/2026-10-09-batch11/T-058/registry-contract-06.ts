@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+const { makeAgentGatewaySessionRegistry } = await import(process.env.T058_REGISTRY_SOURCE!);
+let preset = "worker";
+const registry = makeAgentGatewaySessionRegistry({ a2aPresetForThread: () => preset });
+const old = registry.issue("sentinel-role", "codex");
+console.log(JSON.stringify({ step: "worker", observed: [...old.capabilities].sort(), expected: ["a2a:raise", "a2a:submit"] }));
+assert.deepEqual([...old.capabilities].sort(), ["a2a:raise", "a2a:submit"]);
+preset = "executor";
+assert.deepEqual([...registry.verify(old.token).capabilities].sort(), ["a2a:raise", "a2a:submit"]);
+const fresh = registry.issue("sentinel-role", "codex");
+assert.deepEqual([...fresh.capabilities].sort(), ["a2a:inbox", "a2a:operate", "a2a:read"]);
+const ordinary = makeAgentGatewaySessionRegistry().issue("ordinary", "codex");
+assert.deepEqual([...ordinary.capabilities].sort(), ["automation:write", "browser:control", "device:control", "diagnostics:read", "thread:read", "thread:write"]);
+console.log("PASS frozen role credentials and unchanged ordinary capabilities");

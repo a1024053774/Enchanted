@@ -1,0 +1,592 @@
+{
+  "path": "/mcp",
+  "request": {
+    "jsonrpc": "2.0",
+    "id": "5e8f101c-931c-4ea2-9a6f-9579baf1efe5",
+    "method": "tools/list",
+    "params": {}
+  },
+  "result": {
+    "jsonrpc": "2.0",
+    "id": "5e8f101c-931c-4ea2-9a6f-9579baf1efe5",
+    "result": {
+      "tools": [
+        {
+          "name": "a2a_disposition",
+          "description": "Append one disposition record for an issue in your task. Only a controller session can use this tool. The credential supplies your identity. An active turn is required.\n\nFor close, supply reason and basis. You cannot close a blocking issue or send a user answer. Only the user can reopen, snooze, or dismiss an issue.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "issue",
+              "action"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "issue": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "close",
+                  "needs-user",
+                  "forward",
+                  "reopen",
+                  "snooze",
+                  "dismiss",
+                  "delivered"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "basis": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_create",
+          "description": "Execute a2a create through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "repo",
+              "base",
+              "oracle",
+              "instructions"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "repo": {
+                "type": "string"
+              },
+              "base": {
+                "type": "string"
+              },
+              "oracle": {
+                "type": "string"
+              },
+              "instructions": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_claim",
+          "description": "Execute a2a claim through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "owner"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_dispatch",
+          "description": "Execute a2a dispatch through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "runtimeMode"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "runtimeMode": {
+                "type": "string",
+                "enum": [
+                  "approval-required",
+                  "full-access"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_attach",
+          "description": "Execute a2a attach through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "role",
+              "modelSelection",
+              "runtimeMode",
+              "instructions"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "controller",
+                  "worker",
+                  "reviewer",
+                  "monitor"
+                ]
+              },
+              "modelSelection": {
+                "type": "object",
+                "required": [
+                  "provider",
+                  "model"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "runtimeMode": {
+                "type": "string",
+                "enum": [
+                  "approval-required",
+                  "full-access"
+                ]
+              },
+              "instructions": {
+                "type": "string"
+              },
+              "preset": {
+                "type": "string",
+                "enum": [
+                  "executor",
+                  "ideation",
+                  "worker",
+                  "reviewer",
+                  "monitor"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_verify",
+          "description": "Execute a2a verify through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "attempt": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_integrate",
+          "description": "Execute a2a integrate through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "attempt": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_reclaim",
+          "description": "Execute a2a reclaim through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "attempt": {
+                "type": "string"
+              },
+              "thread": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_run",
+          "description": "Execute a2a run through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "runtimeMode",
+              "wait_seconds"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "runtimeMode": {
+                "type": "string",
+                "enum": [
+                  "approval-required",
+                  "full-access"
+                ]
+              },
+              "wait_seconds": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_revoke",
+          "description": "Execute a2a revoke through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "reason"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_revise",
+          "description": "Execute a2a revise through the gate. Supply the task and the command arguments. An active turn is required.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "spec_rev"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "spec_rev": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_status",
+          "description": "Read a2a status for the supplied task.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_events",
+          "description": "Read a2a events for the supplied task.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_issues",
+          "description": "Read a2a issues for the supplied task.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "thread": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_inbox_send",
+          "description": "Append an inbox entry and request one wake message. Supply kind, to, and body. Your credential supplies the sender.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "assign",
+                  "revise",
+                  "cancel",
+                  "stop",
+                  "report",
+                  "needs-decision",
+                  "issue",
+                  "disposition",
+                  "answer",
+                  "ack"
+                ]
+              },
+              "reply_to": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "body": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "blocking": {
+                "type": "boolean"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "close",
+                  "dismiss",
+                  "forward",
+                  "snooze",
+                  "reopen",
+                  "needs-user",
+                  "delivered"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "basis": {
+                "type": "string"
+              },
+              "bundle_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "to",
+              "body"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_inbox_list",
+          "description": "Read your unconfirmed inbox entries. Your credential supplies the recipient role.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_inbox_ack",
+          "description": "Append an acknowledgement for one received entry. Supply its id. An acknowledgement is terminal.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    }
+  },
+  "provider_credential": true
+}

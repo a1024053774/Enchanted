@@ -1,0 +1,94 @@
+{
+  "path": "/mcp",
+  "request": {
+    "jsonrpc": "2.0",
+    "id": "14e94f15-30d8-4af3-aaf1-7d154ab001ad",
+    "method": "tools/list",
+    "params": {}
+  },
+  "result": {
+    "jsonrpc": "2.0",
+    "id": "14e94f15-30d8-4af3-aaf1-7d154ab001ad",
+    "result": {
+      "tools": [
+        {
+          "name": "a2a_submit",
+          "description": "Deliver your managed attempt. Supply the frozen task, attempt, session, fence, spec_rev, and full commit SHA. This tool validates your active thread and turn; completion alone does not deliver work.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "attempt",
+              "session",
+              "fence",
+              "spec_rev",
+              "commit"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "attempt": {
+                "type": "string"
+              },
+              "session": {
+                "type": "string"
+              },
+              "fence": {
+                "type": "integer"
+              },
+              "spec_rev": {
+                "type": "integer"
+              },
+              "commit": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_raise",
+          "description": "Report an issue outside your task scope. Supply a title and optional body, blocking flag, and references. Your credential identifies the thread. An active turn is required. This tool does not change task status.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "title"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "blocking": {
+                "type": "boolean"
+              },
+              "refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    }
+  },
+  "provider_credential": true
+}

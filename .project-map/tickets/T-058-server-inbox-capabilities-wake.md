@@ -44,4 +44,6 @@ ready_rev: 1
 
 ## Resolution
 
+2026-10-09 worker `s11-t058` 修复交接：**INCOMPLETE，保持 open，待主控关闭**。按主控 #14 / 决定 01 实现；最终 fork `d9fc40a5f8b14d22ec7568c7ccef542572e79102`。唯一独立审查对 9f29 返回 FAIL（非法 assign 方向）；真实 MCP 红态后修复，十种 kind 的非法方向在 MCP/HTTP/CLI 追加前拒绝，最终相关检查与既有 35 项通过。按 brief 不自行追审，最终候选没有独立审查；真实三 turn 边界证据属于 9f29，不转移为 d9fc 的新模型通过。见 [RESULTS-02](../../evidence/2026-10-09-batch11/T-058/RESULTS-02.md) 与 [原审查](../../evidence/2026-10-09-batch11/T-058/acceptance-review-19.md)。Acceptance 不勾选，执行主控决定验收与关闭。
+
 2026-10-09 worker `s11-t058` 首轮：**BLOCKED，保持 open，待主控关闭**。fork 基线 `e9545960c50e4d0f8d687aef0da8073b2419adaa`，未改产品代码、无 fork 提交。现有 registry 总是授予通用能力，落实精确预设需要 brief 明确要求先批准的两处额外上游接入；blocking 问题 `20261009T205838Z-worker:s11-t058-issue-001`。位置、最小选项与父修订红态探针见 [RESULTS](../../evidence/2026-10-09-batch11/T-058/RESULTS.md) 和 [needs-decision](../../evidence/2026-10-09-batch11/T-058/needs-decision-01.md)。35 项、真实服务/模型及独立审查尚未运行，未勾选 Acceptance。

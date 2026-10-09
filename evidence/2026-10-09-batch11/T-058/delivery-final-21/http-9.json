@@ -1,0 +1,280 @@
+{
+  "path": "/mcp",
+  "request": {
+    "jsonrpc": "2.0",
+    "id": "f6b5a442-aaf3-48f9-9340-a0fe6f7c5e98",
+    "method": "tools/list",
+    "params": {}
+  },
+  "result": {
+    "jsonrpc": "2.0",
+    "id": "f6b5a442-aaf3-48f9-9340-a0fe6f7c5e98",
+    "result": {
+      "tools": [
+        {
+          "name": "a2a_disposition",
+          "description": "Append one disposition record for an issue in your task. Only a controller session can use this tool. The credential supplies your identity. An active turn is required.\n\nFor close, supply reason and basis. You cannot close a blocking issue or send a user answer. Only the user can reopen, snooze, or dismiss an issue.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task",
+              "issue",
+              "action"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "issue": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "close",
+                  "needs-user",
+                  "forward",
+                  "reopen",
+                  "snooze",
+                  "dismiss",
+                  "delivered"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "basis": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_status",
+          "description": "Read a2a status for the supplied task.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_events",
+          "description": "Read a2a events for the supplied task.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_issues",
+          "description": "Read a2a issues for the supplied task.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "thread": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_inbox_send",
+          "description": "Append an inbox entry and request one wake message. Supply kind, to, and body. Your credential supplies the sender.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "assign",
+                  "revise",
+                  "cancel",
+                  "stop",
+                  "report",
+                  "needs-decision",
+                  "issue",
+                  "disposition",
+                  "answer",
+                  "ack"
+                ]
+              },
+              "reply_to": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "body": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "blocking": {
+                "type": "boolean"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "close",
+                  "dismiss",
+                  "forward",
+                  "snooze",
+                  "reopen",
+                  "needs-user",
+                  "delivered"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "basis": {
+                "type": "string"
+              },
+              "bundle_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "to",
+              "body"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_inbox_list",
+          "description": "Read your unconfirmed inbox entries. Your credential supplies the recipient role.",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_inbox_ack",
+          "description": "Append an acknowledgement for one received entry. Supply its id. An acknowledgement is terminal.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "a2a_stop",
+          "description": "Request an interrupt of one gate-owned worker, reviewer, or monitor. Supply thread and stop_id. The executor must leave that stop entry unacknowledged for more than two minutes. This tool does not reclaim, archive, verify, or integrate.",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "inputSchema": {
+            "type": "object",
+            "required": [
+              "thread",
+              "stop_id"
+            ],
+            "properties": {
+              "thread": {
+                "type": "string"
+              },
+              "stop_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    }
+  },
+  "provider_credential": true
+}

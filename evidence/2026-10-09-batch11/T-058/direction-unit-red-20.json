@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "./a2a/scripts/bun",
+    "run",
+    "--cwd",
+    "packages/a2a-gates",
+    "test",
+    "src/inbox.test.ts",
+    "-t",
+    "illegal sender"
+  ],
+  "returncode": 1,
+  "stdout": "\n RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates\n\n ❯ src/inbox.test.ts (7 tests | 1 failed | 6 skipped) 87ms\n   × rejects every kind with an illegal sender or recipient before appending 86ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 6 skipped (7)\n   Start at  18:08:14\n   Duration  731ms (transform 374ms, setup 0ms, import 572ms, tests 87ms, environment 0ms)\n\n",
+  "stderr": "a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/s11-t058-checks\n$ vitest run --passWithNoTests src/inbox.test.ts -t \"illegal sender\"\n(node:92887) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  src/inbox.test.ts > rejects every kind with an illegal sender or recipient before appending\nAssertionError: assign must reject before append\n+ actual - expected\n\n+ {\n+   body: 'illegal direction sentinel',\n+   created_at: '2026-10-09T22:08:14.945Z',\n+   from: 'executor',\n+   id: '6a30bc9f-761c-4c61-b0c0-10549a2280f6',\n+   kind: 'assign',\n+   refs: [],\n+   reply_to: null,\n+   schema: 1,\n+   to: 'executor'\n+ }\n- undefined\n\n\nsimple\n\n ❯ src/inbox.test.ts:469:14\n    467|       const response = await gates.call({ command: \"inbox_send\", body:…\n    468|       assert.equal(response.ok, false, input.kind);\n    469|       assert.equal(response.entry, undefined, input.kind + \" must reje…\n       |              ^\n    470|       assert.deepEqual(sql.prepare(\"SELECT id,data FROM inbox_records …\n    471|     }\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\nerror: script \"test\" exited with code 1\n"
+}

@@ -1,0 +1,44 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/s11-t058-checks
+$ vitest run --passWithNoTests
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:69439) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69440) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69441) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/inbox.test.ts (6 tests | 1 failed) 1526ms
+   × derives the user inbox from issue dispositions and preserves unknown wakes without a retry 170ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/inbox.test.ts > derives the user inbox from issue dispositions and preserves unknown wakes without a retry
+AssertionError: Expected values to be strictly equal:
++ actual - expected
+
++ '请用户判断'
+- '未知外部副作用 δ'
+
+
+Expected: "未知外部副作用 δ"
+Received: "请用户判断"
+
+ ❯ src/inbox.test.ts:433:14
+    431|     assert.equal(f.wakeCalls(), 1);
+    432|     for (let i = 0; i < 2; i++)
+    433|       assert.equal(
+       |              ^
+    434|         (await f.gates.call({ command: "inbox_list", role: "ideation" …
+    435|         "未知外部副作用 δ",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 15 passed (16)
+   Start at  17:25:03
+   Duration  3.51s (transform 2.02s, setup 0ms, import 3.02s, tests 4.74s, environment 0ms)
+
+error: script "test" exited with code 1
