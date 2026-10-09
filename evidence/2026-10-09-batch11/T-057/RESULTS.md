@@ -25,3 +25,7 @@ T-055 最终独立审查 PASS 与当前 fork 基线一致；其报告里的历�
 - 仅创建本票证据与更新本票 Resolution；保留 T-061 暂存文件、controller 日志和 fork 未跟踪的 `.grok/`。不碰正式数据目录、用户配置、dist、依赖、T-061 checkout；未 push。
 
 本次交接为阻塞报告，不是已完成候选的 submit，不宣称门禁验收/集成或 ticket 关闭。
+
+## 并发提交归属
+
+共享工作树的暂存区被主控并发提交 `3fe3156` 纳入，因此本票原始证据、收件箱条目与 Resolution 位于该提交；本 worker 使用明确路径的 `git commit --only`，`a688de34ede6f04e646ba2bee1ad759e82db293a` 只含 RESULTS 与决定请求两处后续修订。没有修改、撤回或重写主控提交，未将它误称为本 worker 的独立实现提交。最终交接版本包含完整父链；fork 仍为上述基线，候选为 none。
