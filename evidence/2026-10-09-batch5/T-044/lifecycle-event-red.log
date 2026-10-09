@@ -1,0 +1,39 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t044
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+{"fixture_root":"/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q","mode":"event"}
+{"argv":["--state","/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/state","create","--task","lifecycle","--project","lifecycle-project","--title","Lifecycle sentinel","--repo","/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/repo","--base","03cf7b26ea5f126c1677cf7172b087613802fcaa","--oracle","/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/oracle.py","--instructions","/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/instructions.txt"],"exit":0,"output":{"ok":true,"task":{"task_id":"lifecycle","title":"Lifecycle sentinel","project_id":"lifecycle-project","repo":"/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/repo","oracle":"/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/state/tasks/lifecycle-4046853e-51ef-4c92-a021-bdbdf71dc881/oracle.py","instructions":"/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/state/tasks/lifecycle-4046853e-51ef-4c92-a021-bdbdf71dc881/instructions.txt","base_commit":"03cf7b26ea5f126c1677cf7172b087613802fcaa","state":"ready","spec_rev":1,"fence":0,"current_attempt":null,"candidate_commit":null,"verification":null,"integration_intent":null}}}
+{"argv":["--state","/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/state","attach","--task","lifecycle","--role","reviewer","--model-selection","{\"provider\":\"codex\",\"model\":\"sentinel\",\"options\":{\"reasoningEffort\":\"high\"}}","--runtime-mode","approval-required","--instructions","/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/instructions.txt"],"exit":0,"output":{"ok":true,"task":{"task_id":"lifecycle","title":"Lifecycle sentinel","project_id":"lifecycle-project","repo":"/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/repo","oracle":"/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/state/tasks/lifecycle-4046853e-51ef-4c92-a021-bdbdf71dc881/oracle.py","instructions":"/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/state/tasks/lifecycle-4046853e-51ef-4c92-a021-bdbdf71dc881/instructions.txt","base_commit":"03cf7b26ea5f126c1677cf7172b087613802fcaa","state":"ready","spec_rev":1,"fence":0,"current_attempt":null,"candidate_commit":null,"verification":null,"integration_intent":null},"attachment":{"task_id":"lifecycle","thread_id":"de121a53-987a-467d-b625-c3444827a516","role":"reviewer","modelSelection":{"provider":"codex","instanceId":"codex","model":"sentinel","options":{"reasoningEffort":"high"}},"runtime_mode":"approval-required","state":"active"}}}
+{"argv":["--state","/Volumes/WD-Elements/dev-cache/synara/instances/t044/fixtures/lifecycle-fvgz6q/state","reclaim","--task","lifecycle","--thread","de121a53-987a-467d-b625-c3444827a516"],"exit":1,"output":{"ok":false,"error":"gate_failure","details":"Error [ERR_SQLITE_ERROR]: independent event-write failure"}}
+49 | if (process.argv[2] === "event") {
+50 |   db.exec("CREATE TRIGGER reject_reclaim_event BEFORE INSERT ON events WHEN NEW.type='attachment_reclaimed' BEGIN SELECT RAISE(ABORT,'independent event-write failure'); END");
+51 |   const rejected = await cli("reclaim", "--thread", attachment.thread_id);
+52 |   assert.equal(rejected.ok, false);
+53 |   const persisted = JSON.parse(String(db.prepare("SELECT data FROM attachments WHERE id=?").get(attachment.thread_id)!.data));
+54 |   assert.equal(persisted.state, "active", "A failed event write must not commit ended and permit a false successful replay");
+              ^
+AssertionError: A failed event write must not commit ended and permit a false successful replay
+
+'ended' !== 'active'
+
+ generatedMessage: false,
+     actual: "ended",
+   expected: "active",
+   operator: "strictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch5/T-044/lifecycle-proof.ts:54:10
+
+Bun v1.4.2 (macOS arm64)

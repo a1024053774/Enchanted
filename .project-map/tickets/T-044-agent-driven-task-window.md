@@ -4,7 +4,7 @@ title: 任务窗口由 agent 驱动
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Codex T-044 worker（2026-10-09）
 supersedes:
 ---
 
@@ -26,3 +26,9 @@ supersedes:
 - [ ] T-036/T-037 的 35 项与 T-038 membership 场景仍通过；typecheck、lint 通过。
 
 ## Resolution
+
+2026-10-09 worker 交接：**BLOCKED，保持 open**。代码已在 fork `a2a` 分支提交，最终候选 `808156d63ef8e265a0e2c017fae7851e50a51019`，未 push；[中文报告](../../evidence/2026-10-09-batch5/T-044/RESULTS.md) 保存全部红态、检查、截图失败、两次审查原文与边界。
+
+create/dispatch/attach 自动归属已取得早期候选 HTTP 与 dev UI 证据；MCP handler 身份反例与最终候选 CLI/SQLite 历史修复通过。最终 35 项为 34/35，剩余一项 native 夹具 thread 缺失；fmt/lint/typecheck 通过，服务端另有 verifying 超时未定因。最终界面与真实 Gateway 认证链未通过，验收框保持未勾选。
+
+主控需要决定：任务书要求 provider 关闭，导致原生会话为 error，既有 T-037 回收保护拒绝，无法完成门禁回收/淡化截图。选择保持保护并批准受控无模型 provider 夹具，或扩大恢复合同并重新取得反例；worker 未自行选择。另有一次范围偏离类型：执行正式 status 两次读取了被禁止目录中的启动身份元数据，详见报告；未写正式实例或重启它。
