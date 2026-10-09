@@ -1,0 +1,37 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t045
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch5/T-045
+
+(node:77105) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | offline-usage.test.ts > distinguishes credential absence and unsupported auth from an unreachable endpoint
+{"authCases":{"missing":{"provider":"codex","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"codex-wham-usage","status":"needs-auth","detail":"Sign in with `codex login` to see usage."},"environmentToken":{"provider":"claudeAgent","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"claude-oauth-usage","status":"unsupported","detail":"Live usage is unavailable for environment-token authentication. Tokens from `claude setup-token` support chats but do not include the user:profile scope needed for usage."},"apiKey":{"provider":"codex","updatedAt":"2026-10-09T04:00:00.000Z","limits":[],"usageLines":[],"source":"codex-wham-usage","status":"unsupported","detail":"Codex API-key auth has no usage endpoint. Sign in with ChatGPT to see usage."}}}
+
+ × offline-usage.test.ts > reproduces the usage failure through the production batch entry without any socket or refresh 70ms
+   → Cannot spy on export "request". Module namespace is not configurable in ESM. See: https://vitest.dev/guide/browser/#limitations
+ ✓ offline-usage.test.ts > distinguishes credential absence and unsupported auth from an unreachable endpoint 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  offline-usage.test.ts > reproduces the usage failure through the production batch entry without any socket or refresh
+TypeError: Cannot spy on export "request". Module namespace is not configurable in ESM. See: https://vitest.dev/guide/browser/#limitations
+ ❯ offline-usage.test.ts:62:19
+     60|     return [{ address: fakeIps[host], family: 4 }];
+     61|   });
+     62|   const http = vi.spyOn(Http, "request").mockImplementation(() => { th…
+       |                   ^
+     63|   const https = vi.spyOn(Https, "request").mockImplementation(() => { …
+     64|   const keychain = vi.spyOn(credentials, "readKeychainPassword").mockI…
+
+Caused by: TypeError: Cannot redefine property: request
+ ❯ offline-usage.test.ts:62:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  01:15:01
+   Duration  1.77s (transform 1.19s, setup 0ms, import 1.61s, tests 73ms, environment 0ms)
+
+error: "node" exited with code 1
