@@ -2,7 +2,7 @@
 id: T-056
 title: 用户输入记录覆盖全部范围，观察器改名
 type: build
-status: open
+status: closed
 blocked_by: [T-055]
 claimed_by: s11-t056
 supersedes:
@@ -19,15 +19,15 @@ ready_rev: 2
 
 ## Acceptance
 
-- [ ] 红态在先：在本票的父修订上，下面覆盖矩阵里除"受管 worker 的消息"外的各项都没有用户输入记录，用例失败；保存输出与重放命令。
-- [ ] 覆盖矩阵正例（真实服务，隔离数据目录，每项至少一条）：受管 worker 的消息（既有行为不变）；attach 会话的消息；普通非受管 thread 的消息；带角色的主控会话的消息；Codex 异步提问的答复；结构化提问的答复（`user-input.respond`）；权限批准与拒绝（`approval.respond`）；界面的停止、中断。每条记录含形态、渠道、目标键、来源引用，`certainty` 为 `observed`。
-- [ ] 反例：agent、自动化、门禁自己发的消息与命令（dispatch/attach 提示词、automation、`a2a:` 前缀的命令）不产生用户输入；界面自动派生的命令（退出应用时的批量中断、临时线程清理）不被记成用户的明确决定（按 spec 第 3 节的处理）。
-- [ ] 观测点（用户 2026-10-09 选 A 修订）：非消息类输入在 WS RPC `dispatchCommand` 入口按枚举的命令类型记录；给相关命令加可选 `origin` 字段，只由界面自动派生点（退出时批量中断、临时线程清理等）设置，缺省为用户操作，自动派生的标 `ui-derived`、不算用户的明确决定；退出恢复路径 `prepareQuitResume` 入口也挂一次记录。允许改的上游文件仅限：contracts 的命令 schema、需设置 `origin` 的 web 调用点、`wsRpc.ts`；列入上游文件改动清单，不改其他命令语义。
-- [ ] fail-closed 范围：受管 attempt 的输入记录失败时，所有变更命令照旧被拒（沿用既有行为与测试，只改名字）；其余范围记录失败不阻断业务，恢复后由事件日志重放补齐，补不齐的写 gap 记录；重放不重复。
-- [ ] `human_intervention` 保留，改为受管 attempt 上的派生事件，带 `input_id`；界面标记与 AGENTS.md"受管 worker 里直接输入记为人工介入"的规则不变。
-- [ ] 改名：`human_input_observer`、`human_inputs`、`recordHumanInput` 等统一改为 `user_input_*` 系列。正式工作台的数据目录里已有旧名的表和历史事件，所以要有幂等的迁移，保留全部历史记录；迁移在一份旧格式夹具库的副本上验证，不碰正式数据目录。既有套件除名字外断言不变并全部通过；README 与界面文案同步。
-- [ ] 不使用正则或关键词规则判断内容含义；v1 不产生含义标注。
-- [ ] 既有套件（交付 8、恢复 9、编排 18、membership、T-044 的 35 项）、typecheck、lint 通过；对上游文件的改动列清单。
+- [x] 红态在先：在本票的父修订上，下面覆盖矩阵里除"受管 worker 的消息"外的各项都没有用户输入记录，用例失败；保存输出与重放命令。
+- [x] 覆盖矩阵正例（真实服务，隔离数据目录，每项至少一条）：受管 worker 的消息（既有行为不变）；attach 会话的消息；普通非受管 thread 的消息；带角色的主控会话的消息；Codex 异步提问的答复；结构化提问的答复（`user-input.respond`）；权限批准与拒绝（`approval.respond`）；界面的停止、中断。每条记录含形态、渠道、目标键、来源引用，`certainty` 为 `observed`。
+- [x] 反例：agent、自动化、门禁自己发的消息与命令（dispatch/attach 提示词、automation、`a2a:` 前缀的命令）不产生用户输入；界面自动派生的命令（退出应用时的批量中断、临时线程清理）不被记成用户的明确决定（按 spec 第 3 节的处理）。
+- [x] 观测点（用户 2026-10-09 选 A 修订）：非消息类输入在 WS RPC `dispatchCommand` 入口按枚举的命令类型记录；给相关命令加可选 `origin` 字段，只由界面自动派生点（退出时批量中断、临时线程清理等）设置，缺省为用户操作，自动派生的标 `ui-derived`、不算用户的明确决定；退出恢复路径 `prepareQuitResume` 入口也挂一次记录。允许改的上游文件仅限：contracts 的命令 schema、需设置 `origin` 的 web 调用点、`wsRpc.ts`；列入上游文件改动清单，不改其他命令语义。
+- [x] fail-closed 范围：受管 attempt 的输入记录失败时，所有变更命令照旧被拒（沿用既有行为与测试，只改名字）；其余范围记录失败不阻断业务，恢复后由事件日志重放补齐，补不齐的写 gap 记录；重放不重复。
+- [x] `human_intervention` 保留，改为受管 attempt 上的派生事件，带 `input_id`；界面标记与 AGENTS.md"受管 worker 里直接输入记为人工介入"的规则不变。
+- [x] 改名：`human_input_observer`、`human_inputs`、`recordHumanInput` 等统一改为 `user_input_*` 系列。正式工作台的数据目录里已有旧名的表和历史事件，所以要有幂等的迁移，保留全部历史记录；迁移在一份旧格式夹具库的副本上验证，不碰正式数据目录。既有套件除名字外断言不变并全部通过；README 与界面文案同步。
+- [x] 不使用正则或关键词规则判断内容含义；v1 不产生含义标注。
+- [x] 既有套件（交付 8、恢复 9、编排 18、membership、T-044 的 35 项）、typecheck、lint 通过；对上游文件的改动列清单。
 
 ## 说明
 
@@ -56,3 +56,5 @@ ready_rev: 2
 2026-10-09，决定 03 审查轮：**INCOMPLETE，保持 open，待主控关闭。** 已在冻结 fork `ddcff9a643e15dd68c18186782e688e492bb44a8` 做授权的一次 fresh-context 整票只读审查，原始结论 INCOMPLETE：当前 gap 分支证据未获确认，补充探针因 Bun 路径错误未启动。候选没有改动，没有补跑或第四次审查；退出码未知与原始失败现场均保留。另将受管结构化答复的人工介入显示静态风险单独上报，未冒称为独立 FAIL。triage 问题 `20261009T203240Z-worker:s11-t056-issue-001`、`20261009T203240Z-worker:s11-t056-issue-002`；最小补验/修正选项交执行主控。见 [审查轮交付](../../evidence/2026-10-09-batch11/T-056/RESULTS-04.md)、[原始审查](../../evidence/2026-10-09-batch11/T-056/acceptance-review-54.md)。Acceptance 未改，未验收/集成/关闭；按 Herdr 方式提交报告与证据，产品 provider turn 为 0，未动正式数据、Herdr、用户配置、dist 或他人工作，未 push。
 
 2026-10-09，决定 04 工程轮：**PASS（本轮获批修正与检查），保持 open，待执行主控自审与关闭。** 最终 fork `e9545960c50e4d0f8d687aef0da8073b2419adaa`；dd 上真实受管 WS 答复、有持久 pending request、SQLite 派生事件交实际 web 解析器先红，修正后绿。派生事件保留 request_id/channel；只接受无 message、有有效 request 的 WS answer，消息答复仍需 message，全部 answer 放行的 mutant 被拒。冻结最终候选同时失去普通 input/ingress INSERT 时业务继续，恢复只补一条覆盖 52–54 的 gap，不派生人工介入，再次重启逐条相同；启动均绑定完整修订、正确 wrapper/cwd 和隔离目录。最终 fmt/lint/typecheck/migrations、gates 10、server 77、web 5、编排 18 与交付/恢复 17 均通过。类型检查首轮和 gap helper 清理失败保留，不冒称首轮成功。按决定 04 未启动独立审查，交执行主控自审，Acceptance 未改，未验收/集成/关闭；产品 provider turn 为 0，未动正式数据、Herdr、用户配置、dist 或他人工作，未 push。详见 [本轮交付](../../evidence/2026-10-09-batch11/T-056/RESULTS-05.md)、[候选源码](../../evidence/2026-10-09-batch11/T-056/final-source-71/revision.json)。
+
+**执行主控关闭（2026-10-09）：PASS，依据 ready_rev 2 与执行主控决定 01～04。** fork 最终候选 `e9545960c`（分支 `a2a`，父修订 `d479dab2a`），证据至 `93934d2`，见 [RESULTS-03](../../evidence/2026-10-09-batch11/T-056/RESULTS-03.md)、[RESULTS-05](../../evidence/2026-10-09-batch11/T-056/RESULTS-05.md)。覆盖矩阵 10 项 + 决定 02 追加 5 项（Unblock 每请求一条、BranchToolbar ui-derived、退出恢复项目键）+ 重试 2 项，均先红后绿；迁移在旧格式夹具副本验证；既有 35 项、membership、fmt/lint/typecheck、相关测试通过。三次独立审查：c7 FAIL/P1、cb9 FAIL/P1，均已修复并有红绿；dd INCOMPLETE（gap 证据不足、受管结构化答复显示风险），决定 04 补 gap 绿态，并修复受管结构化答复的人工介入显示（真实入口红态→绿态，全放行 mutant 被拒）。决定 04 的四文件差异（core 派生事件补 request_id/channel，web 解析器只对 ws-rpc、无 message、有 request 的 answer 放宽）由执行主控自审通过；改名只余迁移中的旧表名。上游改动清单：contracts 命令 schema（origin）、web 自动派生调用点、`wsRpc.ts` 三处入口。Unblock 的记录单位为执行主控默认，blocking 问题 `20261009T190952Z-worker:s11-t056-issue-001` 仍待用户关闭；用户若改记录单位另行修订。
