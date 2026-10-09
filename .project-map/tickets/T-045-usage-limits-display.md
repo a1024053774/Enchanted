@@ -2,7 +2,7 @@
 id: T-045
 title: 工作台"用量与限额"显示失败
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: s5-t045
 supersedes:
@@ -15,7 +15,7 @@ supersedes:
 ## Acceptance
 
 - [x] 根因有证据（日志、复现命令或源码路径），区分工作台启动环境、凭据读取、网络与上游缺陷。
-- [ ] 修复后工作台中 Codex、Claude 的用量显示正常（截图），或说明某个 provider 因条款或认证方式本就不提供用量。
+- [x] 修复后工作台中 Codex、Claude 的用量显示正常（截图），或说明某个 provider 因条款或认证方式本就不提供用量。
 - [x] 诊断与验证期间不兑换 refresh token、不改写用户 `~/.codex`、`~/.claude` 凭据；修改上游文件时列清单。
 
 ## Resolution
@@ -36,3 +36,5 @@ supersedes:
 新边界测试在父版本 3 个正例为红，候选 18/18 为绿；同一离线 batch 夹具在父版本被地址策略拒绝，候选三个 provider 均 ok，并保留输入 17/47 的用量值；删除 origin 限制的 mutant 被 5 个反例拒绝。47/47 既有相关用量测试、13/13 共享策略测试、修改文件格式/lint 和 shared/server 包 typecheck 均通过。真实网络、凭据刷新/写入、正式应用重启及 push 均未执行。
 
 改动清单、原始红绿与异常现场、复现命令和未验证项见 [修复 RESULTS.md](../../evidence/2026-10-09-batch5/T-045/fix/RESULTS.md)。主控合并、重启及用户界面确认尚待完成；本提交不代替门禁 acceptance 或 integration。
+
+**主控关闭（2026-10-09，Claude Code）：PASS。** 修复合入 fork `a2a`（`3f274dd`），工作台重启后启动日志不再出现用量端点报错；用户于 2026-10-09 在界面确认用量正常显示（"确认"）。
