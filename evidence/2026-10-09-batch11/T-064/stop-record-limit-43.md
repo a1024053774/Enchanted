@@ -1,0 +1,5 @@
+# T-064 stop 核心事件字段的局限
+
+决定 02 要求说明“被用户授予 stop 的其他角色，其 stop 在核心记录中按 ideation 地址、真实 thread 记录”。核对 fork `49cae984f` 的 `packages/a2a-gates/src/core.ts:1701`：`emergency_interrupt_requested` 的 details 只有 stop_id、thread（目标）、actor（调用地址），没有调用者 thread/turn。`apps/server/src/a2a/tools.ts` 的 a2a_stop 仍向核心传入真实 caller thread/turn，网关凭据及活跃身份检查不变；核心事件没有把调用者字段另存下来。
+
+这是证据表述的边界，不改变当前授权范围或 stop 条件。建议保持实现不动，RESULTS 逐字加入批准的说明，并明确其中核心的 thread 是被中断的目标；另附实际 MCP 请求、调用者凭据的非秘密身份和核心事件三者关联，不能声称核心事件自身保存了调用者 thread。此上报不阻塞真实 provider 验证；若主控要求核心新增字段，应另明确批准该写入范围。

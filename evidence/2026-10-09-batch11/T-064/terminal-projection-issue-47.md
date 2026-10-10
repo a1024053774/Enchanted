@@ -1,0 +1,7 @@
+# T-064 验证中的范围外发现：中断后的终态投影不一致
+
+在本票真实 provider 验证的清理阶段，原生中断事件与最终 `projection_turns.state` 出现不同。原始记录见 `terminal-projection-observation-47.json`：`codex-good44` 的实际 app-server `turn/completed` payload.status 是 `interrupted`，同一个 turn 的最终 SQLite 投影却为 `completed`；两个 Claude 场景也有 adapter 发布 interrupted、最终投影 completed 的情况。`codex-bad45` 的最终投影为 interrupted。受管线程、turn、生命周期与时序均保留，尚未归因。
+
+首次分歧在 stop/cleanup 的 thread 读回中已经出现，不能把中断请求成功直接称作终态投影正确。本票的真实权限证据仍由中断前的工具结果、核心问题行和待批准请求给出；stop 地址证据为真实 MCP 调用和核心事件，不用最终 completed 证明中断语义。
+
+建议执行主控另开缺陷检查，核对 `apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts`、`ProviderCommandReactor.ts` 与回收时的 terminal 事件先后；这些文件不在 T-064 批准写入范围。本上报不阻塞 T-064 权限证据交付，不修改这些模块；RESULTS 会记录该局限，不宣称整个中断终态链路 PASS。

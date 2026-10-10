@@ -1,0 +1,5 @@
+# T-064 证据夹具的 native home 路径纠正
+
+归档检查发现 codex-good44/bad45 的认证来源 home 在 /tmp，但 Synara 按 SYNARA_HOME 又生成外置盘的 codex-home-overlay，实际 app-server CODEX_HOME 是后者。因此原两次的权限边界记录成立，隔离位置不完全符合决定 02，不能以其单独宣称严格隔离验收通过。实际 overlay 的 auth.json 是指向已删 /tmp 来源的链接，未发现另一份认证文件；overlay 已整目录删除，首次归档排除了 auth/token，保留在私有外置盘位置，见 cleanup-native-home-52.json。
+
+这是证据夹具配置问题，不扩大 T-064 产品写入范围。修正方式是在隔离 fixture 导入应用层前，把 Synara 的 native home 也指定为新建 /tmp 目录；外置盘构建缓存与自建应用数据根不变。CLI 启动器只记录实际 CODEX_HOME 路径，不记录令牌；好/坏各重跑一个 turn，用剩余两次预算，累计上限仍为 4。两份来源 home 和两份 native home 都在结束后删完整目录。不修改生产 codexProcessEnv、用户配置或其他适配器。

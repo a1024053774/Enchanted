@@ -53,3 +53,7 @@ fork 基线 `7a3a13249e562bf2d7f9ff4cb024f39b13d62434`，尚未修改产品源�
 最终交接：**INCOMPLETE，保持 open，待主控关闭**。唯一一次独立审查目标 `0bf4bb2ca` + a2a `10718bd2c77b375c3b5fdde3930ba75109400d7e`，结论 INCOMPLETE：缺实际 Codex/Claude 进程发出并消费权限请求的证据，未把受控 I/O 或 CLI 方法可用性当作完整边界通过。上报 `20261010T073006Z-worker:t064-issue-001`，待主控决定验证入口/预算/认证。
 
 实施者随后保留红态并修复默认 Claude override 误影响 Auto、operate 遮蔽 stop 两项回归；最终 fork `49cae984f22924de006e0f8358cb447eb881aaf6`。实际 MCP 组合红绿、旧 tools 投影反例、final27 全 API、final28 原有 35 场景、369 项相关测试及静态检查通过；UI 源码在 7c04 修正默认说明后经真实 UI 验证，其后只改 stop 投影。未第二次审查、未关闭整票、未用旧审查上调最终候选。完整版本与局限见 RESULTS，原始证据保留。
+
+主控 #24 / 决定 02 补证完成：**PASS（worker 执行结论，限批准范围；保持 open，待主控关闭）**。生产代码仍为已提交的 fork `49cae984f22924de006e0f8358cb447eb881aaf6`。真实 Codex app-server 最终两个 turn（加首次两次，共 4/4；固定 CLI、模型、Fast 请求，启动器核对实际 CODEX_HOME 在 /tmp）和真实 Claude CLI + Synara adapter + 本机假 Messages API，均取得 checked raise 实际成功、unchecked submit 实际待批准请求；同一不读取驱动 verdict 的外部断言分别对好候选退出 0、坏候选退出 1。首次认证来源在 /tmp、实际 native overlay 却在外置盘的缺项已保留、上报、修正夹具后用剩余预算复验。认证副本、来源/native home 与旧 overlay 已删除，服务已停，归档排除秘密。
+
+RESULTS 补入其他角色被授予 stop 后核心按 ideation 地址记录的实际 MCP/核心事件；明确核心 thread 为目标，caller 由凭据绑定、未另存该事件。另上报 native interrupted 与最终 completed 投影分歧，未修范围外编排模块，不宣称整个中断链路通过。唯一独立审查的历史 INCOMPLETE 未改判，遵从决定 02 不开第二次审查，新增证据交执行主控自审。准备失败和原 INCOMPLETE 报告全部保留，Acceptance 勾选与关闭留给主控。
