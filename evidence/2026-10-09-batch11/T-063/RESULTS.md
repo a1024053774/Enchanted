@@ -1,6 +1,6 @@
 # T-063 执行结果
 
-状态：INCOMPLETE（代码与检查已完成，待冻结候选独立审查）。ready_rev：1；worker：s11-t063。Ticket 保持 open，待主控关闭。
+状态：PASS（冻结候选独立审查通过）。ready_rev：1；worker：s11-t063。Ticket 保持 open，待主控关闭。
 
 fork 基线：`4ac5ba00e7125279b08c241037d1404450455ff6`（a2a 分支）；候选：`e94a0efc395c26bedb6cbf65f8fdf7f5c2125a58`。a2a 起点：`4352d8e59931da82a825cace96256cf8e76f14ef`。原有 `.grok/`、主控持续追加日志与 T-062 现场都保留。身份与版本见 `binding.json`、`fixture-identity.json`、`versions01.log`；provider 禁用，模型调用为 0。
 
@@ -49,7 +49,7 @@ Tracer bullet：真实隔离 dev 入口先红，再以同一入口验证布局�
 | 全 workspace lint | PASS，0 errors、877 warnings；`lint01-command.json`，未把警告改写为无警告 |
 | 全 workspace fmt:check | PASS；`fmt-check01-command.json` |
 | 完整 workspace test、正式桌面运行 | 未运行：brief 要求紧缩相关测试，正式实例禁止操作 |
-| 只读独立审查 | 待审；只对冻结的 fork + a2a 证据提交审一次 |
+| 只读独立审查 | PASS，无 finding；冻结 fork `e94a0efc395c26bedb6cbf65f8fdf7f5c2125a58` + a2a `bb8950573603939c7ef3d072f28c64dda3e164e0`，仅审一次。原始模型返回保存在 acceptance-review-raw.txt；审查未读 RESULTS、Resolution 或 inbox 正文 |
 
 ## 保留的失败、限制与清理
 
@@ -60,3 +60,5 @@ ENOSPC 已经 `scripts/inbox send` 上报：`20261010T031612Z-worker:s11-t063-is
 本轮仅创建隔离 root `/Volumes/WD-Elements/dev-cache/synara/instances/t063-probe01`、工具缓存和证据。没有访问正式工作台数据、用户 Herdr、`~/.codex`、`~/.claude`，没有 push、桌面构建或 dist/依赖目录替换。原 profile 与 userdata 保留在隔离 root，未入 Git，也未归档私钥。停服务按记录核对 PID、lstart 和命令，只停自己的进程。结束前地图 status 要求 Problems 0、Stale 0。
 
 `git diff --cached --check` 对原始 lint/typecheck/Vitest 输出中的尾空白与工具结尾空行返回 2（见 raw-diff-check.txt）；为保留失败与原始输出没有改写它们。生产 fork 的 diff --check 通过，fmt:check 通过。
+
+独立审查确认两种视口的真实入口反例和候选绿态；限制是 ticket 没有数字启动 SLA，本轮用 60 秒上限，最终正常缓存重开为 38.913 秒。所有过去的非通过结果继续保留。隔离服务已按 restart02-stop.json 核对身份停止，原 profile 保留。

@@ -1,0 +1,18 @@
+STATUS: PASS
+TARGET: Synara `e94a0efc395c26bedb6cbf65f8fdf7f5c2125a58` with a2a evidence `bb8950573603939c7ef3d072f28c64dda3e164e0`
+EVIDENCE:
+- `ticket-contract.md` defines the acceptance contract; `candidate-binding.json` matches the frozen baseline and candidate.
+- The actual fork diff changes only `apps/web/src/components/ChatView.tsx` lines 6453–6473.
+- Baseline `counterfactual-red01` failed through the real `/a2a` Playwright entry point with positive overlap measurements at both required viewports.
+- Final `green11-pinned-resume` ran on candidate `e94a0ef…`, preserved the profile, hydrated the task, and reported zero `bannerLogo`, `bannerHeading`, and `headingEditor` overlap at 1600×1050, 1280×900, resize-back, and long-copy sentinel input; hero and composer were reachable.
+- Delayed backend evidence showed connection refusal before readiness and successful recovery afterward, supporting an isolated dev-environment startup cause.
+- `browser-tests04-pinned`, related tests, typecheck, lint, and format checks exited 0; the changed-file list contains only `ChatView.tsx`.
+FINDINGS:
+- None.
+COUNTEREXAMPLE:
+- Parent implementation `4ac5ba00e7125279b08c241037d1404450455ff6` was rejected: `counterfactual-red01` failed with overlap areas at both required viewports and after reopening.
+LIMITATIONS:
+- The ticket has no numeric “reasonable time” SLA; the final pinned reopen hydrated in 38,913 ms, under the probe’s 60-second bound.
+- Earlier candidate runs retained as evidence had environment-related reopen timeouts; the final pinned rerun passed.
+RULE:
+- N/A — no repeated known failure class.
