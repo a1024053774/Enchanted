@@ -1,0 +1,73 @@
+# T-064：上游接入批准门槛
+
+状态：**BLOCKED（尚未修改产品源码，等执行主控批准具体接入）**。
+
+依据主控 #22、brief-T-064.md 和 T-064 ready_rev 1。fork 基线为 `7a3a13249e562bf2d7f9ff4cb024f39b13d62434`，分支 `a2a`。a2a 开工 HEAD 为 `883b9ae2ea337c293318076faf6ec1a16785aac5`。fork 只有既有未跟踪 `.grok/`，a2a 的 `controller-poll.log` 已脏；两者均未修改。
+
+brief 的明确门槛：
+
+> 开始改这些文件前先停下，列出文件、行号和最小改动，等我批准。
+
+## 目标和验收边界
+
+目标是把五个角色的 a2a 能力与免确认选择放进工作台用户级设置；新凭据冻结新能力，旧凭据不变；修改与恢复默认在同一事务中保存设置、用户输入和可读变更记录。真实 MCP `tools/list`/调用、权限正反例、截图和既有检查作证。
+
+不改 Claude Code/Codex 权限配置，不操作正式工作台，不构建桌面、不写共享 dist、不改门禁业务语义、不提供 dismiss 或主控关闭 blocking 的开关。Tracer bullet 首先贯穿单个角色的保存、凭据签发、真实 MCP 和设置页，再扩展五个角色。Deep modules 保持权限决策在 a2a 模块，接入文件只传递必要身份或挂载页面。Ubiquitous language 使用现有 executor、ideation、worker、reviewer、monitor、能力、凭据和用户输入。
+
+## 已观察到的事实
+
+- 设置导航通过真实 Vite SSR resolver 加载，缺少“角色权限”；合同断言退出 1。见 `navigation-red01.json` 与 `settings-navigation-probe-01.ts`。这是新增功能的 expected-red，尚非浏览器截图或完整 MCP 红态。
+- `apps/server/src/a2a/capabilities.ts:9` 定义六种 a2a 能力的角色集合；`AgentGatewaySessionRegistry.ts:83` 在签发时复制能力。这是本票应扩展的根因层。
+- `computerToolPermission.ts:275` / `:301` 只接收工具名或提供者名称字段，不知道 thread、凭据、角色或活跃 turn。仅扩大工具目录，不能判断用户是否勾选，也不能核实非受管会话。
+- Codex 在 `codexAppServerManager.ts:4501` 同时核对 lease、退休、stopping、活跃原生 turn，并且要求 full-access 或 autoApproveSynaraTools。T-055 的默认免确认既有这一前提；不能把“目录里有名字”等同于所有运行模式下免确认。
+- Claude 在 `ClaudeAdapter.ts:5940` 做网关免确认，在 `:5950` 仍有 full-access/会话始终允许分支；`:6125` 为 full-access 选择 bypassPermissions。该文件 `:376` 明确说明 bypassPermissions 跳过 canUseTool。因此简单改匹配函数不能实现未勾选仍提示。
+- 已安装 Claude Agent SDK 为 0.3.259；本地 `sdk.d.ts:2610` 提供 `setMcpPermissionModeOverride(serverName, 'default' | 'auto' | null)`，其文档说可仅收紧一个 MCP server 的模式。这是已有能力，不需要新增依赖或改用户配置。尚未运行协议探针，不能把类型声明当作真实 CLI 支持证明。
+
+## 请求批准的最小接入
+
+以下行号均相对上述 fork 基线；新增业务实现仍只放 gates/contracts/server a2a/web a2a。
+
+| 上游文件与行号 | 最小改动 |
+| --- | --- |
+| `apps/web/src/settingsNavigation.ts:8,68` | 加一个“角色权限”section id 与导航项，复用当前设置导航 |
+| `apps/web/src/routes/_chat.settings.tsx:66,1741` | import 并挂载 `apps/web/src/a2a/RolePermissionsSettingsPanel.tsx`；复用 SettingsRow/Section、Switch、Button 与字体 token |
+| `apps/server/src/agentGateway/Services/AgentGatewaySessionRegistry.ts:19` | 凭据身份增加非敏感的 a2a 角色/免确认选择信息，保持能力集合冻结 |
+| `apps/server/src/agentGateway/Layers/AgentGatewaySessionRegistry.ts:30,83,155` | 签发时读取 a2a 的用户自定义集合；无自定义取现有预设；已有 token 不重写 |
+| `apps/server/src/agentGateway/Services/AgentGatewayCredentials.ts:24` | MCP connection 增加一项窄的 a2a 权限查询；不暴露新的 bearer，不增加通用权限 |
+| `apps/server/src/agentGateway/Layers/AgentGatewayCredentials.ts:172` | connection 通过已存在的 registry.verify 核对其原 token，把有效凭据的 a2a 权限送给共享判断；不用全局单例或另读用户配置 |
+| `apps/server/src/agentGateway/computerToolPermission.ts:245,275,301` | 保留精确 server/tool 名匹配；在共享判断处调用 a2a 模块的用户选择逻辑，显式接收有效身份与活跃 turn；不只把所有 a2a 名字加入自动批准目录 |
+| `apps/server/src/codexAppServerManager.ts:4493,4501` | 原权限入口传入 lease 的 a2a 权限；勾选工具仅在已有身份/turn 检查通过时一次放行，未勾选留在原提示路径，保留其他 thread/server/stopping/plan 保护 |
+
+共享 matcher 的其它直接调用者也需要传递同类上下文，否则同一设置会因 provider 不同而失效：
+
+| 文件与行号 | 最小改动 |
+| --- | --- |
+| `apps/server/src/provider/Layers/ClaudeAdapter.ts:5940,6125` | 传入有效 lease 与活跃 turn；对有 a2a 自定义权限的 Synara MCP server 使用 SDK 已有的收紧入口，使未勾选调用可到达原批准卡；先做无模型协议探针确认支持，失败即停，不加 fallback |
+| `apps/server/src/provider/Layers/OpenCodeAdapter.ts:113,2619` | permission policy 输入与调用增加 lease 的 a2a 权限；在 full-access 默认批准之前决定 a2a 工具是否需提示 |
+| `apps/server/src/provider/acp/AcpAdapterSupport.ts:151,197` | permission policy 输入增加 a2a 权限；相同的勾选/身份/turn 检查与一次批准 |
+| `apps/server/src/provider/Layers/DevinAdapter.ts:2140` | 向共享 ACP policy 传现有 lease、活跃 turn 与名称字段 |
+| `apps/server/src/provider/Layers/CursorAdapter.ts:939` | 同上 |
+| `apps/server/src/provider/Layers/GrokAdapter.ts:1253` | 同上 |
+| `apps/server/src/provider/Layers/DroidAdapter.ts:882` | 同上 |
+
+这些是落实工作台设置的接入，不触及用户 CLI 权限文件。但超出 brief 预计的两个挂载位置，故尚未修改。`sessionLease.ts` 已持有 connection，无须修改其取消、退休或释放逻辑。
+
+## 免确认默认值的具体化待定
+
+Acceptance 同时要求“无自定义时与 T-058 完全一致”和“未勾选照常提示”。当前 a2a_raise/a2a_submit 在 Codex full-access 或已有 grant 时免确认；其它 a2a 工具不在免确认目录。若默认全部不勾选并强制提示，会改变已有 worker 行为；若默认勾选 raise/submit 并在 approval-required 无 grant 时直接允许，也会改变 T-055 的未授予反例。
+
+建议保留无自定义角色的完整既有语义，在界面明确标“沿用默认”；用户显式设置某角色的免确认集合后，勾选项在有效受管身份和活跃 turn 下免确认，未勾选项提示，恢复默认回到既有语义。这样新选择可生效，且没有自定义的反例可严格对照 T-058。默认能力集合与免确认规则分别显示，避免把工具可见性当作免确认。请主控确认这一具体化；如要求改默认运行模式前提，需要走 needs-decision，不由 worker 自行修改验收含义。
+
+免确认设置是否也随凭据冻结：建议与能力一样在签发时冻结，并在界面提示重新签发后生效。ticket 明确冻结能力，未明确免确认选择的时效；本轮尚未把建议当作决定。
+
+## 五种失败方式的计划处理
+
+| 失败方式 | 最小处理与证据计划 |
+| --- | --- |
+| 两窗口同时改同一角色 | 每角色 revision CAS；落后请求返回冲突，不覆盖先保存者，不记伪成功输入；用两个真实 HTTP 保存请求作证 |
+| 改到一半应用退出 | SQLite 同一事务提交配置、action 输入、变更记录；未提交回滚，已提交在重启后读回；在隔离服务注入中断 |
+| 已不存在的能力名 | 新保存时拒绝；已存异常配置返回明确错误，不悄悄改成默认或丢掉能力；保留原值供用户恢复默认 |
+| 全部能力去掉 | 允许显式空集合；新凭据 tools/list 无 a2a 工具，反例调用被拒；不得把空集合误判为未自定义 |
+| 运行中预设变化 | 旧能力凭据不变，新凭据采用新集合；免确认的生效时点等上述确认后照同一口径测试 |
+
+下一步由执行主控逐项批准接入并确认免确认默认/时效口径，再继续 Tracer bullet。未启动服务/provider、未调用模型、未消耗独立审查；不把本轮资料检查当作最终验收。
