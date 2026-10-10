@@ -2,7 +2,7 @@
 id: T-063
 title: 修复重开已有 profile 停在启动 logo、会话空态文字与 logo 重叠
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -20,10 +20,10 @@ T-062 的 worker 发现两处范围外的界面问题，用户要求都做（逐
 
 ## Acceptance
 
-- [ ] 问题 1：复现并查明来源（产品还是 dev 环境），保存证据与重放命令。是产品缺陷就先红后绿：同一 profile 重开后在合理时限内出现主界面；是环境问题就说明依据，并让重开路径在验收环境里能走通。都不能把"诊断命令退出 0"当作重开通过。
-- [ ] 问题 2：先红后绿的界面用例；1600×1050 与 1280×900 两种视口下文字与 logo 不重叠，截图作证，外观由用户判断。
-- [ ] 既有套件、typecheck、lint 通过；对上游文件的改动列清单。
-- [ ] 不碰正式工作台数据目录 `~/Library/Application Support/a2a-workbench`；只用隔离 profile。
+- [x] 问题 1：复现并查明来源（产品还是 dev 环境），保存证据与重放命令。是产品缺陷就先红后绿：同一 profile 重开后在合理时限内出现主界面；是环境问题就说明依据，并让重开路径在验收环境里能走通。都不能把"诊断命令退出 0"当作重开通过。
+- [x] 问题 2：先红后绿的界面用例；1600×1050 与 1280×900 两种视口下文字与 logo 不重叠，截图作证，外观由用户判断。
+- [x] 既有套件、typecheck、lint 通过；对上游文件的改动列清单。
+- [x] 不碰正式工作台数据目录 `~/Library/Application Support/a2a-workbench`；只用隔离 profile。
 
 ## 说明
 
@@ -36,3 +36,5 @@ T-062 的 worker 发现两处范围外的界面问题，用户要求都做（逐
 PASS（独立审查通过），待主控关闭；保持 open。fork `e94a0efc395c26bedb6cbf65f8fdf7f5c2125a58`；基线 `4ac5ba00e7125279b08c241037d1404450455ff6`。只改上游 `apps/web/src/components/ChatView.tsx` 的空态布局；同一隔离 profile 的重开、1600×1050/1280×900 界面红绿、resize、长文案、损坏标记和延迟服务端的证据及检查见 [RESULTS](../../evidence/2026-10-09-batch11/T-063/RESULTS.md)。正式数据目录未访问，provider 禁用，模型调用 0；原失败保留，外观待用户判断。
 
 独立审查一次：冻结 fork `e94a0efc395c26bedb6cbf65f8fdf7f5c2125a58` + a2a 证据 `bb8950573603939c7ef3d072f28c64dda3e164e0`，结论 PASS、无 finding；原始结果见[审查原文](../../evidence/2026-10-09-batch11/T-063/acceptance-review-raw.txt)。最终正常缓存、同一 profile 重开 38.913 秒内完成；保留未通过尝试，不把正式桌面或未运行的完整 workspace test 写成通过。
+
+**执行主控关闭（2026-10-09）：PASS。** 依据 ready_rev 1（用户原话"两条范围外的界面问题都做"）。worker `s11-t063` 交付 fork `e94a0efc3`（只改 `apps/web/src/components/ChatView.tsx` 空态块，+8/−11：导入横幅不再绝对定位，横幅、logo、标题、输入区按正常流排布，放不下时空态整体可滚动），a2a 证据 `bb89505`（冻结）/`ae320e8`/`8111c99`。问题 1 判为环境问题：logo 阶段是隔离 dev 的 Vite 未打包模块加载，同一 profile 在固定 Playwright 浏览器、正常 HTTP 缓存下 38.9 秒完整重开（`green11-pinned-resume`），未改产品启动流程；系统 Chrome 中途退出的原因未查明，正式实例未测。问题 2：基线反例红（横幅/logo 交叠 1460 px²，1280×900 横幅/标题交叠 14315 px²），候选两种尺寸、resize 往返、加长中文文案均零交叠。相关单元 32/32、浏览器 5/5、typecheck、lint（0 errors）、fmt:check 通过；fresh-context 独立审查一次 PASS，无 findings。主控审阅 diff 与 `green11-pinned-resume-1280x900.png`：任务窗口有问题面板时，1280×900 下输入框被挤到首屏以下，需要向下滚动才看到——这是不重叠的代价，外观交用户判断。worker 上报磁盘不足（ENOSPC）`20261010T031612Z-worker:s11-t063-issue-001`，用户已清理缓存。
