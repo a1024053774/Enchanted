@@ -1,0 +1,39 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/default
+$ vitest run --passWithNoTests src/inbox.test.ts --testNamePattern "requires a stop grant" --config "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-066/counterfactual.config.mts"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:90109) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/inbox.test.ts (9 tests | 1 failed | 8 skipped) 1217ms
+   × requires a stop grant and recorded role, and rechecks authority before interrupt 1216ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/inbox.test.ts > requires a stop grant and recorded role, and rechecks authority before interrupt
+AssertionError: Expected values to be strictly equal:
++ actual - expected
+
++ undefined
+- 'stop_capability_required'
+
+
+simple
+
+ ❯ src/inbox.test.ts:342:12
+    340|       assertActive: async () => {},
+    341|     };
+    342|     assert.equal((await f.gates.call(request, caller)).error, "stop_ca…
+       |            ^
+    343|     assert.equal(
+    344|       (
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  11:15:34
+   Duration  1.75s (transform 301ms, setup 0ms, import 464ms, tests 1.22s, environment 0ms)
+
+error: script "test" exited with code 1

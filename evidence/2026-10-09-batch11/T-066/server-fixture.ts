@@ -113,10 +113,14 @@ const timer = setInterval(async () => {
         const now = new Date().toISOString();
         if (input.active) controlledSessions.set(input.thread, { threadId: input.thread, provider: "codex", status: "running", cwd: input.workspace, activeTurnId: input.turn, runtimeMode: "full-access", createdAt: now, updatedAt: now });
         else controlledSessions.delete(input.thread);
-        result = await runtime.runPromise(engine.dispatch({ type: "thread.session.set", commandId: "fixture:" + input.turn, threadId: input.thread,
+        result = await runtime.runPromise(engine.dispatch({ type: "thread.session.set", commandId: "fixture:" + name, threadId: input.thread,
           session: { threadId: input.thread, status: input.active ? "running" : "ready", providerName: "codex", runtimeMode: "full-access", activeTurnId: input.active ? input.turn : null, lastError: null, updatedAt: now }, createdAt: now }));
       }
       else if (input.operation === "settings") result = await runtime.runPromise(settings.updateSettings(input.patch));
+      else if (input.operation === "revoke-token") {
+        credentials.revokeSessionToken(readFileSync(input.path, "utf8"));
+        result = { revoked: true };
+      }
       else if (input.operation === "token") {
         const token = credentials.issueSessionToken(ThreadId.makeUnsafe(input.thread),"codex");
         writeFileSync(input.path, token, {mode:0o600});

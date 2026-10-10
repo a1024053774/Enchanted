@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import socket
 import sqlite3
 import subprocess
 import time
@@ -16,6 +17,7 @@ p = argparse.ArgumentParser()
 p.add_argument('label')
 p.add_argument('--mode', choices=['red', 'green'], required=True)
 p.add_argument('--legacy', type=Path)
+p.add_argument('--ui', action='store_true')
 a = p.parse_args()
 out = Path(__file__).resolve().parent
 fork = Path('/Users/luckye/Documents/Code/synara')
@@ -30,6 +32,12 @@ revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=fork, text=
 env.update(HOME=str(root/'os-home'), CODEX_HOME=str(root/'codex-empty'),
            CLAUDE_CONFIG_DIR=str(root/'claude-empty'), A2A_SYNARA_SLOT='t066-' + a.label,
            T058_ROOT=str(root), T058_FORK=str(fork), T058_SOURCE_REVISION=revision)
+if a.ui:
+    with socket.socket() as bound:
+        bound.bind(('127.0.0.1',0))
+        ui_port=bound.getsockname()[1]
+    env['T058_WEB']='http://127.0.0.1:'+str(ui_port)
+    env['T066_WEB_PORT']=str(ui_port)
 argv = ['./a2a/scripts/bun', 'run', str(out/'server-fixture.ts')]
 log = (run/'server.log').open('x', encoding='utf-8')
 proc = subprocess.Popen(argv, cwd=fork, env=env, stdin=subprocess.DEVNULL,
@@ -105,8 +113,8 @@ try:
     updated=http('/api/a2a/role-permissions',dict(command='save',role='executor',revision=view['revision'],
         selection=dict(capabilities=['a2a:operate','a2a:read','a2a:inbox','a2a:stop'],autoApproveTools=None)))
     assert 'roles' in updated,updated
-    for role in ('executor','ideation','worker'):
-        attached=gate('attach',task='t066',role='controller' if role!='worker' else role,preset=role,
+    for role in ('executor','ideation','worker','monitor'):
+        attached=gate('attach',task='t066',role='controller' if role in ('executor','ideation') else role,preset=role,
             modelSelection=dict(provider='codex',model='gpt-6.1-sol'),runtimeMode='full-access',instructions=str(root/'instructions.txt'))
         assert attached['ok'],attached
         threads[role]=attached['attachment']['thread_id']
@@ -153,7 +161,8 @@ try:
     if a.mode=='green':
         if a.legacy:
             legacy=json.loads(a.legacy.read_text(encoding='utf-8'))
-            legacy_details=json.dumps(legacy['details'],ensure_ascii=False)
+            with sqlite3.connect(a.legacy.parent/'state.sqlite3') as old:
+                legacy_details=old.execute('SELECT details FROM events WHERE seq=?',(legacy['seq'],)).fetchone()[0]
             with sqlite3.connect(root/'userdata/a2a-gates/state.sqlite3') as db:
                 db.execute('INSERT INTO events(time,task,attempt,type,details) VALUES (?,?,?,?,?)',
                     (legacy['time'],'t066',None,legacy['type'],legacy_details))
@@ -168,19 +177,47 @@ try:
         check('ideation-caller-thread',ideation['details'].get('caller_thread'),threads['ideation'])
         check('ideation-caller-turn',ideation['details'].get('caller_turn'),turns['ideation'])
         check('same-target-two-roles',[record['details']['thread'],ideation['details']['thread']],[threads['worker']]*2)
+        # A different preset receives the same stop/read/inbox grants. Its
+        # identity cannot be reconstructed from those capabilities.
+        view=next(r for r in http('/api/a2a/role-permissions')['roles'] if r['role']=='monitor')
+        saved=http('/api/a2a/role-permissions',dict(command='save',role='monitor',revision=view['revision'],
+            selection=dict(capabilities=['a2a:read','a2a:inbox','a2a:stop'],autoApproveTools=None)))
+        assert 'roles' in saved,saved
+        extra_path=root/'private-monitor-stop.token'
+        extra_identity=control('token',thread=threads['monitor'],path=str(extra_path))
+        check('monitor-frozen-role',extra_identity['a2aPermissions']['role'],'monitor')
+        control('controlled-session',thread=threads['worker'],active=True,turn=uid(),workspace=str(repo))
+        extra=call(extra_path.read_text(encoding='utf-8'),thread=threads['worker'],stop_id=fresh['id'],role='ideation',caller_thread='forged-other')
+        check('monitor-stop-succeeded',extra.get('interruptRequested'),True)
+        worker_event=emergency()[-1]
+        check('monitor-stop-address',worker_event['details'].get('actor'),'monitor:'+threads['monitor'])
+        check('monitor-stop-caller',worker_event['details'].get('caller_thread'),threads['monitor'])
+        check('monitor-stop-turn',worker_event['details'].get('caller_turn'),turns['monitor'])
         count=len(emergency())
         check('ack-rejects-stop',call(tokens['executor'],thread=threads['worker'],stop_id=receipts['ack-first']['id']).get('error'),'stop_already_acknowledged')
         check('ack-no-event',len(emergency()),count)
         # No stop grant on the real worker credential.
-        denied=call(tokens['worker'],thread=threads['worker'],stop_id=fresh['id'])
+        denied=call(tokens['monitor'],thread=threads['worker'],stop_id=fresh['id'])
         check('missing-capability-rejected',denied.get('error',{}).get('code'),'capability_denied')
         control('controlled-session',thread=threads['executor'],active=False,turn=uid(),workspace=str(repo))
         inactive=call(tokens['executor'],thread=threads['worker'],stop_id=fresh['id'])
         check('inactive-credential-rejected',inactive.get('error',{}).get('code'),'caller_turn_inactive')
         check('inactive-no-event',len(emergency()),count)
+        control('revoke-token',path=str(root/'private-executor.token'))
+        revoked=http('/mcp',dict(jsonrpc='2.0',id=uid(),method='tools/call',params=dict(name='a2a_stop',arguments=dict(thread=threads['worker'],stop_id=fresh['id']))),tokens['executor'])
+        check('revoked-http-status',trace[-1]['status'],401)
+        check('revoked-no-event',len(emergency()),count)
         if a.legacy:
             with sqlite3.connect(root/'userdata/a2a-gates/state.sqlite3') as db:
                 check('legacy-stored-bytes-unchanged',db.execute('SELECT details FROM events WHERE seq=?',(legacy_seq,)).fetchone()[0],legacy_details)
+                with sqlite3.connect(a.legacy.parent/'state.sqlite3') as old:
+                    check('events-table-columns-unchanged',db.execute('PRAGMA table_info(events)').fetchall(),old.execute('PRAGMA table_info(events)').fetchall())
+        if a.ui:
+            save('ui-expectations.json',dict(threads=threads,turns=turns))
+            ui_argv=['./a2a/scripts/bun','run',str(out/'ui-probe.ts'),str(run),str(root)]
+            ui=subprocess.run(ui_argv,cwd=fork,env=env,capture_output=True,text=True,timeout=180)
+            save('ui-command.json',dict(argv=ui_argv,exit_code=ui.returncode,stdout=ui.stdout,stderr=ui.stderr))
+            check('real-task-window-ui',ui.returncode,0)
     save('events.json',events())
     save('identity.json',dict(threads=threads,turns=turns,receipts=receipts,model_turns=0))
     save('checks.json',checks)

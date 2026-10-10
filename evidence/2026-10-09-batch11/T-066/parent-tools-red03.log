@@ -1,0 +1,50 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/default
+$ vitest run --maxWorkers=1 --no-file-parallelism "src/a2a/cap-composition.test.ts" --config "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-066/counterfactual.config.mts"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/apps/server
+
+ ❯ src/a2a/cap-composition.test.ts (4 tests | 2 failed) 5ms
+   × keeps frozen 'executor' identity when operate=true 2ms
+   × keeps frozen 'worker' identity when operate=false 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/a2a/cap-composition.test.ts > keeps frozen 'executor' identity when operate=true
+AssertionError: expected 'ideation' to be 'executor' // Object.is equality
+
+Expected: "executor"
+Received: "ideation"
+
+ ❯ src/a2a/cap-composition.test.ts:49:26
+     47|     stop_id: "external-missing-sentinel",
+     48|   });
+     49|   expect(caller.address).toBe(address);
+       |                          ^
+     50|   expect(caller.thread).toBe("caller-session");
+     51|   expect(caller.turn).toBe("active-turn");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/a2a/cap-composition.test.ts > keeps frozen 'worker' identity when operate=false
+AssertionError: expected 'ideation' to be 'worker:caller-session' // Object.is equality
+
+Expected: "worker:caller-session"
+Received: "ideation"
+
+ ❯ src/a2a/cap-composition.test.ts:49:26
+     47|     stop_id: "external-missing-sentinel",
+     48|   });
+     49|   expect(caller.address).toBe(address);
+       |                          ^
+     50|   expect(caller.thread).toBe("caller-session");
+     51|   expect(caller.turn).toBe("active-turn");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  11:15:31
+   Duration  986ms (transform 725ms, setup 0ms, import 908ms, tests 5ms, environment 0ms)
+
+error: script "test" exited with code 1

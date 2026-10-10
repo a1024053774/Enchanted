@@ -1,0 +1,50 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/default
+$ vitest run --passWithNoTests
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:83521) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:83523) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:83520) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:83522) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/inbox.test.ts (9 tests | 2 failed) 4898ms
+   × requires a stop grant and recorded role, and rechecks authority before interrupt 415ms
+   × serializes stop and ack at the existing entry lock 372ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/inbox.test.ts > requires a stop grant and recorded role, and rechecks authority before interrupt
+TypeError: Cannot read properties of undefined (reading 'id')
+ ❯ src/inbox.test.ts:334:79
+    332|     });
+    333|     f.setTime(f.time() + 120001);
+    334|     const request = { command: "stop", thread: f.worker, stop_id: sent…
+       |                                                                               ^
+    335|     const caller = {
+    336|       address: "executor",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/inbox.test.ts > serializes stop and ack at the existing entry lock
+TypeError: Cannot read properties of undefined (reading 'id')
+ ❯ src/inbox.test.ts:402:79
+    400|       f.effects.push({ kind: "interrupt", thread });
+    401|     };
+    402|     const request = { command: "stop", thread: f.worker, stop_id: sent…
+       |                                                                               ^
+    403|     pending = f.gates.call(request, {
+    404|       address: "executor",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  2 failed | 19 passed (21)
+   Start at  11:13:20
+   Duration  6.55s (transform 3.08s, setup 0ms, import 5.06s, tests 13.75s, environment 0ms)
+
+error: script "test" exited with code 1

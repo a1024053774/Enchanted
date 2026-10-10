@@ -1,0 +1,40 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/default
+$ vitest run --passWithNoTests src/inbox.test.ts --testNamePattern "serializes stop and ack" --config "/Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-066/counterfactual.config.mts"
+
+ RUN  v4.1.10 /Users/luckye/Documents/Code/synara/packages/a2a-gates
+
+(node:89978) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/inbox.test.ts (9 tests | 1 failed | 8 skipped) 717ms
+   × serializes stop and ack at the existing entry lock 717ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/inbox.test.ts > serializes stop and ack at the existing entry lock
+AssertionError: Expected values to be strictly equal:
++ actual - expected
+
++ 'wake_undelivered'
+- 'operation_busy'
+
+
+Expected: "operation_busy"
+Received: "wake_undelivered"
+
+ ❯ src/inbox.test.ts:414:12
+    412|     });
+    413|     await atInterrupt;
+    414|     assert.equal(
+       |            ^
+    415|       (await f.gates.call({ command: "inbox_ack", role: "executor", id…
+    416|       "operation_busy",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  11:15:32
+   Duration  1.16s (transform 227ms, setup 0ms, import 384ms, tests 717ms, environment 0ms)
+
+error: script "test" exited with code 1

@@ -1,54 +1,53 @@
-# T-066：BLOCKED，待批准两处上游接入
+# T-066：PAUSED（主控挂起，等方向结论）
 
-本次只完成基线红态与接入方案，未修改生产代码。ticket 保持 open；待主控批准后继续，完成后待主控关闭。
+状态为 BLOCKED，不作为 PASS 或 fork 交付。依据 ⟦主控 #28⟧，决定 01 的上游接入批准已挂起；已立即停止本次隔离服务端和 UI 探针，不再修改 fork，不启动审查。ticket 保持 open，Acceptance 未勾选，待主控后续决定与关闭。
 
-规格：T-066 `ready_rev: 1`；controller-split-user-input spec 第 5 节；任务书 `brief-T-066.md`。fork 基线为 `49cae984f22924de006e0f8358cb447eb881aaf6`，a2a 分支，受控文件未修改。开工时未跟踪的 `.grok/` 保留；a2a 主控追加日志未纳入提交。
+## 暂停现场与 stash
 
-## 阻塞点与最小方案
+- fork 基线：`49cae984f22924de006e0f8358cb447eb881aaf6`，a2a 分支。
+- 暂停前已经提交的候选：`ddb765956cae4a4d0b87b875970601068567ed93`。该提交发生在 #28 之前；保留原位，没有丢弃、改写历史或继续提交。
+- stash 名：**无，未创建**。按指定消息 `T-066 WIP paused 2026-10-10` 对本票 11 个路径执行 `git stash push -u`，排除他人的 `.grok/`；结果为 `No local changes to save`。当时只有 `.grok/` 未跟踪，本票代码已提交，stash 无法保存已提交内容。
+- [暂停状态](pause-state.json)、[进程停止记录](pause-process-stop.json)：本次服务端和 UI 探针均已退出，未留下本次浏览器进程。`ui05` 因主控暂停终止（UI exit 143，服务端 exit 0），不是界面验收结果。
 
-凭据已有冻结角色 `a2aPermissions.role`，但 ToolContext 与 MCP 上下文构造没有传递它。用户可以编辑各角色的能力，因此按能力推断角色仍会记录错误；读当前 membership 也不等于读凭据身份。
+规格仍为 T-066 ready_rev 1、controller-split-user-input spec 第 5 节及 brief-T-066；决定 01 批准的两处接入此前已经实现。没有改正式工作台、用户配置、Herdr 或共享构建输出，没有 push。所有失败与数据库保留；私有 token 未入 Git。
 
-brief 明确要求其他上游文件先获批准。请求如下，完整补丁见 [upstream-proposed.patch](upstream-proposed.patch)：
+## 已实现但未验收完成的候选
 
-| 上游文件 | 最小改动 |
+核心 stop 删除 ideation 地址放行检查，改看 `a2a:stop` 能力；没有冻结角色的调用者仍拒绝。只有 a2a_stop 使用凭据的冻结角色地址，记录 caller_thread、caller_turn，目标 thread 独立保留；其他命令的地址投影不改。保留两分钟、ack、操作锁和只中断条件。
+
+任务窗口新增“紧急停止记录”，旧 JSON 事件缺调用者字段时显示“未记录”。没有新增数据库列或改写旧事件。界面流程验证尚未完成，不能据代码或截图推定 PASS。
+
+批准的上游文件仅两处：`apps/server/src/agentGateway/toolRuntime.ts` 增加可选 callerA2ARole；`apps/server/src/agentGateway/mcpTransport.ts` 从凭据冻结角色赋值。其余修改在 brief 允许的四个 a2a 目录内，完整清单在 fork 提交中。
+
+## 现有证据
+
+真实隔离服务端、真实 MCP、真实核心 SQLite；活跃会话事实受控，模型 turn 为 0。Bun 1.4.2、Node 24.13.1 经 fork 的 a2a/scripts/bun；后台服务脱离调用者进程组。没有真实 provider 绑定，所以证据证明中断请求与记录，不证明 provider 物理中断成功。
+
+| 检查 | 暂停时状态与证据 |
 | --- | --- |
-| `apps/server/src/agentGateway/toolRuntime.ts:55` | 增加可选只读 callerA2ARole，类型为 contracts 的 A2ASessionPreset。 |
-| `apps/server/src/agentGateway/mcpTransport.ts:366` | 从 callerSession.a2aPermissions?.role 赋值。 |
+| 基线红态 | red02：executor 调用成功，actor 却为 ideation，缺调用者 thread/turn；主控决定 01 接受该红态。red01 是 setup 失败；red02 原生事件 oracle 的过严部分按 reassessment 重评，原结果未覆盖。 |
+| 实际角色、身份伪造、目标与状态 | green04 的 checks/trace：executor、ideation、授予 stop 的 monitor 按各自冻结凭据记录；伪造参数不生效，目标不变，task 状态不变。 |
+| 期限、ack、权限与失效 | green04：新条目太早拒绝，超过 121 秒后放行；已 ack 拒绝；旧无 stop 凭据、inactive turn、吊销 token 均拒绝且不追加停止事件。 |
+| 旧库 | old-db-reopen：候选核心重新打开实际 red02 SQLite，全部原事件行与表列保持不变；green04 核对旧事件原始详情字节不变。 |
+| 相关套件 | server-final：128/128；gates-final：21/21；web01：3/3。 |
+| 代码检查 | typecheck-final：8 个 workspace 通过；lint-final：0 错误、880 警告；fmt-final 通过。 |
+| 反事实 | parent-tools-red03 拒绝旧角色投影；ack-mutant-red03 拒绝删锁；capability-mutant-red03 拒绝删能力检查。前两轮 mutant 配置加载失败保留，不算反事实。 |
+| 界面 | INCOMPLETE。green02 dev origin 未配置、green03 首次导入弹窗、green04 同名按钮定位冲突均保留；ui05 的定位器已收窄，但重放被 #28 中止。没有界面 PASS。 |
+| 独立审查 | 未启动。review-contract 只是准备文件，不是审查结果。 |
 
-阻塞问题 `20261010T150042Z-worker:t066-issue-001` 已经 scripts/inbox 发给 triage；尚未收到批准。首次使用外部 fork 的 file 引用被 inbox 拒绝，改用仓库内请求文件引用后成功。
+green01 因夹具复用 commandId 失败；green02 用被中断的目标作为调用者，green03 留下相互矛盾的受控活跃事实，均保留，未改生产逻辑绕开拒绝。gates01 与 typecheck01 的新增测试夹具错误也保留。曾在中间消息中过早把额外角色场景称为通过，随后依据原始输出更正；最终以机械输出为准。
 
-核心目前确实要求 caller.address 为 ideation（core.ts:1663）。批准后计划改为检查传入的 stop 能力，并只在 a2a_stop 中使用冻结角色写地址；不扩大到其他命令的地址投影。
+## 失败方式清单
 
-## 红态证据
-
-真实隔离服务端、真实 MCP、真实核心 SQLite，仅活跃会话事实受控。所有 provider 在隔离 settings 中禁用，模型 turn 为 0；未触碰正式工作台、用户配置、Herdr 或共享构建输出。
-
-```sh
-python3 evidence/2026-10-09-batch11/T-066/replay.py red02 --mode red
-python3 evidence/2026-10-09-batch11/T-066/recheck-red.py
-```
-
-重放需将 label 换为未用名称，输出拒绝覆盖。进程经 fork 的 a2a/scripts/bun 启动，脱离调用者进程组；结束后只停止该进程、删除自己创建的私有 token，保留数据库和夹具。
-
-| 检查 | 观察 |
+| 失败方式 | 处理与现有证据 |
 | --- | --- |
-| 授予执行主控 stop | owner HTTP 设置生效；凭据冻结角色为 executor，能力包含 operate、stop。 |
-| 两分钟条件 | 新条目被 stop_too_early 拒绝；自然等待超过 121 秒后中断请求成功。 |
-| 错误归属 | [原始事件](red02/executor-event.json) 的 actor 为 ideation，缺 caller_thread、caller_turn。 |
-| 目标与状态 | 目标为指定 worker thread；task 状态前后相同。 |
-| 请求范围 | [原生增量](red02/native-stop-delta.json) 中唯一 a2a 命令回执是 thread.turn-interrupt-requested。 |
+| 调用者凭据已失效 | 网关拒绝 inactive/revoked，核心不记停止；核心第二次活跃检查的失效反例由相关测试验证。 |
+| 同一目标被两个角色先后 stop | 独立追加各自调用地址、thread/turn，不覆盖旧记录；green04 验证 executor、ideation 和 monitor。 |
+| stop 与 ack 交叠 | 现有条目锁保持；ack 先完成则 stop 拒绝；stop 持锁时 ack 返回 operation_busy，释放后可追加 ack。核心测试及删锁反例验证。 |
+| 旧库缺新列 | 没有新增列；重开实际旧库后原事件行、表列不变。读取缺字段的界面实现存在，但可见流程验收仍 INCOMPLETE。 |
 
-red01 是夹具 token 观察输出缺 a2aPermissions 的 setup 失败，不算产品红态；日志和 trace 保留。red02 原始 verdict 为 FAIL：三项归属失败，加一项过严的原生事件 oracle。后者把 provider 自己追加的 activity/session 事实也当成额外操作；[重评](red02-reassessment.json) 按 a2a 命令回执核对，只中断请求条件成立，三项归属红态仍成立。原始结果未覆盖。
+非阻塞上报 `20261010T151554Z-worker:t066-issue-001`：门禁 README 仍称不能编辑能力，与 T-064 已建接口不符；未顺手改其旧段落，交主控处理。
 
-夹具没有真实 provider 绑定，provider 消费中断时记录失败；证据只证明中断请求与核心事件，不能证明 provider 物理中断成功。参数中附带了伪造身份字段，但基线缺字段，不能据此宣称完整反例通过。
+暂停证据提交的 diff 检查对原始工具日志报了尾随空白／末尾空行；日志原样保留，不为清理检查改写机械输出。文档与驱动文件另行检查。
 
-## 失败方式与未完成检查
-
-| 失败方式 | 计划处理／当前状态 |
-| --- | --- |
-| 调用者凭据失效 | 沿用网关活跃 turn、吊销检查；失效反例未运行。 |
-| 两个角色先后 stop 同一目标 | 追加各自身份，目标相同；未实现或运行。 |
-| stop 与 ack 交叠 | 保留条目锁；ack 先完成则拒绝 stop，stop 持锁时 ack 不能插入；并发验证未运行。 |
-| 旧库缺新列 | events.details 为 JSON；计划不新增列、不改旧事件，缺调用者字段显示“未记录”；未实现或运行。 |
-
-INCOMPLETE：修复绿态、构思主控及其他角色停止、身份伪造反例、失效凭据、ack 交叠、旧事件读取、既有套件、typecheck、lint、fmt:check、冻结候选独立审查。没有 fork 交付提交，本次只有 a2a 证据提交。
+重放命令保存在 replay.py、replay-ui.py、check.py、review-contract.md 和各 command/launch JSON。**暂停期间不执行这些命令**；恢复须有方向结论与主控指令。
