@@ -4,7 +4,7 @@
 
 **做**
 
-- 按任务卡的范围实现，显式 submit，不靠"我做完了"。
+- 按[任务卡](../templates/task-card.md)的范围实现，显式 submit，不靠"我做完了"。
 - 发现范围外的问题时上报，不要自己决定忽略，也不要顺手去修。例如：spec 与代码不符、验收条件看起来有缺陷、任务卡与 AGENTS.md 冲突、你不确定该不该做的事。
   - Herdr 期：`scripts/inbox send --from worker:<你的 agent 名> --to triage --kind issue --title "<一句话标题>" --body-file <正文文件> [--blocking] [--ref file:路径#L行号]`
   - 新工作台里：由编排后台提供同一个命令，切换时更新本卡。

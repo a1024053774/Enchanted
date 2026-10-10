@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""Append an executor's final score or a separate user score to records/scores.jsonl."""
+import argparse
+import json
+from pathlib import Path
+import sys
+import uuid
+
+from launch_records import validate_launches
+from record_io import append_record, locked, read_records, utc_now
+
+TASK_TYPES = ("后端逻辑", "前端界面", "缺陷修复", "测试", "重构", "构建与基础设施", "文档", "调研")
+
+
+def validate_data(data, source):
+    if not isinstance(data, dict):
+        raise ValueError("打分内容不是对象")
+    if source == "executor" and data.get("result") == "放弃":
+        if set(data) != {"result", "reason"} or not isinstance(data["reason"], str) or not data["reason"].strip():
+            raise ValueError("放弃只能记结果与非空理由")
+        return
+    expected = {"boundary_discipline", "boundary_reason", "engineering_taste", "engineering_reason", "notes"}
+    if source == "executor":
+        expected.add("result")
+        if data.get("result") not in ("通过", "升级"):
+            raise ValueError("执行主控结果无效")
+    if set(data) != expected:
+        raise ValueError("执行主控或用户打分字段不完整")
+    for key in ("boundary_discipline", "engineering_taste"):
+        if type(data[key]) is not int or not 0 <= data[key] <= 3:
+            raise ValueError("分数必须为 0–3 的整数")
+    for key in ("boundary_reason", "engineering_reason"):
+        if not isinstance(data[key], str) or not data[key].strip():
+            raise ValueError("每项分数必须带理由")
+    if not isinstance(data["notes"], str):
+        raise ValueError("备注必须是字符串；没有备注传空字符串")
+
+
+def validate_facts(facts):
+    fields = {"task_type", "complexity", "delivery_rounds", "elapsed_seconds", "human_interventions", "rejections"}
+    if not isinstance(facts, dict) or set(facts) != fields:
+        raise ValueError("验收事实字段不完整或含未知字段")
+    if facts["task_type"] not in TASK_TYPES or facts["complexity"] not in ("S", "M", "L"):
+        raise ValueError("任务类型或复杂度无效")
+    for key in ("delivery_rounds", "elapsed_seconds", "human_interventions"):
+        if type(facts[key]) is not int or facts[key] < 0:
+            raise ValueError("验收事实必须为非负整数：" + key)
+    if not isinstance(facts["rejections"], dict) or not facts["rejections"]:
+        raise ValueError("各项检查打回次数必须为非空对象")
+    for key, value in facts["rejections"].items():
+        if not isinstance(key, str) or not key or type(value) is not int or value < 0:
+            raise ValueError("检查打回次数损坏")
+
+
+def validate_scores(rows):
+    indexed, attempts = {}, set()
+    for row in rows:
+        for key in ("score_id", "created_at", "launch_id", "project", "task", "attempt", "cli", "model", "effort"):
+            if not isinstance(row.get(key), str) or not row[key]:
+                raise ValueError("打分记录字段损坏：" + key)
+        source = row.get("source")
+        if row.get("schema") != 1 or source not in ("executor", "user") or row["score_id"] in indexed:
+            raise ValueError("打分记录版本、来源或编号损坏")
+        validate_data(row.get("data"), source)
+        if source == "executor":
+            identity = (row["project"], row["task"], row["attempt"])
+            if identity in attempts:
+                raise ValueError("同一个 attempt 已有执行主控的最终打分")
+            attempts.add(identity)
+            if row["data"]["result"] != "放弃":
+                validate_facts(row.get("facts"))
+            elif "facts" in row:
+                raise ValueError("放弃不记录评分事实")
+        else:
+            original = indexed.get(row.get("score_of"))
+            if original is None or original["source"] != "executor":
+                raise ValueError("用户分没有指向执行主控的原记录")
+            if any(row[key] != original[key] for key in ("launch_id", "project", "task", "attempt", "cli", "model", "effort")):
+                raise ValueError("用户分与原记录身份不符")
+        indexed[row["score_id"]] = row
+    return indexed
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    p.add_argument("--source", choices=("executor", "user"), default="executor")
+    p.add_argument("--launch")
+    p.add_argument("--score-of")
+    p.add_argument("--facts", type=Path, help="事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions、rejections（检查项→打回次数）；Herdr 期由执行主控保存")
+    p.add_argument("--result", choices=("通过", "升级", "放弃"))
+    p.add_argument("--reason")
+    p.add_argument("--boundary-discipline", type=int)
+    p.add_argument("--boundary-reason")
+    p.add_argument("--engineering-taste", type=int)
+    p.add_argument("--engineering-reason")
+    p.add_argument("--notes")
+    args = p.parse_args()
+    root = args.root.resolve()
+    if args.source == "executor" and args.result == "放弃":
+        if any(v is not None for v in (args.boundary_discipline, args.boundary_reason, args.engineering_taste,
+                                       args.engineering_reason, args.notes, args.facts)):
+            raise ValueError("放弃只传 --result 放弃 --reason，不传分数、备注或事实")
+        data = dict(result=args.result, reason=args.reason)
+    else:
+        if args.reason is not None:
+            raise ValueError("评分理由使用 --boundary-reason 和 --engineering-reason")
+        data = dict(boundary_discipline=args.boundary_discipline, boundary_reason=args.boundary_reason,
+                    engineering_taste=args.engineering_taste, engineering_reason=args.engineering_reason,
+                    notes=args.notes)
+        if args.source == "executor":
+            data["result"] = args.result
+    validate_data(data, args.source)
+    facts = None
+    if args.source == "executor":
+        if not args.launch or args.score_of is not None:
+            raise ValueError("执行主控必须指定 --launch，不能传 --score-of")
+        if args.result != "放弃":
+            if args.facts is None:
+                raise ValueError("通过或升级必须带 --facts")
+            facts = json.loads(args.facts.read_bytes().decode("utf-8"))
+            validate_facts(facts)
+        with locked(root / "records/.launches.lock"):
+            launches = validate_launches(read_records(root / "records/launches.jsonl"))
+            launch = launches[args.launch]
+        context = dict(launch_id=launch["launch_id"], project=launch["project"], task=launch["task"],
+                       attempt=launch["attempt"], cli=launch["cli_version"], model=launch["model"], effort=launch["effort"])
+    else:
+        if not args.score_of or any(v is not None for v in (args.launch, args.facts, args.result)):
+            raise ValueError("用户自己的分必须只用 --score-of 关联，不能改结果或验收事实")
+    logfile = root / "records/scores.jsonl"
+    with locked(root / "records/.scores.lock"):
+        rows = read_records(logfile)
+        indexed = validate_scores(rows)
+        if args.source == "user":
+            original = indexed[args.score_of]
+            if original["source"] != "executor":
+                raise ValueError("--score-of 必须指向执行主控原记录")
+            context = {k: original[k] for k in ("launch_id", "project", "task", "attempt", "cli", "model", "effort")}
+        row = dict(schema=1, score_id="score-" + uuid.uuid4().hex, created_at=utc_now(),
+                   source=args.source, data=data, **context)
+        if facts is not None:
+            row["facts"] = facts
+        if args.source == "user":
+            row["score_of"] = args.score_of
+        validate_scores([*rows, row])
+        append_record(logfile, row)
+    print(json.dumps(row, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print("打分拒收：" + str(exc), file=sys.stderr)
+        sys.exit(1)

@@ -4,7 +4,7 @@
 
 **做**
 
-- 按任务卡和派给你的审查范围审查，把结论写进你的审查报告：确认的缺陷、证据、你没能核实的部分。
+- 按[任务卡](../templates/task-card.md)和派给你的审查范围审查，把结论写进你的审查报告：确认的缺陷、证据、你没能核实的部分。
 - 报告之外，与你的审查范围无关但重要的发现，直接上报，不要自己决定忽略。
   - Herdr 期：`scripts/inbox send --from reviewer:<你的 agent 名> --to triage --kind issue --title "<一句话标题>" --body-file <正文文件> [--blocking] [--ref file:路径#L行号]`
   - 新工作台里：由编排后台提供同一个命令，切换时更新本卡。

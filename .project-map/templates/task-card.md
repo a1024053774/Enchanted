@@ -1,0 +1,29 @@
+# 任务卡 <编号>
+
+Herdr 期由执行主控手填这份 Markdown 后经 `scripts/dispatch` 派发。表中的“脚本”是 spec 第 2 节的最终字段归属；切换前由执行主控从实际认领/启动结果抄入，不提供生成或校验脚本。
+
+| 字段 | 内容（派发前替换） | 谁填、怎么填 |
+| --- | --- | --- |
+| 编号 | `<T-080-1>` | 脚本；Herdr 期执行主控手填：ticket 号加本票卡片序号；无 ticket 用项目短名加日期序号。 |
+| 来源 | `<ticket 链接，ready_rev>` | 脚本；Herdr 期执行主控抄入当前 ticket 与 ready_rev；无 ticket 可空。 |
+| 目标 | `<一两句结果>` | 执行主控：做完后用户或系统有什么变化。 |
+| 非目标 | `<至少一条>` | 执行主控：列出本次不处理的事项。 |
+| 修改边界 | `允许：<路径>；禁止：<可选>` | 执行主控：允许必填，禁止可选；与本 attempt 的分配路径一致。 |
+| 完成条件 | `<可执行命令和独立预期>` | 执行主控：至少一条在派发前写好；不能只引用 worker 自己写的测试。 |
+| 红态命令 | `<命令，或未指定>` | 执行主控，可选：写了才查；候选的新测试在起点失败、在候选通过。 |
+| 任务类型 | `<类型>` | 执行主控：后端逻辑、前端界面、缺陷修复、测试、重构、构建与基础设施、文档、调研。 |
+| 修复对象 | `<原任务卡号或提交号，或不适用>` | 执行主控：缺陷修复类必填。 |
+| 复杂度 | `<S / M / L>` | 执行主控：按任务规模选一个。 |
+| 执行器 | `<CLI、模型、思考强度>` | 执行主控：与实际启动记录一致；worker 请求 Fast，并保存完整 argv。 |
+| 起点 | `<完整提交号>` | 脚本；Herdr 期执行主控从实际认领结果抄入工作分支 HEAD。 |
+| 唯一写入者 | `<worker 会话、task/attempt/session/fence>` | 脚本；Herdr 期执行主控从门禁认领结果与 Herdr live pane 抄入。 |
+
+## 完成条件与交付
+
+把表中的完成条件展开为命令、输入、预期结果和证据路径。交付绑定 task、attempt、session/fence、规格版本及完整提交号；显式 submit。说明需保留的失败现场、重放命令和不在本卡范围的问题上报入口。
+
+## Herdr 期启动与打分
+
+从已核对的主控 shell 使用 `scripts/launch-worker --cwd <worktree> --agent <唯一名> --project <项目短名> --task <卡号> --attempt <attempt> --session <session>`。脚本只启动 worker，不认领或集成任务；门禁身份由执行主控传入。用 `scripts/dispatch` 发本卡，追加到 `records/launches.jsonl` 的启动记录号会出现在提交尾注。模型与强度取启动记录；如果会话内切换配置，先另开受记录的会话，不把旧启动配置当作新配置的证明。
+
+最终验收时，执行主控把任务类型、复杂度、交付轮数、耗时秒数、人工介入次数、各项检查打回次数保存为事实 JSON（字段见 `scripts/score --help` 及本票证据中的夹具），使用 `scripts/score --launch <记录号> --facts <JSON> --result 通过 --boundary-discipline <0..3> --boundary-reason <理由> --engineering-taste <0..3> --engineering-reason <理由> --notes <备注或空字符串>`。升级用 `--result 升级`，保留前一个 attempt 的分；放弃只用 `--launch <记录号> --result 放弃 --reason <理由>`。用户自己的分用 `--source user --score-of <原打分号>`，另存一条；不覆盖执行主控的分。
