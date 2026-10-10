@@ -49,3 +49,7 @@ fork 基线 `7a3a13249e562bf2d7f9ff4cb024f39b13d62434`，尚未修改产品源�
 见 [报告](../../evidence/2026-10-09-batch11/T-064/RESULTS.md) 和 [待批清单](../../evidence/2026-10-09-batch11/T-064/needs-decision-01.md)。完整 MCP、权限正反例、截图、产品检查、独立审查均未运行；本票验收框不勾选，未用旧候选结论替代本票证据。
 
 2026-10-10，主控 #23 批准后继续：fork 实现提交 `0bf4bb2cab2216f567df2d4fb1729bee3cac6fe9`；五角色设置、真实 MCP 能力变化/冻结、Codex/Claude 免确认正反例、原子 action/审计、CAS、空集合、无效配置、真实中断、UI 保存/恢复和既有 35 项端到端通过，typecheck/fmt/lint、服务端相关 365 项、gates 19 项通过。**INCOMPLETE：等待唯一一次独立审查；保持 open，待主控关闭。** 其它 provider 按批准范围未适配免确认，外观待用户判断。新证据与局限见本票 RESULTS；原 BLOCKED 与失败现场保留。
+
+最终交接：**INCOMPLETE，保持 open，待主控关闭**。唯一一次独立审查目标 `0bf4bb2ca` + a2a `10718bd2c77b375c3b5fdde3930ba75109400d7e`，结论 INCOMPLETE：缺实际 Codex/Claude 进程发出并消费权限请求的证据，未把受控 I/O 或 CLI 方法可用性当作完整边界通过。上报 `20261010T073006Z-worker:t064-issue-001`，待主控决定验证入口/预算/认证。
+
+实施者随后保留红态并修复默认 Claude override 误影响 Auto、operate 遮蔽 stop 两项回归；最终 fork `49cae984f22924de006e0f8358cb447eb881aaf6`。实际 MCP 组合红绿、旧 tools 投影反例、final27 全 API、final28 原有 35 场景、369 项相关测试及静态检查通过；UI 源码在 7c04 修正默认说明后经真实 UI 验证，其后只改 stop 投影。未第二次审查、未关闭整票、未用旧审查上调最终候选。完整版本与局限见 RESULTS，原始证据保留。
