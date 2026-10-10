@@ -1,0 +1,21 @@
+STATUS: PASS
+TARGET: a2a d5d0af3704c3ede71df6b84e539c7b030395ccd9; Synara 4ac5ba00e7125279b08c241037d1404450455ff6
+
+EVIDENCE:
+- 合同要求真实 dev UI、全新 profile、1600×1050/1280×900、亮暗主题、问题上报标题不被遮挡、文字可读，且上游仅改允许文件。
+- Synara diff 仅改 `apps/web/src/components/Sidebar.tsx` 8 行；候选行 1245–1259 将提示移至 sidebar 下方并使用主题前景色。
+- `rev2-green02.json` 通过真实 Chromium `/a2a` 入口、四个尺寸/主题组合；fresh storage 为 null，提示截图时可见，标题/任务窗口重叠均为 0，亮色对比度 19.27、暗色 17.47。
+- PNG 文件尺寸与命名均符合要求；截图显示问题上报面板和提示同时存在。
+- `rev2-related-tests` 188/188、browser tests 14/14、typecheck、lint、fmt 均 exit 0。
+- 同一允许证据集与冻结 a2a commit 对比 30/30 无差异。
+- 未读取禁止内容：RESULTS*.md 内容、ticket Resolution、inbox 条目、旧 acceptance-review 文件、实现者聊天或理由。
+
+FINDINGS:
+- None.
+
+COUNTEREXAMPLE:
+- 已知坏父修订 d9fc40a5f8b14d22ec7568c7ccef542572e79102 的同一重放 exit 1：四组均出现标题重叠 351、任务窗口重叠 18764.25；亮色标题/正文对比度仅 1.0348/1.0296，故已知坏实现被拒绝。
+
+LIMITATIONS:
+- 外观审美仍由用户判断；本审查只判定位置、可见性、对比度和真实入口证据。
+- 未测试 provider 调用、门禁 submit 或正式实例，符合本任务范围。

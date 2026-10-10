@@ -1,6 +1,6 @@
 # T-062 ready_rev 2：Activity 首次使用提示
 
-状态：INCOMPLETE（产品修复与检查已完成，冻结候选的一次独立审查尚未执行）。保持 ticket open，待主控关闭；外观由用户判断。
+状态：PASS（产品修复、红绿、相关检查与一次有效独立审查通过）。保持 ticket open，待主控关闭；外观由用户判断。
 
 本轮仅执行 `brief-T-062-rev2.md`，授权引用为“062选B”。原有 rev 1 证据、RESULTS、Resolution 与失败均保留。fork 父修订 `d9fc40a5f8b14d22ec7568c7ccef542572e79102`；产品候选 `4ac5ba00e7125279b08c241037d1404450455ff6`。执行身份与 CLI/Bun/Node 版本见 [rev2-identity.json](rev2-identity.json)，fixture 的启动与进程身份见 [rev2-probe01-launch.json](rev2-probe01-launch.json)。这是 Herdr 期交付，不新建或接管受管 attempt，不走门禁 submit。
 
@@ -59,4 +59,10 @@ python3 evidence/2026-10-09-batch11/T-062/stop-isolated.py rev2-replay01
 
 ## 一次独立审查
 
-冻结候选为 fork 上述提交加本报告所在的 a2a 证据提交。审查者只读 ticket 的 What/Acceptance、diff、截图、原始机械观察与重放命令；禁止读取 RESULTS、ticket Resolution、inbox 正文和旧审查。持续追加的 `controller-poll.log`、`dispatch.jsonl`、`panes.txt` 不属于候选，不据其变化判候选失效。结论在审查结束后追加，本轮只请求一次。
+冻结候选为 fork 上述提交加 a2a 证据提交 `d5d0af3704c3ede71df6b84e539c7b030395ccd9`。审查者只读 ticket 的 What/Acceptance、diff、截图、原始机械观察与重放命令；禁止读取 RESULTS、ticket Resolution、inbox 正文和旧审查。持续追加的 `controller-poll.log`、`dispatch.jsonl`、`panes.txt` 不属于候选，不据其变化判候选失效。以下结论在审查结束后追加，本轮只请求一次。
+
+冻结 a2a 候选为 `d5d0af3704c3ede71df6b84e539c7b030395ccd9`，fork 为 `4ac5ba00e7125279b08c241037d1404450455ff6`。该冻结提交里的报告状态为审查待执行的 INCOMPLETE；以下记录在本次唯一审查结束后追加，不改变审查的代码、截图或原始运行结果。
+
+独立 agent `/root/t062_rev2_acceptance`（acceptance-auditor，fresh context）返回 **PASS**，无 findings；明确确认未读取禁止内容，核对允许证据集与冻结提交 30/30 无差异。已知坏父修订被同一界面检查拒绝。原文完整保存在 [rev2-acceptance-review-raw.txt](rev2-acceptance-review-raw.txt)。本轮未追审；补充提交只加入独立结论、最终状态和收尾检查。
+
+交付条件中的用户外观判断与执行主控关闭 ticket 尚待对应角色完成；本 PASS 限于 ticket 的位置、可读性、真实 dev UI 证据和要求的检查，不代表正式实例、provider 或发布已验收。问题上报共 1 条，browser 首轮断联已记录，后续完整轮通过但原因未定；未自行关闭该问题。
