@@ -1,0 +1,104 @@
+diff --git a/acceptance/test_herdr_traceability_e2e.py b/acceptance/test_herdr_traceability_e2e.py
+index 4aca244..735923d 100644
+--- a/acceptance/test_herdr_traceability_e2e.py
++++ b/acceptance/test_herdr_traceability_e2e.py
+@@ -155,6 +155,17 @@ else:sys.exit(2)
+         self.git("commit","--allow-empty","-m","broken log",env=env,expected=None)
+         self.assertEqual(logfile.read_bytes(),before)
+ 
++    def test_duplicate_trailers_keep_body_and_project_trailer(self):
++        launch=self.launch();env=self.managed_env()
++        body="独立重复尾注输入 "+uuid.uuid4().hex
++        signed="Signed-off-by: External Sentinel <sentinel@example.invalid>"
++        message=body+"\n\nA2A-Task: obsolete-one\nA2A-Task: obsolete-two\nA2A-Model: obsolete-model\n"+signed+"\n"
++        self.git("commit","--allow-empty","-m",message,env=env)
++        self.assert_trailers(env,launch)
++        actual=self.git("log","-1","--format=%B").stdout
++        self.assertIn(body,actual);self.assertIn(signed,actual)
++        self.assertNotIn("obsolete-one",actual);self.assertNotIn("obsolete-two",actual)
++
+     def test_amend_rebase_merge_and_native_replacement(self):
+         launch=self.launch();env=self.managed_env()
+         self.git("commit","--allow-empty","-m","first",env=env)
+@@ -232,6 +243,18 @@ else:sys.exit(2)
+         self.assertEqual(sum(a[:2]==["agent","start"] for a in calls),6)
+         self.assertFalse(any("close" in a for a in calls))
+ 
++    def test_score_missing_or_unknown_check_rejected(self):
++        launch=self.launch()
++        facts=self.facts()
++        good=json.loads(facts.read_text(encoding="utf-8"))
++        for rejected in ({"not_a_gate_check":0}, {key:value for key,value in good["rejections"].items() if key!="independent_review"}):
++            bad=dict(good,rejections=rejected)
++            facts.write_text(json.dumps(bad,ensure_ascii=False),encoding="utf-8")
++            self.run_command([str(SCRIPTS/"score"),"--root",str(self.root),"--launch",launch,"--facts",str(facts),
++                              "--result","通过","--boundary-discipline","3","--boundary-reason","reason",
++                              "--engineering-taste","3","--engineering-reason","reason","--notes",""],expected=None)
++            self.assertFalse((self.root/"records/scores.jsonl").exists())
++
+ 
+ if __name__=="__main__":
+     p=argparse.ArgumentParser()
+diff --git a/scripts/git-hooks/hook.py b/scripts/git-hooks/hook.py
+index b31bd79..34e52ce 100755
+--- a/scripts/git-hooks/hook.py
++++ b/scripts/git-hooks/hook.py
+@@ -38,9 +38,23 @@ def main():
+     if name == "prepare-commit-msg":
+         values = trailers()
+         message = Path(sys.argv[1])
+-        # Git owns trailer parsing and replacement, including amend/rebase messages.
++        # Git replaces only the last matching key. Remove each existing managed
++        # occurrence before adding one current set; leave body/project trailers.
++        parsed = subprocess.check_output(["git", "interpret-trailers", "--parse", "--no-divider", str(message)])
++        counts = {key.lower().encode("ascii"): 0 for key in values}
++        for line in parsed.splitlines():
++            key = line.partition(b":")[0].strip().lower()
++            if key in counts:
++                counts[key] += 1
++        for _ in range(max(counts.values(), default=0)):
++            clear = ["git", "interpret-trailers", "--in-place", "--no-divider", "--trim-empty",
++                     "--if-exists", "replace", "--if-missing", "doNothing"]
++            for key in values:
++                clear.extend(["--trailer", key + ": "])
++            clear.append(str(message))
++            subprocess.run(clear, check=True)
+         argv = ["git", "-c", "trailer.ifexists=replace", "-c", "trailer.ifmissing=add",
+-                "interpret-trailers", "--in-place"]
++                "interpret-trailers", "--in-place", "--no-divider"]
+         for key, value in values.items():
+             argv.extend(["--trailer", key + ": " + value])
+         argv.append(str(message))
+diff --git a/scripts/score b/scripts/score
+index a17141c..65ae51e 100755
+--- a/scripts/score
++++ b/scripts/score
+@@ -10,6 +10,8 @@ from launch_records import validate_launches
+ from record_io import append_record, locked, read_records, utc_now
+ 
+ TASK_TYPES = ("后端逻辑", "前端界面", "缺陷修复", "测试", "重构", "构建与基础设施", "文档", "调研")
++CHECKS = {"identity_version", "path_boundary", "completion", "red_state", "rule_checks",
++          "independent_review", "commit_trailers"}
+ 
+ 
+ def validate_data(data, source):
+@@ -45,8 +47,8 @@ def validate_facts(facts):
+     for key in ("delivery_rounds", "elapsed_seconds", "human_interventions"):
+         if type(facts[key]) is not int or facts[key] < 0:
+             raise ValueError("验收事实必须为非负整数：" + key)
+-    if not isinstance(facts["rejections"], dict) or not facts["rejections"]:
+-        raise ValueError("各项检查打回次数必须为非空对象")
++    if not isinstance(facts["rejections"], dict) or set(facts["rejections"]) != CHECKS:
++        raise ValueError("打回次数必须完整包含 identity_version、path_boundary、completion、red_state、rule_checks、independent_review、commit_trailers；不能缺项或含未知项")
+     for key, value in facts["rejections"].items():
+         if not isinstance(key, str) or not key or type(value) is not int or value < 0:
+             raise ValueError("检查打回次数损坏")
+@@ -87,7 +89,7 @@ def main():
+     p.add_argument("--source", choices=("executor", "user"), default="executor")
+     p.add_argument("--launch")
+     p.add_argument("--score-of")
+-    p.add_argument("--facts", type=Path, help="事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions、rejections（检查项→打回次数）；Herdr 期由执行主控保存")
++    p.add_argument("--facts", type=Path, help="事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions；rejections 必须包含 identity_version、path_boundary、completion、red_state、rule_checks、independent_review、commit_trailers 的非负整数次数；Herdr 期由执行主控保存")
+     p.add_argument("--result", choices=("通过", "升级", "放弃"))
+     p.add_argument("--reason")
+     p.add_argument("--boundary-discipline", type=int)

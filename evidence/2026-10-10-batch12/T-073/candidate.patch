@@ -1,0 +1,967 @@
+diff --git a/.project-map/roles/executor.md b/.project-map/roles/executor.md
+index f66a254..732ef27 100644
+--- a/.project-map/roles/executor.md
++++ b/.project-map/roles/executor.md
+@@ -6,7 +6,7 @@
+ 
+ **做**
+ 
+-- 执行就绪 ticket：认领、派发 worker、盯进度、审查、验收/集成/回收，全经门禁；在证据里记下依据的 `ready_rev`；写任务卡、证据、Resolution。发给 worker 的每段文本经 `scripts/dispatch`（[T-054](../tickets/T-054-dispatch-wrapper-and-session-copy.md) 提供；完成前保持现状，并在任务卡里注明）。
++- 执行就绪 ticket：认领、派发 worker、盯进度、审查、验收/集成/回收，全经门禁；在证据里记下依据的 `ready_rev`；写[任务卡](../templates/task-card.md)、证据、Resolution。发给 worker 的每段文本经 `scripts/dispatch`（[T-054](../tickets/T-054-dispatch-wrapper-and-session-copy.md) 提供；完成前保持现状，并在任务卡里注明）。
+ - 在 T-004 的自主边界内，发现缺陷级后续可以自建 ticket 并执行（`ready: yes`、`ready_by: executor`），完成报告里列出。
+ - 问题上报：判断任务级的。可以关闭"不是问题 / 已解决 / 重复 / 已登记为后续工作"，写 `disposition close`，附理由和依据，不删不改原条目。直接进"等你决定"、不得自行关闭：标 blocking 的；涉及权限、范围、验收条件、安全、不可逆操作的；明确问用户的选择题；你自己拿不准的。设计、目标、权限级的写 `disposition forward` 交构思主控。你只能关闭，不能替用户回答。
+ - 收到 `answer`：用 `scripts/dispatch` 把正文原样发给 `refs` 里的 worker，成功后对每个问题写 `disposition delivered`，再 `ack`；会话已结束就写 `disposition forward`（理由 `session-ended`），并在 `report` 里列出。
+diff --git a/.project-map/roles/reviewer.md b/.project-map/roles/reviewer.md
+index 9749936..a79fc76 100644
+--- a/.project-map/roles/reviewer.md
++++ b/.project-map/roles/reviewer.md
+@@ -4,7 +4,7 @@
+ 
+ **做**
+ 
+-- 按任务卡和派给你的审查范围审查，把结论写进你的审查报告：确认的缺陷、证据、你没能核实的部分。
++- 按[任务卡](../templates/task-card.md)和派给你的审查范围审查，把结论写进你的审查报告：确认的缺陷、证据、你没能核实的部分。
+ - 报告之外，与你的审查范围无关但重要的发现，直接上报，不要自己决定忽略。
+   - Herdr 期：`scripts/inbox send --from reviewer:<你的 agent 名> --to triage --kind issue --title "<一句话标题>" --body-file <正文文件> [--blocking] [--ref file:路径#L行号]`
+   - 新工作台里：由编排后台提供同一个命令，切换时更新本卡。
+diff --git a/.project-map/roles/worker.md b/.project-map/roles/worker.md
+index c018de6..56b25da 100644
+--- a/.project-map/roles/worker.md
++++ b/.project-map/roles/worker.md
+@@ -4,7 +4,7 @@
+ 
+ **做**
+ 
+-- 按任务卡的范围实现，显式 submit，不靠"我做完了"。
++- 按[任务卡](../templates/task-card.md)的范围实现，显式 submit，不靠"我做完了"。
+ - 发现范围外的问题时上报，不要自己决定忽略，也不要顺手去修。例如：spec 与代码不符、验收条件看起来有缺陷、任务卡与 AGENTS.md 冲突、你不确定该不该做的事。
+   - Herdr 期：`scripts/inbox send --from worker:<你的 agent 名> --to triage --kind issue --title "<一句话标题>" --body-file <正文文件> [--blocking] [--ref file:路径#L行号]`
+   - 新工作台里：由编排后台提供同一个命令，切换时更新本卡。
+diff --git a/.project-map/templates/task-card.md b/.project-map/templates/task-card.md
+new file mode 100644
+index 0000000..6fc6a95
+--- /dev/null
++++ b/.project-map/templates/task-card.md
+@@ -0,0 +1,29 @@
++# 任务卡 <编号>
++
++Herdr 期由执行主控手填这份 Markdown 后经 `scripts/dispatch` 派发。表中的“脚本”是 spec 第 2 节的最终字段归属；切换前由执行主控从实际认领/启动结果抄入，不提供生成或校验脚本。
++
++| 字段 | 内容（派发前替换） | 谁填、怎么填 |
++| --- | --- | --- |
++| 编号 | `<T-080-1>` | 脚本；Herdr 期执行主控手填：ticket 号加本票卡片序号；无 ticket 用项目短名加日期序号。 |
++| 来源 | `<ticket 链接，ready_rev>` | 脚本；Herdr 期执行主控抄入当前 ticket 与 ready_rev；无 ticket 可空。 |
++| 目标 | `<一两句结果>` | 执行主控：做完后用户或系统有什么变化。 |
++| 非目标 | `<至少一条>` | 执行主控：列出本次不处理的事项。 |
++| 修改边界 | `允许：<路径>；禁止：<可选>` | 执行主控：允许必填，禁止可选；与本 attempt 的分配路径一致。 |
++| 完成条件 | `<可执行命令和独立预期>` | 执行主控：至少一条在派发前写好；不能只引用 worker 自己写的测试。 |
++| 红态命令 | `<命令，或未指定>` | 执行主控，可选：写了才查；候选的新测试在起点失败、在候选通过。 |
++| 任务类型 | `<类型>` | 执行主控：后端逻辑、前端界面、缺陷修复、测试、重构、构建与基础设施、文档、调研。 |
++| 修复对象 | `<原任务卡号或提交号，或不适用>` | 执行主控：缺陷修复类必填。 |
++| 复杂度 | `<S / M / L>` | 执行主控：按任务规模选一个。 |
++| 执行器 | `<CLI、模型、思考强度>` | 执行主控：与实际启动记录一致；worker 请求 Fast，并保存完整 argv。 |
++| 起点 | `<完整提交号>` | 脚本；Herdr 期执行主控从实际认领结果抄入工作分支 HEAD。 |
++| 唯一写入者 | `<worker 会话、task/attempt/session/fence>` | 脚本；Herdr 期执行主控从门禁认领结果与 Herdr live pane 抄入。 |
++
++## 完成条件与交付
++
++把表中的完成条件展开为命令、输入、预期结果和证据路径。交付绑定 task、attempt、session/fence、规格版本及完整提交号；显式 submit。说明需保留的失败现场、重放命令和不在本卡范围的问题上报入口。
++
++## Herdr 期启动与打分
++
++从已核对的主控 shell 使用 `scripts/launch-worker --cwd <worktree> --agent <唯一名> --project <项目短名> --task <卡号> --attempt <attempt> --session <session>`。脚本只启动 worker，不认领或集成任务；门禁身份由执行主控传入。用 `scripts/dispatch` 发本卡，追加到 `records/launches.jsonl` 的启动记录号会出现在提交尾注。模型与强度取启动记录；如果会话内切换配置，先另开受记录的会话，不把旧启动配置当作新配置的证明。
++
++最终验收时，执行主控把任务类型、复杂度、交付轮数、耗时秒数、人工介入次数、各项检查打回次数保存为事实 JSON（字段见 `scripts/score --help` 及本票证据中的夹具），使用 `scripts/score --launch <记录号> --facts <JSON> --result 通过 --boundary-discipline <0..3> --boundary-reason <理由> --engineering-taste <0..3> --engineering-reason <理由> --notes <备注或空字符串>`。升级用 `--result 升级`，保留前一个 attempt 的分；放弃只用 `--launch <记录号> --result 放弃 --reason <理由>`。用户自己的分用 `--source user --score-of <原打分号>`，另存一条；不覆盖执行主控的分。
+diff --git a/AGENTS.md b/AGENTS.md
+index 7dd7f80..0ae185b 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -24,7 +24,7 @@
+ - 工作台：本仓库新目录里的轻量 Electron 应用，借用 Synara 的前端组件与样式；fork（GitHub `a1024053774/synara`）只作组件来源，不再跟进上游，不删。界面按“项目 → 任务 → agent 会话”组织；任务与 agent 会话的归属由 a2a 自己保存（受管任务以门禁 task id 为身份）。编排后台常驻，界面关掉不影响 agent。
+ - 提示词管判断，脚本管事实：能机械核对的由脚本和门禁保证，角色卡只写“用哪个命令”；要判断的交给提示词和人；不做策略引擎（T-070）。
+ - 门禁优先：认领、交付、验收、集成和回收只经唯一的门禁入口，保持操作锁、fence、CAS、attempt 绑定与中断恢复语义；界面不另做一套门禁。在受管 worker 会话中直接输入，记为人工介入。门禁从 fork 的 `packages/a2a-gates` 抽进编排后台；抽出完成前仍以 fork 中的实现为门禁入口，本仓库验收经 `acceptance/entry/a2a_gates.py` 调用；抽出后不保留两套路径。
+-- 门禁不能省，写审分开：派出去的活一律是受管任务，按任务卡走同一串检查（身份与版本、路径边界、完成条件、红态、规则式检查、独立审查、提交尾注），全过才集成到项目工作分支，不 push；审查是为每次交付新开的只读会话（T-070）。
++- 门禁不能省，写审分开：派出去的活一律是受管任务，按[任务卡](.project-map/templates/task-card.md)走同一串检查（身份与版本、路径边界、完成条件、红态、规则式检查、独立审查、提交尾注），全过才集成到项目工作分支，不 push；审查是为每次交付新开的只读会话（T-070）。
+ - 重新证明：旧实现的通过结论不替新实现背书；门禁换位置后，交付、恢复、编排场景须重新取得红态、绿态与反例。
+ - `coop.py` 与 Muster 引擎已于 2026-10-08 删除（T-040 A），参考实现见 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。不得修改或重启用户正在使用的 Herdr server。
+ - 切换：日常派发继续经 Herdr，直到切换条件满足（T-069）：用户输入记录、两层主控、问题面板，加上任务卡、门禁检查串与独立审查、worktree、提交尾注、面板收主控提问、验收打分、复盘、原始事件采集与四个指标视图都在新工作台里能用，用户按 spec 第 10 节试用后说“可用”。在此之前，新工作台的门禁只用于 ticket 明确要求的真实验证。
+diff --git a/acceptance/test_herdr_traceability_e2e.py b/acceptance/test_herdr_traceability_e2e.py
+new file mode 100644
+index 0000000..4aca244
+--- /dev/null
++++ b/acceptance/test_herdr_traceability_e2e.py
+@@ -0,0 +1,249 @@
++#!/usr/bin/env python3
++"""T-073 public CLI/Git contract; fake Herdr is explicit, no model calls.
++
++Replay: python3 -B acceptance/test_herdr_traceability_e2e.py --artifacts NEW_DIR
++--scripts-root selects a frozen candidate/mutant; expected values are independent.
++"""
++import argparse
++import concurrent.futures
++import json
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import sys
++import tarfile
++import tempfile
++import unittest
++import uuid
++
++REPO = Path(__file__).resolve().parents[1]
++SCRIPTS = REPO / "scripts"
++ARTIFACTS = None
++COMMANDS = []
++
++
++class Contract(unittest.TestCase):
++    def setUp(self):
++        self.root = Path(tempfile.mkdtemp(prefix="t073-contract-", dir="/tmp")).resolve()
++        self.artifacts = ARTIFACTS / self._testMethodName
++        self.artifacts.mkdir()
++        self.env = {k:v for k,v in os.environ.items() if not k.startswith(("A2A_", "GIT_CONFIG_"))}
++        self.env.update(HERDR_ENV="1", GIT_AUTHOR_NAME="contract", GIT_AUTHOR_EMAIL="contract@example.invalid",
++                        GIT_COMMITTER_NAME="contract", GIT_COMMITTER_EMAIL="contract@example.invalid",
++                        PYTHONDONTWRITEBYTECODE="1")
++        self.git("init", "-q", "-b", "master")
++        roles = self.root / ".project-map/roles"
++        roles.mkdir(parents=True)
++        (roles / "worker.md").write_text("独立 fixture worker 角色卡\n", encoding="utf-8")
++        (self.root / "seed.txt").write_text("independent seed\n", encoding="utf-8")
++        self.git("add", ".project-map", "seed.txt")
++        self.git("commit", "-qm", "seed")
++        self.base = self.git("rev-parse", "HEAD").stdout.strip()
++        self.fakebin = self.root / "explicit-fake-herdr"
++        self.fakebin.mkdir()
++        fake = self.fakebin / "herdr"
++        fake.write_text("#!"+sys.executable+"\n"+'''
++import json,os,sys
++from pathlib import Path
++args=sys.argv[1:]
++with Path(os.environ['FAKE_CALLS']).open('a') as f:f.write(json.dumps(args)+'\\n')
++if args[:2]==['pane','split']:
++ print(json.dumps({'result':{'pane':{'pane_id':'fake:pane'}}}))
++elif args[:2]==['pane','run']:
++ Path(os.environ['FAKE_EXPORT']).write_text(args[3])
++ # Actual Herdr 0.9.3 pane run succeeds with an empty stdout.
++elif args[:2]==['agent','start']:
++ if os.environ.get('FAKE_FAIL_START'):
++  print('explicit fake startup failure',file=sys.stderr);sys.exit(12)
++ print(json.dumps({'result':{'type':'agent_started','argv':['codex',*args[args.index('--')+1:]]}}))
++else:sys.exit(2)
++''', encoding="utf-8")
++        fake.chmod(0o755)
++        self.env.update(PATH=str(self.fakebin)+os.pathsep+self.env["PATH"],
++                        FAKE_CALLS=str(self.root/"fake-calls.jsonl"), FAKE_EXPORT=str(self.root/"fake-export.txt"))
++        self.task = "T-sentinel-" + uuid.uuid4().hex[:10] + "-1"
++        self.attempt, self.session = "attempt-"+uuid.uuid4().hex, "session-"+uuid.uuid4().hex
++
++    def tearDown(self):
++        with tarfile.open(self.artifacts / "fixture.tar.gz", "w:gz") as archive:
++            archive.add(self.root, arcname="fixture")
++        (self.artifacts / "location.txt").write_text(str(self.root)+"\n",encoding="utf-8")
++
++    def run_command(self, argv, env=None, expected=0):
++        r = subprocess.run(argv, cwd=self.root, env=env or self.env, text=True, capture_output=True, timeout=20)
++        COMMANDS.append(dict(case=self._testMethodName, argv=[str(a) for a in argv], cwd=str(self.root),
++                             exit_code=r.returncode, stdout=r.stdout, stderr=r.stderr))
++        if expected is None:
++            self.assertNotEqual(r.returncode, 0, r.stdout+r.stderr)
++        else:
++            self.assertEqual(r.returncode, expected, r.stdout+r.stderr)
++        return r
++
++    def git(self, *args, env=None, expected=0):
++        return self.run_command(["git", *args], env=env, expected=expected)
++
++    def launch(self, attempt=None, env=None, expected=0):
++        self.assertTrue((SCRIPTS / "launch-worker").is_file(), "EXPECTED_RED launch entry missing")
++        r = self.run_command([str(SCRIPTS / "launch-worker"), "--root", str(self.root), "--cwd", str(self.root),
++                              "--agent", "fixture-worker", "--project", "sentinel-project", "--task", self.task,
++                              "--attempt", attempt or self.attempt, "--session", self.session], env=env, expected=expected)
++        if expected:
++            return r
++        return json.loads(r.stdout)["launch_id"]
++
++    def managed_env(self):
++        import shlex
++        exports = shlex.split((self.root/"fake-export.txt").read_text())[1:]
++        env = dict(self.env, CODEX_THREAD_ID="native-"+uuid.uuid4().hex)
++        env.update(v.split("=",1) for v in exports)
++        return env
++
++    def rows(self, name):
++        return [json.loads(line) for line in (self.root/"records"/name).read_text(encoding="utf-8").splitlines()]
++
++    def assert_trailers(self, env, launch_id):
++        message = self.git("log", "-1", "--format=%B").stdout
++        (self.artifacts / ("message-"+uuid.uuid4().hex+".txt")).write_text(message,encoding="utf-8")
++        actual = [line for line in message.splitlines() if line.startswith("A2A-")]
++        self.assertEqual(len(actual), 9, message)
++        expected = {"A2A-Task":self.task,"A2A-Attempt":self.attempt,"A2A-Session":self.session,
++                    "A2A-Role":"worker","A2A-Tool":"codex-cli 0.162.1","A2A-Model":"gpt-6.1-sol",
++                    "A2A-Effort":"xhigh","A2A-Native-Session":env["CODEX_THREAD_ID"],"A2A-Launch":launch_id}
++        self.assertEqual(dict(line.split(": ",1) for line in actual),expected)
++        bound = self.rows("launches.jsonl")[-1]
++        self.assertEqual(bound["native_session"],env["CODEX_THREAD_ID"])
++        self.assertEqual(bound["project_commit"],self.base)
++        self.assertEqual(bound["argv"], ["codex","-m","gpt-6.1-sol","-c",'model_reasoning_effort="xhigh"',
++                                           "-c",'service_tier="fast"',"-c","check_for_update_on_startup=false",
++                                           "--sandbox","workspace-write","--ask-for-approval","on-request"])
++
++    def hook(self, name, body):
++        path = self.root / ".git/hooks" / name
++        path.write_text("#!/bin/sh\n"+body,encoding="utf-8")
++        path.chmod(0o755)
++
++    def test_commit_no_verify_and_plain_counterexample(self):
++        launch = self.launch()
++        env = self.managed_env()
++        self.hook("prepare-commit-msg", "echo original >> hook-trace.txt\n")
++        self.hook("pre-commit", "echo pre-commit >> pre-trace.txt\n")
++        self.git("commit","--allow-empty","-m","独立输入 café "+uuid.uuid4().hex,env=env)
++        self.assert_trailers(env,launch)
++        self.git("commit","--no-verify","--allow-empty","-m","second",env=env)
++        self.assert_trailers(env,launch)
++        self.assertEqual((self.root/"hook-trace.txt").read_text().splitlines(),["original","original"])
++        self.assertEqual((self.root/"pre-trace.txt").read_text().splitlines(),["pre-commit"])
++        self.git("commit","--allow-empty","-m","plain")
++        self.assertNotIn("A2A-",self.git("log","-1","--format=%B").stdout)
++
++    def test_original_failure_missing_env_and_damaged_launch(self):
++        self.launch()
++        env = self.managed_env()
++        self.hook("prepare-commit-msg", "echo failure >> hook-trace.txt\nexit 19\n")
++        self.git("commit","--allow-empty","-m","must fail",env=env,expected=None)
++        self.assertEqual(self.git("rev-parse","HEAD").stdout.strip(),self.base)
++        self.assertEqual((self.root/"hook-trace.txt").read_text().splitlines(),["failure"])
++        (self.root/".git/hooks/prepare-commit-msg").unlink()
++        missing=dict(env);del missing["A2A_SESSION"]
++        self.git("commit","--allow-empty","-m","missing env",env=missing,expected=None)
++        wrong=dict(env,A2A_TASK="unassigned-task")
++        self.git("commit","--allow-empty","-m","wrong task",env=wrong,expected=None)
++        logfile=self.root/"records/launches.jsonl"
++        with logfile.open("ab") as f:f.write(b'{"partial":')
++        before=logfile.read_bytes()
++        self.git("commit","--allow-empty","-m","broken log",env=env,expected=None)
++        self.assertEqual(logfile.read_bytes(),before)
++
++    def test_amend_rebase_merge_and_native_replacement(self):
++        launch=self.launch();env=self.managed_env()
++        self.git("commit","--allow-empty","-m","first",env=env)
++        self.git("commit","--amend","--no-edit","--allow-empty",env=env)
++        self.assert_trailers(env,launch)
++        self.git("checkout","-qb","side",self.base,env=env)
++        (self.root/"side.txt").write_text("side\n",encoding="utf-8")
++        self.git("add","side.txt",env=env);self.git("commit","-qm","side",env=env)
++        self.git("rebase","master",env=env)
++        self.assert_trailers(env,launch)
++        self.git("checkout","master",env=env)
++        (self.root/"main.txt").write_text("main\n",encoding="utf-8")
++        self.git("add","main.txt",env=env);self.git("commit","-qm","main",env=env)
++        self.git("merge","--no-ff","side","-m","merge",env=env)
++        self.assert_trailers(env,launch)
++        self.git("commit","--allow-empty","-m","replacement",env=dict(env,CODEX_THREAD_ID="wrong-native"),expected=None)
++
++    def facts(self):
++        p=self.root/"facts.json"
++        p.write_text(json.dumps(dict(task_type="构建与基础设施",complexity="M",delivery_rounds=2,
++                                    elapsed_seconds=93,human_interventions=1,
++                                    rejections={"identity_version":0,"path_boundary":0,"completion":1,"red_state":0,
++                                                "rule_checks":0,"independent_review":0,"commit_trailers":0}),ensure_ascii=False),encoding="utf-8")
++        return p
++
++    def score(self, launch, extra=(), expected=0):
++        return self.run_command([str(SCRIPTS/"score"),"--root",str(self.root),"--launch",launch,
++                                "--facts",str(self.facts()),"--result","通过","--boundary-discipline","3",
++                                "--boundary-reason","遵守边界","--engineering-taste","2",
++                                "--engineering-reason","可用，需要小幅整理",*extra],expected=expected)
++
++    def test_score_required_abandon_upgrade_and_user(self):
++        launch=self.launch()
++        self.score(launch,expected=None) # notes is mandatory even when empty.
++        self.assertFalse((self.root/"records/scores.jsonl").exists())
++        row=json.loads(self.score(launch,("--notes","复核完成")).stdout)
++        self.assertEqual(row["facts"]["elapsed_seconds"],93)
++        self.assertEqual(row["facts"]["delivery_rounds"],2)
++        self.assertEqual(row["task"],self.task)
++        before=(self.root/"records/scores.jsonl").read_bytes()
++        self.score(launch,("--notes","duplicate"),expected=None)
++        self.assertEqual((self.root/"records/scores.jsonl").read_bytes(),before)
++        user=self.run_command([str(SCRIPTS/"score"),"--root",str(self.root),"--source","user","--score-of",row["score_id"],
++                               "--boundary-discipline","1","--boundary-reason","用户边界评价",
++                               "--engineering-taste","3","--engineering-reason","用户工程评价","--notes",""])
++        self.assertEqual(self.rows("scores.jsonl")[0],row)
++        self.assertEqual(json.loads(user.stdout)["source"],"user")
++        abandoned=self.launch(attempt="abandon-sentinel")
++        a=self.run_command([str(SCRIPTS/"score"),"--root",str(self.root),"--launch",abandoned,"--result","放弃","--reason","外部条件变化"])
++        self.assertEqual(json.loads(a.stdout)["data"],{"result":"放弃","reason":"外部条件变化"})
++        self.assertNotIn("facts",json.loads(a.stdout))
++        upgraded=self.launch(attempt="upgrade-sentinel")
++        self.run_command([str(SCRIPTS/"score"),"--root",str(self.root),"--launch",upgraded,"--facts",str(self.facts()),
++                          "--result","升级","--boundary-discipline","2","--boundary-reason","边界可接受",
++                          "--engineering-taste","1","--engineering-reason","需更强执行器","--notes",""])
++        self.assertEqual([r["data"].get("result") for r in self.rows("scores.jsonl")],["通过",None,"放弃","升级"])
++
++    def test_score_concurrency_corruption_and_start_failure(self):
++        launches=[self.launch(attempt="concurrent-"+str(i)) for i in range(5)]
++        facts=self.facts()
++        def score_one(launch):
++            return self.run_command([str(SCRIPTS/"score"),"--root",str(self.root),"--launch",launch,"--facts",str(facts),
++                                     "--result","通过","--boundary-discipline","3","--boundary-reason","reason",
++                                     "--engineering-taste","3","--engineering-reason","reason","--notes",""])
++        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:list(pool.map(score_one,launches))
++        self.assertEqual(len(self.rows("scores.jsonl")),5)
++        log=self.root/"records/scores.jsonl"
++        with log.open("ab") as f:f.write(b'{"partial":')
++        before=log.read_bytes();self.score(launches[0],("--notes",""),expected=None)
++        self.assertEqual(log.read_bytes(),before)
++        failed_env=dict(self.env,FAKE_FAIL_START="1")
++        self.launch(attempt="failure",env=failed_env,expected=12)
++        self.assertEqual(self.rows("launches.jsonl")[-1]["phase"],"failed")
++        calls=[json.loads(line) for line in (self.root/"fake-calls.jsonl").read_text().splitlines()]
++        self.assertEqual(sum(a[:2]==["agent","start"] for a in calls),6)
++        self.assertFalse(any("close" in a for a in calls))
++
++
++if __name__=="__main__":
++    p=argparse.ArgumentParser()
++    p.add_argument("--artifacts",type=Path,required=True)
++    p.add_argument("--scripts-root",type=Path,default=SCRIPTS)
++    p.add_argument("--case")
++    args=p.parse_args()
++    ARTIFACTS=args.artifacts.resolve();ARTIFACTS.mkdir()
++    SCRIPTS=args.scripts_root.resolve()
++    suite=unittest.defaultTestLoader.loadTestsFromName(args.case,Contract) if args.case else unittest.defaultTestLoader.loadTestsFromTestCase(Contract)
++    result=unittest.TextTestRunner(verbosity=2).run(suite)
++    (ARTIFACTS/"commands.jsonl").write_text("".join(json.dumps(r,ensure_ascii=False)+"\n" for r in COMMANDS),encoding="utf-8")
++    (ARTIFACTS/"summary.json").write_text(json.dumps(dict(tests=result.testsRun,failures=len(result.failures),errors=len(result.errors),
++                                                      scripts_root=str(SCRIPTS)),indent=2)+"\n",encoding="utf-8")
++    sys.exit(0 if result.wasSuccessful() else 1)
+diff --git a/records/.gitignore b/records/.gitignore
+new file mode 100644
+index 0000000..7792da3
+--- /dev/null
++++ b/records/.gitignore
+@@ -0,0 +1,2 @@
++.launches.lock
++.scores.lock
+diff --git a/scripts/git-hooks/applypatch-msg b/scripts/git-hooks/applypatch-msg
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/applypatch-msg
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/commit-msg b/scripts/git-hooks/commit-msg
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/commit-msg
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/fsmonitor-watchman b/scripts/git-hooks/fsmonitor-watchman
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/fsmonitor-watchman
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/hook.py b/scripts/git-hooks/hook.py
+new file mode 100755
+index 0000000..b31bd79
+--- /dev/null
++++ b/scripts/git-hooks/hook.py
+@@ -0,0 +1,70 @@
++#!/usr/bin/env python3
++"""Session Git hooks: add provenance, then run the repository's original hook."""
++import os
++from pathlib import Path
++import subprocess
++import sys
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++from launch_records import find_launch
++from record_io import append_record, locked, read_records, utc_now
++
++
++def trailers():
++    logfile = Path(os.environ["A2A_LAUNCHES"])
++    if not logfile.is_absolute():
++        raise ValueError("启动记录路径必须为绝对路径")
++    with locked(logfile.parent / ".launches.lock"):
++        row = find_launch(read_records(logfile), os.environ["A2A_LAUNCH"])
++        for key in ("project", "task", "attempt", "session", "role"):
++            if os.environ["A2A_" + key.upper()] != row[key]:
++                raise ValueError("会话环境与启动记录不符：" + key)
++        native = os.environ["CODEX_THREAD_ID"]
++        if not native or "\n" in native:
++            raise ValueError("原生会话身份为空或损坏")
++        if row["native_session"] != "unknown" and row["native_session"] != native:
++            raise ValueError("原生会话已被替换；需要新启动记录")
++        if row["native_session"] == "unknown":
++            row = dict(row, phase="native-session", native_session=native, observed_at=utc_now())
++            append_record(logfile, row)
++    return {"A2A-Task": row["task"], "A2A-Attempt": row["attempt"], "A2A-Session": row["session"],
++            "A2A-Role": row["role"], "A2A-Tool": row["cli_version"],
++            "A2A-Model": row["model"], "A2A-Effort": row["effort"],
++            "A2A-Native-Session": native, "A2A-Launch": row["launch_id"]}
++
++
++def main():
++    name = Path(sys.argv[0]).name
++    if name == "prepare-commit-msg":
++        values = trailers()
++        message = Path(sys.argv[1])
++        # Git owns trailer parsing and replacement, including amend/rebase messages.
++        argv = ["git", "-c", "trailer.ifexists=replace", "-c", "trailer.ifmissing=add",
++                "interpret-trailers", "--in-place"]
++        for key, value in values.items():
++            argv.extend(["--trailer", key + ": " + value])
++        argv.append(str(message))
++        subprocess.run(argv, check=True)
++    # Removing our process-only override reveals each current repository's own
++    # hooksPath (or .git/hooks). Other Git config channels remain intact.
++    env = dict(os.environ)
++    if env.get("GIT_CONFIG_COUNT") != "1" or env.get("GIT_CONFIG_KEY_0") != "core.hooksPath":
++        raise ValueError("会话 Git 配置已改变")
++    for key in ("GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"):
++        env.pop(key, None)
++    original = Path(subprocess.check_output(["git", "rev-parse", "--git-path", "hooks/" + name],
++                                           env=env, text=True).strip())
++    if original.resolve() == Path(sys.argv[0]).resolve():
++        raise ValueError("项目原钩子指回 a2a 钩子目录")
++    if original.is_file() and os.access(original, os.X_OK):
++        result = subprocess.run([str(original.resolve()), *sys.argv[1:]], env=os.environ)
++        return 128 - result.returncode if result.returncode < 0 else result.returncode
++    return 0
++
++
++if __name__ == "__main__":
++    try:
++        sys.exit(main())
++    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as exc:
++        print("a2a Git 钩子拒绝：" + str(exc), file=sys.stderr)
++        sys.exit(1)
+diff --git a/scripts/git-hooks/p4-changelist b/scripts/git-hooks/p4-changelist
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/p4-changelist
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/p4-post-changelist b/scripts/git-hooks/p4-post-changelist
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/p4-post-changelist
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/p4-prepare-changelist b/scripts/git-hooks/p4-prepare-changelist
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/p4-prepare-changelist
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/post-applypatch b/scripts/git-hooks/post-applypatch
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/post-applypatch
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/post-checkout b/scripts/git-hooks/post-checkout
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/post-checkout
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/post-commit b/scripts/git-hooks/post-commit
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/post-commit
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/post-index-change b/scripts/git-hooks/post-index-change
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/post-index-change
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/post-merge b/scripts/git-hooks/post-merge
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/post-merge
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/post-receive b/scripts/git-hooks/post-receive
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/post-receive
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/post-rewrite b/scripts/git-hooks/post-rewrite
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/post-rewrite
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/post-update b/scripts/git-hooks/post-update
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/post-update
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/pre-applypatch b/scripts/git-hooks/pre-applypatch
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/pre-applypatch
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/pre-commit b/scripts/git-hooks/pre-commit
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/pre-commit
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/pre-merge-commit b/scripts/git-hooks/pre-merge-commit
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/pre-merge-commit
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/pre-push b/scripts/git-hooks/pre-push
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/pre-push
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/pre-rebase b/scripts/git-hooks/pre-rebase
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/pre-rebase
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/pre-receive b/scripts/git-hooks/pre-receive
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/pre-receive
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/prepare-commit-msg b/scripts/git-hooks/prepare-commit-msg
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/prepare-commit-msg
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/proc-receive b/scripts/git-hooks/proc-receive
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/proc-receive
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/push-to-checkout b/scripts/git-hooks/push-to-checkout
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/push-to-checkout
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/reference-transaction b/scripts/git-hooks/reference-transaction
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/reference-transaction
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/sendemail-validate b/scripts/git-hooks/sendemail-validate
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/sendemail-validate
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/git-hooks/update b/scripts/git-hooks/update
+new file mode 120000
+index 0000000..0af537f
+--- /dev/null
++++ b/scripts/git-hooks/update
+@@ -0,0 +1 @@
++hook.py
+\ No newline at end of file
+diff --git a/scripts/launch-worker b/scripts/launch-worker
+new file mode 100755
+index 0000000..387dbbe
+--- /dev/null
++++ b/scripts/launch-worker
+@@ -0,0 +1,109 @@
++#!/usr/bin/env python3
++"""Start one interactive Codex worker in a new Herdr pane and record its identity."""
++import argparse
++import json
++import os
++from pathlib import Path
++import re
++import shlex
++import subprocess
++import sys
++import uuid
++
++from launch_records import validate_launches
++from record_io import append_record, locked, read_records, token, utc_now
++
++
++def output(argv, cwd=None):
++    return subprocess.check_output(argv, cwd=cwd, text=True).strip()
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
++    parser.add_argument("--cwd", type=Path, required=True)
++    parser.add_argument("--agent", required=True)
++    for name in ("project", "task", "attempt", "session"):
++        parser.add_argument("--" + name, required=True, type=token)
++    parser.add_argument("--model", default="gpt-6.1-sol")
++    parser.add_argument("--effort", choices=("low", "medium", "high", "xhigh"), default="xhigh")
++    parser.add_argument("--direction", choices=("right", "down"), default="down")
++    parser.add_argument("--codex-home", type=Path)
++    args = parser.parse_args()
++    if os.environ.get("HERDR_ENV") != "1":
++        raise ValueError("只能从 Herdr 管理的 pane 启动")
++    if re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", args.agent) is None:
++        raise ValueError("agent 名不符合 Herdr 格式")
++    if not args.model or "\n" in args.model:
++        raise ValueError("模型不能为空或包含换行")
++    if os.environ.get("GIT_CONFIG_COUNT", "0") != "0":
++        raise ValueError("调用环境已有进程级 Git 配置；不能覆盖，请从普通主控 shell 启动")
++    root, cwd = args.root.resolve(), args.cwd.resolve()
++    hooks = Path(__file__).resolve().parent / "git-hooks"
++    role_card = root / ".project-map/roles/worker.md"
++    role_card.read_bytes().decode("utf-8")
++    launch_id = "launch-" + uuid.uuid4().hex
++    argv = ["codex", "-m", args.model, "-c", "model_reasoning_effort=" + json.dumps(args.effort),
++            "-c", 'service_tier="fast"', "-c", "check_for_update_on_startup=false",
++            "--sandbox", "workspace-write", "--ask-for-approval", "on-request"]
++    logfile = root / "records/launches.jsonl"
++    lockfile = root / "records/.launches.lock"
++    row = dict(schema=1, phase="prepared", launch_id=launch_id, created_at=utc_now(),
++               project=args.project, task=args.task, attempt=args.attempt, session=args.session,
++               role="worker", cli="codex", cli_version=output(["codex", "--version"]),
++               model=args.model, effort=args.effort, service_tier_requested="fast", argv=argv,
++               cwd=str(cwd), project_commit=output(["git", "rev-parse", "HEAD"], cwd),
++               launcher_commit=output(["git", "rev-parse", "HEAD"], Path(__file__).resolve().parents[1]),
++               role_card=str(role_card), role_card_version=output(["git", "log", "-1", "--format=%H", "--",
++                                                                ".project-map/roles/worker.md"], root),
++               native_session="unknown")
++    with locked(lockfile):
++        validate_launches([*read_records(logfile), row])
++        append_record(logfile, row)
++    pane = None
++
++    def invoke(command, *, json_response=True):
++        result = subprocess.run(command, capture_output=True, text=True)
++        if result.returncode:
++            print(result.stdout, end="")
++            print(result.stderr, end="", file=sys.stderr)
++            raise subprocess.CalledProcessError(result.returncode, command)
++        return json.loads(result.stdout) if json_response else result.stdout
++
++    try:
++        response = invoke(["herdr", "pane", "split", "--current", "--direction", args.direction,
++                           "--cwd", str(cwd), "--no-focus"])
++        pane = response["result"]["pane"]["pane_id"]
++        env = {"A2A_PROJECT": args.project, "A2A_TASK": args.task, "A2A_ATTEMPT": args.attempt,
++               "A2A_SESSION": args.session, "A2A_ROLE": "worker", "A2A_LAUNCH": launch_id,
++               "A2A_LAUNCHES": str(logfile), "GIT_CONFIG_COUNT": "1",
++               "GIT_CONFIG_KEY_0": "core.hooksPath", "GIT_CONFIG_VALUE_0": str(hooks)}
++        if args.codex_home is not None:
++            env["CODEX_HOME"] = str(args.codex_home.resolve(strict=True))
++        invoke(["herdr", "pane", "run", pane, "export " + " ".join(
++            key + "=" + shlex.quote(value) for key, value in env.items())], json_response=False)
++        start_argv = ["herdr", "agent", "start", args.agent, "--kind", "codex", "--pane", pane,
++                      "--", *argv[1:]]
++        started = invoke(start_argv)
++    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as exc:
++        failure = dict(row, phase="failed", pane=pane, error=str(exc), observed_at=utc_now())
++        with locked(lockfile):
++            validate_launches(read_records(logfile))
++            append_record(logfile, failure)
++        print(f"启动未完成，保留 pane={pane}，launch={launch_id}，不得盲目重试：{exc}", file=sys.stderr)
++        return exc.returncode if isinstance(exc, subprocess.CalledProcessError) else 1
++    row = dict(row, phase="started", pane=pane, agent=args.agent, herdr_start_argv=start_argv,
++               herdr_result=started, observed_at=utc_now())
++    with locked(lockfile):
++        validate_launches(read_records(logfile))
++        append_record(logfile, row)
++    print(json.dumps(dict(launch_id=launch_id, pane=pane, agent=args.agent, argv=argv), ensure_ascii=False))
++    return 0
++
++
++if __name__ == "__main__":
++    try:
++        sys.exit(main())
++    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as exc:
++        print("启动入口拒绝：" + str(exc), file=sys.stderr)
++        sys.exit(1)
+diff --git a/scripts/launch_records.py b/scripts/launch_records.py
+new file mode 100644
+index 0000000..91d68e9
+--- /dev/null
++++ b/scripts/launch_records.py
+@@ -0,0 +1,49 @@
++"""Append-only launch identity shared by the launcher, Git hook, and score entry."""
++from record_io import token
++
++FIELDS = ("launch_id", "created_at", "project", "task", "attempt", "session", "role",
++          "cli", "cli_version", "model", "effort", "service_tier_requested", "cwd",
++          "project_commit", "launcher_commit", "role_card", "role_card_version", "argv")
++
++
++def validate_launches(rows):
++    latest = {}
++    for row in rows:
++        if row.get("schema") != 1 or row.get("phase") not in ("prepared", "started", "failed", "native-session"):
++            raise ValueError("启动记录版本或阶段损坏")
++        for key in FIELDS:
++            value = row.get(key)
++            if key == "argv":
++                if not isinstance(value, list) or not value or any(not isinstance(v, str) for v in value):
++                    raise ValueError("启动 argv 损坏")
++            elif not isinstance(value, str) or not value:
++                raise ValueError("启动记录字段损坏：" + key)
++        token(row["launch_id"])
++        if not isinstance(row.get("native_session"), str) or not row["native_session"]:
++            raise ValueError("启动记录原生会话损坏")
++        previous = latest.get(row["launch_id"])
++        if row["phase"] == "prepared":
++            if previous is not None or row["native_session"] != "unknown":
++                raise ValueError("启动记录重复或初始原生会话损坏")
++        else:
++            if previous is None or any(row[key] != previous[key] for key in FIELDS):
++                raise ValueError("启动记录身份或配置被改变")
++            expected = "started" if row["phase"] == "native-session" else "prepared"
++            if previous["phase"] != expected:
++                raise ValueError("启动记录阶段顺序损坏")
++            if row["phase"] == "native-session" and row["native_session"] == "unknown":
++                raise ValueError("原生会话绑定为空")
++            if row["phase"] != "native-session" and row["native_session"] != "unknown":
++                raise ValueError("启动前不能绑定原生会话")
++        latest[row["launch_id"]] = row
++    return latest
++
++
++def find_launch(rows, launch_id):
++    latest = validate_launches(rows)
++    if launch_id not in latest:
++        raise ValueError("找不到启动记录：" + launch_id)
++    row = latest[launch_id]
++    if row["phase"] not in ("started", "native-session"):
++        raise ValueError("启动记录没有成功启动：" + launch_id)
++    return row
+diff --git a/scripts/score b/scripts/score
+new file mode 100755
+index 0000000..a17141c
+--- /dev/null
++++ b/scripts/score
+@@ -0,0 +1,157 @@
++#!/usr/bin/env python3
++"""Append an executor's final score or a separate user score to records/scores.jsonl."""
++import argparse
++import json
++from pathlib import Path
++import sys
++import uuid
++
++from launch_records import validate_launches
++from record_io import append_record, locked, read_records, utc_now
++
++TASK_TYPES = ("后端逻辑", "前端界面", "缺陷修复", "测试", "重构", "构建与基础设施", "文档", "调研")
++
++
++def validate_data(data, source):
++    if not isinstance(data, dict):
++        raise ValueError("打分内容不是对象")
++    if source == "executor" and data.get("result") == "放弃":
++        if set(data) != {"result", "reason"} or not isinstance(data["reason"], str) or not data["reason"].strip():
++            raise ValueError("放弃只能记结果与非空理由")
++        return
++    expected = {"boundary_discipline", "boundary_reason", "engineering_taste", "engineering_reason", "notes"}
++    if source == "executor":
++        expected.add("result")
++        if data.get("result") not in ("通过", "升级"):
++            raise ValueError("执行主控结果无效")
++    if set(data) != expected:
++        raise ValueError("执行主控或用户打分字段不完整")
++    for key in ("boundary_discipline", "engineering_taste"):
++        if type(data[key]) is not int or not 0 <= data[key] <= 3:
++            raise ValueError("分数必须为 0–3 的整数")
++    for key in ("boundary_reason", "engineering_reason"):
++        if not isinstance(data[key], str) or not data[key].strip():
++            raise ValueError("每项分数必须带理由")
++    if not isinstance(data["notes"], str):
++        raise ValueError("备注必须是字符串；没有备注传空字符串")
++
++
++def validate_facts(facts):
++    fields = {"task_type", "complexity", "delivery_rounds", "elapsed_seconds", "human_interventions", "rejections"}
++    if not isinstance(facts, dict) or set(facts) != fields:
++        raise ValueError("验收事实字段不完整或含未知字段")
++    if facts["task_type"] not in TASK_TYPES or facts["complexity"] not in ("S", "M", "L"):
++        raise ValueError("任务类型或复杂度无效")
++    for key in ("delivery_rounds", "elapsed_seconds", "human_interventions"):
++        if type(facts[key]) is not int or facts[key] < 0:
++            raise ValueError("验收事实必须为非负整数：" + key)
++    if not isinstance(facts["rejections"], dict) or not facts["rejections"]:
++        raise ValueError("各项检查打回次数必须为非空对象")
++    for key, value in facts["rejections"].items():
++        if not isinstance(key, str) or not key or type(value) is not int or value < 0:
++            raise ValueError("检查打回次数损坏")
++
++
++def validate_scores(rows):
++    indexed, attempts = {}, set()
++    for row in rows:
++        for key in ("score_id", "created_at", "launch_id", "project", "task", "attempt", "cli", "model", "effort"):
++            if not isinstance(row.get(key), str) or not row[key]:
++                raise ValueError("打分记录字段损坏：" + key)
++        source = row.get("source")
++        if row.get("schema") != 1 or source not in ("executor", "user") or row["score_id"] in indexed:
++            raise ValueError("打分记录版本、来源或编号损坏")
++        validate_data(row.get("data"), source)
++        if source == "executor":
++            identity = (row["project"], row["task"], row["attempt"])
++            if identity in attempts:
++                raise ValueError("同一个 attempt 已有执行主控的最终打分")
++            attempts.add(identity)
++            if row["data"]["result"] != "放弃":
++                validate_facts(row.get("facts"))
++            elif "facts" in row:
++                raise ValueError("放弃不记录评分事实")
++        else:
++            original = indexed.get(row.get("score_of"))
++            if original is None or original["source"] != "executor":
++                raise ValueError("用户分没有指向执行主控的原记录")
++            if any(row[key] != original[key] for key in ("launch_id", "project", "task", "attempt", "cli", "model", "effort")):
++                raise ValueError("用户分与原记录身份不符")
++        indexed[row["score_id"]] = row
++    return indexed
++
++
++def main():
++    p = argparse.ArgumentParser(description=__doc__)
++    p.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
++    p.add_argument("--source", choices=("executor", "user"), default="executor")
++    p.add_argument("--launch")
++    p.add_argument("--score-of")
++    p.add_argument("--facts", type=Path, help="事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions、rejections（检查项→打回次数）；Herdr 期由执行主控保存")
++    p.add_argument("--result", choices=("通过", "升级", "放弃"))
++    p.add_argument("--reason")
++    p.add_argument("--boundary-discipline", type=int)
++    p.add_argument("--boundary-reason")
++    p.add_argument("--engineering-taste", type=int)
++    p.add_argument("--engineering-reason")
++    p.add_argument("--notes")
++    args = p.parse_args()
++    root = args.root.resolve()
++    if args.source == "executor" and args.result == "放弃":
++        if any(v is not None for v in (args.boundary_discipline, args.boundary_reason, args.engineering_taste,
++                                       args.engineering_reason, args.notes, args.facts)):
++            raise ValueError("放弃只传 --result 放弃 --reason，不传分数、备注或事实")
++        data = dict(result=args.result, reason=args.reason)
++    else:
++        if args.reason is not None:
++            raise ValueError("评分理由使用 --boundary-reason 和 --engineering-reason")
++        data = dict(boundary_discipline=args.boundary_discipline, boundary_reason=args.boundary_reason,
++                    engineering_taste=args.engineering_taste, engineering_reason=args.engineering_reason,
++                    notes=args.notes)
++        if args.source == "executor":
++            data["result"] = args.result
++    validate_data(data, args.source)
++    facts = None
++    if args.source == "executor":
++        if not args.launch or args.score_of is not None:
++            raise ValueError("执行主控必须指定 --launch，不能传 --score-of")
++        if args.result != "放弃":
++            if args.facts is None:
++                raise ValueError("通过或升级必须带 --facts")
++            facts = json.loads(args.facts.read_bytes().decode("utf-8"))
++            validate_facts(facts)
++        with locked(root / "records/.launches.lock"):
++            launches = validate_launches(read_records(root / "records/launches.jsonl"))
++            launch = launches[args.launch]
++        context = dict(launch_id=launch["launch_id"], project=launch["project"], task=launch["task"],
++                       attempt=launch["attempt"], cli=launch["cli_version"], model=launch["model"], effort=launch["effort"])
++    else:
++        if not args.score_of or any(v is not None for v in (args.launch, args.facts, args.result)):
++            raise ValueError("用户自己的分必须只用 --score-of 关联，不能改结果或验收事实")
++    logfile = root / "records/scores.jsonl"
++    with locked(root / "records/.scores.lock"):
++        rows = read_records(logfile)
++        indexed = validate_scores(rows)
++        if args.source == "user":
++            original = indexed[args.score_of]
++            if original["source"] != "executor":
++                raise ValueError("--score-of 必须指向执行主控原记录")
++            context = {k: original[k] for k in ("launch_id", "project", "task", "attempt", "cli", "model", "effort")}
++        row = dict(schema=1, score_id="score-" + uuid.uuid4().hex, created_at=utc_now(),
++                   source=args.source, data=data, **context)
++        if facts is not None:
++            row["facts"] = facts
++        if args.source == "user":
++            row["score_of"] = args.score_of
++        validate_scores([*rows, row])
++        append_record(logfile, row)
++    print(json.dumps(row, ensure_ascii=False))
++    return 0
++
++
++if __name__ == "__main__":
++    try:
++        sys.exit(main())
++    except (OSError, ValueError, KeyError, TypeError) as exc:
++        print("打分拒收：" + str(exc), file=sys.stderr)
++        sys.exit(1)

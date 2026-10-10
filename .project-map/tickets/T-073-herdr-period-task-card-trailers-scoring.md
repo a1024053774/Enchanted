@@ -45,4 +45,4 @@ ready_rev: 1
 
 ## Resolution
 
-2026-10-10，T-073-1 worker：**BLOCKED，待主控关闭**。开工版本 `5d9f03c669c1ded777524adc76a3f3834ae785cb`，`ready_rev: 1`。旧入口的真实 Codex 红态已取得，夹具提交 `63b5b67d9fe1e66e888814e7a5d2e1f9777ac6e2` 没有尾注。但隔离 Codex `0.162.1` 默认保留了名称含 KEY 的无害变量，与卡片要求证明“默认过滤、放行才有效”的前提冲突；按卡片停止条件暂停实现，blocking issue `20261010T194745Z-worker:s12-t073-issue-001` 交主控决定。详见 [RESULTS](../../evidence/2026-10-10-batch12/T-073/RESULTS.md)、原始命令、环境读回与夹具归档。模板、启动入口、钩子、打分、绿态与独立审查均未交付；ticket 保持 open，不以红态诊断冒充验收。
+2026-10-10，T-073-1 worker：**INCOMPLETE，待主控关闭**。`ready_rev: 1`，开工 `5d9f03c669c1ded777524adc76a3f3834ae785cb`。执行主控决定 01 解除默认环境过滤前提的阻塞，未加 shell_environment_policy 覆盖。模板、启动入口、原钩子转发、追加式打分已实现；当前代码 `93eb5ab2a63fad5fc80a59882755e99a2d9982e7` 经真实 Codex 的普通/no-verify 两次提交与普通终端反例通过，当前本地套件 7/7。唯一独立审查对 `76e71f8` 返回 FAIL：重复旧尾注、打分缺检查项；已在 `93eb5ab` 修复，并保存两条公开入口红态、绿态及新代码真实 Codex 复验，按卡不追审，交主控审修复 diff。全仓 status 为 0 problems、1 stale（T-074 的发现索引，已上报，未改他人文件）。证据、用量、失败方式与重放见 [RESULTS](../../evidence/2026-10-10-batch12/T-073/RESULTS.md)、[独立审查](../../evidence/2026-10-10-batch12/T-073/INDEPENDENT-REVIEW.md)、[修复 diff](../../evidence/2026-10-10-batch12/T-073/review-fixes.patch)。ticket 保持 open，不把未经主控审查的修复写成 PASS。

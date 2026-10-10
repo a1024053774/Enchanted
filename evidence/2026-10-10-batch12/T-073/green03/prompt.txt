@@ -1,0 +1,11 @@
+只做这个隔离 Git 夹具的真实验证，不派发其它任务，不读其它仓库或用户数据，不安装或修改钩子。先用 exec_command 执行 python3，把 os.environ 中 A2A_PROJECT、A2A_TASK、A2A_ATTEMPT、A2A_SESSION、A2A_ROLE、A2A_LAUNCH、GIT_CONFIG_COUNT、GIT_CONFIG_KEY_0、GIT_CONFIG_VALUE_0、CODEX_THREAD_ID 十项写为当前目录 env-probe.json；其他环境变量不得打印。
+
+创建 normal.txt，内容为 normal fixture newline。创建 message-input.txt，内容严格如下，这是旧重复尾注的外部夹具输入，钩子应去除旧身份并保留其他尾注：
+T073 normal fixture
+
+A2A-Task: obsolete-one
+A2A-Task: obsolete-two
+A2A-Model: obsolete-model
+Signed-off-by: External Sentinel <sentinel@example.invalid>
+
+单独执行 git add normal.txt，再单独执行 git commit -F message-input.txt。然后创建 no-verify.txt，内容为 second fixture newline；单独执行 git add no-verify.txt，再单独执行 git commit --no-verify -m "T073 no-verify fixture"。不要自己修复尾注或修改消息，验证钩子行为。git add/commit 如果沙箱拒绝，按已配置规则申请同一命令权限，不換工具绕过。完成后停止，回复两个提交号。如果任何步骤报错立即停下报告原文，不改钩子、配置或环境变量。

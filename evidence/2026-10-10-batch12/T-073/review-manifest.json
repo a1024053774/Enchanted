@@ -1,0 +1,44 @@
+{
+  "candidate": "76e71f86f895e64f3eb5b7abedcfc08c7a62c98f",
+  "base": "39c067092c3dbaa570bf7456cef085dafe473fbc",
+  "scope": [
+    "AGENTS.md",
+    ".project-map/roles/worker.md",
+    ".project-map/roles/executor.md",
+    ".project-map/roles/reviewer.md",
+    ".project-map/templates/task-card.md",
+    "scripts/launch-worker",
+    "scripts/launch_records.py",
+    "scripts/score",
+    "scripts/git-hooks",
+    "records/.gitignore",
+    "acceptance/test_herdr_traceability_e2e.py"
+  ],
+  "raw_evidence": [
+    "green02/commands.jsonl",
+    "green02/launch-records.jsonl",
+    "green02/env-probe.json",
+    "green02/normal-message.txt",
+    "green02/no-verify-message.txt",
+    "green02/verification.json",
+    "green02/plain-message.txt",
+    "green02/original-hook-trace.txt",
+    "score01/commands.jsonl",
+    "score01/scores-readback.jsonl",
+    "score-facts.json",
+    "local03/commands.jsonl",
+    "local03/summary.json",
+    "mutant-missing-effort03/commands.jsonl",
+    "mutant-missing-effort03/summary.json",
+    "red-pane-run-parent01/commands.jsonl",
+    "red-pane-run-parent01/summary.json",
+    "red02/commands.jsonl",
+    "red02/git-message.txt",
+    "red02/env-probe.json"
+  ],
+  "replay": [
+    "python3 -B acceptance/test_herdr_traceability_e2e.py --artifacts NEW_DIR",
+    "python3 -B evidence/2026-10-10-batch12/T-073/make-mutant.py /tmp/NEW_MUTANT",
+    "python3 -B acceptance/test_herdr_traceability_e2e.py --scripts-root /tmp/NEW_MUTANT/scripts --case test_commit_no_verify_and_plain_counterexample --artifacts NEW_DIR"
+  ]
+}
