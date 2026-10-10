@@ -52,7 +52,7 @@ if args[:2]==['pane','split']:
  print(json.dumps({'result':{'pane':{'pane_id':'fake:pane'}}}))
 elif args[:2]==['pane','run']:
  Path(os.environ['FAKE_EXPORT']).write_text(args[3])
- print(json.dumps({'result':{'type':'ok'}}))
+ # Actual Herdr 0.9.3 pane run succeeds with an empty stdout.
 elif args[:2]==['agent','start']:
  if os.environ.get('FAKE_FAIL_START'):
   print('explicit fake startup failure',file=sys.stderr);sys.exit(12)

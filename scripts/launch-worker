@@ -62,13 +62,13 @@ def main():
         append_record(logfile, row)
     pane = None
 
-    def invoke(command):
+    def invoke(command, *, json_response=True):
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode:
             print(result.stdout, end="")
             print(result.stderr, end="", file=sys.stderr)
             raise subprocess.CalledProcessError(result.returncode, command)
-        return json.loads(result.stdout)
+        return json.loads(result.stdout) if json_response else result.stdout
 
     try:
         response = invoke(["herdr", "pane", "split", "--current", "--direction", args.direction,
@@ -81,7 +81,7 @@ def main():
         if args.codex_home is not None:
             env["CODEX_HOME"] = str(args.codex_home.resolve(strict=True))
         invoke(["herdr", "pane", "run", pane, "export " + " ".join(
-            key + "=" + shlex.quote(value) for key, value in env.items())])
+            key + "=" + shlex.quote(value) for key, value in env.items())], json_response=False)
         start_argv = ["herdr", "agent", "start", args.agent, "--kind", "codex", "--pane", pane,
                       "--", *argv[1:]]
         started = invoke(start_argv)
