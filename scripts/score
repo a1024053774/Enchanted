@@ -10,6 +10,8 @@ from launch_records import validate_launches
 from record_io import append_record, locked, read_records, utc_now
 
 TASK_TYPES = ("后端逻辑", "前端界面", "缺陷修复", "测试", "重构", "构建与基础设施", "文档", "调研")
+CHECKS = {"identity_version", "path_boundary", "completion", "red_state", "rule_checks",
+          "independent_review", "commit_trailers"}
 
 
 def validate_data(data, source):
@@ -45,8 +47,8 @@ def validate_facts(facts):
     for key in ("delivery_rounds", "elapsed_seconds", "human_interventions"):
         if type(facts[key]) is not int or facts[key] < 0:
             raise ValueError("验收事实必须为非负整数：" + key)
-    if not isinstance(facts["rejections"], dict) or not facts["rejections"]:
-        raise ValueError("各项检查打回次数必须为非空对象")
+    if not isinstance(facts["rejections"], dict) or set(facts["rejections"]) != CHECKS:
+        raise ValueError("打回次数必须完整包含 identity_version、path_boundary、completion、red_state、rule_checks、independent_review、commit_trailers；不能缺项或含未知项")
     for key, value in facts["rejections"].items():
         if not isinstance(key, str) or not key or type(value) is not int or value < 0:
             raise ValueError("检查打回次数损坏")
@@ -87,7 +89,7 @@ def main():
     p.add_argument("--source", choices=("executor", "user"), default="executor")
     p.add_argument("--launch")
     p.add_argument("--score-of")
-    p.add_argument("--facts", type=Path, help="事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions、rejections（检查项→打回次数）；Herdr 期由执行主控保存")
+    p.add_argument("--facts", type=Path, help="事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions；rejections 必须包含 identity_version、path_boundary、completion、red_state、rule_checks、independent_review、commit_trailers 的非负整数次数；Herdr 期由执行主控保存")
     p.add_argument("--result", choices=("通过", "升级", "放弃"))
     p.add_argument("--reason")
     p.add_argument("--boundary-discipline", type=int)

@@ -155,6 +155,17 @@ else:sys.exit(2)
         self.git("commit","--allow-empty","-m","broken log",env=env,expected=None)
         self.assertEqual(logfile.read_bytes(),before)
 
+    def test_duplicate_trailers_keep_body_and_project_trailer(self):
+        launch=self.launch();env=self.managed_env()
+        body="独立重复尾注输入 "+uuid.uuid4().hex
+        signed="Signed-off-by: External Sentinel <sentinel@example.invalid>"
+        message=body+"\n\nA2A-Task: obsolete-one\nA2A-Task: obsolete-two\nA2A-Model: obsolete-model\n"+signed+"\n"
+        self.git("commit","--allow-empty","-m",message,env=env)
+        self.assert_trailers(env,launch)
+        actual=self.git("log","-1","--format=%B").stdout
+        self.assertIn(body,actual);self.assertIn(signed,actual)
+        self.assertNotIn("obsolete-one",actual);self.assertNotIn("obsolete-two",actual)
+
     def test_amend_rebase_merge_and_native_replacement(self):
         launch=self.launch();env=self.managed_env()
         self.git("commit","--allow-empty","-m","first",env=env)
@@ -231,6 +242,18 @@ else:sys.exit(2)
         calls=[json.loads(line) for line in (self.root/"fake-calls.jsonl").read_text().splitlines()]
         self.assertEqual(sum(a[:2]==["agent","start"] for a in calls),6)
         self.assertFalse(any("close" in a for a in calls))
+
+    def test_score_missing_or_unknown_check_rejected(self):
+        launch=self.launch()
+        facts=self.facts()
+        good=json.loads(facts.read_text(encoding="utf-8"))
+        for rejected in ({"not_a_gate_check":0}, {key:value for key,value in good["rejections"].items() if key!="independent_review"}):
+            bad=dict(good,rejections=rejected)
+            facts.write_text(json.dumps(bad,ensure_ascii=False),encoding="utf-8")
+            self.run_command([str(SCRIPTS/"score"),"--root",str(self.root),"--launch",launch,"--facts",str(facts),
+                              "--result","通过","--boundary-discipline","3","--boundary-reason","reason",
+                              "--engineering-taste","3","--engineering-reason","reason","--notes",""],expected=None)
+            self.assertFalse((self.root/"records/scores.jsonl").exists())
 
 
 if __name__=="__main__":

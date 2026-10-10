@@ -38,9 +38,23 @@ def main():
     if name == "prepare-commit-msg":
         values = trailers()
         message = Path(sys.argv[1])
-        # Git owns trailer parsing and replacement, including amend/rebase messages.
+        # Git replaces only the last matching key. Remove each existing managed
+        # occurrence before adding one current set; leave body/project trailers.
+        parsed = subprocess.check_output(["git", "interpret-trailers", "--parse", "--no-divider", str(message)])
+        counts = {key.lower().encode("ascii"): 0 for key in values}
+        for line in parsed.splitlines():
+            key = line.partition(b":")[0].strip().lower()
+            if key in counts:
+                counts[key] += 1
+        for _ in range(max(counts.values(), default=0)):
+            clear = ["git", "interpret-trailers", "--in-place", "--no-divider", "--trim-empty",
+                     "--if-exists", "replace", "--if-missing", "doNothing"]
+            for key in values:
+                clear.extend(["--trailer", key + ": "])
+            clear.append(str(message))
+            subprocess.run(clear, check=True)
         argv = ["git", "-c", "trailer.ifexists=replace", "-c", "trailer.ifmissing=add",
-                "interpret-trailers", "--in-place"]
+                "interpret-trailers", "--in-place", "--no-divider"]
         for key, value in values.items():
             argv.extend(["--trailer", key + ": " + value])
         argv.append(str(message))
