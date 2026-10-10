@@ -2,7 +2,7 @@
 id: T-073
 title: Herdr 期三样：任务卡模板、worker 提交带尾注、验收打分文件
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,13 +21,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 模板文件就位，字段与 spec 第 2 节逐项对得上；`AGENTS.md`、角色卡里指向任务卡的地方能找到它（只改路径指向，改规则交构思主控）。
-- [ ] 红态在先：在当前 `main` 上，经现有启动方式起一个 Codex worker，在夹具仓库提交一次，提交里没有 `A2A-*` 尾注；保存命令与 `git log --format=%B` 输出。
-- [ ] 修复后同一场景：真实 Codex worker 会话（经 Herdr 启动，隔离 `CODEX_HOME`，turn 数尽量少）在夹具仓库里的提交带齐尾注，值与启动记录一致；加 `--no-verify` 提交也带尾注；夹具仓库原有的钩子仍被调用（用一个会留下痕迹的夹具钩子证明）。
-- [ ] 反例：不经新启动方式、直接在终端里提交的，不带尾注，也不报错。
-- [ ] 打分：用一次真实或夹具验收写出一行，读回字段齐全；缺执行主控必填项时写入命令拒收；放弃只有结果与理由。
-- [ ] 不写 `~/.claude`、`~/.codex`、全局或仓库级 git 配置；不改用户的 Herdr server。
-- [ ] 每项都保留产物和重新生成它的命令；`project_map.py status` 0 problems。
+- [x] 模板文件就位，字段与 spec 第 2 节逐项对得上；`AGENTS.md`、角色卡里指向任务卡的地方能找到它（只改路径指向，改规则交构思主控）。
+- [x] 红态在先：在当前 `main` 上，经现有启动方式起一个 Codex worker，在夹具仓库提交一次，提交里没有 `A2A-*` 尾注；保存命令与 `git log --format=%B` 输出。
+- [x] 修复后同一场景：真实 Codex worker 会话（经 Herdr 启动，隔离 `CODEX_HOME`，turn 数尽量少）在夹具仓库里的提交带齐尾注，值与启动记录一致；加 `--no-verify` 提交也带尾注；夹具仓库原有的钩子仍被调用（用一个会留下痕迹的夹具钩子证明）。
+- [x] 反例：不经新启动方式、直接在终端里提交的，不带尾注，也不报错。
+- [x] 打分：用一次真实或夹具验收写出一行，读回字段齐全；缺执行主控必填项时写入命令拒收；放弃只有结果与理由。
+- [x] 不写 `~/.claude`、`~/.codex`、全局或仓库级 git 配置；不改用户的 Herdr server。
+- [x] 每项都保留产物和重新生成它的命令；`project_map.py status` 0 problems。
 
 ## 说明
 
@@ -46,3 +46,5 @@ ready_rev: 1
 ## Resolution
 
 2026-10-10，T-073-1 worker：**INCOMPLETE，待主控关闭**。`ready_rev: 1`，开工 `5d9f03c669c1ded777524adc76a3f3834ae785cb`。执行主控决定 01 解除默认环境过滤前提的阻塞，未加 shell_environment_policy 覆盖。模板、启动入口、原钩子转发、追加式打分已实现；当前代码 `93eb5ab2a63fad5fc80a59882755e99a2d9982e7` 经真实 Codex 的普通/no-verify 两次提交与普通终端反例通过，当前本地套件 7/7。唯一独立审查对 `76e71f8` 返回 FAIL：重复旧尾注、打分缺检查项；已在 `93eb5ab` 修复，并保存两条公开入口红态、绿态及新代码真实 Codex 复验，按卡不追审，交主控审修复 diff。最终全仓 status 为 0 problems、0 stale；此前 T-074 发现索引的 stale 现场与上报保留，未改他人文件。证据、用量、失败方式与重放见 [RESULTS](../../evidence/2026-10-10-batch12/T-073/RESULTS.md)、[独立审查](../../evidence/2026-10-10-batch12/T-073/INDEPENDENT-REVIEW.md)、[修复 diff](../../evidence/2026-10-10-batch12/T-073/review-fixes.patch)。ticket 保持 open，不把未经主控审查的修复写成 PASS。
+
+**执行主控关闭（2026-10-10）：PASS。** 交付 a2a `3cf85f4`（实现）、`76e71f8`（pane-run 空输出修复）、`93eb5ab`（审查修复）、`c41daa6`（证据）。唯一一次独立审查（对 `76e71f8`）FAIL，有两项 P2：旧的重复 `A2A-Task` 尾注会留下，导致出现 10 项；打分时 rejections 可以是任意非空对象。这两项都先有红态再修复。我自审了修复 diff：hook 先逐个清除已有的受管尾注，再写一组；score 要求七项检查齐全。我还在真实夹具 `/private/tmp/a2a-t073-mgidym3w` 上独立重跑完成条件：`--no-verify` 提交带 9 项尾注，`A2A-Launch` 能在启动记录里找到；普通终端提交 0 项。实测推翻了票里“Codex 默认过滤 KEY”的前提，按决定 01 不加覆盖。真实 Codex 用量 3 个 turn。启动入口是 `scripts/launch-worker`，记录在 `records/launches.jsonl`、`records/scores.jsonl`。执行主控角色卡里“验收时顺手打分”那句，由构思主控补上。
