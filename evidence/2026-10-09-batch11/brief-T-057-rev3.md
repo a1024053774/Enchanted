@@ -11,11 +11,16 @@
 3. **七个处置动作逐个经 MCP 入口**（close、needs-user、forward、reopen、snooze、dismiss、delivered）：每个动作经真实 MCP 工具调用一次，核对追加记录与派生状态；`dismiss` 由非用户角色经 MCP 调用时应被拒，blocking 被主控 close 时应被拒。不需要真实模型调用时就别用模型。
 4. **面板按钮不被截断**这一项若上一轮未有截图证据，补 1600×1050 与 1280×900 截图。
 5. "未确认列表可见"已由 T-058 补证、用户同意并入：在 RESULTS 引用 T-058 证据（`evidence/2026-10-09-batch11/T-058/`），不必重做。
-6. **真实 macOS 系统通知**：用户还没选验证方式，本轮**不做**，不启动任何 Electron 去弹真实通知。因此本轮最好结果是 INCOMPLETE（该项待用户），不得写 PASS。
+6. **真实 macOS 系统通知（用户选 A，逐字"选a"，见 inbox `20261010T033034Z-ideation-revise-001`）**：在前 5 项完成并提交 fork 之后做。
+   - 新建独立 checkout：`git -C ~/Documents/Code/synara worktree add ~/Documents/Code/synara-t057-notify <你的 fork 提交>`（旧 worktree 用户已清理过，不要复用或删除任何已有 worktree）。在**该 checkout** 里按 fork 文档的标准命令安装依赖、做桌面构建；构建缓存放外置盘 `/Volumes/WD-Elements`（未挂载就报错停下，不回退内置盘）。用户说磁盘紧张：开工前记下内置盘与外置盘剩余空间，预计不够就停下说明。
+   - 用隔离 Electron 启动（独立的用户数据目录，放 `/tmp/a2a-t057-notify-*` 或外置盘，不碰 `~/Library/Application Support/a2a-workbench`，不停正式工作台）。造一条 blocking 问题，让应用进后台，观察系统通知是否弹出、合并、无声音，以及设置开关关掉后不弹。
+   - **macOS 弹出通知授权请求时立刻停下**，终端说明并等我；授权只能由用户本人点，主控不代批。不要打开系统设置，不要用 Computer Use 点授权框。若需要 Computer Use 只为截图/操作你自己启动的隔离窗口，按 AGENTS.md 由主控代批。
+   - 证据：截图或系统通知中心记录、应用侧日志、完整命令。结束后只停你启动的进程；独立 checkout 与其构建产物在证据保存后删除（`git worktree remove`），删除前在 RESULTS 记下路径与提交。
+   - 拿不到真实通知回执时如实写 INCOMPLETE，不把"调用了 show"当作系统通知已显示。
 
 ## 独立审查
 - 冻结候选 = fork 提交 + 你的 a2a 证据提交。审查请求写明：审查者**不得读** `RESULTS*.md`、ticket 的 Resolution、inbox 条目正文、旧 `acceptance-review-*`；只读 ticket 的 What/Acceptance/说明、diff、截图、原始机械输出和重放命令。`evidence/2026-10-09-batch11/controller-poll.log`、`dispatch.jsonl`、`panes.txt` 是主控持续追加的日志，不属于候选。
-- 审查一次。FAIL 时修复后不自行追审，交 INCOMPLETE，我审修复 diff。
+- 第 6 项做完（或停在授权处）之后再冻结、审查一次。FAIL 时修复后不自行追审，交 INCOMPLETE，我审修复 diff。
 
 ## 交付
 Herdr 期：fork 提交 + a2a 证据提交 + `T-057/RESULTS-03.md` + ticket Resolution 追加（保持 open，写"待主控关闭"）+ 终端一行 `T-057 DONE <PASS|INCOMPLETE|BLOCKED> <a2a commit> <fork commit 或 none>`。不走门禁 submit。
