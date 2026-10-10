@@ -1,0 +1,14 @@
+STATUS: FAIL
+TARGET: Synara frozen candidate `9654e1c63d87f41d033a3d6093c24d2a401b347a` (baseline `1bcf20720`)
+EVIDENCE:
+- Contract requires a first-screen complete, clickable composer, zero overlaps, long-text/resize/narrow-pane coverage, and scrollable issue controls.
+- Frozen real UI runs `green03`, `no-panel02`, and `many01` exercised the `/a2a` entry with external fixtures; geometry and editor hit checks pass, and all six overlap areas are zero.
+- Raw records independently report `composer.clipped: true` for `green03` `narrow-pane-400-open` and both small 125% cases. The frozen narrow-pane screenshot visibly overlaps `Select branch` and `Temporary`.
+- Issue-list scroll and title/reply/button controls were reachable; typecheck, lint, formatting, and focused tests exited 0.
+FINDINGS:
+- [P1] `apps/web/src/components/ChatView.tsx:5436` — the empty-landing controls use `flex-nowrap overflow-hidden`, while the branch/Temporary/Worktree labels remain non-shrinking. At a 400px pane, visible toolbar text overlaps/clips, violating the required visible-text/layout boundary. Collapse labels to icon-only or provide a controlled wrapping layout at the narrow breakpoint, then rerun the real UI probe.
+COUNTEREXAMPLE:
+- Baseline `1bcf20720483ab944a49ca20f56be776eb2f9b6c` via `red01-ui`/`red02-ui` was rejected: at 1280×900 with the panel open, the composer was below the viewport and could not be clicked.
+- Partial `green01-ui` was rejected at simulated 125% 1280×720 because the composer remained outside the first screen.
+LIMITATIONS:
+- The 125% cases are approved device-metrics simulations, not real browser-menu zoom. The review covers the frozen local UI evidence only; it does not assess production release or visual aesthetics.

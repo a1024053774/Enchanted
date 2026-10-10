@@ -25,7 +25,8 @@ t055 = out.parents[1] / '2026-10-09-batch8/T-055'
 if len(sys.argv)>2 and sys.argv[2]=='baseline': env['T065_BASELINE'] = '1'
 if len(sys.argv)>2 and sys.argv[2]=='no-panel': env['T065_NO_ISSUES'] = '1'
 if len(sys.argv)>2 and sys.argv[2]=='many': env['T065_MANY_ISSUES'] = '1'
-record = {'source_revision': 'e94a0efc3' if env.get('T065_BASELINE') else None, 'root': str(root), 'processes': [], 'environment': env,
+if len(sys.argv)>2 and sys.argv[2]=='reviewed': env['T065_REVIEWED'] = '1'
+record = {'source_revision': 'e94a0efc3' if env.get('T065_BASELINE') else '9654e1c63' if env.get('T065_REVIEWED') else None, 'root': str(root), 'processes': [], 'environment': env,
           'fork_revision': subprocess.check_output(['git', '-C', str(fork), 'rev-parse', 'HEAD'], text=True).strip()}
 def run(argv, name, background=False):
     entry = {'argv': argv, 'name': name, 'cwd': str(fork)}

@@ -34,4 +34,6 @@ ready_rev: 1
 
 ## Resolution
 
-INCOMPLETE（机械验收与套件通过，等待一次独立审查），待主控关闭。依据 ready_rev 1 与 [执行主控决定 01](../../evidence/2026-10-09-batch11/T-065/controller-decision-01.md)，fork 候选 `9654e1c63d87f41d033a3d6093c24d2a401b347a`。上游仅改 ChatView.tsx 空态块；经批准另改 a2a IssuePanel.tsx、TaskWindow.tsx，为会话保留高度，问题列表自身滚动。红态在先；三种窗口在打开/无面板时、三种 125% device-metrics 模拟、长中文、尺寸往返、400px 窄列、15 条待决定问题与按钮完整显露/点击检查通过。相关套件及全 workspace typecheck、lint、fmt:check 通过；真实菜单缩放未证明，外观由用户判断。详见 [RESULTS](../../evidence/2026-10-09-batch11/T-065/RESULTS.md)、[重放](../../evidence/2026-10-09-batch11/T-065/REPLAY.md) 与 candidate-binding.json。
+INCOMPLETE，待主控关闭。依据 ready_rev 1 与 [执行主控决定 01](../../evidence/2026-10-09-batch11/T-065/controller-decision-01.md)。一次独立审查对冻结候选 fork 9654e1c63 / a2a e18fead 返回 FAIL（P1：窄列空态工具栏文字/按钮相交）。已修复为换行并保留分支最小内容宽度，交付 fork `7a3a13249e562bf2d7f9ff4cb024f39b13d62434`；按 brief 没有自行追审，由执行主控审 [修复 diff](../../evidence/2026-10-09-batch11/T-065/review-repair.diff.patch)。
+
+修复版的三种窗口开/无面板、三种 125% device-metrics 模拟、加长中文、resize 往返、400px 窄列、15 条待决定问题及回复框/按钮完整可达均通过；可见工具栏按钮面积为 0，已审坏版本被同一 oracle 因业务相交拒绝。相关单元 35/35，浏览器选中 5/5（208 项过滤未跑），全 workspace typecheck、lint、fmt:check 通过。上游只改 ChatView.tsx 空态布局及控件组装；经批准另改 a2a IssuePanel.tsx、TaskWindow.tsx。真实菜单缩放未证明，外观由用户判断。详见 [RESULTS](../../evidence/2026-10-09-batch11/T-065/RESULTS.md)、[重放](../../evidence/2026-10-09-batch11/T-065/REPLAY.md)、candidate-binding.json 和独立审查原始 FAIL。

@@ -8,9 +8,11 @@ process.env.PORT = "8078";
 const { createServer } = await import(join(fork, "apps/web/node_modules/vite/dist/node/index.js"));
 const evidence = new URL('.', import.meta.url).pathname;
 const baseline = process.env.T065_BASELINE === '1';
+const reviewed = process.env.T065_REVIEWED === '1';
 const server = await createServer({ root: join(fork, "apps/web"), configFile: join(fork, "apps/web/vite.config.ts"),
-  plugins: baseline ? [{ name: 't065-known-bad-source', enforce: 'pre', load(id: string) {
+  plugins: baseline || reviewed ? [{ name: 't065-known-bad-source', enforce: 'pre', load(id: string) {
     const path = id.split('?')[0];
+    if (reviewed) return path === join(fork, 'apps/web/src/components/ChatView.tsx') ? readFileSync(join(evidence, 'reviewed-ChatView.tsx'), 'utf8') : undefined;
     if (path === join(fork, 'apps/web/src/components/ChatView.tsx')) return readFileSync(join(evidence, 'baseline-ChatView.tsx'), 'utf8');
     if (path === join(fork, 'apps/web/src/a2a/IssueNotifications.tsx')) return readFileSync(join(evidence, 'baseline-IssueNotifications.tsx'), 'utf8');
     if (path === join(fork, 'apps/web/src/a2a/IssuePanel.tsx')) return readFileSync(join(evidence, 'baseline-IssuePanel.tsx'), 'utf8');

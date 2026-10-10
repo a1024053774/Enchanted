@@ -68,11 +68,12 @@ async function geometry(stage) {
     const rect=n=>{const r=n.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
     const within=(r,p)=>r.left>=p.left-.5 && r.top>=p.top-.5 && r.right<=p.right+.5 && r.bottom<=p.bottom+.5;
     const bounds=rect(landing), viewport={left:0,top:0,right:innerWidth,bottom:innerHeight};
+    const painted=n=>{const s=getComputedStyle(n),r=n.getBoundingClientRect();return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.clipPath!=='inset(50%)'&&s.clip!=='rect(0px, 0px, 0px, 0px)';};
     const parts=Object.fromEntries(Object.entries({banner,logo,heading,composer}).map(([key,node])=>{
       const r=rect(node), visible=r.width>0 && r.height>0 && getComputedStyle(node).visibility!=='hidden';
       const texts=[...node.querySelectorAll('span')].filter(n=>n.childElementCount===0);
       return [key,{rect:r,visible,fullyVisible:!visible || (within(r,bounds)&&within(r,viewport)),text:node.textContent,
-        clipped:visible && [node,...texts].some(n=>n.scrollWidth>n.clientWidth+1 || n.scrollHeight>n.clientHeight+1)}];
+        clipped:visible && [node,...texts].filter(painted).some(n=>n.scrollWidth>n.clientWidth+1 || n.scrollHeight>n.clientHeight+1)}];
     }));
     const overlaps={};const names=Object.keys(parts);
     for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){
@@ -83,12 +84,31 @@ async function geometry(stage) {
     const e=editor && rect(editor);
     const hit=e && document.elementFromPoint(e.left+Math.min(20,e.width/2),e.top+Math.min(20,e.height/2));
     const issueList=pane.querySelector('[data-a2a-issue-list]');
+    const toolbar=pane.querySelector('[data-empty-landing-controls]'),bar=toolbar&&rect(toolbar);
+    const toolbarButtons=toolbar?[...toolbar.querySelectorAll('button')].filter(painted).map(n=>({text:n.textContent,rect:rect(n)})):[];
+    const toolbarOverlaps=[];
+    for(let i=0;i<toolbarButtons.length;i++)for(let j=i+1;j<toolbarButtons.length;j++){
+      const a=toolbarButtons[i].rect,b=toolbarButtons[j].rect;
+      toolbarOverlaps.push({a:toolbarButtons[i].text,b:toolbarButtons[j].text,area:Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top))});
+    }
+    const toolbarText=toolbar?[...toolbar.querySelectorAll('span')].filter(n=>n.childElementCount===0&&n.textContent.trim().length>0&&painted(n)).map(n=>{
+      const range=document.createRange();range.selectNodeContents(n);const r=range.getBoundingClientRect();
+      const target=n.closest('button')??toolbar;return {text:n.textContent,withinControl:within(r,rect(target))};
+    }):[];
     return {parts,overlaps,landing:bounds,scrollTop:landing.scrollTop,scrollHeight:landing.scrollHeight,clientHeight:landing.clientHeight,
       editorHit:!!hit && editor.contains(hit),viewport:{width:innerWidth,height:innerHeight},dpr:devicePixelRatio,
+      toolbar:{bounds:bar,buttons:toolbarButtons,overlaps:toolbarOverlaps,text:toolbarText},
+      accessibleOnlyText:[...composer.querySelectorAll('span')].filter(n=>n.childElementCount===0&&!painted(n)).map(n=>({text:n.textContent,clip:getComputedStyle(n).clip,clipPath:getComputedStyle(n).clipPath})),
       issues:issueList?{panel:rect(issueList.closest('aside')),clientHeight:issueList.clientHeight,scrollHeight:issueList.scrollHeight,scrollTop:issueList.scrollTop,count:issueList.querySelectorAll('article').length}:null};
   });
   result.stage=stage;records.push(result);
   if(!result.parts.composer.visible || !result.parts.composer.fullyVisible) failures.push(stage+': composer outside first screen');
+  if(result.parts.composer.clipped)failures.push(stage+': composer toolbar/text clipped');
+  if(result.toolbar.overlaps.some(pair=>pair.area>0))failures.push(stage+': toolbar buttons overlap');
+  if(result.toolbar.text.some(text=>!text.withinControl))failures.push(stage+': visible toolbar text outside its control');
+  for(const button of result.toolbar.buttons){const r=button.rect,b=result.toolbar.bounds;
+    if(r.left<b.left-.5||r.right>b.right+.5||r.top<b.top-.5||r.bottom>b.bottom+.5)failures.push(stage+': toolbar button outside tray');
+  }
   if(result.scrollTop!==0)failures.push(stage+': landing scrolled');
   if(!result.editorHit)failures.push(stage+': editor cannot be clicked in place');
   if(Object.values(result.overlaps).some(x=>x>0))failures.push(stage+': elements overlap');
@@ -161,5 +181,5 @@ try{
     }
   }
 }catch(error){failures.push(String(error.stack??error));await page.screenshot({path:join(out,label+'-failure.png')});}
-finally{await context.close();writeFileSync(join(out,label+'.json'),JSON.stringify({argv:process.argv.slice(1),revision,diff,binary,source:mode==='red'?'e94a0efc3':'working tree',modelCalls:0,records,failures},null,2)+'\n',{flag:'wx'});}
+finally{await context.close();writeFileSync(join(out,label+'.json'),JSON.stringify({argv:process.argv.slice(1),revision,diff,binary,source:mode==='red'?'e94a0efc3':mode==='reviewed'?'9654e1c63d87f41d033a3d6093c24d2a401b347a':'working tree',modelCalls:0,records,failures},null,2)+'\n',{flag:'wx'});}
 console.log(JSON.stringify({label,cases:records.length,failures},null,2));if(failures.length)process.exitCode=1;
