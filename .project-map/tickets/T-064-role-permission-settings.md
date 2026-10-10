@@ -47,3 +47,5 @@ ready_rev: 1
 fork 基线 `7a3a13249e562bf2d7f9ff4cb024f39b13d62434`，尚未修改产品源码或提交 fork。实际设置导航经 Vite resolver 加载，没有“角色权限”，合同探针退出 1，原输出与重放命令已保存。共享权限 matcher 缺少会话/凭据上下文，具体上游接入及免确认默认/生效时点需确认；已上报 `20261010T064912Z-worker:t064-issue-001`。
 
 见 [报告](../../evidence/2026-10-09-batch11/T-064/RESULTS.md) 和 [待批清单](../../evidence/2026-10-09-batch11/T-064/needs-decision-01.md)。完整 MCP、权限正反例、截图、产品检查、独立审查均未运行；本票验收框不勾选，未用旧候选结论替代本票证据。
+
+2026-10-10，主控 #23 批准后继续：fork 实现提交 `0bf4bb2cab2216f567df2d4fb1729bee3cac6fe9`；五角色设置、真实 MCP 能力变化/冻结、Codex/Claude 免确认正反例、原子 action/审计、CAS、空集合、无效配置、真实中断、UI 保存/恢复和既有 35 项端到端通过，typecheck/fmt/lint、服务端相关 365 项、gates 19 项通过。**INCOMPLETE：等待唯一一次独立审查；保持 open，待主控关闭。** 其它 provider 按批准范围未适配免确认，外观待用户判断。新证据与局限见本票 RESULTS；原 BLOCKED 与失败现场保留。
