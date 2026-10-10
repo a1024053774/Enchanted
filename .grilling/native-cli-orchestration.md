@@ -48,7 +48,7 @@ R4 起（新会话"新思路构思"）借鉴范围补充为：任务卡与提交
 - D7（recommended，R1 Q1=b）：我们自己托管终端，复用 Synara 的终端实现（node-pty + xterm）。用户追问“用 zsh 不行吗？哪个终端方案好？”——zsh 是窗格里跑的 shell，不是终端宿主，见 R2 回答；终端方案待 R2 Q6 确认。
 - D8（user，R1 Q2）：门禁抽出来用，契约不变，加路径检查（任务卡“允许/禁止”路径，越界打回）。
 - D9（recommended，R1 Q3）：权限四层，都在应用内：角色卡；任务卡路径 + 门禁检查；每会话的 CLI 启动参数（只作用于该会话，不碰 ~/.claude、~/.codex）；收件箱命令行限定谁写哪种条目。设置页“角色权限”编辑启动参数与路径规则，默认按此。
-- D10（recommended，R1 Q4）：切换条件改为：三项功能在新应用里能用 + 用户试用说“可用”；面板界面、打包格式、处置规则、提醒两路、T-057 软件内通知（并入 T-067）、T-064 设置页都换载体重做，不推翻。
+- D10（recommended，R1 Q4；切换条件由 D32 扩充）：切换条件改为：三项功能在新应用里能用 + 用户试用说“可用”；面板界面、打包格式、处置规则、提醒两路、T-057 软件内通知（并入 T-067）、T-064 设置页都换载体重做，不推翻。
 - D11（recommended，R1 Q5）：T-059、T-064 后端、T-066、T-067、T-068 标 superseded；已关闭的 T-055～T-065 保留为历史；fork 只作组件来源，不再跟上游，不删；`ddb765956` 保留不推送；ACTIVE 改指向本账本（已改）。
 - D12（recommended，R2 Q6）：终端组成：xterm.js 渲染、node-pty 托管、窗格里用用户的 zsh（登录 shell），在 zsh 里启动各家 CLI。D7 的待确认项由此关闭。
 - D13（user，R2 Q7=a）：编排后台单独常驻（像 Herdr server），界面只是连上去看；关掉或重开界面，agent 照常跑。
@@ -70,6 +70,8 @@ R4 起（新会话"新思路构思"）借鉴范围补充为：任务卡与提交
 - D29（user，修改推荐默认值，R5 Q22）：复盘与轨迹归档：手动或周期（默认每周一 9:00，可改可关）；每次可选 CLI、模型、思考强度，默认 Claude Code、Opus 5.5、medium（用户："默认 opus5.5 medium"）；在普通窗格里跑；脚本备复盘包；只读，只写报告；报告进 `findings/`（无此目录的项目进应用数据目录），建议逐条上面板由用户批；后台增量归档它启动的会话的原生记录，压缩、本机、不进 Git，设置页显示占用。basis：C7、C8、D4、D13、D21、F13。
 - D30（recommended，R5 Q23）：指标：原始事件从第一个切片起全记、只追加，指标从原始事件现算。采集清单：会话启动记录、回合与权限等待、用户输入与介入、派发记录、门禁逐项结果、每次交付的改动行数与文件数、审查结论与问题清单、打分、问题上报与面板问答时间、worktree 生命周期、提交尾注、复盘记录。缺陷修复类任务卡加"修复对象"字段。v1 四个视图：模型使用分类（项目 → 任务 → 会话）、一次到位率与打回原因、注意力消耗、打分汇总（执行器 × 任务类型）。不做 token、成本、缓存。basis：C8、D17、D21、D23。
 - D31（recommended，R5 Q24）：Herdr 期先用三样：任务卡模板（markdown，不写脚本；brief 从此改叫任务卡）、提交尾注（`scripts/dispatch` 带环境变量与钩子目录）、验收打分（执行主控验收时顺手写一行到追加式文件，切换时一次性导入，之后不写）；门禁检查串、自动审查、面板、复盘等新应用。basis：C1、C9、C10、D17、D21。
+- D32（recommended，R6 Q25=a）：切换条件扩充为：三项功能之外，任务卡、门禁检查串与独立审查、worktree、提交尾注、面板收主控提问、打分、复盘、原始事件采集与四个指标视图都在新应用里能用；用户试用时至少走一遍：一张真实任务卡从派发跑到集成（含独立审查和打分）、在面板答一次主控提问、手动跑一次复盘、看一次模型使用分类；用户说"可用"后才切换日常派发。closes：R3。rejected：b（只加日常派发离不开的，复盘与指标视图切换后做）。basis：用户 10-09 切换标准原话、D31。assumes：晚切换可以接受，因为 Herdr 期已按 D31 攒数据。
+- D33（recommended，R6 Q26=b）：门禁以项目工作分支（如 `main`）为集成目标：在分支当前头上合并候选并验收，通过后 CAS 推进，不 push；分支被某工作区检出时在该工作区快进，会覆盖未提交改动时拒绝并上报，不 stash、不 reset；改冻结契约"不更新任何用户工作分支"一句；D25 的"最新集成头"即工作分支的头。rejected：a（保持 `refs/a2a/integration` 加执行主控手工合并，合并在门禁之外，F16）。basis：D21、D23、C5、F16。assumes：主控直接提交 `main` 引起的重新验收只是偶发（见 R8）。
 
 ## Facts
 
@@ -78,7 +80,7 @@ R4 起（新会话"新思路构思"）借鉴范围补充为：任务卡与提交
 - F3（observed）：Synara web 栈 React 19、Vite、Tailwind 4、TanStack Router、`@xterm/xterm`；server 有终端（node-pty）实现；desktop 为 Electron 43。
 - F4（observed）：Herdr 0.9.3 有 socket API（`herdr api`）、`--session <name>` 多会话、`worktree`、`integration`、`notification` 子命令。用户正在用的 Herdr server 不得修改。
 - F5（observed，文章附录）：文章的权限全靠提示词（主脑不写代码、执行者只改允许范围、审查者只读），由门禁兜底（改了禁止路径的提交被打回）；任务卡有"允许/禁止"修改边界与"唯一写入者"；门禁按风险分 personal/internal/saas 三档；AI 审查分 primary/advisor/shadow 三种角色。没有沙箱配置、审批人名单或越权上报流程。
-- F6（unknown）：Herdr API 能否把 pane 输出流式给外部 GUI 渲染；Herdr 许可证。
+- F6（unknown，D7 后不再需要：终端改为自托管）：Herdr API 能否把 pane 输出流式给外部 GUI 渲染；Herdr 许可证。
 - F7（unknown）：Codex CLI 有无"运行中/等确认/结束"的结构化信号（Claude Code 有 hooks；用户转述其 2.1.295 支持 OSC 7501，未核实）。
 - F8（observed，fork `packages/a2a-gates/src/core.ts:1999-2027`、`2155-2199`；managed-delivery、supervised-run 规格）：门禁把 worktree 建在 `state/worktrees/<随机 attempt_id>`，detached，没有分支名，代码里没有删除 worktree 的路径；冻结契约要求回收时"保留 worktree/候选/证据"（supervised-run 第 4 步写作"保留所有 worktree、候选和历史"）。verify 把候选合进集成头，文本冲突返回 `merge_conflict`，任务停在 submitted，没有后续自动流程；验收后集成头变化返回 `integration_conflict`。
 - F9（observed，fork `git log --since=2026-10-06 --author=LuckyE`）：52 个 a2a 提交作者都是 LuckyE；7 个带 Co-Authored-By（Claude 或 Codex），没有一个带任务、attempt、会话、模型或思考强度。
@@ -92,10 +94,7 @@ R4 起（新会话"新思路构思"）借鉴范围补充为：任务卡与提交
 
 ## Frontier
 
-R6 已问（2026-10-10）：
-
-- Q25 | compare | 切换条件：a 全部新功能都能用（三项之外加任务卡、门禁检查串与独立审查、worktree、尾注、面板收主控提问、打分、复盘、原始事件采集与四个视图），试用时至少：一张真实任务卡从派发跑到集成（含独立审查与打分）、在面板答一次主控提问、手动跑一次复盘、看一次模型使用分类，用户说"可用"；b 只加日常派发离不开的（任务卡、门禁检查串与独立审查、worktree、尾注、打分、原始事件采集），复盘与指标视图切换后做 | recommended: a | basis: 用户 10-09 切换标准原话、D31
-- Q26 | compare | 集成落点：a 保持现状（门禁只更新 `refs/a2a/integration`，执行主控手工合并）；b 门禁以项目工作分支为集成目标，在其当前头上合并候选并验收，CAS 推进，不 push；分支被某工作区检出时在该工作区快进，会覆盖未提交改动时拒绝并上报，不 stash、不 reset；改冻结契约"不更新任何用户工作分支"一句；本仓库主控常直接提交 main，会触发 D25 的自动重新验收 | recommended: b | basis: D21、D23、C5、F16
+无。R6 后给出最终漂移检查，待用户确认基线。
 
 ## Blocked
 
@@ -103,24 +102,31 @@ R6 已问（2026-10-10）：
 
 ## Fog
 
-- 额度感知调度与额度水位监控（C2：先不做）、无头模式（D4 之后按需）。
-- 多机/远程（文章的 herdr + mosh）。
-- 风险分档（personal/internal/saas）：第二个风险不同的项目接入时再定。
-- 多审查者交叉、顾问与影子审查；规则式审查工具（文章的 OCR）；定期架构扫描与安全扫描。
-- 前端录屏（D23：先不做，存储会堆积）。
+无（本目的地之内）。原列的以后再说的事已移入 Out of scope。
 
 ## Risks and conflicts
 
 - R1 | resolved by D25 | owner: user（Q18） | affects: D8、C3 | 冻结契约要求回收时保留所有 worktree（F8），与 C3"完成后自动清理"不能同时成立。
 - R2 | resolved by D25 | owner: user（Q18） | affects: intent.md 范围外条款、C3 | intent 把"自动解决复杂语义冲突"列在范围外；C3"冲突自动处理"需定义为流程自动，不由程序取舍改动内容。
-- R3 | open | owner: user（Q25） | affects: D10 | 新功能是否进入切换条件。
+- R3 | resolved by D32 | owner: user（Q25） | affects: D10 | 新功能是否进入切换条件。
 - R4 | resolved | owner: user | affects: C7、C8 | 终端版 Claude Code 默认只留 30 天会话记录（F13）。用户 R4 答复时要求延长到 365 天，已在 `~/.claude/settings.json` 设 `cleanupPeriodDays: 365`；这是用户当次明确要求的个人全局配置，a2a 系统本身仍不改全局配置（D9 不变）。
 - R5 | open | owner: Q23（指标观察） | affects: D23、D24 | 不设改动量上限后，特别大的交付可能让审查质量下降；Q23 把每次交付的改动行数记为原始事件，配合"审查命中与漏检"观察。
+- R6 | open | owner: 执行主控（第一个切片的事实验证） | affects: D14 | F7：Codex 有没有"等确认"的结构化信号未核实。stop: 第一个切片先验证；拿不到就显示"未知"；若核心流程离不开它，停下报告，不改用正则读屏。
+- R7 | open | owner: 执行主控（第一个切片的事实验证） | affects: D15、D27 | 往 Claude Code、Codex 窗格注入的文字能否稳定被当作一条新消息，两家都未实测。stop: 第一个切片先验证；不稳定就停下报告，不硬做。
+- R8 | open | owner: 构思主控（spec） | affects: D25、D33 | 本仓库主控常直接提交 `main`，集成时 CAS 落空会触发自动重新验收，频繁时可能反复重跑。stop: spec 规定集成紧跟验收执行，并为连续重新验收设上限，超限交执行主控并上报。
 
 ## Out of scope
 
 - 实现与派发 | reason: 决策会话。
-- 修改用户的 Herdr server、`~/.claude`、`~/.codex` 全局配置 | reason: AGENTS.md 与用户 2026-10-09 纠正（"不是让你在Claude code和codex里改权限"）。
+- a2a 系统与其会话修改用户的 Herdr server、`~/.claude`、`~/.codex` 全局配置 | reason: AGENTS.md 与用户 2026-10-09 纠正（"不是让你在Claude code和codex里改权限"）。用户当面要求的个人设置不在此列（见 R4）。
+- 额度感知调度与额度水位监控 | reason: C2"先不做"。
+- token、成本、缓存命中率监控 | reason: C8，用户已用 TokenTracker。
+- 无头模式 | reason: D4，以后按需另开。
+- 改动量上限 | reason: D23，用户"改动量上限不限制"。
+- 前端录屏 | reason: D23，用户"录屏先不做，这个堆积起来也很大"。
+- 风险分档（personal/internal/saas） | reason: 只有 a2a 一个项目；第二个风险不同的项目接入时另开。
+- 多审查者交叉、顾问与影子审查；规则式审查工具（OCR）；定期架构扫描与安全扫描 | reason: D23、D24 的 v1 范围之外，以后另开。
+- 多机/远程（文章的 herdr + mosh） | reason: intent 范围外条款"通用 A2A 平台、分布式调度、多机部署"。
 
 ## Changelog
 
@@ -131,3 +137,4 @@ R6 已问（2026-10-10）：
 - R4（2026-10-10，新会话"新思路构思"）：上一会话"a2a-构思主控"停在 R3 后的漂移检查，用户没有回"确认"，而是另开会话补充借鉴范围（C1–C10），R3 后的基线因此仍未确认。读文章正文与附录 01–07（05、06 为首次读）；核实 F8–F15（含 git 尾注注入探针）；D20 改为用户确认；执行器打分移出 fog；记 R1–R4；提出 Q14–Q19，Q20–Q24 排队到 R5，Q25 待前面定完。
 - R4 答复（2026-10-10）：“Q14:采纳 / Q15: 采纳 / Q16: 改动量上限不限制，录屏先不做，这个堆积起来也很大。 其他按推荐 / Q17:采纳 / Q18: 采纳 / Q19: 采纳”。D21–D26；R1、R2 由 D25 关闭；CONTEXT.md 加“任务卡”、改 Task 条目。小事：用户“你帮我把过期时间延长到 365 天如何。”——已在 `~/.claude/settings.json` 加 `cleanupPeriodDays: 365`，JSON 校验通过；R4 关闭。提出 Q20–Q24；Q26 从 fog 升为问题，排到 R6；记 R5。
 - R5 答复（2026-10-10）：“Q20:采纳 Q21:采纳,然后这个打分频率怎么样？不能每轮会话都打分吧，做成最终打分比较合适吗？ Q22:采纳，默认 opus5.5 medium Q23:采纳 Q24:采纳, 还是那个问题，打分的频率，但这个也可以加在主控验收时加一句话，这样不用多一轮额外的提问，包含在验收提问里就行，这样不会花很多 token”。D27–D31；打分频率澄清为每个 attempt 结束时一次、作为验收命令参数（D28）；复盘默认改为 Opus 5.5 medium（D29）。核实 F16（日常合并为执行主控手工完成）。提出 Q25、Q26。
+- R6 答复（2026-10-10）：“Q25:a Q26:b”。D32、D33；R3 由 D32 关闭；D10 标为由 D32 扩充；F6 因 D7 不再需要；fog 清空，以后再说的事移入 Out of scope；记 R6–R8（各带 owner 与停止条件）。frontier 清空，给出最终漂移检查。
