@@ -2,7 +2,7 @@
 
 ## Destination
 
-第三阶段（2026-10-10 修订）：各家原生 CLI 以交互终端运行，a2a 只做编排、门禁与记录；工作台是本仓库里的轻量 Electron 应用，借用 Synara 的组件与样式。目标与切换条件见 [intent.md](../intent.md)，决定见 T-069～T-072，执行规格见 [native-cli-orchestration](specs/native-cli-orchestration-2026-10-10.md)；首批切片的建议在 spec 第 12 节，由构思主控切票。用户认为新工作台可用之前，日常派发仍经 Herdr。
+第三阶段（2026-10-10 修订）：各家原生 CLI 以交互终端运行，a2a 只做编排、门禁与记录；工作台是本仓库里的轻量 Electron 应用，借用 Synara 的组件与样式。目标与切换条件见 [intent.md](../intent.md)，决定见 T-069～T-072，执行规格见 [native-cli-orchestration](specs/native-cli-orchestration-2026-10-10.md)；首批切片已切为 T-073（S0 Herdr 期三样）、T-074（S1 第 0 步：R6、R7 事实核实）、T-075（S1 tracer bullet，依赖 T-074）。用户认为新工作台可用之前，日常派发仍经 Herdr。
 
 第二阶段（2026-10-07～10-09）基于 Synara fork：原生门禁、第一次经门禁的真实派发（T-046）与三项功能的部分实现，见 [synara-m1](specs/synara-m1-2026-10-07.md)；这些是日期记录，证据只对各自的代码版本成立。[workbench-m1](specs/workbench-m1-2026-10-06.md) 是更早被取代的 GPUI/Muster 方案。
 
