@@ -24,6 +24,7 @@ t057 = out.parent / 'T-057'
 t055 = out.parents[1] / '2026-10-09-batch8/T-055'
 if len(sys.argv)>2 and sys.argv[2]=='baseline': env['T065_BASELINE'] = '1'
 if len(sys.argv)>2 and sys.argv[2]=='no-panel': env['T065_NO_ISSUES'] = '1'
+if len(sys.argv)>2 and sys.argv[2]=='many': env['T065_MANY_ISSUES'] = '1'
 record = {'source_revision': 'e94a0efc3' if env.get('T065_BASELINE') else None, 'root': str(root), 'processes': [], 'environment': env,
           'fork_revision': subprocess.check_output(['git', '-C', str(fork), 'rev-parse', 'HEAD'], text=True).strip()}
 def run(argv, name, background=False):
@@ -42,6 +43,9 @@ def run(argv, name, background=False):
             if p.returncode: raise RuntimeError(name)
 try:
     run(['./a2a/scripts/bun', 'run', 'dev', '--dry-run'], 'dry-run')
+    dry_run = (out/(label+'-dry-run.log')).read_text(encoding='utf-8')
+    if str(root/'home') not in dry_run: raise RuntimeError('dry-run home is not isolated')
+    record['dry_run_isolation_checked'] = True
     run(['./a2a/scripts/bun', 'run', str(out/'seed-fixture.ts')], 'seed')
     run(['./a2a/scripts/bun', 'run', str(t055/'server-fixture.ts')], 'server', True)
     deadline = time.monotonic()+55

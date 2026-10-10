@@ -34,4 +34,4 @@ ready_rev: 1
 
 ## Resolution
 
-BLOCKED，待主控关闭。依据 ready_rev 1；局部候选 fork `95d525c56237405d56fef3c4706fe4d392452564`，仅改 `ChatView.tsx` 空态块。红态已取得，三种要求视口打开面板的首屏、点击输入、长中文和尺寸往返检查已通过；无面板与独立审查尚未运行。既有相关套件、全 workspace typecheck、lint、fmt:check 已通过。1280×720 加 125% 模拟时仅余 73.4px，完整输入区需 134.25px，需主控决定是否允许调整 `IssuePanel.tsx` 的空间分配。详见 [RESULTS](../../evidence/2026-10-09-batch11/T-065/RESULTS.md) 和 blocking issue `20261010T054058Z-worker:T-065-issue-001`。不能据此验收关闭。
+INCOMPLETE（机械验收与套件通过，等待一次独立审查），待主控关闭。依据 ready_rev 1 与 [执行主控决定 01](../../evidence/2026-10-09-batch11/T-065/controller-decision-01.md)，fork 候选 `9654e1c63d87f41d033a3d6093c24d2a401b347a`。上游仅改 ChatView.tsx 空态块；经批准另改 a2a IssuePanel.tsx、TaskWindow.tsx，为会话保留高度，问题列表自身滚动。红态在先；三种窗口在打开/无面板时、三种 125% device-metrics 模拟、长中文、尺寸往返、400px 窄列、15 条待决定问题与按钮完整显露/点击检查通过。相关套件及全 workspace typecheck、lint、fmt:check 通过；真实菜单缩放未证明，外观由用户判断。详见 [RESULTS](../../evidence/2026-10-09-batch11/T-065/RESULTS.md)、[重放](../../evidence/2026-10-09-batch11/T-065/REPLAY.md) 与 candidate-binding.json。

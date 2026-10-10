@@ -33,6 +33,7 @@ const rows = process.env.T065_NO_ISSUES === '1' ? [] : [
   ["长正文哨兵", "😀".repeat(601), true],
   ["重复问题", "已经登记为后续工作。", false],
 ];
+if (process.env.T065_MANY_ISSUES === '1') for (let i=0; i<12; i++) rows.push([`附加问题 ${i+1}：会话空间哨兵`, `外部夹具问题正文 ${i+1}，用于验证多条问题在列表内滚动。`, true]);
 const issues = [];
 for (const [title, body, blocking] of rows) issues.push(await core.raiseIssue({ title, body, blocking, refs: ["file:sentinel.txt#L1"] },
   { thread: worker.thread_id, turn: "seed-turn", assertActive: async () => {} }));

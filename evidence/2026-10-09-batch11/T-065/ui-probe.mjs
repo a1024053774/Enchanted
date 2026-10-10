@@ -16,6 +16,47 @@ const context = await chromium.launchPersistentContext(join(root,'browser-'+labe
 const page = context.pages()[0];
 page.on('pageerror',error=>failures.push('pageerror: '+error));
 let pane, panel;
+const capture = await context.newCDPSession(page);
+async function screenshot(stage) {
+  const shot=await capture.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+  writeFileSync(join(out,label+'-'+stage+'.png'),Buffer.from(shot.data,'base64'),{flag:'wx'});
+}
+async function panelControls(stage) {
+  if(mode==='no-panel') return;
+  const first=panel.locator('article').first(), last=panel.locator('article').last();
+  const controls=[];
+  async function reveal(locator,name) {
+    const result=await locator.evaluate(n=>{
+      const list=n.closest('[data-a2a-issue-list]');
+      if(list){const r=n.getBoundingClientRect(),p=list.getBoundingClientRect();list.scrollTop+=(r.top+r.bottom-p.top-p.bottom)/2;}
+      const r=n.getBoundingClientRect(),p=(list??n.closest('aside')).getBoundingClientRect(),a=n.closest('aside').getBoundingClientRect();
+      const hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);
+      return {top:r.top,bottom:r.bottom,height:r.height,listHeight:list?.clientHeight,
+        fullyVisible:r.top>=p.top-.5&&r.bottom<=p.bottom+.5&&r.left>=a.left&&r.right<=a.right&&r.top>=0&&r.bottom<=innerHeight,
+        hit:!!hit&&n.contains(hit)};
+    });
+    controls.push({name,...result});
+    if(!result.fullyVisible||!result.hit)failures.push(stage+': panel '+name+' cannot be fully revealed/clicked');
+    if(stage==='125percent-1280x720-open' && (name.endsWith('发送答复') || name==='bundle footer' || name==='cancel close form')) await screenshot(stage+'-button-'+controls.length);
+  }
+  for(const [name,article] of [['first',first],['last',last]]){
+    await reveal(article.getByRole('heading'),name+' title');
+    const reply=article.getByRole('textbox');await reveal(reply,name+' reply');
+    await reply.fill('T065 panel reply sentinel');
+    for(const text of ['发送答复','稍后（1 小时）','不处理','关闭']) await reveal(article.getByRole('button',{name:text,exact:true}),name+' '+text);
+  }
+  // The bundled-send footer consumes space too; preserve its actual layout.
+  await reveal(panel.getByRole('button',{name:'打包发送（2）',exact:true}),'bundle footer');
+  const close=first.getByRole('button',{name:'关闭',exact:true});await reveal(close,'open close form');
+  const b=await close.boundingBox();await page.mouse.click(b.x+b.width/2,b.y+b.height/2);
+  await first.getByRole('textbox',{name:'问题 1 的关闭理由',exact:true}).waitFor({state:'attached'});
+  const cancel=first.getByRole('button',{name:'取消',exact:true});await reveal(cancel,'cancel close form');
+  const c=await cancel.boundingBox();await page.mouse.click(c.x+c.width/2,c.y+c.height/2);
+  await first.getByRole('textbox',{name:'问题 1 的关闭理由',exact:true}).waitFor({state:'detached'});
+  await first.getByRole('textbox').fill('');await last.getByRole('textbox').fill('');
+  await panel.locator('[data-a2a-issue-list]').evaluate(n=>n.scrollTop=0);
+  records.push({stage:stage+'-panel-controls',controls});
+}
 async function geometry(stage) {
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const result = await pane.evaluate(pane=>{
@@ -44,7 +85,7 @@ async function geometry(stage) {
     const issueList=pane.querySelector('[data-a2a-issue-list]');
     return {parts,overlaps,landing:bounds,scrollTop:landing.scrollTop,scrollHeight:landing.scrollHeight,clientHeight:landing.clientHeight,
       editorHit:!!hit && editor.contains(hit),viewport:{width:innerWidth,height:innerHeight},dpr:devicePixelRatio,
-      issues:issueList?{clientHeight:issueList.clientHeight,scrollHeight:issueList.scrollHeight,scrollTop:issueList.scrollTop,count:issueList.querySelectorAll('article').length}:null};
+      issues:issueList?{panel:rect(issueList.closest('aside')),clientHeight:issueList.clientHeight,scrollHeight:issueList.scrollHeight,scrollTop:issueList.scrollTop,count:issueList.querySelectorAll('article').length}:null};
   });
   result.stage=stage;records.push(result);
   if(!result.parts.composer.visible || !result.parts.composer.fullyVisible) failures.push(stage+': composer outside first screen');
@@ -52,6 +93,10 @@ async function geometry(stage) {
   if(!result.editorHit)failures.push(stage+': editor cannot be clicked in place');
   if(Object.values(result.overlaps).some(x=>x>0))failures.push(stage+': elements overlap');
   for(const [name,p] of Object.entries(result.parts))if(name!=='composer' && p.visible && (!p.fullyVisible||p.clipped))failures.push(stage+': '+name+' text/shape is clipped');
+  if(mode==='no-panel' && result.issues)failures.push(stage+': no-panel fixture rendered a panel');
+  if(mode==='many' && result.issues?.count!==15)failures.push(stage+': many-issues fixture must render all 15 waiting items');
+  if(mode==='no-panel' && result.viewport.width===1600 && result.viewport.height===1050 && !stage.startsWith('narrow-'))
+    for(const name of ['banner','logo','heading'])if(!result.parts[name].visible)failures.push(stage+': ample space must retain '+name);
   // Click by coordinate so Playwright cannot scroll an off-screen input into view.
   if(result.editorHit){
     const editor=pane.locator('[data-empty-landing-composer-block="true"] [contenteditable="true"]').first();
@@ -63,7 +108,7 @@ async function geometry(stage) {
     result.scrollAfterInput=await pane.locator('.chat-pane-enter').evaluate(n=>n.scrollTop);
     if(result.scrollAfterInput!==0)failures.push(stage+': input caused scroll');
   }
-  await page.screenshot({path:join(out,label+'-'+stage+'.png')});
+  await screenshot(stage);
 }
 async function toggle(open){
   if(open !== (mode !== 'no-panel')) throw Error('Panel state must come from fixture data');
@@ -76,15 +121,15 @@ try{
   await main.getByRole('button',{name:'T057 问题面板',exact:true}).click();
   pane=main.locator(`[data-a2a-pane='${seed.dispatched.attempt.thread_id}']`);
   panel=pane.getByRole('complementary',{name:'问题上报',exact:true});
-  if(mode!=='no-panel') await panel.locator('article').nth(2).waitFor({timeout:30000});
+  if(mode!=='no-panel') await panel.locator('article').nth(mode==='many'?14:2).waitFor({timeout:30000});
   await pane.getByTestId('empty-landing-heading').waitFor({state:'attached',timeout:30000});
   await pane.getByRole('button',{name:'Dismiss provider status'}).click();
   await page.getByText('See running tasks, completed work, and anything that needs your attention.',{exact:true}).waitFor({state:'hidden',timeout:15000});
-  await geometry('1280x900-'+(mode==='no-panel'?'closed':'open'));
+  await geometry('initial-1280x900-'+(mode==='no-panel'?'closed':'open'));
   if(mode!=='red'){
     for(const size of [{width:1600,height:1050},{width:1280,height:900},{width:1280,height:720}]){
       await page.setViewportSize(size);
-      for(const open of [mode!=='no-panel']){await toggle(open);await geometry(`${size.width}x${size.height}-${open?'open':'closed'}`);}
+      for(const open of [mode!=='no-panel']){await toggle(open);const stage=`${size.width}x${size.height}-${open?'open':'closed'}`;await geometry(stage);await panelControls(stage);}
     }
     // Longer Chinese text is an external presentation input; no locale switch exists.
     await pane.getByTestId('project-import-landing-banner').evaluate(n=>{
@@ -97,7 +142,8 @@ try{
     }
     // Constrain the actual pane width, as a neighbouring agent column would.
     await pane.evaluate(n=>{n.style.flex='0 0 400px';n.style.minWidth='0';});
-    await geometry('narrow-pane-400-open');
+    await geometry('narrow-pane-400-'+(mode==='no-panel'?'closed':'open'));
+    await panelControls('narrow-pane-400');
     await pane.evaluate(n=>{n.style.removeProperty('flex');n.style.removeProperty('min-width');});
     if(mode!=='no-panel'){
       const list=panel.locator('[data-a2a-issue-list]');
@@ -105,12 +151,13 @@ try{
     }
     // 125% browser zoom uses a 0.8 CSS viewport and DPR 1.25; Ctrl/Cmd zoom is
     // not implemented by Headless Shell. This is browser device-metrics zoom.
-    const cdp=await context.newCDPSession(page);
-    for(const open of [mode!=='no-panel']){
-      await toggle(open);
-      await cdp.send('Emulation.setDeviceMetricsOverride',{width:1024,height:576,deviceScaleFactor:1.25,mobile:false});
-      await geometry(`125percent-1280x720-${open?'open':'closed'}`);
-      await cdp.send('Emulation.clearDeviceMetricsOverride');
+    for(const size of [{width:1600,height:1050},{width:1280,height:900},{width:1280,height:720}]){
+      const width=size.width/1.25,height=size.height/1.25;
+      await page.setViewportSize({width,height});
+      await capture.send('Emulation.setDeviceMetricsOverride',{width,height,screenWidth:width,screenHeight:height,deviceScaleFactor:1.25,mobile:false});
+      const stage=`125percent-${size.width}x${size.height}-${mode==='no-panel'?'closed':'open'}`;
+      await geometry(stage);await panelControls(stage);await screenshot(stage+'-controls-restored');
+      await capture.send('Emulation.clearDeviceMetricsOverride');
     }
   }
 }catch(error){failures.push(String(error.stack??error));await page.screenshot({path:join(out,label+'-failure.png')});}

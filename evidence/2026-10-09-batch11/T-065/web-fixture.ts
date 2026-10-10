@@ -13,6 +13,8 @@ const server = await createServer({ root: join(fork, "apps/web"), configFile: jo
     const path = id.split('?')[0];
     if (path === join(fork, 'apps/web/src/components/ChatView.tsx')) return readFileSync(join(evidence, 'baseline-ChatView.tsx'), 'utf8');
     if (path === join(fork, 'apps/web/src/a2a/IssueNotifications.tsx')) return readFileSync(join(evidence, 'baseline-IssueNotifications.tsx'), 'utf8');
+    if (path === join(fork, 'apps/web/src/a2a/IssuePanel.tsx')) return readFileSync(join(evidence, 'baseline-IssuePanel.tsx'), 'utf8');
+    if (path === join(fork, 'apps/web/src/a2a/TaskWindow.tsx')) return readFileSync(join(evidence, 'baseline-TaskWindow.tsx'), 'utf8');
   } }] : [],
   server: { host: "localhost", port: 8078, strictPort: true } });
 await server.listen();

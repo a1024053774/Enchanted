@@ -1,39 +1,39 @@
 # T-065 重放
 
-本轮是 BLOCKED 局部候选，不是通过交付。全部原始失败保留；重放必须使用新的 label，禁止覆盖已存在文件。
+候选版本与运行绑定见 candidate-binding.json、fork-commit.txt；原始输出不覆盖，重放一律用新 label。ticket 契约的审查副本为 ticket-contract-review.md，仅含 What / Acceptance / 说明，不含 Resolution。
 
-本轮 fork 基线见 binding.json，候选完整版本见 fork-commit.txt。运行环境为 macOS arm64，Node/Bun 仅经 fork 的 `a2a/scripts/bun`，profile 与隔离数据库均在 `/Volumes/WD-Elements/dev-cache/synara/instances/t065-*`。固定浏览器沿用 T-063：`playwright-t063/chromium_headless_shell-1234`。没有真实模型调用。
+环境：macOS arm64；Node 24.13.1 和 Bun 1.4.2 经 fork 的 `a2a/scripts/bun`；固定 Chromium Headless Shell 在外置盘 `playwright-t063/chromium_headless_shell-1234`。所有数据库、夹具 Git repo 和 profile 均在 `/Volumes/WD-Elements/dev-cache/synara/instances/t065-*`。provider 禁用，没有模型调用。
 
-## 原始命令与输出
+## 三组当前候选运行
 
-`*-command.json` 保存完整 argv、cwd、开始/结束时间与退出码；同名 `.log` 保存原样 stdout/stderr。
-
-| 运行 | 原始记录 | 结果 |
+| 运行 | 几何场景 / 面板控件组 | 原始命令 |
 | --- | --- | --- |
-| 已知坏源码 | red01-ui-command.json、red02-ui-command.json | exit 1，输入区在首屏外 |
-| 局部候选的打开面板矩阵 | green01-ui-command.json | exit 1，仅最短窗口的 125% 模拟失败 |
-| 相关单元套件 | related-tests01-command.json | exit 0 |
-| 固定浏览器的既有套件 | browser-tests01-command.json | exit 0 |
-| 全 workspace 检查 | typecheck01-command.json、lint01-command.json、fmt-check01-command.json | exit 0 |
+| 3 条待决定问题 | 13 / 7 | green03-ui-command.json |
+| 真正空问题列表，无面板 | 12 / 0 | no-panel02-ui-command.json |
+| 15 条待决定问题 | 13 / 7 | many01-ui-command.json |
 
-## 新标签示例
+三组 exit 0；JSON 含运行前完整 revision 与 dirty diff、每个元素的矩形、6 对相交面积、viewport、DPR、输入哨兵、滚动和控件命中结果。candidate-binding.json 逐字核对测试源码与最终提交一致。截图含原文、加长中文、往返尺寸、窄列、问题列表滚动，以及三个 125% 模拟尺寸。
 
-先核对 8077/8078 的 IPv4/IPv6 listener 没有其他实例。隔离启动器保存 `*-dry-run.log`、进程身份和 `*-launch.json`；只停止自己启动且身份吻合的服务。测试不得在共享 checkout 换源码或构建桌面产物。
+125% 用 0.8 CSS viewport + DPR 1.25 模拟，按 controller-decision-01.md 如实限定为 device-metrics；并非真实菜单缩放。当前截图经 CDP Page.captureScreenshot 保存，1280×720 缩放场景的 PNG 也为 1280×720。many01-ui-125percent-1280x720-open-button-*.png 对应同名 JSON 的 panel-controls 控件序号，可核对发送答复、打包与取消按钮完整显露。
+
+## 用新标签重放
+
+先检查 8077/8078 的 IPv4/IPv6 listeners 没有其他实例。启动器自动核对 dry-run home 是本轮 root，再启动真实服务端/Vite；保存 argv、PID、lstart。停止器只停启动记录中身份吻合的两个服务。
 
 ```sh
-python3 evidence/2026-10-09-batch11/T-065/start-isolated.py replay-red baseline
-python3 evidence/2026-10-09-batch11/T-065/run-command.py replay-red-ui ./a2a/scripts/bun run node /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-065/ui-probe.mjs /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-065 /Volumes/WD-Elements/dev-cache/synara/instances/t065-replay-red replay-red-ui red
-python3 evidence/2026-10-09-batch11/T-065/stop-isolated.py replay-red
+python3 evidence/2026-10-09-batch11/T-065/start-isolated.py replay-open
+python3 evidence/2026-10-09-batch11/T-065/run-command.py replay-open-ui ./a2a/scripts/bun run node /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-065/ui-probe.mjs /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-065 /Volumes/WD-Elements/dev-cache/synara/instances/t065-replay-open replay-open-ui
+python3 evidence/2026-10-09-batch11/T-065/stop-isolated.py replay-open
 ```
 
-预期红态拒绝：1280×900、至少 3 条待决定问题时，输入区必须完整在首屏内，测试检测到其在首屏外。Vite 的仅测试 source loader 加载保存的 `e94a0efc3` ChatView 和 IssueNotifications；后者是开工 HEAD 与指定坏版本的唯一其他源码差异，见 baseline-diff.patch。server 与其他 tracked source 在这两个版本相同。测试不修改共享源码、dist 或依赖目录。
+无面板：启动与 probe 最后都加 `no-panel`，并换新 label。15 条问题：启动与 probe 最后都加 `many`。上述模式只改外部夹具的初始问题数据，不修改生产显示逻辑。UI 压力输入直接改变展示文案和会话列宽度，产品没有语言切换或宽度拖动功能。
 
-候选矩阵将 label 换成 `replay-candidate`，启动时不传 baseline，UI probe 最后参数省略（默认 matrix）。真实无面板夹具用启动末尾参数 `no-panel`，probe 末尾也传 `no-panel`；该路径已准备，但本轮在 blocking 问题出现后未运行，不能当成证据。
+## 红态、失败与检查
 
-## 独立期望与诊断限制
+已知坏源码 e94a0efc3 的 red01-ui/red02-ui 在实现前失败；主控批准前的局部候选 green01-ui 在最短窗口的 125% 模拟失败。输出、截图和命令原样保留。原脚本见 ui-probe-blocked.mjs；red01 未关闭禁用 provider 提示，red02 与候选通过产品按钮关闭该夹具提示。
 
-期望来自 ticket 的 Acceptance 和说明。机械 oracle 检查整个输入区在 landing 与 viewport 内，点击坐标命中编辑器、输入哨兵成功且未滚动，4 个元素的 6 对相交面积均为 0，可见次要内容无裁切。中文文案、400px 会话列和滚动长问题正文是外部布局压力输入。
+重放 e94a0efc3：启动最后加 `baseline`，probe 最后加 `red`。Vite 的测试 source loader 加载保存的 ChatView、IssuePanel、TaskWindow、IssueNotifications；不在共享 checkout 换源码、切 branch、改 dist 或链接依赖。最初 red01/red02 执行时只有通知文件与指定基线有差异，见 baseline-diff.patch；它已被 loader 覆盖。
 
-125% 用 CSS viewport 1024×576、DPR 1.25 模拟 1280×720 的浏览器布局，尚未证明真实菜单缩放。该场景截图被 Playwright 的原 viewport 捕获影响，不能用它证明缩放画布，使用 JSON 的实际 viewport/几何输出定位空间不足。后续完成验收须补独立的真实缩放或明确的验收范围决定。
+green02-ui 的失败为重复截图标签 EEXIST；no-panel01-ui 的失败为将 400px 窄列错判成宽裕空间。两个对应脚本快照 ui-probe-green02.mjs / ui-probe-no-panel01.mjs 与失败输出保留。宽裕空间检查仍在正常 1600×1050 无面板及中文场景运行，要求三个次要元素均可见；未取消此检查。
 
-所有运行中的 provider 均禁用。通过产品按钮关闭禁用提示，是夹具对正常空态的准备动作；red01 未关闭提示，red02 与候选均关闭，不能用相异提示状态替代反事实。
+相关套件与全 workspace 检查的 exact argv / exit 在 related-tests02、browser-tests02、typecheck02、lint02、fmt-check02 的 *-command.json，原样输出在同名 .log。lint 有 877 warnings、0 errors；原始日志的空白不清洗。没有启动耗时对照、桌面 rebuild、真实模型调用或发布。
