@@ -1,0 +1,1 @@
+只做这个隔离夹具探针，不派发其它任务，不读其它仓库或用户数据。先用 exec_command 执行 python3，仅把 os.environ 中 T073_PROBE_KEY、GIT_CONFIG_COUNT、GIT_CONFIG_KEY_0、CODEX_THREAD_ID 四项写到当前夹具目录 env-probe.json（JSON；不存在记 null，不能打印其他环境变量）。然后创建 red.txt，内容为 red fixture newline。分别执行 git add red.txt，再执行 git commit -m "T073 baseline"。git add/commit 如果沙箱拒绝，按已配置的两条规则申请对应命令的权限，不换工具绕过。完成后停止，回复提交号。不写或安装任何钩子。
