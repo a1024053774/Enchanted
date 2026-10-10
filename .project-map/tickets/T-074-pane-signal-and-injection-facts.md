@@ -36,3 +36,9 @@ ready_rev: 1
 - 授权来源：用户 2026-10-10 在会话"a2a-构思主控"确认切法（逐字："确认"），在此之前在会话"新思路构思"说："确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。"`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+2026-10-10，T-074-1 首轮交付 **BLOCKED，待主控关闭**；保持 open，Acceptance 未完成项不勾选。Codex 0.162.1 在 node-pty 1.1.0 托管的 zsh 中初始化完成后，登记并一次写入单行标记文字与回车；42.396156 秒内原生 user.text 没有对应消息，结果 `codex idle other 1`。按卡停止，没有补发或重投。R7 尚缺至少 10 次及 running/awaiting_approval 覆盖，R6 未实际触发批准，Claude 未真实启动；不能支持 T-075 直接开工。
+
+证据与完整启动参数：[RESULTS](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[原始注入](../../evidence/2026-10-10-batch12/T-074/r7-injections.jsonl)、[中文报告](../../findings/native-cli-signals-injection-2026-10-10.zh-CN.md)。待决定的实验协议、Claude 隔离认证与调用估算见 [needs-decision](../../evidence/2026-10-10-batch12/T-074/needs-decision-01.md)。两个自建后台与临时 home 已清理，首次设置异常现场保留，auth.json 未入证据。
+
+计数命令退出 0，但覆盖不达标；status 为 Problems (0)、Stale living docs (1)，退出 1，输出保留在 checks.json。新增报告触发 findings/README.md 索引维护，现有 README 超出 worker 修改边界，交执行主控处理。交付 commit 以最终终端回执和 Git 文件历史为准，主控核对后补关闭结论。
