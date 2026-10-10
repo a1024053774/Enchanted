@@ -1,0 +1,14 @@
+a2a synara: node=/Volumes/WD-Elements/dev-cache/synara/toolchains/node-v24.13.1-darwin-arm64/bin/node cache=/Volumes/WD-Elements/dev-cache/synara instance=/Volumes/WD-Elements/dev-cache/synara/instances/t057-notify-rev3
+105 | finally {
+106 |   try { lastCalls = await calls(); } catch (error) { errors.push(String(error)); }
+107 |   writeFileSync(join(out, label + ".json"), JSON.stringify({ argv: process.argv.slice(1), failure, injected_clock: "2026-10-10T04:00:00.000Z", checks, receipts, calls: lastCalls, errors, limitation: "真实应用/HTTP/查询，前后台和桌面接收端受控；不证明 OS 显示。" }, null, 2) + "\n");
+108 |   await browser.close();
+109 | }
+110 | if (failure || checks.some(check => !check.pass)) throw new Error(failure ?? ("Notification contract failed: " + checks.filter(check => !check.pass).map(check => check.name).join(", ")));
+                                                                  ^
+error: evaluate: Target page, context or browser has been closed
+    at /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-057/notifications-rev3.mjs:77:14
+    at processTicksAndRejections (native:7:39)
+      at /Users/luckye/Documents/Code/a2a/evidence/2026-10-09-batch11/T-057/notifications-rev3.mjs:110:61
+
+Bun v1.4.2 (macOS arm64)
