@@ -34,3 +34,7 @@ ready_rev: 1
 - 授权来源：用户 2026-10-10 同意构思主控的建议（逐字："你建议改的一处我同意"）；`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+BLOCKED（2026-10-10，worker:t066）：基线 `49cae984f22924de006e0f8358cb447eb881aaf6` 已取得真实服务端/MCP/SQLite 红态：executor 凭据持有 stop，成功请求中断，事件却写 actor=ideation 且缺调用者 thread/turn。证据与重放见 [RESULTS](../../evidence/2026-10-09-batch11/T-066/RESULTS.md)。未修改生产代码。
+
+brief 要求其他上游文件先获批准；最小接入需修改 `agentGateway/toolRuntime.ts:55`、`agentGateway/mcpTransport.ts:366`，传递凭据的冻结角色。阻塞问题 `20261010T150042Z-worker:t066-issue-001` 已发 triage，待主控批准后继续。Acceptance 保持未勾选；ticket 保持 open，待主控关闭。
