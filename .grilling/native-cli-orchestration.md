@@ -4,7 +4,7 @@ status: awaiting-user
 topic: 改方向：不用 Synara 统一层，原生 CLI 交互终端 + a2a 编排 + 借用 Synara 前端的轻量应用
 destination_artifact: intent.md 第三阶段修订 + .project-map/specs/ 下一份新 spec + 旧 Synara 票（T-055～T-068 中未完成者）的处置清单 + 就绪 build ticket；同步 AGENTS.md、CONTEXT.md、MAP.md
 created_at: 2026-10-10
-last_round: 2
+last_round: 3
 ---
 
 > 指针状态：`.grilling/ACTIVE.md` 于 2026-10-10 经用户同意（R1 Q5“都采纳”）改指向本账本；上一个会话 `controller-split-user-input` 已 confirmed，原样保留。
@@ -37,6 +37,10 @@ last_round: 2
 - D14（recommended，R2 Q8）：状态只认各家结构化信号（Claude Code hooks、OSC 7501；Codex `notify`），拿不到的显示“未知”，不用正则匹配屏幕或标题；钩子只经本会话启动参数传入（Claude `--settings`，Codex `-c`），不改全局配置。
 - D15（recommended，R2 Q9）：派发文本写入 worker 窗格并带 `⟦主控 #序号⟧` 标记、记派发日志、不算用户输入；两个主控也作为窗格跑在应用里，互相唤醒改为往对方窗格写带标记的提示；收件箱条目仍是事实来源。
 - D16（user，R2 Q10=a + Electron）：新应用放在本仓库的新目录；外壳用 Electron。
+- D17（recommended，R3 Q11）：用户输入、问题上报、收件箱、门禁都放常驻后台的同一个 SQLite 库，只追加；`scripts/inbox` 改为后台的命令行客户端；`.project-map/inbox/` 文件在切换当天退役，不双写；切换前 Herdr 期照旧用文件。
+- D18（recommended，R3 Q12）：数据模型从一开始按“项目 → 任务 → 会话”支持多项目；第一个切片只跑 a2a。
+- D19（recommended，R3 Q13）：第一版只支持 Claude Code（主控）与 Codex（worker）；其他家以后按需加，每家补启动参数与状态信号。
+- D20（recommended，R0 Q5 采纳时附带）：提交可追溯到工具、模型、配置、会话（git hook + agent 自己的 hook，只经会话启动参数传入）。
 
 ## Facts
 
@@ -50,7 +54,7 @@ last_round: 2
 
 ## Frontier
 
-R3：Q11 数据放哪（单一 SQLite，收件箱文件退役）；Q12 一开始就支持多项目的数据模型；Q13 第一版支持哪些 CLI。
+无。漂移检查后待用户确认基线。
 
 ## Fog
 
@@ -67,3 +71,4 @@ R3：Q11 数据放哪（单一 SQLite，收件箱文件退役）；Q12 一开始
 - R0（2026-10-10）：读文章与附录 01–04、07；核实 F1–F5；用户回答 Q1–Q6（D1–D6）；写 cancel 条目；建本账本。
 - R1 答复（2026-10-10）：“Q1:b, 然后用 zsh 不行吗？哪个终端方案好？ / Q2:抽出来用，契约不变，加路径检查 / 3. 采纳这四层 / 4.采纳 / 5. 都采纳”。D7–D11；ACTIVE 改指向本账本。小事：用户说“1.推送 2.删掉”——已 HTTPS 推送 a2a main 到 097268b（fork 不推）；已删 /tmp 下本项目 45 个 a2a-* 夹具目录。
 - R2 答复（2026-10-10）：“Q6:采纳 / Q7:a / Q8: 采纳 / Q9: 采纳 / Q10:a + Electron / 然后要删的东西删一下，左边已经回复了”。D12–D16。删除：fork 的四个旧 worktree（synara-t038、t040bc、t040bp、t045）已 `git worktree remove --force`，分支保留；内置盘可用 19G→27G。
+- R3 答复（2026-10-10）：“Q11:采纳 / Q12: 采纳 / Q13: 采纳”。D17–D19；补记 D20。frontier 清空，给出漂移检查。
