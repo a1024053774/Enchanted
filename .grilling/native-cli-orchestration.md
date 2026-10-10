@@ -4,10 +4,10 @@ status: awaiting-user
 topic: 改方向：不用 Synara 统一层，原生 CLI 交互终端 + a2a 编排 + 借用 Synara 前端的轻量应用
 destination_artifact: intent.md 第三阶段修订 + .project-map/specs/ 下一份新 spec + 旧 Synara 票（T-055～T-068 中未完成者）的处置清单 + 就绪 build ticket；同步 AGENTS.md、CONTEXT.md、MAP.md
 created_at: 2026-10-10
-last_round: 0
+last_round: 1
 ---
 
-> 指针状态：`.grilling/ACTIVE.md` 仍指向已 confirmed 的 `controller-split-user-input.md`；改指向本账本需用户同意（R1 Q5）。
+> 指针状态：`.grilling/ACTIVE.md` 于 2026-10-10 经用户同意（R1 Q5“都采纳”）改指向本账本；上一个会话 `controller-split-user-input` 已 confirmed，原样保留。
 
 ## Destination
 
@@ -27,6 +27,11 @@ last_round: 0
 - D4（user，R0 Q4）：执行层用交互终端，不用无头模式。
 - D5（user，R0 Q5）：借鉴文章的好思路，含权限管理，与现有设计结合。
 - D6（user，R0 Q6=等）：T-068 等方向定；按 D1 预计作废。
+- D7（recommended，R1 Q1=b）：我们自己托管终端，复用 Synara 的终端实现（node-pty + xterm）。用户追问“用 zsh 不行吗？哪个终端方案好？”——zsh 是窗格里跑的 shell，不是终端宿主，见 R2 回答；终端方案待 R2 Q6 确认。
+- D8（user，R1 Q2）：门禁抽出来用，契约不变，加路径检查（任务卡“允许/禁止”路径，越界打回）。
+- D9（recommended，R1 Q3）：权限四层，都在应用内：角色卡；任务卡路径 + 门禁检查；每会话的 CLI 启动参数（只作用于该会话，不碰 ~/.claude、~/.codex）；收件箱命令行限定谁写哪种条目。设置页“角色权限”编辑启动参数与路径规则，默认按此。
+- D10（recommended，R1 Q4）：切换条件改为：三项功能在新应用里能用 + 用户试用说“可用”；面板界面、打包格式、处置规则、提醒两路、T-057 软件内通知（并入 T-067）、T-064 设置页都换载体重做，不推翻。
+- D11（recommended，R1 Q5）：T-059、T-064 后端、T-066、T-067、T-068 标 superseded；已关闭的 T-055～T-065 保留为历史；fork 只作组件来源，不再跟上游，不删；`ddb765956` 保留不推送；ACTIVE 改指向本账本（已改）。
 
 ## Facts
 
@@ -40,7 +45,7 @@ last_round: 0
 
 ## Frontier
 
-R1 Q1–Q5 见对话（终端宿主、门禁去留、权限结合、切换条件与旧功能搬迁、旧票与 fork 处置及 ACTIVE 指针）。
+R2：Q6 终端组成（xterm.js + node-pty + zsh）；Q7 编排后台常驻（像 Herdr server）；Q8 状态信号只用结构化来源；Q9 派发与唤醒都写入窗格并标记；Q10 新应用放哪个仓库、外壳用 Electron。
 
 ## Fog
 
@@ -55,3 +60,4 @@ R1 Q1–Q5 见对话（终端宿主、门禁去留、权限结合、切换条件
 ## Changelog
 
 - R0（2026-10-10）：读文章与附录 01–04、07；核实 F1–F5；用户回答 Q1–Q6（D1–D6）；写 cancel 条目；建本账本。
+- R1 答复（2026-10-10）：“Q1:b, 然后用 zsh 不行吗？哪个终端方案好？ / Q2:抽出来用，契约不变，加路径检查 / 3. 采纳这四层 / 4.采纳 / 5. 都采纳”。D7–D11；ACTIVE 改指向本账本。小事：用户说“1.推送 2.删掉”——已 HTTPS 推送 a2a main 到 097268b（fork 不推）；已删 /tmp 下本项目 45 个 a2a-* 夹具目录。

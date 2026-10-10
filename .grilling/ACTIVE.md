@@ -1,2 +1,2 @@
-active_session: .grilling/controller-split-user-input.md
-session_id: grilling-controller-split-user-input-20261009
+active_session: .grilling/native-cli-orchestration.md
+session_id: grilling-native-cli-orchestration-20261010
