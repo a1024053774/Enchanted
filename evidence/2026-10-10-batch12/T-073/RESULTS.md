@@ -1,6 +1,6 @@
 # T-073-1：Herdr 期任务卡、提交尾注与验收打分
 
-状态：**INCOMPLETE，待主控关闭**。三项实现已交付，当前代码完成条件 1～4 与 7 项本地场景均通过；唯一一次独立审查为 FAIL，两项 P2 已修复并重验，按任务卡不追审，由主控审新增 diff。项目状态为 0 problems，但并行 T-074 的发现文档索引仍 stale，已上报；不把整体状态写成 PASS。
+状态：**INCOMPLETE，待主控关闭**。三项实现已交付，当前代码完成条件 1～5 与 7 项本地场景均通过；唯一一次独立审查为 FAIL，两项 P2 已修复并重验，按任务卡不追审，由主控审新增 diff。最终项目状态为 0 problems、0 stale；不把未经主控审查的修复写成 PASS。
 
 依据：T-073 ready_rev: 1、本批任务卡、[执行主控决定 01](controller-decision-01.md)。决定 01 撤销默认 KEY 过滤及放行要求；实现没有 shell_environment_policy 覆盖。
 
@@ -24,7 +24,7 @@
 | 2：同会话 no-verify 仍为 9 项，原钩子多一行 | PASS。提交 db8a622ef649963fe4677aba83384c9762e5f6f4；no-verify-message.txt、completion-count.txt（主控精确命令输出 9）、original-hook-trace.txt（两行）。 |
 | 3：普通终端无尾注且成功 | PASS。green03/plain-message.txt 无 A2A 行；真实 shell/Git 命令与退出码见 commands.jsonl。 |
 | 4：完整打分、缺项拒收且文件不变、放弃无分 | PASS。当前代码的 score02-review-fixes 与 local04-review-fixes；此前首次放弃记录在 score01。新本地套件重新创建放弃夹具；实际 JSONL 的旧放弃记录不重复写入，重用情况在 verification.json 明示。 |
-| 5：项目状态 | 0 problems；全仓 status 退出 1，因为 T-074 的发现文档索引 stale。已上报，不自行改他人文件；最终输出见 status-final.txt。 |
+| 5：项目状态 | PASS。最终全仓 status 退出 0，0 problems、0 stale，见 status-final.txt；此前 T-074 索引 stale 的现场仍保留在 status-before-review.txt。 |
 | 模板与路径 | PASS。13 字段、责任人及所有链接核对；独立审查也确认模板与链接通过。 |
 
 真实边界：Herdr client/server 0.9.3，Codex 0.162.1，交互 CLI、Git 与文件。请求 gpt-6.1-sol / xhigh / service_tier="fast" / check_for_update_on_startup=false；供应商实际服务 tier 未核实。
@@ -64,7 +64,7 @@
 ## 交主控的剩余事项
 
 1. 按卡片要求审查 76e71f8 → 93eb5ab 的修复 diff；已有红绿与当前真实入口证据，但未经第二次独立审查。
-2. 处理并行 T-074 的发现索引 stale（上报 20261010T200034Z-worker:s12-t073-issue-001）。原环境 blocking issue 已由决定 01 解除。
+2. 范围外 T-074 索引 stale 已上报（20261010T200034Z-worker:s12-t073-issue-001），由其他写入者核对后最终状态恢复为 0 stale；本 worker 未改他人文件。原环境 blocking issue 已由决定 01 解除。
 3. 本 ticket 保持 open，待主控关闭与后续交付处理；不把当前 INCOMPLETE 上调。
 
 原始命令、stdout/stderr、退出码在各 commands.jsonl；完整重放见 [REPLAY.md](REPLAY.md)。每次使用新 label/attempt，不覆盖失败或重复打分。
