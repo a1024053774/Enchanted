@@ -32,3 +32,5 @@ T-062 的 worker 发现两处范围外的界面问题，用户要求都做（逐
 - 授权来源：用户 2026-10-09 说"两条范围外的界面问题都做"；`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+INCOMPLETE（候选检查完成，待独立审查），待主控关闭；保持 open。fork `e94a0efc395c26bedb6cbf65f8fdf7f5c2125a58`；基线 `4ac5ba00e7125279b08c241037d1404450455ff6`。只改上游 `apps/web/src/components/ChatView.tsx` 的空态布局；同一隔离 profile 的重开、1600×1050/1280×900 界面红绿、resize、长文案、损坏标记和延迟服务端的证据及检查见 [RESULTS](../../evidence/2026-10-09-batch11/T-063/RESULTS.md)。正式数据目录未访问，provider 禁用，模型调用 0；原失败保留，外观待用户判断。
