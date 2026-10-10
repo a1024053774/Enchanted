@@ -33,3 +33,5 @@ ready_rev: 1
 - 授权来源：用户 2026-10-09 对"输入框要滚动才看到能否接受"答"不能"；`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+BLOCKED，待主控关闭。依据 ready_rev 1；局部候选 fork `95d525c56237405d56fef3c4706fe4d392452564`，仅改 `ChatView.tsx` 空态块。红态已取得，三种要求视口打开面板的首屏、点击输入、长中文和尺寸往返检查已通过；无面板与独立审查尚未运行。既有相关套件、全 workspace typecheck、lint、fmt:check 已通过。1280×720 加 125% 模拟时仅余 73.4px，完整输入区需 134.25px，需主控决定是否允许调整 `IssuePanel.tsx` 的空间分配。详见 [RESULTS](../../evidence/2026-10-09-batch11/T-065/RESULTS.md) 和 blocking issue `20261010T054058Z-worker:T-065-issue-001`。不能据此验收关闭。
