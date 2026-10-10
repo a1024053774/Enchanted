@@ -109,7 +109,7 @@ function scan() {
 const timer = setInterval(scan, 100);
 const server = net.createServer(socket => {
   let input = '';
-  socket.on('data', data => {
+  socket.on('data', async data => {
     input += data.toString('utf8');
     const newline = input.indexOf('\n');
     if (newline < 0) return;
@@ -124,13 +124,24 @@ const server = net.createServer(socket => {
         socket.end(JSON.stringify({error: 'State mismatch', actual: latestState}) + '\n');
         return;
       }
+      if (!['M1', 'M2', 'M3'].includes(request.method)) {
+        socket.end('{"error":"An explicit M1/M2/M3 method is required"}\n');
+        return;
+      }
       const registered = {id: ++sequence, cli: 'codex', state: latestState,
         registered_text: request.text, registered_at: now(),
-        state_evidence: stateEvidence, mode: request.mode || 'plain'};
+        state_evidence: stateEvidence, method: request.method,
+        experiment: request.experiment, marker_file: request.marker_file || null};
       append('registrations.jsonl', registered);
-      const bytes = request.mode === 'bracketed' ? '\x1b[200~' + request.text + '\x1b[201~\r' : request.text + '\r';
-      append('writes.jsonl', {...registered, written_at: now(), bytes});
+      const bytes = request.method === 'M1' ? request.text + '\r' :
+        request.method === 'M2' ? request.text : '\x1b[200~' + request.text + '\x1b[201~';
+      append('writes.jsonl', {...registered, part: 1, written_at: now(), bytes});
       child.write(bytes);
+      if (request.method !== 'M1') {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        append('writes.jsonl', {id: registered.id, part: 2, written_at: now(), bytes: '\r'});
+        child.write('\r');
+      }
       socket.end(JSON.stringify(registered) + '\n');
     } else if (request.op === 'control') {
       append('writes.jsonl', {kind: 'harness-control', written_at: now(), bytes: request.bytes, reason: request.reason});

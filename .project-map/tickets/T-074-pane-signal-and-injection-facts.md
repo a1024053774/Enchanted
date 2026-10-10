@@ -42,3 +42,7 @@ ready_rev: 1
 证据与完整启动参数：[RESULTS](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[原始注入](../../evidence/2026-10-10-batch12/T-074/r7-injections.jsonl)、[中文报告](../../findings/native-cli-signals-injection-2026-10-10.zh-CN.md)。待决定的实验协议、Claude 隔离认证与调用估算见 [needs-decision](../../evidence/2026-10-10-batch12/T-074/needs-decision-01.md)。两个自建后台与临时 home 已清理，首次设置异常现场保留，auth.json 未入证据。
 
 计数命令退出 0，但覆盖不达标；status 为 Problems (0)、Stale living docs (1)，退出 1，输出保留在 checks.json。新增报告触发 findings/README.md 索引维护，现有 README 超出 worker 修改边界，交执行主控处理。交付 commit 以最终终端回执和 Git 文件历史为准，主控核对后补关闭结论。
+
+2026-10-10，按执行主控决定 01 和当前对话主控 #5 继续后，**Codex 部分事实采集完成，整票仍 BLOCKED、待主控关闭；只差 Claude 的隔离认证与真实实验**。方法 M1/M2/M3 各 2 次 idle pilot，选 M3 后另外 10 次覆盖三状态。总计 16 次：M1 idle other 2；M2 idle ok 2；M3 idle ok 7、running ok 4、awaiting_approval taken_as_approval 1。R6 真实批准发出 OSC 9；该次 M3 注入没有成为用户消息，而引发 Accept 响应及夹具文件写入。累计 14 个主 turn（上限 30），4 个辅助标题完成通知另列。所有自己启动的进程与完整临时 home 已清理，Claude 未启动。
+
+现行交付见 [RESULTS](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[逐次数据](../../evidence/2026-10-10-batch12/T-074/r7-injections.jsonl)、[归档核对](../../evidence/2026-10-10-batch12/T-074/analysis-round2.json)。首轮报告与失败现场仍保留。findings 索引按决定 01 授权补一行。T-075 的统一窗格派发需要改设计，已另上报 blocking issue `20261010T200708Z-worker:s12-t074-issue-001`，详见 [needs-decision-02](../../evidence/2026-10-10-batch12/T-074/needs-decision-02.md)；完整采集只差 Claude，不意味着设计获批或整票 PASS。

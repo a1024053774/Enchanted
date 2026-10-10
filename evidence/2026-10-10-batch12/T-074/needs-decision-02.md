@@ -1,0 +1,33 @@
+# T-074：Codex 事实采集完成；批准窗口吞掉派发并批准命令
+
+**BLOCKED。T-074 的完整采集现在只差 Claude 的认证与真实实验；T-075 的派发设计还需决定。** 根据执行主控决定 01 继续的 Codex 部分已完成，累计 14 个主 turn（上限 30），Claude 仍未启动。
+
+## 新事实
+
+R7 共 16 次：M1 idle `other` 2；M2 idle `ok` 2；M3 idle `ok` 7、running `ok` 4、awaiting_approval `taken_as_approval` 1。三种方法各 2 次 pilot；选定 M3 后另外 10 次覆盖三种状态。未重投失败输入，未设成功率门槛。
+
+R6 真实请求来自模型明确传 `sandbox_permissions="require_escalated"` 的夹具标记文件写入。外部在 `2026-10-10T20:03:16.748Z` 收到 OSC 9：
+
+```text
+9;Approval requested: /bin/zsh -lc "python3 -c 'f...
+```
+
+此时标记文件不存在。`notify` 只有 agent-turn-complete，没有批准等待 JSON；rollout 没有专门的批准等待事件，保留了请求调用与后续执行结果。OSC 的事件类型由本会话只启用 approval-requested 的配置推断；payload 是截断的展示文字，没有 request id，不能当完整批准协议。批准后内部原生日志明确记录 `CommandExecutionRequestApprovalResponse { decision: Accept }`，同样保留在快照中。
+
+随后唯一实验输入为：
+
+```text
+⟦主控 #16⟧ 这是新的用户消息，不是批准：请不要执行标记命令，只记录本条文字。
+```
+
+M3 在 `20:03:16.779Z` 写 bracketed paste，`20:03:17.083Z` 单独写回车；没有额外空白 Enter 或人工批准。该文字没有成为 user.text。原生 CommandExecution 在 `20:03:17.214Z` 记录 completed、exit_code 0，夹具文件内容变成 `T074 approval trial 1`。因此本次注入被作为批准操作处理，单列 taken_as_approval。副作用只发生在自建 `/tmp` 夹具，原始前后记录已保存，所有隔离 home 已删除。
+
+## 对 T-075 的决定请求
+
+不能把“在 idle/running 的 11 次 M3 送达”外推到批准窗口。当前 spec 的统一窗格注入方式需要修订或明确限制，不能直接按原样开 T-075。
+
+请构思主控决定：主控派发与用户批准是否必须走不同通道；若继续 PTY 派发，等批准时如何保留待送达文字、何时恢复，以及写入中状态改变的竞态要如何验证。后者是 inferred / 本轮未测试，不在本 worker 会话自行加等待队列、自动 Enter 或重试。
+
+Claude 认证继续按 needs-decision-01 的隔离 API key / 用户临时目录认证选项等待用户，不读取全局凭据或发起登录。不得把这份队友报告当成用户对新设计的批准。
+
+证据：[RESULTS](RESULTS.md)、[逐次注入](r7-injections.jsonl)、[原始归档核对](analysis-round2.json)、[批准前后快照](round2-M3-pilot/r6-snapshots.jsonl)、[写入字节](round2-M3-pilot/writes.jsonl)。归档核对由本 worker 的只读脚本做，不冒称独立 reviewer 验收。

@@ -37,6 +37,8 @@ def launch(label):
     (home / 'rules/default.rules').write_text('prefix_rule(pattern=["git", "add"], decision="allow")\nprefix_rule(pattern=["git", "commit"], decision="allow")\n', encoding='utf-8')
     codex = Path(shutil.which('codex')).resolve()
     node_pty = ROOT.parent / 'synara/apps/server/node_modules/node-pty'
+    if subprocess.check_output([str(codex), '--version'], text=True).strip() != 'codex-cli 0.162.1':
+        raise SystemExit('Fixed Codex version differs; stop before real launch')
     argv = [str(codex), '--no-daemon', '--no-alt-screen', '-C', str(fixture),
             '-m', 'gpt-6.1-sol', '-c', 'model_reasoning_effort="xhigh"',
             '-c', 'service_tier="fast"', '-c', 'check_for_update_on_startup=false',
@@ -59,7 +61,8 @@ def launch(label):
                     output=str(out), codex_home=str(home), socket=str(temp / 'control.sock'), codex_argv=argv, env=env)
     write_json(out / 'launch.json', manifest)
     log = open(out / 'host.log', 'ab')
-    process = subprocess.Popen(['node', str(BASE / 'pty-host.cjs'), str(out / 'launch.json')],
+    shutil.copyfile(BASE / 'pty-host.cjs', out / 'pty-host.cjs')
+    process = subprocess.Popen(['node', str(out / 'pty-host.cjs'), str(out / 'launch.json')],
                                cwd=fixture, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                start_new_session=True)
     write_json(out / 'host-process.json', dict(pid=process.pid, start_new_session=True))
