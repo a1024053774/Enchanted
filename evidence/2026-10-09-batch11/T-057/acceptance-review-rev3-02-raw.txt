@@ -1,0 +1,18 @@
+STATUS: PASS
+TARGET: Synara commit `1bcf20720483ab944a49ca20f56be776eb2f9b6c` (parent `e94a0efc395c26bedb6cbf65f8fdf7f5c2125a58`)
+EVIDENCE:
+- `candidate-binding-rev3-01.json` binds all listed rev3 evidence to the frozen candidate; diff is one file: `apps/web/src/a2a/IssueNotifications.tsx`.
+- Parent counterfactual startup run recorded zero calls and exit 1; candidate startup run recorded exactly one combined three-item reminder and exit 0.
+- Notification route replay proves ordinary changes produce in-app toasts, `report` content cannot trigger native routing, neutral `needs-decision` does, batching occurs, and delivery produces no native call.
+- Rev3 notification checks pass startup reminder, restart deduplication, foreground suppression, setting off/on, and controller decision routing.
+- Real Electron evidence records a non-empty macOS Notification Center ID, correct body, and `silent: true`; independent CUA evidence changes the real setting from on to off, and `native-off` exits 0 with no IPC/native call.
+- MCP raw calls verify all seven actions, append/state behavior, user-only rejection with zero append, blocking-close rejection, and confirmed-delivery success.
+- Panel geometry evidence at 1280×900 and 1600×1050 shows every submit/bundle button inside the scroll clip and center-hit clickable.
+- T-058 `serial-final-26/transport-oracle.json` independently records session-ended `forward` delivery.
+FINDINGS:
+- None.
+COUNTEREXAMPLE:
+- The parent `e94a0ef...` notification implementation is rejected: startup reminder calls are `[]` where one combined reminder is required. Body-based routing, always-native routing, missing restart persistence, and always-success MCP mutants are also rejected by the recorded route, restart, and MCP assertions.
+LIMITATIONS:
+- `native-notify-rev3-07.command.json` exits 1 after notification-center and restart checks, at a later settings locator; setting behavior is independently covered by `native-off-rev3-08` exit 0.
+- Physical audio was not measured; the real native object and macOS receipt report `silent: true`.

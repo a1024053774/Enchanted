@@ -1,6 +1,6 @@
 # T-057 ready_rev 3
 
-状态：**INCOMPLETE，工程证据已完成，最终独立审查待完成；ticket 保持 open，待主控关闭。**
+状态：**PASS，独立审查 PASS；ticket 保持 open，待主控关闭。**
 
 fork `1bcf20720483ab944a49ca20f56be776eb2f9b6c`，基线 `e94a0efc395c26bedb6cbf65f8fdf7f5c2125a58`，未 push。依据 rev3 brief、执行主控决定 01/05、ticket ready_rev 3、spec 第 4 节及本轮用户修订。前两轮文件原样保留。
 
@@ -14,7 +14,7 @@ fork `1bcf20720483ab944a49ca20f56be776eb2f9b6c`，基线 `e94a0efc395c26bedb6cbf
 | 已结束会话的未确认转交 | 引用用户同意并入的 T-058 证据：`../T-058/serial-final-26/transport-oracle.json` 的 ended_forward，配套 `transport-entry-07.py`、原始 HTTP/MCP 控制输出；见 `../T-058/RESULTS-02.md`。本轮不重做 |
 | 集中检查 | PASS：核心 issues/inbox 16/16；全 workspace typecheck、lint、fmt 退出 0。lint 877 warnings、0 errors，server sync-fs budget 通过。`final-rev3-{core,typecheck,lint,fmt}.command.json` 与日志 |
 | 真实 macOS 系统通知 | PASS（协议与通知中心回执）：独立标准构建、隔离 Electron、真实前后台；两题只有一次 IPC/原生调用，macOS 通知中心有一条非空 id 与两题完整正文的回执；真实 Native.silent=true，未做物理音频测量。实际进程重启不重复；既有设置页实际点 off，读回 false，新 needs-user 零 IPC/原生调用。`native-notify-rev3-07-notification-center.json`、`native-off-rev3-08.json`、`native-settings-cua-rev3-08.json` 与 PNG。未观察到授权请求，未点击系统授权、未打开系统设置 |
-| fresh-context 独立审查 | INCOMPLETE：须在 OS 项完成或停在授权处之后冻结再审查一次 |
+| fresh-context 独立审查 | PASS：唯一一次 fresh-context 只读审查，冻结 fork 与 a2a `66809044`，没有发现。见 [审查](acceptance-review-rev3-02.md)及原始输出；限制没有上调 |
 
 唯一产品改动是 `apps/web/src/a2a/IssueNotifications.tsx`；本轮没有新增上游文件接入。复用 `enableSystemTaskCompletionNotifications`，与现有“Desktop activity notifications”开关共享开关；关闭它会同时关掉该既有活动通知与 a2a 系统提醒，软件内问题通知继续保留。没有新设置字段、依赖、用户 MCP 身份、权限目录、内容含义关键词/正则、兼容入口或自动重试。
 
@@ -31,3 +31,5 @@ Tracer bullet 是首次读取 blocking → 真实查询 → 合并 → 现有 br
 六种既定失败方式仍由同一核心处理；本轮当前候选的 issues/inbox 16 项检查覆盖锁与重复答复拒绝、活动 turn 排队、已结束转交、close/answer 交叠、注入时钟回拨及分隔文字/Unicode。真实已结束未确认转交按用户允许并入 T-058。此前真实模型消息接收的证据绑定旧候选，本轮不把它当作新模型执行结论。
 
 独立 checkout 与其标准构建产物已经 `git worktree remove` 删除；路径与提交在 `checkout-cleanup-rev3-01.json`。没有删除旧 worktree；真实服务夹具根目录仍在外置盘保留。`startup-green-rev3-03` 的依赖重新优化导致页面导航销毁，未取到结果文件；04 在优化完成后同输入通过，旧日志保留。未重复全仓测试或旧候选的全部门禁场景，未宣称真实模型理解、物理音频或生产发布已验证。
+
+最终独立审查 PASS，无修复或二次追审。冻结证据提交 `66809044cc1e8f6abe808e85d8284bfe779230cc`；本次收尾提交只追加审查输出、状态、编码检查和地图检查，不改变候选产品或原始运行结论。原始日志的尾空白、警告和失败原样保留，不据此冒称证据目录的 diff whitespace 检查通过。
