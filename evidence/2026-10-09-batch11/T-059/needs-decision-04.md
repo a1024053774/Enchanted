@@ -1,0 +1,56 @@
+# T-059：首次真实 Claude 调用前的认证与预算决定
+
+**BLOCKED，等待用户决定。** 依据 [brief](../brief-T-059.md)“真实模型调用：两道闸”；交执行主控，由构思主控转达。本轮产品验收新增 Claude/Codex 模型 turn 均为 0，尚未创建真实 provider 会话。没有读取或复制用户 Claude 凭据，没有读取正式工作台数据。
+
+## 已核对的实际认证路径
+
+核对日期 2026-10-10；fork `49cae984f22924de006e0f8358cb447eb881aaf6`。本机原生 Claude CLI `2.1.296`，项目 SDK `0.3.259`；[版本与 help 探针](native-cli-03/version-command.json)只运行 `--version`、`--help`，空隔离 home 未生成文件。SDK query 未调用。
+
+| 层 | 实际行为与依据 |
+| --- | --- |
+| Synara provider | `ClaudeAdapter.ts:2187` 用账号的 `homePath`、`environment`、`providerInstanceId` 加 `ServerConfig.homeDir/stateDir` 构造 env；`6191` 明确加载 user/project/local 三类配置，`6229` 将构造结果传给 SDK。相关实际源码保存在 [source-excerpts](auth-preflight-01/source-excerpts.json) |
+| 账号隔离 | `claudeEnvironment.ts:134` 起在显式 home/账号环境下清除继承的直接凭据、云端认证、配置目录，再覆盖明确传入的 env；`claudeProcessEnv.ts:176` 起读 `${CLAUDE_CONFIG_DIR}/.credentials.json` 与 `${HOME}/.claude/.credentials.json`，不是从 Synara DB 取得 token |
+| SDK / CLI | 官方说明 SDK 可从进程环境使用 `ANTHROPIC_API_KEY`；macOS CLI 还支持 Keychain，本地凭据回退文件与配置目录关联。仅隔离 Synara DB 不会证明 CLI 的用户配置或凭据也隔离。[官方 SDK 快速开始](https://code.claude.com/docs/en/agent-sdk/quickstart)、[CLI 认证](https://code.claude.com/docs/en/authentication#credential-management) |
+| 写入风险 | SDK 会保存原生会话，CLI 可以写配置、会话历史和登录状态；当前 adapter 启用 user/project/local 来源。因此不能让 default home 或真实项目成为验证环境，也不能把“程序只传 env”当成 CLI 绝不会写文件的证明。[官方配置说明](https://code.claude.com/docs/en/settings) |
+
+[无模型 env 探针](auth-preflight-01/environment.json)使用全部为假值的继承凭据与显式凭据，直接运行现有环境构造函数：空显式 home 清除了继承 key；显式 API key 保留；技术上也保留显式 OAuth token；所有凭据文件查找位置在自己创建的 `/private/tmp/a2a-t059-auth-probe-*` 下。它只证明 env 构造，不证明 CLI 登录、Keychain、真实 API 可用性或模型行为。未运行 `auth status`、`login`、`setup-token` 或 SDK query。
+
+## 不碰用户 Claude 配置的做法
+
+1. **建议：独立 API key，或用户明确指定的已授权真实 API 网关。** key 仅进自建隔离进程的环境；provider home、`CLAUDE_CONFIG_DIR`、`CLAUDE_SECURESTORAGE_CONFIG_DIR`、原生 home 都在 `/tmp`；工作目录为自建夹具仓库。用现有 provider 的 `homePath/environment` 传入，凭据不写 settings.json、launcher、Git 或证据。若需网关，还须给出 endpoint、认证环境变量名和允许的模型 id。不从用户 Claude 配置查找凭据。
+2. **用户亲自在独立临时目录完成 CLI 认证。** worker 先准备目录与命令，然后停下；登录、浏览器与 Keychain 提示由用户操作。实际登录是否使用订阅、Console 或其它渠道，以及用于 SDK 的授权，由用户明确决定。不得沿用默认 `~/.claude`，不复制用户的 `.credentials.json`，不由 worker 发起登录或改系统授权。
+
+官方 SDK 当前要求产品集成使用 API key 或支持的云渠道；CLI 技术上接受某种 OAuth 输入，并不自动等于本票已获相应账号使用授权。[SDK 认证说明](https://code.claude.com/docs/en/agent-sdk/quickstart)。T-064 决定 02 的 localhost 假 Messages API 不列为选项：它只能证明权限流程，不能证明本票主控行为。
+
+没有探查本机是否已有可用 key，也没有读取用户环境的凭据值、Keychain 或配置文件。用户只需指定秘密的私有交付位置或注入方式，不要把秘密写入决定条目或聊天记录。
+
+## 预计额度与请求的上限
+
+下面是驱动计划的估算，尚未发生调用；真实失败不得自动增加额度或偷偷重跑。
+
+| 场景 | 预计 Claude 原生 turn | 预计 Codex 原生 turn |
+| --- | ---: | ---: |
+| 两张首条角色卡及初始化 | 2 | 0 |
+| 用户请求、assign、执行派发、问题判断、验收报告与转述 | 5–7 | 2（首次上报；收到打包信息后交付） |
+| 构思主控 stop、执行主控 ack；未 ack 后二次明确要求及窄 stop | 4–5 | 3（直接停、主控停、超时窄停各一次） |
+| 总计估算 | 11–14 | 5 |
+
+请求批准**最多 16 个 Claude 原生 turn、最多 6 个 Codex 原生 turn**。这是 native `turn.started`／输入启动的限额；一个 agent turn 会有多次模型 API 请求，不能把 turn 数冒称 API 调用次数。Claude 的具体模型 id/effort、API 金额上限及认证渠道由用户决定；不得使用 Haiku。Codex 固定 `0.162.0 / gpt-6.1-sol / xhigh`，显式 Fast 请求与关闭启动更新，实际供应商 tier 仍需与请求配置区分。
+
+SDK 类型提供 `maxBudgetUsd`；本机 `--help` 也有 `--max-budget-usd`，但当前 Synara adapter 未透传这个 SDK 选项。本票不擅改未批准的 ClaudeAdapter。可在证据专用 CLI launcher 给两台真实进程分别传 `--max-budget-usd`，金额由用户给出；实际参数是否被 SDK 启动路径接受仍需在第一次获批启动时核对，拒绝就停止，不加替代路径。原生启动、模型请求 id、usage、错误与中断均保存；额度不够就保留现场并再次上报。`total_cost_usd/modelUsage` 是累计估算，不是账单，不能逐 turn 盲目相加。[SDK 用量说明](https://code.claude.com/docs/en/agent-sdk/cost-tracking)。
+
+Codex 的 auth 来源 home 与 Synara 生成的实际 native overlay 均在 `/tmp`，实际启动器记录 CODEX_HOME；只复制 `auth.json`、只信任夹具根、只建 git add/commit 两条 allow 规则、无 hook；结束后删两者完整 home。此设计按 T-064 的 [隔离修正](../T-064/isolation-correction-53.md)，不能只核对认证来源目录。任何真实 turn 都先从批准额度中预留，不对真实模型做已知坏实现重跑；产品反事实用无模型入口。
+
+## 对前置票与验收语义的核对
+
+T-055～T-058 以 ticket 最后的执行主控关闭决定和最终报告为准，旧 FAIL/INCOMPLETE 保留；T-064 的用户级能力设置是已批准的新方向，免确认只适配 Codex/Claude，不把原 spec 的固定默认集误当成不可变的用户设置。没有发现需要擅自绕过的前置票缺口。
+
+父修订已有 T-058 的两种能力预设，手工传 instructions 可以建线程。因此本轮 [真实入口红态](setup-parent-red-02/contract-observation.json)只针对**预设自动提供首条角色卡**：不传调用者自行编写的 instructions，两个请求均返回 invalid_path；带中性 instructions 的正对照均成功。任务窗口还把两者都显示为 controller（`TaskWindow.tsx:321`）。这是新增合同的聚焦红态，尚不是完整端到端脚本的红态；不声称父修订完全没有预设。
+
+关于 ticket 的“两题打包”：依 spec 第 4 节，计划发送**问题 2 的用户答复 + 问题 1 的一次性关闭告知**，一条消息到同一 worker。现有核心 `core.ts:742` 拒绝直接答复已关闭问题，面板同样禁用；这一语义不改。如果主控认为该验收要求两个都含“用户答复”的 answer 记录，则当前要求与已建行为不能同时成立，请另行明确接受“一答复加关闭告知”，或修订场景；worker 不为测试放开已关闭问题。
+
+## 当前交接
+
+请转请用户明确：认证方式及私有提供位置；两个 Claude 会话的模型 id/effort；Claude 金额限额及是否批准最多 16/6 个原生 turn。若用户仅批准 turn 限额而不要求 API 金额硬限额，也须明确记录，避免 worker 自行选费用风险。
+
+在这个决定返回前不启动真实 Claude/Codex provider；本轮仅提交研究、聚焦红态和后续处理设计，没有产品实现候选，不消耗本票唯一一次独立审查。

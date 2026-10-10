@@ -1,0 +1,92 @@
+[
+  {
+    "file": "apps/server/src/provider/claudeEnvironment.ts",
+    "excerpts": [
+      {
+        "first": 93,
+        "last": 195,
+        "text": "93:     readonly isolationRootDir?: string;\n94:     readonly providerInstanceId?: string;\n95:     readonly platform?: NodeJS.Platform;\n96:     /** Deterministic test seam; production callers inherit process.env. */\n97:     readonly baseEnvironment?: NodeJS.ProcessEnv;\n98:   },\n99: ): NodeJS.ProcessEnv {\n100:   const platform = options?.platform ?? process.platform;\n101:   const selectedEnvironment =\n102:     environment === undefined ? undefined : normalizeEnvironmentKeys(environment, platform);\n103:   const env = normalizeEnvironmentKeys(options?.baseEnvironment ?? process.env, platform);\n104:   const trimmedHomePath = homePath?.trim();\n105:   const resolvedHomePath = trimmedHomePath\n106:     ? expandProviderAccountHomePath(trimmedHomePath, options?.homeDir ?? homedir())\n107:     : undefined;\n108:   const explicitEnvironmentHome =\n109:     selectedEnvironment?.HOME?.trim() ||\n110:     (platform === \"win32\" ? selectedEnvironment?.USERPROFILE?.trim() : undefined);\n111:   const resolvedEnvironmentHomePath = explicitEnvironmentHome\n112:     ? expandProviderAccountHomePath(explicitEnvironmentHome, options?.homeDir ?? homedir())\n113:     : undefined;\n114:   const providerInstanceId = options?.providerInstanceId?.trim();\n115:   const needsIsolatedInstanceHome =\n116:     resolvedHomePath === undefined &&\n117:     resolvedEnvironmentHomePath === undefined &&\n118:     (selectedEnvironment !== undefined ||\n119:       (providerInstanceId !== undefined && providerInstanceId !== DEFAULT_CLAUDE_INSTANCE_ID));\n120:   const isolatedHomePath = needsIsolatedInstanceHome\n121:     ? claudeIsolatedHomePath({\n122:         ...(options?.isolationRootDir ? { isolationRootDir: options.isolationRootDir } : {}),\n123:         ...(options?.homeDir ? { homeDir: options.homeDir } : {}),\n124:         ...(providerInstanceId ? { providerInstanceId } : {}),\n125:       })\n126:     : undefined;\n127:   const useMacOSConfigIsolation = platform === \"darwin\" && isolatedHomePath !== undefined;\n128:   const effectiveHomePath =\n129:     resolvedHomePath ??\n130:     resolvedEnvironmentHomePath ??\n131:     (useMacOSConfigIsolation ? undefined : isolatedHomePath);\n132:   if (!effectiveHomePath && options?.homeDir) {\n133:     env.HOME = options.homeDir;\n134:   }\n135:   // An explicit provider home or environment selects a distinct account\n136:   // boundary. Remove account-scoped ambient values first, then overlay only\n137:   // values deliberately supplied by the selected instance.\n138:   if (effectiveHomePath || isolatedHomePath || selectedEnvironment !== undefined) {\n139:     for (const key of Object.keys(env)) {\n140:       if (\n141:         isClaudeAccountIsolationEnvKey(key) ||\n142:         key === \"CLAUDE_CONFIG_DIR\" ||\n143:         key === \"CLAUDE_SECURESTORAGE_CONFIG_DIR\"\n144:       ) {\n145:         delete env[key];\n146:       }\n147:     }\n148:   }\n149:   if (selectedEnvironment) {\n150:     Object.assign(env, selectedEnvironment);\n151:   }\n152:   if (useMacOSConfigIsolation) {\n153:     // Keep the system Keychain reachable, retaining existing account files in place.\n154:     env.HOME = options?.homeDir ?? env.HOME ?? homedir();\n155:     env.CLAUDE_CONFIG_DIR =\n156:       selectedEnvironment?.CLAUDE_CONFIG_DIR?.trim() || NodePath.join(isolatedHomePath, \".claude\");\n157:     env.CLAUDE_SECURESTORAGE_CONFIG_DIR =\n158:       selectedEnvironment?.CLAUDE_SECURESTORAGE_CONFIG_DIR?.trim() || env.CLAUDE_CONFIG_DIR;\n159:   }\n160:   if (effectiveHomePath) {\n161:     Object.assign(env, claudeHomeEnvironment(effectiveHomePath, platform));\n162:     if (!resolvedHomePath && selectedEnvironment) {\n163:       if (selectedEnvironment.HOME?.trim()) {\n164:         env.HOME = resolvedEnvironmentHomePath;\n165:       }\n166:       if (platform === \"win32\") {\n167:         for (const key of WINDOWS_PROFILE_ENV_KEYS) {\n168:           if (!(key in selectedEnvironment)) continue;\n169:           const profileValue = selectedEnvironment[key];\n170:           if (key === \"USERPROFILE\" && profileValue?.trim()) {\n171:             env[key] = expandProviderAccountHomePath(profileValue, options?.homeDir ?? homedir());\n172:           } else {\n173:             env[key] = profileValue;\n174:           }\n175:         }\n176:       }\n177:     }\n178:   }\n179:   if (effectiveHomePath) {\n180:     if (!selectedEnvironment || !(\"CLAUDE_CONFIG_DIR\" in selectedEnvironment)) {\n181:       delete env.CLAUDE_CONFIG_DIR;\n182:     }\n183:   }\n184:   return buildClaudeProcessEnv({\n185:     env,\n186:     ...(effectiveHomePath\n187:       ? { homeDir: effectiveHomePath }\n188:       : options?.homeDir\n189:         ? { homeDir: options.homeDir }\n190:         : {}),\n191:     preserveDirectCredentialKeys: new Set(Object.keys(selectedEnvironment ?? {})),\n192:   });\n193: }"
+      }
+    ]
+  },
+  {
+    "file": "apps/server/src/provider/claudeProcessEnv.ts",
+    "excerpts": [
+      {
+        "first": 170,
+        "last": 202,
+        "text": "170: }\n171: \n172: export interface ClaudeCliCredentialsSummary {\n173:   readonly usable: boolean;\n174:   readonly subscriptionType?: string;\n175: }\n176: \n177: export function resolveClaudeCredentialsPaths(input?: {\n178:   readonly env?: NodeJS.ProcessEnv;\n179:   readonly homeDir?: string;\n180: }): ReadonlyArray<string> {\n181:   const env = input?.env ?? process.env;\n182:   const homeDir = trimToUndefined(input?.homeDir) ?? trimToUndefined(env.HOME) ?? OS.homedir();\n183:   const paths: string[] = [];\n184:   const configDir = trimToUndefined(env.CLAUDE_CONFIG_DIR);\n185:   if (configDir) {\n186:     paths.push(nodePath.join(configDir, \".credentials.json\"));\n187:   }\n188:   paths.push(nodePath.join(homeDir, \".claude\", \".credentials.json\"));\n189:   return [...new Set(paths)];\n190: }\n191: \n192: export function readClaudeCliCredentialsContentSummary(\n193:   content: string,\n194:   nowMs = Date.now(),\n195: ): ClaudeCliCredentialsSummary {\n196:   const root = tryParseJsonRecord(content);\n197:   const oauth = readRecord(root?.claudeAiOauth);\n198:   const accessToken = readNonEmptyString(oauth?.accessToken);\n199:   const refreshToken = readNonEmptyString(oauth?.refreshToken);\n200:   if (!accessToken && !refreshToken) {\n201:     return { usable: false };\n202:   }"
+      },
+      {
+        "first": 236,
+        "last": 280,
+        "text": "236:       continue;\n237:     }\n238:   }\n239:   return { usable: false };\n240: }\n241: \n242: export function buildClaudeProcessEnv(input?: {\n243:   readonly env?: NodeJS.ProcessEnv;\n244:   readonly homeDir?: string;\n245:   readonly hasClaudeCliCredentials?: boolean;\n246:   readonly preserveDirectCredentialKeys?: ReadonlySet<string>;\n247: }): NodeJS.ProcessEnv {\n248:   const env = { ...(input?.env ?? process.env) };\n249:   if (input?.homeDir) {\n250:     env.HOME = input.homeDir;\n251:   }\n252:   const credentialInput = input?.homeDir ? { env, homeDir: input.homeDir } : { env };\n253:   const hasLocalClaudeAuth =\n254:     input?.hasClaudeCliCredentials ?? hasUsableClaudeCliCredentials(credentialInput);\n255: \n256:   if (!hasLocalClaudeAuth || hasClaudeExternalAuthEnv(env)) {\n257:     return buildProviderChildEnvironment({ provider: \"claude\", baseEnv: env });\n258:   }\n259: \n260:   // Claude gives direct request credentials precedence over local OAuth. Drop stale\n261:   // app-process keys when a real Claude CLI login can satisfy the subprocess.\n262:   for (const key of CLAUDE_DIRECT_CREDENTIAL_ENV_KEYS) {\n263:     if (input?.preserveDirectCredentialKeys?.has(key)) {\n264:       continue;\n265:     }\n266:     delete env[key];\n267:   }\n268:   return buildProviderChildEnvironment({ provider: \"claude\", baseEnv: env });\n269: }\n270: \n271: /**\n272:  * Claude Code turns the Artifact tool (and the `/design` and `/slides` commands\n273:  * built on it) off by default for Agent SDK entrypoints. `CLAUDE_CODE_ARTIFACT`\n274:  * is the binary's own opt-in; plan, login and organization policy still apply.\n275:  */\n276: export function withClaudeArtifactOptIn(\n277:   env: NodeJS.ProcessEnv,\n278:   enableArtifacts: boolean | undefined,\n279: ): NodeJS.ProcessEnv {\n280:   if (enableArtifacts === true) return { ...env, CLAUDE_CODE_ARTIFACT: \"1\" };"
+      }
+    ]
+  },
+  {
+    "file": "apps/server/src/provider/Layers/ClaudeAdapter.ts",
+    "excerpts": [
+      {
+        "first": 1366,
+        "last": 1371,
+        "text": "1366: const CLAUDE_SETTING_SOURCES = [\n1367:   \"user\",\n1368:   \"project\",\n1369:   \"local\",\n1370: ] as const satisfies ReadonlyArray<SettingSource>;\n1371: const CLAUDE_CONTEXT_USAGE_TIMEOUT_MS = 1_000;"
+      },
+      {
+        "first": 2187,
+        "last": 2203,
+        "text": "2187:     const resolveClaudeSdkEnv = (\n2188:       homePath?: string | null,\n2189:       environment?: Readonly<Record<string, string>>,\n2190:       providerInstanceId?: string,\n2191:     ) =>\n2192:       Effect.sync(() =>\n2193:         claudeEnvironment(\n2194:           homePath,\n2195:           serverConfig.homeDir,\n2196:           environment,\n2197:           providerInstanceId,\n2198:           serverConfig.stateDir,\n2199:         ),\n2200:       );\n2201: \n2202:     const bindClaudeProcessOwner =\n2203:       (owner: ClaudeProcessOwner, lowerPriority: boolean) =>"
+      },
+      {
+        "first": 6186,
+        "last": 6230,
+        "text": "6186:         const queryOptions: ClaudeQueryOptions = {\n6187:           ...(input.cwd ? { cwd: input.cwd } : {}),\n6188:           // Model identity and the spawn-fixed compaction override are separate settings.\n6189:           ...(apiModelId ? { model: apiModelId } : {}),\n6190:           pathToClaudeCodeExecutable: providerOptions?.binaryPath ?? \"claude\",\n6191:           settingSources: [...CLAUDE_SETTING_SOURCES],\n6192:           systemPrompt: {\n6193:             type: \"preset\",\n6194:             preset: \"claude_code\",\n6195:             append: buildEmbeddedClaudeSystemPromptAppend(\n6196:               agentGatewayCredentials !== undefined,\n6197:               input.enableComputerControl === true,\n6198:             ),\n6199:             // Strip per-user dynamic sections (working directory, auto-memory\n6200:             // path) into the first user message so the cached system-prompt\n6201:             // prefix stays static across sessions and users. Tradeoff: that\n6202:             // context steers marginally less authoritatively from a user turn.\n6203:             excludeDynamicSections: true,\n6204:             ...(snapshotSupported ? { snapshot: true } : {}),\n6205:           },\n6206:           ...(Object.keys(claudeSubagents).length > 0 ? { agents: claudeSubagents } : {}),\n6207:           // Only `max` effort is spawn-fixed; every other level rides in\n6208:           // `settings.effortLevel` so it can change live mid-session.\n6209:           ...(effectiveEffort === \"max\" ? { effort: \"max\" as const } : {}),\n6210:           ...(permissionMode ? { permissionMode } : {}),\n6211:           ...(permissionMode === \"bypassPermissions\"\n6212:             ? { allowDangerouslySkipPermissions: true }\n6213:             : {}),\n6214:           ...(providerOptions?.maxThinkingTokens !== undefined\n6215:             ? { maxThinkingTokens: providerOptions.maxThinkingTokens }\n6216:             : {}),\n6217:           settings,\n6218:           ...(existingResumeSessionId ? { resume: existingResumeSessionId } : {}),\n6219:           ...(newSessionId ? { sessionId: newSessionId } : {}),\n6220:           includePartialMessages: true,\n6221:           // Forward full subagent conversations (text + thinking) tagged with\n6222:           // parent_tool_use_id so child threads can stream live.\n6223:           forwardSubagentText: true,\n6224:           hooks: {\n6225:             SessionStart: [{ hooks: [sessionStartHook] }],\n6226:             PreToolUse: [{ hooks: [subagentSteerHook] }],\n6227:           },\n6228:           canUseTool,\n6229:           env: withClaudeArtifactOptIn(claudeSdkEnv, providerOptions?.enableArtifacts),\n6230:           spawnClaudeCodeProcess: bindClaudeProcessOwner("
+      }
+    ]
+  },
+  {
+    "file": "apps/server/src/a2a/service.ts",
+    "excerpts": [
+      {
+        "first": 145,
+        "last": 182,
+        "text": "145:       createAttachedThread: async (task, attachment, prompt) => {\n146:         const threadId = ThreadId.makeUnsafe(attachment.thread_id);\n147:         await Effect.runPromise(\n148:           engine.dispatch({\n149:             type: \"thread.create\",\n150:             commandId: commandId(),\n151:             threadId,\n152:             projectId: ProjectId.makeUnsafe(task.project_id),\n153:             title: `${attachment.role} · ${task.title ?? task.task_id}`,\n154:             modelSelection: attachment.modelSelection,\n155:             runtimeMode: attachment.runtime_mode,\n156:             interactionMode: \"default\",\n157:             envMode: \"local\",\n158:             branch: null,\n159:             worktreePath: null,\n160:             createdAt: new Date().toISOString(),\n161:           }),\n162:         );\n163:         await Effect.runPromise(\n164:           engine.dispatch({\n165:             type: \"thread.turn.start\",\n166:             commandId: commandId(),\n167:             threadId,\n168:             message: {\n169:               messageId: MessageId.makeUnsafe(randomUUID()),\n170:               role: \"user\",\n171:               text: prompt,\n172:               attachments: [],\n173:             },\n174:             modelSelection: attachment.modelSelection,\n175:             runtimeMode: attachment.runtime_mode,\n176:             interactionMode: \"default\",\n177:             dispatchOrigin: \"agent\",\n178:             createdAt: new Date().toISOString(),\n179:           }),\n180:         );\n181:       },\n182:       readThread: async (thread) => {"
+      }
+    ]
+  },
+  {
+    "file": "packages/a2a-gates/src/core.ts",
+    "excerpts": [
+      {
+        "first": 736,
+        "last": 751,
+        "text": "736:       \"invalid_answers\",\n737:     );\n738:     const { issues } = this.readIssues(args.task);\n739:     const rows = replies.map((reply) => {\n740:       const view = issues.find((view) => view.issue.id === reply.issue);\n741:       requireGate(view, \"unknown_issue\");\n742:       requireGate(view.state !== \"已关闭\", \"issue_closed\");\n743:       requireGate(!view.answer, \"issue_answered\");\n744:       requireGate(\n745:         typeof reply.answer === \"string\" && reply.answer.trim().length > 0,\n746:         \"invalid_answer\",\n747:       );\n748:       return { issue: view.issue, answer: reply.answer.trimEnd() };\n749:     });\n750:     requireGate(this.runtime?.sendUserAnswer, \"native_runtime_required\");\n751:     const grouped = new Map<string, typeof rows>();"
+      },
+      {
+        "first": 1863,
+        "last": 1894,
+        "text": "1863:       if (args.command === \"attach\") {\n1864:         requireGate(this.runtime?.createAttachedThread, \"runtime_required\");\n1865:         requireGate(\n1866:           args.role && args.modelSelection && args.runtimeMode,\n1867:           \"attachment_arguments_required\",\n1868:         );\n1869:         const prompt = readFileSync(inputPath(args.instructions), \"utf8\");\n1870:         requireGate(prompt.trim(), \"invalid_text\");\n1871:         const preset = args.preset ?? (args.role !== \"controller\" ? args.role : undefined);\n1872:         if (preset)\n1873:           requireGate(\n1874:             args.role === (preset === \"ideation\" || preset === \"executor\" ? \"controller\" : preset),\n1875:             \"preset_role_mismatch\",\n1876:           );\n1877:         const attachment: A2AAttachment = {\n1878:           task_id: taskId,\n1879:           thread_id: randomUUID(),\n1880:           role: args.role,\n1881:           ...(preset ? { preset } : {}),\n1882:           modelSelection: args.modelSelection,\n1883:           runtime_mode: args.runtimeMode,\n1884:           state: \"creating\",\n1885:         };\n1886:         this.saveAttachment(attachment);\n1887:         if (preset) this.membership.bindPreset(attachment.thread_id, preset);\n1888:         await this.runtime.createAttachedThread(task, attachment, prompt);\n1889:         this.member(task, attachment.thread_id, attachment.role);\n1890:         attachment.state = \"active\";\n1891:         this.saveAttachment(attachment);\n1892:         this.event(taskId, \"attached\", { attachment, prompt }, null);\n1893:         return { ok: true, task, attachment };\n1894:       }"
+      }
+    ]
+  },
+  {
+    "file": "apps/web/src/a2a/TaskWindow.tsx",
+    "excerpts": [
+      {
+        "first": 315,
+        "last": 323,
+        "text": "315:                             isFocused && \"bg-muted/40\",\n316:                           )}\n317:                         >\n318:                           <Badge variant=\"outline\">{member.role}</Badge>\n319:                           <IssueBadge thread={member.threadId} />\n320:                           {member.endedAt && (\n321:                             <Badge variant=\"outline\" title={member.endedAt}>\n322:                               已结束\n323:                             </Badge>"
+      }
+    ]
+  },
+  {
+    "file": "apps/web/src/a2a/IssuePanel.tsx",
+    "excerpts": [
+      {
+        "first": 19,
+        "last": 24,
+        "text": "19: function canReply(view: A2AIssueView) {\n20:   return (\n21:     view.state !== \"已关闭\" && view.state !== \"已送达\" && view.state !== \"已答复\" && !view.answer\n22:   );\n23: }\n24: "
+      }
+    ]
+  }
+]
