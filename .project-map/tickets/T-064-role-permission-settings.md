@@ -59,3 +59,5 @@ fork 基线 `7a3a13249e562bf2d7f9ff4cb024f39b13d62434`，尚未修改产品源�
 RESULTS 补入其他角色被授予 stop 后核心按 ideation 地址记录的实际 MCP/核心事件；明确核心 thread 为目标，caller 由凭据绑定、未另存该事件。另上报 native interrupted 与最终 completed 投影分歧，未修范围外编排模块，不宣称整个中断链路通过。唯一独立审查的历史 INCOMPLETE 未改判，遵从决定 02 不开第二次审查，新增证据交执行主控自审。准备失败和原 INCOMPLETE 报告全部保留，Acceptance 勾选与关闭留给主控。
 
 **执行主控关闭（2026-10-10）：PASS。** 生产代码 fork `49cae984f`（`0bf4bb2ca` 实现 + `7c04fb3fe`、`49cae984f` 两项修复，我已自审接受，见决定 02）。唯一一次独立审查（对 `0bf4bb2ca`）为 INCOMPLETE，缺的是真实 provider 进程的权限请求证据；按决定 02 补证：Codex 真实 turn 4/4（隔离 CODEX_HOME 在 /tmp），Claude 真实 CLI + Synara 适配器 + 本机假模型 API。我在无模型条件下重跑同一外部断言 `provider-contract-46.py`：codex-good53、claude-good40 退出 0，codex-bad54、claude-bad41 退出 1，与报告一致。局限：免确认只对 Codex、Claude 会话生效（决定 01）；被授予 stop 的其他角色在核心事件里按 ideation 地址记录；Claude 场景的模型输入是假的，只证明权限边界；外观由用户判断。范围外发现（中断后终态投影 interrupted/completed 不一致）已转给用户，不在本票处理。
+
+2026-10-10：fork 后端随方向改变作废；设置页在新工作台重做，见 [T-069](T-069-third-stage-direction.md) 与 [spec](../specs/native-cli-orchestration-2026-10-10.md) 第 12 节 S5。

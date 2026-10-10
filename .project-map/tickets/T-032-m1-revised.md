@@ -19,3 +19,5 @@ supersedes: T-016
 M1 六项（详见 [intent.md](../../intent.md)）：fork 能跑起来（含缓存测量与上游合并演练）；项目 → 任务 → agent 会话层级（缺则在 fork 中补模块，"任务窗口"指应用内区域）；原生门禁与移植场景；一次真实闭环；界面显示门禁状态；切换后删除 Muster 与 `coop.py` 运行路径。
 
 不在 M1：Enchanted 功能（门禁接入后再并入，方式待重叠调研）、Windows/Linux、每个项目一个系统窗口。T-025、T-028 以 out-of-scope 关闭，spec `workbench-m1-2026-10-06.md` 成为被取代方案的日期记录。取代 T-016。
+
+2026-10-10："项目 → 任务 → agent 会话"层级要求沿用；M1 各项由 [T-069](T-069-third-stage-direction.md) 的切换条件取代。

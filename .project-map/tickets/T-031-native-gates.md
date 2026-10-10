@@ -2,7 +2,7 @@
 id: T-031
 title: a2a 门禁在 Synara 中原生实现
 type: decide
-status: closed
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes: T-018
@@ -22,3 +22,5 @@ a2a 门禁今后在哪里实现，旧实现怎么处理？
 - `coop.py` 与 Muster 引擎冻结为参考实现；新门禁通过同样验收后删除 Muster，不保留两套路径。新门禁就绪前由 `coop.py` 的 CLI 担任门禁入口。
 
 取代 T-018（工作台取代 Herdr，`coop.py` 改接 Muster）。被否决：保留 `coop.py` 为唯一门禁实现、只把运行时改接 Synara。
+
+2026-10-10 由 [T-070](T-070-gates-task-cards-quality.md) 取代：门禁从 fork 抽进工作台的编排后台。

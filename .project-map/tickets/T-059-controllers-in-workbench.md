@@ -2,7 +2,7 @@
 id: T-059
 title: 两个主控进入工作台，端到端跑通分发、执行、汇报与紧急停止
 type: build
-status: open
+status: superseded
 blocked_by: [T-056, T-057, T-058]
 claimed_by:
 supersedes:
@@ -36,3 +36,5 @@ ready_rev: 1
 2026-10-10，worker `s11-t059`，依据主控 #25 / ready_rev 1：**BLOCKED，等待用户决定 Claude 认证、模型与真实 turn 预算；保持 open，待主控关闭。** fork 基线 `49cae984f22924de006e0f8358cb447eb881aaf6`，无产品候选提交。本轮完成无模型的现有认证环境构造探针、隔离 CLI version/help，以及父修订预设不自动供应首条角色卡的聚焦真实入口红态；手工 instructions 正对照成功，未谎称原能力预设不存在。隔离服务已停止，SQL/Git 现场保留归档；产品验收新增真实 Claude/Codex 模型 turn 为 0。
 
 认证路径、无用户配置接触的选项、预计 Claude 11–14 / Codex 5 turn、请求上限 16/6、金额与模型的用户决定，以及问题场景“一答复加关闭告知”的语义见 [needs-decision-04](../../evidence/2026-10-09-batch11/T-059/needs-decision-04.md)；实测、失败方式处理设计、完整未运行项与重放见 [RESULTS](../../evidence/2026-10-09-batch11/T-059/RESULTS.md)。完整端到端红绿、预设/UI 实现、三种停止、独立审查及用户亲自试用均未完成；Acceptance 保持未勾选，不改日常派发。
+
+**作废（2026-10-10）**：方向改为原生 CLI 编排（[T-069](T-069-third-stage-direction.md)），本票不再推进；新载体上的同一目标见 [spec](../specs/native-cli-orchestration-2026-10-10.md) 第 12 节 S4。现场与证据保留。

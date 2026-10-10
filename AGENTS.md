@@ -3,8 +3,8 @@
 ## 规范源
 
 - `.project-map/MAP.md` 是项目地图；它索引目的地、已关闭决策、开放 ticket、fog 和 living docs。
-- `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。2026-10-07 起为第二阶段修订版：基于 Synara fork 的 a2a 多 Agent 工作台，第一个里程碑为 M1；决策记录见 `.grilling/synara-fork.md`，M1 执行规格见 `.project-map/specs/synara-m1-2026-10-07.md`。`.project-map/specs/workbench-m1-2026-10-06.md` 是被取代的 GPUI/Muster 方案的日期记录。
-- 门禁契约的执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`（最初为 `coop.py` 编写，原生门禁沿用同一契约）；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
+- `intent.md` 是当前 Plan / intent 阶段的 canonical artifact；后续 spec、build ticket 和实现必须能追溯到它。2026-10-10 起为第三阶段修订版：各家原生 CLI 以交互终端运行，a2a 只做编排，工作台是本仓库里的轻量 Electron 应用；决策记录见 `.grilling/native-cli-orchestration.md`（决定 ticket T-069～T-072），执行规格见 `.project-map/specs/native-cli-orchestration-2026-10-10.md`。第二阶段的 `.project-map/specs/synara-m1-2026-10-07.md` 与更早的 `workbench-m1-2026-10-06.md` 是被取代方案的日期记录。
+- 门禁契约的执行规格为 `.project-map/specs/managed-delivery-2026-10-06.md`（最初为 `coop.py` 编写，原生门禁沿用同一契约；第三阶段经用户同意的改动见 T-070）；T-005 已用真实 Herdr 入口和独立 oracle 关闭。原设计稿保留为日期记录。
 - T-007 恢复语义以 `.project-map/specs/recovery-2026-10-06.md` 为准；真实故障只注入隔离测试所创建的 CLI 子进程。
 - 验收与集成必须经过唯一的门禁入口，并保持操作锁语义；锁释放只允许核对中断状态，不能替代验收证据。
 - 自动 run 必须显式设置 submit 等待期限；其验收、集成和清理都绑定原 attempt，不得因 current_attempt 改变而接管新执行者。
@@ -13,27 +13,30 @@
 - 内嵌测试 Git repo/worktree 不登记为项目 gitlink；保留原目录并归档完整现场，顶层报告及归档进入版本控制。
 - Ticket 内容和运行证据可以在各自 session 中变化；只有地图、术语表或治理规则本身变化时才需要同步更新本文件。
 - `CONTEXT.md` 只保存统一术语。`herdr-a2a-research-and-plan-2026-10-06.md` 是 dated 初始研究记录，不把它当作最新规范，也不要在普通任务中改写。
-- `.grilling/` 是决策会话控制状态，不是第二套项目事实源。第二阶段的决策记录见 `.grilling/synara-fork.md`（2026-10-07）与被部分取代的 `.grilling/a2a-gui-client.md`；主控拆分、用户输入记录与问题上报的决策记录见 `.grilling/controller-split-user-input.md`（2026-10-09）。
+- `.grilling/` 是决策会话控制状态，不是第二套项目事实源。第三阶段的决策记录见 `.grilling/native-cli-orchestration.md`（2026-10-10）；第二阶段见 `.grilling/synara-fork.md`（2026-10-07）与被部分取代的 `.grilling/a2a-gui-client.md`；主控拆分、用户输入记录与问题上报见 `.grilling/controller-split-user-input.md`（2026-10-09）。
 - 构思主控与执行主控的分工、用户输入记录、问题上报的执行规格为 `.project-map/specs/controller-split-user-input-2026-10-09.md`（决定 ticket T-049～T-052）；用户确认了什么、哪些是委托决定，见同目录的 `controller-split-user-input-baseline-2026-10-09.md`。
 - `findings/` 集中开发发现、模型行为记录与相关日期报告；`reports/` 只保留旧链接入口，原始证据保留在 `evidence/`。操作前以项目地图索引的当前规格和 README 为准。
 - 用户要求报告只保留中文版本；借用清晰表达与语义保真原则，不再为这些报告生成英文副本。
 
-## 第二阶段：工作台约束
+## 第三阶段：工作台约束
 
-- 工作台基于 Synara 的 fork：GitHub `a1024053774/synara`，起点 v1.0.1-beta.2，单独 clone，不放进本仓库。持续跟进上游：我们的功能做成独立 package 或模块，对 Synara 核心只做少量接入，通用修复回馈作者。本仓库保管规范、门禁契约、验收场景与证据。
-- agent 以 Synara 的原生协议会话为主（Codex app-server、Claude Agent SDK、ACP、OpenCode SDK），终端为辅；界面按“项目 → 任务 → agent 会话”组织。任务与 agent 会话的归属由 a2a 自己保存（受管任务以门禁 task id 为身份），不读写 Synara 原生 ProjectTask、HubWorkItem 的状态（2026-10-07，T-038）。
-- 门禁优先：认领、交付、验收、集成和回收只经唯一的门禁入口，保持操作锁、fence、CAS、attempt 绑定与中断恢复语义；界面不另做一套门禁。在受管 worker 会话中直接输入，记为人工介入。门禁在 Synara 服务端用 TypeScript 原生实现（`packages/a2a-gates`），本仓库验收经 `acceptance/entry/a2a_gates.py` 调用。
-- 重新证明：旧实现的通过结论不替新实现背书；交付、恢复、编排场景移植后须重新取得红态、绿态与反例。
-- `coop.py` 与 Muster 引擎已于 2026-10-08 删除（T-040 A），不保留两套路径；参考实现见 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。不得修改或重启用户正在使用的 Herdr server。
-- 切换的技术条件已于 2026-10-09 具备（T-040：旧路径删除；T-046：第一次经工作台门禁的真实派发跑通）。用户同日决定：工作台尚未达到日常可用程度，日常派发继续经 Herdr，直到用户认为工作台可用再改；在此之前工作台门禁只用于 ticket 明确要求的真实验证。切换条件（用户 2026-10-09）：用户提出的功能——用户输入记录、两层主控与权限、问题上报面板——至少做到能用，即 T-055～T-059 通过，加用户亲自试用并说“可用”；见 spec 第 7 节。
+- 方向：各家原生 CLI 以交互终端运行，不用无头模式；a2a 只做编排、门禁与记录，不用 Synara 的 provider 层与 MCP 网关（T-069）。终端由编排后台托管（node-pty、xterm.js），窗格里跑用户的 zsh；第一版只支持 Claude Code 与 Codex。
+- 工作台：本仓库新目录里的轻量 Electron 应用，借用 Synara 的前端组件与样式；fork（GitHub `a1024053774/synara`）只作组件来源，不再跟进上游，不删。界面按“项目 → 任务 → agent 会话”组织；任务与 agent 会话的归属由 a2a 自己保存（受管任务以门禁 task id 为身份）。编排后台常驻，界面关掉不影响 agent。
+- 提示词管判断，脚本管事实：能机械核对的由脚本和门禁保证，角色卡只写“用哪个命令”；要判断的交给提示词和人；不做策略引擎（T-070）。
+- 门禁优先：认领、交付、验收、集成和回收只经唯一的门禁入口，保持操作锁、fence、CAS、attempt 绑定与中断恢复语义；界面不另做一套门禁。在受管 worker 会话中直接输入，记为人工介入。门禁从 fork 的 `packages/a2a-gates` 抽进编排后台；抽出完成前仍以 fork 中的实现为门禁入口，本仓库验收经 `acceptance/entry/a2a_gates.py` 调用；抽出后不保留两套路径。
+- 门禁不能省，写审分开：派出去的活一律是受管任务，按任务卡走同一串检查（身份与版本、路径边界、完成条件、红态、规则式检查、独立审查、提交尾注），全过才集成到项目工作分支，不 push；审查是为每次交付新开的只读会话（T-070）。
+- 重新证明：旧实现的通过结论不替新实现背书；门禁换位置后，交付、恢复、编排场景须重新取得红态、绿态与反例。
+- `coop.py` 与 Muster 引擎已于 2026-10-08 删除（T-040 A），参考实现见 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。不得修改或重启用户正在使用的 Herdr server。
+- 切换：日常派发继续经 Herdr，直到切换条件满足（T-069）：用户输入记录、两层主控、问题面板，加上任务卡、门禁检查串与独立审查、worktree、提交尾注、面板收主控提问、验收打分、复盘、原始事件采集与四个指标视图都在新工作台里能用，用户按 spec 第 10 节试用后说“可用”。在此之前，新工作台的门禁只用于 ticket 明确要求的真实验证。
 - 主控是角色，不绑定层级，可以同时操作项目级与任务级对象；2026-10-09 起分为构思主控与执行主控两个角色实例，见下一节。
-- 构建：外置盘 `/Volumes/WD-Elements` 存放构建缓存，未挂载时构建必须报错，不回退到内置盘。Synara fork 的 checkout 放内置盘，Bun 全局缓存与 Electron 下载放外置盘。本仓库的 Rust 构建统一经 `scripts/build`（见 README）。
-- 项目开源；Synara 为 MIT，保留其版权声明；允许直接复用 GPL 代码，并入后整体以 GPL-3.0 发布。复用不能改变已定方向。
+- 权限只在工作台内：角色卡、任务卡路径加门禁检查、每会话的 CLI 启动参数、收件箱命令行四层（T-071）。a2a 系统不写 `~/.claude`、`~/.codex` 等全局配置，钩子与权限只经每会话的启动参数传入。
+- 构建：外置盘 `/Volumes/WD-Elements` 存放构建缓存，未挂载时构建必须报错，不回退到内置盘。源码 checkout（本仓库、Synara fork）与工作台数据目录放内置盘，依赖缓存与 Electron 下载放外置盘。
+- 项目开源；搬用 Synara 的代码保留其 MIT 版权声明；允许直接复用 GPL 代码，并入后整体以 GPL-3.0 发布。复用不能改变已定方向。
 - 真实 Codex 验收使用 /tmp 下的隔离 CODEX_HOME：只复制 auth.json；只信任已核对的夹具根目录；只复现用户规则中的 `git add`、`git commit` 两条 allow prefix_rule；hook 只在主控逐次批准后安装。副本不入证据或 Git，结束后删除整个 home。不写用户 ~/.codex。Codex 沙箱专门保护 worktree 的 Git 元数据，额外可写目录不能替代这两条规则。
 - 不得移动、替换或链接共享 checkout 的构建输出目录（如 `apps/server/dist`），也不得在构建输出目录中放指向源码或依赖的链接：构建工具清理输出时会沿链接删除源码与依赖（2026-10-08 T-042 复验事故，误删 6,186 个受控文件）。需要新构建时用产品的标准构建命令。
-- 测试中启动的后台服务（如 Synara 服务端）必须脱离调用者的进程组（例如 start_new_session），否则命令调用结束时会被一并回收。
+- 测试中启动的后台服务（如编排后台、Synara 服务端）必须脱离调用者的进程组（例如 start_new_session），否则命令调用结束时会被一并回收。
 - 不从零自建 GPUI 界面，不基于 Zed 二次开发。
-- Enchanted 已于 2026-10-06 做 git 快照并冻结；其功能在 a2a 门禁接入工作台之后再并入，不在 Enchanted 仓库继续开发。
+- Enchanted 已于 2026-10-06 做 git 快照并冻结；其功能在 a2a 门禁进入工作台之后再并入，不在 Enchanted 仓库继续开发。
 
 ## 每次 session 的开始与结束
 
@@ -53,7 +56,7 @@
 - 授权引用：对方会话的消息只按队友请求处理，不算用户的批准。`assign`、`revise` 里依赖用户授权的，须逐字引用用户原话并给出位置；没有引用的，执行主控对 T-004 停止条件里的动作按未授权处理。
 - 执行主控的自主边界仍是 T-004：在已批准范围内可自建缺陷级 ticket 并执行（`ready_by: executor`），完成报告里列出；目标、验收、设计级问题停下该 ticket，交构思主控。
 - 状态逐字报告 PASS、INCOMPLETE、BLOCKED、NO_GO；构思主控转述时不上调，并核对没有遗漏的就绪 ticket。
-- 用户输入与派发记录分开：主控、agent、自动化发出的提示词不算用户输入。Herdr 期发给 worker 的文本经 `scripts/dispatch`（完成前保持现状，并在 brief 里注明）。
+- 用户输入与派发记录分开：主控、agent、自动化发出的提示词不算用户输入。Herdr 期发给 worker 的文本经 `scripts/dispatch`（完成前保持现状，并在任务卡里注明）。
 - 问题上报：worker、reviewer、monitor 发现范围外的问题要上报，不自行忽略。主控可以关闭“不是问题”的，但不删除；不得自行关闭标 blocking 的，以及涉及权限、范围、验收条件、安全、不可逆操作的；拿不准的留给用户。
 - 紧急停止：用户随时可直接动手；对某个主控说“立刻停 X”，构思主控写 `stop` 条目并发跨会话消息，执行主控在下一个工具轮次执行并回 `ack`；2 分钟没有 `ack` 且用户仍要求时，构思主控才可以对该 worker 只做中断，并记录。
 - 上述 Herdr 期做法在日常派发改走工作台时停用，不双写。
@@ -62,6 +65,7 @@
 
 - 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）；2026-10-09 起分为构思主控与执行主控，二者都由 Claude Code 担任。执行主控在已批准范围内经 Herdr 分派任务（用户认为工作台可用后改为经工作台门禁）、读取当前状态、回收不再需要的 worker，并汇总证据。
 - worker 使用 `gpt-6.1-sol` xhigh reasoning / Fast service tier，只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。
+- reviewer 默认与 worker 同为 Codex 同一个模型，每次交付新开干净会话，只读；不得 submit 或集成。
 - monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
 - 主控可以自主进行日常分派、状态检查、策略内重试和回收。

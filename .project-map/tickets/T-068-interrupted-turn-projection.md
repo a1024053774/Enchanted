@@ -2,7 +2,7 @@
 id: T-068
 title: 被中断的回合最终存成"已完成"，改成如实记为中断
 type: build
-status: open
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
@@ -34,3 +34,5 @@ ready_rev: 1
 - 授权来源：用户 2026-10-10 说"1.修"；`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+**作废（2026-10-10）**：未开工。方向改为原生 CLI 编排（[T-069](T-069-third-stage-direction.md)），Synara 的回合投影不再使用。

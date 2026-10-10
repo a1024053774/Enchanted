@@ -2,7 +2,7 @@
 id: T-066
 title: 紧急停止的核心记录写实际调用者，不再一律记成构思主控
 type: build
-status: open
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
@@ -40,3 +40,5 @@ PAUSED（主控挂起，等方向结论）（2026-10-10，⟦主控 #28⟧）。
 暂停前已有 fork 提交 `ddb765956cae4a4d0b87b875970601068567ed93`，保留原位，未丢弃或改写历史。按主控命令对本票 11 个路径执行 stash（排除他人的 `.grok/`），结果为 `No local changes to save`，没有创建 stash：当时仅 `.grok/` 未跟踪，代码已经提交，不能通过 stash 保存已提交内容。此候选未完成界面验收与独立审查，不作为 PASS 或 fork 交付。
 
 基线红态、候选相关检查、真实 MCP 与旧库证据、所有失败、暂停现场见 [RESULTS](../../evidence/2026-10-09-batch11/T-066/RESULTS.md)。决定 01 的接入批准已挂起，后续等方向结论。
+
+**作废（2026-10-10）**：方向改为原生 CLI 编排（[T-069](T-069-third-stage-direction.md)），本票不再推进；fork 上未推送的 `ddb765956` 保留不推，新载体上随 [spec](../specs/native-cli-orchestration-2026-10-10.md) 第 12 节 S4 重做。现场与证据保留。

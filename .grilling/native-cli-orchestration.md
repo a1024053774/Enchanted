@@ -1,6 +1,6 @@
 ---
 session_id: grilling-native-cli-orchestration-20261010
-status: awaiting-user
+status: confirmed
 topic: 改方向：不用 Synara 统一层，原生 CLI 交互终端 + a2a 编排 + 借用 Synara 前端的轻量应用
 destination_artifact: intent.md 第三阶段修订 + .project-map/specs/ 下一份新 spec + 旧 Synara 票（T-055～T-068 中未完成者）的处置清单 + 就绪 build ticket；同步 AGENTS.md、CONTEXT.md、MAP.md
 created_at: 2026-10-10
@@ -94,7 +94,7 @@ R4 起（新会话"新思路构思"）借鉴范围补充为：任务卡与提交
 
 ## Frontier
 
-无。R6 后给出最终漂移检查，待用户确认基线。
+无。
 
 ## Blocked
 
@@ -128,6 +128,26 @@ R4 起（新会话"新思路构思"）借鉴范围补充为：任务卡与提交
 - 多审查者交叉、顾问与影子审查；规则式审查工具（OCR）；定期架构扫描与安全扫描 | reason: D23、D24 的 v1 范围之外，以后另开。
 - 多机/远程（文章的 herdr + mosh） | reason: intent 范围外条款"通用 A2A 平台、分布式调度、多机部署"。
 
+## Handoff
+
+用户 2026-10-10 确认基线，原话（本会话"新思路构思"）："确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。"
+
+已落地：
+
+- `intent.md` 第三阶段修订；
+- 决定 ticket T-069～T-072；
+- spec `.project-map/specs/native-cli-orchestration-2026-10-10.md`（含旧票处置、切片建议、风险与停止条件）；
+- 旧票：T-059、T-066、T-067、T-068、T-030、T-031 改为 superseded；T-032、T-049、T-064 加指向说明；
+- 同步：AGENTS.md、CONTEXT.md、MAP.md、README.md、角色卡。
+
+限制：
+
+- build ticket 尚未写。按 project-map 流程，切片先给用户过目再落文件；用户已把安排全权交给构思主控，由它切 S0、S1 并标就绪。
+- R5～R8 仍 open，各有负责人与停止条件。
+- 本会话不派发、不实现。
+
+下一步：构思主控（会话"a2a-构思主控"）按 spec 第 12 节切 S0、S1，标就绪后写 `assign` 交执行主控；执行主控派 worker。账本保留备查；`.grilling/ACTIVE.md` 指针保持，等用户归档或改选会话。
+
 ## Changelog
 
 - R0（2026-10-10）：读文章与附录 01–04、07；核实 F1–F5；用户回答 Q1–Q6（D1–D6）；写 cancel 条目；建本账本。
@@ -138,3 +158,4 @@ R4 起（新会话"新思路构思"）借鉴范围补充为：任务卡与提交
 - R4 答复（2026-10-10）：“Q14:采纳 / Q15: 采纳 / Q16: 改动量上限不限制，录屏先不做，这个堆积起来也很大。 其他按推荐 / Q17:采纳 / Q18: 采纳 / Q19: 采纳”。D21–D26；R1、R2 由 D25 关闭；CONTEXT.md 加“任务卡”、改 Task 条目。小事：用户“你帮我把过期时间延长到 365 天如何。”——已在 `~/.claude/settings.json` 加 `cleanupPeriodDays: 365`，JSON 校验通过；R4 关闭。提出 Q20–Q24；Q26 从 fog 升为问题，排到 R6；记 R5。
 - R5 答复（2026-10-10）：“Q20:采纳 Q21:采纳,然后这个打分频率怎么样？不能每轮会话都打分吧，做成最终打分比较合适吗？ Q22:采纳，默认 opus5.5 medium Q23:采纳 Q24:采纳, 还是那个问题，打分的频率，但这个也可以加在主控验收时加一句话，这样不用多一轮额外的提问，包含在验收提问里就行，这样不会花很多 token”。D27–D31；打分频率澄清为每个 attempt 结束时一次、作为验收命令参数（D28）；复盘默认改为 Opus 5.5 medium（D29）。核实 F16（日常合并为执行主控手工完成）。提出 Q25、Q26。
 - R6 答复（2026-10-10）：“Q25:a Q26:b”。D32、D33；R3 由 D32 关闭；D10 标为由 D32 扩充；F6 因 D7 不再需要；fog 清空，以后再说的事移入 Out of scope；记 R6–R8（各带 owner 与停止条件）。frontier 清空，给出最终漂移检查。
+- 确认（2026-10-10）：用户“确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。”。status 改为 confirmed；写 Handoff；落地 intent 修订、T-069～T-072、spec、旧票处置与各文档同步。

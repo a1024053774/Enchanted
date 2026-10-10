@@ -23,3 +23,5 @@ supersedes:
 - **权限三层，提示词为主**：① 结构底线（不暴露的工具就是没权限；Synara 期用能力预设）；② 提示词与角色卡（脚本重新打印，worker 的卡由派发包装附带）；③ 追加式记录。不做策略引擎，不做按路径或按 ticket 的权限。用户的话："如果真要写死各种权限，这个很难界定，也很难照顾全。"①也要做，不是备用。
 - **部署**：Herdr 期两个主控各占一个 pane，靠 [T-052](T-052-controller-handoff-protocol.md) 的协议交接；做能用以后一起挪进 Synara（见 [T-059](T-059-controllers-in-workbench.md)）。
 - **术语**：见 CONTEXT.md。2026-10-09 之前文档里无前缀的"主控"指执行主控。
+
+2026-10-10：层级与分工不变；权限分层在第三阶段载体上改为四层，见 [T-071](T-071-permissions-signals-dispatch-data.md)。

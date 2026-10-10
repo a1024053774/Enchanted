@@ -2,7 +2,7 @@
 id: T-030
 title: 工作台改为基于 Synara 的 fork
 type: decide
-status: closed
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes: T-017
@@ -22,3 +22,5 @@ supersedes: T-017
 - 构建：checkout 放内置盘，Bun 全局缓存与 Electron 下载放外置盘，缺盘即报错；首个任务实测占用与耗时。
 
 取代 T-017（Herdr 引擎硬分叉 + GPUI）与 T-022（Muster 名称与"代码在 a2a 文件夹下"）。被否决：Synara 界面 + Muster 引擎（两套运行模型，改动最深）；只用 Synara 终端（放弃其核心价值）；硬分叉 Synara（其迭代极快，会迅速落后）。
+
+2026-10-10 由 [T-069](T-069-third-stage-direction.md) 取代：工作台改为本仓库里的轻量应用，fork 只作组件来源，不再跟进上游。

@@ -2,7 +2,7 @@
 id: T-067
 title: 收件箱读取失败时系统提醒不能悄悄停掉
 type: build
-status: open
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
@@ -33,3 +33,5 @@ ready_rev: 1
 - 授权来源：用户 2026-10-10 说"补上"；`ready_by: ideation`，`ready_rev: 1`。后台降频一项是构思主控加的，依据是同一局限里的"每秒轮询、后台也不停"，用户可以修订。
 
 ## Resolution
+
+**作废（2026-10-10）**：未开工。方向改为原生 CLI 编排（[T-069](T-069-third-stage-direction.md)）；"读取失败时提醒不能悄悄停掉"的要求并入新工作台的系统通知（[spec](../specs/native-cli-orchestration-2026-10-10.md) 第 7 节，S5）。
