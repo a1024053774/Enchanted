@@ -17,7 +17,8 @@ set -euo pipefail
 # Per-process GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=core.hooksPath,
 # GIT_CONFIG_VALUE_0=<source>/workbench/hooks; prepare-commit-msg -> hook.py.
 # The later actual argv and environment must be saved, not inferred from this
-# template. Planned real main turns=2, hard limit=3; third requires controller.
+# template. Controller decision 03 and #24 confirm all three real main turns
+# are consumed. No further real launch is authorized; the budget ledger rejects it.
 
 if (( $# != 2 )); then
   print -u2 'usage: zsh outside-sandbox.sh <red-focused|red-mutants|red-startup-shutdown|green-startup-shutdown|green-focused|green-attachments|green-checker-counterfactuals|real-two-turns|green-regression|green-mutants> <new-label>'

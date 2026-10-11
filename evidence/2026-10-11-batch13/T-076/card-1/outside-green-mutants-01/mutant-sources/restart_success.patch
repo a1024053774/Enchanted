@@ -1,0 +1,10 @@
+--- candidate/workbench/src/daemon.ts
++++ restart_success/workbench/src/daemon.ts
+@@ -71,6 +71,7 @@
+         session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,
+         role: record.role, cli_version: record.cli_version, model_requested: record.model_requested,
+         effort_requested: record.effort_requested, created_at: record.created_at } : null;
++      if (pane?.historical) result.task.state = "accepted";
+       return { ok: true, daemon, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
+     }
+     if (input.command === "pane_status") return { ok: true, ...panes.status(input.thread) };

@@ -1,17 +1,17 @@
 # T-076-1 执行记录（进行中，2026-10-11）
 
-状态：**INCOMPLETE**。focused 红态与候选确定性绿态已核对；完整交付的一致性报告仍为 INCOMPLETE，两个 attachment 窗口均为不一致，主控 #9/#10 已转构思主控另切片，本卡不修存储。专门绿态第三次 PASS；outside-real-03 因 100 秒太短在实现途中停止，实际使用 1 回合、没有提交。按主控 #17/决定 03 准备最后一次真实运行，最多再用 2、累计 3/3 封顶，之后不再追加。旧失败证据保留，不把确定性检查通过称为本卡完成。
+状态：**INCOMPLETE**。真实两回合阶段 outside-real-04 已 PASS；实际尾注、回执后 run/reclaim、Git 父提交和隔离 home 删除均有独立读回。真实预算累计 **3/3**，不再启动真实 Codex。候选五类变异体、8/9/18、独立审查与最终交付待完成。完整交付的一致性报告仍为 INCOMPLETE，两个 attachment 窗口均为不一致；主控 #9/#10 已转构思主控另切片，本卡不修存储，原失败证据保留。
 
-实施起点为 `18235b2c53610c412b5f4ea53e0e6e5c56d35849`；两次外部运行均从该 Git 对象导出冻结产品源码。其后共享 main 已前进，本卡未改其他 worker 的文件，后续候选会单独记录完整版本。授权为 `controller-decision-01.md` 与主控 #4、#6。真实 Codex 回合累计 **0/3**；计划用 2 个，第 3 个先问主控。
+实施起点为 `18235b2c53610c412b5f4ea53e0e6e5c56d35849`；起点红态从该 Git 对象导出冻结产品源码。其后共享 main 已前进，本卡未改其他 worker 的文件，各候选运行以源码归档和完整版本绑定。初始授权为 `controller-decision-01.md` 与主控 #4、#6；最后两个真实回合由 `controller-decision-03.md` 明确批准。真实 Codex 累计 **3/3**，不是三次成功交付：outside-real-03 消耗 1，outside-real-04 消耗 2。
 
-共享分支核对时 HEAD 为 `8ab5177d09dcb25f57a50ad2166dc0006ea99ce3`：相对本卡起点，T-079 已改变 `acceptance/test_herdr_traceability_e2e.py` 并新增 `test_launcher_shell_ready_e2e.py`，所以不能宣称整个 acceptance 目录的总 diff 为空。本卡没有编辑这些文件；门禁三套 `test_coop_e2e.py`、`test_recovery_e2e.py`、`test_run_e2e.py` 及产品 src/hooks 相对起点 diff 仍为空。该跨卡验收归属已单独上报，不回退他人的修改；最终报告按主控确定的比较范围如实列明。
+首次共享分支核对时 HEAD 为 `8ab5177d09dcb25f57a50ad2166dc0006ea99ce3`：相对本卡起点，T-079 已改变 `acceptance/test_herdr_traceability_e2e.py` 并新增 `test_launcher_shell_ready_e2e.py`，所以不能宣称整个 acceptance 目录的总 diff 为空。本卡没有编辑这些文件；门禁三套 `test_coop_e2e.py`、`test_recovery_e2e.py`、`test_run_e2e.py` 相对起点 diff 为空。该跨卡验收归属已单独上报，不回退他人的修改；最终报告按比较范围如实列明。产品 src/hooks 已在本卡修改，不再沿用实施前的空 diff 结论。
 
 ## 六项完成条件
 
 | 条件 | 当前状态与证据边界 |
 | --- | --- |
-| 真实受管提交的实际模型/强度 | INCOMPLETE；已有确定性 Git hook 红态，没有真实 Codex 提交 |
-| 多回合 run/reclaim 正反例 | 确定性正反例 4/4 PASS，0 errors/skipped；真实回合尚未验证，整体 INCOMPLETE |
+| 真实受管提交的实际模型/强度 | PASS；outside-real-04 的 C=`3f7f0b4...`，Model=gpt-6.1-sol、Effort=xhigh，与启动记录和提交回合原生上下文一致 |
+| 多回合 run/reclaim 正反例 | PASS；确定性正反例 4/4；真实回执后 run completed/reclaimed，原交付回合及稳定身份未被替换 |
 | 完整交付库的逐表一致性检查 | 已在完整交付库逐表报告；三张非空主视图一致、成员/预设无法重建；其余空表不冒称覆盖；attachment 两个窗口均取证为不一致，主控已转另切片 |
 | 五类变异体在业务断言失败 | 起点覆盖取证 PASS；最终候选重跑未做，故本卡条件仍 INCOMPLETE |
 | 当前候选 8/9/18 与 acceptance diff | INCOMPLETE；三套尚未运行；本卡未修改 acceptance |
@@ -383,3 +383,37 @@ zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh real-two-turns o
 若本次仍未到“提交 → submit → 回执 → run/reclaim”，尾注和真实多回合两项如实记 INCOMPLETE，不再要求模型回合；保留失败，向主控交代，再按其决定完成候选五变异体、8/9/18、独立审查与交付。本次尚未执行前，本卡仍 INCOMPLETE。
 
 大证据检查发现 outside-real-03/commands.jsonl 超过 5 MB，原文件保留在本地供诊断，不直接提交；新增 commands.jsonl.gz 进入交付，大小记录在 real-preparation-04/large-evidence.json。重新生成原命令日志为该真实阶段的统一重放命令；解压时用 `gzip -dc .../commands.jsonl.gz > <全新命令日志路径>`。最终提交逐文件选择压缩版，避免把本地原始大输出加入 Git。
+
+## 主控 #24：真实两回合 PASS，预算 3/3 封顶
+
+核对 [outside-real-04/run.json](outside-real-04/run.json)、[候选消息](outside-real-04/candidate-message.txt)、[启动记录](outside-real-04/launch-record.json)、[Git 与原生上下文读回](outside-real-04/git-readback.json)、[回执边界](outside-real-04/receipt-boundary.json)、[回执后身份](outside-real-04/after-receipt-identity.json)。阶段 PASS，实际两个根回合，源码期间未变化；主控 #24 又独立读回 Git、尾注和回收结果。
+
+| 事实 | 独立读回 |
+| --- | --- |
+| 任务 / attempt / 受管 session | T-076-9 / a0842017-9355-4e8a-bc6b-aa6b9b6628d1 / 8c628645-4e47-4668-bb56-09aae7757271 |
+| 启动 / 原生会话 | b1041c2a-795f-4aeb-9570-571308c4e50f / 01a12ba0-0467-7c00-8c86-e7871e8ae65c |
+| C 的实际 Model / Effort | gpt-6.1-sol / xhigh；提交回合 turn_context、Git 尾注和启动请求相同。Fast 只有请求记录，不宣称供应商实际 tier |
+| G / C / M | 935d03cad92452440a9a192ab1f095c3adc67384 / 3f7f0b41ce36b559027d9032473f04adf734d1ee / ecf9a7af49e0743e5f561b139eaab2fbdb44a39c；M 的父提交为 G、C，main=M |
+| 交付回合 → 回执回合 | 01a12ba0-0523-7560-b2a4-bf29a44773a0 → 01a12ba1-ec40-79d1-85ab-1eb9198b8623；两者均 task_complete，匹配 Stop 确认 idle 后才释放验收 barrier |
+| 稳定运行身份 | 同一 thread=ce4aa75e-65db-4d2e-9ab9-5d19808acdfe、shell=71715、leader=71717 和原生会话；辅助进程出现不替换领导者 |
+| run / 回收 / 清理 | e3cfaaa1-d756-4731-8d68-bd0e960300e6，wait_seconds=900，outcome=completed、reclaimed=true；isolated_home_removed=true |
+
+本次真实完整路径通过，不覆盖 outside-real-03 的失败与一个已消耗回合。`real-turn-budget.jsonl` 保留原预留、观测和批准核账：0 + 0 + 1 + 2 = **3**。本卡不再运行真实阶段，不要求第 4 个回合。旧真实命令仅用于描述已执行步骤；当前重放只解压保留的日志/源码/库，不能再启动模型。
+
+`outside-real-03/commands.jsonl` 与 `outside-real-04/commands.jsonl` 分别为 24,284,131 和 34,855,460 字节。压缩版与原始字节完全相等，原始文件保存在 `/tmp/t076-large-evidence-cov__aip/`，详见 [large-evidence-02.json](large-evidence-02.json)。最终提交使用 `.gz`，移除主控运行中曾暂存的 real-04 原始日志路径；不会把大原始输出直接提交。解压重放：
+
+```sh
+gzip -dc evidence/2026-10-11-batch13/T-076/card-1/outside-real-04/commands.jsonl.gz > <全新日志路径>
+```
+
+## 候选后续验证交接
+
+统一脚本已有独立入口，以下按顺序执行，各自使用全新标签；前一项未 PASS 就停下保留原结果。全部 `real_codex_turns=0`，没有隐式模型调用或重试。五个变异体分别从当前冻结候选副本生成，先过两个对照；8/9/18 必须经过 `workbench/tests/run_daemon_acceptance.py`。检查器反事实沿用完整交付库的独立副本，只改字段/删行，不改 events 或产品存储。
+
+```sh
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh green-mutants outside-green-mutants-01
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh green-regression outside-green-regression-01
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh green-checker-counterfactuals outside-green-checker-counterfactuals-01
+```
+
+三个阶段的源码归档、tracked diff、实际加载路径和运行中源文件不变检查绑定各自候选。检查器反事实 PASS 只证明差异检出，不能把原完整库的 INCOMPLETE 或 attachment 的不一致改称一致。取得这三项原始结果后再做一次 fresh-context 只读审查，审查成本单列，不算被测真实 worker 回合；最终提交与 ticket Resolution 尚未进行。

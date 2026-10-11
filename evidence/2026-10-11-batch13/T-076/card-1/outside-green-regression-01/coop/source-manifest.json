@@ -1,0 +1,80 @@
+{
+  "paths": [
+    "workbench/src/contracts/a2aGates.ts",
+    "workbench/src/contracts/a2aInbox.ts",
+    "workbench/src/contracts/a2aMembership.ts",
+    "workbench/src/contracts/a2aRolePermissions.ts",
+    "workbench/src/contracts/baseSchemas.ts",
+    "workbench/src/contracts/index.ts",
+    "workbench/src/contracts/modelOptions.ts",
+    "workbench/src/contracts/modelSelection.ts",
+    "workbench/src/daemon.ts",
+    "workbench/src/gates/cli.ts",
+    "workbench/src/gates/core.ts",
+    "workbench/src/gates/membership.ts",
+    "workbench/src/gates/rolePermissions.ts",
+    "workbench/src/gates/taskCards.ts",
+    "workbench/src/panes.ts",
+    "workbench/src/relay.ts",
+    "workbench/src/relayFiles.ts",
+    "workbench/src/stateConsistency.ts",
+    "workbench/src/store.ts",
+    "workbench/src/transport.ts",
+    "workbench/tests/daemon_acceptance_adapter.py",
+    "workbench/tests/daemon_acceptance_host.ts",
+    "workbench/tests/run_daemon_acceptance.py",
+    "workbench/tests/prepare_daemon_mutants.py",
+    "workbench/tests/test_cas_race.py",
+    "workbench/package.json",
+    "workbench/package-lock.json",
+    "workbench/.npmrc",
+    "acceptance/test_coop_e2e.py",
+    "acceptance/test_recovery_e2e.py",
+    "acceptance/test_run_e2e.py",
+    "acceptance/pagination_oracle.py",
+    "acceptance/reference/pager.py",
+    "acceptance/entry/a2a_gates.py",
+    "acceptance/entry/native-runtime.ts",
+    "acceptance/entry/native-entry.py",
+    "acceptance/entry/native-entry.ts",
+    "acceptance/entry/thread-boundary.py",
+    "fixtures/pagination/CONTRACT.md",
+    "fixtures/pagination/pager.py",
+    ".project-map/specs/recovery-2026-10-06.md",
+    ".project-map/specs/managed-delivery-2026-10-06.md",
+    ".project-map/specs/supervised-run-2026-10-06.md",
+    "evidence/2026-10-10-batch12/T-075/card-5/controller-decision-01.md",
+    "evidence/2026-10-10-batch12/T-075/card-5/outside-sandbox.sh",
+    "evidence/2026-10-10-batch12/T-075/card-5/readback-timing-probe.py",
+    "evidence/2026-10-10-batch12/T-075/run-acceptance.py"
+  ],
+  "head": {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a",
+    "exit_code": 0,
+    "stdout": "6b77021c1d86065a80aaf63134240fda843fd92e\n",
+    "stderr": ""
+  },
+  "diff": {
+    "argv": [
+      "git",
+      "diff",
+      "--",
+      "workbench/src/daemon.ts"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a",
+    "exit_code": 0,
+    "stdout": "diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts\nindex 6c7ca83d..e7e9d0a8 100644\n--- a/workbench/src/daemon.ts\n+++ b/workbench/src/daemon.ts\n@@ -26,8 +26,16 @@ export async function serve(\n   gates.setUserInputObserverStatus(\"healthy\");\n   let stopping = false;\n   let activeRequests = 0;\n+  let requestsDrained: (() => void) | undefined;\n+  const activityFinished = () => {\n+    activeRequests--;\n+    if (activeRequests === 0) { requestsDrained?.(); requestsDrained = undefined; }\n+  };\n   const shutdown = async () => {\n     stopping = true;\n+    // Requests and deferred receipt writes retain their stores until their\n+    // final results are durable. run observes beginShutdown at safe boundaries.\n+    if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });\n     await panes.shutdown();\n     store.event(\"daemon_stopped\", { pid: process.pid });\n     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));\n@@ -46,8 +54,8 @@ export async function serve(\n     }\n     if (input.command === \"daemon_status\") return { ok: true, pid: process.pid, node: process.version, root, helper };\n     if (input.command === \"daemon_stop\") {\n-      if (activeRequests !== 1) throw new Refusal(\"daemon_busy\");\n       stopping = true;\n+      gates.beginShutdown();\n       return { ok: true, pid: process.pid, stopping: true };\n     }\n     if (input.command === \"orchestration_events\") return { ok: true, events: store.read(input.task) };\n@@ -134,15 +142,17 @@ export async function serve(\n           gates.setUserInputObserverStatus(\"failed\", { reason: String(recordError) });\n           result = { ok: false, error: \"event_write_failed\", details: String(recordError) };\n         }\n-      } finally { activeRequests--; }\n+      } finally { activityFinished(); }\n       connection.end(JSON.stringify(result) + \"\\n\");\n       if (result.ok && envelope?.input.command === \"signal\") {\n         connection.once(\"close\", () => {\n+          if (stopping) return;\n           const pane = panes.byLaunch(envelope.input.launch);\n+          activeRequests++;\n           panes.drain(pane).catch((error) => {\n             pane.failed = String(error); pane.state = \"unknown\";\n             store.event(\"queue_stopped\", { error: String(error) }, pane.record);\n-          });\n+          }).finally(activityFinished);\n         });\n       }\n       if (result.ok && envelope?.input.command === \"daemon_stop\") {\n",
+    "stderr": ""
+  },
+  "skills": [
+    "project-map",
+    "reality-first-engineering",
+    "evidence-first-testing",
+    "document-writing"
+  ]
+}

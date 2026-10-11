@@ -1,0 +1,645 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index a1b83763..e06d0cce 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -9,6 +9,11 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status
+ 先对同一隔离目录调用 `daemon_start`，结束时调用 `daemon_stop`。客户端只通过
+ `control.sock` 访问常驻后台，不再直接打开门禁库。后台未启动时命令明确失败，不自动拉起或重试。
+ `daemon_start` 使用 detached 子进程和独立日志。
++普通请求的传输期限为 120 秒；`run` 的有效显式等待参数另加 120 秒收尾余量，
++避免长任务被短客户端期限截断。传输超时仍报告结果未知，不重放请求。
++`daemon_stop` 显式进入关闭流程，返回 `stopping: true` 是受理确认；以 PID/端点消失确认退出。
++关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
++随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
+ 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
+ T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
+ B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本卡一次独立审查 PASS。
+@@ -134,6 +139,10 @@ worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有
+ 停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、
+ 截断、解析失败或未完成的一行记为 native_final_read_failed，保留读到的位置，窗格
+ 仍显示未知／中断，不补造完成事件。停止后的查询不继续采集新的原生字节。
++测试的最终 SQLite 读回统一使用 `fixture_artifacts.archive_stopped_database`：确认 writer 退出，
++复制主库与残留 WAL，只在归档副本上改为独立 DELETE 文件，再以只读方式检查。
++`test_probe_cleanup.py` 检查关闭后的 WAL、未遗漏的已提交行、原文件保留和未确认退出时保留现场；
++`test_stopped_readback.py` 重放三个停止后直读原库失败的夹具。
+ 门禁状态原值保留，因此“门禁已认领”和“执行已中断”可以同时出现。原 verify/integrate
+ 命令显式重放才执行恢复，启动或读取窗口不能把未知结果改成通过。
+ 崩溃残留的 socket/PID 文件阻止启动；产品不会按 PID 猜测所有者并自动接管。
+@@ -143,7 +152,17 @@ worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有
+ 新增 launch_records、dispatch_records、orchestration_events、relay_requests、relay_results
+ 都在 state.sqlite3，触发器禁止
+ UPDATE/DELETE。按 T-075 rev 3，原门禁状态表保留为由事件推出的当前视图，历史以事件为准；
+-membership.sqlite3 和锁库保留。事件重建与视图一致性验证留给后续切片，本卡不迁移存储。
++membership.sqlite3 和锁库保留。`stateConsistency.ts` 提供只读事件重建与逐表比较；
++不补事件、改表或修存储。对静止的夹具库运行，报告一致、不一致或无法从现有事件重建：
++
++```sh
++node workbench/src/stateConsistency.ts --state /绝对路径/state --output /绝对路径/新报告.json
++```
++
++报告包含 tasks、历史 attempts/verifications、runs、attachments 与另库的 memberships/
++session_presets，列出差异、缺历史来源和未覆盖表。attachment creating 缺事件、active 行与
++attached 事件不同事务，以及成员/预设另库覆盖写都不能用最终行相等掩盖；诊断不一致或
++不可重建返回 INCOMPLETE。两库分别有读事务，不宣称跨库同事务。
+ 
+ 受管 worker 仍使用同一 CLI 显式 `submit`；`status`、`issue` 也走同一条转交路径。
+ CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQUEST_DIR`，返回
+@@ -156,9 +175,21 @@ CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQU
+ 处理结果未知时保留意图，不自动重试。一次 Stop 的新结果合成一条 `⟦门禁 #序号⟧`
+ 回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执会启动新的原生回合，
+ 计入启动记录里的回合上限；本卡已获准一个交付回合和一个只确认回执的回合。
+-Git 尾注钩子当前只读会话环境；最近回合模型与强度取不到时写 unknown，不把启动请求当实际值。
+-本卡真实候选的这两项均为 unknown；原生记录另有实际回合模型与强度。后续需把已核对的
+-回合事实传给钩子；只预填启动记录的请求参数时，仍须标明其来源，不能冒充最近回合观测。
++Git 尾注钩子从隔离 CODEX_HOME 中读取 CODEX_THREAD_ID 绑定的唯一根 CLI JSONL，
++以最新 task_started 对应的 turn_context 取实际模型与强度；辅助会话不提供取值。
++当前回合缺上下文时写 unknown，不沿用上一回合或请求值。启动请求另存
++A2A_MODEL_REQUESTED/A2A_EFFORT_REQUESTED；实际沙箱读取与提交时序还须通过真实回合验收。
++
++运行时 agent 身份与交付回合分开：attempt 绑定 launch/thread、shell、原生会话和 Codex 领导者；
++首次输入前原生日志可以尚未出现，执行者核对有效前台领导者后通过 pane_release 放行首次派发；
++门禁只补首次可观测的原生会话，不用请求值补身份。
++run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
++caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实
++拒收；停止后只沿用已核对的身份及确认的生命周期，不按新 PID 接管。
++
++`run_daemon_acceptance.py --suite <coop|recovery|run> --output-root /绝对路径/证据根 --label 新标签`
++可把本轮三套验收写到独立证据目录；默认输出根沿用原 T-075/card-5。旧 validation 模式
++包含冻结的基线运行器，保留原输出根；新切片使用 suite/probe，不混写旧证据。
+ 
+ ## 来源与改动
+ 
+diff --git a/workbench/hooks/hook.py b/workbench/hooks/hook.py
+index cd650e49..7243b45f 100755
+--- a/workbench/hooks/hook.py
++++ b/workbench/hooks/hook.py
+@@ -1,22 +1,64 @@
+ #!/usr/bin/env python3
+-"""Add session environment facts. The delivery channel is pending decision 02."""
++"""Add managed identity and the latest root native turn's observed facts."""
++import json
+ import os
+ from pathlib import Path
+ import subprocess
+ import sys
+ 
+ 
++def latest_turn_facts(env):
++    home, native = env.get('CODEX_HOME'), env['CODEX_THREAD_ID']
++    if not home:
++        return 'unknown', 'unknown'
++    sessions = Path(home).resolve() / 'sessions'
++    files = [path for path in sessions.rglob('*.jsonl') if path.name.endswith(native + '.jsonl')]
++    if not files:
++        return 'unknown', 'unknown'
++    if len(files) != 1 or sessions not in files[0].resolve().parents:
++        raise ValueError('原生会话记录不唯一或路径越界')
++    turn, context, bound = None, None, False
++    with files[0].open('r', encoding='utf-8') as stream:
++        for line in stream:
++            if not line.endswith('\n'):
++                break  # An incomplete append cannot provide current-turn facts.
++            record = json.loads(line)
++            if not isinstance(record, dict):
++                raise ValueError('原生记录不是 JSON 对象')
++            payload = record.get('payload', {})
++            if record.get('type') in ('session_meta', 'event_msg', 'turn_context') and not isinstance(payload, dict):
++                raise ValueError('原生身份或回合记录的 payload 不合法')
++            if record.get('type') == 'session_meta':
++                if payload.get('id') != native or payload.get('source') != 'cli':
++                    raise ValueError('原生记录不是本根 CLI 会话')
++                bound = True
++            elif record.get('type') == 'event_msg' and payload.get('type') == 'task_started':
++                turn, context = payload.get('turn_id'), None
++            elif record.get('type') == 'turn_context' and turn and payload.get('turn_id') == turn:
++                context = payload
++    if not bound:
++        raise ValueError('原生记录缺少根会话身份')
++    if context is None:
++        return 'unknown', 'unknown'
++    return context.get('model') or 'unknown', context.get('effort') or context.get('reasoning_effort') or 'unknown'
++
++
+ def add_trailers():
+     env = os.environ
+     trailers = {'A2A-Task': env['A2A_TASK'], 'A2A-Attempt': env['A2A_ATTEMPT'],
+                 'A2A-Session': env['A2A_SESSION'], 'A2A-Role': env['A2A_ROLE'],
+-                'A2A-Tool': env['A2A_TOOL'], 'A2A-Model': env.get('A2A_MODEL', 'unknown'),
+-                'A2A-Effort': env.get('A2A_EFFORT', 'unknown'), 'A2A-Native-Session': env['CODEX_THREAD_ID'],
++                'A2A-Tool': env['A2A_TOOL'], 'A2A-Model': 'unknown',
++                'A2A-Effort': 'unknown', 'A2A-Native-Session': env['CODEX_THREAD_ID'],
+                 'A2A-Launch': env['A2A_LAUNCH']}
+     # Validate before any edit. Requested launch settings are not observed turn facts.
+     for key, content in trailers.items():
+-        if not content or '\n' in content or '\r' in content:
++        if not isinstance(content, str) or not content or '\n' in content or '\r' in content:
+             raise ValueError('尾注值不合法：' + key)
++    trailers['A2A-Model'], trailers['A2A-Effort'] = latest_turn_facts(env)
++    for key in ('A2A-Model', 'A2A-Effort'):
++        value = trailers[key]
++        if not isinstance(value, str) or not value or '\n' in value or '\r' in value:
++            raise ValueError('原生回合尾注值不合法：' + key)
+     message = sys.argv[1]
+     parsed = subprocess.check_output(['git', 'interpret-trailers', '--parse', '--no-divider', message], text=True)
+     counts = {key.lower(): 0 for key in trailers}
+diff --git a/workbench/src/contracts/a2aGates.ts b/workbench/src/contracts/a2aGates.ts
+index 7ef3bd4a..d6449a10 100644
+--- a/workbench/src/contracts/a2aGates.ts
++++ b/workbench/src/contracts/a2aGates.ts
+@@ -80,6 +80,14 @@ export const A2AGateRequest = Schema.Struct({
+ });
+ export type A2AGateRequest = typeof A2AGateRequest.Type;
+ 
++export interface A2ARuntimeIdentity {
++  launch: string;
++  thread: string;
++  shell_pid: number;
++  leader_pid: number | null;
++  native_session: string | null;
++}
++
+ export interface A2AAttempt {
+   task_id: string;
+   attempt_id: string;
+@@ -89,6 +97,7 @@ export interface A2AAttempt {
+   thread_id: string;
+   runtime_mode: "approval-required" | "full-access" | "workspace-write";
+   turn_id: string | null;
++  runtime_identity: A2ARuntimeIdentity | null;
+   workspace: string;
+   base_commit: string;
+   card_snapshot_id: string;
+diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts
+index 6c7ca83d..e7e9d0a8 100644
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -26,8 +26,16 @@ export async function serve(
+   gates.setUserInputObserverStatus("healthy");
+   let stopping = false;
+   let activeRequests = 0;
++  let requestsDrained: (() => void) | undefined;
++  const activityFinished = () => {
++    activeRequests--;
++    if (activeRequests === 0) { requestsDrained?.(); requestsDrained = undefined; }
++  };
+   const shutdown = async () => {
+     stopping = true;
++    // Requests and deferred receipt writes retain their stores until their
++    // final results are durable. run observes beginShutdown at safe boundaries.
++    if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });
+     await panes.shutdown();
+     store.event("daemon_stopped", { pid: process.pid });
+     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+@@ -46,8 +54,8 @@ export async function serve(
+     }
+     if (input.command === "daemon_status") return { ok: true, pid: process.pid, node: process.version, root, helper };
+     if (input.command === "daemon_stop") {
+-      if (activeRequests !== 1) throw new Refusal("daemon_busy");
+       stopping = true;
++      gates.beginShutdown();
+       return { ok: true, pid: process.pid, stopping: true };
+     }
+     if (input.command === "orchestration_events") return { ok: true, events: store.read(input.task) };
+@@ -134,15 +142,17 @@ export async function serve(
+           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
+           result = { ok: false, error: "event_write_failed", details: String(recordError) };
+         }
+-      } finally { activeRequests--; }
++      } finally { activityFinished(); }
+       connection.end(JSON.stringify(result) + "\n");
+       if (result.ok && envelope?.input.command === "signal") {
+         connection.once("close", () => {
++          if (stopping) return;
+           const pane = panes.byLaunch(envelope.input.launch);
++          activeRequests++;
+           panes.drain(pane).catch((error) => {
+             pane.failed = String(error); pane.state = "unknown";
+             store.event("queue_stopped", { error: String(error) }, pane.record);
+-          });
++          }).finally(activityFinished);
+         });
+       }
+       if (result.ok && envelope?.input.command === "daemon_stop") {
+diff --git a/workbench/src/gates/core.ts b/workbench/src/gates/core.ts
+index acf6ed67..21acd81b 100644
+--- a/workbench/src/gates/core.ts
++++ b/workbench/src/gates/core.ts
+@@ -15,6 +15,7 @@ import {
+   type A2AInboxEntry,
+   type A2AInboxDelivery,
+   type A2AAttempt,
++  type A2ARuntimeIdentity,
+   type A2ARun,
+   type A2AUserInputObserver,
+   type A2AGateResult,
+@@ -85,6 +86,7 @@ export interface GateRuntime {
+     workspace: string;
+     provider: string;
+     turn: string | null;
++    runtime_identity: A2ARuntimeIdentity;
+     running: boolean;
+     stopped: boolean;
+     archived: boolean;
+@@ -111,6 +113,7 @@ export class A2AGates {
+   private readonly membership: A2AMembership;
+   private userInputObserver?: A2AUserInputObserver;
+   private readonly deferredUserInputs = new Map<string, A2AUserInput>();
++  private shuttingDown = false;
+   readonly root: string;
+   private readonly runtime?: GateRuntime;
+   private readonly now: () => number;
+@@ -211,6 +214,7 @@ export class A2AGates {
+       this.db.exec("ALTER TABLE events ADD COLUMN attempt TEXT");
+     mkdirSync(join(root, "locks"), { recursive: true });
+   }
++  beginShutdown() { this.shuttingDown = true; }
+   close() {
+     this.membership.close();
+     this.db.close();
+@@ -1315,15 +1319,36 @@ export class A2AGates {
+       if (this.db.isTransaction) this.db.exec("ROLLBACK");
+     }
+   }
++  private runtimeIdentity(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
++    const identity = live.runtime_identity;
++    requireGate(identity && identity.thread === attempt.thread_id && typeof identity.launch === "string" &&
++      identity.launch.length > 0 && Number.isInteger(identity.shell_pid) && identity.shell_pid > 0 &&
++      (identity.leader_pid === null || Number.isInteger(identity.leader_pid) && identity.leader_pid > 0) &&
++      (identity.native_session === null || typeof identity.native_session === "string" && identity.native_session.length > 0),
++      "identity_conflict", { attempt, live });
++    return identity;
++  }
+   private checkThread(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
++    const identity = this.runtimeIdentity(attempt, live), bound = attempt.runtime_identity;
+     requireGate(
+       live.workspace === attempt.workspace &&
+         live.provider === "codex" &&
+-        (!attempt.turn_id || live.turn === attempt.turn_id),
++        bound && identity.launch === bound.launch && identity.thread === bound.thread && identity.shell_pid === bound.shell_pid &&
++        (bound.leader_pid === null || identity.leader_pid === bound.leader_pid) &&
++        (bound.native_session === null || identity.native_session === bound.native_session),
+       "identity_conflict",
+       { attempt, live },
+     );
+   }
++  private bindObservedIdentity(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
++    this.checkThread(attempt, live);
++    const bound = attempt.runtime_identity!, identity = live.runtime_identity;
++    const changed = bound.leader_pid === null && identity.leader_pid !== null ||
++      bound.native_session === null && identity.native_session !== null;
++    if (bound.leader_pid === null) bound.leader_pid = identity.leader_pid;
++    if (bound.native_session === null) bound.native_session = identity.native_session;
++    return changed;
++  }
+   private checkErrorReclaim(live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
+     requireGate(
+       !live.error ||
+@@ -1336,6 +1361,7 @@ export class A2AGates {
+     );
+   }
+   private async observeRun(run: A2ARun) {
++    requireGate(!this.shuttingDown, "daemon_stopping");
+     this.checkUserInputObserver();
+     const attempt = this.current(this.load(run.task_id), run.attempt_id!);
+     let live: Awaited<ReturnType<GateRuntime["readThread"]>>;
+@@ -1346,21 +1372,21 @@ export class A2AGates {
+       if (error instanceof Refusal) throw error;
+       throw new Refusal("run_external_unknown", String(error));
+     }
++    requireGate(!this.shuttingDown, "daemon_stopping");
+     this.current(this.load(run.task_id), run.attempt_id!);
+     this.checkThread(attempt, live);
+     requireGate(!live.error, "run_external_unknown", live);
+     requireGate(!live.blocked, "run_blocked", live);
+     requireGate(!live.archived && !live.stopped, "run_external_unknown", live);
+-    if (!attempt.turn_id && live.turn) {
++    if (attempt.runtime_identity!.leader_pid === null && live.runtime_identity.leader_pid !== null ||
++        attempt.runtime_identity!.native_session === null && live.runtime_identity.native_session !== null) {
+       // Binding is an ordinary task mutation. Refuse a concurrent gate owner.
+       const lock = new DatabaseSync(join(this.root, "locks", `${run.task_id}.sqlite3`));
+       try {
+         lock.exec("PRAGMA busy_timeout=0; BEGIN IMMEDIATE");
+         const task = this.load(run.task_id);
+         const current = this.current(task, run.attempt_id!);
+-        requireGate(!current.turn_id || current.turn_id === live.turn, "identity_conflict");
+-        current.turn_id = live.turn;
+-        this.save(task, "turn_bound", { attempt: current });
++        if (this.bindObservedIdentity(current, live)) this.save(task, "runtime_bound", { attempt: current });
+       } finally {
+         lock.close();
+       }
+@@ -1370,6 +1396,7 @@ export class A2AGates {
+   private async waitForIdle(run: A2ARun) {
+     const deadline = performance.now() + 60_000;
+     for (;;) {
++      requireGate(!this.shuttingDown, "daemon_stopping");
+       const row = this.db.prepare("SELECT data FROM attempts WHERE id=?").get(run.attempt_id!);
+       requireGate(row, "unknown_attempt");
+       const attempt = JSON.parse(String(row.data)) as A2AAttempt;
+@@ -1379,6 +1406,7 @@ export class A2AGates {
+       );
+       if (attempt.reclaimed) return;
+       const live = await this.runtime!.readThread(attempt.thread_id);
++      requireGate(!this.shuttingDown, "daemon_stopping");
+       this.checkThread(attempt, live);
+       requireGate(!live.error, "run_external_unknown", live);
+       requireGate(!live.blocked, "run_blocked", live);
+@@ -1428,6 +1456,7 @@ export class A2AGates {
+       const deadline = performance.now() + args.wait_seconds! * 1000;
+       let previous = "";
+       for (;;) {
++        requireGate(!this.shuttingDown, "daemon_stopping");
+         this.current(this.load(args.task), run.attempt_id!);
+         requireGate(performance.now() < deadline, "run_deadline");
+         const live = await this.observeRun(run);
+@@ -1455,6 +1484,9 @@ export class A2AGates {
+         );
+       }
+       for (const command of ["verify", "integrate"] as const) {
++        // Finish an already-started gate under its lock, then stop before the
++        // next gate. Shutdown must not advance a waiting run to acceptance.
++        requireGate(!this.shuttingDown, "daemon_stopping");
+         run.phase = command === "verify" ? "verifying" : "integrating";
+         this.saveRun(run, "run_phase");
+         const result = await this.request({ command, task: args.task, attempt: run.attempt_id! });
+@@ -1463,6 +1495,7 @@ export class A2AGates {
+       run.phase = "reclaiming";
+       this.saveRun(run, "run_phase");
+       await this.waitForIdle(run);
++      requireGate(!this.shuttingDown, "daemon_stopping");
+       const cleanup = await this.request({
+         command: "reclaim",
+         task: args.task,
+@@ -1470,6 +1503,7 @@ export class A2AGates {
+       });
+       requireGate(cleanup.ok, "run_reclaim_failed", cleanup);
+       run.reclaimed = true;
++      requireGate(!this.shuttingDown, "daemon_stopping");
+       run.outcome = "completed";
+       run.ended = new Date().toISOString();
+       this.saveRun(run, "run_finished");
+@@ -1489,6 +1523,7 @@ export class A2AGates {
+       ) {
+         try {
+           await this.waitForIdle(run);
++          requireGate(!this.shuttingDown, "daemon_stopping");
+           const cleanup = await this.request({
+             command: "reclaim",
+             task: args.task,
+@@ -2195,6 +2230,7 @@ export class A2AGates {
+           thread_id: args.command === "dispatch" ? randomUUID() : "",
+           runtime_mode: args.runtimeMode ?? "approval-required",
+           turn_id: null,
++          runtime_identity: null,
+           workspace: "",
+           base_commit: base,
+           card_snapshot_id: "",
+@@ -2242,6 +2278,7 @@ export class A2AGates {
+           this.member(task, attempt.thread_id, "worker");
+           this.membership.bindPreset(attempt.thread_id, "worker");
+           const live = await this.runtime!.readThread(attempt.thread_id);
++          attempt.runtime_identity = { ...this.runtimeIdentity(attempt, live) };
+           this.checkThread(attempt, live);
+           requireGate(!live.blocked, "run_blocked", live);
+         }
+@@ -2267,7 +2304,7 @@ export class A2AGates {
+         this.checkUserInputObserver();
+         await this.runtime!.startThread(task, attempt, prompt);
+         const live = await this.runtime!.readThread(attempt.thread_id);
+-        this.checkThread(attempt, live);
++        this.bindObservedIdentity(attempt, live);
+         attempt.turn_id = live.turn;
+         this.save(task, "dispatched", { attempt });
+         return { ok: true, task, attempt };
+@@ -2307,12 +2344,14 @@ export class A2AGates {
+           );
+           await caller.assertActive();
+           const live = await this.runtime.readThread(attempt.thread_id);
++          this.bindObservedIdentity(attempt, live);
+           requireGate(
+             !live.error &&
+               live.workspace === attempt.workspace &&
+               live.provider === "codex" &&
+               live.running &&
+               !live.blocked &&
++              attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null &&
+               live.turn === caller.turn,
+             "identity_conflict",
+           );
+@@ -2594,6 +2633,8 @@ export class A2AGates {
+         "identity_conflict",
+       );
+       this.checkThread(attempt, live);
++      requireGate(attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null,
++        "identity_conflict", { attempt, live });
+       this.checkErrorReclaim(live);
+       requireGate(!live.blocked, "run_blocked", live);
+       requireGate(!live.running, "worker_working");
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index 6e12a45a..0e6a079a 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -146,7 +146,7 @@ export class Panes implements GateRuntime {
+       A2A_STATE: this.root, A2A_CLI: cli, A2A_NODE: process.execPath, A2A_CAPABILITY: token,
+       A2A_REQUEST_DIR: requestDirectory,
+       A2A_FENCE: String(attempt.fence), A2A_SPEC_REV: String(attempt.spec_rev),
+-      A2A_TOOL: version, A2A_MODEL: "unknown", A2A_EFFORT: "unknown",
++      A2A_TOOL: version, A2A_MODEL_REQUESTED: model, A2A_EFFORT_REQUESTED: effort,
+       GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
+       GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)),
+     });
+@@ -398,7 +398,10 @@ export class Panes implements GateRuntime {
+   }
+   readThread = async (thread: string) => {
+     const pane = this.get(thread);
++    if (!pane.stopped) await this.processInfo(thread);
+     return { workspace: pane.attempt.workspace, provider: "codex", turn: pane.turn,
++      runtime_identity: { launch: pane.record.id, thread, shell_pid: pane.pty.pid,
++        leader_pid: pane.leader, native_session: pane.native },
+       running: (pane.state !== "idle" || pane.writing) && !pane.stopped, stopped: pane.stopped, archived: pane.archived,
+       blocked: Boolean(pane.failed), ...(pane.failed ? { error: { providerPresent: !pane.stopped, activeTurn: pane.turn } } : {}) };
+   };
+diff --git a/workbench/src/transport.ts b/workbench/src/transport.ts
+index 3e38f447..49817483 100644
+--- a/workbench/src/transport.ts
++++ b/workbench/src/transport.ts
+@@ -21,7 +21,10 @@ export function request(root: string, input: Record<string, unknown>, identity?:
+     let finished = false;
+     socket.setEncoding("utf8");
+     // A deadline is a failed/unknown call, never permission to replay a mutation.
+-    socket.setTimeout(120_000, () => socket.destroy(new Error("daemon request deadline; outcome unknown")));
++    const wait = input.command === "run" ? input.wait_seconds : undefined;
++    const deadline = typeof wait === "number" && Number.isSafeInteger(wait) && wait > 0
++      ? Math.min(2_147_483_647, Math.max(120_000, wait * 1000 + 120_000)) : 120_000;
++    socket.setTimeout(deadline, () => socket.destroy(new Error("daemon request deadline; outcome unknown")));
+     socket.on("error", reject);
+     socket.on("connect", () => socket.write(JSON.stringify({ id: randomUUID(), input, identity }) + "\n"));
+     socket.on("data", (chunk) => {
+diff --git a/workbench/tests/daemon_acceptance_host.ts b/workbench/tests/daemon_acceptance_host.ts
+index 305fb9f6..961eea8d 100644
+--- a/workbench/tests/daemon_acceptance_host.ts
++++ b/workbench/tests/daemon_acceptance_host.ts
+@@ -2,6 +2,7 @@
+ import { appendFileSync, writeFileSync } from "node:fs";
+ import { resolve, join } from "node:path";
+ import { fileURLToPath } from "node:url";
++import { randomUUID } from "node:crypto";
+ import { serve } from "../src/daemon.ts";
+ import type { SubmitCaller } from "../src/gates/core.ts";
+ import { boundary, runtime } from "../../acceptance/entry/native-runtime.ts";
+@@ -15,6 +16,23 @@ if (controlled) process.env.A2A_TEST_THREAD_CONTROL = resolve(control);
+ else delete process.env.A2A_TEST_THREAD_CONTROL;
+ const { A2AGates } = await import(gate);
+ const audit = join(control, "submit-caller.jsonl");
++const owned = new Map<string, { launch: string; shell_pid: number }>();
++const controlledRuntime = {
++  ...runtime,
++  createThread: async (task: any, attempt: any) => {
++    await runtime.createThread(task, attempt);
++    owned.set(attempt.thread_id, { launch: randomUUID(), shell_pid: 10000 + owned.size });
++  },
++  readThread: async (thread: string) => {
++    const live = await runtime.readThread(thread), owner = owned.get(thread);
++    if (!owner) throw new Error("Controlled runtime owner was not created by this host");
++    // This old external fixture uses its turn token as the owner generation:
++    // leader-changed replaces it; helper-joins leaves it unchanged. No actual
++    // native session or CLI PID is claimed by this synthetic runtime.
++    return { ...live, runtime_identity: { launch: owner.launch, thread, shell_pid: owner.shell_pid,
++      leader_pid: live.turn ? 20000 : null, native_session: live.turn } };
++  },
++};
+ 
+ class ControlledThreadGates extends A2AGates {
+   async call(raw: unknown, caller?: SubmitCaller) {
+@@ -41,7 +59,7 @@ class ControlledThreadGates extends A2AGates {
+ }
+ 
+ await serve(state, {}, (root, panes) => controlled
+-  ? new ControlledThreadGates(root, runtime)
++  ? new ControlledThreadGates(root, controlledRuntime)
+   : new A2AGates(root, panes));
+ writeFileSync(ready, JSON.stringify({ pid: process.pid, root: resolve(state),
+   gate,
+diff --git a/workbench/tests/fixture_artifacts.py b/workbench/tests/fixture_artifacts.py
+index d5278310..048f3863 100644
+--- a/workbench/tests/fixture_artifacts.py
++++ b/workbench/tests/fixture_artifacts.py
+@@ -9,6 +9,28 @@ import subprocess
+ import time
+ 
+ 
++def archive_stopped_database(state, destination):
++    """Copy a stopped writer's DB/WAL and normalize only the artifact copy."""
++    source = state / 'state.sqlite3'
++    if not source.is_file():
++        raise RuntimeError('Stopped fixture database is missing: ' + str(source))
++    destination.parent.mkdir(parents=True, exist_ok=True)
++    with destination.open('xb') as stream:
++        stream.write(source.read_bytes())
++    wal = state / 'state.sqlite3-wal'
++    copied_wal = wal.exists()
++    if copied_wal:
++        with destination.with_name(destination.name + '-wal').open('xb') as stream:
++            stream.write(wal.read_bytes())
++    with closing(sqlite3.connect(destination)) as copy:
++        if copy.execute('PRAGMA journal_mode=DELETE').fetchone() != ('delete',):
++            raise RuntimeError('Archive journal mode did not become DELETE')
++        if copy.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
++            raise RuntimeError('Archive integrity check failed')
++    return {'path': str(destination), 'source': str(source), 'journal_mode': 'delete',
++            'integrity': 'ok', 'copied_wal': copied_wal, 'phase': 'after-writer-exit'}
++
++
+ def archive_and_cleanup(state, output, isolated, cleanup_pids, run, save, verdict):
+     # A file snapshot is coherent only after this probe's writers have exited.
+     stopped_for_archive = False
+@@ -38,19 +60,7 @@ def archive_and_cleanup(state, output, isolated, cleanup_pids, run, save, verdic
+             if (state / 'state.sqlite3').exists():
+                 if not stopped_for_archive:
+                     raise RuntimeError('Database archive requires confirmed daemon stop')
+-                destination = output / 'state.sqlite3'
+-                with destination.open('xb') as stream:
+-                    stream.write((state / 'state.sqlite3').read_bytes())
+-                wal = state / 'state.sqlite3-wal'
+-                if wal.exists():
+-                    with (output / 'state.sqlite3-wal').open('xb') as stream:
+-                        stream.write(wal.read_bytes())
+-                with closing(sqlite3.connect(destination)) as dest:
+-                    if dest.execute('PRAGMA journal_mode=DELETE').fetchone() != ('delete',):
+-                        raise RuntimeError('Archive journal mode did not become DELETE')
+-                    if dest.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
+-                        raise RuntimeError('Archive integrity check failed')
+-                verdict['database_archive'] = {'path': str(destination), 'journal_mode': 'delete', 'integrity': 'ok'}
++                verdict['database_archive'] = archive_stopped_database(state, output / 'state.sqlite3')
+     except (OSError, RuntimeError, sqlite3.Error) as error:
+         verdict.update(status='BLOCKED', archive_error=str(error))
+     finally:
+diff --git a/workbench/tests/run_daemon_acceptance.py b/workbench/tests/run_daemon_acceptance.py
+index 5b250600..41f1f605 100644
+--- a/workbench/tests/run_daemon_acceptance.py
++++ b/workbench/tests/run_daemon_acceptance.py
+@@ -21,10 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
+ BASE = ROOT / "evidence/2026-10-10-batch12/T-075/card-5"
+ RUNNER = Path(__file__).resolve()
+ IDENTITY = {
+-    "task": "T-075-5", "attempt": "a1", "ready_rev": 4,
+-    "session": "f82c11a2-4410-42fc-b9f9-24b0ad037050",
+-    "launch": "launch-e2dfb51e50404371bb95e477b46bbac6",
+-    "worker": "s12-t075-5", "real_codex_turns": 0,
++    "runner": "daemon-acceptance", "real_codex_turns": 0,
+ }
+ 
+ 
+@@ -218,7 +215,8 @@ def run_all(label, out):
+     code = 0
+     for probe in ("delivery", "recovery", "run"):
+         child_label = label + "-" + probe
+-        argv = [sys.executable, "-B", str(RUNNER), "--probe", probe, "--label", child_label]
++        argv = [sys.executable, "-B", str(RUNNER), "--probe", probe, "--label", child_label,
++                "--output-root", str(BASE)]
+         result = observe(argv)
+         (out / (probe + ".stdout.txt")).write_text(result["stdout"], encoding="utf-8")
+         (out / (probe + ".stderr.txt")).write_text(result["stderr"], encoding="utf-8")
+@@ -335,7 +333,8 @@ def run_validation(label, out):
+             return finish(False)
+     for suite in ("coop", "recovery", "run", "cas"):
+         child = label + "-green-" + suite
+-        argv = [sys.executable, "-B", str(RUNNER), "--suite", suite, "--label", child]
++        argv = [sys.executable, "-B", str(RUNNER), "--suite", suite, "--label", child,
++                "--output-root", str(BASE)]
+ 
+         def green_check(result, child=child, suite=suite):
+             path = BASE / child / "run.json"
+@@ -363,7 +362,8 @@ def run_validation(label, out):
+     for name, suite, method in cases:
+         child = label + "-mutant-" + name
+         argv = [sys.executable, "-B", str(RUNNER), "--suite", suite, "--test", method,
+-                "--mutant", name, "--mutant-manifest", str(manifest_path), "--label", child]
++                "--mutant", name, "--mutant-manifest", str(manifest_path), "--label", child,
++                "--output-root", str(BASE)]
+         core = Path(manifest["mutants"][name]["core"])
+         if not step("mutant-" + name, argv,
+                     lambda result, child=child, name=name, core=core: business_mutant(BASE / child, name, core)
+@@ -373,6 +373,7 @@ def run_validation(label, out):
+ 
+ 
+ def main():
++    global BASE
+     parser = argparse.ArgumentParser(description=__doc__)
+     mode = parser.add_mutually_exclusive_group(required=True)
+     mode.add_argument("--probe", choices=("all", "delivery", "recovery", "run"))
+@@ -381,8 +382,13 @@ def main():
+     parser.add_argument("--test")
+     parser.add_argument("--mutant", choices=("fence", "cas", "lock"))
+     parser.add_argument("--mutant-manifest", type=Path)
+-    parser.add_argument("--label", required=True, help="card-5 下尚未存在的证据目录名")
++    parser.add_argument("--label", required=True, help="输出根下尚未存在的证据目录名")
++    parser.add_argument("--output-root", type=Path, default=BASE, help="证据根；默认沿用 T-075/card-5")
+     args = parser.parse_args()
++    if args.validation and args.output_root.resolve() != BASE.resolve():
++        parser.error('Legacy validation uses its frozen baseline runner; use --suite/--probe for a separate output root')
++    BASE = args.output_root.resolve()
++    BASE.mkdir(parents=True, exist_ok=True)
+     if args.test and not args.suite:
+         parser.error("--test requires --suite")
+     if (bool(args.mutant) != bool(args.mutant_manifest)) or (args.mutant and not args.suite):
