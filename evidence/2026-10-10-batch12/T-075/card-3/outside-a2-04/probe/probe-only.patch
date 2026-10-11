@@ -1,0 +1,10 @@
+--- product/workbench/src/panes.ts
++++ probe-only/workbench/src/panes.ts
+@@ -87,6 +87,7 @@
+       "-a", "never", "--sandbox", "workspace-write", "-m", model,
+       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="fast"',
+       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false"];
++    argv.push("-c", "network.allow_unix_sockets=[\"/private/tmp/a2a-t0753-kc1peqqf/state/control.sock\"]", "-c", "sandbox_workspace_write.network_access=true", "-c", "features.network_proxy.enabled=true", "-c", "features.network_proxy.domains={}");
+     for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest"]) argv.push("-c", `hooks.${event}=${hook}`);
+     argv.push("--dangerously-bypass-hook-trust");
+     Object.assign(environment, {

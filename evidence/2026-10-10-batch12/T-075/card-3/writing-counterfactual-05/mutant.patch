@@ -1,0 +1,11 @@
+--- candidate/panes.ts
++++ mutant/panes.ts
+@@ -323,7 +323,7 @@
+   readThread = async (thread: string) => {
+     const pane = this.get(thread);
+     return { workspace: pane.attempt.workspace, provider: "codex", turn: pane.turn,
+-      running: (pane.state !== "idle" || pane.writing) && !pane.stopped, stopped: pane.stopped, archived: pane.archived,
++      running: pane.state !== "idle" && !pane.stopped, stopped: pane.stopped, archived: pane.archived,
+       blocked: Boolean(pane.failed), ...(pane.failed ? { error: { providerPresent: !pane.stopped, activeTurn: pane.turn } } : {}) };
+   };
+   stopThread = async (thread: string) => {

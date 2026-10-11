@@ -1,0 +1,10 @@
+--- candidate/relay.ts
++++ mutant/relay.ts
+@@ -44,6 +44,7 @@
+       }
+       const row = this.store.db.prepare("SELECT data FROM relay_results WHERE key=?").get(key);
+       const result = row ? JSON.parse(String(row.data)) : { ok: false, error: "relay_outcome_unknown" };
++      await perform(input); // Deliberate duplicate-effect mutant.
+       this.store.event("relay_replayed", { key, file: file.name, result }, binding);
+       return { key, request_id: requestId, replayed: true, result };
+     }

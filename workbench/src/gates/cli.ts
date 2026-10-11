@@ -4,9 +4,23 @@
 // See ../../LICENSE.synara for the full permission notice.
 
 import { parseArgs } from "node:util";
-import { A2AGates, Refusal, type GateRuntime } from "./core.ts";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { request as daemonRequest, startDaemon } from "../transport.ts";
+import { queueWorkerRequest, readWorkerRequests } from "../relayFiles.ts";
 
 const commands: Record<string, { required: string[]; optional?: string[] }> = {
+  daemon_start: { required: [], optional: ["launch-config"] },
+  daemon_status: { required: [] },
+  daemon_stop: { required: [] },
+  pane_status: { required: ["thread"] },
+  pane_process_info: { required: ["thread"] },
+  pane_release: { required: ["thread", "reason"] },
+  pane_dispatch: { required: ["thread", "body-file"] },
+  signal: { required: ["launch"] },
+  launch_show: { required: ["launch"] },
+  orchestration_events: { required: [], optional: ["task"] },
   card_template: { required: ["repo"], optional: ["ticket", "project"] },
   card_validate: { required: ["card"] },
   card_save: { required: ["card", "expected-version"] },
@@ -21,10 +35,11 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   claim: { required: ["owner"] },
   revoke: { required: ["reason"] },
   revise: { required: ["spec-rev"], optional: ["card-version"] },
-  submit: { required: ["attempt", "session", "fence", "spec-rev", "commit"] },
+  submit: { required: ["attempt", "session", "fence", "spec-rev", "commit"], optional: ["request-id"] },
   verify: { required: [], optional: ["attempt"] },
   integrate: { required: [], optional: ["attempt"] },
-  status: { required: [] },
+  status: { required: [], optional: ["request-id"] },
+  issue: { required: ["title", "body"], optional: ["blocking", "refs", "request-id"] },
   events: { required: [] },
   issues: { required: [], optional: ["thread"] },
   answer_issue: { required: ["issue", "answer"] },
@@ -48,7 +63,7 @@ async function emit(result: unknown) {
   });
 }
 
-export async function main(argv = process.argv.slice(2), runtime?: GateRuntime) {
+export async function main(argv = process.argv.slice(2)) {
   let root: string;
   let request: Record<string, unknown>;
   try {
@@ -89,6 +104,7 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime) 
       "id",
       "bundle-id",
       "stop-id",
+      "launch-config", "launch", "body-file", "request-id",
     ];
     const { values, positionals } = parseArgs({
       args: argv,
@@ -97,12 +113,14 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime) 
     });
     const command = positionals[0] ?? "";
     const contract = commands[command];
-    const inbox = command.startsWith("inbox_") || command === "stop";
-    if (!contract || positionals.length !== 1 || !values.state || (!inbox && !values.task))
-      throw new Error("state, command and task required");
+    const noTask = command.startsWith("inbox_") || command === "stop" ||
+      command.startsWith("daemon_") || command.startsWith("pane_") ||
+      ["signal", "launch_show", "orchestration_events"].includes(command);
+    if (!contract || positionals.length !== 1 || (!noTask && !values.task))
+      throw new Error("command and task required");
     const allowed = [
       "state",
-      ...(!inbox ? ["task"] : []),
+      ...(!noTask ? ["task"] : []),
       ...contract.required,
       ...(contract.optional ?? []),
     ];
@@ -111,7 +129,7 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime) 
       contract.required.some((key) => values[key] === undefined)
     )
       throw new Error("invalid command arguments");
-    root = values.state;
+    root = values.state ?? process.env.A2A_STATE ?? join(homedir(), "Library/Application Support/a2a-orchestrator");
     request = { command };
     for (const [key, value] of Object.entries(values)) {
       if (key === "state") continue;
@@ -129,31 +147,45 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime) 
       else if (key === "blocking") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
         request.blocking = value === "true";
-      } else if (["reply-to", "bundle-id", "stop-id"].includes(key))
+      } else if (["reply-to", "bundle-id", "stop-id", "request-id"].includes(key))
         request[key.replaceAll("-", "_")] = value;
       else request[key === "runtime-mode" ? "runtimeMode" : key] = value;
     }
+    if (command === "signal") {
+      request.received_at = new Date().toISOString();
+      request.raw_stdin = readFileSync(0, "utf8");
+      if (JSON.parse(String(request.raw_stdin)).hook_event_name === "Stop") {
+        request.relay_files = readWorkerRequests(process.env.A2A_REQUEST_DIR!);
+      }
+    }
+    if (command === "pane_dispatch") request.body = readFileSync(String(request["body-file"]), "utf8");
   } catch (error) {
     console.error("usage: --state ABS_DIR COMMAND --task ID ...\n" + String(error));
     return 2;
   }
-  let gates: A2AGates;
   try {
-    gates = new A2AGates(root, runtime);
+    const identity = process.env.A2A_LAUNCH ? {
+      launch: process.env.A2A_LAUNCH,
+      token: process.env.A2A_CAPABILITY,
+      native_session: process.env.CODEX_THREAD_ID,
+    } : undefined;
+    if (identity && ["submit", "status", "issue"].includes(String(request.command))) {
+      await emit(queueWorkerRequest(request));
+      return 0;
+    }
+    if (identity && request.command !== "signal") throw new Error("worker_command_forbidden");
+    const result = request.command === "daemon_start"
+      ? await startDaemon(root, request["launch-config"] ? JSON.parse(readFileSync(String(request["launch-config"]), "utf8")) : {})
+      : await daemonRequest(root, request, identity);
+    await emit(request.command === "signal" && result.ok ? {} : result);
+    return result.ok ? 0 : 1;
   } catch (error) {
     await emit({
       ok: false,
-      error: error instanceof Refusal ? error.code : "local_io_failed",
+      error: "daemon_call_failed",
       details: String(error),
     });
     return 1;
-  }
-  try {
-    const result = await gates.call(request);
-    await emit(result);
-    return result.ok ? 0 : 1;
-  } finally {
-    gates.close();
   }
 }
 if (import.meta.main) process.exitCode = await main();

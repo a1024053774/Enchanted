@@ -1,0 +1,212 @@
+{
+  "commands": [
+    {
+      "label": "version",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "--version"
+      ],
+      "exit": 0,
+      "stdout": "codex-cli 0.162.1\n",
+      "stderr": ""
+    },
+    {
+      "label": "help",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "--help"
+      ],
+      "exit": 0,
+      "stdout": "Check execpolicy files against a command\n\nUsage: codex execpolicy check [OPTIONS] --rules <PATH> <COMMAND>...\n\nArguments:\n  <COMMAND>...\n          Command tokens to check against the policy\n\nOptions:\n  -c, --config <key=value>\n          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.\n          Use a dotted path (`foo.bar.baz`) to override nested values. The `value` portion is parsed\n          as TOML. If it fails to parse as TOML, the raw string is used as a literal.\n          \n          Examples: - `-c model=\"o3\"` - `-c 'sandbox_permissions=[\"disk-full-read-access\"]'` - `-c\n          shell_environment_policy.inherit=all`\n\n  -r, --rules <PATH>\n          Paths to execpolicy rule files to evaluate (repeatable)\n\n      --enable <FEATURE>\n          Enable a feature (repeatable). Equivalent to `-c features.<name>=true`\n\n      --pretty\n          Pretty-print the JSON output\n\n      --disable <FEATURE>\n          Disable a feature (repeatable). Equivalent to `-c features.<name>=false`\n\n      --resolve-host-executables\n          Resolve absolute program paths against basename rules, gated by any `host_executable()`\n          definitions in the loaded policy files\n\n  -h, --help\n          Print help (see a summary with '-h')\n",
+      "stderr": ""
+    },
+    {
+      "label": "add-tokens",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "git",
+        "add",
+        "src/x"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"add\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "actual-add-tokens",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "git",
+        "add",
+        "--",
+        "src/normalize.py",
+        "src/report.py"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"add\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "commit-tokens",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "git",
+        "commit",
+        "-m",
+        "fixture"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "add-shell",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "/bin/zsh",
+        "-lc",
+        "git add src/x"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "commit-shell",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "/bin/zsh",
+        "-lc",
+        "git commit -m 'fixture'"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "actual-compound",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "/bin/zsh",
+        "-lc",
+        "git add -- src/normalize.py src/report.py && git commit -m 'Implement normalized time report and validation' && git rev-parse HEAD && git status --short"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "two-allowed",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "/bin/zsh",
+        "-lc",
+        "git add src/x && git commit -m 'fixture'"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "unmatched-rev-parse",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "unmatched-status",
+      "argv": [
+        "/Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex",
+        "execpolicy",
+        "check",
+        "-c",
+        "approval_policy=\"never\"",
+        "--pretty",
+        "--rules",
+        "/private/tmp/a2a-policy-k_18fg0q/rules/default.rules",
+        "--",
+        "git",
+        "status",
+        "--short"
+      ],
+      "exit": 0,
+      "stdout": "{\n  \"matchedRules\": []\n}\n",
+      "stderr": ""
+    }
+  ],
+  "isolated_home_removed": true,
+  "real_model_turns": 0,
+  "scope": "Only rule matching is observed; this does not test shell splitting or sandbox selection during tool execution."
+}

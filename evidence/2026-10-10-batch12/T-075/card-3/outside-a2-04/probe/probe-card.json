@@ -1,0 +1,40 @@
+{
+  "id": "T0753-socket-1",
+  "source": null,
+  "goal": "先执行且只执行一次这条普通沙箱命令：\n/Library/Developer/CommandLineTools/usr/bin/python3 /Users/luckye/Documents/Code/a2a/workbench/tests/socket_boundary_probe.py --config /Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-3/outside-a2-04/probe/socket-probe-config.json\n不要使用 require_escalated。脚本会各测一次后台socket、对照socket、TCP、外部域名、Git hook；拒绝也是需要保存的结果。命令结束后立即报告并停止，不重试、不编辑任何脚本、不换传输、不改权限、不commit、不submit。只用一轮完成。不要启动子 agent，不运行任何其他探针。",
+  "non_goals": [
+    "不改 input.txt，不改验收，不读凭据，不访问真实项目数据"
+  ],
+  "paths": {
+    "allow": [
+      "probe-results.json",
+      "hook-result.json",
+      "hook-message.txt"
+    ],
+    "deny": [
+      "input.txt"
+    ]
+  },
+  "completion_conditions": [
+    {
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-I",
+        "-B",
+        "-c",
+        "from pathlib import Path; assert Path('probe-results.json').is_file()"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "后端逻辑",
+  "repair_target": null,
+  "complexity": "M",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6.1-sol",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}

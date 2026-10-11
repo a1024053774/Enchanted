@@ -1,0 +1,144 @@
+import { createServer } from "node:net";
+import { chmodSync, existsSync, mkdirSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { A2AGates, Refusal } from "./gates/core.ts";
+import { OrchestrationStore } from "./store.ts";
+import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
+import { socketPath } from "./transport.ts";
+import { RequestRelay } from "./relay.ts";
+
+async function serve(root: string, config: LaunchConfig) {
+  mkdirSync(root, { recursive: true, mode: 0o700 });
+  root = realpathSync(root);
+  const socket = socketPath(root);
+  if (existsSync(socket)) throw new Error("socket exists; refusing to replace it");
+  const helper = spawnHelper();
+  const store = new OrchestrationStore(root);
+  const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
+  const gates = new A2AGates(root, panes);
+  const relay = new RequestRelay(store);
+  gates.setUserInputObserverStatus("healthy");
+  let stopping = false;
+  let activeRequests = 0;
+  const shutdown = async () => {
+    stopping = true;
+    await panes.shutdown();
+    store.event("daemon_stopped", { pid: process.pid });
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    gates.close(); store.close();
+    // Only this server's successfully bound endpoint and PID record are removed.
+    if (existsSync(socket)) unlinkSync(socket);
+    unlinkSync(join(root, "daemon.pid"));
+  };
+  const handle = async (envelope: any) => {
+    const input = envelope.input;
+    if (!input || typeof input.command !== "string") throw new Refusal("invalid_request");
+    const identity = envelope.identity;
+    if (identity) {
+      panes.authenticate(identity);
+      if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
+    }
+    if (input.command === "daemon_status") return { ok: true, pid: process.pid, node: process.version, root, helper };
+    if (input.command === "daemon_stop") {
+      if (activeRequests !== 1) throw new Refusal("daemon_busy");
+      stopping = true;
+      return { ok: true, pid: process.pid, stopping: true };
+    }
+    if (input.command === "orchestration_events") return { ok: true, events: store.read(input.task) };
+    if (input.command === "pane_status") return { ok: true, ...panes.status(input.thread) };
+    if (input.command === "pane_process_info") return { ok: true, ...await panes.processInfo(input.thread) };
+    if (input.command === "pane_release") return { ok: true, ...await panes.release(input.thread, input.reason) };
+    if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.dispatch(panes.get(input.thread), input.body) };
+    if (input.command === "signal") {
+      if (!identity || identity.launch !== input.launch) throw new Refusal("signal_identity_required");
+      await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
+        if (!Array.isArray(input.relay_files)) throw new Refusal("relay_files_required");
+        const receipts = [];
+        for (const file of input.relay_files) {
+          const receipt = await relay.receive(pane.record as any, file, matched, async (command) => {
+            const caller = await panes.caller({ ...identity, native_session: stop.session_id });
+            await caller.assertActive();
+            if (command.command === "issue") return await gates.raiseIssue({ title: command.title, body: command.body,
+              blocking: command.blocking ?? false, refs: command.refs ?? [] }, caller);
+            if (command.command === "status") {
+              const result = await gates.call({ command: "status", task: command.task });
+              const attempt = result.task?.current_attempt;
+              if (!attempt || attempt.attempt_id !== command.attempt || attempt.session_id !== command.session ||
+                  attempt.fence !== command.fence || result.task?.spec_rev !== command.spec_rev) throw new Refusal("stale_attempt");
+              return result;
+            }
+            return await gates.call(command, caller);
+          });
+          if (!receipt.replayed) receipts.push(receipt);
+        }
+        if (matched && receipts.length) await panes.dispatch(pane,
+          "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2), "gate");
+      });
+      return { ok: true };
+    }
+    if (input.command === "launch_show") {
+      if (identity && identity.launch !== input.launch) throw new Refusal("stale_launch");
+      const pane = panes.byLaunch(input.launch); panes.scan(pane);
+      return { ok: true, launch: pane.record, native_session: pane.native, model: pane.model, effort: pane.effort };
+    }
+    const caller = identity ? await panes.caller(identity) : undefined;
+    return await gates.call(input, caller);
+  };
+  const server = createServer((connection) => {
+    connection.setEncoding("utf8");
+    let buffer = "", handled = false;
+    connection.on("error", (error) => {
+      store.event("client_connection_error", { error: String(error) });
+    });
+    connection.on("data", async (chunk) => {
+      if (handled) return;
+      buffer += chunk;
+      if (buffer.length > 4 * 1024 * 1024) { handled = true; connection.end(JSON.stringify({ ok: false, error: "request_too_large" }) + "\n"); return; }
+      const end = buffer.indexOf("\n");
+      if (end < 0) return;
+      handled = true;
+      if (stopping) { connection.end(JSON.stringify({ ok: false, error: "daemon_stopping" }) + "\n"); return; }
+      activeRequests++;
+      let envelope: any;
+      let result: any;
+      try {
+        envelope = JSON.parse(buffer.slice(0, end));
+        store.event("request_received", { id: envelope.id, input: envelope.input, source: envelope.identity ? "worker" : "executor" });
+        result = await handle(envelope);
+        store.event("request_result", { id: envelope.id, command: envelope.input.command,
+          ok: result.ok, error: result.error, details: result.details });
+      } catch (error) {
+        result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error) };
+        try { store.event("request_rejected", { id: envelope?.id, input: envelope?.input, result }); }
+        catch (recordError) {
+          gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
+          result = { ok: false, error: "event_write_failed", details: String(recordError) };
+        }
+      } finally { activeRequests--; }
+      connection.end(JSON.stringify(result) + "\n");
+      if (result.ok && envelope?.input.command === "signal") {
+        connection.once("close", () => {
+          const pane = panes.byLaunch(envelope.input.launch);
+          panes.drain(pane).catch((error) => {
+            pane.failed = String(error); pane.state = "unknown";
+            store.event("queue_stopped", { error: String(error) }, pane.record);
+          });
+        });
+      }
+      if (result.ok && envelope?.input.command === "daemon_stop") {
+        // Let the response socket close before closing the listening server.
+        connection.once("close", () => shutdown().catch((error) => { console.error(error); process.exitCode = 1; }));
+      }
+    });
+  });
+  await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socket, resolve); });
+  chmodSync(socket, 0o600);
+  writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
+  store.event("daemon_started", { pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
+  process.send?.({ ok: true, pid: process.pid, root, helper });
+}
+
+if (import.meta.main) {
+  try { await serve(process.argv[2]!, JSON.parse(process.argv[3] ?? "{}")); }
+  catch (error) { console.error(error); process.exit(1); }
+}

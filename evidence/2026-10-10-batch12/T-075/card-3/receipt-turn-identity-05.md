@@ -1,0 +1,15 @@
+# 回执回合与旧回收身份检查（静态发现）
+
+状态：INCOMPLETE，非阻塞上报；未作真实 Codex 复现。
+
+`workbench/src/gates/core.ts:2319` / `:2346` 在 submit 时把 attempt.turn_id 绑定到交付回合。`core.ts:1318` 的 checkThread 要求 live.turn 与该值相同，run 的观察与 reclaim 都调用它（`:1350`、`:2596`）。`workbench/src/panes.ts:216` 在每个新的原生 task_started 时更新 pane.turn，readThread 返回这个当前回合。
+
+B 已获准一个交付回合加一个回执回合。依上述条件，回执使当前原生 turn 改变后，旧 run/reclaim 路径预计会拒绝为 identity_conflict。身份检查没有被绕过或放宽。本次真实脚本按任务卡规定分别调用 dispatch、submit、verify、integrate；最后 daemon_stop 中断并停止自建隔离服务，不声称这是业务 reclaim 的验收。
+
+建议：执行主控确认后续多回合窗格与回收语义的归属，再取得专门红态，区分原生会话/进程领导者身份和本次交付的回合绑定。不要为了回收成功直接删除旧 turn 检查。本上报不增加真实回合、不修改门禁身份契约。
+
+复核命令：
+
+```sh
+rg -n 'checkThread|attempt.turn_id = caller.turn|stale_turn|pane.turn =|readThread =' workbench/src/gates/core.ts workbench/src/panes.ts
+```

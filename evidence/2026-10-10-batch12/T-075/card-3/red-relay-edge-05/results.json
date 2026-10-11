@@ -1,0 +1,216 @@
+{
+  "root": "/tmp/a2a-relay-core-BIDCYY",
+  "failure": "AssertionError [ERR_ASSERTION]: a changed request needs one explicit refusal notice\n\ntrue !== false\n",
+  "effects": [
+    {
+      "command": "submit",
+      "task": "fixture",
+      "attempt": "attempt",
+      "session": "session",
+      "fence": 1,
+      "spec_rev": 1,
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "time": "2026-10-11T05:13:07.460Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:delivery",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"delivery\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1,\"commit\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "delivery",
+          "command": "submit",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 1,
+          "spec_rev": 1,
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "time": "2026-10-11T05:13:07.461Z",
+      "type": "relay_processed",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:delivery",
+        "request_id": "delivery",
+        "result": {
+          "ok": true,
+          "command": "submit"
+        }
+      }
+    },
+    {
+      "seq": 3,
+      "time": "2026-10-11T05:13:07.464Z",
+      "type": "relay_replayed",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:delivery",
+        "file": "copy.json",
+        "result": {
+          "ok": true,
+          "command": "submit"
+        }
+      }
+    },
+    {
+      "seq": 4,
+      "time": "2026-10-11T05:13:07.470Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:wrong-identity",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"wrong-identity\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":2,\"spec_rev\":1,\"commit\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "wrong-identity",
+          "command": "submit",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 2,
+          "spec_rev": 1,
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "seq": 5,
+      "time": "2026-10-11T05:13:07.470Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:wrong-identity",
+        "request_id": "wrong-identity",
+        "result": {
+          "ok": false,
+          "error": "relay_identity_mismatch",
+          "details": {
+            "field": "fence"
+          }
+        }
+      }
+    },
+    {
+      "seq": 6,
+      "time": "2026-10-11T05:13:07.473Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:incomplete",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"incomplete\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "incomplete",
+          "command": "submit",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 1,
+          "spec_rev": 1
+        }
+      }
+    },
+    {
+      "seq": 7,
+      "time": "2026-10-11T05:13:07.474Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:incomplete",
+        "request_id": "incomplete",
+        "result": {
+          "ok": false,
+          "error": "invalid_relay_request",
+          "details": {
+            "field": "commit"
+          }
+        }
+      }
+    },
+    {
+      "seq": 8,
+      "time": "2026-10-11T05:13:07.477Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "file:launch:partial.json",
+        "file": {
+          "name": "partial.json",
+          "raw": "{\"schema\":"
+        },
+        "input": null
+      }
+    },
+    {
+      "seq": 9,
+      "time": "2026-10-11T05:13:07.477Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "file:launch:partial.json",
+        "request_id": null,
+        "result": {
+          "ok": false,
+          "error": "invalid_relay_request",
+          "details": "SyntaxError: Unexpected end of JSON input"
+        }
+      }
+    },
+    {
+      "seq": 10,
+      "time": "2026-10-11T05:13:07.480Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:delivery",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"delivery\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1,\"commit\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}"
+        },
+        "result": {
+          "ok": false,
+          "error": "relay_request_id_reused"
+        }
+      }
+    }
+  ]
+}

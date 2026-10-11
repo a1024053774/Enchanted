@@ -111,3 +111,13 @@ T-075-1：门禁迁移、隔离验收和一次 fresh-context 独立审查均 PAS
 - 打分已记入 `records/scores.jsonl`。
 
 下一张：T-075-3，做编排后台、Codex 窗格和一次真实交付。
+
+**T-075-3 完成，待后续卡，待主控关闭（2026-10-11）：PASS。** Ticket 保持 open。本卡交付为本条 Resolution 所属的 a2a 提交，完整提交号另在终端 DONE 行报告；被测源码是 `outside-b-06/workbench-source.tar.gz`，base HEAD `471fa75f7f28531e035479c795b043bb6cbc15f2` 加当时未提交变更，不能只以该 base HEAD 代指候选。
+
+- 后台常驻并脱离调用者进程组；唯一 CLI 连接后台门禁。node-pty 托管交互 zsh/Codex，派发先登记再注入，结构化信号驱动状态；新增编排、启动、派发及转交表只追加。
+- 最终走 **B**：A2 没验证成，按决定 04 改走 worker 显式请求文件、Stop hook 经同一 CLI 转交、门禁回执写回窗格。网络与代理保持关闭。请求目录在 attempt 专属 `/tmp`，不进入候选提交。
+- 执行主控在沙箱外跑 b-06：relay-cli、relay-core PASS，后台门禁 15/15 PASS；真实 Codex gpt-6.1-sol/xhigh、Fast 请求，用一个交付回合加一个回执回合完成 submit、verify、CAS integrate。累计 7/10，按主控 #32 不再追加。
+- 独立 Git/SQLite 读回：G=`51d612b486c6935fe1616e001507eeeb47bafbe1`，C=`641e55b8d005281c672f544ebec1c8814ab87a53`，M=`287bbf8ae5eeadc901198233eeb0a0ac84f02b9e`；main=M，M 的父提交为 G、C。C 有本 attempt 九项尾注，2 个文件、增加 51 行、删除 2 行；库中集成事件一致。
+- 一次 fresh-context 只读独立审查 **PASS**，没有修复项或追审；审查者另查未见输入、真实库和 Git。完整原文、反事实及历史失败见 [RESULTS](../../evidence/2026-10-10-batch12/T-075/card-3/RESULTS.md)。审查后只更新文档，产品逻辑不变。
+- 已知缺口：A2A-Model/A2A-Effort 为 unknown，按 spec 允许；原生记录另有实际模型与强度。后续需将最近回合的已核对事实传给钩子，区分启动请求和实际观测；本卡不新增真实回合补这一项。旧 run/reclaim 的回合绑定、事件重建状态视图等已上报，未声称通过。
+- 本卡只验收隔离 Tracer bullet，不含 Electron、后台重启恢复、旧 8/9/18 全套后台适配或 S2–S4。隔离 home 已删除，未写全局配置、正式工作台目录，也未 push。下一张为 T-075-4。

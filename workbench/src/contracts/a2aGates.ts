@@ -67,7 +67,7 @@ export const A2AGateRequest = Schema.Struct({
   spec_rev: Schema.optional(Schema.Number),
   commit: Schema.optional(Schema.String),
   wait_seconds: Schema.optional(Schema.Number),
-  runtimeMode: Schema.optional(Schema.Literals(["approval-required", "full-access"])),
+  runtimeMode: Schema.optional(Schema.Literals(["approval-required", "full-access", "workspace-write"])),
   issue: Schema.optional(Schema.String),
   answer: Schema.optional(Schema.String),
   answers: Schema.optional(
@@ -87,7 +87,7 @@ export interface A2AAttempt {
   fence: number;
   spec_rev: number;
   thread_id: string;
-  runtime_mode: "approval-required" | "full-access";
+  runtime_mode: "approval-required" | "full-access" | "workspace-write";
   turn_id: string | null;
   workspace: string;
   base_commit: string;
@@ -166,7 +166,7 @@ export interface A2AAttachment {
   thread_id: string;
   role: typeof A2AMemberRole.Type;
   modelSelection: typeof ModelSelection.Type;
-  runtime_mode: "approval-required" | "full-access";
+  runtime_mode: "approval-required" | "full-access" | "workspace-write";
   state: "creating" | "active" | "ended";
   ended_at?: string;
   preset?: A2ASessionPreset;

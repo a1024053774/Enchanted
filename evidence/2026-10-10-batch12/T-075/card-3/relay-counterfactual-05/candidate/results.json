@@ -1,0 +1,430 @@
+{
+  "root": "/tmp/a2a-relay-core-MQbhL5",
+  "failure": null,
+  "effects": [
+    {
+      "command": "submit",
+      "task": "fixture",
+      "attempt": "attempt",
+      "session": "session",
+      "fence": 1,
+      "spec_rev": 1,
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "command": "status",
+      "task": "fixture",
+      "attempt": "attempt",
+      "session": "session",
+      "fence": 1,
+      "spec_rev": 1
+    },
+    {
+      "command": "issue",
+      "task": "fixture",
+      "attempt": "attempt",
+      "session": "session",
+      "fence": 1,
+      "spec_rev": 1,
+      "title": "Test issue",
+      "body": "Fixture only",
+      "blocking": false,
+      "refs": []
+    },
+    {
+      "command": "submit",
+      "task": "fixture",
+      "attempt": "attempt",
+      "session": "session",
+      "fence": 1,
+      "spec_rev": 1,
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "time": "2026-10-11T05:00:14.006Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:delivery",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"delivery\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1,\"commit\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "delivery",
+          "command": "submit",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 1,
+          "spec_rev": 1,
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "time": "2026-10-11T05:00:14.006Z",
+      "type": "relay_processed",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:delivery",
+        "request_id": "delivery",
+        "result": {
+          "ok": true,
+          "command": "submit"
+        }
+      }
+    },
+    {
+      "seq": 3,
+      "time": "2026-10-11T05:00:14.006Z",
+      "type": "relay_replayed",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:delivery",
+        "file": "copy.json",
+        "result": {
+          "ok": true,
+          "command": "submit"
+        }
+      }
+    },
+    {
+      "seq": 4,
+      "time": "2026-10-11T05:00:14.007Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:wrong-identity",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"wrong-identity\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":2,\"spec_rev\":1,\"commit\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "wrong-identity",
+          "command": "submit",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 2,
+          "spec_rev": 1,
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "seq": 5,
+      "time": "2026-10-11T05:00:14.007Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:wrong-identity",
+        "request_id": "wrong-identity",
+        "result": {
+          "ok": false,
+          "error": "relay_identity_mismatch",
+          "details": {
+            "field": "fence"
+          }
+        }
+      }
+    },
+    {
+      "seq": 6,
+      "time": "2026-10-11T05:00:14.007Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:incomplete",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"incomplete\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "incomplete",
+          "command": "submit",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 1,
+          "spec_rev": 1
+        }
+      }
+    },
+    {
+      "seq": 7,
+      "time": "2026-10-11T05:00:14.007Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:incomplete",
+        "request_id": "incomplete",
+        "result": {
+          "ok": false,
+          "error": "invalid_relay_request",
+          "details": {
+            "field": "commit"
+          }
+        }
+      }
+    },
+    {
+      "seq": 8,
+      "time": "2026-10-11T05:00:14.007Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "file:launch:partial.json",
+        "file": {
+          "name": "partial.json",
+          "raw": "{\"schema\":"
+        },
+        "input": null
+      }
+    },
+    {
+      "seq": 9,
+      "time": "2026-10-11T05:00:14.007Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "file:launch:partial.json",
+        "request_id": null,
+        "result": {
+          "ok": false,
+          "error": "invalid_relay_request",
+          "details": "SyntaxError: Unexpected end of JSON input"
+        }
+      }
+    },
+    {
+      "seq": 10,
+      "time": "2026-10-11T05:00:14.008Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:delivery",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"delivery\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1,\"commit\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}"
+        },
+        "result": {
+          "ok": false,
+          "error": "relay_request_id_reused"
+        }
+      }
+    },
+    {
+      "seq": 11,
+      "time": "2026-10-11T05:00:14.008Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:old-stop",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"old-stop\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1,\"commit\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "old-stop",
+          "command": "submit",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 1,
+          "spec_rev": 1,
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "seq": 12,
+      "time": "2026-10-11T05:00:14.008Z",
+      "type": "relay_rejected",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:old-stop",
+        "request_id": "old-stop",
+        "result": {
+          "ok": false,
+          "error": "relay_requires_current_stop"
+        }
+      }
+    },
+    {
+      "seq": 13,
+      "time": "2026-10-11T05:00:14.008Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:read-status",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"read-status\",\"command\":\"status\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "read-status",
+          "command": "status",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 1,
+          "spec_rev": 1
+        }
+      }
+    },
+    {
+      "seq": 14,
+      "time": "2026-10-11T05:00:14.008Z",
+      "type": "relay_processed",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:read-status",
+        "request_id": "read-status",
+        "result": {
+          "ok": true,
+          "command": "status"
+        }
+      }
+    },
+    {
+      "seq": 15,
+      "time": "2026-10-11T05:00:14.008Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:report-issue",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"report-issue\",\"command\":\"issue\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1,\"title\":\"Test issue\",\"body\":\"Fixture only\",\"blocking\":false,\"refs\":[]}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "report-issue",
+          "command": "issue",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 1,
+          "spec_rev": 1,
+          "title": "Test issue",
+          "body": "Fixture only",
+          "blocking": false,
+          "refs": []
+        }
+      }
+    },
+    {
+      "seq": 16,
+      "time": "2026-10-11T05:00:14.008Z",
+      "type": "relay_processed",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:report-issue",
+        "request_id": "report-issue",
+        "result": {
+          "ok": true,
+          "command": "issue"
+        }
+      }
+    },
+    {
+      "seq": 17,
+      "time": "2026-10-11T05:00:14.008Z",
+      "type": "relay_received",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:in-flight",
+        "file": {
+          "name": "request.json",
+          "raw": "{\"schema\":1,\"request_id\":\"in-flight\",\"command\":\"submit\",\"task\":\"fixture\",\"attempt\":\"attempt\",\"session\":\"session\",\"fence\":1,\"spec_rev\":1,\"commit\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+        },
+        "input": {
+          "schema": 1,
+          "request_id": "in-flight",
+          "command": "submit",
+          "task": "fixture",
+          "attempt": "attempt",
+          "session": "session",
+          "fence": 1,
+          "spec_rev": 1,
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "seq": 18,
+      "time": "2026-10-11T05:00:14.009Z",
+      "type": "relay_replayed",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:in-flight",
+        "file": "request.json",
+        "result": {
+          "ok": false,
+          "error": "relay_outcome_unknown"
+        }
+      }
+    },
+    {
+      "seq": 19,
+      "time": "2026-10-11T05:00:14.009Z",
+      "type": "relay_processed",
+      "launch": "launch",
+      "task": "fixture",
+      "attempt": "attempt",
+      "data": {
+        "key": "id:in-flight",
+        "request_id": "in-flight",
+        "result": {
+          "ok": true
+        }
+      }
+    }
+  ]
+}

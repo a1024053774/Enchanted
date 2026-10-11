@@ -27,7 +27,9 @@ FIELDS = {'id', 'source', 'goal', 'non_goals', 'paths', 'completion_conditions',
 
 class TaskCardsCLI(unittest.TestCase):
     def setUp(self):
-        self.root = Path(tempfile.mkdtemp(prefix=self._testMethodName + '-', dir=str(ARTIFACT_ROOT)))
+        # Full case IDs remain in ARTIFACTS/COMMANDS; directory names must fit
+        # the daemon's Unix socket limit after /tmp resolves to /private/tmp.
+        self.root = Path(tempfile.mkdtemp(prefix='c-', dir=str(ARTIFACT_ROOT)))
         self.repo = self.root / 'repo'
         self.state = self.root / 'state'
         self.repo.mkdir()

@@ -1,0 +1,38 @@
+{
+  "id": "T0753-socket-1",
+  "source": null,
+  "goal": "先执行且只执行一次这条普通沙箱命令：\n/opt/homebrew/bin/node /Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts --state /private/tmp/a2a-t0753-hz27kh8k/state probe --challenge t0753-dac4573c545a474a999ed022109efda8\n不要使用 require_escalated。若连接失败，立即停止，不重试、不换传输、不修改权限、不提交。若成功，将该命令的 stdout JSON 原样保存为 probe-result.json，然后 git add、git commit，并使用派发末尾的后台 submit 命令交付。只用一轮完成。不要启动子 agent，不运行任何其他探针。",
+  "non_goals": [
+    "不改 input.txt，不改验收，不读凭据，不访问真实项目数据"
+  ],
+  "paths": {
+    "allow": [
+      "probe-result.json"
+    ],
+    "deny": [
+      "input.txt"
+    ]
+  },
+  "completion_conditions": [
+    {
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-I",
+        "-B",
+        "-c",
+        "import json; from pathlib import Path; x=json.loads(Path('probe-result.json').read_text()); assert x['ok'] is True; assert x['challenge']=='t0753-dac4573c545a474a999ed022109efda8'"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "后端逻辑",
+  "repair_target": null,
+  "complexity": "M",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": null,
+  "writer": null
+}

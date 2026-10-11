@@ -6,6 +6,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import {
   A2AGateRequest,
@@ -104,7 +105,7 @@ export interface SubmitCaller {
   address?: string;
 }
 
-/** The sole mutation owner. Thread lifecycle signals never invoke this core. */
+/** The sole mutation owner. Lifecycle signals alone do not constitute delivery. */
 export class A2AGates {
   private readonly db: DatabaseSync;
   private readonly membership: A2AMembership;
@@ -601,7 +602,7 @@ export class A2AGates {
       .filter((input) => thread === undefined || input.target.thread === thread);
     return { records, issues, user_inputs };
   }
-  /** MCP credentials own identity; arguments cannot select another thread. */
+  /** Host credentials own identity; arguments cannot select another thread. */
   async raiseIssue(
     input: { title: string; body: string; blocking: boolean; refs: ReadonlyArray<string> },
     caller: SubmitCaller,
@@ -2212,7 +2213,7 @@ export class A2AGates {
         this.save(task, args.command === "dispatch" ? "dispatch_intent" : "claim_intent", {
           attempt,
           ...(args.command === "dispatch"
-            ? { model: "gpt-6.1-sol", reasoning_effort: "xhigh", requested_service_tier: "fast" }
+            ? { model: task.card.executor.model, reasoning_effort: task.card.executor.effort, requested_service_tier: "fast" }
             : {}),
         });
         if (run) {
@@ -2257,7 +2258,11 @@ export class A2AGates {
           spec_rev: attempt.spec_rev,
           commit: "<FULL_COMMIT_SHA>",
         };
-        const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\nManaged attempt identity: ${JSON.stringify(submit)}\nAfter implementing and committing, explicitly call the a2a_submit MCP tool with this identity and your full commit SHA. Never submit passed=true. Only this tool delivers your work; turn completion does not. Do not modify the contract or any acceptance tool. If any unexpected approval is requested, stop and report it.`;
+        const entry = [process.execPath, fileURLToPath(new URL("./cli.ts", import.meta.url)), "--state", this.root];
+        const submitCommand = [...entry, "submit", "--task", taskId, "--attempt", attempt.attempt_id,
+          "--session", attempt.session_id, "--fence", String(attempt.fence), "--spec-rev", String(attempt.spec_rev),
+          "--commit", "FULL_COMMIT_SHA"].map((part) => "'" + part.replaceAll("'", "'\\''") + "'").join(" ");
+        const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\n受管身份：${JSON.stringify(submit)}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\n${submitCommand}\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。`;
         this.event(taskId, "prompt_intent", { thread: attempt.thread_id, prompt });
         this.checkUserInputObserver();
         await this.runtime!.startThread(task, attempt, prompt);

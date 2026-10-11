@@ -1,0 +1,11 @@
+--- candidate/panes.ts
++++ mutant/panes.ts
+@@ -230,7 +230,7 @@
+     return item;
+   }
+   async drain(pane: Pane) {
+-    if (pane.state !== "idle" || pane.writing || !pane.queue.length || pane.failed) return;
++    if (pane.writing || !pane.queue.length || pane.failed) return;
+     const submitted = this.store.db.prepare("SELECT count(*) AS n FROM orchestration_events WHERE type='turn_submit_intent'").get()!;
+     check(Number(submitted.n) < this.config.turn_limit!, "turn_budget_exhausted");
+     pane.writing = true;

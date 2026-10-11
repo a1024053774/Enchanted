@@ -1,0 +1,267 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index 6bf34a8..9f0ca91 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -1,4 +1,4 @@
+-# a2a 门禁（T-075-2）
++# a2a 门禁与编排后台（T-075-3 开发中）
+ 
+ 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+ 
+@@ -6,7 +6,13 @@
+ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status --task 任务编号
+ ```
+ 
+-`acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由
++先对同一隔离目录调用 `daemon_start`，结束时调用 `daemon_stop`。客户端只通过
++`control.sock` 访问常驻后台，不再直接打开门禁库。后台未启动时命令明确失败，不自动拉起或重试。
++`daemon_start` 使用 detached 子进程和独立日志，实际常驻行为仍须经本卡的沙箱外检查。
++后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
++当前按 T-075 rev 3 验证唯一 socket 白名单，不能视为真实 Codex 交付已验收。
++
++`acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由后台中的
+ `A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
+ 受管任务通过 JSON 任务卡注册；交付按卡检查路径、完成条件与提交尾注，
+ 通过后以 CAS 推进项目工作分支。普通会话的 `attach --instructions` 仍是提示文本，
+@@ -18,6 +24,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status
+ 使用同一个 CLI 生成模板，填写目标、非目标、路径、argv 完成条件等字段后校验并保存：
+ 
+ ```sh
++node workbench/src/gates/cli.ts --state /绝对路径/state daemon_start
+ node workbench/src/gates/cli.ts --state /绝对路径/state card_template --task T-080-1 --repo /绝对路径/repo --ticket /绝对路径/T-080.md
+ node workbench/src/gates/cli.ts --state /绝对路径/state card_validate --task T-080-1 --card /绝对路径/card.json
+ node workbench/src/gates/cli.ts --state /绝对路径/state card_save --task T-080-1 --card /绝对路径/card.json --expected-version 0
+@@ -59,14 +66,38 @@ npm ls --depth=0
+ `node_modules` 是本目录中的普通目录。依赖锁定 `effect@4.0.0-beta.25`；来源预览包
+ 改为 npm 官方包是执行主控的决定，记录见本批证据 `controller-decision-01.md`。
+ 
++另锁定官方 `node-pty@1.1.0`。本次 darwin-arm64 预编译包使用 `--ignore-scripts` 安装时，
++`prebuilds/darwin-arm64/spawn-helper` 曾缺执行位，已由执行主控手工改为 755。
++后台启动核对 node-pty 实际选择的 helper 是否可执行；失败直接报错，不自动 chmod 或重装。
++
+ ## 运行时边界
+ 
+-`GateRuntime` 是宿主提供的生命周期接口。`dispatch`、`attach`、`run` 保留原门禁语义；
+-未传入运行时时拒绝需要它的操作。这里没有 provider、MCP 网关、PTY 或后台服务实现。
+-编排验收的 `native-runtime.ts` 只替代这个外部边界，不执行模型、不写门禁 SQLite。
+-真实窗格宿主由 T-075-3 接入；18 项编排验收仅是隔离证据。
+-来源版本的 dispatch 交付提示词仍随该边界保留；T-075-3 接入宿主时须将其中的
+-交付接口文本换成实际后台 CLI 命令，本卡不据此声称可以派发真实 worker。
++`GateRuntime` 由 `panes.ts` 实现一个 Codex worker 窗格；本卡没有 Claude、普通 attach
++会话、Electron 或后台重启恢复。生产 CLI 没有直接开库的运行时替代入口。
++旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
++
++真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
++路径、隔离 `codex_home`、角色卡及版本、代码版本、hook 授权引用和回合上限。
++`dispatch --runtime-mode workspace-write` 始终启动交互 zsh 中的 Codex：`-a never`、
++workspace-write、任务卡指定的 gpt-6-astra 或 gpt-6.1-sol、xhigh、Fast 请求、关闭更新检查；三个 hook 只向同一 CLI 的
++`signal` 送原始 stdin。启动参数、环境白名单、请求模型与实际回合模型分开记录。
++
++初态为“未知”。`pane_process_info --thread ID` 从 ps 核对前台领导进程；按本卡决定，
++执行主控再用 `pane_release --thread ID --reason 原因` 首次放行，记 executor action，
++不当作用户输入或人工介入。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
++只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
++本卡暂只提供首次 release，后续人工输入与中断放行尚未完成，见证据目录 RESULTS。
++
++默认产品路径为 `~/Library/Application Support/a2a-orchestrator`；本卡测试只用显式
++`--state /tmp/...`，不创建默认路径，不接触正式 `a2a-workbench` 目录。
++新增 launch_records、dispatch_records、orchestration_events 都在 state.sqlite3，触发器禁止
++UPDATE/DELETE。按 T-075 rev 3，原门禁状态表保留为由事件推出的当前视图，历史以事件为准；
++membership.sqlite3 和锁库保留。事件重建与视图一致性验证留给后续切片，本卡不迁移存储。
++
++受管 worker 的交付入口在 socket 隔离验证完成前明确返回 `worker_delivery_unverified`；
++当前尚未实现文件中转。按 T-075 rev 4，先在测试副本验证 A2：托管代理、空域名名单、仅后台 socket；
++其他 socket、TCP 与外部域名必须被拒。A2 任一项不通过后实施 B，由 Stop hook 转交 worker 显式写出的请求。
++Git 尾注钩子当前只读会话环境；最近回合模型与强度取不到时写 unknown，不把启动请求当实际值。
+ 
+ ## 来源与改动
+ 
+diff --git a/workbench/src/contracts/a2aGates.ts b/workbench/src/contracts/a2aGates.ts
+index 818b166..7ef3bd4 100644
+--- a/workbench/src/contracts/a2aGates.ts
++++ b/workbench/src/contracts/a2aGates.ts
+@@ -67,7 +67,7 @@ export const A2AGateRequest = Schema.Struct({
+   spec_rev: Schema.optional(Schema.Number),
+   commit: Schema.optional(Schema.String),
+   wait_seconds: Schema.optional(Schema.Number),
+-  runtimeMode: Schema.optional(Schema.Literals(["approval-required", "full-access"])),
++  runtimeMode: Schema.optional(Schema.Literals(["approval-required", "full-access", "workspace-write"])),
+   issue: Schema.optional(Schema.String),
+   answer: Schema.optional(Schema.String),
+   answers: Schema.optional(
+@@ -87,7 +87,7 @@ export interface A2AAttempt {
+   fence: number;
+   spec_rev: number;
+   thread_id: string;
+-  runtime_mode: "approval-required" | "full-access";
++  runtime_mode: "approval-required" | "full-access" | "workspace-write";
+   turn_id: string | null;
+   workspace: string;
+   base_commit: string;
+@@ -166,7 +166,7 @@ export interface A2AAttachment {
+   thread_id: string;
+   role: typeof A2AMemberRole.Type;
+   modelSelection: typeof ModelSelection.Type;
+-  runtime_mode: "approval-required" | "full-access";
++  runtime_mode: "approval-required" | "full-access" | "workspace-write";
+   state: "creating" | "active" | "ended";
+   ended_at?: string;
+   preset?: A2ASessionPreset;
+diff --git a/workbench/src/gates/cli.ts b/workbench/src/gates/cli.ts
+index a9ae675..d1cae71 100644
+--- a/workbench/src/gates/cli.ts
++++ b/workbench/src/gates/cli.ts
+@@ -4,9 +4,23 @@
+ // See ../../LICENSE.synara for the full permission notice.
+ 
+ import { parseArgs } from "node:util";
+-import { A2AGates, Refusal, type GateRuntime } from "./core.ts";
++import { readFileSync } from "node:fs";
++import { homedir } from "node:os";
++import { join } from "node:path";
++import { request as daemonRequest, startDaemon } from "../transport.ts";
+ 
+ const commands: Record<string, { required: string[]; optional?: string[] }> = {
++  daemon_start: { required: [], optional: ["launch-config"] },
++  daemon_status: { required: [] },
++  daemon_stop: { required: [] },
++  pane_status: { required: ["thread"] },
++  pane_process_info: { required: ["thread"] },
++  pane_release: { required: ["thread", "reason"] },
++  pane_dispatch: { required: ["thread", "body-file"] },
++  signal: { required: ["launch"] },
++  probe: { required: ["challenge"] },
++  launch_show: { required: ["launch"] },
++  orchestration_events: { required: [], optional: ["task"] },
+   card_template: { required: ["repo"], optional: ["ticket", "project"] },
+   card_validate: { required: ["card"] },
+   card_save: { required: ["card", "expected-version"] },
+@@ -48,7 +62,7 @@ async function emit(result: unknown) {
+   });
+ }
+ 
+-export async function main(argv = process.argv.slice(2), runtime?: GateRuntime) {
++export async function main(argv = process.argv.slice(2)) {
+   let root: string;
+   let request: Record<string, unknown>;
+   try {
+@@ -89,6 +103,7 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime)
+       "id",
+       "bundle-id",
+       "stop-id",
++      "launch-config", "launch", "body-file", "challenge",
+     ];
+     const { values, positionals } = parseArgs({
+       args: argv,
+@@ -97,12 +112,14 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime)
+     });
+     const command = positionals[0] ?? "";
+     const contract = commands[command];
+-    const inbox = command.startsWith("inbox_") || command === "stop";
+-    if (!contract || positionals.length !== 1 || !values.state || (!inbox && !values.task))
+-      throw new Error("state, command and task required");
++    const noTask = command.startsWith("inbox_") || command === "stop" ||
++      command.startsWith("daemon_") || command.startsWith("pane_") ||
++      ["signal", "probe", "launch_show", "orchestration_events"].includes(command);
++    if (!contract || positionals.length !== 1 || (!noTask && !values.task))
++      throw new Error("command and task required");
+     const allowed = [
+       "state",
+-      ...(!inbox ? ["task"] : []),
++      ...(!noTask ? ["task"] : []),
+       ...contract.required,
+       ...(contract.optional ?? []),
+     ];
+@@ -111,7 +128,7 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime)
+       contract.required.some((key) => values[key] === undefined)
+     )
+       throw new Error("invalid command arguments");
+-    root = values.state;
++    root = values.state ?? process.env.A2A_STATE ?? join(homedir(), "Library/Application Support/a2a-orchestrator");
+     request = { command };
+     for (const [key, value] of Object.entries(values)) {
+       if (key === "state") continue;
+@@ -133,27 +150,34 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime)
+         request[key.replaceAll("-", "_")] = value;
+       else request[key === "runtime-mode" ? "runtimeMode" : key] = value;
+     }
++    if (command === "signal") {
++      request.received_at = new Date().toISOString();
++      request.raw_stdin = readFileSync(0, "utf8");
++    }
++    if (command === "pane_dispatch") request.body = readFileSync(String(request["body-file"]), "utf8");
+   } catch (error) {
+     console.error("usage: --state ABS_DIR COMMAND --task ID ...\n" + String(error));
+     return 2;
+   }
+-  let gates: A2AGates;
+   try {
+-    gates = new A2AGates(root, runtime);
++    const identity = process.env.A2A_LAUNCH ? {
++      launch: process.env.A2A_LAUNCH,
++      token: process.env.A2A_CAPABILITY,
++      native_session: process.env.CODEX_THREAD_ID,
++    } : undefined;
++    if (identity && request.command === "daemon_start") throw new Error("worker cannot start a daemon");
++    const result = request.command === "daemon_start"
++      ? await startDaemon(root, request["launch-config"] ? JSON.parse(readFileSync(String(request["launch-config"]), "utf8")) : {})
++      : await daemonRequest(root, request, identity);
++    await emit(request.command === "signal" && result.ok ? {} : result);
++    return result.ok ? 0 : 1;
+   } catch (error) {
+     await emit({
+       ok: false,
+-      error: error instanceof Refusal ? error.code : "local_io_failed",
++      error: "daemon_call_failed",
+       details: String(error),
+     });
+     return 1;
+   }
+-  try {
+-    const result = await gates.call(request);
+-    await emit(result);
+-    return result.ok ? 0 : 1;
+-  } finally {
+-    gates.close();
+-  }
+ }
+ if (import.meta.main) process.exitCode = await main();
+diff --git a/workbench/src/gates/core.ts b/workbench/src/gates/core.ts
+index c034062..88fa9a2 100644
+--- a/workbench/src/gates/core.ts
++++ b/workbench/src/gates/core.ts
+@@ -2212,7 +2212,7 @@ export class A2AGates {
+         this.save(task, args.command === "dispatch" ? "dispatch_intent" : "claim_intent", {
+           attempt,
+           ...(args.command === "dispatch"
+-            ? { model: "gpt-6.1-sol", reasoning_effort: "xhigh", requested_service_tier: "fast" }
++            ? { model: task.card.executor.model, reasoning_effort: task.card.executor.effort, requested_service_tier: "fast" }
+             : {}),
+         });
+         if (run) {
+@@ -2257,7 +2257,9 @@ export class A2AGates {
+           spec_rev: attempt.spec_rev,
+           commit: "<FULL_COMMIT_SHA>",
+         };
+-        const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\nManaged attempt identity: ${JSON.stringify(submit)}\nAfter implementing and committing, explicitly call the a2a_submit MCP tool with this identity and your full commit SHA. Never submit passed=true. Only this tool delivers your work; turn completion does not. Do not modify the contract or any acceptance tool. If any unexpected approval is requested, stop and report it.`;
++        // T-075 rev 3 / decision 03: the selected socket channel must pass its
++        // isolation probe before this dispatch can request worker delivery.
++        const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\n受管身份：${JSON.stringify(submit)}\n当前 worker socket 交付通道尚待隔离验证，暂不调用 submit；后台会明确拒绝 worker_delivery_unverified。按任务卡完成已批准的探针或实现后报告事实，回合结束不算交付。不要修改任务合同、验收程序或沙箱权限。遇到意外批准请求时停止并上报。`;
+         this.event(taskId, "prompt_intent", { thread: attempt.thread_id, prompt });
+         this.checkUserInputObserver();
+         await this.runtime!.startThread(task, attempt, prompt);
+diff --git a/workbench/tests/test_task_cards_e2e.py b/workbench/tests/test_task_cards_e2e.py
+index 62d02de..22cfefa 100644
+--- a/workbench/tests/test_task_cards_e2e.py
++++ b/workbench/tests/test_task_cards_e2e.py
+@@ -27,7 +27,9 @@ FIELDS = {'id', 'source', 'goal', 'non_goals', 'paths', 'completion_conditions',
+ 
+ class TaskCardsCLI(unittest.TestCase):
+     def setUp(self):
+-        self.root = Path(tempfile.mkdtemp(prefix=self._testMethodName + '-', dir=str(ARTIFACT_ROOT)))
++        # Full case IDs remain in ARTIFACTS/COMMANDS; directory names must fit
++        # the daemon's Unix socket limit after /tmp resolves to /private/tmp.
++        self.root = Path(tempfile.mkdtemp(prefix='c-', dir=str(ARTIFACT_ROOT)))
+         self.repo = self.root / 'repo'
+         self.state = self.root / 'state'
+         self.repo.mkdir()
