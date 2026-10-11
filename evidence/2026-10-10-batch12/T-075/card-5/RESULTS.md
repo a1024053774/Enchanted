@@ -133,3 +133,13 @@ bash evidence/2026-10-10-batch12/T-075/card-5/outside-sandbox.sh outside-full-01
 历史失败完整保留：outside-probes-01 的方法绿态与后处理失败、读回诊断/红绿、合成重现器首次超时、Esc 拒绝、主控确认无需清理，以及各次静态交接的 README stale。额外的 [retained-failure-fixtures-01](retained-failure-fixtures-01/run.json) 归档第一次 P1 和两份失败重现器的原目录；这是事后保存，不补称为当时的独立监控。旧 run 红态的内嵌 repo 原目录保留，完整归档进入版本控制，未作为 gitlink 提交。
 
 边界：十三项受控线程场景不证明真实 PTY、Codex 或 B 转交通道；本卡不覆盖 UI、S2～S5、生产发布、可靠性或成本。旧卡通过记录不替本卡背书。最后地图运行仍是 0 problems、1 stale、退出 1；README 的更新与地图 Verified 由主控 #51 明确接管，worker 未修改这些范围外文件。业务和审查的 PASS 不上调为整卡 PASS；提交交付后报告 INCOMPLETE，待主控完成该收尾并关闭 T-075。
+
+## 提交与交付绑定
+
+代码、证据与审查提交：`eb296cec6f98cf7e6ba48c540e691100648932cc`。九项 `A2A-*` 尾注齐全，A2A-Launch 指向本 worker 的 `launch-e2dfb51e50404371bb95e477b46bbac6`，原生会话为 `01a12a0e-ed80-78d1-b991-c66b949ba16d`。提交钩子仅为本启动记录追加一条 native-session 事实；该记录随交付收据保存，未修改脚本或 Git 全局/仓库配置。
+
+[delivery-code-01/receipt.json](delivery-code-01/receipt.json) 保存提交后的 46 个源码逐文件核对：Git 中的版本、当前文件、实跑 source archive 与固定审查候选一致，原断言 diff 为空。无需复跑已通过的业务套件。模型/强度尾注取启动配置，不用它们证明实际 tier。
+
+[delivery-index-01.json](delivery-index-01.json) 保存提交范围：328 个变更文件均属本卡，另五份已存在且未改变的文件仍在原 HEAD；没有 gitlink，三份他人的日志没有暂存。整体 staged diff 的空白检查在原始 unittest stderr、冻结 intent 的 Markdown 换行及 patch 上非零，原字节按证据保护要求保留；本卡源码与报告的检查为 0。
+
+最后的文档/交付收据提交号以终端 DONE 行为准；它不再改产品或测试代码。本卡交付状态仍为 INCOMPLETE，唯一待主控收尾项为 README stale，T-075 保持 open、待主控关闭。

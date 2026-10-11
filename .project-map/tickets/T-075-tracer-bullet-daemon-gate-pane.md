@@ -202,3 +202,4 @@ T-075 Acceptance 逐项证据位置与边界：
 - 原 P1 读回夹具失败先保留，再把只读快照改为停后台前保存至证据目录、事后只汇总 JSON，独立夹具红绿成立，outside-probes-02 三探针实跑通过。首次合成 writer 超时及 worker 提权请求被 Esc 拒绝的记录保留；后续 ps／清理只由主控在沙箱外执行，没有真实被测 Codex 回合或 push。
 - 报告和重现命令：[card-5/RESULTS](../../evidence/2026-10-10-batch12/T-075/card-5/RESULTS.md)，审查原文：[review-01](../../evidence/2026-10-10-batch12/T-075/card-5/review-01.md)。编排十三项不证明真实 PTY/Codex/B；本卡不覆盖 UI、S2～S5、生产、可靠性或成本。
 - 当前地图 0 problems、1 stale、退出 1；代码与业务证据已交付，README／Verified 收尾由主控处理。状态保持 INCOMPLETE，待主控完成该项并关闭 T-075。
+- 代码与主证据提交：`eb296cec6f98cf7e6ba48c540e691100648932cc`，九项尾注核对通过；[delivery-code-01/receipt](../../evidence/2026-10-10-batch12/T-075/card-5/delivery-code-01/receipt.json) 将提交中的 46 个源码绑定到实际运行包与只读审查候选。随后只补文档/收据，最终交付号见 DONE 行。
