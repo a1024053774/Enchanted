@@ -322,3 +322,15 @@ W01/W09/W11 的成功正例只证明 1 次竞争可恢复；另增独立 R8 夹�
 额外在 Panes 实现前取得四项受控边界红态：归档释放名额、按工作目录绑定 rollout、区分确认结束与进程替换、gate 消息入原队列。这四项候选已通过，不调用真实 ps、socket、PTY 或模型，限制和命令见 [PANES-BOUNDARY.md](PANES-BOUNDARY.md)。CLI 七项绿态仍未运行，`outside-sandbox.sh conflict-green-01` 交主控运行。真实用量仍 0/4；独立审查、与 T-076-1 合流及变基后的完成条件和回归均待后续。详见 [HANDOFF-conflict-green-01.md](HANDOFF-conflict-green-01.md)。
 
 两份旧窗格探针的合成 `session_meta` 缺少 cwd，本轮按任务卡的夹具错误修复条款只补该字段，不改其断言。范围审计只允许两处精确元数据替换，并用反转原断言的反例检查没有放宽范围；本次沙箱外脚本将复验这两个直接受影响的探针。
+
+## 21. 变基后统一复验（主控 #51、#53、#54）
+
+状态：**INCOMPLETE**。变基前 conflict-green-01 的 7 项 CLI 场景和两份旧探针已通过。主控在沙箱外发起并继续变基；两处源码冲突按双方意图处理，记录见 `rebase-resolution-01/RESOLUTION.md`。当前候选 `446f25c3de00925dfcc2f1c3f1375713676e166b` 基于 main `457e02a8`，完整保留 T-076-1 的稳定身份与停机行为，T-076-2 尚未合入。
+
+`outside-sandbox.sh rebase-01` 固定上述候选，合并运行全部 S3 25 项（含冲突 7 项）、8/9/18、CAS、cards，以及合流直接影响的窗格、身份和停机检查；不修改产品或旧断言，不重复冲突子集。各阶段前后核对同一源码，失败即停。详见 [HANDOFF-rebase-01.md](HANDOFF-rebase-01.md)。真实用量 0/4，真实冲突和同一 home 的历史记录隔离验证、独立审查及最终交付仍未完成。
+
+## 22. shutdown 合成元数据修正（主控 #58）
+
+状态：**INCOMPLETE**。rebase-01 除 shutdown 的首次原生身份绑定用例出现 1 error 外，其余各组均通过。T-076-1 的真实 0.162.1 启动记录、native 轨迹首行与原始事件共同证明 session_meta.cwd 存在，并与 `-C`、launch.worktree 完全相等；失败的 shutdown 合成记录缺此字段。仅让 PTY stub 从实际 spawn options 传入 cwd，原断言与产品身份条件不变。
+
+`outside-sandbox.sh rebase-fix-02` 只重跑 shutdown、identity、Panes，各 4 项，新输出为 `outside-rebase-fix-02/`，保留旧失败。证据提取、根因和准确命令见 [HANDOFF-rebase-fix-02.md](HANDOFF-rebase-fix-02.md)。真实用量仍 0/4，待执行主控运行。

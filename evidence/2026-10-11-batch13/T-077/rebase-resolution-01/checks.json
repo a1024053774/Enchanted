@@ -1,0 +1,123 @@
+{
+  "status": "NO_GO",
+  "scope": "Conflict resolution/static preservation only",
+  "base": "457e02a867bfdc5d8b06a9d14214eb7a429c48c2",
+  "replayed_commit": "beaeab3c",
+  "checks": [
+    {
+      "claim": "workbench/README.md retains all main lines in order",
+      "pass": true
+    },
+    {
+      "claim": "workbench/src/contracts/a2aGates.ts retains all main lines in order",
+      "pass": true
+    },
+    {
+      "claim": "workbench/src/daemon.ts byte-equal to main",
+      "pass": true
+    },
+    {
+      "claim": "workbench/src/transport.ts byte-equal to main",
+      "pass": true
+    },
+    {
+      "claim": "workbench/hooks/prepare-commit-msg byte-equal to main",
+      "pass": false
+    },
+    {
+      "claim": "workbench/src/stateConsistency.ts byte-equal to main",
+      "pass": true
+    },
+    {
+      "claim": "workbench/tests/daemon_acceptance_host.ts byte-equal to main",
+      "pass": true
+    },
+    {
+      "claim": "main identity/shutdown block retained: private runtimeIdentity(",
+      "pass": true
+    },
+    {
+      "claim": "main identity/shutdown block retained: private async observeRun(",
+      "pass": true
+    },
+    {
+      "claim": "main identity/shutdown block retained: private async waitForIdle(",
+      "pass": true
+    },
+    {
+      "claim": "shared claim preserves runtime_identity: null,",
+      "pass": true
+    },
+    {
+      "claim": "shared claim preserves attempt.runtime_identity = { ...this.runtimeIdentity(attempt, live) };",
+      "pass": true
+    },
+    {
+      "claim": "shared claim preserves this.bindObservedIdentity(attempt, live);",
+      "pass": true
+    },
+    {
+      "claim": "shared claim preserves await this.checkClaimPaths(task, args.overlap_reason);",
+      "pass": true
+    },
+    {
+      "claim": "shared claim preserves ...(conflict ? { conflict_source: conflict.verification_id } : {})",
+      "pass": true
+    },
+    {
+      "claim": "no conflict markers in workbench/src/gates/core.ts",
+      "pass": true
+    },
+    {
+      "claim": "no conflict markers in workbench/src/panes.ts",
+      "pass": true
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "--check",
+        "workbench/src/gates/core.ts"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "workbench/src/panes.ts"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "workbench/src/contracts/a2aGates.ts"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "workbench/src",
+        "workbench/README.md"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "behavior_tests": "INCOMPLETE: await rebase continuation and combined outside run",
+  "real_codex_turns": 0
+}

@@ -6,7 +6,7 @@ set -euo pipefail
 # bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh red-01
 # 同名输出已存在时拒绝，不能覆盖原始失败。后续阶段另行批准/交回。
 if [[ "$#" != 1 ]]; then
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02' >&2
   exit 2
 fi
 cd /Users/luckye/Documents/Code/a2a-wt-t077
@@ -146,8 +146,79 @@ node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_native_final_
 node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_pane_dispatch_state.ts \
   /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-conflict-dispatch-state-01
   ;;
+rebase-01)
+# 主控 #54：同一提交一次复验。只允许证据目录变化；不运行真实 Codex。
+t077_require_rebased_candidate() {
+  [[ "$(git -C /Users/luckye/Documents/Code/a2a-wt-t077 rev-parse HEAD)" == '446f25c3de00925dfcc2f1c3f1375713676e166b' ]]
+  [[ "$(git -C /Users/luckye/Documents/Code/a2a-wt-t077 rev-parse HEAD^)" == '457e02a867bfdc5d8b06a9d14214eb7a429c48c2' ]]
+  git -C /Users/luckye/Documents/Code/a2a-wt-t077 diff --exit-code HEAD -- workbench acceptance fixtures/pagination
+  [[ -z "$(git -C /Users/luckye/Documents/Code/a2a-wt-t077 ls-files --others --exclude-standard -- workbench/src workbench/hooks workbench/tests acceptance fixtures/pagination)" ]]
+}
+t077_require_rebased_candidate
+# 25 项全部运行，已包含冲突 7 项，不再重复运行冲突子集。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py \
+  --phase candidate \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-contracts
+t077_require_rebased_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite coop \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-coop
+t077_require_rebased_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite recovery \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-recovery
+t077_require_rebased_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite run \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-run
+t077_require_rebased_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite cas \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-cas
+t077_require_rebased_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite cards \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-cards
+t077_require_rebased_candidate
+# 直接受合流影响的窗格、稳定原生身份和停机边界；均为零模型回合。
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_conflict_panes.ts \
+  --product /Users/luckye/Documents/Code/a2a-wt-t077 \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-panes.json
+t077_require_rebased_candidate
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_native_final_read.ts \
+  /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-native-final
+t077_require_rebased_candidate
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_pane_dispatch_state.ts \
+  /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-dispatch-state
+t077_require_rebased_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_multiturn_identity_e2e.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t077 --case all \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-identity
+t077_require_rebased_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_startup_shutdown_e2e.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t077 \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-01-shutdown
+t077_require_rebased_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/summarize-rebase-01.py
+  ;;
+rebase-fix-02)
+# 主控 #58：真实归档已证明 cwd 等于 -C，只修夹具元数据，复验三个受影响组。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/check-shutdown-fixture-repair.py \
+  --mode prepare --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-fix-02
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_startup_shutdown_e2e.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t077 \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-fix-02/shutdown
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_multiturn_identity_e2e.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t077 --case all \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-fix-02/identity
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_conflict_panes.ts \
+  --product /Users/luckye/Documents/Code/a2a-wt-t077 \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-fix-02/panes.json
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/check-shutdown-fixture-repair.py \
+  --mode collect --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-fix-02
+  ;;
 *)
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02' >&2
   exit 2
   ;;
 esac

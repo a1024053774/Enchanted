@@ -45,13 +45,13 @@ const role = join(control, "role.txt"); writeFileSync(role, "本地确定性夹�
 const native = "fixture-" + randomUUID(), turn = "fixture-first-turn";
 const file = join(home, "sessions", "rollout-" + native + ".jsonl");
 const audit = (value: any) => appendFileSync(join(control, "pty.jsonl"), JSON.stringify(value) + "\n");
-require.cache[require.resolve("node-pty")] = { exports: { spawn: () => {
+require.cache[require.resolve("node-pty")] = { exports: { spawn: (_shell: string, _argv: string[], options: { cwd: string }) => {
   const exits: ((value: any) => void)[] = [];
   return { pid: 11001, onData: () => {}, onExit: (callback: any) => { exits.push(callback); },
     write: (data: string) => {
       audit({ type: "write", data, native_log_existed: existsSync(file) });
       if (data === "\r") {
-        const records = [{ type: "session_meta", payload: { id: native, source: "cli" } },
+        const records = [{ type: "session_meta", payload: { id: native, source: "cli", cwd: options.cwd } },
           { type: "event_msg", payload: { type: "task_started", turn_id: turn } }];
         writeFileSync(file, records.map((row) => JSON.stringify(row) + "\n").join(""), { flag: "wx" });
       }

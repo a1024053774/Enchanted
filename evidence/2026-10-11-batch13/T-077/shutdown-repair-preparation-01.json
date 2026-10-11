@@ -1,0 +1,826 @@
+{
+  "status": "PASS",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "446f25c3de00925dfcc2f1c3f1375713676e166b\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "446f25c3de00925dfcc2f1c3f1375713676e166b",
+        "--",
+        "workbench/src",
+        "workbench/hooks",
+        "workbench/README.md",
+        "acceptance",
+        "fixtures/pagination"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--name-only",
+        "446f25c3de00925dfcc2f1c3f1375713676e166b",
+        "--",
+        "workbench/tests"
+      ],
+      "exit": 0,
+      "stdout": "workbench/tests/audit_s3_assertions.py\nworkbench/tests/startup_shutdown_host.ts\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "446f25c3de00925dfcc2f1c3f1375713676e166b",
+        "--",
+        "workbench/tests/test_startup_shutdown_e2e.py",
+        "workbench/tests/test_multiturn_identity_e2e.py",
+        "workbench/tests/test_conflict_panes.ts"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "assertion_scope": {
+    "status": "PASS",
+    "scope": "Approved original edit coordinates only; semantic review and business evidence are separate.",
+    "base": "457e02a867bfdc5d8b06a9d14214eb7a429c48c2",
+    "root": "/Users/luckye/Documents/Code/a2a-wt-t077",
+    "files": [
+      {
+        "file": "acceptance/test_coop_e2e.py",
+        "allowed": true,
+        "changes": [
+          {
+            "operation": "replace",
+            "original_lines": [
+              161,
+              162
+            ],
+            "candidate_lines": [
+              161,
+              165
+            ],
+            "whitelist": [
+              "W13/W16"
+            ],
+            "allowed": true,
+            "before": "    def claim(self, task=None, owner=\"independent-check\"):\n        result = self.cli(\"claim\", \"--task\", task or self.task, \"--owner\", owner)\n",
+            "after": "    def claim(self, task=None, owner=\"independent-check\", overlap_reason=None):\n        task = task or self.task\n        ordinal = self.status(task)[\"fence\"] + 1\n        extra = (\"--overlap-reason\", overlap_reason) if overlap_reason is not None else ()\n        result = self.cli(\"claim\", \"--task\", task, \"--owner\", owner, *extra)\n"
+          },
+          {
+            "operation": "insert",
+            "original_lines": [
+              177,
+              176
+            ],
+            "candidate_lines": [
+              180,
+              182
+            ],
+            "whitelist": [
+              "W16"
+            ],
+            "allowed": true,
+            "before": "",
+            "after": "        self.assertEqual(workspace, (self.state / \"worktrees\" / task / f\"{task}-a{ordinal}\").resolve())\n        self.assertEqual(self.git(\"symbolic-ref\", \"HEAD\", cwd=workspace).stdout.strip(),\n                         f\"refs/heads/a2a/{task}-a{ordinal}\")\n"
+          },
+          {
+            "operation": "insert",
+            "original_lines": [
+              323,
+              322
+            ],
+            "candidate_lines": [
+              329,
+              331
+            ],
+            "whitelist": [
+              "W12"
+            ],
+            "allowed": true,
+            "before": "",
+            "after": "                self.cli(\"revoke\", \"--task\", task, \"--reason\", \"End this independent claim race before the next task\")\n                self.assertFalse(Path(winner[\"workspace\"]).exists())\n                self.assertEqual(self.git(\"rev-parse\", f\"refs/a2a/attempts/{task}/a1\").stdout.strip(), self.base)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              348,
+              348
+            ],
+            "candidate_lines": [
+              357,
+              359
+            ],
+            "whitelist": [
+              "W02"
+            ],
+            "allowed": true,
+            "before": "        self.assertTrue(Path(attempt[\"workspace\"]).is_dir())\n",
+            "after": "        self.assertFalse(Path(attempt[\"workspace\"]).exists())\n        self.assertEqual(self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip(), commit)\n        self.assertEqual(self.git(\"rev-parse\", f\"refs/heads/a2a/{self.task}-a1\").stdout.strip(), commit)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              456,
+              456
+            ],
+            "candidate_lines": [
+              467,
+              467
+            ],
+            "whitelist": [
+              "W01"
+            ],
+            "allowed": true,
+            "before": "    def test_baseline_change_after_verification_rejects_integration(self):\n",
+            "after": "    def test_baseline_change_after_verification_revalidates_and_integrates(self):\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              461,
+              461
+            ],
+            "candidate_lines": [
+              472,
+              472
+            ],
+            "whitelist": [
+              "W01"
+            ],
+            "allowed": true,
+            "before": "        self.cli(\"verify\", \"--task\", self.task)\n",
+            "after": "        first = self.cli(\"verify\", \"--task\", self.task)[\"verification\"]\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              470,
+              474
+            ],
+            "candidate_lines": [
+              481,
+              500
+            ],
+            "whitelist": [
+              "W01"
+            ],
+            "allowed": true,
+            "before": "        self.cli(\"integrate\", \"--task\", self.task, ok=False, error=\"integration_conflict\")\n        self.assertEqual(self.ref(), external)\n        self.assertEqual(self.reflog(), log_before)\n        self.assertNotEqual(self.status()[\"state\"], \"accepted\")\n        self.assert_rejection_recorded(\"integration_conflict\", events)\n",
+            "after": "        self.cli(\"integrate\", \"--task\", self.task)\n        state = self.status()\n        v = state[\"verification\"]\n        self.assertEqual(state[\"state\"], \"accepted\")\n        self.assertNotEqual(v[\"verification_id\"], first[\"verification_id\"])\n        self.assertEqual(v[\"C\"], candidate)\n        self.assertEqual(v[\"G\"], external)\n        self.assertEqual(self.ref(), v[\"M\"])\n        for ancestor in (external, candidate):\n            self.git(\"merge-base\", \"--is-ancestor\", ancestor, self.ref())\n        self.assertEqual((self.repo / \"external-change.txt\").read_bytes(), b\"Independent baseline change\\n\")\n        self.assertEqual(len(self.reflog().splitlines()), len(log_before.splitlines()) + 1)\n        checks = [event for event in self.events()[len(events):] if event[\"type\"] == \"completion_check\"]\n        self.assertEqual(len(checks), 1)\n        self.assertEqual(checks[0][\"details\"][\"verification_id\"], v[\"verification_id\"])\n        self.assertEqual(checks[0][\"details\"][\"result\"][\"returncode\"], 0)\n        self.assert_novel_pagination_inputs(self.repo)\n        accepted_log = self.reflog()\n        self.cli(\"integrate\", \"--task\", self.task)\n        self.assertEqual(self.reflog(), accepted_log)\n"
+          }
+        ],
+        "diff": "--- baseline/acceptance/test_coop_e2e.py\n+++ candidate/acceptance/test_coop_e2e.py\n@@ -158,8 +158,11 @@\n         self.assertTrue((self.state / \"state.sqlite3\").is_file())\n         return result[\"task\"]\n \n-    def claim(self, task=None, owner=\"independent-check\"):\n-        result = self.cli(\"claim\", \"--task\", task or self.task, \"--owner\", owner)\n+    def claim(self, task=None, owner=\"independent-check\", overlap_reason=None):\n+        task = task or self.task\n+        ordinal = self.status(task)[\"fence\"] + 1\n+        extra = (\"--overlap-reason\", overlap_reason) if overlap_reason is not None else ()\n+        result = self.cli(\"claim\", \"--task\", task, \"--owner\", owner, *extra)\n         attempt = result.get(\"attempt\")\n         self.assertIsInstance(attempt, dict, result)\n         for key in (\"attempt_id\", \"session_id\", \"fence\", \"spec_rev\", \"workspace\",\n@@ -174,6 +177,9 @@\n         self.assertTrue(workspace.is_dir())\n         self.assertNotEqual(workspace, self.repo.resolve())\n         self.assertIn((self.state / \"worktrees\").resolve(), workspace.parents)\n+        self.assertEqual(workspace, (self.state / \"worktrees\" / task / f\"{task}-a{ordinal}\").resolve())\n+        self.assertEqual(self.git(\"symbolic-ref\", \"HEAD\", cwd=workspace).stdout.strip(),\n+                         f\"refs/heads/a2a/{task}-a{ordinal}\")\n         self.assertEqual(self.git(\"rev-parse\", \"HEAD\", cwd=workspace).stdout.strip(),\n                          self.base)\n         return attempt\n@@ -320,6 +326,9 @@\n                                      \"--branch\", INTEGRATION_REF, \"--card-version\", \"1\", ok=False)\n                 self.assertEqual(self.business_state(task), before)\n                 self.assert_rejection_recorded(duplicate[\"error\"], previous_events, task)\n+                self.cli(\"revoke\", \"--task\", task, \"--reason\", \"End this independent claim race before the next task\")\n+                self.assertFalse(Path(winner[\"workspace\"]).exists())\n+                self.assertEqual(self.git(\"rev-parse\", f\"refs/a2a/attempts/{task}/a1\").stdout.strip(), self.base)\n \n     def test_identity_gates_and_revocation_reject_old_verified_attempt(self):\n         self.create()\n@@ -345,7 +354,9 @@\n         self.assertEqual(revoked[\"state\"], \"ready\")\n         self.assertIsNone(revoked[\"candidate_commit\"])\n         self.assertIsNone(revoked[\"verification\"])\n-        self.assertTrue(Path(attempt[\"workspace\"]).is_dir())\n+        self.assertFalse(Path(attempt[\"workspace\"]).exists())\n+        self.assertEqual(self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip(), commit)\n+        self.assertEqual(self.git(\"rev-parse\", f\"refs/heads/a2a/{self.task}-a1\").stdout.strip(), commit)\n         retained = self.events()\n         self.assertEqual(retained[:len(events)], events)\n         denied = self.cli(\"integrate\", \"--task\", self.task, ok=False)\n@@ -453,12 +464,12 @@\n             self.assertEqual(self.reflog(), log_after)\n             self.assert_rejection_recorded(rejected[\"error\"], events)\n \n-    def test_baseline_change_after_verification_rejects_integration(self):\n+    def test_baseline_change_after_verification_revalidates_and_integrates(self):\n         self.create()\n         attempt = self.claim()\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n-        self.cli(\"verify\", \"--task\", self.task)\n+        first = self.cli(\"verify\", \"--task\", self.task)[\"verification\"]\n         self.assertEqual(self.status()[\"state\"], \"verified\")\n         (self.repo / \"external-change.txt\").write_text(\"Independent baseline change\\n\",\n                                                        encoding=\"utf-8\")\n@@ -467,11 +478,26 @@\n         external = self.git(\"rev-parse\", \"HEAD\").stdout.strip()\n         log_before = self.reflog()\n         events = self.events()\n-        self.cli(\"integrate\", \"--task\", self.task, ok=False, error=\"integration_conflict\")\n-        self.assertEqual(self.ref(), external)\n-        self.assertEqual(self.reflog(), log_before)\n-        self.assertNotEqual(self.status()[\"state\"], \"accepted\")\n-        self.assert_rejection_recorded(\"integration_conflict\", events)\n+        self.cli(\"integrate\", \"--task\", self.task)\n+        state = self.status()\n+        v = state[\"verification\"]\n+        self.assertEqual(state[\"state\"], \"accepted\")\n+        self.assertNotEqual(v[\"verification_id\"], first[\"verification_id\"])\n+        self.assertEqual(v[\"C\"], candidate)\n+        self.assertEqual(v[\"G\"], external)\n+        self.assertEqual(self.ref(), v[\"M\"])\n+        for ancestor in (external, candidate):\n+            self.git(\"merge-base\", \"--is-ancestor\", ancestor, self.ref())\n+        self.assertEqual((self.repo / \"external-change.txt\").read_bytes(), b\"Independent baseline change\\n\")\n+        self.assertEqual(len(self.reflog().splitlines()), len(log_before.splitlines()) + 1)\n+        checks = [event for event in self.events()[len(events):] if event[\"type\"] == \"completion_check\"]\n+        self.assertEqual(len(checks), 1)\n+        self.assertEqual(checks[0][\"details\"][\"verification_id\"], v[\"verification_id\"])\n+        self.assertEqual(checks[0][\"details\"][\"result\"][\"returncode\"], 0)\n+        self.assert_novel_pagination_inputs(self.repo)\n+        accepted_log = self.reflog()\n+        self.cli(\"integrate\", \"--task\", self.task)\n+        self.assertEqual(self.reflog(), accepted_log)\n \n     def test_submit_requires_clean_head_and_cannot_replace_frozen_candidate(self):\n         self.create()\n"
+      },
+      {
+        "file": "acceptance/test_run_e2e.py",
+        "allowed": true,
+        "changes": [
+          {
+            "operation": "insert",
+            "original_lines": [
+              220,
+              219
+            ],
+            "candidate_lines": [
+              220,
+              220
+            ],
+            "whitelist": [
+              "W03"
+            ],
+            "allowed": true,
+            "before": "",
+            "after": "        candidate_bytes = Path(attempt[\"workspace\"], \"pager.py\").read_bytes()\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              237,
+              237
+            ],
+            "candidate_lines": [
+              238,
+              238
+            ],
+            "whitelist": [
+              "W03"
+            ],
+            "allowed": true,
+            "before": "                   (self.repo / \"pager.py\").read_bytes() == Path(attempt[\"workspace\"], \"pager.py\").read_bytes(),\n",
+            "after": "                   (self.repo / \"pager.py\").read_bytes() == candidate_bytes,\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              246,
+              247
+            ],
+            "candidate_lines": [
+              247,
+              252
+            ],
+            "whitelist": [
+              "W03"
+            ],
+            "allowed": true,
+            "before": "        self.check(Path(attempt[\"workspace\"]).is_dir(), \"Reclaim preserves attempt worktree\", True,\n                   Path(attempt[\"workspace\"]).is_dir())\n",
+            "after": "        self.check(not Path(attempt[\"workspace\"]).exists(), \"Reclaim removes the integrated clean worktree\", False,\n                   Path(attempt[\"workspace\"]).exists())\n        retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip()\n        self.check(retained == candidate, \"Integrated candidate remains under its attempt reference\", candidate, retained)\n        branch = self.process([\"git\", \"-C\", self.repo, \"show-ref\", \"--verify\", \"--quiet\", f\"refs/heads/a2a/{self.task}-a1\"])\n        self.check(branch.returncode == 1, \"Integrated worker branch name is removed\", 1, branch.returncode)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              324,
+              325
+            ],
+            "candidate_lines": [
+              329,
+              334
+            ],
+            "whitelist": [
+              "W04"
+            ],
+            "allowed": true,
+            "before": "        self.check(after[\"refs\"] == before[\"refs\"] and after[\"reflog\"] == before[\"reflog\"],\n                   \"Done and candidate commit do not move any Git ref\", before[\"refs\"], after[\"refs\"])\n",
+            "after": "        expected_refs = {ref: commit for commit, ref in (line.split() for line in before[\"refs\"].splitlines())}\n        expected_refs[f\"refs/heads/a2a/{self.task}-a1\"] = candidate\n        expected_refs[f\"refs/a2a/attempts/{self.task}/a1\"] = candidate\n        actual_refs = {ref: commit for commit, ref in (line.split() for line in after[\"refs\"].splitlines())}\n        self.check(actual_refs == expected_refs and after[\"reflog\"] == before[\"reflog\"],\n                   \"Timeout only retains the unsubmitted attempt tip; integration stays unchanged\", expected_refs, actual_refs)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              331,
+              333
+            ],
+            "candidate_lines": [
+              340,
+              342
+            ],
+            "whitelist": [
+              "W04"
+            ],
+            "allowed": true,
+            "before": "        self.check(self.git(\"rev-parse\", \"HEAD\", cwd=attempt[\"workspace\"]).stdout.strip() == candidate,\n                   \"Timeout preserves the unsubmitted real candidate\", candidate,\n                   self.git(\"rev-parse\", \"HEAD\", cwd=attempt[\"workspace\"]).stdout.strip())\n",
+            "after": "        retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip()\n        self.check(retained == candidate and not Path(attempt[\"workspace\"]).exists(),\n                   \"Timeout preserves the unsubmitted commit and removes its clean directory\", candidate, retained)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              425,
+              427
+            ],
+            "candidate_lines": [
+              434,
+              438
+            ],
+            "whitelist": [
+              "W05"
+            ],
+            "allowed": true,
+            "before": "        self.check(Path(old[\"workspace\"]).is_dir() and Path(replacement[\"workspace\"]).is_dir(),\n                   \"Both attempt worktrees remain inspectable\", True,\n                   [old[\"workspace\"], replacement[\"workspace\"]])\n",
+            "after": "        self.check(not Path(old[\"workspace\"]).exists() and Path(replacement[\"workspace\"]).is_dir(),\n                   \"Only the ended historical workspace is removed\", [False, True],\n                   [Path(old[\"workspace\"]).exists(), Path(replacement[\"workspace\"]).is_dir()])\n        retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip()\n        self.check(retained == self.base, \"Historical attempt retains its own base commit\", self.base, retained)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              442,
+              443
+            ],
+            "candidate_lines": [
+              453,
+              458
+            ],
+            "whitelist": [
+              "W06"
+            ],
+            "allowed": true,
+            "before": "        self.check(after[\"refs\"] == before[\"refs\"] and after[\"reflog\"] == before[\"reflog\"],\n                   \"Oracle rejection leaves Git refs and reflog unchanged\", before[\"refs\"], after[\"refs\"])\n",
+            "after": "        expected_refs = {ref: commit for commit, ref in (line.split() for line in before[\"refs\"].splitlines())}\n        expected_refs[f\"refs/a2a/attempts/{self.task}/a1\"] = candidate\n        expected_refs[f\"refs/a2a/verifications/{self.task}/a1/v1\"] = candidate\n        actual_refs = {ref: commit for commit, ref in (line.split() for line in after[\"refs\"].splitlines())}\n        self.check(actual_refs == expected_refs and after[\"reflog\"] == before[\"reflog\"],\n                   \"Oracle rejection only preserves its candidate and verification references\", expected_refs, actual_refs)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              449,
+              450
+            ],
+            "candidate_lines": [
+              464,
+              467
+            ],
+            "whitelist": [
+              "W06"
+            ],
+            "allowed": true,
+            "before": "        self.check(Path(attempt[\"workspace\"]).is_dir(), \"Rejected candidate worktree survives\", True,\n                   Path(attempt[\"workspace\"]).is_dir())\n",
+            "after": "        self.check(not Path(attempt[\"workspace\"]).exists(), \"Rejected ended clean worktree is removed\", False,\n                   Path(attempt[\"workspace\"]).exists())\n        retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip()\n        self.check(retained == candidate, \"Rejected candidate remains under its attempt reference\", candidate, retained)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              526,
+              526
+            ],
+            "candidate_lines": [
+              543,
+              543
+            ],
+            "whitelist": [
+              "W13"
+            ],
+            "allowed": true,
+            "before": "        current = self.claim(owner=\"current-owner\")\n",
+            "after": "        current = self.claim(owner=\"current-owner\", overlap_reason=\"Test historical reclaim while the current owner remains active\")\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              531,
+              531
+            ],
+            "candidate_lines": [
+              548,
+              549
+            ],
+            "whitelist": [
+              "W13"
+            ],
+            "allowed": true,
+            "before": "        foreign = self.cli(\"dispatch\", \"--task\", other_task, \"--runtime-mode\", \"approval-required\")[\"attempt\"]\n",
+            "after": "        foreign = self.cli(\"dispatch\", \"--task\", other_task, \"--runtime-mode\", \"approval-required\",\n                           \"--overlap-reason\", \"Keep a foreign worker alive to detect cross-task cleanup\")[\"attempt\"]\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              536,
+              536
+            ],
+            "candidate_lines": [
+              554,
+              557
+            ],
+            "whitelist": [
+              "W07"
+            ],
+            "allowed": true,
+            "before": "        self.check(after[\"status\"] == before[\"status\"] and after[\"refs\"] == before[\"refs\"] and\n",
+            "after": "        expected_refs = {ref: commit for commit, ref in (line.split() for line in before[\"refs\"].splitlines())}\n        expected_refs[f\"refs/a2a/attempts/{self.task}/a1\"] = self.base\n        actual_refs = {ref: commit for commit, ref in (line.split() for line in after[\"refs\"].splitlines())}\n        self.check(after[\"status\"] == before[\"status\"] and actual_refs == expected_refs and\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              538,
+              539
+            ],
+            "candidate_lines": [
+              559,
+              559
+            ],
+            "whitelist": [
+              "W07"
+            ],
+            "allowed": true,
+            "before": "                   \"Historical reclaim does not revoke the current task or change Git\", before[\"status\"],\n                   after[\"status\"])\n",
+            "after": "                   \"Historical reclaim only adds its own retention reference\", expected_refs, actual_refs)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              546,
+              546
+            ],
+            "candidate_lines": [
+              566,
+              567
+            ],
+            "whitelist": [
+              "W13"
+            ],
+            "allowed": true,
+            "before": "        replacement = self.cli(\"dispatch\", \"--task\", self.task, \"--runtime-mode\", \"approval-required\")[\"attempt\"]\n",
+            "after": "        replacement = self.cli(\"dispatch\", \"--task\", self.task, \"--runtime-mode\", \"approval-required\",\n                               \"--overlap-reason\", \"Keep the replacement and foreign worker live during stale reclaim\")[\"attempt\"]\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              565,
+              567
+            ],
+            "candidate_lines": [
+              586,
+              599
+            ],
+            "whitelist": [
+              "W07/W13"
+            ],
+            "allowed": true,
+            "before": "        self.check(all(Path(a[\"workspace\"]).is_dir() for a in (old, current, replacement, foreign)),\n                   \"Guarded reclaim preserves every attempt worktree\", True,\n                   [a[\"workspace\"] for a in (old, current, replacement, foreign)])\n",
+            "after": "        directories = [Path(a[\"workspace\"]).exists() for a in (old, current, replacement, foreign)]\n        self.check(directories == [False, False, True, True],\n                   \"Only ended clean attempts lose their worktrees\", [False, False, True, True], directories)\n        for ordinal, expected in ((1, self.base), (2, candidate)):\n            retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a{ordinal}\").stdout.strip()\n            self.check(retained == expected, \"Historical retention binds its own attempt \" + str(ordinal), expected, retained)\n        for target, reason, expected_conflicts in (\n                (self.task, \"Test historical reclaim while the current owner remains active\", {old[\"attempt_id\"]}),\n                (other_task, \"Keep a foreign worker alive to detect cross-task cleanup\", {old[\"attempt_id\"], current[\"attempt_id\"]}),\n                (self.task, \"Keep the replacement and foreign worker live during stale reclaim\", {foreign[\"attempt_id\"]})):\n            recorded = [e[\"details\"] for e in self.events(target) if e[\"type\"] == \"claim_path_check\" and e[\"details\"].get(\"reason\") == reason]\n            self.check(len(recorded) == 1 and recorded[0][\"passed\"] is True and\n                       {c[\"attempt\"] for c in recorded[0][\"conflicts\"]} == expected_conflicts,\n                       \"Explicit overlap reason is recorded with its exact conflict set\", sorted(expected_conflicts), recorded)\n"
+          }
+        ],
+        "diff": "--- baseline/acceptance/test_run_e2e.py\n+++ candidate/acceptance/test_run_e2e.py\n@@ -217,6 +217,7 @@\n                    [\"worktree\", attempt[\"workspace\"], self.base],\n                    [native[\"envMode\"], native[\"workspace\"], native[\"baseRef\"]])\n         candidate = self.candidate(attempt, good=True)\n+        candidate_bytes = Path(attempt[\"workspace\"], \"pager.py\").read_bytes()\n         self.submit(attempt, candidate)\n         value = self.new_result(self.complete(handle), \"run\")\n         run = value.get(\"run\", {})\n@@ -234,7 +235,7 @@\n                    \"Project work branch advances from G to the verified M\", candidate,\n                    self.git(\"rev-parse\", \"HEAD\").stdout.strip())\n         self.check(self.git(\"status\", \"--porcelain\").stdout == \"\" and\n-                   (self.repo / \"pager.py\").read_bytes() == Path(attempt[\"workspace\"], \"pager.py\").read_bytes(),\n+                   (self.repo / \"pager.py\").read_bytes() == candidate_bytes,\n                    \"Checked-out worktree and index match M\", \"clean worktree with candidate contents\",\n                    self.git(\"status\", \"--porcelain\").stdout)\n         readback = self.root / \"authoritative accepted readback\"\n@@ -243,8 +244,12 @@\n         self.only_own_close(thread)\n         self.check(len(self.store()[\"prompts\"]) == 1, \"Normal run prompts exactly once\", 1,\n                    len(self.store()[\"prompts\"]))\n-        self.check(Path(attempt[\"workspace\"]).is_dir(), \"Reclaim preserves attempt worktree\", True,\n-                   Path(attempt[\"workspace\"]).is_dir())\n+        self.check(not Path(attempt[\"workspace\"]).exists(), \"Reclaim removes the integrated clean worktree\", False,\n+                   Path(attempt[\"workspace\"]).exists())\n+        retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip()\n+        self.check(retained == candidate, \"Integrated candidate remains under its attempt reference\", candidate, retained)\n+        branch = self.process([\"git\", \"-C\", self.repo, \"show-ref\", \"--verify\", \"--quiet\", f\"refs/heads/a2a/{self.task}-a1\"])\n+        self.check(branch.returncode == 1, \"Integrated worker branch name is removed\", 1, branch.returncode)\n         self.finish_checks()\n \n     def test_transient_tool_activity_keeps_same_thread_owner(self):\n@@ -321,16 +326,20 @@\n         # An eligible real commit exists, but no explicit submit is sent.\n         self.failed_run(self.complete(handle), error=\"run_deadline\")\n         after = self.snapshot(\"done-without-submit-ended\")\n-        self.check(after[\"refs\"] == before[\"refs\"] and after[\"reflog\"] == before[\"reflog\"],\n-                   \"Done and candidate commit do not move any Git ref\", before[\"refs\"], after[\"refs\"])\n+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before[\"refs\"].splitlines())}\n+        expected_refs[f\"refs/heads/a2a/{self.task}-a1\"] = candidate\n+        expected_refs[f\"refs/a2a/attempts/{self.task}/a1\"] = candidate\n+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after[\"refs\"].splitlines())}\n+        self.check(actual_refs == expected_refs and after[\"reflog\"] == before[\"reflog\"],\n+                   \"Timeout only retains the unsubmitted attempt tip; integration stays unchanged\", expected_refs, actual_refs)\n         self.check(after[\"status\"][\"candidate_commit\"] is None and\n                    len(self.entries(self.oracle_control)) == 0,\n                    \"No submit means no persisted candidate and no oracle\", None,\n                    [after[\"status\"][\"candidate_commit\"],\n                     [(str(path), data) for path, data in self.entries(self.oracle_control)]])\n-        self.check(self.git(\"rev-parse\", \"HEAD\", cwd=attempt[\"workspace\"]).stdout.strip() == candidate,\n-                   \"Timeout preserves the unsubmitted real candidate\", candidate,\n-                   self.git(\"rev-parse\", \"HEAD\", cwd=attempt[\"workspace\"]).stdout.strip())\n+        retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip()\n+        self.check(retained == candidate and not Path(attempt[\"workspace\"]).exists(),\n+                   \"Timeout preserves the unsubmitted commit and removes its clean directory\", candidate, retained)\n         self.only_own_close(thread)\n         self.finish_checks()\n \n@@ -422,9 +431,11 @@\n         closed = self.store()[\"closes\"]\n         self.check(closed in ([], [old_thread]), \"Superseded run may clean only its historical thread\",\n                    [[], [old_thread]], closed)\n-        self.check(Path(old[\"workspace\"]).is_dir() and Path(replacement[\"workspace\"]).is_dir(),\n-                   \"Both attempt worktrees remain inspectable\", True,\n-                   [old[\"workspace\"], replacement[\"workspace\"]])\n+        self.check(not Path(old[\"workspace\"]).exists() and Path(replacement[\"workspace\"]).is_dir(),\n+                   \"Only the ended historical workspace is removed\", [False, True],\n+                   [Path(old[\"workspace\"]).exists(), Path(replacement[\"workspace\"]).is_dir()])\n+        retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip()\n+        self.check(retained == self.base, \"Historical attempt retains its own base commit\", self.base, retained)\n         self.only_own_close(*closed)\n         self.preserved_history(before, after)\n         self.finish_checks()\n@@ -439,15 +450,21 @@\n         before = self.snapshot(\"bad-candidate-submitted\")\n         self.failed_run(self.complete(handle))\n         after = self.snapshot(\"oracle-rejected-run\")\n-        self.check(after[\"refs\"] == before[\"refs\"] and after[\"reflog\"] == before[\"reflog\"],\n-                   \"Oracle rejection leaves Git refs and reflog unchanged\", before[\"refs\"], after[\"refs\"])\n+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before[\"refs\"].splitlines())}\n+        expected_refs[f\"refs/a2a/attempts/{self.task}/a1\"] = candidate\n+        expected_refs[f\"refs/a2a/verifications/{self.task}/a1/v1\"] = candidate\n+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after[\"refs\"].splitlines())}\n+        self.check(actual_refs == expected_refs and after[\"reflog\"] == before[\"reflog\"],\n+                   \"Oracle rejection only preserves its candidate and verification references\", expected_refs, actual_refs)\n         results = [json.loads(p.read_text()) for p in self.oracle_control.glob(\"*.result.json\")]\n         self.check(len(results) == 1 and results[0][\"exit_code\"] != 0,\n                    \"Actual frozen independent oracle rejects the bad candidate\", \"one nonzero oracle\",\n                    results)\n         self.only_own_close(thread)\n-        self.check(Path(attempt[\"workspace\"]).is_dir(), \"Rejected candidate worktree survives\", True,\n-                   Path(attempt[\"workspace\"]).is_dir())\n+        self.check(not Path(attempt[\"workspace\"]).exists(), \"Rejected ended clean worktree is removed\", False,\n+                   Path(attempt[\"workspace\"]).exists())\n+        retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a1\").stdout.strip()\n+        self.check(retained == candidate, \"Rejected candidate remains under its attempt reference\", candidate, retained)\n         self.finish_checks()\n \n     def test_startup_blocked_preserves_scene_without_prompt_or_close(self):\n@@ -523,27 +540,31 @@\n         old = self.cli(\"dispatch\", \"--task\", self.task, \"--runtime-mode\", \"approval-required\")[\"attempt\"]\n         old_thread = self.store()[\"prompts\"][-1][\"thread_id\"]\n         self.cli(\"revoke\", \"--task\", self.task, \"--reason\", \"Preserve history for guarded reclaim\")\n-        current = self.claim(owner=\"current-owner\")\n+        current = self.claim(owner=\"current-owner\", overlap_reason=\"Test historical reclaim while the current owner remains active\")\n         candidate = self.candidate(current, good=True)\n         self.submit(current, candidate)\n         other_task = \"foreign-\" + uuid.uuid4().hex\n         self.create(task=other_task)\n-        foreign = self.cli(\"dispatch\", \"--task\", other_task, \"--runtime-mode\", \"approval-required\")[\"attempt\"]\n+        foreign = self.cli(\"dispatch\", \"--task\", other_task, \"--runtime-mode\", \"approval-required\",\n+                           \"--overlap-reason\", \"Keep a foreign worker alive to detect cross-task cleanup\")[\"attempt\"]\n         foreign_thread = self.store()[\"prompts\"][-1][\"thread_id\"]\n         before = self.snapshot(\"before-historical-reclaim\")\n         self.guard(\"reclaim\", old[\"attempt_id\"])\n         after = self.snapshot(\"after-historical-reclaim\")\n-        self.check(after[\"status\"] == before[\"status\"] and after[\"refs\"] == before[\"refs\"] and\n+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before[\"refs\"].splitlines())}\n+        expected_refs[f\"refs/a2a/attempts/{self.task}/a1\"] = self.base\n+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after[\"refs\"].splitlines())}\n+        self.check(after[\"status\"] == before[\"status\"] and actual_refs == expected_refs and\n                    after[\"reflog\"] == before[\"reflog\"],\n-                   \"Historical reclaim does not revoke the current task or change Git\", before[\"status\"],\n-                   after[\"status\"])\n+                   \"Historical reclaim only adds its own retention reference\", expected_refs, actual_refs)\n         self.only_own_close(old_thread)\n         self.check(foreign_thread in self.store()[\"threads\"],\n                    \"Foreign worker remains live\", foreign_thread, self.store())\n         # A second dispatch is legal after historical reclaim. Replaying the\n         # old historical ID must then leave this new binding untouched.\n         self.cli(\"revoke\", \"--task\", self.task, \"--reason\", \"Bind current replacement after cleanup\")\n-        replacement = self.cli(\"dispatch\", \"--task\", self.task, \"--runtime-mode\", \"approval-required\")[\"attempt\"]\n+        replacement = self.cli(\"dispatch\", \"--task\", self.task, \"--runtime-mode\", \"approval-required\",\n+                               \"--overlap-reason\", \"Keep the replacement and foreign worker live during stale reclaim\")[\"attempt\"]\n         current_thread = self.store()[\"prompts\"][-1][\"thread_id\"]\n         before = self.snapshot(\"before-historical-reclaim-replay\")\n         self.guard(\"reclaim\", old[\"attempt_id\"])\n@@ -562,9 +583,20 @@\n                        \"Cross-task reclaim does not revoke foreign task\", foreign_before,\n                        self.business_state(other_task))\n             self.only_own_close(old_thread)\n-        self.check(all(Path(a[\"workspace\"]).is_dir() for a in (old, current, replacement, foreign)),\n-                   \"Guarded reclaim preserves every attempt worktree\", True,\n-                   [a[\"workspace\"] for a in (old, current, replacement, foreign)])\n+        directories = [Path(a[\"workspace\"]).exists() for a in (old, current, replacement, foreign)]\n+        self.check(directories == [False, False, True, True],\n+                   \"Only ended clean attempts lose their worktrees\", [False, False, True, True], directories)\n+        for ordinal, expected in ((1, self.base), (2, candidate)):\n+            retained = self.git(\"rev-parse\", f\"refs/a2a/attempts/{self.task}/a{ordinal}\").stdout.strip()\n+            self.check(retained == expected, \"Historical retention binds its own attempt \" + str(ordinal), expected, retained)\n+        for target, reason, expected_conflicts in (\n+                (self.task, \"Test historical reclaim while the current owner remains active\", {old[\"attempt_id\"]}),\n+                (other_task, \"Keep a foreign worker alive to detect cross-task cleanup\", {old[\"attempt_id\"], current[\"attempt_id\"]}),\n+                (self.task, \"Keep the replacement and foreign worker live during stale reclaim\", {foreign[\"attempt_id\"]})):\n+            recorded = [e[\"details\"] for e in self.events(target) if e[\"type\"] == \"claim_path_check\" and e[\"details\"].get(\"reason\") == reason]\n+            self.check(len(recorded) == 1 and recorded[0][\"passed\"] is True and\n+                       {c[\"attempt\"] for c in recorded[0][\"conflicts\"]} == expected_conflicts,\n+                       \"Explicit overlap reason is recorded with its exact conflict set\", sorted(expected_conflicts), recorded)\n         self.finish_checks()\n \n     def test_matching_reclaim_guard_is_idempotent_after_automatic_success(self):\n"
+      },
+      {
+        "file": "workbench/tests/audit_s3_assertions.py",
+        "allowed": true,
+        "new_test_artifact": true
+      },
+      {
+        "file": "workbench/tests/conflict_acceptance_host.ts",
+        "allowed": true,
+        "new_test_artifact": true
+      },
+      {
+        "file": "workbench/tests/daemon_acceptance_adapter.py",
+        "allowed": true,
+        "changes": [
+          {
+            "operation": "replace",
+            "original_lines": [
+              293,
+              294
+            ],
+            "candidate_lines": [
+              293,
+              301
+            ],
+            "whitelist": [
+              "W14"
+            ],
+            "allowed": true,
+            "before": "                    if (self.state.resolve() / \"verification\") not in workspace.parents:\n                        raise recovery.FixtureError(\"Oracle barrier is outside this fixture's verification directory\")\n",
+            "after": "                    status = self.status()\n                    verification = status.get(\"verification\")\n                    attempt = status.get(\"current_attempt\")\n                    if not verification or not attempt:\n                        raise recovery.FixtureError(\"Oracle barrier has no current verification identity\")\n                    expected = self.state.resolve() / \"worktrees\" / self.task / (\n                        self.task + \"-a\" + str(attempt[\"fence\"]) + \"-verify-\" + str(verification.get(\"ordinal\")))\n                    if workspace != expected or workspace != Path(verification[\"workspace\"]).resolve():\n                        raise recovery.FixtureError(\"Oracle barrier does not belong to the current verification worktree\")\n"
+          }
+        ],
+        "diff": "--- baseline/workbench/tests/daemon_acceptance_adapter.py\n+++ candidate/workbench/tests/daemon_acceptance_adapter.py\n@@ -290,8 +290,15 @@\n                     raise recovery.FixtureError(\"Barrier release escaped its fixture control directory\")\n                 if \"candidate_directory\" in data:\n                     workspace = Path(data[\"candidate_directory\"]).resolve()\n-                    if (self.state.resolve() / \"verification\") not in workspace.parents:\n-                        raise recovery.FixtureError(\"Oracle barrier is outside this fixture's verification directory\")\n+                    status = self.status()\n+                    verification = status.get(\"verification\")\n+                    attempt = status.get(\"current_attempt\")\n+                    if not verification or not attempt:\n+                        raise recovery.FixtureError(\"Oracle barrier has no current verification identity\")\n+                    expected = self.state.resolve() / \"worktrees\" / self.task / (\n+                        self.task + \"-a\" + str(attempt[\"fence\"]) + \"-verify-\" + str(verification.get(\"ordinal\")))\n+                    if workspace != expected or workspace != Path(verification[\"workspace\"]).resolve():\n+                        raise recovery.FixtureError(\"Oracle barrier does not belong to the current verification worktree\")\n                 self.artifact[\"barriers\"].append({\"entry\": str(path), **data,\n                                                  \"daemon_generation\": record[\"generation\"]})\n                 handle[\"barrier\"] = {\"entry\": str(path), **data}\n"
+      },
+      {
+        "file": "workbench/tests/prepare_s3_baseline.py",
+        "allowed": true,
+        "new_test_artifact": true
+      },
+      {
+        "file": "workbench/tests/run_s3_regression.py",
+        "allowed": true,
+        "new_test_artifact": true
+      },
+      {
+        "file": "workbench/tests/startup_shutdown_host.ts",
+        "allowed": true,
+        "fixture_metadata_only": true,
+        "authority": "Controller #58: use real CLI cwd evidence; repair metadata only",
+        "diff": "--- baseline/workbench/tests/startup_shutdown_host.ts\n+++ candidate/workbench/tests/startup_shutdown_host.ts\n@@ -45,13 +45,13 @@\n const native = \"fixture-\" + randomUUID(), turn = \"fixture-first-turn\";\n const file = join(home, \"sessions\", \"rollout-\" + native + \".jsonl\");\n const audit = (value: any) => appendFileSync(join(control, \"pty.jsonl\"), JSON.stringify(value) + \"\\n\");\n-require.cache[require.resolve(\"node-pty\")] = { exports: { spawn: () => {\n+require.cache[require.resolve(\"node-pty\")] = { exports: { spawn: (_shell: string, _argv: string[], options: { cwd: string }) => {\n   const exits: ((value: any) => void)[] = [];\n   return { pid: 11001, onData: () => {}, onExit: (callback: any) => { exits.push(callback); },\n     write: (data: string) => {\n       audit({ type: \"write\", data, native_log_existed: existsSync(file) });\n       if (data === \"\\r\") {\n-        const records = [{ type: \"session_meta\", payload: { id: native, source: \"cli\" } },\n+        const records = [{ type: \"session_meta\", payload: { id: native, source: \"cli\", cwd: options.cwd } },\n           { type: \"event_msg\", payload: { type: \"task_started\", turn_id: turn } }];\n         writeFileSync(file, records.map((row) => JSON.stringify(row) + \"\\n\").join(\"\"), { flag: \"wx\" });\n       }\n"
+      },
+      {
+        "file": "workbench/tests/test_cas_race.py",
+        "allowed": true,
+        "changes": [
+          {
+            "operation": "replace",
+            "original_lines": [
+              1,
+              1
+            ],
+            "candidate_lines": [
+              1,
+              1
+            ],
+            "whitelist": [
+              "W11"
+            ],
+            "allowed": true,
+            "before": "\"\"\"CAS 契约反例：检查 G 后、实际 Git 写入前出现外部写入，必须保留外部引用。\n",
+            "after": "\"\"\"R8 CAS 竞争：实际 Git 写入前 G 变化，须重验且保留外部提交。\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              20,
+              20
+            ],
+            "candidate_lines": [
+              20,
+              21
+            ],
+            "whitelist": [
+              "W11"
+            ],
+            "allowed": true,
+            "before": "        self.setup_candidate(verified=True)\n",
+            "after": "        _, candidate = self.setup_candidate(verified=True)\n        first = self.status()['verification']\n"
+          },
+          {
+            "operation": "insert",
+            "original_lines": [
+              30,
+              29
+            ],
+            "candidate_lines": [
+              31,
+              36
+            ],
+            "whitelist": [
+              "W11"
+            ],
+            "allowed": true,
+            "before": "",
+            "after": "        # Keep the first live wrapper, but disarm injection for subsequent Git\n        # invocations. The frozen wrapper treats release-all as cleanup/abort.\n        restored = self.git_route.with_suffix('.unwrapped.json')\n        recovery.write_new(restored, {'executable': recovery.REAL_GIT})\n        restored.replace(self.git_route)\n        (self.oracle_control / 'release-all').write_text('continue', encoding='utf-8')\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              32,
+              35
+            ],
+            "candidate_lines": [
+              39,
+              53
+            ],
+            "whitelist": [
+              "W11"
+            ],
+            "allowed": true,
+            "before": "        self.check(reply['ok'] is False, 'CAS rejects a changed expected old value', False, reply['ok'])\n        self.check(self.ref() == external, 'CAS preserves the external writer reference', external, self.ref())\n        self.check(self.status()['state'] != 'accepted', 'Lost CAS cannot accept the task',\n                   'not accepted', self.status()['state'])\n",
+            "after": "        self.check(reply['ok'] is True, 'CAS failure revalidates before integration', True, reply['ok'])\n        current = self.status()\n        verification = current['verification']\n        self.check(current['state'] == 'accepted', 'Only the new complete verification accepts', 'accepted', current['state'])\n        self.check(verification['verification_id'] != first['verification_id'] and verification['G'] == external and\n                   verification['C'] == candidate,\n                   'CAS revalidation binds the new G and unchanged C', [external, candidate], verification)\n        for ancestor in (external, candidate):\n            relation = self.process(['git', '-C', self.repo, 'merge-base', '--is-ancestor', ancestor, self.ref()])\n            self.check(relation.returncode == 0, 'CAS integration preserves ancestor ' + ancestor, 0, relation.returncode)\n        content = (self.repo / 'external.txt').read_text(encoding='utf-8') if (self.repo / 'external.txt').exists() else None\n        self.check(content == 'External writer owns this value.\\n', 'CAS preserves external writer content',\n                   'External writer owns this value.\\n', content)\n        self.check(len(self.entries(self.oracle_control)) == 2, 'CAS revalidation executes the oracle again', 2,\n                   len(self.entries(self.oracle_control)))\n"
+          }
+        ],
+        "diff": "--- baseline/workbench/tests/test_cas_race.py\n+++ candidate/workbench/tests/test_cas_race.py\n@@ -1,4 +1,4 @@\n-\"\"\"CAS 契约反例：检查 G 后、实际 Git 写入前出现外部写入，必须保留外部引用。\n+\"\"\"R8 CAS 竞争：实际 Git 写入前 G 变化，须重验且保留外部提交。\n \n 独立预期来自 managed-delivery / recovery 契约；仅复用夹具，不导入门禁实现。\n 运行时需给 COOP_E2E_ARTIFACT_ROOT、COOP_E2E_TRACE；产物由本卡 runner 归档。\n@@ -17,7 +17,8 @@\n \n class CASRace(recovery.RecoveryCLI):\n     def test_external_write_between_read_and_cas_is_preserved(self):\n-        self.setup_candidate(verified=True)\n+        _, candidate = self.setup_candidate(verified=True)\n+        first = self.status()['verification']\n         control = self.install_git_wrapper('before')\n         original = self.start_cli('integrate', '--task', self.task)\n         barrier = self.wait_barrier(control, original)\n@@ -27,12 +28,29 @@\n         self.git('commit', '-m', 'External writer during integration')\n         external = self.git('rev-parse', 'HEAD').stdout.strip()\n         self.assertEqual(self.ref(), external)\n+        # Keep the first live wrapper, but disarm injection for subsequent Git\n+        # invocations. The frozen wrapper treats release-all as cleanup/abort.\n+        restored = self.git_route.with_suffix('.unwrapped.json')\n+        recovery.write_new(restored, {'executable': recovery.REAL_GIT})\n+        restored.replace(self.git_route)\n+        (self.oracle_control / 'release-all').write_text('continue', encoding='utf-8')\n         self.release(barrier)\n         reply = self.parse_cli(self.complete(original))\n-        self.check(reply['ok'] is False, 'CAS rejects a changed expected old value', False, reply['ok'])\n-        self.check(self.ref() == external, 'CAS preserves the external writer reference', external, self.ref())\n-        self.check(self.status()['state'] != 'accepted', 'Lost CAS cannot accept the task',\n-                   'not accepted', self.status()['state'])\n+        self.check(reply['ok'] is True, 'CAS failure revalidates before integration', True, reply['ok'])\n+        current = self.status()\n+        verification = current['verification']\n+        self.check(current['state'] == 'accepted', 'Only the new complete verification accepts', 'accepted', current['state'])\n+        self.check(verification['verification_id'] != first['verification_id'] and verification['G'] == external and\n+                   verification['C'] == candidate,\n+                   'CAS revalidation binds the new G and unchanged C', [external, candidate], verification)\n+        for ancestor in (external, candidate):\n+            relation = self.process(['git', '-C', self.repo, 'merge-base', '--is-ancestor', ancestor, self.ref()])\n+            self.check(relation.returncode == 0, 'CAS integration preserves ancestor ' + ancestor, 0, relation.returncode)\n+        content = (self.repo / 'external.txt').read_text(encoding='utf-8') if (self.repo / 'external.txt').exists() else None\n+        self.check(content == 'External writer owns this value.\\n', 'CAS preserves external writer content',\n+                   'External writer owns this value.\\n', content)\n+        self.check(len(self.entries(self.oracle_control)) == 2, 'CAS revalidation executes the oracle again', 2,\n+                   len(self.entries(self.oracle_control)))\n         self.finish_checks()\n \n \n"
+      },
+      {
+        "file": "workbench/tests/test_conflict_panes.ts",
+        "allowed": true,
+        "new_test_artifact": true
+      },
+      {
+        "file": "workbench/tests/test_native_final_read.ts",
+        "allowed": true,
+        "fixture_metadata_only": true,
+        "authority": "Task card: fixture errors may be repaired and recorded; no assertion change",
+        "diff": "--- baseline/workbench/tests/test_native_final_read.ts\n+++ candidate/workbench/tests/test_native_final_read.ts\n@@ -22,7 +22,7 @@\n   const store = new OrchestrationStore(root);\n   const native = randomUUID(), turn = randomUUID();\n   const file = join(home, \"sessions\", \"rollout-\" + native + \".jsonl\");\n-  const prefix = [{ type: \"session_meta\", payload: { id: native, source: \"cli\" } },\n+  const prefix = [{ type: \"session_meta\", payload: { id: native, source: \"cli\", cwd: root } },\n     { type: \"event_msg\", payload: { type: \"task_started\", turn_id: turn } }];\n   const context = { type: \"turn_context\", payload: { turn_id: turn, model: \"fixture-model-\" + randomUUID(),\n     effort: \"fixture-effort\", approval_policy: \"never\", sandbox_policy: { network_access: false } } };\n"
+      },
+      {
+        "file": "workbench/tests/test_pane_dispatch_state.ts",
+        "allowed": true,
+        "fixture_metadata_only": true,
+        "authority": "Task card: fixture errors may be repaired and recorded; no assertion change",
+        "diff": "--- baseline/workbench/tests/test_pane_dispatch_state.ts\n+++ candidate/workbench/tests/test_pane_dispatch_state.ts\n@@ -45,7 +45,7 @@\n   await panes.dispatch(pane, \"第二条\");\n   assert.equal(writes.length, 2, \"busy queues even before start hook arrives\");\n   const native = join(home, \"sessions\", \"rollout-native.jsonl\");\n-  writeFileSync(native, JSON.stringify({ type: \"session_meta\", payload: { source: \"cli\", id: \"native\" } }) + \"\\n\"\n+  writeFileSync(native, JSON.stringify({ type: \"session_meta\", payload: { source: \"cli\", id: \"native\", cwd: root } }) + \"\\n\"\n     + JSON.stringify({ type: \"event_msg\", payload: { type: \"task_started\", turn_id: \"turn-1\" } }) + \"\\n\");\n   const signal = (event: string, turn: string, session = \"native\") => panes.signal(pane.record.id,\n     JSON.stringify({ session_id: session, turn_id: turn, hook_event_name: event }), new Date().toISOString());\n"
+      },
+      {
+        "file": "workbench/tests/test_task_cards_e2e.py",
+        "allowed": true,
+        "changes": [
+          {
+            "operation": "replace",
+            "original_lines": [
+              152,
+              152
+            ],
+            "candidate_lines": [
+              152,
+              153
+            ],
+            "whitelist": [
+              "W08"
+            ],
+            "allowed": true,
+            "before": "        self.assertEqual(self.oid(Path(v['workspace'])), v['M'])\n",
+            "after": "        self.assertFalse(Path(v['workspace']).exists())\n        self.assertEqual(self.oid(ref='refs/a2a/verifications/' + self.task + '/a1/v1'), v['M'])\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              287,
+              287
+            ],
+            "candidate_lines": [
+              288,
+              289
+            ],
+            "whitelist": [
+              "W10"
+            ],
+            "allowed": true,
+            "before": "        self.submit(a, self.commit(a))\n",
+            "after": "        c = self.commit(a)\n        self.submit(a, c)\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              296,
+              296
+            ],
+            "candidate_lines": [
+              298,
+              300
+            ],
+            "whitelist": [
+              "W10"
+            ],
+            "allowed": true,
+            "before": "        self.submit(a, self.oid(Path(a['workspace'])), ok=False, error='stale_attempt')\n",
+            "after": "        self.assertFalse(Path(a['workspace']).exists())\n        self.assertEqual(self.oid(ref='refs/a2a/attempts/' + self.task + '/a1'), c)\n        self.submit(a, c, ok=False, error='stale_attempt')\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              390,
+              390
+            ],
+            "candidate_lines": [
+              394,
+              394
+            ],
+            "whitelist": [
+              "W09"
+            ],
+            "allowed": true,
+            "before": "        self.cli('verify')\n",
+            "after": "        first = self.cli('verify')['verification']\n"
+          },
+          {
+            "operation": "replace",
+            "original_lines": [
+              395,
+              396
+            ],
+            "candidate_lines": [
+              399,
+              405
+            ],
+            "whitelist": [
+              "W09"
+            ],
+            "allowed": true,
+            "before": "        self.cli('integrate', ok=False, error='integration_conflict')\n        v = self.cli('verify')['verification']\n",
+            "after": "        g = self.oid()\n        self.cli('integrate')\n        v = self.cli('status')['task']['verification']\n        self.assertNotEqual(v['verification_id'], first['verification_id'])\n        self.assertEqual(v['C'], c)\n        self.assertEqual(v['G'], g)\n        self.assertEqual((self.repo / 'host.txt').read_text(), 'new G\\n')\n"
+          },
+          {
+            "operation": "insert",
+            "original_lines": [
+              401,
+              400
+            ],
+            "candidate_lines": [
+              410,
+              410
+            ],
+            "whitelist": [
+              "W09"
+            ],
+            "allowed": true,
+            "before": "",
+            "after": "        self.assertEqual(len([e for e in self.events() if e['type'] == 'completion_check']), 2)\n"
+          }
+        ],
+        "diff": "--- baseline/workbench/tests/test_task_cards_e2e.py\n+++ candidate/workbench/tests/test_task_cards_e2e.py\n@@ -149,7 +149,8 @@\n         self.assertEqual(v['C'], c)\n         self.assertNotIn(v['M'], (g, c))\n         self.assertEqual(self.oid(), g)\n-        self.assertEqual(self.oid(Path(v['workspace'])), v['M'])\n+        self.assertFalse(Path(v['workspace']).exists())\n+        self.assertEqual(self.oid(ref='refs/a2a/verifications/' + self.task + '/a1/v1'), v['M'])\n         self.assertEqual(self.git('rev-list', '--parents', '-n', '1', v['M']).split()[1:], [g, c])\n         log = self.git('reflog', 'show', '--format=%H', 'refs/heads/main')\n         self.cli('integrate')\n@@ -284,7 +285,8 @@\n         self.save_card(1, v2)\n         self.assertEqual(self.cli('card_show', '--card-version', '1')['card']['goal'], self.card['goal'])\n         self.assertEqual(self.cli('status')['task']['card_version'], 1)\n-        self.submit(a, self.commit(a))\n+        c = self.commit(a)\n+        self.submit(a, c)\n         self.cli('verify')\n         with sqlite3.connect(self.state / 'state.sqlite3') as db:\n             rows = db.execute('SELECT id,data FROM task_card_snapshots').fetchall()\n@@ -293,7 +295,9 @@\n         self.assertEqual(snapshots[a['card_snapshot_id']]['base_commit'], g)\n         self.assertEqual(snapshots[a['card_snapshot_id']]['writer']['session_id'], a['session_id'])\n         self.cli('revise', '--spec-rev', '2', '--card-version', '2')\n-        self.submit(a, self.oid(Path(a['workspace'])), ok=False, error='stale_attempt')\n+        self.assertFalse(Path(a['workspace']).exists())\n+        self.assertEqual(self.oid(ref='refs/a2a/attempts/' + self.task + '/a1'), c)\n+        self.submit(a, c, ok=False, error='stale_attempt')\n         current = self.cli('claim', '--owner', 'replacement')['attempt']\n         self.submit(current, self.commit(current))\n         self.reject_verify('oracle_failed')\n@@ -387,17 +391,23 @@\n         a = self.create()\n         c = self.commit(a, trailers=False)\n         self.submit(a, c)\n-        self.cli('verify')\n+        first = self.cli('verify')['verification']\n         inputs = self.cli('status')['user_inputs']\n         (self.repo / 'host.txt').write_text('new G\\n', encoding='utf-8')\n         self.git('add', 'host.txt')\n         self.git('commit', '-m', 'External change requires new verification')\n-        self.cli('integrate', ok=False, error='integration_conflict')\n-        v = self.cli('verify')['verification']\n+        g = self.oid()\n+        self.cli('integrate')\n+        v = self.cli('status')['task']['verification']\n+        self.assertNotEqual(v['verification_id'], first['verification_id'])\n+        self.assertEqual(v['C'], c)\n+        self.assertEqual(v['G'], g)\n+        self.assertEqual((self.repo / 'host.txt').read_text(), 'new G\\n')\n         self.assertEqual(self.cli('status')['user_inputs'], inputs)\n         self.assertEqual(len([e for e in self.events() if e['type'] == 'human_intervention']), 1)\n         self.cli('integrate')\n         self.assertEqual(self.oid(), v['M'])\n+        self.assertEqual(len([e for e in self.events() if e['type'] == 'completion_check']), 2)\n \n     def test_ticket_revision_and_template_source(self):\n         self.task = 'T-990-1'\n"
+      },
+      {
+        "file": "workbench/tests/test_worktree_lifecycle_e2e.py",
+        "allowed": true,
+        "new_test_artifact": true
+      }
+    ],
+    "self_check": {
+      "status": "PASS",
+      "known_bad_allow_all_rejected": true,
+      "mutant_results": [
+        {
+          "case": "reject_modified_recovery_assertion",
+          "expected_allowed": false,
+          "observed_allowed": true
+        },
+        {
+          "case": "reject_modified_unique_claim_assertion",
+          "expected_allowed": false,
+          "observed_allowed": true
+        },
+        {
+          "case": "reject_assertion_edit_with_metadata_repair:workbench/tests/test_native_final_read.ts",
+          "expected_allowed": false,
+          "observed_allowed": true
+        },
+        {
+          "case": "reject_assertion_edit_with_metadata_repair:workbench/tests/test_pane_dispatch_state.ts",
+          "expected_allowed": false,
+          "observed_allowed": true
+        },
+        {
+          "case": "reject_wrong_cwd_in_startup_fixture",
+          "expected_allowed": false,
+          "observed_allowed": true
+        }
+      ],
+      "cases": [
+        {
+          "name": "reject_modified_recovery_assertion",
+          "expected_allowed": false,
+          "observed_allowed": false,
+          "audit": {
+            "file": "acceptance/test_recovery_e2e.py",
+            "allowed": false,
+            "changes": [
+              {
+                "operation": "replace",
+                "original_lines": [
+                  481,
+                  481
+                ],
+                "candidate_lines": [
+                  481,
+                  481
+                ],
+                "whitelist": [],
+                "allowed": false,
+                "before": "        self.check(self.ref() == self.base, \"Live verification never integrates\", self.base, self.ref())\n",
+                "after": "        self.check(self.ref() != self.base, \"Live verification never integrates\", self.base, self.ref())\n"
+              }
+            ],
+            "diff": "--- baseline/acceptance/test_recovery_e2e.py\n+++ candidate/acceptance/test_recovery_e2e.py\n@@ -478,7 +478,7 @@\n         self.check(\"verification_interrupted\" not in json.dumps(after[\"events\"]),\n                    \"Busy probes do not mark normal verification interrupted\", False,\n                    after[\"events\"])\n-        self.check(self.ref() == self.base, \"Live verification never integrates\", self.base, self.ref())\n+        self.check(self.ref() != self.base, \"Live verification never integrates\", self.base, self.ref())\n         self.preserved_history(before, after)\n         self.finish_checks()\n \n"
+          }
+        },
+        {
+          "name": "reject_modified_unique_claim_assertion",
+          "expected_allowed": false,
+          "observed_allowed": false,
+          "audit": {
+            "file": "acceptance/test_coop_e2e.py",
+            "allowed": false,
+            "changes": [
+              {
+                "operation": "replace",
+                "original_lines": [
+                  304,
+                  304
+                ],
+                "candidate_lines": [
+                  304,
+                  304
+                ],
+                "whitelist": [],
+                "allowed": false,
+                "before": "                self.assertEqual(len(winners), 1, outcomes)\n",
+                "after": "                self.assertEqual(len(winners), 4, outcomes)\n"
+              }
+            ],
+            "diff": "--- baseline/acceptance/test_coop_e2e.py\n+++ candidate/acceptance/test_coop_e2e.py\n@@ -301,7 +301,7 @@\n                     completed_clients.append(completed)\n                 outcomes = [(p, self.parse_cli(p)) for p in completed_clients]\n                 winners = [value for p, value in outcomes if p.returncode == 0]\n-                self.assertEqual(len(winners), 1, outcomes)\n+                self.assertEqual(len(winners), 4, outcomes)\n                 self.assertEqual(sum(p.returncode == 1 for p, value in outcomes), 3)\n                 winner = winners[0][\"attempt\"]\n                 self.assert_current_attempt(self.status(task), winner)\n"
+          }
+        },
+        {
+          "name": "reject_assertion_edit_with_metadata_repair:workbench/tests/test_native_final_read.ts",
+          "expected_allowed": false,
+          "observed_allowed": false,
+          "audit": {
+            "file": "workbench/tests/test_native_final_read.ts",
+            "allowed": false,
+            "fixture_metadata_only": false,
+            "authority": "Task card: fixture errors may be repaired and recorded; no assertion change",
+            "diff": "--- baseline/workbench/tests/test_native_final_read.ts\n+++ candidate/workbench/tests/test_native_final_read.ts\n@@ -22,7 +22,7 @@\n   const store = new OrchestrationStore(root);\n   const native = randomUUID(), turn = randomUUID();\n   const file = join(home, \"sessions\", \"rollout-\" + native + \".jsonl\");\n-  const prefix = [{ type: \"session_meta\", payload: { id: native, source: \"cli\" } },\n+  const prefix = [{ type: \"session_meta\", payload: { id: native, source: \"cli\", cwd: root } },\n     { type: \"event_msg\", payload: { type: \"task_started\", turn_id: turn } }];\n   const context = { type: \"turn_context\", payload: { turn_id: turn, model: \"fixture-model-\" + randomUUID(),\n     effort: \"fixture-effort\", approval_policy: \"never\", sandbox_policy: { network_access: false } } };\n@@ -46,7 +46,7 @@\n     if (scenario !== \"unbound\") {\n       writeFileSync(file, encode(prefix));\n       await panes.signal(pane.record.id, JSON.stringify({ hook_event_name: \"UserPromptSubmit\", session_id: native, turn_id: turn }), new Date().toISOString());\n-      assert.equal(pane.native, native);\n+      assert.notEqual(pane.native, native);\n       assert.equal(store.read().filter((row) => row.type === \"native_record\").length, 2);\n     }\n     beforeExit = () => {\n"
+          }
+        },
+        {
+          "name": "reject_assertion_edit_with_metadata_repair:workbench/tests/test_pane_dispatch_state.ts",
+          "expected_allowed": false,
+          "observed_allowed": false,
+          "audit": {
+            "file": "workbench/tests/test_pane_dispatch_state.ts",
+            "allowed": false,
+            "fixture_metadata_only": false,
+            "authority": "Task card: fixture errors may be repaired and recorded; no assertion change",
+            "diff": "--- baseline/workbench/tests/test_pane_dispatch_state.ts\n+++ candidate/workbench/tests/test_pane_dispatch_state.ts\n@@ -32,7 +32,7 @@\n     { attempt_id: \"attempt\", session_id: \"session\", thread_id: \"thread\", runtime_mode: \"workspace-write\", workspace: root } as any);\n   const pane = panes.get(\"thread\");\n   await panes.dispatch(pane, \"第一条\\n有两行\");\n-  assert.equal(writes.length, 0, \"unknown state queues without bytes\");\n+  assert.notEqual(writes.length, 0, \"unknown state queues without bytes\");\n   pane.state = \"idle\"; // Fixture state; not a substitute for the production process-info release.\n   sending = panes.drain(pane);\n   assert.equal(panes.status(\"thread\").writing, true, \"paste/CR transaction remains visible while writing\");\n@@ -45,7 +45,7 @@\n   await panes.dispatch(pane, \"第二条\");\n   assert.equal(writes.length, 2, \"busy queues even before start hook arrives\");\n   const native = join(home, \"sessions\", \"rollout-native.jsonl\");\n-  writeFileSync(native, JSON.stringify({ type: \"session_meta\", payload: { source: \"cli\", id: \"native\" } }) + \"\\n\"\n+  writeFileSync(native, JSON.stringify({ type: \"session_meta\", payload: { source: \"cli\", id: \"native\", cwd: root } }) + \"\\n\"\n     + JSON.stringify({ type: \"event_msg\", payload: { type: \"task_started\", turn_id: \"turn-1\" } }) + \"\\n\");\n   const signal = (event: string, turn: string, session = \"native\") => panes.signal(pane.record.id,\n     JSON.stringify({ session_id: session, turn_id: turn, hook_event_name: event }), new Date().toISOString());\n"
+          }
+        },
+        {
+          "name": "reject_wrong_cwd_in_startup_fixture",
+          "expected_allowed": false,
+          "observed_allowed": false,
+          "audit": {
+            "file": "workbench/tests/startup_shutdown_host.ts",
+            "allowed": false,
+            "fixture_metadata_only": false,
+            "authority": "Controller #58: use real CLI cwd evidence; repair metadata only",
+            "diff": "--- baseline/workbench/tests/startup_shutdown_host.ts\n+++ candidate/workbench/tests/startup_shutdown_host.ts\n@@ -45,13 +45,13 @@\n const native = \"fixture-\" + randomUUID(), turn = \"fixture-first-turn\";\n const file = join(home, \"sessions\", \"rollout-\" + native + \".jsonl\");\n const audit = (value: any) => appendFileSync(join(control, \"pty.jsonl\"), JSON.stringify(value) + \"\\n\");\n-require.cache[require.resolve(\"node-pty\")] = { exports: { spawn: () => {\n+require.cache[require.resolve(\"node-pty\")] = { exports: { spawn: (_shell: string, _argv: string[], options: { cwd: string }) => {\n   const exits: ((value: any) => void)[] = [];\n   return { pid: 11001, onData: () => {}, onExit: (callback: any) => { exits.push(callback); },\n     write: (data: string) => {\n       audit({ type: \"write\", data, native_log_existed: existsSync(file) });\n       if (data === \"\\r\") {\n-        const records = [{ type: \"session_meta\", payload: { id: native, source: \"cli\" } },\n+        const records = [{ type: \"session_meta\", payload: { id: native, source: \"cli\", cwd: control } },\n           { type: \"event_msg\", payload: { type: \"task_started\", turn_id: turn } }];\n         writeFileSync(file, records.map((row) => JSON.stringify(row) + \"\\n\").join(\"\"), { flag: \"wx\" });\n       }\n"
+          }
+        }
+      ]
+    }
+  },
+  "proof": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/rollout-cwd-proof-01.json",
+  "product_candidate": "446f25c3de00925dfcc2f1c3f1375713676e166b",
+  "scope": "Static fixture-repair preparation only",
+  "real_codex_turns": 0,
+  "business_result": "INCOMPLETE: outside reruns pending"
+}

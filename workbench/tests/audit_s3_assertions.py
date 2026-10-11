@@ -34,6 +34,14 @@ FIXTURE_METADATA = {
     'workbench/tests/test_pane_dispatch_state.ts': (
         'payload: { source: "cli", id: "native" }', 'payload: { source: "cli", id: "native", cwd: root }'),
 }
+# Controller #58 authorizes this host-only repair after a real rollout proof.
+# The original startup/shutdown test and every assertion remain unchanged.
+STARTUP_HOST = 'workbench/tests/startup_shutdown_host.ts'
+STARTUP_HOST_BASE = '457e02a867bfdc5d8b06a9d14214eb7a429c48c2'
+STARTUP_HOST_EDITS = (
+    ('exports: { spawn: () => {', 'exports: { spawn: (_shell: string, _argv: string[], options: { cwd: string }) => {'),
+    ('payload: { id: native, source: "cli" }', 'payload: { id: native, source: "cli", cwd: options.cwd }'),
+)
 
 
 def git(*args):
@@ -41,6 +49,17 @@ def git(*args):
 
 
 def audit_text(name, before, after):
+    if name == STARTUP_HOST:
+        expected = before
+        unique = True
+        for old, new in STARTUP_HOST_EDITS:
+            unique = unique and expected.count(old) == 1
+            expected = expected.replace(old, new, 1)
+        allowed = unique and after == expected
+        return {'file': name, 'allowed': allowed, 'fixture_metadata_only': allowed,
+                'authority': 'Controller #58: use real CLI cwd evidence; repair metadata only',
+                'diff': ''.join(difflib.unified_diff(before.splitlines(keepends=True), after.splitlines(keepends=True),
+                                                  fromfile='baseline/' + name, tofile='candidate/' + name))}
     if name in FIXTURE_METADATA:
         old, new = FIXTURE_METADATA[name]
         allowed = before.count(old) == 1 and after == before.replace(old, new, 1)
@@ -127,7 +146,18 @@ def self_check():
         audit = audit_text(name, before, bad)
         cases.append({'name': 'reject_assertion_edit_with_metadata_repair:' + name, 'expected_allowed': False,
                       'observed_allowed': audit['allowed'], 'audit': audit})
-    # Known-bad auditor: treating every edit as allowed must fail both independent
+    before = git('show', STARTUP_HOST_BASE + ':' + STARTUP_HOST).decode('utf-8')
+    bad = before
+    for old, new in STARTUP_HOST_EDITS:
+        if bad.count(old) != 1:
+            raise RuntimeError('Startup fixture repair is not uniquely bound')
+        bad = bad.replace(old, new, 1)
+    bad = bad.replace('cwd: options.cwd', 'cwd: control', 1)
+    probes.append((STARTUP_HOST, before, bad))
+    audit = audit_text(STARTUP_HOST, before, bad)
+    cases.append({'name': 'reject_wrong_cwd_in_startup_fixture', 'expected_allowed': False,
+                  'observed_allowed': audit['allowed'], 'audit': audit})
+    # Known-bad auditor: treating every edit as allowed must fail the independent
     # protected-scope examples. These checks do not test the product gate.
     def allow_all_mutant(_name, _before, _after):
         return {'allowed': True}

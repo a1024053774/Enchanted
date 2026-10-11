@@ -1,0 +1,77 @@
+diff --git a/workbench/tests/audit_s3_assertions.py b/workbench/tests/audit_s3_assertions.py
+index 6b5b92e0..1c4f2a31 100644
+--- a/workbench/tests/audit_s3_assertions.py
++++ b/workbench/tests/audit_s3_assertions.py
+@@ -34,6 +34,14 @@ FIXTURE_METADATA = {
+     'workbench/tests/test_pane_dispatch_state.ts': (
+         'payload: { source: "cli", id: "native" }', 'payload: { source: "cli", id: "native", cwd: root }'),
+ }
++# Controller #58 authorizes this host-only repair after a real rollout proof.
++# The original startup/shutdown test and every assertion remain unchanged.
++STARTUP_HOST = 'workbench/tests/startup_shutdown_host.ts'
++STARTUP_HOST_BASE = '457e02a867bfdc5d8b06a9d14214eb7a429c48c2'
++STARTUP_HOST_EDITS = (
++    ('exports: { spawn: () => {', 'exports: { spawn: (_shell: string, _argv: string[], options: { cwd: string }) => {'),
++    ('payload: { id: native, source: "cli" }', 'payload: { id: native, source: "cli", cwd: options.cwd }'),
++)
+ 
+ 
+ def git(*args):
+@@ -41,6 +49,17 @@ def git(*args):
+ 
+ 
+ def audit_text(name, before, after):
++    if name == STARTUP_HOST:
++        expected = before
++        unique = True
++        for old, new in STARTUP_HOST_EDITS:
++            unique = unique and expected.count(old) == 1
++            expected = expected.replace(old, new, 1)
++        allowed = unique and after == expected
++        return {'file': name, 'allowed': allowed, 'fixture_metadata_only': allowed,
++                'authority': 'Controller #58: use real CLI cwd evidence; repair metadata only',
++                'diff': ''.join(difflib.unified_diff(before.splitlines(keepends=True), after.splitlines(keepends=True),
++                                                  fromfile='baseline/' + name, tofile='candidate/' + name))}
+     if name in FIXTURE_METADATA:
+         old, new = FIXTURE_METADATA[name]
+         allowed = before.count(old) == 1 and after == before.replace(old, new, 1)
+@@ -127,7 +146,18 @@ def self_check():
+         audit = audit_text(name, before, bad)
+         cases.append({'name': 'reject_assertion_edit_with_metadata_repair:' + name, 'expected_allowed': False,
+                       'observed_allowed': audit['allowed'], 'audit': audit})
+-    # Known-bad auditor: treating every edit as allowed must fail both independent
++    before = git('show', STARTUP_HOST_BASE + ':' + STARTUP_HOST).decode('utf-8')
++    bad = before
++    for old, new in STARTUP_HOST_EDITS:
++        if bad.count(old) != 1:
++            raise RuntimeError('Startup fixture repair is not uniquely bound')
++        bad = bad.replace(old, new, 1)
++    bad = bad.replace('cwd: options.cwd', 'cwd: control', 1)
++    probes.append((STARTUP_HOST, before, bad))
++    audit = audit_text(STARTUP_HOST, before, bad)
++    cases.append({'name': 'reject_wrong_cwd_in_startup_fixture', 'expected_allowed': False,
++                  'observed_allowed': audit['allowed'], 'audit': audit})
++    # Known-bad auditor: treating every edit as allowed must fail the independent
+     # protected-scope examples. These checks do not test the product gate.
+     def allow_all_mutant(_name, _before, _after):
+         return {'allowed': True}
+diff --git a/workbench/tests/startup_shutdown_host.ts b/workbench/tests/startup_shutdown_host.ts
+index 2e17ec1f..06b623b9 100644
+--- a/workbench/tests/startup_shutdown_host.ts
++++ b/workbench/tests/startup_shutdown_host.ts
+@@ -45,13 +45,13 @@ const role = join(control, "role.txt"); writeFileSync(role, "本地确定性夹
+ const native = "fixture-" + randomUUID(), turn = "fixture-first-turn";
+ const file = join(home, "sessions", "rollout-" + native + ".jsonl");
+ const audit = (value: any) => appendFileSync(join(control, "pty.jsonl"), JSON.stringify(value) + "\n");
+-require.cache[require.resolve("node-pty")] = { exports: { spawn: () => {
++require.cache[require.resolve("node-pty")] = { exports: { spawn: (_shell: string, _argv: string[], options: { cwd: string }) => {
+   const exits: ((value: any) => void)[] = [];
+   return { pid: 11001, onData: () => {}, onExit: (callback: any) => { exits.push(callback); },
+     write: (data: string) => {
+       audit({ type: "write", data, native_log_existed: existsSync(file) });
+       if (data === "\r") {
+-        const records = [{ type: "session_meta", payload: { id: native, source: "cli" } },
++        const records = [{ type: "session_meta", payload: { id: native, source: "cli", cwd: options.cwd } },
+           { type: "event_msg", payload: { type: "task_started", turn_id: turn } }];
+         writeFileSync(file, records.map((row) => JSON.stringify(row) + "\n").join(""), { flag: "wx" });
+       }
