@@ -230,9 +230,13 @@ class RunCLI(recovery.RecoveryCLI):
         self.check(self.ref() == candidate and candidate != self.base,
                    "Automatic run integrates the explicit new Git candidate", candidate, self.ref())
         self.persisted_run_receipt(run)
-        self.check(self.git("rev-parse", "HEAD").stdout.strip() == original_head,
-                   "User branch remains at its original head", original_head,
+        self.check(original_head == self.base and self.git("rev-parse", "HEAD").stdout.strip() == candidate,
+                   "Project work branch advances from G to the verified M", candidate,
                    self.git("rev-parse", "HEAD").stdout.strip())
+        self.check(self.git("status", "--porcelain").stdout == "" and
+                   (self.repo / "pager.py").read_bytes() == Path(attempt["workspace"], "pager.py").read_bytes(),
+                   "Checked-out worktree and index match M", "clean worktree with candidate contents",
+                   self.git("status", "--porcelain").stdout)
         readback = self.root / "authoritative accepted readback"
         self.git("worktree", "add", "--detach", str(readback), self.ref())
         self.assert_novel_pagination_inputs(readback)

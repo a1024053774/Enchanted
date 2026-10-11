@@ -74,17 +74,17 @@ finally:
 sys.exit(code)
 '''
 
-GIT_BARRIER = '''
+GIT_BARRIER = r'''
 import json, os, pathlib, subprocess, sys, time, uuid
 args = sys.argv[1:]
 control = pathlib.Path(CONTROL)
-if "update-ref" not in args or REF not in args:
+if "update-ref" not in args or "--stdin" not in args:
     os.execv(REAL_GIT, [REAL_GIT] + args)
 identity = uuid.uuid4().hex
 phase = (control / "phase").read_text(encoding="utf-8")
 release = control / (identity + ".release")
 data = {"pid": os.getpid(), "ppid": os.getppid(), "argv": [REAL_GIT] + args,
-        "phase": phase, "release": str(release)}
+        "phase": phase, "release": str(release), "stdin": [], "stdout": ""}
 def save(suffix):
     (control / (identity + suffix)).write_text(json.dumps(data), encoding="utf-8")
 def barrier():
@@ -99,14 +99,44 @@ if phase == "before" and barrier() == "abort":
     data["executed_real_git"] = False
     save(".done.json")
     sys.exit(125)
-p = subprocess.run([REAL_GIT] + args, text=True, capture_output=True)
-data.update({"executed_real_git": True, "exit_code": p.returncode,
-             "stdout": p.stdout, "stderr": p.stderr})
-save(".result.json")
-if phase == "after":
-    barrier()
-sys.stdout.write(p.stdout)
-sys.stderr.write(p.stderr)
+p = subprocess.Popen([REAL_GIT] + args, text=True, stdin=subprocess.PIPE,
+                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
+data["git_pid"] = p.pid
+def emit(value):
+    try:
+        sys.stdout.write(value)
+        sys.stdout.flush()
+    except BrokenPipeError:
+        # The killed CLI cannot read. Retain the real Git result for recovery.
+        data["caller_pipe_closed"] = True
+        sys.stdout = open(os.devnull, "w")
+for line in sys.stdin:
+    data["stdin"].append(line)
+    p.stdin.write(line)
+    p.stdin.flush()
+    verb = line.strip().split(" ", 1)[0]
+    if verb not in ("start", "prepare", "commit", "abort"):
+        continue
+    response = p.stdout.readline()
+    data["stdout"] += response
+    if verb == "commit" or not response:
+        p.stdin.close()
+        p.wait()
+        data.update({"executed_real_git": True, "exit_code": p.returncode,
+                     "stderr": p.stderr.read()})
+        save(".result.json")
+        if phase == "after" and verb == "commit" and p.returncode == 0:
+            barrier()
+        emit(response)
+        break
+    emit(response)
+else:
+    p.stdin.close()
+    p.wait()
+    data.update({"executed_real_git": True, "exit_code": p.returncode,
+                 "stderr": p.stderr.read()})
+    save(".result.json")
+sys.stderr.write(data.get("stderr", ""))
 save(".done.json")
 sys.exit(p.returncode)
 '''
@@ -513,7 +543,7 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
         # State and completion metadata may change; original inputs must survive.
         frozen_keys = {"G", "C", "M", "session_id", "fence",
                        "candidate_commit", "attempt_id", "spec_rev", "base_commit",
-                       "merged_commit", "oracle", "oracle_path", "workspace", "worktree",
+                       "merged_commit", "card_snapshot_id", "card_version", "commands", "workspace", "worktree",
                        "command_intent", "command_intent_json"}
         if len(old_before) == len(old_rows) == 1:
             inputs = {key: value for key, value in old_before[0].items() if key in frozen_keys}
@@ -589,6 +619,7 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
         attempt, candidate = self.setup_candidate(verified=True)
         control, before = self.start_git_fault("after")
         if delete:
+            self.git("update-ref", "refs/a2a/fixture-preserved", candidate)
             p = self.process([REAL_GIT, "-C", str(self.repo), "update-ref", "-d", REF, candidate],
                              label="git:external-delete")
             if p.returncode != 0:
@@ -599,10 +630,6 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
             self.git("add", "external.txt")
             self.git("commit", "-m", "Independent external third value")
             external = self.git("rev-parse", "HEAD").stdout.strip()
-            p = self.process([REAL_GIT, "-C", str(self.repo), "update-ref", REF, external, candidate],
-                             label="git:external-third-value")
-            if p.returncode != 0:
-                raise FixtureError("External reference fixture failed: " + p.stderr)
         if self.ref_or_missing() != external:
             raise FixtureError("External reference injection could not be confirmed")
         # Deleted refs have no reflog command output, so retain raw log presence.

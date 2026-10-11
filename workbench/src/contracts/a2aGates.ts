@@ -4,6 +4,7 @@
 // See ../../LICENSE.synara for the full permission notice.
 
 import { Schema } from "effect";
+import type { TaskCard } from "../gates/taskCards.ts";
 import { ModelSelection } from "./modelSelection.ts";
 import { A2AMemberRole } from "./a2aMembership.ts";
 import {
@@ -25,6 +26,7 @@ export type A2AIssueAction = typeof A2AIssueAction.Type;
 
 export const A2AGateRequest = Schema.Struct({
   command: Schema.Literals([
+    "card_template", "card_validate", "card_save", "card_show",
     "create",
     "claim",
     "revoke",
@@ -51,8 +53,11 @@ export const A2AGateRequest = Schema.Struct({
   role: Schema.optional(A2AMemberRole),
   preset: Schema.optional(A2ASessionPreset),
   modelSelection: Schema.optional(ModelSelection),
-  base: Schema.optional(Schema.String),
-  oracle: Schema.optional(Schema.String),
+  branch: Schema.optional(Schema.String),
+  card: Schema.optional(Schema.String),
+  ticket: Schema.optional(Schema.String),
+  card_version: Schema.optional(Schema.Number),
+  expected_version: Schema.optional(Schema.Number),
   instructions: Schema.optional(Schema.String),
   owner: Schema.optional(Schema.String),
   reason: Schema.optional(Schema.String),
@@ -86,6 +91,7 @@ export interface A2AAttempt {
   turn_id: string | null;
   workspace: string;
   base_commit: string;
+  card_snapshot_id: string;
   reclaimed: boolean;
   reclaimed_at?: string;
   owner?: string;
@@ -110,7 +116,10 @@ export interface A2AVerification {
   G: string;
   C: string;
   M: string | null;
-  oracle: string;
+  card_snapshot_id: string;
+  card_version: number;
+  commands: { argv: string[]; cwd: string }[];
+  results: A2ACommandResult[];
   workspace: string;
   state: "running" | "passed" | "failed" | "interrupted" | "unknown" | "merge_failed";
   command_intent?: { argv: string[]; cwd: string };
@@ -123,8 +132,10 @@ export interface A2ATask {
   title?: string;
   project_id: string;
   repo: string;
-  oracle: string;
-  instructions: string;
+  integration_ref: string;
+  card_snapshot_id: string;
+  card_version: number;
+  card: TaskCard;
   base_commit: string;
   state: string;
   spec_rev: number;
@@ -139,7 +150,9 @@ export interface A2ATask {
     attempt: A2AAttempt;
     spec_rev?: number;
     C?: string;
-    oracle?: string;
+    card_snapshot_id: string;
+    integration_ref: string;
+    worktree: string | null;
     intent_id?: string;
     command_intent?: { argv: string[]; cwd: string };
     result?: A2ACommandResult;
@@ -189,6 +202,8 @@ export interface A2AUserInputObserver {
 
 export interface A2AGateResult {
   ok: boolean;
+  card?: TaskCard;
+  card_version?: number;
   task?: A2ATask;
   run?: A2ARun;
   user_input_observer?: A2AUserInputObserver;
@@ -257,7 +272,7 @@ export interface A2AUserInput {
     request?: string | null;
     eventSequence?: number;
   };
-  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page";
+  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page" | "commit-trailer";
   reply_to: string | null;
   source_ref: {
     message_id?: string;
@@ -265,8 +280,10 @@ export interface A2AUserInput {
     source_sequence?: number;
     command_id?: string;
     rpc?: string;
+    commit?: string;
+    label?: string;
   };
-  certainty: "observed";
+  certainty: "observed" | "inferred";
   created_at: string;
   bundle_id?: string;
   question?: { number: number; title: string; body: string };

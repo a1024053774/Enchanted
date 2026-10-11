@@ -7,7 +7,11 @@ import { parseArgs } from "node:util";
 import { A2AGates, Refusal, type GateRuntime } from "./core.ts";
 
 const commands: Record<string, { required: string[]; optional?: string[] }> = {
-  create: { required: ["repo", "base", "oracle", "instructions"], optional: ["project", "title"] },
+  card_template: { required: ["repo"], optional: ["ticket", "project"] },
+  card_validate: { required: ["card"] },
+  card_save: { required: ["card", "expected-version"] },
+  card_show: { required: ["card-version"] },
+  create: { required: ["repo", "branch", "card-version"], optional: ["project", "title"] },
   dispatch: { required: ["runtime-mode"] },
   attach: {
     required: ["role", "model-selection", "instructions", "runtime-mode"],
@@ -16,7 +20,7 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   run: { required: ["runtime-mode", "wait-seconds"] },
   claim: { required: ["owner"] },
   revoke: { required: ["reason"] },
-  revise: { required: ["spec-rev"] },
+  revise: { required: ["spec-rev"], optional: ["card-version"] },
   submit: { required: ["attempt", "session", "fence", "spec-rev", "commit"] },
   verify: { required: [], optional: ["attempt"] },
   integrate: { required: [], optional: ["attempt"] },
@@ -59,8 +63,7 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime) 
       "model-selection",
       "runtime-mode",
       "wait-seconds",
-      "base",
-      "oracle",
+      "branch", "card", "ticket", "card-version", "expected-version",
       "instructions",
       "owner",
       "reason",
@@ -112,7 +115,7 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime) 
     request = { command };
     for (const [key, value] of Object.entries(values)) {
       if (key === "state") continue;
-      if (key === "fence" || key === "spec-rev" || key === "wait-seconds") {
+      if (["fence", "spec-rev", "wait-seconds", "card-version", "expected-version"].includes(key)) {
         if (
           typeof value !== "string" ||
           !/^[+-]?\d+$/.test(value) ||

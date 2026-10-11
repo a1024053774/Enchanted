@@ -26,7 +26,7 @@ REFERENCE = ROOT / "acceptance" / "reference" / "pager.py"
 ORACLE = ROOT / "acceptance" / "pagination_oracle.py"
 CONTRACT = ROOT / "fixtures" / "pagination" / "CONTRACT.md"
 STARTER = ROOT / "fixtures" / "pagination" / "pager.py"
-INTEGRATION_REF = "refs/a2a/integration"
+INTEGRATION_REF = "refs/heads/main"
 COMMANDS = []
 ARTIFACTS = []
 
@@ -68,7 +68,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
             self.env.pop(key, None)
         self.env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
                          "GIT_TERMINAL_PROMPT": "0", "PYTHONDONTWRITEBYTECODE": "1"})
-        self.git("init")
+        self.git("init", "-b", "main")
         self.git("config", "user.name", "Independent acceptance fixture")
         self.git("config", "user.email", "a2a-check@example.invalid")
         self.git("config", "core.logAllRefUpdates", "always")
@@ -139,9 +139,20 @@ class ManagedDeliveryCLI(unittest.TestCase):
 
     def create(self, task=None):
         task = task or self.task
+        card = {
+            "id": task, "source": None, "goal": self.instructions.read_text(encoding="utf-8"),
+            "non_goals": ["不改变独立分页合同"], "paths": {"allow": ["."], "deny": []},
+            "completion_conditions": [{"argv": [sys.executable, "-I", "-B", "-c",
+                                                 self.oracle.read_text(encoding="utf-8"), "{worktree}"]}],
+            "red_commands": [], "task_type": "后端逻辑", "repair_target": None,
+            "complexity": "M", "executor": {"cli": "Codex", "model": "fixture", "effort": "xhigh"},
+            "base_commit": None, "writer": None,
+        }
+        self.card_source = self.root / (task + ".card.json")
+        self.card_source.write_text(json.dumps(card, ensure_ascii=False), encoding="utf-8")
+        self.cli("card_save", "--task", task, "--card", self.card_source, "--expected-version", "0")
         result = self.cli("create", "--task", task, "--repo", self.repo,
-                          "--base", self.base, "--oracle", self.oracle,
-                          "--instructions", self.instructions)
+                          "--branch", INTEGRATION_REF, "--card-version", "1")
         self.assertIsInstance(result.get("task"), dict, result)
         self.assertEqual(result["task"]["spec_rev"], 1)
         self.assertTrue((self.state / "state.sqlite3").is_file())
@@ -306,8 +317,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
                 before = self.business_state(task)
                 previous_events = self.events(task)
                 duplicate = self.cli("create", "--task", task, "--repo", self.repo,
-                                     "--base", self.base, "--oracle", self.oracle,
-                                     "--instructions", self.instructions, ok=False)
+                                     "--branch", INTEGRATION_REF, "--card-version", "1", ok=False)
                 self.assertEqual(self.business_state(task), before)
                 self.assert_rejection_recorded(duplicate["error"], previous_events, task)
 
@@ -400,6 +410,10 @@ class ManagedDeliveryCLI(unittest.TestCase):
         # Replacing the caller-owned source must not replace the registered oracle.
         self.oracle.write_text("import sys\nprint('changed oracle source')\nsys.exit(23)\n",
                                encoding="utf-8")
+        changed_card = json.loads(self.card_source.read_text(encoding="utf-8"))
+        changed_card["completion_conditions"][0]["argv"] = [sys.executable, "-c", "import sys; sys.exit(23)"]
+        self.card_source.write_text(json.dumps(changed_card), encoding="utf-8")
+        self.cli("card_save", "--task", self.task, "--card", self.card_source, "--expected-version", "1")
         self.submit(attempt, commit)
         self.assertEqual(self.status()["state"], "submitted")
         self.assertEqual(self.ref(), self.base)
@@ -451,7 +465,6 @@ class ManagedDeliveryCLI(unittest.TestCase):
         self.git("add", "external-change.txt")
         self.git("commit", "-m", "External change after verification")
         external = self.git("rev-parse", "HEAD").stdout.strip()
-        self.git("update-ref", INTEGRATION_REF, external, self.base)
         log_before = self.reflog()
         events = self.events()
         self.cli("integrate", "--task", self.task, ok=False, error="integration_conflict")

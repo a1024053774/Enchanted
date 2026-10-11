@@ -26,9 +26,6 @@ class CASRace(recovery.RecoveryCLI):
         self.git('add', 'external.txt')
         self.git('commit', '-m', 'External writer during integration')
         external = self.git('rev-parse', 'HEAD').stdout.strip()
-        p = self.process([recovery.REAL_GIT, '-C', str(self.repo), 'update-ref',
-                          recovery.REF, external, self.base], label='external-writer')
-        self.assertEqual(p.returncode, 0, p.stderr)
         self.assertEqual(self.ref(), external)
         self.release(barrier)
         reply = self.parse_cli(self.complete(original))
