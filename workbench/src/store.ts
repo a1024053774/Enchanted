@@ -24,6 +24,22 @@ export class OrchestrationStore {
     this.db.prepare("INSERT INTO launch_records(id,task,attempt,data) VALUES (?,?,?,?)")
       .run(data.id, data.task, data.attempt, JSON.stringify(data));
   }
+  launches(): Record<string, any>[] {
+    return this.db.prepare("SELECT data FROM launch_records ORDER BY rowid").all().map((row) => JSON.parse(String(row.data)));
+  }
+  launchRecord(id: string): Record<string, any> | undefined {
+    const row = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(id);
+    return row ? JSON.parse(String(row.data)) : undefined;
+  }
+  threadLaunch(thread: string): Record<string, any> | undefined {
+    const row = this.db.prepare("SELECT data FROM launch_records WHERE json_extract(data,'$.thread')=? ORDER BY rowid DESC LIMIT 1").get(thread);
+    return row ? JSON.parse(String(row.data)) : undefined;
+  }
+  lastEvent(launch: string, types: string[]) {
+    const row = this.db.prepare(`SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (${types.map(() => "?").join(",")}) ORDER BY seq DESC LIMIT 1`)
+      .get(launch, ...types);
+    return row ? { seq: Number(row.seq), time: String(row.time), type: String(row.type), data: JSON.parse(String(row.data)) } : null;
+  }
   register(launch: string, text: string, source: "executor" | "gate" = "executor") {
     const id = randomUUID();
     const registered_at = new Date().toISOString();

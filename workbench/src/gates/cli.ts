@@ -15,6 +15,8 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   daemon_status: { required: [] },
   daemon_stop: { required: [] },
   pane_status: { required: ["thread"] },
+  pane_output: { required: ["launch", "offset"], optional: ["max-bytes"] },
+  workbench_snapshot: { required: [], optional: ["launch"] },
   pane_process_info: { required: ["thread"] },
   pane_release: { required: ["thread", "reason"] },
   pane_dispatch: { required: ["thread", "body-file"] },
@@ -104,7 +106,7 @@ export async function main(argv = process.argv.slice(2)) {
       "id",
       "bundle-id",
       "stop-id",
-      "launch-config", "launch", "body-file", "request-id",
+      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes",
     ];
     const { values, positionals } = parseArgs({
       args: argv,
@@ -133,7 +135,7 @@ export async function main(argv = process.argv.slice(2)) {
     request = { command };
     for (const [key, value] of Object.entries(values)) {
       if (key === "state") continue;
-      if (["fence", "spec-rev", "wait-seconds", "card-version", "expected-version"].includes(key)) {
+      if (["fence", "spec-rev", "wait-seconds", "card-version", "expected-version", "offset", "max-bytes"].includes(key)) {
         if (
           typeof value !== "string" ||
           !/^[+-]?\d+$/.test(value) ||

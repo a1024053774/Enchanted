@@ -1,4 +1,4 @@
-import { accessSync, appendFileSync, constants, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -63,6 +63,52 @@ export class Panes implements GateRuntime {
     const pane = [...this.panes.values()].find((value) => value.record.id === id);
     check(pane, "unknown_launch"); return pane;
   }
+  launchRecord(id: string) {
+    check(typeof id === "string", "unknown_launch");
+    const record = this.store.launchRecord(id);
+    check(record, "unknown_launch");
+    return record;
+  }
+  // A restarted host can describe historical launches, never adopt their PTYs.
+  recover(daemon: string) {
+    for (const record of this.store.launches()) {
+      if (this.store.lastEvent(record.id, ["pane_recovered", "pane_archived"])) continue;
+      const exit = this.store.lastEvent(record.id, ["pane_exit"]);
+      const start = this.store.lastEvent(record.id, ["pane_started"]);
+      this.store.event("pane_recovered", { daemon, state: "unknown", lifecycle: exit ? "interrupted" : "unknown",
+        reason: "daemon_restart", shell_pid: start?.data.shell_pid ?? null,
+        exit_event: exit?.seq ?? null, session: record.session, fence: record.fence, spec_rev: record.spec_rev }, record as any);
+    }
+  }
+  launchInfo(id: string) {
+    const record = this.launchRecord(id);
+    const pane = this.panes.get(record.thread);
+    if (pane) {
+      this.scan(pane);
+      return { launch: record, native_session: pane.native, model: pane.model, effort: pane.effort };
+    }
+    return { launch: record, native_session: null, model: "unknown", effort: "unknown" };
+  }
+  output(id: string, offset: number, maxBytes = 65536) {
+    const record = this.launchRecord(id);
+    check(Number.isSafeInteger(offset) && offset >= 0, "invalid_output_offset");
+    check(Number.isSafeInteger(maxBytes) && maxBytes > 0 && maxBytes <= 65536, "invalid_output_limit");
+    // Use only the persisted launch identity, never a client-supplied filename.
+    check(/^[a-zA-Z0-9-]+$/.test(record.id), "invalid_launch_record");
+    const file = join(this.root, "traces", record.id, "pty.raw");
+    check(existsSync(file), "trace_unavailable");
+    const fd = openSync(file, "r");
+    try {
+      const stat = fstatSync(fd);
+      check(stat.isFile(), "trace_unavailable");
+      check(offset <= stat.size, "output_offset_past_end");
+      const bytes = Buffer.alloc(Math.min(maxBytes, stat.size - offset));
+      const read = readSync(fd, bytes, 0, bytes.length, offset);
+      check(read === bytes.length, "trace_changed_during_read");
+      return { launch: record.id, start_offset: offset, next_offset: offset + read,
+        total_bytes: stat.size, data_base64: bytes.toString("base64") };
+    } finally { closeSync(fd); }
+  }
   async createThread(task: A2ATask, attempt: A2AAttempt) {
     check(this.panes.size === 0, "single_worker_slice");
     check(attempt.runtime_mode === "workspace-write", "worker_requires_workspace_write");
@@ -116,6 +162,7 @@ export class Panes implements GateRuntime {
       shell: "/bin/zsh", shell_argv: shellArgv, env: recordedEnvironment, helper, hook_authorization: c.hook_authorization };
     this.store.launch(record);
     mkdirSync(join(this.root, "traces", launch), { recursive: true, mode: 0o700 });
+    appendFileSync(join(this.root, "traces", launch, "pty.raw"), "", { flag: "wx", mode: 0o600 });
     const terminal = require("node-pty").spawn("/bin/zsh", shellArgv, {
       name: "xterm-256color", cols: 160, rows: 45, cwd: attempt.workspace, env: environment, encoding: "utf8",
     });
@@ -132,13 +179,25 @@ export class Panes implements GateRuntime {
       catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
     });
     terminal.onExit((event: unknown) => {
+      // The CLI can flush rollout records while exiting without emitting Stop.
+      // Read after exit, before publishing the terminal lifecycle transition.
+      try {
+        this.scan(pane, true);
+        this.store.event("native_final_read", { native_session: pane.native,
+          offsets: [...pane.offsets].map(([file, offset]) => ({ file: relative(home, file), offset })) }, record);
+      } catch (error) {
+        this.recordFailure(pane, "native_final_read_failed", error, { native_session: pane.native,
+          offsets: [...pane.offsets].map(([file, offset]) => ({ file: relative(home, file), offset })),
+          details: error instanceof Refusal ? error.details : null });
+      }
       pane.stopped = true; pane.state = "unknown";
-      this.store.event("pane_exit", event, record);
+      try { this.store.event("pane_exit", event, record); }
+      catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
     });
   }
-  recordFailure(pane: Pane, type: string, error: unknown) {
+  recordFailure(pane: Pane, type: string, error: unknown, context?: unknown) {
     pane.failed = `${type}: ${String(error)}`; pane.state = "unknown";
-    try { this.store.event(type, { error: String(error), state: "unknown" }, pane.record); }
+    try { this.store.event(type, { error: String(error), state: "unknown", ...(context ? { context } : {}) }, pane.record); }
     catch (recordError) {
       const reason = `event_write_failed: ${String(recordError)}; original ${pane.failed}`;
       pane.failed = reason;
@@ -189,14 +248,17 @@ export class Panes implements GateRuntime {
     this.scan(pane);
     return { shell_pid: pane.pty.pid, leader, native_session: pane.native, processes: owned, failed: pane.failed };
   }
-  scan(pane: Pane) {
+  scan(pane: Pane, final = false) {
+    if (pane.stopped) return;
     const home = this.config.codex_home!;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
-    for (const file of walk(join(home, "sessions"))) {
+    const files = final ? [...pane.offsets.keys()].filter((file) => pane.native && file.endsWith(pane.native + ".jsonl")) : walk(join(home, "sessions"));
+    if (final) check(pane.native && files.length === 1, "native_bound_log_unavailable", { native_session: pane.native, files });
+    for (const file of files) {
       const bytes = readFileSync(file);
       let offset = pane.offsets.get(file) ?? 0;
-      check(bytes.length >= offset, "native_log_truncated");
+      check(bytes.length >= offset, "native_log_truncated", { file: relative(home, file), offset, bytes: bytes.length });
       let end: number;
       while ((end = bytes.indexOf(10, offset)) >= 0) {
         const raw = bytes.subarray(offset, end).toString("utf8"), event = JSON.parse(raw);
@@ -220,6 +282,7 @@ export class Panes implements GateRuntime {
         offset = end + 1;
         pane.offsets.set(file, offset);
       }
+      if (final) check(offset === bytes.length, "native_log_incomplete_line", { file: relative(home, file), offset, bytes: bytes.length });
     }
   }
   startThread = async (_task: A2ATask, attempt: A2AAttempt, prompt: string) => {
@@ -271,9 +334,22 @@ export class Panes implements GateRuntime {
     return this.status(thread);
   }
   status(thread: string) {
-    const pane = this.get(thread); this.scan(pane);
-    return { thread, launch: pane.record.id, state: pane.state, active: pane.active, native_session: pane.native,
-      turn: pane.turn, writing: pane.writing, queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped };
+    const pane = this.panes.get(thread);
+    if (pane) {
+      this.scan(pane);
+      return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
+        lifecycle: pane.archived ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
+        state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
+        turn: pane.turn, writing: pane.writing, queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped };
+    }
+    const record = this.store.threadLaunch(thread);
+    check(record, "unknown_pane");
+    const archived = this.store.lastEvent(record.id, ["pane_archived"]);
+    const recovered = this.store.lastEvent(record.id, ["pane_recovered"]);
+    return { thread, launch: record.id, state: "unknown", lifecycle: archived ? "ended" : recovered?.data.lifecycle ?? "unknown",
+      shell_pid: recovered?.data.shell_pid ?? null, state_source: archived ? "pane_archived" : recovered ? "pane_recovered" : "launch_record",
+      active: null, native_session: null, turn: null, writing: false, queued: [], failed: null,
+      stopped: archived ? true : recovered?.data.exit_event ? true : null, historical: true };
   }
   async signal(launch: string, raw: string, received_at: string,
     transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
@@ -337,7 +413,6 @@ export class Panes implements GateRuntime {
   };
   async terminate(pane: Pane, reason: string) {
     if (pane.stopped) return;
-    this.scan(pane);
     this.store.event("pane_stop_intent", { reason, shell_pid: pane.pty.pid }, pane.record);
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Refusal("pane_stop_unconfirmed")), 5000);

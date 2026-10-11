@@ -148,3 +148,21 @@ T-075-1：门禁迁移、隔离验收和一次 fresh-context 独立审查均 PAS
 - 打分已记录。
 
 下一张：T-075-4，做最小 Electron 窗口和常驻行为（关掉再开能重新接上，后台重启后的恢复）。
+
+**T-075-4 完成（2026-10-11）：PASS，待主控关闭。** Ticket 保持 open；一次 fresh-context 独立审查原始 FAIL，唯一 P2 为 Electron 首次安装缓存回退，已先红后绿修复，主控 #45 已明确审过并批准三文件修复 diff，未追审。本结论采用主控 #44／#45 批准的证据组合，不改写 live-04 原始 INCOMPLETE。完整中文报告、限制及全部失败见 [card-4/RESULTS](../../evidence/2026-10-10-batch12/T-075/card-4/RESULTS.md)。
+
+T-075 Acceptance 逐项证据位置与边界：
+
+| 验收项 | 证据 |
+| --- | --- |
+| 从后台 CLI 驱动真实 Codex、完整门禁、事件、Git、Electron | 卡 3 [RESULTS](../../evidence/2026-10-10-batch12/T-075/card-3/RESULTS.md) 的 outside-b-06 完整真实交付；本卡 [live-04](../../evidence/2026-10-10-batch12/T-075/card-4/outside-live-04/) 补齐 capturePage 截图和真实窗格生命周期。是分卡组合证据，不声称同一次运行同时完成交付与重启 |
+| G→M、事件、候选尾注正例 | 卡 3 outside-b-06：G=51d612b、C=641e55b、M=287bbf8，独立库与 Git 读回、九项尾注；见其 RESULTS 完整提交号 |
+| 禁止路径、失败完成条件、外任务尾注、缺尾注人工介入、过期身份反例 | 卡 2 [RESULTS](../../evidence/2026-10-10-batch12/T-075/card-2/RESULTS.md) 与 outside-review-green.SC1xPN；卡 3 outside-b-06 的后台门禁 15/15；本卡 outside-checks-01/02 同套后台回归通过 |
+| 门禁迁移 8/9/18 重新证明 | 卡 1 [迁移 RESULTS](../../evidence/2026-10-10-batch12/T-075/RESULTS.md)、卡 2 收尾三套全过及变异体；本卡增加真实后台 recovery 5/5。旧记录各自绑定当时版本，不把它们写成最终候选重新跑过全部旧场景 |
+| 关窗不停止、重开补回、后台重启 | live-04/lifecycle 的 closed-output-readback、独立 ps、reopened-backfill／reopened-live 字节对照、restart-readback、SQLite 与 interrupted-original-attempt.png。停止后原生记录遗漏按主控 #44 用 native-final-red-01 → native-final-green-01 的九项离线场景修复；live-04 原 contexts 断言失败保留 |
+| 状态只来自结构化信号，不读屏 | live-04/offline-trace：中文跨块、诱导文字／OSC、普通／备用屏幕切换；门禁仍 claimed、窗格 unknown。终端只读方案已获批准，用户输入链归 S4 |
+| 外置盘构建／缓存，内置数据目录 | live-04 build manifest 正例；outside-checks-01/02 的缺盘、普通目录反例及 cache-readback；Electron 安装缓存反例 review-cache-red-02 → review-cache-green-01。默认数据 a2a-orchestrator，本卡全部运行目录为 /tmp 隔离夹具 |
+| 不写全局配置、Herdr 或正式工作台 | 本卡运行仅自建后台／Electron；隔离 CODEX_HOME 只复制 auth，live-01/03/04 均清理；无真实回合追加、无 push。正式 Synara PID 未操作 |
+| 产物、重现命令、地图健康 | card-4/RESULTS 每段有命令、原始输出和限制；完整仓库的 delivery-precommit-01、delivery-code-01 保存提交前后 0 problems、0 stale 收据。review-candidate-01 是不完整冻结包，其 49 problems 不代表实际仓库结果 |
+
+本卡真实回合累计 3/4，按主控 #44／#45 没有追加。现有界面／后台核心证据与最后采集离线修复经独立审查核对；五类计划产品变异体未全部执行，已明确披露，不冒称完成。实现提交号、九项尾注和提交后地图读回见 card-4/delivery-code-01/receipt.json；最终收据提交号以 DONE 行为准。非阻塞 issue `20261011T080957Z-worker:s12-t075-4-issue-001` 的 README Covers 登记留主控处理，worker 未修改地图。

@@ -1,0 +1,70 @@
+{
+  "status": "PASS",
+  "claim": "仅验证 ElectronClient 实际传给 Popen 的 argv 使用主控指定的真实路径；Popen 被截获，未运行 Electron",
+  "procedure": "加载 checks-02 冻结的 ElectronClient 和当前 ElectronClient；均传入 checks-02 的符号链接源码目录；在 Popen 边界截获 argv；与主控提供的已安装 Electron 真实路径逐字比较。旧版必须不符，新版必须相符。",
+  "results": [
+    {
+      "version": "known_bad",
+      "module": "/private/tmp/a2a4src-i3jv1ixv/source/workbench/tests/electron_client.py",
+      "source": "/private/tmp/a2a4src-i3jv1ixv/source",
+      "binary": "/private/tmp/a2a4src-i3jv1ixv/source/workbench/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      "expected": "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      "matches": false,
+      "electron_spawned": false
+    },
+    {
+      "version": "candidate",
+      "module": "/Users/luckye/Documents/Code/a2a/workbench/tests/electron_client.py",
+      "source": "/private/tmp/a2a4src-i3jv1ixv/source",
+      "binary": "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      "expected": "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      "matches": true,
+      "electron_spawned": false
+    }
+  ],
+  "static_checks": [
+    {
+      "file": "workbench/tests/electron_client.py",
+      "check": "AST",
+      "status": "PASS"
+    },
+    {
+      "file": "evidence/2026-10-10-batch12/T-075/card-4/run_outside.py",
+      "check": "AST",
+      "status": "PASS"
+    },
+    {
+      "argv": [
+        "zsh",
+        "-n",
+        "/Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-4/outside-sandbox.sh"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py",
+        "status",
+        "--root",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "Problems (0):\nStale living docs (0):\nFrontier (6):\n  - T-010 [task] Account for descendant agent sessions and model settings\n  - T-011 [task] Check monitor coverage and finding disposition\n  - T-012 [task] Define research deliverables and handoff evidence\n  - T-013 [task] Make fixture governance scope explicit\n  - T-014 [task] Check evidence capture and artifact packaging before model runs\n  - T-075 [build] tracer bullet：编排后台、门禁、Codex worker 窗格、最小 Electron 窗口跑通一次交付\n",
+      "stderr": ""
+    }
+  ],
+  "fixture": "/tmp/a2a4path-pj1793xw"
+}

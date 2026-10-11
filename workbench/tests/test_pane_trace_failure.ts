@@ -1,7 +1,7 @@
 // Isolated failure injection: a PTY callback cannot safely be made to fail in a
 // paid model run. Cover trace I/O failure and trace+event-store failure separately.
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { createRequire } from "node:module";
 import { Panes } from "../src/panes.ts";
@@ -32,7 +32,9 @@ for (const failEvents of [false, true]) {
       { task_id: "fixture", attempt_id: "attempt", session_id: "session", fence: 1, spec_rev: 1,
         runtime_mode: "workspace-write", thread_id: "thread", workspace: root, base_commit: "baseline" } as any);
     const pane = panes.get("thread");
-    mkdirSync(join(root, "traces", pane.record.id, "pty.raw")); // appendFile fails with EISDIR.
+    const trace = join(root, "traces", pane.record.id, "pty.raw");
+    renameSync(trace, trace + ".before-fault"); // Preserve the newly created empty trace.
+    mkdirSync(trace); // appendFile fails with EISDIR.
     if (failEvents) store.db.exec("PRAGMA query_only=ON");
     onData("trace must be recorded");
     assert.equal(pane.state, "unknown");

@@ -6,6 +6,7 @@ import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
 import { RequestRelay } from "./relay.ts";
+import { randomUUID } from "node:crypto";
 
 async function serve(root: string, config: LaunchConfig) {
   mkdirSync(root, { recursive: true, mode: 0o700 });
@@ -17,6 +18,7 @@ async function serve(root: string, config: LaunchConfig) {
   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
   const gates = new A2AGates(root, panes);
   const relay = new RequestRelay(store);
+  const daemon = randomUUID();
   gates.setUserInputObserverStatus("healthy");
   let stopping = false;
   let activeRequests = 0;
@@ -45,6 +47,20 @@ async function serve(root: string, config: LaunchConfig) {
       return { ok: true, pid: process.pid, stopping: true };
     }
     if (input.command === "orchestration_events") return { ok: true, events: store.read(input.task) };
+    if (input.command === "pane_output") return { ok: true, ...panes.output(input.launch, input.offset, input.max_bytes) };
+    if (input.command === "workbench_snapshot") {
+      const result = await gates.call({ command: "status", task: input.task });
+      if (!result.ok || !result.task) return result;
+      const record = input.launch ? panes.launchRecord(input.launch) :
+        result.task.current_attempt?.thread_id ? store.threadLaunch(result.task.current_attempt.thread_id) : undefined;
+      if (record && record.task !== input.task) throw new Refusal("launch_task_mismatch");
+      const pane = record ? panes.status(record.thread) : null;
+      const launch = record ? { id: record.id, project: record.project, task: record.task, attempt: record.attempt,
+        session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,
+        role: record.role, cli_version: record.cli_version, model_requested: record.model_requested,
+        effort_requested: record.effort_requested, created_at: record.created_at } : null;
+      return { ok: true, daemon, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
+    }
     if (input.command === "pane_status") return { ok: true, ...panes.status(input.thread) };
     if (input.command === "pane_process_info") return { ok: true, ...await panes.processInfo(input.thread) };
     if (input.command === "pane_release") return { ok: true, ...await panes.release(input.thread, input.reason) };
@@ -78,8 +94,7 @@ async function serve(root: string, config: LaunchConfig) {
     }
     if (input.command === "launch_show") {
       if (identity && identity.launch !== input.launch) throw new Refusal("stale_launch");
-      const pane = panes.byLaunch(input.launch); panes.scan(pane);
-      return { ok: true, launch: pane.record, native_session: pane.native, model: pane.model, effort: pane.effort };
+      return { ok: true, ...panes.launchInfo(input.launch) };
     }
     const caller = identity ? await panes.caller(identity) : undefined;
     return await gates.call(input, caller);
@@ -103,9 +118,10 @@ async function serve(root: string, config: LaunchConfig) {
       let result: any;
       try {
         envelope = JSON.parse(buffer.slice(0, end));
-        store.event("request_received", { id: envelope.id, input: envelope.input, source: envelope.identity ? "worker" : "executor" });
+        const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
+        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: envelope.identity ? "worker" : "executor" });
         result = await handle(envelope);
-        store.event("request_result", { id: envelope.id, command: envelope.input.command,
+        if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
           ok: result.ok, error: result.error, details: result.details });
       } catch (error) {
         result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error) };
@@ -134,7 +150,8 @@ async function serve(root: string, config: LaunchConfig) {
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socket, resolve); });
   chmodSync(socket, 0o600);
   writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
-  store.event("daemon_started", { pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
+  panes.recover(daemon);
+  store.event("daemon_started", { daemon, pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
   process.send?.({ ok: true, pid: process.pid, root, helper });
 }
 

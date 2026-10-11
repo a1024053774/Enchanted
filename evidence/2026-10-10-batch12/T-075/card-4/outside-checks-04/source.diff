@@ -1,0 +1,351 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index 83239de..5e47e04 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -1,4 +1,4 @@
+-# a2a 门禁与编排后台（T-075-3）
++# a2a 门禁、编排后台与只读工作台
+ 
+ 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+ 
+@@ -12,7 +12,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status
+ 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
+ T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
+ B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本卡一次独立审查 PASS。
+-该结论限本地夹具，不包含 Electron、后台重启恢复或完整工作台切换。
++该结论限卡 3 的本地夹具；Electron 与重启恢复的实现和验证进度另见文末卡 4 记录，完整工作台尚未切换。
+ 
+ 受管派发提示要求 `git add <路径>` 与 `git commit …` 各自独立执行，
+ 检查命令另行运行，以便两个已授权的 Git 前缀规则分别匹配。
+@@ -78,8 +78,8 @@ npm ls --depth=0
+ 
+ ## 运行时边界
+ 
+-`GateRuntime` 由 `panes.ts` 实现一个 Codex worker 窗格；本卡没有 Claude、普通 attach
+-会话、Electron 或后台重启恢复。生产 CLI 没有直接开库的运行时替代入口。
++`GateRuntime` 由 `panes.ts` 实现一个 Codex worker 窗格；没有 Claude 或普通 attach
++会话。生产 CLI 没有直接开库的运行时替代入口。
+ 旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
+ 
+ 真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
+@@ -95,6 +95,43 @@ workspace-write、任务卡指定的 gpt-6-astra 或 gpt-6.1-sol、xhigh、Fast
+ 只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
+ 本卡暂只提供首次 release，后续人工输入与中断放行尚未完成，见证据目录 RESULTS。
+ 
++## 只读 Electron 窗口
++
++窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
++窗格和门禁状态；终端网格固定为 160×45，只允许选择、复制和滚动。没有终端输入接口，
++用户输入记录与 Esc 后人工放行属于 S4，设备查询应答仍由后台处理。
++
++构建必须在外置盘真实挂载后进行，每次使用一个尚未存在的构建槽：
++
++```sh
++npm --prefix workbench run build -- --slot local-01
++node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
++```
++
++缓存、构建临时目录和 dist 都在外置盘；没有内置盘回退。`A2A_BUILD_VOLUME` 可指定
++验收用的检查路径，普通目录和符号链接不能通过挂载检查。已有构建槽不会覆盖；不要在
++输出目录中放源码或依赖链接。启动只读取已有构建产物，不自动构建、装包或启动后台。
++
++默认后台目录为 `~/Library/Application Support/a2a-orchestrator`，默认 Electron 数据位于其
++`ui/` 子目录。验证时同时显式指定后台与 UI 的 `/tmp` 隔离目录。
++
++```sh
++node workbench/src/gates/cli.ts --state /绝对路径/state workbench_snapshot --task 任务编号
++node workbench/src/gates/cli.ts --state /绝对路径/state pane_output --launch 启动记录号 --offset 0 --max-bytes 65536
++```
++
++`workbench_snapshot` 可加 `--launch` 查看本任务的历史窗格。窗口第一次选定 launch 后固定
++该身份，不随 current_attempt 改变而切换。`pane_output` 返回 base64 原始字节和
++start_offset、next_offset、total_bytes；每块最多 65536 字节，从同一追加 trace 读取。
++新窗口从 0 补回，已有窗口收到 xterm 的解析完成回调才推进游标；缺失、缩短或错序
++明确报错，不跳过字节。关掉 Electron 只断开视图，后台和窗格由独立进程托管。
++
++后台重启会追加 `pane_recovered`，原窗格只作历史查询，不重建 PTY、令牌、队列或
++worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
++门禁状态原值保留，因此“门禁已认领”和“执行已中断”可以同时出现。原 verify/integrate
++命令显式重放才执行恢复，启动或读取窗口不能把未知结果改成通过。
++崩溃残留的 socket/PID 文件阻止启动；产品不会按 PID 猜测所有者并自动接管。
++
+ 默认产品路径为 `~/Library/Application Support/a2a-orchestrator`；本卡测试只用显式
+ `--state /tmp/...`，不创建默认路径，不接触正式 `a2a-workbench` 目录。
+ 新增 launch_records、dispatch_records、orchestration_events、relay_requests、relay_results
+@@ -132,3 +169,8 @@ Git 尾注钩子当前只读会话环境；最近回合模型与强度取不到
+ [T-075-1 迁移记录](../evidence/2026-10-10-batch12/T-075/RESULTS.md) 和
+ [T-075-2 当前结果](../evidence/2026-10-10-batch12/T-075/card-2/RESULTS.md)；
+ 后台与 B 的进度见 [T-075-3 运行记录](../evidence/2026-10-10-batch12/T-075/card-3/RESULTS.md)。
++
++只读窗口与重启查询见 [T-075-4 运行记录](../evidence/2026-10-10-batch12/T-075/card-4/RESULTS.md)。
++界面迁入片段来自已推送的 `49cae984f22924de006e0f8358cb447eb881aaf6`：
++`apps/web/src/components/TerminalScrollToBottom.tsx`、`apps/web/src/index.css` 与
++`apps/web/src/theme/theme.seed.generated.ts`。保留 MIT 声明，未迁入 provider 或 MCP 网关。
+diff --git a/workbench/package.json b/workbench/package.json
+index 1230166..a7f18f3 100644
+--- a/workbench/package.json
++++ b/workbench/package.json
+@@ -7,7 +7,9 @@
+     "node": ">=26.5.0 <27"
+   },
+   "scripts": {
+-    "preinstall": "node check-cache.mjs"
++    "preinstall": "node check-cache.mjs",
++    "build": "node app/build.mjs",
++    "start": "node app/start.mjs"
+   },
+   "dependencies": {
+     "@tailwindcss/vite": "4.3.3",
+diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts
+index 8c8a506..367d44a 100644
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -6,6 +6,7 @@ import { OrchestrationStore } from "./store.ts";
+ import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
+ import { socketPath } from "./transport.ts";
+ import { RequestRelay } from "./relay.ts";
++import { randomUUID } from "node:crypto";
+ 
+ async function serve(root: string, config: LaunchConfig) {
+   mkdirSync(root, { recursive: true, mode: 0o700 });
+@@ -17,6 +18,7 @@ async function serve(root: string, config: LaunchConfig) {
+   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
+   const gates = new A2AGates(root, panes);
+   const relay = new RequestRelay(store);
++  const daemon = randomUUID();
+   gates.setUserInputObserverStatus("healthy");
+   let stopping = false;
+   let activeRequests = 0;
+@@ -45,6 +47,20 @@ async function serve(root: string, config: LaunchConfig) {
+       return { ok: true, pid: process.pid, stopping: true };
+     }
+     if (input.command === "orchestration_events") return { ok: true, events: store.read(input.task) };
++    if (input.command === "pane_output") return { ok: true, ...panes.output(input.launch, input.offset, input.max_bytes) };
++    if (input.command === "workbench_snapshot") {
++      const result = await gates.call({ command: "status", task: input.task });
++      if (!result.ok || !result.task) return result;
++      const record = input.launch ? panes.launchRecord(input.launch) :
++        result.task.current_attempt?.thread_id ? store.threadLaunch(result.task.current_attempt.thread_id) : undefined;
++      if (record && record.task !== input.task) throw new Refusal("launch_task_mismatch");
++      const pane = record ? panes.status(record.thread) : null;
++      const launch = record ? { id: record.id, project: record.project, task: record.task, attempt: record.attempt,
++        session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,
++        role: record.role, cli_version: record.cli_version, model_requested: record.model_requested,
++        effort_requested: record.effort_requested, created_at: record.created_at } : null;
++      return { ok: true, daemon, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
++    }
+     if (input.command === "pane_status") return { ok: true, ...panes.status(input.thread) };
+     if (input.command === "pane_process_info") return { ok: true, ...await panes.processInfo(input.thread) };
+     if (input.command === "pane_release") return { ok: true, ...await panes.release(input.thread, input.reason) };
+@@ -78,8 +94,7 @@ async function serve(root: string, config: LaunchConfig) {
+     }
+     if (input.command === "launch_show") {
+       if (identity && identity.launch !== input.launch) throw new Refusal("stale_launch");
+-      const pane = panes.byLaunch(input.launch); panes.scan(pane);
+-      return { ok: true, launch: pane.record, native_session: pane.native, model: pane.model, effort: pane.effort };
++      return { ok: true, ...panes.launchInfo(input.launch) };
+     }
+     const caller = identity ? await panes.caller(identity) : undefined;
+     return await gates.call(input, caller);
+@@ -103,9 +118,10 @@ async function serve(root: string, config: LaunchConfig) {
+       let result: any;
+       try {
+         envelope = JSON.parse(buffer.slice(0, end));
+-        store.event("request_received", { id: envelope.id, input: envelope.input, source: envelope.identity ? "worker" : "executor" });
++        const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
++        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: envelope.identity ? "worker" : "executor" });
+         result = await handle(envelope);
+-        store.event("request_result", { id: envelope.id, command: envelope.input.command,
++        if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
+           ok: result.ok, error: result.error, details: result.details });
+       } catch (error) {
+         result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error) };
+@@ -134,7 +150,8 @@ async function serve(root: string, config: LaunchConfig) {
+   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socket, resolve); });
+   chmodSync(socket, 0o600);
+   writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
+-  store.event("daemon_started", { pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
++  panes.recover(daemon);
++  store.event("daemon_started", { daemon, pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
+   process.send?.({ ok: true, pid: process.pid, root, helper });
+ }
+ 
+diff --git a/workbench/src/gates/cli.ts b/workbench/src/gates/cli.ts
+index cf128fb..125f50b 100644
+--- a/workbench/src/gates/cli.ts
++++ b/workbench/src/gates/cli.ts
+@@ -15,6 +15,8 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
+   daemon_status: { required: [] },
+   daemon_stop: { required: [] },
+   pane_status: { required: ["thread"] },
++  pane_output: { required: ["launch", "offset"], optional: ["max-bytes"] },
++  workbench_snapshot: { required: [], optional: ["launch"] },
+   pane_process_info: { required: ["thread"] },
+   pane_release: { required: ["thread", "reason"] },
+   pane_dispatch: { required: ["thread", "body-file"] },
+@@ -104,7 +106,7 @@ export async function main(argv = process.argv.slice(2)) {
+       "id",
+       "bundle-id",
+       "stop-id",
+-      "launch-config", "launch", "body-file", "request-id",
++      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes",
+     ];
+     const { values, positionals } = parseArgs({
+       args: argv,
+@@ -133,7 +135,7 @@ export async function main(argv = process.argv.slice(2)) {
+     request = { command };
+     for (const [key, value] of Object.entries(values)) {
+       if (key === "state") continue;
+-      if (["fence", "spec-rev", "wait-seconds", "card-version", "expected-version"].includes(key)) {
++      if (["fence", "spec-rev", "wait-seconds", "card-version", "expected-version", "offset", "max-bytes"].includes(key)) {
+         if (
+           typeof value !== "string" ||
+           !/^[+-]?\d+$/.test(value) ||
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index 7009cb6..2a5b074 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -1,4 +1,4 @@
+-import { accessSync, appendFileSync, constants, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync } from "node:fs";
++import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync } from "node:fs";
+ import { dirname, join, relative } from "node:path";
+ import { fileURLToPath } from "node:url";
+ import { createRequire } from "node:module";
+@@ -63,6 +63,52 @@ export class Panes implements GateRuntime {
+     const pane = [...this.panes.values()].find((value) => value.record.id === id);
+     check(pane, "unknown_launch"); return pane;
+   }
++  launchRecord(id: string) {
++    check(typeof id === "string", "unknown_launch");
++    const record = this.store.launchRecord(id);
++    check(record, "unknown_launch");
++    return record;
++  }
++  // A restarted host can describe historical launches, never adopt their PTYs.
++  recover(daemon: string) {
++    for (const record of this.store.launches()) {
++      if (this.store.lastEvent(record.id, ["pane_recovered", "pane_archived"])) continue;
++      const exit = this.store.lastEvent(record.id, ["pane_exit"]);
++      const start = this.store.lastEvent(record.id, ["pane_started"]);
++      this.store.event("pane_recovered", { daemon, state: "unknown", lifecycle: exit ? "interrupted" : "unknown",
++        reason: "daemon_restart", shell_pid: start?.data.shell_pid ?? null,
++        exit_event: exit?.seq ?? null, session: record.session, fence: record.fence, spec_rev: record.spec_rev }, record as any);
++    }
++  }
++  launchInfo(id: string) {
++    const record = this.launchRecord(id);
++    const pane = this.panes.get(record.thread);
++    if (pane) {
++      this.scan(pane);
++      return { launch: record, native_session: pane.native, model: pane.model, effort: pane.effort };
++    }
++    return { launch: record, native_session: null, model: "unknown", effort: "unknown" };
++  }
++  output(id: string, offset: number, maxBytes = 65536) {
++    const record = this.launchRecord(id);
++    check(Number.isSafeInteger(offset) && offset >= 0, "invalid_output_offset");
++    check(Number.isSafeInteger(maxBytes) && maxBytes > 0 && maxBytes <= 65536, "invalid_output_limit");
++    // Use only the persisted launch identity, never a client-supplied filename.
++    check(/^[a-zA-Z0-9-]+$/.test(record.id), "invalid_launch_record");
++    const file = join(this.root, "traces", record.id, "pty.raw");
++    check(existsSync(file), "trace_unavailable");
++    const fd = openSync(file, "r");
++    try {
++      const stat = fstatSync(fd);
++      check(stat.isFile(), "trace_unavailable");
++      check(offset <= stat.size, "output_offset_past_end");
++      const bytes = Buffer.alloc(Math.min(maxBytes, stat.size - offset));
++      const read = readSync(fd, bytes, 0, bytes.length, offset);
++      check(read === bytes.length, "trace_changed_during_read");
++      return { launch: record.id, start_offset: offset, next_offset: offset + read,
++        total_bytes: stat.size, data_base64: bytes.toString("base64") };
++    } finally { closeSync(fd); }
++  }
+   async createThread(task: A2ATask, attempt: A2AAttempt) {
+     check(this.panes.size === 0, "single_worker_slice");
+     check(attempt.runtime_mode === "workspace-write", "worker_requires_workspace_write");
+@@ -116,6 +162,7 @@ export class Panes implements GateRuntime {
+       shell: "/bin/zsh", shell_argv: shellArgv, env: recordedEnvironment, helper, hook_authorization: c.hook_authorization };
+     this.store.launch(record);
+     mkdirSync(join(this.root, "traces", launch), { recursive: true, mode: 0o700 });
++    appendFileSync(join(this.root, "traces", launch, "pty.raw"), "", { flag: "wx", mode: 0o600 });
+     const terminal = require("node-pty").spawn("/bin/zsh", shellArgv, {
+       name: "xterm-256color", cols: 160, rows: 45, cwd: attempt.workspace, env: environment, encoding: "utf8",
+     });
+@@ -271,9 +318,22 @@ export class Panes implements GateRuntime {
+     return this.status(thread);
+   }
+   status(thread: string) {
+-    const pane = this.get(thread); this.scan(pane);
+-    return { thread, launch: pane.record.id, state: pane.state, active: pane.active, native_session: pane.native,
+-      turn: pane.turn, writing: pane.writing, queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped };
++    const pane = this.panes.get(thread);
++    if (pane) {
++      this.scan(pane);
++      return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
++        lifecycle: pane.archived ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
++        state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
++        turn: pane.turn, writing: pane.writing, queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped };
++    }
++    const record = this.store.threadLaunch(thread);
++    check(record, "unknown_pane");
++    const archived = this.store.lastEvent(record.id, ["pane_archived"]);
++    const recovered = this.store.lastEvent(record.id, ["pane_recovered"]);
++    return { thread, launch: record.id, state: "unknown", lifecycle: archived ? "ended" : recovered?.data.lifecycle ?? "unknown",
++      shell_pid: recovered?.data.shell_pid ?? null, state_source: archived ? "pane_archived" : recovered ? "pane_recovered" : "launch_record",
++      active: null, native_session: null, turn: null, writing: false, queued: [], failed: null,
++      stopped: archived ? true : recovered?.data.exit_event ? true : null, historical: true };
+   }
+   async signal(launch: string, raw: string, received_at: string,
+     transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
+diff --git a/workbench/src/store.ts b/workbench/src/store.ts
+index 795cb07..fa13925 100644
+--- a/workbench/src/store.ts
++++ b/workbench/src/store.ts
+@@ -24,6 +24,22 @@ export class OrchestrationStore {
+     this.db.prepare("INSERT INTO launch_records(id,task,attempt,data) VALUES (?,?,?,?)")
+       .run(data.id, data.task, data.attempt, JSON.stringify(data));
+   }
++  launches(): Record<string, any>[] {
++    return this.db.prepare("SELECT data FROM launch_records ORDER BY rowid").all().map((row) => JSON.parse(String(row.data)));
++  }
++  launchRecord(id: string): Record<string, any> | undefined {
++    const row = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(id);
++    return row ? JSON.parse(String(row.data)) : undefined;
++  }
++  threadLaunch(thread: string): Record<string, any> | undefined {
++    const row = this.db.prepare("SELECT data FROM launch_records WHERE json_extract(data,'$.thread')=? ORDER BY rowid DESC LIMIT 1").get(thread);
++    return row ? JSON.parse(String(row.data)) : undefined;
++  }
++  lastEvent(launch: string, types: string[]) {
++    const row = this.db.prepare(`SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (${types.map(() => "?").join(",")}) ORDER BY seq DESC LIMIT 1`)
++      .get(launch, ...types);
++    return row ? { seq: Number(row.seq), time: String(row.time), type: String(row.type), data: JSON.parse(String(row.data)) } : null;
++  }
+   register(launch: string, text: string, source: "executor" | "gate" = "executor") {
+     const id = randomUUID();
+     const registered_at = new Date().toISOString();
+diff --git a/workbench/tests/test_pane_trace_failure.ts b/workbench/tests/test_pane_trace_failure.ts
+index d8a4378..66d6dd1 100644
+--- a/workbench/tests/test_pane_trace_failure.ts
++++ b/workbench/tests/test_pane_trace_failure.ts
+@@ -1,7 +1,7 @@
+ // Isolated failure injection: a PTY callback cannot safely be made to fail in a
+ // paid model run. Cover trace I/O failure and trace+event-store failure separately.
+ import assert from "node:assert/strict";
+-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync } from "node:fs";
++import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, renameSync } from "node:fs";
+ import { join } from "node:path";
+ import { createRequire } from "node:module";
+ import { Panes } from "../src/panes.ts";
+@@ -32,7 +32,9 @@ for (const failEvents of [false, true]) {
+       { task_id: "fixture", attempt_id: "attempt", session_id: "session", fence: 1, spec_rev: 1,
+         runtime_mode: "workspace-write", thread_id: "thread", workspace: root, base_commit: "baseline" } as any);
+     const pane = panes.get("thread");
+-    mkdirSync(join(root, "traces", pane.record.id, "pty.raw")); // appendFile fails with EISDIR.
++    const trace = join(root, "traces", pane.record.id, "pty.raw");
++    renameSync(trace, trace + ".before-fault"); // Preserve the newly created empty trace.
++    mkdirSync(trace); // appendFile fails with EISDIR.
+     if (failEvents) store.db.exec("PRAGMA query_only=ON");
+     onData("trace must be recorded");
+     assert.equal(pane.state, "unknown");

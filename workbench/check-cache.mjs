@@ -7,3 +7,6 @@ if (statSync(mount).dev === statSync("/Volumes").dev) {
 if (process.env.npm_config_cache !== `${mount}/a2a-t075-npm-cache`) {
   throw new Error("npm 缓存必须使用外置盘上的 a2a-t075-npm-cache。");
 }
+if (process.env.electron_config_cache !== `${mount}/a2a-electron-cache`) {
+  throw new Error("Electron 下载缓存必须使用外置盘上的 a2a-electron-cache。");
+}

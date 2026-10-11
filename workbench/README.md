@@ -1,4 +1,4 @@
-# a2a 门禁与编排后台（T-075-3）
+# a2a 门禁、编排后台与只读工作台
 
 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
 
@@ -12,7 +12,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
 T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
 B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本卡一次独立审查 PASS。
-该结论限本地夹具，不包含 Electron、后台重启恢复或完整工作台切换。
+该结论限卡 3 的本地夹具；Electron 与重启恢复的实现和验证进度另见文末卡 4 记录，完整工作台尚未切换。
 
 受管派发提示要求 `git add <路径>` 与 `git commit …` 各自独立执行，
 检查命令另行运行，以便两个已授权的 Git 前缀规则分别匹配。
@@ -64,7 +64,7 @@ Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改�
 ```sh
 cd workbench
 python3 -c 'import os; assert os.path.ismount("/Volumes/WD-Elements"), "外置盘未挂载"'
-npm ci --cache /Volumes/WD-Elements/a2a-t075-npm-cache
+electron_config_cache=/Volumes/WD-Elements/a2a-electron-cache npm ci --cache /Volumes/WD-Elements/a2a-t075-npm-cache
 npm ls --depth=0
 ```
 
@@ -78,8 +78,8 @@ npm ls --depth=0
 
 ## 运行时边界
 
-`GateRuntime` 由 `panes.ts` 实现一个 Codex worker 窗格；本卡没有 Claude、普通 attach
-会话、Electron 或后台重启恢复。生产 CLI 没有直接开库的运行时替代入口。
+`GateRuntime` 由 `panes.ts` 实现一个 Codex worker 窗格；没有 Claude 或普通 attach
+会话。生产 CLI 没有直接开库的运行时替代入口。
 旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
 
 真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
@@ -94,6 +94,47 @@ workspace-write、任务卡指定的 gpt-6-astra 或 gpt-6.1-sol、xhigh、Fast 
 不当作用户输入或人工介入。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
 只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
 本卡暂只提供首次 release，后续人工输入与中断放行尚未完成，见证据目录 RESULTS。
+
+## 只读 Electron 窗口
+
+窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
+窗格和门禁状态；终端网格固定为 160×45，只允许选择、复制和滚动。没有终端输入接口，
+用户输入记录与 Esc 后人工放行属于 S4，设备查询应答仍由后台处理。
+
+构建必须在外置盘真实挂载后进行，每次使用一个尚未存在的构建槽：
+
+```sh
+npm --prefix workbench run build -- --slot local-01
+node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
+```
+
+缓存、构建临时目录和 dist 都在外置盘；没有内置盘回退。`A2A_BUILD_VOLUME` 可指定
+验收用的检查路径，普通目录和符号链接不能通过挂载检查。已有构建槽不会覆盖；不要在
+输出目录中放源码或依赖链接。启动只读取已有构建产物，不自动构建、装包或启动后台。
+
+默认后台目录为 `~/Library/Application Support/a2a-orchestrator`，默认 Electron 数据位于其
+`ui/` 子目录。验证时同时显式指定后台与 UI 的 `/tmp` 隔离目录。
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state workbench_snapshot --task 任务编号
+node workbench/src/gates/cli.ts --state /绝对路径/state pane_output --launch 启动记录号 --offset 0 --max-bytes 65536
+```
+
+`workbench_snapshot` 可加 `--launch` 查看本任务的历史窗格。窗口第一次选定 launch 后固定
+该身份，不随 current_attempt 改变而切换。`pane_output` 返回 base64 原始字节和
+start_offset、next_offset、total_bytes；每块最多 65536 字节，从同一追加 trace 读取。
+新窗口从 0 补回，已有窗口收到 xterm 的解析完成回调才推进游标；缺失、缩短或错序
+明确报错，不跳过字节。关掉 Electron 只断开视图，后台和窗格由独立进程托管。
+
+后台重启会追加 `pane_recovered`，原窗格只作历史查询，不重建 PTY、令牌、队列或
+worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
+窗格退出回调会最后增量读取已绑定的原生会话文件，再记录 pane_exit；主动停止和后台
+停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、
+截断、解析失败或未完成的一行记为 native_final_read_failed，保留读到的位置，窗格
+仍显示未知／中断，不补造完成事件。停止后的查询不继续采集新的原生字节。
+门禁状态原值保留，因此“门禁已认领”和“执行已中断”可以同时出现。原 verify/integrate
+命令显式重放才执行恢复，启动或读取窗口不能把未知结果改成通过。
+崩溃残留的 socket/PID 文件阻止启动；产品不会按 PID 猜测所有者并自动接管。
 
 默认产品路径为 `~/Library/Application Support/a2a-orchestrator`；本卡测试只用显式
 `--state /tmp/...`，不创建默认路径，不接触正式 `a2a-workbench` 目录。
@@ -132,3 +173,8 @@ Git 尾注钩子当前只读会话环境；最近回合模型与强度取不到�
 [T-075-1 迁移记录](../evidence/2026-10-10-batch12/T-075/RESULTS.md) 和
 [T-075-2 当前结果](../evidence/2026-10-10-batch12/T-075/card-2/RESULTS.md)；
 后台与 B 的进度见 [T-075-3 运行记录](../evidence/2026-10-10-batch12/T-075/card-3/RESULTS.md)。
+
+只读窗口与重启查询见 [T-075-4 运行记录](../evidence/2026-10-10-batch12/T-075/card-4/RESULTS.md)。
+界面迁入片段来自已推送的 `49cae984f22924de006e0f8358cb447eb881aaf6`：
+`apps/web/src/components/TerminalScrollToBottom.tsx`、`apps/web/src/index.css` 与
+`apps/web/src/theme/theme.seed.generated.ts`。保留 MIT 声明，未迁入 provider 或 MCP 网关。
