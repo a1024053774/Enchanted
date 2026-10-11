@@ -23,6 +23,6 @@ T-012 已缩小为[研究阶段产物与移交证据](../.project-map/tickets/T-
 - [复盘研究 ticket T-009](../.project-map/tickets/T-009-session-retrospective.md)：保存扫描范围、截止点及本次分类修订。
 - [Claude 主控与 Codex 的 SiteCraft 实际经验](claude-sitecraft-experience-2026-10-06.zh-CN.md)：指定对话的消息来源、独立验收、版本与材料绑定、资源归属和主控交接记录。
 - [图形客户端方向评估](gui-client-assessment-2026-10-06.zh-CN.md)：2026-10-06 的日期记录，比较基于 Zed 二次开发、独立 GPUI、Electron 等路线。其推荐的"Herdr 客户端"路线未被采用；同日 grilling 决定自建工作台（Herdr 引擎硬分叉加 GPUI），见 [intent.md](../intent.md) 与 T-016～T-021。
-- [原生 CLI 状态信号与 PTY 注入](native-cli-signals-injection-2026-10-10.zh-CN.md)：T-074 的 R6/R7 探针事实、失败记录与对第三阶段派发的影响。
+- [原生 CLI 状态信号与 PTY 注入](native-cli-signals-injection-2026-10-10.zh-CN.md)：T-074 rev 2 的两家不问模式验证、权限 hook 生命周期缺口、原始注入反例及对第三阶段派发的影响。
 
 `reports/` 中的旧文件只保留跳转入口，正文以本目录为准。分类调整不改写历史消息，不把已经登记的待办写成已经完成的改进。

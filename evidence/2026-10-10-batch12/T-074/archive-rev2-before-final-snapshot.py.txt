@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Archive only the selected Claude native JSONL; retain its authorized fixture."""
+import datetime as dt
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+BASE=Path(__file__).resolve().parent
+for label in sys.argv[1:]:
+    out=BASE/label;manifest=json.loads((out/'launch.json').read_text(encoding='utf-8'))
+    if manifest['cli']!='claude':raise SystemExit('Use archive.py for isolated Codex homes')
+    root=Path(manifest['temp_root']);assert root.name.startswith('a2a-t074-rev2-')
+    processes=subprocess.check_output(['/bin/ps','-axo','pid,ppid,pgid,command'],text=True)
+    live=[line for line in processes.splitlines() if str(root) in line or str(root.resolve()) in line]
+    if live:raise SystemExit('Owned processes still present: '+repr(live))
+    source=Path(manifest['native_transcript'])
+    assert source.name==manifest['native_session']+'.jsonl'
+    if source.exists():
+        destination=out/'native-transcript.jsonl'
+        if destination.exists():
+            assert destination.read_bytes()==source.read_bytes(),'Existing evidence differs; preserve both'
+        else:shutil.copyfile(source,destination)
+    receipt=dict(at=dt.datetime.now(dt.timezone.utc).isoformat(),fixture=manifest['fixture'],
+                 fixture_retained=Path(manifest['fixture']).exists(),native_transcript=str(source),
+                 native_exists=source.exists(),only_this_transcript_read=True,
+                 credentials_read_or_copied=False,global_settings_written_by_probe=False,
+                 owned_processes_present=live)
+    (out/'cleanup.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    print(json.dumps(receipt,ensure_ascii=False))

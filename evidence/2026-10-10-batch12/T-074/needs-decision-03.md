@@ -1,0 +1,30 @@
+# T-074 rev 2：worker 不问模式通过样本验证；主控 hook 合约不足
+
+**BLOCKED，交执行主控，由构思主控决定。** 依据 controller-decision-02 第 2 节“hook 不可靠或竞态无法避免时，停下写进报告”，本轮在权限 hook 无法满足完整生命周期合约时停止。没有继续分段注入竞态，也没有补做排在它之后的 Claude R7 基本项。
+
+## 已完成的事实
+
+- Codex `-a never` + workspace-write：三次真实 Python 越界写入均返回 PermissionError / exit_code 1，目标文件未产生；随后三条 M3 消息均完整进入原生 user.text。
+- Claude `--permission-mode dontAsk`：每会话参数禁止测试用 Python 命令，三次 Bash tool_use 均对应 is_error=true 的原生拒绝结果，目标文件未产生；随后三条 M3 消息均完整进入本次会话 JSONL。
+- Claude 恢复普通 CLI 认证来源后，原生模型字段为 claude-haiku-5-5；没有读取、复制或打印凭据，没有发起 /login，没有由 worker 改全局设置。
+
+## 阻断点
+
+| CLI | 开始 hook | 关闭动作和原生结果 | 关闭后 30 秒的 hook | 标识 |
+| --- | --- | --- | --- | --- |
+| Codex 0.162.1 | 1 个 PermissionRequest，2026-10-11T01:02:01.928589Z | Esc 对应原生 Cancel，随后 turn_aborted；标记文件不存在 | 仍仅原开始事件 | session_id、turn_id；没有 request_id / tool_use_id |
+| Claude Code 2.1.296 | 1 个 PermissionRequest，2026-10-11T01:02:06.520248Z | Esc 后出现明确工具拒绝结果，is_error=true；标记文件不存在 | 仍仅原开始事件 | session_id、prompt_id；没有 request_id / tool_use_id |
+
+Claude 的 prompt_id 与触发该工具的原生用户消息 promptId 相同；官方文档把它定义为用户输入标识，不能当审批请求标识。Codex 内部日志另有带 request_id 的 Cancel 响应及 serverRequest/resolved，但它们不是本次获批的 PermissionRequest hook 输出；没有接成替代通道。hook/completed 发生在批准回答之前，只表示记录脚本运行完毕，不能作为权限窗口结束。
+
+限制：Codex 的独立 Decline 回答和两家的批准回答路径未测。不能把取消场景写成已完整验证所有拒绝/批准路径，也不能声称所有原生接口都没有结束信号。当前事实足以说明已选 hook 通道没有满足 rev 2 的“开始、结束、请求标识”合约。
+
+## 请决定的最小范围
+
+spec 第 6 节的 worker 不问规则已取得两家各三次样本证据；“主控等批准暂停，批准结束后再送”的规则还没有可核对的恢复条件。请决定是暂缓主控自动派发，还是授权验证另一条明确提供请求标识和结束事件的结构化接口，并据此修订 spec/T-075。worker 不自行用回合结束、读屏、OSC 文字、自动 Enter 或重试补齐。
+
+Claude 目前只有 7 次 R7 注入（4 idle、3 never_after_denial），不足原票至少 10 次，也没有 running 与受控竞态覆盖；这些是按前置停止条件留下的未完成项，不能上调为 PASS。
+
+额度：Codex 累计 23/30 个主 turn；Claude 原生输入回合 10（含 1 次认证失败），另对没有原生记录的首次启动保守计 1，共 11/15。所有探针已停止；隔离 CODEX_HOME 已删除，Claude 夹具按决定保留在 /tmp。
+
+证据：[分析](analysis-rev2.json)、[Codex hook](rev2-codex-hook/hook-lifecycle.jsonl)、[Claude hook](rev2-claude-hook/hook-lifecycle.jsonl)、[原始注入](r7-injections.jsonl)、[RESULTS](RESULTS.md)。

@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""Check rev-2 facts against archived native records, not model claims."""
+import collections
+import json
+from pathlib import Path
+
+BASE=Path(__file__).resolve().parent
+def rows(file):return [json.loads(line) for line in file.read_text(encoding='utf-8').splitlines()]
+def native(label):
+    out=BASE/label
+    if label.startswith('rev2-codex'):
+        return [record for file in (out/'native-rollouts').glob('*.jsonl') for record in rows(file)]
+    file=out/'native-transcript-final.jsonl'
+    return rows(file) if file.exists() else []
+def user_texts(records,cli):
+    result=[]
+    for rec in records:
+        if cli=='codex':
+            p=rec.get('payload',{})
+            if rec['type']!='response_item' or p.get('role')!='user':continue
+            if 'user.text' not in p.get('internal_chat_message_metadata_passthrough',{}).get('content_item_kinds',[]):continue
+            result.append(''.join(c['text'] for c in p['content'] if c['type']=='input_text'))
+        else:
+            c=rec.get('message',{}).get('content')
+            if rec.get('type')!='user' or rec.get('isMeta'):continue
+            if isinstance(c,str):result.append(c)
+            elif isinstance(c,list) and not any(x['type']=='tool_result' for x in c):result.append(''.join(x['text'] for x in c if x['type']=='text'))
+    return result
+
+injections=[r for r in rows(BASE/'r7-injections.jsonl') if r.get('ready_rev')==2]
+for r in injections:
+    actual=user_texts(native(r['label']),r['cli'])
+    assert actual.count(r['registered_text'])==1 and r['observed_text']==r['registered_text'] and r['outcome']=='ok'
+worker=[]
+for label,cli,mode in [('rev2-codex-never','codex','never'),('rev2-claude-never03','claude','dontAsk')]:
+    records=native(label);proof=[]
+    for trial in (1,2,3):
+        snap=json.loads((BASE/label/f'denial-{trial}.json').read_text(encoding='utf-8'))
+        assert snap['marker_exists'] is False
+        matches=[r for r in injections if r['label']==label and r['state']=='never_after_denial' and r['denial_ref']==f'{label}/denial-{trial}.json']
+        assert len(matches)==1 and matches[0]['launch_mode']==mode
+        if cli=='codex':
+            commands=[r['payload']['item'] for r in records if r['type']=='event_msg' and r['payload'].get('item',{}).get('type')=='CommandExecution' and snap['target'] in ' '.join(r['payload']['item']['command'])]
+            assert len(commands)==1 and commands[0]['status']=='failed' and commands[0]['exit_code']==1
+            failure=commands[0]['aggregated_output'];assert 'PermissionError: [Errno 1] Operation not permitted:' in failure
+            proof.append(dict(trial=trial,target=snap['target'],command=commands[0],followup=matches[0]['registered_text']))
+        else:
+            uses=[x for rec in records if rec.get('type')=='assistant' for x in rec.get('message',{}).get('content',[]) if x.get('type')=='tool_use' and x['name']=='Bash' and snap['target'] in x['input']['command']]
+            assert len(uses)==1
+            results=[x for rec in records if rec.get('type')=='user' and isinstance(rec.get('message',{}).get('content'),list) for x in rec['message']['content'] if x.get('type')=='tool_result' and x.get('tool_use_id')==uses[0]['id']]
+            assert len(results)==1 and results[0]['is_error'] is True
+            proof.append(dict(trial=trial,target=snap['target'],tool_use=uses[0],tool_result=results[0],followup=matches[0]['registered_text']))
+    worker.append(dict(cli=cli,launch_mode=mode,status='PASS for these three fixtures only',proof=proof))
+
+hooks=[]
+for label,cli in [('rev2-codex-hook','codex'),('rev2-claude-hook','claude')]:
+    life=rows(BASE/label/'hook-lifecycle.jsonl');events=life[-1]['hook_events']
+    assert len(events)==1 and events[0]['payload']['hook_event_name']=='PermissionRequest'
+    assert all(s['marker_exists'] is False for s in life)
+    payload=events[0]['payload']
+    ids={k:payload[k] for k in ('session_id','turn_id','prompt_id','request_id','tool_use_id') if k in payload}
+    if cli=='claude':
+        assert any(rec.get('type')=='user' and rec.get('promptId')==payload['prompt_id'] for rec in native(label))
+    hooks.append(dict(cli=cli,start_received_at=events[0]['received_at'],events_at_cutoff=len(events),
+                      cutoff=life[-1]['captured_at'],ids=ids,end_hook_event=None,
+                      close_action='Codex native Cancel/turn_aborted; standalone Decline not tested' if cli=='codex' else 'Claude native tool rejection is_error=true',
+                      request_identifier='not present; context ids only',status='BLOCKED for full permission lifecycle'))
+
+codex_turns={}
+for label in ['rev2-codex-never','rev2-codex-hook']:
+    rs=native(label)
+    codex_turns[label]=sum(r['type']=='event_msg' and r['payload']['type']=='task_started' for r in rs)
+claude_prompts={};claude_responses={};usage={}
+for label in ['rev2-claude-never','rev2-claude-never02','rev2-claude-never03','rev2-claude-hook']:
+    rs=native(label)
+    claude_prompts[label]=len({r['promptId'] for r in rs if r.get('type')=='user' and r.get('promptId')})
+    by_id={r['message']['id']:r for r in rs if r.get('type')=='assistant'}
+    claude_responses[label]=len(by_id)
+    usage[label]=[dict(id=k,model=r['message'].get('model'),usage=r['message'].get('usage'),error=r.get('error')) for k,r in by_id.items()]
+assert 14+sum(codex_turns.values())<=30
+assert sum(claude_prompts.values())+1<=15 # Conservative reservation for the no-transcript startup.
+summary=dict(ready_rev=2,status='BLOCKED',worker_validation=worker,permission_hooks=hooks,
+             race='not run: missing hook completion/request identity is a decision gate',
+             remaining_claude_r7='only 7 injection records; running and controlled race coverage not run',
+             injections=len(injections),counts=[dict(cli=k[0],state=k[1],outcome=k[2],count=v) for k,v in sorted(collections.Counter((r['cli'],r['state'],r['outcome']) for r in injections).items())],
+             codex_prior_turns=14,codex_new_turns=codex_turns,codex_total=14+sum(codex_turns.values()),codex_limit=30,
+             claude_input_turns=claude_prompts,claude_total=sum(claude_prompts.values()),claude_conservative_total=sum(claude_prompts.values())+1,claude_limit=15,
+             claude_response_ids=claude_responses,claude_usage=usage)
+file=BASE/'analysis-rev2.json'
+if file.exists():assert json.loads(file.read_text())==summary,'Preserve changed evidence'
+else:file.write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+print('never_after_denial: Codex 3 ok; Claude 3 ok')
+print('PermissionRequest start only; no end event at 30s cutoff; context identifiers are not request identifiers')
+print('Codex total',summary['codex_total'],'of 30; Claude inputs',summary['claude_total'],'conservative',summary['claude_conservative_total'],'of 15')

@@ -26,6 +26,7 @@ def native_messages(label):
     return result
 
 injections = rows(BASE / 'r7-injections.jsonl')
+injections = [r for r in injections if r.get('label','codex-02') in labels]
 verification = []
 for row in injections:
     label = row.get('label', 'codex-02')

@@ -1,0 +1,97 @@
+{
+  "checked_at": "2026-10-11T01:18:32.395446+00:00",
+  "head_before_submit": "a7dcd57c42c94d7cb7a2f844d4236e1ab4f13629",
+  "project_status": {
+    "argv": [
+      "python3",
+      "/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py",
+      "status",
+      "--root",
+      "."
+    ],
+    "exit_code": 0,
+    "stdout": "Problems (0):\nStale living docs (0):\nFrontier (6):\n  - T-010 [task] Account for descendant agent sessions and model settings\n  - T-011 [task] Check monitor coverage and finding disposition\n  - T-012 [task] Define research deliverables and handoff evidence\n  - T-013 [task] Make fixture governance scope explicit\n  - T-014 [task] Check evidence capture and artifact packaging before model runs\n  - T-074 [build] 先核实两个事实：Codex 的\"等确认\"信号，往窗格注入文字是否稳定\n",
+    "stderr": ""
+  },
+  "offline_checks": {
+    "commands": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "evidence/2026-10-10-batch12/T-074/analyze-rev2.py"
+        ],
+        "exit_code": 0,
+        "stdout": "never_after_denial: Codex 3 ok; Claude 3 ok\nPermissionRequest start only; no end event at 30s cutoff; context identifiers are not request identifiers\nCodex total 23 of 30; Claude inputs 10 conservative 11 of 15\n",
+        "stderr": "",
+        "at": "2026-10-11T01:17:19.025092+00:00"
+      },
+      {
+        "argv": [
+          "python3",
+          "-c",
+          "import json,collections;c=collections.Counter((r['cli'],r.get('launch_mode','rev1'),r['method'],r['state'],r['outcome']) for r in map(json.loads,open('evidence/2026-10-10-batch12/T-074/r7-injections.jsonl')));[print(*k,v) for k,v in sorted(c.items())]"
+        ],
+        "exit_code": 0,
+        "stdout": "claude dontAsk M3 idle ok 3\nclaude dontAsk M3 never_after_denial ok 3\nclaude manual M3 idle ok 1\ncodex never M3 idle ok 3\ncodex never M3 never_after_denial ok 3\ncodex on-request M3 idle ok 1\ncodex rev1 M1 idle other 2\ncodex rev1 M2 idle ok 2\ncodex rev1 M3 awaiting_approval taken_as_approval 1\ncodex rev1 M3 idle ok 7\ncodex rev1 M3 running ok 4\n",
+        "stderr": "",
+        "at": "2026-10-11T01:17:19.046351+00:00"
+      },
+      {
+        "argv": [
+          "node",
+          "--check",
+          "evidence/2026-10-10-batch12/T-074/rev2-host.cjs"
+        ],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "",
+        "at": "2026-10-11T01:17:19.076916+00:00"
+      }
+    ],
+    "encoding": "UTF-8; no BOM/replacement character",
+    "python_syntax": "parsed",
+    "resources": [
+      {
+        "label": "rev2-claude-never",
+        "cli": "claude",
+        "root": "/tmp/a2a-t074-rev2-tl8b0sy9",
+        "retained": true
+      },
+      {
+        "label": "rev2-claude-hook",
+        "cli": "claude",
+        "root": "/tmp/a2a-t074-rev2-p4hvgdgn",
+        "retained": true
+      },
+      {
+        "label": "rev2-claude-never02",
+        "cli": "claude",
+        "root": "/tmp/a2a-t074-rev2-85okgc6t",
+        "retained": true
+      },
+      {
+        "label": "rev2-codex-never",
+        "cli": "codex",
+        "root": "/tmp/a2a-t074-rev2-ql7jchjl",
+        "retained": false
+      },
+      {
+        "label": "rev2-codex-hook",
+        "cli": "codex",
+        "root": "/tmp/a2a-t074-rev2-ykhoiz6s",
+        "retained": false
+      },
+      {
+        "label": "rev2-claude-never03",
+        "cli": "claude",
+        "root": "/tmp/a2a-t074-rev2-xk31s28a",
+        "retained": true
+      }
+    ],
+    "live_probe_processes": [],
+    "task_status": "BLOCKED"
+  },
+  "task_status": "BLOCKED",
+  "reason": "PermissionRequest lacks the tested approval completion and request-identity contract; race and remaining Claude R7 stopped per decision 02"
+}

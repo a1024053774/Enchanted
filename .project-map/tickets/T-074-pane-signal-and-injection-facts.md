@@ -56,3 +56,9 @@ ready_rev: 2
 2026-10-10，按执行主控决定 01 和当前对话主控 #5 继续后，**Codex 部分事实采集完成，整票仍 BLOCKED、待主控关闭；只差 Claude 的隔离认证与真实实验**。方法 M1/M2/M3 各 2 次 idle pilot，选 M3 后另外 10 次覆盖三状态。总计 16 次：M1 idle other 2；M2 idle ok 2；M3 idle ok 7、running ok 4、awaiting_approval taken_as_approval 1。R6 真实批准发出 OSC 9；该次 M3 注入没有成为用户消息，而引发 Accept 响应及夹具文件写入。累计 14 个主 turn（上限 30），4 个辅助标题完成通知另列。所有自己启动的进程与完整临时 home 已清理，Claude 未启动。
 
 现行交付见 [RESULTS](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[逐次数据](../../evidence/2026-10-10-batch12/T-074/r7-injections.jsonl)、[归档核对](../../evidence/2026-10-10-batch12/T-074/analysis-round2.json)。首轮报告与失败现场仍保留。findings 索引按决定 01 授权补一行。T-075 的统一窗格派发需要改设计，已另上报 blocking issue `20261010T200708Z-worker:s12-t074-issue-001`，详见 [needs-decision-02](../../evidence/2026-10-10-batch12/T-074/needs-decision-02.md)；完整采集只差 Claude，不意味着设计获批或整票 PASS。
+
+2026-10-11 UTC，ready_rev 2 / 执行主控决定 02 本轮交付 **BLOCKED，待主控关闭**。两家不问模式各三次真实越界拒绝、随后 M3 新消息送达均有原生记录，样本项通过。PermissionRequest 各收到一个开始事件；关闭后观察 30 秒仍只有原开始事件，没有审批请求标识。Codex Esc 实际为 Cancel/turn_aborted，独立 Decline 路径未测；Claude 有明确工具拒绝，prompt_id 对应用户输入而非审批请求。按决定 02 的停止条件，未继续竞态和 Claude R7 基本项；Claude 当前 7 条注入，不足原票至少 10 条及 running 覆盖，不能关闭整票。
+
+本轮新增 14 条 R7，累计原始文件 30 条。Codex 累计 23/30 主 turn；Claude 原生输入回合 10，首次无记录启动保守多计 1，共 11/15。实际成功模型为 claude-haiku-5-5，认证已解决；所有探针已停，隔离 CODEX_HOME 已删除，Claude 夹具按要求保留。新会话模型切换发生在本轮模型探针停止之后，收尾未再调用模型。
+
+本轮证据：[RESULTS 新增 rev 2 节](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[原生归档核对](../../evidence/2026-10-10-batch12/T-074/analysis-rev2.json)、[needs-decision-03](../../evidence/2026-10-10-batch12/T-074/needs-decision-03.md)。blocking issue `20261011T011326Z-worker:s12-t074-issue-001` 已交 triage。spec 第 6 节的 worker 不问方式有样本证据，主控恢复派发条件仍需设计决定；T-075 不由本 worker 开始。保持 open，整票 Acceptance 不提前勾选。
