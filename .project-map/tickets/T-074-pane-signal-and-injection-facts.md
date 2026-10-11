@@ -96,3 +96,9 @@ ready_rev: 4
 UserPromptSubmit 不与原生回合一一对应：两家均观察到同回合多条开始事件；Claude 另有四条空闲样本的 hook prompt_id 与对应原生 promptId 不同。Claude 两条 running 输入完整进入 queued_command 附件，未成为独立普通 user 记录，记 other；Claude 累计 18 次实际注入，另有一条排队未写入记录。Codex 累计 32/40 主 turn，Claude 含此前保守计数累计 22/25。本轮进程已停、Codex 临时 home 已删除、Claude 夹具保留。人工介入补记已在 RESULTS 引用 controller-review-rev2.md。
 
 本轮证据：[RESULTS rev 3](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[原生归档核对](../../evidence/2026-10-10-batch12/T-074/analysis-rev3.json)、[needs-decision-04](../../evidence/2026-10-10-batch12/T-074/needs-decision-04.md)。blocking issue `20261011T014740Z-worker:s12-t074-issue-001` 已交 triage。spec 第 6 节主控自动注入需要设计决定；worker 不问的旧样本证据保留。未开始 T-075，保持 open，Acceptance 不提前勾选。
+
+2026-10-11 UTC，ready_rev 4 / 执行主控决定 04 本轮交付 **PASS，待主控核对关闭**。证据目录最小后台在提交 CR 写出即记忙，不依赖开始 hook；正常 Stop 后放行，Esc 后保持忙，由模拟用户 action release 放出队首。Codex 0.162.1 / gpt-6-astra xhigh Fast 请求、Claude 2.1.296 / claude-haiku-5-5，两家各完成：竞态挡住 3 次、user_sim 提交后挡住 2 次、Esc 后保持超过 30 秒再 release 送达 2 次、空闲送达 3 次。全部 B 成为独立普通原生用户消息，未触发决定 04 的停止条件。每家 16 个 Stop 均有对应原生提交；两次 Esc 无 Stop，未自动放行。
+
+release 全部由探针模拟，记录为用户输入 action；Claude 另一次初始化 release 单独列出。R7 新增 30 条注入，每家另 3 条 user_sim 消息单列，按 case_id/B 统计验收场景。每家本轮 18 个原生回合，累计 Codex 50/55、Claude 保守计 40/40；Claude 已达上限。所有探针已停、隔离 Codex home 已删除、Claude 夹具保留。旧 51 行 R7 和全部失败原样保留，旧两条漏放被本轮的许可条件拒绝。
+
+证据：[RESULTS rev 4](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[归档核对](../../evidence/2026-10-10-batch12/T-074/analysis-rev4.json)、[中文报告](../../findings/native-cli-signals-injection-2026-10-10.zh-CN.md)。T-075 可按现行 spec 第 6 节继续；本 worker 未改产品或 spec，未开始 T-075。按任务卡不另开独立审查，保持 open，Acceptance 留待执行主控核对后勾选与关闭；本 PASS 不扩大为产品 GUI、重启恢复或任意并发时序的验收。

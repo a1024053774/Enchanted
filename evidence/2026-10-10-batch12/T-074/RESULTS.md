@@ -1,6 +1,6 @@
-# T-074-1：Codex R6/R7 事实交付（2026-10-10）
+# T-074-1：原生 CLI R6/R7 事实交付（2026-10-10～11）
 
-> 最新状态见文末“ready_rev 3 本轮交付”：BLOCKED，两家的旧 Stop 均漏放竞态 B。前文按轮次保留；旧的认证阻断和权限 hook 完整生命周期要求已被后续决定取代。
+> 最新状态见文末“ready_rev 4 本轮交付”：PASS，决定 04 的四类样本全部完成，待执行主控核对关闭。前文保留各轮事实与反例，不能用本轮结果改写旧设计的失败。
 
 **BLOCKED。Codex 部分的事实采集已按执行主控决定 01 完成；完整 T-074 只差 Claude 的隔离认证与真实实验。T-075 的统一窗格派发方式需要设计决定。** 本轮未启动 Claude，未开始 T-075，未设成功率门槛。
 
@@ -260,3 +260,85 @@ python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/pro
 inferred：spec 第 6 节至少需要明确提交中的状态、分段发送与中断恢复的合约，或暂缓主控自动注入。unknown：其他结构化接口或新设计是否能消除窗口，本轮未验证。本 worker 只上报设计缺口，ticket 保持 open、Acceptance 不勾选，等待主控处理。
 
 收尾核对：[checks-rev3.json](checks-rev3.json) 记录原生归档分析、Python 语法、Node 语法、76 个 JSON/JSONL 文件、UTF-8、旧 30 行注入原样保留及自有资源清理；均通过。project-map status 为 Problems (0)、Stale living docs (0)。这不改变 BLOCKED 的业务结论。检查入口 `python3 -B evidence/2026-10-10-batch12/T-074/checks-rev3.py` 写独占结果文件；重放时须保存新的输出路径，不能覆盖原收尾证据。
+
+## ready_rev 4 本轮交付（2026-10-11 UTC）
+
+**PASS，待执行主控核对关闭；ticket 保持 open。** 证据目录内的最小后台已经按决定 04 完成两家各 3 次竞态、2 次模拟用户提交、2 次 Esc 后保持再放行、3 次空闲送达。没有忙时未经 release 的 B 写入，没有批准代答，没有正常 Stop 后队列未放出，也没有无法对应提交的 Stop。T-075 可以依据修订后的 spec 第 6 节实现本地忙状态与人工放行；本 worker 未开始产品实现。
+
+### 绑定、版本与边界
+
+- 任务 T-074-1，ready_rev 4，起点 `8d130af83806c6f9e4fbda1174f9370ed29ef9c4`；授权为当前对话主控 #10、ticket“修订 rev 4”和 [执行主控决定 04](controller-decision-04.md)。attempt/session/fence 未提供，不编造。交付采用任务卡指定的 a2a commit 和 DONE 行，主控负责关闭票。
+- Codex 0.162.1，原生模型 **gpt-6-astra**，xhigh、Fast 请求、workspace-write / on-request；原生会话 `01a128ac-eb28-7ae0-826e-48a9e061832b`。供应商实际 tier unknown。
+- Claude Code 2.1.296，原生响应模型 **claude-haiku-5-5**，manual、用户平常登录；原生会话 `b89f867c-aa64-40b0-bc53-27dd33aef1cf`。继续使用用户已批准的 CLI 会话历史与夹具信任例外，没有读取或复制 Claude 凭据、没有写全局设置。
+- Node v26.5.0、node-pty 1.1.0；只读使用现有依赖，没有安装或修改 Synara。后台由独立进程组启动，托管 zsh 与交互式 CLI。完整 argv、模型参数、hook 定义和 fixture 路径在 [Codex launch](rev4-codex/launch.json)、[Claude launch](rev4-claude/launch.json)。
+- 每家本轮 **18 个原生回合**：就绪 1、空闲 3、竞态 A/B 6、模拟用户 A/B 4、Esc A/B 4。Codex 累计 **50/55**；Claude 加此前保守占用累计 **40/40**，已达上限，不再调用。原生 token usage 按会话列于 [analysis-rev4.json](analysis-rev4.json)，不推算服务 tier、费用或收益。
+
+### 最小后台实际做了什么
+
+所有向 PTY 的写入集中于 `rev4-host.cjs` 的同一写入函数，逐条记录 `source`。`inject` 是登记的消息注入；`user_sim` 是探针模拟用户输入（含提交、Esc、初始化按键）；`release` 是用户 action。终端查询应答也记录在 writes 中，标记为 `inject / terminal_protocol`，它们不是提交，不计入 R7 消息或原生回合。
+
+提交 CR 写出时，后台在同一同步步骤中记录 busy_at 和提交编号；注入和 user_sim 使用同一规则。UserPromptSubmit 只归档，未参与门禁。Stop 必须有一个可对应的先前提交，而且收到时刻晚于最近忙时刻，才转为空闲、放出队首消息。正常路径不依据 OSC、终端文字、标题或开始 hook 的标识判断状态。
+
+**release 全部“由探针模拟”。** 它记录为 `record_type=user_input / shape=action / simulated_by_probe=true`；Esc 后是用户明确授权的队列放行例外，一次只放队首一条，写完提交 CR 继续保持忙。因此这四条 B 的 `gate_state` 仍记录 busy，同时有在先的 `release_action`，没有伪造一个 Stop 或把忙写成空闲。未经 release 的忙状态从未放行 B。
+
+Claude 的首次信任目录确认也由 user_sim 经后台输入，CR 同样记忙。这个初始化动作没有会话 Stop，随后单独记录一个无队列的模拟 release；不计入验收的两次 Esc 放行。两家首条就绪消息都经后台提交，而非 argv 自带 prompt，避免产生没有本地提交的启动 Stop。
+
+### 四类验收样本
+
+observed / measured：每次登记原文、CR 记忙时间、Stop 收到时间、B 的第一段及 CR、原生消息都可核对。普通 A/B 用同一原生会话连续运行，没有为每个场景新建模型会话。
+
+| 要求 | Codex | Claude |
+| --- | --- | --- |
+| A 的 CR 后立即尝试 B，至少 3 次 | 3/3 排队；A 的 Stop 后 B 完整成为新消息 | 3/3 排队；A 的 Stop 后 B 完整成为新消息 |
+| user_sim 提交后立即注入，至少 2 次 | 2/2 排队；Stop 后完整送达 | 2/2 排队；Stop 后完整送达 |
+| Esc 后保持至少 30 秒，再 release，至少 2 次 | 2/2 保持忙且不写 B；release 后完整送达 | 2/2 保持忙且不写 B；release 后完整送达 |
+| 空闲注入至少 3 次 | 3/3 完整送达 | 3/3 完整送达 |
+
+前两类排队时长（queued_ms）：Codex 竞态为 1746、1513、2030 ms，模拟用户提交为 1766、1570 ms；Claude 分别为 1459、1141、1147 ms 与 1363、1090 ms。全部是 A 的 CR 刚写出，在同一后台控制操作中立即登记 B；排队时门禁已为忙。实际放行都晚于 A 的 Stop。逐次时间和关联在 [analysis-rev4.json 的 cases](analysis-rev4.json)、各窗 pair-attempts / gate-events / writes / case-events 中。
+
+| Esc 场景 | Esc 后保持（秒） | B 总排队（ms） | release UTC | B 第一段 UTC |
+| --- | ---: | ---: | --- | --- |
+| Codex 1 | 30.153431 | 33168 | 01:59:38.810 | 01:59:38.817 |
+| Codex 2 | 30.109941 | 32970 | 02:00:14.182 | 02:00:14.192 |
+| Claude 1 | 30.169985 | 32213 | 01:59:37.844 | 01:59:37.858 |
+| Claude 2 | 30.111458 | 33270 | 02:00:12.796 | 02:00:12.805 |
+
+四个批准请求都由原生 PermissionRequest 记录确认，随后各一次明确 Esc。Codex 有匹配 A 的 turn_aborted，Claude 有匹配 Bash tool_use_id 的 is_error=true 拒绝；这些是 release 前的独立核对证据，不是后台的自动恢复条件。四个 marker 全程未产生，B 在保持期间零字节写入，release 后才进入普通用户记录。
+
+每家共 16 个 Stop（18 次对话提交，2 次 Esc 中断无 Stop），32 个 Stop 全部逐一对应原生已提交文本的 turn_id / promptId。后台的时间关联另用原生标识交叉核对，未用 UserPromptSubmit 的标识作决策；上一轮 Claude 开始标识漂移的问题没有被隐藏或假定修好。未触发本轮任一停止条件。
+
+### R7、用户输入与旧反例
+
+本轮 R7 追加 **30 条实际注入**，每家 15 条：gated_idle 3、gated_race 6（含 A/B）、gated_user_submit 2（只有 B）、gated_after_esc 4（含 A/B），全部 `ok`。计数时按 `role=B` 与 case_id 统计验收场景，不能将 A/B 两行算成两次竞态。
+
+另有每家 3 条模拟用户消息（就绪与两条 user_sim A）保存在 [rev4-user-inputs.jsonl](rev4-user-inputs.jsonl)，没有混入 R7。四次验收 release 加 Claude 一次初始化 release 保存在各窗 user-actions.jsonl，全部由探针模拟，未声称用户亲自点击。新消息的 oracle 是原生 rollout / JSONL 中逐字匹配的用户文本，未用模型回复“收到”或后台自报作成功依据。
+
+已知坏规则的反事实来自 rev 3 的真实漏放轨迹：[red-rev4.json](red-rev4.json)。离线分析的同一个“提交后只能由更新 Stop 或显式 release 放行”条件拒绝两条旧 B，并接受本轮全部 14 条队列 B；这是历史真实轨迹的离线重放，没有重跑旧危险规则或增加模型调用。旧 R7 的 51 行按字节保留，总登记数现为 81；旧排队未写入行、M1 未证实送达和 rev 1 的批准代答全部保留。
+
+rev 1 / rev 2 的 Codex 结论来自 gpt-6.1-sol；rev 3 / rev 4 来自 gpt-6-astra。rev 1 的 `taken_as_approval` 反例仍然有效，它说明绕过新门禁直接向批准窗口注入有危险；本轮没有再次这样注入。此前 worker 会话中断、换模型、无标记“继续”的人工介入仍以 [controller-review-rev2.md](controller-review-rev2.md) 为准，不改写来源。
+
+### 失败方式、限制和对 T-075 的影响
+
+- 启动更新与信任：固定版本、关闭更新；Claude 的已授权新夹具信任有 startup-trust.json，明确选择 Yes，未拿任务消息或默认 Enter 批准未知窗口。
+- 渲染与编码：本轮登记的中文、编号、引号和标点均逐字进入原生记录；每条 M3 两段字节与至少 300 ms 间隔均核对。后台在忙时排队消息，没有把正在渲染时的键盘接收当成功依据。
+- 多行、M1/M2 和其他粘贴模式：本轮只执行已定单行 M3，没有追加这些覆盖；旧结果原样保留，不宣称解决所有文本输入方式。
+- 批准代答：本轮四个真实批准仅以 Esc 结束，marker 未产生；release 前核对原生中断/拒绝。按验收路径通过，不保证用户在批准仍未结束时误点 release 的结果。
+- 本轮证明了决定 04 指定的连续场景；没有测试产品 GUI、进程重启恢复、任意并发人工编辑、任意重复/延迟 Stop。没有设置长期成功率门槛，也没有宣布所有时序可靠。
+
+inferred：在本轮约束下，本地 CR 记忙封住了 rev 3 的已知窗口，正常 Stop 与显式 release 各有可核对的恢复路径，T-075 可按现行 spec 第 6 节继续。不需要为本轮事实再改 spec。release 的产品入口及持久记录仍属于 T-075；这里只做证据后台。按任务卡未另开独立审查，执行主控核对原始记录后决定关闭；本报告的 PASS 不是产品验收或发布结论。
+
+### 归档与重放
+
+最晚 02:00:23.414Z 完成最终快照后停止两家宿主。归档前确认自有路径没有存活进程；02:00:23.620Z 删除整个本轮隔离 Codex 根目录，auth.json 未进入证据。Claude 仅复制本次明确 session 的 JSONL，夹具按决定保留。未改产品、scripts、全局配置、Herdr server、Synara 或其他任务。
+
+离线重放：
+
+```sh
+python3 -B evidence/2026-10-10-batch12/T-074/analyze-rev4.py
+python3 -B evidence/2026-10-10-batch12/T-074/checks-rev4.py --output checks-rev4-replay.json
+python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .
+```
+
+真实采样的精确命令为 `python3 -B evidence/2026-10-10-batch12/T-074/probe-rev4.py rev4-codex --cli codex` 与对应 `rev4-claude --cli claude`；随后 `rev4-runner.py <label> bootstrap`、`idle3 --sequence 601/701`、`race3 --sequence 611/711`、`user2 --sequence 621/721`、`esc2 --sequence 631/731`（前值 Codex、后值 Claude）。初始化操作和所有输入原文在 startup-trust / user-actions / registrations / writes。上述采样消耗已授权额度，Claude 已达上限，不能再次执行；未来重验需另行授权与新 label，旧目录拒绝覆盖。
+
+收尾核对见 [checks-rev4.json](checks-rev4.json)：归档验收、Python/Node 语法、48 个 JSON/JSONL 文件、UTF-8、旧 51 行 R7 按字节保留和自有进程清理均通过；project-map status 为 Problems (0)、Stale living docs (0)。本轮没有失败后重试，没有额外模型调用。最终候选由 a2a commit 绑定，按任务卡交执行主控核对。
