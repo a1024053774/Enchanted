@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 3
+ready_rev: 4
 ---
 
 ## What to build
@@ -51,6 +51,14 @@ ready_rev: 3
 
 - **交付通道选 A**：worker 的每会话启动参数只放行编排后台那一个 Unix socket，网络保持关闭，worker 经同一个命令行入口交付（spec 第 5 节）。追加验收：同一沙箱里连别的 Unix socket、发起网络连接仍被拒；只放行一个这件事不成立就停下报告，不改用文件中转。
 - **门禁状态表**：按 spec 第 9 节的例外处理，本票不改门禁存储；新加的表只追加。"由事件重建状态与状态表一致"的检查留给后续切片。
+
+## 修订 rev 4（2026-10-11，用户决定）
+
+依据 needs-decision `20261011T043544Z-executor-needs-decision-001`：关闭托管网络代理时 `network.allow_unix_sockets` 不生效。与 rev 3 冲突处以本节为准。
+
+- **先试 A2**：开 Codex 托管网络代理，域名名单留空，只放行后台 socket；1 个回合验证：后台 socket 能连；另一个 socket、任意 TCP、任意外部域名仍被拒；不弹批准。
+- **A2 不过就改走 B，不再回来问**（用户选"A2 开代理试一次，不过改文件中转"）：沙箱不动，worker 在自己的 worktree 里写交付请求文件（显式 submit），由回合结束的 hook 转交后台；查状态、上报问题同样走这条路。交付仍须是 worker 显式发起；hook 只转交、不替 worker 决定；转交结果写回 worker 窗格。rev 3 的"不改用文件中转"一句作废。
+- 选了哪条、为什么，写进 RESULTS 与 spec 第 5 节需要的改动说明（spec 由构思主控改）。
 
 ## Resolution
 
