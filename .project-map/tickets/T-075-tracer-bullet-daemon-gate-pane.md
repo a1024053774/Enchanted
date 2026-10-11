@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 2
+ready_rev: 3
 ---
 
 ## What to build
@@ -44,6 +44,13 @@ ready_rev: 2
 - T-074 的结论要求改设计时，本票等构思主控出 `revise` 再开工。
 - 风险 R8（主控常直接提交 `main` 导致 CAS 反复落空）在本切片只用夹具仓库，不处理上限，留给 S3。
 - 授权来源：用户 2026-10-10 在会话"a2a-构思主控"确认切法与检查面（逐字："确认"），在此之前在会话"新思路构思"说："确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。"`ready_by: ideation`，`ready_rev: 1`。
+
+## 修订 rev 3（2026-10-11，用户决定）
+
+依据 needs-decision `20261011T041853Z-executor-needs-decision-001` 与存储缺口上报 `20261011T040449Z-worker:s12-t075-3-issue-001`：
+
+- **交付通道选 A**：worker 的每会话启动参数只放行编排后台那一个 Unix socket，网络保持关闭，worker 经同一个命令行入口交付（spec 第 5 节）。追加验收：同一沙箱里连别的 Unix socket、发起网络连接仍被拒；只放行一个这件事不成立就停下报告，不改用文件中转。
+- **门禁状态表**：按 spec 第 9 节的例外处理，本票不改门禁存储；新加的表只追加。"由事件重建状态与状态表一致"的检查留给后续切片。
 
 ## Resolution
 
