@@ -20,3 +20,7 @@
 ## 下一步
 
 按清单实施，更新 `assertion-hunks.md`，写 `legacy-green` 单阶段沙箱外脚本，回复 READY 后停下。F10 与 W07 的新断言须先在起点或已知坏变异体上取得业务红态。真实回合仍 0/8；P-review 另行逐次批准。
+
+## 补充：F13（2026-10-11，回应 issue 20261011T185808Z-worker:s13-t076-2-issue-001）
+
+批准：`workbench/tests/test_task_cards_e2e.py` 的 `test_non_fast_forward_git_result_cannot_integrate` 只把准备一行改为 `create_managed()`，使其越过来源前置后仍到达原 Git fast-forward 保护；该方法的全部 Git 反例断言（拒绝、ref/reflog/内容不变）不改。依据同决定 02/03。其余 F08 范围不变。
