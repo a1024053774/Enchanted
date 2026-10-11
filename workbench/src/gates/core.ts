@@ -2444,6 +2444,8 @@ export class A2AGates {
         try {
           for (const [index, command] of v.commands.entries()) {
             v.command_intent = command;
+            // The next command has no result yet. Keep completed results separately.
+            delete v.result;
             this.save(task, "completion_intent", { verification_id, card_snapshot_id: v.card_snapshot_id, index: index + 1, command });
             const started = new Date().toISOString();
             const result = await this.execute(taskId, command.argv, workspace);

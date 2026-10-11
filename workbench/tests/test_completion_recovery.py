@@ -1,0 +1,93 @@
+"""独立审查 P2：第二条完成条件中断时，不能复用第一条退出码。"""
+import json
+import os
+from pathlib import Path
+import sys
+import unittest
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'acceptance'))
+import test_coop_e2e as helper
+import test_recovery_e2e as recovery
+
+
+class CompletionRecovery(recovery.RecoveryCLI):
+    def test_second_condition_interruption_retains_first_and_marks_current_unknown(self):
+        self.create()
+        marker = self.root / 'first-condition-runs.jsonl'
+        first_source = (
+            'import json,os\n'
+            'with open(' + repr(str(marker)) + ',"a",encoding="utf-8") as f:\n'
+            ' f.write(json.dumps({"pid":os.getpid(),"cwd":os.getcwd()})+"\\n")\n'
+            'print("FIRST_CONDITION_OK")\n')
+        card = json.loads(self.card_source.read_text(encoding='utf-8'))
+        card['completion_conditions'].insert(0, {'argv': [sys.executable, '-I', '-B', '-c', first_source]})
+        self.card_source.write_text(json.dumps(card, ensure_ascii=False), encoding='utf-8')
+        self.cli('card_save', '--task', self.task, '--card', self.card_source, '--expected-version', '1')
+        self.cli('revise', '--task', self.task, '--spec-rev', '2', '--card-version', '2')
+        attempt = self.claim()
+        candidate = self.candidate(attempt, good=True)
+        self.submit(attempt, candidate)
+        original = self.start_cli('verify', '--task', self.task)
+        old_entry = self.wait_barrier(self.oracle_control, original)
+        before = self.snapshot('second-condition-before-kill')
+        old_id = self.verification_id(before)
+        expected_second_argv = [str(Path(sys.executable).resolve()), '-I', '-B', '-c',
+                                self.oracle.read_text(encoding='utf-8'), old_entry[1]['candidate_directory']]
+        self.check(before['status']['verification']['command_intent']['argv'] == expected_second_argv,
+                   'Kill boundary belongs to the second supplied command', expected_second_argv,
+                   before['status']['verification']['command_intent'])
+        self.kill_owned_cli(original, 'second completion condition after the first returned zero')
+        prior = [str(path) for path, data in self.entries(self.oracle_control)]
+        new_cli = self.start_cli('verify', '--task', self.task)
+        new_entry = self.wait_barrier(self.oracle_control, new_cli, prior)
+        during = self.snapshot('second-condition-after-interruption')
+        old_rows = [row for row in self.rows(during, 'verification') if row.get('verification_id') == old_id]
+        self.check(len(old_rows) == 1, 'Interrupted verification remains in history', 1, old_rows)
+        if old_rows:
+            old = old_rows[0]
+            self.check(old['state'] == 'interrupted', 'Old verification is explicitly interrupted', 'interrupted', old['state'])
+            current = old.get('result') or {}
+            self.check(current.get('returncode') in (None, 'unknown') and current.get('exit') in (None, 'unknown'),
+                       'Missing second-command exit is unknown, not the first zero', 'unknown', current)
+            self.check(current.get('stdout') is None and current.get('stderr') is None,
+                       'Missing second-command output is not first-command output', [None, None], current)
+            self.check(current.get('argv') == expected_second_argv,
+                       'Unknown result belongs to the second supplied command', expected_second_argv, current.get('argv'))
+            completed = old.get('results', [])
+            self.check(len(completed) == 1 and completed[0].get('returncode') == 0
+                       and completed[0].get('stdout') == 'FIRST_CONDITION_OK\n',
+                       'First completed result remains intact', 'one first-command success', completed)
+        executions = [json.loads(line) for line in marker.read_text(encoding='utf-8').splitlines()]
+        expected_directories = [str(Path(old_entry[1]['candidate_directory']).resolve()),
+                                str(Path(new_entry[1]['candidate_directory']).resolve())]
+        self.check([str(Path(item['cwd']).resolve()) for item in executions] == expected_directories,
+                   'New verification reruns the first command in its new M worktree', expected_directories, executions)
+        self.release(old_entry)
+        self.wait_done(old_entry)
+        self.release(new_entry)
+        self.cli_result(self.complete(new_cli), ok=True)
+        after = self.snapshot('second-condition-recovery-completed')
+        self.check(self.verification_id(after) != old_id and after['status']['state'] == 'verified',
+                   'Only the new complete verification passes', 'new verified ID', after['status']['verification'])
+        results = after['status']['verification']['results']
+        self.check(len(results) == 2 and all(item['returncode'] == 0 for item in results),
+                   'New verification completes both supplied commands', 'two zero exits', results)
+        self.check(self.ref() == self.base, 'Verification recovery does not integrate', self.base, self.ref())
+        self.preserved_history(before, after)
+        self.finish_checks()
+
+
+def main():
+    suite = unittest.TestSuite([CompletionRecovery('test_second_condition_interruption_retains_first_and_marks_current_unknown')])
+    result = unittest.TextTestRunner(verbosity=2, resultclass=recovery.EvidenceResult).run(suite)
+    recovery.write_new(os.environ['COOP_E2E_TRACE'], {
+        'tests_run': result.testsRun, 'failures': len(result.failures), 'errors': len(result.errors),
+        'results': recovery.TEST_RESULTS, 'assertions': recovery.ASSERTIONS,
+        'commands': helper.COMMANDS, 'artifacts': helper.ARTIFACTS,
+    })
+    return 0 if result.wasSuccessful() else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
