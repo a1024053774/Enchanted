@@ -1,0 +1,14 @@
+# T-075-5：最终后台入口缺少既有受控线程夹具的注入边界
+
+状态：INCOMPLETE，需执行主控批准计划；本轮未改产品。
+
+核对到：
+
+- `workbench/src/daemon.ts:11–19` 的 serve 未导出，门禁硬编码以 Panes 为 GateRuntime。
+- `workbench/src/panes.ts:119` 附近的 createThread 只接受真实 workspace-write Codex；旧 run 套件的 13 项依赖 approval-required 的受控线程服务，另有跨任务并发夹具；单窗格 Panes 不满足它们。
+- `acceptance/entry/native-entry.ts:9–27` 的 submit 直接开库，不能用来证明经常驻后台访问的最终 CLI。
+- `acceptance/test_recovery_e2e.py:226–270` 的 PID、SIGKILL 返回码和屏障 ppid 绑定 CLI。只杀 CLI 不会中断后台门禁操作；需适配成核对并中断本测试后台。
+
+建议：批准 card-5/PLAN.md 的 D1/D2/D3。D1 仅改 daemon.ts：导出同一 serve，提供默认行为不变的内部 gate 构造参数；测试 host 注入既有运行时和 submit caller，所有业务请求仍经原 CLI/socket/server/A2AGates.call。D2 只迁移夹具所有权与信号对象；所有原业务断言不改。D3 明确 13 项仍是隔离编排证据，不证明真实 PTY/Codex/B 转交通道。
+
+产品文件超出卡片原修改边界，当前不可直接实现。若不批准，恢复 7 项及 run 13 项不能在这些约束下声称完成；需主控决定例外或另切工作。详细逐项清单、最小探针、原始证据位置和替代边界见 PLAN.md。worker 已停在计划门禁，不自行改产品或验收预期。
