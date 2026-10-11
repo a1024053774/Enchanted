@@ -65,6 +65,7 @@
 
 - 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）；2026-10-09 起分为构思主控与执行主控，二者都由 Claude Code 担任。执行主控在已批准范围内经 Herdr 分派任务（用户认为工作台可用后改为经工作台门禁）、读取当前状态、回收不再需要的 worker，并汇总证据。
 - worker 使用 `gpt-6.1-sol` xhigh reasoning / Fast service tier，只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。
+- 2026-10-11 起，Codex 额度充值之前，新启动的 Codex 会话（worker、reviewer、monitor）先用 `gpt-6-astra` xhigh reasoning / Fast service tier（用户："codex 额度要充值了，之后的任务先用 gpt 6 astra xhigh fast"）；用户说换回时恢复上面两条。
 - reviewer 默认与 worker 同为 Codex 同一个模型，每次交付新开干净会话，只读；不得 submit 或集成。
 - monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
