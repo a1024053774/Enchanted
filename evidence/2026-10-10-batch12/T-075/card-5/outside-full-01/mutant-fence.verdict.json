@@ -1,0 +1,93 @@
+{
+  "pass": true,
+  "classification": "business-counterfactual",
+  "mutant_test_status": "INCOMPLETE",
+  "mutant_test_exit": 1,
+  "failures": 2,
+  "errors": 0,
+  "loaded_core": [
+    "/private/tmp/a5-mutants-0wtc1lot/fence/workbench/src/gates/core.ts"
+  ],
+  "business_evidence": [
+    {
+      "submitted_fence": 32,
+      "session": "bc89dcda-835e-4824-8642-5f861c0be950",
+      "gate_reply": {
+        "ok": true,
+        "task": {
+          "task_id": "check-90f551b534bc4eca8c40cdf6a36369f5",
+          "title": "check-90f551b534bc4eca8c40cdf6a36369f5",
+          "project_id": "check-90f551b534bc4eca8c40cdf6a36369f5",
+          "repo": "/private/tmp/a5-f7n4lj83/t-y24709vz/isolated repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "1da63325-8f05-4cbb-a369-06854e814cb0",
+          "card_version": 1,
+          "card": {
+            "id": "check-90f551b534bc4eca8c40cdf6a36369f5",
+            "source": null,
+            "goal": "# Cursor pagination fixture v1\n\nThis is an isolated coding task for the Herdr A2A experiment.\n\nRun `python3 pager.py`. Read one JSON request from stdin and write one JSON response to stdout.\nRequests contain `items` (records with distinct string `id` and integer `ts`), `limit`,\nand optional `after` (null or [integer timestamp, string id]).\nSort records by (ts, id) ascending. Return at most limit records strictly after that pair.\nPreserve all record fields. Return `{\"items\": [...], \"next_cursor\": ...}`.\nThe next cursor is the last returned pair only if additional eligible records remain;\notherwise it is null. Input order must not matter. Do not mutate input records.\n\nLimits must be integers in [1, 100]; booleans are invalid. Invalid limit returns only\n`{\"error\": \"invalid_limit\"}`. An after value with a wrong shape/type returns only\n`{\"error\": \"invalid_cursor\"}`. Check limit before cursor. A cursor need not exist in the input.\nEmpty results have items=[] and next_cursor=null.\n\nThe initial program is deliberately incomplete. Implement this contract without modifying\nthis document or acceptance tools. A successful model turn is not delivery acceptance.\n",
+            "non_goals": [
+              "不改变独立分页合同"
+            ],
+            "paths": {
+              "allow": [
+                "."
+              ],
+              "deny": []
+            },
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\n\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\nCASES = [\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\n     {\"items\": [C, D], \"next_cursor\": None}),\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\n     {\"items\": [], \"next_cursor\": None}),\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\n     {\"error\": \"invalid_limit\"}),\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\n     {\"error\": \"invalid_cursor\"}),\n]\ndef main():\n    root = Path(sys.argv[1]).resolve()\n    results = []\n    for name, request, expected in CASES:\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\n        try:\n            p = subprocess.run(command, input=json.dumps(request), text=True,\n                               capture_output=True, cwd=root, timeout=10)\n        except subprocess.TimeoutExpired as exc:\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\n            continue\n        try:\n            actual = json.loads(p.stdout)\n        except json.JSONDecodeError:\n            actual = None\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\n                        \"pass\": p.returncode == 0 and actual == expected})\n    ok = all(r[\"pass\"] for r in results)\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\n                      \"cases\": results}, ensure_ascii=False, indent=2))\n    return 0 if ok else 1\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+                  "{worktree}"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "M",
+            "executor": {
+              "cli": "Codex",
+              "model": "fixture",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "ca6e000b29380203fa764f5ebba409847655a6ef",
+          "state": "submitted",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "check-90f551b534bc4eca8c40cdf6a36369f5",
+            "attempt_id": "2ddbf7e2-f1e7-46ce-856f-27c6ca77d244",
+            "session_id": "bc89dcda-835e-4824-8642-5f861c0be950",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "",
+            "runtime_mode": "approval-required",
+            "turn_id": null,
+            "workspace": "/private/tmp/a5-f7n4lj83/t-y24709vz/isolated state/worktrees/2ddbf7e2-f1e7-46ce-856f-27c6ca77d244",
+            "base_commit": "ca6e000b29380203fa764f5ebba409847655a6ef",
+            "card_snapshot_id": "d1e4cbc8-4567-4625-8e2e-016274b07325",
+            "reclaimed": false,
+            "owner": "independent-check",
+            "state": "submitted"
+          },
+          "candidate_commit": "11806a1747d12b65fbe2fe5ac08949c5d16560ba",
+          "verification": null,
+          "integration_intent": null
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-11T09:21:46.010Z"
+        }
+      }
+    }
+  ]
+}

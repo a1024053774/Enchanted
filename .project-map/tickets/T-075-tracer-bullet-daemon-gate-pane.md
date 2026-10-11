@@ -191,3 +191,14 @@ T-075 Acceptance 逐项证据位置与边界：
 - 卡 4 计划中的五类产品变异体没有全部执行，worker 已在 RESULTS 中如实写明。
 - `workbench/README.md` 的覆盖范围扩到了 `workbench/app/**` 和 `workbench/package.json`。
 - 打分已记录。
+
+**T-075-5 业务完成、收尾 INCOMPLETE（2026-10-11），待主控关闭。** Ticket 保持 open；只补 Acceptance 第 4 条的当前证据，不改验收条件或勾选其他项。D1/D2/D3 经主控 #47 批准：产品只导出同一 serve 并加默认值不变的内部构造参数；后台故障只注入自建且核对过的后台；编排十三项为隔离线程服务、五项默认 Panes。
+
+- 当前完整运行：主控 #51 已运行并核对 `card-5/outside-full-01`，交付 8/8、恢复 9/9、编排 18/18、CAS 补充 1/1，全为 0 failures/errors/skipped。旧三套 35 项在同一最终 CLI 上先取得 socket 超长入口红态；入口红态没有被当成业务红态。
+- 三个本候选单点变异体都在原业务断言处失败，0 errors：错 fence=32 被错误接受；CAS 去掉旧值后覆盖外部写入；操作锁去掉事务后启动第二 oracle 且并发 integrate 成功。原始测试的 INCOMPLETE/exit 1 保留，协调器只另判反事实成立。
+- 全部业务请求经最终产品 CLI→Unix socket→同一生产后台请求处理器→真实门禁。SQLite/Git 原断言、独立分页 oracle 和三份 `acceptance/test_*.py` 相对 `7bcfe7d9` 的 diff 为空；CAS 用既有后台生命周期子类，单独计数。
+- 实际执行源码为 `outside-full-01/sources.tar.gz`：base HEAD `2d7d416790e59b2082c9c5bd531b8505c3b4ac6f` 加本卡变更，阶段源文件未变化；随后 `review-candidate-01` 与其 46 个源码逐字节一致。最终提交与此候选的绑定检查见 card-5 的 delivery 收据，完整交付号见其 RESULTS／DONE 行。
+- 一次 fresh-context 只读独立审查原始 **STATUS: INCOMPLETE**：限定业务 claim **PASS**，没有新修复项；仅 `workbench/README.md` stale 的交付收尾未完成，主控 #51 已明确接管。没有二次审查，worker 不上调结论。
+- 原 P1 读回夹具失败先保留，再把只读快照改为停后台前保存至证据目录、事后只汇总 JSON，独立夹具红绿成立，outside-probes-02 三探针实跑通过。首次合成 writer 超时及 worker 提权请求被 Esc 拒绝的记录保留；后续 ps／清理只由主控在沙箱外执行，没有真实被测 Codex 回合或 push。
+- 报告和重现命令：[card-5/RESULTS](../../evidence/2026-10-10-batch12/T-075/card-5/RESULTS.md)，审查原文：[review-01](../../evidence/2026-10-10-batch12/T-075/card-5/review-01.md)。编排十三项不证明真实 PTY/Codex/B；本卡不覆盖 UI、S2～S5、生产、可靠性或成本。
+- 当前地图 0 problems、1 stale、退出 1；代码与业务证据已交付，README／Verified 收尾由主控处理。状态保持 INCOMPLETE，待主控完成该项并关闭 T-075。

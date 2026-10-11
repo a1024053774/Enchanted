@@ -8,7 +8,11 @@ import { socketPath } from "./transport.ts";
 import { RequestRelay } from "./relay.ts";
 import { randomUUID } from "node:crypto";
 
-async function serve(root: string, config: LaunchConfig) {
+export async function serve(
+  root: string,
+  config: LaunchConfig,
+  createGates: (root: string, panes: Panes) => A2AGates = (root, panes) => new A2AGates(root, panes),
+) {
   mkdirSync(root, { recursive: true, mode: 0o700 });
   root = realpathSync(root);
   const socket = socketPath(root);
@@ -16,7 +20,7 @@ async function serve(root: string, config: LaunchConfig) {
   const helper = spawnHelper();
   const store = new OrchestrationStore(root);
   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
-  const gates = new A2AGates(root, panes);
+  const gates = createGates(root, panes);
   const relay = new RequestRelay(store);
   const daemon = randomUUID();
   gates.setUserInputObserverStatus("healthy");

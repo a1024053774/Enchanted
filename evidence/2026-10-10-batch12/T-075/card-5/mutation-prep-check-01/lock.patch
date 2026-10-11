@@ -1,0 +1,11 @@
+--- candidate/core.ts
++++ lock/core.ts
+@@ -219,7 +219,7 @@
+     const lock = new DatabaseSync(join(this.root, "locks", `${task}.sqlite3`));
+     lock.exec("PRAGMA busy_timeout=0");
+     try {
+-      lock.exec("BEGIN IMMEDIATE");
++      // MUTANT: omit the operation-lock transaction.
+       return lock;
+     } catch (error) {
+       lock.close();
