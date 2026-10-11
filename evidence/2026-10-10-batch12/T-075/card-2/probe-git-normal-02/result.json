@@ -1,0 +1,38 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "Git 正常/拒绝协议；中断窗口尚未运行",
+  "command": [
+    "/opt/homebrew/opt/python@3.11/bin/python3.11",
+    "-B",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-2/probe-git-rev2.py",
+    "probe-git-normal-02"
+  ],
+  "git": "/opt/homebrew/bin/git",
+  "root": "/tmp/a2a-t075-2-git-txg0dl4t",
+  "cases": [
+    {
+      "name": "symref-standalone",
+      "repo": "/tmp/a2a-t075-2-git-txg0dl4t/symref-standalone/repo",
+      "target": "/tmp/a2a-t075-2-git-txg0dl4t/symref-standalone/linked main",
+      "candidate": "/tmp/a2a-t075-2-git-txg0dl4t/symref-standalone/candidate",
+      "G": "5b9c5828944d51e20234e0744fe387f3e32c34fd",
+      "M": "41440cc2e1a616e7059d1431463c3b64e9302842",
+      "state": "PASS"
+    },
+    {
+      "name": "branch-update-locks",
+      "repo": "/tmp/a2a-t075-2-git-txg0dl4t/branch-update-locks/repo",
+      "target": "/tmp/a2a-t075-2-git-txg0dl4t/branch-update-locks/linked main",
+      "candidate": "/tmp/a2a-t075-2-git-txg0dl4t/branch-update-locks/candidate",
+      "G": "5c757cdda5cd0a3b76d03c5ce75b79cc5c89128c",
+      "M": "daab19c6ca11603c32ea837c502efb5a63568a4a",
+      "state": "running"
+    }
+  ],
+  "error": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-2/probe-git-rev2.py\", line 384, in main\n    probe.main()\n  File \"/Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-2/probe-git-rev2.py\", line 260, in main\n    self.support_and_locks()\n  File \"/Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-2/probe-git-rev2.py\", line 235, in support_and_locks\n    head = self.run(target, [\"symbolic-ref\", \"HEAD\", \"refs/heads/other\"], allowed=(128,))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-2/probe-git-rev2.py\", line 60, in run\n    self.check(p.returncode in allowed, \"命令退出状态\", list(allowed), record)\n  File \"/Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-2/probe-git-rev2.py\", line 67, in check\n    raise AssertionError(json.dumps(record, ensure_ascii=False))\nAssertionError: {\"claim\": \"命令退出状态\", \"expected\": [128], \"observed\": {\"argv\": [\"/opt/homebrew/bin/git\", \"-C\", \"/tmp/a2a-t075-2-git-txg0dl4t/branch-update-locks/linked main\", \"symbolic-ref\", \"HEAD\", \"refs/heads/other\"], \"cwd\": \"/tmp/a2a-t075-2-git-txg0dl4t/branch-update-locks/linked main\", \"stdin\": null, \"started\": \"2026-10-11T02:48:46.351046+00:00\", \"exit\": 1, \"stdout\": \"\", \"stderr\": \"error: cannot lock ref 'HEAD': Unable to create '/private/tmp/a2a-t075-2-git-txg0dl4t/branch-update-locks/repo/.git/worktrees/linked-main/HEAD.lock': File exists.\\n\\nAnother git process seems to be running in this repository, e.g.\\nan editor opened by 'git commit'. Please make sure all processes\\nare terminated then try again. If it still fails, a git process\\nmay have crashed in this repository earlier:\\nremove the file manually to continue.\\n\", \"ended\": \"2026-10-11T02:48:46.508006+00:00\"}, \"pass\": false}\n",
+  "pending": [
+    "before-worktree-update",
+    "after-worktree-before-CAS",
+    "after-CAS-before-bookkeeping"
+  ]
+}
