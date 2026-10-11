@@ -9,7 +9,7 @@
 - **编排后台（orchestration daemon）**：工作台的常驻后台进程，托管窗格，负责派发与唤醒、门禁、任务卡、收件箱与复盘调度，记录都存在这里；界面关掉不影响它。
 - **窗格（pane）**：承载一个 shell 及其中 agent CLI 的终端区域；工作台的窗格由编排后台托管，Herdr 期指 Herdr 的 pane。
 - **Muster 引擎**：Herdr 0.9.3 的硬分叉，曾计划作为工作台后台；2026-10-07 冻结，2026-10-08 与 `coop.py` 一起从仓库删除（T-040），源码留在 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。
-- **门禁入口（gate entry）**：a2a 门禁对外唯一的调用入口；认领、交付、验收、集成与回收只经它，并保持操作锁语义。第三阶段抽进编排后台；抽出完成前仍是 Synara fork 中的原生门禁（`packages/a2a-gates`）。本仓库验收经 `acceptance/entry/a2a_gates.py` 调用它。
+- **门禁入口（gate entry）**：a2a 门禁对外唯一的调用入口；认领、交付、验收、集成与回收只经它，并保持操作锁语义。第三阶段抽进编排后台：2026-10-11 起门禁源码在本仓库 `workbench/src/gates/`（由 Node 运行，T-075-1），fork 中的 `packages/a2a-gates` 不再作入口；编排后台的命令行入口接上之前，本仓库验收经 `acceptance/entry/a2a_gates.py` 调用 `workbench/src/gates/cli.ts`。
 - **项目（Project）**：对应一个仓库目录的工作范围；在工作台中包含多个任务。
 - **Task（任务）**：项目中的一个工作单元；在工作台中是项目下的一个任务窗口（应用内区域，不要求独立系统窗口），可以包含多个 agent 会话。任务卡可以稍后再挂，挂上任务卡的任务称为受管任务，只有受管任务走 claim、submit、验收和集成门禁。任务与 agent 会话的归属由 a2a 保存（受管任务以门禁 task id 为身份）。Synara 原生的 ProjectTask、ProjectTaskAttempt、HubWorkItem 属于其 Hub 编排，不是这里的任务或 attempt，提及时用原名。
 - **任务卡（task card）**：受管任务挂的结构化合同，也是发给 worker 的任务说明，写明目标、非目标、修改边界（允许、禁止）、完成条件、任务类型与复杂度；门禁按它检查交付。2026-10-10 起取代“验收合同”与 brief 的叫法。
