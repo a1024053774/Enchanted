@@ -1,0 +1,11 @@
+--- candidate/workbench/src/panes.ts
++++ omitted_bytes/workbench/src/panes.ts
+@@ -103,7 +103,7 @@
+       check(stat.isFile(), "trace_unavailable");
+       check(offset <= stat.size, "output_offset_past_end");
+       const bytes = Buffer.alloc(Math.min(maxBytes, stat.size - offset));
+-      const read = readSync(fd, bytes, 0, bytes.length, offset);
++      const read = readSync(fd, bytes, 0, bytes.length, offset === 65536 ? offset + 1 : offset);
+       check(read === bytes.length, "trace_changed_during_read");
+       return { launch: record.id, start_offset: offset, next_offset: offset + read,
+         total_bytes: stat.size, data_base64: bytes.toString("base64") };

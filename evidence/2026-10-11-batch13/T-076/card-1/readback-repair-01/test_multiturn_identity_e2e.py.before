@@ -1,0 +1,180 @@
+"""Same runtime owner across receipt turns; reject different runtime owners.
+
+The real CLI, socket, daemon handler, gates, Git and SQLite are exercised.
+Runtime facts are controlled externally and are not real PTY/provider evidence.
+"""
+import argparse
+import contextlib
+import json
+from pathlib import Path
+import sqlite3
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import unittest
+
+import test_task_cards_e2e as previous
+
+SOURCE = None
+OUT = None
+
+
+class MultiTurn(previous.TaskCardsCLI):
+    def setUp(self):
+        super().setUp()
+        self.card['executor'] = {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}
+        self.control = self.root / 'control'; self.control.mkdir()
+        self.runtime_file = self.control / 'runtime.json'
+        self.runtime_file.write_text(json.dumps({'threads': {}, 'closes': []}) + '\n', encoding='utf-8')
+        ready = self.root / 'ready.json'
+        self.host_stdout = (self.root / 'host.stdout.txt').open('xb')
+        self.host_stderr = (self.root / 'host.stderr.txt').open('xb')
+        argv = ['node', Path(__file__).with_name('multiturn_identity_host.ts'), SOURCE, self.state, self.control, ready]
+        self.host = subprocess.Popen(list(map(str, argv)), env=self.env, stdout=self.host_stdout,
+                                     stderr=self.host_stderr, start_new_session=True)
+        self.addCleanup(self.stop_host)
+        end = time.monotonic() + 10
+        while not ready.exists():
+            if self.host.poll() is not None or time.monotonic() > end:
+                raise RuntimeError('Isolated host did not become ready; inspect its stderr')
+            time.sleep(0.05)
+        previous.ARTIFACTS[-1].update(host=json.loads(ready.read_text()), runtime=str(self.runtime_file))
+        self.run_process = None
+
+    def stop_host(self):
+        try:
+            if self.host.poll() is None:
+                if getattr(self, 'run_process', None) and self.run_process.poll() is None:
+                    self.run_process.communicate(timeout=30)
+                stopped = self.process(['node', previous.GATE, '--state', self.state, 'daemon_stop'])
+                self.assertEqual(stopped.returncode, 0, previous.COMMANDS[-1])
+                self.host.wait(timeout=10)
+            self.assertEqual(self.host.returncode, 0, 'Owned host shutdown must succeed')
+        finally:
+            self.host_stdout.close(); self.host_stderr.close()
+
+    def create_task(self):
+        self.save_card()
+        self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'fixture')
+
+    def change_live(self, thread, **changes):
+        value = json.loads(self.runtime_file.read_text(encoding='utf-8'))
+        value['threads'][thread].update(changes)
+        temporary = self.control / 'update.json'
+        temporary.write_text(json.dumps(value) + '\n', encoding='utf-8')
+        temporary.replace(self.runtime_file)
+        return value['threads'][thread]
+
+    def original_live(self, a):
+        return json.loads(self.runtime_file.read_text())['threads'][a['thread_id']]
+
+    def delivery(self):
+        self.create_task()
+        a = self.cli('dispatch', '--runtime-mode', 'workspace-write')['attempt']
+        c = self.commit(a)
+        self.submit(a, c)
+        self.change_live(a['thread_id'], turn='receipt-B', running=False)
+        return a, c
+
+    def test_reclaim_after_receipt_turn(self):
+        a, c = self.delivery()
+        self.cli('verify', '--attempt', a['attempt_id'])
+        self.cli('integrate', '--attempt', a['attempt_id'])
+        self.cli('reclaim', '--attempt', a['attempt_id'])
+        current = self.cli('status')['task']
+        self.assertEqual(current['candidate_commit'], c)
+        self.assertEqual(current['current_attempt']['turn_id'], 'delivery-A', 'Receipt cannot change the delivery binding')
+        self.assertTrue(current['current_attempt']['reclaimed'])
+        self.assertEqual(json.loads(self.runtime_file.read_text())['closes'], [a['thread_id']])
+
+    def test_run_after_receipt_turn(self):
+        self.create_task()
+        argv = ['node', previous.GATE, '--state', self.state, 'run', '--task', self.task,
+                '--runtime-mode', 'workspace-write', '--wait-seconds', '15']
+        self.run_process = subprocess.Popen(list(map(str, argv)), cwd=self.root, env=self.env,
+                                            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                            start_new_session=True)
+        until = time.monotonic() + 8
+        while True:
+            task = self.cli('status')['task']
+            if task['state'] == 'claimed' and task['current_attempt'].get('turn_id') == 'delivery-A':
+                break
+            if self.run_process.poll() is not None or time.monotonic() > until:
+                raise RuntimeError('Run failed before reaching its independently observed dispatch boundary')
+            time.sleep(0.05)
+        a = task['current_attempt']; c = self.commit(a)
+        # Keep the external worker running until the receipt turn is supplied.
+        # A fast verify/integrate still cannot reclaim before this transition.
+        self.submit(a, c)
+        self.change_live(a['thread_id'], turn='receipt-B', running=False)
+        stdout, stderr = self.run_process.communicate(timeout=30)
+        previous.COMMANDS.append({'test': self.id(), 'argv': list(map(str, argv)), 'cwd': str(self.root),
+                                  'exit': self.run_process.returncode, 'stdout': stdout, 'stderr': stderr})
+        reply = json.loads(stdout)
+        self.assertEqual(self.run_process.returncode, 0, reply)
+        self.assertEqual(reply['run']['outcome'], 'completed', reply)
+        self.assertTrue(reply['run']['reclaimed'], reply)
+        self.assertEqual(reply['task']['current_attempt']['turn_id'], 'delivery-A')
+        self.assertEqual(json.loads(self.runtime_file.read_text())['closes'], [a['thread_id']])
+
+    def foreign(self, field, replacement):
+        self.create_task()
+        a = self.cli('dispatch', '--runtime-mode', 'workspace-write')['attempt']
+        live = self.original_live(a)
+        # Keep the turn identical, so a turn-only identity check cannot pass.
+        identity = {**live['runtime_identity'], field: replacement}
+        self.change_live(a['thread_id'], runtime_identity=identity, running=False)
+        self.cli('reclaim', '--attempt', a['attempt_id'], ok=False, error='identity_conflict')
+        self.assertEqual(json.loads(self.runtime_file.read_text())['closes'], [])
+        self.assertEqual(self.oid(ref='refs/heads/main'), self.base)
+        self.assertTrue(any(e['type'] == 'rejected' and e['details']['error'] == 'identity_conflict' for e in self.events()))
+
+    def test_other_native_session_rejected(self):
+        self.foreign('native_session', 'another-native-session')
+
+    def test_other_leader_rejected(self):
+        self.foreign('leader_pid', 12002)
+
+
+def main():
+    global SOURCE, OUT
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--case', choices=['all', 'reclaim', 'run', 'native', 'leader'], default='all')
+    args = parser.parse_args()
+    SOURCE = args.source.resolve(); OUT = args.output.resolve(); OUT.mkdir(parents=True, exist_ok=False)
+    previous.GATE = SOURCE / 'workbench/src/gates/cli.ts'
+    previous.ARTIFACT_ROOT = Path(tempfile.mkdtemp(prefix='m76-', dir='/tmp'))
+    methods = {'reclaim': 'test_reclaim_after_receipt_turn', 'run': 'test_run_after_receipt_turn',
+               'native': 'test_other_native_session_rejected', 'leader': 'test_other_leader_rejected'}
+    selected = list(methods.values()) if args.case == 'all' else [methods[args.case]]
+    with (OUT / 'stdout.txt').open('x', encoding='utf-8') as stdout, (OUT / 'stderr.txt').open('x', encoding='utf-8') as stderr:
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(MultiTurn(n) for n in selected))
+    snapshots = []
+    for item in previous.ARTIFACTS:
+        database = Path(item['root']) / 'state/state.sqlite3'
+        with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
+            tables = {table: db.execute('SELECT * FROM ' + table).fetchall()
+                      for table in ('tasks', 'attempts', 'verifications', 'runs', 'events')}
+        snapshots.append({'test': item['test'], 'database': str(database), 'tables': tables})
+    record = {'status': 'PASS' if result.wasSuccessful() else 'INCOMPLETE', 'source': str(SOURCE),
+              'argv': sys.argv, 'tests_run': result.testsRun, 'failures': len(result.failures),
+              'errors': len(result.errors), 'skipped': len(result.skipped),
+              'failure_text': [{'test': test.id(), 'text': text} for test, text in result.failures],
+              'error_text': [{'test': test.id(), 'text': text} for test, text in result.errors],
+              'commands': previous.COMMANDS, 'artifacts': previous.ARTIFACTS, 'readbacks': snapshots,
+              'real_codex_turns': 0, 'evidence_layer': 'real gates and transport with controlled external runtime'}
+    with (OUT / 'run.json').open('x', encoding='utf-8') as stream:
+        json.dump(record, stream, ensure_ascii=False, indent=2); stream.write('\n')
+    with tarfile.open(OUT / 'fixtures.tar.gz', 'x:gz') as archive:
+        archive.add(previous.ARTIFACT_ROOT, arcname=previous.ARTIFACT_ROOT.name)
+    print(json.dumps({key: record[key] for key in ('status', 'tests_run', 'failures', 'errors', 'skipped')}))
+    return 0 if result.wasSuccessful() else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

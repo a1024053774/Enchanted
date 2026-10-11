@@ -1,0 +1,69 @@
+{
+  "status": "PASS",
+  "scope": "读回夹具反事实；不证明后台、身份修复或产品行为",
+  "argv": [
+    "workbench/tests/test_multiturn_readback.py",
+    "--known-bad",
+    "evidence/2026-10-11-batch13/T-076/card-1/readback-repair-01/test_multiturn_identity_e2e.py.before",
+    "--output",
+    "evidence/2026-10-11-batch13/T-076/card-1/readback-repair-01/local-counterfactual-01"
+  ],
+  "real_codex_turns": 0,
+  "observations": [
+    {
+      "case": "known-bad-after-stop-and-root-move",
+      "status": "PASS",
+      "counterfactual": "original collector rejects the required readback",
+      "error": "OperationalError('unable to open database file')",
+      "expected": [
+        {
+          "id": 7,
+          "value": "独立输入：known-bad"
+        }
+      ]
+    },
+    {
+      "case": "candidate-after-stop-and-root-move",
+      "status": "PASS",
+      "expected": [
+        {
+          "id": 7,
+          "value": "独立输入：candidate-sentinel"
+        }
+      ],
+      "observed": [
+        {
+          "test": "candidate-sentinel",
+          "database": "/private/tmp/m76-read-4uignjzb/state/state.sqlite3",
+          "captured_at": "2026-10-11T11:01:14.099293+00:00",
+          "phase": "before-host-stop",
+          "host_pid": 10001,
+          "tables": {
+            "tasks": [
+              {
+                "id": 7,
+                "value": "独立输入：candidate-sentinel"
+              }
+            ],
+            "attempts": [],
+            "verifications": [],
+            "runs": [],
+            "events": []
+          }
+        }
+      ]
+    },
+    {
+      "case": "reject-foreign-test",
+      "status": "PASS"
+    },
+    {
+      "case": "reject-foreign-database",
+      "status": "PASS"
+    },
+    {
+      "case": "reject-foreign-phase",
+      "status": "PASS"
+    }
+  ]
+}

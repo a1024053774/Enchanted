@@ -1,0 +1,11 @@
+--- candidate/workbench/src/panes.ts
++++ unknown_is_idle/workbench/src/panes.ts
+@@ -346,7 +346,7 @@
+     check(record, "unknown_pane");
+     const archived = this.store.lastEvent(record.id, ["pane_archived"]);
+     const recovered = this.store.lastEvent(record.id, ["pane_recovered"]);
+-    return { thread, launch: record.id, state: "unknown", lifecycle: archived ? "ended" : recovered?.data.lifecycle ?? "unknown",
++    return { thread, launch: record.id, state: "idle", lifecycle: archived ? "ended" : recovered?.data.lifecycle ?? "unknown",
+       shell_pid: recovered?.data.shell_pid ?? null, state_source: archived ? "pane_archived" : recovered ? "pane_recovered" : "launch_record",
+       active: null, native_session: null, turn: null, writing: false, queued: [], failed: null,
+       stopped: archived ? true : recovered?.data.exit_event ? true : null, historical: true };

@@ -1,0 +1,14 @@
+--- candidate/workbench/app/build.mjs
++++ missing_volume_builds/workbench/app/build.mjs
+@@ -6,10 +6,7 @@
+ const { values } = parseArgs({ options: { slot: { type: 'string', default: 'local' } } });
+ const volume = resolve(process.env.A2A_BUILD_VOLUME ?? '/Volumes/WD-Elements');
+ // This runs before importing Vite or creating any cache/output directory.
+-if (!lstatSync(volume).isDirectory() || realpathSync(volume) !== volume ||
+-    statSync(volume).dev === statSync(dirname(volume)).dev) {
+-  throw new Error('构建要求真实挂载的外置盘；不回退到内置盘。');
+-}
++// MUTANT: omit the external-volume guard.
+ if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(values.slot)) throw new Error('Invalid build slot');
+ const base = join(volume, 'a2a-workbench');
+ mkdirSync(base, { recursive: true });
