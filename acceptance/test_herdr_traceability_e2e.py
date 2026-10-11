@@ -49,10 +49,12 @@ from pathlib import Path
 args=sys.argv[1:]
 with Path(os.environ['FAKE_CALLS']).open('a') as f:f.write(json.dumps(args)+'\\n')
 if args[:2]==['pane','split']:
+ values=dict(args[i+1].split('=',1) for i,v in enumerate(args) if v=='--env')
+ Path(os.environ['FAKE_ENV']).write_text(json.dumps(values),encoding='utf-8')
  print(json.dumps({'result':{'pane':{'pane_id':'fake:pane'}}}))
-elif args[:2]==['pane','run']:
- Path(os.environ['FAKE_EXPORT']).write_text(args[3])
- # Actual Herdr 0.9.3 pane run succeeds with an empty stdout.
+elif args[:2]==['pane','process-info']:
+ print(json.dumps({'result':{'process_info':{'pane_id':'fake:pane','shell_pid':100,
+  'foreground_process_group_id':100,'foreground_processes':[{'pid':100,'name':'zsh'}]}}}))
 elif args[:2]==['agent','start']:
  if os.environ.get('FAKE_FAIL_START'):
   print('explicit fake startup failure',file=sys.stderr);sys.exit(12)
@@ -61,7 +63,7 @@ else:sys.exit(2)
 ''', encoding="utf-8")
         fake.chmod(0o755)
         self.env.update(PATH=str(self.fakebin)+os.pathsep+self.env["PATH"],
-                        FAKE_CALLS=str(self.root/"fake-calls.jsonl"), FAKE_EXPORT=str(self.root/"fake-export.txt"))
+                        FAKE_CALLS=str(self.root/"fake-calls.jsonl"), FAKE_ENV=str(self.root/"fake-env.json"))
         self.task = "T-sentinel-" + uuid.uuid4().hex[:10] + "-1"
         self.attempt, self.session = "attempt-"+uuid.uuid4().hex, "session-"+uuid.uuid4().hex
 
@@ -93,10 +95,8 @@ else:sys.exit(2)
         return json.loads(r.stdout)["launch_id"]
 
     def managed_env(self):
-        import shlex
-        exports = shlex.split((self.root/"fake-export.txt").read_text())[1:]
         env = dict(self.env, CODEX_THREAD_ID="native-"+uuid.uuid4().hex)
-        env.update(v.split("=",1) for v in exports)
+        env.update(json.loads((self.root/"fake-env.json").read_text(encoding="utf-8")))
         return env
 
     def rows(self, name):

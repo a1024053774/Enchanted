@@ -36,12 +36,13 @@ with Path(os.environ['FAKE_CALLS']).open('a') as f:
 counter = Path(os.environ['FAKE_SHELL_READS'])
 reads = int(counter.read_text()) if counter.exists() else 0
 if args[:2] == ['pane', 'split']:
- values = [args[i+1] for i,v in enumerate(args) if v == '--env']
- Path(os.environ['FAKE_EXPORT']).write_text('export ' + ' '.join(shlex.quote(v) for v in values))
+ values = dict(args[i+1].split('=',1) for i,v in enumerate(args) if v == '--env')
+ Path(os.environ['FAKE_ENV']).write_text(json.dumps(values), encoding='utf-8')
  print(json.dumps({'result': {'pane': {'pane_id': 'fake:pane'}}}))
 elif args[:2] == ['pane', 'run']:
  # Supports the known-bad baseline, without making its premature start pass.
- Path(os.environ['FAKE_EXPORT']).write_text(args[3])
+ values = dict(v.split('=',1) for v in shlex.split(args[3])[1:])
+ Path(os.environ['FAKE_ENV']).write_text(json.dumps(values), encoding='utf-8')
 elif args[:2] == ['pane', 'process-info']:
  if os.environ.get('FAKE_PROCESS_HANG'):
   time.sleep(60)
