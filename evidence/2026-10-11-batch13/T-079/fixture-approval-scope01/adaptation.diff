@@ -1,0 +1,62 @@
+diff --git a/acceptance/test_herdr_traceability_e2e.py b/acceptance/test_herdr_traceability_e2e.py
+index 735923d6..317246f2 100644
+--- a/acceptance/test_herdr_traceability_e2e.py
++++ b/acceptance/test_herdr_traceability_e2e.py
+@@ -49,10 +49,12 @@ from pathlib import Path
+ args=sys.argv[1:]
+ with Path(os.environ['FAKE_CALLS']).open('a') as f:f.write(json.dumps(args)+'\\n')
+ if args[:2]==['pane','split']:
++ values=dict(args[i+1].split('=',1) for i,v in enumerate(args) if v=='--env')
++ Path(os.environ['FAKE_ENV']).write_text(json.dumps(values),encoding='utf-8')
+  print(json.dumps({'result':{'pane':{'pane_id':'fake:pane'}}}))
+-elif args[:2]==['pane','run']:
+- Path(os.environ['FAKE_EXPORT']).write_text(args[3])
+- # Actual Herdr 0.9.3 pane run succeeds with an empty stdout.
++elif args[:2]==['pane','process-info']:
++ print(json.dumps({'result':{'process_info':{'pane_id':'fake:pane','shell_pid':100,
++  'foreground_process_group_id':100,'foreground_processes':[{'pid':100,'name':'zsh'}]}}}))
+ elif args[:2]==['agent','start']:
+  if os.environ.get('FAKE_FAIL_START'):
+   print('explicit fake startup failure',file=sys.stderr);sys.exit(12)
+@@ -61,7 +63,7 @@ else:sys.exit(2)
+ ''', encoding="utf-8")
+         fake.chmod(0o755)
+         self.env.update(PATH=str(self.fakebin)+os.pathsep+self.env["PATH"],
+-                        FAKE_CALLS=str(self.root/"fake-calls.jsonl"), FAKE_EXPORT=str(self.root/"fake-export.txt"))
++                        FAKE_CALLS=str(self.root/"fake-calls.jsonl"), FAKE_ENV=str(self.root/"fake-env.json"))
+         self.task = "T-sentinel-" + uuid.uuid4().hex[:10] + "-1"
+         self.attempt, self.session = "attempt-"+uuid.uuid4().hex, "session-"+uuid.uuid4().hex
+ 
+@@ -93,10 +95,8 @@ else:sys.exit(2)
+         return json.loads(r.stdout)["launch_id"]
+ 
+     def managed_env(self):
+-        import shlex
+-        exports = shlex.split((self.root/"fake-export.txt").read_text())[1:]
+         env = dict(self.env, CODEX_THREAD_ID="native-"+uuid.uuid4().hex)
+-        env.update(v.split("=",1) for v in exports)
++        env.update(json.loads((self.root/"fake-env.json").read_text(encoding="utf-8")))
+         return env
+ 
+     def rows(self, name):
+diff --git a/acceptance/test_launcher_shell_ready_e2e.py b/acceptance/test_launcher_shell_ready_e2e.py
+index f9d1286e..d03aff2c 100644
+--- a/acceptance/test_launcher_shell_ready_e2e.py
++++ b/acceptance/test_launcher_shell_ready_e2e.py
+@@ -36,12 +36,13 @@ with Path(os.environ['FAKE_CALLS']).open('a') as f:
+ counter = Path(os.environ['FAKE_SHELL_READS'])
+ reads = int(counter.read_text()) if counter.exists() else 0
+ if args[:2] == ['pane', 'split']:
+- values = [args[i+1] for i,v in enumerate(args) if v == '--env']
+- Path(os.environ['FAKE_EXPORT']).write_text('export ' + ' '.join(shlex.quote(v) for v in values))
++ values = dict(args[i+1].split('=',1) for i,v in enumerate(args) if v == '--env')
++ Path(os.environ['FAKE_ENV']).write_text(json.dumps(values), encoding='utf-8')
+  print(json.dumps({'result': {'pane': {'pane_id': 'fake:pane'}}}))
+ elif args[:2] == ['pane', 'run']:
+  # Supports the known-bad baseline, without making its premature start pass.
+- Path(os.environ['FAKE_EXPORT']).write_text(args[3])
++ values = dict(v.split('=',1) for v in shlex.split(args[3])[1:])
++ Path(os.environ['FAKE_ENV']).write_text(json.dumps(values), encoding='utf-8')
+ elif args[:2] == ['pane', 'process-info']:
+  if os.environ.get('FAKE_PROCESS_HANG'):
+   time.sleep(60)

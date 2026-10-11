@@ -30,3 +30,5 @@ ready_rev: 1
 - 授权来源：assign `20261011T101846Z-ideation-assign-001` 中“launcher 偶发 agent_pane_busy（020752Z）请按 T-004 边界自建缺陷票”；用户原话见该条目的“## 授权”。`ready_by: executor`。
 
 ## Resolution
+
+2026-10-11，T-079-1 worker `s13-t079`：**PASS，待主控关闭**。ticket 保持 open，`ready_rev: 1`，起点 `ffe7ecb85e9e224d5917183b48754f15ac0c5ba6`。执行主控取得真实红态 10 次里 2 次 agent_pane_busy，以及代码候选 `8ab5177d09dcb25f57a50ad2166dc0006ea99ce3` 的绿态 10/10 started、busy=0；记录完整，所有自建 pane 关闭及隔离 home 删除有证据。修复采用 split 环境与 30 秒有界结构化等待，只调用一次 agent start；提交与夹具 worker 提交均带齐 9 项尾注。主控批准的夹具候选 `d8446fc982aed0309e7d4892760cbe4e69b694eb` 只改批准的环境与 process-info 夹具；逐 hunk 与源码比对证明业务断言原文、launcher 不变。`tests-20261011T110739Z-8b3a1a` 中旧套 7/7、新套 6/6 通过，起点反事实 1/1 按预期失败，无环境错误；当前交付源码与归档一致。红态外层工具退出 1 已查明为主控追加的 zsh 空 glob 检查，原始调用与独立复现保留。收尾地图复查为 0 problems、0 stale，退出 0；此前并行 T-076 导致的临时 stale 失败与 issue `20261011T111416Z-worker:s13-t079-issue-001` 保留交主控处置，本 worker 未修改 workbench 或地图。S 级 diff 审查与最终关闭交执行主控。证据与重放命令见 [RESULTS.md](../../evidence/2026-10-11-batch13/T-079/RESULTS.md)。
