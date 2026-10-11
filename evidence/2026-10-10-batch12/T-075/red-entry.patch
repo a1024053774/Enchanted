@@ -1,0 +1,84 @@
+diff --git a/acceptance/entry/a2a_gates.py b/acceptance/entry/a2a_gates.py
+index 38aaa82..bb855e2 100644
+--- a/acceptance/entry/a2a_gates.py
++++ b/acceptance/entry/a2a_gates.py
+@@ -4,7 +4,5 @@ import os
+ from pathlib import Path
+ import sys
+ 
+-fork = Path(__file__).resolve().parents[3] / "synara"
+-entry = fork / "a2a/scripts/bun"
+-cli = fork / "packages/a2a-gates/src/cli.ts"
+-os.execv(str(entry), [str(entry), str(cli), *sys.argv[1:]])
++cli = Path(__file__).resolve().parents[2] / "workbench/src/gates/cli.ts"
++os.execvp("node", ["node", str(cli), *sys.argv[1:]])
+diff --git a/acceptance/entry/native-entry.py b/acceptance/entry/native-entry.py
+index e5fd330..00fb82e 100644
+--- a/acceptance/entry/native-entry.py
++++ b/acceptance/entry/native-entry.py
+@@ -2,6 +2,9 @@
+ import os
+ from pathlib import Path
+ import sys
+-fork = Path('/Users/luckye/Documents/Code/synara')
++# The acceptance runner snapshots this transport below the repository root.
++root = next(parent for parent in Path(__file__).resolve().parents
++            if (parent / "acceptance/test_run_e2e.py").is_file())
++os.environ["A2A_WORKBENCH"] = str(root / "workbench")
+ entry = Path(__file__).with_suffix('.ts')
+-os.execv(str(fork / 'a2a/scripts/bun'), [str(fork / 'a2a/scripts/bun'), str(entry), *sys.argv[1:]])
++os.execvp("node", ["node", str(entry), *sys.argv[1:]])
+diff --git a/acceptance/entry/native-entry.ts b/acceptance/entry/native-entry.ts
+index ae4c43f..42e620f 100644
+--- a/acceptance/entry/native-entry.ts
++++ b/acceptance/entry/native-entry.ts
+@@ -1,27 +1,25 @@
+-const { main } = await import(process.env.A2A_MUTANT_CLI ?? "/Users/luckye/Documents/Code/synara/packages/a2a-gates/src/cli.ts");
+-const { A2AGates } = await import(process.env.A2A_MUTANT_CORE ?? "/Users/luckye/Documents/Code/synara/packages/a2a-gates/src/core.ts");
++const { main } = await import(process.env.A2A_MUTANT_CLI ?? `${process.env.A2A_WORKBENCH}/src/gates/cli.ts`);
++const { A2AGates } = await import(process.env.A2A_MUTANT_CORE ?? `${process.env.A2A_WORKBENCH}/src/gates/core.ts`);
+ import { boundary, runtime } from "./native-runtime.ts";
+ const argv = process.argv.slice(2);
+ const value = (key: string) => argv[argv.indexOf("--" + key) + 1];
+ if (argv.includes("create")) argv.push("--project", value("task"));
+-// Native managed submit travels through the actual MCP handler, with the fixture
+-// supplying only provider-side active-turn facts. It never writes gate SQLite.
++// The fixture supplies only runtime-side active-turn facts to the production
++// gate's caller interface. It never writes gate SQLite or invokes a model.
+ if (argv.includes("submit") && process.env.A2A_TEST_THREAD_CONTROL) {
+   const gates = new A2AGates(value("state"), runtime);
+   try {
+     const task = (await gates.call({command: "status", task: value("task")})).task;
+     const attempt = task?.current_attempt;
+     if (attempt?.thread_id) {
+-      const { a2aSubmitTool } = await import("/Users/luckye/Documents/Code/synara/apps/server/src/a2a/tools.ts");
+-      const { Effect } = await import("/Users/luckye/Documents/Code/synara/packages/a2a-gates/node_modules/effect/dist/index.js");
+       const live = await boundary("submit-begin", {thread: attempt.thread_id});
+       const args = {task: value("task"), attempt: value("attempt"), session: value("session"),
+         fence: Number(value("fence")), spec_rev: Number(value("spec-rev")), commit: value("commit")};
+-      const result = await Effect.runPromise(a2aSubmitTool(gates).handler(args, {
+-        callerThreadId: attempt.thread_id, callerTurnId: live.turn,
+-        assertCallerTurnActive: () => Effect.void,
+-      } as any));
+-      const resultText = (result.content[0] as any).text;
++      const result = await gates.call({ ...args, command: "submit" }, {
++        thread: attempt.thread_id, turn: live.turn,
++        assertActive: async () => {},
++      });
++      const resultText = JSON.stringify(result);
+       await boundary("submit-end", {thread: attempt.thread_id});
+       await new Promise<void>(resolve => process.stdout.write(resultText + "\n", () => resolve()));
+       process.exitCode = JSON.parse(resultText).ok ? 0 : 1;
+diff --git a/acceptance/entry/native-runtime.ts b/acceptance/entry/native-runtime.ts
+index 5cc631e..32be674 100644
+--- a/acceptance/entry/native-runtime.ts
++++ b/acceptance/entry/native-runtime.ts
+@@ -1,7 +1,7 @@
+ // Evidence-only replacement for the native thread service. No model execution.
+ import { execFile } from "node:child_process";
+ import { fileURLToPath } from "node:url";
+-import type { GateRuntime } from "/Users/luckye/Documents/Code/synara/packages/a2a-gates/src/core.ts";
++import type { GateRuntime } from "../../workbench/src/gates/core.ts";
+ const service = fileURLToPath(new URL("./thread-boundary.py", import.meta.url));
+ export async function boundary(method: string, payload: unknown): Promise<any> {
+   return new Promise((resolve, reject) => {

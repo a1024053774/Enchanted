@@ -1,0 +1,33 @@
+test_baseline_change_after_verification_rejects_integration (__main__.ManagedDeliveryCLI) ... ok
+test_concurrent_claim_is_unique_persistent_and_task_specific (__main__.ManagedDeliveryCLI) ... ok
+test_good_candidate_uses_oracle_snapshot_and_integrates_once (__main__.ManagedDeliveryCLI) ... ok
+test_identity_gates_and_revocation_reject_old_verified_attempt (__main__.ManagedDeliveryCLI) ... test_oracle_rejects_candidate_missing_limit_upper_bound (__main__.ManagedDeliveryCLI) ... ok
+test_spec_revision_invalidates_candidate_and_old_identity (__main__.ManagedDeliveryCLI) ... ok
+test_submit_requires_clean_head_and_cannot_replace_frozen_candidate (__main__.ManagedDeliveryCLI) ... ok
+test_unverified_and_oracle_failed_candidate_never_changes_ref (__main__.ManagedDeliveryCLI) ... ok
+
+======================================================================
+FAIL: test_identity_gates_and_revocation_reject_old_verified_attempt (__main__.ManagedDeliveryCLI) (field='fence')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 325, in test_identity_gates_and_revocation_reject_old_verified_attempt
+    self.submit(attempt, commit, ok=False, error=error, **{field: value})
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 193, in submit
+    return self.cli("submit", *args, ok=ok, error=error)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 135, in cli
+    self.assertEqual(p.returncode, 0 if ok else 1, result)
+AssertionError: 0 != 1 : {'ok': True, 'task': {'task_id': 'check-b8a27d42bd514e00b6513fc41f9d3c9e', 'title': 'check-b8a27d42bd514e00b6513fc41f9d3c9e', 'project_id': 'check-b8a27d42bd514e00b6513fc41f9d3c9e', 'repo': '/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-check-honk5zak/test_identity_gates_and_revocation_reject_old_verified_attempt-10rxtjhv/isolated repo', 'oracle': '/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-check-honk5zak/test_identity_gates_and_revocation_reject_old_verified_attempt-10rxtjhv/isolated state/tasks/check-b8a27d42bd514e00b6513fc41f9d3c9e-e7a67c5e-2d02-4d41-b175-02688646f8c4/oracle.py', 'instructions': '/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-check-honk5zak/test_identity_gates_and_revocation_reject_old_verified_attempt-10rxtjhv/isolated state/tasks/check-b8a27d42bd514e00b6513fc41f9d3c9e-e7a67c5e-2d02-4d41-b175-02688646f8c4/instructions.txt', 'base_commit': '7e587da1d30db01819aaba641b8a2c9ab419bb62', 'state': 'submitted', 'spec_rev': 1, 'fence': 1, 'current_attempt': {'task_id': 'check-b8a27d42bd514e00b6513fc41f9d3c9e', 'attempt_id': 'f48a01f1-1ccf-496d-b63c-9ae26d85652d', 'session_id': 'fb1a090b-393c-422a-99e6-41ccc8bc80fe', 'fence': 1, 'spec_rev': 1, 'thread_id': '', 'runtime_mode': 'approval-required', 'turn_id': None, 'workspace': '/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-check-honk5zak/test_identity_gates_and_revocation_reject_old_verified_attempt-10rxtjhv/isolated state/worktrees/f48a01f1-1ccf-496d-b63c-9ae26d85652d', 'base_commit': '7e587da1d30db01819aaba641b8a2c9ab419bb62', 'reclaimed': False, 'owner': 'independent-check', 'state': 'submitted'}, 'candidate_commit': '43b114549cfe78a93f277ea6b684828a5c69c045', 'verification': None, 'integration_intent': None}}
+
+======================================================================
+FAIL: test_identity_gates_and_revocation_reject_old_verified_attempt (__main__.ManagedDeliveryCLI) (field='spec-rev')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 326, in test_identity_gates_and_revocation_reject_old_verified_attempt
+    self.assertEqual(self.business_state(), before)
+AssertionError: {'state': 'submitted', 'current_attempt': {'task_id'[680 chars]None} != {'state': 'claimed', 'current_attempt': {'task_id': [638 chars]None}
+Diff is 1281 characters long. Set self.maxDiff to None to see it.
+
+----------------------------------------------------------------------
+Ran 8 tests in 29.150s
+
+FAILED (failures=2)

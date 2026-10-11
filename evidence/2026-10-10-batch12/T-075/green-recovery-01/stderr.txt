@@ -1,0 +1,180 @@
+test_live_verify_excludes_verify_and_integrate (__main__.RecoveryCLI) ... ERROR
+test_live_integrate_excludes_verify_and_integrate (__main__.RecoveryCLI) ... ERROR
+test_interrupted_verify_gets_new_id_worktree_and_full_oracle (__main__.RecoveryCLI) ... ERROR
+test_before_CAS_recovers_same_intent_once (__main__.RecoveryCLI) ... ERROR
+test_after_CAS_recovers_bookkeeping_without_Git_write (__main__.RecoveryCLI) ... ERROR
+test_after_CAS_external_X_requires_reconciliation (__main__.RecoveryCLI) ... ERROR
+test_after_CAS_deleted_ref_requires_reconciliation (__main__.RecoveryCLI) ... ERROR
+test_interrupted_verify_revoke_reclaim_rejects_old_identity (__main__.RecoveryCLI) ... ERROR
+test_interrupted_verify_spec_change_rejects_old_candidate (__main__.RecoveryCLI) ... ERROR
+
+======================================================================
+ERROR: test_live_verify_excludes_verify_and_integrate (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 445, in test_live_verify_excludes_verify_and_integrate
+    after = self.snapshot("live-oracle-released")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 267, in snapshot
+    for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"):
+sqlite3.OperationalError: unable to open database file
+
+======================================================================
+ERROR: test_live_integrate_excludes_verify_and_integrate (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 468, in test_live_integrate_excludes_verify_and_integrate
+    after = self.snapshot("live-integrate-released")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 267, in snapshot
+    for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"):
+sqlite3.OperationalError: unable to open database file
+
+======================================================================
+ERROR: test_interrupted_verify_gets_new_id_worktree_and_full_oracle (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 483, in test_interrupted_verify_gets_new_id_worktree_and_full_oracle
+    self.kill_owned_cli(original, "active independent oracle")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 200, in kill_owned_cli
+    observation = self.process(["ps", "-p", str(p.pid), "-o", "pid=,ppid=,command="],
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 96, in process
+    p = subprocess.run(argv, cwd=str(cwd), env=self.env,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 505, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 951, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1821, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_before_CAS_recovers_same_intent_once (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 583, in test_before_CAS_recovers_same_intent_once
+    self.recover_integration("before")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 545, in recover_integration
+    control, before = self.start_git_fault(phase)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 380, in start_git_fault
+    self.kill_owned_cli(handle, phase + " real Git CAS")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 200, in kill_owned_cli
+    observation = self.process(["ps", "-p", str(p.pid), "-o", "pid=,ppid=,command="],
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 96, in process
+    p = subprocess.run(argv, cwd=str(cwd), env=self.env,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 505, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 951, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1821, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_after_CAS_recovers_bookkeeping_without_Git_write (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 586, in test_after_CAS_recovers_bookkeeping_without_Git_write
+    self.recover_integration("after")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 545, in recover_integration
+    control, before = self.start_git_fault(phase)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 380, in start_git_fault
+    self.kill_owned_cli(handle, phase + " real Git CAS")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 200, in kill_owned_cli
+    observation = self.process(["ps", "-p", str(p.pid), "-o", "pid=,ppid=,command="],
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 96, in process
+    p = subprocess.run(argv, cwd=str(cwd), env=self.env,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 505, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 951, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1821, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_after_CAS_external_X_requires_reconciliation (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 643, in test_after_CAS_external_X_requires_reconciliation
+    self.unknown_reference(delete=False)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 590, in unknown_reference
+    control, before = self.start_git_fault("after")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 380, in start_git_fault
+    self.kill_owned_cli(handle, phase + " real Git CAS")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 200, in kill_owned_cli
+    observation = self.process(["ps", "-p", str(p.pid), "-o", "pid=,ppid=,command="],
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 96, in process
+    p = subprocess.run(argv, cwd=str(cwd), env=self.env,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 505, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 951, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1821, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_after_CAS_deleted_ref_requires_reconciliation (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 646, in test_after_CAS_deleted_ref_requires_reconciliation
+    self.unknown_reference(delete=True)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 590, in unknown_reference
+    control, before = self.start_git_fault("after")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 380, in start_git_fault
+    self.kill_owned_cli(handle, phase + " real Git CAS")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 200, in kill_owned_cli
+    observation = self.process(["ps", "-p", str(p.pid), "-o", "pid=,ppid=,command="],
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 96, in process
+    p = subprocess.run(argv, cwd=str(cwd), env=self.env,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 505, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 951, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1821, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_interrupted_verify_revoke_reclaim_rejects_old_identity (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 692, in test_interrupted_verify_revoke_reclaim_rejects_old_identity
+    self.stale_after_interruption(revise=False)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 653, in stale_after_interruption
+    self.kill_owned_cli(original, "verify before identity invalidation")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 200, in kill_owned_cli
+    observation = self.process(["ps", "-p", str(p.pid), "-o", "pid=,ppid=,command="],
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 96, in process
+    p = subprocess.run(argv, cwd=str(cwd), env=self.env,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 505, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 951, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1821, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+======================================================================
+ERROR: test_interrupted_verify_spec_change_rejects_old_candidate (__main__.RecoveryCLI)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 695, in test_interrupted_verify_spec_change_rejects_old_candidate
+    self.stale_after_interruption(revise=True)
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 653, in stale_after_interruption
+    self.kill_owned_cli(original, "verify before identity invalidation")
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_recovery_e2e.py", line 200, in kill_owned_cli
+    observation = self.process(["ps", "-p", str(p.pid), "-o", "pid=,ppid=,command="],
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 96, in process
+    p = subprocess.run(argv, cwd=str(cwd), env=self.env,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 505, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 951, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1821, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+PermissionError: [Errno 1] Operation not permitted: 'ps'
+
+----------------------------------------------------------------------
+Ran 9 tests in 22.270s
+
+FAILED (errors=9)

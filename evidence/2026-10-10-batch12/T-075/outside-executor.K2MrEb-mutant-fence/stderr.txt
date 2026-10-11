@@ -1,0 +1,37 @@
+test_baseline_change_after_verification_rejects_integration (__main__.ManagedDeliveryCLI.test_baseline_change_after_verification_rejects_integration) ... ok
+test_concurrent_claim_is_unique_persistent_and_task_specific (__main__.ManagedDeliveryCLI.test_concurrent_claim_is_unique_persistent_and_task_specific) ... ok
+test_good_candidate_uses_oracle_snapshot_and_integrates_once (__main__.ManagedDeliveryCLI.test_good_candidate_uses_oracle_snapshot_and_integrates_once) ... ok
+test_identity_gates_and_revocation_reject_old_verified_attempt (__main__.ManagedDeliveryCLI.test_identity_gates_and_revocation_reject_old_verified_attempt) ... 
+  test_identity_gates_and_revocation_reject_old_verified_attempt (__main__.ManagedDeliveryCLI.test_identity_gates_and_revocation_reject_old_verified_attempt) (field='fence') ... FAIL
+  test_identity_gates_and_revocation_reject_old_verified_attempt (__main__.ManagedDeliveryCLI.test_identity_gates_and_revocation_reject_old_verified_attempt) (field='spec-rev') ... FAIL
+test_oracle_rejects_candidate_missing_limit_upper_bound (__main__.ManagedDeliveryCLI.test_oracle_rejects_candidate_missing_limit_upper_bound) ... ok
+test_spec_revision_invalidates_candidate_and_old_identity (__main__.ManagedDeliveryCLI.test_spec_revision_invalidates_candidate_and_old_identity) ... ok
+test_submit_requires_clean_head_and_cannot_replace_frozen_candidate (__main__.ManagedDeliveryCLI.test_submit_requires_clean_head_and_cannot_replace_frozen_candidate) ... ok
+test_unverified_and_oracle_failed_candidate_never_changes_ref (__main__.ManagedDeliveryCLI.test_unverified_and_oracle_failed_candidate_never_changes_ref) ... ok
+
+======================================================================
+FAIL: test_identity_gates_and_revocation_reject_old_verified_attempt (__main__.ManagedDeliveryCLI.test_identity_gates_and_revocation_reject_old_verified_attempt) (field='fence')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 325, in test_identity_gates_and_revocation_reject_old_verified_attempt
+    self.submit(attempt, commit, ok=False, error=error, **{field: value})
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 193, in submit
+    return self.cli("submit", *args, ok=ok, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 135, in cli
+    self.assertEqual(p.returncode, 0 if ok else 1, result)
+AssertionError: 0 != 1 : {'ok': True, 'task': {'task_id': 'check-d6285155955b405da50b9af9e58204a3', 'title': 'check-d6285155955b405da50b9af9e58204a3', 'project_id': 'check-d6285155955b405da50b9af9e58204a3', 'repo': '/private/tmp/a2a-check-_rihcbba/test_identity_gates_and_revocation_reject_old_verified_attempt-usy_mh1t/isolated repo', 'oracle': '/tmp/a2a-check-_rihcbba/test_identity_gates_and_revocation_reject_old_verified_attempt-usy_mh1t/isolated state/tasks/check-d6285155955b405da50b9af9e58204a3-7f2e7fc9-9cd5-41b2-b9ce-a956ddbabb94/oracle.py', 'instructions': '/tmp/a2a-check-_rihcbba/test_identity_gates_and_revocation_reject_old_verified_attempt-usy_mh1t/isolated state/tasks/check-d6285155955b405da50b9af9e58204a3-7f2e7fc9-9cd5-41b2-b9ce-a956ddbabb94/instructions.txt', 'base_commit': 'eb7b1988843921ee6d3883aa24d5712ee5e1e0fa', 'state': 'submitted', 'spec_rev': 1, 'fence': 1, 'current_attempt': {'task_id': 'check-d6285155955b405da50b9af9e58204a3', 'attempt_id': '422074f2-7b3c-4563-a45d-089f37c70519', 'session_id': 'b36edc87-2ef6-4049-9c7e-46869c011444', 'fence': 1, 'spec_rev': 1, 'thread_id': '', 'runtime_mode': 'approval-required', 'turn_id': None, 'workspace': '/tmp/a2a-check-_rihcbba/test_identity_gates_and_revocation_reject_old_verified_attempt-usy_mh1t/isolated state/worktrees/422074f2-7b3c-4563-a45d-089f37c70519', 'base_commit': 'eb7b1988843921ee6d3883aa24d5712ee5e1e0fa', 'reclaimed': False, 'owner': 'independent-check', 'state': 'submitted'}, 'candidate_commit': '994b2f28478332b28c054bdf97a6f181d97386bb', 'verification': None, 'integration_intent': None}}
+
+======================================================================
+FAIL: test_identity_gates_and_revocation_reject_old_verified_attempt (__main__.ManagedDeliveryCLI.test_identity_gates_and_revocation_reject_old_verified_attempt) (field='spec-rev')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a/acceptance/test_coop_e2e.py", line 326, in test_identity_gates_and_revocation_reject_old_verified_attempt
+    self.assertEqual(self.business_state(), before)
+AssertionError: {'state': 'submitted', 'current_attempt': {'task_id'[636 chars]None} != {'state': 'claimed', 'current_attempt': {'task_id': [594 chars]None}
+Diff is 1237 characters long. Set self.maxDiff to None to see it.
+
+----------------------------------------------------------------------
+Ran 8 tests in 63.338s
+
+FAILED (failures=2)

@@ -1,0 +1,156 @@
+--- 49cae984f/core.ts
++++ workbench/src/gates/core.ts
+@@ -1,3 +1,8 @@
++// Derived from Synara, MIT License.
++// Copyright (c) 2026 T3 Tools Inc.
++// Copyright (c) 2026 Emanuele Di Pietro
++// See ../../LICENSE.synara for the full permission notice.
++
+ import { randomUUID } from "node:crypto";
+ import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+ import { isAbsolute, join } from "node:path";
+@@ -23,23 +28,27 @@
+   type A2ARolePermissionsRequest,
+   ProjectId,
+   ThreadId,
+-} from "@synara/contracts";
+-import { execProcessFile } from "@synara/shared/processRuntime";
++} from "../contracts/index.ts";
++import { execFile as execProcessFile } from "node:child_process";
+ import { Schema } from "effect";
+-import { A2AMembership } from "./membership";
++import { A2AMembership } from "./membership.ts";
+ import {
+   ensureRolePermissionTables,
+   readRolePermissionSettings,
+   saveRolePermission,
+-} from "./rolePermissions";
++} from "./rolePermissions.ts";
+ 
+ const REF = "refs/a2a/integration";
+ export class Refusal extends Error {
++  readonly code: string;
++  readonly details?: unknown;
+   constructor(
+-    readonly code: string,
+-    readonly details?: unknown,
++    code: string,
++    details?: unknown,
+   ) {
+     super(code);
++    this.code = code;
++    this.details = details;
+   }
+ }
+ function requireGate(value: unknown, code: string, details?: unknown): asserts value {
+@@ -64,6 +73,8 @@
+   return path;
+ }
+ 
++// Host-owned lifecycle boundary. The gate does not implement a CLI/provider runtime.
++// T-075-1 exercises it with an isolated service; the pane host is supplied by T-075-3.
+ export interface GateRuntime {
+   ensureProject(project: string, repo: string): Promise<void>;
+   createThread(task: A2ATask, attempt: A2AAttempt): Promise<void>;
+@@ -98,11 +109,17 @@
+   private readonly membership: A2AMembership;
+   private userInputObserver?: A2AUserInputObserver;
+   private readonly deferredUserInputs = new Map<string, A2AUserInput>();
++  readonly root: string;
++  private readonly runtime?: GateRuntime;
++  private readonly now: () => number;
+   constructor(
+-    readonly root: string,
+-    private readonly runtime?: GateRuntime,
+-    private readonly now: () => number = Date.now,
++    root: string,
++    runtime?: GateRuntime,
++    now: () => number = Date.now,
+   ) {
++    this.root = root;
++    this.runtime = runtime;
++    this.now = now;
+     requireGate(isAbsolute(root), "invalid_path");
+     mkdirSync(root, { recursive: true, mode: 0o700 });
+     this.db = new DatabaseSync(join(root, "state.sqlite3"));
+--- 49cae984f/cli.ts
++++ workbench/src/gates/cli.ts
+@@ -1,7 +1,12 @@
++// Derived from Synara, MIT License.
++// Copyright (c) 2026 T3 Tools Inc.
++// Copyright (c) 2026 Emanuele Di Pietro
++// See ../../LICENSE.synara for the full permission notice.
++
+ import { parseArgs } from "node:util";
+-import { A2ARequest } from "@synara/contracts";
++import { A2ARequest } from "../contracts/index.ts";
+ import { Schema } from "effect";
+-import { A2AGates, Refusal, type GateRuntime } from "./core";
++import { A2AGates, Refusal, type GateRuntime } from "./core.ts";
+ 
+ const commands: Record<string, { required: string[]; optional?: string[] }> = {
+   create: { required: ["repo", "base", "oracle", "instructions"], optional: ["project", "title"] },
+@@ -47,7 +52,7 @@
+     const [endpoint, json] = argv;
+     if (!endpoint || !json || !process.env.A2A_GATE_BEARER || argv.length !== 2) {
+       console.error(
+-        "usage: A2A_GATE_BEARER=<owner session> bun packages/a2a-gates/src/cli.ts <server URL> '<request JSON>'",
++        "usage: A2A_GATE_BEARER=<owner session> node workbench/src/gates/cli.ts <server URL> '<request JSON>'",
+       );
+       return 2;
+     }
+--- 49cae984f/membership.ts
++++ workbench/src/gates/membership.ts
+@@ -1,11 +1,18 @@
++// Derived from Synara, MIT License.
++// Copyright (c) 2026 T3 Tools Inc.
++// Copyright (c) 2026 Emanuele Di Pietro
++// See ../../LICENSE.synara for the full permission notice.
++
+ import { mkdirSync } from "node:fs";
+ import { join } from "node:path";
+ import { DatabaseSync } from "node:sqlite";
+-import type { A2ATaskMembership, A2ASessionPreset } from "@synara/contracts";
++import type { A2ATaskMembership, A2ASessionPreset } from "../contracts/index.ts";
+ 
+ export class MembershipRefusal extends Error {
+-  constructor(readonly code: string) {
++  readonly code: string;
++  constructor(code: string) {
+     super(code);
++    this.code = code;
+   }
+ }
+ 
+--- 49cae984f/rolePermissions.ts
++++ workbench/src/gates/rolePermissions.ts
+@@ -1,3 +1,8 @@
++// Derived from Synara, MIT License.
++// Copyright (c) 2026 T3 Tools Inc.
++// Copyright (c) 2026 Emanuele Di Pietro
++// See ../../LICENSE.synara for the full permission notice.
++
+ import { randomUUID } from "node:crypto";
+ import type { DatabaseSync } from "node:sqlite";
+ import { Schema } from "effect";
+@@ -10,7 +15,7 @@
+   type A2ARolePermissionView,
+   type A2ASessionPreset,
+   type A2AUserInput,
+-} from "@synara/contracts";
++} from "../contracts/index.ts";
+ 
+ export const a2aCapabilities: Readonly<Record<A2ASessionPreset, readonly A2ACapability[]>> = {
+   executor: ["a2a:operate", "a2a:read", "a2a:inbox"],
+@@ -52,8 +57,10 @@
+ ];
+ 
+ export class RolePermissionRefusal extends Error {
+-  constructor(readonly code: string) {
++  readonly code: string;
++  constructor(code: string) {
+     super(code);
++    this.code = code;
+   }
+ }
+ export function ensureRolePermissionTables(db: DatabaseSync): void {

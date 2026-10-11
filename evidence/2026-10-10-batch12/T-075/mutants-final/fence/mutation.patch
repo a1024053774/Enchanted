@@ -1,0 +1,11 @@
+--- candidate/core.ts
++++ fence/core.ts
+@@ -2093,7 +2093,7 @@
+       if (args.command === "submit") {
+         requireGate(args.attempt === attempt.attempt_id, "stale_attempt");
+         requireGate(args.session === attempt.session_id, "stale_session");
+-        requireGate(args.fence === attempt.fence, "stale_fence");
++        // MUTANT: omit the delivery fence check.
+         requireGate(args.spec_rev === task.spec_rev, "stale_spec");
+         if (attempt.thread_id) {
+           requireGate(
