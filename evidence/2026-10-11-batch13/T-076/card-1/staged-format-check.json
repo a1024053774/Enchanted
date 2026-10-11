@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "raw_diff_check": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check"
+    ],
+    "exit": 2,
+    "output": "evidence/2026-10-11-batch13/T-076/card-1/staged-diff-check-raw.txt"
+  },
+  "reason": "原始git diff输出与candidate.patch包含统一差异格式必需的空白上下文行；不裁剪或改写原始证据。作者文件与已提交源码分别检查。",
+  "excluded_raw_evidence_paths": [
+    "evidence/2026-10-11-batch13/T-076/card-1/outside-green-regression-02/command-output/00004.stdout.bin",
+    "evidence/2026-10-11-batch13/T-076/card-1/review-01/candidate.patch"
+  ],
+  "authored_files_check": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check",
+      "--",
+      ".",
+      ":(exclude)evidence/2026-10-11-batch13/T-076/card-1/outside-green-regression-02/command-output/00004.stdout.bin",
+      ":(exclude)evidence/2026-10-11-batch13/T-076/card-1/review-01/candidate.patch"
+    ],
+    "exit": 0
+  },
+  "source_commit_check": {
+    "argv": [
+      "git",
+      "diff",
+      "--check",
+      "42e2b8ed^",
+      "42e2b8ed",
+      "--",
+      "workbench/"
+    ],
+    "exit": 0
+  }
+}

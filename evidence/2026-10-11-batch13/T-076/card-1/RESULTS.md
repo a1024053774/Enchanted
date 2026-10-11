@@ -1,6 +1,6 @@
-# T-076-1 执行记录（进行中，2026-10-11）
+# T-076-1 执行记录（2026-10-11）
 
-状态：**INCOMPLETE**。真实两回合阶段 outside-real-04 已 PASS；实际尾注、回执后 run/reclaim、Git 父提交和隔离 home 删除均有独立读回。真实预算累计 **3/3**，不再启动真实 Codex。候选五类变异体、8/9/18、独立审查与最终交付待完成。完整交付的一致性报告仍为 INCOMPLETE，两个 attachment 窗口均为不一致；主控 #9/#10 已转构思主控另切片，本卡不修存储，原失败证据保留。
+状态：**PASS（仅 T-076-1）**。真实两回合、候选五类变异体、检查器字段/删行反事实、候选 8/9/18 回归和一次 fresh-context 只读独立审查均已 PASS。源码提交为 **`42e2b8ed3caed775133eb3cafff5f4ee5ab68330`**，与审查快照逐字节一致；本报告及 Resolution 的交付提交只更新证据和文字。真实预算累计 **3/3**，不再启动真实 Codex。完整交付的一致性报告仍为 INCOMPLETE，两个 attachment 窗口均为不一致；主控 #9/#10 已转构思主控另切片，本卡不修存储，原失败证据保留。T-076 保持 open，待 T-076-2、待主控关闭。
 
 实施起点为 `18235b2c53610c412b5f4ea53e0e6e5c56d35849`；起点红态从该 Git 对象导出冻结产品源码。其后共享 main 已前进，本卡未改其他 worker 的文件，各候选运行以源码归档和完整版本绑定。初始授权为 `controller-decision-01.md` 与主控 #4、#6；最后两个真实回合由 `controller-decision-03.md` 明确批准。真实 Codex 累计 **3/3**，不是三次成功交付：outside-real-03 消耗 1，outside-real-04 消耗 2。
 
@@ -12,10 +12,10 @@
 | --- | --- |
 | 真实受管提交的实际模型/强度 | PASS；outside-real-04 的 C=`3f7f0b4...`，Model=gpt-6.1-sol、Effort=xhigh，与启动记录和提交回合原生上下文一致 |
 | 多回合 run/reclaim 正反例 | PASS；确定性正反例 4/4；真实回执后 run completed/reclaimed，原交付回合及稳定身份未被替换 |
-| 完整交付库的逐表一致性检查 | 已在完整交付库逐表报告；三张非空主视图一致、成员/预设无法重建；其余空表不冒称覆盖；attachment 两个窗口均取证为不一致，主控已转另切片 |
-| 五类变异体在业务断言失败 | 起点覆盖取证 PASS；最终候选重跑未做，故本卡条件仍 INCOMPLETE |
-| 当前候选 8/9/18 与 acceptance diff | INCOMPLETE；三套尚未运行；本卡未修改 acceptance |
-| project_map.py status | 当前检查 0 problems、0 stale；最终交付前还要重新检查 |
+| 完整交付库的逐表一致性检查 | PASS（如实报告条件）；三张非空主视图一致、成员/预设无法重建；其余空表不冒称覆盖；attachment 两个窗口均不一致，主控已转另切片。全库报告仍 INCOMPLETE |
+| 五类变异体在业务断言失败 | PASS；候选两个对照 exit 0，五个单点变异体均 exit 1，业务失败位置逐项见主控 #25 节 |
+| 当前候选 8/9/18 与 acceptance diff | PASS；outside-green-regression-02 为 8/9/18、0 failures/errors/skipped；本卡未修改 acceptance，三套原断言相对起点 diff 为空。其他卡的 acceptance 改动单独上报并保留 |
+| project_map.py status | PASS；源码提交后检查仍为 0 problems、0 stale；最终证据与提交读回另存 |
 
 ## 首次 red-focused：保持 INCOMPLETE
 
@@ -390,7 +390,7 @@ zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh real-two-turns o
 
 | 事实 | 独立读回 |
 | --- | --- |
-| 任务 / attempt / 受管 session | T-076-9 / a0842017-9355-4e8a-bc6b-aa6b9b6628d1 / 8c628645-4e47-4668-bb56-09aae7757271 |
+| 任务 / attempt / 受管 session | T-076-9 / a0842017-9355-4e8a-bc6b-aa6b9b6628d1 / 8c628645-4e47-4668-bb56-09aae7757271；fence=1、spec_rev=1 |
 | 启动 / 原生会话 | b1041c2a-795f-4aeb-9570-571308c4e50f / 01a12ba0-0467-7c00-8c86-e7871e8ae65c |
 | C 的实际 Model / Effort | gpt-6.1-sol / xhigh；提交回合 turn_context、Git 尾注和启动请求相同。Fast 只有请求记录，不宣称供应商实际 tier |
 | G / C / M | 935d03cad92452440a9a192ab1f095c3adc67384 / 3f7f0b41ce36b559027d9032473f04adf734d1ee / ecf9a7af49e0743e5f561b139eaab2fbdb44a39c；M 的父提交为 G、C，main=M |
@@ -417,3 +417,87 @@ zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh green-checker-co
 ```
 
 三个阶段的源码归档、tracked diff、实际加载路径和运行中源文件不变检查绑定各自候选。检查器反事实 PASS 只证明差异检出，不能把原完整库的 INCOMPLETE 或 attachment 的不一致改称一致。取得这三项原始结果后再做一次 fresh-context 只读审查，审查成本单列，不算被测真实 worker 回合；最终提交与 ticket Resolution 尚未进行。
+
+## 主控 #25：候选变异体、检查器反事实 PASS；回归夹具修复
+
+三个阶段均为 0 真实回合，源码期间未变化，原结果不覆盖。
+
+### 五类候选变异体
+
+[outside-green-mutants-01/run.json](outside-green-mutants-01/run.json) 汇总 PASS。control-offline 与 control-volume 均 exit 0；五个变异体各 exit 1，起点覆盖归属不变：前四项已有覆盖，第五项补明确缺盘业务测试。
+
+| 变异体 | 候选上失败的业务断言 |
+| --- | --- |
+| omitted_bytes | `test_offline_trace_e2e.py:107`，CLI 已返回合法字节块，但 `actual == data` 失败；未启动 Electron，不扩大为实时 PTY 字节证明 |
+| window_stops_daemon | 第 157 行关闭窗口后应仍可查询同一 daemon；关窗已完成，查询却返回 socket ENOENT。单点变异在窗口关闭时停后台，因此是生命周期业务失败，非初始环境启动失败 |
+| unknown_is_idle | 第 98 行，pane_status 正常返回但 state 为 idle，不符合 unknown/interrupted/historical 的结构化断言 |
+| restart_success | 第 126 行，实际 Electron 窗口将 claimed 任务投影为 accepted，违反 unknown/claimed 断言；没有把真实任务集成为成功 |
+| missing_volume_builds | `test_build_volume_contract.py:38`，缺盘配置的标准构建入口仍 exit 0 并创建目录/产物，业务拒绝断言失败；classification=business-red，目录仍在外置盘专属槽 |
+
+重现命令见上一节的 green-mutants 入口；必须新标签。每个子目录保留原 traceback、实际命令、变异源码、归档与清理结果。
+
+### 检查器字段与缺行反事实
+
+[outside-green-checker-counterfactuals-01/run.json](outside-green-checker-counterfactuals-01/run.json) 汇总 PASS。control 保持原完整库的 INCOMPLETE，任务/attempt/verification 重建一致，成员/预设仍无法重建。独立副本只改 tasks.fence=999、attempts.session_id=independent-foreign-session、verifications.M=全零提交号，以及删除一条 attempt；事件未改。检查器分别精确报告该字段或缺行“不一致”，五份原始报告保留。此 PASS 仅指反事实检出，没有更改原库结论或修存储。
+
+### 首次回归 INCOMPLETE 与摘要打印错误
+
+[outside-green-regression-01/run.json.gz](outside-green-regression-01/run.json.gz) 保持 INCOMPLETE。`coop/run.json.gz` 与 `test-result.json.gz` 均已保存 8 tests、0 failures/errors/skipped、status=PASS；最后摘要打印访问 `record['task']` 导致进程 exit 1，父协调器正确停止，recovery/run 未启动。不能把这个退出 1 计为业务红态，也不能宣称 8/9/18 全通过。
+
+本卡先前移除了会虚构当前 task 的固定旧身份元数据，末尾打印字段漏改。这次只把该字段改为现有 `runner`，不加旧 task、异常吞噬或重试，不改产品和验收断言。修复前源保存在 `regression-report-repair-01/run_daemon_acceptance.py.before`。
+
+只重放实际末尾打印语句，用已保存的 8/8 回执作输入：旧代码 [red.json](regression-report-repair-01/red.json) exit 1、KeyError('task')；候选 [green.json](regression-report-repair-01/green.json) exit 0，正常输出 runner 与原结果。这只是夹具摘要的局部验证，不代替全套重跑。重放命令：
+
+```sh
+gzip -dc evidence/2026-10-11-batch13/T-076/card-1/outside-green-regression-01/coop/run.json.gz > <全新回执.json>
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/regression-report-repair-01/replay-report.py evidence/2026-10-11-batch13/T-076/card-1/regression-report-repair-01/run_daemon_acceptance.py.before <解压的回执.json> <全新红态结果.json>
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/regression-report-repair-01/replay-report.py workbench/tests/run_daemon_acceptance.py <解压的回执.json> <全新绿态结果.json>
+```
+
+新标签交接，仅完整重跑 8/9/18，不重跑已通过变异体或启动模型：
+
+```sh
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh green-regression outside-green-regression-02
+```
+
+取得 8/9/18 全过后再做一次 fresh-context 只读审查。真实预算仍 3/3，本卡整体保持 INCOMPLETE。
+
+## 主控 #27：8/9/18 PASS，候选已冻结供独立审查
+
+[regression-result-summary.json](regression-result-summary.json) 从 outside-green-regression-02 的原始逐套回执提取，未替换原回执或改写首次 INCOMPLETE：
+
+| 套件 | 方法数 | failures / errors / skipped | 子进程退出 |
+| --- | --- | --- | --- |
+| coop | 8 | 0 / 0 / 0 | 0 |
+| recovery | 9 | 0 / 0 / 0 | 0 |
+| run | 18 | 0 / 0 / 0 | 0 |
+
+每套仍经过 `workbench/tests/run_daemon_acceptance.py`、原 `acceptance/entry/a2a_gates.py` 和当前 `workbench/src/gates/cli.ts`；原业务方法集合未替换，源码期间未变化，真实回合 0。精确命令见原协调/逐套回执，统一重放入口仍为 green-regression 加全新标签。
+
+原回归收据包含完整命令/事件，部分大于 5 MB；压缩清单见 `large-evidence-03.json`，解压字节逐块与原文核对相等。审查期间原文留在原路径，审查结束后迁移到自建 `/tmp` 保留，只提交压缩版和小摘要。不能因大小截断事件或删掉失败记录。
+
+冻结候选：`/private/tmp/t076-review-nns44qwe/source`，基础 HEAD=`c77361d7e4f6ed918300c96127ed1a70b553b2a8`，含当前 110 个 src/hooks/tests/app/README/package 文件；[manifest](review-01/manifest.json)、[tracked patch](review-01/candidate.patch)、源码归档 `review-01/candidate-source.tar.gz` 同时保留。所有新增源码文件也在快照中，不只靠 tracked diff。
+
+一次 fresh-context 子会话 `/root/t076_card1_review`，请求模型 gpt-6.1-sol、xhigh，只读，不继承实现聊天；按 `behavioral-acceptance-review` 检查合同、原始证据和新测试，结构风险并入同一次审查。没有启动被测 CLI，没有花第 4 个真实回合；审查会话成本独立于本卡 3 个被测回合，API 子会话未读回 CLI 版本或实际 tier，不冒称 Fast。审查期间不修改候选源码、测试或 README。审查结论尚未返回，不能预写 PASS 或完成 Resolution。
+
+## 独立审查与交付
+
+该次审查已返回 **STATUS: PASS**，报告原文在 [review-01/REVIEW.md](review-01/REVIEW.md)，会话记录和所用 skill 内容副本在同目录。未发现确认可达的本卡合同缺陷，未提出修复，所以没有审后修改产品或追加审查。审查确认源码与真实、变异体、检查器和回归归档相同；同时明确被测入口、受控反例、离线轨迹的证据边界，以及存储历史缺口和实际 tier 未观测的限制。没有把独立审查冒称为卡 2 的产品 reviewer 功能。
+
+审查后逐文件核对暂存源码与冻结快照，31 个源码/测试/README 文件字节一致；源码提交 `42e2b8ed3caed775133eb3cafff5f4ee5ab68330` 的九个尾注完整，Task=T-076-1、Attempt=a1、Session=e671d062-fd65-448d-895f-5d160fba9a17、Role=worker、Tool=codex-cli 0.162.1、Model=gpt-6.1-sol、Effort=xhigh、Native-Session=01a12a7a-deaf-76a0-b977-9020931ead25、Launch=launch-f7b4aabbcb584729b8d22d073e0e7986。它是本 worker 的 a2a 源码提交，区别于真实夹具里的 C/M；两者均保留独立读回。
+
+大回归收据已在审查结束后迁移到 `/private/tmp/t076-regression-raw-a9hvie8_/`，全部原始字节保留，迁移前再次逐块核对压缩版。清单与解压命令在 [large-evidence-04.json](large-evidence-04.json)。`find ... -size +5M` 最终仅列出 real-03/04 的已压缩 `.gz`；没有把超过 5 MB 的原始文件直接提交。每个阶段的统一再生成命令见对应小节；真实阶段因预算封顶只能解压保留证据，不能启动新模型。
+
+最终源码、范围、尾注、地图与大小检查在 [delivery-check-01/final-checks.json](delivery-check-01/final-checks.json)、同目录 `delivery-code-readback.json` 和 `final-project-map-status.txt` 保存。交付探针首次错把 Git 符号链接的目标字符串当作解析后的文件内容比较，原异常在 `delivery-probe-error-01.json`；修正链接比较方式后 110 个文件及链接全部通过，没有产品或审查候选改动。本卡没有修改 acceptance 断言；源码提交及交付提交的 acceptance diff 均为空。共享分支相对实施起点的 T-079 acceptance 改动不属于本卡，已上报且未回退。ticket 只更新 Resolution，保留 open/ready_rev=1；全票后续质量串由 T-076-2 完成。
+
+暂存后的全路径 `git diff --cached --check` exit 2，原输出保存在 `staged-diff-check-raw.txt`：两份原始统一差异输出包含格式必需的单空格上下文行。原始 patch/命令输出不裁剪、不改写；作者文件及源码提交的格式检查均 exit 0，具体命令、两项原始证据排除范围和原因在 `staged-format-check.json`。这项原始证据格式提示没有计为产品失败，也没有伪称全路径检查通过。
+
+交付读回与地图检查的重新生成命令：
+
+```sh
+git log -1 --format='%H%n%B' 42e2b8ed3caed775133eb3cafff5f4ee5ab68330
+git diff 42e2b8ed3caed775133eb3cafff5f4ee5ab68330^ 42e2b8ed3caed775133eb3cafff5f4ee5ab68330 -- acceptance/
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/delivery-check.py 42e2b8ed3caed775133eb3cafff5f4ee5ab68330 <全新交付检查目录>
+python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .
+find evidence/2026-10-11-batch13/T-076/card-1/ -type f -size +5M
+```

@@ -44,3 +44,11 @@ ready_rev: 1
 - 授权来源：用户 2026-10-11 在会话"a2a-构思主控"选"S2、S3、S4 三张，缺口并入 (Recommended)"，选项原文含"我写完直接标就绪派出，不再单独给你看切法"；在此之前在会话"新思路构思"说："确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。"`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+T-076-1 完成，待 T-076-2；待主控关闭。保持 open，ready_rev=1。
+
+- 源码提交：`42e2b8ed3caed775133eb3cafff5f4ee5ab68330`；与 fresh-context 只读独立审查快照逐字节一致，审查 PASS。
+- 真实受管 worker 的 C=`3f7f0b41ce36b559027d9032473f04adf734d1ee`：Model=gpt-6.1-sol、Effort=xhigh，与启动记录及交付回合原生上下文一致；回执新回合后 run completed/reclaimed。伪造原生会话与领导者仍被拒。真实实验共使用 3/3 回合，不再追加。
+- 一致性检查如实报告：完整交付的 tasks/attempts/verifications 一致；membership/session_presets 无法重建；attachment creating 与 active-before-attached 两窗口不一致。主控 #9/#10 已转构思主控另切片，本卡没有修存储，全库报告仍 INCOMPLETE。
+- 候选五类变异体各在业务断言失败，两对照通过；8/9/18 回归全部通过，0 failures/errors/skipped。本卡 acceptance diff 为空，保留其他卡的变更。
+- 证据、红态/夹具错误、回合账、再生成命令与限制见 [RESULTS](../../evidence/2026-10-11-batch13/T-076/card-1/RESULTS.md)，独立审查见 [REVIEW](../../evidence/2026-10-11-batch13/T-076/card-1/review-01/REVIEW.md)。卡 2 的红态/规则式质量串、打回回写、产品 reviewer 与打分尚未实施，不关闭整票或勾选其验收。
