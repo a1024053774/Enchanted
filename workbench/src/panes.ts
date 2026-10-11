@@ -41,6 +41,7 @@ type Pane = {
   token: string; task: A2ATask; attempt: A2AAttempt; pty: any;
   state: "unknown" | "idle" | "busy"; stopped: boolean; archived: boolean;
   failed: string | null; leader: number | null; native: string | null; turn: string | null;
+  nativeEnded: boolean;
   active: { id: string; dispatch: string; at: string; nativeTurn: string | null } | null;
   queue: ReturnType<OrchestrationStore["register"]>[]; writing: boolean;
   stopInProgress: boolean;
@@ -111,7 +112,8 @@ export class Panes implements GateRuntime {
     } finally { closeSync(fd); }
   }
   async createThread(task: A2ATask, attempt: A2AAttempt) {
-    check(this.panes.size === 0, "single_worker_slice");
+    check([...this.panes.values()].filter((pane) => pane.record.role === "worker")
+      .every((pane) => pane.stopped && pane.archived), "single_worker_slice");
     check(attempt.runtime_mode === "workspace-write", "worker_requires_workspace_write");
     await this.createPane(task, attempt, this.config);
   }
@@ -188,7 +190,7 @@ export class Panes implements GateRuntime {
       name: "xterm-256color", cols: 160, rows: 45, cwd: attempt.workspace, env: environment, encoding: "utf8",
     });
     const pane: Pane = { record, token, task, attempt, pty: terminal, state: "unknown", stopped: false,
-      archived: false, failed: null, leader: null, native: null, turn: null, active: null,
+      archived: false, failed: null, leader: null, native: null, turn: null, nativeEnded: false, active: null,
       queue: [], writing: false, stopInProgress: false, offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
     this.panes.set(attempt.thread_id, pane);
     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
@@ -264,10 +266,19 @@ export class Panes implements GateRuntime {
     const owned = rows.filter((row) => descendants.has(row.pid));
     const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.argv[0]);
     const leader = leaders.length === 1 ? leaders[0]!.pid : null;
-    if (pane.leader !== null && leader !== pane.leader) pane.failed = "codex_leader_replaced_or_exited";
+    const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
+    if (!pane.nativeEnded && !pane.failed && pane.leader !== null && pane.native !== null &&
+      leader === null && shellAlone && pane.state === "idle" && !pane.active && !pane.writing && !pane.queue.length) {
+      this.store.event("native_session_ended", { shell_pid: pane.pty.pid, leader_pid: pane.leader,
+        native_session: pane.native, processes: owned }, pane.record);
+      pane.nativeEnded = true;
+    }
+    if (pane.nativeEnded && !shellAlone) pane.failed = "process_after_session_end";
+    else if (!pane.nativeEnded && pane.leader !== null && leader !== pane.leader) pane.failed = "codex_leader_replaced_or_exited";
     if (pane.leader === null && leader !== null) pane.leader = leader;
     this.scan(pane);
-    return { shell_pid: pane.pty.pid, leader, native_session: pane.native, processes: owned, failed: pane.failed };
+    return { shell_pid: pane.pty.pid, leader, native_session: pane.native, session_ended: pane.nativeEnded,
+      processes: owned, failed: pane.failed };
   }
   scan(pane: Pane, final = false) {
     if (pane.stopped) return;
@@ -278,6 +289,14 @@ export class Panes implements GateRuntime {
     if (final) check(pane.native && files.length === 1, "native_bound_log_unavailable", { native_session: pane.native, files });
     for (const file of files) {
       const bytes = readFileSync(file);
+      // An isolated home can retain an earlier attempt's rollout. Only logs
+      // belonging to this worktree contribute records or native identity.
+      if (!final) {
+        const end = bytes.indexOf(10);
+        if (end < 0) continue;
+        const metadata = JSON.parse(bytes.subarray(0, end).toString("utf8"));
+        if (metadata.type !== "session_meta" || metadata.payload?.cwd !== pane.attempt.workspace) continue;
+      }
       let offset = pane.offsets.get(file) ?? 0;
       check(bytes.length >= offset, "native_log_truncated", { file: relative(home, file), offset, bytes: bytes.length });
       let end: number;
@@ -310,6 +329,13 @@ export class Panes implements GateRuntime {
   startThread = async (_task: A2ATask, attempt: A2AAttempt, prompt: string) => {
     const pane = this.get(attempt.thread_id);
     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
+  };
+  sendGateFeedback = async (thread: string, messageId: string, message: string) => {
+    const pane = this.get(thread);
+    const live = await this.processInfo(thread);
+    check(live.leader && !live.failed && !live.session_ended && pane.native, "conflict_session_unknown", live);
+    const item = await this.dispatch(pane, message, "gate");
+    this.store.event("gate_feedback_registered", { message_id: messageId, dispatch: item.id }, pane.record);
   };
   async sessionFacts(thread: string) {
     const info = this.launchInfo(this.get(thread).record.id);
@@ -443,7 +469,8 @@ export class Panes implements GateRuntime {
     return { workspace: pane.attempt.workspace, provider: "codex", turn: pane.turn,
       runtime_identity: { launch: pane.record.id, thread, shell_pid: pane.pty.pid,
         leader_pid: pane.leader, native_session: pane.native },
-      running: (pane.state !== "idle" || pane.writing) && !pane.stopped, stopped: pane.stopped, archived: pane.archived,
+      running: (pane.state !== "idle" || pane.writing) && !pane.stopped && !pane.nativeEnded,
+      stopped: pane.stopped, archived: pane.archived, session_ended: pane.nativeEnded,
       blocked: Boolean(pane.failed), ...(pane.failed ? { error: { providerPresent: !pane.stopped, activeTurn: pane.turn } } : {}) };
   };
   stopThread = async (thread: string) => {

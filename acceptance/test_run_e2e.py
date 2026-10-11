@@ -217,6 +217,7 @@ class RunCLI(recovery.RecoveryCLI):
                    ["worktree", attempt["workspace"], self.base],
                    [native["envMode"], native["workspace"], native["baseRef"]])
         candidate = self.candidate(attempt, good=True)
+        candidate_bytes = Path(attempt["workspace"], "pager.py").read_bytes()
         self.submit(attempt, candidate)
         self.drive_executor_finalize(handle, attempt, candidate)
         value = self.new_result(self.complete(handle), "run")
@@ -235,7 +236,7 @@ class RunCLI(recovery.RecoveryCLI):
                    "Project work branch advances from G to the verified M", candidate,
                    self.git("rev-parse", "HEAD").stdout.strip())
         self.check(self.git("status", "--porcelain").stdout == "" and
-                   (self.repo / "pager.py").read_bytes() == Path(attempt["workspace"], "pager.py").read_bytes(),
+                   (self.repo / "pager.py").read_bytes() == candidate_bytes,
                    "Checked-out worktree and index match M", "clean worktree with candidate contents",
                    self.git("status", "--porcelain").stdout)
         readback = self.root / "authoritative accepted readback"
@@ -244,8 +245,12 @@ class RunCLI(recovery.RecoveryCLI):
         self.only_own_close(thread)
         self.check(len(self.store()["prompts"]) == 1, "Normal run prompts exactly once", 1,
                    len(self.store()["prompts"]))
-        self.check(Path(attempt["workspace"]).is_dir(), "Reclaim preserves attempt worktree", True,
-                   Path(attempt["workspace"]).is_dir())
+        self.check(not Path(attempt["workspace"]).exists(), "Reclaim removes the integrated clean worktree", False,
+                   Path(attempt["workspace"]).exists())
+        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
+        self.check(retained == candidate, "Integrated candidate remains under its attempt reference", candidate, retained)
+        branch = self.process(["git", "-C", self.repo, "show-ref", "--verify", "--quiet", f"refs/heads/a2a/{self.task}-a1"])
+        self.check(branch.returncode == 1, "Integrated worker branch name is removed", 1, branch.returncode)
         self.finish_checks()
 
     def test_transient_tool_activity_keeps_same_thread_owner(self):
@@ -323,16 +328,20 @@ class RunCLI(recovery.RecoveryCLI):
         # An eligible real commit exists, but no explicit submit is sent.
         self.failed_run(self.complete(handle), error="run_deadline")
         after = self.snapshot("done-without-submit-ended")
-        self.check(after["refs"] == before["refs"] and after["reflog"] == before["reflog"],
-                   "Done and candidate commit do not move any Git ref", before["refs"], after["refs"])
+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
+        expected_refs[f"refs/heads/a2a/{self.task}-a1"] = candidate
+        expected_refs[f"refs/a2a/attempts/{self.task}/a1"] = candidate
+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
+        self.check(actual_refs == expected_refs and after["reflog"] == before["reflog"],
+                   "Timeout only retains the unsubmitted attempt tip; integration stays unchanged", expected_refs, actual_refs)
         self.check(after["status"]["candidate_commit"] is None and
                    len(self.entries(self.oracle_control)) == 0,
                    "No submit means no persisted candidate and no oracle", None,
                    [after["status"]["candidate_commit"],
                     [(str(path), data) for path, data in self.entries(self.oracle_control)]])
-        self.check(self.git("rev-parse", "HEAD", cwd=attempt["workspace"]).stdout.strip() == candidate,
-                   "Timeout preserves the unsubmitted real candidate", candidate,
-                   self.git("rev-parse", "HEAD", cwd=attempt["workspace"]).stdout.strip())
+        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
+        self.check(retained == candidate and not Path(attempt["workspace"]).exists(),
+                   "Timeout preserves the unsubmitted commit and removes its clean directory", candidate, retained)
         self.only_own_close(thread)
         self.finish_checks()
 
@@ -425,9 +434,11 @@ class RunCLI(recovery.RecoveryCLI):
         closed = self.store()["closes"]
         self.check(closed in ([], [old_thread]), "Superseded run may clean only its historical thread",
                    [[], [old_thread]], closed)
-        self.check(Path(old["workspace"]).is_dir() and Path(replacement["workspace"]).is_dir(),
-                   "Both attempt worktrees remain inspectable", True,
-                   [old["workspace"], replacement["workspace"]])
+        self.check(not Path(old["workspace"]).exists() and Path(replacement["workspace"]).is_dir(),
+                   "Only the ended historical workspace is removed", [False, True],
+                   [Path(old["workspace"]).exists(), Path(replacement["workspace"]).is_dir()])
+        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
+        self.check(retained == self.base, "Historical attempt retains its own base commit", self.base, retained)
         self.only_own_close(*closed)
         self.preserved_history(before, after)
         self.finish_checks()
@@ -442,8 +453,11 @@ class RunCLI(recovery.RecoveryCLI):
         before = self.snapshot("bad-candidate-submitted")
         self.failed_run(self.complete(handle))
         after = self.snapshot("oracle-rejected-run")
-        self.check(after["refs"] == before["refs"] and after["reflog"] == before["reflog"],
-                   "Oracle rejection leaves Git refs and reflog unchanged", before["refs"], after["refs"])
+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
+        expected_refs[f"refs/a2a/verifications/{self.task}/a1/v1"] = candidate
+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
+        self.check(actual_refs == expected_refs and after["reflog"] == before["reflog"],
+                   "Oracle rejection only preserves its candidate and verification references", expected_refs, actual_refs)
         results = [json.loads(p.read_text()) for p in self.oracle_control.glob("*.result.json")]
         self.check(len(results) == 1 and results[0]["exit_code"] != 0,
                    "Actual frozen independent oracle rejects the bad candidate", "one nonzero oracle",
@@ -532,27 +546,31 @@ class RunCLI(recovery.RecoveryCLI):
         old = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")["attempt"]
         old_thread = self.store()["prompts"][-1]["thread_id"]
         self.cli("revoke", "--task", self.task, "--reason", "Preserve history for guarded reclaim")
-        current = self.claim(owner="current-owner")
+        current = self.claim(owner="current-owner", overlap_reason="Test historical reclaim while the current owner remains active")
         candidate = self.candidate(current, good=True)
         self.submit(current, candidate)
         other_task = "foreign-" + uuid.uuid4().hex
         self.create(task=other_task)
-        foreign = self.cli("dispatch", "--task", other_task, "--runtime-mode", "approval-required")["attempt"]
+        foreign = self.cli("dispatch", "--task", other_task, "--runtime-mode", "approval-required",
+                           "--overlap-reason", "Keep a foreign worker alive to detect cross-task cleanup")["attempt"]
         foreign_thread = self.store()["prompts"][-1]["thread_id"]
         before = self.snapshot("before-historical-reclaim")
         self.guard("reclaim", old["attempt_id"])
         after = self.snapshot("after-historical-reclaim")
-        self.check(after["status"] == before["status"] and after["refs"] == before["refs"] and
+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
+        expected_refs[f"refs/a2a/attempts/{self.task}/a1"] = self.base
+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
+        self.check(after["status"] == before["status"] and actual_refs == expected_refs and
                    after["reflog"] == before["reflog"],
-                   "Historical reclaim does not revoke the current task or change Git", before["status"],
-                   after["status"])
+                   "Historical reclaim only adds its own retention reference", expected_refs, actual_refs)
         self.only_own_close(old_thread)
         self.check(foreign_thread in self.store()["threads"],
                    "Foreign worker remains live", foreign_thread, self.store())
         # A second dispatch is legal after historical reclaim. Replaying the
         # old historical ID must then leave this new binding untouched.
         self.cli("revoke", "--task", self.task, "--reason", "Bind current replacement after cleanup")
-        replacement = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")["attempt"]
+        replacement = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required",
+                               "--overlap-reason", "Keep the replacement and foreign worker live during stale reclaim")["attempt"]
         current_thread = self.store()["prompts"][-1]["thread_id"]
         before = self.snapshot("before-historical-reclaim-replay")
         self.guard("reclaim", old["attempt_id"])
@@ -571,9 +589,20 @@ class RunCLI(recovery.RecoveryCLI):
                        "Cross-task reclaim does not revoke foreign task", foreign_before,
                        self.business_state(other_task))
             self.only_own_close(old_thread)
-        self.check(all(Path(a["workspace"]).is_dir() for a in (old, current, replacement, foreign)),
-                   "Guarded reclaim preserves every attempt worktree", True,
-                   [a["workspace"] for a in (old, current, replacement, foreign)])
+        directories = [Path(a["workspace"]).exists() for a in (old, current, replacement, foreign)]
+        self.check(directories == [False, False, True, True],
+                   "Only ended clean attempts lose their worktrees", [False, False, True, True], directories)
+        for ordinal, expected in ((1, self.base), (2, candidate)):
+            retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a{ordinal}").stdout.strip()
+            self.check(retained == expected, "Historical retention binds its own attempt " + str(ordinal), expected, retained)
+        for target, reason, expected_conflicts in (
+                (self.task, "Test historical reclaim while the current owner remains active", {old["attempt_id"]}),
+                (other_task, "Keep a foreign worker alive to detect cross-task cleanup", {old["attempt_id"], current["attempt_id"]}),
+                (self.task, "Keep the replacement and foreign worker live during stale reclaim", {foreign["attempt_id"]})):
+            recorded = [e["details"] for e in self.events(target) if e["type"] == "claim_path_check" and e["details"].get("reason") == reason]
+            self.check(len(recorded) == 1 and recorded[0]["passed"] is True and
+                       {c["attempt"] for c in recorded[0]["conflicts"]} == expected_conflicts,
+                       "Explicit overlap reason is recorded with its exact conflict set", sorted(expected_conflicts), recorded)
         self.finish_checks()
 
     def test_matching_reclaim_guard_is_idempotent_after_automatic_success(self):

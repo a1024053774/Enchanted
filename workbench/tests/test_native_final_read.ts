@@ -22,7 +22,7 @@ for (const scenario of ["exit", "terminate", "shutdown", "reclaim", "missing", "
   const store = new OrchestrationStore(root);
   const native = randomUUID(), turn = randomUUID();
   const file = join(home, "sessions", "rollout-" + native + ".jsonl");
-  const prefix = [{ type: "session_meta", payload: { id: native, source: "cli" } },
+  const prefix = [{ type: "session_meta", payload: { id: native, source: "cli", cwd: root } },
     { type: "event_msg", payload: { type: "task_started", turn_id: turn } }];
   const context = { type: "turn_context", payload: { turn_id: turn, model: "fixture-model-" + randomUUID(),
     effort: "fixture-effort", approval_policy: "never", sandbox_policy: { network_access: false } } };

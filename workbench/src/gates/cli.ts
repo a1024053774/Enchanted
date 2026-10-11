@@ -28,13 +28,13 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   card_save: { required: ["card", "expected-version"] },
   card_show: { required: ["card-version"] },
   create: { required: ["repo", "branch", "card-version"], optional: ["project", "title"] },
-  dispatch: { required: ["runtime-mode"] },
+  dispatch: { required: ["runtime-mode"], optional: ["overlap-reason"] },
   attach: {
     required: ["role", "model-selection", "instructions", "runtime-mode"],
     optional: ["preset"],
   },
-  run: { required: ["runtime-mode", "wait-seconds"] },
-  claim: { required: ["owner"] },
+  run: { required: ["runtime-mode", "wait-seconds"], optional: ["overlap-reason"] },
+  claim: { required: ["owner"], optional: ["overlap-reason"] },
   revoke: { required: ["reason"] },
   revise: { required: ["spec-rev"], optional: ["card-version"] },
   submit: { required: ["attempt", "session", "fence", "spec-rev", "commit"], optional: ["request-id"] },
@@ -87,6 +87,7 @@ export async function main(argv = process.argv.slice(2)) {
       "instructions",
       "owner",
       "reason",
+      "overlap-reason",
       "attempt",
       "session",
       "fence",
@@ -154,7 +155,7 @@ export async function main(argv = process.argv.slice(2)) {
       else if (key === "blocking") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
         request.blocking = value === "true";
-      } else if (["reply-to", "bundle-id", "stop-id", "request-id", "score-file"].includes(key))
+      } else if (["reply-to", "bundle-id", "stop-id", "request-id", "score-file", "overlap-reason"].includes(key))
         request[key.replaceAll("-", "_")] = value;
       else request[key === "runtime-mode" ? "runtimeMode" : key] = value;
     }

@@ -158,8 +158,11 @@ class ManagedDeliveryCLI(unittest.TestCase):
         self.assertTrue((self.state / "state.sqlite3").is_file())
         return result["task"]
 
-    def claim(self, task=None, owner="independent-check"):
-        result = self.cli("claim", "--task", task or self.task, "--owner", owner)
+    def claim(self, task=None, owner="independent-check", overlap_reason=None):
+        task = task or self.task
+        ordinal = self.status(task)["fence"] + 1
+        extra = ("--overlap-reason", overlap_reason) if overlap_reason is not None else ()
+        result = self.cli("claim", "--task", task, "--owner", owner, *extra)
         attempt = result.get("attempt")
         self.assertIsInstance(attempt, dict, result)
         for key in ("attempt_id", "session_id", "fence", "spec_rev", "workspace",
@@ -174,6 +177,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
         self.assertTrue(workspace.is_dir())
         self.assertNotEqual(workspace, self.repo.resolve())
         self.assertIn((self.state / "worktrees").resolve(), workspace.parents)
+        self.assertEqual(workspace, (self.state / "worktrees" / task / f"{task}-a{ordinal}").resolve())
+        self.assertEqual(self.git("symbolic-ref", "HEAD", cwd=workspace).stdout.strip(),
+                         f"refs/heads/a2a/{task}-a{ordinal}")
         self.assertEqual(self.git("rev-parse", "HEAD", cwd=workspace).stdout.strip(),
                          self.base)
         return attempt
@@ -320,6 +326,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
                                      "--branch", INTEGRATION_REF, "--card-version", "1", ok=False)
                 self.assertEqual(self.business_state(task), before)
                 self.assert_rejection_recorded(duplicate["error"], previous_events, task)
+                self.cli("revoke", "--task", task, "--reason", "End this independent claim race before the next task")
+                self.assertFalse(Path(winner["workspace"]).exists())
+                self.assertEqual(self.git("rev-parse", f"refs/a2a/attempts/{task}/a1").stdout.strip(), self.base)
 
     def test_identity_gates_and_revocation_reject_old_verified_attempt(self):
         self.create()
@@ -345,7 +354,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
         self.assertEqual(revoked["state"], "ready")
         self.assertIsNone(revoked["candidate_commit"])
         self.assertIsNone(revoked["verification"])
-        self.assertTrue(Path(attempt["workspace"]).is_dir())
+        self.assertFalse(Path(attempt["workspace"]).exists())
+        self.assertEqual(self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip(), commit)
+        self.assertEqual(self.git("rev-parse", f"refs/heads/a2a/{self.task}-a1").stdout.strip(), commit)
         retained = self.events()
         self.assertEqual(retained[:len(events)], events)
         denied = self.cli("integrate", "--task", self.task, ok=False)
@@ -453,12 +464,12 @@ class ManagedDeliveryCLI(unittest.TestCase):
             self.assertEqual(self.reflog(), log_after)
             self.assert_rejection_recorded(rejected["error"], events)
 
-    def test_baseline_change_after_verification_rejects_integration(self):
+    def test_baseline_change_after_verification_revalidates_and_integrates(self):
         self.create()
         attempt = self.dispatch_candidate_attempt()
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
-        self.cli("verify", "--task", self.task)
+        first = self.cli("verify", "--task", self.task)["verification"]
         self.assertEqual(self.status()["state"], "verified")
         (self.repo / "external-change.txt").write_text("Independent baseline change\n",
                                                        encoding="utf-8")
@@ -467,11 +478,26 @@ class ManagedDeliveryCLI(unittest.TestCase):
         external = self.git("rev-parse", "HEAD").stdout.strip()
         log_before = self.reflog()
         events = self.events()
-        self.cli("integrate", "--task", self.task, ok=False, error="integration_conflict")
-        self.assertEqual(self.ref(), external)
-        self.assertEqual(self.reflog(), log_before)
-        self.assertNotEqual(self.status()["state"], "accepted")
-        self.assert_rejection_recorded("integration_conflict", events)
+        self.cli("integrate", "--task", self.task)
+        state = self.status()
+        v = state["verification"]
+        self.assertEqual(state["state"], "accepted")
+        self.assertNotEqual(v["verification_id"], first["verification_id"])
+        self.assertEqual(v["C"], candidate)
+        self.assertEqual(v["G"], external)
+        self.assertEqual(self.ref(), v["M"])
+        for ancestor in (external, candidate):
+            self.git("merge-base", "--is-ancestor", ancestor, self.ref())
+        self.assertEqual((self.repo / "external-change.txt").read_bytes(), b"Independent baseline change\n")
+        self.assertEqual(len(self.reflog().splitlines()), len(log_before.splitlines()) + 1)
+        checks = [event for event in self.events()[len(events):] if event["type"] == "completion_check"]
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(checks[0]["details"]["verification_id"], v["verification_id"])
+        self.assertEqual(checks[0]["details"]["result"]["returncode"], 0)
+        self.assert_novel_pagination_inputs(self.repo)
+        accepted_log = self.reflog()
+        self.cli("integrate", "--task", self.task)
+        self.assertEqual(self.reflog(), accepted_log)
 
     def test_submit_requires_clean_head_and_cannot_replace_frozen_candidate(self):
         self.create()

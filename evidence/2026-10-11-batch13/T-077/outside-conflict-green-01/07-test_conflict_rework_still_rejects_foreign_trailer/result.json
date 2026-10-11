@@ -1,0 +1,106 @@
+{
+  "case": "test_conflict_rework_still_rejects_foreign_trailer",
+  "phase": "candidate",
+  "tests_run": 1,
+  "exit_code": 0,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "business_red": false,
+  "contracts": [
+    {
+      "test": "__main__.ConflictContracts.test_conflict_rework_still_rejects_foreign_trailer",
+      "claim": "Conflict rework accepts a new explicit candidate from its bound worker",
+      "pass": true,
+      "expected": true,
+      "actual": {
+        "ok": true,
+        "task": {
+          "task_id": "check-00aff9519c6d4aa89358047ac15ff365",
+          "title": "check-00aff9519c6d4aa89358047ac15ff365",
+          "project_id": "check-00aff9519c6d4aa89358047ac15ff365",
+          "repo": "/private/tmp/s3-nr_d8v7y/t-67zid1vs/isolated repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "785861d1-6f65-4a3d-93fe-3339aa4d35c7",
+          "card_version": 1,
+          "card": {
+            "id": "check-00aff9519c6d4aa89358047ac15ff365",
+            "source": null,
+            "goal": "设置 worker=ready；保留工作分支上的 host 设置和 host.txt。",
+            "non_goals": [
+              "不修改 host.txt 或 src/private/"
+            ],
+            "paths": {
+              "allow": [
+                "src/"
+              ],
+              "deny": [
+                "src/private/"
+              ]
+            },
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-nr_d8v7y/t-67zid1vs/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "L",
+            "executor": {
+              "cli": "Codex",
+              "model": "fixture",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "ed3ffd496cd8224872c205dfc539996cb2ef88e8",
+          "state": "submitted",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "check-00aff9519c6d4aa89358047ac15ff365",
+            "attempt_id": "862c4596-6e9a-4e84-a695-344e05243c82",
+            "session_id": "d02d5b2f-df04-466d-8352-b4ee06129e72",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "ccdd75d4-b125-4a39-9803-3150dbdab7e8",
+            "runtime_mode": "approval-required",
+            "turn_id": "fixture-turn:ccdd75d4-b125-4a39-9803-3150dbdab7e8:2",
+            "workspace": "/private/tmp/s3-nr_d8v7y/t-67zid1vs/isolated state/worktrees/check-00aff9519c6d4aa89358047ac15ff365/check-00aff9519c6d4aa89358047ac15ff365-a1",
+            "base_commit": "ed3ffd496cd8224872c205dfc539996cb2ef88e8",
+            "card_snapshot_id": "a491799a-7ba4-4974-9c6c-5623f7021bcf",
+            "reclaimed": false,
+            "owner": "check-00aff9519c6d4aa89358047ac15ff365",
+            "state": "submitted",
+            "rework": {
+              "verification_id": "a79a2db6-e213-4d84-8a47-3b8b52f521ba",
+              "prior_candidate": "d11f10c5b073dd090c06227dfeaac5b6eb985d7d",
+              "base_commit": "de986c768a4dd452667e5bb5250e391ffa0bffed",
+              "message_id": "cc02e89a-e7f9-4f3c-9aa7-52cf3e365b34",
+              "prior_turn": "fixture-turn:ccdd75d4-b125-4a39-9803-3150dbdab7e8:1",
+              "state": "submitted",
+              "candidate_commit": "59fcc4b2c343ea7d7a4cdd89c836ec38c88c205d"
+            }
+          },
+          "candidate_commit": "59fcc4b2c343ea7d7a4cdd89c836ec38c88c205d",
+          "verification": null,
+          "integration_intent": null
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-11T18:54:03.936Z"
+        }
+      }
+    }
+  ],
+  "inherited_assertions": [],
+  "evidence_layer": "controlled-thread"
+}

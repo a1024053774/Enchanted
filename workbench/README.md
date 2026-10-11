@@ -74,6 +74,10 @@ M验收目录独立，顺序为路径、完成条件、红态、项目规则、�
 `revise --spec-rev N --card-version V`，会使旧 attempt 与候选失效。
 
 路径用仓库相对文件名、末尾 `/` 的目录或 `.`，禁止项优先，不解释 glob。
+认领会比较同一 Git 仓库中活跃 attempt 的允许路径集合，并扣除双方禁止路径；
+未创建的文件也参与判断。交集默认返回 `path_overlap`。执行主控确需并行时，
+在 `claim`、`dispatch` 或 `run` 上显式加 `--overlap-reason '具体理由'`，
+理由、冲突身份和路径一起保存到 `claim_path_check` 事件；worker 的转交通道不增加认领权限。
 门禁检查候选相对起点的净改动，以及 M 相对 G 的净改动。
 尾注归属按 Task、Attempt、Session、Role 四项核对；外来任务或坏尾注被拒。
 完全无 A2A 尾注的提交产生来源为“推断：缺尾注”的 action 用户输入和派生人工介入，
@@ -153,6 +157,45 @@ reviewer创建失败、后台重启时的未完成审查、退出未确认已有
 原日志归档要求及完成收据均保留。tasks/attempts/verifications一致，
 memberships/session_presets无法重建；attachment中断窗口未由本条真实正例覆盖，全库一致性仍INCOMPLETE。
 这不代表完整工作台或整张ticket已经验收。
+
+worker 目录为 `<state>/worktrees/<project_id>/<task>-a<N>`，分支为
+`a2a/<task>-a<N>`；N 沿用该 task 的递增 fence。验收目录加 `-verify-<K>`，
+保持 detached。已完成验收的结果先持久化，M 保存在
+`refs/a2a/verifications/<task>/a<N>/v<K>`，然后清理临时目录。
+中断、结果未知或清理失败时保留现场并记录问题。
+
+已集成 attempt 在确认窗格回收后清理；无绑定线程的手工 claim 在集成后清理。
+干净的撤销 attempt 在没有活跃线程时清理，否则等显式 reclaim。
+清理前先保存并读回 `refs/a2a/attempts/<task>/a<N>`；已集成的还删除 worker 分支名，
+撤销、终结失败的保留分支。脏工作区、未交付的 HEAD 或身份不符时不删，
+通过现有 `issues` 和执行主控的 `inbox_list` 查询 system issue。
+覆盖型未提交改动导致集成被拒时，同样保存绑定原 attempt 的问题条目。
+
+工作分支已变时，integrate 在原任务操作锁内重新运行 verify 的同一检查链。
+同一候选、卡快照和 attempt 的连续失配计数保存在 attempt 中；前三次自动重验，
+第 4 次返回 `integration_revalidation_limit`，任务暂停并保存 system issue。
+重复 integrate 不重置额度。只有已确认在 Git prepare 阶段终止、且未写工作区的
+新 intent 可以进入这条重验路径；中断恢复的 pending intent 或未知副作用仍要求核对。
+`integration_compare_failed` 事件携带候选审查的身份绑定，供 T-076-2 接入；
+它本身不是审查通过记录，机械检查每次都重跑。
+
+验收发生内容冲突时，只有 Git 合并退出 1 且索引含未合并条目才进入冲突整理。
+原始命令结果、冲突文件、索引阶段与差异先保存；原 C 和 G 分别保存在
+`refs/a2a/verifications/<task>/a<N>/v<K>-candidate` 与 `v<K>-base`，它们不表示验收通过。
+原 worker 身份可确认时，冲突说明经原窗格队列以 `⟦门禁 #序号⟧` 回写，忙时等待。
+任务进入 `rework`；重复 verify 不重发、不另建验收或 attempt。
+只有投递已确认的修复请求允许下一回合显式重交新 C，重交后新 C 再次冻结。
+原 claim 基线和卡快照不变；路径、尾注检查排除门禁从工作分支读到的已集成基线，
+仍检查新 C 的实际增量和新 G→M 的净改动。重交进入同一 verify 检查链，记录需要重新审查。
+
+会话已确认停止时，门禁归档旧 worker，从当前 G 经同一认领入口创建新 attempt，
+新提示包含旧 C 和冲突背景，程序不替 worker 解决冲突。
+仅有回合 Stop、领导进程替换或不明进程状态都不构成会话结束；
+已知领导进程退出且只剩原 shell、上一回合已空闲时，才额外记录原生会话结束。
+消息投递、会话观察或新 attempt 创建结果未知时，保留记录、工作区并上报，不自动重试。
+已完成记录且投递确定的临时冲突目录在核对现场未变后清理；未知状态保留。
+
+上述 S3 代码正在本卡验收中；受控窗格检查不能替代真实 worker 的冲突整理验证。
 
 ## 安装
 

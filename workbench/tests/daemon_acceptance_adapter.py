@@ -370,8 +370,15 @@ class DaemonLifecycle:
                     raise recovery.FixtureError("Barrier release escaped its fixture control directory")
                 if "candidate_directory" in data:
                     workspace = Path(data["candidate_directory"]).resolve()
-                    if (self.state.resolve() / "verification") not in workspace.parents:
-                        raise recovery.FixtureError("Oracle barrier is outside this fixture's verification directory")
+                    status = self.status()
+                    verification = status.get("verification")
+                    attempt = status.get("current_attempt")
+                    if not verification or not attempt:
+                        raise recovery.FixtureError("Oracle barrier has no current verification identity")
+                    expected = self.state.resolve() / "worktrees" / self.task / (
+                        self.task + "-a" + str(attempt["fence"]) + "-verify-" + str(verification.get("ordinal")))
+                    if workspace != expected or workspace != Path(verification["workspace"]).resolve():
+                        raise recovery.FixtureError("Oracle barrier does not belong to the current verification worktree")
                 self.artifact["barriers"].append({"entry": str(path), **data,
                                                  "daemon_generation": record["generation"]})
                 handle["barrier"] = {"entry": str(path), **data}

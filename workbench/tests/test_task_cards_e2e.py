@@ -158,7 +158,8 @@ class TaskCardsCLI(unittest.TestCase):
         self.assertEqual(v['C'], c)
         self.assertNotIn(v['M'], (g, c))
         self.assertEqual(self.oid(), g)
-        self.assertEqual(self.oid(Path(v['workspace'])), v['M'])
+        self.assertFalse(Path(v['workspace']).exists())
+        self.assertEqual(self.oid(ref='refs/a2a/verifications/' + self.task + '/a1/v1'), v['M'])
         self.assertEqual(self.git('rev-list', '--parents', '-n', '1', v['M']).split()[1:], [g, c])
         log = self.git('reflog', 'show', '--format=%H', 'refs/heads/main')
         self.cli('integrate')
@@ -293,7 +294,8 @@ class TaskCardsCLI(unittest.TestCase):
         self.save_card(1, v2)
         self.assertEqual(self.cli('card_show', '--card-version', '1')['card']['goal'], self.card['goal'])
         self.assertEqual(self.cli('status')['task']['card_version'], 1)
-        self.submit(a, self.commit(a))
+        c = self.commit(a)
+        self.submit(a, c)
         self.cli('verify')
         with sqlite3.connect(self.state / 'state.sqlite3') as db:
             rows = db.execute('SELECT id,data FROM task_card_snapshots').fetchall()
@@ -302,7 +304,9 @@ class TaskCardsCLI(unittest.TestCase):
         self.assertEqual(snapshots[a['card_snapshot_id']]['base_commit'], g)
         self.assertEqual(snapshots[a['card_snapshot_id']]['writer']['session_id'], a['session_id'])
         self.cli('revise', '--spec-rev', '2', '--card-version', '2')
-        self.submit(a, self.oid(Path(a['workspace'])), ok=False, error='stale_attempt')
+        self.assertFalse(Path(a['workspace']).exists())
+        self.assertEqual(self.oid(ref='refs/a2a/attempts/' + self.task + '/a1'), c)
+        self.submit(a, c, ok=False, error='stale_attempt')
         current = self.cli('claim', '--owner', 'replacement')['attempt']
         self.submit(current, self.commit(current))
         self.reject_verify('oracle_failed')
@@ -396,17 +400,23 @@ class TaskCardsCLI(unittest.TestCase):
         a = self.create_managed()
         c = self.commit(a, trailers=False)
         self.submit(a, c)
-        self.cli('verify')
+        first = self.cli('verify')['verification']
         inputs = self.cli('status')['user_inputs']
         (self.repo / 'host.txt').write_text('new G\n', encoding='utf-8')
         self.git('add', 'host.txt')
         self.git('commit', '-m', 'External change requires new verification')
-        self.cli('integrate', ok=False, error='integration_conflict')
-        v = self.cli('verify')['verification']
+        g = self.oid()
+        self.cli('integrate')
+        v = self.cli('status')['task']['verification']
+        self.assertNotEqual(v['verification_id'], first['verification_id'])
+        self.assertEqual(v['C'], c)
+        self.assertEqual(v['G'], g)
+        self.assertEqual((self.repo / 'host.txt').read_text(), 'new G\n')
         self.assertEqual(self.cli('status')['user_inputs'], inputs)
         self.assertEqual(len([e for e in self.events() if e['type'] == 'human_intervention']), 1)
         self.cli('integrate')
         self.assertEqual(self.oid(), v['M'])
+        self.assertEqual(len([e for e in self.events() if e['type'] == 'completion_check']), 2)
 
     def test_ticket_revision_and_template_source(self):
         self.task = 'T-990-1'

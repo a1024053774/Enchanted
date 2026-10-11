@@ -45,7 +45,7 @@ try {
   await panes.dispatch(pane, "第二条");
   assert.equal(writes.length, 2, "busy queues even before start hook arrives");
   const native = join(home, "sessions", "rollout-native.jsonl");
-  writeFileSync(native, JSON.stringify({ type: "session_meta", payload: { source: "cli", id: "native" } }) + "\n"
+  writeFileSync(native, JSON.stringify({ type: "session_meta", payload: { source: "cli", id: "native", cwd: root } }) + "\n"
     + JSON.stringify({ type: "event_msg", payload: { type: "task_started", turn_id: "turn-1" } }) + "\n");
   const signal = (event: string, turn: string, session = "native") => panes.signal(pane.record.id,
     JSON.stringify({ session_id: session, turn_id: turn, hook_event_name: event }), new Date().toISOString());

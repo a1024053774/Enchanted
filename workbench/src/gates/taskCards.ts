@@ -176,3 +176,16 @@ export function pathAllowed(card: TaskCard, path: string): boolean {
   const matches = (rule: string) => rule === "." || (rule.endsWith("/") ? path.startsWith(rule) : path === rule);
   return card.paths.allow.some(matches) && !card.paths.deny.some(matches);
 }
+
+/** Intersect the declared path sets, including paths that do not exist yet. */
+export function pathIntersection(left: TaskCard["paths"], right: TaskCard["paths"]): string[] {
+  const contains = (outer: string, inner: string) => outer === "." || outer === inner ||
+    (outer.endsWith("/") && inner.startsWith(outer));
+  const intersections = new Set<string>();
+  for (const a of left.allow) for (const b of right.allow) {
+    const intersection = contains(a, b) ? b : contains(b, a) ? a : null;
+    if (intersection !== null && ![...left.deny, ...right.deny].some((deny) => contains(deny, intersection)))
+      intersections.add(intersection);
+  }
+  return [...intersections].sort();
+}

@@ -1,0 +1,49 @@
+test_historical_cleanup_leaves_current_and_foreign_untouched (__main__.RunCleanupContracts) ... 
+======================================================================
+FAIL: test_historical_cleanup_leaves_current_and_foreign_untouched (__main__.RunCleanupContracts) (field='old-directory')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 420, in test_historical_cleanup_leaves_current_and_foreign_untouched
+    self.contract('W07 only the reclaimed historical directory is removed', not Path(previous['workspace']).exists(), False,
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 47, in contract
+    self.assertTrue(condition, 'S3 contract: ' + name + '\n' + repr(CONTRACTS[-1]))
+AssertionError: False is not true : S3 contract: W07 only the reclaimed historical directory is removed
+{'test': '__main__.RunCleanupContracts.test_historical_cleanup_leaves_current_and_foreign_untouched', 'claim': 'W07 only the reclaimed historical directory is removed', 'pass': False, 'expected': False, 'actual': True}
+
+======================================================================
+FAIL: test_historical_cleanup_leaves_current_and_foreign_untouched (__main__.RunCleanupContracts) (field='old-reference')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 424, in test_historical_cleanup_leaves_current_and_foreign_untouched
+    self.contract('W07 historical reference preserves its own tip', actual == self.base, self.base, actual)
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 47, in contract
+    self.assertTrue(condition, 'S3 contract: ' + name + '\n' + repr(CONTRACTS[-1]))
+AssertionError: False is not true : S3 contract: W07 historical reference preserves its own tip
+{'test': '__main__.RunCleanupContracts.test_historical_cleanup_leaves_current_and_foreign_untouched', 'claim': 'W07 historical reference preserves its own tip', 'pass': False, 'expected': 'f5bee090fc9718b46476e6f9477c7639c5a757b6', 'actual': None}
+
+======================================================================
+FAIL: test_historical_cleanup_leaves_current_and_foreign_untouched (__main__.RunCleanupContracts) (field='current-directory')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 427, in test_historical_cleanup_leaves_current_and_foreign_untouched
+    self.contract('W07 revoked unbound current directory is removed', not Path(current['workspace']).exists(), False,
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 47, in contract
+    self.assertTrue(condition, 'S3 contract: ' + name + '\n' + repr(CONTRACTS[-1]))
+AssertionError: False is not true : S3 contract: W07 revoked unbound current directory is removed
+{'test': '__main__.RunCleanupContracts.test_historical_cleanup_leaves_current_and_foreign_untouched', 'claim': 'W07 revoked unbound current directory is removed', 'pass': False, 'expected': False, 'actual': True}
+
+======================================================================
+FAIL: test_historical_cleanup_leaves_current_and_foreign_untouched (__main__.RunCleanupContracts) (field='current-reference')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 431, in test_historical_cleanup_leaves_current_and_foreign_untouched
+    self.contract('W07 current reference preserves the separate current tip', actual == candidate, candidate, actual)
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 47, in contract
+    self.assertTrue(condition, 'S3 contract: ' + name + '\n' + repr(CONTRACTS[-1]))
+AssertionError: False is not true : S3 contract: W07 current reference preserves the separate current tip
+{'test': '__main__.RunCleanupContracts.test_historical_cleanup_leaves_current_and_foreign_untouched', 'claim': 'W07 current reference preserves the separate current tip', 'pass': False, 'expected': '38710d723df7f7bcaf3dae42d033e6e8d8d30787', 'actual': None}
+
+----------------------------------------------------------------------
+Ran 1 test in 3.606s
+
+FAILED (failures=4)

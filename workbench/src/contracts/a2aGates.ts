@@ -63,6 +63,7 @@ export const A2AGateRequest = Schema.Struct({
   instructions: Schema.optional(Schema.String),
   owner: Schema.optional(Schema.String),
   reason: Schema.optional(Schema.String),
+  overlap_reason: Schema.optional(Schema.String),
   attempt: Schema.optional(Schema.String),
   session: Schema.optional(Schema.String),
   fence: Schema.optional(Schema.Number),
@@ -116,6 +117,33 @@ export interface A2AAttempt {
   delivery?: {
     commit: string; turn_id: string | null; launch_id: string; cli: string;
     model: string; effort: string; number: number; submitted_at: string;
+  };
+  conflict_source?: string;
+  rework?: {
+    verification_id: string;
+    prior_candidate: string;
+    base_commit: string;
+    message_id: string;
+    prior_turn: string | null;
+    state: "pending" | "delivered" | "unknown" | "submitted" | "replacing" | "replaced";
+    candidate_commit?: string;
+    replacement_attempt?: string;
+    failure?: { reason: string; details: unknown };
+  };
+  revalidation?: {
+    candidate_commit: string;
+    card_snapshot_id: string;
+    spec_rev: number;
+    misses: number;
+    previous_verification_id: string;
+  };
+  cleanup?: {
+    state: "pending" | "removed" | "preserved";
+    head?: string;
+    branch?: string;
+    ref?: string;
+    delete_branch?: boolean;
+    reason?: string;
   };
 }
 
@@ -184,6 +212,16 @@ export interface A2AVerification {
     red: { index: number; B: string; C: string; test_paths: string[]; base_workspace: string; candidate_workspace: string;
       base_result: A2ACommandResult; candidate_result: A2ACommandResult; passed: boolean }[];
     rules: { id: string; result: A2ACommandResult; passed: boolean }[];
+  };
+  ordinal?: number;
+  retained_ref?: string;
+  cleanup?: "removed" | "preserved";
+  conflict?: {
+    files: string[];
+    unmerged: string;
+    diff: string;
+    candidate_ref: string;
+    base_ref: string;
   };
 }
 

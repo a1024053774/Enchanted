@@ -1,0 +1,313 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "S3 initial focused contracts only; not full T-077 acceptance",
+  "phase": "baseline",
+  "red_confirmed": true,
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py",
+    "--phase",
+    "baseline",
+    "--baseline-product",
+    "/private/tmp/s3-base-wf0ea6cj",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-conflict-red-01",
+    "--case",
+    "test_conflict_active_worker_reworks_and_integrates",
+    "--case",
+    "test_conflict_ended_session_gets_new_attempt",
+    "--case",
+    "test_conflict_unknown_session_preserves_scene_and_reports",
+    "--case",
+    "test_conflict_unknown_delivery_does_not_resend",
+    "--case",
+    "test_merge_command_error_is_not_text_conflict",
+    "--case",
+    "test_conflict_rework_still_rejects_forbidden_path",
+    "--case",
+    "test_conflict_rework_still_rejects_foreign_trailer"
+  ],
+  "cwd": "/Users/luckye/Documents/Code/a2a-wt-t077",
+  "fixture_root": "/tmp/s3-l3tlytw8",
+  "real_codex_turns": 0,
+  "cases": [
+    {
+      "case": "test_conflict_active_worker_reworks_and_integrates",
+      "phase": "baseline",
+      "tests_run": 1,
+      "exit_code": 1,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "business_red": true,
+      "contracts": [
+        {
+          "test": "__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates",
+          "claim": "Text conflict is written once to the original active worker",
+          "pass": false,
+          "expected": {
+            "count": 1,
+            "thread": "055b216a-fc6e-4744-b1a8-d5557ad8390b"
+          },
+          "actual": []
+        },
+        {
+          "test": "__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates",
+          "claim": "Repeated verification does not resend the conflict message",
+          "pass": false,
+          "expected": 1,
+          "actual": []
+        },
+        {
+          "test": "__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates",
+          "claim": "Conflict rework accepts a new explicit candidate from its bound worker",
+          "pass": false,
+          "expected": true,
+          "actual": {
+            "ok": false,
+            "error": "candidate_conflict",
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-11T18:33:49.093Z"
+            }
+          }
+        }
+      ],
+      "inherited_assertions": [],
+      "evidence_layer": "controlled-thread"
+    },
+    {
+      "case": "test_conflict_ended_session_gets_new_attempt",
+      "phase": "baseline",
+      "tests_run": 1,
+      "exit_code": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "business_red": true,
+      "contracts": [
+        {
+          "test": "__main__.ConflictContracts.test_conflict_ended_session_gets_new_attempt",
+          "claim": "Confirmed ended worker is replaced by one new attempt",
+          "pass": false,
+          "expected": {
+            "different_attempt": true,
+            "fence": 2
+          },
+          "actual": {
+            "task_id": "check-e7bdd4d09030489599f80bde28a6f400",
+            "attempt_id": "d48c491b-5f9c-44ee-b2d1-5b8f15363a99",
+            "session_id": "12616595-b76e-4da7-a2ac-d4be94c163cd",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "e2e6bbf1-9ffd-4b3e-bd6d-b269ca266bb4",
+            "runtime_mode": "approval-required",
+            "turn_id": "fixture-turn:e2e6bbf1-9ffd-4b3e-bd6d-b269ca266bb4:1",
+            "workspace": "/private/tmp/s3-l3tlytw8/t-prnuv9lh/isolated state/worktrees/d48c491b-5f9c-44ee-b2d1-5b8f15363a99",
+            "base_commit": "0be7adebf482f3becfcc6968e997f250518ac131",
+            "card_snapshot_id": "2f5e17fe-9028-4e4d-8c35-7666f49c5510",
+            "reclaimed": false,
+            "owner": "check-e7bdd4d09030489599f80bde28a6f400",
+            "state": "submitted"
+          }
+        }
+      ],
+      "inherited_assertions": [],
+      "evidence_layer": "controlled-thread"
+    },
+    {
+      "case": "test_conflict_unknown_session_preserves_scene_and_reports",
+      "phase": "baseline",
+      "tests_run": 1,
+      "exit_code": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "business_red": true,
+      "contracts": [
+        {
+          "test": "__main__.ConflictContracts.test_conflict_unknown_session_preserves_scene_and_reports",
+          "claim": "Unknown native session keeps the conflict scene and reports to the executor",
+          "pass": false,
+          "expected": "system issue bound to original attempt",
+          "actual": []
+        }
+      ],
+      "inherited_assertions": [],
+      "evidence_layer": "controlled-thread"
+    },
+    {
+      "case": "test_conflict_unknown_delivery_does_not_resend",
+      "phase": "baseline",
+      "tests_run": 1,
+      "exit_code": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "business_red": true,
+      "contracts": [
+        {
+          "test": "__main__.ConflictContracts.test_conflict_unknown_delivery_does_not_resend",
+          "claim": "Unknown writeback has exactly one recorded delivery attempt",
+          "pass": false,
+          "expected": 1,
+          "actual": []
+        }
+      ],
+      "inherited_assertions": [],
+      "evidence_layer": "controlled-thread"
+    },
+    {
+      "case": "test_merge_command_error_is_not_text_conflict",
+      "phase": "baseline",
+      "tests_run": 1,
+      "exit_code": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "business_red": true,
+      "contracts": [
+        {
+          "test": "__main__.ConflictContracts.test_merge_command_error_is_not_text_conflict",
+          "claim": "Git failure without unmerged index entries is not a repairable text conflict",
+          "pass": false,
+          "expected": "git_failed",
+          "actual": {
+            "ok": false,
+            "error": "merge_conflict",
+            "details": {
+              "verification_id": "7f702311-cced-4a4e-851e-d1b9321b28d9",
+              "attempt": {
+                "task_id": "check-d81ee6ae2bb145d88556016315552bbc",
+                "attempt_id": "b242a29e-0d2d-4a09-a324-2827e6d71aa1",
+                "session_id": "81479c9e-aaad-4175-b976-71a463d0a914",
+                "fence": 1,
+                "spec_rev": 1,
+                "thread_id": "3d9603c6-e8e2-4c02-8c88-7bfe5b1fced4",
+                "runtime_mode": "approval-required",
+                "turn_id": "fixture-turn:3d9603c6-e8e2-4c02-8c88-7bfe5b1fced4:1",
+                "workspace": "/private/tmp/s3-l3tlytw8/t-264wk06y/isolated state/worktrees/b242a29e-0d2d-4a09-a324-2827e6d71aa1",
+                "base_commit": "4556f6a2d16290c889c4da2b2e625e60f152ac20",
+                "card_snapshot_id": "d7a4931c-8ac3-48c9-9e8c-1d49d515771e",
+                "reclaimed": false,
+                "owner": "check-d81ee6ae2bb145d88556016315552bbc",
+                "state": "submitted"
+              },
+              "spec_rev": 1,
+              "G": "8158c66bd75f7052c5057c9208701178a17465f9",
+              "C": "3d8e4f57baddc5a7f89c702ec5bf700c051a9323",
+              "M": null,
+              "card_snapshot_id": "d7a4931c-8ac3-48c9-9e8c-1d49d515771e",
+              "card_version": 1,
+              "commands": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-l3tlytw8/t-264wk06y/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                  ],
+                  "cwd": "/private/tmp/s3-l3tlytw8/t-264wk06y/isolated state/verification/7f702311-cced-4a4e-851e-d1b9321b28d9"
+                }
+              ],
+              "results": [],
+              "workspace": "/private/tmp/s3-l3tlytw8/t-264wk06y/isolated state/verification/7f702311-cced-4a4e-851e-d1b9321b28d9",
+              "state": "merge_failed",
+              "command_intent": {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-l3tlytw8/t-264wk06y/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                ],
+                "cwd": "/private/tmp/s3-l3tlytw8/t-264wk06y/isolated state/verification/7f702311-cced-4a4e-851e-d1b9321b28d9"
+              },
+              "result": {
+                "argv": [
+                  "git",
+                  "-C",
+                  "/private/tmp/s3-l3tlytw8/t-264wk06y/isolated state/verification/7f702311-cced-4a4e-851e-d1b9321b28d9",
+                  "-c",
+                  "core.hooksPath=/dev/null",
+                  "merge",
+                  "--no-ff",
+                  "--no-commit",
+                  "--no-edit",
+                  "3d8e4f57baddc5a7f89c702ec5bf700c051a9323"
+                ],
+                "cwd": "/private/tmp/s3-l3tlytw8/t-264wk06y/isolated state/verification/7f702311-cced-4a4e-851e-d1b9321b28d9",
+                "stdout": "",
+                "stderr": "fixture: merge I/O unavailable\n",
+                "exit": 73,
+                "returncode": 73
+              }
+            },
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-11T18:34:02.379Z"
+            }
+          }
+        }
+      ],
+      "inherited_assertions": [],
+      "evidence_layer": "controlled-thread"
+    },
+    {
+      "case": "test_conflict_rework_still_rejects_forbidden_path",
+      "phase": "baseline",
+      "tests_run": 1,
+      "exit_code": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "business_red": true,
+      "contracts": [
+        {
+          "test": "__main__.ConflictContracts.test_conflict_rework_still_rejects_forbidden_path",
+          "claim": "Conflict rework accepts a new explicit candidate from its bound worker",
+          "pass": false,
+          "expected": true,
+          "actual": {
+            "ok": false,
+            "error": "candidate_conflict",
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-11T18:34:05.528Z"
+            }
+          }
+        }
+      ],
+      "inherited_assertions": [],
+      "evidence_layer": "controlled-thread"
+    },
+    {
+      "case": "test_conflict_rework_still_rejects_foreign_trailer",
+      "phase": "baseline",
+      "tests_run": 1,
+      "exit_code": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "business_red": true,
+      "contracts": [
+        {
+          "test": "__main__.ConflictContracts.test_conflict_rework_still_rejects_foreign_trailer",
+          "claim": "Conflict rework accepts a new explicit candidate from its bound worker",
+          "pass": false,
+          "expected": true,
+          "actual": {
+            "ok": false,
+            "error": "candidate_conflict",
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-11T18:34:08.128Z"
+            }
+          }
+        }
+      ],
+      "inherited_assertions": [],
+      "evidence_layer": "controlled-thread"
+    }
+  ]
+}
