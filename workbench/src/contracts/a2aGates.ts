@@ -324,6 +324,8 @@ export interface A2AGateResult {
   entry?: A2AInboxEntry;
   delivery?: A2AInboxDelivery;
   entries?: ReadonlyArray<{ entry: A2AInboxEntry; delivery?: A2AInboxDelivery }>;
+  ready?: ReadonlyArray<{ id: string; title: string; type: string; ready_by: string; ready_rev: number }>;
+  diagnostics?: ReadonlyArray<string>;
   interruptRequested?: boolean;
 }
 
@@ -375,9 +377,10 @@ export interface A2AUserInput {
     request?: string | null;
     eventSequence?: number;
   };
-  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page" | "commit-trailer";
+  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page" | "commit-trailer" | "terminal-window";
   reply_to: string | null;
   source_ref: {
+    window_id?: string;
     message_id?: string;
     event_id?: string;
     source_sequence?: number;

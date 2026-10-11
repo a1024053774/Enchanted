@@ -1,0 +1,546 @@
+diff --git a/workbench/app/main.ts b/workbench/app/main.ts
+index 9f614cf7..96e80659 100644
+--- a/workbench/app/main.ts
++++ b/workbench/app/main.ts
+@@ -5,12 +5,16 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+ import { parseArgs } from 'node:util';
+ import { request } from '../src/transport.ts';
++import { readOperatorCredential } from '../src/credentials.ts';
++import { randomUUID } from 'node:crypto';
+ 
+ type Options = { state: string; task: string; launch?: string; userData: string };
+ const directory = dirname(fileURLToPath(import.meta.url));
+ 
+ export async function run(options: Options) {
+   if (!isAbsolute(options.state) || !isAbsolute(options.userData) || !options.task) throw new Error('Absolute data paths and a task are required');
++  const operator = readOperatorCredential(options.state);
++  if (!operator) throw new Error('operator_credential_required');
+   mkdirSync(options.userData, { recursive: true, mode: 0o700 });
+   const sessionData = join(options.userData, 'session');
+   for (const path of [sessionData, join(options.userData, 'logs'), join(options.userData, 'crashes')]) {
+@@ -26,6 +30,10 @@ export async function run(options: Options) {
+     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,
+       contextIsolation: true, sandbox: true, backgroundThrottling: false } });
+   let launch = options.launch;
++  let identity: Record<string, unknown> | undefined;
++  let sequence = 0;
++  let inputQueue = Promise.resolve();
++  let closing = false, closed = false;
+   const checkSender = (event: Electron.IpcMainInvokeEvent) => {
+     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) throw new Error('Unknown window');
+   };
+@@ -34,7 +42,33 @@ export async function run(options: Options) {
+     const result = await request(options.state, { command: 'workbench_snapshot', task: options.task, ...(launch ? { launch } : {}) });
+     if (!result.ok) throw new Error(result.error);
+     if (result.launch) launch = result.launch.id;
+-    return result;
++    const writable = result.pane?.lifecycle === 'running' && !result.pane.failed &&
++      result.task.current_attempt?.attempt_id === result.launch?.attempt;
++    if (result.launch && !identity) {
++      const opened = await request(options.state, { command: 'window_open', task: options.task, launch }, operator);
++      if (!opened.ok) throw new Error(opened.error);
++      identity = opened.identity;
++    }
++    return { ...result, input_enabled: Boolean(writable && identity && !closing) };
++  });
++  const sendWindowCommand = (input: Record<string, unknown>) => {
++    if (!identity || closing) throw new Error('Window is not available for input');
++    const command = { ...input, sequence: ++sequence, request_id: randomUUID() };
++    inputQueue = inputQueue.then(async () => {
++      const result = await request(options.state, command, identity);
++      if (!result.ok) throw new Error(result.error);
++    });
++    return inputQueue;
++  };
++  ipcMain.handle('a2a:input', (event, data: string) => {
++    checkSender(event);
++    if (typeof data !== 'string' || Buffer.byteLength(data, 'utf8') > 1024 * 1024) throw new Error('Invalid terminal input');
++    return sendWindowCommand({ command: 'window_input', data });
++  });
++  ipcMain.handle('a2a:focus-observation', (event, rawSequence: string) => {
++    checkSender(event);
++    if (typeof rawSequence !== 'string' || rawSequence.length > 4096) throw new Error('Invalid focus observation');
++    return sendWindowCommand({ command: 'window_observation', type: 'focus-mode-intercept', raw_sequence: rawSequence });
+   });
+   ipcMain.handle('a2a:output', async (event, offset: number) => {
+     checkSender(event);
+@@ -45,7 +79,26 @@ export async function run(options: Options) {
+   });
+   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+   window.webContents.on('will-navigate', (event) => event.preventDefault());
+-  window.on('closed', () => { ipcMain.removeHandler('a2a:snapshot'); ipcMain.removeHandler('a2a:output'); });
++  window.on('close', event => {
++    if (closed) return;
++    event.preventDefault();
++    if (closing) return;
++    closing = true;
++    void (async () => {
++      try { await inputQueue; }
++      catch (error) { console.error('Window input outcome remains unconfirmed:', String(error)); }
++      try {
++        if (identity) {
++          const result = await request(options.state, { command: 'window_close' }, identity);
++          if (!result.ok) throw new Error(result.error);
++        }
++      } catch (error) { console.error('Window credential revocation was not confirmed:', String(error)); }
++      finally { closed = true; window.destroy(); }
++    })();
++  });
++  window.on('closed', () => {
++    for (const channel of ['a2a:snapshot', 'a2a:output', 'a2a:input', 'a2a:focus-observation']) ipcMain.removeHandler(channel);
++  });
+   app.on('window-all-closed', () => app.quit());
+   await window.loadFile(join(directory, 'renderer/index.html'));
+   return window;
+diff --git a/workbench/app/preload.ts b/workbench/app/preload.ts
+index fd7351b9..d5860893 100644
+--- a/workbench/app/preload.ts
++++ b/workbench/app/preload.ts
+@@ -3,4 +3,6 @@ import { contextBridge, ipcRenderer } from 'electron';
+ contextBridge.exposeInMainWorld('a2a', Object.freeze({
+   snapshot: () => ipcRenderer.invoke('a2a:snapshot'),
+   output: (offset: number) => ipcRenderer.invoke('a2a:output', offset),
++  input: (data: string) => ipcRenderer.invoke('a2a:input', data),
++  observeFocus: (rawSequence: string) => ipcRenderer.invoke('a2a:focus-observation', rawSequence),
+ }));
+diff --git a/workbench/app/renderer.tsx b/workbench/app/renderer.tsx
+index 1ca6a76d..2aeea2b3 100644
+--- a/workbench/app/renderer.tsx
++++ b/workbench/app/renderer.tsx
+@@ -6,9 +6,11 @@ import { Terminal } from '@xterm/xterm';
+ import '@xterm/xterm/css/xterm.css';
+ import './style.css';
+ import { TerminalScrollToBottom } from './TerminalScrollToBottom';
++import { createFocusSafeWriter, ownTerminalQueries } from './terminalOutput.mjs';
+ 
+ type Snapshot = {
+   daemon: string;
++  input_enabled: boolean;
+   task: { task_id: string; title: string; project_id: string; repo: string; state: string;
+     current_attempt: { attempt_id: string; state: string } | null; candidate_commit: string | null;
+     verification: { state: string } | null; integration_intent: { state: string } | null };
+@@ -16,7 +18,8 @@ type Snapshot = {
+   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null } | null;
+ };
+ type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
+-declare global { interface Window { a2a: { snapshot(): Promise<Snapshot>; output(offset: number): Promise<Chunk> } } }
++declare global { interface Window { a2a: { snapshot(): Promise<Snapshot>; output(offset: number): Promise<Chunk>;
++  input(data: string): Promise<void>; observeFocus(rawSequence: string): Promise<void> } } }
+ const gateNames: Record<string, string> = { ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
+   verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销' };
+ const activityNames: Record<string, string> = { unknown: '未知', idle: '空闲', busy: '忙' };
+@@ -30,16 +33,30 @@ function Workbench() {
+   const [error, setError] = useState<string | null>(null);
+   const [connecting, setConnecting] = useState(true);
+   const [offset, setOffset] = useState(0);
++  const [inputError, setInputError] = useState<string | null>(null);
+ 
+   useEffect(() => {
+     let mounted = true, running = false, cursor = 0, total = 0;
+     let boundLaunch: string | null = null;
+-    const term = new Terminal({ cols: 160, rows: 45, disableStdin: true, cursorBlink: false,
++    let inputFailed = false;
++    const term = new Terminal({ cols: 160, rows: 45, disableStdin: true, cursorBlink: true,
+       cursorInactiveStyle: 'none', screenReaderMode: true, scrollback: 10000, fontSize: 11, lineHeight: 1,
+       fontFamily: '"SF Mono", "SFMono-Regular", Menlo, monospace',
+       theme: { background: '#111111', foreground: '#fcfcfc', selectionBackground: '#0169cc66' } });
+     term.open(mount.current!);
+-    // No onData/onBinary listener: even terminal device replies cannot reach the PTY.
++    const failInput = (failure: unknown) => {
++      inputFailed = true; term.options.disableStdin = true;
++      if (mounted) setInputError(`输入尚未确认，已停止发送：${String(failure)}`);
++    };
++    const writeOutput = createFocusSafeWriter(term, (type: string, detail: { raw_sequence: string }) => {
++      if (type === 'focus-mode-intercept') void window.a2a.observeFocus(detail.raw_sequence).catch(failInput);
++    });
++    ownTerminalQueries(term, () => {});
++    const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
++    term.onData(data => { void window.a2a.input(data).catch(failInput); });
++    // Binary mouse encodings need a byte-preserving transport. This slice
++    // records the missing capability as an explicit input failure.
++    term.onBinary(() => failInput('尚未接通二进制终端输入'));
+     setTerminal(term);
+     const delay = () => new Promise((resolve) => setTimeout(resolve, 100));
+     async function read() {
+@@ -53,6 +70,7 @@ function Workbench() {
+             if (!mounted) break;
+             if (boundLaunch && value.launch?.id !== boundLaunch) throw new Error('窗格身份改变，已停止读取');
+             if (value.launch) boundLaunch = value.launch.id;
++            term.options.disableStdin = inputFailed || !value.input_enabled;
+             setSnapshot(value); setConnecting(false);
+             nextSnapshot = Date.now() + 1000;
+           }
+@@ -64,7 +82,7 @@ function Workbench() {
+               chunk.total_bytes < total || chunk.next_offset > chunk.total_bytes) throw new Error('输出不完整，已停止读取');
+           total = chunk.total_bytes;
+           if (bytes.length) {
+-            await new Promise<void>((resolve) => term.write(bytes, resolve));
++            await writeOutput(decoder.decode(bytes, { stream: true }));
+             cursor = chunk.next_offset;
+             if (mounted) setOffset(cursor);
+           }
+@@ -95,14 +113,15 @@ function Workbench() {
+         <span className={'connection ' + (error ? 'warning' : '')}>{error ? '后台未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
+       </header>
+       {error && <div className="connection-error" role="alert"><span>{error}</span><button onClick={() => reconnect.current()}>重新连接</button></div>}
+-      <section className="pane" aria-label="只读终端">
++      {inputError && <div className="connection-error" role="alert">{inputError}</div>}
++      <section className="pane" aria-label="交互终端">
+         <div className="pane-header"><strong>{snapshot?.launch?.cli_version ?? '窗格'}</strong>
+-          <span className="readonly">只读</span><span className="pane-identity">{snapshot?.launch ? `worker · ${snapshot.launch.id.slice(0, 8)}` : '尚未启动窗格'}</span>
++          <span className="readonly">{snapshot?.input_enabled && !inputError ? '可输入' : '只读'}</span><span className="pane-identity">{snapshot?.launch ? `worker · ${snapshot.launch.id.slice(0, 8)}` : '尚未启动窗格'}</span>
+           <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
+         </div>
+         <div className="terminal-scroll" data-output-offset={offset}><div className="terminal-mount" ref={mount} /></div>
+         <TerminalScrollToBottom terminal={terminal} />
+-        <div className="pane-footer"><span>可选择、复制和滚动；输入功能将在后续切片提供</span><span data-lifecycle={pane?.lifecycle ?? 'unknown'}>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>
++        <div className="pane-footer"><span>在受管 worker 中输入会记录为人工介入</span><span data-lifecycle={pane?.lifecycle ?? 'unknown'}>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>
+       </section>
+       <section className="gate" aria-label="门禁状态">
+         <div><span className="eyebrow">{historical ? '当前任务门禁 · 所看窗格属于历史 attempt' : '任务门禁'}</span><strong data-gate-state={task?.state ?? 'unknown'}>{gateNames[task?.state ?? ''] ?? '未知'}</strong></div>
+diff --git a/workbench/src/contracts/a2aGates.ts b/workbench/src/contracts/a2aGates.ts
+index 7ef3bd4a..a8a1a11e 100644
+--- a/workbench/src/contracts/a2aGates.ts
++++ b/workbench/src/contracts/a2aGates.ts
+@@ -272,9 +272,10 @@ export interface A2AUserInput {
+     request?: string | null;
+     eventSequence?: number;
+   };
+-  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page" | "commit-trailer";
++  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page" | "commit-trailer" | "terminal-window";
+   reply_to: string | null;
+   source_ref: {
++    window_id?: string;
+     message_id?: string;
+     event_id?: string;
+     source_sequence?: number;
+diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts
+index 6c7ca83d..7401abb1 100644
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -7,6 +7,7 @@ import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
+ import { socketPath } from "./transport.ts";
+ import { RequestRelay } from "./relay.ts";
+ import { randomUUID } from "node:crypto";
++import { readOperatorCredential } from "./credentials.ts";
+ 
+ export async function serve(
+   root: string,
+@@ -17,12 +18,32 @@ export async function serve(
+   root = realpathSync(root);
+   const socket = socketPath(root);
+   if (existsSync(socket)) throw new Error("socket exists; refusing to replace it");
++  const operator = readOperatorCredential(root);
++  if (!operator) throw new Error("operator_credential_required");
+   const helper = spawnHelper();
+   const store = new OrchestrationStore(root);
+   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
+   const gates = createGates(root, panes);
+   const relay = new RequestRelay(store);
+   const daemon = randomUUID();
++  type WindowBinding = { id: string; token: string; task: string; launch: string; sequence: number };
++  const windows = new Map<string, WindowBinding>();
++  const readOnly = new Set(["daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
++    "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
++  const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "anonymous"; window?: WindowBinding } => {
++    if (!identity) return { source: "anonymous", kind: "anonymous" };
++    if (identity.kind === "operator") {
++      if (identity.token !== operator.token || identity.epoch !== operator.epoch || identity.state !== root) throw new Refusal("invalid_operator_identity");
++      return { source: "executor", kind: "operator" };
++    }
++    if (identity.kind === "window") {
++      const window = windows.get(identity.window);
++      if (!window || identity.token !== window.token) throw new Refusal("invalid_window_identity");
++      return { source: "user", kind: "window", window };
++    }
++    const pane = panes.authenticate(identity);
++    return { source: `worker:${pane.record.thread}`, kind: "launch" };
++  };
+   gates.setUserInputObserverStatus("healthy");
+   let stopping = false;
+   let activeRequests = 0;
+@@ -36,14 +57,75 @@ export async function serve(
+     if (existsSync(socket)) unlinkSync(socket);
+     unlinkSync(join(root, "daemon.pid"));
+   };
+-  const handle = async (envelope: any) => {
++  const handle = async (envelope: any, authority: ReturnType<typeof authenticate>) => {
+     const input = envelope.input;
+     if (!input || typeof input.command !== "string") throw new Refusal("invalid_request");
+     const identity = envelope.identity;
+-    if (identity) {
+-      panes.authenticate(identity);
++    if (authority.kind === "anonymous" && !readOnly.has(input.command)) throw new Refusal("caller_identity_required");
++    if (authority.kind === "launch") {
+       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
+     }
++    if (authority.kind === "window" && !["window_input", "window_observation", "window_close"].includes(input.command)) {
++      throw new Refusal("window_command_forbidden");
++    }
++    if (input.command === "window_open") {
++      if (authority.kind !== "operator") throw new Refusal("operator_required");
++      const record = panes.launchRecord(input.launch);
++      if (record.task !== input.task) throw new Refusal("launch_task_mismatch");
++      const window = { id: randomUUID(), token: randomUUID(), task: record.task, launch: record.id, sequence: 0 };
++      windows.set(window.id, window);
++      store.event("window_opened", { window_id: window.id, actor: "user" }, record as any);
++      return { ok: true, identity: { kind: "window", window: window.id, token: window.token } };
++    }
++    if (["window_input", "window_observation", "window_close"].includes(input.command)) {
++      const window = authority.window;
++      if (!window) throw new Refusal("window_identity_required");
++      const record = panes.launchRecord(window.launch);
++      if (input.command === "window_close") {
++        windows.delete(window.id);
++        store.event("window_closed", { window_id: window.id }, record as any);
++        return { ok: true };
++      }
++      if (!Number.isSafeInteger(input.sequence) || input.sequence !== window.sequence + 1 ||
++          typeof input.request_id !== "string" || !input.request_id) throw new Refusal("invalid_window_sequence");
++      const receipt = { window_id: window.id, sequence: input.sequence, request_id: input.request_id, received_at: new Date().toISOString() };
++      if (input.command === "window_observation") {
++        if (input.type !== "focus-mode-intercept" || typeof input.raw_sequence !== "string" || input.raw_sequence.length > 4096) {
++          throw new Refusal("invalid_window_observation");
++        }
++        store.event("terminal_focus_intercepted", { ...receipt, raw_sequence: input.raw_sequence }, record as any);
++        window.sequence = input.sequence;
++        return { ok: true };
++      }
++      if (typeof input.data !== "string" || Buffer.byteLength(input.data, "utf8") > 1024 * 1024) throw new Refusal("invalid_terminal_input");
++      if (input.data.length === 0) {
++        store.event("terminal_input_empty", { ...receipt, byte_length: 0 }, record as any);
++        window.sequence = input.sequence;
++        return { ok: true, observed: true, written: false };
++      }
++      const assertCurrent = async () => {
++        const status = await gates.call({ command: "status", task: record.task });
++        const attempt = status.task?.current_attempt;
++        if (!attempt || attempt.attempt_id !== record.attempt || attempt.session_id !== record.session ||
++            attempt.fence !== record.fence || status.task?.spec_rev !== record.spec_rev || attempt.reclaimed) throw new Refusal("stale_attempt");
++        if (gates.userInputObserverStatus()?.state === "failed") throw new Refusal("user_input_observer_failed");
++      };
++      await panes.userInput(window.launch, input.data, receipt, async (text, control) => {
++        try {
++          gates.appendUserInput({ id: randomUUID(), schema: 1, form: control ? "action" : "message", text,
++            target: { project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,
++              turn: panes.get(record.thread).turn, message: null, request: null },
++            channel: "terminal-window", reply_to: null, certainty: "observed", created_at: receipt.received_at,
++            source_ref: { command_id: receipt.request_id, source_sequence: receipt.sequence, window_id: receipt.window_id },
++            ...(control ? { content: { action: "terminal-key", data: input.data } } : {}) }, `window:${receipt.request_id}`);
++        } catch (error) {
++          gates.setUserInputObserverStatus("failed", { reason: String(error) });
++          throw error;
++        }
++      }, assertCurrent);
++      window.sequence = input.sequence;
++      return { ok: true, written: true, request_id: receipt.request_id };
++    }
+     if (input.command === "daemon_status") return { ok: true, pid: process.pid, node: process.version, root, helper };
+     if (input.command === "daemon_stop") {
+       if (activeRequests !== 1) throw new Refusal("daemon_busy");
+@@ -97,10 +179,11 @@ export async function serve(
+       return { ok: true };
+     }
+     if (input.command === "launch_show") {
+-      if (identity && identity.launch !== input.launch) throw new Refusal("stale_launch");
++      if (authority.kind === "launch" && identity.launch !== input.launch) throw new Refusal("stale_launch");
+       return { ok: true, ...panes.launchInfo(input.launch) };
+     }
+-    const caller = identity ? await panes.caller(identity) : undefined;
++    const caller = authority.kind === "operator" ? { thread: `operator:${operator.epoch}`, turn: "", address: "executor",
++      assertActive: async () => { if (stopping) throw new Refusal("daemon_stopping"); } } : undefined;
+     return await gates.call(input, caller);
+   };
+   const server = createServer((connection) => {
+@@ -122,9 +205,10 @@ export async function serve(
+       let result: any;
+       try {
+         envelope = JSON.parse(buffer.slice(0, end));
++        const authority = authenticate(envelope.identity);
+         const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
+-        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: envelope.identity ? "worker" : "executor" });
+-        result = await handle(envelope);
++        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: authority.source });
++        result = await handle(envelope, authority);
+         if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
+           ok: result.ok, error: result.error, details: result.details });
+       } catch (error) {
+diff --git a/workbench/src/gates/cli.ts b/workbench/src/gates/cli.ts
+index 125f50bb..a1bb0b2a 100644
+--- a/workbench/src/gates/cli.ts
++++ b/workbench/src/gates/cli.ts
+@@ -9,6 +9,7 @@ import { homedir } from "node:os";
+ import { join } from "node:path";
+ import { request as daemonRequest, startDaemon } from "../transport.ts";
+ import { queueWorkerRequest, readWorkerRequests } from "../relayFiles.ts";
++import { readOperatorCredential } from "../credentials.ts";
+ 
+ const commands: Record<string, { required: string[]; optional?: string[] }> = {
+   daemon_start: { required: [], optional: ["launch-config"] },
+@@ -176,9 +177,10 @@ export async function main(argv = process.argv.slice(2)) {
+       return 0;
+     }
+     if (identity && request.command !== "signal") throw new Error("worker_command_forbidden");
++    const operator = request.command === "daemon_start" || identity ? undefined : readOperatorCredential(root);
+     const result = request.command === "daemon_start"
+       ? await startDaemon(root, request["launch-config"] ? JSON.parse(readFileSync(String(request["launch-config"]), "utf8")) : {})
+-      : await daemonRequest(root, request, identity);
++      : await daemonRequest(root, request, identity ?? operator);
+     await emit(request.command === "signal" && result.ok ? {} : result);
+     return result.ok ? 0 : 1;
+   } catch (error) {
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index 6e12a45a..9a2bc70e 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -43,6 +43,7 @@ type Pane = {
+   active: { id: string; dispatch: string; at: string; nativeTurn: string | null } | null;
+   queue: ReturnType<OrchestrationStore["register"]>[]; writing: boolean;
+   stopInProgress: boolean;
++  writes: Promise<void>; userDraft: boolean; interrupted: boolean;
+   offsets: Map<string, number>; model: string; effort: string;
+   terminalBuffer: string;
+ };
+@@ -168,7 +169,8 @@ export class Panes implements GateRuntime {
+     });
+     const pane: Pane = { record, token, task, attempt, pty: terminal, state: "unknown", stopped: false,
+       archived: false, failed: null, leader: null, native: null, turn: null, active: null,
+-      queue: [], writing: false, stopInProgress: false, offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
++      queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), userDraft: false, interrupted: false,
++      offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
+     this.panes.set(attempt.thread_id, pane);
+     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
+     terminal.onData((data: string) => {
+@@ -221,8 +223,11 @@ export class Panes implements GateRuntime {
+       const reply: Record<string, string> = { "6n": "\x1b[1;1R", "c": "\x1b[?1;2c", "0c": "\x1b[?1;2c", ">c": "\x1b[>0;0;0c", ">0c": "\x1b[>0;0;0c", "?u": "\x1b[?0u", "11;?": "\x1b]11;rgb:0000/0000/0000\x1b\\" };
+       const response = reply[match[1] ?? match[2]!];
+       if (response) {
+-        this.store.event("terminal_protocol_write", { query: match[0], response }, pane.record);
+-        pane.pty.write(response);
++        const query = match[0];
++        void this.serializeWrite(pane, async () => {
++          this.store.event("terminal_protocol_write", { query, response }, pane.record);
++          pane.pty.write(response);
++        }).catch(error => this.recordFailure(pane, "terminal_protocol_failed", error));
+       }
+       pane.terminalBuffer = pane.terminalBuffer.slice(match[0].length);
+     }
+@@ -289,6 +294,42 @@ export class Panes implements GateRuntime {
+     const pane = this.get(attempt.thread_id);
+     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
+   };
++  private serializeWrite(pane: Pane, operation: () => Promise<void>): Promise<void> {
++    const result = pane.writes.then(operation);
++    // A failed operation stops this stream. Replaying an unknown write is not
++    // safe, and a later write must not silently skip that failed operation.
++    pane.writes = result;
++    return result;
++  }
++  async userInput(launch: string, data: string, receipt: Record<string, unknown>,
++    record: (text: string, control: boolean) => Promise<void>, assertCurrent: () => Promise<void>) {
++    const pane = this.byLaunch(launch);
++    check(data.length > 0 && !pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
++    const pasted = data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~");
++    const text = pasted ? data.slice(6, -6).replaceAll("\r", "\n") : data;
++    const control = !pasted && (data === "\r" || data === "\n" || data === "\x1b" || data === "\x7f");
++    await assertCurrent();
++    await record(text, control);
++    pane.userDraft = true;
++    if (data === "\x1b") { pane.interrupted = true; pane.state = "busy"; }
++    await this.serializeWrite(pane, async () => {
++      await assertCurrent();
++      check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
++      this.store.event("terminal_input_write_intent", { ...receipt, data, byte_length: Buffer.byteLength(data) }, pane.record);
++      if (!pasted && /[\r\n]/.test(data)) {
++        pane.state = "busy"; pane.userDraft = false;
++        pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null };
++        this.store.event("turn_submit_intent", { ...pane.active, source: "user", request_id: receipt.request_id }, pane.record);
++      }
++      try {
++        pane.pty.write(data);
++        this.store.event("terminal_input_written", { ...receipt, byte_length: Buffer.byteLength(data) }, pane.record);
++      } catch (error) {
++        this.recordFailure(pane, "terminal_input_write_unknown", error, receipt);
++        throw error;
++      }
++    });
++  }
+   async dispatch(pane: Pane, text: string, source: "executor" | "gate" = "executor") {
+     check(!pane.failed && !pane.stopped, "pane_unavailable");
+     check(typeof text === "string" && text.trim() && !/[\x00\x1b]/.test(text), "invalid_dispatch_text");
+@@ -299,7 +340,7 @@ export class Panes implements GateRuntime {
+     return item;
+   }
+   async drain(pane: Pane) {
+-    if (pane.state !== "idle" || pane.writing || !pane.queue.length || pane.failed) return;
++    if (pane.state !== "idle" || pane.writing || pane.userDraft || pane.interrupted || !pane.queue.length || pane.failed) return;
+     const submitted = this.store.db.prepare("SELECT count(*) AS n FROM orchestration_events WHERE type='turn_submit_intent'").get()!;
+     if (Number(submitted.n) >= this.config.turn_limit!) {
+       this.store.event("queue_waiting_for_budget", { queued: pane.queue.map((item) => item.id), turn_limit: this.config.turn_limit }, pane.record);
+@@ -308,15 +349,20 @@ export class Panes implements GateRuntime {
+     pane.writing = true;
+     const item = pane.queue.shift()!;
+     const submission = { id: randomUUID(), dispatch: item.id, at: new Date().toISOString(), nativeTurn: null };
+-    try {
++    try { await this.serializeWrite(pane, async () => {
+       this.store.event("paste_intent", { dispatch: item.id, text: item.text }, pane.record);
+       pane.pty.write("\x1b[200~" + item.text + "\x1b[201~");
+       this.store.event("paste_written", { dispatch: item.id }, pane.record);
+       await new Promise((resolve) => setTimeout(resolve, 300));
++      if (pane.interrupted) {
++        this.store.event("dispatch_interrupted_before_submit", { dispatch: item.id }, pane.record);
++        return;
++      }
+       pane.state = "busy"; pane.active = submission;
+       this.store.event("turn_submit_intent", submission, pane.record);
+       pane.pty.write("\r");
+       this.store.event("turn_submitted", submission, pane.record);
++    });
+     } catch (error) {
+       pane.state = "unknown"; pane.failed = String(error);
+       this.store.event("dispatch_unknown", { dispatch: item.id, error: String(error) }, pane.record);
+@@ -340,7 +386,8 @@ export class Panes implements GateRuntime {
+       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
+         lifecycle: pane.archived ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
+         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
+-        turn: pane.turn, writing: pane.writing, queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped };
++        turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
++        queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped };
+     }
+     const record = this.store.threadLaunch(thread);
+     check(record, "unknown_pane");
+@@ -373,7 +420,7 @@ export class Panes implements GateRuntime {
+     try {
+       if (transfer) await transfer(pane, value, matched);
+       if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
+-      pane.active = null; pane.state = pane.failed ? "unknown" : "idle";
++      pane.active = null; pane.state = pane.failed ? "unknown" : pane.interrupted ? "busy" : "idle";
+       this.store.event("pane_idle", { submission: active!.id, stop: value }, pane.record);
+     } catch (error) {
+       if (matched) this.recordFailure(pane, "stop_transfer_failed", error);
+diff --git a/workbench/src/transport.ts b/workbench/src/transport.ts
+index 3e38f447..eaf4dfc4 100644
+--- a/workbench/src/transport.ts
++++ b/workbench/src/transport.ts
+@@ -4,6 +4,7 @@ import { closeSync, existsSync, mkdirSync, openSync, realpathSync } from "node:f
+ import { isAbsolute, join } from "node:path";
+ import { fileURLToPath } from "node:url";
+ import { randomUUID } from "node:crypto";
++import { createOperatorCredential } from "./credentials.ts";
+ 
+ export function statePath(root: string) {
+   if (!isAbsolute(root)) throw new Error("state must be an absolute path");
+@@ -40,10 +41,12 @@ export async function startDaemon(root: string, options: Record<string, unknown>
+   mkdirSync(root, { recursive: true, mode: 0o700 });
+   root = realpathSync(root);
+   if (existsSync(socketPath(root))) throw new Error("socket exists; query its owner, do not replace it");
++  const credential = createOperatorCredential(root);
+   const stdout = openSync(join(root, "daemon.stdout.log"), "a", 0o600);
+   const stderr = openSync(join(root, "daemon.stderr.log"), "a", 0o600);
+   const env = { ...process.env };
+   for (const key of Object.keys(env)) if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_")) delete env[key];
++  env.A2A_OPERATOR_CREDENTIAL = credential;
+   const child = spawn(process.execPath, [fileURLToPath(new URL("./daemon.ts", import.meta.url)), root, JSON.stringify(options)], {
+     detached: true, stdio: ["ignore", stdout, stderr, "ipc"], env,
+   });

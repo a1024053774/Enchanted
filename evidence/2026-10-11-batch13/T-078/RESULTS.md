@@ -1,0 +1,407 @@
+# T-078-1 运行记录
+
+2026-10-11。总状态：**INCOMPLETE，待主控关闭**。非 Claude 候选实现已完成：窗口输入、排队／放行、worker 库收件箱与静态主控启动记录都有对应证据。outside-worker-inbox-green-01 的 14 项入口全部 PASS，四个单规则变异体均产生被禁止的真实业务结果且只触发对应检查失败；此前运行时入口 12 项、输入失败方式入口 11 项也通过。候选现进入冻结提交与变基阶段，最终完成条件／8/9/18／CAS／变异反例及独立审查尚未执行。真实 Claude 启动、主控角色凭据及 hook 接线、真实主控互相唤醒和三窗格验收未完成，等待 needs-decision 20261011T101958Z；本卡未启动 Claude 或其夹具，仍待真实 Claude 复核。
+
+任务：T-078-1，T-078 `ready_rev: 1`；worker `s13-t078`；分支 `exec/t078`；产品起点 `14b57d22a84bcaebfa91c5051b9909b53a570fac`。授权和范围见 [PLAN](PLAN.md)、[主控决定 01](controller-decision-01.md)、[主控决定 02](controller-decision-02.md)。
+
+## outside-red-01：P1 未通过，未进入产品红态
+
+由执行主控在沙箱外运行，原始产物位于 [outside-red-01/checkpoint.json](outside-red-01/checkpoint.json)。P1 运行 Electron 43.4.1 与已安装的 xterm 6.0.0；退出 1。未重写此目录及其中的失败输出、源快照或截图。
+
+通过的局部检查：裸 onData 包含设备应答；公开 parser 接管六个查询；初次键盘输入；中文多行粘贴；合成组合输入；大段粘贴。交错场景失败，因此 P1 不是 PASS，focus 检查与产品红态未运行。
+
+### 空串调查：实际没有空 onData 回调
+
+| 分类 | 结论 | 证据 |
+| --- | --- | --- |
+| observed | 原始 `events` 共 20,023 条，`kind=data` 且 `data=""` 的事件为 0 条 | [逐条核对结果](empty-input-investigation-01.json)、原始 `p1/results.json` |
+| observed | `interleaved-output-input` 阶段没有任何 onData 回调，只有 `input(data="y", isTrusted=true)` 的 DOM 事件 | 原始事件 seq 20023；同一核对结果 |
+| observed | 报错 `unexpected onData ""` 打印的是该阶段全部 data 事件的 `map(...).join('')`，空数组也得到空字符串 | 原失败运行保存的 `sources.tar.gz` 中 `probe_t078_input_origin.mjs`；不是一条原始回调 |
+| observed | 失败探针在初次 Enter 之后，仅向交错场景发了 `sendInputEvent({type:'char', keyCode:'y'})`，没有该字符的 keyDown | 同一源快照；初次 Enter 与之后各场景的调用顺序 |
+| observed（源码） | xterm 在 `_keyDown` 开始清除 `_keyDownHandled`；screenReaderMode 下处理 Enter 后将它设为 true；`_keyUp` 不清除它；`_keyPress` 见 true 就返回，且 screenReaderMode 下 `_inputEvent` 不代发文本 | 本地 `src/browser/CoreBrowserTerminal.ts:1022、1102、1119、1145、1196` |
+| inferred，待新运行验证 | 前一个 Enter 留下的按键处理状态，使缺 keyDown 的 char 事件不产生 onData；“并发输出产生空回调”没有原始证据支持 | 与实际 DOM input 有 y、onKey/onData 均没有 y 的记录相符。新增无输出的对照探针检验，不能仅凭源码算实测通过 |
+
+以上修正的是主控决定 02“核对结果”对错误文本的解释；决定 02 对空事件的处理授权仍照办。调查只读取已核对的本地源码与公开类型定义，没有接触 xterm 私有运行时接口、修改依赖或联网查询。
+
+复核原始记录的命令（输出必须是尚不存在的新文件）：
+
+```sh
+python3 /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/inspect_t078_p1.py --input /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-red-01/p1/results.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/empty-input-investigation-02.json
+```
+
+### 哪些条件可能确实产生空回调
+
+**observed（源码）**：`CompositionHelper.ts:95–107、135–136` 中，组合输入尚未结束而遇到普通按键时，会立即结束组合输入，把 textarea 的对应 substring 直接交给 `triggerDataEvent`；这条即时分支没有长度判断。`CoreService.triggerDataEvent` 也没有空串过滤。公开 `Terminal.input` 同样接受字符串并触发 onData，不能假定所有回调都非空。
+
+**inferred，待复现**：令组合输入的 textarea 内容为空，再按 Enter，应先有空串回调，随后有独立的 CR 回调。新 P1 通过公共 DOM compositionstart 和 Electron 按键事件构造此条件；不会直接调用私有方法。这个合成场景不等于真实 macOS 输入法验证。
+
+## 决定 02 的处理与 outside-red-02
+
+- 修正探针驱动：交错场景使用完整 keyDown → char → keyUp；保留原期望“恰好收到 y”。另加前一个 Enter 后只发 char 的反例和完整按键的正例，判定依据为真实公开 DOM/onKey/onData 事件，不读取内部标志。
+- 错误输出分别写回调数、空回调数与拼接数据，避免把“无回调”误报为“空回调”。
+- 长度为 0 的回调只保存 `empty-data` 观察，带窗口、序号、时刻，不进入非空输入集合。后续产品处理须在后台追加 `terminal_input_empty`，包含 `window_id`、`sequence`、`received_at`、`request_id` 和 `byte_length: 0`；不写 PTY，不写 user_inputs，不派生 human_intervention。此时产品尚未改动，这不是已实现声明。
+- P1 单独触发空组合输入，仍要求后续 CR 完整出现；产品入口增加同一情形的合同检查：空事件有观察、对应 request_id 没有用户输入，PTY 新增字节仅是随后 Enter 的 CR。原来的中文输入、人工介入与匿名伪造角色三条断言保持不变。
+- 产品新增空事件行为尚未取得红态；新检查点要求四项合同红态，不能把探针里的观察处理当产品通过。没有回调、丢失非空数据及非预期失败仍停止。
+
+交给执行主控的新命令：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-red-02
+```
+
+当前未运行。先验证 P1，再执行产品红态；任何非预期失败立即停下。`outside-red-01` 保留，目录存在不覆盖。更新后的静态检查见 `preparation-check-02.json`，静态通过不代表上述推断已被运行证实。
+
+## outside-red-02：11 项通过，焦点来源检查失败
+
+执行主控已运行本节之前给出的 `outside-red-02` 命令；[checkpoint](outside-red-02/checkpoint.json) 与 [P1 原始记录](outside-red-02/p1/results.json) 保留。共 12 项，11 项 PASS，P1 整体 INCOMPLETE，未进入产品红态。
+
+- **observed**：Enter 后只发 char，不伴随新 keyDown，即使没有并发输出也不产生 onKey/onData；完整按键序列得到 `q`，交错场景得到 `y`。决定 02 调查中的探针原因已有正反例支持。
+- **observed**：人为开始空组合输入后按 Enter，确实先出现一条空回调（seq 27），带窗口、序号与时刻；随后独立 CR 正常送出。这与原 outside-red-01 的“没有回调”是两种情况。
+- **observed**：开启焦点上报时出现 `ESC [ I`（seq 20046），其来源未被 DOM 焦点回调标明；之后 blur/focus 的两条才带原探针的 DOM 来源标记。原来的按 DOM 事件时间关联方法不能覆盖全部焦点应答。
+- **observed（源码）**：`InputHandler.ts:1935` 在 DECSET 1004 设置 sendFocus 后立即发 `_onRequestSendFocus`；`CoreBrowserTerminal.ts:1293` 按当前元素状态直接生成焦点报告，因此首条应答不需要发生一次新的 DOM focus。此处只是读取源码，不使用这些私有接口。
+
+## 决定 03：接管 1004，保留混合模式顺序
+
+[主控决定 03](controller-decision-03.md) 已原样留档。修改目前限 P1 与运行标签；生产输入功能仍未实现，后续接入须采用同一决定，不能把本节当产品绿态。
+
+1. 用公开 `registerCsiHandler({prefix:'?', final:'h'/'l'})` 接管含 1004 的 DECSET/DECRST，返回 true，避免 xterm 开启焦点上报。移除原探针按 DOM focus/blur 时序标来源的路径；不按 onData 文本去删除焦点字节。
+2. handler 的数字参数已经丢失前导零，且不能修改内置 handler 的参数。因此输出写入器保留原始控制序列，并在模式序列结束处划分写入边界。xterm 的实际 parser 确认 1004 后才过滤该模式；剩余模式仍由 xterm 解析。普通输出只因分段而改变调用批次，字节不被改写。
+3. 混合模式剩余部分在当前分段完成后、下一段之前等待处理完成。不能简单地把它追加到整块输出末尾，否则 `1004;2004h` 后紧接 `2004l` 会错序。不会在 parser 的异步 callback 中等待重入的 write，避免堵住同一个解析队列。
+4. 每次实际拦截都追加观察事件，含窗口、递增序号、时刻及真实原始序列；分片与带前导零的序列也按原始字符记录，不用标准化后的参数冒充原文。
+
+P1 原有 11 个通过项不放宽；原焦点检查改为两项：无焦点 onData 且其他模式保持效果与顺序；每次拦截都有完整观察记录。两项共同覆盖独立 set/reset、混合 1004/2004、同一块中相反的后续模式、跨写入分片及前导零；通过实际粘贴字节与公开 modes 读回核对 2004，而非只看 handler 自报。
+
+**已知限制**：按此决定，CLI 在工作台窗口里收不到焦点变化。P1 当前只验证本地公开接口与列出的控制序列；还未证明生产窗口的后台记录、全部 VT 控制序列、真实输入法或真实 Claude。
+
+下一次运行命令（未运行，须执行主控在沙箱外执行）：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-red-03
+```
+
+仍先 P1、后四项产品合同红态；非预期失败停下。`outside-red-01`、`outside-red-02` 全部保留。静态准备检查见 `preparation-check-03.json`；产品源代码仍与起点一致。
+
+## outside-red-03：P1 与四项产品红态确认
+
+执行主控运行后，worker 从 [checkpoint](outside-red-03/checkpoint.json)、[P1](outside-red-03/p1/results.json)、[产品入口](outside-red-03/entry-red/results.json) 独立读回。`checkpoint_status=PASS`、`red_evidence_confirmed=true`；P1 13 项 PASS。产品入口有四项预先约定的合同失败：窗口输入未到 PTY，缺用户输入及介入，缺空事件观察，匿名请求能冒充 ideation 将 assign 追加进库。四项是原来的三类再加决定 02 的空事件合同；没有设置／探针／清理错误，没有模型回合。
+
+这使输入 Tracer bullet 可以进入候选实现，不代表整张 T-078 的其他行为已有红态。所有旧结果保持不变。
+
+## 首个输入候选：待 outside-green-01
+
+本轮写入的生产路径：
+
+- 管理 CLI 显式携带启动者凭据；后台不再把无凭据调用或角色参数当主控身份。凭据文件由启动者排他创建，0600，绑定后台代次与 state；后台 socket 不签发管理凭据。worker 的会话 token／Stop 转交路径保留。
+- Electron main 领取绑定固定 task/launch 的窗口凭据，校验 IPC 来源并串行发送；renderer 只有输入与焦点观察两个窄接口。输出按原字节偏移继续读回，关闭窗口先等待已发请求、撤销该窗口凭据，再结束视图。
+- 输入由 Panes 串行写入；用户输入先入库，人工介入沿既有同事务方法派生，CR 写出前即记忙。字节长度为零只追加观察。输入异常不自动重投，过期 attempt 不接管。
+- 已验证的焦点接管与设备查询处理移入 `workbench/app/terminalOutput.mjs`，P1 改为调用这一份生产模块，删除原测试专用副本。按决定 03，CLI 不接收窗口焦点变化。
+
+验证命令（执行主控在沙箱外运行）：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-green-01
+```
+
+运行器重跑 P1 和同一组四项合同，绿态要求四项全部 PASS。测试断言未因实现改写；适配器只显式传递新启动者凭据，夹具归档排除凭据，确认后台关闭后删除本次创建的凭据。测试仍只使用确定性字节接收器，启动记录里的夹具版本字符串不是真实 Codex 验收。
+
+**尚未完成**：二进制输入、完整的同时输入／注入反例与幂等检查、Esc 后用户放行、主控 attach／Claude 参数及状态适配、库客户端与 ready、紧急停止、独立审查及最终回归。现有 8/9/18 测试适配器的凭据接线也还要完成；本轮没有运行或宣称这些检查通过。没有据本候选更新 ticket Resolution 或宣称交付完成。
+
+## outside-green-01：首个输入候选通过
+
+执行主控已运行，exit 0。worker 读回 [checkpoint](outside-green-01/checkpoint.json)、[四项合同](outside-green-01/entry-green/results.json) 与原始 SQL／PTY 数据，结果一致：`checkpoint_status=PASS`、`green_evidence_confirmed=true`，P1 13 项及输入入口四项全部 PASS。确认后台关闭，启动凭据已删除且未进入夹具归档。
+
+另用不导入产品代码的读回器检查固定中文字节、唯一消息／介入引用、空事件的记录与排除、匿名请求没有新增条目及归档中没有凭据。它在旧红态产物上退出 1，在绿态产物上退出 0：[红态读回](red-03-independent-readback.json)、[绿态读回](green-01-independent-readback.json)。初次交互读回记录 `green-01-readback-check.json` 也保留。worker 已查看 `window/after-input.png`：该阶段展示一个 worker 窗格；不是三窗格验收。
+
+重放读回（输出使用新文件名）：
+
+```sh
+python3 workbench/tests/verify_t078_input_readback.py --input evidence/2026-10-11-batch13/T-078/outside-red-03/entry-red --output /tmp/t078-red-readback.json
+python3 workbench/tests/verify_t078_input_readback.py --input evidence/2026-10-11-batch13/T-078/outside-green-01/entry-green --output /tmp/t078-green-readback.json
+```
+
+若重跑完整输入检查点，显式运行 `python3 workbench/tests/run_t078_checkpoint.py --phase green --label <新标签>`；`outside-sandbox.sh` 的当前目标已进入下一阶段。历史版本及实际 argv 仍在各检查点源快照与记录中。
+
+## 收件箱领域逻辑：先红后绿，无 CLI 运行
+
+隔离理由：真实 Claude 及 Claude 夹具仍未获运行授权。这组测试直接调用已有门禁领域入口，以逻辑收件人、控制时钟和可观察的投递队列作为外部边界；没有启动进程、终端、socket、hook 或模型，不冒充后台凭据验收。失败方式在测试文件开头先列出。
+
+`domain-red-01` 退出 1：5 项预定缺口失败（排队误报已送达、ack 的排队状态、就绪查询及未知项目、执行主控立即中断），6 项已有约束通过。修改后 `domain-green-01` 与最终的 `domain-green-02` 都是 11/11 PASS。代码和数据库现场随每次结果保存。
+
+```sh
+node workbench/tests/test_t078_inbox_domain.ts /tmp/t078-domain-check-新目录
+```
+
+变更为：queued 投递收据与后续读回分开，重复 ack 不重发；ready 只查已绑定项目，使用项目的平面 front matter 语法，错误显式返回；角色只取 caller，执行主控可立即处理 stop，构思主控仍受超过 120,000 ms 且无 ack 的约束，记录实际 actor。上述中断仅由逻辑运行时记录调用，不证明真实进程已中断。
+
+## 库客户端与 8/9/18：待 outside-inbox-01
+
+新增 `workbench/bin/inbox`，send/list/ack/ready 都调用同一个后台。它不读写文件版 inbox；`ready` 不接任意目录、不替主控标就绪。CLI 的角色字段不覆盖凭据角色。
+
+回归适配器为每次启动显式指定新的管理凭据；受控线程测试在已认证的管理请求外层下仍使用原有独立线程身份边界。没有改 `acceptance/test_*.py` 断言、业务方法、输入或预期。凭据在确认退出后删除，异常留下的本地文件也从归档排除；运行器新增显式输出和任务身份参数，证据不写入 T-075 目录，也不借用其 session。
+
+当前交给执行主控的命令：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-inbox-01
+```
+
+顺序：领域测试 → 实际库客户端 → 原 8/9/18。任何非预期失败停下。库客户端用一个预先持久化的逻辑 handoff 验证读取和 ack，并明确记录该条不是 Claude 的发送；不存在接收者时保留未送达结果，不能用它证明主控唤醒。整个阶段真实模型回合为 0，不启动 Claude 或 Claude 夹具。
+
+后续仍要补窗格唤醒／中断、主控凭据与启动参数、输入反例、独立审查及变基后全量复验。当前不提交、不更新 ticket 为完成。
+
+## outside-inbox-01：产品回归，已修正待复验
+
+执行主控运行 exit 1：domain 11/11 PASS，库客户端 8/8 PASS；coop 跑了 8 项，7 FAIL、0 error，均在 submit 收到 `stale_thread`。recovery、run 没有运行。保留 `outside-inbox-01/coop/` 全部结果以及 `/tmp/a5-aadqxws1` 现场。这不是预期红态，不能改写为通过。
+
+**根因归类：本卡引入的产品回归，不是回归适配器夹具错误。** [逐项诊断](identity-regression-diagnosis-01.json) 显示，7 个失败测试走的都是默认产品 daemon，`test_host=false`；对应 attempt 的 thread_id 都是空字符串，launch_records 为 0，提交的 attempt/session/fence/spec_rev 与存储记录相符。测试通过 claim 创建的是未绑定原生窗格的 attempt。
+
+本卡的 daemon 却把管理凭据合成为 `thread=operator:<epoch>`、`turn=""` 的 SubmitCaller，再传给全部门禁调用。这不是原生会话身份。submit 的既有合同对无 thread 的 attempt 要求不提供原生 caller，因此正确拒绝了这个虚构身份。panes 没有参与这些失败；只改测试 host 或绕过默认产品路径不能解决根因。
+
+**修复**：管理身份 GateActor 与原生 SubmitCaller 分开传递。daemon 只传实际角色，不制造 thread/turn；真实 worker 仍从其原生会话生成 SubmitCaller。收件箱、停止和问题处置继续使用实际 actor，不能因为分开身份而默认成 user。受控线程适配器只透传管理 actor，并在原来的独立线程边界提供原生 caller。
+
+submit 的 attempt、session、fence、spec_rev、thread、turn 检查区段与失败快照逐字相同，包括无绑定线程时的 `!caller` 限制。没有修改业务断言或放宽原生身份检查。[本次修复 diff](identity-regression-fix.diff) 只比较失败候选之后的三个相关文件，供执行主控审阅。
+
+重生该差异（输出换新文件名）：
+
+```sh
+python3 evidence/2026-10-11-batch13/T-078/identity-regression-diff.py --output /tmp/t078-identity-repair.diff
+```
+
+修复后，无 CLI 的领域测试仍是 11/11 PASS，结果见 `domain-after-identity-fix-01/`。这不能替代 submit 的真实后台复验。新标签命令：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-inbox-02
+```
+
+脚本重跑领域测试、库客户端、原 8/9/18，任何非预期失败即停。原失败目录不覆盖；真实模型回合仍为 0，不启动 Claude。准备检查见 `preparation-check-06.json`。
+
+## outside-inbox-02：身份修复与回归通过
+
+主控 #37 已审阅 `identity-regression-fix.diff`，认可管理 GateActor 与原生 SubmitCaller 分开，未放松 submit 检查。worker 重新读取原始结果，见 [读回摘要](outside-inbox-02-readback.json)：domain 11/11、inbox-entry 8/8、coop 8、recovery 9、run 18 全部 PASS，failures/errors/skipped 均为 0。本结论只绑定该次源快照，不替后续窗格变更或变基候选背书。
+
+主控 #37 要求单个原始文件超过 5 MiB 时归档到外置盘，压缩不免除此要求。只读核对：outside-inbox-01 无超限文件；outside-inbox-02 的 coop/recovery/run 各有 run.json、test-result.json，共六个。下一份沙箱外脚本先执行归档：原字节复制到 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/outside-inbox-02/` 对应子目录；逐字节读回成功、写出本地摘要和重放信息后，才删除本地原件。失败保留现场，不覆盖归档。当前尚未执行外置盘写入。
+
+```sh
+python3 workbench/tests/archive_t078_evidence.py --dry-run --labels outside-inbox-01 outside-inbox-02
+```
+
+实际归档命令与上述命令相同，移除 `--dry-run`；仅由执行主控经 `outside-sandbox.sh` 运行。原运行源快照、较小原始文件和失败结果仍留在原目录。
+
+## 窗格运行时：状态层红绿
+
+本阶段的 **Tracer bullet** 继续沿原 Panes／收件箱／PTY 路径推进；没有增加另一套运行时。**Deep modules**：输入顺序、唤醒收据、Esc 和初次放行归 Panes 管，角色权限与实际调用者仍归门禁管。**Ubiquitous language**：queued 只表示排队，写出 paste 和 CR 后才称 delivered；unknown 不重发。
+
+`pane-runtime-red-01` 有四项预期合同失败，`pane-runtime-green-01` 五项通过：补了 wakeThread/readWakeDelivery、用户放行的运行时方法、只写 Esc 的 interruptThread，并把 Esc 后迟到 Stop 的审计改为保持中断；启动表迁移允许主控 attempt 为 null，保留旧行和追加式约束。窗口放行 IPC／按钮尚未接入。
+
+随后用明确屏障暂停第一个输入的登记，复现了三项顺序缺陷：登记期间注入能越过人工草稿，后续 Enter 能越过尚未登记完成的字符，另一窗格的提交能耗尽当前窗格额度。`pane-order-red-01` 三项失败；修正后 `pane-order-green-01` 11/11 PASS。修正为同步登记输入占用，再把身份校验、用户记录和字节写入放入同一串行队列；额度按 launch 计算。Esc 仍可在 paste 与 CR 的间隔取消尚未写出的 CR。
+
+**测试夹具修正**：静态核对发现原状态测试预置的 worker issue 指向 executor，不符合 issue 只能发 triage 的方向。已改成有效 issue → triage、executor disposition → worker；重复唤醒直接重放同一已持久化 entry 给 Panes，测试范围明确为运行时去重。ack 幂等仍由此前领域测试覆盖。没有改产品权限或 `acceptance/test_*.py` 的业务断言。
+
+为避免仅有修改测试后的绿态，使用修正后的同一个测试重新跑已保留的坏版本：
+
+| 产物 | 使用代码 | 结果 |
+| --- | --- | --- |
+| [runtime-corrected-red-01](runtime-corrected-red-01/results.json) | pane-runtime-red-01 的 panes/store | 8 FAIL、3 PASS；包括未实现唤醒／中断、错误空闲事件、空 attempt 不可存及顺序缺陷 |
+| [order-corrected-red-01](order-corrected-red-01/results.json) | pane-order-red-01 的 panes/store | 3 FAIL、8 PASS；人工输入占用、输入次序、每窗格额度 |
+| [pane-corrected-green-01](pane-corrected-green-01/results.json) | 当前候选 | 11/11 PASS |
+
+各目录的 `results.json` 保存真实 argv，各用例 JSON 保存字节 spy、事件和输入读回，`sources.tar.gz` 保存该次导入的完整 src 与测试。红态恢复目录写在同名 `*-setup.json`；没有切换或覆盖工作树代码。三组都没有 CLI、PTY、socket、ps、进程信号或 Claude 夹具，不能替代真实进程身份验收。
+
+重跑当前候选（输出须为新目录）：
+
+```sh
+node workbench/tests/test_t078_pane_runtime.ts /tmp/t078-pane-state-new
+```
+
+重放任一冻结版本时，先把对应 `sources.tar.gz` 解到新的 `/tmp` 目录，在其中的 `workbench/node_modules` 链接本 worktree 已安装的依赖，再运行该副本的 `workbench/tests/test_t078_pane_runtime.ts <新的输出目录>`。不要向共享构建输出建链接。环境依赖版本仍由 workbench/package-lock.json 固定。
+
+## 下一检查点：outside-runtime-red-01
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-runtime-red-01
+```
+
+脚本已写好，**尚未运行**。顺序：旧超限文件归档 → 领域测试 → 窗格状态测试 → 扩展后的真实输入入口 → 当前产物超限检查／归档。
+
+运行时测试沿用生产 Electron、daemon、SQLite、node-pty 和进程身份核对，只把供应商进程换成编译到隔离 `/tmp` 的原生字节接收器。先前 Python shebang 接收器不能提供与启动 argv 相同的前台可执行文件身份，因此这里采用原生程序，不放松产品 ps 检查。接收器仅产生最小 Codex 形状的 session/turn 日志；显式 Stop 由它的子进程调用真实 hook CLI，launch token 只留在继承环境中。它不运行 Codex、Claude、Claude 夹具、认证或模型。
+
+入站 issue／stop 是明确标注的持久化夹具输入；实际处置、唤醒与停止调用经过生产凭据和门禁。此阶段在 worker 目标上证明运行时路径，不声称已验证 report → ideation、构思主控凭据或真实两分钟流程。stop 后的 executor ack 会入库；因没有 ideation 接收者，其未送达结果必须保留。
+
+入口检查包含原四项，再加前台进程身份、注入不记用户输入、忙时排队、Stop 后固定唤醒字节、Esc 后迟到 Stop 不放出、窗口用户放行、停止只写 Esc 并记录 executor、关闭窗口期间大段中文粘贴完整写出，共 12 项。**唯一预期红态是 `window_user_release_available`**，因为 UI 入口尚未实现；另 11 项必须通过。非预期失败、设置错误、hook 错误或清理错误即停，不改成红态通过。主控回传后才实现窗口放行并换标签取绿态。
+
+静态准备检查：Python AST、Electron 驱动语法、C 接收器只做 `-fsyntax-only`、shell 语法、diff 空白检查均通过。没有执行新接收器。当前失败方式覆盖情况：同时输入已有屏障反例；IME 只有 P1 合成组合事件；大段输入和关闭期间输入待本次入口运行；重启 unknown 与同 entry 重复唤醒只有状态层证据。二进制输入、请求序号竞争、主控启动参数和三窗格仍待下一阶段，不据此宣称全票完成。
+
+## 主控 #41：运行时红态已确认，窗口放行候选待绿态
+
+[独立读回](outside-runtime-red-01-readback.json) 与主控报告一致：outside-runtime-red-01 退出 0，checkpoint_status=PASS、phase=red；入口 11 PASS，唯一 INCOMPLETE 是 `window_user_release_available`，观察为无按钮、无放行 action。domain 与 pane-state 各 11 项 PASS；启动和清理完成，没有模型回合。
+
+旧超限原件已按主控 #37 要求归档。[六文件归档清单](external-archive-2d13793e60824d17a22dd8fd8d78e22c.json) 逐项记录外置盘路径和字节读回 PASS；本轮产物无超限文件，见 [本轮归档清单](external-archive-585382f5afb04984af859a7f8ecc7aed.json)。仓库保留原运行目录中的摘要、源快照、重放 argv 与外置路径。
+
+窗口放行的候选变更见 [相对红态的差异](window-release.diff)：
+
+- preload 提供无目标参数的 releaseQueue，main 校验原窗口 IPC 来源，沿现有串行队列发送，使用同一窗口凭据、序号与 request_id。
+- daemon 只允许窗口凭据调用 window_release，目标取凭据绑定的 launch。核对当前 attempt/session/fence/spec_rev、记录器和中断状态，先追加 `content.action=queue-release` 的用户 action，再调用已有 Panes 放行方法。受管 worker 的人工介入沿原事务派生。
+- 按钮只在可输入且中断时启用；请求期间防重复点击，错误沿原输入失败处理，不自动重投。管理 CLI 的初次 release 仍不能解除 Esc 占用。
+
+真实入口断言保持不变。驱动仅增加读取按钮状态的有界等待：产品每秒刷新状态，等按钮启用后点击一次；缺按钮仍立即返回 clicked=false，2.5 秒仍禁用也返回 false。没有模拟成功、直调 Panes 或重复放行。
+
+下一命令（尚未运行，按任务卡交主控在沙箱外执行）：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-runtime-green-01
+```
+
+使用同一运行器的 green 模式，要求原 12 项全部 PASS；任何异常停止保留现场。为节约额度，本轮不重复已通过且无相关改动的 8/9/18，也不启动额外模型审查；最终候选和变基后复验要求仍保留。Claude／Claude 夹具继续不运行。
+
+准备检查见 `preparation-check-08.json` 与 `preparation-check-09.json`。08 的额外 TSX 探针误引用未安装的 esbuild，原失败保留；09 根据本地 Vite 公开类型定义，改用实际构建依赖的 transformWithOxc，仅在内存中转换 TSX，不写构建产物。其结果为 PASS。其余 Node／shell／Python 语法与 diff 检查通过，project-map status 为 0 problems／0 stale，仓库证据无 >5 MiB 文件；真正 Electron 构建与绿态仍待主控运行。
+
+## 主控 #42：窗口放行绿态通过，补输入失败方式
+
+[读回记录](outside-runtime-green-01-readback.json) 确认入口 12/12、pane-state 11/11、domain 11/11 PASS；窗口放行有且只有一次用户 action，实际接收器收到随后提交。启动和清理完成，真实模型回合为 0，没有超限文件。这仍是一个 worker 窗格及确定性接收器，不是三窗格或 Claude 验收。
+
+下一命令（尚未运行）：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-input-red-01
+```
+
+同一运行器新增 input-failures 范围，只跑原四项输入合同和七项失败方式检查，不重复 domain、pane-state 或 8/9/18。总共 11 项，预期只有下列三项失败；任何其他失败、设置或清理错误均停止：
+
+- `composition_holds_injection`：组合输入已开始而尚未产生 onData 时，上一回合 Stop 不能导致后台提示混入。使用公开 composition 事件和同一窗口队列的空观察作为屏障，空观察本身不写字节或用户输入。当前前端尚未向后台报告组合输入占用。
+- `request_id_reuse_is_not_written`：同一窗口重用 request_id、换序号和正文，必须拒绝第二次写入；不能只让用户输入表去重，却仍写 PTY。
+- `binary_mouse_bytes_and_action`：真实 Electron 鼠标事件经 xterm 的公开 onBinary，送入固定网格第 131 列第 7 行；左键按下／抬起的独立预期字节为 `1b5b4d20a3271b5b4d23a327`，其中 0xa3 不得按 UTF-8 扩展。记录为两个二进制用户 action，保存原始字节。当前 renderer 明确拒绝该输入通路，产品尚未修改。
+
+另四项检查为：组合输入完成后中文只记录一次；关闭窗口后旧凭据不能输入；人为使夹具库的输入 INSERT 失败时，记录器必须报失败且不写 PTY；显式冷重启后历史窗格为 unknown，旧窗口／旧管理凭据被拒，不接管或重放旧 PTY。故障触发器只写入本次创建的隔离 SQLite，之后删除该触发器；重启是指定场景，不是异常后自动重试。
+
+组合输入使用合成 DOM 事件，不能据此宣称已验证 macOS 系统输入法。鼠标协议根据安装的 xterm 公开编码实现核对，不读私有字段，也不手工触发 onBinary。原生接收器只按测试文件请求输出 DECSET 1000，不调用供应商 CLI 或模型。
+
+[准备检查 10](preparation-check-10.json) 保存 Python AST、驱动语法、C 语法、shell、diff 与 project-map status 结果。产品 src/app 与 outside-runtime-green-01 源快照逐字节一致；本轮只准备新红态，没有提前修复这三项行为。脚本回传后再修产品并用同一合同取绿态。
+
+其余未完成项明确保留：worker 的库客户端还须接上已有 Stop 文件转交通路并证明角色权限；主控 Claude 参数／启动记录骨架尚未完成；主控凭据、三窗格及 Claude hook 的运行验证受用户决定约束，仍待真实 Claude 复核。非 Claude 候选完成后才做最终 8/9/18、变基后复验及一次干净上下文只读审查，不复用旧候选通过结论。
+
+## 主控 #45：三项输入红态已确认，修复待绿态
+
+[读回记录](outside-input-red-01-readback.json) 与主控报告一致：11 项中恰好三项预期失败，其余 8 项通过；启动和清理完成、模型回合为 0。原始观察分别是：组合输入期间队列已取出且 writing=true；重用请求号后的 FIRST_ONLY 与 MUST_NOT_WRITE 都到达 PTY；二进制鼠标字节和对应 action 均缺失。原失败目录保持不变。
+
+候选的五文件产品差异见 [input-failure-fixes.diff](input-failure-fixes.diff)：
+
+1. renderer 在 xterm 公开 textarea 的 compositionstart 上通知 main；通知沿原窗口凭据和串行发送队列进入后台。Panes 同步保留用户草稿占用，再记录 terminal_composition_started；没有已提交文本，因此不生成用户输入或介入。组合结束／取消不猜测 CLI 行已清空，仍须用户提交或 Esc 后明确放行。
+2. 每个有效窗口保存已接纳 request_id。后台在第一个 await 前占用序号和请求号并追加接纳事件；重复请求拒绝，后完成的请求不再回写旧序号。用户输入去重键同时带 window_id，避免不同窗口的相同请求号互相掩盖记录。重启后旧窗口凭据失效，不能重放旧请求。
+3. 现有 input 接口明确区分 utf8 与 binary，前后台都校验字节范围与大小。binary 在同一 Panes 写入队列中转换为 Buffer 后交给 node-pty，记录保存 base64 原字节的 action。鼠标协议里的控制字节不当作 Enter／Esc，也不制造文字草稿。node-pty 的公开类型和已安装实现均支持 Buffer，没有新增依赖或另起传输路径。
+
+相关状态回归 [pane-input-fixes-green-01](pane-input-fixes-green-01/results.json) 11/11 PASS。这只是状态／存储层检查，没有真实进程身份验证。静态检查见 [preparation-check-11.json](preparation-check-11.json)：Node、Vite TSX、Python AST、shell、diff 均通过，project-map 0 problems／0 stale，证据无 >5 MiB 文件。入口断言未改，不把这些检查称为真实入口绿态。
+
+下一命令（尚未运行，按任务卡交主控执行后停下）：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-input-green-01
+```
+
+green 模式要求同一组 11 项全部 PASS。没有重跑无关回归或启动 Claude／Claude 夹具；系统输入法、主控和剩余交付项的限制继续保留。最终候选 8/9/18、变基后复验及一次独立审查尚未执行。
+
+## 主控 #46 后：输入绿态已读回，冻结边界待明确
+
+[输入绿态读回](outside-input-green-01-readback.json) 确认 11/11 PASS、清理完成、模型回合为 0。主控提及的 #44 经只读派发记录核对属于 T-077；当前仍有 worker 库客户端认证入口和 Claude 参数／记录静态骨架两项非 Claude 缺口。已提出范围澄清，详见 [收尾问题](scope-closeout-question.md)。不把这两项转写成仅等待真实 Claude 验证。
+
+最终验证运行器已准备 --final 和 --identity-file 参数，尚未运行。冻结、Git 提交、变基及独立审查均未执行；待明确本轮是补齐原卡还是按 INCOMPLETE 切出当前部分。最终运行先要求候选已提交并基于 main，再跑每组一次，避免先验收后因变基重复执行 8/9/18。prepare_daemon_mutants 新增 task 参数，避免新证据借用旧 T-075 身份；原断言未变。
+
+## 主控 #49：按原卡补齐，静态骨架红绿与 worker 入口红态准备
+
+[范围答复](controller-scope-answer-49.md) 已留档：不收缩范围，先补齐两个非 Claude 缺口，再提交 → 变基 → 最终验证 → 一次独立审查。当前已恢复实施；blocking issue 本身仍留给构思主控处置，没有自行关闭。
+
+**静态启动骨架**：`controller-plan-red-01` 两项失败，原因是准备入口不存在；新增 `Panes.prepareControllerLaunch` 与同一管理 CLI 的 `controller_prepare` 后，`controller-plan-green-01` 两项通过。两个角色分别构造 `--session-id`、`--model`、`--effort`、`--settings`，连同角色卡、版本引用、项目／任务和代码版本追加入库。记录为 prepared、attempt=null、CLI 版本 unknown，生命周期 not_started，标注“待真实 Claude 复核”；重启不把准备记录冒充已运行窗格。非法 preset 和认证环境混入 settings 被拒，旧记录不变。
+
+静态检查没有启动 Claude、假 Claude 服务、hook、PTY 或子进程，不读写全局配置，也不签发主控运行凭据。相同代码在下一轮还会从真实后台的 controller_prepare 入口构造两条记录；对应的 CLI 路径故意不存在，不会执行。此骨架不是可运行的主控 attach，也不是三窗格验收。
+
+```sh
+node workbench/tests/test_t078_controller_plan.ts /tmp/t078-controller-plan-new
+```
+
+红绿目录均保存结果、argv、源文件及库读回；既有失败结果不覆盖。
+
+**worker 收件箱红态**：扩展已有原生字节接收器，让它的 Node 子进程调用真实 `workbench/bin/inbox`。子进程继承由产品后台签发的 worker launch/token/request_dir，断言没有 operator 凭据；token 值不进入证据。只有任务创建、预置入站数据与静态准备由测试管理端完成，worker 的 send/list/ack/ready 不借用该管理身份。
+
+七次初始调用覆盖 issue 的实际 sender、伪造 from 的 assign、伪造 role 的 list、本人条目两次 ack、worker ready、他人条目的 ack；随后撤销 attempt，再由同一 worker 凭据提交新 issue，要求 Stop 转交时拒绝。列表断言保留一个始终未确认的本人条目，避免空列表蒙混；重复 ack 必须有非空且相同的 id、库里只有一条；Stop 的实际回执字节到达 worker，旧 Stop 不重复送达。入站处置是明确标注的持久化夹具输入，不声称由真实主控发送。
+
+下一命令（尚未运行）：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-worker-inbox-red-01
+```
+
+共 14 项：原四项输入和一项静态准备必须 PASS；九项 worker 入口合同预期为 INCOMPLETE，因为 worker CLI 目前仍禁止 inbox_*，本轮没有提前改这条业务路径。任何其他失败、客户端驱动异常、Stop 异常或清理错误均停下。这里“真实 worker 入口”指应用实际签发的 worker 身份、实际客户端／后台／PTY；接收器只模拟原生会话日志，不是真实 Codex 模型回合。
+
+[准备检查 12](preparation-check-12.json) 中 Python AST、JS／TS、C 语法、Vite TSX、shell 和 diff 检查均通过；project-map 0 problems／0 stale，证据无 >5 MiB 文件。只运行了静态构造／存储测试；worker 入口待主控沙箱外执行。之后仍按先红后绿修复，最终 --final 路径已包含这个入口与静态构造检查。
+
+夹具元数据修正：共用启动配置此前沿用 Python 接收器的“receiver invokes no hooks”说明，但原生接收器会按测试文件显式调用 Stop 的 hook CLI。现在按接收器种类分别记录；不修改历史原件，也不改变断言或授权边界。这些始终是合成 Stop，经本卡沙箱外脚本执行，不是供应商 CLI 的 hook 回合。
+
+## 主控 #55：更正红态分类，worker 转交通路修复待绿态
+
+[分类核对](worker-red-classification-01.json) 显示：初始七次客户端调用和撤销后的调用都在 CLI 返回 `worker_command_forbidden`，没有进入后台角色规则。只有“worker 客户端可转交命令”取得真实入口的合同红态；其他八项是下游不可达。特别是 assign、ready、他人 ack、撤销后的请求，没有证明对应业务规则曾被违反。此前将九个 INCOMPLETE 统称“合同红态”的表述在此更正；原始输出保持不变。
+
+修复见 [worker-inbox-fix.diff](worker-inbox-fix.diff)：cli.ts 让 inbox_send/list/ack/ready 使用原来的 worker 请求文件；relay.ts 保留完整身份字段核对，只增加四种命令的字段白名单。后台用本次 Stop 的已认证 native caller 执行；对 inbox caller 的每次原生身份检查，再核对当前 attempt/session/fence/spec_rev 和回收状态。submit 的身份检查未改，原有角色规则未放宽。用户参数 from/role 不能选择实际调用者。
+
+绿态必须同时证明真实 worker 的允许行为和以下具体拒绝：
+
+| 规则 | 候选必须返回 | 单处变异体必须造成的可观察违反 |
+| --- | --- | --- |
+| worker 不能写 assign | invalid_direction，库无 assign | 绕过发送者角色条件后，库里实际出现 from=worker 的 assign |
+| worker 不能查 ready | controller_required | 绕过 ready 的角色条件后，实际返回夹具 W-READY |
+| 不能 ack 他人条目 | recipient_required，无该 ack | 绕过收件人条件后，库里实际出现 worker 对 foreign-message 的 ack |
+| 撤销后不能继续写入 | stale_attempt，无新 issue | 绕过当前 attempt 条件后，库里实际出现撤销后的 issue |
+
+为避免 ready 变异体只是换了另一种拒绝错误，测试在独立传入的夹具仓库里增加有效 W-READY 文件，不从后台返回值推导种子目录。四个变异体分别复制完整后台源码，只改一个检查点，复用已通过候选的前端构建；实际从变异体 CLI 启动该后台，并从启动 argv 核对加载路径。评判同时要求：恰好对应一项断言失败、其余 13 项通过、无设置／清理错误，并读回实际越权结果或库行。缺行、缺数据、另一个错误码或进程崩溃都不能算反例通过。
+
+一次静态准备错误已记录在 `mutation-preparation-error-01.json`：ready 的角色检查文本在另一个历史处置分支也出现，初次匹配数为 2。准备阶段在任何变异运行前拒绝了这个模式，随后把精确匹配限定到 inbox_ready 分支；现在四个位置都恰好匹配一次。没有改产品权限来迎合探针，也没有放宽业务断言。
+
+下一命令（尚未运行）：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-worker-inbox-green-01
+```
+
+顺序为候选 14/14 → assign 变异体 → ready 变异体 → foreign-ack 变异体 → revoked 变异体 → 超限证据归档；任何非预期失败停止。四项反例结果单列 `worker-rule-verdicts.json`，原变异测试的 INCOMPLETE 与退出 1 原样保存。源码在整个检查点前后逐字节核对；前端只构建一次。最终 --final 路径也已接入这四个反例。
+
+[准备检查 13](preparation-check-13.json) 仅证明 Python／Node／shell 语法、单处变异位置、diff 和项目状态检查通过；没有在沙箱内运行这些进程检查，也没有重跑 8/9/18、启动 Claude 或 Claude 夹具。当前仍为 INCOMPLETE。
+
+## 主控 #63：worker 绿态与反例通过，冻结提交和变基待执行
+
+本节的代提交方案未执行，已被主控 #64 否决；更正及当前命令见下一节。
+
+[读回记录](worker-green-readback-01.json) 确认候选 14/14 PASS；assign、ready、foreign-ack、revoked 四个单规则变异体均只触发对应检查失败，启动 argv 确认加载了变异后台，独立读回确认被禁止的结果真实发生。不是以错误码变化、空结果或设置失败冒充反例。本轮没有真实模型回合。
+
+执行顺序按 #49：冻结提交 → 变基到最新 main → 一次最终完成条件与 8/9/18、CAS、三项原业务变异反例（另保留四项权限反例）→ 一次只读独立审查。当前 main 包含 T-076-1 的原生身份、run 超时、后台收尾和状态一致性修复；不会用本卡旧实现覆盖它们。
+
+Git 公共元数据位于 `/Users/luckye/Documents/Code/a2a/.git`，当前 worker 沙箱只读。下一份脚本因此只交给主控执行 Git 写入：git add 与 git commit 是分别执行的独立命令，沿用派发时的会话 Git 钩子生成并核对全部尾注，不修改全局或仓库 Git 配置。只暂存 workbench、本卡证据和本 ticket 的 Resolution；两个未跟踪的收件箱条目保持原样，不纳入本次提交。
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-freeze-rebase-01
+```
+
+脚本尚未执行。它先核对分支、起点、空暂存区、证据大小和 worker 启动身份，提交冻结候选，随后只执行 `git -C /Users/luckye/Documents/Code/a2a-wt-t078 rebase main`。冲突时保留 Git 现场与 stdout/stderr，不 abort、不自动选一方、不跑最终测试；由 worker 解决、主控 continue。成功后也先回读变基结果，再运行已经准备的 --final 路径，避免用变基前的测试替变基后候选背书。
+
+`freeze-plan.json` 和 `worker-evidence-identity.json` 保存本 worker 的 task/attempt/session/launch/native session 来源。此前部分历史运行将未核对的外层身份写为 null，原记录不重写；最终运行使用现在已从会话环境与派发启动记录核对的身份。Herdr 分发没有提供工作台门禁 fence，仍为 null，不借用测试夹具的 fence。
+
+真实 Claude 的运行与主控接线仍未完成：静态 argv/settings/角色卡记录不等于运行过 CLI，也不等于获得主控凭据或三窗格验收。全部等待 needs-decision 20261011T101958Z 的答复，保持“待真实 Claude 复核”。当前结论仍为 INCOMPLETE，ticket open，待主控关闭。
+
+## 主控 #64：提交来源更正，worker 自行冻结
+
+主控没有执行 outside-freeze-rebase-01：在执行主控的会话中恢复 worker 身份再提交，会把实际提交者错记成 worker。该反馈是对未执行方案的否决，没有产生提交或测试结果。身份恢复代码及 `freeze-plan.json` 的环境导出包已删除；没有生成过 `freeze-env-*.sh`，也不将此类文件纳入提交。
+
+当前由 worker 在自己的会话中执行以下独立命令，提交消息文件只写正文，尾注交给现有会话 hook 生成。`freeze_candidate.py` 只读取当前环境与启动记录核对身份，保存暂存范围及提交尾注检查；不设置环境、不写 Git 配置。原始失败输出和历史源码快照保持原字节，空白检查只针对 workbench 和 ticket。
+
+```sh
+python3 evidence/2026-10-11-batch13/T-078/freeze_candidate.py prepare outside-rebase-01
+git add -- workbench evidence/2026-10-11-batch13/T-078 .project-map/tickets/T-078-controllers-in-workbench.md
+python3 evidence/2026-10-11-batch13/T-078/freeze_candidate.py staged outside-rebase-01
+git commit -F /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/candidate-commit-message.txt
+python3 evidence/2026-10-11-batch13/T-078/freeze_candidate.py committed outside-rebase-01
+```
+
+主控下一步只执行变基及结果检查，不包含 add、commit、source 或身份恢复：
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-rebase-01
+```
+
+变基冲突保留现场，由 worker 解决后交主控 continue；成功时核对 main 已在候选历史内、尾注仍保持原 worker 来源。最终完成条件、8/9/18、CAS、原业务反例和独立审查仍待变基后执行。整体保持 INCOMPLETE；本次更正没有运行模型或 Claude 夹具。

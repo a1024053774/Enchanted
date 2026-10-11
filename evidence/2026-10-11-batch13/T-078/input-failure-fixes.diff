@@ -1,0 +1,240 @@
+--- red/workbench/src/daemon.ts
++++ candidate/workbench/src/daemon.ts
+@@ -26,7 +26,7 @@
+   const gates = createGates(root, panes);
+   const relay = new RequestRelay(store);
+   const daemon = randomUUID();
+-  type WindowBinding = { id: string; token: string; task: string; launch: string; sequence: number };
++  type WindowBinding = { id: string; token: string; task: string; launch: string; sequence: number; requests: Set<string> };
+   const windows = new Map<string, WindowBinding>();
+   const readOnly = new Set(["daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
+     "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
+@@ -65,19 +65,19 @@
+     if (authority.kind === "launch") {
+       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
+     }
+-    if (authority.kind === "window" && !["window_input", "window_release", "window_observation", "window_close"].includes(input.command)) {
++    if (authority.kind === "window" && !["window_input", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
+       throw new Refusal("window_command_forbidden");
+     }
+     if (input.command === "window_open") {
+       if (authority.kind !== "operator") throw new Refusal("operator_required");
+       const record = panes.launchRecord(input.launch);
+       if (record.task !== input.task) throw new Refusal("launch_task_mismatch");
+-      const window = { id: randomUUID(), token: randomUUID(), task: record.task, launch: record.id, sequence: 0 };
++      const window = { id: randomUUID(), token: randomUUID(), task: record.task, launch: record.id, sequence: 0, requests: new Set<string>() };
+       windows.set(window.id, window);
+       store.event("window_opened", { window_id: window.id, actor: "user" }, record as any);
+       return { ok: true, identity: { kind: "window", window: window.id, token: window.token } };
+     }
+-    if (["window_input", "window_release", "window_observation", "window_close"].includes(input.command)) {
++    if (["window_input", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
+       const window = authority.window;
+       if (!window) throw new Refusal("window_identity_required");
+       const record = panes.launchRecord(window.launch);
+@@ -87,14 +87,19 @@
+         return { ok: true };
+       }
+       if (!Number.isSafeInteger(input.sequence) || input.sequence !== window.sequence + 1 ||
+-          typeof input.request_id !== "string" || !input.request_id) throw new Refusal("invalid_window_sequence");
++          typeof input.request_id !== "string" || !input.request_id || input.request_id.length > 128) throw new Refusal("invalid_window_sequence");
++      if (window.requests.has(input.request_id)) throw new Refusal("window_request_reused");
+       const receipt = { window_id: window.id, sequence: input.sequence, request_id: input.request_id, received_at: new Date().toISOString() };
++      // Consume both identifiers before any await. Failed/unknown operations
++      // cannot be replayed, and later completions cannot move the sequence back.
++      window.requests.add(input.request_id);
++      window.sequence = input.sequence;
++      store.event("window_request_admitted", { ...receipt, command: input.command }, record as any);
+       if (input.command === "window_observation") {
+         if (input.type !== "focus-mode-intercept" || typeof input.raw_sequence !== "string" || input.raw_sequence.length > 4096) {
+           throw new Refusal("invalid_window_observation");
+         }
+         store.event("terminal_focus_intercepted", { ...receipt, raw_sequence: input.raw_sequence }, record as any);
+-        window.sequence = input.sequence;
+         return { ok: true };
+       }
+       const assertCurrent = async () => {
+@@ -112,12 +117,16 @@
+               turn: panes.get(record.thread).turn, message: null, request: null },
+             channel: "terminal-window", reply_to: null, certainty: "observed", created_at: receipt.received_at,
+             source_ref: { command_id: receipt.request_id, source_sequence: receipt.sequence, window_id: receipt.window_id },
+-            ...(content ? { content } : {}) }, `window:${receipt.request_id}`);
++            ...(content ? { content } : {}) }, `window:${receipt.window_id}:${receipt.request_id}`);
+         } catch (error) {
+           gates.setUserInputObserverStatus("failed", { reason: String(error) });
+           throw error;
+         }
+       };
++      if (input.command === "window_composition") {
++        await panes.beginComposition(window.launch, receipt, assertCurrent);
++        return { ok: true, observed: true, written: false };
++      }
+       if (input.command === "window_release") {
+         const assertInterrupted = async () => {
+           await assertCurrent();
+@@ -128,18 +137,20 @@
+           await recordInput("放行排队消息", { action: "queue-release", previous_submission: pane.active?.id ?? null,
+             queued: pane.queue.map(item => item.id) });
+         }, assertInterrupted);
+-        window.sequence = input.sequence;
+         return { ok: true, released: true, request_id: receipt.request_id };
+       }
+-      if (typeof input.data !== "string" || Buffer.byteLength(input.data, "utf8") > 1024 * 1024) throw new Refusal("invalid_terminal_input");
++      const encoding = input.encoding ?? "utf8";
++      if (!["utf8", "binary"].includes(encoding) || typeof input.data !== "string" ||
++          (encoding === "binary" ? input.data.length : Buffer.byteLength(input.data, "utf8")) > 1024 * 1024 ||
++          (encoding === "binary" && [...input.data].some(char => char.charCodeAt(0) > 255))) throw new Refusal("invalid_terminal_input");
+       if (input.data.length === 0) {
+         store.event("terminal_input_empty", { ...receipt, byte_length: 0 }, record as any);
+-        window.sequence = input.sequence;
+         return { ok: true, observed: true, written: false };
+       }
+       await panes.userInput(window.launch, input.data, receipt,
+-        (text, control) => recordInput(text, control ? { action: "terminal-key", data: input.data } : undefined), assertCurrent);
+-      window.sequence = input.sequence;
++        (text, control) => recordInput(text, encoding === "binary" ? { action: "terminal-binary",
++          data_base64: Buffer.from(input.data, "latin1").toString("base64") } : control ? { action: "terminal-key", data: input.data } : undefined),
++        assertCurrent, encoding);
+       return { ok: true, written: true, request_id: receipt.request_id };
+     }
+     if (input.command === "daemon_status") return { ok: true, pid: process.pid, node: process.version, root, helper };
+--- red/workbench/src/panes.ts
++++ candidate/workbench/src/panes.ts
+@@ -302,32 +302,48 @@
+     pane.writes = result;
+     return result;
+   }
++  async beginComposition(launch: string, receipt: Record<string, unknown>, assertCurrent: () => Promise<void>) {
++    const pane = this.byLaunch(launch);
++    check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
++    // Composition has no committed text yet, but already owns the user's draft.
++    // An end/cancel does not prove that the CLI input line is empty. Only a user
++    // submit or explicit interrupted-queue release clears the draft reservation.
++    pane.userDraft = true;
++    await this.serializeWrite(pane, async () => {
++      await assertCurrent();
++      this.store.event("terminal_composition_started", receipt, pane.record);
++    });
++  }
+   async userInput(launch: string, data: string, receipt: Record<string, unknown>,
+-    record: (text: string, control: boolean) => Promise<void>, assertCurrent: () => Promise<void>) {
++    record: (text: string, control: boolean) => Promise<void>, assertCurrent: () => Promise<void>,
++    encoding: "utf8" | "binary" = "utf8") {
+     const pane = this.byLaunch(launch);
+     check(data.length > 0 && !pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
+-    const pasted = data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~");
+-    const text = pasted ? data.slice(6, -6).replaceAll("\r", "\n") : data;
+-    const control = !pasted && (data === "\r" || data === "\n" || data === "\x1b" || data === "\x7f");
++    const binary = encoding === "binary";
++    const bytes = Buffer.from(data, binary ? "latin1" : "utf8");
++    const pasted = !binary && data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~");
++    const text = binary ? "终端二进制输入" : pasted ? data.slice(6, -6).replaceAll("\r", "\n") : data;
++    const control = binary || (!pasted && (data === "\r" || data === "\n" || data === "\x1b" || data === "\x7f"));
+     // Reserve synchronously, before the recorder or identity check can yield.
+     // Input records and their bytes keep the same order as admission. Esc also
+     // prevents the CR of a paste that is already waiting inside this stream.
+     pane.pendingInputs++;
+-    if (data === "\x1b") { pane.interrupted = true; pane.state = "busy"; }
++    if (!binary && data === "\x1b") { pane.interrupted = true; pane.state = "busy"; }
+     try { await this.serializeWrite(pane, async () => {
+       await assertCurrent();
+       await record(text, control);
+       check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
+-      pane.userDraft = true;
+-      this.store.event("terminal_input_write_intent", { ...receipt, data, byte_length: Buffer.byteLength(data) }, pane.record);
+-      if (!pasted && /[\r\n]/.test(data)) {
++      if (!binary) pane.userDraft = true;
++      this.store.event("terminal_input_write_intent", { ...receipt, encoding,
++        ...(binary ? { data_base64: bytes.toString("base64") } : { data }), byte_length: bytes.length }, pane.record);
++      if (!binary && !pasted && /[\r\n]/.test(data)) {
+         pane.state = "busy"; pane.userDraft = false;
+         pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null };
+         this.store.event("turn_submit_intent", { ...pane.active, source: "user", request_id: receipt.request_id }, pane.record);
+       }
+       try {
+-        pane.pty.write(data);
+-        this.store.event("terminal_input_written", { ...receipt, byte_length: Buffer.byteLength(data) }, pane.record);
++        pane.pty.write(binary ? bytes : data);
++        this.store.event("terminal_input_written", { ...receipt, encoding, byte_length: bytes.length }, pane.record);
+       } catch (error) {
+         this.recordFailure(pane, "terminal_input_write_unknown", error, receipt);
+         throw error;
+--- red/workbench/app/main.ts
++++ candidate/workbench/app/main.ts
+@@ -60,10 +60,16 @@
+     });
+     return inputQueue;
+   };
+-  ipcMain.handle('a2a:input', (event, data: string) => {
++  ipcMain.handle('a2a:input', (event, data: string, encoding: 'utf8' | 'binary' = 'utf8') => {
+     checkSender(event);
+-    if (typeof data !== 'string' || Buffer.byteLength(data, 'utf8') > 1024 * 1024) throw new Error('Invalid terminal input');
+-    return sendWindowCommand({ command: 'window_input', data });
++    if (!['utf8', 'binary'].includes(encoding) || typeof data !== 'string' ||
++        (encoding === 'binary' ? data.length : Buffer.byteLength(data, 'utf8')) > 1024 * 1024 ||
++        (encoding === 'binary' && [...data].some(char => char.charCodeAt(0) > 255))) throw new Error('Invalid terminal input');
++    return sendWindowCommand({ command: 'window_input', data, encoding });
++  });
++  ipcMain.handle('a2a:composition-start', event => {
++    checkSender(event);
++    return sendWindowCommand({ command: 'window_composition' });
+   });
+   ipcMain.handle('a2a:release-queue', event => {
+     checkSender(event);
+@@ -101,7 +107,7 @@
+     })();
+   });
+   window.on('closed', () => {
+-    for (const channel of ['a2a:snapshot', 'a2a:output', 'a2a:input', 'a2a:release-queue', 'a2a:focus-observation']) ipcMain.removeHandler(channel);
++    for (const channel of ['a2a:snapshot', 'a2a:output', 'a2a:input', 'a2a:composition-start', 'a2a:release-queue', 'a2a:focus-observation']) ipcMain.removeHandler(channel);
+   });
+   app.on('window-all-closed', () => app.quit());
+   await window.loadFile(join(directory, 'renderer/index.html'));
+--- red/workbench/app/preload.ts
++++ candidate/workbench/app/preload.ts
+@@ -3,7 +3,8 @@
+ contextBridge.exposeInMainWorld('a2a', Object.freeze({
+   snapshot: () => ipcRenderer.invoke('a2a:snapshot'),
+   output: (offset: number) => ipcRenderer.invoke('a2a:output', offset),
+-  input: (data: string) => ipcRenderer.invoke('a2a:input', data),
++  input: (data: string, encoding: 'utf8' | 'binary' = 'utf8') => ipcRenderer.invoke('a2a:input', data, encoding),
++  beginComposition: () => ipcRenderer.invoke('a2a:composition-start'),
+   releaseQueue: () => ipcRenderer.invoke('a2a:release-queue'),
+   observeFocus: (rawSequence: string) => ipcRenderer.invoke('a2a:focus-observation', rawSequence),
+ }));
+--- red/workbench/app/renderer.tsx
++++ candidate/workbench/app/renderer.tsx
+@@ -20,7 +20,8 @@
+ };
+ type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
+ declare global { interface Window { a2a: { snapshot(): Promise<Snapshot>; output(offset: number): Promise<Chunk>;
+-  input(data: string): Promise<void>; releaseQueue(): Promise<void>; observeFocus(rawSequence: string): Promise<void> } } }
++  input(data: string, encoding?: 'utf8' | 'binary'): Promise<void>; beginComposition(): Promise<void>;
++  releaseQueue(): Promise<void>; observeFocus(rawSequence: string): Promise<void> } } }
+ const gateNames: Record<string, string> = { ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
+   verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销' };
+ const activityNames: Record<string, string> = { unknown: '未知', idle: '空闲', busy: '忙' };
+@@ -67,9 +68,11 @@
+     ownTerminalQueries(term, () => {});
+     const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+     term.onData(data => { void window.a2a.input(data).catch(failInput); });
+-    // Binary mouse encodings need a byte-preserving transport. This slice
+-    // records the missing capability as an explicit input failure.
+-    term.onBinary(() => failInput('尚未接通二进制终端输入'));
++    term.onBinary(data => { void window.a2a.input(data, 'binary').catch(failInput); });
++    const beginComposition = () => {
++      if (!inputFailed && !term.options.disableStdin) void window.a2a.beginComposition().catch(failInput);
++    };
++    term.textarea!.addEventListener('compositionstart', beginComposition);
+     setTerminal(term);
+     const delay = () => new Promise((resolve) => setTimeout(resolve, 100));
+     async function read() {
+@@ -107,7 +110,7 @@
+     }
+     reconnect.current = () => { void read(); };
+     void read();
+-    return () => { mounted = false; term.dispose(); };
++    return () => { mounted = false; term.textarea!.removeEventListener('compositionstart', beginComposition); term.dispose(); };
+   }, []);
+   const task = snapshot?.task;
+   const pane = snapshot?.pane;

@@ -141,6 +141,83 @@ async function main() {
           await window.webContents.executeJavaScript(`(() => { const data = new DataTransfer(); data.setData('text/plain', 'READ_ONLY_SENTINEL');
             document.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); })()`);
           value = { sent: true };
+        } else if (request.command === 'terminal-input') {
+          if (typeof request.paste !== 'string' || request.paste.length > 262144 || typeof request.submit !== 'boolean') {
+            throw new Error('Invalid terminal input probe');
+          }
+          window.focus();
+          await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
+          await window.webContents.executeJavaScript(`(() => { const data = new DataTransfer();
+            data.setData('text/plain', ${JSON.stringify(request.paste)});
+            document.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); })()`);
+          if (request.submit) {
+            window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+            window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+          }
+          value = { sent: true, source: 'test-simulated-user' };
+        } else if (request.command === 'terminal-compose-start') {
+          await window.webContents.executeJavaScript(`(async () => {
+            const textarea = document.querySelector('.xterm-helper-textarea');
+            textarea.focus(); textarea.value = '';
+            textarea.dispatchEvent(new CompositionEvent('compositionstart', {data:'',bubbles:true}));
+            // This public empty observation waits behind any composition IPC;
+            // it cannot create user input or write PTY bytes (decision 02).
+            await window.a2a.input('');
+          })()`);
+          value = { sent: true, source: 'synthetic-composition-start' };
+        } else if (request.command === 'terminal-compose') {
+          if (typeof request.text !== 'string' || request.text.length > 1024) throw new Error('Invalid composition probe');
+          await window.webContents.executeJavaScript(`(async () => {
+            const textarea = document.querySelector('.xterm-helper-textarea');
+            textarea.focus();
+            if (!${Boolean(request.started)}) {
+              textarea.value = '';
+              textarea.dispatchEvent(new CompositionEvent('compositionstart', {data:'',bubbles:true}));
+            }
+            textarea.dispatchEvent(new CompositionEvent('compositionupdate', {data:${JSON.stringify(request.text)},bubbles:true}));
+            textarea.value = ${JSON.stringify(request.text)};
+            await new Promise(resolve => setTimeout(resolve, 0));
+            textarea.dispatchEvent(new CompositionEvent('compositionend', {data:${JSON.stringify(request.text)},bubbles:true}));
+          })()`);
+          value = { sent: true, source: 'synthetic-composition-events' };
+        } else if (request.command === 'terminal-mouse-binary') {
+          // The product terminal is fixed at 160 columns and 45 rows. Use a
+          // cell center, without xterm private fields or synthetic onBinary.
+          const point = await window.webContents.executeJavaScript(`(() => {
+            const rect = document.querySelector('.xterm-screen').getBoundingClientRect();
+            return {x:Math.round(rect.left + rect.width * 130.5 / 160),y:Math.round(rect.top + rect.height * 6.5 / 45)};
+          })()`);
+          window.focus();
+          for (const type of ['mouseDown', 'mouseUp']) window.webContents.sendInputEvent({type, ...point, button:'left', clickCount:1});
+          value = {sent:true, column:131, row:7, point, source:'test-simulated-mouse'};
+        } else if (request.command === 'terminal-key') {
+          if (request.key !== 'Escape') throw new Error('Unsupported terminal key probe');
+          window.focus();
+          await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
+          window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+          window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+          value = { sent: true, source: 'test-simulated-user' };
+        } else if (request.command === 'queue-release') {
+          value = await window.webContents.executeJavaScript(`new Promise(resolve => {
+            const deadline = Date.now() + 2500;
+            const observe = () => {
+              const button = [...document.querySelectorAll('button')].find(x => x.textContent === '放行排队消息');
+              if (!button || (button.disabled && Date.now() >= deadline)) return resolve({ clicked: false });
+              if (button.disabled) return setTimeout(observe, 50);
+              button.click(); resolve({ clicked: true });
+            };
+            observe();
+          })`);
+        } else if (request.command === 'terminal-empty-composition') {
+          window.focus();
+          await window.webContents.executeJavaScript(`(() => {
+            const textarea = document.querySelector('.xterm-helper-textarea');
+            textarea.focus(); textarea.value = '';
+            textarea.dispatchEvent(new CompositionEvent('compositionstart', {data:'',bubbles:true}));
+          })()`);
+          window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+          window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+          value = { sent: true, source: 'test-simulated-empty-composition-and-enter' };
         } else if (request.command === 'reconnect') {
           await window.webContents.executeJavaScript("[...document.querySelectorAll('button')].find(x => x.textContent === '重新连接').click()");
           value = { clicked: true };

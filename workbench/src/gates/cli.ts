@@ -9,6 +9,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { request as daemonRequest, startDaemon } from "../transport.ts";
 import { queueWorkerRequest, readWorkerRequests } from "../relayFiles.ts";
+import { readOperatorCredential } from "../credentials.ts";
 
 const commands: Record<string, { required: string[]; optional?: string[] }> = {
   daemon_start: { required: [], optional: ["launch-config"] },
@@ -22,6 +23,7 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   pane_dispatch: { required: ["thread", "body-file"] },
   signal: { required: ["launch"] },
   launch_show: { required: ["launch"] },
+  controller_prepare: { required: ["preset"] },
   orchestration_events: { required: [], optional: ["task"] },
   card_template: { required: ["repo"], optional: ["ticket", "project"] },
   card_validate: { required: ["card"] },
@@ -52,11 +54,12 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   disposition: { required: ["issue", "action"], optional: ["reason", "basis"] },
   reclaim: { required: [], optional: ["attempt", "thread"] },
   inbox_send: {
-    required: ["from", "to", "kind", "body"],
-    optional: ["reply-to", "refs", "title", "blocking", "action", "reason", "basis", "bundle-id"],
+    required: ["to", "kind", "body"],
+    optional: ["from", "reply-to", "refs", "title", "blocking", "action", "reason", "basis", "bundle-id"],
   },
-  inbox_list: { required: ["role"] },
-  inbox_ack: { required: ["role", "id"], optional: ["body"] },
+  inbox_list: { required: [], optional: ["role"] },
+  inbox_ack: { required: ["id"], optional: ["role", "body"] },
+  inbox_ready: { required: ["project"] },
   stop: { required: ["thread", "stop-id"] },
 };
 
@@ -183,14 +186,15 @@ export async function main(argv = process.argv.slice(2)) {
       token: process.env.A2A_CAPABILITY,
       native_session: process.env.CODEX_THREAD_ID,
     } : undefined;
-    if (identity && ["submit", "status", "issue"].includes(String(request.command))) {
+    if (identity && ["submit", "status", "issue", "inbox_send", "inbox_list", "inbox_ack", "inbox_ready"].includes(String(request.command))) {
       await emit(queueWorkerRequest(request));
       return 0;
     }
     if (identity && request.command !== "signal") throw new Error("worker_command_forbidden");
+    const operator = request.command === "daemon_start" || identity ? undefined : readOperatorCredential(root);
     const result = request.command === "daemon_start"
       ? await startDaemon(root, request["launch-config"] ? JSON.parse(readFileSync(String(request["launch-config"]), "utf8")) : {})
-      : await daemonRequest(root, request, identity);
+      : await daemonRequest(root, request, identity ?? operator);
     await emit(request.command === "signal" && result.ok ? {} : result);
     return result.ok ? 0 : 1;
   } catch (error) {

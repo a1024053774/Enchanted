@@ -1,0 +1,208 @@
+--- red/workbench/src/daemon.ts
++++ candidate/workbench/src/daemon.ts
+@@ -65,7 +65,7 @@
+     if (authority.kind === "launch") {
+       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
+     }
+-    if (authority.kind === "window" && !["window_input", "window_observation", "window_close"].includes(input.command)) {
++    if (authority.kind === "window" && !["window_input", "window_release", "window_observation", "window_close"].includes(input.command)) {
+       throw new Refusal("window_command_forbidden");
+     }
+     if (input.command === "window_open") {
+@@ -77,7 +77,7 @@
+       store.event("window_opened", { window_id: window.id, actor: "user" }, record as any);
+       return { ok: true, identity: { kind: "window", window: window.id, token: window.token } };
+     }
+-    if (["window_input", "window_observation", "window_close"].includes(input.command)) {
++    if (["window_input", "window_release", "window_observation", "window_close"].includes(input.command)) {
+       const window = authority.window;
+       if (!window) throw new Refusal("window_identity_required");
+       const record = panes.launchRecord(window.launch);
+@@ -97,32 +97,48 @@
+         window.sequence = input.sequence;
+         return { ok: true };
+       }
+-      if (typeof input.data !== "string" || Buffer.byteLength(input.data, "utf8") > 1024 * 1024) throw new Refusal("invalid_terminal_input");
+-      if (input.data.length === 0) {
+-        store.event("terminal_input_empty", { ...receipt, byte_length: 0 }, record as any);
+-        window.sequence = input.sequence;
+-        return { ok: true, observed: true, written: false };
+-      }
+       const assertCurrent = async () => {
++        if (windows.get(window.id) !== window) throw new Refusal("invalid_window_identity");
+         const status = await gates.call({ command: "status", task: record.task });
+         const attempt = status.task?.current_attempt;
+         if (!attempt || attempt.attempt_id !== record.attempt || attempt.session_id !== record.session ||
+             attempt.fence !== record.fence || status.task?.spec_rev !== record.spec_rev || attempt.reclaimed) throw new Refusal("stale_attempt");
+         if (gates.userInputObserverStatus()?.state === "failed") throw new Refusal("user_input_observer_failed");
+       };
+-      await panes.userInput(window.launch, input.data, receipt, async (text, control) => {
++      const recordInput = async (text: string, content?: Record<string, unknown>) => {
+         try {
+-          gates.appendUserInput({ id: randomUUID(), schema: 1, form: control ? "action" : "message", text,
++          gates.appendUserInput({ id: randomUUID(), schema: 1, form: content ? "action" : "message", text,
+             target: { project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,
+               turn: panes.get(record.thread).turn, message: null, request: null },
+             channel: "terminal-window", reply_to: null, certainty: "observed", created_at: receipt.received_at,
+             source_ref: { command_id: receipt.request_id, source_sequence: receipt.sequence, window_id: receipt.window_id },
+-            ...(control ? { content: { action: "terminal-key", data: input.data } } : {}) }, `window:${receipt.request_id}`);
++            ...(content ? { content } : {}) }, `window:${receipt.request_id}`);
+         } catch (error) {
+           gates.setUserInputObserverStatus("failed", { reason: String(error) });
+           throw error;
+         }
+-      }, assertCurrent);
++      };
++      if (input.command === "window_release") {
++        const assertInterrupted = async () => {
++          await assertCurrent();
++          if (!panes.get(record.thread).interrupted) throw new Refusal("pane_not_interrupted");
++        };
++        await panes.releaseByUser(record.thread, "用户放行排队消息", async () => {
++          const pane = panes.get(record.thread);
++          await recordInput("放行排队消息", { action: "queue-release", previous_submission: pane.active?.id ?? null,
++            queued: pane.queue.map(item => item.id) });
++        }, assertInterrupted);
++        window.sequence = input.sequence;
++        return { ok: true, released: true, request_id: receipt.request_id };
++      }
++      if (typeof input.data !== "string" || Buffer.byteLength(input.data, "utf8") > 1024 * 1024) throw new Refusal("invalid_terminal_input");
++      if (input.data.length === 0) {
++        store.event("terminal_input_empty", { ...receipt, byte_length: 0 }, record as any);
++        window.sequence = input.sequence;
++        return { ok: true, observed: true, written: false };
++      }
++      await panes.userInput(window.launch, input.data, receipt,
++        (text, control) => recordInput(text, control ? { action: "terminal-key", data: input.data } : undefined), assertCurrent);
+       window.sequence = input.sequence;
+       return { ok: true, written: true, request_id: receipt.request_id };
+     }
+--- red/workbench/app/main.ts
++++ candidate/workbench/app/main.ts
+@@ -65,6 +65,10 @@
+     if (typeof data !== 'string' || Buffer.byteLength(data, 'utf8') > 1024 * 1024) throw new Error('Invalid terminal input');
+     return sendWindowCommand({ command: 'window_input', data });
+   });
++  ipcMain.handle('a2a:release-queue', event => {
++    checkSender(event);
++    return sendWindowCommand({ command: 'window_release' });
++  });
+   ipcMain.handle('a2a:focus-observation', (event, rawSequence: string) => {
+     checkSender(event);
+     if (typeof rawSequence !== 'string' || rawSequence.length > 4096) throw new Error('Invalid focus observation');
+@@ -97,7 +101,7 @@
+     })();
+   });
+   window.on('closed', () => {
+-    for (const channel of ['a2a:snapshot', 'a2a:output', 'a2a:input', 'a2a:focus-observation']) ipcMain.removeHandler(channel);
++    for (const channel of ['a2a:snapshot', 'a2a:output', 'a2a:input', 'a2a:release-queue', 'a2a:focus-observation']) ipcMain.removeHandler(channel);
+   });
+   app.on('window-all-closed', () => app.quit());
+   await window.loadFile(join(directory, 'renderer/index.html'));
+--- red/workbench/app/preload.ts
++++ candidate/workbench/app/preload.ts
+@@ -4,5 +4,6 @@
+   snapshot: () => ipcRenderer.invoke('a2a:snapshot'),
+   output: (offset: number) => ipcRenderer.invoke('a2a:output', offset),
+   input: (data: string) => ipcRenderer.invoke('a2a:input', data),
++  releaseQueue: () => ipcRenderer.invoke('a2a:release-queue'),
+   observeFocus: (rawSequence: string) => ipcRenderer.invoke('a2a:focus-observation', rawSequence),
+ }));
+--- red/workbench/app/renderer.tsx
++++ candidate/workbench/app/renderer.tsx
+@@ -15,11 +15,12 @@
+     current_attempt: { attempt_id: string; state: string } | null; candidate_commit: string | null;
+     verification: { state: string } | null; integration_intent: { state: string } | null };
+   launch: { id: string; attempt: string; role: string; cli_version: string; model_requested: string } | null;
+-  pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null } | null;
++  pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
++    interrupted?: boolean } | null;
+ };
+ type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
+ declare global { interface Window { a2a: { snapshot(): Promise<Snapshot>; output(offset: number): Promise<Chunk>;
+-  input(data: string): Promise<void>; observeFocus(rawSequence: string): Promise<void> } } }
++  input(data: string): Promise<void>; releaseQueue(): Promise<void>; observeFocus(rawSequence: string): Promise<void> } } }
+ const gateNames: Record<string, string> = { ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
+   verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销' };
+ const activityNames: Record<string, string> = { unknown: '未知', idle: '空闲', busy: '忙' };
+@@ -28,17 +29,19 @@
+ function Workbench() {
+   const mount = useRef<HTMLDivElement>(null);
+   const reconnect = useRef<() => void>(() => {});
++  const releaseQueue = useRef<() => void>(() => {});
+   const [terminal, setTerminal] = useState<Terminal | null>(null);
+   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+   const [error, setError] = useState<string | null>(null);
+   const [connecting, setConnecting] = useState(true);
+   const [offset, setOffset] = useState(0);
+   const [inputError, setInputError] = useState<string | null>(null);
++  const [releasing, setReleasing] = useState(false);
+ 
+   useEffect(() => {
+     let mounted = true, running = false, cursor = 0, total = 0;
+     let boundLaunch: string | null = null;
+-    let inputFailed = false;
++    let inputFailed = false, releasePending = false;
+     const term = new Terminal({ cols: 160, rows: 45, disableStdin: true, cursorBlink: true,
+       cursorInactiveStyle: 'none', screenReaderMode: true, scrollback: 10000, fontSize: 11, lineHeight: 1,
+       fontFamily: '"SF Mono", "SFMono-Regular", Menlo, monospace',
+@@ -47,6 +50,16 @@
+     const failInput = (failure: unknown) => {
+       inputFailed = true; term.options.disableStdin = true;
+       if (mounted) setInputError(`输入尚未确认，已停止发送：${String(failure)}`);
++    };
++    releaseQueue.current = () => {
++      if (releasePending || inputFailed) return;
++      releasePending = true; setReleasing(true);
++      void window.a2a.releaseQueue().then(() => window.a2a.snapshot()).then(value => {
++        if (mounted) setSnapshot(value);
++      }).catch(failInput).finally(() => {
++        releasePending = false;
++        if (mounted) setReleasing(false);
++      });
+     };
+     const writeOutput = createFocusSafeWriter(term, (type: string, detail: { raw_sequence: string }) => {
+       if (type === 'focus-mode-intercept') void window.a2a.observeFocus(detail.raw_sequence).catch(failInput);
+@@ -118,6 +131,8 @@
+         <div className="pane-header"><strong>{snapshot?.launch?.cli_version ?? '窗格'}</strong>
+           <span className="readonly">{snapshot?.input_enabled && !inputError ? '可输入' : '只读'}</span><span className="pane-identity">{snapshot?.launch ? `worker · ${snapshot.launch.id.slice(0, 8)}` : '尚未启动窗格'}</span>
+           <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
++          <button disabled={!snapshot?.input_enabled || !pane?.interrupted || releasing || Boolean(inputError || error)}
++            onClick={() => releaseQueue.current()}>放行排队消息</button>
+         </div>
+         <div className="terminal-scroll" data-output-offset={offset}><div className="terminal-mount" ref={mount} /></div>
+         <TerminalScrollToBottom terminal={terminal} />
+--- red/workbench/app/style.css
++++ candidate/workbench/app/style.css
+@@ -7,6 +7,7 @@
+ button { font: inherit; color: inherit; background: #262626; border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+ button:hover { background: #333; }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
++button:disabled { opacity: .45; cursor: default; }
+ .workbench { display: flex; height: 100vh; overflow: hidden; }
+ .sidebar { width: 224px; flex: 0 0 224px; border-right: 1px solid var(--border); padding: 30px 16px 20px; display: flex; flex-direction: column; }
+ .brand { font-size: 22px; font-weight: 650; letter-spacing: -.6px; padding: 0 12px 38px; }
+--- red/workbench/tests/electron_driver.mjs
++++ candidate/workbench/tests/electron_driver.mjs
+@@ -163,11 +163,16 @@
+           window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+           value = { sent: true, source: 'test-simulated-user' };
+         } else if (request.command === 'queue-release') {
+-          value = await window.webContents.executeJavaScript(`(() => {
+-            const button = [...document.querySelectorAll('button')].find(x => x.textContent === '放行排队消息');
+-            if (!button || button.disabled) return { clicked: false };
+-            button.click(); return { clicked: true };
+-          })()`);
++          value = await window.webContents.executeJavaScript(`new Promise(resolve => {
++            const deadline = Date.now() + 2500;
++            const observe = () => {
++              const button = [...document.querySelectorAll('button')].find(x => x.textContent === '放行排队消息');
++              if (!button || (button.disabled && Date.now() >= deadline)) return resolve({ clicked: false });
++              if (button.disabled) return setTimeout(observe, 50);
++              button.click(); resolve({ clicked: true });
++            };
++            observe();
++          })`);
+         } else if (request.command === 'terminal-empty-composition') {
+           window.focus();
+           await window.webContents.executeJavaScript(`(() => {

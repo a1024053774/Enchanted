@@ -39,6 +39,7 @@ import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, pathInt
 import { Schema } from "effect";
 import { executorScore, reviewVerdict, QualityProtocolError } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
+import { readyTickets } from "./readyTickets.ts";
 import {
   ensureRolePermissionTables,
   readRolePermissionSettings,
@@ -105,16 +106,20 @@ export interface GateRuntime {
   sendGateFeedback?(thread: string, messageId: string, message: string): Promise<void>;
   createAttachedThread?(task: A2ATask, attachment: A2AAttachment, prompt: string): Promise<void>;
   sendUserAnswer?(thread: string, messageId: string, message: string): Promise<void>;
-  wakeThread?(thread: string, entry: A2AInboxEntry): Promise<{ message: string }>;
+  wakeThread?(thread: string, entry: A2AInboxEntry): Promise<{ state: "queued" | "delivered" | "unknown"; message: string }>;
+  readWakeDelivery?(thread: string, message: string): Promise<{ state: "queued" | "delivered" | "unknown"; at: string }>;
   interruptThread?(thread: string): Promise<void>;
 }
-export interface SubmitCaller {
-  thread: string;
-  turn: string;
+export interface GateActor {
   assertActive(): Promise<void>;
   address?: string;
 }
 type ScoreProvenance = Pick<NonNullable<A2AAttempt["delivery"]>, "launch_id" | "cli" | "model" | "effort" | "number">;
+// A role/transport credential is not a native thread or turn identity.
+export interface SubmitCaller extends GateActor {
+  thread: string;
+  turn: string;
+}
 
 /** The sole mutation owner. Lifecycle signals alone do not constitute delivery. */
 export class A2AGates {
@@ -2602,6 +2607,22 @@ export class A2AGates {
       .prepare("INSERT INTO inbox_deliveries(entry,data) VALUES (?,?)")
       .run(receipt.entry_id, JSON.stringify(receipt));
   }
+  private async refreshInboxDelivery(entry: string): Promise<A2AInboxDelivery | undefined> {
+    const previous = this.inboxDelivery(entry);
+    if (previous?.state !== "queued") return previous;
+    const lock = this.operationLock(`inbox-${entry}`);
+    try {
+      const current = this.inboxDelivery(entry)!;
+      if (current.state !== "queued") return current;
+      requireGate(current.thread && current.message && this.runtime?.readWakeDelivery, "wake_receipt_runtime_required");
+      const observed = await this.runtime.readWakeDelivery(current.thread, current.message);
+      requireGate(["queued", "delivered", "unknown"].includes(observed.state) && Number.isFinite(Date.parse(observed.at)), "invalid_wake_receipt");
+      if (observed.state === "queued") return current;
+      const receipt = { ...current, state: observed.state, created_at: observed.at };
+      this.appendDelivery(receipt);
+      return receipt;
+    } finally { lock.close(); }
+  }
   private ownedThread(thread: string) {
     const task = this.taskForThread(thread);
     if (task?.current_attempt && !task.current_attempt.reclaimed)
@@ -2636,8 +2657,9 @@ export class A2AGates {
         );
         const thread = targets[0]!;
         const result = await this.runtime.wakeThread(thread, entry);
+        requireGate(["queued", "delivered", "unknown"].includes(result.state), "invalid_wake_receipt");
         receipt = {
-          state: "delivered",
+          state: result.state,
           entry_id: entry.id,
           created_at: new Date(this.now()).toISOString(),
           thread,
@@ -2659,20 +2681,32 @@ export class A2AGates {
       lock.close();
     }
   }
-  private async inboxCall(args: A2AInboxRequest, caller?: SubmitCaller): Promise<A2AGateResult> {
-    const role = caller?.address ?? args.role ?? args.from ?? "user";
+  private async inboxCall(args: A2AInboxRequest, actor?: GateActor, caller?: SubmitCaller): Promise<A2AGateResult> {
+    requireGate(actor?.address, "caller_identity_required");
+    const role = actor.address;
     requireGate(
       /^(?:user|ideation|executor|system|triage|(?:worker|reviewer|monitor):[A-Za-z0-9_.-]+)$/.test(
         role,
       ),
       "invalid_address",
     );
-    if (caller && args.command !== "inbox_list") await caller.assertActive();
+    if (!["inbox_list", "inbox_ready"].includes(args.command)) await actor.assertActive();
+    if (args.command === "inbox_ready") {
+      requireGate(["ideation", "executor"].includes(role), "controller_required");
+      requireGate(args.project, "project_required");
+      const repos = new Set(this.db.prepare("SELECT data FROM tasks").all()
+        .map(row => JSON.parse(String(row.data)) as A2ATask)
+        .filter(task => task.project_id === args.project).map(task => task.repo));
+      requireGate(repos.size === 1, repos.size ? "ambiguous_project" : "unknown_project");
+      const result = readyTickets([...repos][0]!);
+      return { ok: result.diagnostics.length === 0, ...result,
+        ...(result.diagnostics.length ? { error: "invalid_ready_tickets" } : {}) };
+    }
     if (args.command === "inbox_list") {
       const records = this.inboxRecords();
       return {
         ok: true,
-        entries: records
+        entries: await Promise.all(records
           .filter(
             (entry) =>
               entry.kind !== "ack" &&
@@ -2684,10 +2718,10 @@ export class A2AGates {
                       ["ideation", "executor"].includes(role))) &&
                   !this.inboxConfirmed(entry.id, role)),
           )
-          .map((entry) => {
-            const delivery = this.inboxDelivery(entry.id);
+          .map(async (entry) => {
+            const delivery = await this.refreshInboxDelivery(entry.id);
             return { entry, ...(delivery ? { delivery } : {}) };
-          }),
+          })),
       };
     }
     this.checkUserInputObserver();
@@ -2704,12 +2738,12 @@ export class A2AGates {
           (entry) => entry.kind === "ack" && entry.from === role && entry.reply_to === original.id,
         );
         if (previous) {
-          const delivery = this.inboxDelivery(previous.id);
+          const delivery = await this.refreshInboxDelivery(previous.id);
           return {
-            ok: delivery?.state === "delivered",
+            ok: delivery?.state === "delivered" || delivery?.state === "queued",
             entry: previous,
             ...(delivery ? { delivery } : {}),
-            ...(delivery?.state !== "delivered" ? { error: "wake_undelivered" } : {}),
+            ...(!["delivered", "queued"].includes(delivery?.state ?? "") ? { error: "wake_undelivered" } : {}),
           };
         }
         ack = {
@@ -2729,10 +2763,10 @@ export class A2AGates {
       }
       const delivery = await this.deliverInbox(ack);
       return {
-        ok: delivery.state === "delivered",
+        ok: delivery.state === "delivered" || delivery.state === "queued",
         entry: ack,
         delivery,
-        ...(delivery.state !== "delivered" ? { error: "wake_undelivered" } : {}),
+        ...(!["delivered", "queued"].includes(delivery.state) ? { error: "wake_undelivered" } : {}),
       };
     }
     requireGate(
@@ -2814,7 +2848,7 @@ export class A2AGates {
           );
           return {
             ...result,
-            ...(result.delivery?.state !== "delivered" && result.delivery
+            ...(result.delivery && !["delivered", "queued"].includes(result.delivery.state)
               ? { ok: false, error: "wake_undelivered" }
               : {}),
           };
@@ -2852,17 +2886,16 @@ export class A2AGates {
     this.appendInbox(entry);
     const delivery = await this.deliverInbox(entry);
     return {
-      ok: delivery.state === "delivered",
+      ok: delivery.state === "delivered" || delivery.state === "queued",
       entry,
       delivery,
-      ...(delivery.state !== "delivered" ? { error: "wake_undelivered" } : {}),
+      ...(!["delivered", "queued"].includes(delivery.state) ? { error: "wake_undelivered" } : {}),
     };
   }
-  private async emergencyStop(args: A2AStopRequest, caller?: SubmitCaller): Promise<A2AGateResult> {
-    if (caller) {
-      requireGate(caller.address === "ideation", "ideation_required");
-      await caller.assertActive();
-    }
+  private async emergencyStop(args: A2AStopRequest, actor?: GateActor): Promise<A2AGateResult> {
+    requireGate(actor?.address, "caller_identity_required");
+    requireGate(["ideation", "executor", "user"].includes(actor.address), "controller_required");
+    await actor.assertActive();
     const stop = this.inboxEntry(args.stop_id);
     requireGate(
       stop.kind === "stop" && stop.to === "executor" && ["user", "ideation"].includes(stop.from),
@@ -2877,7 +2910,7 @@ export class A2AGates {
     let entryLock: DatabaseSync | undefined;
     try {
       entryLock = this.operationLock(`inbox-${stop.id}`);
-      requireGate(this.now() - Date.parse(stop.created_at) > 120_000, "stop_too_early");
+      if (actor.address === "ideation") requireGate(this.now() - Date.parse(stop.created_at) > 120_000, "stop_too_early");
       requireGate(!this.inboxConfirmed(stop.id, "executor"), "stop_already_acknowledged");
       requireGate(
         stop.refs.includes(`thread:${args.thread}`) ||
@@ -2893,13 +2926,15 @@ export class A2AGates {
           live.provider === (target.attachment?.modelSelection.provider ?? "codex"),
         "identity_conflict",
       );
-      if (caller) await caller.assertActive();
+      await actor.assertActive();
       this.checkUserInputObserver();
+      this.event(target.task.task_id, "emergency_interrupt_intent", { stop_id: stop.id, thread: args.thread, actor: actor.address },
+        target.attempt?.attempt_id ?? null);
       await this.runtime.interruptThread(args.thread);
       this.event(
         target.task.task_id,
         "emergency_interrupt_requested",
-        { stop_id: stop.id, thread: args.thread, actor: caller?.address ?? "user" },
+        { stop_id: stop.id, thread: args.thread, actor: actor.address },
         target.attempt?.attempt_id ?? null,
       );
       return { ok: true, interruptRequested: true };
@@ -2908,13 +2943,13 @@ export class A2AGates {
       taskLock.close();
     }
   }
-  async call(raw: unknown, caller?: SubmitCaller): Promise<A2AGateResult> {
+  async call(raw: unknown, caller?: SubmitCaller, actor: GateActor | undefined = caller): Promise<A2AGateResult> {
     const command = (raw as { command?: unknown } | null)?.command;
     if (typeof command === "string" && (command.startsWith("inbox_") || command === "stop")) {
       try {
         return command === "stop"
-          ? await this.emergencyStop(Schema.decodeUnknownSync(A2AStopRequest)(raw), caller)
-          : await this.inboxCall(Schema.decodeUnknownSync(A2AInboxRequest)(raw), caller);
+          ? await this.emergencyStop(Schema.decodeUnknownSync(A2AStopRequest)(raw), actor)
+          : await this.inboxCall(Schema.decodeUnknownSync(A2AInboxRequest)(raw), actor, caller);
       } catch (error) {
         return {
           ok: false,
@@ -2923,12 +2958,12 @@ export class A2AGates {
         };
       }
     }
-    const result = await this.request(raw, caller);
+    const result = await this.request(raw, caller, undefined, actor);
     const observer = this.userInputObserverStatus();
     return { ...result, ...(observer ? { user_input_observer: observer } : {}) };
   }
 
-  private async request(raw: unknown, caller?: SubmitCaller, run?: A2ARun): Promise<A2AGateResult> {
+  private async request(raw: unknown, caller?: SubmitCaller, run?: A2ARun, actor: GateActor | undefined = caller): Promise<A2AGateResult> {
     let taskId: string | undefined;
     let lock: DatabaseSync | undefined;
     try {
@@ -2959,6 +2994,10 @@ export class A2AGates {
             details: JSON.parse(String(r.details)) as unknown,
           })),
         };
+      }
+      if (actor && !caller) {
+        requireGate(["executor", "user"].includes(actor.address ?? ""), "controller_required");
+        await actor.assertActive();
       }
       if (caller) {
         if (caller.address === "executor") await caller.assertActive();
@@ -3000,7 +3039,7 @@ export class A2AGates {
           );
           await caller.assertActive();
         }
-        return await this.disposeIssue(args, caller);
+        return await this.disposeIssue(args, caller, actor?.address);
       }
       if (args.command === "answer_issue" || args.command === "answer_issues")
         return await this.answerIssues(args);

@@ -204,7 +204,9 @@ def run_probe(probe, out, suite_name=None, test_name=None, mutant_core=None):
     # A later collection error must not erase completed test results or fixtures.
     write_new(out / "test-result.json", record)
     with tarfile.open(out / "artifacts.tar.gz", "x:gz") as archive:
-        archive.add(artifact_root, arcname=artifact_root.name)
+        archive.add(artifact_root, arcname=artifact_root.name,
+                    filter=lambda item: None if Path(item.name).name.startswith('operator-') and
+                    Path(item.name).name.endswith('.credential.json') else item)
     write_new(out / "state-readback.json", read_state(adapter.delivery.ARTIFACTS))
     record["status"] = "PASS" if passed else "INCOMPLETE"
     record["exit_code"] = 0 if passed else 1
@@ -379,7 +381,7 @@ def run_validation(label, out):
 
 
 def main():
-    global BASE
+    global BASE, IDENTITY
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--probe", choices=("all", "delivery", "recovery", "run"))
@@ -390,6 +392,8 @@ def main():
     parser.add_argument("--mutant-manifest", type=Path)
     parser.add_argument("--label", required=True, help="输出根下尚未存在的证据目录名")
     parser.add_argument("--output-root", type=Path, default=BASE, help="证据根；默认沿用 T-075/card-5")
+    parser.add_argument("--output", type=Path, help="单组 suite/probe 的显式新证据目录")
+    parser.add_argument("--identity-file", type=Path, help="本次任务的证据身份；不含凭据")
     args = parser.parse_args()
     if args.validation and args.output_root.resolve() != BASE.resolve():
         parser.error('Legacy validation uses its frozen baseline runner; use --suite/--probe for a separate output root')
@@ -397,12 +401,19 @@ def main():
     BASE.mkdir(parents=True, exist_ok=True)
     if args.test and not args.suite:
         parser.error("--test requires --suite")
+    if args.output and (args.validation or args.probe == 'all'):
+        parser.error("--output requires one suite or one focused probe")
+    if args.identity_file:
+        identity = json.loads(args.identity_file.read_text(encoding='utf-8'))
+        if not isinstance(identity, dict) or not identity.get('task') or not identity.get('worker'):
+            parser.error("identity file requires task and worker")
+        IDENTITY = {**IDENTITY, **identity}
     if (bool(args.mutant) != bool(args.mutant_manifest)) or (args.mutant and not args.suite):
         parser.error("--mutant and --mutant-manifest require each other and --suite")
     if (not args.label or args.label in (".", "..") or
             any(char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for char in args.label)):
         parser.error("label 只能包含字母、数字、点、短横线和下划线")
-    out = BASE / args.label
+    out = args.output.resolve() if args.output else BASE / args.label
     out.mkdir(exist_ok=False)
     clean_fixture_environment()
     if args.validation:

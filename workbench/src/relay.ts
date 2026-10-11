@@ -72,7 +72,11 @@ export class RequestRelay {
       const base = ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev"];
       const allowed: Record<string, string[]> = binding.role === "reviewer"
         ? { review_submit: ["review_id", "candidate_commit", "verdict", "findings"] }
-        : { submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"] };
+        : {
+        submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"],
+        inbox_send: ["from", "to", "kind", "reply_to", "refs", "body", "title", "blocking", "action", "reason", "basis", "bundle_id"],
+        inbox_list: ["role"], inbox_ack: ["id", "role", "body"], inbox_ready: ["project"],
+      };
       const extra = allowed[input.command];
       if (input.schema !== 1 || !requestId || !extra || base.some((field) => !Object.hasOwn(input, field)) ||
           Object.keys(input).some((field) => ![...base, ...extra].includes(field)) ||
