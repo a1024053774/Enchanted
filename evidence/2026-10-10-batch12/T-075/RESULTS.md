@@ -1,6 +1,6 @@
 # T-075-1 门禁迁移记录
 
-状态：INCOMPLETE（门禁迁移与验收已完成；独立审查、收尾检查和提交尚待完成）。T-075 保持 open，待后续卡、待主控关闭。
+状态：INCOMPLETE（门禁迁移、验收与独立审查均 PASS；主控负责的 CONTEXT stale 收尾尚待完成）。T-075 保持 open，待后续卡、待主控关闭。
 
 ## 范围与来源
 
@@ -71,9 +71,9 @@ python3 -B evidence/2026-10-10-batch12/T-075/run-acceptance.py coop mutant-fence
 ## 尚待完成
 
 - 旧 HTTP 转接已按本次用户答复及 `controller-decision-02.md` 删除，同时删除其唯一使用的 A2ARequest schema。最终候选的三套绿态已复验。
-- fresh-context 只读独立审查；若发现问题，先红再修，不追审。
+- 独立审查已完成且无问题，不追审。
 - `project_map.py status` 收尾检查；CONTEXT.md 的 stale 由主控处理。
-- 交付提交及自动 A2A 尾注核对。
+- 源码候选 `4d81efcacdaa6f8d9cf2b6127130fd7f0f0ac754` 已提交，自动 A2A 尾注已核对（`candidate-commit-trailers.txt`）；报告收尾单独提交。
 
 ## 沙箱外验收交接（决定 02）
 
@@ -84,3 +84,11 @@ bash evidence/2026-10-10-batch12/T-075/outside-sandbox.sh
 ```
 
 已用 `bash -n` 检查语法，执行主控随后在沙箱外完成该脚本，退出 0。原始收据为 `outside-executor.K2MrEb/summary.tsv`，7 项退出码全部与预期相符；worker 已逐项回读 trace，确认三套绿态 8／9／18 及 CAS 正例均无失败、无错误，三个变异体均为业务失败、无夹具错误。它为三套绿态、三个变异体及 CAS 正例分别生成新标签，保存 stdout、stderr、退出码和精确命令；临时夹具限定在 `/tmp`，证据限定本目录，不联网。`mutants-final/` 从删除 HTTP 后的候选生成，并冻结所需的本地 schema 与辅助模块；旧变异体与旧输出保留。主控 #14 已派发继续独立审查与交付。
+
+## 独立审查与证据边界
+
+只开了一次 fresh-context 只读审查，配置请求 `gpt-6-astra`、xhigh，未继承 worker 对话；协作工具没有 service tier 参数，不声称该审查使用 Fast。调用记录为 `independent-review-invocation.json`，原文为 `independent-review.txt`。结论 PASS，绑定候选 `4d81efcacdaa6f8d9cf2b6127130fd7f0f0ac754`，没有需修复项。
+
+审查直接对照固定来源、原测试、归档中的真实 Git/SQLite 现场及变异体，没有另跑写盘测试。原运行记录里的 HEAD 是提交前 `a800bb1`；不把它改写为提交后测试。候选提交前仅整理四个 contracts 文件末尾空行，审查确认源码对应关系。后续报告提交不改已审源码。
+
+完成检查：禁止依赖扫描的 stdout/stderr 均为空，正常 grep 无匹配退出 1（`final-reference-scan.json`）；`npm ls --depth=0` 退出 0；`node_modules` 非链接；验收断言未改，嵌套 Git 现场以归档保留，没有 gitlink。`git diff --check` 对产品源码和入口通过；原始 stderr、命令收据、来源 patch 中的空白原样保留，未为格式检查改写失败证据。用到的技能原文保存在 `skill-snapshots/`，版本以所保存全文及 manifest 的来源位置为准，未计算指纹。

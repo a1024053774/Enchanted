@@ -1,0 +1,28 @@
+STATUS: PASS
+TARGET: 4d81efcacdaa6f8d9cf2b6127130fd7f0f0ac754（仅 T-075-1 门禁迁移范围）
+
+EVIDENCE:
+- 已直接对照 Synara 固定提交 `49cae984f22924de006e0f8358cb447eb881aaf6`。门禁核心差异限于本地依赖寻址、Node child_process、TypeScript 参数属性展开；HTTP 转接按决定删除。GateRuntime 与 dispatch/attach/run 实现保留，MIT 许可完整。
+- 原三套 `acceptance/test_*.py` 无改动；归档中的验收源码及编排入口快照与冻结候选一致。runner 未改断言或预期。
+- `outside-executor.K2MrEb-*` 原始记录显示交付 8/8、恢复 9/9、隔离编排 18/18，以及新增 CAS 场景通过。检查了恢复、attempt 归属、无 submit、拒绝后状态与 Git 引用等业务断言。
+- CAS 归档中的真实 Git 结果、refs 和 reflog 相互印证：候选带期望旧值执行 update-ref，返回 128，并保留外部引用 `348eedc…`；任务未被接受。
+- 本次只读导入检查通过：Node v26.5.0 可加载 core、cli 和 schema；已装 effect 为精确 `4.0.0-beta.25`。生产源码及验收入口的禁止依赖扫描为空。
+- `red-coop/red-recovery/red-run` 确认新 CLI 缺失红态；该证据只证明迁移起点缺功能。
+
+FINDINGS:
+- 无已证实的范围内缺陷。
+
+COUNTEREXAMPLE:
+- 删除 fence 校验：错 fence 被接受，原验收的业务断言失败。
+- 删除 CAS 期望旧值：真实 Git 覆盖外部引用，任务错误 accepted；新增测试三条业务断言均失败。旧交付套件对此误过的记录仍保留。
+- 删除操作锁事务：出现第二次 oracle/CAS，并在原验证存活时推进集成；互斥及引用断言失败。
+- 三个最终变异体均与冻结核心对应，除导入重定位及声明的单点变异外无差异；失败不是依赖或夹具错误。
+
+LIMITATIONS:
+- 本次审查未复跑写盘套件；核对的是原始记录、归档现场和冻结源码。运行记录中的 HEAD 为提交前的 `a800bb1`，不是提交后重跑凭证。
+- 真实 CLI/Git/SQLite 属本地真实入口证据；编排宿主仍为替身，不证明真实模型、PTY、Electron 或生产可用。保留的 MCP 派发提示词仍须在宿主接入阶段调整。
+- 检索、生成质量和生产部署不属于本卡验收范围。
+- project-map 为 0 problems，但 CONTEXT.md 仍 stale；已由主控接管。本结论不关闭 T-075 或替代其收尾。
+
+RULE:
+- N/A：未确认需要新增规则的重复缺陷。

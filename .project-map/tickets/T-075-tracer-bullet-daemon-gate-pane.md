@@ -46,3 +46,11 @@ ready_rev: 2
 - 授权来源：用户 2026-10-10 在会话"a2a-构思主控"确认切法与检查面（逐字："确认"），在此之前在会话"新思路构思"说："确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。"`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+T-075-1：门禁迁移、隔离验收和一次 fresh-context 独立审查均 PASS；收尾状态 INCOMPLETE，仅剩执行主控已接管的 CONTEXT.md stale。保持 open，待后续卡、待主控关闭。
+
+- 源码候选：`4d81efcacdaa6f8d9cf2b6127130fd7f0f0ac754`，自动 `A2A-*` 尾注已核对；来源固定为 `49cae984f22924de006e0f8358cb447eb881aaf6`。
+- 新门禁位于 `workbench/`，Node 26.5 原生 TypeScript；验收入口改到新位置，不依赖 fork 门禁。按主控决定删除旧 HTTP 转接，保留 GateRuntime 边界，未改 T-075-2 的三项契约。
+- 三套红态已保存；最终交付 8/8、恢复 9/9、隔离编排 18/18 全过，CAS 补充正例 1/1 全过。fence、CAS 期望旧值、操作锁三个变异体均因业务断言失败；旧交付套对 CAS 变异体误过的记录保留。
+- 审查原文及重现命令见 [RESULTS](../../evidence/2026-10-10-batch12/T-075/RESULTS.md)；独立审查对上述候选给出 PASS，无需修复项。此结论不证明真实窗格、模型、后台或 Electron 可用。
+- 地图检查为 0 problems、1 stale，退出 1；按执行主控决定 01 由主控更新术语表及 Verified，worker 未越界修改。完成该收尾后可将本卡记为“T-075-1 完成，待后续卡”。
