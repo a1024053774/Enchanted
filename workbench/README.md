@@ -304,7 +304,8 @@ CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQU
 `/tmp/a2a-requests-*` 目录，位于 Git 工作树外，不污染候选提交。Stop hook 读取文件后，
 经同一 CLI 向后台转交；没有文件就没有交付。后台仍检查当前 attempt、回合身份及原门禁条件。
 
-请求用 `request_id` 去重：相同内容返回原结果，不重复执行；同一编号换内容明确拒绝。
+请求在所属 launch 内用 `request_id` 去重：相同内容返回原结果，不重复执行；同一 launch 内同一编号换内容明确拒绝。新 attempt 的新 launch 可以使用相同编号。
+已有请求按持久化的 launch 与编号查回，沿用原结果；只有 intent、没有结果的请求仍报结果未知，不重新执行。
 身份不符、字段不完整及重复转交都有追加事件。旧 Stop 不消费尚未处理的请求，
 处理结果未知时保留意图，不自动重试。一次 Stop 的新结果合成一条 `⟦门禁 #序号⟧`
 回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执会启动新的原生回合，

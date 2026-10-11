@@ -1,0 +1,76 @@
+{
+  "status": "PASS",
+  "scope": "Independent oracle with fixed known-good/bad functions; no model or daemon",
+  "root": "/tmp/t077-oracle-2h6stqc4",
+  "cases": [
+    {
+      "name": "baseline",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-I",
+        "-B",
+        "/tmp/t077-oracle-2h6stqc4/check.py",
+        "/tmp/t077-oracle-2h6stqc4",
+        "worker"
+      ],
+      "source": "def summarize(values):\n    total = sum(values)\n    return {\"count\": len(values), \"total_ms\": total}\n",
+      "expected_exit": 1,
+      "exit": 1,
+      "stdout": "{\"values\": [], \"actual\": {\"count\": 0, \"total_ms\": 0}, \"expected\": {\"count\": 0, \"total_ms\": 0, \"mean_ms\": null}}\n",
+      "stderr": "Traceback (most recent call last):\n  File \"/tmp/t077-oracle-2h6stqc4/check.py\", line 11, in <module>\n    for key,value in expected.items(): assert actual[key]==value,(values,expected,actual)\nKeyError: 'mean_ms'\n",
+      "pass": true
+    },
+    {
+      "name": "valid-merged",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-I",
+        "-B",
+        "/tmp/t077-oracle-2h6stqc4/check.py",
+        "/tmp/t077-oracle-2h6stqc4",
+        "integrated"
+      ],
+      "source": "def summarize(values):\n    total=sum(values)\n    return {\"count\":len(values),\"total_ms\":total,\"mean_ms\":total/len(values) if values else None,\"unit\":\"ms\"}\n",
+      "expected_exit": 0,
+      "exit": 0,
+      "stdout": "{\"values\": [], \"actual\": {\"count\": 0, \"total_ms\": 0, \"mean_ms\": null, \"unit\": \"ms\"}, \"expected\": {\"count\": 0, \"total_ms\": 0, \"mean_ms\": null}}\n{\"values\": [2, 5, 8], \"actual\": {\"count\": 3, \"total_ms\": 15, \"mean_ms\": 5.0, \"unit\": \"ms\"}, \"expected\": {\"count\": 3, \"total_ms\": 15, \"mean_ms\": 5.0}}\n{\"values\": [-4, 1], \"actual\": {\"count\": 2, \"total_ms\": -3, \"mean_ms\": -1.5, \"unit\": \"ms\"}, \"expected\": {\"count\": 2, \"total_ms\": -3, \"mean_ms\": -1.5}}\n{\"values\": [0], \"actual\": {\"count\": 1, \"total_ms\": 0, \"mean_ms\": 0.0, \"unit\": \"ms\"}, \"expected\": {\"count\": 1, \"total_ms\": 0, \"mean_ms\": 0.0}}\nindependent summary oracle PASS\n",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "name": "wrong-mean",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-I",
+        "-B",
+        "/tmp/t077-oracle-2h6stqc4/check.py",
+        "/tmp/t077-oracle-2h6stqc4",
+        "integrated"
+      ],
+      "source": "def summarize(values):\n    total=sum(values)\n    return {\"count\":len(values),\"total_ms\":total,\"mean_ms\":0 if values else None,\"unit\":\"ms\"}\n",
+      "expected_exit": 1,
+      "exit": 1,
+      "stdout": "{\"values\": [], \"actual\": {\"count\": 0, \"total_ms\": 0, \"mean_ms\": null, \"unit\": \"ms\"}, \"expected\": {\"count\": 0, \"total_ms\": 0, \"mean_ms\": null}}\n{\"values\": [2, 5, 8], \"actual\": {\"count\": 3, \"total_ms\": 15, \"mean_ms\": 0, \"unit\": \"ms\"}, \"expected\": {\"count\": 3, \"total_ms\": 15, \"mean_ms\": 5.0}}\n",
+      "stderr": "Traceback (most recent call last):\n  File \"/tmp/t077-oracle-2h6stqc4/check.py\", line 11, in <module>\n    for key,value in expected.items(): assert actual[key]==value,(values,expected,actual)\nAssertionError: ([2, 5, 8], {'count': 3, 'total_ms': 15, 'mean_ms': 5.0}, {'count': 3, 'total_ms': 15, 'mean_ms': 0, 'unit': 'ms'})\n",
+      "pass": true
+    },
+    {
+      "name": "lost-host-unit",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-I",
+        "-B",
+        "/tmp/t077-oracle-2h6stqc4/check.py",
+        "/tmp/t077-oracle-2h6stqc4",
+        "integrated"
+      ],
+      "source": "def summarize(values):\n    total=sum(values)\n    return {\"count\":len(values),\"total_ms\":total,\"mean_ms\":total/len(values) if values else None}\n",
+      "expected_exit": 1,
+      "exit": 1,
+      "stdout": "{\"values\": [], \"actual\": {\"count\": 0, \"total_ms\": 0, \"mean_ms\": null}, \"expected\": {\"count\": 0, \"total_ms\": 0, \"mean_ms\": null}}\n",
+      "stderr": "Traceback (most recent call last):\n  File \"/tmp/t077-oracle-2h6stqc4/check.py\", line 12, in <module>\n    if sys.argv[2]==\"integrated\": assert actual==dict(expected,unit=\"ms\"),(values,actual)\nAssertionError: ([], {'count': 0, 'total_ms': 0, 'mean_ms': None})\n",
+      "pass": true
+    }
+  ],
+  "real_codex_turns": 0
+}

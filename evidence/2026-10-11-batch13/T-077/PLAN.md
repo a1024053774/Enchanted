@@ -334,3 +334,27 @@ W01/W09/W11 的成功正例只证明 1 次竞争可恢复；另增独立 R8 夹�
 状态：**INCOMPLETE**。rebase-01 除 shutdown 的首次原生身份绑定用例出现 1 error 外，其余各组均通过。T-076-1 的真实 0.162.1 启动记录、native 轨迹首行与原始事件共同证明 session_meta.cwd 存在，并与 `-C`、launch.worktree 完全相等；失败的 shutdown 合成记录缺此字段。仅让 PTY stub 从实际 spawn options 传入 cwd，原断言与产品身份条件不变。
 
 `outside-sandbox.sh rebase-fix-02` 只重跑 shutdown、identity、Panes，各 4 项，新输出为 `outside-rebase-fix-02/`，保留旧失败。证据提取、根因和准确命令见 [HANDOFF-rebase-fix-02.md](HANDOFF-rebase-fix-02.md)。真实用量仍 0/4，待执行主控运行。
+
+## 23. 真实场景逐次启动材料（主控 #61）
+
+状态：**INCOMPLETE**。rebase-fix-02 的 shutdown、identity、Panes 均通过。修正和回归证据已提交为 `93094e7be82c21448c460436c360ffb0f75a3412`，尾注齐全，产品代码没有新增变化。
+
+按主控 #51/#61，把第 9 节原拟的同会话冲突场景改为一个两 attempt 的真实场景，同时覆盖历史根日志隔离：第一会话交付/回执后确认空闲，再结束其已核对的原生领导者；第二次获批后由原门禁的冲突处理创建新 attempt，在同一隔离 home 中运行。旧 rollout 保持原路径、原字节；新会话启动前后都不能把旧 UUID 绑定为新身份。两次各 2 个主 turn，共 4 个，不增加真实探针。
+
+**Reality gate（仅准备边界）**：observed—真实 0.162.1 的 cwd 与 -C 一致、B 通道每次交付有一个回执回合；measured—生产 Panes 的两组完整 argv 与审批计划一致，未批准第二次/第三次无法到达 PTY spawn，4 项离线检查通过；独立 oracle 的已知好坏函数检查 4 项通过。unknown—真实 worker 能否在预算内完成两次交付与冲突整理、复用 home 时的实际身份归属。上述未知由同一个真实场景检验，失败即停；离线检查不替真实结论。
+
+为提前给出完整 argv，测试 host 仅预分配两个公开 launch UUID，保留独立随机 token 与真实 attempt/session/native 身份；这一测试输入控制方式也交主控审核。真实执行仍使用生产 serve/Panes/Gates、真实 PTY 和原生 CLI，未改产品身份条件。完整命令、隔离 home、hook、停止和清理条件见 [REAL-APPROVAL-01.md](REAL-APPROVAL-01.md)，机器可读计划为 `real-plan-01.json`。`real-01` 和 `real-02` 各须本次批准引用，第一阶段在第二次审批前停止，不自动连跑。当前真实用量 **0/4**。
+
+## 24. 真实失败后的 relay 作用域修复（主控 #66）
+
+状态：**INCOMPLETE**。两次真实运行已用 **4/4**，第二个 worker 已提交 C2 并写请求，但 relay 把新 attempt 的 `delivery` 与旧 launch 的请求当作同一个 state 全局键，拒收发生在 submit 门禁之前。隔离 home 已由主控删除，旧运行保持失败原状；不追加真实回合。已复制本次主控批准 03 留档。
+
+只读归档核对表明两个 launch 各自观察到不同的原生 UUID 与匹配工作目录，旧 rollout 字节完全保留。持久化 a2 native 为 null 符合 relay 未调用 submit 补绑定的路径。没有找到跨 attempt 唯一 request_id 的规范要求；结合每 attempt 独立请求目录、身份幂等契约及 #66 明确验收场景，修复作用域为 launch。
+
+修复前先取得两个定点业务红态；随后只改 relay 按既有 launch/request_id 字段查 intent、新 key 包含 launch，保留旧 key 的结果与 pending intent。5 项定点绿态、原 relay/CLI 检查和 3 个变异体均已完成。下一条 **Tracer bullet** 复验经真实 CLI→后台→Panes/relay→门禁→Git，PTY/进程边界受控：旧会话结束后的冲突创建新 attempt，使用同一请求编号交付、重验并集成。沙箱外脚本 `relay-check-01` 先跑仅还原 relay 的反事实，再跑候选，0 个真实模型回合。详细诊断、证据层级、命令与限制见 [HANDOFF-relay-check-01.md](HANDOFF-relay-check-01.md)。等待执行主控运行。
+
+## 25. relay 夹具字段修正（主控 #72）
+
+状态：**INCOMPLETE**。relay-check-01 在 preimage 阶段误读 status 顶层 launch，1 error、0 failures，尚未取得后台业务红态。现改读原始返回中已有的 `task.current_attempt.runtime_identity.launch`；整例静态核对还修正三个 pane 命令误带 `--task` 的 helper 用法。产品源码与原业务断言不变，失败原文保留。
+
+preimage/候选的完整字段清单、生产位置和归档实值核对见 `relay-field-audit-01/audit.json`，静态核对 PASS，不代表后台运行通过。`outside-sandbox.sh relay-check-02` 改用新输出目录，先重跑 preimage，再跑候选；详细说明见 [HANDOFF-relay-check-02.md](HANDOFF-relay-check-02.md)。真实回合仍为 4/4，本轮不启动真实 Codex，等待执行主控运行。

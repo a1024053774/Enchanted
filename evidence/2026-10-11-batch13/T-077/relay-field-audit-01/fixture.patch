@@ -1,0 +1,41 @@
+--- failed-preimage/workbench/tests/test_relay_conflict_e2e.py
++++ candidate/workbench/tests/test_relay_conflict_e2e.py
+@@ -60,9 +60,18 @@
+     def runtime(self, launch):
+         return json.loads((self.control / (launch + '.runtime.json')).read_text(encoding='utf-8'))
+ 
++    def pane_cli(self, command, *args):
++        # pane_* commands take a thread, not a task. The inherited helper is
++        # for gate commands and always adds --task, which this CLI rejects.
++        p = self.process(['node', cards.GATE, '--state', self.state, command, *args])
++        self.assertEqual(p.returncode, 0, cards.COMMANDS[-1])
++        value = json.loads(p.stdout)
++        self.assertEqual(value['ok'], True, value)
++        return value
++
+     def launch(self, attempt):
+-        launch = self.cli('status')['launch']['id']
+-        self.cli('pane_release', '--thread', attempt['thread_id'], '--reason', 'controlled foreground process, no provider')
++        launch = self.cli('status')['task']['current_attempt']['runtime_identity']['launch']
++        self.pane_cli('pane_release', '--thread', attempt['thread_id'], '--reason', 'controlled foreground process, no provider')
+         self.wait(lambda: self.runtime(launch)['turn'] == 1, 'Initial input not written')
+         self.assertIsNone(self.cli('status')['task']['current_attempt']['runtime_identity']['native_session'])
+         return launch
+@@ -97,7 +106,7 @@
+         self.stop_turn(launch, 1)
+         self.wait(lambda: self.runtime(launch)['turn'] == 2, 'Receipt input not written')
+         self.stop_turn(launch, 2)
+-        self.assertEqual(self.cli('pane_status', '--thread', attempt['thread_id'])['state'], 'idle')
++        self.assertEqual(self.pane_cli('pane_status', '--thread', attempt['thread_id'])['state'], 'idle')
+         return self.cli('status')['task']
+ 
+     def test_new_attempt_same_request_id_delivers_once(self):
+@@ -112,7 +121,7 @@
+         self.git('add', 'src/value.txt'); self.git('commit', '-m', 'Independent integration head conflict')
+         g = self.oid()
+         (self.control / (launch1 + '.exit')).write_text('synthetic PTY has ended\n', encoding='utf-8')
+-        self.cli('pane_process_info', '--thread', first['thread_id'])
++        self.pane_cli('pane_process_info', '--thread', first['thread_id'])
+         self.cli('verify', ok=False, error='merge_conflict')
+         task = self.cli('status')['task']; second = task['current_attempt']
+         self.assertNotEqual(second['attempt_id'], first['attempt_id'])

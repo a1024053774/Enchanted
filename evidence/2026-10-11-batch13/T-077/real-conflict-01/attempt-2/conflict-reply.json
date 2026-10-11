@@ -1,0 +1,98 @@
+{
+  "ok": false,
+  "error": "merge_conflict",
+  "details": {
+    "verification_id": "93efcda7-4d04-401c-913e-9e4b5ce10f92",
+    "ordinal": 1,
+    "attempt": {
+      "task_id": "T-077-9",
+      "attempt_id": "d771f982-d504-4752-8754-9a720f208afa",
+      "session_id": "ba3c0ec9-2aef-4e18-a10d-d9b5bdaad8c7",
+      "fence": 1,
+      "spec_rev": 1,
+      "thread_id": "ee32a0ce-ddf2-4337-8350-f055c05d5869",
+      "runtime_mode": "workspace-write",
+      "turn_id": "01a12cb4-29e4-79e1-af60-141a085ab460",
+      "runtime_identity": {
+        "launch": "9906fa57-4877-48f9-afb4-c1aceef3edd4",
+        "thread": "ee32a0ce-ddf2-4337-8350-f055c05d5869",
+        "shell_pid": 51345,
+        "leader_pid": 51348,
+        "native_session": "01a12cb4-2907-79c0-8198-4b5aadd226bd"
+      },
+      "workspace": "/private/tmp/t077-cf-20261011/state/worktrees/T077-real/T-077-9-a1",
+      "base_commit": "8d76a257340d2930b09d3c8f69727d47f6daafd3",
+      "card_snapshot_id": "0fa69bae-073d-4727-86cf-bcd50b046e50",
+      "reclaimed": false,
+      "owner": "T-077-9",
+      "state": "submitted"
+    },
+    "spec_rev": 1,
+    "G": "9c54d6355e7b648e646288c93401f6f20235f843",
+    "C": "2969d88e7fb16da7eb779e99bac7634cff272b23",
+    "M": null,
+    "card_snapshot_id": "0fa69bae-073d-4727-86cf-bcd50b046e50",
+    "card_version": 1,
+    "commands": [
+      {
+        "argv": [
+          "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+          "-I",
+          "-B",
+          "/private/tmp/t077-cf-20261011/check.py",
+          "/private/tmp/t077-cf-20261011/state/worktrees/T077-real/T-077-9-a1-verify-1",
+          "worker"
+        ],
+        "cwd": "/private/tmp/t077-cf-20261011/state/worktrees/T077-real/T-077-9-a1-verify-1"
+      }
+    ],
+    "results": [],
+    "workspace": "/private/tmp/t077-cf-20261011/state/worktrees/T077-real/T-077-9-a1-verify-1",
+    "state": "merge_failed",
+    "command_intent": {
+      "argv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "/private/tmp/t077-cf-20261011/check.py",
+        "/private/tmp/t077-cf-20261011/state/worktrees/T077-real/T-077-9-a1-verify-1",
+        "worker"
+      ],
+      "cwd": "/private/tmp/t077-cf-20261011/state/worktrees/T077-real/T-077-9-a1-verify-1"
+    },
+    "result": {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t077-cf-20261011/state/worktrees/T077-real/T-077-9-a1-verify-1",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "merge",
+        "--no-ff",
+        "--no-commit",
+        "--no-edit",
+        "2969d88e7fb16da7eb779e99bac7634cff272b23"
+      ],
+      "cwd": "/private/tmp/t077-cf-20261011/state/worktrees/T077-real/T-077-9-a1-verify-1",
+      "stdout": "自动合并 src/summary.py\n冲突（内容）：合并冲突于 src/summary.py\n自动合并失败，修正冲突然后提交修正的结果。\n",
+      "stderr": "",
+      "exit": 1,
+      "returncode": 1
+    },
+    "ended": "2026-10-11T20:44:26.984Z",
+    "conflict": {
+      "files": [
+        "src/summary.py"
+      ],
+      "unmerged": "100644 4a04ee1fbd27d6bd3b0ca5f756ad611dc4e0aeb5 1\tsrc/summary.py\u0000100644 9a95804ca8b8ee52e3ec49757f4eba3027fb42b6 2\tsrc/summary.py\u0000100644 ae774d87f2b43bbc1295f702b094f1838cb86938 3\tsrc/summary.py\u0000",
+      "diff": "diff --cc src/summary.py\nindex 9a95804,ae774d8..0000000\n--- a/src/summary.py\n+++ b/src/summary.py\n@@@ -1,3 -1,4 +1,8 @@@\n  def summarize(values):\n      total = sum(values)\n++<<<<<<< HEAD\n +    return {\"count\": len(values), \"total_ms\": total, \"unit\": \"ms\"}\n++=======\n+     count = len(values)\n+     return {\"count\": count, \"total_ms\": total, \"mean_ms\": total / count if count else None}\n++>>>>>>> 2969d88e7fb16da7eb779e99bac7634cff272b23\n",
+      "candidate_ref": "refs/a2a/verifications/T-077-9/a1/v1-candidate",
+      "base_ref": "refs/a2a/verifications/T-077-9/a1/v1-base"
+    },
+    "cleanup": "removed"
+  },
+  "user_input_observer": {
+    "state": "healthy",
+    "updated_at": "2026-10-11T20:42:42.644Z"
+  }
+}

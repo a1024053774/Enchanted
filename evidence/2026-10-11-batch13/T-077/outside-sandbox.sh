@@ -1,12 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# 执行主控运行。不启动真实 Codex，不安装 hook。
+# 执行主控运行。只有 real-01 / real-02 启动真实 Codex，须逐次明确批准。
 # 运行命令：
 # bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh red-01
 # 同名输出已存在时拒绝，不能覆盖原始失败。后续阶段另行批准/交回。
 if [[ "$#" != 1 ]]; then
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02' >&2
   exit 2
 fi
 cd /Users/luckye/Documents/Code/a2a-wt-t077
@@ -217,22 +217,31 @@ node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_conflict_pane
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/check-shutdown-fixture-repair.py \
   --mode collect --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-fix-02
   ;;
+relay-check-01)
+# 主控 #66：真实预算 4/4，下面只有受控 PTY；无真实 Codex、凭据或新增模型回合。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-relay-check.py \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-check-01
+  ;;
+relay-check-02)
+# 主控 #72：只修取 launch 的路径与 pane_* 夹具参数，不改业务断言。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-relay-check.py \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-check-02
+  ;;
+real-01)
+: "${T077_REAL_APPROVAL:?必须填写本次真实启动的执行主控批准引用}"
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict.py \
+  --phase 1 --approval-ref "$T077_REAL_APPROVAL"
+  ;;
+real-02)
+: "${T077_REAL_APPROVAL:?必须填写第二次真实启动的执行主控批准引用}"
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict.py \
+  --phase 2 --approval-ref "$T077_REAL_APPROVAL"
+  ;;
 *)
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02' >&2
   exit 2
   ;;
 esac
 
-# 真实场景尚未准备，不在本轮执行。准备时按决定 01 使用产品生成的完整 argv
-# （实际路径/launch 参数在真实运行前固定并再次交回）：
-# Codex 0.162.1；--no-daemon --no-alt-screen -C <本次隔离worktree>
-# -a never --sandbox workspace-write -m gpt-6.1-sol
-# -c model_reasoning_effort="xhigh" -c service_tier="fast"
-# -c check_for_update_on_startup=false -c tui.notifications=false
-# -c sandbox_workspace_write.network_access=false -c features.network_proxy=false
-# -c hooks.UserPromptSubmit=<该launch的signal命令>
-# -c hooks.Stop=<该launch的signal命令>
-# -c hooks.PermissionRequest=<该launch的signal命令>
-# --dangerously-bypass-hook-trust
-# Git prepare-commit-msg 仅经 GIT_CONFIG_* 每会话环境指定现有目录。
-# 上述占位记录不是可执行真实入口；完整 argv 未填定前不运行真实 Codex。
+# 两次启动的完整 argv / shell argv / hook 命令已固定在同目录 real-plan-01.json，
+# 人工核对版见 REAL-APPROVAL-01.md。第一次结束在第二次审批之前；不自动连跑。

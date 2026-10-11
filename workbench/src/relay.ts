@@ -34,11 +34,16 @@ export class RequestRelay {
       catch (error) { parseError = String(error); }
     }
     const requestId = input && typeof input.request_id === "string" && keyPattern.test(input.request_id) ? input.request_id : null;
-    const key = requestId ? "id:" + requestId : `file:${binding.id}:${file.name}`;
+    const fileKey = `file:${binding.id}:${file.name}`;
     const canonical = input && typeof input === "object" && !Array.isArray(input)
       ? JSON.stringify(Object.fromEntries(Object.entries(input).sort(([a], [b]) => a.localeCompare(b))))
       : JSON.stringify({ raw: file.raw ?? null, error: file.error ?? null });
-    const previous = this.store.db.prepare("SELECT * FROM relay_requests WHERE key=?").get(key);
+    // Request IDs belong to a launch. Resolve persisted intents by their owner,
+    // so existing keys and outcomes remain authoritative without rewriting them.
+    const previous = requestId
+      ? this.store.db.prepare("SELECT * FROM relay_requests WHERE launch=? AND request_id=?").get(binding.id, requestId)
+      : this.store.db.prepare("SELECT * FROM relay_requests WHERE key=?").get(fileKey);
+    const key = previous ? String(previous.key) : requestId ? `id:${binding.id}:${requestId}` : fileKey;
     if (previous) {
       if (previous.launch !== binding.id || previous.input !== canonical) {
         const result = { ok: false, error: "relay_request_id_reused" };
