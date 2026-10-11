@@ -79,4 +79,4 @@
 | [AGENTS.md](../AGENTS.md) | `CONTEXT.md`, `intent.md` | c94d388 |
 | [README.md](../README.md) | `coop.py`, `acceptance/live_muster.py`, `intent.md`, `muster/**`, `scripts/build` | |
 | [findings/README.md](../findings/README.md) | `findings/*.md` | |
-| [workbench/README.md](../workbench/README.md) | `workbench/src/gates/**`, `workbench/src/contracts/**` | 1eb748c |
+| [workbench/README.md](../workbench/README.md) | `workbench/src/**`, `workbench/hooks/**` | 7c4bf88 |
