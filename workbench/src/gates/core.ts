@@ -15,6 +15,7 @@ import {
   type A2AInboxEntry,
   type A2AInboxDelivery,
   type A2AAttempt,
+  type A2ARuntimeIdentity,
   type A2ARun,
   type A2AUserInputObserver,
   type A2AGateResult,
@@ -85,6 +86,7 @@ export interface GateRuntime {
     workspace: string;
     provider: string;
     turn: string | null;
+    runtime_identity: A2ARuntimeIdentity;
     running: boolean;
     stopped: boolean;
     archived: boolean;
@@ -111,6 +113,7 @@ export class A2AGates {
   private readonly membership: A2AMembership;
   private userInputObserver?: A2AUserInputObserver;
   private readonly deferredUserInputs = new Map<string, A2AUserInput>();
+  private shuttingDown = false;
   readonly root: string;
   private readonly runtime?: GateRuntime;
   private readonly now: () => number;
@@ -211,6 +214,7 @@ export class A2AGates {
       this.db.exec("ALTER TABLE events ADD COLUMN attempt TEXT");
     mkdirSync(join(root, "locks"), { recursive: true });
   }
+  beginShutdown() { this.shuttingDown = true; }
   close() {
     this.membership.close();
     this.db.close();
@@ -1315,14 +1319,35 @@ export class A2AGates {
       if (this.db.isTransaction) this.db.exec("ROLLBACK");
     }
   }
+  private runtimeIdentity(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
+    const identity = live.runtime_identity;
+    requireGate(identity && identity.thread === attempt.thread_id && typeof identity.launch === "string" &&
+      identity.launch.length > 0 && Number.isInteger(identity.shell_pid) && identity.shell_pid > 0 &&
+      (identity.leader_pid === null || Number.isInteger(identity.leader_pid) && identity.leader_pid > 0) &&
+      (identity.native_session === null || typeof identity.native_session === "string" && identity.native_session.length > 0),
+      "identity_conflict", { attempt, live });
+    return identity;
+  }
   private checkThread(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
+    const identity = this.runtimeIdentity(attempt, live), bound = attempt.runtime_identity;
     requireGate(
       live.workspace === attempt.workspace &&
         live.provider === "codex" &&
-        (!attempt.turn_id || live.turn === attempt.turn_id),
+        bound && identity.launch === bound.launch && identity.thread === bound.thread && identity.shell_pid === bound.shell_pid &&
+        (bound.leader_pid === null || identity.leader_pid === bound.leader_pid) &&
+        (bound.native_session === null || identity.native_session === bound.native_session),
       "identity_conflict",
       { attempt, live },
     );
+  }
+  private bindObservedIdentity(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
+    this.checkThread(attempt, live);
+    const bound = attempt.runtime_identity!, identity = live.runtime_identity;
+    const changed = bound.leader_pid === null && identity.leader_pid !== null ||
+      bound.native_session === null && identity.native_session !== null;
+    if (bound.leader_pid === null) bound.leader_pid = identity.leader_pid;
+    if (bound.native_session === null) bound.native_session = identity.native_session;
+    return changed;
   }
   private checkErrorReclaim(live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
     requireGate(
@@ -1336,6 +1361,7 @@ export class A2AGates {
     );
   }
   private async observeRun(run: A2ARun) {
+    requireGate(!this.shuttingDown, "daemon_stopping");
     this.checkUserInputObserver();
     const attempt = this.current(this.load(run.task_id), run.attempt_id!);
     let live: Awaited<ReturnType<GateRuntime["readThread"]>>;
@@ -1346,21 +1372,21 @@ export class A2AGates {
       if (error instanceof Refusal) throw error;
       throw new Refusal("run_external_unknown", String(error));
     }
+    requireGate(!this.shuttingDown, "daemon_stopping");
     this.current(this.load(run.task_id), run.attempt_id!);
     this.checkThread(attempt, live);
     requireGate(!live.error, "run_external_unknown", live);
     requireGate(!live.blocked, "run_blocked", live);
     requireGate(!live.archived && !live.stopped, "run_external_unknown", live);
-    if (!attempt.turn_id && live.turn) {
+    if (attempt.runtime_identity!.leader_pid === null && live.runtime_identity.leader_pid !== null ||
+        attempt.runtime_identity!.native_session === null && live.runtime_identity.native_session !== null) {
       // Binding is an ordinary task mutation. Refuse a concurrent gate owner.
       const lock = new DatabaseSync(join(this.root, "locks", `${run.task_id}.sqlite3`));
       try {
         lock.exec("PRAGMA busy_timeout=0; BEGIN IMMEDIATE");
         const task = this.load(run.task_id);
         const current = this.current(task, run.attempt_id!);
-        requireGate(!current.turn_id || current.turn_id === live.turn, "identity_conflict");
-        current.turn_id = live.turn;
-        this.save(task, "turn_bound", { attempt: current });
+        if (this.bindObservedIdentity(current, live)) this.save(task, "runtime_bound", { attempt: current });
       } finally {
         lock.close();
       }
@@ -1370,6 +1396,7 @@ export class A2AGates {
   private async waitForIdle(run: A2ARun) {
     const deadline = performance.now() + 60_000;
     for (;;) {
+      requireGate(!this.shuttingDown, "daemon_stopping");
       const row = this.db.prepare("SELECT data FROM attempts WHERE id=?").get(run.attempt_id!);
       requireGate(row, "unknown_attempt");
       const attempt = JSON.parse(String(row.data)) as A2AAttempt;
@@ -1379,6 +1406,7 @@ export class A2AGates {
       );
       if (attempt.reclaimed) return;
       const live = await this.runtime!.readThread(attempt.thread_id);
+      requireGate(!this.shuttingDown, "daemon_stopping");
       this.checkThread(attempt, live);
       requireGate(!live.error, "run_external_unknown", live);
       requireGate(!live.blocked, "run_blocked", live);
@@ -1428,6 +1456,7 @@ export class A2AGates {
       const deadline = performance.now() + args.wait_seconds! * 1000;
       let previous = "";
       for (;;) {
+        requireGate(!this.shuttingDown, "daemon_stopping");
         this.current(this.load(args.task), run.attempt_id!);
         requireGate(performance.now() < deadline, "run_deadline");
         const live = await this.observeRun(run);
@@ -1455,6 +1484,9 @@ export class A2AGates {
         );
       }
       for (const command of ["verify", "integrate"] as const) {
+        // Finish an already-started gate under its lock, then stop before the
+        // next gate. Shutdown must not advance a waiting run to acceptance.
+        requireGate(!this.shuttingDown, "daemon_stopping");
         run.phase = command === "verify" ? "verifying" : "integrating";
         this.saveRun(run, "run_phase");
         const result = await this.request({ command, task: args.task, attempt: run.attempt_id! });
@@ -1463,6 +1495,7 @@ export class A2AGates {
       run.phase = "reclaiming";
       this.saveRun(run, "run_phase");
       await this.waitForIdle(run);
+      requireGate(!this.shuttingDown, "daemon_stopping");
       const cleanup = await this.request({
         command: "reclaim",
         task: args.task,
@@ -1470,6 +1503,7 @@ export class A2AGates {
       });
       requireGate(cleanup.ok, "run_reclaim_failed", cleanup);
       run.reclaimed = true;
+      requireGate(!this.shuttingDown, "daemon_stopping");
       run.outcome = "completed";
       run.ended = new Date().toISOString();
       this.saveRun(run, "run_finished");
@@ -1489,6 +1523,7 @@ export class A2AGates {
       ) {
         try {
           await this.waitForIdle(run);
+          requireGate(!this.shuttingDown, "daemon_stopping");
           const cleanup = await this.request({
             command: "reclaim",
             task: args.task,
@@ -2195,6 +2230,7 @@ export class A2AGates {
           thread_id: args.command === "dispatch" ? randomUUID() : "",
           runtime_mode: args.runtimeMode ?? "approval-required",
           turn_id: null,
+          runtime_identity: null,
           workspace: "",
           base_commit: base,
           card_snapshot_id: "",
@@ -2242,6 +2278,7 @@ export class A2AGates {
           this.member(task, attempt.thread_id, "worker");
           this.membership.bindPreset(attempt.thread_id, "worker");
           const live = await this.runtime!.readThread(attempt.thread_id);
+          attempt.runtime_identity = { ...this.runtimeIdentity(attempt, live) };
           this.checkThread(attempt, live);
           requireGate(!live.blocked, "run_blocked", live);
         }
@@ -2267,7 +2304,7 @@ export class A2AGates {
         this.checkUserInputObserver();
         await this.runtime!.startThread(task, attempt, prompt);
         const live = await this.runtime!.readThread(attempt.thread_id);
-        this.checkThread(attempt, live);
+        this.bindObservedIdentity(attempt, live);
         attempt.turn_id = live.turn;
         this.save(task, "dispatched", { attempt });
         return { ok: true, task, attempt };
@@ -2307,12 +2344,14 @@ export class A2AGates {
           );
           await caller.assertActive();
           const live = await this.runtime.readThread(attempt.thread_id);
+          this.bindObservedIdentity(attempt, live);
           requireGate(
             !live.error &&
               live.workspace === attempt.workspace &&
               live.provider === "codex" &&
               live.running &&
               !live.blocked &&
+              attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null &&
               live.turn === caller.turn,
             "identity_conflict",
           );
@@ -2594,6 +2633,8 @@ export class A2AGates {
         "identity_conflict",
       );
       this.checkThread(attempt, live);
+      requireGate(attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null,
+        "identity_conflict", { attempt, live });
       this.checkErrorReclaim(live);
       requireGate(!live.blocked, "run_blocked", live);
       requireGate(!live.running, "worker_working");

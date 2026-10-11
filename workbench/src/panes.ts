@@ -146,7 +146,7 @@ export class Panes implements GateRuntime {
       A2A_STATE: this.root, A2A_CLI: cli, A2A_NODE: process.execPath, A2A_CAPABILITY: token,
       A2A_REQUEST_DIR: requestDirectory,
       A2A_FENCE: String(attempt.fence), A2A_SPEC_REV: String(attempt.spec_rev),
-      A2A_TOOL: version, A2A_MODEL: "unknown", A2A_EFFORT: "unknown",
+      A2A_TOOL: version, A2A_MODEL_REQUESTED: model, A2A_EFFORT_REQUESTED: effort,
       GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
       GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)),
     });
@@ -398,7 +398,10 @@ export class Panes implements GateRuntime {
   }
   readThread = async (thread: string) => {
     const pane = this.get(thread);
+    if (!pane.stopped) await this.processInfo(thread);
     return { workspace: pane.attempt.workspace, provider: "codex", turn: pane.turn,
+      runtime_identity: { launch: pane.record.id, thread, shell_pid: pane.pty.pid,
+        leader_pid: pane.leader, native_session: pane.native },
       running: (pane.state !== "idle" || pane.writing) && !pane.stopped, stopped: pane.stopped, archived: pane.archived,
       blocked: Boolean(pane.failed), ...(pane.failed ? { error: { providerPresent: !pane.stopped, activeTurn: pane.turn } } : {}) };
   };

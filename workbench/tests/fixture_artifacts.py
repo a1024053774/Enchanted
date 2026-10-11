@@ -9,6 +9,28 @@ import subprocess
 import time
 
 
+def archive_stopped_database(state, destination):
+    """Copy a stopped writer's DB/WAL and normalize only the artifact copy."""
+    source = state / 'state.sqlite3'
+    if not source.is_file():
+        raise RuntimeError('Stopped fixture database is missing: ' + str(source))
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open('xb') as stream:
+        stream.write(source.read_bytes())
+    wal = state / 'state.sqlite3-wal'
+    copied_wal = wal.exists()
+    if copied_wal:
+        with destination.with_name(destination.name + '-wal').open('xb') as stream:
+            stream.write(wal.read_bytes())
+    with closing(sqlite3.connect(destination)) as copy:
+        if copy.execute('PRAGMA journal_mode=DELETE').fetchone() != ('delete',):
+            raise RuntimeError('Archive journal mode did not become DELETE')
+        if copy.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
+            raise RuntimeError('Archive integrity check failed')
+    return {'path': str(destination), 'source': str(source), 'journal_mode': 'delete',
+            'integrity': 'ok', 'copied_wal': copied_wal, 'phase': 'after-writer-exit'}
+
+
 def archive_and_cleanup(state, output, isolated, cleanup_pids, run, save, verdict):
     # A file snapshot is coherent only after this probe's writers have exited.
     stopped_for_archive = False
@@ -38,19 +60,7 @@ def archive_and_cleanup(state, output, isolated, cleanup_pids, run, save, verdic
             if (state / 'state.sqlite3').exists():
                 if not stopped_for_archive:
                     raise RuntimeError('Database archive requires confirmed daemon stop')
-                destination = output / 'state.sqlite3'
-                with destination.open('xb') as stream:
-                    stream.write((state / 'state.sqlite3').read_bytes())
-                wal = state / 'state.sqlite3-wal'
-                if wal.exists():
-                    with (output / 'state.sqlite3-wal').open('xb') as stream:
-                        stream.write(wal.read_bytes())
-                with closing(sqlite3.connect(destination)) as dest:
-                    if dest.execute('PRAGMA journal_mode=DELETE').fetchone() != ('delete',):
-                        raise RuntimeError('Archive journal mode did not become DELETE')
-                    if dest.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
-                        raise RuntimeError('Archive integrity check failed')
-                verdict['database_archive'] = {'path': str(destination), 'journal_mode': 'delete', 'integrity': 'ok'}
+                verdict['database_archive'] = archive_stopped_database(state, output / 'state.sqlite3')
     except (OSError, RuntimeError, sqlite3.Error) as error:
         verdict.update(status='BLOCKED', archive_error=str(error))
     finally:

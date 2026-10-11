@@ -9,6 +9,11 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 先对同一隔离目录调用 `daemon_start`，结束时调用 `daemon_stop`。客户端只通过
 `control.sock` 访问常驻后台，不再直接打开门禁库。后台未启动时命令明确失败，不自动拉起或重试。
 `daemon_start` 使用 detached 子进程和独立日志。
+普通请求的传输期限为 120 秒；`run` 的有效显式等待参数另加 120 秒收尾余量，
+避免长任务被短客户端期限截断。传输超时仍报告结果未知，不重放请求。
+`daemon_stop` 显式进入关闭流程，返回 `stopping: true` 是受理确认；以 PID/端点消失确认退出。
+关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
+随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
 T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
 B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本卡一次独立审查 PASS。
@@ -134,6 +139,10 @@ worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有
 停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、
 截断、解析失败或未完成的一行记为 native_final_read_failed，保留读到的位置，窗格
 仍显示未知／中断，不补造完成事件。停止后的查询不继续采集新的原生字节。
+测试的最终 SQLite 读回统一使用 `fixture_artifacts.archive_stopped_database`：确认 writer 退出，
+复制主库与残留 WAL，只在归档副本上改为独立 DELETE 文件，再以只读方式检查。
+`test_probe_cleanup.py` 检查关闭后的 WAL、未遗漏的已提交行、原文件保留和未确认退出时保留现场；
+`test_stopped_readback.py` 重放三个停止后直读原库失败的夹具。
 门禁状态原值保留，因此“门禁已认领”和“执行已中断”可以同时出现。原 verify/integrate
 命令显式重放才执行恢复，启动或读取窗口不能把未知结果改成通过。
 崩溃残留的 socket/PID 文件阻止启动；产品不会按 PID 猜测所有者并自动接管。
@@ -143,7 +152,17 @@ worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有
 新增 launch_records、dispatch_records、orchestration_events、relay_requests、relay_results
 都在 state.sqlite3，触发器禁止
 UPDATE/DELETE。按 T-075 rev 3，原门禁状态表保留为由事件推出的当前视图，历史以事件为准；
-membership.sqlite3 和锁库保留。事件重建与视图一致性验证留给后续切片，本卡不迁移存储。
+membership.sqlite3 和锁库保留。`stateConsistency.ts` 提供只读事件重建与逐表比较；
+不补事件、改表或修存储。对静止的夹具库运行，报告一致、不一致或无法从现有事件重建：
+
+```sh
+node workbench/src/stateConsistency.ts --state /绝对路径/state --output /绝对路径/新报告.json
+```
+
+报告包含 tasks、历史 attempts/verifications、runs、attachments 与另库的 memberships/
+session_presets，列出差异、缺历史来源和未覆盖表。attachment creating 缺事件、active 行与
+attached 事件不同事务，以及成员/预设另库覆盖写都不能用最终行相等掩盖；诊断不一致或
+不可重建返回 INCOMPLETE。两库分别有读事务，不宣称跨库同事务。
 
 受管 worker 仍使用同一 CLI 显式 `submit`；`status`、`issue` 也走同一条转交路径。
 CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQUEST_DIR`，返回
@@ -156,9 +175,21 @@ CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQU
 处理结果未知时保留意图，不自动重试。一次 Stop 的新结果合成一条 `⟦门禁 #序号⟧`
 回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执会启动新的原生回合，
 计入启动记录里的回合上限；本卡已获准一个交付回合和一个只确认回执的回合。
-Git 尾注钩子当前只读会话环境；最近回合模型与强度取不到时写 unknown，不把启动请求当实际值。
-本卡真实候选的这两项均为 unknown；原生记录另有实际回合模型与强度。后续需把已核对的
-回合事实传给钩子；只预填启动记录的请求参数时，仍须标明其来源，不能冒充最近回合观测。
+Git 尾注钩子从隔离 CODEX_HOME 中读取 CODEX_THREAD_ID 绑定的唯一根 CLI JSONL，
+以最新 task_started 对应的 turn_context 取实际模型与强度；辅助会话不提供取值。
+当前回合缺上下文时写 unknown，不沿用上一回合或请求值。启动请求另存
+A2A_MODEL_REQUESTED/A2A_EFFORT_REQUESTED；实际沙箱读取与提交时序还须通过真实回合验收。
+
+运行时 agent 身份与交付回合分开：attempt 绑定 launch/thread、shell、原生会话和 Codex 领导者；
+首次输入前原生日志可以尚未出现，执行者核对有效前台领导者后通过 pane_release 放行首次派发；
+门禁只补首次可观测的原生会话，不用请求值补身份。
+run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
+caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实
+拒收；停止后只沿用已核对的身份及确认的生命周期，不按新 PID 接管。
+
+`run_daemon_acceptance.py --suite <coop|recovery|run> --output-root /绝对路径/证据根 --label 新标签`
+可把本轮三套验收写到独立证据目录；默认输出根沿用原 T-075/card-5。旧 validation 模式
+包含冻结的基线运行器，保留原输出根；新切片使用 suite/probe，不混写旧证据。
 
 ## 来源与改动
 

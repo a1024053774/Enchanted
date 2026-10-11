@@ -80,6 +80,14 @@ export const A2AGateRequest = Schema.Struct({
 });
 export type A2AGateRequest = typeof A2AGateRequest.Type;
 
+export interface A2ARuntimeIdentity {
+  launch: string;
+  thread: string;
+  shell_pid: number;
+  leader_pid: number | null;
+  native_session: string | null;
+}
+
 export interface A2AAttempt {
   task_id: string;
   attempt_id: string;
@@ -89,6 +97,7 @@ export interface A2AAttempt {
   thread_id: string;
   runtime_mode: "approval-required" | "full-access" | "workspace-write";
   turn_id: string | null;
+  runtime_identity: A2ARuntimeIdentity | null;
   workspace: string;
   base_commit: string;
   card_snapshot_id: string;

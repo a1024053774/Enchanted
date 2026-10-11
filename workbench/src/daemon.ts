@@ -26,8 +26,16 @@ export async function serve(
   gates.setUserInputObserverStatus("healthy");
   let stopping = false;
   let activeRequests = 0;
+  let requestsDrained: (() => void) | undefined;
+  const activityFinished = () => {
+    activeRequests--;
+    if (activeRequests === 0) { requestsDrained?.(); requestsDrained = undefined; }
+  };
   const shutdown = async () => {
     stopping = true;
+    // Requests and deferred receipt writes retain their stores until their
+    // final results are durable. run observes beginShutdown at safe boundaries.
+    if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });
     await panes.shutdown();
     store.event("daemon_stopped", { pid: process.pid });
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -46,8 +54,8 @@ export async function serve(
     }
     if (input.command === "daemon_status") return { ok: true, pid: process.pid, node: process.version, root, helper };
     if (input.command === "daemon_stop") {
-      if (activeRequests !== 1) throw new Refusal("daemon_busy");
       stopping = true;
+      gates.beginShutdown();
       return { ok: true, pid: process.pid, stopping: true };
     }
     if (input.command === "orchestration_events") return { ok: true, events: store.read(input.task) };
@@ -134,15 +142,17 @@ export async function serve(
           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
           result = { ok: false, error: "event_write_failed", details: String(recordError) };
         }
-      } finally { activeRequests--; }
+      } finally { activityFinished(); }
       connection.end(JSON.stringify(result) + "\n");
       if (result.ok && envelope?.input.command === "signal") {
         connection.once("close", () => {
+          if (stopping) return;
           const pane = panes.byLaunch(envelope.input.launch);
+          activeRequests++;
           panes.drain(pane).catch((error) => {
             pane.failed = String(error); pane.state = "unknown";
             store.event("queue_stopped", { error: String(error) }, pane.record);
-          });
+          }).finally(activityFinished);
         });
       }
       if (result.ok && envelope?.input.command === "daemon_stop") {

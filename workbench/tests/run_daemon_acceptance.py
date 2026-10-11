@@ -21,10 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "evidence/2026-10-10-batch12/T-075/card-5"
 RUNNER = Path(__file__).resolve()
 IDENTITY = {
-    "task": "T-075-5", "attempt": "a1", "ready_rev": 4,
-    "session": "f82c11a2-4410-42fc-b9f9-24b0ad037050",
-    "launch": "launch-e2dfb51e50404371bb95e477b46bbac6",
-    "worker": "s12-t075-5", "real_codex_turns": 0,
+    "runner": "daemon-acceptance", "real_codex_turns": 0,
 }
 
 
@@ -207,7 +204,7 @@ def run_probe(probe, out, suite_name=None, test_name=None, mutant_core=None):
     record["exit_code"] = 0 if passed else 1
     write_new(out / "run.json", record)
     print(json.dumps({key: record[key] for key in
-                     ("task", "probe", "status", "tests_run", "failures", "errors", "exit_code", "artifact_root")},
+                     ("runner", "probe", "status", "tests_run", "failures", "errors", "exit_code", "artifact_root")},
                      ensure_ascii=False))
     return record["exit_code"]
 
@@ -218,7 +215,8 @@ def run_all(label, out):
     code = 0
     for probe in ("delivery", "recovery", "run"):
         child_label = label + "-" + probe
-        argv = [sys.executable, "-B", str(RUNNER), "--probe", probe, "--label", child_label]
+        argv = [sys.executable, "-B", str(RUNNER), "--probe", probe, "--label", child_label,
+                "--output-root", str(BASE)]
         result = observe(argv)
         (out / (probe + ".stdout.txt")).write_text(result["stdout"], encoding="utf-8")
         (out / (probe + ".stderr.txt")).write_text(result["stderr"], encoding="utf-8")
@@ -335,7 +333,8 @@ def run_validation(label, out):
             return finish(False)
     for suite in ("coop", "recovery", "run", "cas"):
         child = label + "-green-" + suite
-        argv = [sys.executable, "-B", str(RUNNER), "--suite", suite, "--label", child]
+        argv = [sys.executable, "-B", str(RUNNER), "--suite", suite, "--label", child,
+                "--output-root", str(BASE)]
 
         def green_check(result, child=child, suite=suite):
             path = BASE / child / "run.json"
@@ -363,7 +362,8 @@ def run_validation(label, out):
     for name, suite, method in cases:
         child = label + "-mutant-" + name
         argv = [sys.executable, "-B", str(RUNNER), "--suite", suite, "--test", method,
-                "--mutant", name, "--mutant-manifest", str(manifest_path), "--label", child]
+                "--mutant", name, "--mutant-manifest", str(manifest_path), "--label", child,
+                "--output-root", str(BASE)]
         core = Path(manifest["mutants"][name]["core"])
         if not step("mutant-" + name, argv,
                     lambda result, child=child, name=name, core=core: business_mutant(BASE / child, name, core)
@@ -373,6 +373,7 @@ def run_validation(label, out):
 
 
 def main():
+    global BASE
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--probe", choices=("all", "delivery", "recovery", "run"))
@@ -381,8 +382,13 @@ def main():
     parser.add_argument("--test")
     parser.add_argument("--mutant", choices=("fence", "cas", "lock"))
     parser.add_argument("--mutant-manifest", type=Path)
-    parser.add_argument("--label", required=True, help="card-5 下尚未存在的证据目录名")
+    parser.add_argument("--label", required=True, help="输出根下尚未存在的证据目录名")
+    parser.add_argument("--output-root", type=Path, default=BASE, help="证据根；默认沿用 T-075/card-5")
     args = parser.parse_args()
+    if args.validation and args.output_root.resolve() != BASE.resolve():
+        parser.error('Legacy validation uses its frozen baseline runner; use --suite/--probe for a separate output root')
+    BASE = args.output_root.resolve()
+    BASE.mkdir(parents=True, exist_ok=True)
     if args.test and not args.suite:
         parser.error("--test requires --suite")
     if (bool(args.mutant) != bool(args.mutant_manifest)) or (args.mutant and not args.suite):
