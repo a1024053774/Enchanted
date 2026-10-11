@@ -1,0 +1,1031 @@
+diff --git a/acceptance/test_coop_e2e.py b/acceptance/test_coop_e2e.py
+index 8001a56..4615e16 100644
+--- a/acceptance/test_coop_e2e.py
++++ b/acceptance/test_coop_e2e.py
+@@ -26,7 +26,7 @@ REFERENCE = ROOT / "acceptance" / "reference" / "pager.py"
+ ORACLE = ROOT / "acceptance" / "pagination_oracle.py"
+ CONTRACT = ROOT / "fixtures" / "pagination" / "CONTRACT.md"
+ STARTER = ROOT / "fixtures" / "pagination" / "pager.py"
+-INTEGRATION_REF = "refs/a2a/integration"
++INTEGRATION_REF = "refs/heads/main"
+ COMMANDS = []
+ ARTIFACTS = []
+ 
+@@ -68,7 +68,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
+             self.env.pop(key, None)
+         self.env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
+                          "GIT_TERMINAL_PROMPT": "0", "PYTHONDONTWRITEBYTECODE": "1"})
+-        self.git("init")
++        self.git("init", "-b", "main")
+         self.git("config", "user.name", "Independent acceptance fixture")
+         self.git("config", "user.email", "a2a-check@example.invalid")
+         self.git("config", "core.logAllRefUpdates", "always")
+@@ -139,9 +139,20 @@ class ManagedDeliveryCLI(unittest.TestCase):
+ 
+     def create(self, task=None):
+         task = task or self.task
++        card = {
++            "id": task, "source": None, "goal": self.instructions.read_text(encoding="utf-8"),
++            "non_goals": ["不改变独立分页合同"], "paths": {"allow": ["."], "deny": []},
++            "completion_conditions": [{"argv": [sys.executable, "-I", "-B", "-c",
++                                                 self.oracle.read_text(encoding="utf-8"), "{worktree}"]}],
++            "red_commands": [], "task_type": "后端逻辑", "repair_target": None,
++            "complexity": "M", "executor": {"cli": "Codex", "model": "fixture", "effort": "xhigh"},
++            "base_commit": None, "writer": None,
++        }
++        self.card_source = self.root / (task + ".card.json")
++        self.card_source.write_text(json.dumps(card, ensure_ascii=False), encoding="utf-8")
++        self.cli("card_save", "--task", task, "--card", self.card_source, "--expected-version", "0")
+         result = self.cli("create", "--task", task, "--repo", self.repo,
+-                          "--base", self.base, "--oracle", self.oracle,
+-                          "--instructions", self.instructions)
++                          "--branch", INTEGRATION_REF, "--card-version", "1")
+         self.assertIsInstance(result.get("task"), dict, result)
+         self.assertEqual(result["task"]["spec_rev"], 1)
+         self.assertTrue((self.state / "state.sqlite3").is_file())
+@@ -306,8 +317,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
+                 before = self.business_state(task)
+                 previous_events = self.events(task)
+                 duplicate = self.cli("create", "--task", task, "--repo", self.repo,
+-                                     "--base", self.base, "--oracle", self.oracle,
+-                                     "--instructions", self.instructions, ok=False)
++                                     "--branch", INTEGRATION_REF, "--card-version", "1", ok=False)
+                 self.assertEqual(self.business_state(task), before)
+                 self.assert_rejection_recorded(duplicate["error"], previous_events, task)
+ 
+@@ -400,6 +410,10 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         # Replacing the caller-owned source must not replace the registered oracle.
+         self.oracle.write_text("import sys\nprint('changed oracle source')\nsys.exit(23)\n",
+                                encoding="utf-8")
++        changed_card = json.loads(self.card_source.read_text(encoding="utf-8"))
++        changed_card["completion_conditions"][0]["argv"] = [sys.executable, "-c", "import sys; sys.exit(23)"]
++        self.card_source.write_text(json.dumps(changed_card), encoding="utf-8")
++        self.cli("card_save", "--task", self.task, "--card", self.card_source, "--expected-version", "1")
+         self.submit(attempt, commit)
+         self.assertEqual(self.status()["state"], "submitted")
+         self.assertEqual(self.ref(), self.base)
+@@ -451,7 +465,6 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         self.git("add", "external-change.txt")
+         self.git("commit", "-m", "External change after verification")
+         external = self.git("rev-parse", "HEAD").stdout.strip()
+-        self.git("update-ref", INTEGRATION_REF, external, self.base)
+         log_before = self.reflog()
+         events = self.events()
+         self.cli("integrate", "--task", self.task, ok=False, error="integration_conflict")
+diff --git a/acceptance/test_recovery_e2e.py b/acceptance/test_recovery_e2e.py
+index 2f4f6ad..2e0d458 100644
+--- a/acceptance/test_recovery_e2e.py
++++ b/acceptance/test_recovery_e2e.py
+@@ -74,17 +74,17 @@ finally:
+ sys.exit(code)
+ '''
+ 
+-GIT_BARRIER = '''
++GIT_BARRIER = r'''
+ import json, os, pathlib, subprocess, sys, time, uuid
+ args = sys.argv[1:]
+ control = pathlib.Path(CONTROL)
+-if "update-ref" not in args or REF not in args:
++if "update-ref" not in args or "--stdin" not in args:
+     os.execv(REAL_GIT, [REAL_GIT] + args)
+ identity = uuid.uuid4().hex
+ phase = (control / "phase").read_text(encoding="utf-8")
+ release = control / (identity + ".release")
+ data = {"pid": os.getpid(), "ppid": os.getppid(), "argv": [REAL_GIT] + args,
+-        "phase": phase, "release": str(release)}
++        "phase": phase, "release": str(release), "stdin": [], "stdout": ""}
+ def save(suffix):
+     (control / (identity + suffix)).write_text(json.dumps(data), encoding="utf-8")
+ def barrier():
+@@ -99,14 +99,44 @@ if phase == "before" and barrier() == "abort":
+     data["executed_real_git"] = False
+     save(".done.json")
+     sys.exit(125)
+-p = subprocess.run([REAL_GIT] + args, text=True, capture_output=True)
+-data.update({"executed_real_git": True, "exit_code": p.returncode,
+-             "stdout": p.stdout, "stderr": p.stderr})
+-save(".result.json")
+-if phase == "after":
+-    barrier()
+-sys.stdout.write(p.stdout)
+-sys.stderr.write(p.stderr)
++p = subprocess.Popen([REAL_GIT] + args, text=True, stdin=subprocess.PIPE,
++                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
++data["git_pid"] = p.pid
++def emit(value):
++    try:
++        sys.stdout.write(value)
++        sys.stdout.flush()
++    except BrokenPipeError:
++        # The killed CLI cannot read. Retain the real Git result for recovery.
++        data["caller_pipe_closed"] = True
++        sys.stdout = open(os.devnull, "w")
++for line in sys.stdin:
++    data["stdin"].append(line)
++    p.stdin.write(line)
++    p.stdin.flush()
++    verb = line.strip().split(" ", 1)[0]
++    if verb not in ("start", "prepare", "commit", "abort"):
++        continue
++    response = p.stdout.readline()
++    data["stdout"] += response
++    if verb == "commit" or not response:
++        p.stdin.close()
++        p.wait()
++        data.update({"executed_real_git": True, "exit_code": p.returncode,
++                     "stderr": p.stderr.read()})
++        save(".result.json")
++        if phase == "after" and verb == "commit" and p.returncode == 0:
++            barrier()
++        emit(response)
++        break
++    emit(response)
++else:
++    p.stdin.close()
++    p.wait()
++    data.update({"executed_real_git": True, "exit_code": p.returncode,
++                 "stderr": p.stderr.read()})
++    save(".result.json")
++sys.stderr.write(data.get("stderr", ""))
+ save(".done.json")
+ sys.exit(p.returncode)
+ '''
+@@ -513,7 +543,7 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
+         # State and completion metadata may change; original inputs must survive.
+         frozen_keys = {"G", "C", "M", "session_id", "fence",
+                        "candidate_commit", "attempt_id", "spec_rev", "base_commit",
+-                       "merged_commit", "oracle", "oracle_path", "workspace", "worktree",
++                       "merged_commit", "card_snapshot_id", "card_version", "commands", "workspace", "worktree",
+                        "command_intent", "command_intent_json"}
+         if len(old_before) == len(old_rows) == 1:
+             inputs = {key: value for key, value in old_before[0].items() if key in frozen_keys}
+@@ -589,6 +619,7 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
+         attempt, candidate = self.setup_candidate(verified=True)
+         control, before = self.start_git_fault("after")
+         if delete:
++            self.git("update-ref", "refs/a2a/fixture-preserved", candidate)
+             p = self.process([REAL_GIT, "-C", str(self.repo), "update-ref", "-d", REF, candidate],
+                              label="git:external-delete")
+             if p.returncode != 0:
+@@ -599,10 +630,6 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
+             self.git("add", "external.txt")
+             self.git("commit", "-m", "Independent external third value")
+             external = self.git("rev-parse", "HEAD").stdout.strip()
+-            p = self.process([REAL_GIT, "-C", str(self.repo), "update-ref", REF, external, candidate],
+-                             label="git:external-third-value")
+-            if p.returncode != 0:
+-                raise FixtureError("External reference fixture failed: " + p.stderr)
+         if self.ref_or_missing() != external:
+             raise FixtureError("External reference injection could not be confirmed")
+         # Deleted refs have no reflog command output, so retain raw log presence.
+diff --git a/acceptance/test_run_e2e.py b/acceptance/test_run_e2e.py
+index e266c36..f3b245e 100644
+--- a/acceptance/test_run_e2e.py
++++ b/acceptance/test_run_e2e.py
+@@ -230,9 +230,13 @@ class RunCLI(recovery.RecoveryCLI):
+         self.check(self.ref() == candidate and candidate != self.base,
+                    "Automatic run integrates the explicit new Git candidate", candidate, self.ref())
+         self.persisted_run_receipt(run)
+-        self.check(self.git("rev-parse", "HEAD").stdout.strip() == original_head,
+-                   "User branch remains at its original head", original_head,
++        self.check(original_head == self.base and self.git("rev-parse", "HEAD").stdout.strip() == candidate,
++                   "Project work branch advances from G to the verified M", candidate,
+                    self.git("rev-parse", "HEAD").stdout.strip())
++        self.check(self.git("status", "--porcelain").stdout == "" and
++                   (self.repo / "pager.py").read_bytes() == Path(attempt["workspace"], "pager.py").read_bytes(),
++                   "Checked-out worktree and index match M", "clean worktree with candidate contents",
++                   self.git("status", "--porcelain").stdout)
+         readback = self.root / "authoritative accepted readback"
+         self.git("worktree", "add", "--detach", str(readback), self.ref())
+         self.assert_novel_pagination_inputs(readback)
+diff --git a/workbench/README.md b/workbench/README.md
+index 4881554..6bf34a8 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -1,4 +1,4 @@
+-# a2a 门禁（T-075-1）
++# a2a 门禁（T-075-2）
+ 
+ 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+ 
+@@ -8,9 +8,44 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status
+ 
+ `acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由
+ `A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
+-本卡未改变集成目标、路径检查、提交尾注或任务卡契约。
++受管任务通过 JSON 任务卡注册；交付按卡检查路径、完成条件与提交尾注，
++通过后以 CAS 推进项目工作分支。普通会话的 `attach --instructions` 仍是提示文本，
++不参与受管任务注册。
+ 旧 HTTP 转接经本次对话确认后删除；本入口只接受本地门禁命令。
+ 
++## 任务卡与交付
++
++使用同一个 CLI 生成模板，填写目标、非目标、路径、argv 完成条件等字段后校验并保存：
++
++```sh
++node workbench/src/gates/cli.ts --state /绝对路径/state card_template --task T-080-1 --repo /绝对路径/repo --ticket /绝对路径/T-080.md
++node workbench/src/gates/cli.ts --state /绝对路径/state card_validate --task T-080-1 --card /绝对路径/card.json
++node workbench/src/gates/cli.ts --state /绝对路径/state card_save --task T-080-1 --card /绝对路径/card.json --expected-version 0
++node workbench/src/gates/cli.ts --state /绝对路径/state create --task T-080-1 --repo /绝对路径/repo --branch refs/heads/main --card-version 1
++```
++
++模板含 13 个字段。CLI 值精确为 `Claude Code` 或 `Codex`；任务类型为规格中的八个值。
++完成条件格式为 `{"argv":["python3","acceptance/check.py","{worktree}"]}`，
++`{worktree}` 只能占据完整的一个参数，在独立 M worktree 中运行。完成条件非零退出仍
++返回 `oracle_failed`，这个名字只为保持已有公开错误预期，不存在旧 oracle 注册入口。
++create 不再接受 `--base`、`--oracle` 或 `--instructions`。
++
++版本与快照存入同一 SQLite 库，旧记录不修改；`card_show --card-version N` 读指定版本。
++注册冻结选定版本，认领时再追加包含当时工作分支起点和唯一写入者的绑定快照。
++源文件或后续卡版本不会改变已注册合同。显式采用新卡用
++`revise --spec-rev N --card-version V`，会使旧 attempt 与候选失效。
++
++路径用仓库相对文件名、末尾 `/` 的目录或 `.`，禁止项优先，不解释 glob。
++门禁检查候选相对起点的净改动，以及 M 相对 G 的净改动。
++尾注归属按 Task、Attempt、Session、Role 四项核对；外来任务或坏尾注被拒。
++完全无 A2A 尾注的提交产生来源为“推断：缺尾注”的 action 用户输入和派生人工介入，
++不阻止集成，同 attempt 同 commit 重验不重复记录。
++
++工作分支必须是已存在的 `refs/heads/*`。门禁不再读写 `refs/a2a/integration`，历史引用保留。
++Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改，再 CAS 到 M；覆盖型修改被拒，
++无冲突修改保留。未知副作用保留原 integration intent 待核对。没有 push、stash 或用户目录 reset。
++验收仍由 verify 完成，integrate 只接受与该 attempt、卡快照和候选绑定的通过记录。
++
+ ## 安装
+ 
+ ```sh
+@@ -29,7 +64,7 @@ npm ls --depth=0
+ `GateRuntime` 是宿主提供的生命周期接口。`dispatch`、`attach`、`run` 保留原门禁语义；
+ 未传入运行时时拒绝需要它的操作。这里没有 provider、MCP 网关、PTY 或后台服务实现。
+ 编排验收的 `native-runtime.ts` 只替代这个外部边界，不执行模型、不写门禁 SQLite。
+-真实窗格宿主由 T-075-3 接入；本卡的 18 项编排验收仅是隔离证据。
++真实窗格宿主由 T-075-3 接入；18 项编排验收仅是隔离证据。
+ 来源版本的 dispatch 交付提示词仍随该边界保留；T-075-3 接入宿主时须将其中的
+ 交付接口文本换成实际后台 CLI 命令，本卡不据此声称可以派发真实 worker。
+ 
+@@ -45,4 +80,5 @@ npm ls --depth=0
+ 验收入口只调用本仓库门禁；旧 fork 的实现不再由这些入口加载。
+ 
+ 重现命令与完整证据见
+-[RESULTS.md](../evidence/2026-10-10-batch12/T-075/RESULTS.md)。
++[T-075-1 迁移记录](../evidence/2026-10-10-batch12/T-075/RESULTS.md) 和
++[T-075-2 当前结果](../evidence/2026-10-10-batch12/T-075/card-2/RESULTS.md)。
+diff --git a/workbench/src/contracts/a2aGates.ts b/workbench/src/contracts/a2aGates.ts
+index 423a643..818b166 100644
+--- a/workbench/src/contracts/a2aGates.ts
++++ b/workbench/src/contracts/a2aGates.ts
+@@ -4,6 +4,7 @@
+ // See ../../LICENSE.synara for the full permission notice.
+ 
+ import { Schema } from "effect";
++import type { TaskCard } from "../gates/taskCards.ts";
+ import { ModelSelection } from "./modelSelection.ts";
+ import { A2AMemberRole } from "./a2aMembership.ts";
+ import {
+@@ -25,6 +26,7 @@ export type A2AIssueAction = typeof A2AIssueAction.Type;
+ 
+ export const A2AGateRequest = Schema.Struct({
+   command: Schema.Literals([
++    "card_template", "card_validate", "card_save", "card_show",
+     "create",
+     "claim",
+     "revoke",
+@@ -51,8 +53,11 @@ export const A2AGateRequest = Schema.Struct({
+   role: Schema.optional(A2AMemberRole),
+   preset: Schema.optional(A2ASessionPreset),
+   modelSelection: Schema.optional(ModelSelection),
+-  base: Schema.optional(Schema.String),
+-  oracle: Schema.optional(Schema.String),
++  branch: Schema.optional(Schema.String),
++  card: Schema.optional(Schema.String),
++  ticket: Schema.optional(Schema.String),
++  card_version: Schema.optional(Schema.Number),
++  expected_version: Schema.optional(Schema.Number),
+   instructions: Schema.optional(Schema.String),
+   owner: Schema.optional(Schema.String),
+   reason: Schema.optional(Schema.String),
+@@ -86,6 +91,7 @@ export interface A2AAttempt {
+   turn_id: string | null;
+   workspace: string;
+   base_commit: string;
++  card_snapshot_id: string;
+   reclaimed: boolean;
+   reclaimed_at?: string;
+   owner?: string;
+@@ -110,7 +116,10 @@ export interface A2AVerification {
+   G: string;
+   C: string;
+   M: string | null;
+-  oracle: string;
++  card_snapshot_id: string;
++  card_version: number;
++  commands: { argv: string[]; cwd: string }[];
++  results: A2ACommandResult[];
+   workspace: string;
+   state: "running" | "passed" | "failed" | "interrupted" | "unknown" | "merge_failed";
+   command_intent?: { argv: string[]; cwd: string };
+@@ -123,8 +132,10 @@ export interface A2ATask {
+   title?: string;
+   project_id: string;
+   repo: string;
+-  oracle: string;
+-  instructions: string;
++  integration_ref: string;
++  card_snapshot_id: string;
++  card_version: number;
++  card: TaskCard;
+   base_commit: string;
+   state: string;
+   spec_rev: number;
+@@ -139,7 +150,9 @@ export interface A2ATask {
+     attempt: A2AAttempt;
+     spec_rev?: number;
+     C?: string;
+-    oracle?: string;
++    card_snapshot_id: string;
++    integration_ref: string;
++    worktree: string | null;
+     intent_id?: string;
+     command_intent?: { argv: string[]; cwd: string };
+     result?: A2ACommandResult;
+@@ -189,6 +202,8 @@ export interface A2AUserInputObserver {
+ 
+ export interface A2AGateResult {
+   ok: boolean;
++  card?: TaskCard;
++  card_version?: number;
+   task?: A2ATask;
+   run?: A2ARun;
+   user_input_observer?: A2AUserInputObserver;
+@@ -257,7 +272,7 @@ export interface A2AUserInput {
+     request?: string | null;
+     eventSequence?: number;
+   };
+-  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page";
++  channel: "thread-message" | "issue-panel" | "ws-rpc" | "ui-derived" | "settings-page" | "commit-trailer";
+   reply_to: string | null;
+   source_ref: {
+     message_id?: string;
+@@ -265,8 +280,10 @@ export interface A2AUserInput {
+     source_sequence?: number;
+     command_id?: string;
+     rpc?: string;
++    commit?: string;
++    label?: string;
+   };
+-  certainty: "observed";
++  certainty: "observed" | "inferred";
+   created_at: string;
+   bundle_id?: string;
+   question?: { number: number; title: string; body: string };
+diff --git a/workbench/src/gates/cli.ts b/workbench/src/gates/cli.ts
+index 341bd17..a9ae675 100644
+--- a/workbench/src/gates/cli.ts
++++ b/workbench/src/gates/cli.ts
+@@ -7,7 +7,11 @@ import { parseArgs } from "node:util";
+ import { A2AGates, Refusal, type GateRuntime } from "./core.ts";
+ 
+ const commands: Record<string, { required: string[]; optional?: string[] }> = {
+-  create: { required: ["repo", "base", "oracle", "instructions"], optional: ["project", "title"] },
++  card_template: { required: ["repo"], optional: ["ticket", "project"] },
++  card_validate: { required: ["card"] },
++  card_save: { required: ["card", "expected-version"] },
++  card_show: { required: ["card-version"] },
++  create: { required: ["repo", "branch", "card-version"], optional: ["project", "title"] },
+   dispatch: { required: ["runtime-mode"] },
+   attach: {
+     required: ["role", "model-selection", "instructions", "runtime-mode"],
+@@ -16,7 +20,7 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
+   run: { required: ["runtime-mode", "wait-seconds"] },
+   claim: { required: ["owner"] },
+   revoke: { required: ["reason"] },
+-  revise: { required: ["spec-rev"] },
++  revise: { required: ["spec-rev"], optional: ["card-version"] },
+   submit: { required: ["attempt", "session", "fence", "spec-rev", "commit"] },
+   verify: { required: [], optional: ["attempt"] },
+   integrate: { required: [], optional: ["attempt"] },
+@@ -59,8 +63,7 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime)
+       "model-selection",
+       "runtime-mode",
+       "wait-seconds",
+-      "base",
+-      "oracle",
++      "branch", "card", "ticket", "card-version", "expected-version",
+       "instructions",
+       "owner",
+       "reason",
+@@ -112,7 +115,7 @@ export async function main(argv = process.argv.slice(2), runtime?: GateRuntime)
+     request = { command };
+     for (const [key, value] of Object.entries(values)) {
+       if (key === "state") continue;
+-      if (key === "fence" || key === "spec-rev" || key === "wait-seconds") {
++      if (["fence", "spec-rev", "wait-seconds", "card-version", "expected-version"].includes(key)) {
+         if (
+           typeof value !== "string" ||
+           !/^[+-]?\d+$/.test(value) ||
+diff --git a/workbench/src/gates/core.ts b/workbench/src/gates/core.ts
+index f51cb60..9e22f75 100644
+--- a/workbench/src/gates/core.ts
++++ b/workbench/src/gates/core.ts
+@@ -4,7 +4,7 @@
+ // See ../../LICENSE.synara for the full permission notice.
+ 
+ import { randomUUID } from "node:crypto";
+-import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
++import { mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+ import { isAbsolute, join } from "node:path";
+ import { DatabaseSync } from "node:sqlite";
+ import {
+@@ -29,7 +29,9 @@ import {
+   ProjectId,
+   ThreadId,
+ } from "../contracts/index.ts";
+-import { execFile as execProcessFile } from "node:child_process";
++import { execFile as execProcessFile, spawn } from "node:child_process";
++import { createInterface } from "node:readline";
++import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, type TaskCard } from "./taskCards.ts";
+ import { Schema } from "effect";
+ import { A2AMembership } from "./membership.ts";
+ import {
+@@ -38,7 +40,6 @@ import {
+   saveRolePermission,
+ } from "./rolePermissions.ts";
+ 
+-const REF = "refs/a2a/integration";
+ export class Refusal extends Error {
+   readonly code: string;
+   readonly details?: unknown;
+@@ -126,6 +127,12 @@ export class A2AGates {
+     this.membership = new A2AMembership(root);
+     this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
+       CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, data TEXT NOT NULL);
++      CREATE TABLE IF NOT EXISTS task_card_versions (task TEXT NOT NULL, version INTEGER NOT NULL, data TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(task,version));
++      CREATE TABLE IF NOT EXISTS task_card_snapshots (id TEXT PRIMARY KEY, task TEXT NOT NULL, version INTEGER NOT NULL, attempt TEXT, data TEXT NOT NULL);
++      CREATE TRIGGER IF NOT EXISTS task_card_versions_no_update BEFORE UPDATE ON task_card_versions BEGIN SELECT RAISE(ABORT,'append only'); END;
++      CREATE TRIGGER IF NOT EXISTS task_card_versions_no_delete BEFORE DELETE ON task_card_versions BEGIN SELECT RAISE(ABORT,'append only'); END;
++      CREATE TRIGGER IF NOT EXISTS task_card_snapshots_no_update BEFORE UPDATE ON task_card_snapshots BEGIN SELECT RAISE(ABORT,'append only'); END;
++      CREATE TRIGGER IF NOT EXISTS task_card_snapshots_no_delete BEFORE DELETE ON task_card_snapshots BEGIN SELECT RAISE(ABORT,'append only'); END;
+       CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+       CREATE TABLE IF NOT EXISTS verifications (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+       CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, task TEXT NOT NULL, data TEXT NOT NULL);
+@@ -498,6 +505,7 @@ export class A2AGates {
+             spec_rev: attempt.spec_rev,
+             dispatch_origin: "user",
+             text: input.text,
++            ...(input.channel === "commit-trailer" ? { source_ref: input.source_ref, certainty: input.certainty } : {}),
+           },
+           input.target.attempt,
+         );
+@@ -960,7 +968,8 @@ export class A2AGates {
+     historicalAttempt?: A2AAttempt,
+   ) {
+     this.checkUserInputObserver();
+-    this.db.exec("BEGIN IMMEDIATE");
++    const ownsTransaction = !this.db.isTransaction;
++    if (ownsTransaction) this.db.exec("BEGIN IMMEDIATE");
+     try {
+       this.db
+         .prepare(
+@@ -986,23 +995,42 @@ export class A2AGates {
+           )
+           .run(task.verification.verification_id, JSON.stringify(task.verification));
+       this.event(task.task_id, type, details, historicalAttempt?.attempt_id);
+-      this.db.exec("COMMIT");
++      if (ownsTransaction) this.db.exec("COMMIT");
+     } finally {
+-      if (this.db.isTransaction) this.db.exec("ROLLBACK");
++      if (ownsTransaction && this.db.isTransaction) this.db.exec("ROLLBACK");
+     }
+   }
++  private cardVersion(task: string, version: number | undefined): TaskCard {
++    requireGate(Number.isSafeInteger(version) && version! > 0, "invalid_card_version");
++    const row = this.db.prepare("SELECT data FROM task_card_versions WHERE task=? AND version=?").get(task, version!);
++    requireGate(row, "unknown_card_version");
++    return JSON.parse(String(row.data)) as TaskCard;
++  }
++  private cardSnapshot(task: string, version: number, card: TaskCard, attempt: string | null = null) {
++    const snapshot = randomUUID();
++    this.db.prepare("INSERT INTO task_card_snapshots(id,task,version,attempt,data) VALUES (?,?,?,?,?)")
++      .run(snapshot, task, version, attempt, JSON.stringify(card));
++    return snapshot;
++  }
++  private boundCard(attempt: A2AAttempt): TaskCard {
++    const row = this.db.prepare("SELECT data FROM task_card_snapshots WHERE id=? AND task=? AND attempt=?")
++      .get(attempt.card_snapshot_id, attempt.task_id, attempt.attempt_id);
++    requireGate(row, "stale_card_snapshot");
++    return JSON.parse(String(row.data)) as TaskCard;
++  }
+   private async execute(
+     task: string,
+     argv: string[],
+     cwd: string,
+     env?: NodeJS.ProcessEnv,
++    input?: string,
+   ): Promise<A2ACommandResult> {
+     this.checkUserInputObserver();
+     const command = argv[0];
+     requireGate(command, "invalid_command");
+-    this.event(task, "command_intent", { argv, cwd });
++    this.event(task, "command_intent", { argv, cwd, ...(input === undefined ? {} : { stdin: input }) });
+     const result = await new Promise<A2ACommandResult>((resolve, reject) => {
+-      execProcessFile(
++      const child = execProcessFile(
+         command,
+         argv.slice(1),
+         { cwd, env, encoding: "utf8", timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
+@@ -1028,6 +1056,7 @@ export class A2AGates {
+           } else resolve(record);
+         },
+       );
++      if (input !== undefined) child.stdin!.end(input);
+     });
+     return result;
+   }
+@@ -1078,7 +1107,8 @@ export class A2AGates {
+         v.attempt.base_commit === attempt.base_commit &&
+         v.spec_rev === task.spec_rev &&
+         v.C === task.candidate_commit &&
+-        v.oracle === task.oracle,
++        v.card_snapshot_id === attempt.card_snapshot_id &&
++        v.card_version === task.card_version,
+       "stale_verification",
+     );
+     const row = this.db.prepare("SELECT data FROM verifications WHERE id=?").get(v.verification_id);
+@@ -1123,7 +1153,139 @@ export class A2AGates {
+     );
+   }
+   private async integration(task: A2ATask) {
+-    return this.git(task.task_id, task.repo, ["rev-parse", "--verify", "--quiet", REF], [0, 1]);
++    return this.git(task.task_id, task.repo, ["rev-parse", "--verify", "--quiet", task.integration_ref], [0, 1]);
++  }
++  private async integrationWorktree(task: A2ATask): Promise<string | null> {
++    const output = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
++    const matches: string[] = [];
++    for (const block of output.split("\0\0")) {
++      const fields = block.split("\0");
++      if (!fields.includes("branch " + task.integration_ref)) continue;
++      const path = fields.find((field) => field.startsWith("worktree "))?.slice(9);
++      requireGate(path, "integration_worktree_unknown");
++      matches.push(inputPath(path, true));
++    }
++    requireGate(matches.length <= 1, "integration_worktree_unknown", { matches });
++    return matches[0] ?? null;
++  }
++  private async checkIntegrationHead(task: A2ATask, workspace: string | null) {
++    requireGate(await this.integrationWorktree(task) === workspace, "integration_worktree_changed");
++    if (workspace) {
++      const ref = await this.git(task.task_id, workspace, ["symbolic-ref", "--quiet", "HEAD"], [0, 1]);
++      requireGate(ref === task.integration_ref, "integration_worktree_changed", { workspace, ref });
++    }
++  }
++  private async changedPaths(task: A2ATask, from: string, to: string): Promise<string[]> {
++    const result = await this.execute(task.task_id,
++      ["git", "-C", task.repo, "diff", "--name-only", "--no-renames", "-z", from, to, "--"], task.repo);
++    requireGate(result.returncode === 0 && result.stdout !== null, "git_failed", result);
++    return result.stdout.split("\0").filter(Boolean);
++  }
++  private async checkIntegratedContent(task: A2ATask, intent: NonNullable<A2ATask["integration_intent"]>) {
++    await this.checkIntegrationHead(task, intent.worktree);
++    if (!intent.worktree) return;
++    const paths = await this.changedPaths(task, intent.G, intent.M);
++    if (!paths.length) return;
++    const result = await this.execute(task.task_id,
++      ["git", "-C", intent.worktree, "diff", "--quiet", intent.M, "--", ...paths], intent.worktree);
++    requireGate(result.returncode === 0, "needs_reconciliation", { intent_id: intent.intent_id, result });
++  }
++  private async advanceWorkBranch(task: A2ATask, intent: NonNullable<A2ATask["integration_intent"]>) {
++    requireGate(await this.ancestor(task.task_id, task.repo, intent.G, intent.M), "integration_not_fast_forward");
++    await this.checkIntegrationHead(task, intent.worktree);
++    const cwd = intent.worktree ?? task.repo;
++    const argv = intent.command_intent!.argv;
++    this.event(task.task_id, "command_intent", { argv, cwd, protocol: { ref: intent.integration_ref, G: intent.G, M: intent.M } });
++    const child = spawn(argv[0]!, argv.slice(1), { cwd, stdio: ["pipe", "pipe", "pipe"], timeout: 60_000 });
++    let stdout = "", stderr = "", ioError: string | undefined;
++    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
++    child.stderr.on("data", (chunk) => { stderr += String(chunk); });
++    child.stdin.on("error", (error) => { ioError = String(error); });
++    child.on("error", (error) => { ioError = String(error); });
++    const closed = new Promise<A2ACommandResult>((resolve) => child.on("close", (code, signal) => {
++      resolve({ argv, cwd, stdout, stderr, exit: code, returncode: code,
++        ...(signal || ioError ? { outcome: ioError ?? String(signal) } : {}) });
++    }));
++    const reader = createInterface({ input: child.stdout });
++    const lines = reader[Symbol.asyncIterator]();
++    const send = async (input: string, expected: string) => {
++      this.event(task.task_id, "git_transaction_input", { intent_id: intent.intent_id, stdin: input });
++      child.stdin.write(input);
++      const response = await lines.next();
++      this.event(task.task_id, "git_transaction_response", { intent_id: intent.intent_id, response: response.value ?? null });
++      requireGate(!response.done && response.value === expected, "needs_reconciliation", { expected, response: response.value });
++    };
++    try {
++      await send("start\n", "start: ok");
++      await send(`update ${intent.integration_ref} ${intent.M} ${intent.G}\nprepare\n`, "prepare: ok");
++      if (intent.worktree) {
++        for (const dryRun of [true, false]) {
++          const result = await this.execute(task.task_id,
++            ["git", "-C", cwd, "read-tree", ...(dryRun ? ["-n"] : []), "-m", "-u", intent.G, intent.M], cwd);
++          requireGate(result.returncode === 0, "dirty_integration_worktree", { result, intent_id: intent.intent_id });
++        }
++        this.event(task.task_id, "integration_worktree_advanced", { intent_id: intent.intent_id, workspace: cwd, G: intent.G, M: intent.M });
++      }
++      await this.checkIntegrationHead(task, intent.worktree);
++      await send("commit\n", "commit: ok");
++    } finally {
++      // Closing stdin aborts an uncommitted Git transaction. Preserve its result.
++      child.stdin.end();
++      const result = await closed;
++      reader.close();
++      this.event(task.task_id, "command_result", result);
++    }
++    const result = await closed;
++    requireGate(result.returncode === 0 && !ioError, "needs_reconciliation", result);
++    return result;
++  }
++  private async checkPaths(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
++    const paths = new Set<string>();
++    for (const [from, to] of [[attempt.base_commit, v.C], [v.G, v.M!]]) {
++      for (const path of await this.changedPaths(task, from!, to!)) paths.add(path);
++    }
++    const card = this.boundCard(attempt);
++    const forbidden = [...paths].filter((path) => !pathAllowed(card, path));
++    this.event(task.task_id, "path_check", { verification_id: v.verification_id, card_snapshot_id: v.card_snapshot_id,
++      G: v.G, C: v.C, M: v.M, paths: [...paths], forbidden, rules: card.paths, passed: forbidden.length === 0 });
++    requireGate(forbidden.length === 0, "path_boundary_failed", { forbidden });
++  }
++  private async checkTrailers(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
++    const commits = (await this.git(task.task_id, task.repo, ["rev-list", "--reverse", `${attempt.base_commit}..${v.C}`])).split("\n").filter(Boolean);
++    const required = ["task", "attempt", "session", "role", "tool", "model", "effort", "native-session", "launch"];
++    for (const commit of commits) {
++      const message = await this.git(task.task_id, task.repo, ["show", "-s", "--format=%B", commit]);
++      const parsed = await this.execute(task.task_id, ["git", "interpret-trailers", "--parse"], task.repo, undefined, message + "\n");
++      requireGate(parsed.returncode === 0, "git_failed", parsed);
++      const trailers: Record<string, string[]> = {};
++      for (const line of (parsed.stdout ?? "").split("\n")) {
++        const colon = line.indexOf(":");
++        const key = line.slice(0, colon).toLowerCase();
++        if (colon < 0 || !key.startsWith("a2a-")) continue;
++        (trailers[key.slice(4)] ??= []).push(line.slice(colon + 1).trim());
++      }
++      let error: string | null = null;
++      const missing = Object.keys(trailers).length === 0;
++      if (!missing) {
++        if (trailers.task?.some((value) => value !== task.task_id)) error = "trailer_task_mismatch";
++        else if (Object.keys(trailers).length !== required.length ||
++          required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = "invalid_trailers";
++        else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")
++          error = "trailer_identity_mismatch";
++      }
++      this.event(task.task_id, "trailer_check", { commit, trailers, verification_id: v.verification_id,
++        card_snapshot_id: v.card_snapshot_id, passed: !error, missing, error });
++      requireGate(!error, error ?? "invalid_trailers", { commit, trailers });
++      if (missing) this.appendUserInput({
++        id: randomUUID(), schema: 1, form: "action", text: `用户本人提交 ${commit}（推断：缺尾注）`,
++        target: { project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
++          thread: attempt.thread_id, turn: null, message: null },
++        channel: "commit-trailer", reply_to: null,
++        source_ref: { commit, label: "推断：缺尾注", event_id: `commit:${task.task_id}:${attempt.attempt_id}:${commit}` },
++        certainty: "inferred", created_at: new Date(this.now()).toISOString(),
++        content: { session_id: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, card_snapshot_id: v.card_snapshot_id },
++      }, `commit:${task.task_id}:${attempt.attempt_id}:${commit}`);
++    }
+   }
+   private current(task: A2ATask, expected?: string) {
+     const attempt = task.current_attempt;
+@@ -1819,25 +1981,59 @@ export class A2AGates {
+       }
+       if (args.command === "answer_issue" || args.command === "answer_issues")
+         return await this.answerIssues(args);
++      if (args.command === "card_template") {
++        inputPath(args.repo, true);
++        return { ok: true, card: taskCardTemplate(taskId, args.ticket) };
++      }
++      if (args.command === "card_show")
++        return { ok: true, card: this.cardVersion(taskId, args.card_version), card_version: args.card_version };
++      if (args.command === "card_validate" || args.command === "card_save") {
++        let source: unknown;
++        try { source = JSON.parse(readFileSync(inputPath(args.card), "utf8")); }
++        catch (error) {
++          if (error instanceof SyntaxError) throw new Refusal("invalid_task_card", { field: "card", reason: "Invalid JSON." });
++          throw error;
++        }
++        const card = validateTaskCard(source, taskId);
++        if (args.command === "card_validate") return { ok: true, card,
++          details: { rules: "13 个字段；非目标与允许路径非空；完成条件为 argv；任务类型八选一；CLI 为 Claude Code 或 Codex。" } };
++        requireGate(Number.isSafeInteger(args.expected_version) && args.expected_version! >= 0, "invalid_card_version");
++        this.db.exec("BEGIN IMMEDIATE");
++        try {
++          const row = this.db.prepare("SELECT max(version) AS version FROM task_card_versions WHERE task=?").get(taskId)!;
++          requireGate(Number(row.version ?? 0) === args.expected_version, "card_version_conflict");
++          const version = args.expected_version! + 1;
++          this.db.prepare("INSERT INTO task_card_versions(task,version,data,created_at) VALUES (?,?,?,?)")
++            .run(taskId, version, JSON.stringify(card), new Date(this.now()).toISOString());
++          this.event(taskId, "card_saved", { card, card_version: version }, null);
++          this.db.exec("COMMIT");
++          return { ok: true, card, card_version: version };
++        } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
++      }
+       if (args.command === "create") {
+         requireGate(!this.db.prepare("SELECT 1 FROM tasks WHERE id=?").get(taskId), "task_exists");
+-        const repo = inputPath(args.repo, true),
+-          oracle = inputPath(args.oracle),
+-          instructions = inputPath(args.instructions),
+-          base = sha(args.base);
++        const repo = inputPath(args.repo, true);
++        const card = validateTaskCard(this.cardVersion(taskId, args.card_version), taskId);
++        const branch = text(args.branch);
++        requireGate(branch.startsWith("refs/heads/"), "invalid_work_branch");
++        await this.git(taskId, repo, ["check-ref-format", branch]);
+         requireGate(
+           (await this.git(taskId, repo, ["rev-parse", "--show-toplevel"])) === repo,
+           "invalid_repo",
+         );
++        const base = sha(await this.git(taskId, repo, ["rev-parse", "--verify", branch]));
+         await this.commitExists(taskId, repo, base);
+-        const snapshot = join(this.root, "tasks", `${taskId}-${randomUUID()}`);
++        const other = this.db.prepare("SELECT data FROM tasks WHERE json_extract(data,'$.repo')=?").all(repo);
++        requireGate(other.every((row) => JSON.parse(String(row.data)).integration_ref === branch), "project_branch_conflict");
+         const task: A2ATask = {
+           task_id: taskId,
+           title: text(args.title ?? taskId),
+           project_id: id(args.project ?? (this.runtime ? undefined : taskId)),
+           repo,
+-          oracle: join(snapshot, "oracle.py"),
+-          instructions: join(snapshot, "instructions.txt"),
++          integration_ref: branch,
++          card_snapshot_id: "",
++          card_version: args.card_version!,
++          card,
+           base_commit: base,
+           state: "creating",
+           spec_rev: 1,
+@@ -1853,22 +2049,12 @@ export class A2AGates {
+           !membership || membership.projectId === task.project_id,
+           "gate_project_mismatch",
+         );
+-        const actual = await this.integration(task);
+-        requireGate(!actual || actual === base, "integration_conflict");
+-        const instructionBytes = readFileSync(instructions);
+-        new TextDecoder("utf-8", { fatal: true }).decode(instructionBytes);
+-        const oracleBytes = readFileSync(oracle);
+-        this.save(task, "create_intent", {
+-          task,
+-          oracle_source: oracle,
+-          instructions_source: instructions,
+-        });
+-        mkdirSync(snapshot, { recursive: true });
+-        writeFileSync(task.oracle, oracleBytes, { flag: "wx", mode: 0o400 });
+-        writeFileSync(task.instructions, instructionBytes, { flag: "wx", mode: 0o400 });
+-        if (!actual)
+-          await this.git(taskId, repo, ["update-ref", REF, base, "0".repeat(base.length)]);
+-        requireGate((await this.integration(task)) === base, "integration_conflict");
++        this.db.exec("BEGIN IMMEDIATE");
++        try {
++          task.card_snapshot_id = this.cardSnapshot(taskId, task.card_version, card);
++          this.save(task, "create_intent");
++          this.db.exec("COMMIT");
++        } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+         this.checkUserInputObserver();
+         await this.runtime?.ensureProject(task.project_id, repo);
+         this.taskMembership(task);
+@@ -1877,6 +2063,7 @@ export class A2AGates {
+         return { ok: true, task };
+       }
+       const task = this.load(taskId);
++      requireGate(task.card_snapshot_id && task.integration_ref, "task_card_registration_required");
+       if (args.command === "attach") {
+         requireGate(this.runtime?.createAttachedThread, "runtime_required");
+         requireGate(
+@@ -1975,9 +2162,18 @@ export class A2AGates {
+             Number.isSafeInteger(args.spec_rev) && args.spec_rev! > task.spec_rev,
+             "stale_spec",
+           );
++        const revisedCard = args.command === "revise" && args.card_version !== undefined
++          ? validateTaskCard(this.cardVersion(taskId, args.card_version), taskId) : null;
+         // Retain the interrupted record under its old spec before revising.
+         this.interruptVerification(task);
+-        if (args.command === "revise") task.spec_rev = args.spec_rev!;
++        if (args.command === "revise") {
++          if (revisedCard) {
++            task.card_snapshot_id = this.cardSnapshot(taskId, args.card_version!, revisedCard);
++            task.card_version = args.card_version;
++            task.card = revisedCard;
++          }
++          task.spec_rev = args.spec_rev!;
++        }
+         this.invalidate(task, reason);
+         return { ok: true, task };
+       }
+@@ -1988,8 +2184,7 @@ export class A2AGates {
+         }
+         const owner = text(args.command === "claim" ? args.owner : taskId);
+         requireGate(task.state === "ready" && !task.current_attempt, "already_claimed");
+-        const base =
+-          args.command === "dispatch" ? sha(await this.integration(task)) : task.base_commit;
++        const base = sha(await this.integration(task));
+         const attempt: A2AAttempt = {
+           task_id: taskId,
+           attempt_id: randomUUID(),
+@@ -2001,10 +2196,15 @@ export class A2AGates {
+           turn_id: null,
+           workspace: "",
+           base_commit: base,
++          card_snapshot_id: "",
+           reclaimed: false,
+           owner,
+           state: "preparing",
+         };
++        const boundCard: TaskCard = { ...structuredClone(task.card), base_commit: base,
++          writer: { task_id: taskId, attempt_id: attempt.attempt_id, session_id: attempt.session_id,
++            fence: attempt.fence, thread_id: attempt.thread_id } };
++        attempt.card_snapshot_id = this.cardSnapshot(taskId, task.card_version, boundCard, attempt.attempt_id);
+         attempt.workspace = join(this.root, "worktrees", attempt.attempt_id);
+         task.current_attempt = attempt;
+         task.fence = attempt.fence;
+@@ -2057,7 +2257,7 @@ export class A2AGates {
+           spec_rev: attempt.spec_rev,
+           commit: "<FULL_COMMIT_SHA>",
+         };
+-        const prompt = `${readFileSync(task.instructions, "utf8")}\n\nManaged attempt identity: ${JSON.stringify(submit)}\nAfter implementing and committing, explicitly call the a2a_submit MCP tool with this identity and your full commit SHA. Never submit passed=true. Only this tool delivers your work; turn completion does not. Do not modify the contract or any acceptance tool. If any unexpected approval is requested, stop and report it.`;
++        const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\nManaged attempt identity: ${JSON.stringify(submit)}\nAfter implementing and committing, explicitly call the a2a_submit MCP tool with this identity and your full commit SHA. Never submit passed=true. Only this tool delivers your work; turn completion does not. Do not modify the contract or any acceptance tool. If any unexpected approval is requested, stop and report it.`;
+         this.event(taskId, "prompt_intent", { thread: attempt.thread_id, prompt });
+         this.checkUserInputObserver();
+         await this.runtime!.startThread(task, attempt, prompt);
+@@ -2141,6 +2341,14 @@ export class A2AGates {
+           attempt.turn_id = caller.turn;
+         }
+         attempt.state = "submitted";
++        const stats = await this.execute(taskId,
++          ["git", "-C", task.repo, "diff", "--numstat", "--no-renames", "-z", attempt.base_commit, commit, "--"], task.repo);
++        requireGate(stats.returncode === 0 && stats.stdout !== null, "git_failed", stats);
++        const rows = stats.stdout.split("\0").filter(Boolean).map((row) => row.split("\t", 3));
++        this.event(taskId, "submission_metrics", { commit, files: rows.length,
++          added: rows.reduce((sum, row) => sum + (row[0] === "-" ? 0 : Number(row[0])), 0),
++          deleted: rows.reduce((sum, row) => sum + (row[1] === "-" ? 0 : Number(row[1])), 0),
++          binary_files: rows.filter((row) => row[0] === "-").length });
+         task.candidate_commit = commit;
+         task.state = "submitted";
+         this.save(task, "submitted", { attempt, commit });
+@@ -2155,6 +2363,9 @@ export class A2AGates {
+         await this.commitExists(taskId, task.repo, G);
+         const verification_id = randomUUID(),
+           workspace = join(this.root, "verification", verification_id);
++        const commands = this.boundCard(attempt).completion_conditions.map((command) => ({
++          argv: command.argv.map((arg) => arg === "{worktree}" ? workspace : arg), cwd: workspace,
++        }));
+         const v: A2AVerification = {
+           verification_id,
+           attempt: { ...attempt },
+@@ -2162,10 +2373,13 @@ export class A2AGates {
+           G,
+           C,
+           M: null,
+-          oracle: task.oracle,
++          card_snapshot_id: attempt.card_snapshot_id,
++          card_version: task.card_version,
++          commands,
++          results: [],
+           workspace,
+           state: "running",
+-          command_intent: { argv: ["python3", "-I", "-B", task.oracle, workspace], cwd: workspace },
++          command_intent: commands[0],
+         };
+         task.verification = v;
+         task.state = "verifying";
+@@ -2218,11 +2432,29 @@ export class A2AGates {
+           await this.git(taskId, workspace, ["reset", "--hard", v.M]);
+         }
+         this.save(task, "merge_candidate", v);
++        try { await this.checkPaths(task, attempt, v); }
++        catch (error) {
++          if (!(error instanceof Refusal)) throw error;
++          v.state = "failed";
++          v.ended = new Date().toISOString();
++          task.state = "submitted";
++          this.save(task, "verification_result", { verification: v, error: error.code, details: error.details });
++          throw error;
++        }
+         try {
+-          const result = await this.execute(taskId, v.command_intent!.argv, workspace);
+-          v.result = result;
+-          v.state = result.returncode === 0 ? "passed" : "failed";
+-          task.state = result.returncode === 0 ? "verified" : "submitted";
++          for (const [index, command] of v.commands.entries()) {
++            v.command_intent = command;
++            this.save(task, "completion_intent", { verification_id, card_snapshot_id: v.card_snapshot_id, index: index + 1, command });
++            const started = new Date().toISOString();
++            const result = await this.execute(taskId, command.argv, workspace);
++            v.result = result;
++            v.results.push(result);
++            this.event(taskId, "completion_check", { verification_id, card_snapshot_id: v.card_snapshot_id,
++              index: index + 1, result, started, ended: new Date().toISOString(), passed: result.returncode === 0 });
++            if (result.returncode !== 0) break;
++          }
++          v.state = v.results.length === commands.length && v.results.every((result) => result.returncode === 0) ? "passed" : "failed";
++          task.state = v.state === "passed" ? "verified" : "submitted";
+         } catch (error) {
+           if (!(error instanceof Refusal)) throw error;
+           v.state = "unknown";
+@@ -2240,6 +2472,17 @@ export class A2AGates {
+           this.save(task, "verification_result", { verification: v, failure: error.details });
+           throw new Refusal("verification_unknown", v);
+         }
++        if (v.state === "passed") {
++          try { await this.checkTrailers(task, attempt, v); }
++          catch (error) {
++            if (!(error instanceof Refusal)) throw error;
++            v.state = "failed";
++            v.ended = new Date().toISOString();
++            task.state = "submitted";
++            this.save(task, "verification_result", { verification: v, error: error.code, details: error.details });
++            throw error;
++          }
++        }
+         v.ended = new Date().toISOString();
+         this.save(task, "verification_result", v);
+         requireGate(v.state === "passed", "oracle_failed", v);
+@@ -2262,7 +2505,8 @@ export class A2AGates {
+               intent.M === v.M &&
+               intent.C === v.C &&
+               intent.spec_rev === v.spec_rev &&
+-              intent.oracle === v.oracle &&
++              intent.card_snapshot_id === v.card_snapshot_id &&
++              intent.integration_ref === task.integration_ref &&
+               intent.attempt.task_id === taskId &&
+               intent.attempt.attempt_id === attempt.attempt_id &&
+               intent.attempt.session_id === attempt.session_id &&
+@@ -2273,6 +2517,7 @@ export class A2AGates {
+             { intent, actual },
+           );
+           if (actual === intent.M) {
++            await this.checkIntegratedContent(task, intent);
+             intent.state = "completed";
+             task.state = "accepted";
+             attempt.state = "accepted";
+@@ -2293,23 +2538,30 @@ export class A2AGates {
+             verification_id: v.verification_id,
+             attempt: { ...attempt },
+             spec_rev: v.spec_rev,
+-            oracle: v.oracle,
++            card_snapshot_id: v.card_snapshot_id,
++            integration_ref: task.integration_ref,
++            worktree: await this.integrationWorktree(task),
+             intent_id: randomUUID(),
+             state: "pending",
+             command_intent: {
+-              argv: ["git", "-C", task.repo, "update-ref", REF, v.M, v.G],
++              argv: [],
+               cwd: task.repo,
+             },
+           };
++          intent.command_intent = {
++            argv: ["git", "-C", intent.worktree ?? task.repo, "update-ref", "--stdin"],
++            cwd: intent.worktree ?? task.repo,
++          };
+           task.integration_intent = intent;
+           task.state = "integrating";
+           this.save(task, "integration_intent", intent);
+         }
+-        const result = await this.execute(taskId, intent.command_intent!.argv, task.repo);
++        const result = await this.advanceWorkBranch(task, intent);
+         const readback = await this.integration(task);
+         intent.result = result;
+         const completed = result.returncode === 0 && readback === intent.M;
+         if (completed) {
++          await this.checkIntegratedContent(task, intent);
+           intent.state = "completed";
+           task.state = "accepted";
+           attempt.state = "accepted";
+@@ -2358,7 +2610,7 @@ export class A2AGates {
+     } catch (error) {
+       const ioCode = (error as NodeJS.ErrnoException).code;
+       const code =
+-        error instanceof Refusal
++        error instanceof TaskCardError ? "invalid_task_card" : error instanceof Refusal
+           ? error.code
+           : [
+                 "ENOENT",
+@@ -2370,7 +2622,8 @@ export class A2AGates {
+               ].includes(ioCode ?? "")
+             ? "local_io_failed"
+             : "gate_failure";
+-      const details = error instanceof Refusal ? error.details : String(error);
++      const details = error instanceof TaskCardError ? { field: error.field, reason: error.message } :
++        error instanceof Refusal ? error.details : String(error);
+       // A failed observer must remain queryable even when SQLite cannot append.
+       if (taskId && this.userInputObserver?.state !== "failed")
+         this.event(taskId, "rejected", { error: code, details, input: raw });
+diff --git a/workbench/tests/test_cas_race.py b/workbench/tests/test_cas_race.py
+index 17486a6..b86c7f0 100644
+--- a/workbench/tests/test_cas_race.py
++++ b/workbench/tests/test_cas_race.py
+@@ -26,9 +26,6 @@ class CASRace(recovery.RecoveryCLI):
+         self.git('add', 'external.txt')
+         self.git('commit', '-m', 'External writer during integration')
+         external = self.git('rev-parse', 'HEAD').stdout.strip()
+-        p = self.process([recovery.REAL_GIT, '-C', str(self.repo), 'update-ref',
+-                          recovery.REF, external, self.base], label='external-writer')
+-        self.assertEqual(p.returncode, 0, p.stderr)
+         self.assertEqual(self.ref(), external)
+         self.release(barrier)
+         reply = self.parse_cli(self.complete(original))

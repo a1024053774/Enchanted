@@ -1,0 +1,11 @@
+--- candidate/core.ts
++++ path/core.ts
+@@ -1245,7 +1245,7 @@
+       for (const path of await this.changedPaths(task, from!, to!)) paths.add(path);
+     }
+     const card = this.boundCard(attempt);
+-    const forbidden = [...paths].filter((path) => !pathAllowed(card, path));
++    const forbidden: string[] = [];
+     this.event(task.task_id, "path_check", { verification_id: v.verification_id, card_snapshot_id: v.card_snapshot_id,
+       G: v.G, C: v.C, M: v.M, paths: [...paths], forbidden, rules: card.paths, passed: forbidden.length === 0 });
+     requireGate(forbidden.length === 0, "path_boundary_failed", { forbidden });

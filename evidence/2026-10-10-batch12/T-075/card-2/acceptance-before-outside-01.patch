@@ -1,0 +1,200 @@
+diff --git a/acceptance/test_coop_e2e.py b/acceptance/test_coop_e2e.py
+index 8001a56..4615e16 100644
+--- a/acceptance/test_coop_e2e.py
++++ b/acceptance/test_coop_e2e.py
+@@ -26,7 +26,7 @@ REFERENCE = ROOT / "acceptance" / "reference" / "pager.py"
+ ORACLE = ROOT / "acceptance" / "pagination_oracle.py"
+ CONTRACT = ROOT / "fixtures" / "pagination" / "CONTRACT.md"
+ STARTER = ROOT / "fixtures" / "pagination" / "pager.py"
+-INTEGRATION_REF = "refs/a2a/integration"
++INTEGRATION_REF = "refs/heads/main"
+ COMMANDS = []
+ ARTIFACTS = []
+ 
+@@ -68,7 +68,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
+             self.env.pop(key, None)
+         self.env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
+                          "GIT_TERMINAL_PROMPT": "0", "PYTHONDONTWRITEBYTECODE": "1"})
+-        self.git("init")
++        self.git("init", "-b", "main")
+         self.git("config", "user.name", "Independent acceptance fixture")
+         self.git("config", "user.email", "a2a-check@example.invalid")
+         self.git("config", "core.logAllRefUpdates", "always")
+@@ -139,9 +139,20 @@ class ManagedDeliveryCLI(unittest.TestCase):
+ 
+     def create(self, task=None):
+         task = task or self.task
++        card = {
++            "id": task, "source": None, "goal": self.instructions.read_text(encoding="utf-8"),
++            "non_goals": ["不改变独立分页合同"], "paths": {"allow": ["."], "deny": []},
++            "completion_conditions": [{"argv": [sys.executable, "-I", "-B", "-c",
++                                                 self.oracle.read_text(encoding="utf-8"), "{worktree}"]}],
++            "red_commands": [], "task_type": "后端逻辑", "repair_target": None,
++            "complexity": "M", "executor": {"cli": "Codex", "model": "fixture", "effort": "xhigh"},
++            "base_commit": None, "writer": None,
++        }
++        self.card_source = self.root / (task + ".card.json")
++        self.card_source.write_text(json.dumps(card, ensure_ascii=False), encoding="utf-8")
++        self.cli("card_save", "--task", task, "--card", self.card_source, "--expected-version", "0")
+         result = self.cli("create", "--task", task, "--repo", self.repo,
+-                          "--base", self.base, "--oracle", self.oracle,
+-                          "--instructions", self.instructions)
++                          "--branch", INTEGRATION_REF, "--card-version", "1")
+         self.assertIsInstance(result.get("task"), dict, result)
+         self.assertEqual(result["task"]["spec_rev"], 1)
+         self.assertTrue((self.state / "state.sqlite3").is_file())
+@@ -306,8 +317,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
+                 before = self.business_state(task)
+                 previous_events = self.events(task)
+                 duplicate = self.cli("create", "--task", task, "--repo", self.repo,
+-                                     "--base", self.base, "--oracle", self.oracle,
+-                                     "--instructions", self.instructions, ok=False)
++                                     "--branch", INTEGRATION_REF, "--card-version", "1", ok=False)
+                 self.assertEqual(self.business_state(task), before)
+                 self.assert_rejection_recorded(duplicate["error"], previous_events, task)
+ 
+@@ -400,6 +410,10 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         # Replacing the caller-owned source must not replace the registered oracle.
+         self.oracle.write_text("import sys\nprint('changed oracle source')\nsys.exit(23)\n",
+                                encoding="utf-8")
++        changed_card = json.loads(self.card_source.read_text(encoding="utf-8"))
++        changed_card["completion_conditions"][0]["argv"] = [sys.executable, "-c", "import sys; sys.exit(23)"]
++        self.card_source.write_text(json.dumps(changed_card), encoding="utf-8")
++        self.cli("card_save", "--task", self.task, "--card", self.card_source, "--expected-version", "1")
+         self.submit(attempt, commit)
+         self.assertEqual(self.status()["state"], "submitted")
+         self.assertEqual(self.ref(), self.base)
+@@ -451,7 +465,6 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         self.git("add", "external-change.txt")
+         self.git("commit", "-m", "External change after verification")
+         external = self.git("rev-parse", "HEAD").stdout.strip()
+-        self.git("update-ref", INTEGRATION_REF, external, self.base)
+         log_before = self.reflog()
+         events = self.events()
+         self.cli("integrate", "--task", self.task, ok=False, error="integration_conflict")
+diff --git a/acceptance/test_recovery_e2e.py b/acceptance/test_recovery_e2e.py
+index 2f4f6ad..2e0d458 100644
+--- a/acceptance/test_recovery_e2e.py
++++ b/acceptance/test_recovery_e2e.py
+@@ -74,17 +74,17 @@ finally:
+ sys.exit(code)
+ '''
+ 
+-GIT_BARRIER = '''
++GIT_BARRIER = r'''
+ import json, os, pathlib, subprocess, sys, time, uuid
+ args = sys.argv[1:]
+ control = pathlib.Path(CONTROL)
+-if "update-ref" not in args or REF not in args:
++if "update-ref" not in args or "--stdin" not in args:
+     os.execv(REAL_GIT, [REAL_GIT] + args)
+ identity = uuid.uuid4().hex
+ phase = (control / "phase").read_text(encoding="utf-8")
+ release = control / (identity + ".release")
+ data = {"pid": os.getpid(), "ppid": os.getppid(), "argv": [REAL_GIT] + args,
+-        "phase": phase, "release": str(release)}
++        "phase": phase, "release": str(release), "stdin": [], "stdout": ""}
+ def save(suffix):
+     (control / (identity + suffix)).write_text(json.dumps(data), encoding="utf-8")
+ def barrier():
+@@ -99,14 +99,44 @@ if phase == "before" and barrier() == "abort":
+     data["executed_real_git"] = False
+     save(".done.json")
+     sys.exit(125)
+-p = subprocess.run([REAL_GIT] + args, text=True, capture_output=True)
+-data.update({"executed_real_git": True, "exit_code": p.returncode,
+-             "stdout": p.stdout, "stderr": p.stderr})
+-save(".result.json")
+-if phase == "after":
+-    barrier()
+-sys.stdout.write(p.stdout)
+-sys.stderr.write(p.stderr)
++p = subprocess.Popen([REAL_GIT] + args, text=True, stdin=subprocess.PIPE,
++                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
++data["git_pid"] = p.pid
++def emit(value):
++    try:
++        sys.stdout.write(value)
++        sys.stdout.flush()
++    except BrokenPipeError:
++        # The killed CLI cannot read. Retain the real Git result for recovery.
++        data["caller_pipe_closed"] = True
++        sys.stdout = open(os.devnull, "w")
++for line in sys.stdin:
++    data["stdin"].append(line)
++    p.stdin.write(line)
++    p.stdin.flush()
++    verb = line.strip().split(" ", 1)[0]
++    if verb not in ("start", "prepare", "commit", "abort"):
++        continue
++    response = p.stdout.readline()
++    data["stdout"] += response
++    if verb == "commit" or not response:
++        p.stdin.close()
++        p.wait()
++        data.update({"executed_real_git": True, "exit_code": p.returncode,
++                     "stderr": p.stderr.read()})
++        save(".result.json")
++        if phase == "after" and verb == "commit" and p.returncode == 0:
++            barrier()
++        emit(response)
++        break
++    emit(response)
++else:
++    p.stdin.close()
++    p.wait()
++    data.update({"executed_real_git": True, "exit_code": p.returncode,
++                 "stderr": p.stderr.read()})
++    save(".result.json")
++sys.stderr.write(data.get("stderr", ""))
+ save(".done.json")
+ sys.exit(p.returncode)
+ '''
+@@ -513,7 +543,7 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
+         # State and completion metadata may change; original inputs must survive.
+         frozen_keys = {"G", "C", "M", "session_id", "fence",
+                        "candidate_commit", "attempt_id", "spec_rev", "base_commit",
+-                       "merged_commit", "oracle", "oracle_path", "workspace", "worktree",
++                       "merged_commit", "card_snapshot_id", "card_version", "commands", "workspace", "worktree",
+                        "command_intent", "command_intent_json"}
+         if len(old_before) == len(old_rows) == 1:
+             inputs = {key: value for key, value in old_before[0].items() if key in frozen_keys}
+@@ -589,6 +619,7 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
+         attempt, candidate = self.setup_candidate(verified=True)
+         control, before = self.start_git_fault("after")
+         if delete:
++            self.git("update-ref", "refs/a2a/fixture-preserved", candidate)
+             p = self.process([REAL_GIT, "-C", str(self.repo), "update-ref", "-d", REF, candidate],
+                              label="git:external-delete")
+             if p.returncode != 0:
+@@ -599,10 +630,6 @@ class RecoveryCLI(helper.ManagedDeliveryCLI):
+             self.git("add", "external.txt")
+             self.git("commit", "-m", "Independent external third value")
+             external = self.git("rev-parse", "HEAD").stdout.strip()
+-            p = self.process([REAL_GIT, "-C", str(self.repo), "update-ref", REF, external, candidate],
+-                             label="git:external-third-value")
+-            if p.returncode != 0:
+-                raise FixtureError("External reference fixture failed: " + p.stderr)
+         if self.ref_or_missing() != external:
+             raise FixtureError("External reference injection could not be confirmed")
+         # Deleted refs have no reflog command output, so retain raw log presence.
+diff --git a/acceptance/test_run_e2e.py b/acceptance/test_run_e2e.py
+index e266c36..f3b245e 100644
+--- a/acceptance/test_run_e2e.py
++++ b/acceptance/test_run_e2e.py
+@@ -230,9 +230,13 @@ class RunCLI(recovery.RecoveryCLI):
+         self.check(self.ref() == candidate and candidate != self.base,
+                    "Automatic run integrates the explicit new Git candidate", candidate, self.ref())
+         self.persisted_run_receipt(run)
+-        self.check(self.git("rev-parse", "HEAD").stdout.strip() == original_head,
+-                   "User branch remains at its original head", original_head,
++        self.check(original_head == self.base and self.git("rev-parse", "HEAD").stdout.strip() == candidate,
++                   "Project work branch advances from G to the verified M", candidate,
+                    self.git("rev-parse", "HEAD").stdout.strip())
++        self.check(self.git("status", "--porcelain").stdout == "" and
++                   (self.repo / "pager.py").read_bytes() == Path(attempt["workspace"], "pager.py").read_bytes(),
++                   "Checked-out worktree and index match M", "clean worktree with candidate contents",
++                   self.git("status", "--porcelain").stdout)
+         readback = self.root / "authoritative accepted readback"
+         self.git("worktree", "add", "--detach", str(readback), self.ref())
+         self.assert_novel_pagination_inputs(readback)

@@ -1,0 +1,11 @@
+--- candidate/core.ts
++++ fast-forward/core.ts
+@@ -1191,7 +1191,7 @@
+     requireGate(result.returncode === 0, "needs_reconciliation", { intent_id: intent.intent_id, result });
+   }
+   private async advanceWorkBranch(task: A2ATask, intent: NonNullable<A2ATask["integration_intent"]>) {
+-    requireGate(await this.ancestor(task.task_id, task.repo, intent.G, intent.M), "integration_not_fast_forward");
++    /* mutation: omit the fast-forward check */
+     await this.checkIntegrationHead(task, intent.worktree);
+     const cwd = intent.worktree ?? task.repo;
+     const argv = intent.command_intent!.argv;

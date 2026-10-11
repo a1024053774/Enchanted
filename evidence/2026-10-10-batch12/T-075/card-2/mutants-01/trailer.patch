@@ -1,0 +1,11 @@
+--- candidate/core.ts
++++ trailer/core.ts
+@@ -1267,7 +1267,7 @@
+       let error: string | null = null;
+       const missing = Object.keys(trailers).length === 0;
+       if (!missing) {
+-        if (trailers.task?.some((value) => value !== task.task_id)) error = "trailer_task_mismatch";
++        if (trailers.task?.some((value) => value !== task.task_id)) error = null;
+         else if (Object.keys(trailers).length !== required.length ||
+           required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = "invalid_trailers";
+         else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")

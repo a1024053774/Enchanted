@@ -1,0 +1,18 @@
+--- candidate/core.ts
++++ dirty/core.ts
+@@ -1218,14 +1218,7 @@
+     try {
+       await send("start\n", "start: ok");
+       await send(`update ${intent.integration_ref} ${intent.M} ${intent.G}\nprepare\n`, "prepare: ok");
+-      if (intent.worktree) {
+-        for (const dryRun of [true, false]) {
+-          const result = await this.execute(task.task_id,
+-            ["git", "-C", cwd, "read-tree", ...(dryRun ? ["-n"] : []), "-m", "-u", intent.G, intent.M], cwd);
+-          requireGate(result.returncode === 0, "dirty_integration_worktree", { result, intent_id: intent.intent_id });
+-        }
+-        this.event(task.task_id, "integration_worktree_advanced", { intent_id: intent.intent_id, workspace: cwd, G: intent.G, M: intent.M });
+-      }
++      /* mutation: omit the checked-out worktree update and its protection */
+       await this.checkIntegrationHead(task, intent.worktree);
+       await send("commit\n", "commit: ok");
+     } finally {

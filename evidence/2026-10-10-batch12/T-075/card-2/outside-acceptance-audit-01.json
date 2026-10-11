@@ -1,0 +1,166 @@
+{
+  "status": "PASS",
+  "scope": "receipt audit and exact source byte comparison; not independent review",
+  "outside": [
+    {
+      "suite": "coop",
+      "tests": 8,
+      "status": "PASS",
+      "action_inputs": 4,
+      "human_interventions": 4
+    },
+    {
+      "suite": "recovery",
+      "tests": 9,
+      "status": "PASS",
+      "action_inputs": 9,
+      "human_interventions": 9
+    },
+    {
+      "suite": "run",
+      "tests": 18,
+      "status": "PASS",
+      "action_inputs": 9,
+      "human_interventions": 9
+    },
+    {
+      "suite": "green-window",
+      "status": "PASS",
+      "tests": 1,
+      "assertions": 9
+    },
+    {
+      "suite": "green-cas",
+      "status": "PASS",
+      "tests": 1,
+      "assertions": 3
+    },
+    {
+      "suite": "mutant-cas",
+      "status": "business failure observed",
+      "failed_assertions": [
+        {
+          "test": "__main__.CASRace.test_external_write_between_read_and_cas_is_preserved",
+          "claim": "CAS rejects a changed expected old value",
+          "expected": false,
+          "observed": true,
+          "pass": false
+        },
+        {
+          "test": "__main__.CASRace.test_external_write_between_read_and_cas_is_preserved",
+          "claim": "CAS preserves the external writer reference",
+          "expected": "069c5256844678f8ca3dcc177dc02165ec5a53e2",
+          "observed": "388695d0f9f4e18e0286b755851a0b1294e219e6",
+          "pass": false
+        },
+        {
+          "test": "__main__.CASRace.test_external_write_between_read_and_cas_is_preserved",
+          "claim": "Lost CAS cannot accept the task",
+          "expected": "not accepted",
+          "observed": "accepted",
+          "pass": false
+        }
+      ]
+    }
+  ],
+  "red_window": "expected-red: new CLI missing --card",
+  "local_mutants": [
+    {
+      "name": "path",
+      "failures": 1,
+      "errors": 0,
+      "command": [
+        "workbench/tests/test_task_cards_e2e.py",
+        "--gate",
+        "/tmp/a2a-card2-mutants-napg0vvy/path/cli.ts",
+        "--case",
+        "test_forbidden_path_rejected",
+        "--output",
+        "evidence/2026-10-10-batch12/T-075/card-2/mutant-path-01"
+      ]
+    },
+    {
+      "name": "trailer",
+      "failures": 1,
+      "errors": 0,
+      "command": [
+        "workbench/tests/test_task_cards_e2e.py",
+        "--gate",
+        "/tmp/a2a-card2-mutants-napg0vvy/trailer/cli.ts",
+        "--case",
+        "test_foreign_middle_commit_rejected",
+        "--output",
+        "evidence/2026-10-10-batch12/T-075/card-2/mutant-trailer-01"
+      ]
+    },
+    {
+      "name": "dirty",
+      "failures": 3,
+      "errors": 0,
+      "command": [
+        "workbench/tests/test_task_cards_e2e.py",
+        "--gate",
+        "/tmp/a2a-card2-mutants-napg0vvy/dirty/cli.ts",
+        "--case",
+        "test_dirty_target_rejects_without_losing_staged_unstaged_or_untracked",
+        "--output",
+        "evidence/2026-10-10-batch12/T-075/card-2/mutant-dirty-01"
+      ]
+    },
+    {
+      "name": "fast-forward",
+      "failures": 1,
+      "errors": 0,
+      "command": [
+        "workbench/tests/test_task_cards_e2e.py",
+        "--gate",
+        "/tmp/a2a-card2-mutants-napg0vvy/fast-forward/cli.ts",
+        "--case",
+        "test_non_fast_forward_git_result_cannot_integrate",
+        "--output",
+        "evidence/2026-10-10-batch12/T-075/card-2/mutant-fast-forward-01"
+      ]
+    }
+  ],
+  "source_comparison": [
+    "acceptance/entry/a2a_gates.py",
+    "acceptance/entry/native-entry.py",
+    "acceptance/entry/native-entry.ts",
+    "acceptance/entry/native-runtime.ts",
+    "acceptance/entry/thread-boundary.py",
+    "acceptance/pagination_oracle.py",
+    "acceptance/reference/pager.py",
+    "acceptance/test_coop_e2e.py",
+    "acceptance/test_dispatch_session_e2e.py",
+    "acceptance/test_herdr_traceability_e2e.py",
+    "acceptance/test_inbox_e2e.py",
+    "acceptance/test_recovery_e2e.py",
+    "acceptance/test_run_e2e.py",
+    "acceptance/workbench_identity_oracle.py",
+    "fixtures/pagination/CONTRACT.md",
+    "fixtures/pagination/pager.py",
+    "workbench/.gitignore",
+    "workbench/.npmrc",
+    "workbench/LICENSE.synara",
+    "workbench/README.md",
+    "workbench/check-cache.mjs",
+    "workbench/package-lock.json",
+    "workbench/package.json",
+    "workbench/src/contracts/a2aGates.ts",
+    "workbench/src/contracts/a2aInbox.ts",
+    "workbench/src/contracts/a2aMembership.ts",
+    "workbench/src/contracts/a2aRolePermissions.ts",
+    "workbench/src/contracts/baseSchemas.ts",
+    "workbench/src/contracts/index.ts",
+    "workbench/src/contracts/modelOptions.ts",
+    "workbench/src/contracts/modelSelection.ts",
+    "workbench/src/gates/cli.ts",
+    "workbench/src/gates/core.ts",
+    "workbench/src/gates/membership.ts",
+    "workbench/src/gates/rolePermissions.ts",
+    "workbench/src/gates/taskCards.ts",
+    "workbench/tests/test_cas_race.py",
+    "workbench/tests/test_task_cards_e2e.py",
+    "workbench/tests/test_work_branch_recovery.py"
+  ]
+}

@@ -1,0 +1,1 @@
+/opt/homebrew/bin/python3.11 -B /Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-2/run-card-mutants.py --manifest /Users/luckye/Documents/Code/a2a/evidence/2026-10-10-batch12/T-075/card-2/mutants-02/manifest.json --prefix outside-review-green.SC1xPN 
