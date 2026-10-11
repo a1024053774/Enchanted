@@ -40,8 +40,10 @@ ready_rev: 1
 
 ## Resolution
 
-2026-10-11，T-078-1 候选 **INCOMPLETE，待主控关闭**。按执行主控 #49、#63，非 Claude 实现进入冻结、变基和最终验收阶段：窗口输入经后台写入 PTY，保留用户输入／人工介入及注入区分、组合输入占用、请求去重、二进制字节、Esc 后用户放行；worker 库收件箱复用已认证 Stop 转交并核对当前 attempt；主控启动参数及记录只作静态准备。
+2026-10-11，T-078-1 非 Claude 范围的最终验收与一次新上下文只读独立审查均为局部 **PASS**；T-078 整票 **INCOMPLETE，待主控关闭**。已验收代码提交 `b3fb998cf48574821c39440ece3f9ff897f26cf9`，基于 main `532c51f4cc12352bb7cf545ce1e5f824d68bdc4a`，保留 T-076-1 的稳定身份及停机收尾改动。窗口输入经后台写入 PTY，区分用户输入／人工介入与注入，覆盖组合输入占用、请求去重、二进制字节、Esc 后用户放行；worker 库收件箱使用实际会话身份经已认证 Stop 转交并核对当前 attempt；Claude 启动参数及记录只作静态准备。
 
-阶段证据见 [RESULTS](../../evidence/2026-10-11-batch13/T-078/RESULTS.md)：运行时 12 项、输入失败方式 11 项、worker 入口 14 项通过；四项权限业务变异反例通过独立库读回确认。旧入口不可达红态没有冒充权限业务规则红态。所有失败现场保留。
+最终证据见 [RESULTS](../../evidence/2026-10-11-batch13/T-078/RESULTS.md) 和 [outside-final-01](../../evidence/2026-10-11-batch13/T-078/outside-final-01/checkpoint.json)：领域 11、管理客户端 8、窗格状态 11、静态骨架 2、运行时入口 12、输入失败方式 11、worker 入口 14 全部通过；原 coop/recovery/run 8/9/18 与 CAS 1 均为 0 failures/errors/skipped；四项权限及 fence/CAS/lock 三项原业务变异反例均实际触发业务违约，原失败现场保留。旧 worker_command_forbidden 仅证明入口缺失，没有冒充权限业务规则红态。六个超限原件按规则归档外置盘，仓库保留摘要与重放路径。
 
-最终变基候选的完成条件、8/9/18、CAS、三项原业务变异反例及一次只读独立审查尚待执行。真实 Claude 启动、角色凭据和 hook 接线、主控互相唤醒、两个主控加一个 worker 的同任务窗口验收仍未完成，等待 needs-decision `20261011T101958Z`；未启动 Claude 或其夹具，待真实 Claude 复核。Ticket 保持 open。
+[独立审查](../../evidence/2026-10-11-batch13/T-078/independent-review-01.md) 未确认该局部范围内的可达违约或结构性阻断问题，核对了冻结源码、原始字节、SQLite 内存读副本和外置原件。使用会话内独立只读 agent，fork_turns=none，请求 gpt-6-astra/xhigh；实际模型配置与服务档位未独立观测，不冒称 Fast 已生效。审查未写候选、submit 或集成。
+
+真实 Claude 启动、主控角色凭据和 hook 接线、实际主控互相唤醒、两个主控加一个 worker 的同任务窗口验收仍未完成，等待 needs-decision `20261011T101958Z`。两分钟无 ack 条件为受控时钟／逻辑角色证据，IME 为合成组合事件；不外推为实际主控链路或系统输入法验证。测试未启动 Claude 或其夹具，待真实 Claude 复核；不切换日常文件版 inbox，不 push。Ticket 保持 open、待主控关闭。

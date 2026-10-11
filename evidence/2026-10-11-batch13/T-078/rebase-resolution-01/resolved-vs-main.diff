@@ -1,0 +1,192 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index e06d0cce..e1be5a22 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -1,4 +1,4 @@
+-# a2a 门禁、编排后台与只读工作台
++# a2a 门禁、编排后台与工作台
+ 
+ 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+ 
+@@ -14,6 +14,18 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status
+ `daemon_stop` 显式进入关闭流程，返回 `stopping: true` 是受理确认；以 PID/端点消失确认退出。
+ 关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
+ 随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
++
++启动前显式设置 `A2A_OPERATOR_CREDENTIAL`，指向本次启动专用、尚不存在的绝对文件路径。
++启动者创建 0600 凭据文件，后续管理 CLI 与 Electron 从同一环境变量读取；后台按凭据
++认定执行主控身份，不按 `--from` 或 `--role` 自报。每次后台启动使用新凭据，旧文件不覆盖。
++不要把凭据内容放进 argv、证据或 Git；后台停止后由创建者清理。只读查询仍可匿名调用。
++这条凭据路径与交互输入的首个候选已通过四项真实入口合同；库客户端通过八项检查。
++8/9/18 复验曾在 coop 的 submit 出现身份回归；分开管理凭据与原生身份后，
++outside-inbox-02 的 8/9/18 全部通过。后续窗格运行时变更尚待真实入口复验。
++这些局部结果不代表 T-078 整票完成。
++
++后台把认证后的角色作为 GateActor 传给门禁；只有真实原生会话才提供 SubmitCaller
++的 thread/turn。管理凭据不虚构线程，不能替代受管 worker 的原生身份。
+ 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
+ T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
+ B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本卡一次独立审查 PASS。
+@@ -35,6 +47,7 @@ B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本
+ 使用同一个 CLI 生成模板，填写目标、非目标、路径、argv 完成条件等字段后校验并保存：
+ 
+ ```sh
++export A2A_OPERATOR_CREDENTIAL=/绝对路径/隔离目录/operator-本次启动.json
+ node workbench/src/gates/cli.ts --state /绝对路径/state daemon_start
+ node workbench/src/gates/cli.ts --state /绝对路径/state card_template --task T-080-1 --repo /绝对路径/repo --ticket /绝对路径/T-080.md
+ node workbench/src/gates/cli.ts --state /绝对路径/state card_validate --task T-080-1 --card /绝对路径/card.json
+@@ -98,15 +111,47 @@ workspace-write、任务卡指定的 gpt-6-astra 或 gpt-6.1-sol、xhigh、Fast
+ 执行主控再用 `pane_release --thread ID --reason 原因` 首次放行，记 executor action，
+ 不当作用户输入或人工介入。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
+ 只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
+-本卡暂只提供首次 release，后续人工输入与中断放行尚未完成，见证据目录 RESULTS。
++Esc 后由窗口的“放行排队消息”按钮解除中断占用。后台校验窗口凭据、固定 attempt
++和中断状态，先记录用户 action，再尝试发送队首；受管 worker 同时记人工介入。
++该入口已通过 outside-runtime-green-01 的真实窗口检查；主控排队仍待后续验证。
+ 
+ `daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
+ 
+-## 只读 Electron 窗口
++## 主控启动记录（静态准备）
++
++主控启动的静态准备入口为 `controller_prepare --task ID --preset ideation|executor`，
++使用后台的管理凭据。启动配置的 `controllers` 按这两个 preset 分别提供
++`executable`（绝对路径）、`model`、`effort`、`settings`、`role_card`、
++`role_card_revision`，并提供公共 `code_revision`。settings 当前只收 hooks 与
++permissions；认证环境另待用户决定，不能把凭据放入 settings。
++
++此命令只构造 argv 和追加启动记录：包含 `--session-id`、`--model`、`--effort`、
++`--settings` 及角色卡正文，attempt 为 null，execution_state 为 prepared。
++它不创建进程、不读取 CLI 版本、不签发会话凭据；CLI 版本记 unknown，生命周期为
++“未启动”，明确标记“待真实 Claude 复核”。静态构造／存储红绿已通过，真实 CLI
++和主控多窗格继续等待用户的认证与额度决定。
++
++## Electron 窗口
+ 
+ 窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
+-窗格和门禁状态；终端网格固定为 160×45，只允许选择、复制和滚动。没有终端输入接口，
+-用户输入记录与 Esc 后人工放行属于 S4，设备查询应答仍由后台处理。
++窗格和门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
++键盘、IME 和粘贴入口，历史窗格保持只读；全部输入由后台写入 node-pty，renderer
++没有后台凭据、PTY 或数据库权限。窗口凭据绑定一个 launch，关闭时撤销，不随
++current_attempt 更换目标。后台在等待前占用窗口序号和 request_id，重用请求号会被拒绝；
++输入调用失败时停止后续发送，不自动重投。
++
++输入在写入 PTY 前进入 user_inputs；受管 worker 的人工介入在同一事务里派生，带
++input_id。粘贴去掉协议包裹后保存文本；终端控制键记 action。长度为零的 onData
++只记带窗口、序号和时间的 terminal_input_empty，不写 PTY、不生成用户输入或介入。
++组合输入开始时先登记草稿占用；结束或取消组合输入不代表 CLI 输入行为空，
++占用由用户提交或 Esc 后明确放行清除。二进制终端输入按原始单字节写入，保存
++带 base64 原始字节的 action，不把其中的控制字节当成用户提交。上述三项修复
++已通过 outside-input-green-01；主控多窗格和主控凭据运行路径仍待真实 Claude 复核。
++
++设备查询应答由后台处理，前端用公开 parser 接管查询，避免自动应答混入用户输入。
++按 T-078 执行主控决定 03，前端拦截 DECSET/DECRST 1004；混合序列中的其他模式
++保持顺序交给 xterm。每次拦截记原始序列。CLI 因此收不到工作台窗口的焦点变化。
++P1 与首个候选的四项输入合同已经通过；其余失败方式和当前扩展后的候选仍待复验。
+ 
+ 构建必须在外置盘真实挂载后进行，每次使用一个尚未存在的构建槽：
+ 
+@@ -115,6 +160,9 @@ npm --prefix workbench run build -- --slot local-01
+ node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
+ ```
+ 
++Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main
++进程中读取，并用于领取窄的窗口输入凭据，不传给 preload 或 renderer。
++
+ 缓存、构建临时目录和 dist 都在外置盘；没有内置盘回退。`A2A_BUILD_VOLUME` 可指定
+ 验收用的检查路径，普通目录和符号链接不能通过挂载检查。已有构建槽不会覆盖；不要在
+ 输出目录中放源码或依赖链接。启动只读取已有构建产物，不自动构建、装包或启动后台。
+@@ -122,6 +170,38 @@ node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01
+ 默认后台目录为 `~/Library/Application Support/a2a-orchestrator`，默认 Electron 数据位于其
+ `ui/` 子目录。验证时同时显式指定后台与 UI 的 `/tmp` 隔离目录。
+ 
++## 库版收件箱客户端（当前只在夹具项目验证）
++
++`workbench/bin/inbox` 复用同一门禁 CLI 与后台，不打开数据库、不读写文件版收件箱。
++必须显式传 state（或本会话 A2A_STATE）。管理端提供对应的管理凭据；worker 的
++send/list/ack/ready 沿既有 B 请求文件通路，由本会话 Stop 携带实际 launch 凭据
++转交，结果以门禁回执写回。queued 只表示本地请求已排队，不是后台执行成功。
++转交时及门禁内的身份检查同时核对原生进程和当前 attempt，撤销后不能继续写入。
++`--from`、`--role` 只是沿用命令格式，不能改变实际身份；worker 只能发 issue、
++读取本人的条目、ack 本人的条目；ready 按权限拒绝 worker。
++worker 入口已通过 outside-worker-inbox-green-01 的 14 项检查；四项单规则变异体
++分别产生了可读回的越权结果，且只触发对应断言失败。最终变基候选仍须重新验证。
++
++```sh
++workbench/bin/inbox --state /绝对路径/state ready --project 项目编号
++workbench/bin/inbox --state /绝对路径/state list
++workbench/bin/inbox --state /绝对路径/state send --to ideation --kind report --body-file /绝对路径/report.txt
++workbench/bin/inbox --state /绝对路径/state ack --id 收件箱条目号
++```
++
++ready 只读取该后台已绑定项目的 ticket，返回可执行且依赖已关闭的就绪项；字段
++不合规时返回诊断和失败状态。它不标记就绪、不写项目地图，也不接受任意仓库路径。
++
++收件箱、ack 和投递收据都只追加。`queued` 是已排队，`delivered` 才是运行时确认写入；
++重复 ack 复用原条目及投递结果，不重发。读取 queued 收据时可追加运行时后来确认的状态。
++没有实际接收者时，条目和未送达原因保留，命令不能报告投递成功。
++
++当前只完成收件箱领域逻辑与客户端接线；Panes 的主控唤醒和中断、角色会话凭据、
++worker 收件箱命令的 Stop 转交仍待 T-078 后续步骤，因而不能作日常派发入口。
++本仓库的 `scripts/inbox` 保持原样，切换前不双写。领域测试没有启动任何 CLI，不能
++替代真实窗格验证。库客户端 8/8 已通过；coop 的 7 项身份回归修正后，8/9/18
++仍待重新验证，业务断言没有改动。
++
+ ```sh
+ node workbench/src/gates/cli.ts --state /绝对路径/state workbench_snapshot --task 任务编号
+ node workbench/src/gates/cli.ts --state /绝对路径/state pane_output --launch 启动记录号 --offset 0 --max-bytes 65536
+diff --git a/workbench/tests/run_daemon_acceptance.py b/workbench/tests/run_daemon_acceptance.py
+index 62b8bead..025454af 100644
+--- a/workbench/tests/run_daemon_acceptance.py
++++ b/workbench/tests/run_daemon_acceptance.py
+@@ -198,7 +198,9 @@ def run_probe(probe, out, suite_name=None, test_name=None, mutant_core=None):
+     # A later collection error must not erase completed test results or fixtures.
+     write_new(out / "test-result.json", record)
+     with tarfile.open(out / "artifacts.tar.gz", "x:gz") as archive:
+-        archive.add(artifact_root, arcname=artifact_root.name)
++        archive.add(artifact_root, arcname=artifact_root.name,
++                    filter=lambda item: None if Path(item.name).name.startswith('operator-') and
++                    Path(item.name).name.endswith('.credential.json') else item)
+     write_new(out / "state-readback.json", read_state(adapter.delivery.ARTIFACTS))
+     record["status"] = "PASS" if passed else "INCOMPLETE"
+     record["exit_code"] = 0 if passed else 1
+@@ -373,7 +375,7 @@ def run_validation(label, out):
+ 
+ 
+ def main():
+-    global BASE
++    global BASE, IDENTITY
+     parser = argparse.ArgumentParser(description=__doc__)
+     mode = parser.add_mutually_exclusive_group(required=True)
+     mode.add_argument("--probe", choices=("all", "delivery", "recovery", "run"))
+@@ -384,6 +386,8 @@ def main():
+     parser.add_argument("--mutant-manifest", type=Path)
+     parser.add_argument("--label", required=True, help="输出根下尚未存在的证据目录名")
+     parser.add_argument("--output-root", type=Path, default=BASE, help="证据根；默认沿用 T-075/card-5")
++    parser.add_argument("--output", type=Path, help="单组 suite/probe 的显式新证据目录")
++    parser.add_argument("--identity-file", type=Path, help="本次任务的证据身份；不含凭据")
+     args = parser.parse_args()
+     if args.validation and args.output_root.resolve() != BASE.resolve():
+         parser.error('Legacy validation uses its frozen baseline runner; use --suite/--probe for a separate output root')
+@@ -391,12 +395,19 @@ def main():
+     BASE.mkdir(parents=True, exist_ok=True)
+     if args.test and not args.suite:
+         parser.error("--test requires --suite")
++    if args.output and (args.validation or args.probe == 'all'):
++        parser.error("--output requires one suite or one focused probe")
++    if args.identity_file:
++        identity = json.loads(args.identity_file.read_text(encoding='utf-8'))
++        if not isinstance(identity, dict) or not identity.get('task') or not identity.get('worker'):
++            parser.error("identity file requires task and worker")
++        IDENTITY = {**IDENTITY, **identity}
+     if (bool(args.mutant) != bool(args.mutant_manifest)) or (args.mutant and not args.suite):
+         parser.error("--mutant and --mutant-manifest require each other and --suite")
+     if (not args.label or args.label in (".", "..") or
+             any(char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_." for char in args.label)):
+         parser.error("label 只能包含字母、数字、点、短横线和下划线")
+-    out = BASE / args.label
++    out = args.output.resolve() if args.output else BASE / args.label
+     out.mkdir(exist_ok=False)
+     clean_fixture_environment()
+     if args.validation:

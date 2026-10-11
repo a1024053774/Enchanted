@@ -116,3 +116,11 @@ INCOMPLETE。已明确旧结果只有入口不可达红态，不能充当四项�
 ## 主控 #64 后：纠正代提交方案
 
 outside-freeze-rebase-01 未执行，主控否决了在他人会话里恢复 worker 身份再提交的方案。已移除环境恢复逻辑和导出包；worker 直接执行独立 git add / git commit，现有 hook 生成尾注，staged/committed 检查留证。outside-sandbox.sh 现在只做 rebase 和结果检查，标签 outside-rebase-01。最终检查与独立审查仍未运行，整体 INCOMPLETE。
+
+## 主控 #68 后：变基候选最终阶段待运行
+
+候选已变基为 b3fb998cf48574821c39440ece3f9ff897f26cf9，父提交 532c51f4，原 worker 尾注保留。冲突处理及静态检查见 rebase-resolution-01。outside-sandbox.sh 已切到 outside-final-01，绑定该提交，只调用一次现有 --final 路径；检查列表及限制见 FINAL-STAGE.md。最终运行、独立审查尚未执行，真实 Claude 不运行，整体 INCOMPLETE。
+
+## 主控 #70 后：非 Claude 检查与独立审查局部 PASS
+
+outside-final-01 exit 0、checkpoint_status=PASS；完整组及七个业务反例均符合预期，27 项原件读回通过。一次 fresh-context 只读独立 agent 审查返回本卡非 Claude 范围局部 PASS，未确认阻断问题，候选仍为 b3fb998c。完整报告、请求模型与可见配置、证据层级和未完成项见 independent-review-01.md、independent-review-request-01.json 及 RESULTS。此次只提交证据和本 ticket Resolution；真实 Claude／主控接线／三窗格继续未完成，整票 INCOMPLETE、待主控关闭。

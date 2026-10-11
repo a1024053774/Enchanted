@@ -1,0 +1,11 @@
+--- candidate/src/gates/core.ts
++++ ready/src/gates/core.ts
+@@ -1707,7 +1707,7 @@
+     );
+     if (!["inbox_list", "inbox_ready"].includes(args.command)) await actor.assertActive();
+     if (args.command === "inbox_ready") {
+-      requireGate(["ideation", "executor"].includes(role), "controller_required");
++      // MUTANT: allow the worker to query ready tickets.
+       requireGate(args.project, "project_required");
+       const repos = new Set(this.db.prepare("SELECT data FROM tasks").all()
+         .map(row => JSON.parse(String(row.data)) as A2ATask)

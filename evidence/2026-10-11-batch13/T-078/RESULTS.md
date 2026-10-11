@@ -1,6 +1,6 @@
 # T-078-1 运行记录
 
-2026-10-11。总状态：**INCOMPLETE，待主控关闭**。非 Claude 候选实现已完成：窗口输入、排队／放行、worker 库收件箱与静态主控启动记录都有对应证据。outside-worker-inbox-green-01 的 14 项入口全部 PASS，四个单规则变异体均产生被禁止的真实业务结果且只触发对应检查失败；此前运行时入口 12 项、输入失败方式入口 11 项也通过。候选现进入冻结提交与变基阶段，最终完成条件／8/9/18／CAS／变异反例及独立审查尚未执行。真实 Claude 启动、主控角色凭据及 hook 接线、真实主控互相唤醒和三窗格验收未完成，等待 needs-decision 20261011T101958Z；本卡未启动 Claude 或其夹具，仍待真实 Claude 复核。
+2026-10-11。总状态：**INCOMPLETE，待主控关闭**。T-078-1 非 Claude 范围的最终验收与一次新上下文只读独立审查均为局部 PASS，绑定代码提交 `b3fb998cf48574821c39440ece3f9ff897f26cf9`（父提交 `532c51f4cc12352bb7cf545ce1e5f824d68bdc4a`）。最终阶段包括领域 11、管理客户端 8、窗格状态 11、静态启动骨架 2、运行时入口 12、输入失败方式 11、worker 收件箱入口 14；原回归 8/9/18 与 CAS 1 全过，四项权限及三项原业务变异反例均成立。详见文末最终验收表、[最终原始检查点](outside-final-01/checkpoint.json) 和 [独立审查](independent-review-01.md)。真实 Claude 启动、主控角色凭据及 hook 接线、真实主控互相唤醒和三窗格验收未完成，等待 needs-decision `20261011T101958Z`；本卡未启动 Claude 或其夹具，仍待真实 Claude 复核。
 
 任务：T-078-1，T-078 `ready_rev: 1`；worker `s13-t078`；分支 `exec/t078`；产品起点 `14b57d22a84bcaebfa91c5051b9909b53a570fac`。授权和范围见 [PLAN](PLAN.md)、[主控决定 01](controller-decision-01.md)、[主控决定 02](controller-decision-02.md)。
 
@@ -405,3 +405,58 @@ bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/
 ```
 
 变基冲突保留现场，由 worker 解决后交主控 continue；成功时核对 main 已在候选历史内、尾注仍保持原 worker 来源。最终完成条件、8/9/18、CAS、原业务反例和独立审查仍待变基后执行。整体保持 INCOMPLETE；本次更正没有运行模型或 Claude 夹具。
+
+## 主控 #67、#68：变基完成，最终检查待沙箱外执行
+
+worker 原提交 `b5ed880b8ad0461786a8aee7f4e0a18ea42752a3` 已由主控变基到 main `532c51f4cc12352bb7cf545ce1e5f824d68bdc4a`。两个冲突由 worker 解决并独立暂存，再由主控 continue；新提交为 `b3fb998cf48574821c39440ece3f9ff897f26cf9`。尾注保持原 worker 会话、模型与 launch，没有转交或恢复身份环境。原变基失败输出仍在 outside-rebase-01。
+
+[冲突处理记录](rebase-resolution-01/RESOLUTION.md) 列出 README 和 runner 双方行为的保留方式，及 T-076-1 的稳定身份、原生 submit、beginShutdown、在途请求收尾核对。48 项静态／参数检查通过；首轮检查器误判 `/tmp` 别名的结果及更正分别保留，不当作产品红态。
+
+[最终阶段说明](FINAL-STAGE.md) 固定上述提交，一次运行领域 11、管理客户端 8、窗格状态 11、静态骨架 2、运行时入口 12、输入失败方式 11、worker 入口 14 与四项权限反例，随后原 8/9/18、CAS 1 和 fence／CAS／lock 三项原业务反例，最后按单文件大小外置归档。前端只构建一次。原业务断言及 workbench 源码不再修改。
+
+```sh
+bash /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh outside-final-01
+```
+
+本阶段尚未执行。非预期失败停止、原件保留、不自动重跑；通过后先读回，随后进行一次新上下文只读独立审查。真实 Claude 及其夹具仍不运行。整票状态继续为 INCOMPLETE，不能把静态启动记录或逻辑主控夹具写成真实主控验收。
+
+## 最终验收与独立审查（主控 #70）
+
+执行主控已完成 outside-final-01，exit 0、checkpoint_status=PASS，候选为 `b3fb998cf48574821c39440ece3f9ff897f26cf9`。worker 的 [27 项读回检查](final-readback-01.json) 确认原始结果、外置回归原件、权限变异体的持久化行及归档状态；不是只读取顶层 PASS。所有原 `acceptance/test_*.py` 业务断言未改。测试中真实供应商模型回合为 0。
+
+| 完成条件／检查组 | 最终结果与边界 |
+| --- | --- |
+| Electron 输入、来源与人工介入 | runtime-entry 12/12、input-entry 11/11；实际窗口、后台、SQLite、node-pty 与字节接收器。中文到达 PTY，注入不记用户输入，worker 的人工输入产生介入 |
+| 忙闲、唤醒与 Esc 放行 | pane-state 11/11，加 runtime-entry 的排队、送达及窗口放行；匹配 Stop 才结束回合，Esc 后不自动放行，用户放行有 action。逻辑主控／合成原生日志不证明真实 Claude 主控 |
+| 收件箱与角色权限 | domain 11/11、inbox-entry 8/8、worker-inbox 14/14；worker 使用实际 launch 身份，不用 operator 代替。assign、ready、他人 ack、撤销分别由对应规则拒绝；无接收者保留 undelivered |
+| 紧急停止 | domain 覆盖 stop/ack、120 秒前拒绝及超时后只中断；runtime-entry 实际凭据调用只写 Esc，调用者来自认证身份。两分钟与构思主控仍为受控时钟／逻辑角色证据，未宣称实际 Claude 链路通过 |
+| Claude 启动静态骨架 | controller-plan 2/2，入口另验证 controller_prepare；四项参数、角色卡与记录持久化，状态 prepared，无进程／主控凭据。待真实 Claude 复核 |
+| 原回归与 CAS | coop 8、recovery 9、run 18、cas 1；failures/errors/skipped 均 0 |
+| 权限业务反例 | 四个单规则变异体各自只让对应检查失败，并实际产生禁止的结果。旧 worker_command_forbidden 不作为这些规则的红态 |
+| 原业务反例 | fence、CAS、lock 指定原测试均退出 1，errors/skipped 为 0；实际出现错 fence 被接受、外部引用被覆盖、并发 verify 进入。反例成立，原失败结果保持 INCOMPLETE |
+| 独立审查 | 一次 fresh-context 只读审查：本卡非 Claude 范围局部 PASS，未确认阻断问题；整票 INCOMPLETE。审查未写候选、submit 或集成 |
+
+失败方式逐条对应：
+
+| 失败方式 | 处理与证据 |
+| --- | --- |
+| 用户输入与注入同时发生 | 输入接纳先占用窗格，串行写入；待记录输入和草稿阻止注入，pane-state 的屏障反例覆盖按键不可重排；runtime-entry 读回实际注入字节 |
+| 中文组合输入 | compositionstart 经窗口凭据登记占用，已提交文本只记录／写入一次；input-entry 通过。使用合成事件，真实系统输入法未验证 |
+| 大段粘贴 | runtime-entry 的原始 PTY 记录含完整 51,612 字节长粘贴后缀，关闭窗口先等已接纳输入收尾 |
+| 窗口关闭期间输入 | 已接纳请求按序收尾，关闭后凭据失效；runtime-entry 与 input-entry 分别覆盖 |
+| 后台重启忙闲未知 | 保留历史、标 unknown，不重放注入、不接管旧进程，旧窗口凭据拒绝；pane-state 与 input-entry 覆盖 |
+| 同一唤醒重复送达 | inbox entry 与派发绑定，重复 Stop／ack 不增加已送字节或新 ack；pane-state 和 worker-inbox 覆盖 |
+| 空输入、重复请求号、二进制鼠标输入 | 空事件仅观察；复用请求号拒绝；二进制字节不经 UTF-8 扩展，也不当普通文字草稿；input-entry 与原始字节读回覆盖 |
+| 记录器失败 | 先记录再写 PTY；失败关闭写入，不重试或重放；pane-state 与 input-entry 覆盖 |
+
+完整重放命令见 [FINAL-STAGE](FINAL-STAGE.md)；需新的 label，且脚本核对冻结代码提交，不能把修改后源码沿用为同一候选。仅重新读回已有证据：
+
+```sh
+python3 -B evidence/2026-10-11-batch13/T-078/read_final_checkpoint.py --output evidence/2026-10-11-batch13/T-078/final-readback-replay-01.json
+```
+
+6 个超过 5 MiB 的原件已归档至 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/outside-final-01/`，逐字节读回后移出仓库。库内各 run/test-result 摘要保留重放 argv 和原件路径；[归档清单](external-archive-26fbebf6628b47c99f307a1fd2f480f1.json) 完整列出，历史失败未覆盖。
+
+独立审查由会话内独立 agent `/root/t078_independent_review` 执行，`fork_turns=none`，未继承聊天，输入为冻结候选、任务契约与原始证据；[请求配置](independent-review-request-01.json) 指定 explorer、gpt-6-astra、xhigh。工具没有 Fast 参数，审查上下文也无法核验具体模型编号／强度／实际服务档位，故这些只记录为请求值。审查逐字比对源码快照、读取 SQLite 内存副本与外置原件，没有新运行供应商 CLI 或运行时测试。完整返回原文保存在 [审查报告](independent-review-01.md)。没有确认的修复项，因此未追加产品修复或第二次审查。
+
+本次收尾提交只纳入本卡证据和 ticket Resolution；workbench 仍与已验收、已审查的代码提交一致。ticket 保持 open、待主控关闭；不 push，不切换日常文件版 inbox。真实 Claude、主控接线、实际互相唤醒及三窗格未完成，继续等待 needs-decision `20261011T101958Z`。

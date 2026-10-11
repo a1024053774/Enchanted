@@ -1,0 +1,326 @@
+{
+  "status": "PASS",
+  "scope": "static preservation; does not prove runtime behavior",
+  "base": "14b57d22",
+  "main": "532c51f4",
+  "worker": "b5ed880b",
+  "shared_source": [
+    {
+      "file": "workbench/src/panes.ts",
+      "main_added_blocks": [
+        {
+          "main_line": 149,
+          "lines": 1,
+          "present": true,
+          "text": "      A2A_TOOL: version, A2A_MODEL_REQUESTED: model, A2A_EFFORT_REQUESTED: effort,\n"
+        },
+        {
+          "main_line": 401,
+          "lines": 1,
+          "present": true,
+          "text": "    if (!pane.stopped) await this.processInfo(thread);\n"
+        },
+        {
+          "main_line": 403,
+          "lines": 2,
+          "present": true,
+          "text": "      runtime_identity: { launch: pane.record.id, thread, shell_pid: pane.pty.pid,\n        leader_pid: pane.leader, native_session: pane.native },\n"
+        }
+      ],
+      "all_main_additions_present": true
+    },
+    {
+      "file": "workbench/src/gates/core.ts",
+      "main_added_blocks": [
+        {
+          "main_line": 18,
+          "lines": 1,
+          "present": true,
+          "text": "  type A2ARuntimeIdentity,\n"
+        },
+        {
+          "main_line": 89,
+          "lines": 1,
+          "present": true,
+          "text": "    runtime_identity: A2ARuntimeIdentity;\n"
+        },
+        {
+          "main_line": 116,
+          "lines": 1,
+          "present": true,
+          "text": "  private shuttingDown = false;\n"
+        },
+        {
+          "main_line": 217,
+          "lines": 1,
+          "present": true,
+          "text": "  beginShutdown() { this.shuttingDown = true; }\n"
+        },
+        {
+          "main_line": 1322,
+          "lines": 9,
+          "present": true,
+          "text": "  private runtimeIdentity(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime[\"readThread\"]>>) {\n    const identity = live.runtime_identity;\n    requireGate(identity && identity.thread === attempt.thread_id && typeof identity.launch === \"string\" &&\n      identity.launch.length > 0 && Number.isInteger(identity.shell_pid) && identity.shell_pid > 0 &&\n      (identity.leader_pid === null || Number.isInteger(identity.leader_pid) && identity.leader_pid > 0) &&\n      (identity.native_session === null || typeof identity.native_session === \"string\" && identity.native_session.length > 0),\n      \"identity_conflict\", { attempt, live });\n    return identity;\n  }\n"
+        },
+        {
+          "main_line": 1332,
+          "lines": 1,
+          "present": true,
+          "text": "    const identity = this.runtimeIdentity(attempt, live), bound = attempt.runtime_identity;\n"
+        },
+        {
+          "main_line": 1336,
+          "lines": 3,
+          "present": true,
+          "text": "        bound && identity.launch === bound.launch && identity.thread === bound.thread && identity.shell_pid === bound.shell_pid &&\n        (bound.leader_pid === null || identity.leader_pid === bound.leader_pid) &&\n        (bound.native_session === null || identity.native_session === bound.native_session),\n"
+        },
+        {
+          "main_line": 1342,
+          "lines": 9,
+          "present": true,
+          "text": "  }\n  private bindObservedIdentity(attempt: A2AAttempt, live: Awaited<ReturnType<GateRuntime[\"readThread\"]>>) {\n    this.checkThread(attempt, live);\n    const bound = attempt.runtime_identity!, identity = live.runtime_identity;\n    const changed = bound.leader_pid === null && identity.leader_pid !== null ||\n      bound.native_session === null && identity.native_session !== null;\n    if (bound.leader_pid === null) bound.leader_pid = identity.leader_pid;\n    if (bound.native_session === null) bound.native_session = identity.native_session;\n    return changed;\n"
+        },
+        {
+          "main_line": 1364,
+          "lines": 1,
+          "present": true,
+          "text": "    requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 1375,
+          "lines": 1,
+          "present": true,
+          "text": "    requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 1381,
+          "lines": 2,
+          "present": true,
+          "text": "    if (attempt.runtime_identity!.leader_pid === null && live.runtime_identity.leader_pid !== null ||\n        attempt.runtime_identity!.native_session === null && live.runtime_identity.native_session !== null) {\n"
+        },
+        {
+          "main_line": 1389,
+          "lines": 1,
+          "present": true,
+          "text": "        if (this.bindObservedIdentity(current, live)) this.save(task, \"runtime_bound\", { attempt: current });\n"
+        },
+        {
+          "main_line": 1399,
+          "lines": 1,
+          "present": true,
+          "text": "      requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 1409,
+          "lines": 1,
+          "present": true,
+          "text": "      requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 1459,
+          "lines": 1,
+          "present": true,
+          "text": "        requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 1487,
+          "lines": 3,
+          "present": true,
+          "text": "        // Finish an already-started gate under its lock, then stop before the\n        // next gate. Shutdown must not advance a waiting run to acceptance.\n        requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 1498,
+          "lines": 1,
+          "present": true,
+          "text": "      requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 1506,
+          "lines": 1,
+          "present": true,
+          "text": "      requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 1526,
+          "lines": 1,
+          "present": true,
+          "text": "          requireGate(!this.shuttingDown, \"daemon_stopping\");\n"
+        },
+        {
+          "main_line": 2233,
+          "lines": 1,
+          "present": true,
+          "text": "          runtime_identity: null,\n"
+        },
+        {
+          "main_line": 2281,
+          "lines": 1,
+          "present": true,
+          "text": "          attempt.runtime_identity = { ...this.runtimeIdentity(attempt, live) };\n"
+        },
+        {
+          "main_line": 2307,
+          "lines": 1,
+          "present": true,
+          "text": "        this.bindObservedIdentity(attempt, live);\n"
+        },
+        {
+          "main_line": 2347,
+          "lines": 1,
+          "present": true,
+          "text": "          this.bindObservedIdentity(attempt, live);\n"
+        },
+        {
+          "main_line": 2354,
+          "lines": 1,
+          "present": true,
+          "text": "              attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null &&\n"
+        },
+        {
+          "main_line": 2636,
+          "lines": 2,
+          "present": true,
+          "text": "      requireGate(attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null,\n        \"identity_conflict\", { attempt, live });\n"
+        }
+      ],
+      "all_main_additions_present": true
+    },
+    {
+      "file": "workbench/src/gates/cli.ts",
+      "main_added_blocks": [],
+      "all_main_additions_present": true
+    },
+    {
+      "file": "workbench/src/daemon.ts",
+      "main_added_blocks": [
+        {
+          "main_line": 29,
+          "lines": 5,
+          "present": true,
+          "text": "  let requestsDrained: (() => void) | undefined;\n  const activityFinished = () => {\n    activeRequests--;\n    if (activeRequests === 0) { requestsDrained?.(); requestsDrained = undefined; }\n  };\n"
+        },
+        {
+          "main_line": 36,
+          "lines": 3,
+          "present": true,
+          "text": "    // Requests and deferred receipt writes retain their stores until their\n    // final results are durable. run observes beginShutdown at safe boundaries.\n    if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });\n"
+        },
+        {
+          "main_line": 58,
+          "lines": 1,
+          "present": true,
+          "text": "      gates.beginShutdown();\n"
+        },
+        {
+          "main_line": 145,
+          "lines": 1,
+          "present": true,
+          "text": "      } finally { activityFinished(); }\n"
+        },
+        {
+          "main_line": 149,
+          "lines": 1,
+          "present": true,
+          "text": "          if (stopping) return;\n"
+        },
+        {
+          "main_line": 151,
+          "lines": 1,
+          "present": true,
+          "text": "          activeRequests++;\n"
+        },
+        {
+          "main_line": 155,
+          "lines": 1,
+          "present": true,
+          "text": "          }).finally(activityFinished);\n"
+        }
+      ],
+      "all_main_additions_present": true
+    },
+    {
+      "file": "workbench/src/transport.ts",
+      "main_added_blocks": [
+        {
+          "main_line": 24,
+          "lines": 4,
+          "present": true,
+          "text": "    const wait = input.command === \"run\" ? input.wait_seconds : undefined;\n    const deadline = typeof wait === \"number\" && Number.isSafeInteger(wait) && wait > 0\n      ? Math.min(2_147_483_647, Math.max(120_000, wait * 1000 + 120_000)) : 120_000;\n    socket.setTimeout(deadline, () => socket.destroy(new Error(\"daemon request deadline; outcome unknown\")));\n"
+        }
+      ],
+      "all_main_additions_present": true
+    },
+    {
+      "file": "workbench/src/contracts/a2aGates.ts",
+      "main_added_blocks": [
+        {
+          "main_line": 83,
+          "lines": 8,
+          "present": true,
+          "text": "export interface A2ARuntimeIdentity {\n  launch: string;\n  thread: string;\n  shell_pid: number;\n  leader_pid: number | null;\n  native_session: string | null;\n}\n\n"
+        },
+        {
+          "main_line": 100,
+          "lines": 1,
+          "present": true,
+          "text": "  runtime_identity: A2ARuntimeIdentity | null;\n"
+        }
+      ],
+      "all_main_additions_present": true
+    },
+    {
+      "file": "workbench/tests/daemon_acceptance_host.ts",
+      "main_added_blocks": [
+        {
+          "main_line": 5,
+          "lines": 1,
+          "present": true,
+          "text": "import { randomUUID } from \"node:crypto\";\n"
+        },
+        {
+          "main_line": 19,
+          "lines": 17,
+          "present": true,
+          "text": "const owned = new Map<string, { launch: string; shell_pid: number }>();\nconst controlledRuntime = {\n  ...runtime,\n  createThread: async (task: any, attempt: any) => {\n    await runtime.createThread(task, attempt);\n    owned.set(attempt.thread_id, { launch: randomUUID(), shell_pid: 10000 + owned.size });\n  },\n  readThread: async (thread: string) => {\n    const live = await runtime.readThread(thread), owner = owned.get(thread);\n    if (!owner) throw new Error(\"Controlled runtime owner was not created by this host\");\n    // This old external fixture uses its turn token as the owner generation:\n    // leader-changed replaces it; helper-joins leaves it unchanged. No actual\n    // native session or CLI PID is claimed by this synthetic runtime.\n    return { ...live, runtime_identity: { launch: owner.launch, thread, shell_pid: owner.shell_pid,\n      leader_pid: live.turn ? 20000 : null, native_session: live.turn } };\n  },\n};\n"
+        },
+        {
+          "main_line": 62,
+          "lines": 1,
+          "present": true,
+          "text": "  ? new ControlledThreadGates(root, controlledRuntime)\n"
+        }
+      ],
+      "all_main_additions_present": true
+    }
+  ],
+  "worker_exact": {
+    "workbench/src/gates/cli.ts": true,
+    "workbench/src/relay.ts": true,
+    "workbench/src/credentials.ts": true
+  },
+  "main_only_exact": {
+    "workbench/hooks/hook.py": true,
+    "workbench/src/stateConsistency.ts": true,
+    "workbench/tests/attachment_window_host.ts": true,
+    "workbench/tests/fixture_artifacts.py": true,
+    "workbench/tests/multiturn_identity_host.ts": true,
+    "workbench/tests/prepare_workbench_mutants.py": true,
+    "workbench/tests/read_attachment_window.ts": true,
+    "workbench/tests/run_t076_green.py": true,
+    "workbench/tests/run_t076_real.py": true,
+    "workbench/tests/run_t076_red.py": true,
+    "workbench/tests/run_t076_startup_shutdown.py": true,
+    "workbench/tests/snapshot_state.ts": true,
+    "workbench/tests/startup_shutdown_host.ts": true,
+    "workbench/tests/test_attachment_windows.py": true,
+    "workbench/tests/test_build_volume_contract.py": true,
+    "workbench/tests/test_hook_turn_facts.py": true,
+    "workbench/tests/test_initial_worker_release.py": true,
+    "workbench/tests/test_multiturn_identity_e2e.py": true,
+    "workbench/tests/test_multiturn_readback.py": true,
+    "workbench/tests/test_startup_shutdown_e2e.py": true,
+    "workbench/tests/test_state_consistency.ts": true,
+    "workbench/tests/test_stopped_readback.py": true,
+    "workbench/tests/test_transport_deadline.ts": true
+  }
+}
