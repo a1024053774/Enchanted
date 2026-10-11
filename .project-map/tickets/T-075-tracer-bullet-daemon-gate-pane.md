@@ -165,4 +165,4 @@ T-075 Acceptance 逐项证据位置与边界：
 | 不写全局配置、Herdr 或正式工作台 | 本卡运行仅自建后台／Electron；隔离 CODEX_HOME 只复制 auth，live-01/03/04 均清理；无真实回合追加、无 push。正式 Synara PID 未操作 |
 | 产物、重现命令、地图健康 | card-4/RESULTS 每段有命令、原始输出和限制；完整仓库的 delivery-precommit-01、delivery-code-01 保存提交前后 0 problems、0 stale 收据。review-candidate-01 是不完整冻结包，其 49 problems 不代表实际仓库结果 |
 
-本卡真实回合累计 3/4，按主控 #44／#45 没有追加。现有界面／后台核心证据与最后采集离线修复经独立审查核对；五类计划产品变异体未全部执行，已明确披露，不冒称完成。实现提交号、九项尾注和提交后地图读回见 card-4/delivery-code-01/receipt.json；最终收据提交号以 DONE 行为准。非阻塞 issue `20261011T080957Z-worker:s12-t075-4-issue-001` 的 README Covers 登记留主控处理，worker 未修改地图。
+本卡真实回合累计 3/4，按主控 #44／#45 没有追加。现有界面／后台核心证据与最后采集离线修复经独立审查核对；五类计划产品变异体未全部执行，已明确披露，不冒称完成。实现与证据提交为 `5aad35e6dfe76036f3b757dd047122788aa6d7f2`，九项尾注齐全；提交后 0 problems、0 stale，读回见 [card-4/delivery-code-01/receipt.json](../../evidence/2026-10-10-batch12/T-075/card-4/delivery-code-01/receipt.json)。最终收据提交号以 DONE 行为准。非阻塞 issue `20261011T080957Z-worker:s12-t075-4-issue-001` 的 README Covers 登记留主控处理，worker 未修改地图。

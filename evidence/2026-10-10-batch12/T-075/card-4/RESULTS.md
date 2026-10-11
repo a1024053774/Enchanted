@@ -356,6 +356,13 @@ node workbench/tests/test_install_cache.mjs /tmp/t0754-install-cache-new
 
 提交前核对产品／测试等于冻结候选加主控批准的三文件修复；完整仓库 status 为 0 problems、0 stale。检查命令和原始 stdout/stderr 保存在 delivery-precommit-01。git add 与 git commit 单独执行，无环境变量前缀；只提交 workbench、本卡证据及 T-075 Resolution，不带入两份 controller-poll.log、dispatch.jsonl 或其他任务文件。
 
-实现提交与九项尾注、提交后地图读回保存在 [delivery-code-01/receipt.json](delivery-code-01/receipt.json)。收据提交只补交付记录，产品／测试不变；最终交付完整提交号以终端 DONE 行为准。T-075 的九项 Acceptance 逐项证据表在 ticket Resolution，保持 open，待主控关闭。
+实现与证据提交：`5aad35e6dfe76036f3b757dd047122788aa6d7f2`。九项尾注全部与本 worker 启动记录匹配，提交后完整仓库 status 为 0 problems、0 stale；原始读回保存在 [delivery-code-01/receipt.json](delivery-code-01/receipt.json)，其中也保存显式 submit 的 task／attempt／session／launch／commit 绑定。收据提交只补交付记录，产品／测试不变；最终交付完整提交号以终端 DONE 行为准。T-075 的九项 Acceptance 逐项证据表在 ticket Resolution，保持 open，待主控关闭。
+
+重新读回实现提交与地图：
+
+```sh
+git show -s --format=%B 5aad35e6dfe76036f3b757dd047122788aa6d7f2
+python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .
+```
 
 保留的限制：三张旧卡的证明各自绑定其版本；最终候选未重新跑全套旧 8/9/18，也未跑完 PLAN 五类产品变异体。live-04 的实际 turn_context 读回缺失未补称通过；最后采集由获批离线夹具证明，安装缓存修复未做真实下载。所有历史失败与独立审查原始 FAIL 都保留，没有上调或覆盖。
