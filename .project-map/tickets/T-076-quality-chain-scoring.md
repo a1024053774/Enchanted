@@ -1,0 +1,46 @@
+---
+id: T-076
+title: S2 质量串与打分：独立审查、红态与规则式检查、打回回写，并补 S1 缺口
+type: build
+status: open
+blocked_by: []
+claimed_by:
+supersedes:
+ready: yes
+ready_by: ideation
+ready_rev: 1
+---
+
+## What to build
+
+[spec](../specs/native-cli-orchestration-2026-10-10.md) 第 12 节切片 S2，在 [T-075](T-075-tracer-bullet-daemon-gate-pane.md) 的 tracer bullet 上加宽第 3 节"一次交付怎么走"的第 4～6 步：
+
+1. **红态与规则式检查**：任务卡写了红态命令才查（候选里的新测试在起点提交上失败、在候选上通过）；规则式检查按项目配置（lint、类型检查等）。
+2. **打回回写**：任一检查不过，失败摘要以 `⟦门禁 #序号⟧` 写回 worker 窗格，worker 重交后整串重跑；同一 attempt 连续 3 次打回就停止自动回写，交执行主控。
+3. **独立审查**：机械检查全过后，后台新开一个只读的 reviewer 会话（不续接任何会话），附任务卡、候选改动和上一轮问题清单；结论"可合并"或"需修复"加问题清单，绑定候选提交号写回门禁；门禁核对审查会话不是写入会话、是为本次新开的。"需修复"时清单写回 worker。
+4. **打分**：集成与放弃命令带打分参数（spec 第 8 节），缺执行主控必填项就拒收；Herdr 期 `records/scores.jsonl` 的格式与之对齐，以便切换时导入。
+
+并入 S1 留下的缺口（T-075 完成报告 `20261011T094922Z-executor-report-001`）：
+
+- **尾注模型为 unknown**：受管 worker 提交的 `A2A-Model`、`A2A-Effort` 要写实际值（例如启动时写进环境变量），不能是 unknown。
+- **多回合身份绑定**（上报 `20261011T052530Z`）：回执或打回带来的新回合会让 run/reclaim 按 `attempt.turn_id` 判为身份冲突。区分"原生会话与领导进程身份"和"本次交付的回合绑定"，先取红态；不得为通过而删掉或放宽身份检查。
+- **状态表一致性**（spec 第 9 节例外，上报 `20261011T042856Z`）：检查由事件重建的状态与状态表一致；已知 `core.ts` 里 attachment creating 没有对应事件、saveAttachment 与 attached 事件不在同一事务、memberships 与 session_presets 在另库不经 save()。不一致就停下报告，改存储另切片。
+- **卡 4 的五类产品变异体**：按 T-075 卡 4 计划补跑，各自在业务断言上失败。
+
+## Acceptance
+
+- [ ] 检查面同 T-075：编排后台命令行入口驱动真实窗格里的真实 Codex worker 与 reviewer，对夹具仓库走完整门禁；证据为命令与输出、库里事件读回、Git 引用读回。
+- [ ] 正例：一次"第一次被打回（完成条件或红态不过）→ 自动回写 → worker 修好重交 → 审查可合并 → 带打分集成"的完整流程。
+- [ ] 反例，各自在真实入口上被拒且留下事件：红态命令在起点上不失败；规则式检查失败；审查会话是写入会话或续接旧会话；审查结论绑定的提交号与候选不符；缺打分；第 3 次打回后不再自动回写。
+- [ ] 尾注：真实 worker 提交的 `A2A-Model`、`A2A-Effort` 与启动记录一致。
+- [ ] 多回合：回执回合之后 run 与 reclaim 仍能核对身份；伪造的别的会话仍被拒。先有红态。
+- [ ] 一致性检查的结果如实报告（一致 / 哪些表不一致）。
+- [ ] 五类变异体各自失败；8/9/18 三组与 T-075 的正反例不退化。
+
+## 说明
+
+- 真实 Codex 按 AGENTS.md 隔离，回合数尽量少；模型按 AGENTS.md 2026-10-11 的规定。
+- 与 [T-077](T-077-worktree-lifecycle-conflicts.md)、[T-078](T-078-controllers-in-workbench.md) 都可能改 `workbench/src/gates/` 与 `daemon.ts`，同一文件只给一个写入者，由执行主控安排顺序。
+- 授权来源：用户 2026-10-11 在会话"a2a-构思主控"选"S2、S3、S4 三张，缺口并入 (Recommended)"，选项原文含"我写完直接标就绪派出，不再单独给你看切法"；在此之前在会话"新思路构思"说："确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。"`ready_by: ideation`，`ready_rev: 1`。
+
+## Resolution
