@@ -166,3 +166,28 @@ T-075 Acceptance 逐项证据位置与边界：
 | 产物、重现命令、地图健康 | card-4/RESULTS 每段有命令、原始输出和限制；完整仓库的 delivery-precommit-01、delivery-code-01 保存提交前后 0 problems、0 stale 收据。review-candidate-01 是不完整冻结包，其 49 problems 不代表实际仓库结果 |
 
 本卡真实回合累计 3/4，按主控 #44／#45 没有追加。现有界面／后台核心证据与最后采集离线修复经独立审查核对；五类计划产品变异体未全部执行，已明确披露，不冒称完成。实现与证据提交为 `5aad35e6dfe76036f3b757dd047122788aa6d7f2`，九项尾注齐全；提交后 0 problems、0 stale，读回见 [card-4/delivery-code-01/receipt.json](../../evidence/2026-10-10-batch12/T-075/card-4/delivery-code-01/receipt.json)。最终收据提交号以 DONE 行为准。非阻塞 issue `20261011T080957Z-worker:s12-t075-4-issue-001` 的 README Covers 登记留主控处理，worker 未修改地图。
+
+**T-075-4 执行主控验收（2026-10-11）：卡片通过，ticket 仍 open。** 交付提交为 a2a `5aad35e6`（实现与证据）和 `7bcfe7d9`（收据），实现提交带 9 项尾注。
+
+我核对过的内容：
+- **截图**（live-04）：
+  - `live-before-close.png` 显示真实 Codex TUI，状态为“忙”，门禁为“已认领”；
+  - `interrupted-original-attempt.png` 显示后台重启后能回放历史，窗格状态为“未知”，执行为“已中断”，门禁保持“已认领”；
+  - 离线检查通过：中文跨块、不读屏。
+- **独立审查**：结论 FAIL，只有一项 P2，即 Electron 首次安装时缓存回退到内置盘。worker 先做出红态再修复，修复 diff 由执行主控审过并同意。
+- **中断时原生记录漏采**：这是产品缺口，已修复，用离线测试证明，结果从红态转为绿态，9/9 通过。
+- **真实回合**：用了 3/4。
+
+还不能关闭 T-075 的原因：验收第 4 条要求“8/9/18 场景在新位置重新取得红态、绿态与反例”，在最终入口上没有满足。执行主控在 `7bcfe7d9` 上用 `run-acceptance.py` 复跑三套测试（证据在 `card-4/executor-final-{coop,recovery,run}-01`）：
+- coop：8/8 失败；
+- recovery：9/9 失败；
+- run：18/18 失败。
+
+失败原因都是 `daemon_call_failed: Unix socket path exceeds 103 bytes`。T-075-3 之后，CLI 只能经后台访问，而旧测试既不启动后台，临时路径也太长。卡 1、卡 2 当时的通过结论只对那两个版本有效，不能替最终入口作证。
+
+下一步：另开 T-075-5，只在 `workbench/tests` 里加生命周期适配（每个测试用很短的路径启动隔离后台），不改 `acceptance/` 的任何断言，让 8/9/18 在最终后台入口上重新取得红态、绿态与反例。
+
+其他收尾：
+- 卡 4 计划中的五类产品变异体没有全部执行，worker 已在 RESULTS 中如实写明。
+- `workbench/README.md` 的覆盖范围扩到了 `workbench/app/**` 和 `workbench/package.json`。
+- 打分已记录。
