@@ -52,3 +52,21 @@ T-076-1 完成，待 T-076-2；待主控关闭。保持 open，ready_rev=1。
 - 一致性检查如实报告：完整交付的 tasks/attempts/verifications 一致；membership/session_presets 无法重建；attachment creating 与 active-before-attached 两窗口不一致。主控 #9/#10 已转构思主控另切片，本卡没有修存储，全库报告仍 INCOMPLETE。
 - 候选五类变异体各在业务断言失败，两对照通过；8/9/18 回归全部通过，0 failures/errors/skipped。本卡 acceptance diff 为空，保留其他卡的变更。
 - 证据、红态/夹具错误、回合账、再生成命令与限制见 [RESULTS](../../evidence/2026-10-11-batch13/T-076/card-1/RESULTS.md)，独立审查见 [REVIEW](../../evidence/2026-10-11-batch13/T-076/card-1/review-01/REVIEW.md)。卡 2 的红态/规则式质量串、打回回写、产品 reviewer 与打分尚未实施，不关闭整票或勾选其验收。
+
+**T-076-1 执行主控验收（2026-10-11）：卡片通过，ticket 仍 open（待 T-076-2）。** 交付提交为 a2a `42e2b8ed`（实现）和 `d95f4171`（证据），实现提交带 9 项尾注。
+
+- **尾注**：真实 worker 提交（outside-real-04）的 `A2A-Model: gpt-6.1-sol`、`A2A-Effort: xhigh` 与启动记录一致。执行主控在夹具仓库中独立读回核对：`main`=M `ecf9a7a`，父提交为 G `935d03c` 和 C `3f7f0b4`。
+- **多回合身份**：运行身份（launch、thread、shell、领导进程、原生会话）和交付回合分开记录。回执回合之后，run 以 completed 结束并完成回收。先在起点取得红态，再转绿；伪造身份的反例仍被拒。
+- **后台停止**：顺带修复了产品缺陷：有窗格或 run 失败之后，`daemon_stop` 一直返回 daemon_busy。修复后，停止前会等待进行中的请求处理完。反事实已证实测试能抓住这一缺陷。
+- **一致性检查**（`workbench/src/stateConsistency.ts`，只读）：
+  - tasks、attempts、verifications 三张表：一致；
+  - membership 库的 memberships、session_presets：无法用事件重建；
+  - attachments 的 creating 窗口与 active 窗口：不一致。
+
+  后两项已报告给构思主控，另开切片改存储；本票不改存储。
+- **五类变异体**：在候选上全部按业务断言失败。8/9/18 回归（coop、recovery、run）全部通过，三份断言相对起点没有改动。
+- **独立审查**：PASS。
+- **真实回合**：用满上限 3/3。real-01 因夹具卡号非法实际使用 0 回合，real-02 因夹具循环等待实际使用 0 回合，real-03 因期限过短使用 1 回合，real-04 通过、使用 2 回合。
+- **证据**：有两个文件压缩后仍超过 5 MB，执行主控已移到外置盘（`5060c5ee`），原位置保留指针文件；这两个文件仍留在 Git 历史中。
+
+已打分。
