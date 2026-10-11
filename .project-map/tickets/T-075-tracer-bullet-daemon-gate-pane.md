@@ -112,7 +112,7 @@ T-075-1：门禁迁移、隔离验收和一次 fresh-context 独立审查均 PAS
 
 下一张：T-075-3，做编排后台、Codex 窗格和一次真实交付。
 
-**T-075-3 完成，待后续卡，待主控关闭（2026-10-11）：PASS。** Ticket 保持 open。本卡交付为本条 Resolution 所属的 a2a 提交，完整提交号另在终端 DONE 行报告；被测源码是 `outside-b-06/workbench-source.tar.gz`，base HEAD `471fa75f7f28531e035479c795b043bb6cbc15f2` 加当时未提交变更，不能只以该 base HEAD 代指候选。
+**T-075-3 完成，待后续卡，待主控关闭（2026-10-11）：PASS。** Ticket 保持 open。实现与首批证据提交为 `93a707299d3f50309b52bfafacfd9d6529794130`，九项尾注齐全，A2A-Launch 为本 worker 的 `launch-dcd075b4fa8d4d1b86c3334de6ff59e0`；其后收尾提交只更新文档，完整交付号在终端 DONE 行报告。被测源码是 `outside-b-06/workbench-source.tar.gz`，base HEAD `471fa75f7f28531e035479c795b043bb6cbc15f2` 加当时未提交变更，不能只以该 base HEAD 代指候选。
 
 - 后台常驻并脱离调用者进程组；唯一 CLI 连接后台门禁。node-pty 托管交互 zsh/Codex，派发先登记再注入，结构化信号驱动状态；新增编排、启动、派发及转交表只追加。
 - 最终走 **B**：A2 没验证成，按决定 04 改走 worker 显式请求文件、Stop hook 经同一 CLI 转交、门禁回执写回窗格。网络与代理保持关闭。请求目录在 attempt 专属 `/tmp`，不进入候选提交。

@@ -2,7 +2,15 @@
 
 状态：**PASS（仅 T-075-3）**。2026-10-11，执行主控运行 outside-b-06 后，真实 Codex 已经完成显式交付、机械检查、验收和 CAS 集成；一次 fresh-context 只读独立审查 PASS。被测真实主回合累计 **7/10**，按主控 #32 停止，不再追加。T-075 保持 open，待 T-075-4 及后续切片，待主控关闭。
 
-计划起点为 `8071a4638f94c9465c939445624d61c9c4809561`，实施起点为 `f1a8c1716ea4abc3281161655d506fceeebbf378`。被测候选以 base HEAD `471fa75f7f28531e035479c795b043bb6cbc15f2` 加 [完整 workbench 源码归档](outside-b-06/workbench-source.tar.gz) 标识；当时存在未提交文件，不能只用 base HEAD 指代候选。审查前后核对的 67 个源码/符号链接均与该归档逐字一致，见 [冻结清单](review-target-08.json)。审查后只更新 README、报告和 Resolution，产品逻辑没有变化。最终 a2a 版本由本记录所属 Git 提交给出，终端 DONE 行另报完整提交号。
+计划起点为 `8071a4638f94c9465c939445624d61c9c4809561`，实施起点为 `f1a8c1716ea4abc3281161655d506fceeebbf378`。被测候选以 base HEAD `471fa75f7f28531e035479c795b043bb6cbc15f2` 加 [完整 workbench 源码归档](outside-b-06/workbench-source.tar.gz) 标识；当时存在未提交文件，不能只用 base HEAD 指代候选。审查前后核对的 67 个源码/符号链接均与该归档逐字一致，见 [冻结清单](review-target-08.json)。审查后只更新 README、报告和 Resolution，产品逻辑没有变化。实现及首批证据提交为 **`93a707299d3f50309b52bfafacfd9d6529794130`**；其后只追加文档收据，终端 DONE 行报告最终交付提交号。
+
+## a2a 提交与收尾
+
+按主控 #33，单独执行 `git commit -m 'feat(workbench): deliver Codex tasks through a persistent daemon'`，由既有 Herdr 期钩子生成九项尾注。Task=T-075-3、Attempt=a1、A2A-Launch=`launch-dcd075b4fa8d4d1b86c3334de6ff59e0`，与本 worker 启动记录一致；完整读回见 [commit-receipt-09.json](commit-receipt-09.json)。钩子正常向 `records/launches.jsonl` 追加原生会话绑定，这一文件由执行主控提交，未纳入本 worker 的暂存范围。
+
+此前带 A2A_LAUNCHES 前缀的提交被沙箱拒绝，其提权申请由主控 Esc 拒绝，未产生提交。commit-environment-08.json 和 worker-launch-for-commit.jsonl 保留为未采用方案的日期证据；实际提交没有使用副本。本人创建的 `/private/tmp/a2a-card3-commit-f8svq3y2` 已删除。
+
+提交后地图检查仍为 0 problems、0 stale，输出保存在提交收据。全量 `git show --check` 退出 2：历史 source.diff 的上下文空格和 fixture_artifacts.py 的尾部空行产生告警，原输出同样保留；不修改原始证据或冻结候选来消除告警，也不把此项写成通过。产品行为验收与一次独立审查均 PASS。没有新增真实回合，没有 push。
 
 ## 最后走的是 A2 还是 B
 
