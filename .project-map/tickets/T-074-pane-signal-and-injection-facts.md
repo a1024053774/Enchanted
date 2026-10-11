@@ -2,7 +2,7 @@
 id: T-074
 title: 先核实两个事实：Codex 的"等确认"信号，往窗格注入文字是否稳定
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -20,12 +20,12 @@ ready_rev: 4
 
 ## Acceptance
 
-- [ ] 每个结论标 observed / measured / inferred / unknown，附原始输出、CLI 版本、启动 argv 和重放命令。
-- [ ] R6：至少触发一次真实的等确认状态（Codex 一次，Claude 一次），记下外部程序收到了什么、在什么时刻收到；没有信号就写"未找到"并列出查过的途径，不改用读屏或正则。
-- [ ] R7：两家各至少 10 次注入，覆盖空闲、回合进行中、等确认三种状态；记成功次数、失败的样子（丢字、拼进上一条、被当作确认的回答等）。设计成功率门槛之前先把原始次数报上来，门槛由构思主控与用户定。
-- [ ] 注入的文字在写入前登记（spec 第 6 节），探针能把登记与 CLI 实际收到的对上。
-- [ ] 结论写成 `findings/` 下的中文报告，报告里写明对 T-075 的影响：可以按 spec 做、要改设计、或要停下。
-- [ ] 任一项不通过：停下写 `needs-decision` 交构思主控，不硬做、不加兜底重试，不开始 T-075。
+- [x] 每个结论标 observed / measured / inferred / unknown，附原始输出、CLI 版本、启动 argv 和重放命令。
+- [x] R6：至少触发一次真实的等确认状态（Codex 一次，Claude 一次），记下外部程序收到了什么、在什么时刻收到；没有信号就写"未找到"并列出查过的途径，不改用读屏或正则。
+- [x] R7：两家各至少 10 次注入，覆盖空闲、回合进行中、等确认三种状态；记成功次数、失败的样子（丢字、拼进上一条、被当作确认的回答等）。设计成功率门槛之前先把原始次数报上来，门槛由构思主控与用户定。
+- [x] 注入的文字在写入前登记（spec 第 6 节），探针能把登记与 CLI 实际收到的对上。
+- [x] 结论写成 `findings/` 下的中文报告，报告里写明对 T-075 的影响：可以按 spec 做、要改设计、或要停下。
+- [x] 任一项不通过：停下写 `needs-decision` 交构思主控，不硬做、不加兜底重试，不开始 T-075。
 
 ## 说明
 
@@ -102,3 +102,24 @@ UserPromptSubmit 不与原生回合一一对应：两家均观察到同回合多
 release 全部由探针模拟，记录为用户输入 action；Claude 另一次初始化 release 单独列出。R7 新增 30 条注入，每家另 3 条 user_sim 消息单列，按 case_id/B 统计验收场景。每家本轮 18 个原生回合，累计 Codex 50/55、Claude 保守计 40/40；Claude 已达上限。所有探针已停、隔离 Codex home 已删除、Claude 夹具保留。旧 51 行 R7 和全部失败原样保留，旧两条漏放被本轮的许可条件拒绝。
 
 证据：[RESULTS rev 4](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[归档核对](../../evidence/2026-10-10-batch12/T-074/analysis-rev4.json)、[中文报告](../../findings/native-cli-signals-injection-2026-10-10.zh-CN.md)。T-075 可按现行 spec 第 6 节继续；本 worker 未改产品或 spec，未开始 T-075。按任务卡不另开独立审查，保持 open，Acceptance 留待执行主控核对后勾选与关闭；本 PASS 不扩大为产品 GUI、重启恢复或任意并发时序的验收。
+
+**执行主控关闭（2026-10-11）：PASS。** 最终交付是 a2a `eba1106`，对应 ready_rev 4 与执行主控决定 04。我没有沿用 worker 的分析，而是自己写脚本，直接从 `rev4-codex`、`rev4-claude` 的原始 writes、gate-events、user-actions 记录重放门禁规则：
+
+- 两家各 15 次注入消息写入，规则规定不该写入时写入的次数为 0。
+- 窗格“忙”时的 4 次写入，每次都有一个模拟放行在前。
+- 从 Esc 到放行，4 次分别间隔 30.12～30.18 秒。
+
+worker 的 `analyze-rev4.py` 和 `checks-rev4.py`（输出到我的临时目录）复跑都退出 0，项目状态 0 problems、0 stale。
+
+勾选的验收项及依据：
+
+- R6 以 rev 2～4 的真实批准请求为准：两家的 PermissionRequest hook 都有开始事件，没有结束事件，也没有请求标识。rev 3 之后设计已不依赖这个信号。
+- R7：Codex 和 Claude 都超过 10 次，覆盖空闲、运行中和竞态。等批准状态下的原始注入只有 Codex 做过一次，结果是被当作批准，这条反例保留。Claude 没有在等批准时注入：rev 2 起的设计不再往等批准的窗格注入，rev 3 也只要求 Claude 补测运行中。Claude 运行中的 2 次注入进了 queued_command，记为 other。
+
+结论与限制：
+
+- 对 T-075 的影响：按 spec 第 6 节做。worker 窗格用“不问”模式；主控窗格由后台在写出回车时记“忙”，收到更新的 Stop 才回到“空闲”；Esc 中断后由用户放行。
+- 本票没有证明的：产品 GUI、进程重启后的恢复、任意并发时序。
+- 没有另开独立审查，这是任务卡的约定。
+- 本票的 worker 早于 `scripts/launch-worker` 启动，没有启动记录，所以没有调用 `scripts/score`。
+- worker 中途被中断、换了模型并收到一条无标记的“继续”，这次人工介入见 `controller-review-rev2.md`。
