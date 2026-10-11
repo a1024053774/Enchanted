@@ -24,3 +24,9 @@
 ## 补充：F13（2026-10-11，回应 issue 20261011T185808Z-worker:s13-t076-2-issue-001）
 
 批准：`workbench/tests/test_task_cards_e2e.py` 的 `test_non_fast_forward_git_result_cannot_integrate` 只把准备一行改为 `create_managed()`，使其越过来源前置后仍到达原 Git fast-forward 保护；该方法的全部 Git 反例断言（拒绝、ref/reflog/内容不变）不改。依据同决定 02/03。其余 F08 范围不变。
+
+## 补充：F14（2026-10-11，回应 `F14-fixture-executor.md`）
+
+批准：`acceptance/test_coop_e2e.py` 的 `ManagedDeliveryCLI.create()` 只把卡片 `executor.model` 从 `"fixture"` 改为 `"gpt-6.1-sol"`（cli=Codex、effort=xhigh 不变）；范围审计加该 helper 的逐字比较（起点仅替换此字符串后须与候选一致）。依据：诊断显示 reviewer 创建失败已按批准契约记录 paused/unknown/issue 并返回失败（事件 93–95），产品行为符合 reviewer-green 契约；失败来自夹具卡的模型值不在 Panes 允许范围。不改 Panes 模型约束、不加兼容路径。
+
+更正：主控上一条所说"runner exit 0"来自管道 `| tail -3` 的退出码，不是 runner 本身；以 run.json 的 INCOMPLETE 与子命令退出 1 为准。
