@@ -54,3 +54,16 @@ T-075-1：门禁迁移、隔离验收和一次 fresh-context 独立审查均 PAS
 - 三套红态已保存；最终交付 8/8、恢复 9/9、隔离编排 18/18 全过，CAS 补充正例 1/1 全过。fence、CAS 期望旧值、操作锁三个变异体均因业务断言失败；旧交付套对 CAS 变异体误过的记录保留。
 - 审查原文及重现命令见 [RESULTS](../../evidence/2026-10-10-batch12/T-075/RESULTS.md)；独立审查对上述候选给出 PASS，无需修复项。此结论不证明真实窗格、模型、后台或 Electron 可用。
 - 地图检查为 0 problems、1 stale，退出 1；按执行主控决定 01 由主控更新术语表及 Verified，worker 未越界修改。完成该收尾后可将本卡记为“T-075-1 完成，待后续卡”。
+
+**T-075-1 执行主控验收（2026-10-11）：卡片通过，ticket 仍 open（4 张卡中的第 1 张）。** 交付 a2a `4d81efc`（实现）和 `5fb7009`（报告与审查），提交带 9 项尾注。
+- **门禁已搬家**：门禁在 `workbench/src/gates/`，用 Node 26 运行。对 Synara 的引用已清零，旧的 HTTP 转接分支已删除；`acceptance/entry/*` 改指新位置，`acceptance/test_*.py` 的断言没有改。
+- **依赖**：effect 改用 npm 官方源的 `4.0.0-beta.25`，由执行主控安装，缓存在外置盘。
+- **重新证明**：沙箱外由执行主控代跑，收据在 `evidence/2026-10-10-batch12/T-075/outside-executor.K2MrEb*`。
+  - 正例：交付 8/8、恢复 9/9、编排 18/18。
+  - 反例：去掉 fence、CAS 期望旧值、操作锁的三个变异体都失败，而且是断言失败，不是环境错误。
+  - 已知缺口：旧交付套件抓不到 CAS 变异体，已由新增的 `workbench/tests/test_cas_race.py` 补上。
+- **独立审查**：PASS。
+- **文档**：`CONTEXT.md` 和 `AGENTS.md` 里门禁入口的事实已由执行主控更新（`c94d388`）。
+- **打分**：已记入 `records/scores.jsonl`（score-dd335ff3）。
+
+接下来：T-075-2，做三项契约改动和任务卡命令。
