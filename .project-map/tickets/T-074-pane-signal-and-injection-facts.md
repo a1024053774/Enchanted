@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 1
+ready_rev: 2
 ---
 
 ## What to build
@@ -34,6 +34,16 @@ ready_rev: 1
 - 探针代码放证据目录，不进产品目录；node-pty 可以在证据目录里临时装，依赖缓存放外置盘（AGENTS.md 构建规则）。
 - 与 [T-073](T-073-herdr-period-task-card-trailers-scoring.md) 改的文件不重叠，可以并行。
 - 授权来源：用户 2026-10-10 在会话"a2a-构思主控"确认切法（逐字："确认"），在此之前在会话"新思路构思"说："确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。"`ready_by: ideation`，`ready_rev: 1`。
+
+## 修订 rev 2（2026-10-10，用户决定）
+
+依据首轮实测（Codex 等批准时，M3 注入的文字被当作 Accept）和用户的三项答复，本票追加与改动如下；与上文冲突处以本节为准。
+
+- **Claude 认证**：用用户平常的 Claude 登录（用户选"直接用你平常的登录"）。这是用户对本票的明确例外：CLI 自己往 `~/.claude` 写会话历史、首次信任目录写 `~/.claude.json` 都可以接受；a2a 的代码与 worker 仍不写 Claude 的设置或权限配置，hooks 与设置只经 `--settings` 传入；不读取、不复制凭据。上文"不写 `~/.claude` 的方式启动"一句作废。
+- **Claude 模型与上限**：Haiku 5.5，最多 15 个原生回合（用户选"Haiku 5.5，最多 15 回合"）；达到上限就停下报告，不自动追加。
+- **受管 worker 不弹批准**（用户选"worker 不弹批准"）：worker 启动时给定沙箱与允许的命令，审批设为不问（Codex `approval_policy=never`，Claude `--permission-mode dontAsk`，均只经每会话启动参数）。追加验证：在这种启动方式下，越界操作被拒而不弹批准；随后 M3 注入照常作为新消息送达，不会被当作批准。两家各至少 3 次。
+- **主控窗格等批准时暂停注入，先验证**（用户选"等批准时暂停，先验证"）：用每会话启动参数装的权限请求 hook（Claude 的 PermissionRequest，Codex 对应的 hook）作为结构化的"等批准"信号，核实它在批准窗口出现时、结束时各有事件，能拿到请求标识。再验证竞态：注入写到一半时进入等批准，记录实际发生了什么。hook 不可靠或竞态无法避免时停下报告，不加兜底重试，不改用读屏。
+- 结论报告要写明对 T-075 的影响，以及 spec 第 6 节的派发规则是否需要再改。
 
 ## Resolution
 

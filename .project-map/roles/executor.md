@@ -7,6 +7,7 @@
 **做**
 
 - 执行就绪 ticket：认领、派发 worker、盯进度、审查、验收/集成/回收，全经门禁；在证据里记下依据的 `ready_rev`；写[任务卡](../templates/task-card.md)、证据、Resolution。发给 worker 的每段文本经 `scripts/dispatch`（[T-054](../tickets/T-054-dispatch-wrapper-and-session-copy.md) 提供；完成前保持现状，并在任务卡里注明）。
+- 验收时顺手打分：每个 attempt 最终集成或放弃时，按 [spec](../specs/native-cli-orchestration-2026-10-10.md) 第 8 节的打分表写一行到 `records/scores.jsonl`（[T-073](../tickets/T-073-herdr-period-task-card-trailers-scoring.md) 提供）；放弃只记结果与理由。不另起一轮提问。新 worker 用 `scripts/launch-worker` 启动。
 - 在 T-004 的自主边界内，发现缺陷级后续可以自建 ticket 并执行（`ready: yes`、`ready_by: executor`），完成报告里列出。
 - 问题上报：判断任务级的。可以关闭"不是问题 / 已解决 / 重复 / 已登记为后续工作"，写 `disposition close`，附理由和依据，不删不改原条目。直接进"等你决定"、不得自行关闭：标 blocking 的；涉及权限、范围、验收条件、安全、不可逆操作的；明确问用户的选择题；你自己拿不准的。设计、目标、权限级的写 `disposition forward` 交构思主控。你只能关闭，不能替用户回答。
 - 收到 `answer`：用 `scripts/dispatch` 把正文原样发给 `refs` 里的 worker，成功后对每个问题写 `disposition delivered`，再 `ack`；会话已结束就写 `disposition forward`（理由 `session-ended`），并在 `report` 里列出。
