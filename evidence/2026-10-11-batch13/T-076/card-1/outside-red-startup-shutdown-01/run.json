@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "mode": "red",
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a/workbench/tests/run_t076_startup_shutdown.py",
+    "--mode",
+    "red",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-1/outside-red-startup-shutdown-01"
+  ],
+  "real_codex_turns": 0,
+  "steps": [
+    {
+      "name": "initial-release",
+      "exit": 1,
+      "result": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-1/outside-red-startup-shutdown-01/initial-release/run.json",
+      "tests_run": 4,
+      "failures": [
+        {
+          "test": "__main__.InitialRelease.test_first_input_precedes_native_log",
+          "text": "Traceback (most recent call last):\n  File \"/private/tmp/sd76-snlii4i4/source/workbench/tests/test_initial_worker_release.py\", line 55, in test_first_input_precedes_native_log\n    before, after, calls = self.invoke(self.info())\nRuntimeError: {'startup_identity_unknown': {'ok': True, 'shell_pid': 11001, 'leader': 11002, 'native_session': None, 'failed': None, 'processes': [{'pid': 11001}, {'pid': 11002}]}}\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/private/tmp/sd76-snlii4i4/source/workbench/tests/test_initial_worker_release.py\", line 57, in test_first_input_precedes_native_log\n    self.fail('The confirmed initial leader must receive the first input before its native log exists: ' + str(error))\nAssertionError: The confirmed initial leader must receive the first input before its native log exists: {'startup_identity_unknown': {'ok': True, 'shell_pid': 11001, 'leader': 11002, 'native_session': None, 'failed': None, 'processes': [{'pid': 11001}, {'pid': 11002}]}}\n"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "name": "daemon-stop",
+      "exit": 1,
+      "result": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-1/outside-red-startup-shutdown-01/daemon-stop/run.json",
+      "tests_run": 3,
+      "failures": [
+        {
+          "test": "__main__.StartupShutdown.test_stop_during_deadline_cleanup",
+          "text": "Traceback (most recent call last):\n  File \"/private/tmp/sd76-snlii4i4/source/workbench/tests/test_startup_shutdown_e2e.py\", line 177, in test_stop_during_deadline_cleanup\n    self.assertIs(reply.get('ok'), True, 'Owned daemon must stop after run deadline; reply=' + json.dumps(reply))\nAssertionError: False is not True : Owned daemon must stop after run deadline; reply={\"ok\": false, \"error\": \"daemon_busy\", \"details\": \"Error: daemon_busy\"}\n"
+        },
+        {
+          "test": "__main__.StartupShutdown.test_stop_during_waiting_submit",
+          "text": "Traceback (most recent call last):\n  File \"/private/tmp/sd76-snlii4i4/source/workbench/tests/test_startup_shutdown_e2e.py\", line 167, in test_stop_during_waiting_submit\n    self.assertIs(reply.get('ok'), True, 'Owned daemon must stop with a waiting run; reply=' + json.dumps(reply))\nAssertionError: False is not True : Owned daemon must stop with a waiting run; reply={\"ok\": false, \"error\": \"daemon_busy\", \"details\": \"Error: daemon_busy\"}\n"
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "source": "/private/tmp/sd76-snlii4i4/source",
+  "head": "1ff6983ec53947a0a2afef235b6eef0ed06a80cb",
+  "code_is_uncommitted_candidate": true,
+  "changed_source_paths": []
+}

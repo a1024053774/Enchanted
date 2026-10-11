@@ -1,0 +1,370 @@
+"""Controller-only real interactive worker: delivery A, receipt B, bound run.
+
+Reserve exactly two root turns once. A third turn or another invocation needs
+controller reconciliation; this script never retries or grants extra turns.
+"""
+import argparse
+import contextlib
+import datetime
+import fcntl
+import json
+import os
+from pathlib import Path
+import shutil
+import sqlite3
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import traceback
+
+from command_evidence import CommandLog, command_json
+from fixture_artifacts import archive_stopped_database
+from run_worker_delivery import ORACLE
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def release_initial_worker(call, thread, known_pids, save, *, monotonic=time.monotonic, sleep=time.sleep):
+    deadline = monotonic() + 30
+    while True:
+        info = call('pane_process_info', '--thread', thread)
+        known_pids.update(row['pid'] for row in info['processes'])
+        if info.get('leader') and not info.get('failed'): break
+        if info.get('failed') or monotonic() > deadline:
+            raise RuntimeError({'startup_identity_unknown': info})
+        sleep(0.1)
+    save('before-release-identity.json', info)
+    call('pane_release', '--thread', thread, '--reason', 'T076 controller-approved real probe: initial foreground leader checked; native identity binds when first observable')
+    return info
+
+
+def outstanding_real_turns(entries):
+    reservations = {}
+    for row in entries:
+        if row.get('kind') == 'reservation':
+            if row['output'] in reservations:
+                raise RuntimeError('Duplicate real-turn reservation output')
+            reservations[row['output']] = row['reserved']
+    reconciled = set()
+    approved = {'outside-real-01': 'evidence/2026-10-11-batch13/T-076/card-1/controller-decision-02.md',
+                'outside-real-02': 'conversation:主控 #12'}
+    for row in entries:
+        if row.get('kind') != 'reconciliation':
+            continue
+        output = row['output']
+        if (output not in reservations or output in reconciled or row.get('actual') != 0 or
+                row.get('reserved') != reservations[output] or
+                Path(output).parent.parts[-4:] != ('evidence', '2026-10-11-batch13', 'T-076', 'card-1') or
+                approved.get(Path(output).name) != row.get('decision_ref') or row.get('decision_ref') is None):
+            raise RuntimeError('Real-turn reconciliation is not the approved zero-turn accounting entry')
+        reconciled.add(output)
+    return sum(value for output, value in reservations.items() if output not in reconciled)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    out = args.output.resolve(); out.mkdir(parents=True, exist_ok=False)
+    commands = CommandLog(out)
+    temp = Path(tempfile.mkdtemp(prefix='t76-real-', dir='/tmp')).resolve()
+    source, repo, state, home = temp / 'source', temp / 'repo', temp / 'state', temp / 'codex-home'
+    oracle, waiting_oracle = temp / 'oracle.py', temp / 'waiting_oracle.py'
+    repo.mkdir(); home.mkdir(mode=0o700)
+    env = {k: v for k, v in os.environ.items() if not k.startswith(('A2A_', 'CODEX_', 'GIT_'))}
+    env.update(GIT_AUTHOR_NAME='T076 real fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
+               GIT_COMMITTER_NAME='T076 real fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
+    git_env = {**env, 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull,
+               'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.hooksPath', 'GIT_CONFIG_VALUE_0': os.devnull}
+    record = {'status': 'INCOMPLETE', 'task': 'T-076-9', 'ready_rev': 1, 'fixture': str(temp),
+              'real_turns_reserved': 0, 'observed_main_turns': None, 'model_requested': 'gpt-6.1-sol',
+              'effort_requested': 'xhigh', 'service_tier_requested': 'fast', 'argv': sys.argv}
+    started = False; run_process = None; launch = None; known_pids = set(); captured = {}
+    run_stdout = run_stderr = None
+
+    def save(name, value):
+        with (out / name).open('x', encoding='utf-8') as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2); stream.write('\n')
+
+    def run(argv, *, check=True, cwd=ROOT, command_env=env, timeout=60):
+        result = commands.run(argv, cwd=cwd, env=command_env, timeout=timeout)
+        if check and result.returncode:
+            raise RuntimeError({'command_failed': result.evidence})
+        return result
+
+    def call(command, *values, check=True):
+        result = run([*cli, command, *values], check=False)
+        value = command_json(result)
+        if check and (result.returncode != 0 or value.get('ok') is not True):
+            raise RuntimeError({'gate_failed': result.evidence, 'reply': value})
+        return value
+
+    def git(*values, cwd=repo):
+        return run(['git', *values], cwd=cwd, command_env=git_env).stdout.strip()
+
+    def root_records(events):
+        rows = [event['data'] for event in events if event['type'] == 'native_record']
+        identities = {row['record']['payload']['id'] for row in rows
+                      if row['record']['type'] == 'session_meta' and row['record']['payload'].get('source') == 'cli'}
+        if not identities:
+            return None, []
+        if len(identities) != 1:
+            raise RuntimeError('More than one root native session appeared')
+        native = next(iter(identities))
+        return native, [row['record'] for row in rows if row['file'].endswith(native + '.jsonl')]
+
+    try:
+        if not Path('/Volumes/WD-Elements').is_mount():
+            raise RuntimeError('External disk is not mounted; no cache fallback')
+        version = run(['node', '--version']).stdout.strip()
+        if not version.startswith('v26.5.'):
+            raise RuntimeError('Approved Node 26.5 runtime is unavailable')
+        codex = shutil.which('codex')
+        if codex is None:
+            raise RuntimeError('Codex executable is unavailable')
+        shutil.copytree(ROOT / 'workbench', source / 'workbench', symlinks=True,
+                        ignore=shutil.ignore_patterns('node_modules', '__pycache__', '.DS_Store'))
+        (source / 'workbench/node_modules').symlink_to((ROOT / 'workbench/node_modules').resolve(), target_is_directory=True)
+        captured = {path: path.read_bytes() for directory in ('src', 'hooks', 'tests', 'app')
+                    for path in (ROOT / 'workbench' / directory).rglob('*') if path.is_file() and '__pycache__' not in path.parts}
+        with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as archive:
+            archive.add(source / 'workbench', arcname='workbench')
+        head = run(['git', 'rev-parse', 'HEAD']).stdout.strip()
+        save('source-manifest.json', {'head': head, 'source': str(source), 'paths': [str(path.relative_to(ROOT)) for path in captured],
+              'snapshot': str(out / 'candidate-source.tar.gz'), 'candidate_is_uncommitted': True})
+        cli = ['node', source / 'workbench/src/gates/cli.ts', '--state', state]
+        git('init', '-b', 'main')
+        (repo / 'src').mkdir()
+        (repo / 'src/normalize.py').write_text('def normalize(rows):\n    return {}\n', encoding='utf-8')
+        (repo / 'src/report.py').write_text('import json\nprint(json.dumps({"stub": True}))\n', encoding='utf-8')
+        (repo / '.gitignore').write_text('__pycache__/\n*.pyc\n', encoding='utf-8')
+        (repo / 'host.txt').write_text('baseline\n', encoding='utf-8')
+        git('add', '.')
+        git('commit', '-m', 'T076 independent real fixture baseline')
+        B = git('rev-parse', 'HEAD')
+        oracle.write_text(ORACLE, encoding='utf-8')
+        red = run([sys.executable, '-I', '-B', oracle, repo], check=False)
+        if red.returncode != 1:
+            raise RuntimeError('Independent fixture oracle did not reject its known-bad baseline')
+        # Only this credential is copied; contents are never logged or archived.
+        shutil.copyfile(Path.home() / '.codex/auth.json', home / 'auth.json')
+        (home / 'auth.json').chmod(0o600)
+        (home / 'config.toml').write_text('[projects.' + json.dumps(str(repo)) + ']\ntrust_level="trusted"\n', encoding='utf-8')
+        (home / 'rules').mkdir()
+        (home / 'rules/default.rules').write_text('prefix_rule(pattern=["git", "add"], decision="allow")\n'
+                                                'prefix_rule(pattern=["git", "commit"], decision="allow")\n', encoding='utf-8')
+        config = {'codex_bin': str(Path(codex).resolve()), 'codex_home': str(home),
+                  'role_card': str(ROOT / '.project-map/roles/worker.md'),
+                  'role_card_revision': run(['git', 'log', '-1', '--format=%H', '--', '.project-map/roles/worker.md']).stdout.strip(),
+                  'code_revision': head, 'source_snapshot': str(out / 'candidate-source.tar.gz'),
+                  'hook_authorization': 'T-076-1 controller-decision-01 §5; controller #4/#9/#10; per-session prepare-commit-msg and UserPromptSubmit/Stop/PermissionRequest approved',
+                  'turn_limit': 2, 'turn_authorization': 'T-076-1 controller #16: green-startup-shutdown-03 PASS; both prior reservations reconciled to actual 0; reserve two root turns for one new real-two-turns run; cumulative limit three; third requires prior approval'}
+        save('launch-config.json', config)
+        budget = out.parent / 'real-turn-budget.jsonl'
+        with budget.open('a+', encoding='utf-8') as stream:
+            fcntl.flock(stream, fcntl.LOCK_EX); stream.seek(0)
+            previous = [json.loads(line) for line in stream if line.strip()]
+            reserved = outstanding_real_turns(previous)
+            if reserved != 0:
+                raise RuntimeError('This card already reserved real turns; controller reconciliation is required, no automatic rerun')
+            stream.seek(0, 2)
+            stream.write(json.dumps({'kind': 'reservation', 'reserved': 2, 'output': str(out),
+                                    'authorization': config['turn_authorization'], 'time': datetime.datetime.now(datetime.timezone.utc).isoformat()}) + '\n')
+            stream.flush(); os.fsync(stream.fileno())
+        record['real_turns_reserved'] = 2
+        begin = call('daemon_start', '--launch-config', out / 'launch-config.json'); started = True
+        known_pids.add(begin['pid'])
+        assert os.getpgid(begin['pid']) == os.getsid(begin['pid']) == begin['pid']
+        assert os.getpgrp() != begin['pid']
+        save('daemon-identity.json', {'pid': begin['pid'], 'pgid': os.getpgid(begin['pid']), 'sid': os.getsid(begin['pid'])})
+        ticket = ROOT / '.project-map/tickets/T-076-quality-chain-scoring.md'
+        rev = int(next(line.split(':', 1)[1] for line in ticket.read_text(encoding='utf-8').splitlines() if line.startswith('ready_rev:')))
+        assert rev == 1
+        barrier = temp / 'receipt-complete'
+        waiting_oracle.write_text('import pathlib,runpy,sys,time\n'
+            'signal=pathlib.Path(' + repr(str(barrier)) + ')\n'
+            'deadline=time.monotonic()+60\n'
+            'while not signal.exists():\n'
+            ' if time.monotonic()>deadline: raise RuntimeError("receipt boundary was not confirmed")\n'
+            ' time.sleep(0.05)\n'
+            'sys.argv=[' + repr(str(oracle)) + ',sys.argv[1]]\n'
+            'runpy.run_path(' + repr(str(oracle)) + ',run_name="__main__")\n', encoding='utf-8')
+        card = {'id': record['task'], 'source': {'ticket': str(ticket), 'ready_rev': rev},
+                'goal': '这是 T-076-1 的隔离验收任务，来源 ticket 只作规格绑定，不到 a2a 源码仓库实现编排系统。'
+                        '只实现 src/normalize.py 的 normalize(rows) 与 src/report.py。输入 JSON 数组，每项 name 为字符串、minutes 为非负整数，bool 不算整数。'
+                        'name 去首尾空白后不得为空；按去空白的名字合并分钟，按名字升序输出。normalize 返回 '
+                        '{"entries":[{"name":名字,"minutes":合计,"duration":"小时:两位分钟"}],"total_minutes":总分钟}。'
+                        '空数组返回空 entries 和 0。minutes 非法抛 ValueError("invalid_minutes")；名字非法抛 ValueError("invalid_name")。'
+                        'report.py 从 stdin 读 JSON，正常输出一行 JSON 并退出0；对应 ValueError 输出 {"error":"invalid_minutes"} 或 {"error":"invalid_name"} 并退出2。'
+                        '只改这两个文件，git add 与 git commit 各自作为独立工具命令，工具 cwd 是本 worktree。提交后执行派发的 submit 命令并加 --request-id delivery。'
+                        '结束回合让 Stop 转交；回执回合只确认收到并结束，不调用工具、不新增请求。',
+                'non_goals': ['不改 oracle、任务合同、host.txt、.gitignore；不访问网络、不启动子agent；请求文件不进入Git'],
+                'paths': {'allow': ['src/normalize.py', 'src/report.py'], 'deny': []},
+                'completion_conditions': [{'argv': [sys.executable, '-I', '-B', str(waiting_oracle), '{worktree}']}],
+                'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
+                'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+        save('card.json', card)
+        call('card_save', '--task', record['task'], '--card', out / 'card.json', '--expected-version', '0')
+        call('create', '--task', record['task'], '--repo', repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'T076-real-fixture')
+        run_argv = [*cli, 'run', '--task', record['task'], '--runtime-mode', 'workspace-write', '--wait-seconds', '100']
+        run_stdout = (out / 'run-cli.stdout.txt').open('xb'); run_stderr = (out / 'run-cli.stderr.txt').open('xb')
+        run_process = subprocess.Popen(list(map(str, run_argv)), cwd=ROOT, env=env, stdout=run_stdout,
+                                       stderr=run_stderr, start_new_session=True)
+        known_pids.add(run_process.pid)
+        save('run-cli-launch.json', {'pid': run_process.pid, 'argv': list(map(str, run_argv)),
+                                    'wait_seconds': 100, 'transport_deadline_seconds': 120})
+        deadline = time.monotonic() + 30
+        while True:
+            current = call('status', '--task', record['task'])['task']
+            attempt = current.get('current_attempt')
+            if attempt and current['state'] == 'claimed': break
+            if run_process.poll() is not None or time.monotonic() > deadline:
+                raise RuntimeError('Real run failed before its claimed boundary')
+            time.sleep(0.1)
+        thread = attempt['thread_id']; save('attempt.json', attempt)
+        pane = call('pane_status', '--thread', thread)
+        launch = call('launch_show', '--launch', pane['launch'])['launch']; save('launch-record.json', launch)
+        # Actual full argv and session hook/Git environment are saved here.
+        assert launch['model_requested'] == 'gpt-6.1-sol' and launch['effort_requested'] == 'xhigh'
+        assert launch['env']['A2A_MODEL_REQUESTED'] == 'gpt-6.1-sol' and launch['env']['A2A_EFFORT_REQUESTED'] == 'xhigh'
+        (repo / 'host.txt').write_text('independent G\n', encoding='utf-8')
+        git('add', 'host.txt')
+        git('commit', '-m', 'T076 independent G advance')
+        G = git('rev-parse', 'refs/heads/main')
+        info = release_initial_worker(call, thread, known_pids, save)
+        deadline = time.monotonic() + 110
+        while True:
+            events = call('orchestration_events', '--task', record['task'])['events']
+            native, records = root_records(events)
+            turns = {row['payload']['turn_id'] for row in records if row['type'] == 'event_msg' and row['payload'].get('type') == 'task_started'}
+            completed = {row['payload']['turn_id'] for row in records if row['type'] == 'event_msg' and row['payload'].get('type') == 'task_complete'}
+            if len(turns) > 2:
+                raise RuntimeError('Unexpected third root turn; no automatic approval or retry')
+            pane = call('pane_status', '--thread', thread)
+            if pane.get('failed'):
+                raise RuntimeError({'pane_failed': pane})
+            if len(turns) == len(completed) == 2 and pane['state'] == 'idle' and not pane['queued'] and not pane['writing']:
+                break
+            if run_process.poll() is not None or time.monotonic() > deadline:
+                raise RuntimeError('Real delivery/receipt did not reach the confirmed two-turn boundary')
+            time.sleep(0.5)
+        observed = call('pane_process_info', '--thread', thread)
+        known_pids.update(row['pid'] for row in observed['processes'])
+        assert observed['leader'] == info['leader'] and observed['native_session'] == native
+        if info['native_session'] is not None:
+            assert observed['native_session'] == info['native_session']
+        save('after-receipt-identity.json', observed)
+        save('receipt-boundary.json', {'native_session': native, 'turn_ids': sorted(turns), 'completed': sorted(completed),
+                                     'state': pane, 'confirmation': 'both native task_complete and matched Stop idle'})
+        barrier.write_text('only after two complete root turns and idle', encoding='utf-8')
+        run_process.wait(timeout=30); run_stdout.flush(); run_stderr.flush()
+        reply = json.loads((out / 'run-cli.stdout.txt').read_text(encoding='utf-8'))
+        save('run-cli-result.json', {'exit': run_process.returncode, 'reply': reply})
+        assert run_process.returncode == 0 and reply['ok'] and reply['run']['outcome'] == 'completed' and reply['run']['reclaimed'], reply
+        current = call('status', '--task', record['task'])['task']
+        C = current['candidate_commit']; M = git('rev-parse', 'refs/heads/main')
+        assert current['state'] == 'accepted' and current['current_attempt']['reclaimed']
+        assert git('rev-list', '--parents', '-n', '1', M).split() == [M, G, C]
+        assert current['current_attempt']['attempt_id'] == attempt['attempt_id']
+        events = call('orchestration_events', '--task', record['task'])['events']; save('orchestration-events.json', events)
+        gates = call('events', '--task', record['task'])['events']; save('gate-events.json', gates)
+        delivery = next(row['details']['attempt'] for row in gates if row['type'] == 'submitted')
+        assert delivery['turn_id'] in turns and current['current_attempt']['turn_id'] == delivery['turn_id']
+        assert current['current_attempt']['runtime_identity'] == delivery['runtime_identity']
+        receipt_turn = next(iter(turns - {delivery['turn_id']}))
+        receipt_tools = [row for row in records if row['type'] == 'response_item' and
+            row['payload'].get('type') in ('function_call', 'custom_tool_call') and
+            row['payload'].get('internal_chat_message_metadata_passthrough', {}).get('turn_id') == receipt_turn]
+        assert not receipt_tools, 'Receipt turn must only acknowledge; it cannot perform another task'
+        contexts = [row['payload'] for row in records if row['type'] == 'turn_context' and row['payload'].get('turn_id') == delivery['turn_id']]
+        assert contexts
+        context = contexts[-1]
+        assert context['model'] == 'gpt-6.1-sol' and context.get('effort', context.get('reasoning_effort')) == 'xhigh'
+        message = run(['git', 'log', '-1', '--format=%B', C], cwd=repo, command_env=git_env).stdout
+        (out / 'candidate-message.txt').write_text(message, encoding='utf-8')
+        values = {line.partition(': ')[0]: line.partition(': ')[2] for line in message.splitlines() if line.startswith('A2A-')}
+        expected = {'A2A-Task': record['task'], 'A2A-Attempt': attempt['attempt_id'], 'A2A-Session': attempt['session_id'],
+                    'A2A-Role': 'worker', 'A2A-Tool': 'codex-cli 0.162.1', 'A2A-Model': 'gpt-6.1-sol', 'A2A-Effort': 'xhigh',
+                    'A2A-Native-Session': native, 'A2A-Launch': launch['id']}
+        assert values == expected and len([line for line in message.splitlines() if line.startswith('A2A-')]) == 9
+        assert values['A2A-Model'] == context['model'] == launch['model_requested']
+        assert values['A2A-Effort'] == context.get('effort', context.get('reasoning_effort')) == launch['effort_requested']
+        assert oracle.read_text(encoding='utf-8') == ORACLE
+        assert (repo / 'host.txt').read_text(encoding='utf-8') == 'independent G\n'
+        assert not any(row['type'] == 'permission_wait' for row in events)
+        save('git-readback.json', {'B': B, 'G': G, 'C': C, 'M': M, 'message': message, 'expected_trailers': expected,
+                                'native_context': context, 'delivery_turn': delivery['turn_id'], 'runtime_identity': delivery['runtime_identity']})
+        record.update(status='PASS', observed_main_turns=2, native_session=native, launch=launch['id'],
+                      attempt=attempt['attempt_id'], G=G, C=C, M=M, run=reply['run'])
+    except (OSError, ValueError, KeyError, AssertionError, RuntimeError, subprocess.TimeoutExpired) as error:
+        record.update(status='INCOMPLETE', error=repr(error), traceback=traceback.format_exc())
+    finally:
+        if started:
+            try:
+                save('events-before-stop.json', call('orchestration_events'))
+                run(['node', source / 'workbench/tests/snapshot_state.ts', state, out / 'databases-before-stop'])
+            except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
+                record.update(status='BLOCKED', cleanup_error=repr(error))
+            finally:
+                try:
+                    stopped = call('daemon_stop'); save('daemon-stop.json', stopped)
+                except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
+                    record.update(status='BLOCKED', stop_error=repr(error))
+        try:
+            if run_process is not None and run_process.poll() is None:
+                # Explicit daemon_stop ends run waits, drains an already-started
+                # oracle under its original lock, then terminates only its PTY.
+                # The receipt barrier is never released by failure cleanup.
+                run_process.wait(timeout=70)
+            deadline = time.monotonic() + 10
+            while True:
+                result = run(['/bin/ps', '-o', 'pid=,ppid=,pgid=,command=', '-p', ','.join(map(str, sorted(known_pids)))],
+                             check=False) if known_pids else None
+                if result and (result.returncode not in (0, 1) or result.stderr.strip()):
+                    raise RuntimeError('Cannot confirm owned process exit')
+                if not (state / 'daemon.pid').exists() and not (result and result.stdout.strip()): break
+                if time.monotonic() > deadline:
+                    raise RuntimeError('Owned processes still exist; keep isolated home for controller reconciliation')
+                time.sleep(0.1)
+            if started:
+                # Count final durable native records only after the writer and
+                # PTY have exited. The final exit scan may import the last bytes.
+                archived = archive_stopped_database(state, out / 'databases-after-stop/state.sqlite3')
+                save('database-after-stop.json', archived)
+                with contextlib.closing(sqlite3.connect(Path(archived['path']).as_uri() + '?mode=ro', uri=True)) as database:
+                    database.row_factory = sqlite3.Row
+                    events = [{**dict(row), 'data': json.loads(row['data'])} for row in database.execute(
+                        'SELECT * FROM orchestration_events ORDER BY seq')]
+                save('events-after-stop.json', events)
+                if launch:
+                    native, rows = root_records(events)
+                    started_turns = {row['payload']['turn_id'] for row in rows if row['type'] == 'event_msg' and row['payload'].get('type') == 'task_started'}
+                    record['observed_main_turns'] = len(started_turns)
+                    if len(started_turns) != 2 and record['status'] == 'PASS':
+                        record.update(status='INCOMPLETE', budget_error='Final native readback does not contain exactly two root turns')
+            shutil.rmtree(home); record['isolated_home_removed'] = True
+            with tarfile.open(out / 'fixture-artifacts.tar.gz', 'x:gz') as archive:
+                for path, name in ((repo, 'repo'), (state, 'state'), (oracle, 'oracle.py'), (waiting_oracle, 'waiting_oracle.py')):
+                    if path.exists(): archive.add(path, arcname=name)
+                if launch:
+                    archive.add(Path(launch['request_dir']), arcname='request-files')
+        except (OSError, ValueError, RuntimeError, sqlite3.Error, subprocess.TimeoutExpired, tarfile.TarError) as error:
+            record.update(status='BLOCKED', cleanup_error=repr(error))
+        if run_stdout is not None: run_stdout.close()
+        if run_stderr is not None: run_stderr.close()
+        changed = [str(path) for path, data in captured.items() if not path.is_file() or path.read_bytes() != data]
+        record['changed_source_paths'] = changed
+        if changed: record.update(status='INCOMPLETE', source_error='Source changed during real run')
+        if record['real_turns_reserved']:
+            with (out.parent / 'real-turn-budget.jsonl').open('a', encoding='utf-8') as stream:
+                stream.write(json.dumps({'kind': 'observation', 'output': str(out), 'observed_main_turns': record['observed_main_turns'],
+                                       'status': record['status'], 'home_removed': record.get('isolated_home_removed', False)}) + '\n')
+        save('run.json', record)
+    print(json.dumps({key: record[key] for key in ('status', 'real_turns_reserved', 'observed_main_turns')}, ensure_ascii=False))
+    return 0 if record['status'] == 'PASS' else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

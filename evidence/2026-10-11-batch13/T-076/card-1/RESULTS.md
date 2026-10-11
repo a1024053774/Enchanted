@@ -1,6 +1,6 @@
 # T-076-1 执行记录（进行中，2026-10-11）
 
-状态：**INCOMPLETE**。focused 红态与候选确定性绿态已核对；完整交付的一致性报告仍为 INCOMPLETE。执行主控 #9 接受成员/预设无法重建为如实报告，已交构思主控另切片，本卡不修存储；接下来先补 attachment 两个窗口，再按指定顺序继续。本记录不把起点覆盖、取证完成或语法检查称为本卡完成。
+状态：**INCOMPLETE**。focused 红态与候选确定性绿态已核对；完整交付的一致性报告仍为 INCOMPLETE，两个 attachment 窗口均为不一致，主控 #9/#10 已转构思主控另切片，本卡不修存储。专门绿态第三次 PASS；outside-real-03 因 100 秒太短在实现途中停止，实际使用 1 回合、没有提交。按主控 #17/决定 03 准备最后一次真实运行，最多再用 2、累计 3/3 封顶，之后不再追加。旧失败证据保留，不把确定性检查通过称为本卡完成。
 
 实施起点为 `18235b2c53610c412b5f4ea53e0e6e5c56d35849`；两次外部运行均从该 Git 对象导出冻结产品源码。其后共享 main 已前进，本卡未改其他 worker 的文件，后续候选会单独记录完整版本。授权为 `controller-decision-01.md` 与主控 #4、#6。真实 Codex 回合累计 **0/3**；计划用 2 个，第 3 个先问主控。
 
@@ -12,7 +12,7 @@
 | --- | --- |
 | 真实受管提交的实际模型/强度 | INCOMPLETE；已有确定性 Git hook 红态，没有真实 Codex 提交 |
 | 多回合 run/reclaim 正反例 | 确定性正反例 4/4 PASS，0 errors/skipped；真实回合尚未验证，整体 INCOMPLETE |
-| 完整交付库的逐表一致性检查 | 已在完整交付库逐表报告；三张非空主视图一致、成员/预设无法重建；其余空表不冒称覆盖，attachment 专门取证待运行 |
+| 完整交付库的逐表一致性检查 | 已在完整交付库逐表报告；三张非空主视图一致、成员/预设无法重建；其余空表不冒称覆盖；attachment 两个窗口均取证为不一致，主控已转另切片 |
 | 五类变异体在业务断言失败 | 起点覆盖取证 PASS；最终候选重跑未做，故本卡条件仍 INCOMPLETE |
 | 当前候选 8/9/18 与 acceptance diff | INCOMPLETE；三套尚未运行；本卡未修改 acceptance |
 | project_map.py status | 当前检查 0 problems、0 stale；最终交付前还要重新检查 |
@@ -188,3 +188,198 @@ zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh real-two-turns o
 ```
 
 真实回合累计仍 **0/3**，新阶段计划用 2 个，第三个仍须先问主控。其余阶段的顺序、hook 批准、只复制 auth 的隔离、原 attempt 绑定和失败保留要求不变。新阶段未运行前，真实提交与回收验收仍 INCOMPLETE。
+
+## outside-real-02：BLOCKED、0 回合与两处定位
+
+执行主控 #12 核定实际 **0** 个真实回合：shell 3182 与 Codex 领导者 3184 存在，但尚未收到第一次输入，隔离 `codex-home/sessions` 没有 JSONL。两次 daemon_stop 被拒为 daemon_busy；主控核对它们及后台 3108 都属于 `/tmp/t76-real-shmlqa77` 后依次 SIGTERM，确认退出并删除该隔离 home。依据为 [原运行](outside-real-02/run.json)、[清理前](outside-real-02/executor-cleanup-before.txt)、[清理后](outside-real-02/executor-cleanup-after.txt)。原 BLOCKED、观测 null、home_removed=false 的历史记录均不改写。
+
+预算只追加一条 `kind=reconciliation`、reserved=2、actual=0，`decision_ref=conversation:主控 #12`；原预留和观测保留。累计实际仍 0/3，不自动使用第 3 个回合。产品/夹具修好并取得同一确定性检查的绿态前，不交接真实重跑。
+
+### 首次派发：这次失败来自夹具，不是 requireGate
+
+原 traceback 指向冻结的 `run_t076_real.py:222`：测试脚本自己在调用 pane_release 前要求 leader 与 native_session 都非空。首次任务尚在队列里，原生文件要收到第一次任务才出现，形成循环等待。
+
+对保留数据库的只读核对显示：attempt 已正确绑定 launch/thread/shell=3182/leader=3184，native_session=null；门禁没有 rejected/identity_conflict，run 最终为 deadline，而后台请求留下两条 daemon_busy。`runtimeIdentity` 允许初始未观测值；`observeRun` 只填首次观测到的值，已绑定值不能替换；`Panes.release` 的既有条件是有效 leader 且没有 failed，不要求 native_session。因而没有触发“原生身份未知”的 requireGate，这次不需要放宽产品身份检查或改设计。submit/reclaim 的完整身份门槛继续保留。
+
+读回产物：`startup-shutdown-repair-01/preserved-state-readback.json`。原夹具保留期间的重新生成命令（输出名必须新建）：
+
+```sh
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/startup-shutdown-repair-01/read-preserved-state.py /tmp/t76-real-shmlqa77 <全新输出.json>
+```
+
+已先保存修复前脚本和核心文件的 `.before`。将原脚本循环原样抽成 `release_initial_worker` 供确定性调用，未改变 native 非空前提；`extraction-check-02.json` 用 AST 对照确认前提未变。`extraction-check.json` 首次记录的命令字段只有说明性占位，属于证据元数据错误；实际可重放命令以第二条记录及下列命令为准，首次原文件保留。
+
+```sh
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/startup-shutdown-repair-01/check-extraction.py <全新输出.json>
+python3 -B workbench/tests/test_initial_worker_release.py --source /Users/luckye/Documents/Code/a2a --output <全新输出目录>
+```
+
+本地纯函数红态：`initial-release-red-local-01/run.json` 为 INCOMPLETE，4 tests、1 failure、0 errors/skipped。失败只在“首次输入应先于原生日志出现”的业务断言，读回 startup_identity_unknown；无领导者、被替换领导者两个拒绝对照以及已存在原生会话的正例通过。没有 socket、真实 CLI 或模型调用。这证明的是本 worker 的真实探针时序错误，不冒称为产品身份缺陷。
+
+### 后台停止：活动 run 占据停止门槛
+
+`daemon.ts` 在每个请求处理期间增加 activeRequests，只有 activeRequests===1 才允许 daemon_stop。长期 run 请求贯穿等待提交及失败后的 waitForIdle；所以停止请求变成第二个活动请求，尚未进入 `Panes.shutdown` 就报 daemon_busy。本轮先取红态，不删掉并发保护直接关库。
+
+专门夹具将走真实 CLI/socket/后台/门禁/Git/SQLite；node-pty 回调和进程观测明确模拟，不启动 Codex、不复制凭据。三个案例为：首次输入后原生身份才可见并绑定（对照）；waiting_submit 时显式停止；run_deadline 后等待空闲清理时显式停止。停止正例还检查 run 不得变 completed、不验收/集成、不冒称回收、pane_exit 与请求收尾持久化。旧代码预计只在两条停止业务断言失败；夹具 errors、缺读回、清理失败均不算红态。
+
+执行主控只运行下面这一阶段，使用全新标签：
+
+```sh
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh red-startup-shutdown outside-red-startup-shutdown-01
+```
+
+该脚本冻结当前候选，保存源码归档和完整测试输入/输出。expected-red 汇总 PASS 只表示三个指定业务断言取到失败；原子测试的 INCOMPLETE/失败输出保留。主控回传结果后再修夹具时序与后台生命周期，再交接 green-startup-shutdown；真实两回合阶段仍未重新启用。本卡尚未提交、审查或完成 8/9/18。
+
+## 主控 #13：红态核对、候选修复与绿态交接
+
+核对 [outside-red-startup-shutdown-01/run.json](outside-red-startup-shutdown-01/run.json)：红态取证 PASS，源码期间未变化、真实回合 0；主控核对无残留进程。原子测试仍为退出 1，失败证据不改写。
+
+| 信号 | 红态落点 |
+| --- | --- |
+| initial-release，4 tests | 只在 `test_first_input_precedes_native_log` 的业务断言失败，native_session=None 触发夹具 startup_identity_unknown；3 个对照通过、0 errors/skipped |
+| daemon-stop，3 tests | waiting_submit 与 run_deadline 后等待清理两例都在显式停止应受理的断言失败，实际回复 daemon_busy；延期绑定的产品对照通过、0 errors/skipped |
+
+候选修复：
+
+- 夹具首次派发只要求已核对的领导者且没有 failed，随后通过 pane_release 发首次输入。原生日志出现后仍由正式门禁绑定；回执后的对比不再把启动时合法的 null 原生身份当成预期实际值。无领导者、领导者替换继续拒绝，submit/reclaim 的完整身份与活动回合检查不改。
+- 后台显式 daemon_stop 进入关闭流程，设置门禁的关闭标记并拒收新请求；run 在等待循环、等待清理及下一门禁操作前停止推进。已经开始的操作仍持原锁完成，保存原错误与最终运行记录；等待清理被停止时不冒称 reclaim 成功。
+- 后台等待活动请求和已开始的异步回执写入结束，再停止窗格、记录 daemon_stopped、关闭数据库和移除自身端点/PID。关闭期间不启动新的回执回合。没有兜底重试，没有强杀任意 PID，没有提前关库。
+- 真实探针的失败收尾先保存活动证据并显式 daemon_stop，再等原 run/本夹具进程退出；不释放未确认的 receipt oracle barrier，不接管新 attempt。回合计数在停止确认后读取最终持久化原生记录，避免漏掉退出时导入的字节；确认退出后才删除隔离 home。
+- 预算读取原先只认识决定 02，拒收主控 #12 的已批准零消耗核账，先保留 `budget-reconciliation-red-01.json`，再限定接受本卡两个明确输出各自对应的批准引用；重复、错引用、非零实际数和错预留数继续拒绝。新预留 2 后挡住下一次自动运行，不增加预算。
+
+本地 `initial-release-green-local-01/run.json` 4/4 PASS，0 errors/skipped；`budget-reconciliation-green-01.json` 的 6 项核账正反例 PASS。两项都不启动 socket/模型；Node 语法检查、Python AST 与 diff-check 通过，不能替代后台绿态。
+
+核账产物的冻结输入为 `startup-shutdown-repair-01/budget-after-12.jsonl`，重新生成命令：
+
+```sh
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/startup-shutdown-repair-01/check-real-budget.py workbench/tests/run_t076_real.py evidence/2026-10-11-batch13/T-076/card-1/startup-shutdown-repair-01/budget-after-12.jsonl <全新输出.json>
+```
+
+针对本次红态的修复差异为 [startup-shutdown-fix.diff](startup-shutdown-repair-01/startup-shutdown-fix.diff)，其起点是本次红态冻结源码，未混入此前身份/尾注/一致性实现的差异。重新生成：
+
+```sh
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/startup-shutdown-repair-01/emit-fix-diff.py evidence/2026-10-11-batch13/T-076/card-1/outside-red-startup-shutdown-01/candidate-source.tar.gz /Users/luckye/Documents/Code/a2a <全新输出.diff>
+```
+
+绿态交接只运行下列命令，**不运行真实回合**：
+
+```sh
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh green-startup-shutdown outside-green-startup-shutdown-01
+```
+
+预期：首次派发 4/4；原来三个后台案例及新增的“已开始的门禁结果先持久化、daemon_stopped 后记录”共 4/4；多回合 run/reclaim 和伪造原生会话/领导者 4/4。新增顺序断言有单点反事实：删除等待活动请求的语句，应在实际事件序号的业务断言失败，不能有环境错误或缺读回。该反事实属于新增保护的覆盖验证，不是把新断言补称为此前红态的一部分。
+
+绿态报告回传并核对后，再给主控新标签 real-two-turns。主控 #13 允许的真实重跑仍计划 2 个、累计实际 0/3；第 3 个仍须先问。本卡保持 INCOMPLETE，候选五类变异体、8/9/18、独立审查与交付尚未完成。
+
+## 主控 #14：保留绿态 INCOMPLETE，修复停止后的读回
+
+原 [outside-green-startup-shutdown-01/run.json](outside-green-startup-shutdown-01/run.json) 保持 INCOMPLETE，实际模型回合 0，主控核对没有残留进程。initial-release 4/4 通过；daemon-stop 为 4 tests、0 failures、3 errors，均在停止后查询原库时抛 sqlite3.OperationalError。第一次完整绿态没有完成顺序断言和最终持久化检查，不能上调为 PASS；反事实与身份子阶段还没运行。
+
+本 worker 新写的三个测试又在关闭后以 mode=ro 直读原 WAL 库，漏用了已有的归档处理。这是夹具错误。现场核对原库文件仍在，关闭后没有 WAL/SHM；原文件和失败输出保留。主控 #14 已审过并同意 beginShutdown 后等待进行中请求收尾的产品方向，本次不改产品 src/hooks。
+
+修法统一为 `fixture_artifacts.archive_stopped_database`：调用者先核对 writer 已退出、端点/PID 已消失，再复制主库及残留 WAL。只把**新归档副本**转为独立 DELETE 库并校验完整性，最后从该副本只读查询。原文件不打开写连接，不改变存储。三个停止用例仍保留原业务断言；活跃阶段的快照继续在原 writer 存活时读取，并明确保存 phase 和源库/归档库路径。没有冷读失败后再换路径重试，既有归档文件也不会覆盖。
+
+同类修正用于真实两回合脚本的最终事件计数；原 `archive_and_cleanup` 里的复制/规范化代码抽到同一 helper，删掉重复实现。归档只处理本夹具文件，不改正式工作台或用户配置。README 加入该入口和机械检查指针，避免依赖记忆再写一套冷读收集器。
+
+本地检查（都未启动后台、socket、Codex 或真实信号）：
+
+| 检查 | 结果与范围 |
+| --- | --- |
+| replay-01 | 三个原失败夹具直接重放 PASS：旧 readback 仍失败，候选读取归档成功，原文件字节保持；只证明收集修复，不改原运行结论 |
+| replay-02 | 从原 `fixtures.tar.gz` 的 DB/WAL 常规成员重放同三例 PASS，摆脱原 /tmp 目录依赖；检查原 deadline/暂停结果、无验收/集成/冒称回收、最后 create 结果早于 daemon_stopped |
+| shared-archive-01 | 既有 `test_probe_cleanup.py` 7/7 PASS：关闭的 WAL、已提交 WAL 行、归档错误、已有归档不覆盖、未确认退出保留现场及延迟退出均保持原行为；ps 回调明确模拟，未运行 ps |
+| scope-check.json | daemon.ts、core.ts、panes.ts 与失败绿态冻结源码逐字节相同；原文件与 diff 保存；完整 src/hooks 核对见下方 audit |
+
+完整审计的首次 `audit-02/scope.json` 保留 INCOMPLETE：审计脚本只列 tar 常规文件，却在当前目录跟随了 26 个 hook 符号链接，集合不一致。诊断确认常规文件字节没有差异；修正为“常规文件比字节、符号链接比目标”，不省略链接。后续 `audit-03/scope.json` 为 PASS，47 个 src/hooks 文件或链接均与失败绿态相同。这是审计脚本的表示错误，不是产品改动。
+
+保留修复前的 E2E/真实探针/helper `.before`；修复 diff 和完整来源核对由下列命令生成（输出目录须全新）：
+
+```sh
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/stopped-readback-repair-01/readback-audit.py evidence/2026-10-11-batch13/T-076/card-1/outside-green-startup-shutdown-01/candidate-source.tar.gz /Users/luckye/Documents/Code/a2a <全新审计目录>
+python3 -B workbench/tests/test_stopped_readback.py --known-bad evidence/2026-10-11-batch13/T-076/card-1/stopped-readback-repair-01/test_startup_shutdown_e2e.py.before --failed-run evidence/2026-10-11-batch13/T-076/card-1/outside-green-startup-shutdown-01/daemon-stop/run.json --fixture-archive evidence/2026-10-11-batch13/T-076/card-1/outside-green-startup-shutdown-01/daemon-stop/fixtures.tar.gz --output <全新重放目录>
+python3 -B workbench/tests/test_probe_cleanup.py --output <全新检查目录>
+```
+
+下一阶段只重跑专门绿态，使用新标签，不使用真实回合：
+
+```sh
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh green-startup-shutdown outside-green-startup-shutdown-02
+```
+
+预期集合不变：initial-release 4/4；daemon-stop 4/4 且最终读回齐全；缺等待的顺序变异体在业务断言失败；多回合/伪造身份 4/4。完整绿态报告尚未取得，本卡与真实验收仍 INCOMPLETE，累计实际回合 0/3。
+
+## 主控 #15：加强顺序反事实，保留第二次 INCOMPLETE
+
+核对 [outside-green-startup-shutdown-02/run.json](outside-green-startup-shutdown-02/run.json)：initial-release 4/4、daemon-stop 4/4，0 failures/errors，真实回合 0。阶段总状态仍为 INCOMPLETE，身份子阶段尚未运行。
+
+原变异体并没有走到顺序断言：[ordering-counterfactual/run.json](outside-green-startup-shutdown-02/ordering-counterfactual/run.json) 是 1 failure、1 error。先在附带的 daemon_status 检查读到 daemon_call_failed，而非预期 daemon_stopping；cleanup 释放原 create 后又在关闭窗口直读原库，报 sqlite3.OperationalError。没有 shutdown-order.json，不能把这次环境/清理失败当成顺序业务反例，也不能补称测试抓住了缺等待的缺陷。
+
+本次只改测试宿主、E2E 和反事实运行器，不改产品。修复前文件留在 `shutdown-order-repair-01/*.before`。加强后的业务含义仍是“原进行中的门禁请求必须先完成，停止才能写最终事件或退出”：
+
+1. 在实际 create 的 ensureProject 边界保持 barrier，独立读取 task=creating、对应 request_received 的唯一请求号、CLI 仍未返回。
+2. 发实际 daemon_stop。测试宿主只给**原始 net.createServer** 加一个被动 close 观察器，不替换服务器、连接或请求处理。stop 响应连接 close 后，setImmediate 记录检查点，位于关闭回调及其 promise continuation 之后。原 create barrier 仍保持，避免用任意 sleep 猜停止走到哪里。
+3. 在释放 barrier 之前独立读持久化表，保存 `gate-held-after-stop.json` 和 `shutdown-precompletion.json`。若已有 daemon_stopped 而该请求的 request_result 不存在，直接在业务断言拒绝；后台已退出也直接拒绝。正常候选必须仍处于 creating，既无该请求最终结果，也无停止最终事件。
+4. 通过提前观察后才执行原 daemon_status 拒收检查，再释放同一个 create。最终归档仍核对**该请求号**的 request_result 先于 daemon_stopped，不再用所有 create 的总数代替具体请求绑定。
+5. cleanup 区分已经受理的停止和未受理的停止：已受理时释放自身 barrier、保存原请求原始返回并等待后台结束，不再抢着查询正在关闭的库或发第二次 stop。提前退出的变异体可保留原请求失败回执，但主测试的业务 failure 不会因此变成 PASS；清理/环境错误仍使父阶段 INCOMPLETE。
+
+运行器只在完整业务 witness 上承认这个单点变异体被抓住：barrier 未释放、task 仍 creating、该请求结果不存在、daemon_stopped 已存在，1 test/1 failure/0 errors/skipped。不会把其他断言失败或 daemon_call_failed 当成目标业务红态。新捕获文件和最终归档同时保留；没有兜底重试。
+
+重新生成该检查的命令仍为统一入口，新标签：
+
+```sh
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh green-startup-shutdown outside-green-startup-shutdown-03
+```
+
+预期正例集合不变，顺序变异体应在 barrier 保持期间的“提前最终事件”断言失败，然后正常完成自身清理。Node/Python 语法与 diff-check 已做；完整行为验证需要主控在沙箱外执行，尚未取得新报告前不称有效。真实回合累计 0/3；真实两回合、候选五类变异体、8/9/18、独立审查和交付继续保持待完成。
+
+## 主控 #16：专门绿态 PASS，交接 outside-real-03
+
+核对 [outside-green-startup-shutdown-03/run.json](outside-green-startup-shutdown-03/run.json)：阶段 PASS、源码期间未变化、真实回合 0；主控核对无残留进程。initial-release 4/4、daemon-stop 4/4、identity 4/4，正例无 failures/errors/skipped。
+
+顺序单点变异体退出 1，1 test、1 failure、0 errors/skipped，host_exit=0。失败落在 `test_startup_shutdown_e2e.py` 的提前最终事件业务断言：create 请求 `1190fd24-c6d7-4500-957b-2b86d57886fd` 的 barrier 仍保持，task=`T076startup-ef09d08e-second` 仍 creating，该请求没有 request_result，daemon_stopped 却已在 seq=11 持久化。证据为 `ordering-counterfactual/.../shutdown-precompletion.json` 及 barrier 期间独立读回；不是 daemon_call_failed 或清理错误。原 green-01/02 不上调。
+
+真实阶段用新标签，执行主控运行：
+
+```sh
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh real-two-turns outside-real-03
+```
+
+按主控 #16，本次执行时锁住 `real-turn-budget.jsonl`，确认旧两项预留都已由明确批准核账为实际 0，再追加本次预留 **2**。不是再次使用旧预留，也不自动重试；准备本身没有启动模型，实际累计仍 0。累计上限 3，第 3 个使用前仍须问主控。
+
+准备保持：固定 Codex 0.162.1、gpt-6.1-sol/xhigh/Fast 请求与关闭更新检查；只复制 auth.json 的隔离 home，只信任夹具 repo，只有 git add/commit 两条规则；已批准 Git 与三个 Codex hook 仍仅经会话环境/argv。实际 argv 与环境、最近交付回合的原生上下文、Git 九个尾注、G/C/M 和原 attempt/稳定身份均读回保存。
+
+首次派发只等可核对的前台领导者，不再循环等待首次输入才能产生的原生日志。验收 barrier 只在两个不同根回合均 task_complete、匹配 Stop 已空闲后释放，要求真实 run completed/reclaimed、回执后身份稳定。失败收尾保存活动快照，显式停止并等待自建进程退出，再从独立归档副本读取最终记录和回合计数；不抢读关闭的原 WAL 库，不释放未确认的 receipt barrier。确认退出后删整个隔离 home，凭据不进入归档。
+
+这次只更新启动授权引用，不改变已通过绿态的产品行为或断言。真实阶段尚未运行，不提前宣称尾注/沙箱取值通过。真实结果核对之后，按主控 #16 顺序做候选五类变异体、8/9/18、fresh-context 只读审查，最后提交与 ticket Resolution（保持 open）。
+
+## 主控 #17／决定 03：已用 1 回合，最后一次运行准备
+
+原 [outside-real-03/run.json](outside-real-03/run.json) 保持 INCOMPLETE。worker 根回合启动并开始实现，但 run 的 100 秒期限先到；父探针 110 秒观察窗也随后结束。没有 worker 提交或 Stop，不能证明实际尾注或回执后 run/reclaim。主控核定隔离 home 已删除、无残留进程，实际累计 **1/3**。
+
+按 [controller-decision-03.md](controller-decision-03.md)，预算追加 reserved=2、actual=1 的 reconciliation，引用该决定、原运行结果及最终事件，不改原 reservation/observation。计数现在保留已花掉的 1；最终预留 2 后计为 3。只接受三个明确输出各自对应的批准与实际数，禁止把本次 1 当 0 退款、重复核账或错引用。`outside-real-04` 是最后一次，之后即使失败也不再请求回合或自动重跑。
+
+最后一次同时延长期限和缩小夹具：只实现一个 `src/normalize.py`、一次提交；按名字去空白并合并整数分钟、排序、空输入、Unicode 名字、bool/负数/非法名字拒绝。去掉 report.py 与 duration 格式要求，保留独立 oracle、真实 Git hook、显式 submit、回执和原 attempt 的 run/reclaim。run 与两个回合观察窗都改为 **900 秒**；回执只确认收到，不再执行实现任务。
+
+准备时发现另一个确定性截断点：transport 的所有请求固定 120 秒。`test_transport_deadline.ts` 在无网络连接/计时器夹具上调用实际 request 函数，900 秒 run 先在期限业务断言失败（实际设置 120000 ms），普通命令和非法 wait 对照通过。修复仅让有效 run 参数的客户端期限覆盖其显式等待并加 120 秒收尾余量，仍有限且超时不重放；900 秒 run 读回 1020000 ms，三个用例转绿。没有放宽身份门槛，没有更改服务端完成条件的 60 秒命令期限；小夹具与只确认的回执减少该阶段工作。
+
+本地证据在 `real-preparation-04/`：旧源与预算副本、transport-red-01/transport-green-01、冻结预算输入和 fixture-check-01。fixture-check 的独立 oracle 对基线 stub 退出 1、控制实现退出 0、把 bool 当整数的变异体退出 1；预算 5 项正反例通过，900 秒参数成立。没有启动 daemon/socket/Codex，没有额外消耗真实回合。
+
+重放命令（输出须全新）：
+
+```sh
+node workbench/tests/test_transport_deadline.ts evidence/2026-10-11-batch13/T-076/card-1/real-preparation-04/transport.before.ts <全新红态目录>
+node workbench/tests/test_transport_deadline.ts workbench/src/transport.ts <全新绿态目录>
+python3 -B evidence/2026-10-11-batch13/T-076/card-1/real-preparation-04/check-final-fixture.py workbench/tests/run_t076_real.py evidence/2026-10-11-batch13/T-076/card-1/real-preparation-04/budget-after-17.jsonl <全新夹具检查目录>
+```
+
+执行主控最后一次真实运行：
+
+```sh
+zsh evidence/2026-10-11-batch13/T-076/card-1/outside-sandbox.sh real-two-turns outside-real-04
+```
+
+沿用仅复制 auth.json、受信夹具 repo、git add/commit 两条规则、已批准 per-session hook、固定 0.162.1/gpt-6.1-sol/xhigh/Fast 请求和关闭更新检查。实际 argv/环境与 Git/native 读回保存，收尾先显式停止、确认自建进程退出再读独立数据库归档并删除隔离 home。第三回合已由决定 03 限定在本次最多两个回合内批准，累计不得超过 3；不存在第 4 个额度。
+
+若本次仍未到“提交 → submit → 回执 → run/reclaim”，尾注和真实多回合两项如实记 INCOMPLETE，不再要求模型回合；保留失败，向主控交代，再按其决定完成候选五变异体、8/9/18、独立审查与交付。本次尚未执行前，本卡仍 INCOMPLETE。
+
+大证据检查发现 outside-real-03/commands.jsonl 超过 5 MB，原文件保留在本地供诊断，不直接提交；新增 commands.jsonl.gz 进入交付，大小记录在 real-preparation-04/large-evidence.json。重新生成原命令日志为该真实阶段的统一重放命令；解压时用 `gzip -dc .../commands.jsonl.gz > <全新命令日志路径>`。最终提交逐文件选择压缩版，避免把本地原始大输出加入 Git。

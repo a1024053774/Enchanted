@@ -1,0 +1,451 @@
+--- red/workbench/src/daemon.ts
++++ candidate/workbench/src/daemon.ts
+@@ -26,8 +26,16 @@
+   gates.setUserInputObserverStatus("healthy");
+   let stopping = false;
+   let activeRequests = 0;
++  let requestsDrained: (() => void) | undefined;
++  const activityFinished = () => {
++    activeRequests--;
++    if (activeRequests === 0) { requestsDrained?.(); requestsDrained = undefined; }
++  };
+   const shutdown = async () => {
+     stopping = true;
++    // Requests and deferred receipt writes retain their stores until their
++    // final results are durable. run observes beginShutdown at safe boundaries.
++    if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });
+     await panes.shutdown();
+     store.event("daemon_stopped", { pid: process.pid });
+     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+@@ -46,8 +54,8 @@
+     }
+     if (input.command === "daemon_status") return { ok: true, pid: process.pid, node: process.version, root, helper };
+     if (input.command === "daemon_stop") {
+-      if (activeRequests !== 1) throw new Refusal("daemon_busy");
+       stopping = true;
++      gates.beginShutdown();
+       return { ok: true, pid: process.pid, stopping: true };
+     }
+     if (input.command === "orchestration_events") return { ok: true, events: store.read(input.task) };
+@@ -134,15 +142,17 @@
+           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
+           result = { ok: false, error: "event_write_failed", details: String(recordError) };
+         }
+-      } finally { activeRequests--; }
++      } finally { activityFinished(); }
+       connection.end(JSON.stringify(result) + "\n");
+       if (result.ok && envelope?.input.command === "signal") {
+         connection.once("close", () => {
++          if (stopping) return;
+           const pane = panes.byLaunch(envelope.input.launch);
++          activeRequests++;
+           panes.drain(pane).catch((error) => {
+             pane.failed = String(error); pane.state = "unknown";
+             store.event("queue_stopped", { error: String(error) }, pane.record);
+-          });
++          }).finally(activityFinished);
+         });
+       }
+       if (result.ok && envelope?.input.command === "daemon_stop") {
+--- red/workbench/src/gates/core.ts
++++ candidate/workbench/src/gates/core.ts
+@@ -113,6 +113,7 @@
+   private readonly membership: A2AMembership;
+   private userInputObserver?: A2AUserInputObserver;
+   private readonly deferredUserInputs = new Map<string, A2AUserInput>();
++  private shuttingDown = false;
+   readonly root: string;
+   private readonly runtime?: GateRuntime;
+   private readonly now: () => number;
+@@ -213,6 +214,7 @@
+       this.db.exec("ALTER TABLE events ADD COLUMN attempt TEXT");
+     mkdirSync(join(root, "locks"), { recursive: true });
+   }
++  beginShutdown() { this.shuttingDown = true; }
+   close() {
+     this.membership.close();
+     this.db.close();
+@@ -1359,6 +1361,7 @@
+     );
+   }
+   private async observeRun(run: A2ARun) {
++    requireGate(!this.shuttingDown, "daemon_stopping");
+     this.checkUserInputObserver();
+     const attempt = this.current(this.load(run.task_id), run.attempt_id!);
+     let live: Awaited<ReturnType<GateRuntime["readThread"]>>;
+@@ -1369,6 +1372,7 @@
+       if (error instanceof Refusal) throw error;
+       throw new Refusal("run_external_unknown", String(error));
+     }
++    requireGate(!this.shuttingDown, "daemon_stopping");
+     this.current(this.load(run.task_id), run.attempt_id!);
+     this.checkThread(attempt, live);
+     requireGate(!live.error, "run_external_unknown", live);
+@@ -1392,6 +1396,7 @@
+   private async waitForIdle(run: A2ARun) {
+     const deadline = performance.now() + 60_000;
+     for (;;) {
++      requireGate(!this.shuttingDown, "daemon_stopping");
+       const row = this.db.prepare("SELECT data FROM attempts WHERE id=?").get(run.attempt_id!);
+       requireGate(row, "unknown_attempt");
+       const attempt = JSON.parse(String(row.data)) as A2AAttempt;
+@@ -1401,6 +1406,7 @@
+       );
+       if (attempt.reclaimed) return;
+       const live = await this.runtime!.readThread(attempt.thread_id);
++      requireGate(!this.shuttingDown, "daemon_stopping");
+       this.checkThread(attempt, live);
+       requireGate(!live.error, "run_external_unknown", live);
+       requireGate(!live.blocked, "run_blocked", live);
+@@ -1450,6 +1456,7 @@
+       const deadline = performance.now() + args.wait_seconds! * 1000;
+       let previous = "";
+       for (;;) {
++        requireGate(!this.shuttingDown, "daemon_stopping");
+         this.current(this.load(args.task), run.attempt_id!);
+         requireGate(performance.now() < deadline, "run_deadline");
+         const live = await this.observeRun(run);
+@@ -1477,6 +1484,9 @@
+         );
+       }
+       for (const command of ["verify", "integrate"] as const) {
++        // Finish an already-started gate under its lock, then stop before the
++        // next gate. Shutdown must not advance a waiting run to acceptance.
++        requireGate(!this.shuttingDown, "daemon_stopping");
+         run.phase = command === "verify" ? "verifying" : "integrating";
+         this.saveRun(run, "run_phase");
+         const result = await this.request({ command, task: args.task, attempt: run.attempt_id! });
+@@ -1485,6 +1495,7 @@
+       run.phase = "reclaiming";
+       this.saveRun(run, "run_phase");
+       await this.waitForIdle(run);
++      requireGate(!this.shuttingDown, "daemon_stopping");
+       const cleanup = await this.request({
+         command: "reclaim",
+         task: args.task,
+@@ -1492,6 +1503,7 @@
+       });
+       requireGate(cleanup.ok, "run_reclaim_failed", cleanup);
+       run.reclaimed = true;
++      requireGate(!this.shuttingDown, "daemon_stopping");
+       run.outcome = "completed";
+       run.ended = new Date().toISOString();
+       this.saveRun(run, "run_finished");
+@@ -1511,6 +1523,7 @@
+       ) {
+         try {
+           await this.waitForIdle(run);
++          requireGate(!this.shuttingDown, "daemon_stopping");
+           const cleanup = await this.request({
+             command: "reclaim",
+             task: args.task,
+--- red/workbench/README.md
++++ candidate/workbench/README.md
+@@ -9,6 +9,9 @@
+ 先对同一隔离目录调用 `daemon_start`，结束时调用 `daemon_stop`。客户端只通过
+ `control.sock` 访问常驻后台，不再直接打开门禁库。后台未启动时命令明确失败，不自动拉起或重试。
+ `daemon_start` 使用 detached 子进程和独立日志。
++`daemon_stop` 显式进入关闭流程，返回 `stopping: true` 是受理确认；以 PID/端点消失确认退出。
++关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
++随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
+ 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
+ T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
+ B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本卡一次独立审查 PASS。
+@@ -172,6 +175,8 @@
+ A2A_MODEL_REQUESTED/A2A_EFFORT_REQUESTED；实际沙箱读取与提交时序还须通过真实回合验收。
+ 
+ 运行时 agent 身份与交付回合分开：attempt 绑定 launch/thread、shell、原生会话和 Codex 领导者；
++首次输入前原生日志可以尚未出现，执行者核对有效前台领导者后通过 pane_release 放行首次派发；
++门禁只补首次可观测的原生会话，不用请求值补身份。
+ run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
+ caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实
+ 拒收；停止后只沿用已核对的身份及确认的生命周期，不按新 PID 接管。
+--- red/workbench/tests/run_t076_real.py
++++ candidate/workbench/tests/run_t076_real.py
+@@ -4,12 +4,14 @@
+ controller reconciliation; this script never retries or grants extra turns.
+ """
+ import argparse
++import contextlib
+ import datetime
+ import fcntl
+ import json
+ import os
+ from pathlib import Path
+ import shutil
++import sqlite3
+ import subprocess
+ import sys
+ import tarfile
+@@ -28,12 +30,12 @@
+     while True:
+         info = call('pane_process_info', '--thread', thread)
+         known_pids.update(row['pid'] for row in info['processes'])
+-        if info.get('leader') and info.get('native_session') and not info.get('failed'): break
++        if info.get('leader') and not info.get('failed'): break
+         if info.get('failed') or monotonic() > deadline:
+             raise RuntimeError({'startup_identity_unknown': info})
+         sleep(0.1)
+     save('before-release-identity.json', info)
+-    call('pane_release', '--thread', thread, '--reason', 'T076 controller-approved real probe: leader/native identity independently checked')
++    call('pane_release', '--thread', thread, '--reason', 'T076 controller-approved real probe: initial foreground leader checked; native identity binds when first observable')
+     return info
+ 
+ 
+@@ -45,13 +47,16 @@
+                 raise RuntimeError('Duplicate real-turn reservation output')
+             reservations[row['output']] = row['reserved']
+     reconciled = set()
++    approved = {'outside-real-01': 'evidence/2026-10-11-batch13/T-076/card-1/controller-decision-02.md',
++                'outside-real-02': 'conversation:主控 #12'}
+     for row in entries:
+         if row.get('kind') != 'reconciliation':
+             continue
+         output = row['output']
+         if (output not in reservations or output in reconciled or row.get('actual') != 0 or
+                 row.get('reserved') != reservations[output] or
+-                row.get('decision_ref') != 'evidence/2026-10-11-batch13/T-076/card-1/controller-decision-02.md'):
++                Path(output).parent.parts[-4:] != ('evidence', '2026-10-11-batch13', 'T-076', 'card-1') or
++                approved.get(Path(output).name) != row.get('decision_ref') or row.get('decision_ref') is None):
+             raise RuntimeError('Real-turn reconciliation is not the approved zero-turn accounting entry')
+         reconciled.add(output)
+     return sum(value for output, value in reservations.items() if output not in reconciled)
+@@ -154,7 +159,7 @@
+                   'role_card_revision': run(['git', 'log', '-1', '--format=%H', '--', '.project-map/roles/worker.md']).stdout.strip(),
+                   'code_revision': head, 'source_snapshot': str(out / 'candidate-source.tar.gz'),
+                   'hook_authorization': 'T-076-1 controller-decision-01 §5; controller #4/#9/#10; per-session prepare-commit-msg and UserPromptSubmit/Stop/PermissionRequest approved',
+-                  'turn_limit': 2, 'turn_authorization': 'T-076-1 controller-decision-02 and #11: prior reservation reconciled to actual 0; one new two-turn probe; third requires prior approval'}
++                  'turn_limit': 2, 'turn_authorization': 'T-076-1 controller #12/#13: both prior reservations reconciled to actual 0; planned two root turns after deterministic green; third requires prior approval'}
+         save('launch-config.json', config)
+         budget = out.parent / 'real-turn-budget.jsonl'
+         with budget.open('a+', encoding='utf-8') as stream:
+@@ -246,7 +251,9 @@
+             time.sleep(0.5)
+         observed = call('pane_process_info', '--thread', thread)
+         known_pids.update(row['pid'] for row in observed['processes'])
+-        assert observed['leader'] == info['leader'] and observed['native_session'] == info['native_session'] == native
++        assert observed['leader'] == info['leader'] and observed['native_session'] == native
++        if info['native_session'] is not None:
++            assert observed['native_session'] == info['native_session']
+         save('after-receipt-identity.json', observed)
+         save('receipt-boundary.json', {'native_session': native, 'turn_ids': sorted(turns), 'completed': sorted(completed),
+                                      'state': pane, 'confirmation': 'both native task_complete and matched Stop idle'})
+@@ -295,18 +302,8 @@
+     finally:
+         if started:
+             try:
+-                if run_process is not None and run_process.poll() is None:
+-                    # Preserve a still-running original attempt; do not adopt,
+-                    # restart or release an unconfirmed oracle boundary.
+-                    run_process.wait(timeout=70)
+                 save('events-before-stop.json', call('orchestration_events'))
+                 run(['node', source / 'workbench/tests/snapshot_state.ts', state, out / 'databases-before-stop'])
+-                if launch:
+-                    native, rows = root_records(call('orchestration_events', '--task', record['task'])['events'])
+-                    started_turns = {row['payload']['turn_id'] for row in rows if row['type'] == 'event_msg' and row['payload'].get('type') == 'task_started'}
+-                    record['observed_main_turns'] = len(started_turns)
+-                    if len(started_turns) != 2 and record['status'] == 'PASS':
+-                        record.update(status='INCOMPLETE', budget_error='Final native readback does not contain exactly two root turns')
+             except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
+                 record.update(status='BLOCKED', cleanup_error=repr(error))
+             finally:
+@@ -315,6 +312,11 @@
+                 except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
+                     record.update(status='BLOCKED', stop_error=repr(error))
+         try:
++            if run_process is not None and run_process.poll() is None:
++                # Explicit daemon_stop ends run waits, drains an already-started
++                # oracle under its original lock, then terminates only its PTY.
++                # The receipt barrier is never released by failure cleanup.
++                run_process.wait(timeout=70)
+             deadline = time.monotonic() + 10
+             while True:
+                 result = run(['/bin/ps', '-o', 'pid=,ppid=,pgid=,command=', '-p', ','.join(map(str, sorted(known_pids)))],
+@@ -325,13 +327,27 @@
+                 if time.monotonic() > deadline:
+                     raise RuntimeError('Owned processes still exist; keep isolated home for controller reconciliation')
+                 time.sleep(0.1)
++            if started:
++                # Count final durable native records only after the writer and
++                # PTY have exited. The final exit scan may import the last bytes.
++                with contextlib.closing(sqlite3.connect((state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True)) as database:
++                    database.row_factory = sqlite3.Row
++                    events = [{**dict(row), 'data': json.loads(row['data'])} for row in database.execute(
++                        'SELECT * FROM orchestration_events ORDER BY seq')]
++                save('events-after-stop.json', events)
++                if launch:
++                    native, rows = root_records(events)
++                    started_turns = {row['payload']['turn_id'] for row in rows if row['type'] == 'event_msg' and row['payload'].get('type') == 'task_started'}
++                    record['observed_main_turns'] = len(started_turns)
++                    if len(started_turns) != 2 and record['status'] == 'PASS':
++                        record.update(status='INCOMPLETE', budget_error='Final native readback does not contain exactly two root turns')
+             shutil.rmtree(home); record['isolated_home_removed'] = True
+             with tarfile.open(out / 'fixture-artifacts.tar.gz', 'x:gz') as archive:
+                 for path, name in ((repo, 'repo'), (state, 'state'), (oracle, 'oracle.py'), (waiting_oracle, 'waiting_oracle.py')):
+                     if path.exists(): archive.add(path, arcname=name)
+                 if launch:
+                     archive.add(Path(launch['request_dir']), arcname='request-files')
+-        except (OSError, RuntimeError, tarfile.TarError) as error:
++        except (OSError, ValueError, RuntimeError, sqlite3.Error, subprocess.TimeoutExpired, tarfile.TarError) as error:
+             record.update(status='BLOCKED', cleanup_error=repr(error))
+         if run_stdout is not None: run_stdout.close()
+         if run_stderr is not None: run_stderr.close()
+--- red/workbench/tests/startup_shutdown_host.ts
++++ candidate/workbench/tests/startup_shutdown_host.ts
+@@ -38,6 +38,11 @@
+ await serve(root, { codex_bin: version, codex_home: home, role_card: role,
+   code_revision: "deterministic-fixture", role_card_revision: "deterministic-fixture",
+   hook_authorization: "simulated callbacks only", turn_limit: 1 }, (state: string, panes: any) => {
++  panes.ensureProject = async () => {
++    if (!existsSync(join(control, "hold-create"))) return;
++    writeFileSync(join(control, "create-entered"), "gate reached the controlled runtime boundary\n");
++    while (!existsSync(join(control, "release-create"))) await new Promise((resolve) => setTimeout(resolve, 20));
++  };
+   panes.processInfo = async (thread: string) => {
+     const pane = panes.get(thread);
+     panes.scan(pane);
+--- red/workbench/tests/test_startup_shutdown_e2e.py
++++ candidate/workbench/tests/test_startup_shutdown_e2e.py
+@@ -37,7 +37,7 @@
+             GIT_CONFIG_KEY_0='core.hooksPath', GIT_CONFIG_VALUE_0=os.devnull,
+             GIT_AUTHOR_NAME='T076 deterministic fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
+             GIT_COMMITTER_NAME='T076 deterministic fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
+-        self.host = self.run_process = None; self.run_result = None
++        self.host = self.run_process = self.mutation_process = None; self.run_result = None
+         self.artifact = {'test': self.id(), 'root': str(self.root), 'case': str(self.case)}
+         ARTIFACTS.append(self.artifact)
+         self.addCleanup(self.cleanup)
+@@ -53,6 +53,7 @@
+             'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
+             'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+         self.save('card.json', card)
++        self.card = card
+         self.cli = ['node', SOURCE / 'workbench/src/gates/cli.ts', '--state', self.state]
+         ready = self.control / 'ready.json'
+         argv = ['node', SOURCE / 'workbench/tests/startup_shutdown_host.ts', SOURCE, self.state, self.control, ready]
+@@ -177,9 +178,56 @@
+         self.assertIs(reply.get('ok'), True, 'Owned daemon must stop after run deadline; reply=' + json.dumps(reply))
+         self.assert_stopped_without_acceptance(expected_error='run_deadline')
+ 
++    def test_stop_drains_existing_gate_before_final_event(self):
++        task = self.task + '-second'
++        self.save('second-card.json', {**self.card, 'id': task})
++        self.call('card_save', '--task', task, '--card', self.case / 'second-card.json', '--expected-version', '0')
++        (self.control / 'hold-create').write_text('pause an already-started gate\n', encoding='utf-8')
++        argv = [*self.cli, 'create', '--task', task, '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', self.task]
++        self.mutation_process = subprocess.Popen(list(map(str, argv)), cwd=SOURCE, env=self.env,
++            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
++        self.save('create-launch.json', {'pid': self.mutation_process.pid, 'argv': list(map(str, argv))})
++        self.wait(lambda: (self.control / 'create-entered').exists(), 'Create did not reach the controlled active-gate boundary')
++        reply = self.call('daemon_stop', check=False); self.save('stop-under-test.json', reply)
++        self.assertIs(reply.get('ok'), True, 'An existing gate must drain during explicit shutdown, without a busy rejection')
++        self.assertIsNone(self.host.poll(), 'Stores remain available to the existing gate until its result is durable')
++        # An explicit stop can still serve a refusal, or have already closed
++        # its listener. Neither observation may accept a new request.
++        refusal = self.process([*self.cli, 'daemon_status'])
++        self.assertEqual(refusal.returncode, 1, refusal.evidence)
++        if refusal.stdout:
++            self.assertEqual(command_json(refusal).get('error'), 'daemon_stopping')
++        (self.control / 'release-create').write_text('allow the original gate to finish\n', encoding='utf-8')
++        self.finish_mutation()
++        self.host.wait(timeout=10); self.assertEqual(self.host.returncode, 0)
++        self.assertFalse((self.state / 'control.sock').exists()); self.assertFalse((self.state / 'daemon.pid').exists())
++        tables = self.readback('after-stop.json')
++        events = [{**row, 'data': json.loads(row['data'])} for row in tables['orchestration_events']]
++        completed = [row for row in events if row['type'] == 'request_result' and row['data'].get('command') == 'create']
++        ended = [row for row in events if row['type'] == 'daemon_stopped']
++        self.assertEqual(len(completed), 2); self.assertEqual(len(ended), 1)
++        ordering = {'create_request_result_seq': completed[-1]['seq'], 'daemon_stopped_seq': ended[0]['seq']}
++        self.artifact['shutdown_order'] = ordering; self.save('shutdown-order.json', ordering)
++        self.assertGreater(ordering['daemon_stopped_seq'], ordering['create_request_result_seq'],
++            'daemon_stopped must follow the last existing gate result, not precede it')
++        self.assertTrue(all(json.loads(row['data'])['state'] == 'ready' for row in tables['tasks']))
++        self.assertFalse(any(row['type'] in ('verified', 'integrated') for row in tables['events']))
++
++    def finish_mutation(self):
++        if self.mutation_process is None: return
++        stdout, stderr = self.mutation_process.communicate(timeout=15)
++        result = {'exit': self.mutation_process.returncode, 'stdout': stdout, 'stderr': stderr}
++        self.save('create-reply.json', result); self.mutation_process = None
++        self.assertEqual(result['exit'], 0, result)
++        self.assertIs(json.loads(stdout)['ok'], True)
++
+     def cleanup(self):
+         try:
+             if self.host is not None and self.host.poll() is None:
++                if self.mutation_process is not None:
++                    if not (self.control / 'release-create').exists():
++                        (self.control / 'release-create').write_text('fixture cleanup\n', encoding='utf-8')
++                    self.finish_mutation()
+                 # End the scripted runtime only to release the original request
+                 # during test cleanup. Preserve the rejected stop above.
+                 (self.control / 'runtime-failure').write_text('fixture cleanup only\n', encoding='utf-8')
+@@ -201,11 +249,14 @@
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument('--source', type=Path, required=True)
+     parser.add_argument('--output', type=Path, required=True)
++    parser.add_argument('--case', choices=['all', 'ordering'], default='all')
+     args = parser.parse_args(); SOURCE = args.source.resolve(); OUT = args.output.resolve()
+     OUT.mkdir(parents=True, exist_ok=False)
+     with (OUT / 'stdout.txt').open('x', encoding='utf-8') as stdout, (OUT / 'stderr.txt').open('x', encoding='utf-8') as stderr:
+         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+-            result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(StartupShutdown))
++            suite = unittest.defaultTestLoader.loadTestsFromTestCase(StartupShutdown) if args.case == 'all' else unittest.TestSuite([
++                StartupShutdown('test_stop_drains_existing_gate_before_final_event')])
++            result = unittest.TextTestRunner(verbosity=2).run(suite)
+     record = {'status': 'PASS' if result.wasSuccessful() else 'INCOMPLETE', 'source': str(SOURCE),
+         'argv': sys.argv, 'tests_run': result.testsRun, 'real_codex_turns': 0,
+         'failures': [{'test': test.id(), 'text': value} for test, value in result.failures],
+--- red/workbench/tests/run_t076_startup_shutdown.py
++++ candidate/workbench/tests/run_t076_startup_shutdown.py
+@@ -42,8 +42,8 @@
+         record.update(source=str(source), head=head, code_is_uncommitted_candidate=True)
+         expectations = [('initial-release', 'test_initial_worker_release.py', 4,
+                          ['test_first_input_precedes_native_log']),
+-                        ('daemon-stop', 'test_startup_shutdown_e2e.py', 3,
+-                         ['test_stop_during_deadline_cleanup', 'test_stop_during_waiting_submit'])]
++                        ('daemon-stop', 'test_startup_shutdown_e2e.py', 4,
++                         ['test_stop_drains_existing_gate_before_final_event', 'test_stop_during_deadline_cleanup', 'test_stop_during_waiting_submit'])]
+         for name, filename, count, red_methods in expectations:
+             target = out / name
+             result = commands.run([sys.executable, '-B', source / 'workbench/tests' / filename,
+@@ -59,6 +59,39 @@
+             expected = sorted(red_methods) if args.mode == 'red' else []
+             if failures != expected or result.returncode != (1 if expected else 0):
+                 raise RuntimeError('Focused results do not match the required failure/pass set: ' + name)
++        if args.mode == 'green':
++            # Keep a counterfactual for the new shutdown ordering assertion.
++            # Remove only the request-drain wait; all other candidate behavior
++            # and the controlled gate barrier remain unchanged.
++            mutant = source.parent / 'ordering-mutant'
++            shutil.copytree(source / 'workbench', mutant / 'workbench', symlinks=True)
++            daemon = mutant / 'workbench/src/daemon.ts'
++            original = daemon.read_text(encoding='utf-8')
++            before = '    if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });\n'
++            if original.count(before) != 1: raise RuntimeError('Ordering counterfactual site is ambiguous')
++            daemon.write_text(original.replace(before, ''), encoding='utf-8')
++            target = out / 'ordering-counterfactual'
++            result = commands.run([sys.executable, '-B', source / 'workbench/tests/test_startup_shutdown_e2e.py',
++                '--source', mutant, '--case', 'ordering', '--output', target], cwd=ROOT, env=env, timeout=60,
++                stdout_file=out / 'ordering-counterfactual.stdout.txt', stderr_file=out / 'ordering-counterfactual.stderr.txt')
++            value = json.loads((target / 'run.json').read_text(encoding='utf-8'))
++            order = value['artifacts'][0].get('shutdown_order')
++            if (result.returncode != 1 or value['tests_run'] != 1 or len(value['failures']) != 1 or
++                    value['errors'] or value['skipped'] or not order or
++                    order['daemon_stopped_seq'] >= order['create_request_result_seq']):
++                raise RuntimeError('Missing request-drain wait was not rejected at the event-order assertion')
++            record['steps'].append({'name': 'ordering-counterfactual', 'exit': 1, 'result': str(target / 'run.json'),
++                'shutdown_order': order, 'classification': 'business-red', 'mutation': before, 'source': str(mutant)})
++            with tarfile.open(out / 'ordering-mutant-source.tar.gz', 'x:gz') as archive:
++                archive.add(mutant / 'workbench', arcname='workbench')
++            target = out / 'identity'
++            result = commands.run([sys.executable, '-B', source / 'workbench/tests/test_multiturn_identity_e2e.py',
++                '--source', source, '--case', 'all', '--output', target], cwd=ROOT, env=env, timeout=120,
++                stdout_file=out / 'identity.stdout.txt', stderr_file=out / 'identity.stderr.txt')
++            value = json.loads((target / 'run.json').read_text(encoding='utf-8'))
++            if result.returncode != 0 or (value['tests_run'], value['failures'], value['errors'], value['skipped']) != (4, 0, 0, 0):
++                raise RuntimeError('Multiturn identity positive/foreign-owner cases did not all pass')
++            record['steps'].append({'name': 'identity', 'exit': 0, 'tests_run': 4, 'result': str(target / 'run.json')})
+         record['status'] = 'PASS'
+     except (OSError, ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as error:
+         record.update(error=repr(error), traceback=traceback.format_exc())

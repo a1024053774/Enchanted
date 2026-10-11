@@ -1,0 +1,241 @@
+--- failed-green/workbench/tests/fixture_artifacts.py
++++ candidate/workbench/tests/fixture_artifacts.py
+@@ -7,6 +7,28 @@
+ import sqlite3
+ import subprocess
+ import time
++
++
++def archive_stopped_database(state, destination):
++    """Copy a stopped writer's DB/WAL and normalize only the artifact copy."""
++    source = state / 'state.sqlite3'
++    if not source.is_file():
++        raise RuntimeError('Stopped fixture database is missing: ' + str(source))
++    destination.parent.mkdir(parents=True, exist_ok=True)
++    with destination.open('xb') as stream:
++        stream.write(source.read_bytes())
++    wal = state / 'state.sqlite3-wal'
++    copied_wal = wal.exists()
++    if copied_wal:
++        with destination.with_name(destination.name + '-wal').open('xb') as stream:
++            stream.write(wal.read_bytes())
++    with closing(sqlite3.connect(destination)) as copy:
++        if copy.execute('PRAGMA journal_mode=DELETE').fetchone() != ('delete',):
++            raise RuntimeError('Archive journal mode did not become DELETE')
++        if copy.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
++            raise RuntimeError('Archive integrity check failed')
++    return {'path': str(destination), 'source': str(source), 'journal_mode': 'delete',
++            'integrity': 'ok', 'copied_wal': copied_wal, 'phase': 'after-writer-exit'}
+ 
+ 
+ def archive_and_cleanup(state, output, isolated, cleanup_pids, run, save, verdict):
+@@ -38,19 +60,7 @@
+             if (state / 'state.sqlite3').exists():
+                 if not stopped_for_archive:
+                     raise RuntimeError('Database archive requires confirmed daemon stop')
+-                destination = output / 'state.sqlite3'
+-                with destination.open('xb') as stream:
+-                    stream.write((state / 'state.sqlite3').read_bytes())
+-                wal = state / 'state.sqlite3-wal'
+-                if wal.exists():
+-                    with (output / 'state.sqlite3-wal').open('xb') as stream:
+-                        stream.write(wal.read_bytes())
+-                with closing(sqlite3.connect(destination)) as dest:
+-                    if dest.execute('PRAGMA journal_mode=DELETE').fetchone() != ('delete',):
+-                        raise RuntimeError('Archive journal mode did not become DELETE')
+-                    if dest.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
+-                        raise RuntimeError('Archive integrity check failed')
+-                verdict['database_archive'] = {'path': str(destination), 'journal_mode': 'delete', 'integrity': 'ok'}
++                verdict['database_archive'] = archive_stopped_database(state, output / 'state.sqlite3')
+     except (OSError, RuntimeError, sqlite3.Error) as error:
+         verdict.update(status='BLOCKED', archive_error=str(error))
+     finally:
+--- failed-green/workbench/tests/test_startup_shutdown_e2e.py
++++ candidate/workbench/tests/test_startup_shutdown_e2e.py
+@@ -20,6 +20,7 @@
+ import uuid
+ 
+ from command_evidence import CommandLog, command_json
++from fixture_artifacts import archive_stopped_database
+ 
+ SOURCE = OUT = None
+ ARTIFACTS = []
+@@ -114,14 +115,24 @@
+             self.save('run-reply.json', self.run_result)
+         return self.run_result
+ 
+-    def readback(self, name):
++    def readback(self, name, *, archive_after_stop=False):
+         database = self.state / 'state.sqlite3'
+-        if not database.is_file(): return
++        archive = None
++        if archive_after_stop:
++            self.assertEqual(self.host.poll(), 0, 'The writer must exit before its final database is archived')
++            self.assertFalse((self.state / 'daemon.pid').exists())
++            self.assertFalse((self.state / 'control.sock').exists())
++            archive = archive_stopped_database(self.state, self.case / (Path(name).stem + '.sqlite3'))
++            database = Path(archive['path'])
++        else:
++            self.assertIsNone(self.host.poll(), 'A live snapshot requires its original writer to remain available')
+         with contextlib.closing(sqlite3.connect(database.as_uri() + '?mode=ro', uri=True)) as db:
+             db.row_factory = sqlite3.Row
+             tables = {table: [dict(row) for row in db.execute('SELECT * FROM ' + table)]
+                       for table in ('tasks', 'attempts', 'runs', 'events', 'orchestration_events')}
+-        self.save(name, {'database': str(database), 'tables': tables})
++        self.save(name, {'database': str(database), 'source_database': str(self.state / 'state.sqlite3'),
++                         'phase': 'after-writer-exit-archive' if archive_after_stop else 'before-host-stop',
++                         'archive': archive, 'tables': tables})
+         return tables
+ 
+     def assert_stopped_without_acceptance(self, expected_error=None):
+@@ -133,7 +144,7 @@
+         self.assertEqual(self.host.returncode, 0)
+         self.assertFalse((self.state / 'control.sock').exists())
+         self.assertFalse((self.state / 'daemon.pid').exists())
+-        tables = self.readback('after-stop.json')
++        tables = self.readback('after-stop.json', archive_after_stop=True)
+         task = json.loads(tables['tasks'][0]['data'])
+         self.assertEqual(task['state'], 'claimed')
+         self.assertIsNone(task['candidate_commit'])
+@@ -201,7 +212,7 @@
+         self.finish_mutation()
+         self.host.wait(timeout=10); self.assertEqual(self.host.returncode, 0)
+         self.assertFalse((self.state / 'control.sock').exists()); self.assertFalse((self.state / 'daemon.pid').exists())
+-        tables = self.readback('after-stop.json')
++        tables = self.readback('after-stop.json', archive_after_stop=True)
+         events = [{**row, 'data': json.loads(row['data'])} for row in tables['orchestration_events']]
+         completed = [row for row in events if row['type'] == 'request_result' and row['data'].get('command') == 'create']
+         ended = [row for row in events if row['type'] == 'daemon_stopped']
+--- failed-green/workbench/tests/run_t076_real.py
++++ candidate/workbench/tests/run_t076_real.py
+@@ -20,6 +20,7 @@
+ import traceback
+ 
+ from command_evidence import CommandLog, command_json
++from fixture_artifacts import archive_stopped_database
+ from run_worker_delivery import ORACLE
+ 
+ ROOT = Path(__file__).resolve().parents[2]
+@@ -330,7 +331,9 @@
+             if started:
+                 # Count final durable native records only after the writer and
+                 # PTY have exited. The final exit scan may import the last bytes.
+-                with contextlib.closing(sqlite3.connect((state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True)) as database:
++                archived = archive_stopped_database(state, out / 'databases-after-stop/state.sqlite3')
++                save('database-after-stop.json', archived)
++                with contextlib.closing(sqlite3.connect(Path(archived['path']).as_uri() + '?mode=ro', uri=True)) as database:
+                     database.row_factory = sqlite3.Row
+                     events = [{**dict(row), 'data': json.loads(row['data'])} for row in database.execute(
+                         'SELECT * FROM orchestration_events ORDER BY seq')]
+--- /dev/null
++++ candidate/workbench/tests/test_stopped_readback.py
+@@ -0,0 +1,96 @@
++"""Replay the three preserved collection failures without a daemon or model.
++
++The old collector opens the closed original WAL file. The candidate reads its
++standalone archive. Required final rows come from the pre-existing shutdown
++contract: no acceptance/reclaim, original deadline retained, final event order.
++"""
++import argparse
++import contextlib
++import json
++from pathlib import Path
++import sqlite3
++import sys
++import tarfile
++from types import SimpleNamespace
++
++import test_startup_shutdown_e2e as candidate
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--known-bad', type=Path, required=True)
++    parser.add_argument('--failed-run', type=Path, required=True)
++    parser.add_argument('--fixture-archive', type=Path, required=True)
++    parser.add_argument('--output', type=Path, required=True)
++    args = parser.parse_args(); out = args.output.resolve(); out.mkdir(parents=True, exist_ok=False)
++    old = {'__name__': 'known_bad_stopped_collector', '__file__': str(args.known_bad)}
++    exec(compile(args.known_bad.read_text(encoding='utf-8'), str(args.known_bad), 'exec'), old)
++    failed = json.loads(args.failed_run.read_text(encoding='utf-8'))
++    error_tests = {row['test'] for row in failed['errors']}
++    observations = []
++    for item in failed['artifacts']:
++        if item['test'] not in error_tests: continue
++        assert item['host_exit'] == 0, 'The preserved writer must have exited'
++        method = item['test'].rsplit('.', 1)[-1]
++        value = candidate.StartupShutdown(method)
++        value.case = out / method; value.case.mkdir()
++        value.state = value.case / 'archived-input'; value.state.mkdir()
++        # Read only regular DB/WAL members into this replay's new directory.
++        # No original /tmp fixture, shared state or credential path is needed.
++        prefix = Path(item['root']).name + '/state/'
++        with tarfile.open(args.fixture_archive, 'r:gz') as archive:
++            available = {member.name: member for member in archive.getmembers()}
++            for name in ('state.sqlite3', 'state.sqlite3-wal'):
++                member = available.get(prefix + name)
++                if member is None:
++                    assert name.endswith('-wal'), 'The preserved database member is required'
++                    continue
++                assert member.isfile(), 'A replay database cannot be a link'
++                with (value.state / name).open('xb') as stream:
++                    stream.write(archive.extractfile(member).read())
++        value.host = SimpleNamespace(poll=lambda: 0)
++        source_bytes = {path.name: path.read_bytes() for path in value.state.glob('state.sqlite3*')}
++        counterfactual = None
++        try:
++            old['StartupShutdown'].readback(value, 'known-bad.json')
++        except sqlite3.OperationalError as error:
++            counterfactual = repr(error)
++        assert counterfactual is not None, 'The preserved cold read must reject this known-bad collection path'
++        tables = value.readback('candidate.json', archive_after_stop=True)
++        states = [json.loads(row['data'])['state'] for row in tables['tasks']]
++        if method == 'test_stop_drains_existing_gate_before_final_event':
++            assert states == ['ready', 'ready'], states
++            events = [{**row, 'data': json.loads(row['data'])} for row in tables['orchestration_events']]
++            creates = [row for row in events if row['type'] == 'request_result' and row['data'].get('command') == 'create']
++            ended = [row for row in events if row['type'] == 'daemon_stopped']
++            assert len(creates) == 2 and len(ended) == 1
++            assert ended[0]['seq'] > creates[-1]['seq']
++        else:
++            assert states == ['claimed'], states
++            task = json.loads(tables['tasks'][0]['data'])
++            assert task['candidate_commit'] is None and task['current_attempt']['reclaimed'] is False
++            runs = [json.loads(row['data']) for row in tables['runs']]
++            assert len(runs) == 1 and runs[0]['outcome'] != 'completed'
++            expected = 'run_deadline' if method == 'test_stop_during_deadline_cleanup' else 'daemon_stopping'
++            assert runs[0]['error'] == expected, runs
++            assert len([row for row in tables['events'] if row['type'] == 'run_finished']) == 1
++            assert len([row for row in tables['orchestration_events'] if row['type'] == 'pane_exit']) == 1
++        assert not any(row['type'] in ('verified', 'integrated') for row in tables['events'])
++        for name, before in source_bytes.items():
++            assert (value.state / name).read_bytes() == before, 'Original source changed: ' + name
++        saved = json.loads((value.case / 'candidate.json').read_text(encoding='utf-8'))
++        assert saved['database'] != saved['source_database'] and saved['phase'] == 'after-writer-exit-archive'
++        with contextlib.closing(sqlite3.connect(Path(saved['database']).as_uri() + '?mode=ro', uri=True)) as db:
++            assert db.execute('PRAGMA journal_mode').fetchone() == ('delete',)
++        observations.append({'test': item['test'], 'original_root': item['root'], 'input': str(value.state), 'counterfactual': counterfactual,
++            'candidate_readback': str(value.case / 'candidate.json'), 'states': states, 'source_bytes_unchanged': True})
++    assert len(observations) == 3, 'All three failed final collectors must be replayed'
++    record = {'status': 'PASS', 'argv': sys.argv, 'real_codex_turns': 0, 'observations': observations,
++              'scope': '已停止的原失败夹具读回；不把原 INCOMPLETE 改称完整通过'}
++    with (out / 'run.json').open('x', encoding='utf-8') as stream:
++        json.dump(record, stream, ensure_ascii=False, indent=2); stream.write('\n')
++    print(json.dumps({'status': 'PASS', 'cases': 3, 'real_codex_turns': 0}))
++
++
++if __name__ == '__main__':
++    main()
+--- failed-green/workbench/README.md
++++ candidate/workbench/README.md
+@@ -137,6 +137,10 @@
+ 停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、
+ 截断、解析失败或未完成的一行记为 native_final_read_failed，保留读到的位置，窗格
+ 仍显示未知／中断，不补造完成事件。停止后的查询不继续采集新的原生字节。
++测试的最终 SQLite 读回统一使用 `fixture_artifacts.archive_stopped_database`：确认 writer 退出，
++复制主库与残留 WAL，只在归档副本上改为独立 DELETE 文件，再以只读方式检查。
++`test_probe_cleanup.py` 检查关闭后的 WAL、未遗漏的已提交行、原文件保留和未确认退出时保留现场；
++`test_stopped_readback.py` 重放三个停止后直读原库失败的夹具。
+ 门禁状态原值保留，因此“门禁已认领”和“执行已中断”可以同时出现。原 verify/integrate
+ 命令显式重放才执行恢复，启动或读取窗口不能把未知结果改成通过。
+ 崩溃残留的 socket/PID 文件阻止启动；产品不会按 PID 猜测所有者并自动接管。

@@ -1,0 +1,155 @@
+--- evidence/2026-10-11-batch13/T-076/card-1/real-preparation-04/transport.before.ts
++++ workbench/src/transport.ts
+@@ -21,7 +21,10 @@
+     let finished = false;
+     socket.setEncoding("utf8");
+     // A deadline is a failed/unknown call, never permission to replay a mutation.
+-    socket.setTimeout(120_000, () => socket.destroy(new Error("daemon request deadline; outcome unknown")));
++    const wait = input.command === "run" ? input.wait_seconds : undefined;
++    const deadline = typeof wait === "number" && Number.isSafeInteger(wait) && wait > 0
++      ? Math.min(2_147_483_647, Math.max(120_000, wait * 1000 + 120_000)) : 120_000;
++    socket.setTimeout(deadline, () => socket.destroy(new Error("daemon request deadline; outcome unknown")));
+     socket.on("error", reject);
+     socket.on("connect", () => socket.write(JSON.stringify({ id: randomUUID(), input, identity }) + "\n"));
+     socket.on("data", (chunk) => {
+--- evidence/2026-10-11-batch13/T-076/card-1/real-preparation-04/run_t076_real.py.before
++++ workbench/tests/run_t076_real.py
+@@ -21,9 +21,28 @@
+ 
+ from command_evidence import CommandLog, command_json
+ from fixture_artifacts import archive_stopped_database
+-from run_worker_delivery import ORACLE
+ 
+ ROOT = Path(__file__).resolve().parents[2]
++WAIT_SECONDS = 900
++ORACLE = '''import importlib.util, pathlib, sys
++root = pathlib.Path(sys.argv[1])
++spec = importlib.util.spec_from_file_location("fixture_normalize", root / "src/normalize.py")
++module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
++assert module.normalize([]) == {"entries": [], "total_minutes": 0}
++assert module.normalize([{"name": " B ", "minutes": 30}, {"name": "A", "minutes": 61},
++                         {"name": "B", "minutes": 45}, {"name": "中文", "minutes": 0}]) == {
++    "entries": [{"name": "A", "minutes": 61}, {"name": "B", "minutes": 75}, {"name": "中文", "minutes": 0}],
++    "total_minutes": 136}
++for invalid in [True, False, -1, 1.5, "1", None]:
++    try: module.normalize([{"name": "A", "minutes": invalid}])
++    except ValueError as error: assert str(error) == "invalid_minutes"
++    else: raise AssertionError("invalid minutes accepted")
++for invalid in ["", "   ", None, 1]:
++    try: module.normalize([{"name": invalid, "minutes": 0}])
++    except ValueError as error: assert str(error) == "invalid_name"
++    else: raise AssertionError("invalid name accepted")
++print("independent single-file oracle PASS")
++'''
+ 
+ 
+ def release_initial_worker(call, thread, known_pids, save, *, monotonic=time.monotonic, sleep=time.sleep):
+@@ -40,7 +59,7 @@
+     return info
+ 
+ 
+-def outstanding_real_turns(entries):
++def accounted_real_turns(entries):
+     reservations = {}
+     for row in entries:
+         if row.get('kind') == 'reservation':
+@@ -48,19 +67,21 @@
+                 raise RuntimeError('Duplicate real-turn reservation output')
+             reservations[row['output']] = row['reserved']
+     reconciled = set()
+-    approved = {'outside-real-01': 'evidence/2026-10-11-batch13/T-076/card-1/controller-decision-02.md',
+-                'outside-real-02': 'conversation:主控 #12'}
++    approved = {'outside-real-01': (0, 'evidence/2026-10-11-batch13/T-076/card-1/controller-decision-02.md'),
++                'outside-real-02': (0, 'conversation:主控 #12'),
++                'outside-real-03': (1, 'evidence/2026-10-11-batch13/T-076/card-1/controller-decision-03.md')}
+     for row in entries:
+         if row.get('kind') != 'reconciliation':
+             continue
+         output = row['output']
+-        if (output not in reservations or output in reconciled or row.get('actual') != 0 or
++        if (output not in reservations or output in reconciled or
+                 row.get('reserved') != reservations[output] or
+                 Path(output).parent.parts[-4:] != ('evidence', '2026-10-11-batch13', 'T-076', 'card-1') or
+-                approved.get(Path(output).name) != row.get('decision_ref') or row.get('decision_ref') is None):
+-            raise RuntimeError('Real-turn reconciliation is not the approved zero-turn accounting entry')
++                approved.get(Path(output).name) != (row.get('actual'), row.get('decision_ref'))):
++            raise RuntimeError('Real-turn reconciliation is not the explicitly approved accounting entry')
++        reservations[output] = row['actual']
+         reconciled.add(output)
+-    return sum(value for output, value in reservations.items() if output not in reconciled)
++    return sum(reservations.values())
+ 
+ 
+ def main():
+@@ -138,7 +159,6 @@
+         git('init', '-b', 'main')
+         (repo / 'src').mkdir()
+         (repo / 'src/normalize.py').write_text('def normalize(rows):\n    return {}\n', encoding='utf-8')
+-        (repo / 'src/report.py').write_text('import json\nprint(json.dumps({"stub": True}))\n', encoding='utf-8')
+         (repo / '.gitignore').write_text('__pycache__/\n*.pyc\n', encoding='utf-8')
+         (repo / 'host.txt').write_text('baseline\n', encoding='utf-8')
+         git('add', '.')
+@@ -160,15 +180,15 @@
+                   'role_card_revision': run(['git', 'log', '-1', '--format=%H', '--', '.project-map/roles/worker.md']).stdout.strip(),
+                   'code_revision': head, 'source_snapshot': str(out / 'candidate-source.tar.gz'),
+                   'hook_authorization': 'T-076-1 controller-decision-01 §5; controller #4/#9/#10; per-session prepare-commit-msg and UserPromptSubmit/Stop/PermissionRequest approved',
+-                  'turn_limit': 2, 'turn_authorization': 'T-076-1 controller #16: green-startup-shutdown-03 PASS; both prior reservations reconciled to actual 0; reserve two root turns for one new real-two-turns run; cumulative limit three; third requires prior approval'}
++                  'turn_limit': 2, 'turn_authorization': 'T-076-1 controller-decision-03 and #17: final run only; prior actual 1; at most two further root turns, cumulative limit three; no later request or rerun'}
+         save('launch-config.json', config)
+         budget = out.parent / 'real-turn-budget.jsonl'
+         with budget.open('a+', encoding='utf-8') as stream:
+             fcntl.flock(stream, fcntl.LOCK_EX); stream.seek(0)
+             previous = [json.loads(line) for line in stream if line.strip()]
+-            reserved = outstanding_real_turns(previous)
+-            if reserved != 0:
+-                raise RuntimeError('This card already reserved real turns; controller reconciliation is required, no automatic rerun')
++            accounted = accounted_real_turns(previous)
++            if accounted != 1 or accounted + 2 > 3:
++                raise RuntimeError('Final run requires exactly one accounted prior turn and two remaining; no automatic rerun')
+             stream.seek(0, 2)
+             stream.write(json.dumps({'kind': 'reservation', 'reserved': 2, 'output': str(out),
+                                     'authorization': config['turn_authorization'], 'time': datetime.datetime.now(datetime.timezone.utc).isoformat()}) + '\n')
+@@ -193,28 +213,27 @@
+             'runpy.run_path(' + repr(str(oracle)) + ',run_name="__main__")\n', encoding='utf-8')
+         card = {'id': record['task'], 'source': {'ticket': str(ticket), 'ready_rev': rev},
+                 'goal': '这是 T-076-1 的隔离验收任务，来源 ticket 只作规格绑定，不到 a2a 源码仓库实现编排系统。'
+-                        '只实现 src/normalize.py 的 normalize(rows) 与 src/report.py。输入 JSON 数组，每项 name 为字符串、minutes 为非负整数，bool 不算整数。'
++                        '只实现 src/normalize.py 的 normalize(rows)，不新建其他文件。输入为列表，每项 name 为字符串、minutes 为非负整数，bool 不算整数。'
+                         'name 去首尾空白后不得为空；按去空白的名字合并分钟，按名字升序输出。normalize 返回 '
+-                        '{"entries":[{"name":名字,"minutes":合计,"duration":"小时:两位分钟"}],"total_minutes":总分钟}。'
++                        '{"entries":[{"name":名字,"minutes":合计}],"total_minutes":总分钟}。'
+                         '空数组返回空 entries 和 0。minutes 非法抛 ValueError("invalid_minutes")；名字非法抛 ValueError("invalid_name")。'
+-                        'report.py 从 stdin 读 JSON，正常输出一行 JSON 并退出0；对应 ValueError 输出 {"error":"invalid_minutes"} 或 {"error":"invalid_name"} 并退出2。'
+-                        '只改这两个文件，git add 与 git commit 各自作为独立工具命令，工具 cwd 是本 worktree。提交后执行派发的 submit 命令并加 --request-id delivery。'
++                        '只改这一文件，只做一次提交；git add 与 git commit 各自作为独立工具命令，工具 cwd 是本 worktree。提交后执行派发的 submit 命令并加 --request-id delivery。'
+                         '结束回合让 Stop 转交；回执回合只确认收到并结束，不调用工具、不新增请求。',
+                 'non_goals': ['不改 oracle、任务合同、host.txt、.gitignore；不访问网络、不启动子agent；请求文件不进入Git'],
+-                'paths': {'allow': ['src/normalize.py', 'src/report.py'], 'deny': []},
++                'paths': {'allow': ['src/normalize.py'], 'deny': []},
+                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', str(waiting_oracle), '{worktree}']}],
+                 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
+                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+         save('card.json', card)
+         call('card_save', '--task', record['task'], '--card', out / 'card.json', '--expected-version', '0')
+         call('create', '--task', record['task'], '--repo', repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'T076-real-fixture')
+-        run_argv = [*cli, 'run', '--task', record['task'], '--runtime-mode', 'workspace-write', '--wait-seconds', '100']
++        run_argv = [*cli, 'run', '--task', record['task'], '--runtime-mode', 'workspace-write', '--wait-seconds', str(WAIT_SECONDS)]
+         run_stdout = (out / 'run-cli.stdout.txt').open('xb'); run_stderr = (out / 'run-cli.stderr.txt').open('xb')
+         run_process = subprocess.Popen(list(map(str, run_argv)), cwd=ROOT, env=env, stdout=run_stdout,
+                                        stderr=run_stderr, start_new_session=True)
+         known_pids.add(run_process.pid)
+         save('run-cli-launch.json', {'pid': run_process.pid, 'argv': list(map(str, run_argv)),
+-                                    'wait_seconds': 100, 'transport_deadline_seconds': 120})
++                                    'wait_seconds': WAIT_SECONDS, 'transport_deadline_seconds': WAIT_SECONDS + 120})
+         deadline = time.monotonic() + 30
+         while True:
+             current = call('status', '--task', record['task'])['task']
+@@ -234,7 +253,7 @@
+         git('commit', '-m', 'T076 independent G advance')
+         G = git('rev-parse', 'refs/heads/main')
+         info = release_initial_worker(call, thread, known_pids, save)
+-        deadline = time.monotonic() + 110
++        deadline = time.monotonic() + WAIT_SECONDS
+         while True:
+             events = call('orchestration_events', '--task', record['task'])['events']
+             native, records = root_records(events)

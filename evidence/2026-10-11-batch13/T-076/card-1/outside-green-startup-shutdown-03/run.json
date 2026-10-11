@@ -1,0 +1,65 @@
+{
+  "status": "PASS",
+  "mode": "green",
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a/workbench/tests/run_t076_startup_shutdown.py",
+    "--mode",
+    "green",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-1/outside-green-startup-shutdown-03"
+  ],
+  "real_codex_turns": 0,
+  "steps": [
+    {
+      "name": "initial-release",
+      "exit": 0,
+      "result": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-1/outside-green-startup-shutdown-03/initial-release/run.json",
+      "tests_run": 4,
+      "failures": [],
+      "errors": []
+    },
+    {
+      "name": "daemon-stop",
+      "exit": 0,
+      "result": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-1/outside-green-startup-shutdown-03/daemon-stop/run.json",
+      "tests_run": 4,
+      "failures": [],
+      "errors": []
+    },
+    {
+      "name": "ordering-counterfactual",
+      "exit": 1,
+      "result": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-1/outside-green-startup-shutdown-03/ordering-counterfactual/run.json",
+      "shutdown_precompletion": {
+        "create_request": "1190fd24-c6d7-4500-957b-2b86d57886fd",
+        "creating_task": "T076startup-ef09d08e-second",
+        "gate_still_held": true,
+        "create_request_result_seq": null,
+        "daemon_stopped_seq": 11,
+        "writer_exit": null,
+        "violation": "final_event_before_gate",
+        "stop_close_checkpoint": [
+          {
+            "request": "979dbe59-c366-4272-91f4-acdf0eb0af9b",
+            "pid": 45952,
+            "phase": "after-stop-socket-close-callbacks"
+          }
+        ],
+        "creating_state": "creating"
+      },
+      "classification": "business-red",
+      "mutation": "    if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });\n",
+      "source": "/private/tmp/sd76-jr_5_9nj/ordering-mutant"
+    },
+    {
+      "name": "identity",
+      "exit": 0,
+      "tests_run": 4,
+      "result": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-1/outside-green-startup-shutdown-03/identity/run.json"
+    }
+  ],
+  "source": "/private/tmp/sd76-jr_5_9nj/source",
+  "head": "1ff6983ec53947a0a2afef235b6eef0ed06a80cb",
+  "code_is_uncommitted_candidate": true,
+  "changed_source_paths": []
+}

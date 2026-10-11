@@ -1,0 +1,30 @@
+test_stop_drains_existing_gate_before_final_event (__main__.StartupShutdown) ... FAIL
+ERROR
+
+======================================================================
+ERROR: test_stop_drains_existing_gate_before_final_event (__main__.StartupShutdown)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/sd76-0f2mygqc/source/workbench/tests/test_startup_shutdown_e2e.py", line 246, in cleanup
+    self.readback('before-cleanup-stop.json')
+  File "/private/tmp/sd76-0f2mygqc/source/workbench/tests/test_startup_shutdown_e2e.py", line 131, in readback
+    tables = {table: [dict(row) for row in db.execute('SELECT * FROM ' + table)]
+  File "/private/tmp/sd76-0f2mygqc/source/workbench/tests/test_startup_shutdown_e2e.py", line 131, in <dictcomp>
+    tables = {table: [dict(row) for row in db.execute('SELECT * FROM ' + table)]
+sqlite3.OperationalError: unable to open database file
+
+======================================================================
+FAIL: test_stop_drains_existing_gate_before_final_event (__main__.StartupShutdown)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/sd76-0f2mygqc/source/workbench/tests/test_startup_shutdown_e2e.py", line 210, in test_stop_drains_existing_gate_before_final_event
+    self.assertEqual(command_json(refusal).get('error'), 'daemon_stopping')
+AssertionError: 'daemon_call_failed' != 'daemon_stopping'
+- daemon_call_failed
++ daemon_stopping
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.787s
+
+FAILED (failures=1, errors=1)

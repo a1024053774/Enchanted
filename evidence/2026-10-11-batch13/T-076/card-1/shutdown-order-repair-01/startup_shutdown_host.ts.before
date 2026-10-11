@@ -1,0 +1,67 @@
+// Real daemon/gates/storage; only PTY callbacks and process observation are
+// scripted. No provider or real worker subprocess is started by this host.
+import { appendFileSync, chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+import { randomUUID } from "node:crypto";
+
+const [source, root, control, ready] = process.argv.slice(2);
+if (!source || !root || !control || !ready) throw new Error("source, root, control and ready are required");
+const { serve } = await import(pathToFileURL(join(source, "workbench/src/daemon.ts")).href);
+const { A2AGates } = await import(pathToFileURL(join(source, "workbench/src/gates/core.ts")).href);
+const require = createRequire(pathToFileURL(join(source, "workbench/src/panes.ts")));
+const home = join(control, "home"); mkdirSync(join(home, "sessions"), { recursive: true });
+const version = join(control, "version-only");
+writeFileSync(version, '#!/bin/sh\nprintf "codex-cli 0.162.1\\n"\n', { mode: 0o700 }); chmodSync(version, 0o700);
+const role = join(control, "role.txt"); writeFileSync(role, "本地确定性夹具，不运行模型。");
+const native = "fixture-" + randomUUID(), turn = "fixture-first-turn";
+const file = join(home, "sessions", "rollout-" + native + ".jsonl");
+const audit = (value: any) => appendFileSync(join(control, "pty.jsonl"), JSON.stringify(value) + "\n");
+require.cache[require.resolve("node-pty")] = { exports: { spawn: () => {
+  const exits: ((value: any) => void)[] = [];
+  return { pid: 11001, onData: () => {}, onExit: (callback: any) => { exits.push(callback); },
+    write: (data: string) => {
+      audit({ type: "write", data, native_log_existed: existsSync(file) });
+      if (data === "\r") {
+        const records = [{ type: "session_meta", payload: { id: native, source: "cli" } },
+          { type: "event_msg", payload: { type: "task_started", turn_id: turn } }];
+        writeFileSync(file, records.map((row) => JSON.stringify(row) + "\n").join(""), { flag: "wx" });
+      }
+    },
+    kill: (signal: string) => {
+      audit({ type: "kill", signal });
+      for (const callback of [...exits]) callback({ exitCode: 129, signal: 1 });
+    } };
+} } } as any;
+
+await serve(root, { codex_bin: version, codex_home: home, role_card: role,
+  code_revision: "deterministic-fixture", role_card_revision: "deterministic-fixture",
+  hook_authorization: "simulated callbacks only", turn_limit: 1 }, (state: string, panes: any) => {
+  panes.ensureProject = async () => {
+    if (!existsSync(join(control, "hold-create"))) return;
+    writeFileSync(join(control, "create-entered"), "gate reached the controlled runtime boundary\n");
+    while (!existsSync(join(control, "release-create"))) await new Promise((resolve) => setTimeout(resolve, 20));
+  };
+  panes.processInfo = async (thread: string) => {
+    const pane = panes.get(thread);
+    panes.scan(pane);
+    const failed = existsSync(join(control, "runtime-failure"));
+    if (failed) pane.failed = "fixture_runtime_failure";
+    if (pane.leader === null) pane.leader = 11002;
+    const info = { shell_pid: 11001, leader: 11002, native_session: pane.native,
+      processes: [{ pid: 11001 }, { pid: 11002 }], failed: pane.failed };
+    writeFileSync(join(control, "process-info.json"), JSON.stringify(info) + "\n");
+    return info;
+  };
+  const gates = new A2AGates(state, panes);
+  // Observe the original cleanup boundary; this wrapper does not change it.
+  const idle = (gates as any).waitForIdle.bind(gates);
+  (gates as any).waitForIdle = async (run: any) => {
+    writeFileSync(join(control, "idle-wait-entered.json"), JSON.stringify(run) + "\n");
+    return await idle(run);
+  };
+  return gates;
+});
+writeFileSync(ready, JSON.stringify({ pid: process.pid, source, root, control,
+  native, turn, real_codex_turns: 0, pty: "simulated", process_observer: "simulated" }) + "\n", { flag: "wx" });

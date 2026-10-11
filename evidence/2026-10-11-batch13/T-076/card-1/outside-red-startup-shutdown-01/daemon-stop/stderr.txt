@@ -1,0 +1,24 @@
+test_native_binds_after_first_input (__main__.StartupShutdown) ... ok
+test_stop_during_deadline_cleanup (__main__.StartupShutdown) ... FAIL
+test_stop_during_waiting_submit (__main__.StartupShutdown) ... FAIL
+
+======================================================================
+FAIL: test_stop_during_deadline_cleanup (__main__.StartupShutdown)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/sd76-snlii4i4/source/workbench/tests/test_startup_shutdown_e2e.py", line 177, in test_stop_during_deadline_cleanup
+    self.assertIs(reply.get('ok'), True, 'Owned daemon must stop after run deadline; reply=' + json.dumps(reply))
+AssertionError: False is not True : Owned daemon must stop after run deadline; reply={"ok": false, "error": "daemon_busy", "details": "Error: daemon_busy"}
+
+======================================================================
+FAIL: test_stop_during_waiting_submit (__main__.StartupShutdown)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/sd76-snlii4i4/source/workbench/tests/test_startup_shutdown_e2e.py", line 167, in test_stop_during_waiting_submit
+    self.assertIs(reply.get('ok'), True, 'Owned daemon must stop with a waiting run; reply=' + json.dumps(reply))
+AssertionError: False is not True : Owned daemon must stop with a waiting run; reply={"ok": false, "error": "daemon_busy", "details": "Error: daemon_busy"}
+
+----------------------------------------------------------------------
+Ran 3 tests in 5.443s
+
+FAILED (failures=2)

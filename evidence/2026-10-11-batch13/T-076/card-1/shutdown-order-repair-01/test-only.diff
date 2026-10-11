@@ -1,0 +1,197 @@
+--- green-02/workbench/tests/startup_shutdown_host.ts
++++ candidate/workbench/tests/startup_shutdown_host.ts
+@@ -2,12 +2,39 @@
+ // scripted. No provider or real worker subprocess is started by this host.
+ import { appendFileSync, chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+ import { join } from "node:path";
+-import { createRequire } from "node:module";
++import { createRequire, syncBuiltinESMExports } from "node:module";
+ import { pathToFileURL } from "node:url";
+ import { randomUUID } from "node:crypto";
+ 
+ const [source, root, control, ready] = process.argv.slice(2);
+ if (!source || !root || !control || !ready) throw new Error("source, root, control and ready are required");
++const observerRequire = createRequire(import.meta.url);
++const net = observerRequire("node:net"), originalCreateServer = net.createServer;
++// Observe the real stop response socket. The original server, connections and
++// handlers are unchanged. setImmediate runs after close callbacks and their
++// promise continuations, while the independent create barrier remains held.
++net.createServer = (...args: any[]) => {
++  const server = Reflect.apply(originalCreateServer, net, args);
++  server.on("connection", (socket: any) => {
++    let input = "", inspected = false;
++    socket.on("data", (chunk: any) => {
++      if (inspected) return;
++      input += String(chunk);
++      const end = input.indexOf("\n");
++      if (end < 0) return;
++      inspected = true;
++      const envelope = JSON.parse(input.slice(0, end));
++      if (envelope.input?.command !== "daemon_stop") return;
++      socket.once("close", () => setImmediate(() => {
++        appendFileSync(join(control, "stop-response-closed.jsonl"), JSON.stringify({
++          request: envelope.id, pid: process.pid, phase: "after-stop-socket-close-callbacks",
++        }) + "\n");
++      }));
++    });
++  });
++  return server;
++};
++syncBuiltinESMExports();
+ const { serve } = await import(pathToFileURL(join(source, "workbench/src/daemon.ts")).href);
+ const { A2AGates } = await import(pathToFileURL(join(source, "workbench/src/gates/core.ts")).href);
+ const require = createRequire(pathToFileURL(join(source, "workbench/src/panes.ts")));
+@@ -64,4 +91,5 @@
+   return gates;
+ });
+ writeFileSync(ready, JSON.stringify({ pid: process.pid, source, root, control,
+-  native, turn, real_codex_turns: 0, pty: "simulated", process_observer: "simulated" }) + "\n", { flag: "wx" });
++  native, turn, real_codex_turns: 0, pty: "simulated", process_observer: "simulated",
++  transport: "original net server with passive stop-socket close observer" }) + "\n", { flag: "wx" });
+--- green-02/workbench/tests/test_startup_shutdown_e2e.py
++++ candidate/workbench/tests/test_startup_shutdown_e2e.py
+@@ -39,6 +39,7 @@
+             GIT_AUTHOR_NAME='T076 deterministic fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
+             GIT_COMMITTER_NAME='T076 deterministic fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
+         self.host = self.run_process = self.mutation_process = None; self.run_result = None
++        self.stop_accepted = False; self.ordering_violation = False
+         self.artifact = {'test': self.id(), 'root': str(self.root), 'case': str(self.case)}
+         ARTIFACTS.append(self.artifact)
+         self.addCleanup(self.cleanup)
+@@ -176,6 +177,7 @@
+         self.begin_run(30)
+         self.readback('at-stop-request.json')
+         reply = self.call('daemon_stop', check=False); self.save('stop-under-test.json', reply)
++        self.stop_accepted = reply.get('ok') is True
+         self.assertIs(reply.get('ok'), True, 'Owned daemon must stop with a waiting run; reply=' + json.dumps(reply))
+         self.assert_stopped_without_acceptance()
+ 
+@@ -186,6 +188,7 @@
+         self.save('deadline-cleanup-boundary.json', json.loads((self.control / 'idle-wait-entered.json').read_text(encoding='utf-8')))
+         self.readback('at-stop-request.json')
+         reply = self.call('daemon_stop', check=False); self.save('stop-under-test.json', reply)
++        self.stop_accepted = reply.get('ok') is True
+         self.assertIs(reply.get('ok'), True, 'Owned daemon must stop after run deadline; reply=' + json.dumps(reply))
+         self.assert_stopped_without_acceptance(expected_error='run_deadline')
+ 
+@@ -199,9 +202,40 @@
+             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+         self.save('create-launch.json', {'pid': self.mutation_process.pid, 'argv': list(map(str, argv))})
+         self.wait(lambda: (self.control / 'create-entered').exists(), 'Create did not reach the controlled active-gate boundary')
++        before = self.readback('gate-held-before-stop.json')
++        received = [json.loads(row['data']) for row in before['orchestration_events'] if row['type'] == 'request_received']
++        received = [row for row in received if row['input'].get('command') == 'create' and row['input'].get('task') == task]
++        self.assertEqual(len(received), 1)
++        request_id = received[0]['id']
++        self.assertIsNone(self.mutation_process.poll())
++        self.assertEqual(next(json.loads(row['data'])['state'] for row in before['tasks'] if row['id'] == task), 'creating')
+         reply = self.call('daemon_stop', check=False); self.save('stop-under-test.json', reply)
++        self.stop_accepted = reply.get('ok') is True
+         self.assertIs(reply.get('ok'), True, 'An existing gate must drain during explicit shutdown, without a busy rejection')
+-        self.assertIsNone(self.host.poll(), 'Stores remain available to the existing gate until its result is durable')
++        checkpoint = self.control / 'stop-response-closed.jsonl'
++        self.wait(lambda: checkpoint.exists() or self.host.poll() is not None,
++                  'The accepted stop did not reach its observed response-close boundary')
++        self.assertFalse((self.control / 'release-create').exists(), 'The original gate barrier must still be held')
++        witness = {'create_request': request_id, 'creating_task': task, 'gate_still_held': True,
++                   'create_request_result_seq': None, 'daemon_stopped_seq': None,
++                   'writer_exit': self.host.poll(), 'violation': None,
++                   'stop_close_checkpoint': [json.loads(line) for line in checkpoint.read_text(encoding='utf-8').splitlines()] if checkpoint.exists() else []}
++        if witness['writer_exit'] is not None:
++            witness['violation'] = 'writer_exit_before_gate'
++        else:
++            pending = self.readback('gate-held-after-stop.json')
++            events = [{**row, 'data': json.loads(row['data'])} for row in pending['orchestration_events']]
++            completed = [row for row in events if row['type'] == 'request_result' and row['data'].get('id') == request_id]
++            ended = [row for row in events if row['type'] == 'daemon_stopped']
++            witness['create_request_result_seq'] = completed[0]['seq'] if completed else None
++            witness['daemon_stopped_seq'] = ended[0]['seq'] if ended else None
++            witness['creating_state'] = next(json.loads(row['data'])['state'] for row in pending['tasks'] if row['id'] == task)
++            if ended and not completed: witness['violation'] = 'final_event_before_gate'
++        self.artifact['shutdown_precompletion'] = witness; self.save('shutdown-precompletion.json', witness)
++        self.ordering_violation = witness['violation'] is not None
++        self.assertIsNone(witness['violation'], 'Explicit stop cannot publish its final event or exit while the original gate remains held: ' + json.dumps(witness))
++        self.assertIsNone(witness['create_request_result_seq'], 'The held original request cannot already have completed')
++        self.assertEqual(witness['creating_state'], 'creating')
+         # An explicit stop can still serve a refusal, or have already closed
+         # its listener. Neither observation may accept a new request.
+         refusal = self.process([*self.cli, 'daemon_status'])
+@@ -214,37 +248,41 @@
+         self.assertFalse((self.state / 'control.sock').exists()); self.assertFalse((self.state / 'daemon.pid').exists())
+         tables = self.readback('after-stop.json', archive_after_stop=True)
+         events = [{**row, 'data': json.loads(row['data'])} for row in tables['orchestration_events']]
+-        completed = [row for row in events if row['type'] == 'request_result' and row['data'].get('command') == 'create']
++        completed = [row for row in events if row['type'] == 'request_result' and row['data'].get('id') == request_id]
+         ended = [row for row in events if row['type'] == 'daemon_stopped']
+-        self.assertEqual(len(completed), 2); self.assertEqual(len(ended), 1)
+-        ordering = {'create_request_result_seq': completed[-1]['seq'], 'daemon_stopped_seq': ended[0]['seq']}
++        self.assertEqual(len(completed), 1); self.assertEqual(len(ended), 1)
++        ordering = {'create_request': request_id, 'create_request_result_seq': completed[0]['seq'], 'daemon_stopped_seq': ended[0]['seq']}
+         self.artifact['shutdown_order'] = ordering; self.save('shutdown-order.json', ordering)
+         self.assertGreater(ordering['daemon_stopped_seq'], ordering['create_request_result_seq'],
+             'daemon_stopped must follow the last existing gate result, not precede it')
+         self.assertTrue(all(json.loads(row['data'])['state'] == 'ready' for row in tables['tasks']))
+         self.assertFalse(any(row['type'] in ('verified', 'integrated') for row in tables['events']))
+ 
+-    def finish_mutation(self):
++    def finish_mutation(self, *, check=True):
+         if self.mutation_process is None: return
+         stdout, stderr = self.mutation_process.communicate(timeout=15)
+         result = {'exit': self.mutation_process.returncode, 'stdout': stdout, 'stderr': stderr}
+         self.save('create-reply.json', result); self.mutation_process = None
+-        self.assertEqual(result['exit'], 0, result)
+-        self.assertIs(json.loads(stdout)['ok'], True)
++        if check:
++            self.assertEqual(result['exit'], 0, result)
++            self.assertIs(json.loads(stdout)['ok'], True)
+ 
+     def cleanup(self):
+         try:
++            if self.mutation_process is not None:
++                if not (self.control / 'release-create').exists():
++                    (self.control / 'release-create').write_text('fixture cleanup\n', encoding='utf-8')
++                self.finish_mutation(check=not self.ordering_violation)
+             if self.host is not None and self.host.poll() is None:
+-                if self.mutation_process is not None:
+-                    if not (self.control / 'release-create').exists():
+-                        (self.control / 'release-create').write_text('fixture cleanup\n', encoding='utf-8')
+-                    self.finish_mutation()
+-                # End the scripted runtime only to release the original request
+-                # during test cleanup. Preserve the rejected stop above.
+-                (self.control / 'runtime-failure').write_text('fixture cleanup only\n', encoding='utf-8')
+-                self.finish_run()
+-                self.readback('before-cleanup-stop.json')
+-                reply = self.call('daemon_stop'); self.save('cleanup-stop.json', reply)
++                if self.stop_accepted:
++                    self.finish_run()
++                else:
++                    # End the scripted runtime only to release the original
++                    # request during cleanup; preserve the rejected stop above.
++                    (self.control / 'runtime-failure').write_text('fixture cleanup only\n', encoding='utf-8')
++                    self.finish_run()
++                    self.readback('before-cleanup-stop.json')
++                    reply = self.call('daemon_stop'); self.save('cleanup-stop.json', reply)
+                 self.host.wait(timeout=10)
+             self.artifact['host_exit'] = self.host.returncode if self.host is not None else None
+             if self.host is not None and self.host.returncode != 0:
+--- green-02/workbench/tests/run_t076_startup_shutdown.py
++++ candidate/workbench/tests/run_t076_startup_shutdown.py
+@@ -75,13 +75,14 @@
+                 '--source', mutant, '--case', 'ordering', '--output', target], cwd=ROOT, env=env, timeout=60,
+                 stdout_file=out / 'ordering-counterfactual.stdout.txt', stderr_file=out / 'ordering-counterfactual.stderr.txt')
+             value = json.loads((target / 'run.json').read_text(encoding='utf-8'))
+-            order = value['artifacts'][0].get('shutdown_order')
++            witness = value['artifacts'][0].get('shutdown_precompletion')
+             if (result.returncode != 1 or value['tests_run'] != 1 or len(value['failures']) != 1 or
+-                    value['errors'] or value['skipped'] or not order or
+-                    order['daemon_stopped_seq'] >= order['create_request_result_seq']):
++                    value['errors'] or value['skipped'] or not witness or not witness['gate_still_held'] or
++                    witness['violation'] != 'final_event_before_gate' or witness['creating_state'] != 'creating' or
++                    witness['create_request_result_seq'] is not None or witness['daemon_stopped_seq'] is None):
+                 raise RuntimeError('Missing request-drain wait was not rejected at the event-order assertion')
+             record['steps'].append({'name': 'ordering-counterfactual', 'exit': 1, 'result': str(target / 'run.json'),
+-                'shutdown_order': order, 'classification': 'business-red', 'mutation': before, 'source': str(mutant)})
++                'shutdown_precompletion': witness, 'classification': 'business-red', 'mutation': before, 'source': str(mutant)})
+             with tarfile.open(out / 'ordering-mutant-source.tar.gz', 'x:gz') as archive:
+                 archive.add(mutant / 'workbench', arcname='workbench')
+             target = out / 'identity'

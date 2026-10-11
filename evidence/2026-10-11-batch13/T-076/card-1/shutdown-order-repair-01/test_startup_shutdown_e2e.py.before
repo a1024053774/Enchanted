@@ -1,0 +1,288 @@
+"""First observable binding and stopping an owned daemon with a waiting run.
+
+Real CLI/socket/daemon/gates/Git/SQLite; PTY callbacks and process facts are
+scripted in the host. No Codex, credentials or model turns. Distinct failures:
+pre-input native log prerequisite, no deferred binding, busy stop during run
+wait, busy stop during deadline cleanup, or shutdown claiming acceptance.
+"""
+import argparse
+import contextlib
+import json
+import os
+from pathlib import Path
+import sqlite3
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import unittest
+import uuid
+
+from command_evidence import CommandLog, command_json
+from fixture_artifacts import archive_stopped_database
+
+SOURCE = OUT = None
+ARTIFACTS = []
+
+
+class StartupShutdown(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix='s76-', dir='/tmp')).resolve()
+        self.case = OUT / self._testMethodName; self.case.mkdir()
+        self.log = CommandLog(self.case)
+        self.repo, self.state, self.control = (self.root / name for name in ('repo', 'state', 'control'))
+        self.repo.mkdir(); self.control.mkdir()
+        self.env = {k: v for k, v in os.environ.items() if not k.startswith(('A2A_', 'CODEX_', 'GIT_'))}
+        self.env.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_COUNT='1',
+            GIT_CONFIG_KEY_0='core.hooksPath', GIT_CONFIG_VALUE_0=os.devnull,
+            GIT_AUTHOR_NAME='T076 deterministic fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
+            GIT_COMMITTER_NAME='T076 deterministic fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
+        self.host = self.run_process = self.mutation_process = None; self.run_result = None
+        self.artifact = {'test': self.id(), 'root': str(self.root), 'case': str(self.case)}
+        ARTIFACTS.append(self.artifact)
+        self.addCleanup(self.cleanup)
+        for argv in (['git', 'init', '-b', 'main'],):
+            result = self.process(argv, cwd=self.repo); self.assertEqual(result.returncode, 0, result.evidence)
+        (self.repo / 'value.txt').write_text('baseline\n', encoding='utf-8')
+        for argv in (['git', 'add', 'value.txt'], ['git', 'commit', '-m', 'Independent startup fixture']):
+            result = self.process(argv, cwd=self.repo); self.assertEqual(result.returncode, 0, result.evidence)
+        self.task = 'T076startup-' + uuid.uuid4().hex[:8]
+        card = {'id': self.task, 'source': None, 'goal': '核对首次输入的身份与自建后台停止',
+            'non_goals': ['不运行模型、不交付文件'], 'paths': {'allow': ['value.txt'], 'deny': []},
+            'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c', 'raise SystemExit(1)']}],
+            'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
+            'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+        self.save('card.json', card)
+        self.card = card
+        self.cli = ['node', SOURCE / 'workbench/src/gates/cli.ts', '--state', self.state]
+        ready = self.control / 'ready.json'
+        argv = ['node', SOURCE / 'workbench/tests/startup_shutdown_host.ts', SOURCE, self.state, self.control, ready]
+        self.host_stdout = (self.case / 'host.stdout.txt').open('xb')
+        self.host_stderr = (self.case / 'host.stderr.txt').open('xb')
+        self.host = subprocess.Popen(list(map(str, argv)), cwd=SOURCE, env=self.env,
+            stdout=self.host_stdout, stderr=self.host_stderr, start_new_session=True)
+        self.save('host-launch.json', {'pid': self.host.pid, 'argv': list(map(str, argv))})
+        self.wait(lambda: ready.exists(), 'Host did not reach ready')
+        self.ready = json.loads(ready.read_text(encoding='utf-8'))
+        self.call('card_save', '--task', self.task, '--card', self.case / 'card.json', '--expected-version', '0')
+        self.call('create', '--task', self.task, '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', self.task)
+
+    def save(self, name, value):
+        with (self.case / name).open('x', encoding='utf-8') as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2); stream.write('\n')
+
+    def process(self, argv, *, cwd=None):
+        return self.log.run(argv, cwd=cwd or SOURCE, env=self.env, timeout=20)
+
+    def call(self, command, *values, check=True):
+        result = self.process([*self.cli, command, *values]); value = command_json(result)
+        if check:
+            self.assertEqual(result.returncode, 0, result.evidence)
+            self.assertIs(value.get('ok'), True, value)
+        return value
+
+    def wait(self, condition, message):
+        deadline = time.monotonic() + 10
+        while not condition():
+            if self.host.poll() is not None or time.monotonic() > deadline:
+                raise RuntimeError(message)
+            time.sleep(0.02)
+
+    def begin_run(self, wait_seconds):
+        argv = [*self.cli, 'run', '--task', self.task, '--runtime-mode', 'workspace-write', '--wait-seconds', str(wait_seconds)]
+        self.run_process = subprocess.Popen(list(map(str, argv)), cwd=SOURCE, env=self.env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        self.save('run-launch.json', {'pid': self.run_process.pid, 'argv': list(map(str, argv))})
+        def bound():
+            value = self.call('status', '--task', self.task)['task']
+            attempt = value.get('current_attempt')
+            if value['state'] != 'claimed' or not attempt or attempt['runtime_identity']['leader_pid'] is None:
+                return False
+            self.initial = value; return True
+        self.wait(bound, 'Run did not reach the claimed, leader-bound boundary')
+        self.attempt = self.initial['current_attempt']; self.thread = self.attempt['thread_id']
+        self.save('before-first-input.json', self.initial)
+        self.assertIsNone(self.attempt['runtime_identity']['native_session'])
+        self.assertEqual(list((self.control / 'home/sessions').glob('*.jsonl')), [])
+        self.assertIsNone(self.run_process.poll())
+
+    def finish_run(self):
+        if self.run_process is not None and self.run_result is None:
+            stdout, stderr = self.run_process.communicate(timeout=15)
+            self.run_result = {'exit': self.run_process.returncode, 'stdout': stdout, 'stderr': stderr}
+            if stdout: self.run_result['reply'] = json.loads(stdout)
+            self.save('run-reply.json', self.run_result)
+        return self.run_result
+
+    def readback(self, name, *, archive_after_stop=False):
+        database = self.state / 'state.sqlite3'
+        archive = None
+        if archive_after_stop:
+            self.assertEqual(self.host.poll(), 0, 'The writer must exit before its final database is archived')
+            self.assertFalse((self.state / 'daemon.pid').exists())
+            self.assertFalse((self.state / 'control.sock').exists())
+            archive = archive_stopped_database(self.state, self.case / (Path(name).stem + '.sqlite3'))
+            database = Path(archive['path'])
+        else:
+            self.assertIsNone(self.host.poll(), 'A live snapshot requires its original writer to remain available')
+        with contextlib.closing(sqlite3.connect(database.as_uri() + '?mode=ro', uri=True)) as db:
+            db.row_factory = sqlite3.Row
+            tables = {table: [dict(row) for row in db.execute('SELECT * FROM ' + table)]
+                      for table in ('tasks', 'attempts', 'runs', 'events', 'orchestration_events')}
+        self.save(name, {'database': str(database), 'source_database': str(self.state / 'state.sqlite3'),
+                         'phase': 'after-writer-exit-archive' if archive_after_stop else 'before-host-stop',
+                         'archive': archive, 'tables': tables})
+        return tables
+
+    def assert_stopped_without_acceptance(self, expected_error=None):
+        result = self.finish_run()
+        self.assertEqual(result['exit'], 1, result)
+        self.assertIs(result['reply']['ok'], False)
+        if expected_error: self.assertEqual(result['reply']['error'], expected_error)
+        self.host.wait(timeout=10)
+        self.assertEqual(self.host.returncode, 0)
+        self.assertFalse((self.state / 'control.sock').exists())
+        self.assertFalse((self.state / 'daemon.pid').exists())
+        tables = self.readback('after-stop.json', archive_after_stop=True)
+        task = json.loads(tables['tasks'][0]['data'])
+        self.assertEqual(task['state'], 'claimed')
+        self.assertIsNone(task['candidate_commit'])
+        self.assertFalse(task['current_attempt']['reclaimed'])
+        self.assertEqual([row['type'] for row in tables['events']].count('run_finished'), 1)
+        self.assertFalse(any(row['type'] in ('verified', 'integrated') for row in tables['events']))
+        run = json.loads(tables['runs'][0]['data'])
+        self.assertNotEqual(run['outcome'], 'completed')
+        self.assertEqual([row['type'] for row in tables['orchestration_events']].count('pane_exit'), 1)
+
+    def test_native_binds_after_first_input(self):
+        self.begin_run(30)
+        self.call('pane_release', '--thread', self.thread, '--reason', 'scripted initial leader independently supplied; no native log before first input')
+        def native_bound():
+            task = self.call('status', '--task', self.task)['task']
+            identity = task['current_attempt']['runtime_identity']
+            if identity['native_session'] is None: return False
+            self.after = task; return True
+        self.wait(native_bound, 'Run did not bind the first observable native session')
+        self.save('after-first-input.json', self.after)
+        expected = {**self.attempt['runtime_identity'], 'native_session': self.ready['native']}
+        self.assertEqual(self.after['current_attempt']['runtime_identity'], expected)
+        self.assertEqual(self.after['state'], 'claimed')
+        self.assertIsNone(self.run_process.poll())
+        writes = [json.loads(line) for line in (self.control / 'pty.jsonl').read_text(encoding='utf-8').splitlines()]
+        self.assertEqual([row['native_log_existed'] for row in writes if row['type'] == 'write'], [False, False])
+
+    def test_stop_during_waiting_submit(self):
+        self.begin_run(30)
+        self.readback('at-stop-request.json')
+        reply = self.call('daemon_stop', check=False); self.save('stop-under-test.json', reply)
+        self.assertIs(reply.get('ok'), True, 'Owned daemon must stop with a waiting run; reply=' + json.dumps(reply))
+        self.assert_stopped_without_acceptance()
+
+    def test_stop_during_deadline_cleanup(self):
+        self.begin_run(1)
+        self.wait(lambda: (self.control / 'idle-wait-entered.json').exists(), 'Run did not reach its deadline cleanup wait')
+        self.assertIsNone(self.run_process.poll())
+        self.save('deadline-cleanup-boundary.json', json.loads((self.control / 'idle-wait-entered.json').read_text(encoding='utf-8')))
+        self.readback('at-stop-request.json')
+        reply = self.call('daemon_stop', check=False); self.save('stop-under-test.json', reply)
+        self.assertIs(reply.get('ok'), True, 'Owned daemon must stop after run deadline; reply=' + json.dumps(reply))
+        self.assert_stopped_without_acceptance(expected_error='run_deadline')
+
+    def test_stop_drains_existing_gate_before_final_event(self):
+        task = self.task + '-second'
+        self.save('second-card.json', {**self.card, 'id': task})
+        self.call('card_save', '--task', task, '--card', self.case / 'second-card.json', '--expected-version', '0')
+        (self.control / 'hold-create').write_text('pause an already-started gate\n', encoding='utf-8')
+        argv = [*self.cli, 'create', '--task', task, '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', self.task]
+        self.mutation_process = subprocess.Popen(list(map(str, argv)), cwd=SOURCE, env=self.env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        self.save('create-launch.json', {'pid': self.mutation_process.pid, 'argv': list(map(str, argv))})
+        self.wait(lambda: (self.control / 'create-entered').exists(), 'Create did not reach the controlled active-gate boundary')
+        reply = self.call('daemon_stop', check=False); self.save('stop-under-test.json', reply)
+        self.assertIs(reply.get('ok'), True, 'An existing gate must drain during explicit shutdown, without a busy rejection')
+        self.assertIsNone(self.host.poll(), 'Stores remain available to the existing gate until its result is durable')
+        # An explicit stop can still serve a refusal, or have already closed
+        # its listener. Neither observation may accept a new request.
+        refusal = self.process([*self.cli, 'daemon_status'])
+        self.assertEqual(refusal.returncode, 1, refusal.evidence)
+        if refusal.stdout:
+            self.assertEqual(command_json(refusal).get('error'), 'daemon_stopping')
+        (self.control / 'release-create').write_text('allow the original gate to finish\n', encoding='utf-8')
+        self.finish_mutation()
+        self.host.wait(timeout=10); self.assertEqual(self.host.returncode, 0)
+        self.assertFalse((self.state / 'control.sock').exists()); self.assertFalse((self.state / 'daemon.pid').exists())
+        tables = self.readback('after-stop.json', archive_after_stop=True)
+        events = [{**row, 'data': json.loads(row['data'])} for row in tables['orchestration_events']]
+        completed = [row for row in events if row['type'] == 'request_result' and row['data'].get('command') == 'create']
+        ended = [row for row in events if row['type'] == 'daemon_stopped']
+        self.assertEqual(len(completed), 2); self.assertEqual(len(ended), 1)
+        ordering = {'create_request_result_seq': completed[-1]['seq'], 'daemon_stopped_seq': ended[0]['seq']}
+        self.artifact['shutdown_order'] = ordering; self.save('shutdown-order.json', ordering)
+        self.assertGreater(ordering['daemon_stopped_seq'], ordering['create_request_result_seq'],
+            'daemon_stopped must follow the last existing gate result, not precede it')
+        self.assertTrue(all(json.loads(row['data'])['state'] == 'ready' for row in tables['tasks']))
+        self.assertFalse(any(row['type'] in ('verified', 'integrated') for row in tables['events']))
+
+    def finish_mutation(self):
+        if self.mutation_process is None: return
+        stdout, stderr = self.mutation_process.communicate(timeout=15)
+        result = {'exit': self.mutation_process.returncode, 'stdout': stdout, 'stderr': stderr}
+        self.save('create-reply.json', result); self.mutation_process = None
+        self.assertEqual(result['exit'], 0, result)
+        self.assertIs(json.loads(stdout)['ok'], True)
+
+    def cleanup(self):
+        try:
+            if self.host is not None and self.host.poll() is None:
+                if self.mutation_process is not None:
+                    if not (self.control / 'release-create').exists():
+                        (self.control / 'release-create').write_text('fixture cleanup\n', encoding='utf-8')
+                    self.finish_mutation()
+                # End the scripted runtime only to release the original request
+                # during test cleanup. Preserve the rejected stop above.
+                (self.control / 'runtime-failure').write_text('fixture cleanup only\n', encoding='utf-8')
+                self.finish_run()
+                self.readback('before-cleanup-stop.json')
+                reply = self.call('daemon_stop'); self.save('cleanup-stop.json', reply)
+                self.host.wait(timeout=10)
+            self.artifact['host_exit'] = self.host.returncode if self.host is not None else None
+            if self.host is not None and self.host.returncode != 0:
+                raise RuntimeError('Owned deterministic host failed during cleanup')
+            self.artifact['run_result'] = self.run_result
+        finally:
+            if getattr(self, 'host_stdout', None): self.host_stdout.close()
+            if getattr(self, 'host_stderr', None): self.host_stderr.close()
+
+
+def main():
+    global SOURCE, OUT
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--case', choices=['all', 'ordering'], default='all')
+    args = parser.parse_args(); SOURCE = args.source.resolve(); OUT = args.output.resolve()
+    OUT.mkdir(parents=True, exist_ok=False)
+    with (OUT / 'stdout.txt').open('x', encoding='utf-8') as stdout, (OUT / 'stderr.txt').open('x', encoding='utf-8') as stderr:
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            suite = unittest.defaultTestLoader.loadTestsFromTestCase(StartupShutdown) if args.case == 'all' else unittest.TestSuite([
+                StartupShutdown('test_stop_drains_existing_gate_before_final_event')])
+            result = unittest.TextTestRunner(verbosity=2).run(suite)
+    record = {'status': 'PASS' if result.wasSuccessful() else 'INCOMPLETE', 'source': str(SOURCE),
+        'argv': sys.argv, 'tests_run': result.testsRun, 'real_codex_turns': 0,
+        'failures': [{'test': test.id(), 'text': value} for test, value in result.failures],
+        'errors': [{'test': test.id(), 'text': value} for test, value in result.errors], 'skipped': result.skipped,
+        'artifacts': ARTIFACTS, 'evidence_layer': 'real CLI/daemon/gates/Git/SQLite; PTY and process observer simulated'}
+    with (OUT / 'test-result.json').open('x', encoding='utf-8') as stream:
+        json.dump(record, stream, ensure_ascii=False, indent=2); stream.write('\n')
+    with tarfile.open(OUT / 'fixtures.tar.gz', 'x:gz') as archive:
+        for item in ARTIFACTS: archive.add(item['root'], arcname=Path(item['root']).name)
+    with (OUT / 'run.json').open('x', encoding='utf-8') as stream:
+        json.dump(record, stream, ensure_ascii=False, indent=2); stream.write('\n')
+    print(json.dumps({'status': record['status'], 'tests_run': result.testsRun,
+                      'failures': len(result.failures), 'errors': len(result.errors), 'real_codex_turns': 0}))
+    return 0 if result.wasSuccessful() else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

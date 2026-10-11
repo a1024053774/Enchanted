@@ -20,7 +20,7 @@ set -euo pipefail
 # template. Planned real main turns=2, hard limit=3; third requires controller.
 
 if (( $# != 2 )); then
-  print -u2 'usage: zsh outside-sandbox.sh <red-focused|red-mutants|green-focused|green-attachments|green-checker-counterfactuals|real-two-turns|green-regression|green-mutants> <new-label>'
+  print -u2 'usage: zsh outside-sandbox.sh <red-focused|red-mutants|red-startup-shutdown|green-startup-shutdown|green-focused|green-attachments|green-checker-counterfactuals|real-two-turns|green-regression|green-mutants> <new-label>'
   exit 2
 fi
 typeset -r a2a_t076_card="${0:A:h}"
@@ -42,6 +42,10 @@ case "$1" in
       --baseline "$a2a_t076_baseline" --phase mutants \
       --recorded "$a2a_t076_root/evidence/2026-10-10-batch12/T-075/card-4/outside-live-04/lifecycle" \
       --output "$a2a_t076_card/$a2a_t076_label"
+    ;;
+  red-startup-shutdown|green-startup-shutdown)
+    exec python3 -B "$a2a_t076_root/workbench/tests/run_t076_startup_shutdown.py" \
+      --mode "${1%%-*}" --output "$a2a_t076_card/$a2a_t076_label"
     ;;
   green-focused|green-attachments|green-checker-counterfactuals|green-regression|green-mutants)
     exec python3 -B "$a2a_t076_root/workbench/tests/run_t076_green.py" \
