@@ -1,6 +1,6 @@
 # T-074-1：Codex R6/R7 事实交付（2026-10-10）
 
-> 最新状态见文末“ready_rev 2 本轮交付”。前文保留旧轮次记录；旧的“只差 Claude 认证”已被本轮结果取代。
+> 最新状态见文末“ready_rev 3 本轮交付”：BLOCKED，两家的旧 Stop 均漏放竞态 B。前文按轮次保留；旧的认证阻断和权限 hook 完整生命周期要求已被后续决定取代。
 
 **BLOCKED。Codex 部分的事实采集已按执行主控决定 01 完成；完整 T-074 只差 Claude 的隔离认证与真实实验。T-075 的统一窗格派发方式需要设计决定。** 本轮未启动 Claude，未开始 T-075，未设成功率门槛。
 
@@ -174,3 +174,89 @@ python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/pro
 ```
 
 历史真实入口：probe-rev2.py（启动）、rev2-runner.py（M3 与本次原生记录核对）、hook-probe-rev2.py（hook 前后与 Esc 操作）、hook-record.py（只追加）、archive.py / archive-rev2.py（归档）。真实重放须在主控决定后指定新标签、当前模型与剩余额度；本轮已经停止，不继续执行这些真实入口。过去的 source/argv 仍是固定版本的证据，不作为新会话模型配置的授权。
+
+## ready_rev 3 本轮交付（2026-10-11 UTC）
+
+**BLOCKED，待主控关闭。** 普通空闲样本两家各 5/5 完整送达；每家两种竞态中，开始 hook 已到达的 B 排队，开始 hook 尚未到达的 B 被旧 Stop 放行。按决定 03 第 4 节停止追加试验；没有开始 T-075、增加重试或擅自补本地 pending 状态。已报 blocking issue `20261011T014740Z-worker:s12-t074-issue-001`，决定请求见 [needs-decision-04](needs-decision-04.md)。
+
+### 绑定、模型与实际用量
+
+- 任务仍为 T-074-1，ready_rev 3；起点 `d732b8ebecaa42b8c4fa5843a43d1d292ae19b58`。依据主控 #9、ticket“修订 rev 3”、spec 第 6 节与 [执行主控决定 03](controller-decision-03.md)。本卡未提供受管 attempt/session/fence，未伪造门禁提交；本次明确交付为 a2a commit 与 DONE 行，ticket 保持 open。
+- 本轮 Codex 的原生 turn_context / hook model 均为 **gpt-6-astra**；启动为 0.162.1、xhigh、Fast 请求、workspace-write / on-request。供应商实际 tier 仍 unknown。rev 1 / rev 2 的 Codex 结论来自 **gpt-6.1-sol**，不能混写成 Astra 的结果。
+- Claude 2.1.296 的成功原生响应均为 **claude-haiku-5-5**，manual 模式，普通 CLI 登录；每会话 `--settings` 只添加记录 hook 与夹具命令规则。未读写凭据，未由探针写全局设置。两个新夹具的信任选择记录在各自 startup-trust.json。
+- Codex 本轮主 turn 7 + 2 = 9，累计 **32/40**。Claude 本轮原生用户记录有 8 + 3 = 11 个不同 promptId，含 gap B 在 Esc 后进入记录的另一个 promptId；加此前保守计 11，共 **22/25**。不拿 hook 次数代替原生回合数。原生 token usage 按会话列于 [analysis-rev3.json](analysis-rev3.json)，未将供应商用量推算为费用或收益。
+- [controller-review-rev2.md](controller-review-rev2.md) 已补记本 worker 会话中断、切换 gpt-6-astra xhigh、收到无标记“继续”的人工介入；按共同规则该“继续”来自用户。旧探针在切换前已停，切换影响旧轮收尾；本轮新被测 Codex 才按新决定使用 Astra。
+
+### 结构化事件与回合对应关系
+
+observed / measured：两家均取得 UserPromptSubmit、Stop；记录器只将原始 stdin 与收到时刻追加、fsync，stdout 为无决定的 `{}`。Codex 的 Stop 协议要求 JSON 响应，未输出批准、拒绝或续跑决定。PermissionRequest 只作四次批准出现后发送 Esc 的诊断点，不参与空闲门禁。完整 argv、hook 定义、会话身份与版本保存在四个 rev3-* 目录的 launch.json。
+
+| 会话 | 原生回合计数 | UserPromptSubmit | Stop | PermissionRequest |
+| --- | ---: | ---: | ---: | ---: |
+| rev3-codex-main | 7 | 7 | 6 | 1 |
+| rev3-codex-gap | 2 | 3 | 1 | 1 |
+| rev3-claude-main | 8 | 10 | 7 | 1 |
+| rev3-claude-gap | 3 | 3 | 1 | 1 |
+
+Codex 带 session_id / turn_id / model，Claude 带 session_id / prompt_id / effort；公共数据包括 cwd、transcript_path、hook_event_name，开始含 prompt，结束含 last_assistant_message。完整字段集在离线分析，不把它们改称审批 request_id。
+
+**不能按“一条开始就是一个新回合”计数，也不能保证开始/结束标识逐一配对。** Codex gap 的 A/B 两条开始共用 turn_id。Claude 的 #506/#507/#508 三条开始共用 prompt_id，只有一个正常 Stop；此外五条普通空闲样本里，#501/#502/#503/#505 的开始 hook prompt_id 与该文本对应的原生 promptId 不同。例如 #501 hook 带前一条就绪消息的 `e49654ad-7059-480e-95ba-44598cacbbeb`，原生消息和随后 Stop 则为 `ea4dbe38-4e3a-45d9-bc67-d2331442656b`。数据联结按输入原文核对，不按模型回答或相邻行猜测。
+
+四个被 Esc 关闭的 A 都没有 Stop。正常时序的两窗继续观察约 60 秒后仍无 Stop；gap 两窗完成原生关闭与消息观察后即停止，不把这个更短截止点写成也观察了 60 秒。Codex 有 turn_aborted / interrupted，Claude 有对应 Bash tool_use_id 的 is_error=true 拒绝结果；没有用它们代替已选 Stop 门禁。
+
+文档边界：[Codex UserPromptSubmit](https://learn.chatgpt.com/docs/hooks#userpromptsubmit)、[Codex Stop](https://learn.chatgpt.com/docs/hooks#stop)、[Claude UserPromptSubmit](https://code.claude.com/docs/en/hooks#userpromptsubmit)、[Claude Stop](https://code.claude.com/docs/en/hooks#stop)。Claude Stop 文档明确不覆盖用户中断；本轮另外保留真实中断证据，未将文档代替实测。
+
+### 空闲样本、running 和计数口径
+
+本轮原始文件增加 21 条登记，其中 19 条实际写入、2 条仍排队未写入；旧轮 30 条原样保留，累计登记 51 条。每个实际写入包含原登记、两段字节、各自时刻和事件快照。门禁只读取本原生会话的开始/结束 hook，完整 M3 开始前最近事件必须为 Stop；第一段 bracketed paste，至少 300 ms 后独立 CR。CR 前记录最新事件，按已登记协议没有额外重新判定和取消半条输入。
+
+| CLI | state | outcome | 实际写入 | 次数 |
+| --- | --- | --- | --- | ---: |
+| Codex | idle_gated | ok | 是 | 5 |
+| Codex | race | ok | 是 | 3（两条 A、一条 B） |
+| Codex | race | other | 否 | 1（排队 B） |
+| Claude | idle_gated | ok | 是 | 6（五条样本、sleep 起始任务） |
+| Claude | running | other | 是 | 2 |
+| Claude | race | ok | 是 | 3（两条 A、一条 B） |
+| Claude | race | other | 否 | 1（排队 B） |
+
+observed：两家普通空闲样本各 5/5 原文进入普通原生用户消息。Claude 两条 running 在 `/bin/sleep 15` 期间注入，原生队列随后记录 `absorbed_mid_turn`，两条完整文本分别进入 `attachment.queued_command`，渲染为 system reminder。这证明文字进入本回合，**不是独立普通 user 记录**；因此保留 other，并记录 observed_text、附件类型和原始来源，不算 lost 或独立新回合。running 是决定 03 单独要求的诊断分支，明确绕过空闲限定，不混充 idle 门禁成功。
+
+Claude 此前 7 条、本轮实际 11 条，累计 **18 次实际注入**，满足次数及两次 running 采样要求；另有本轮一条未写入队列记录，不计入 18。未另向 Claude 的批准窗口直接注入，因为本轮要求等待 hook 并 Esc，不得以原票旧三状态措辞自行扩大危险实验；没有因此宣布整体 PASS。
+
+### 两种竞态及停止依据
+
+所有时间为 2026-10-11 UTC。四个预先登记的竞态在第一次 B 结果可知前作为同一批启动；四次 B 尝试均已发生后才获得第一条漏放结果。发现规则挡不住后，只完成已经启动样本的观察、明确 Esc 和清理，没有新增输入样本或重试。
+
+| CLI / 场景 | A 的 CR | A 开始 hook 收到 | B 第一段 | B 的 CR | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| Codex / before_start | 01:43:08.796 | 01:43:09.063998 | 01:43:08.839 | 01:43:09.146 | 旧 Stop 放行；B 原文进入 user.text |
+| Claude / before_start | 01:43:08.793 | 01:43:08.937548 | 01:43:08.828 | 01:43:09.144 | 旧 Stop 放行；B 在 Esc 后进入普通 user 记录 |
+| Codex / after_start | 01:43:08.800 | 01:43:09.063953 | 未写入 | 未写入 | 排队至截止点 63.407061 秒 |
+| Claude / after_start | 01:43:08.804 | 01:43:08.943400 | 未写入 | 未写入 | 排队至截止点 64.491337 秒 |
+
+measured：Codex 提交到开始 hook 的间隔为 267.998 ms，Claude 为 144.548 ms；B 的第一段处于该间隔内。两家到 B 的 CR 前最新事件都已变为 UserPromptSubmit。这个结果同时暴露“开始事件传输延迟”与“M3 分段期间事件变化”，不证明单在 CR 前重查就能消除所有竞态，也不授权 worker 自行改协议。
+
+四个 PermissionRequest 分别在 01:43:12.398377（Codex main）、01:43:13.574783（Codex gap）、01:43:13.366029（Claude main）、01:43:13.088967（Claude gap）收到；随后每窗恰好一次 Esc。四个夹具标记文件始终不存在。本轮无新增 taken_as_approval，**rev 1 的 Accept 实例仍是有效危险反例**。不得把“本轮 B 送达”解释为门禁通过：验收要求该时序把 B 排队，实际未挡住。
+
+### 失败证据、检查与交付边界
+
+- ticket 失败方式继续逐项保留：本轮固定 CLI、关闭更新；Claude 信任夹具提示在独立记录中明确选择；中文和标记逐字核对；运行中的文字呈附件而非独立消息；M3 两段原始字节和间隔保留。多行与其他粘贴模式未新增验证，旧 M1/M2 结果不改写。批准代答旧反例单列，本轮四次只发 Esc。
+- 首次离线分析因 harness-control 行没有 id 而 KeyError，原脚本与失败保留在 analyze-rev3-before-control-record-fix.py.txt / analysis-rev3-failure.json；修正记录类型后再核对归档，没有改原始事件。
+- running 初次观察器只识别普通 user，后来从原生附件补回 observed_text，仍为 other；更正前 canonical 文件和每窗最初 observations 均保留。排队时长初版误填“开始观察后的时长”，现按 cutoff_at − queued_at 更正为上表值，原 observation_seconds、原 canonical 和原 runner 都保留。字段校正没有追加模型调用。离线收尾检查首次 glob 误把保留的 .txt 当目录，异常保留在 checks-rev3-failure.json，限定目录后重跑通过。
+- [analysis-rev3.json](analysis-rev3.json) 来自离线核对登记、写入、原生消息与 hook 的脚本；脚本退出 0 表示证据一致，报告状态仍为 BLOCKED。预期来自决定 03，不用探针输出设门禁成功标准。两个真实漏放就是该规则的反例。按任务卡不另开独立审查；执行主控核对原始记录，不能把 worker 自检称为独立验收。
+- 最晚本轮宿主于 01:44:13.444Z 停止，归档前核对自有路径没有存活进程；01:45:48Z 删除两个完整隔离 CODEX_HOME，未把 auth.json 放入证据。Claude 只归档本轮明确指定的两个 session JSONL，夹具保留。未改产品、scripts、共享配置、Synara、Herdr server 或他人的任务。
+
+离线重放（不调用模型）：
+
+```sh
+python3 -B evidence/2026-10-10-batch12/T-074/analyze-rev3.py
+python3 -c "import json,collections;c=collections.Counter((r['cli'],r.get('ready_rev',1),r.get('method'),r['state'],r['outcome'],r.get('written',True)) for r in map(json.loads,open('evidence/2026-10-10-batch12/T-074/r7-injections.jsonl')));[print(*k,v) for k,v in sorted(c.items())]"
+python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .
+```
+
+原始采样入口留作复现说明，**当前停止条件下不再执行**：每个 label 由 `python3 .../probe-rev3.py <新label> --cli codex|claude` 创建，宿主实际 argv 在各 launch.json；空闲批用 `python3 .../rev3-runner.py idle5 <label> --sequence 401`（Claude 为 501）。竞态原命令分别为 `python3 .../race-rev3.py rev3-codex-main after_start 406`、`rev3-codex-gap before_start 408`、`rev3-claude-main after_start 509`、`rev3-claude-gap before_start 511`；需新授权、新 label，不能覆盖旧目录。原始消息与控制操作的精确输入见 registrations.jsonl / writes.jsonl。
+
+inferred：spec 第 6 节至少需要明确提交中的状态、分段发送与中断恢复的合约，或暂缓主控自动注入。unknown：其他结构化接口或新设计是否能消除窗口，本轮未验证。本 worker 只上报设计缺口，ticket 保持 open、Acceptance 不勾选，等待主控处理。
+
+收尾核对：[checks-rev3.json](checks-rev3.json) 记录原生归档分析、Python 语法、Node 语法、76 个 JSON/JSONL 文件、UTF-8、旧 30 行注入原样保留及自有资源清理；均通过。project-map status 为 Problems (0)、Stale living docs (0)。这不改变 BLOCKED 的业务结论。检查入口 `python3 -B evidence/2026-10-10-batch12/T-074/checks-rev3.py` 写独占结果文件；重放时须保存新的输出路径，不能覆盖原收尾证据。

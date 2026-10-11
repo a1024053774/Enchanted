@@ -75,3 +75,9 @@ ready_rev: 3
 本轮新增 14 条 R7，累计原始文件 30 条。Codex 累计 23/30 主 turn；Claude 原生输入回合 10，首次无记录启动保守多计 1，共 11/15。实际成功模型为 claude-haiku-5-5，认证已解决；所有探针已停，隔离 CODEX_HOME 已删除，Claude 夹具按要求保留。新会话模型切换发生在本轮模型探针停止之后，收尾未再调用模型。
 
 本轮证据：[RESULTS 新增 rev 2 节](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[原生归档核对](../../evidence/2026-10-10-batch12/T-074/analysis-rev2.json)、[needs-decision-03](../../evidence/2026-10-10-batch12/T-074/needs-decision-03.md)。blocking issue `20261011T011326Z-worker:s12-t074-issue-001` 已交 triage。spec 第 6 节的 worker 不问方式有样本证据，主控恢复派发条件仍需设计决定；T-075 不由本 worker 开始。保持 open，整票 Acceptance 不提前勾选。
+
+2026-10-11 UTC，ready_rev 3 / 执行主控决定 03 本轮交付 **BLOCKED，待主控关闭**。Codex 0.162.1 / gpt-6-astra xhigh Fast 请求、Claude 2.1.296 / claude-haiku-5-5，各五条普通空闲 M3 消息完整送达；两家各做两种竞态。开始事件已到时 B 排队；A 已提交但开始事件未到时，两家都被旧 Stop 放行 B。窗口分别为 267.998 ms 与 144.548 ms，已触发“规则挡不住”停止条件。四个已启动批准请求均 Esc 结束，未产生夹具文件，没有追加试验。正常时序两窗中断后约 60 秒仍无 Stop，队列没有恢复。
+
+UserPromptSubmit 不与原生回合一一对应：两家均观察到同回合多条开始事件；Claude 另有四条空闲样本的 hook prompt_id 与对应原生 promptId 不同。Claude 两条 running 输入完整进入 queued_command 附件，未成为独立普通 user 记录，记 other；Claude 累计 18 次实际注入，另有一条排队未写入记录。Codex 累计 32/40 主 turn，Claude 含此前保守计数累计 22/25。本轮进程已停、Codex 临时 home 已删除、Claude 夹具保留。人工介入补记已在 RESULTS 引用 controller-review-rev2.md。
+
+本轮证据：[RESULTS rev 3](../../evidence/2026-10-10-batch12/T-074/RESULTS.md)、[原生归档核对](../../evidence/2026-10-10-batch12/T-074/analysis-rev3.json)、[needs-decision-04](../../evidence/2026-10-10-batch12/T-074/needs-decision-04.md)。blocking issue `20261011T014740Z-worker:s12-t074-issue-001` 已交 triage。spec 第 6 节主控自动注入需要设计决定；worker 不问的旧样本证据保留。未开始 T-075，保持 open，Acceptance 不提前勾选。
