@@ -75,3 +75,24 @@ T-075-1：门禁迁移、隔离验收和一次 fresh-context 独立审查均 PAS
 - 完整报告、重现命令及证据索引见 [T-075-2 RESULTS](../../evidence/2026-10-10-batch12/T-075/card-2/RESULTS.md)；最终回归收据为 `card-2/outside-review-green.SC1xPN`。地图检查 0 problems、0 stale；`workbench/README.md` 的地图登记由执行主控在最终提交后处理。
 
 接下来：T-075-3，编排后台与 Codex 窗格，跑通真实交付；随后 T-075-4 最小 Electron 窗口。
+
+**T-075-2 执行主控验收（2026-10-11）：卡片通过，ticket 仍 open（4 张卡中的第 2 张）。** 交付 a2a `1273b17`（实现）、`3386c4c`（审查修复）、`1eb748c`（证据），提交均带 9 项尾注。
+
+门禁新增的行为：
+- 任务卡：用 `card_template`、`card_validate`、`card_save`、`card_show` 生成、校验和保存。任务卡是 JSON，13 个字段，完成条件写成 argv 命令。注册任务时拍快照，起点提交和唯一写入者在认领时绑定。
+- 路径边界检查。
+- 提交尾注核对：外来任务的尾注一律拒收；没有尾注的提交记为人工介入，标“推断：缺尾注”，不阻止集成。
+- 集成：用 Git 引用事务加双树快进，从工作分支 G 用 CAS 推进到 M。会覆盖未提交改动时拒收，不 stash，也不 reset。`refs/a2a/integration` 已停用。
+
+验证（沙箱外由执行主控代跑，收据见 `evidence/2026-10-10-batch12/T-075/card-2/outside-*`）：
+- 既有三套测试（8/9/18）全部通过。断言只改了 A1–A10 白名单里的项，我抽查过 diff。
+- 新增正例共 52 项，全部通过。
+- 路径、外来尾注、未提交改动保护、快进、CAS 五个变异体都在业务断言上失败，0 errors。
+- 三个 Git 中断窗口探针 182/182 通过。
+- 独立审查 FAIL 一项，问题是“中断时复用了上一条完成条件的结果”。先拿到红态，再用两行修复，修复 diff 我审过。
+
+收尾：
+- `workbench/README.md` 已登记为 living doc。
+- 打分已记入 `records/scores.jsonl`。
+
+下一张：T-075-3，做编排后台、Codex 窗格和一次真实交付。
