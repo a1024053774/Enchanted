@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Start one interactive Codex worker in a new Herdr pane and record its identity."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+import sys
+import uuid
+
+from launch_records import validate_launches
+from record_io import append_record, locked, read_records, token, utc_now
+
+
+def output(argv, cwd=None):
+    return subprocess.check_output(argv, cwd=cwd, text=True).strip()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--cwd", type=Path, required=True)
+    parser.add_argument("--agent", required=True)
+    for name in ("project", "task", "attempt", "session"):
+        parser.add_argument("--" + name, required=True, type=token)
+    parser.add_argument("--model", default="gpt-6.1-sol")
+    parser.add_argument("--effort", choices=("low", "medium", "high", "xhigh"), default="xhigh")
+    parser.add_argument("--direction", choices=("right", "down"), default="down")
+    parser.add_argument("--codex-home", type=Path)
+    args = parser.parse_args()
+    if os.environ.get("HERDR_ENV") != "1":
+        raise ValueError("只能从 Herdr 管理的 pane 启动")
+    if re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", args.agent) is None:
+        raise ValueError("agent 名不符合 Herdr 格式")
+    if not args.model or "\n" in args.model:
+        raise ValueError("模型不能为空或包含换行")
+    if os.environ.get("GIT_CONFIG_COUNT", "0") != "0":
+        raise ValueError("调用环境已有进程级 Git 配置；不能覆盖，请从普通主控 shell 启动")
+    root, cwd = args.root.resolve(), args.cwd.resolve()
+    hooks = Path(__file__).resolve().parent / "git-hooks"
+    role_card = root / ".project-map/roles/worker.md"
+    role_card.read_bytes().decode("utf-8")
+    launch_id = "launch-" + uuid.uuid4().hex
+    argv = ["codex", "-m", args.model, "-c", "model_reasoning_effort=" + json.dumps(args.effort),
+            "-c", 'service_tier="fast"', "-c", "check_for_update_on_startup=false",
+            "--sandbox", "workspace-write", "--ask-for-approval", "on-request"]
+    logfile = root / "records/launches.jsonl"
+    lockfile = root / "records/.launches.lock"
+    row = dict(schema=1, phase="prepared", launch_id=launch_id, created_at=utc_now(),
+               project=args.project, task=args.task, attempt=args.attempt, session=args.session,
+               role="worker", cli="codex", cli_version=output(["codex", "--version"]),
+               model=args.model, effort=args.effort, service_tier_requested="fast", argv=argv,
+               cwd=str(cwd), project_commit=output(["git", "rev-parse", "HEAD"], cwd),
+               launcher_commit=output(["git", "rev-parse", "HEAD"], Path(__file__).resolve().parents[1]),
+               role_card=str(role_card), role_card_version=output(["git", "log", "-1", "--format=%H", "--",
+                                                                ".project-map/roles/worker.md"], root),
+               native_session="unknown")
+    with locked(lockfile):
+        validate_launches([*read_records(logfile), row])
+        append_record(logfile, row)
+    pane = None
+
+    def invoke(command, *, json_response=True):
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode:
+            print(result.stdout, end="")
+            print(result.stderr, end="", file=sys.stderr)
+            raise subprocess.CalledProcessError(result.returncode, command)
+        return json.loads(result.stdout) if json_response else result.stdout
+
+    try:
+        response = invoke(["herdr", "pane", "split", "--current", "--direction", args.direction,
+                           "--cwd", str(cwd), "--no-focus"])
+        pane = response["result"]["pane"]["pane_id"]
+        env = {"A2A_PROJECT": args.project, "A2A_TASK": args.task, "A2A_ATTEMPT": args.attempt,
+               "A2A_SESSION": args.session, "A2A_ROLE": "worker", "A2A_LAUNCH": launch_id,
+               "A2A_LAUNCHES": str(logfile), "GIT_CONFIG_COUNT": "1",
+               "GIT_CONFIG_KEY_0": "core.hooksPath", "GIT_CONFIG_VALUE_0": str(hooks)}
+        if args.codex_home is not None:
+            env["CODEX_HOME"] = str(args.codex_home.resolve(strict=True))
+        invoke(["herdr", "pane", "run", pane, "export " + " ".join(
+            key + "=" + shlex.quote(value) for key, value in env.items())], json_response=False)
+        start_argv = ["herdr", "agent", "start", args.agent, "--kind", "codex", "--pane", pane,
+                      "--", *argv[1:]]
+        started = invoke(start_argv)
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as exc:
+        failure = dict(row, phase="failed", pane=pane, error=str(exc), observed_at=utc_now())
+        with locked(lockfile):
+            validate_launches(read_records(logfile))
+            append_record(logfile, failure)
+        print(f"启动未完成，保留 pane={pane}，launch={launch_id}，不得盲目重试：{exc}", file=sys.stderr)
+        return exc.returncode if isinstance(exc, subprocess.CalledProcessError) else 1
+    row = dict(row, phase="started", pane=pane, agent=args.agent, herdr_start_argv=start_argv,
+               herdr_result=started, observed_at=utc_now())
+    with locked(lockfile):
+        validate_launches(read_records(logfile))
+        append_record(logfile, row)
+    print(json.dumps(dict(launch_id=launch_id, pane=pane, agent=args.agent, argv=argv), ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as exc:
+        print("启动入口拒绝：" + str(exc), file=sys.stderr)
+        sys.exit(1)

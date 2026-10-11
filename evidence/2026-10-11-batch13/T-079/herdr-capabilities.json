@@ -1,0 +1,432 @@
+{
+  "commands": [
+    {
+      "argv": [
+        "herdr",
+        "--version"
+      ],
+      "stdout": "herdr 0.9.3\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "herdr",
+        "pane",
+        "--help"
+      ],
+      "stdout": "Control terminal panes\n\nUsage: herdr pane [COMMAND]\n\nCommands:\n  list                  List panes\n  current               Show the current pane\n  get                   Show a pane\n  layout                Show pane layout information\n  process-info          Show pane process information\n  neighbor              Find a pane neighbor\n  edges                 Show pane edge information\n  focus                 Focus a neighboring pane\n  resize                Resize a pane split\n  zoom                  Toggle or set pane zoom\n  read                  Read pane terminal output\n  rename                Rename a pane\n  input                 Set pane input routing\n  split                 Split a pane\n  swap                  Swap panes\n  move                  Move a pane\n  close                 Close a pane\n  send-text             Send literal text to a pane\n  send-keys             Send key presses to a pane\n  wait-output           Wait for matching pane output\n  run                   Run a command in a pane\n  report-agent          Report pane agent lifecycle state\n  report-agent-session  Report pane agent session identity\n  release-agent         Release pane agent lifecycle authority\n  report-metadata       Report display-only pane metadata\n\nAre you an AI? Use these resources ONLY IF your task specifically asks you to:\n  Help a human understand or set up Herdr for the first time:\n    https://herdr.dev/agent-guide.md\n  Debug or investigate a problem with Herdr:\n    https://herdr.dev/llms.txt\n  Control Herdr panes, agents, or workspaces:\n    SKIP if a Herdr skill is already in your context. Otherwise run: herdr --skill\n\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "herdr",
+        "pane",
+        "get",
+        "--help"
+      ],
+      "stdout": "Show a pane\n\nUsage: herdr pane get <pane_id>\n\nArguments:\n  <pane_id>\n\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "herdr",
+        "pane",
+        "split",
+        "--help"
+      ],
+      "stdout": "Split a pane\n\nUsage: herdr pane split [OPTIONS] [PANE_ID]\n\nArguments:\n  [PANE_ID]\n          \n\nOptions:\n      --pane <ID>\n          \n\n      --current\n          \n\n      --direction <DIRECTION>\n          [possible values: right, down]\n\n      --ratio <FLOAT>\n          \n\n      --cwd <PATH>\n          \n\n      --env <KEY=VALUE>\n          Set an environment variable for the launched process\n\n      --right-click <TARGET>\n          [possible values: herdr, pane]\n\n      --focus\n          \n\n      --no-focus\n\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "herdr",
+        "pane",
+        "process-info",
+        "--help"
+      ],
+      "stdout": "Show pane process information\n\nUsage: herdr pane process-info [OPTIONS]\n\nOptions:\n      --pane <ID>\n          \n\n      --current\n\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "herdr",
+        "agent",
+        "start",
+        "--help"
+      ],
+      "stdout": "Start a supported interactive agent in an existing pane\n\nUsage: herdr agent start <NAME> --kind <KIND> --pane <ID> [OPTIONS] [-- [AGENT_ARG]...]\n\nArguments:\n  <NAME>\n          \n\n  [AGENT_ARG]...\n          \n\nOptions:\n      --kind <KIND>\n          Supported agent kind and canonical executable\n          \n          [possible values: pi, claude, codex, gemini, cursor, devin, agy, cline, omp, mastracode, opencode, copilot, kimi, kiro, droid, amp, grok, hermes, kilo, qodercli, qwen, letta, maki, muse]\n\n      --pane <ID>\n          Existing pane at an interactive shell prompt\n\n      --timeout <MS>\n          Wait for interactive readiness (default: 30000; max: 300000)\n\nThe pane must be at its interactive shell prompt. Success means the expected agent was detected in the same terminal and is ready for input.\n\nnext: herdr agent prompt <TARGET> <TEXT> --wait\n\n",
+      "stderr": ""
+    }
+  ],
+  "protocol": 22,
+  "schema_version": 1,
+  "definitions": {
+    "PaneInfo": {
+      "properties": {
+        "agent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "agent_session": {
+          "anyOf": [
+            {
+              "$ref": "#/schemas/success_response/$defs/AgentSessionInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agent_status": {
+          "$ref": "#/schemas/success_response/$defs/AgentStatus"
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display_agent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "focused": {
+          "type": "boolean"
+        },
+        "foreground_cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pane_id": {
+          "type": "string"
+        },
+        "restore_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scroll": {
+          "anyOf": [
+            {
+              "$ref": "#/schemas/success_response/$defs/PaneScrollInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state_labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "tab_id": {
+          "type": "string"
+        },
+        "terminal_id": {
+          "type": "string"
+        },
+        "terminal_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "terminal_title_stripped": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tokens": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "maxProperties": 32,
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_-]{1,32}$"
+          },
+          "type": "object"
+        },
+        "workspace_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pane_id",
+        "terminal_id",
+        "workspace_id",
+        "tab_id",
+        "focused",
+        "agent_status",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "PaneProcessInfo": {
+      "properties": {
+        "foreground_process_group_id": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "foreground_processes": {
+          "items": {
+            "$ref": "#/schemas/success_response/$defs/PaneProcessInfoProcess"
+          },
+          "type": "array"
+        },
+        "pane_id": {
+          "type": "string"
+        },
+        "shell_pid": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tty": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "pane_id"
+      ],
+      "type": "object"
+    },
+    "PaneProcessInfoProcess": {
+      "properties": {
+        "argv": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "argv0": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cmdline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "pid": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pid",
+        "name"
+      ],
+      "type": "object"
+    },
+    "AgentInfo": {
+      "properties": {
+        "agent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "agent_session": {
+          "anyOf": [
+            {
+              "$ref": "#/schemas/success_response/$defs/AgentSessionInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agent_status": {
+          "$ref": "#/schemas/success_response/$defs/AgentStatus"
+        },
+        "completion_seq": {
+          "description": "The current idle transition completed work, independently of who has viewed it.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display_agent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "focused": {
+          "type": "boolean"
+        },
+        "foreground_cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "interactive_ready": {
+          "type": "boolean"
+        },
+        "launch_pending": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pane_id": {
+          "type": "string"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "screen_detection_skipped": {
+          "type": "boolean"
+        },
+        "state_change_seq": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state_labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "tab_id": {
+          "type": "string"
+        },
+        "terminal_id": {
+          "type": "string"
+        },
+        "terminal_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "terminal_title_stripped": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tokens": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "maxProperties": 32,
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_-]{1,32}$"
+          },
+          "type": "object"
+        },
+        "workspace_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "terminal_id",
+        "agent_status",
+        "workspace_id",
+        "tab_id",
+        "pane_id",
+        "focused",
+        "revision"
+      ],
+      "type": "object"
+    }
+  },
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/herdrdev/herdr/v0.9.3/src/platform/mod.rs",
+      "source": "pub(crate) fn available_pane_shell_from_job(child_pid: u32, job: ForegroundJob) -> Option<String> {\n    if job.process_group_id != child_pid\n        || job.processes.iter().any(|process| process.pid != child_pid)\n    {\n        return None;\n    }\n    job.processes\n        .into_iter()\n        .find(|process| process.pid == child_pid)\n        .map(|process| process.name)\n        .filter(|name| is_pane_shell_process_name(name))\n}\n",
+      "license": "Apache-2.0 (Herdr upstream)"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/herdrdev/herdr/v0.9.3/src/platform/mod.rs",
+      "source": "pub(crate) fn is_pane_shell_process_name(name: &str) -> bool {\n    let normalized = normalized_process_name(name);\n    matches!(\n        normalized.as_str(),\n        \"sh\" | \"bash\"\n            | \"dash\"\n            | \"zsh\"\n            | \"fish\"\n            | \"ksh\"\n            | \"mksh\"\n            | \"csh\"\n            | \"tcsh\"\n            | \"elvish\"\n            | \"xonsh\"\n            | \"nu\"\n            | \"pwsh\"\n            | \"powershell\"\n            | \"cmd\"\n    )\n}\n",
+      "license": "Apache-2.0 (Herdr upstream)"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/herdrdev/herdr/v0.9.3/src/platform/macos.rs",
+      "source": "pub(crate) fn available_pane_shell(child_pid: u32) -> Option<String> {\n    super::available_pane_shell_from_job(child_pid, foreground_job(child_pid)?)\n}\n",
+      "license": "Apache-2.0 (Herdr upstream)"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/herdrdev/herdr/v0.9.3/src/app/api/panes.rs",
+      "source": "    pub(super) fn handle_pane_process_info(\n        &mut self,\n        id: String,\n        params: PaneProcessInfoParams,\n    ) -> String {\n        let Some((ws_idx, pane_id)) = self.resolve_optional_pane(params.pane_id.as_deref()) else {\n            return encode_error(id, \"pane_not_found\", \"pane not found\");\n        };\n        let Some((runtime, _workspace_id)) = self.lookup_runtime(ws_idx, pane_id) else {\n            return encode_error(id, \"pane_not_found\", \"pane not found\");\n        };\n        let Some(public_pane_id) = self.public_pane_id(ws_idx, pane_id) else {\n            return encode_error(id, \"pane_not_found\", \"pane not found\");\n        };\n        let shell_pid = runtime.child_pid();\n        let foreground_job = shell_pid.and_then(crate::detect::foreground_job);\n        let foreground_process_group_id = foreground_job.as_ref().map(|job| job.process_group_id);\n        let foreground_processes = foreground_job\n            .map(|job| {\n                job.processes\n                    .into_iter()\n                    .map(|process| PaneProcessInfoProcess {\n                        pid: process.pid,\n                        name: process.name,\n                        argv0: process.argv0,\n                        argv: process.argv,\n                        cmdline: process.cmdline,\n                        cwd: crate::platform::process_cwd(process.pid)\n                            .map(|cwd| cwd.display().to_string()),\n                    })\n                    .collect()\n            })\n            .unwrap_or_default();\n\n        encode_success(\n            id,\n            ResponseResult::PaneProcessInfo {\n                process_info: PaneProcessInfo {\n                    pane_id: public_pane_id,\n                    shell_pid,\n                    foreground_process_group_id,\n                    tty: None,\n                    foreground_processes,\n                },\n            },\n        )\n    }\n\n",
+      "license": "Apache-2.0 (Herdr upstream)"
+    }
+  ]
+}
