@@ -29,6 +29,10 @@ def main():
     parser.add_argument("--effort", choices=("low", "medium", "high", "xhigh"), default="xhigh")
     parser.add_argument("--direction", choices=("right", "down"), default="down")
     parser.add_argument("--codex-home", type=Path)
+    # 2026-10-11 user decision: Codex sessions run at the normal tier until told otherwise.
+    parser.add_argument("--service-tier", choices=("default", "fast"), default="default")
+    # Switching an existing worker's executor keeps its context by resuming its native session.
+    parser.add_argument("--resume", metavar="NATIVE_SESSION")
     args = parser.parse_args()
     if os.environ.get("HERDR_ENV") != "1":
         raise ValueError("只能从 Herdr 管理的 pane 启动")
@@ -43,15 +47,20 @@ def main():
     role_card = root / ".project-map/roles/worker.md"
     role_card.read_bytes().decode("utf-8")
     launch_id = "launch-" + uuid.uuid4().hex
-    argv = ["codex", "-m", args.model, "-c", "model_reasoning_effort=" + json.dumps(args.effort),
-            "-c", 'service_tier="fast"', "-c", "check_for_update_on_startup=false",
+    if args.resume is not None and re.fullmatch(r"[0-9a-f-]{36}", args.resume) is None:
+        raise ValueError("--resume 需要原生会话 UUID")
+    argv = ["codex", *(["resume", args.resume] if args.resume else []),
+            "-m", args.model, "-c", "model_reasoning_effort=" + json.dumps(args.effort),
+            *(["-c", 'service_tier="fast"'] if args.service_tier == "fast" else []),
+            "-c", "check_for_update_on_startup=false",
             "--sandbox", "workspace-write", "--ask-for-approval", "on-request"]
     logfile = root / "records/launches.jsonl"
     lockfile = root / "records/.launches.lock"
     row = dict(schema=1, phase="prepared", launch_id=launch_id, created_at=utc_now(),
                project=args.project, task=args.task, attempt=args.attempt, session=args.session,
                role="worker", cli="codex", cli_version=output(["codex", "--version"]),
-               model=args.model, effort=args.effort, service_tier_requested="fast", argv=argv,
+               model=args.model, effort=args.effort, service_tier_requested=args.service_tier, argv=argv,
+               resumes_native_session=args.resume,
                cwd=str(cwd), project_commit=output(["git", "rev-parse", "HEAD"], cwd),
                launcher_commit=output(["git", "rev-parse", "HEAD"], Path(__file__).resolve().parents[1]),
                role_card=str(role_card), role_card_version=output(["git", "log", "-1", "--format=%H", "--",
