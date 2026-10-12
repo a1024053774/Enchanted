@@ -358,3 +358,9 @@ W01/W09/W11 的成功正例只证明 1 次竞争可恢复；另增独立 R8 夹�
 状态：**INCOMPLETE**。relay-check-01 在 preimage 阶段误读 status 顶层 launch，1 error、0 failures，尚未取得后台业务红态。现改读原始返回中已有的 `task.current_attempt.runtime_identity.launch`；整例静态核对还修正三个 pane 命令误带 `--task` 的 helper 用法。产品源码与原业务断言不变，失败原文保留。
 
 preimage/候选的完整字段清单、生产位置和归档实值核对见 `relay-field-audit-01/audit.json`，静态核对 PASS，不代表后台运行通过。`outside-sandbox.sh relay-check-02` 改用新输出目录，先重跑 preimage，再跑候选；详细说明见 [HANDOFF-relay-check-02.md](HANDOFF-relay-check-02.md)。真实回合仍为 4/4，本轮不启动真实 Codex，等待执行主控运行。
+
+## 26. relay 修复提交后的统一回归（主控 #73）
+
+状态：**INCOMPLETE**。relay-check-02 的 preimage 业务红态确认，候选完整闭环 PASS。修复、测试与相关证据已提交为 `da44c6733f5046f7c645028352859a80070f15b9`，尾注齐全。
+
+`outside-sandbox.sh relay-regression-01` 固定本提交，一次执行 S3 全部 25 项（含冲突 7 项）、8/9/18、CAS、cards、完成条件中的窗格/原生记录/身份/停机检查，以及 relay 交付闭环、scope/core/cli 和全库去重变异体。每组只跑一次，失败即停，产物改用新前缀。准备范围审计 PASS，行为回归待主控运行，详见 [HANDOFF-relay-regression-01.md](HANDOFF-relay-regression-01.md)。真实预算保持 4/4；用户答复前不准备新的真实运行，独立审查留到真实场景之后。本轮 READY 后停止等待。

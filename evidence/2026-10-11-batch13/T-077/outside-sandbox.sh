@@ -6,7 +6,7 @@ set -euo pipefail
 # bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh red-01
 # 同名输出已存在时拒绝，不能覆盖原始失败。后续阶段另行批准/交回。
 if [[ "$#" != 1 ]]; then
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01' >&2
   exit 2
 fi
 cd /Users/luckye/Documents/Code/a2a-wt-t077
@@ -227,6 +227,80 @@ relay-check-02)
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-relay-check.py \
   --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-check-02
   ;;
+relay-regression-01)
+# 主控 #73：固定 relay 修复提交，一次完成脚本验收；不准备或启动真实 Codex。
+t077_require_relay_candidate() {
+  [[ "$(git -C /Users/luckye/Documents/Code/a2a-wt-t077 rev-parse HEAD)" == 'da44c6733f5046f7c645028352859a80070f15b9' ]]
+  [[ "$(git -C /Users/luckye/Documents/Code/a2a-wt-t077 rev-parse HEAD^)" == '93094e7be82c21448c460436c360ffb0f75a3412' ]]
+  git -C /Users/luckye/Documents/Code/a2a-wt-t077 diff --exit-code HEAD -- workbench acceptance fixtures/pagination
+  [[ -z "$(git -C /Users/luckye/Documents/Code/a2a-wt-t077 ls-files --others --exclude-standard -- workbench/src workbench/hooks workbench/tests acceptance fixtures/pagination)" ]]
+}
+t077_require_relay_candidate
+# 25 项全部运行，已包含冲突 7 项，不再重复运行冲突子集。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py \
+  --phase candidate \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-contracts
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite coop \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-coop
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite recovery \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-recovery
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite run \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-run
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite cas \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-cas
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/run_s3_regression.py \
+  --base 457e02a867bfdc5d8b06a9d14214eb7a429c48c2 --suite cards \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-cards
+t077_require_relay_candidate
+# 完成条件的窗格、原生记录、身份与停机边界；均为零模型回合。
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_conflict_panes.ts \
+  --product /Users/luckye/Documents/Code/a2a-wt-t077 \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-panes.json
+t077_require_relay_candidate
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_native_final_read.ts \
+  /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-native-final
+t077_require_relay_candidate
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_pane_dispatch_state.ts \
+  /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-dispatch-state
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_multiturn_identity_e2e.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t077 --case all \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-identity
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_startup_shutdown_e2e.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t077 \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-shutdown
+t077_require_relay_candidate
+# relay 的交付闭环、正反例和本次指定的全库去重变异体。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_relay_conflict_e2e.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t077 \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-relay-conflict
+t077_require_relay_candidate
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_relay_scope.ts \
+  /Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/relay.ts \
+  /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-relay-scope
+t077_require_relay_candidate
+node /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_relay_core.ts \
+  /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-relay-core
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_relay_cli.py \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-relay-cli
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/check-relay-mutants.py \
+  --mutant global-lookup \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-relay-regression-01-relay-mutant
+t077_require_relay_candidate
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/summarize-relay-regression-01.py
+  ;;
 real-01)
 : "${T077_REAL_APPROVAL:?必须填写本次真实启动的执行主控批准引用}"
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict.py \
@@ -238,7 +312,7 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/
   --phase 2 --approval-ref "$T077_REAL_APPROVAL"
   ;;
 *)
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01' >&2
   exit 2
   ;;
 esac

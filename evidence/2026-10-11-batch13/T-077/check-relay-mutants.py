@@ -11,6 +11,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[3]
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('--mutant', choices=('global-lookup', 'duplicate-effect', 'forget-persisted-intent'))
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=False)
 original = (ROOT / 'workbench/src/relay.ts').read_text(encoding='utf-8')
@@ -28,6 +29,8 @@ mutations = [
 ]
 records = []
 for name, before, after, expected in mutations:
+    if args.mutant and name != args.mutant:
+        continue
     assert original.count(before) == 1, name
     source = Path(tempfile.mkdtemp(prefix='t077-relay-mutant-', dir='/tmp'))
     shutil.copytree(ROOT / 'workbench/src', source / 'src')
