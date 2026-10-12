@@ -19,3 +19,9 @@
 读回 `real-conflict-01/attempt-1`：run.json stage=awaiting_second_launch_approval、observed_root_turns=2；根 rollout 的 turn_context 两回合均为 cwd=a1、workspace-write、network_access=false，model 记录全部为 gpt-6.1-sol、effort xhigh；relay 交付已处理一次（relay_processed=1，另一次为回执重放）；SIGTERM 前领导进程 51348 为 0.162.1 Codex，之后 native-ended 只剩原 shell 51345、session_ended=true；无权限请求、无人工介入事件。
 
 批准第 2 次启动（只此一次）：Launch 2 `7cb79cbe-a73d-49ce-836a-c43d23f1572c`，worktree `.../T-077-9-a2`，argv、三个 hook 与 Git hook 环境按 REAL-APPROVAL-01.md 原文；最多 2 个主 turn，本卡累计不超过 4；同一隔离 home，历史 rollout 逐字节核对不变；结束后按隔离规则归档并删除整个自建 home（auth.json 不入归档）。不批准重试、额外回合或第三个 attempt。批准引用：`T-077 controller-decision-03 launch-2`。
+
+## 复验实例 r2：第 1 次启动批准（2026-10-11 22:1x）
+
+依据：用户授权 answer `20261012T015257Z-ideation-answer-001`（额外 2～4 真实回合；Codex 一律 gpt-6.1-sol xhigh、普通速度、不传 Fast）。审阅 exec/t077 `f6bc3ed9` 的 `REAL-APPROVAL-02.md`：与已批准的 01 相比只换了实例根 `/private/tmp/t077-cf-20261012-r2`、任务号与 worktree，并去掉 `service_tier="fast"`；隔离 home、信任项、两条 allow 规则、三个 hook、Git hook 环境、停止条件与清理不变。
+
+批准第 1 次启动（只此一次）：Launch 1 `8ee0b73a-c031-46ed-8dd6-5e6490029781`，最多 2 个主 turn（本次新增预算 4 之内），完成后 SIGTERM 自建领导者并在第 2 次审批前暂停。周额度只剩约 1%：额度用尽即停下保存现场，不换账号或模型。批准引用：`T-077 controller-decision-03 r2-launch-1`。
