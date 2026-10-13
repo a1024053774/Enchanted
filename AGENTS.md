@@ -64,13 +64,12 @@
 ## 主控、worker 和 monitor
 
 - 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）；2026-10-09 起分为构思主控与执行主控，二者都由 Claude Code 担任。执行主控在已批准范围内经 Herdr 分派任务（用户认为工作台可用后改为经工作台门禁）、读取当前状态、回收不再需要的 worker，并汇总证据。
-- worker 使用 `gpt-6.1-sol` xhigh reasoning / Fast service tier，只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。
-- 2026-10-11 起（Codex 额度已重置）：新启动的 Codex 会话默认用上面两条的 `gpt-6.1-sol`（worker、reviewer 为 xhigh / Fast）；执行主控判定为复杂的任务改用 `gpt-6-astra` xhigh / Fast，在任务卡"执行器"一栏写明理由（用户："codex 已重置，现在换用 gpt-6.1-sol xhigh fast,复杂任务再用 astra"）。 2026-10-11 晚起再改：所有 Codex 会话（含正在跑的）用 `gpt-6.1-sol` xhigh、普通速度，不再传 Fast（用户："全继续，不用 fast了，用 6.1sol 普通速度"），直到用户另行指定；`-c 'service_tier="fast"'` 一条暂停适用，启动记录照常写明实际参数。
+- worker 使用 `gpt-6.1-sol` xhigh reasoning、普通速度（不传 Fast），只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。2026-10-13 起所有 Codex 会话只用 `gpt-6.1-sol` xhigh，不用 `gpt-6-astra`，不用 Fast（用户："以后只用 gpt6.1sol xhigh,不用 astra 了，那个消耗额度太快了，也不用 fast。"）。
 - reviewer 默认与 worker 同为 Codex 同一个模型，每次交付新开干净会话，只读；不得 submit 或集成。
 - monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
 - 主控可以自主进行日常分派、状态检查、策略内重试和回收。
-- 新建 worker 必须显式传入 `-c 'service_tier="fast"'` 并保存启动 argv；不把请求配置当作供应商实际 tier 的证明。
+- 新建 worker 必须保存完整启动 argv（含模型与思考强度）；不把请求配置当作供应商实际 tier 的证明。
 - 回收 worker pane 前须确认该 agent 已 idle，且它的交付已提交；只看到提交落地、agent 仍为 working 时不得关闭 pane（2026-10-07 T-027 收尾时出现过一次）。
 - Herdr wait 超时不是 worker 挂起证明；核对可见进展、产物与权限状态再处置。记录 live pane/terminal 身份，不依赖可能过期的继承环境或 UI 焦点。
 - 界面验证可让 worker（Codex CLI）使用 Computer Use；需要时主控在任务书中明确说明。用户于 2026-10-08 授权主控在用户不在时代为批准 worker 的 Computer Use 权限请求，范围限：任务书已列出的界面验证，只操作该 worker 自己启动的应用窗口（如隔离 Electron）。主控不得代批：系统设置或隐私授权、登录与密码、付款、发送消息或发布内容、操作用户自己的应用或数据、删除文件；遇到这些停下等用户。每次代批记入该批次证据（时间、worker、请求原文、批准理由）。
