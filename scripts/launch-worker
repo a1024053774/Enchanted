@@ -49,9 +49,13 @@ def main():
     launch_id = "launch-" + uuid.uuid4().hex
     if args.resume is not None and re.fullmatch(r"[0-9a-f-]{36}", args.resume) is None:
         raise ValueError("--resume 需要原生会话 UUID")
-    argv = ["codex", *(["resume", args.resume] if args.resume else []),
+    # --no-daemon: a shared background server kept each worker's session writer lock after its
+    # pane closed (2026-10-13), blocking an executor switch; the product Panes launch uses it too.
+    argv = ["codex", *(["resume", args.resume] if args.resume else []), "--no-daemon",
             "-m", args.model, "-c", "model_reasoning_effort=" + json.dumps(args.effort),
-            *(["-c", 'service_tier="fast"'] if args.service_tier == "fast" else []),
+            # Always explicit: the user's global config sets priority, which an omitted flag inherits.
+            # evidence/2026-10-13-tier-probe/probe-01.json: "default" is what the session reports back.
+            "-c", 'service_tier="fast"' if args.service_tier == "fast" else 'service_tier="default"',
             "-c", "check_for_update_on_startup=false",
             "--sandbox", "workspace-write", "--ask-for-approval", "on-request"]
     logfile = root / "records/launches.jsonl"
