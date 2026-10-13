@@ -1,0 +1,117 @@
+"""One controller-only phase: default-tier argv reds, focused greens, readonly mutant."""
+import argparse
+import gzip
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+import tarfile
+import tempfile
+import traceback
+
+from command_evidence import CommandLog
+from run_t076_quality_red import archive_directory
+
+ROOT = Path(__file__).resolve().parents[2]
+CARD = ROOT / 'evidence/2026-10-11-batch13/T-076/card-2'
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    out = args.output.resolve(); out.mkdir(parents=True, exist_ok=False)
+    log = CommandLog(out)
+    report = dict(status='INCOMPLETE', product_status='INCOMPLETE', real_codex_turns=0, argv=sys.argv, steps=[], archives=[])
+    env = {k: v for k, v in os.environ.items() if not k.startswith(('A2A_', 'CODEX_', 'GIT_CONFIG_', 'ELECTRON_'))}
+    env['PYTHONDONTWRITEBYTECODE'] = '1'
+    artifacts = []; captured = {}
+
+    def save(path, value):
+        with path.open('x', encoding='utf-8') as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2); stream.write('\n')
+
+    try:
+        if not Path('/Volumes/WD-Elements').is_mount(): raise RuntimeError('External disk is not mounted.')
+        version = log.run(['node', '--version'], cwd=ROOT, env=env)
+        if version.returncode or version.stdout.strip() != 'v26.5.0': raise RuntimeError('Pinned Node is unavailable.')
+        root = Path(tempfile.mkdtemp(prefix='l76argv-', dir='/tmp')).resolve()
+        candidate, baseline = root / 'candidate', root / 'baseline'
+        shutil.copytree(ROOT / 'workbench', candidate / 'workbench', symlinks=True,
+                        ignore=shutil.ignore_patterns('node_modules', '__pycache__', '.DS_Store'))
+        (candidate / 'workbench/node_modules').symlink_to((ROOT / 'workbench/node_modules').resolve(), target_is_directory=True)
+        with tarfile.open(CARD / 'real-delivery-01/source-snapshot.tar.gz', 'r:gz') as archive:
+            for member in archive.getmembers():
+                if not member.isfile() or not member.name.startswith('workbench/') or '..' in Path(member.name).parts:
+                    raise RuntimeError('Unexpected retained baseline archive member.')
+            archive.extractall(baseline)
+        (baseline / 'workbench/node_modules').symlink_to((ROOT / 'workbench/node_modules').resolve(), target_is_directory=True)
+        for base in ('workbench/src', 'workbench/hooks', 'workbench/tests'):
+            for path in (ROOT / base).rglob('*'):
+                if path.is_file() and '__pycache__' not in path.parts: captured[path] = path.read_bytes()
+        with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as archive:
+            archive.add(candidate / 'workbench', arcname='workbench')
+        save(out / 'source.json', dict(candidate=str(candidate), baseline_archive='real-delivery-01/source-snapshot.tar.gz',
+                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; readonly unchanged'))
+
+        def suite(name, source, cases, expected=0, failure_id=None):
+            target = out / name
+            argv = [sys.executable, '-B', candidate / 'workbench/tests/test_quality_tracer_e2e.py', '--source', source, '--output', target]
+            for case in cases: argv.extend(['--case', case])
+            result = log.run(argv, cwd=ROOT, env=env, timeout=180,
+                             stdout_file=out / (name + '.stdout.txt'), stderr_file=out / (name + '.stderr.txt'))
+            value = json.loads((target / 'run.json').read_text(encoding='utf-8'))
+            artifacts.append(Path(value['artifact_root']))
+            report['steps'].append(dict(name=name, exit=result.returncode, expected_exit=expected, report=str(target / 'run.json')))
+            if result.returncode != expected or [c['case'] for c in value['cases']] != cases:
+                raise RuntimeError('Unexpected child result; preserve and stop: ' + name)
+            if any(c['outcome'] == 'harness_error' or c['cleanup_failures'] for c in value['cases']):
+                raise RuntimeError('Fixture error is not contract evidence: ' + name)
+            if failure_id:
+                if value['cases'][0]['outcome'] != 'contract_failure' or value['cases'][0].get('failure_id') != failure_id:
+                    raise RuntimeError('The intended argv assertion did not fail: ' + name)
+            elif value['status'] != 'PASS': raise RuntimeError('Candidate failed; no retry: ' + name)
+
+        suite('worker-missing-override-red', baseline, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
+        suite('reviewer-missing-override-red', baseline, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEWER-DEFAULT-ARGV')
+        suite('default-tier-green', candidate, ['tracer_launch_policy_worker', 'tracer_launch_policy_reviewer'])
+        priority = root / 'priority-mutant'; shutil.copytree(candidate, priority, symlinks=True)
+        priority_file = priority / 'workbench/src/panes.ts'; text = priority_file.read_text(encoding='utf-8')
+        before = "'service_tier=\"default\"'"
+        if text.count(before) != 1: raise RuntimeError('Tier mutation target is not unique.')
+        priority_file.write_text(text.replace(before, "'service_tier=\"priority\"'"), encoding='utf-8')
+        save(out / 'priority-mutant.json', dict(before=before, failure_id='TRACER-WORKER-DEFAULT-ARGV', source=str(priority)))
+        suite('priority-argv-mutant', priority, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
+        mutant = root / 'readonly-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
+        path = mutant / 'workbench/src/panes.ts'; text = path.read_text(encoding='utf-8')
+        before = '"-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,'
+        if text.count(before) != 1: raise RuntimeError('Readonly mutation target is not unique.')
+        path.write_text(text.replace(before, '"-a", "never", "--sandbox", "workspace-write", "-m", model,'), encoding='utf-8')
+        save(out / 'readonly-mutant.json', dict(before=before, failure_id='TRACER-READONLY-ARGV', source=str(mutant)))
+        suite('readonly-argv-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-READONLY-ARGV')
+        report['status'] = 'PASS'
+    except Exception as error:
+        report.update(error=repr(error), traceback=traceback.format_exc())
+    finally:
+        for index, artifact in enumerate(artifacts):
+            try:
+                if not Path('/Volumes/WD-Elements').is_mount(): raise RuntimeError('External disk disappeared.')
+                report['archives'].append(archive_directory(artifact, out / ('fixture-%02d.tar.gz' % index), out.name))
+            except Exception as error: report.update(status='INCOMPLETE', archive_error=repr(error))
+        report['changed_source_paths'] = [str(p) for p, data in captured.items() if not p.exists() or p.read_bytes() != data]
+        if report['changed_source_paths']: report.update(status='INCOMPLETE', error='Source changed during the phase.')
+        for path in list(out.rglob('*')):
+            if path.is_file() and path.stat().st_size > 5 * 1024 * 1024 and path.suffix != '.gz':
+                compressed = path.with_name(path.name + '.gz')
+                with path.open('rb') as src, gzip.open(compressed, 'xb') as dest: shutil.copyfileobj(src, dest)
+                if gzip.decompress(compressed.read_bytes()) != path.read_bytes(): raise RuntimeError('Compressed evidence differs.')
+                path.unlink()
+        report['oversize_files'] = [str(p) for p in out.rglob('*') if p.is_file() and p.stat().st_size > 5 * 1024 * 1024]
+        if report['oversize_files']: report.update(status='INCOMPLETE', archive_required=True)
+        save(out / 'run.json', report)
+    print(json.dumps({k: report[k] for k in ('status', 'product_status', 'real_codex_turns')}))
+    return 0 if report['status'] == 'PASS' else 1
+
+
+if __name__ == '__main__': raise SystemExit(main())

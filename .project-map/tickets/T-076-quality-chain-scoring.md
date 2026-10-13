@@ -70,3 +70,27 @@ T-076-1 完成，待 T-076-2；待主控关闭。保持 open，ready_rev=1。
 - **证据**：有两个文件压缩后仍超过 5 MB，执行主控已移到外置盘（`5060c5ee`），原位置保留指针文件；这两个文件仍留在 Git 历史中。
 
 已打分。
+
+**T-076-2交付（2026-10-13）：PASS，独立审查PASS / LIMITED_GO（仅隔离受管交付）。保持open、ready_rev=1，待主控关闭。**
+
+产品/测试源码提交：`2bc3a1e96b1ecb687e8fae32ebbc5478fa58de88`，绑定s13-t076-2s当前launch、实际gpt-6.1-sol/xhigh及原生会话的9项尾注。交付证据和本Resolution随最终证据提交保存，不push。逐条验收、六类反例、各阶段红绿/变异体、预算与重放命令详见[卡2 RESULTS](../../evidence/2026-10-11-batch13/T-076/card-2/RESULTS.md#主控-92最终交付逐条验收与局限2026-10-13)。Acceptance留给主控核对勾选，本worker不关闭整票。
+
+| Acceptance | 卡2结果与证据 |
+| --- | --- |
+| 真实入口/检查面 | PASS。outside-real-delivery-02的commands日志指针、bindings、gate-events、events-after-stop、native-sessions、integration及real-delivery-readback-02/run.json；真实worker4回合/reviewer1回合，经过后台CLI/Panes/PTY/B/Git/SQLite。 |
+| 首拒→回写→修复→新审查→主控带分集成 | PASS。C1 709a85ba完成条件首拒，⟦门禁 #3⟧自动回写，同attempt重交C2 e08f87cf，新只读reviewer可合并；主控在ready-for-score之后后填3/3，唯一集成M b24ec63e，父提交G 5ce713f5和C2；唯一score_recorded及回收。证据为integration、executor-score、score-payload和独立Git读回。 |
+| 六类反例 | PASS（受控实际入口，另有真实边界）。outside-red-02先红；outside-wide-green-01/widened-contracts的red_base_not_failing、red_rules_failing；outside-focused-tracer-01/protocol-controls的writer_cannot_review/reused_native/wrong_candidate/score_required/third_rejection及对应单点变异体。三次上限只有两条修复回写，第三次paused并上报；真实正例缺分为score_required且Git不动。outside-p-review-02实际sentinel EPERM一次，文件/Git未变、主机对照成功。逐案事件位置及层次见RESULTS六类反例表。 |
+| 尾注 | PASS。C1/C2九项尾注、bindings和交付turn_context均确认实际gpt-6.1-sol/xhigh；real-delivery-readback-02/run.json。 |
+| 多回合 | PASS。卡1先红及真实run/reclaim；卡2同原生会话4回合，ACK零工具、提交绑定1/3回合、原attempt/leader保持，最终回收。outside-legacy-green-06的multiturn/run及伪造身份反例通过；没有放宽身份检查。 |
+| 一致性如实报告 | 已报告；全库**INCOMPLETE**。real-delivery-consistency-01.json中tasks/attempts/verifications一致；memberships/session_presets无法重建；空表不代表覆盖，本条真实正例未覆盖attachment中断窗口。沿卡1另切存储决定，不改结构。 |
+| 五类变异体与8/9/18、T-075/T-076-1不退化 | PASS（受控）。outside-legacy-green-06共22步均符合预期，coop8/recovery9/run18均0 failures/errors/skipped；五类产品变异体与F10/W07来源反例命中业务断言。批准W01–W07/F01–F14，Recovery9逐字不变；assertion-hunks与最终范围审计可复核。最新default参数另有outside-launch-policy-default-01最小红绿、priority/只读变异体，未宣称重跑全套。 |
+
+独立fresh-context只读交付审查原文：[REPORT](../../evidence/2026-10-11-batch13/T-076/card-2/outside-delivery-review-01/REPORT.md)。从ticket/spec独立重建验收，结构风险同审，无确认的可达违规或结构风险；另有16项独立协议输入及C2的8项整数/7项非法类型检查。槽7唯一完整回合，gpt-6.1-sol/xhigh/read-only/never，argv显式default；原生日志未报告实际供应商tier。142个冻结文件首次逐字节读回一致；审查后README/交付文档更新，另仅删除新controlled_quality_pty.ts第13行空行的两个尾随空格（暂存检查失败及diff原样保留）；产品、hooks、acceptance字节不变，测试行为不变，最终核对严格限定差异。
+
+真实累计**7/8**，槽8未用，三组隔离home均已删除、auth未入证据。原真实run.json因48,122,290字节日志归档要求为INCOMPLETE，历史原样保留；archive-real-log-01/run.json为PASS，外置盘逐字节核对一致，本地留pointer，卡目录无>5MB文件。交付核对、地图0 problems/0 stale、diff --check和大小检查收据为delivery-review-readback-01及final-delivery-check-01。
+
+局限：全库一致性与attachment中断窗口如上；P-review在增加显式default之前的冻结版本证明实际只读拒写，当前版本未重做sentinel，default有针对性红绿及真实正例argv证据；受控回归不证明模型理解/审查准确率，良性候选通过不证明可靠性改善；审查快照缺MAP导致其地图检查不可用，主checkout另有实际通过收据；审查未重跑完整可写/socket/模型套件；原生日志实际tier未知。T-077联验/命名/清理/R8、新worker原生记录归属开放issue 20261011T180613Z、T-078及正式工作台切换不在LIMITED_GO结论范围，交主控衔接。待主控关闭。
+
+提交检查补充：当前源码/文档cached检查通过；完整cached检查对原始diff、终端输出、Git消息与冻结快照产生315条空白告警，退出2/INCOMPLETE原样记录，原始字节不清洗。要求的git diff --check、地图、>5MB检查通过。分项收据及解释见RESULTS文末。
+
+最终证据提交前最新检查收据：card-2/final-delivery-check-02/run.json，PASS；7/8真实回合，待主控关闭。

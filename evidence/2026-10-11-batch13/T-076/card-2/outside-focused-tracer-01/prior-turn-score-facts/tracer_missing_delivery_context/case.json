@@ -1,0 +1,755 @@
+{
+  "case": "tracer_missing_delivery_context",
+  "outcome": "contract_failure",
+  "assertions": [
+    {
+      "id": "TRACER-DELIVERY-CONTEXT",
+      "passed": false,
+      "expected": "missing context for this delivery cannot reuse a prior turn model as score provenance",
+      "actual": {
+        "ok": true,
+        "task": {
+          "task_id": "fixture-20261011-1",
+          "title": "fixture-20261011-1",
+          "project_id": "fixture",
+          "repo": "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "b205c900-7149-4aca-85ad-da96dc2ce9f9",
+          "card_version": 1,
+          "card": {
+            "id": "fixture-20261011-1",
+            "source": null,
+            "goal": "交付 src/value.txt 中的独立预期内容",
+            "non_goals": [
+              "不修改项目外的文件"
+            ],
+            "paths": {
+              "allow": [
+                "src/",
+                "tests/",
+                ".a2a/quality.json"
+              ],
+              "deny": [
+                "src/private/"
+              ]
+            },
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "L",
+            "executor": {
+              "cli": "Codex",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "6b83629e38c4b9492ef0767290db32ec6be2b555",
+          "state": "submitted",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "fixture-20261011-1",
+            "attempt_id": "cde703ed-c65f-4460-982c-99cae9a27ef4",
+            "session_id": "cd33ddfe-8f1e-4baf-b07c-fc1fe394ec87",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "64ff31b5-f07e-4798-a26d-f8fe521b3745",
+            "runtime_mode": "workspace-write",
+            "turn_id": "fixture-turn-3",
+            "runtime_identity": {
+              "launch": "507a5657-f05f-4ebb-8251-2406d480ffd3",
+              "thread": "64ff31b5-f07e-4798-a26d-f8fe521b3745",
+              "shell_pid": 31000,
+              "leader_pid": 31001,
+              "native_session": "fixture-native-507a5657-f05f-4ebb-8251-2406d480ffd3"
+            },
+            "workspace": "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state/worktrees/cde703ed-c65f-4460-982c-99cae9a27ef4",
+            "base_commit": "6b83629e38c4b9492ef0767290db32ec6be2b555",
+            "card_snapshot_id": "9b4624e3-a5e4-4f4a-ab28-d0d84701748b",
+            "reclaimed": false,
+            "owner": "fixture-20261011-1",
+            "state": "submitted",
+            "delivery": {
+              "commit": "ff72d644f49a2531283373ec0b6b2146365acf93",
+              "turn_id": "fixture-turn-3",
+              "launch_id": "507a5657-f05f-4ebb-8251-2406d480ffd3",
+              "cli": "codex-cli 0.162.1",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh",
+              "number": 2,
+              "submitted_at": "2026-10-11T17:21:16.346Z"
+            }
+          },
+          "candidate_commit": "ff72d644f49a2531283373ec0b6b2146365acf93",
+          "verification": null,
+          "integration_intent": null,
+          "repair": null,
+          "review": null
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-11T17:21:12.305Z"
+        }
+      }
+    }
+  ],
+  "failure_id": "TRACER-DELIVERY-CONTEXT",
+  "traceback": "Traceback (most recent call last):\n  File \"/private/tmp/q76green-ycyd7qmp/source/workbench/tests/test_quality_chain_e2e.py\", line 641, in run_cases\n    getattr(case, name)()\n  File \"/private/tmp/q76green-ycyd7qmp/source/workbench/tests/test_quality_tracer_e2e.py\", line 277, in tracer_missing_delivery_context\n    self.check('TRACER-DELIVERY-CONTEXT', reply.get('error') == 'delivery_facts_unknown'\n  File \"/private/tmp/q76green-ycyd7qmp/source/workbench/tests/test_quality_chain_e2e.py\", line 58, in check\n    raise ContractFailure(name)\ntest_quality_chain_e2e.ContractFailure: TRACER-DELIVERY-CONTEXT\n",
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "59360",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "card_save",
+        "--task",
+        "fixture-20261011-1",
+        "--card",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "create",
+        "--task",
+        "fixture-20261011-1",
+        "--repo",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "dispatch",
+        "--task",
+        "fixture-20261011-1",
+        "--runtime-mode",
+        "workspace-write"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_release",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745",
+        "--reason",
+        "explicit controlled-fixture release"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state/worktrees/cde703ed-c65f-4460-982c-99cae9a27ef4",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state/worktrees/cde703ed-c65f-4460-982c-99cae9a27ef4",
+        "commit",
+        "-m",
+        "Controlled worker fixture commit\n\nA2A-Task: fixture-20261011-1\nA2A-Attempt: cde703ed-c65f-4460-982c-99cae9a27ef4\nA2A-Session: cd33ddfe-8f1e-4baf-b07c-fc1fe394ec87\nA2A-Role: worker\nA2A-Tool: codex-cli 0.162.1\nA2A-Model: gpt-6.1-sol\nA2A-Effort: xhigh\nA2A-Native-Session: fixture-native-507a5657-f05f-4ebb-8251-2406d480ffd3\nA2A-Launch: 507a5657-f05f-4ebb-8251-2406d480ffd3"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0014.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 15,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state/worktrees/cde703ed-c65f-4460-982c-99cae9a27ef4",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0016.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 17,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "submit",
+        "--task",
+        "fixture-20261011-1",
+        "--attempt",
+        "cde703ed-c65f-4460-982c-99cae9a27ef4",
+        "--session",
+        "cd33ddfe-8f1e-4baf-b07c-fc1fe394ec87",
+        "--fence",
+        "1",
+        "--spec-rev",
+        "1",
+        "--commit",
+        "48f66cad02bd18c303d60a14f555b373eaf8cf75",
+        "--request-id",
+        "delivery-1"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0017.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0017.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 18,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0018.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0018.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 19,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "signal",
+        "--launch",
+        "507a5657-f05f-4ebb-8251-2406d480ffd3"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0019.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0019.stderr.bin",
+      "stdin": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0019.stdin.json",
+      "exit": 0
+    },
+    {
+      "id": 20,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0020.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0020.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 21,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0021.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0021.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 22,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0022.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0022.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 23,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0023.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0023.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 24,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "signal",
+        "--launch",
+        "507a5657-f05f-4ebb-8251-2406d480ffd3"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0024.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0024.stderr.bin",
+      "stdin": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0024.stdin.json",
+      "exit": 0
+    },
+    {
+      "id": 25,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0025.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0025.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 26,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "verify",
+        "--task",
+        "fixture-20261011-1",
+        "--attempt",
+        "cde703ed-c65f-4460-982c-99cae9a27ef4"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0026.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0026.stderr.bin",
+      "exit": 1
+    },
+    {
+      "id": 27,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0027.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0027.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 28,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state/worktrees/cde703ed-c65f-4460-982c-99cae9a27ef4",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0028.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0028.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 29,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state/worktrees/cde703ed-c65f-4460-982c-99cae9a27ef4",
+        "commit",
+        "-m",
+        "Controlled worker fixture commit\n\nA2A-Task: fixture-20261011-1\nA2A-Attempt: cde703ed-c65f-4460-982c-99cae9a27ef4\nA2A-Session: cd33ddfe-8f1e-4baf-b07c-fc1fe394ec87\nA2A-Role: worker\nA2A-Tool: codex-cli 0.162.1\nA2A-Model: gpt-6.1-sol\nA2A-Effort: xhigh\nA2A-Native-Session: fixture-native-507a5657-f05f-4ebb-8251-2406d480ffd3\nA2A-Launch: 507a5657-f05f-4ebb-8251-2406d480ffd3"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0029.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0029.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 30,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state/worktrees/cde703ed-c65f-4460-982c-99cae9a27ef4",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0030.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0030.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 31,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0031.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0031.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 32,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "submit",
+        "--task",
+        "fixture-20261011-1",
+        "--attempt",
+        "cde703ed-c65f-4460-982c-99cae9a27ef4",
+        "--session",
+        "cd33ddfe-8f1e-4baf-b07c-fc1fe394ec87",
+        "--fence",
+        "1",
+        "--spec-rev",
+        "1",
+        "--commit",
+        "ff72d644f49a2531283373ec0b6b2146365acf93",
+        "--request-id",
+        "delivery-2"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0032.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0032.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 33,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "pane_status",
+        "--thread",
+        "64ff31b5-f07e-4798-a26d-f8fe521b3745"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0033.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0033.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 34,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "signal",
+        "--launch",
+        "507a5657-f05f-4ebb-8251-2406d480ffd3"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0034.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0034.stderr.bin",
+      "stdin": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0034.stdin.json",
+      "exit": 0
+    },
+    {
+      "id": 35,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0035.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0035.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 36,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0036.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0036.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 37,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0037.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0037.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 38,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0038.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0038.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 39,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/prior-turn-score-facts/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-g4oyo7to/c-oqwov1zm/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-g4oyo7to/c-oqwov1zm",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0039.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/prior-turn-score-facts/tracer_missing_delivery_context/command-0039.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-g4oyo7to/c-oqwov1zm"
+}

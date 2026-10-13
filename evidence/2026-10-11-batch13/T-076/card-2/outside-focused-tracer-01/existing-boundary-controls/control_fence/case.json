@@ -1,0 +1,1008 @@
+{
+  "case": "control_fence",
+  "outcome": "passed",
+  "assertions": [
+    {
+      "id": "CONTROL-FENCE",
+      "passed": true,
+      "expected": "wrong fence has no submission effect",
+      "actual": {
+        "ok": false,
+        "error": "stale_fence",
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-11T17:20:16.496Z"
+        }
+      }
+    },
+    {
+      "id": "CONTROL-FENCE.event",
+      "passed": true,
+      "expected": "stale_fence refusal event",
+      "actual": [
+        {
+          "seq": 1,
+          "time": "2026-10-11T17:20:16.788Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "card_saved",
+          "details": {
+            "card": {
+              "id": "fixture-20261011-1",
+              "source": null,
+              "goal": "交付 src/value.txt 中的独立预期内容",
+              "non_goals": [
+                "不修改项目外的文件"
+              ],
+              "paths": {
+                "allow": [
+                  "src/",
+                  "tests/",
+                  ".a2a/quality.json"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "card_version": 1
+          }
+        },
+        {
+          "seq": 2,
+          "time": "2026-10-11T17:20:16.921Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "check-ref-format",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo"
+          }
+        },
+        {
+          "seq": 3,
+          "time": "2026-10-11T17:20:16.927Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "check-ref-format",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "stdout": "",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 4,
+          "time": "2026-10-11T17:20:16.928Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "rev-parse",
+              "--show-toplevel"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo"
+          }
+        },
+        {
+          "seq": 5,
+          "time": "2026-10-11T17:20:16.932Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "rev-parse",
+              "--show-toplevel"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "stdout": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 6,
+          "time": "2026-10-11T17:20:16.933Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "rev-parse",
+              "--verify",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo"
+          }
+        },
+        {
+          "seq": 7,
+          "time": "2026-10-11T17:20:16.937Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "rev-parse",
+              "--verify",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "stdout": "fe31835d210b733c60c82e76437dc85ace8f5dfc\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 8,
+          "time": "2026-10-11T17:20:16.937Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "cat-file",
+              "-t",
+              "fe31835d210b733c60c82e76437dc85ace8f5dfc"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo"
+          }
+        },
+        {
+          "seq": 9,
+          "time": "2026-10-11T17:20:16.943Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "cat-file",
+              "-t",
+              "fe31835d210b733c60c82e76437dc85ace8f5dfc"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "stdout": "commit\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 10,
+          "time": "2026-10-11T17:20:16.943Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "create_intent",
+          "details": {
+            "task_id": "fixture-20261011-1",
+            "title": "fixture-20261011-1",
+            "project_id": "fixture",
+            "repo": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "integration_ref": "refs/heads/main",
+            "card_snapshot_id": "29159157-ae79-4448-83ea-605a8740dfa6",
+            "card_version": 1,
+            "card": {
+              "id": "fixture-20261011-1",
+              "source": null,
+              "goal": "交付 src/value.txt 中的独立预期内容",
+              "non_goals": [
+                "不修改项目外的文件"
+              ],
+              "paths": {
+                "allow": [
+                  "src/",
+                  "tests/",
+                  ".a2a/quality.json"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "base_commit": "fe31835d210b733c60c82e76437dc85ace8f5dfc",
+            "state": "creating",
+            "spec_rev": 1,
+            "fence": 0,
+            "current_attempt": null,
+            "candidate_commit": null,
+            "verification": null,
+            "integration_intent": null
+          }
+        },
+        {
+          "seq": 11,
+          "time": "2026-10-11T17:20:16.944Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "created",
+          "details": {
+            "task_id": "fixture-20261011-1",
+            "title": "fixture-20261011-1",
+            "project_id": "fixture",
+            "repo": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "integration_ref": "refs/heads/main",
+            "card_snapshot_id": "29159157-ae79-4448-83ea-605a8740dfa6",
+            "card_version": 1,
+            "card": {
+              "id": "fixture-20261011-1",
+              "source": null,
+              "goal": "交付 src/value.txt 中的独立预期内容",
+              "non_goals": [
+                "不修改项目外的文件"
+              ],
+              "paths": {
+                "allow": [
+                  "src/",
+                  "tests/",
+                  ".a2a/quality.json"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "base_commit": "fe31835d210b733c60c82e76437dc85ace8f5dfc",
+            "state": "ready",
+            "spec_rev": 1,
+            "fence": 0,
+            "current_attempt": null,
+            "candidate_commit": null,
+            "verification": null,
+            "integration_intent": null
+          }
+        },
+        {
+          "seq": 12,
+          "time": "2026-10-11T17:20:17.051Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "rev-parse",
+              "--verify",
+              "--quiet",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo"
+          }
+        },
+        {
+          "seq": 13,
+          "time": "2026-10-11T17:20:17.057Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "rev-parse",
+              "--verify",
+              "--quiet",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "stdout": "fe31835d210b733c60c82e76437dc85ace8f5dfc\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 14,
+          "time": "2026-10-11T17:20:17.057Z",
+          "task": "fixture-20261011-1",
+          "attempt": "be071b8f-8598-41d4-8737-20891757422d",
+          "type": "claim_intent",
+          "details": {
+            "attempt": {
+              "task_id": "fixture-20261011-1",
+              "attempt_id": "be071b8f-8598-41d4-8737-20891757422d",
+              "session_id": "c537ae44-b30d-49cf-b781-a1d1d712a169",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "",
+              "runtime_mode": "approval-required",
+              "turn_id": null,
+              "runtime_identity": null,
+              "workspace": "/private/tmp/q76-vvsf3z62/c-3toc3i41/state/worktrees/be071b8f-8598-41d4-8737-20891757422d",
+              "base_commit": "fe31835d210b733c60c82e76437dc85ace8f5dfc",
+              "card_snapshot_id": "4a770bb4-8402-4866-8c53-8425827bad5c",
+              "reclaimed": false,
+              "owner": "independent-check",
+              "state": "preparing"
+            },
+            "task": {
+              "task_id": "fixture-20261011-1",
+              "title": "fixture-20261011-1",
+              "project_id": "fixture",
+              "repo": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "integration_ref": "refs/heads/main",
+              "card_snapshot_id": "29159157-ae79-4448-83ea-605a8740dfa6",
+              "card_version": 1,
+              "card": {
+                "id": "fixture-20261011-1",
+                "source": null,
+                "goal": "交付 src/value.txt 中的独立预期内容",
+                "non_goals": [
+                  "不修改项目外的文件"
+                ],
+                "paths": {
+                  "allow": [
+                    "src/",
+                    "tests/",
+                    ".a2a/quality.json"
+                  ],
+                  "deny": [
+                    "src/private/"
+                  ]
+                },
+                "completion_conditions": [
+                  {
+                    "argv": [
+                      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                      "-I",
+                      "-B",
+                      "-c",
+                      "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                    ]
+                  }
+                ],
+                "red_commands": [],
+                "task_type": "后端逻辑",
+                "repair_target": null,
+                "complexity": "L",
+                "executor": {
+                  "cli": "Codex",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh"
+                },
+                "base_commit": null,
+                "writer": null
+              },
+              "base_commit": "fe31835d210b733c60c82e76437dc85ace8f5dfc",
+              "state": "preparing",
+              "spec_rev": 1,
+              "fence": 1,
+              "current_attempt": {
+                "task_id": "fixture-20261011-1",
+                "attempt_id": "be071b8f-8598-41d4-8737-20891757422d",
+                "session_id": "c537ae44-b30d-49cf-b781-a1d1d712a169",
+                "fence": 1,
+                "spec_rev": 1,
+                "thread_id": "",
+                "runtime_mode": "approval-required",
+                "turn_id": null,
+                "runtime_identity": null,
+                "workspace": "/private/tmp/q76-vvsf3z62/c-3toc3i41/state/worktrees/be071b8f-8598-41d4-8737-20891757422d",
+                "base_commit": "fe31835d210b733c60c82e76437dc85ace8f5dfc",
+                "card_snapshot_id": "4a770bb4-8402-4866-8c53-8425827bad5c",
+                "reclaimed": false,
+                "owner": "independent-check",
+                "state": "preparing"
+              },
+              "candidate_commit": null,
+              "verification": null,
+              "integration_intent": null,
+              "repair": null,
+              "review": null
+            }
+          }
+        },
+        {
+          "seq": 15,
+          "time": "2026-10-11T17:20:17.057Z",
+          "task": "fixture-20261011-1",
+          "attempt": "be071b8f-8598-41d4-8737-20891757422d",
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "worktree",
+              "add",
+              "--detach",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/state/worktrees/be071b8f-8598-41d4-8737-20891757422d",
+              "fe31835d210b733c60c82e76437dc85ace8f5dfc"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo"
+          }
+        },
+        {
+          "seq": 16,
+          "time": "2026-10-11T17:20:17.072Z",
+          "task": "fixture-20261011-1",
+          "attempt": "be071b8f-8598-41d4-8737-20891757422d",
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+              "worktree",
+              "add",
+              "--detach",
+              "/private/tmp/q76-vvsf3z62/c-3toc3i41/state/worktrees/be071b8f-8598-41d4-8737-20891757422d",
+              "fe31835d210b733c60c82e76437dc85ace8f5dfc"
+            ],
+            "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "stdout": "HEAD 现在位于 fe31835 Independent baseline\n",
+            "stderr": "准备工作区（分离头指针 fe31835）\n",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 17,
+          "time": "2026-10-11T17:20:17.072Z",
+          "task": "fixture-20261011-1",
+          "attempt": "be071b8f-8598-41d4-8737-20891757422d",
+          "type": "claimed",
+          "details": {
+            "task_id": "fixture-20261011-1",
+            "title": "fixture-20261011-1",
+            "project_id": "fixture",
+            "repo": "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+            "integration_ref": "refs/heads/main",
+            "card_snapshot_id": "29159157-ae79-4448-83ea-605a8740dfa6",
+            "card_version": 1,
+            "card": {
+              "id": "fixture-20261011-1",
+              "source": null,
+              "goal": "交付 src/value.txt 中的独立预期内容",
+              "non_goals": [
+                "不修改项目外的文件"
+              ],
+              "paths": {
+                "allow": [
+                  "src/",
+                  "tests/",
+                  ".a2a/quality.json"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "base_commit": "fe31835d210b733c60c82e76437dc85ace8f5dfc",
+            "state": "claimed",
+            "spec_rev": 1,
+            "fence": 1,
+            "current_attempt": {
+              "task_id": "fixture-20261011-1",
+              "attempt_id": "be071b8f-8598-41d4-8737-20891757422d",
+              "session_id": "c537ae44-b30d-49cf-b781-a1d1d712a169",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "",
+              "runtime_mode": "approval-required",
+              "turn_id": null,
+              "runtime_identity": null,
+              "workspace": "/private/tmp/q76-vvsf3z62/c-3toc3i41/state/worktrees/be071b8f-8598-41d4-8737-20891757422d",
+              "base_commit": "fe31835d210b733c60c82e76437dc85ace8f5dfc",
+              "card_snapshot_id": "4a770bb4-8402-4866-8c53-8425827bad5c",
+              "reclaimed": false,
+              "owner": "independent-check",
+              "state": "claimed"
+            },
+            "candidate_commit": null,
+            "verification": null,
+            "integration_intent": null,
+            "repair": null,
+            "review": null
+          }
+        },
+        {
+          "seq": 18,
+          "time": "2026-10-11T17:20:17.219Z",
+          "task": "fixture-20261011-1",
+          "attempt": "be071b8f-8598-41d4-8737-20891757422d",
+          "type": "rejected",
+          "details": {
+            "error": "stale_fence",
+            "input": {
+              "command": "submit",
+              "task": "fixture-20261011-1",
+              "attempt": "be071b8f-8598-41d4-8737-20891757422d",
+              "session": "c537ae44-b30d-49cf-b781-a1d1d712a169",
+              "fence": 2,
+              "spec_rev": 1,
+              "commit": "d3105dca8b9d5aa54589fe71d485947630826fcc"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "55403",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "card_template",
+        "--task",
+        "fixture-20261011-1",
+        "--repo",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "card_save",
+        "--task",
+        "fixture-20261011-1",
+        "--card",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "create",
+        "--task",
+        "fixture-20261011-1",
+        "--repo",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "claim",
+        "--task",
+        "fixture-20261011-1",
+        "--owner",
+        "independent-check"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state/worktrees/be071b8f-8598-41d4-8737-20891757422d",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state/worktrees/be071b8f-8598-41d4-8737-20891757422d",
+        "commit",
+        "-m",
+        "Independent fixture commit\n\nA2A-Task: fixture-20261011-1\nA2A-Attempt: be071b8f-8598-41d4-8737-20891757422d\nA2A-Session: c537ae44-b30d-49cf-b781-a1d1d712a169\nA2A-Role: worker\nA2A-Tool: Codex 0.162.1\nA2A-Model: gpt-6-astra\nA2A-Effort: xhigh\nA2A-Native-Session: unknown\nA2A-Launch: fixture-launch"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state/worktrees/be071b8f-8598-41d4-8737-20891757422d",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "submit",
+        "--task",
+        "fixture-20261011-1",
+        "--attempt",
+        "be071b8f-8598-41d4-8737-20891757422d",
+        "--session",
+        "c537ae44-b30d-49cf-b781-a1d1d712a169",
+        "--fence",
+        "2",
+        "--spec-rev",
+        "1",
+        "--commit",
+        "d3105dca8b9d5aa54589fe71d485947630826fcc"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0014.stderr.bin",
+      "exit": 1
+    },
+    {
+      "id": 15,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "status",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "events",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0016.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 17,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "events",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0017.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0017.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 18,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0018.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0018.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 19,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0019.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0019.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 20,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0020.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0020.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 21,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0021.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0021.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 22,
+      "argv": [
+        "node",
+        "/private/tmp/q76green-ycyd7qmp/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-vvsf3z62/c-3toc3i41/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-vvsf3z62/c-3toc3i41",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0022.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/existing-boundary-controls/control_fence/command-0022.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-vvsf3z62/c-3toc3i41"
+}

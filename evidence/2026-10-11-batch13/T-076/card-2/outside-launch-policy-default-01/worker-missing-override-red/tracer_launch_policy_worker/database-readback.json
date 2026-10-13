@@ -1,0 +1,482 @@
+{
+  "phase": "before-host-stop",
+  "tables": {
+    "attachments": [],
+    "attempts": [
+      {
+        "id": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"task_id\":\"fixture-20261013-1\",\"attempt_id\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"session_id\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":{\"launch\":\"c5e9a24c-a846-4d67-8fcb-65058e00f860\",\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"shell_pid\":31000,\"leader_pid\":31001,\"native_session\":\"fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860\"},\"workspace\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"card_snapshot_id\":\"50bfc4d0-9f0b-4c42-b141-f9187b585f55\",\"reclaimed\":false,\"owner\":\"fixture-20261013-1\",\"state\":\"claimed\"}"
+      }
+    ],
+    "dispatch_records": [
+      {
+        "seq": 1,
+        "id": "782dd4a4-711e-4fce-862b-875693b391c5",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "data": "{\"text\":\"Controlled test input. No model executes this role.\\n\\n\\n{\\n  \\\"id\\\": \\\"fixture-20261013-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\\\\\n'\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"4429b909a0be7d3505f1f103f1915c34293edd2c\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261013-1\\\",\\n    \\\"attempt_id\\\": \\\"5f9c3299-3ba0-4eed-80ab-728552a0464d\\\",\\n    \\\"session_id\\\": \\\"c4ddd49a-71a3-46db-954e-8f90e205762e\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261013-1\\\",\\\"attempt\\\":\\\"5f9c3299-3ba0-4eed-80ab-728552a0464d\\\",\\\"session\\\":\\\"c4ddd49a-71a3-46db-954e-8f90e205762e\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state' 'submit' '--task' 'fixture-20261013-1' '--attempt' '5f9c3299-3ba0-4eed-80ab-728552a0464d' '--session' 'c4ddd49a-71a3-46db-954e-8f90e205762e' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\",\"registered_at\":\"2026-10-13T14:56:21.946Z\",\"source\":\"executor\"}"
+      }
+    ],
+    "events": [
+      {
+        "seq": 1,
+        "time": "2026-10-13T14:56:20.630Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "card_saved",
+        "details": "{\"card\":{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"card_version\":1}"
+      },
+      {
+        "seq": 2,
+        "time": "2026-10-13T14:56:20.757Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"check-ref-format\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\"}"
+      },
+      {
+        "seq": 3,
+        "time": "2026-10-13T14:56:20.764Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"check-ref-format\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"stdout\":\"\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 4,
+        "time": "2026-10-13T14:56:20.764Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"rev-parse\",\"--show-toplevel\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\"}"
+      },
+      {
+        "seq": 5,
+        "time": "2026-10-13T14:56:20.769Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"rev-parse\",\"--show-toplevel\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"stdout\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 6,
+        "time": "2026-10-13T14:56:20.769Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"rev-parse\",\"--verify\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\"}"
+      },
+      {
+        "seq": 7,
+        "time": "2026-10-13T14:56:20.774Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"rev-parse\",\"--verify\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"stdout\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 8,
+        "time": "2026-10-13T14:56:20.774Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"cat-file\",\"-t\",\"4429b909a0be7d3505f1f103f1915c34293edd2c\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\"}"
+      },
+      {
+        "seq": 9,
+        "time": "2026-10-13T14:56:20.780Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"cat-file\",\"-t\",\"4429b909a0be7d3505f1f103f1915c34293edd2c\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"stdout\":\"commit\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 10,
+        "time": "2026-10-13T14:56:20.781Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"ls-tree\",\"-z\",\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"--\",\".a2a/quality.json\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\"}"
+      },
+      {
+        "seq": 11,
+        "time": "2026-10-13T14:56:20.787Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"ls-tree\",\"-z\",\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"--\",\".a2a/quality.json\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"stdout\":\"\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 12,
+        "time": "2026-10-13T14:56:20.788Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "create_intent",
+        "details": "{\"task_id\":\"fixture-20261013-1\",\"title\":\"fixture-20261013-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"caae079b-ab6e-4506-842d-5216b29ac250\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"state\":\"creating\",\"spec_rev\":1,\"fence\":0,\"current_attempt\":null,\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]}}"
+      },
+      {
+        "seq": 13,
+        "time": "2026-10-13T14:56:20.788Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "created",
+        "details": "{\"task_id\":\"fixture-20261013-1\",\"title\":\"fixture-20261013-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"caae079b-ab6e-4506-842d-5216b29ac250\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"state\":\"ready\",\"spec_rev\":1,\"fence\":0,\"current_attempt\":null,\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]}}"
+      },
+      {
+        "seq": 14,
+        "time": "2026-10-13T14:56:20.892Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"rev-parse\",\"--verify\",\"--quiet\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\"}"
+      },
+      {
+        "seq": 15,
+        "time": "2026-10-13T14:56:20.897Z",
+        "task": "fixture-20261013-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"rev-parse\",\"--verify\",\"--quiet\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"stdout\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 16,
+        "time": "2026-10-13T14:56:20.897Z",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "type": "dispatch_intent",
+        "details": "{\"attempt\":{\"task_id\":\"fixture-20261013-1\",\"attempt_id\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"session_id\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":null,\"workspace\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"card_snapshot_id\":\"50bfc4d0-9f0b-4c42-b141-f9187b585f55\",\"reclaimed\":false,\"owner\":\"fixture-20261013-1\",\"state\":\"preparing\"},\"task\":{\"task_id\":\"fixture-20261013-1\",\"title\":\"fixture-20261013-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"caae079b-ab6e-4506-842d-5216b29ac250\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"state\":\"preparing\",\"spec_rev\":1,\"fence\":1,\"current_attempt\":{\"task_id\":\"fixture-20261013-1\",\"attempt_id\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"session_id\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":null,\"workspace\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"card_snapshot_id\":\"50bfc4d0-9f0b-4c42-b141-f9187b585f55\",\"reclaimed\":false,\"owner\":\"fixture-20261013-1\",\"state\":\"preparing\"},\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]},\"repair\":null,\"review\":null},\"model\":\"gpt-6.1-sol\",\"reasoning_effort\":\"xhigh\",\"requested_service_tier\":\"default\"}"
+      },
+      {
+        "seq": 17,
+        "time": "2026-10-13T14:56:20.898Z",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"worktree\",\"add\",\"--detach\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"4429b909a0be7d3505f1f103f1915c34293edd2c\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\"}"
+      },
+      {
+        "seq": 18,
+        "time": "2026-10-13T14:56:20.912Z",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"worktree\",\"add\",\"--detach\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"4429b909a0be7d3505f1f103f1915c34293edd2c\"],\"cwd\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"stdout\":\"HEAD 现在位于 4429b90 Independent baseline\\n\",\"stderr\":\"准备工作区（分离头指针 4429b90）\\n\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 19,
+        "time": "2026-10-13T14:56:21.946Z",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "type": "claimed",
+        "details": "{\"task_id\":\"fixture-20261013-1\",\"title\":\"fixture-20261013-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"caae079b-ab6e-4506-842d-5216b29ac250\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"state\":\"claimed\",\"spec_rev\":1,\"fence\":1,\"current_attempt\":{\"task_id\":\"fixture-20261013-1\",\"attempt_id\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"session_id\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":{\"launch\":\"c5e9a24c-a846-4d67-8fcb-65058e00f860\",\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"shell_pid\":31000,\"leader_pid\":31001,\"native_session\":\"fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860\"},\"workspace\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"card_snapshot_id\":\"50bfc4d0-9f0b-4c42-b141-f9187b585f55\",\"reclaimed\":false,\"owner\":\"fixture-20261013-1\",\"state\":\"claimed\"},\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]},\"repair\":null,\"review\":null}"
+      },
+      {
+        "seq": 20,
+        "time": "2026-10-13T14:56:21.946Z",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "type": "prompt_intent",
+        "details": "{\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"prompt\":\"{\\n  \\\"id\\\": \\\"fixture-20261013-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\\\\\n'\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"4429b909a0be7d3505f1f103f1915c34293edd2c\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261013-1\\\",\\n    \\\"attempt_id\\\": \\\"5f9c3299-3ba0-4eed-80ab-728552a0464d\\\",\\n    \\\"session_id\\\": \\\"c4ddd49a-71a3-46db-954e-8f90e205762e\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261013-1\\\",\\\"attempt\\\":\\\"5f9c3299-3ba0-4eed-80ab-728552a0464d\\\",\\\"session\\\":\\\"c4ddd49a-71a3-46db-954e-8f90e205762e\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state' 'submit' '--task' 'fixture-20261013-1' '--attempt' '5f9c3299-3ba0-4eed-80ab-728552a0464d' '--session' 'c4ddd49a-71a3-46db-954e-8f90e205762e' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\"}"
+      },
+      {
+        "seq": 21,
+        "time": "2026-10-13T14:56:21.947Z",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "type": "dispatched",
+        "details": "{\"attempt\":{\"task_id\":\"fixture-20261013-1\",\"attempt_id\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"session_id\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":{\"launch\":\"c5e9a24c-a846-4d67-8fcb-65058e00f860\",\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"shell_pid\":31000,\"leader_pid\":31001,\"native_session\":\"fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860\"},\"workspace\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"card_snapshot_id\":\"50bfc4d0-9f0b-4c42-b141-f9187b585f55\",\"reclaimed\":false,\"owner\":\"fixture-20261013-1\",\"state\":\"claimed\"}}"
+      }
+    ],
+    "inbox_deliveries": [],
+    "inbox_records": [],
+    "issue_records": [],
+    "launch_records": [
+      {
+        "id": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"id\":\"c5e9a24c-a846-4d67-8fcb-65058e00f860\",\"project\":\"fixture\",\"task\":\"fixture-20261013-1\",\"attempt\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"session\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"fence\":1,\"spec_rev\":1,\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"role\":\"worker\",\"sandbox\":\"workspace-write\",\"created_at\":\"2026-10-13T14:56:21.944Z\",\"cli_version\":\"codex-cli 0.162.1\",\"argv\":[\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/control/fixture-version\",\"--no-daemon\",\"--no-alt-screen\",\"-C\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"-a\",\"never\",\"--sandbox\",\"workspace-write\",\"-m\",\"gpt-6.1-sol\",\"-c\",\"model_reasoning_effort=\\\"xhigh\\\"\",\"-c\",\"check_for_update_on_startup=false\",\"-c\",\"tui.notifications=false\",\"-c\",\"sandbox_workspace_write.network_access=false\",\"-c\",\"features.network_proxy=false\",\"-c\",\"hooks.UserPromptSubmit=[{hooks=[{type=\\\"command\\\",command=\\\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state' 'signal' '--launch' 'c5e9a24c-a846-4d67-8fcb-65058e00f860'\\\",timeout=10}]}]\",\"-c\",\"hooks.Stop=[{hooks=[{type=\\\"command\\\",command=\\\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state' 'signal' '--launch' 'c5e9a24c-a846-4d67-8fcb-65058e00f860'\\\",timeout=10}]}]\",\"-c\",\"hooks.PermissionRequest=[{hooks=[{type=\\\"command\\\",command=\\\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state' 'signal' '--launch' 'c5e9a24c-a846-4d67-8fcb-65058e00f860'\\\",timeout=10}]}]\",\"--dangerously-bypass-hook-trust\"],\"request_dir\":\"/private/tmp/a2a-requests-Yu2FsY\",\"model_requested\":\"gpt-6.1-sol\",\"effort_requested\":\"xhigh\",\"service_tier_requested\":\"default\",\"turn_limit\":10,\"turn_authorization\":\"controlled-turns-only\",\"code_revision\":\"frozen-source-manifest\",\"source_snapshot\":null,\"role_card\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/control/role.txt\",\"role_card_revision\":\"test-fixture-not-a-provider\",\"role_text\":\"Controlled test input. No model executes this role.\\n\",\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"worktree\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-f\",\"-i\",\"-c\",\"'/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/control/fixture-version' '--no-daemon' '--no-alt-screen' '-C' '/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d' '-a' 'never' '--sandbox' 'workspace-write' '-m' 'gpt-6.1-sol' '-c' 'model_reasoning_effort=\\\"xhigh\\\"' '-c' 'check_for_update_on_startup=false' '-c' 'tui.notifications=false' '-c' 'sandbox_workspace_write.network_access=false' '-c' 'features.network_proxy=false' '-c' 'hooks.UserPromptSubmit=[{hooks=[{type=\\\"command\\\",command=\\\"'\\\\''/opt/homebrew/Cellar/node/26.5.0/bin/node'\\\\'' '\\\\''/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts'\\\\'' '\\\\''--state'\\\\'' '\\\\''/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state'\\\\'' '\\\\''signal'\\\\'' '\\\\''--launch'\\\\'' '\\\\''c5e9a24c-a846-4d67-8fcb-65058e00f860'\\\\''\\\",timeout=10}]}]' '-c' 'hooks.Stop=[{hooks=[{type=\\\"command\\\",command=\\\"'\\\\''/opt/homebrew/Cellar/node/26.5.0/bin/node'\\\\'' '\\\\''/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts'\\\\'' '\\\\''--state'\\\\'' '\\\\''/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state'\\\\'' '\\\\''signal'\\\\'' '\\\\''--launch'\\\\'' '\\\\''c5e9a24c-a846-4d67-8fcb-65058e00f860'\\\\''\\\",timeout=10}]}]' '-c' 'hooks.PermissionRequest=[{hooks=[{type=\\\"command\\\",command=\\\"'\\\\''/opt/homebrew/Cellar/node/26.5.0/bin/node'\\\\'' '\\\\''/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts'\\\\'' '\\\\''--state'\\\\'' '\\\\''/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state'\\\\'' '\\\\''signal'\\\\'' '\\\\''--launch'\\\\'' '\\\\''c5e9a24c-a846-4d67-8fcb-65058e00f860'\\\\''\\\",timeout=10}]}]' '--dangerously-bypass-hook-trust'; exec /bin/zsh -f -i\"],\"env\":{\"PATH\":\"/Users/luckye/.grok/bin:/Users/luckye/.local/bin:/Users/luckye/.bun/bin:/Users/luckye/.antigravity/antigravity/bin:/Users/luckye/.antigravity/antigravity/bin:/Users/luckye/.antigravity/antigravity/bin:/opt/homebrew/opt/cmake3/bin:/Users/luckye/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/luckye/.grok/bin:/Users/luckye/.local/bin:/Users/luckye/.bun/bin:/Users/luckye/.antigravity/antigravity/bin:/opt/miniconda3/bin:/opt/miniconda3/condabin:/opt/homebrew/opt/cmake3/bin:/opt/homebrew/sbin:/Users/luckye/.cargo/bin:/Users/luckye/Library/Application Support/JetBrains/Toolbox/scripts:/Users/luckye/Library/Application Support/JetBrains/Toolbox/scripts\",\"HOME\":\"/Users/luckye\",\"LANG\":\"zh_CN.UTF-8\",\"TMPDIR\":\"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/\",\"USER\":\"luckye\",\"LOGNAME\":\"luckye\",\"GIT_AUTHOR_NAME\":\"Independent fixture\",\"GIT_AUTHOR_EMAIL\":\"fixture@example.invalid\",\"GIT_COMMITTER_NAME\":\"Independent fixture\",\"GIT_COMMITTER_EMAIL\":\"fixture@example.invalid\",\"CODEX_HOME\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/control/empty-codex-home\",\"SHELL\":\"/bin/zsh\",\"TERM\":\"xterm-256color\",\"COLORTERM\":\"truecolor\",\"A2A_PROJECT\":\"fixture\",\"A2A_TASK\":\"fixture-20261013-1\",\"A2A_ATTEMPT\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"A2A_SESSION\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"A2A_ROLE\":\"worker\",\"A2A_LAUNCH\":\"c5e9a24c-a846-4d67-8fcb-65058e00f860\",\"A2A_STATE\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state\",\"A2A_CLI\":\"/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts\",\"A2A_NODE\":\"/opt/homebrew/Cellar/node/26.5.0/bin/node\",\"A2A_REQUEST_DIR\":\"/private/tmp/a2a-requests-Yu2FsY\",\"A2A_FENCE\":\"1\",\"A2A_SPEC_REV\":\"1\",\"A2A_TOOL\":\"codex-cli 0.162.1\",\"A2A_MODEL_REQUESTED\":\"gpt-6.1-sol\",\"A2A_EFFORT_REQUESTED\":\"xhigh\",\"GIT_CONFIG_COUNT\":\"1\",\"GIT_CONFIG_KEY_0\":\"core.hooksPath\",\"GIT_CONFIG_VALUE_0\":\"/private/tmp/l76argv-8bhgcqt_/baseline/workbench/hooks/\"},\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\",\"hook_authorization\":\"no-real-hooks-installed\"}"
+      }
+    ],
+    "orchestration_events": [
+      {
+        "seq": 1,
+        "time": "2026-10-13T14:56:20.401Z",
+        "type": "daemon_started",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"daemon\":\"a3fecc94-7ef3-4230-a99a-e2bc0b45120b\",\"pid\":97420,\"ppid\":97413,\"argv\":[\"/opt/homebrew/Cellar/node/26.5.0/bin/node\",\"/private/tmp/l76argv-8bhgcqt_/candidate/workbench/tests/quality_chain_host.ts\",\"/private/tmp/l76argv-8bhgcqt_/baseline\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/control\",\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/host-01.ready.json\"],\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\",\"node\":\"v26.5.0\"}"
+      },
+      {
+        "seq": 2,
+        "time": "2026-10-13T14:56:20.497Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"dd7b1295-3488-4af5-8f14-3f0db3a048f8\",\"input\":{\"command\":\"daemon_status\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 3,
+        "time": "2026-10-13T14:56:20.498Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"dd7b1295-3488-4af5-8f14-3f0db3a048f8\",\"command\":\"daemon_status\",\"ok\":true}"
+      },
+      {
+        "seq": 4,
+        "time": "2026-10-13T14:56:20.626Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b5702c5f-4654-43a2-97cc-4a632d32bbaf\",\"input\":{\"command\":\"card_save\",\"task\":\"fixture-20261013-1\",\"card\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/card.json\",\"expected_version\":0},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 5,
+        "time": "2026-10-13T14:56:20.631Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b5702c5f-4654-43a2-97cc-4a632d32bbaf\",\"command\":\"card_save\",\"ok\":true}"
+      },
+      {
+        "seq": 6,
+        "time": "2026-10-13T14:56:20.756Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"8acb84eb-dbce-4774-9f74-4932151315e0\",\"input\":{\"command\":\"create\",\"task\":\"fixture-20261013-1\",\"repo\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"branch\":\"refs/heads/main\",\"card_version\":1,\"project\":\"fixture\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 7,
+        "time": "2026-10-13T14:56:20.789Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"8acb84eb-dbce-4774-9f74-4932151315e0\",\"command\":\"create\",\"ok\":true}"
+      },
+      {
+        "seq": 8,
+        "time": "2026-10-13T14:56:20.891Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"9c091358-6452-489e-aec3-0f31b4a9d3de\",\"input\":{\"command\":\"dispatch\",\"task\":\"fixture-20261013-1\",\"runtimeMode\":\"workspace-write\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 9,
+        "time": "2026-10-13T14:56:21.945Z",
+        "type": "pane_started",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"shell_pid\":31000,\"state\":\"unknown\"}"
+      },
+      {
+        "seq": 10,
+        "time": "2026-10-13T14:56:21.946Z",
+        "type": "native_record",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"file\":\"sessions/rollout-fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860.jsonl\",\"offset\":0,\"record\":{\"type\":\"session_meta\",\"payload\":{\"source\":\"cli\",\"id\":\"fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860\"}}}"
+      },
+      {
+        "seq": 11,
+        "time": "2026-10-13T14:56:21.946Z",
+        "type": "dispatch_queued",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"id\":\"782dd4a4-711e-4fce-862b-875693b391c5\",\"seq\":1,\"source\":\"executor\",\"text\":\"⟦主控 #1⟧\\nControlled test input. No model executes this role.\\n\\n\\n{\\n  \\\"id\\\": \\\"fixture-20261013-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\\\\\n'\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"4429b909a0be7d3505f1f103f1915c34293edd2c\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261013-1\\\",\\n    \\\"attempt_id\\\": \\\"5f9c3299-3ba0-4eed-80ab-728552a0464d\\\",\\n    \\\"session_id\\\": \\\"c4ddd49a-71a3-46db-954e-8f90e205762e\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261013-1\\\",\\\"attempt\\\":\\\"5f9c3299-3ba0-4eed-80ab-728552a0464d\\\",\\\"session\\\":\\\"c4ddd49a-71a3-46db-954e-8f90e205762e\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state' 'submit' '--task' 'fixture-20261013-1' '--attempt' '5f9c3299-3ba0-4eed-80ab-728552a0464d' '--session' 'c4ddd49a-71a3-46db-954e-8f90e205762e' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\",\"registered_at\":\"2026-10-13T14:56:21.946Z\"}"
+      },
+      {
+        "seq": 12,
+        "time": "2026-10-13T14:56:21.947Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"9c091358-6452-489e-aec3-0f31b4a9d3de\",\"command\":\"dispatch\",\"ok\":true}"
+      },
+      {
+        "seq": 13,
+        "time": "2026-10-13T14:56:22.039Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"ebfb0dc0-4361-486e-a8ff-77bb855ba51a\",\"input\":{\"command\":\"pane_status\",\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 14,
+        "time": "2026-10-13T14:56:22.039Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"ebfb0dc0-4361-486e-a8ff-77bb855ba51a\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 15,
+        "time": "2026-10-13T14:56:22.174Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"0c407370-813a-4d8e-82a1-e0b2b0381946\",\"input\":{\"command\":\"pane_release\",\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"reason\":\"explicit controlled-fixture release\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 16,
+        "time": "2026-10-13T14:56:22.174Z",
+        "type": "executor_action",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"action\":\"initial_release\",\"reason\":\"explicit controlled-fixture release\",\"source\":\"executor\",\"process_info\":{\"shell_pid\":31000,\"leader\":31001,\"native_session\":\"fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860\",\"processes\":[],\"failed\":null,\"evidence_layer\":\"controlled-process-observation\"}}"
+      },
+      {
+        "seq": 17,
+        "time": "2026-10-13T14:56:22.174Z",
+        "type": "paste_intent",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"dispatch\":\"782dd4a4-711e-4fce-862b-875693b391c5\",\"text\":\"⟦主控 #1⟧\\nControlled test input. No model executes this role.\\n\\n\\n{\\n  \\\"id\\\": \\\"fixture-20261013-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\\\\\n'\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"4429b909a0be7d3505f1f103f1915c34293edd2c\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261013-1\\\",\\n    \\\"attempt_id\\\": \\\"5f9c3299-3ba0-4eed-80ab-728552a0464d\\\",\\n    \\\"session_id\\\": \\\"c4ddd49a-71a3-46db-954e-8f90e205762e\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261013-1\\\",\\\"attempt\\\":\\\"5f9c3299-3ba0-4eed-80ab-728552a0464d\\\",\\\"session\\\":\\\"c4ddd49a-71a3-46db-954e-8f90e205762e\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76argv-8bhgcqt_/baseline/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state' 'submit' '--task' 'fixture-20261013-1' '--attempt' '5f9c3299-3ba0-4eed-80ab-728552a0464d' '--session' 'c4ddd49a-71a3-46db-954e-8f90e205762e' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\"}"
+      },
+      {
+        "seq": 18,
+        "time": "2026-10-13T14:56:22.175Z",
+        "type": "paste_written",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"dispatch\":\"782dd4a4-711e-4fce-862b-875693b391c5\"}"
+      },
+      {
+        "seq": 19,
+        "time": "2026-10-13T14:56:22.476Z",
+        "type": "turn_submit_intent",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"id\":\"e84b21ff-abe3-4497-a517-ee4ae1d3b381\",\"dispatch\":\"782dd4a4-711e-4fce-862b-875693b391c5\",\"at\":\"2026-10-13T14:56:22.174Z\",\"nativeTurn\":null}"
+      },
+      {
+        "seq": 20,
+        "time": "2026-10-13T14:56:22.476Z",
+        "type": "turn_submitted",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"id\":\"e84b21ff-abe3-4497-a517-ee4ae1d3b381\",\"dispatch\":\"782dd4a4-711e-4fce-862b-875693b391c5\",\"at\":\"2026-10-13T14:56:22.174Z\",\"nativeTurn\":null}"
+      },
+      {
+        "seq": 21,
+        "time": "2026-10-13T14:56:22.477Z",
+        "type": "native_record",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"file\":\"sessions/rollout-fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860.jsonl\",\"offset\":110,\"record\":{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\",\"turn_id\":\"fixture-turn-1\"}}}"
+      },
+      {
+        "seq": 22,
+        "time": "2026-10-13T14:56:22.477Z",
+        "type": "native_record",
+        "launch": "c5e9a24c-a846-4d67-8fcb-65058e00f860",
+        "task": "fixture-20261013-1",
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"file\":\"sessions/rollout-fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860.jsonl\",\"offset\":192,\"record\":{\"type\":\"turn_context\",\"payload\":{\"turn_id\":\"fixture-turn-1\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"}}}"
+      },
+      {
+        "seq": 23,
+        "time": "2026-10-13T14:56:22.477Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"0c407370-813a-4d8e-82a1-e0b2b0381946\",\"command\":\"pane_release\",\"ok\":true}"
+      },
+      {
+        "seq": 24,
+        "time": "2026-10-13T14:56:22.563Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b4a42aa9-5756-4aa0-823a-46ee22652a6d\",\"input\":{\"command\":\"pane_status\",\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 25,
+        "time": "2026-10-13T14:56:22.563Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b4a42aa9-5756-4aa0-823a-46ee22652a6d\",\"command\":\"pane_status\",\"ok\":true}"
+      }
+    ],
+    "relay_requests": [],
+    "relay_results": [],
+    "role_permission_changes": [],
+    "role_permissions": [],
+    "runs": [],
+    "sqlite_sequence": [
+      {
+        "name": "orchestration_events",
+        "seq": 25
+      },
+      {
+        "name": "events",
+        "seq": 21
+      },
+      {
+        "name": "dispatch_records",
+        "seq": 1
+      }
+    ],
+    "task_card_snapshots": [
+      {
+        "id": "caae079b-ab6e-4506-842d-5216b29ac250",
+        "task": "fixture-20261013-1",
+        "version": 1,
+        "attempt": null,
+        "data": "{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null}"
+      },
+      {
+        "id": "50bfc4d0-9f0b-4c42-b141-f9187b585f55",
+        "task": "fixture-20261013-1",
+        "version": 1,
+        "attempt": "5f9c3299-3ba0-4eed-80ab-728552a0464d",
+        "data": "{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"writer\":{\"task_id\":\"fixture-20261013-1\",\"attempt_id\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"session_id\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"fence\":1,\"thread_id\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\"}}"
+      }
+    ],
+    "task_card_versions": [
+      {
+        "task": "fixture-20261013-1",
+        "version": 1,
+        "data": "{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null}",
+        "created_at": "2026-10-13T14:56:20.630Z"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "fixture-20261013-1",
+        "data": "{\"task_id\":\"fixture-20261013-1\",\"title\":\"fixture-20261013-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"caae079b-ab6e-4506-842d-5216b29ac250\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261013-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"state\":\"claimed\",\"spec_rev\":1,\"fence\":1,\"current_attempt\":{\"task_id\":\"fixture-20261013-1\",\"attempt_id\":\"5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"session_id\":\"c4ddd49a-71a3-46db-954e-8f90e205762e\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":{\"launch\":\"c5e9a24c-a846-4d67-8fcb-65058e00f860\",\"thread\":\"b06afb03-18b0-4b3c-89e7-70b8e7b49262\",\"shell_pid\":31000,\"leader_pid\":31001,\"native_session\":\"fixture-native-c5e9a24c-a846-4d67-8fcb-65058e00f860\"},\"workspace\":\"/private/tmp/q76-5e8fuy6t/c-x8ppwz5y/state/worktrees/5f9c3299-3ba0-4eed-80ab-728552a0464d\",\"base_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"card_snapshot_id\":\"50bfc4d0-9f0b-4c42-b141-f9187b585f55\",\"reclaimed\":false,\"owner\":\"fixture-20261013-1\",\"state\":\"claimed\"},\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"4429b909a0be7d3505f1f103f1915c34293edd2c\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]},\"repair\":null,\"review\":null}"
+      }
+    ],
+    "user_input_checkpoint": [],
+    "user_input_events": [],
+    "user_input_ingress": [],
+    "user_inputs": [],
+    "verifications": []
+  }
+}

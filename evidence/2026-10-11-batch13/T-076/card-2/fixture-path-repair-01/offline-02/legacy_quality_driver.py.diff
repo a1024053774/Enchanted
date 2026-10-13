@@ -1,0 +1,13 @@
+--- before/legacy_quality_driver.py
++++ after/legacy_quality_driver.py
+@@ -11,7 +11,9 @@
+ 
+ 
+ def prepare_review_control(root, count=8):
+-    control = Path(root) / 'quality-control'; control.mkdir()
++    # Panes passes realpath(CODEX_HOME). Fix the fixture's configured spelling
++    # before creation; keep the PTY boundary's exact home/shell checks intact.
++    control = Path(root).resolve(strict=True) / 'quality-control'; control.mkdir()
+     home = control / 'unused-worker-home'; home.mkdir()
+     role = control / 'role.txt'; role.write_text('受控测试审查输入，无模型执行。\n', encoding='utf-8')
+     executable = control / 'fixture-version'

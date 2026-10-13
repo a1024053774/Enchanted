@@ -1,0 +1,262 @@
+#!/bin/zsh
+set -euo pipefail
+[[ -t 0 && -t 1 ]] || { print -u2 "Interactive TTY required"; exit 2; }
+print -r -- $$ > /Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-delivery-review-01/cli.pid
+exec env CODEX_HOME=/private/tmp/a2a-t076-delivery-review-01/codex-home /Users/luckye/.codex/packages/standalone/releases/0.162.1-aarch64-apple-darwin/bin/codex --no-daemon --no-alt-screen -C /private/tmp/a2a-t076-delivery-review-01/candidate -a never --sandbox read-only -m gpt-6.1-sol -c 'model_reasoning_effort="xhigh"' -c 'service_tier="default"' -c check_for_update_on_startup=false -c tui.notifications=false -c sandbox_workspace_write.network_access=false -c features.network_proxy=false '# T-076-2 独立交付审查范围
+
+目标：审查delivery-review-01冻结候选相对baseline a7f4cc30的卡2变更。它实现质量串、三次打回上限、fresh只读reviewer和评分接口；卡1已经完成的缺口不复用旧结论为新变更背书。审查只读，不继承实现会话，不修改文件/分支，不submit/integrate，不再找其他审查者。
+
+独立契约：candidate/requirements/T-076-quality-chain-scoring.md的Acceptance，以及native-cli-orchestration第3/8/9/12节；B通道与已批准acceptance白名单由requirements/controller-decision-01至05约束。用户当前要求gpt-6.1-sol/xhigh、每会话显式service_tier=default。T-077命名/清理/R8、T-078、存储结构修改是本卡非目标。
+
+候选源文件和baseline都在candidate/；manifest.json和CANDIDATE.diff用于定位变化，新文件不能因diff未显示就忽略。不要读实现者的PLAN、RESULTS、聊天或主会话日志。不要把新测试当oracle；从上述独立契约重建验收，检查预期泄漏、已知坏实现/反例，以及异常吞噬、重试/兼容/并行路径、根因所有权与浅包装成本。
+
+原始外部证据在`/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/`以下指定目录（均已停止；只读）：
+
+- outside-red-02：起点契约红态和既有边界对照；
+- outside-focused-tracer-01、outside-wide-green-01：受控PTY/原生输入，实际CLI/后台/Git/SQLite，正例与单点产品变异体；
+- outside-reviewer-red-01、outside-reviewer-green-01：创建、恢复、回收异常与正常路径；
+- outside-legacy-green-06：批准迁移后的8/9/18和T-075/T-076-1回归、F10/W07来源变异体；
+- outside-launch-policy-default-01：显式default参数和priority/只读变异体；
+- outside-p-review-02：实际模型、只读sentinel拒绝、完整Stop/B结论，1主回合；
+- outside-real-delivery-02：实际worker4回合+reviewer1回合，C1→完成条件首拒→自动回写→C2→可合并→缺分拒绝→主控后填评分→集成/回收。直接核对gate-events、events-after-stop、bindings、integration、score-payload、两个native-sessions和Git消息。sentinel不属于这条正例。
+- archive-real-log-01：超大日志字节归档PASS；commands.jsonl.gz.pointer.json指向外置盘48,122,290字节日志。原run.json的INCOMPLETE/archive_required原样保留，不能误当业务失败已擦除。
+- real-delivery-consistency-01.json：tasks/attempts/verifications一致；membership/session_presets无法重建，空表不代表覆盖。按票报告，不以本卡改变存储。
+
+证据层次必须分清：受控回归不证明真实模型/权限；P-review及真实正例提供实际边界。模型速度只以显式请求和可见原生日志报告，不推测供应商实际tier。冻结候选当前通过的范围是隔离受管交付，不能宣称正式工作台已切换或生产可用。
+
+只运行有界只读检查，不启动socket/后台/其他模型、网络、进程信号或写缓存。完整检查无法在只读模式运行时，指出缺口，不伪造绿态。
+
+最终消息用behavioral-acceptance-review规定的STATUS/TARGET/EVIDENCE/FINDINGS/COUNTEREXAMPLE/LIMITATIONS/RULE格式，必要时加RELEASE。PASS必须有独立行为证据；FAIL须可达或复现违规；未知写INCOMPLETE。结构风险纳入同一次审查，不另开审查回合。
+
+
+---
+name: behavioral-acceptance-review
+description: Audit whether tests, evals, benchmarks, autoresearch tasks, generated artifacts, public APIs, or user-visible workflows provide independent behavioral evidence, including acceptance and release verdicts for model-driven Agent products. Use at a completion checkpoint, not for ordinary implementation or documentation-only changes.
+context: fork
+agent: Explore
+background: false
+---
+
+# Behavioral Acceptance Review
+
+Act as an acceptance auditor, not the implementation agent, test author, or general
+code reviewer. Review one frozen candidate snapshot in a fresh, read-only context. Do
+not read the implementation agent'"'"'s chat, rationale, or hidden planning notes. The caller
+passes the repository path, the candidate, and the acceptance claim; without them, return
+`INCOMPLETE`. Do not
+edit files, tests, fixtures, branches, commits, deployments, or external systems.
+
+When the claimed behavior depends on a domain rule, a real external boundary, timing,
+data semantics, permissions, deployment, or another condition that a mock cannot establish,
+require evidence from that boundary (or clearly mark the result `INCOMPLETE`). A host mock
+or simulator may prove pure logic, but it is not independent evidence of the boundary it
+replaces. Coordinate with the `reality-first-engineering` gate; do not recreate its ledger
+or turn this review into a second architecture exercise.
+
+## Agent products
+
+When the target is a model-driven Agent product, also read
+[references/agent-products.md](references/agent-products.md): the capability profile, evidence
+layers, weak assertions, severity, release verdict, and rules for automated judges.
+
+## Establish independence
+
+Rebuild the acceptance criteria from the user'"'"'s task, public contract, and inputs
+external to the implementation. Tests added or modified in the current change are
+untrusted evidence, not the oracle. Inspect them for leakage, but do not accept a green
+suite as the only proof.
+
+Check that:
+
+1. The test observes the real public or user-visible entry point.
+2. Inputs are supplied outside production code and are not copied into it.
+3. Expected values and oracles do not import or duplicate production constants, helpers,
+   templates, or generated answers.
+4. At least one unseen, metamorphic, or sentinel input is exercised.
+5. A known-bad implementation would fail: hard-coded output, ignored input,
+   always-success/empty output, or a test-only branch.
+6. Assertions prove the claimed behavior rather than replaying one fixed example or
+   weakening the requirement.
+7. For generated text or artifacts, structure, provenance, input dependence, and
+   required fields are checked; exact prose snapshots alone are insufficient.
+
+For autoresearch, benchmark, evaluation, or generation tasks, change one input field
+such as title, domain, chapter, or a nonce and verify that the corresponding output
+changes. If a constant-output implementation can pass, the test is not an acceptance
+test.
+
+## Scope and stopping
+
+Review the supplied frozen snapshot only. If the branch, candidate, or diff changes,
+return `INCOMPLETE`; do not chase a moving target. Run only bounded, relevant checks.
+Do not ask another reviewer, fix findings, or perform a second self-review.
+
+Return exactly:
+
+```text
+STATUS: PASS | FAIL | INCOMPLETE
+TARGET: <frozen candidate or revision>
+EVIDENCE:
+- <input, command, result, or contract>
+FINDINGS:
+- [P1/P2/P3] <exact file and line> — <failure and simpler correction>
+COUNTEREXAMPLE:
+- <known-bad implementation or input and whether it is rejected>
+LIMITATIONS:
+- <missing oracle, environment, or coverage limitation>
+RULE:
+- <only when a finding repeats a known failure class: the check that would catch it and where it runs; a prose rule and where it belongs only when no check can detect it, with the reason>
+```
+
+`PASS` requires independent behavioral evidence. `FAIL` requires a reachable or
+reproduced violation. Use `INCOMPLETE` when the snapshot, external input, oracle, or
+required environment is unavailable. Never turn `INCOMPLETE` into `PASS` by guessing.
+
+
+# Agent products
+
+Read this only when the target is a model-driven Agent product (support, sales, knowledge,
+workflow, coding, voice, computer-use, batch). It adds what a generic acceptance audit misses.
+
+## Capability profile
+
+Answer each axis for the product. Only a `yes` adds checks; a `no` is written as `N/A` with a reason.
+
+| Axis | Applies when the product has | Verify |
+| --- | --- | --- |
+| Orchestration / state | workflows, state machines, queues, sub-tasks | real registered steps; replay, cancel, crash recovery; side effects happen at most once |
+| Streaming / async | streamed output, events, callbacks, long jobs | event order, termination, reconnect, duplicates; no draft or unsafe content leaks early |
+| Retrieval / memory | search, RAG, vector stores, memory, citations | answers change when sources change; source, version, and scope checked externally; deleted or expired memory stops applying |
+| Identity / scope | accounts, roles, tenants, resource scopes | identity comes from a trusted boundary, never from client fields or model output; cross-scope access through lists, downloads, caches, errors, replays; revocation |
+| Interaction surface | web, desktop, mobile, public API, CLI | the real user journey per entry point; visible state reconciles with backend state |
+| Files / media | text, tables, PDF, images, audio, video in or out | real decoding and field-level content; parse failures classified, never replaced by placeholder output |
+| External side effects | write tools, messages, record changes, payments | authorization and idempotency before; read back from the authoritative record after; accepted, processed, sent, and delivered kept distinct |
+| Operations | deploy, canary, monitoring, rate limits, rollback | recovery from cold start and dependency loss; rollback checked against the real candidate, config, and data |
+
+## Evidence layers
+
+| Layer | Can prove | Cannot be extrapolated to |
+| --- | --- | --- |
+| L0 static | call graph, config, packaged resources | runtime behavior |
+| L1 isolated logic | contracts, state machine, permissions, idempotency, fault injection | real model understanding, real external systems |
+| L2 local real dependencies | actual model, parser, or store on isolated data | real network, channels, production accounts |
+| L3 real entry point | separate process, socket, UI, event transport, full journey | production writes |
+| L4 pre-production | real auth, gateway, channels, sandboxed authoritative records | production traffic |
+| L5 production canary | authorized small-scope business under monitoring | future inputs |
+
+A fix found through the real entry point is closed only by a rerun through that entry point on a
+build that contains the fix, not by an in-process test turning green.
+
+## Weak assertions that must not pass alone
+
+| Weak assertion | How it lies | Check instead |
+| --- | --- | --- |
+| HTTP 200 plus a status field present | the status is `error` | the product'"'"'s real success state, input counts, and safe-degradation contract |
+| Two 200s with equal `message_id` means idempotent | both IDs are missing or empty | a non-empty correlation ID, persisted response, execution count, side-effect readback |
+| `intent_method=model` means the model understood | every input gets the same intent or answer | external truth, paired variants, unseen inputs, action boundaries |
+| Import `count > 0` means success | wrong items, scope, or body | item-by-item reconciliation with the source and authoritative record |
+| Health 200 means the UI works | the page is an empty shell | the real journey plus visible and backend state together |
+| Non-empty output after a parse failure | placeholder or fallback text | independent parsing, content truth, failure classification |
+| A trace shows the tool or node name | the log was written, the call never happened | real calls, persisted state, side-effect counts |
+
+## AI-typical wrong implementations
+
+For each key contract, ask what wrong implementation would still turn the checks green, and make
+sure at least one check rejects it: fixed output or ignored input; always refuse, escalate, or
+succeed; a faked log or trace; configuration that is written but not applied; swallowed
+exceptions or silent downgrade; a test that knows the answer; missing N−1/N/N+1, empty,
+wrong-type, duplicate, or revoked-permission boundaries. The target check must fail on a business
+assertion; an empty collection, missing dependency, or crash does not count as catching it.
+
+## Severity and release verdict
+
+- `P0`: security, permissions, sensitive data, unauthorized critical actions, data integrity. Any valid failure blocks release.
+- `P1`: core committed tasks, key configuration, important facts, duplicate side effects, recovery. The affected scope cannot ship.
+- `P2`/`P3`: record impact, owner, deadline, and retest condition before accepting.
+
+Per case, use `PASS`, `FAIL`, `BLOCKED`, `INCOMPLETE`, `NOT_RUN`, or `N/A`. When asked for a release
+decision, add `RELEASE: FULL_GO | LIMITED_GO | NO_GO | INCOMPLETE` to the report. `FULL_GO` needs every
+committed P0/P1 case passing at the committed layer on the current candidate. `LIMITED_GO` names the
+exact internal or pre-production scope and lists what is deferred; it never implies production readiness.
+Identify the candidate by commit or tag; do not compute digests of candidates or evidence folders.
+Save raw inputs, outputs, and exit codes before judging, and never overwrite an earlier red result.
+
+## Automated judges
+
+A new automated judge (an LLM grader, a review agent, an auto-approval rule) starts in shadow mode:
+it only suggests, and a human confirms its verdicts until it meets an accuracy bar written down in
+advance. After that, sample its automatic approvals with a risk-weighted rate (higher tiers sampled
+more), record misjudgments as evidence, and return it to shadow mode when the error rate rises.
+
+
+---
+name: design-integrity-review
+description: Review one frozen candidate change for structural shortcuts — swallowed or broad exception handling, fallback/retry paths, compatibility branches, parallel APIs, and patches that bypass root-cause ownership — or route to behavioral-acceptance-review when an evaluation surface changed. Use once at a completion checkpoint; not for documentation-only, formatting-only, or routine test maintenance.
+context: fork
+agent: Explore
+background: false
+---
+
+# Design Integrity Review
+
+A read-only, bounded structural review of one candidate change. Do not edit files, tests,
+commits, branches, or external systems while reviewing.
+
+Review in a fresh context. The caller passes the repository path and the candidate (a commit,
+a patch, or the working tree); do not rely on the implementing session'"'"'s chat or rationale.
+Without a repository path and candidate, return `INCOMPLETE`.
+
+If the direction itself rests on unverified facts, send the work to
+`reality-first-engineering` first; this review does not rationalize an unverified design.
+
+## Route
+
+- Change touches an evaluation directory (`eval`, `benchmark`, `harness`, `grader`, `golden`,
+  `oracle`, `autoresearch`) or another explicit acceptance surface → use
+  `behavioral-acceptance-review` instead, passing any structural markers as context.
+- Otherwise review only the structural risks introduced by the candidate.
+
+Run the scanner on the working tree to locate candidates quickly:
+
+```bash
+python3 <skill-dir>/scripts/design_integrity.py --cwd <repo> [--format json]
+```
+
+It reports newly added exception boundaries, swallowed exceptions, and default returns after
+an exception. It is a locator, not proof: a quiet scanner is not `PASS`, and a name such as
+`fallback`, `V2`, or `Compat` is not evidence of a problem.
+
+## Structural gates
+
+The candidate must be a stable commit, patch, or snapshot; if it changes during review,
+return `INCOMPLETE`. For each suspected risk, establish:
+
+- **Reachability** — the real caller, input, contract, or observed failure;
+- **Ownership** — whether this layer owns recovery, degradation, cleanup, or translation;
+- **Architecture** — why the existing abstraction cannot carry the correct behavior; a new
+  layer must be a **deep module** (a small interface hiding substantial implementation), so a
+  shallow pass-through wrapper or an interface with a single implementation is a finding;
+- **Proportion** — whether the change is limited to the root cause.
+
+## Report
+
+Report only confirmed, actionable findings: exact file and line, reachable evidence, the
+concrete failure or maintenance cost, and the simpler correction. Return one of:
+
+- `PASS` — no confirmed finding in scope;
+- `FAIL` — at least one reachable or reproduced finding;
+- `INCOMPLETE` — snapshot, scope, or evidence unavailable.
+
+One review per candidate. After fixes, at most one targeted re-review of the changed scope.
+
+## Close the loop
+
+When a confirmed finding repeats a failure class this project has hit before, name the
+check that would have caught it (a test, a lint or dependency rule, a script, or a hook) and
+where it runs. Only when no check can detect the failure, name a prose rule instead, say why
+it cannot be checked, and where it belongs: the project'"'"'s `AGENTS.md` or the living doc that
+owns the area. Recommend it in the report; the review itself stays read-only. With a project
+map, it is added through a `task` ticket (see `project-map`).
+
+
+冻结TARGET：T-076-2 delivery-review-01；工作目录 /private/tmp/a2a-t076-delivery-review-01/candidate。只做一个主回合，最终交完整审查报告，不等待ACK或纠格式回合。'

@@ -1,0 +1,11 @@
+--- before/controlled_quality_pty.ts
++++ after/controlled_quality_pty.ts
+@@ -16,6 +16,8 @@
+     spawn(shell: string, argv: string[], options: any) {
+       const homes = [config.codex_home, ...(config.reviewers ?? []).map((item: any) => item.codex_home)];
+       if (shell !== "/bin/zsh" || !homes.includes(options.env.CODEX_HOME)) {
++        audit("runtime.jsonl", { method: "controlled-spawn-refused", shell,
++          home: options.env.CODEX_HOME, configured_homes: homes, launch: options.env.A2A_LAUNCH });
+         throw new Error("Controlled terminal received an unexpected shell or home.");
+       }
+       const env = options.env;

@@ -1,0 +1,1584 @@
+{
+  "phase": "before-host-stop",
+  "tables": {
+    "attachments": [],
+    "attempts": [
+      {
+        "id": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"task_id\":\"fixture-20261011-1\",\"attempt_id\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session_id\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":{\"launch\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"shell_pid\":31000,\"leader_pid\":31001,\"native_session\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\"},\"workspace\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"card_snapshot_id\":\"bbdabc1a-916d-4320-a830-0753c3b846d4\",\"reclaimed\":false,\"owner\":\"fixture-20261011-1\",\"state\":\"claimed\"}"
+      }
+    ],
+    "dispatch_records": [
+      {
+        "seq": 1,
+        "id": "9032d729-c644-4dd2-a9ae-371c9bcf8f6b",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "data": "{\"text\":\"Controlled test input. No model executes this role.\\n\\n\\n{\\n  \\\"id\\\": \\\"fixture-20261011-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\\\\\n'\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261011-1\\\",\\n    \\\"attempt_id\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n    \\\"session_id\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state' 'submit' '--task' 'fixture-20261011-1' '--attempt' '7add8dd5-2d52-414b-a210-f09657a5b27f' '--session' 'f1207992-498b-43d0-a9b5-5b9f468e0d4b' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\",\"registered_at\":\"2026-10-11T19:33:10.086Z\",\"source\":\"executor\"}"
+      },
+      {
+        "seq": 2,
+        "id": "fbffb176-93ef-4236-8bbb-5d3285b1a7fb",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "data": "{\"text\":\"本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\\n[\\n  {\\n    \\\"key\\\": \\\"id:dirty\\\",\\n    \\\"request_id\\\": \\\"dirty\\\",\\n    \\\"replayed\\\": false,\\n    \\\"result\\\": {\\n      \\\"ok\\\": false,\\n      \\\"error\\\": \\\"dirty_worktree\\\",\\n      \\\"user_input_observer\\\": {\\n        \\\"state\\\": \\\"healthy\\\",\\n        \\\"updated_at\\\": \\\"2026-10-11T19:33:09.144Z\\\"\\n      }\\n    }\\n  }\\n]\",\"registered_at\":\"2026-10-11T19:33:11.331Z\",\"source\":\"gate\"}"
+      }
+    ],
+    "events": [
+      {
+        "seq": 1,
+        "time": "2026-10-11T19:33:09.367Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "card_saved",
+        "details": "{\"card\":{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"card_version\":1}"
+      },
+      {
+        "seq": 2,
+        "time": "2026-10-11T19:33:09.488Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"check-ref-format\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 3,
+        "time": "2026-10-11T19:33:09.493Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"check-ref-format\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 4,
+        "time": "2026-10-11T19:33:09.493Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"rev-parse\",\"--show-toplevel\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 5,
+        "time": "2026-10-11T19:33:09.498Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"rev-parse\",\"--show-toplevel\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 6,
+        "time": "2026-10-11T19:33:09.498Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"rev-parse\",\"--verify\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 7,
+        "time": "2026-10-11T19:33:09.503Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"rev-parse\",\"--verify\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 8,
+        "time": "2026-10-11T19:33:09.504Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"cat-file\",\"-t\",\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 9,
+        "time": "2026-10-11T19:33:09.510Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"cat-file\",\"-t\",\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"commit\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 10,
+        "time": "2026-10-11T19:33:09.510Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"ls-tree\",\"-z\",\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"--\",\".a2a/quality.json\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 11,
+        "time": "2026-10-11T19:33:09.515Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"ls-tree\",\"-z\",\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"--\",\".a2a/quality.json\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 12,
+        "time": "2026-10-11T19:33:09.516Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "create_intent",
+        "details": "{\"task_id\":\"fixture-20261011-1\",\"title\":\"fixture-20261011-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"782588aa-4047-4ac6-901f-2c46642be4ed\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"state\":\"creating\",\"spec_rev\":1,\"fence\":0,\"current_attempt\":null,\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]}}"
+      },
+      {
+        "seq": 13,
+        "time": "2026-10-11T19:33:09.516Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "created",
+        "details": "{\"task_id\":\"fixture-20261011-1\",\"title\":\"fixture-20261011-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"782588aa-4047-4ac6-901f-2c46642be4ed\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"state\":\"ready\",\"spec_rev\":1,\"fence\":0,\"current_attempt\":null,\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]}}"
+      },
+      {
+        "seq": 14,
+        "time": "2026-10-11T19:33:09.626Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"rev-parse\",\"--verify\",\"--quiet\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 15,
+        "time": "2026-10-11T19:33:09.631Z",
+        "task": "fixture-20261011-1",
+        "attempt": null,
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"rev-parse\",\"--verify\",\"--quiet\",\"refs/heads/main\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 16,
+        "time": "2026-10-11T19:33:09.632Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "dispatch_intent",
+        "details": "{\"attempt\":{\"task_id\":\"fixture-20261011-1\",\"attempt_id\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session_id\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":null,\"workspace\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"card_snapshot_id\":\"bbdabc1a-916d-4320-a830-0753c3b846d4\",\"reclaimed\":false,\"owner\":\"fixture-20261011-1\",\"state\":\"preparing\"},\"task\":{\"task_id\":\"fixture-20261011-1\",\"title\":\"fixture-20261011-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"782588aa-4047-4ac6-901f-2c46642be4ed\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"state\":\"preparing\",\"spec_rev\":1,\"fence\":1,\"current_attempt\":{\"task_id\":\"fixture-20261011-1\",\"attempt_id\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session_id\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":null,\"workspace\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"card_snapshot_id\":\"bbdabc1a-916d-4320-a830-0753c3b846d4\",\"reclaimed\":false,\"owner\":\"fixture-20261011-1\",\"state\":\"preparing\"},\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]},\"repair\":null,\"review\":null},\"model\":\"gpt-6.1-sol\",\"reasoning_effort\":\"xhigh\",\"requested_service_tier\":\"fast\"}"
+      },
+      {
+        "seq": 17,
+        "time": "2026-10-11T19:33:09.632Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"worktree\",\"add\",\"--detach\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 18,
+        "time": "2026-10-11T19:33:09.646Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"worktree\",\"add\",\"--detach\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"HEAD 现在位于 aad8edf Independent baseline\\n\",\"stderr\":\"准备工作区（分离头指针 aad8edf）\\n\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 19,
+        "time": "2026-10-11T19:33:10.085Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "claimed",
+        "details": "{\"task_id\":\"fixture-20261011-1\",\"title\":\"fixture-20261011-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"782588aa-4047-4ac6-901f-2c46642be4ed\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"state\":\"claimed\",\"spec_rev\":1,\"fence\":1,\"current_attempt\":{\"task_id\":\"fixture-20261011-1\",\"attempt_id\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session_id\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":{\"launch\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"shell_pid\":31000,\"leader_pid\":31001,\"native_session\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\"},\"workspace\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"card_snapshot_id\":\"bbdabc1a-916d-4320-a830-0753c3b846d4\",\"reclaimed\":false,\"owner\":\"fixture-20261011-1\",\"state\":\"claimed\"},\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]},\"repair\":null,\"review\":null}"
+      },
+      {
+        "seq": 20,
+        "time": "2026-10-11T19:33:10.086Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "prompt_intent",
+        "details": "{\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"prompt\":\"{\\n  \\\"id\\\": \\\"fixture-20261011-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\\\\\n'\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261011-1\\\",\\n    \\\"attempt_id\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n    \\\"session_id\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state' 'submit' '--task' 'fixture-20261011-1' '--attempt' '7add8dd5-2d52-414b-a210-f09657a5b27f' '--session' 'f1207992-498b-43d0-a9b5-5b9f468e0d4b' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\"}"
+      },
+      {
+        "seq": 21,
+        "time": "2026-10-11T19:33:10.087Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "dispatched",
+        "details": "{\"attempt\":{\"task_id\":\"fixture-20261011-1\",\"attempt_id\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session_id\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":{\"launch\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"shell_pid\":31000,\"leader_pid\":31001,\"native_session\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\"},\"workspace\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"card_snapshot_id\":\"bbdabc1a-916d-4320-a830-0753c3b846d4\",\"reclaimed\":false,\"owner\":\"fixture-20261011-1\",\"state\":\"claimed\"}}"
+      },
+      {
+        "seq": 22,
+        "time": "2026-10-11T19:33:11.309Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"cat-file\",\"-t\",\"9f89aa3d75813145819c3b709304e50787063723\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 23,
+        "time": "2026-10-11T19:33:11.315Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"cat-file\",\"-t\",\"9f89aa3d75813145819c3b709304e50787063723\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"commit\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 24,
+        "time": "2026-10-11T19:33:11.315Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"merge-base\",\"--is-ancestor\",\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"9f89aa3d75813145819c3b709304e50787063723\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\"}"
+      },
+      {
+        "seq": 25,
+        "time": "2026-10-11T19:33:11.320Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"merge-base\",\"--is-ancestor\",\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"9f89aa3d75813145819c3b709304e50787063723\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"stdout\":\"\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 26,
+        "time": "2026-10-11T19:33:11.320Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"rev-parse\",\"HEAD\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\"}"
+      },
+      {
+        "seq": 27,
+        "time": "2026-10-11T19:33:11.325Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"rev-parse\",\"HEAD\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"stdout\":\"9f89aa3d75813145819c3b709304e50787063723\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 28,
+        "time": "2026-10-11T19:33:11.325Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_intent",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"status\",\"--porcelain=v1\",\"--untracked-files=all\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\"}"
+      },
+      {
+        "seq": 29,
+        "time": "2026-10-11T19:33:11.331Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "command_result",
+        "details": "{\"argv\":[\"git\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"status\",\"--porcelain=v1\",\"--untracked-files=all\"],\"cwd\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"stdout\":\" M src/value.txt\\n\",\"stderr\":\"\",\"exit\":0,\"returncode\":0}"
+      },
+      {
+        "seq": 30,
+        "time": "2026-10-11T19:33:11.331Z",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "type": "rejected",
+        "details": "{\"error\":\"dirty_worktree\",\"input\":{\"task\":\"fixture-20261011-1\",\"attempt\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"command\":\"submit\",\"commit\":\"9f89aa3d75813145819c3b709304e50787063723\"}}"
+      }
+    ],
+    "inbox_deliveries": [],
+    "inbox_records": [],
+    "issue_records": [],
+    "launch_records": [
+      {
+        "id": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"id\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"project\":\"fixture\",\"task\":\"fixture-20261011-1\",\"attempt\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"role\":\"worker\",\"sandbox\":\"workspace-write\",\"created_at\":\"2026-10-11T19:33:10.081Z\",\"cli_version\":\"codex-cli 0.162.1\",\"argv\":[\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/control/fixture-version\",\"--no-daemon\",\"--no-alt-screen\",\"-C\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"-a\",\"never\",\"--sandbox\",\"workspace-write\",\"-m\",\"gpt-6.1-sol\",\"-c\",\"model_reasoning_effort=\\\"xhigh\\\"\",\"-c\",\"service_tier=\\\"fast\\\"\",\"-c\",\"check_for_update_on_startup=false\",\"-c\",\"tui.notifications=false\",\"-c\",\"sandbox_workspace_write.network_access=false\",\"-c\",\"features.network_proxy=false\",\"-c\",\"hooks.UserPromptSubmit=[{hooks=[{type=\\\"command\\\",command=\\\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state' 'signal' '--launch' 'eff72959-8cb8-42e7-b58f-584422a867ef'\\\",timeout=10}]}]\",\"-c\",\"hooks.Stop=[{hooks=[{type=\\\"command\\\",command=\\\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state' 'signal' '--launch' 'eff72959-8cb8-42e7-b58f-584422a867ef'\\\",timeout=10}]}]\",\"-c\",\"hooks.PermissionRequest=[{hooks=[{type=\\\"command\\\",command=\\\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state' 'signal' '--launch' 'eff72959-8cb8-42e7-b58f-584422a867ef'\\\",timeout=10}]}]\",\"--dangerously-bypass-hook-trust\"],\"request_dir\":\"/private/tmp/a2a-requests-2zwEeF\",\"model_requested\":\"gpt-6.1-sol\",\"effort_requested\":\"xhigh\",\"service_tier_requested\":\"fast\",\"turn_limit\":10,\"turn_authorization\":\"controlled-turns-only\",\"code_revision\":\"frozen-source-manifest\",\"source_snapshot\":null,\"role_card\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/control/role.txt\",\"role_card_revision\":\"test-fixture-not-a-provider\",\"role_text\":\"Controlled test input. No model executes this role.\\n\",\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"worktree\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-f\",\"-i\",\"-c\",\"'/private/tmp/q76-tfr7jge_/c-g8ayqhtj/control/fixture-version' '--no-daemon' '--no-alt-screen' '-C' '/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f' '-a' 'never' '--sandbox' 'workspace-write' '-m' 'gpt-6.1-sol' '-c' 'model_reasoning_effort=\\\"xhigh\\\"' '-c' 'service_tier=\\\"fast\\\"' '-c' 'check_for_update_on_startup=false' '-c' 'tui.notifications=false' '-c' 'sandbox_workspace_write.network_access=false' '-c' 'features.network_proxy=false' '-c' 'hooks.UserPromptSubmit=[{hooks=[{type=\\\"command\\\",command=\\\"'\\\\''/opt/homebrew/Cellar/node/26.5.0/bin/node'\\\\'' '\\\\''/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts'\\\\'' '\\\\''--state'\\\\'' '\\\\''/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state'\\\\'' '\\\\''signal'\\\\'' '\\\\''--launch'\\\\'' '\\\\''eff72959-8cb8-42e7-b58f-584422a867ef'\\\\''\\\",timeout=10}]}]' '-c' 'hooks.Stop=[{hooks=[{type=\\\"command\\\",command=\\\"'\\\\''/opt/homebrew/Cellar/node/26.5.0/bin/node'\\\\'' '\\\\''/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts'\\\\'' '\\\\''--state'\\\\'' '\\\\''/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state'\\\\'' '\\\\''signal'\\\\'' '\\\\''--launch'\\\\'' '\\\\''eff72959-8cb8-42e7-b58f-584422a867ef'\\\\''\\\",timeout=10}]}]' '-c' 'hooks.PermissionRequest=[{hooks=[{type=\\\"command\\\",command=\\\"'\\\\''/opt/homebrew/Cellar/node/26.5.0/bin/node'\\\\'' '\\\\''/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts'\\\\'' '\\\\''--state'\\\\'' '\\\\''/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state'\\\\'' '\\\\''signal'\\\\'' '\\\\''--launch'\\\\'' '\\\\''eff72959-8cb8-42e7-b58f-584422a867ef'\\\\''\\\",timeout=10}]}]' '--dangerously-bypass-hook-trust'; exec /bin/zsh -f -i\"],\"env\":{\"PATH\":\"/Users/luckye/.local/bin:/Users/luckye/.bun/bin:/Users/luckye/.antigravity/antigravity/bin:/Users/luckye/.antigravity/antigravity/bin:/Users/luckye/.antigravity/antigravity/bin:/opt/homebrew/opt/cmake3/bin:/Users/luckye/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/luckye/.local/bin:/Users/luckye/.bun/bin:/Users/luckye/.antigravity/antigravity/bin:/opt/miniconda3/bin:/opt/miniconda3/condabin:/opt/homebrew/opt/cmake3/bin:/opt/homebrew/sbin:/Users/luckye/.cargo/bin:/Users/luckye/Library/Application Support/JetBrains/Toolbox/scripts:/Users/luckye/.grok/bin:/Users/luckye/Library/Application Support/JetBrains/Toolbox/scripts:/Users/luckye/.grok/bin\",\"HOME\":\"/Users/luckye\",\"LANG\":\"zh_CN.UTF-8\",\"TMPDIR\":\"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/\",\"USER\":\"luckye\",\"LOGNAME\":\"luckye\",\"GIT_AUTHOR_NAME\":\"Independent fixture\",\"GIT_AUTHOR_EMAIL\":\"fixture@example.invalid\",\"GIT_COMMITTER_NAME\":\"Independent fixture\",\"GIT_COMMITTER_EMAIL\":\"fixture@example.invalid\",\"CODEX_HOME\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/control/empty-codex-home\",\"SHELL\":\"/bin/zsh\",\"TERM\":\"xterm-256color\",\"COLORTERM\":\"truecolor\",\"A2A_PROJECT\":\"fixture\",\"A2A_TASK\":\"fixture-20261011-1\",\"A2A_ATTEMPT\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"A2A_SESSION\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"A2A_ROLE\":\"worker\",\"A2A_LAUNCH\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"A2A_STATE\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state\",\"A2A_CLI\":\"/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts\",\"A2A_NODE\":\"/opt/homebrew/Cellar/node/26.5.0/bin/node\",\"A2A_REQUEST_DIR\":\"/private/tmp/a2a-requests-2zwEeF\",\"A2A_FENCE\":\"1\",\"A2A_SPEC_REV\":\"1\",\"A2A_TOOL\":\"codex-cli 0.162.1\",\"A2A_MODEL_REQUESTED\":\"gpt-6.1-sol\",\"A2A_EFFORT_REQUESTED\":\"xhigh\",\"GIT_CONFIG_COUNT\":\"1\",\"GIT_CONFIG_KEY_0\":\"core.hooksPath\",\"GIT_CONFIG_VALUE_0\":\"/private/tmp/l76-6kxkc6d1/candidate/workbench/hooks/\"},\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\",\"hook_authorization\":\"no-real-hooks-installed\"}"
+      }
+    ],
+    "orchestration_events": [
+      {
+        "seq": 1,
+        "time": "2026-10-11T19:33:09.145Z",
+        "type": "daemon_started",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"daemon\":\"400afad9-9040-4edf-9122-1bce3fdc54ed\",\"pid\":37661,\"ppid\":37298,\"argv\":[\"/opt/homebrew/Cellar/node/26.5.0/bin/node\",\"/private/tmp/l76-6kxkc6d1/candidate/workbench/tests/quality_chain_host.ts\",\"/private/tmp/l76-6kxkc6d1/candidate\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/control\",\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/host-01.ready.json\"],\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\",\"node\":\"v26.5.0\"}"
+      },
+      {
+        "seq": 2,
+        "time": "2026-10-11T19:33:09.217Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"159cc83c-3b9b-4f13-8a71-ada1275eabf5\",\"input\":{\"command\":\"daemon_status\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 3,
+        "time": "2026-10-11T19:33:09.217Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"159cc83c-3b9b-4f13-8a71-ada1275eabf5\",\"command\":\"daemon_status\",\"ok\":true}"
+      },
+      {
+        "seq": 4,
+        "time": "2026-10-11T19:33:09.364Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"773b34b5-1ef0-498c-8e19-ebfb0328da2a\",\"input\":{\"command\":\"card_save\",\"task\":\"fixture-20261011-1\",\"card\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/card.json\",\"expected_version\":0},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 5,
+        "time": "2026-10-11T19:33:09.368Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"773b34b5-1ef0-498c-8e19-ebfb0328da2a\",\"command\":\"card_save\",\"ok\":true}"
+      },
+      {
+        "seq": 6,
+        "time": "2026-10-11T19:33:09.487Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"2b9a0ee8-2d5f-4804-ab61-0bb52e18415c\",\"input\":{\"command\":\"create\",\"task\":\"fixture-20261011-1\",\"repo\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"branch\":\"refs/heads/main\",\"card_version\":1,\"project\":\"fixture\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 7,
+        "time": "2026-10-11T19:33:09.517Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"2b9a0ee8-2d5f-4804-ab61-0bb52e18415c\",\"command\":\"create\",\"ok\":true}"
+      },
+      {
+        "seq": 8,
+        "time": "2026-10-11T19:33:09.626Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"a3d77254-4172-46c5-a122-75afdc064a6b\",\"input\":{\"command\":\"dispatch\",\"task\":\"fixture-20261011-1\",\"runtimeMode\":\"workspace-write\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 9,
+        "time": "2026-10-11T19:33:10.083Z",
+        "type": "pane_started",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"shell_pid\":31000,\"state\":\"unknown\"}"
+      },
+      {
+        "seq": 10,
+        "time": "2026-10-11T19:33:10.085Z",
+        "type": "native_record",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"file\":\"sessions/rollout-fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef.jsonl\",\"offset\":0,\"record\":{\"type\":\"session_meta\",\"payload\":{\"source\":\"cli\",\"id\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\"}}}"
+      },
+      {
+        "seq": 11,
+        "time": "2026-10-11T19:33:10.087Z",
+        "type": "dispatch_queued",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"id\":\"9032d729-c644-4dd2-a9ae-371c9bcf8f6b\",\"seq\":1,\"source\":\"executor\",\"text\":\"⟦主控 #1⟧\\nControlled test input. No model executes this role.\\n\\n\\n{\\n  \\\"id\\\": \\\"fixture-20261011-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\\\\\n'\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261011-1\\\",\\n    \\\"attempt_id\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n    \\\"session_id\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state' 'submit' '--task' 'fixture-20261011-1' '--attempt' '7add8dd5-2d52-414b-a210-f09657a5b27f' '--session' 'f1207992-498b-43d0-a9b5-5b9f468e0d4b' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\",\"registered_at\":\"2026-10-11T19:33:10.086Z\"}"
+      },
+      {
+        "seq": 12,
+        "time": "2026-10-11T19:33:10.088Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"a3d77254-4172-46c5-a122-75afdc064a6b\",\"command\":\"dispatch\",\"ok\":true}"
+      },
+      {
+        "seq": 13,
+        "time": "2026-10-11T19:33:10.234Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"e77c56cc-29ce-4574-9a6c-95c71d6c75e4\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 14,
+        "time": "2026-10-11T19:33:10.234Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"e77c56cc-29ce-4574-9a6c-95c71d6c75e4\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 15,
+        "time": "2026-10-11T19:33:10.347Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"6164ab8b-7876-469d-b156-ae3ad92bd084\",\"input\":{\"command\":\"pane_release\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"reason\":\"explicit controlled-fixture release\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 16,
+        "time": "2026-10-11T19:33:10.347Z",
+        "type": "executor_action",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"action\":\"initial_release\",\"reason\":\"explicit controlled-fixture release\",\"source\":\"executor\",\"process_info\":{\"shell_pid\":31000,\"leader\":31001,\"native_session\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\",\"processes\":[],\"failed\":null,\"evidence_layer\":\"controlled-process-observation\"}}"
+      },
+      {
+        "seq": 17,
+        "time": "2026-10-11T19:33:10.348Z",
+        "type": "paste_intent",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"dispatch\":\"9032d729-c644-4dd2-a9ae-371c9bcf8f6b\",\"text\":\"⟦主控 #1⟧\\nControlled test input. No model executes this role.\\n\\n\\n{\\n  \\\"id\\\": \\\"fixture-20261011-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\\\\\n'\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261011-1\\\",\\n    \\\"attempt_id\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n    \\\"session_id\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/l76-6kxkc6d1/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state' 'submit' '--task' 'fixture-20261011-1' '--attempt' '7add8dd5-2d52-414b-a210-f09657a5b27f' '--session' 'f1207992-498b-43d0-a9b5-5b9f468e0d4b' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\"}"
+      },
+      {
+        "seq": 18,
+        "time": "2026-10-11T19:33:10.348Z",
+        "type": "paste_written",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"dispatch\":\"9032d729-c644-4dd2-a9ae-371c9bcf8f6b\"}"
+      },
+      {
+        "seq": 19,
+        "time": "2026-10-11T19:33:10.649Z",
+        "type": "turn_submit_intent",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"id\":\"223e712e-c487-480a-865f-1a0594b74923\",\"dispatch\":\"9032d729-c644-4dd2-a9ae-371c9bcf8f6b\",\"at\":\"2026-10-11T19:33:10.348Z\",\"nativeTurn\":null}"
+      },
+      {
+        "seq": 20,
+        "time": "2026-10-11T19:33:10.651Z",
+        "type": "turn_submitted",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"id\":\"223e712e-c487-480a-865f-1a0594b74923\",\"dispatch\":\"9032d729-c644-4dd2-a9ae-371c9bcf8f6b\",\"at\":\"2026-10-11T19:33:10.348Z\",\"nativeTurn\":null}"
+      },
+      {
+        "seq": 21,
+        "time": "2026-10-11T19:33:10.651Z",
+        "type": "native_record",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"file\":\"sessions/rollout-fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef.jsonl\",\"offset\":110,\"record\":{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\",\"turn_id\":\"fixture-turn-1\"}}}"
+      },
+      {
+        "seq": 22,
+        "time": "2026-10-11T19:33:10.651Z",
+        "type": "native_record",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"file\":\"sessions/rollout-fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef.jsonl\",\"offset\":192,\"record\":{\"type\":\"turn_context\",\"payload\":{\"turn_id\":\"fixture-turn-1\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"}}}"
+      },
+      {
+        "seq": 23,
+        "time": "2026-10-11T19:33:10.652Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"6164ab8b-7876-469d-b156-ae3ad92bd084\",\"command\":\"pane_release\",\"ok\":true}"
+      },
+      {
+        "seq": 24,
+        "time": "2026-10-11T19:33:10.759Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"eafe2174-07e6-4d70-bd76-8e5279ab0cfd\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 25,
+        "time": "2026-10-11T19:33:10.760Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"eafe2174-07e6-4d70-bd76-8e5279ab0cfd\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 26,
+        "time": "2026-10-11T19:33:10.908Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"c5203ce2-b4fc-4384-8c72-31825c94af15\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 27,
+        "time": "2026-10-11T19:33:10.909Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"c5203ce2-b4fc-4384-8c72-31825c94af15\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 28,
+        "time": "2026-10-11T19:33:11.166Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"da667b60-0825-407c-bf29-b6032779c6fc\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 29,
+        "time": "2026-10-11T19:33:11.166Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"da667b60-0825-407c-bf29-b6032779c6fc\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 30,
+        "time": "2026-10-11T19:33:11.302Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"fbfa1a95-847f-42f5-837d-0186aedeca52\",\"input\":{\"command\":\"signal\",\"launch\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"received_at\":\"2026-10-11T19:33:11.299Z\",\"raw_stdin\":\"{\\\"session_id\\\": \\\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\\\", \\\"turn_id\\\": \\\"fixture-turn-1\\\", \\\"hook_event_name\\\": \\\"Stop\\\", \\\"last_assistant_message\\\": \\\"controlled worker finished\\\"}\",\"relay_files\":[{\"name\":\"dirty.json\",\"raw\":\"{\\\"schema\\\":1,\\\"request_id\\\":\\\"dirty\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"command\\\":\\\"submit\\\",\\\"commit\\\":\\\"9f89aa3d75813145819c3b709304e50787063723\\\"}\\n\"}]},\"source\":\"worker\"}"
+      },
+      {
+        "seq": 31,
+        "time": "2026-10-11T19:33:11.302Z",
+        "type": "hook_received",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"raw_stdin\":\"{\\\"session_id\\\": \\\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\\\", \\\"turn_id\\\": \\\"fixture-turn-1\\\", \\\"hook_event_name\\\": \\\"Stop\\\", \\\"last_assistant_message\\\": \\\"controlled worker finished\\\"}\",\"received_at\":\"2026-10-11T19:33:11.299Z\"}"
+      },
+      {
+        "seq": 32,
+        "time": "2026-10-11T19:33:11.302Z",
+        "type": "turn_end_signal",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"session_id\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\",\"turn_id\":\"fixture-turn-1\",\"hook_event_name\":\"Stop\",\"last_assistant_message\":\"controlled worker finished\"}"
+      },
+      {
+        "seq": 33,
+        "time": "2026-10-11T19:33:11.308Z",
+        "type": "relay_received",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"key\":\"id:dirty\",\"file\":{\"name\":\"dirty.json\",\"raw\":\"{\\\"schema\\\":1,\\\"request_id\\\":\\\"dirty\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"command\\\":\\\"submit\\\",\\\"commit\\\":\\\"9f89aa3d75813145819c3b709304e50787063723\\\"}\\n\"},\"input\":{\"schema\":1,\"request_id\":\"dirty\",\"task\":\"fixture-20261011-1\",\"attempt\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"command\":\"submit\",\"commit\":\"9f89aa3d75813145819c3b709304e50787063723\"}}"
+      },
+      {
+        "seq": 34,
+        "time": "2026-10-11T19:33:11.331Z",
+        "type": "relay_rejected",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"key\":\"id:dirty\",\"request_id\":\"dirty\",\"result\":{\"ok\":false,\"error\":\"dirty_worktree\",\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-11T19:33:09.144Z\"}}}"
+      },
+      {
+        "seq": 35,
+        "time": "2026-10-11T19:33:11.331Z",
+        "type": "dispatch_queued",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"id\":\"fbffb176-93ef-4236-8bbb-5d3285b1a7fb\",\"seq\":2,\"source\":\"gate\",\"text\":\"⟦门禁 #2⟧\\n本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\\n[\\n  {\\n    \\\"key\\\": \\\"id:dirty\\\",\\n    \\\"request_id\\\": \\\"dirty\\\",\\n    \\\"replayed\\\": false,\\n    \\\"result\\\": {\\n      \\\"ok\\\": false,\\n      \\\"error\\\": \\\"dirty_worktree\\\",\\n      \\\"user_input_observer\\\": {\\n        \\\"state\\\": \\\"healthy\\\",\\n        \\\"updated_at\\\": \\\"2026-10-11T19:33:09.144Z\\\"\\n      }\\n    }\\n  }\\n]\",\"registered_at\":\"2026-10-11T19:33:11.331Z\"}"
+      },
+      {
+        "seq": 36,
+        "time": "2026-10-11T19:33:11.331Z",
+        "type": "pane_idle",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"submission\":\"223e712e-c487-480a-865f-1a0594b74923\",\"stop\":{\"session_id\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\",\"turn_id\":\"fixture-turn-1\",\"hook_event_name\":\"Stop\",\"last_assistant_message\":\"controlled worker finished\"}}"
+      },
+      {
+        "seq": 37,
+        "time": "2026-10-11T19:33:11.331Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"fbfa1a95-847f-42f5-837d-0186aedeca52\",\"command\":\"signal\",\"ok\":true}"
+      },
+      {
+        "seq": 38,
+        "time": "2026-10-11T19:33:11.332Z",
+        "type": "paste_intent",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"dispatch\":\"fbffb176-93ef-4236-8bbb-5d3285b1a7fb\",\"text\":\"⟦门禁 #2⟧\\n本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\\n[\\n  {\\n    \\\"key\\\": \\\"id:dirty\\\",\\n    \\\"request_id\\\": \\\"dirty\\\",\\n    \\\"replayed\\\": false,\\n    \\\"result\\\": {\\n      \\\"ok\\\": false,\\n      \\\"error\\\": \\\"dirty_worktree\\\",\\n      \\\"user_input_observer\\\": {\\n        \\\"state\\\": \\\"healthy\\\",\\n        \\\"updated_at\\\": \\\"2026-10-11T19:33:09.144Z\\\"\\n      }\\n    }\\n  }\\n]\"}"
+      },
+      {
+        "seq": 39,
+        "time": "2026-10-11T19:33:11.332Z",
+        "type": "paste_written",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"dispatch\":\"fbffb176-93ef-4236-8bbb-5d3285b1a7fb\"}"
+      },
+      {
+        "seq": 40,
+        "time": "2026-10-11T19:33:11.422Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"1cd6b5bf-ef2b-4d67-a5c7-768f4bc4441e\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 41,
+        "time": "2026-10-11T19:33:11.422Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"1cd6b5bf-ef2b-4d67-a5c7-768f4bc4441e\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 42,
+        "time": "2026-10-11T19:33:11.586Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"af88f22e-eb0e-4249-a0e5-49be30ce8421\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 43,
+        "time": "2026-10-11T19:33:11.587Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"af88f22e-eb0e-4249-a0e5-49be30ce8421\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 44,
+        "time": "2026-10-11T19:33:11.633Z",
+        "type": "turn_submit_intent",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"id\":\"3cb01d73-54fe-49d5-b77c-025be4c4a91a\",\"dispatch\":\"fbffb176-93ef-4236-8bbb-5d3285b1a7fb\",\"at\":\"2026-10-11T19:33:11.332Z\",\"nativeTurn\":null}"
+      },
+      {
+        "seq": 45,
+        "time": "2026-10-11T19:33:11.634Z",
+        "type": "turn_submitted",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"id\":\"3cb01d73-54fe-49d5-b77c-025be4c4a91a\",\"dispatch\":\"fbffb176-93ef-4236-8bbb-5d3285b1a7fb\",\"at\":\"2026-10-11T19:33:11.332Z\",\"nativeTurn\":null}"
+      },
+      {
+        "seq": 46,
+        "time": "2026-10-11T19:33:11.747Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"3dea9224-2172-4143-8b2f-f9b718c8d7f6\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 47,
+        "time": "2026-10-11T19:33:11.747Z",
+        "type": "native_record",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"file\":\"sessions/rollout-fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef.jsonl\",\"offset\":294,\"record\":{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\",\"turn_id\":\"fixture-turn-2\"}}}"
+      },
+      {
+        "seq": 48,
+        "time": "2026-10-11T19:33:11.748Z",
+        "type": "native_record",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"file\":\"sessions/rollout-fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef.jsonl\",\"offset\":376,\"record\":{\"type\":\"turn_context\",\"payload\":{\"turn_id\":\"fixture-turn-2\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"}}}"
+      },
+      {
+        "seq": 49,
+        "time": "2026-10-11T19:33:11.748Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"3dea9224-2172-4143-8b2f-f9b718c8d7f6\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 50,
+        "time": "2026-10-11T19:33:11.822Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"cb273323-decb-4b75-a72b-8935d959803d\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 51,
+        "time": "2026-10-11T19:33:11.822Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"cb273323-decb-4b75-a72b-8935d959803d\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 52,
+        "time": "2026-10-11T19:33:11.950Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f57252d0-d9fe-4b7f-a5cb-e1392684fbc9\",\"input\":{\"command\":\"signal\",\"launch\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"received_at\":\"2026-10-11T19:33:11.948Z\",\"raw_stdin\":\"{\\\"session_id\\\": \\\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\\\", \\\"turn_id\\\": \\\"fixture-turn-2\\\", \\\"hook_event_name\\\": \\\"Stop\\\", \\\"last_assistant_message\\\": \\\"controlled worker finished\\\"}\",\"relay_files\":[{\"name\":\"dirty.json\",\"raw\":\"{\\\"schema\\\":1,\\\"request_id\\\":\\\"dirty\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"command\\\":\\\"submit\\\",\\\"commit\\\":\\\"9f89aa3d75813145819c3b709304e50787063723\\\"}\\n\"}]},\"source\":\"worker\"}"
+      },
+      {
+        "seq": 53,
+        "time": "2026-10-11T19:33:11.951Z",
+        "type": "hook_received",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"raw_stdin\":\"{\\\"session_id\\\": \\\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\\\", \\\"turn_id\\\": \\\"fixture-turn-2\\\", \\\"hook_event_name\\\": \\\"Stop\\\", \\\"last_assistant_message\\\": \\\"controlled worker finished\\\"}\",\"received_at\":\"2026-10-11T19:33:11.948Z\"}"
+      },
+      {
+        "seq": 54,
+        "time": "2026-10-11T19:33:11.951Z",
+        "type": "turn_end_signal",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"session_id\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\",\"turn_id\":\"fixture-turn-2\",\"hook_event_name\":\"Stop\",\"last_assistant_message\":\"controlled worker finished\"}"
+      },
+      {
+        "seq": 55,
+        "time": "2026-10-11T19:33:11.951Z",
+        "type": "relay_replayed",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"key\":\"id:dirty\",\"file\":\"dirty.json\",\"result\":{\"ok\":false,\"error\":\"dirty_worktree\",\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-11T19:33:09.144Z\"}}}"
+      },
+      {
+        "seq": 56,
+        "time": "2026-10-11T19:33:11.951Z",
+        "type": "pane_idle",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"submission\":\"3cb01d73-54fe-49d5-b77c-025be4c4a91a\",\"stop\":{\"session_id\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\",\"turn_id\":\"fixture-turn-2\",\"hook_event_name\":\"Stop\",\"last_assistant_message\":\"controlled worker finished\"}}"
+      },
+      {
+        "seq": 57,
+        "time": "2026-10-11T19:33:11.951Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f57252d0-d9fe-4b7f-a5cb-e1392684fbc9\",\"command\":\"signal\",\"ok\":true}"
+      },
+      {
+        "seq": 58,
+        "time": "2026-10-11T19:33:12.079Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"cc2e183f-acf6-453e-9cd6-6947336a9f39\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 59,
+        "time": "2026-10-11T19:33:12.080Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"cc2e183f-acf6-453e-9cd6-6947336a9f39\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 60,
+        "time": "2026-10-11T19:33:12.156Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"514c9103-c2f2-4596-a54e-c32fb407404c\",\"input\":{\"command\":\"status\",\"task\":\"fixture-20261011-1\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 61,
+        "time": "2026-10-11T19:33:12.157Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"514c9103-c2f2-4596-a54e-c32fb407404c\",\"command\":\"status\",\"ok\":true}"
+      },
+      {
+        "seq": 62,
+        "time": "2026-10-11T19:33:12.298Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f29faa6d-d1ae-4d02-a966-365af4453c7c\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 63,
+        "time": "2026-10-11T19:33:12.298Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f29faa6d-d1ae-4d02-a966-365af4453c7c\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 64,
+        "time": "2026-10-11T19:33:12.556Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"c709f51e-4370-4178-b24b-7a02bf5c530e\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 65,
+        "time": "2026-10-11T19:33:12.556Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"c709f51e-4370-4178-b24b-7a02bf5c530e\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 66,
+        "time": "2026-10-11T19:33:12.686Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"ca309a86-51f5-4bc0-b72b-20a0eb09c8cd\",\"input\":{\"command\":\"signal\",\"launch\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"received_at\":\"2026-10-11T19:33:12.684Z\",\"raw_stdin\":\"{\\\"session_id\\\": \\\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\\\", \\\"turn_id\\\": \\\"fixture-turn-2\\\", \\\"hook_event_name\\\": \\\"Stop\\\", \\\"last_assistant_message\\\": \\\"controlled worker finished\\\"}\",\"relay_files\":[{\"name\":\"00-short.json\",\"raw\":\"{\\n  \\\"schema\\\": 1,\\n  \\\"command\\\": \\\"submit\\\",\\n  \\\"task\\\": \\\"fixture-20261011-1\\\",\\n  \\\"attempt\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n  \\\"session\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n  \\\"fence\\\": 1,\\n  \\\"spec_rev\\\": 1,\\n  \\\"request_id\\\": \\\"00-short\\\",\\n  \\\"commit\\\": \\\"9f89aa3d7581\\\"\\n}\\n\"},{\"name\":\"01-base.json\",\"raw\":\"{\\n  \\\"schema\\\": 1,\\n  \\\"command\\\": \\\"submit\\\",\\n  \\\"task\\\": \\\"fixture-20261011-1\\\",\\n  \\\"attempt\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n  \\\"session\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n  \\\"fence\\\": 1,\\n  \\\"spec_rev\\\": 1,\\n  \\\"request_id\\\": \\\"01-base\\\",\\n  \\\"commit\\\": \\\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\\\"\\n}\\n\"},{\"name\":\"delivery.json\",\"raw\":\"{\\\"schema\\\":1,\\\"request_id\\\":\\\"delivery\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"command\\\":\\\"submit\\\",\\\"commit\\\":\\\"9f89aa3d75813145819c3b709304e50787063723\\\"}\\n\"},{\"name\":\"dirty.json\",\"raw\":\"{\\\"schema\\\":1,\\\"request_id\\\":\\\"dirty\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"command\\\":\\\"submit\\\",\\\"commit\\\":\\\"9f89aa3d75813145819c3b709304e50787063723\\\"}\\n\"},{\"name\":\"zz-duplicate.json\",\"raw\":\"{\\n  \\\"schema\\\": 1,\\n  \\\"command\\\": \\\"submit\\\",\\n  \\\"task\\\": \\\"fixture-20261011-1\\\",\\n  \\\"attempt\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n  \\\"session\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n  \\\"fence\\\": 1,\\n  \\\"spec_rev\\\": 1,\\n  \\\"request_id\\\": \\\"zz-duplicate\\\",\\n  \\\"commit\\\": \\\"9f89aa3d75813145819c3b709304e50787063723\\\"\\n}\\n\"}]},\"source\":\"worker\"}"
+      },
+      {
+        "seq": 67,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "hook_received",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"raw_stdin\":\"{\\\"session_id\\\": \\\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\\\", \\\"turn_id\\\": \\\"fixture-turn-2\\\", \\\"hook_event_name\\\": \\\"Stop\\\", \\\"last_assistant_message\\\": \\\"controlled worker finished\\\"}\",\"received_at\":\"2026-10-11T19:33:12.684Z\"}"
+      },
+      {
+        "seq": 68,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "turn_end_signal",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"session_id\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\",\"turn_id\":\"fixture-turn-2\",\"hook_event_name\":\"Stop\",\"last_assistant_message\":\"controlled worker finished\"}"
+      },
+      {
+        "seq": 69,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "relay_rejected",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"key\":\"id:00-short\",\"request_id\":\"00-short\",\"file\":{\"name\":\"00-short.json\",\"raw\":\"{\\n  \\\"schema\\\": 1,\\n  \\\"command\\\": \\\"submit\\\",\\n  \\\"task\\\": \\\"fixture-20261011-1\\\",\\n  \\\"attempt\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n  \\\"session\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n  \\\"fence\\\": 1,\\n  \\\"spec_rev\\\": 1,\\n  \\\"request_id\\\": \\\"00-short\\\",\\n  \\\"commit\\\": \\\"9f89aa3d7581\\\"\\n}\\n\"},\"result\":{\"ok\":false,\"error\":\"relay_requires_current_stop\"}}"
+      },
+      {
+        "seq": 70,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "relay_rejected",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"key\":\"id:01-base\",\"request_id\":\"01-base\",\"file\":{\"name\":\"01-base.json\",\"raw\":\"{\\n  \\\"schema\\\": 1,\\n  \\\"command\\\": \\\"submit\\\",\\n  \\\"task\\\": \\\"fixture-20261011-1\\\",\\n  \\\"attempt\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n  \\\"session\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n  \\\"fence\\\": 1,\\n  \\\"spec_rev\\\": 1,\\n  \\\"request_id\\\": \\\"01-base\\\",\\n  \\\"commit\\\": \\\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\\\"\\n}\\n\"},\"result\":{\"ok\":false,\"error\":\"relay_requires_current_stop\"}}"
+      },
+      {
+        "seq": 71,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "relay_rejected",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"key\":\"id:delivery\",\"request_id\":\"delivery\",\"file\":{\"name\":\"delivery.json\",\"raw\":\"{\\\"schema\\\":1,\\\"request_id\\\":\\\"delivery\\\",\\\"task\\\":\\\"fixture-20261011-1\\\",\\\"attempt\\\":\\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\\"session\\\":\\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"command\\\":\\\"submit\\\",\\\"commit\\\":\\\"9f89aa3d75813145819c3b709304e50787063723\\\"}\\n\"},\"result\":{\"ok\":false,\"error\":\"relay_requires_current_stop\"}}"
+      },
+      {
+        "seq": 72,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "relay_replayed",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"key\":\"id:dirty\",\"file\":\"dirty.json\",\"result\":{\"ok\":false,\"error\":\"dirty_worktree\",\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-11T19:33:09.144Z\"}}}"
+      },
+      {
+        "seq": 73,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "relay_rejected",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"key\":\"id:zz-duplicate\",\"request_id\":\"zz-duplicate\",\"file\":{\"name\":\"zz-duplicate.json\",\"raw\":\"{\\n  \\\"schema\\\": 1,\\n  \\\"command\\\": \\\"submit\\\",\\n  \\\"task\\\": \\\"fixture-20261011-1\\\",\\n  \\\"attempt\\\": \\\"7add8dd5-2d52-414b-a210-f09657a5b27f\\\",\\n  \\\"session\\\": \\\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\\\",\\n  \\\"fence\\\": 1,\\n  \\\"spec_rev\\\": 1,\\n  \\\"request_id\\\": \\\"zz-duplicate\\\",\\n  \\\"commit\\\": \\\"9f89aa3d75813145819c3b709304e50787063723\\\"\\n}\\n\"},\"result\":{\"ok\":false,\"error\":\"relay_requires_current_stop\"}}"
+      },
+      {
+        "seq": 74,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "stop_not_matched",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"session_id\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\",\"turn_id\":\"fixture-turn-2\",\"hook_event_name\":\"Stop\",\"last_assistant_message\":\"controlled worker finished\"}"
+      },
+      {
+        "seq": 75,
+        "time": "2026-10-11T19:33:12.687Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"ca309a86-51f5-4bc0-b72b-20a0eb09c8cd\",\"command\":\"signal\",\"ok\":true}"
+      },
+      {
+        "seq": 76,
+        "time": "2026-10-11T19:33:12.816Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"9843cba3-4f28-4d7a-ac9c-bc87ffb1aaca\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 77,
+        "time": "2026-10-11T19:33:12.816Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"9843cba3-4f28-4d7a-ac9c-bc87ffb1aaca\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 78,
+        "time": "2026-10-11T19:33:12.983Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f0b8535a-91c7-44e7-a06e-6cdefe79ea83\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 79,
+        "time": "2026-10-11T19:33:12.983Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f0b8535a-91c7-44e7-a06e-6cdefe79ea83\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 80,
+        "time": "2026-10-11T19:33:13.144Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"973667d5-0958-49f6-a3eb-9be5e966d6c0\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 81,
+        "time": "2026-10-11T19:33:13.145Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"973667d5-0958-49f6-a3eb-9be5e966d6c0\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 82,
+        "time": "2026-10-11T19:33:13.307Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"4b500904-fbe2-414d-a0aa-5f7f498315fc\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 83,
+        "time": "2026-10-11T19:33:13.307Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"4b500904-fbe2-414d-a0aa-5f7f498315fc\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 84,
+        "time": "2026-10-11T19:33:13.470Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"c0f802c7-674a-40a1-b08c-729463912f8f\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 85,
+        "time": "2026-10-11T19:33:13.470Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"c0f802c7-674a-40a1-b08c-729463912f8f\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 86,
+        "time": "2026-10-11T19:33:13.631Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"9ecd40b2-2569-442c-9475-e2a23ca91f9a\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 87,
+        "time": "2026-10-11T19:33:13.631Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"9ecd40b2-2569-442c-9475-e2a23ca91f9a\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 88,
+        "time": "2026-10-11T19:33:13.791Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"6e7db5fa-bfb2-429d-b249-e57167698b8e\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 89,
+        "time": "2026-10-11T19:33:13.791Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"6e7db5fa-bfb2-429d-b249-e57167698b8e\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 90,
+        "time": "2026-10-11T19:33:13.952Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"bd112cf0-054a-4078-b845-9fd4d69e5090\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 91,
+        "time": "2026-10-11T19:33:13.952Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"bd112cf0-054a-4078-b845-9fd4d69e5090\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 92,
+        "time": "2026-10-11T19:33:14.117Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f57dc068-a27e-41a5-86e3-21b870383e5a\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 93,
+        "time": "2026-10-11T19:33:14.117Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f57dc068-a27e-41a5-86e3-21b870383e5a\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 94,
+        "time": "2026-10-11T19:33:14.277Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"bf901d16-497b-4edb-9217-24b61e4dfdcd\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 95,
+        "time": "2026-10-11T19:33:14.278Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"bf901d16-497b-4edb-9217-24b61e4dfdcd\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 96,
+        "time": "2026-10-11T19:33:14.442Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"aa59eb39-f070-44af-918a-22a442984b0f\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 97,
+        "time": "2026-10-11T19:33:14.442Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"aa59eb39-f070-44af-918a-22a442984b0f\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 98,
+        "time": "2026-10-11T19:33:14.600Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"80396dd5-c8b5-4c88-bc15-f3fb94f736d1\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 99,
+        "time": "2026-10-11T19:33:14.600Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"80396dd5-c8b5-4c88-bc15-f3fb94f736d1\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 100,
+        "time": "2026-10-11T19:33:14.761Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"1a213b66-1a2c-43e6-bfb8-61a7bde3dbad\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 101,
+        "time": "2026-10-11T19:33:14.761Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"1a213b66-1a2c-43e6-bfb8-61a7bde3dbad\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 102,
+        "time": "2026-10-11T19:33:14.912Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"de11bd0d-7be1-481b-9a6b-ace9ef984a9a\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 103,
+        "time": "2026-10-11T19:33:14.912Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"de11bd0d-7be1-481b-9a6b-ace9ef984a9a\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 104,
+        "time": "2026-10-11T19:33:15.080Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f4e80fdc-a02f-4464-8d5b-bd26feb7490c\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 105,
+        "time": "2026-10-11T19:33:15.080Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"f4e80fdc-a02f-4464-8d5b-bd26feb7490c\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 106,
+        "time": "2026-10-11T19:33:15.236Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"faec67ac-586a-4f7d-a972-fb1b207278b6\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 107,
+        "time": "2026-10-11T19:33:15.237Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"faec67ac-586a-4f7d-a972-fb1b207278b6\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 108,
+        "time": "2026-10-11T19:33:15.404Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b15c57ff-1723-40e4-8a9c-4a22e9167758\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 109,
+        "time": "2026-10-11T19:33:15.404Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b15c57ff-1723-40e4-8a9c-4a22e9167758\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 110,
+        "time": "2026-10-11T19:33:15.578Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"82c0dc24-167e-4572-a31d-31a5a7e21df2\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 111,
+        "time": "2026-10-11T19:33:15.578Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"82c0dc24-167e-4572-a31d-31a5a7e21df2\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 112,
+        "time": "2026-10-11T19:33:15.732Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"3beae547-d231-44c2-9640-cfddb7af66d3\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 113,
+        "time": "2026-10-11T19:33:15.732Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"3beae547-d231-44c2-9640-cfddb7af66d3\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 114,
+        "time": "2026-10-11T19:33:15.895Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"e4361aa0-0243-4b86-8424-86132e2eacf1\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 115,
+        "time": "2026-10-11T19:33:15.896Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"e4361aa0-0243-4b86-8424-86132e2eacf1\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 116,
+        "time": "2026-10-11T19:33:16.061Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"df484409-710b-4318-9695-8624921f5456\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 117,
+        "time": "2026-10-11T19:33:16.061Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"df484409-710b-4318-9695-8624921f5456\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 118,
+        "time": "2026-10-11T19:33:16.227Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"96f75605-c762-4e70-9b0e-f403bfaeeb17\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 119,
+        "time": "2026-10-11T19:33:16.228Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"96f75605-c762-4e70-9b0e-f403bfaeeb17\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 120,
+        "time": "2026-10-11T19:33:16.389Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"9bd71590-1fb4-436a-bd19-acaae770517c\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 121,
+        "time": "2026-10-11T19:33:16.390Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"9bd71590-1fb4-436a-bd19-acaae770517c\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 122,
+        "time": "2026-10-11T19:33:16.549Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"4e3ad7fc-f7a1-4b5b-a471-9c1f46a7331c\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 123,
+        "time": "2026-10-11T19:33:16.549Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"4e3ad7fc-f7a1-4b5b-a471-9c1f46a7331c\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 124,
+        "time": "2026-10-11T19:33:16.720Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"3ba7dca7-b795-42f9-aa12-e1043cebae55\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 125,
+        "time": "2026-10-11T19:33:16.721Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"3ba7dca7-b795-42f9-aa12-e1043cebae55\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 126,
+        "time": "2026-10-11T19:33:16.884Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"ba2e74b6-4f56-45fb-9756-8aeb25918e0c\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 127,
+        "time": "2026-10-11T19:33:16.885Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"ba2e74b6-4f56-45fb-9756-8aeb25918e0c\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 128,
+        "time": "2026-10-11T19:33:17.043Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"877f41d0-1d8d-4e46-b43e-a2c79ceef22b\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 129,
+        "time": "2026-10-11T19:33:17.044Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"877f41d0-1d8d-4e46-b43e-a2c79ceef22b\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 130,
+        "time": "2026-10-11T19:33:17.210Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"2cd1defb-8443-44af-b496-9cbbc3d833b5\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 131,
+        "time": "2026-10-11T19:33:17.210Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"2cd1defb-8443-44af-b496-9cbbc3d833b5\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 132,
+        "time": "2026-10-11T19:33:17.377Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b28f3b83-5e6a-4b8e-b5ba-e469d612defe\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 133,
+        "time": "2026-10-11T19:33:17.377Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b28f3b83-5e6a-4b8e-b5ba-e469d612defe\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 134,
+        "time": "2026-10-11T19:33:17.540Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b078969f-3980-4d41-b1ed-f9d8ab9fcfa9\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 135,
+        "time": "2026-10-11T19:33:17.540Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"b078969f-3980-4d41-b1ed-f9d8ab9fcfa9\",\"command\":\"pane_status\",\"ok\":true}"
+      },
+      {
+        "seq": 136,
+        "time": "2026-10-11T19:33:17.703Z",
+        "type": "request_received",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"2549f278-4e60-4f31-ba6d-9c5b1cf2e105\",\"input\":{\"command\":\"pane_status\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"},\"source\":\"executor\"}"
+      },
+      {
+        "seq": 137,
+        "time": "2026-10-11T19:33:17.703Z",
+        "type": "request_result",
+        "launch": null,
+        "task": null,
+        "attempt": null,
+        "data": "{\"id\":\"2549f278-4e60-4f31-ba6d-9c5b1cf2e105\",\"command\":\"pane_status\",\"ok\":true}"
+      }
+    ],
+    "relay_requests": [
+      {
+        "key": "id:dirty",
+        "launch": "eff72959-8cb8-42e7-b58f-584422a867ef",
+        "task": "fixture-20261011-1",
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "request_id": "dirty",
+        "input": "{\"attempt\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"command\":\"submit\",\"commit\":\"9f89aa3d75813145819c3b709304e50787063723\",\"fence\":1,\"request_id\":\"dirty\",\"schema\":1,\"session\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"spec_rev\":1,\"task\":\"fixture-20261011-1\"}",
+        "created_at": "2026-10-11T19:33:11.308Z"
+      }
+    ],
+    "relay_results": [
+      {
+        "key": "id:dirty",
+        "data": "{\"ok\":false,\"error\":\"dirty_worktree\",\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-11T19:33:09.144Z\"}}",
+        "created_at": "2026-10-11T19:33:11.331Z"
+      }
+    ],
+    "role_permission_changes": [],
+    "role_permissions": [],
+    "runs": [],
+    "sqlite_sequence": [
+      {
+        "name": "orchestration_events",
+        "seq": 137
+      },
+      {
+        "name": "events",
+        "seq": 30
+      },
+      {
+        "name": "dispatch_records",
+        "seq": 2
+      }
+    ],
+    "task_card_snapshots": [
+      {
+        "id": "782588aa-4047-4ac6-901f-2c46642be4ed",
+        "task": "fixture-20261011-1",
+        "version": 1,
+        "attempt": null,
+        "data": "{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null}"
+      },
+      {
+        "id": "bbdabc1a-916d-4320-a830-0753c3b846d4",
+        "task": "fixture-20261011-1",
+        "version": 1,
+        "attempt": "7add8dd5-2d52-414b-a210-f09657a5b27f",
+        "data": "{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"writer\":{\"task_id\":\"fixture-20261011-1\",\"attempt_id\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session_id\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"thread_id\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\"}}"
+      }
+    ],
+    "task_card_versions": [
+      {
+        "task": "fixture-20261011-1",
+        "version": 1,
+        "data": "{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null}",
+        "created_at": "2026-10-11T19:33:09.367Z"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "fixture-20261011-1",
+        "data": "{\"task_id\":\"fixture-20261011-1\",\"title\":\"fixture-20261011-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"782588aa-4047-4ac6-901f-2c46642be4ed\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261011-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\",\"tests/\",\".a2a/quality.json\"],\"deny\":[\"src/private/\"]},\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\\\n'\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"state\":\"claimed\",\"spec_rev\":1,\"fence\":1,\"current_attempt\":{\"task_id\":\"fixture-20261011-1\",\"attempt_id\":\"7add8dd5-2d52-414b-a210-f09657a5b27f\",\"session_id\":\"f1207992-498b-43d0-a9b5-5b9f468e0d4b\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"runtime_mode\":\"workspace-write\",\"turn_id\":null,\"runtime_identity\":{\"launch\":\"eff72959-8cb8-42e7-b58f-584422a867ef\",\"thread\":\"7b2a24ab-0b5f-47de-b4e1-e399f83fa9dd\",\"shell_pid\":31000,\"leader_pid\":31001,\"native_session\":\"fixture-native-eff72959-8cb8-42e7-b58f-584422a867ef\"},\"workspace\":\"/private/tmp/q76-tfr7jge_/c-g8ayqhtj/state/worktrees/7add8dd5-2d52-414b-a210-f09657a5b27f\",\"base_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"card_snapshot_id\":\"bbdabc1a-916d-4320-a830-0753c3b846d4\",\"reclaimed\":false,\"owner\":\"fixture-20261011-1\",\"state\":\"claimed\"},\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"aad8edf525c4f7c805e41497a3ecb7bee04b09bf\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]},\"repair\":null,\"review\":null}"
+      }
+    ],
+    "user_input_checkpoint": [],
+    "user_input_events": [],
+    "user_input_ingress": [],
+    "user_inputs": [],
+    "verifications": []
+  }
+}

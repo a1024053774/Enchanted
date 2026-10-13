@@ -1,0 +1,11 @@
+# T-076-2：F08遗漏了non-fast-forward反例的合法来源前置
+
+状态：INCOMPLETE；静态核对发现，仅影响这一项旧回归准备。继续其它已批准工作，不改该项。
+
+`workbench/tests/test_task_cards_e2e.py:test_non_fast_forward_git_result_cannot_integrate`（424–456）目前用`a = self.create()`，即真实手工claim；随后独立Git wrapper将commit-tree的输出替换为B，原断言明确要求integrate报`integration_not_fast_forward`并保持G不变。
+
+`core.ts`的integrate先在3011行要求`attempt.delivery`；`integration_not_fast_forward`在`advanceWorkBranch()`（1206）才检查。即使补合法review与score，手工claim仍先被来源检查拒绝，不能到达原反例。决定03/F08只允许列出的6个调用点迁移，此方法不在其中；不应偷偷让适配器换来源或改错误断言。
+
+申请补充 **F13**：仅把本方法准备的`self.create()`改成显式`self.create_managed()`；verify后完成独立review，integrate显式传已绑定score文件。保留原Git wrapper/注入、v.M=B、真实commit-tree输出与B不同、最终`integration_not_fast_forward`和ref=G的全部断言，编号和suite成员不变。没有生产变更、没有更改预期。它与已批准的dirty-target及baseline-change反例一样，需要合法的受管来源才能到达原Git拒绝边界。
+
+主控批准前不修改本方法，完整旧回归阶段不能称准备完成。这是迁移清单漏项，不是新产品缺陷；此前F05清单把这项留在手工claim是我的疏漏。

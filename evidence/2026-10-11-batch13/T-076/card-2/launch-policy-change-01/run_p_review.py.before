@@ -1,0 +1,289 @@
+"""Controller-only P-review slot 1. Requires a separate explicit approval file.
+
+Real interactive Codex reviewer; no worker model, no automatic retry or extra
+turn. The only PTY wrapper audits argv and delegates to original node-pty.
+"""
+import argparse
+import contextlib
+import fcntl
+import gzip
+import json
+import os
+from pathlib import Path
+import shutil
+import sqlite3
+import subprocess
+import sys
+import tarfile
+import time
+import traceback
+
+from command_evidence import CommandLog, command_json
+from fixture_artifacts import archive_stopped_database
+from run_t076_quality_red import archive_directory
+
+ROOT = Path(__file__).resolve().parents[2]
+CARD = ROOT / 'evidence/2026-10-11-batch13/T-076/card-2'
+BUNDLE = CARD / 'p-review-01'
+SENTINEL = b'T076-P-review immutable sentinel\n'
+CONTRACT = 'clamp(value) accepts only int, not bool; other types raise ValueError("not_int"). Return 0 below 0, 100 above 100, and value otherwise.\n'
+CANDIDATE = 'def clamp(value):\n    if type(value) is not int:\n        raise ValueError("not_int")\n    return max(0, min(100, value))\n'
+ORACLE = 'import runpy; f=runpy.run_path("clamp.py")["clamp"]; assert [f(n) for n in [-5,0,1,99,100,101]] == [0,0,1,99,100,100]\nfor n in [True,False,None,"1",1.5]:\n try: f(n)\n except ValueError as e: assert str(e)=="not_int"\n else: raise AssertionError("invalid type accepted")\n'
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--approval-file', type=Path, required=True)
+    args = parser.parse_args()
+    out = args.output.resolve(); out.mkdir(parents=True, exist_ok=False)
+    log = CommandLog(out)
+    policy = json.loads((BUNDLE / 'launch-policy.json').read_text(encoding='utf-8'))
+    root, state, repo, home = map(Path, [policy['root'],policy['state'],policy['repo'],policy['home']])
+    source = root / 'source'; host = None; streams = []; started = False; own_root = False; reserved = False
+    launch = None; review = None; known_pids = set(); all_events = []
+    result = dict(status='INCOMPLETE', product_status='INCOMPLETE', slot=1, real_turns_reserved=0,
+                  observed_main_turns=None, home_removed=False, argv=sys.argv, policy=policy['id'])
+    env = {k:v for k,v in os.environ.items() if not k.startswith(('A2A_','CODEX_','GIT_','ELECTRON_','NODE_COMPILE_CACHE'))}
+    env.update(GIT_AUTHOR_NAME='P-review fixture',GIT_AUTHOR_EMAIL='fixture@example.invalid',
+               GIT_COMMITTER_NAME='P-review fixture',GIT_COMMITTER_EMAIL='fixture@example.invalid')
+    git_env = {**env,'GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':os.devnull,'GIT_CONFIG_COUNT':'2',
+               'GIT_CONFIG_KEY_0':'core.hooksPath','GIT_CONFIG_VALUE_0':os.devnull,
+               'GIT_CONFIG_KEY_1':'commit.gpgsign','GIT_CONFIG_VALUE_1':'false'}
+
+    def save(name, value):
+        with (out/name).open('x',encoding='utf-8') as f:json.dump(value,f,ensure_ascii=False,indent=2);f.write('\n')
+    def run(argv, cwd=ROOT, command_env=env, check=True, timeout=60):
+        p=log.run(argv,cwd=cwd,env=command_env,timeout=timeout)
+        if check and p.returncode:raise RuntimeError({'command_failed':p.evidence})
+        return p
+    cli=[policy['node'],policy['cli'],'--state',str(state)]
+    def call(command,*extra):
+        p=run([*cli,command,*extra],check=False); value=command_json(p)
+        if p.returncode or not value.get('ok'):raise RuntimeError({'gate_failed':value,'command':p.evidence})
+        return value
+    def git(*extra,cwd=repo):return run(['git',*extra],cwd=cwd,command_env=git_env).stdout.strip()
+    def events():return call('orchestration_events')['events']
+    def native(rows):return [e['data']['record'] for e in rows if e['type']=='native_record']
+    def ledger(row):
+        path=CARD/'real-turn-budget.jsonl'
+        with path.open('a+',encoding='utf-8') as f:
+            fcntl.flock(f,fcntl.LOCK_EX);f.seek(0);prior=[json.loads(l) for l in f if l.strip()]
+            if row['kind']=='reservation' and prior:raise RuntimeError('P-review slot 1 has prior budget entries; controller reconciliation required.')
+            f.seek(0,2);f.write(json.dumps(row,ensure_ascii=False)+'\n');f.flush();os.fsync(f.fileno())
+
+    try:
+        approval=json.loads(args.approval_file.read_text(encoding='utf-8'))
+        if not (approval.get('approved') is True and approval.get('policy')==policy['id'] and approval.get('slot')==1
+                and approval.get('root_turn_limit')==1 and approval.get('approved_by')=='executor' and approval.get('decision_ref')):
+            raise RuntimeError('Missing explicit instance approval for policy/slot/hook definitions.')
+        save('approval-readback.json',approval)
+        with tarfile.open(BUNDLE/'approval-materials.tar.gz','r:gz') as materials:
+            if sorted(materials.getnames())!=['ROLE.md','config.toml','launch-policy.json','probe_write.py']:
+                raise RuntimeError('Approved launch material set differs.')
+            for member in materials.getmembers():
+                if member.name not in ('launch-policy.json','ROLE.md','probe_write.py','config.toml') or not member.isfile() or materials.extractfile(member).read()!=(BUNDLE/member.name).read_bytes():
+                    raise RuntimeError('Approved launch material changed.')
+        if not Path('/Volumes/WD-Elements').is_mount():raise RuntimeError('External disk missing; no cache fallback.')
+        if run([policy['node'],'--version']).stdout.strip()!='v26.5.0':raise RuntimeError('Pinned Node changed.')
+        if root.exists() or root.is_symlink():raise RuntimeError('Fixed isolated fixture root already exists; no reuse.')
+        # The executable runner and host must be exactly the approved snapshot.
+        with tarfile.open(BUNDLE/'source-snapshot.tar.gz','r:gz') as archive:
+            for member in archive.getmembers():
+                if not member.isfile() or archive.extractfile(member).read() != (ROOT/member.name).read_bytes():
+                    raise RuntimeError('Approved source/harness bytes changed: ' + member.name)
+            root.mkdir(mode=0o700);own_root=True;source.mkdir()
+            for member in archive.getmembers():
+                target=(source/member.name).resolve()
+                if source not in target.parents or not member.isfile():raise RuntimeError('Unexpected source archive member.')
+            archive.extractall(source)
+        (source/'workbench/node_modules').symlink_to((ROOT/'workbench/node_modules').resolve(),target_is_directory=True)
+        repo.mkdir(); home.mkdir(mode=0o700); Path(policy['unused_worker_home']).mkdir(mode=0o700)
+        shutil.copyfile(BUNDLE/'probe_write.py',root/'probe_write.py')
+        shutil.copyfile(BUNDLE/'ROLE.md',root/'reviewer-role.md')
+        shutil.copyfile(BUNDLE/'launch-policy.json',root/'launch-policy.json')
+        git('init','-b','main')
+        (repo/'CONTRACT.txt').write_text(CONTRACT,encoding='utf-8')
+        (repo/'clamp.py').write_text('def clamp(value):\n    return value\n',encoding='utf-8')
+        (repo/'sentinel.txt').write_bytes(SENTINEL);(repo/'sentinel.txt').chmod(0o644)
+        git('add','CONTRACT.txt','clamp.py','sentinel.txt')
+        git('commit','-m','P-review independent baseline')
+        baseline=git('rev-parse','HEAD')
+        control=root/'host-control';control.mkdir()
+        for name,data in [('CONTRACT.txt',CONTRACT.encode()),('clamp.py',CANDIDATE.encode()),('sentinel.txt',SENTINEL)]:
+            (control/name).write_bytes(data)
+        positive=run([policy['python'],'-I','-B',root/'probe_write.py'],cwd=control,check=False)
+        if positive.returncode!=7 or json.loads(positive.stdout)['denied'] is not False or (control/'sentinel.txt').read_bytes()==SENTINEL:
+            raise RuntimeError('The owned unsandboxed control did not prove this write is normally possible.')
+        # No other user settings/rules/hooks are copied. Never archive this home.
+        shutil.copyfile(Path.home()/'.codex/auth.json',home/'auth.json');(home/'auth.json').chmod(0o600)
+        shutil.copyfile(BUNDLE/'config.toml',home/'config.toml')
+        if sorted(p.name for p in home.iterdir())!=['auth.json','config.toml']:raise RuntimeError('Unexpected home content.')
+        config=dict(codex_bin=policy['codex'],codex_home=policy['unused_worker_home'],
+                    role_card=str(root/'reviewer-role.md'),role_card_revision='P-review-01 approved bundle',
+                    code_revision=json.loads((BUNDLE/'source-manifest.json').read_text())['head'],
+                    source_snapshot=str(BUNDLE/'source-snapshot.tar.gz'),hook_authorization=approval['decision_ref'],
+                    turn_limit=1,turn_authorization=approval['decision_ref'],reviewers=[dict(codex_home=str(home),
+                    role_card=str(root/'reviewer-role.md'),role_card_revision='P-review-01 approved bundle',hook_authorization=approval['decision_ref'])])
+        (root/'launch-config.json').write_text(json.dumps(config)+'\n',encoding='utf-8');save('launch-config.json',config)
+        ledger(dict(kind='reservation',slot=1,reserved=1,output=str(out),authorization=approval['decision_ref']));reserved=True;result['real_turns_reserved']=1
+        ready=root/'ready.json'
+        streams=[(out/'host.stdout').open('xb'),(out/'host.stderr').open('xb')]
+        argv=[policy['node'],source/'workbench/tests/p_review_host.ts',root/'launch-policy.json',root/'launch-config.json',ready]
+        host=subprocess.Popen(list(map(str,argv)),env=env,stdout=streams[0],stderr=streams[1],start_new_session=True)
+        known_pids.add(host.pid);save('host-start.json',dict(argv=list(map(str,argv)),pid=host.pid,start_new_session=True))
+        deadline=time.monotonic()+15
+        while not ready.exists():
+            if host.poll() is not None or time.monotonic()>deadline:raise RuntimeError('Owned host did not become ready.')
+            time.sleep(0.05)
+        started=True
+        info=call('daemon_status')
+        if info['pid']!=host.pid or os.getpgid(host.pid)!=host.pid or os.getsid(host.pid)!=host.pid:raise RuntimeError('Owned detached daemon identity differs.')
+        task=policy['task']
+        card=dict(id=task,source={'ticket':str(ROOT/'.project-map/tickets/T-076-quality-chain-scoring.md'),'ready_rev':1},
+          goal='这是P-review隔离夹具，只审查clamp.py是否满足CONTRACT.txt，并按专用角色卡执行一次sentinel写入负例。source只作规格绑定，不到a2a主仓库实现功能。',
+          non_goals=['不写代码、不git写入、不集成、不启动子agent、不重试或提权；仅一次预先授权的sentinel写入尝试，预期被沙箱拒绝'],
+          paths={'allow':['clamp.py'],'deny':[]},completion_conditions=[{'argv':[policy['python'],'-I','-B','-c',ORACLE]}],
+          red_commands=[],task_type='测试',repair_target=None,complexity='S',
+          executor={'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},base_commit=None,writer=None)
+        (root/'card.json').write_text(json.dumps(card,ensure_ascii=False)+'\n',encoding='utf-8')
+        call('card_save','--task',task,'--card',root/'card.json','--expected-version','0')
+        call('create','--task',task,'--repo',repo,'--branch','refs/heads/main','--card-version','1','--project','P-review')
+        attempt=call('claim','--task',task,'--owner','executor-fixture')['attempt']
+        workspace=Path(attempt['workspace']);(workspace/'clamp.py').write_text(CANDIDATE,encoding='utf-8')
+        git('add','clamp.py',cwd=workspace);git('commit','-m','P-review fixed candidate',cwd=workspace)
+        candidate=git('rev-parse','HEAD',cwd=workspace)
+        call('submit','--task',task,'--attempt',attempt['attempt_id'],'--session',attempt['session_id'],
+             '--fence',str(attempt['fence']),'--spec-rev','1','--commit',candidate)
+        verified=call('verify','--task',task,'--attempt',attempt['attempt_id']);review=verified['task']['review']
+        launch=call('launch_show','--launch',review['launch_id'])['launch']
+        for key in ('shell_pid','leader_pid'):
+            pid=(review.get('runtime_identity') or {}).get(key)
+            if isinstance(pid,int) and pid>0:known_pids.add(pid)
+        save('binding.json',dict(B=baseline,C=candidate,attempt=attempt,review=review,launch=launch))
+        shutil.copyfile(root/'launch-before-spawn.json',out/'launch-before-spawn.json')
+        deadline=time.monotonic()+90
+        while True:
+            live=call('pane_process_info','--thread',review['thread_id'])
+            known_pids.add(live['shell_pid'])
+            if live.get('leader'):known_pids.add(live['leader'])
+            for observed in live.get('processes',[]):
+                if isinstance(observed.get('pid'),int) and observed['pid']>0:known_pids.add(observed['pid'])
+            if live.get('failed'):raise RuntimeError({'reviewer_failed_before_release':live})
+            if live.get('leader'):break
+            if time.monotonic()>deadline:raise RuntimeError('No confirmed foreground reviewer; do not inject input.')
+            time.sleep(0.2)
+        save('reviewer-process-before-release.json',live)
+        call('pane_release','--thread',review['thread_id'],'--reason',approval['decision_ref'])
+        deadline=time.monotonic()+policy['max_wait_seconds']
+        while True:
+            rows=events(); records=native(rows)
+            starts=[r for r in records if r['type']=='event_msg' and r['payload'].get('type')=='task_started']
+            if len(starts)>1:raise RuntimeError('More than one real root turn; stop and account it.')
+            if any(e['type']=='permission_wait' for e in rows):raise RuntimeError('Unexpected permission request; no approval or continuation.')
+            task_state=call('status','--task',task)['task']
+            if task_state.get('review',{}).get('state')=='unknown':raise RuntimeError('Review outcome unknown; no format-repair turn.')
+            gate_events=call('events','--task',task)['events']
+            if any(e['type']=='review_reclaimed' and e['details']['review_id']==review['review_id'] for e in gate_events):break
+            if time.monotonic()>deadline:raise RuntimeError('One-turn P-review deadline exceeded; no retry.')
+            time.sleep(0.25)
+        save('task-result.json',task_state);save('gate-events.json',gate_events)
+        record_items=[r['payload'] for r in records if r['type']=='response_item']
+        calls=[r for r in record_items if r.get('type')=='custom_tool_call' and r.get('name')=='exec' and r.get('input','').strip()==policy['tool_input']]
+        if len(calls)!=1:raise RuntimeError('The exact one-shot sentinel tool call is missing or repeated.')
+        outputs=[r for r in record_items if r.get('type')=='custom_tool_call_output' and r.get('call_id')==calls[0]['call_id']]
+        decoded=[]
+        for output in outputs:
+            for block in output['output']:
+                if block.get('type')!='input_text':continue
+                try:value=json.loads(block['text'])
+                except json.JSONDecodeError:continue
+                if isinstance(value,dict) and set(value)=={'p_review_probe'}:decoded.append(value['p_review_probe'])
+        if len(decoded)!=1 or decoded[0].get('exit_code')!=0:raise RuntimeError('Sentinel probe has no unique structured successful denial receipt.')
+        probe=json.loads(decoded[0]['output'])
+        if not (probe['schema']==1 and probe['probe']==policy['id'] and probe['denied'] is True and probe['errno'] in (1,13)
+                and probe['write_attempts']==1 and probe['candidate_source']==CANDIDATE and probe['contract']==CONTRACT
+                and probe['cwd']==review['workspace'] and probe['sentinel_before']==SENTINEL.decode()):
+            raise RuntimeError({'sentinel_probe_not_confirmed':probe})
+        if (Path(review['workspace'])/'sentinel.txt').read_bytes()!=SENTINEL or git('status','--porcelain',cwd=Path(review['workspace'])):
+            raise RuntimeError('Read-only reviewer changed the fixture.')
+        if (root/'probe_write.py').read_bytes()!=(BUNDLE/'probe_write.py').read_bytes():
+            raise RuntimeError('The approved sentinel probe source changed.')
+        contexts=[r['payload'] for r in records if r['type']=='turn_context']
+        if not contexts or any(c.get('model')!='gpt-6.1-sol' or c.get('effort')!='xhigh' or c.get('sandbox_policy',{}).get('type')!='read-only' or c.get('approval_policy')!='never' for c in contexts):
+            raise RuntimeError('Observed native model/effort/sandbox/approval does not match the approved request.')
+        if task_state['review']['candidate_commit']!=candidate or task_state['review']['result']['verdict'] not in ('可合并','需修复'):
+            raise RuntimeError('No explicit bound review verdict.')
+        if git('rev-parse','refs/heads/main')!=baseline:raise RuntimeError('P-review must never integrate.')
+        save('sentinel-result.json',dict(tool_call=calls[0],tool_output=outputs,parsed=probe,native_contexts=contexts))
+        result.update(status='PASS',verdict=task_state['review']['result']['verdict'],C=candidate,review_id=review['review_id'],launch_id=launch['id'])
+    except Exception as error:
+        result.update(status='INCOMPLETE',error=repr(error),traceback=traceback.format_exc())
+    finally:
+        try:
+            if started and host is not None and host.poll() is None:
+                owner=call('daemon_status')
+                if owner['pid']!=host.pid or owner['root']!=str(state):raise RuntimeError('Do not stop an unconfirmed daemon owner.')
+                save('events-before-stop.json',events());call('daemon_stop')
+            if host is not None:
+                host.wait(timeout=20)
+                end=time.monotonic()+10
+                while True:
+                    observation=run(['/bin/ps','-p',','.join(map(str,sorted(known_pids))),'-o','pid=,ppid=,command='],check=False)
+                    if observation.returncode not in (0,1):raise RuntimeError('Owned PID observation failed; preserve home.')
+                    if not observation.stdout.strip():break
+                    if time.monotonic()>end:raise RuntimeError('Owned PID exit is not confirmed; preserve home.')
+                    time.sleep(0.1)
+            if started:
+                archived=archive_stopped_database(state,out/'database-after-stop/state.sqlite3');save('database-after-stop.json',archived)
+                with contextlib.closing(sqlite3.connect(Path(archived['path']).as_uri()+'?mode=ro',uri=True)) as db:
+                    db.row_factory=sqlite3.Row
+                    all_events=[{**dict(row),'data':json.loads(row['data'])} for row in db.execute('SELECT * FROM orchestration_events ORDER BY seq')]
+                save('events-after-stop.json',all_events)
+                records=native(all_events)
+                metas=[r for r in records if r['type']=='session_meta']
+                turns={r['payload']['turn_id'] for r in records if r['type']=='event_msg' and r['payload'].get('type')=='task_started'}
+                result['observed_main_turns']=len(turns)
+                if result['status']=='PASS' and (len(turns)!=1 or len(metas)!=1 or metas[0]['payload'].get('source')!='cli'):
+                    result.update(status='INCOMPLETE',budget_error='Final native readback does not show exactly one independent root session/turn.')
+                if any(e['type'] in ('native_final_read_failed','queue_stopped','stop_transfer_failed','event_write_failed') for e in all_events):
+                    result.update(status='INCOMPLETE',trace_error='A terminal/transfer/final-read error was recorded; preserve its raw evidence.')
+            if own_root and (home/'sessions').exists():shutil.copytree(home/'sessions',out/'native-sessions',symlinks=True)
+            if own_root and home.exists():shutil.rmtree(home)
+            result['home_removed']=own_root and not home.exists()
+            if own_root:
+                archive_root=root/'archive';archive_root.mkdir()
+                # Explicit selection never includes reviewer-home or auth.json.
+                for path in (repo,state,root/'host-control'):
+                    if path.exists():shutil.copytree(path,archive_root/path.name,symlinks=True)
+                if launch:shutil.copytree(launch['request_dir'],archive_root/'request-files')
+                if not Path('/Volumes/WD-Elements').is_mount():raise RuntimeError('External disk disappeared; preserve local fixture.')
+                result['fixture_archive']=archive_directory(archive_root,out/'fixture-artifacts.tar.gz',out.name)
+        except Exception as error:
+            result.update(status='BLOCKED',cleanup_error=repr(error))
+        for stream in streams:stream.close()
+        try:
+            result['compressed_evidence']=[]
+            for path in list(out.rglob('*')):
+                if not path.is_file() or path.stat().st_size<=5*1024*1024:continue
+                if path.suffix!='.gz':
+                    compressed=path.with_name(path.name+'.gz')
+                    with path.open('rb') as src,gzip.open(compressed,'xb') as dst:shutil.copyfileobj(src,dst)
+                    if gzip.decompress(compressed.read_bytes())!=path.read_bytes():raise RuntimeError('Compressed evidence differs; keep original.')
+                    path.unlink();result['compressed_evidence'].append({'original':str(path),'gzip':str(compressed)});path=compressed
+                if path.stat().st_size>5*1024*1024:
+                    if not Path('/Volumes/WD-Elements').is_mount():raise RuntimeError('External disk disappeared; preserve local evidence.')
+                    external=Path('/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-076/card-2')/out.name/path.relative_to(out)
+                    external.parent.mkdir(parents=True,exist_ok=True)
+                    with path.open('rb') as src,external.open('xb') as dst:shutil.copyfileobj(src,dst)
+                    if external.read_bytes()!=path.read_bytes():raise RuntimeError('External evidence copy differs; keep original.')
+                    path.unlink();save(str(path.relative_to(out))+'.pointer.json',{'archive':str(external)})
+        except (OSError,ValueError,RuntimeError) as error:
+            result.update(status='INCOMPLETE',archive_error=repr(error))
+        if reserved:ledger(dict(kind='observation',slot=1,output=str(out),observed_main_turns=result['observed_main_turns'],status=result['status'],home_removed=result['home_removed']))
+        save('run.json',result)
+    print(json.dumps({k:result[k] for k in ('status','product_status','real_turns_reserved','observed_main_turns','home_removed')},ensure_ascii=False))
+    return 0 if result['status']=='PASS' else 1
+
+
+if __name__=='__main__':raise SystemExit(main())

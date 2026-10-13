@@ -1,0 +1,1094 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index e06d0cce..051f2c18 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -16,8 +16,9 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status
+ 随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
+ 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
+ T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
+-B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本卡一次独立审查 PASS。
+-该结论限卡 3 的本地夹具；Electron 与重启恢复的实现和验证进度另见文末卡 4 记录，完整工作台尚未切换。
++B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成。
++该结论不覆盖当前 T-076-2 的质量串变更；当前候选尚待受控 Tracer bullet 验证，
++真实 reviewer 的只读沙箱与 B 结论通道也未实测。完整工作台尚未切换。
+ 
+ 受管派发提示要求 `git add <路径>` 与 `git commit …` 各自独立执行，
+ 检查命令另行运行，以便两个已授权的 Git 前缀规则分别匹配。
+@@ -26,7 +27,8 @@ B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本
+ `acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由后台中的
+ `A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
+ 受管任务通过 JSON 任务卡注册；交付按卡检查路径、完成条件与提交尾注，
+-通过后以 CAS 推进项目工作分支。普通会话的 `attach --instructions` 仍是提示文本，
++机械通过后新开只读 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
++普通会话的 `attach --instructions` 仍是提示文本，
+ 不参与受管任务注册。
+ 旧 HTTP 转接经本次对话确认后删除；本入口只接受本地门禁命令。
+ 
+@@ -62,7 +64,53 @@ create 不再接受 `--base`、`--oracle` 或 `--instructions`。
+ 工作分支必须是已存在的 `refs/heads/*`。门禁不再读写 `refs/a2a/integration`，历史引用保留。
+ Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改，再 CAS 到 M；覆盖型修改被拒，
+ 无冲突修改保留。未知副作用保留原 integration intent 待核对。没有 push、stash 或用户目录 reset。
+-验收仍由 verify 完成，integrate 只接受与该 attempt、卡快照和候选绑定的通过记录。
++`verify` 机械完成返回的 task 状态为 `reviewing`；只有独立审查结论通过才为 `verified`。
++`integrate` 只接受与该 attempt、卡快照和候选绑定的审查通过记录及执行主控评分。
++
++## 质量串候选（T-076-2，尚未验收）
++
++首轮交付被路径、完成条件、尾注或独立审查打回后，门禁保存失败，再登记
++`⟦门禁 #序号⟧` 修复消息；空闲时由原队列注入。只有明确打回授权后，原 attempt 的
++同一原生会话才能从新回合重交新 C；没有打回时仍不能换候选。同 attempt 第三次打回
++保存 issue 并暂停，不再注入修复消息。消息与 ACK 都不计为人工介入。
++
++机械通过后，后台为 C 创建 detached 审查目录和独立 thread/session/launch，
++不续接旧原生会话。`daemon_start --launch-config` 的 `reviewers` 数组按启动次序提供
++每个已批准 reviewer 的 `codex_home`、`role_card`、`role_card_revision`、`hook_authorization`。
++每项 home 必须独立、没有已有原生会话记录；没有该实例配置就明确拒绝，不沿用 worker home。
++reviewer 用 `--sandbox read-only -a never`，不安装 Git 尾注 hook、不增加可写目录，
++会话 hook 仍只经启动 argv 传入。实际权限效果须经尚未启动的 P-review 探针证明。
++
++reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选模板由门禁派发。
++匹配 Stop 的后台 hook 处理器把显式 JSON 落入该 launch 专用请求文件，再经原 B relay
++转交。程序不剥 Markdown fence、不抽取一段 JSON、不从自然语言猜结论。
++非法结论保存原文、上报并暂停；有效结论只接受“可合并”加空清单，或“需修复”加位置、
++失败场景、建议。结论绑定 C、合同和独立启动/原生身份。有效结果存库、reviewer idle 后回收，
++不另开纯 ACK 回合。审查目录的统一命名/清理由 T-077 衔接。
++
++```sh
++node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-080-1 --attempt ATTEMPT --score-file /绝对路径/score.json
++```
++
++当前集成评分 JSON 为：
++
++```json
++{"result":"通过","boundary_discipline":3,"boundary_reason":"理由","engineering_taste":2,"engineering_reason":"理由","notes":""}
++```
++
++数值须为 0–3 整数，理由非空，notes 必须存在（可空）；缺项拒绝，不编造默认分数。
++评分意图绑定 integration intent，Git 成功后最终 `score_recorded` 与集成状态同事务落库；
++相同命令重放不再打分或改 Git，不同分数不能覆盖。schema=1 字段对齐 Herdr 打分格式，
++事实由任务卡、交付回合和事件提取，不写真实 `records/scores.jsonl`。
++交付缺当前回合的实际模型/强度时拒绝，不能沿用请求值或上一回合的值。
++
++`run --wait-seconds N` 现在等待修复、审查和执行主控的显式集成命令，仍只绑定原 attempt。
++它不会在机械通过后自动填分/集成，也不因第一次质量打回就回收 worker。修复或审查等待
++到期时保留现场；收到最终集成后，确认原 worker idle 才回收并结束。
++
++本候选只用于 ticket 的隔离验证。`red_commands[].test_paths` 执行、项目规则冻结/执行、
++`abandon` 的放弃/升级评分、`scores_validate`、评分中断故障注入和 8/9/18 适配尚未接完；
++不能把这条初始 slice 的受控检查当作完整质量门禁验收。真实 P-review 及模型闭环另行审批。
+ 
+ ## 安装
+ 
+@@ -83,8 +131,8 @@ npm ls --depth=0
+ 
+ ## 运行时边界
+ 
+-`GateRuntime` 由 `panes.ts` 实现一个 Codex worker 窗格；没有 Claude 或普通 attach
+-会话。生产 CLI 没有直接开库的运行时替代入口。
++`GateRuntime` 由 `panes.ts` 实现一个活跃 Codex worker 及每次交付新开的 reviewer 窗格；
++没有 Claude 或普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
+ 旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
+ 
+ 真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
+diff --git a/workbench/src/contracts/a2aGates.ts b/workbench/src/contracts/a2aGates.ts
+index d6449a10..65c6ee31 100644
+--- a/workbench/src/contracts/a2aGates.ts
++++ b/workbench/src/contracts/a2aGates.ts
+@@ -37,6 +37,7 @@ export const A2AGateRequest = Schema.Struct({
+     "submit",
+     "verify",
+     "integrate",
++    "review_submit",
+     "reclaim",
+     "status",
+     "events",
+@@ -66,6 +67,11 @@ export const A2AGateRequest = Schema.Struct({
+   fence: Schema.optional(Schema.Number),
+   spec_rev: Schema.optional(Schema.Number),
+   commit: Schema.optional(Schema.String),
++  review_id: Schema.optional(Schema.String),
++  candidate_commit: Schema.optional(Schema.String),
++  verdict: Schema.optional(Schema.String),
++  findings: Schema.optional(Schema.Unknown),
++  score_file: Schema.optional(Schema.String),
+   wait_seconds: Schema.optional(Schema.Number),
+   runtimeMode: Schema.optional(Schema.Literals(["approval-required", "full-access", "workspace-write"])),
+   issue: Schema.optional(Schema.String),
+@@ -106,6 +112,44 @@ export interface A2AAttempt {
+   owner?: string;
+   state?: string;
+   revocation_reason?: string;
++  delivery?: {
++    commit: string; turn_id: string | null; launch_id: string; cli: string;
++    model: string; effort: string; number: number; submitted_at: string;
++  };
++}
++
++export interface A2ARepair {
++  id: string;
++  candidate_commit: string;
++  verification_id: string;
++  check: string;
++  count: number;
++  stopped: boolean;
++  failure: unknown;
++}
++
++export interface A2AReview {
++  review_id: string;
++  task_id: string;
++  attempt: A2AAttempt;
++  candidate_commit: string;
++  spec_rev: number;
++  card_snapshot_id: string;
++  verification_id: string;
++  thread_id: string;
++  session_id: string;
++  workspace: string;
++  requested_at: string;
++  launch_id: string | null;
++  runtime_identity: A2ARuntimeIdentity | null;
++  state: "requested" | "running" | "passed" | "needs_fix" | "unknown";
++  result?: { verdict: "可合并" | "需修复"; findings: A2AReviewFinding[]; turn_id: string; received_at: string };
++}
++
++export interface A2AReviewFinding {
++  location: { path: string; line: number };
++  failure_scenario: string;
++  suggestion: string;
+ }
+ 
+ export interface A2ACommandResult {
+@@ -152,6 +196,8 @@ export interface A2ATask {
+   current_attempt: A2AAttempt | null;
+   candidate_commit: string | null;
+   verification: A2AVerification | null;
++  repair?: A2ARepair | null;
++  review?: A2AReview | null;
+   integration_intent: {
+     G: string;
+     M: string;
+@@ -166,6 +212,7 @@ export interface A2ATask {
+     command_intent?: { argv: string[]; cwd: string };
+     result?: A2ACommandResult;
+     state: "pending" | "completed";
++    score?: { score_id: string; data: Record<string, unknown> };
+   } | null;
+ }
+ 
+diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts
+index e7e9d0a8..2f7f5e88 100644
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -6,6 +6,8 @@ import { OrchestrationStore } from "./store.ts";
+ import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
+ import { socketPath } from "./transport.ts";
+ import { RequestRelay } from "./relay.ts";
++import { writeReviewRequest } from "./relayFiles.ts";
++import { reviewRequest, QualityProtocolError } from "./gates/qualityProtocol.ts";
+ import { randomUUID } from "node:crypto";
+ 
+ export async function serve(
+@@ -79,10 +81,26 @@ export async function serve(
+     if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.dispatch(panes.get(input.thread), input.body) };
+     if (input.command === "signal") {
+       if (!identity || identity.launch !== input.launch) throw new Refusal("signal_identity_required");
++      let completedReview: { task: string; id: string } | undefined;
+       await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
+-        if (!Array.isArray(input.relay_files)) throw new Refusal("relay_files_required");
++        let files = input.relay_files;
++        if (pane.record.role === "reviewer") {
++          if (!matched) return;
++          let request: Record<string, any>;
++          try { request = reviewRequest(stop.last_assistant_message); }
++          catch (error) {
++            if (!(error instanceof QualityProtocolError)) throw error;
++            const caller = await panes.caller({ ...identity, native_session: stop.session_id });
++            await gates.failReviewProtocol(pane.record.task, pane.record.review_id,
++              { error: error.field, raw: stop.last_assistant_message, stop }, caller);
++            pane.failed = "invalid_review_result";
++            return;
++          }
++          files = [writeReviewRequest(pane.record.request_dir, request)];
++        }
++        if (!Array.isArray(files)) throw new Refusal("relay_files_required");
+         const receipts = [];
+-        for (const file of input.relay_files) {
++        for (const file of files) {
+           const receipt = await relay.receive(pane.record as any, file, matched, async (command) => {
+             const caller = await panes.caller({ ...identity, native_session: stop.session_id });
+             await caller.assertActive();
+@@ -98,11 +116,19 @@ export async function serve(
+             return await gates.call(command, caller);
+           });
+           if (!receipt.replayed) receipts.push(receipt);
++          if (pane.record.role === "reviewer" && !receipt.replayed) {
++            if (receipt.result.ok) completedReview = { task: pane.record.task, id: pane.record.review_id };
++            else {
++              const caller = await panes.caller({ ...identity, native_session: stop.session_id });
++              await gates.failReviewProtocol(pane.record.task, pane.record.review_id, { receipt, stop }, caller);
++              pane.failed = "review_rejected";
++            }
++          }
+         }
+-        if (matched && receipts.length) await panes.dispatch(pane,
++        if (matched && receipts.length && pane.record.role === "worker") await panes.dispatch(pane,
+           "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2), "gate");
+       });
+-      return { ok: true };
++      return { ok: true, completedReview };
+     }
+     if (input.command === "launch_show") {
+       if (identity && identity.launch !== input.launch) throw new Refusal("stale_launch");
+@@ -131,7 +157,8 @@ export async function serve(
+       try {
+         envelope = JSON.parse(buffer.slice(0, end));
+         const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
+-        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: envelope.identity ? "worker" : "executor" });
++        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input,
++          source: envelope.identity ? panes.authenticate(envelope.identity).record.role : "executor" });
+         result = await handle(envelope);
+         if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
+           ok: result.ok, error: result.error, details: result.details });
+@@ -149,7 +176,10 @@ export async function serve(
+           if (stopping) return;
+           const pane = panes.byLaunch(envelope.input.launch);
+           activeRequests++;
+-          panes.drain(pane).catch((error) => {
++          (async () => {
++            await panes.drain(pane);
++            if (result.completedReview) await gates.reclaimReview(result.completedReview.task, result.completedReview.id);
++          })().catch((error) => {
+             pane.failed = String(error); pane.state = "unknown";
+             store.event("queue_stopped", { error: String(error) }, pane.record);
+           }).finally(activityFinished);
+diff --git a/workbench/src/gates/cli.ts b/workbench/src/gates/cli.ts
+index 125f50bb..8e419c47 100644
+--- a/workbench/src/gates/cli.ts
++++ b/workbench/src/gates/cli.ts
+@@ -39,7 +39,8 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
+   revise: { required: ["spec-rev"], optional: ["card-version"] },
+   submit: { required: ["attempt", "session", "fence", "spec-rev", "commit"], optional: ["request-id"] },
+   verify: { required: [], optional: ["attempt"] },
+-  integrate: { required: [], optional: ["attempt"] },
++  integrate: { required: [], optional: ["attempt", "score-file"] },
++  review_submit: { required: ["review-file"] },
+   status: { required: [], optional: ["request-id"] },
+   issue: { required: ["title", "body"], optional: ["blocking", "refs", "request-id"] },
+   events: { required: [] },
+@@ -107,6 +108,7 @@ export async function main(argv = process.argv.slice(2)) {
+       "bundle-id",
+       "stop-id",
+       "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes",
++      "score-file", "review-file",
+     ];
+     const { values, positionals } = parseArgs({
+       args: argv,
+@@ -149,18 +151,24 @@ export async function main(argv = process.argv.slice(2)) {
+       else if (key === "blocking") {
+         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
+         request.blocking = value === "true";
+-      } else if (["reply-to", "bundle-id", "stop-id", "request-id"].includes(key))
++      } else if (["reply-to", "bundle-id", "stop-id", "request-id", "score-file"].includes(key))
+         request[key.replaceAll("-", "_")] = value;
+       else request[key === "runtime-mode" ? "runtimeMode" : key] = value;
+     }
+     if (command === "signal") {
+       request.received_at = new Date().toISOString();
+       request.raw_stdin = readFileSync(0, "utf8");
+-      if (JSON.parse(String(request.raw_stdin)).hook_event_name === "Stop") {
++      if (JSON.parse(String(request.raw_stdin)).hook_event_name === "Stop" && process.env.A2A_ROLE !== "reviewer") {
+         request.relay_files = readWorkerRequests(process.env.A2A_REQUEST_DIR!);
+       }
+     }
+     if (command === "pane_dispatch") request.body = readFileSync(String(request["body-file"]), "utf8");
++    if (command === "review_submit") {
++      const file = request["review-file"];
++      const result = JSON.parse(readFileSync(String(file), "utf8"));
++      const { schema: _schema, request_id: _id, ...body } = result;
++      request = { ...body, command, task: request.task };
++    }
+   } catch (error) {
+     console.error("usage: --state ABS_DIR COMMAND --task ID ...\n" + String(error));
+     return 2;
+diff --git a/workbench/src/gates/core.ts b/workbench/src/gates/core.ts
+index 21acd81b..c1604d19 100644
+--- a/workbench/src/gates/core.ts
++++ b/workbench/src/gates/core.ts
+@@ -21,6 +21,8 @@ import {
+   type A2AGateResult,
+   type A2AVerification,
+   type A2ACommandResult,
++  type A2AReview,
++  type A2ARepair,
+   type A2ATask,
+   type A2AAttachment,
+   type A2ATaskMembership,
+@@ -35,6 +37,7 @@ import { execFile as execProcessFile, spawn } from "node:child_process";
+ import { createInterface } from "node:readline";
+ import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, type TaskCard } from "./taskCards.ts";
+ import { Schema } from "effect";
++import { executorScore, reviewVerdict, QualityProtocolError } from "./qualityProtocol.ts";
+ import { A2AMembership } from "./membership.ts";
+ import {
+   ensureRolePermissionTables,
+@@ -95,6 +98,9 @@ export interface GateRuntime {
+   }>;
+   stopThread(thread: string): Promise<void>;
+   archiveThread(thread: string): Promise<void>;
++  qualityFeedback?(attempt: A2AAttempt, repair: A2ARepair): Promise<void>;
++  createReview?(task: A2ATask, review: A2AReview, prompt: string): Promise<void>;
++  sessionFacts?(thread: string): Promise<{ launch: Record<string, any>; model: string; effort: string }>;
+   createAttachedThread?(task: A2ATask, attachment: A2AAttachment, prompt: string): Promise<void>;
+   sendUserAnswer?(thread: string, messageId: string, message: string): Promise<void>;
+   wakeThread?(thread: string, entry: A2AInboxEntry): Promise<{ message: string }>;
+@@ -1304,6 +1310,183 @@ export class A2AGates {
+     return attempt;
+   }
+ 
++  private qualityIssue(task: A2ATask, attempt: A2AAttempt, title: string, body: unknown, thread = attempt.thread_id) {
++    const issueId = randomUUID();
++    const number = Number(this.db.prepare("SELECT count(*) AS n FROM issue_records WHERE thread=? AND json_extract(data,'$.kind')='issue'")
++      .get(thread)!.n) + 1;
++    this.appendIssue({ id: issueId, schema: 1, kind: "issue", from: "system", to: "executor", reply_to: null,
++      refs: [`task:${task.task_id}`, `attempt:${attempt.attempt_id}`], created_at: new Date(this.now()).toISOString(),
++      body: JSON.stringify(body), task_id: task.task_id, attempt_id: attempt.attempt_id, thread_id: thread,
++      turn_id: null, number, title, blocking: true, issue_id: issueId });
++  }
++
++  private async rejectDelivery(task: A2ATask, attempt: A2AAttempt, check: string, failure: unknown) {
++    requireGate(task.verification && task.candidate_commit, "verification_required");
++    if (task.repair?.verification_id === task.verification.verification_id) return;
++    const count = Number(this.db.prepare("SELECT count(*) AS n FROM events WHERE task=? AND attempt=? AND type='delivery_rejected'")
++      .get(task.task_id, attempt.attempt_id)!.n) + 1;
++    const repair: A2ARepair = { id: randomUUID(), candidate_commit: task.candidate_commit,
++      verification_id: task.verification.verification_id, check, count, stopped: count >= 3, failure };
++    task.repair = repair;
++    task.state = repair.stopped ? "paused" : "submitted";
++    this.db.exec("BEGIN IMMEDIATE");
++    try {
++      this.save(task, "delivery_rejected", { task, repair });
++      if (repair.stopped) this.qualityIssue(task, attempt, "同一 attempt 连续三次打回，停止自动回写", repair);
++      this.db.exec("COMMIT");
++    } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
++    if (!attempt.thread_id) {
++      this.qualityIssue(task, attempt, "打回没有可回写的 worker 会话", repair);
++      return;
++    }
++    requireGate(this.runtime?.qualityFeedback, "quality_feedback_runtime_required");
++    this.current(this.load(task.task_id), attempt.attempt_id);
++    const live = await this.runtime.readThread(attempt.thread_id);
++    this.checkThread(attempt, live);
++    requireGate(!live.error && !live.blocked && !live.stopped && !live.archived, "feedback_identity_unknown", live);
++    await this.runtime.qualityFeedback(attempt, repair);
++  }
++
++  private reviewAttempt(review: A2AReview): A2AAttempt {
++    return { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
++      workspace: review.workspace, runtime_identity: review.runtime_identity, turn_id: null };
++  }
++
++  private requireReviewed(task: A2ATask, attempt: A2AAttempt) {
++    const review = task.review;
++    requireGate(review && review.state === "passed" && review.result?.verdict === "可合并" &&
++      review.task_id === task.task_id && review.attempt.attempt_id === attempt.attempt_id &&
++      review.attempt.session_id === attempt.session_id && review.attempt.fence === attempt.fence &&
++      review.spec_rev === task.spec_rev && review.card_snapshot_id === attempt.card_snapshot_id &&
++      review.candidate_commit === task.candidate_commit, "review_required");
++    const row = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='review_result' AND json_extract(details,'$.review.review_id')=? ORDER BY seq DESC LIMIT 1")
++      .get(task.task_id, attempt.attempt_id, review.review_id);
++    requireGate(row && JSON.stringify(JSON.parse(String(row.details)).review) === JSON.stringify(review), "stale_review");
++    return review;
++  }
++
++  private async requestReview(task: A2ATask, attempt: A2AAttempt) {
++    const v = task.verification!;
++    if (task.review?.state === "passed" && task.review.candidate_commit === v.C) {
++      const review = this.requireReviewed(task, attempt);
++      task.state = "verified";
++      this.save(task, "review_reused", { task, review, verification_id: v.verification_id, G: v.G, M: v.M });
++      return;
++    }
++    requireGate(this.runtime?.createReview, "review_runtime_required");
++    const previous = task.review?.result?.findings ?? [];
++    const reviewId = randomUUID();
++    const review: A2AReview = { review_id: reviewId, task_id: task.task_id, attempt: { ...attempt },
++      candidate_commit: v.C, spec_rev: task.spec_rev, card_snapshot_id: attempt.card_snapshot_id,
++      verification_id: v.verification_id, thread_id: randomUUID(), session_id: randomUUID(),
++      workspace: join(this.root, "verification", "review-" + reviewId), requested_at: new Date(this.now()).toISOString(),
++      launch_id: null, runtime_identity: null, state: "requested" };
++    task.review = review; task.state = "reviewing";
++    this.save(task, "review_requested", { task, review });
++    await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", review.workspace, v.C]);
++    const diff = await this.git(task.task_id, task.repo, ["diff", "--no-ext-diff", "--no-renames", attempt.base_commit, v.C, "--"]);
++    const shape = { schema: 1, request_id: "review-" + reviewId, command: "review_submit", task: task.task_id,
++      attempt: attempt.attempt_id, session: review.session_id, fence: attempt.fence, spec_rev: task.spec_rev,
++      review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [] };
++    const prompt = `只读审查这一次交付，不实现或提交代码。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。以下身份字段不可改；verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。不能调用 worker 的 submit、不能集成、不能写请求文件。\n${JSON.stringify(shape, null, 2)}`;
++    await this.runtime.createReview(task, review, prompt);
++    const live = await this.runtime.readThread(review.thread_id);
++    review.runtime_identity = { ...live.runtime_identity };
++    review.launch_id = live.runtime_identity.launch;
++    this.checkThread(this.reviewAttempt(review), live);
++    review.state = "running";
++    this.member(task, review.thread_id, "reviewer");
++    this.save(task, "review_started", { task, review });
++  }
++
++  async failReviewProtocol(taskId: string, reviewId: string, details: unknown, caller: SubmitCaller) {
++    const lock = this.operationLock(taskId);
++    try {
++      const task = this.load(taskId), attempt = this.current(task), review = task.review;
++      requireGate(review?.review_id === reviewId && review.thread_id === caller.thread && review.state === "running", "stale_review");
++      await caller.assertActive();
++      review.state = "unknown"; task.state = "paused";
++      this.db.exec("BEGIN IMMEDIATE");
++      try {
++        this.save(task, "review_protocol_failed", { task, review, details });
++        this.qualityIssue(task, attempt, "审查结论协议无效，已停止", details, review.thread_id);
++        this.db.exec("COMMIT");
++      } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
++    } finally { lock.close(); }
++  }
++
++  async reclaimReview(taskId: string, reviewId: string) {
++    const lock = this.operationLock(taskId);
++    try {
++      const row = this.db.prepare("SELECT details FROM events WHERE task=? AND type='review_result' AND json_extract(details,'$.review.review_id')=? ORDER BY seq DESC LIMIT 1")
++        .get(taskId, reviewId);
++      requireGate(row && this.runtime, "review_result_required");
++      const review = JSON.parse(String(row.details)).review as A2AReview;
++      const done = this.db.prepare("SELECT 1 FROM events WHERE task=? AND type='review_reclaimed' AND json_extract(details,'$.review_id')=?")
++        .get(taskId, reviewId);
++      if (done) return;
++      const live = await this.runtime.readThread(review.thread_id);
++      this.checkThread(this.reviewAttempt(review), live);
++      requireGate(!live.running && !live.blocked && !live.error, "reviewer_not_idle");
++      this.event(taskId, "review_reclaim_intent", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
++      await this.runtime.stopThread(review.thread_id);
++      await this.runtime.archiveThread(review.thread_id);
++      const after = await this.runtime.readThread(review.thread_id);
++      this.checkThread(this.reviewAttempt(review), after);
++      requireGate(after.stopped && after.archived, "review_reclaim_unconfirmed");
++      this.member(this.load(taskId), review.thread_id, "reviewer", new Date(this.now()).toISOString());
++      this.event(taskId, "review_reclaimed", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
++    } finally { lock.close(); }
++  }
++
++  private scoreData(path: string | undefined) {
++    requireGate(path, "score_required");
++    let value: unknown;
++    try { value = JSON.parse(readFileSync(inputPath(path), "utf8")); }
++    catch (error) { if (error instanceof SyntaxError) throw new Refusal("invalid_score", "Invalid JSON."); throw error; }
++    return executorScore(value);
++  }
++
++  private finalScore(task: A2ATask, attempt: A2AAttempt, intent: NonNullable<A2ATask["integration_intent"]>) {
++    requireGate(intent.score && attempt.delivery, "score_provenance_required");
++    const previous = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='score_recorded'")
++      .all(task.task_id, attempt.attempt_id);
++    requireGate(previous.length === 0, "attempt_already_scored");
++    const claimed = this.db.prepare("SELECT time FROM events WHERE task=? AND attempt=? AND type='claimed' ORDER BY seq LIMIT 1")
++      .get(task.task_id, attempt.attempt_id);
++    requireGate(claimed, "score_provenance_required");
++    const delivery = attempt.delivery, now = this.now();
++    const rejections: Record<string, number> = { identity_version: 0, path_boundary: 0, completion: 0,
++      red_state: 0, rule_checks: 0, independent_review: 0, commit_trailers: 0 };
++    const identityErrors = new Set(["stale_attempt", "stale_session", "stale_fence", "stale_spec", "stale_thread", "stale_turn",
++      "identity_conflict", "invalid_commit", "not_descendant", "workspace_head_mismatch", "dirty_worktree", "candidate_conflict"]);
++    let identityRejections = 0;
++    for (const row of this.db.prepare("SELECT details FROM events WHERE task=? AND type='rejected'").all(task.task_id)) {
++      const entry = JSON.parse(String(row.details));
++      if (entry.input?.command === "submit" && entry.input.attempt === attempt.attempt_id && identityErrors.has(entry.error)) identityRejections++;
++    }
++    // Relay-only schema/identity refusals never reach the gate. Count each
++    // durable request once, excluding gate refusals already counted above.
++    for (const row of this.db.prepare("SELECT q.input,r.data FROM relay_requests q JOIN relay_results r ON r.key=q.key WHERE q.launch=? AND q.attempt=?")
++      .all(delivery.launch_id, attempt.attempt_id)) {
++      const input = JSON.parse(String(row.input)), result = JSON.parse(String(row.data));
++      if (input.command === "submit" && ["relay_identity_mismatch", "invalid_relay_request"].includes(result.error)) identityRejections++;
++    }
++    rejections.identity_version = identityRejections;
++    for (const row of this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='delivery_rejected'").all(task.task_id, attempt.attempt_id)) {
++      const key = JSON.parse(String(row.details)).repair.check;
++      requireGate(Object.hasOwn(rejections, key), "score_check_unknown", key); rejections[key]!++;
++    }
++    const score = { schema: 1, score_id: intent.score.score_id, created_at: new Date(now).toISOString(), source: "executor",
++      launch_id: delivery.launch_id, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
++      cli: delivery.cli, model: delivery.model, effort: delivery.effort, data: intent.score.data,
++      facts: { task_type: task.card.task_type, complexity: task.card.complexity, delivery_rounds: delivery.number,
++        elapsed_seconds: Math.max(0, Math.floor((now - Date.parse(String(claimed.time))) / 1000)),
++        human_interventions: Number(this.db.prepare("SELECT count(*) AS n FROM events WHERE task=? AND attempt=? AND type='human_intervention'")
++          .get(task.task_id, attempt.attempt_id)!.n), rejections } };
++    this.event(task.task_id, "score_recorded", score, attempt.attempt_id);
++  }
++
+   private saveRun(run: A2ARun, type: string) {
+     this.checkUserInputObserver();
+     this.db.exec("BEGIN IMMEDIATE");
+@@ -1457,7 +1640,9 @@ export class A2AGates {
+       let previous = "";
+       for (;;) {
+         requireGate(!this.shuttingDown, "daemon_stopping");
+-        this.current(this.load(args.task), run.attempt_id!);
++        const initial = this.load(args.task);
++        this.current(initial, run.attempt_id!);
++        if (initial.state === "accepted") break;
+         requireGate(performance.now() < deadline, "run_deadline");
+         const live = await this.observeRun(run);
+         const task = this.load(args.task);
+@@ -1477,21 +1662,29 @@ export class A2AGates {
+           previous = change;
+         }
+         requireGate(performance.now() < deadline, "run_deadline");
+-        requireGate(["claimed", "submitted"].includes(task.state), "run_state_changed", task.state);
+-        if (task.state === "submitted") break;
++        requireGate(!task.repair?.stopped, "quality_rejection_limit", task.repair);
++        requireGate(["claimed", "submitted", "reviewing", "verified", "integrating", "accepted"].includes(task.state), "run_state_changed", task.state);
++        if (task.state === "accepted") break;
++        if (task.state === "submitted" && !task.repair) {
++          run.phase = "verifying";
++          this.saveRun(run, "run_phase");
++          const verified = await this.request({ command: "verify", task: args.task, attempt: run.attempt_id! });
++          const after = this.load(args.task);
++          this.current(after, run.attempt_id!);
++          if (!verified.ok) {
++            requireGate(!after.repair?.stopped, "quality_rejection_limit", after.repair);
++            requireGate(after.repair && (after.repair.failure as { error?: string })?.error === verified.error,
++              verified.error ?? "gate_failure", verified.details);
++          }
++          continue;
++        }
++        const phase = task.repair ? "waiting_repair" : task.state === "reviewing" ? "reviewing" :
++          task.state === "integrating" ? "integrating" : task.state === "verified" ? "waiting_executor" : "waiting_submit";
++        if (run.phase !== phase) { run.phase = phase; this.saveRun(run, "run_phase"); }
+         await new Promise((resolve) =>
+           setTimeout(resolve, Math.min(100, Math.max(0, deadline - performance.now()))),
+         );
+       }
+-      for (const command of ["verify", "integrate"] as const) {
+-        // Finish an already-started gate under its lock, then stop before the
+-        // next gate. Shutdown must not advance a waiting run to acceptance.
+-        requireGate(!this.shuttingDown, "daemon_stopping");
+-        run.phase = command === "verify" ? "verifying" : "integrating";
+-        this.saveRun(run, "run_phase");
+-        const result = await this.request({ command, task: args.task, attempt: run.attempt_id! });
+-        requireGate(result.ok, result.error ?? "gate_failure", result.details);
+-      }
+       run.phase = "reclaiming";
+       this.saveRun(run, "run_phase");
+       await this.waitForIdle(run);
+@@ -1519,7 +1712,8 @@ export class A2AGates {
+       const details = error instanceof Refusal ? error.details : String(error);
+       if (
+         run.attempt_id &&
+-        ["run_deadline", "run_superseded", "oracle_failed", "merge_failed"].includes(code)
++        (code === "run_superseded" || code === "run_deadline" &&
++          !this.load(args.task).repair && !this.load(args.task).review)
+       ) {
+         try {
+           await this.waitForIdle(run);
+@@ -1977,6 +2171,8 @@ export class A2AGates {
+       }
+       if (caller) {
+         if (caller.address === "executor") await caller.assertActive();
++        else if (args.command === "review_submit")
++          requireGate(caller.address === "reviewer:" + caller.thread, "reviewer_required");
+         else if (args.command !== "disposition")
+           requireGate(
+             args.command === "submit" && this.taskForThread(caller.thread)?.task_id === taskId,
+@@ -2244,10 +2440,13 @@ export class A2AGates {
+         attempt.card_snapshot_id = this.cardSnapshot(taskId, task.card_version, boundCard, attempt.attempt_id);
+         attempt.workspace = join(this.root, "worktrees", attempt.attempt_id);
+         task.current_attempt = attempt;
++        task.repair = null;
++        task.review = null;
+         task.fence = attempt.fence;
+         task.state = "preparing";
+         this.save(task, args.command === "dispatch" ? "dispatch_intent" : "claim_intent", {
+           attempt,
++          task,
+           ...(args.command === "dispatch"
+             ? { model: task.card.executor.model, reasoning_effort: task.card.executor.effort, requested_service_tier: "fast" }
+             : {}),
+@@ -2332,6 +2531,48 @@ export class A2AGates {
+           "not_verified",
+         );
+       const attempt = historicalAttempt ?? this.current(task, args.attempt);
++      if (args.command === "review_submit") {
++        const review = task.review;
++        requireGate(caller && this.runtime && review?.state === "running" &&
++          args.review_id === review.review_id && caller.thread === review.thread_id, "reviewer_required");
++        requireGate(args.attempt === attempt.attempt_id && args.session === review.session_id &&
++          args.fence === attempt.fence && args.spec_rev === task.spec_rev &&
++          review.attempt.session_id === attempt.session_id && review.attempt.fence === attempt.fence &&
++          review.spec_rev === task.spec_rev && review.card_snapshot_id === attempt.card_snapshot_id,
++          "stale_review");
++        requireGate(args.candidate_commit === task.candidate_commit && args.candidate_commit === review.candidate_commit,
++          "review_candidate_mismatch");
++        requireGate(task.state === "reviewing" && task.verification?.state === "passed" &&
++          task.verification.verification_id === review.verification_id, "review_verification_mismatch");
++        this.checkVerification(task, attempt, task.verification);
++        await caller.assertActive();
++        const live = await this.runtime.readThread(review.thread_id);
++        const bound = this.reviewAttempt(review);
++        this.bindObservedIdentity(bound, live);
++        requireGate(!live.error && !live.blocked && live.running && live.turn === caller.turn &&
++          live.runtime_identity.native_session && live.runtime_identity.leader_pid, "review_identity_unknown");
++        const launchRow = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(review.launch_id!);
++        const launch = launchRow ? JSON.parse(String(launchRow.data)) : null;
++        requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
++          launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
++          launch.thread === review.thread_id && launch.attempt === attempt.attempt_id && launch.sandbox === "read-only" &&
++          launch.review_home_was_empty === true && launch.argv[launch.argv.indexOf("--sandbox") + 1] === "read-only" &&
++          !launch.argv.some((arg: string) => ["resume", "fork", "--resume", "--fork"].includes(arg)), "review_not_fresh");
++        requireGate(review.thread_id !== attempt.thread_id && review.session_id !== attempt.session_id &&
++          review.launch_id !== attempt.runtime_identity?.launch &&
++          live.runtime_identity.native_session !== attempt.runtime_identity?.native_session, "review_writer_conflict");
++        const reused = this.db.prepare("SELECT 1 FROM orchestration_events WHERE type='native_record' AND launch!=? AND json_extract(data,'$.record.type')='session_meta' AND json_extract(data,'$.record.payload.id')=? LIMIT 1")
++          .get(review.launch_id!, live.runtime_identity.native_session);
++        requireGate(!reused, "review_native_session_reused");
++        const verdict = reviewVerdict(args.verdict, args.findings);
++        review.runtime_identity = bound.runtime_identity;
++        review.result = { ...verdict, turn_id: caller.turn, received_at: new Date(this.now()).toISOString() };
++        review.state = verdict.verdict === "可合并" ? "passed" : "needs_fix";
++        task.state = review.state === "passed" ? "verified" : "submitted";
++        this.save(task, "review_result", { task, review });
++        if (review.state === "needs_fix") await this.rejectDelivery(task, attempt, "independent_review", review.result);
++        return { ok: true, task };
++      }
+       if (args.command === "submit") {
+         requireGate(args.attempt === attempt.attempt_id, "stale_attempt");
+         requireGate(args.session === attempt.session_id, "stale_session");
+@@ -2355,12 +2596,14 @@ export class A2AGates {
+               live.turn === caller.turn,
+             "identity_conflict",
+           );
+-          requireGate(!attempt.turn_id || attempt.turn_id === caller.turn, "stale_turn");
++          requireGate(!attempt.turn_id || attempt.turn_id === caller.turn ||
++            task.repair && !task.repair.stopped && task.repair.candidate_commit === task.candidate_commit, "stale_turn");
+         } else requireGate(!caller, "stale_thread");
+         requireGate(["claimed", "submitted"].includes(task.state), "invalid_state");
+         const commit = sha(args.commit);
+         requireGate(
+-          !task.candidate_commit || task.candidate_commit === commit,
++          !task.candidate_commit || task.candidate_commit === commit ||
++            task.repair && !task.repair.stopped && task.repair.candidate_commit === task.candidate_commit,
+           "candidate_conflict",
+         );
+         await this.commitExists(taskId, task.repo, commit);
+@@ -2384,6 +2627,17 @@ export class A2AGates {
+           await caller.assertActive();
+           attempt.turn_id = caller.turn;
+         }
++        if (task.candidate_commit === commit && !task.repair) return { ok: true, task, replayed: true };
++        requireGate(!task.repair || commit !== task.repair.candidate_commit, "repair_requires_new_candidate");
++        if (attempt.thread_id) {
++          requireGate(this.runtime?.sessionFacts, "delivery_facts_required");
++          const facts = await this.runtime.sessionFacts(attempt.thread_id);
++          requireGate(facts.launch.role === "worker" && facts.launch.id === attempt.runtime_identity?.launch &&
++            facts.model !== "unknown" && facts.effort !== "unknown", "delivery_facts_unknown");
++          attempt.delivery = { commit, turn_id: attempt.turn_id, launch_id: facts.launch.id, cli: facts.launch.cli_version,
++            model: facts.model, effort: facts.effort, number: (attempt.delivery?.number ?? 0) + 1,
++            submitted_at: new Date(this.now()).toISOString() };
++        }
+         attempt.state = "submitted";
+         const stats = await this.execute(taskId,
+           ["git", "-C", task.repo, "diff", "--numstat", "--no-renames", "-z", attempt.base_commit, commit, "--"], task.repo);
+@@ -2395,11 +2649,14 @@ export class A2AGates {
+           binary_files: rows.filter((row) => row[0] === "-").length });
+         task.candidate_commit = commit;
+         task.state = "submitted";
+-        this.save(task, "submitted", { attempt, commit });
++        task.repair = null;
++        task.verification = null;
++        this.save(task, "submitted", { attempt, commit, task });
+         return { ok: true, task };
+       }
+       if (args.command === "verify") {
+         this.interruptVerification(task);
++        requireGate(!task.repair, task.repair?.stopped ? "quality_rejection_limit" : "repair_submission_required", task.repair);
+         requireGate(task.state === "submitted" && task.candidate_commit, "not_submitted");
+         requireGate(!task.integration_intent, "needs_reconciliation");
+         const G = sha(await this.integration(task)),
+@@ -2483,6 +2740,7 @@ export class A2AGates {
+           v.ended = new Date().toISOString();
+           task.state = "submitted";
+           this.save(task, "verification_result", { verification: v, error: error.code, details: error.details });
++          await this.rejectDelivery(task, attempt, "path_boundary", { error: error.code, details: error.details });
+           throw error;
+         }
+         try {
+@@ -2500,7 +2758,7 @@ export class A2AGates {
+             if (result.returncode !== 0) break;
+           }
+           v.state = v.results.length === commands.length && v.results.every((result) => result.returncode === 0) ? "passed" : "failed";
+-          task.state = v.state === "passed" ? "verified" : "submitted";
++          task.state = v.state === "passed" ? "reviewing" : "submitted";
+         } catch (error) {
+           if (!(error instanceof Refusal)) throw error;
+           v.state = "unknown";
+@@ -2526,20 +2784,32 @@ export class A2AGates {
+             v.ended = new Date().toISOString();
+             task.state = "submitted";
+             this.save(task, "verification_result", { verification: v, error: error.code, details: error.details });
++            await this.rejectDelivery(task, attempt, "commit_trailers", { error: error.code, details: error.details });
+             throw error;
+           }
+         }
+         v.ended = new Date().toISOString();
+-        this.save(task, "verification_result", v);
+-        requireGate(v.state === "passed", "oracle_failed", v);
++        this.save(task, "verification_result", { verification: v, task });
++        if (v.state !== "passed") {
++          await this.rejectDelivery(task, attempt, "completion", { error: "oracle_failed", result: v.result });
++          throw new Refusal("oracle_failed", v);
++        }
++        await this.requestReview(task, attempt);
+         return { ok: true, task, verification: v };
+       }
+       if (args.command === "integrate") {
+-        if (task.state === "accepted") return { ok: true, task, replayed: true };
++        const score = this.scoreData(args.score_file);
++        if (task.state === "accepted") {
++          requireGate(JSON.stringify(score) === JSON.stringify(task.integration_intent?.score?.data), "score_replay_mismatch");
++          return { ok: true, task, replayed: true };
++        }
+         let intent = task.integration_intent;
+         const v = task.verification;
+         requireGate((task.state === "verified" || intent) && v?.state === "passed", "not_verified");
+         this.checkVerification(task, attempt, v);
++        this.requireReviewed(task, attempt);
++        requireGate(attempt.delivery, "score_provenance_required");
++        if (intent) requireGate(intent.score && JSON.stringify(intent.score.data) === JSON.stringify(score), "score_replay_mismatch");
+         requireGate(v.M, "not_verified");
+         const actual = await this.integration(task);
+         if (intent) {
+@@ -2567,7 +2837,12 @@ export class A2AGates {
+             intent.state = "completed";
+             task.state = "accepted";
+             attempt.state = "accepted";
+-            this.save(task, "integrated_reconciled", intent);
++            this.db.exec("BEGIN IMMEDIATE");
++            try {
++              this.save(task, "integrated_reconciled", intent);
++              this.finalScore(task, attempt, intent);
++              this.db.exec("COMMIT");
++            } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+             return { ok: true, task, reconciled: true };
+           }
+         } else {
+@@ -2589,6 +2864,7 @@ export class A2AGates {
+             worktree: await this.integrationWorktree(task),
+             intent_id: randomUUID(),
+             state: "pending",
++            score: { score_id: "score-" + randomUUID(), data: score },
+             command_intent: {
+               argv: [],
+               cwd: task.repo,
+@@ -2612,7 +2888,12 @@ export class A2AGates {
+           task.state = "accepted";
+           attempt.state = "accepted";
+         }
+-        this.save(task, completed ? "integrated" : "integration_conflict", { intent, readback });
++        this.db.exec("BEGIN IMMEDIATE");
++        try {
++          this.save(task, completed ? "integrated" : "integration_conflict", { intent, readback });
++          if (completed) this.finalScore(task, attempt, intent);
++          this.db.exec("COMMIT");
++        } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+         requireGate(completed, "needs_reconciliation", { intent, readback });
+         return { ok: true, task };
+       }
+@@ -2658,6 +2939,7 @@ export class A2AGates {
+     } catch (error) {
+       const ioCode = (error as NodeJS.ErrnoException).code;
+       const code =
++        error instanceof QualityProtocolError ? (error.field.startsWith("score") ? "invalid_score" : "invalid_review_result") :
+         error instanceof TaskCardError ? "invalid_task_card" : error instanceof Refusal
+           ? error.code
+           : [
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index 0e6a079a..d5e8e992 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
+ import { execFile } from "node:child_process";
+ import { promisify } from "node:util";
+ import { randomUUID } from "node:crypto";
+-import type { A2AAttempt, A2ATask } from "./contracts/a2aGates.ts";
++import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
+ import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
+ import { OrchestrationStore } from "./store.ts";
+ 
+@@ -34,6 +34,7 @@ export interface LaunchConfig {
+   hook_authorization?: string;
+   turn_limit?: number;
+   turn_authorization?: string;
++  reviewers?: { codex_home: string; role_card: string; role_card_revision: string; hook_authorization: string }[];
+ }
+ type Pane = {
+   record: Record<string, any> & { id: string; task: string; attempt: string };
+@@ -110,9 +111,26 @@ export class Panes implements GateRuntime {
+     } finally { closeSync(fd); }
+   }
+   async createThread(task: A2ATask, attempt: A2AAttempt) {
+-    check(this.panes.size === 0, "single_worker_slice");
++    check(![...this.panes.values()].some((pane) => pane.record.role === "worker" && !pane.archived), "single_worker_slice");
+     check(attempt.runtime_mode === "workspace-write", "worker_requires_workspace_write");
+-    const c = this.config;
++    await this.createPane(task, attempt, this.config);
++  }
++  async createReview(task: A2ATask, review: A2AReview, prompt: string) {
++    const index = this.store.launches().filter((record) => record.role === "reviewer").length;
++    const approved = this.config.reviewers?.[index];
++    check(approved, "review_launch_config_required");
++    const home = realpathSync(approved.codex_home);
++    check(home !== realpathSync(this.config.codex_home!) &&
++      !this.store.launches().some((record) => record.env.CODEX_HOME === home), "review_home_reused");
++    check(!existsSync(join(home, "sessions")) || readdirSync(join(home, "sessions")).length === 0, "review_home_not_empty");
++    const attempt = { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
++      workspace: review.workspace, runtime_identity: null, turn_id: null };
++    await this.createPane(task, attempt, { ...this.config, ...approved }, review);
++    const pane = this.get(review.thread_id);
++    await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
++  }
++  private async createPane(task: A2ATask, attempt: A2AAttempt, c: LaunchConfig, review?: A2AReview) {
++    const role = review ? "reviewer" : "worker";
+     check(c.codex_bin && c.codex_home && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
+     check(Number.isInteger(c.turn_limit) && c.turn_limit! > 0 && c.turn_limit! <= 10, "invalid_turn_limit");
+     const codex = realpathSync(c.codex_bin), home = realpathSync(c.codex_home);
+@@ -133,7 +151,7 @@ export class Panes implements GateRuntime {
+     const model = task.card.executor.model, effort = task.card.executor.effort;
+     check(task.card.executor.cli === "Codex" && ["gpt-6-astra", "gpt-6.1-sol"].includes(model) && effort === "xhigh", "worker_executor_mismatch");
+     const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", attempt.workspace,
+-      "-a", "never", "--sandbox", "workspace-write", "-m", model,
++      "-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,
+       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="fast"',
+       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
+       "-c", "sandbox_workspace_write.network_access=false", "-c", "features.network_proxy=false"];
+@@ -142,19 +160,22 @@ export class Panes implements GateRuntime {
+     Object.assign(environment, {
+       SHELL: "/bin/zsh", TERM: "xterm-256color", COLORTERM: "truecolor",
+       A2A_PROJECT: task.project_id, A2A_TASK: task.task_id, A2A_ATTEMPT: attempt.attempt_id,
+-      A2A_SESSION: attempt.session_id, A2A_ROLE: "worker", A2A_LAUNCH: launch,
++      A2A_SESSION: attempt.session_id, A2A_ROLE: role, A2A_LAUNCH: launch,
+       A2A_STATE: this.root, A2A_CLI: cli, A2A_NODE: process.execPath, A2A_CAPABILITY: token,
+       A2A_REQUEST_DIR: requestDirectory,
+       A2A_FENCE: String(attempt.fence), A2A_SPEC_REV: String(attempt.spec_rev),
+       A2A_TOOL: version, A2A_MODEL_REQUESTED: model, A2A_EFFORT_REQUESTED: effort,
+-      GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
+-      GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)),
+     });
++    if (review) environment.A2A_REVIEW = review.review_id;
++    else Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
++      GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)) });
+     const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; exec /bin/zsh -f -i"];
+     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
+     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
+       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
+-      role: "worker", created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
++      role, sandbox: review ? "read-only" : "workspace-write",
++      ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id, review_home_was_empty: true } : {}),
++      created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
+       model_requested: model, effort_requested: effort, service_tier_requested: "fast",
+       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
+       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
+@@ -250,7 +271,7 @@ export class Panes implements GateRuntime {
+   }
+   scan(pane: Pane, final = false) {
+     if (pane.stopped) return;
+-    const home = this.config.codex_home!;
++    const home = pane.record.env.CODEX_HOME as string;
+     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
+     const files = final ? [...pane.offsets.keys()].filter((file) => pane.native && file.endsWith(pane.native + ".jsonl")) : walk(join(home, "sessions"));
+@@ -270,12 +291,13 @@ export class Panes implements GateRuntime {
+         }
+         // Only the root CLI file contributes identity or model facts.
+         if (pane.native && file.endsWith(pane.native + ".jsonl")) {
+-          if (event.type === "turn_context") {
++          if (event.type === "turn_context" && event.payload.turn_id === pane.turn) {
+             pane.model = event.payload.model ?? "unknown";
+             pane.effort = event.payload.effort ?? event.payload.reasoning_effort ?? "unknown";
+           }
+           if (event.type === "event_msg" && event.payload.type === "task_started") {
+             pane.turn = event.payload.turn_id;
++            pane.model = "unknown"; pane.effort = "unknown";
+             if (pane.active) pane.active.nativeTurn = pane.turn;
+           }
+         }
+@@ -289,10 +311,29 @@ export class Panes implements GateRuntime {
+     const pane = this.get(attempt.thread_id);
+     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
+   };
+-  async dispatch(pane: Pane, text: string, source: "executor" | "gate" = "executor") {
++  async sessionFacts(thread: string) {
++    const info = this.launchInfo(this.get(thread).record.id);
++    return { launch: info.launch, model: info.model, effort: info.effort };
++  }
++  async qualityFeedback(attempt: A2AAttempt, repair: A2ARepair) {
++    const pane = this.get(attempt.thread_id);
++    check(pane.record.role === "worker" && pane.record.attempt === attempt.attempt_id &&
++      pane.record.session === attempt.session_id && pane.record.fence === attempt.fence &&
++      pane.record.id === attempt.runtime_identity?.launch, "feedback_identity_mismatch");
++    if (repair.stopped) {
++      const held = pane.queue.filter((item) => item.context?.kind === "quality-repair");
++      pane.queue = pane.queue.filter((item) => item.context?.kind !== "quality-repair");
++      this.store.event("quality_feedback_stopped", { repair, cancelled: held.map((item) => item.id) }, pane.record);
++      return;
++    }
++    await this.dispatch(pane, "门禁检查未通过。根据失败证据修复，运行完成条件，Git提交后用原CLI显式重交新候选；保持本attempt和原生会话。\n" +
++      JSON.stringify({ task: attempt.task_id, attempt: attempt.attempt_id, ...repair }, null, 2), "gate",
++      { kind: "quality-repair", rejection_id: repair.id });
++  }
++  async dispatch(pane: Pane, text: string, source: "executor" | "gate" = "executor", context?: { kind: string; rejection_id: string }) {
+     check(!pane.failed && !pane.stopped, "pane_unavailable");
+     check(typeof text === "string" && text.trim() && !/[\x00\x1b]/.test(text), "invalid_dispatch_text");
+-    const item = this.store.register(pane.record.id, text, source);
++    const item = this.store.register(pane.record.id, text, source, context);
+     pane.queue.push(item);
+     this.store.event("dispatch_queued", item, pane.record);
+     await this.drain(pane);
+@@ -390,7 +431,7 @@ export class Panes implements GateRuntime {
+     this.scan(pane);
+     check(pane.turn && pane.native === identity.native_session, "native_identity_required");
+     const turn = pane.turn;
+-    return { thread: pane.attempt.thread_id, turn, address: `worker:${pane.attempt.thread_id}`,
++    return { thread: pane.attempt.thread_id, turn, address: `${pane.record.role}:${pane.attempt.thread_id}`,
+       assertActive: async () => {
+         const info = await this.processInfo(pane.attempt.thread_id);
+         check(info.leader && !info.failed && pane.state === "busy" && pane.active?.nativeTurn === turn, "worker_not_active");
+diff --git a/workbench/src/relay.ts b/workbench/src/relay.ts
+index 133adbf8..33e084c0 100644
+--- a/workbench/src/relay.ts
++++ b/workbench/src/relay.ts
+@@ -1,9 +1,12 @@
+ import { Refusal } from "./gates/core.ts";
+ import type { RelayFile } from "./relayFiles.ts";
+ import { OrchestrationStore } from "./store.ts";
++import { reviewRequest } from "./gates/qualityProtocol.ts";
+ 
+ export interface RelayBinding {
+   id: string; task: string; attempt: string; session: string; fence: number; spec_rev: number;
++  role: "worker" | "reviewer";
++  review_id?: string;
+ }
+ const keyPattern = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
+ 
+@@ -60,8 +63,11 @@ export class RequestRelay {
+     let result: any;
+     try {
+       if (parseError || !input || typeof input !== "object" || Array.isArray(input)) throw new Refusal("invalid_relay_request", parseError);
++      if (binding.role !== "worker" && binding.role !== "reviewer") throw new Refusal("relay_role_required");
+       const base = ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev"];
+-      const allowed: Record<string, string[]> = { submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"] };
++      const allowed: Record<string, string[]> = binding.role === "reviewer"
++        ? { review_submit: ["review_id", "candidate_commit", "verdict", "findings"] }
++        : { submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"] };
+       const extra = allowed[input.command];
+       if (input.schema !== 1 || !requestId || !extra || base.some((field) => !Object.hasOwn(input, field)) ||
+           Object.keys(input).some((field) => ![...base, ...extra].includes(field)) ||
+@@ -70,6 +76,10 @@ export class RequestRelay {
+       for (const field of ["task", "attempt", "session", "fence", "spec_rev"] as const) {
+         if (input[field] !== binding[field]) throw new Refusal("relay_identity_mismatch", { field });
+       }
++      if (input.command === "review_submit") {
++        reviewRequest(file.raw);
++        if (input.review_id !== binding.review_id) throw new Refusal("relay_review_mismatch");
++      }
+       if (input.command === "submit" && (typeof input.commit !== "string" || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.commit))) {
+         throw new Refusal("invalid_relay_request", { field: "commit" });
+       }
+diff --git a/workbench/src/relayFiles.ts b/workbench/src/relayFiles.ts
+index ec9e3fb0..3e82e444 100644
+--- a/workbench/src/relayFiles.ts
++++ b/workbench/src/relayFiles.ts
+@@ -4,6 +4,27 @@ import { randomUUID } from "node:crypto";
+ 
+ export interface RelayFile { name: string; raw?: string; error?: string }
+ 
++// Called only after the daemon matches an authenticated reviewer's Stop.
++// The model remains read-only; the hook request handler persists its explicit JSON.
++export function writeReviewRequest(directory: string, input: Record<string, any>): RelayFile {
++  const root = realpathSync(directory);
++  if (root !== directory || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(input.request_id)) throw new Error("invalid_review_request_path");
++  const name = input.request_id + ".json", raw = JSON.stringify(input) + "\n";
++  let fd: number;
++  try { fd = openSync(join(root, name), "wx", 0o600); }
++  catch (error) {
++    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
++    // A repeated explicit request may reuse its file, never replace it. The
++    // existing relay journal decides whether its operation already completed.
++    const prior = readWorkerRequests(root).find((file) => file.name === name);
++    if (!prior || prior.error || prior.raw !== raw) throw new Error("review_request_file_changed");
++    return prior;
++  }
++  try { writeFileSync(fd, raw); fsyncSync(fd); }
++  finally { closeSync(fd); }
++  return { name, raw };
++}
++
+ export function queueWorkerRequest(input: Record<string, any>, env = process.env) {
+   const directory = env.A2A_REQUEST_DIR;
+   if (!directory || !isAbsolute(directory) || env.A2A_ROLE !== "worker") throw new Error("worker_request_directory_required");
+diff --git a/workbench/src/stateConsistency.ts b/workbench/src/stateConsistency.ts
+index b0905564..ce084cba 100644
+--- a/workbench/src/stateConsistency.ts
++++ b/workbench/src/stateConsistency.ts
+@@ -8,7 +8,8 @@ type View = Map<string, any>;
+ const copy = (value: any) => structuredClone(value);
+ const passive = new Set(["card_saved", "command_intent", "command_result", "prompt_intent", "run_observed",
+   "submission_metrics", "path_check", "trailer_check", "reclaim_intent", "attachment_reclaim_intent", "rejected",
+-  "git_transaction_input", "git_transaction_response", "integration_worktree_advanced"]);
++  "git_transaction_input", "git_transaction_response", "integration_worktree_advanced",
++  "score_recorded", "review_reclaim_intent", "review_reclaimed", "issue_issue"]);
+ 
+ function differences(expected: any, observed: any, path = ""): any[] {
+   if (expected === observed) return [];
+@@ -44,7 +45,11 @@ export function checkConsistency(root: string) {
+         if (task?.current_attempt?.attempt_id === attempt.attempt_id) task.current_attempt = copy(attempt);
+       };
+       try {
+-        if (["create_intent", "created", "claimed"].includes(event.type)) {
++        if (["delivery_rejected", "review_requested", "review_started", "review_result", "review_reused", "review_protocol_failed"].includes(event.type) ||
++          ["claim_intent", "dispatch_intent", "submitted", "verification_result"].includes(event.type) && d.task) {
++          tasks.set(event.task, copy(d.task)); saved = true;
++          if (d.task.verification) completed.set(d.task.verification.verification_id, copy(d.task.verification.results));
++        } else if (["create_intent", "created", "claimed"].includes(event.type)) {
+           tasks.set(event.task, copy(d)); saved = true;
+         } else if (["claim_intent", "dispatch_intent"].includes(event.type)) {
+           if (!task) throw new Error("Missing task creation event");
+diff --git a/workbench/src/store.ts b/workbench/src/store.ts
+index fa139256..686609f2 100644
+--- a/workbench/src/store.ts
++++ b/workbench/src/store.ts
+@@ -40,12 +40,12 @@ export class OrchestrationStore {
+       .get(launch, ...types);
+     return row ? { seq: Number(row.seq), time: String(row.time), type: String(row.type), data: JSON.parse(String(row.data)) } : null;
+   }
+-  register(launch: string, text: string, source: "executor" | "gate" = "executor") {
++  register(launch: string, text: string, source: "executor" | "gate" = "executor", context?: { kind: string; rejection_id: string }) {
+     const id = randomUUID();
+     const registered_at = new Date().toISOString();
+     const seq = Number(this.db.prepare("INSERT INTO dispatch_records(id,launch,data) VALUES (?,?,?)")
+-      .run(id, launch, JSON.stringify({ text, registered_at, source })).lastInsertRowid);
+-    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${text}`, registered_at };
++      .run(id, launch, JSON.stringify({ text, registered_at, source, ...(context ? { context } : {}) })).lastInsertRowid);
++    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${text}`, registered_at, context };
+   }
+   read(task?: string) {
+     const rows = this.db.prepare(`SELECT * FROM orchestration_events${task ? " WHERE task=?" : ""} ORDER BY seq`).all(...(task ? [task] : []));
+diff --git a/workbench/tests/test_relay_core.ts b/workbench/tests/test_relay_core.ts
+index 9c4caa14..6a6a0bcc 100644
+--- a/workbench/tests/test_relay_core.ts
++++ b/workbench/tests/test_relay_core.ts
+@@ -10,7 +10,7 @@ const { RequestRelay } = await import(process.env.A2A_RELAY_MODULE ?? "../src/re
+ const output = process.argv[2]!; mkdirSync(output);
+ const root = mkdtempSync("/tmp/a2a-relay-core-");
+ const store = new OrchestrationStore(root); const relay = new RequestRelay(store);
+-const binding = { id: "launch", task: "fixture", attempt: "attempt", session: "session", fence: 1, spec_rev: 1 };
++const binding = { id: "launch", task: "fixture", attempt: "attempt", session: "session", fence: 1, spec_rev: 1, role: "worker" as const };
+ const base = { schema: 1, request_id: "delivery", command: "submit", task: "fixture", attempt: "attempt",
+   session: "session", fence: 1, spec_rev: 1, commit: "a".repeat(40) };
+ const file = (value: any, name = "request.json") => ({ name, raw: JSON.stringify(value) });

@@ -1,0 +1,492 @@
+{
+  "case": "control_relay_invalid",
+  "outcome": "passed",
+  "assertions": [
+    {
+      "id": "CONTROL-RELAY-INVALID",
+      "passed": true,
+      "expected": "wrong identity and incomplete request rejected by real relay",
+      "actual": {
+        "wrong-session": {
+          "ok": false,
+          "error": "relay_identity_mismatch",
+          "details": {
+            "field": "session"
+          }
+        },
+        "missing-commit": {
+          "ok": false,
+          "error": "invalid_relay_request",
+          "details": {
+            "field": "commit"
+          }
+        }
+      }
+    },
+    {
+      "id": "CONTROL-RELAY-INVALID.no-submit",
+      "passed": true,
+      "expected": "neither invalid request reaches submit",
+      "actual": {
+        "task_id": "fixture-20261011-1",
+        "title": "fixture-20261011-1",
+        "project_id": "fixture",
+        "repo": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "integration_ref": "refs/heads/main",
+        "card_snapshot_id": "d6fa3715-b1c4-4c9a-aed9-4320fe6a2aeb",
+        "card_version": 1,
+        "card": {
+          "id": "fixture-20261011-1",
+          "source": null,
+          "goal": "交付 src/value.txt 中的独立预期内容",
+          "non_goals": [
+            "不修改项目外的文件"
+          ],
+          "paths": {
+            "allow": [
+              "src/",
+              "tests/",
+              ".a2a/quality.json"
+            ],
+            "deny": [
+              "src/private/"
+            ]
+          },
+          "completion_conditions": [
+            {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+              ]
+            }
+          ],
+          "red_commands": [],
+          "task_type": "后端逻辑",
+          "repair_target": null,
+          "complexity": "L",
+          "executor": {
+            "cli": "Codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh"
+          },
+          "base_commit": null,
+          "writer": null
+        },
+        "base_commit": "8695c9dffe31c17aa4fd8533fc19df2bc7ac9982",
+        "state": "claimed",
+        "spec_rev": 1,
+        "fence": 1,
+        "current_attempt": {
+          "task_id": "fixture-20261011-1",
+          "attempt_id": "f993f6fb-08fc-4c76-b40b-c4bf7a995e1d",
+          "session_id": "fe4f36da-b273-4cdf-97a2-6762193a9f7d",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "67fb293c-b609-48e7-9b45-be97dfd62bdc",
+          "runtime_mode": "workspace-write",
+          "turn_id": null,
+          "runtime_identity": {
+            "launch": "f4444ad0-950b-45be-a26b-73a2cec9bad9",
+            "thread": "67fb293c-b609-48e7-9b45-be97dfd62bdc",
+            "shell_pid": 31000,
+            "leader_pid": 31001,
+            "native_session": "fixture-native-f4444ad0-950b-45be-a26b-73a2cec9bad9"
+          },
+          "workspace": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state/worktrees/f993f6fb-08fc-4c76-b40b-c4bf7a995e1d",
+          "base_commit": "8695c9dffe31c17aa4fd8533fc19df2bc7ac9982",
+          "card_snapshot_id": "2570efc1-00ed-4007-a0f7-01dcfcbb8de1",
+          "reclaimed": false,
+          "owner": "fixture-20261011-1",
+          "state": "claimed"
+        },
+        "candidate_commit": null,
+        "verification": null,
+        "integration_intent": null
+      }
+    }
+  ],
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "33611",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "card_save",
+        "--task",
+        "fixture-20261011-1",
+        "--card",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "create",
+        "--task",
+        "fixture-20261011-1",
+        "--repo",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "dispatch",
+        "--task",
+        "fixture-20261011-1",
+        "--runtime-mode",
+        "workspace-write"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "pane_status",
+        "--thread",
+        "67fb293c-b609-48e7-9b45-be97dfd62bdc"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "pane_release",
+        "--thread",
+        "67fb293c-b609-48e7-9b45-be97dfd62bdc",
+        "--reason",
+        "explicit controlled-fixture release"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "pane_status",
+        "--thread",
+        "67fb293c-b609-48e7-9b45-be97dfd62bdc"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state/worktrees/f993f6fb-08fc-4c76-b40b-c4bf7a995e1d",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state/worktrees/f993f6fb-08fc-4c76-b40b-c4bf7a995e1d",
+        "commit",
+        "-m",
+        "Independent fixture commit\n\nA2A-Task: fixture-20261011-1\nA2A-Attempt: f993f6fb-08fc-4c76-b40b-c4bf7a995e1d\nA2A-Session: fe4f36da-b273-4cdf-97a2-6762193a9f7d\nA2A-Role: worker\nA2A-Tool: Codex 0.162.1\nA2A-Model: gpt-6-astra\nA2A-Effort: xhigh\nA2A-Native-Session: unknown\nA2A-Launch: fixture-launch"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0014.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 15,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state/worktrees/f993f6fb-08fc-4c76-b40b-c4bf7a995e1d",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "pane_status",
+        "--thread",
+        "67fb293c-b609-48e7-9b45-be97dfd62bdc"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0016.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 17,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "signal",
+        "--launch",
+        "f4444ad0-950b-45be-a26b-73a2cec9bad9"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0017.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0017.stderr.bin",
+      "stdin": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0017.stdin.json",
+      "exit": 0
+    },
+    {
+      "id": 18,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "status",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0018.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0018.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 19,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "status",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0019.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0019.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 20,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0020.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0020.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 21,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0021.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0021.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 22,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0022.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0022.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 23,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0023.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0023.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 24,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-hi6wu3p7/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0024.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_relay_invalid/command-0024.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-uaqkff1a/c-hi6wu3p7"
+}

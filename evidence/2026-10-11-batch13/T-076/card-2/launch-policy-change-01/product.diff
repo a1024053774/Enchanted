@@ -1,0 +1,31 @@
+--- workbench/src/panes.ts.before
++++ workbench/src/panes.ts
+@@ -152,7 +152,7 @@
+     check(task.card.executor.cli === "Codex" && ["gpt-6-astra", "gpt-6.1-sol"].includes(model) && effort === "xhigh", "worker_executor_mismatch");
+     const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", attempt.workspace,
+       "-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,
+-      "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="fast"',
++      "-c", `model_reasoning_effort=${JSON.stringify(effort)}`,
+       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
+       "-c", "sandbox_workspace_write.network_access=false", "-c", "features.network_proxy=false"];
+     for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest"]) argv.push("-c", `hooks.${event}=${hook}`);
+@@ -176,7 +176,7 @@
+       role, sandbox: review ? "read-only" : "workspace-write",
+       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id, review_home_was_empty: true } : {}),
+       created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
+-      model_requested: model, effort_requested: effort, service_tier_requested: "fast",
++      model_requested: model, effort_requested: effort, service_tier_requested: "default",
+       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
+       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
+       role_text: readFileSync(c.role_card, "utf8"), base_commit: attempt.base_commit, worktree: attempt.workspace,
+--- workbench/src/gates/core.ts.before
++++ workbench/src/gates/core.ts
+@@ -2588,7 +2588,7 @@
+           attempt,
+           task,
+           ...(args.command === "dispatch"
+-            ? { model: task.card.executor.model, reasoning_effort: task.card.executor.effort, requested_service_tier: "fast" }
++            ? { model: task.card.executor.model, reasoning_effort: task.card.executor.effort, requested_service_tier: "default" }
+             : {}),
+         });
+         if (run) {

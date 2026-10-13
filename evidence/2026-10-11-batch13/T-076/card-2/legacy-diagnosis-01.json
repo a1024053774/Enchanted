@@ -1,0 +1,309 @@
+{
+  "status": "PASS",
+  "product_status": "INCOMPLETE",
+  "scope": "saved failure classification only; no new dynamic run",
+  "real_codex_turns": 0,
+  "source": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-legacy-green-01",
+  "task_id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+  "attempt_id": "fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+  "candidate": "cf1976b5a16981348c6d3fd33f6f45aa2aea5221",
+  "executor": {
+    "cli": "Codex",
+    "model": "fixture",
+    "effort": "xhigh"
+  },
+  "task_state": "paused",
+  "review_state": "unknown",
+  "verification_state": "passed",
+  "lifecycle_failures": [
+    {
+      "seq": 93,
+      "time": "2026-10-11T19:15:31.861Z",
+      "task": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+      "attempt": "fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+      "type": "review_lifecycle_failed",
+      "details": {
+        "task": {
+          "task_id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+          "title": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+          "project_id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+          "repo": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "f44dc5cf-bc04-4c69-abc5-daf76f0090bc",
+          "card_version": 1,
+          "card": {
+            "id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+            "source": null,
+            "goal": "# Cursor pagination fixture v1\n\nThis is an isolated coding task for the Herdr A2A experiment.\n\nRun `python3 pager.py`. Read one JSON request from stdin and write one JSON response to stdout.\nRequests contain `items` (records with distinct string `id` and integer `ts`), `limit`,\nand optional `after` (null or [integer timestamp, string id]).\nSort records by (ts, id) ascending. Return at most limit records strictly after that pair.\nPreserve all record fields. Return `{\"items\": [...], \"next_cursor\": ...}`.\nThe next cursor is the last returned pair only if additional eligible records remain;\notherwise it is null. Input order must not matter. Do not mutate input records.\n\nLimits must be integers in [1, 100]; booleans are invalid. Invalid limit returns only\n`{\"error\": \"invalid_limit\"}`. An after value with a wrong shape/type returns only\n`{\"error\": \"invalid_cursor\"}`. Check limit before cursor. A cursor need not exist in the input.\nEmpty results have items=[] and next_cursor=null.\n\nThe initial program is deliberately incomplete. Implement this contract without modifying\nthis document or acceptance tools. A successful model turn is not delivery acceptance.\n",
+            "non_goals": [
+              "不改变独立分页合同"
+            ],
+            "paths": {
+              "allow": [
+                "."
+              ],
+              "deny": []
+            },
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\n\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\nCASES = [\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\n     {\"items\": [C, D], \"next_cursor\": None}),\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\n     {\"items\": [], \"next_cursor\": None}),\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\n     {\"error\": \"invalid_limit\"}),\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\n     {\"error\": \"invalid_cursor\"}),\n]\ndef main():\n    root = Path(sys.argv[1]).resolve()\n    results = []\n    for name, request, expected in CASES:\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\n        try:\n            p = subprocess.run(command, input=json.dumps(request), text=True,\n                               capture_output=True, cwd=root, timeout=10)\n        except subprocess.TimeoutExpired as exc:\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\n            continue\n        try:\n            actual = json.loads(p.stdout)\n        except json.JSONDecodeError:\n            actual = None\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\n                        \"pass\": p.returncode == 0 and actual == expected})\n    ok = all(r[\"pass\"] for r in results)\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\n                      \"cases\": results}, ensure_ascii=False, indent=2))\n    return 0 if ok else 1\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+                  "{worktree}"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "M",
+            "executor": {
+              "cli": "Codex",
+              "model": "fixture",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "889f3d6dc5a58777c8c8a8fad44a11a98cb5fc82",
+          "state": "paused",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+            "attempt_id": "fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+            "session_id": "c84ef76f-4ea9-4c94-a05e-86d1a6b1cd13",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "",
+            "runtime_mode": "approval-required",
+            "turn_id": null,
+            "runtime_identity": null,
+            "workspace": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/worktrees/fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+            "base_commit": "889f3d6dc5a58777c8c8a8fad44a11a98cb5fc82",
+            "card_snapshot_id": "0a25490a-1664-4784-a57b-ebbf3d161c92",
+            "reclaimed": false,
+            "owner": "independent-check",
+            "state": "submitted"
+          },
+          "candidate_commit": "cf1976b5a16981348c6d3fd33f6f45aa2aea5221",
+          "verification": {
+            "verification_id": "a9456c58-6123-4aaa-9c41-15fd878fe64e",
+            "attempt": {
+              "task_id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+              "attempt_id": "fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+              "session_id": "c84ef76f-4ea9-4c94-a05e-86d1a6b1cd13",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "",
+              "runtime_mode": "approval-required",
+              "turn_id": null,
+              "runtime_identity": null,
+              "workspace": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/worktrees/fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+              "base_commit": "889f3d6dc5a58777c8c8a8fad44a11a98cb5fc82",
+              "card_snapshot_id": "0a25490a-1664-4784-a57b-ebbf3d161c92",
+              "reclaimed": false,
+              "owner": "independent-check",
+              "state": "submitted"
+            },
+            "spec_rev": 1,
+            "G": "889f3d6dc5a58777c8c8a8fad44a11a98cb5fc82",
+            "C": "cf1976b5a16981348c6d3fd33f6f45aa2aea5221",
+            "M": "cf1976b5a16981348c6d3fd33f6f45aa2aea5221",
+            "card_snapshot_id": "0a25490a-1664-4784-a57b-ebbf3d161c92",
+            "card_version": 1,
+            "commands": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\n\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\nCASES = [\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\n     {\"items\": [C, D], \"next_cursor\": None}),\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\n     {\"items\": [], \"next_cursor\": None}),\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\n     {\"error\": \"invalid_limit\"}),\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\n     {\"error\": \"invalid_cursor\"}),\n]\ndef main():\n    root = Path(sys.argv[1]).resolve()\n    results = []\n    for name, request, expected in CASES:\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\n        try:\n            p = subprocess.run(command, input=json.dumps(request), text=True,\n                               capture_output=True, cwd=root, timeout=10)\n        except subprocess.TimeoutExpired as exc:\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\n            continue\n        try:\n            actual = json.loads(p.stdout)\n        except json.JSONDecodeError:\n            actual = None\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\n                        \"pass\": p.returncode == 0 and actual == expected})\n    ok = all(r[\"pass\"] for r in results)\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\n                      \"cases\": results}, ensure_ascii=False, indent=2))\n    return 0 if ok else 1\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+                  "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e"
+                ],
+                "cwd": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e"
+              }
+            ],
+            "results": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\n\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\nCASES = [\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\n     {\"items\": [C, D], \"next_cursor\": None}),\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\n     {\"items\": [], \"next_cursor\": None}),\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\n     {\"error\": \"invalid_limit\"}),\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\n     {\"error\": \"invalid_cursor\"}),\n]\ndef main():\n    root = Path(sys.argv[1]).resolve()\n    results = []\n    for name, request, expected in CASES:\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\n        try:\n            p = subprocess.run(command, input=json.dumps(request), text=True,\n                               capture_output=True, cwd=root, timeout=10)\n        except subprocess.TimeoutExpired as exc:\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\n            continue\n        try:\n            actual = json.loads(p.stdout)\n        except json.JSONDecodeError:\n            actual = None\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\n                        \"pass\": p.returncode == 0 and actual == expected})\n    ok = all(r[\"pass\"] for r in results)\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\n                      \"cases\": results}, ensure_ascii=False, indent=2))\n    return 0 if ok else 1\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+                  "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e"
+                ],
+                "cwd": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e",
+                "stdout": "{\n  \"status\": \"PASS\",\n  \"candidate\": \"/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e\",\n  \"cases\": [\n    {\n      \"case\": \"unordered-ties\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"continuation\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          }\n        ],\n        \"limit\": 2,\n        \"after\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"missing-cursor\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 1,\n        \"after\": [\n          2,\n          \"az\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"past-end\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"limit\": 3,\n        \"after\": [\n          9,\n          \"z\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"empty\",\n      \"input\": {\n        \"items\": [],\n        \"limit\": 5\n      },\n      \"expected\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"exact-boundary\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"unseen-input\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"limit\": 1\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"invalid-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 0\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"maximum-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 100\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"above-maximum-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"boundary-101\",\n            \"ts\": 1\n          }\n        ],\n        \"limit\": 101\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"boolean-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": true\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"invalid-cursor\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2,\n        \"after\": [\n          true,\n          \"a\"\n        ]\n      },\n      \"expected\": {\n        \"error\": \"invalid_cursor\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_cursor\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    }\n  ]\n}\n",
+                "stderr": "",
+                "exit": 0,
+                "returncode": 0
+              }
+            ],
+            "workspace": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e",
+            "state": "passed",
+            "command_intent": {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\n\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\nCASES = [\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\n     {\"items\": [C, D], \"next_cursor\": None}),\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\n     {\"items\": [], \"next_cursor\": None}),\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\n     {\"error\": \"invalid_limit\"}),\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\n     {\"error\": \"invalid_cursor\"}),\n]\ndef main():\n    root = Path(sys.argv[1]).resolve()\n    results = []\n    for name, request, expected in CASES:\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\n        try:\n            p = subprocess.run(command, input=json.dumps(request), text=True,\n                               capture_output=True, cwd=root, timeout=10)\n        except subprocess.TimeoutExpired as exc:\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\n            continue\n        try:\n            actual = json.loads(p.stdout)\n        except json.JSONDecodeError:\n            actual = None\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\n                        \"pass\": p.returncode == 0 and actual == expected})\n    ok = all(r[\"pass\"] for r in results)\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\n                      \"cases\": results}, ensure_ascii=False, indent=2))\n    return 0 if ok else 1\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+                "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e"
+              ],
+              "cwd": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e"
+            },
+            "quality": {
+              "snapshot": {
+                "source_commit": "889f3d6dc5a58777c8c8a8fad44a11a98cb5fc82",
+                "path": ".a2a/quality.json",
+                "raw": null,
+                "rule_checks": []
+              },
+              "red": [],
+              "rules": []
+            },
+            "result": {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\n\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\nCASES = [\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\n     {\"items\": [C, D], \"next_cursor\": None}),\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\n     {\"items\": [], \"next_cursor\": None}),\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\n     {\"items\": [A, B], \"next_cursor\": None}),\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\n     {\"error\": \"invalid_limit\"}),\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\n     {\"error\": \"invalid_cursor\"}),\n]\ndef main():\n    root = Path(sys.argv[1]).resolve()\n    results = []\n    for name, request, expected in CASES:\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\n        try:\n            p = subprocess.run(command, input=json.dumps(request), text=True,\n                               capture_output=True, cwd=root, timeout=10)\n        except subprocess.TimeoutExpired as exc:\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\n            continue\n        try:\n            actual = json.loads(p.stdout)\n        except json.JSONDecodeError:\n            actual = None\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\n                        \"pass\": p.returncode == 0 and actual == expected})\n    ok = all(r[\"pass\"] for r in results)\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\n                      \"cases\": results}, ensure_ascii=False, indent=2))\n    return 0 if ok else 1\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+                "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e"
+              ],
+              "cwd": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e",
+              "stdout": "{\n  \"status\": \"PASS\",\n  \"candidate\": \"/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/a9456c58-6123-4aaa-9c41-15fd878fe64e\",\n  \"cases\": [\n    {\n      \"case\": \"unordered-ties\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"continuation\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          }\n        ],\n        \"limit\": 2,\n        \"after\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"missing-cursor\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 1,\n        \"after\": [\n          2,\n          \"az\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"past-end\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"limit\": 3,\n        \"after\": [\n          9,\n          \"z\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"empty\",\n      \"input\": {\n        \"items\": [],\n        \"limit\": 5\n      },\n      \"expected\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"exact-boundary\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"unseen-input\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"limit\": 1\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"invalid-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 0\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"maximum-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 100\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"above-maximum-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"boundary-101\",\n            \"ts\": 1\n          }\n        ],\n        \"limit\": 101\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"boolean-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": true\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"invalid-cursor\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2,\n        \"after\": [\n          true,\n          \"a\"\n        ]\n      },\n      \"expected\": {\n        \"error\": \"invalid_cursor\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_cursor\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    }\n  ]\n}\n",
+              "stderr": "",
+              "exit": 0,
+              "returncode": 0
+            },
+            "ended": "2026-10-11T19:15:31.414Z"
+          },
+          "integration_intent": null,
+          "quality": {
+            "source_commit": "889f3d6dc5a58777c8c8a8fad44a11a98cb5fc82",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "repair": null,
+          "review": {
+            "review_id": "6f6773f3-0220-4b89-acd5-7bbf57234e8f",
+            "task_id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+            "attempt": {
+              "task_id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+              "attempt_id": "fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+              "session_id": "c84ef76f-4ea9-4c94-a05e-86d1a6b1cd13",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "",
+              "runtime_mode": "approval-required",
+              "turn_id": null,
+              "runtime_identity": null,
+              "workspace": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/worktrees/fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+              "base_commit": "889f3d6dc5a58777c8c8a8fad44a11a98cb5fc82",
+              "card_snapshot_id": "0a25490a-1664-4784-a57b-ebbf3d161c92",
+              "reclaimed": false,
+              "owner": "independent-check",
+              "state": "submitted"
+            },
+            "candidate_commit": "cf1976b5a16981348c6d3fd33f6f45aa2aea5221",
+            "spec_rev": 1,
+            "card_snapshot_id": "0a25490a-1664-4784-a57b-ebbf3d161c92",
+            "verification_id": "a9456c58-6123-4aaa-9c41-15fd878fe64e",
+            "thread_id": "5795d17f-c421-485e-a3d0-c06fb1c0dff9",
+            "session_id": "716d33cd-17c4-4ffc-b764-57cd480b538b",
+            "workspace": "/private/tmp/a5-2nixfv4e/t-j7m_yang/isolated state/verification/review-6f6773f3-0220-4b89-acd5-7bbf57234e8f",
+            "requested_at": "2026-10-11T19:15:31.415Z",
+            "launch_id": null,
+            "runtime_identity": null,
+            "state": "unknown"
+          }
+        },
+        "review_id": "6f6773f3-0220-4b89-acd5-7bbf57234e8f",
+        "phase": "create",
+        "details": {
+          "error": "Error: worker_executor_mismatch"
+        },
+        "current": true
+      }
+    }
+  ],
+  "issues": [
+    {
+      "seq": 94,
+      "time": "2026-10-11T19:15:31.862Z",
+      "task": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+      "attempt": "fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+      "type": "issue_issue",
+      "details": {
+        "id": "1dbc4bba-5356-40fb-8016-73494bcfcf72",
+        "schema": 1,
+        "kind": "issue",
+        "from": "system",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [
+          "task:check-b5f3a2c772bf45d28eeeef8b01494d2b",
+          "attempt:fb05226a-5b0f-4d00-a9a4-e2e07af8aab7"
+        ],
+        "created_at": "2026-10-11T19:15:31.862Z",
+        "body": "{\"review_id\":\"6f6773f3-0220-4b89-acd5-7bbf57234e8f\",\"phase\":\"create\",\"details\":{\"error\":\"Error: worker_executor_mismatch\"},\"current\":true}",
+        "task_id": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+        "attempt_id": "fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+        "thread_id": "5795d17f-c421-485e-a3d0-c06fb1c0dff9",
+        "turn_id": null,
+        "number": 1,
+        "title": "审查运行状态无法确认，停止自动推进",
+        "blocking": true,
+        "issue_id": "1dbc4bba-5356-40fb-8016-73494bcfcf72"
+      }
+    }
+  ],
+  "verify_rejections": [
+    {
+      "seq": 95,
+      "time": "2026-10-11T19:15:31.862Z",
+      "task": "check-b5f3a2c772bf45d28eeeef8b01494d2b",
+      "attempt": "fb05226a-5b0f-4d00-a9a4-e2e07af8aab7",
+      "type": "rejected",
+      "details": {
+        "error": "gate_failure",
+        "details": "Error: worker_executor_mismatch",
+        "input": {
+          "command": "verify",
+          "task": "check-b5f3a2c772bf45d28eeeef8b01494d2b"
+        }
+      }
+    }
+  ],
+  "w07_result": {
+    "status": "INCOMPLETE",
+    "tests_run": 1,
+    "failures": 1,
+    "errors": 0,
+    "exit_code": 1
+  },
+  "f10_result": {
+    "case": "manual_claim_reviewed_score_refused",
+    "outcome": "contract_failure",
+    "failure_id": "MANUAL-CLAIM-SOURCE",
+    "cleanup_failures": []
+  },
+  "outer_exit": {
+    "controller_reported": 0,
+    "raw_exit_receipt_in_card": null,
+    "scope": "child exit codes and report status are preserved; the top-level shell exit cannot be independently verified here"
+  },
+  "classification": "fixture executor precondition; existing reviewer creation-failure contract was satisfied",
+  "pending": [
+    "F14 approval before changing fixture model",
+    "W07 intended red and remaining legacy checks"
+  ]
+}

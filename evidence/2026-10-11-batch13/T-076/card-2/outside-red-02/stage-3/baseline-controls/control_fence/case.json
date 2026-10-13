@@ -1,0 +1,931 @@
+{
+  "case": "control_fence",
+  "outcome": "passed",
+  "assertions": [
+    {
+      "id": "CONTROL-FENCE",
+      "passed": true,
+      "expected": "wrong fence has no submission effect",
+      "actual": {
+        "ok": false,
+        "error": "stale_fence",
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-11T16:43:53.658Z"
+        }
+      }
+    },
+    {
+      "id": "CONTROL-FENCE.event",
+      "passed": true,
+      "expected": "stale_fence refusal event",
+      "actual": [
+        {
+          "seq": 1,
+          "time": "2026-10-11T16:43:54.047Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "card_saved",
+          "details": {
+            "card": {
+              "id": "fixture-20261011-1",
+              "source": null,
+              "goal": "交付 src/value.txt 中的独立预期内容",
+              "non_goals": [
+                "不修改项目外的文件"
+              ],
+              "paths": {
+                "allow": [
+                  "src/",
+                  "tests/",
+                  ".a2a/quality.json"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "card_version": 1
+          }
+        },
+        {
+          "seq": 2,
+          "time": "2026-10-11T16:43:54.148Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "check-ref-format",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo"
+          }
+        },
+        {
+          "seq": 3,
+          "time": "2026-10-11T16:43:54.154Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "check-ref-format",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "stdout": "",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 4,
+          "time": "2026-10-11T16:43:54.154Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "rev-parse",
+              "--show-toplevel"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo"
+          }
+        },
+        {
+          "seq": 5,
+          "time": "2026-10-11T16:43:54.159Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "rev-parse",
+              "--show-toplevel"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "stdout": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 6,
+          "time": "2026-10-11T16:43:54.159Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "rev-parse",
+              "--verify",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo"
+          }
+        },
+        {
+          "seq": 7,
+          "time": "2026-10-11T16:43:54.164Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "rev-parse",
+              "--verify",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "stdout": "c9d0f676118d40cce234a87754b5416d43acc6dd\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 8,
+          "time": "2026-10-11T16:43:54.164Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "cat-file",
+              "-t",
+              "c9d0f676118d40cce234a87754b5416d43acc6dd"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo"
+          }
+        },
+        {
+          "seq": 9,
+          "time": "2026-10-11T16:43:54.169Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "cat-file",
+              "-t",
+              "c9d0f676118d40cce234a87754b5416d43acc6dd"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "stdout": "commit\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 10,
+          "time": "2026-10-11T16:43:54.169Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "create_intent",
+          "details": {
+            "task_id": "fixture-20261011-1",
+            "title": "fixture-20261011-1",
+            "project_id": "fixture",
+            "repo": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "integration_ref": "refs/heads/main",
+            "card_snapshot_id": "1df8903f-48a2-43ce-b5ef-108058cf08b1",
+            "card_version": 1,
+            "card": {
+              "id": "fixture-20261011-1",
+              "source": null,
+              "goal": "交付 src/value.txt 中的独立预期内容",
+              "non_goals": [
+                "不修改项目外的文件"
+              ],
+              "paths": {
+                "allow": [
+                  "src/",
+                  "tests/",
+                  ".a2a/quality.json"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "base_commit": "c9d0f676118d40cce234a87754b5416d43acc6dd",
+            "state": "creating",
+            "spec_rev": 1,
+            "fence": 0,
+            "current_attempt": null,
+            "candidate_commit": null,
+            "verification": null,
+            "integration_intent": null
+          }
+        },
+        {
+          "seq": 11,
+          "time": "2026-10-11T16:43:54.169Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "created",
+          "details": {
+            "task_id": "fixture-20261011-1",
+            "title": "fixture-20261011-1",
+            "project_id": "fixture",
+            "repo": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "integration_ref": "refs/heads/main",
+            "card_snapshot_id": "1df8903f-48a2-43ce-b5ef-108058cf08b1",
+            "card_version": 1,
+            "card": {
+              "id": "fixture-20261011-1",
+              "source": null,
+              "goal": "交付 src/value.txt 中的独立预期内容",
+              "non_goals": [
+                "不修改项目外的文件"
+              ],
+              "paths": {
+                "allow": [
+                  "src/",
+                  "tests/",
+                  ".a2a/quality.json"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "base_commit": "c9d0f676118d40cce234a87754b5416d43acc6dd",
+            "state": "ready",
+            "spec_rev": 1,
+            "fence": 0,
+            "current_attempt": null,
+            "candidate_commit": null,
+            "verification": null,
+            "integration_intent": null
+          }
+        },
+        {
+          "seq": 12,
+          "time": "2026-10-11T16:43:54.279Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "rev-parse",
+              "--verify",
+              "--quiet",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo"
+          }
+        },
+        {
+          "seq": 13,
+          "time": "2026-10-11T16:43:54.284Z",
+          "task": "fixture-20261011-1",
+          "attempt": null,
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "rev-parse",
+              "--verify",
+              "--quiet",
+              "refs/heads/main"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "stdout": "c9d0f676118d40cce234a87754b5416d43acc6dd\n",
+            "stderr": "",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 14,
+          "time": "2026-10-11T16:43:54.284Z",
+          "task": "fixture-20261011-1",
+          "attempt": "28dc1652-366c-440e-a30b-312ae6ec11c3",
+          "type": "claim_intent",
+          "details": {
+            "attempt": {
+              "task_id": "fixture-20261011-1",
+              "attempt_id": "28dc1652-366c-440e-a30b-312ae6ec11c3",
+              "session_id": "614d1cc5-7789-42f5-82c4-dad6aa59193f",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "",
+              "runtime_mode": "approval-required",
+              "turn_id": null,
+              "runtime_identity": null,
+              "workspace": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state/worktrees/28dc1652-366c-440e-a30b-312ae6ec11c3",
+              "base_commit": "c9d0f676118d40cce234a87754b5416d43acc6dd",
+              "card_snapshot_id": "7bd0b2ec-5a19-41cd-b4da-4b1a484de765",
+              "reclaimed": false,
+              "owner": "independent-check",
+              "state": "preparing"
+            }
+          }
+        },
+        {
+          "seq": 15,
+          "time": "2026-10-11T16:43:54.285Z",
+          "task": "fixture-20261011-1",
+          "attempt": "28dc1652-366c-440e-a30b-312ae6ec11c3",
+          "type": "command_intent",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "worktree",
+              "add",
+              "--detach",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state/worktrees/28dc1652-366c-440e-a30b-312ae6ec11c3",
+              "c9d0f676118d40cce234a87754b5416d43acc6dd"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo"
+          }
+        },
+        {
+          "seq": 16,
+          "time": "2026-10-11T16:43:54.299Z",
+          "task": "fixture-20261011-1",
+          "attempt": "28dc1652-366c-440e-a30b-312ae6ec11c3",
+          "type": "command_result",
+          "details": {
+            "argv": [
+              "git",
+              "-C",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+              "worktree",
+              "add",
+              "--detach",
+              "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state/worktrees/28dc1652-366c-440e-a30b-312ae6ec11c3",
+              "c9d0f676118d40cce234a87754b5416d43acc6dd"
+            ],
+            "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "stdout": "HEAD 现在位于 c9d0f67 Independent baseline\n",
+            "stderr": "准备工作区（分离头指针 c9d0f67）\n",
+            "exit": 0,
+            "returncode": 0
+          }
+        },
+        {
+          "seq": 17,
+          "time": "2026-10-11T16:43:54.299Z",
+          "task": "fixture-20261011-1",
+          "attempt": "28dc1652-366c-440e-a30b-312ae6ec11c3",
+          "type": "claimed",
+          "details": {
+            "task_id": "fixture-20261011-1",
+            "title": "fixture-20261011-1",
+            "project_id": "fixture",
+            "repo": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+            "integration_ref": "refs/heads/main",
+            "card_snapshot_id": "1df8903f-48a2-43ce-b5ef-108058cf08b1",
+            "card_version": 1,
+            "card": {
+              "id": "fixture-20261011-1",
+              "source": null,
+              "goal": "交付 src/value.txt 中的独立预期内容",
+              "non_goals": [
+                "不修改项目外的文件"
+              ],
+              "paths": {
+                "allow": [
+                  "src/",
+                  "tests/",
+                  ".a2a/quality.json"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "base_commit": "c9d0f676118d40cce234a87754b5416d43acc6dd",
+            "state": "claimed",
+            "spec_rev": 1,
+            "fence": 1,
+            "current_attempt": {
+              "task_id": "fixture-20261011-1",
+              "attempt_id": "28dc1652-366c-440e-a30b-312ae6ec11c3",
+              "session_id": "614d1cc5-7789-42f5-82c4-dad6aa59193f",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "",
+              "runtime_mode": "approval-required",
+              "turn_id": null,
+              "runtime_identity": null,
+              "workspace": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state/worktrees/28dc1652-366c-440e-a30b-312ae6ec11c3",
+              "base_commit": "c9d0f676118d40cce234a87754b5416d43acc6dd",
+              "card_snapshot_id": "7bd0b2ec-5a19-41cd-b4da-4b1a484de765",
+              "reclaimed": false,
+              "owner": "independent-check",
+              "state": "claimed"
+            },
+            "candidate_commit": null,
+            "verification": null,
+            "integration_intent": null
+          }
+        },
+        {
+          "seq": 18,
+          "time": "2026-10-11T16:43:54.451Z",
+          "task": "fixture-20261011-1",
+          "attempt": "28dc1652-366c-440e-a30b-312ae6ec11c3",
+          "type": "rejected",
+          "details": {
+            "error": "stale_fence",
+            "input": {
+              "command": "submit",
+              "task": "fixture-20261011-1",
+              "attempt": "28dc1652-366c-440e-a30b-312ae6ec11c3",
+              "session": "614d1cc5-7789-42f5-82c4-dad6aa59193f",
+              "fence": 2,
+              "spec_rev": 1,
+              "commit": "99eb7d9e9b7d6bea2b6f384e2fdda1c16a377b7d"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "33362",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "card_template",
+        "--task",
+        "fixture-20261011-1",
+        "--repo",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "card_save",
+        "--task",
+        "fixture-20261011-1",
+        "--card",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "create",
+        "--task",
+        "fixture-20261011-1",
+        "--repo",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "claim",
+        "--task",
+        "fixture-20261011-1",
+        "--owner",
+        "independent-check"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state/worktrees/28dc1652-366c-440e-a30b-312ae6ec11c3",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state/worktrees/28dc1652-366c-440e-a30b-312ae6ec11c3",
+        "commit",
+        "-m",
+        "Independent fixture commit\n\nA2A-Task: fixture-20261011-1\nA2A-Attempt: 28dc1652-366c-440e-a30b-312ae6ec11c3\nA2A-Session: 614d1cc5-7789-42f5-82c4-dad6aa59193f\nA2A-Role: worker\nA2A-Tool: Codex 0.162.1\nA2A-Model: gpt-6-astra\nA2A-Effort: xhigh\nA2A-Native-Session: unknown\nA2A-Launch: fixture-launch"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state/worktrees/28dc1652-366c-440e-a30b-312ae6ec11c3",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "submit",
+        "--task",
+        "fixture-20261011-1",
+        "--attempt",
+        "28dc1652-366c-440e-a30b-312ae6ec11c3",
+        "--session",
+        "614d1cc5-7789-42f5-82c4-dad6aa59193f",
+        "--fence",
+        "2",
+        "--spec-rev",
+        "1",
+        "--commit",
+        "99eb7d9e9b7d6bea2b6f384e2fdda1c16a377b7d"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0014.stderr.bin",
+      "exit": 1
+    },
+    {
+      "id": 15,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "status",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "events",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0016.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 17,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "events",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0017.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0017.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 18,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0018.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0018.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 19,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0019.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0019.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 20,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0020.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0020.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 21,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0021.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0021.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 22,
+      "argv": [
+        "node",
+        "/private/tmp/q76src-voevowd3/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-uaqkff1a/c-jo7wtrfh/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0022.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-red-02/stage-3/baseline-controls/control_fence/command-0022.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-uaqkff1a/c-jo7wtrfh"
+}

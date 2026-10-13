@@ -1,0 +1,90 @@
+{
+  "observed_at": "2026-10-11T20:56:06.348582+00:00",
+  "volume": "/Volumes/WD-Elements",
+  "is_mount": true,
+  "node_modules": "/Users/luckye/Documents/Code/a2a/workbench/node_modules",
+  "observations": [
+    {
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a",
+      "exit_code": 0,
+      "stdout": "v26.5.0\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "--version"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a",
+      "exit_code": 0,
+      "stdout": "git version 2.52.0\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "import { spawnHelper } from './workbench/src/panes.ts'; console.log(spawnHelper());"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a",
+      "exit_code": 0,
+      "stdout": "/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\n",
+      "stderr": ""
+    }
+  ],
+  "acceptance_diff": {
+    "argv": [
+      "git",
+      "diff",
+      "a7f4cc3033c16d5888de50d8352da516c941f8e9",
+      "--",
+      "acceptance/test_coop_e2e.py",
+      "acceptance/test_recovery_e2e.py",
+      "acceptance/test_run_e2e.py"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a",
+    "exit_code": 0,
+    "stdout": "diff --git a/acceptance/test_coop_e2e.py b/acceptance/test_coop_e2e.py\nindex 4615e168..77ce0855 100644\n--- a/acceptance/test_coop_e2e.py\n+++ b/acceptance/test_coop_e2e.py\n@@ -145,7 +145,7 @@ class ManagedDeliveryCLI(unittest.TestCase):\n             \"completion_conditions\": [{\"argv\": [sys.executable, \"-I\", \"-B\", \"-c\",\n                                                  self.oracle.read_text(encoding=\"utf-8\"), \"{worktree}\"]}],\n             \"red_commands\": [], \"task_type\": \"后端逻辑\", \"repair_target\": None,\n-            \"complexity\": \"M\", \"executor\": {\"cli\": \"Codex\", \"model\": \"fixture\", \"effort\": \"xhigh\"},\n+            \"complexity\": \"M\", \"executor\": {\"cli\": \"Codex\", \"model\": \"gpt-6.1-sol\", \"effort\": \"xhigh\"},\n             \"base_commit\": None, \"writer\": None,\n         }\n         self.card_source = self.root / (task + \".card.json\")\n@@ -404,7 +404,7 @@ class ManagedDeliveryCLI(unittest.TestCase):\n \n     def test_good_candidate_uses_oracle_snapshot_and_integrates_once(self):\n         self.create()\n-        attempt = self.claim()\n+        attempt = self.dispatch_candidate_attempt()\n         commit = self.candidate(attempt, good=True)\n         self.assert_novel_pagination_inputs(Path(attempt[\"workspace\"]))\n         # Replacing the caller-owned source must not replace the registered oracle.\n@@ -455,7 +455,7 @@ class ManagedDeliveryCLI(unittest.TestCase):\n \n     def test_baseline_change_after_verification_rejects_integration(self):\n         self.create()\n-        attempt = self.claim()\n+        attempt = self.dispatch_candidate_attempt()\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n         self.cli(\"verify\", \"--task\", self.task)\n@@ -506,9 +506,16 @@ class ManagedDeliveryCLI(unittest.TestCase):\n         self.cli(\"verify\", \"--task\", self.task)\n         self.assertEqual(self.status()[\"state\"], \"verified\")\n         self.assertEqual(self.status()[\"candidate_commit\"], candidate)\n-        self.cli(\"integrate\", \"--task\", self.task)\n-        self.assertEqual(self.ref(), candidate)\n-        self.assertNotEqual(self.ref(), later_bad)\n+        # W07 / decision 02: a manual claim has no managed launch provenance.\n+        # The complete managed frozen-C integration is a separate explicit case.\n+        events = self.events()\n+        log_before = self.reflog()\n+        reply = self.cli(\"integrate\", \"--task\", self.task, \"--score-file\", self.score_file(attempt),\n+                         ok=False, error=\"score_provenance_required\")\n+        self.assertEqual(self.ref(), self.base, \"W07-MANUAL-SOURCE: refuse before Git changes\")\n+        self.assertEqual(self.reflog(), log_before)\n+        self.assertEqual(self.status()[\"candidate_commit\"], candidate)\n+        self.assert_rejection_recorded(reply[\"error\"], events)\n \n     def test_spec_revision_invalidates_candidate_and_old_identity(self):\n         self.create()\ndiff --git a/acceptance/test_run_e2e.py b/acceptance/test_run_e2e.py\nindex f3b245ec..4fc519d5 100644\n--- a/acceptance/test_run_e2e.py\n+++ b/acceptance/test_run_e2e.py\n@@ -218,6 +218,7 @@ class RunCLI(recovery.RecoveryCLI):\n                    [native[\"envMode\"], native[\"workspace\"], native[\"baseRef\"]])\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n+        self.drive_executor_finalize(handle, attempt, candidate)\n         value = self.new_result(self.complete(handle), \"run\")\n         run = value.get(\"run\", {})\n         self.check(bool(run.get(\"run_id\")) and run.get(\"attempt_id\") == attempt[\"attempt_id\"] and\n@@ -295,6 +296,7 @@ class RunCLI(recovery.RecoveryCLI):\n         self.create()\n         value = self.cli(\"dispatch\", \"--task\", self.task, \"--runtime-mode\", \"approval-required\")\n         attempt = value[\"attempt\"]\n+        self.prepare_executor_score(attempt)\n         thread = self.store()[\"prompts\"][0][\"thread_id\"]\n         self.check(self.status()[\"state\"] != \"accepted\" and self.ref() == self.base,\n                    \"Simulated done never accepts during fixture preparation\", self.base, self.ref())\n@@ -353,6 +355,7 @@ class RunCLI(recovery.RecoveryCLI):\n                    [len(self.store()[\"prompts\"]), len(self.rows(after, \"attempt\"))])\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n+        self.drive_executor_finalize(first, attempt, candidate)\n         self.new_result(self.complete(first), \"run\")\n         self.check(self.ref() == candidate, \"First executor still completes\", candidate, self.ref())\n         self.only_own_close(thread)\n@@ -445,7 +448,13 @@ class RunCLI(recovery.RecoveryCLI):\n         self.check(len(results) == 1 and results[0][\"exit_code\"] != 0,\n                    \"Actual frozen independent oracle rejects the bad candidate\", \"one nonzero oracle\",\n                    results)\n-        self.only_own_close(thread)\n+        self.only_own_close()\n+        current = after[\"status\"][\"current_attempt\"]\n+        feedback = [json.loads(line) for line in (self.boundary / \"quality-feedback.jsonl\").read_text(encoding=\"utf-8\").splitlines()]\n+        self.check(current is not None and current[\"attempt_id\"] == attempt[\"attempt_id\"] and not current[\"reclaimed\"]\n+                   and len(feedback) == 1 and feedback[0][\"registered\"] and feedback[0][\"attempt\"] == attempt[\"attempt_id\"],\n+                   \"First rejection preserves owned worker and registers its repair input\", attempt[\"attempt_id\"],\n+                   {\"current\": current, \"feedback\": feedback})\n         self.check(Path(attempt[\"workspace\"]).is_dir(), \"Rejected candidate worktree survives\", True,\n                    Path(attempt[\"workspace\"]).is_dir())\n         self.finish_checks()\n@@ -574,6 +583,7 @@ class RunCLI(recovery.RecoveryCLI):\n         attempt = self.current_attempt()\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n+        self.drive_executor_finalize(handle, attempt, candidate)\n         self.new_result(self.complete(handle), \"run\")\n         before = self.snapshot(\"before-accepted-reclaim-replay\")\n         self.guard(\"reclaim\", attempt[\"attempt_id\"])\n",
+    "stderr": ""
+  },
+  "approved_scope": {
+    "baseline": "a7f4cc3033c16d5888de50d8352da516c941f8e9",
+    "scopes": [
+      {
+        "file": "acceptance/test_coop_e2e.py",
+        "allowed_methods": {
+          "create": "F14: executor.model only",
+          "test_good_candidate_uses_oracle_snapshot_and_integrates_once": "F05/W03",
+          "test_baseline_change_after_verification_rejects_integration": "F05/W03",
+          "test_submit_requires_clean_head_and_cannot_replace_frozen_candidate": "W07"
+        },
+        "recovery_unchanged": null
+      },
+      {
+        "file": "acceptance/test_run_e2e.py",
+        "allowed_methods": {
+          "test_run_entry_point_completes_registered_task": "W02/F07",
+          "test_fixture_existing_dispatch_submit_oracle_integration_and_reclaim": "W02/F07",
+          "test_concurrent_duplicate_run_has_one_prompt_and_one_attempt": "F07",
+          "test_matching_reclaim_guard_is_idempotent_after_automatic_success": "W02/F07",
+          "test_oracle_failure_is_not_success_and_reclaims_only_owned_thread": "W01"
+        },
+        "recovery_unchanged": null
+      },
+      {
+        "file": "acceptance/test_recovery_e2e.py",
+        "allowed_methods": {},
+        "recovery_unchanged": true
+      }
+    ],
+    "patch": "diff --git a/acceptance/test_coop_e2e.py b/acceptance/test_coop_e2e.py\nindex 4615e168..77ce0855 100644\n--- a/acceptance/test_coop_e2e.py\n+++ b/acceptance/test_coop_e2e.py\n@@ -145,7 +145,7 @@ class ManagedDeliveryCLI(unittest.TestCase):\n             \"completion_conditions\": [{\"argv\": [sys.executable, \"-I\", \"-B\", \"-c\",\n                                                  self.oracle.read_text(encoding=\"utf-8\"), \"{worktree}\"]}],\n             \"red_commands\": [], \"task_type\": \"后端逻辑\", \"repair_target\": None,\n-            \"complexity\": \"M\", \"executor\": {\"cli\": \"Codex\", \"model\": \"fixture\", \"effort\": \"xhigh\"},\n+            \"complexity\": \"M\", \"executor\": {\"cli\": \"Codex\", \"model\": \"gpt-6.1-sol\", \"effort\": \"xhigh\"},\n             \"base_commit\": None, \"writer\": None,\n         }\n         self.card_source = self.root / (task + \".card.json\")\n@@ -404,7 +404,7 @@ class ManagedDeliveryCLI(unittest.TestCase):\n \n     def test_good_candidate_uses_oracle_snapshot_and_integrates_once(self):\n         self.create()\n-        attempt = self.claim()\n+        attempt = self.dispatch_candidate_attempt()\n         commit = self.candidate(attempt, good=True)\n         self.assert_novel_pagination_inputs(Path(attempt[\"workspace\"]))\n         # Replacing the caller-owned source must not replace the registered oracle.\n@@ -455,7 +455,7 @@ class ManagedDeliveryCLI(unittest.TestCase):\n \n     def test_baseline_change_after_verification_rejects_integration(self):\n         self.create()\n-        attempt = self.claim()\n+        attempt = self.dispatch_candidate_attempt()\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n         self.cli(\"verify\", \"--task\", self.task)\n@@ -506,9 +506,16 @@ class ManagedDeliveryCLI(unittest.TestCase):\n         self.cli(\"verify\", \"--task\", self.task)\n         self.assertEqual(self.status()[\"state\"], \"verified\")\n         self.assertEqual(self.status()[\"candidate_commit\"], candidate)\n-        self.cli(\"integrate\", \"--task\", self.task)\n-        self.assertEqual(self.ref(), candidate)\n-        self.assertNotEqual(self.ref(), later_bad)\n+        # W07 / decision 02: a manual claim has no managed launch provenance.\n+        # The complete managed frozen-C integration is a separate explicit case.\n+        events = self.events()\n+        log_before = self.reflog()\n+        reply = self.cli(\"integrate\", \"--task\", self.task, \"--score-file\", self.score_file(attempt),\n+                         ok=False, error=\"score_provenance_required\")\n+        self.assertEqual(self.ref(), self.base, \"W07-MANUAL-SOURCE: refuse before Git changes\")\n+        self.assertEqual(self.reflog(), log_before)\n+        self.assertEqual(self.status()[\"candidate_commit\"], candidate)\n+        self.assert_rejection_recorded(reply[\"error\"], events)\n \n     def test_spec_revision_invalidates_candidate_and_old_identity(self):\n         self.create()\ndiff --git a/acceptance/test_run_e2e.py b/acceptance/test_run_e2e.py\nindex f3b245ec..4fc519d5 100644\n--- a/acceptance/test_run_e2e.py\n+++ b/acceptance/test_run_e2e.py\n@@ -218,6 +218,7 @@ class RunCLI(recovery.RecoveryCLI):\n                    [native[\"envMode\"], native[\"workspace\"], native[\"baseRef\"]])\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n+        self.drive_executor_finalize(handle, attempt, candidate)\n         value = self.new_result(self.complete(handle), \"run\")\n         run = value.get(\"run\", {})\n         self.check(bool(run.get(\"run_id\")) and run.get(\"attempt_id\") == attempt[\"attempt_id\"] and\n@@ -295,6 +296,7 @@ class RunCLI(recovery.RecoveryCLI):\n         self.create()\n         value = self.cli(\"dispatch\", \"--task\", self.task, \"--runtime-mode\", \"approval-required\")\n         attempt = value[\"attempt\"]\n+        self.prepare_executor_score(attempt)\n         thread = self.store()[\"prompts\"][0][\"thread_id\"]\n         self.check(self.status()[\"state\"] != \"accepted\" and self.ref() == self.base,\n                    \"Simulated done never accepts during fixture preparation\", self.base, self.ref())\n@@ -353,6 +355,7 @@ class RunCLI(recovery.RecoveryCLI):\n                    [len(self.store()[\"prompts\"]), len(self.rows(after, \"attempt\"))])\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n+        self.drive_executor_finalize(first, attempt, candidate)\n         self.new_result(self.complete(first), \"run\")\n         self.check(self.ref() == candidate, \"First executor still completes\", candidate, self.ref())\n         self.only_own_close(thread)\n@@ -445,7 +448,13 @@ class RunCLI(recovery.RecoveryCLI):\n         self.check(len(results) == 1 and results[0][\"exit_code\"] != 0,\n                    \"Actual frozen independent oracle rejects the bad candidate\", \"one nonzero oracle\",\n                    results)\n-        self.only_own_close(thread)\n+        self.only_own_close()\n+        current = after[\"status\"][\"current_attempt\"]\n+        feedback = [json.loads(line) for line in (self.boundary / \"quality-feedback.jsonl\").read_text(encoding=\"utf-8\").splitlines()]\n+        self.check(current is not None and current[\"attempt_id\"] == attempt[\"attempt_id\"] and not current[\"reclaimed\"]\n+                   and len(feedback) == 1 and feedback[0][\"registered\"] and feedback[0][\"attempt\"] == attempt[\"attempt_id\"],\n+                   \"First rejection preserves owned worker and registers its repair input\", attempt[\"attempt_id\"],\n+                   {\"current\": current, \"feedback\": feedback})\n         self.check(Path(attempt[\"workspace\"]).is_dir(), \"Rejected candidate worktree survives\", True,\n                    Path(attempt[\"workspace\"]).is_dir())\n         self.finish_checks()\n@@ -574,6 +583,7 @@ class RunCLI(recovery.RecoveryCLI):\n         attempt = self.current_attempt()\n         candidate = self.candidate(attempt, good=True)\n         self.submit(attempt, candidate)\n+        self.drive_executor_finalize(handle, attempt, candidate)\n         self.new_result(self.complete(handle), \"run\")\n         before = self.snapshot(\"before-accepted-reclaim-replay\")\n         self.guard(\"reclaim\", attempt[\"attempt_id\"])\n",
+    "f13": "one preparation call; original assertions unchanged",
+    "f14": "create helper matches baseline with only model fixture -> gpt-6.1-sol"
+  },
+  "problems": []
+}

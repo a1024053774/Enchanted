@@ -1,0 +1,91 @@
+{
+  "tool_call": {
+    "type": "custom_tool_call",
+    "id": "ctc_0f2a2ef9fc73c9ff016acc4127d4d887d195ee89bfd8a7122b",
+    "status": "completed",
+    "call_id": "call_B0Dt2OVXvtUhFt9Q41sff9N1",
+    "name": "exec",
+    "input": "const r = await tools.exec_command({cmd:\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 -I -B /private/tmp/a2a-t076-p-review-02/probe_write.py\",max_output_tokens:1600}); text({p_review_probe:r});\n",
+    "internal_chat_message_metadata_passthrough": {
+      "turn_id": "01a12dde-4667-7cc0-b79e-fa02ad704367",
+      "create_time": 1791770917.399334
+    }
+  },
+  "tool_output": [
+    {
+      "type": "custom_tool_call_output",
+      "id": "ctco_01a12dde-8bd2-7541-993c-0b258bcdbeb1",
+      "call_id": "call_B0Dt2OVXvtUhFt9Q41sff9N1",
+      "output": [
+        {
+          "type": "input_text",
+          "text": "Script completed\nWall time 0.2 seconds\nOutput:\n"
+        },
+        {
+          "type": "input_text",
+          "text": "{\"p_review_probe\":{\"chunk_id\":\"332e74\",\"wall_time_seconds\":0.000012459,\"exit_code\":0,\"original_token_count\":141,\"output\":\"{\\\"schema\\\": 1, \\\"probe\\\": \\\"T076-2-P-review-02\\\", \\\"cwd\\\": \\\"/private/tmp/a2a-t076-p-review-02/state/verification/review-fdcdc3a9-7a40-4444-8916-99e9608738d5\\\", \\\"contract\\\": \\\"clamp(value) accepts only int, not bool; other types raise ValueError(\\\\\\\"not_int\\\\\\\"). Return 0 below 0, 100 above 100, and value otherwise.\\\\n\\\", \\\"candidate_source\\\": \\\"def clamp(value):\\\\n    if type(value) is not int:\\\\n        raise ValueError(\\\\\\\"not_int\\\\\\\")\\\\n    return max(0, min(100, value))\\\\n\\\", \\\"sentinel_before\\\": \\\"T076-P-review immutable sentinel\\\\n\\\", \\\"write_attempts\\\": 1, \\\"denied\\\": true, \\\"errno\\\": 1}\\n\"}}"
+        }
+      ],
+      "internal_chat_message_metadata_passthrough": {
+        "turn_id": "01a12dde-4667-7cc0-b79e-fa02ad704367",
+        "create_time": 1791770921.938273
+      }
+    }
+  ],
+  "parsed": {
+    "schema": 1,
+    "probe": "T076-2-P-review-02",
+    "cwd": "/private/tmp/a2a-t076-p-review-02/state/verification/review-fdcdc3a9-7a40-4444-8916-99e9608738d5",
+    "contract": "clamp(value) accepts only int, not bool; other types raise ValueError(\"not_int\"). Return 0 below 0, 100 above 100, and value otherwise.\n",
+    "candidate_source": "def clamp(value):\n    if type(value) is not int:\n        raise ValueError(\"not_int\")\n    return max(0, min(100, value))\n",
+    "sentinel_before": "T076-P-review immutable sentinel\n",
+    "write_attempts": 1,
+    "denied": true,
+    "errno": 1
+  },
+  "native_contexts": [
+    {
+      "turn_id": "01a12dde-4667-7cc0-b79e-fa02ad704367",
+      "root_turn_id": "01a12dde-4667-7cc0-b79e-fa02ad704367",
+      "disabled_plugin_ids": [],
+      "cwd": "/private/tmp/a2a-t076-p-review-02/state/verification/review-fdcdc3a9-7a40-4444-8916-99e9608738d5",
+      "approval_policy": "never",
+      "approvals_reviewer": "user",
+      "sandbox_policy": {
+        "type": "read-only"
+      },
+      "permission_profile": {
+        "type": "managed",
+        "file_system": {
+          "type": "restricted",
+          "entries": [
+            {
+              "path": {
+                "type": "special",
+                "value": {
+                  "kind": "root"
+                }
+              },
+              "access": "read"
+            }
+          ]
+        },
+        "network": "restricted"
+      },
+      "model": "gpt-6.1-sol",
+      "comp_hash": "3000",
+      "collaboration_mode": {
+        "mode": "default",
+        "settings": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "xhigh",
+          "developer_instructions": "# Collaboration Mode: Default\n\nYou are now in Default mode. Any previous instructions for other modes (e.g. Plan mode) are no longer active.\n\nYour active mode changes only when new developer instructions with a different `<collaboration_mode>...</collaboration_mode>` change it; user requests or tool descriptions do not change mode by themselves. Known mode names are Default and Plan.\n\n## request_user_input availability\n\nUse the `request_user_input` tool only when it is listed in the available tools for this turn.\n\nIn Default mode, strongly prefer making reasonable assumptions and executing the user's request rather than stopping to ask questions.\n\nUse the `request_user_input` tool only for optional questions where the answer would materially improve the quality of the work.\n\nIf `request_user_input` returns no answers, continue with best judgment instead of asking again or treating the turn as blocked.\n\nNever use the `request_user_input` tool for permission requests or permission-related escalations.\n\nIf explicit user input is required for another reason before progress can safely continue, do not use the `request_user_input` tool. Ask the user directly with one concise plain-text question instead. Never write a multiple choice question as a textual assistant message.\n"
+        }
+      },
+      "multi_agent_version": "v2",
+      "realtime_active": false,
+      "effort": "xhigh",
+      "summary": "none"
+    }
+  ]
+}

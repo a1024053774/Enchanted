@@ -1,0 +1,134 @@
+"""File-only fixture probe: no daemon, Unix socket, ps, signal, shell or model.
+
+Failure categories: alias spelling mismatch; unregistered home accepted; wrong
+shell accepted; session log in a different home; bad turn context; malformed B
+request; missing or misquoted hook command. None is a product acceptance verdict.
+"""
+import argparse
+import difflib
+import json
+import os
+from pathlib import Path
+import runpy
+import shlex
+import subprocess
+import tarfile
+import tempfile
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output', type=Path, required=True)
+args = parser.parse_args()
+here = Path(__file__).resolve().parent; card = here.parent; root = card.parents[3]
+out = args.output.resolve(); out.mkdir(parents=True, exist_ok=False)
+old_run = card / 'outside-legacy-green-02/w07-red'
+tables = json.loads((old_run / 'state-readback.json').read_text(encoding='utf-8'))[0]['tables']
+launch = json.loads(tables['launch_records'][0]['data'])
+with tarfile.open(old_run / 'artifacts.tar.gz', 'r:gz') as archive:
+    config_name = next(n for n in archive.getnames() if n.endswith('/quality-control/config.json'))
+    recorded_config = json.load(archive.extractfile(config_name))
+homes = [recorded_config['codex_home'], *(r['codex_home'] for r in recorded_config['reviewers'])]
+assert launch['shell'] == '/bin/zsh' and launch['env']['CODEX_HOME'] not in homes
+assert launch['env']['CODEX_HOME'] in [str(Path(p).resolve()) for p in homes]
+assert not [row for row in tables['orchestration_events'] if row['type'] == 'pane_started']
+
+# Inspect the recorded argv structurally. Never execute its shell or hooks.
+assert shlex.split(launch['shell_argv'][2].removesuffix('; exec /bin/zsh -f -i')) == launch['argv']
+hook_commands = {}
+for event in ('UserPromptSubmit', 'Stop', 'PermissionRequest'):
+    prefix = 'hooks.' + event + '=[{hooks=[{type="command",command='
+    args_for_event = [arg for arg in launch['argv'] if arg.startswith(prefix)]
+    assert len(args_for_event) == 1
+    text = args_for_event[0][len(prefix):]
+    command, end = json.JSONDecoder().raw_decode(text)
+    assert text[end:] == ',timeout=10}]}]'
+    expected = [launch['env']['A2A_NODE'], launch['env']['A2A_CLI'], '--state', launch['env']['A2A_STATE'], 'signal', '--launch', launch['id']]
+    assert shlex.split(command) == expected
+    assert Path(expected[0]).is_file() and os.access(expected[0], os.X_OK) and Path(expected[1]).is_file()
+    hook_commands[event] = expected
+assert launch['request_dir'] == launch['env']['A2A_REQUEST_DIR'] == str(Path(launch['request_dir']).resolve())
+
+node_source = r'''
+import assert from 'node:assert/strict';
+import {readFileSync, mkdirSync, realpathSync, statSync, writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const [source, control, mode] = process.argv.slice(2);
+const {installControlledPTY} = await import(pathToFileURL(join(source,'workbench/tests/controlled_quality_pty.ts')));
+const config = JSON.parse(readFileSync(join(control,'config.json'),'utf8'));
+const bind = installControlledPTY(source,control,config);
+bind({store:{db:{prepare:()=>({all:()=>[]})}}});
+const require = createRequire(join(source,'workbench/src/panes.ts'));
+const pty = require('node-pty'); // spawn below is the installed JS fixture only.
+const home = realpathSync(config.reviewers[0].codex_home);
+const requestDir = join(control,'requests'); mkdirSync(requestDir);
+const env = {CODEX_HOME:home,A2A_ROLE:'reviewer',A2A_LAUNCH:'fixture-path-probe',
+  A2A_REQUEST_DIR:realpathSync(requestDir),A2A_CAPABILITY:'local-fixture-token'};
+const refused = /Controlled terminal received an unexpected shell or home\./;
+if(mode==='before') {
+  assert.throws(()=>pty.spawn('/bin/zsh',[],{env}),refused);
+  console.log(JSON.stringify({status:'PASS',scope:'old fixture reproduced its alias rejection'}));
+} else {
+  assert.equal(config.reviewers[0].codex_home,home);
+  assert.throws(()=>pty.spawn('/bin/sh',[],{env}),refused);
+  const alien=join(control,'unregistered'); mkdirSync(alien);
+  assert.throws(()=>pty.spawn('/bin/zsh',[],{env:{...env,CODEX_HOME:alien}}),refused);
+  const terminal=pty.spawn('/bin/zsh',['fixture-arguments'],{env});
+  terminal.write('\x1b[200~fixture\x1b[201~'); terminal.write('\r');
+  const metadata=JSON.parse(readFileSync(join(control,'fixture-path-probe.json'),'utf8'));
+  assert.deepEqual(metadata.env,env);
+  assert.equal(metadata.log,join(home,'sessions','rollout-fixture-native-fixture-path-probe.jsonl'));
+  const records=readFileSync(metadata.log,'utf8').trimEnd().split('\n').map(JSON.parse);
+  assert.deepEqual(records.map(r=>r.type),['session_meta','event_msg','turn_context']);
+  assert.deepEqual(records[0].payload,{source:'cli',id:metadata.native});
+  assert.equal(records[1].payload.type,'task_started');
+  assert.equal(records[1].payload.turn_id,'fixture-turn-1');
+  assert.deepEqual(records[2].payload,{turn_id:'fixture-turn-1',model:'gpt-6.1-sol',effort:'xhigh'});
+  const {reviewRequest}=await import(pathToFileURL(join(source,'workbench/src/gates/qualityProtocol.ts')));
+  const {writeReviewRequest,readWorkerRequests}=await import(pathToFileURL(join(source,'workbench/src/relayFiles.ts')));
+  const packet={schema:1,request_id:'review-fixture-review',command:'review_submit',task:'fixture-task',
+    attempt:'fixture-attempt',session:'fixture-reviewer',fence:1,spec_rev:1,review_id:'fixture-review',
+    candidate_commit:'a'.repeat(40),verdict:'可合并',findings:[]};
+  const parsed=reviewRequest(JSON.stringify(packet));
+  const file=writeReviewRequest(env.A2A_REQUEST_DIR,parsed);
+  assert.deepEqual(readWorkerRequests(env.A2A_REQUEST_DIR),[file]);
+  assert.deepEqual(JSON.parse(file.raw),packet);
+  assert.equal(statSync(join(env.A2A_REQUEST_DIR,file.name)).mode & 0o777,0o600);
+  assert.deepEqual(writeReviewRequest(env.A2A_REQUEST_DIR,parsed),file);
+  let exited=false; terminal.onExit(()=>{exited=true;}); terminal.kill('fixture-only');
+  assert.equal(exited,true); // JS callback, no process signal is sent.
+  writeFileSync(join(control,'offline-observations.json'),JSON.stringify({metadata,records,file})+'\n');
+  console.log(JSON.stringify({status:'PASS',scope:'strict fixture homes/shell, session bytes and B file helpers only'}));
+}
+'''
+probe = out / 'probe.mjs'; probe.write_text(node_source, encoding='utf-8')
+fixture = Path(tempfile.mkdtemp(prefix='l76-path-', dir='/tmp'))
+assert str(fixture) != str(fixture.resolve()), 'This counterfactual specifically requires the macOS /tmp alias.'
+commands = []
+for mode, module in [('before', here / 'legacy_quality_driver.py.before'), ('after', root / 'workbench/tests/legacy_quality_driver.py')]:
+    directory = fixture / mode; directory.mkdir()
+    control = runpy.run_path(str(module))['prepare_review_control'](directory)
+    config = json.loads((control / 'config.json').read_text(encoding='utf-8'))
+    all_homes = [config['codex_home'], *(r['codex_home'] for r in config['reviewers'])]
+    assert len(all_homes) == 9 and len(set(map(lambda p: str(Path(p).resolve()), all_homes))) == 9
+    assert all(not (Path(p) / 'sessions').exists() for p in all_homes)
+    command = ['node', str(probe), str(root), str(control), mode]
+    p = subprocess.run(command, capture_output=True, text=True, timeout=20)
+    (out / (mode + '.stdout.txt')).write_text(p.stdout, encoding='utf-8')
+    (out / (mode + '.stderr.txt')).write_text(p.stderr, encoding='utf-8')
+    commands.append(dict(argv=command, exit=p.returncode, stdout=p.stdout, stderr=p.stderr))
+    if p.returncode: break
+with tarfile.open(out / 'fixtures.tar.gz', 'x:gz') as archive: archive.add(fixture, arcname=fixture.name)
+for name in ('legacy_quality_driver.py','controlled_quality_pty.ts'):
+    before=(here/(name+'.before')).read_text(encoding='utf-8'); after=(root/'workbench/tests'/name).read_text(encoding='utf-8')
+    with (out/(name+'.diff')).open('x',encoding='utf-8') as stream:
+        stream.writelines(difflib.unified_diff(before.splitlines(True),after.splitlines(True),fromfile='before/'+name,tofile='after/'+name))
+passed = len(commands) == 2 and all(c['exit'] == 0 for c in commands)
+report = dict(status='PASS' if passed else 'INCOMPLETE',product_status='INCOMPLETE',real_codex_turns=0,
+              scope='offline fixture/path and file protocol probe; no backend, shell, socket, ps or real signal',
+              source_evidence=str(old_run),recorded_shell=launch['shell'],recorded_home=launch['env']['CODEX_HOME'],
+              configured_homes=homes,raw_membership=False,canonical_membership=True,hook_commands=hook_commands,
+              request_dir=launch['request_dir'],commands=commands,fixture=str(fixture))
+with (out/'run.json').open('x',encoding='utf-8') as stream: json.dump(report,stream,ensure_ascii=False,indent=2);stream.write('\n')
+print(json.dumps({key:report[key] for key in ('status','product_status','real_codex_turns')}))
+raise SystemExit(0 if passed else 1)

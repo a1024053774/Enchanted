@@ -1,0 +1,44 @@
+--- red-01/test_quality_chain_e2e.py
++++ red-02/test_quality_chain_e2e.py
+@@ -328,8 +328,9 @@
+         messages = self.gate_messages()[len(before):]
+         self.check('RED-FEEDBACK', len(messages) == 1 and messages[0]['launch'] == self.launch,
+                    'one registered gate repair message for the original worker launch', messages)
+-        self.check('RED-FEEDBACK.identity', self.cli('status')['task']['current_attempt']['attempt_id'] == a['attempt_id'],
+-                   a['attempt_id'], self.cli('status')['task']['current_attempt'])
++        current_attempt = self.cli('status')['task']['current_attempt']
++        self.check('RED-FEEDBACK.identity', isinstance(current_attempt, dict) and current_attempt['attempt_id'] == a['attempt_id'],
++                   a['attempt_id'], current_attempt)
+         self.check('RED-FEEDBACK.ref', self.oid() == self.base, self.base, self.oid())
+ 
+     def red_repair_resubmit(self):
+@@ -347,7 +348,9 @@
+         result = self.worker_submit(c2, request_id='delivery-2', settle=False)
+         self.check('RED-RESUBMIT', result['ok'], 'same native owner may explicitly resubmit C2 after recorded rejection', result)
+         current = self.cli('status')['task']
+-        self.check('RED-RESUBMIT.binding', current['candidate_commit'] == c2 and current['current_attempt']['attempt_id'] == a['attempt_id'],
++        current_attempt = current['current_attempt']
++        self.check('RED-RESUBMIT.binding', current['candidate_commit'] == c2 and isinstance(current_attempt, dict)
++                   and current_attempt['attempt_id'] == a['attempt_id'],
+                    {'attempt': a['attempt_id'], 'C2': c2}, current)
+ 
+     def red_review_required(self):
+@@ -408,8 +411,16 @@
+             raise HarnessFailure('Controlled run submit failed.')
+         reply = self.finish_run()
+         current = self.cli('status')['task']
+-        self.check('RED-RUN-REPAIR', not current['current_attempt']['reclaimed'] and self.oid() == self.base,
+-                   'rejected delivery retains its worker for repair and never integrates', {'reply': reply, 'current': current, 'ref': self.oid()})
++        current_attempt = current['current_attempt']
++        reference = self.oid()
++        history = [json.loads(row['data']) for row in self.rows('attempts') if row['id'] == a['attempt_id']]
++        actual = {'reply': reply, 'current': current, 'ref': reference,
++                  'expected_attempt_id': a['attempt_id'], 'original_attempt_history': history}
++        save(self.evidence / 'run-repair-readback.json', actual)
++        self.check('RED-RUN-REPAIR', isinstance(current_attempt, dict)
++                   and current_attempt['attempt_id'] == a['attempt_id']
++                   and current_attempt['reclaimed'] is False and reference == self.base,
++                   'rejected delivery retains its worker for repair and never integrates', actual)
+ 
+     def red_run_waits_for_executor(self):
+         a = self.start_run()

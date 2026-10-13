@@ -1,0 +1,42 @@
+--- before/test_quality_legacy_e2e.py
++++ after/test_quality_legacy_e2e.py
+@@ -9,6 +9,23 @@
+ 
+ 
+ class LegacyQuality(Tracer):
++    def begin_worker_turn(self, stage, previous_turn, next_turn):
++        before = self.gate('pane_status', '--thread', self.a['thread_id'], task=False)
++        self.check('MANAGED-FROZEN-IDLE-' + stage, before['state'] == 'idle' and before['active'] is None
++                   and before['turn'] == previous_turn and not before['writing'] and not before['queued']
++                   and before['failed'] is None and before['native_session'] == self.native['native'],
++                   'previous receipt ended; the original worker needs explicit new input', before)
++        body = self.root / ('controlled-input-' + stage + '.txt')
++        body.write_text('受控夹具下一回合：' + stage + '。保持原attempt；没有质量打回授权。\n', encoding='utf-8')
++        self.gate('pane_dispatch', '--thread', self.a['thread_id'], '--body-file', body, task=False)
++        active = self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == next_turn)
++        current = self.cli('status')['task']
++        self.check('MANAGED-FROZEN-ACTIVE-' + stage, active['active']['nativeTurn'] == next_turn
++                   and active['native_session'] == self.native['native'] and current['repair'] is None
++                   and current['current_attempt']['attempt_id'] == self.a['attempt_id'],
++                   'registered input starts a new turn without authorizing candidate replacement', current)
++        save(self.evidence / ('turn-boundary-' + stage + '.json'), {'before': before, 'active': active, 'task': current})
++
+     def manual_claim_reviewed_score_refused(self):
+         a, c = self.manual_candidate()
+         driver = QualityDriver(q.base.GATE, self.state, self.control, self.env)
+@@ -39,6 +56,7 @@
+         refused = self.worker_submit(c, request_id='dirty')
+         self.check('MANAGED-FROZEN-DIRTY', not refused['ok'] and self.cli('status')['task']['candidate_commit'] is None,
+                    'dirty workspace cannot submit', refused)
++        self.begin_worker_turn('clean-head', 'fixture-turn-2', 'fixture-turn-3')
+         self.git('checkout', '--', 'src/value.txt', cwd=Path(a['workspace']))
+         directory = Path(self.native['env']['A2A_REQUEST_DIR'])
+         common = dict(schema=1, command='submit', task=self.task, attempt=a['attempt_id'], session=a['session_id'],
+@@ -50,6 +68,7 @@
+                    and not self.relay_result('01-base')['ok'] and self.relay_result('zz-duplicate')['ok'],
+                    'full clean HEAD succeeds exactly once; short SHA/base fail', self.cli('status')['task'])
+         frozen = self.cli('status')['task']
++        self.begin_worker_turn('frozen-candidate', 'fixture-turn-4', 'fixture-turn-5')
+         later_bad = self.commit(a, {'src/value.txt': 'not the independent required content\n'})
+         refused = self.worker_submit(later_bad, request_id='later-bad')
+         current = self.cli('status')['task']

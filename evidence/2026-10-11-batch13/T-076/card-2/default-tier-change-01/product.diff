@@ -1,0 +1,11 @@
+--- workbench/src/panes.ts.before
++++ workbench/src/panes.ts
+@@ -152,7 +152,7 @@
+     check(task.card.executor.cli === "Codex" && ["gpt-6-astra", "gpt-6.1-sol"].includes(model) && effort === "xhigh", "worker_executor_mismatch");
+     const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", attempt.workspace,
+       "-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,
+-      "-c", `model_reasoning_effort=${JSON.stringify(effort)}`,
++      "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="default"',
+       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
+       "-c", "sandbox_workspace_write.network_access=false", "-c", "features.network_proxy=false"];
+     for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest"]) argv.push("-c", `hooks.${event}=${hook}`);

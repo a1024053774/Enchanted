@@ -1,0 +1,52 @@
+--- before/legacy_quality_driver.py
++++ after/legacy_quality_driver.py
+@@ -42,10 +42,11 @@
+         with (self.control / 'driver.jsonl').open('a', encoding='utf-8') as stream:
+             stream.write(json.dumps(dict(phase=phase, evidence_layer='controlled-external-actors', **data), ensure_ascii=False) + '\n')
+ 
+-    def command(self, command, *args, env=None, stdin=None):
++    def command(self, command, *args, env=None, stdin=None, timeout=45):
+         argv = list(map(str, ['node', self.cli, '--state', self.state, command, *args]))
++        self.record('command-intent', argv=argv, stdin=stdin, timeout=timeout)
+         p = subprocess.run(argv, cwd=self.control, env=env or self.env, input=stdin,
+-                           text=True, capture_output=True, timeout=45)
++                           text=True, capture_output=True, timeout=timeout)
+         self.record('command', argv=argv, exit=p.returncode, stdout=p.stdout, stderr=p.stderr, stdin=stdin)
+         if p.returncode not in (0, 1): raise RuntimeError('Quality driver CLI failed outside the gate.')
+         value = json.loads(p.stdout)
+@@ -107,13 +108,31 @@
+ 
+     def finalize_run(self, task, attempt, candidate):
+         deadline = time.monotonic() + 12
++        review_id = None
+         while True:
+-            current = self.command('status', '--task', task)['task']
+-            if current['current_attempt']['attempt_id'] != attempt['attempt_id']:
++            remaining = deadline - time.monotonic()
++            if remaining <= 0: raise RuntimeError('Run review readiness deadline exceeded.')
++            current = self.command('status', '--task', task, timeout=remaining)['task']
++            if time.monotonic() >= deadline: raise RuntimeError('Run review readiness deadline exceeded.')
++            if not current.get('current_attempt') or current['current_attempt']['attempt_id'] != attempt['attempt_id']:
+                 raise RuntimeError('Executor driver cannot adopt replacement attempt.')
+-            if current['state'] == 'reviewing': break
+-            if current.get('repair') or current['state'] == 'paused' or time.monotonic() >= deadline:
++            if current['candidate_commit'] != candidate:
++                raise RuntimeError('Executor driver candidate changed.')
++            review = current.get('review')
++            if current.get('repair') or current['state'] not in ('submitted', 'verifying', 'reviewing'):
+                 raise RuntimeError('Run did not reach valid independent review.')
++            if current['state'] == 'reviewing':
++                if not review or review['candidate_commit'] != candidate or review['attempt']['attempt_id'] != attempt['attempt_id']:
++                    raise RuntimeError('Run review binding differs from the submitted candidate.')
++                if review_id is not None and review['review_id'] != review_id:
++                    raise RuntimeError('Run reviewer changed while waiting for readiness.')
++                review_id = review['review_id']
++                if review['state'] == 'running':
++                    if not review['launch_id'] or not review['runtime_identity']:
++                        raise RuntimeError('Running reviewer is missing its launch identity.')
++                    break
++                if review['state'] != 'requested':
++                    raise RuntimeError('Run reviewer failed or has an unknown outcome.')
+             time.sleep(0.03)
+         self.complete_review(task, attempt, candidate)
+         self.command('integrate', '--task', task, '--attempt', attempt['attempt_id'], '--score-file', self.score_file(attempt))

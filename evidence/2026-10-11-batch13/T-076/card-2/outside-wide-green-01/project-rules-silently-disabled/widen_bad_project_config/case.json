@@ -1,0 +1,331 @@
+{
+  "case": "widen_bad_project_config",
+  "outcome": "contract_failure",
+  "assertions": [
+    {
+      "id": "WIDE-CONFIG-INVALID",
+      "passed": false,
+      "expected": "malformed committed configuration refuses registration instead of disabling checks",
+      "actual": {
+        "ok": true,
+        "task": {
+          "task_id": "fixture-20261011-1",
+          "title": "fixture-20261011-1",
+          "project_id": "fixture",
+          "repo": "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "38aeaea3-4891-4e0e-831d-2675f51a02bc",
+          "card_version": 1,
+          "card": {
+            "id": "fixture-20261011-1",
+            "source": null,
+            "goal": "交付 src/value.txt 中的独立预期内容",
+            "non_goals": [
+              "不修改项目外的文件"
+            ],
+            "paths": {
+              "allow": [
+                "src/",
+                "tests/",
+                ".a2a/quality.json"
+              ],
+              "deny": [
+                "src/private/"
+              ]
+            },
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "L",
+            "executor": {
+              "cli": "Codex",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "b01e39e0a24e7564bba0ee9d392cd6b18468763b",
+          "state": "ready",
+          "spec_rev": 1,
+          "fence": 0,
+          "current_attempt": null,
+          "candidate_commit": null,
+          "verification": null,
+          "integration_intent": null,
+          "quality": {
+            "source_commit": "b01e39e0a24e7564bba0ee9d392cd6b18468763b",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          }
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-11T18:39:39.001Z"
+        }
+      }
+    }
+  ],
+  "failure_id": "WIDE-CONFIG-INVALID",
+  "traceback": "Traceback (most recent call last):\n  File \"/private/tmp/q76wide-82sur3_m/candidate/workbench/tests/test_quality_chain_e2e.py\", line 654, in run_cases\n    getattr(case, name)()\n  File \"/private/tmp/q76wide-82sur3_m/candidate/workbench/tests/test_quality_widen_e2e.py\", line 110, in widen_bad_project_config\n    self.check('WIDE-CONFIG-INVALID', reply.get('error') == 'invalid_project_quality' and not self.rows('tasks'),\n  File \"/private/tmp/q76wide-82sur3_m/candidate/workbench/tests/test_quality_chain_e2e.py\", line 59, in check\n    raise ContractFailure(name)\ntest_quality_chain_e2e.ContractFailure: WIDE-CONFIG-INVALID\n",
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/project-rules-silently-disabled/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "95674",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "add",
+        ".a2a/quality.json"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "commit",
+        "-m",
+        "Deliberately malformed project configuration"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/project-rules-silently-disabled/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/state",
+        "card_save",
+        "--task",
+        "fixture-20261011-1",
+        "--card",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/project-rules-silently-disabled/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/state",
+        "create",
+        "--task",
+        "fixture-20261011-1",
+        "--repo",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0014.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 15,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/project-rules-silently-disabled/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/project-rules-silently-disabled/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-okzyzudd/c-ppuptd_w/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-okzyzudd/c-ppuptd_w",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/project-rules-silently-disabled/widen_bad_project_config/command-0016.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-okzyzudd/c-ppuptd_w"
+}

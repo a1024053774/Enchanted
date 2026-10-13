@@ -1,0 +1,136 @@
+--- before/workbench/src/gates/core.ts
++++ after/workbench/src/gates/core.ts
+@@ -1454,6 +1454,34 @@
+     return review;
+   }
+ 
++  private reviewLifecycleFailed(task: A2ATask, review: A2AReview, phase: string, details: unknown) {
++    // A historical review must never pause or replace a newer attempt/result.
++    const current = task.current_attempt?.attempt_id === review.attempt.attempt_id &&
++      task.review?.review_id === review.review_id && !["accepted", "abandoned", "upgraded"].includes(task.state);
++    if (current) { task.review!.state = "unknown"; task.state = "paused"; }
++    this.db.exec("BEGIN IMMEDIATE");
++    try {
++      this.save(task, "review_lifecycle_failed", { task, review_id: review.review_id, phase, details, current });
++      this.qualityIssue(task, review.attempt, "审查运行状态无法确认，停止自动推进", {
++        review_id: review.review_id, phase, details, current }, review.thread_id);
++      this.db.exec("COMMIT");
++    } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
++  }
++
++  recoverReviews() {
++    // Called once at daemon startup. The new host cannot adopt old reviewers.
++    for (const row of this.db.prepare("SELECT id FROM tasks").all()) {
++      const taskId = String(row.id), lock = this.operationLock(taskId);
++      try {
++        const task = this.load(taskId), review = task.review;
++        if (!review || !["requested", "running", "passed", "needs_fix"].includes(review.state)) continue;
++        const ended = this.db.prepare("SELECT 1 FROM events WHERE task=? AND type='review_reclaimed' AND json_extract(details,'$.review_id')=?")
++          .get(taskId, review.review_id);
++        if (!ended) this.reviewLifecycleFailed(task, review, "daemon_restart", { reason: "reviewer_not_owned_by_this_daemon" });
++      } finally { lock.close(); }
++    }
++  }
++
+   private async requestReview(task: A2ATask, attempt: A2AAttempt) {
+     const v = task.verification!;
+     if (task.review?.state === "passed" && task.review.candidate_commit === v.C) {
+@@ -1472,20 +1500,27 @@
+       launch_id: null, runtime_identity: null, state: "requested" };
+     task.review = review; task.state = "reviewing";
+     this.save(task, "review_requested", { task, review });
+-    await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", review.workspace, v.C]);
+-    const diff = await this.git(task.task_id, task.repo, ["diff", "--no-ext-diff", "--no-renames", attempt.base_commit, v.C, "--"]);
+-    const shape = { schema: 1, request_id: "review-" + reviewId, command: "review_submit", task: task.task_id,
+-      attempt: attempt.attempt_id, session: review.session_id, fence: attempt.fence, spec_rev: task.spec_rev,
+-      review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [] };
+-    const prompt = `只读审查这一次交付，不实现或提交代码。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。以下身份字段不可改；verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。不能调用 worker 的 submit、不能集成、不能写请求文件。\n${JSON.stringify(shape, null, 2)}`;
+-    await this.runtime.createReview(task, review, prompt);
+-    const live = await this.runtime.readThread(review.thread_id);
+-    review.runtime_identity = { ...live.runtime_identity };
+-    review.launch_id = live.runtime_identity.launch;
+-    this.checkThread(this.reviewAttempt(review), live);
+-    review.state = "running";
+-    this.member(task, review.thread_id, "reviewer");
+-    this.save(task, "review_started", { task, review });
++    try {
++      await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", review.workspace, v.C]);
++      const diff = await this.git(task.task_id, task.repo, ["diff", "--no-ext-diff", "--no-renames", attempt.base_commit, v.C, "--"]);
++      const shape = { schema: 1, request_id: "review-" + reviewId, command: "review_submit", task: task.task_id,
++        attempt: attempt.attempt_id, session: review.session_id, fence: attempt.fence, spec_rev: task.spec_rev,
++        review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [] };
++      const prompt = `只读审查这一次交付，不实现或提交代码。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。以下身份字段不可改；verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。不能调用 worker 的 submit、不能集成、不能写请求文件。\n${JSON.stringify(shape, null, 2)}`;
++      await this.runtime.createReview(task, review, prompt);
++      const live = await this.runtime.readThread(review.thread_id);
++      review.runtime_identity = { ...live.runtime_identity };
++      review.launch_id = live.runtime_identity.launch;
++      this.checkThread(this.reviewAttempt(review), live);
++      review.state = "running";
++      this.member(task, review.thread_id, "reviewer");
++      this.save(task, "review_started", { task, review });
++    } catch (error) {
++      this.reviewLifecycleFailed(this.load(task.task_id), review, "create", {
++        error: error instanceof Refusal ? error.code : String(error),
++        details: error instanceof Refusal ? error.details : undefined });
++      throw error;
++    }
+   }
+ 
+   async failReviewProtocol(taskId: string, reviewId: string, details: unknown, caller: SubmitCaller) {
+@@ -1519,17 +1554,24 @@
+       const done = this.db.prepare("SELECT 1 FROM events WHERE task=? AND type='review_reclaimed' AND json_extract(details,'$.review_id')=?")
+         .get(taskId, reviewId);
+       if (done) return;
+-      const live = await this.runtime.readThread(review.thread_id);
+-      this.checkThread(this.reviewAttempt(review), live);
+-      requireGate(!live.running && !live.blocked && !live.error, "reviewer_not_idle");
+-      this.event(taskId, "review_reclaim_intent", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
+-      await this.runtime.stopThread(review.thread_id);
+-      await this.runtime.archiveThread(review.thread_id);
+-      const after = await this.runtime.readThread(review.thread_id);
+-      this.checkThread(this.reviewAttempt(review), after);
+-      requireGate(after.stopped && after.archived, "review_reclaim_unconfirmed");
+-      this.member(this.load(taskId), review.thread_id, "reviewer", new Date(this.now()).toISOString());
+-      this.event(taskId, "review_reclaimed", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
++      try {
++        const live = await this.runtime.readThread(review.thread_id);
++        this.checkThread(this.reviewAttempt(review), live);
++        requireGate(!live.running && !live.blocked && !live.error, "reviewer_not_idle");
++        this.event(taskId, "review_reclaim_intent", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
++        await this.runtime.stopThread(review.thread_id);
++        await this.runtime.archiveThread(review.thread_id);
++        const after = await this.runtime.readThread(review.thread_id);
++        this.checkThread(this.reviewAttempt(review), after);
++        requireGate(after.stopped && after.archived, "review_reclaim_unconfirmed");
++        this.member(this.load(taskId), review.thread_id, "reviewer", new Date(this.now()).toISOString());
++        this.event(taskId, "review_reclaimed", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
++      } catch (error) {
++        this.reviewLifecycleFailed(this.load(taskId), review, "reclaim", {
++          error: error instanceof Refusal ? error.code : String(error),
++          details: error instanceof Refusal ? error.details : undefined });
++        throw error;
++      }
+     } finally { lock.close(); }
+   }
+ 
+--- before/workbench/src/daemon.ts
++++ after/workbench/src/daemon.ts
+@@ -207,6 +207,7 @@
+   chmodSync(socket, 0o600);
+   writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
+   panes.recover(daemon);
++  gates.recoverReviews();
+   store.event("daemon_started", { daemon, pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
+   process.send?.({ ok: true, pid: process.pid, root, helper });
+ }
+--- before/workbench/src/stateConsistency.ts
++++ after/workbench/src/stateConsistency.ts
+@@ -45,7 +45,7 @@
+         if (task?.current_attempt?.attempt_id === attempt.attempt_id) task.current_attempt = copy(attempt);
+       };
+       try {
+-        if (["delivery_rejected", "review_requested", "review_started", "review_result", "review_reused", "review_protocol_failed",
++        if (["delivery_rejected", "review_requested", "review_started", "review_result", "review_reused", "review_protocol_failed", "review_lifecycle_failed",
+           "quality_command_intent", "red_check", "rule_check", "attempt_ended"].includes(event.type) ||
+           ["claim_intent", "dispatch_intent", "submitted", "verification_result"].includes(event.type) && d.task) {
+           tasks.set(event.task, copy(d.task)); saved = true;

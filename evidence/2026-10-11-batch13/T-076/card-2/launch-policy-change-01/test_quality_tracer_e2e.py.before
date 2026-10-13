@@ -1,0 +1,310 @@
+"""Controlled acceptance of T-076-2's first complete production slice.
+
+The fixture supplies reviewer JSON as an external actor, never as a gate result.
+Each negative has valid surrounding identities and a single deliberate violation.
+Real read-only sandbox behavior remains the separately approved P-review probe.
+"""
+import argparse
+import json
+from pathlib import Path
+import time
+
+from test_quality_chain_e2e import QualityCase, HarnessFailure, run_cases, save
+
+
+class Tracer(QualityCase):
+    def wait_for(self, read, predicate):
+        deadline = time.monotonic() + 5
+        while True:
+            value = read()
+            if predicate(value):
+                return value
+            if time.monotonic() >= deadline:
+                raise HarnessFailure('Expected explicit fixture boundary was not reached: ' + json.dumps(value))
+            time.sleep(0.03)
+
+    def good_submission(self):
+        a = self.start_worker()
+        c = self.commit(a)
+        reply = self.worker_submit(c)
+        if not reply['ok']:
+            raise HarnessFailure('Controlled valid worker submit failed: ' + json.dumps(reply))
+        return a, c
+
+    def start_review(self, c, automatic=False):
+        reply = self.wait_for(lambda: self.cli('status'), lambda r: r['task']['state'] == 'reviewing'
+                             and r['task'].get('review', {}).get('state') == 'running') if automatic else self.gate('verify', '--attempt', self.a['attempt_id'])
+        self.check('TRACER-REVIEW-START', reply['ok'] and reply['task']['state'] == 'reviewing'
+                   and isinstance(reply['task'].get('review'), dict),
+                   'mechanical success creates one pending review, without final acceptance', reply)
+        review = reply['task']['review']
+        launch = self.gate('pane_status', '--thread', review['thread_id'], task=False)['launch']
+        record = json.loads((self.control / (launch + '.json')).read_text(encoding='utf-8'))
+        rows = [json.loads(row['data']) for row in self.rows('launch_records')]
+        details = next(row for row in rows if row['id'] == launch)
+        self.check('TRACER-READONLY-ARGV', details['role'] == 'reviewer' and details['sandbox'] == 'read-only'
+                   and details['argv'][details['argv'].index('--sandbox') + 1] == 'read-only'
+                   and details['session'] != self.a['session_id'] and details['thread'] != self.a['thread_id']
+                   and details['env']['CODEX_HOME'] != self.native['env']['CODEX_HOME']
+                   and not any(k.startswith('GIT_CONFIG_') for k in details['env']),
+                   'fresh reviewer launch: read-only argv, separate home/session/thread and no Git hook environment', details)
+        self.check('TRACER-REVIEW-CHECKOUT', self.oid(Path(review['workspace'])) == c, c, self.oid(Path(review['workspace'])))
+        self.gate('pane_release', '--thread', review['thread_id'], '--reason', 'controlled fresh reviewer release', task=False)
+        self.wait_for(lambda: self.gate('pane_status', '--thread', review['thread_id'], task=False),
+                      lambda pane: pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1')
+        return review, record
+
+    def review_packet(self, review, c, verdict='可合并', findings=None):
+        return {'schema': 1, 'request_id': 'review-' + review['review_id'], 'command': 'review_submit',
+                'task': self.task, 'attempt': self.a['attempt_id'], 'session': review['session_id'],
+                'fence': self.a['fence'], 'spec_rev': self.a['spec_rev'], 'review_id': review['review_id'],
+                'candidate_commit': c, 'verdict': verdict, 'findings': [] if findings is None else findings}
+
+    def send_review(self, review, record, packet=None, raw=None):
+        text = json.dumps(packet, ensure_ascii=False) if raw is None else raw
+        stop = {'session_id': record['native'], 'turn_id': 'fixture-turn-1', 'hook_event_name': 'Stop',
+                'last_assistant_message': text}
+        value = self.gate('signal', '--launch', record['launch'], task=False,
+                          env={**self.env, **record['env']}, stdin=json.dumps(stop, ensure_ascii=False))
+        if not value['ok']:
+            raise HarnessFailure('Review hook transport did not return its receipt.')
+        return self.cli('status')['task']
+
+    def wait_review_reclaimed(self, review):
+        self.wait_for(lambda: self.events(), lambda events: any(e['type'] == 'review_reclaimed'
+                      and e['details']['review_id'] == review['review_id'] for e in events))
+
+    def approve(self, c, automatic=False):
+        review, record = self.start_review(c, automatic=automatic)
+        current = self.send_review(review, record, self.review_packet(review, c))
+        self.check('TRACER-VERDICT', current['state'] == 'verified' and current['review']['result']['verdict'] == '可合并',
+                   'explicit reviewer result is accepted and bound to this candidate', current)
+        self.wait_review_reclaimed(review)
+        return review, record
+
+    def score_file(self):
+        file = self.root / 'executor-score.json'
+        data = {'result': '通过', 'boundary_discipline': 3, 'boundary_reason': '修改限制在卡片允许路径',
+                'engineering_taste': 2, 'engineering_reason': '满足夹具要求，保留改进空间', 'notes': ''}
+        if not file.exists():
+            save(file, data)
+        return file
+
+    def integrate_scored(self, c, rounds, completion=0, review_failures=0, automatic_cleanup=False, identity_failures=0):
+        before = self.oid()
+        reply = self.gate('integrate', '--attempt', self.a['attempt_id'], '--score-file', self.score_file())
+        self.check('TRACER-INTEGRATE', reply['ok'] and self.oid() == c and before != c,
+                   'executor score and valid review permit one actual fast-forward', {'reply': reply, 'ref': self.oid(), 'before': before})
+        scores = [e['details'] for e in self.events() if e['type'] == 'score_recorded']
+        expected_rejections = {'identity_version': identity_failures, 'path_boundary': 0, 'completion': completion,
+                               'red_state': 0, 'rule_checks': 0, 'independent_review': review_failures, 'commit_trailers': 0}
+        self.check('TRACER-SCORE', len(scores) == 1 and scores[0]['launch_id'] == self.launch
+                   and scores[0]['attempt'] == self.a['attempt_id'] and scores[0]['model'] == 'gpt-6.1-sol'
+                   and scores[0]['effort'] == 'xhigh' and scores[0]['facts']['delivery_rounds'] == rounds
+                   and scores[0]['facts']['human_interventions'] == 0 and scores[0]['facts']['rejections'] == expected_rejections,
+                   {'worker_launch': self.launch, 'rounds': rounds, 'rejections': expected_rejections}, scores)
+        save(self.evidence / 'score-payload.json', scores[0])
+        if automatic_cleanup:
+            return
+        log = self.git('reflog', 'show', '--format=%H', 'refs/heads/main')
+        again = self.gate('integrate', '--attempt', self.a['attempt_id'], '--score-file', self.score_file())
+        self.check('TRACER-SCORE-ONCE', again['ok'] and len([e for e in self.events() if e['type'] == 'score_recorded']) == 1
+                   and self.git('reflog', 'show', '--format=%H', 'refs/heads/main') == log,
+                   'same final command adds neither a score nor a Git effect', again)
+        self.cli('reclaim', '--attempt', self.a['attempt_id'])
+
+    def tracer_success(self):
+        a, _, before = self.rejected_worker()
+        repair = self.gate_messages()[len(before):]
+        self.check('TRACER-FEEDBACK', len(repair) == 1 and repair[0]['data'].get('context', {}).get('kind') == 'quality-repair',
+                   'first completion rejection registers exactly one repair instruction', repair)
+        self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == 'fixture-turn-3')
+        c2 = self.commit(a)
+        submitted = self.worker_submit(c2, request_id='delivery-2')
+        self.check('TRACER-RESUBMIT', submitted['ok'] and submitted['task']['current_attempt']['turn_id'] == 'fixture-turn-3',
+                   'same native owner explicitly submits C2 from the repair turn', submitted)
+        self.approve(c2)
+        self.integrate_scored(c2, rounds=2, completion=1)
+        events = self.events()
+        self.check('TRACER-FULL-RECHECK', len([e for e in events if e['type'] == 'path_check']) == 2
+                   and len([e for e in events if e['type'] == 'completion_check']) == 2,
+                   'both submissions run the mechanical path from its first check', [e['type'] for e in events])
+
+    def tracer_score_required(self):
+        _, c = self.good_submission()
+        self.approve(c)
+        before = self.oid()
+        reply = self.gate('integrate', '--attempt', self.a['attempt_id'])
+        self.check('TRACER-SCORE-REQUIRED', reply.get('error') == 'score_required' and self.oid() == before,
+                   'with valid review, missing executor score alone refuses and leaves Git unchanged', reply)
+        missing = self.root / 'incomplete-score.json'
+        data = json.loads(self.score_file().read_text(encoding='utf-8')); del data['notes']
+        save(missing, data)
+        invalid = self.gate('integrate', '--attempt', self.a['attempt_id'], '--score-file', missing)
+        self.check('TRACER-SCORE-FIELDS', invalid.get('error') == 'invalid_score' and self.oid() == before,
+                   'missing notes is rejected even though both numeric scores exist', invalid)
+        self.integrate_scored(c, rounds=1)
+
+    def tracer_wrong_candidate(self):
+        _, c = self.good_submission()
+        review, record = self.start_review(c)
+        current = self.send_review(review, record, self.review_packet(review, self.base))
+        events = self.events()
+        self.check('TRACER-REVIEW-CANDIDATE', current['state'] == 'paused' and self.oid() == self.base
+                   and any(e['type'] == 'rejected' and e['details'].get('error') == 'review_candidate_mismatch' for e in events),
+                   'otherwise-valid reviewer binds the wrong C: reject, record, pause without integration', current)
+
+    def tracer_malformed_review(self):
+        _, c = self.good_submission()
+        review, record = self.start_review(c)
+        raw = '```json\n' + json.dumps(self.review_packet(review, c)) + '\n```'
+        current = self.send_review(review, record, raw=raw)
+        events = self.events()
+        failed = [e for e in events if e['type'] == 'review_protocol_failed']
+        self.check('TRACER-REVIEW-STRICT-JSON', current['state'] == 'paused' and len(failed) == 1
+                   and failed[0]['details']['details']['raw'] == raw
+                   and not any(e['type'] == 'review_result' for e in events),
+                   'do not strip Markdown fences or infer a verdict; retain exact raw text and pause', current)
+
+    def fix_after_review(self, reuse=False):
+        self.card['goal'] += '；还必须交付 src/details.txt，内容为 ready 加换行。'
+        _, c = self.good_submission()
+        review, record = self.start_review(c)
+        findings = [{'location': {'path': 'src/details.txt', 'line': 1},
+                     'failure_scenario': '任务要求的详情文件缺失', 'suggestion': '添加 src/details.txt，内容为 ready 加换行'}]
+        packet = self.review_packet(review, c, '需修复', findings)
+        current = self.send_review(review, record, packet)
+        self.check('TRACER-REVIEW-FIX', current['repair']['check'] == 'independent_review'
+                   and current['repair']['failure']['findings'] == findings,
+                   'valid needs-fix result is carried unchanged into repair feedback', current)
+        self.wait_review_reclaimed(review)
+        self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == 'fixture-turn-3')
+        c2 = self.commit(self.a, {'src/details.txt': 'ready\n'})
+        submitted = self.worker_submit(c2, request_id='delivery-2')
+        if not submitted['ok']:
+            raise HarnessFailure('Controlled review fix submit failed.')
+        if reuse:
+            facts = json.loads((self.control / 'process-facts.json').read_text(encoding='utf-8'))
+            facts['next_reviewer_native'] = record['native']
+            (self.control / 'process-facts.json').write_text(json.dumps(facts) + '\n', encoding='utf-8')
+        second, other = self.start_review(c2)
+        result = self.send_review(second, other, self.review_packet(second, c2))
+        return c2, second, result
+
+    def tracer_review_needs_fix(self):
+        c2, review, current = self.fix_after_review()
+        self.check('TRACER-FRESH-AFTER-FIX', current['state'] == 'verified', 'new C2 receives a new independent review', current)
+        self.wait_review_reclaimed(review)
+        self.integrate_scored(c2, rounds=2, review_failures=1)
+
+    def tracer_reused_native(self):
+        _, _, current = self.fix_after_review(reuse=True)
+        self.check('TRACER-REVIEW-REUSE', current['state'] == 'paused' and self.oid() == self.base
+                   and any(e['type'] == 'rejected' and e['details'].get('error') == 'review_native_session_reused' for e in self.events()),
+                   'new launch with old reviewer native session is refused', current)
+
+    def tracer_third_rejection(self):
+        a = self.start_worker()
+        for number in range(1, 4):
+            c = self.commit(a, {'src/value.txt': 'independently-bad-%d\n' % number})
+            submitted = self.worker_submit(c, request_id='delivery-%d' % number)
+            if not submitted['ok']:
+                raise HarnessFailure('A permitted controlled rejection round could not submit.')
+            result = self.gate('verify', '--attempt', a['attempt_id'])
+            if result.get('error') != 'oracle_failed':
+                raise HarnessFailure('Completion assertion did not reject the deliberate bad candidate.')
+            if number < 3:
+                self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == 'fixture-turn-%d' % (2 * number + 1))
+        current = self.cli('status')['task']
+        messages = [m for m in self.gate_messages() if m['data'].get('context', {}).get('kind') == 'quality-repair']
+        events = self.events()
+        counts = [e['details']['repair']['count'] for e in events if e['type'] == 'delivery_rejected']
+        pane = self.gate('pane_status', '--thread', a['thread_id'], task=False)
+        self.check('TRACER-THIRD-STOP', current['state'] == 'paused' and current['repair']['stopped']
+                   and counts == [1, 2, 3] and len(messages) == 2 and pane['state'] == 'idle' and not pane['queued']
+                   and any(e['type'] == 'issue_issue' for e in events) and self.oid() == self.base,
+                   'third distinct rejection records issue/pause with exactly two repair injections',
+                   {'current': current, 'counts': counts, 'messages': messages, 'pane': pane})
+
+    def tracer_writer_cannot_review(self):
+        a, c = self.good_submission()
+        review, _ = self.start_review(c)
+        body = self.root / 'writer-review-attempt.txt'
+        body.write_text('Controlled invalid attempt to report a review from the writer.\n', encoding='utf-8')
+        self.gate('pane_dispatch', '--thread', a['thread_id'], '--body-file', body, task=False)
+        packet = self.review_packet(review, c)
+        directory = Path(self.native['env']['A2A_REQUEST_DIR'])
+        save(directory / (packet['request_id'] + '.json'), packet)
+        self.stop_turn()
+        result = self.relay_result(packet['request_id'])
+        self.check('TRACER-WRITER-REVIEW', not result['ok'] and self.cli('status')['task']['state'] == 'reviewing'
+                   and not any(e['type'] == 'review_result' for e in self.events()),
+                   'writer file cannot deliver a review even with a valid pending review id', result)
+
+    def tracer_run_waits(self):
+        a = self.start_run(wait_seconds=30)
+        c = self.commit(a)
+        delivered = self.worker_submit(c)
+        if not delivered['ok']:
+            raise HarnessFailure('Controlled run delivery was not accepted.')
+        self.approve(c, automatic=True)
+        runs = self.wait_for(lambda: [json.loads(row['data']) for row in self.rows('runs')],
+                             lambda values: values[0]['phase'] == 'waiting_executor')
+        self.check('TRACER-RUN-WAIT', self.run_child.poll() is None and self.oid() == self.base
+                   and runs[0]['attempt_id'] == a['attempt_id'],
+                   'run remains bound and waits for explicit final executor command', runs)
+        self.integrate_scored(c, rounds=1, automatic_cleanup=True)
+        reply = self.finish_run()
+        self.check('TRACER-RUN-DONE', reply['ok'] and reply['run']['outcome'] == 'completed'
+                   and reply['run']['reclaimed'] and reply['run']['attempt_id'] == a['attempt_id'],
+                   'after executor integration, run reclaims only its original worker and completes', reply)
+
+    def tracer_missing_delivery_context(self):
+        a = self.start_worker()
+        c1 = self.commit(a, {'src/value.txt': 'bad\n'})
+        first = self.worker_submit(c1)
+        if not first['ok']:
+            raise HarnessFailure('First controlled submission failed.')
+        facts = json.loads((self.control / 'process-facts.json').read_text(encoding='utf-8'))
+        facts['omit_worker_context'] = True
+        (self.control / 'process-facts.json').write_text(json.dumps(facts) + '\n', encoding='utf-8')
+        failure = self.gate('verify', '--attempt', a['attempt_id'])
+        if failure.get('error') != 'oracle_failed':
+            raise HarnessFailure('Expected first completion failure did not occur.')
+        self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == 'fixture-turn-3')
+        c2 = self.commit(a)
+        reply = self.worker_submit(c2, request_id='delivery-2', settle=False)
+        self.check('TRACER-DELIVERY-CONTEXT', reply.get('error') == 'delivery_facts_unknown'
+                   and self.cli('status')['task']['candidate_commit'] == c1,
+                   'missing context for this delivery cannot reuse a prior turn model as score provenance', reply)
+
+    def tracer_identity_score(self):
+        a = self.start_worker()
+        c = self.commit(a)
+        bad = {'schema': 1, 'request_id': 'wrong-fence', 'command': 'submit', 'task': self.task,
+               'attempt': a['attempt_id'], 'session': a['session_id'], 'fence': a['fence'] + 1,
+               'spec_rev': a['spec_rev'], 'commit': c}
+        save(Path(self.native['env']['A2A_REQUEST_DIR']) / 'wrong-fence.json', bad)
+        reply = self.worker_submit(c)
+        if not reply['ok'] or self.relay_result('wrong-fence').get('error') != 'relay_identity_mismatch':
+            raise HarnessFailure('Controlled valid/invalid request pair did not reach its expected relay boundary.')
+        self.approve(c)
+        self.integrate_scored(c, rounds=1, identity_failures=1)
+
+
+CASES = ['tracer_success', 'tracer_score_required', 'tracer_wrong_candidate', 'tracer_malformed_review',
+         'tracer_review_needs_fix', 'tracer_reused_native', 'tracer_third_rejection', 'tracer_writer_cannot_review',
+         'tracer_run_waits', 'tracer_missing_delivery_context', 'tracer_identity_score']
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--case', choices=CASES, action='append')
+    args = parser.parse_args()
+    return run_cases(args.source, args.output, args.case or CASES, Tracer, stop_on_failure=True)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

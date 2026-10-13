@@ -1,0 +1,515 @@
+{
+  "case": "widen_ending_invalid_fields",
+  "outcome": "contract_failure",
+  "assertions": [
+    {
+      "id": "WIDE-END-FIELDS",
+      "passed": true,
+      "expected": {
+        "reject": {
+          "result": "放弃",
+          "reason": ""
+        }
+      },
+      "actual": {
+        "ok": false,
+        "error": "invalid_score",
+        "details": "Error: score.reason",
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-11T18:40:07.685Z"
+        }
+      }
+    },
+    {
+      "id": "WIDE-END-FIELDS",
+      "passed": false,
+      "expected": {
+        "reject": {
+          "result": "放弃",
+          "reason": "stop",
+          "notes": ""
+        }
+      },
+      "actual": {
+        "ok": true,
+        "task": {
+          "task_id": "fixture-20261011-1",
+          "title": "fixture-20261011-1",
+          "project_id": "fixture",
+          "repo": "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "50699452-9e31-49ba-9668-124305ce3156",
+          "card_version": 1,
+          "card": {
+            "id": "fixture-20261011-1",
+            "source": null,
+            "goal": "交付 src/value.txt 中的独立预期内容",
+            "non_goals": [
+              "不修改项目外的文件"
+            ],
+            "paths": {
+              "allow": [
+                "src/",
+                "tests/",
+                ".a2a/quality.json"
+              ],
+              "deny": [
+                "src/private/"
+              ]
+            },
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "L",
+            "executor": {
+              "cli": "Codex",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "ba9095ab9c5a35b72af619ad8bf8d2b8e92b6df8",
+          "state": "abandoned",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "fixture-20261011-1",
+            "attempt_id": "035fb4ea-ec25-420d-ae0e-963609bdad38",
+            "session_id": "0e28cd82-56f7-4e0f-9e1d-142bc0674050",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "f3bb40c0-69ee-4892-a4bf-800f5dfd3de0",
+            "runtime_mode": "workspace-write",
+            "turn_id": null,
+            "runtime_identity": {
+              "launch": "76f8ad96-1b0e-4ddb-bcc3-753753dccb5d",
+              "thread": "f3bb40c0-69ee-4892-a4bf-800f5dfd3de0",
+              "shell_pid": 31000,
+              "leader_pid": 31001,
+              "native_session": "fixture-native-76f8ad96-1b0e-4ddb-bcc3-753753dccb5d"
+            },
+            "workspace": "/private/tmp/q76-qxear7ri/c-xdgen6ly/state/worktrees/035fb4ea-ec25-420d-ae0e-963609bdad38",
+            "base_commit": "ba9095ab9c5a35b72af619ad8bf8d2b8e92b6df8",
+            "card_snapshot_id": "f5dd200a-c7b4-4472-b641-798213c2d0fb",
+            "reclaimed": false,
+            "owner": "fixture-20261011-1",
+            "state": "abandoned"
+          },
+          "candidate_commit": null,
+          "verification": null,
+          "integration_intent": null,
+          "quality": {
+            "source_commit": "ba9095ab9c5a35b72af619ad8bf8d2b8e92b6df8",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "repair": null,
+          "review": null
+        },
+        "details": {
+          "cleanup": "not_performed",
+          "thread": "f3bb40c0-69ee-4892-a4bf-800f5dfd3de0",
+          "review_thread": null
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-11T18:40:07.685Z"
+        }
+      }
+    }
+  ],
+  "failure_id": "WIDE-END-FIELDS",
+  "traceback": "Traceback (most recent call last):\n  File \"/private/tmp/q76wide-82sur3_m/candidate/workbench/tests/test_quality_chain_e2e.py\", line 654, in run_cases\n    getattr(case, name)()\n  File \"/private/tmp/q76wide-82sur3_m/candidate/workbench/tests/test_quality_widen_e2e.py\", line 154, in widen_ending_invalid_fields\n    self.check('WIDE-END-FIELDS', reply.get('error') == 'invalid_score' and self.cli('status')['task']['state'] == 'claimed',\n  File \"/private/tmp/q76wide-82sur3_m/candidate/workbench/tests/test_quality_chain_e2e.py\", line 59, in check\n    raise ContractFailure(name)\ntest_quality_chain_e2e.ContractFailure: WIDE-END-FIELDS\n",
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "96592",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "card_save",
+        "--task",
+        "fixture-20261011-1",
+        "--card",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "create",
+        "--task",
+        "fixture-20261011-1",
+        "--repo",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "dispatch",
+        "--task",
+        "fixture-20261011-1",
+        "--runtime-mode",
+        "workspace-write"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "pane_status",
+        "--thread",
+        "f3bb40c0-69ee-4892-a4bf-800f5dfd3de0"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "pane_release",
+        "--thread",
+        "f3bb40c0-69ee-4892-a4bf-800f5dfd3de0",
+        "--reason",
+        "explicit controlled-fixture release"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "pane_status",
+        "--thread",
+        "f3bb40c0-69ee-4892-a4bf-800f5dfd3de0"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "pane_status",
+        "--thread",
+        "f3bb40c0-69ee-4892-a4bf-800f5dfd3de0"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "signal",
+        "--launch",
+        "76f8ad96-1b0e-4ddb-bcc3-753753dccb5d"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0014.stderr.bin",
+      "stdin": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0014.stdin.json",
+      "exit": 0
+    },
+    {
+      "id": 15,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "pane_status",
+        "--thread",
+        "f3bb40c0-69ee-4892-a4bf-800f5dfd3de0"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "abandon",
+        "--task",
+        "fixture-20261011-1",
+        "--attempt",
+        "035fb4ea-ec25-420d-ae0e-963609bdad38",
+        "--score-file",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/invalid-ending-0.json"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0016.stderr.bin",
+      "exit": 1
+    },
+    {
+      "id": 17,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "status",
+        "--task",
+        "fixture-20261011-1"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0017.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0017.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 18,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "abandon",
+        "--task",
+        "fixture-20261011-1",
+        "--attempt",
+        "035fb4ea-ec25-420d-ae0e-963609bdad38",
+        "--score-file",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/invalid-ending-1.json"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0018.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0018.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 19,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0019.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0019.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 20,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0020.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0020.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 21,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0021.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0021.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 22,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0022.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0022.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 23,
+      "argv": [
+        "node",
+        "/private/tmp/q76wide-82sur3_m/abandon-extra-fields-ignored/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-qxear7ri/c-xdgen6ly/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-qxear7ri/c-xdgen6ly",
+      "stdout": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0023.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a/evidence/2026-10-11-batch13/T-076/card-2/outside-wide-green-01/abandon-extra-fields-ignored/widen_ending_invalid_fields/command-0023.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-qxear7ri/c-xdgen6ly"
+}

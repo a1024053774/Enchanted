@@ -1,0 +1,37 @@
+--- before/daemon_acceptance_adapter.py
++++ after/daemon_acceptance_adapter.py
+@@ -133,7 +133,7 @@
+                 if command in ('claim', 'dispatch'):
+                     a = reply['attempt']; self.quality.preparation(a['task_id'], a, '手工 claim' if command == 'claim' else '受控 dispatch')
+                 if command == 'verify' and reply.get('task', {}).get('state') == 'reviewing':
+-                    self.quality.complete_review(reply['task']['task_id'])
++                    self.quality.complete_review(reply['task']['task_id'], reply['task']['current_attempt'], reply['task']['candidate_commit'])
+         return result
+ 
+     def complete(self, handle, timeout=12):
+@@ -141,7 +141,24 @@
+         if handle['command'] == 'verify' and result.returncode == 0:
+             reply = json.loads(result.stdout)
+             if reply.get('task', {}).get('state') == 'reviewing':
+-                self.quality.complete_review(reply['task']['task_id'])
++                task = reply['task']; attempt = task['current_attempt']; review = task['review']
++                binding = {'task': task['task_id'], 'attempt': attempt['attempt_id'], 'session': attempt['session_id'],
++                           'fence': attempt['fence'], 'spec_rev': task['spec_rev'], 'card_snapshot_id': attempt['card_snapshot_id'],
++                           'candidate': task['candidate_commit'], 'verification': task['verification']['verification_id'],
++                           'review': review['review_id']}
++                previous = handle.get('quality_review_followup')
++                if previous is not None:
++                    if previous['binding'] != binding or previous['phase'] != 'completed':
++                        raise recovery.FixtureError('Review follow-up changed or remains incomplete; do not repeat it.')
++                    self.lifecycle('review_driver_receipt_replayed', binding=binding)
++                else:
++                    # complete() also runs during cleanup. Its saved reviewing
++                    # reply is historical, not a request to drive another turn.
++                    handle['quality_review_followup'] = {'binding': binding, 'phase': 'started'}
++                    self.lifecycle('review_driver_intent', binding=binding)
++                    self.quality.complete_review(task['task_id'], attempt, task['candidate_commit'])
++                    handle['quality_review_followup']['phase'] = 'completed'
++                    self.lifecycle('review_driver_completed', binding=binding)
+         return result
+ 
+     def dispatch_candidate_attempt(self, task=None):
