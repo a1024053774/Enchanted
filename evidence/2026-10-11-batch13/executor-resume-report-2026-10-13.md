@@ -20,3 +20,7 @@
 ## 接下来我会做（已批准范围内）
 1. 核对并运行 T-078-2 的 P1（假服务，不花额度）。
 2. 等你转达速度决定后，再批 T-076-2 槽 2–6 与 T-077 r2 重跑。
+
+## 补充（14:3x）
+- T-078-2 P1 材料（p1-materials-01/approval.json）绑定的实例根 `/private/tmp/t078-2-p1-0ek36x_v` 已不存在，按 revise 视为过期，需 worker 重新生成后再审批；未运行。
+- 因全局 service_tier=priority，任何发给 Codex worker 的消息都会按 Fast 运行。执行主控在用户就速度作答前暂停向三个 Codex worker 派发，也不启动真实 Codex 回合；三个 worker 保持 idle。
