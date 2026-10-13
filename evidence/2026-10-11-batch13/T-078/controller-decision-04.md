@@ -40,3 +40,7 @@ continue-05 失败原因为缺 initial-ready.json（交接文件未生成），�
 ## p1-continue-05b 读回（2026-10-13 本地 12:3x）
 
 输入已登记并真实送达 CLI 提交（dispatch seq 1，屏幕显示 ⟦主控 #1⟧ P1_NONCE…），但 CLI 回答 "Not logged in · Please run /login"，假 API 未收到请求，runner 期限到即停（traceback 已记录）。结论：IS_DEMO 跳过了引导，但交互模式下 ANTHROPIC_API_KEY 仍需一次性批准（内部状态），文档化机制未覆盖。已运行 p1-cleanup-05b：PASS，无残留。下一步：只在假服务阶段评估文档化的替代认证——settings 的 `apiKeyHelper`（返回公开假 key）或 `ANTHROPIC_AUTH_TOKEN`——以官方文档为依据，零模型；真登录阶段不变。
+
+## P1 批准（材料 06，2026-10-13 本地 14:2x）
+
+相比 05 只把假服务阶段的 ANTHROPIC_API_KEY 换成 ANTHROPIC_AUTH_TOKEN（公开夹具字符串），依据官方 llm-gateway-connect 与 env-vars 文档；其余 argv/env/hooks、IS_DEMO、theme 不变，无 helper、无未文档化状态。批准 `p1-launch-06`（先外置归档 cleanup-05b 的 8,028,610 字节 fixture.tar.gz 并字节读回，再静态检查后启动，输入 0、模型 0）。continue/cleanup 读回后另批。批准引用：`T-078 controller-decision-04 p1-06-launch`。
