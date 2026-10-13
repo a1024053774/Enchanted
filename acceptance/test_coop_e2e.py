@@ -145,7 +145,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
             "completion_conditions": [{"argv": [sys.executable, "-I", "-B", "-c",
                                                  self.oracle.read_text(encoding="utf-8"), "{worktree}"]}],
             "red_commands": [], "task_type": "后端逻辑", "repair_target": None,
-            "complexity": "M", "executor": {"cli": "Codex", "model": "fixture", "effort": "xhigh"},
+            "complexity": "M", "executor": {"cli": "Codex", "model": "gpt-6.1-sol", "effort": "xhigh"},
             "base_commit": None, "writer": None,
         }
         self.card_source = self.root / (task + ".card.json")
@@ -404,7 +404,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
 
     def test_good_candidate_uses_oracle_snapshot_and_integrates_once(self):
         self.create()
-        attempt = self.claim()
+        attempt = self.dispatch_candidate_attempt()
         commit = self.candidate(attempt, good=True)
         self.assert_novel_pagination_inputs(Path(attempt["workspace"]))
         # Replacing the caller-owned source must not replace the registered oracle.
@@ -455,7 +455,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
 
     def test_baseline_change_after_verification_rejects_integration(self):
         self.create()
-        attempt = self.claim()
+        attempt = self.dispatch_candidate_attempt()
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
         self.cli("verify", "--task", self.task)
@@ -506,9 +506,16 @@ class ManagedDeliveryCLI(unittest.TestCase):
         self.cli("verify", "--task", self.task)
         self.assertEqual(self.status()["state"], "verified")
         self.assertEqual(self.status()["candidate_commit"], candidate)
-        self.cli("integrate", "--task", self.task)
-        self.assertEqual(self.ref(), candidate)
-        self.assertNotEqual(self.ref(), later_bad)
+        # W07 / decision 02: a manual claim has no managed launch provenance.
+        # The complete managed frozen-C integration is a separate explicit case.
+        events = self.events()
+        log_before = self.reflog()
+        reply = self.cli("integrate", "--task", self.task, "--score-file", self.score_file(attempt),
+                         ok=False, error="score_provenance_required")
+        self.assertEqual(self.ref(), self.base, "W07-MANUAL-SOURCE: refuse before Git changes")
+        self.assertEqual(self.reflog(), log_before)
+        self.assertEqual(self.status()["candidate_commit"], candidate)
+        self.assert_rejection_recorded(reply["error"], events)
 
     def test_spec_revision_invalidates_candidate_and_old_identity(self):
         self.create()

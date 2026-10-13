@@ -1,11 +1,13 @@
 import { createServer } from "node:net";
-import { chmodSync, existsSync, mkdirSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 import { A2AGates, Refusal } from "./gates/core.ts";
 import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
 import { RequestRelay } from "./relay.ts";
+import { writeReviewRequest } from "./relayFiles.ts";
+import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
 import { randomUUID } from "node:crypto";
 
 export async function serve(
@@ -53,6 +55,18 @@ export async function serve(
       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
     }
     if (input.command === "daemon_status") return { ok: true, pid: process.pid, node: process.version, root, helper };
+    if (input.command === "scores_validate") {
+      try {
+        if (typeof input.file !== "string" || !isAbsolute(input.file) || !statSync(input.file).isFile()) throw new Refusal("invalid_path");
+        const rows = scoreRecords(new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(input.file)));
+        return { ok: true, schema: 1, records: rows.length, imported: false };
+      } catch (error) {
+        if (error instanceof QualityProtocolError) return { ok: false, error: "invalid_scores", details: { field: error.field } };
+        if ((error as NodeJS.ErrnoException).code === "ERR_ENCODING_INVALID_ENCODED_DATA") return { ok: false, error: "invalid_scores", details: { field: "encoding" } };
+        if (["ENOENT", "EACCES", "EISDIR", "ENOTDIR", "ELOOP"].includes((error as NodeJS.ErrnoException).code ?? "")) return { ok: false, error: "local_io_failed", details: String(error) };
+        throw error;
+      }
+    }
     if (input.command === "daemon_stop") {
       stopping = true;
       gates.beginShutdown();
@@ -79,10 +93,26 @@ export async function serve(
     if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.dispatch(panes.get(input.thread), input.body) };
     if (input.command === "signal") {
       if (!identity || identity.launch !== input.launch) throw new Refusal("signal_identity_required");
+      let completedReview: { task: string; id: string } | undefined;
       await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
-        if (!Array.isArray(input.relay_files)) throw new Refusal("relay_files_required");
+        let files = input.relay_files;
+        if (pane.record.role === "reviewer") {
+          if (!matched) return;
+          let request: Record<string, any>;
+          try { request = reviewRequest(stop.last_assistant_message); }
+          catch (error) {
+            if (!(error instanceof QualityProtocolError)) throw error;
+            const caller = await panes.caller({ ...identity, native_session: stop.session_id });
+            await gates.failReviewProtocol(pane.record.task, pane.record.review_id,
+              { error: error.field, raw: stop.last_assistant_message, stop }, caller);
+            pane.failed = "invalid_review_result";
+            return;
+          }
+          files = [writeReviewRequest(pane.record.request_dir, request)];
+        }
+        if (!Array.isArray(files)) throw new Refusal("relay_files_required");
         const receipts = [];
-        for (const file of input.relay_files) {
+        for (const file of files) {
           const receipt = await relay.receive(pane.record as any, file, matched, async (command) => {
             const caller = await panes.caller({ ...identity, native_session: stop.session_id });
             await caller.assertActive();
@@ -98,11 +128,19 @@ export async function serve(
             return await gates.call(command, caller);
           });
           if (!receipt.replayed) receipts.push(receipt);
+          if (pane.record.role === "reviewer" && !receipt.replayed) {
+            if (receipt.result.ok) completedReview = { task: pane.record.task, id: pane.record.review_id };
+            else {
+              const caller = await panes.caller({ ...identity, native_session: stop.session_id });
+              await gates.failReviewProtocol(pane.record.task, pane.record.review_id, { receipt, stop }, caller);
+              pane.failed = "review_rejected";
+            }
+          }
         }
-        if (matched && receipts.length) await panes.dispatch(pane,
+        if (matched && receipts.length && pane.record.role === "worker") await panes.dispatch(pane,
           "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2), "gate");
       });
-      return { ok: true };
+      return { ok: true, completedReview };
     }
     if (input.command === "launch_show") {
       if (identity && identity.launch !== input.launch) throw new Refusal("stale_launch");
@@ -131,7 +169,8 @@ export async function serve(
       try {
         envelope = JSON.parse(buffer.slice(0, end));
         const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
-        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: envelope.identity ? "worker" : "executor" });
+        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input,
+          source: envelope.identity ? panes.authenticate(envelope.identity).record.role : "executor" });
         result = await handle(envelope);
         if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
           ok: result.ok, error: result.error, details: result.details });
@@ -149,7 +188,10 @@ export async function serve(
           if (stopping) return;
           const pane = panes.byLaunch(envelope.input.launch);
           activeRequests++;
-          panes.drain(pane).catch((error) => {
+          (async () => {
+            await panes.drain(pane);
+            if (result.completedReview) await gates.reclaimReview(result.completedReview.task, result.completedReview.id);
+          })().catch((error) => {
             pane.failed = String(error); pane.state = "unknown";
             store.event("queue_stopped", { error: String(error) }, pane.record);
           }).finally(activityFinished);
@@ -165,6 +207,7 @@ export async function serve(
   chmodSync(socket, 0o600);
   writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
   panes.recover(daemon);
+  gates.recoverReviews();
   store.event("daemon_started", { daemon, pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
   process.send?.({ ok: true, pid: process.pid, root, helper });
 }

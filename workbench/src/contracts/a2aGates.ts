@@ -4,7 +4,7 @@
 // See ../../LICENSE.synara for the full permission notice.
 
 import { Schema } from "effect";
-import type { TaskCard } from "../gates/taskCards.ts";
+import type { TaskCard, ProjectQuality } from "../gates/taskCards.ts";
 import { ModelSelection } from "./modelSelection.ts";
 import { A2AMemberRole } from "./a2aMembership.ts";
 import {
@@ -37,6 +37,8 @@ export const A2AGateRequest = Schema.Struct({
     "submit",
     "verify",
     "integrate",
+    "review_submit",
+    "abandon",
     "reclaim",
     "status",
     "events",
@@ -66,6 +68,11 @@ export const A2AGateRequest = Schema.Struct({
   fence: Schema.optional(Schema.Number),
   spec_rev: Schema.optional(Schema.Number),
   commit: Schema.optional(Schema.String),
+  review_id: Schema.optional(Schema.String),
+  candidate_commit: Schema.optional(Schema.String),
+  verdict: Schema.optional(Schema.String),
+  findings: Schema.optional(Schema.Unknown),
+  score_file: Schema.optional(Schema.String),
   wait_seconds: Schema.optional(Schema.Number),
   runtimeMode: Schema.optional(Schema.Literals(["approval-required", "full-access", "workspace-write"])),
   issue: Schema.optional(Schema.String),
@@ -106,6 +113,44 @@ export interface A2AAttempt {
   owner?: string;
   state?: string;
   revocation_reason?: string;
+  delivery?: {
+    commit: string; turn_id: string | null; launch_id: string; cli: string;
+    model: string; effort: string; number: number; submitted_at: string;
+  };
+}
+
+export interface A2ARepair {
+  id: string;
+  candidate_commit: string;
+  verification_id: string;
+  check: string;
+  count: number;
+  stopped: boolean;
+  failure: unknown;
+}
+
+export interface A2AReview {
+  review_id: string;
+  task_id: string;
+  attempt: A2AAttempt;
+  candidate_commit: string;
+  spec_rev: number;
+  card_snapshot_id: string;
+  verification_id: string;
+  thread_id: string;
+  session_id: string;
+  workspace: string;
+  requested_at: string;
+  launch_id: string | null;
+  runtime_identity: A2ARuntimeIdentity | null;
+  state: "requested" | "running" | "passed" | "needs_fix" | "unknown" | "cancelled";
+  result?: { verdict: "可合并" | "需修复"; findings: A2AReviewFinding[]; turn_id: string; received_at: string };
+}
+
+export interface A2AReviewFinding {
+  location: { path: string; line: number };
+  failure_scenario: string;
+  suggestion: string;
 }
 
 export interface A2ACommandResult {
@@ -134,6 +179,12 @@ export interface A2AVerification {
   command_intent?: { argv: string[]; cwd: string };
   result?: A2ACommandResult;
   ended?: string;
+  quality?: {
+    snapshot: ProjectQuality;
+    red: { index: number; B: string; C: string; test_paths: string[]; base_workspace: string; candidate_workspace: string;
+      base_result: A2ACommandResult; candidate_result: A2ACommandResult; passed: boolean }[];
+    rules: { id: string; result: A2ACommandResult; passed: boolean }[];
+  };
 }
 
 export interface A2ATask {
@@ -152,6 +203,9 @@ export interface A2ATask {
   current_attempt: A2AAttempt | null;
   candidate_commit: string | null;
   verification: A2AVerification | null;
+  repair?: A2ARepair | null;
+  review?: A2AReview | null;
+  quality?: ProjectQuality;
   integration_intent: {
     G: string;
     M: string;
@@ -166,6 +220,7 @@ export interface A2ATask {
     command_intent?: { argv: string[]; cwd: string };
     result?: A2ACommandResult;
     state: "pending" | "completed";
+    score?: { score_id: string; data: Record<string, unknown> };
   } | null;
 }
 

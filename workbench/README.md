@@ -16,8 +16,12 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
 T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
-B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本卡一次独立审查 PASS。
-该结论限卡 3 的本地夹具；Electron 与重启恢复的实现和验证进度另见文末卡 4 记录，完整工作台尚未切换。
+B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成。
+该结论不覆盖整个 T-076-2。质量串受控 Tracer bullet、加宽检查与 8/9/18 回归
+已在各自冻结候选上通过；真实P-review02已证明只读沙箱拒绝写入及完整B结论通道，
+真实worker首拒后自动修复、新只读审查、主控后填分及唯一集成已在隔离real-delivery-02完成；
+本卡独立交付审查为PASS / LIMITED_GO，仅覆盖隔离受管交付；
+完整工作台尚未切换，T-076保持open，待主控关闭。
 
 受管派发提示要求 `git add <路径>` 与 `git commit …` 各自独立执行，
 检查命令另行运行，以便两个已授权的 Git 前缀规则分别匹配。
@@ -26,7 +30,8 @@ B 已通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成；本
 `acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由后台中的
 `A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
 受管任务通过 JSON 任务卡注册；交付按卡检查路径、完成条件与提交尾注，
-通过后以 CAS 推进项目工作分支。普通会话的 `attach --instructions` 仍是提示文本，
+机械通过后新开只读 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
+普通会话的 `attach --instructions` 仍是提示文本，
 不参与受管任务注册。
 旧 HTTP 转接经本次对话确认后删除；本入口只接受本地门禁命令。
 
@@ -48,6 +53,21 @@ node workbench/src/gates/cli.ts --state /绝对路径/state create --task T-080-
 返回 `oracle_failed`，这个名字只为保持已有公开错误预期，不存在旧 oracle 注册入口。
 create 不再接受 `--base`、`--oracle` 或 `--instructions`。
 
+非空 `red_commands` 每项必须显式给出 `test_paths`，例如
+`{"argv":["python3","tests/check.py"],"test_paths":["tests/check.py"]}`。
+只接受相对起点新增或修改的普通文件；拒绝路径越界、Git元数据、目录、重复项与symlink。
+门禁为每项建独立B/C目录，只把声明的候选测试文件放到B上，同命令要求B正常退出且非零、C退出0。
+无法启动、超时或未知退出不算红态；非零是否来自有效业务断言，由独立审查判断，不解析stderr关键词。
+M验收目录独立，顺序为路径、完成条件、红态、项目规则、尾注、独立审查。
+
+项目规则从注册时工作分支提交中的 `.a2a/quality.json` 冻结：
+
+```json
+{"schema":1,"rule_checks":[{"id":"lint","argv":["npm","run","lint"]}]}
+```
+
+缺文件明确记录未配置；损坏配置拒绝注册。规则在M执行，候选改写或删除配置不会改变本任务的冻结规则。
+
 版本与快照存入同一 SQLite 库，旧记录不修改；`card_show --card-version N` 读指定版本。
 注册冻结选定版本，认领时再追加包含当时工作分支起点和唯一写入者的绑定快照。
 源文件或后续卡版本不会改变已注册合同。显式采用新卡用
@@ -62,7 +82,77 @@ create 不再接受 `--base`、`--oracle` 或 `--instructions`。
 工作分支必须是已存在的 `refs/heads/*`。门禁不再读写 `refs/a2a/integration`，历史引用保留。
 Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改，再 CAS 到 M；覆盖型修改被拒，
 无冲突修改保留。未知副作用保留原 integration intent 待核对。没有 push、stash 或用户目录 reset。
-验收仍由 verify 完成，integrate 只接受与该 attempt、卡快照和候选绑定的通过记录。
+`verify` 机械完成返回的 task 状态为 `reviewing`；只有独立审查结论通过才为 `verified`。
+`integrate` 只接受与该 attempt、卡快照和候选绑定的审查通过记录及执行主控评分。
+
+## 质量串候选（T-076-2，尚未验收）
+
+首轮交付被路径、完成条件、尾注或独立审查打回后，门禁保存失败，再登记
+`⟦门禁 #序号⟧` 修复消息；空闲时由原队列注入。只有明确打回授权后，原 attempt 的
+同一原生会话才能从新回合重交新 C；没有打回时仍不能换候选。同 attempt 第三次打回
+保存 issue 并暂停，不再注入修复消息。消息与 ACK 都不计为人工介入。
+
+机械通过后，后台为 C 创建 detached 审查目录和独立 thread/session/launch，
+不续接旧原生会话。`daemon_start --launch-config` 的 `reviewers` 数组按启动次序提供
+每个已批准 reviewer 的 `codex_home`、`role_card`、`role_card_revision`、`hook_authorization`。
+每项 home 必须独立、没有已有原生会话记录；没有该实例配置就明确拒绝，不沿用 worker home。
+reviewer 用 `--sandbox read-only -a never`，不安装 Git 尾注 hook、不增加可写目录，
+会话 hook 仍只经启动 argv 传入。P-review02已用真实read-only reviewer的单次sentinel写入拒绝
+证明该实例的权限效果；完整结论经Stop/B入库，证据见本卡outside-p-review-02。
+
+按用户2026-10-13的决定，Codex会话使用gpt-6.1-sol、xhigh及普通速度，
+worker/reviewer的argv显式传`-c service_tier="default"`，派发事件与启动记录写requested tier为`default`。
+显式覆盖也用于隔离CODEX_HOME，用户全局priority设置保持不变。
+记录仅表示请求设置，不代表供应商实际执行tier；其他沙箱、hook及身份检查不变。
+
+reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选模板由门禁派发。
+匹配 Stop 的后台 hook 处理器把显式 JSON 落入该 launch 专用请求文件，再经原 B relay
+转交。程序不剥 Markdown fence、不抽取一段 JSON、不从自然语言猜结论。
+非法结论保存原文、上报并暂停；有效结论只接受“可合并”加空清单，或“需修复”加位置、
+失败场景、建议。结论绑定 C、合同和独立启动/原生身份。有效结果存库、reviewer idle 后回收，
+不另开纯 ACK 回合。审查目录的统一命名/清理由 T-077 衔接。
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-080-1 --attempt ATTEMPT --score-file /绝对路径/score.json
+```
+
+当前集成评分 JSON 为：
+
+```json
+{"result":"通过","boundary_discipline":3,"boundary_reason":"理由","engineering_taste":2,"engineering_reason":"理由","notes":""}
+```
+
+数值须为 0–3 整数，理由非空，notes 必须存在（可空）；缺项拒绝，不编造默认分数。
+评分意图绑定 integration intent，Git 成功后最终 `score_recorded` 与集成状态同事务落库；
+相同命令重放不再打分或改 Git，不同分数不能覆盖。schema=1 字段对齐 Herdr 打分格式，
+事实由任务卡、交付回合和事件提取，不写真实 `records/scores.jsonl`。
+交付缺当前回合的实际模型/强度时拒绝，不能沿用请求值或上一回合的值。
+
+`abandon --task T --attempt A --score-file FILE` 终结原attempt，不执行Git集成。
+放弃只传 `{"result":"放弃","reason":"理由"}`，不带分数/备注/评分facts；升级传与通过相同的两项评分及理由、notes，
+把result改为“升级”。命令不自动启动更强执行器。无交付时从该worker启动记录和已观察回合取元数据，未观察到模型则如实记unknown；
+没有可核对启动来源则拒收。终结与评分一起落库，重放不重计；pending integration intent须先核对，不能用放弃掩盖未知CAS。
+终结不等于窗格已回收：只在idle后用原attempt的reclaim回收；未完成的reviewer会保留上报。
+
+`scores_validate --file /绝对路径/scores.jsonl` 是只读格式校验，不导入、不双写Herdr文件。
+接受schema=1的执行主控行和指向原分的独立用户行；缺必填项、非法评分/事实字段、重复attempt、错误来源绑定和不完整尾行拒收。
+
+`run --wait-seconds N` 现在等待修复、审查和执行主控的显式集成命令，仍只绑定原 attempt。
+它不会在机械通过后自动填分/集成，也不因第一次质量打回就回收 worker。修复或审查等待
+到期时保留现场；收到最终集成后，确认原 worker idle 才回收并结束。
+
+本候选只用于ticket隔离验证。红态/规则、终结评分、双向格式校验与CAS评分恢复已有受控正反例；
+reviewer创建失败、后台重启时的未完成审查、退出未确认已有红态及暂停/上报后的绿态。
+原始错误和review身份保留，不自动重试或续接；故障属于历史审查时不覆盖新attempt或终结结果。
+经批准的夹具迁移后，8/9/18及T-075/T-076-1受控回归通过，证据见
+[legacy-green-06](../evidence/2026-10-11-batch13/T-076/card-2/outside-legacy-green-06/run.json)。
+手工claim即使有合法review与评分，缺少受管启动来源仍拒绝集成。受控结果不代替真实模型验收；
+先前不传tier的最小复验及P-review02只证明当时冻结版本；显式default最小复验与priority/只读变异体已通过。
+真实正例槽2–6及独立交付审查槽7已完成，累计真实7/8；正例见本卡outside-real-delivery-02，
+审查原文见[REPORT](../evidence/2026-10-11-batch13/T-076/card-2/outside-delivery-review-01/REPORT.md)。
+原日志归档要求及完成收据均保留。tasks/attempts/verifications一致，
+memberships/session_presets无法重建；attachment中断窗口未由本条真实正例覆盖，全库一致性仍INCOMPLETE。
+这不代表完整工作台或整张ticket已经验收。
 
 ## 安装
 
@@ -83,8 +173,9 @@ npm ls --depth=0
 
 ## 运行时边界
 
-`GateRuntime` 由 `panes.ts` 实现一个 Codex worker 窗格；没有 Claude 或普通 attach
-会话。生产 CLI 没有直接开库的运行时替代入口。
+`GateRuntime` 由 `panes.ts` 实现每个后台实例一个 Codex worker 及每次交付新开的 reviewer 窗格；
+没有 Claude 或普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
+worker名额释放及新attempt的原生记录归属由T-077联验；此卡保留S1的single_worker_slice约束。
 旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
 
 真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex

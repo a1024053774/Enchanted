@@ -8,7 +8,7 @@ export interface TaskCard {
   non_goals: string[];
   paths: { allow: string[]; deny: string[] };
   completion_conditions: { argv: string[] }[];
-  red_commands: { argv: string[] }[];
+  red_commands: { argv: string[]; test_paths: string[] }[];
   task_type: string;
   repair_target: string | null;
   complexity: "S" | "M" | "L";
@@ -38,6 +38,51 @@ function nonempty(value: unknown, field: string): asserts value is string {
 function strings(value: unknown, field: string, minimum = 0): asserts value is string[] {
   check(Array.isArray(value) && value.length >= minimum, field, "Array has too few entries.");
   value.forEach((item, i) => nonempty(item, `${field}[${i}]`));
+}
+
+export function commandArgv(value: unknown, field: string): string[] {
+  check(Array.isArray(value) && value.length > 0 &&
+    value.every((arg) => typeof arg === "string" && !arg.includes("\0")), field, "Command argv required.");
+  const argv = [...value] as string[];
+  nonempty(argv[0], field);
+  check(argv.every((arg) => !arg.includes("{worktree}") || arg === "{worktree}"), field,
+    "The worktree token must occupy one complete argument.");
+  const executable = argv[0];
+  const paths = isAbsolute(executable) ? [executable] : executable.includes("/") ? [] :
+    (process.env.PATH ?? "").split(":").filter(isAbsolute).map((dir) => join(dir, executable));
+  let resolved: string | undefined;
+  for (const path of paths) {
+    try {
+      accessSync(path, constants.X_OK);
+      if (statSync(path).isFile()) { resolved = realpathSync(path); break; }
+    } catch (error) {
+      if (!["ENOENT", "EACCES", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
+    }
+  }
+  check(resolved, field, "Executable is unavailable.");
+  argv[0] = resolved;
+  return argv;
+}
+
+export interface ProjectQuality {
+  source_commit: string;
+  path: ".a2a/quality.json";
+  raw: string | null;
+  rule_checks: { id: string; argv: string[] }[];
+}
+
+export function projectRules(value: unknown): ProjectQuality["rule_checks"] {
+  object(value, ["schema", "rule_checks"], "project_quality");
+  const config = value as { schema: unknown; rule_checks: unknown[] };
+  check(config.schema === 1 && Array.isArray(config.rule_checks), "project_quality", "Schema 1 and rule_checks array required.");
+  const ids = new Set<string>();
+  return config.rule_checks.map((input: any, index) => {
+    const field = `project_quality.rule_checks[${index}]`;
+    object(input, ["id", "argv"], field);
+    nonempty(input.id, field + ".id");
+    check(!ids.has(input.id), field, "Rule IDs must be unique."); ids.add(input.id);
+    return { id: input.id, argv: commandArgv(input.argv, field + ".argv") };
+  });
 }
 
 export function ticketSource(path: string) {
@@ -99,26 +144,19 @@ export function validateTaskCard(input: unknown, id: string): TaskCard {
     check(Array.isArray(card[key]) && (key === "red_commands" || card[key].length > 0), key, "Command array required.");
     for (const [i, command] of card[key].entries()) {
       const field = `${key}[${i}]`;
-      object(command, ["argv"], field);
-      check(Array.isArray(command.argv) && command.argv.length > 0 &&
-        command.argv.every((arg) => typeof arg === "string" && !arg.includes("\0")), field, "Command argv required.");
-      nonempty(command.argv[0], field);
-      check(command.argv.every((arg) => !arg.includes("{worktree}") || arg === "{worktree}"), field,
-        "The worktree token must occupy one complete argument.");
-      const executable = command.argv[0];
-      const paths = isAbsolute(executable) ? [executable] :
-        executable.includes("/") ? [] : (process.env.PATH ?? "").split(":").filter(isAbsolute).map((dir) => join(dir, executable));
-      let resolved: string | undefined;
-      for (const path of paths) {
-        try {
-          accessSync(path, constants.X_OK);
-          if (statSync(path).isFile()) { resolved = realpathSync(path); break; }
-        } catch (error) {
-          if (!["ENOENT", "EACCES", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
+      object(command, key === "red_commands" ? ["argv", "test_paths"] : ["argv"], field);
+      command.argv = commandArgv(command.argv, field);
+      if (key === "red_commands") {
+        const paths = (command as TaskCard["red_commands"][number]).test_paths;
+        strings(paths, field + ".test_paths", 1);
+        check(new Set(paths).size === paths.length, field, "Test paths must be unique.");
+        for (const path of paths) {
+          const parts = path.split("/");
+          check(!isAbsolute(path) && !path.includes("\\") && !/[\x00-\x1f*?\[\]:]/.test(path) &&
+            parts.every((part) => part && part !== "." && part !== ".." && part.toLowerCase() !== ".git"),
+            field + ".test_paths", "Exact repository file paths are required.");
         }
       }
-      check(resolved, field, "Executable is unavailable.");
-      command.argv[0] = resolved;
     }
   }
   check(["后端逻辑", "前端界面", "缺陷修复", "测试", "重构", "构建与基础设施", "文档", "调研"].includes(card.task_type),

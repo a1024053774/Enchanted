@@ -4,8 +4,8 @@
 // See ../../LICENSE.synara for the full permission notice.
 
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
+import { chmodSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import {
@@ -21,6 +21,8 @@ import {
   type A2AGateResult,
   type A2AVerification,
   type A2ACommandResult,
+  type A2AReview,
+  type A2ARepair,
   type A2ATask,
   type A2AAttachment,
   type A2ATaskMembership,
@@ -33,8 +35,9 @@ import {
 } from "../contracts/index.ts";
 import { execFile as execProcessFile, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, type TaskCard } from "./taskCards.ts";
+import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, projectRules, type ProjectQuality, type TaskCard } from "./taskCards.ts";
 import { Schema } from "effect";
+import { executorScore, reviewVerdict, QualityProtocolError } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
 import {
   ensureRolePermissionTables,
@@ -95,6 +98,9 @@ export interface GateRuntime {
   }>;
   stopThread(thread: string): Promise<void>;
   archiveThread(thread: string): Promise<void>;
+  qualityFeedback?(attempt: A2AAttempt, repair: A2ARepair): Promise<void>;
+  createReview?(task: A2ATask, review: A2AReview, prompt: string): Promise<void>;
+  sessionFacts?(thread: string): Promise<{ launch: Record<string, any>; model: string; effort: string }>;
   createAttachedThread?(task: A2ATask, attachment: A2AAttachment, prompt: string): Promise<void>;
   sendUserAnswer?(thread: string, messageId: string, message: string): Promise<void>;
   wakeThread?(thread: string, entry: A2AInboxEntry): Promise<{ message: string }>;
@@ -106,6 +112,7 @@ export interface SubmitCaller {
   assertActive(): Promise<void>;
   address?: string;
 }
+type ScoreProvenance = Pick<NonNullable<A2AAttempt["delivery"]>, "launch_id" | "cli" | "model" | "effort" | "number">;
 
 /** The sole mutation owner. Lifecycle signals alone do not constitute delivery. */
 export class A2AGates {
@@ -1141,7 +1148,7 @@ export class A2AGates {
   private invalidate(task: A2ATask, reason: string) {
     this.interruptVerification(task);
     const previous = task.current_attempt;
-    if (previous) {
+    if (previous && !["abandoned", "upgraded"].includes(previous.state ?? "")) {
       previous.state = "revoked";
       previous.revocation_reason = reason;
     }
@@ -1153,7 +1160,7 @@ export class A2AGates {
     this.save(
       task,
       "revoked",
-      { reason, attempt: previous?.attempt_id, spec_rev: task.spec_rev },
+      { reason, attempt: previous?.attempt_id, spec_rev: task.spec_rev, previous_attempt: previous },
       previous ?? undefined,
     );
   }
@@ -1255,6 +1262,94 @@ export class A2AGates {
       G: v.G, C: v.C, M: v.M, paths: [...paths], forbidden, rules: card.paths, passed: forbidden.length === 0 });
     requireGate(forbidden.length === 0, "path_boundary_failed", { forbidden });
   }
+  private async projectQuality(taskId: string, repo: string, commit: string): Promise<ProjectQuality> {
+    const path = ".a2a/quality.json" as const;
+    const tree = await this.git(taskId, repo, ["ls-tree", "-z", commit, "--", path]);
+    if (!tree) return { source_commit: commit, path, raw: null, rule_checks: [] };
+    requireGate(/^(100644|100755) blob [a-f0-9]+\t\.a2a\/quality\.json\0$/.test(tree), "invalid_project_quality_file");
+    const result = await this.execute(taskId, ["git", "-C", repo, "show", `${commit}:${path}`], repo);
+    requireGate(result.returncode === 0 && result.stdout !== null, "git_failed", result);
+    try { return { source_commit: commit, path, raw: result.stdout, rule_checks: projectRules(JSON.parse(result.stdout)) }; }
+    catch (error) {
+      if (error instanceof TaskCardError || error instanceof SyntaxError) throw new Refusal("invalid_project_quality", String(error));
+      throw error;
+    }
+  }
+
+  private async qualityCommand(task: A2ATask, v: A2AVerification, check: string, phase: string, argv: string[], workspace: string) {
+    const command = { argv: argv.map((arg) => arg === "{worktree}" ? workspace : arg), cwd: workspace };
+    v.command_intent = command; delete v.result;
+    this.save(task, "quality_command_intent", { task, verification_id: v.verification_id, check, phase, command });
+    const result = await this.execute(task.task_id, command.argv, workspace);
+    v.result = result;
+    return result;
+  }
+
+  private async checkQuality(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
+    const card = this.boundCard(attempt);
+    requireGate(v.quality && task.quality, "project_quality_snapshot_required");
+    for (const [index, command] of card.red_commands.entries()) {
+      const base = join(this.root, "verification", `${v.verification_id}-red-base-${index + 1}`);
+      const candidate = join(this.root, "verification", `${v.verification_id}-red-candidate-${index + 1}`);
+      await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", base, attempt.base_commit]);
+      await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", candidate, v.C]);
+      for (const path of command.test_paths) {
+        const tree = await this.git(task.task_id, task.repo, ["ls-tree", "-z", v.C, "--", path]);
+        requireGate(/^(100644|100755) blob [a-f0-9]+\t/.test(tree) && tree.endsWith("\t" + path + "\0"), "red_test_file_invalid", { path, tree });
+        const changed = await this.execute(task.task_id, ["git", "-C", task.repo, "diff", "--name-only", "--no-renames", "-z", attempt.base_commit, v.C, "--", path], task.repo);
+        requireGate(changed.returncode === 0, "git_failed", changed);
+        requireGate(changed.stdout === path + "\0", "red_test_not_changed", { path });
+        // Only Git-tracked regular files in the explicit manifest are copied.
+        // Reject a base-side symlink component instead of following it outside B.
+        let target = base;
+        const parts = path.split("/");
+        for (const [partIndex, part] of parts.entries()) {
+          target = join(target, part);
+          try {
+            const stat = lstatSync(target);
+            requireGate(!stat.isSymbolicLink(), "red_test_symlink", { path, target });
+            requireGate(partIndex < parts.length - 1 ? stat.isDirectory() : stat.isFile() && stat.nlink === 1,
+              "red_test_file_invalid", { path, target });
+          }
+          catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+        }
+        mkdirSync(dirname(target), { recursive: true });
+        // The isolated C checkout is never executed before this read. Git's
+        // file mode above excludes symlinks and submodules on the source side.
+        writeFileSync(target, readFileSync(join(candidate, path)), { mode: tree.startsWith("100755") ? 0o755 : 0o644 });
+        chmodSync(target, tree.startsWith("100755") ? 0o755 : 0o644);
+      }
+      const baseResult = await this.qualityCommand(task, v, "red_state", "base-with-tests", command.argv, base);
+      const candidateResult = await this.qualityCommand(task, v, "red_state", "candidate", command.argv, candidate);
+      const passed = baseResult.returncode !== null && baseResult.returncode > 0 && candidateResult.returncode === 0;
+      const record = { index: index + 1, B: attempt.base_commit, C: v.C, test_paths: command.test_paths,
+        base_workspace: base, candidate_workspace: candidate, base_result: baseResult, candidate_result: candidateResult, passed };
+      v.quality.red.push(record);
+      this.save(task, "red_check", { task, verification_id: v.verification_id, ...record });
+      requireGate(passed, "red_state_failed", record);
+    }
+    if (!card.red_commands.length) this.event(task.task_id, "red_not_applicable", { verification_id: v.verification_id });
+    for (const rule of task.quality.rule_checks) {
+      const result = await this.qualityCommand(task, v, "rule_checks", rule.id, rule.argv, v.workspace);
+      const record = { id: rule.id, result, passed: result.returncode === 0 };
+      v.quality.rules.push(record);
+      this.save(task, "rule_check", { task, verification_id: v.verification_id, source_commit: task.quality.source_commit, ...record });
+      requireGate(record.passed, "rule_check_failed", record);
+    }
+    if (!task.quality.rule_checks.length) this.event(task.task_id, "rules_not_applicable", {
+      verification_id: v.verification_id, source_commit: task.quality.source_commit, configured: task.quality.raw !== null });
+  }
+
+  private checkQualityEvidence(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
+    const card = this.boundCard(attempt), quality = v.quality;
+    requireGate(task.quality && quality && JSON.stringify(quality.snapshot) === JSON.stringify(task.quality) &&
+      quality.red.length === card.red_commands.length && quality.rules.length === task.quality.rule_checks.length &&
+      quality.red.every((record, index) => record.index === index + 1 && record.B === attempt.base_commit && record.C === v.C &&
+        JSON.stringify(record.test_paths) === JSON.stringify(card.red_commands[index]!.test_paths) &&
+        record.base_result.returncode !== null && record.base_result.returncode > 0 && record.candidate_result.returncode === 0 && record.passed) &&
+      quality.rules.every((record, index) => record.id === task.quality!.rule_checks[index]!.id && record.result.returncode === 0 && record.passed),
+      "quality_reverification_required");
+  }
   private async checkTrailers(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
     const commits = (await this.git(task.task_id, task.repo, ["rev-list", "--reverse", `${attempt.base_commit}..${v.C}`])).split("\n").filter(Boolean);
     const required = ["task", "attempt", "session", "role", "tool", "model", "effort", "native-session", "launch"];
@@ -1302,6 +1397,231 @@ export class A2AGates {
       "stale_attempt",
     );
     return attempt;
+  }
+
+  private qualityIssue(task: A2ATask, attempt: A2AAttempt, title: string, body: unknown, thread = attempt.thread_id) {
+    const issueId = randomUUID();
+    const number = Number(this.db.prepare("SELECT count(*) AS n FROM issue_records WHERE thread=? AND json_extract(data,'$.kind')='issue'")
+      .get(thread)!.n) + 1;
+    this.appendIssue({ id: issueId, schema: 1, kind: "issue", from: "system", to: "executor", reply_to: null,
+      refs: [`task:${task.task_id}`, `attempt:${attempt.attempt_id}`], created_at: new Date(this.now()).toISOString(),
+      body: JSON.stringify(body), task_id: task.task_id, attempt_id: attempt.attempt_id, thread_id: thread,
+      turn_id: null, number, title, blocking: true, issue_id: issueId });
+  }
+
+  private async rejectDelivery(task: A2ATask, attempt: A2AAttempt, check: string, failure: unknown) {
+    requireGate(task.verification && task.candidate_commit, "verification_required");
+    if (task.repair?.verification_id === task.verification.verification_id) return;
+    const count = Number(this.db.prepare("SELECT count(*) AS n FROM events WHERE task=? AND attempt=? AND type='delivery_rejected'")
+      .get(task.task_id, attempt.attempt_id)!.n) + 1;
+    const repair: A2ARepair = { id: randomUUID(), candidate_commit: task.candidate_commit,
+      verification_id: task.verification.verification_id, check, count, stopped: count >= 3, failure };
+    task.repair = repair;
+    task.state = repair.stopped ? "paused" : "submitted";
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.save(task, "delivery_rejected", { task, repair });
+      if (repair.stopped) this.qualityIssue(task, attempt, "同一 attempt 连续三次打回，停止自动回写", repair);
+      this.db.exec("COMMIT");
+    } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+    if (!attempt.thread_id) {
+      this.qualityIssue(task, attempt, "打回没有可回写的 worker 会话", repair);
+      return;
+    }
+    requireGate(this.runtime?.qualityFeedback, "quality_feedback_runtime_required");
+    this.current(this.load(task.task_id), attempt.attempt_id);
+    const live = await this.runtime.readThread(attempt.thread_id);
+    this.checkThread(attempt, live);
+    requireGate(!live.error && !live.blocked && !live.stopped && !live.archived, "feedback_identity_unknown", live);
+    await this.runtime.qualityFeedback(attempt, repair);
+  }
+
+  private reviewAttempt(review: A2AReview): A2AAttempt {
+    return { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
+      workspace: review.workspace, runtime_identity: review.runtime_identity, turn_id: null };
+  }
+
+  private requireReviewed(task: A2ATask, attempt: A2AAttempt) {
+    const review = task.review;
+    requireGate(review && review.state === "passed" && review.result?.verdict === "可合并" &&
+      review.task_id === task.task_id && review.attempt.attempt_id === attempt.attempt_id &&
+      review.attempt.session_id === attempt.session_id && review.attempt.fence === attempt.fence &&
+      review.spec_rev === task.spec_rev && review.card_snapshot_id === attempt.card_snapshot_id &&
+      review.candidate_commit === task.candidate_commit, "review_required");
+    const row = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='review_result' AND json_extract(details,'$.review.review_id')=? ORDER BY seq DESC LIMIT 1")
+      .get(task.task_id, attempt.attempt_id, review.review_id);
+    requireGate(row && JSON.stringify(JSON.parse(String(row.details)).review) === JSON.stringify(review), "stale_review");
+    return review;
+  }
+
+  private reviewLifecycleFailed(task: A2ATask, review: A2AReview, phase: string, details: unknown) {
+    // A historical review must never pause or replace a newer attempt/result.
+    const current = task.current_attempt?.attempt_id === review.attempt.attempt_id &&
+      task.review?.review_id === review.review_id && !["accepted", "abandoned", "upgraded"].includes(task.state);
+    if (current) { task.review!.state = "unknown"; task.state = "paused"; }
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.save(task, "review_lifecycle_failed", { task, review_id: review.review_id, phase, details, current });
+      this.qualityIssue(task, review.attempt, "审查运行状态无法确认，停止自动推进", {
+        review_id: review.review_id, phase, details, current }, review.thread_id);
+      this.db.exec("COMMIT");
+    } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+  }
+
+  recoverReviews() {
+    // Called once at daemon startup. The new host cannot adopt old reviewers.
+    for (const row of this.db.prepare("SELECT id FROM tasks").all()) {
+      const taskId = String(row.id), lock = this.operationLock(taskId);
+      try {
+        const task = this.load(taskId), review = task.review;
+        if (!review || !["requested", "running", "passed", "needs_fix"].includes(review.state)) continue;
+        const ended = this.db.prepare("SELECT 1 FROM events WHERE task=? AND type='review_reclaimed' AND json_extract(details,'$.review_id')=?")
+          .get(taskId, review.review_id);
+        if (!ended) this.reviewLifecycleFailed(task, review, "daemon_restart", { reason: "reviewer_not_owned_by_this_daemon" });
+      } finally { lock.close(); }
+    }
+  }
+
+  private async requestReview(task: A2ATask, attempt: A2AAttempt) {
+    const v = task.verification!;
+    if (task.review?.state === "passed" && task.review.candidate_commit === v.C) {
+      const review = this.requireReviewed(task, attempt);
+      task.state = "verified";
+      this.save(task, "review_reused", { task, review, verification_id: v.verification_id, G: v.G, M: v.M });
+      return;
+    }
+    requireGate(this.runtime?.createReview, "review_runtime_required");
+    const previous = task.review?.result?.findings ?? [];
+    const reviewId = randomUUID();
+    const review: A2AReview = { review_id: reviewId, task_id: task.task_id, attempt: { ...attempt },
+      candidate_commit: v.C, spec_rev: task.spec_rev, card_snapshot_id: attempt.card_snapshot_id,
+      verification_id: v.verification_id, thread_id: randomUUID(), session_id: randomUUID(),
+      workspace: join(this.root, "verification", "review-" + reviewId), requested_at: new Date(this.now()).toISOString(),
+      launch_id: null, runtime_identity: null, state: "requested" };
+    task.review = review; task.state = "reviewing";
+    this.save(task, "review_requested", { task, review });
+    try {
+      await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", review.workspace, v.C]);
+      const diff = await this.git(task.task_id, task.repo, ["diff", "--no-ext-diff", "--no-renames", attempt.base_commit, v.C, "--"]);
+      const shape = { schema: 1, request_id: "review-" + reviewId, command: "review_submit", task: task.task_id,
+        attempt: attempt.attempt_id, session: review.session_id, fence: attempt.fence, spec_rev: task.spec_rev,
+        review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [] };
+      const prompt = `只读审查这一次交付，不实现或提交代码。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。以下身份字段不可改；verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。不能调用 worker 的 submit、不能集成、不能写请求文件。\n${JSON.stringify(shape, null, 2)}`;
+      await this.runtime.createReview(task, review, prompt);
+      const live = await this.runtime.readThread(review.thread_id);
+      review.runtime_identity = { ...live.runtime_identity };
+      review.launch_id = live.runtime_identity.launch;
+      this.checkThread(this.reviewAttempt(review), live);
+      review.state = "running";
+      this.member(task, review.thread_id, "reviewer");
+      this.save(task, "review_started", { task, review });
+    } catch (error) {
+      this.reviewLifecycleFailed(this.load(task.task_id), review, "create", {
+        error: error instanceof Refusal ? error.code : String(error),
+        details: error instanceof Refusal ? error.details : undefined });
+      throw error;
+    }
+  }
+
+  async failReviewProtocol(taskId: string, reviewId: string, details: unknown, caller: SubmitCaller) {
+    const lock = this.operationLock(taskId);
+    try {
+      const task = this.load(taskId), attempt = this.current(task), review = task.review;
+      requireGate(review?.review_id === reviewId && review.thread_id === caller.thread &&
+        (review.state === "running" || review.state === "cancelled"), "stale_review");
+      await caller.assertActive();
+      if (review.state === "cancelled") {
+        this.event(taskId, "review_after_termination", { review_id: reviewId, details }, attempt.attempt_id);
+        return;
+      }
+      review.state = "unknown"; task.state = "paused";
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        this.save(task, "review_protocol_failed", { task, review, details });
+        this.qualityIssue(task, attempt, "审查结论协议无效，已停止", details, review.thread_id);
+        this.db.exec("COMMIT");
+      } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+    } finally { lock.close(); }
+  }
+
+  async reclaimReview(taskId: string, reviewId: string) {
+    const lock = this.operationLock(taskId);
+    try {
+      const row = this.db.prepare("SELECT details FROM events WHERE task=? AND type='review_result' AND json_extract(details,'$.review.review_id')=? ORDER BY seq DESC LIMIT 1")
+        .get(taskId, reviewId);
+      requireGate(row && this.runtime, "review_result_required");
+      const review = JSON.parse(String(row.details)).review as A2AReview;
+      const done = this.db.prepare("SELECT 1 FROM events WHERE task=? AND type='review_reclaimed' AND json_extract(details,'$.review_id')=?")
+        .get(taskId, reviewId);
+      if (done) return;
+      try {
+        const live = await this.runtime.readThread(review.thread_id);
+        this.checkThread(this.reviewAttempt(review), live);
+        requireGate(!live.running && !live.blocked && !live.error, "reviewer_not_idle");
+        this.event(taskId, "review_reclaim_intent", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
+        await this.runtime.stopThread(review.thread_id);
+        await this.runtime.archiveThread(review.thread_id);
+        const after = await this.runtime.readThread(review.thread_id);
+        this.checkThread(this.reviewAttempt(review), after);
+        requireGate(after.stopped && after.archived, "review_reclaim_unconfirmed");
+        this.member(this.load(taskId), review.thread_id, "reviewer", new Date(this.now()).toISOString());
+        this.event(taskId, "review_reclaimed", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
+      } catch (error) {
+        this.reviewLifecycleFailed(this.load(taskId), review, "reclaim", {
+          error: error instanceof Refusal ? error.code : String(error),
+          details: error instanceof Refusal ? error.details : undefined });
+        throw error;
+      }
+    } finally { lock.close(); }
+  }
+
+  private scoreData(path: string | undefined, command: "integrate" | "abandon" = "integrate") {
+    requireGate(path, "score_required");
+    let value: unknown;
+    try { value = JSON.parse(readFileSync(inputPath(path), "utf8")); }
+    catch (error) { if (error instanceof SyntaxError) throw new Refusal("invalid_score", "Invalid JSON."); throw error; }
+    return executorScore(value, command);
+  }
+
+  private finalScore(task: A2ATask, attempt: A2AAttempt, intent: { score?: { score_id: string; data: Record<string, unknown> } },
+    provenance: ScoreProvenance | undefined = attempt.delivery) {
+    requireGate(intent.score && provenance, "score_provenance_required");
+    const previous = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='score_recorded'")
+      .all(task.task_id, attempt.attempt_id);
+    requireGate(previous.length === 0, "attempt_already_scored");
+    const claimed = this.db.prepare("SELECT time FROM events WHERE task=? AND attempt=? AND type='claimed' ORDER BY seq LIMIT 1")
+      .get(task.task_id, attempt.attempt_id);
+    requireGate(claimed, "score_provenance_required");
+    const delivery = provenance, now = this.now();
+    const rejections: Record<string, number> = { identity_version: 0, path_boundary: 0, completion: 0,
+      red_state: 0, rule_checks: 0, independent_review: 0, commit_trailers: 0 };
+    const identityErrors = new Set(["stale_attempt", "stale_session", "stale_fence", "stale_spec", "stale_thread", "stale_turn",
+      "identity_conflict", "invalid_commit", "not_descendant", "workspace_head_mismatch", "dirty_worktree", "candidate_conflict"]);
+    let identityRejections = 0;
+    for (const row of this.db.prepare("SELECT details FROM events WHERE task=? AND type='rejected'").all(task.task_id)) {
+      const entry = JSON.parse(String(row.details));
+      if (entry.input?.command === "submit" && entry.input.attempt === attempt.attempt_id && identityErrors.has(entry.error)) identityRejections++;
+    }
+    // Relay-only schema/identity refusals never reach the gate. Count each
+    // durable request once, excluding gate refusals already counted above.
+    for (const row of this.db.prepare("SELECT q.input,r.data FROM relay_requests q JOIN relay_results r ON r.key=q.key WHERE q.launch=? AND q.attempt=?")
+      .all(delivery.launch_id, attempt.attempt_id)) {
+      const input = JSON.parse(String(row.input)), result = JSON.parse(String(row.data));
+      if (input.command === "submit" && ["relay_identity_mismatch", "invalid_relay_request"].includes(result.error)) identityRejections++;
+    }
+    rejections.identity_version = identityRejections;
+    for (const row of this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='delivery_rejected'").all(task.task_id, attempt.attempt_id)) {
+      const key = JSON.parse(String(row.details)).repair.check;
+      requireGate(Object.hasOwn(rejections, key), "score_check_unknown", key); rejections[key]!++;
+    }
+    const score = { schema: 1, score_id: intent.score.score_id, created_at: new Date(now).toISOString(), source: "executor",
+      launch_id: delivery.launch_id, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
+      cli: delivery.cli, model: delivery.model, effort: delivery.effort, data: intent.score.data,
+      ...(intent.score.data.result === "放弃" ? {} : { facts: { task_type: task.card.task_type, complexity: task.card.complexity, delivery_rounds: delivery.number,
+        elapsed_seconds: Math.max(0, Math.floor((now - Date.parse(String(claimed.time))) / 1000)),
+        human_interventions: Number(this.db.prepare("SELECT count(*) AS n FROM events WHERE task=? AND attempt=? AND type='human_intervention'")
+          .get(task.task_id, attempt.attempt_id)!.n), rejections } }) };
+    this.event(task.task_id, "score_recorded", score, attempt.attempt_id);
   }
 
   private saveRun(run: A2ARun, type: string) {
@@ -1457,7 +1777,9 @@ export class A2AGates {
       let previous = "";
       for (;;) {
         requireGate(!this.shuttingDown, "daemon_stopping");
-        this.current(this.load(args.task), run.attempt_id!);
+        const initial = this.load(args.task);
+        this.current(initial, run.attempt_id!);
+        if (["accepted", "abandoned", "upgraded"].includes(initial.state)) break;
         requireGate(performance.now() < deadline, "run_deadline");
         const live = await this.observeRun(run);
         const task = this.load(args.task);
@@ -1477,20 +1799,28 @@ export class A2AGates {
           previous = change;
         }
         requireGate(performance.now() < deadline, "run_deadline");
-        requireGate(["claimed", "submitted"].includes(task.state), "run_state_changed", task.state);
-        if (task.state === "submitted") break;
+        requireGate(!task.repair?.stopped, "quality_rejection_limit", task.repair);
+        requireGate(["claimed", "submitted", "reviewing", "verified", "integrating", "accepted", "abandoned", "upgraded"].includes(task.state), "run_state_changed", task.state);
+        if (["accepted", "abandoned", "upgraded"].includes(task.state)) break;
+        if (task.state === "submitted" && !task.repair) {
+          run.phase = "verifying";
+          this.saveRun(run, "run_phase");
+          const verified = await this.request({ command: "verify", task: args.task, attempt: run.attempt_id! });
+          const after = this.load(args.task);
+          this.current(after, run.attempt_id!);
+          if (!verified.ok) {
+            requireGate(!after.repair?.stopped, "quality_rejection_limit", after.repair);
+            requireGate(after.repair && (after.repair.failure as { error?: string })?.error === verified.error,
+              verified.error ?? "gate_failure", verified.details);
+          }
+          continue;
+        }
+        const phase = task.repair ? "waiting_repair" : task.state === "reviewing" ? "reviewing" :
+          task.state === "integrating" ? "integrating" : task.state === "verified" ? "waiting_executor" : "waiting_submit";
+        if (run.phase !== phase) { run.phase = phase; this.saveRun(run, "run_phase"); }
         await new Promise((resolve) =>
           setTimeout(resolve, Math.min(100, Math.max(0, deadline - performance.now()))),
         );
-      }
-      for (const command of ["verify", "integrate"] as const) {
-        // Finish an already-started gate under its lock, then stop before the
-        // next gate. Shutdown must not advance a waiting run to acceptance.
-        requireGate(!this.shuttingDown, "daemon_stopping");
-        run.phase = command === "verify" ? "verifying" : "integrating";
-        this.saveRun(run, "run_phase");
-        const result = await this.request({ command, task: args.task, attempt: run.attempt_id! });
-        requireGate(result.ok, result.error ?? "gate_failure", result.details);
       }
       run.phase = "reclaiming";
       this.saveRun(run, "run_phase");
@@ -1504,7 +1834,8 @@ export class A2AGates {
       requireGate(cleanup.ok, "run_reclaim_failed", cleanup);
       run.reclaimed = true;
       requireGate(!this.shuttingDown, "daemon_stopping");
-      run.outcome = "completed";
+      const finalState = this.load(args.task).state;
+      run.outcome = finalState === "accepted" ? "completed" : finalState;
       run.ended = new Date().toISOString();
       this.saveRun(run, "run_finished");
       return { ok: true, task: this.load(args.task), run };
@@ -1519,7 +1850,8 @@ export class A2AGates {
       const details = error instanceof Refusal ? error.details : String(error);
       if (
         run.attempt_id &&
-        ["run_deadline", "run_superseded", "oracle_failed", "merge_failed"].includes(code)
+        (code === "run_superseded" || code === "run_deadline" &&
+          !this.load(args.task).repair && !this.load(args.task).review)
       ) {
         try {
           await this.waitForIdle(run);
@@ -1977,6 +2309,8 @@ export class A2AGates {
       }
       if (caller) {
         if (caller.address === "executor") await caller.assertActive();
+        else if (args.command === "review_submit")
+          requireGate(caller.address === "reviewer:" + caller.thread, "reviewer_required");
         else if (args.command !== "disposition")
           requireGate(
             args.command === "submit" && this.taskForThread(caller.thread)?.task_id === taskId,
@@ -2059,6 +2393,7 @@ export class A2AGates {
         );
         const base = sha(await this.git(taskId, repo, ["rev-parse", "--verify", branch]));
         await this.commitExists(taskId, repo, base);
+        const quality = await this.projectQuality(taskId, repo, base);
         const other = this.db.prepare("SELECT data FROM tasks WHERE json_extract(data,'$.repo')=?").all(repo);
         requireGate(other.every((row) => JSON.parse(String(row.data)).integration_ref === branch), "project_branch_conflict");
         const task: A2ATask = {
@@ -2078,6 +2413,7 @@ export class A2AGates {
           candidate_commit: null,
           verification: null,
           integration_intent: null,
+          quality,
         };
         requireGate(task.title!.length <= 240, "invalid_title");
         const membership = this.membership.list().find((item) => item.taskId === taskId);
@@ -2244,12 +2580,15 @@ export class A2AGates {
         attempt.card_snapshot_id = this.cardSnapshot(taskId, task.card_version, boundCard, attempt.attempt_id);
         attempt.workspace = join(this.root, "worktrees", attempt.attempt_id);
         task.current_attempt = attempt;
+        task.repair = null;
+        task.review = null;
         task.fence = attempt.fence;
         task.state = "preparing";
         this.save(task, args.command === "dispatch" ? "dispatch_intent" : "claim_intent", {
           attempt,
+          task,
           ...(args.command === "dispatch"
-            ? { model: task.card.executor.model, reasoning_effort: task.card.executor.effort, requested_service_tier: "fast" }
+            ? { model: task.card.executor.model, reasoning_effort: task.card.executor.effort, requested_service_tier: "default" }
             : {}),
         });
         if (run) {
@@ -2332,6 +2671,87 @@ export class A2AGates {
           "not_verified",
         );
       const attempt = historicalAttempt ?? this.current(task, args.attempt);
+      if (args.command === "abandon") {
+        requireGate(args.attempt === attempt.attempt_id, "stale_attempt");
+        requireGate(!caller || caller.address === "executor", "executor_required");
+        const data = this.scoreData(args.score_file, "abandon");
+        requireGate(task.state !== "accepted", "already_accepted");
+        requireGate(!task.integration_intent, "needs_reconciliation");
+        if (["abandoned", "upgraded"].includes(task.state)) {
+          const row = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='score_recorded'")
+            .get(taskId, attempt.attempt_id);
+          requireGate(row && JSON.stringify(JSON.parse(String(row.details)).data) === JSON.stringify(data), "score_replay_mismatch");
+          return { ok: true, task, replayed: true };
+        }
+        let provenance: ScoreProvenance | undefined = attempt.delivery;
+        if (!provenance) {
+          requireGate(this.runtime?.sessionFacts && attempt.thread_id && attempt.runtime_identity, "score_provenance_required");
+          const facts = await this.runtime.sessionFacts(attempt.thread_id);
+          requireGate(facts.launch.id === attempt.runtime_identity.launch && facts.launch.role === "worker", "score_provenance_required");
+          provenance = { number: 0, launch_id: facts.launch.id,
+            cli: facts.launch.cli_version, model: facts.model, effort: facts.effort };
+        }
+        if (task.repair && attempt.thread_id) {
+          requireGate(this.runtime?.qualityFeedback, "quality_feedback_runtime_required");
+          await this.runtime.qualityFeedback(attempt, { ...task.repair, stopped: true });
+        }
+        const pendingReview = task.review && ["requested", "running", "unknown"].includes(task.review.state) ? task.review : null;
+        if (pendingReview) pendingReview.state = "cancelled";
+        task.state = data.result === "放弃" ? "abandoned" : "upgraded";
+        attempt.state = task.state;
+        this.db.exec("BEGIN IMMEDIATE");
+        try {
+          this.save(task, "attempt_ended", { task, result: data.result });
+          this.finalScore(task, attempt, { score: { score_id: "score-" + randomUUID(), data } }, provenance);
+          if (pendingReview) this.qualityIssue(task, attempt, "attempt 已终结，未完成的审查会话仍待核对回收", {
+            review_id: pendingReview.review_id, thread_id: pendingReview.thread_id, state: "cancelled" });
+          this.db.exec("COMMIT");
+        } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+        return { ok: true, task, details: { cleanup: "not_performed", thread: attempt.thread_id, review_thread: pendingReview?.thread_id ?? null } };
+      }
+      if (args.command === "review_submit") {
+        const review = task.review;
+        requireGate(caller && this.runtime && review?.state === "running" &&
+          args.review_id === review.review_id && caller.thread === review.thread_id, "reviewer_required");
+        requireGate(args.attempt === attempt.attempt_id && args.session === review.session_id &&
+          args.fence === attempt.fence && args.spec_rev === task.spec_rev &&
+          review.attempt.session_id === attempt.session_id && review.attempt.fence === attempt.fence &&
+          review.spec_rev === task.spec_rev && review.card_snapshot_id === attempt.card_snapshot_id,
+          "stale_review");
+        requireGate(args.candidate_commit === task.candidate_commit && args.candidate_commit === review.candidate_commit,
+          "review_candidate_mismatch");
+        requireGate(task.state === "reviewing" && task.verification?.state === "passed" &&
+          task.verification.verification_id === review.verification_id, "review_verification_mismatch");
+        this.checkVerification(task, attempt, task.verification);
+        this.checkQualityEvidence(task, attempt, task.verification);
+        await caller.assertActive();
+        const live = await this.runtime.readThread(review.thread_id);
+        const bound = this.reviewAttempt(review);
+        this.bindObservedIdentity(bound, live);
+        requireGate(!live.error && !live.blocked && live.running && live.turn === caller.turn &&
+          live.runtime_identity.native_session && live.runtime_identity.leader_pid, "review_identity_unknown");
+        const launchRow = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(review.launch_id!);
+        const launch = launchRow ? JSON.parse(String(launchRow.data)) : null;
+        requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
+          launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
+          launch.thread === review.thread_id && launch.attempt === attempt.attempt_id && launch.sandbox === "read-only" &&
+          launch.review_home_was_empty === true && launch.argv[launch.argv.indexOf("--sandbox") + 1] === "read-only" &&
+          !launch.argv.some((arg: string) => ["resume", "fork", "--resume", "--fork"].includes(arg)), "review_not_fresh");
+        requireGate(review.thread_id !== attempt.thread_id && review.session_id !== attempt.session_id &&
+          review.launch_id !== attempt.runtime_identity?.launch &&
+          live.runtime_identity.native_session !== attempt.runtime_identity?.native_session, "review_writer_conflict");
+        const reused = this.db.prepare("SELECT 1 FROM orchestration_events WHERE type='native_record' AND launch!=? AND json_extract(data,'$.record.type')='session_meta' AND json_extract(data,'$.record.payload.id')=? LIMIT 1")
+          .get(review.launch_id!, live.runtime_identity.native_session);
+        requireGate(!reused, "review_native_session_reused");
+        const verdict = reviewVerdict(args.verdict, args.findings);
+        review.runtime_identity = bound.runtime_identity;
+        review.result = { ...verdict, turn_id: caller.turn, received_at: new Date(this.now()).toISOString() };
+        review.state = verdict.verdict === "可合并" ? "passed" : "needs_fix";
+        task.state = review.state === "passed" ? "verified" : "submitted";
+        this.save(task, "review_result", { task, review });
+        if (review.state === "needs_fix") await this.rejectDelivery(task, attempt, "independent_review", review.result);
+        return { ok: true, task };
+      }
       if (args.command === "submit") {
         requireGate(args.attempt === attempt.attempt_id, "stale_attempt");
         requireGate(args.session === attempt.session_id, "stale_session");
@@ -2355,12 +2775,14 @@ export class A2AGates {
               live.turn === caller.turn,
             "identity_conflict",
           );
-          requireGate(!attempt.turn_id || attempt.turn_id === caller.turn, "stale_turn");
+          requireGate(!attempt.turn_id || attempt.turn_id === caller.turn ||
+            task.repair && !task.repair.stopped && task.repair.candidate_commit === task.candidate_commit, "stale_turn");
         } else requireGate(!caller, "stale_thread");
         requireGate(["claimed", "submitted"].includes(task.state), "invalid_state");
         const commit = sha(args.commit);
         requireGate(
-          !task.candidate_commit || task.candidate_commit === commit,
+          !task.candidate_commit || task.candidate_commit === commit ||
+            task.repair && !task.repair.stopped && task.repair.candidate_commit === task.candidate_commit,
           "candidate_conflict",
         );
         await this.commitExists(taskId, task.repo, commit);
@@ -2384,6 +2806,17 @@ export class A2AGates {
           await caller.assertActive();
           attempt.turn_id = caller.turn;
         }
+        if (task.candidate_commit === commit && !task.repair) return { ok: true, task, replayed: true };
+        requireGate(!task.repair || commit !== task.repair.candidate_commit, "repair_requires_new_candidate");
+        if (attempt.thread_id) {
+          requireGate(this.runtime?.sessionFacts, "delivery_facts_required");
+          const facts = await this.runtime.sessionFacts(attempt.thread_id);
+          requireGate(facts.launch.role === "worker" && facts.launch.id === attempt.runtime_identity?.launch &&
+            facts.model !== "unknown" && facts.effort !== "unknown", "delivery_facts_unknown");
+          attempt.delivery = { commit, turn_id: attempt.turn_id, launch_id: facts.launch.id, cli: facts.launch.cli_version,
+            model: facts.model, effort: facts.effort, number: (attempt.delivery?.number ?? 0) + 1,
+            submitted_at: new Date(this.now()).toISOString() };
+        }
         attempt.state = "submitted";
         const stats = await this.execute(taskId,
           ["git", "-C", task.repo, "diff", "--numstat", "--no-renames", "-z", attempt.base_commit, commit, "--"], task.repo);
@@ -2395,13 +2828,17 @@ export class A2AGates {
           binary_files: rows.filter((row) => row[0] === "-").length });
         task.candidate_commit = commit;
         task.state = "submitted";
-        this.save(task, "submitted", { attempt, commit });
+        task.repair = null;
+        task.verification = null;
+        this.save(task, "submitted", { attempt, commit, task });
         return { ok: true, task };
       }
       if (args.command === "verify") {
         this.interruptVerification(task);
+        requireGate(!task.repair, task.repair?.stopped ? "quality_rejection_limit" : "repair_submission_required", task.repair);
         requireGate(task.state === "submitted" && task.candidate_commit, "not_submitted");
         requireGate(!task.integration_intent, "needs_reconciliation");
+        requireGate(task.quality, "project_quality_snapshot_required");
         const G = sha(await this.integration(task)),
           C = task.candidate_commit;
         await this.commitExists(taskId, task.repo, G);
@@ -2424,6 +2861,7 @@ export class A2AGates {
           workspace,
           state: "running",
           command_intent: commands[0],
+          quality: { snapshot: structuredClone(task.quality), red: [], rules: [] },
         };
         task.verification = v;
         task.state = "verifying";
@@ -2483,6 +2921,7 @@ export class A2AGates {
           v.ended = new Date().toISOString();
           task.state = "submitted";
           this.save(task, "verification_result", { verification: v, error: error.code, details: error.details });
+          await this.rejectDelivery(task, attempt, "path_boundary", { error: error.code, details: error.details });
           throw error;
         }
         try {
@@ -2500,7 +2939,7 @@ export class A2AGates {
             if (result.returncode !== 0) break;
           }
           v.state = v.results.length === commands.length && v.results.every((result) => result.returncode === 0) ? "passed" : "failed";
-          task.state = v.state === "passed" ? "verified" : "submitted";
+          task.state = v.state === "passed" ? "reviewing" : "submitted";
         } catch (error) {
           if (!(error instanceof Refusal)) throw error;
           v.state = "unknown";
@@ -2519,6 +2958,24 @@ export class A2AGates {
           throw new Refusal("verification_unknown", v);
         }
         if (v.state === "passed") {
+          v.state = "running"; task.state = "verifying";
+          try {
+            await this.checkQuality(task, attempt, v);
+            this.checkQualityEvidence(task, attempt, v);
+            v.state = "passed"; task.state = "reviewing";
+          } catch (error) {
+            const expected = error instanceof Refusal && ["red_state_failed", "red_test_file_invalid", "red_test_not_changed", "red_test_symlink", "rule_check_failed"].includes(error.code);
+            v.state = expected ? "failed" : "unknown";
+            task.state = expected ? "submitted" : "paused";
+            v.ended = new Date(this.now()).toISOString();
+            if (!expected) v.result = { ...v.command_intent!, stdout: null, stderr: null, exit: null, returncode: null, outcome: "unknown" };
+            const failure = { error: error instanceof Refusal ? error.code : "quality_command_unknown",
+              details: error instanceof Refusal ? error.details : String(error) };
+            this.save(task, "verification_result", { task, verification: v, failure });
+            if (expected) await this.rejectDelivery(task, attempt, failure.error === "rule_check_failed" ? "rule_checks" : "red_state", failure);
+            else this.qualityIssue(task, attempt, "质量检查结果未知，等待核对", failure);
+            throw expected ? error : new Refusal("verification_unknown", failure);
+          }
           try { await this.checkTrailers(task, attempt, v); }
           catch (error) {
             if (!(error instanceof Refusal)) throw error;
@@ -2526,20 +2983,33 @@ export class A2AGates {
             v.ended = new Date().toISOString();
             task.state = "submitted";
             this.save(task, "verification_result", { verification: v, error: error.code, details: error.details });
+            await this.rejectDelivery(task, attempt, "commit_trailers", { error: error.code, details: error.details });
             throw error;
           }
         }
         v.ended = new Date().toISOString();
-        this.save(task, "verification_result", v);
-        requireGate(v.state === "passed", "oracle_failed", v);
+        this.save(task, "verification_result", { verification: v, task });
+        if (v.state !== "passed") {
+          await this.rejectDelivery(task, attempt, "completion", { error: "oracle_failed", result: v.result });
+          throw new Refusal("oracle_failed", v);
+        }
+        await this.requestReview(task, attempt);
         return { ok: true, task, verification: v };
       }
       if (args.command === "integrate") {
-        if (task.state === "accepted") return { ok: true, task, replayed: true };
+        const score = this.scoreData(args.score_file);
+        if (task.state === "accepted") {
+          requireGate(JSON.stringify(score) === JSON.stringify(task.integration_intent?.score?.data), "score_replay_mismatch");
+          return { ok: true, task, replayed: true };
+        }
         let intent = task.integration_intent;
         const v = task.verification;
         requireGate((task.state === "verified" || intent) && v?.state === "passed", "not_verified");
         this.checkVerification(task, attempt, v);
+        this.checkQualityEvidence(task, attempt, v);
+        this.requireReviewed(task, attempt);
+        requireGate(attempt.delivery, "score_provenance_required");
+        if (intent) requireGate(intent.score && JSON.stringify(intent.score.data) === JSON.stringify(score), "score_replay_mismatch");
         requireGate(v.M, "not_verified");
         const actual = await this.integration(task);
         if (intent) {
@@ -2567,7 +3037,12 @@ export class A2AGates {
             intent.state = "completed";
             task.state = "accepted";
             attempt.state = "accepted";
-            this.save(task, "integrated_reconciled", intent);
+            this.db.exec("BEGIN IMMEDIATE");
+            try {
+              this.save(task, "integrated_reconciled", intent);
+              this.finalScore(task, attempt, intent);
+              this.db.exec("COMMIT");
+            } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
             return { ok: true, task, reconciled: true };
           }
         } else {
@@ -2589,6 +3064,7 @@ export class A2AGates {
             worktree: await this.integrationWorktree(task),
             intent_id: randomUUID(),
             state: "pending",
+            score: { score_id: "score-" + randomUUID(), data: score },
             command_intent: {
               argv: [],
               cwd: task.repo,
@@ -2612,14 +3088,19 @@ export class A2AGates {
           task.state = "accepted";
           attempt.state = "accepted";
         }
-        this.save(task, completed ? "integrated" : "integration_conflict", { intent, readback });
+        this.db.exec("BEGIN IMMEDIATE");
+        try {
+          this.save(task, completed ? "integrated" : "integration_conflict", { intent, readback });
+          if (completed) this.finalScore(task, attempt, intent);
+          this.db.exec("COMMIT");
+        } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
         requireGate(completed, "needs_reconciliation", { intent, readback });
         return { ok: true, task };
       }
       requireGate(args.command === "reclaim", "invalid_command");
       const ownsTask = task.current_attempt?.attempt_id === attempt.attempt_id;
       if (attempt.reclaimed) {
-        if (ownsTask && task.state !== "accepted") this.invalidate(task, "controller reclaim");
+        if (ownsTask && !["accepted", "abandoned", "upgraded"].includes(task.state)) this.invalidate(task, "controller reclaim");
         return { ok: true, task };
       }
       requireGate(
@@ -2639,7 +3120,7 @@ export class A2AGates {
       requireGate(!live.blocked, "run_blocked", live);
       requireGate(!live.running, "worker_working");
       this.event(taskId, "reclaim_intent", { attempt, live }, attempt.attempt_id);
-      if (ownsTask && task.state !== "accepted") this.invalidate(task, "controller reclaim");
+      if (ownsTask && !["accepted", "abandoned", "upgraded"].includes(task.state)) this.invalidate(task, "controller reclaim");
       this.checkUserInputObserver();
       await this.runtime.stopThread(attempt.thread_id);
       const stopped = await this.runtime.readThread(attempt.thread_id);
@@ -2658,6 +3139,7 @@ export class A2AGates {
     } catch (error) {
       const ioCode = (error as NodeJS.ErrnoException).code;
       const code =
+        error instanceof QualityProtocolError ? (error.field.startsWith("score") ? "invalid_score" : "invalid_review_result") :
         error instanceof TaskCardError ? "invalid_task_card" : error instanceof Refusal
           ? error.code
           : [

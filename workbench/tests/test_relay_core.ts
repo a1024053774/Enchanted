@@ -10,7 +10,7 @@ const { RequestRelay } = await import(process.env.A2A_RELAY_MODULE ?? "../src/re
 const output = process.argv[2]!; mkdirSync(output);
 const root = mkdtempSync("/tmp/a2a-relay-core-");
 const store = new OrchestrationStore(root); const relay = new RequestRelay(store);
-const binding = { id: "launch", task: "fixture", attempt: "attempt", session: "session", fence: 1, spec_rev: 1 };
+const binding = { id: "launch", task: "fixture", attempt: "attempt", session: "session", fence: 1, spec_rev: 1, role: "worker" as const };
 const base = { schema: 1, request_id: "delivery", command: "submit", task: "fixture", attempt: "attempt",
   session: "session", fence: 1, spec_rev: 1, commit: "a".repeat(40) };
 const file = (value: any, name = "request.json") => ({ name, raw: JSON.stringify(value) });

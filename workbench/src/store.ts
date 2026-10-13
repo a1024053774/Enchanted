@@ -40,12 +40,12 @@ export class OrchestrationStore {
       .get(launch, ...types);
     return row ? { seq: Number(row.seq), time: String(row.time), type: String(row.type), data: JSON.parse(String(row.data)) } : null;
   }
-  register(launch: string, text: string, source: "executor" | "gate" = "executor") {
+  register(launch: string, text: string, source: "executor" | "gate" = "executor", context?: { kind: string; rejection_id: string }) {
     const id = randomUUID();
     const registered_at = new Date().toISOString();
     const seq = Number(this.db.prepare("INSERT INTO dispatch_records(id,launch,data) VALUES (?,?,?)")
-      .run(id, launch, JSON.stringify({ text, registered_at, source })).lastInsertRowid);
-    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${text}`, registered_at };
+      .run(id, launch, JSON.stringify({ text, registered_at, source, ...(context ? { context } : {}) })).lastInsertRowid);
+    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${text}`, registered_at, context };
   }
   read(task?: string) {
     const rows = this.db.prepare(`SELECT * FROM orchestration_events${task ? " WHERE task=?" : ""} ORDER BY seq`).all(...(task ? [task] : []));

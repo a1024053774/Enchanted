@@ -218,6 +218,7 @@ class RunCLI(recovery.RecoveryCLI):
                    [native["envMode"], native["workspace"], native["baseRef"]])
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
+        self.drive_executor_finalize(handle, attempt, candidate)
         value = self.new_result(self.complete(handle), "run")
         run = value.get("run", {})
         self.check(bool(run.get("run_id")) and run.get("attempt_id") == attempt["attempt_id"] and
@@ -295,6 +296,7 @@ class RunCLI(recovery.RecoveryCLI):
         self.create()
         value = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")
         attempt = value["attempt"]
+        self.prepare_executor_score(attempt)
         thread = self.store()["prompts"][0]["thread_id"]
         self.check(self.status()["state"] != "accepted" and self.ref() == self.base,
                    "Simulated done never accepts during fixture preparation", self.base, self.ref())
@@ -353,6 +355,7 @@ class RunCLI(recovery.RecoveryCLI):
                    [len(self.store()["prompts"]), len(self.rows(after, "attempt"))])
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
+        self.drive_executor_finalize(first, attempt, candidate)
         self.new_result(self.complete(first), "run")
         self.check(self.ref() == candidate, "First executor still completes", candidate, self.ref())
         self.only_own_close(thread)
@@ -445,7 +448,13 @@ class RunCLI(recovery.RecoveryCLI):
         self.check(len(results) == 1 and results[0]["exit_code"] != 0,
                    "Actual frozen independent oracle rejects the bad candidate", "one nonzero oracle",
                    results)
-        self.only_own_close(thread)
+        self.only_own_close()
+        current = after["status"]["current_attempt"]
+        feedback = [json.loads(line) for line in (self.boundary / "quality-feedback.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.check(current is not None and current["attempt_id"] == attempt["attempt_id"] and not current["reclaimed"]
+                   and len(feedback) == 1 and feedback[0]["registered"] and feedback[0]["attempt"] == attempt["attempt_id"],
+                   "First rejection preserves owned worker and registers its repair input", attempt["attempt_id"],
+                   {"current": current, "feedback": feedback})
         self.check(Path(attempt["workspace"]).is_dir(), "Rejected candidate worktree survives", True,
                    Path(attempt["workspace"]).is_dir())
         self.finish_checks()
@@ -574,6 +583,7 @@ class RunCLI(recovery.RecoveryCLI):
         attempt = self.current_attempt()
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
+        self.drive_executor_finalize(handle, attempt, candidate)
         self.new_result(self.complete(handle), "run")
         before = self.snapshot("before-accepted-reclaim-replay")
         self.guard("reclaim", attempt["attempt_id"])

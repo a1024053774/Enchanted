@@ -89,13 +89,20 @@ class TaskCardsCLI(unittest.TestCase):
         self.card_file.write_text(json.dumps(card or self.card, ensure_ascii=False), encoding='utf-8')
         return self.cli('card_save', '--card', self.card_file, '--expected-version', str(expected))
 
-    def create(self):
+    def register_task(self):
         template = self.cli('card_template', '--repo', self.repo, '--project', 'fixture')['card']
         self.assertEqual(set(template), FIELDS)
         self.assertEqual(template['id'], self.task)
         self.save_card()
         self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'fixture')
+
+    def create(self):
+        self.register_task()
         return self.cli('claim', '--owner', 'independent-check')['attempt']
+
+    def create_managed(self):
+        self.register_task()
+        return self.dispatch_candidate_attempt()
 
     def commit(self, attempt, files=None, trailers=True, foreign=None):
         workspace = Path(attempt['workspace'])
@@ -109,6 +116,8 @@ class TaskCardsCLI(unittest.TestCase):
                       'Session': attempt['session_id'], 'Role': 'worker', 'Tool': 'Codex 0.162.1',
                       'Model': 'gpt-6-astra', 'Effort': 'xhigh', 'Native-Session': 'unknown',
                       'Launch': 'fixture-launch'}
+            if attempt['thread_id']:
+                values.update(self.managed_trailers(attempt))
             message += '\n\n' + '\n'.join('A2A-' + k + ': ' + v for k, v in values.items())
         self.git('add', '.', cwd=workspace)
         self.git('commit', '-m', message, cwd=workspace)
@@ -137,7 +146,7 @@ class TaskCardsCLI(unittest.TestCase):
 
     def test_tracer_merges_G_and_C_and_integrates_once(self):
         self.card['completion_conditions'][0]['argv'][-1] += "; assert Path('host.txt').read_text() == 'host\\n'"
-        a = self.create()
+        a = self.create_managed()
         c = self.commit(a)
         (self.repo / 'host.txt').write_text('host\n', encoding='utf-8')
         self.git('add', 'host.txt')
@@ -162,7 +171,7 @@ class TaskCardsCLI(unittest.TestCase):
         self.cli('integrate')
         self.assertEqual(self.git('reflog', 'show', '--format=%H', 'refs/heads/main'), after)
         types = [e['type'] for e in self.events()]
-        for name in ('card_saved', 'created', 'claimed', 'submitted', 'path_check', 'completion_check', 'trailer_check', 'integrated'):
+        for name in ('card_saved', 'created', 'claimed', 'submitted', 'path_check', 'completion_check', 'red_not_applicable', 'rules_not_applicable', 'trailer_check', 'review_result', 'score_recorded', 'integrated'):
             self.assertIn(name, types)
         self.assertNotIn('refs/a2a/integration', self.git('show-ref'))
 
@@ -191,7 +200,7 @@ class TaskCardsCLI(unittest.TestCase):
         self.assertTrue(any(e['type'] == 'trailer_check' and e['details']['commit'] == bad for e in self.events()))
 
     def test_missing_trailer_records_one_inferred_action_and_integrates(self):
-        a = self.create()
+        a = self.create_managed()
         missing = self.commit(a, trailers=False)
         c = self.commit(a, {'src/second.txt': 'correct trailer\n'})
         self.submit(a, c)
@@ -228,7 +237,7 @@ class TaskCardsCLI(unittest.TestCase):
                 # Each mode gets an independent task/repo/state and saved scene.
                 if mode != 'staged':
                     self.setUp()
-                a = self.create()
+                a = self.create_managed()
                 self.submit(a, self.commit(a, {'src/value.txt': 'worker\n', 'src/new.txt': 'candidate\n'}))
                 self.cli('verify')
                 path = self.repo / ('src/new.txt' if mode == 'untracked' else 'src/value.txt')
@@ -336,7 +345,7 @@ class TaskCardsCLI(unittest.TestCase):
                     target = self.root / 'linked main'
                     self.git('worktree', 'add', str(target), 'main')
                 self.git('update-ref', 'refs/a2a/integration', self.base)
-                a = self.create()
+                a = self.create_managed()
                 c = self.commit(a)
                 self.submit(a, c)
                 self.cli('verify')
@@ -384,7 +393,7 @@ class TaskCardsCLI(unittest.TestCase):
                 self.reject_verify(expected)
 
     def test_missing_trailer_reverification_deduplicates_action(self):
-        a = self.create()
+        a = self.create_managed()
         c = self.commit(a, trailers=False)
         self.submit(a, c)
         self.cli('verify')
@@ -415,7 +424,7 @@ class TaskCardsCLI(unittest.TestCase):
         self.save_card()
         self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1')
         ticket.write_text('---\nid: T-990\nready: yes\nready_rev: 3\n---\n', encoding='utf-8')
-        a = self.cli('claim', '--owner', 'snapshot-owner')['attempt']
+        a = self.dispatch_candidate_attempt()
         self.assertEqual(self.cli('status')['task']['card']['source']['ready_rev'], 2)
         self.submit(a, self.commit(a))
         self.cli('verify')
@@ -424,7 +433,7 @@ class TaskCardsCLI(unittest.TestCase):
     def test_non_fast_forward_git_result_cannot_integrate(self):
         self.card['paths'] = {'allow': ['.'], 'deny': []}
         self.card['completion_conditions'] = [{'argv': [sys.executable, '-c', 'pass']}]
-        a = self.create()
+        a = self.create_managed()
         c = self.commit(a)
         (self.repo / 'host.txt').write_text('G contains external content\n', encoding='utf-8')
         self.git('add', 'host.txt')

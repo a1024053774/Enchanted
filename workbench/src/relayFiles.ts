@@ -4,6 +4,27 @@ import { randomUUID } from "node:crypto";
 
 export interface RelayFile { name: string; raw?: string; error?: string }
 
+// Called only after the daemon matches an authenticated reviewer's Stop.
+// The model remains read-only; the hook request handler persists its explicit JSON.
+export function writeReviewRequest(directory: string, input: Record<string, any>): RelayFile {
+  const root = realpathSync(directory);
+  if (root !== directory || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(input.request_id)) throw new Error("invalid_review_request_path");
+  const name = input.request_id + ".json", raw = JSON.stringify(input) + "\n";
+  let fd: number;
+  try { fd = openSync(join(root, name), "wx", 0o600); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    // A repeated explicit request may reuse its file, never replace it. The
+    // existing relay journal decides whether its operation already completed.
+    const prior = readWorkerRequests(root).find((file) => file.name === name);
+    if (!prior || prior.error || prior.raw !== raw) throw new Error("review_request_file_changed");
+    return prior;
+  }
+  try { writeFileSync(fd, raw); fsyncSync(fd); }
+  finally { closeSync(fd); }
+  return { name, raw };
+}
+
 export function queueWorkerRequest(input: Record<string, any>, env = process.env) {
   const directory = env.A2A_REQUEST_DIR;
   if (!directory || !isAbsolute(directory) || env.A2A_ROLE !== "worker") throw new Error("worker_request_directory_required");

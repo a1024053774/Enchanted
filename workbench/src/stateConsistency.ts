@@ -8,7 +8,8 @@ type View = Map<string, any>;
 const copy = (value: any) => structuredClone(value);
 const passive = new Set(["card_saved", "command_intent", "command_result", "prompt_intent", "run_observed",
   "submission_metrics", "path_check", "trailer_check", "reclaim_intent", "attachment_reclaim_intent", "rejected",
-  "git_transaction_input", "git_transaction_response", "integration_worktree_advanced"]);
+  "git_transaction_input", "git_transaction_response", "integration_worktree_advanced",
+  "score_recorded", "review_reclaim_intent", "review_reclaimed", "review_after_termination", "issue_issue", "red_not_applicable", "rules_not_applicable"]);
 
 function differences(expected: any, observed: any, path = ""): any[] {
   if (expected === observed) return [];
@@ -44,7 +45,12 @@ export function checkConsistency(root: string) {
         if (task?.current_attempt?.attempt_id === attempt.attempt_id) task.current_attempt = copy(attempt);
       };
       try {
-        if (["create_intent", "created", "claimed"].includes(event.type)) {
+        if (["delivery_rejected", "review_requested", "review_started", "review_result", "review_reused", "review_protocol_failed", "review_lifecycle_failed",
+          "quality_command_intent", "red_check", "rule_check", "attempt_ended"].includes(event.type) ||
+          ["claim_intent", "dispatch_intent", "submitted", "verification_result"].includes(event.type) && d.task) {
+          tasks.set(event.task, copy(d.task)); saved = true;
+          if (d.task.verification) completed.set(d.task.verification.verification_id, copy(d.task.verification.results));
+        } else if (["create_intent", "created", "claimed"].includes(event.type)) {
           tasks.set(event.task, copy(d)); saved = true;
         } else if (["claim_intent", "dispatch_intent"].includes(event.type)) {
           if (!task) throw new Error("Missing task creation event");
@@ -75,7 +81,8 @@ export function checkConsistency(root: string) {
           if (d.attempt) {
             const previous = attempts.get(d.attempt);
             if (!previous) throw new Error("Missing revoked attempt history");
-            previous.state = "revoked"; previous.revocation_reason = d.reason;
+            if (d.previous_attempt) attempts.set(d.attempt, copy(d.previous_attempt));
+            else { previous.state = "revoked"; previous.revocation_reason = d.reason; }
           }
           task.current_attempt = null; task.state = "ready"; task.spec_rev = d.spec_rev;
           task.candidate_commit = null; task.verification = null; task.integration_intent = null; saved = true;

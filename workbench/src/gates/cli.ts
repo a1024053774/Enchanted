@@ -39,7 +39,10 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   revise: { required: ["spec-rev"], optional: ["card-version"] },
   submit: { required: ["attempt", "session", "fence", "spec-rev", "commit"], optional: ["request-id"] },
   verify: { required: [], optional: ["attempt"] },
-  integrate: { required: [], optional: ["attempt"] },
+  integrate: { required: [], optional: ["attempt", "score-file"] },
+  abandon: { required: ["attempt"], optional: ["score-file"] },
+  scores_validate: { required: ["file"] },
+  review_submit: { required: ["review-file"] },
   status: { required: [], optional: ["request-id"] },
   issue: { required: ["title", "body"], optional: ["blocking", "refs", "request-id"] },
   events: { required: [] },
@@ -107,6 +110,8 @@ export async function main(argv = process.argv.slice(2)) {
       "bundle-id",
       "stop-id",
       "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes",
+      "score-file", "review-file",
+      "file",
     ];
     const { values, positionals } = parseArgs({
       args: argv,
@@ -117,7 +122,7 @@ export async function main(argv = process.argv.slice(2)) {
     const contract = commands[command];
     const noTask = command.startsWith("inbox_") || command === "stop" ||
       command.startsWith("daemon_") || command.startsWith("pane_") ||
-      ["signal", "launch_show", "orchestration_events"].includes(command);
+      ["signal", "launch_show", "orchestration_events", "scores_validate"].includes(command);
     if (!contract || positionals.length !== 1 || (!noTask && !values.task))
       throw new Error("command and task required");
     const allowed = [
@@ -149,18 +154,24 @@ export async function main(argv = process.argv.slice(2)) {
       else if (key === "blocking") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
         request.blocking = value === "true";
-      } else if (["reply-to", "bundle-id", "stop-id", "request-id"].includes(key))
+      } else if (["reply-to", "bundle-id", "stop-id", "request-id", "score-file"].includes(key))
         request[key.replaceAll("-", "_")] = value;
       else request[key === "runtime-mode" ? "runtimeMode" : key] = value;
     }
     if (command === "signal") {
       request.received_at = new Date().toISOString();
       request.raw_stdin = readFileSync(0, "utf8");
-      if (JSON.parse(String(request.raw_stdin)).hook_event_name === "Stop") {
+      if (JSON.parse(String(request.raw_stdin)).hook_event_name === "Stop" && process.env.A2A_ROLE !== "reviewer") {
         request.relay_files = readWorkerRequests(process.env.A2A_REQUEST_DIR!);
       }
     }
     if (command === "pane_dispatch") request.body = readFileSync(String(request["body-file"]), "utf8");
+    if (command === "review_submit") {
+      const file = request["review-file"];
+      const result = JSON.parse(readFileSync(String(file), "utf8"));
+      const { schema: _schema, request_id: _id, ...body } = result;
+      request = { ...body, command, task: request.task };
+    }
   } catch (error) {
     console.error("usage: --state ABS_DIR COMMAND --task ID ...\n" + String(error));
     return 2;

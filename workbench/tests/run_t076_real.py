@@ -101,7 +101,7 @@ def main():
                'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.hooksPath', 'GIT_CONFIG_VALUE_0': os.devnull}
     record = {'status': 'INCOMPLETE', 'task': 'T-076-9', 'ready_rev': 1, 'fixture': str(temp),
               'real_turns_reserved': 0, 'observed_main_turns': None, 'model_requested': 'gpt-6.1-sol',
-              'effort_requested': 'xhigh', 'service_tier_requested': 'fast', 'argv': sys.argv}
+              'effort_requested': 'xhigh', 'service_tier_requested': 'default', 'argv': sys.argv}
     started = False; run_process = None; launch = None; known_pids = set(); captured = {}
     run_stdout = run_stderr = None
 

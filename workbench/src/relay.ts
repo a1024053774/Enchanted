@@ -1,9 +1,12 @@
 import { Refusal } from "./gates/core.ts";
 import type { RelayFile } from "./relayFiles.ts";
 import { OrchestrationStore } from "./store.ts";
+import { reviewRequest } from "./gates/qualityProtocol.ts";
 
 export interface RelayBinding {
   id: string; task: string; attempt: string; session: string; fence: number; spec_rev: number;
+  role: "worker" | "reviewer";
+  review_id?: string;
 }
 const keyPattern = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
 
@@ -60,8 +63,11 @@ export class RequestRelay {
     let result: any;
     try {
       if (parseError || !input || typeof input !== "object" || Array.isArray(input)) throw new Refusal("invalid_relay_request", parseError);
+      if (binding.role !== "worker" && binding.role !== "reviewer") throw new Refusal("relay_role_required");
       const base = ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev"];
-      const allowed: Record<string, string[]> = { submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"] };
+      const allowed: Record<string, string[]> = binding.role === "reviewer"
+        ? { review_submit: ["review_id", "candidate_commit", "verdict", "findings"] }
+        : { submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"] };
       const extra = allowed[input.command];
       if (input.schema !== 1 || !requestId || !extra || base.some((field) => !Object.hasOwn(input, field)) ||
           Object.keys(input).some((field) => ![...base, ...extra].includes(field)) ||
@@ -69,6 +75,10 @@ export class RequestRelay {
           !Number.isSafeInteger(input.fence) || !Number.isSafeInteger(input.spec_rev)) throw new Refusal("invalid_relay_request");
       for (const field of ["task", "attempt", "session", "fence", "spec_rev"] as const) {
         if (input[field] !== binding[field]) throw new Refusal("relay_identity_mismatch", { field });
+      }
+      if (input.command === "review_submit") {
+        reviewRequest(file.raw);
+        if (input.review_id !== binding.review_id) throw new Refusal("relay_review_mismatch");
       }
       if (input.command === "submit" && (typeof input.commit !== "string" || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.commit))) {
         throw new Refusal("invalid_relay_request", { field: "commit" });

@@ -16,6 +16,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from audit_legacy_scope import audit
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "evidence/2026-10-10-batch12/T-075/card-5"
@@ -52,17 +53,18 @@ def clean_fixture_environment():
 
 def preflight(out):
     observations = [observe(["node", "--version"]), observe(["git", "--version"])]
-    assertions_diff = observe(["git", "diff", "7bcfe7d9", "--",
-                               "acceptance/test_coop_e2e.py", "acceptance/test_recovery_e2e.py",
-                               "acceptance/test_run_e2e.py"])
+    assertions_diff = observe(["git", "diff", "a7f4cc3033c16d5888de50d8352da516c941f8e9", "--",
+                               "acceptance/test_coop_e2e.py", "acceptance/test_recovery_e2e.py", "acceptance/test_run_e2e.py"])
     problems = []
     if not os.path.ismount("/Volumes/WD-Elements"):
         problems.append("外置盘未挂载；不安装依赖、不回退缓存")
     node = observations[0]
     if node["exit_code"] != 0 or not node["stdout"].strip().startswith("v26.5."):
         problems.append("本轮要求已核对的 Node 26.5 系列")
-    if assertions_diff["exit_code"] != 0 or assertions_diff["stdout"]:
-        problems.append("三份验收断言文件相对 7bcfe7d9 的 diff 必须为空")
+    try:
+        scope = audit(ROOT)
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
+        scope = {'error': str(error)}; problems.append('断言变更超出批准hunk：' + str(error))
     if not problems:
         observations.append(observe(["node", "--input-type=module", "-e",
             "import { spawnHelper } from './workbench/src/panes.ts'; console.log(spawnHelper());"]))
@@ -71,7 +73,7 @@ def preflight(out):
     record = {"observed_at": now(), "volume": "/Volumes/WD-Elements",
               "is_mount": os.path.ismount("/Volumes/WD-Elements"),
               "node_modules": str(ROOT / "workbench/node_modules"),
-              "observations": observations, "acceptance_diff": assertions_diff,
+              "observations": observations, "acceptance_diff": assertions_diff, 'approved_scope': scope,
               "problems": problems}
     write_new(out / "preflight.json", record)
     return record
@@ -96,6 +98,10 @@ def snapshot_sources(out):
                "evidence/2026-10-10-batch12/T-075/card-5/outside-sandbox.sh",
                "evidence/2026-10-10-batch12/T-075/card-5/readback-timing-probe.py")]
     paths.append(ROOT / "evidence/2026-10-10-batch12/T-075/run-acceptance.py")
+    paths += [ROOT / 'workbench/tests' / name for name in ('audit_legacy_scope.py', 'legacy_quality_driver.py',
+              'legacy_review_runtime.ts', 'controlled_quality_pty.ts')]
+    paths += [ROOT / 'evidence/2026-10-11-batch13/T-076/card-2' / name for name in
+              ('controller-decision-03.md', 'legacy-acceptance-hunks.diff')]
     captured = {str(path.relative_to(ROOT)): path.read_bytes() for path in paths}
     with tarfile.open(out / "sources.tar.gz", "x:gz") as archive:
         for name, data in captured.items():
@@ -171,7 +177,7 @@ def run_probe(probe, out, suite_name=None, test_name=None, mutant_core=None):
     with (out / "stdout.txt").open("x", encoding="utf-8") as stdout, \
             (out / "stderr.txt").open("x", encoding="utf-8") as stderr:
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = unittest.TextTestRunner(verbosity=2, resultclass=result_class).run(suite)
+            result = unittest.TextTestRunner(verbosity=2, resultclass=result_class, failfast=True).run(suite)
     original_results = (adapter.orchestration.TEST_RESULTS if suite_name == "run" else
                         adapter.recovery.TEST_RESULTS if suite_name in ("recovery", "cas") else [])
     record.update({"finished": now(), "tests_run": result.testsRun,
@@ -380,7 +386,7 @@ def main():
     mode.add_argument("--suite", choices=("coop", "recovery", "run", "cas"))
     mode.add_argument("--validation", action="store_true")
     parser.add_argument("--test")
-    parser.add_argument("--mutant", choices=("fence", "cas", "lock"))
+    parser.add_argument("--mutant", choices=("fence", "cas", "lock", "provenance"))
     parser.add_argument("--mutant-manifest", type=Path)
     parser.add_argument("--label", required=True, help="输出根下尚未存在的证据目录名")
     parser.add_argument("--output-root", type=Path, default=BASE, help="证据根；默认沿用 T-075/card-5")

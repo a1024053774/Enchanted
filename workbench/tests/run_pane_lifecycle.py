@@ -54,7 +54,7 @@ def main():
     thread = launch = attempt = request_directory = None
     verdict = {'status': 'INCOMPLETE', 'task': task, 'fixture': str(fixture), 'state': str(state),
                'real_turns_reserved': 0, 'observed_main_turns': None, 'evidence_source': 'PTY trace bytes, including Codex TUI redraws',
-               'model_requested': 'gpt-6.1-sol', 'effort_requested': 'xhigh', 'service_tier_requested': 'fast'}
+               'model_requested': 'gpt-6.1-sol', 'effort_requested': 'xhigh', 'service_tier_requested': 'default'}
     commands = CommandLog(output)
 
     def save(name, value):
@@ -229,7 +229,8 @@ def main():
         pane = call('pane_status', '--thread', thread)
         launch = call('launch_show', '--launch', pane['launch'])['launch']; save('launch-record.json', launch)
         assert launch['model_requested'] == 'gpt-6.1-sol' and launch['effort_requested'] == 'xhigh'
-        assert launch['service_tier_requested'] == 'fast' and launch['turn_limit'] == 1
+        assert launch['service_tier_requested'] == 'default' and launch['turn_limit'] == 1
+        assert [arg for arg in launch['argv'] if arg.startswith('service_tier=')] == ['service_tier="default"']
         request_directory = Path(launch['request_dir'])
         trace = state / 'traces' / launch['id'] / 'pty.raw'
         deadline = time.monotonic() + 30

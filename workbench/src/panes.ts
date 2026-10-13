@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import type { A2AAttempt, A2ATask } from "./contracts/a2aGates.ts";
+import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore } from "./store.ts";
 
@@ -34,6 +34,7 @@ export interface LaunchConfig {
   hook_authorization?: string;
   turn_limit?: number;
   turn_authorization?: string;
+  reviewers?: { codex_home: string; role_card: string; role_card_revision: string; hook_authorization: string }[];
 }
 type Pane = {
   record: Record<string, any> & { id: string; task: string; attempt: string };
@@ -112,7 +113,24 @@ export class Panes implements GateRuntime {
   async createThread(task: A2ATask, attempt: A2AAttempt) {
     check(this.panes.size === 0, "single_worker_slice");
     check(attempt.runtime_mode === "workspace-write", "worker_requires_workspace_write");
-    const c = this.config;
+    await this.createPane(task, attempt, this.config);
+  }
+  async createReview(task: A2ATask, review: A2AReview, prompt: string) {
+    const index = this.store.launches().filter((record) => record.role === "reviewer").length;
+    const approved = this.config.reviewers?.[index];
+    check(approved, "review_launch_config_required");
+    const home = realpathSync(approved.codex_home);
+    check(home !== realpathSync(this.config.codex_home!) &&
+      !this.store.launches().some((record) => record.env.CODEX_HOME === home), "review_home_reused");
+    check(!existsSync(join(home, "sessions")) || readdirSync(join(home, "sessions")).length === 0, "review_home_not_empty");
+    const attempt = { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
+      workspace: review.workspace, runtime_identity: null, turn_id: null };
+    await this.createPane(task, attempt, { ...this.config, ...approved }, review);
+    const pane = this.get(review.thread_id);
+    await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
+  }
+  private async createPane(task: A2ATask, attempt: A2AAttempt, c: LaunchConfig, review?: A2AReview) {
+    const role = review ? "reviewer" : "worker";
     check(c.codex_bin && c.codex_home && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
     check(Number.isInteger(c.turn_limit) && c.turn_limit! > 0 && c.turn_limit! <= 10, "invalid_turn_limit");
     const codex = realpathSync(c.codex_bin), home = realpathSync(c.codex_home);
@@ -133,8 +151,8 @@ export class Panes implements GateRuntime {
     const model = task.card.executor.model, effort = task.card.executor.effort;
     check(task.card.executor.cli === "Codex" && ["gpt-6-astra", "gpt-6.1-sol"].includes(model) && effort === "xhigh", "worker_executor_mismatch");
     const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", attempt.workspace,
-      "-a", "never", "--sandbox", "workspace-write", "-m", model,
-      "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="fast"',
+      "-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,
+      "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="default"',
       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
       "-c", "sandbox_workspace_write.network_access=false", "-c", "features.network_proxy=false"];
     for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest"]) argv.push("-c", `hooks.${event}=${hook}`);
@@ -142,20 +160,23 @@ export class Panes implements GateRuntime {
     Object.assign(environment, {
       SHELL: "/bin/zsh", TERM: "xterm-256color", COLORTERM: "truecolor",
       A2A_PROJECT: task.project_id, A2A_TASK: task.task_id, A2A_ATTEMPT: attempt.attempt_id,
-      A2A_SESSION: attempt.session_id, A2A_ROLE: "worker", A2A_LAUNCH: launch,
+      A2A_SESSION: attempt.session_id, A2A_ROLE: role, A2A_LAUNCH: launch,
       A2A_STATE: this.root, A2A_CLI: cli, A2A_NODE: process.execPath, A2A_CAPABILITY: token,
       A2A_REQUEST_DIR: requestDirectory,
       A2A_FENCE: String(attempt.fence), A2A_SPEC_REV: String(attempt.spec_rev),
       A2A_TOOL: version, A2A_MODEL_REQUESTED: model, A2A_EFFORT_REQUESTED: effort,
-      GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
-      GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)),
     });
+    if (review) environment.A2A_REVIEW = review.review_id;
+    else Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
+      GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)) });
     const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; exec /bin/zsh -f -i"];
     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
-      role: "worker", created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
-      model_requested: model, effort_requested: effort, service_tier_requested: "fast",
+      role, sandbox: review ? "read-only" : "workspace-write",
+      ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id, review_home_was_empty: true } : {}),
+      created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
+      model_requested: model, effort_requested: effort, service_tier_requested: "default",
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
       role_text: readFileSync(c.role_card, "utf8"), base_commit: attempt.base_commit, worktree: attempt.workspace,
@@ -250,7 +271,7 @@ export class Panes implements GateRuntime {
   }
   scan(pane: Pane, final = false) {
     if (pane.stopped) return;
-    const home = this.config.codex_home!;
+    const home = pane.record.env.CODEX_HOME as string;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
     const files = final ? [...pane.offsets.keys()].filter((file) => pane.native && file.endsWith(pane.native + ".jsonl")) : walk(join(home, "sessions"));
@@ -270,12 +291,13 @@ export class Panes implements GateRuntime {
         }
         // Only the root CLI file contributes identity or model facts.
         if (pane.native && file.endsWith(pane.native + ".jsonl")) {
-          if (event.type === "turn_context") {
+          if (event.type === "turn_context" && event.payload.turn_id === pane.turn) {
             pane.model = event.payload.model ?? "unknown";
             pane.effort = event.payload.effort ?? event.payload.reasoning_effort ?? "unknown";
           }
           if (event.type === "event_msg" && event.payload.type === "task_started") {
             pane.turn = event.payload.turn_id;
+            pane.model = "unknown"; pane.effort = "unknown";
             if (pane.active) pane.active.nativeTurn = pane.turn;
           }
         }
@@ -289,10 +311,29 @@ export class Panes implements GateRuntime {
     const pane = this.get(attempt.thread_id);
     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
   };
-  async dispatch(pane: Pane, text: string, source: "executor" | "gate" = "executor") {
+  async sessionFacts(thread: string) {
+    const info = this.launchInfo(this.get(thread).record.id);
+    return { launch: info.launch, model: info.model, effort: info.effort };
+  }
+  async qualityFeedback(attempt: A2AAttempt, repair: A2ARepair) {
+    const pane = this.get(attempt.thread_id);
+    check(pane.record.role === "worker" && pane.record.attempt === attempt.attempt_id &&
+      pane.record.session === attempt.session_id && pane.record.fence === attempt.fence &&
+      pane.record.id === attempt.runtime_identity?.launch, "feedback_identity_mismatch");
+    if (repair.stopped) {
+      const held = pane.queue.filter((item) => item.context?.kind === "quality-repair");
+      pane.queue = pane.queue.filter((item) => item.context?.kind !== "quality-repair");
+      this.store.event("quality_feedback_stopped", { repair, cancelled: held.map((item) => item.id) }, pane.record);
+      return;
+    }
+    await this.dispatch(pane, "门禁检查未通过。根据失败证据修复，运行完成条件，Git提交后用原CLI显式重交新候选；保持本attempt和原生会话。\n" +
+      JSON.stringify({ task: attempt.task_id, attempt: attempt.attempt_id, ...repair }, null, 2), "gate",
+      { kind: "quality-repair", rejection_id: repair.id });
+  }
+  async dispatch(pane: Pane, text: string, source: "executor" | "gate" = "executor", context?: { kind: string; rejection_id: string }) {
     check(!pane.failed && !pane.stopped, "pane_unavailable");
     check(typeof text === "string" && text.trim() && !/[\x00\x1b]/.test(text), "invalid_dispatch_text");
-    const item = this.store.register(pane.record.id, text, source);
+    const item = this.store.register(pane.record.id, text, source, context);
     pane.queue.push(item);
     this.store.event("dispatch_queued", item, pane.record);
     await this.drain(pane);
@@ -390,7 +431,7 @@ export class Panes implements GateRuntime {
     this.scan(pane);
     check(pane.turn && pane.native === identity.native_session, "native_identity_required");
     const turn = pane.turn;
-    return { thread: pane.attempt.thread_id, turn, address: `worker:${pane.attempt.thread_id}`,
+    return { thread: pane.attempt.thread_id, turn, address: `${pane.record.role}:${pane.attempt.thread_id}`,
       assertActive: async () => {
         const info = await this.processInfo(pane.attempt.thread_id);
         check(info.leader && !info.failed && pane.state === "busy" && pane.active?.nativeTurn === turn, "worker_not_active");

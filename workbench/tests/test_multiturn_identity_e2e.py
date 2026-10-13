@@ -17,6 +17,7 @@ import time
 import unittest
 
 import test_task_cards_e2e as previous
+from legacy_quality_driver import QualityDriver, prepare_review_control
 
 SOURCE = None
 OUT = None
@@ -28,6 +29,8 @@ class MultiTurn(previous.TaskCardsCLI):
         super().setUp()
         self.card['executor'] = {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}
         self.control = self.root / 'control'; self.control.mkdir()
+        review_control = prepare_review_control(self.control)
+        self.quality = QualityDriver(previous.GATE, self.state, review_control, self.env)
         self.runtime_file = self.control / 'runtime.json'
         self.runtime_file.write_text(json.dumps({'threads': {}, 'closes': []}) + '\n', encoding='utf-8')
         ready = self.root / 'ready.json'
@@ -109,9 +112,15 @@ class MultiTurn(previous.TaskCardsCLI):
     def original_live(self, a):
         return json.loads(self.runtime_file.read_text())['threads'][a['thread_id']]
 
+    def managed_trailers(self, attempt):
+        live = self.original_live(attempt)
+        return {'Tool': live['facts']['cli_version'], 'Model': live['facts']['model'], 'Effort': live['facts']['effort'],
+                'Native-Session': live['runtime_identity']['native_session'], 'Launch': live['runtime_identity']['launch']}
+
     def delivery(self):
         self.create_task()
         a = self.cli('dispatch', '--runtime-mode', 'workspace-write')['attempt']
+        self.quality.preparation(self.task, a, '受控 dispatch')
         c = self.commit(a)
         self.submit(a, c)
         self.change_live(a['thread_id'], turn='receipt-B', running=False)
@@ -120,7 +129,8 @@ class MultiTurn(previous.TaskCardsCLI):
     def test_reclaim_after_receipt_turn(self):
         a, c = self.delivery()
         self.cli('verify', '--attempt', a['attempt_id'])
-        self.cli('integrate', '--attempt', a['attempt_id'])
+        self.quality.complete_review(self.task, a, c)
+        self.cli('integrate', '--attempt', a['attempt_id'], '--score-file', self.quality.score_file(a))
         self.cli('reclaim', '--attempt', a['attempt_id'])
         current = self.cli('status')['task']
         self.assertEqual(current['candidate_commit'], c)
@@ -143,11 +153,12 @@ class MultiTurn(previous.TaskCardsCLI):
             if self.run_process.poll() is not None or time.monotonic() > until:
                 raise RuntimeError('Run failed before reaching its independently observed dispatch boundary')
             time.sleep(0.05)
-        a = task['current_attempt']; c = self.commit(a)
+        a = task['current_attempt']; self.quality.preparation(self.task, a, '受控 dispatch'); c = self.commit(a)
         # Keep the external worker running until the receipt turn is supplied.
         # A fast verify/integrate still cannot reclaim before this transition.
         self.submit(a, c)
         self.change_live(a['thread_id'], turn='receipt-B', running=False)
+        self.quality.finalize_run(self.task, a, c)
         stdout, stderr = self.run_process.communicate(timeout=30)
         previous.COMMANDS.append({'test': self.id(), 'argv': list(map(str, argv)), 'cwd': str(self.root),
                                   'exit': self.run_process.returncode, 'stdout': stdout, 'stderr': stderr})
@@ -161,6 +172,7 @@ class MultiTurn(previous.TaskCardsCLI):
     def foreign(self, field, replacement):
         self.create_task()
         a = self.cli('dispatch', '--runtime-mode', 'workspace-write')['attempt']
+        self.quality.preparation(self.task, a, '受控 dispatch')
         live = self.original_live(a)
         # Keep the turn identical, so a turn-only identity check cannot pass.
         identity = {**live['runtime_identity'], field: replacement}
