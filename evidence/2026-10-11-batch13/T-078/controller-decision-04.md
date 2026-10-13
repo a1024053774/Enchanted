@@ -28,3 +28,7 @@ p1-launch-02 因 2.1.296 帮助中无 `--append-system-prompt-file` 在 CLI 启�
 ## P1 批准（材料 05，2026-10-13 本地 12:1x）
 
 相比 03 只增加文档化的 `IS_DEMO=1` 与隔离 `claude/settings.json` 的 `{"theme":"dark"}`，换新实例与 ID。批准 `p1-launch-05`（launch，不发送输入）；遇 key/目录信任提示即停保存原文；continue/cleanup 读回后另批。批准引用：`T-078 controller-decision-04 p1-05-launch`。
+
+## p1-launch-05 读回与 continue/cleanup 批准（2026-10-13 本地 12:1x）
+
+仅用 IS_DEMO=1 与 theme 预置后，CLI 直接到主提示符（"Haiku 5.5 with low effort · API Usage Billing"、"Not logged in"），未出现主题、API key 批准或目录信任提示；未写任何未文档化内部状态。批准 `p1-continue-05`（向假 API 送一次 nonce 输入，无真实模型）与随后的 `p1-cleanup-05`。批准引用：`T-078 controller-decision-04 p1-05-continue`。
