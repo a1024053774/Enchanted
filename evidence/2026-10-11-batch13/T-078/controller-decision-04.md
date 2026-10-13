@@ -48,3 +48,7 @@ continue-05 失败原因为缺 initial-ready.json（交接文件未生成），�
 ## p1-launch-06 读回与 continue 批准（2026-10-13 本地 14:3x）
 
 CLI 到主提示符，页脚无 "Not logged in"，无引导/key/信任提示。执行主控写入 p1-materials-06/readiness.json（confirmed_by executor）。批准 `p1-continue-06`（送原 nonce 一次，假 API 一条脚本化 SSE，真实模型 0）及随后 cleanup。批准引用：`T-078 controller-decision-04 p1-06-continue`。
+
+## p1-continue-06 读回（2026-10-13 本地 14:3x）
+
+AUTH_TOKEN 生效：假 API 收到 1 条 /v1/messages（CLI 的会话标题侧请求，含 nonce），不再报未登录。nonce 已送达并提交，窗格 busy、active 绑定本次 dispatch；但事件中没有 turn_start_signal（UserPromptSubmit hook 未登记），runner 以 "CR/hook did not establish the registered active submission" 停。屏幕显示 CLI 停在 "Forging…" 18 秒以上，假 API 只记录到标题请求、未见主回合请求。已运行 p1-cleanup-06：PASS，无残留。待 worker 只读诊断：(1) UserPromptSubmit hook 为何未落事件（hook 原始 stdin/退出、cli.ts signal 拒收原因）；(2) 假 API 是否串行阻塞在标题请求导致主请求未到。
