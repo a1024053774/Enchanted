@@ -369,3 +369,6 @@ find evidence/2026-10-11-batch13/T-076/card-2/ -type f -size +5M
 提交暂存检查区分当前源码/文档和原始证据：源码42个文件的cached检查为PASS（source-staging-check-02）；当前Resolution/RESULTS/核对脚本的cached检查为PASS（evidence-staging-check-02）。额外完整`git diff --cached --check`退出2，315条空白告警全部来自162个原始diff、终端stdout/stderr.bin、Git消息和冻结快照，包括diff上下文空行必需的空格；原输出与INCOMPLETE状态保留在evidence-staging-check-01，不清洗原始证据、不把该完整检查写为PASS。要求的`git diff --check`退出0，地图与>5MB检查均通过，见final-delivery-check-01。分类探针首次遗漏stderr.bin和hook-turn的message.txt路径而AssertionError，属于探针错误；原错误和精确修正登记在evidence-staging-check-02/classifier-error.json，未改业务断言或产品。
 
 最终证据提交前再次执行同一有界核对，最新收据为[final-delivery-check-02/run.json](final-delivery-check-02/run.json)；仅补文档与提交检查收据，没有新增产品/测试行为或模型回合。
+
+
+提交后读回：[postcommit-readback-01/run.json](postcommit-readback-01/run.json)确认源码提交2bc3a1e9是证据提交5045d221的祖先，两者9项尾注与当前会话一致，提交范围仅本卡。首次元数据探针错误地要求两次提交直接相邻而AssertionError；实际穿插了执行主控两项T-078记录提交，未改workbench/acceptance。修正为核对祖先关系及插入路径，未改产品或业务断言；原错误和所有Git读回命令保存在该收据。最终补交此文档及读回收据，不新增模型回合。
