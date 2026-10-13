@@ -31,3 +31,9 @@
 依据：用户授权 answer `20261013T144758Z-ideation-answer-001`（原话"A 再批 2 回合，完整重演 (Recommended)"；r3 共 4 回合）与 `20261013T142903Z-ideation-answer-001`（显式 `service_tier="default"`）。审阅 exec/t077 `2e2291ac` 上的 `REAL-APPROVAL-03-LAUNCH-1.md` 与 `real-plan-03-approved.json`（turn_limit=4）：实例根 `/private/tmp/t077-cf-20261013-r3`（运行前不存在），隔离 home、信任项、两条 allow 规则、三个 hook、Git hook 环境同 r2；argv 含 `--no-daemon` 与 `-c service_tier="default"`；新增 runner 守卫：turn_context/thread_settings 出现非 sol/xhigh/default 立即退出。
 
 批准第 1 次启动（只此一次）：Launch 1 `e9cf7727-772d-41db-bd76-e71ffc2d7e93`，最多 2 个主回合，完成后 SIGTERM 自建领导者并在第 2 次审批前暂停。不批准重试或追加；再不过即停下报告。批准引用：`T-077 controller-decision-03 r3-launch-1`。
+
+## r3 第 1 次启动读回与第 2 次启动批准（2026-10-13 本地 11:1x）
+
+读回 `real-conflict-03/attempt-1`：stage=awaiting_second_launch_approval、observed_root_turns=2；根 rollout 中 model 全为 gpt-6.1-sol、effort xhigh、service_tier "default"；relay_processed=1；SIGTERM 前领导进程 99885 为 0.162.1 Codex，之后 native-ended 只剩原 shell 99883、session_ended=true；无权限请求、无人工介入事件。
+
+批准第 2 次启动（只此一次）：Launch 2 `9b06963e-5718-4286-9dd3-921591a3b339`，worktree `.../T077-real-r3/T-077-12-a2`，argv 按 REAL-APPROVAL-03.md（含 `--no-daemon`、`-c service_tier="default"`）；最多 2 个主回合，r3 累计不超过 4；同一隔离 home，历史 rollout 逐字节核对；结束后归档并删除整个自建 home。再不过即停下报告，不追加。批准引用：`T-077 controller-decision-03 r3-launch-2`。
