@@ -36,3 +36,7 @@ p1-launch-02 因 2.1.296 帮助中无 `--append-system-prompt-file` 在 CLI 启�
 ## p1-continue-05b 批准（2026-10-13 本地 12:2x）
 
 continue-05 失败原因为缺 initial-ready.json（交接文件未生成），未发送输入。05b 只改 runner/wrapper/README，同一实例、launch、session、API 端口；继续前核对 manifest、API、就绪文件与 CLI 进程身份。批准 `p1-continue-05b` 一次（假 API，无真实模型）及随后的 cleanup。批准引用：`T-078 controller-decision-04 p1-05b-continue`。
+
+## p1-continue-05b 读回（2026-10-13 本地 12:3x）
+
+输入已登记并真实送达 CLI 提交（dispatch seq 1，屏幕显示 ⟦主控 #1⟧ P1_NONCE…），但 CLI 回答 "Not logged in · Please run /login"，假 API 未收到请求，runner 期限到即停（traceback 已记录）。结论：IS_DEMO 跳过了引导，但交互模式下 ANTHROPIC_API_KEY 仍需一次性批准（内部状态），文档化机制未覆盖。已运行 p1-cleanup-05b：PASS，无残留。下一步：只在假服务阶段评估文档化的替代认证——settings 的 `apiKeyHelper`（返回公开假 key）或 `ANTHROPIC_AUTH_TOKEN`——以官方文档为依据，零模型；真登录阶段不变。
