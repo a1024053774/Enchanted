@@ -2,7 +2,7 @@
 id: T-076
 title: S2 质量串与打分：独立审查、红态与规则式检查、打回回写，并补 S1 缺口
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -29,13 +29,13 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 检查面同 T-075：编排后台命令行入口驱动真实窗格里的真实 Codex worker 与 reviewer，对夹具仓库走完整门禁；证据为命令与输出、库里事件读回、Git 引用读回。
-- [ ] 正例：一次"第一次被打回（完成条件或红态不过）→ 自动回写 → worker 修好重交 → 审查可合并 → 带打分集成"的完整流程。
-- [ ] 反例，各自在真实入口上被拒且留下事件：红态命令在起点上不失败；规则式检查失败；审查会话是写入会话或续接旧会话；审查结论绑定的提交号与候选不符；缺打分；第 3 次打回后不再自动回写。
-- [ ] 尾注：真实 worker 提交的 `A2A-Model`、`A2A-Effort` 与启动记录一致。
-- [ ] 多回合：回执回合之后 run 与 reclaim 仍能核对身份；伪造的别的会话仍被拒。先有红态。
-- [ ] 一致性检查的结果如实报告（一致 / 哪些表不一致）。
-- [ ] 五类变异体各自失败；8/9/18 三组与 T-075 的正反例不退化。
+- [x] 检查面同 T-075：编排后台命令行入口驱动真实窗格里的真实 Codex worker 与 reviewer，对夹具仓库走完整门禁；证据为命令与输出、库里事件读回、Git 引用读回。
+- [x] 正例：一次"第一次被打回（完成条件或红态不过）→ 自动回写 → worker 修好重交 → 审查可合并 → 带打分集成"的完整流程。
+- [x] 反例，各自在真实入口上被拒且留下事件：红态命令在起点上不失败；规则式检查失败；审查会话是写入会话或续接旧会话；审查结论绑定的提交号与候选不符；缺打分；第 3 次打回后不再自动回写。
+- [x] 尾注：真实 worker 提交的 `A2A-Model`、`A2A-Effort` 与启动记录一致。
+- [x] 多回合：回执回合之后 run 与 reclaim 仍能核对身份；伪造的别的会话仍被拒。先有红态。
+- [x] 一致性检查的结果如实报告（一致 / 哪些表不一致）。
+- [x] 五类变异体各自失败；8/9/18 三组与 T-075 的正反例不退化。
 
 ## 说明
 
@@ -94,3 +94,17 @@ T-076-1 完成，待 T-076-2；待主控关闭。保持 open，ready_rev=1。
 提交检查补充：当前源码/文档cached检查通过；完整cached检查对原始diff、终端输出、Git消息与冻结快照产生315条空白告警，退出2/INCOMPLETE原样记录，原始字节不清洗。要求的git diff --check、地图、>5MB检查通过。分项收据及解释见RESULTS文末。
 
 最终证据提交前最新检查收据：card-2/final-delivery-check-02/run.json，PASS；7/8真实回合，待主控关闭。
+
+**执行主控验收与关闭（2026-10-13）：PASS，ticket 关闭。** T-076-1（42e2b8ed、d95f4171）与 T-076-2（2bc3a1e9 产品、5045d221 证据、56626b34 补读回）合起来覆盖全部 Acceptance：
+
+- 检查面与正例：outside-real-delivery-02 中真实 Codex worker（4 回合）与新只读 reviewer（1 回合），经编排后台 CLI 与门禁走完 C1 完成条件首拒 → 自动回写 → 同 attempt 修好重交 C2 → reviewer 可合并 → 缺分集成被拒（score_required、Git 不动）→ 执行主控在 ready-for-score 边界后填写评分 → 唯一 integrate 生成 M b24ec63e（父提交 G 与 C2）、唯一 score_recorded → 回收；事件、库与 Git 引用均有读回。
+- 反例：红态起点不失败、规则失败、reviewer 是写入会话或续接旧会话、结论提交号不符、缺分、第 3 次打回后不再回写，均在真实 CLI/后台/门禁入口被拒并留事件（outside-focused-tracer-01、outside-wide-green-01、outside-reviewer-*），对应单点变异体命中预写断言。
+- 尾注：真实 worker 提交的 A2A-Model gpt-6.1-sol、A2A-Effort xhigh 与启动记录一致（T-076-1 outside-real-04；T-076-2 C1/C2 消息读回）。
+- 多回合：T-076-1 已取红绿，伪造会话仍被拒。
+- 一致性：tasks/attempts/verifications 一致；memberships/session_presets 无法由事件重建、attachments 中断窗口未覆盖——如实报告，存储改动另开切片，本票不改存储。
+- 回归：legacy-green-06 的 coop 8 / recovery 9 / run 18、T-075 任务卡 15、relay、多回合、启动/停止全部通过；五类变异体及 F10/W07 来源变异体命中业务断言。
+- 只读独立交付审查（槽 7，真实 Codex gpt-6.1-sol xhigh，显式 service_tier="default"）：STATUS PASS，RELEASE LIMITED_GO（仅隔离受管交付，不表示工作台已切换）。
+- 真实回合合计 7/8（P-review 1、正例 5、交付审查 1）；超大日志已外置归档并字节读回。
+- 评分：score-264ffae5a52d449a9eed654de180ecfd（边界 3、工程 2）。
+- 合流提醒：T-077 的 R8 与本票 review 绑定的联合验收在 T-077 合流时由执行主控安排；T-078-1 待在本票之上变基合入。
+
