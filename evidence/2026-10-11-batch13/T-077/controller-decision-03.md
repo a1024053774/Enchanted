@@ -25,3 +25,9 @@
 依据：用户授权 answer `20261012T015257Z-ideation-answer-001`（额外 2～4 真实回合；Codex 一律 gpt-6.1-sol xhigh、普通速度、不传 Fast）。审阅 exec/t077 `f6bc3ed9` 的 `REAL-APPROVAL-02.md`：与已批准的 01 相比只换了实例根 `/private/tmp/t077-cf-20261012-r2`、任务号与 worktree，并去掉 `service_tier="fast"`；隔离 home、信任项、两条 allow 规则、三个 hook、Git hook 环境、停止条件与清理不变。
 
 批准第 1 次启动（只此一次）：Launch 1 `8ee0b73a-c031-46ed-8dd6-5e6490029781`，最多 2 个主 turn（本次新增预算 4 之内），完成后 SIGTERM 自建领导者并在第 2 次审批前暂停。周额度只剩约 1%：额度用尽即停下保存现场，不换账号或模型。批准引用：`T-077 controller-decision-03 r2-launch-1`。
+
+## 复验实例 r3：第 1 次启动批准（2026-10-13 11:0x 本地）
+
+依据：用户授权 answer `20261013T144758Z-ideation-answer-001`（原话"A 再批 2 回合，完整重演 (Recommended)"；r3 共 4 回合）与 `20261013T142903Z-ideation-answer-001`（显式 `service_tier="default"`）。审阅 exec/t077 `2e2291ac` 上的 `REAL-APPROVAL-03-LAUNCH-1.md` 与 `real-plan-03-approved.json`（turn_limit=4）：实例根 `/private/tmp/t077-cf-20261013-r3`（运行前不存在），隔离 home、信任项、两条 allow 规则、三个 hook、Git hook 环境同 r2；argv 含 `--no-daemon` 与 `-c service_tier="default"`；新增 runner 守卫：turn_context/thread_settings 出现非 sol/xhigh/default 立即退出。
+
+批准第 1 次启动（只此一次）：Launch 1 `e9cf7727-772d-41db-bd76-e71ffc2d7e93`，最多 2 个主回合，完成后 SIGTERM 自建领导者并在第 2 次审批前暂停。不批准重试或追加；再不过即停下报告。批准引用：`T-077 controller-decision-03 r3-launch-1`。
