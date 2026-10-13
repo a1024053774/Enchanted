@@ -224,7 +224,7 @@ worker名额释放及新attempt的原生记录归属由T-077联验；此卡保�
 真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
 路径、隔离 `codex_home`、角色卡及版本、代码版本、hook 授权引用和回合上限。
 `dispatch --runtime-mode workspace-write` 始终启动交互 zsh 中的 Codex：`-a never`、
-workspace-write、任务卡指定模型（当前统一 gpt-6.1-sol）、xhigh、普通速度（不传 service_tier）、关闭更新检查。
+workspace-write、任务卡指定模型（当前统一 gpt-6.1-sol）、xhigh、显式 `-c service_tier="default"`（普通速度，覆盖全局 priority）、关闭更新检查。
 网络及托管网络代理关闭，不设置 socket 放行名单。三个 hook 向同一 CLI 的 `signal`
 送原始 stdin；Stop 另外读取显式请求文件。启动参数、环境白名单、请求模型与实际回合模型分开记录。
 
