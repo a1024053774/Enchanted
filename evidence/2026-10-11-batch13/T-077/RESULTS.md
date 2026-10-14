@@ -1,5 +1,11 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 最新合流状态：主控 #119
+
+**INCOMPLETE。** final-04 的 run 18、CAS 1、cards 15 已通过；relay-conflict 因父级 commit 调用了子类缺少的 managed_trailers 而 ERROR，之后的完整业务阶段未运行。原始失败保留。先对后续 8 类、52 个场景做无后台预检，再只补 relay 夹具 helper；完整预检核对 1,170 处显式调用绑定，未见其他方法/字段缺口，局部 helper 检查修前 1 error、修后 3 项通过。
+
+九个 CLI 参数入口、十一份 TS 语法与六组离线边界检查通过；dispatch-state 需真实 ps，沙箱中为 spawn EPERM，仍记 INCOMPLETE 并留给主控沙箱外执行。详见 `DIAGNOSIS-rebase-final-04.md` 与各 final05-preflight/boundaries/helpers 目录。产品及 acceptance 业务语义未改。新 full 阶段为 `outside-sandbox.sh rebase-final-05`，输出新目录 `outside-rebase-final-05/`；尚待运行，不借轻量结果称全量 PASS。本轮真实模型回合 0。
+
 ## 最新合流状态：主控 #118
 
 **INCOMPLETE。** final-03 已通过 driver-readiness、审查清理四条反事实及候选四项、三条 joint 反事实与候选、七条冲突反事实、S3 全量 25、coop 8、recovery 9。随后 run 的第 11 项因 adapter 缺少 overlap_reason 参数而 ERROR；已收集全部 18 项，但 failfast=True 使其余 7 项未运行，后续阶段也未运行。原始失败与控制台输出不变。

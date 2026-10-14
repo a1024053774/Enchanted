@@ -73,6 +73,15 @@ class RelayConflict(cards.TaskCardsCLI):
     def runtime(self, launch):
         return json.loads((self.control / (launch + '.runtime.json')).read_text(encoding='utf-8'))
 
+    def managed_trailers(self, attempt):
+        launch = attempt['runtime_identity']['launch']
+        runtime = self.runtime(launch)
+        env = json.loads((self.control / (launch + '.env.json')).read_text(encoding='utf-8'))
+        records = [json.loads(line) for line in Path(runtime['file']).read_text(encoding='utf-8').splitlines()]
+        context = [row['payload'] for row in records if row['type'] == 'turn_context'][-1]
+        return {'Tool': env['A2A_TOOL'], 'Model': context['model'], 'Effort': context['effort'],
+                'Native-Session': runtime['native'], 'Launch': launch}
+
     def pane_cli(self, command, *args):
         # pane_* commands take a thread, not a task. The inherited helper is
         # for gate commands and always adds --task, which this CLI rejects.
