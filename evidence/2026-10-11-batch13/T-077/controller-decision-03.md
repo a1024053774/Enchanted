@@ -79,3 +79,7 @@ INCOMPLETE，rc=1。新通过：run 18（无 failfast）、cas、cards。停在 
 ## rebase-final-05 读回（2026-10-14 UTC 04:56）
 
 PASS（产品 5d0bf1e8，夹具 be91b3c0，checkout 79ef7b7f，模型 0）。39 子阶段全部按预期：审查清理 4 红 + 候选、joint 3 红 + 候选、冲突 7 红（red_confirmed）、s3 25、coop 8/8、recovery 9/9、run 18/18、cas 1、cards 15/15、relay-conflict、尾注候选 2、identity 4、shutdown 4、T-076-2 tracer/wide/审查故障/协议控制/来源冻结、relay core/cli/scope/全库去重变体、native-final、dispatch-state、panes 4。relay-core/native-final/dispatch-state 的子报告无 status 字段，仅 exit 0，交独立审查直接核对。下一步：fresh-context 只读独立审查（gpt-6.1-sol xhigh）。
+
+## 独立审查 01 读回（2026-10-14 UTC 05:1x）
+
+reviewer（fresh-context，请求 gpt-6.1-sol/xhigh，tier 未观察）：INCOMPLETE。确认 (a) 合流保留两卡语义、(b) 两处衔接、(c) 审查 worktree 命名清理、(d) 夹具未放宽断言、(e) relay-core/native-final/dispatch-state 原始结果确为通过、(f) 审查清理 4 与 joint 3 与 relay 全局变体命中目标断言。唯一发现 P2 F1：conflict-red-06/07 停在重交前置（candidate_conflict），未到达禁止路径/外来尾注的目标断言，分类器误计红态。无产品缺陷。接受；交 worker 绑定目标断言标识、为 06/07 写定向变体、重跑 7 条冲突红态（conflict-red-final-01），之后对差异做 fresh-context 复审。
