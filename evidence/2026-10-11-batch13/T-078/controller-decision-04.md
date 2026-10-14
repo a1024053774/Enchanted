@@ -222,3 +222,7 @@ submit：nonce 送达（dispatch 20422cf6…，seq 1），真实 CLI 发起 Bash
 permission 阶段 rc=1：一次 Enter 经窗口送达（key_attempt），真实 Bash 执行 inbox list，tool_result 为 "Exit code 1 {"ok":false,"error":"daemon_call_failed","details":"Error: worker_request_directory_required"}"——即计划预测的最早入口红态，已在 api.jsonl 第 2 次请求中原样记录。但假 API 的 validate_request 要求"下一条 user 消息携带 tool_result"，而 2.1.296 在 tool_result 之后追加 system 消息，假 API 报 "The next user message must carry the tool result." 并写 api-error.json，未返回 ACK，回合未正常 Stop。判为夹具协议缺陷。实例根保留，交 worker 只读读回现场（UPS/Stop/hook/PTY、permission 事件与 intent 记账）、修假 API 校验（按实际消息序列定位 tool_result，不放宽 ID/命令/预算校验），再决定 readback/cleanup 与是否需要新实例重跑。
 
 worker 报警（#175）：api.jsonl 实有 3 次 /v1/messages，第 2、3 次都携带同一 Bash tool_result——假 API 报错后 CLI 自行重发，超出该包主 Messages 预算 2。记为预算超出（客户端重发，非 a2a 注入），本次不计完整通过；只保留"worker_request_directory_required"的入口红态。旧实例不补 ACK、不改现场；等 worker 的归属核对与清理脚本。
+
+## slice1-red 读回、提交与清理（2026-10-14 UTC 23:0x）
+
+读回（SLICE-1-READBACK.md）：客户端入口红态 PASS（真实 Bash tool_result is_error、worker_request_directory_required；requests 与 relay/inbox 业务行均 0）；工具许可 Enter 虚记提交红态 PASS（一个真实 UPS，却有原 intent seq48 与 Enter 产生的 source=user intent seq87）；假 API 校验缺陷经原样请求红→绿修复；主 Messages 3/2 记 NO_GO（HTTP 400 后 CLI 自发补请求，非新根）；无 Stop/idle，不称闭合。commit-slice1-readback → 5b404cb9（以 s13-t078m 身份）。cleanup-slice1-red（#175）：仅对本实例假 API 发一次 SIGTERM 并确认退出，根逐成员外置归档读回 PASS；因协议失败现场（api-error）按规则保留根。下一步：在已分配文件内实现 controller 会话请求文件（relayFiles.ts）、Stop 转交与 caller 身份、Enter 许可不新增 intent，先单元/入口红绿，再生成新实例跑绿态（同机制逐次批准）。
