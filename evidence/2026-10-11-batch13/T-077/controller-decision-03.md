@@ -41,3 +41,9 @@
 ## 用户决定：选 C，两条受控证明后关票（2026-10-14 UTC 01:16 收到）
 
 依据 answer `20261014T011612Z-ideation-answer-001`（用户原话逐字："C 受控证明后关票，并改角色卡 (Recommended)"，见该条目"## 授权"）。不再跑真实回合（累计 9/10 停在 9）。worker 在真实门禁入口上补：(a) 带不支持尾注（A2A-Fence、A2A-Spec-Rev）的重交被 verify 拒收；(b) 同一重交尾注正确时验收并集成。先有红态：断言须在已知坏实现（放过多余尾注的变体）上失败。之后独立审查、合并（含 R8 与 T-076 审查联合核对），通过即关票，Resolution 按 answer 第 2 条。
+
+## controlled-trailer-proofs-01 运行与读回（2026-10-14 UTC 01:4x）
+
+执行主控在沙箱外运行 `outside-sandbox.sh controlled-trailer-proofs-01`（真实模型 0）：顶层 PASS。known-bad（删去 verify 尾注数量检查的 /tmp 变体）red_confirmed=true，verify ok=true；候选 2/0/0：(a) 多余 A2A-Fence/A2A-Spec-Rev → invalid_trailers、两条 rejected 事件、task 仍 submitted；(b) 同一 C2 源码、钩子生成九项 → accepted，夹具 main 快进到 C2。两例 C2 源码一致，无超 5 MB 文件。
+
+worker 非阻塞问题 ISSUE-dispatch-tier-record（dispatch_intent 速度标签为 fast）：main 的 core.ts 已是 `requested_service_tier: "default"`（随 T-076-2 合入），T-077 变基到 main 时随之解决，合流时核对；不另开 ticket。其 inbox 投递失败源于本分支既有悬空 reply_to，变基后由 main 的收件箱为准。
