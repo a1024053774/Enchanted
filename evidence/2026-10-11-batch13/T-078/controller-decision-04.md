@@ -162,3 +162,7 @@ INCOMPLETE（"Fake API protocol/budget error"）。A1、A2 成立；A3 成立：
 ## exec/t078 变基到含 T-077 的 main（2026-10-14 UTC 13:4x～14:0x）
 
 材料提交 c6b3a127（以 s13-t078m 身份）后，在沙箱外运行 worker 的变基脚本（备份 backup/t078-before-09a3-main-c6b3a127ba23，日志 /private/tmp/t078-rebase-09a3-a5TxSq），逐停由 worker 解决代码冲突（daemon/core/panes/relay/store/cli 等；core.ts、cli.ts 仅为解冲突），执行主控运行 rebase-continue-01～05；controller-decision-04.md 的 add/add 冲突取 main 侧超集。27 个提交全部重放，exec/t078 = ff3708d0（onto main 87e954a2）。待重跑检查、重生 09A-3 材料后审批。
+
+## 变基后回归（2026-10-14 UTC 17:0x～17:3x）
+
+commit-rebased-code-09a3 → 0f754a6d；regression（沙箱外）：runtime、input-failures PASS，worker-inbox 7 项空观测——worker 诊断为夹具仍按 id:<request_id> 查结果，未跟上 T-077 按 launch 登记的键（非产品），先以原失败库取 8 项红态再修夹具；commit-regression-02 → 567d7748（产品 src/app/hooks 不变）。regression-02：worker-inbox 14/14、coop 8/8、recovery 9/9、run 18/18、CAS 1/1 PASS；四个 worker 权限变异体（assign/ready/foreign-ack/revoked）各在目标契约失败、禁止结果实际出现。真实模型 0。批准生成 09a3r 新材料。
