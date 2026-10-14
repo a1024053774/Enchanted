@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "review_id": "T-083-review-01",
+  "requested_at": "2026-10-14 19:04:54 UTC",
+  "repository": "/Users/luckye/Documents/Code/a2a-wt-t083",
+  "candidate": "56dbe76dc1ea7221434a67483140fd0af14defa1",
+  "base": "10ada0328ad6f522de4612724b5802bc2e8a0efd",
+  "authorization": "当前用户消息：主控 #162，授权一次 fresh-context 只读独立审查。",
+  "requested_tool": "collaboration.spawn_agent",
+  "agent_type": "explorer",
+  "task_name": "t083_independent_review_01",
+  "model_requested": "gpt-6.1-sol",
+  "reasoning_effort_requested": "xhigh",
+  "fork_turns": "none",
+  "service_tier": {
+    "selection_available": false,
+    "requested": null,
+    "observed": null,
+    "note": "spawn_agent 不提供 tier 选择；未观察实际 tier。"
+  },
+  "allowed_write_path": "evidence/2026-10-14-batch14/T-083/independent-review-01.md",
+  "prompt": "你是 T-083 的 fresh-context 独立 reviewer。你没有作者会话历史，只审查一个冻结候选；不要实现或修复，不要另开 agent。你与作者共享工作目录，不得回退或修改任何现有文件。唯一允许写入的文件是 /Users/luckye/Documents/Code/a2a-wt-t083/evidence/2026-10-14-batch14/T-083/independent-review-01.md；除此之外严格只读。不得提交、submit、集成、发送消息或调用真实模型。该报告以 UTF-8、无 BOM 写入，正文中文。\n\n仓库：/Users/luckye/Documents/Code/a2a-wt-t083\n冻结候选：56dbe76dc1ea7221434a67483140fd0af14defa1\n比较基线：10ada0328ad6f522de4612724b5802bc2e8a0efd\n\n验收 claim：T-073 启动/尾注测试的固定完整 argv 期望符合用户的普通速度决定和启动器固定 --no-daemon 参数，保留其他断言，接受正确启动并拒绝 fast 回退或缺少 --no-daemon。测试在真实脚本与隔离 Git 入口运行，Herdr 被显式 fake；不把此证据扩大为真实模型行为或 Herdr 运行时保证。\n\n输入严格限于下列文件及其基线/候选 Git 内容：\n1. AGENTS.md。\n2. .project-map/tickets/T-083-t073-launch-argv-assertion.md。\n3. scripts/launch-worker。\n4. acceptance/test_herdr_traceability_e2e.py。\n5. 原始证据目录 evidence/2026-10-14-batch14/T-083/red-01/、green-01/、mutant-fast-01/、mutant-no-daemon-01/；包含 command.json、stdout.txt、stderr.txt、exit-code.txt 及 artifacts 内 commands.jsonl、summary.json、location.txt、消息和 fixture.tar.gz。可以只读检查归档成员，不解压或写临时文件。\n6. 变异原始输入 evidence/2026-10-14-batch14/T-083/mutants-01/fast/mutation.diff、fast/scripts/launch-worker、without-no-daemon/mutation.diff、without-no-daemon/scripts/launch-worker。\n7. 原始基线比较证据 evidence/2026-10-14-batch14/T-083/baseline-main-equivalence.diff 与 project-map-status.txt。\n\n禁止读取 RESULTS.md、checks.json、context.json、此前审查/结论、作者说明、本会话、其他 ticket、MAP、CONTEXT、intent 或其他源码。当前用户的输入限制优先于 AGENTS 中一般会话加载规则。允许 git rev-parse、git status（仅核对冻结状态）、git diff --name-only（确认路径范围），以及上述允许文件的 git diff/show/log。不要浏览整个证据树或读不在允许列表中的文档。\n\n按 behavioral-acceptance-review 的独立性标准执行一次审查：从 ticket 引用的用户决定及启动器固定 argv 重建预期，把修改后的测试视为待审对象，不能只靠绿态认定通过。检查真实入口、输入独立性、固定完整 argv 断言、随机哨兵或变异、已知坏实现拒绝结果，以及证据范围与局限。不要重跑会写证据的测试，只读检查现有原始证据。\n\n重点逐项核对：\n- 候选相对基线的测试改动是否仅将固定期望加入 --no-daemon 并改为显式 service_tier=\"default\"；期望是否直接写死、没有读取实现输出来生成答案；用户决定与固定参数依据是否足够。\n- 其他尾注、身份、完整 argv、Git 语义和打分断言是否保持，有无放宽、删除、跳过或 mock 新路径。\n- red-01 是否在修改前版本以旧期望失败；green-01 是否同一套命令通过（允许仅证据目录不同）。\n- 两个变异是否只在副本里分别把默认 tier 改 fast 或去掉 --no-daemon；原始输出是否真在 Contract.assert_trailers 的 argv 相等断言失败，有无设置/导入/环境错误替代业务失败。\n- 原始 commands.jsonl 与夹具记录是否支持输出、测试数、代码/会话身份、无真实模型调用的主张。明确不能从 fake Herdr 或 codex --version 推断真实服务档位/模型结果。\n- 如果候选、分支或 diff 发生变化，停止并给 INCOMPLETE；不要跟随新候选。新增加的本次 request/completed 记录不属于候选 diff。\n\n报告严格使用以下字段，每项结论给出路径/行号或原始命令、结果证据：\nSTATUS: PASS | FAIL | INCOMPLETE\nTARGET: <完整候选号及基线>\nEVIDENCE:\n- <独立依据与原始证据>\nFINDINGS:\n- <若有问题标 P1/P2/P3、文件与行号、影响和最小修正；无则写无>\nCOUNTEREXAMPLE:\n- <两个已知坏实现是否被业务断言拒绝>\nLIMITATIONS:\n- <缺失或不支持的外部边界、观察、覆盖；不能把未知上调为 PASS>\nRULE:\n- <仅有重复失效类别时给检查及运行位置；否则写不适用>\n\nPASS 只针对此冻结候选与明确的测试修复 claim，不代表已经提交/验收/集成或真实模型行为。最终答复只报状态、报告路径和关键结论。"
+}
