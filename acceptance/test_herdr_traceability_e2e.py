@@ -114,8 +114,8 @@ else:sys.exit(2)
         bound = self.rows("launches.jsonl")[-1]
         self.assertEqual(bound["native_session"],env["CODEX_THREAD_ID"])
         self.assertEqual(bound["project_commit"],self.base)
-        self.assertEqual(bound["argv"], ["codex","-m","gpt-6.1-sol","-c",'model_reasoning_effort="xhigh"',
-                                           "-c",'service_tier="fast"',"-c","check_for_update_on_startup=false",
+        self.assertEqual(bound["argv"], ["codex","--no-daemon","-m","gpt-6.1-sol","-c",'model_reasoning_effort="xhigh"',
+                                           "-c",'service_tier="default"',"-c","check_for_update_on_startup=false",
                                            "--sandbox","workspace-write","--ask-for-approval","on-request"])
 
     def hook(self, name, body):

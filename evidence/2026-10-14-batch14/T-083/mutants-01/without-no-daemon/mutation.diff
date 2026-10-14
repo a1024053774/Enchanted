@@ -1,0 +1,11 @@
+--- scripts/launch-worker
++++ without-no-daemon/scripts/launch-worker
+@@ -51,7 +51,7 @@
+         raise ValueError("--resume 需要原生会话 UUID")
+     # --no-daemon: a shared background server kept each worker's session writer lock after its
+     # pane closed (2026-10-13), blocking an executor switch; the product Panes launch uses it too.
+-    argv = ["codex", *(["resume", args.resume] if args.resume else []), "--no-daemon",
++    argv = ["codex", *(["resume", args.resume] if args.resume else []),
+             "-m", args.model, "-c", "model_reasoning_effort=" + json.dumps(args.effort),
+             # Always explicit: the user's global config sets priority, which an omitted flag inherits.
+             # evidence/2026-10-13-tier-probe/probe-01.json: "default" is what the session reports back.
