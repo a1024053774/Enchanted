@@ -67,3 +67,7 @@ INCOMPLETE，rc=1：3 条 joint 变体红态、7 条冲突红态、joint-candida
 ## rebase-final-02 读回（2026-10-14 UTC 03:34）
 
 INCOMPLETE，rc=1：driver-readiness 通过后，runner 重建修前产品副本时拒绝 git archive 中 workbench/hooks/ 的 26 个指向 hook.py 的符号链接（"Unexpected preimage archive entry"），业务阶段未运行。runner 缺陷，非产品；交 worker 只改 runner（仅放行同目录 hook.py 符号链接），候选不变，另起 rebase-final-03。
+
+## rebase-final-03 读回（2026-10-14 UTC 04:02）
+
+INCOMPLETE，rc=1（候选 5d0bf1e8，runner e5af8193）。审查清理 4 红态/候选绿、joint 3 红/候选、冲突 7 红、s3-all 25、coop、recovery 均按预期；run 套件 11/18 执行、1 error：acceptance/test_run_e2e.py:549 claim(overlap_reason=…) 与 daemon_acceptance_adapter.claim 签名不符（合流夹具缺口，非产品）。交 worker 修 adapter（overlap_reason 经真实 CLI 传门禁）并查明 11/18，另起 rebase-final-04。
