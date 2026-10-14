@@ -492,3 +492,15 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_final_checkpoint.py --output e
 08b launch 的 13 字节即时截取没有形成首屏。08c 改为只记录进程启动；首屏由另批的 screen 阶段读回，不加读屏规则、重试或自动按键。新实例为 `/private/tmp/t078-2-p1-08c-1uy5wegk`；launch/session/thread、准确 argv/env、端口启动时分配、隔离 HOME 与 hooks 等绑定见材料。每屏目标项与批准均入证据，真登录在用户 HOME 出现任何引导屏一律停下交主控、不按键。
 
 08c 静态准备 PASS，实际 launch 未执行；一回合主请求、真实 UserPromptSubmit／Stop、busy／完成仍 INCOMPLETE。Esc 放行、二次送达、紧急停止继续留材料 09，不缩减整票验收。审批／域探针／静态检查重放命令见 P1-APPROVAL-08C；整体保持 INCOMPLETE、open、待主控关闭。本轮 worker 启动 CLI／API／模型均为 0。
+
+## T-078-2 材料 08d（主控 #111～112）
+
+上段为 08c 交审批时点。主控之后实跑证明主题确认修复生效，三步写 PTY，停在 Security notes，未确认提示；cleanup PASS，无残留、真实模型 0。原件保留在 p1-materials-08c。构思主控批准隔离实例中确认这一逐字相同的固定安全提示，真登录引导的停止条件不变。
+
+新用途 onboarding-notice 仅允许 Enter，仍使用后台凭据与逐屏原字节批准。自已登记的主题确认快照后取全部提示段，按 [固定规则](NOTICE-COMPARISON-08D.md) 去终端控制序列，与 08c 固定文字全串相等；不同即拒。不是语义分类，不自动通过其他提示；同屏去重、本 notice 在 launch 限一次，原文／按键／批准留证。产品独立提交 `f14d63df7f6f5131ea143ab37a5878ec7ecb28e8`。
+
+[红态](notice-red-08d/results.json) 是起点整用途不可达，拒绝 `invalid_screen_key`，没有额外 CR；没有把不可达的下游规则算业务红态。[最终域绿态](notice-green-final-08d/results.json) 12/12，原主题／屏幕域检查各 4/4。[单规则变异体](notice-text-mutant-08d/counterexample.json) 去掉文字比较，改字、追加提示、可打印空格变化与不完整控制序列各自实际写出额外 CR；四项失败，其余通过。全部为合成 PTY／进程身份，未发送真实菜单键。
+
+08d 新实例 `/private/tmp/t078-2-p1-08d-ohyh5win`，51 文件源码绑定、准确 argv/env 与逐阶段审批见 [P1-APPROVAL-08D](P1-APPROVAL-08D.md)；本轮仅静态生成，CLI／API／模型启动均为 0，launch 尚未批准运行。官方文档支持后续可能的目录信任／认证／MCP 类别，不能保证 2.1.296 的完整逐屏顺序；[官方依据与未知](ONBOARDING-AHEAD-08D.md) 供审批比对。
+
+整票仍 INCOMPLETE、open、待主控关闭。实际 notice、单回合主请求及真实 hooks 仍待 08d；完整 Esc／二次唤醒／紧急停止保留 09，真登录尚未启动。所有重放命令与原件路径见本节链接，旧结果不替当前候选背书。
