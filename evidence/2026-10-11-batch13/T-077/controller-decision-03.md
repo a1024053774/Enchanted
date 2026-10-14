@@ -99,3 +99,7 @@ PASS，rc=0（产品 5d0bf1e8、夹具 178d15f3、checkout 628234b7，模型 0�
 ## 复审 02 读回（2026-10-14 UTC 13:2x）
 
 reviewer（fresh-context）：本次限定复审 NO_GO，原 F1 已解决（七条红态各命中目标、前置齐全且在目标前；06/07 定向变体只破坏对应守卫、分别在 :886/:897 失败；候选七项通过；产品与夹具冻结身份一致）。唯一新发现 P2：目标通过后普通断言失败时分类器标 TARGET_PASSED 而非 NOT_COVERED；不影响已记录红态与候选结论。接受；交 worker 先红后绿修分类器，并对已保存原始结果离线重分类，证明结论不变，无需重跑沙箱外阶段。
+
+## 验收与关闭（2026-10-14 UTC 13:2x）
+
+分类器修正（65f441e5，红：修前 TARGET_PASSED≠NOT_COVERED；绿：9/9；14 份原始结果离线重分类不变）与其审查 PASS 0 发现（baf5e769）。执行主控亲跑分类器检查 9/9 OK。分支变基到 main（25 个提交，无冲突，产品/验收文件与 5d0bf1e8 逐字一致），main 快进至 60eb6ac5。T-077 ticket 标 closed、验收 7 项勾选、Resolution 补写；打分 score-ac5390d8…（边界 3、工程 2）。issue 20261014T023857Z 关闭（disposition 带依据）；blocking issue 20261011T134711Z 转构思主控待用户关闭（20261014T131942Z）。project_map status：Problems 0、Stale 0。
