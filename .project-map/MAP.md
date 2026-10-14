@@ -2,7 +2,7 @@
 
 ## Destination
 
-第三阶段（2026-10-10 修订）：各家原生 CLI 以交互终端运行，a2a 只做编排、门禁与记录；工作台是本仓库里的轻量 Electron 应用，借用 Synara 的组件与样式。目标与切换条件见 [intent.md](../intent.md)，决定见 T-069～T-072，执行规格见 [native-cli-orchestration](specs/native-cli-orchestration-2026-10-10.md)；首批切片 T-073～T-075（S0、S1）已关闭；第二批为 T-076（S2 质量串与打分）、T-077（S3 worktree 与冲突）、T-078（S4 两个主控进工作台）。用户认为新工作台可用之前，日常派发仍经 Herdr。
+第三阶段（2026-10-10 修订）：各家原生 CLI 以交互终端运行，a2a 只做编排、门禁与记录；工作台是本仓库里的轻量 Electron 应用，借用 Synara 的组件与样式。目标与切换条件见 [intent.md](../intent.md)，决定见 T-069～T-072，执行规格见 [native-cli-orchestration](specs/native-cli-orchestration-2026-10-10.md)；首批切片 T-073～T-075（S0、S1）已关闭；第二批为 T-076（S2 质量串与打分）、T-077（S3 worktree 与冲突）、T-078（S4 两个主控进工作台）。2026-10-14 插入门禁加固三张：T-080（验收文件受保护）、T-081（坏 worker 测试集）、T-082（reviewer 审查完成条件并做变异检查），决定见 [gate-hardening](proposals/gate-hardening-2026-10-14.md)。用户认为新工作台可用之前，日常派发仍经 Herdr。
 
 第二阶段（2026-10-07～10-09）基于 Synara fork：原生门禁、第一次经门禁的真实派发（T-046）与三项功能的部分实现，见 [synara-m1](specs/synara-m1-2026-10-07.md)；这些是日期记录，证据只对各自的代码版本成立。[workbench-m1](specs/workbench-m1-2026-10-06.md) 是更早被取代的 GPUI/Muster 方案。
 
