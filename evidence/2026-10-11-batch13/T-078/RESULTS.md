@@ -751,3 +751,9 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 交 [固定cleanup脚本](cleanup-slice1-green-184.py)：认证daemon_stop确认原CLI/shell/daemon退出；核对API44036命令/root和两次lifetime后最多一次SIGTERM，确认退出并外置逐成员归档读回。根因api-error保留，无root删除选项，slot不动；当前仅静态PASS，实际cleanup **INCOMPLETE**。说明与新实例审批见 [SLICE-1-GREEN-3](SLICE-1-GREEN-3.md)。
 
 cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-slice1-green-3.sh)，新 `p1-materials-slice1-green-3` 必须新root/HOME/IDs/nonce，绑定新source、逐文件核对。明确复用outside-02的相关入口PASS，仅在产品/入口/驱动源码均未变的Git核对通过后成立，旧回归不是新运行。新原样重放单列；根2/Messages3/Bash1/模型0不增，launch与逐屏/nonce/一次许可仍单独批。当前新实例生成/真实完整绿态、独立reviewer、09B/09C、整票仍 **INCOMPLETE**。产品源码无改动，worker未执行清理或启动新实例。
+
+## 原场景清理与新文本校验材料冻结（脚本执行读回）
+
+[原场景cleanup](p1-materials-slice1-green/cleanup-184/result.json) **PASS**：确认四个原进程退出、最多仅API44036一次SIGTERM、外置归档字节读回；根／slot保持，原场景仍INCOMPLETE／预算NO_GO。新source `8e99d62e7892ef0468fe2b2b8dabe22387684557`，产品沿用455696c9；相关outside-02源码未变，明确复用、不称新运行。
+
+[新实例静态核对](p1-materials-slice1-green-3/static-check.json) **PASS**：root `/private/tmp/t078-2-p1-slice1-green-3-jzfi4ju5`、launch `c4a5dc22-7d3f-430d-8e82-1b8723fac40f`、session `b733f220-534f-4411-b960-5caabd1ed73e`；新HOME/IDs/nonce，Git/tar逐文件相同、批准字段空。根2/Messages3/Bash1/模型0；未launch，真实完整绿态、独立审查、09B/09C与整票仍 **INCOMPLETE**。
