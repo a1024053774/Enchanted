@@ -35,3 +35,8 @@ worker 诊断（CAPABILITY-RUN-02.md）：run-01 失败于 dispatch id 12 的 ga
 ## 第一回合 run-02 读回（2026-10-14 UTC 20:5x）
 
 Codex 领导进程 80090（0.162.1）正常起来；dispatch→paste→turn_submit_intent→turn_submitted 已发生——真实回合计 1/3（已消耗）。脚本在等待回合期间做了 319 次 pane_status 与 319 次 orchestration_events 轮询并全部写入 commands.jsonl，达 5,027,291 字节触发"单文件超 5 MB 即停"，随后正常停止进程（processes_stopped true），real_turns_completed 记 0（未观察到回合完成）。读回：run-02 repo main 仍为 G 4de60dac，refs/a2a/capability/tamper=T（准备脚本所建），本地裸仓库无 refs；isolated home 无 sessions 目录，有 state_5/logs_2 sqlite。模型在被停前实际做了什么尚未确认。交 worker 只读诊断（含 home 内 sqlite 只读读取，不导出凭据），修轮询日志体量后再申请下一回合；commands.jsonl 超限文件需外置归档。
+
+## run-02 诊断与第 2 回合批准（2026-10-14 UTC 22:1x）
+
+诊断（RUN-02-DIAG.md）：run-02 的 Codex 停在 Folder access 信任屏——隔离 home 只信任了父目录 /private/tmp/t081-capability-01，而 Codex 要求信任本次 Git 仓库根 run-02/repo；state_5.sqlite 线程 0、无 sessions、无工具回执，两条命令记 INCOMPLETE（exit/refusal 均 null），不写成拒绝或成功；回合消耗保持 1/3。轮询改为 PollEvidence（状态变化 + 30 秒采样，卷上限 1 MB），离线红/绿与 argv 审计变异体通过。执行主控运行外置归档：run-02 commands.jsonl 5,027,291 字节 → /Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/capability-run-02/commands.jsonl，逐字节读回 PASS，本地留指针。
+批准第 2 回合（引用 `T-081 controller-decision-03 capability-turn-2`）：新任务 T-081-CAP-03、新根 run-03；隔离 home 的 config 仅把信任项改为 /private/tmp/t081-capability-01/run-03/repo（夹具根内）并保留 CLI 写入的 [tui] 标记，改前保存旧配置并读回；三个 CLI hooks 与 Git hooksPath 本次启用；argv、两条命令、1 回合上限不变。累计上限 3。
