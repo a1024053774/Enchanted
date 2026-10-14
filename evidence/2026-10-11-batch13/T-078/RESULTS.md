@@ -637,3 +637,7 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 正例在 Esc 写入／退休、API1 取消及恢复草稿可见后只经同窗口发一次 Control+C，完整 control action／准入／intent／written、新 offset、编辑区空框、截图和同 highwater PTY 原字节齐备后才点生产声明；反例不清空，只点击预批的故意不真实声明。每一步有独立批准人／引用／依据，source 明写 test-simulated-user，不能称用户亲手操作。任何不清空、残字、未知区、缺证、旧代次或额外输入均停，无第二 Ctrl+C、换键或重送。slot 删除按 #150 保留不执行，清理阶段再定。
 
 本轮只改测试／材料工具，src/app/hooks 与 T-080 文件未动；未启动 CLI／API／后台／UI／构建或真实模型。主控冻结修改后才生成两套新 09a3r2 ID／HOME／nonce；新材料静态核对及实际场景当前 **INCOMPLETE**。新候选独立 reviewer、09B／09C、系统 IME、真登录和整票仍 **INCOMPLETE**，不关闭、不集成、不 push。
+
+主控 #151 以原启动身份提交 `643d59bfadbf07466ee28d57f471b8ef3d10646f`，九项尾注，保存新 source freeze。本 worker 随后生成 [09A-3R2 新材料](P2-APPROVAL-09A3R2.md)：clean 根 `/private/tmp/t078-2-p1-09a3r2-hgqtpjz_`、block 根 `/private/tmp/t078-2-p1-09a3r2-block-093154n0`，新 HOME／task／launch／session／thread／四 nonce，分别冻结 79 文件。生成及静态核对 **PASS**；每个动作批准字段均为空，API／状态库／readiness／slot 尚未生成。只交 clean launch 审批，提交脚本不启动。
+
+正例与反例均由 executor 预批的 test-simulated-user 点生产声明，来源在证据中明示。正例同窗一次 Ctrl+C、完整控制收据、新 offset 空框及 PTY／窗口证据齐备后才点；反例清空预算 0，保留草稿并作不真实声明，要求拼接 block／API1-only。当前外包只接受 09a3r2，旧材料批准不能误选新实例；slot 删除入口保留拒绝，清理到时由主控另定。本轮没有真实 CLI／API／后台／Electron／构建／模型启动，实际两场景及新候选独立审查仍 **INCOMPLETE**，整票不关闭、不集成、不 push。
