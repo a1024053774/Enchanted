@@ -63,3 +63,7 @@ INCOMPLETE，rc=1：3 条 joint 变体红态、7 条冲突红态、joint-candida
 ## rebase-final-02 批准（2026-10-14 UTC 03:5x）
 
 审阅 7b3463c4（夹具 driver 把 reviewing/null 误判为绑定不符；产品绑定正确，非产品缺陷）与 5d0bf1e8（审查 worktree 命名 `<task>-a<N>-review-<K>`，结果入库且 reviewer 停止归档后核对身份/HEAD/干净再删并读回，事件追加，不改 review 对象；脏/未知保留上报）。提交无超 5 MB 文件。批准运行 `rebase-final-02`（39 子阶段，含修前副本上四条审查清理反例，模型 0）。
+
+## rebase-final-02 读回（2026-10-14 UTC 03:34）
+
+INCOMPLETE，rc=1：driver-readiness 通过后，runner 重建修前产品副本时拒绝 git archive 中 workbench/hooks/ 的 26 个指向 hook.py 的符号链接（"Unexpected preimage archive entry"），业务阶段未运行。runner 缺陷，非产品；交 worker 只改 runner（仅放行同目录 hook.py 符号链接），候选不变，另起 rebase-final-03。
