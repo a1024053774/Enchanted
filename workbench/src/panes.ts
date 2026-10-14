@@ -615,8 +615,10 @@ export class Panes implements GateRuntime {
       check(!past.some(e=>e.data.screen_id===screen_id || e.data.screen_base64===screen_base64),"screen_key_already_used");
       if(purpose==="workspace-trust")check(!past.some(e=>e.data.purpose==="workspace-trust"),"workspace_trust_already_used");
       if(key==="Enter"){
+        // selected_label is the approved target after the key, not the prior cursor position.
+        const before=past.at(-2)?.data;
         const previous=past.at(-1)?.data;
-        check(selected_label==="Dark mode" && previous?.purpose==="onboarding-theme" && previous.key==="ArrowDown" && previous.selected_label==="Auto (match terminal)","theme_selection_not_explicit");
+        check(selected_label==="Dark mode" && before?.purpose==="onboarding-theme" && before.key==="ArrowUp" && before.selected_label==="Auto (match terminal)" && previous?.purpose==="onboarding-theme" && previous.key==="ArrowDown" && previous.selected_label==="Dark mode","theme_selection_not_explicit");
       }
     };
     const assertStartup=()=>check(pane.state==="unknown" && !pane.active && !pane.failed && !pane.stopped && !pane.archived && !pane.writing && !pane.queue.length && !pane.userDraft && !pane.pendingInputs,"screen_requires_startup");

@@ -10,7 +10,8 @@ T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manife
 移除 `ANTHROPIC_API_KEY`，只由假 API 验证 Bearer 头，不设置 apiKeyHelper 或内部批准状态。
 启动、每屏明确按键、continue、cleanup 分别审批。按键经后台 operator 凭据认证，
 保存目录与屏幕原字节，执行主控操作不记为用户亲手输入；不自动补 Enter。
-主题数字键无已核对依据，不配置。主题用方向键明确导航到 Dark mode 后，再单独批准 Enter；
+主题数字键无已核对依据，不配置。`selected_label` 是按键的目标项：
+ArrowUp 到 Auto、ArrowDown 到 Dark mode，再单独批准 Enter 确认 Dark；
 启动时直接 Enter 默认项被拒，同一屏 ID／原字节不能再次操作，workspace-trust 仍只允许一次。
 用途仅支持隔离实例的 onboarding-theme／workspace-trust；权限、认证、遥测或共享选择均停下。
 原生 debug 与 hooks 的原始 stdin、stdout、stderr、退出码和耗时落进该实例目录。
@@ -20,7 +21,9 @@ cleanup 绑定 CLI 的 PID、启动时间和命令，确认退出前不报告 PA
 角色卡经固定 CLI 帮助列出的 `--append-system-prompt` 传完整文本；启动记录仍保留来源路径。
 P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并先记录实际 manifest；
 主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
-Bearer 已取得标题侧请求；材料 08 停在主题引导，单回合主请求、hooks 与完成仍待 08b 验证。
+launch 仅记录进程启动，首屏另经 screen 阶段读回，不把即时输出当作稳定首屏。
+Bearer 已取得标题侧请求；08b 的 Enter 因目标项字段误判被拒，已用实际批准文件复现并修复；
+单回合主请求、hooks 与完成仍待材料 08c 验证。
 旧 T-078-1 的通过结果不替它背书。
 
 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：

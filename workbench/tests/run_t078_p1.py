@@ -116,8 +116,9 @@ try:
             json.dump({'launch':approval['input']['launch'],'session':approval['input']['session'],
                        'shell_pid':owner_info['shell_pid'],'cli':identity},f,ensure_ascii=False,indent=2)
         result['process_manifest']=str(out/'process-manifest.json');save()
-        result['next']='No input has been sent. Inspect and preserve the raw terminal output. Stop at any API-key approval or directory-trust prompt; do not press keys or select defaults. Continue and cleanup require separate approval.'
-        result['pty_output']=snapshot()
+        result['scope']='Process startup only; no first-screen capture or readiness claim.'
+        result['terminal_trace']=str(state/'traces'/approval['input']['launch']/'pty.raw')
+        result['next']='No input has been sent. Run a separately approved screen phase after the CLI displays its screen; inspect and preserve those raw bytes before approving any key. Key, continue and cleanup phases require separate approval.'
     elif args.phase=='screen':
         result['process_confirmation']=same_cli();result['pty_output']=snapshot()
         result['scope']='Read-only screen; no readiness or trust inferred.'

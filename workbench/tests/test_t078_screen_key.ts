@@ -21,9 +21,9 @@ await test("default_enter_and_theme_digit_are_denied",async()=>{
 });
 await test("explicit_navigation_then_dark_confirmation",async()=>{
   assert.equal(typeof (panes as any).screenKey,"function");
-  await (panes as any).screenKey(record.thread,input("theme-dark","ArrowUp"),"executor");
+  await (panes as any).screenKey(record.thread,input("theme-dark","ArrowUp","onboarding-theme","Auto (match terminal)"),"executor");
   setScreen("Auto cursor after ArrowUp");
-  await (panes as any).screenKey(record.thread,input("theme-auto","ArrowDown","onboarding-theme","Auto (match terminal)"),"executor");
+  await (panes as any).screenKey(record.thread,input("theme-auto","ArrowDown","onboarding-theme","Dark mode"),"executor");
   setScreen("Dark cursor after explicit ArrowDown");
   await (panes as any).screenKey(record.thread,input("theme-confirm","Enter"),"executor");
   assert.deepEqual(writes,["\x1b[A","\x1b[B","\r"]);assert.equal(pane.state,"unknown");
