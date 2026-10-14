@@ -200,3 +200,7 @@ commit-closeout-09a3r2-09bc-plan → 50ea0f5f（以 s13-t078m 身份）：收尾
 3. 顺序按计划：单个真实 Claude 角色转交/工具切片（红绿与边界反例）→ 冻结 09B 材料交审 → 09B 实跑与收尾 → 冻结 09C 交审。
 4. 预算：每场景每角色上限 6 根提交、12 主 Messages（合计 ≤24），供应商模型 0；实测后在 manifest 收紧。09C 总观察 ≤150 秒、真实时钟 >120000 ms，不快进。
 issue 20261014T191104Z 非 blocking，以本裁定处置（forward 构思主控备案）。
+
+## 第二次变基与回归（2026-10-14 UTC 19:4x～20:2x）
+
+prepare-and-rebase（以 s13-t078m 身份交接提交 be6e0195）→ 有界变基到 490de67d 无冲突，exec/t078=bf9bb9d7。commit-post-rebase-2 → 3d5225a9（三张自建卡补 oracle_paths，红 3/绿 3）；沙箱外 post-rebase-2-outside-01 停在 cards（15 errors：DaemonCards.setUp 未给 daemon host 提供 A2A_OPERATOR_CREDENTIAL，夹具缺口，产品拒绝缺凭据符合契约）。commit-post-rebase-2b → ee2f7c1b；post-rebase-2-outside-02 PASS：cards 15/15、empty-declaration-entry、input-failures、runtime、worker-inbox。真实模型 0。下一步：单角色真实 Claude inbox 转交切片（先入口红态），launch 逐次批准。
