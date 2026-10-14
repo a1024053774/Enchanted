@@ -1,0 +1,500 @@
+{
+  "case": "control_relay_invalid",
+  "outcome": "passed",
+  "assertions": [
+    {
+      "id": "CONTROL-RELAY-INVALID",
+      "passed": true,
+      "expected": "wrong identity and incomplete request rejected by real relay",
+      "actual": {
+        "wrong-session": {
+          "ok": false,
+          "error": "relay_identity_mismatch",
+          "details": {
+            "field": "session"
+          }
+        },
+        "missing-commit": {
+          "ok": false,
+          "error": "invalid_relay_request",
+          "details": {
+            "field": "commit"
+          }
+        }
+      }
+    },
+    {
+      "id": "CONTROL-RELAY-INVALID.no-submit",
+      "passed": true,
+      "expected": "neither invalid request reaches submit",
+      "actual": {
+        "task_id": "fixture-20261014-1",
+        "title": "fixture-20261014-1",
+        "project_id": "fixture",
+        "repo": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "integration_ref": "refs/heads/main",
+        "card_snapshot_id": "55b5f84e-730d-46d7-83d6-1ce8108da403",
+        "card_version": 1,
+        "card": {
+          "id": "fixture-20261014-1",
+          "source": null,
+          "goal": "交付 src/value.txt 中的独立预期内容",
+          "non_goals": [
+            "不修改项目外的文件"
+          ],
+          "paths": {
+            "allow": [
+              "src/",
+              "tests/",
+              ".a2a/quality.json"
+            ],
+            "deny": [
+              "src/private/"
+            ]
+          },
+          "completion_conditions": [
+            {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"
+              ]
+            }
+          ],
+          "red_commands": [],
+          "task_type": "后端逻辑",
+          "repair_target": null,
+          "complexity": "L",
+          "executor": {
+            "cli": "Codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh"
+          },
+          "base_commit": null,
+          "writer": null
+        },
+        "base_commit": "3f8eae799d3ae3c54850ab06872eb15f0f82c681",
+        "state": "claimed",
+        "spec_rev": 1,
+        "fence": 1,
+        "current_attempt": {
+          "task_id": "fixture-20261014-1",
+          "attempt_id": "4c0d9fef-d820-48e9-afea-ea4bc5463b76",
+          "session_id": "0487232f-1cd6-4563-ae9b-900d4e480fa3",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "404f2982-a7a6-491e-870c-e01ccf503359",
+          "runtime_mode": "workspace-write",
+          "turn_id": null,
+          "runtime_identity": {
+            "launch": "62c42816-4620-49e7-bcaa-40681f234695",
+            "thread": "404f2982-a7a6-491e-870c-e01ccf503359",
+            "shell_pid": 31000,
+            "leader_pid": 31001,
+            "native_session": "fixture-native-62c42816-4620-49e7-bcaa-40681f234695"
+          },
+          "workspace": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state/worktrees/fixture/fixture-20261014-1-a1",
+          "base_commit": "3f8eae799d3ae3c54850ab06872eb15f0f82c681",
+          "card_snapshot_id": "b6348b28-b3b8-42d6-b793-8ae5e7ec5e31",
+          "reclaimed": false,
+          "owner": "fixture-20261014-1",
+          "state": "claimed"
+        },
+        "candidate_commit": null,
+        "verification": null,
+        "integration_intent": null,
+        "quality": {
+          "source_commit": "3f8eae799d3ae3c54850ab06872eb15f0f82c681",
+          "path": ".a2a/quality.json",
+          "raw": null,
+          "rule_checks": []
+        },
+        "repair": null,
+        "review": null
+      }
+    }
+  ],
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "44123",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "card_save",
+        "--task",
+        "fixture-20261014-1",
+        "--card",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "create",
+        "--task",
+        "fixture-20261014-1",
+        "--repo",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "dispatch",
+        "--task",
+        "fixture-20261014-1",
+        "--runtime-mode",
+        "workspace-write"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "pane_status",
+        "--thread",
+        "404f2982-a7a6-491e-870c-e01ccf503359"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "pane_release",
+        "--thread",
+        "404f2982-a7a6-491e-870c-e01ccf503359",
+        "--reason",
+        "explicit controlled-fixture release"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "pane_status",
+        "--thread",
+        "404f2982-a7a6-491e-870c-e01ccf503359"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state/worktrees/fixture/fixture-20261014-1-a1",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state/worktrees/fixture/fixture-20261014-1-a1",
+        "commit",
+        "-m",
+        "Controlled worker fixture commit\n\nA2A-Task: fixture-20261014-1\nA2A-Attempt: 4c0d9fef-d820-48e9-afea-ea4bc5463b76\nA2A-Session: 0487232f-1cd6-4563-ae9b-900d4e480fa3\nA2A-Role: worker\nA2A-Tool: codex-cli 0.162.1\nA2A-Model: gpt-6.1-sol\nA2A-Effort: xhigh\nA2A-Native-Session: fixture-native-62c42816-4620-49e7-bcaa-40681f234695\nA2A-Launch: 62c42816-4620-49e7-bcaa-40681f234695"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0014.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 15,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state/worktrees/fixture/fixture-20261014-1-a1",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "pane_status",
+        "--thread",
+        "404f2982-a7a6-491e-870c-e01ccf503359"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0016.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 17,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "signal",
+        "--launch",
+        "62c42816-4620-49e7-bcaa-40681f234695"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0017.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0017.stderr.bin",
+      "stdin": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0017.stdin.json",
+      "exit": 0
+    },
+    {
+      "id": 18,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "status",
+        "--task",
+        "fixture-20261014-1"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0018.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0018.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 19,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "status",
+        "--task",
+        "fixture-20261014-1"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0019.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0019.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 20,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0020.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0020.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 21,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0021.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0021.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 22,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0022.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0022.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 23,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0023.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0023.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 24,
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-hev6xdiv/c-kzkk4xsd/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0024.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/t076-final-controls/control_relay_invalid/command-0024.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-hev6xdiv/c-kzkk4xsd"
+}

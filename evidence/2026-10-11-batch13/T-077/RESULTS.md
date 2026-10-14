@@ -1,5 +1,13 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 最新合流状态：主控 #120
+
+**final-05 PASS；整票 INCOMPLETE，待独立审查与主控验收。** 执行主控在沙箱外完成 39 个子阶段，rc=0；本 worker 读回顶层、子阶段计数与关键原始结果。产品为 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`，夹具为 `be91b3c047195e23fff0e1d6fd68e82ab63bf72f`，实际执行 HEAD 为 `79ef7b7f26fb7357d9f2db51fbd3a2aed75f7bdf`。结果在 `outside-rebase-final-05/`，控制台为 `rebase-final-05.console.txt`；旧失败保持原样。
+
+通过范围：S3 25；coop 8、recovery 9、run 18、CAS 1、cards 15；relay 冲突 1、受控尾注候选 2、identity 4、shutdown 4；T-076 tracer 13、wide 15、reviewer 故障 3、controls 8、provenance 2；审查清理候选 4、joint 候选 3。四条审查清理反事实、三条 joint 变体和七条冲突反事实均命中规定断言。relay core/CLI/scope/去重变体、native-final、dispatch-state、panes 亦按期望完成。relay-core 和 dispatch-state 原始 failure=null，native-final 九个场景各自 failure=null；不只依据顶层状态认定通过。
+
+命令为 `bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh rebase-final-05`。该次运行的完整 argv、原始 stdout/stderr、receipt 与 Git/门禁现场均保存在子目录；再运行必须使用新输出目录。新增真实模型回合 0，单文件无超 5 MB。此结果只覆盖当前合流候选与受控入口，不改变 r1–r3 的原始结论。下一步按主控 #120 仅做一次 fresh-context 只读审查；ticket 保持 open，当前没有主控最终验收或集成结论。
+
 ## 最新合流状态：主控 #119
 
 **INCOMPLETE。** final-04 的 run 18、CAS 1、cards 15 已通过；relay-conflict 因父级 commit 调用了子类缺少的 managed_trailers 而 ERROR，之后的完整业务阶段未运行。原始失败保留。先对后续 8 类、52 个场景做无后台预检，再只补 relay 夹具 helper；完整预检核对 1,170 处显式调用绑定，未见其他方法/字段缺口，局部 helper 检查修前 1 error、修后 3 项通过。

@@ -1,0 +1,131 @@
+{
+  "case": "test_conflict_rework_still_rejects_forbidden_path",
+  "phase": "candidate",
+  "tests_run": 1,
+  "exit_code": 0,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "business_red": false,
+  "contracts": [
+    {
+      "test": "__main__.ConflictContracts.test_conflict_rework_still_rejects_forbidden_path",
+      "claim": "Conflict rework accepts a new explicit candidate from its bound worker",
+      "pass": true,
+      "expected": true,
+      "actual": {
+        "ok": true,
+        "task": {
+          "task_id": "check-f1b478031749463f88b1ca4de69e0252",
+          "title": "check-f1b478031749463f88b1ca4de69e0252",
+          "project_id": "check-f1b478031749463f88b1ca4de69e0252",
+          "repo": "/private/tmp/s3-60xwa278/t-9_yulliu/isolated repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "923eb4fb-2118-4c86-a493-96fd3a682c6e",
+          "card_version": 1,
+          "card": {
+            "id": "check-f1b478031749463f88b1ca4de69e0252",
+            "source": null,
+            "goal": "设置 worker=ready；保留工作分支上的 host 设置和 host.txt。",
+            "non_goals": [
+              "不修改 host.txt 或 src/private/"
+            ],
+            "paths": {
+              "allow": [
+                "src/"
+              ],
+              "deny": [
+                "src/private/"
+              ]
+            },
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-60xwa278/t-9_yulliu/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "L",
+            "executor": {
+              "cli": "Codex",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "8a0306afb10ef33b49c1a100d2ae7a9bbc874cd7",
+          "state": "submitted",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "check-f1b478031749463f88b1ca4de69e0252",
+            "attempt_id": "693d4e39-eb4c-44e0-94f4-4bb98a9ccbfa",
+            "session_id": "d7f19009-61ac-4d7b-9c99-6aaaca2e06bb",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "d293b374-b6c2-491c-9ea8-4ab44db388ee",
+            "runtime_mode": "approval-required",
+            "turn_id": "fixture-turn:d293b374-b6c2-491c-9ea8-4ab44db388ee:2",
+            "runtime_identity": {
+              "launch": "d293b374-b6c2-491c-9ea8-4ab44db388ee",
+              "thread": "d293b374-b6c2-491c-9ea8-4ab44db388ee",
+              "shell_pid": 101,
+              "leader_pid": 102,
+              "native_session": "d293b374-b6c2-491c-9ea8-4ab44db388ee"
+            },
+            "workspace": "/private/tmp/s3-60xwa278/t-9_yulliu/isolated state/worktrees/check-f1b478031749463f88b1ca4de69e0252/check-f1b478031749463f88b1ca4de69e0252-a1",
+            "base_commit": "8a0306afb10ef33b49c1a100d2ae7a9bbc874cd7",
+            "card_snapshot_id": "ef629636-6e81-4e1b-9065-4cd4fdca016d",
+            "reclaimed": false,
+            "owner": "check-f1b478031749463f88b1ca4de69e0252",
+            "state": "submitted",
+            "delivery": {
+              "commit": "22ce86529552fa47075913dcd56dd2bcd05af60a",
+              "turn_id": "fixture-turn:d293b374-b6c2-491c-9ea8-4ab44db388ee:2",
+              "launch_id": "d293b374-b6c2-491c-9ea8-4ab44db388ee",
+              "cli": "controlled-conflict-runtime",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh",
+              "number": 2,
+              "submitted_at": "2026-10-14T04:44:54.058Z"
+            },
+            "rework": {
+              "verification_id": "25b1c818-e3e9-463f-9806-4a800b9b5322",
+              "prior_candidate": "87aa84e06a9ccdd3f1d629260d3a98a29594b902",
+              "base_commit": "194beec35223743e64d471b13ad24f3a0ac352ff",
+              "message_id": "b9bc0076-e8fd-41a0-9971-084f5d006716",
+              "prior_turn": "fixture-turn:d293b374-b6c2-491c-9ea8-4ab44db388ee:1",
+              "state": "submitted",
+              "candidate_commit": "22ce86529552fa47075913dcd56dd2bcd05af60a"
+            }
+          },
+          "candidate_commit": "22ce86529552fa47075913dcd56dd2bcd05af60a",
+          "verification": null,
+          "integration_intent": null,
+          "quality": {
+            "source_commit": "8a0306afb10ef33b49c1a100d2ae7a9bbc874cd7",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "repair": null,
+          "review": null
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-14T04:44:51.058Z"
+        }
+      }
+    }
+  ],
+  "inherited_assertions": [],
+  "evidence_layer": "controlled-thread"
+}
