@@ -158,3 +158,7 @@ INCOMPLETE（"Fake API protocol/budget error"）。A1、A2 成立；A3 成立：
 
 用户原话（经构思主控逐字转述）："最多同时三个 codex 并行，限制的话我们的设计就失去意义了"。存活 Codex 会话上限 3（worker/reviewer/monitor 合计），T-077 与 T-078 可并行。
 09A-3 worker（上一会话，已因重启中断）留下 BLOCKED 报告与 blocking issue 20261014T122545Z：提交前阻断需 gates/cli.ts 让 UserPromptSubmit 的阻断决定到达真实 hook 输出/退出码，放行声明需 app/main.ts、app/preload.ts 转发参数；这是我此前把 cli.ts 保留给 T-080 所致。执行主控决定（文件所有权，T-080 尚未开始）：T-078 可改 gates/cli.ts 中仅 UserPromptSubmit signal 输出路径（Stop 不变）、app/main.ts、app/preload.ts；gates/core.ts 仍不改。T-080 开始时基于含此改动的 main 变基。blocking issue 不由执行主控关闭，forward 构思主控备案。开全新 T-078 worker（第 2 个 Codex 会话）。
+
+## exec/t078 变基到含 T-077 的 main（2026-10-14 UTC 13:4x～14:0x）
+
+材料提交 c6b3a127（以 s13-t078m 身份）后，在沙箱外运行 worker 的变基脚本（备份 backup/t078-before-09a3-main-c6b3a127ba23，日志 /private/tmp/t078-rebase-09a3-a5TxSq），逐停由 worker 解决代码冲突（daemon/core/panes/relay/store/cli 等；core.ts、cli.ts 仅为解冲突），执行主控运行 rebase-continue-01～05；controller-decision-04.md 的 add/add 冲突取 main 侧超集。27 个提交全部重放，exec/t078 = ff3708d0（onto main 87e954a2）。待重跑检查、重生 09A-3 材料后审批。
