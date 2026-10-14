@@ -70,3 +70,7 @@ INCOMPLETE：10 个坏行为案、3 个正例（误拒绝 0/3）、run-04 能力
 ## trailer_duplicate 修正（2026-10-15 UTC 00:0x）
 
 run_t081_duplicate_case.py → duplicate-conflict-01：输入改为同一提交含两条矛盾 Session 尾注（本会话 5928f3fe… 与 00000000-…-0181），预期依身份契约（尾注须追溯到本 attempt/会话）；变异体（取消对应检查）在 BW-REJECT-trailer_duplicate 业务失败，候选实际拒收 invalid_trailers。原同值案保留为观察，不计通过。产品未改。下一步差异复审。
+
+## 差异复审 02（2026-10-15 UTC 00:4x）
+
+fresh-context 只读复审：PASS，P2-01 RESOLVED（矛盾 Session 单案替代同值案；同值案降为观察、counted_as_pass false）。以同一身份提交。T-081 剩余：用户裁定 6a、6e 与能力收紧；最终组合入口在裁定后完整重跑一次，绑定最终候选，然后合并关票。
