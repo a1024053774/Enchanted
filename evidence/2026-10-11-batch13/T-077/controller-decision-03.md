@@ -55,3 +55,7 @@ worker 非阻塞问题 ISSUE-dispatch-tier-record（dispatch_intent 速度标签
 ## worker issue 20261014T023857Z（审查 worktree 未接 S3 命名与结束清理）
 
 核对：spec 第 4 节要求验收/审查目录有用途与序号、结果存库后删除；main 的 requestReview 建 `review-<UUID>`，reclaimReview 不删 worktree。PLAN 将其交 T-076-2，T-076-2 关票时未接入——跨卡遗漏，属已批准 spec 内的缺陷，不是新目标。处置：并入 T-077 合流前完成（ready_by executor 级缺陷处理）：先受控红态（回收后 review worktree 与目录仍在），再修，重跑受影响检查，再独立审查。T-076 的 Known limits 需补记此项（转构思主控）。
+
+## rebase-final-01 读回（2026-10-14 UTC 02:54）
+
+INCOMPLETE，rc=1：3 条 joint 变体红态、7 条冲突红态、joint-candidate 通过；s3-all 24/25，test_integrated_run_cleanup ERROR（legacy_quality_driver finalize_run："Run review binding differs from the submitted candidate."），其后子阶段未跑。不重试；交 worker 诊断（夹具或产品），与审查 worktree 命名/清理缺陷一起修，准备 rebase-final-02。
