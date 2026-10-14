@@ -170,3 +170,7 @@ commit-rebased-code-09a3 → 0f754a6d；regression（沙箱外）：runtime、in
 ## 09A-3R 材料审阅（2026-10-14 UTC 17:4x）
 
 commit-materials-09a3r → 6f0cfdb2（以 s13-t078m 身份）。审阅 P2-APPROVAL-09A3R：continue 要求执行主控在隔离窗口亲手清空草稿并点声明（180 秒）——执行主控无操作本机原生窗口的工具，不批准该设计。按 09A 先例改为测试驱动执行 test-simulated-user 动作（清空键需有依据并以快照证明空框；声明引用 Esc 中断收据与输入代次），执行主控在 actions-approval 逐项预先批准，证据记为自动化而非真实用户。正例/反例重生材料后再审 launch。slot-cleanup 只清单无归档的问题（issue 20261014T173439Z）暂不执行删除，清理阶段再定。
+
+## 09A-3R2 材料与 clean launch 批准（2026-10-14 UTC 18:1x）
+
+commit-code-09a3r2 → 643d59bf（清空草稿与空框声明改为执行主控逐项预批的 test-simulated-user：正例同窗一次 Ctrl+C，依据官方 interactive-mode，须控制收据与空框快照/PTY 证明；反例不清空、自动点故意不真实的声明）；commit-materials-09a3r2 → dc67ce58（两套新实例绑定 643d59bf，静态核对 PASS）。批准 `09a3r2 clean launch` 一次及逐屏只读 screen；引导/信任按键逐屏另批；continue 前另批 readiness 与 actions-approval；block 待 clean cleanup 后另批。slot 删除仍不执行。批准引用：`T-078 controller-decision-04 09a3r2-clean-launch`。
