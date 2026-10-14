@@ -6,8 +6,9 @@ SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
 BASE=SOURCE/'evidence/2026-10-11-batch13/T-078'
 parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--label',required=True);parser.add_argument('--extra-source',type=Path,nargs='*',default=[])
 args=parser.parse_args()
-if not args.label.startswith('p1-materials-') or not args.label[len('p1-materials-'):].isdigit():parser.error('A new p1-materials-NN label is required')
+if not args.label.startswith('p1-materials-'):parser.error('A new p1-materials-NN label is required')
 suffix=args.label[len('p1-materials-'):]
+if not (suffix.isdigit() or (suffix.endswith('b') and suffix[:-1].isdigit())):parser.error('A numeric label with an optional b suffix is required')
 out=BASE/args.label;out.mkdir()
 root=Path(tempfile.mkdtemp(prefix='t078-2-p1-'+suffix+'-',dir='/tmp')).resolve()
 record={'status':'INCOMPLETE','argv':__import__('sys').argv,'root':str(root),'real_cli_starts':0,'api_starts':0}
@@ -42,7 +43,7 @@ try:
              'isolated_settings':{'path':str(root/'claude/settings.json'),'content':{'theme':'dark'},'approval_file':str(out/'isolated-settings.json')},
              'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':1,'start_runs':0}
     with (out/'control-plane.json').open('x',encoding='utf-8') as f:json.dump(control,f,ensure_ascii=False,indent=2)
-    names=['test_t078_claude_signals.ts','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_trust.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
+    names=['test_t078_claude_signals.ts','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
            'regenerate_t078_p1.py','run_t078_p1.py','t078_fake_messages.py','command_evidence.py','archive_t078_evidence.py']
     extra=[]
     for p in args.extra_source:

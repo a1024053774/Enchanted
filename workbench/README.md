@@ -3,13 +3,16 @@
 T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
 当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的单提交探针，
 不支持真登录或多回合主控。启动需逐次批准；完整材料及静态检查见
-[P1 信任与单回合材料](../evidence/2026-10-11-batch13/T-078/P1-APPROVAL-08.md)。
+[P1 逐屏按键与单回合材料](../evidence/2026-10-11-batch13/T-078/P1-APPROVAL-08b.md)。
 隔离 settings.json 仅设置 `theme: dark`，移除 IS_DEMO，并设置文档化的
 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，禁用标题侧模型请求和终端状态报告。
 假服务用文档化的 `ANTHROPIC_AUTH_TOKEN`，
 移除 `ANTHROPIC_API_KEY`，只由假 API 验证 Bearer 头，不设置 apiKeyHelper 或内部批准状态。
-启动、Digit1 信任按键、continue、cleanup 分别审批。按键经后台 operator 凭据认证，
+启动、每屏明确按键、continue、cleanup 分别审批。按键经后台 operator 凭据认证，
 保存目录与屏幕原字节，执行主控操作不记为用户亲手输入；不自动补 Enter。
+主题数字键无已核对依据，不配置。主题用方向键明确导航到 Dark mode 后，再单独批准 Enter；
+启动时直接 Enter 默认项被拒，同一屏 ID／原字节不能再次操作，workspace-trust 仍只允许一次。
+用途仅支持隔离实例的 onboarding-theme／workspace-trust；权限、认证、遥测或共享选择均停下。
 原生 debug 与 hooks 的原始 stdin、stdout、stderr、退出码和耗时落进该实例目录。
 当前只验证一个提交回合；跨回合、Esc、紧急停止等待材料 09 的实际 payload 依据。
 遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
@@ -17,7 +20,7 @@ cleanup 绑定 CLI 的 PID、启动时间和命令，确认退出前不报告 PA
 角色卡经固定 CLI 帮助列出的 `--append-system-prompt` 传完整文本；启动记录仍保留来源路径。
 P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并先记录实际 manifest；
 主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
-Bearer 已取得标题侧请求；单回合主请求、hooks 与完成仍待材料 08 验证。
+Bearer 已取得标题侧请求；材料 08 停在主题引导，单回合主请求、hooks 与完成仍待 08b 验证。
 旧 T-078-1 的通过结果不替它背书。
 
 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：

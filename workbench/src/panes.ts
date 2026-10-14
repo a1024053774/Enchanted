@@ -602,24 +602,36 @@ export class Panes implements GateRuntime {
     await this.drain(pane);
     return this.status(thread);
   }
-  async trustKey(thread: string, key: string, screen: string, authorization: string, source: string) {
+  async screenKey(thread: string, input: {key:string;purpose:string;screen_id:string;screen_base64:string;authorization_ref:string;selected_label:string}, source: string) {
     const pane=this.get(thread);
-    check(source==="executor" && pane.record.cli==="Claude Code" && pane.record.role==="controller", "trust_operator_required");
-    check(key==="Digit1" && typeof authorization==="string" && authorization.trim(), "invalid_trust_key");
-    const assertStartup=()=>check(pane.state==="unknown" && !pane.active && !pane.failed && !pane.stopped && !pane.archived && !pane.writing && !pane.queue.length && !pane.userDraft, "trust_requires_startup");
-    assertStartup();
+    check(source==="executor" && pane.record.cli==="Claude Code" && pane.record.role==="controller" && pane.record.authentication==="isolated fake API only", "screen_operator_required");
+    const {key,purpose,screen_id,screen_base64,authorization_ref,selected_label}=input;
+    const keys:Record<string,string>={ArrowUp:"\x1b[A",ArrowDown:"\x1b[B",Enter:"\r",Digit1:"1"};
+    check((purpose==="onboarding-theme" && ["ArrowUp","ArrowDown","Enter"].includes(key)) || (purpose==="workspace-trust" && key==="Digit1"),"invalid_screen_key");
+    check(typeof screen_id==="string" && screen_id.length>0 && screen_id.length<=128 && typeof authorization_ref==="string" && authorization_ref.trim() && typeof selected_label==="string" && selected_label.trim(),"invalid_screen_approval");
+    const history=()=>this.store.read().filter(e=>e.launch===pane.record.id && e.type==="controller_screen_key_intent");
+    const assertUnused=()=>{
+      const past=history();
+      check(!past.some(e=>e.data.screen_id===screen_id || e.data.screen_base64===screen_base64),"screen_key_already_used");
+      if(purpose==="workspace-trust")check(!past.some(e=>e.data.purpose==="workspace-trust"),"workspace_trust_already_used");
+      if(key==="Enter"){
+        const previous=past.at(-1)?.data;
+        check(selected_label==="Dark mode" && previous?.purpose==="onboarding-theme" && previous.key==="ArrowDown" && previous.selected_label==="Auto (match terminal)","theme_selection_not_explicit");
+      }
+    };
+    const assertStartup=()=>check(pane.state==="unknown" && !pane.active && !pane.failed && !pane.stopped && !pane.archived && !pane.writing && !pane.queue.length && !pane.userDraft && !pane.pendingInputs,"screen_requires_startup");
+    assertStartup();assertUnused();
     await this.serializeWrite(pane,async()=>{
-      assertStartup();
-      check(!this.store.lastEvent(pane.record.id,["controller_trust_key_intent"]), "trust_key_already_used");
-      const info=await this.processInfo(thread);check(info.leader && !info.failed,"foreground_claude_required");
+      assertStartup();assertUnused();
+      const info=await this.processInfo(thread);check(info.leader && !info.failed,"foreground_claude_required");assertStartup();
       const observed=this.output(pane.record.id,0);
-      check(observed.next_offset===observed.total_bytes && observed.data_base64===screen && screen.length>0, "trust_screen_changed");
-      this.store.event("controller_trust_key_intent",{source,key,directory:pane.record.worktree,authorization_ref:authorization,
-        screen_base64:screen,received_at:new Date().toISOString()},pane.record);
-      try { pane.pty.write("1");this.store.event("controller_trust_key_written",{source,key,directory:pane.record.worktree},pane.record); }
-      catch(error){this.recordFailure(pane,"trust_key_write_unknown",error);throw error;}
+      check(observed.next_offset===observed.total_bytes && observed.data_base64===screen_base64 && screen_base64.length>0,"screen_changed");
+      this.store.event("controller_screen_key_intent",{source,key,purpose,screen_id,selected_label,directory:pane.record.worktree,authorization_ref,
+        screen_base64,received_at:new Date().toISOString()},pane.record);
+      try {pane.pty.write(keys[key]!);this.store.event("controller_screen_key_written",{source,key,purpose,screen_id,directory:pane.record.worktree},pane.record);}
+      catch(error){this.recordFailure(pane,"screen_key_write_unknown",error);throw error;}
     });
-    return {key,written:true,state:pane.state};
+    return {key,purpose,screen_id,written:true,state:pane.state};
   }
   status(thread: string) {
     const pane = this.panes.get(thread);

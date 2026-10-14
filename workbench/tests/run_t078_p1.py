@@ -5,9 +5,9 @@ from command_evidence import CommandLog,command_json
 from p1_endpoint import resolved_input
 from p1_processes import identity_from_ps,cli_exit_verdict
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
-parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','trust','continue','cleanup'],required=True)
+parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','cleanup'],required=True)
 parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
-parser.add_argument('--key',choices=['Digit1']);parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
+parser.add_argument('--key',choices=['Digit1','ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
 args=parser.parse_args();materials=args.materials.resolve();approval=json.loads((materials/'approval.json').read_text());root=Path(approval['input']['root']);state=root/'state'
 label=args.label or args.phase
 if Path(label).name!=label or label in ['.','..']:parser.error('A single new output-directory name is required')
@@ -52,7 +52,7 @@ def snapshot():
     with (out/'screen.bin').open('xb') as f:f.write(raw)
     with (out/'screen.json').open('x',encoding='utf-8') as f:
         json.dump({'observed_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
-                   'directory':str(root/'repo'),'launch':approval['input']['launch'],'session':approval['input']['session'],'output':value},f,ensure_ascii=False,indent=2)
+                   'directory':str(root/'repo'),'screen_id':args.screen_id,'launch':approval['input']['launch'],'session':approval['input']['session'],'output':value},f,ensure_ascii=False,indent=2)
     return value
 def raw_hook_receipts():
     records=[]
@@ -121,17 +121,17 @@ try:
     elif args.phase=='screen':
         result['process_confirmation']=same_cli();result['pty_output']=snapshot()
         result['scope']='Read-only screen; no readiness or trust inferred.'
-    elif args.phase=='trust':
-        if not args.key or not args.approval_file or not args.screen_file:raise RuntimeError('explicit_trust_materials_required')
+    elif args.phase=='key':
+        if not args.key or not args.purpose or not args.screen_id or not args.approval_file or not args.screen_file:raise RuntimeError('explicit_screen_key_materials_required')
         permitted=json.loads(args.approval_file.read_text(encoding='utf-8'))
-        if any(permitted.get(k)!=approval['input'][k] for k in ['launch','session']) or permitted.get('directory')!=str(root/'repo') or permitted.get('key')!=args.key or permitted.get('approved_by')!='executor' or not permitted.get('approval_ref') or not permitted.get('basis') or permitted.get('screen_file')!=str(args.screen_file.resolve()):
-            raise RuntimeError('trust_approval_binding_mismatch')
+        if any(permitted.get(k)!=approval['input'][k] for k in ['launch','session']) or permitted.get('directory')!=str(root/'repo') or permitted.get('key')!=args.key or permitted.get('purpose')!=args.purpose or permitted.get('screen_id')!=args.screen_id or not permitted.get('selected_label') or permitted.get('approved_by')!='executor' or not permitted.get('approval_ref') or not permitted.get('basis') or permitted.get('screen_file')!=str(args.screen_file.resolve()):
+            raise RuntimeError('screen_approval_binding_mismatch')
         with (out/'reviewed-screen.bin').open('xb') as f:f.write(args.screen_file.read_bytes())
         result['approval']=permitted;result['process_confirmation']=same_cli();save()
-        result['key_result']=call('pane_trust','--thread',approval['input']['thread'],'--key',args.key,'--screen-file',args.screen_file,'--authorization-ref',permitted['approval_ref'])
+        result['key_result']=call('pane_screen_key','--thread',approval['input']['thread'],'--key',args.key,'--purpose',args.purpose,'--screen-id',args.screen_id,'--screen-file',args.screen_file,'--selected-label',permitted['selected_label'],'--authorization-ref',permitted['approval_ref'])
         result['pty_output']=snapshot();result['events']=events()
-        result['scope']='Exactly Digit1 sent by authenticated executor; inspect screen again. No Enter, default selection or automatic continue.'
-        # Trust completion is a human observation, never inferred from the write.
+        result['scope']='One explicitly approved screen key sent by authenticated executor; inspect again. No automatic Enter or continue.'
+        # Screen transitions and trust completion are human observations.
     elif args.phase=='continue':
         owner=json.loads((root/'api-owner.json').read_text())
         bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),owner['pid'])

@@ -22,7 +22,7 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   pane_process_info: { required: ["thread"] },
   pane_release: { required: ["thread", "reason"] },
   pane_dispatch: { required: ["thread", "body-file"] },
-  pane_trust: { required: ["thread", "key", "screen-file", "authorization-ref"] },
+  pane_screen_key: { required: ["thread", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref"] },
   signal: { required: ["launch"] },
   launch_show: { required: ["launch"] },
   controller_prepare: { required: ["preset"] },
@@ -120,7 +120,7 @@ export async function main(argv = process.argv.slice(2)) {
       "id",
       "bundle-id",
       "stop-id",
-      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest", "key", "screen-file", "authorization-ref",
+      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref",
       "score-file", "review-file",
       "file",
     ];
@@ -165,6 +165,8 @@ export async function main(argv = process.argv.slice(2)) {
       else if (key === "manifest") request.manifest = JSON.parse(readFileSync(value!, "utf8"));
       else if (key === "screen-file") request.screen_base64 = readFileSync(value!).toString("base64");
       else if (key === "authorization-ref") request.authorization_ref = value;
+      else if (key === "screen-id") request.screen_id = value;
+      else if (key === "selected-label") request.selected_label = value;
       else if (key === "blocking") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
         request.blocking = value === "true";
