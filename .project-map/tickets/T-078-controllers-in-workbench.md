@@ -47,3 +47,7 @@ ready_rev: 1
 [独立审查](../../evidence/2026-10-11-batch13/T-078/independent-review-01.md) 未确认该局部范围内的可达违约或结构性阻断问题，核对了冻结源码、原始字节、SQLite 内存读副本和外置原件。使用会话内独立只读 agent，fork_turns=none，请求 gpt-6-astra/xhigh；实际模型配置与服务档位未独立观测，不冒称 Fast 已生效。审查未写候选、submit 或集成。
 
 真实 Claude 启动、主控角色凭据和 hook 接线、实际主控互相唤醒、两个主控加一个 worker 的同任务窗口验收仍未完成，等待 needs-decision `20261011T101958Z`。两分钟无 ack 条件为受控时钟／逻辑角色证据，IME 为合成组合事件；不外推为实际主控链路或系统输入法验证。测试未启动 Claude 或其夹具，待真实 Claude 复核；不切换日常文件版 inbox，不 push。Ticket 保持 open、待主控关闭。
+
+2026-10-14，以上为 T-078-1 交付时点。用户已答复认证与预算，T-078-2 经逐次批准推进假服务验证：08e 的真实 CLI 单回合、实际 UserPromptSubmit/Stop、busy→idle 与主 Messages 请求均 PASS，真实供应商模型回合为 0。结论绑定变基前代码，尚不证明双主控／紧急停止／真登录。原件与边界见 [RESULTS](../../evidence/2026-10-11-batch13/T-078/RESULTS.md)。
+
+09A 的 Esc 实跑 INCOMPLETE，失败和外置原件保留。主控 #122 要求的只读诊断确认驱动过早发键及 nullable 主控窗口永久禁输入；修复独立提交 `7cd19b586fe757268384d99f243f5d0a583a5ad3`，域／驱动红转绿，收据及身份反例通过。[09A-2 材料](../../evidence/2026-10-11-batch13/T-078/P2-APPROVAL-09A2.md) 静态准备 PASS，实际启动未执行，待主控审批。T-077 合入后才变基、重新生成并完整重跑；09B/09C 与真登录仍未完成。整票保持 open、INCOMPLETE、待主控关闭。

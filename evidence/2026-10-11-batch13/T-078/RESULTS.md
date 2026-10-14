@@ -548,3 +548,18 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 最新域／参数／内存 IO 7＋5＋3＋1 项通过；原单回合 signal/profile 3＋3 通过；原菜单／主题／notice／信任 30 项通过。四项有效坏变异见 [09 审批材料](P2-APPROVAL-09.md)，均触发对应违约。首次只删入口 Stop 匹配的变异仍被后续检查挡住，原件保留、标 INCOMPLETE／无效变异，不计反例；编辑工具两次未应用的 patch 也不算产品红态，已按实际内容修正。
 
 09A 新实例 `/private/tmp/t078-2-p1-09-c_gw0g87`，新 launch/session/thread，67 文件冻结，完整 argv/env、API 场景、构建／Electron／驱动 argv、逐屏及 Escape／queue-release 两动作的未批准模板见 [P2-APPROVAL-09](P2-APPROVAL-09.md)。[静态准备](p1-preparation-check-09.json) PASS；本轮实际 CLI/API/UI/模型均未启动，未构建、未 rebase、不 push。真实 09A 与 B/C 仍 INCOMPLETE，整票 open／待主控关闭。T-077 合入后再变基、全部材料重新生成并完整重跑，当前 PASS 不替新 main 背书。
+
+
+## 09A 失败读回与材料 09A-2（主控 #122）
+
+上节是 09A 交审批时点。执行主控实际完成 launch 和逐屏引导／信任；continue-esc INCOMPLETE：nonce1/UPS1/主请求1/busy 与 nonce2 排队成立，但 Esc 后 active 未释放。cleanup PASS，无残留；8,208,905 字节原件已由主控外置、字节读回，manifest [578c9fe0…](external-archive-578c9fe0799847c19ce5020b5ec503d0.json)，全部失败证据保持不动。
+
+[只读诊断](readback-09a-complete.json) 核对归档 SQLite/pty.raw 与 Electron 原件：用户动作为空、无 Esc 写入意图／收据／提交退休；31 个快照 input_enabled 全为 false，30 个已 busy 且绑定 dispatch1。问题不仅是驱动截屏／发键过早：main 的 nullable 主控 attempt=null 与 optional current_attempt 取得的 undefined 比较，永久禁输入。PTY 输出与窗口收到的 20,591 字节前缀一致，只证明输出通路；API 关闭发生在 cleanup 期间，不能算 Esc 成功。
+
+修复独立提交 `7cd19b586fe757268384d99f243f5d0a583a5ad3`，[diff](binding-fix-final-09a2.diff) 供主控审：允许 running nullable controller 输入，保留 worker attempt 与后台凭据／版本／native leader 校验；窗口渲染身份、busy、active、输入可用状态；runner 等它们匹配且驱动发键前再核对。发键仅返回 attempted，送达必须同窗口请求的 action／admitted／write_intent／written 与 dispatch 退休顺序完整。旧运行时夹具同步传绑定，不放松业务断言。
+
+[红态](window-binding-red-09a2/results.json) 复现主控只读与未接通／错目标仍发键；[静态绿态](fix-static-09a2/result.json) 8/8，后台身份域 5/5，收据正反例 12/12。[缺 written 变异体](window-receipts-mutant-09a2.json) 实际产生四项假送达判断，被检查拒绝。上述为生产谓词／驱动分支和合成持久事实，不替代实际 Electron/PTY 绿态。本轮无 CLI/API/UI/模型启动，未构建。
+
+新实例 `/private/tmp/t078-2-p1-09a2-sm_du7jo`，新 launch/session/thread，73 文件冻结；[材料 09A-2](P2-APPROVAL-09A2.md) 列完整 argv/env、逐屏审批、窗口与后台读回停点、预算和清理。冻结静态检查 PASS；实际 09A-2 未运行，仍 INCOMPLETE。旧 09 slot 明确为本 worker 夹具所有，已提供主控执行的 p1-slot-cleanup-09：确认 fixture cleanup PASS、Electron quit/PID 退出和构建来源后保留清单再删精确 slot；本轮未清理，新 slot 亦须在 cleanup 后单独清理。
+
+各原件／域检查／反例的重放命令在材料末节及对应 argv/commands.jsonl；完整读回脚本只读外置归档明确成员。不覆盖失败、不改变真实模型预算或引导授权。T-077 合入后再变基并重跑，当前只绑定变基前版本。09B/09C 双主控、紧急停止与真登录均仍未完成；T-078 整票 INCOMPLETE、open、待主控关闭。
