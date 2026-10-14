@@ -66,3 +66,7 @@ commit_t081_closeout.py（以 s14-t081 身份：launch-517c7570…、session 696
 ## 独立审查 01 读回（2026-10-14 UTC 23:5x）
 
 INCOMPLETE：10 个坏行为案、3 个正例（误拒绝 0/3）、run-04 能力观察（与 run-03 错路径严格分开）、CAS 红绿、回归均有原始证据支持；唯一 P2：trailer_duplicate 用两个相同 Session 值，"同值重复必须拒收"缺独立规范来源，预期等于被测实现的形状检查。接受；按审查最小处理改为互相矛盾的 Session 值（身份契约可推出拒收），不改产品，变异体先红再绿，只重跑该案并做差异复审。6a/6e 仍待用户。
+
+## trailer_duplicate 修正（2026-10-15 UTC 00:0x）
+
+run_t081_duplicate_case.py → duplicate-conflict-01：输入改为同一提交含两条矛盾 Session 尾注（本会话 5928f3fe… 与 00000000-…-0181），预期依身份契约（尾注须追溯到本 attempt/会话）；变异体（取消对应检查）在 BW-REJECT-trailer_duplicate 业务失败，候选实际拒收 invalid_trailers。原同值案保留为观察，不计通过。产品未改。下一步差异复审。
