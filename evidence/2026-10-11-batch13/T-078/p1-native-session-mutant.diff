@@ -1,0 +1,11 @@
+--- candidate/panes.ts
++++ bad-session/panes.ts
+@@ -557,7 +557,7 @@
+     const pane = this.byLaunch(launch);
+     this.store.event("hook_received", { raw_stdin: raw, received_at }, pane.record);
+     const value = JSON.parse(raw); this.scan(pane);
+-    check(value.session_id === pane.native, "hook_native_session_mismatch");
++    // MUTANT: omit native-session authentication.
+     if (pane.record.cli === "Claude Code") {
+       // P1's configured single submission avoids claiming cross-turn Stop
+       // correlation before the actual CLI payload has been observed (T-078-2).

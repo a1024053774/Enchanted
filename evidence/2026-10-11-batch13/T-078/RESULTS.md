@@ -1,5 +1,21 @@
 # T-078-1 运行记录
 
+2026-10-13 主控 #95：Bearer 生效，nonce 提交后 API 收到一条标题侧请求，未得到主回合／hook 证据；continue-06 因缺 turn_start_signal 停下，cleanup-06 PASS。只读归档显示信任状态 false、无 hook_received／signal 请求、无 debug 或 hook stdin／退出数据，因此不能归因于 timeout 或字段不符。标题请求占住串行 handler，原 runner 在写 release 前失败，未发送 SSE。材料 07 为 BLOCKED 诊断／提案，见 [P1-APPROVAL-07](P1-APPROVAL-07.md)；已报 blocking issue `20261013T182412Z-worker:s13-t078s-issue-001` 请求目录信任决定。建议假服务禁用文档化标题请求并加 debug／hook 留证，不改身份检查或盲目增加 timeout。本轮未改产品候选、未发新输入、未启动 CLI／API／模型，不预置信任状态或穿过提示。
+
+2026-10-13 主控 #94：continue-05b 的已登记 nonce 真实送达并提交，但 CLI 报 `Not logged in · Please run /login`，假 API 无请求，期限到即停；不能把到提示符等同认证可用。原协议失败及 traceback 保留。cleanup-05b 核对记录 CLI PID 50901 已退出后才 PASS，主控确认无残留；该退出修复获得真实复验。本轮按官方文档选择只在假服务阶段用 `ANTHROPIC_AUTH_TOKEN`，移除 API_KEY，假 API 仅接受公开 Bearer token；不用 helper、内部批准状态或自动按键。新实例材料 06、依据与纯检查见 [P1-APPROVAL-06](P1-APPROVAL-06.md)。profile／handler 红绿、材料构造与语法检查通过，完整静态检查仍 INCOMPLETE：旧 cleanup 归档 8,028,610 字节，待外置。新阶段先归档并读回，再取得完整静态 PASS 才启动 API／CLI；旧失败报告与未运行草稿均保留。真实登录阶段不变，本轮未启动 CLI／API／模型，实际新认证、hooks 与完整主控链路仍 INCOMPLETE／待审批。
+
+2026-10-13 主控 #93：p1-launch-05 仅用文档化 theme／IS_DEMO 直接到主提示符，无 key／目录信任提示；没有写未文档化状态。continue-05 在第一次后台命令前失败，实际缺失的是 `<实例根>/initial-ready.json`，不是 API 或 CLI 文件；原失败 result 保留，commands.jsonl 实际未生成，假 API 无请求。只读诊断见 [p1-continue-diagnosis-05b](p1-continue-diagnosis-05b.json)。runner 改为显式传入主控确认的就绪材料，记录 traceback／文件路径，用新输出标签保存续跑；产品与 CLI 参数不变，实例未重启、未 cleanup。新阶段及审批材料见 [P1-CONTINUE-05b](P1-CONTINUE-05b.md)，当前仍 INCOMPLETE／待续跑审批。
+
+2026-10-13 主控 #91：批准先仅用文档化的隔离 `theme: dark` 和 `IS_DEMO=1` 观察固定 CLI；API key 批准与目录信任仍不预置，出现即停并保存终端原文。决定原样留档为 [controller-decision-04-update-91](controller-decision-04-update-91.md)，blocking issue 未自行关闭。材料 05 和新阶段已准备，静态红绿及完整审批说明见 [P1-APPROVAL-05](P1-APPROVAL-05.md)。本次没有启动 CLI、API、PTY 或模型，真实运行仍 INCOMPLETE／待 p1-launch-05 审批；cleanup 退出核对仍待真实复验。
+
+2026-10-13 主控 #89：真实 CLI 03 在隔离 HOME 启动并停在主题引导，无模型请求；cleanup 曾在 CLI PID 16681 仍活着时报 PASS，几秒后其自行退出。新 cleanup 增加关联 manifest 的 CLI 退出确认，纯检查通过，尚待真实复验。文档仅确认 theme／IS_DEMO；未找到假 key 和 repo trust 的公开预置契约，已报 blocking issue `20261013T154915Z-worker:s13-t078s-issue-001`。材料 04 已生成但启动明确 BLOCKED，见 [P1-APPROVAL-04](P1-APPROVAL-04.md)；未写未文档化状态、未操作引导界面或启动新 CLI。
+
+2026-10-13 主控 #88：p1-launch-02 退出 1，停于 Required CLI options missing；API 曾绑定 61040，交互 CLI 未启动、模型回合 0；随后 cleanup PASS。读回官方帮助与文档后，不能把未列完整文件参数视作已删除／改名。本轮仅改为公开列出的 `--append-system-prompt` 传角色文本及其预检，生成材料 03，见 [P1-APPROVAL-03](P1-APPROVAL-03.md)。其他参数经实例身份正规化比较保持一致；当前 INCOMPLETE／待审批，没有再启动 CLI 或 API，旧失败原件未覆盖。
+
+2026-10-13 主控 #84 恢复：s13-t078s 续接原生会话，按主控日志读回为 gpt-6.1-sol/xhigh/default。旧 P1 实例根消失，材料 01 过期并保留；已生成新根、launch/session 的材料 02。API 改为启动时分配端口、核对 PID/身份并保存实际 manifest 后才启动 CLI。端口 0 的产品入口纯红绿与绑定检查见 [P1-APPROVAL-02](P1-APPROVAL-02.md)。当前仍 INCOMPLETE／待审批，没有运行 CLI、API、socket 或真实模型。
+
+2026-10-12 续卡记录：用户已选择假服务为主、真登录复核 2～3 回合，决定 04 批准 T-078-2 的 P0。P1 实现与静态材料已准备，**INCOMPLETE，等待首次真实 CLI／假 API 启动审批**，尚未运行。详见 [P1-APPROVAL](P1-APPROVAL.md)。以下 T-078-1 的已验收结果只绑定其原候选，不替新增主控运行路径背书；旧“等待认证方式决定”是当时记录。
+
 2026-10-11。总状态：**INCOMPLETE，待主控关闭**。T-078-1 非 Claude 范围的最终验收与一次新上下文只读独立审查均为局部 PASS，绑定代码提交 `b3fb998cf48574821c39440ece3f9ff897f26cf9`（父提交 `532c51f4cc12352bb7cf545ce1e5f824d68bdc4a`）。最终阶段包括领域 11、管理客户端 8、窗格状态 11、静态启动骨架 2、运行时入口 12、输入失败方式 11、worker 收件箱入口 14；原回归 8/9/18 与 CAS 1 全过，四项权限及三项原业务变异反例均成立。详见文末最终验收表、[最终原始检查点](outside-final-01/checkpoint.json) 和 [独立审查](independent-review-01.md)。真实 Claude 启动、主控角色凭据及 hook 接线、真实主控互相唤醒和三窗格验收未完成，等待 needs-decision `20261011T101958Z`；本卡未启动 Claude 或其夹具，仍待真实 Claude 复核。
 
 任务：T-078-1，T-078 `ready_rev: 1`；worker `s13-t078`；分支 `exec/t078`；产品起点 `14b57d22a84bcaebfa91c5051b9909b53a570fac`。授权和范围见 [PLAN](PLAN.md)、[主控决定 01](controller-decision-01.md)、[主控决定 02](controller-decision-02.md)。
