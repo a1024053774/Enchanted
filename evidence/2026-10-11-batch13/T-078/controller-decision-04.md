@@ -208,3 +208,7 @@ prepare-and-rebase（以 s13-t078m 身份交接提交 be6e0195）→ 有界变�
 ## 单角色切片 1 红态材料与 launch 批准（2026-10-14 UTC 21:0x）
 
 commit-and-prepare-slice1（以 s13-t078m 身份）→ 源 6a59ef92、材料 14e19e2b；实例 /private/tmp/t078-2-p1-slice1-red-z7msieml，launch 70e18a26…；新假服务只给一条预批 Bash（workbench/bin/inbox list --role executor）并收同 ID tool_result，根提交 1、主 Messages 2、Bash 1，供应商模型 0。裁定：relayFiles.ts 的会话请求文件 helper 纳入 T-078 所有权（issue SLICE1-RELAY-FILE-OWNERSHIP）；工具许可 Enter 被记作新 turn_submit_intent 的问题（issue SLICE1-PERMISSION-ENTER）先在真实运行中取证，后续在 panes.ts 修，不改启动许可。批准 slice1-red launch 一次及逐屏只读 screen；按键、readiness、submit-approval、permission-approval 各另批。批准引用：`T-078 controller-decision-04 slice1-red-launch`。
+
+## slice1-red 逐屏与 submit 批准（2026-10-14 UTC 21:2x）
+
+材料缺 screen-key 审批模板（生成器缺口），执行主控按 09a3r2 模板结构、以本实例 approval.json 的 launch/session/目录写入 screen-key-approval-template.json（标注 executor-written）；首两次按键因缺模板在写 PTY 前失败、无键送达，改用新屏 ID。主题 ArrowUp/ArrowDown/Enter、Security notes、信任 ArrowDown→Yes→Enter（/private/tmp/t078-2-p1-slice1-red-z7msieml/repo，仅 value.txt；依 answer 20261014T011751Z）均生效，读回主提示符。写 readiness.json 与 submit-approval.json（根提交 1、主 Messages ≤2、Bash 1：workbench/bin/inbox list --role executor，模型 0）。批准运行 continue_driver（--phase submit）一次；遇工具许可屏停下不按键，permission-approval 另批。批准引用：`T-078 controller-decision-04 slice1-red-submit`。
