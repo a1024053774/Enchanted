@@ -691,3 +691,17 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 只读还发现 [许可 Enter 提交记账](ISSUE-SLICE1-PERMISSION-ENTER.md)：当前 userInput 会将 CR 直接登记新 user intent／替换 active，工具审批可能虚记新提交；未实测，已非 blocking 上报。探针单列这个缺陷，以真正 UPS1/API2 核对原生预算，不称假 intent 为合法回合或原注册正确结算。工具键分支旧版红态后新增窄的 permission Enter：[6 项局部 PASS](slice1-permission-key-green/results.json)、原 Esc/CtrlC [13 项 PASS](slice1-window-binding-regression/results.json)，模拟 view、未开 UI，产品 input 行为不改。
 
 交 [一次运行的冻结／生成脚本](commit-and-prepare-slice1.sh)：先冻结辅助脚本与回归证据，再生成全新实例、按 Git 提交与当前源码逐字节读回，再提交材料；不启动。材料成功后主控读实际 argv/env/root/IDs 再逐次批 launch；当前实例生成／实际红态／绿态／边界反例、新独立 reviewer、09B／09C 与整票均 **INCOMPLETE**。
+
+## 单角色首轮真实工具红态与未闭合现场（主控 #175）
+
+主控已运行冻结／生成脚本：source `6a59ef929bbea4b68e28e8c88db57a7e280c390e`、材料 `14e19e2bff16eacfcba7ab00bd63906aef42cced`。新 root `/private/tmp/t078-2-p1-slice1-red-z7msieml`、launch `70e18a26…` 已逐次启动／引导／信任／nonce／一次 Yes Enter。首次生成缺少 screen-key-approval-template，主控补为 executor-written；旧文件来源标注不改，生成器现已补未来实例的空批准模板。
+
+读回 [现场原件与副本](slice1-readback/result.json)，最早库客户端的真实入口红态 **PASS**：真实 Bash command 与冻结命令一致，API2 同 ID tool_result 为 is_error=true、Exit code1＋daemon_call_failed／worker_request_directory_required；requests、relay_requests／relay_results／inbox_records／inbox_deliveries 全 0。足够支撑该客户端缺陷的对应修复，未到非空请求的 controller_relay_not_enabled，不能拿后者冒充此次红态。
+
+许可 Enter 记账红态 **PASS**：原生 PermissionRequest seq57；同 request/window 的 seq85 准入、86 intent 0x0d、88 written、action 2b3fa040(form=action)齐全；seq87 却多记 source=user 提交 intent。实际 UPS1、intent2。虚记已实测；active 替换由实际执行路径和源码推断，没有后置 pane 快照，未声称直接读到内存。原许可截图已目视确认一次 Yes／冻结 command。
+
+整场 **INCOMPLETE**，预算 **NO_GO（主 Messages3/2）**：API2 的结果之后有 system 元数据，原 fake validator 错判末条必须 user，抛错，未回 ACK；原 hooks 仅 UPS／PermissionRequest(exit0)，无 Stop／turn_end／idle。第三条仍同 tool_result，thinking 有变化，debug 记录两次 HTTP400及 engine turn ended in error；没有第二 UPS，不是新根，但超本包额度。发现即发主控报警，原 permission/result.json／api-error不覆盖，不补 ACK／不续跑。
+
+以本次 api.jsonl 原样副本先取得 [实际请求 red](slice1-recorded-api-red/results.json)，再只修消息位置定位：[green12/12](slice1-recorded-api-green/results.json) PASS，ID／command／model／stream／预算／唯一结果／因果顺序不放宽，末尾仅 text system 元数据可接受。去掉 command 核对的坏变异、放宽预算的坏变异分别在对应条件失败；原合成 protocol12 仍 PASS。全部是 validator 本地重放，没有重发实际请求或启动服务。未来 screen-key template 的实际生成表达式也已核对，旧源码缺失和旧主控补写来源保留。
+
+交 [读回与建议](SLICE-1-READBACK.md)、[固定本实例 cleanup 脚本](cleanup-slice1-red.py)：认证 daemon_stop、等待原 CLI／shell／daemon实际退出、API92591完整 argv/root＋双读 lifetime 后最多一次 SIGTERM；逐成员归档读回到外置盘，slot 不删，根删除须显式 --remove-root。worker 未执行，cleanup **INCOMPLETE**。建议先清理，再新实例／新 ID／新批准重跑一个闭合 ACK／Stop 的完整红态，不将已失败／越预算旧实例改成 PASS。当前只修假服务／模板，不改产品；新独立 reviewer、真实转交绿态／边界反例、09B／09C／真登录／整票仍 INCOMPLETE。

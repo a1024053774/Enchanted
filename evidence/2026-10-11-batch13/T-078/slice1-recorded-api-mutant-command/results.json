@@ -1,0 +1,107 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t078_slice1_recorded_request.py",
+    "--mutant-command",
+    "--api-jsonl",
+    "evidence/2026-10-11-batch13/T-078/slice1-readback/api.jsonl",
+    "--scenario",
+    "evidence/2026-10-11-batch13/T-078/slice1-readback/scenario.json",
+    "--output",
+    "evidence/2026-10-11-batch13/T-078/slice1-recorded-api-mutant-command"
+  ],
+  "checks": [
+    {
+      "name": "actual-api1-root",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "root_prompt": "⟦主控 #1⟧\nP1_NONCE_1572822d038a4230b3beba1d511774de"
+      }
+    },
+    {
+      "name": "actual-api2-with-system-tail",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "tool_result": {
+          "type": "tool_result",
+          "content": "Exit code 1\n{\"ok\":false,\"error\":\"daemon_call_failed\",\"details\":\"Error: worker_request_directory_required\"}",
+          "is_error": true,
+          "tool_use_id": "toolu_t078_c7d05aa033ec4facb0d953a850382c45"
+        },
+        "text": "Exit code 1\n{\"ok\":false,\"error\":\"daemon_call_failed\",\"details\":\"Error: worker_request_directory_required\"}"
+      }
+    },
+    {
+      "name": "actual-third-request-budget-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The two-Messages budget is exhausted."
+    },
+    {
+      "name": "wrong-result-id-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The tool call and result must match the frozen command and ID."
+    },
+    {
+      "name": "changed-command-rejected",
+      "status": "INCOMPLETE",
+      "expected_accepted": false,
+      "observed": {
+        "tool_result": {
+          "type": "tool_result",
+          "content": "Exit code 1\n{\"ok\":false,\"error\":\"daemon_call_failed\",\"details\":\"Error: worker_request_directory_required\"}",
+          "is_error": true,
+          "tool_use_id": "toolu_t078_c7d05aa033ec4facb0d953a850382c45"
+        },
+        "text": "Exit code 1\n{\"ok\":false,\"error\":\"daemon_call_failed\",\"details\":\"Error: worker_request_directory_required\"}"
+      }
+    },
+    {
+      "name": "duplicate-result-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Exactly one tool call and one result are required."
+    },
+    {
+      "name": "late-user-message-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Only text system metadata may follow the tool result."
+    },
+    {
+      "name": "result-before-tool-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The tool result must follow its tool call."
+    },
+    {
+      "name": "empty-result-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "An empty tool result is not execution evidence."
+    },
+    {
+      "name": "tool-result-must-be-user-content",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Exactly one tool call and one result are required."
+    },
+    {
+      "name": "wrong-model-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Declared model and streaming mode are required."
+    },
+    {
+      "name": "late-assistant-message-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Only text system metadata may follow the tool result."
+    }
+  ],
+  "mutant_command": true,
+  "scope": "Unmodified actual API bodies; validator only, no server/CLI/model/old-root mutation"
+}

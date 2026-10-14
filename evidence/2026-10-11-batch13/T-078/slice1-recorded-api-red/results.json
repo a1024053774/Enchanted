@@ -1,0 +1,90 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t078_slice1_recorded_request.py",
+    "--api-jsonl",
+    "evidence/2026-10-11-batch13/T-078/slice1-readback/api.jsonl",
+    "--scenario",
+    "evidence/2026-10-11-batch13/T-078/slice1-readback/scenario.json",
+    "--output",
+    "evidence/2026-10-11-batch13/T-078/slice1-recorded-api-red"
+  ],
+  "checks": [
+    {
+      "name": "actual-api1-root",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "root_prompt": "⟦主控 #1⟧\nP1_NONCE_1572822d038a4230b3beba1d511774de"
+      }
+    },
+    {
+      "name": "actual-api2-with-system-tail",
+      "status": "INCOMPLETE",
+      "expected_accepted": true,
+      "observed": "The next user message must carry the tool result."
+    },
+    {
+      "name": "actual-third-request-budget-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The two-Messages budget is exhausted."
+    },
+    {
+      "name": "wrong-result-id-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The next user message must carry the tool result."
+    },
+    {
+      "name": "changed-command-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The next user message must carry the tool result."
+    },
+    {
+      "name": "duplicate-result-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The next user message must carry the tool result."
+    },
+    {
+      "name": "late-user-message-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Exactly one tool call and one result are required."
+    },
+    {
+      "name": "result-before-tool-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The next user message must carry the tool result."
+    },
+    {
+      "name": "empty-result-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The next user message must carry the tool result."
+    },
+    {
+      "name": "tool-result-must-be-user-content",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The next user message must carry the tool result."
+    },
+    {
+      "name": "wrong-model-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Declared model and streaming mode are required."
+    },
+    {
+      "name": "late-assistant-message-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The next user message must carry the tool result."
+    }
+  ],
+  "mutant_command": false,
+  "scope": "Unmodified actual API bodies; validator only, no server/CLI/model/old-root mutation"
+}

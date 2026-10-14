@@ -45,6 +45,14 @@ try:
     shutil.copyfile(root/'claude/settings.json',out/'isolated-settings.json')
     with (out/'readiness-template.json').open('x',encoding='utf-8') as f:
         json.dump({'launch':manifest['launch'],'session':manifest['session'],'confirmed_by':None,'readiness':'unconfirmed','basis':None},f,indent=2)
+    with (out/'screen-key-approval-template.json').open('x',encoding='utf-8') as f:
+        json.dump({'launch':manifest['launch'],'session':manifest['session'],'directory':str(root/'repo'),
+                   'approved_by':None,'approval_ref':None,'basis':None,'screen_id':None,'purpose':None,'key':None,
+                   'selected_label':None,'screen_file':None,
+                   'selected_label_semantics':'Target item after this key; Enter confirms the target recorded by prior navigation',
+                   'notice_reference':str(BASE/'p1-materials-09a3r2/security-notice-text.txt'),
+                   'trust_sequence':['ArrowDown','Enter'],'trust_target':'Yes, I trust this folder',
+                   'template_origin':'generator; approval fields deliberately empty'},f,ensure_ascii=False,indent=2)
     control={'environment':{'PATH':'/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin','HOME':str(root/'manager-home'),'TMPDIR':str(root/'tmp'),
                            'A2A_OPERATOR_CREDENTIAL':str(root/'operator.json'),'GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':'/dev/null',
                            'GIT_CONFIG_COUNT':'2','GIT_CONFIG_KEY_0':'core.hooksPath','GIT_CONFIG_VALUE_0':'/dev/null','GIT_CONFIG_KEY_1':'commit.gpgsign',

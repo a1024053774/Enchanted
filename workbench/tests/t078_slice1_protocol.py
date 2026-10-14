@@ -25,15 +25,24 @@ def validate_request(body, number, scenario):
         if not tool or tool.get('input_schema', {}).get('properties', {}).get('command', {}).get('type') != 'string':
             raise ValueError('The real CLI must advertise a Bash command tool.')
         return {'root_prompt': texts[-1]}
-    if not messages or messages[-1].get('role') != 'user':
-        raise ValueError('The next user message must carry the tool result.')
-    results = [p for p in messages[-1].get('content', [])
-               if isinstance(p, dict) and p.get('type') == 'tool_result']
-    tools = [p for m in messages if m.get('role') == 'assistant' for p in m.get('content', [])
-             if isinstance(p, dict) and p.get('type') == 'tool_use']
+    results = [(i, p) for i, m in enumerate(messages) if m.get('role') == 'user'
+               for p in m.get('content', []) if isinstance(p, dict) and p.get('type') == 'tool_result']
+    tools = [(i, p) for i, m in enumerate(messages) if m.get('role') == 'assistant'
+             for p in m.get('content', []) if isinstance(p, dict) and p.get('type') == 'tool_use']
     if len(results) != 1 or len(tools) != 1:
         raise ValueError('Exactly one tool call and one result are required.')
-    tool, result = tools[0], results[0]
+    tool_index, tool = tools[0]
+    result_index, result = results[0]
+    if tool_index >= result_index:
+        raise ValueError('The tool result must follow its tool call.')
+    # 2.1.296 appends system metadata after the actual user tool_result.
+    # Preserve the body; only text system metadata may follow that result.
+    for message in messages[result_index + 1:]:
+        content = message.get('content')
+        if message.get('role') != 'system' or not (isinstance(content, str) or
+                isinstance(content, list) and all(isinstance(p, dict) and p.get('type') == 'text'
+                                                 and isinstance(p.get('text'), str) for p in content)):
+            raise ValueError('Only text system metadata may follow the tool result.')
     if (tool.get('id') != scenario['tool_use_id'] or tool.get('name') != 'Bash'
             or tool.get('input') != {'command': scenario['bash_command']}
             or result.get('tool_use_id') != scenario['tool_use_id']):

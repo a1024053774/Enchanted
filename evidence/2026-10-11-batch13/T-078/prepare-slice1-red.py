@@ -43,7 +43,7 @@ def main():
             data = (ROOT / name).read_bytes()
             assert archive.extractfile(name).read() == data
             assert subprocess.check_output(['git', 'show', revision + ':' + name], cwd=ROOT) == data
-    for file in ['readiness-template.json', 'submit-approval-template.json', 'permission-approval-template.json']:
+    for file in ['readiness-template.json', 'screen-key-approval-template.json', 'submit-approval-template.json', 'permission-approval-template.json']:
         template = json.loads((out / file).read_bytes())
         assert template.get('confirmed_by', template.get('approved_by')) is None
     result = {'status': 'PASS', 'scope': 'Frozen static material and byte readback; no launch/CLI/API/UI/model',
