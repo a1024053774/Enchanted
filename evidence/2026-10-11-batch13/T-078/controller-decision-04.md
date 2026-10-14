@@ -120,3 +120,7 @@ continue PASS，逐项独立核对：dispatch seq 1 由 executor 登记、paste+
 ## P2 批准（材料 09A launch，2026-10-14 UTC 05:3x）
 
 审阅 5510ee72（按真实 prompt_id 关联回合、Esc 登记并释放 active、nullable 主控窗口核对 leader、显式 turn_limit=2、假 API 并发两请求；红态 4 组与有效反例 4 个）与材料 7eecdd4d。批准 `p1-launch-09` 一次及逐屏只读 screen；引导与信任按键逐屏另批（同 08e）。continue 前另批 readiness 与 actions-approval。09B/09C 未冻结，不批。批准引用：`T-078 controller-decision-04 p2-09a-launch`。
+
+## 09A 逐屏读回、信任与 continue 批准（2026-10-14 UTC 05:4x）
+
+主题三键、Security notes（逐字一致）、信任 ArrowDown→Yes→读回→Enter（目录 /private/tmp/t078-2-p1-09-c_gw0g87/repo，仅 value.txt；依 answer 20261014T011751Z）均生效，读回主提示符。写 readiness.json 与 actions-approval.json（Escape 与 queue-release 两个自动化测试动作，仅在 PLAN-09 A3/A4 条件成立时各执行一次，记为执行主控批准的自动化而非真实用户亲手操作）。批准 `p1-continue-09` 一次（两条 nonce、假 API 两条声明请求，真实模型 0；会打开本实例自己的 Electron 窗口）及随后 cleanup。批准引用：`T-078 controller-decision-04 p2-09a-continue`。
