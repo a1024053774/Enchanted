@@ -153,3 +153,8 @@ INCOMPLETE（"Fake API protocol/budget error"）。A1、A2 成立；A3 成立：
 ## 用户决定 B：全新 worker 会话（2026-10-14 本地 08:14）
 
 依据 answer 20261014T121326Z（用户原话："B 开全新会话 (Recommended)"；T-077 冲突测试："重跑 (Recommended)"）。核对 wF:p3H（裸 resume，idle）与 wF:p3K（受管启动停在锁提示）均无在途交付后关闭；等待 20 秒无 Herdr 自动拉起。经 launch-worker 开全新会话：s13-t077n → wF:p3M（launch-e47ca466…），s13-t078n → wF:p3N（launch-4f811bd7…），argv gpt-6.1-sol xhigh、service_tier="default"、--no-daemon、workspace-write、on-request；25 秒后进程仍在。旧原生会话 01a12b31…/01a12b32… 保留不删、不再使用。
+
+## 并发上限更正与文件所有权调整（2026-10-14 UTC 12:4x）
+
+用户原话（经构思主控逐字转述）："最多同时三个 codex 并行，限制的话我们的设计就失去意义了"。存活 Codex 会话上限 3（worker/reviewer/monitor 合计），T-077 与 T-078 可并行。
+09A-3 worker（上一会话，已因重启中断）留下 BLOCKED 报告与 blocking issue 20261014T122545Z：提交前阻断需 gates/cli.ts 让 UserPromptSubmit 的阻断决定到达真实 hook 输出/退出码，放行声明需 app/main.ts、app/preload.ts 转发参数；这是我此前把 cli.ts 保留给 T-080 所致。执行主控决定（文件所有权，T-080 尚未开始）：T-078 可改 gates/cli.ts 中仅 UserPromptSubmit signal 输出路径（Stop 不变）、app/main.ts、app/preload.ts；gates/core.ts 仍不改。T-080 开始时基于含此改动的 main 变基。blocking issue 不由执行主控关闭，forward 构思主控备案。开全新 T-078 worker（第 2 个 Codex 会话）。
