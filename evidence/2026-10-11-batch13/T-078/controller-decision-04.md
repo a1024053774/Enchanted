@@ -239,3 +239,7 @@ controller-green-outside-01 失败经诊断为夹具在异步 drain 前断言（
 
 主题三键、Security notes、信任 ArrowDown→Yes→Enter（/private/tmp/t078-2-p1-slice1-green-1yhrmwad/repo，仅 value.txt；依 answer 20261014T011751Z）均生效，读回主提示符。写 readiness 与 submit-approval（根 2、主 Messages 3、Bash 1、模型 0）。批准 submit 一次，遇许可屏停。批准引用：`T-078 controller-decision-04 slice1-green-submit`。
 slice1-green permission: native Bash dialog shows the frozen command, cursor on one-time Yes; approve one Enter (ref T-078 controller-decision-04 slice1-green-permission).
+
+## slice1-green 读回（2026-10-15 UTC 00:3x）
+
+一次 Enter 许可后：真实 Bash inbox 请求被接收（tool_result {"ok":true,"queued":true,"delivered":false,"request_id":"a76b424c…"}），API2 回 ACK "SLICE1_TOOL_RESULT_RECORDED <nonce>"，真实 Stop 转交后门禁反馈 "⟦门禁 #2⟧ 本回合的异步请求处理结果…" 作为第二根到达 API3——产品侧 controller 请求→Stop 转交→反馈回送已出现。但假 API validate_request 以 "The second root must be the registered gate feedback." 拒收 API3（夹具对反馈文本的期望与实际不符），CLI 随后重发 API4，主 Messages 4/3 超预算，记 NO_GO；未得到最终 ACK/Stop/idle。判为夹具缺陷。实例保留，交 worker 读回并修校验（以登记的 dispatch2 原文为准、不放宽身份/预算校验），再定是否新实例重跑。
