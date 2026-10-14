@@ -3,7 +3,7 @@ import argparse,json,os,subprocess,sys,time
 from pathlib import Path
 
 ROOT=Path('/Users/luckye/Documents/Code/a2a-wt-t078');BASE=ROOT/'evidence/2026-10-11-batch13/T-078'
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('--mode',choices=['cleanup','regression'],required=True);args=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('--mode',choices=['cleanup','regression-02'],required=True);args=p.parse_args()
 out=BASE/('rebased-outside-'+args.mode+'-09a3');out.mkdir()
 env={k:v for k,v in os.environ.items() if not k.startswith(('A2A_','GIT_','CODEX_','CLAUDE_','ANTHROPIC_'))}
 log={'status':'INCOMPLETE','mode':args.mode,'scope':'沙箱外独立阶段；只操作本轮夹具；无 vendor/model 启动','checks':[],'commands':[],'real_model_turns':0}
@@ -45,22 +45,25 @@ try:
             assert not (state/'daemon.pid').exists() and not (state/'control.sock').exists()
             log['checks'].append({'fixture':str(fixture),'pid':pid,'status':'PASS','action':'Authenticated daemon_stop; root and evidence retained'});save()
     else:
-        plan=json.loads((BASE/'rebased-source-freeze.json').read_bytes())
+        plan=json.loads((BASE/'regression-02-source-freeze.json').read_bytes())
         _,head=run(['git','rev-parse','HEAD']);head=head.strip();assert head==plan['revision'],'Frozen code revision changed'
         assert json.loads((BASE/'rebased-outside-cleanup-09a3/result.json').read_bytes())['status']=='PASS','Stop old isolated backends first'
         assert os.path.ismount('/Volumes/WD-Elements'),'External cache volume missing; no fallback'
         _,dirty=run(['git','diff','--','workbench']);assert not dirty,'Workbench candidate is not frozen'
+        previous=BASE/'rebased-outside-regression-09a3'
+        for name,count in [('runtime',12),('input-failures',11)]:
+            facts=json.loads((previous/name/'results.json').read_bytes())
+            assert facts['status']=='PASS' and facts['cleanup_complete'] and len(facts['checks'])==count
+        _,product_change=run(['git','diff','0f754a6dfd555568cb377affbbe52655a13d3d4d',head,'--','workbench/src','workbench/app','workbench/hooks'])
+        assert not product_change,'Passed product/UI scenarios changed; do not silently reuse their evidence'
         log['revision']=head;save()
-        frontend=None
-        for label,flag,count in [('runtime','--runtime-probe',12),('input-failures','--input-failures',11),('worker-inbox','--worker-inbox',14)]:
-            target=out/label
-            argv=['python3','-B',ROOT/'workbench/tests/test_t078_input_entry.py','--source',ROOT,'--output',target,flag]
-            if frontend:argv+=['--reuse-build',frontend]
-            run(argv,timeout=300)
-            facts=json.loads((target/'results.json').read_bytes())
-            assert facts['status']=='PASS' and facts['setup_complete'] and facts['cleanup_complete'] and len(facts['checks'])==count
-            frontend=Path(json.loads((target/'build.json').read_bytes())['out'])
-            log['checks'].append({'name':label,'status':'PASS','checks':count,'source':'Real daemon/Electron/PTY, deterministic native receiver'});save()
+        frontend=Path(json.loads((previous/'runtime/build.json').read_bytes())['out'])
+        log['previous_passes']={'source_revision':'0f754a6dfd555568cb377affbbe52655a13d3d4d','runtime':12,'input-failures':11,'not_rerun':True,'product_files_unchanged':True};save()
+        target=out/'worker-inbox'
+        run(['python3','-B',ROOT/'workbench/tests/test_t078_input_entry.py','--source',ROOT,'--output',target,'--worker-inbox','--reuse-build',frontend],timeout=300)
+        facts=json.loads((target/'results.json').read_bytes())
+        assert facts['status']=='PASS' and facts['setup_complete'] and facts['cleanup_complete'] and len(facts['checks'])==14
+        log['checks'].append({'name':'worker-inbox','status':'PASS','checks':14,'source':'Real daemon/Electron/PTY, deterministic native receiver'});save()
         for suite,count in [('coop',8),('recovery',9),('run',18),('cas',1)]:
             target=out/suite
             run(['python3','-B',ROOT/'workbench/tests/run_s3_rebased_regression.py','--suite',suite,'--revision',head,'--output',target],timeout=720)

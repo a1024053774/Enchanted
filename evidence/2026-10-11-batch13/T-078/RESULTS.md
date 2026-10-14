@@ -605,3 +605,13 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 主控 #133 已按当前启动身份提交代码 `c1c6b53a8419e35ad0dee5a79abf6adc4c37f08c`（钩子九项尾注），并核对／停止遗留 PID 74270。随后生成两套新的 [09A-3 launch 材料](P2-APPROVAL-09A3.md)，绑定该代码提交及各自 75 个源码字节；[准备检查](preparation-check-09a3.json) **PASS**。clean 根 `/private/tmp/t078-2-p1-09a3-s86zm2yy`，block 根 `/private/tmp/t078-2-p1-09a3-block-wk7vopkk`；独立 task/launch/session/thread/nonce，模板均未批准，slot 均未创建。前者由主控自行处理草稿后声明空框；后者保留恢复草稿并作反例声明，要求真实 hook JSON block、API 仍只有一次。驱动均不代发清空键、不自动点声明。所有 vendor/API/UI/构建/模型启动仍 0；只交 launch 审批，未启动。整票及真实场景仍 **INCOMPLETE**，不关闭、不集成、不 push。
 
 主控 #135 随后通知 T-077 已验收合入 main（`cdf8fe9b`），要求本批提交后先变基、解决双方冲突，再重新生成与静态核对。上段两套变基前材料保留为日期记录，**不用于 launch**。T-080 当前独占 gates/core.ts 与 taskCards.ts；本轮不在它们增加新实现。变基 Git 操作交主控脚本执行，未知／冲突现场保留，不自动取某一侧、不 stash/reset/clean；只有新材料完成并静态核对后才交 launch 审批。
+
+## 变基后回归与 worker 回执诊断（主控 #143／#146）
+
+主控执行五个 continue 脚本后完成变基：`ff3708d0b647ddf71d272e6fb87f6424c7533163`，基于含 T-077 的 main `87e954a2f4059d471e3e240872b565217e29b0b5`。各冲突双方、解决文件、静态核对与执行现场保存在 rebase-continue-01～05；后续夹具元数据修正和本地回归证据已由主控按原启动身份提交 `0f754a6dfd555568cb377affbbe52655a13d3d4d`，九项尾注。原隔离后台经认证 cleanup **PASS**，没有强制信号或删除原现场。
+
+主控在沙箱外执行第一阶段：实际 Electron／PTY runtime 12 项与 input-failures 11 项 **PASS**；worker-inbox 七个回执断言 observed={}，整段 **INCOMPLETE**，其后 8/9/18、CAS、权限反例未运行。原输出 [rebased-outside-regression-09a3](rebased-outside-regression-09a3/result.json) 保留原状态，不重试、不改写。
+
+[只读诊断与最小复现](WORKER-INBOX-DIAGNOSIS-02.md) 核对原库八个真实回复均存在：正常请求的真实 worker 来源、范围、权限拒绝及撤销后的 stale_attempt 齐全。缺返回来自夹具按旧 `id:<request_id>` 查内部 key，漏掉 T-077 按 launch 登记的回执；没有证据要求修改 claim 来源、受管派发或凭据的产品行为。离线最小探针 8 项红态，修复夹具按持久 launch／request_id 关联 opaque key 后，同一探针 8/8 **PASS**，原业务断言不改，src/app/hooks 不改。诊断与局部绿态不替代新真实入口回归。
+
+同一 [阶段脚本](rebased-stage-09a3.py) 的 regression-02 模式只续跑 worker-inbox 14 → 8/9/18 → CAS 1 → 四个权限反例，独占新输出目录；原 runtime／input-failures 仍绑定 0f754a6d，只有产品文件未变化时才复用 frontend。提交和沙箱外执行均交主控脚本，真实模型预算 0；本轮未启动 CLI／API／UI，不提权、不 add／commit。**新阶段回归、独立 reviewer、新两套 09A-3 launch 材料与真实场景仍 INCOMPLETE**；T-078 open，不关闭、不集成、不 push。

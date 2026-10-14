@@ -12,6 +12,15 @@ import sqlite3
 import time
 
 
+def receipts_for_launch(query,launch):
+    # Journal keys are opaque and owned by a launch. Resolve both current and
+    # historical receipts through their persisted request binding, not a prefix.
+    request_ids={row['key']:row['request_id'] for row in query('relay_requests')
+                 if row['launch']==launch and row['request_id'] is not None}
+    return {request_ids[row['key']]:json.loads(row['data']) for row in query('relay_results')
+            if row['key'] in request_ids}
+
+
 def run_worker_inbox(*,source,repo,home,state,attempt,window,call,query,check,result,output):
     launch=json.loads(query('launch_records')[0]['data']);thread=attempt['thread_id'];address='worker:'+thread
     expected_failures={'worker_client_queues_inbox_commands','worker_issue_records_real_sender','worker_assign_spoof_denied',
@@ -86,8 +95,8 @@ def run_worker_inbox(*,source,repo,home,state,attempt,window,call,query,check,re
            and client['identity']['launch']==launch['id'] and not client['identity']['operator_credential_present'],
            '七个真实 worker 客户端调用均由会话身份写请求文件，不借 operator、不提前声称送达',client)
     stop(1,2);wait_for(lambda:(home/'turn-3.ready').exists(),'initial prompt after Stop')
-    receipts={row['key']:json.loads(row['data']) for row in query('relay_results')}
-    def reply(name):return receipts.get('id:'+queued.get(name,''),{})
+    receipts=receipts_for_launch(query,launch['id'])
+    def reply(name):return receipts.get(queued.get(name,''),{})
     all_inbox=rows('inbox_records');issue=[entry for entry in all_inbox if entry.get('title')=='WORKER_REAL_CLIENT']
     verify('worker_issue_records_real_sender',len(issue)==1 and issue[0]['from']==address and issue[0]['body']==body
            and reply('issue').get('entry',{}).get('id')==issue[0]['id'] and rows('user_inputs')==inputs_before,
@@ -133,8 +142,8 @@ def run_worker_inbox(*,source,repo,home,state,attempt,window,call,query,check,re
     stale_client=json.loads((home/'worker-client-result-2.json').read_text());result['revoked_worker_client']=stale_client
     stop(4,next_turn)
     stale_id=stale_client['commands'][0]['response'].get('request_id')
-    stale_results={row['key']:json.loads(row['data']) for row in query('relay_results')}
-    stale_reply=stale_results.get('id:'+str(stale_id),{})
+    stale_results=receipts_for_launch(query,launch['id'])
+    stale_reply=stale_results.get(str(stale_id),{})
     verify('revoked_worker_inbox_is_rejected',stale_reply.get('error')=='stale_attempt'
            and not any(item.get('title')=='MUST_NOT_APPEND_AFTER_REVOKE' for item in rows('inbox_records')),
            '原 worker 凭据仍存在时，已撤销 attempt 的新请求必须在后台拒绝，不追加 inbox',stale_reply)
