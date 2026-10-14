@@ -220,3 +220,5 @@ submit：nonce 送达（dispatch 20422cf6…，seq 1），真实 CLI 发起 Bash
 ## slice1-red permission 读回（2026-10-14 UTC 22:0x）
 
 permission 阶段 rc=1：一次 Enter 经窗口送达（key_attempt），真实 Bash 执行 inbox list，tool_result 为 "Exit code 1 {"ok":false,"error":"daemon_call_failed","details":"Error: worker_request_directory_required"}"——即计划预测的最早入口红态，已在 api.jsonl 第 2 次请求中原样记录。但假 API 的 validate_request 要求"下一条 user 消息携带 tool_result"，而 2.1.296 在 tool_result 之后追加 system 消息，假 API 报 "The next user message must carry the tool result." 并写 api-error.json，未返回 ACK，回合未正常 Stop。判为夹具协议缺陷。实例根保留，交 worker 只读读回现场（UPS/Stop/hook/PTY、permission 事件与 intent 记账）、修假 API 校验（按实际消息序列定位 tool_result，不放宽 ID/命令/预算校验），再决定 readback/cleanup 与是否需要新实例重跑。
+
+worker 报警（#175）：api.jsonl 实有 3 次 /v1/messages，第 2、3 次都携带同一 Bash tool_result——假 API 报错后 CLI 自行重发，超出该包主 Messages 预算 2。记为预算超出（客户端重发，非 a2a 注入），本次不计完整通过；只保留"worker_request_directory_required"的入口红态。旧实例不补 ACK、不改现场；等 worker 的归属核对与清理脚本。
