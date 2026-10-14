@@ -16,3 +16,7 @@ FINAL-01 交接指出依赖：workbench/src/gates/qualityProtocol.ts 的 scoreRe
 ## 打分记录格式决定（2026-10-14 UTC 14:4x）
 
 worker 报 BLOCKED（history-format-blocker-01.json）：scripts/score 写入前整表重读校验（:135–148），12 行历史中 11 行无 oracle，直接把 oracle 设为必填会使旧行失败。执行主控决定：记录 schema 版本化——新写入行一律 schema=2，rejections 必须含 oracle；历史 schema=1 行只读、按 v1 检查集校验，不改写、不迁移；scripts/score 与 qualityProtocol.ts 的 scoreRecords 都按行的 schema 选检查集，写入端只写 schema 2，不保留写 schema 1 的路径。不采用另开日志（双存储）或缺项按 0（改变语义）。正反例须覆盖：v1 旧行通过、v2 缺 oracle 拒收、v2 完整通过、未知 schema 拒收、user 分 score_of 指向 v1/v2 原记录均可。
+
+## final-01/02 与对照（2026-10-14 UTC 17:3x～18:2x）
+
+final-01：protected 11/12，oracle_three_rejections 期望 quality_rejection_limit、实得 not_submitted——worker 判为测试期望错（规格要求第三次暂停停止回写上报，未规定重放错误码），加强为核对暂停状态/事件/重放不推进并加"第四次才停"变异体，产品未改；同意。final-02：score schemas、protected、t075 五套、t077 两套、t076 tracer/controls PASS，两个变异体按预期红；t076-quality-red-contracts 中 red_run_reject_preserves_worker 为 harness_error（窗格停在 busy turn-3）。对照 probe（cdf8fe9b 原产品）复现同一 harness_error ⇒ main 既有夹具缺陷，非 T-080 引入；交 worker 修夹具（原产品与候选均先红后绿）并另报 issue，再跑 final-03。
