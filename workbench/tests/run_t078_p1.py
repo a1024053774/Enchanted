@@ -21,6 +21,7 @@ env={'PATH':'/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin','HOME':str(root/'m
 cli=[node,SOURCE/'workbench/src/gates/cli.ts','--state',state]
 result={'status':'INCOMPLETE','phase':args.phase,'label':label,'source_materials':str(source_materials),
         'real_vendor_model_turns':0,'authentication':'isolated fake API','input':approval['input']}
+api_script=SOURCE/'workbench/tests'/('t078_fake_inbox_tool.py' if json.loads((root/'scenario.json').read_bytes())['name']=='slice1-inbox-red' else 't078_fake_messages.py')
 def save(): (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
 def run(argv,child_env=env,allowed=(0,),timeout=15):
     p=log.run(argv,cwd=SOURCE,env=child_env,timeout=timeout)
@@ -77,6 +78,8 @@ def verify_readiness():
     result['process_confirmation']=same_cli();save()
     return approval['input']['thread']
 try:
+    if api_script.name=='t078_fake_inbox_tool.py' and args.phase not in ['launch','screen','key']:
+        raise RuntimeError('Slice1 submit/permission/readback uses its approved driver; cleanup needs a separate identity-bound script.')
     if not os.path.ismount('/Volumes/WD-Elements'):raise RuntimeError('External volume missing')
     for name in ['input.json','role.md','nonce.txt','scenario.json',*(['nonce-2.txt'] if approval['input'].get('turn_limit')==2 else [])]:
         if (root/name).read_bytes()!=(materials/name).read_bytes():raise RuntimeError('Approved input changed: '+name)
@@ -89,8 +92,8 @@ try:
         if isolated_settings!=(materials/'isolated-settings.json').read_bytes() or json.loads(isolated_settings)!={'theme':'dark'}:
             raise RuntimeError('approved_isolated_settings_changed')
         with (root/'api.stdout').open('xb') as stdout,(root/'api.stderr').open('xb') as stderr:
-            api=subprocess.Popen(['/usr/bin/python3','-B',str(SOURCE/'workbench/tests/t078_fake_messages.py'),str(root)],env=env,stdout=stdout,stderr=stderr,start_new_session=True)
-        (root/'api-owner.json').write_text(json.dumps({'pid':api.pid,'argv':['/usr/bin/python3','-B',str(SOURCE/'workbench/tests/t078_fake_messages.py'),str(root)]}))
+            api=subprocess.Popen(['/usr/bin/python3','-B',str(api_script),str(root)],env=env,stdout=stdout,stderr=stderr,start_new_session=True)
+        (root/'api-owner.json').write_text(json.dumps({'pid':api.pid,'argv':['/usr/bin/python3','-B',str(api_script),str(root)]}))
         wait(lambda:(root/'api-ready.json').exists() or api.poll() is not None)
         if api.poll() is not None:raise RuntimeError('Local API exited before readiness; retain logs, no restart')
         bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),api.pid)
@@ -314,7 +317,7 @@ try:
         if (root/'api-owner.json').exists():
             owner=json.loads((root/'api-owner.json').read_text());p=run(['/bin/ps','-p',str(owner['pid']),'-o','command='],allowed=(0,1))
             if p.returncode==0:
-                if str(SOURCE/'workbench/tests/t078_fake_messages.py') not in p.stdout or str(root) not in p.stdout:raise RuntimeError('API identity changed; no signal sent')
+                if str(api_script) not in p.stdout or str(root) not in p.stdout:raise RuntimeError('API identity changed; no signal sent')
                 os.kill(owner['pid'],signal.SIGTERM)
                 wait(lambda:run(['/bin/ps','-p',str(owner['pid']),'-o','command='],allowed=(0,1)).returncode==1,10)
         if (root/'operator.json').exists():(root/'operator.json').unlink()

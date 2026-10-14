@@ -201,20 +201,24 @@ async function main() {
           for (const type of ['mouseDown', 'mouseUp']) window.webContents.sendInputEvent({type, ...point, button:'left', clickCount:1});
           value = {sent:true, column:131, row:7, point, source:'test-simulated-mouse'};
         } else if (request.command === 'terminal-key') {
-          if (!['Escape', 'Control+C'].includes(request.key)) throw new Error('Unsupported terminal key probe');
+          if (!['Escape', 'Control+C', 'Enter'].includes(request.key)) throw new Error('Unsupported terminal key probe');
+          if (request.key === 'Enter' && (request.permission !== true || request.source !== 'test-simulated-user' || !request.approval_ref || !request.window_id)) {
+            throw new Error('An explicit bound permission Enter approval is required');
+          }
           const view = await inspect();
           if (!request.launch || !request.thread || !request.dispatch || (values.launch && request.launch !== values.launch) ||
               view.launch !== request.launch || view.thread !== request.thread ||
-              (request.key === 'Escape' ? view.active_dispatch !== request.dispatch :
+              (request.key === 'Escape' || request.key === 'Enter' ? view.active_dispatch !== request.dispatch :
                 view.active_dispatch !== '' || !view.interrupted || !request.window_id || view.window_id !== request.window_id ||
                 !Number.isSafeInteger(request.interruption) || view.interruption !== request.interruption) ||
+              (request.key === 'Enter' && view.window_id !== request.window_id) ||
               view.state !== 'busy' || view.lifecycle !== 'running' || !view.input_enabled) {
             throw new Error('Window is not bound to the requested busy dispatch');
           }
           window.focus();
           await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
-          const keyCode = request.key === 'Escape' ? 'Escape' : 'C';
-          const modifiers = request.key === 'Escape' ? [] : ['control'];
+          const keyCode = request.key === 'Control+C' ? 'C' : request.key;
+          const modifiers = request.key === 'Control+C' ? ['control'] : [];
           window.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
           window.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
           value = { attempted: true, source: 'test-simulated-user', binding: view };

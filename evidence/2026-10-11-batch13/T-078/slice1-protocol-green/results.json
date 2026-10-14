@@ -1,0 +1,86 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "registered-root-and-advertised-Bash",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "root_prompt": "⟦主控 #1⟧\nS1_UNSEEN_ALPHA"
+      }
+    },
+    {
+      "name": "correlated-native-result",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "tool_result": {
+          "type": "tool_result",
+          "tool_use_id": "toolu_unique_7",
+          "content": "NATIVE_SENTINEL_7",
+          "is_error": true
+        },
+        "text": "NATIVE_SENTINEL_7"
+      }
+    },
+    {
+      "name": "third-Messages-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The two-Messages budget is exhausted."
+    },
+    {
+      "name": "concatenated-root-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The exact registered root prompt is required."
+    },
+    {
+      "name": "no-advertised-Bash-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The real CLI must advertise a Bash command tool."
+    },
+    {
+      "name": "foreign-result-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The tool call and result must match the frozen command and ID."
+    },
+    {
+      "name": "changed-command-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The tool call and result must match the frozen command and ID."
+    },
+    {
+      "name": "empty-tool-result-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "An empty tool result is not execution evidence."
+    },
+    {
+      "name": "duplicate-tool-result-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Exactly one tool call and one result are required."
+    },
+    {
+      "name": "wrong-model-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Declared model and streaming mode are required."
+    },
+    {
+      "name": "response-uses-frozen-command",
+      "status": "PASS"
+    },
+    {
+      "name": "new-nonce-changes-ack",
+      "status": "PASS"
+    }
+  ],
+  "mutant_budget": false,
+  "scope": "Synthetic API body/SSE contract only; no native tool or transport claim",
+  "real_model_turns": 0
+}

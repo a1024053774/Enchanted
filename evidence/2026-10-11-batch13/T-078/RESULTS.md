@@ -677,3 +677,17 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 实际 setUp 环境＋生产 credential API 的最小信号，迁移前 [red2/2](post-rebase-2b-bootstrap-red/results.json) 缺路径、同因 exit1；补每根自己的 operator 路径并在原退出确认后移除自建凭据，迁移后同探针 [green2/2 PASS](post-rebase-2b-bootstrap-green/results.json)。host spawn 被截获，真实临时 Git／凭据创建与读回，未启动 daemon／PTY／供应商／模型；该局部 PASS 不等于 host ready 或 cards15 PASS。修改仅夹具生命周期三行，原卡与业务断言、host／产品均未改。
 
 交 [诊断与续跑说明](POST-REBASE-2B.md)、[提交脚本](commit-post-rebase-2b.sh) 和更新后的 [同一阶段脚本](post-rebase-2-stage.py)：核对原 inbox PASS／cleanup 与相关源码未变，明确复用、不重跑；只从 cards15 及之后四组续跑到新 outside-02，异常停、保留原件、不重试、不删 slot。完整续跑、新独立 reviewer、单角色真实 Claude 红态、09B／09C 与整票仍 **INCOMPLETE**。
+
+## 第二次变基续跑 PASS 与单角色红态准备（主控 #172）
+
+主控冻结 `ee2f7c1b7c19153ffec07abd2eb30574863d8c77`（九项尾注）并在沙箱外续跑 [outside-02](post-rebase-2-outside-02/result.json) **PASS／rc0**。worker 实际读回原结果：cards15（0 failures/errors/skipped）、空框声明入口17、runtime12、input-failures11、worker-inbox14，三 UI 场景 setup／cleanup 完整；原 inbox8 的 3d5225a9 来源与源码未变复用核对保留。outside-01 原失败不改；没有把前置命令数当业务测试数，也没有重跑未要求的完整 8/9/18/CAS。
+
+按主控顺序只准备 [单角色工具入口红态](SLICE-1-RED.md)，产品源码未改，真实 Claude 未启动。根提交1、Bash1、主 Messages2、模型0；真实 CLI 调用库 inbox list，fake API 只发精确命令和普通 ACK，实际错误必须来自真实 tool_result；不写 requests／业务库，不伪造 attempt 或 operator 代写。startup/trust、nonce、原生工具许可均单独批，工具 Enter 走同窗口并记 control action／实际 written。
+
+先写 [失败方式](FAILURE-MODES-SLICE1.md)。新假 API 的纯协议 [12 项 PASS](slice1-protocol-green/results.json) 和 [有效预算坏变异](slice1-protocol-mutant-budget-02/results.json) 已保留；坏变异确在第三请求契约失败、exit1。第一次带 mutant 目录名的命令漏传开关，mutant_budget=false，原件保留，不当变异证明。局部夹具证据没有 socket／CLI／API／UI／模型，不能替真实入口红态。
+
+最早 worker 专用 writer 位于未列入分配的 relayFiles.ts，已 [非 blocking 上报](ISSUE-SLICE1-RELAY-FILE-OWNERSHIP.md)，先继续红态准备，不在其它文件复制 writer，也不写该产品文件。后面的 controller_relay_not_enabled／nullable caller／relay schema／角色归属仍等真实层次证据，不能只删拒绝就称接通。
+
+只读还发现 [许可 Enter 提交记账](ISSUE-SLICE1-PERMISSION-ENTER.md)：当前 userInput 会将 CR 直接登记新 user intent／替换 active，工具审批可能虚记新提交；未实测，已非 blocking 上报。探针单列这个缺陷，以真正 UPS1/API2 核对原生预算，不称假 intent 为合法回合或原注册正确结算。工具键分支旧版红态后新增窄的 permission Enter：[6 项局部 PASS](slice1-permission-key-green/results.json)、原 Esc/CtrlC [13 项 PASS](slice1-window-binding-regression/results.json)，模拟 view、未开 UI，产品 input 行为不改。
+
+交 [一次运行的冻结／生成脚本](commit-and-prepare-slice1.sh)：先冻结辅助脚本与回归证据，再生成全新实例、按 Git 提交与当前源码逐字节读回，再提交材料；不启动。材料成功后主控读实际 argv/env/root/IDs 再逐次批 launch；当前实例生成／实际红态／绿态／边界反例、新独立 reviewer、09B／09C 与整票均 **INCOMPLETE**。
