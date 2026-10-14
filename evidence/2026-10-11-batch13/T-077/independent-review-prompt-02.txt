@@ -1,0 +1,38 @@
+你是 T-077 的 fresh-context 独立 reviewer。只做一次 F1 差异复审。仓库为 /Users/luckye/Documents/Code/a2a-wt-t077。请求配置：explorer、gpt-6.1-sol、xhigh、fork_turns none。spawn 接口不能选 tier；实际模型、思考强度与供应商 tier 未独立观察。没有新的 Codex CLI 或被测产品模型回合。
+
+你只拥有最终中文报告 evidence/2026-10-11-batch13/T-077/independent-review-02.md 的写入权限。你不是唯一的仓库使用者。除这个新报告外，不改任何文件，不覆盖别人工作，不提交、不 submit、不集成、不修复、不再找 agent。只读 Git 和白名单原始证据，可做不写文件的有界解析；不运行新测试，不启动 daemon/socket/PTY/Electron/模型 CLI，不读 auth，不用 ps 或信号。主 worker 在你复审期间停止其他工作。候选移动或证据缺失时报告 INCOMPLETE。
+
+冻结对象：
+- 产品：5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4。
+- 夹具：178d15f3ddb13f06a00eac19d7655225519f98e2。
+- 本次证据候选 / 开始 HEAD：05ed480bcc9882fb2c8074c4b8ad8c3727d66c2d。
+- 需要核对的提交：a5c6d50c48fa856cf85fe7d2fefddda61f5d2ade、178d15f3ddb13f06a00eac19d7655225519f98e2、fba6ebb56aead710c8c2f153842ddf76258702ef、628234b7ac1b067bbb404ad7140c8a551a4361f1、05ed480bcc9882fb2c8074c4b8ad8c3727d66c2d。不要读 commit message 作为实施理由；用 git show --format= -- <允许路径>。
+- 5d0bf1e8 之后的 F1 夹具差异也可用 git diff 5d0bf1e8 05ed480b -- <允许路径> 核对，包括直接调用上下文；不要扩大为全票复审。
+
+输入白名单，禁止追索白名单外链接或全库搜索：
+1. independent-review-01.md 中仅 FINDINGS 下 P2 — F1 段：从“### P2 — F1：禁止路径与外来尾注的两条冲突反事实没有到达目标断言”起，到“P0/P1/P3：无确认发现”之前止。只提取这段，不读其他段。此段是待核对的问题陈述，不是新结果 oracle。
+2. 上述 Git 冻结版本的 workbench/tests/test_worktree_lifecycle_e2e.py，及其直接测试调用方与 F1 所需的生产 core.ts 守卫上下文；workbench/src 与 workbench/hooks 的名称/字节差异可用于核对冻结产品。
+3. F1 夹具/runner 源码：evidence/2026-10-11-batch13/T-077/run-conflict-red-final-01.py、check-conflict-classifier-01.py、check-recorded-conflict-red-01.py、check-conflict-red-final-preparation-01.py、outside-sandbox.sh，以及上述提交对这些文件和 workbench/tests 的 diff。其他脚本只在直接调用且为 F1 所必需时读。
+4. 原始证据目录 evidence/2026-10-11-batch13/T-077/outside-conflict-red-final-02/ 全部原始 run/result/receipt/commands/stdout/stderr/unittest/readbacks/源代码与夹具归档；只解析归档中的相关源代码、请求、事件、Git/SQLite/命令，不读归档内任何总结或决策文档。
+5. evidence/2026-10-11-batch13/T-077/conflict-red-final-02.console.txt；相关 preparation 的 plan.json 仅是机器执行清单（大小写 PLAN 文档仍禁读），只在核对实际冻结源码与变异配方时读取它和 frozen-source-and-harness.tar.gz。此次 evidence-only 提交只读新增原始证据与 readiness JSON/原始状态输出，不读它修改的 RESULTS。
+6. 如需审计规范，可读 /Users/luckye/.agents/skills/behavioral-acceptance-review/SKILL.md 及 references/agent-products.md；只为审计方法使用，不扩展输入或范围。报告写作可读 document-writing SKILL 与 encoding/polishing 引用，不扩展输入。
+
+禁止输入：实施聊天、PLAN、RESULTS、HANDOFF、DIAGNOSIS、CHECKPOINT、CONFLICT-RED-FINAL-IMPLEMENTATION、决策/审批说明；禁止先前报告除 F1 段外的内容。不要为一般 session 启动规则读地图、ticket Resolution 或 intent；本次是限定只读复审，规范流程由父 worker 执行。
+
+逐条独立核对：
+(a) 七条红态各自的稳定目标标识与前置清单是否准确对应要证明的行为；前置是否为必要场景条件，是否有把被测目标行为当作自己的前置、缺项、虚构观测、迟于目标或豁免。核对原始记录而不是只信顶层 PASS。
+(b) 06/07 的定向变体是否只破坏对应 conflict rework 路径守卫/任务尾注守卫；冲突投递、显式重交成功、目标 verify 是否真实到达；原始 unittest 失败位置是否为对应目标断言。
+(c) 分类器是否仅在指定目标断言失败、各案前置在目标前完整成功、无 errors/skipped/cleanup_failures 时计红；普通断言失败、setup/cleanup 失败或前置不足应为 NOT_COVERED。检查保存的证据与实现逻辑，不能用“零 errors”代替目标命中。
+(d) 对照修正前后测试/runner，是否放宽任何业务断言，或令 oracle 来源依赖产品输出。
+(e) 产品是否仍为完整版本 5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4；核对工作区、Git 差异、保存运行源码及变异配方。变体不能被误称候选产品；请求配置不证明真实边界。
+
+只报告确认且可操作的发现；给冻结文件/行号、原始路径、可达失败、影响与最小修正。不要修复。结论仅限 F1，整票仍 INCOMPLETE 待主控验收，真实模型边界不在本次证明内。报告采用以下格式，正文中文：
+STATUS: PASS | NO_GO | INCOMPLETE
+TARGET: 产品/夹具/本次证据候选完整版本与 F1 范围
+EVIDENCE: 按 (a)～(e) 给路径与具体读回；区分受控输入和真实本地依赖
+FINDINGS: P0/P1/P2/P3；没有确认发现则明确写无，说明 F1 是否已解决
+COUNTEREXAMPLE: 每条变体、目标标识、失败位置、前置与真实类别
+LIMITATIONS: 范围、未运行新检查、实际配置/tier 未观察与真实模型 0
+RULE: 仅在确认重复失败类别时给能捕获它的机械检查及位置
+
+报告保存前后只读核对 HEAD 仍为冻结候选，除报告外没有新增文件改动。最终回复 STATUS、确认发现数、F1 处置和报告路径。仅这一遍审查，不自发二次复审。

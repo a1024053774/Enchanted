@@ -1,5 +1,13 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 主控 #129：F1 差异复审 02
+
+**复审 NO_GO；确认 1 项 P2，整票仍 INCOMPLETE，待主控处置与验收。** 已完成一次 fresh-context explorer 复审，请求 gpt-6.1-sol / xhigh / fork_turns none；tier 不可选，实际模型、思考强度及供应商 tier 未独立观察。复审期间本 worker 只等待与汇报状态，没有并行检查或修改。冻结证据候选为 `05ed480bcc9882fb2c8074c4b8ad8c3727d66c2d`，产品仍为完整版本 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`；报告 `independent-review-02.md` 原样保留，提示、请求和完成记录分别为 `independent-review-prompt-02.txt`、`independent-review-request-02.json`、`independent-review-completed-02.json`。
+
+reviewer 确认原 F1 的 06/07 目标未到达问题已解决：七条红态均命中各自目标，前置在目标前齐全；06/07 定向变体只破坏对应守卫，保留投递、显式重交和目标 verify；未发现放宽业务断言，产品及保存候选源码与冻结版本一致。唯一 P2 位于 `workbench/tests/test_worktree_lifecycle_e2e.py:84` 与 `check-conflict-classifier-01.py:82`：目标通过、随后普通断言失败时仍保存 TARGET_PASSED，而非本次提示 (c) 要求的 NOT_COVERED。该结论为静态可达分支核对，没有新增运行；报告明确该输入不误计 business_red，也不会使候选总验收通过，未确认当前七条红态被误计。
+
+**该 P2 的条件来源须由主控裁定。** “普通断言失败应为 NOT_COVERED”由本 worker 加入复审提示 (c)，不是主控 #129 的原话；主控明确要求的是“分类器是否只在目标断言失败且前置齐全时计红”。不将这个更强的提示条件自行升级为项目验收契约，不改 reviewer 原始结论、不修夹具、不追加复审。本次只提交报告与记录，后续处置交主控。新增被测真实模型回合 0，未启动新的 Codex CLI，未验收或集成整票。
+
 ## 主控 #129：F1 修正后的 conflict-red-final-02
 
 **重跑 PASS；整票仍 INCOMPLETE，待 F1 差异复审与主控验收。** 执行主控在沙箱外运行 `conflict-red-final-02`，rc=0；本 worker 读回顶层 run.json、七条红态的逐案 result.json、06/07 的原始 unittest 输出及候选结果。运行产品为 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`，夹具为 `178d15f3ddb13f06a00eac19d7655225519f98e2`，实际执行 HEAD 为 `628234b7ac1b067bbb404ad7140c8a551a4361f1`。本轮只整理证据，产品及夹具未改，新增真实模型回合 0。
