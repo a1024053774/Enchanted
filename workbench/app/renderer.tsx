@@ -14,9 +14,9 @@ type Snapshot = {
   task: { task_id: string; title: string; project_id: string; repo: string; state: string;
     current_attempt: { attempt_id: string; state: string } | null; candidate_commit: string | null;
     verification: { state: string } | null; integration_intent: { state: string } | null };
-  launch: { id: string; attempt: string | null; role: string; cli_version: string; model_requested: string } | null;
+  launch: { id: string; thread: string; attempt: string | null; role: string; cli_version: string; model_requested: string } | null;
   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
-    interrupted?: boolean } | null;
+    interrupted?: boolean; active?: { dispatch: string } | null } | null;
 };
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
 declare global { interface Window { a2a: { snapshot(): Promise<Snapshot>; output(offset: number): Promise<Chunk>;
@@ -114,7 +114,7 @@ function Workbench() {
   }, []);
   const task = snapshot?.task;
   const pane = snapshot?.pane;
-  const historical = Boolean(snapshot?.launch && task?.current_attempt?.attempt_id !== snapshot.launch.attempt);
+  const historical = Boolean(snapshot?.launch?.attempt && task?.current_attempt?.attempt_id !== snapshot.launch.attempt);
   return <div className="workbench">
     <aside className="sidebar">
       <div className="brand">a2a <span>工作台</span></div>
@@ -130,7 +130,9 @@ function Workbench() {
       </header>
       {error && <div className="connection-error" role="alert"><span>{error}</span><button onClick={() => reconnect.current()}>重新连接</button></div>}
       {inputError && <div className="connection-error" role="alert">{inputError}</div>}
-      <section className="pane" aria-label="交互终端">
+      <section className="pane" aria-label="交互终端" data-launch-id={snapshot?.launch?.id}
+        data-thread-id={snapshot?.launch?.thread} data-active-dispatch={pane?.active?.dispatch ?? ''}
+        data-input-enabled={Boolean(snapshot?.input_enabled && !inputError && !error)}>
         <div className="pane-header"><strong>{snapshot?.launch?.cli_version ?? '窗格'}</strong>
           <span className="readonly">{snapshot?.input_enabled && !inputError ? '可输入' : '只读'}</span><span className="pane-identity">{snapshot?.launch ? `${snapshot.launch.role} · ${snapshot.launch.id.slice(0, 8)}` : '尚未启动窗格'}</span>
           <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>

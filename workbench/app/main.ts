@@ -43,7 +43,8 @@ export async function run(options: Options) {
     if (!result.ok) throw new Error(result.error);
     if (result.launch) launch = result.launch.id;
     const writable = result.pane?.lifecycle === 'running' && !result.pane.failed &&
-      result.task.current_attempt?.attempt_id === result.launch?.attempt;
+      Boolean(result.launch && (result.launch.role === 'controller' && result.launch.attempt === null ||
+        result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
     if (result.launch && !identity) {
       const opened = await request(options.state, { command: 'window_open', task: options.task, launch }, operator);
       if (!opened.ok) throw new Error(opened.error);

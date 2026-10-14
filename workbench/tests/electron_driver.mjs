@@ -99,6 +99,10 @@ async function main() {
       state: document.querySelector('[data-state]')?.dataset.state,
       lifecycle: document.querySelector('[data-lifecycle]')?.dataset.lifecycle,
       gate: document.querySelector('[data-gate-state]')?.dataset.gateState,
+      launch: document.querySelector('[data-launch-id]')?.dataset.launchId,
+      thread: document.querySelector('[data-thread-id]')?.dataset.threadId,
+      active_dispatch: document.querySelector('[data-active-dispatch]')?.dataset.activeDispatch,
+      input_enabled: document.querySelector('[data-input-enabled]')?.dataset.inputEnabled === 'true',
       // xterm 6 AccessibilityManager renders CoreBrowserTerminal.buffer,
       // which is the active buffer, but its DOM refresh can lag term.write.
       terminal: [...document.querySelectorAll('.xterm-accessibility-tree [role="listitem"]')].map(x => x.textContent).join('\\n'),
@@ -192,11 +196,17 @@ async function main() {
           value = {sent:true, column:131, row:7, point, source:'test-simulated-mouse'};
         } else if (request.command === 'terminal-key') {
           if (request.key !== 'Escape') throw new Error('Unsupported terminal key probe');
+          const view = await inspect();
+          if (!request.launch || !request.thread || !request.dispatch || (values.launch && request.launch !== values.launch) ||
+              view.launch !== request.launch || view.thread !== request.thread || view.active_dispatch !== request.dispatch ||
+              view.state !== 'busy' || view.lifecycle !== 'running' || !view.input_enabled) {
+            throw new Error('Window is not bound to the requested busy dispatch');
+          }
           window.focus();
           await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
           window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
           window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-          value = { sent: true, source: 'test-simulated-user' };
+          value = { attempted: true, source: 'test-simulated-user', binding: view };
         } else if (request.command === 'queue-release') {
           value = await window.webContents.executeJavaScript(`new Promise(resolve => {
             const deadline = Date.now() + 2500;

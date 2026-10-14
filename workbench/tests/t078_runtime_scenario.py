@@ -115,7 +115,10 @@ def run_runtime(*, home, state, attempt, window, call, query, check, result, out
            'Stop 后将指定收件箱处置按固定正文送达 PTY；注入不算用户输入',
            {'entry':queued['entry'],'submission_events':submissions})
 
-    window.call('terminal-key',key='Escape')
+    binding = {'launch':launch['id'], 'thread':thread, 'dispatch':queued['delivery']['message']}
+    window.wait(lambda v:v.get('launch')==binding['launch'] and v.get('thread')==thread and
+                v.get('active_dispatch')==binding['dispatch'] and v.get('state')=='busy' and v.get('input_enabled') is True)
+    window.call('terminal-key',key='Escape',**binding)
     wait_for(lambda:len(bytes_now())>=len(after_wake)+1,'window Esc')
     seed('issue','worker:'+thread,'runtime-issue-2')
     queued2 = call('inbox_send','--to','worker:'+thread,'--kind','disposition','--reply-to','runtime-issue-2',

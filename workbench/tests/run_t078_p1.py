@@ -37,7 +37,9 @@ def wait(predicate,seconds=30):
         if time.monotonic()>deadline:raise RuntimeError('Observed-state deadline; no retry')
         time.sleep(.05)
 def events():
-    with sqlite3.connect((state/'state.sqlite3').as_uri()+'?mode=ro',uri=True) as db:return [{'type':r[0],'data':json.loads(r[1])} for r in db.execute('SELECT type,data FROM orchestration_events ORDER BY seq')]
+    with sqlite3.connect((state/'state.sqlite3').as_uri()+'?mode=ro',uri=True) as db:return [{'seq':r[0],'time':r[1],'launch':r[2],'type':r[3],'data':json.loads(r[4])} for r in db.execute('SELECT seq,time,launch,type,data FROM orchestration_events ORDER BY seq')]
+def user_inputs():
+    with sqlite3.connect((state/'state.sqlite3').as_uri()+'?mode=ro',uri=True) as db:return [json.loads(r[0]) for r in db.execute('SELECT data FROM user_inputs')]
 def probe_process(pid):
     p=run(['/bin/ps','-p',str(pid),'-o','pid=,lstart=,comm='],allowed=(0,1))
     return identity_from_ps(pid,p.returncode,p.stdout,p.stderr)
@@ -180,7 +182,18 @@ try:
             second=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce-2.txt');result['second_dispatch']=second
             queued=call('pane_status','--thread',thread);assert queued['queued']==[second['dispatch']['id']] and not (root/'api-request-2.json').exists()
             assert not any(e['type']=='paste_intent' and e['data']['dispatch']==second['dispatch']['id'] for e in events());save()
-            client.call('terminal-key',key='Escape')
+            binding = {'launch':approval['input']['launch'], 'thread':thread, 'dispatch':first['dispatch']['id']}
+            view = client.wait(lambda v:v.get('launch')==binding['launch'] and v.get('thread')==binding['thread'] and
+                               v.get('active_dispatch')==binding['dispatch'] and v.get('state')=='busy' and
+                               v.get('lifecycle')=='running' and v.get('input_enabled') is True)
+            result['window_before_esc']=view
+            prior=events();after_seq=max(e['seq'] for e in prior)
+            window_id=next(e['data']['window_id'] for e in reversed(prior) if e['type']=='window_opened' and e['launch']==binding['launch'])
+            result['key_attempt']=client.call('terminal-key',key='Escape',**binding);save()
+            from p1_window_receipts import confirmed_escape
+            def receipt():return confirmed_escape(events(),user_inputs(),**binding,window=window_id,after_seq=after_seq)
+            wait(lambda:receipt() is not None)
+            result['escape_delivery']=receipt();save()
             wait(lambda:call('pane_status','--thread',thread)['active'] is None)
             wait(lambda:(root/'api-cancelled-1.json').exists())
             held=call('pane_status','--thread',thread);assert held['state']=='busy' and held['interrupted'] and held['queued']==[second['dispatch']['id']]

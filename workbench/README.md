@@ -325,6 +325,11 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 
 ## Electron 窗口
 
+运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
+每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、
+active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝试，送达须有同一窗口请求的
+用户动作、PTY 写入意图与写入收据，不能用 `sent:true` 代替。
+
 窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
 窗格和门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
 键盘、IME 和粘贴入口，历史窗格保持只读；全部输入由后台写入 node-pty，renderer
