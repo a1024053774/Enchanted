@@ -84,3 +84,7 @@ AUTH_TOKEN 生效：假 API 收到 1 条 /v1/messages（CLI 的会话标题侧�
 - `theme-03` 批准 Enter（确认明确所选 Dark mode）→ 门禁拒绝 `theme_selection_not_explicit`，未写 PTY（读回 `screen-after-theme-01` 仍 3,906 字节）。按设计停，不重试。
 - 批准并运行 `p1-cleanup-08b`：PASS，无残留进程。
 结论：INCOMPLETE。门禁对"Enter 前一条登记导航须是从 Auto 的 ArrowDown"的核对与实际登记不符，属 2f6d31ea 新代码缺陷，交 worker 诊断（以 key-theme-0x/ 与 cleanup 归档为据），需修复后另起新实例。批准引用：`T-078 controller-decision-04 p1-08b-keys`。
+
+## P1 批准（材料 08c launch，2026-10-14 UTC 03:0x）
+
+审阅修复 95b69e04（selected_label 为按键目标项；Enter 须前两条依次为 ArrowUp→Auto、ArrowDown→Dark，默认 Enter 仍拒；以 08b 实际批准与屏幕原字节重放取得红/绿）与材料 e5c58e54（launch 只记录进程启动，首屏另行只读读取）。批准 `p1-launch-08c` 一次及随后逐屏只读 screen；每个按键逐屏另批。批准引用：`T-078 controller-decision-04 p1-08c-launch`。
