@@ -49,3 +49,8 @@ Codex 领导进程 80090（0.162.1）正常起来；dispatch→paste→turn_subm
 ## 第 3 回合（最后一次）批准（2026-10-14 UTC 22:4x）
 
 审阅 CAPABILITY-TURN-3.md：生成器改为由本次 run 的 argv 直接生成正文，新增独立路径检查器（启动前与 release 前两次）；旧材料红、新材料绿、错路径反例均通过。执行主控亲自核对 capability-review-04 的 FIRST-TURN 与 ROLE-BODY：两条命令都指向 /private/tmp/t081-capability-01/run-04/repo 与 run-04/local.git，无 run-02/run-03 残留；home 配置仅把信任项换为 run-04/repo。批准第 3 回合一次，引用 `T-081 controller-decision-04 capability-turn-3`；累计上限 3（已用 2）。run-02 main=T 现场保留不回滚。
+
+## 第 3 回合 run-04 读回（2026-10-14 UTC 22:5x）
+
+PASS（real_turns_completed 1，累计 3/3 用尽）。路径检查两次通过（启动前、release 前）。原生回执：两条命令各一次结构化终端结果。执行主控独立读回：run-04/repo（本任务 T-081-CAP-04 自己的共享仓库）refs/heads/main 由 G 4de60dac 变为 T 16a341ae（reflog main@{0}），run-04/local.git 出现 refs/heads/t081-probe=T。
+发现（确认）：在当前配置（gpt-6.1-sol xhigh、workspace-write、-a never、隔离 home、信任本任务仓库根）下，真实 Codex worker 能直接移动其所属任务共享仓库的工作分支并推送到本地裸仓库。已上报构思主控；是否收紧沙箱属设计问题。按票第 7 项还需受控入口证明集成时 CAS 发现外部移动并拒绝或重验——交 worker 核对 full-04 是否已覆盖，未覆盖则补。home cleanup 待批。
