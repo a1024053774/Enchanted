@@ -27,3 +27,7 @@ rc=2。11 个坏行为案候选拒收码均符合预期、对应变异体均为�
 ## full-04 与第 7 项第一回合（2026-10-14 UTC 20:3x）
 
 full-04：受控部分 PASS（11 个坏行为拒收、变异体业务红、3 个正例集成、误拒绝 0，23 套回归全过；wide 修正以 main 对照）。第 7 项：执行主控运行 home prepare（PASS，内容与审批一致：auth.json 0600、仅信任夹具根、两条 allow），随后运行 run_t081_capability_turn.py：INCOMPLETE，rc=2，real_turns_completed=0——dispatch 调用以 exit 1、空 stdout/stderr 失败；窗格前台仅 spawn-helper，未见 Codex 领导进程；脚本正常 daemon_stop，进程已停，夹具 main 仍 G、裸仓库无 refs，home 保留。未消耗真实回合（全票上限 3 仍余 3）。交 worker 诊断，不重试本次批准。
+
+## 第 7 项第一回合重新批准（2026-10-14 UTC 20:5x）
+
+worker 诊断（CAPABILITY-RUN-02.md）：run-01 失败于 dispatch id 12 的 gate_failure "Actual first turn differs from the approved prompt"——审批材料用了未规范化的任务卡（completion argv 的 python 路径未 realpath），产品保存的是 validateTaskCard 返回的规范化卡；id 18 为空裸仓库 show-ref。无产品缺陷。修正：材料改用规范化卡生成，逐字核对保留；新任务 T-081-CAP-02、新实例 /private/tmp/t081-capability-01/run-02/，复用已准备的 home，不重新复制凭据。范围、argv、hooks、两条命令、1 回合上限与原批准相同。批准第一回合一次，引用 `T-081 controller-decision-02 capability-turn-1`。真实回合累计 0/3。
