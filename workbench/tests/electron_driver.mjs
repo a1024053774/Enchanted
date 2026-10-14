@@ -211,7 +211,7 @@ async function main() {
           value = await window.webContents.executeJavaScript(`new Promise(resolve => {
             const deadline = Date.now() + 2500;
             const observe = () => {
-              const button = [...document.querySelectorAll('button')].find(x => x.textContent === '放行排队消息');
+              const button = [...document.querySelectorAll('button')].find(x => x.textContent === '输入框已空，放行');
               if (!button || (button.disabled && Date.now() >= deadline)) return resolve({ clicked: false });
               if (button.disabled) return setTimeout(observe, 50);
               button.click(); resolve({ clicked: true });

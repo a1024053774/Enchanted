@@ -210,7 +210,9 @@ export async function main(argv = process.argv.slice(2)) {
     const result = request.command === "daemon_start"
       ? await startDaemon(root, request["launch-config"] ? JSON.parse(readFileSync(String(request["launch-config"]), "utf8")) : {})
       : await daemonRequest(root, request, identity ?? operator);
-    await emit(request.command === "signal" && result.ok ? {} : result, trace);
+    const hookOutput = request.command === "signal" && result.ok &&
+      JSON.parse(String(request.raw_stdin)).hook_event_name === "UserPromptSubmit" ? result.hook_output : undefined;
+    await emit(hookOutput ?? (request.command === "signal" && result.ok ? {} : result), trace);
     return finish(result.ok ? 0 : 1);
   } catch (error) {
     await emit({

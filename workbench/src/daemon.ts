@@ -123,6 +123,7 @@ export async function serve(
               pane.native!==record.session || pane.failed || pane.stopped || pane.archived || !info.leader || info.failed)throw new Refusal("stale_controller");
         }else if (!attempt || attempt.attempt_id !== record.attempt || attempt.session_id !== record.session ||
             attempt.fence !== record.fence || status.task?.spec_rev !== record.spec_rev || attempt.reclaimed) throw new Refusal("stale_attempt");
+        if (windows.get(window.id) !== window) throw new Refusal("invalid_window_identity");
         if (gates.userInputObserverStatus()?.state === "failed") throw new Refusal("user_input_observer_failed");
       };
       const recordInput = async (text: string, content?: Record<string, unknown>) => {
@@ -143,13 +144,15 @@ export async function serve(
         return { ok: true, observed: true, written: false };
       }
       if (input.command === "window_release") {
+        const declaration = input.declaration;
+        if (!declaration || declaration.window_id !== window.id) throw new Refusal("empty_input_declaration_required");
         const assertInterrupted = async () => {
           await assertCurrent();
           if (!panes.get(record.thread).interrupted) throw new Refusal("pane_not_interrupted");
         };
-        await panes.releaseByUser(record.thread, "用户放行排队消息", async () => {
+        await panes.releaseByUser(record.thread, declaration, async () => {
           const pane = panes.get(record.thread);
-          await recordInput("放行排队消息", { action: "queue-release", previous_submission: pane.active?.id ?? null,
+          await recordInput("用户声明输入框已空", { action: "queue-release", declaration, previous_submission: pane.active?.id ?? null,
             queued: pane.queue.map(item => item.id) });
         }, assertInterrupted);
         return { ok: true, released: true, request_id: receipt.request_id };
@@ -225,7 +228,7 @@ export async function serve(
     if (input.command === "signal") {
       if (!identity || identity.launch !== input.launch) throw new Refusal("signal_identity_required");
       let completedReview: { task: string; id: string } | undefined;
-      await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
+      const decision = await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
         let files = input.relay_files;
         if (pane.record.cli === "Claude Code") {
           if (!Array.isArray(files)) throw new Refusal("relay_files_required");
@@ -292,7 +295,7 @@ export async function serve(
         if (matched && receipts.length && pane.record.role === "worker") await panes.dispatch(pane,
           "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2), "gate");
       });
-      return { ok: true, completedReview };
+      return { ok: true, completedReview, ...(decision ? { hook_output: decision } : {}) };
     }
     if (input.command === "launch_show") {
       if (authority.kind === "launch" && identity.launch !== input.launch) throw new Refusal("stale_launch");

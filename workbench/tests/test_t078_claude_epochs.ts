@@ -15,7 +15,7 @@ async function test(name:string,body:(f:any)=>Promise<void>,limit=2){
   const active={id:"submission-1",dispatch:first.id,at:"2026-10-13T00:00:00Z",nativeTurn:null};store.event("turn_submit_intent",active,record);
   const writes:string[]=[];
   const pane:any={record,native:ups.session_id,task:{},attempt:null,state:"busy",failed:null,stopped:false,archived:false,interrupted:false,stopInProgress:false,
-    active,claudePromptId:null,claudePromptIds:new Set(),queue:[],writing:false,writes:Promise.resolve(),pendingInputs:0,userDraft:false,pty:{pid:1,write:(v:string)=>writes.push(v)}};
+    active,claudePromptId:null,claudePromptIds:new Set(),queue:[],writing:false,writes:Promise.resolve(),pendingInputs:0,userDraft:false,inputGeneration:0,interruption:null,pty:{pid:1,write:(v:string)=>writes.push(v)}};
   panes.panes.set(record.thread,pane);panes.processInfo=async()=>({leader:2,failed:null}) as any;
   const signal=(v:any,transfer?:any)=>panes.signal(record.id,JSON.stringify(v),new Date().toISOString(),transfer);
   try{await body({panes,pane,store,signal,writes,record});checks.push({name,status:"PASS",written:writes});}
@@ -30,7 +30,7 @@ await test("esc_retires_active_without_waiting_for_stop",async({signal,panes,pan
 await test("user_release_delivers_second_nonce_with_new_prompt_id",async({signal,panes,pane,store,writes})=>{
   await signal(ups);const second=await panes.dispatch(pane,"09A_SECOND_NONCE");assert.equal(writes.length,0);
   await panes.userInput(pane.record.id,"\x1b",{request_id:"esc"},async()=>{},async()=>{});
-  assert.equal(pane.queue.length,1);await panes.releaseByUser(pane.record.thread,"explicit user release",async()=>{},async()=>{});
+  assert.equal(pane.queue.length,1);await panes.releaseByUser(pane.record.thread,{statement:'用户声明输入框已空',launch:pane.record.id,window_id:'epoch-window',interruption:pane.interruption,input_generation:pane.inputGeneration},async()=>{},async()=>{});
   const id="00000000-0000-4000-8000-000000000002";await signal({...ups,prompt:second.text,prompt_id:id});
   const current=pane.active;assert.ok(current);assert.equal(pane.claudePromptId,id);
   await signal(stop);assert.equal(pane.active,current);assert.equal(pane.state,"busy");
@@ -53,7 +53,7 @@ await test("stop_transfer_cannot_clear_a_replacement_submission",async({signal,p
   const begun=new Promise<void>(r=>started=r),barrier=new Promise<void>(r=>release=r);
   const finishing=signal(stop,async()=>{started();await barrier;});await begun;
   await panes.userInput(pane.record.id,"\x1b",{request_id:"esc"},async()=>{},async()=>{});
-  const second=await panes.dispatch(pane,"09A_REPLACEMENT_NONCE");await panes.releaseByUser(pane.record.thread,"explicit release",async()=>{},async()=>{});
+  const second=await panes.dispatch(pane,"09A_REPLACEMENT_NONCE");await panes.releaseByUser(pane.record.thread,{statement:'用户声明输入框已空',launch:pane.record.id,window_id:'epoch-window',interruption:pane.interruption,input_generation:pane.inputGeneration},async()=>{},async()=>{});
   const id="00000000-0000-4000-8000-000000000002";await signal({...ups,prompt:second.text,prompt_id:id});const active=pane.active;
   release();await finishing;assert.equal(pane.active,active);assert.equal(pane.claudePromptId,id);
 });

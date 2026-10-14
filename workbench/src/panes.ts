@@ -43,6 +43,10 @@ export interface LaunchConfig {
   turn_authorization?: string;
   reviewers?: { codex_home: string; role_card: string; role_card_revision: string; hook_authorization: string }[];
 }
+export type EmptyInputDeclaration = {
+  statement: "用户声明输入框已空"; launch: string; window_id: string;
+  interruption: number; input_generation: number;
+};
 type Pane = {
   record: Record<string, any> & { id: string; task: string; attempt: string | null };
   token: string; task: A2ATask; attempt: A2AAttempt | null; pty: any;
@@ -53,6 +57,7 @@ type Pane = {
   queue: ReturnType<OrchestrationStore["register"]>[]; writing: boolean;
   stopInProgress: boolean;
   writes: Promise<void>; pendingInputs: number; userDraft: boolean; interrupted: boolean; sending: string | null;
+  inputGeneration: number; interruption: number | null;
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
   claudePromptId?: string | null;
@@ -85,7 +90,7 @@ export class Panes implements GateRuntime {
     const pane: Pane = { record, token, task, attempt: null, pty: terminal, state: "unknown", stopped: false,
       archived: false, failed: null, leader: null, native: record.session, turn: null, nativeEnded: false, active: null,
       queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
-      userDraft: false, interrupted: false, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
+      userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
       terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
     this.panes.set(record.thread, pane);
     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
@@ -271,7 +276,7 @@ export class Panes implements GateRuntime {
     });
     const pane: Pane = { record, token, task, attempt, pty: terminal, state: "unknown", stopped: false,
       archived: false, failed: null, leader: null, native: null, turn: null, nativeEnded: false, active: null,
-      queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, sending: null,
+      queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
       offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
     this.panes.set(attempt.thread_id, pane);
     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
@@ -456,6 +461,7 @@ export class Panes implements GateRuntime {
     // An end/cancel does not prove that the CLI input line is empty. Only a user
     // submit or explicit interrupted-queue release clears the draft reservation.
     pane.userDraft = true;
+    pane.inputGeneration++;
     await this.serializeWrite(pane, async () => {
       await assertCurrent();
       this.store.event("terminal_composition_started", receipt, pane.record);
@@ -470,11 +476,12 @@ export class Panes implements GateRuntime {
     const bytes = Buffer.from(data, binary ? "latin1" : "utf8");
     const pasted = !binary && data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~");
     const text = binary ? "终端二进制输入" : pasted ? data.slice(6, -6).replaceAll("\r", "\n") : data;
-    const control = binary || (!pasted && (data === "\r" || data === "\n" || data === "\x1b" || data === "\x7f"));
+    const control = binary || (!pasted && /[\x00-\x1f\x7f]/.test(data));
     // Reserve synchronously, before the recorder or identity check can yield.
     // Input records and their bytes keep the same order as admission. Esc also
     // prevents the CR of a paste that is already waiting inside this stream.
     pane.pendingInputs++;
+    pane.inputGeneration++;
     if (!binary && data === "\x1b") { pane.interrupted = true; pane.state = "busy"; }
     try { await this.serializeWrite(pane, async () => {
       await assertCurrent();
@@ -490,8 +497,8 @@ export class Panes implements GateRuntime {
       }
       try {
         pane.pty.write(binary ? bytes : data);
-        this.store.event("terminal_input_written", { ...receipt, encoding, byte_length: bytes.length }, pane.record);
-        if(!binary && data==="\x1b")this.retireClaudeSubmission(pane,"user-esc");
+        const written = this.store.event("terminal_input_written", { ...receipt, encoding, byte_length: bytes.length }, pane.record);
+        if(!binary && data==="\x1b") { pane.interruption = written; this.retireClaudeSubmission(pane,"user-esc"); }
       } catch (error) {
         this.recordFailure(pane, "terminal_input_write_unknown", error, receipt);
         throw error;
@@ -563,19 +570,30 @@ export class Panes implements GateRuntime {
       throw error;
     } finally { pane.writing = false; pane.sending = null; }
   }
-  async releaseByUser(thread: string, reason: string, recordAction: () => Promise<void>, assertCurrent: () => Promise<void>) {
+  async releaseByUser(thread: string, declaration: EmptyInputDeclaration, recordAction: () => Promise<void>, assertCurrent: () => Promise<void>) {
     const pane = this.get(thread);
-    check(reason.trim() && !pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
+    check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
+    check(declaration?.statement === "用户声明输入框已空" && declaration.launch === pane.record.id &&
+      Number.isSafeInteger(declaration.interruption) && Number.isSafeInteger(declaration.input_generation), "empty_input_declaration_required");
+    const matches = () => pane.interrupted && pane.interruption === declaration.interruption && pane.inputGeneration === declaration.input_generation;
+    check(matches(), "empty_input_declaration_stale");
     const info = await this.processInfo(thread);
     check(info.leader && !info.failed, "foreground_agent_required", info);
     await assertCurrent();
-    await recordAction();
+    let refused = false;
     await this.serializeWrite(pane, async () => {
       await assertCurrent();
       check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
-      this.store.event("user_queue_release", { reason, previous_state: pane.state, previous_submission: pane.active?.id ?? null }, pane.record);
-      pane.active = null; pane.claudePromptId = null; pane.userDraft = false; pane.interrupted = false; pane.state = "idle";
+      // A stale declaration is an ordinary refusal, not an unknown PTY write.
+      // Resolve this write slot so later admitted user bytes keep their order.
+      if (!matches()) { refused = true; this.store.event("empty_input_declaration_rejected", { declaration }, pane.record); return; }
+      await recordAction();
+      await assertCurrent();
+      if (!matches()) { refused = true; this.store.event("empty_input_declaration_rejected", { declaration }, pane.record); return; }
+      this.store.event("user_queue_release", { declaration, previous_state: pane.state, previous_submission: pane.active?.id ?? null }, pane.record);
+      pane.active = null; pane.claudePromptId = null; pane.userDraft = false; pane.interrupted = false; pane.interruption = null; pane.state = "idle";
     });
+    check(!refused, "empty_input_declaration_stale");
     await this.drain(pane);
     return this.status(thread);
   }
@@ -585,13 +603,14 @@ export class Panes implements GateRuntime {
     const info = await this.processInfo(thread);
     check(info.leader && !info.failed, "foreground_agent_required", info);
     pane.interrupted = true; pane.state = "busy";
+    pane.inputGeneration++;
     await this.serializeWrite(pane, async () => {
       const current = await this.processInfo(thread);
       check(current.leader === info.leader && !current.failed, "identity_conflict", current);
       this.store.event("pane_interrupt_intent", { source: "gate", leader: info.leader }, pane.record);
       try {
         pane.pty.write("\x1b");
-        this.store.event("pane_interrupt_written", { source: "gate", leader: info.leader }, pane.record);
+        pane.interruption = this.store.event("pane_interrupt_written", { source: "gate", leader: info.leader }, pane.record);
         this.retireClaudeSubmission(pane,"gate-interrupt");
       } catch (error) { this.recordFailure(pane, "pane_interrupt_unknown", error); throw error; }
     });
@@ -673,6 +692,7 @@ export class Panes implements GateRuntime {
         lifecycle: pane.archived ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
+        input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped };
     }
     const record = this.store.threadLaunch(thread);
@@ -700,7 +720,17 @@ export class Panes implements GateRuntime {
         const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
         check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
         check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
-        check(pane.state === "busy" && item && value.prompt === item.text && !pane.claudePromptId, "claude_submission_unmatched");
+        if (item && value.prompt !== item.text) {
+          const reason = "登记注入与实际提交正文不一致；已阻断，请处理草稿后再决定。";
+          this.store.event("injected_prompt_blocked", { prompt: value.prompt, prompt_id: value.prompt_id,
+            dispatch: item.id, submission: pane.active!.id, expected_prompt: item.text, reason }, pane.record);
+          pane.state = "busy";
+          return { decision: "block" as const, reason };
+        }
+        // Source comes from the current structured submission, never text markers.
+        // Hand-typed submissions and retired injections cannot trigger this guard.
+        if (!item) { this.store.event("user_prompt_unregistered", value, pane.record); return; }
+        check(pane.state === "busy" && !pane.claudePromptId, "claude_submission_unmatched");
         pane.claudePromptIds.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record); return;
       }
       check(value.hook_event_name === "Stop", "unsupported_hook");

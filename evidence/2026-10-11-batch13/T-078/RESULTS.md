@@ -593,3 +593,11 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 本轮 vendor CLI／API／Electron／模型启动均 0，外置写入／删除 0。09A-3 产品红绿及 launch 材料仍 INCOMPLETE，未生成或启动可执行 launch，不能宣称 MATERIALS READY。新 worker 不关闭 ticket、不验收／集成，不 push；整票仍 open、INCOMPLETE，等待主控协调文件所有权。
 
 用户随后在当前会话明确答复“保持边界，先交阻塞报告及独立材料”。据此维持停点，交 [BLOCKED-REPORT-09A3](BLOCKED-REPORT-09A3.md)，blocking issue `20261014T122545Z-worker:t078-09a3-new-issue-001` 保留开放。材料版本 `2643895b0ad1749ca04ee23fb7114df85da39b50` 的 fresh-context 只读审查对本地 helper 与脚本静态边界给出限定 PASS；实际外盘清理仍 INCOMPLETE。审查没有执行 cleanup main／外盘写入／ps／lsof／sysctl 或启动供应商进程，不能把其结论转成清理或产品 PASS。
+
+## 09A-3：主控 #130／#131 授权接线后的候选
+
+2026-10-14，文件所有权调整后重新开始；原证据已先原样提交 `c80cecd6cd4cc7dfdf816022db02c0f600f253d5`。本轮实现和限制见 [IMPLEMENTATION-09A3](IMPLEMENTATION-09A3.md)。空框声明引用 Esc 实际写入与窗格输入代次，原字节保留；控制字节记 action；当前登记注入的正文错配通过真实 hook CLI 输出 JSON block，手打提交与 Stop 不套用阻断。gates/core.ts 未改。
+
+新候选入口局部 **PASS**：[原条件红态](empty-declaration-entry-red-04-09a3/results.json)、[main 同窗竞态红态](main-concurrency-red-02-09a3/results.json)、[窗口关闭竞态红态](window-revocation-red-09a3/results.json) 都实际拒绝了已知坏行为；[最终入口 17/17](empty-declaration-entry-final-02-09a3/results.json) 转绿，保存 SQLite 与真实 hook 原始 stdin/stdout/stderr。相关状态 11、Claude 关联 7、窗口身份 5、窗口绑定 8 均局部 PASS。测试经过实际 daemon/window transport/hook CLI，PTY/vendor liveness 为 spy，main 是实际闭包，未运行 Electron；不外推实际 CLI 阻断或模型请求数。
+
+本轮真实 vendor CLI／API／Electron／构建／模型启动均 0，未用额外代理，旧 slot 未清理，未 push。门禁 8/9/18、独立 reviewer、真实 IME 与 09A-3 两个 CLI 场景仍 **INCOMPLETE**；不把旧候选或旧审查转为本候选 PASS。主控完成代码冻结提交后，才生成新隔离 HOME 的正例与保留拼接的阻断反例；各次启动继续单独审批。本段不是 launch 或整票 submit 授权。

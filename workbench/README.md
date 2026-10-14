@@ -303,9 +303,13 @@ workspace-write、任务卡指定模型（当前统一 gpt-6.1-sol）、xhigh、
 执行主控再用 `pane_release --thread ID --reason 原因` 首次放行，记 executor action，
 不当作用户输入或人工介入。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
 只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
-Esc 后由窗口的“放行排队消息”按钮解除中断占用。后台校验窗口凭据、固定 attempt
-和中断状态，先记录用户 action，再尝试发送队首；受管 worker 同时记人工介入。
-该入口已通过 outside-runtime-green-01 的真实窗口检查；主控排队仍待后续验证。
+Esc 后先由用户自行处理 CLI 草稿，看到输入框为空后点击“输入框已空，放行”。
+该 action 记为“用户声明输入框已空”，引用实际中断写入收据；后台不删除草稿，
+也不把声明记成机器读到的输入框状态。后台核对当前窗口、launch、中断和窗格输入代次，
+声明后又有键入、粘贴、二进制输入或组合输入则拒绝陈旧放行。受管 worker 同时记人工介入。
+UserPromptSubmit 只阻断当前登记注入的正文错配，输出 hook JSON block 并保留原始诊断；
+不按文本标记拦截手打提交，不裁剪、不重送，Stop 行为不变。09A-3 的真实 Claude／Electron
+验证尚未启动；入口红绿检查使用真实 daemon/window socket 与 hook CLI、模拟 PTY 和 vendor 身份。
 
 `daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
 

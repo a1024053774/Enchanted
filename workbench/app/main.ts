@@ -7,6 +7,7 @@ import { parseArgs } from 'node:util';
 import { request } from '../src/transport.ts';
 import { readOperatorCredential } from '../src/credentials.ts';
 import { randomUUID } from 'node:crypto';
+import type { EmptyInputDeclaration } from '../src/panes.ts';
 
 type Options = { state: string; task: string; launch?: string; userData: string };
 const directory = dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,7 @@ export async function run(options: Options) {
   let identity: Record<string, unknown> | undefined;
   let sequence = 0;
   let inputQueue = Promise.resolve();
+  let pendingRelease: Promise<any> | null = null;
   let closing = false, closed = false;
   const checkSender = (event: Electron.IpcMainInvokeEvent) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) throw new Error('Unknown window');
@@ -50,15 +52,30 @@ export async function run(options: Options) {
       if (!opened.ok) throw new Error(opened.error);
       identity = opened.identity;
     }
-    return { ...result, input_enabled: Boolean(writable && identity && !closing) };
+    return { ...result, window_id: identity?.window, input_enabled: Boolean(writable && identity && !closing) };
   });
   const sendWindowCommand = (input: Record<string, unknown>) => {
     if (!identity || closing) throw new Error('Window is not available for input');
+    if (input.command === 'window_release' && pendingRelease) throw new Error('Queue release is already pending');
     const command = { ...input, sequence: ++sequence, request_id: randomUUID() };
-    inputQueue = inputQueue.then(async () => {
-      const result = await request(options.state, command, identity);
+    const receive = (result: any) => {
+      if (input.command === 'window_release' && !result.ok &&
+          ['empty_input_declaration_required', 'empty_input_declaration_stale', 'pane_not_interrupted'].includes(result.error)) return result;
       if (!result.ok) throw new Error(result.error);
-    });
+      return result;
+    };
+    if (input.command === 'window_release') {
+      // Keep sending order, but allow later input to reach pane admission while
+      // release awaits identity/recording. Panes owns the actual PTY write order.
+      let response: Promise<any>;
+      inputQueue = inputQueue.then(() => { response = request(options.state, command, identity); });
+      const result = inputQueue.then(() => response).then(receive);
+      pendingRelease = result;
+      const finished = () => { if (pendingRelease === result) pendingRelease = null; };
+      void result.then(finished, finished);
+      return result;
+    }
+    inputQueue = inputQueue.then(() => request(options.state, command, identity)).then(receive);
     return inputQueue;
   };
   ipcMain.handle('a2a:input', (event, data: string, encoding: 'utf8' | 'binary' = 'utf8') => {
@@ -72,9 +89,9 @@ export async function run(options: Options) {
     checkSender(event);
     return sendWindowCommand({ command: 'window_composition' });
   });
-  ipcMain.handle('a2a:release-queue', event => {
+  ipcMain.handle('a2a:release-queue', (event, declaration: EmptyInputDeclaration) => {
     checkSender(event);
-    return sendWindowCommand({ command: 'window_release' });
+    return sendWindowCommand({ command: 'window_release', declaration });
   });
   ipcMain.handle('a2a:focus-observation', (event, rawSequence: string) => {
     checkSender(event);
@@ -96,8 +113,8 @@ export async function run(options: Options) {
     if (closing) return;
     closing = true;
     void (async () => {
-      try { await inputQueue; }
-      catch (error) { console.error('Window input outcome remains unconfirmed:', String(error)); }
+      const outcomes = await Promise.allSettled([inputQueue, pendingRelease]);
+      for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Window input outcome remains unconfirmed:', String(outcome.reason));
       try {
         if (identity) {
           const result = await request(options.state, { command: 'window_close' }, identity);

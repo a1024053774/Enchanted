@@ -164,8 +164,11 @@ try:
         result['status']='PASS';result['scope']='One real Claude CLI using scripted SSE; no real model or multi-turn claim.'
     elif args.phase=='continue-esc':
         if approval['input']['turn_limit']!=2 or not args.actions_approval:raise RuntimeError('Explicit two-turn actions approval required')
+        handling=json.loads((root/'scenario.json').read_text(encoding='utf-8')).get('draft_handling')
+        if handling not in ['manual-empty-declaration','retain-draft-for-block']:raise RuntimeError('Explicit 09A-3 draft handling required; old automatic release retired')
+        actions=['Escape','manual-draft-handling','empty-declaration-release'] if handling=='manual-empty-declaration' else ['Escape','retain-draft','false-empty-declaration-release']
         consent=json.loads(args.actions_approval.read_text(encoding='utf-8'))
-        if any(consent.get(k)!=approval['input'][k] for k in ['launch','session']) or consent.get('actions')!=['Escape','queue-release'] or consent.get('approved_by')!='executor' or not consent.get('approval_ref') or not consent.get('basis'):raise RuntimeError('Actions approval binding mismatch')
+        if any(consent.get(k)!=approval['input'][k] for k in ['launch','session']) or consent.get('actions')!=actions or consent.get('approved_by')!='executor' or not consent.get('approval_ref') or not consent.get('basis'):raise RuntimeError('Actions approval binding mismatch')
         result['actions_approval']=consent;thread=verify_readiness()
         from electron_client import ElectronClient
         slot='t078-09-'+approval['input']['launch']
@@ -200,23 +203,59 @@ try:
             assert not (root/'api-request-2.json').exists() and not any(e['type']=='turn_end_signal' for e in events())
             result['after_esc']=held;result['cancelled_request']=json.loads((root/'api-cancelled-1.json').read_bytes());save()
             client.call('capture',name='before-user-release')
-            released=client.call('queue-release');assert released['clicked'];result['user_release']=released;save()
-            wait(lambda:(root/'api-request-2.json').exists() and len([e for e in events() if e['type']=='turn_start_signal'])==2)
-            prompt2=[e['data']['prompt_id'] for e in events() if e['type']=='turn_start_signal'][-1];assert prompt2 and prompt2!=prompt1
-            active2=call('pane_status','--thread',thread);assert active2['state']=='busy' and active2['active']['dispatch']==second['dispatch']['id']
-            result['before_second_completion']=active2;result['prompt2']=prompt2;save()
-            (root/'api-release-2').write_text('release second approved scripted response')
-            wait(lambda:call('pane_status','--thread',thread)['state']=='idle')
-            receipts=raw_hook_receipts()
-            wait(lambda:len(raw_hook_receipts())==3 and all(h['exit_code']==0 for h in raw_hook_receipts()))
-            final=events();assert len([e for e in final if e['type']=='pane_idle'])==1
-            assert [e['data']['prompt_id'] for e in final if e['type']=='turn_end_signal']==[prompt2]
-            assert len([e for e in final if e['type']=='user_queue_release'])==1
-            assert len([e for e in final if e['type']=='turn_submitted' and e['data']['dispatch']==second['dispatch']['id']])==1
-            result['events']=final;result['hook_receipts']=raw_hook_receipts();result['after_completion']=call('pane_status','--thread',thread)
-            client.call('capture',name='second-completion');result['pty_output']=snapshot()
-            assert ('P2_ACK '+(root/'nonce-2.txt').read_text()).encode() in base64.b64decode(result['pty_output']['data_base64'])
-            result['status']='PASS';result['scope']='09A real CLI and controlled Electron user actions, two fake API requests; not dual-controller or emergency-stop proof'
+            result['draft_handling']=handling
+            result['waiting_for']='主控在本隔离窗口自行处理草稿、看到空框后点击“输入框已空，放行”。反例则保留恢复的草稿，声明为空；本驱动不代发清空键。'
+            print(json.dumps({'phase':'manual-draft-handling','launch':approval['input']['launch'],'window_id':window_id,'handling':handling,'instructions':result['waiting_for']},ensure_ascii=False),flush=True);save()
+            # The operator controls the visible isolated window. This harness
+            # never sends a clear key or automates a declaration in either case.
+            wait(lambda:any(e['type']=='user_queue_release' and e['launch']==binding['launch'] for e in events()),180)
+            release_event=next(e for e in events() if e['type']=='user_queue_release' and e['launch']==binding['launch'])
+            declarations=[r for r in user_inputs() if r.get('content',{}).get('action')=='queue-release']
+            assert len(declarations)==1 and declarations[0]['text']=='用户声明输入框已空'
+            assert declarations[0]['content']['declaration']==release_event['data']['declaration']
+            assert release_event['data']['declaration']['interruption']==held['interruption']
+            result['user_release']=release_event;result['declaration']=declarations[0];save()
+            client.call('capture',name='after-declaration')
+            if handling=='retain-draft-for-block':
+                wait(lambda:len([e for e in events() if e['type']=='injected_prompt_blocked'])==1 and len(raw_hook_receipts())==2)
+                blocked=next(e for e in events() if e['type']=='injected_prompt_blocked')
+                assert (root/'nonce.txt').read_text() in blocked['data']['prompt'] and (root/'nonce-2.txt').read_text() in blocked['data']['prompt']
+                assert blocked['data']['dispatch']==second['dispatch']['id']
+                ups2=[h for h in raw_hook_receipts() if h['event']=='UserPromptSubmit'][-1]
+                output=json.loads((Path(ups2['directory'])/'stdout.bin').read_bytes())
+                assert ups2['exit_code']==0 and output['decision']=='block'
+                # Bounded observation after the actual blocking hook completed.
+                for _ in range(40):
+                    assert not (root/'api-request-2.json').exists() and not (root/'api-error.json').exists();time.sleep(.05)
+                final=events()
+                assert len([e for e in final if e['type']=='turn_start_signal'])==1
+                assert not any(e['type']=='turn_end_signal' for e in final)
+                assert len([e for e in final if e['type']=='turn_submitted'])==2
+                assert not [r for r in user_inputs() if r.get('source_ref',{}).get('source_sequence',0)>declarations[0]['source_ref']['source_sequence']]
+                result.update(status='PASS',events=final,blocked=blocked,hook_receipts=raw_hook_receipts(),after_block=call('pane_status','--thread',thread),
+                              scope='09A-3 retained concatenation: real hook JSON block, one fake API request, two-second no-request observation; not general reliability')
+                client.call('capture',name='blocked-concatenation');result['pty_output']=snapshot()
+                save()
+            else:
+                manual=[r for r in user_inputs() if r['source_ref'].get('window_id')==window_id and
+                        result['escape_delivery']['action']['source_ref']['source_sequence']<r['source_ref'].get('source_sequence',0)<declarations[0]['source_ref']['source_sequence']]
+                assert manual,'No separately recorded draft handling before the empty declaration'
+                result['manual_draft_handling']=manual;save()
+                wait(lambda:(root/'api-request-2.json').exists() and len([e for e in events() if e['type']=='turn_start_signal'])==2)
+                prompt2=[e['data']['prompt_id'] for e in events() if e['type']=='turn_start_signal'][-1];assert prompt2 and prompt2!=prompt1
+                active2=call('pane_status','--thread',thread);assert active2['state']=='busy' and active2['active']['dispatch']==second['dispatch']['id']
+                result['before_second_completion']=active2;result['prompt2']=prompt2;save()
+                (root/'api-release-2').write_text('release second approved scripted response')
+                wait(lambda:call('pane_status','--thread',thread)['state']=='idle')
+                wait(lambda:len(raw_hook_receipts())==3 and all(h['exit_code']==0 for h in raw_hook_receipts()))
+                final=events();assert len([e for e in final if e['type']=='pane_idle'])==1
+                assert [e['data']['prompt_id'] for e in final if e['type']=='turn_end_signal']==[prompt2]
+                assert len([e for e in final if e['type']=='user_queue_release'])==1
+                assert len([e for e in final if e['type']=='turn_submitted' and e['data']['dispatch']==second['dispatch']['id']])==1
+                result['events']=final;result['hook_receipts']=raw_hook_receipts();result['after_completion']=call('pane_status','--thread',thread)
+                client.call('capture',name='second-completion');result['pty_output']=snapshot()
+                assert ('P2_ACK '+(root/'nonce-2.txt').read_text()).encode() in base64.b64decode(result['pty_output']['data_base64'])
+                result['status']='PASS';result['scope']='09A-3 manual draft handling and empty declaration, real CLI with two exact fake API requests; not dual-controller or emergency-stop proof'
         finally:client.close()
     else:
         attempted=False

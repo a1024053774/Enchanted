@@ -40,7 +40,7 @@ function fixture() {
     state:'busy',stopped:false,archived:false,failed:null,leader:321,native:'unit-native',turn:'turn-0',
     active:{id:'first-submission',dispatch:'seed',at:'2026-10-11T00:00:00Z',nativeTurn:'turn-0'},
     queue:[],writing:false,stopInProgress:false,writes:Promise.resolve(),pendingInputs:0,userDraft:false,interrupted:false,
-    offsets:new Map(),model:'unknown',effort:'unknown',terminalBuffer:''};
+    inputGeneration:0,interruption:null,offsets:new Map(),model:'unknown',effort:'unknown',terminalBuffer:''};
   panes.panes.set(record.thread,pane);
   panes.processInfo=async()=>({leader:321,failed:null,shell_pid:321,native_session:'unit-native',processes:[]});
   const native=join(home,'sessions','rollout-unit-native.jsonl');
@@ -94,7 +94,8 @@ await test('escape_late_stop_and_user_release',async f=>{
   assert.deepEqual(f.writes.map(x=>x.data),['\x1b']);assert.equal(f.pane.state,'busy');
   assert.equal(f.store.read().filter(x=>x.seq>before&&x.type==='pane_idle').length,0,'Held completion cannot claim idle');
   assert.equal(typeof (f.panes as any).releaseByUser,'function','User release must be implemented');
-  await (f.panes as any).releaseByUser(f.record.thread,'用户放行',()=>f.action('queue_release'),async()=>{});
+  await f.panes.releaseByUser(f.record.thread,{statement:'用户声明输入框已空',launch:f.record.id,window_id:'unit-window',
+    interruption:f.pane.interruption,input_generation:f.pane.inputGeneration},()=>f.action('queue_release'),async()=>{});
   assert.equal(f.writes.length,3);assert.equal(f.writes[2].data,'\r');assert.equal(f.pane.state,'busy');
   const inputs=f.store.db.prepare('SELECT data FROM user_inputs').all().map(row=>JSON.parse(String(row.data)));
   assert.deepEqual(inputs.map(x=>x.text),['escape','queue_release']);
