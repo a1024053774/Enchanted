@@ -166,3 +166,7 @@ INCOMPLETE（"Fake API protocol/budget error"）。A1、A2 成立；A3 成立：
 ## 变基后回归（2026-10-14 UTC 17:0x～17:3x）
 
 commit-rebased-code-09a3 → 0f754a6d；regression（沙箱外）：runtime、input-failures PASS，worker-inbox 7 项空观测——worker 诊断为夹具仍按 id:<request_id> 查结果，未跟上 T-077 按 launch 登记的键（非产品），先以原失败库取 8 项红态再修夹具；commit-regression-02 → 567d7748（产品 src/app/hooks 不变）。regression-02：worker-inbox 14/14、coop 8/8、recovery 9/9、run 18/18、CAS 1/1 PASS；四个 worker 权限变异体（assign/ready/foreign-ack/revoked）各在目标契约失败、禁止结果实际出现。真实模型 0。批准生成 09a3r 新材料。
+
+## 09A-3R 材料审阅（2026-10-14 UTC 17:4x）
+
+commit-materials-09a3r → 6f0cfdb2（以 s13-t078m 身份）。审阅 P2-APPROVAL-09A3R：continue 要求执行主控在隔离窗口亲手清空草稿并点声明（180 秒）——执行主控无操作本机原生窗口的工具，不批准该设计。按 09A 先例改为测试驱动执行 test-simulated-user 动作（清空键需有依据并以快照证明空框；声明引用 Esc 中断收据与输入代次），执行主控在 actions-approval 逐项预先批准，证据记为自动化而非真实用户。正例/反例重生材料后再审 launch。slot-cleanup 只清单无归档的问题（issue 20261014T173439Z）暂不执行删除，清理阶段再定。
