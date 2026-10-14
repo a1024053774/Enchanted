@@ -731,3 +731,9 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 先用生产 drain 的 [局部 red](controller-green-2-wait-red/results.json) 复现完全相同 undefined !== '\r'，再以同样生产代码等当前 dispatch 的 turn_submitted 得 [green PASS](controller-green-2-wait-green/results.json)，保持实际 CR、busy、active 和两条 intent 断言；PTY 为 spy，无 daemon／socket／CLI／API／模型。修复入口仅补有期限的特定收据等待，保存前后／超时快照，原角色、身份、字节及去重断言保留。
 
 #182 已分配 README，本轮同步现有 controller 通路与验证边界；提交前 status 的历史 stale 留存，待 README 提交后再核对。交 [新续跑脚本](commit-and-prepare-slice1-green-2.sh)，新 outside-02 依次完整入口6及其后四组；全部通过再生成全新 slice1-green，并静态核对、材料提交。当前完整续跑、新实例／实际 Claude 绿态、独立审查、09B/09C、整票仍 **INCOMPLETE**。没有 launch、提权、额外 agent 或删除现场／slot。
+
+## controller 入口续跑与新材料冻结（脚本执行读回）
+
+夹具／README 提交 `7e77f8b81611dc03e7df95a95801bda3f617393d`，产品源码沿用 `455696c98e99b73a118886345ab1d83de24e0bdf`；提交后 project_map status **PASS**。新 [outside-02](controller-green-outside-02/result.json) **PASS**：controller-entry6、空框17、runtime12、input-failures11、worker-inbox14；UI 三组 setup/cleanup 均确认，原 outside-01 失败与原数据库归档保持原样。
+
+[新实例静态核对](p1-materials-slice1-green/static-check.json) **PASS**：root `/private/tmp/t078-2-p1-slice1-green-1yhrmwad`、launch `284a5916-fd75-4c4d-bec0-9a8d49e063d9`、session `10b07cc8-bdc6-47e4-a801-c4d63dd37bb4`；绑定本次 source，逐文件 Git/tar 字节相同，批准字段空。根2、Messages3、Bash1、模型0。实际 Claude 绿态／launch 尚未执行，独立审查、09B/09C、整票仍 **INCOMPLETE**。
