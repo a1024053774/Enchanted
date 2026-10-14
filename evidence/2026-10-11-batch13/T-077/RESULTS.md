@@ -4,7 +4,7 @@
 
 **INCOMPLETE，待沙箱外冲突反事实与候选验证。** 只改夹具：七条目标加入稳定标识；红态必须命中该目标、三项前置在目标前完整读回、无 errors/skipped/cleanup_failures。06/07 改用只破坏 conflict rework 的路径/尾注守卫的定向变体，保留冲突回写与重交。原 final-05 不变，独审仍为 INCOMPLETE，尚未关闭 F1。
 
-局部分类型矩阵修后 9 项通过；旧 classifier 原始表达式的内存变体产生 19 个断言失败、0 errors，修前原始 06/07 误报另有 2 failures/0 errors。静态 helper 检查 7 案、279 处绑定通过。产品与 acceptance 未改，真实模型回合 0。新阶段 `outside-sandbox.sh conflict-red-final-01` 会收齐七红与候选七案，写新目录；严格三前置对 01～05 的阶段差异会如实标 NOT_COVERED，未获主控口径前不自动豁免。详见 `CONFLICT-RED-FINAL-IMPLEMENTATION-01.md`。
+夹具修正提交 `a5c6d50c48fa856cf85fe7d2fefddda61f5d2ade`。局部分类型矩阵修后 9 项通过；旧 classifier 原始表达式的内存变体产生 19 个断言失败、0 errors，修前原始 06/07 误报另有 2 failures/0 errors。静态 helper 检查 7 案、279 处绑定通过，四个变体语法及准备检查通过。产品与 acceptance 未改，真实模型回合 0。新阶段 `outside-sandbox.sh conflict-red-final-01` 会收齐七红与候选七案，写新目录；严格三前置对 01～05 的阶段差异会如实标 NOT_COVERED，未获主控口径前不自动豁免。详见 `CONFLICT-RED-FINAL-IMPLEMENTATION-01.md` 和 `HANDOFF-conflict-red-final-01.md`。局部旧表达式红态的原始 unittest 输出有一处末尾空格，保留原文；源码和改写文档的空白检查通过。
 
 ## 独立审查结论：主控 #120
 
