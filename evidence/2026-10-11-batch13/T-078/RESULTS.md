@@ -514,3 +514,25 @@ workspace-trust 改为单独批准 ArrowDown 到 `Yes, I trust this folder` → 
 [红态](trust-selection-red-02-08e/results.json) 使用 08d 实际默认屏与前置主题／notice 事件：正确 ArrowDown 不可达，旧 Digit1 却真实写出 `1`。首次未重放前置事件的红态也保留；下游 Enter／次数等不可达结果不冒充业务红态。[信任域绿态](trust-selection-green-08e/results.json) 10/10，原屏幕／主题／notice 检查 4/4、4/4、12/12。Yes 的读回帧为合成输入，真实选择仍待运行。[三项变异反例](P1-APPROVAL-08E.md) 分别真实写出默认 No 屏 CR、两次确认 CR 和不延续导航原文的 CR，按对应业务规则失败。
 
 新实例 `/private/tmp/t078-2-p1-08e-8k1yyjw5`，52 文件源码绑定及准确 argv/env 见 [P1-APPROVAL-08E](P1-APPROVAL-08E.md)。静态准备 PASS，worker CLI／API／模型启动和真实按键均为 0，实际 launch 未执行。整票仍 INCOMPLETE、open、待主控关闭；实际信任、主回合、真实 hooks、09 的完整链路与真登录均未完成。材料交 launch 审批后停止，工作树整理提交，不 push。
+
+## 08e 单回合可行性实测（主控 #116）
+
+上节是交审批时点。执行主控随后完成 08e：主题三键、固定 Security notes、信任 ArrowDown→Yes→新屏读回→单独 Enter 均生效，实际 CLI 进入主提示符。continue 与 cleanup PASS；CLI PID 11046 已确认退出，无残留。实际供应商模型回合为 0，使用固定 Claude Code 2.1.296 和本地脚本化 Messages API。
+
+worker 的 [原件读回](p1-readback-08e.json) 验证了顶层状态之外的具体证据：executor 凭据登记 dispatch `c6c8f8ae-718b-47fe-b9e0-f3dc3753fa00`，paste＋独立 CR 提交；提交中为 busy、active 绑定该 dispatch；完成后 idle、active=null。实际 UserPromptSubmit／Stop hook 原始 stdin 与后台 hook_received 原字节一致、均 exit 0，session 一致，两者 `prompt_id=fe9a0b3a-87c7-4377-a420-c4ebb453c497` 相同。实际事件顺序 turn_start_signal → turn_end_signal → pane_idle 各一次；假 API 仅一个主 Messages 请求，stream=true、model=claude-haiku-5-5，user text 包含完整登记输入；Stop 的回复为 P1_ACK 加本次 nonce。已知会话 transcript 中有一次 stop_hook_summary，hookCount=1。
+
+原始 hook 的小份副本留在 [hook-payloads-08e](hook-payloads-08e/UserPromptSubmit.stdin.bin)；副本仅来自本隔离夹具归档，不读或复制用户认证。UserPromptSubmit 与 Stop 的 finished.json 及原始 Stop stdin 同目录保存，供 09 按实际字段建立跨回合关联，不能把同一 session 或时间戳自行当作第二回合身份。
+
+cleanup/fixture.tar.gz 原始单文件 8,103,787 字节，执行主控已外置到 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/p1-materials-08e/cleanup/fixture.tar.gz`；[归档清单](external-archive-73249ada8f364b0d8abea0bad2fcf29a.json) 记录字节读回 PASS、移出本地原件和重放摘要路径。worker 核对尺寸及明确成员的一致性，没有在原件已移出的情况下冒称再次独立比对整个归档。仓库无 >5 MiB 文件，保留全部运行命令、批准、原文、summary 和归档 manifest。
+
+**结论仅为单回合可行性 PASS**，绑定变基前产品 `ab997f4d2ea8f4719e6989409c1bebb5835099c1`／材料提交 `e5768e54d25a1fbc85d4dfd91b0bc5017c4ec054`。不证明 Esc／第二回合／紧急停止、双主控协作或真模型判断。T-077 合入后再变基，材料重新生成并完整重跑，旧 PASS 不替新 main 上的候选背书；T-078 仍 INCOMPLETE、open、待主控关闭。
+
+用户处置条目 `20261014T035805Z-user-disposition-001` 已按主控 #117 单独提交 `f3b33316`，提交仅含构思主控抄录的该条目，certainty=relayed；关闭 blocking issue 来自用户，不是 worker 决定。真登录阶段真实 hook 触发仍在本票验收内。
+
+只重新读回原件，不启动服务：
+
+```sh
+python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路径/新读回报告.json --raw-dir /绝对路径/新小份hook目录
+```
+
+原件生成命令仍在 08e 各阶段 commands.jsonl 和 P1-APPROVAL-08E；重新运行需新实例／绑定／批准，不覆盖这些已完成结果。
