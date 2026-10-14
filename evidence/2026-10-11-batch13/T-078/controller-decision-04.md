@@ -128,3 +128,7 @@ continue PASS，逐项独立核对：dispatch seq 1 由 executor 登记、paste+
 ## 09A continue 读回与 cleanup（2026-10-14 UTC 05:2x 运行）
 
 continue INCOMPLETE（rc=1，phase continue-esc，"Observed-state deadline; no retry"）。A1 成立：nonce1 由 executor 登记送达，busy、active 绑定 dispatch1，prompt_id1=3b910c4b…；A2 成立：busy 期间登记 nonce2（seq 2）。A3 失败：等待 active 释放超时。electron-driver.jsonl 显示发 Escape 时窗口仍为启动态（"正在连接后台""尚未启动窗格"，state unknown），驱动仍报 sent:true——窗口未接上窗格就发键，判为夹具就绪缺陷，非产品结论；不重试。cleanup-09 PASS，无残留；fixture.tar.gz 8,208,905 字节外置归档、字节读回 PASS（manifest external-archive-578c9fe0…）。交 worker 诊断：Esc 是否到达 PTY（received.ndjson / pty.raw / 门禁事件），驱动须等窗口显示本窗格与 busy 后才发键，并核对键确实写入。
+
+## 09A-2 批准（2026-10-14 UTC 05:5x）
+
+worker 诊断：Esc 未写入 PTY；根因 (1) 驱动在窗口未接上窗格时发键（夹具），(2) renderer 对 nullable 主控窗格永久禁输入（产品缺陷）。修复 7cd19b58（窗口就绪核对、Esc 写出收据、renderer 主控窗格可输入；红/绿与收据反例），材料 e5f46505。批准：`p1-slot-cleanup-09`（删除 09A continue 自建的外置盘 Electron 构建 slot，脚本先核对 cleanup PASS、Electron 退出与归属）；`p1-launch-09a2` 一次及逐屏只读与逐屏按键（同 09A）。批准引用：`T-078 controller-decision-04 p2-09a2-launch`。
