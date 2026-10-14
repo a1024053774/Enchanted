@@ -98,3 +98,8 @@ theme-01 ArrowUp→Auto、theme-02 ArrowDown→Dark、theme-03 Enter 确认 Dark
 ## P1 批准（材料 08d launch，2026-10-14 UTC 03:3x）
 
 审阅 f14d63df（onboarding-notice：仅 Enter；控制序列只做语法解析后与固定 SECURITY_NOTICE_TEXT 逐字比较，不支持的转义即拒，一次性；域检查 20/20 与文字变异反例）与材料 61868ce8。批准 `p1-launch-08d` 一次及逐屏只读 screen；主题三键与 notice Enter 逐屏另批。批准引用：`T-078 controller-decision-04 p1-08d-launch`。
+
+## p1-08d 逐屏读回与 cleanup（2026-10-14 UTC 03:4x）
+
+主题三键（theme-01..03）与 Security notes（notice-01，文字与 08c 逐字一致，Enter，selected_label=Continue）均被门禁接受并写入 PTY。下一屏 `screen-after-notice-01` 为目录信任："Accessing workspace: /private/tmp/t078-2-p1-08d-ohyh5win/repo … Quick safety check: Is this a project you created or one you trust? … Claude Code'll be able to read, edit, and execute files here." 选项无数字编号：`❯ No, exit`（光标、默认）/ `Yes, I trust this folder`；"Enter to confirm · Esc to cancel"。原字节确认无数字标签，Digit1 无依据且可能选中 "No, exit"，故不发 Digit1、停下。批准并运行 `p1-cleanup-08d`：PASS，无残留。
+决定：信任改为与主题同一显式选择方式——单独批准 ArrowDown（目标 "Yes, I trust this folder"）→ 读回光标位置 → 单独批准 Enter 确认；属用户 "用明确按键选一次'信任'" 授权范围内的执行细节。交 worker 改门禁 workspace-trust 用途并起 08e。批准引用：`T-078 controller-decision-04 p1-08d-keys`。
