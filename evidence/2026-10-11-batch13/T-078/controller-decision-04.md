@@ -92,3 +92,5 @@ AUTH_TOKEN 生效：假 API 收到 1 条 /v1/messages（CLI 的会话标题侧�
 ## p1-08c 逐屏读回与 cleanup（2026-10-14 UTC 03:1x）
 
 theme-01 ArrowUp→Auto、theme-02 ArrowDown→Dark、theme-03 Enter 确认 Dark：三步均被门禁接受并写入 PTY，主题屏结束（修复 95b69e04 在真实 CLI 上生效）。下一屏 `screen-after-theme-01`（4,685 字节）为 "Security notes: 1. Claude can make mistakes… 2. Due to prompt injection risks, only use it with code you trust… Press Enter to continue…"——无选项的安全提示确认。门禁无此用途，且内容涉及安全，按停止条件停下，未按键。批准并运行 `p1-cleanup-08c`：PASS，无残留。待构思主控确认：隔离假服务实例中，确认这条无选项的安全提示（单独批准一次 Enter、留证）是否属于已同意的引导屏决定。批准引用：`T-078 controller-decision-04 p1-08c-keys`。
+
+构思主控（2026-10-14，跨会话消息）同意：隔离实例中确认无选项的 Security notes 属已同意的引导屏决定。条件：①onboarding-notice 只放行 Enter，读回原文须与 08c 读回的 Security notes 内容逐字一致，不同即停；②原文、按键、批准留证；③只适用隔离实例，真登录阶段用户 HOME 出现任何引导屏仍停下交构思主控。照此推进 08d。
