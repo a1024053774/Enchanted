@@ -591,3 +591,5 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 可独立完成的 [仅旧 slot 清理材料](SLOT-CLEANUP-AFTER-REBOOT-09A2.md) 已准备，交主控在沙箱外运行。前置改为原根缺失、归属、重启时间、当前进程与打开文件检查；归档完整 slot 并逐字节读回后才删精确路径，不依赖旧 cleanup PASS，不发信号、不碰其他 slot。归档 helper 本地正例和已知坏跟随链接反例 [2/2 PASS](slot-archive-static-09a3/result.json)；不把 helper 绿态当实际清理通过。
 
 本轮 vendor CLI／API／Electron／模型启动均 0，外置写入／删除 0。09A-3 产品红绿及 launch 材料仍 INCOMPLETE，未生成或启动可执行 launch，不能宣称 MATERIALS READY。新 worker 不关闭 ticket、不验收／集成，不 push；整票仍 open、INCOMPLETE，等待主控协调文件所有权。
+
+用户随后在当前会话明确答复“保持边界，先交阻塞报告及独立材料”。据此维持停点，交 [BLOCKED-REPORT-09A3](BLOCKED-REPORT-09A3.md)，blocking issue `20261014T122545Z-worker:t078-09a3-new-issue-001` 保留开放。材料版本 `2643895b0ad1749ca04ee23fb7114df85da39b50` 的 fresh-context 只读审查对本地 helper 与脚本静态边界给出限定 PASS；实际外盘清理仍 INCOMPLETE。审查没有执行 cleanup main／外盘写入／ps／lsof／sysctl 或启动供应商进程，不能把其结论转成清理或产品 PASS。
