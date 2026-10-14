@@ -243,3 +243,7 @@ slice1-green permission: native Bash dialog shows the frozen command, cursor on 
 ## slice1-green 读回（2026-10-15 UTC 00:3x）
 
 一次 Enter 许可后：真实 Bash inbox 请求被接收（tool_result {"ok":true,"queued":true,"delivered":false,"request_id":"a76b424c…"}），API2 回 ACK "SLICE1_TOOL_RESULT_RECORDED <nonce>"，真实 Stop 转交后门禁反馈 "⟦门禁 #2⟧ 本回合的异步请求处理结果…" 作为第二根到达 API3——产品侧 controller 请求→Stop 转交→反馈回送已出现。但假 API validate_request 以 "The second root must be the registered gate feedback." 拒收 API3（夹具对反馈文本的期望与实际不符），CLI 随后重发 API4，主 Messages 4/3 超预算，记 NO_GO；未得到最终 ACK/Stop/idle。判为夹具缺陷。实例保留，交 worker 读回并修校验（以登记的 dispatch2 原文为准、不放宽身份/预算校验），再定是否新实例重跑。
+
+## slice1-green 清理与 green-3 批准（2026-10-15 UTC 00:5x）
+
+worker 读回：登记 dispatch2、UPS2 与 API3 文本逐字相同；API3 user.content 为字符串，旧 validator 只取 text block 数组而漏判（夹具缺陷）；scoped Stop 转交与第二根到达已真实发生，但无最终 ACK/第二 Stop/idle，原场景 INCOMPLETE、预算 4/3 NO_GO，不续跑。cleanup-slice1-green-184：PASS（daemon 认证停止、仅 API 一次 SIGTERM、外置归档读回，根保留）。commit-and-prepare-slice1-green-3 → 8e99d62e（validator 用 api.jsonl 原样 red12→green14）、材料 b5b8b165；产品源码自 455696c9 无变化，显式复用 outside-02。批准 green-3 launch 一次及逐屏只读；按键、readiness、submit、permission 各另批；预算不变（根 2、Messages 3、Bash 1、模型 0）。批准引用：`T-078 controller-decision-04 slice1-green-3-launch`。
