@@ -59,3 +59,7 @@ AUTH_TOKEN 生效：假 API 收到 1 条 /v1/messages（CLI 的会话标题侧�
 - 假服务阶段：材料 08 = 07 基础上加 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`、去掉 `IS_DEMO`；/tmp 新建只含 value.txt 的夹具 repo，隔离 HOME/CLAUDE_CONFIG_DIR。启动后读回信任界面原文存证，由执行主控批准后用明确按键选一次"信任"，记录时间、原文、目录、按键。不写 CLI 内部状态，不碰用户 `~/.claude`。
 - 真登录阶段：对 /tmp 夹具目录点一次信任，接受 CLI 在用户 `~/.claude.json` 写入一条信任记录；不改其他设置、不读不复制凭据；每回合仍逐次批准。
 - blocking issue 20261013T182412Z：按此答复处理，不由执行主控关闭（--action forward）。
+
+## P1 批准（材料 08 launch，2026-10-14 UTC 02:2x）
+
+审阅 exec/t078 `58be5b71` 的 P1-APPROVAL-08：相比 07 去 IS_DEMO、加 CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 与 --debug-file，hook 原始 stdin/退出留证，信任拆为独立 Digit1 阶段（只写 ASCII 1、不补 Enter、一次性），新 /tmp 实例只含 value.txt、隔离 HOME/CLAUDE_CONFIG_DIR，无内部状态预置。批准 `p1-launch-08` 一次（启动、读屏，输入 0、模型 0）。screen/trust/continue/cleanup 读回后逐次另批。说明：本轮绑定变基前代码 721755d6，作为可行性探针；exec/t078 变基到 main 后须重新生成材料并完整重跑，旧结果不替变基后候选背书。批准引用：`T-078 controller-decision-04 p1-08-launch`。
