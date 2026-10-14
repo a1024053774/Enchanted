@@ -149,3 +149,7 @@ INCOMPLETE（"Fake API protocol/budget error"）。A1、A2 成立；A3 成立：
 ## 重启后 worker 恢复受阻（2026-10-14 本地 08:1x）
 
 经 launch-worker 重启后观察到：(1) 受管进程退出后，Herdr 在同一 shell 自动执行裸 `codex resume <id>`（无模型/强度/tier/沙箱参数、无 A2A 与 git hooks 环境）：wF:p3J 08:10:10（T-078，已关闭该窗格）、wF:p3H 08:10:35（T-077，替换了 08:09:13 启动的受管进程 31805）。(2) 第三次经 launcher 启动的 T-078 受管进程（wF:p3K，pid 32966，argv 正确）停在 Codex 提示 "This conversation is open in another app. Close it there and press R to continue here."；本机除这些进程外，用户的 ChatGPT 桌面 Codex（app-server）在运行，疑为"另一个 app"，未核实。执行主控停止重试，不按 r/f/Enter，不操作用户的 Herdr 设置或 ChatGPT 应用；wF:p3H 的裸会话视为非受管，不向其派发。交用户决定。
+
+## 用户决定 B：全新 worker 会话（2026-10-14 本地 08:14）
+
+依据 answer 20261014T121326Z（用户原话："B 开全新会话 (Recommended)"；T-077 冲突测试："重跑 (Recommended)"）。核对 wF:p3H（裸 resume，idle）与 wF:p3K（受管启动停在锁提示）均无在途交付后关闭；等待 20 秒无 Herdr 自动拉起。经 launch-worker 开全新会话：s13-t077n → wF:p3M（launch-e47ca466…），s13-t078n → wF:p3N（launch-4f811bd7…），argv gpt-6.1-sol xhigh、service_tier="default"、--no-daemon、workspace-write、on-request；25 秒后进程仍在。旧原生会话 01a12b31…/01a12b32… 保留不删、不再使用。
