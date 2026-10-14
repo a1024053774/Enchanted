@@ -607,14 +607,21 @@ export class Panes implements GateRuntime {
     const pane=this.get(thread);
     check(source==="executor" && pane.record.cli==="Claude Code" && pane.record.role==="controller" && pane.record.authentication==="isolated fake API only", "screen_operator_required");
     const {key,purpose,screen_id,screen_base64,authorization_ref,selected_label}=input;
-    const keys:Record<string,string>={ArrowUp:"\x1b[A",ArrowDown:"\x1b[B",Enter:"\r",Digit1:"1"};
-    check((purpose==="onboarding-theme" && ["ArrowUp","ArrowDown","Enter"].includes(key)) || (purpose==="workspace-trust" && key==="Digit1") || (purpose==="onboarding-notice" && key==="Enter"),"invalid_screen_key");
+    const keys:Record<string,string>={ArrowUp:"\x1b[A",ArrowDown:"\x1b[B",Enter:"\r"};
+    check((purpose==="onboarding-theme" && ["ArrowUp","ArrowDown","Enter"].includes(key)) || (purpose==="workspace-trust" && ["ArrowDown","Enter"].includes(key)) || (purpose==="onboarding-notice" && key==="Enter"),"invalid_screen_key");
     check(typeof screen_id==="string" && screen_id.length>0 && screen_id.length<=128 && typeof authorization_ref==="string" && authorization_ref.trim() && typeof selected_label==="string" && selected_label.trim(),"invalid_screen_approval");
     const history=()=>this.store.read().filter(e=>e.launch===pane.record.id && e.type==="controller_screen_key_intent");
     const assertUnused=()=>{
       const past=history();
       check(!past.some(e=>e.data.screen_id===screen_id || e.data.screen_base64===screen_base64),"screen_key_already_used");
-      if(purpose==="workspace-trust")check(!past.some(e=>e.data.purpose==="workspace-trust"),"workspace_trust_already_used");
+      if(purpose==="workspace-trust"){
+        check(!past.some(e=>e.data.purpose==="workspace-trust" && e.data.key==="Enter"),"workspace_trust_already_used");
+        check(selected_label==="Yes, I trust this folder","trust_selection_not_explicit");
+        if(key==="Enter"){
+          const previous=past.at(-1)?.data;
+          check(previous?.purpose==="workspace-trust" && previous.key==="ArrowDown" && previous.selected_label==="Yes, I trust this folder","trust_selection_not_explicit");
+        }
+      }
       if(purpose==="onboarding-notice"){
         check(!past.some(e=>e.data.purpose==="onboarding-notice"),"onboarding_notice_already_used");
         const previous=past.at(-1)?.data;
@@ -634,6 +641,10 @@ export class Panes implements GateRuntime {
       const info=await this.processInfo(thread);check(info.leader && !info.failed,"foreground_claude_required");assertStartup();
       const observed=this.output(pane.record.id,0);
       check(observed.next_offset===observed.total_bytes && observed.data_base64===screen_base64 && screen_base64.length>0,"screen_changed");
+      if(purpose==="workspace-trust" && key==="Enter"){
+        const before=Buffer.from(history().at(-1)!.data.screen_base64,"base64"),raw=Buffer.from(screen_base64,"base64");
+        check(raw.length>before.length && raw.subarray(0,before.length).equals(before),"trust_screen_not_continued");
+      }
       if(purpose==="onboarding-notice"){
         const before=Buffer.from(history().at(-1)!.data.screen_base64,"base64"),raw=Buffer.from(screen_base64,"base64");
         check(raw.length>before.length && raw.subarray(0,before.length).equals(before),"notice_trace_prefix_changed");

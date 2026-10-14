@@ -33,9 +33,13 @@ await test("same_snapshot_cannot_use_a_new_id",async()=>{
 });
 await test("workspace_trust_separate_once",async()=>{
   // New real screen and a fresh serialization lane; rejected operations remain closed.
-  pane.writes=Promise.resolve();setScreen("Reviewed workspace trust screen");
-  await (panes as any).screenKey(record.thread,input("trust-1","Digit1","workspace-trust","Yes, I trust this folder"),"executor");
+  pane.writes=Promise.resolve();setScreen("Reviewed workspace trust screen: No, exit");
+  await assert.rejects((panes as any).screenKey(record.thread,input("trust-default","Enter","workspace-trust","Yes, I trust this folder"),"executor"),(e:any)=>e.code==="trust_selection_not_explicit");
+  await assert.rejects((panes as any).screenKey(record.thread,input("trust-digit","Digit1","workspace-trust","Yes, I trust this folder"),"executor"),(e:any)=>e.code==="invalid_screen_key");
+  await (panes as any).screenKey(record.thread,input("trust-select","ArrowDown","workspace-trust","Yes, I trust this folder"),"executor");
+  setScreen("Reviewed workspace trust screen: No, exit\nReviewed Yes cursor after ArrowDown");
+  await (panes as any).screenKey(record.thread,input("trust-confirm","Enter","workspace-trust","Yes, I trust this folder"),"executor");
   pane.writes=Promise.resolve();setScreen("Changed trust repaint");
-  await assert.rejects((panes as any).screenKey(record.thread,input("trust-2","Digit1","workspace-trust","Yes, I trust this folder"),"executor"),(e:any)=>e.code==="workspace_trust_already_used");
+  await assert.rejects((panes as any).screenKey(record.thread,input("trust-2","Enter","workspace-trust","Yes, I trust this folder"),"executor"),(e:any)=>e.code==="workspace_trust_already_used");
 });
 const r={status:checks.every(c=>c.status==="PASS")?"PASS":"INCOMPLETE",checks,written:writes,argv:process.argv,scope:"Domain fixture only; no UI or actual trust/theme selection"};writeFileSync(join(out,"results.json"),JSON.stringify(r,null,2));store.close();console.log(JSON.stringify(r));process.exitCode=r.status==="PASS"?0:1;
