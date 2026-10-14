@@ -6,7 +6,7 @@ set -euo pipefail
 # bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh red-01
 # 同名输出已存在时拒绝，不能覆盖原始失败。后续阶段另行批准/交回。
 if [[ "$#" != 1 ]]; then
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01|rebase-final-02|rebase-final-03' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01|rebase-final-02|rebase-final-03|rebase-final-04' >&2
   exit 2
 fi
 cd /Users/luckye/Documents/Code/a2a-wt-t077
@@ -336,6 +336,10 @@ real-r3-launch-02)
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict-03.py \
   --phase 2 --approval-ref "$T077_REAL_APPROVAL"
   ;;
+rebase-final-04)
+# 主控 #118：夹具传递 overlap_reason，完整执行 18 项；产品仍为 5d0bf1e8，39 个零模型阶段。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-rebase-final-04.py
+  ;;
 rebase-final-03)
 # 主控 #114/#115：只修 runner 的 hook.py 符号链接重建；产品仍为 5d0bf1e8。
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-rebase-final-03.py
@@ -364,7 +368,7 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/
   --phase 2 --approval-ref "$T077_REAL_APPROVAL"
   ;;
 *)
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01|rebase-final-02|rebase-final-03' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01|rebase-final-02|rebase-final-03|rebase-final-04' >&2
   exit 2
   ;;
 esac

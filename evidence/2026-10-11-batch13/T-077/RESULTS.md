@@ -4,9 +4,9 @@
 
 **INCOMPLETE。** final-03 已通过 driver-readiness、审查清理四条反事实及候选四项、三条 joint 反事实与候选、七条冲突反事实、S3 全量 25、coop 8、recovery 9。随后 run 的第 11 项因 adapter 缺少 overlap_reason 参数而 ERROR；已收集全部 18 项，但 failfast=True 使其余 7 项未运行，后续阶段也未运行。原始失败与控制台输出不变。
 
-本轮仅修夹具：手工 claim 经父级将理由传到真实 CLI，受管 dispatch 同样传 `--overlap-reason`；runner 关闭 failfast 并记录实际执行名单，仍要求完整数量和全部通过。局部反事实修前 2 errors/1 failure，修后 4 项通过；它们只证明参数传递与调度修复。产品仍为 `5d0bf1e8`，acceptance 业务文件不变。诊断和再生成命令见 `DIAGNOSIS-rebase-final-03.md`。
+本轮仅修夹具，提交为 `30ebf967573be231daa142f1b09f98d18e508295`：手工 claim 经父级将理由传到真实 CLI，受管 dispatch 同样传 `--overlap-reason`；runner 关闭 failfast 并记录实际执行名单，仍要求完整数量和全部通过。局部反事实修前 2 errors/1 failure，修后 4 项通过；它们只证明参数传递与调度修复。产品仍为 `5d0bf1e8`，acceptance 业务文件不变。诊断和再生成命令见 `DIAGNOSIS-rebase-final-03.md`。
 
-新的全量 39 子阶段为 `outside-sandbox.sh rebase-final-04`，输出 `outside-rebase-final-04/`，尚待主控运行。产品冻结版本与修复后的夹具版本分别锁定；不能用局部检查替代 run 18 项或后续真实入口检查。本轮真实模型回合 0；独立审查尚未开始，ticket 保持 open。
+新的全量 39 子阶段为 `outside-sandbox.sh rebase-final-04`，输出 `outside-rebase-final-04/`，尚待主控运行。准备检查已通过，见 `rebase-final-04-preparation-01/static-checks.json`；产品冻结版本与修复后的夹具版本分别锁定，不能用局部检查替代 run 18 项或后续真实入口检查。完整命令和结果读回要求见 `HANDOFF-rebase-final-04.md`。本轮真实模型回合 0；独立审查尚未开始，ticket 保持 open。
 
 ## 最新合流状态：主控 #110
 
