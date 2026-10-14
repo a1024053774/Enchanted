@@ -91,6 +91,7 @@ def main():
         (repo / 'src/report.py').write_text('import json\nprint(json.dumps({"stub": True}))\n', encoding='utf-8')
         (repo / '.gitignore').write_text('__pycache__/\n*.pyc\n', encoding='utf-8')
         (repo / 'host.txt').write_text('baseline\n', encoding='utf-8')
+        (repo / 'acceptance.py').write_text(ORACLE, encoding='utf-8')
         git('add', '.'); git('commit', '-m', 'B fixture baseline'); baseline = git('rev-parse', 'HEAD')
         oracle = temp / 'oracle.py'; oracle.write_text(ORACLE, encoding='utf-8')
         red = run([sys.executable, '-I', '-B', oracle, repo], check=False)
@@ -132,6 +133,7 @@ def main():
                         '请求目录中已有的 fixture-* 文件是主控注入的验收夹具，不修改它们。门禁回执只需确认收到并结束，不调用工具、不改文件、不新增请求。',
                 'non_goals': ['不修改 oracle、任务合同、host.txt、.gitignore；不访问网络；不启动子agent；请求文件不得进入Git'],
                 'paths': {'allow': ['src/normalize.py', 'src/report.py'], 'deny': []},
+                'oracle_paths': ['acceptance.py'],
                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', str(oracle), '{worktree}']}],
                 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}

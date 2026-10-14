@@ -58,7 +58,8 @@ def main():
                 for argv in (['git', 'init', '-b', 'main'],):
                     result = run(argv, cwd=repo); assert result.returncode == 0, result.evidence
                 (repo / 'value.txt').write_text('attachment fixture\n', encoding='utf-8')
-                for argv in (['git', 'add', 'value.txt'], ['git', 'commit', '-m', 'Independent attachment fixture']):
+                (repo / 'criterion.py').write_text("from pathlib import Path; assert Path('value.txt').read_text() == 'attachment fixture\\n'\n", encoding='utf-8')
+                for argv in (['git', 'add', 'value.txt', 'criterion.py'], ['git', 'commit', '-m', 'Independent attachment fixture']):
                     result = run(argv, cwd=repo); assert result.returncode == 0, result.evidence
                 argv = ['node', source / 'workbench/tests/attachment_window_host.ts', source, state, control, ready, mode]
                 host = subprocess.Popen(list(map(str, argv)), cwd=source, env=env, stdout=stdout,
@@ -73,7 +74,7 @@ def main():
                 card = {'id': task, 'source': None, 'goal': '只观察附着状态，不运行模型', 'non_goals': ['不交付代码、不改存储'],
                     'paths': {'allow': ['value.txt'], 'deny': []}, 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c',
                      "from pathlib import Path; assert Path('value.txt').read_text() == 'attachment fixture\\n'"]}],
-                    'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
+                    'oracle_paths': ['criterion.py'], 'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
                     'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
                 save(case / 'card.json', card)
                 for argv in ([*cli, 'card_save', '--task', task, '--card', case / 'card.json', '--expected-version', '0'],

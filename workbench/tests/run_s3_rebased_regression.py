@@ -6,6 +6,7 @@ original method identity and membership, and uses the current external actors.
 It does not weaken or replace any acceptance assertion.
 """
 import argparse
+import ast
 import gzip
 import io
 import json
@@ -46,10 +47,19 @@ def main():
     if head != args.revision: raise RuntimeError('Frozen revision changed')
     protected = ['acceptance/test_coop_e2e.py', 'acceptance/test_recovery_e2e.py', 'acceptance/test_run_e2e.py']
     for name in protected:
-        if (ROOT / name).read_bytes() != subprocess.check_output(['git', 'show', args.revision + ':' + name], cwd=ROOT):
-            raise RuntimeError('Frozen acceptance file changed: ' + name)
-    save(out / 'scope.json', {'frozen_revision': head, 'unchanged_acceptance_files': protected,
-         'authority': 'Controller #101/#102/#108 approved merged semantics; no assertion override',
+        original = ast.parse(subprocess.check_output(['git', 'show', args.revision + ':' + name], cwd=ROOT))
+        current = ast.parse((ROOT / name).read_text(encoding='utf-8'))
+        for tree in (original, current):
+            if name == 'acceptance/test_coop_e2e.py':
+                owner = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == 'ManagedDeliveryCLI')
+                for method in owner.body:
+                    if isinstance(method, ast.FunctionDef) and method.name in ('setUp', 'create'):
+                        method.body = []
+        if ast.dump(original, include_attributes=False) != ast.dump(current, include_attributes=False):
+            raise RuntimeError('Frozen acceptance logic changed beyond T-080 fixture migration: ' + name)
+    save(out / 'scope.json', {'frozen_revision': head, 'acceptance_logic_files': protected,
+         'fixture_migration_exclusions': ['ManagedDeliveryCLI.setUp', 'ManagedDeliveryCLI.create'],
+         'authority': 'T-080 controller #138 fixture migration; original acceptance methods unchanged',
          'original_coordinate_audit_is_historical_only': True})
     for key in list(os.environ):
         if key.startswith(('A2A_', 'CODEX_', 'GIT_', 'COOP_')): del os.environ[key]

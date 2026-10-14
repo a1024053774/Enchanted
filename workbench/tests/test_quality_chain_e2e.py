@@ -245,7 +245,7 @@ class QualityCase(base.TaskCardsCLI):
         return self.gate('signal', '--launch', self.launch, task=False,
                          env=self.worker_env(), stdin=json.dumps(raw))
 
-    def worker_submit(self, commit, request_id='delivery-1', settle=True, allow_ended=False):
+    def worker_submit(self, commit, request_id='delivery-1', settle=True):
         a = self.a
         before = self.gate('pane_status', '--thread', a['thread_id'], task=False)
         ack_turn = 'fixture-turn-' + str(int(before['turn'].removeprefix('fixture-turn-')) + 1)
@@ -256,13 +256,20 @@ class QualityCase(base.TaskCardsCLI):
             raise HarnessFailure('Worker request did not queue through the real CLI.')
         self.stop_turn()
         if settle:
-            self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == ack_turn)
-            self.stop_turn()
-            # A baseline run can reclaim immediately after this ACK. Its test
-            # must observe that unwanted business effect, not misclassify the
-            # missing idle polling window as a fixture failure.
-            self.wait_pane(lambda p: (p['state'] == 'idle' and not p['writing'])
-                           or (allow_ended and p['lifecycle'] == 'ended'))
+            ack = self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == ack_turn)
+            stopped = self.stop_turn(turn=ack_turn)
+            # The daemon can drain a queued repair as soon as ACK Stop returns.
+            # Its durable end event proves the boundary even after turn-3 starts.
+            ended = [event for event in self.orchestration()
+                     if event['type'] == 'pane_idle' and event['launch'] == self.launch
+                     and event['attempt'] == a['attempt_id'] and event['task'] == self.task
+                     and event['data'].get('submission') == ack['active']['id']
+                     and event['data'].get('stop', {}).get('session_id') == self.native['native']
+                     and event['data'].get('stop', {}).get('turn_id') == ack_turn]
+            save(self.evidence / ('submit-ack-%04d.json' % len(self.commands)), {
+                'request_id': request_id, 'ack': ack, 'stop_reply': stopped, 'matched_end_events': ended})
+            if not stopped['ok'] or len(ended) != 1:
+                raise HarnessFailure('未读回绑定本次 ACK 身份的唯一结束事件。')
         return self.relay_result(request_id)
 
     def relay_result(self, request_id):
@@ -446,7 +453,7 @@ class QualityCase(base.TaskCardsCLI):
     def red_run_reject_preserves_worker(self):
         a = self.start_run()
         c = self.commit(a, {'src/value.txt': 'not-the-required-result\n'})
-        result = self.worker_submit(c, allow_ended=True)
+        result = self.worker_submit(c)
         if not result['ok']:
             raise HarnessFailure('Controlled run submit failed.')
         reply = self.finish_run()
@@ -465,7 +472,7 @@ class QualityCase(base.TaskCardsCLI):
     def red_run_waits_for_executor(self):
         a = self.start_run()
         c = self.commit(a)
-        result = self.worker_submit(c, allow_ended=True)
+        result = self.worker_submit(c)
         if not result['ok']:
             raise HarnessFailure('Controlled run submit failed.')
         reply = self.finish_run()

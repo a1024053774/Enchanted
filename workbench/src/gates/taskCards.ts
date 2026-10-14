@@ -7,6 +7,7 @@ export interface TaskCard {
   goal: string;
   non_goals: string[];
   paths: { allow: string[]; deny: string[] };
+  oracle_paths: string[];
   completion_conditions: { argv: string[] }[];
   red_commands: { argv: string[]; test_paths: string[] }[];
   task_type: string;
@@ -111,13 +112,13 @@ export function taskCardTemplate(id: string, ticket?: string): TaskCard {
   if (source) check(id.startsWith(source.ticketId + "-") && /^[1-9][0-9]*$/.test(id.slice(source.ticketId.length + 1)),
     "id", "Card ID must contain the ticket ID and a sequence number.");
   return { id, source: source?.source ?? null, goal: "", non_goals: [], paths: { allow: [], deny: [] },
-    completion_conditions: [], red_commands: [], task_type: "后端逻辑", repair_target: null,
+    oracle_paths: [], completion_conditions: [], red_commands: [], task_type: "后端逻辑", repair_target: null,
     complexity: "M", executor: { cli: "Codex", model: "", effort: "" }, base_commit: null, writer: null };
 }
 
 export function validateTaskCard(input: unknown, id: string): TaskCard {
   const card = structuredClone(input) as TaskCard;
-  object(card, ["id", "source", "goal", "non_goals", "paths", "completion_conditions", "red_commands",
+  object(card, ["id", "source", "goal", "non_goals", "paths", "oracle_paths", "completion_conditions", "red_commands",
     "task_type", "repair_target", "complexity", "executor", "base_commit", "writer"], "card");
   check(card.id === id, "id", "Card ID does not match the task.");
   if (card.source !== null) {
@@ -140,6 +141,13 @@ export function validateTaskCard(input: unknown, id: string): TaskCard {
         parts.every((part) => part && part !== "." && part !== "..")), "paths." + kind, "Invalid repository path.");
     }
   }
+  strings(card.oracle_paths, "oracle_paths", 1);
+  for (const path of card.oracle_paths) {
+    const parts = path.replace(/\/$/, "").split("/");
+    check(!isAbsolute(path) && !path.includes("\\") && !/[\x00-\x1f*?\[\]:]/.test(path) &&
+      parts.every((part) => part && part !== "." && part !== ".." && part.toLowerCase() !== ".git"),
+      "oracle_paths", "Exact repository file paths or directory prefixes are required.");
+  }
   for (const key of ["completion_conditions", "red_commands"] as const) {
     check(Array.isArray(card[key]) && (key === "red_commands" || card[key].length > 0), key, "Command array required.");
     for (const [i, command] of card[key].entries()) {
@@ -155,6 +163,8 @@ export function validateTaskCard(input: unknown, id: string): TaskCard {
           check(!isAbsolute(path) && !path.includes("\\") && !/[\x00-\x1f*?\[\]:]/.test(path) &&
             parts.every((part) => part && part !== "." && part !== ".." && part.toLowerCase() !== ".git"),
             field + ".test_paths", "Exact repository file paths are required.");
+          check(!card.oracle_paths.some((rule) => rule.endsWith("/") ? path.startsWith(rule) : path === rule),
+            field + ".test_paths", "Red test paths must not intersect acceptance files.");
         }
       }
     }

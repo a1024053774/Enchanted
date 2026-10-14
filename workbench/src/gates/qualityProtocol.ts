@@ -67,7 +67,8 @@ export function executorScore(value: unknown, command: "integrate" | "abandon" =
 export function scoreRecords(raw: string): Record<string, any>[] {
   requireValue(raw.length === 0 || raw.endsWith("\n"), "scores.incomplete_tail");
   const rows: Record<string, any>[] = [], indexed = new Map<string, Record<string, any>>(), attempts = new Set<string>();
-  const checks = ["identity_version", "path_boundary", "completion", "red_state", "rule_checks", "independent_review", "commit_trailers"];
+  const v1Checks = ["identity_version", "path_boundary", "completion", "red_state", "rule_checks", "independent_review", "commit_trailers"];
+  const v2Checks = [...v1Checks, "oracle"];
   for (const [index, line] of (raw ? raw.slice(0, -1).split("\n") : []).entries()) {
     const field = `scores.line_${index + 1}`;
     let row: any;
@@ -77,7 +78,8 @@ export function scoreRecords(raw: string): Record<string, any>[] {
     for (const key of ["score_id", "created_at", "launch_id", "project", "task", "attempt", "cli", "model", "effort"]) {
       requireValue(nonempty(row[key]), field + "." + key);
     }
-    requireValue(row.schema === 1 && ["executor", "user"].includes(row.source) && !indexed.has(row.score_id), field + ".identity");
+    requireValue((row.schema === 1 || row.schema === 2) && ["executor", "user"].includes(row.source) && !indexed.has(row.score_id), field + ".identity");
+    const checks = row.schema === 1 ? v1Checks : v2Checks;
     if (row.source === "user") exact(row.data, ["boundary_discipline", "boundary_reason", "engineering_taste", "engineering_reason", "notes"], field + ".user_data");
     try {
       executorScore(row.source === "user" ? { result: "通过", ...row.data } : row.data,

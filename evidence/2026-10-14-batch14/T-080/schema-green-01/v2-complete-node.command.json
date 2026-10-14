@@ -1,0 +1,15 @@
+{
+  "label": "v2-complete-node",
+  "argv": [
+    "node",
+    "--input-type=module",
+    "-e",
+    "const {scoreRecords,QualityProtocolError}=await import(process.argv[1]);\nconst {readFileSync}=await import('node:fs');\ntry{const rows=scoreRecords(readFileSync(process.argv[2],'utf8'));process.stdout.write(JSON.stringify({ok:true,rows})+'\\n');}\ncatch(e){if(!(e instanceof QualityProtocolError))throw e;process.stdout.write(JSON.stringify({ok:false,error:e.field})+'\\n');process.exitCode=1;}",
+    "file:///Users/luckye/Documents/Code/a2a-wt-t080/workbench/src/gates/qualityProtocol.ts",
+    "/private/tmp/t80score-g763pgl1/v2-complete.jsonl"
+  ],
+  "cwd": "/Users/luckye/Documents/Code/a2a-wt-t080",
+  "exit": 0,
+  "stdout": "{\"ok\":true,\"rows\":[{\"schema\":2,\"score_id\":\"independent-v2\",\"created_at\":\"2026-10-13T00:00:00Z\",\"source\":\"executor\",\"launch_id\":\"historical-launch\",\"project\":\"fixture\",\"task\":\"independent-task\",\"attempt\":\"historical-attempt\",\"cli\":\"fixture-codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\",\"data\":{\"result\":\"通过\",\"boundary_discipline\":3,\"boundary_reason\":\"independent fixture\",\"engineering_taste\":2,\"engineering_reason\":\"independent fixture\",\"notes\":\"\"},\"facts\":{\"task_type\":\"测试\",\"complexity\":\"M\",\"delivery_rounds\":2,\"elapsed_seconds\":3,\"human_interventions\":0,\"rejections\":{\"identity_version\":0,\"path_boundary\":0,\"oracle\":2,\"completion\":0,\"red_state\":0,\"rule_checks\":0,\"independent_review\":0,\"commit_trailers\":0}}}]}\n",
+  "stderr": ""
+}

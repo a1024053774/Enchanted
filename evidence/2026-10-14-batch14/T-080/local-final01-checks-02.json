@@ -1,0 +1,61 @@
+{
+  "status": "PASS",
+  "scope": "仅静态及纯任务卡校验",
+  "product_status": "INCOMPLETE",
+  "command": [
+    "evidence/2026-10-14-batch14/T-080/check_local_t080.py",
+    "--output",
+    "evidence/2026-10-14-batch14/T-080/local-final01-checks-02.json"
+  ],
+  "checks": [
+    {
+      "argv": [
+        "node",
+        "--check",
+        "/Users/luckye/Documents/Code/a2a-wt-t080/workbench/src/gates/taskCards.ts"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "/Users/luckye/Documents/Code/a2a-wt-t080/workbench/src/gates/core.ts"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "\nconst {validateTaskCard}=await import(process.argv[1]);\nconst base={id:'T-080-local',source:null,goal:'independent requirement',non_goals:['no model'],\n paths:{allow:['.'],deny:[]},oracle_paths:['acceptance/criterion.py'],\n completion_conditions:[{argv:['/usr/bin/true']}],red_commands:[],task_type:'测试',repair_target:null,\n complexity:'M',executor:{cli:'Codex',model:'gpt-6.1-sol',effort:'xhigh'},base_commit:null,writer:null};\nvalidateTaskCard(base,base.id);\nconst invalid=[[],['.'],['/tmp/a'],['../a'],['a/../b'],['*.py'],['a?.py'],['a[0].py'],\n ['.git/config'],['x/.Git/'],['a\\\\b'],['a//b'],['a/./b']];\nlet rejected=0;\nfor(const paths of invalid){\n const card=structuredClone(base);card.oracle_paths=paths;\n try{validateTaskCard(card,card.id);throw new Error('invalid acceptance path accepted');}\n catch(e){if(e.constructor.name!=='TaskCardError')throw e;rejected++;}\n}\nfor(const path of ['acceptance/criterion.py','acceptance/']){\n const card=structuredClone(base);card.oracle_paths=[path];\n card.red_commands=[{argv:['/usr/bin/true'],test_paths:['acceptance/criterion.py']}];\n try{validateTaskCard(card,card.id);throw new Error('overlap accepted');}\n catch(e){if(e.constructor.name!=='TaskCardError')throw e;rejected++;}\n card.red_commands[0].test_paths=['acceptance-other/red.py'];validateTaskCard(card,card.id);\n}\nconst missing=structuredClone(base);delete missing.oracle_paths;\ntry{validateTaskCard(missing,missing.id);throw new Error('missing field accepted');}\ncatch(e){if(e.constructor.name!=='TaskCardError')throw e;rejected++;}\nprocess.stdout.write(JSON.stringify({valid:true,rejected,adjacent_prefix_accepted:true})+'\\n');\n",
+        "file:///Users/luckye/Documents/Code/a2a-wt-t080/workbench/src/gates/taskCards.ts"
+      ],
+      "exit": 0,
+      "stdout": "{\"valid\":true,\"rejected\":16,\"adjacent_prefix_accepted\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "not_run": [
+    "真实门禁绿态",
+    "变异体",
+    "全量回归",
+    "提交",
+    "独立审查"
+  ]
+}

@@ -10,8 +10,10 @@ from launch_records import validate_launches
 from record_io import append_record, locked, read_records, utc_now
 
 TASK_TYPES = ("后端逻辑", "前端界面", "缺陷修复", "测试", "重构", "构建与基础设施", "文档", "调研")
-CHECKS = {"identity_version", "path_boundary", "completion", "red_state", "rule_checks",
-          "independent_review", "commit_trailers"}
+V1_CHECKS = {"identity_version", "path_boundary", "completion", "red_state", "rule_checks",
+             "independent_review", "commit_trailers"}
+CHECKS = V1_CHECKS | {"oracle"}
+CHECKS_BY_SCHEMA = {1: V1_CHECKS, 2: CHECKS}
 
 
 def validate_data(data, source):
@@ -38,7 +40,7 @@ def validate_data(data, source):
         raise ValueError("备注必须是字符串；没有备注传空字符串")
 
 
-def validate_facts(facts):
+def validate_facts(facts, schema):
     fields = {"task_type", "complexity", "delivery_rounds", "elapsed_seconds", "human_interventions", "rejections"}
     if not isinstance(facts, dict) or set(facts) != fields:
         raise ValueError("验收事实字段不完整或含未知字段")
@@ -47,8 +49,9 @@ def validate_facts(facts):
     for key in ("delivery_rounds", "elapsed_seconds", "human_interventions"):
         if type(facts[key]) is not int or facts[key] < 0:
             raise ValueError("验收事实必须为非负整数：" + key)
-    if not isinstance(facts["rejections"], dict) or set(facts["rejections"]) != CHECKS:
-        raise ValueError("打回次数必须完整包含 identity_version、path_boundary、completion、red_state、rule_checks、independent_review、commit_trailers；不能缺项或含未知项")
+    checks = CHECKS_BY_SCHEMA[schema]
+    if not isinstance(facts["rejections"], dict) or set(facts["rejections"]) != checks:
+        raise ValueError("schema=" + str(schema) + " 的打回次数必须完整包含 " + "、".join(sorted(checks)) + "；不能缺项或含未知项")
     for key, value in facts["rejections"].items():
         if not isinstance(key, str) or not key or type(value) is not int or value < 0:
             raise ValueError("检查打回次数损坏")
@@ -61,7 +64,8 @@ def validate_scores(rows):
             if not isinstance(row.get(key), str) or not row[key]:
                 raise ValueError("打分记录字段损坏：" + key)
         source = row.get("source")
-        if row.get("schema") != 1 or source not in ("executor", "user") or row["score_id"] in indexed:
+        schema = row.get("schema")
+        if type(schema) is not int or schema not in CHECKS_BY_SCHEMA or source not in ("executor", "user") or row["score_id"] in indexed:
             raise ValueError("打分记录版本、来源或编号损坏")
         validate_data(row.get("data"), source)
         if source == "executor":
@@ -70,7 +74,7 @@ def validate_scores(rows):
                 raise ValueError("同一个 attempt 已有执行主控的最终打分")
             attempts.add(identity)
             if row["data"]["result"] != "放弃":
-                validate_facts(row.get("facts"))
+                validate_facts(row.get("facts"), schema)
             elif "facts" in row:
                 raise ValueError("放弃不记录评分事实")
         else:
@@ -89,7 +93,7 @@ def main():
     p.add_argument("--source", choices=("executor", "user"), default="executor")
     p.add_argument("--launch")
     p.add_argument("--score-of")
-    p.add_argument("--facts", type=Path, help="事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions；rejections 必须包含 identity_version、path_boundary、completion、red_state、rule_checks、independent_review、commit_trailers 的非负整数次数；Herdr 期由执行主控保存")
+    p.add_argument("--facts", type=Path, help="新记录只写 schema=2。事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions；rejections 必须包含 identity_version、path_boundary、oracle、completion、red_state、rule_checks、independent_review、commit_trailers 的非负整数次数；历史 schema=1 按原检查集只读校验，不补零或改写")
     p.add_argument("--result", choices=("通过", "升级", "放弃"))
     p.add_argument("--reason")
     p.add_argument("--boundary-discipline", type=int)
@@ -121,7 +125,7 @@ def main():
             if args.facts is None:
                 raise ValueError("通过或升级必须带 --facts")
             facts = json.loads(args.facts.read_bytes().decode("utf-8"))
-            validate_facts(facts)
+            validate_facts(facts, 2)
         with locked(root / "records/.launches.lock"):
             launches = validate_launches(read_records(root / "records/launches.jsonl"))
             launch = launches[args.launch]
@@ -139,7 +143,7 @@ def main():
             if original["source"] != "executor":
                 raise ValueError("--score-of 必须指向执行主控原记录")
             context = {k: original[k] for k in ("launch_id", "project", "task", "attempt", "cli", "model", "effort")}
-        row = dict(schema=1, score_id="score-" + uuid.uuid4().hex, created_at=utc_now(),
+        row = dict(schema=2, score_id="score-" + uuid.uuid4().hex, created_at=utc_now(),
                    source=args.source, data=data, **context)
         if facts is not None:
             row["facts"] = facts

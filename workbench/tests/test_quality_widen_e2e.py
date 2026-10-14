@@ -126,7 +126,7 @@ class Widen(Tracer):
         expected_state = 'abandoned' if result == '放弃' else 'upgraded'
         scores = [e['details'] for e in self.events() if e['type'] == 'score_recorded']
         self.check('WIDE-END-SCORE', reply['ok'] and reply['task']['state'] == expected_state
-                   and len(scores) == 1 and scores[0]['data'] == data and scores[0]['launch_id'] == self.launch
+                   and len(scores) == 1 and scores[0]['schema'] == 2 and scores[0]['data'] == data and scores[0]['launch_id'] == self.launch
                    and ('facts' not in scores[0] if result == '放弃' else scores[0]['facts']['delivery_rounds'] == 0)
                    and self.oid() == self.base, 'terminal result and one score, with no Git integration', {'reply': reply, 'scores': scores})
         save(self.evidence / 'score-payload.json', scores[0])
@@ -166,7 +166,7 @@ class Widen(Tracer):
         (records / 'launches.jsonl').write_text(''.join(json.dumps({**context, 'phase': phase}) + '\n' for phase in ['prepared', 'started']), encoding='utf-8')
         facts = self.root / 'legacy-facts.json'
         save(facts, {'task_type': '后端逻辑', 'complexity': 'L', 'delivery_rounds': 2, 'elapsed_seconds': 4,
-                     'human_interventions': 0, 'rejections': dict.fromkeys(['identity_version', 'path_boundary', 'completion', 'red_state', 'rule_checks', 'independent_review', 'commit_trailers'], 0)})
+                     'human_interventions': 0, 'rejections': dict.fromkeys(['identity_version', 'path_boundary', 'oracle', 'completion', 'red_state', 'rule_checks', 'independent_review', 'commit_trailers'], 0)})
         score = q.SOURCE / 'scripts/score'
         flags = ['--boundary-discipline', '3', '--boundary-reason', 'fixture', '--engineering-taste', '2', '--engineering-reason', 'fixture', '--notes', '']
         generated = self.process([sys.executable, '-B', score, '--root', legacy, '--launch', 'legacy-fixture', '--facts', facts, '--result', '通过', *flags])

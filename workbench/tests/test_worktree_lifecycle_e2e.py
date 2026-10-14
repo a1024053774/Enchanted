@@ -575,6 +575,7 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
                 'goal': '设置 worker=ready；保留工作分支上的 host 设置和 host.txt。',
                 'non_goals': ['不修改 host.txt 或 src/private/'],
                 'paths': {'allow': ['src/'], 'deny': ['src/private/']},
+                'oracle_paths': ['acceptance/criterion.py', 'CONTRACT.md'],
                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c', source]}],
                 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'L',
                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'},

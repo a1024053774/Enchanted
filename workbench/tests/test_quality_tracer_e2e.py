@@ -90,15 +90,15 @@ class Tracer(QualityCase):
             save(file, data)
         return file
 
-    def integrate_scored(self, c, rounds, completion=0, review_failures=0, automatic_cleanup=False, identity_failures=0):
+    def integrate_scored(self, c, rounds, completion=0, review_failures=0, automatic_cleanup=False, identity_failures=0, oracle_failures=0):
         before = self.oid()
         reply = self.gate('integrate', '--attempt', self.a['attempt_id'], '--score-file', self.score_file())
         self.check('TRACER-INTEGRATE', reply['ok'] and self.oid() == c and before != c,
                    'executor score and valid review permit one actual fast-forward', {'reply': reply, 'ref': self.oid(), 'before': before})
         scores = [e['details'] for e in self.events() if e['type'] == 'score_recorded']
-        expected_rejections = {'identity_version': identity_failures, 'path_boundary': 0, 'completion': completion,
+        expected_rejections = {'identity_version': identity_failures, 'path_boundary': 0, 'oracle': oracle_failures, 'completion': completion,
                                'red_state': 0, 'rule_checks': 0, 'independent_review': review_failures, 'commit_trailers': 0}
-        self.check('TRACER-SCORE', len(scores) == 1 and scores[0]['launch_id'] == self.launch
+        self.check('TRACER-SCORE', len(scores) == 1 and scores[0]['schema'] == 2 and scores[0]['launch_id'] == self.launch
                    and scores[0]['attempt'] == self.a['attempt_id'] and scores[0]['model'] == 'gpt-6.1-sol'
                    and scores[0]['effort'] == 'xhigh' and scores[0]['facts']['delivery_rounds'] == rounds
                    and scores[0]['facts']['human_interventions'] == 0 and scores[0]['facts']['rejections'] == expected_rejections,

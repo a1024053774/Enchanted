@@ -20,7 +20,7 @@ OUT = None
 ARTIFACT_ROOT = None
 COMMANDS = []
 ARTIFACTS = []
-FIELDS = {'id', 'source', 'goal', 'non_goals', 'paths', 'completion_conditions',
+FIELDS = {'id', 'source', 'goal', 'non_goals', 'paths', 'oracle_paths', 'completion_conditions',
           'red_commands', 'task_type', 'repair_target', 'complexity', 'executor',
           'base_commit', 'writer'}
 
@@ -44,6 +44,9 @@ class TaskCardsCLI(unittest.TestCase):
         (self.repo / 'src').mkdir()
         (self.repo / 'src/value.txt').write_text('base\n', encoding='utf-8')
         (self.repo / 'host.txt').write_text('base host\n', encoding='utf-8')
+        (self.repo / 'acceptance').mkdir()
+        (self.repo / 'acceptance/criterion.py').write_text(
+            "from pathlib import Path\nassert Path('src/value.txt').read_text() == 'worker\\n'\n", encoding='utf-8')
         self.git('add', '.')
         self.git('commit', '-m', 'Independent baseline')
         self.base = self.oid()
@@ -51,8 +54,9 @@ class TaskCardsCLI(unittest.TestCase):
         self.card = {
             'id': self.task, 'source': None, 'goal': '交付 src/value.txt 中的独立预期内容',
             'non_goals': ['不修改项目外的文件'], 'paths': {'allow': ['src/'], 'deny': ['src/private/']},
+            'oracle_paths': ['acceptance/criterion.py'],
             'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c',
-                "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"]}],
+                "from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')"]}],
             'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'L',
             'executor': {'cli': 'Codex', 'model': 'gpt-6-astra', 'effort': 'xhigh'},
             'base_commit': None, 'writer': None,

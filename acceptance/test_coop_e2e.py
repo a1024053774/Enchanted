@@ -75,7 +75,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
         self.git("config", "commit.gpgsign", "false")
         shutil.copyfile(STARTER, self.repo / "pager.py")
         shutil.copyfile(CONTRACT, self.repo / "CONTRACT.md")
-        self.git("add", "pager.py", "CONTRACT.md")
+        (self.repo / "acceptance").mkdir()
+        shutil.copyfile(ORACLE, self.repo / "acceptance/criterion.py")
+        self.git("add", "pager.py", "CONTRACT.md", "acceptance/criterion.py")
         self.git("commit", "-m", "Independent faulty starter")
         self.base = self.git("rev-parse", "HEAD").stdout.strip()
         self.oracle = self.root / "oracle snapshot source.py"
@@ -142,6 +144,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
         card = {
             "id": task, "source": None, "goal": self.instructions.read_text(encoding="utf-8"),
             "non_goals": ["不改变独立分页合同"], "paths": {"allow": ["."], "deny": []},
+            "oracle_paths": ["acceptance/criterion.py", "CONTRACT.md"],
             "completion_conditions": [{"argv": [sys.executable, "-I", "-B", "-c",
                                                  self.oracle.read_text(encoding="utf-8"), "{worktree}"]}],
             "red_commands": [], "task_type": "后端逻辑", "repair_target": None,

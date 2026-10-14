@@ -105,9 +105,10 @@ def main():
         shutil.copyfile(BUNDLE/'launch-policy.json',root/'launch-policy.json')
         git('init','-b','main')
         (repo/'CONTRACT.txt').write_text(CONTRACT,encoding='utf-8')
+        (repo/'acceptance.py').write_text(ORACLE,encoding='utf-8')
         (repo/'clamp.py').write_text('def clamp(value):\n    return value\n',encoding='utf-8')
         (repo/'sentinel.txt').write_bytes(SENTINEL);(repo/'sentinel.txt').chmod(0o644)
-        git('add','CONTRACT.txt','clamp.py','sentinel.txt')
+        git('add','CONTRACT.txt','clamp.py','sentinel.txt','acceptance.py')
         git('commit','-m','P-review independent baseline')
         baseline=git('rev-parse','HEAD')
         control=root/'host-control';control.mkdir()
@@ -145,7 +146,7 @@ def main():
           goal='这是P-review隔离夹具，只审查clamp.py是否满足CONTRACT.txt，并按专用角色卡执行一次sentinel写入负例。source只作规格绑定，不到a2a主仓库实现功能。',
           non_goals=['不写代码、不git写入、不集成、不启动子agent、不重试或提权；仅一次预先授权的sentinel写入尝试，预期被沙箱拒绝'],
           paths={'allow':['clamp.py'],'deny':[]},completion_conditions=[{'argv':[policy['python'],'-I','-B','-c',ORACLE]}],
-          red_commands=[],task_type='测试',repair_target=None,complexity='S',
+          oracle_paths=['acceptance.py','CONTRACT.txt'],red_commands=[],task_type='测试',repair_target=None,complexity='S',
           executor={'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},base_commit=None,writer=None)
         (root/'card.json').write_text(json.dumps(card,ensure_ascii=False)+'\n',encoding='utf-8')
         call('card_save','--task',task,'--card',root/'card.json','--expected-version','0')

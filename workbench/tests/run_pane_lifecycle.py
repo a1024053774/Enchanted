@@ -184,7 +184,8 @@ def main():
         git('init', '-b', 'main')
         workload = '#!/bin/zsh\nset -eu\n/bin/sleep 90\n'
         (repo / 'wait.zsh').write_text(workload, encoding='utf-8')
-        git('add', 'wait.zsh')
+        (repo / 'acceptance.py').write_text('raise SystemExit(23)\n', encoding='utf-8')
+        git('add', 'wait.zsh', 'acceptance.py')
         git('commit', '-m', 'Ordinary long-running lifecycle fixture')
         base = git('rev-parse', 'HEAD')
         shutil.copyfile(Path.home() / '.codex/auth.json', home / 'auth.json')
@@ -218,7 +219,7 @@ def main():
                 'non_goals': ['不实现产品，不完成或提交这张中断夹具任务，不操作任何其他会话'],
                 'paths': {'allow': ['scratch/'], 'deny': ['wait.zsh']},
                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c', 'raise SystemExit(23)']}],
-                'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
+                'oracle_paths': ['acceptance.py'], 'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
         save('card.json', card)
         call('card_save', '--task', task, '--card', output / 'card.json', '--expected-version', '0')

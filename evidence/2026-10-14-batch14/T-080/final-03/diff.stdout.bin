@@ -1,0 +1,764 @@
+diff --git a/.project-map/templates/task-card.md b/.project-map/templates/task-card.md
+index 6fc6a95c..ebc07dbb 100644
+--- a/.project-map/templates/task-card.md
++++ b/.project-map/templates/task-card.md
+@@ -10,6 +10,7 @@ Herdr 期由执行主控手填这份 Markdown 后经 `scripts/dispatch` 派发
+ | 非目标 | `<至少一条>` | 执行主控：列出本次不处理的事项。 |
+ | 修改边界 | `允许：<路径>；禁止：<可选>` | 执行主控：允许必填，禁止可选；与本 attempt 的分配路径一致。 |
+ | 完成条件 | `<可执行命令和独立预期>` | 执行主控：至少一条在派发前写好；不能只引用 worker 自己写的测试。 |
++| 验收文件（`oracle_paths`） | `<确切文件路径或以 / 结尾的目录前缀，至少一项>` | 执行主控：列出完成条件依赖的仓库内测试、脚本、夹具和配置；每项须在认领起点已有受控文件，不允许 `.`、绝对路径、通配符、`..`、`.git`，不得与红态测试路径重叠；候选改到就拒收。 |
+ | 红态命令 | `<命令，或未指定>` | 执行主控，可选：写了才查；候选的新测试在起点失败、在候选通过。 |
+ | 任务类型 | `<类型>` | 执行主控：后端逻辑、前端界面、缺陷修复、测试、重构、构建与基础设施、文档、调研。 |
+ | 修复对象 | `<原任务卡号或提交号，或不适用>` | 执行主控：缺陷修复类必填。 |
+diff --git a/acceptance/test_coop_e2e.py b/acceptance/test_coop_e2e.py
+index 4275e49d..42727358 100644
+--- a/acceptance/test_coop_e2e.py
++++ b/acceptance/test_coop_e2e.py
+@@ -75,7 +75,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         self.git("config", "commit.gpgsign", "false")
+         shutil.copyfile(STARTER, self.repo / "pager.py")
+         shutil.copyfile(CONTRACT, self.repo / "CONTRACT.md")
+-        self.git("add", "pager.py", "CONTRACT.md")
++        (self.repo / "acceptance").mkdir()
++        shutil.copyfile(ORACLE, self.repo / "acceptance/criterion.py")
++        self.git("add", "pager.py", "CONTRACT.md", "acceptance/criterion.py")
+         self.git("commit", "-m", "Independent faulty starter")
+         self.base = self.git("rev-parse", "HEAD").stdout.strip()
+         self.oracle = self.root / "oracle snapshot source.py"
+@@ -142,6 +144,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         card = {
+             "id": task, "source": None, "goal": self.instructions.read_text(encoding="utf-8"),
+             "non_goals": ["不改变独立分页合同"], "paths": {"allow": ["."], "deny": []},
++            "oracle_paths": ["acceptance/criterion.py", "CONTRACT.md"],
+             "completion_conditions": [{"argv": [sys.executable, "-I", "-B", "-c",
+                                                  self.oracle.read_text(encoding="utf-8"), "{worktree}"]}],
+             "red_commands": [], "task_type": "后端逻辑", "repair_target": None,
+diff --git a/acceptance/test_herdr_traceability_e2e.py b/acceptance/test_herdr_traceability_e2e.py
+index 317246f2..a880abd7 100644
+--- a/acceptance/test_herdr_traceability_e2e.py
++++ b/acceptance/test_herdr_traceability_e2e.py
+@@ -187,7 +187,7 @@ else:sys.exit(2)
+         p=self.root/"facts.json"
+         p.write_text(json.dumps(dict(task_type="构建与基础设施",complexity="M",delivery_rounds=2,
+                                     elapsed_seconds=93,human_interventions=1,
+-                                    rejections={"identity_version":0,"path_boundary":0,"completion":1,"red_state":0,
++                                    rejections={"identity_version":0,"path_boundary":0,"oracle":0,"completion":1,"red_state":0,
+                                                 "rule_checks":0,"independent_review":0,"commit_trailers":0}),ensure_ascii=False),encoding="utf-8")
+         return p
+ 
+@@ -202,6 +202,7 @@ else:sys.exit(2)
+         self.score(launch,expected=None) # notes is mandatory even when empty.
+         self.assertFalse((self.root/"records/scores.jsonl").exists())
+         row=json.loads(self.score(launch,("--notes","复核完成")).stdout)
++        self.assertEqual(row["schema"],2)
+         self.assertEqual(row["facts"]["elapsed_seconds"],93)
+         self.assertEqual(row["facts"]["delivery_rounds"],2)
+         self.assertEqual(row["task"],self.task)
+@@ -222,6 +223,7 @@ else:sys.exit(2)
+                           "--result","升级","--boundary-discipline","2","--boundary-reason","边界可接受",
+                           "--engineering-taste","1","--engineering-reason","需更强执行器","--notes",""])
+         self.assertEqual([r["data"].get("result") for r in self.rows("scores.jsonl")],["通过",None,"放弃","升级"])
++        self.assertEqual([r["schema"] for r in self.rows("scores.jsonl")],[2,2,2,2])
+ 
+     def test_score_concurrency_corruption_and_start_failure(self):
+         launches=[self.launch(attempt="concurrent-"+str(i)) for i in range(5)]
+diff --git a/scripts/score b/scripts/score
+index 65ae51e5..45be49b4 100755
+--- a/scripts/score
++++ b/scripts/score
+@@ -10,8 +10,10 @@ from launch_records import validate_launches
+ from record_io import append_record, locked, read_records, utc_now
+ 
+ TASK_TYPES = ("后端逻辑", "前端界面", "缺陷修复", "测试", "重构", "构建与基础设施", "文档", "调研")
+-CHECKS = {"identity_version", "path_boundary", "completion", "red_state", "rule_checks",
+-          "independent_review", "commit_trailers"}
++V1_CHECKS = {"identity_version", "path_boundary", "completion", "red_state", "rule_checks",
++             "independent_review", "commit_trailers"}
++CHECKS = V1_CHECKS | {"oracle"}
++CHECKS_BY_SCHEMA = {1: V1_CHECKS, 2: CHECKS}
+ 
+ 
+ def validate_data(data, source):
+@@ -38,7 +40,7 @@ def validate_data(data, source):
+         raise ValueError("备注必须是字符串；没有备注传空字符串")
+ 
+ 
+-def validate_facts(facts):
++def validate_facts(facts, schema):
+     fields = {"task_type", "complexity", "delivery_rounds", "elapsed_seconds", "human_interventions", "rejections"}
+     if not isinstance(facts, dict) or set(facts) != fields:
+         raise ValueError("验收事实字段不完整或含未知字段")
+@@ -47,8 +49,9 @@ def validate_facts(facts):
+     for key in ("delivery_rounds", "elapsed_seconds", "human_interventions"):
+         if type(facts[key]) is not int or facts[key] < 0:
+             raise ValueError("验收事实必须为非负整数：" + key)
+-    if not isinstance(facts["rejections"], dict) or set(facts["rejections"]) != CHECKS:
+-        raise ValueError("打回次数必须完整包含 identity_version、path_boundary、completion、red_state、rule_checks、independent_review、commit_trailers；不能缺项或含未知项")
++    checks = CHECKS_BY_SCHEMA[schema]
++    if not isinstance(facts["rejections"], dict) or set(facts["rejections"]) != checks:
++        raise ValueError("schema=" + str(schema) + " 的打回次数必须完整包含 " + "、".join(sorted(checks)) + "；不能缺项或含未知项")
+     for key, value in facts["rejections"].items():
+         if not isinstance(key, str) or not key or type(value) is not int or value < 0:
+             raise ValueError("检查打回次数损坏")
+@@ -61,7 +64,8 @@ def validate_scores(rows):
+             if not isinstance(row.get(key), str) or not row[key]:
+                 raise ValueError("打分记录字段损坏：" + key)
+         source = row.get("source")
+-        if row.get("schema") != 1 or source not in ("executor", "user") or row["score_id"] in indexed:
++        schema = row.get("schema")
++        if type(schema) is not int or schema not in CHECKS_BY_SCHEMA or source not in ("executor", "user") or row["score_id"] in indexed:
+             raise ValueError("打分记录版本、来源或编号损坏")
+         validate_data(row.get("data"), source)
+         if source == "executor":
+@@ -70,7 +74,7 @@ def validate_scores(rows):
+                 raise ValueError("同一个 attempt 已有执行主控的最终打分")
+             attempts.add(identity)
+             if row["data"]["result"] != "放弃":
+-                validate_facts(row.get("facts"))
++                validate_facts(row.get("facts"), schema)
+             elif "facts" in row:
+                 raise ValueError("放弃不记录评分事实")
+         else:
+@@ -89,7 +93,7 @@ def main():
+     p.add_argument("--source", choices=("executor", "user"), default="executor")
+     p.add_argument("--launch")
+     p.add_argument("--score-of")
+-    p.add_argument("--facts", type=Path, help="事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions；rejections 必须包含 identity_version、path_boundary、completion、red_state、rule_checks、independent_review、commit_trailers 的非负整数次数；Herdr 期由执行主控保存")
++    p.add_argument("--facts", type=Path, help="新记录只写 schema=2。事实 JSON：task_type、complexity、delivery_rounds、elapsed_seconds、human_interventions；rejections 必须包含 identity_version、path_boundary、oracle、completion、red_state、rule_checks、independent_review、commit_trailers 的非负整数次数；历史 schema=1 按原检查集只读校验，不补零或改写")
+     p.add_argument("--result", choices=("通过", "升级", "放弃"))
+     p.add_argument("--reason")
+     p.add_argument("--boundary-discipline", type=int)
+@@ -121,7 +125,7 @@ def main():
+             if args.facts is None:
+                 raise ValueError("通过或升级必须带 --facts")
+             facts = json.loads(args.facts.read_bytes().decode("utf-8"))
+-            validate_facts(facts)
++            validate_facts(facts, 2)
+         with locked(root / "records/.launches.lock"):
+             launches = validate_launches(read_records(root / "records/launches.jsonl"))
+             launch = launches[args.launch]
+@@ -139,7 +143,7 @@ def main():
+             if original["source"] != "executor":
+                 raise ValueError("--score-of 必须指向执行主控原记录")
+             context = {k: original[k] for k in ("launch_id", "project", "task", "attempt", "cli", "model", "effort")}
+-        row = dict(schema=1, score_id="score-" + uuid.uuid4().hex, created_at=utc_now(),
++        row = dict(schema=2, score_id="score-" + uuid.uuid4().hex, created_at=utc_now(),
+                    source=args.source, data=data, **context)
+         if facts is not None:
+             row["facts"] = facts
+diff --git a/workbench/README.md b/workbench/README.md
+index 461fa015..bfcc248d 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -29,7 +29,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检
+ 
+ `acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由后台中的
+ `A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
+-受管任务通过 JSON 任务卡注册；交付按卡检查路径、完成条件与提交尾注，
++受管任务通过 JSON 任务卡注册；交付按卡检查路径、验收文件、完成条件与提交尾注，
+ 机械通过后新开只读 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
+ 普通会话的 `attach --instructions` 仍是提示文本，
+ 不参与受管任务注册。
+@@ -37,7 +37,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检
+ 
+ ## 任务卡与交付
+ 
+-使用同一个 CLI 生成模板，填写目标、非目标、路径、argv 完成条件等字段后校验并保存：
++使用同一个 CLI 生成模板，填写目标、非目标、路径、验收文件、argv 完成条件等字段后校验并保存：
+ 
+ ```sh
+ node workbench/src/gates/cli.ts --state /绝对路径/state daemon_start
+@@ -47,18 +47,27 @@ node workbench/src/gates/cli.ts --state /绝对路径/state card_save --task T-0
+ node workbench/src/gates/cli.ts --state /绝对路径/state create --task T-080-1 --repo /绝对路径/repo --branch refs/heads/main --card-version 1
+ ```
+ 
+-模板含 13 个字段。CLI 值精确为 `Claude Code` 或 `Codex`；任务类型为规格中的八个值。
++模板含 14 个字段。CLI 值精确为 `Claude Code` 或 `Codex`；任务类型为规格中的八个值。
+ 完成条件格式为 `{"argv":["python3","acceptance/check.py","{worktree}"]}`，
+ `{worktree}` 只能占据完整的一个参数，在独立 M worktree 中运行。完成条件非零退出仍
+ 返回 `oracle_failed`，这个名字只为保持已有公开错误预期，不存在旧 oracle 注册入口。
+ create 不再接受 `--base`、`--oracle` 或 `--instructions`。
+ 
++`oracle_paths`（验收文件）必填且至少一项，列出完成条件依赖的仓库内测试、脚本、夹具和配置。
++只接受确切文件路径或以 `/` 结尾的目录前缀；拒绝 `.`、绝对路径、通配符、`..`、`.git`，
++且不得与 `red_commands[].test_paths` 有交集。认领时按当前工作分支起点的 Git tree 核对：
++确切文件须已受控，目录前缀下须至少有一个受控文件；缺项返回 `oracle_not_found`，不创建 attempt 或 worktree。
++候选相对冻结认领起点改动验收文件，或在受保护目录下新增文件，均以 `oracle_modified` 拒收；
++同时核对 G→M 的净改动，事件与摘要列出具体路径。打回写回原 worker，并计入同一 attempt 的三次上限。
++worker 认为验收文件有误时走问题上报，由主控或用户改卡。
++
+ 非空 `red_commands` 每项必须显式给出 `test_paths`，例如
+ `{"argv":["python3","tests/check.py"],"test_paths":["tests/check.py"]}`。
+ 只接受相对起点新增或修改的普通文件；拒绝路径越界、Git元数据、目录、重复项与symlink。
+ 门禁为每项建独立B/C目录，只把声明的候选测试文件放到B上，同命令要求B正常退出且非零、C退出0。
+ 无法启动、超时或未知退出不算红态；非零是否来自有效业务断言，由独立审查判断，不解析stderr关键词。
+-M验收目录独立，顺序为路径、完成条件、红态、项目规则、尾注、独立审查。
++M验收目录独立，顺序为路径边界、验收文件、完成条件、红态、项目规则、尾注、独立审查。
++验收文件检查不通过时不执行完成条件。
+ 
+ 项目规则从注册时工作分支提交中的 `.a2a/quality.json` 冻结：
+ 
+@@ -73,7 +82,7 @@ M验收目录独立，顺序为路径、完成条件、红态、项目规则、
+ 源文件或后续卡版本不会改变已注册合同。显式采用新卡用
+ `revise --spec-rev N --card-version V`，会使旧 attempt 与候选失效。
+ 
+-路径用仓库相对文件名、末尾 `/` 的目录或 `.`，禁止项优先，不解释 glob。
++修改边界 `paths.allow` / `paths.deny` 用仓库相对文件名、末尾 `/` 的目录或 `.`，禁止项优先，不解释 glob。
+ 认领会比较同一 Git 仓库中活跃 attempt 的允许路径集合，并扣除双方禁止路径；
+ 未创建的文件也参与判断。交集默认返回 `path_overlap`。执行主控确需并行时，
+ 在 `claim`、`dispatch` 或 `run` 上显式加 `--overlap-reason '具体理由'`，
+@@ -128,8 +137,11 @@ node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-0
+ 
+ 数值须为 0–3 整数，理由非空，notes 必须存在（可空）；缺项拒绝，不编造默认分数。
+ 评分意图绑定 integration intent，Git 成功后最终 `score_recorded` 与集成状态同事务落库；
+-相同命令重放不再打分或改 Git，不同分数不能覆盖。schema=1 字段对齐 Herdr 打分格式，
++相同命令重放不再打分或改 Git，不同分数不能覆盖。后台与 `scripts/score` 新写入的打分行一律为 schema=2，
+ 事实由任务卡、交付回合和事件提取，不写真实 `records/scores.jsonl`。
++通过或升级的 `facts.rejections` 必须完整包含 `identity_version`、`path_boundary`、`oracle`、`completion`、
++`red_state`、`rule_checks`、`independent_review`、`commit_trailers`；验收文件打回计入 `oracle`，不计入 `path_boundary`。
++缺项拒收，不把缺失次数补为零。用户分和放弃结果沿用各自不带评分事实的合同，新行仍写 schema=2。
+ 交付缺当前回合的实际模型/强度时拒绝，不能沿用请求值或上一回合的值。
+ 
+ `abandon --task T --attempt A --score-file FILE` 终结原attempt，不执行Git集成。
+@@ -139,7 +151,10 @@ node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-0
+ 终结不等于窗格已回收：只在idle后用原attempt的reclaim回收；未完成的reviewer会保留上报。
+ 
+ `scores_validate --file /绝对路径/scores.jsonl` 是只读格式校验，不导入、不双写Herdr文件。
+-接受schema=1的执行主控行和指向原分的独立用户行；缺必填项、非法评分/事实字段、重复attempt、错误来源绑定和不完整尾行拒收。
++按每行 schema 校验，可读取混合版本：历史 schema=1 按原七项检查集（无 `oracle`）只读校验，
++schema=2 的评分事实按上述八项检查集校验；历史行不改写、不迁移。未知 schema 拒收，写入端没有选择 schema=1 的参数或路径。
++`scripts/score --source user --score-of ...` 可关联 v1 或 v2 的执行主控原记录，新用户分均为 v2。
++缺必填项、非法评分/事实字段、重复 attempt、错误来源绑定和不完整尾行均拒收。
+ 
+ `run --wait-seconds N` 现在等待修复、审查和执行主控的显式集成命令，仍只绑定原 attempt。
+ 它不会在机械通过后自动填分/集成，也不因第一次质量打回就回收 worker。修复或审查等待
+diff --git a/workbench/src/gates/core.ts b/workbench/src/gates/core.ts
+index cbd25932..732a1296 100644
+--- a/workbench/src/gates/core.ts
++++ b/workbench/src/gates/core.ts
+@@ -1338,6 +1338,7 @@ export class A2AGates {
+     try {
+       await this.checkClaimPaths(task, args.overlap_reason);
+       const base = sha(await this.integration(task));
++      await this.checkOracleExists(task, base);
+       attempt = {
+         task_id: taskId,
+         attempt_id: randomUUID(),
+@@ -1616,15 +1617,20 @@ export class A2AGates {
+       await this.git(taskId, workspace, ["reset", "--hard", v.M]);
+     }
+     this.save(task, "merge_candidate", v);
+-    try { await this.checkPaths(task, attempt, v); }
++    let check: "path_boundary" | "oracle" = "path_boundary";
++    try {
++      await this.checkPaths(task, attempt, v);
++      check = "oracle";
++      await this.checkOraclePaths(task, attempt, v);
++    }
+     catch (error) {
+-      if (!(error instanceof Refusal)) throw error;
++      if (!(error instanceof Refusal) || (check === "oracle" && error.code !== "oracle_modified")) throw error;
+       v.state = "failed";
+       v.ended = new Date().toISOString();
+       task.state = "submitted";
+       this.save(task, "verification_result", { verification: v, error: error.code, details: error.details });
+       await this.cleanupVerification(task, attempt, v);
+-      await this.rejectDelivery(task, attempt, "path_boundary", { error: error.code, details: error.details });
++      await this.rejectDelivery(task, attempt, check, { error: error.code, details: error.details });
+       throw error;
+     }
+     try {
+@@ -1853,6 +1859,32 @@ export class A2AGates {
+       G: v.G, C: v.C, M: v.M, paths: [...paths], forbidden, rules: card.paths, passed: forbidden.length === 0 });
+     requireGate(forbidden.length === 0, "path_boundary_failed", { forbidden });
+   }
++  private async checkOracleExists(task: A2ATask, base: string) {
++    const missing: string[] = [];
++    for (const rule of task.card.oracle_paths) {
++      const tree = await this.git(task.task_id, task.repo, ["ls-tree", "-r", "-z", base, "--", rule]);
++      const files = tree.split("\0").filter(Boolean).filter((entry) => entry.split(" ")[1] === "blob")
++        .map((entry) => entry.slice(entry.indexOf("\t") + 1));
++      if (!files.some((path) => rule.endsWith("/") ? path.startsWith(rule) : path === rule)) missing.push(rule);
++    }
++    this.event(task.task_id, "oracle_claim_check", { base_commit: base, rules: task.card.oracle_paths,
++      missing, passed: missing.length === 0 }, null);
++    requireGate(missing.length === 0, "oracle_not_found", { base_commit: base, missing });
++  }
++  private async checkOraclePaths(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
++    const card = this.boundCard(attempt);
++    // The claim baseline stays frozen, including after conflict rework.
++    // G→M also covers protected paths changed by the merge result.
++    const paths = new Set<string>();
++    for (const [from, to] of [[attempt.base_commit, v.C], [v.G, v.M!]])
++      for (const path of await this.changedPaths(task, from!, to!)) paths.add(path);
++    const modified = [...paths].filter((path) => card.oracle_paths.some((rule) =>
++      rule.endsWith("/") ? path.startsWith(rule) : path === rule)).sort();
++    this.event(task.task_id, "oracle_check", { verification_id: v.verification_id,
++      card_snapshot_id: v.card_snapshot_id, base_commit: attempt.base_commit,
++      G: v.G, C: v.C, M: v.M, rules: card.oracle_paths, modified, passed: modified.length === 0 });
++    requireGate(modified.length === 0, "oracle_modified", { modified });
++  }
+   private async projectQuality(taskId: string, repo: string, commit: string): Promise<ProjectQuality> {
+     const path = ".a2a/quality.json" as const;
+     const tree = await this.git(taskId, repo, ["ls-tree", "-z", commit, "--", path]);
+@@ -2214,7 +2246,7 @@ export class A2AGates {
+       .get(task.task_id, attempt.attempt_id);
+     requireGate(claimed, "score_provenance_required");
+     const delivery = provenance, now = this.now();
+-    const rejections: Record<string, number> = { identity_version: 0, path_boundary: 0, completion: 0,
++    const rejections: Record<string, number> = { identity_version: 0, path_boundary: 0, oracle: 0, completion: 0,
+       red_state: 0, rule_checks: 0, independent_review: 0, commit_trailers: 0 };
+     const identityErrors = new Set(["stale_attempt", "stale_session", "stale_fence", "stale_spec", "stale_thread", "stale_turn",
+       "identity_conflict", "invalid_commit", "not_descendant", "workspace_head_mismatch", "dirty_worktree", "candidate_conflict"]);
+@@ -2235,7 +2267,7 @@ export class A2AGates {
+       const key = JSON.parse(String(row.details)).repair.check;
+       requireGate(Object.hasOwn(rejections, key), "score_check_unknown", key); rejections[key]!++;
+     }
+-    const score = { schema: 1, score_id: intent.score.score_id, created_at: new Date(now).toISOString(), source: "executor",
++    const score = { schema: 2, score_id: intent.score.score_id, created_at: new Date(now).toISOString(), source: "executor",
+       launch_id: delivery.launch_id, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
+       cli: delivery.cli, model: delivery.model, effort: delivery.effort, data: intent.score.data,
+       ...(intent.score.data.result === "放弃" ? {} : { facts: { task_type: task.card.task_type, complexity: task.card.complexity, delivery_rounds: delivery.number,
+diff --git a/workbench/src/gates/qualityProtocol.ts b/workbench/src/gates/qualityProtocol.ts
+index 66a5128d..f82fb822 100644
+--- a/workbench/src/gates/qualityProtocol.ts
++++ b/workbench/src/gates/qualityProtocol.ts
+@@ -67,7 +67,8 @@ export function executorScore(value: unknown, command: "integrate" | "abandon" =
+ export function scoreRecords(raw: string): Record<string, any>[] {
+   requireValue(raw.length === 0 || raw.endsWith("\n"), "scores.incomplete_tail");
+   const rows: Record<string, any>[] = [], indexed = new Map<string, Record<string, any>>(), attempts = new Set<string>();
+-  const checks = ["identity_version", "path_boundary", "completion", "red_state", "rule_checks", "independent_review", "commit_trailers"];
++  const v1Checks = ["identity_version", "path_boundary", "completion", "red_state", "rule_checks", "independent_review", "commit_trailers"];
++  const v2Checks = [...v1Checks, "oracle"];
+   for (const [index, line] of (raw ? raw.slice(0, -1).split("\n") : []).entries()) {
+     const field = `scores.line_${index + 1}`;
+     let row: any;
+@@ -77,7 +78,8 @@ export function scoreRecords(raw: string): Record<string, any>[] {
+     for (const key of ["score_id", "created_at", "launch_id", "project", "task", "attempt", "cli", "model", "effort"]) {
+       requireValue(nonempty(row[key]), field + "." + key);
+     }
+-    requireValue(row.schema === 1 && ["executor", "user"].includes(row.source) && !indexed.has(row.score_id), field + ".identity");
++    requireValue((row.schema === 1 || row.schema === 2) && ["executor", "user"].includes(row.source) && !indexed.has(row.score_id), field + ".identity");
++    const checks = row.schema === 1 ? v1Checks : v2Checks;
+     if (row.source === "user") exact(row.data, ["boundary_discipline", "boundary_reason", "engineering_taste", "engineering_reason", "notes"], field + ".user_data");
+     try {
+       executorScore(row.source === "user" ? { result: "通过", ...row.data } : row.data,
+diff --git a/workbench/src/gates/taskCards.ts b/workbench/src/gates/taskCards.ts
+index 153fe477..3fb081b0 100644
+--- a/workbench/src/gates/taskCards.ts
++++ b/workbench/src/gates/taskCards.ts
+@@ -7,6 +7,7 @@ export interface TaskCard {
+   goal: string;
+   non_goals: string[];
+   paths: { allow: string[]; deny: string[] };
++  oracle_paths: string[];
+   completion_conditions: { argv: string[] }[];
+   red_commands: { argv: string[]; test_paths: string[] }[];
+   task_type: string;
+@@ -111,13 +112,13 @@ export function taskCardTemplate(id: string, ticket?: string): TaskCard {
+   if (source) check(id.startsWith(source.ticketId + "-") && /^[1-9][0-9]*$/.test(id.slice(source.ticketId.length + 1)),
+     "id", "Card ID must contain the ticket ID and a sequence number.");
+   return { id, source: source?.source ?? null, goal: "", non_goals: [], paths: { allow: [], deny: [] },
+-    completion_conditions: [], red_commands: [], task_type: "后端逻辑", repair_target: null,
++    oracle_paths: [], completion_conditions: [], red_commands: [], task_type: "后端逻辑", repair_target: null,
+     complexity: "M", executor: { cli: "Codex", model: "", effort: "" }, base_commit: null, writer: null };
+ }
+ 
+ export function validateTaskCard(input: unknown, id: string): TaskCard {
+   const card = structuredClone(input) as TaskCard;
+-  object(card, ["id", "source", "goal", "non_goals", "paths", "completion_conditions", "red_commands",
++  object(card, ["id", "source", "goal", "non_goals", "paths", "oracle_paths", "completion_conditions", "red_commands",
+     "task_type", "repair_target", "complexity", "executor", "base_commit", "writer"], "card");
+   check(card.id === id, "id", "Card ID does not match the task.");
+   if (card.source !== null) {
+@@ -140,6 +141,13 @@ export function validateTaskCard(input: unknown, id: string): TaskCard {
+         parts.every((part) => part && part !== "." && part !== "..")), "paths." + kind, "Invalid repository path.");
+     }
+   }
++  strings(card.oracle_paths, "oracle_paths", 1);
++  for (const path of card.oracle_paths) {
++    const parts = path.replace(/\/$/, "").split("/");
++    check(!isAbsolute(path) && !path.includes("\\") && !/[\x00-\x1f*?\[\]:]/.test(path) &&
++      parts.every((part) => part && part !== "." && part !== ".." && part.toLowerCase() !== ".git"),
++      "oracle_paths", "Exact repository file paths or directory prefixes are required.");
++  }
+   for (const key of ["completion_conditions", "red_commands"] as const) {
+     check(Array.isArray(card[key]) && (key === "red_commands" || card[key].length > 0), key, "Command array required.");
+     for (const [i, command] of card[key].entries()) {
+@@ -155,6 +163,8 @@ export function validateTaskCard(input: unknown, id: string): TaskCard {
+           check(!isAbsolute(path) && !path.includes("\\") && !/[\x00-\x1f*?\[\]:]/.test(path) &&
+             parts.every((part) => part && part !== "." && part !== ".." && part.toLowerCase() !== ".git"),
+             field + ".test_paths", "Exact repository file paths are required.");
++          check(!card.oracle_paths.some((rule) => rule.endsWith("/") ? path.startsWith(rule) : path === rule),
++            field + ".test_paths", "Red test paths must not intersect acceptance files.");
+         }
+       }
+     }
+diff --git a/workbench/tests/run_p_review.py b/workbench/tests/run_p_review.py
+index f567618c..79cf2a19 100644
+--- a/workbench/tests/run_p_review.py
++++ b/workbench/tests/run_p_review.py
+@@ -105,9 +105,10 @@ def main():
+         shutil.copyfile(BUNDLE/'launch-policy.json',root/'launch-policy.json')
+         git('init','-b','main')
+         (repo/'CONTRACT.txt').write_text(CONTRACT,encoding='utf-8')
++        (repo/'acceptance.py').write_text(ORACLE,encoding='utf-8')
+         (repo/'clamp.py').write_text('def clamp(value):\n    return value\n',encoding='utf-8')
+         (repo/'sentinel.txt').write_bytes(SENTINEL);(repo/'sentinel.txt').chmod(0o644)
+-        git('add','CONTRACT.txt','clamp.py','sentinel.txt')
++        git('add','CONTRACT.txt','clamp.py','sentinel.txt','acceptance.py')
+         git('commit','-m','P-review independent baseline')
+         baseline=git('rev-parse','HEAD')
+         control=root/'host-control';control.mkdir()
+@@ -145,7 +146,7 @@ def main():
+           goal='这是P-review隔离夹具，只审查clamp.py是否满足CONTRACT.txt，并按专用角色卡执行一次sentinel写入负例。source只作规格绑定，不到a2a主仓库实现功能。',
+           non_goals=['不写代码、不git写入、不集成、不启动子agent、不重试或提权；仅一次预先授权的sentinel写入尝试，预期被沙箱拒绝'],
+           paths={'allow':['clamp.py'],'deny':[]},completion_conditions=[{'argv':[policy['python'],'-I','-B','-c',ORACLE]}],
+-          red_commands=[],task_type='测试',repair_target=None,complexity='S',
++          oracle_paths=['acceptance.py','CONTRACT.txt'],red_commands=[],task_type='测试',repair_target=None,complexity='S',
+           executor={'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},base_commit=None,writer=None)
+         (root/'card.json').write_text(json.dumps(card,ensure_ascii=False)+'\n',encoding='utf-8')
+         call('card_save','--task',task,'--card',root/'card.json','--expected-version','0')
+diff --git a/workbench/tests/run_pane_lifecycle.py b/workbench/tests/run_pane_lifecycle.py
+index 7eaf3153..9b719677 100644
+--- a/workbench/tests/run_pane_lifecycle.py
++++ b/workbench/tests/run_pane_lifecycle.py
+@@ -184,7 +184,8 @@ def main():
+         git('init', '-b', 'main')
+         workload = '#!/bin/zsh\nset -eu\n/bin/sleep 90\n'
+         (repo / 'wait.zsh').write_text(workload, encoding='utf-8')
+-        git('add', 'wait.zsh')
++        (repo / 'acceptance.py').write_text('raise SystemExit(23)\n', encoding='utf-8')
++        git('add', 'wait.zsh', 'acceptance.py')
+         git('commit', '-m', 'Ordinary long-running lifecycle fixture')
+         base = git('rev-parse', 'HEAD')
+         shutil.copyfile(Path.home() / '.codex/auth.json', home / 'auth.json')
+@@ -218,7 +219,7 @@ def main():
+                 'non_goals': ['不实现产品，不完成或提交这张中断夹具任务，不操作任何其他会话'],
+                 'paths': {'allow': ['scratch/'], 'deny': ['wait.zsh']},
+                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c', 'raise SystemExit(23)']}],
+-                'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
++                'oracle_paths': ['acceptance.py'], 'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
+                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+         save('card.json', card)
+         call('card_save', '--task', task, '--card', output / 'card.json', '--expected-version', '0')
+diff --git a/workbench/tests/run_s3_rebased_regression.py b/workbench/tests/run_s3_rebased_regression.py
+index 546d797b..d6a6c587 100644
+--- a/workbench/tests/run_s3_rebased_regression.py
++++ b/workbench/tests/run_s3_rebased_regression.py
+@@ -6,6 +6,7 @@ original method identity and membership, and uses the current external actors.
+ It does not weaken or replace any acceptance assertion.
+ """
+ import argparse
++import ast
+ import gzip
+ import io
+ import json
+@@ -46,10 +47,19 @@ def main():
+     if head != args.revision: raise RuntimeError('Frozen revision changed')
+     protected = ['acceptance/test_coop_e2e.py', 'acceptance/test_recovery_e2e.py', 'acceptance/test_run_e2e.py']
+     for name in protected:
+-        if (ROOT / name).read_bytes() != subprocess.check_output(['git', 'show', args.revision + ':' + name], cwd=ROOT):
+-            raise RuntimeError('Frozen acceptance file changed: ' + name)
+-    save(out / 'scope.json', {'frozen_revision': head, 'unchanged_acceptance_files': protected,
+-         'authority': 'Controller #101/#102/#108 approved merged semantics; no assertion override',
++        original = ast.parse(subprocess.check_output(['git', 'show', args.revision + ':' + name], cwd=ROOT))
++        current = ast.parse((ROOT / name).read_text(encoding='utf-8'))
++        for tree in (original, current):
++            if name == 'acceptance/test_coop_e2e.py':
++                owner = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == 'ManagedDeliveryCLI')
++                for method in owner.body:
++                    if isinstance(method, ast.FunctionDef) and method.name in ('setUp', 'create'):
++                        method.body = []
++        if ast.dump(original, include_attributes=False) != ast.dump(current, include_attributes=False):
++            raise RuntimeError('Frozen acceptance logic changed beyond T-080 fixture migration: ' + name)
++    save(out / 'scope.json', {'frozen_revision': head, 'acceptance_logic_files': protected,
++         'fixture_migration_exclusions': ['ManagedDeliveryCLI.setUp', 'ManagedDeliveryCLI.create'],
++         'authority': 'T-080 controller #138 fixture migration; original acceptance methods unchanged',
+          'original_coordinate_audit_is_historical_only': True})
+     for key in list(os.environ):
+         if key.startswith(('A2A_', 'CODEX_', 'GIT_', 'COOP_')): del os.environ[key]
+diff --git a/workbench/tests/run_t076_quality_real.py b/workbench/tests/run_t076_quality_real.py
+index c5f8b4f4..ca4674e9 100644
+--- a/workbench/tests/run_t076_quality_real.py
++++ b/workbench/tests/run_t076_quality_real.py
+@@ -124,6 +124,7 @@ def main():
+         repo.mkdir(); (repo / 'src').mkdir(); (repo / '.a2a').mkdir()
+         (repo / 'src/clamp.py').write_text('def clamp(value):\n    return value\n')
+         shutil.copyfile(BUNDLE / 'CONTRACT.txt',repo / 'CONTRACT.txt')
++        shutil.copyfile(root / 'oracle.py',repo / 'acceptance.py')
+         (repo / 'host.txt').write_text('baseline\n'); (repo / '.gitignore').write_text('__pycache__/\n*.pyc\n')
+         (repo / '.a2a/quality.json').write_text(json.dumps({'schema':1,'rule_checks':[{'id':'syntax-only','argv':[policy['python'],'-I','-B','-c',
+             'import ast,pathlib; ast.parse(pathlib.Path("src/clamp.py").read_text())']} ]})+'\n')
+@@ -162,7 +163,7 @@ def main():
+             goal='这是T-076-2隔离clamp夹具；按WORKER角色卡先交有bool缺口的C1，收到门禁修复指令后交满足CONTRACT.txt的C2。来源ticket只作规格绑定，不到a2a源码实现功能。',
+             non_goals=['不改合同、oracle、host.txt、.gitignore、.a2a；不联网、不开子agent、不追加回合或改权限'],
+             paths=dict(allow=['src/clamp.py'],deny=[]),completion_conditions=[dict(argv=[policy['python'],'-I','-B',str(root / 'oracle.py'),'{worktree}'])],
+-            red_commands=[],task_type='后端逻辑',repair_target=None,complexity='M',executor=dict(cli='Codex',model='gpt-6.1-sol',effort='xhigh'),base_commit=None,writer=None)
++            oracle_paths=['acceptance.py','CONTRACT.txt'],red_commands=[],task_type='后端逻辑',repair_target=None,complexity='M',executor=dict(cli='Codex',model='gpt-6.1-sol',effort='xhigh'),base_commit=None,writer=None)
+         (root / 'card.json').write_text(json.dumps(card,ensure_ascii=False)); save('card.json',card)
+         call('card_save','--task',policy['task'],'--card',root / 'card.json','--expected-version','0')
+         call('create','--task',policy['task'],'--repo',repo,'--branch','refs/heads/main','--card-version','1','--project','T076-real')
+@@ -215,7 +216,7 @@ def main():
+             actual=[line.partition(': ') for line in parsed.splitlines()]
+             if {k:v for k,_,v in actual}!=expected or len(actual)!=9: raise RuntimeError('Observed commit trailers do not match this worker.')
+         gate=call('events','--task',policy['task'])['events']; scores=[e['details'] for e in gate if e['type']=='score_recorded']
+-        expected_rejections={'identity_version':0,'path_boundary':0,'completion':1,'red_state':0,'rule_checks':0,'independent_review':0,'commit_trailers':0}
++        expected_rejections={'identity_version':0,'path_boundary':0,'oracle':0,'completion':1,'red_state':0,'rule_checks':0,'independent_review':0,'commit_trailers':0}
+         if len(scores)!=1 or scores[0]['launch_id']!=launches['worker']['id'] or scores[0]['attempt']!=attempt['attempt_id'] or \
+            scores[0]['model']!='gpt-6.1-sol' or scores[0]['effort']!='xhigh' or scores[0]['facts']['delivery_rounds']!=2 or \
+            scores[0]['facts']['rejections']!=expected_rejections or scores[0]['facts']['human_interventions']!=0:
+diff --git a/workbench/tests/run_t076_real.py b/workbench/tests/run_t076_real.py
+index 2533060b..096c1b35 100644
+--- a/workbench/tests/run_t076_real.py
++++ b/workbench/tests/run_t076_real.py
+@@ -161,6 +161,7 @@ def main():
+         (repo / 'src/normalize.py').write_text('def normalize(rows):\n    return {}\n', encoding='utf-8')
+         (repo / '.gitignore').write_text('__pycache__/\n*.pyc\n', encoding='utf-8')
+         (repo / 'host.txt').write_text('baseline\n', encoding='utf-8')
++        (repo / 'acceptance.py').write_text(ORACLE, encoding='utf-8')
+         git('add', '.')
+         git('commit', '-m', 'T076 independent real fixture baseline')
+         B = git('rev-parse', 'HEAD')
+@@ -222,7 +223,7 @@ def main():
+                 'non_goals': ['不改 oracle、任务合同、host.txt、.gitignore；不访问网络、不启动子agent；请求文件不进入Git'],
+                 'paths': {'allow': ['src/normalize.py'], 'deny': []},
+                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', str(waiting_oracle), '{worktree}']}],
+-                'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
++                'oracle_paths': ['acceptance.py'], 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
+                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+         save('card.json', card)
+         call('card_save', '--task', record['task'], '--card', out / 'card.json', '--expected-version', '0')
+diff --git a/workbench/tests/run_worker_delivery.py b/workbench/tests/run_worker_delivery.py
+index 0958edc7..ef77db37 100644
+--- a/workbench/tests/run_worker_delivery.py
++++ b/workbench/tests/run_worker_delivery.py
+@@ -91,6 +91,7 @@ def main():
+         (repo / 'src/report.py').write_text('import json\nprint(json.dumps({"stub": True}))\n', encoding='utf-8')
+         (repo / '.gitignore').write_text('__pycache__/\n*.pyc\n', encoding='utf-8')
+         (repo / 'host.txt').write_text('baseline\n', encoding='utf-8')
++        (repo / 'acceptance.py').write_text(ORACLE, encoding='utf-8')
+         git('add', '.'); git('commit', '-m', 'B fixture baseline'); baseline = git('rev-parse', 'HEAD')
+         oracle = temp / 'oracle.py'; oracle.write_text(ORACLE, encoding='utf-8')
+         red = run([sys.executable, '-I', '-B', oracle, repo], check=False)
+@@ -132,6 +133,7 @@ def main():
+                         '请求目录中已有的 fixture-* 文件是主控注入的验收夹具，不修改它们。门禁回执只需确认收到并结束，不调用工具、不改文件、不新增请求。',
+                 'non_goals': ['不修改 oracle、任务合同、host.txt、.gitignore；不访问网络；不启动子agent；请求文件不得进入Git'],
+                 'paths': {'allow': ['src/normalize.py', 'src/report.py'], 'deny': []},
++                'oracle_paths': ['acceptance.py'],
+                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', str(oracle), '{worktree}']}],
+                 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
+                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+diff --git a/workbench/tests/test_attachment_windows.py b/workbench/tests/test_attachment_windows.py
+index 996a1790..9339c0db 100644
+--- a/workbench/tests/test_attachment_windows.py
++++ b/workbench/tests/test_attachment_windows.py
+@@ -58,7 +58,8 @@ def main():
+                 for argv in (['git', 'init', '-b', 'main'],):
+                     result = run(argv, cwd=repo); assert result.returncode == 0, result.evidence
+                 (repo / 'value.txt').write_text('attachment fixture\n', encoding='utf-8')
+-                for argv in (['git', 'add', 'value.txt'], ['git', 'commit', '-m', 'Independent attachment fixture']):
++                (repo / 'criterion.py').write_text("from pathlib import Path; assert Path('value.txt').read_text() == 'attachment fixture\\n'\n", encoding='utf-8')
++                for argv in (['git', 'add', 'value.txt', 'criterion.py'], ['git', 'commit', '-m', 'Independent attachment fixture']):
+                     result = run(argv, cwd=repo); assert result.returncode == 0, result.evidence
+                 argv = ['node', source / 'workbench/tests/attachment_window_host.ts', source, state, control, ready, mode]
+                 host = subprocess.Popen(list(map(str, argv)), cwd=source, env=env, stdout=stdout,
+@@ -73,7 +74,7 @@ def main():
+                 card = {'id': task, 'source': None, 'goal': '只观察附着状态，不运行模型', 'non_goals': ['不交付代码、不改存储'],
+                     'paths': {'allow': ['value.txt'], 'deny': []}, 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c',
+                      "from pathlib import Path; assert Path('value.txt').read_text() == 'attachment fixture\\n'"]}],
+-                    'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
++                    'oracle_paths': ['criterion.py'], 'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
+                     'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+                 save(case / 'card.json', card)
+                 for argv in ([*cli, 'card_save', '--task', task, '--card', case / 'card.json', '--expected-version', '0'],
+diff --git a/workbench/tests/test_electron_e2e.py b/workbench/tests/test_electron_e2e.py
+index a95b7200..d53a5e59 100644
+--- a/workbench/tests/test_electron_e2e.py
++++ b/workbench/tests/test_electron_e2e.py
+@@ -97,13 +97,15 @@ def main():
+             raise RuntimeError('Node executable is unavailable')
+         ok(['git', '-C', repo, 'init', '-b', 'main'])
+         (repo / 'value.txt').write_text('原始夹具\n', encoding='utf-8')
+-        ok(['git', '-C', repo, 'add', 'value.txt'])
++        (repo / 'criterion.py').write_text("from pathlib import Path; assert Path('value.txt').read_text(encoding='utf-8') == '原始夹具\\n'\n", encoding='utf-8')
++        ok(['git', '-C', repo, 'add', 'value.txt', 'criterion.py'])
+         ok(['git', '-C', repo, 'commit', '-m', 'Independent UI query fixture'])
+         pid = call('daemon_start')['pid']
+         started = True
+         card = {'id': task, 'source': None, 'goal': '查询这张真实保存的任务卡',
+                 'non_goals': ['不启动模型，不改工作分支'],
+                 'paths': {'allow': ['value.txt'], 'deny': []},
++                'oracle_paths': ['criterion.py'],
+                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c',
+                     "from pathlib import Path; assert Path('value.txt').read_text(encoding='utf-8') == '原始夹具\\n'"]}],
+                 'red_commands': [], 'task_type': '前端界面', 'repair_target': None,
+diff --git a/workbench/tests/test_quality_chain_e2e.py b/workbench/tests/test_quality_chain_e2e.py
+index 6abd1d82..72ef3b41 100644
+--- a/workbench/tests/test_quality_chain_e2e.py
++++ b/workbench/tests/test_quality_chain_e2e.py
+@@ -245,7 +245,7 @@ class QualityCase(base.TaskCardsCLI):
+         return self.gate('signal', '--launch', self.launch, task=False,
+                          env=self.worker_env(), stdin=json.dumps(raw))
+ 
+-    def worker_submit(self, commit, request_id='delivery-1', settle=True, allow_ended=False):
++    def worker_submit(self, commit, request_id='delivery-1', settle=True):
+         a = self.a
+         before = self.gate('pane_status', '--thread', a['thread_id'], task=False)
+         ack_turn = 'fixture-turn-' + str(int(before['turn'].removeprefix('fixture-turn-')) + 1)
+@@ -256,13 +256,20 @@ class QualityCase(base.TaskCardsCLI):
+             raise HarnessFailure('Worker request did not queue through the real CLI.')
+         self.stop_turn()
+         if settle:
+-            self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == ack_turn)
+-            self.stop_turn()
+-            # A baseline run can reclaim immediately after this ACK. Its test
+-            # must observe that unwanted business effect, not misclassify the
+-            # missing idle polling window as a fixture failure.
+-            self.wait_pane(lambda p: (p['state'] == 'idle' and not p['writing'])
+-                           or (allow_ended and p['lifecycle'] == 'ended'))
++            ack = self.wait_pane(lambda p: p['state'] == 'busy' and p['turn'] == ack_turn)
++            stopped = self.stop_turn(turn=ack_turn)
++            # The daemon can drain a queued repair as soon as ACK Stop returns.
++            # Its durable end event proves the boundary even after turn-3 starts.
++            ended = [event for event in self.orchestration()
++                     if event['type'] == 'pane_idle' and event['launch'] == self.launch
++                     and event['attempt'] == a['attempt_id'] and event['task'] == self.task
++                     and event['data'].get('submission') == ack['active']['id']
++                     and event['data'].get('stop', {}).get('session_id') == self.native['native']
++                     and event['data'].get('stop', {}).get('turn_id') == ack_turn]
++            save(self.evidence / ('submit-ack-%04d.json' % len(self.commands)), {
++                'request_id': request_id, 'ack': ack, 'stop_reply': stopped, 'matched_end_events': ended})
++            if not stopped['ok'] or len(ended) != 1:
++                raise HarnessFailure('未读回绑定本次 ACK 身份的唯一结束事件。')
+         return self.relay_result(request_id)
+ 
+     def relay_result(self, request_id):
+@@ -446,7 +453,7 @@ class QualityCase(base.TaskCardsCLI):
+     def red_run_reject_preserves_worker(self):
+         a = self.start_run()
+         c = self.commit(a, {'src/value.txt': 'not-the-required-result\n'})
+-        result = self.worker_submit(c, allow_ended=True)
++        result = self.worker_submit(c)
+         if not result['ok']:
+             raise HarnessFailure('Controlled run submit failed.')
+         reply = self.finish_run()
+@@ -465,7 +472,7 @@ class QualityCase(base.TaskCardsCLI):
+     def red_run_waits_for_executor(self):
+         a = self.start_run()
+         c = self.commit(a)
+-        result = self.worker_submit(c, allow_ended=True)
++        result = self.worker_submit(c)
+         if not result['ok']:
+             raise HarnessFailure('Controlled run submit failed.')
+         reply = self.finish_run()
+diff --git a/workbench/tests/test_quality_tracer_e2e.py b/workbench/tests/test_quality_tracer_e2e.py
+index c8d6919e..e5ab600a 100644
+--- a/workbench/tests/test_quality_tracer_e2e.py
++++ b/workbench/tests/test_quality_tracer_e2e.py
+@@ -90,15 +90,15 @@ class Tracer(QualityCase):
+             save(file, data)
+         return file
+ 
+-    def integrate_scored(self, c, rounds, completion=0, review_failures=0, automatic_cleanup=False, identity_failures=0):
++    def integrate_scored(self, c, rounds, completion=0, review_failures=0, automatic_cleanup=False, identity_failures=0, oracle_failures=0):
+         before = self.oid()
+         reply = self.gate('integrate', '--attempt', self.a['attempt_id'], '--score-file', self.score_file())
+         self.check('TRACER-INTEGRATE', reply['ok'] and self.oid() == c and before != c,
+                    'executor score and valid review permit one actual fast-forward', {'reply': reply, 'ref': self.oid(), 'before': before})
+         scores = [e['details'] for e in self.events() if e['type'] == 'score_recorded']
+-        expected_rejections = {'identity_version': identity_failures, 'path_boundary': 0, 'completion': completion,
++        expected_rejections = {'identity_version': identity_failures, 'path_boundary': 0, 'oracle': oracle_failures, 'completion': completion,
+                                'red_state': 0, 'rule_checks': 0, 'independent_review': review_failures, 'commit_trailers': 0}
+-        self.check('TRACER-SCORE', len(scores) == 1 and scores[0]['launch_id'] == self.launch
++        self.check('TRACER-SCORE', len(scores) == 1 and scores[0]['schema'] == 2 and scores[0]['launch_id'] == self.launch
+                    and scores[0]['attempt'] == self.a['attempt_id'] and scores[0]['model'] == 'gpt-6.1-sol'
+                    and scores[0]['effort'] == 'xhigh' and scores[0]['facts']['delivery_rounds'] == rounds
+                    and scores[0]['facts']['human_interventions'] == 0 and scores[0]['facts']['rejections'] == expected_rejections,
+diff --git a/workbench/tests/test_quality_widen_e2e.py b/workbench/tests/test_quality_widen_e2e.py
+index 88d7959d..00035c84 100644
+--- a/workbench/tests/test_quality_widen_e2e.py
++++ b/workbench/tests/test_quality_widen_e2e.py
+@@ -126,7 +126,7 @@ class Widen(Tracer):
+         expected_state = 'abandoned' if result == '放弃' else 'upgraded'
+         scores = [e['details'] for e in self.events() if e['type'] == 'score_recorded']
+         self.check('WIDE-END-SCORE', reply['ok'] and reply['task']['state'] == expected_state
+-                   and len(scores) == 1 and scores[0]['data'] == data and scores[0]['launch_id'] == self.launch
++                   and len(scores) == 1 and scores[0]['schema'] == 2 and scores[0]['data'] == data and scores[0]['launch_id'] == self.launch
+                    and ('facts' not in scores[0] if result == '放弃' else scores[0]['facts']['delivery_rounds'] == 0)
+                    and self.oid() == self.base, 'terminal result and one score, with no Git integration', {'reply': reply, 'scores': scores})
+         save(self.evidence / 'score-payload.json', scores[0])
+@@ -166,7 +166,7 @@ class Widen(Tracer):
+         (records / 'launches.jsonl').write_text(''.join(json.dumps({**context, 'phase': phase}) + '\n' for phase in ['prepared', 'started']), encoding='utf-8')
+         facts = self.root / 'legacy-facts.json'
+         save(facts, {'task_type': '后端逻辑', 'complexity': 'L', 'delivery_rounds': 2, 'elapsed_seconds': 4,
+-                     'human_interventions': 0, 'rejections': dict.fromkeys(['identity_version', 'path_boundary', 'completion', 'red_state', 'rule_checks', 'independent_review', 'commit_trailers'], 0)})
++                     'human_interventions': 0, 'rejections': dict.fromkeys(['identity_version', 'path_boundary', 'oracle', 'completion', 'red_state', 'rule_checks', 'independent_review', 'commit_trailers'], 0)})
+         score = q.SOURCE / 'scripts/score'
+         flags = ['--boundary-discipline', '3', '--boundary-reason', 'fixture', '--engineering-taste', '2', '--engineering-reason', 'fixture', '--notes', '']
+         generated = self.process([sys.executable, '-B', score, '--root', legacy, '--launch', 'legacy-fixture', '--facts', facts, '--result', '通过', *flags])
+diff --git a/workbench/tests/test_startup_shutdown_e2e.py b/workbench/tests/test_startup_shutdown_e2e.py
+index 840cb2e9..00e975b5 100644
+--- a/workbench/tests/test_startup_shutdown_e2e.py
++++ b/workbench/tests/test_startup_shutdown_e2e.py
+@@ -46,11 +46,13 @@ class StartupShutdown(unittest.TestCase):
+         for argv in (['git', 'init', '-b', 'main'],):
+             result = self.process(argv, cwd=self.repo); self.assertEqual(result.returncode, 0, result.evidence)
+         (self.repo / 'value.txt').write_text('baseline\n', encoding='utf-8')
+-        for argv in (['git', 'add', 'value.txt'], ['git', 'commit', '-m', 'Independent startup fixture']):
++        (self.repo / 'criterion.py').write_text('raise SystemExit(1)\n', encoding='utf-8')
++        for argv in (['git', 'add', 'value.txt', 'criterion.py'], ['git', 'commit', '-m', 'Independent startup fixture']):
+             result = self.process(argv, cwd=self.repo); self.assertEqual(result.returncode, 0, result.evidence)
+         self.task = 'T076startup-' + uuid.uuid4().hex[:8]
+         card = {'id': self.task, 'source': None, 'goal': '核对首次输入的身份与自建后台停止',
+             'non_goals': ['不运行模型、不交付文件'], 'paths': {'allow': ['value.txt'], 'deny': []},
++            'oracle_paths': ['criterion.py'],
+             'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c', 'raise SystemExit(1)']}],
+             'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
+             'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
+diff --git a/workbench/tests/test_task_cards_e2e.py b/workbench/tests/test_task_cards_e2e.py
+index c6f61ed0..c4e1b75a 100644
+--- a/workbench/tests/test_task_cards_e2e.py
++++ b/workbench/tests/test_task_cards_e2e.py
+@@ -20,7 +20,7 @@ OUT = None
+ ARTIFACT_ROOT = None
+ COMMANDS = []
+ ARTIFACTS = []
+-FIELDS = {'id', 'source', 'goal', 'non_goals', 'paths', 'completion_conditions',
++FIELDS = {'id', 'source', 'goal', 'non_goals', 'paths', 'oracle_paths', 'completion_conditions',
+           'red_commands', 'task_type', 'repair_target', 'complexity', 'executor',
+           'base_commit', 'writer'}
+ 
+@@ -44,6 +44,9 @@ class TaskCardsCLI(unittest.TestCase):
+         (self.repo / 'src').mkdir()
+         (self.repo / 'src/value.txt').write_text('base\n', encoding='utf-8')
+         (self.repo / 'host.txt').write_text('base host\n', encoding='utf-8')
++        (self.repo / 'acceptance').mkdir()
++        (self.repo / 'acceptance/criterion.py').write_text(
++            "from pathlib import Path\nassert Path('src/value.txt').read_text() == 'worker\\n'\n", encoding='utf-8')
+         self.git('add', '.')
+         self.git('commit', '-m', 'Independent baseline')
+         self.base = self.oid()
+@@ -51,8 +54,9 @@ class TaskCardsCLI(unittest.TestCase):
+         self.card = {
+             'id': self.task, 'source': None, 'goal': '交付 src/value.txt 中的独立预期内容',
+             'non_goals': ['不修改项目外的文件'], 'paths': {'allow': ['src/'], 'deny': ['src/private/']},
++            'oracle_paths': ['acceptance/criterion.py'],
+             'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c',
+-                "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker\\n'"]}],
++                "from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')"]}],
+             'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'L',
+             'executor': {'cli': 'Codex', 'model': 'gpt-6-astra', 'effort': 'xhigh'},
+             'base_commit': None, 'writer': None,
+diff --git a/workbench/tests/test_worktree_lifecycle_e2e.py b/workbench/tests/test_worktree_lifecycle_e2e.py
+index f4454d26..e7e056ca 100644
+--- a/workbench/tests/test_worktree_lifecycle_e2e.py
++++ b/workbench/tests/test_worktree_lifecycle_e2e.py
+@@ -575,6 +575,7 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
+                 'goal': '设置 worker=ready；保留工作分支上的 host 设置和 host.txt。',
+                 'non_goals': ['不修改 host.txt 或 src/private/'],
+                 'paths': {'allow': ['src/'], 'deny': ['src/private/']},
++                'oracle_paths': ['acceptance/criterion.py', 'CONTRACT.md'],
+                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c', source]}],
+                 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'L',
+                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'},

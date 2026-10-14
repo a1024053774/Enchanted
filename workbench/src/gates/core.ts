@@ -1338,6 +1338,7 @@ export class A2AGates {
     try {
       await this.checkClaimPaths(task, args.overlap_reason);
       const base = sha(await this.integration(task));
+      await this.checkOracleExists(task, base);
       attempt = {
         task_id: taskId,
         attempt_id: randomUUID(),
@@ -1616,15 +1617,20 @@ export class A2AGates {
       await this.git(taskId, workspace, ["reset", "--hard", v.M]);
     }
     this.save(task, "merge_candidate", v);
-    try { await this.checkPaths(task, attempt, v); }
+    let check: "path_boundary" | "oracle" = "path_boundary";
+    try {
+      await this.checkPaths(task, attempt, v);
+      check = "oracle";
+      await this.checkOraclePaths(task, attempt, v);
+    }
     catch (error) {
-      if (!(error instanceof Refusal)) throw error;
+      if (!(error instanceof Refusal) || (check === "oracle" && error.code !== "oracle_modified")) throw error;
       v.state = "failed";
       v.ended = new Date().toISOString();
       task.state = "submitted";
       this.save(task, "verification_result", { verification: v, error: error.code, details: error.details });
       await this.cleanupVerification(task, attempt, v);
-      await this.rejectDelivery(task, attempt, "path_boundary", { error: error.code, details: error.details });
+      await this.rejectDelivery(task, attempt, check, { error: error.code, details: error.details });
       throw error;
     }
     try {
@@ -1852,6 +1858,32 @@ export class A2AGates {
     this.event(task.task_id, "path_check", { verification_id: v.verification_id, card_snapshot_id: v.card_snapshot_id,
       G: v.G, C: v.C, M: v.M, paths: [...paths], forbidden, rules: card.paths, passed: forbidden.length === 0 });
     requireGate(forbidden.length === 0, "path_boundary_failed", { forbidden });
+  }
+  private async checkOracleExists(task: A2ATask, base: string) {
+    const missing: string[] = [];
+    for (const rule of task.card.oracle_paths) {
+      const tree = await this.git(task.task_id, task.repo, ["ls-tree", "-r", "-z", base, "--", rule]);
+      const files = tree.split("\0").filter(Boolean).filter((entry) => entry.split(" ")[1] === "blob")
+        .map((entry) => entry.slice(entry.indexOf("\t") + 1));
+      if (!files.some((path) => rule.endsWith("/") ? path.startsWith(rule) : path === rule)) missing.push(rule);
+    }
+    this.event(task.task_id, "oracle_claim_check", { base_commit: base, rules: task.card.oracle_paths,
+      missing, passed: missing.length === 0 }, null);
+    requireGate(missing.length === 0, "oracle_not_found", { base_commit: base, missing });
+  }
+  private async checkOraclePaths(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {
+    const card = this.boundCard(attempt);
+    // The claim baseline stays frozen, including after conflict rework.
+    // G→M also covers protected paths changed by the merge result.
+    const paths = new Set<string>();
+    for (const [from, to] of [[attempt.base_commit, v.C], [v.G, v.M!]])
+      for (const path of await this.changedPaths(task, from!, to!)) paths.add(path);
+    const modified = [...paths].filter((path) => card.oracle_paths.some((rule) =>
+      rule.endsWith("/") ? path.startsWith(rule) : path === rule)).sort();
+    this.event(task.task_id, "oracle_check", { verification_id: v.verification_id,
+      card_snapshot_id: v.card_snapshot_id, base_commit: attempt.base_commit,
+      G: v.G, C: v.C, M: v.M, rules: card.oracle_paths, modified, passed: modified.length === 0 });
+    requireGate(modified.length === 0, "oracle_modified", { modified });
   }
   private async projectQuality(taskId: string, repo: string, commit: string): Promise<ProjectQuality> {
     const path = ".a2a/quality.json" as const;
@@ -2214,7 +2246,7 @@ export class A2AGates {
       .get(task.task_id, attempt.attempt_id);
     requireGate(claimed, "score_provenance_required");
     const delivery = provenance, now = this.now();
-    const rejections: Record<string, number> = { identity_version: 0, path_boundary: 0, completion: 0,
+    const rejections: Record<string, number> = { identity_version: 0, path_boundary: 0, oracle: 0, completion: 0,
       red_state: 0, rule_checks: 0, independent_review: 0, commit_trailers: 0 };
     const identityErrors = new Set(["stale_attempt", "stale_session", "stale_fence", "stale_spec", "stale_thread", "stale_turn",
       "identity_conflict", "invalid_commit", "not_descendant", "workspace_head_mismatch", "dirty_worktree", "candidate_conflict"]);
@@ -2235,7 +2267,7 @@ export class A2AGates {
       const key = JSON.parse(String(row.details)).repair.check;
       requireGate(Object.hasOwn(rejections, key), "score_check_unknown", key); rejections[key]!++;
     }
-    const score = { schema: 1, score_id: intent.score.score_id, created_at: new Date(now).toISOString(), source: "executor",
+    const score = { schema: 2, score_id: intent.score.score_id, created_at: new Date(now).toISOString(), source: "executor",
       launch_id: delivery.launch_id, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       cli: delivery.cli, model: delivery.model, effort: delivery.effort, data: intent.score.data,
       ...(intent.score.data.result === "放弃" ? {} : { facts: { task_type: task.card.task_type, complexity: task.card.complexity, delivery_rounds: delivery.number,

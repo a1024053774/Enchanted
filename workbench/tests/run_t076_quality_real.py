@@ -124,6 +124,7 @@ def main():
         repo.mkdir(); (repo / 'src').mkdir(); (repo / '.a2a').mkdir()
         (repo / 'src/clamp.py').write_text('def clamp(value):\n    return value\n')
         shutil.copyfile(BUNDLE / 'CONTRACT.txt',repo / 'CONTRACT.txt')
+        shutil.copyfile(root / 'oracle.py',repo / 'acceptance.py')
         (repo / 'host.txt').write_text('baseline\n'); (repo / '.gitignore').write_text('__pycache__/\n*.pyc\n')
         (repo / '.a2a/quality.json').write_text(json.dumps({'schema':1,'rule_checks':[{'id':'syntax-only','argv':[policy['python'],'-I','-B','-c',
             'import ast,pathlib; ast.parse(pathlib.Path("src/clamp.py").read_text())']} ]})+'\n')
@@ -162,7 +163,7 @@ def main():
             goal='这是T-076-2隔离clamp夹具；按WORKER角色卡先交有bool缺口的C1，收到门禁修复指令后交满足CONTRACT.txt的C2。来源ticket只作规格绑定，不到a2a源码实现功能。',
             non_goals=['不改合同、oracle、host.txt、.gitignore、.a2a；不联网、不开子agent、不追加回合或改权限'],
             paths=dict(allow=['src/clamp.py'],deny=[]),completion_conditions=[dict(argv=[policy['python'],'-I','-B',str(root / 'oracle.py'),'{worktree}'])],
-            red_commands=[],task_type='后端逻辑',repair_target=None,complexity='M',executor=dict(cli='Codex',model='gpt-6.1-sol',effort='xhigh'),base_commit=None,writer=None)
+            oracle_paths=['acceptance.py','CONTRACT.txt'],red_commands=[],task_type='后端逻辑',repair_target=None,complexity='M',executor=dict(cli='Codex',model='gpt-6.1-sol',effort='xhigh'),base_commit=None,writer=None)
         (root / 'card.json').write_text(json.dumps(card,ensure_ascii=False)); save('card.json',card)
         call('card_save','--task',policy['task'],'--card',root / 'card.json','--expected-version','0')
         call('create','--task',policy['task'],'--repo',repo,'--branch','refs/heads/main','--card-version','1','--project','T076-real')
@@ -215,7 +216,7 @@ def main():
             actual=[line.partition(': ') for line in parsed.splitlines()]
             if {k:v for k,_,v in actual}!=expected or len(actual)!=9: raise RuntimeError('Observed commit trailers do not match this worker.')
         gate=call('events','--task',policy['task'])['events']; scores=[e['details'] for e in gate if e['type']=='score_recorded']
-        expected_rejections={'identity_version':0,'path_boundary':0,'completion':1,'red_state':0,'rule_checks':0,'independent_review':0,'commit_trailers':0}
+        expected_rejections={'identity_version':0,'path_boundary':0,'oracle':0,'completion':1,'red_state':0,'rule_checks':0,'independent_review':0,'commit_trailers':0}
         if len(scores)!=1 or scores[0]['launch_id']!=launches['worker']['id'] or scores[0]['attempt']!=attempt['attempt_id'] or \
            scores[0]['model']!='gpt-6.1-sol' or scores[0]['effort']!='xhigh' or scores[0]['facts']['delivery_rounds']!=2 or \
            scores[0]['facts']['rejections']!=expected_rejections or scores[0]['facts']['human_interventions']!=0:

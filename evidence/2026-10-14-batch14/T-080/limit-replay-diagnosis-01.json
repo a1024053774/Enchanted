@@ -1,0 +1,168 @@
+{
+  "status": "PASS",
+  "scope": "仅 #149 归因核对；修后运行仍 INCOMPLETE",
+  "verdict": "test_expectation_error",
+  "oracle_sources": [
+    ".project-map/specs/native-cli-orchestration-2026-10-10.md §3.4",
+    ".project-map/tickets/T-076-quality-chain-scoring.md What to build §2",
+    "workbench/tests/test_quality_tracer_e2e.py tracer_third_rejection"
+  ],
+  "required_behavior": "第三次停止自动回写并交执行主控；未规定暂停后的 verify 必须返回某个错误码",
+  "observed": {
+    "counts": [
+      1,
+      2,
+      3
+    ],
+    "check_types": [
+      "oracle",
+      "oracle",
+      "oracle"
+    ],
+    "third_task_state": "paused",
+    "third_stopped": true,
+    "candidate_retained": "c3bb29a989c94b2aaeef4ac2b65af89135928abe",
+    "limit_event": {
+      "seq": 175,
+      "time": "2026-10-14T17:35:54.676Z",
+      "type": "quality_feedback_stopped",
+      "launch": "05fdbf8c-d227-47a6-b276-39b9bd9bcc1e",
+      "task": "fixture-20261014-1",
+      "attempt": "66a1d8bb-47d7-4f1f-807e-5563382197a7",
+      "data": {
+        "repair": {
+          "id": "3903e8ad-be70-4948-9fb0-42500199478b",
+          "candidate_commit": "c3bb29a989c94b2aaeef4ac2b65af89135928abe",
+          "verification_id": "fdc5d358-5988-45aa-9a9c-8af012affb7c",
+          "check": "oracle",
+          "count": 3,
+          "stopped": true,
+          "failure": {
+            "error": "oracle_modified",
+            "details": {
+              "modified": [
+                "acceptance/criterion.py"
+              ]
+            }
+          }
+        },
+        "cancelled": []
+      }
+    },
+    "issue": {
+      "id": "78fb346f-08e5-48e9-9a62-85010261a8c3",
+      "schema": 1,
+      "kind": "issue",
+      "from": "system",
+      "to": "executor",
+      "reply_to": null,
+      "refs": [
+        "task:fixture-20261014-1",
+        "attempt:66a1d8bb-47d7-4f1f-807e-5563382197a7"
+      ],
+      "created_at": "2026-10-14T17:35:54.676Z",
+      "body": "{\"id\":\"3903e8ad-be70-4948-9fb0-42500199478b\",\"candidate_commit\":\"c3bb29a989c94b2aaeef4ac2b65af89135928abe\",\"verification_id\":\"fdc5d358-5988-45aa-9a9c-8af012affb7c\",\"check\":\"oracle\",\"count\":3,\"stopped\":true,\"failure\":{\"error\":\"oracle_modified\",\"details\":{\"modified\":[\"acceptance/criterion.py\"]}}}",
+      "task_id": "fixture-20261014-1",
+      "attempt_id": "66a1d8bb-47d7-4f1f-807e-5563382197a7",
+      "thread_id": "ef3806cc-f1dc-4235-a3ac-8d3117d21f13",
+      "turn_id": null,
+      "number": 1,
+      "title": "同一 attempt 连续三次打回，停止自动回写",
+      "blocking": true,
+      "issue_id": "78fb346f-08e5-48e9-9a62-85010261a8c3"
+    },
+    "repair_messages": 2,
+    "replay": {
+      "ok": false,
+      "error": "not_submitted",
+      "user_input_observer": {
+        "state": "healthy",
+        "updated_at": "2026-10-14T17:35:46.664Z"
+      }
+    }
+  },
+  "explanation": "公开 request 先拒绝 paused 状态；不会进入 verifyCandidate 内部的 quality_rejection_limit 检查。not_submitted 不表示候选已被清除。",
+  "original_artifacts": [
+    "evidence/2026-10-14-batch14/T-080/final-01/protected/oracle_three_rejections/rejection-3.json",
+    "evidence/2026-10-14-batch14/T-080/final-01/protected/oracle_three_rejections/database-readback.json",
+    "evidence/2026-10-14-batch14/T-080/final-01/protected/oracle_three_rejections/case.json",
+    "evidence/2026-10-14-batch14/T-080/final-01/protected/oracle_three_rejections/command-0087.stdout.bin",
+    "evidence/2026-10-14-batch14/T-080/final-01/protected/oracle_three_rejections/git-readback.json"
+  ],
+  "protected_results": [
+    {
+      "case": "oracle_modified",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_directory_added",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_deleted",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_renamed",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_correct_delivery",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_repair_score",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_three_rejections",
+      "outcome": "contract_failure",
+      "failure_id": "ORACLE-LIMIT-REPLAY"
+    },
+    {
+      "case": "oracle_schema",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_claim_missing",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_claim_current_base",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_boundary_first",
+      "outcome": "passed",
+      "failure_id": null
+    },
+    {
+      "case": "oracle_card_snapshot",
+      "outcome": "passed",
+      "failure_id": null
+    }
+  ],
+  "production_bytes_equal_to_final01": [
+    "workbench/src/gates/core.ts",
+    "workbench/src/gates/taskCards.ts",
+    "workbench/src/gates/qualityProtocol.ts",
+    "scripts/score",
+    "workbench/README.md"
+  ],
+  "counterexample_existing": "evidence/2026-10-11-batch13/T-076/card-2/outside-focused-tracer-01/third-rejection-keeps-writing/tracer_third_rejection/case.json",
+  "repair": "只修测试：计数/暂停/问题上报/停止回写事件/空队列；重放必须拒绝且保持状态和引用不动。增加第四次才停止的受控产品变异体，须业务断言失败。",
+  "not_run": [
+    "修后 gate 场景",
+    "新上限变异体",
+    "其余变异体/回归"
+  ]
+}

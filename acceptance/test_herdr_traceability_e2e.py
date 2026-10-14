@@ -187,7 +187,7 @@ else:sys.exit(2)
         p=self.root/"facts.json"
         p.write_text(json.dumps(dict(task_type="构建与基础设施",complexity="M",delivery_rounds=2,
                                     elapsed_seconds=93,human_interventions=1,
-                                    rejections={"identity_version":0,"path_boundary":0,"completion":1,"red_state":0,
+                                    rejections={"identity_version":0,"path_boundary":0,"oracle":0,"completion":1,"red_state":0,
                                                 "rule_checks":0,"independent_review":0,"commit_trailers":0}),ensure_ascii=False),encoding="utf-8")
         return p
 
@@ -202,6 +202,7 @@ else:sys.exit(2)
         self.score(launch,expected=None) # notes is mandatory even when empty.
         self.assertFalse((self.root/"records/scores.jsonl").exists())
         row=json.loads(self.score(launch,("--notes","复核完成")).stdout)
+        self.assertEqual(row["schema"],2)
         self.assertEqual(row["facts"]["elapsed_seconds"],93)
         self.assertEqual(row["facts"]["delivery_rounds"],2)
         self.assertEqual(row["task"],self.task)
@@ -222,6 +223,7 @@ else:sys.exit(2)
                           "--result","升级","--boundary-discipline","2","--boundary-reason","边界可接受",
                           "--engineering-taste","1","--engineering-reason","需更强执行器","--notes",""])
         self.assertEqual([r["data"].get("result") for r in self.rows("scores.jsonl")],["通过",None,"放弃","升级"])
+        self.assertEqual([r["schema"] for r in self.rows("scores.jsonl")],[2,2,2,2])
 
     def test_score_concurrency_corruption_and_start_failure(self):
         launches=[self.launch(attempt="concurrent-"+str(i)) for i in range(5)]

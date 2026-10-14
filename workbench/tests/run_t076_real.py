@@ -161,6 +161,7 @@ def main():
         (repo / 'src/normalize.py').write_text('def normalize(rows):\n    return {}\n', encoding='utf-8')
         (repo / '.gitignore').write_text('__pycache__/\n*.pyc\n', encoding='utf-8')
         (repo / 'host.txt').write_text('baseline\n', encoding='utf-8')
+        (repo / 'acceptance.py').write_text(ORACLE, encoding='utf-8')
         git('add', '.')
         git('commit', '-m', 'T076 independent real fixture baseline')
         B = git('rev-parse', 'HEAD')
@@ -222,7 +223,7 @@ def main():
                 'non_goals': ['不改 oracle、任务合同、host.txt、.gitignore；不访问网络、不启动子agent；请求文件不进入Git'],
                 'paths': {'allow': ['src/normalize.py'], 'deny': []},
                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', str(waiting_oracle), '{worktree}']}],
-                'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
+                'oracle_paths': ['acceptance.py'], 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'M',
                 'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}
         save('card.json', card)
         call('card_save', '--task', record['task'], '--card', out / 'card.json', '--expected-version', '0')

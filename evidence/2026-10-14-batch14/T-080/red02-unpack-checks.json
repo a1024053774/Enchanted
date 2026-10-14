@@ -1,0 +1,108 @@
+{
+  "status": "PASS",
+  "product_status": "INCOMPLETE",
+  "scope": "仅解包验证",
+  "command": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "-B",
+    "/Users/luckye/Documents/Code/a2a-wt-t080/evidence/2026-10-14-batch14/T-080/check_red02_unpack.py"
+  ],
+  "python": "3.9.6 (default, Jun 11 2026, 05:27:25) \n[Clang 21.0.0 (clang-2100.3.23.3)]",
+  "fixture": "/private/tmp/t80unpack-_yq33iu4",
+  "checks": [
+    {
+      "case": "known-bad-filter-api",
+      "expected": "TypeError",
+      "observed": "extractall() got an unexpected keyword argument 'filter'"
+    },
+    {
+      "case": "old-archive-links",
+      "observed": "源码归档包含链接或特殊成员：'workbench/hooks/applypatch-msg'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "absolute",
+      "observed": "源码归档包含非法路径：'/outside'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "parent",
+      "observed": "源码归档包含非法路径：'../outside'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "nested-parent",
+      "observed": "源码归档包含非法路径：'dir/../outside'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "dot",
+      "observed": "源码归档包含非法路径：'./file'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "empty-component",
+      "observed": "源码归档包含非法路径：'dir//file'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "backslash",
+      "observed": "源码归档包含非法路径：'dir\\\\file'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "symlink",
+      "observed": "源码归档包含链接或特殊成员：'link'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "hardlink",
+      "observed": "源码归档包含链接或特殊成员：'link'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "fifo",
+      "observed": "源码归档包含链接或特殊成员：'pipe'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "character-device",
+      "observed": "源码归档包含链接或特殊成员：'device'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "block-device",
+      "observed": "源码归档包含链接或特殊成员：'device'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "duplicate",
+      "observed": "源码归档路径越界或重复：'first'",
+      "no_partial_writes": true
+    },
+    {
+      "case": "red02-frozen-source",
+      "files": 111,
+      "bytes_and_modes_match": true
+    }
+  ],
+  "archive_command": {
+    "argv": [
+      "git",
+      "archive",
+      "--format=tar.gz",
+      "--output",
+      "/private/tmp/t80unpack-_yq33iu4/red02-source.tar.gz",
+      "87e954a2f4059d471e3e240872b565217e29b0b5",
+      "workbench/src",
+      "workbench/tests",
+      "workbench/hooks/hook.py",
+      "workbench/package.json",
+      "workbench/package-lock.json",
+      "workbench/LICENSE.synara",
+      "acceptance/entry/a2a_gates.py"
+    ],
+    "exit": 0,
+    "stderr": ""
+  }
+}

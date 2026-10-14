@@ -97,13 +97,15 @@ def main():
             raise RuntimeError('Node executable is unavailable')
         ok(['git', '-C', repo, 'init', '-b', 'main'])
         (repo / 'value.txt').write_text('原始夹具\n', encoding='utf-8')
-        ok(['git', '-C', repo, 'add', 'value.txt'])
+        (repo / 'criterion.py').write_text("from pathlib import Path; assert Path('value.txt').read_text(encoding='utf-8') == '原始夹具\\n'\n", encoding='utf-8')
+        ok(['git', '-C', repo, 'add', 'value.txt', 'criterion.py'])
         ok(['git', '-C', repo, 'commit', '-m', 'Independent UI query fixture'])
         pid = call('daemon_start')['pid']
         started = True
         card = {'id': task, 'source': None, 'goal': '查询这张真实保存的任务卡',
                 'non_goals': ['不启动模型，不改工作分支'],
                 'paths': {'allow': ['value.txt'], 'deny': []},
+                'oracle_paths': ['criterion.py'],
                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c',
                     "from pathlib import Path; assert Path('value.txt').read_text(encoding='utf-8') == '原始夹具\\n'"]}],
                 'red_commands': [], 'task_type': '前端界面', 'repair_target': None,

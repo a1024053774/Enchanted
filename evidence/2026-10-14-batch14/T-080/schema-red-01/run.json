@@ -1,0 +1,261 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "打分 schema 读写契约；无 daemon/Git/模型",
+  "command": [
+    "workbench/tests/test_score_schemas.py",
+    "--source",
+    ".",
+    "--output",
+    "evidence/2026-10-14-batch14/T-080/schema-red-01"
+  ],
+  "source": "/Users/luckye/Documents/Code/a2a-wt-t080",
+  "fixture": "/private/tmp/t80score-0wbvsk1l",
+  "checks": [
+    {
+      "id": "v1-history-node",
+      "passed": true,
+      "expected": {
+        "accepted": true,
+        "no_backfill_or_rewrite": true
+      },
+      "actual": {
+        "ok": true,
+        "rows": [
+          {
+            "schema": 1,
+            "score_id": "historical-v1-executor",
+            "created_at": "2026-10-13T00:00:00Z",
+            "source": "executor",
+            "launch_id": "historical-launch",
+            "project": "fixture",
+            "task": "historical-task",
+            "attempt": "historical-attempt",
+            "cli": "fixture-codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "data": {
+              "result": "通过",
+              "boundary_discipline": 3,
+              "boundary_reason": "independent fixture",
+              "engineering_taste": 2,
+              "engineering_reason": "independent fixture",
+              "notes": ""
+            },
+            "facts": {
+              "task_type": "测试",
+              "complexity": "M",
+              "delivery_rounds": 1,
+              "elapsed_seconds": 2,
+              "human_interventions": 0,
+              "rejections": {
+                "identity_version": 0,
+                "path_boundary": 0,
+                "completion": 0,
+                "red_state": 0,
+                "rule_checks": 0,
+                "independent_review": 0,
+                "commit_trailers": 0
+              }
+            }
+          },
+          {
+            "schema": 1,
+            "score_id": "historical-v1-user",
+            "created_at": "2026-10-13T00:00:00Z",
+            "source": "user",
+            "launch_id": "historical-launch",
+            "project": "fixture",
+            "task": "historical-task",
+            "attempt": "historical-attempt",
+            "cli": "fixture-codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "data": {
+              "boundary_discipline": 3,
+              "boundary_reason": "independent fixture",
+              "engineering_taste": 2,
+              "engineering_reason": "independent fixture",
+              "notes": ""
+            },
+            "score_of": "historical-v1-executor"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v1-history-python",
+      "passed": true,
+      "expected": {
+        "accepted": true,
+        "no_backfill_or_rewrite": true
+      },
+      "actual": {
+        "ok": true,
+        "rows": [
+          {
+            "schema": 1,
+            "score_id": "historical-v1-executor",
+            "created_at": "2026-10-13T00:00:00Z",
+            "source": "executor",
+            "launch_id": "historical-launch",
+            "project": "fixture",
+            "task": "historical-task",
+            "attempt": "historical-attempt",
+            "cli": "fixture-codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "data": {
+              "result": "通过",
+              "boundary_discipline": 3,
+              "boundary_reason": "independent fixture",
+              "engineering_taste": 2,
+              "engineering_reason": "independent fixture",
+              "notes": ""
+            },
+            "facts": {
+              "task_type": "测试",
+              "complexity": "M",
+              "delivery_rounds": 1,
+              "elapsed_seconds": 2,
+              "human_interventions": 0,
+              "rejections": {
+                "identity_version": 0,
+                "path_boundary": 0,
+                "completion": 0,
+                "red_state": 0,
+                "rule_checks": 0,
+                "independent_review": 0,
+                "commit_trailers": 0
+              }
+            }
+          },
+          {
+            "schema": 1,
+            "score_id": "historical-v1-user",
+            "created_at": "2026-10-13T00:00:00Z",
+            "source": "user",
+            "launch_id": "historical-launch",
+            "project": "fixture",
+            "task": "historical-task",
+            "attempt": "historical-attempt",
+            "cli": "fixture-codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "data": {
+              "boundary_discipline": 3,
+              "boundary_reason": "independent fixture",
+              "engineering_taste": 2,
+              "engineering_reason": "independent fixture",
+              "notes": ""
+            },
+            "score_of": "historical-v1-executor"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v1-history-bytes",
+      "passed": true,
+      "expected": "input bytes unchanged",
+      "actual": "unchanged"
+    },
+    {
+      "id": "new-user-for-v1",
+      "passed": false,
+      "expected": {
+        "exit": 0,
+        "schema": 2,
+        "old_bytes_preserved": true
+      },
+      "actual": {
+        "exit": 0,
+        "row": {
+          "schema": 1,
+          "score_id": "score-57604b8245e040fbae68f57866a8f298",
+          "created_at": "2026-10-14T17:06:51.196897Z",
+          "source": "user",
+          "data": {
+            "boundary_discipline": 3,
+            "boundary_reason": "independent fixture",
+            "engineering_taste": 2,
+            "engineering_reason": "independent fixture",
+            "notes": ""
+          },
+          "launch_id": "historical-launch",
+          "project": "fixture",
+          "task": "historical-task",
+          "attempt": "historical-attempt",
+          "cli": "fixture-codex",
+          "model": "gpt-6.1-sol",
+          "effort": "xhigh",
+          "score_of": "historical-v1-executor"
+        }
+      }
+    }
+  ],
+  "commands": [
+    {
+      "label": "v1-history-node",
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "const {scoreRecords,QualityProtocolError}=await import(process.argv[1]);\nconst {readFileSync}=await import('node:fs');\ntry{const rows=scoreRecords(readFileSync(process.argv[2],'utf8'));process.stdout.write(JSON.stringify({ok:true,rows})+'\\n');}\ncatch(e){if(!(e instanceof QualityProtocolError))throw e;process.stdout.write(JSON.stringify({ok:false,error:e.field})+'\\n');process.exitCode=1;}",
+        "file:///Users/luckye/Documents/Code/a2a-wt-t080/workbench/src/gates/qualityProtocol.ts",
+        "/private/tmp/t80score-0wbvsk1l/v1-history.jsonl"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t080",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"rows\":[{\"schema\":1,\"score_id\":\"historical-v1-executor\",\"created_at\":\"2026-10-13T00:00:00Z\",\"source\":\"executor\",\"launch_id\":\"historical-launch\",\"project\":\"fixture\",\"task\":\"historical-task\",\"attempt\":\"historical-attempt\",\"cli\":\"fixture-codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\",\"data\":{\"result\":\"通过\",\"boundary_discipline\":3,\"boundary_reason\":\"independent fixture\",\"engineering_taste\":2,\"engineering_reason\":\"independent fixture\",\"notes\":\"\"},\"facts\":{\"task_type\":\"测试\",\"complexity\":\"M\",\"delivery_rounds\":1,\"elapsed_seconds\":2,\"human_interventions\":0,\"rejections\":{\"identity_version\":0,\"path_boundary\":0,\"completion\":0,\"red_state\":0,\"rule_checks\":0,\"independent_review\":0,\"commit_trailers\":0}}},{\"schema\":1,\"score_id\":\"historical-v1-user\",\"created_at\":\"2026-10-13T00:00:00Z\",\"source\":\"user\",\"launch_id\":\"historical-launch\",\"project\":\"fixture\",\"task\":\"historical-task\",\"attempt\":\"historical-attempt\",\"cli\":\"fixture-codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\",\"data\":{\"boundary_discipline\":3,\"boundary_reason\":\"independent fixture\",\"engineering_taste\":2,\"engineering_reason\":\"independent fixture\",\"notes\":\"\"},\"score_of\":\"historical-v1-executor\"}]}\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1-history-python",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "-c",
+        "import json,runpy,sys\nsys.path.insert(0,sys.argv[1]);m=runpy.run_path(sys.argv[1]+\"/score\",run_name=\"reader\")\nrows=[json.loads(l) for l in open(sys.argv[2],encoding=\"utf-8\")]\ntry:\n m[\"validate_scores\"](rows)\nexcept ValueError as error:\n print(json.dumps({\"ok\":False,\"error\":str(error)}));sys.exit(1)\nprint(json.dumps({\"ok\":True,\"rows\":rows}))\n",
+        "/Users/luckye/Documents/Code/a2a-wt-t080/scripts",
+        "/private/tmp/t80score-0wbvsk1l/v1-history.jsonl"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t080",
+      "exit": 0,
+      "stdout": "{\"ok\": true, \"rows\": [{\"schema\": 1, \"score_id\": \"historical-v1-executor\", \"created_at\": \"2026-10-13T00:00:00Z\", \"source\": \"executor\", \"launch_id\": \"historical-launch\", \"project\": \"fixture\", \"task\": \"historical-task\", \"attempt\": \"historical-attempt\", \"cli\": \"fixture-codex\", \"model\": \"gpt-6.1-sol\", \"effort\": \"xhigh\", \"data\": {\"result\": \"\\u901a\\u8fc7\", \"boundary_discipline\": 3, \"boundary_reason\": \"independent fixture\", \"engineering_taste\": 2, \"engineering_reason\": \"independent fixture\", \"notes\": \"\"}, \"facts\": {\"task_type\": \"\\u6d4b\\u8bd5\", \"complexity\": \"M\", \"delivery_rounds\": 1, \"elapsed_seconds\": 2, \"human_interventions\": 0, \"rejections\": {\"identity_version\": 0, \"path_boundary\": 0, \"completion\": 0, \"red_state\": 0, \"rule_checks\": 0, \"independent_review\": 0, \"commit_trailers\": 0}}}, {\"schema\": 1, \"score_id\": \"historical-v1-user\", \"created_at\": \"2026-10-13T00:00:00Z\", \"source\": \"user\", \"launch_id\": \"historical-launch\", \"project\": \"fixture\", \"task\": \"historical-task\", \"attempt\": \"historical-attempt\", \"cli\": \"fixture-codex\", \"model\": \"gpt-6.1-sol\", \"effort\": \"xhigh\", \"data\": {\"boundary_discipline\": 3, \"boundary_reason\": \"independent fixture\", \"engineering_taste\": 2, \"engineering_reason\": \"independent fixture\", \"notes\": \"\"}, \"score_of\": \"historical-v1-executor\"}]}\n",
+      "stderr": ""
+    },
+    {
+      "label": "new-user-for-v1",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t080/scripts/score",
+        "--root",
+        "/private/tmp/t80score-0wbvsk1l",
+        "--source",
+        "user",
+        "--score-of",
+        "historical-v1-executor",
+        "--boundary-discipline",
+        "3",
+        "--boundary-reason",
+        "independent fixture",
+        "--engineering-taste",
+        "2",
+        "--engineering-reason",
+        "independent fixture",
+        "--notes",
+        ""
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t080",
+      "exit": 0,
+      "stdout": "{\"schema\": 1, \"score_id\": \"score-57604b8245e040fbae68f57866a8f298\", \"created_at\": \"2026-10-14T17:06:51.196897Z\", \"source\": \"user\", \"data\": {\"boundary_discipline\": 3, \"boundary_reason\": \"independent fixture\", \"engineering_taste\": 2, \"engineering_reason\": \"independent fixture\", \"notes\": \"\"}, \"launch_id\": \"historical-launch\", \"project\": \"fixture\", \"task\": \"historical-task\", \"attempt\": \"historical-attempt\", \"cli\": \"fixture-codex\", \"model\": \"gpt-6.1-sol\", \"effort\": \"xhigh\", \"score_of\": \"historical-v1-executor\"}\n",
+      "stderr": ""
+    }
+  ],
+  "real_model_calls": 0,
+  "outcome": "contract_failure",
+  "failure_id": "new-user-for-v1",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t080/workbench/tests/test_score_schemas.py\", line 120, in main\n    user_v1 = score('new-user-for-v1', ['--source', 'user', '--score-of', legacy['score_id'], *FLAGS])\n  File \"/Users/luckye/Documents/Code/a2a-wt-t080/workbench/tests/test_score_schemas.py\", line 98, in score\n    check(label, p.returncode == 0 and row['schema'] == 2\n  File \"/Users/luckye/Documents/Code/a2a-wt-t080/workbench/tests/test_score_schemas.py\", line 55, in check\n    raise ContractFailure(name)\nContractFailure: new-user-for-v1\n",
+  "main_records_not_written": true
+}

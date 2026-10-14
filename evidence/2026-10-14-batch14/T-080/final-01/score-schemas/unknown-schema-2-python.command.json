@@ -1,0 +1,15 @@
+{
+  "label": "unknown-schema-2-python",
+  "argv": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "-B",
+    "-c",
+    "import json,runpy,sys\nsys.path.insert(0,sys.argv[1]);m=runpy.run_path(sys.argv[1]+\"/score\",run_name=\"reader\")\nrows=[json.loads(l) for l in open(sys.argv[2],encoding=\"utf-8\")]\ntry:\n m[\"validate_scores\"](rows)\nexcept ValueError as error:\n print(json.dumps({\"ok\":False,\"error\":str(error)}));sys.exit(1)\nprint(json.dumps({\"ok\":True,\"rows\":rows}))\n",
+    "/private/tmp/t80f-xuejvz_i/source/scripts",
+    "/private/tmp/t80score-m_d1blt9/unknown-schema-2.jsonl"
+  ],
+  "cwd": "/private/tmp/t80f-xuejvz_i/source",
+  "exit": 1,
+  "stdout": "{\"ok\": false, \"error\": \"\\u6253\\u5206\\u8bb0\\u5f55\\u7248\\u672c\\u3001\\u6765\\u6e90\\u6216\\u7f16\\u53f7\\u635f\\u574f\"}\n",
+  "stderr": ""
+}

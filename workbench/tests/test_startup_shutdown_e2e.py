@@ -46,11 +46,13 @@ class StartupShutdown(unittest.TestCase):
         for argv in (['git', 'init', '-b', 'main'],):
             result = self.process(argv, cwd=self.repo); self.assertEqual(result.returncode, 0, result.evidence)
         (self.repo / 'value.txt').write_text('baseline\n', encoding='utf-8')
-        for argv in (['git', 'add', 'value.txt'], ['git', 'commit', '-m', 'Independent startup fixture']):
+        (self.repo / 'criterion.py').write_text('raise SystemExit(1)\n', encoding='utf-8')
+        for argv in (['git', 'add', 'value.txt', 'criterion.py'], ['git', 'commit', '-m', 'Independent startup fixture']):
             result = self.process(argv, cwd=self.repo); self.assertEqual(result.returncode, 0, result.evidence)
         self.task = 'T076startup-' + uuid.uuid4().hex[:8]
         card = {'id': self.task, 'source': None, 'goal': '核对首次输入的身份与自建后台停止',
             'non_goals': ['不运行模型、不交付文件'], 'paths': {'allow': ['value.txt'], 'deny': []},
+            'oracle_paths': ['criterion.py'],
             'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c', 'raise SystemExit(1)']}],
             'red_commands': [], 'task_type': '测试', 'repair_target': None, 'complexity': 'M',
             'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'}, 'base_commit': None, 'writer': None}

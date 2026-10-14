@@ -29,7 +29,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 
 `acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由后台中的
 `A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
-受管任务通过 JSON 任务卡注册；交付按卡检查路径、完成条件与提交尾注，
+受管任务通过 JSON 任务卡注册；交付按卡检查路径、验收文件、完成条件与提交尾注，
 机械通过后新开只读 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
 普通会话的 `attach --instructions` 仍是提示文本，
 不参与受管任务注册。
@@ -37,7 +37,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 
 ## 任务卡与交付
 
-使用同一个 CLI 生成模板，填写目标、非目标、路径、argv 完成条件等字段后校验并保存：
+使用同一个 CLI 生成模板，填写目标、非目标、路径、验收文件、argv 完成条件等字段后校验并保存：
 
 ```sh
 node workbench/src/gates/cli.ts --state /绝对路径/state daemon_start
@@ -47,18 +47,27 @@ node workbench/src/gates/cli.ts --state /绝对路径/state card_save --task T-0
 node workbench/src/gates/cli.ts --state /绝对路径/state create --task T-080-1 --repo /绝对路径/repo --branch refs/heads/main --card-version 1
 ```
 
-模板含 13 个字段。CLI 值精确为 `Claude Code` 或 `Codex`；任务类型为规格中的八个值。
+模板含 14 个字段。CLI 值精确为 `Claude Code` 或 `Codex`；任务类型为规格中的八个值。
 完成条件格式为 `{"argv":["python3","acceptance/check.py","{worktree}"]}`，
 `{worktree}` 只能占据完整的一个参数，在独立 M worktree 中运行。完成条件非零退出仍
 返回 `oracle_failed`，这个名字只为保持已有公开错误预期，不存在旧 oracle 注册入口。
 create 不再接受 `--base`、`--oracle` 或 `--instructions`。
+
+`oracle_paths`（验收文件）必填且至少一项，列出完成条件依赖的仓库内测试、脚本、夹具和配置。
+只接受确切文件路径或以 `/` 结尾的目录前缀；拒绝 `.`、绝对路径、通配符、`..`、`.git`，
+且不得与 `red_commands[].test_paths` 有交集。认领时按当前工作分支起点的 Git tree 核对：
+确切文件须已受控，目录前缀下须至少有一个受控文件；缺项返回 `oracle_not_found`，不创建 attempt 或 worktree。
+候选相对冻结认领起点改动验收文件，或在受保护目录下新增文件，均以 `oracle_modified` 拒收；
+同时核对 G→M 的净改动，事件与摘要列出具体路径。打回写回原 worker，并计入同一 attempt 的三次上限。
+worker 认为验收文件有误时走问题上报，由主控或用户改卡。
 
 非空 `red_commands` 每项必须显式给出 `test_paths`，例如
 `{"argv":["python3","tests/check.py"],"test_paths":["tests/check.py"]}`。
 只接受相对起点新增或修改的普通文件；拒绝路径越界、Git元数据、目录、重复项与symlink。
 门禁为每项建独立B/C目录，只把声明的候选测试文件放到B上，同命令要求B正常退出且非零、C退出0。
 无法启动、超时或未知退出不算红态；非零是否来自有效业务断言，由独立审查判断，不解析stderr关键词。
-M验收目录独立，顺序为路径、完成条件、红态、项目规则、尾注、独立审查。
+M验收目录独立，顺序为路径边界、验收文件、完成条件、红态、项目规则、尾注、独立审查。
+验收文件检查不通过时不执行完成条件。
 
 项目规则从注册时工作分支提交中的 `.a2a/quality.json` 冻结：
 
@@ -73,7 +82,7 @@ M验收目录独立，顺序为路径、完成条件、红态、项目规则、�
 源文件或后续卡版本不会改变已注册合同。显式采用新卡用
 `revise --spec-rev N --card-version V`，会使旧 attempt 与候选失效。
 
-路径用仓库相对文件名、末尾 `/` 的目录或 `.`，禁止项优先，不解释 glob。
+修改边界 `paths.allow` / `paths.deny` 用仓库相对文件名、末尾 `/` 的目录或 `.`，禁止项优先，不解释 glob。
 认领会比较同一 Git 仓库中活跃 attempt 的允许路径集合，并扣除双方禁止路径；
 未创建的文件也参与判断。交集默认返回 `path_overlap`。执行主控确需并行时，
 在 `claim`、`dispatch` 或 `run` 上显式加 `--overlap-reason '具体理由'`，
@@ -128,8 +137,11 @@ node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-0
 
 数值须为 0–3 整数，理由非空，notes 必须存在（可空）；缺项拒绝，不编造默认分数。
 评分意图绑定 integration intent，Git 成功后最终 `score_recorded` 与集成状态同事务落库；
-相同命令重放不再打分或改 Git，不同分数不能覆盖。schema=1 字段对齐 Herdr 打分格式，
+相同命令重放不再打分或改 Git，不同分数不能覆盖。后台与 `scripts/score` 新写入的打分行一律为 schema=2，
 事实由任务卡、交付回合和事件提取，不写真实 `records/scores.jsonl`。
+通过或升级的 `facts.rejections` 必须完整包含 `identity_version`、`path_boundary`、`oracle`、`completion`、
+`red_state`、`rule_checks`、`independent_review`、`commit_trailers`；验收文件打回计入 `oracle`，不计入 `path_boundary`。
+缺项拒收，不把缺失次数补为零。用户分和放弃结果沿用各自不带评分事实的合同，新行仍写 schema=2。
 交付缺当前回合的实际模型/强度时拒绝，不能沿用请求值或上一回合的值。
 
 `abandon --task T --attempt A --score-file FILE` 终结原attempt，不执行Git集成。
@@ -139,7 +151,10 @@ node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-0
 终结不等于窗格已回收：只在idle后用原attempt的reclaim回收；未完成的reviewer会保留上报。
 
 `scores_validate --file /绝对路径/scores.jsonl` 是只读格式校验，不导入、不双写Herdr文件。
-接受schema=1的执行主控行和指向原分的独立用户行；缺必填项、非法评分/事实字段、重复attempt、错误来源绑定和不完整尾行拒收。
+按每行 schema 校验，可读取混合版本：历史 schema=1 按原七项检查集（无 `oracle`）只读校验，
+schema=2 的评分事实按上述八项检查集校验；历史行不改写、不迁移。未知 schema 拒收，写入端没有选择 schema=1 的参数或路径。
+`scripts/score --source user --score-of ...` 可关联 v1 或 v2 的执行主控原记录，新用户分均为 v2。
+缺必填项、非法评分/事实字段、重复 attempt、错误来源绑定和不完整尾行均拒收。
 
 `run --wait-seconds N` 现在等待修复、审查和执行主控的显式集成命令，仍只绑定原 attempt。
 它不会在机械通过后自动填分/集成，也不因第一次质量打回就回收 worker。修复或审查等待
