@@ -238,3 +238,4 @@ controller-green-outside-01 失败经诊断为夹具在异步 drain 前断言（
 ## slice1-green 逐屏与 submit 批准（2026-10-15 UTC 00:2x）
 
 主题三键、Security notes、信任 ArrowDown→Yes→Enter（/private/tmp/t078-2-p1-slice1-green-1yhrmwad/repo，仅 value.txt；依 answer 20261014T011751Z）均生效，读回主提示符。写 readiness 与 submit-approval（根 2、主 Messages 3、Bash 1、模型 0）。批准 submit 一次，遇许可屏停。批准引用：`T-078 controller-decision-04 slice1-green-submit`。
+slice1-green permission: native Bash dialog shows the frozen command, cursor on one-time Yes; approve one Enter (ref T-078 controller-decision-04 slice1-green-permission).
