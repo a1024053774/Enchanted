@@ -13,7 +13,10 @@ T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manife
 主题数字键无已核对依据，不配置。`selected_label` 是按键的目标项：
 ArrowUp 到 Auto、ArrowDown 到 Dark mode，再单独批准 Enter 确认 Dark；
 启动时直接 Enter 默认项被拒，同一屏 ID／原字节不能再次操作，workspace-trust 仍只允许一次。
-用途仅支持隔离实例的 onboarding-theme／workspace-trust；权限、认证、遥测或共享选择均停下。
+用途只适用隔离假服务实例：onboarding-theme／onboarding-notice／workspace-trust。
+onboarding-notice 只允许 Enter：从已登记的主题确认快照之后取输出，剥离终端控制序列，
+与 08c 的固定 Security notes 文字逐字比较；原字节也必须等于本屏批准快照。
+文字不同、额外提示或重复确认均拒绝。其他权限、认证、遥测或共享选择仍停下。
 原生 debug 与 hooks 的原始 stdin、stdout、stderr、退出码和耗时落进该实例目录。
 当前只验证一个提交回合；跨回合、Esc、紧急停止等待材料 09 的实际 payload 依据。
 遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
@@ -23,7 +26,7 @@ P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并�
 主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
 launch 仅记录进程启动，首屏另经 screen 阶段读回，不把即时输出当作稳定首屏。
 Bearer 已取得标题侧请求；08b 的 Enter 因目标项字段误判被拒，已用实际批准文件复现并修复；
-单回合主请求、hooks 与完成仍待材料 08c 验证。
+08c 已在真实 CLI 确认主题，停在 Security notes 后清理；单回合主请求、hooks 与完成仍待 08d 验证。
 旧 T-078-1 的通过结果不替它背书。
 
 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：

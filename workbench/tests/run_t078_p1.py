@@ -7,7 +7,7 @@ from p1_processes import identity_from_ps,cli_exit_verdict
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
 parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','cleanup'],required=True)
 parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
-parser.add_argument('--key',choices=['Digit1','ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
+parser.add_argument('--key',choices=['Digit1','ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','onboarding-notice','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
 args=parser.parse_args();materials=args.materials.resolve();approval=json.loads((materials/'approval.json').read_text());root=Path(approval['input']['root']);state=root/'state'
 label=args.label or args.phase
 if Path(label).name!=label or label in ['.','..']:parser.error('A single new output-directory name is required')
