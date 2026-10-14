@@ -54,3 +54,7 @@ Codex 领导进程 80090（0.162.1）正常起来；dispatch→paste→turn_subm
 
 PASS（real_turns_completed 1，累计 3/3 用尽）。路径检查两次通过（启动前、release 前）。原生回执：两条命令各一次结构化终端结果。执行主控独立读回：run-04/repo（本任务 T-081-CAP-04 自己的共享仓库）refs/heads/main 由 G 4de60dac 变为 T 16a341ae（reflog main@{0}），run-04/local.git 出现 refs/heads/t081-probe=T。
 发现（确认）：在当前配置（gpt-6.1-sol xhigh、workspace-write、-a never、隔离 home、信任本任务仓库根）下，真实 Codex worker 能直接移动其所属任务共享仓库的工作分支并推送到本地裸仓库。已上报构思主控；是否收紧沙箱属设计问题。按票第 7 项还需受控入口证明集成时 CAS 发现外部移动并拒绝或重验——交 worker 核对 full-04 是否已覆盖，未覆盖则补。home cleanup 待批。
+
+## CAS 补证与 home 清理批准（2026-10-14 UTC 23:1x）
+
+run_t081_cas_suite.py → cas-01：变异体（去掉真实 Git 事务 update 的旧值参数）在 3 条业务断言失败（新 G/C 绑定、外来祖先保留、oracle 重跑），候选 green 通过——外部移动工作分支后集成会重验且不覆盖外来提交。批准隔离 home 清理（只删 /private/tmp/t081-capability-01/codex-home，核对 run-01～04 PID 退出；夹具仓库保留作证据），引用 `T-081 controller-decision-05 capability-home-cleanup`。
