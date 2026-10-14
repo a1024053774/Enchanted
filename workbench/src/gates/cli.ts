@@ -24,6 +24,7 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   signal: { required: ["launch"] },
   launch_show: { required: ["launch"] },
   controller_prepare: { required: ["preset"] },
+  controller_start: { required: ["manifest"] },
   orchestration_events: { required: [], optional: ["task"] },
   card_template: { required: ["repo"], optional: ["ticket", "project"] },
   card_validate: { required: ["card"] },
@@ -113,7 +114,7 @@ export async function main(argv = process.argv.slice(2)) {
       "id",
       "bundle-id",
       "stop-id",
-      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes",
+      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest",
       "score-file", "review-file",
       "file",
     ];
@@ -155,6 +156,7 @@ export async function main(argv = process.argv.slice(2)) {
       } else if (key === "model-selection") request.modelSelection = JSON.parse(value!);
       else if (key === "answers") request.answers = JSON.parse(value!);
       else if (key === "refs") request.refs = JSON.parse(value!);
+      else if (key === "manifest") request.manifest = JSON.parse(readFileSync(value!, "utf8"));
       else if (key === "blocking") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
         request.blocking = value === "true";
@@ -184,7 +186,7 @@ export async function main(argv = process.argv.slice(2)) {
     const identity = process.env.A2A_LAUNCH ? {
       launch: process.env.A2A_LAUNCH,
       token: process.env.A2A_CAPABILITY,
-      native_session: process.env.CODEX_THREAD_ID,
+      native_session: process.env.A2A_NATIVE_SESSION ?? process.env.CODEX_THREAD_ID,
     } : undefined;
     if (identity && ["submit", "status", "issue", "inbox_send", "inbox_list", "inbox_ack", "inbox_ready"].includes(String(request.command))) {
       await emit(queueWorkerRequest(request));

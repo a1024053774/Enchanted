@@ -9,6 +9,7 @@ import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aG
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
 import type { A2AInboxEntry } from "./contracts/a2aInbox.ts";
+import { claudeLaunch, type ClaudeLaunchInput } from "./claudeLaunch.ts";
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -42,8 +43,8 @@ export interface LaunchConfig {
   reviewers?: { codex_home: string; role_card: string; role_card_revision: string; hook_authorization: string }[];
 }
 type Pane = {
-  record: Record<string, any> & { id: string; task: string; attempt: string };
-  token: string; task: A2ATask; attempt: A2AAttempt; pty: any;
+  record: Record<string, any> & { id: string; task: string; attempt: string | null };
+  token: string; task: A2ATask; attempt: A2AAttempt | null; pty: any;
   state: "unknown" | "idle" | "busy"; stopped: boolean; archived: boolean;
   failed: string | null; leader: number | null; native: string | null; turn: string | null;
   nativeEnded: boolean;
@@ -53,6 +54,7 @@ type Pane = {
   writes: Promise<void>; pendingInputs: number; userDraft: boolean; interrupted: boolean; sending: string | null;
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
+  claudePrompt?: boolean;
 };
 
 export class Panes implements GateRuntime {
@@ -66,6 +68,36 @@ export class Panes implements GateRuntime {
     this.onEventWriteFailed = onEventWriteFailed;
   }
   ensureProject = async (_project: string, _repo: string) => {};
+  startController(task: A2ATask, input: ClaudeLaunchInput) {
+    check(new URL(input.api_url).port !== "0", "messages_api_not_bound");
+    check(![...this.panes.values()].some(p => !p.stopped && p.record.preset === input.preset), "controller_already_started");
+    const record = { ...claudeLaunch(task, input), created_at: new Date().toISOString(), cli_version: "unknown" };
+    const token = randomUUID();
+    this.store.launch(record);
+    const trace = join(this.root, "traces", record.id, "pty.raw");
+    mkdirSync(dirname(trace), { recursive: true, mode: 0o700 }); appendFileSync(trace, "", { flag: "wx", mode: 0o600 });
+    const terminal = require("node-pty").spawn(record.shell, record.shell_argv, {
+      name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
+      env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
+    });
+    const pane: Pane = { record, token, task, attempt: null, pty: terminal, state: "unknown", stopped: false,
+      archived: false, failed: null, leader: null, native: record.session, turn: null, nativeEnded: false, active: null,
+      queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
+      userDraft: false, interrupted: false, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
+      terminalBuffer: "", claudePrompt: false };
+    this.panes.set(record.thread, pane);
+    this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
+    terminal.onData((data: string) => {
+      try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
+      catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
+    });
+    terminal.onExit((event: unknown) => {
+      pane.stopped = true; pane.state = "unknown";
+      try { this.store.event("pane_exit", event, record); }
+      catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+    });
+    return record;
+  }
   // T-078-1/#49: prepare argv and its durable record only. Actual Claude launch,
   // auth, hooks and completion matching await decision 20261011T101958Z. This
   // method neither creates a live pane nor issues a launch capability.
@@ -317,14 +349,15 @@ export class Panes implements GateRuntime {
     const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.argv[0]);
     const leader = leaders.length === 1 ? leaders[0]!.pid : null;
     const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
-    if (!pane.nativeEnded && !pane.failed && pane.leader !== null && pane.native !== null &&
+    if (pane.record.cli !== "Claude Code" && !pane.nativeEnded && !pane.failed && pane.leader !== null && pane.native !== null &&
       leader === null && shellAlone && pane.state === "idle" && !pane.active && !pane.writing && !pane.queue.length) {
       this.store.event("native_session_ended", { shell_pid: pane.pty.pid, leader_pid: pane.leader,
         native_session: pane.native, processes: owned }, pane.record);
       pane.nativeEnded = true;
     }
     if (pane.nativeEnded && !shellAlone) pane.failed = "process_after_session_end";
-    else if (!pane.nativeEnded && pane.leader !== null && leader !== pane.leader) pane.failed = "codex_leader_replaced_or_exited";
+    else if (!pane.nativeEnded && pane.leader !== null && leader !== pane.leader) pane.failed =
+      pane.record.cli === "Claude Code" ? "claude_leader_replaced_or_exited" : "codex_leader_replaced_or_exited";
     if (pane.leader === null && leader !== null) pane.leader = leader;
     this.scan(pane);
     return { shell_pid: pane.pty.pid, leader, native_session: pane.native, session_ended: pane.nativeEnded,
@@ -332,6 +365,7 @@ export class Panes implements GateRuntime {
   }
   scan(pane: Pane, final = false) {
     if (pane.stopped) return;
+    if (pane.record.cli === "Claude Code") return;
     const home = pane.record.env.CODEX_HOME as string;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
@@ -562,7 +596,7 @@ export class Panes implements GateRuntime {
     const pane = this.get(thread);
     check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
     const info = await this.processInfo(thread);
-    check(info.leader && !info.failed, "foreground_codex_required", info);
+    check(info.leader && !info.failed, pane.record.cli === "Claude Code" ? "foreground_claude_required" : "foreground_codex_required", info);
     this.store.event("executor_action", { action: "initial_release", reason, source: "executor", process_info: info }, pane.record);
     pane.state = "idle";
     await this.drain(pane);
@@ -593,6 +627,34 @@ export class Panes implements GateRuntime {
     this.store.event("hook_received", { raw_stdin: raw, received_at }, pane.record);
     const value = JSON.parse(raw); this.scan(pane);
     check(value.session_id === pane.native, "hook_native_session_mismatch");
+    if (pane.record.cli === "Claude Code") {
+      // P1's configured single submission avoids claiming cross-turn Stop
+      // correlation before the actual CLI payload has been observed (T-078-2).
+      check(pane.record.turn_limit === 1, "claude_turn_correlation_unverified");
+      if (value.hook_event_name === "PermissionRequest") {
+        this.store.event("permission_wait", value, pane.record); pane.state = "busy"; return;
+      }
+      if (value.hook_event_name === "UserPromptSubmit") {
+        const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
+        check(pane.state === "busy" && item && value.prompt === item.text && !pane.claudePrompt, "claude_submission_unmatched");
+        pane.claudePrompt = true; this.store.event("turn_start_signal", value, pane.record); return;
+      }
+      check(value.hook_event_name === "Stop", "unsupported_hook");
+      this.store.event("turn_end_signal", value, pane.record);
+      const active = pane.active;
+      const matched = Boolean(active && pane.claudePrompt && !pane.failed && !pane.stopInProgress &&
+        value.stop_hook_active === false && Date.parse(received_at) >= Date.parse(active.at));
+      if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
+      pane.stopInProgress = true;
+      try {
+        if (transfer) await transfer(pane, value, true);
+        pane.active = null; pane.claudePrompt = false; pane.state = pane.interrupted ? "busy" : "idle";
+        this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
+      } catch (error) {
+        this.recordFailure(pane, "stop_transfer_failed", error); throw error;
+      } finally { pane.stopInProgress = false; }
+      return;
+    }
     if (value.hook_event_name === "PermissionRequest") {
       pane.failed = "unexpected_permission_request"; pane.state = "unknown";
       this.store.event("permission_wait", value, pane.record);
@@ -623,17 +685,20 @@ export class Panes implements GateRuntime {
   }
   async caller(identity: any): Promise<SubmitCaller> {
     const pane = this.authenticate(identity);
+    check(pane.attempt, "worker_attempt_required");
+    const attempt = pane.attempt;
     this.scan(pane);
     check(pane.turn && pane.native === identity.native_session, "native_identity_required");
     const turn = pane.turn;
-    return { thread: pane.attempt.thread_id, turn, address: `${pane.record.role}:${pane.attempt.thread_id}`,
+    return { thread: attempt.thread_id, turn, address: `${pane.record.role}:${attempt.thread_id}`,
       assertActive: async () => {
-        const info = await this.processInfo(pane.attempt.thread_id);
+        const info = await this.processInfo(attempt.thread_id);
         check(info.leader && !info.failed && pane.state === "busy" && pane.active?.nativeTurn === turn, "worker_not_active");
       } };
   }
   readThread = async (thread: string) => {
     const pane = this.get(thread);
+    check(pane.attempt, "worker_attempt_required");
     if (!pane.stopped) await this.processInfo(thread);
     return { workspace: pane.attempt.workspace, provider: "codex", turn: pane.turn,
       runtime_identity: { launch: pane.record.id, thread, shell_pid: pane.pty.pid,

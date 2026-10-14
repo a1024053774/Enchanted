@@ -44,7 +44,8 @@ export async function serve(
       return { source: "user", kind: "window", window };
     }
     const pane = panes.authenticate(identity);
-    return { source: pane.record.role === "worker" ? `worker:${pane.record.thread}` : pane.record.role, kind: "launch" };
+    return { source: pane.record.role === "controller" ? pane.record.preset :
+      pane.record.role === "worker" ? `worker:${pane.record.thread}` : pane.record.role, kind: "launch" };
   };
   gates.setUserInputObserverStatus("healthy");
   let stopping = false;
@@ -182,6 +183,13 @@ export async function serve(
       if (!status.ok || !status.task) return status;
       return { ok: true, prepared: panes.prepareControllerLaunch(status.task, input.preset) };
     }
+    if (input.command === "controller_start") {
+      if (authority.kind !== "operator") throw new Refusal("operator_required");
+      const status = await gates.call({ command: "status", task: input.task });
+      if (!status.ok || !status.task) return status;
+      if (input.manifest?.state !== root) throw new Refusal("controller_state_mismatch");
+      return { ok: true, launch: panes.startController(status.task, input.manifest) };
+    }
     if (input.command === "daemon_stop") {
       stopping = true;
       gates.beginShutdown();
@@ -211,6 +219,11 @@ export async function serve(
       let completedReview: { task: string; id: string } | undefined;
       await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
         let files = input.relay_files;
+        if (pane.record.cli === "Claude Code") {
+          if (!Array.isArray(files)) throw new Refusal("relay_files_required");
+          if (files.length) throw new Refusal("controller_relay_not_enabled");
+          return;
+        }
         if (pane.record.role === "reviewer") {
           if (!matched) return;
           let request: Record<string, any>;
