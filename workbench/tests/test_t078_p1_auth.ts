@@ -31,7 +31,7 @@ check("endpoint_and_isolation_preserved", () => {
   assert.equal(profile.env.ANTHROPIC_BASE_URL, "http://127.0.0.1:12345");
   assert.equal(profile.env.HOME, join(root, "home"));
   assert.equal(profile.env.CLAUDE_CONFIG_DIR, join(root, "claude"));
-  assert.equal(profile.env.IS_DEMO, "1");
+  assert.equal(Object.hasOwn(profile.env,"IS_DEMO"),false);
   assert.deepEqual(Object.keys(profile.settings), ["hooks"]);
   assert.equal(profile.argv.includes("--bare"), false);
 });

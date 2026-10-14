@@ -5,8 +5,9 @@ from command_evidence import CommandLog,command_json
 from p1_endpoint import resolved_input
 from p1_processes import identity_from_ps,cli_exit_verdict
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
-parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','continue','cleanup'],required=True)
+parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','trust','continue','cleanup'],required=True)
 parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
+parser.add_argument('--key',choices=['Digit1']);parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
 args=parser.parse_args();materials=args.materials.resolve();approval=json.loads((materials/'approval.json').read_text());root=Path(approval['input']['root']);state=root/'state'
 label=args.label or args.phase
 if Path(label).name!=label or label in ['.','..']:parser.error('A single new output-directory name is required')
@@ -39,6 +40,28 @@ def events():
 def probe_process(pid):
     p=run(['/bin/ps','-p',str(pid),'-o','pid=,lstart=,comm='],allowed=(0,1))
     return identity_from_ps(pid,p.returncode,p.stdout,p.stderr)
+def same_cli():
+    manifest=json.loads((materials/'launch/process-manifest.json').read_text(encoding='utf-8'))
+    if any(manifest.get(k)!=approval['input'][k] for k in ['launch','session']) or probe_process(manifest['cli']['pid'])!=manifest['cli']:
+        raise RuntimeError('continuation_cli_identity_changed')
+    return manifest
+def snapshot():
+    value=call('pane_output','--launch',approval['input']['launch'],'--offset','0')
+    if value['next_offset']!=value['total_bytes']:raise RuntimeError('screen_exceeds_review_limit')
+    raw=base64.b64decode(value['data_base64'])
+    with (out/'screen.bin').open('xb') as f:f.write(raw)
+    with (out/'screen.json').open('x',encoding='utf-8') as f:
+        json.dump({'observed_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+                   'directory':str(root/'repo'),'launch':approval['input']['launch'],'session':approval['input']['session'],'output':value},f,ensure_ascii=False,indent=2)
+    return value
+def raw_hook_receipts():
+    records=[]
+    for directory in sorted((root/'hooks').iterdir()):
+        if (directory/'finished.json').exists():
+            done=json.loads((directory/'finished.json').read_text(encoding='utf-8'))
+            payload=json.loads((directory/'stdin.bin').read_bytes())
+            records.append({'event':payload.get('hook_event_name'),'exit_code':done['exit_code'],'launch':done['launch'],'directory':str(directory)})
+    return records
 try:
     if not os.path.ismount('/Volumes/WD-Elements'):raise RuntimeError('External volume missing')
     for name in ['input.json','role.md','nonce.txt']:
@@ -68,9 +91,10 @@ try:
         for argv in runtime['preflight_argv']:
             p=run(argv,runtime['launch']['env'])
             if p.returncode or (argv[-1]=='--version' and p.stdout.strip()!=runtime['launch']['cli_version_expected']):raise RuntimeError('Fixed CLI preflight mismatch')
-            if argv[-1]=='--help' and any(flag not in p.stdout for flag in ['--session-id','--model','--effort','--settings','--append-system-prompt','--permission-mode','--strict-mcp-config','--tools']):raise RuntimeError('Required CLI options missing')
+            if argv[-1]=='--help' and any(flag not in p.stdout for flag in ['--session-id','--model','--effort','--settings','--append-system-prompt','--permission-mode','--strict-mcp-config','--tools','--debug-file']):raise RuntimeError('Required CLI options missing')
+        if sorted(p.name for p in (root/'repo').iterdir())!=['value.txt'] or (root/'repo/value.txt').read_text(encoding='utf-8')!='P1 isolated fixture\n':raise RuntimeError('fixture_repo_changed')
         run(['git','-C',root/'repo','init','-b','main'])
-        (root/'repo/value.txt').write_text('P1 isolated fixture\n');run(['git','-C',root/'repo','add','value.txt']);run(['git','-C',root/'repo','commit','-m','P1 fixture'])
+        run(['git','-C',root/'repo','add','value.txt']);run(['git','-C',root/'repo','commit','-m','P1 fixture'])
         call('daemon_start')
         card={'id':approval['input']['task'],'source':None,'goal':'Claude CLI protocol tracer bullet','non_goals':['worker delivery or integration'],
               'paths':{'allow':['.'],'deny':[]},'completion_conditions':[{'argv':[sys.executable,'-c',"raise SystemExit('P1 does not deliver a worker candidate')"]}],
@@ -93,7 +117,21 @@ try:
                        'shell_pid':owner_info['shell_pid'],'cli':identity},f,ensure_ascii=False,indent=2)
         result['process_manifest']=str(out/'process-manifest.json');save()
         result['next']='No input has been sent. Inspect and preserve the raw terminal output. Stop at any API-key approval or directory-trust prompt; do not press keys or select defaults. Continue and cleanup require separate approval.'
-        result['pty_output']=call('pane_output','--launch',approval['input']['launch'],'--offset','0')
+        result['pty_output']=snapshot()
+    elif args.phase=='screen':
+        result['process_confirmation']=same_cli();result['pty_output']=snapshot()
+        result['scope']='Read-only screen; no readiness or trust inferred.'
+    elif args.phase=='trust':
+        if not args.key or not args.approval_file or not args.screen_file:raise RuntimeError('explicit_trust_materials_required')
+        permitted=json.loads(args.approval_file.read_text(encoding='utf-8'))
+        if any(permitted.get(k)!=approval['input'][k] for k in ['launch','session']) or permitted.get('directory')!=str(root/'repo') or permitted.get('key')!=args.key or permitted.get('approved_by')!='executor' or not permitted.get('approval_ref') or not permitted.get('basis') or permitted.get('screen_file')!=str(args.screen_file.resolve()):
+            raise RuntimeError('trust_approval_binding_mismatch')
+        with (out/'reviewed-screen.bin').open('xb') as f:f.write(args.screen_file.read_bytes())
+        result['approval']=permitted;result['process_confirmation']=same_cli();save()
+        result['key_result']=call('pane_trust','--thread',approval['input']['thread'],'--key',args.key,'--screen-file',args.screen_file,'--authorization-ref',permitted['approval_ref'])
+        result['pty_output']=snapshot();result['events']=events()
+        result['scope']='Exactly Digit1 sent by authenticated executor; inspect screen again. No Enter, default selection or automatic continue.'
+        # Trust completion is a human observation, never inferred from the write.
     elif args.phase=='continue':
         owner=json.loads((root/'api-owner.json').read_text())
         bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),owner['pid'])
@@ -105,10 +143,7 @@ try:
         if ready.get('launch')!=approval['input']['launch'] or ready.get('session')!=approval['input']['session'] or ready.get('confirmed_by')!='executor' or ready.get('readiness')!='confirmed' or not ready.get('basis'):
             raise RuntimeError('Explicit startup-readiness approval required; never use task input as a trust answer')
         result['readiness_file']=str(args.readiness_file.resolve());result['readiness_confirmation']=ready;save()
-        process_manifest=json.loads((materials/'launch/process-manifest.json').read_text(encoding='utf-8'))
-        if any(process_manifest.get(key)!=approval['input'][key] for key in ['launch','session']) or probe_process(process_manifest['cli']['pid'])!=process_manifest['cli']:
-            raise RuntimeError('continuation_cli_identity_changed')
-        result['process_confirmation']=process_manifest;save()
+        result['process_confirmation']=same_cli();save()
         thread=approval['input']['thread'];call('pane_release','--thread',thread,'--reason','P1 explicit initial readiness approved by executor')
         result['dispatch']=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce.txt')
         wait(lambda:(root/'api-request.json').exists())
@@ -119,6 +154,8 @@ try:
         result['events']=events();result['after_completion']=call('pane_status','--thread',thread)
         wait(lambda:('P1_ACK '+(root/'nonce.txt').read_text()).encode('utf-8') in base64.b64decode(call('pane_output','--launch',approval['input']['launch'],'--offset','0')['data_base64']))
         if sum(e['type']=='pane_idle' for e in result['events'])!=1:raise RuntimeError('Unexpected completion count')
+        wait(lambda:all(any(h['event']==event and h['exit_code']==0 and h['launch']==approval['input']['launch'] for h in raw_hook_receipts()) for event in ['UserPromptSubmit','Stop']))
+        result['hook_receipts']=raw_hook_receipts()
         result['status']='PASS';result['scope']='One real Claude CLI using scripted SSE; no real model or multi-turn claim.'
     else:
         attempted=False

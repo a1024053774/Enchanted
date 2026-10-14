@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { request as daemonRequest, startDaemon } from "../transport.ts";
 import { queueWorkerRequest, readWorkerRequests } from "../relayFiles.ts";
 import { readOperatorCredential } from "../credentials.ts";
+import { HookTrace } from "../hookTrace.ts";
 
 const commands: Record<string, { required: string[]; optional?: string[] }> = {
   daemon_start: { required: [], optional: ["launch-config"] },
@@ -21,6 +22,7 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   pane_process_info: { required: ["thread"] },
   pane_release: { required: ["thread", "reason"] },
   pane_dispatch: { required: ["thread", "body-file"] },
+  pane_trust: { required: ["thread", "key", "screen-file", "authorization-ref"] },
   signal: { required: ["launch"] },
   launch_show: { required: ["launch"] },
   controller_prepare: { required: ["preset"] },
@@ -64,15 +66,19 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   stop: { required: ["thread", "stop-id"] },
 };
 
-async function emit(result: unknown) {
+async function emit(result: unknown, trace?: HookTrace) {
+  const bytes=JSON.stringify(result)+"\n";
+  trace?.stdout(bytes);
   await new Promise<void>((resolve, reject) => {
-    process.stdout.write(JSON.stringify(result) + "\n", (error) =>
+    process.stdout.write(bytes, (error) =>
       error ? reject(error) : resolve(),
     );
   });
 }
 
 export async function main(argv = process.argv.slice(2)) {
+  let trace: HookTrace | undefined;
+  const finish=(code: number)=>trace ? trace.finish(code) : code;
   let root: string;
   let request: Record<string, unknown>;
   try {
@@ -114,7 +120,7 @@ export async function main(argv = process.argv.slice(2)) {
       "id",
       "bundle-id",
       "stop-id",
-      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest",
+      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest", "key", "screen-file", "authorization-ref",
       "score-file", "review-file",
       "file",
     ];
@@ -157,6 +163,8 @@ export async function main(argv = process.argv.slice(2)) {
       else if (key === "answers") request.answers = JSON.parse(value!);
       else if (key === "refs") request.refs = JSON.parse(value!);
       else if (key === "manifest") request.manifest = JSON.parse(readFileSync(value!, "utf8"));
+      else if (key === "screen-file") request.screen_base64 = readFileSync(value!).toString("base64");
+      else if (key === "authorization-ref") request.authorization_ref = value;
       else if (key === "blocking") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
         request.blocking = value === "true";
@@ -166,7 +174,9 @@ export async function main(argv = process.argv.slice(2)) {
     }
     if (command === "signal") {
       request.received_at = new Date().toISOString();
-      request.raw_stdin = readFileSync(0, "utf8");
+      const raw=readFileSync(0);
+      trace=HookTrace.start(root,String(request.launch),raw);
+      request.raw_stdin=raw.toString("utf8");
       if (JSON.parse(String(request.raw_stdin)).hook_event_name === "Stop" && process.env.A2A_ROLE !== "reviewer") {
         request.relay_files = readWorkerRequests(process.env.A2A_REQUEST_DIR!);
       }
@@ -179,8 +189,9 @@ export async function main(argv = process.argv.slice(2)) {
       request = { ...body, command, task: request.task };
     }
   } catch (error) {
-    console.error("usage: --state ABS_DIR COMMAND --task ID ...\n" + String(error));
-    return 2;
+    const bytes="usage: --state ABS_DIR COMMAND --task ID ...\n"+String(error)+"\n";
+    trace?.stderr(bytes);process.stderr.write(bytes);
+    return finish(2);
   }
   try {
     const identity = process.env.A2A_LAUNCH ? {
@@ -190,22 +201,22 @@ export async function main(argv = process.argv.slice(2)) {
     } : undefined;
     if (identity && ["submit", "status", "issue", "inbox_send", "inbox_list", "inbox_ack", "inbox_ready"].includes(String(request.command))) {
       await emit(queueWorkerRequest(request));
-      return 0;
+      return finish(0);
     }
     if (identity && request.command !== "signal") throw new Error("worker_command_forbidden");
     const operator = request.command === "daemon_start" || identity ? undefined : readOperatorCredential(root);
     const result = request.command === "daemon_start"
       ? await startDaemon(root, request["launch-config"] ? JSON.parse(readFileSync(String(request["launch-config"]), "utf8")) : {})
       : await daemonRequest(root, request, identity ?? operator);
-    await emit(request.command === "signal" && result.ok ? {} : result);
-    return result.ok ? 0 : 1;
+    await emit(request.command === "signal" && result.ok ? {} : result, trace);
+    return finish(result.ok ? 0 : 1);
   } catch (error) {
     await emit({
       ok: false,
       error: "daemon_call_failed",
       details: String(error),
-    });
-    return 1;
+    }, trace);
+    return finish(1);
   }
 }
 if (import.meta.main) process.exitCode = await main();

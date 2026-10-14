@@ -212,6 +212,10 @@ export async function serve(
     }
     if (input.command === "pane_status") return { ok: true, ...panes.status(input.thread) };
     if (input.command === "pane_process_info") return { ok: true, ...await panes.processInfo(input.thread) };
+    if (input.command === "pane_trust") {
+      if (authority.kind!=="operator") throw new Refusal("operator_required");
+      return {ok:true,...await panes.trustKey(input.thread,input.key,input.screen_base64,input.authorization_ref,authority.source)};
+    }
     if (input.command === "pane_release") return { ok: true, ...await panes.release(input.thread, input.reason) };
     if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.dispatch(panes.get(input.thread), input.body) };
     if (input.command === "signal") {

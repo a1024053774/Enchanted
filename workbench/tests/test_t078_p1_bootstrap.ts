@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { claudeLaunch } from "../src/claudeLaunch.ts";
 
-// Independent contract: controller #91 permits only theme=dark and IS_DEMO=1.
+// Controller #97: theme=dark, no IS_DEMO, title request disabled.
 // Failure cases: missing demo variable; absent or extra settings; approval drift;
 // preseeded internal key/trust/onboarding state. This test starts no vendor CLI.
 const [materials, output] = process.argv.slice(2);
@@ -18,9 +18,10 @@ function check(name: string, run: () => void) {
   try { run(); checks.push({ name, status: "PASS" }); }
   catch (error) { checks.push({ name, status: "INCOMPLETE", error: String(error) }); }
 }
-check("isolated_demo_environment", () => {
-  assert.equal(profile.env.IS_DEMO, "1");
-  assert.equal(approval.launch.env.IS_DEMO, "1");
+check("isolated_profile_environment", () => {
+  assert.equal(Object.hasOwn(profile.env,"IS_DEMO"),false);
+  assert.equal(Object.hasOwn(approval.launch.env,"IS_DEMO"),false);
+  assert.equal(profile.env.CLAUDE_CODE_DISABLE_TERMINAL_TITLE,"1");
   assert.equal(profile.env.HOME, join(input.root, "home"));
   assert.equal(profile.env.CLAUDE_CONFIG_DIR, join(input.root, "claude"));
 });

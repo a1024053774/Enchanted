@@ -12,7 +12,8 @@ out=BASE/args.label;out.mkdir()
 root=Path(tempfile.mkdtemp(prefix='t078-2-p1-'+suffix+'-',dir='/tmp')).resolve()
 record={'status':'INCOMPLETE','argv':__import__('sys').argv,'root':str(root),'real_cli_starts':0,'api_starts':0}
 try:
-    for name in ['state','repo','home','claude','tmp','shell','requests','manager-home']:(root/name).mkdir()
+    for name in ['state','repo','home','claude','tmp','shell','requests','manager-home','hooks']:(root/name).mkdir()
+    (root/'repo/value.txt').write_text('P1 isolated fixture\n',encoding='utf-8')
     with (root/'claude/settings.json').open('x',encoding='utf-8') as f:json.dump({'theme':'dark'},f,indent=2)
     (root/'role.md').write_text('构思主控 P1 隔离协议探针。只回复收到的 nonce；不调用工具，不修改文件，不新增任务。\n',encoding='utf-8')
     (root/'nonce.txt').write_text('P1_NONCE_'+uuid.uuid4().hex,encoding='utf-8')
@@ -41,7 +42,7 @@ try:
              'isolated_settings':{'path':str(root/'claude/settings.json'),'content':{'theme':'dark'},'approval_file':str(out/'isolated-settings.json')},
              'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':1,'start_runs':0}
     with (out/'control-plane.json').open('x',encoding='utf-8') as f:json.dump(control,f,ensure_ascii=False,indent=2)
-    names=['test_t078_claude_signals.ts','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
+    names=['test_t078_claude_signals.ts','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_trust.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
            'regenerate_t078_p1.py','run_t078_p1.py','t078_fake_messages.py','command_evidence.py','archive_t078_evidence.py']
     extra=[]
     for p in args.extra_source:

@@ -602,6 +602,25 @@ export class Panes implements GateRuntime {
     await this.drain(pane);
     return this.status(thread);
   }
+  async trustKey(thread: string, key: string, screen: string, authorization: string, source: string) {
+    const pane=this.get(thread);
+    check(source==="executor" && pane.record.cli==="Claude Code" && pane.record.role==="controller", "trust_operator_required");
+    check(key==="Digit1" && typeof authorization==="string" && authorization.trim(), "invalid_trust_key");
+    const assertStartup=()=>check(pane.state==="unknown" && !pane.active && !pane.failed && !pane.stopped && !pane.archived && !pane.writing && !pane.queue.length && !pane.userDraft, "trust_requires_startup");
+    assertStartup();
+    await this.serializeWrite(pane,async()=>{
+      assertStartup();
+      check(!this.store.lastEvent(pane.record.id,["controller_trust_key_intent"]), "trust_key_already_used");
+      const info=await this.processInfo(thread);check(info.leader && !info.failed,"foreground_claude_required");
+      const observed=this.output(pane.record.id,0);
+      check(observed.next_offset===observed.total_bytes && observed.data_base64===screen && screen.length>0, "trust_screen_changed");
+      this.store.event("controller_trust_key_intent",{source,key,directory:pane.record.worktree,authorization_ref:authorization,
+        screen_base64:screen,received_at:new Date().toISOString()},pane.record);
+      try { pane.pty.write("1");this.store.event("controller_trust_key_written",{source,key,directory:pane.record.worktree},pane.record); }
+      catch(error){this.recordFailure(pane,"trust_key_write_unknown",error);throw error;}
+    });
+    return {key,written:true,state:pane.state};
+  }
   status(thread: string) {
     const pane = this.panes.get(thread);
     if (pane) {
