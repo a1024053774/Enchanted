@@ -39,3 +39,11 @@ ready_rev: 1
 - 授权来源：用户 2026-10-11 在会话"a2a-构思主控"选"S2、S3、S4 三张，缺口并入 (Recommended)"，选项原文含"我写完直接标就绪派出，不再单独给你看切法"；在此之前在会话"新思路构思"说："确认，写完文档后，你这边就不用了，全权交给构思主控去安排执行主控安排子 agent 去做。"`ready_by: ideation`，`ready_rev: 1`。
 
 ## Resolution
+
+**2026-10-14：用户选 C 的两条受控证明 PASS，待主控关闭。** Ticket 保持 open，本 worker 不修改状态或验收复选框。授权为 answer `20261014T011612Z-ideation-answer-001`，主控 #96/#100；完整结果、命令与证据边界见 [RESULTS](../../evidence/2026-10-11-batch13/T-077/RESULTS.md)。产品版本 `2e2291acfee0e9b4f20c7ff952a5484c4262e20b`，本轮未改产品。
+
+冲突写回背景、会话已结束后开新 attempt、真实 Codex worker 整理 C2 并显式重交已由 r3 的原始事件与 Git 证明。r3 九项正确身份外多了 worker 自己用 git commit --trailer 写入的 A2A-Fence/A2A-Spec-Rev，失败归为模型行为，原 run.json 保持 INCOMPLETE，不放宽断言或重写候选。
+
+重交后的验收与集成用两条真实 CLI/门禁/Git 受控证明补齐：十一项 verify 返回 invalid_trailers、rejected 事件齐全且 main 不变；同一份 C2 代码的九项尾注由生产 hook 生成，verify 通过并 integrate，夹具 main=`feaec0b72720c2ce49e88858bc75937f7ca867c9`、task accepted。放过额外尾注的隔离变体先使独立断言失败（1 failure/0 errors），候选两项均通过。PTY/进程事实受控，新增真实模型回合 0，变体源码不提交。
+
+S3 25 项、8/9/18、CAS、cards 及 relay/身份/停机等既有回归见 RESULTS 的版本绑定索引。R8 的审查会话质量串仍由 T-076 负责；本轮没有新增独立模型审查或最新 main 合流复验，不冒称已运行。r1–r3 原失败和审批、预算、日志完整保留；遗留真实证据提交 `ae33ae6cfcfd422f0d8cab9cb5180d93c7b8c479`，本次受控证明提交号以终端回报为准。

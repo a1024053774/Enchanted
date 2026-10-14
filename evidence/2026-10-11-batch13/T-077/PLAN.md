@@ -364,3 +364,39 @@ preimage/候选的完整字段清单、生产位置和归档实值核对见 `rel
 状态：**INCOMPLETE**。relay-check-02 的 preimage 业务红态确认，候选完整闭环 PASS。修复、测试与相关证据已提交为 `da44c6733f5046f7c645028352859a80070f15b9`，尾注齐全。
 
 `outside-sandbox.sh relay-regression-01` 固定本提交，一次执行 S3 全部 25 项（含冲突 7 项）、8/9/18、CAS、cards、完成条件中的窗格/原生记录/身份/停机检查，以及 relay 交付闭环、scope/core/cli 和全库去重变异体。每组只跑一次，失败即停，产物改用新前缀。准备范围审计 PASS，行为回归待主控运行，详见 [HANDOFF-relay-regression-01.md](HANDOFF-relay-regression-01.md)。真实预算保持 4/4；用户答复前不准备新的真实运行，独立审查留到真实场景之后。本轮 READY 后停止等待。
+
+## 27. 普通速度与获批额外真实预算（主控 #77）
+
+状态：**INCOMPLETE**。主控 #74 的 16 组回归已读回全部 PASS。用户 answer `20261012T015257Z-ideation-answer-001` 批准新增 2～4 个真实回合，并要求所有 Codex 会话 gpt-6.1-sol / xhigh / 普通速度、不传 Fast；本 worker 已换为 s13-t077r，续接原生会话。
+
+Panes 去掉 Fast 参数、速度请求记录为 null，相关测试与 README 同步。最小完整 argv 检查先在旧候选失败，再在新代码通过 4 项；没有真实模型回合或外部进程。候选提交为 `f6bc3ed99c87e6ea20eaf144b6a073266a5decb2`，包含 relay 修复，实际提交尾注已记录 gpt-6.1-sol / xhigh。
+
+新实例根 `/private/tmp/t077-cf-20261012-r2`，task T-077-11，新隔离 home、新预算 ledger、两次各 2 个回合；新增计划及上限 4，原已用 4，累计上限 8。完整命令、隔离配置、三个 Codex hook、Git 尾注 hook、停止与清理条件见 [REAL-APPROVAL-02.md](REAL-APPROVAL-02.md)。`real-recheck-01` 与 `real-recheck-02` 分别要求当次启动审批；本轮只准备并在 READY 后停下。旧实例、失败证据与原预算记录原样保留。
+
+## 28. 显式 default 与 r3 剩余预算（主控 #83）
+
+状态：**INCOMPLETE**。r2 第一次仅观察到 1 回合、保守预留 2；回执注入遇近额换模弹窗，诊断见 `REAL-R2-DIAGNOSIS-01.md`。用户现要求显式 `-c service_tier="default"` 覆盖全局 priority；主控无模型探针的原文已复制为 `controller-tier-probe-2026-10-13.md`。本 worker 换为 s13-t077s，sol/xhigh/default，续接原生会话。
+
+生产 argv、启动记录、测试期望与 README 已同步。旧候选缺少覆盖时检查失败，新代码 4 项通过；零真实回合。提交 `2e2291acfee0e9b4f20c7ff952a5484c4262e20b` 包含 relay 修复与 default 覆盖，尾注完整。
+
+r3 新根 `/private/tmp/t077-cf-20261013-r3`，task T-077-12，新隔离 home。剩余已批回合最多 2，完整两次启动需要 4，差 2。`REAL-APPROVAL-03.md` 提供两项最小选择：再申请 2 后完整重演，或只验证第一阶段真实交付并保持 ticket 未完成。机器计划执行授权为 false、当前 turn_limit=2；没有启用真实 launcher。本轮只写无模型的 `r3-plan-check-01`，READY 后等待执行主控的预算/选项决定。
+
+## 29. r3 获批预算版与 Launch 1 待审批（主控 #85）
+
+状态：**INCOMPLETE**。用户 answer `20261013T144758Z-ideation-answer-001` 选 A，再批 2，使 r3 可用 4 回合完整重演；再不过就停、不自动追加。预算另存为 `real-plan-03-approved.json`，turn_limit=4，原 2 回合计划及旧 ledger 不改。
+
+新增独立 runner 只用 r3 新实例与 journal，每阶段各预留 2，分别要求本次批准。结构化原生设置漂移将立即停止，r2 原始 luna/medium 反例已检出；预算/停止检查 4 项、生产 argv/审批边界 4 项离线 PASS，真实用量 0。产品仍固定 `2e2291acfee0e9b4f20c7ff952a5484c4262e20b`，没有新产品修改。
+
+本次只交 Launch 1 的最终材料 [REAL-APPROVAL-03-LAUNCH-1.md](REAL-APPROVAL-03-LAUNCH-1.md) 和 `real-r3-launch-01` 运行命令。实际启动、hook 安装与 auth 复制尚未执行；第一阶段正常结束仍暂停到第二次审批前。本轮 READY 后停止。
+
+## 30. 用户选 C：两条受控证明与证据提交（主控 #96）
+
+状态：**INCOMPLETE，待沙箱外运行**。r3 的真实冲突、新 attempt、真实 worker 整理与 C2 重交已到达；C2 多写 Fence/Spec-Rev 导致尾注断言失败，原始失败保留。用户 answer `20261014T011612Z-ideation-answer-001` 改为两条受控证明后由主控关票，不再花真实回合。主控已改 worker 角色卡，本 worker 不改它。
+
+`controlled-trailer-proofs-01` 先在隔离副本的放宽尾注数量变体上取得业务红态，再用原候选经真实 CLI、daemon、门禁与 Git 证明十一项拒收、同一 C2 代码的九项 hook 尾注通过并集成。两例复用 r3 的冲突与新 attempt 结构，只模拟外部运行时事实。产品不改，变体不提交。具体命令、结果位置、证据边界与停止条件见 [HANDOFF-controlled-trailer-proofs-01.md](HANDOFF-controlled-trailer-proofs-01.md)。原真实启动入口已关闭；完成后整理提交剩余 r1–r3 证据和本次证明。
+
+## 31. 两条证明通过并提交（主控 #100）
+
+状态：**PASS（本次受控证明与证据整理），待主控关闭 ticket**。主控沙箱外运行 exit 0：变体误放行被独立拒收断言检出，1 failure/0 errors、red_confirmed=true；候选 2 tests/0 failures，十一项拒收并记录 invalid_trailers，九项 hook 尾注通过并集成，main=C2 `feaec0b72720c2ce49e88858bc75937f7ca867c9`。本 worker 又只读核对实际 Git 与完整收据，结果一致。
+
+r3 原失败保持 INCOMPLETE，按用户选 C 归为模型手写多余尾注的行为；真实冲突、新 attempt、真实 worker 整理与重交的事实由 r3 保留，验收集成由两条受控证明补齐。新增模型回合 0，产品未改，变体源码不提交。r2/r3 整个现场归档字节核对一致且低于 5 MB，遗留证据提交 ae33ae6c；本次证明与交付报告另作一组提交，见 [RESULTS.md](RESULTS.md)。

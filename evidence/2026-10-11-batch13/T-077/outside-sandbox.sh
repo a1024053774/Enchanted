@@ -6,10 +6,17 @@ set -euo pipefail
 # bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh red-01
 # 同名输出已存在时拒绝，不能覆盖原始失败。后续阶段另行批准/交回。
 if [[ "$#" != 1 ]]; then
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01' >&2
   exit 2
 fi
 cd /Users/luckye/Documents/Code/a2a-wt-t077
+# 主控 #96 / answer 20261014T011612Z：不再允许新的真实模型回合。
+case "$1" in
+  real-01|real-02|real-recheck-01|real-recheck-02|real-r3-launch-01|real-r3-launch-02)
+    echo 'NO_GO: T-077 real model runs are closed by answer 20261014T011612Z-ideation-answer-001' >&2
+    exit 1
+    ;;
+esac
 case "$1" in
 red-01)
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py \
@@ -301,6 +308,39 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/
 t077_require_relay_candidate
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/summarize-relay-regression-01.py
   ;;
+real-recheck-01)
+# 用户额外预算 20261012T015257Z-ideation-answer-001；本次 launch 另须主控明确审批。
+: "${T077_REAL_APPROVAL:?必须填写第二实例第一次启动的主控批准引用}"
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict-02.py \
+  --phase 1 --approval-ref "$T077_REAL_APPROVAL"
+  ;;
+real-recheck-02)
+: "${T077_REAL_APPROVAL:?必须填写第二实例第二次启动的主控批准引用}"
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict-02.py \
+  --phase 2 --approval-ref "$T077_REAL_APPROVAL"
+  ;;
+r3-plan-check-01)
+# 主控 #83：只核对显式 default 的准备材料，不启动真实 CLI。
+node /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/check-real-launch-offline-03.ts \
+  /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/real-plan-03.json \
+  /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/r3-plan-check-01.json
+  ;;
+real-r3-launch-01)
+# 主控 #85：预算已批；Launch 1 本身仍须逐次审批，不自动运行 Launch 2。
+: "${T077_REAL_APPROVAL:?必须填写 r3 Launch 1 本次主控批准引用}"
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict-03.py \
+  --phase 1 --approval-ref "$T077_REAL_APPROVAL"
+  ;;
+real-r3-launch-02)
+: "${T077_REAL_APPROVAL:?必须填写 r3 Launch 2 本次主控批准引用}"
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict-03.py \
+  --phase 2 --approval-ref "$T077_REAL_APPROVAL"
+  ;;
+controlled-trailer-proofs-01)
+# 真实 CLI/Git/门禁，受控原生运行时；先杀死放过额外尾注的变体，再跑两条候选证明。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-controlled-trailer-proofs.py \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-controlled-trailer-proofs-01
+  ;;
 real-01)
 : "${T077_REAL_APPROVAL:?必须填写本次真实启动的执行主控批准引用}"
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict.py \
@@ -312,7 +352,7 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/
   --phase 2 --approval-ref "$T077_REAL_APPROVAL"
   ;;
 *)
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01' >&2
   exit 2
   ;;
 esac
