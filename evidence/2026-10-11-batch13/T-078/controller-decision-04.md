@@ -63,3 +63,9 @@ AUTH_TOKEN 生效：假 API 收到 1 条 /v1/messages（CLI 的会话标题侧�
 ## P1 批准（材料 08 launch，2026-10-14 UTC 02:2x）
 
 审阅 exec/t078 `58be5b71` 的 P1-APPROVAL-08：相比 07 去 IS_DEMO、加 CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 与 --debug-file，hook 原始 stdin/退出留证，信任拆为独立 Digit1 阶段（只写 ASCII 1、不补 Enter、一次性），新 /tmp 实例只含 value.txt、隔离 HOME/CLAUDE_CONFIG_DIR，无内部状态预置。批准 `p1-launch-08` 一次（启动、读屏，输入 0、模型 0）。screen/trust/continue/cleanup 读回后逐次另批。说明：本轮绑定变基前代码 721755d6，作为可行性探针；exec/t078 变基到 main 后须重新生成材料并完整重跑，旧结果不替变基后候选背书。批准引用：`T-078 controller-decision-04 p1-08-launch`。
+
+## p1-launch-08 读回与 cleanup 批准（2026-10-14 UTC 02:2x）
+
+读回 `p1-materials-08/launch/screen.bin`（3,576 字节，02:20:57Z）：去掉 IS_DEMO 后 CLI 停在首次引导的主题选择（"Let's get started. Choose the text style…"，光标在已勾选的 Dark mode），不是目录信任界面。按批准范围停下：不发送 Digit1（此处会选主题而非信任）、不按 Enter。批准 `p1-cleanup-08`（只停自建服务，核对 CLI 退出）。批准引用：`T-078 controller-decision-04 p1-08-cleanup`。
+
+执行主控决定（范围内的执行细节，非用户保留事项）：隔离实例中的首次引导界面允许由执行主控逐屏读回后用明确按键选择，与信任步骤同样留证（时间、原文、目录、按键）；主题选择必须与 settings.json 的 theme（dark）一致，不用 Enter 选默认。理由：主题选择只影响隔离 HOME 内的显示偏好，不涉及权限、凭据、范围或用户数据；IS_DEMO 已证实会同时跳过信任界面，使 hooks 不生效（材料 05/06）。若引导中出现任何涉及权限、认证、遥测或数据共享的选择，停下交构思主控。真登录阶段用户 HOME 已完成引导，不受此决定影响。
