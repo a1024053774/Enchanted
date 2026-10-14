@@ -189,7 +189,7 @@ PASS（模型 0）。逐项核对：nonce1 送达、busy、prompt1；nonce2 登�
 
 ## 09A-3R2 block 收尾（2026-10-14 UTC 18:4x）
 
-原 cleanup BLOCKED（ps 以中文日期输出，按 5 个 lstart token 切列把解释器路径吃入，误判 identity_changed）；#153 恢复脚本同因在 owns_api 前误判，未发信号。#155 修复：ps 子进程固定 LC_ALL=C/LANG=C，非 C 格式直接拒绝，比对规则不变。运行 cleanup-block-recovery-09a3r2.py --approval-ref "主控 #155"：PASS——仅对 48954（本实例假 API，命令/根/owner/双读 lstart 一致）发一次 SIGTERM 并确认退出；CLI 48987、壳 48986、后台 48977 已退出；根逐成员归档到 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/p1-materials-09a3r2-block/cleanup-recovery-154/fixture.tar.gz，字节读回 PASS 后删除根。两个 slot 未动。
+原 cleanup BLOCKED（CLI 48987 退出过程中 ps 的 comm 变为括号名 "(2.1.296)"、lstart 不变，旧逻辑立即判 identity_changed，没有继续等待 PID 真正消失）；#153 恢复脚本另因 ps 以中文日期输出、按 5 个 lstart token 切列把解释器路径吃入，在 owns_api 前误判，未发信号。（2026-10-14 更正：此前把两次原因写成同一原因，见 issue 20261014T192750Z。）#155 修复：ps 子进程固定 LC_ALL=C/LANG=C，非 C 格式直接拒绝，比对规则不变。运行 cleanup-block-recovery-09a3r2.py --approval-ref "主控 #155"：PASS——仅对 48954（本实例假 API，命令/根/owner/双读 lstart 一致）发一次 SIGTERM 并确认退出；CLI 48987、壳 48986、后台 48977 已退出；根逐成员归档到 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/p1-materials-09a3r2-block/cleanup-recovery-154/fixture.tar.gz，字节读回 PASS 后删除根。两个 slot 未动。
 
 ## 09A-3R2 收尾提交与 09B/09C 计划裁定（2026-10-14 UTC 19:2x）
 
