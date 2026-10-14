@@ -1,5 +1,7 @@
 # T-078-1 运行记录
 
+2026-10-14 主控 #97～99：用户允许假服务／真登录阶段各确认一次隔离目录信任，主控已外置 cleanup-06 超限原件并字节读回。旧改动按逻辑提交并取得干净工作树；材料 08 的静态构造、原始 hook 留证与一次 Digit1 后台通路具红绿，见 [P1-APPROVAL-08](P1-APPROVAL-08.md)。移除 IS_DEMO、禁标题、增加 debug，保持假 Bearer／theme／3 秒 hooks；不预置内部状态、不自动补 Enter。按 #99，08 只做一个回合，Esc／二次送达／紧急停止仍由 09 承接，不缩减整票验收。08 实际启动、信任和 hooks 尚未运行，当前准备局部 PASS／整票 INCOMPLETE；变基改变源码后必须重新绑定材料。
+
 2026-10-13 主控 #95：Bearer 生效，nonce 提交后 API 收到一条标题侧请求，未得到主回合／hook 证据；continue-06 因缺 turn_start_signal 停下，cleanup-06 PASS。只读归档显示信任状态 false、无 hook_received／signal 请求、无 debug 或 hook stdin／退出数据，因此不能归因于 timeout 或字段不符。标题请求占住串行 handler，原 runner 在写 release 前失败，未发送 SSE。材料 07 为 BLOCKED 诊断／提案，见 [P1-APPROVAL-07](P1-APPROVAL-07.md)；已报 blocking issue `20261013T182412Z-worker:s13-t078s-issue-001` 请求目录信任决定。建议假服务禁用文档化标题请求并加 debug／hook 留证，不改身份检查或盲目增加 timeout。本轮未改产品候选、未发新输入、未启动 CLI／API／模型，不预置信任状态或穿过提示。
 
 2026-10-13 主控 #94：continue-05b 的已登记 nonce 真实送达并提交，但 CLI 报 `Not logged in · Please run /login`，假 API 无请求，期限到即停；不能把到提示符等同认证可用。原协议失败及 traceback 保留。cleanup-05b 核对记录 CLI PID 50901 已退出后才 PASS，主控确认无残留；该退出修复获得真实复验。本轮按官方文档选择只在假服务阶段用 `ANTHROPIC_AUTH_TOKEN`，移除 API_KEY，假 API 仅接受公开 Bearer token；不用 helper、内部批准状态或自动按键。新实例材料 06、依据与纯检查见 [P1-APPROVAL-06](P1-APPROVAL-06.md)。profile／handler 红绿、材料构造与语法检查通过，完整静态检查仍 INCOMPLETE：旧 cleanup 归档 8,028,610 字节，待外置。新阶段先归档并读回，再取得完整静态 PASS 才启动 API／CLI；旧失败报告与未运行草稿均保留。真实登录阶段不变，本轮未启动 CLI／API／模型，实际新认证、hooks 与完整主控链路仍 INCOMPLETE／待审批。
