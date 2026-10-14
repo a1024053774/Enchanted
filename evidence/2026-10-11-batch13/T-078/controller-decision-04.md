@@ -186,3 +186,7 @@ PASS（模型 0）。逐项核对：nonce1 送达、busy、prompt1；nonce2 登�
 ## 09A-3R2 block 读回与 cleanup（2026-10-14 UTC 18:2x）
 
 逐屏引导与信任同 clean（目录 /private/tmp/t078-2-p1-09a3r2-block-093154n0/repo）。continue PASS（模型 0）：Esc 后保留恢复的草稿，test-simulated-user 点故意不真实的空框声明；真实 UPS2 的 prompt 同时含 nonce1 与 nonce2，hook 原始 stdout 为 {"decision":"block","reason":"登记注入与实际提交正文不一致；已阻断，请处理草稿后再决定。"}，exit 0；假 API 只有请求 1，无 API2、无 api-error。cleanup 及外置归档见下。用户决定 A 与提交前拦截的正例、反例在真实 CLI（假服务）上均成立。待续：09B/09C 停止链路、真登录 Haiku 2–3 回合（逐次批准）、新候选独立审查、合并。
+
+## 09A-3R2 block 收尾（2026-10-14 UTC 18:4x）
+
+原 cleanup BLOCKED（ps 以中文日期输出，按 5 个 lstart token 切列把解释器路径吃入，误判 identity_changed）；#153 恢复脚本同因在 owns_api 前误判，未发信号。#155 修复：ps 子进程固定 LC_ALL=C/LANG=C，非 C 格式直接拒绝，比对规则不变。运行 cleanup-block-recovery-09a3r2.py --approval-ref "主控 #155"：PASS——仅对 48954（本实例假 API，命令/根/owner/双读 lstart 一致）发一次 SIGTERM 并确认退出；CLI 48987、壳 48986、后台 48977 已退出；根逐成员归档到 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/p1-materials-09a3r2-block/cleanup-recovery-154/fixture.tar.gz，字节读回 PASS 后删除根。两个 slot 未动。
