@@ -47,3 +47,11 @@
 执行主控在沙箱外运行 `outside-sandbox.sh controlled-trailer-proofs-01`（真实模型 0）：顶层 PASS。known-bad（删去 verify 尾注数量检查的 /tmp 变体）red_confirmed=true，verify ok=true；候选 2/0/0：(a) 多余 A2A-Fence/A2A-Spec-Rev → invalid_trailers、两条 rejected 事件、task 仍 submitted；(b) 同一 C2 源码、钩子生成九项 → accepted，夹具 main 快进到 C2。两例 C2 源码一致，无超 5 MB 文件。
 
 worker 非阻塞问题 ISSUE-dispatch-tier-record（dispatch_intent 速度标签为 fast）：main 的 core.ts 已是 `requested_service_tier: "default"`（随 T-076-2 合入），T-077 变基到 main 时随之解决，合流时核对；不另开 ticket。其 inbox 投递失败源于本分支既有悬空 reply_to，变基后由 main 的收件箱为准。
+
+## rebase 完成与 rebase-final-01 批准（2026-10-14 UTC 03:0x）
+
+变基：worker 逐停解决冲突（停 1：5 文件；停 4：3 文件取 main 侧；停 5：panes.ts），执行主控在沙箱外运行 rebase-continue-01/03/05；第 3 个提交的 add/add 冲突是我自己的 controller-decision-03.md，取 main 侧超集。之后再变基到 main 5e057109（只多 T-078 决策日志）。冻结 c3eb705c。批准运行 `rebase-final-01`（33 个子阶段，含三条合流组合路径的变体红态、T-076-2 最终入口联合核对，模型 0）。
+
+## worker issue 20261014T023857Z（审查 worktree 未接 S3 命名与结束清理）
+
+核对：spec 第 4 节要求验收/审查目录有用途与序号、结果存库后删除；main 的 requestReview 建 `review-<UUID>`，reclaimReview 不删 worktree。PLAN 将其交 T-076-2，T-076-2 关票时未接入——跨卡遗漏，属已批准 spec 内的缺陷，不是新目标。处置：并入 T-077 合流前完成（ready_by executor 级缺陷处理）：先受控红态（回收后 review worktree 与目录仍在），再修，重跑受影响检查，再独立审查。T-076 的 Known limits 需补记此项（转构思主控）。
