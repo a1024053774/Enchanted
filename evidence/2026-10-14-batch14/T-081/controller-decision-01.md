@@ -15,3 +15,7 @@ run_t081_bad_worker_suite.py --output full-01：rc=3，NO_GO。probe_launch：�
 ## 供应商内容过滤（2026-10-14 UTC 19:4x）
 
 s14-t081 在规划"伪造尾注"探针时，回复被模型服务过滤（"This content can't be shown … cybersecurity requests"），worker 空闲。执行主控重发一次，如实说明这是本项目门禁在 /tmp 隔离夹具上的验收测试（追溯字段一致性），任务内容不变。若再被拦，停下报用户，不换说法规避。
+
+## full-02 读回（2026-10-14 UTC 19:5x）
+
+rc=2。11 个坏行为案候选拒收码均符合预期、对应变异体均为业务 contract_failure；3 个正例集成、误拒绝 0。6e 发现：Launch/Model/Effort/Tool 四个追溯字段与启动记录不一致的提交在原产品与当前 main 均被接受并集成（已转构思主控请用户定，选项 A 补核对 / B 记已知局限）。run.json 顶层 FileExistsError(17)（收尾），交 worker 修 runner 后跑 full-03。第 7 项材料交审。
