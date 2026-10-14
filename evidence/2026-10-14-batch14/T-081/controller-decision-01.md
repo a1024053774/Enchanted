@@ -11,3 +11,7 @@ T-080 已关闭（main 391d70b0），T-081 的 blocked_by 解除。依据 assign
 ## full-01：6e 探针 NO_GO（2026-10-14 UTC 19:3x）
 
 run_t081_bad_worker_suite.py --output full-01：rc=3，NO_GO。probe_launch：同一输入下，提交尾注 A2A-Launch 伪造为 00000000-0000-4000-8000-000000000081（实际 worker launch 1e3dc0fc…），原产品 cdf8fe9b 与当前 main 均 verify ok、集成 accepted。model 探针未运行（脚本按设计停）。核对 T-072 规则："带本 attempt 尾注的正常；没有尾注的记人工介入；带别的任务尾注的打回"——未规定 Launch/Model 须与启动记录一致；用户原话"每一次代码提交都应该能追溯到"。判为规格缺口（验收/设计层），连同 6a 转构思主控请用户定；T-081 不修产品。其余矩阵继续运行，6e 记为发现。
+
+## 供应商内容过滤（2026-10-14 UTC 19:4x）
+
+s14-t081 在规划"伪造尾注"探针时，回复被模型服务过滤（"This content can't be shown … cybersecurity requests"），worker 空闲。执行主控重发一次，如实说明这是本项目门禁在 /tmp 隔离夹具上的验收测试（追溯字段一致性），任务内容不变。若再被拦，停下报用户，不换说法规避。
