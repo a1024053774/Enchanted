@@ -8,3 +8,7 @@
 ## 红态读回（2026-10-14 UTC 13:3x）
 
 red-01：rc=1，冻结源码解包用 tarfile filter 参数，本机 python3 3.9.6 不支持；业务未运行，原样保留。red-02（逐成员校验解包、排除受控场景不执行的 hook 链接别名）：rc=0，红态成立——allow ["."] 的卡、候选只改 acceptance/criterion.py（改为 pass），产品值仍 "base\n"，独立断言 exit 1，门禁 verified=true、integrated=true，夹具 main=候选 4f2649ab；审查结论为夹具合成（declared-contract 已声明，只证明机械门禁缺口）；真实模型 0。批准进入实现。
+
+## 共享文件分配（2026-10-14 UTC 14:2x）
+
+FINAL-01 交接指出依赖：workbench/src/gates/qualityProtocol.ts 的 scoreRecords 严格 checks、scripts/score 的 CHECKS 与帮助文本须新增 oracle，workbench/README.md 须同步门禁说明（project-map 1 stale）。三者当前无其他写入者，属 T-080 第 3、5 条范围，交 T-080 worker 修改。历史 records/scores.jsonl 为追加式旧数据，不改写、不加兼容分支；校验只针对新记录要求 oracle，若现有校验会整表重读旧行导致失败，worker 先停下报告。
