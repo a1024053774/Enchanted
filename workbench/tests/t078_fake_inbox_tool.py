@@ -1,6 +1,7 @@
 """One controller tool slice on loopback; no forwarding or request-file writes."""
 import json
 import os
+import sqlite3
 from pathlib import Path
 import sys
 import threading
@@ -8,6 +9,21 @@ import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from t078_slice1_protocol import validate_request, response_events
+
+
+def load_registered_feedback(state, launch):
+    # Read the actual registered item; never infer the expected text from API3.
+    with sqlite3.connect((state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True) as db:
+        rows = db.execute("""SELECT e.data FROM orchestration_events e JOIN dispatch_records d
+            ON d.launch=e.launch AND d.id=json_extract(e.data,'$.id')
+            WHERE e.launch=? AND e.type='dispatch_queued' AND d.seq=2
+            AND json_extract(d.data,'$.source')='gate'""", (launch,)).fetchall()
+    if len(rows) != 1:
+        raise ValueError('One registered feedback item is required.')
+    item = json.loads(rows[0][0])
+    if item.get('seq') != 2 or item.get('source') != 'gate' or not isinstance(item.get('text'), str):
+        raise ValueError('The registered feedback identity is invalid.')
+    return item['text']
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -37,7 +53,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if path != '/v1/messages':
                 raise ValueError('Unexpected endpoint; no forwarding.')
-            facts = validate_request(body, number, scenario)
+            feedback = load_registered_feedback(root / 'state', manifest['launch']) if number == 3 and scenario['name'] == 'slice1-inbox-green' else None
+            facts = validate_request(body, number, scenario, feedback)
             with (root / f'api-request-{number}.json').open('x', encoding='utf-8') as stream:
                 json.dump(body, stream, ensure_ascii=False, indent=2)
             if number == 2:

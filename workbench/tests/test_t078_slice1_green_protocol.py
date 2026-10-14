@@ -29,8 +29,10 @@ def third(value):
         {'role': 'assistant', 'content': [{'type': 'text', 'text': 'ACK UNSEEN_GREEN_23'}]},
         {'role': 'user', 'content': [{'type': 'text', 'text': '⟦门禁 #2⟧\nExecution receipts\n' + json.dumps([value])}]}]}
 checks = []
-def check(name, body, number, expected):
-    try: observed = validate(body, number, scenario); accepted = True
+def check(name, body, number, expected, registered=None):
+    if registered is None:
+        registered = '⟦门禁 #2⟧\nExecution receipts\n' + json.dumps([receipt])
+    try: observed = validate(body, number, scenario, registered); accepted = True
     except ValueError as error: observed = str(error); accepted = False
     checks.append({'name': name, 'status': 'PASS' if accepted == expected else 'INCOMPLETE',
                    'expected_accepted': expected, 'observed': observed})
@@ -39,9 +41,10 @@ check('registered-feedback-correlates-and-scopes-sentinel', third(receipt), 3, T
 check('fourth-Messages-is-rejected', second, 4, False)
 for name, changed in [('always-empty-result', []), ('foreign-role-result', [{'entry': {'id': 'FOREIGN_47'}}]),
                        ('both-role-results', [{'entry': {'id': 'IDEATION_23'}}, {'entry': {'id': 'FOREIGN_47'}}])]:
-    value = copy.deepcopy(receipt); value['result']['entries'] = changed; check(name, third(value), 3, False)
-value = copy.deepcopy(receipt); value['request_id'] = 'foreign_request'; check('foreign-request-correlation', third(value), 3, False)
-value = copy.deepcopy(receipt); value['replayed'] = True; check('replay-is-not-new-execution', third(value), 3, False)
+    value = copy.deepcopy(receipt); value['result']['entries'] = changed
+    check(name, third(value), 3, False, '⟦门禁 #2⟧\nExecution receipts\n' + json.dumps([value]))
+value = copy.deepcopy(receipt); value['request_id'] = 'foreign_request'; check('foreign-request-correlation', third(value), 3, False, '⟦门禁 #2⟧\nExecution receipts\n' + json.dumps([value]))
+value = copy.deepcopy(receipt); value['replayed'] = True; check('replay-is-not-new-execution', third(value), 3, False, '⟦门禁 #2⟧\nExecution receipts\n' + json.dumps([value]))
 bad = third(receipt); bad['messages'][0]['content'][0]['input']['command'] += ' --extra'
 check('changed-tool-command-in-feedback-history', bad, 3, False)
 bad = third(receipt); bad['messages'][0]['content'].append(copy.deepcopy(tool))

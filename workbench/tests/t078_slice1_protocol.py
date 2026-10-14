@@ -10,7 +10,22 @@ def text_content(content):
     raise ValueError('Tool result content must be text or content blocks.')
 
 
-def validate_request(body, number, scenario):
+def user_text_parts(messages):
+    parts = []
+    for message in messages:
+        if message.get('role') != 'user':
+            continue
+        content = message.get('content', [])
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            parts.extend(p['text'] for p in content if isinstance(p, dict) and p.get('type') == 'text')
+        else:
+            raise ValueError('User content must be text or content blocks.')
+    return parts
+
+
+def validate_request(body, number, scenario, registered_feedback=None):
     if scenario.get('name') not in ('slice1-inbox-red', 'slice1-inbox-green'):
         raise ValueError('A declared controller inbox slice is required.')
     green = scenario['name'] == 'slice1-inbox-green'
@@ -21,8 +36,7 @@ def validate_request(body, number, scenario):
         raise ValueError('The declared Messages budget is exhausted.')
     messages = body.get('messages', [])
     if number == 1:
-        texts = [p.get('text') for m in messages if m.get('role') == 'user'
-                 for p in m.get('content', []) if isinstance(p, dict) and p.get('type') == 'text']
+        texts = user_text_parts(messages)
         if not texts or texts[-1] != '⟦主控 #1⟧\n' + scenario['nonce']:
             raise ValueError('The exact registered root prompt is required.')
         tool = next((t for t in body.get('tools', []) if t.get('name') == 'Bash'), None)
@@ -34,10 +48,15 @@ def validate_request(body, number, scenario):
                  if isinstance(p, dict) and p.get('type') == 'tool_use']
         if len(tools) != 1 or tools[0] != {'type': 'tool_use', 'id': scenario['tool_use_id'], 'name': 'Bash', 'input': {'command': scenario['bash_command']}}:
             raise ValueError('The feedback history must retain exactly the frozen tool call.')
-        texts = [p.get('text') for m in messages if m.get('role') == 'user'
-                 for p in m.get('content', []) if isinstance(p, dict) and p.get('type') == 'text']
-        text = texts[-1] if texts else ''
-        if not text.startswith('⟦门禁 #2⟧\n'):
+        user = next((m for m in reversed(messages) if m.get('role') == 'user'), None)
+        content = user.get('content') if user else None
+        if not isinstance(content, str) and not (isinstance(content, list) and
+                all(isinstance(p, dict) and p.get('type') == 'text' and isinstance(p.get('text'), str) for p in content)):
+            raise ValueError('The feedback message must contain text only.')
+        text = text_content(content)
+        if not isinstance(registered_feedback, str) or not registered_feedback.startswith('⟦门禁 #2⟧\n'):
+            raise ValueError('The registered feedback reference is required.')
+        if text != registered_feedback:
             raise ValueError('The second root must be the registered gate feedback.')
         first_json = text.find('\n[')
         if first_json < 0:

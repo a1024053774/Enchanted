@@ -3,7 +3,7 @@
 T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
 当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的探针，
 根提交预算须预声明为一或二，不支持真登录或日常主控运行。启动需逐次批准；单角色
-收件箱候选及绿态审批流程见 [SLICE-1-GREEN](../evidence/2026-10-11-batch13/T-078/SLICE-1-GREEN.md)。
+收件箱候选及当前绿态审批流程见 [SLICE-1-GREEN-3](../evidence/2026-10-11-batch13/T-078/SLICE-1-GREEN-3.md)。
 隔离 settings.json 仅设置 `theme: dark`，移除 IS_DEMO，并设置文档化的
 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，禁用标题侧模型请求和终端状态报告。
 假服务用文档化的 `ANTHROPIC_AUTH_TOKEN`，

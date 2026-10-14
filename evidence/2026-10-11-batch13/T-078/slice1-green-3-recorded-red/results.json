@@ -1,0 +1,119 @@
+{
+  "status": "INCOMPLETE",
+  "checks": [
+    {
+      "name": "original-API1",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "root_prompt": "⟦主控 #1⟧\nP1_NONCE_895f7ae1de414c1ba56956d003342648"
+      }
+    },
+    {
+      "name": "original-API2",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "tool_result": {
+          "tool_use_id": "toolu_t078_22f64aba1fb74ea7bb18afbb0211ebe9",
+          "type": "tool_result",
+          "content": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"a76b424c-b934-4ccd-a9d3-390f9384cd0e\",\"path\":\"/private/tmp/t078-2-p1-slice1-green-1yhrmwad/requests/a76b424c-b934-4ccd-a9d3-390f9384cd0e.json\"}",
+          "is_error": false
+        },
+        "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"a76b424c-b934-4ccd-a9d3-390f9384cd0e\",\"path\":\"/private/tmp/t078-2-p1-slice1-green-1yhrmwad/requests/a76b424c-b934-4ccd-a9d3-390f9384cd0e.json\"}"
+      }
+    },
+    {
+      "name": "original-API3",
+      "status": "INCOMPLETE",
+      "expected_accepted": true,
+      "observed": "The second root must be the registered gate feedback."
+    },
+    {
+      "name": "original-API4",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The declared Messages budget is exhausted."
+    },
+    {
+      "name": "same-registered-text-as-block-array",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "feedback_prompt": "⟦门禁 #2⟧\n本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n[\n  {\n    \"key\": \"id:284a5916-fd75-4c4d-bec0-9a8d49e063d9:a76b424c-b934-4ccd-a9d3-390f9384cd0e\",\n    \"request_id\": \"a76b424c-b934-4ccd-a9d3-390f9384cd0e\",\n    \"replayed\": false,\n    \"result\": {\n      \"ok\": true,\n      \"entries\": [\n        {\n          \"entry\": {\n            \"id\": \"IDEATION_ONLY_SENTINEL_d8f12d827f604bdea3985889c176aa40\",\n            \"schema\": 1,\n            \"kind\": \"report\",\n            \"from\": \"executor\",\n            \"to\": \"ideation\",\n            \"body\": \"IDEATION_ONLY_SENTINEL\",\n            \"reply_to\": null,\n            \"refs\": [],\n            \"created_at\": \"2026-10-14T00:00:00Z\"\n          }\n        }\n      ]\n    }\n  }\n]",
+        "receipts": [
+          {
+            "key": "id:284a5916-fd75-4c4d-bec0-9a8d49e063d9:a76b424c-b934-4ccd-a9d3-390f9384cd0e",
+            "request_id": "a76b424c-b934-4ccd-a9d3-390f9384cd0e",
+            "replayed": false,
+            "result": {
+              "ok": true,
+              "entries": [
+                {
+                  "entry": {
+                    "id": "IDEATION_ONLY_SENTINEL_d8f12d827f604bdea3985889c176aa40",
+                    "schema": 1,
+                    "kind": "report",
+                    "from": "executor",
+                    "to": "ideation",
+                    "body": "IDEATION_ONLY_SENTINEL",
+                    "reply_to": null,
+                    "refs": [],
+                    "created_at": "2026-10-14T00:00:00Z"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "changed-registered-body-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The second root must be the registered gate feedback."
+    },
+    {
+      "name": "changed-model-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Declared model and streaming mode are required."
+    },
+    {
+      "name": "nonstream-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Declared model and streaming mode are required."
+    },
+    {
+      "name": "changed-command-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The feedback history must retain exactly the frozen tool call."
+    },
+    {
+      "name": "foreign-tool-ID-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The second root must be the registered gate feedback."
+    },
+    {
+      "name": "foreign-request-ID-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The second root must be the registered gate feedback."
+    },
+    {
+      "name": "registered-but-foreign-role-result-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The second root must be the registered gate feedback."
+    }
+  ],
+  "registered_feedback_argument": false,
+  "scope": "Original native request replay plus independent database registration; no re-send, socket, CLI or API start",
+  "source_api": "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/slice1-green-3-readback/api.jsonl",
+  "reference": "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/slice1-green-3-readback/registered-feedback.json",
+  "real_model_turns": 0
+}

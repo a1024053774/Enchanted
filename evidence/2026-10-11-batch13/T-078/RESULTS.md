@@ -737,3 +737,17 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 夹具／README 提交 `7e77f8b81611dc03e7df95a95801bda3f617393d`，产品源码沿用 `455696c98e99b73a118886345ab1d83de24e0bdf`；提交后 project_map status **PASS**。新 [outside-02](controller-green-outside-02/result.json) **PASS**：controller-entry6、空框17、runtime12、input-failures11、worker-inbox14；UI 三组 setup/cleanup 均确认，原 outside-01 失败与原数据库归档保持原样。
 
 [新实例静态核对](p1-materials-slice1-green/static-check.json) **PASS**：root `/private/tmp/t078-2-p1-slice1-green-1yhrmwad`、launch `284a5916-fd75-4c4d-bec0-9a8d49e063d9`、session `10b07cc8-bdc6-47e4-a801-c4d63dd37bb4`；绑定本次 source，逐文件 Git/tar 字节相同，批准字段空。根2、Messages3、Bash1、模型0。实际 Claude 绿态／launch 尚未执行，独立审查、09B/09C、整票仍 **INCOMPLETE**。
+
+## 首个真实绿态场景的 API3 文本表示误判（主控 #184）
+
+主控以材料提交 `41672c9363ce5c70689f2e3a9f71d16256e9a9a7` 实跑上述实例，逐屏／信任／nonce／一次 Yes Enter 完成。场景 **INCOMPLETE**，预算 **NO_GO（主 Messages4/3）**；原 permission／api-error 不覆盖，没有最终 ACK／第二 Stop／idle。本轮没有重送旧请求。
+
+[原件只读快照](slice1-green-3-readback/database-readback.json) 留存数据库／WAL／SHM 两次相同字节读取的原 tar，SQL只在私有副本上读。API2 真实 tool_result queued=true/delivered=false；PermissionRequest seq57，Enter control action 与 seq88 引用第一根原 submission，没有新增 user intent。真实第一 Stop 与 UPS1 同 prompt，exit0；seq93～94 一次 schema2请求真实执行，仅返回IDEATION sentinel；seq96第一根idle。第二根 seq100～101 登记并CR，UPS2 exit0，新prompt，真实API3已收到该反馈。已证实这部分真实链路，不上调为整场绿态。
+
+[登记／UPS2／API3 文本对照](slice1-green-3-readback/registered-feedback.json) 完全相同，API3 的 user.content 是字符串；原 validator 只遍历 block 数组，漏掉反馈，误取第一根nonce作比较。错误HTTP后CLI自身重发API4，仍同一第二根；根intent/UPS各2，但超Messages预算，不能容忍或补称通过。
+
+用 api.jsonl 原样先取得 [red12、仅API3失败](slice1-green-3-recorded-red/results.json)，再修文本表示并要求实际登记正文精确相同，[green14/14](slice1-green-3-recorded-green-02/results.json) PASS。假服务只读自身库中绑定该launch的第二gate dispatch及queued事件作参考，不从API正文生成expected、不写业务行或请求、不代理角色。model/stream/预算/命令/tool ID/request关联/角色范围不放宽；外来launch没有登记参考。合成green11、原red协议12回归PASS；预算坏变异仍仅第四Messages条件失败。全部局部重放/SQL验证，无服务/CLI/API/UI/模型启动。
+
+交 [固定cleanup脚本](cleanup-slice1-green-184.py)：认证daemon_stop确认原CLI/shell/daemon退出；核对API44036命令/root和两次lifetime后最多一次SIGTERM，确认退出并外置逐成员归档读回。根因api-error保留，无root删除选项，slot不动；当前仅静态PASS，实际cleanup **INCOMPLETE**。说明与新实例审批见 [SLICE-1-GREEN-3](SLICE-1-GREEN-3.md)。
+
+cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-slice1-green-3.sh)，新 `p1-materials-slice1-green-3` 必须新root/HOME/IDs/nonce，绑定新source、逐文件核对。明确复用outside-02的相关入口PASS，仅在产品/入口/驱动源码均未变的Git核对通过后成立，旧回归不是新运行。新原样重放单列；根2/Messages3/Bash1/模型0不增，launch与逐屏/nonce/一次许可仍单独批。当前新实例生成/真实完整绿态、独立reviewer、09B/09C、整票仍 **INCOMPLETE**。产品源码无改动，worker未执行清理或启动新实例。

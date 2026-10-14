@@ -8,8 +8,8 @@ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--label
 args=parser.parse_args()
 if not args.label.startswith('p1-materials-'):parser.error('A new p1-materials-NN label is required')
 suffix=args.label[len('p1-materials-'):]
-if not (suffix in ['slice1-red','slice1-green','09a2','09a3','09a3-block','09a3r','09a3r-block','09a3r2','09a3r2-block'] or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A supported fresh material label is required')
-tool_slice=suffix in ['slice1-red','slice1-green'];green=suffix=='slice1-green'
+if not (suffix in ['slice1-red','slice1-green','slice1-green-3','09a2','09a3','09a3-block','09a3r','09a3r-block','09a3r2','09a3r2-block'] or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A supported fresh material label is required')
+tool_slice=suffix in ['slice1-red','slice1-green','slice1-green-3'];green=suffix in ['slice1-green','slice1-green-3']
 two_turn=suffix in ['09','09a2','09a3','09a3-block','09a3r','09a3r-block','09a3r2','09a3r2-block']
 out=BASE/args.label;out.mkdir()
 root=Path(tempfile.mkdtemp(prefix='t078-2-p1-'+suffix+'-',dir='/tmp')).resolve()
@@ -97,7 +97,7 @@ try:
         names+=['t078_slice1_protocol.py','t078_fake_inbox_tool.py','run_t078_slice1.py',
                 'test_t078_slice1_protocol.py','test_t078_slice1_permission_key.mjs',
                 'test_t078_controller_producer.py','test_t078_permission_accounting.ts',
-                'test_t078_controller_relay.ts','test_t078_controller_inbox_entry.ts','test_t078_slice1_green_protocol.py','test_t078_relay_role.ts','test_t078_feedback_wait.ts']
+                'test_t078_controller_relay.ts','test_t078_controller_inbox_entry.ts','test_t078_slice1_green_protocol.py','test_t078_relay_role.ts','test_t078_feedback_wait.ts','test_t078_slice1_recorded_green.py']
         extra.append(SOURCE/'workbench/bin/inbox')
     for p in args.extra_source:
         resolved=p.resolve();resolved.relative_to(SOURCE);extra.append(resolved)

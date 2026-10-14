@@ -165,6 +165,9 @@ def main():
         first = next(h for h in ups if h['prompt'] == '⟦主控 #1⟧\n' + scenario['nonce'])
         feedback = next(h for h in ups if h['prompt'].startswith('⟦门禁 #2⟧\n'))
         trace = events(); intents = [e for e in trace if e['type'] == 'turn_submit_intent']
+        registered = [e['data'] for e in trace if e['type'] == 'dispatch_queued' and e['data']['source'] == 'gate']
+        if len(registered) != 1 or feedback['prompt'] != registered[0]['text']:
+            raise RuntimeError('The native feedback root must equal the registered dispatch text.')
         idle = [e for e in trace if e['type'] == 'pane_idle']
         if len(intents) != 2 or any(e['data'].get('source') == 'user' for e in intents) or len(idle) != 2:
             raise RuntimeError('Permission Enter must not add a root or replace either registration.')
