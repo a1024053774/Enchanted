@@ -30,7 +30,11 @@ P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并�
 launch 仅记录进程启动，首屏另经 screen 阶段读回，不把即时输出当作稳定首屏。
 Bearer 已取得标题侧请求；08b 的 Enter 因目标项字段误判被拒，已用实际批准文件复现并修复；
 08d 已在真实 CLI 确认主题与固定 Security notes，停在默认 No 的信任屏后清理；
-实际信任选择、单回合主请求、hooks 与完成仍待 08e 验证。
+08e 已确认信任，并取得一回合主请求、实际 UPS/Stop exit 0 和 busy→idle（变基前可行性）。
+09A 用两条 nonce：实际 hook 的 prompt_id 绑定回合，Esc 写出后释放 active、保留队列，
+用户在窗口放行后才提交第二条；旧 Stop 不结束新回合。nullable 主控窗口按任务版本与
+实际 CLI 身份核对，worker 仍核对 attempt。CLI/API/UI 实测仍待逐次审批。
+09B/09C 的实际双主控收件箱与 stop/ack、120 秒无 ack 只中断仍未启用／未完成，范围保留。
 旧 T-078-1 的通过结果不替它背书。
 
 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：

@@ -22,10 +22,15 @@ try:
               'launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),
               'executable':'/Users/luckye/.local/share/claude/versions/2.1.296','role_file':str(root/'role.md'),
               'code_revision':subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip(),
-              'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0'}
+              'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0','turn_limit':2 if suffix=='09' else 1}
+    requests=[{'nonce':(root/'nonce.txt').read_text(),'mode':'cancel' if suffix=='09' else 'echo','ack':'P1_ACK'}]
+    if suffix=='09':
+        (root/'nonce-2.txt').write_text('P2_NONCE_'+uuid.uuid4().hex,encoding='utf-8')
+        requests.append({'nonce':(root/'nonce-2.txt').read_text(),'mode':'echo','ack':'P2_ACK'})
+    with (root/'scenario.json').open('x',encoding='utf-8') as f:json.dump({'schema':1,'name':'esc-two' if suffix=='09' else 'single','requests':requests},f,indent=2)
     with (root/'input.json').open('x',encoding='utf-8') as f:json.dump(manifest,f,ensure_ascii=False,indent=2)
     subprocess.run(['node',SOURCE/'workbench/tests/prepare_t078_p1.ts',root/'input.json',root/'approval.json'],cwd=SOURCE,check=True)
-    for name in ['approval.json','input.json','nonce.txt','role.md']:shutil.copyfile(root/name,out/name)
+    for name in ['approval.json','input.json','nonce.txt','role.md','scenario.json',*(['nonce-2.txt'] if suffix=='09' else [])]:shutil.copyfile(root/name,out/name)
     shutil.copyfile(root/'claude/settings.json',out/'isolated-settings.json')
     with (out/'readiness-template.json').open('x',encoding='utf-8') as f:
         json.dump({'launch':manifest['launch'],'session':manifest['session'],'confirmed_by':None,'readiness':'unconfirmed','basis':None},f,indent=2)
@@ -41,14 +46,14 @@ try:
              'endpoint_resolution':{'bind_host':'127.0.0.1','bind_port':0,'ready_file':str(root/'api-ready.json'),'runtime_input':str(root/'runtime-input.json'),
                                     'runtime_manifest':str(out/'launch/runtime-manifest.json'),'changes_allowed':['api_url','launch.env.ANTHROPIC_BASE_URL']},
              'isolated_settings':{'path':str(root/'claude/settings.json'),'content':{'theme':'dark'},'approval_file':str(out/'isolated-settings.json')},
-             'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':1,'start_runs':0}
+             'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':manifest['turn_limit'],'start_runs':0}
     with (out/'control-plane.json').open('x',encoding='utf-8') as f:json.dump(control,f,ensure_ascii=False,indent=2)
-    names=['test_t078_claude_signals.ts','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
+    names=['test_t078_claude_signals.ts','test_t078_claude_epochs.ts','test_t078_controller_window.ts','test_t078_two_turn_profile.ts','test_t078_fake_two_requests.py','electron_client.py','electron_driver.mjs','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
            'regenerate_t078_p1.py','run_t078_p1.py','t078_fake_messages.py','command_evidence.py','archive_t078_evidence.py']
     extra=[]
     for p in args.extra_source:
         resolved=p.resolve();resolved.relative_to(SOURCE);extra.append(resolved)
-    files=sorted([*SOURCE.joinpath('workbench/src').rglob('*.ts'),*[SOURCE/'workbench/tests'/n for n in names],
+    files=sorted([*SOURCE.joinpath('workbench/src').rglob('*.ts'),*[p for p in SOURCE.joinpath('workbench/app').rglob('*') if p.is_file()],*[SOURCE/'workbench/tests'/n for n in names],
                   SOURCE/'workbench/README.md',SOURCE/'workbench/package.json',SOURCE/'workbench/package-lock.json',BASE/'outside-sandbox.sh',*extra])
     with tarfile.open(out/'sources.tar.gz','x:gz') as arc:
         for p in files:arc.add(p,arcname=str(p.relative_to(SOURCE)))

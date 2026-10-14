@@ -117,7 +117,11 @@ export async function serve(
         if (windows.get(window.id) !== window) throw new Refusal("invalid_window_identity");
         const status = await gates.call({ command: "status", task: record.task });
         const attempt = status.task?.current_attempt;
-        if (!attempt || attempt.attempt_id !== record.attempt || attempt.session_id !== record.session ||
+        if(record.role==="controller" && record.attempt===null){
+          const pane=panes.get(record.thread),info=await panes.processInfo(record.thread);
+          if(status.task?.task_id!==record.task || status.task?.spec_rev!==record.spec_rev || pane.record.id!==record.id ||
+              pane.native!==record.session || pane.failed || pane.stopped || pane.archived || !info.leader || info.failed)throw new Refusal("stale_controller");
+        }else if (!attempt || attempt.attempt_id !== record.attempt || attempt.session_id !== record.session ||
             attempt.fence !== record.fence || status.task?.spec_rev !== record.spec_rev || attempt.reclaimed) throw new Refusal("stale_attempt");
         if (gates.userInputObserverStatus()?.state === "failed") throw new Refusal("user_input_observer_failed");
       };

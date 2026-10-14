@@ -5,8 +5,9 @@ from command_evidence import CommandLog,command_json
 from p1_endpoint import resolved_input
 from p1_processes import identity_from_ps,cli_exit_verdict
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
-parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','cleanup'],required=True)
+parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','continue-esc','cleanup'],required=True)
 parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
+parser.add_argument('--actions-approval',type=Path)
 parser.add_argument('--key',choices=['ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','onboarding-notice','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
 args=parser.parse_args();materials=args.materials.resolve();approval=json.loads((materials/'approval.json').read_text());root=Path(approval['input']['root']);state=root/'state'
 label=args.label or args.phase
@@ -21,8 +22,8 @@ cli=[node,SOURCE/'workbench/src/gates/cli.ts','--state',state]
 result={'status':'INCOMPLETE','phase':args.phase,'label':label,'source_materials':str(source_materials),
         'real_vendor_model_turns':0,'authentication':'isolated fake API','input':approval['input']}
 def save(): (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
-def run(argv,child_env=env,allowed=(0,)):
-    p=log.run(argv,cwd=SOURCE,env=child_env,timeout=15)
+def run(argv,child_env=env,allowed=(0,),timeout=15):
+    p=log.run(argv,cwd=SOURCE,env=child_env,timeout=timeout)
     if p.returncode not in allowed:raise RuntimeError({'unexpected_exit':p.evidence})
     return p
 def call(command,*argv):
@@ -62,9 +63,20 @@ def raw_hook_receipts():
             payload=json.loads((directory/'stdin.bin').read_bytes())
             records.append({'event':payload.get('hook_event_name'),'exit_code':done['exit_code'],'launch':done['launch'],'directory':str(directory)})
     return records
+def verify_readiness():
+    owner=json.loads((root/'api-owner.json').read_text())
+    bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),owner['pid'])
+    if json.loads((root/'runtime-input.json').read_text())!=bound:raise RuntimeError('resolved_api_manifest_changed')
+    if json.loads((materials/'launch/runtime-manifest.json').read_text())['input']!=bound:raise RuntimeError('runtime_launch_manifest_changed')
+    if not args.readiness_file:raise RuntimeError('Explicit startup-readiness file required')
+    ready=json.loads(args.readiness_file.read_text(encoding='utf-8'))
+    if ready.get('launch')!=approval['input']['launch'] or ready.get('session')!=approval['input']['session'] or ready.get('confirmed_by')!='executor' or ready.get('readiness')!='confirmed' or not ready.get('basis'):raise RuntimeError('Explicit startup-readiness approval required')
+    result['readiness_file']=str(args.readiness_file.resolve());result['readiness_confirmation']=ready
+    result['process_confirmation']=same_cli();save()
+    return approval['input']['thread']
 try:
     if not os.path.ismount('/Volumes/WD-Elements'):raise RuntimeError('External volume missing')
-    for name in ['input.json','role.md','nonce.txt']:
+    for name in ['input.json','role.md','nonce.txt','scenario.json',*(['nonce-2.txt'] if approval['input'].get('turn_limit')==2 else [])]:
         if (root/name).read_bytes()!=(materials/name).read_bytes():raise RuntimeError('Approved input changed: '+name)
     frozen=json.loads((source_materials/'source-files.json').read_text())
     with tarfile.open(source_materials/'sources.tar.gz') as archive:
@@ -134,23 +146,13 @@ try:
         result['scope']='One explicitly approved screen key sent by authenticated executor; inspect again. No automatic Enter or continue.'
         # Screen transitions and trust completion are human observations.
     elif args.phase=='continue':
-        owner=json.loads((root/'api-owner.json').read_text())
-        bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),owner['pid'])
-        if json.loads((root/'runtime-input.json').read_text())!=bound:raise RuntimeError('resolved_api_manifest_changed')
-        runtime=json.loads((materials/'launch/runtime-manifest.json').read_text())
-        if runtime['input']!=bound:raise RuntimeError('runtime_launch_manifest_changed')
-        if not args.readiness_file:raise RuntimeError('Explicit startup-readiness file required')
-        ready=json.loads(args.readiness_file.read_text(encoding='utf-8'))
-        if ready.get('launch')!=approval['input']['launch'] or ready.get('session')!=approval['input']['session'] or ready.get('confirmed_by')!='executor' or ready.get('readiness')!='confirmed' or not ready.get('basis'):
-            raise RuntimeError('Explicit startup-readiness approval required; never use task input as a trust answer')
-        result['readiness_file']=str(args.readiness_file.resolve());result['readiness_confirmation']=ready;save()
-        result['process_confirmation']=same_cli();save()
-        thread=approval['input']['thread'];call('pane_release','--thread',thread,'--reason','P1 explicit initial readiness approved by executor')
+        if approval['input']['turn_limit']!=1:raise RuntimeError('Two-turn scenario requires the explicit esc/release driver, not single-round continue')
+        thread=verify_readiness();call('pane_release','--thread',thread,'--reason','P1 explicit initial readiness approved by executor')
         result['dispatch']=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce.txt')
-        wait(lambda:(root/'api-request.json').exists())
+        wait(lambda:(root/'api-request-1.json').exists())
         result['before_completion']=call('pane_status','--thread',thread)
         if result['before_completion']['state']!='busy' or not any(e['type']=='turn_start_signal' for e in events()):raise RuntimeError('CR/hook did not establish the registered active submission')
-        (root/'api-release').write_text('release the one scripted response')
+        (root/'api-release-1').write_text('release the one scripted response')
         wait(lambda:call('pane_status','--thread',thread)['state']=='idle')
         result['events']=events();result['after_completion']=call('pane_status','--thread',thread)
         wait(lambda:('P1_ACK '+(root/'nonce.txt').read_text()).encode('utf-8') in base64.b64decode(call('pane_output','--launch',approval['input']['launch'],'--offset','0')['data_base64']))
@@ -158,6 +160,51 @@ try:
         wait(lambda:all(any(h['event']==event and h['exit_code']==0 and h['launch']==approval['input']['launch'] for h in raw_hook_receipts()) for event in ['UserPromptSubmit','Stop']))
         result['hook_receipts']=raw_hook_receipts()
         result['status']='PASS';result['scope']='One real Claude CLI using scripted SSE; no real model or multi-turn claim.'
+    elif args.phase=='continue-esc':
+        if approval['input']['turn_limit']!=2 or not args.actions_approval:raise RuntimeError('Explicit two-turn actions approval required')
+        consent=json.loads(args.actions_approval.read_text(encoding='utf-8'))
+        if any(consent.get(k)!=approval['input'][k] for k in ['launch','session']) or consent.get('actions')!=['Escape','queue-release'] or consent.get('approved_by')!='executor' or not consent.get('approval_ref') or not consent.get('basis'):raise RuntimeError('Actions approval binding mismatch')
+        result['actions_approval']=consent;thread=verify_readiness()
+        from electron_client import ElectronClient
+        slot='t078-09-'+approval['input']['launch']
+        built=run([node,SOURCE/'workbench/app/build.mjs','--slot',slot],timeout=90);build=Path(command_json(built)['out'])
+        result['electron_build']=str(build);save()
+        client=ElectronClient(SOURCE,build,state,approval['input']['task'],root/'electron-home',out/'electron',env,launch=approval['input']['launch'])
+        try:
+            client.call('inspect')
+            call('pane_release','--thread',thread,'--reason','09A explicit initial readiness approved by executor')
+            first=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce.txt');result['first_dispatch']=first;save()
+            wait(lambda:(root/'api-request-1.json').exists() and any(e['type']=='turn_start_signal' for e in events()))
+            before=call('pane_status','--thread',thread);assert before['state']=='busy' and before['active']['dispatch']==first['dispatch']['id']
+            prompt1=next(e['data']['prompt_id'] for e in events() if e['type']=='turn_start_signal');result['before_esc']=before;result['prompt1']=prompt1
+            second=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce-2.txt');result['second_dispatch']=second
+            queued=call('pane_status','--thread',thread);assert queued['queued']==[second['dispatch']['id']] and not (root/'api-request-2.json').exists()
+            assert not any(e['type']=='paste_intent' and e['data']['dispatch']==second['dispatch']['id'] for e in events());save()
+            client.call('terminal-key',key='Escape')
+            wait(lambda:call('pane_status','--thread',thread)['active'] is None)
+            wait(lambda:(root/'api-cancelled-1.json').exists())
+            held=call('pane_status','--thread',thread);assert held['state']=='busy' and held['interrupted'] and held['queued']==[second['dispatch']['id']]
+            assert not (root/'api-request-2.json').exists() and not any(e['type']=='turn_end_signal' for e in events())
+            result['after_esc']=held;result['cancelled_request']=json.loads((root/'api-cancelled-1.json').read_bytes());save()
+            client.call('capture',name='before-user-release')
+            released=client.call('queue-release');assert released['clicked'];result['user_release']=released;save()
+            wait(lambda:(root/'api-request-2.json').exists() and len([e for e in events() if e['type']=='turn_start_signal'])==2)
+            prompt2=[e['data']['prompt_id'] for e in events() if e['type']=='turn_start_signal'][-1];assert prompt2 and prompt2!=prompt1
+            active2=call('pane_status','--thread',thread);assert active2['state']=='busy' and active2['active']['dispatch']==second['dispatch']['id']
+            result['before_second_completion']=active2;result['prompt2']=prompt2;save()
+            (root/'api-release-2').write_text('release second approved scripted response')
+            wait(lambda:call('pane_status','--thread',thread)['state']=='idle')
+            receipts=raw_hook_receipts()
+            wait(lambda:len(raw_hook_receipts())==3 and all(h['exit_code']==0 for h in raw_hook_receipts()))
+            final=events();assert len([e for e in final if e['type']=='pane_idle'])==1
+            assert [e['data']['prompt_id'] for e in final if e['type']=='turn_end_signal']==[prompt2]
+            assert len([e for e in final if e['type']=='user_queue_release'])==1
+            assert len([e for e in final if e['type']=='turn_submitted' and e['data']['dispatch']==second['dispatch']['id']])==1
+            result['events']=final;result['hook_receipts']=raw_hook_receipts();result['after_completion']=call('pane_status','--thread',thread)
+            client.call('capture',name='second-completion');result['pty_output']=snapshot()
+            assert ('P2_ACK '+(root/'nonce-2.txt').read_text()).encode() in base64.b64decode(result['pty_output']['data_base64'])
+            result['status']='PASS';result['scope']='09A real CLI and controlled Electron user actions, two fake API requests; not dual-controller or emergency-stop proof'
+        finally:client.close()
     else:
         attempted=False
         if (state/'state.sqlite3').exists():

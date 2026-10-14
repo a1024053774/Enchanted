@@ -8,6 +8,7 @@ export interface ClaudeLaunchInput {
   schema: 1; root: string; state: string; task: string; preset: "ideation" | "executor";
   launch: string; session: string; thread: string; executable: string;
   role_file: string; code_revision: string; source_snapshot: string; api_url: string;
+  turn_limit?: 1 | 2;
 }
 const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
 const requireValue = (v: unknown, code: string) => { if (!v) throw new Refusal(code); };
@@ -16,6 +17,8 @@ const requireValue = (v: unknown, code: string) => { if (!v) throw new Refusal(c
 // launch and multi-turn completion await P2/P3 protocol evidence and approval.
 export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
   requireValue(input.schema === 1 && ["ideation", "executor"].includes(input.preset) && input.task === task.task_id, "invalid_controller_launch");
+  const turnLimit=input.turn_limit??1;
+  requireValue(turnLimit===1 || turnLimit===2,"invalid_controller_turn_limit");
   for (const field of ["launch", "session", "thread"] as const) requireValue(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(input[field]), "invalid_controller_identity");
   const root = realpathSync(input.root), state = realpathSync(input.state), repo = realpathSync(task.repo);
   requireValue(root.startsWith("/private/tmp/t078-2-") && input.root === root && state === join(root, "state") && repo === join(root, "repo"), "isolated_controller_root_required");
@@ -47,5 +50,5 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
     shell: "/bin/zsh", shell_argv: ["-f", "-i", "-c", argv.map(quote).join(" ") + "; exec /bin/zsh -f -i"],
     role_card: input.role_file, role_card_revision: "T-078-2/P1", role_text: roleText,
     code_revision: input.code_revision, source_snapshot: input.source_snapshot, base_commit: task.base_commit, model_requested: "claude-haiku-5-5", effort_requested: "low",
-    authentication: "isolated fake API only", turn_limit: 1, hook_authorization: "controller-decision-04/P1", execution_state: "started" };
+    authentication: "isolated fake API only", turn_limit: turnLimit, hook_authorization: "controller-decision-04/P1", execution_state: "started" };
 }

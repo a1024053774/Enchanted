@@ -1,49 +1,81 @@
-"""P1-only local Messages endpoint; never forwards requests or records headers."""
-import json,os,sys,time
+"""Isolated scripted Messages endpoint. Never forward requests or record headers."""
+import json,os,socket,sys,threading,time
 from pathlib import Path
-from http.server import BaseHTTPRequestHandler,HTTPServer
-root=Path(sys.argv[1]);manifest=json.loads((root/'input.json').read_text())
-nonce=(root/'nonce.txt').read_text();messages=0
+from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+
+def failure(reason,**detail):
+    with lock:
+        if not (root/'api-error.json').exists():
+            with (root/'api-error.json').open('x',encoding='utf-8') as f:json.dump({'reason':reason,**detail},f)
+
+def packet(kind,data):return ('event: '+kind+'\ndata: '+json.dumps(data)+'\n\n').encode()
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self,*args):pass
     def do_POST(self):
         global messages
         if self.headers.get('Authorization')!='Bearer a2a-fixture-key-not-a-secret' or self.headers.get('x-api-key') is not None:
-            (root/'api-error.json').write_text('{"reason":"request did not use only the public fixture bearer token; headers not recorded"}')
-            self.send_error(401);return
+            failure('Request did not use only the public fixture bearer token; headers not recorded');self.send_error(401);return
         body=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         path=self.path.split('?',1)[0]
-        with (root/'api.jsonl').open('a',encoding='utf-8') as f:f.write(json.dumps({'path':path,'body':body,'at':time.time()},ensure_ascii=False)+'\n')
+        with lock:
+            with (root/'api.jsonl').open('a',encoding='utf-8') as f:f.write(json.dumps({'path':path,'body':body,'at':time.time()},ensure_ascii=False)+'\n')
+            if path!='/v1/messages/count_tokens':messages+=1
+            number=messages
         if path=='/v1/messages/count_tokens':
-            self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers()
-            self.wfile.write(b'{"input_tokens":128}');return
-        messages+=1
-        if path!='/v1/messages' or messages!=1 or not body.get('stream') or nonce not in json.dumps(body.get('messages',[]),ensure_ascii=False):
-            (root/'api-error.json').write_text(json.dumps({'path':path,'messages':messages,'reason':'unexpected protocol/input or request budget'}))
-            self.send_error(400);return
-        (root/'api-request.json').write_text(json.dumps(body,ensure_ascii=False))
-        deadline=time.monotonic()+60
-        while not (root/'api-release').exists():
-            if time.monotonic()>deadline:self.send_error(408);return
-            time.sleep(.02)
+            self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(b'{"input_tokens":128}');return
+        if path!='/v1/messages' or number>len(scenario['requests']):
+            failure('Unexpected path or request budget',path=path,messages=number);self.send_error(400);return
+        planned=scenario['requests'][number-1];expected=f'⟦主控 #{number}⟧\n'+planned['nonce']
+        texts=[part.get('text') for message in body.get('messages',[]) if message.get('role')=='user' for part in message.get('content',[]) if isinstance(part,dict) and part.get('type')=='text']
+        if body.get('model')!='claude-haiku-5-5' or body.get('stream') is not True or not texts or texts[-1]!=expected:
+            failure('Request did not match declared model, stream and exact input',number=number);self.send_error(400);return
+        with (root/f'api-request-{number}.json').open('x',encoding='utf-8') as f:json.dump(body,f,ensure_ascii=False)
         self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
-        mid='msg_t078_p1'
-        events=[('message_start',{'type':'message_start','message':{'id':mid,'type':'message','role':'assistant','model':'claude-haiku-5-5','content':[],'stop_reason':None,'stop_sequence':None,'usage':{'input_tokens':128,'output_tokens':0}}}),
-                ('content_block_start',{'type':'content_block_start','index':0,'content_block':{'type':'text','text':''}}),
-                ('content_block_delta',{'type':'content_block_delta','index':0,'delta':{'type':'text_delta','text':'P1_ACK '+nonce}}),
-                ('content_block_stop',{'type':'content_block_stop','index':0}),
-                ('message_delta',{'type':'message_delta','delta':{'stop_reason':'end_turn','stop_sequence':None},'usage':{'output_tokens':16}}),
-                ('message_stop',{'type':'message_stop'})]
-        with (root/'api-response.sse').open('xb') as trace:
-            for kind,data in events:
-                packet=('event: '+kind+'\ndata: '+json.dumps(data)+'\n\n').encode()
-                trace.write(packet);trace.flush();self.wfile.write(packet);self.wfile.flush()
-        (root/'api-finished').write_text(mid)
-if manifest['api_url']!='http://127.0.0.1:0':raise RuntimeError('dynamic_endpoint_template_required')
-server=HTTPServer(('127.0.0.1',0),Handler)
-with (root/'api-ready.tmp').open('x',encoding='utf-8') as ready:
-    json.dump({'host':'127.0.0.1','port':server.server_port,'api_url':'http://127.0.0.1:'+str(server.server_port),
-               'pid':os.getpid(),'launch':manifest['launch'],'session':manifest['session']},ready)
-os.link(root/'api-ready.tmp',root/'api-ready.json')
-(root/'api-ready.tmp').unlink()
-server.serve_forever()
+        mid=f'msg_t078_{manifest["launch"]}_{number}'
+        def cancelled(reason):
+            with (root/f'api-cancelled-{number}.json').open('x',encoding='utf-8') as f:json.dump({'number':number,'observed_at':time.time(),'reason':reason},f)
+        with (root/f'api-response-{number}.sse').open('xb') as trace:
+            def emit(kind,data):
+                payload=packet(kind,data);trace.write(payload);trace.flush();self.wfile.write(payload);self.wfile.flush()
+            try:
+                emit('message_start',{'type':'message_start','message':{'id':mid,'type':'message','role':'assistant','model':'claude-haiku-5-5','content':[],
+                    'stop_reason':None,'stop_sequence':None,'usage':{'input_tokens':128,'output_tokens':0}}})
+            except (BrokenPipeError,ConnectionResetError):
+                if planned['mode']=='cancel':cancelled('Peer closed during response start')
+                else:failure('Client closed a response declared to complete',number=number)
+                return
+            if planned['mode']=='cancel':
+                self.connection.settimeout(.05);deadline=time.monotonic()+90
+                while time.monotonic()<deadline:
+                    try:received=self.connection.recv(1,socket.MSG_PEEK)
+                    except socket.timeout:continue
+                    except ConnectionResetError:received=b''
+                    if received==b'':cancelled('Peer closed/reset');return
+                    failure('Unexpected data on held response connection',number=number);return
+                failure('Peer cancellation deadline; no retry',number=number);return
+            deadline=time.monotonic()+60
+            while not (root/f'api-release-{number}').exists():
+                if time.monotonic()>deadline:failure('Response release deadline; no retry',number=number);return
+                time.sleep(.02)
+            try:
+                emit('content_block_start',{'type':'content_block_start','index':0,'content_block':{'type':'text','text':''}})
+                emit('content_block_delta',{'type':'content_block_delta','index':0,'delta':{'type':'text_delta','text':planned['ack']+' '+planned['nonce']}})
+                emit('content_block_stop',{'type':'content_block_stop','index':0})
+                emit('message_delta',{'type':'message_delta','delta':{'stop_reason':'end_turn','stop_sequence':None},'usage':{'output_tokens':16}})
+                emit('message_stop',{'type':'message_stop'})
+            except (BrokenPipeError,ConnectionResetError):failure('Client closed a response declared to complete',number=number);return
+        with (root/f'api-finished-{number}.json').open('x',encoding='utf-8') as f:json.dump({'number':number,'id':mid},f)
+
+def main():
+    global root,manifest,scenario,messages,lock
+    root=Path(sys.argv[1]);manifest=json.loads((root/'input.json').read_text());scenario=json.loads((root/'scenario.json').read_text())
+    if manifest['api_url']!='http://127.0.0.1:0' or scenario['schema']!=1 or len(scenario['requests'])!=manifest['turn_limit']:raise RuntimeError('Invalid approved endpoint/budget template')
+    expected_modes=['echo'] if scenario['name']=='single' else ['cancel','echo'] if scenario['name']=='esc-two' else []
+    if [x['mode'] for x in scenario['requests']]!=expected_modes:raise RuntimeError('Unsupported declared scenario')
+    messages=0;lock=threading.Lock();server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+    with (root/'api-ready.tmp').open('x',encoding='utf-8') as f:json.dump({'host':'127.0.0.1','port':server.server_port,'api_url':'http://127.0.0.1:'+str(server.server_port),
+        'pid':os.getpid(),'launch':manifest['launch'],'session':manifest['session']},f)
+    os.link(root/'api-ready.tmp',root/'api-ready.json');(root/'api-ready.tmp').unlink();server.serve_forever()
+
+if __name__=='__main__':main()

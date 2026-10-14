@@ -55,7 +55,8 @@ type Pane = {
   writes: Promise<void>; pendingInputs: number; userDraft: boolean; interrupted: boolean; sending: string | null;
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
-  claudePrompt?: boolean;
+  claudePromptId?: string | null;
+  claudePromptIds?: Set<string>;
 };
 
 export class Panes implements GateRuntime {
@@ -85,7 +86,7 @@ export class Panes implements GateRuntime {
       archived: false, failed: null, leader: null, native: record.session, turn: null, nativeEnded: false, active: null,
       queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
       userDraft: false, interrupted: false, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
-      terminalBuffer: "", claudePrompt: false };
+      terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
     this.panes.set(record.thread, pane);
     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
     terminal.onData((data: string) => {
@@ -490,6 +491,7 @@ export class Panes implements GateRuntime {
       try {
         pane.pty.write(binary ? bytes : data);
         this.store.event("terminal_input_written", { ...receipt, encoding, byte_length: bytes.length }, pane.record);
+        if(!binary && data==="\x1b")this.retireClaudeSubmission(pane,"user-esc");
       } catch (error) {
         this.recordFailure(pane, "terminal_input_write_unknown", error, receipt);
         throw error;
@@ -572,7 +574,7 @@ export class Panes implements GateRuntime {
       await assertCurrent();
       check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
       this.store.event("user_queue_release", { reason, previous_state: pane.state, previous_submission: pane.active?.id ?? null }, pane.record);
-      pane.active = null; pane.userDraft = false; pane.interrupted = false; pane.state = "idle";
+      pane.active = null; pane.claudePromptId = null; pane.userDraft = false; pane.interrupted = false; pane.state = "idle";
     });
     await this.drain(pane);
     return this.status(thread);
@@ -590,9 +592,15 @@ export class Panes implements GateRuntime {
       try {
         pane.pty.write("\x1b");
         this.store.event("pane_interrupt_written", { source: "gate", leader: info.leader }, pane.record);
+        this.retireClaudeSubmission(pane,"gate-interrupt");
       } catch (error) { this.recordFailure(pane, "pane_interrupt_unknown", error); throw error; }
     });
   };
+  retireClaudeSubmission(pane: Pane, reason: string) {
+    if(pane.record.cli!=="Claude Code" || !pane.active)return;
+    this.store.event("claude_submission_retired",{reason,submission:pane.active.id,dispatch:pane.active.dispatch,prompt_id:pane.claudePromptId},pane.record);
+    pane.active=null;pane.claudePromptId=null;
+  }
   async release(thread: string, reason: string) {
     const pane = this.get(thread);
     check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
@@ -683,27 +691,29 @@ export class Panes implements GateRuntime {
     const value = JSON.parse(raw); this.scan(pane);
     check(value.session_id === pane.native, "hook_native_session_mismatch");
     if (pane.record.cli === "Claude Code") {
-      // P1's configured single submission avoids claiming cross-turn Stop
-      // correlation before the actual CLI payload has been observed (T-078-2).
-      check(pane.record.turn_limit === 1, "claude_turn_correlation_unverified");
+      // 08e recorded prompt_id on UPS and Stop; it identifies the actual CLI prompt.
+      check([1,2].includes(pane.record.turn_limit), "claude_turn_correlation_unverified");
       if (value.hook_event_name === "PermissionRequest") {
         this.store.event("permission_wait", value, pane.record); pane.state = "busy"; return;
       }
       if (value.hook_event_name === "UserPromptSubmit") {
         const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
-        check(pane.state === "busy" && item && value.prompt === item.text && !pane.claudePrompt, "claude_submission_unmatched");
-        pane.claudePrompt = true; this.store.event("turn_start_signal", value, pane.record); return;
+        check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
+        check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
+        check(pane.state === "busy" && item && value.prompt === item.text && !pane.claudePromptId, "claude_submission_unmatched");
+        pane.claudePromptIds.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record); return;
       }
       check(value.hook_event_name === "Stop", "unsupported_hook");
       this.store.event("turn_end_signal", value, pane.record);
       const active = pane.active;
-      const matched = Boolean(active && pane.claudePrompt && !pane.failed && !pane.stopInProgress &&
+      const matched = Boolean(active && pane.claudePromptId && value.prompt_id===pane.claudePromptId && !pane.failed && !pane.stopInProgress &&
         value.stop_hook_active === false && Date.parse(received_at) >= Date.parse(active.at));
       if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
       pane.stopInProgress = true;
       try {
         if (transfer) await transfer(pane, value, true);
-        pane.active = null; pane.claudePrompt = false; pane.state = pane.interrupted ? "busy" : "idle";
+        if(pane.active!==active || pane.claudePromptId!==value.prompt_id){this.store.event("stop_not_matched",{...value,stage:"after_transfer"},pane.record);return;}
+        pane.active = null; pane.claudePromptId = null; pane.state = pane.interrupted ? "busy" : "idle";
         this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
       } catch (error) {
         this.recordFailure(pane, "stop_transfer_failed", error); throw error;

@@ -14,7 +14,7 @@ const item = store.register(record.id, "独立输入 P1_NONCE");
 const pane: any = { record, task: {}, attempt: null, token: "test-only", native: record.session,
   state: "busy", failed: null, stopped: false, archived: false, interrupted: false, stopInProgress: false,
   active: { id: "submission", dispatch: item.id, at: "2026-10-11T00:00:00Z", nativeTurn: null },
-  claudePrompt: false, queue: [], writing: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false };
+  claudePromptId: null, claudePromptIds: new Set(), queue: [], writing: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false };
 panes.panes.set(record.thread, pane);
 const checks: any[] = [];
 async function test(name: string, run: () => Promise<void>) {
@@ -22,7 +22,7 @@ async function test(name: string, run: () => Promise<void>) {
   catch (error) { checks.push({ name, status: "INCOMPLETE", error: String(error) }); }
 }
 const signal = (event: string, extra = {}) => panes.signal(record.id, JSON.stringify({ session_id: record.session,
-  hook_event_name: event, ...extra }), "2026-10-11T00:01:00Z");
+  prompt_id:"00000000-0000-4000-8000-000000000001",hook_event_name: event, ...extra }), "2026-10-11T00:01:00Z");
 await test("controller_runtime_entry_exists", async () => assert.equal(typeof (panes as any).startController, "function"));
 await test("real_hook_shape_matches_one_registered_submission", async () => {
   await signal("UserPromptSubmit", { prompt: item.text }); assert.equal(pane.state, "busy");
