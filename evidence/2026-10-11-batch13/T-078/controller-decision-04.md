@@ -212,3 +212,7 @@ commit-and-prepare-slice1（以 s13-t078m 身份）→ 源 6a59ef92、材料 14e
 ## slice1-red 逐屏与 submit 批准（2026-10-14 UTC 21:2x）
 
 材料缺 screen-key 审批模板（生成器缺口），执行主控按 09a3r2 模板结构、以本实例 approval.json 的 launch/session/目录写入 screen-key-approval-template.json（标注 executor-written）；首两次按键因缺模板在写 PTY 前失败、无键送达，改用新屏 ID。主题 ArrowUp/ArrowDown/Enter、Security notes、信任 ArrowDown→Yes→Enter（/private/tmp/t078-2-p1-slice1-red-z7msieml/repo，仅 value.txt；依 answer 20261014T011751Z）均生效，读回主提示符。写 readiness.json 与 submit-approval.json（根提交 1、主 Messages ≤2、Bash 1：workbench/bin/inbox list --role executor，模型 0）。批准运行 continue_driver（--phase submit）一次；遇工具许可屏停下不按键，permission-approval 另批。批准引用：`T-078 controller-decision-04 slice1-red-submit`。
+
+## slice1-red submit 读回与工具许可批准（2026-10-14 UTC 22:0x）
+
+submit：nonce 送达（dispatch 20422cf6…，seq 1），真实 CLI 发起 Bash，原生许可屏显示的命令与冻结命令完全一致，光标在 "1. Yes"（一次性）；permission_wait 事件 seq 57（tool_name Bash，tool_input.command 一致）。未按键。批准一次 Enter（test-simulated-user，经窗口按键通路，只选一次性 Yes，不选持久允许或 auto 模式）；permission 阶段会在外置盘构建本实例 Electron slot t078-slice1-70e18a26…。批准引用：`T-078 controller-decision-04 slice1-red-permission`。
