@@ -601,3 +601,7 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 新候选入口局部 **PASS**：[原条件红态](empty-declaration-entry-red-04-09a3/results.json)、[main 同窗竞态红态](main-concurrency-red-02-09a3/results.json)、[窗口关闭竞态红态](window-revocation-red-09a3/results.json) 都实际拒绝了已知坏行为；[最终入口 17/17](empty-declaration-entry-final-02-09a3/results.json) 转绿，保存 SQLite 与真实 hook 原始 stdin/stdout/stderr。相关状态 11、Claude 关联 7、窗口身份 5、窗口绑定 8 均局部 PASS。测试经过实际 daemon/window transport/hook CLI，PTY/vendor liveness 为 spy，main 是实际闭包，未运行 Electron；不外推实际 CLI 阻断或模型请求数。
 
 本轮真实 vendor CLI／API／Electron／构建／模型启动均 0，未用额外代理，旧 slot 未清理，未 push。门禁 8/9/18、独立 reviewer、真实 IME 与 09A-3 两个 CLI 场景仍 **INCOMPLETE**；不把旧候选或旧审查转为本候选 PASS。主控完成代码冻结提交后，才生成新隔离 HOME 的正例与保留拼接的阻断反例；各次启动继续单独审批。本段不是 launch 或整票 submit 授权。
+
+主控 #133 已按当前启动身份提交代码 `c1c6b53a8419e35ad0dee5a79abf6adc4c37f08c`（钩子九项尾注），并核对／停止遗留 PID 74270。随后生成两套新的 [09A-3 launch 材料](P2-APPROVAL-09A3.md)，绑定该代码提交及各自 75 个源码字节；[准备检查](preparation-check-09a3.json) **PASS**。clean 根 `/private/tmp/t078-2-p1-09a3-s86zm2yy`，block 根 `/private/tmp/t078-2-p1-09a3-block-wk7vopkk`；独立 task/launch/session/thread/nonce，模板均未批准，slot 均未创建。前者由主控自行处理草稿后声明空框；后者保留恢复草稿并作反例声明，要求真实 hook JSON block、API 仍只有一次。驱动均不代发清空键、不自动点声明。所有 vendor/API/UI/构建/模型启动仍 0；只交 launch 审批，未启动。整票及真实场景仍 **INCOMPLETE**，不关闭、不集成、不 push。
+
+主控 #135 随后通知 T-077 已验收合入 main（`cdf8fe9b`），要求本批提交后先变基、解决双方冲突，再重新生成与静态核对。上段两套变基前材料保留为日期记录，**不用于 launch**。T-080 当前独占 gates/core.ts 与 taskCards.ts；本轮不在它们增加新实现。变基 Git 操作交主控脚本执行，未知／冲突现场保留，不自动取某一侧、不 stash/reset/clean；只有新材料完成并静态核对后才交 launch 审批。
