@@ -536,3 +536,15 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 ```
 
 原件生成命令仍在 08e 各阶段 commands.jsonl 和 P1-APPROVAL-08E；重新运行需新实例／绑定／批准，不覆盖这些已完成结果。
+
+## 材料 09 的准备（未运行）
+
+按已说明的分场景顺序准备 [PLAN-09](PLAN-09.md)：09A 为一个真实 CLI 的 Esc 释放／第二 nonce，09B 为两个实际角色 stop→执行→ack，09C 为真实 120 秒无 ack 后只中断。分阶段偏好暂未收到补充回复，使用推荐顺序；不是启动批准，不缩减双主控／紧急停止验收。本次仅冻结 09A，B/C 的 Claude inbox 转交与实际角色工具调用仍未启用，不冒称已完成材料或运行。
+
+产品候选 `5510ee72134fc7a8c08d37d03773adc96605debf`：按 08e 实际 prompt_id 关联 Claude 当前提交，Esc 写出后登记退休并释放 active；仍 busy／interrupted，队列只在窗口用户放行后送出。旧 Stop 不能结束第二回合，异步 transfer 返回也核对当前关联。窗口 nullable 主控按任务版本、当前 launch／native session 和真实 leader 检查，worker attempt 边界保留；显式 2 回合预算，默认 1，其他值拒绝。fake API 两个声明请求并发，第一个观察 peer 取消、第二个独立响应，不伪造 hook、CLI 历史或后台状态。
+
+[回合红态](claude-epochs-red-09/results.json) 保存 Esc 已写却 active 不清、旧 Stop 清掉当前关联及单回合限制的具体失败；[窗口红态](controller-window-red-09/results.json) 由生产 assertCurrent 原闭包复现有效 nullable 主控被拒 stale_attempt；[第二请求红态](fake-two-requests-red-09/results.json) 生产 Handler 内存 IO 返回 200／400；[预算红态](two-turn-profile-red-09/results.json) 用起点模块证明忽略显式预算。均为域／参数／内存 IO，不是实际窗口或网络实测。
+
+最新域／参数／内存 IO 7＋5＋3＋1 项通过；原单回合 signal/profile 3＋3 通过；原菜单／主题／notice／信任 30 项通过。四项有效坏变异见 [09 审批材料](P2-APPROVAL-09.md)，均触发对应违约。首次只删入口 Stop 匹配的变异仍被后续检查挡住，原件保留、标 INCOMPLETE／无效变异，不计反例；编辑工具两次未应用的 patch 也不算产品红态，已按实际内容修正。
+
+09A 新实例 `/private/tmp/t078-2-p1-09-c_gw0g87`，新 launch/session/thread，67 文件冻结，完整 argv/env、API 场景、构建／Electron／驱动 argv、逐屏及 Escape／queue-release 两动作的未批准模板见 [P2-APPROVAL-09](P2-APPROVAL-09.md)。[静态准备](p1-preparation-check-09.json) PASS；本轮实际 CLI/API/UI/模型均未启动，未构建、未 rebase、不 push。真实 09A 与 B/C 仍 INCOMPLETE，整票 open／待主控关闭。T-077 合入后再变基、全部材料重新生成并完整重跑，当前 PASS 不替新 main 背书。
