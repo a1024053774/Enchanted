@@ -31,3 +31,7 @@ full-04：受控部分 PASS（11 个坏行为拒收、变异体业务红、3 个
 ## 第 7 项第一回合重新批准（2026-10-14 UTC 20:5x）
 
 worker 诊断（CAPABILITY-RUN-02.md）：run-01 失败于 dispatch id 12 的 gate_failure "Actual first turn differs from the approved prompt"——审批材料用了未规范化的任务卡（completion argv 的 python 路径未 realpath），产品保存的是 validateTaskCard 返回的规范化卡；id 18 为空裸仓库 show-ref。无产品缺陷。修正：材料改用规范化卡生成，逐字核对保留；新任务 T-081-CAP-02、新实例 /private/tmp/t081-capability-01/run-02/，复用已准备的 home，不重新复制凭据。范围、argv、hooks、两条命令、1 回合上限与原批准相同。批准第一回合一次，引用 `T-081 controller-decision-02 capability-turn-1`。真实回合累计 0/3。
+
+## 第一回合 run-02 读回（2026-10-14 UTC 20:5x）
+
+Codex 领导进程 80090（0.162.1）正常起来；dispatch→paste→turn_submit_intent→turn_submitted 已发生——真实回合计 1/3（已消耗）。脚本在等待回合期间做了 319 次 pane_status 与 319 次 orchestration_events 轮询并全部写入 commands.jsonl，达 5,027,291 字节触发"单文件超 5 MB 即停"，随后正常停止进程（processes_stopped true），real_turns_completed 记 0（未观察到回合完成）。读回：run-02 repo main 仍为 G 4de60dac，refs/a2a/capability/tamper=T（准备脚本所建），本地裸仓库无 refs；isolated home 无 sessions 目录，有 state_5/logs_2 sqlite。模型在被停前实际做了什么尚未确认。交 worker 只读诊断（含 home 内 sqlite 只读读取，不导出凭据），修轮询日志体量后再申请下一回合；commands.jsonl 超限文件需外置归档。
