@@ -226,3 +226,7 @@ worker 报警（#175）：api.jsonl 实有 3 次 /v1/messages，第 2、3 次都
 ## slice1-red 读回、提交与清理（2026-10-14 UTC 23:0x）
 
 读回（SLICE-1-READBACK.md）：客户端入口红态 PASS（真实 Bash tool_result is_error、worker_request_directory_required；requests 与 relay/inbox 业务行均 0）；工具许可 Enter 虚记提交红态 PASS（一个真实 UPS，却有原 intent seq48 与 Enter 产生的 source=user intent seq87）；假 API 校验缺陷经原样请求红→绿修复；主 Messages 3/2 记 NO_GO（HTTP 400 后 CLI 自发补请求，非新根）；无 Stop/idle，不称闭合。commit-slice1-readback → 5b404cb9（以 s13-t078m 身份）。cleanup-slice1-red（#175）：仅对本实例假 API 发一次 SIGTERM 并确认退出，根逐成员外置归档读回 PASS；因协议失败现场（api-error）按规则保留根。下一步：在已分配文件内实现 controller 会话请求文件（relayFiles.ts）、Stop 转交与 caller 身份、Enter 许可不新增 intent，先单元/入口红绿，再生成新实例跑绿态（同机制逐次批准）。
+
+## slice1-green 候选与准备（2026-10-14 UTC 23:5x）
+
+worker 交候选（SLICE-1-GREEN.md）：controller 会话请求文件 producer 与许可 Enter 记账两条红态 red→green，controller relay/caller 22、角色白名单反例 2、worker writer 3、窗口/epochs/pane/inbox 回归通过；产品只改已分配的 8 个文件，controller 请求不补 worker attempt/fence、不经 operator。执行主控以 s13-t078m 身份运行 commit-and-prepare-slice1-green.sh（首提交→入口回归→生成新 slice1-green 实例→材料提交；失败即停）。README stale（issue 20261014T231202Z）：workbench/README.md 当前无其他写入者，分给 T-078，下次提交同步。预算：根提交 2、主 Messages 3、Bash 1、模型 0。
