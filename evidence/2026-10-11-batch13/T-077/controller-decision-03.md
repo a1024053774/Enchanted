@@ -87,3 +87,7 @@ reviewer（fresh-context，请求 gpt-6.1-sol/xhigh，tier 未观察）：INCOMP
 ## conflict-red-final-01 被系统中止（2026-10-14 UTC 06:2x）
 
 执行主控在沙箱外运行 `conflict-red-final-01`（产品不变，夹具 fba6ebb5）。Claude Code 因系统内存严重不足回收了该后台命令；已完成 red-01/02/03（均 TARGET_FAILED，按各自前置清单），其余未运行。部分输出原样保留在 outside-conflict-red-final-01/，未发现残留测试进程。该结果不完整，不计入验收；是否及何时重跑等用户指示（同名输出目录已存在，重跑须用新目录）。T-078 的轮询器同时被回收，worker 本身不受影响。
+
+## 第二次重启后（2026-10-14 本地 08:3x）与 conflict-red-final-02 批准
+
+用户原话（经构思主控逐字转述）："刚刚重启了，继续，不要并行太多，不知道是终端内存泄露了还是并发太多了。" 并发上限：同一时刻 1 个 worker、1 个重型测试，不同时开 reviewer 与 worker，不开 monitor；先 T-077，T-078 待 T-077 合并后再起。Herdr 又把 08:15 的两个新会话以裸 resume 恢复（wF:p3M 01a13a55-d655…，wF:p3N 01a13a55-da30…，均显示 "Conversation interrupted"）；核对无未提交产品改动（T-077 已提交 628234b7 = conflict-red-final-02 阶段；T-078 留有未提交的 BLOCKED 报告与 issue，原样保留）后关闭两窗格，15 秒内无再拉起。另两个裸 resume（01a13800…、01a138b2…）属用户其他工作区，未动。空闲内存 59%，无 worker 在跑。依 answer 20261014T121326Z（"重跑 (Recommended)"）批准并运行 `conflict-red-final-02`（产品 5d0bf1e8 不变，模型 0）。
