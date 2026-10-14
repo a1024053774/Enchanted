@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { request as daemonRequest, startDaemon } from "../transport.ts";
-import { queueWorkerRequest, readWorkerRequests } from "../relayFiles.ts";
+import { queueSessionRequest, readWorkerRequests } from "../relayFiles.ts";
 import { readOperatorCredential } from "../credentials.ts";
 import { HookTrace } from "../hookTrace.ts";
 
@@ -201,8 +201,8 @@ export async function main(argv = process.argv.slice(2)) {
       token: process.env.A2A_CAPABILITY,
       native_session: process.env.A2A_NATIVE_SESSION ?? process.env.CODEX_THREAD_ID,
     } : undefined;
-    if (identity && ["submit", "status", "issue", "inbox_send", "inbox_list", "inbox_ack", "inbox_ready"].includes(String(request.command))) {
-      await emit(queueWorkerRequest(request));
+    if (identity && ["submit", "status", "issue", "inbox_send", "inbox_list", "inbox_ack", "inbox_ready", "stop"].includes(String(request.command))) {
+      await emit(queueSessionRequest(request));
       return finish(0);
     }
     if (identity && request.command !== "signal") throw new Error("worker_command_forbidden");

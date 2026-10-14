@@ -3,11 +3,16 @@ import type { RelayFile } from "./relayFiles.ts";
 import { OrchestrationStore } from "./store.ts";
 import { reviewRequest } from "./gates/qualityProtocol.ts";
 
-export interface RelayBinding {
+interface AttemptRelayBinding {
   id: string; task: string; attempt: string; session: string; fence: number; spec_rev: number;
   role: "worker" | "reviewer";
   review_id?: string;
 }
+interface ControllerRelayBinding {
+  id: string; task: string; session: string; spec_rev: number; role: "controller";
+  project: string; preset: "ideation" | "executor"; native_session: string; prompt_id: string;
+}
+export type RelayBinding = AttemptRelayBinding | ControllerRelayBinding;
 const keyPattern = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
 
 // Intent is durable before gate execution. A missing outcome is unknown, never
@@ -17,9 +22,20 @@ export class RequestRelay {
   constructor(store: OrchestrationStore) {
     this.store = store;
     store.db.exec(`CREATE TABLE IF NOT EXISTS relay_requests (
-      key TEXT PRIMARY KEY, launch TEXT NOT NULL, task TEXT NOT NULL, attempt TEXT NOT NULL,
+      key TEXT PRIMARY KEY, launch TEXT NOT NULL, task TEXT NOT NULL, attempt TEXT,
       request_id TEXT, input TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS relay_results (key TEXT PRIMARY KEY, data TEXT NOT NULL, created_at TEXT NOT NULL);`);
+    if (store.db.prepare("PRAGMA table_info(relay_requests)").all().find(row => row.name === "attempt")?.notnull) {
+      store.db.exec("BEGIN IMMEDIATE");
+      try {
+        store.db.exec(`CREATE TABLE relay_requests_nullable (key TEXT PRIMARY KEY, launch TEXT NOT NULL, task TEXT NOT NULL, attempt TEXT,
+          request_id TEXT, input TEXT NOT NULL, created_at TEXT NOT NULL);
+          INSERT INTO relay_requests_nullable SELECT * FROM relay_requests ORDER BY rowid;
+          DROP TABLE relay_requests; ALTER TABLE relay_requests_nullable RENAME TO relay_requests;`);
+        store.event("relay_schema_migrated", { change: "controller_without_attempt" });
+        store.db.exec("COMMIT");
+      } finally { if (store.db.isTransaction) store.db.exec("ROLLBACK"); }
+    }
     for (const table of ["relay_requests", "relay_results"]) {
       for (const operation of ["UPDATE", "DELETE"]) store.db.exec(
         `CREATE TRIGGER IF NOT EXISTS ${table}_no_${operation.toLowerCase()} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'append only'); END;`);
@@ -63,27 +79,35 @@ export class RequestRelay {
       return { key, request_id: requestId, replayed: false, result };
     }
     this.store.db.prepare("INSERT INTO relay_requests(key,launch,task,attempt,request_id,input,created_at) VALUES (?,?,?,?,?,?,?)")
-      .run(key, binding.id, binding.task, binding.attempt, requestId, canonical, new Date().toISOString());
+      .run(key, binding.id, binding.task, binding.role === "controller" ? null : binding.attempt, requestId, canonical, new Date().toISOString());
     this.store.event("relay_received", { key, file, input }, binding);
     let result: any;
     try {
       if (parseError || !input || typeof input !== "object" || Array.isArray(input)) throw new Refusal("invalid_relay_request", parseError);
-      if (binding.role !== "worker" && binding.role !== "reviewer") throw new Refusal("relay_role_required");
-      const base = ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev"];
+      if (!["worker", "reviewer", "controller"].includes(binding.role)) throw new Refusal("relay_role_required");
+      const controller = binding.role === "controller";
+      const base = controller ? ["schema", "request_id", "command", "launch", "preset", "project", "task", "session", "spec_rev", "native_session", "prompt_id"]
+        : ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev"];
       const allowed: Record<string, string[]> = binding.role === "reviewer"
         ? { review_submit: ["review_id", "candidate_commit", "verdict", "findings"] }
         : {
         submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"],
         inbox_send: ["from", "to", "kind", "reply_to", "refs", "body", "title", "blocking", "action", "reason", "basis", "bundle_id"],
         inbox_list: ["role"], inbox_ack: ["id", "role", "body"], inbox_ready: ["project"],
+        ...(controller ? { stop: ["thread", "stop_id", "actor"] } : {}),
       };
       const extra = allowed[input.command];
-      if (input.schema !== 1 || !requestId || !extra || base.some((field) => !Object.hasOwn(input, field)) ||
+      if ((controller && !["inbox_send", "inbox_list", "inbox_ack", "inbox_ready", "stop"].includes(input.command)) ||
+          input.schema !== (controller ? 2 : 1) || !requestId || !extra || base.some((field) => !Object.hasOwn(input, field)) ||
           Object.keys(input).some((field) => ![...base, ...extra].includes(field)) ||
-          ![input.task, input.attempt, input.session].every((value) => typeof value === "string" && keyPattern.test(value)) ||
-          !Number.isSafeInteger(input.fence) || !Number.isSafeInteger(input.spec_rev)) throw new Refusal("invalid_relay_request");
-      for (const field of ["task", "attempt", "session", "fence", "spec_rev"] as const) {
-        if (input[field] !== binding[field]) throw new Refusal("relay_identity_mismatch", { field });
+          !(controller ? [input.task, input.session, input.launch, input.project, input.native_session, input.prompt_id] : [input.task, input.attempt, input.session])
+            .every((value) => typeof value === "string" && keyPattern.test(value)) ||
+          (!controller && !Number.isSafeInteger(input.fence)) || !Number.isSafeInteger(input.spec_rev) || input.spec_rev < 1) throw new Refusal("invalid_relay_request");
+      const expected = controller ? { task: binding.task, session: binding.session, spec_rev: binding.spec_rev,
+        launch: binding.id, project: binding.project, preset: binding.preset, native_session: binding.native_session, prompt_id: binding.prompt_id }
+        : { task: binding.task, attempt: binding.attempt, session: binding.session, fence: binding.fence, spec_rev: binding.spec_rev };
+      for (const [field, value] of Object.entries(expected)) {
+        if (input[field] !== value) throw new Refusal("relay_identity_mismatch", { field });
       }
       if (input.command === "review_submit") {
         reviewRequest(file.raw);

@@ -21,7 +21,8 @@ env={'PATH':'/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin','HOME':str(root/'m
 cli=[node,SOURCE/'workbench/src/gates/cli.ts','--state',state]
 result={'status':'INCOMPLETE','phase':args.phase,'label':label,'source_materials':str(source_materials),
         'real_vendor_model_turns':0,'authentication':'isolated fake API','input':approval['input']}
-api_script=SOURCE/'workbench/tests'/('t078_fake_inbox_tool.py' if json.loads((root/'scenario.json').read_bytes())['name']=='slice1-inbox-red' else 't078_fake_messages.py')
+scenario_name=json.loads((root/'scenario.json').read_bytes())['name']
+api_script=SOURCE/'workbench/tests'/('t078_fake_inbox_tool.py' if scenario_name in ['slice1-inbox-red','slice1-inbox-green'] else 't078_fake_messages.py')
 def save(): (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
 def run(argv,child_env=env,allowed=(0,),timeout=15):
     p=log.run(argv,cwd=SOURCE,env=child_env,timeout=timeout)
@@ -81,7 +82,7 @@ try:
     if api_script.name=='t078_fake_inbox_tool.py' and args.phase not in ['launch','screen','key']:
         raise RuntimeError('Slice1 submit/permission/readback uses its approved driver; cleanup needs a separate identity-bound script.')
     if not os.path.ismount('/Volumes/WD-Elements'):raise RuntimeError('External volume missing')
-    for name in ['input.json','role.md','nonce.txt','scenario.json',*(['nonce-2.txt'] if approval['input'].get('turn_limit')==2 else [])]:
+    for name in ['input.json','role.md','nonce.txt','scenario.json',*(['nonce-2.txt'] if scenario_name=='esc-two' else [])]:
         if (root/name).read_bytes()!=(materials/name).read_bytes():raise RuntimeError('Approved input changed: '+name)
     frozen=json.loads((source_materials/'source-files.json').read_text())
     with tarfile.open(source_materials/'sources.tar.gz') as archive:
@@ -119,6 +120,12 @@ try:
         (root/'card.json').write_text(json.dumps(card));task=approval['input']['task']
         call('card_save','--task',task,'--card',root/'card.json','--expected-version','0')
         call('create','--task',task,'--repo',root/'repo','--branch','refs/heads/main','--card-version','1','--project','t078-p1-project')
+        scenario=json.loads((root/'scenario.json').read_bytes())
+        if scenario['name']=='slice1-inbox-green':
+            with sqlite3.connect(state/'state.sqlite3') as db:
+                for entry in scenario['inbox_fixture']:db.execute('INSERT INTO inbox_records(id,data) VALUES (?,?)',(entry['id'],json.dumps(entry,ensure_ascii=False)))
+                db.commit()
+            result['seeded_inbox_inputs']={'origin':scenario['inbox_fixture_origin'],'entries':scenario['inbox_fixture']};save()
         result['started']=call('controller_start','--task',task,'--manifest',root/'runtime-input.json')
         owner_info=None
         def capture_owner():

@@ -6,7 +6,7 @@ import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
 import { RequestRelay } from "./relay.ts";
-import { writeReviewRequest } from "./relayFiles.ts";
+import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
 import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
 import { randomUUID } from "node:crypto";
 import { readOperatorCredential } from "./credentials.ts";
@@ -195,7 +195,9 @@ export async function serve(
       const status = await gates.call({ command: "status", task: input.task });
       if (!status.ok || !status.task) return status;
       if (input.manifest?.state !== root) throw new Refusal("controller_state_mismatch");
-      return { ok: true, launch: panes.startController(status.task, input.manifest) };
+      const launch = panes.startController(status.task, input.manifest);
+      gates.registerController(launch.thread);
+      return { ok: true, launch };
     }
     if (input.command === "daemon_stop") {
       stopping = true;
@@ -230,11 +232,6 @@ export async function serve(
       let completedReview: { task: string; id: string } | undefined;
       const decision = await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
         let files = input.relay_files;
-        if (pane.record.cli === "Claude Code") {
-          if (!Array.isArray(files)) throw new Refusal("relay_files_required");
-          if (files.length) throw new Refusal("controller_relay_not_enabled");
-          return;
-        }
         if (pane.record.role === "reviewer") {
           if (!matched) return;
           let request: Record<string, any>;
@@ -252,9 +249,13 @@ export async function serve(
         if (!Array.isArray(files)) throw new Refusal("relay_files_required");
         const receipts = [];
         for (const file of files) {
-          const receipt = await relay.receive(pane.record as any, file, matched, async (command) => {
-            const caller = await panes.caller({ ...identity, native_session: stop.session_id });
-            if (command.command.startsWith("inbox_")) {
+          const controller = pane.record.role === "controller";
+          const binding = controller ? { id: pane.record.id, task: pane.record.task, session: pane.record.session,
+            spec_rev: pane.record.spec_rev, role: "controller" as const, preset: pane.record.preset,
+            project: pane.record.project, native_session: stop.session_id, prompt_id: stop.prompt_id } : pane.record;
+          const receipt = await relay.receive(binding as any, file, matched, async (command) => {
+            const caller = await panes.caller({ ...identity, native_session: stop.session_id, prompt_id: stop.prompt_id });
+            if (command.command.startsWith("inbox_") || controller) {
               const assertNative = caller.assertActive;
               // Native liveness alone does not preserve a revoked attempt's
               // authority. Recheck the credential's bound attempt after each
@@ -262,6 +263,11 @@ export async function serve(
               caller.assertActive = async () => {
                 await assertNative();
                 const current = await gates.call({ command: "status", task: pane.record.task });
+                if (controller) {
+                  if (!current.ok || current.task?.task_id !== pane.record.task || current.task?.project_id !== pane.record.project ||
+                      current.task?.spec_rev !== pane.record.spec_rev) throw new Refusal("stale_controller_launch");
+                  return;
+                }
                 const active = current.task?.current_attempt;
                 const bound = pane.record;
                 if (!active || active.attempt_id !== bound.attempt || active.session_id !== bound.session ||
@@ -292,9 +298,21 @@ export async function serve(
             }
           }
         }
-        if (matched && receipts.length && pane.record.role === "worker") await panes.dispatch(pane,
+        if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane,
           "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2), "gate");
       });
+      const payload = JSON.parse(input.raw_stdin);
+      if (payload.hook_event_name === "UserPromptSubmit" && !decision) {
+        const pane = panes.authenticate(identity);
+        if (pane.record.role === "controller" && pane.claudePromptId === payload.prompt_id) {
+          const current = await gates.call({ command: "status", task: pane.record.task });
+          if (!current.ok || current.task?.spec_rev !== pane.record.spec_rev || current.task?.project_id !== pane.record.project)
+            throw new Refusal("stale_controller_launch");
+          writeControllerContext(pane.record.env.A2A_REQUEST_DIR, { schema: 2, launch: pane.record.id,
+            preset: pane.record.preset, project: pane.record.project, task: pane.record.task, session: pane.record.session,
+            spec_rev: pane.record.spec_rev, native_session: payload.session_id, prompt_id: payload.prompt_id });
+        }
+      }
       return { ok: true, completedReview, ...(decision ? { hook_output: decision } : {}) };
     }
     if (input.command === "launch_show") {

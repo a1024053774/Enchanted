@@ -83,6 +83,7 @@ function inputPath(value: string | undefined, directory = false): string {
 // Host-owned lifecycle boundary. The gate does not implement a CLI/provider runtime.
 // T-075-1 exercises it with an isolated service; the pane host is supplied by T-075-3.
 export interface GateRuntime {
+  controllerLaunch?(thread: string): { id: string; thread: string; task: string; project: string; preset: "ideation" | "executor"; session: string; spec_rev: number } | undefined;
   ensureProject(project: string, repo: string): Promise<void>;
   createThread(task: A2ATask, attempt: A2AAttempt): Promise<void>;
   startThread(task: A2ATask, attempt: A2AAttempt, prompt: string): Promise<void>;
@@ -113,6 +114,7 @@ export interface GateRuntime {
 export interface GateActor {
   assertActive(): Promise<void>;
   address?: string;
+  project?: string;
 }
 type ScoreProvenance = Pick<NonNullable<A2AAttempt["delivery"]>, "launch_id" | "cli" | "model" | "effort" | "number">;
 // A role/transport credential is not a native thread or turn identity.
@@ -326,6 +328,18 @@ export class A2AGates {
         ? membership.members.map((value) => (value.threadId === thread ? member : value))
         : [...membership.members, member],
     });
+  }
+  registerController(thread: string) {
+    const launch = this.runtime?.controllerLaunch?.(thread);
+    requireGate(launch, "controller_launch_required");
+    const task = this.load(launch.task);
+    const lock = this.operationLock(task.task_id);
+    try {
+      requireGate(task.project_id === launch.project && task.spec_rev === launch.spec_rev, "stale_controller_launch");
+      this.member(task, thread, "controller");
+      this.membership.bindPreset(thread, launch.preset);
+      this.event(task.task_id, "controller_registered", { launch: launch.id, thread, preset: launch.preset });
+    } finally { lock.close(); }
   }
   private saveAttachment(attachment: A2AAttachment) {
     this.db
@@ -2623,7 +2637,7 @@ export class A2AGates {
       return receipt;
     } finally { lock.close(); }
   }
-  private ownedThread(thread: string) {
+  private ownedThread(thread: string): { task: A2ATask; role: A2AAttachment["role"]; attempt?: A2AAttempt; attachment?: A2AAttachment } | undefined {
     const task = this.taskForThread(thread);
     if (task?.current_attempt && !task.current_attempt.reclaimed)
       return { task, role: "worker", attempt: task.current_attempt };
@@ -2631,6 +2645,12 @@ export class A2AGates {
     const attached = row ? (JSON.parse(String(row.data)) as A2AAttachment) : undefined;
     if (attached?.state === "active")
       return { task: this.load(attached.task_id), role: attached.role, attachment: attached };
+    const controller = this.runtime?.controllerLaunch?.(thread);
+    if (controller && this.membership.presetForThread(thread) === controller.preset) {
+      const task = this.load(controller.task);
+      if (task.project_id === controller.project && task.spec_rev === controller.spec_rev)
+        return { task, role: "controller" };
+    }
     return undefined;
   }
   private async deliverInbox(entry: A2AInboxEntry): Promise<A2AInboxDelivery> {
@@ -2690,10 +2710,11 @@ export class A2AGates {
       ),
       "invalid_address",
     );
-    if (!["inbox_list", "inbox_ready"].includes(args.command)) await actor.assertActive();
+    await actor.assertActive();
     if (args.command === "inbox_ready") {
       requireGate(["ideation", "executor"].includes(role), "controller_required");
       requireGate(args.project, "project_required");
+      requireGate(!actor.project || actor.project === args.project, "caller_project_mismatch");
       const repos = new Set(this.db.prepare("SELECT data FROM tasks").all()
         .map(row => JSON.parse(String(row.data)) as A2ATask)
         .filter(task => task.project_id === args.project).map(task => task.repo));
@@ -2704,7 +2725,7 @@ export class A2AGates {
     }
     if (args.command === "inbox_list") {
       const records = this.inboxRecords();
-      return {
+      const result = {
         ok: true,
         entries: await Promise.all(records
           .filter(
@@ -2723,6 +2744,8 @@ export class A2AGates {
             return { entry, ...(delivery ? { delivery } : {}) };
           })),
       };
+      await actor.assertActive();
+      return result;
     }
     this.checkUserInputObserver();
     if (args.command === "inbox_ack" || args.kind === "ack") {
@@ -2947,6 +2970,11 @@ export class A2AGates {
     const command = (raw as { command?: unknown } | null)?.command;
     if (typeof command === "string" && (command.startsWith("inbox_") || command === "stop")) {
       try {
+        if (caller && ["ideation", "executor"].includes(actor?.address ?? "")) {
+          const owned = this.ownedThread(caller.thread);
+          requireGate(owned?.role === "controller" && this.membership.presetForThread(caller.thread) === actor?.address &&
+            (!actor.project || actor.project === owned.task.project_id), "controller_registration_required");
+        }
         return command === "stop"
           ? await this.emergencyStop(Schema.decodeUnknownSync(A2AStopRequest)(raw), actor)
           : await this.inboxCall(Schema.decodeUnknownSync(A2AInboxRequest)(raw), actor, caller);

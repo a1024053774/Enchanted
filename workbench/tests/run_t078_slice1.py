@@ -1,4 +1,4 @@
-"""Executor-approved root submit, one native tool permission, and red readback."""
+"""Executor-approved root submit, one native tool permission, and slice readback."""
 import argparse
 import base64
 import json
@@ -28,8 +28,9 @@ def main():
     approval = json.loads((materials / 'approval.json').read_bytes())
     manifest = approval['input']; root = Path(manifest['root']); state = root / 'state'
     scenario = json.loads((materials / 'scenario.json').read_bytes())
-    if scenario['name'] != 'slice1-inbox-red':
-        raise ValueError('Only the one-role red slice is supported.')
+    if scenario['name'] not in ('slice1-inbox-red', 'slice1-inbox-green'):
+        raise ValueError('A declared one-role inbox slice is required.')
+    green = scenario['name'] == 'slice1-inbox-green'
     label = args.label or args.phase
     if Path(label).name != label or label in ('.', '..'):
         raise ValueError('A new single directory name is required.')
@@ -97,6 +98,8 @@ def main():
         return value
 
     def readback():
+        if green:
+            return readback_green()
         wait(lambda: (root / 'api-finished-2.json').exists())
         wait(lambda: call('pane_status', '--thread', manifest['thread'])['state'] == 'idle')
         wait(lambda: any((d / 'finished.json').exists() and
@@ -144,6 +147,54 @@ def main():
                       output=output, final=call('pane_status', '--thread', manifest['thread']))
         save()
 
+    def readback_green():
+        wait(lambda: (root / 'api-finished-3.json').exists())
+        wait(lambda: call('pane_status', '--thread', manifest['thread'])['state'] == 'idle')
+        def completed_hooks():
+            return [{'input': json.loads((d / 'stdin.bin').read_bytes()),
+                     'finished': json.loads((d / 'finished.json').read_bytes()), 'directory': str(d)}
+                    for d in (root / 'hooks').iterdir() if (d / 'finished.json').exists()]
+        wait(lambda: len([h for h in completed_hooks() if h['input'].get('hook_event_name') == 'Stop']) == 2)
+        hooks = completed_hooks()
+        ups = [h['input'] for h in hooks if h['input']['hook_event_name'] == 'UserPromptSubmit']
+        stops = [h['input'] for h in hooks if h['input']['hook_event_name'] == 'Stop']
+        if (len(ups) != 2 or len(stops) != 2 or len({h['prompt_id'] for h in ups}) != 2
+                or {h['prompt_id'] for h in ups} != {h['prompt_id'] for h in stops}
+                or any(h['finished']['exit_code'] != 0 or h['input']['session_id'] != manifest['session'] for h in hooks)):
+            raise RuntimeError('Two distinct native roots and matched successful Stops are required.')
+        first = next(h for h in ups if h['prompt'] == '⟦主控 #1⟧\n' + scenario['nonce'])
+        feedback = next(h for h in ups if h['prompt'].startswith('⟦门禁 #2⟧\n'))
+        trace = events(); intents = [e for e in trace if e['type'] == 'turn_submit_intent']
+        idle = [e for e in trace if e['type'] == 'pane_idle']
+        if len(intents) != 2 or any(e['data'].get('source') == 'user' for e in intents) or len(idle) != 2:
+            raise RuntimeError('Permission Enter must not add a root or replace either registration.')
+        if {e['data']['submission'] for e in idle} != {e['data']['id'] for e in intents}:
+            raise RuntimeError('Both original registered submissions must settle.')
+        with sqlite3.connect((state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True) as db:
+            receipts = [json.loads(r[0]) for r in db.execute('SELECT data FROM relay_results')]
+            requests = [dict(zip(['input','attempt'], r)) for r in db.execute('SELECT input,attempt FROM relay_requests')]
+        expected = [entry['id'] for entry in scenario['inbox_fixture'] if entry['to'] == 'ideation']
+        if (len(receipts) != 1 or len(requests) != 1 or receipts[0].get('ok') is not True
+                or [v['entry']['id'] for v in receipts[0]['entries']] != expected or requests[0]['attempt'] is not None):
+            raise RuntimeError('Exactly one real role-scoped execution must be persisted.')
+        packet = json.loads(requests[0]['input'])
+        if (packet['schema'] != 2 or packet['preset'] != 'ideation' or packet['launch'] != manifest['launch']
+                or packet['prompt_id'] != first['prompt_id'] or 'attempt' in packet or 'fence' in packet):
+            raise RuntimeError('Controller request identity must be genuine and have no worker attempt.')
+        api = [json.loads(s) for s in (root / 'api.jsonl').read_text(encoding='utf-8').splitlines()]
+        if len([m for m in api if m['path'] == '/v1/messages']) != 3 or (root / 'api-error.json').exists():
+            raise RuntimeError('Green Messages budget or protocol did not hold.')
+        if count('inbox_records') != len(scenario['inbox_fixture']) or count('inbox_deliveries') != 0:
+            raise RuntimeError('Read-only list must not create or acknowledge business entries.')
+        if len(list((root / 'requests').glob('*.json'))) != 1:
+            raise RuntimeError('One original request file is required; no resend.')
+        output, raw = snapshot(); (out / 'screen.bin').write_bytes(raw)
+        record.update(status='PASS', product_status='PASS', claim='One controller inbox request executed once at real Stop and received actual feedback; permission Enter preserved registration',
+                      scope='Single-role fake-API green only; not 09B/09C/full ticket acceptance',
+                      hooks=hooks, events=trace, execution_results=receipts, request=packet,
+                      first_prompt=first, feedback_prompt=feedback, api_requests=api, output=output)
+        save()
+
     save()
     try:
         for name in ['input.json', 'scenario.json', 'nonce.txt', 'role.md']:
@@ -162,8 +213,8 @@ def main():
         if args.phase == 'submit':
             value = consent()
             if (not args.readiness_file or value.get('nonce') != scenario['nonce']
-                    or any(value.get(k) != v for k, v in [('root_submit_budget', 1), ('messages_request_budget', 2), ('tool_call_budget', 1)])):
-                raise ValueError('A fixed one-root/tool and two-Messages approval is required.')
+                    or any(value.get(k) != v for k, v in [('root_submit_budget', scenario['root_submit_budget']), ('messages_request_budget', scenario['messages_request_budget']), ('tool_call_budget', 1)])):
+                raise ValueError('The declared root, Messages and tool budgets require approval.')
             ready = json.loads(args.readiness_file.read_bytes())
             if (any(ready.get(k) != manifest[k] for k in ('launch', 'session'))
                     or ready.get('confirmed_by') != 'executor' or ready.get('readiness') != 'confirmed' or not ready.get('basis')):

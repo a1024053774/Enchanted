@@ -41,6 +41,7 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
     ANTHROPIC_BASE_URL: url.origin, ANTHROPIC_AUTH_TOKEN: "a2a-fixture-key-not-a-secret",
     A2A_PROJECT: task.project_id, A2A_TASK: task.task_id, A2A_SESSION: input.session, A2A_ROLE: "controller",
     A2A_PRESET: input.preset, A2A_LAUNCH: input.launch, A2A_STATE: state, A2A_NATIVE_SESSION: input.session,
+    A2A_SPEC_REV: String(task.spec_rev),
     A2A_REQUEST_DIR: join(root, "requests"), A2A_HOOK_TRACE_DIR: join(root,"hooks") };
   requireValue(env.HOME === join(root, "home") && env.CLAUDE_CONFIG_DIR === join(root, "claude"), "isolated_controller_home_required");
   return { id: input.launch, project: task.project_id, task: task.task_id, attempt: null, session: input.session, fence: null,

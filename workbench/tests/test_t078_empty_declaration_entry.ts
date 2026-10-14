@@ -26,7 +26,7 @@ const callOriginal=gates.call.bind(gates);
 gates.call=async (...args:any[])=>{if(barrier && args[0].command==='status'){const b=barrier;barrier=undefined;b.entered();await b.wait;}return callOriginal(...args);};
 function fixture(){
   const id=randomUUID(),record:any={id,thread:randomUUID(),task:randomUUID(),project:'fixture',attempt:null,
-    role:'controller',preset:'ideation',session:randomUUID(),spec_rev:1,cli:'Claude Code',turn_limit:2,worktree:root};
+    role:'controller',preset:'ideation',session:randomUUID(),spec_rev:1,cli:'Claude Code',turn_limit:2,worktree:root,env:{A2A_REQUEST_DIR:join(fixtureRoot,'requests')}};
   const task={task_id:record.task,project_id:'fixture',repo:root,spec_rev:1,current_attempt:null};
   panes.store.db.prepare('INSERT INTO tasks(id,data) VALUES (?,?)').run(record.task,JSON.stringify(task));
   panes.store.launch(record);

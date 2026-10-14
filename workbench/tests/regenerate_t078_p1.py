@@ -8,8 +8,8 @@ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--label
 args=parser.parse_args()
 if not args.label.startswith('p1-materials-'):parser.error('A new p1-materials-NN label is required')
 suffix=args.label[len('p1-materials-'):]
-if not (suffix in ['slice1-red','09a2','09a3','09a3-block','09a3r','09a3r-block','09a3r2','09a3r2-block'] or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A supported fresh material label is required')
-tool_slice=suffix=='slice1-red'
+if not (suffix in ['slice1-red','slice1-green','09a2','09a3','09a3-block','09a3r','09a3r-block','09a3r2','09a3r2-block'] or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A supported fresh material label is required')
+tool_slice=suffix in ['slice1-red','slice1-green'];green=suffix=='slice1-green'
 two_turn=suffix in ['09','09a2','09a3','09a3-block','09a3r','09a3r-block','09a3r2','09a3r2-block']
 out=BASE/args.label;out.mkdir()
 root=Path(tempfile.mkdtemp(prefix='t078-2-p1-'+suffix+'-',dir='/tmp')).resolve()
@@ -24,7 +24,7 @@ try:
               'launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),
               'executable':'/Users/luckye/.local/share/claude/versions/2.1.296','role_file':str(root/'role.md'),
               'code_revision':subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip(),
-              'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0','turn_limit':2 if two_turn else 1}
+              'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0','turn_limit':2 if two_turn or green else 1}
     requests=[{'nonce':(root/'nonce.txt').read_text(),'mode':'cancel' if two_turn else 'echo','ack':'P1_ACK'}]
     if two_turn:
         (root/'nonce-2.txt').write_text('P2_NONCE_'+uuid.uuid4().hex,encoding='utf-8')
@@ -32,9 +32,15 @@ try:
     scenario={'schema':1,'name':'esc-two' if two_turn else 'single','requests':requests}
     if tool_slice:
         command=shlex.join([str(Path(shutil.which('node')).resolve()),str(SOURCE/'workbench/bin/inbox'),'list','--role','executor'])
-        scenario={'schema':1,'name':'slice1-inbox-red','nonce':requests[0]['nonce'],
+        scenario={'schema':1,'name':'slice1-inbox-green' if green else 'slice1-inbox-red','nonce':requests[0]['nonce'],
                   'ack':'SLICE1_TOOL_RESULT_RECORDED','bash_command':command,
-                  'tool_use_id':'toolu_t078_'+uuid.uuid4().hex,'root_submit_budget':1,'messages_request_budget':2}
+                  'tool_use_id':'toolu_t078_'+uuid.uuid4().hex,'root_submit_budget':2 if green else 1,'messages_request_budget':3 if green else 2}
+        if green:
+            scenario['final_ack']='SLICE1_FINAL_ACK'
+            scenario['inbox_fixture_origin']='Predeclared incoming inputs; not actions sent by a real executor/controller'
+            scenario['inbox_fixture']=[{'id':label+'_'+uuid.uuid4().hex,'schema':1,'kind':'report','from':'executor' if to=='ideation' else 'ideation',
+                'to':to,'body':label,'reply_to':None,'refs':[],'created_at':'2026-10-14T00:00:00Z'}
+                for label,to in [('IDEATION_ONLY_SENTINEL','ideation'),('FOREIGN_EXECUTOR_SENTINEL','executor')]]
         (root/'role.md').write_text('构思主控单角色收件箱工具切片。收到 nonce 后只调用一次已批准的 Bash 库收件箱 list；工具返回后只确认并结束，让真实 Stop 转交。不得修改文件、新增请求或 agent、重试、打印环境或访问用户配置。工具的真实返回由测试记录，不自称业务通过。\n',encoding='utf-8')
     if suffix in ['09a3','09a3-block','09a3r','09a3r-block']:scenario['draft_handling']='retain-draft-for-block' if suffix.endswith('-block') else 'manual-empty-declaration'
     if suffix in ['09a3r2','09a3r2-block']:scenario['draft_handling']='retain-draft-for-block' if suffix.endswith('-block') else 'simulated-empty-declaration'
@@ -72,12 +78,12 @@ try:
                        continue_driver_argv=['/usr/bin/python3','-B',str(SOURCE/'workbench/tests/run_t078_slice1.py'),
                          '--materials',str(out),'--phase','submit','--readiness-file',str(out/'readiness.json'),
                          '--approval-file',str(out/'submit-approval.json')],
-                       root_submit_budget=1,messages_request_budget=2,tool_call_budget=1)
+                       root_submit_budget=scenario['root_submit_budget'],messages_request_budget=scenario['messages_request_budget'],tool_call_budget=1)
         with (out/'submit-approval-template.json').open('x',encoding='utf-8') as f:
             json.dump({'launch':manifest['launch'],'session':manifest['session'],'thread':manifest['thread'],
                        'approved_by':None,'approval_ref':None,'basis':None,'nonce':scenario['nonce'],
                        'bash_command':scenario['bash_command'],'source':'test-simulated-user',
-                       'root_submit_budget':1,'messages_request_budget':2,'tool_call_budget':1},f,ensure_ascii=False,indent=2)
+                       'root_submit_budget':scenario['root_submit_budget'],'messages_request_budget':scenario['messages_request_budget'],'tool_call_budget':1},f,ensure_ascii=False,indent=2)
         with (out/'permission-approval-template.json').open('x',encoding='utf-8') as f:
             json.dump({'launch':manifest['launch'],'session':manifest['session'],'thread':manifest['thread'],
                        'approved_by':None,'approval_ref':None,'basis':None,'source':'test-simulated-user',
@@ -89,7 +95,9 @@ try:
     extra=[]
     if tool_slice:
         names+=['t078_slice1_protocol.py','t078_fake_inbox_tool.py','run_t078_slice1.py',
-                'test_t078_slice1_protocol.py','test_t078_slice1_permission_key.mjs']
+                'test_t078_slice1_protocol.py','test_t078_slice1_permission_key.mjs',
+                'test_t078_controller_producer.py','test_t078_permission_accounting.ts',
+                'test_t078_controller_relay.ts','test_t078_controller_inbox_entry.ts','test_t078_slice1_green_protocol.py','test_t078_relay_role.ts']
         extra.append(SOURCE/'workbench/bin/inbox')
     for p in args.extra_source:
         resolved=p.resolve();resolved.relative_to(SOURCE);extra.append(resolved)

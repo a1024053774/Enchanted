@@ -705,3 +705,19 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 以本次 api.jsonl 原样副本先取得 [实际请求 red](slice1-recorded-api-red/results.json)，再只修消息位置定位：[green12/12](slice1-recorded-api-green/results.json) PASS，ID／command／model／stream／预算／唯一结果／因果顺序不放宽，末尾仅 text system 元数据可接受。去掉 command 核对的坏变异、放宽预算的坏变异分别在对应条件失败；原合成 protocol12 仍 PASS。全部是 validator 本地重放，没有重发实际请求或启动服务。未来 screen-key template 的实际生成表达式也已核对，旧源码缺失和旧主控补写来源保留。
 
 交 [读回与建议](SLICE-1-READBACK.md)、[固定本实例 cleanup 脚本](cleanup-slice1-red.py)：认证 daemon_stop、等待原 CLI／shell／daemon实际退出、API92591完整 argv/root＋双读 lifetime 后最多一次 SIGTERM；逐成员归档读回到外置盘，slot 不删，根删除须显式 --remove-root。worker 未执行，cleanup **INCOMPLETE**。建议先清理，再新实例／新 ID／新批准重跑一个闭合 ACK／Stop 的完整红态，不将已失败／越预算旧实例改成 PASS。当前只修假服务／模板，不改产品；新独立 reviewer、真实转交绿态／边界反例、09B／09C／真登录／整票仍 INCOMPLETE。
+
+## controller 请求与许可记账实现候选（主控 #178）
+
+主控按原身份提交 `5b404cb91a4415d31ff2ba2aa113de7d9bea0994`（九项尾注）；原 [cleanup-175](p1-materials-slice1-red/cleanup-175/result.json) **PASS**：仅 API92591 一次 SIGTERM，外置归档逐字节读回，根因 api-error 按规则保留，root_removed=false，slot 未动。此前 INCOMPLETE 原报告不改写。
+
+在 #178 已分配的八个产品文件与测试中完成原通路的 schema2 controller 请求、真实 Stop 转交及 caller 核对；不伪造 worker attempt/fence，不用 operator 代理请求。launch/preset/project/task/spec_rev/session/native session/prompt/active/shell/leader 均参与核对；角色 scope 来自实际 caller，请求参数不能覆盖。PermissionRequest 绑定当前 prompt 与登记 active，工具许可 Enter 只记 control action/write，原 active 保留；普通 Enter 的提交行为保留。细节和每项证据见 [SLICE-1-GREEN](SLICE-1-GREEN.md)、[失败方式](FAILURE-MODES-SLICE1-GREEN.md)。
+
+对应两条已取得真实红态，实际 producer 的 parent red→green、原 #175 UPS/PIRQ 的许可单元 red→3/3 green；relay/caller 边界22/22、worker writer3、scope5、controller-window5、pane-runtime11、Claude epochs7、inbox-domain11 均 PASS。taskspec/project caller 额外先取局部红态再修。worker writer 新规范路径拼写导致的临时回归原件保留，根因层修为仅 controller context 使用该检查；原 worker 三条真实 CLI 请求回归 PASS。
+
+复核候选发现 relay 扩展漏保留原角色白名单；先保存 monitor／unknown 被执行的局部红态，补回检查后两个反例 PASS，controller22 重跑 PASS。启动 profile 预算3项及使用旧官方 help 的角色文本参数检查也 PASS；漏传 help 路径的命令错误保留，不能算产品红态。
+
+绿态 fake API 合成契约11/11 PASS；空结果、错角色、错 request_id、重放、多工具均拒绝。首次预算变异被其它验证掩盖，不算证据；修正探针输入后，有效坏变异仅在第四 Messages 拒绝条件失败。局部 protocol／spy 不替实际 Claude 或独立审查。
+
+交 [冻结→入口回归→生成→材料提交脚本](commit-and-prepare-slice1-green.sh)，依次 controller-entry6、空框17、runtime12、input-failures11、worker-inbox14；全部通过才生成新 `p1-materials-slice1-green`，绑定新 source commit、逐文件 tar/Git 读回，再提交材料。生成不 launch；launch／逐屏信任／nonce／一次工具 Yes 都由主控单独批准。两条预声明 incoming role sentinel 是夹具输入，不冒称另一真实角色发送。预算根2、Messages3、Bash1、供应商模型0，第二根只承载真实 Stop 处理结果；无重试。
+
+当前上述沙箱外入口、新实例生成／静态核对、真实 Claude 绿态均 **INCOMPLETE**；新独立 reviewer、09B／09C、真登录、整票仍 INCOMPLETE。project_map status 的 README stale 已非 blocking 上报所有权问题，本轮不擅改 README／地图，不能声称 living docs 全绿。所有 Git／服务启动交主控脚本，worker 未提权、未开额外 agent、未启动 CLI/API/Electron，不删根／slot，不集成或 push。

@@ -62,6 +62,7 @@ type Pane = {
   terminalBuffer: string;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
+  permission?: { prompt_id: string; submission: string } | null;
 };
 
 export class Panes implements GateRuntime {
@@ -490,14 +491,20 @@ export class Panes implements GateRuntime {
       if (!binary) pane.userDraft = true;
       this.store.event("terminal_input_write_intent", { ...receipt, encoding,
         ...(binary ? { data_base64: bytes.toString("base64") } : { data }), byte_length: bytes.length }, pane.record);
-      if (!binary && !pasted && /[\r\n]/.test(data)) {
+      const permissionControl = Boolean(!binary && data === "\r" && pane.record.cli === "Claude Code" &&
+        pane.permission && pane.active && pane.permission.prompt_id === pane.claudePromptId && pane.permission.submission === pane.active.id);
+      if (!binary && !pasted && /[\r\n]/.test(data) && !permissionControl) {
         pane.state = "busy"; pane.userDraft = false;
+        pane.permission = null;
+        if (pane.record.cli === "Claude Code") pane.claudePromptId = null;
         pane.active = { id: randomUUID(), dispatch: `input:${receipt.request_id}`, at: new Date().toISOString(), nativeTurn: null };
         this.store.event("turn_submit_intent", { ...pane.active, source: "user", request_id: receipt.request_id }, pane.record);
       }
+      if (permissionControl) { pane.userDraft = false; pane.permission = null; }
       try {
         pane.pty.write(binary ? bytes : data);
         const written = this.store.event("terminal_input_written", { ...receipt, encoding, byte_length: bytes.length }, pane.record);
+        if (permissionControl) this.store.event("permission_control_written", { ...receipt, prompt_id: pane.claudePromptId, submission: pane.active!.id }, pane.record);
         if(!binary && data==="\x1b") { pane.interruption = written; this.retireClaudeSubmission(pane,"user-esc"); }
       } catch (error) {
         this.recordFailure(pane, "terminal_input_write_unknown", error, receipt);
@@ -714,6 +721,8 @@ export class Panes implements GateRuntime {
       // 08e recorded prompt_id on UPS and Stop; it identifies the actual CLI prompt.
       check([1,2].includes(pane.record.turn_limit), "claude_turn_correlation_unverified");
       if (value.hook_event_name === "PermissionRequest") {
+        check(pane.active && pane.claudePromptId && value.prompt_id === pane.claudePromptId, "permission_prompt_mismatch");
+        pane.permission = { prompt_id: value.prompt_id, submission: pane.active.id };
         this.store.event("permission_wait", value, pane.record); pane.state = "busy"; return;
       }
       if (value.hook_event_name === "UserPromptSubmit") {
@@ -729,8 +738,9 @@ export class Panes implements GateRuntime {
         }
         // Source comes from the current structured submission, never text markers.
         // Hand-typed submissions and retired injections cannot trigger this guard.
-        if (!item) { this.store.event("user_prompt_unregistered", value, pane.record); return; }
+        if (!item) { this.store.event("user_prompt_unregistered", value, pane.record); if (!pane.active) return; }
         check(pane.state === "busy" && !pane.claudePromptId, "claude_submission_unmatched");
+        pane.permission = null;
         pane.claudePromptIds.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record); return;
       }
       check(value.hook_event_name === "Stop", "unsupported_hook");
@@ -743,7 +753,7 @@ export class Panes implements GateRuntime {
       try {
         if (transfer) await transfer(pane, value, true);
         if(pane.active!==active || pane.claudePromptId!==value.prompt_id){this.store.event("stop_not_matched",{...value,stage:"after_transfer"},pane.record);return;}
-        pane.active = null; pane.claudePromptId = null; pane.state = pane.interrupted ? "busy" : "idle";
+        pane.active = null; pane.claudePromptId = null; pane.permission = null; pane.state = pane.interrupted ? "busy" : "idle";
         this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
       } catch (error) {
         this.recordFailure(pane, "stop_transfer_failed", error); throw error;
@@ -778,8 +788,42 @@ export class Panes implements GateRuntime {
     check(identity.token === pane.token, "invalid_launch_identity");
     return pane;
   }
+  controllerLaunch = (thread: string) => {
+    const pane = this.panes.get(thread);
+    if (!pane || pane.record.role !== "controller" || pane.record.cli !== "Claude Code" || pane.stopped || pane.archived || pane.failed) return;
+    return { id: pane.record.id, thread, task: pane.record.task, project: pane.record.project,
+      preset: pane.record.preset as "ideation" | "executor", session: pane.record.session, spec_rev: pane.record.spec_rev };
+  };
   async caller(identity: any): Promise<SubmitCaller> {
     const pane = this.authenticate(identity);
+    if (pane.record.role === "controller") {
+      const stored = this.store.launchRecord(pane.record.id);
+      check(stored && stored.role === "controller" && stored.cli === "Claude Code" && ["ideation", "executor"].includes(stored.preset), "controller_launch_required");
+      const fields = ["id", "thread", "task", "project", "preset", "session", "spec_rev"];
+      const prompt = identity.prompt_id, submission = pane.active?.id;
+      const assertBinding = () => {
+        const taskRow = this.store.db.prepare("SELECT data FROM tasks WHERE id=?").get(stored.task);
+        const currentTask = taskRow && JSON.parse(String(taskRow.data));
+        check(currentTask?.task_id === stored.task && currentTask?.project_id === stored.project &&
+          currentTask?.spec_rev === stored.spec_rev, "stale_controller_launch");
+        check(fields.every(field => pane.record[field] === stored[field]), "controller_launch_identity_changed");
+        check(pane.record.cli === "Claude Code" && pane.record.role === "controller" &&
+          pane.native === stored.session && identity.native_session === stored.session &&
+          prompt && pane.claudePromptId === prompt && pane.active?.id === submission && submission &&
+          pane.stopInProgress && pane.state === "busy" && !pane.failed && !pane.stopped && !pane.archived && !pane.interrupted,
+          "controller_not_active");
+      };
+      assertBinding();
+      const first = await this.processInfo(stored.thread); assertBinding();
+      check(first.leader && !first.failed && first.native_session === stored.session && first.shell_pid === pane.pty.pid, "native_identity_required");
+      return { thread: stored.thread, turn: prompt, address: stored.preset, project: stored.project,
+        assertActive: async () => {
+          assertBinding();
+          const live = await this.processInfo(stored.thread); assertBinding();
+          check(live.leader === first.leader && !live.failed && live.native_session === stored.session && live.shell_pid === pane.pty.pid,
+            "controller_native_identity_changed");
+        } };
+    }
     check(pane.attempt, "worker_attempt_required");
     const attempt = pane.attempt;
     this.scan(pane);

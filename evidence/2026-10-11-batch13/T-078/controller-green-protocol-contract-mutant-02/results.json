@@ -1,0 +1,106 @@
+{
+  "status": "INCOMPLETE",
+  "checks": [
+    {
+      "name": "actual-queued-result-with-system-tail",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "tool_result": {
+          "type": "tool_result",
+          "tool_use_id": "toolu_23",
+          "content": "{\"ok\": true, \"queued\": true, \"delivered\": false, \"request_id\": \"actual_request_31\"}"
+        },
+        "text": "{\"ok\": true, \"queued\": true, \"delivered\": false, \"request_id\": \"actual_request_31\"}"
+      }
+    },
+    {
+      "name": "registered-feedback-correlates-and-scopes-sentinel",
+      "status": "PASS",
+      "expected_accepted": true,
+      "observed": {
+        "feedback_prompt": "⟦门禁 #2⟧\nExecution receipts\n[{\"request_id\": \"actual_request_31\", \"replayed\": false, \"result\": {\"ok\": true, \"entries\": [{\"entry\": {\"id\": \"IDEATION_23\"}}]}}]",
+        "receipts": [
+          {
+            "request_id": "actual_request_31",
+            "replayed": false,
+            "result": {
+              "ok": true,
+              "entries": [
+                {
+                  "entry": {
+                    "id": "IDEATION_23"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "fourth-Messages-is-rejected",
+      "status": "INCOMPLETE",
+      "expected_accepted": false,
+      "observed": {
+        "tool_result": {
+          "type": "tool_result",
+          "tool_use_id": "toolu_23",
+          "content": "{\"ok\": true, \"queued\": true, \"delivered\": false, \"request_id\": \"actual_request_31\"}"
+        },
+        "text": "{\"ok\": true, \"queued\": true, \"delivered\": false, \"request_id\": \"actual_request_31\"}"
+      }
+    },
+    {
+      "name": "always-empty-result",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Actual role scope must return the independent ideation sentinel only."
+    },
+    {
+      "name": "foreign-role-result",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Actual role scope must return the independent ideation sentinel only."
+    },
+    {
+      "name": "both-role-results",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Actual role scope must return the independent ideation sentinel only."
+    },
+    {
+      "name": "foreign-request-correlation",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Execution feedback must match the actual queued request."
+    },
+    {
+      "name": "replay-is-not-new-execution",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "Exactly one new successful execution receipt is required."
+    },
+    {
+      "name": "changed-tool-command-in-feedback-history",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The feedback history must retain exactly the frozen tool call."
+    },
+    {
+      "name": "second-tool-call-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The feedback history must retain exactly the frozen tool call."
+    },
+    {
+      "name": "queued-error-is-rejected",
+      "status": "PASS",
+      "expected_accepted": false,
+      "observed": "The real tool must report queue admission without claiming delivery."
+    }
+  ],
+  "mutant_budget": true,
+  "real_model_turns": 0,
+  "scope": "Synthetic protocol only; no native CLI, Stop or role authenticity proof"
+}

@@ -13,12 +13,13 @@ def main():
     args = p.parse_args(); args.output.mkdir()
     if args.mutant_budget:
         source = Path(protocol.__file__).read_text(encoding='utf-8')
-        source = source.replace('number not in (1, 2)', 'number < 1')
+        assert source.count('not 1 <= number <= limit') == 1
+        source = source.replace('not 1 <= number <= limit', 'number < 1')
         scope = {}; exec(compile(source, 'known-bad-budget', 'exec'), scope)
         validate = scope['validate_request']
     else:
         validate = protocol.validate_request
-    scenario = {'nonce': 'S1_UNSEEN_ALPHA', 'ack': 'FIXTURE_ACK', 'tool_use_id': 'toolu_unique_7',
+    scenario = {'name':'slice1-inbox-red','nonce': 'S1_UNSEEN_ALPHA', 'ack': 'FIXTURE_ACK', 'tool_use_id': 'toolu_unique_7',
                 'bash_command': '/fixture/node /fixture/inbox list --role executor'}
     root = {'model': 'claude-haiku-5-5', 'stream': True,
             'tools': [{'name': 'Bash', 'input_schema': {'properties': {'command': {'type': 'string'}}}}],

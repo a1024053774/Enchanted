@@ -11,10 +11,14 @@ def text_content(content):
 
 
 def validate_request(body, number, scenario):
+    if scenario.get('name') not in ('slice1-inbox-red', 'slice1-inbox-green'):
+        raise ValueError('A declared controller inbox slice is required.')
+    green = scenario['name'] == 'slice1-inbox-green'
+    limit = 3 if green else 2
     if body.get('model') != 'claude-haiku-5-5' or body.get('stream') is not True:
         raise ValueError('Declared model and streaming mode are required.')
-    if number not in (1, 2):
-        raise ValueError('The two-Messages budget is exhausted.')
+    if not 1 <= number <= limit:
+        raise ValueError('The declared Messages budget is exhausted.')
     messages = body.get('messages', [])
     if number == 1:
         texts = [p.get('text') for m in messages if m.get('role') == 'user'
@@ -25,6 +29,35 @@ def validate_request(body, number, scenario):
         if not tool or tool.get('input_schema', {}).get('properties', {}).get('command', {}).get('type') != 'string':
             raise ValueError('The real CLI must advertise a Bash command tool.')
         return {'root_prompt': texts[-1]}
+    if number == 3 and green:
+        tools = [p for m in messages if m.get('role') == 'assistant' for p in m.get('content', [])
+                 if isinstance(p, dict) and p.get('type') == 'tool_use']
+        if len(tools) != 1 or tools[0] != {'type': 'tool_use', 'id': scenario['tool_use_id'], 'name': 'Bash', 'input': {'command': scenario['bash_command']}}:
+            raise ValueError('The feedback history must retain exactly the frozen tool call.')
+        texts = [p.get('text') for m in messages if m.get('role') == 'user'
+                 for p in m.get('content', []) if isinstance(p, dict) and p.get('type') == 'text']
+        text = texts[-1] if texts else ''
+        if not text.startswith('⟦门禁 #2⟧\n'):
+            raise ValueError('The second root must be the registered gate feedback.')
+        first_json = text.find('\n[')
+        if first_json < 0:
+            raise ValueError('Feedback must carry the real relay receipt array.')
+        receipts = json.loads(text[first_json + 1:])
+        if len(receipts) != 1 or receipts[0].get('replayed') is not False or receipts[0].get('result', {}).get('ok') is not True:
+            raise ValueError('Exactly one new successful execution receipt is required.')
+        result = receipts[0]['result']
+        ids = [entry['entry']['id'] for entry in result.get('entries', [])]
+        expected = [entry['id'] for entry in scenario['inbox_fixture'] if entry['to'] == 'ideation']
+        if ids != expected or not ids:
+            raise ValueError('Actual role scope must return the independent ideation sentinel only.')
+        tool_results = [p for m in messages if m.get('role') == 'user' for p in m.get('content', [])
+                        if isinstance(p, dict) and p.get('type') == 'tool_result' and p.get('tool_use_id') == scenario['tool_use_id']]
+        if len(tool_results) != 1:
+            raise ValueError('The original tool result must remain correlated.')
+        queued = json.loads(text_content(tool_results[0]['content']).strip())
+        if not queued.get('request_id') or receipts[0].get('request_id') != queued['request_id']:
+            raise ValueError('Execution feedback must match the actual queued request.')
+        return {'feedback_prompt': text, 'receipts': receipts}
     results = [(i, p) for i, m in enumerate(messages) if m.get('role') == 'user'
                for p in m.get('content', []) if isinstance(p, dict) and p.get('type') == 'tool_result']
     tools = [(i, p) for i, m in enumerate(messages) if m.get('role') == 'assistant'
@@ -50,6 +83,10 @@ def validate_request(body, number, scenario):
     text = text_content(result.get('content'))
     if not text.strip():
         raise ValueError('An empty tool result is not execution evidence.')
+    if green:
+        queued = json.loads(text.strip())
+        if result.get('is_error', False) or queued.get('ok') is not True or queued.get('queued') is not True or queued.get('delivered') is not False or not queued.get('request_id'):
+            raise ValueError('The real tool must report queue admission without claiming delivery.')
     return {'tool_result': result, 'text': text}
 
 
@@ -64,7 +101,7 @@ def response_events(number, scenario, message_id):
         reason = 'tool_use'
     else:
         block = {'type': 'text', 'text': ''}
-        delta = {'type': 'text_delta', 'text': scenario['ack'] + ' ' + scenario['nonce']}
+        delta = {'type': 'text_delta', 'text': (scenario['final_ack'] if number == 3 else scenario['ack']) + ' ' + scenario['nonce']}
         reason = 'end_turn'
     yield 'content_block_start', {'type': 'content_block_start', 'index': 0, 'content_block': block}
     yield 'content_block_delta', {'type': 'content_block_delta', 'index': 0, 'delta': delta}

@@ -34,7 +34,7 @@ export class OrchestrationStore {
     }
     this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS dispatch_inbox_entry ON dispatch_records(json_extract(data,'$.inbox_entry')) WHERE json_extract(data,'$.inbox_entry') IS NOT NULL");
   }
-  event(type: string, data: unknown, binding?: { id: string; task: string; attempt: string | null }) {
+  event(type: string, data: unknown, binding?: { id: string; task: string; attempt?: string | null }) {
     return Number(this.db.prepare("INSERT INTO orchestration_events(time,type,launch,task,attempt,data) VALUES (?,?,?,?,?,?)")
       .run(new Date().toISOString(), type, binding?.id ?? null, binding?.task ?? null, binding?.attempt ?? null, JSON.stringify(data)).lastInsertRowid);
   }

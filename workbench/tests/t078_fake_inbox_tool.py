@@ -68,10 +68,12 @@ def main():
     root = Path(sys.argv[1])
     manifest = json.loads((root / 'input.json').read_bytes())
     scenario = json.loads((root / 'scenario.json').read_bytes())
-    if (manifest['api_url'] != 'http://127.0.0.1:0' or manifest['turn_limit'] != 1
-            or scenario['name'] != 'slice1-inbox-red' or scenario['schema'] != 1
-            or scenario['root_submit_budget'] != 1 or scenario['messages_request_budget'] != 2):
-        raise RuntimeError('Only the frozen one-root, two-Messages red slice is supported.')
+    budgets={'slice1-inbox-red':(1,2),'slice1-inbox-green':(2,3)}
+    expected=budgets.get(scenario['name'])
+    if (expected is None or manifest['api_url'] != 'http://127.0.0.1:0' or scenario['schema'] != 1
+            or manifest['turn_limit'] != expected[0] or scenario['root_submit_budget'] != expected[0]
+            or scenario['messages_request_budget'] != expected[1]):
+        raise RuntimeError('The frozen red or green slice budgets are required.')
     messages = 0; lock = threading.Lock()
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     with (root / 'api-ready.tmp').open('x', encoding='utf-8') as stream:
