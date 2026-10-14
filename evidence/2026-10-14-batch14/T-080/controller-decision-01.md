@@ -12,3 +12,7 @@ red-01：rc=1，冻结源码解包用 tarfile filter 参数，本机 python3 3.9
 ## 共享文件分配（2026-10-14 UTC 14:2x）
 
 FINAL-01 交接指出依赖：workbench/src/gates/qualityProtocol.ts 的 scoreRecords 严格 checks、scripts/score 的 CHECKS 与帮助文本须新增 oracle，workbench/README.md 须同步门禁说明（project-map 1 stale）。三者当前无其他写入者，属 T-080 第 3、5 条范围，交 T-080 worker 修改。历史 records/scores.jsonl 为追加式旧数据，不改写、不加兼容分支；校验只针对新记录要求 oracle，若现有校验会整表重读旧行导致失败，worker 先停下报告。
+
+## 打分记录格式决定（2026-10-14 UTC 14:4x）
+
+worker 报 BLOCKED（history-format-blocker-01.json）：scripts/score 写入前整表重读校验（:135–148），12 行历史中 11 行无 oracle，直接把 oracle 设为必填会使旧行失败。执行主控决定：记录 schema 版本化——新写入行一律 schema=2，rejections 必须含 oracle；历史 schema=1 行只读、按 v1 检查集校验，不改写、不迁移；scripts/score 与 qualityProtocol.ts 的 scoreRecords 都按行的 schema 选检查集，写入端只写 schema 2，不保留写 schema 1 的路径。不采用另开日志（双存储）或缺项按 0（改变语义）。正反例须覆盖：v1 旧行通过、v2 缺 oracle 拒收、v2 完整通过、未知 schema 拒收、user 分 score_of 指向 v1/v2 原记录均可。
