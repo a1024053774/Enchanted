@@ -14,6 +14,8 @@
 
 交付检查保存在 `classifier-p2-delivery-check-01/`：地图 0 problems/0 stale，源码、检查脚本、报告及其他新文本的空白与 UTF-8/LF 检查通过，单文件无超 5 MB。完整 cached 空白检查对原始 `fix.diff` 的上下文空行报 trailing whitespace，exit=2/INCOMPLETE；原始 diff 与诊断原样保留，不规范化它来掩盖结果。
 
+修正与证据提交为 `65f441e5efe4e85e3eec55d8e1e5b5d5ac50d143`。完成检查点的 fresh-context 独立审计仅覆盖本次已接受的 P2：**PASS，确认发现 0**；报告为 `classifier-p2-review-01.md`，提示、请求和完成记录为同名前缀文件。reviewer 核对修前红态、修后定向绿态、现有九项检查、十四份原始输入及全部分类字段、真实目标失败后的连带 failure 和产品版本，确认支持本次小修正无需重跑真实冲突的限定结论。请求 explorer / gpt-6.1-sol / xhigh / fork_turns none，tier 不可选、实际未独立观察；审计期间本 worker 串行等待，无并行修改或检查。原复审 02 报告保持 NO_GO，不追改旧结论；本轮独立 PASS 也不替代整票的主控验收。
+
 ## 主控 #129：F1 差异复审 02
 
 **复审 NO_GO；确认 1 项 P2，整票仍 INCOMPLETE，待主控处置与验收。** 已完成一次 fresh-context explorer 复审，请求 gpt-6.1-sol / xhigh / fork_turns none；tier 不可选，实际模型、思考强度及供应商 tier 未独立观察。复审期间本 worker 只等待与汇报状态，没有并行检查或修改。冻结证据候选为 `05ed480bcc9882fb2c8074c4b8ad8c3727d66c2d`，产品仍为完整版本 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`；报告 `independent-review-02.md` 原样保留，提示、请求和完成记录分别为 `independent-review-prompt-02.txt`、`independent-review-request-02.json`、`independent-review-completed-02.json`。
