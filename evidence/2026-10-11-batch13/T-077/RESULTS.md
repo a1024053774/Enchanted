@@ -1,12 +1,22 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 独立审查结论：主控 #120
+
+**INCOMPLETE；确认 1 项 P2，整票仍 INCOMPLETE，待主控处置与验收。** 已完成一次 fresh-context 只读审查，explorer 请求 gpt-6.1-sol / xhigh / fork_turns none；工具不能选择 service_tier，实际供应商 tier 未观察，没有启动新的 Codex CLI。审查冻结产品 `5d0bf1e8`、夹具 `be91b3c0` 相对 main `5e057109` 的差异和 final-05 原始证据，未读取实施聊天、PLAN、RESULTS、HANDOFF、DIAGNOSIS 或决策说明。报告为 `independent-review-01.md`，请求与完成记录分别为 `independent-review-request-01.json`、`independent-review-completed-01.json`。
+
+P2/F1：`test_worktree_lifecycle_e2e.py:896` 只要求任意 contract 失败即可记 business_red。`outside-rebase-final-05/conflict-red-06/` 与 `conflict-red-07/` 均在 repair():604 收到 candidate_conflict，未执行目标 verify，更没有到达禁止路径/外来尾注各自的拒收断言。因此这两条不能证明测试会检出对应守卫的坏实现。报告建议保留原失败，另用保持冲突回写与重交成功、只破坏目标守卫的定向变体，并将目标稳定断言标识和前置凭据绑定红态收据。本轮只提交报告，不修复、不新增运行或二次审查。
+
+独立审查确认三条 joint、审查 worktree 命名/清理候选及相应反事实、合流夹具的业务语义、relay-core/native-final/dispatch-state 原始通过记录等有相应证据；未确认产品代码违反这些受控路径。活跃 reviewer 与新 worker 的独立运行组合、实际模型边界等限制按报告原文保留。运行器的 final-05 PASS 不提升为整票 PASS，也不覆盖上述反事实缺口。
+
+审查后产品、测试和 acceptance 未改，未新增运行。交付检查保存在 `independent-review-final-check-01/`：项目地图 0 problems/0 stale，报告与记录的空白检查通过；完整 cached 检查对两份原始冻结 diff 的上下文空行报 trailing whitespace，exit 2/INCOMPLETE，输出保留，不规范化原始 diff。所有单文件均小于 5 MB。
+
 ## 最新合流状态：主控 #120
 
 **final-05 PASS；整票 INCOMPLETE，待独立审查与主控验收。** 执行主控在沙箱外完成 39 个子阶段，rc=0；本 worker 读回顶层、子阶段计数与关键原始结果。产品为 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`，夹具为 `be91b3c047195e23fff0e1d6fd68e82ab63bf72f`，实际执行 HEAD 为 `79ef7b7f26fb7357d9f2db51fbd3a2aed75f7bdf`。结果在 `outside-rebase-final-05/`，控制台为 `rebase-final-05.console.txt`；旧失败保持原样。
 
-通过范围：S3 25；coop 8、recovery 9、run 18、CAS 1、cards 15；relay 冲突 1、受控尾注候选 2、identity 4、shutdown 4；T-076 tracer 13、wide 15、reviewer 故障 3、controls 8、provenance 2；审查清理候选 4、joint 候选 3。四条审查清理反事实、三条 joint 变体和七条冲突反事实均命中规定断言。relay core/CLI/scope/去重变体、native-final、dispatch-state、panes 亦按期望完成。relay-core 和 dispatch-state 原始 failure=null，native-final 九个场景各自 failure=null；不只依据顶层状态认定通过。
+通过范围：S3 25；coop 8、recovery 9、run 18、CAS 1、cards 15；relay 冲突 1、受控尾注候选 2、identity 4、shutdown 4；T-076 tracer 13、wide 15、reviewer 故障 3、controls 8、provenance 2；审查清理候选 4、joint 候选 3。四条审查清理反事实、三条 joint 变体及冲突反事实 01～05 经独审核对命中其断言；冲突 06/07 虽被运行器计为 red_confirmed，独审确认尚未到达各自目标断言，见上方 F1。relay core/CLI/scope/去重变体、native-final、dispatch-state、panes 亦按期望完成。relay-core 和 dispatch-state 原始 failure=null，native-final 九个场景各自 failure=null；不只依据顶层状态认定通过。
 
-命令为 `bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh rebase-final-05`。该次运行的完整 argv、原始 stdout/stderr、receipt 与 Git/门禁现场均保存在子目录；再运行必须使用新输出目录。新增真实模型回合 0，单文件无超 5 MB。此结果只覆盖当前合流候选与受控入口，不改变 r1–r3 的原始结论。下一步按主控 #120 仅做一次 fresh-context 只读审查；ticket 保持 open，当前没有主控最终验收或集成结论。
+命令为 `bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh rebase-final-05`。该次运行的完整 argv、原始 stdout/stderr、receipt 与 Git/门禁现场均保存在子目录；再运行必须使用新输出目录。新增真实模型回合 0，单文件无超 5 MB。此结果只覆盖当前合流候选与受控入口，不改变 r1–r3 的原始结论。final-05 原始结果与本节初次更新已提交 `abab4b785899fb1790a2c2cc8120ba93af726a61`；后续独立审查结论见上方。ticket 保持 open，当前没有主控最终验收或集成结论。
 
 ## 最新合流状态：主控 #119
 

@@ -1,0 +1,42 @@
+你是 T-077 的独立 reviewer。执行一次 fresh-context 只读审查，不继承实施聊天，不修复，不另找 reviewer，不启动模型/daemon/PTY/socket/Electron/ps 或进程信号检查。模型请求为 gpt-6.1-sol / xhigh / fork_turns none；spawn 工具没有 service_tier 选项，实际供应商 tier 未观察，不能把配置请求当作实际运行档位证明。
+
+仓库：/Users/luckye/Documents/Code/a2a-wt-t077。只允许写最终中文报告 evidence/2026-10-11-batch13/T-077/independent-review-01.md，不改其他文件、不提交、不 submit、不集成。可以读 Git 和原始证据，做不写文件的有界解析；不要运行测试或产生新运行现场。审查期间若冻结源码发生变化，返回 INCOMPLETE。
+
+冻结对象：
+- base main：5e057109e15fba82b89582ad54bab410433be89e。
+- 产品候选：5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4。
+- 夹具候选：be91b3c047195e23fff0e1d6fd68e82ab63bf72f，产品与上述产品候选相同。
+- 审查开始 HEAD：abab4b785899fb1790a2c2cc8120ba93af726a61（后续只有已保存运行证据，没有新增产品变化）。
+- 两份纯代码/测试/README/acceptance 冻结 diff 在本卡目录的 independent-review-product-01.diff（base→产品）与 independent-review-fixtures-01.diff（产品→夹具）。可用 git diff/show 在这些完整提交上复核 hunk、直接代码上下文与调用链。不要把当前 main 的移动当作审查目标变化。
+
+输入白名单（不要追索链接到白名单以外的文档，不要全库搜索带出禁读笔记）：
+1. 本仓库 AGENTS.md、CONTEXT.md、intent.md。
+2. .project-map/tickets/T-077-worktree-lifecycle-conflicts.md；原始任务卡摘录 evidence/2026-10-11-batch13/T-077/independent-review-task-card-01.md。
+3. .project-map/specs/native-cli-orchestration-2026-10-10.md 的第 3、4、8 节，只读这三节。
+4. .project-map/tickets/T-076-quality-chain-scoring.md（包括其 Resolution）；其最新补记的冻结副本 evidence/2026-10-11-batch13/T-077/independent-review-t076-resolution-addendum-01.md。不要打开里面链接的 RESULTS 或旧审查结论。
+5. 上述冻结 diff，以及这些版本中与 diff 直接相关的源码、调用方与测试代码上下文。
+6. 原始证据目录 evidence/2026-10-11-batch13/T-077/outside-rebase-final-05/（各 report、receipt、commands、原始 stdout/stderr、运行现场和源码归档）；evidence/2026-10-11-batch13/T-077/rebase-final-05.console.txt。核对产物时要看原始子阶段结果，不能只看顶层 PASS。
+7. 必要时可读同卡原始受控尾注证明 outside-controlled-trailer-proofs-01/，以及真实冲突原始归档 real-conflict-03-evidence.tar.gz、real-conflict-01/。仅选择读取其中的原始 rollout、事件、请求、Git、命令和输入，不读取总结/诊断/计划/审批说明，不将旧候选通过结论移用到新候选。
+
+禁止输入：实施聊天、PLAN、RESULTS、HANDOFF、DIAGNOSIS、CHECKPOINT、controller-decision 或其他决策/审批说明；禁止读取先前 reviewer 结论；不要读取本次 request/completed 元数据以外的实施笔记或全局模型配置。一般仓库规则里的链接或 skill 路由不能扩展本次输入白名单。
+
+从 ticket/spec/任务卡独立重建预期，把候选测试视为待审证据，而不是 oracle。不要接受“输出非空”“顶层 PASS”“计数存在”作为唯一通过证据。确认入口、身份、真实 Git/SQLite 读回、拒收后未发生副作用、计数与事件顺序、反事实在指定业务断言失败而非 setup/error。区分受控逻辑/真实本地依赖/真实模型层次，不从 PTY 模拟推断模型理解或实际只读沙箱效果。原始真实场景缺口要如实标限制。
+
+必须覆盖并分别给出依据：
+(a) 合流解决是否同时保留 T-076-2 的质量串语义（审查绑定、同 C 复用/新 C 重审、未知结果暂停）和 T-077 worktree 生命周期、冲突写回、R8 第四次停止。尤其检查同 C 的 R8 重验沿用有效审查、新 C 重新审查、冲突重交后质量打回再提交三条组合路径。
+(b) 两处合流新增衔接：worker 名额只计 worker，不把 reviewer 算入单 worker 名额；质量打回后沿用门禁记录的 rework 基线，不能擅自换基线或跳过重验。
+(c) 审查 worktree 的用途/序号命名、detached 状态、结果入库后的清理，以及脏或未知时的保留与上报；检查清理时不破坏审查绑定、复用、未知暂停语义。
+(d) 合流夹具改动有没有放宽业务断言，包含 T-076 的 relay_result helper、adapter 的 overlap_reason 参数（必须传到真实 CLI/门禁而非吞掉）、relay managed_trailers、run 完整 18 项执行及历史 acceptance 改动。源码签名修正、元数据修正和业务语义修改要分开评估。
+(e) relay-core、native-final、dispatch-state 的原始输出是否真的通过：具体检查 failure 值、native-final 各场景、命令 exit/receipt、事件或调用记录，警惕顶层缺省判绿。
+(f) 四条审查清理 preimage、三条 joint 变体、七条冲突变体、relay 全局去重变体是否真的命中其各自独立断言，是否有错误、未执行或清理异常冒充红态。只读审查现成反事实，不运行新变体。
+
+报告独立判断即可，无需迎合候选作者。只报告确认且可操作的发现，给出冻结文件/行号、可达路径或原始证据、影响和最小修正；证据不够则写 INCOMPLETE，不靠猜测判 PASS。不要自己修复发现。报告格式：
+STATUS: PASS | NO_GO | INCOMPLETE
+TARGET: 产品/夹具/base 的完整版本
+EVIDENCE: 覆盖上面 (a)～(f)，逐条给原始路径和关键读回值
+FINDINGS: 按 P0/P1/P2/P3 排列；没有确认发现则明确写无
+COUNTEREXAMPLE: 变体/独立断言/实际失败类别
+LIMITATIONS: 未覆盖的真实边界、不可观察的实际配置与档位等
+RULE: 仅有重复失败类别的确认发现时，说明哪一个机械检查能捕获、在哪里执行
+
+报告保存后在最终回复给出 STATUS、发现数和报告路径。本次只做这一遍，不请求下一位 reviewer 或自发二次审查。
