@@ -1,5 +1,17 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 最新合流状态：主控 #110
+
+主控 #114/#115 更新：final-02 仍 **INCOMPLETE**，只通过 driver-readiness，随后因 runner 不接受 Git archive 中的 26 个 `workbench/hooks/* -> hook.py` 符号链接而停止，产品业务阶段未运行。不是 pax 全局头：tarfile 可见条目中没有该头。原 final-02 输出保持原样。只修 runner 后，局部实际归档解包检查通过（26 个链接重建、普通文件字节/权限不变、9 类非法条目仍拒绝）；产品仍为 `5d0bf1e8`。新的 39 阶段为 `outside-sandbox.sh rebase-final-03`，结果写 `outside-rebase-final-03/`，尚待主控运行；本轮真实模型回合 0。
+
+**INCOMPLETE。** final-01 的三条 joint 变体均命中各自断言、七条冲突红态成立、候选 joint 三项通过；S3 全量 24/25 通过，run 清理例因 fixture driver 把 reviewing/null 提前判为绑定不同而 ERROR，后续阶段未运行。原 `outside-rebase-final-01/run.json` 与失败现场保持不变。
+
+两项修复分别提交：`7b3463c4a55381d0fb97f782e69cc0029522f6da` 修夹具就绪判断，修前局部反例 1 failure/0 errors，修后 5 项通过；`5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4` 接入审查目录的用途/序号与已存结果后的结束清理。审查清理先对 final-01 原受控真实入口场景作独立读回，结果/回收事件已存而目录、Git 登记仍在：1 failure/0 errors，见 `review-lifecycle-recorded-red-01/`。新入口的修前反例与修后四项绿态尚未运行，均在 final-02 中，详见 `DIAGNOSIS-rebase-final-01.md`、`REVIEW-WORKTREE-IMPLEMENTATION-01.md` 与 `HANDOFF-rebase-final-02.md`。
+
+重新运行的阶段命令为 `bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh rebase-final-02`，输出新目录 `outside-rebase-final-02/`。共 39 个子阶段，保留原 33 项编排，增加 driver 局部检查、修前四条 review 生命周期反例及候选四项。冻结候选为 `5d0bf1e8`；准备和语法检查通过不代替业务绿态。新增真实模型回合 0；独立审查尚未启动；ticket 仍 open，待主控关闭。
+
+## 用户选 C 的历史证明
+
 2026-10-14。**PASS：用户选 C 要求的两条受控证明及证据整理；ticket 保持 open，待主控关闭。** 原 r1–r3 失败仍保持各自的 INCOMPLETE，不回填为真实完整闭环通过。
 
 依据：用户 answer `20261014T011612Z-ideation-answer-001` 选“C 受控证明后关票，并改角色卡”；主控 #96 派发两条受控证明，#100 确认沙箱外运行 PASS 并要求提交。产品版本为 `2e2291acfee0e9b4f20c7ff952a5484c4262e20b`，包含 S3、relay 作用域修复及显式 default。本轮只新增测试、脚本和证据，没有产品代码变化。
