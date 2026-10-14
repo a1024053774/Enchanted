@@ -1,5 +1,6 @@
 """Freeze a new green launch packet after passing regression; start no services."""
 import json
+import argparse
 from pathlib import Path
 import subprocess
 import sys
@@ -9,9 +10,16 @@ ROOT = Path(__file__).resolve().parents[3]
 BASE = Path(__file__).resolve().parent
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--freeze', type=Path, default=BASE / 'controller-green-code-freeze.json')
+    parser.add_argument('--regression', type=Path, default=BASE / 'controller-green-outside-01')
+    args = parser.parse_args()
+    freeze_file = args.freeze.resolve(); regression_dir = args.regression.resolve()
+    assert freeze_file.parent == BASE and freeze_file.name in ['controller-green-code-freeze.json', 'controller-green-2-code-freeze.json']
+    assert regression_dir.parent == BASE and regression_dir.name.startswith('controller-green-outside-')
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-    freeze = json.loads((BASE / 'controller-green-code-freeze.json').read_bytes())
-    regression = json.loads((BASE / 'controller-green-outside-01/result.json').read_bytes())
+    freeze = json.loads(freeze_file.read_bytes())
+    regression = json.loads((regression_dir / 'result.json').read_bytes())
     assert revision == freeze['revision'] == regression['revision'] and regression['status'] == 'PASS'
     assert not subprocess.check_output(['git', 'diff', 'HEAD', '--', 'workbench'], cwd=ROOT)
     assert not subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', 'workbench'], cwd=ROOT)

@@ -721,3 +721,13 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 交 [冻结→入口回归→生成→材料提交脚本](commit-and-prepare-slice1-green.sh)，依次 controller-entry6、空框17、runtime12、input-failures11、worker-inbox14；全部通过才生成新 `p1-materials-slice1-green`，绑定新 source commit、逐文件 tar/Git 读回，再提交材料。生成不 launch；launch／逐屏信任／nonce／一次工具 Yes 都由主控单独批准。两条预声明 incoming role sentinel 是夹具输入，不冒称另一真实角色发送。预算根2、Messages3、Bash1、供应商模型0，第二根只承载真实 Stop 处理结果；无重试。
 
 当前上述沙箱外入口、新实例生成／静态核对、真实 Claude 绿态均 **INCOMPLETE**；新独立 reviewer、09B／09C、真登录、整票仍 INCOMPLETE。project_map status 的 README stale 已非 blocking 上报所有权问题，本轮不擅改 README／地图，不能声称 living docs 全绿。所有 Git／服务启动交主控脚本，worker 未提权、未开额外 agent、未启动 CLI/API/Electron，不删根／slot，不集成或 push。
+
+## 首次 controller 入口阶段的反馈早读（主控 #182）
+
+主控以原身份冻结 `455696c98e99b73a118886345ab1d83de24e0bdf`（九项尾注）。[outside-01](controller-green-outside-01/result.json) **INCOMPLETE／rc1**，controller-entry 第五项期待反馈 CR 却早读 undefined；原入口前四项通过，后续第六项、空框17、runtime12、input-failures11、worker-inbox14、实例生成均未执行。原 stage／preparation 输出和 code-freeze 留存，不覆盖、不重试。
+
+[只读原事件](controller-green-2-diagnosis/original-database-readback.json) 明确 seq29 一次真实 ideation 执行、seq30 反馈排队、seq31 原提交 idle、seq34 paste_written、seq38 turn_submitted，最后 seq39 daemon_stopped。CR 确实稍后写出。daemon 在 Stop 响应 close 后 drain，夹具在 paste 与 CR 之间断言并清理，属于夹具等待缺陷；产品无改动。
+
+先用生产 drain 的 [局部 red](controller-green-2-wait-red/results.json) 复现完全相同 undefined !== '\r'，再以同样生产代码等当前 dispatch 的 turn_submitted 得 [green PASS](controller-green-2-wait-green/results.json)，保持实际 CR、busy、active 和两条 intent 断言；PTY 为 spy，无 daemon／socket／CLI／API／模型。修复入口仅补有期限的特定收据等待，保存前后／超时快照，原角色、身份、字节及去重断言保留。
+
+#182 已分配 README，本轮同步现有 controller 通路与验证边界；提交前 status 的历史 stale 留存，待 README 提交后再核对。交 [新续跑脚本](commit-and-prepare-slice1-green-2.sh)，新 outside-02 依次完整入口6及其后四组；全部通过再生成全新 slice1-green，并静态核对、材料提交。当前完整续跑、新实例／实际 Claude 绿态、独立审查、09B/09C、整票仍 **INCOMPLETE**。没有 launch、提权、额外 agent 或删除现场／slot。

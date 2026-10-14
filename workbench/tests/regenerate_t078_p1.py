@@ -97,7 +97,7 @@ try:
         names+=['t078_slice1_protocol.py','t078_fake_inbox_tool.py','run_t078_slice1.py',
                 'test_t078_slice1_protocol.py','test_t078_slice1_permission_key.mjs',
                 'test_t078_controller_producer.py','test_t078_permission_accounting.ts',
-                'test_t078_controller_relay.ts','test_t078_controller_inbox_entry.ts','test_t078_slice1_green_protocol.py','test_t078_relay_role.ts']
+                'test_t078_controller_relay.ts','test_t078_controller_inbox_entry.ts','test_t078_slice1_green_protocol.py','test_t078_relay_role.ts','test_t078_feedback_wait.ts']
         extra.append(SOURCE/'workbench/bin/inbox')
     for p in args.extra_source:
         resolved=p.resolve();resolved.relative_to(SOURCE);extra.append(resolved)

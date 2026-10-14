@@ -1,5 +1,6 @@
 """Run the frozen controller/window regressions outside the sandbox; no vendor CLI."""
 import json
+import argparse
 import os
 from pathlib import Path
 import subprocess
@@ -11,7 +12,14 @@ ROOT = Path(__file__).resolve().parents[3]
 BASE = Path(__file__).resolve().parent
 
 def main():
-    out = BASE / 'controller-green-outside-01'; out.mkdir()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, default=BASE / 'controller-green-outside-01')
+    parser.add_argument('--freeze', type=Path, default=BASE / 'controller-green-code-freeze.json')
+    args = parser.parse_args()
+    out = args.output.resolve(); freeze_file = args.freeze.resolve()
+    assert out.parent == BASE and out.name.startswith('controller-green-outside-')
+    assert freeze_file.parent == BASE and freeze_file.name in ['controller-green-code-freeze.json', 'controller-green-2-code-freeze.json']
+    out.mkdir()
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(('A2A_', 'GIT_', 'CODEX_', 'CLAUDE_', 'ANTHROPIC_', 'OPENAI_', 'COOP_'))}
     record = {'status': 'INCOMPLETE', 'commands': [], 'checks': [], 'real_model_turns': 0,
@@ -44,7 +52,7 @@ def main():
         return facts
     save()
     try:
-        freeze = json.loads((BASE / 'controller-green-code-freeze.json').read_bytes())
+        freeze = json.loads(freeze_file.read_bytes())
         head = run(['git', 'rev-parse', 'HEAD']).strip(); assert head == freeze['revision']
         record['revision'] = head; save()
         assert not run(['git', 'diff', 'HEAD', '--', 'workbench', 'acceptance', 'scripts']).strip()

@@ -1,9 +1,9 @@
 # a2a 门禁、编排后台与工作台
 
 T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
-当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的单提交探针，
-不支持真登录或多回合主控。启动需逐次批准；完整材料及静态检查见
-[P1 逐屏按键与单回合材料](../evidence/2026-10-11-batch13/T-078/P1-APPROVAL-08b.md)。
+当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的探针，
+根提交预算须预声明为一或二，不支持真登录或日常主控运行。启动需逐次批准；单角色
+收件箱候选及绿态审批流程见 [SLICE-1-GREEN](../evidence/2026-10-11-batch13/T-078/SLICE-1-GREEN.md)。
 隔离 settings.json 仅设置 `theme: dark`，移除 IS_DEMO，并设置文档化的
 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，禁用标题侧模型请求和终端状态报告。
 假服务用文档化的 `ANTHROPIC_AUTH_TOKEN`，
@@ -21,7 +21,8 @@ onboarding-notice 只允许 Enter：从已登记的主题确认快照之后取�
 与 08c 的固定 Security notes 文字逐字比较；原字节也必须等于本屏批准快照。
 文字不同、额外提示或重复确认均拒绝。其他权限、认证、遥测或共享选择仍停下。
 原生 debug 与 hooks 的原始 stdin、stdout、stderr、退出码和耗时落进该实例目录。
-当前只验证一个提交回合；跨回合、Esc、紧急停止等待材料 09 的实际 payload 依据。
+单回合及 09A-3R2 两回合 Esc／空框放行、拼接阻断已有绑定版本的实际证据；
+当前 controller 转交候选仍须新实例验证，不能复用这些旧结论作验收。
 遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
 cleanup 绑定 CLI 的 PID、启动时间和命令，确认退出前不报告 PASS 或删除隔离根。
 角色卡经固定 CLI 帮助列出的 `--append-system-prompt` 传完整文本；启动记录仍保留来源路径。
@@ -33,7 +34,8 @@ Bearer 已取得标题侧请求；08b 的 Enter 因目标项字段误判被拒�
 08e 已确认信任，并取得一回合主请求、实际 UPS/Stop exit 0 和 busy→idle（变基前可行性）。
 09A 用两条 nonce：实际 hook 的 prompt_id 绑定回合，Esc 写出后释放 active、保留队列，
 用户在窗口放行后才提交第二条；旧 Stop 不结束新回合。nullable 主控窗口按任务版本与
-实际 CLI 身份核对，worker 仍核对 attempt。CLI/API/UI 实测仍待逐次审批。
+实际 CLI 身份核对，worker 仍核对 attempt。09A-3R2 两场景的实际假服务／CLI／UI
+结果及归档见 [RESULTS](../evidence/2026-10-11-batch13/T-078/RESULTS.md)，不外推到新候选。
 09B/09C 的实际双主控收件箱与 stop/ack、120 秒无 ack 只中断仍未启用／未完成，范围保留。
 旧 T-078-1 的通过结果不替它背书。
 
@@ -308,8 +310,9 @@ Esc 后先由用户自行处理 CLI 草稿，看到输入框为空后点击“�
 也不把声明记成机器读到的输入框状态。后台核对当前窗口、launch、中断和窗格输入代次，
 声明后又有键入、粘贴、二进制输入或组合输入则拒绝陈旧放行。受管 worker 同时记人工介入。
 UserPromptSubmit 只阻断当前登记注入的正文错配，输出 hook JSON block 并保留原始诊断；
-不按文本标记拦截手打提交，不裁剪、不重送，Stop 行为不变。09A-3 的真实 Claude／Electron
-验证尚未启动；入口红绿检查使用真实 daemon/window socket 与 hook CLI、模拟 PTY 和 vendor 身份。
+不按文本标记拦截手打提交，不裁剪、不重送，Stop 的提交匹配语义不变。
+09A-3R2 的实际隔离场景证据已有独立版本绑定；新候选的入口检查使用真实
+daemon/window socket 与 hook CLI、模拟 PTY 和 vendor 身份，不等于实际 Claude 复验。
 
 `daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
 
@@ -374,10 +377,14 @@ Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它
 ## 库版收件箱客户端（当前只在夹具项目验证）
 
 `workbench/bin/inbox` 复用同一门禁 CLI 与后台，不打开数据库、不读写文件版收件箱。
-必须显式传 state（或本会话 A2A_STATE）。管理端提供对应的管理凭据；worker 的
+必须显式传 state（或本会话 A2A_STATE）。管理端提供对应的管理凭据；worker 和 controller 的
 send/list/ack/ready 沿既有 B 请求文件通路，由本会话 Stop 携带实际 launch 凭据
 转交，结果以门禁回执写回。queued 只表示本地请求已排队，不是后台执行成功。
-转交时及门禁内的身份检查同时核对原生进程和当前 attempt，撤销后不能继续写入。
+worker 转交时及门禁内同时核对原生进程和当前 attempt，撤销后不能继续写入。
+controller 使用 schema2 请求，带实际 launch、preset、project、task、spec_rev、受管身份、
+native_session 和当前 prompt_id，不补 worker attempt/fence。匹配 UPS 后后台发布当前
+context；实际库客户端写请求文件，匹配 Stop 才执行。caller 同时核对持久启动记录、
+当前任务项目／版本、active／prompt、shell／leader 和原生会话，并在异步观察后重新核对。
 `--from`、`--role` 只是沿用命令格式，不能改变实际身份；worker 只能发 issue、
 读取本人的条目、ack 本人的条目；ready 按权限拒绝 worker。
 worker 入口已通过 outside-worker-inbox-green-01 的 14 项检查；四项单规则变异体
@@ -397,11 +404,10 @@ ready 只读取该后台已绑定项目的 ticket，返回可执行且依赖已�
 重复 ack 复用原条目及投递结果，不重发。读取 queued 收据时可追加运行时后来确认的状态。
 没有实际接收者时，条目和未送达原因保留，命令不能报告投递成功。
 
-当前只完成收件箱领域逻辑与客户端接线；Panes 的主控唤醒和中断、角色会话凭据、
-worker 收件箱命令的 Stop 转交仍待 T-078 后续步骤，因而不能作日常派发入口。
-本仓库的 `scripts/inbox` 保持原样，切换前不双写。领域测试没有启动任何 CLI，不能
-替代真实窗格验证。库客户端 8/8 已通过；coop 的 7 项身份回归修正后，8/9/18
-仍待重新验证，业务断言没有改动。
+worker Stop 收件箱转交已在隔离入口通过验证；controller 已接入同一原生请求文件／
+Stop 通路，实际 Claude 单角色工具绿态仍待批准运行。真实双主控转交、stop→执行→ack、
+120 秒无 ack 只中断仍未完成，不能作日常派发入口。本仓库的 `scripts/inbox` 保持原样，
+切换前不双写。局部领域与 native/PTY spy 不代替实际 Claude 窗格或独立验收。
 
 ```sh
 node workbench/src/gates/cli.ts --state /绝对路径/state workbench_snapshot --task 任务编号
@@ -457,6 +463,10 @@ CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQU
 处理结果未知时保留意图，不自动重试。一次 Stop 的新结果合成一条 `⟦门禁 #序号⟧`
 回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执会启动新的原生回合，
 计入启动记录里的回合上限；本卡已获准一个交付回合和一个只确认回执的回合。
+Stop 响应关闭后后台才排空反馈队列；响应成功或 paste_written 不表示回车已写出。
+观察者应等待该反馈 dispatch 的 turn_submitted，并核对活动提交及写入收据。
+Claude 的 PermissionRequest 必须匹配当前 prompt／active；同窗口一次许可 Enter
+只记 control action/write，不增加根提交 intent 或替换原 active，普通 Enter 仍按用户提交记录。
 Git 尾注钩子从隔离 CODEX_HOME 中读取 CODEX_THREAD_ID 绑定的唯一根 CLI JSONL，
 以最新 task_started 对应的 turn_context 取实际模型与强度；辅助会话不提供取值。
 当前回合缺上下文时写 unknown，不沿用上一回合或请求值。启动请求另存
