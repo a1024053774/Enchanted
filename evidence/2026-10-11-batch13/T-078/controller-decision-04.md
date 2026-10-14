@@ -216,3 +216,7 @@ commit-and-prepare-slice1（以 s13-t078m 身份）→ 源 6a59ef92、材料 14e
 ## slice1-red submit 读回与工具许可批准（2026-10-14 UTC 22:0x）
 
 submit：nonce 送达（dispatch 20422cf6…，seq 1），真实 CLI 发起 Bash，原生许可屏显示的命令与冻结命令完全一致，光标在 "1. Yes"（一次性）；permission_wait 事件 seq 57（tool_name Bash，tool_input.command 一致）。未按键。批准一次 Enter（test-simulated-user，经窗口按键通路，只选一次性 Yes，不选持久允许或 auto 模式）；permission 阶段会在外置盘构建本实例 Electron slot t078-slice1-70e18a26…。批准引用：`T-078 controller-decision-04 slice1-red-permission`。
+
+## slice1-red permission 读回（2026-10-14 UTC 22:0x）
+
+permission 阶段 rc=1：一次 Enter 经窗口送达（key_attempt），真实 Bash 执行 inbox list，tool_result 为 "Exit code 1 {"ok":false,"error":"daemon_call_failed","details":"Error: worker_request_directory_required"}"——即计划预测的最早入口红态，已在 api.jsonl 第 2 次请求中原样记录。但假 API 的 validate_request 要求"下一条 user 消息携带 tool_result"，而 2.1.296 在 tool_result 之后追加 system 消息，假 API 报 "The next user message must carry the tool result." 并写 api-error.json，未返回 ACK，回合未正常 Stop。判为夹具协议缺陷。实例根保留，交 worker 只读读回现场（UPS/Stop/hook/PTY、permission 事件与 intent 记账）、修假 API 校验（按实际消息序列定位 tool_result，不放宽 ID/命令/预算校验），再决定 readback/cleanup 与是否需要新实例重跑。
