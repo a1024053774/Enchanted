@@ -504,3 +504,13 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_final_checkpoint.py --output e
 08d 新实例 `/private/tmp/t078-2-p1-08d-ohyh5win`，51 文件源码绑定、准确 argv/env 与逐阶段审批见 [P1-APPROVAL-08D](P1-APPROVAL-08D.md)；本轮仅静态生成，CLI／API／模型启动均为 0，launch 尚未批准运行。官方文档支持后续可能的目录信任／认证／MCP 类别，不能保证 2.1.296 的完整逐屏顺序；[官方依据与未知](ONBOARDING-AHEAD-08D.md) 供审批比对。
 
 整票仍 INCOMPLETE、open、待主控关闭。实际 notice、单回合主请求及真实 hooks 仍待 08d；完整 Esc／二次唤醒／紧急停止保留 09，真登录尚未启动。所有重放命令与原件路径见本节链接，旧结果不替当前候选背书。
+
+## T-078-2 材料 08e（主控 #113）
+
+上段是 08d 交审批时点。主控随后实跑通过主题及固定 Security notes Enter；下一屏为默认 No 的目录信任，没有数字标签，未发 Digit1，cleanup PASS，无残留、真实模型 0。实际原件和逐屏批准已保留，不能将旧 Digit1 域正例当作这份菜单的真实依据。
+
+workspace-trust 改为单独批准 ArrowDown 到 `Yes, I trust this folder` → 新原文读回 → 单独批准 Enter。Enter 要求前一条意图为同窗格／launch 的该用途 ArrowDown 到 Yes；确认快照须延续该导航原文，当前原字节仍须与主控批准相等。整个 launch 只允许一次信任确认；默认 Enter、Digit1、其他目标及重复确认拒绝。产品按键映射与 runner 已删除 Digit1，没有并行路径；其他用途与真登录停止条件不变。修复单独提交 `ab997f4d2ea8f4719e6989409c1bebb5835099c1`。
+
+[红态](trust-selection-red-02-08e/results.json) 使用 08d 实际默认屏与前置主题／notice 事件：正确 ArrowDown 不可达，旧 Digit1 却真实写出 `1`。首次未重放前置事件的红态也保留；下游 Enter／次数等不可达结果不冒充业务红态。[信任域绿态](trust-selection-green-08e/results.json) 10/10，原屏幕／主题／notice 检查 4/4、4/4、12/12。Yes 的读回帧为合成输入，真实选择仍待运行。[三项变异反例](P1-APPROVAL-08E.md) 分别真实写出默认 No 屏 CR、两次确认 CR 和不延续导航原文的 CR，按对应业务规则失败。
+
+新实例 `/private/tmp/t078-2-p1-08e-8k1yyjw5`，52 文件源码绑定及准确 argv/env 见 [P1-APPROVAL-08E](P1-APPROVAL-08E.md)。静态准备 PASS，worker CLI／API／模型启动和真实按键均为 0，实际 launch 未执行。整票仍 INCOMPLETE、open、待主控关闭；实际信任、主回合、真实 hooks、09 的完整链路与真登录均未完成。材料交 launch 审批后停止，工作树整理提交，不 push。
