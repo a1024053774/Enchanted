@@ -1,0 +1,1662 @@
+{
+  "status": "INCOMPLETE",
+  "command": [
+    "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_s3_quality_joint_e2e.py",
+    "--source",
+    "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized",
+    "--case",
+    "conflict_then_quality_repair_submits_again",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized"
+  ],
+  "source": "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized",
+  "real_codex_turns": 0,
+  "cases": [
+    {
+      "case": "conflict_then_quality_repair_submits_again",
+      "outcome": "contract_failure",
+      "assertions": [
+        {
+          "id": "JOINT-CONFLICT-C1",
+          "passed": true,
+          "expected": "C1 explicitly submitted",
+          "actual": {
+            "ok": true,
+            "task": {
+              "task_id": "fixture-20261014-1",
+              "title": "fixture-20261014-1",
+              "project_id": "fixture",
+              "repo": "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+              "integration_ref": "refs/heads/main",
+              "card_snapshot_id": "5a391910-3f8d-4140-b1f7-a83c6691b79d",
+              "card_version": 1,
+              "card": {
+                "id": "fixture-20261014-1",
+                "source": null,
+                "goal": "worker 与 host 设置都为 ready；保留 host-policy.txt",
+                "non_goals": [
+                  "不修改项目外的文件"
+                ],
+                "paths": {
+                  "allow": [
+                    "src/",
+                    "tests/",
+                    ".a2a/quality.json"
+                  ],
+                  "deny": [
+                    "src/private/"
+                  ]
+                },
+                "completion_conditions": [
+                  {
+                    "argv": [
+                      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                      "-I",
+                      "-B",
+                      "-c",
+                      "import json; from pathlib import Path; assert json.loads(Path(\"src/settings.json\").read_text())=={\"worker\":\"ready\",\"host\":\"ready\"}; assert Path(\"host-policy.txt\").read_text()==\"host policy\\n\""
+                    ]
+                  }
+                ],
+                "red_commands": [],
+                "task_type": "后端逻辑",
+                "repair_target": null,
+                "complexity": "L",
+                "executor": {
+                  "cli": "Codex",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh"
+                },
+                "base_commit": null,
+                "writer": null
+              },
+              "base_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+              "state": "submitted",
+              "spec_rev": 1,
+              "fence": 1,
+              "current_attempt": {
+                "task_id": "fixture-20261014-1",
+                "attempt_id": "00811e49-4d26-4456-8127-0cc9afc023a6",
+                "session_id": "44d298b3-a276-4df2-933c-5e428443d29b",
+                "fence": 1,
+                "spec_rev": 1,
+                "thread_id": "0b91a5fd-9545-4ae1-8fef-152424b92626",
+                "runtime_mode": "workspace-write",
+                "turn_id": "fixture-turn-1",
+                "runtime_identity": {
+                  "launch": "d0ff34fe-1f4c-4a83-9352-659af175edc8",
+                  "thread": "0b91a5fd-9545-4ae1-8fef-152424b92626",
+                  "shell_pid": 31000,
+                  "leader_pid": 31001,
+                  "native_session": "fixture-native-d0ff34fe-1f4c-4a83-9352-659af175edc8"
+                },
+                "workspace": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+                "base_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+                "card_snapshot_id": "7368f794-bf45-4d28-924e-181866c52bac",
+                "reclaimed": false,
+                "owner": "fixture-20261014-1",
+                "state": "submitted",
+                "delivery": {
+                  "commit": "73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3",
+                  "turn_id": "fixture-turn-1",
+                  "launch_id": "d0ff34fe-1f4c-4a83-9352-659af175edc8",
+                  "cli": "codex-cli 0.162.1",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh",
+                  "number": 1,
+                  "submitted_at": "2026-10-14T03:50:00.938Z"
+                }
+              },
+              "candidate_commit": "73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3",
+              "verification": null,
+              "integration_intent": null,
+              "quality": {
+                "source_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+                "path": ".a2a/quality.json",
+                "raw": null,
+                "rule_checks": []
+              },
+              "repair": null,
+              "review": null
+            },
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-14T03:49:58.529Z"
+            }
+          }
+        },
+        {
+          "id": "JOINT-CONFLICT-WRITEBACK",
+          "passed": true,
+          "expected": "real same-line conflict opens worker rework without integrating",
+          "actual": {
+            "ok": false,
+            "error": "merge_conflict",
+            "details": {
+              "verification_id": "bc45e600-7350-4014-a563-caae9a97263e",
+              "ordinal": 1,
+              "attempt": {
+                "task_id": "fixture-20261014-1",
+                "attempt_id": "00811e49-4d26-4456-8127-0cc9afc023a6",
+                "session_id": "44d298b3-a276-4df2-933c-5e428443d29b",
+                "fence": 1,
+                "spec_rev": 1,
+                "thread_id": "0b91a5fd-9545-4ae1-8fef-152424b92626",
+                "runtime_mode": "workspace-write",
+                "turn_id": "fixture-turn-1",
+                "runtime_identity": {
+                  "launch": "d0ff34fe-1f4c-4a83-9352-659af175edc8",
+                  "thread": "0b91a5fd-9545-4ae1-8fef-152424b92626",
+                  "shell_pid": 31000,
+                  "leader_pid": 31001,
+                  "native_session": "fixture-native-d0ff34fe-1f4c-4a83-9352-659af175edc8"
+                },
+                "workspace": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+                "base_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+                "card_snapshot_id": "7368f794-bf45-4d28-924e-181866c52bac",
+                "reclaimed": false,
+                "owner": "fixture-20261014-1",
+                "state": "submitted",
+                "delivery": {
+                  "commit": "73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3",
+                  "turn_id": "fixture-turn-1",
+                  "launch_id": "d0ff34fe-1f4c-4a83-9352-659af175edc8",
+                  "cli": "codex-cli 0.162.1",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh",
+                  "number": 1,
+                  "submitted_at": "2026-10-14T03:50:00.938Z"
+                }
+              },
+              "spec_rev": 1,
+              "G": "0647e0bd7746705d071d5421150d9488e6bec702",
+              "C": "73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3",
+              "M": null,
+              "card_snapshot_id": "7368f794-bf45-4d28-924e-181866c52bac",
+              "card_version": 1,
+              "commands": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "import json; from pathlib import Path; assert json.loads(Path(\"src/settings.json\").read_text())=={\"worker\":\"ready\",\"host\":\"ready\"}; assert Path(\"host-policy.txt\").read_text()==\"host policy\\n\""
+                  ],
+                  "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-1"
+                }
+              ],
+              "results": [],
+              "workspace": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-1",
+              "state": "merge_failed",
+              "command_intent": {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json; from pathlib import Path; assert json.loads(Path(\"src/settings.json\").read_text())=={\"worker\":\"ready\",\"host\":\"ready\"}; assert Path(\"host-policy.txt\").read_text()==\"host policy\\n\""
+                ],
+                "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-1"
+              },
+              "quality": {
+                "snapshot": {
+                  "source_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+                  "path": ".a2a/quality.json",
+                  "raw": null,
+                  "rule_checks": []
+                },
+                "red": [],
+                "rules": []
+              },
+              "result": {
+                "argv": [
+                  "git",
+                  "-C",
+                  "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-1",
+                  "-c",
+                  "core.hooksPath=/dev/null",
+                  "merge",
+                  "--no-ff",
+                  "--no-commit",
+                  "--no-edit",
+                  "73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3"
+                ],
+                "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-1",
+                "stdout": "自动合并 src/settings.json\n冲突（内容）：合并冲突于 src/settings.json\n自动合并失败，修正冲突然后提交修正的结果。\n",
+                "stderr": "",
+                "exit": 1,
+                "returncode": 1
+              },
+              "ended": "2026-10-14T03:50:01.965Z",
+              "conflict": {
+                "files": [
+                  "src/settings.json"
+                ],
+                "unmerged": "100644 3a5e6d1e8e69c33ab59657dc36842453d9f44826 1\tsrc/settings.json\u0000100644 0d32e98c65176a5bd5bc9ba7f0cc89ca8eff4fc1 2\tsrc/settings.json\u0000100644 8bba72aeeead43da3e9a69cf8dbcc7289a964eb4 3\tsrc/settings.json\u0000",
+                "diff": "diff --cc src/settings.json\nindex 0d32e98,8bba72a..0000000\n--- a/src/settings.json\n+++ b/src/settings.json\n@@@ -1,1 -1,1 +1,5 @@@\n++<<<<<<< HEAD\n +{\"worker\":\"base\",\"host\":\"ready\"}\n++=======\n+ {\"worker\":\"ready\",\"host\":\"base\"}\n++>>>>>>> 73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3\n",
+                "candidate_ref": "refs/a2a/verifications/fixture-20261014-1/a1/v1-candidate",
+                "base_ref": "refs/a2a/verifications/fixture-20261014-1/a1/v1-base"
+              },
+              "cleanup": "removed"
+            },
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-14T03:49:58.529Z"
+            }
+          }
+        },
+        {
+          "id": "JOINT-CONFLICT-C2",
+          "passed": true,
+          "expected": "conflict rework C2 explicitly submitted",
+          "actual": {
+            "ok": true,
+            "task": {
+              "task_id": "fixture-20261014-1",
+              "title": "fixture-20261014-1",
+              "project_id": "fixture",
+              "repo": "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+              "integration_ref": "refs/heads/main",
+              "card_snapshot_id": "5a391910-3f8d-4140-b1f7-a83c6691b79d",
+              "card_version": 1,
+              "card": {
+                "id": "fixture-20261014-1",
+                "source": null,
+                "goal": "worker 与 host 设置都为 ready；保留 host-policy.txt",
+                "non_goals": [
+                  "不修改项目外的文件"
+                ],
+                "paths": {
+                  "allow": [
+                    "src/",
+                    "tests/",
+                    ".a2a/quality.json"
+                  ],
+                  "deny": [
+                    "src/private/"
+                  ]
+                },
+                "completion_conditions": [
+                  {
+                    "argv": [
+                      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                      "-I",
+                      "-B",
+                      "-c",
+                      "import json; from pathlib import Path; assert json.loads(Path(\"src/settings.json\").read_text())=={\"worker\":\"ready\",\"host\":\"ready\"}; assert Path(\"host-policy.txt\").read_text()==\"host policy\\n\""
+                    ]
+                  }
+                ],
+                "red_commands": [],
+                "task_type": "后端逻辑",
+                "repair_target": null,
+                "complexity": "L",
+                "executor": {
+                  "cli": "Codex",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh"
+                },
+                "base_commit": null,
+                "writer": null
+              },
+              "base_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+              "state": "submitted",
+              "spec_rev": 1,
+              "fence": 1,
+              "current_attempt": {
+                "task_id": "fixture-20261014-1",
+                "attempt_id": "00811e49-4d26-4456-8127-0cc9afc023a6",
+                "session_id": "44d298b3-a276-4df2-933c-5e428443d29b",
+                "fence": 1,
+                "spec_rev": 1,
+                "thread_id": "0b91a5fd-9545-4ae1-8fef-152424b92626",
+                "runtime_mode": "workspace-write",
+                "turn_id": "fixture-turn-3",
+                "runtime_identity": {
+                  "launch": "d0ff34fe-1f4c-4a83-9352-659af175edc8",
+                  "thread": "0b91a5fd-9545-4ae1-8fef-152424b92626",
+                  "shell_pid": 31000,
+                  "leader_pid": 31001,
+                  "native_session": "fixture-native-d0ff34fe-1f4c-4a83-9352-659af175edc8"
+                },
+                "workspace": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+                "base_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+                "card_snapshot_id": "7368f794-bf45-4d28-924e-181866c52bac",
+                "reclaimed": false,
+                "owner": "fixture-20261014-1",
+                "state": "submitted",
+                "delivery": {
+                  "commit": "c66b35c678b3639edba5a93fe096a6f68861a3f4",
+                  "turn_id": "fixture-turn-3",
+                  "launch_id": "d0ff34fe-1f4c-4a83-9352-659af175edc8",
+                  "cli": "codex-cli 0.162.1",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh",
+                  "number": 2,
+                  "submitted_at": "2026-10-14T03:50:03.304Z"
+                },
+                "rework": {
+                  "verification_id": "bc45e600-7350-4014-a563-caae9a97263e",
+                  "prior_candidate": "73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3",
+                  "base_commit": "0647e0bd7746705d071d5421150d9488e6bec702",
+                  "message_id": "97a5d930-898f-489c-9d35-a2517ab672cb",
+                  "prior_turn": "fixture-turn-1",
+                  "state": "submitted",
+                  "candidate_commit": "c66b35c678b3639edba5a93fe096a6f68861a3f4"
+                }
+              },
+              "candidate_commit": "c66b35c678b3639edba5a93fe096a6f68861a3f4",
+              "verification": null,
+              "integration_intent": null,
+              "quality": {
+                "source_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+                "path": ".a2a/quality.json",
+                "raw": null,
+                "rule_checks": []
+              },
+              "repair": null,
+              "review": null
+            },
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-14T03:49:58.529Z"
+            }
+          }
+        },
+        {
+          "id": "JOINT-CONFLICT-QUALITY",
+          "passed": true,
+          "expected": "C2 is rejected by the independent completion condition",
+          "actual": {
+            "ok": false,
+            "error": "oracle_failed",
+            "details": {
+              "verification_id": "ece541ed-dc8f-4ae7-9f11-e22f8d53b273",
+              "ordinal": 2,
+              "attempt": {
+                "task_id": "fixture-20261014-1",
+                "attempt_id": "00811e49-4d26-4456-8127-0cc9afc023a6",
+                "session_id": "44d298b3-a276-4df2-933c-5e428443d29b",
+                "fence": 1,
+                "spec_rev": 1,
+                "thread_id": "0b91a5fd-9545-4ae1-8fef-152424b92626",
+                "runtime_mode": "workspace-write",
+                "turn_id": "fixture-turn-3",
+                "runtime_identity": {
+                  "launch": "d0ff34fe-1f4c-4a83-9352-659af175edc8",
+                  "thread": "0b91a5fd-9545-4ae1-8fef-152424b92626",
+                  "shell_pid": 31000,
+                  "leader_pid": 31001,
+                  "native_session": "fixture-native-d0ff34fe-1f4c-4a83-9352-659af175edc8"
+                },
+                "workspace": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+                "base_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+                "card_snapshot_id": "7368f794-bf45-4d28-924e-181866c52bac",
+                "reclaimed": false,
+                "owner": "fixture-20261014-1",
+                "state": "submitted",
+                "delivery": {
+                  "commit": "c66b35c678b3639edba5a93fe096a6f68861a3f4",
+                  "turn_id": "fixture-turn-3",
+                  "launch_id": "d0ff34fe-1f4c-4a83-9352-659af175edc8",
+                  "cli": "codex-cli 0.162.1",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh",
+                  "number": 2,
+                  "submitted_at": "2026-10-14T03:50:03.304Z"
+                },
+                "rework": {
+                  "verification_id": "bc45e600-7350-4014-a563-caae9a97263e",
+                  "prior_candidate": "73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3",
+                  "base_commit": "0647e0bd7746705d071d5421150d9488e6bec702",
+                  "message_id": "97a5d930-898f-489c-9d35-a2517ab672cb",
+                  "prior_turn": "fixture-turn-1",
+                  "state": "submitted",
+                  "candidate_commit": "c66b35c678b3639edba5a93fe096a6f68861a3f4"
+                }
+              },
+              "spec_rev": 1,
+              "G": "0647e0bd7746705d071d5421150d9488e6bec702",
+              "C": "c66b35c678b3639edba5a93fe096a6f68861a3f4",
+              "M": "c66b35c678b3639edba5a93fe096a6f68861a3f4",
+              "card_snapshot_id": "7368f794-bf45-4d28-924e-181866c52bac",
+              "card_version": 1,
+              "commands": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "import json; from pathlib import Path; assert json.loads(Path(\"src/settings.json\").read_text())=={\"worker\":\"ready\",\"host\":\"ready\"}; assert Path(\"host-policy.txt\").read_text()==\"host policy\\n\""
+                  ],
+                  "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-2"
+                }
+              ],
+              "results": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "import json; from pathlib import Path; assert json.loads(Path(\"src/settings.json\").read_text())=={\"worker\":\"ready\",\"host\":\"ready\"}; assert Path(\"host-policy.txt\").read_text()==\"host policy\\n\""
+                  ],
+                  "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-2",
+                  "stdout": "",
+                  "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAssertionError\n",
+                  "exit": 1,
+                  "returncode": 1
+                }
+              ],
+              "workspace": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-2",
+              "state": "failed",
+              "command_intent": {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json; from pathlib import Path; assert json.loads(Path(\"src/settings.json\").read_text())=={\"worker\":\"ready\",\"host\":\"ready\"}; assert Path(\"host-policy.txt\").read_text()==\"host policy\\n\""
+                ],
+                "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-2"
+              },
+              "quality": {
+                "snapshot": {
+                  "source_commit": "290697f0603a09957fcd0a569b66d93836eff0b5",
+                  "path": ".a2a/quality.json",
+                  "raw": null,
+                  "rule_checks": []
+                },
+                "red": [],
+                "rules": []
+              },
+              "result": {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json; from pathlib import Path; assert json.loads(Path(\"src/settings.json\").read_text())=={\"worker\":\"ready\",\"host\":\"ready\"}; assert Path(\"host-policy.txt\").read_text()==\"host policy\\n\""
+                ],
+                "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1-verify-2",
+                "stdout": "",
+                "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAssertionError\n",
+                "exit": 1,
+                "returncode": 1
+              },
+              "ended": "2026-10-14T03:50:04.384Z",
+              "retained_ref": "refs/a2a/verifications/fixture-20261014-1/a1/v2",
+              "cleanup": "removed"
+            },
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-14T03:49:58.529Z"
+            }
+          }
+        },
+        {
+          "id": "JOINT-CONFLICT-QUALITY-SUBMIT",
+          "passed": false,
+          "expected": "same bound rework attempt may explicitly deliver C3 after quality rejection",
+          "actual": {
+            "ok": false,
+            "error": "stale_rework_candidate",
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-14T03:49:58.529Z"
+            }
+          }
+        }
+      ],
+      "failure_id": "JOINT-CONFLICT-QUALITY-SUBMIT",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_quality_chain_e2e.py\", line 655, in run_cases\n    getattr(case, name)()\n  File \"/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_s3_quality_joint_e2e.py\", line 140, in conflict_then_quality_repair_submits_again\n    self.check('JOINT-CONFLICT-QUALITY-SUBMIT', third['ok'] and third['task']['candidate_commit'] == c3,\n  File \"/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_quality_chain_e2e.py\", line 59, in check\n    raise ContractFailure(name)\ntest_quality_chain_e2e.ContractFailure: JOINT-CONFLICT-QUALITY-SUBMIT\n",
+      "cleanup_failures": [],
+      "commands": [
+        {
+          "id": 1,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "init",
+            "-b",
+            "main"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0001.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0001.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 2,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "add",
+            "."
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0002.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0002.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 3,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "commit",
+            "-m",
+            "Independent baseline"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0003.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0003.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 4,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0004.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0004.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 5,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "daemon_status"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0005.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0005.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 6,
+          "argv": [
+            "/bin/ps",
+            "-p",
+            "97473",
+            "-o",
+            "pid=,ppid=,pgid=,command="
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0006.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0006.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 7,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "add",
+            "src/settings.json",
+            "host-policy.txt"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0007.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0007.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 8,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "commit",
+            "-m",
+            "Independent joint conflict baseline"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0008.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0008.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 9,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0009.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0009.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 10,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "card_save",
+            "--task",
+            "fixture-20261014-1",
+            "--card",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/card.json",
+            "--expected-version",
+            "0"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0010.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0010.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 11,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "create",
+            "--task",
+            "fixture-20261014-1",
+            "--repo",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "--branch",
+            "refs/heads/main",
+            "--card-version",
+            "1",
+            "--project",
+            "fixture"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0011.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0011.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 12,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "dispatch",
+            "--task",
+            "fixture-20261014-1",
+            "--runtime-mode",
+            "workspace-write"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0012.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0012.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 13,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0013.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0013.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 14,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_release",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626",
+            "--reason",
+            "explicit controlled-fixture release"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0014.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0014.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 15,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0015.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0015.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 16,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "add",
+            "."
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0016.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0016.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 17,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "commit",
+            "-m",
+            "Controlled worker fixture commit\n\nA2A-Task: fixture-20261014-1\nA2A-Attempt: 00811e49-4d26-4456-8127-0cc9afc023a6\nA2A-Session: 44d298b3-a276-4df2-933c-5e428443d29b\nA2A-Role: worker\nA2A-Tool: codex-cli 0.162.1\nA2A-Model: gpt-6.1-sol\nA2A-Effort: xhigh\nA2A-Native-Session: fixture-native-d0ff34fe-1f4c-4a83-9352-659af175edc8\nA2A-Launch: d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0017.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0017.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 18,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0018.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0018.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 19,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0019.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0019.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 20,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "submit",
+            "--task",
+            "fixture-20261014-1",
+            "--attempt",
+            "00811e49-4d26-4456-8127-0cc9afc023a6",
+            "--session",
+            "44d298b3-a276-4df2-933c-5e428443d29b",
+            "--fence",
+            "1",
+            "--spec-rev",
+            "1",
+            "--commit",
+            "73078eadd4e2e4c3b6d97e691292dbfa1fa7a0e3",
+            "--request-id",
+            "delivery-1"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0020.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0020.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 21,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0021.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0021.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 22,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "signal",
+            "--launch",
+            "d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0022.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0022.stderr.bin",
+          "stdin": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0022.stdin.json",
+          "exit": 0
+        },
+        {
+          "id": 23,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0023.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0023.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 24,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0024.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0024.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 25,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0025.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0025.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 26,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0026.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0026.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 27,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "signal",
+            "--launch",
+            "d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0027.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0027.stderr.bin",
+          "stdin": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0027.stdin.json",
+          "exit": 0
+        },
+        {
+          "id": 28,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0028.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0028.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 29,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "add",
+            "src/settings.json",
+            "host-policy.txt"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0029.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0029.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 30,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "commit",
+            "-m",
+            "Independent same-line host conflict"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0030.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0030.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 31,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0031.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0031.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 32,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "verify",
+            "--task",
+            "fixture-20261014-1",
+            "--attempt",
+            "00811e49-4d26-4456-8127-0cc9afc023a6"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0032.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0032.stderr.bin",
+          "exit": 1
+        },
+        {
+          "id": 33,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "status",
+            "--task",
+            "fixture-20261014-1"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0033.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0033.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 34,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0034.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0034.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 35,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0035.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0035.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 36,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "reset",
+            "--hard",
+            "0647e0bd7746705d071d5421150d9488e6bec702"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0036.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0036.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 37,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "add",
+            "."
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0037.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0037.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 38,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "commit",
+            "-m",
+            "Controlled worker fixture commit\n\nA2A-Task: fixture-20261014-1\nA2A-Attempt: 00811e49-4d26-4456-8127-0cc9afc023a6\nA2A-Session: 44d298b3-a276-4df2-933c-5e428443d29b\nA2A-Role: worker\nA2A-Tool: codex-cli 0.162.1\nA2A-Model: gpt-6.1-sol\nA2A-Effort: xhigh\nA2A-Native-Session: fixture-native-d0ff34fe-1f4c-4a83-9352-659af175edc8\nA2A-Launch: d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0038.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0038.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 39,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0039.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0039.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 40,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0040.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0040.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 41,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "submit",
+            "--task",
+            "fixture-20261014-1",
+            "--attempt",
+            "00811e49-4d26-4456-8127-0cc9afc023a6",
+            "--session",
+            "44d298b3-a276-4df2-933c-5e428443d29b",
+            "--fence",
+            "1",
+            "--spec-rev",
+            "1",
+            "--commit",
+            "c66b35c678b3639edba5a93fe096a6f68861a3f4",
+            "--request-id",
+            "delivery-2"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0041.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0041.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 42,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0042.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0042.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 43,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "signal",
+            "--launch",
+            "d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0043.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0043.stderr.bin",
+          "stdin": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0043.stdin.json",
+          "exit": 0
+        },
+        {
+          "id": 44,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0044.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0044.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 45,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0045.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0045.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 46,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0046.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0046.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 47,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0047.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0047.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 48,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "signal",
+            "--launch",
+            "d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0048.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0048.stderr.bin",
+          "stdin": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0048.stdin.json",
+          "exit": 0
+        },
+        {
+          "id": 49,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0049.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0049.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 50,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "verify",
+            "--task",
+            "fixture-20261014-1",
+            "--attempt",
+            "00811e49-4d26-4456-8127-0cc9afc023a6"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0050.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0050.stderr.bin",
+          "exit": 1
+        },
+        {
+          "id": 51,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0051.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0051.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 52,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0052.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0052.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 53,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "add",
+            "."
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0053.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0053.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 54,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "commit",
+            "-m",
+            "Controlled worker fixture commit\n\nA2A-Task: fixture-20261014-1\nA2A-Attempt: 00811e49-4d26-4456-8127-0cc9afc023a6\nA2A-Session: 44d298b3-a276-4df2-933c-5e428443d29b\nA2A-Role: worker\nA2A-Tool: codex-cli 0.162.1\nA2A-Model: gpt-6.1-sol\nA2A-Effort: xhigh\nA2A-Native-Session: fixture-native-d0ff34fe-1f4c-4a83-9352-659af175edc8\nA2A-Launch: d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0054.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0054.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 55,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state/worktrees/fixture/fixture-20261014-1-a1",
+            "rev-parse",
+            "HEAD"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0055.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0055.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 56,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0056.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0056.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 57,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "submit",
+            "--task",
+            "fixture-20261014-1",
+            "--attempt",
+            "00811e49-4d26-4456-8127-0cc9afc023a6",
+            "--session",
+            "44d298b3-a276-4df2-933c-5e428443d29b",
+            "--fence",
+            "1",
+            "--spec-rev",
+            "1",
+            "--commit",
+            "ca1a35aff3d73d3166b8794b8e5b1765c19fb0b3",
+            "--request-id",
+            "delivery-3"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0057.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0057.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 58,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0058.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0058.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 59,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "signal",
+            "--launch",
+            "d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0059.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0059.stderr.bin",
+          "stdin": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0059.stdin.json",
+          "exit": 0
+        },
+        {
+          "id": 60,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0060.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0060.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 61,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0061.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0061.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 62,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0062.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0062.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 63,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0063.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0063.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 64,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "signal",
+            "--launch",
+            "d0ff34fe-1f4c-4a83-9352-659af175edc8"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0064.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0064.stderr.bin",
+          "stdin": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0064.stdin.json",
+          "exit": 0
+        },
+        {
+          "id": 65,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "pane_status",
+            "--thread",
+            "0b91a5fd-9545-4ae1-8fef-152424b92626"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0065.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0065.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 66,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "show-ref"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0066.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0066.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 67,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "worktree",
+            "list",
+            "--porcelain"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0067.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0067.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 68,
+          "argv": [
+            "git",
+            "-C",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/repo",
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0068.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0068.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 69,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "daemon_status"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0069.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0069.stderr.bin",
+          "exit": 0
+        },
+        {
+          "id": 70,
+          "argv": [
+            "node",
+            "/private/tmp/t77final-t74kcmb5/rework-quality-not-authorized/workbench/src/gates/cli.ts",
+            "--state",
+            "/private/tmp/q76-hnr291yd/c-jh74nysb/state",
+            "daemon_stop"
+          ],
+          "cwd": "/private/tmp/q76-hnr291yd/c-jh74nysb",
+          "stdout": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0070.stdout.bin",
+          "stderr": "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-rebase-final-03/joint-red-rework-quality-not-authorized/conflict_then_quality_repair_submits_again/command-0070.stderr.bin",
+          "exit": 0
+        }
+      ],
+      "fixture": "/private/tmp/q76-hnr291yd/c-jh74nysb"
+    }
+  ],
+  "planned_cases": [
+    "conflict_then_quality_repair_submits_again"
+  ],
+  "evidence_layer": "real CLI/daemon/relay/gates/Git/SQLite; controlled PTY/process/native inputs",
+  "artifact_root": "/private/tmp/q76-hnr291yd",
+  "card_dialect": "current"
+}

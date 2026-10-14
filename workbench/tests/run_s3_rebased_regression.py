@@ -71,7 +71,14 @@ def main():
             raise RuntimeError('Adapter replaced an original business test: ' + name)
     stream = io.StringIO()
     result_class = unittest.TextTestResult if args.suite in ('coop', 'cards') else adapter.recovery.EvidenceResult
-    result = unittest.TextTestRunner(stream=stream, verbosity=2, resultclass=result_class, failfast=True).run(
+    executed = []
+
+    class SuiteResult(result_class):
+        def startTest(self, test):
+            executed.append(test._testMethodName)
+            super().startTest(test)
+
+    result = unittest.TextTestRunner(stream=stream, verbosity=2, resultclass=SuiteResult, failfast=False).run(
         unittest.TestSuite(cls(name) for name in names))
     (out / 'unittest.txt').write_text(stream.getvalue(), encoding='utf-8')
     commands = cards.COMMANDS if args.suite == 'cards' else adapter.delivery.COMMANDS
@@ -84,13 +91,16 @@ def main():
     with tarfile.open(out / 'fixtures.tar.gz', 'x:gz') as archive:
         archive.add(fixtures, arcname=fixtures.name)
     large = [str(p) for p in out.rglob('*') if p.is_file() and p.stat().st_size > 5 * 1024 * 1024]
-    passed = result.wasSuccessful() and result.testsRun == COUNTS[args.suite] and not result.skipped and not leftovers and not large
+    passed = (result.wasSuccessful() and result.testsRun == COUNTS[args.suite] and executed == names
+              and not result.skipped and not leftovers and not large)
     record = {'status': 'PASS' if passed else 'INCOMPLETE', 'suite': args.suite,
         'revision': head, 'argv': sys.argv, 'tests_run': result.testsRun, 'expected_tests': COUNTS[args.suite],
         'failures': len(result.failures), 'errors': len(result.errors), 'skipped': len(result.skipped),
         'failure_text': [{'test': t.id(), 'traceback': text} for t, text in result.failures],
         'error_text': [{'test': t.id(), 'traceback': text} for t, text in result.errors],
-        'original_methods': names, 'no_business_test_overrides': True, 'artifact_root': str(fixtures),
+        'original_methods': names, 'executed_methods': executed,
+        'unexecuted_methods': [name for name in names if name not in executed], 'failfast': False,
+        'no_business_test_overrides': True, 'artifact_root': str(fixtures),
         'collection_errors': leftovers, 'files_over_5mb': large, 'real_codex_turns': 0}
     save(out / 'run.json', record)
     print(json.dumps({k: record[k] for k in ('status', 'suite', 'tests_run', 'failures', 'errors', 'skipped')}))

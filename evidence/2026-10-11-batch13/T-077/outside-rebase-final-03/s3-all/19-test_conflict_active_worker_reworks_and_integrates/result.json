@@ -1,0 +1,160 @@
+{
+  "case": "test_conflict_active_worker_reworks_and_integrates",
+  "phase": "candidate",
+  "tests_run": 1,
+  "exit_code": 0,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "business_red": false,
+  "contracts": [
+    {
+      "test": "__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates",
+      "claim": "Text conflict is written once to the original active worker",
+      "pass": true,
+      "expected": {
+        "count": 1,
+        "thread": "acde1e76-8a82-472d-bc3d-507383eafc33"
+      },
+      "actual": [
+        {
+          "thread": "acde1e76-8a82-472d-bc3d-507383eafc33",
+          "message_id": "8b08ca40-671f-4b1a-a084-4307737eb120",
+          "text": "验收合并发生内容冲突，尚未通过验收或集成。\n{\n  \"task\": \"check-6c282c24d3e849c4a96893c16824845b\",\n  \"verification\": \"69c35308-466c-4d00-86f8-114c5842e833\",\n  \"integration_ref\": \"refs/heads/main\",\n  \"G\": \"367bd3d809d25c308248bc2f50fca67d5ce4d17e\",\n  \"C\": \"0b3216b95165e4f4c8310010faef7cd5bfcc530d\",\n  \"files\": [\n    \"src/settings.json\"\n  ],\n  \"candidate_ref\": \"refs/a2a/verifications/check-6c282c24d3e849c4a96893c16824845b/a1/v1-candidate\",\n  \"base_ref\": \"refs/a2a/verifications/check-6c282c24d3e849c4a96893c16824845b/a1/v1-base\",\n  \"merge_stdout\": \"自动合并 src/settings.json\\n冲突（内容）：合并冲突于 src/settings.json\\n自动合并失败，修正冲突然后提交修正的结果。\\n\",\n  \"merge_stderr\": \"\"\n}\n请检查工作分支最新头，以它为基线重新整理，自己解决冲突并保留任务要求的双方行为。不要直接选择 ours/theirs 覆盖另一方。不要更改任务卡、验收程序、门禁状态或权限。原提交和冲突证据已保留；程序没有改写 worker 工作区或工作分支。\n在允许路径内完成整理，重跑卡上全部完成条件，以本 attempt 的身份和尾注提交新的候选，再用派发时给出的 submit 命令显式重交完整提交号。仍使用各自独立的 git add、git commit 命令。新候选会重跑整串门禁并重新审查，旧候选的通过结论不能沿用。若最新头又发生变化而无法按此基线重交，请上报，不修改身份或绕过检查。"
+        }
+      ]
+    },
+    {
+      "test": "__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates",
+      "claim": "Repeated verification does not resend the conflict message",
+      "pass": true,
+      "expected": 1,
+      "actual": [
+        {
+          "thread": "acde1e76-8a82-472d-bc3d-507383eafc33",
+          "message_id": "8b08ca40-671f-4b1a-a084-4307737eb120",
+          "text": "验收合并发生内容冲突，尚未通过验收或集成。\n{\n  \"task\": \"check-6c282c24d3e849c4a96893c16824845b\",\n  \"verification\": \"69c35308-466c-4d00-86f8-114c5842e833\",\n  \"integration_ref\": \"refs/heads/main\",\n  \"G\": \"367bd3d809d25c308248bc2f50fca67d5ce4d17e\",\n  \"C\": \"0b3216b95165e4f4c8310010faef7cd5bfcc530d\",\n  \"files\": [\n    \"src/settings.json\"\n  ],\n  \"candidate_ref\": \"refs/a2a/verifications/check-6c282c24d3e849c4a96893c16824845b/a1/v1-candidate\",\n  \"base_ref\": \"refs/a2a/verifications/check-6c282c24d3e849c4a96893c16824845b/a1/v1-base\",\n  \"merge_stdout\": \"自动合并 src/settings.json\\n冲突（内容）：合并冲突于 src/settings.json\\n自动合并失败，修正冲突然后提交修正的结果。\\n\",\n  \"merge_stderr\": \"\"\n}\n请检查工作分支最新头，以它为基线重新整理，自己解决冲突并保留任务要求的双方行为。不要直接选择 ours/theirs 覆盖另一方。不要更改任务卡、验收程序、门禁状态或权限。原提交和冲突证据已保留；程序没有改写 worker 工作区或工作分支。\n在允许路径内完成整理，重跑卡上全部完成条件，以本 attempt 的身份和尾注提交新的候选，再用派发时给出的 submit 命令显式重交完整提交号。仍使用各自独立的 git add、git commit 命令。新候选会重跑整串门禁并重新审查，旧候选的通过结论不能沿用。若最新头又发生变化而无法按此基线重交，请上报，不修改身份或绕过检查。"
+        }
+      ]
+    },
+    {
+      "test": "__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates",
+      "claim": "Conflict rework accepts a new explicit candidate from its bound worker",
+      "pass": true,
+      "expected": true,
+      "actual": {
+        "ok": true,
+        "task": {
+          "task_id": "check-6c282c24d3e849c4a96893c16824845b",
+          "title": "check-6c282c24d3e849c4a96893c16824845b",
+          "project_id": "check-6c282c24d3e849c4a96893c16824845b",
+          "repo": "/private/tmp/s3-v8uu2zhm/t-6w6n1xiy/isolated repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "d5d7443f-cbff-4e5c-aa4f-22defdfa59f6",
+          "card_version": 1,
+          "card": {
+            "id": "check-6c282c24d3e849c4a96893c16824845b",
+            "source": null,
+            "goal": "设置 worker=ready；保留工作分支上的 host 设置和 host.txt。",
+            "non_goals": [
+              "不修改 host.txt 或 src/private/"
+            ],
+            "paths": {
+              "allow": [
+                "src/"
+              ],
+              "deny": [
+                "src/private/"
+              ]
+            },
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-v8uu2zhm/t-6w6n1xiy/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "L",
+            "executor": {
+              "cli": "Codex",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "acbbe05020f3e0599d94f8532c21c58fa2ea9014",
+          "state": "submitted",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "check-6c282c24d3e849c4a96893c16824845b",
+            "attempt_id": "4bc996ff-9de7-4890-b34f-0df5927d3cd6",
+            "session_id": "b261cc9c-e701-43ff-833a-98f9c54e5472",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "acde1e76-8a82-472d-bc3d-507383eafc33",
+            "runtime_mode": "approval-required",
+            "turn_id": "fixture-turn:acde1e76-8a82-472d-bc3d-507383eafc33:2",
+            "runtime_identity": {
+              "launch": "acde1e76-8a82-472d-bc3d-507383eafc33",
+              "thread": "acde1e76-8a82-472d-bc3d-507383eafc33",
+              "shell_pid": 101,
+              "leader_pid": 102,
+              "native_session": "acde1e76-8a82-472d-bc3d-507383eafc33"
+            },
+            "workspace": "/private/tmp/s3-v8uu2zhm/t-6w6n1xiy/isolated state/worktrees/check-6c282c24d3e849c4a96893c16824845b/check-6c282c24d3e849c4a96893c16824845b-a1",
+            "base_commit": "acbbe05020f3e0599d94f8532c21c58fa2ea9014",
+            "card_snapshot_id": "252ca9d2-5b55-4432-ae42-8d553624ea4d",
+            "reclaimed": false,
+            "owner": "check-6c282c24d3e849c4a96893c16824845b",
+            "state": "submitted",
+            "delivery": {
+              "commit": "aa2327121e605997dd40eaa53801b5a7309088ad",
+              "turn_id": "fixture-turn:acde1e76-8a82-472d-bc3d-507383eafc33:2",
+              "launch_id": "acde1e76-8a82-472d-bc3d-507383eafc33",
+              "cli": "controlled-conflict-runtime",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh",
+              "number": 2,
+              "submitted_at": "2026-10-14T03:55:06.893Z"
+            },
+            "rework": {
+              "verification_id": "69c35308-466c-4d00-86f8-114c5842e833",
+              "prior_candidate": "0b3216b95165e4f4c8310010faef7cd5bfcc530d",
+              "base_commit": "367bd3d809d25c308248bc2f50fca67d5ce4d17e",
+              "message_id": "8b08ca40-671f-4b1a-a084-4307737eb120",
+              "prior_turn": "fixture-turn:acde1e76-8a82-472d-bc3d-507383eafc33:1",
+              "state": "submitted",
+              "candidate_commit": "aa2327121e605997dd40eaa53801b5a7309088ad"
+            }
+          },
+          "candidate_commit": "aa2327121e605997dd40eaa53801b5a7309088ad",
+          "verification": null,
+          "integration_intent": null,
+          "quality": {
+            "source_commit": "acbbe05020f3e0599d94f8532c21c58fa2ea9014",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "repair": null,
+          "review": null
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-14T03:54:59.900Z"
+        }
+      }
+    }
+  ],
+  "inherited_assertions": [],
+  "evidence_layer": "controlled-thread"
+}

@@ -1,0 +1,40 @@
+test_absent_reason_remains_absent (__main__.FixtureChecks) ... ok
+test_managed_claim_sends_reason_to_dispatch_cli (__main__.FixtureChecks) ... ERROR
+test_manual_claim_preserves_reason_and_owner (__main__.FixtureChecks) ... ERROR
+test_runner_continues_after_eleventh_test_error (__main__.FixtureChecks) ... FAIL
+
+======================================================================
+ERROR: test_managed_claim_sends_reason_to_dispatch_cli (__main__.FixtureChecks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/check-regression-fixtures-04.py", line 48, in test_managed_claim_sends_reason_to_dispatch_cli
+    self.assertIs(subject.claim(overlap_reason=reason), subject.attempt)
+TypeError: claim() got an unexpected keyword argument 'overlap_reason'
+
+======================================================================
+ERROR: test_manual_claim_preserves_reason_and_owner (__main__.FixtureChecks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/check-regression-fixtures-04.py", line 42, in test_manual_claim_preserves_reason_and_owner
+    self.assertIs(subject.claim(task='explicit-task', owner='current-owner', overlap_reason=reason), subject.attempt)
+TypeError: claim() got an unexpected keyword argument 'overlap_reason'
+
+======================================================================
+FAIL: test_runner_continues_after_eleventh_test_error (__main__.FixtureChecks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/check-regression-fixtures-04.py", line 80, in test_runner_continues_after_eleventh_test_error
+    self.assertEqual(observed, list(range(1, 19)))
+AssertionError: Lists differ: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] != [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+
+Second list contains 7 additional elements.
+First extra element 11:
+12
+
+- [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
++ [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.003s
+
+FAILED (failures=1, errors=2)

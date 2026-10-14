@@ -1,5 +1,13 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 最新合流状态：主控 #118
+
+**INCOMPLETE。** final-03 已通过 driver-readiness、审查清理四条反事实及候选四项、三条 joint 反事实与候选、七条冲突反事实、S3 全量 25、coop 8、recovery 9。随后 run 的第 11 项因 adapter 缺少 overlap_reason 参数而 ERROR；已收集全部 18 项，但 failfast=True 使其余 7 项未运行，后续阶段也未运行。原始失败与控制台输出不变。
+
+本轮仅修夹具：手工 claim 经父级将理由传到真实 CLI，受管 dispatch 同样传 `--overlap-reason`；runner 关闭 failfast 并记录实际执行名单，仍要求完整数量和全部通过。局部反事实修前 2 errors/1 failure，修后 4 项通过；它们只证明参数传递与调度修复。产品仍为 `5d0bf1e8`，acceptance 业务文件不变。诊断和再生成命令见 `DIAGNOSIS-rebase-final-03.md`。
+
+新的全量 39 子阶段为 `outside-sandbox.sh rebase-final-04`，输出 `outside-rebase-final-04/`，尚待主控运行。产品冻结版本与修复后的夹具版本分别锁定；不能用局部检查替代 run 18 项或后续真实入口检查。本轮真实模型回合 0；独立审查尚未开始，ticket 保持 open。
+
 ## 最新合流状态：主控 #110
 
 主控 #114/#115 更新：final-02 仍 **INCOMPLETE**，只通过 driver-readiness，随后因 runner 不接受 Git archive 中的 26 个 `workbench/hooks/* -> hook.py` 符号链接而停止，产品业务阶段未运行。不是 pax 全局头：tarfile 可见条目中没有该头。原 final-02 输出保持原样。只修 runner 后，局部实际归档解包检查通过（26 个链接重建、普通文件字节/权限不变、9 类非法条目仍拒绝）；产品仍为 `5d0bf1e8`。新的 39 阶段为 `outside-sandbox.sh rebase-final-03`，结果写 `outside-rebase-final-03/`，尚待主控运行；本轮真实模型回合 0。

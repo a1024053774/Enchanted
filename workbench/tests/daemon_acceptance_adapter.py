@@ -161,9 +161,10 @@ class DaemonLifecycle:
                     self.lifecycle('review_driver_completed', binding=binding)
         return result
 
-    def dispatch_candidate_attempt(self, task=None):
+    def dispatch_candidate_attempt(self, task=None, overlap_reason=None):
         task = task or self.task
-        a = self.cli('dispatch', '--task', task, '--runtime-mode', 'approval-required')['attempt']
+        extra = ('--overlap-reason', overlap_reason) if overlap_reason is not None else ()
+        a = self.cli('dispatch', '--task', task, '--runtime-mode', 'approval-required', *extra)['attempt']
         self.prepare_executor_score(a)
         return a
 
@@ -178,7 +179,7 @@ class DaemonLifecycle:
     def drive_executor_finalize(self, handle, attempt, candidate):
         self.quality.finalize_run(self.task, attempt, candidate)
 
-    def claim(self, task=None, owner='independent-check'):
+    def claim(self, task=None, owner='independent-check', overlap_reason=None):
         method = self._testMethodName
         recovery_managed = {'test_live_integrate_excludes_verify_and_integrate', 'test_before_CAS_recovers_same_intent_once',
                             'test_after_CAS_recovers_bookkeeping_without_Git_write', 'test_after_CAS_external_X_requires_reconciliation',
@@ -189,8 +190,8 @@ class DaemonLifecycle:
                                 'test_interrupted_verify_spec_change_rejects_old_candidate'} and owner == 'replacement-after-interruption'
         guarded = method == 'test_stale_verify_integrate_guards_preserve_current_and_accepted_state' and owner == 'current-guard-owner'
         if owner == 'independent-check' and method in recovery_managed | run_managed or replacement or guarded:
-            return self.dispatch_candidate_attempt(task)
-        return super().claim(task=task, owner=owner)
+            return self.dispatch_candidate_attempt(task, overlap_reason=overlap_reason)
+        return super().claim(task=task, owner=owner, overlap_reason=overlap_reason)
 
     def daemon_command(self, command):
         p = self.process([sys.executable, "-B", ENTRY, "--state", self.state, command],
