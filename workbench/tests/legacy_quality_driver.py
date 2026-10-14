@@ -121,7 +121,10 @@ class QualityDriver:
             review = current.get('review')
             if current.get('repair') or current['state'] not in ('submitted', 'verifying', 'reviewing'):
                 raise RuntimeError('Run did not reach valid independent review.')
-            if current['state'] == 'reviewing':
+            # Reviewing is observable while the completed verifier is cleaned
+            # up, before review_requested creates its binding. Keep waiting in
+            # the existing readiness deadline; validate every present record.
+            if current['state'] == 'reviewing' and review is not None:
                 if not review or review['candidate_commit'] != candidate or review['attempt']['attempt_id'] != attempt['attempt_id']:
                     raise RuntimeError('Run review binding differs from the submitted candidate.')
                 if review_id is not None and review['review_id'] != review_id:
