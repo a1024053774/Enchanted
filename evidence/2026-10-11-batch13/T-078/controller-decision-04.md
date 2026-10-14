@@ -107,3 +107,7 @@ theme-01 ArrowUp→Auto、theme-02 ArrowDown→Dark、theme-03 Enter 确认 Dark
 ## P1 批准（材料 08e launch，2026-10-14 UTC 03:5x）
 
 审阅 ab997f4d（workspace-trust 改为 ArrowDown→"Yes, I trust this folder"，读回后单独 Enter；去 Digit1；默认 Enter、重复确认拒绝；域检查 30/30）与材料 e5768e54。批准 `p1-launch-08e` 一次及逐屏只读 screen；主题三键、notice Enter、信任两键逐屏另批。批准引用：`T-078 controller-decision-04 p1-08e-launch`。
+
+## p1-08e 逐屏读回、信任与 continue 批准（2026-10-14 UTC 04:0x）
+
+主题三键、Security notes（逐字一致）均生效。信任屏 `screen-trust-01`：目录 `/private/tmp/t078-2-p1-08e-8k1yyjw5/repo`（只含 value.txt），选项 `❯ No, exit` / `Yes, I trust this folder`。依用户授权 answer 20261014T011751Z（"两个阶段都允许 (Recommended)"），批准 trust-01 ArrowDown（目标 Yes）→ 读回光标在 Yes（screen-trust-02）→ 批准 trust-02 Enter，一次。读回 `screen-after-trust-01`：主提示符 "Claude Code v2.1.296 · Haiku 5.5 with low effort · API Usage Billing"，manual mode，无未登录或其他提示。执行主控写 readiness.json（confirmed），批准 `p1-continue-08e` 一次（一条 nonce，假 API 一条脚本化 SSE，真实模型 0）及随后 cleanup。批准引用：`T-078 controller-decision-04 p1-08e-continue`。
