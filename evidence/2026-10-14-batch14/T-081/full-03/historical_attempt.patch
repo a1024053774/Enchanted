@@ -1,0 +1,22 @@
+--- candidate/workbench/src/gates/core.ts
++++ historical_attempt/workbench/src/gates/core.ts
+@@ -3221,7 +3221,7 @@
+         }
+         historicalAttempt = previous;
+       }
+-      if (args.attempt && !historicalAttempt)
++      if (args.attempt && !historicalAttempt && args.command !== "submit")
+         requireGate(task.current_attempt?.attempt_id === args.attempt, "stale_attempt");
+       if (args.command === "verify" && task.state === "rework")
+         throw new Refusal("conflict_rework_required", task.current_attempt?.rework);
+@@ -3232,7 +3232,9 @@
+           task.state === "verified" || task.state === "accepted" || task.integration_intent,
+           "not_verified",
+         );
+-      const attempt = historicalAttempt ?? this.current(task, args.attempt);
++      const attempt = args.command === "submit" && args.attempt
++        ? JSON.parse(String(this.db.prepare("SELECT data FROM attempts WHERE id=?").get(args.attempt)!.data)) as A2AAttempt
++        : historicalAttempt ?? this.current(task, args.attempt);
+       if (args.command === "abandon") {
+         requireGate(args.attempt === attempt.attempt_id, "stale_attempt");
+         requireGate(!caller || caller.address === "executor", "executor_required");

@@ -1,0 +1,11 @@
+--- candidate/workbench/src/gates/core.ts
++++ oracle/workbench/src/gates/core.ts
+@@ -1621,7 +1621,7 @@
+     try {
+       await this.checkPaths(task, attempt, v);
+       check = "oracle";
+-      await this.checkOraclePaths(task, attempt, v);
++      // T-081 mutant: omit the protected-oracle check.
+     }
+     catch (error) {
+       if (!(error instanceof Refusal) || (check === "oracle" && error.code !== "oracle_modified")) throw error;

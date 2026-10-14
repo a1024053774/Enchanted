@@ -1,0 +1,106 @@
+--- full-03/workbench/tests/run_t081_bad_worker_suite.py
++++ full-04/workbench/tests/run_t081_bad_worker_suite.py
+@@ -25,7 +25,7 @@
+     'test_startup_shutdown_e2e.py', 'test_attachment_windows.py',
+     'test_multiturn_identity_e2e.py',
+ }
+-SCORE_SOURCES = ('scripts/score', 'scripts/launch_records.py', 'scripts/record_io.py')
++SOURCE_ROOTS = ('workbench', 'scripts', 'acceptance', 'fixtures')
+ 
+ 
+ def save(path, value):
+@@ -55,7 +55,7 @@
+                 with stream.extractfile(member) as source, destination.open('xb') as output:
+                     shutil.copyfileobj(source, output)
+                 destination.chmod(member.mode)
+-            elif member.issym() and relative.parent == Path('workbench/hooks') and member.linkname == 'hook.py':
++            elif member.issym() and relative.parent in (Path('workbench/hooks'), Path('scripts/git-hooks')) and member.linkname == 'hook.py':
+                 destination.parent.mkdir(parents=True, exist_ok=True)
+                 destination.symlink_to('hook.py')
+             else:
+@@ -147,10 +147,10 @@
+         observation = destination / name / 'observation.json'
+         return json.loads(observation.read_text(encoding='utf-8')) if observation.exists() else {}
+ 
+-    def regression(label, script, flags):
++    def regression(label, script, flags, *, driver_root=ROOT):
+         ensure_frozen()
+         destination = out / label
+-        argv = [sys.executable, '-B', ROOT / 'workbench/tests' / script, '--output', destination, *flags]
++        argv = [sys.executable, '-B', driver_root / 'workbench/tests' / script, '--output', destination, *flags]
+         result = command(argv, timeout=2400)
+         data = json.loads((destination / 'run.json').read_text(encoding='utf-8'))
+         archive_data = {'artifact_root': data['fixture']} if script == 'test_score_schemas.py' else data
+@@ -158,6 +158,7 @@
+         passed = result.returncode == 0 and data['status'] == 'PASS'
+         report['steps'].append({'label': label, 'exit': result.returncode,
+                                 'report': str(destination / 'run.json'), 'passed': passed,
++                                'driver_root': str(driver_root),
+                                 'fixture_archive_owner': 'suite' if script in SUITE_ARCHIVES else 'runner'})
+         ensure_frozen()
+         if not passed:
+@@ -192,32 +193,28 @@
+         dependencies = ROOT / 'workbench/node_modules'
+         if not dependencies.is_dir():
+             raise RuntimeError('已安装依赖不存在。')
+-        for directory in ('workbench/src', 'workbench/hooks', 'workbench/tests'):
++        for directory in ('workbench/src', 'workbench/hooks', 'workbench/tests', 'scripts', 'acceptance', 'fixtures'):
+             for path in (ROOT / directory).rglob('*'):
+                 if path.is_file() and not path.is_symlink() and '__pycache__' not in path.parts:
+                     frozen[str(path.relative_to(ROOT))] = path.read_bytes()
+-        for name in SCORE_SOURCES:
+-            frozen[name] = (ROOT / name).read_bytes()
+         fixtures = Path(tempfile.mkdtemp(prefix='t81-', dir='/tmp')).resolve()
+         report['fixture_root'] = str(fixtures)
+         candidate, baseline, current_main = fixtures / 'candidate', fixtures / 'baseline', fixtures / 'main'
+         candidate.mkdir()
+         baseline.mkdir()
+         current_main.mkdir()
+-        shutil.copytree(ROOT / 'workbench', candidate / 'workbench', symlinks=True,
+-                        ignore=shutil.ignore_patterns('node_modules', 'dist', '__pycache__', '.DS_Store'))
+-        (candidate / 'scripts').mkdir()
+-        for name in SCORE_SOURCES:
+-            shutil.copy2(ROOT / name, candidate / name)
++        for directory in SOURCE_ROOTS:
++            shutil.copytree(ROOT / directory, candidate / directory, symlinks=True,
++                            ignore=shutil.ignore_patterns('node_modules', 'dist', '__pycache__', '.DS_Store'))
+         with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as stream:
+-            stream.add(candidate / 'workbench', arcname='workbench')
+-            stream.add(candidate / 'scripts', arcname='scripts')
+-        result = command(['git', 'archive', '--format=tar.gz', BASE, 'workbench'],
++            for directory in SOURCE_ROOTS:
++                stream.add(candidate / directory, arcname=directory)
++        result = command(['git', 'archive', '--format=tar.gz', BASE, *SOURCE_ROOTS],
+                          stdout_file=out / 'baseline-source.tar.gz')
+         if result.returncode:
+             raise RuntimeError('不能冻结原产品。')
+         unpack(out / 'baseline-source.tar.gz', baseline)
+-        result = command(['git', 'archive', '--format=tar.gz', main_revision, 'workbench'],
++        result = command(['git', 'archive', '--format=tar.gz', main_revision, *SOURCE_ROOTS],
+                          stdout_file=out / 'main-source.tar.gz')
+         if result.returncode:
+             raise RuntimeError('不能冻结当前 main。')
+@@ -228,11 +225,22 @@
+             'baseline_revision': BASE, 'candidate_revision': head, 'main_revision': main_revision,
+             'candidate': str(candidate), 'baseline': str(baseline), 'main': str(current_main),
+             'candidate_is_uncommitted': True, 'frozen_paths': list(frozen),
+-            'score_support_files': list(SCORE_SOURCES),
++            'source_roots': list(SOURCE_ROOTS),
+             'dependencies': str(dependencies.resolve()), 'real_codex_turns': 0,
+             'evidence_layer': 'real CLI/daemon/relay/gates/Git/SQLite; controlled PTY/process/native inputs',
+         })
+         check_sizes(out)
++        red = ROOT / 'evidence/2026-10-14-batch14/T-081/full-03/t076-wide/run.json'
++        failed = json.loads(red.read_text(encoding='utf-8'))['cases'][0]
++        if (failed['case'] != 'widen_red_rules_success' or failed['outcome'] != 'harness_error'
++                or not failed['error'].startswith('FileNotFoundError')
++                or 'acceptance/test_recovery_e2e.py' not in failed['traceback']):
++            raise RuntimeError('缺少 full-03 已保留的快照遗漏失败证据。')
++        save(out / 'wide-source-red-reference.json', {'source': str(red), 'case': failed['case'],
++             'outcome': failed['outcome'], 'error': failed['error'], 'classification': 'runner 源快照遗漏；不是门禁业务红态'})
++        for label, selected in (('main', current_main), ('candidate', candidate)):
++            regression('wide-source-control-' + label, 'test_quality_widen_e2e.py',
++                       ['--source', selected, '--group', 'wide', '--case', 'widen_red_rules_success'], driver_root=selected)
+         # Correct deliveries establish that a refusal is not an invalid fixture.
+         for label, source in (('baseline', baseline), ('main', current_main)):
+             case('6e-control-' + label, source, 'positive_single')

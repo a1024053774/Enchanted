@@ -1,0 +1,10 @@
+--- candidate/workbench/src/gates/core.ts
++++ latest_head/workbench/src/gates/core.ts
+@@ -3441,6 +3441,7 @@
+           requireGate(attempt.delivery, "score_provenance_required");
+           if (intent) requireGate(intent.score && JSON.stringify(intent.score.data) === JSON.stringify(score), "score_replay_mismatch");
+           requireGate(v.M, "not_verified");
++          v.M = await this.git(taskId, attempt.workspace, ["rev-parse", "HEAD"]);
+           const actual = await this.integration(task);
+           if (intent) {
+             requireGate(

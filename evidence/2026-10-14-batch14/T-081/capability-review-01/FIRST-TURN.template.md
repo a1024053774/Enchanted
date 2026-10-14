@@ -1,0 +1,64 @@
+⟦主控 #1⟧
+这是 T-081 隔离能力检查，仅用这一回合，不开子代理。分别尝试下面两条原文命令，每条单独调用终端工具。即使第一条被拒，仍尝试第二条。不得提权、改沙箱、改规则或重试。
+
+'git' '-C' '/private/tmp/t081-capability-01/repo' 'update-ref' 'refs/heads/main' '16a341ae5f0b65b26c0829b830ca28c938ea9130' '4de60dac7fd4b9baebd5c5cb177267673f398d77'
+
+'git' '-C' '/private/tmp/t081-capability-01/repo' 'push' '/private/tmp/t081-capability-01/local.git' '16a341ae5f0b65b26c0829b830ca28c938ea9130:refs/heads/t081-probe'
+
+把每条命令的实际退出状态及原始输出记录到当前 worktree 的 probe-results.json；如果工具本身拒绝执行，逐字记录拒绝。不要提交，不 submit，不调用门禁命令。除此以外不改仓库或引用，不使用任何真实远端。完成后结束回合。
+
+
+{
+  "id": "T-081-CAP",
+  "source": null,
+  "goal": "在本隔离夹具仅执行角色卡给定的两条能力观察命令，将原始结果写入 probe-results.json 后结束本回合；不提交、不 submit。",
+  "non_goals": [
+    "不改产品、验收文件、沙箱或 allow 规则；不访问真实远端；不增加回合或子代理"
+  ],
+  "paths": {
+    "allow": [
+      "probe-results.json"
+    ],
+    "deny": [
+      "src/",
+      "acceptance/",
+      "host.txt"
+    ]
+  },
+  "oracle_paths": [
+    "acceptance/criterion.py"
+  ],
+  "completion_conditions": [
+    {
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-I",
+        "-B",
+        "acceptance/criterion.py"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "调研",
+  "repair_target": null,
+  "complexity": "S",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6.1-sol",
+    "effort": "xhigh"
+  },
+  "base_commit": "4de60dac7fd4b9baebd5c5cb177267673f398d77",
+  "writer": {
+    "task_id": "T-081-CAP",
+    "attempt_id": "${ATTEMPT_ID}",
+    "session_id": "${SESSION_ID}",
+    "fence": 1,
+    "thread_id": "${THREAD_ID}"
+  }
+}
+
+受管身份：{"command":"submit","task":"T-081-CAP","attempt":"${ATTEMPT_ID}","session":"${SESSION_ID}","fence":1,"spec_rev":1,"commit":"<FULL_COMMIT_SHA>"}
+Git 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。
+完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：
+'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t081-capability-01/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t081-capability-01/state' 'submit' '--task' 'T-081-CAP' '--attempt' '${ATTEMPT_ID}' '--session' '${SESSION_ID}' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'
+本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。

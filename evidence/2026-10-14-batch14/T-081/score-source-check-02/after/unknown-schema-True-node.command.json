@@ -1,0 +1,15 @@
+{
+  "label": "unknown-schema-True-node",
+  "argv": [
+    "node",
+    "--input-type=module",
+    "-e",
+    "const {scoreRecords,QualityProtocolError}=await import(process.argv[1]);\nconst {readFileSync}=await import('node:fs');\ntry{const rows=scoreRecords(readFileSync(process.argv[2],'utf8'));process.stdout.write(JSON.stringify({ok:true,rows})+'\\n');}\ncatch(e){if(!(e instanceof QualityProtocolError))throw e;process.stdout.write(JSON.stringify({ok:false,error:e.field})+'\\n');process.exitCode=1;}",
+    "file:///private/tmp/t081score-source-7e1cwld7/candidate/workbench/src/gates/qualityProtocol.ts",
+    "/private/tmp/t80score-yo4zbquj/unknown-schema-True.jsonl"
+  ],
+  "cwd": "/private/tmp/t081score-source-7e1cwld7/candidate",
+  "exit": 1,
+  "stdout": "{\"ok\":false,\"error\":\"scores.line_1.identity\"}\n",
+  "stderr": ""
+}

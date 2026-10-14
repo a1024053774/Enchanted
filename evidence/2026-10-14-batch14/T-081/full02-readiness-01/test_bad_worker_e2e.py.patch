@@ -1,0 +1,163 @@
+--- full-01/workbench/tests/test_bad_worker_e2e.py
++++ full-02/workbench/tests/test_bad_worker_e2e.py
+@@ -3,7 +3,10 @@
+ import json
+ from pathlib import Path
+ import sys
+-
++import tempfile
++import traceback
++
++import test_quality_chain_e2e as chain
+ from test_quality_chain_e2e import HarnessFailure, run_cases, save
+ from test_quality_tracer_e2e import Tracer
+ 
+@@ -22,10 +25,12 @@
+ }
+ NEGATIVES = [*REFUSALS, 'after_review']
+ POSITIVES = ['positive_single', 'positive_multi', 'positive_red_card']
+-PROBES = ['probe_launch', 'probe_model']
+-FORGED_LAUNCH = '00000000-0000-4000-8000-000000000081'
+-# This is forged trailer text, never a requested or running model.
+-FORGED_MODEL = 'gpt-6-astra'
++TRACE_FIELDS = {'probe_launch': 'Launch', 'probe_model': 'Model',
++                'probe_effort': 'Effort', 'probe_tool': 'Tool'}
++PROBES = list(TRACE_FIELDS)
++TRACE_VALUES = {'Launch': '00000000-0000-4000-8000-000000000081',
++                'Model': 'gpt-6-astra', 'Effort': 'low', 'Tool': 'codex-cli 0.162.0'}
++# TRACE_VALUES are fixture commit text; actual sessions still request gpt-6.1-sol xhigh.
+ 
+ 
+ class BadWorker(Tracer):
+@@ -41,7 +46,7 @@
+             'criterion': "assert Path('src/value.txt').read_text() == 'worker\\n'",
+             'oracle_paths': ['acceptance/criterion.py'],
+             'expected_refusal': REFUSALS.get(self.case),
+-            'forged_launch': FORGED_LAUNCH, 'forged_model': FORGED_MODEL,
++            'trace_field': TRACE_FIELDS.get(self.case), 'trace_fixture_values': TRACE_VALUES,
+             'real_codex_turns': 0,
+         })
+ 
+@@ -248,27 +253,44 @@
+         self.check('BW-RED-CARD', len(red) == 1 and red[0]['details']['passed'],
+                    '新增测试在起点失败，在候选通过', red)
+ 
+-    def probe_forged(self, field, value):
+-        _, candidate = self.delivered({'src/value.txt': 'worker\n'}, changes={field: value})
++    def observe_trace_field(self, field):
++        a = self.start_worker()
++        records = [json.loads(row['data']) for row in self.rows('launch_records')]
++        launch = next(record for record in records if record['id'] == self.launch)
++        reference = {'Launch': launch['id'], 'Model': launch['model_requested'],
++                     'Effort': launch['effort_requested'], 'Tool': launch['cli_version']}
++        value = TRACE_VALUES[field]
++        if reference[field] == value:
++            raise HarnessFailure('追溯字段夹具必须确实与本 attempt 启动记录不一致。')
++        candidate = self.make_commit(a, {'src/value.txt': 'worker\n'}, changes={field: value})
++        fixture = json.loads((self.evidence / ('commit-' + candidate + '.json')).read_text(encoding='utf-8'))
++        changed = [key for key, original in reference.items() if fixture['trailers'][key] != original]
++        if changed != [field]:
++            raise HarnessFailure('每个观察案例只改变一个追溯字段：' + repr(changed))
++        save(self.evidence / 'trace-fixture.json', {
++            'field': field, 'input_value': value, 'recorded_value': reference[field],
++            'recorded_values': reference, 'record_source': 'launch_records id=' + self.launch,
++            'launch_record': launch, 'candidate': candidate, 'changed_trace_fields': changed,
++            'contract_verdict': '待裁定；仅观察，不断言门禁应拒收', 'real_codex_turns': 0,
++        })
++        submitted = self.worker_submit(candidate)
++        if not submitted['ok']:
++            raise HarnessFailure('追溯字段观察的合法身份 submit 失败：' + json.dumps(submitted))
+         before = self.branch()
+         reply = self.gate('verify', '--attempt', self.a['attempt_id'])
+         task = self.cli('status')['task']
+-        observed = {'field': field, 'forged': value, 'candidate': candidate,
+-                    'recorded_worker_launch': self.launch, 'recorded_worker_model': 'gpt-6.1-sol',
++        observed = {'kind': 'trace_consistency_observation', 'counts_toward_acceptance': False,
++                    'field': field, 'input_value': value, 'candidate': candidate,
++                    'recorded_value': reference[field], 'recorded_values': reference,
+                     'verify': reply, 'state_after_verify': task['state'],
+                     'accepted_at_verify': reply.get('ok') is True and task['state'] == 'reviewing',
+                     'before': before, 'integrated': False}
+         save(self.evidence / 'probe-verify.json', observed)
+         checks = [e for e in self.events() if e['type'] == 'trailer_check'
+                   and e['details'].get('commit') == candidate]
+-        self.check('BW-PROBE-TARGET-REACHED', len(checks) == 1
+-                   and checks[0]['details']['trailers'].get(field.lower()) == [value],
+-                   '伪造值确实到达真实尾注检查', checks)
+-        if not observed['accepted_at_verify']:
+-            self.check('BW-PROBE-TARGET-REFUSAL', reply.get('ok') is False
+-                       and checks[0]['details']['passed'] is False
+-                       and checks[0]['details']['error'] == reply.get('error'),
+-                       '拒收确由目标尾注检查产生', {'reply': reply, 'check': checks})
++        observed['trailer_checks'] = checks
++        observed['target_check_reached'] = any(
++            e['details']['trailers'].get(field.lower()) == [value] for e in checks)
+         # Record admission before attempting any later phase, so a later fault
+         # cannot erase proof that the target check let this delivery through.
+         if observed['accepted_at_verify']:
+@@ -281,10 +303,52 @@
+         save(self.evidence / 'observation.json', observed)
+ 
+     def probe_launch(self):
+-        self.probe_forged('Launch', FORGED_LAUNCH)
++        self.observe_trace_field('Launch')
+ 
+     def probe_model(self):
+-        self.probe_forged('Model', FORGED_MODEL)
++        self.observe_trace_field('Model')
++
++    def probe_effort(self):
++        self.observe_trace_field('Effort')
++
++    def probe_tool(self):
++        self.observe_trace_field('Tool')
++
++
++def run_observation(source, output, name):
++    # Use the existing lifecycle and gate client, with an observation report
++    # instead of an acceptance PASS. No gate result is mocked or rewritten.
++    chain.SOURCE, chain.OUT, chain.DIALECT = source.resolve(), output.resolve(), 'current'
++    chain.OUT.mkdir(parents=True, exist_ok=False)
++    chain.base.GATE = chain.SOURCE / 'workbench/src/gates/cli.ts'
++    chain.base.ARTIFACT_ROOT = Path(tempfile.mkdtemp(prefix='q81obs-', dir='/tmp')).resolve()
++    case = BadWorker(name)
++    row = {'case': name, 'outcome': 'harness_error', 'assertions': case.assertions}
++    try:
++        case.setUp()
++        getattr(case, name)()
++        row['outcome'] = 'observed'
++    except Exception as error:
++        row.update(error=repr(error), traceback=traceback.format_exc())
++    finally:
++        try:
++            row['cleanup_failures'] = case.close_fixture()
++        except Exception as error:
++            row['cleanup_failures'] = [{'error': repr(error), 'traceback': traceback.format_exc()}]
++        row.update(commands=case.commands, fixture=str(getattr(case, 'root', '')))
++        save(chain.OUT / name / 'case.json', row)
++    complete = row['outcome'] == 'observed' and not row['cleanup_failures']
++    save(chain.OUT / 'run.json', {
++        'status': 'INCOMPLETE', 'observation_complete': complete,
++        'evidence_kind': 'trace_consistency_observation', 'counts_toward_acceptance': False,
++        'contract_verdict': '待裁定', 'command': sys.argv, 'source': str(chain.SOURCE),
++        'real_codex_turns': 0, 'cases': [row], 'planned_cases': [name],
++        'artifact_root': str(chain.base.ARTIFACT_ROOT),
++        'evidence_layer': 'real CLI/daemon/relay/gates/Git/SQLite; controlled PTY/process/native inputs',
++    })
++    print(json.dumps({'case': name, 'outcome': row['outcome'],
++                      'observation_complete': complete, 'counts_toward_acceptance': False}), flush=True)
++    return 0 if complete else 1
+ 
+ 
+ def main():
+@@ -293,6 +357,10 @@
+     parser.add_argument('--output', type=Path, required=True)
+     parser.add_argument('--case', choices=[*NEGATIVES, *POSITIVES, *PROBES], action='append', required=True)
+     args = parser.parse_args()
++    if any(name in PROBES for name in args.case):
++        if len(args.case) != 1:
++            parser.error('追溯字段观察每次只选一案，不与验收案例混跑。')
++        return run_observation(args.source, args.output, args.case[0])
+     return run_cases(args.source, args.output, args.case, BadWorker, dialect='current', stop_on_failure=True)
+ 
+ 

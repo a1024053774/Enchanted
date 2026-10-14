@@ -1,0 +1,123 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "打分 schema 读写契约；无 daemon/Git/模型",
+  "command": [
+    "/Users/luckye/Documents/Code/a2a-wt-t081/workbench/tests/test_score_schemas.py",
+    "--source",
+    "/private/tmp/t81-5l7xck7d/candidate",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/score-source-check-02/before"
+  ],
+  "source": "/private/tmp/t81-5l7xck7d/candidate",
+  "fixture": "/private/tmp/t80score-atuu2h5f",
+  "checks": [
+    {
+      "id": "v1-history-node",
+      "passed": true,
+      "expected": {
+        "accepted": true,
+        "no_backfill_or_rewrite": true
+      },
+      "actual": {
+        "ok": true,
+        "rows": [
+          {
+            "schema": 1,
+            "score_id": "historical-v1-executor",
+            "created_at": "2026-10-13T00:00:00Z",
+            "source": "executor",
+            "launch_id": "historical-launch",
+            "project": "fixture",
+            "task": "historical-task",
+            "attempt": "historical-attempt",
+            "cli": "fixture-codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "data": {
+              "result": "通过",
+              "boundary_discipline": 3,
+              "boundary_reason": "independent fixture",
+              "engineering_taste": 2,
+              "engineering_reason": "independent fixture",
+              "notes": ""
+            },
+            "facts": {
+              "task_type": "测试",
+              "complexity": "M",
+              "delivery_rounds": 1,
+              "elapsed_seconds": 2,
+              "human_interventions": 0,
+              "rejections": {
+                "identity_version": 0,
+                "path_boundary": 0,
+                "completion": 0,
+                "red_state": 0,
+                "rule_checks": 0,
+                "independent_review": 0,
+                "commit_trailers": 0
+              }
+            }
+          },
+          {
+            "schema": 1,
+            "score_id": "historical-v1-user",
+            "created_at": "2026-10-13T00:00:00Z",
+            "source": "user",
+            "launch_id": "historical-launch",
+            "project": "fixture",
+            "task": "historical-task",
+            "attempt": "historical-attempt",
+            "cli": "fixture-codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "data": {
+              "boundary_discipline": 3,
+              "boundary_reason": "independent fixture",
+              "engineering_taste": 2,
+              "engineering_reason": "independent fixture",
+              "notes": ""
+            },
+            "score_of": "historical-v1-executor"
+          }
+        ]
+      }
+    }
+  ],
+  "commands": [
+    {
+      "label": "v1-history-node",
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "const {scoreRecords,QualityProtocolError}=await import(process.argv[1]);\nconst {readFileSync}=await import('node:fs');\ntry{const rows=scoreRecords(readFileSync(process.argv[2],'utf8'));process.stdout.write(JSON.stringify({ok:true,rows})+'\\n');}\ncatch(e){if(!(e instanceof QualityProtocolError))throw e;process.stdout.write(JSON.stringify({ok:false,error:e.field})+'\\n');process.exitCode=1;}",
+        "file:///private/tmp/t81-5l7xck7d/candidate/workbench/src/gates/qualityProtocol.ts",
+        "/private/tmp/t80score-atuu2h5f/v1-history.jsonl"
+      ],
+      "cwd": "/private/tmp/t81-5l7xck7d/candidate",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"rows\":[{\"schema\":1,\"score_id\":\"historical-v1-executor\",\"created_at\":\"2026-10-13T00:00:00Z\",\"source\":\"executor\",\"launch_id\":\"historical-launch\",\"project\":\"fixture\",\"task\":\"historical-task\",\"attempt\":\"historical-attempt\",\"cli\":\"fixture-codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\",\"data\":{\"result\":\"通过\",\"boundary_discipline\":3,\"boundary_reason\":\"independent fixture\",\"engineering_taste\":2,\"engineering_reason\":\"independent fixture\",\"notes\":\"\"},\"facts\":{\"task_type\":\"测试\",\"complexity\":\"M\",\"delivery_rounds\":1,\"elapsed_seconds\":2,\"human_interventions\":0,\"rejections\":{\"identity_version\":0,\"path_boundary\":0,\"completion\":0,\"red_state\":0,\"rule_checks\":0,\"independent_review\":0,\"commit_trailers\":0}}},{\"schema\":1,\"score_id\":\"historical-v1-user\",\"created_at\":\"2026-10-13T00:00:00Z\",\"source\":\"user\",\"launch_id\":\"historical-launch\",\"project\":\"fixture\",\"task\":\"historical-task\",\"attempt\":\"historical-attempt\",\"cli\":\"fixture-codex\",\"model\":\"gpt-6.1-sol\",\"effort\":\"xhigh\",\"data\":{\"boundary_discipline\":3,\"boundary_reason\":\"independent fixture\",\"engineering_taste\":2,\"engineering_reason\":\"independent fixture\",\"notes\":\"\"},\"score_of\":\"historical-v1-executor\"}]}\n",
+      "stderr": ""
+    },
+    {
+      "label": "v1-history-python",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "-c",
+        "import json,runpy,sys\nsys.path.insert(0,sys.argv[1]);m=runpy.run_path(sys.argv[1]+\"/score\",run_name=\"reader\")\nrows=[json.loads(l) for l in open(sys.argv[2],encoding=\"utf-8\")]\ntry:\n m[\"validate_scores\"](rows)\nexcept ValueError as error:\n print(json.dumps({\"ok\":False,\"error\":str(error)}));sys.exit(1)\nprint(json.dumps({\"ok\":True,\"rows\":rows}))\n",
+        "/private/tmp/t81-5l7xck7d/candidate/scripts",
+        "/private/tmp/t80score-atuu2h5f/v1-history.jsonl"
+      ],
+      "cwd": "/private/tmp/t81-5l7xck7d/candidate",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/runpy.py\", line 267, in run_path\n    code, fname = _get_code_from_file(run_name, path_name)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/runpy.py\", line 237, in _get_code_from_file\n    with io.open_code(decoded_path) as f:\nFileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/t81-5l7xck7d/candidate/scripts/score'\n"
+    }
+  ],
+  "real_model_calls": 0,
+  "outcome": "harness_error",
+  "error": "JSONDecodeError('Expecting value: line 1 column 1 (char 0)')",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t081/workbench/tests/test_score_schemas.py\", line 122, in main\n    readers('v1-history', seed, True)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t081/workbench/tests/test_score_schemas.py\", line 87, in readers\n    actual = json.loads(result.stdout)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py\", line 346, in loads\n    return _default_decoder.decode(s)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py\", line 337, in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py\", line 355, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n",
+  "main_records_not_written": true
+}
