@@ -95,3 +95,7 @@ reviewer（fresh-context，请求 gpt-6.1-sol/xhigh，tier 未观察）：INCOMP
 ## conflict-red-final-02 读回与复审安排（2026-10-14 UTC 12:3x）
 
 PASS，rc=0（产品 5d0bf1e8、夹具 178d15f3、checkout 628234b7，模型 0）。red-01～07 全部 TARGET_FAILED；06/07 分别失败于 "Conflict rework still rejects the forbidden path at verify"/"...foreign trailer at verify"，前置清单含 conflict_delivered、explicit_resubmitted、target_verify_executed；候选 PASS。F1 证据缺口已补。开一个全新 worker s13-t077r（wF:p3P，launch-a85f0cb6…，空闲内存 68%）提交结果并以 spawn_agent 做 F1 差异的 fresh-context 只读复审（同一 Codex 进程，worker 复审期间不作业）。
+
+## 复审 02 读回（2026-10-14 UTC 13:2x）
+
+reviewer（fresh-context）：本次限定复审 NO_GO，原 F1 已解决（七条红态各命中目标、前置齐全且在目标前；06/07 定向变体只破坏对应守卫、分别在 :886/:897 失败；候选七项通过；产品与夹具冻结身份一致）。唯一新发现 P2：目标通过后普通断言失败时分类器标 TARGET_PASSED 而非 NOT_COVERED；不影响已记录红态与候选结论。接受；交 worker 先红后绿修分类器，并对已保存原始结果离线重分类，证明结论不变，无需重跑沙箱外阶段。
