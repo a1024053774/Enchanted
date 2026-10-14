@@ -19,3 +19,7 @@ s14-t081 在规划"伪造尾注"探针时，回复被模型服务过滤（"This 
 ## full-02 读回（2026-10-14 UTC 19:5x）
 
 rc=2。11 个坏行为案候选拒收码均符合预期、对应变异体均为业务 contract_failure；3 个正例集成、误拒绝 0。6e 发现：Launch/Model/Effort/Tool 四个追溯字段与启动记录不一致的提交在原产品与当前 main 均被接受并集成（已转构思主控请用户定，选项 A 补核对 / B 记已知局限）。run.json 顶层 FileExistsError(17)（收尾），交 worker 修 runner 后跑 full-03。第 7 项材料交审。
+
+## 第 7 项第一回合审批（2026-10-14 UTC 20:0x）
+
+审阅 CAPABILITY-REVIEW.md 与所列材料：隔离 CODEX_HOME=/private/tmp/t081-capability-01/codex-home，仅复制 auth.json、仅信任夹具根、仅 git add/commit 两条 allow；CLI hooks（UserPromptSubmit/Stop/PermissionRequest→夹具产品 signal，timeout 10，含产品自带 --dangerously-bypass-hook-trust）与 Git hooksPath 仅经本会话环境；gpt-6.1-sol xhigh、service_tier="default"、-a never、workspace-write、无网络；两条尝试命令仅作用于 /tmp 夹具 repo 与本地裸仓库，不提交、不 submit；首回合上限 1。批准：home prepare、上述 hooks 本次启用、第一回合一次。批准引用：`T-081 controller-decision-01 capability-turn-1`。尚缺启动/等待/停止/收集的运行脚本，交 worker 准备后由执行主控运行；清理另批。
