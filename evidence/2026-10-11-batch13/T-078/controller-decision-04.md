@@ -204,3 +204,7 @@ issue 20261014T191104Z 非 blocking，以本裁定处置（forward 构思主控�
 ## 第二次变基与回归（2026-10-14 UTC 19:4x～20:2x）
 
 prepare-and-rebase（以 s13-t078m 身份交接提交 be6e0195）→ 有界变基到 490de67d 无冲突，exec/t078=bf9bb9d7。commit-post-rebase-2 → 3d5225a9（三张自建卡补 oracle_paths，红 3/绿 3）；沙箱外 post-rebase-2-outside-01 停在 cards（15 errors：DaemonCards.setUp 未给 daemon host 提供 A2A_OPERATOR_CREDENTIAL，夹具缺口，产品拒绝缺凭据符合契约）。commit-post-rebase-2b → ee2f7c1b；post-rebase-2-outside-02 PASS：cards 15/15、empty-declaration-entry、input-failures、runtime、worker-inbox。真实模型 0。下一步：单角色真实 Claude inbox 转交切片（先入口红态），launch 逐次批准。
+
+## 单角色切片 1 红态材料与 launch 批准（2026-10-14 UTC 21:0x）
+
+commit-and-prepare-slice1（以 s13-t078m 身份）→ 源 6a59ef92、材料 14e19e2b；实例 /private/tmp/t078-2-p1-slice1-red-z7msieml，launch 70e18a26…；新假服务只给一条预批 Bash（workbench/bin/inbox list --role executor）并收同 ID tool_result，根提交 1、主 Messages 2、Bash 1，供应商模型 0。裁定：relayFiles.ts 的会话请求文件 helper 纳入 T-078 所有权（issue SLICE1-RELAY-FILE-OWNERSHIP）；工具许可 Enter 被记作新 turn_submit_intent 的问题（issue SLICE1-PERMISSION-ENTER）先在真实运行中取证，后续在 panes.ts 修，不改启动许可。批准 slice1-red launch 一次及逐屏只读 screen；按键、readiness、submit-approval、permission-approval 各另批。批准引用：`T-078 controller-decision-04 slice1-red-launch`。
