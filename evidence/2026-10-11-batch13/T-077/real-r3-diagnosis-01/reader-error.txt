@@ -1,0 +1,10 @@
+Command:
+python3 -B evidence/2026-10-11-batch13/T-077/diagnose-real-r3.py --output evidence/2026-10-11-batch13/T-077/real-r3-diagnosis-01
+
+Exit: 1
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/diagnose-real-r3.py", line 81, in <module>
+    assert diff['missing'] == [] and diff['different'] == []
+AssertionError
+
+临时诊断 reader 把 different 的空字典误与空列表比较；原始数据的 different={}，九项均一致。仅修 reader 的类型比较，改用新输出 real-r3-diagnosis-02。此错误不是产品或真实运行红态，原始失败未改。
