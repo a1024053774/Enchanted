@@ -124,3 +124,7 @@ continue PASS，逐项独立核对：dispatch seq 1 由 executor 登记、paste+
 ## 09A 逐屏读回、信任与 continue 批准（2026-10-14 UTC 05:4x）
 
 主题三键、Security notes（逐字一致）、信任 ArrowDown→Yes→读回→Enter（目录 /private/tmp/t078-2-p1-09-c_gw0g87/repo，仅 value.txt；依 answer 20261014T011751Z）均生效，读回主提示符。写 readiness.json 与 actions-approval.json（Escape 与 queue-release 两个自动化测试动作，仅在 PLAN-09 A3/A4 条件成立时各执行一次，记为执行主控批准的自动化而非真实用户亲手操作）。批准 `p1-continue-09` 一次（两条 nonce、假 API 两条声明请求，真实模型 0；会打开本实例自己的 Electron 窗口）及随后 cleanup。批准引用：`T-078 controller-decision-04 p2-09a-continue`。
+
+## 09A continue 读回与 cleanup（2026-10-14 UTC 05:2x 运行）
+
+continue INCOMPLETE（rc=1，phase continue-esc，"Observed-state deadline; no retry"）。A1 成立：nonce1 由 executor 登记送达，busy、active 绑定 dispatch1，prompt_id1=3b910c4b…；A2 成立：busy 期间登记 nonce2（seq 2）。A3 失败：等待 active 释放超时。electron-driver.jsonl 显示发 Escape 时窗口仍为启动态（"正在连接后台""尚未启动窗格"，state unknown），驱动仍报 sent:true——窗口未接上窗格就发键，判为夹具就绪缺陷，非产品结论；不重试。cleanup-09 PASS，无残留；fixture.tar.gz 8,208,905 字节外置归档、字节读回 PASS（manifest external-archive-578c9fe0…）。交 worker 诊断：Esc 是否到达 PTY（received.ndjson / pty.raw / 门禁事件），驱动须等窗口显示本窗格与 busy 后才发键，并核对键确实写入。
