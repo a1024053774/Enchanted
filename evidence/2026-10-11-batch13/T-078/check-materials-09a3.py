@@ -7,15 +7,15 @@ import subprocess
 import tarfile
 
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078');BASE=Path(__file__).resolve().parent
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path,required=True);args=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('--generation',choices=['09a3r'],required=True);p.add_argument('--output',type=Path,required=True);args=p.parse_args()
 r={'status':'INCOMPLETE','scope':'静态材料和源码字节核对；不作产品验收','starts':0,'real_model_turns':0,'fixtures':[],'commands':[]}
 def run(argv):
     result=subprocess.run(argv,cwd=SOURCE,capture_output=True,text=True,encoding='utf-8')
     r['commands'].append({'argv':argv,'exit_code':result.returncode,'stdout':result.stdout,'stderr':result.stderr});assert result.returncode==0,argv
 try:
     seen=set()
-    for suffix,handling,actions in [('09a3','manual-empty-declaration',['Escape','manual-draft-handling','empty-declaration-release']),
-                                  ('09a3-block','retain-draft-for-block',['Escape','retain-draft','false-empty-declaration-release'])]:
+    for suffix,handling,actions in [(args.generation,'manual-empty-declaration',['Escape','manual-draft-handling','empty-declaration-release']),
+                                  (args.generation+'-block','retain-draft-for-block',['Escape','retain-draft','false-empty-declaration-release'])]:
         m=BASE/('p1-materials-'+suffix);a=json.loads((m/'approval.json').read_bytes());root=Path(a['input']['root'])
         assert root.is_dir() and root.as_posix().startswith('/private/tmp/t078-2-p1-09a3')
         assert sorted(x.name for x in (root/'repo').iterdir())==['value.txt']
@@ -51,7 +51,7 @@ try:
                 data=(SOURCE/n).read_bytes();assert data==archive.extractfile(n).read(),n
                 if n.endswith('.py'):ast.parse(data,filename=n)
         driver=json.loads((m/'scenario-driver.json').read_bytes());assert driver['starts']==0 and driver['real_model_budget']==0
-        assert driver['expected_messages_requests']==(2 if suffix=='09a3' else 1)
+        assert driver['expected_messages_requests']==(1 if suffix.endswith('-block') else 2)
         r['fixtures'].append({'materials':str(m),'root':str(root),'launch':a['input']['launch'],'session':a['input']['session'],
                               'code_revision':a['input']['code_revision'],'frozen_files':len(names)})
     for n in ['src/panes.ts','src/daemon.ts','src/gates/cli.ts','app/main.ts','app/preload.ts','tests/electron_driver.mjs']:

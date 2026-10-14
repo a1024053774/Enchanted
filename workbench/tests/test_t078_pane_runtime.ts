@@ -30,7 +30,7 @@ function fixture() {
   store.db.prepare('INSERT INTO tasks(id,data) VALUES (?,?)').run(task.task_id,JSON.stringify(task));
   store.db.prepare('INSERT INTO attempts(id,data) VALUES (?,?)').run(attempt.attempt_id,JSON.stringify(attempt));
   const record={id:'unit-launch',thread:'unit-thread',task:'unit-task',attempt:'unit-attempt',role:'worker',
-    project:'unit-project',session:'unit-session',fence:1,spec_rev:1,turn_limit:5,worktree:root};
+    project:'unit-project',session:'unit-session',fence:1,spec_rev:1,turn_limit:5,worktree:root,env:{CODEX_HOME:home}};
   store.launch(record);mkdirSync(join(root,'traces',record.id),{recursive:true});
   const writes:any[]=[],kills:any[]=[];
   const pane:any={record,task,attempt,token:'unit-only',pty:{pid:321,write:(data:string|Buffer)=>writes.push({
@@ -40,11 +40,11 @@ function fixture() {
     state:'busy',stopped:false,archived:false,failed:null,leader:321,native:'unit-native',turn:'turn-0',
     active:{id:'first-submission',dispatch:'seed',at:'2026-10-11T00:00:00Z',nativeTurn:'turn-0'},
     queue:[],writing:false,stopInProgress:false,writes:Promise.resolve(),pendingInputs:0,userDraft:false,interrupted:false,
-    inputGeneration:0,interruption:null,offsets:new Map(),model:'unknown',effort:'unknown',terminalBuffer:''};
+    nativeEnded:false,inputGeneration:0,interruption:null,offsets:new Map(),model:'unknown',effort:'unknown',terminalBuffer:''};
   panes.panes.set(record.thread,pane);
   panes.processInfo=async()=>({leader:321,failed:null,shell_pid:321,native_session:'unit-native',processes:[]});
   const native=join(home,'sessions','rollout-unit-native.jsonl');
-  writeFileSync(native,JSON.stringify({type:'session_meta',payload:{id:'unit-native',source:'cli'}})+'\n'+
+  writeFileSync(native,JSON.stringify({type:'session_meta',payload:{id:'unit-native',source:'cli',cwd:root}})+'\n'+
     JSON.stringify({type:'event_msg',payload:{type:'task_started',turn_id:'turn-0'}})+'\n');
   const signal=(turn:string)=>panes.signal(record.id,JSON.stringify({session_id:'unit-native',hook_event_name:'Stop',turn_id:turn}),new Date().toISOString());
   let inputCount=0;

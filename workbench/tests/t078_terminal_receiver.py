@@ -21,7 +21,7 @@ session = str(uuid.uuid4())
 native = home / 'sessions' / ('rollout-' + session + '.jsonl')
 native.parent.mkdir(parents=True, exist_ok=True)
 with native.open('x', encoding='utf-8') as stream:
-    stream.write(json.dumps({'type':'session_meta','payload':{'source':'cli','id':session}})+'\n')
+    stream.write(json.dumps({'type':'session_meta','payload':{'source':'cli','id':session,'cwd':str(Path.cwd())}})+'\n')
 with (home / 'receiver-started.json').open('x', encoding='utf-8') as stream:
     json.dump({'pid':os.getpid(),'argv':sys.argv,'fixture':True,'model_turns':0},stream)
 tty.setraw(sys.stdin.fileno())

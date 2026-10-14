@@ -8,8 +8,8 @@ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--label
 args=parser.parse_args()
 if not args.label.startswith('p1-materials-'):parser.error('A new p1-materials-NN label is required')
 suffix=args.label[len('p1-materials-'):]
-if not (suffix in ['09a2','09a3','09a3-block'] or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A supported fresh material label is required')
-two_turn=suffix in ['09','09a2','09a3','09a3-block']
+if not (suffix in ['09a2','09a3','09a3-block','09a3r','09a3r-block'] or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A supported fresh material label is required')
+two_turn=suffix in ['09','09a2','09a3','09a3-block','09a3r','09a3r-block']
 out=BASE/args.label;out.mkdir()
 root=Path(tempfile.mkdtemp(prefix='t078-2-p1-'+suffix+'-',dir='/tmp')).resolve()
 record={'status':'INCOMPLETE','argv':__import__('sys').argv,'root':str(root),'real_cli_starts':0,'api_starts':0}
@@ -29,7 +29,7 @@ try:
         (root/'nonce-2.txt').write_text('P2_NONCE_'+uuid.uuid4().hex,encoding='utf-8')
         requests.append({'nonce':(root/'nonce-2.txt').read_text(),'mode':'echo','ack':'P2_ACK'})
     scenario={'schema':1,'name':'esc-two' if two_turn else 'single','requests':requests}
-    if suffix in ['09a3','09a3-block']:scenario['draft_handling']='manual-empty-declaration' if suffix=='09a3' else 'retain-draft-for-block'
+    if suffix in ['09a3','09a3-block','09a3r','09a3r-block']:scenario['draft_handling']='retain-draft-for-block' if suffix.endswith('-block') else 'manual-empty-declaration'
     with (root/'scenario.json').open('x',encoding='utf-8') as f:json.dump(scenario,f,indent=2)
     with (root/'input.json').open('x',encoding='utf-8') as f:json.dump(manifest,f,ensure_ascii=False,indent=2)
     subprocess.run(['node',SOURCE/'workbench/tests/prepare_t078_p1.ts',root/'input.json',root/'approval.json'],cwd=SOURCE,check=True)

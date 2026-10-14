@@ -21,6 +21,15 @@
 static const char *session = "00000000-0078-4000-8000-000000000001";
 static const char *home;
 static void fail(const char *what) { perror(what); exit(2); }
+static void json_string(FILE *stream, const char *value) {
+  fputc('"', stream);
+  for (const unsigned char *p = (const unsigned char *)value; *p; p++) {
+    if (*p == '"' || *p == '\\') { fputc('\\', stream); fputc(*p, stream); }
+    else if (*p < 0x20) fprintf(stream, "\\u%04x", *p);
+    else fputc(*p, stream);
+  }
+  fputc('"', stream);
+}
 static void path(char *out, const char *name) {
   if (snprintf(out, PATH_MAX, "%s/%s", home, name) >= PATH_MAX) {
     fprintf(stderr, "Fixture path is too long\n"); exit(2);
@@ -74,7 +83,9 @@ int main(int argc, char **argv) {
   char file[PATH_MAX]; path(file, "sessions"); if (mkdir(file, 0700)) fail("create sessions");
   char native_name[100]; snprintf(native_name, sizeof native_name, "sessions/rollout-%s.jsonl", session);
   FILE *native = create(native_name);
-  fprintf(native, "{\"type\":\"session_meta\",\"payload\":{\"source\":\"cli\",\"id\":\"%s\"}}\n", session);
+  char cwd[PATH_MAX]; if (!getcwd(cwd, sizeof cwd)) fail("read fixture cwd");
+  fputs("{\"type\":\"session_meta\",\"payload\":{\"source\":\"cli\",\"id\":", native);
+  json_string(native, session); fputs(",\"cwd\":", native); json_string(native, cwd); fputs("}}\n", native);
   if (fflush(native)) fail("flush native metadata");
   FILE *started = create("receiver-started.json");
   fprintf(started, "{\"pid\":%d,\"fixture\":true,\"model_turns\":0,\"native_session\":\"%s\"}\n", getpid(), session); finish(started);

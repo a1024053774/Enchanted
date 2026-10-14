@@ -1,0 +1,96 @@
+{
+  "status": "PASS",
+  "scope": "固定变基停点与源码语法；不是行为验收",
+  "expected_head": "888d83795ce3d46cdc4629c90f927eed8417c902",
+  "expected_rebase_head": "8166e391c677179d483d886ad7a1d4279e0bc564",
+  "expected_conflicts": [
+    "workbench/src/daemon.ts",
+    "workbench/src/gates/cli.ts",
+    "workbench/src/panes.ts"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "stdout": "888d83795ce3d46cdc4629c90f927eed8417c902\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "REBASE_HEAD"
+      ],
+      "exit_code": 0,
+      "stdout": "8166e391c677179d483d886ad7a1d4279e0bc564\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--name-only",
+        "--diff-filter=U"
+      ],
+      "exit_code": 0,
+      "stdout": "workbench/src/daemon.ts\nworkbench/src/gates/cli.ts\nworkbench/src/panes.ts\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "--git-path",
+        "rebase-merge/head-name"
+      ],
+      "exit_code": 0,
+      "stdout": "/Users/luckye/Documents/Code/a2a/.git/worktrees/a2a-wt-t078/rebase-merge/head-name\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "workbench/src/daemon.ts"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "workbench/src/gates/cli.ts"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "workbench/src/panes.ts"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "real_model_turns": 0
+}
