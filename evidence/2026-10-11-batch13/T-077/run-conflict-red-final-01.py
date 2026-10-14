@@ -127,7 +127,8 @@ def prepare():
         'product': PRODUCT, 'harness': HARNESS, 'checkout': git('rev-parse', 'HEAD').decode().strip(),
         'planned_subphases': 8, 'cases': TARGET_CONTRACTS, 'recipes': RECIPES, 'candidate_case_count': 7,
         'precondition_policy': 'Controller #123: each target requires its declared prior facts. Missing, false or late receipts mean NOT_COVERED.',
-        'command': ['bash', str(E / 'outside-sandbox.sh'), 'conflict-red-final-01'],
+        'command': [sys.executable, '-B', str(Path(__file__).resolve()),
+                    *[arg for arg in sys.argv[1:] if arg != '--prepare-only']],
         'source_files': [str(p.relative_to(ROOT)) for p in source_files()], 'files_over_5mb': large, 'real_codex_turns': 0})
     print(json.dumps({'status': 'READY', 'planned_subphases': 8, 'real_codex_turns': 0}))
 
@@ -230,6 +231,10 @@ def run():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prepare-only', action='store_true')
+    parser.add_argument('--output', type=Path)
     args = parser.parse_args()
+    if args.output is not None:
+        OUT = args.output.resolve()
+        PREP = OUT.with_name(OUT.name + '-preparation')
     if args.prepare_only: prepare()
     else: raise SystemExit(run())

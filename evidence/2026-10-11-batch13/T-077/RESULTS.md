@@ -1,5 +1,13 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 主控 #127：conflict-red-final-02 重跑准备
+
+**INCOMPLETE，待主控沙箱外重跑。** `outside-conflict-red-final-01/` 与 `conflict-red-final-01.console.txt` 原样保留并提交，注明：**被系统低内存回收、不计**。低内存回收原因来自本次主控派发；现场只含 red-01/02/03 的完整收据、red-04 的未完成输出，没有顶层 run.json，不能作为整轮验收证据。
+
+用户已决定重跑（answer `20261014T121326Z-ideation-answer-001`）。新增 `outside-sandbox.sh conflict-red-final-02`，仍调用同一 runner；唯一执行参数改动是 `--output`，新运行目录为 `outside-conflict-red-final-02/`，对应独立准备目录为 `outside-conflict-red-final-02-preparation/`。准备归档重新冻结 runner 与入口脚本，旧准备与运行产物不变。七红/七绿的名单、顺序、变体、前置契约、断言与判定逻辑不变，产品仍为 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`，夹具仍为 `178d15f3ddb13f06a00eac19d7655225519f98e2`。命令与检查范围见 `HANDOFF-conflict-red-final-02.md`；本 worker 不运行沙箱外阶段、不请求提权、不补称 F1 关闭。
+
+**准备检查 PASS，业务仍 INCOMPLETE。** 四个变体语法检查、CLI 输出与准备路径、冻结归档逐字节核对、七目标及前置清单、未变的 run() 与其他执行函数、shell 语法均通过；project-map 为 0 problems/0 stale。完整命令与原始输出保存于 `conflict-red-final-02-readiness-01/`，新运行目录仍未创建。-01 的 48 个原始文件共 2,463,508 字节，另含 1,183 字节 console；均保留原文，不计入本轮验收。
+
 ## 主控 #123：按目标列前置
 
 **INCOMPLETE，待新的沙箱外七红/七绿。** 已按主控明确口径删除统一三前置规则，逐条列出七案依赖的真实前置。01～04 证明场景、相应受控会话/投递输入、真实文本冲突和进入处理；05 证明实际 Git 失败、空 unmerged 与该次 verify；06/07 仍须完整的冲突、投递成功、显式重交及目标 verify。前置缺失、false、迟于目标或存在 errors/skipped/cleanup_failures 仍不能计红，目标标识及既有拒收预期不变。

@@ -6,7 +6,7 @@ set -euo pipefail
 # bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh red-01
 # 同名输出已存在时拒绝，不能覆盖原始失败。后续阶段另行批准/交回。
 if [[ "$#" != 1 ]]; then
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01|rebase-final-02|rebase-final-03|rebase-final-04|rebase-final-05|conflict-red-final-01' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01|rebase-final-02|rebase-final-03|rebase-final-04|rebase-final-05|conflict-red-final-01|conflict-red-final-02' >&2
   exit 2
 fi
 cd /Users/luckye/Documents/Code/a2a-wt-t077
@@ -340,6 +340,11 @@ conflict-red-final-01)
 # 主控 #123：逐目标前置清单，06/07 定向变体；七红逐项收齐，再跑七项候选。
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-conflict-red-final-01.py
   ;;
+conflict-red-final-02)
+# 主控 #127 / answer 20261014T121326Z：-01 被系统低内存回收、不计；同一 runner 写新目录。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-conflict-red-final-01.py \
+  --output /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-conflict-red-final-02
+  ;;
 rebase-final-05)
 # 主控 #119：后续夹具已预检，补齐 relay 尾注 helper；产品仍为 5d0bf1e8，全量 39 阶段。
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-rebase-final-05.py
@@ -376,7 +381,7 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/
   --phase 2 --approval-ref "$T077_REAL_APPROVAL"
   ;;
 *)
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01|rebase-final-02|rebase-final-03|rebase-final-04|rebase-final-05|conflict-red-final-01' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01|rebase-final-02|rebase-final-03|rebase-final-04|rebase-final-05|conflict-red-final-01|conflict-red-final-02' >&2
   exit 2
   ;;
 esac
