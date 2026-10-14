@@ -579,3 +579,15 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 独立处置阶段 `p1-draft-disposal-09a2-01` 已写入 outside-sandbox.sh，交主控审批执行：核对精确归属／已知退出与五个 PID 不存在，把根和 slot 全部直接归档到外置盘、不跟随两条链接，逐成员字节读回通过后才删除自己的两个目录；不发信号、不修改产品失败状态。归档函数本地正例及实际复制链接目标的坏变异反例 [2/2 PASS](draft-disposal-static-09a2/result.json)，没有执行真实根／slot 的进程检查、外置写入或删除。重放命令与未来外置路径见方案文档末节。
 
 方案决定仍待主控／构思主控，用户输入记录含义有变化的项已标明；后续新 Tracer bullet 仍逐次审批。T-078 open、INCOMPLETE、待主控关闭；真实双主控／紧急停止／真登录及变基后的完整验证均未完成。
+
+## 新 worker 与 09A-3 文件边界（主控 #128，2026-10-14）
+
+用户决定已到：[answer 20261014T120839Z](20261014T120839Z-ideation-answer-001.md)，选 A，由用户自行处理输入框，再声明“输入框已空，放行”；声明引用对应中断，后续键入或组合输入使其过期。新增声明不是机器读取空框。提交前拦截限结构化登记的当前注入，在 UserPromptSubmit 阻断错配、留诊断，不改 Stop，不裁剪、不容忍拼接、不自动重送；手打提交不受影响。Ctrl+C/U/S 等用户手动控制字节须记 control action，不记 message；本轮尚未修改产品分类或发送这些键。
+
+电脑重启后 `/private/tmp/t078-2-p1-09a2-sm_du7jo` 已不存在。之前外置的 8,124,728 字节 fixture 归档、小份诊断和运行材料保留；其余未归档的 /tmp 原件丢失，明确记为证据缺口，不补造。上节“根仍在”是重启前的历史时点；原根读取和旧 root+slot 处置命令现在不能重跑。本轮没有尝试恢复旧服务或续接旧 CLI。
+
+**状态 BLOCKED：产品实现停在主控指定的文件边界。** [失败方式清单](FAILURE-MODES-09A3.md) 已先写，当前候选的新红态尚未运行。实际 `gates/cli.ts` 清掉成功 signal 的 JSON，失败 exit 1 不阻断 Claude；仅改 panes/daemon 无法把 UserPromptSubmit 阻断传出。该文件由 T-080 独占，按“必须改时先停下告诉我”已上报并停止产品实现；`core.ts` 无须修改。空框声明的中断引用／输入代次还需要 app/main.ts、app/preload.ts 转发参数，这两处不在本轮明确文件范围。最小选项是主控协调 T-080 并授权三处接线，或由其负责 CLI 接线后交新候选给本 worker。没有在受限文件中写入，也没有用替代入口绕过。
+
+可独立完成的 [仅旧 slot 清理材料](SLOT-CLEANUP-AFTER-REBOOT-09A2.md) 已准备，交主控在沙箱外运行。前置改为原根缺失、归属、重启时间、当前进程与打开文件检查；归档完整 slot 并逐字节读回后才删精确路径，不依赖旧 cleanup PASS，不发信号、不碰其他 slot。归档 helper 本地正例和已知坏跟随链接反例 [2/2 PASS](slot-archive-static-09a3/result.json)；不把 helper 绿态当实际清理通过。
+
+本轮 vendor CLI／API／Electron／模型启动均 0，外置写入／删除 0。09A-3 产品红绿及 launch 材料仍 INCOMPLETE，未生成或启动可执行 launch，不能宣称 MATERIALS READY。新 worker 不关闭 ticket、不验收／集成，不 push；整票仍 open、INCOMPLETE，等待主控协调文件所有权。
