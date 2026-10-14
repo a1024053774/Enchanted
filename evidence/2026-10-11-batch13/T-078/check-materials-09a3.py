@@ -7,15 +7,15 @@ import subprocess
 import tarfile
 
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078');BASE=Path(__file__).resolve().parent
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('--generation',choices=['09a3r'],required=True);p.add_argument('--output',type=Path,required=True);args=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('--generation',choices=['09a3r2'],required=True);p.add_argument('--output',type=Path,required=True);args=p.parse_args()
 r={'status':'INCOMPLETE','scope':'静态材料和源码字节核对；不作产品验收','starts':0,'real_model_turns':0,'fixtures':[],'commands':[]}
 def run(argv):
     result=subprocess.run(argv,cwd=SOURCE,capture_output=True,text=True,encoding='utf-8')
     r['commands'].append({'argv':argv,'exit_code':result.returncode,'stdout':result.stdout,'stderr':result.stderr});assert result.returncode==0,argv
 try:
     seen=set()
-    for suffix,handling,actions in [(args.generation,'manual-empty-declaration',['Escape','manual-draft-handling','empty-declaration-release']),
-                                  (args.generation+'-block','retain-draft-for-block',['Escape','retain-draft','false-empty-declaration-release'])]:
+    for suffix,handling,actions in [(args.generation,'simulated-empty-declaration',[{'action':'Escape'},{'action':'clear-restored-draft','key':'Control+C'},{'action':'declare-empty-release','truth':'empty'}]),
+                                  (args.generation+'-block','retain-draft-for-block',[{'action':'Escape'},{'action':'retain-restored-draft'},{'action':'declare-empty-release','truth':'intentionally-false'}])]:
         m=BASE/('p1-materials-'+suffix);a=json.loads((m/'approval.json').read_bytes());root=Path(a['input']['root'])
         assert root.is_dir() and root.as_posix().startswith('/private/tmp/t078-2-p1-09a3')
         assert sorted(x.name for x in (root/'repo').iterdir())==['value.txt']
@@ -39,7 +39,12 @@ try:
         scenario=json.loads((m/'scenario.json').read_bytes());assert scenario['name']=='esc-two' and scenario['draft_handling']==handling
         assert [x['mode'] for x in scenario['requests']]==['cancel','echo']
         assert scenario['requests'][0]['nonce']!=scenario['requests'][1]['nonce']
-        consent=json.loads((m/'actions-approval-template.json').read_bytes());assert consent['actions']==actions and consent['approved_by'] is None
+        consent=json.loads((m/'actions-approval-template.json').read_bytes())
+        assert consent['source']=='test-simulated-user' and consent['approved_by'] is None
+        assert [{k:v for k,v in step.items() if k not in ['approved_by','approval_ref','basis']} for step in consent['actions']]==actions
+        assert all(step['approved_by'] is None and step['approval_ref'] is None and step['basis'] is None for step in consent['actions'])
+        assert Path(consent['key_basis'])==BASE/'KEY-BASIS-09A3R2.md'
+        assert a['input']['code_revision']==json.loads((BASE/'source-freeze-09a3r2.json').read_bytes())['revision']
         template=json.loads((m/'screen-key-approval-template.json').read_bytes());assert template['approved_by'] is None
         assert template['trust_sequence']==['ArrowDown','Enter'] and template['trust_target']=='Yes, I trust this folder'
         assert (m/'security-notice-text.txt').read_bytes()==(BASE/'p1-materials-09a2/security-notice-text.txt').read_bytes()
@@ -52,6 +57,7 @@ try:
                 if n.endswith('.py'):ast.parse(data,filename=n)
         driver=json.loads((m/'scenario-driver.json').read_bytes());assert driver['starts']==0 and driver['real_model_budget']==0
         assert driver['expected_messages_requests']==(1 if suffix.endswith('-block') else 2)
+        assert driver['automation_source']=='test-simulated-user' and driver['control_c_attempt_budget']==(0 if suffix.endswith('-block') else 1)
         r['fixtures'].append({'materials':str(m),'root':str(root),'launch':a['input']['launch'],'session':a['input']['session'],
                               'code_revision':a['input']['code_revision'],'frozen_files':len(names)})
     for n in ['src/panes.ts','src/daemon.ts','src/gates/cli.ts','app/main.ts','app/preload.ts','tests/electron_driver.mjs']:

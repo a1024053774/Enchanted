@@ -60,6 +60,7 @@ async function main() {
   let firstSnapshot = true;
   let checkpoint = null;
   let outputPause = null;
+  let latestSnapshot = null;
   ipcMain.handle = (channel, handler) => originalHandle(channel, async (...args) => {
     // Only pause a subsequent read. Every daemon response below is delivered
     // unchanged, including its bytes and cursor. The PTY keeps running.
@@ -79,6 +80,7 @@ async function main() {
       }
     }
     if (channel === 'a2a:snapshot') {
+      latestSnapshot = value;
       appendFileSync(join(output, 'snapshots.ndjson'), JSON.stringify(value) + '\n');
       if (firstSnapshot) {
         stage('first_snapshot', { task: value.task?.task_id, gate: value.task?.state, launch: value.launch?.id ?? null });
@@ -103,6 +105,10 @@ async function main() {
       thread: document.querySelector('[data-thread-id]')?.dataset.threadId,
       active_dispatch: document.querySelector('[data-active-dispatch]')?.dataset.activeDispatch,
       input_enabled: document.querySelector('[data-input-enabled]')?.dataset.inputEnabled === 'true',
+      window_id: ${JSON.stringify(latestSnapshot?.window_id ?? null)},
+      interrupted: ${latestSnapshot?.pane?.interrupted === true},
+      interruption: ${JSON.stringify(latestSnapshot?.pane?.interruption ?? null)},
+      input_generation: ${JSON.stringify(latestSnapshot?.pane?.input_generation ?? null)},
       // xterm 6 AccessibilityManager renders CoreBrowserTerminal.buffer,
       // which is the active buffer, but its DOM refresh can lag term.write.
       terminal: [...document.querySelectorAll('.xterm-accessibility-tree [role="listitem"]')].map(x => x.textContent).join('\\n'),
@@ -195,17 +201,22 @@ async function main() {
           for (const type of ['mouseDown', 'mouseUp']) window.webContents.sendInputEvent({type, ...point, button:'left', clickCount:1});
           value = {sent:true, column:131, row:7, point, source:'test-simulated-mouse'};
         } else if (request.command === 'terminal-key') {
-          if (request.key !== 'Escape') throw new Error('Unsupported terminal key probe');
+          if (!['Escape', 'Control+C'].includes(request.key)) throw new Error('Unsupported terminal key probe');
           const view = await inspect();
           if (!request.launch || !request.thread || !request.dispatch || (values.launch && request.launch !== values.launch) ||
-              view.launch !== request.launch || view.thread !== request.thread || view.active_dispatch !== request.dispatch ||
+              view.launch !== request.launch || view.thread !== request.thread ||
+              (request.key === 'Escape' ? view.active_dispatch !== request.dispatch :
+                view.active_dispatch !== '' || !view.interrupted || !request.window_id || view.window_id !== request.window_id ||
+                !Number.isSafeInteger(request.interruption) || view.interruption !== request.interruption) ||
               view.state !== 'busy' || view.lifecycle !== 'running' || !view.input_enabled) {
             throw new Error('Window is not bound to the requested busy dispatch');
           }
           window.focus();
           await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
-          window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
-          window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+          const keyCode = request.key === 'Escape' ? 'Escape' : 'C';
+          const modifiers = request.key === 'Escape' ? [] : ['control'];
+          window.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
+          window.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
           value = { attempted: true, source: 'test-simulated-user', binding: view };
         } else if (request.command === 'queue-release') {
           value = await window.webContents.executeJavaScript(`new Promise(resolve => {
@@ -218,6 +229,7 @@ async function main() {
             };
             observe();
           })`);
+          value.source = 'test-simulated-user';
         } else if (request.command === 'terminal-empty-composition') {
           window.focus();
           await window.webContents.executeJavaScript(`(() => {

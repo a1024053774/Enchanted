@@ -9,7 +9,7 @@ const code = readFileSync(new URL('../app/main.ts', import.meta.url), 'utf8');
 const start = code.indexOf("    const writable =");
 const end = code.indexOf('\n  });', start);
 const evaluate = new Function('result', 'identity', 'closing', 'return (async()=>{' + code.slice(start, end) + '})()');
-const driver = readFileSync(new URL('./electron_driver.mjs', import.meta.url), 'utf8');
+const driver = readFileSync(process.argv[3] ?? new URL('./electron_driver.mjs', import.meta.url), 'utf8');
 const marker = "        } else if (request.command === 'terminal-key') {";
 const keyStart = driver.indexOf(marker) + marker.length;
 const keyEnd = driver.indexOf("        } else if (request.command === 'queue-release')", keyStart);
@@ -37,6 +37,22 @@ await test('bound_key_reports_attempt_not_delivery', async()=>{
   const v=await simulate(request,window,async()=>good,{launch:request.launch});
   assert.equal(v.attempted,true); assert.equal(v.sent,undefined); assert.equal(writes.length,2);
 });
+const controlRequest = {...request, key:'Control+C', window_id:'held-window', interruption:91};
+const held = {...good, active_dispatch:'', interrupted:true, window_id:'held-window', interruption:91};
+await test('bound_control_c_is_one_attempt_via_window_keys', async()=>{
+  const writes=[];const window={focus(){},webContents:{executeJavaScript:async()=>{},sendInputEvent:e=>writes.push(e)}};
+  const v=await simulate(controlRequest,window,async()=>held,{launch:request.launch});
+  assert.equal(v.attempted,true);assert.equal(v.source,'test-simulated-user');assert.equal(v.sent,undefined);
+  assert.deepEqual(writes,[{type:'keyDown',keyCode:'C',modifiers:['control']},{type:'keyUp',keyCode:'C',modifiers:['control']}]);
+});
+for (const [name,view] of [['control_c_rejects_active_generation',{...held,active_dispatch:request.dispatch}],
+  ['control_c_rejects_wrong_interruption',{...held,interruption:92}], ['control_c_rejects_other_window',{...held,window_id:'other'}],
+  ['control_c_rejects_readonly_window',{...held,input_enabled:false}]]) {
+  await test(name, async()=>{
+    const writes=[];const window={focus(){writes.push('focus');},webContents:{executeJavaScript:async()=>{},sendInputEvent:e=>writes.push(e)}};
+    await assert.rejects(()=>simulate(controlRequest,window,async()=>view,{launch:request.launch}));assert.deepEqual(writes,[]);
+  });
+}
 const r={status:checks.every(c=>c.status==='PASS')?'PASS':'INCOMPLETE',checks,argv:process.argv,
   scope:'Exact snapshot predicate and Electron key branch; archived 09A identity and a simulated renderer, no UI/socket/model starts'};
 writeFileSync(join(out,'results.json'),JSON.stringify(r,null,2)); console.log(JSON.stringify(r)); process.exitCode=r.status==='PASS'?0:1;

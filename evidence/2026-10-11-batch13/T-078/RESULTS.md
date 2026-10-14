@@ -627,3 +627,13 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 清理读回发现旧包文案把 slot 脚本的文件清单＋删除称作归档，实际没有 slot 内容归档／逐字节读回。已非 blocking 上报 [slot 文案问题](SLOT-CLEANUP-DOC-ISSUE-09A3R.md) 并更正新包；不修改旧日期记录、不改清理工具。两个新 slot 尚未创建，删除不在 launch 授权中，清理阶段由主控另行处置。
 
 真实两套场景、新候选独立 reviewer、09B／09C、系统 IME、真登录及整票验收仍 **INCOMPLETE**。本包不借旧材料批准，不把静态准备 PASS 或有界反例当可靠性结论。T-078 保持 open，不关闭、不集成、不 push。
+
+## 09A-3R2 驱动修改（主控 #150）
+
+主控提交 09a3r 材料 `6f0cfdb2c042ac27251dd979b56c792e4874f720` 后说明执行主控没有原生窗口操作工具，不能依赖用户在场，明确改为逐项预批的 test-simulated-user 清空及点击声明。该消息覆盖之前的人工步骤限制；后台仍不删字，原 Stop／拦截／API oracle 不改。旧材料保留，但当前驱动改变后不能再用于 launch。
+
+先写 [失败方式](FAILURE-MODES-09A3R2.md)，核对 [官方 Ctrl+C 依据](KEY-BASIS-09A3R2.md)，取得旧人工 runner 与父版本窗口按键分支红态；改动及边界见 [IMPLEMENTATION-09A3R2](IMPLEMENTATION-09A3R2.md)。新局部 runner 14/14、窗口分支 13/13、原收据 12/12 **PASS**；空框无条件通过及取消批准检查两项有效坏变异均被契约拒绝。属于实际脚本分支＋合成窗口事实，不是实际 CLI／xterm 绿态。
+
+正例在 Esc 写入／退休、API1 取消及恢复草稿可见后只经同窗口发一次 Control+C，完整 control action／准入／intent／written、新 offset、编辑区空框、截图和同 highwater PTY 原字节齐备后才点生产声明；反例不清空，只点击预批的故意不真实声明。每一步有独立批准人／引用／依据，source 明写 test-simulated-user，不能称用户亲手操作。任何不清空、残字、未知区、缺证、旧代次或额外输入均停，无第二 Ctrl+C、换键或重送。slot 删除按 #150 保留不执行，清理阶段再定。
+
+本轮只改测试／材料工具，src/app/hooks 与 T-080 文件未动；未启动 CLI／API／后台／UI／构建或真实模型。主控冻结修改后才生成两套新 09a3r2 ID／HOME／nonce；新材料静态核对及实际场景当前 **INCOMPLETE**。新候选独立 reviewer、09B／09C、系统 IME、真登录和整票仍 **INCOMPLETE**，不关闭、不集成、不 push。

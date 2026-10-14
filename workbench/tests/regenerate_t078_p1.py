@@ -8,8 +8,8 @@ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--label
 args=parser.parse_args()
 if not args.label.startswith('p1-materials-'):parser.error('A new p1-materials-NN label is required')
 suffix=args.label[len('p1-materials-'):]
-if not (suffix in ['09a2','09a3','09a3-block','09a3r','09a3r-block'] or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A supported fresh material label is required')
-two_turn=suffix in ['09','09a2','09a3','09a3-block','09a3r','09a3r-block']
+if not (suffix in ['09a2','09a3','09a3-block','09a3r','09a3r-block','09a3r2','09a3r2-block'] or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A supported fresh material label is required')
+two_turn=suffix in ['09','09a2','09a3','09a3-block','09a3r','09a3r-block','09a3r2','09a3r2-block']
 out=BASE/args.label;out.mkdir()
 root=Path(tempfile.mkdtemp(prefix='t078-2-p1-'+suffix+'-',dir='/tmp')).resolve()
 record={'status':'INCOMPLETE','argv':__import__('sys').argv,'root':str(root),'real_cli_starts':0,'api_starts':0}
@@ -30,6 +30,7 @@ try:
         requests.append({'nonce':(root/'nonce-2.txt').read_text(),'mode':'echo','ack':'P2_ACK'})
     scenario={'schema':1,'name':'esc-two' if two_turn else 'single','requests':requests}
     if suffix in ['09a3','09a3-block','09a3r','09a3r-block']:scenario['draft_handling']='retain-draft-for-block' if suffix.endswith('-block') else 'manual-empty-declaration'
+    if suffix in ['09a3r2','09a3r2-block']:scenario['draft_handling']='retain-draft-for-block' if suffix.endswith('-block') else 'simulated-empty-declaration'
     with (root/'scenario.json').open('x',encoding='utf-8') as f:json.dump(scenario,f,indent=2)
     with (root/'input.json').open('x',encoding='utf-8') as f:json.dump(manifest,f,ensure_ascii=False,indent=2)
     subprocess.run(['node',SOURCE/'workbench/tests/prepare_t078_p1.ts',root/'input.json',root/'approval.json'],cwd=SOURCE,check=True)
@@ -52,7 +53,7 @@ try:
              'isolated_settings':{'path':str(root/'claude/settings.json'),'content':{'theme':'dark'},'approval_file':str(out/'isolated-settings.json')},
              'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':manifest['turn_limit'],'start_runs':0}
     with (out/'control-plane.json').open('x',encoding='utf-8') as f:json.dump(control,f,ensure_ascii=False,indent=2)
-    names=['test_t078_empty_declaration_entry.ts','test_t078_window_binding.mjs','test_t078_window_receipts.py','p1_window_receipts.py','cleanup_t078_electron_slot.py','test_t078_claude_signals.ts','test_t078_claude_epochs.ts','test_t078_controller_window.ts','test_t078_two_turn_profile.ts','test_t078_fake_two_requests.py','electron_client.py','electron_driver.mjs','t078_runtime_scenario.py','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
+    names=['test_t078_empty_declaration_entry.ts','test_t078_window_binding.mjs','test_t078_window_receipts.py','p1_window_receipts.py','p1_simulated_actions.py','test_t078_simulated_draft.py','cleanup_t078_electron_slot.py','test_t078_claude_signals.ts','test_t078_claude_epochs.ts','test_t078_controller_window.ts','test_t078_two_turn_profile.ts','test_t078_fake_two_requests.py','electron_client.py','electron_driver.mjs','t078_runtime_scenario.py','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
            'regenerate_t078_p1.py','run_t078_p1.py','t078_fake_messages.py','command_evidence.py','archive_t078_evidence.py']
     extra=[]
     for p in args.extra_source:

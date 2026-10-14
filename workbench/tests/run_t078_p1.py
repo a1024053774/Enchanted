@@ -165,10 +165,9 @@ try:
     elif args.phase=='continue-esc':
         if approval['input']['turn_limit']!=2 or not args.actions_approval:raise RuntimeError('Explicit two-turn actions approval required')
         handling=json.loads((root/'scenario.json').read_text(encoding='utf-8')).get('draft_handling')
-        if handling not in ['manual-empty-declaration','retain-draft-for-block']:raise RuntimeError('Explicit 09A-3 draft handling required; old automatic release retired')
-        actions=['Escape','manual-draft-handling','empty-declaration-release'] if handling=='manual-empty-declaration' else ['Escape','retain-draft','false-empty-declaration-release']
+        from p1_simulated_actions import validate_actions
         consent=json.loads(args.actions_approval.read_text(encoding='utf-8'))
-        if any(consent.get(k)!=approval['input'][k] for k in ['launch','session']) or consent.get('actions')!=actions or consent.get('approved_by')!='executor' or not consent.get('approval_ref') or not consent.get('basis'):raise RuntimeError('Actions approval binding mismatch')
+        validate_actions(approval,consent,handling)
         result['actions_approval']=consent;thread=verify_readiness()
         from electron_client import ElectronClient
         slot='t078-09-'+approval['input']['launch']
@@ -192,7 +191,7 @@ try:
             result['window_before_esc']=view
             prior=events();after_seq=max(e['seq'] for e in prior)
             window_id=next(e['data']['window_id'] for e in reversed(prior) if e['type']=='window_opened' and e['launch']==binding['launch'])
-            result['key_attempt']=client.call('terminal-key',key='Escape',**binding);save()
+            result['key_attempt']=client.call('terminal-key',key='Escape',**binding,source='test-simulated-user',approval_ref=consent['actions'][0]['approval_ref']);save()
             from p1_window_receipts import confirmed_escape
             def receipt():return confirmed_escape(events(),user_inputs(),**binding,window=window_id,after_seq=after_seq)
             wait(lambda:receipt() is not None)
@@ -203,17 +202,50 @@ try:
             assert not (root/'api-request-2.json').exists() and not any(e['type']=='turn_end_signal' for e in events())
             result['after_esc']=held;result['cancelled_request']=json.loads((root/'api-cancelled-1.json').read_bytes());save()
             client.call('capture',name='before-user-release')
+            from p1_simulated_actions import prompt_frame,bound_held
+            from p1_window_receipts import confirmed_control
             result['draft_handling']=handling
-            result['waiting_for']='主控在本隔离窗口自行处理草稿、看到空框后点击“输入框已空，放行”。反例则保留恢复的草稿，声明为空；本驱动不代发清空键。'
-            print(json.dumps({'phase':'manual-draft-handling','launch':approval['input']['launch'],'window_id':window_id,'handling':handling,'instructions':result['waiting_for']},ensure_ascii=False),flush=True);save()
-            # The operator controls the visible isolated window. This harness
-            # never sends a clear key or automates a declaration in either case.
-            wait(lambda:any(e['type']=='user_queue_release' and e['launch']==binding['launch'] for e in events()),180)
+            result['automation']={'source':'test-simulated-user','approved_by':'executor','approval_ref':consent['approval_ref'],'actions':consent['actions']}
+            nonce1=(root/'nonce.txt').read_text(encoding='utf-8')
+            view=client.wait(lambda v:bound_held(v,binding) and nonce1 in prompt_frame(v)['text'])
+            restored=client.call('capture',name='restored-draft')
+            assert bound_held(restored,binding) and restored['window_id']==window_id and nonce1 in prompt_frame(restored)['text']
+            result['restored_draft']=restored
+            draft_status=call('pane_status','--thread',thread)
+            assert draft_status['interruption']==held['interruption'] and draft_status['input_generation']==held['input_generation'] and draft_status['active'] is None
+            if handling=='simulated-empty-declaration':
+                before_output=call('pane_output','--launch',binding['launch'],'--offset','0')
+                before_clear=max((e['seq'] for e in events()),default=after_seq)
+                result['clear_attempt']=client.call('terminal-key',key='Control+C',**binding,window_id=window_id,interruption=held['interruption'],approval_ref=consent['actions'][1]['approval_ref'])
+                def clear_receipt():return confirmed_control(events(),user_inputs(),launch=binding['launch'],thread=thread,window=window_id,after_seq=before_clear,data='\x03')
+                wait(lambda:clear_receipt() is not None)
+                result['clear_delivery']=clear_receipt();save()
+                after_clear=call('pane_status','--thread',thread)
+                assert after_clear['active'] is None and after_clear['interruption']==held['interruption'] and after_clear['input_generation']==held['input_generation']+1
+                empty=client.wait(lambda v:bound_held(v,binding) and v.get('interruption')==held['interruption'] and
+                                  v.get('input_generation')==after_clear['input_generation'] and v['offset']>before_output['total_bytes'] and prompt_frame(v)['empty'])
+                with client.output_checkpoint(empty['offset']) as checkpoint:
+                    captured=client.call('capture',name='cleared-draft')
+                    assert bound_held(captured,binding) and captured['window_id']==window_id and captured['interruption']==held['interruption']
+                    assert captured['input_generation']==after_clear['input_generation'] and captured['offset']==checkpoint['highwater'] and prompt_frame(captured)['empty']
+                    raw=call('pane_output','--launch',binding['launch'],'--offset','0')
+                    data=base64.b64decode(raw['data_base64']);assert len(data)>=checkpoint['highwater']
+                    with (out/'cleared-draft-pty.bin').open('xb') as stream:stream.write(data[:checkpoint['highwater']])
+                    result['empty_editor_observation']={'frame':prompt_frame(captured),'snapshot':captured,'pty_highwater':checkpoint['highwater'],'pty_file':'cleared-draft-pty.bin'}
+            else:
+                assert handling=='retain-draft-for-block'
+                after_clear=draft_status
+            fresh=call('pane_status','--thread',thread)
+            assert fresh['interruption']==held['interruption'] and fresh['input_generation']==after_clear['input_generation'] and fresh['active'] is None
+            result['declaration_click']=client.call('queue-release',source='test-simulated-user',approval_ref=consent['actions'][2]['approval_ref'],launch=binding['launch'],interruption=held['interruption'],input_generation=fresh['input_generation'])
+            assert result['declaration_click']['clicked'] is True and result['declaration_click']['source']=='test-simulated-user';save()
+            wait(lambda:any(e['type']=='user_queue_release' and e['launch']==binding['launch'] for e in events()))
             release_event=next(e for e in events() if e['type']=='user_queue_release' and e['launch']==binding['launch'])
             declarations=[r for r in user_inputs() if r.get('content',{}).get('action')=='queue-release']
             assert len(declarations)==1 and declarations[0]['text']=='用户声明输入框已空'
             assert declarations[0]['content']['declaration']==release_event['data']['declaration']
             assert release_event['data']['declaration']['interruption']==held['interruption']
+            assert release_event['data']['declaration']['input_generation']==fresh['input_generation']
             result['user_release']=release_event;result['declaration']=declarations[0];save()
             client.call('capture',name='after-declaration')
             if handling=='retain-draft-for-block':
@@ -240,7 +272,8 @@ try:
                 manual=[r for r in user_inputs() if r['source_ref'].get('window_id')==window_id and
                         result['escape_delivery']['action']['source_ref']['source_sequence']<r['source_ref'].get('source_sequence',0)<declarations[0]['source_ref']['source_sequence']]
                 assert manual,'No separately recorded draft handling before the empty declaration'
-                result['manual_draft_handling']=manual;save()
+                assert result['clear_delivery']['action'] in manual
+                result['simulated_draft_inputs']=manual;save()
                 wait(lambda:(root/'api-request-2.json').exists() and len([e for e in events() if e['type']=='turn_start_signal'])==2)
                 prompt2=[e['data']['prompt_id'] for e in events() if e['type']=='turn_start_signal'][-1];assert prompt2 and prompt2!=prompt1
                 active2=call('pane_status','--thread',thread);assert active2['state']=='busy' and active2['active']['dispatch']==second['dispatch']['id']
@@ -255,7 +288,7 @@ try:
                 result['events']=final;result['hook_receipts']=raw_hook_receipts();result['after_completion']=call('pane_status','--thread',thread)
                 client.call('capture',name='second-completion');result['pty_output']=snapshot()
                 assert ('P2_ACK '+(root/'nonce-2.txt').read_text()).encode() in base64.b64decode(result['pty_output']['data_base64'])
-                result['status']='PASS';result['scope']='09A-3 manual draft handling and empty declaration, real CLI with two exact fake API requests; not dual-controller or emergency-stop proof'
+                result['status']='PASS';result['scope']='09A-3 executor-approved test-simulated-user clear/declaration, real CLI with two exact fake API requests; not a real-user or dual-controller claim'
         finally:client.close()
     else:
         attempted=False
