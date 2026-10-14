@@ -59,3 +59,7 @@ worker 非阻塞问题 ISSUE-dispatch-tier-record（dispatch_intent 速度标签
 ## rebase-final-01 读回（2026-10-14 UTC 02:54）
 
 INCOMPLETE，rc=1：3 条 joint 变体红态、7 条冲突红态、joint-candidate 通过；s3-all 24/25，test_integrated_run_cleanup ERROR（legacy_quality_driver finalize_run："Run review binding differs from the submitted candidate."），其后子阶段未跑。不重试；交 worker 诊断（夹具或产品），与审查 worktree 命名/清理缺陷一起修，准备 rebase-final-02。
+
+## rebase-final-02 批准（2026-10-14 UTC 03:5x）
+
+审阅 7b3463c4（夹具 driver 把 reviewing/null 误判为绑定不符；产品绑定正确，非产品缺陷）与 5d0bf1e8（审查 worktree 命名 `<task>-a<N>-review-<K>`，结果入库且 reviewer 停止归档后核对身份/HEAD/干净再删并读回，事件追加，不改 review 对象；脏/未知保留上报）。提交无超 5 MB 文件。批准运行 `rebase-final-02`（39 子阶段，含修前副本上四条审查清理反例，模型 0）。
