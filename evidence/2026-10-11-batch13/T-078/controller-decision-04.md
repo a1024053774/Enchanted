@@ -75,3 +75,12 @@ AUTH_TOKEN 生效：假 API 收到 1 条 /v1/messages（CLI 的会话标题侧�
 ## P1 批准（材料 08b launch，2026-10-14 UTC 02:5x）
 
 审阅 exec/t078 `2d204c31`（产品 2f6d31ea：pane_trust 改为逐屏一次性 pane_screen_key，不留并行接口）。主题屏无数字编号，按官方 Select 操作用 ArrowUp/ArrowDown/Enter；Enter 只在读回已明确移到 Dark 后单独批准，后台拒绝默认 Enter。批准 `p1-launch-08b` 一次（启动、读屏，按键 0、模型 0）。每个按键逐屏读回后另批。批准引用：`T-078 controller-decision-04 p1-08b-launch`。
+
+## p1-08b 逐屏按键读回与 cleanup（2026-10-14 UTC 02:48–02:5x）
+
+- launch：PASS 启动，launch 自带 screen.bin 仅 13 字节（截取过早）。只读 `screen-theme-01`（3,576 字节）：首次引导主题屏，光标在已勾选 Dark mode。
+- `theme-01` 批准 ArrowUp（onboarding-theme，目标 Auto）→ 发送；读回 `screen-theme-02`（3,746 字节），增量重绘光标到 Auto。
+- `theme-02` 批准 ArrowDown（目标 Dark mode）→ 发送；读回 `screen-theme-03`（3,906 字节），增量重绘光标到 Dark mode。
+- `theme-03` 批准 Enter（确认明确所选 Dark mode）→ 门禁拒绝 `theme_selection_not_explicit`，未写 PTY（读回 `screen-after-theme-01` 仍 3,906 字节）。按设计停，不重试。
+- 批准并运行 `p1-cleanup-08b`：PASS，无残留进程。
+结论：INCOMPLETE。门禁对"Enter 前一条登记导航须是从 Auto 的 ArrowDown"的核对与实际登记不符，属 2f6d31ea 新代码缺陷，交 worker 诊断（以 key-theme-0x/ 与 cleanup 归档为据），需修复后另起新实例。批准引用：`T-078 controller-decision-04 p1-08b-keys`。
