@@ -91,3 +91,7 @@ reviewer（fresh-context，请求 gpt-6.1-sol/xhigh，tier 未观察）：INCOMP
 ## 第二次重启后（2026-10-14 本地 08:3x）与 conflict-red-final-02 批准
 
 用户原话（经构思主控逐字转述）："刚刚重启了，继续，不要并行太多，不知道是终端内存泄露了还是并发太多了。" 并发上限：同一时刻 1 个 worker、1 个重型测试，不同时开 reviewer 与 worker，不开 monitor；先 T-077，T-078 待 T-077 合并后再起。Herdr 又把 08:15 的两个新会话以裸 resume 恢复（wF:p3M 01a13a55-d655…，wF:p3N 01a13a55-da30…，均显示 "Conversation interrupted"）；核对无未提交产品改动（T-077 已提交 628234b7 = conflict-red-final-02 阶段；T-078 留有未提交的 BLOCKED 报告与 issue，原样保留）后关闭两窗格，15 秒内无再拉起。另两个裸 resume（01a13800…、01a138b2…）属用户其他工作区，未动。空闲内存 59%，无 worker 在跑。依 answer 20261014T121326Z（"重跑 (Recommended)"）批准并运行 `conflict-red-final-02`（产品 5d0bf1e8 不变，模型 0）。
+
+## conflict-red-final-02 读回与复审安排（2026-10-14 UTC 12:3x）
+
+PASS，rc=0（产品 5d0bf1e8、夹具 178d15f3、checkout 628234b7，模型 0）。red-01～07 全部 TARGET_FAILED；06/07 分别失败于 "Conflict rework still rejects the forbidden path at verify"/"...foreign trailer at verify"，前置清单含 conflict_delivered、explicit_resubmitted、target_verify_executed；候选 PASS。F1 证据缺口已补。开一个全新 worker s13-t077r（wF:p3P，launch-a85f0cb6…，空闲内存 68%）提交结果并以 spawn_agent 做 F1 差异的 fresh-context 只读复审（同一 Codex 进程，worker 复审期间不作业）。
