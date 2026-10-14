@@ -250,3 +250,7 @@ worker 读回：登记 dispatch2、UPS2 与 API3 文本逐字相同；API3 user.
 
 green-3：主题三键、Security notes、信任 ArrowDown→Yes→Enter（/private/tmp/t078-2-p1-slice1-green-3-jzfi4ju5/repo）均生效，读回主提示符；写 readiness 与 submit-approval，批准 submit 一次（ref T-078 controller-decision-04 slice1-green-3-submit）。
 green-3 permission：原生许可屏命令一致、一次性 Yes，permission_wait seq 57；批准一次 Enter（ref T-078 controller-decision-04 slice1-green-3-permission）。
+
+## green-3 读回：单角色切片 PASS（2026-10-15 UTC 01:0x）
+
+permission 阶段 PASS（模型 0）。执行主控逐项核对：假 API 恰 3 次（API2 回 SLICE1_TOOL_RESULT_RECORDED、API3 回 SLICE1_FINAL_ACK），无 api-error；controller 请求 inbox_list（schema 2，绑定 launch/native session/preset ideation/prompt_id）在真实 Stop 时 relay_processed 一次；参数 --role executor 未覆盖凭据——返回的是 IDEATION_ONLY_SENTINEL；门禁反馈作为第二根（prompt_id dc91281d…）到达；turn_submit_intent 2（seq48、100）、turn_end_signal 2、pane_idle 2；许可 Enter 记为 control action（\r，form action），不新增 intent。单角色 controller inbox 转交切片在真实 CLI（假服务）上成立。下一步：清理本实例、冻结证据；然后按计划冻结 09B 材料交审。
