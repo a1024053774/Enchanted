@@ -51,3 +51,5 @@ ready_rev: 1
 2026-10-14，以上为 T-078-1 交付时点。用户已答复认证与预算，T-078-2 经逐次批准推进假服务验证：08e 的真实 CLI 单回合、实际 UserPromptSubmit/Stop、busy→idle 与主 Messages 请求均 PASS，真实供应商模型回合为 0。结论绑定变基前代码，尚不证明双主控／紧急停止／真登录。原件与边界见 [RESULTS](../../evidence/2026-10-11-batch13/T-078/RESULTS.md)。
 
 09A 的 Esc 实跑 INCOMPLETE，失败和外置原件保留。主控 #122 要求的只读诊断确认驱动过早发键及 nullable 主控窗口永久禁输入；修复独立提交 `7cd19b586fe757268384d99f243f5d0a583a5ad3`，域／驱动红转绿，收据及身份反例通过。[09A-2 材料](../../evidence/2026-10-11-batch13/T-078/P2-APPROVAL-09A2.md) 静态准备 PASS，实际启动未执行，待主控审批。T-077 合入后才变基、重新生成并完整重跑；09B/09C 与真登录仍未完成。整票保持 open、INCOMPLETE、待主控关闭。
+
+主控 #124 随后实跑 09A-2：Esc 送达／退休／队列 held 正例成立，但放行把 CLI 恢复进编辑框的第一提示与第二条拼接，hook/API 原件确认，产品 INCOMPLETE。只读诊断、最小方案与用户输入语义取舍见 [DRAFT-OPTIONS](../../evidence/2026-10-11-batch13/T-078/DRAFT-OPTIONS-09A2.md)。草稿占用标记不等于 CLI 编辑框检测；本轮未实现任何修复选项，停在方案决定。失败根及 slot 的外置归档／处置脚本另交主控执行，不把清理通过算作产品通过。整票仍 open、INCOMPLETE、待主控关闭。

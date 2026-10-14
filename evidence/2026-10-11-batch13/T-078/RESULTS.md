@@ -563,3 +563,19 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 新实例 `/private/tmp/t078-2-p1-09a2-sm_du7jo`，新 launch/session/thread，73 文件冻结；[材料 09A-2](P2-APPROVAL-09A2.md) 列完整 argv/env、逐屏审批、窗口与后台读回停点、预算和清理。冻结静态检查 PASS；实际 09A-2 未运行，仍 INCOMPLETE。旧 09 slot 明确为本 worker 夹具所有，已提供主控执行的 p1-slot-cleanup-09：确认 fixture cleanup PASS、Electron quit/PID 退出和构建来源后保留清单再删精确 slot；本轮未清理，新 slot 亦须在 cleanup 后单独清理。
 
 各原件／域检查／反例的重放命令在材料末节及对应 argv/commands.jsonl；完整读回脚本只读外置归档明确成员。不覆盖失败、不改变真实模型预算或引导授权。T-077 合入后再变基并重跑，当前只绑定变基前版本。09B/09C 双主控、紧急停止与真登录均仍未完成；T-078 整票 INCOMPLETE、open、待主控关闭。
+
+## 09A-2 实跑失败与草稿方案交接（主控 #124）
+
+09A-2 实际引导／信任通过，A1/A2/A3 成立：窗口确实发出 Esc，库保存同请求 action／准入／意图／写入／退休；active=null，busy/interrupted、第二 nonce 留队列，API1 的 peer 在放行前关闭。A4 后实际 prompt 却是第一条＋第二条的精确拼接；fake API 拒收，产品仍 INCOMPLETE，没有修改独立声明或业务断言。
+
+[本轮只读读回](draft-readback-09a2/result.json) 核对保留根／外置 pty.raw（17,573 字节）一致；Esc 前已渲染至 11,917，放行前至 13,245，其增量含第一 nonce 的输入框重绘、没有第二 nonce。实际截图已目视确认恢复的第一条位于可编辑输入框。后台只新写第二条的 bracketed paste＋单独 CR，一次，没有清空键。第二真实 UserPromptSubmit 同样携带拼接正文、exit 1；API 记录三次主请求，后两次正文相同。重复请求的内部原因未确认，不算 a2a 新登记或重派发。
+
+`user_draft=true` 来自 userInput 处理非二进制输入（含 Esc）时设置的占用标记，并非观测 CLI 草稿。releaseByUser 清理的是这个后台状态，没有清空编辑框。结合截图、hook/API 正文和单次新注入，确认“恢复的提示仍在框内，放行追加第二条”的机理；CLI 内部实现与其他编辑上下文仍未知。
+
+[DRAFT-OPTIONS](DRAFT-OPTIONS-09A2.md) 区分事实／推断／未知，给出 A（用户处理草稿后明确确认空框放行，建议）与 B（另批丢弃草稿、后台先清空）的最小流程及取舍；列官方按键依据、Ctrl+U 多行限制、Ctrl+C 上下文风险和输入记录语义决定点。仅拒绝 user_draft 而没有确认解除入口不构成完整修复。第二 hook exit 1 不阻断 CLI 请求的事实与提交前阻断选项也列出，不能替代草稿处理或泛化为拒绝所有用户提交。本轮没有实现任何选项、发送按键、启动 CLI/API/UI 或运行模型。
+
+主控已确认停止自建进程，CLI 退出核对 PASS；cleanup 整体 INCOMPLETE、slot-cleanup BLOCKED 原件保留。fixture 8,124,728 字节已由主控外置、字节读回，[manifest 93611737…](external-archive-93611737c0674a7aa55d1fcf3863a0b0.json) 已保留。根与 09A-2 slot 仍在；旧 09 slot 已由主控独立清理 PASS。
+
+独立处置阶段 `p1-draft-disposal-09a2-01` 已写入 outside-sandbox.sh，交主控审批执行：核对精确归属／已知退出与五个 PID 不存在，把根和 slot 全部直接归档到外置盘、不跟随两条链接，逐成员字节读回通过后才删除自己的两个目录；不发信号、不修改产品失败状态。归档函数本地正例及实际复制链接目标的坏变异反例 [2/2 PASS](draft-disposal-static-09a2/result.json)，没有执行真实根／slot 的进程检查、外置写入或删除。重放命令与未来外置路径见方案文档末节。
+
+方案决定仍待主控／构思主控，用户输入记录含义有变化的项已标明；后续新 Tracer bullet 仍逐次审批。T-078 open、INCOMPLETE、待主控关闭；真实双主控／紧急停止／真登录及变基后的完整验证均未完成。

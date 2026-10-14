@@ -3,6 +3,10 @@ set -eu
 base=/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-materials-09a2
 extra=()
 case "${1:-p1-launch-09a2}" in
+  p1-draft-disposal-09a2-01)
+    if [ -z "${2:-}" ]; then echo 'Explicit controller approval reference required; no cleanup performed' >&2; exit 2; fi
+    /usr/bin/python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/dispose-draft-09a2.py --approval-ref "$2"
+    exit ;;
   p1-launch-09a2) phase=launch ;;
   p1-screen-09a2)
     phase=screen
