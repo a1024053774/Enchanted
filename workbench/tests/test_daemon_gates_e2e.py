@@ -36,6 +36,8 @@ class DaemonCards(previous.TaskCardsCLI):
         boundary = self.root / 'worker-control'; boundary.mkdir()
         (boundary / 'store.json').write_text(json.dumps(dict(threads={}, next=0, scenario='done-no-submit', prompts=[], closes=[], archived={})) + '\n', encoding='utf-8')
         self.worker_control = boundary
+        self.operator_credential = self.root / 'operator.credential.json'
+        self.env['A2A_OPERATOR_CREDENTIAL'] = str(self.operator_credential)
         control = prepare_review_control(self.root)
         self.quality = QualityDriver(previous.GATE, self.state, control, self.env)
         self.integration_score = None
@@ -67,6 +69,7 @@ class DaemonCards(previous.TaskCardsCLI):
         self.assertFalse((state / 'daemon.pid').exists(), 'own daemon must stop before archiving')
         self.host.wait(timeout=10)
         self.host_stdout.close(); self.host_stderr.close()
+        self.operator_credential.unlink()
 
     def cli(self, command, *args, **kwargs):
         if command == 'create' and '--project' not in args:

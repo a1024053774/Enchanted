@@ -1,0 +1,268 @@
+{
+  "status": "PASS",
+  "task": "T-078-1",
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_inbox_entry.py",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/post-rebase-2-outside-01/inbox-entry"
+  ],
+  "fixture": "/private/tmp/t78-inbox-2zyz2obc",
+  "checks": [
+    {
+      "name": "ready_only_bound_executable_ticket",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "ready": [
+          {
+            "id": "Q-ready",
+            "title": "Q-ready",
+            "type": "build",
+            "ready_by": "ideation",
+            "ready_rev": 1
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "unknown_project_rejected",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "unknown_project",
+        "details": "Error: unknown_project"
+      }
+    },
+    {
+      "name": "list_role_from_credential",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "entries": [
+          {
+            "entry": {
+              "id": "fixture-handoff",
+              "schema": 1,
+              "from": "ideation",
+              "to": "executor",
+              "kind": "assign",
+              "reply_to": null,
+              "refs": [],
+              "created_at": "2026-10-11T00:00:00Z",
+              "body": "预置交接输入，不是 Claude 的真实发送。"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "send_records_actual_actor_without_claiming_delivery",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "entry": {
+          "id": "6d4ede6c-2940-4d9d-837d-9a32491fad55",
+          "schema": 1,
+          "kind": "report",
+          "from": "executor",
+          "to": "ideation",
+          "reply_to": null,
+          "refs": [],
+          "created_at": "2026-10-14T19:57:19.054Z",
+          "body": "报告正文：不应变成用户输入。\n"
+        },
+        "delivery": {
+          "state": "undelivered",
+          "entry_id": "6d4ede6c-2940-4d9d-837d-9a32491fad55",
+          "created_at": "2026-10-14T19:57:19.054Z",
+          "reason": "role_session_missing"
+        },
+        "error": "wake_undelivered"
+      }
+    },
+    {
+      "name": "ack_once_by_real_recipient",
+      "status": "PASS",
+      "observed": {
+        "first": {
+          "ok": false,
+          "entry": {
+            "id": "2123f9c4-b25a-4f39-bb68-0dafa8bb53db",
+            "schema": 1,
+            "kind": "ack",
+            "from": "executor",
+            "to": "ideation",
+            "reply_to": "fixture-handoff",
+            "refs": [],
+            "created_at": "2026-10-14T19:57:19.181Z",
+            "body": "确认收到。"
+          },
+          "delivery": {
+            "state": "undelivered",
+            "entry_id": "2123f9c4-b25a-4f39-bb68-0dafa8bb53db",
+            "created_at": "2026-10-14T19:57:19.181Z",
+            "reason": "role_session_missing"
+          },
+          "error": "wake_undelivered"
+        },
+        "second": {
+          "ok": false,
+          "entry": {
+            "id": "2123f9c4-b25a-4f39-bb68-0dafa8bb53db",
+            "schema": 1,
+            "kind": "ack",
+            "from": "executor",
+            "to": "ideation",
+            "reply_to": "fixture-handoff",
+            "refs": [],
+            "created_at": "2026-10-14T19:57:19.181Z",
+            "body": "确认收到。"
+          },
+          "delivery": {
+            "state": "undelivered",
+            "entry_id": "2123f9c4-b25a-4f39-bb68-0dafa8bb53db",
+            "created_at": "2026-10-14T19:57:19.181Z",
+            "reason": "role_session_missing"
+          },
+          "error": "wake_undelivered"
+        },
+        "acks": [
+          {
+            "id": "2123f9c4-b25a-4f39-bb68-0dafa8bb53db",
+            "schema": 1,
+            "kind": "ack",
+            "from": "executor",
+            "to": "ideation",
+            "reply_to": "fixture-handoff",
+            "refs": [],
+            "created_at": "2026-10-14T19:57:19.181Z",
+            "body": "确认收到。"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ack_removes_original_from_unconfirmed",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "entries": []
+      }
+    },
+    {
+      "name": "anonymous_send_cannot_create_entry",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "caller_identity_required",
+        "details": "Error: caller_identity_required"
+      }
+    },
+    {
+      "name": "invalid_ready_metadata_is_reported",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "ready": [
+          {
+            "id": "Q-ready",
+            "title": "Q-ready",
+            "type": "build",
+            "ready_by": "ideation",
+            "ready_rev": 1
+          }
+        ],
+        "diagnostics": [
+          "Q-bad: missing_ready_fields"
+        ],
+        "error": "invalid_ready_tickets"
+      }
+    }
+  ],
+  "real_model_turns": 0,
+  "claude_fixture": false,
+  "cleanup_complete": true,
+  "limitations": [
+    "没有实际主控接收者，送达路径尚未验证；预置 handoff 只是持久化输入夹具。"
+  ],
+  "seeded_handoff": {
+    "id": "fixture-handoff",
+    "schema": 1,
+    "from": "ideation",
+    "to": "executor",
+    "kind": "assign",
+    "reply_to": null,
+    "refs": [],
+    "created_at": "2026-10-11T00:00:00Z",
+    "body": "预置交接输入，不是 Claude 的真实发送。"
+  },
+  "daemon": {
+    "ok": true,
+    "pid": 89691,
+    "root": "/private/tmp/t78-inbox-2zyz2obc/state",
+    "helper": "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper"
+  },
+  "readback": {
+    "inbox_records": [
+      {
+        "id": "fixture-handoff",
+        "schema": 1,
+        "from": "ideation",
+        "to": "executor",
+        "kind": "assign",
+        "reply_to": null,
+        "refs": [],
+        "created_at": "2026-10-11T00:00:00Z",
+        "body": "预置交接输入，不是 Claude 的真实发送。"
+      },
+      {
+        "id": "6d4ede6c-2940-4d9d-837d-9a32491fad55",
+        "schema": 1,
+        "kind": "report",
+        "from": "executor",
+        "to": "ideation",
+        "reply_to": null,
+        "refs": [],
+        "created_at": "2026-10-14T19:57:19.054Z",
+        "body": "报告正文：不应变成用户输入。\n"
+      },
+      {
+        "id": "2123f9c4-b25a-4f39-bb68-0dafa8bb53db",
+        "schema": 1,
+        "kind": "ack",
+        "from": "executor",
+        "to": "ideation",
+        "reply_to": "fixture-handoff",
+        "refs": [],
+        "created_at": "2026-10-14T19:57:19.181Z",
+        "body": "确认收到。"
+      }
+    ],
+    "inbox_deliveries": [
+      {
+        "state": "pending",
+        "entry_id": "6d4ede6c-2940-4d9d-837d-9a32491fad55",
+        "created_at": "2026-10-14T19:57:19.054Z"
+      },
+      {
+        "state": "undelivered",
+        "entry_id": "6d4ede6c-2940-4d9d-837d-9a32491fad55",
+        "created_at": "2026-10-14T19:57:19.054Z",
+        "reason": "role_session_missing"
+      },
+      {
+        "state": "pending",
+        "entry_id": "2123f9c4-b25a-4f39-bb68-0dafa8bb53db",
+        "created_at": "2026-10-14T19:57:19.181Z"
+      },
+      {
+        "state": "undelivered",
+        "entry_id": "2123f9c4-b25a-4f39-bb68-0dafa8bb53db",
+        "created_at": "2026-10-14T19:57:19.181Z",
+        "reason": "role_session_missing"
+      }
+    ],
+    "user_inputs": []
+  }
+}

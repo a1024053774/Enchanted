@@ -1,4 +1,4 @@
-"""Run the frozen post-rebase regressions sequentially, without vendor CLIs."""
+"""Resume frozen post-rebase regressions at cards, without vendor CLIs."""
 import argparse
 import json
 import os
@@ -73,7 +73,7 @@ def main():
 
     save()
     try:
-        freeze = json.loads((BASE / 'post-rebase-2-source-freeze.json').read_bytes())
+        freeze = json.loads((BASE / 'post-rebase-2b-source-freeze.json').read_bytes())
         head = run(['git', 'rev-parse', 'HEAD']).strip()
         if head != freeze['revision']:
             raise RuntimeError('Frozen revision changed.')
@@ -87,9 +87,22 @@ def main():
             raise RuntimeError('External build-cache volume missing; no fallback.')
         save()
 
-        target = out / 'inbox-entry'
-        run(['python3', '-B', ROOT / 'workbench/tests/test_t078_inbox_entry.py', '--output', target], 180)
-        verify('inbox-entry', target / 'results.json', 8, cleanup=True)
+        previous = BASE / 'post-rebase-2-outside-01'
+        prior = json.loads((previous / 'result.json').read_bytes())
+        inbox = json.loads((previous / 'inbox-entry/results.json').read_bytes())
+        if (prior['status'] != 'INCOMPLETE' or prior['revision'] != freeze['reused_inbox_revision']
+                or inbox['status'] != 'PASS' or inbox['cleanup_complete'] is not True
+                or len(inbox['checks']) != 8 or any(c['status'] != 'PASS' for c in inbox['checks'])):
+            raise RuntimeError('Prior inbox pass and cleanup are not verified.')
+        if run(['git', 'diff', prior['revision'], head, '--', 'workbench/src', 'workbench/app',
+                'workbench/hooks', 'workbench/bin', 'scripts', 'acceptance',
+                'workbench/tests/test_t078_inbox_entry.py']).strip():
+            raise RuntimeError('Previously passing inbox source changed; stop instead of silently reusing it.')
+        record['previous_passes'] = {'name': 'inbox-entry', 'status': 'PASS', 'checks': 8,
+                                    'revision': prior['revision'], 'rerun': False,
+                                    'evidence': str(previous / 'inbox-entry/results.json'),
+                                    'product_and_inbox_source_unchanged': True}
+        save()
 
         target = out / 'cards'
         run(['python3', '-B', ROOT / 'workbench/tests/run_s3_rebased_regression.py', '--suite', 'cards',

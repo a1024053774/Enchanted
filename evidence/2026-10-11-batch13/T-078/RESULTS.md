@@ -667,3 +667,13 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 [单一沙箱外阶段脚本](post-rebase-2-stage.py) 已准备，计划顺序为库 inbox 8、原任务卡 15、真实 daemon/window/hook 空框入口 17、确定性接收器的实际 Electron／PTY runtime12／input-failures11／worker-inbox14。冻结 HEAD 后才运行，外盘缺失／源码变化／异常即停，超时保留 PID 与原件，不发信号或重试；slot 不删。上述实际入口目前 **INCOMPLETE**。完整 8/9/18/CAS 未在此次变基后重跑，旧 PASS 不替本候选背书。
 
 交 [提交脚本](commit-post-rebase-2.sh) 与阶段命令给主控运行；成功后绑定新的 source freeze，再准备单角色真实 Claude 入口红态 launch 包。该切片、新独立 reviewer、09B／09C、实际 IME、真登录及整票仍 **INCOMPLETE**，本轮不启动、不关闭、不集成、不 push。
+
+## cards host 夹具启动凭据与第二次变基续跑（主控 #170）
+
+主控按原身份冻结 `3d5225a9689bf04bf839967dc059e0a8e7adc300`，九项尾注；沙箱外首次阶段 **INCOMPLETE**：inbox-entry 8/8／cleanup PASS，cards15 为 0 failures、15 errors，全部 setUp 失败。前四条命令是版本／源码检查，其后空框入口、runtime、input-failures、worker-inbox 均未运行，不把命令序号当业务测试组数。原 [outside-01](post-rebase-2-outside-01/result.json) 全部保留，不重试。
+
+[原始十五份 host 输出读回](post-rebase-2b-diagnosis/original-host-readback.json) 确认同一 `absolute_operator_credential_path_required`，发生在 credentials.ts 与 host:84 创建 bootstrap 凭据，serve／card 请求之前；无 readiness／gate CLI 请求。`DaemonCards` 父 setup 清掉继承 A2A 环境，却未像其它生命周期 adapter 一样设置本夹具绝对凭据路径；属于夹具接线缺陷，产品拒绝缺凭据符合现有边界，不是 oracle_paths 或 core 业务接口导致的这十五个错误。完整 host／业务接口仍待实际续跑。
+
+实际 setUp 环境＋生产 credential API 的最小信号，迁移前 [red2/2](post-rebase-2b-bootstrap-red/results.json) 缺路径、同因 exit1；补每根自己的 operator 路径并在原退出确认后移除自建凭据，迁移后同探针 [green2/2 PASS](post-rebase-2b-bootstrap-green/results.json)。host spawn 被截获，真实临时 Git／凭据创建与读回，未启动 daemon／PTY／供应商／模型；该局部 PASS 不等于 host ready 或 cards15 PASS。修改仅夹具生命周期三行，原卡与业务断言、host／产品均未改。
+
+交 [诊断与续跑说明](POST-REBASE-2B.md)、[提交脚本](commit-post-rebase-2b.sh) 和更新后的 [同一阶段脚本](post-rebase-2-stage.py)：核对原 inbox PASS／cleanup 与相关源码未变，明确复用、不重跑；只从 cards15 及之后四组续跑到新 outside-02，异常停、保留原件、不重试、不删 slot。完整续跑、新独立 reviewer、单角色真实 Claude 红态、09B／09C 与整票仍 **INCOMPLETE**。

@@ -53,3 +53,5 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/
 沙箱外阶段 PASS 后，再准备单个真实 Claude 角色的 Bash 收件箱命令 → 原始请求 → 真实 Stop → 后台实际调用者 → 结果反馈这一条 Tracer bullet，先以当前冻结产品取得真实入口红态。只读确认当前入口仍要求 worker attempt/turn，主控启动为 nullable attempt，并有 `controller_relay_not_enabled`；红态需要辨明实际最先失败的契约，不能先删拒绝或伪造 attempt 来绕过。
 
 沿用 PLAN-09BC-01 与主控 #163 的批准：隔离 HOME、假服务、真实模型 0；实际工具通路和每会话许可先查固定版本材料；各场景每角色根提交 ≤6、主 Messages ≤12、合计 ≤24。先交该切片 launch 的具体 argv、动作／逐屏批准与停止条件，未获该次 launch 批准不启动。红态后才在已分配文件实现实际角色身份、转交与工具反馈，取绿态和边界反例，随后冻结 09B；09B 实跑后才冻结 09C，09C 用真实 >120000 ms 且总观察 ≤150 秒。
+
+主控 #170 已运行首次阶段，inbox-entry PASS；cards 十五份 host 在创建启动凭据时退出，原件保留。当前阶段脚本已改为只从 cards 续跑，需新 `post-rebase-2b-source-freeze.json`；上面的首次运行命令与源冻结为历史记录，当前交接与新输出目录见 [POST-REBASE-2B](POST-REBASE-2B.md)。
