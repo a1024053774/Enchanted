@@ -1,0 +1,27 @@
+diff --git a/evidence/2026-10-11-batch13/T-077/check-conflict-classifier-01.py b/evidence/2026-10-11-batch13/T-077/check-conflict-classifier-01.py
+index f4ad6913..a69c8bd8 100644
+--- a/evidence/2026-10-11-batch13/T-077/check-conflict-classifier-01.py
++++ b/evidence/2026-10-11-batch13/T-077/check-conflict-classifier-01.py
+@@ -82,7 +82,9 @@ class ClassifierChecks(unittest.TestCase):
+     def test_other_assertion_failure_is_not_the_target(self):
+         args = inputs(passed=True); args['failures'] = 1
+         args['contracts'].append({'assertion_id': None, 'pass': False})
+-        self.assertFalse(CLASSIFY(**args)['business_red'])
++        value = CLASSIFY(**args)
++        self.assertFalse(value['business_red'])
++        self.assertEqual(value['target_coverage'], 'NOT_COVERED')
+ 
+     def test_errors_skips_and_cleanup_failures_block_red(self):
+         for key in ('errors', 'skipped', 'cleanup_failures'):
+diff --git a/workbench/tests/test_worktree_lifecycle_e2e.py b/workbench/tests/test_worktree_lifecycle_e2e.py
+index c850eee9..f4454d26 100644
+--- a/workbench/tests/test_worktree_lifecycle_e2e.py
++++ b/workbench/tests/test_worktree_lifecycle_e2e.py
+@@ -82,6 +82,7 @@ def classify_conflict_red(case, contracts, evidence, *, tests_run, failures, err
+     if skipped: issues.append('skipped')
+     if evidence['cleanup_failures']: issues.append('cleanup_failures')
+     if target_failed and not failures: issues.append('target_failure_not_reported')
++    if failures and not target_failed: issues.append('non_target_assertion_failure')
+     coverage = ('NOT_COVERED' if missing or issues else
+                 'TARGET_FAILED' if target_failed else 'TARGET_PASSED' if target_passed else 'NOT_COVERED')
+     return {'target_assertion_id': target, 'target_failed': bool(target_failed), 'target_passed': bool(target_passed),

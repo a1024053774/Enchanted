@@ -82,7 +82,9 @@ class ClassifierChecks(unittest.TestCase):
     def test_other_assertion_failure_is_not_the_target(self):
         args = inputs(passed=True); args['failures'] = 1
         args['contracts'].append({'assertion_id': None, 'pass': False})
-        self.assertFalse(CLASSIFY(**args)['business_red'])
+        value = CLASSIFY(**args)
+        self.assertFalse(value['business_red'])
+        self.assertEqual(value['target_coverage'], 'NOT_COVERED')
 
     def test_errors_skips_and_cleanup_failures_block_red(self):
         for key in ('errors', 'skipped', 'cleanup_failures'):

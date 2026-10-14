@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "scope": "expected red for accepted review02 P2; product unchanged",
+  "command": [
+    "python3",
+    "-B",
+    "-c",
+    "import importlib.util, pathlib, sys, unittest\npath = pathlib.Path(\"evidence/2026-10-11-batch13/T-077/check-conflict-classifier-01.py\").resolve()\nspec = importlib.util.spec_from_file_location(\"t077_classifier_checks\", path)\nmodule = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(module)\nsuite = unittest.TestSuite([module.ClassifierChecks(\"test_other_assertion_failure_is_not_the_target\")])\nresult = unittest.TextTestRunner(verbosity=2).run(suite)\nsys.exit(0 if result.wasSuccessful() else 1)\n"
+  ],
+  "cwd": "/Users/luckye/Documents/Code/a2a-wt-t077",
+  "exit_code": 1,
+  "recorded_at": "2026-10-14T13:02:08.980111+00:00",
+  "source_revision": "1e5372467278b65499d6dd7119b5ae2d2965a494",
+  "real_codex_turns": 0
+}

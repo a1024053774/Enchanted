@@ -82,6 +82,7 @@ def classify_conflict_red(case, contracts, evidence, *, tests_run, failures, err
     if skipped: issues.append('skipped')
     if evidence['cleanup_failures']: issues.append('cleanup_failures')
     if target_failed and not failures: issues.append('target_failure_not_reported')
+    if failures and not target_failed: issues.append('non_target_assertion_failure')
     coverage = ('NOT_COVERED' if missing or issues else
                 'TARGET_FAILED' if target_failed else 'TARGET_PASSED' if target_passed else 'NOT_COVERED')
     return {'target_assertion_id': target, 'target_failed': bool(target_failed), 'target_passed': bool(target_passed),

@@ -1,5 +1,19 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 主控 #132：复审 02 的分类器 P2 修正
+
+**分类器修正与验证 PASS；整票仍 INCOMPLETE，待主控验收。** 主控 #132 接受复审 02 的唯一 P2，并明确要求目标未失败而 unittest 存在 failure 时记 classification issue、coverage 为 NOT_COVERED。本次只在 `classify_conflict_red` 增加这一项判定，并让现成 `test_other_assertion_failure_is_not_the_target` 同时要求 business_red=false 与 target_coverage="NOT_COVERED"；真实目标失败后的连带失败沿用原分类。产品仍为完整版本 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`，业务断言、目标和前置清单未改。
+
+先改现成检查再运行未修分类器：`classifier-p2-red-02/` 保存 1 test、1 failure、0 errors，原文为 TARGET_PASSED != NOT_COVERED，exit=1；其中 `fixture-at-run.py` 是修前分类器，`check-at-run.py` 是强化后的同一检查。修后以相同命令重跑，`classifier-p2-focused-green-01/` 为 1 test、0 failures/errors/skipped、exit=0；全部现有分类器检查在 `classifier-p2-all-green-01/` 为 9 tests、0 failures/errors/skipped、exit=0。定向命令及完整 Python 加载代码分别保存在红/绿 `run.json` 的 command 数组，全部检查的再生成命令为 `python3 -B evidence/2026-10-11-batch13/T-077/check-conflict-classifier-01.py --output <新目录>`。
+
+首次使用 unittest discover 按脚本名运行时，带连字符的模块没有被发现，实际为 0 tests/exit=0，不能算红态；`classifier-p2-red-01/` 原样保留为 INCOMPLETE。随后显式加载同一脚本，仅运行该现成方法，才取得上述红态。没有用探针错误替代预期失败。
+
+**无需重跑 conflict-red-final 的依据。** 变更仅为纯收据分类分支，产品与产生原始 contracts、conflict_evidence、unittest 计数的场景代码均未改。离线脚本直接读取 `outside-conflict-red-final-02/red-01..07` 与 `candidate` 的十四份原始 result.json，把 contracts、步骤及计数传入新分类器：七条红态仍为 TARGET_FAILED/business_red=true，候选七项仍为 TARGET_PASSED/business_red=false；全部分类字段与原记录相同，输入字节未变。新条件 `failures and not target_failed` 在十四份原始输入中均不成立；red-01 的 3 个 failure（目标失败与后续连带失败）仍保持 TARGET_FAILED。
+
+离线完整重分类结果、源码快照及 stdout/stderr 在 `classifier-p2-offline-replay-01/`，再生成命令为 `python3 -B evidence/2026-10-11-batch13/T-077/reclassify-conflict-results-01.py --output <新目录>`。这是对旧入口原始数据的离线重新判定，不是新 E2E，也不把新分类器称为旧运行时已经使用的版本；原始结果及复审 02 的 NO_GO 不回写。新增被测真实模型回合 0，未启动 daemon、PTY、socket 或模型 CLI。
+
+交付检查保存在 `classifier-p2-delivery-check-01/`：地图 0 problems/0 stale，源码、检查脚本、报告及其他新文本的空白与 UTF-8/LF 检查通过，单文件无超 5 MB。完整 cached 空白检查对原始 `fix.diff` 的上下文空行报 trailing whitespace，exit=2/INCOMPLETE；原始 diff 与诊断原样保留，不规范化它来掩盖结果。
+
 ## 主控 #129：F1 差异复审 02
 
 **复审 NO_GO；确认 1 项 P2，整票仍 INCOMPLETE，待主控处置与验收。** 已完成一次 fresh-context explorer 复审，请求 gpt-6.1-sol / xhigh / fork_turns none；tier 不可选，实际模型、思考强度及供应商 tier 未独立观察。复审期间本 worker 只等待与汇报状态，没有并行检查或修改。冻结证据候选为 `05ed480bcc9882fb2c8074c4b8ad8c3727d66c2d`，产品仍为完整版本 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`；报告 `independent-review-02.md` 原样保留，提示、请求和完成记录分别为 `independent-review-prompt-02.txt`、`independent-review-request-02.json`、`independent-review-completed-02.json`。
