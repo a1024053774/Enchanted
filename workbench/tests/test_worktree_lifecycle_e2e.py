@@ -27,6 +27,50 @@ import daemon_acceptance_adapter as old
 ROOT = Path(__file__).resolve().parents[2]
 BASE = '14b57d22a84bcaebfa91c5051b9909b53a570fac'
 CONTRACTS = []
+CONFLICT_TARGET_IDS = {
+    'test_conflict_active_worker_reworks_and_integrates': 'CONFLICT-ACTIVE-WRITEBACK',
+    'test_conflict_ended_session_gets_new_attempt': 'CONFLICT-ENDED-NEW-ATTEMPT',
+    'test_conflict_unknown_session_preserves_scene_and_reports': 'CONFLICT-UNKNOWN-SESSION-REPORT',
+    'test_conflict_unknown_delivery_does_not_resend': 'CONFLICT-UNKNOWN-DELIVERY-ONCE',
+    'test_merge_command_error_is_not_text_conflict': 'CONFLICT-GIT-ERROR-CLASSIFICATION',
+    'test_conflict_rework_still_rejects_forbidden_path': 'CONFLICT-REWORK-FORBIDDEN-PATH',
+    'test_conflict_rework_still_rejects_foreign_trailer': 'CONFLICT-REWORK-FOREIGN-TRAILER',
+}
+# Controller #121 requires all three receipts. Do not infer exemptions for
+# targets that occur earlier; report those targets as not covered instead.
+CONFLICT_REQUIRED_FACTS = ('conflict_delivered', 'explicit_resubmitted', 'target_verify_executed')
+
+
+def classify_conflict_red(case, contracts, evidence, *, tests_run, failures, errors, skipped):
+    target = CONFLICT_TARGET_IDS[case]
+    steps = evidence['steps']
+    targets = [(index, step) for index, step in enumerate(steps)
+               if step['kind'] == 'target' and step['id'] == target]
+    checks = [row for row in contracts if row['assertion_id'] == target]
+    target_unique = len(targets) == len(checks) == 1
+    target_failed = target_unique and targets[0][1]['passed'] is False and checks[0]['pass'] is False
+    target_passed = target_unique and targets[0][1]['passed'] is True and checks[0]['pass'] is True
+    missing = []
+    for name in CONFLICT_REQUIRED_FACTS:
+        facts = [(index, step) for index, step in enumerate(steps)
+                 if step['kind'] == 'precondition' and step['id'] == name]
+        if (not target_unique or len(facts) != 1 or facts[0][0] >= targets[0][0]
+                or facts[0][1]['passed'] is not True or not facts[0][1]['details']):
+            missing.append(name)
+    issues = []
+    if not target_unique: issues.append('target_not_reached_exactly_once')
+    if tests_run != 1: issues.append('wrong_test_count')
+    if errors: issues.append('errors')
+    if skipped: issues.append('skipped')
+    if evidence['cleanup_failures']: issues.append('cleanup_failures')
+    if target_failed and not failures: issues.append('target_failure_not_reported')
+    coverage = ('NOT_COVERED' if missing or issues else
+                'TARGET_FAILED' if target_failed else 'TARGET_PASSED' if target_passed else 'NOT_COVERED')
+    return {'target_assertion_id': target, 'target_failed': bool(target_failed), 'target_passed': bool(target_passed),
+            'required_preconditions': list(CONFLICT_REQUIRED_FACTS), 'missing_preconditions': missing,
+            'classification_issues': issues, 'target_coverage': coverage,
+            'business_red': coverage == 'TARGET_FAILED', 'conflict_evidence': evidence,
+            'cleanup_failures': evidence['cleanup_failures']}
 
 
 def write_new(path, value):
@@ -41,9 +85,9 @@ def write_gzip(path, value):
 
 
 class ContractChecks:
-    def contract(self, name, condition, expected, actual):
+    def contract(self, name, condition, expected, actual, *, assertion_id=None):
         CONTRACTS.append({'test': self.id(), 'claim': name, 'pass': bool(condition),
-                          'expected': expected, 'actual': actual})
+                          'expected': expected, 'actual': actual, 'assertion_id': assertion_id})
         self.assertTrue(condition, 'S3 contract: ' + name + '\n' + repr(CONTRACTS[-1]))
 
 
@@ -488,6 +532,7 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
     """Real CLI/Git conflicts; only the native session boundary is controlled."""
 
     def setUp(self):
+        self.conflict_evidence = {'steps': [], 'cleanup_failures': []}
         previous_host = old.HOST
         old.HOST = ROOT / 'workbench/tests/conflict_acceptance_host.ts'
         # Restore only after the inherited owned-daemon cleanup has completed.
@@ -519,6 +564,25 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         self.card_source.write_text(json.dumps(card, ensure_ascii=False), encoding='utf-8')
         self.cli('card_save', '--task', self.task, '--card', self.card_source, '--expected-version', '0')
         self.cli('create', '--task', self.task, '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1')
+
+    def evidence(self, name, passed, details):
+        self.conflict_evidence['steps'].append({'kind': 'precondition', 'id': name,
+                                               'passed': bool(passed), 'details': details})
+
+    def target_contract(self, name, condition, expected, actual):
+        assertion_id = CONFLICT_TARGET_IDS[self._testMethodName]
+        self.conflict_evidence['steps'].append({'kind': 'target', 'id': assertion_id, 'passed': bool(condition)})
+        self.contract(name, condition, expected, actual, assertion_id=assertion_id)
+
+    def _callCleanup(self, function, *args, **kwargs):
+        # unittest also classifies cleanup AssertionError as a failure. Keep
+        # its origin explicit so it can never count as a target counterfactual.
+        try:
+            return super()._callCleanup(function, *args, **kwargs)
+        except Exception as error:
+            self.conflict_evidence['cleanup_failures'].append({
+                'callback_type': type(function).__name__, 'error': repr(error)})
+            raise
 
     def request(self, command, *args):
         if command == 'integrate' and '--score-file' not in args:
@@ -563,6 +627,7 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         g = self.git('rev-parse', 'HEAD').stdout.strip()
         self.artifact['conflict_inputs'] = {'attempt': a, 'C1': c, 'G': g,
                                            'worker_path': 'src/settings.json', 'foreign_path': 'host.txt'}
+        self.evidence('scenario_prepared', c != g, self.artifact['conflict_inputs'])
         return a, c, g
 
     def feedback(self):
@@ -571,10 +636,47 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
 
     def mode(self, **value):
         write_new(self.boundary / 'conflict-mode.json', value)
+        readback = json.loads((self.boundary / 'conflict-mode.json').read_text(encoding='utf-8'))
+        self.evidence('session_input_configured', readback == value, readback)
 
     def system_issues(self, attempt):
         return [view['issue'] for view in self.cli('issues', '--task', self.task)['issues']
                 if view['issue']['from'] == 'system' and view['issue']['attempt_id'] == attempt['attempt_id']]
+
+    def observe_conflict(self, a, c, g, verification):
+        observed = bool(verification and verification['attempt']['attempt_id'] == a['attempt_id']
+                        and (verification['C'], verification['G'], verification['M']) == (c, g, None)
+                        and verification.get('conflict', {}).get('files') == ['src/settings.json'])
+        details = {'attempt': a['attempt_id'], 'C1': c, 'G': g, 'verification': verification}
+        self.evidence('text_conflict_observed', observed, details)
+        if self._testMethodName in (
+                'test_conflict_active_worker_reworks_and_integrates', 'test_conflict_ended_session_gets_new_attempt',
+                'test_conflict_unknown_session_preserves_scene_and_reports', 'test_conflict_unknown_delivery_does_not_resend'):
+            self.evidence('target_verify_executed', observed, details)
+
+    def observe_delivery(self, a, verification):
+        feedback = self.feedback()
+        prompts = self.store()['prompts']
+        events = [event for event in self.events() if event['type'] == 'conflict_feedback_delivered'
+                  and event['details']['repair']['verification_id'] == verification['verification_id']]
+        delivered = (len(feedback) == 1 and feedback[0]['thread'] == a['thread_id'] and len(events) == 1
+                     and events[0]['details']['repair']['message_id'] == feedback[0]['message_id']
+                     and any(prompt['thread_id'] == a['thread_id'] and prompt['text'] == feedback[0]['text'] for prompt in prompts))
+        self.evidence('conflict_delivered', delivered,
+                      {'attempt': a['attempt_id'], 'verification': verification['verification_id'],
+                       'feedback': feedback, 'transport_prompts': prompts, 'events': events})
+
+    def verify_rework(self, candidate, check_type):
+        reply = self.request('verify')
+        verification = self.status()['verification']
+        events = [event for event in self.events() if event['type'] == check_type
+                  and verification and event['details']['verification_id'] == verification['verification_id']]
+        if check_type == 'trailer_check':
+            events = [event for event in events if event['details']['commit'] == candidate]
+        self.evidence('target_verify_executed',
+                      bool(verification and verification['C'] == candidate and events),
+                      {'candidate': candidate, 'reply': reply, 'verification': verification, 'events': events})
+        return reply
 
     def conflict(self, a, c, g):
         reply = self.request('verify', '--attempt', a['attempt_id'])
@@ -593,6 +695,8 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
             self.assertEqual(self.git('rev-parse', 'HEAD', cwd=a['workspace']).stdout.strip(), c)
             self.assertEqual(Path(a['workspace'], 'src/settings.json').read_text(), '{"worker":"ready","host":"base"}\n')
         self.assertFalse(self.oracle_runs.exists(), 'A conflicted tree cannot reach the completion oracle')
+        self.observe_conflict(a, c, g, v)
+        self.observe_delivery(a, v)
         return v
 
     def repair(self, a, g, extra=None, foreign=False):
@@ -601,6 +705,12 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         self.git('reset', '--hard', g, cwd=a['workspace'])
         c2 = self.commit_worker(a, '{"worker":"ready","host":"ready"}\n', extra, foreign)
         reply = self.submit_request(a, c2)
+        current = self.status()
+        events = [event for event in self.events() if event['type'] == 'conflict_rework_submitted'
+                  and event['details']['attempt'] == a['attempt_id'] and event['details']['candidate'] == c2]
+        self.evidence('explicit_resubmitted', reply['ok'] is True and current['candidate_commit'] == c2
+                      and current['current_attempt']['attempt_id'] == a['attempt_id'] and len(events) == 1,
+                      {'candidate': c2, 'reply': reply, 'task': current, 'events': events})
         self.contract('Conflict rework accepts a new explicit candidate from its bound worker',
                       reply['ok'], True, reply)
         return c2
@@ -610,7 +720,7 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         v1 = self.conflict(a, c1, g)
         with self.subTest(stage='writeback'):
             feedback = self.feedback()
-            self.contract('Text conflict is written once to the original active worker',
+            self.target_contract('Text conflict is written once to the original active worker',
                           len(feedback) == 1 and feedback[0]['thread'] == a['thread_id'],
                           {'count': 1, 'thread': a['thread_id']}, feedback)
         # Repeat the request while the worker has not resubmitted. No new send,
@@ -655,7 +765,7 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         self.mode(thread=a['thread_id'], observation={'stopped': True, 'running': False})
         self.conflict(a, c1, g)
         new = self.status()['current_attempt']
-        self.contract('Confirmed ended worker is replaced by one new attempt',
+        self.target_contract('Confirmed ended worker is replaced by one new attempt',
                       new['attempt_id'] != a['attempt_id'] and new['fence'] == a['fence'] + 1,
                       {'different_attempt': True, 'fence': 2}, new)
         for key in ('session_id', 'thread_id', 'workspace'):
@@ -682,13 +792,14 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         a, c1, g = self.prepare_conflict()
         self.mode(thread=a['thread_id'], observation={'error': {'providerPresent': False, 'activeTurn': None}})
         self.request('verify', '--attempt', a['attempt_id'])
+        self.observe_conflict(a, c1, g, self.status()['verification'])
         self.assertEqual(self.status()['current_attempt']['attempt_id'], a['attempt_id'])
         self.assertEqual(self.git('rev-parse', 'HEAD', cwd=a['workspace']).stdout.strip(), c1)
         self.assertEqual(self.git('rev-parse', 'HEAD').stdout.strip(), g)
         self.assertEqual(len(self.store()['prompts']), 1)
         self.assertEqual(self.feedback(), [])
         issues = self.system_issues(a)
-        self.contract('Unknown native session keeps the conflict scene and reports to the executor',
+        self.target_contract('Unknown native session keeps the conflict scene and reports to the executor',
                       bool(issues), 'system issue bound to original attempt', issues)
 
     def test_conflict_unknown_delivery_does_not_resend(self):
@@ -696,7 +807,8 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         self.mode(delivery_unknown=True)
         first = self.request('verify', '--attempt', a['attempt_id'])
         self.assertFalse(first['ok'], first)
-        self.contract('Unknown writeback has exactly one recorded delivery attempt',
+        self.observe_conflict(a, c1, g, self.status()['verification'])
+        self.target_contract('Unknown writeback has exactly one recorded delivery attempt',
                       len(self.feedback()) == 1, 1, self.feedback())
         self.request('verify', '--attempt', a['attempt_id'])
         self.assertEqual(len(self.feedback()), 1)
@@ -725,16 +837,21 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         self.assertEqual(self.feedback(), [])
         self.assertEqual(self.status()['current_attempt']['attempt_id'], a['attempt_id'])
         self.assertEqual(self.git('rev-parse', 'HEAD').stdout.strip(), g)
-        self.contract('Git failure without unmerged index entries is not a repairable text conflict',
+        self.evidence('git_io_failure_observed', True,
+                      {'verification': v, 'reply': reply, 'unmerged': '', 'exit': 73})
+        self.evidence('target_verify_executed', v['C'] == c1 and v['G'] == g and
+                      v['attempt']['attempt_id'] == a['attempt_id'], {'verification': v, 'reply': reply})
+        self.target_contract('Git failure without unmerged index entries is not a repairable text conflict',
                       reply['error'] == 'git_failed', 'git_failed', reply)
 
     def test_conflict_rework_still_rejects_forbidden_path(self):
         a, c1, g = self.prepare_conflict()
         self.conflict(a, c1, g)
-        self.repair(a, g, extra={'src/private/secret.txt': 'worker-created forbidden data\n'})
-        reply = self.request('verify')
-        self.assertFalse(reply['ok'], reply)
-        self.assertEqual(reply['error'], 'path_boundary_failed')
+        c2 = self.repair(a, g, extra={'src/private/secret.txt': 'worker-created forbidden data\n'})
+        reply = self.verify_rework(c2, 'path_check')
+        self.target_contract('Conflict rework still rejects the forbidden path at verify',
+                             reply['ok'] is False and reply.get('error') == 'path_boundary_failed',
+                             {'ok': False, 'error': 'path_boundary_failed'}, reply)
         self.assertEqual(self.git('rev-parse', 'HEAD').stdout.strip(), g)
         self.assertFalse(self.oracle_runs.exists())
 
@@ -742,9 +859,10 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         a, c1, g = self.prepare_conflict()
         self.conflict(a, c1, g)
         c2 = self.repair(a, g, foreign=True)
-        reply = self.request('verify')
-        self.assertFalse(reply['ok'], reply)
-        self.assertEqual(reply['error'], 'trailer_task_mismatch')
+        reply = self.verify_rework(c2, 'trailer_check')
+        self.target_contract('Conflict rework still rejects the foreign trailer at verify',
+                             reply['ok'] is False and reply.get('error') == 'trailer_task_mismatch',
+                             {'ok': False, 'error': 'trailer_task_mismatch'}, reply)
         checks = [e['details'] for e in self.events() if e['type'] == 'trailer_check' and e['details']['commit'] == c2]
         self.assertEqual(len(checks), 1)
         self.assertFalse(checks[0]['passed'])
@@ -886,7 +1004,8 @@ def main():
         target.mkdir()
         start = (len(cards.COMMANDS), len(old.delivery.COMMANDS), len(CONTRACTS), len(old.recovery.ASSERTIONS))
         stream = io.StringIO()
-        result = unittest.TextTestRunner(stream=stream, verbosity=2).run(unittest.TestSuite([cls(name)]))
+        test = cls(name)
+        result = unittest.TextTestRunner(stream=stream, verbosity=2).run(unittest.TestSuite([test]))
         with (target / 'unittest.txt').open('x', encoding='utf-8') as handle:
             handle.write(stream.getvalue())
         contracts = CONTRACTS[start[2]:]
@@ -896,6 +1015,9 @@ def main():
                   'business_red': bool(result.failures and not result.errors and any(not c['pass'] for c in contracts)),
                   'contracts': contracts, 'inherited_assertions': old.recovery.ASSERTIONS[start[3]:],
                   'evidence_layer': 'controlled-thread' if cls in (RunCleanupContracts, ConflictContracts) else 'default-daemon-manual-claim'}
+        if cls is ConflictContracts:
+            record.update(classify_conflict_red(name, contracts, test.conflict_evidence,
+                tests_run=result.testsRun, failures=len(result.failures), errors=len(result.errors), skipped=len(result.skipped)))
         write_new(target / 'result.json', record)
         write_gzip(target / 'commands.json.gz', cards.COMMANDS[start[0]:] + old.delivery.COMMANDS[start[1]:])
         receipts.append(record)
@@ -904,7 +1026,8 @@ def main():
     with tarfile.open(out / 'fixtures.tar.gz', 'x:gz') as archive:
         archive.add(fixture_root, arcname=fixture_root.name)
     red_confirmed = bool(receipts) and all(r['business_red'] and not r['skipped'] for r in receipts)
-    green = bool(receipts) and all(r['exit_code'] == 0 and not r['skipped'] for r in receipts)
+    green = bool(receipts) and all(r['exit_code'] == 0 and r['tests_run'] == 1 and not r['skipped']
+        and not r.get('cleanup_failures') and r.get('target_passed', True) for r in receipts)
     record = {'status': 'PASS' if args.phase == 'candidate' and green else 'INCOMPLETE',
               'scope': 'S3 initial focused contracts only; not full T-077 acceptance',
               'phase': args.phase, 'red_confirmed': red_confirmed if args.phase == 'baseline' else None,
