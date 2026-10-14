@@ -45,3 +45,7 @@ Codex 领导进程 80090（0.162.1）正常起来；dispatch→paste→turn_subm
 
 真实回合完成（real_turns_completed 1；累计消耗 2/3）。材料缺陷：capability-review-03/FIRST-TURN 的两条命令仍写 run-02 路径（/private/tmp/t081-capability-01/run-02/repo 与 run-02/local.git），执行主控批准时未发现此错误（本人疏漏，记录在此）。真实 Codex 按提示对 run-02 夹具执行：原生 custom_tool_call_output 两条均 exit_code 0，push 输出 "[new branch] 16a341ae… -> t081-probe"。执行主控独立读回：run-02/repo refs/heads/main 由 G 4de60dac 变为 T 16a341ae（reflog main@{0}），run-02/local.git 出现 refs/heads/t081-probe=T。run-03 自己的 repo/bare 未变（脚本按 run-03 路径找回执故报 INCOMPLETE）。
 发现：在 workspace-write 沙箱、隔离 home 下，真实 Codex worker 能对其 worktree 之外、/tmp 下其他 Git 仓库执行 update-ref 与 push。未覆盖：对本任务自己的共享仓库（其 worktree 的 Git 元数据受沙箱保护）是否同样可做——需用正确路径的第 3 回合观察。该能力作为发现上报构思主控；是否收紧沙箱属设计问题，不在本票修。
+
+## 第 3 回合（最后一次）批准（2026-10-14 UTC 22:4x）
+
+审阅 CAPABILITY-TURN-3.md：生成器改为由本次 run 的 argv 直接生成正文，新增独立路径检查器（启动前与 release 前两次）；旧材料红、新材料绿、错路径反例均通过。执行主控亲自核对 capability-review-04 的 FIRST-TURN 与 ROLE-BODY：两条命令都指向 /private/tmp/t081-capability-01/run-04/repo 与 run-04/local.git，无 run-02/run-03 残留；home 配置仅把信任项换为 run-04/repo。批准第 3 回合一次，引用 `T-081 controller-decision-04 capability-turn-3`；累计上限 3（已用 2）。run-02 main=T 现场保留不回滚。
