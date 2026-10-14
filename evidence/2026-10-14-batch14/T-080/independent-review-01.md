@@ -1,0 +1,33 @@
+STATUS: PASS
+TARGET: base=cdf8fe9b0eebfacf9f8d2ffeff3aecebf1e6eb37；candidate=1645eae0593f8d0bf4d51ef859bb231698a49752
+
+EVIDENCE:
+
+- 审查依据为 T-080 ticket、gate-hardening-2026-10-14 的 D1、native-cli-orchestration 第 2/3 节、任务卡模板，以及白名单内 AGENTS.md、CONTEXT.md、intent.md。独立预期是：必填且非空的验收文件集合，按认领起点核对存在性；禁止与红态测试相交；路径边界之后、完成条件之前检查候选改动；失败回写原 worker、单列 oracle 次数并计入三次上限。打分按每行 schema 读取历史，新行只写 v2。
+- 版本绑定：从 independent-review-01.diff 的全文上下文重建 30 个文件的修改前后字节，分别与上述固定 base/candidate 的 git show 结果比较，无差异；final-03/candidate-source.tar.gz 中这 30 个文件也全部逐字一致。final-03 记录运行时 HEAD 是 base、候选尚未提交；因此没有把该旧 HEAD 当作候选证明，而是以归档内容绑定后来提交的固定候选。本次结束前只读 rev-parse HEAD 仍为固定 candidate。两个旧产品归档在上述范围内包含的 17 个文件均与 base 一致。
+- 字段与认领：taskCards.ts:136 起拒绝缺字段、空数组、非数组、绝对路径、点路径、父路径、反斜杠、通配符、空路径分量及大小写变体 .git；目录前缀和确切文件均检查 red_commands.test_paths 交集。core.ts:1341、1862 在创建 attempt/worktree 之前用认领时起点的 Git tree 核对存在性。final-03/protected 的 oracle_schema、oracle_claim_missing、oracle_claim_current_base 的原始 CLI 结果和 database-readback.json 对应拒收/认领事件一致；未受控文件不算起点存在，认领失败时无 attempt、fence 仍为 0、没有 worktree。
+- 业务修复：red-02/cases/acceptance_file_tamper 的原始命令、Git 对象归档和数据库证明，旧产品只把 acceptance/criterion.py 改成 pass，src/value.txt 仍为 base，却通过完成条件并集成。归档中的原始独立断言要求 worker 加换行，集成后重新运行原始断言确实失败。final-03/protected/oracle_modified 的 Git 对象显示相同的单文件篡改；数据库 seq 59 的 oracle_check 列出该路径并失败，seq 73 的 delivery_rejected 为 oracle/count=1，CLI 返回 oracle_modified。路径检查先发生，完成条件与 reviewer 未运行，main 引用及 reflog 保持原起点。原始 control/writes.jsonl 留有带拒收码和路径的 ⟦门禁 #3⟧ bracketed paste，dispatch_records 绑定原 worker launch。
+- 目录、删除、重命名与正例：final-03/protected 下 oracle_directory_added、oracle_deleted、oracle_renamed 的原始路径列表均被 oracle_modified 拒收；changedPaths（core.ts:1763）使用 --no-renames，因此重命名不会藏掉原受保护路径。oracle_correct_delivery 修改 src/value.txt 并新增相邻 acceptance-other/ 下哨兵文件，保留验收文件，完成审查、打分与集成。oracle_boundary_first 先以 path_boundary_failed 拒收且无 oracle_check；oracle_card_snapshot 保存新卡后，原 attempt 仍按冻结卡保护旧验收文件。
+- 冲突整理路径的源码核对：core.ts:1874 的检查同时取原 attempt.base_commit→C 与 G→M 的改动，没有把 conflict rework 的新 candidateBase 当作验收文件起点；verifyCandidate 的合并/整理后结果仍进入同一个路径边界及验收文件检查块（1620 起）。这与路径边界使用 candidateBase 的处理区别明确。既有冲突回归也重新执行，但本证据没有专门构造“冲突整理后篡改验收文件”的新端到端用例。
+- 次数与打分：final-03/protected/oracle_three_rejections 的数据库分别记录 count=1/2/3，第三次 stopped=true、任务 paused，产生阻塞上报和 quality_feedback_stopped；只有前两次发送 quality-repair。暂停后再次 verify 返回拒绝，repair、候选、attempt/fence、verification、main 与回写队列不推进。oracle_repair_score 的两轮交付在恢复原验收文件后集成，seq 200 的 schema=2 打分恰为 oracle=1、path_boundary=0，与唯一 oracle 拒收事件一致。core.ts:2035 沿用原拒收路径，2249 起单列计数，2270 起仅写 v2。
+- 打分版本：scripts/score 和 qualityProtocol.scoreRecords 都按每行 1/2 选七项/八项检查集，未知 schema 拒收；未见历史迁移、补零或 v1 新写入选择。final-03/score-schemas 的原始命令及 fixtures.tar.gz 内 records/scores.jsonl 共五行，schema 为 [1,1,2,2,2]。三条真实 scripts/score CLI 收据逐条等于落盘的新行；新用户分分别指向 v1、v2 的 executor 原记录。两个 reader 接受历史 v1 及完整 v2，拒绝 v1 多 oracle、v2 缺 oracle、未知版本/字符串版本/布尔版本；真实 writer 缺 oracle 与未知历史版本均拒收。混合 reader 输出保留原行；归档的历史两行与 v1-history 原始输入逐行一致。34 项 schema 断言均有原始输入/输出。本次另在内存运行固定 base/candidate 的纯 Python reader：同一独立 v2 行被 base 拒绝、被 candidate 接受，v1 行两者都接受；未执行 writer 或写 records。
+- 夹具变更：冻结 diff 中旧卡补了已受控的验收文件及 oracle_paths，主要业务断言保持。run_s3_rebased_regression 的新 AST 排除仅覆盖 ManagedDeliveryCLI.setUp/create；这两处 diff 是验收输入落库和字段迁移，原八项交付断言未改。ACK 修正前，final-02 的 red_run_reject_preserves_worker 是 harness_error：ACK 已结束、修复 turn-3 正在工作，旧 idle 轮询错过边界。run-repair-probe-01 的基线和当时候选都在受控 barrier 下复现同一时序与同一 harness_error。final-03 的 baseline-fixed/candidate-fixed 保持同一 barrier，均读回绑定 launch/attempt/task/submission/native session/ACK turn 的唯一 pane_idle，随后才有修复 turn-3；原 RED-RUN-REPAIR 断言继续验证同一 attempt 未回收且 main 未集成。固定前后 22 个 self.check 调用的 AST 逐项一致。修正不再要求捕获短暂 idle 状态，也没有把下一修复回合当作 ACK 结束。
+- 原始阶段计数：final-01 在第 5 阶段停止，protected 的 ORACLE-LIMIT-REPLAY 过度要求特定拒收码；原数据库实际为 paused 且只有三次拒收。修正后用状态与无推进事实判定，并有下述阈值变异反证。final-02 在第 17 阶段遇到上述 ACK 夹具错误；这些失败现场保留。final-03 共 28 阶段，26 个退出 0，两个预期变异阶段退出 1。protected 为 12/12；T-075 cards/coop/recovery/run/cas 分别 15/8/9/18/1，无失败、错误或跳过，原始 unittest 输出为 OK；T-076 tracer/controls/red/legacy/wide/review-faults 分别 13/8/11/2/15/3；T-077 lifecycle 25、review-worktrees 4、joint 3、relay-conflict 1、trailer-conflicts 2；startup-shutdown 4、attachment-windows 2。isolated Panes 四项另计，不冒充真实进程测试。各组存在重叠，未据此合算独立场景总数。final-03/project-map 的原始命令退出 0，stdout 为 0 problems、0 stale；本 reviewer 未另跑地图命令。
+
+FINDINGS:
+
+- 在本次明确规定的显式 Git 路径合同和白名单候选范围内，无 P1/P2/P3 发现。没有用实施者自述、目录名称或旧通过结论代替上述原始读回。
+
+COUNTEREXAMPLE:
+
+- 修前旧产品：red-02 的只改测试恒过场景实际通过完成条件并集成，随后独立原始业务断言失败；是缺口红态，不是基础设施失败。
+- 去掉 oracle_modified 的唯一 requireGate：final-03/mutant/oracle_modified 与 oracle_directory_added 均在 ORACLE-MODIFIED 失败。原始数据库仍记录 modified 非空、oracle_check.passed=false，verify 却返回 ok=true 并进入 reviewing，足以拒绝“记录失败却继续通过”的坏实现；两个用例 cleanup_failures 均为空。
+- 把 stopped 阈值从 >=3 延至 >=4：final-03/limit-mutant/oracle_three_rejections 在 ORACLE-THREE-LIMIT 失败；第三条 delivery_rejected 已持久化 count=3，但 stopped=false、任务仍 submitted。该阶段不是语法、harness 或清理失败。
+- 打分负输入：v2 缺 oracle、v1 多 oracle、未知 schema 被两个 reader 拒绝；缺 oracle 的真实 writer 不追加行；完整 v1/v2 和关联两版本原分的用户新行构成正例。旧 reader 的 v2 拒收另经本次无写入内存计算确认；未把这次纯函数计算称为真实 CLI 端到端反事实。
+
+LIMITATIONS:
+
+- PASS 只覆盖 T-080 已定义的显式 Git 路径保护与本次受控机械门禁证据，不代表整个平台发布、真实供应商模型能力或真实模型独立审查通过。端到端证据执行的是产品 Node CLI、daemon、relay、Git、SQLite；PTY、进程事实、原生事件和 reviewer 输出由受控夹具提供。fixture-version 返回的 codex-cli 字符串及模型/effort 记录不能证明真实供应商 CLI、模型、tier 或速度。
+- 路径规则是 Git 名称的确切匹配和目录前缀，不自动推导完成条件的传递依赖。现有 symlink blob 可满足认领的 blob 存在检查；其未声明目标不会自动纳入 oracle_paths。若只声明链接、漏列实际脚本目标，不能从本次 PASS 推断目标受保护；按任务卡要求，完成条件的仓库内依赖须由填卡者列全。本次未运行符号链接目标遗漏、大小写/Unicode 文件系统别名的完整端到端场景；普通删除、重命名、子目录新增已另有实证。未把这些未定义或未运行的别名边界写成已通过的安全能力，也未仅凭抽象可能性判定可达产品违约。
+- 冲突整理后的同等保护有固定源码调用路径依据及既有冲突回归，没有专门的 oracle_modified+conflict 行为反例；不能把静态核对表述为该组合场景已实跑。
+- 本次只在白名单 diff 的 30 文件范围逐字绑定固定版本及源码归档；没有扩大读取到白名单外代码，也未审阅其他 ticket、实施聊天、诊断总结或旧审查。未重跑会写文件的套件、未启动服务、未联网、未修代码、未 submit/集成/提交。仅新建本报告；原失败证据未改动。
