@@ -1,17 +1,19 @@
 #!/bin/bash
 set -eu
+base=/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-materials-08b
 extra=()
-case "${1:-p1-launch-08}" in
-  p1-launch-08) phase=launch ;;
-  p1-screen-08) phase=screen ;;
-  p1-trust-08)
-    phase=trust
-    if [ "${2:-}" != Digit1 ]; then echo 'Digit1 must be explicitly supplied; no key sent' >&2; exit 2; fi
-    extra=(--key "$2" --approval-file /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-materials-08/trust-approval.json --screen-file /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-materials-08/screen/screen.bin) ;;
-  p1-continue-08)
-    phase=continue
-    extra=(--readiness-file /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-materials-08/readiness.json) ;;
-  p1-cleanup-08) phase=cleanup ;;
+case "${1:-p1-launch-08b}" in
+  p1-launch-08b) phase=launch ;;
+  p1-screen-08b)
+    phase=screen
+    if [ -z "${2:-}" ]; then echo 'Explicit screen ID required' >&2; exit 2; fi
+    extra=(--label "screen-$2" --screen-id "$2") ;;
+  p1-key-08b)
+    phase=key
+    if [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ]; then echo 'Explicit screen ID, key and purpose required; no key sent' >&2; exit 2; fi
+    extra=(--label "key-$2" --screen-id "$2" --key "$3" --purpose "$4" --approval-file "$base/approvals/$2.json" --screen-file "$base/screen-$2/screen.bin") ;;
+  p1-continue-08b) phase=continue; extra=(--readiness-file "$base/readiness.json") ;;
+  p1-cleanup-08b) phase=cleanup ;;
   *) echo 'Unknown stage; no process started' >&2; exit 2 ;;
 esac
-/usr/bin/python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/run_t078_p1.py --materials /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-materials-08 --phase "$phase" "${extra[@]}"
+/usr/bin/python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/run_t078_p1.py --materials "$base" --phase "$phase" "${extra[@]}"

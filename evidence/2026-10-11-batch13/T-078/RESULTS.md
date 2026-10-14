@@ -1,5 +1,7 @@
 # T-078-1 运行记录
 
+2026-10-14 主控 #106～107：08 启动后是首次主题选择，未发送 Digit1／Enter，cleanup PASS。08b 的产品改动单独提交，改为每个原字节快照独立批准的按键；用途限 onboarding-theme／workspace-trust，同屏不可重放、信任仍限一次。没有主题数字键依据，不猜数字；采用文档化方向导航，再单独批准确认明确所选 Dark 的 Enter，不自动补键。新实例、参数与静态红绿见 [P1-APPROVAL-08b](P1-APPROVAL-08b.md)，实际 UI 效果仍未知／待 launch 审批，本轮未启动 CLI／API或按键。真登录用户 HOME 中任何引导屏一律停下交主控、不按键，已同步 PLAN-2；整票仍 INCOMPLETE。
+
 2026-10-14 主控 #97～99：用户允许假服务／真登录阶段各确认一次隔离目录信任，主控已外置 cleanup-06 超限原件并字节读回。旧改动按逻辑提交并取得干净工作树；材料 08 的静态构造、原始 hook 留证与一次 Digit1 后台通路具红绿，见 [P1-APPROVAL-08](P1-APPROVAL-08.md)。移除 IS_DEMO、禁标题、增加 debug，保持假 Bearer／theme／3 秒 hooks；不预置内部状态、不自动补 Enter。按 #99，08 只做一个回合，Esc／二次送达／紧急停止仍由 09 承接，不缩减整票验收。08 实际启动、信任和 hooks 尚未运行，当前准备局部 PASS／整票 INCOMPLETE；变基改变源码后必须重新绑定材料。
 
 2026-10-13 主控 #95：Bearer 生效，nonce 提交后 API 收到一条标题侧请求，未得到主回合／hook 证据；continue-06 因缺 turn_start_signal 停下，cleanup-06 PASS。只读归档显示信任状态 false、无 hook_received／signal 请求、无 debug 或 hook stdin／退出数据，因此不能归因于 timeout 或字段不符。标题请求占住串行 handler，原 runner 在写 release 前失败，未发送 SSE。材料 07 为 BLOCKED 诊断／提案，见 [P1-APPROVAL-07](P1-APPROVAL-07.md)；已报 blocking issue `20261013T182412Z-worker:s13-t078s-issue-001` 请求目录信任决定。建议假服务禁用文档化标题请求并加 debug／hook 留证，不改身份检查或盲目增加 timeout。本轮未改产品候选、未发新输入、未启动 CLI／API／模型，不预置信任状态或穿过提示。
