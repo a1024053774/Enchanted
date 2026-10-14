@@ -1,5 +1,11 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 主控 #123：按目标列前置
+
+**INCOMPLETE，待新的沙箱外七红/七绿。** 已按主控明确口径删除统一三前置规则，逐条列出七案依赖的真实前置。01～04 证明场景、相应受控会话/投递输入、真实文本冲突和进入处理；05 证明实际 Git 失败、空 unmerged 与该次 verify；06/07 仍须完整的冲突、投递成功、显式重交及目标 verify。前置缺失、false、迟于目标或存在 errors/skipped/cleanup_failures 仍不能计红，目标标识及既有拒收预期不变。
+
+逐案局部契约在旧夹具先得 79 failures/0 errors，修后九项通过；旧“任意失败即红”的表达式仍触发 103 failures/0 errors。真实入口尚未重跑，不补称 F1 关闭。产品和 acceptance 未改，真实模型回合 0。新准备目录为 `conflict-red-final-01-preparation-02/`，旧目录与 final-05 原样保留；完整前置表见 `CONFLICT-RED-FINAL-IMPLEMENTATION-01.md`，运行仍交主控。
+
 ## 主控 #121：F1 修正候选
 
 **INCOMPLETE，待沙箱外冲突反事实与候选验证。** 只改夹具：七条目标加入稳定标识；红态必须命中该目标、三项前置在目标前完整读回、无 errors/skipped/cleanup_failures。06/07 改用只破坏 conflict rework 的路径/尾注守卫的定向变体，保留冲突回写与重交。原 final-05 不变，独审仍为 INCOMPLETE，尚未关闭 F1。

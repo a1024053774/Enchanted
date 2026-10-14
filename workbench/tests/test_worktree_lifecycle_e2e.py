@@ -36,13 +36,31 @@ CONFLICT_TARGET_IDS = {
     'test_conflict_rework_still_rejects_forbidden_path': 'CONFLICT-REWORK-FORBIDDEN-PATH',
     'test_conflict_rework_still_rejects_foreign_trailer': 'CONFLICT-REWORK-FOREIGN-TRAILER',
 }
-# Controller #121 requires all three receipts. Do not infer exemptions for
-# targets that occur earlier; report those targets as not covered instead.
-CONFLICT_REQUIRED_FACTS = ('conflict_delivered', 'explicit_resubmitted', 'target_verify_executed')
+# Controller #123: each target requires its own earlier scenario facts.
+# Delivery/resubmission/target verify are prerequisites of the rework guards.
+CONFLICT_REQUIRED_FACTS = {
+    'test_conflict_active_worker_reworks_and_integrates': (
+        'scenario_prepared', 'worker_session_input_available', 'text_conflict_observed', 'conflict_handling_entered'),
+    'test_conflict_ended_session_gets_new_attempt': (
+        'scenario_prepared', 'ended_session_input_configured', 'text_conflict_observed', 'conflict_handling_entered'),
+    'test_conflict_unknown_session_preserves_scene_and_reports': (
+        'scenario_prepared', 'unknown_session_input_configured', 'text_conflict_observed', 'conflict_handling_entered'),
+    'test_conflict_unknown_delivery_does_not_resend': (
+        'scenario_prepared', 'delivery_unknown_input_configured', 'text_conflict_observed', 'conflict_handling_entered'),
+    'test_merge_command_error_is_not_text_conflict': (
+        'scenario_prepared', 'git_io_failure_observed', 'target_verify_executed'),
+    'test_conflict_rework_still_rejects_forbidden_path': (
+        'scenario_prepared', 'text_conflict_observed', 'conflict_handling_entered',
+        'conflict_delivered', 'explicit_resubmitted', 'target_verify_executed'),
+    'test_conflict_rework_still_rejects_foreign_trailer': (
+        'scenario_prepared', 'text_conflict_observed', 'conflict_handling_entered',
+        'conflict_delivered', 'explicit_resubmitted', 'target_verify_executed'),
+}
 
 
 def classify_conflict_red(case, contracts, evidence, *, tests_run, failures, errors, skipped):
     target = CONFLICT_TARGET_IDS[case]
+    required = CONFLICT_REQUIRED_FACTS[case]
     steps = evidence['steps']
     targets = [(index, step) for index, step in enumerate(steps)
                if step['kind'] == 'target' and step['id'] == target]
@@ -51,7 +69,7 @@ def classify_conflict_red(case, contracts, evidence, *, tests_run, failures, err
     target_failed = target_unique and targets[0][1]['passed'] is False and checks[0]['pass'] is False
     target_passed = target_unique and targets[0][1]['passed'] is True and checks[0]['pass'] is True
     missing = []
-    for name in CONFLICT_REQUIRED_FACTS:
+    for name in required:
         facts = [(index, step) for index, step in enumerate(steps)
                  if step['kind'] == 'precondition' and step['id'] == name]
         if (not target_unique or len(facts) != 1 or facts[0][0] >= targets[0][0]
@@ -67,7 +85,7 @@ def classify_conflict_red(case, contracts, evidence, *, tests_run, failures, err
     coverage = ('NOT_COVERED' if missing or issues else
                 'TARGET_FAILED' if target_failed else 'TARGET_PASSED' if target_passed else 'NOT_COVERED')
     return {'target_assertion_id': target, 'target_failed': bool(target_failed), 'target_passed': bool(target_passed),
-            'required_preconditions': list(CONFLICT_REQUIRED_FACTS), 'missing_preconditions': missing,
+            'required_preconditions': list(required), 'missing_preconditions': missing,
             'classification_issues': issues, 'target_coverage': coverage,
             'business_red': coverage == 'TARGET_FAILED', 'conflict_evidence': evidence,
             'cleanup_failures': evidence['cleanup_failures']}
@@ -628,6 +646,10 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         self.artifact['conflict_inputs'] = {'attempt': a, 'C1': c, 'G': g,
                                            'worker_path': 'src/settings.json', 'foreign_path': 'host.txt'}
         self.evidence('scenario_prepared', c != g, self.artifact['conflict_inputs'])
+        live = self.store()['threads'][a['thread_id']]
+        self.evidence('worker_session_input_available', live['thread_id'] == a['thread_id']
+                      and not live['stopped'] and not live['archived'],
+                      {'attempt': a['attempt_id'], 'thread': a['thread_id'], 'controlled_session': live})
         return a, c, g
 
     def feedback(self):
@@ -637,7 +659,7 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
     def mode(self, **value):
         write_new(self.boundary / 'conflict-mode.json', value)
         readback = json.loads((self.boundary / 'conflict-mode.json').read_text(encoding='utf-8'))
-        self.evidence('session_input_configured', readback == value, readback)
+        return readback
 
     def system_issues(self, attempt):
         return [view['issue'] for view in self.cli('issues', '--task', self.task)['issues']
@@ -649,6 +671,12 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
                         and verification.get('conflict', {}).get('files') == ['src/settings.json'])
         details = {'attempt': a['attempt_id'], 'C1': c, 'G': g, 'verification': verification}
         self.evidence('text_conflict_observed', observed, details)
+        entered = [event for event in self.events() if event['type'] == 'verification_conflict'
+                   and verification and event['details']['verification_id'] == verification['verification_id']
+                   and event['details']['attempt']['attempt_id'] == a['attempt_id']
+                   and (event['details']['C'], event['details']['G'], event['details']['M']) == (c, g, None)]
+        self.evidence('conflict_handling_entered', observed and len(entered) == 1,
+                      {'attempt': a['attempt_id'], 'C1': c, 'G': g, 'events': entered})
         if self._testMethodName in (
                 'test_conflict_active_worker_reworks_and_integrates', 'test_conflict_ended_session_gets_new_attempt',
                 'test_conflict_unknown_session_preserves_scene_and_reports', 'test_conflict_unknown_delivery_does_not_resend'):
@@ -762,7 +790,9 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
 
     def test_conflict_ended_session_gets_new_attempt(self):
         a, c1, g = self.prepare_conflict()
-        self.mode(thread=a['thread_id'], observation={'stopped': True, 'running': False})
+        selected = self.mode(thread=a['thread_id'], observation={'stopped': True, 'running': False})
+        self.evidence('ended_session_input_configured',
+                      selected == {'thread': a['thread_id'], 'observation': {'stopped': True, 'running': False}}, selected)
         self.conflict(a, c1, g)
         new = self.status()['current_attempt']
         self.target_contract('Confirmed ended worker is replaced by one new attempt',
@@ -790,7 +820,9 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
 
     def test_conflict_unknown_session_preserves_scene_and_reports(self):
         a, c1, g = self.prepare_conflict()
-        self.mode(thread=a['thread_id'], observation={'error': {'providerPresent': False, 'activeTurn': None}})
+        selected = self.mode(thread=a['thread_id'], observation={'error': {'providerPresent': False, 'activeTurn': None}})
+        self.evidence('unknown_session_input_configured', selected == {
+            'thread': a['thread_id'], 'observation': {'error': {'providerPresent': False, 'activeTurn': None}}}, selected)
         self.request('verify', '--attempt', a['attempt_id'])
         self.observe_conflict(a, c1, g, self.status()['verification'])
         self.assertEqual(self.status()['current_attempt']['attempt_id'], a['attempt_id'])
@@ -804,7 +836,8 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
 
     def test_conflict_unknown_delivery_does_not_resend(self):
         a, c1, g = self.prepare_conflict()
-        self.mode(delivery_unknown=True)
+        selected = self.mode(delivery_unknown=True)
+        self.evidence('delivery_unknown_input_configured', selected == {'delivery_unknown': True}, selected)
         first = self.request('verify', '--attempt', a['attempt_id'])
         self.assertFalse(first['ok'], first)
         self.observe_conflict(a, c1, g, self.status()['verification'])
@@ -832,13 +865,14 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         reply = self.request('verify', '--attempt', a['attempt_id'])
         self.assertFalse(reply['ok'], reply)
         v = self.status()['verification']
-        self.assertEqual(self.git('ls-files', '--unmerged', '-z', cwd=v['workspace']).stdout, '')
+        unmerged = self.git('ls-files', '--unmerged', '-z', cwd=v['workspace']).stdout
+        self.assertEqual(unmerged, '')
         self.assertEqual(v['result']['returncode'], 73)
         self.assertEqual(self.feedback(), [])
         self.assertEqual(self.status()['current_attempt']['attempt_id'], a['attempt_id'])
         self.assertEqual(self.git('rev-parse', 'HEAD').stdout.strip(), g)
-        self.evidence('git_io_failure_observed', True,
-                      {'verification': v, 'reply': reply, 'unmerged': '', 'exit': 73})
+        self.evidence('git_io_failure_observed', v['result']['returncode'] == 73 and unmerged == '',
+                      {'verification': v, 'reply': reply, 'unmerged': unmerged, 'exit': v['result']['returncode']})
         self.evidence('target_verify_executed', v['C'] == c1 and v['G'] == g and
                       v['attempt']['attempt_id'] == a['attempt_id'], {'verification': v, 'reply': reply})
         self.target_contract('Git failure without unmerged index entries is not a repairable text conflict',
