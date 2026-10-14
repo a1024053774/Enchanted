@@ -480,3 +480,15 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_final_checkpoint.py --output e
 独立审查由会话内独立 agent `/root/t078_independent_review` 执行，`fork_turns=none`，未继承聊天，输入为冻结候选、任务契约与原始证据；[请求配置](independent-review-request-01.json) 指定 explorer、gpt-6-astra、xhigh。工具没有 Fast 参数，审查上下文也无法核验具体模型编号／强度／实际服务档位，故这些只记录为请求值。审查逐字比对源码快照、读取 SQLite 内存副本与外置原件，没有新运行供应商 CLI 或运行时测试。完整返回原文保存在 [审查报告](independent-review-01.md)。没有确认的修复项，因此未追加产品修复或第二次审查。
 
 本次收尾提交只纳入本卡证据和 ticket Resolution；workbench 仍与已验收、已审查的代码提交一致。ticket 保持 open、待主控关闭；不 push，不切换日常文件版 inbox。真实 Claude、主控接线、实际互相唤醒及三窗格未完成，继续等待 needs-decision `20261011T101958Z`。
+
+## T-078-2 材料 08c（主控 #109）
+
+上节为 T-078-1 收尾时点；用户随后选择“假服务为主，真登录复核 2～3 回合”，T-078-2 已进入逐次审批的协议探针。当前由 s13-t078s 续接原生会话，gpt-6.1-sol／xhigh／default；未把旧通过结论外推到新代码。完整阶段约束见 [PLAN-2](PLAN-2.md) 与 [P1-APPROVAL-08C](P1-APPROVAL-08C.md)。真登录尚未启动。
+
+08b 的实际 CLI 已由主控启动并清理，无真实模型回合。ArrowUp 到 Auto、ArrowDown 到 Dark 的批准与后台事件一致，Enter 却被拒；拒绝前后 PTY 输出均为 3,906 字节，原始失败保留。根因是 `selected_label` 的目标项语义与门禁、旧域测试的按键前光标语义不一致。[只读诊断](theme-diagnosis-08c.json) 保存字段、原文字节与退出读回；cleanup PASS 仅证明该实例的记录进程已退出。
+
+修复单独提交 `95b69e04aac6f20d3a18e1e42a5c2494e35f46c3`。新域探针从真实批准文件与屏幕原字节重放：起点拒绝正确序列，同时接受颠倒标签；[红态](theme-confirmation-red-08c/results.json) 原样保留。修复后要求连续登记目标 Auto → Dark，再单独批准 Enter 确认 Dark；[绿态](theme-confirmation-green-08c/results.json) 4/4，默认 Enter、颠倒标签与缺少 Auto 导航仍拒绝；[原门禁检查](screen-key-green-08c/results.json) 4/4，同屏去重与一次信任限制保留。此为域夹具，合成 PTY／进程身份，没有实际选择菜单或证明真实 hooks。
+
+08b launch 的 13 字节即时截取没有形成首屏。08c 改为只记录进程启动；首屏由另批的 screen 阶段读回，不加读屏规则、重试或自动按键。新实例为 `/private/tmp/t078-2-p1-08c-1uy5wegk`；launch/session/thread、准确 argv/env、端口启动时分配、隔离 HOME 与 hooks 等绑定见材料。每屏目标项与批准均入证据，真登录在用户 HOME 出现任何引导屏一律停下交主控、不按键。
+
+08c 静态准备 PASS，实际 launch 未执行；一回合主请求、真实 UserPromptSubmit／Stop、busy／完成仍 INCOMPLETE。Esc 放行、二次送达、紧急停止继续留材料 09，不缩减整票验收。审批／域探针／静态检查重放命令见 P1-APPROVAL-08C；整体保持 INCOMPLETE、open、待主控关闭。本轮 worker 启动 CLI／API／模型均为 0。

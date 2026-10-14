@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "scope": "Read-only diagnosis of immutable 08b outputs; no process or model started",
+  "navigation": [
+    {
+      "event_type": "controller_screen_key_intent",
+      "source": "executor",
+      "key": "ArrowUp",
+      "purpose": "onboarding-theme",
+      "screen_id": "theme-01",
+      "selected_label": "Auto (match terminal)",
+      "received_at": "2026-10-14T02:49:05.712Z",
+      "directory": "/private/tmp/t078-2-p1-08b-ubqe_xs5/repo",
+      "bytes": 3576,
+      "approval": "evidence/2026-10-11-batch13/T-078/p1-materials-08b/approvals/theme-01.json",
+      "screen": "evidence/2026-10-11-batch13/T-078/p1-materials-08b/screen-theme-01/screen.bin"
+    },
+    {
+      "event_type": "controller_screen_key_intent",
+      "source": "executor",
+      "key": "ArrowDown",
+      "purpose": "onboarding-theme",
+      "screen_id": "theme-02",
+      "selected_label": "Dark mode",
+      "received_at": "2026-10-14T02:49:20.685Z",
+      "directory": "/private/tmp/t078-2-p1-08b-ubqe_xs5/repo",
+      "bytes": 3746,
+      "approval": "evidence/2026-10-11-batch13/T-078/p1-materials-08b/approvals/theme-02.json",
+      "screen": "evidence/2026-10-11-batch13/T-078/p1-materials-08b/screen-theme-02/screen.bin"
+    }
+  ],
+  "rejected_enter_stdout": "{\"ok\":false,\"error\":\"theme_selection_not_explicit\",\"details\":\"Error: theme_selection_not_explicit\"}\n",
+  "before_and_after_enter_bytes": [
+    3906,
+    3906
+  ],
+  "launch_snapshot_bytes": 13,
+  "cause": "Approvals and recorded navigation use selected_label as the target; old guard required the ArrowDown target to be Auto and the old fixture encoded the pre-key cursor.",
+  "fix": "Require the recorded ArrowUp target Auto, ArrowDown target Dark, and a separately approved Enter target Dark. Default Enter remains refused. Launch records process startup only; screen readback is a separate phase."
+}
