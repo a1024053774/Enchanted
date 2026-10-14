@@ -13,14 +13,22 @@ const home = join(control, "home"); mkdirSync(join(home, "sessions"), { recursiv
 const version = join(control, "version-only");
 writeFileSync(version, '#!/bin/sh\nprintf "codex-cli 0.162.1\\n"\n', { mode: 0o700, flag: "wx" });
 const role = join(control, "role.txt"); writeFileSync(role, "确定性夹具；没有模型或真实 worker。", { flag: "wx" });
+const reviewers = Array.from({ length: 4 }, (_, index) => {
+  const codex_home = join(control, `review-home-${index}`); mkdirSync(codex_home);
+  return { codex_home, role_card: role, role_card_revision: "controlled-reviewer",
+    hook_authorization: "synthetic hook calls only" };
+});
 const terminals = new Map<string, any>();
 require.cache[require.resolve("node-pty")] = { exports: { spawn: (_shell: string, _argv: string[], options: any) => {
   const launch = options.env.A2A_LAUNCH, native = "fixture-native-" + launch;
-  const file = join(home, "sessions", "rollout-" + native + ".jsonl");
+  const paneHome = options.env.CODEX_HOME;
+  mkdirSync(join(paneHome, "sessions"), { recursive: true });
+  const file = join(paneHome, "sessions", "rollout-" + native + ".jsonl");
   const pid = 21001 + terminals.size * 10, exits: ((value: any) => void)[] = [];
   const runtime = { native, file, cwd: options.cwd, turn: 0, shell: pid, leader: pid + 1, exited: false };
   const save = () => writeFileSync(join(control, launch + ".runtime.json"), JSON.stringify(runtime) + "\n");
   writeFileSync(join(control, launch + ".env.json"), JSON.stringify(options.env) + "\n", { flag: "wx" });
+  writeFileSync(join(control, launch + ".json"), JSON.stringify({ launch, native, env: options.env }) + "\n", { flag: "wx" });
   const exit = () => {
     if (runtime.exited) return;
     runtime.exited = true; save();
@@ -34,13 +42,16 @@ require.cache[require.resolve("node-pty")] = { exports: { spawn: (_shell: string
       if (!runtime.turn) writeFileSync(file, JSON.stringify({ type: "session_meta",
         payload: { id: native, source: "cli", cwd: options.cwd, cli_version: "0.162.1" } }) + "\n", { flag: "wx" });
       runtime.turn++;
-      appendFileSync(file, JSON.stringify({ type: "event_msg", payload: { type: "task_started", turn_id: "turn-" + runtime.turn } }) + "\n");
+      const turn = (options.env.A2A_ROLE === "reviewer" ? "fixture-turn-" : "turn-") + runtime.turn;
+      appendFileSync(file, JSON.stringify({ type: "event_msg", payload: { type: "task_started", turn_id: turn } }) + "\n");
+      appendFileSync(file, JSON.stringify({ type: "turn_context", payload: { turn_id: turn,
+        model: "gpt-6.1-sol", effort: "xhigh" } }) + "\n");
       save();
     } };
 } } } as any;
 await serve(state, { codex_bin: version, codex_home: home, role_card: role,
   code_revision: "controlled-relay-conflict", role_card_revision: "controlled-relay-conflict",
-  hook_authorization: "synthetic hook calls only", turn_limit: 4 }, (root: string, panes: any) => {
+  hook_authorization: "synthetic hook calls only", turn_limit: 10, reviewers }, (root: string, panes: any) => {
   panes.processInfo = async (thread: string) => {
     const pane = panes.get(thread), terminal = terminals.get(pane.record.id);
     panes.scan(pane);

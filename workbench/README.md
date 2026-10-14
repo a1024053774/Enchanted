@@ -114,7 +114,7 @@ reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选�
 转交。程序不剥 Markdown fence、不抽取一段 JSON、不从自然语言猜结论。
 非法结论保存原文、上报并暂停；有效结论只接受“可合并”加空清单，或“需修复”加位置、
 失败场景、建议。结论绑定 C、合同和独立启动/原生身份。有效结果存库、reviewer idle 后回收，
-不另开纯 ACK 回合。审查目录的统一命名/清理由 T-077 衔接。
+不另开纯 ACK 回合。审查目录按下述 S3 规则命名和清理。
 
 ```sh
 node workbench/src/gates/cli.ts --state /绝对路径/state integrate --task T-080-1 --attempt ATTEMPT --score-file /绝对路径/score.json
@@ -164,6 +164,12 @@ worker 目录为 `<state>/worktrees/<project_id>/<task>-a<N>`，分支为
 `refs/a2a/verifications/<task>/a<N>/v<K>`，然后清理临时目录。
 中断、结果未知或清理失败时保留现场并记录问题。
 
+审查目录为同一项目命名空间下的 `<task>-a<N>-review-<K>`，保持 detached；
+K 按该 attempt 已记录的审查意图递增，同 C 的有效审查复用不新建目录或递增序号。
+审查结论入库后，确认原 reviewer 已停止且归档，再核对目录身份、候选 HEAD 与干净状态并删除目录及 Git worktree 登记。
+清理事件单独追加，不改写 `review_result` 的审查对象，因此目录删除不改变 R8 沿用结论的身份绑定。
+脏目录、未知 HEAD、退出未确认或清理结果未知时保留可核对的现场，沿用审查生命周期的暂停和问题上报语义。
+
 已集成 attempt 在确认窗格回收后清理；无绑定线程的手工 claim 在集成后清理。
 干净的撤销 attempt 在没有活跃线程时清理，否则等显式 reclaim。
 清理前先保存并读回 `refs/a2a/attempts/<task>/a<N>`；已集成的还删除 worker 分支名，
@@ -176,8 +182,8 @@ worker 目录为 `<state>/worktrees/<project_id>/<task>-a<N>`，分支为
 第 4 次返回 `integration_revalidation_limit`，任务暂停并保存 system issue。
 重复 integrate 不重置额度。只有已确认在 Git prepare 阶段终止、且未写工作区的
 新 intent 可以进入这条重验路径；中断恢复的 pending intent 或未知副作用仍要求核对。
-`integration_compare_failed` 事件携带候选审查的身份绑定，供 T-076-2 接入；
-它本身不是审查通过记录，机械检查每次都重跑。
+`integration_compare_failed` 事件携带候选审查的身份绑定；每次重验走同一质量串，
+候选和完整身份绑定不变时沿用有效审查，候选改变时新开审查。该事件本身不是审查通过记录。
 
 验收发生内容冲突时，只有 Git 合并退出 1 且索引含未合并条目才进入冲突整理。
 原始命令结果、冲突文件、索引阶段与差异先保存；原 C 和 G 分别保存在

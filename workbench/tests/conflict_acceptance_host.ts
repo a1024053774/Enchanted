@@ -2,21 +2,40 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { installControlledPTY } from "./controlled_quality_pty.ts";
+import { withReviewerRuntime } from "./legacy_review_runtime.ts";
 
-const [state, control, ready, gate] = process.argv.slice(2);
-if (!state || !control || control === "-" || !ready || !gate || process.argv.length !== 6)
-  throw new Error("Expected state, controlled-session directory, ready file and gate module");
+const [state, control, ready, gate, reviewControl] = process.argv.slice(2);
+if (!state || !control || control === "-" || !ready || !gate || !reviewControl || process.argv.length !== 7)
+  throw new Error("Expected state, controlled-session directory, ready file, gate module and reviewer control directory");
 const product = resolve(dirname(gate), "../../..");
 process.env.A2A_TEST_THREAD_CONTROL = resolve(control);
 const { serve } = await import(pathToFileURL(join(product, "workbench/src/daemon.ts")).href);
 const { A2AGates } = await import(pathToFileURL(gate).href);
 const { boundary, runtime: original } = await import(pathToFileURL(join(product, "acceptance/entry/native-runtime.ts")).href);
+const config = JSON.parse(readFileSync(join(reviewControl, "config.json"), "utf8"));
+const bind = installControlledPTY(product, reviewControl, config);
 const turns = new Map<string, number>();
+const workers = new Map<string, any>();
 const modeFile = join(control, "conflict-mode.json");
 const mode = () => existsSync(modeFile) ? JSON.parse(readFileSync(modeFile, "utf8")) : {};
 const log = (name: string, value: unknown) => appendFileSync(join(control, name + ".jsonl"), JSON.stringify(value) + "\n");
 const runtime = {
   ...original,
+  createThread: async (task: any, attempt: any) => {
+    await original.createThread(task, attempt);
+    workers.set(attempt.thread_id, { id: attempt.thread_id, role: "worker", cli_version: "controlled-conflict-runtime",
+      model: task.card.executor.model, effort: task.card.executor.effort });
+  },
+  sessionFacts: async (thread: string) => {
+    const launch = workers.get(thread);
+    if (!launch) throw new Error("No controlled conflict worker creation");
+    return { launch, model: launch.model, effort: launch.effort };
+  },
+  qualityFeedback: async (attempt: any, repair: any) => {
+    log("quality-feedback", { attempt: attempt.attempt_id, thread: attempt.thread_id, repair, registered: !repair.stopped });
+    if (!repair.stopped) turns.set(attempt.thread_id, (turns.get(attempt.thread_id) ?? 0) + 1);
+  },
   startThread: async (task: unknown, attempt: any, prompt: string) => {
     await original.startThread(task, attempt, prompt);
     turns.set(attempt.thread_id, 1);
@@ -59,7 +78,10 @@ class ControlledConflictGates extends A2AGates {
   }
 }
 
-await serve(state, {}, (root: string) => new ControlledConflictGates(root, runtime));
+await serve(state, config, (root: string, panes: any) => {
+  bind(panes);
+  return new ControlledConflictGates(root, withReviewerRuntime(runtime, panes));
+});
 writeFileSync(ready, JSON.stringify({ pid: process.pid, root: resolve(state), gate,
   daemon: join(product, "workbench/src/daemon.ts"),
   runtime: "controlled-conflict-session", control: resolve(control), argv: process.argv }) + "\n", { flag: "wx" });

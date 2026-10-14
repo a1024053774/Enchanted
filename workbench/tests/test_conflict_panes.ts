@@ -37,7 +37,8 @@ function fixture(name: string) {
   const workspace = join(state, "worker"); mkdirSync(workspace);
   const store = new OrchestrationStore(state);
   const writes: string[] = [];
-  const pane: any = { record: { id: name, task: "conflict-task", attempt: "attempt-1", argv: ["/fixture/codex"] },
+  const pane: any = { record: { id: name, task: "conflict-task", attempt: "attempt-1", role: "worker",
+    env: { CODEX_HOME: home }, argv: ["/fixture/codex"] },
     token: "fixture-token", task: {}, attempt: { workspace, thread_id: "thread-1" },
     pty: { pid: 101, write: (text: string) => writes.push(text) }, state: "idle", stopped: false, archived: false,
     failed: null, leader: 102, native: "native-1", turn: "turn-1", nativeEnded: false,

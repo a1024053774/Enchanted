@@ -6,7 +6,7 @@ set -euo pipefail
 # bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh red-01
 # 同名输出已存在时拒绝，不能覆盖原始失败。后续阶段另行批准/交回。
 if [[ "$#" != 1 ]]; then
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01' >&2
   exit 2
 fi
 cd /Users/luckye/Documents/Code/a2a-wt-t077
@@ -336,6 +336,10 @@ real-r3-launch-02)
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-real-conflict-03.py \
   --phase 2 --approval-ref "$T077_REAL_APPROVAL"
   ;;
+rebase-final-01)
+# 主控 #108：冻结 c3eb705c；受控变体先红、候选联合检查及完整回归；真实模型 0。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-rebase-final-01.py
+  ;;
 controlled-trailer-proofs-01)
 # 真实 CLI/Git/门禁，受控原生运行时；先杀死放过额外尾注的变体，再跑两条候选证明。
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-controlled-trailer-proofs.py \
@@ -352,7 +356,7 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/
   --phase 2 --approval-ref "$T077_REAL_APPROVAL"
   ;;
 *)
-  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01' >&2
+  echo 'usage: outside-sandbox.sh red-01|check-01|check-02|check-03|check-04|cards-03|conflict-red-01|conflict-green-01|rebase-01|rebase-fix-02|real-01|real-02|relay-check-01|relay-check-02|relay-regression-01|real-recheck-01|real-recheck-02|r3-plan-check-01|real-r3-launch-01|real-r3-launch-02|controlled-trailer-proofs-01|rebase-final-01' >&2
   exit 2
   ;;
 esac

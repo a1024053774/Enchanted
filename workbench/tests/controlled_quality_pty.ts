@@ -30,7 +30,7 @@ export function installControlledPTY(source: string, control: string, config: an
         ? facts.next_reviewer_native : "fixture-native-" + env.A2A_LAUNCH;
       const log = join(env.CODEX_HOME, "sessions", "rollout-" + native + ".jsonl");
       mkdirSync(join(env.CODEX_HOME, "sessions"), { recursive: true });
-      writeFileSync(log, JSON.stringify({ type: "session_meta", payload: { source: "cli", id: native } }) + "\n", { flag: "wx" });
+      writeFileSync(log, JSON.stringify({ type: "session_meta", payload: { source: "cli", id: native, cwd: options.cwd } }) + "\n", { flag: "wx" });
       const terminal = { pid: 31000 + terminals.length * 10, callbacks: [] as Function[], turns: 0,
         exited: false, launch: env.A2A_LAUNCH, native, log, env };
       terminals.push(terminal);

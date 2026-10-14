@@ -1,0 +1,101 @@
+      if (args.command === "integrate") {
+        const score = this.scoreData(args.score_file);
+        if (task.state === "accepted") {
+          requireGate(JSON.stringify(score) === JSON.stringify(task.integration_intent?.score?.data), "score_replay_mismatch");
+          return { ok: true, task, replayed: true };
+        }
+        let intent = task.integration_intent;
+        const v = task.verification;
+        requireGate((task.state === "verified" || intent) && v?.state === "passed", "not_verified");
+        this.checkVerification(task, attempt, v);
+        this.checkQualityEvidence(task, attempt, v);
+        this.requireReviewed(task, attempt);
+        requireGate(attempt.delivery, "score_provenance_required");
+        if (intent) requireGate(intent.score && JSON.stringify(intent.score.data) === JSON.stringify(score), "score_replay_mismatch");
+        requireGate(v.M, "not_verified");
+        const actual = await this.integration(task);
+        if (intent) {
+          requireGate(
+            task.state === "integrating" &&
+              intent.state === "pending" &&
+              intent.verification_id === v.verification_id &&
+              intent.G === v.G &&
+              intent.M === v.M &&
+              intent.C === v.C &&
+              intent.spec_rev === v.spec_rev &&
+              intent.card_snapshot_id === v.card_snapshot_id &&
+              intent.integration_ref === task.integration_ref &&
+              intent.attempt.task_id === taskId &&
+              intent.attempt.attempt_id === attempt.attempt_id &&
+              intent.attempt.session_id === attempt.session_id &&
+              intent.attempt.fence === attempt.fence &&
+              intent.attempt.spec_rev === task.spec_rev &&
+              (actual === intent.G || actual === intent.M),
+            "needs_reconciliation",
+            { intent, actual },
+          );
+          if (actual === intent.M) {
+            await this.checkIntegratedContent(task, intent);
+            intent.state = "completed";
+            task.state = "accepted";
+            attempt.state = "accepted";
+            this.db.exec("BEGIN IMMEDIATE");
+            try {
+              this.save(task, "integrated_reconciled", intent);
+              this.finalScore(task, attempt, intent);
+              this.db.exec("COMMIT");
+            } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+            return { ok: true, task, reconciled: true };
+          }
+        } else {
+          if (actual !== v.G) {
+            task.state = "submitted";
+            task.verification = null;
+            this.save(task, "integration_conflict", { expected: v.G, actual });
+            throw new Refusal("integration_conflict");
+          }
+          intent = {
+            G: v.G,
+            C: v.C,
+            M: v.M,
+            verification_id: v.verification_id,
+            attempt: { ...attempt },
+            spec_rev: v.spec_rev,
+            card_snapshot_id: v.card_snapshot_id,
+            integration_ref: task.integration_ref,
+            worktree: await this.integrationWorktree(task),
+            intent_id: randomUUID(),
+            state: "pending",
+            score: { score_id: "score-" + randomUUID(), data: score },
+            command_intent: {
+              argv: [],
+              cwd: task.repo,
+            },
+          };
+          intent.command_intent = {
+            argv: ["git", "-C", intent.worktree ?? task.repo, "update-ref", "--stdin"],
+            cwd: intent.worktree ?? task.repo,
+          };
+          task.integration_intent = intent;
+          task.state = "integrating";
+          this.save(task, "integration_intent", intent);
+        }
+        const result = await this.advanceWorkBranch(task, intent);
+        const readback = await this.integration(task);
+        intent.result = result;
+        const completed = result.returncode === 0 && readback === intent.M;
+        if (completed) {
+          await this.checkIntegratedContent(task, intent);
+          intent.state = "completed";
+          task.state = "accepted";
+          attempt.state = "accepted";
+        }
+        this.db.exec("BEGIN IMMEDIATE");
+        try {
+          this.save(task, completed ? "integrated" : "integration_conflict", { intent, readback });
+          if (completed) this.finalScore(task, attempt, intent);
+          this.db.exec("COMMIT");
+        } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
+        requireGate(completed, "needs_reconciliation", { intent, readback });
+        return { ok: true, task };
+      }

@@ -159,6 +159,7 @@ export interface A2ARepair {
 
 export interface A2AReview {
   review_id: string;
+  ordinal: number;
   task_id: string;
   attempt: A2AAttempt;
   candidate_commit: string;

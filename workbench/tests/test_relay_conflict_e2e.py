@@ -21,6 +21,7 @@ import tempfile
 import time
 import unittest
 import test_task_cards_e2e as cards
+from legacy_quality_driver import QualityDriver
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = OUT = None
@@ -28,12 +29,24 @@ CONTRACTS = []
 
 
 class RelayConflict(cards.TaskCardsCLI):
+    def cli(self, command, *args, **kwargs):
+        # The independent reviewer and executor remain explicit external actors.
+        if command == 'integrate' and '--score-file' not in args:
+            attempt = super().cli('status')['task']['current_attempt']
+            args = (*args, '--score-file', self.quality.score_file(attempt))
+        result = super().cli(command, *args, **kwargs)
+        if result['ok'] and command == 'verify' and result['task']['state'] == 'reviewing':
+            task = result['task']
+            self.quality.complete_review(self.task, task['current_attempt'], task['candidate_commit'])
+        return result
+
     def setUp(self):
         super().setUp()
         self.control = self.root / 'control'; self.control.mkdir()
         self.host = None; self.host_streams = []
         self.addCleanup(self.cleanup_host)
         self.env = {k: v for k, v in self.env.items() if not k.startswith('CODEX_')}
+        self.quality = QualityDriver(cards.GATE, self.state, self.control, self.env)
         self.card['completion_conditions'][0]['argv'][-1] = (
             "from pathlib import Path; assert Path('src/value.txt').read_text() == 'worker+host\\n'")
         ready = self.control / 'ready.json'

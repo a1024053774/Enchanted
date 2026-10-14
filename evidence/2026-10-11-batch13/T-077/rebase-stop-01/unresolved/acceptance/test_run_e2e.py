@@ -1,0 +1,753 @@
+"""Independent T-008 contract checks through CLI, Git and read-only SQLite.
+
+Run: python3 -B acceptance/test_run_e2e.py
+COOP_SCRIPT selects a frozen parent or a controller-owned candidate/mutant.
+Native thread-service substitutes below establish isolated orchestration evidence only.
+They do not establish a real Synara provider, model, service-tier or reliability claim.
+"""
+import datetime
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import time
+import unittest
+import uuid
+
+os.environ.setdefault("COOP_SCRIPT", str(Path(__file__).resolve().parent / "entry/native-entry.py"))
+
+import test_coop_e2e as helper
+import test_recovery_e2e as recovery
+
+
+ROOT = helper.ROOT
+SCRIPT = helper.SCRIPT
+EVIDENCE = ROOT / "evidence/native-run"
+CONTRACT = ROOT / ".project-map/specs/supervised-run-2026-10-06.md"
+COMMANDS = helper.COMMANDS
+ARTIFACTS = helper.ARTIFACTS
+ASSERTIONS = recovery.ASSERTIONS
+TEST_RESULTS = []
+write_new = recovery.write_new
+
+
+# Native thread service boundary lives in acceptance/entry/.
+# Only the external runtime is substituted; core state, CLI, Git and oracle are real.
+
+
+class ContractMissing(AssertionError):
+    """The requested new CLI contract is absent, not an old product defect."""
+
+
+def scalar_values(value):
+    """Read public event values without prescribing their nesting or keys."""
+    if isinstance(value, dict):
+        return [item for child in value.values() for item in scalar_values(child)]
+    if isinstance(value, list):
+        return [item for child in value for item in scalar_values(child)]
+    return [value]
+
+
+def named_values(value, name):
+    if isinstance(value, dict):
+        return ([value[name]] if name in value else []) + [item for child in value.values()
+                                                        for item in named_values(child, name)]
+    if isinstance(value, list):
+        return [item for child in value for item in named_values(child, name)]
+    return []
+
+
+class RunCLI(recovery.RecoveryCLI):
+    def setUp(self):
+        super().setUp()
+        # Use the independent frozen pagination oracle without a barrier unless
+        # a particular test explicitly controls it.
+        (self.oracle_control / "release-all").write_text("continue", encoding="utf-8")
+        self.boundary = self.root / "isolated boundary"
+        self.boundary.mkdir()
+        self.parent_thread = "controller-sentinel"
+        self.unrelated_thread = "unrelated-sentinel"
+        threads = {}
+        for thread_id in (self.parent_thread, self.unrelated_thread):
+            threads[thread_id] = dict(thread_id=thread_id, workspace=str(self.root),
+                turn="sentinel-turn:" + thread_id, provider="codex", running=True,
+                stopped=False, archived=False, blocked=False)
+        write_new(self.boundary / "store.json", {"threads": threads, "next": 3,
+            "scenario": "done-no-submit", "prompts": [], "closes": [], "archived": {}})
+        self.env.update({"A2A_TEST_THREAD_CONTROL": str(self.boundary)})
+        self.artifact.update({"evidence_layer": "isolated-orchestration",
+                              "boundary": str(self.boundary),
+                              "boundary_log": str(self.boundary / "boundary.jsonl")})
+        self.addCleanup(self.boundary_health)
+        self.sentinels = dict(threads)
+
+    def boundary_health(self):
+        # Release only the external fixture barrier before the inherited owned
+        # CLI cleanup. Never signal simulated thread identities.
+        (self.boundary / "release-observe").write_text("release", encoding="utf-8")
+        marker = self.boundary / "fixture-error"
+        if marker.exists():
+            raise recovery.FixtureError(marker.read_text(encoding="utf-8"))
+
+    def store(self):
+        return json.loads((self.boundary / "store.json").read_text(encoding="utf-8"))
+
+    def scenario(self, value):
+        # Test-only fixture state; production SQLite is never written here.
+        import fcntl
+        with (self.boundary / "lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            store = self.store()
+            store["scenario"] = value
+            temp = self.boundary / (uuid.uuid4().hex + ".store.tmp")
+            write_new(temp, store)
+            temp.replace(self.boundary / "store.json")
+
+    def run_args(self, seconds=3, name="check-run"):
+        return ("--task", self.task, "--runtime-mode", "approval-required",
+                "--wait-seconds", str(seconds))
+
+    def start_run(self, seconds=3):
+        return self.start_cli("run", *self.run_args(seconds))
+
+    def wait_prompt(self, handle, prior=0):
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            store = self.store()
+            if len(store["prompts"]) > prior:
+                return store["prompts"][-1]["thread_id"]
+            if handle["process"].poll() is not None:
+                self.new_result(self.complete(handle), "run")
+                self.check(False, "Valid run dispatches one prompt before ending", True, store)
+                self.finish_checks()
+            time.sleep(0.03)
+        raise recovery.FixtureError("Run did not reach the isolated prompt boundary in 5 seconds")
+
+    def current_attempt(self):
+        snapshot = self.snapshot("read-current-attempt")
+        current = snapshot["status"]["current_attempt"]
+        if isinstance(current, dict):
+            return current
+        matches = [r for r in self.rows(snapshot, "attempt") if r.get("attempt_id") == current]
+        if len(matches) != 1:
+            raise recovery.FixtureError("Cannot observe the current attempt: " + repr(current))
+        return matches[0]
+
+    def guard(self, command, attempt, ok=True, error=None, task=None):
+        p = self.process(self.cli_argv(command, "--task", task or self.task,
+                                     "--attempt", attempt), label="coop:" + command + "-guard")
+        value = self.new_result(p, command, ok=ok, error=error)
+        return value
+
+    def unchanged(self, before, after, claim):
+        for key in ("status", "refs", "reflog", "worktrees"):
+            self.check(before[key] == after[key], claim + ": " + key,
+                       before[key], after[key])
+        for domain in ("attempt", "verification", "integration"):
+            self.check(self.rows(before, domain) == self.rows(after, domain),
+                       claim + ": persisted " + domain,
+                       self.rows(before, domain), self.rows(after, domain))
+        self.preserved_history(before, after)
+
+    def only_own_close(self, *own):
+        store = self.store()
+        self.check(store["closes"] == list(own), "Only explicitly owned threads are closed",
+                   list(own), store["closes"])
+        for thread_id, sentinel in self.sentinels.items():
+            self.check(store["threads"].get(thread_id) == sentinel,
+                       "Parent and unrelated thread identities remain unchanged: " + thread_id,
+                       sentinel, store["threads"].get(thread_id))
+
+    def failed_run(self, process, error=None):
+        value = self.new_result(process, "run", ok=False, error=error)
+        run = value.get("run")
+        self.check(isinstance(run, dict) and bool(run.get("run_id")) and
+                   run.get("outcome") != "completed", "Created failed run remains inspectable",
+                   "run_id and non-completed outcome", run)
+        self.check(self.ref() == self.base and self.status()["state"] != "accepted",
+                   "Failure never accepts or updates integration ref", self.base, self.ref())
+        if isinstance(run, dict):
+            self.persisted_run_receipt(run)
+        return value
+
+    def persisted_run_receipt(self, run):
+        # Events are the public persistence boundary. SQLite is retained only
+        # as supporting raw evidence; no new table or internal layout is owed.
+        events = self.events()
+        run_id, outcome = run.get("run_id"), run.get("outcome")
+        linked = [event for event in events if run_id in scalar_values(event) and
+                  outcome in scalar_values(event)] if run_id and outcome else []
+        self.check(bool(linked), "Public events persist run_id and final outcome together",
+                   {"run_id": run_id, "outcome": outcome}, events)
+
+    def new_result(self, process, command, ok=True, error=None):
+        missing = process.returncode == 2 and (
+            (command == "run" and ("invalid choice: 'run'" in process.stderr or "state, command and task required" in process.stderr)) or
+            (command in ("verify", "integrate", "reclaim") and
+             "unrecognized arguments: --attempt" in process.stderr))
+        if missing:
+            ASSERTIONS.append({"test": self.id(), "claim": "New CLI contract exists",
+                               "expected": command + " contract", "observed": process.stderr,
+                               "pass": False, "classification": "expected-contract-red"})
+            raise ContractMissing("EXPECTED_CONTRACT_RED new command/guard missing: " + command)
+        marker = self.boundary / "fixture-error"
+        if marker.exists():
+            raise recovery.FixtureError(marker.read_text(encoding="utf-8"))
+        try:
+            return self.cli_result(process, ok=ok, error=error,
+                                   claim="Frozen CLI result for " + command)
+        except AssertionError:
+            self.check(False, "Contract-valid CLI returns a JSON gate result: " + command,
+                       "exit 0/1 and a JSON object", {"exit": process.returncode,
+                       "stdout": process.stdout, "stderr": process.stderr})
+            self.finish_checks()
+
+    def test_run_entry_point_completes_registered_task(self):
+        self.create()
+        original_head = self.git("rev-parse", "HEAD").stdout.strip()
+        handle = self.start_run(seconds=8)
+        thread = self.wait_prompt(handle)
+        attempt = self.current_attempt()
+        native = self.store()["threads"][thread]
+        self.check(native["envMode"] == "worktree" and native["workspace"] == attempt["workspace"] and
+                   native["baseRef"] == self.base,
+                   "Worker uses its owned worktree and the authoritative integration head",
+                   ["worktree", attempt["workspace"], self.base],
+                   [native["envMode"], native["workspace"], native["baseRef"]])
+        candidate = self.candidate(attempt, good=True)
+        candidate_bytes = Path(attempt["workspace"], "pager.py").read_bytes()
+        self.submit(attempt, candidate)
+        self.drive_executor_finalize(handle, attempt, candidate)
+        value = self.new_result(self.complete(handle), "run")
+        run = value.get("run", {})
+        self.check(bool(run.get("run_id")) and run.get("attempt_id") == attempt["attempt_id"] and
+                   run.get("outcome") == "completed", "Completed run binds the dispatched attempt",
+                   {"attempt_id": attempt["attempt_id"], "outcome": "completed"}, run)
+        accepted = self.snapshot("automatic-run-accepted")
+        self.check(value.get("task", {}).get("state") == "accepted" and
+                   accepted["status"]["state"] == "accepted", "CLI and SQLite agree on accepted task",
+                   "accepted", [value.get("task"), accepted["status"]])
+        self.check(self.ref() == candidate and candidate != self.base,
+                   "Automatic run integrates the explicit new Git candidate", candidate, self.ref())
+        self.persisted_run_receipt(run)
+        self.check(original_head == self.base and self.git("rev-parse", "HEAD").stdout.strip() == candidate,
+                   "Project work branch advances from G to the verified M", candidate,
+                   self.git("rev-parse", "HEAD").stdout.strip())
+        self.check(self.git("status", "--porcelain").stdout == "" and
+                   (self.repo / "pager.py").read_bytes() == candidate_bytes,
+                   "Checked-out worktree and index match M", "clean worktree with candidate contents",
+                   self.git("status", "--porcelain").stdout)
+        readback = self.root / "authoritative accepted readback"
+        self.git("worktree", "add", "--detach", str(readback), self.ref())
+        self.assert_novel_pagination_inputs(readback)
+        self.only_own_close(thread)
+        self.check(len(self.store()["prompts"]) == 1, "Normal run prompts exactly once", 1,
+                   len(self.store()["prompts"]))
+        self.check(not Path(attempt["workspace"]).exists(), "Reclaim removes the integrated clean worktree", False,
+                   Path(attempt["workspace"]).exists())
+        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
+        self.check(retained == candidate, "Integrated candidate remains under its attempt reference", candidate, retained)
+        branch = self.process(["git", "-C", self.repo, "show-ref", "--verify", "--quiet", f"refs/heads/a2a/{self.task}-a1"])
+        self.check(branch.returncode == 1, "Integrated worker branch name is removed", 1, branch.returncode)
+        self.finish_checks()
+
+    def test_transient_tool_activity_keeps_same_thread_owner(self):
+        self.scenario("helper-joins")
+        self.test_run_entry_point_completes_registered_task()
+
+    def test_new_native_turn_is_not_owned_even_with_old_thread_present(self):
+        self.create()
+        self.scenario("leader-changed")
+        handle = self.start_run(seconds=2)
+        thread = self.wait_prompt(handle)
+        self.failed_run(self.complete(handle))
+        self.check(thread in self.store()["threads"] and not self.store()["closes"],
+                   "Changed turn is not reclaimed as the old worker", "thread retained", self.store())
+        self.check(self.ref() == self.base and not self.entries(self.oracle_control),
+                   "Changed turn does not verify or integrate", self.base, self.ref())
+        self.finish_checks()
+
+    def test_verify_expected_attempt_uses_real_gate(self):
+        attempt, candidate = self.setup_candidate()
+        before = self.snapshot("before-new-verify-guard")
+        p = self.process(self.cli_argv("verify", "--task", self.task,
+                                     "--attempt", attempt["attempt_id"]), label="coop:verify-guard")
+        if p.returncode == 2:
+            after = self.snapshot("after-missing-verify-guard")
+            self.check(before["status"] == after["status"] and before["refs"] == after["refs"],
+                       "Missing guard cannot verify or change Git", before["status"], after["status"])
+        self.new_result(p, "verify")
+        self.check(self.ref() == self.base, "Verify never integrates", self.base, self.ref())
+        self.check(self.status()["state"] == "verified", "Matching guard permits verification",
+                   "verified", self.status()["state"])
+        self.finish_checks()
+
+    def test_integrate_expected_attempt_uses_real_git_gate(self):
+        attempt, candidate = self.setup_candidate()
+        self.cli("verify", "--task", self.task)
+        before = self.snapshot("before-new-integrate-guard")
+        self.guard("integrate", attempt["attempt_id"])
+        after = self.snapshot("after-new-integrate-guard")
+        self.check(after["status"]["state"] == "accepted" and self.ref() == candidate,
+                   "Matching integrate guard advances actual Git and task", candidate, self.ref())
+        self.check(before["reflog"] != after["reflog"], "First guarded integration records a Git update",
+                   "new reflog entry", after["reflog"])
+        self.finish_checks()
+
+    def test_fixture_existing_dispatch_submit_oracle_integration_and_reclaim(self):
+        """Trust preparation for the new external fixture on the old public API."""
+        self.create()
+        value = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")
+        attempt = value["attempt"]
+        self.prepare_executor_score(attempt)
+        thread = self.store()["prompts"][0]["thread_id"]
+        self.check(self.status()["state"] != "accepted" and self.ref() == self.base,
+                   "Simulated done never accepts during fixture preparation", self.base, self.ref())
+        candidate = self.candidate(attempt, good=True)
+        self.submit(attempt, candidate)
+        self.cli("verify", "--task", self.task)
+        self.cli("integrate", "--task", self.task)
+        self.cli("reclaim", "--task", self.task)
+        self.check(self.ref() == candidate and self.status()["state"] == "accepted",
+                   "Existing real gates work with this external boundary", candidate, self.ref())
+        self.check(len(self.entries(self.oracle_control)) == 1,
+                   "Real frozen independent oracle executes once", 1,
+                   len(self.entries(self.oracle_control)))
+        self.only_own_close(thread)
+        self.finish_checks()
+
+    def test_done_without_submit_hits_deadline_and_cannot_accept_committed_candidate(self):
+        self.create()
+        before = self.snapshot("before-done-run")
+        handle = self.start_run(seconds=2)
+        thread = self.wait_prompt(handle)
+        attempt = self.current_attempt()
+        candidate = self.candidate(attempt, good=True)
+        # An eligible real commit exists, but no explicit submit is sent.
+        self.failed_run(self.complete(handle), error="run_deadline")
+        after = self.snapshot("done-without-submit-ended")
+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
+        expected_refs[f"refs/heads/a2a/{self.task}-a1"] = candidate
+        expected_refs[f"refs/a2a/attempts/{self.task}/a1"] = candidate
+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
+        self.check(actual_refs == expected_refs and after["reflog"] == before["reflog"],
+                   "Timeout only retains the unsubmitted attempt tip; integration stays unchanged", expected_refs, actual_refs)
+        self.check(after["status"]["candidate_commit"] is None and
+                   len(self.entries(self.oracle_control)) == 0,
+                   "No submit means no persisted candidate and no oracle", None,
+                   [after["status"]["candidate_commit"],
+                    [(str(path), data) for path, data in self.entries(self.oracle_control)]])
+        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
+        self.check(retained == candidate and not Path(attempt["workspace"]).exists(),
+                   "Timeout preserves the unsubmitted commit and removes its clean directory", candidate, retained)
+        self.only_own_close(thread)
+        self.finish_checks()
+
+    def test_concurrent_duplicate_run_has_one_prompt_and_one_attempt(self):
+        self.create()
+        first = self.start_run(seconds=30)
+        thread = self.wait_prompt(first)
+        attempt = self.current_attempt()
+        before = self.snapshot("before-concurrent-run")
+        started = time.monotonic()
+        p = self.process(self.cli_argv("run", *self.run_args(30, "duplicate-run")),
+                         label="coop:duplicate-run")
+        elapsed = time.monotonic() - started
+        self.new_result(p, "run", ok=False, error="run_busy")
+        self.check(elapsed < 3, "Second live run refuses promptly", "under 3 seconds", elapsed)
+        after = self.snapshot("after-concurrent-run-rejection")
+        self.unchanged(before, after, "Busy run cannot affect the first attempt")
+        self.check(len(self.store()["prompts"]) == 1 and len(self.rows(after, "attempt")) == 1,
+                   "Concurrent duplicate sends one prompt and creates one attempt", [1, 1],
+                   [len(self.store()["prompts"]), len(self.rows(after, "attempt"))])
+        candidate = self.candidate(attempt, good=True)
+        self.submit(attempt, candidate)
+        self.drive_executor_finalize(first, attempt, candidate)
+        self.new_result(self.complete(first), "run")
+        self.check(self.ref() == candidate, "First executor still completes", candidate, self.ref())
+        self.only_own_close(thread)
+        self.finish_checks()
+
+    def test_invalid_wait_values_have_no_worker_or_business_side_effect(self):
+        self.create()
+        before = self.snapshot("before-invalid-wait")
+        for value in ("0", "-1", "1.5", "true", "not-a-number", ""):
+            p = self.process(self.cli_argv("run", *self.run_args(value)), label="coop:invalid-wait")
+            if p.returncode == 2 and "invalid choice: 'run'" in p.stderr:
+                self.new_result(p, "run")
+            self.check(p.returncode in (1, 2), "Invalid wait is rejected: " + repr(value),
+                       "exit 1 or syntax exit 2", p.returncode)
+            if p.returncode in (0, 1):
+                rejected = self.new_result(p, "run", ok=False)
+                self.check(not rejected.get("run"), "Invalid wait returns no created run receipt",
+                           None, rejected.get("run"))
+            after = self.snapshot("invalid-wait-" + uuid.uuid4().hex[:6])
+            self.unchanged(before, after, "Invalid wait has no side effect")
+            self.check(not named_values(after["events"][len(before["events"]):], "run_id"),
+                       "Invalid wait has no public run receipt", "no new run_id", after["events"])
+            self.check(not self.store()["prompts"] and self.store()["next"] == 3,
+                       "Invalid wait cannot split a thread or prompt", [0, 3],
+                       [len(self.store()["prompts"]), self.store()["next"]])
+        self.only_own_close()
+        self.finish_checks()
+
+    def test_replacement_attempt_is_not_verified_integrated_or_closed_by_old_run(self):
+        self.create()
+        self.scenario("hold-observe")
+        old_run = self.start_run(seconds=30)
+        old_thread = self.wait_prompt(old_run)
+        old = self.current_attempt()
+        deadline = time.monotonic() + 5
+        while not list(self.boundary.glob("*.observe-entry.json")):
+            if old_run["process"].poll() is not None:
+                self.new_result(self.complete(old_run), "run")
+                self.check(False, "Run observes its bound thread before completion", True, False)
+                self.finish_checks()
+            if time.monotonic() >= deadline:
+                raise recovery.FixtureError("Cannot synchronize the old run's observation")
+            time.sleep(0.03)
+        self.cli("revoke", "--task", self.task, "--reason", "Independent attempt replacement")
+        # The existing dispatch gate requires the old thread to be explicitly
+        # reclaimed before dispatching another bound worker for this task.
+        # The old run is still frozen at its external observation boundary.
+        self.guard("reclaim", old["attempt_id"])
+        value = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")
+        replacement = value["attempt"]
+        new_thread = self.store()["prompts"][-1]["thread_id"]
+        candidate = self.candidate(replacement, good=True)
+        self.submit(replacement, candidate)
+        before = self.snapshot("replacement-submitted-before-old-run-resumes")
+        (self.boundary / "release-observe").write_text("release", encoding="utf-8")
+        value = self.failed_run(self.complete(old_run), error="run_superseded")
+        after = self.snapshot("superseded-run-ended")
+        self.check(value.get("run", {}).get("attempt_id") == old["attempt_id"],
+                   "Old run remains bound to its original attempt", old["attempt_id"], value.get("run"))
+        self.check(after["status"] == before["status"] and after["status"]["state"] == "submitted",
+                   "Old run leaves replacement submission unchanged", before["status"], after["status"])
+        self.check(after["refs"] == before["refs"] and after["reflog"] == before["reflog"] and
+                   not self.entries(self.oracle_control),
+                   "Old run cannot verify or integrate the replacement", before["refs"], after["refs"])
+        self.check(new_thread in self.store()["threads"] and new_thread not in self.store()["closes"],
+                   "Replacement worker stays live", new_thread, self.store())
+        closed = self.store()["closes"]
+        self.check(closed in ([], [old_thread]), "Superseded run may clean only its historical thread",
+                   [[], [old_thread]], closed)
+        self.check(not Path(old["workspace"]).exists() and Path(replacement["workspace"]).is_dir(),
+                   "Only the ended historical workspace is removed", [False, True],
+                   [Path(old["workspace"]).exists(), Path(replacement["workspace"]).is_dir()])
+        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
+        self.check(retained == self.base, "Historical attempt retains its own base commit", self.base, retained)
+        self.only_own_close(*closed)
+        self.preserved_history(before, after)
+        self.finish_checks()
+
+    def test_oracle_failure_is_not_success_and_reclaims_only_owned_thread(self):
+        self.create()
+        handle = self.start_run(seconds=8)
+        thread = self.wait_prompt(handle)
+        attempt = self.current_attempt()
+        candidate = self.candidate(attempt, good=False)
+        self.submit(attempt, candidate)
+        before = self.snapshot("bad-candidate-submitted")
+        self.failed_run(self.complete(handle))
+        after = self.snapshot("oracle-rejected-run")
+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
+        expected_refs[f"refs/a2a/attempts/{self.task}/a1"] = candidate
+        expected_refs[f"refs/a2a/verifications/{self.task}/a1/v1"] = candidate
+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
+        self.check(actual_refs == expected_refs and after["reflog"] == before["reflog"],
+                   "Oracle rejection only preserves its candidate and verification references", expected_refs, actual_refs)
+        results = [json.loads(p.read_text()) for p in self.oracle_control.glob("*.result.json")]
+        self.check(len(results) == 1 and results[0]["exit_code"] != 0,
+                   "Actual frozen independent oracle rejects the bad candidate", "one nonzero oracle",
+                   results)
+<<<<<<< HEAD
+        self.only_own_close()
+        current = after["status"]["current_attempt"]
+        feedback = [json.loads(line) for line in (self.boundary / "quality-feedback.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.check(current is not None and current["attempt_id"] == attempt["attempt_id"] and not current["reclaimed"]
+                   and len(feedback) == 1 and feedback[0]["registered"] and feedback[0]["attempt"] == attempt["attempt_id"],
+                   "First rejection preserves owned worker and registers its repair input", attempt["attempt_id"],
+                   {"current": current, "feedback": feedback})
+        self.check(Path(attempt["workspace"]).is_dir(), "Rejected candidate worktree survives", True,
+                   Path(attempt["workspace"]).is_dir())
+=======
+        self.only_own_close(thread)
+        self.check(not Path(attempt["workspace"]).exists(), "Rejected ended clean worktree is removed", False,
+                   Path(attempt["workspace"]).exists())
+        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
+        self.check(retained == candidate, "Rejected candidate remains under its attempt reference", candidate, retained)
+>>>>>>> 446f25c3 (Implement S3 worktree lifecycle and conflict rework candidate)
+        self.finish_checks()
+
+    def test_startup_blocked_preserves_scene_without_prompt_or_close(self):
+        self.create()
+        self.scenario("startup-blocked")
+        p = self.process(self.cli_argv("run", *self.run_args(2)), label="coop:startup-blocked-run")
+        self.failed_run(p)
+        self.check(not self.store()["prompts"] and len(self.store()["threads"]) == 3,
+                   "Startup approval waiting preserves thread and sends no task", [0, 3],
+                   [len(self.store()["prompts"]), len(self.store()["threads"])])
+        self.only_own_close()
+        self.finish_checks()
+
+    def test_post_prompt_blocked_preserves_scene_without_answer_or_reprompt(self):
+        self.create()
+        self.scenario("post-prompt-blocked")
+        handle = self.start_run(seconds=2)
+        thread = self.wait_prompt(handle)
+        self.failed_run(self.complete(handle))
+        self.check(thread in self.store()["threads"] and len(self.store()["prompts"]) == 1,
+                   "Approval waiting preserves worker and sends no second prompt", [True, 1],
+                   [thread in self.store()["threads"], len(self.store()["prompts"])])
+        self.only_own_close()
+        self.finish_checks()
+
+    def test_unknown_identity_cannot_succeed_or_close_replaced_worktree(self):
+        self.create()
+        self.scenario("identity-changed")
+        handle = self.start_run(seconds=2)
+        thread = self.wait_prompt(handle)
+        self.failed_run(self.complete(handle))
+        self.check(thread in self.store()["threads"] and
+                   self.store()["threads"][thread]["workspace"] == "/unknown/replaced-worktree",
+                   "Unknown worktree identity is retained without guessed cleanup",
+                   "/unknown/replaced-worktree", self.store()["threads"].get(thread))
+        self.check(not self.entries(self.oracle_control) and len(self.store()["prompts"]) == 1,
+                   "Unknown identity has no oracle execution or automatic retry", [0, 1],
+                   [len(self.entries(self.oracle_control)), len(self.store()["prompts"])])
+        self.only_own_close()
+        self.finish_checks()
+
+    def test_stale_verify_integrate_guards_preserve_current_and_accepted_state(self):
+        self.create()
+        old = self.claim(owner="old-guard-owner")
+        self.cli("revoke", "--task", self.task, "--reason", "Guard fixture replacement")
+        current = self.claim(owner="current-guard-owner")
+        candidate = self.candidate(current, good=True)
+        self.submit(current, candidate)
+        for command in ("verify", "integrate"):
+            before = self.snapshot("before-stale-" + command)
+            self.guard(command, old["attempt_id"], ok=False, error="stale_attempt")
+            after = self.snapshot("after-stale-" + command)
+            self.unchanged(before, after, "Stale " + command + " guard")
+        self.check(not self.entries(self.oracle_control), "Stale guards start no oracle", [],
+                   [(str(path), data) for path, data in self.entries(self.oracle_control)])
+        self.guard("verify", current["attempt_id"])
+        self.guard("integrate", current["attempt_id"])
+        self.check(self.ref() == candidate and self.status()["state"] == "accepted",
+                   "Matching guards permit normal acceptance", candidate, self.ref())
+        for command in ("verify", "integrate"):
+            before = self.snapshot("before-accepted-stale-" + command)
+            self.guard(command, old["attempt_id"], ok=False, error="stale_attempt")
+            after = self.snapshot("after-accepted-stale-" + command)
+            self.unchanged(before, after, "Accepted idempotence still checks " + command + " ownership")
+        before = self.snapshot("before-matching-integrate-replay")
+        self.guard("integrate", current["attempt_id"])
+        after = self.snapshot("after-matching-integrate-replay")
+        self.unchanged(before, after, "Matching accepted integration replays without a Git write")
+        self.finish_checks()
+
+    def test_reclaim_guard_targets_history_and_rejects_foreign_and_unknown_attempt(self):
+        self.create()
+        old = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")["attempt"]
+        old_thread = self.store()["prompts"][-1]["thread_id"]
+        self.cli("revoke", "--task", self.task, "--reason", "Preserve history for guarded reclaim")
+        current = self.claim(owner="current-owner", overlap_reason="Test historical reclaim while the current owner remains active")
+        candidate = self.candidate(current, good=True)
+        self.submit(current, candidate)
+        other_task = "foreign-" + uuid.uuid4().hex
+        self.create(task=other_task)
+        foreign = self.cli("dispatch", "--task", other_task, "--runtime-mode", "approval-required",
+                           "--overlap-reason", "Keep a foreign worker alive to detect cross-task cleanup")["attempt"]
+        foreign_thread = self.store()["prompts"][-1]["thread_id"]
+        before = self.snapshot("before-historical-reclaim")
+        self.guard("reclaim", old["attempt_id"])
+        after = self.snapshot("after-historical-reclaim")
+        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
+        expected_refs[f"refs/a2a/attempts/{self.task}/a1"] = self.base
+        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
+        self.check(after["status"] == before["status"] and actual_refs == expected_refs and
+                   after["reflog"] == before["reflog"],
+                   "Historical reclaim only adds its own retention reference", expected_refs, actual_refs)
+        self.only_own_close(old_thread)
+        self.check(foreign_thread in self.store()["threads"],
+                   "Foreign worker remains live", foreign_thread, self.store())
+        # A second dispatch is legal after historical reclaim. Replaying the
+        # old historical ID must then leave this new binding untouched.
+        self.cli("revoke", "--task", self.task, "--reason", "Bind current replacement after cleanup")
+        replacement = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required",
+                               "--overlap-reason", "Keep the replacement and foreign worker live during stale reclaim")["attempt"]
+        current_thread = self.store()["prompts"][-1]["thread_id"]
+        before = self.snapshot("before-historical-reclaim-replay")
+        self.guard("reclaim", old["attempt_id"])
+        after = self.snapshot("after-historical-reclaim-replay")
+        self.unchanged(before, after, "Historical reclaim replay is harmless")
+        self.only_own_close(old_thread)
+        self.check(current_thread in self.store()["threads"] and foreign_thread in self.store()["threads"],
+                   "Current and foreign bound workers remain live", [current_thread, foreign_thread], self.store())
+        for invalid in (foreign["attempt_id"], "unknown-" + uuid.uuid4().hex):
+            before = self.snapshot("before-invalid-reclaim")
+            foreign_before = self.business_state(other_task)
+            self.guard("reclaim", invalid, ok=False)
+            after = self.snapshot("after-invalid-reclaim")
+            self.unchanged(before, after, "Invalid reclaim attempt leaves all bindings unchanged")
+            self.check(self.business_state(other_task) == foreign_before,
+                       "Cross-task reclaim does not revoke foreign task", foreign_before,
+                       self.business_state(other_task))
+            self.only_own_close(old_thread)
+        directories = [Path(a["workspace"]).exists() for a in (old, current, replacement, foreign)]
+        self.check(directories == [False, False, True, True],
+                   "Only ended clean attempts lose their worktrees", [False, False, True, True], directories)
+        for ordinal, expected in ((1, self.base), (2, candidate)):
+            retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a{ordinal}").stdout.strip()
+            self.check(retained == expected, "Historical retention binds its own attempt " + str(ordinal), expected, retained)
+        for target, reason, expected_conflicts in (
+                (self.task, "Test historical reclaim while the current owner remains active", {old["attempt_id"]}),
+                (other_task, "Keep a foreign worker alive to detect cross-task cleanup", {old["attempt_id"], current["attempt_id"]}),
+                (self.task, "Keep the replacement and foreign worker live during stale reclaim", {foreign["attempt_id"]})):
+            recorded = [e["details"] for e in self.events(target) if e["type"] == "claim_path_check" and e["details"].get("reason") == reason]
+            self.check(len(recorded) == 1 and recorded[0]["passed"] is True and
+                       {c["attempt"] for c in recorded[0]["conflicts"]} == expected_conflicts,
+                       "Explicit overlap reason is recorded with its exact conflict set", sorted(expected_conflicts), recorded)
+        self.finish_checks()
+
+    def test_matching_reclaim_guard_is_idempotent_after_automatic_success(self):
+        self.create()
+        handle = self.start_run(seconds=8)
+        thread = self.wait_prompt(handle)
+        attempt = self.current_attempt()
+        candidate = self.candidate(attempt, good=True)
+        self.submit(attempt, candidate)
+        self.drive_executor_finalize(handle, attempt, candidate)
+        self.new_result(self.complete(handle), "run")
+        before = self.snapshot("before-accepted-reclaim-replay")
+        self.guard("reclaim", attempt["attempt_id"])
+        self.guard("reclaim", attempt["attempt_id"])
+        after = self.snapshot("after-accepted-reclaim-replay")
+        self.unchanged(before, after, "Accepted own reclaim replay retains task and Git")
+        self.only_own_close(thread)
+        self.finish_checks()
+
+    def test_attempt_guards_preserve_existing_live_operation_lock(self):
+        attempt, candidate = self.setup_candidate()
+        (self.oracle_control / "release-all").unlink()
+        handle = self.start_cli("verify", "--task", self.task, "--attempt", attempt["attempt_id"])
+        deadline = time.monotonic() + 5
+        while not self.entries(self.oracle_control):
+            if handle["process"].poll() is not None:
+                self.new_result(self.complete(handle), "verify")
+                self.check(False, "Guarded verification runs the frozen oracle", True, False)
+                self.finish_checks()
+            if time.monotonic() > deadline:
+                raise recovery.FixtureError("Guarded verification did not reach oracle boundary")
+            time.sleep(0.03)
+        entry = self.entries(self.oracle_control)[0]
+        before = self.snapshot("guarded-live-oracle")
+        for command in ("verify", "integrate"):
+            self.guard(command, attempt["attempt_id"], ok=False, error="operation_busy")
+        after = self.snapshot("guarded-busy-rejections")
+        self.unchanged(before, after, "Attempt guards do not bypass existing operation lock")
+        self.check(len(self.entries(self.oracle_control)) == 1,
+                   "Busy guarded calls never launch a second oracle", 1,
+                   len(self.entries(self.oracle_control)))
+        self.release(entry)
+        self.new_result(self.complete(handle), "verify")
+        self.guard("integrate", attempt["attempt_id"])
+        self.check(self.ref() == candidate and self.status()["state"] == "accepted",
+                   "Original locked operation remains usable", candidate, self.ref())
+        self.finish_checks()
+
+
+class EvidenceResult(unittest.TextTestResult):
+    def addSuccess(self, test):
+        super().addSuccess(test)
+        TEST_RESULTS.append({"test": test.id(), "status": "PASS"})
+
+    def addFailure(self, test, err):
+        super().addFailure(test, err)
+        category = ("expected-contract-red" if issubclass(err[0], ContractMissing) else
+                    "business-red" if test.business_failures else "fixture-error")
+        TEST_RESULTS.append({"test": test.id(), "status": "INCOMPLETE", "classification": category,
+                             "traceback": self._exc_info_to_string(err, test)})
+
+    def addError(self, test, err):
+        super().addError(test, err)
+        TEST_RESULTS.append({"test": test.id(), "status": "INCOMPLETE",
+                             "classification": "fixture-error",
+                             "traceback": self._exc_info_to_string(err, test)})
+
+
+def run_suite():
+    names = [name for name in RunCLI.__dict__ if name.startswith("test_")]
+    suite = unittest.TestSuite(RunCLI(name) for name in names)
+    result = unittest.TextTestRunner(verbosity=2, resultclass=EvidenceResult).run(suite)
+    write_new(os.environ["COOP_E2E_TRACE"], {
+        "results": TEST_RESULTS, "assertions": ASSERTIONS, "artifacts": ARTIFACTS,
+        "commands": COMMANDS, "tests_run": result.testsRun,
+        "failures": len(result.failures), "errors": len(result.errors)})
+    return 0 if result.wasSuccessful() else 1
+
+
+def main():
+    if sys.argv[1:] == ["--run-suite"]:
+        return run_suite()
+    EVIDENCE.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    stem = "check-" + stamp + "-" + uuid.uuid4().hex[:8]
+    evidence_path = EVIDENCE / (stem + ".json")
+    artifact_root = EVIDENCE / (stem + "-artifacts")
+    artifact_root.mkdir(exist_ok=False)
+    for source, name in ((Path(__file__), "run-acceptance-source.py"),
+                         (Path(helper.__file__), "managed-helper-source.py"),
+                         (Path(recovery.__file__), "recovery-helper-source.py"),
+                         (CONTRACT, "run-contract.md"), (SCRIPT, "selected-entry-point.py")):
+        shutil.copyfile(source, artifact_root / name)
+    if SCRIPT.name == "native-entry.py":
+        for source, name in ((SCRIPT.with_suffix(".ts"), "selected-entry-point.ts"),
+                             (SCRIPT.parent / "native-runtime.ts", "native-runtime.ts"),
+                             (SCRIPT.parent / "thread-boundary.py", "thread-boundary.py")):
+            shutil.copyfile(source, artifact_root / name)
+    trace_path = artifact_root / "subprocess-trace.json"
+    # Snapshot the selected transport and external fixture. Production gate
+    # code remains in the fork and must stay on the recorded revision.
+    frozen_script = artifact_root / "selected-entry-point.py"
+    env = dict(os.environ, COOP_E2E_ARTIFACT_ROOT=str(artifact_root), COOP_E2E_TRACE=str(trace_path),
+               COOP_SCRIPT=str(frozen_script))
+    argv = [sys.executable, "-B", str(Path(__file__).resolve()), "--run-suite"]
+    started = helper.utc_now()
+    p = subprocess.run(argv, cwd=str(ROOT), env=env, text=True, capture_output=True)
+    (artifact_root / "suite.stdout").write_text(p.stdout, encoding="utf-8")
+    (artifact_root / "suite.stderr").write_text(p.stderr, encoding="utf-8")
+    trace = json.loads(trace_path.read_text(encoding="utf-8")) if trace_path.is_file() else None
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT), text=True, capture_output=True)
+    fork_head = subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                        cwd=str(ROOT.parent / "synara"), text=True).strip()
+    write_new(evidence_path, {
+        "role": "run-check", "ticket": "T-008", "contract": str(CONTRACT.relative_to(ROOT)),
+        "status": "PASS" if p.returncode == 0 else "INCOMPLETE",
+        "started": started, "finished": helper.utc_now(),
+        "command": ["python3", "-B", "acceptance/test_run_e2e.py"], "actual_command": argv,
+        "COOP_SCRIPT": str(SCRIPT), "executed_source_snapshot": str(frozen_script),
+        "cwd": str(ROOT), "repository_head": head.stdout.strip(), "fork_head": fork_head,
+        "python": sys.version, "real_git": recovery.REAL_GIT, "exit_code": p.returncode,
+        "stdout": p.stdout, "stderr": p.stderr, "artifact_root": str(artifact_root),
+        "trace_path": str(trace_path), "trace": trace,
+        "independence": "Frozen contract; no product import or source-derived expected values. "
+                        "Real CLI subprocesses, real Git and read-only SQLite observations.",
+        "fixture_authorities": [".project-map/specs/supervised-run-2026-10-06.md",
+                                "evidence/2026-10-07-synara-batch2/T-037/acceptance-differences.md"],
+        "limitations": ["Isolated orchestration only; real Synara/Codex run is controller-owned.",
+                        "New-command expected-red is not evidence of an old defect.",
+                        "Counterfactual, candidate approval and ticket closure are controller-owned."]})
+    sys.stdout.write(p.stdout)
+    sys.stderr.write(p.stderr)
+    print("Acceptance evidence: " + str(evidence_path))
+    print("Retained isolated artifacts: " + str(artifact_root))
+    return p.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

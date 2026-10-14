@@ -1,0 +1,11 @@
+Command: python3 evidence/2026-10-11-batch13/T-077/rebase-stop-01/audit-first-stop.py
+Exit: 1
+
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/rebase-stop-01/audit-first-stop.py", line 58, in <module>
+    assert new_panes[name] == old_panes[name], ('panes/main', name)
+AssertionError: ('panes/main', 'createPane')
+
+探针问题：createPane 并非逐字不变；S3 增加 pane.nativeEnded=false 的初始化。
+修正：对 createPane 明确校验“main 原文仅增加这个初始化”，其余列出的 main 方法仍逐字比较。
+没有业务入口运行或产品失败。本次只修核对脚本，不改产品。

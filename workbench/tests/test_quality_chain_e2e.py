@@ -267,7 +267,8 @@ class QualityCase(base.TaskCardsCLI):
 
     def relay_result(self, request_id):
         with closing(sqlite3.connect((self.state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True)) as db:
-            row = db.execute('SELECT data FROM relay_results WHERE key=?', ('id:' + request_id,)).fetchone()
+            row = db.execute('SELECT r.data FROM relay_results r JOIN relay_requests q ON q.key=r.key '
+                             'WHERE q.launch=? AND q.request_id=?', (self.launch, request_id)).fetchone()
         if row is None:
             raise HarnessFailure('No durable relay result for the controlled request.')
         return json.loads(row[0])

@@ -46,11 +46,13 @@ for name, before, after, expected in mutations:
     errors = [row for row in result['tests'] if row['failure'] and not row['failure']['assertion']]
     record = {'mutant': name, 'argv': argv, 'exit': p.returncode, 'source': str(source),
               'expected_failures': sorted(expected), 'actual_failures': sorted(failed),
-              'errors': errors, 'detected': p.returncode == 1 and expected <= failed and not errors}
+              'errors': errors, 'detected': p.returncode == 1 and expected <= failed and not errors,
+              'recipe': {'file': 'src/relay.ts', 'before': before, 'after': after},
+              'source_archive': 'original candidate only; mutant stays in /tmp'}
     records.append(record)
     with tarfile.open(output / 'source.tar.gz', 'x:gz') as archive:
-        archive.add(source / 'src', arcname='src')
-        archive.add(source / 'package.json', arcname='package.json')
+        archive.add(ROOT / 'workbench/src', arcname='src')
+        archive.add(ROOT / 'workbench/package.json', arcname='package.json')
         archive.add(ROOT / 'workbench/tests/test_relay_scope.ts', arcname='test_relay_scope.ts')
 report = {'status': 'PASS' if all(row['detected'] for row in records) else 'INCOMPLETE',
           'scope': 'Boundary mutants only; no native process, socket or provider', 'real_codex_turns': 0, 'mutants': records}

@@ -48,6 +48,14 @@ class ContractChecks:
 
 
 class WorktreeContracts(ContractChecks, DaemonCards):
+    def create(self):
+        # Integration requires actual managed delivery provenance in T-076-2.
+        if self._testMethodName in {'test_dirty_integration_reports_without_mutation',
+                'test_r8_revalidates_on_new_head', 'test_r8_stops_at_fourth_cas_miss',
+                'test_r8_missing_trailer_is_not_recorded_twice'}:
+            return self.create_managed()
+        return super().create()
+
     def setUp(self):
         super().setUp()
         # Registered last, so SQLite is read while the owning daemon is alive.
@@ -69,6 +77,8 @@ class WorktreeContracts(ContractChecks, DaemonCards):
         return p.stdout.strip() if p.returncode == 0 else None
 
     def request(self, command, *args):
+        if command == 'integrate' and self.integration_score and '--score-file' not in args:
+            args = (*args, '--score-file', self.integration_score)
         p = self.process(['node', cards.GATE, '--state', self.state, command, '--task', self.task, *args])
         self.assertIn(p.returncode, (0, 1), 'Entry/setup failure: ' + p.stderr)
         reply = json.loads(p.stdout)
@@ -315,6 +325,7 @@ class RunCleanupContracts(ContractChecks, old.DaemonRun):
         candidate = self.candidate(attempt, good=True)
         expected = Path(attempt['workspace'], 'pager.py').read_bytes()
         self.submit(attempt, candidate)
+        self.drive_executor_finalize(handle, attempt, candidate)
         self.new_result(self.complete(handle), 'run')
         self.assertEqual(self.ref(), candidate)
         self.assertEqual((self.repo / 'pager.py').read_bytes(), expected)
@@ -347,12 +358,17 @@ class RunCleanupContracts(ContractChecks, old.DaemonRun):
 
     def test_rejected_run_cleanup(self):
         self.create()
-        handle = self.start_run(seconds=20)
+        handle = self.start_run(seconds=8)
         thread = self.wait_prompt(handle)
         attempt = self.current_attempt()
         candidate = self.candidate(attempt, good=False)
         self.submit(attempt, candidate)
         self.failed_run(self.complete(handle))
+        # First quality rejection retains the worker for repair. Explicitly end
+        # that owned attempt before exercising S3's rejected/ended cleanup row.
+        self.only_own_close()
+        self.assertTrue(Path(attempt['workspace']).is_dir())
+        self.cli('reclaim', '--task', self.task, '--attempt', attempt['attempt_id'])
         self.only_own_close(thread)
         self.finish_checks()
         with self.subTest(field='directory'):
@@ -435,7 +451,7 @@ class RunCleanupContracts(ContractChecks, old.DaemonRun):
 class CASContracts(ContractChecks, old.DaemonCAS):
     def test_cas_write_race_revalidates(self):
         self.create()
-        attempt = self.cli('claim', '--task', self.task, '--owner', 'independent-CAS-case')['attempt']
+        attempt = self.dispatch_candidate_attempt()
         candidate = self.candidate(attempt, good=True)
         self.submit(attempt, candidate)
         (self.oracle_control / 'release-all').write_text('continue', encoding='utf-8')
@@ -497,7 +513,7 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
                 'paths': {'allow': ['src/'], 'deny': ['src/private/']},
                 'completion_conditions': [{'argv': [sys.executable, '-I', '-B', '-c', source]}],
                 'red_commands': [], 'task_type': '后端逻辑', 'repair_target': None, 'complexity': 'L',
-                'executor': {'cli': 'Codex', 'model': 'fixture', 'effort': 'xhigh'},
+                'executor': {'cli': 'Codex', 'model': 'gpt-6.1-sol', 'effort': 'xhigh'},
                 'base_commit': None, 'writer': None}
         self.card_source = self.root / 'conflict-card.json'
         self.card_source.write_text(json.dumps(card, ensure_ascii=False), encoding='utf-8')
@@ -505,7 +521,16 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         self.cli('create', '--task', self.task, '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1')
 
     def request(self, command, *args):
+        if command == 'integrate' and '--score-file' not in args:
+            attempt = self.status()['current_attempt']
+            args = (*args, '--score-file', self.quality.score_file(attempt))
         return self.parse_cli(self.process(self.cli_argv(command, '--task', self.task, *args)))
+
+    def cli(self, command, *args, **kwargs):
+        if command == 'integrate' and '--score-file' not in args:
+            attempt = self.status()['current_attempt']
+            args = (*args, '--score-file', self.quality.score_file(attempt))
+        return super().cli(command, *args, **kwargs)
 
     def submit_request(self, attempt, commit):
         return self.request('submit', '--attempt', attempt['attempt_id'], '--session', attempt['session_id'],
@@ -781,6 +806,8 @@ def main():
     parser.add_argument('--phase', choices=('baseline', 'candidate'), required=True)
     parser.add_argument('--case', action='append', choices=[name for _, name in CASES])
     parser.add_argument('--baseline-product', type=Path)
+    parser.add_argument('--mutant-product', type=Path,
+                        help='Isolated known-bad product; selected baseline cases only')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     out = args.output.resolve()
@@ -797,6 +824,10 @@ def main():
     if not preflight['volume_mounted'] or not preflight['node']['stdout'].startswith('v26.5.'):
         raise RuntimeError('Required external volume or Node 26.5 is unavailable')
     product_root = ROOT
+    if args.mutant_product:
+        if args.phase != 'baseline' or not args.case or args.baseline_product:
+            raise RuntimeError('A mutant requires selected baseline cases and no original baseline product')
+        product_root = args.mutant_product.resolve(strict=True)
     if args.baseline_product:
         if args.phase != 'baseline' or not args.case:
             raise RuntimeError('A frozen product requires explicitly selected baseline cases')
@@ -824,11 +855,25 @@ def main():
         os.environ['COOP_NATIVE_ENTRY'] = str(old.CLI)
         write_new(out / 'baseline-binding.json', {'archive': str(archive_path), 'product_root': str(product_root),
                     'source_commit': BASE, 'byte_equal_files': verified, 'case_source_root': str(ROOT)})
-    if args.phase == 'baseline' and not args.baseline_product and (preflight['head']['stdout'].strip() != BASE or preflight['source_diff']['stdout']):
+    if args.mutant_product:
+        cards.GATE = product_root / 'workbench/src/gates/cli.ts'
+        old.ROOT = product_root
+        old.CLI = cards.GATE
+        old.ENTRY = product_root / 'acceptance/entry/a2a_gates.py'
+        old.DAEMON = product_root / 'workbench/src/daemon.ts'
+        old.HOST = product_root / 'workbench/tests/daemon_acceptance_host.ts'
+        old.delivery.SCRIPT = old.ENTRY
+        os.environ['COOP_SCRIPT'] = str(old.ENTRY)
+        os.environ['COOP_NATIVE_ENTRY'] = str(old.CLI)
+        write_new(out / 'mutant-binding.json', {'kind': 'isolated_known_bad_product',
+                   'product_root': str(product_root), 'harness_root': str(ROOT), 'selected': args.case})
+    if args.phase == 'baseline' and not args.baseline_product and not args.mutant_product and (preflight['head']['stdout'].strip() != BASE or preflight['source_diff']['stdout']):
         raise RuntimeError('Baseline must run unchanged product source at the assigned starting commit')
     if any(v.get('exit_code') != 0 for v in preflight.values() if isinstance(v, dict)):
         raise RuntimeError('Preflight command failed')
-    snapshot_source(out, product_root)
+    # Preserve candidate source plus the parent's exact mutation recipe.
+    # Do not put temporary mutant source into the committed evidence archive.
+    snapshot_source(out, ROOT if args.mutant_product else product_root)
     fixture_root = Path(tempfile.mkdtemp(prefix='s3-', dir='/tmp'))
     cards.ARTIFACT_ROOT = fixture_root
     os.environ['COOP_E2E_ARTIFACT_ROOT'] = str(fixture_root)

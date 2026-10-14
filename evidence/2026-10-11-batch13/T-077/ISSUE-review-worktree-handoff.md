@@ -1,0 +1,11 @@
+# 审查 worktree 与 S3 的命名、结束清理衔接尚待核对
+
+来源：T-077 worker s13-t077s，在冻结候选 c3eb705cd8b8c949850c8483c861ddb9d7f87b89 准备合流联合测试时进行的源码核对；不是已经运行的产品故障记录。
+
+`workbench/src/gates/core.ts:2090` 的 requestReview 仍创建 `<state>/verification/review-<UUID>`，`workbench/src/gates/core.ts:2138` 的 reclaimReview 核对 reviewer idle、stop、archive 后记录 review_reclaimed；该方法内没有临时 worktree 删除。daemon.ts:193 调用的也是这个方法。S3 的 cleanupVerification 只处理自身 verifier workspace，不接 review。
+
+spec 第 4 节要求验收/审查目录有用途与序号，结果存库后删除。已批准 PLAN 第 2/3 节将 reviewer 的 `-review-<K>` 命名与结束清理接入明确交给 T-076-2；本轮变基按 #101/#102 保留了 main 的审查方法。因而这里是跨卡衔接缺口，不能把已有 verifier 清理或 reviewer pane 回收当作 review worktree 清理的证据。
+
+建议由执行主控确认这部分的写入归属与完成条件：在保留 T-076-2 审查绑定、复用、未知暂停等语义的前提下，通过受控真实入口先核对 reviewer 目录路径、回收后的 Git worktree 清单和文件存在性，再安排命名/清理接入。若归本卡补齐，应先取得受控红态，再批准修改当前冻结产品并重跑受影响检查。
+
+本轮不修改冻结的产品源码，也不把这条源码发现计为已修或已运行通过。三条 R8/冲突联合路径的测试准备可继续，最终完整验收结论须说明此项的处置。

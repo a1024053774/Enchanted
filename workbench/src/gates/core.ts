@@ -2084,10 +2084,12 @@ export class A2AGates {
     requireGate(this.runtime?.createReview, "review_runtime_required");
     const previous = task.review?.result?.findings ?? [];
     const reviewId = randomUUID();
-    const review: A2AReview = { review_id: reviewId, task_id: task.task_id, attempt: { ...attempt },
+    const ordinal = Number(this.db.prepare("SELECT count(*) AS n FROM events WHERE task=? AND attempt=? AND type='review_requested'")
+      .get(task.task_id, attempt.attempt_id)!.n) + 1;
+    const review: A2AReview = { review_id: reviewId, ordinal, task_id: task.task_id, attempt: { ...attempt },
       candidate_commit: v.C, spec_rev: task.spec_rev, card_snapshot_id: attempt.card_snapshot_id,
       verification_id: v.verification_id, thread_id: randomUUID(), session_id: randomUUID(),
-      workspace: join(this.root, "verification", "review-" + reviewId), requested_at: new Date(this.now()).toISOString(),
+      workspace: join(this.projectWorktrees(task), `${this.attemptName(attempt)}-review-${ordinal}`), requested_at: new Date(this.now()).toISOString(),
       launch_id: null, runtime_identity: null, state: "requested" };
     task.review = review; task.state = "reviewing";
     this.save(task, "review_requested", { task, review });
@@ -2155,6 +2157,7 @@ export class A2AGates {
         const after = await this.runtime.readThread(review.thread_id);
         this.checkThread(this.reviewAttempt(review), after);
         requireGate(after.stopped && after.archived, "review_reclaim_unconfirmed");
+        await this.cleanupReviewWorktree(this.load(taskId), review);
         this.member(this.load(taskId), review.thread_id, "reviewer", new Date(this.now()).toISOString());
         this.event(taskId, "review_reclaimed", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
       } catch (error) {
@@ -2164,6 +2167,33 @@ export class A2AGates {
         throw error;
       }
     } finally { lock.close(); }
+  }
+
+  private async cleanupReviewWorktree(task: A2ATask, review: A2AReview) {
+    requireGate(review.result && ["passed", "needs_fix"].includes(review.state), "review_result_required");
+    requireGate(review.task_id === task.task_id && review.attempt.task_id === task.task_id &&
+      Number.isSafeInteger(review.ordinal) && review.ordinal > 0 &&
+      review.workspace === join(this.projectWorktrees(task), `${this.attemptName(review.attempt)}-review-${review.ordinal}`),
+      "review_cleanup_identity_unknown");
+    requireGate(!lstatSync(review.workspace).isSymbolicLink() && realpathSync(review.workspace) === review.workspace,
+      "review_cleanup_identity_unknown");
+    const listed = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
+    requireGate(listed.split("\0").includes("worktree " + review.workspace), "review_cleanup_identity_unknown");
+    requireGate(!(await this.git(task.task_id, review.workspace, ["symbolic-ref", "--quiet", "HEAD"], [0, 1])) &&
+      await this.git(task.task_id, review.workspace, ["rev-parse", "HEAD"]) === review.candidate_commit,
+      "review_cleanup_identity_unknown");
+    requireGate(!(await this.git(task.task_id, review.workspace, ["status", "--porcelain=v1", "--untracked-files=all"])),
+      "dirty_review_worktree");
+    const binding = { review_id: review.review_id, workspace: review.workspace, candidate_commit: review.candidate_commit,
+      ordinal: review.ordinal, attempt: review.attempt.attempt_id };
+    this.event(task.task_id, "review_worktree_cleanup_intent", binding, review.attempt.attempt_id);
+    await this.git(task.task_id, task.repo, ["worktree", "remove", review.workspace]);
+    const after = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
+    requireGate(!existsSync(review.workspace) && !after.split("\0").includes("worktree " + review.workspace),
+      "review_cleanup_unconfirmed");
+    // Keep the review object exactly as stored by review_result. R8 validates
+    // that immutable binding; cleanup is recorded in its own append-only events.
+    this.event(task.task_id, "review_worktree_removed", binding, review.attempt.attempt_id);
   }
 
   private scoreData(path: string | undefined, command: "integrate" | "abandon" = "integrate") {

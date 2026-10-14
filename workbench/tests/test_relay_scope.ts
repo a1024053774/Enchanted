@@ -12,10 +12,10 @@ assert(modulePath && output && process.argv.length === 4);
 mkdirSync(output);
 const { RequestRelay } = await import(pathToFileURL(modulePath).href);
 const results: any[] = [];
-const first = { id: "launch-one", task: "fixture", attempt: "attempt-one", session: "session-one", fence: 1, spec_rev: 1 };
-const next = { id: "launch-two", task: "fixture", attempt: "attempt-two", session: "session-two", fence: 2, spec_rev: 1 };
+const first = { id: "launch-one", task: "fixture", attempt: "attempt-one", session: "session-one", fence: 1, spec_rev: 1, role: "worker" };
+const next = { id: "launch-two", task: "fixture", attempt: "attempt-two", session: "session-two", fence: 2, spec_rev: 1, role: "worker" };
 function input(binding: any, request_id = "delivery", commit = "a".repeat(40)) {
-  const { id: _id, ...identity } = binding;
+  const { id: _id, role: _role, ...identity } = binding;
   return { schema: 1, request_id, command: "submit", ...identity, commit };
 }
 function file(value: any, name = "delivery.json") { return { name, raw: JSON.stringify(value) }; }

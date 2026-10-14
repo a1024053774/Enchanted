@@ -182,7 +182,8 @@ class DaemonLifecycle:
         method = self._testMethodName
         recovery_managed = {'test_live_integrate_excludes_verify_and_integrate', 'test_before_CAS_recovers_same_intent_once',
                             'test_after_CAS_recovers_bookkeeping_without_Git_write', 'test_after_CAS_external_X_requires_reconciliation',
-                            'test_after_CAS_deleted_ref_requires_reconciliation'}
+                            'test_after_CAS_deleted_ref_requires_reconciliation',
+                            'test_external_write_between_read_and_cas_is_preserved'}
         run_managed = {'test_integrate_expected_attempt_uses_real_git_gate', 'test_attempt_guards_preserve_existing_live_operation_lock'}
         replacement = method in {'test_interrupted_verify_revoke_reclaim_rejects_old_identity',
                                 'test_interrupted_verify_spec_change_rejects_old_candidate'} and owner == 'replacement-after-interruption'

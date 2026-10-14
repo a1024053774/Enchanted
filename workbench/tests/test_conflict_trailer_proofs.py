@@ -19,6 +19,7 @@ import unittest
 import test_task_cards_e2e as cards
 import test_relay_conflict_e2e as relay
 from command_evidence import CommandLog
+from legacy_quality_driver import QualityDriver
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = OUT = INPUT = None
@@ -46,6 +47,7 @@ class ConflictTrailerProofs(relay.RelayConflict):
         self.host = None; self.host_streams = []
         self.addCleanup(self.cleanup_host)
         self.env = {k: v for k, v in self.env.items() if not k.startswith('CODEX_')}
+        self.quality = QualityDriver(cards.GATE, self.state, self.control, self.env)
         (self.repo / 'src/summary.py').write_text(INPUT['sources']['base'], encoding='utf-8')
         (self.repo / 'host-policy.txt').write_text('host baseline\n', encoding='utf-8')
         (self.repo / '.gitignore').write_text('__pycache__/\n*.pyc\n', encoding='utf-8')
