@@ -111,3 +111,8 @@ theme-01 ArrowUp→Auto、theme-02 ArrowDown→Dark、theme-03 Enter 确认 Dark
 ## p1-08e 逐屏读回、信任与 continue 批准（2026-10-14 UTC 04:0x）
 
 主题三键、Security notes（逐字一致）均生效。信任屏 `screen-trust-01`：目录 `/private/tmp/t078-2-p1-08e-8k1yyjw5/repo`（只含 value.txt），选项 `❯ No, exit` / `Yes, I trust this folder`。依用户授权 answer 20261014T011751Z（"两个阶段都允许 (Recommended)"），批准 trust-01 ArrowDown（目标 Yes）→ 读回光标在 Yes（screen-trust-02）→ 批准 trust-02 Enter，一次。读回 `screen-after-trust-01`：主提示符 "Claude Code v2.1.296 · Haiku 5.5 with low effort · API Usage Billing"，manual mode，无未登录或其他提示。执行主控写 readiness.json（confirmed），批准 `p1-continue-08e` 一次（一条 nonce，假 API 一条脚本化 SSE，真实模型 0）及随后 cleanup。批准引用：`T-078 controller-decision-04 p1-08e-continue`。
+
+## p1-continue-08e 读回与 cleanup（2026-10-14 UTC 03:5x）
+
+continue PASS，逐项独立核对：dispatch seq 1 由 executor 登记、paste+单独 CR 提交；UserPromptSubmit 与 Stop hook 均实际触发、exit 0，原始 stdin 已留（含 session/prompt_id/hook_event_name）；门禁事件 hook_received → turn_start_signal … hook_received → turn_end_signal → pane_idle；状态 busy（active 绑定该 dispatch）→ idle；假 API 收到主回合 Messages 请求（model claude-haiku-5-5，含 nonce）；会话 transcript 记 stop_hook 成功。真实模型 0。材料 06 中缺失的 hook 信号由目录信任解决，确认。cleanup-08e PASS，无残留；cleanup/fixture.tar.gz 8,103,787 字节经 archive_t078_evidence.py 外置归档、字节读回 PASS（manifest external-archive-73249ada…）。
+说明：本轮绑定变基前代码（ab997f4d/e5768e54），是可行性证明；变基到 main 后须完整重跑。下一步：材料 09（Esc 释放、二次送达、紧急停止），以及 T-078-1 变基合并。
