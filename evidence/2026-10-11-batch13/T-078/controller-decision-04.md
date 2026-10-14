@@ -145,3 +145,7 @@ INCOMPLETE（"Fake API protocol/budget error"）。A1、A2 成立；A3 成立：
 
 用户电脑重启。核对：Herdr 由用户侧运行（未启动或重启 server）；Herdr 自行把 wF:p3E/p3F 以裸 `codex resume <id>` 恢复，argv 缺模型/强度/service_tier/--no-daemon/沙箱/审批参数，且无 A2A_* 与 git hooks 环境——不符合受管 worker 条件。确认两者 idle、交付均已提交（T-077 未跟踪证据在磁盘）后关闭两窗格，经 scripts/launch-worker --resume 重启：s13-t077s → wF:p3H（launch-ba8ddd4d…），s13-t078s → wF:p3J（launch-07b8db56…），argv 已记录（gpt-6.1-sol xhigh、service_tier="default"、--no-daemon、workspace-write、on-request）。/tmp 已被清空：09A-2 保留根 /private/tmp/t078-2-p1-09a2-sm_du7jo 不复存在（fixture 已于先前外置归档，manifest external-archive-93611737…；根中其余未归档原件随重启丢失，记为证据缺口）。外置盘 slot t078-09-d2d9c666… 仍在。无孤儿测试进程。
 收到 answer 20261014T120839Z（用户选 A：用户自行清空并声明"输入框已空，放行"，后台不删字；加提交前拦截：仅对登记派发对不上的提交在 UserPromptSubmit 阻断，不改 Stop）。按此派发 T-078。
+
+## 重启后 worker 恢复受阻（2026-10-14 本地 08:1x）
+
+经 launch-worker 重启后观察到：(1) 受管进程退出后，Herdr 在同一 shell 自动执行裸 `codex resume <id>`（无模型/强度/tier/沙箱参数、无 A2A 与 git hooks 环境）：wF:p3J 08:10:10（T-078，已关闭该窗格）、wF:p3H 08:10:35（T-077，替换了 08:09:13 启动的受管进程 31805）。(2) 第三次经 launcher 启动的 T-078 受管进程（wF:p3K，pid 32966，argv 正确）停在 Codex 提示 "This conversation is open in another app. Close it there and press R to continue here."；本机除这些进程外，用户的 ChatGPT 桌面 Codex（app-server）在运行，疑为"另一个 app"，未核实。执行主控停止重试，不按 r/f/Enter，不操作用户的 Herdr 设置或 ChatGPT 应用；wF:p3H 的裸会话视为非受管，不向其派发。交用户决定。
