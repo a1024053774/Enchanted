@@ -1,14 +1,17 @@
 # T-081 收尾交接
 
-总状态：**INCOMPLETE**。受控坏 worker 矩阵、正例、原回归及真实能力观察已完成。主控已运行 CAS 补证 PASS、实际 home 清理 PASS。Git 提交在原始证据空白检查处停止，index 保留；恢复脚本及准确身份见 [COMMIT-READY.md](COMMIT-READY.md)。6a、6e 仍待用户裁定，不计通过。独立审查及受管 submit/验收/集成未执行。本轮 worker 没有新增真实回合、删除 home、commit、submit、push 或产品修改。
+主控 #181、#183 后的计数修正：原 full-04 同值 Session 重复案例仅保留为观察，不再计坏行为通过。当前计入其余 10 案原始证据及已完成单案红绿的矛盾 Session 替代案，共 11 案；见 [DUPLICATE-FIX.md](DUPLICATE-FIX.md)。差异复审为 PASS、P2-01 RESOLVED，范围仅限该修正。b71cff6b 与独立审查提交 3ee28bc3 已完成；本次修正及复审待主控运行提交脚本。新汇总以 closeout-duplicate-final-01 为准，原 full-04/closeout-final-01 及待运行汇总均不覆盖，分次证据不称为最终组合入口完整重跑。
+
+总状态：**INCOMPLETE**。受控坏 worker 的其余 10 案、正例、原回归及真实能力观察保留原证据，新的矛盾 Session 替代案及其差异复审均已 PASS。主控已运行 CAS 补证 PASS、实际 home 清理 PASS。Git 提交在原始证据空白检查处停止、之后恢复的历史过程见 [COMMIT-READY.md](COMMIT-READY.md)。6a、6e 仍待用户裁定，不计通过；最终组合入口未完整重跑，受管 submit/验收/集成未执行。本次 worker 没有新增真实回合、删除 home、commit、submit、push 或产品修改。
 
 ## 结果与证据
 
-当前机器可读汇总为 [closeout-final-01/run.json](closeout-final-01/run.json)，简表为 [closeout-final-01/RESULTS.md](closeout-final-01/RESULTS.md)。它重新提取 run-04 原生回执并只读核对各夹具 refs/reflog，没有把模型报告当作工具结果。较早的 closeout-01 保留原样。
+当前机器可读汇总为 [closeout-duplicate-final-01/run.json](closeout-duplicate-final-01/run.json)，简表为 [closeout-duplicate-final-01/RESULTS.md](closeout-duplicate-final-01/RESULTS.md)。它重新提取 run-04 原生回执并只读核对各夹具 refs/reflog，没有把模型报告当作工具结果。旧汇总与原始证据保留原样；本次差异复审没有重新审查能力、CAS、回归或其他坏行为。
 
 | 范围 | 结果 | 原件 |
 | --- | --- | --- |
-| 坏行为 1–5、6b–6d | PASS：11 案；对应变异体先出现业务红态，候选实际拒收码符合预期 | [full-04/RESULTS.md](full-04/RESULTS.md)、[run.json](full-04/run.json) |
+| 坏行为 1–5、6b–6d | 其余 10 案保留原证据；原同值重复仅观察。新的矛盾身份单案红绿 PASS，共计 11 案分次证据 | [full-04/run.json](full-04/run.json)（历史原件）、[duplicate-conflict-01/run.json](duplicate-conflict-01/run.json) |
+| P2-01 差异复审 | PASS / RESOLVED；只读 fresh-context，仅此修正 | [independent-review-02.md](independent-review-02.md)、[completed](independent-review-02.completed.json) |
 | 验收后再改候选 | C2 重交 stale_turn；只集成已审 C1，不能称此案分支完全未动 | full-04/green-after_review/ |
 | 正例 | 3 种：单提交、多提交、新测试红态卡；全部集成，误拒绝 0 | full-04/positive-positive_*/ |
 | 原回归 | 23 个阶段全部 exit 0（T-075、T-076、T-077、T-080） | full-04/run.json 的 steps |
@@ -18,7 +21,7 @@
 | 6a 完全缺尾注 | 待裁定、不实施、不编造拒收码 | T-081 与 spec 第 8 节/T-072 允许缺全部尾注的规则冲突 |
 | 6e 追溯字段一致性 | FINDING/NO_GO；Launch、Model、Effort、Tool 各自不一致，在原产品和当时 main 均被验收、集成；不计拒收绿态 | full-04/probe_*-pair.json；主控已转构思主控 |
 
-1–5/6b–6d 的实际码：oracle_test/entry→oracle_modified；self_report 两案→oracle_failed；stale_attempt；deny_path→path_boundary_failed；部分/重复尾注→invalid_trailers；错 task→trailer_task_mismatch；错 attempt→trailer_identity_mismatch。逐案的事件、分支与集成状态及变异红态见原结果表。6e 当前规范只规定 task/attempt 归属，没有明确四个字段须匹配启动记录；本票不修产品或补造规格。
+已成立案例的实际码：oracle_test/entry→oracle_modified；self_report 两案→oracle_failed；stale_attempt；deny_path→path_boundary_failed；部分尾注→invalid_trailers；错 task→trailer_task_mismatch；错 attempt→trailer_identity_mismatch。旧同值重复仅观察到 invalid_trailers，不计坏行为通过；新矛盾 Session 案实际拒收码为 invalid_trailers，规范预期只规定拒收矛盾身份，不规定该码。逐案事件、分支与集成状态见各原件。6e 当前规范只规定 task/attempt 归属，没有明确四个字段须匹配启动记录；本票不修产品或补造规格。
 
 ## 三个已消耗回合的能力结论
 
@@ -34,9 +37,9 @@ G=`4de60dac7fd4b9baebd5c5cb177267673f398d77`，T=`16a341ae5f0b65b26c0829b830ca28
 
 历史异常原件不覆盖：full-01 在追溯字段探针发现后停止；full-02 收尾重复创建归档；full-03 源快照遗漏 acceptance 路径；full-04 干净结束。能力 run-02 的轮询超限文件已由主控外置，指针为 [commands.jsonl.external.json](capability-run-02/commands.jsonl.external.json)；run-03 错路径生成器及修正证据保留在 [发现目录](capability-run03-finding-01/run.json) 和 [第 3 回合材料](CAPABILITY-TURN-3.md)。新轮询已真实完成 run-03/04，不重复保存每次全量响应。以上异常不能被后续成功覆盖成原先通过。
 
-## 主控运行顺序
+## 先前的主控运行顺序（历史交接）
 
-主控 #179 已完成第 1、2 步，以下命令保留为过程记录，不要向原目录重复运行。当前只需按 COMMIT-READY.md 设置身份后恢复第 3 步。
+主控已完成以下三步，提交为 b71cff6b，以下命令保留为过程记录，不要向原目录重复运行。本次修正与差异复审的提交命令为 `python3 -B workbench/tests/commit_t081_duplicate_fix.py`，身份仍按 COMMIT-READY.md。
 
 ### 1. CAS 补充：先红再绿，真实回合数为 0
 
@@ -68,7 +71,7 @@ python3 -B workbench/tests/commit_t081_closeout.py
 
 [提交脚本](../../../workbench/tests/commit_t081_closeout.py) 要求前两步真实 PASS 收据及 home 已不存在；否则不暂存或提交。它核对 `exec/t081`、起点 391d70b0、s14-t081 完整启动身份，复用并验证已经生成的 closeout-final-01，不再覆盖该目录。核对现有 index 后，仅 add 本次新增或已审阅的代码/说明修改；旧原始证据的 Git index mode/object 必须保持。约 355 MB、2.75 万个原始文件保留进入该提交，运行时记录准确数量和字节；没有丢弃旧失败或改写原件。
 
-脚本拒绝其他任务的 index 内容、原始证据的未暂存修改及未合并冲突，不 reset。diff --check 只检查代码和本卡说明，原始输入/输出/快照保持 staged bytes，并在 scope.json 及分卷排除清单中逐项记录。新提交日志为 `/private/tmp/t081-closeout-commit-02/`；原失败 -01 目录保留。真实 Git commit 尚未运行；它使用项目 hook 自动尾注，不手写、不绕过、不 submit、不集成、不 push。6a/6e 未决仍写入提交说明及汇总。
+脚本拒绝其他任务的 index 内容、原始证据的未暂存修改及未合并冲突，不 reset。diff --check 只检查代码和本卡说明，原始输入/输出/快照保持 staged bytes，并在 scope.json 及分卷排除清单中逐项记录。该次提交日志为 `/private/tmp/t081-closeout-commit-02/`；原失败 -01 目录保留。主控已运行该次 Git commit，使用项目 hook 自动尾注，不手写、不绕过；没有 submit、集成或 push。6a/6e 未决仍写入提交说明及汇总。
 
 可独立复查汇总（新目录，不启动模型或删除 home）：
 

@@ -13,7 +13,7 @@ import traceback
 
 from command_evidence import CommandLog
 from prepare_t081_mutants import CASE_MUTANT, prepare
-from test_bad_worker_e2e import NEGATIVES, POSITIVES, PROBES, REFUSALS
+from test_bad_worker_e2e import NEGATIVES, POSITIVES, PROBES, REFUSALS, IDENTITY_EXPECTATION
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -295,7 +295,7 @@ def main():
                 case('red-' + name, Path(mutants[mutation]['source']), name, failure)
                 observed = case('green-' + name, candidate, name)
                 report['rows'].append({'case': name, 'status': 'PASS',
-                                       'expected': REFUSALS.get(name, 'stale_turn; integrate C1 only'),
+                                       'expected': IDENTITY_EXPECTATION if name == 'trailer_duplicate' else REFUSALS.get(name, 'stale_turn; integrate C1 only'),
                                        'actual': observed.get('actual', observed.get('reply', {}).get('error')),
                                        'mutant': mutation, 'red_failure': failure,
                                        'event_location': str(out / ('green-' + name) / name / 'observation.json') + ' events',

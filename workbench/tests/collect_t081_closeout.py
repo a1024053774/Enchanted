@@ -53,9 +53,27 @@ def main():
     cas_path, cleanup_path = BASE / 'cas-01/run.json', BASE / 'home-cleanup-01.json'
     cas = read(cas_path) if cas_path.exists() else None
     cleanup = read(cleanup_path) if cleanup_path.exists() else None
+    replacement_path = BASE / 'duplicate-conflict-01/run.json'
+    replacement = read(replacement_path) if replacement_path.exists() else None
+    old_duplicate = next(row for row in full['rows'] if row.get('case') == 'trailer_duplicate')
+    bad_cases = [row for row in full['rows'] if row.get('status') == 'PASS' and 'mutant' in row
+                 and row['case'] != 'trailer_duplicate']
+    replacement_passed = (replacement and replacement.get('status') == 'PASS'
+                          and replacement.get('variant') == 'conflicting_sessions'
+                          and replacement.get('counted_as_bad_behavior_pass') is True
+                          and bool(replacement.get('actual_refusal_code')))
+    if replacement_passed:
+        bad_cases.append({'case': 'trailer_duplicate', 'status': 'PASS', 'variant': 'conflicting_sessions',
+                          'actual': replacement['actual_refusal_code'], 'source': str(replacement_path),
+                          'mutant': 'trailer_session_cardinality'})
     report = {'status': 'INCOMPLETE', 'task': 'T-081', 'source_argv': sys.argv,
-              'controlled_matrix': {'source': str(BASE / 'full-04/run.json'), 'status': full['controlled_status'],
-                                   'bad_cases': [row for row in full['rows'] if row.get('status') == 'PASS' and 'mutant' in row],
+              'controlled_matrix': {'source': str(BASE / 'full-04/run.json'),
+                                   'status': 'PASS' if replacement_passed else 'INCOMPLETE',
+                                   'historical_full04_status': full['controlled_status'], 'bad_cases': bad_cases,
+                                   'same_value_duplicate': {'classification': '观察，不计坏行为通过', 'counted_as_pass': False,
+                                                            'historical_row_preserved': old_duplicate,
+                                                            'basis': '主控 #181 接受独立审查 P2-01'},
+                                   'replacement_source': str(replacement_path),
                                    'positives': full['positive_cases_executed'], 'false_rejections': full['false_rejections'],
                                    'regression_steps_passed': sum(step.get('passed') is True for step in full['steps'])},
               'capability_status': 'PASS：真实能力观察完成；发现不等于门禁允许交付',
@@ -79,13 +97,15 @@ def main():
     (out / 'run.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     lines = ['# T-081 汇总结果', '', '总状态：INCOMPLETE；6a/6e 待用户裁定，不上调为全票通过。', '',
              '| 项目 | 当前结果 |', '| --- | --- |',
-             '| 坏 worker 受控矩阵 | ' + full['controlled_status'] + '；11 案及对应变异红态 |',
+             '| 坏 worker 受控证据 | ' + report['controlled_matrix']['status'] + '；当前计入 ' + str(len(bad_cases)) + ' 案；同值重复仅观察 |',
              '| 正例 / 误拒绝 | ' + str(full['positive_cases_executed']) + ' / ' + str(full['false_rejections']) + ' |',
              '| 已通过回归阶段 | ' + str(report['controlled_matrix']['regression_steps_passed']) + '（full-04） |',
              '| 真实能力观察 | PASS；run-02/03/04 累计 3/3，无剩余回合 |',
              '| CAS 补充 | ' + report['cas']['status'] + ' |',
              '| 隔离 home 清理 | ' + report['home_cleanup']['status'] + ' |',
              '| 6a / 6e | 待用户裁定；不计通过 |', '',
+             '原 full-04 的同值 Session 重复行保留原件，但不再计通过；新矛盾身份案以独立输出替代。',
+             '原 10 案与单案替代证据是分次运行，不声称最终组合入口已完整重跑。',
              'run-02：信任屏，无命令回执。run-03：两条均 exit 0，但目标为另一夹具 run-02。',
              'run-04：两条本任务命令各一次 exit 0；共享 main G→T，裸仓库 t081-probe=T。',
              '原生回执与本次独立 Git 读回见 run.json，不以模型自报代替证据。',

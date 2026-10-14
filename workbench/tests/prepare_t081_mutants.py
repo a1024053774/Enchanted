@@ -17,6 +17,9 @@ MUTATIONS = {
         '        else if (Object.keys(trailers).length !== required.length ||\n'
         '          required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = "invalid_trailers";',
         '        else if (false) error = "invalid_trailers";')],
+    'trailer_session_cardinality': [(
+        'required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])',
+        'required.some((key) => (key === "session" ? !trailers[key]?.length : trailers[key]?.length !== 1) || !trailers[key]![0])')],
     'trailer_task': [(
         '        if (trailers.task?.some((value) => value !== task.task_id)) error = "trailer_task_mismatch";',
         '        if (false) error = "trailer_task_mismatch";')],
@@ -45,7 +48,7 @@ CASE_MUTANT = {
     'self_report_unchanged': 'completion', 'self_report_wrong': 'completion',
     'stale_attempt': 'historical_attempt', 'after_review': 'latest_head',
     'deny_path': 'paths', 'trailer_partial': 'trailer_shape',
-    'trailer_duplicate': 'trailer_shape', 'trailer_task': 'trailer_task',
+    'trailer_duplicate': 'trailer_session_cardinality', 'trailer_task': 'trailer_task',
     'trailer_attempt': 'trailer_attempt',
 }
 

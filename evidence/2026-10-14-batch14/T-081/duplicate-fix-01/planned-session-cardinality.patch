@@ -1,0 +1,11 @@
+--- candidate/core.ts
++++ session-cardinality/core.ts
+@@ -1992,7 +1992,7 @@
+       if (!missing) {
+         if (trailers.task?.some((value) => value !== task.task_id)) error = "trailer_task_mismatch";
+         else if (Object.keys(trailers).length !== required.length ||
+-          required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = "invalid_trailers";
++          required.some((key) => (key === "session" ? !trailers[key]?.length : trailers[key]?.length !== 1) || !trailers[key]![0])) error = "invalid_trailers";
+         else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")
+           error = "trailer_identity_mismatch";
+       }

@@ -19,11 +19,15 @@ REFUSALS = {
     'stale_attempt': 'stale_attempt',
     'deny_path': 'path_boundary_failed',
     'trailer_partial': 'invalid_trailers',
-    'trailer_duplicate': 'invalid_trailers',
+    'trailer_duplicate': None,  # 身份冲突必须拒收；具体错误码是运行观察，不作为规范 oracle。
     'trailer_task': 'trailer_task_mismatch',
     'trailer_attempt': 'trailer_identity_mismatch',
 }
 NEGATIVES = [*REFUSALS, 'after_review']
+IDENTITY_EXPECTATION = '尾注含本会话与其他会话的矛盾身份，必须拒收；实际拒收码单列记录'
+IDENTITY_BASIS = ['.project-map/specs/native-cli-orchestration-2026-10-10.md#第8节',
+                  '.project-map/tickets/T-072-traceability-scoring-retrospective-metrics.md#提交追溯',
+                  '主控 #181：每项尾注必须能追溯到本 attempt/会话']
 POSITIVES = ['positive_single', 'positive_multi', 'positive_red_card']
 TRACE_FIELDS = {'probe_launch': 'Launch', 'probe_model': 'Model',
                 'probe_effort': 'Effort', 'probe_tool': 'Tool'}
@@ -46,6 +50,8 @@ class BadWorker(Tracer):
             'criterion': "assert Path('src/value.txt').read_text() == 'worker\\n'",
             'oracle_paths': ['acceptance/criterion.py'],
             'expected_refusal': REFUSALS.get(self.case),
+            'identity_expectation': IDENTITY_EXPECTATION if self.case == 'trailer_duplicate' else None,
+            'expectation_basis': IDENTITY_BASIS if self.case == 'trailer_duplicate' else None,
             'trace_field': TRACE_FIELDS.get(self.case), 'trace_fixture_values': TRACE_VALUES,
             'real_codex_turns': 0,
         })
@@ -67,7 +73,8 @@ class BadWorker(Tracer):
         values.update(changes or {})
         trailers = ['A2A-' + key + ': ' + value for key, value in values.items() if key not in omit]
         if duplicate:
-            trailers.append('A2A-' + duplicate + ': ' + values[duplicate])
+            key, value = duplicate
+            trailers.append('A2A-' + key + ': ' + value)
         self.git('add', '.', cwd=workspace)
         self.git('commit', *(['--allow-empty'] if empty else []),
                  '-m', message + '\n\n' + '\n'.join(trailers), cwd=workspace)
@@ -101,16 +108,32 @@ class BadWorker(Tracer):
         expected = REFUSALS[self.case]
         actual = {'reply': reply, 'task': current, 'before': before, 'after': self.branch(),
                   'events': fresh, 'expected': expected, 'actual': reply.get('error')}
+        matches = reply.get('error') == expected
+        expectation = {'ok': False, 'error': expected}
+        if self.case == 'trailer_duplicate':
+            checks = [event for event in fresh if event['type'] == 'trailer_check'
+                      and event['details'].get('commit') == self.duplicate_candidate]
+            actual.update(expected=IDENTITY_EXPECTATION, expectation_basis=IDENTITY_BASIS,
+                          expected_sessions=self.duplicate_sessions, trailer_checks=checks)
+            save(self.evidence / 'duplicate-trailer-check.json', actual)
+            self.check('BW-DUPLICATE-TARGET', len(checks) == 1
+                       and checks[0]['details']['trailers'].get('session') == self.duplicate_sessions
+                       and len(set(self.duplicate_sessions)) == 2,
+                       '到达该提交的尾注检查，保留一真一假的两个 Session', checks)
+            matches = (isinstance(reply.get('error'), str) and bool(reply['error'])
+                       and checks[0]['details'].get('passed') is False
+                       and checks[0]['details'].get('error') == reply['error'])
+            expectation = {'ok': False, 'behavior': IDENTITY_EXPECTATION, 'code': '运行后记录'}
         save(self.evidence / 'observation.json', actual)
         self.check('BW-REJECT-' + self.case,
-                   reply.get('ok') is False and reply.get('error') == expected,
-                   {'ok': False, 'error': expected}, reply)
+                   reply.get('ok') is False and matches, expectation, reply)
         self.check('BW-UNCHANGED-' + self.case,
                    actual['after'] == before and current['state'] != 'accepted'
                    and not any(e['type'] in ('integrated', 'score_recorded') for e in fresh),
                    '工作分支、reflog 与集成状态不推进', actual)
         self.check('BW-EVENT-' + self.case,
-                   any(e['type'] == 'rejected' and e['details'].get('error') == expected for e in fresh),
+                   any(e['type'] == 'rejected' and e['details'].get('error') ==
+                       (reply.get('error') if self.case == 'trailer_duplicate' else expected) for e in fresh),
                    '真实门禁追加对应拒收事件', fresh)
         integration = self.gate('integrate', '--attempt', current['current_attempt']['attempt_id'],
                                 '--score-file', self.score_file())
@@ -156,7 +179,11 @@ class BadWorker(Tracer):
         self.refused()
 
     def trailer_duplicate(self):
-        self.delivered({'src/value.txt': 'worker\n'}, duplicate='Session')
+        other = '00000000-0000-4000-8000-000000000181'
+        a, candidate = self.delivered({'src/value.txt': 'worker\n'}, duplicate=('Session', other))
+        self.check('BW-DUPLICATE-INPUT', a['session_id'] != other,
+                   '第二个 Session 确实不是本会话', {'current': a['session_id'], 'other': other})
+        self.duplicate_candidate, self.duplicate_sessions = candidate, [a['session_id'], other]
         self.refused()
 
     def trailer_task(self):

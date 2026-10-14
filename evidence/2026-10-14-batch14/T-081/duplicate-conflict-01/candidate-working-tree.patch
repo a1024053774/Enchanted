@@ -1,0 +1,185 @@
+diff --git a/workbench/tests/collect_t081_closeout.py b/workbench/tests/collect_t081_closeout.py
+index d4b1653b..72c082c6 100644
+--- a/workbench/tests/collect_t081_closeout.py
++++ b/workbench/tests/collect_t081_closeout.py
+@@ -53,9 +53,27 @@ def main():
+     cas_path, cleanup_path = BASE / 'cas-01/run.json', BASE / 'home-cleanup-01.json'
+     cas = read(cas_path) if cas_path.exists() else None
+     cleanup = read(cleanup_path) if cleanup_path.exists() else None
++    replacement_path = BASE / 'duplicate-conflict-01/run.json'
++    replacement = read(replacement_path) if replacement_path.exists() else None
++    old_duplicate = next(row for row in full['rows'] if row.get('case') == 'trailer_duplicate')
++    bad_cases = [row for row in full['rows'] if row.get('status') == 'PASS' and 'mutant' in row
++                 and row['case'] != 'trailer_duplicate']
++    replacement_passed = (replacement and replacement.get('status') == 'PASS'
++                          and replacement.get('variant') == 'conflicting_sessions'
++                          and replacement.get('counted_as_bad_behavior_pass') is True
++                          and bool(replacement.get('actual_refusal_code')))
++    if replacement_passed:
++        bad_cases.append({'case': 'trailer_duplicate', 'status': 'PASS', 'variant': 'conflicting_sessions',
++                          'actual': replacement['actual_refusal_code'], 'source': str(replacement_path),
++                          'mutant': 'trailer_session_cardinality'})
+     report = {'status': 'INCOMPLETE', 'task': 'T-081', 'source_argv': sys.argv,
+-              'controlled_matrix': {'source': str(BASE / 'full-04/run.json'), 'status': full['controlled_status'],
+-                                   'bad_cases': [row for row in full['rows'] if row.get('status') == 'PASS' and 'mutant' in row],
++              'controlled_matrix': {'source': str(BASE / 'full-04/run.json'),
++                                   'status': 'PASS' if replacement_passed else 'INCOMPLETE',
++                                   'historical_full04_status': full['controlled_status'], 'bad_cases': bad_cases,
++                                   'same_value_duplicate': {'classification': '观察，不计坏行为通过', 'counted_as_pass': False,
++                                                            'historical_row_preserved': old_duplicate,
++                                                            'basis': '主控 #181 接受独立审查 P2-01'},
++                                   'replacement_source': str(replacement_path),
+                                    'positives': full['positive_cases_executed'], 'false_rejections': full['false_rejections'],
+                                    'regression_steps_passed': sum(step.get('passed') is True for step in full['steps'])},
+               'capability_status': 'PASS：真实能力观察完成；发现不等于门禁允许交付',
+@@ -79,13 +97,15 @@ def main():
+     (out / 'run.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+     lines = ['# T-081 汇总结果', '', '总状态：INCOMPLETE；6a/6e 待用户裁定，不上调为全票通过。', '',
+              '| 项目 | 当前结果 |', '| --- | --- |',
+-             '| 坏 worker 受控矩阵 | ' + full['controlled_status'] + '；11 案及对应变异红态 |',
++             '| 坏 worker 受控证据 | ' + report['controlled_matrix']['status'] + '；当前计入 ' + str(len(bad_cases)) + ' 案；同值重复仅观察 |',
+              '| 正例 / 误拒绝 | ' + str(full['positive_cases_executed']) + ' / ' + str(full['false_rejections']) + ' |',
+              '| 已通过回归阶段 | ' + str(report['controlled_matrix']['regression_steps_passed']) + '（full-04） |',
+              '| 真实能力观察 | PASS；run-02/03/04 累计 3/3，无剩余回合 |',
+              '| CAS 补充 | ' + report['cas']['status'] + ' |',
+              '| 隔离 home 清理 | ' + report['home_cleanup']['status'] + ' |',
+              '| 6a / 6e | 待用户裁定；不计通过 |', '',
++             '原 full-04 的同值 Session 重复行保留原件，但不再计通过；新矛盾身份案以独立输出替代。',
++             '原 10 案与单案替代证据是分次运行，不声称最终组合入口已完整重跑。',
+              'run-02：信任屏，无命令回执。run-03：两条均 exit 0，但目标为另一夹具 run-02。',
+              'run-04：两条本任务命令各一次 exit 0；共享 main G→T，裸仓库 t081-probe=T。',
+              '原生回执与本次独立 Git 读回见 run.json，不以模型自报代替证据。',
+diff --git a/workbench/tests/prepare_t081_mutants.py b/workbench/tests/prepare_t081_mutants.py
+index fefa7d7d..ac8f2675 100644
+--- a/workbench/tests/prepare_t081_mutants.py
++++ b/workbench/tests/prepare_t081_mutants.py
+@@ -17,6 +17,9 @@ MUTATIONS = {
+         '        else if (Object.keys(trailers).length !== required.length ||\n'
+         '          required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = "invalid_trailers";',
+         '        else if (false) error = "invalid_trailers";')],
++    'trailer_session_cardinality': [(
++        'required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])',
++        'required.some((key) => (key === "session" ? !trailers[key]?.length : trailers[key]?.length !== 1) || !trailers[key]![0])')],
+     'trailer_task': [(
+         '        if (trailers.task?.some((value) => value !== task.task_id)) error = "trailer_task_mismatch";',
+         '        if (false) error = "trailer_task_mismatch";')],
+@@ -45,7 +48,7 @@ CASE_MUTANT = {
+     'self_report_unchanged': 'completion', 'self_report_wrong': 'completion',
+     'stale_attempt': 'historical_attempt', 'after_review': 'latest_head',
+     'deny_path': 'paths', 'trailer_partial': 'trailer_shape',
+-    'trailer_duplicate': 'trailer_shape', 'trailer_task': 'trailer_task',
++    'trailer_duplicate': 'trailer_session_cardinality', 'trailer_task': 'trailer_task',
+     'trailer_attempt': 'trailer_attempt',
+ }
+ 
+diff --git a/workbench/tests/run_t081_bad_worker_suite.py b/workbench/tests/run_t081_bad_worker_suite.py
+index 44e7ea81..7d9c6953 100644
+--- a/workbench/tests/run_t081_bad_worker_suite.py
++++ b/workbench/tests/run_t081_bad_worker_suite.py
+@@ -13,7 +13,7 @@ import traceback
+ 
+ from command_evidence import CommandLog
+ from prepare_t081_mutants import CASE_MUTANT, prepare
+-from test_bad_worker_e2e import NEGATIVES, POSITIVES, PROBES, REFUSALS
++from test_bad_worker_e2e import NEGATIVES, POSITIVES, PROBES, REFUSALS, IDENTITY_EXPECTATION
+ 
+ 
+ ROOT = Path(__file__).resolve().parents[2]
+@@ -295,7 +295,7 @@ def main():
+                 case('red-' + name, Path(mutants[mutation]['source']), name, failure)
+                 observed = case('green-' + name, candidate, name)
+                 report['rows'].append({'case': name, 'status': 'PASS',
+-                                       'expected': REFUSALS.get(name, 'stale_turn; integrate C1 only'),
++                                       'expected': IDENTITY_EXPECTATION if name == 'trailer_duplicate' else REFUSALS.get(name, 'stale_turn; integrate C1 only'),
+                                        'actual': observed.get('actual', observed.get('reply', {}).get('error')),
+                                        'mutant': mutation, 'red_failure': failure,
+                                        'event_location': str(out / ('green-' + name) / name / 'observation.json') + ' events',
+diff --git a/workbench/tests/test_bad_worker_e2e.py b/workbench/tests/test_bad_worker_e2e.py
+index beaa0e1a..f4ba4a68 100644
+--- a/workbench/tests/test_bad_worker_e2e.py
++++ b/workbench/tests/test_bad_worker_e2e.py
+@@ -19,11 +19,15 @@ REFUSALS = {
+     'stale_attempt': 'stale_attempt',
+     'deny_path': 'path_boundary_failed',
+     'trailer_partial': 'invalid_trailers',
+-    'trailer_duplicate': 'invalid_trailers',
++    'trailer_duplicate': None,  # 身份冲突必须拒收；具体错误码是运行观察，不作为规范 oracle。
+     'trailer_task': 'trailer_task_mismatch',
+     'trailer_attempt': 'trailer_identity_mismatch',
+ }
+ NEGATIVES = [*REFUSALS, 'after_review']
++IDENTITY_EXPECTATION = '尾注含本会话与其他会话的矛盾身份，必须拒收；实际拒收码单列记录'
++IDENTITY_BASIS = ['.project-map/specs/native-cli-orchestration-2026-10-10.md#第8节',
++                  '.project-map/tickets/T-072-traceability-scoring-retrospective-metrics.md#提交追溯',
++                  '主控 #181：每项尾注必须能追溯到本 attempt/会话']
+ POSITIVES = ['positive_single', 'positive_multi', 'positive_red_card']
+ TRACE_FIELDS = {'probe_launch': 'Launch', 'probe_model': 'Model',
+                 'probe_effort': 'Effort', 'probe_tool': 'Tool'}
+@@ -46,6 +50,8 @@ class BadWorker(Tracer):
+             'criterion': "assert Path('src/value.txt').read_text() == 'worker\\n'",
+             'oracle_paths': ['acceptance/criterion.py'],
+             'expected_refusal': REFUSALS.get(self.case),
++            'identity_expectation': IDENTITY_EXPECTATION if self.case == 'trailer_duplicate' else None,
++            'expectation_basis': IDENTITY_BASIS if self.case == 'trailer_duplicate' else None,
+             'trace_field': TRACE_FIELDS.get(self.case), 'trace_fixture_values': TRACE_VALUES,
+             'real_codex_turns': 0,
+         })
+@@ -67,7 +73,8 @@ class BadWorker(Tracer):
+         values.update(changes or {})
+         trailers = ['A2A-' + key + ': ' + value for key, value in values.items() if key not in omit]
+         if duplicate:
+-            trailers.append('A2A-' + duplicate + ': ' + values[duplicate])
++            key, value = duplicate
++            trailers.append('A2A-' + key + ': ' + value)
+         self.git('add', '.', cwd=workspace)
+         self.git('commit', *(['--allow-empty'] if empty else []),
+                  '-m', message + '\n\n' + '\n'.join(trailers), cwd=workspace)
+@@ -101,16 +108,32 @@ class BadWorker(Tracer):
+         expected = REFUSALS[self.case]
+         actual = {'reply': reply, 'task': current, 'before': before, 'after': self.branch(),
+                   'events': fresh, 'expected': expected, 'actual': reply.get('error')}
++        matches = reply.get('error') == expected
++        expectation = {'ok': False, 'error': expected}
++        if self.case == 'trailer_duplicate':
++            checks = [event for event in fresh if event['type'] == 'trailer_check'
++                      and event['details'].get('commit') == self.duplicate_candidate]
++            actual.update(expected=IDENTITY_EXPECTATION, expectation_basis=IDENTITY_BASIS,
++                          expected_sessions=self.duplicate_sessions, trailer_checks=checks)
++            save(self.evidence / 'duplicate-trailer-check.json', actual)
++            self.check('BW-DUPLICATE-TARGET', len(checks) == 1
++                       and checks[0]['details']['trailers'].get('session') == self.duplicate_sessions
++                       and len(set(self.duplicate_sessions)) == 2,
++                       '到达该提交的尾注检查，保留一真一假的两个 Session', checks)
++            matches = (isinstance(reply.get('error'), str) and bool(reply['error'])
++                       and checks[0]['details'].get('passed') is False
++                       and checks[0]['details'].get('error') == reply['error'])
++            expectation = {'ok': False, 'behavior': IDENTITY_EXPECTATION, 'code': '运行后记录'}
+         save(self.evidence / 'observation.json', actual)
+         self.check('BW-REJECT-' + self.case,
+-                   reply.get('ok') is False and reply.get('error') == expected,
+-                   {'ok': False, 'error': expected}, reply)
++                   reply.get('ok') is False and matches, expectation, reply)
+         self.check('BW-UNCHANGED-' + self.case,
+                    actual['after'] == before and current['state'] != 'accepted'
+                    and not any(e['type'] in ('integrated', 'score_recorded') for e in fresh),
+                    '工作分支、reflog 与集成状态不推进', actual)
+         self.check('BW-EVENT-' + self.case,
+-                   any(e['type'] == 'rejected' and e['details'].get('error') == expected for e in fresh),
++                   any(e['type'] == 'rejected' and e['details'].get('error') ==
++                       (reply.get('error') if self.case == 'trailer_duplicate' else expected) for e in fresh),
+                    '真实门禁追加对应拒收事件', fresh)
+         integration = self.gate('integrate', '--attempt', current['current_attempt']['attempt_id'],
+                                 '--score-file', self.score_file())
+@@ -156,7 +179,11 @@ class BadWorker(Tracer):
+         self.refused()
+ 
+     def trailer_duplicate(self):
+-        self.delivered({'src/value.txt': 'worker\n'}, duplicate='Session')
++        other = '00000000-0000-4000-8000-000000000181'
++        a, candidate = self.delivered({'src/value.txt': 'worker\n'}, duplicate=('Session', other))
++        self.check('BW-DUPLICATE-INPUT', a['session_id'] != other,
++                   '第二个 Session 确实不是本会话', {'current': a['session_id'], 'other': other})
++        self.duplicate_candidate, self.duplicate_sessions = candidate, [a['session_id'], other]
+         self.refused()
+ 
+     def trailer_task(self):
