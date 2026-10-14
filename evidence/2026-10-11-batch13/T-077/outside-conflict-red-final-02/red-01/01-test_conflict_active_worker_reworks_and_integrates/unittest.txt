@@ -1,0 +1,43 @@
+test_conflict_active_worker_reworks_and_integrates (__main__.ConflictContracts) ... FAIL
+
+======================================================================
+FAIL: test_conflict_active_worker_reworks_and_integrates (__main__.ConflictContracts) (stage='writeback')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 751, in test_conflict_active_worker_reworks_and_integrates
+    self.target_contract('Text conflict is written once to the original active worker',
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 593, in target_contract
+    self.contract(name, condition, expected, actual, assertion_id=assertion_id)
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 109, in contract
+    self.assertTrue(condition, 'S3 contract: ' + name + '\n' + repr(CONTRACTS[-1]))
+AssertionError: False is not true : S3 contract: Text conflict is written once to the original active worker
+{'test': '__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates', 'claim': 'Text conflict is written once to the original active worker', 'pass': False, 'expected': {'count': 1, 'thread': '27c3ba5f-20bb-4227-8789-eaeb1377162b'}, 'actual': [], 'assertion_id': 'CONFLICT-ACTIVE-WRITEBACK'}
+
+======================================================================
+FAIL: test_conflict_active_worker_reworks_and_integrates (__main__.ConflictContracts) (stage='writeback-replay')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 759, in test_conflict_active_worker_reworks_and_integrates
+    self.contract('Repeated verification does not resend the conflict message',
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 109, in contract
+    self.assertTrue(condition, 'S3 contract: ' + name + '\n' + repr(CONTRACTS[-1]))
+AssertionError: False is not true : S3 contract: Repeated verification does not resend the conflict message
+{'test': '__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates', 'claim': 'Repeated verification does not resend the conflict message', 'pass': False, 'expected': 1, 'actual': [], 'assertion_id': None}
+
+======================================================================
+FAIL: test_conflict_active_worker_reworks_and_integrates (__main__.ConflictContracts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 761, in test_conflict_active_worker_reworks_and_integrates
+    c2 = self.repair(a, g)
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 742, in repair
+    self.contract('Conflict rework accepts a new explicit candidate from its bound worker',
+  File "/Users/luckye/Documents/Code/a2a-wt-t077/workbench/tests/test_worktree_lifecycle_e2e.py", line 109, in contract
+    self.assertTrue(condition, 'S3 contract: ' + name + '\n' + repr(CONTRACTS[-1]))
+AssertionError: False is not true : S3 contract: Conflict rework accepts a new explicit candidate from its bound worker
+{'test': '__main__.ConflictContracts.test_conflict_active_worker_reworks_and_integrates', 'claim': 'Conflict rework accepts a new explicit candidate from its bound worker', 'pass': False, 'expected': True, 'actual': {'ok': False, 'error': 'candidate_conflict', 'user_input_observer': {'state': 'healthy', 'updated_at': '2026-10-14T12:36:20.537Z'}}, 'assertion_id': None}
+
+----------------------------------------------------------------------
+Ran 1 test in 3.273s
+
+FAILED (failures=3)

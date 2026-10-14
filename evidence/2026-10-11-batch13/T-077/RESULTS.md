@@ -1,5 +1,15 @@
 # T-077 S3 结果：真实冲突与两条受控尾注证明
 
+## 主控 #129：F1 修正后的 conflict-red-final-02
+
+**重跑 PASS；整票仍 INCOMPLETE，待 F1 差异复审与主控验收。** 执行主控在沙箱外运行 `conflict-red-final-02`，rc=0；本 worker 读回顶层 run.json、七条红态的逐案 result.json、06/07 的原始 unittest 输出及候选结果。运行产品为 `5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4`，夹具为 `178d15f3ddb13f06a00eac19d7655225519f98e2`，实际执行 HEAD 为 `628234b7ac1b067bbb404ad7140c8a551a4361f1`。本轮只整理证据，产品及夹具未改，新增真实模型回合 0。
+
+F1 的修正限于夹具和反事实 runner：七案分别绑定稳定目标标识与本案前置清单；只有目标断言失败、前置在目标前齐全且无 errors/skipped/cleanup_failures 时才计 business_red。06/07 分别使用只破坏 conflict rework 路径守卫、任务尾注守卫的定向变体，保留冲突回写和显式重交。既有修正提交为 `a5c6d50c`、`178d15f3`、`fba6ebb5`、`628234b7`；是否完整解决独审 F1 留给本次只读复审判断。
+
+七条红态均为 `TARGET_FAILED`、business_red=true、missing_preconditions=[]、classification_issues=[]，各案 errors/skipped/cleanup_failures 均为空或零。06 命中 `CONFLICT-REWORK-FORBIDDEN-PATH` 的 “Conflict rework still rejects the forbidden path at verify”；07 命中 `CONFLICT-REWORK-FOREIGN-TRAILER` 的 “Conflict rework still rejects the foreign trailer at verify”。两案前置均含 conflict_delivered、explicit_resubmitted、target_verify_executed，已越过原先失败的重交前置。候选七案全部通过；顶层 not_covered 与 target_failures_not_red 均为空。
+
+结果与完整命令收据在 `outside-conflict-red-final-02/`（131 个文件，8,700,360 字节，单文件无超 5 MB），控制台为 `conflict-red-final-02.console.txt`。同时提交 `conflict-red-final-02-readiness-01/delivery-checks.json` 与 `delivery-project-map-status.txt`；它们记录的是前次准备交付检查，不作为本次运行或复审通过证据。再生成入口为 `bash /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/outside-sandbox.sh conflict-red-final-02`；现有输出目录禁止覆盖，重放须由主控另指定新输出目录。旧 final-05 的 06/07 缺口、低内存中断的 final-01 及真实模型失败均原样保留，不回填结论。
+
 ## 主控 #127：conflict-red-final-02 重跑准备
 
 **INCOMPLETE，待主控沙箱外重跑。** `outside-conflict-red-final-01/` 与 `conflict-red-final-01.console.txt` 原样保留并提交，注明：**被系统低内存回收、不计**。低内存回收原因来自本次主控派发；现场只含 red-01/02/03 的完整收据、red-04 的未完成输出，没有顶层 run.json，不能作为整轮验收证据。
