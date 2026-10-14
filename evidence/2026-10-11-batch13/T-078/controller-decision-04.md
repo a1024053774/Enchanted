@@ -182,3 +182,7 @@ commit-code-09a3r2 → 643d59bf（清空草稿与空框声明改为执行主控�
 ## 09A-3R2 clean continue 读回与 cleanup（2026-10-14 UTC 18:1x）
 
 PASS（模型 0）。逐项核对：nonce1 送达、busy、prompt1；nonce2 登记排队；窗口接上本窗格后 Esc 经窗口入门禁并写入，active 释放，API1 被对端关闭；草稿恢复后 test-simulated-user 经同窗发 Control+C（action 521a36d7，0x03），空框观察 empty=true 并留 PTY；声明点击 → user_queue_release（seq 108，声明"用户声明输入框已空"引用该中断）；第二回合 prompt2 不同于 prompt1；假 API 请求 2 的末条 user 文本精确为 "⟦主控 #2⟧\nP2_NONCE_…"（不含 nonce1），请求 1 精确为 nonce1；hook UPS/UPS/Stop 均 exit 0；最终 idle。cleanup PASS，无残留；fixture 8,138,071 字节外置归档（archive_t078_evidence）。slot 未删。批准 `09a3r2 block launch` 及其逐屏、continue、cleanup（同机制另批）。
+
+## 09A-3R2 block 读回与 cleanup（2026-10-14 UTC 18:2x）
+
+逐屏引导与信任同 clean（目录 /private/tmp/t078-2-p1-09a3r2-block-093154n0/repo）。continue PASS（模型 0）：Esc 后保留恢复的草稿，test-simulated-user 点故意不真实的空框声明；真实 UPS2 的 prompt 同时含 nonce1 与 nonce2，hook 原始 stdout 为 {"decision":"block","reason":"登记注入与实际提交正文不一致；已阻断，请处理草稿后再决定。"}，exit 0；假 API 只有请求 1，无 API2、无 api-error。cleanup 及外置归档见下。用户决定 A 与提交前拦截的正例、反例在真实 CLI（假服务）上均成立。待续：09B/09C 停止链路、真登录 Haiku 2–3 回合（逐次批准）、新候选独立审查、合并。
