@@ -111,7 +111,7 @@ try:
         run(['git','-C',root/'repo','add','value.txt']);run(['git','-C',root/'repo','commit','-m','P1 fixture'])
         call('daemon_start')
         card={'id':approval['input']['task'],'source':None,'goal':'Claude CLI protocol tracer bullet','non_goals':['worker delivery or integration'],
-              'paths':{'allow':['.'],'deny':[]},'completion_conditions':[{'argv':[sys.executable,'-c',"raise SystemExit('P1 does not deliver a worker candidate')"]}],
+              'paths':{'allow':['.'],'deny':[]},'oracle_paths':['value.txt'],'completion_conditions':[{'argv':[sys.executable,'-c',"raise SystemExit('P1 does not deliver a worker candidate')"]}],
               'red_commands':[],'task_type':'后端逻辑','repair_target':None,'complexity':'L','executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},'base_commit':None,'writer':None}
         (root/'card.json').write_text(json.dumps(card));task=approval['input']['task']
         call('card_save','--task',task,'--card',root/'card.json','--expected-version','0')

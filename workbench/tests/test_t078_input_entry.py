@@ -133,10 +133,11 @@ def main():
         card = {'id':task,'source':None,'goal':'验证窗口用户输入及来源记录',
                 'non_goals':['不运行模型','不交付或集成代码'],
                 'paths':{'allow':['value.txt'],'deny':[]},
+                'oracle_paths':['value.txt'],
                 'completion_conditions':[{'argv':[sys.executable,'-I','-B','-c',
                     "from pathlib import Path; assert Path('value.txt').read_text(encoding='utf-8') == '夹具基线\\n'"]}],
                 'red_commands':[],'task_type':'后端逻辑','repair_target':None,'complexity':'L',
-                'executor':{'cli':'Codex','model':'gpt-6-astra','effort':'xhigh'},'base_commit':None,'writer':None}
+                'executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},'base_commit':None,'writer':None}
         card_file = fixture / 'card.json'; card_file.write_text(json.dumps(card,ensure_ascii=False),encoding='utf-8')
         call('card_save','--task',task,'--card',card_file,'--expected-version','0')
         call('create','--task',task,'--repo',repo,'--branch','refs/heads/main','--card-version','1','--project','t078-fixture')

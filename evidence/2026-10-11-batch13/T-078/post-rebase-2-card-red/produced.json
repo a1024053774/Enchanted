@@ -1,0 +1,112 @@
+[
+  {
+    "producer": "test_t078_input_entry.py",
+    "card": {
+      "id": "input-contract",
+      "source": null,
+      "goal": "验证窗口用户输入及来源记录",
+      "non_goals": [
+        "不运行模型",
+        "不交付或集成代码"
+      ],
+      "paths": {
+        "allow": [
+          "value.txt"
+        ],
+        "deny": []
+      },
+      "completion_conditions": [
+        {
+          "argv": [
+            "/Library/Developer/CommandLineTools/usr/bin/python3",
+            "-I",
+            "-B",
+            "-c",
+            "from pathlib import Path; assert Path('value.txt').read_text(encoding='utf-8') == '夹具基线\\n'"
+          ]
+        }
+      ],
+      "red_commands": [],
+      "task_type": "后端逻辑",
+      "repair_target": null,
+      "complexity": "L",
+      "executor": {
+        "cli": "Codex",
+        "model": "gpt-6-astra",
+        "effort": "xhigh"
+      },
+      "base_commit": null,
+      "writer": null
+    }
+  },
+  {
+    "producer": "run_t078_p1.py",
+    "card": {
+      "id": "t078-p1-fixture-card",
+      "source": null,
+      "goal": "Claude CLI protocol tracer bullet",
+      "non_goals": [
+        "worker delivery or integration"
+      ],
+      "paths": {
+        "allow": [
+          "."
+        ],
+        "deny": []
+      },
+      "completion_conditions": [
+        {
+          "argv": [
+            "/Library/Developer/CommandLineTools/usr/bin/python3",
+            "-c",
+            "raise SystemExit('P1 does not deliver a worker candidate')"
+          ]
+        }
+      ],
+      "red_commands": [],
+      "task_type": "后端逻辑",
+      "repair_target": null,
+      "complexity": "L",
+      "executor": {
+        "cli": "Codex",
+        "model": "gpt-6.1-sol",
+        "effort": "xhigh"
+      },
+      "base_commit": null,
+      "writer": null
+    }
+  },
+  {
+    "producer": "test_t078_inbox_entry.py",
+    "template_id": "inbox-task",
+    "update": {
+      "goal": "限定项目的收件箱查询",
+      "non_goals": [
+        "不启动 agent"
+      ],
+      "paths": {
+        "allow": [
+          "value.txt"
+        ],
+        "deny": []
+      },
+      "completion_conditions": [
+        {
+          "argv": [
+            "/Library/Developer/CommandLineTools/usr/bin/python3",
+            "-I",
+            "-c",
+            "from pathlib import Path; assert Path('value.txt').read_text() == 'inbox fixture\\n'"
+          ]
+        }
+      ],
+      "task_type": "后端逻辑",
+      "complexity": "L",
+      "executor": {
+        "cli": "Codex",
+        "model": "gpt-6-astra",
+        "effort": "xhigh"
+      }
+    }
+  }
+]

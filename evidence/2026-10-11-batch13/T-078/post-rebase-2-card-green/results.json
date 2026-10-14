@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "producer": "test_t078_input_entry.py",
+      "status": "PASS",
+      "oracle_paths": [
+        "value.txt"
+      ]
+    },
+    {
+      "producer": "run_t078_p1.py",
+      "status": "PASS",
+      "oracle_paths": [
+        "value.txt"
+      ]
+    },
+    {
+      "producer": "test_t078_inbox_entry.py",
+      "status": "PASS",
+      "oracle_paths": [
+        "value.txt"
+      ]
+    }
+  ],
+  "argv": [
+    "node",
+    "--input-type=module",
+    "-e",
+    "import {readFileSync} from 'node:fs';import {taskCardTemplate,validateTaskCard} from './workbench/src/gates/taskCards.ts';\nconst inputs=JSON.parse(readFileSync(process.argv[1],'utf8'));const checks=[];\nfor(const input of inputs){const card=input.card??Object.assign(taskCardTemplate(input.template_id),input.update);try{\n const value=validateTaskCard(card,card.id);if(JSON.stringify(value.oracle_paths)!==JSON.stringify(['value.txt']))throw Error('expected fixed fixture oracle value.txt');\n checks.push({producer:input.producer,status:'PASS',oracle_paths:value.oracle_paths});\n}catch(e){checks.push({producer:input.producer,status:'INCOMPLETE',error:String(e),field:e.field});}}\nconsole.log(JSON.stringify({status:checks.every(v=>v.status==='PASS')?'PASS':'INCOMPLETE',checks}));process.exitCode=checks.every(v=>v.status==='PASS')?0:1;\n",
+    "evidence/2026-10-11-batch13/T-078/post-rebase-2-card-green/produced.json"
+  ],
+  "exit_code": 0,
+  "scope": "Actual card-producer expressions and production schema; no claim/daemon/UI/CLI/model start; oracle starting-file existence is for outside entry check"
+}

@@ -653,3 +653,17 @@ block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 
 主控 #157 执行恢复-154 **PASS**：仅对核对完整命令／根及双读 lstart 的 API PID48954 发一次 SIGTERM，确认退出；原 CLI48987／壳48986／后台48977 均确认退出。block 根直接外置归档、逐成员字节读回后删除。clean 原件 8,138,071 字节／980 成员，manifest [20323dd7](external-archive-20323dd797a64b74b90e9633065b15df.json)；block 原件 8,126,057 字节／970 成员，[recovery-154 清单](p1-materials-09a3r2-block/cleanup-recovery-154/result.json)。原 [3fc9ebfa](external-archive-3fc9ebfa7b8b4183a45aa58f2bd16dff.json) files=[] 不能证明 block 根归档；由新清单补齐，旧清单不改。两根已删除，两 slot 仍在外置盘、未删。
 
 只读发现 Claude 角色 relay／stop 客户端／nullable 控制会话 caller／双角色 HOME 等前置缺口，按最新指示只交 [09B/C 计划审稿](PLAN-09BC-01.md)，另报 [入口前置](ISSUE-09BC-ENTRY-01.md)。当前 09B/C launch **NO_GO**，没有新材料／实例／启动，也不实现这些超出当前阶段的前置；主控先审计划并协调 T-080 文件所有权。新候选独立 reviewer、09B/C、实际 IME、真登录与整票仍 **INCOMPLETE**，不关闭、不集成、不 push。
+
+## 第二次 main 变基与 T-080／T-083 局部回归（主控 #163／#167／#168）
+
+主控 #163 已审 09BC 计划并分配前置产品文件，批准顺序为单角色真实 Claude 转交／工具切片红绿及边界反例 → 09B 材料／实跑 → 09C 材料／实跑。每场景每角色根提交 ≤6、主 Messages ≤12、合计 ≤24、模型 0；09C 必须真实超过 120000 ms、总观察 ≤150 秒。上节入口 NO_GO 是审计划前的历史状态；本轮按新授权先变基与回归，不据此启动未经逐次批准的新场景。
+
+主控 #168 完成有界变基 **PASS**：`bf9bb9d75def72c7c74ef6389bcb82647a29a697`，固定目标 `490de67d05a08ccf8a453a78694a106288579b47`，含 T-080／T-083、无冲突。交接提交 be6e0195 与备份保留；原日志十个文件逐字节拷入 [rebase-main-2/execution](rebase-main-2/execution/COPY-RESULT.json)，未移动／删除原件。
+
+本轮只迁移 T-078 自建三个卡生成器，显式补 `oracle_paths: ["value.txt"]`，其固定基线先提交到各夹具；不改本 worker 的实际任务卡或产品源码，不留旧格式分支。实际卡表达式的当前生产 schema 探针先取得 [红态 3/3 拒绝](post-rebase-2-card-red/results.json)、exit1，再取得 [绿态 3/3 PASS](post-rebase-2-card-green/results.json)。起始文件存在及实际 claim 仍需真实入口检查。
+
+新的局部检查 **PASS**：打分 34（实际临时 schema2 写入／缺 oracle 拒绝／schema1 历史只读）、T-083 原有入口 7（0 failures/errors）、收件箱领域 11、pane runtime 11、主控窗口身份 5、Claude epochs 7、窗口绑定 13；命令与边界见 [POST-REBASE-2](POST-REBASE-2.md)。纯逻辑与 spy 不代替真实边界；T-083 使用假启动器，没有启动额外 agent。供应商 CLI／API／Electron／模型 0，无 Git 写入、无额外子代理。
+
+[单一沙箱外阶段脚本](post-rebase-2-stage.py) 已准备，计划顺序为库 inbox 8、原任务卡 15、真实 daemon/window/hook 空框入口 17、确定性接收器的实际 Electron／PTY runtime12／input-failures11／worker-inbox14。冻结 HEAD 后才运行，外盘缺失／源码变化／异常即停，超时保留 PID 与原件，不发信号或重试；slot 不删。上述实际入口目前 **INCOMPLETE**。完整 8/9/18/CAS 未在此次变基后重跑，旧 PASS 不替本候选背书。
+
+交 [提交脚本](commit-post-rebase-2.sh) 与阶段命令给主控运行；成功后绑定新的 source freeze，再准备单角色真实 Claude 入口红态 launch 包。该切片、新独立 reviewer、09B／09C、实际 IME、真登录及整票仍 **INCOMPLETE**，本轮不启动、不关闭、不集成、不 push。

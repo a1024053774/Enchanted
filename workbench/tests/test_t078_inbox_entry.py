@@ -84,9 +84,9 @@ def main():
         record['seeded_handoff']=original
         record['daemon']=call('daemon_start');started=True
         card=call('card_template','--task','inbox-task','--repo',repo)['card']
-        card.update(goal='限定项目的收件箱查询',non_goals=['不启动 agent'],paths={'allow':['value.txt'],'deny':[]},
+        card.update(goal='限定项目的收件箱查询',non_goals=['不启动 agent'],paths={'allow':['value.txt'],'deny':[]},oracle_paths=['value.txt'],
                     completion_conditions=[{'argv':[sys.executable,'-I','-c',"from pathlib import Path; assert Path('value.txt').read_text() == 'inbox fixture\\n'"]}],
-                    task_type='后端逻辑',complexity='L',executor={'cli':'Codex','model':'gpt-6-astra','effort':'xhigh'})
+                    task_type='后端逻辑',complexity='L',executor={'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'})
         card_file=root/'card.json';card_file.write_text(json.dumps(card,ensure_ascii=False),encoding='utf-8')
         call('card_save','--task','inbox-task','--card',card_file,'--expected-version','0')
         call('create','--task','inbox-task','--repo',repo,'--project','inbox-project','--branch','refs/heads/main','--card-version','1')
