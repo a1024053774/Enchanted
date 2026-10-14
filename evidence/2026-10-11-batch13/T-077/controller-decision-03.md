@@ -83,3 +83,7 @@ PASS（产品 5d0bf1e8，夹具 be91b3c0，checkout 79ef7b7f，模型 0）。39 
 ## 独立审查 01 读回（2026-10-14 UTC 05:1x）
 
 reviewer（fresh-context，请求 gpt-6.1-sol/xhigh，tier 未观察）：INCOMPLETE。确认 (a) 合流保留两卡语义、(b) 两处衔接、(c) 审查 worktree 命名清理、(d) 夹具未放宽断言、(e) relay-core/native-final/dispatch-state 原始结果确为通过、(f) 审查清理 4 与 joint 3 与 relay 全局变体命中目标断言。唯一发现 P2 F1：conflict-red-06/07 停在重交前置（candidate_conflict），未到达禁止路径/外来尾注的目标断言，分类器误计红态。无产品缺陷。接受；交 worker 绑定目标断言标识、为 06/07 写定向变体、重跑 7 条冲突红态（conflict-red-final-01），之后对差异做 fresh-context 复审。
+
+## conflict-red-final-01 被系统中止（2026-10-14 UTC 06:2x）
+
+执行主控在沙箱外运行 `conflict-red-final-01`（产品不变，夹具 fba6ebb5）。Claude Code 因系统内存严重不足回收了该后台命令；已完成 red-01/02/03（均 TARGET_FAILED，按各自前置清单），其余未运行。部分输出原样保留在 outside-conflict-red-final-01/，未发现残留测试进程。该结果不完整，不计入验收；是否及何时重跑等用户指示（同名输出目录已存在，重跑须用新目录）。T-078 的轮询器同时被回收，worker 本身不受影响。
