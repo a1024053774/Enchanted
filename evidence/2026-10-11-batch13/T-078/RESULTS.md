@@ -641,3 +641,15 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 主控 #151 以原启动身份提交 `643d59bfadbf07466ee28d57f471b8ef3d10646f`，九项尾注，保存新 source freeze。本 worker 随后生成 [09A-3R2 新材料](P2-APPROVAL-09A3R2.md)：clean 根 `/private/tmp/t078-2-p1-09a3r2-hgqtpjz_`、block 根 `/private/tmp/t078-2-p1-09a3r2-block-093154n0`，新 HOME／task／launch／session／thread／四 nonce，分别冻结 79 文件。生成及静态核对 **PASS**；每个动作批准字段均为空，API／状态库／readiness／slot 尚未生成。只交 clean launch 审批，提交脚本不启动。
 
 正例与反例均由 executor 预批的 test-simulated-user 点生产声明，来源在证据中明示。正例同窗一次 Ctrl+C、完整控制收据、新 offset 空框及 PTY／窗口证据齐备后才点；反例清空预算 0，保留草稿并作不真实声明，要求拼接 block／API1-only。当前外包只接受 09a3r2，旧材料批准不能误选新实例；slot 删除入口保留拒绝，清理到时由主控另定。本轮没有真实 CLI／API／后台／Electron／构建／模型启动，实际两场景及新候选独立审查仍 **INCOMPLETE**，整票不关闭、不集成、不 push。
+
+## 09A-3R2 实跑、清理修复与 09BC 计划（主控 #153／#155／#157）
+
+以上是交材料时点。随后主控逐次批准并实跑两场景，源 `643d59bfadbf07466ee28d57f471b8ef3d10646f`、材料提交 `dc67ce58b3300503bf31873d7c3c69c8d56b941f`。clean／block 均局部 **PASS**，模型 0，窗口动作如实为 executor 批准的 test-simulated-user。worker 从外置原件直接读 API/hook/PTY 和新临时 SQLite/WAL 副本，[23 项读回 PASS](closeout-readback-09a3r2/result.json)，并目视空框与拼接阻断截图，详见 [CLOSEOUT-09A3R2](CLOSEOUT-09A3R2.md)。读回不是新上下文独立 reviewer，不外推整票。
+
+clean 的 Esc 退休／API1 取消、一次同窗 Control+C 的 control action、输入代次 2、空框观察及 highwater 13836 字节一致、引用中断 seq88 的声明／唯一释放、API2 末条精确为前缀＋nonce2（不含 nonce1）、新 prompt_id／唯一匹配 Stop／idle 均成立，三 hook exit 0，cleanup PASS。block 不清空、故意不真实声明后的实际 UPS2 拼接被 JSON decision=block／exit0 阻断，主 Messages 只有 1、无第二 turn_start/Stop/API 错误；原 2 秒观察与后续归档均无 API2。
+
+block 初次 cleanup **BLOCKED**：真实 PID48987/lstart 未变但 comm 转成 `(2.1.296)`，旧规则立即 identity_changed，没有等实际 absence；记录缺 stat，不称括号名证明退出。先复现等待闭包红态，再修为同 PID/lstart 继续有界观察、仅实际 absence 才 PASS，PID 复用仍拒绝。第一次恢复也 **BLOCKED／无信号**：中文 ps 日期四段被按五段切列，Python 路径混入 started。使用原文本／实际 probe 红态后，固定生产端 LC_ALL=C/LANG=C、非规范消费输入直接拒绝；owns_api 规则不改。lifetime 5、locale 5、原 cleanup 6 局部及回归 PASS；两份真实 BLOCKED 原样保留。
+
+主控 #157 执行恢复-154 **PASS**：仅对核对完整命令／根及双读 lstart 的 API PID48954 发一次 SIGTERM，确认退出；原 CLI48987／壳48986／后台48977 均确认退出。block 根直接外置归档、逐成员字节读回后删除。clean 原件 8,138,071 字节／980 成员，manifest [20323dd7](external-archive-20323dd797a64b74b90e9633065b15df.json)；block 原件 8,126,057 字节／970 成员，[recovery-154 清单](p1-materials-09a3r2-block/cleanup-recovery-154/result.json)。原 [3fc9ebfa](external-archive-3fc9ebfa7b8b4183a45aa58f2bd16dff.json) files=[] 不能证明 block 根归档；由新清单补齐，旧清单不改。两根已删除，两 slot 仍在外置盘、未删。
+
+只读发现 Claude 角色 relay／stop 客户端／nullable 控制会话 caller／双角色 HOME 等前置缺口，按最新指示只交 [09B/C 计划审稿](PLAN-09BC-01.md)，另报 [入口前置](ISSUE-09BC-ENTRY-01.md)。当前 09B/C launch **NO_GO**，没有新材料／实例／启动，也不实现这些超出当前阶段的前置；主控先审计划并协调 T-080 文件所有权。新候选独立 reviewer、09B/C、实际 IME、真登录与整票仍 **INCOMPLETE**，不关闭、不集成、不 push。

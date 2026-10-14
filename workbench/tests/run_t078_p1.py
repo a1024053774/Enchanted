@@ -41,7 +41,7 @@ def events():
 def user_inputs():
     with sqlite3.connect((state/'state.sqlite3').as_uri()+'?mode=ro',uri=True) as db:return [json.loads(r[0]) for r in db.execute('SELECT data FROM user_inputs')]
 def probe_process(pid):
-    p=run(['/bin/ps','-p',str(pid),'-o','pid=,lstart=,comm='],allowed=(0,1))
+    p=run(['/bin/ps','-p',str(pid),'-o','pid=,lstart=,comm='],child_env={**env,'LC_ALL':'C','LANG':'C'},allowed=(0,1))
     return identity_from_ps(pid,p.returncode,p.stdout,p.stderr)
 def same_cli():
     manifest=json.loads((materials/'launch/process-manifest.json').read_text(encoding='utf-8'))

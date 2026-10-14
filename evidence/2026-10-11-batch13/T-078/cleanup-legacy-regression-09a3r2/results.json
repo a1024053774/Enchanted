@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "shell_exit_cli_alive",
+      "pass": true,
+      "observed": {
+        "status": "BLOCKED",
+        "reason": "recorded_cli_still_alive",
+        "pid": 16681,
+        "command_changed": false,
+        "observed_command": "/fixed/claude"
+      }
+    },
+    {
+      "name": "cli_exited",
+      "pass": true,
+      "observed": {
+        "status": "PASS",
+        "reason": "recorded_cli_exited",
+        "pid": 16681
+      }
+    },
+    {
+      "name": "missing_manifest",
+      "pass": true,
+      "observed": {
+        "status": "BLOCKED",
+        "reason": "cli_process_manifest_missing"
+      }
+    },
+    {
+      "name": "no_probe",
+      "pass": true,
+      "observed": {
+        "status": "BLOCKED",
+        "reason": "cli_process_exit_unverified"
+      }
+    },
+    {
+      "name": "pid_identity_changed",
+      "pass": true,
+      "observed": {
+        "status": "BLOCKED",
+        "reason": "cli_process_identity_changed",
+        "pid": 16681
+      }
+    },
+    {
+      "name": "legacy_false_pass_rejected",
+      "pass": true,
+      "classification": "known_bad_rule_violates_the_required_BLOCKED_verdict",
+      "bad": {
+        "status": "PASS",
+        "daemon_pid_exists": false,
+        "cli_alive": true
+      }
+    }
+  ],
+  "real_process_checks": 0,
+  "scope": "Pure lifetime verdict only; real exit verification still awaits outside runtime."
+}
