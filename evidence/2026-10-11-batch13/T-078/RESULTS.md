@@ -615,3 +615,15 @@ python3 -B evidence/2026-10-11-batch13/T-078/read_p1_08e.py --output /绝对路�
 [只读诊断与最小复现](WORKER-INBOX-DIAGNOSIS-02.md) 核对原库八个真实回复均存在：正常请求的真实 worker 来源、范围、权限拒绝及撤销后的 stale_attempt 齐全。缺返回来自夹具按旧 `id:<request_id>` 查内部 key，漏掉 T-077 按 launch 登记的回执；没有证据要求修改 claim 来源、受管派发或凭据的产品行为。离线最小探针 8 项红态，修复夹具按持久 launch／request_id 关联 opaque key 后，同一探针 8/8 **PASS**，原业务断言不改，src/app/hooks 不改。诊断与局部绿态不替代新真实入口回归。
 
 同一 [阶段脚本](rebased-stage-09a3.py) 的 regression-02 模式只续跑 worker-inbox 14 → 8/9/18 → CAS 1 → 四个权限反例，独占新输出目录；原 runtime／input-failures 仍绑定 0f754a6d，只有产品文件未变化时才复用 frontend。提交和沙箱外执行均交主控脚本，真实模型预算 0；本轮未启动 CLI／API／UI，不提权、不 add／commit。**新阶段回归、独立 reviewer、新两套 09A-3 launch 材料与真实场景仍 INCOMPLETE**；T-078 open，不关闭、不集成、不 push。
+
+## 09A-3R 材料交接（主控 #147／#148）
+
+主控提交夹具修复 `567d7748c40ca511f170997d7fe216063fb7c4f1`，九项尾注；沙箱外 regression-02 **PASS**：worker-inbox 14/14、coop 8/8、recovery 9/9、run 18/18、CAS 1/1，四个权限变异体各在唯一目标契约失败且禁止结果实际出现。[保存结果只读核对](regression02-readback-09a3r.json) 9 项 PASS，未重跑。原 runtime 12／input-failures 11 仍绑定 0f754a6d，并保存产品源码未变的核对，不称重跑。原失败目录和状态保持不动。
+
+主控随后以原启动身份提交回归证据 `166509267fe11f02b1591f2089a77d7480a0c1e6`，九项尾注。新两套 [09A-3R launch 材料](P2-APPROVAL-09A3R.md) 均绑定该提交，clean 根 `/private/tmp/t078-2-p1-09a3r-1t5lartp`、block 根 `/private/tmp/t078-2-p1-09a3r-block-58xp7gc_`；各自新 HOME、task、launch、session、thread、nonce，两包各 76 个冻结源码文件。生成及静态核对 **PASS**，模板全未批准，slot 未创建，CLI／API／后台／Electron／构建及真实模型启动均 0。
+
+正例继续采用 Esc → 主控亲自处理草稿 → 看到空框后声明 → 第二回合 exact 干净送达；反例保留恢复草稿，作反例声明，要求真实 UPS2 JSON block／exit 0、API 总数 1，并保存 2 秒有界无 API2 观察。驱动不清空、不自动点声明、不裁剪、不容忍拼接、不重送；逐屏引导、信任、continue 与 cleanup 仍分别审批，两套串行。此次只申请正例 launch；材料提交不启动。产品源码未变，T-080 的 core.ts／taskCards.ts 未动。
+
+清理读回发现旧包文案把 slot 脚本的文件清单＋删除称作归档，实际没有 slot 内容归档／逐字节读回。已非 blocking 上报 [slot 文案问题](SLOT-CLEANUP-DOC-ISSUE-09A3R.md) 并更正新包；不修改旧日期记录、不改清理工具。两个新 slot 尚未创建，删除不在 launch 授权中，清理阶段由主控另行处置。
+
+真实两套场景、新候选独立 reviewer、09B／09C、系统 IME、真登录及整票验收仍 **INCOMPLETE**。本包不借旧材料批准，不把静态准备 PASS 或有界反例当可靠性结论。T-078 保持 open，不关闭、不集成、不 push。
