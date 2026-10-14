@@ -1,0 +1,97 @@
+{
+  "status": "PASS",
+  "scope": "prepared input readback only; outside red/green not run",
+  "product": "5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4",
+  "harness": "178d15f3ddb13f06a00eac19d7655225519f98e2",
+  "planned_subphases": 8,
+  "target_contracts": [
+    {
+      "case": "test_conflict_active_worker_reworks_and_integrates",
+      "target_assertion_id": "CONFLICT-ACTIVE-WRITEBACK",
+      "mutation": "no-conflict-feedback",
+      "required_preconditions": [
+        "scenario_prepared",
+        "worker_session_input_available",
+        "text_conflict_observed",
+        "conflict_handling_entered"
+      ]
+    },
+    {
+      "case": "test_conflict_ended_session_gets_new_attempt",
+      "target_assertion_id": "CONFLICT-ENDED-NEW-ATTEMPT",
+      "mutation": "no-conflict-feedback",
+      "required_preconditions": [
+        "scenario_prepared",
+        "ended_session_input_configured",
+        "text_conflict_observed",
+        "conflict_handling_entered"
+      ]
+    },
+    {
+      "case": "test_conflict_unknown_session_preserves_scene_and_reports",
+      "target_assertion_id": "CONFLICT-UNKNOWN-SESSION-REPORT",
+      "mutation": "no-conflict-feedback",
+      "required_preconditions": [
+        "scenario_prepared",
+        "unknown_session_input_configured",
+        "text_conflict_observed",
+        "conflict_handling_entered"
+      ]
+    },
+    {
+      "case": "test_conflict_unknown_delivery_does_not_resend",
+      "target_assertion_id": "CONFLICT-UNKNOWN-DELIVERY-ONCE",
+      "mutation": "no-conflict-feedback",
+      "required_preconditions": [
+        "scenario_prepared",
+        "delivery_unknown_input_configured",
+        "text_conflict_observed",
+        "conflict_handling_entered"
+      ]
+    },
+    {
+      "case": "test_merge_command_error_is_not_text_conflict",
+      "target_assertion_id": "CONFLICT-GIT-ERROR-CLASSIFICATION",
+      "mutation": "io-as-text-conflict",
+      "required_preconditions": [
+        "scenario_prepared",
+        "git_io_failure_observed",
+        "target_verify_executed"
+      ]
+    },
+    {
+      "case": "test_conflict_rework_still_rejects_forbidden_path",
+      "target_assertion_id": "CONFLICT-REWORK-FORBIDDEN-PATH",
+      "mutation": "rework-path-guard",
+      "required_preconditions": [
+        "scenario_prepared",
+        "text_conflict_observed",
+        "conflict_handling_entered",
+        "conflict_delivered",
+        "explicit_resubmitted",
+        "target_verify_executed"
+      ]
+    },
+    {
+      "case": "test_conflict_rework_still_rejects_foreign_trailer",
+      "target_assertion_id": "CONFLICT-REWORK-FOREIGN-TRAILER",
+      "mutation": "rework-trailer-task-guard",
+      "required_preconditions": [
+        "scenario_prepared",
+        "text_conflict_observed",
+        "conflict_handling_entered",
+        "conflict_delivered",
+        "explicit_resubmitted",
+        "target_verify_executed"
+      ]
+    }
+  ],
+  "per_target_prerequisites": true,
+  "red_fixture_matches_pre_correction_commit": true,
+  "green_fixture_matches_committed_candidate": true,
+  "frozen_input_bytes_match": true,
+  "output_absent": true,
+  "real_codex_turns": 0,
+  "files_over_5mb": [],
+  "business_status": "INCOMPLETE: awaiting controller outside run"
+}

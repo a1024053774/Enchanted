@@ -4,7 +4,7 @@
 
 **INCOMPLETE，待新的沙箱外七红/七绿。** 已按主控明确口径删除统一三前置规则，逐条列出七案依赖的真实前置。01～04 证明场景、相应受控会话/投递输入、真实文本冲突和进入处理；05 证明实际 Git 失败、空 unmerged 与该次 verify；06/07 仍须完整的冲突、投递成功、显式重交及目标 verify。前置缺失、false、迟于目标或存在 errors/skipped/cleanup_failures 仍不能计红，目标标识及既有拒收预期不变。
 
-逐案局部契约在旧夹具先得 79 failures/0 errors，修后九项通过；旧“任意失败即红”的表达式仍触发 103 failures/0 errors。真实入口尚未重跑，不补称 F1 关闭。产品和 acceptance 未改，真实模型回合 0。新准备目录为 `conflict-red-final-01-preparation-02/`，旧目录与 final-05 原样保留；完整前置表见 `CONFLICT-RED-FINAL-IMPLEMENTATION-01.md`，运行仍交主控。
+夹具提交 `178d15f3ddb13f06a00eac19d7655225519f98e2`。逐案局部契约在旧夹具先得 79 failures/0 errors，修后九项通过；旧“任意失败即红”的表达式仍触发 103 failures/0 errors。七案 helper 静态预检 285 处绑定通过；四个变体语法与准备检查通过。真实入口尚未重跑，不补称 F1 关闭。产品和 acceptance 未改，真实模型回合 0。新准备目录为 `conflict-red-final-01-preparation-02/`，旧目录与 final-05 原样保留；完整前置表见 `CONFLICT-RED-FINAL-IMPLEMENTATION-01.md`，运行命令见 `HANDOFF-conflict-red-final-01.md`，仍交主控执行。
 
 ## 主控 #121：F1 修正候选
 

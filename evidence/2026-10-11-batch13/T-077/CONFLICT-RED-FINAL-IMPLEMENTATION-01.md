@@ -52,6 +52,7 @@
 - 7 场景的 helper/关键字静态预检：279 处绑定，0 缺口；四个变异点各出现一次，`conflict-fixture-static-01/run.json`。目标 verify、实际投递与新定向变体仍须在沙箱外运行。
 - 首次旧表达式探针同时选中 predicate 和 console readback，尚未执行测试便失败。原 `conflict-classifier-mutant-red-01/` 保留为 probe error / 非反事实；只收紧 AST 选择器后换新目录运行，未改业务预期。
 - 本轮一次 Python 文档替换命令在解析 stdin 时报告 Non-UTF-8，未执行文件写入；改用 apply_patch 完成局部修改并回读 UTF-8。此为编辑命令错误，不是产品或反事实失败。
+- 本轮首次静态检查未等准备进程完成，过早读取仍在写入的 tar，报 ReadError: empty file。原工具错误文本留在准备目录 02 的 early-static-check.stderr.txt；等待准备进程 exit 0 后按顺序检查。没有改归档验证条件或重试业务场景。
 
 再生成局部证据（新输出名，不覆盖已有目录）：
 

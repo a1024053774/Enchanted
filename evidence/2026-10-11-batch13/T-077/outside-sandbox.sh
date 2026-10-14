@@ -337,7 +337,7 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/
   --phase 2 --approval-ref "$T077_REAL_APPROVAL"
   ;;
 conflict-red-final-01)
-# 主控 #121：稳定目标/前置凭据，06/07 定向变体；七红逐项收齐，再跑七项候选。
+# 主控 #123：逐目标前置清单，06/07 定向变体；七红逐项收齐，再跑七项候选。
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t077/evidence/2026-10-11-batch13/T-077/run-conflict-red-final-01.py
   ;;
 rebase-final-05)

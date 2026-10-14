@@ -15,8 +15,8 @@ import traceback
 ROOT = Path('/Users/luckye/Documents/Code/a2a-wt-t077')
 E = ROOT / 'evidence/2026-10-11-batch13/T-077'
 PRODUCT = '5d0bf1e84c02fbcb4b7699cdd9a48c4f6582c6b4'
-HARNESS = 'a5c6d50c48fa856cf85fe7d2fefddda61f5d2ade'
-PREP = E / 'conflict-red-final-01-preparation-01'
+HARNESS = '178d15f3ddb13f06a00eac19d7655225519f98e2'
+PREP = E / 'conflict-red-final-01-preparation-02'
 OUT = E / 'outside-conflict-red-final-01'
 sys.path.insert(0, str(ROOT / 'workbench/tests'))
 from command_evidence import CommandLog
@@ -30,6 +30,26 @@ CASES = [
     ('test_conflict_rework_still_rejects_forbidden_path', 'CONFLICT-REWORK-FORBIDDEN-PATH', 'rework-path-guard'),
     ('test_conflict_rework_still_rejects_foreign_trailer', 'CONFLICT-REWORK-FOREIGN-TRAILER', 'rework-trailer-task-guard'),
 ]
+TARGET_PREREQUISITES = {
+    'CONFLICT-ACTIVE-WRITEBACK': (
+        'scenario_prepared', 'worker_session_input_available', 'text_conflict_observed', 'conflict_handling_entered'),
+    'CONFLICT-ENDED-NEW-ATTEMPT': (
+        'scenario_prepared', 'ended_session_input_configured', 'text_conflict_observed', 'conflict_handling_entered'),
+    'CONFLICT-UNKNOWN-SESSION-REPORT': (
+        'scenario_prepared', 'unknown_session_input_configured', 'text_conflict_observed', 'conflict_handling_entered'),
+    'CONFLICT-UNKNOWN-DELIVERY-ONCE': (
+        'scenario_prepared', 'delivery_unknown_input_configured', 'text_conflict_observed', 'conflict_handling_entered'),
+    'CONFLICT-GIT-ERROR-CLASSIFICATION': (
+        'scenario_prepared', 'git_io_failure_observed', 'target_verify_executed'),
+    'CONFLICT-REWORK-FORBIDDEN-PATH': (
+        'scenario_prepared', 'text_conflict_observed', 'conflict_handling_entered',
+        'conflict_delivered', 'explicit_resubmitted', 'target_verify_executed'),
+    'CONFLICT-REWORK-FOREIGN-TRAILER': (
+        'scenario_prepared', 'text_conflict_observed', 'conflict_handling_entered',
+        'conflict_delivered', 'explicit_resubmitted', 'target_verify_executed'),
+}
+TARGET_CONTRACTS = [{'case': case, 'target_assertion_id': target, 'mutation': mutation,
+                     'required_preconditions': list(TARGET_PREREQUISITES[target])} for case, target, mutation in CASES]
 RECIPES = {
     'no-conflict-feedback': ('await this.writeConflict(task, attempt, v);', '// Test mutant: omit conflict worker handoff.'),
     'io-as-text-conflict': (
@@ -105,10 +125,8 @@ def prepare():
     if large: raise RuntimeError('Controller archive required: ' + repr(large))
     save(PREP / 'plan.json', {'status': 'READY', 'business_status': 'INCOMPLETE: outside stage not run',
         'product': PRODUCT, 'harness': HARNESS, 'checkout': git('rev-parse', 'HEAD').decode().strip(),
-        'planned_subphases': 8, 'cases': CASES, 'recipes': RECIPES, 'candidate_case_count': 7,
-        'strict_required_preconditions': ['conflict_delivered', 'explicit_resubmitted', 'target_verify_executed'],
-        'earlier_stage_targets': [case for case, _, _ in CASES[:5]],
-        'precondition_policy': 'No implicit exemptions. Missing or late receipts mean NOT_COVERED; collect all seven outcomes.',
+        'planned_subphases': 8, 'cases': TARGET_CONTRACTS, 'recipes': RECIPES, 'candidate_case_count': 7,
+        'precondition_policy': 'Controller #123: each target requires its declared prior facts. Missing, false or late receipts mean NOT_COVERED.',
         'command': ['bash', str(E / 'outside-sandbox.sh'), 'conflict-red-final-01'],
         'source_files': [str(p.relative_to(ROOT)) for p in source_files()], 'files_over_5mb': large, 'real_codex_turns': 0})
     print(json.dumps({'status': 'READY', 'planned_subphases': 8, 'real_codex_turns': 0}))
@@ -123,7 +141,8 @@ def run():
     workspace = Path(tempfile.mkdtemp(prefix='t077-conflict-final-', dir='/tmp')).resolve()
     record = {'status': 'INCOMPLETE', 'product': PRODUCT, 'harness': HARNESS, 'checkout': head,
               'started_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'steps': [], 'mutations': {},
-              'real_codex_turns': 0, 'argv': sys.argv, 'not_covered': [], 'target_failures_not_red': []}
+              'real_codex_turns': 0, 'argv': sys.argv, 'not_covered': [], 'target_failures_not_red': [],
+              'target_contracts': TARGET_CONTRACTS}
     try:
         version = log.run(['node', '--version'], cwd=ROOT, env=env)
         if version.returncode or not version.stdout.startswith('v26.5.'): raise RuntimeError('Approved Node 26.5 is required')
@@ -165,11 +184,17 @@ def run():
             if len(value['cases']) != 1 or value['cases'][0]['case'] != case: raise RuntimeError('Wrong counterfactual membership')
             row = value['cases'][0]
             if row['target_assertion_id'] != target_id: raise RuntimeError('Wrong stable target identifier')
+            if row['required_preconditions'] != list(TARGET_PREREQUISITES[target_id]):
+                raise RuntimeError('Target prerequisite list differs from the frozen contract')
             if row['errors'] or row['skipped'] or row['cleanup_failures']: raise RuntimeError('Counterfactual has infrastructure or cleanup failure: ' + name)
+            if row['business_red'] and (not row['target_failed'] or row['target_coverage'] != 'TARGET_FAILED'
+                    or row['missing_preconditions'] or row['classification_issues']):
+                raise RuntimeError('Target verdict and prerequisite receipt disagree')
             if code != (0 if row['business_red'] else 1) or value['red_confirmed'] is not row['business_red']:
                 raise RuntimeError('Child exit and target receipt disagree: ' + name)
             summary = {'phase': name, 'case': case, 'target': target_id, 'target_failed': row['target_failed'],
                 'business_red': row['business_red'], 'coverage': row['target_coverage'],
+                'required_preconditions': row['required_preconditions'],
                 'missing_preconditions': row['missing_preconditions'], 'classification_issues': row['classification_issues']}
             reds.append(summary)
             if row['target_coverage'] == 'NOT_COVERED': record['not_covered'].append(summary)
@@ -181,9 +206,13 @@ def run():
         code, green = child('candidate', args)
         if len(green['cases']) != 7 or [row['case'] for row in green['cases']] != [case for case, _, _ in CASES]:
             raise RuntimeError('Wrong candidate case membership')
+        if any(row['target_assertion_id'] != target or row['required_preconditions'] != list(TARGET_PREREQUISITES[target])
+               for row, (_, target, _) in zip(green['cases'], CASES)):
+            raise RuntimeError('Candidate target contract differs from the frozen prerequisite list')
         candidate_passed = code == 0 and green['status'] == 'PASS' and all(
             row['target_passed'] and row['tests_run'] == 1 and not row['failures'] and not row['errors']
-            and not row['skipped'] and not row['cleanup_failures'] for row in green['cases'])
+            and not row['skipped'] and not row['cleanup_failures'] and row['target_coverage'] == 'TARGET_PASSED'
+            and not row['missing_preconditions'] and not row['classification_issues'] for row in green['cases'])
         record.update(candidate_passed=candidate_passed, red_confirmed=all(row['business_red'] for row in reds))
         if len(record['steps']) != 8: raise RuntimeError('Incomplete stage membership')
         if candidate_passed and record['red_confirmed']: record['status'] = 'PASS'

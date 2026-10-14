@@ -18,7 +18,8 @@ import test_worktree_lifecycle_e2e as fixture
 selected = [name for cls, name in fixture.CASES if cls is fixture.ConflictContracts]
 assert selected == [case for case, _, _ in phase.CASES]
 assert fixture.CONFLICT_TARGET_IDS == {case: target for case, target, _ in phase.CASES}
-assert tuple(fixture.CONFLICT_REQUIRED_FACTS) == ('conflict_delivered', 'explicit_resubmitted', 'target_verify_executed')
+assert fixture.CONFLICT_REQUIRED_FACTS == {case: phase.TARGET_PREREQUISITES[target] for case, target, _ in phase.CASES}
+assert len(phase.TARGET_CONTRACTS) == 7 and all(row['required_preconditions'] for row in phase.TARGET_CONTRACTS)
 for path in [ROOT / 'workbench/tests/test_worktree_lifecycle_e2e.py',
              E / 'run-conflict-red-final-01.py', E / 'check-conflict-red-final-preparation-01.py',
              E / 'check-conflict-classifier-01.py', E / 'check-recorded-conflict-red-01.py']:
@@ -31,8 +32,7 @@ status = subprocess.run(status_argv, cwd=ROOT, capture_output=True, text=True, c
 large = phase.large_files(E); assert not large, large
 record = {'status': 'PASS', 'scope': 'static preparation only; not target red/green',
     'product': phase.PRODUCT, 'harness': phase.HARNESS, 'planned_subphases': 8, 'conflict_cases': 7,
-    'target_ids_match': True, 'strict_three_receipts_for_all_cases': True,
-    'earlier_stage_targets_may_be_not_covered': selected[:5],
+    'target_ids_match': True, 'per_target_prerequisites_match': True, 'target_contracts': phase.TARGET_CONTRACTS,
     'mutant_syntax_checks': 4, 'commands': [argv, status_argv], 'files_over_5mb': large, 'real_codex_turns': 0}
 with (phase.PREP / 'static-checks.json').open('x', encoding='utf-8') as stream:
     json.dump(record, stream, ensure_ascii=False, indent=2); stream.write('\n')
