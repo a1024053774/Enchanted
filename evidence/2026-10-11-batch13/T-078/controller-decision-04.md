@@ -174,3 +174,7 @@ commit-materials-09a3r → 6f0cfdb2（以 s13-t078m 身份）。审阅 P2-APPROV
 ## 09A-3R2 材料与 clean launch 批准（2026-10-14 UTC 18:1x）
 
 commit-code-09a3r2 → 643d59bf（清空草稿与空框声明改为执行主控逐项预批的 test-simulated-user：正例同窗一次 Ctrl+C，依据官方 interactive-mode，须控制收据与空框快照/PTY 证明；反例不清空、自动点故意不真实的声明）；commit-materials-09a3r2 → dc67ce58（两套新实例绑定 643d59bf，静态核对 PASS）。批准 `09a3r2 clean launch` 一次及逐屏只读 screen；引导/信任按键逐屏另批；continue 前另批 readiness 与 actions-approval；block 待 clean cleanup 后另批。slot 删除仍不执行。批准引用：`T-078 controller-decision-04 09a3r2-clean-launch`。
+
+## 09A-3R2 clean 逐屏与 continue 批准（2026-10-14 UTC 18:2x）
+
+主题三键、Security notes、信任 ArrowDown→Yes→读回→Enter（/private/tmp/t078-2-p1-09a3r2-hgqtpjz_/repo，仅 value.txt；依 answer 20261014T011751Z）均生效，读回主提示符。写 readiness.json 与 actions-approval.json（顶层与每步 executor/approval_ref/basis，source test-simulated-user：Escape、clear-restored-draft Control+C 一次、declare-empty-release truth=empty，各一次且有前置条件）。批准 `09a3r2 clean continue` 一次及随后 cleanup（slot 删除不批）。批准引用：`T-078 controller-decision-04 09a3r2-clean-continue`。
