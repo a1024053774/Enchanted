@@ -58,3 +58,7 @@ PASS（real_turns_completed 1，累计 3/3 用尽）。路径检查两次通过�
 ## CAS 补证与 home 清理批准（2026-10-14 UTC 23:1x）
 
 run_t081_cas_suite.py → cas-01：变异体（去掉真实 Git 事务 update 的旧值参数）在 3 条业务断言失败（新 G/C 绑定、外来祖先保留、oracle 重跑），候选 green 通过——外部移动工作分支后集成会重验且不覆盖外来提交。批准隔离 home 清理（只删 /private/tmp/t081-capability-01/codex-home，核对 run-01～04 PID 退出；夹具仓库保留作证据），引用 `T-081 controller-decision-05 capability-home-cleanup`。
+
+## 提交与独立审查（2026-10-14 UTC 23:3x）
+
+commit_t081_closeout.py（以 s14-t081 身份：launch-517c7570…、session 6962bde6…、原生会话 01a13bc2… 与启动记录及 Herdr 一致）→ b71cff6b，九项尾注；27,613 文件约 385 MB，无单文件超 5 MB；diff --check 只作用于非原始证据路径，排除清单入收据。授权一次 fresh-context 只读独立审查；6a/6e/沙箱收紧仍待用户，决定后若增案例只做差异复审。
