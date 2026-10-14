@@ -140,3 +140,8 @@ p1-slot-cleanup-09 PASS（09A 自建 slot 已删，signals 0）。09A-2 主题�
 ## 09A-2 continue 读回（2026-10-14 UTC 05:50 运行）
 
 INCOMPLETE（"Fake API protocol/budget error"）。A1、A2 成立；A3 成立：窗口已接上本窗格（可输入、忙），Esc 经窗口 terminal-key 入门禁（action 30b8e7ac…，seq 86），active 释放、interrupted=true、state busy、nonce2 留在队列，假 API 记录请求 1 被对端关闭。A4：放行已点击；随后请求 2 的用户消息为 "⟦主控 #1⟧ P1_NONCE…⟦主控 #2⟧ P2_NONCE…" 拼接——CLI 在 Esc 后把被中断的提示恢复进输入框（after_esc user_draft=true），放行的 paste 追加其后，假 API 按声明拒收（并见一次同内容重发）。判为产品缺陷：放行未处理 CLI 恢复的非空草稿。cleanup：自建进程均已停止（CLI 退出核对 PASS），按规则保留根 /private/tmp/t078-2-p1-09a2-sm_du7jo；slot-cleanup BLOCKED（前置 cleanup 非 PASS），slot 保留；fixture 外置归档 PASS（manifest external-archive-93611737…）。交 worker 出方案（设计取舍由执行主控定，涉及用户输入语义则交构思主控）。
+
+## 重启后恢复（2026-10-14 本地约 08:2x）
+
+用户电脑重启。核对：Herdr 由用户侧运行（未启动或重启 server）；Herdr 自行把 wF:p3E/p3F 以裸 `codex resume <id>` 恢复，argv 缺模型/强度/service_tier/--no-daemon/沙箱/审批参数，且无 A2A_* 与 git hooks 环境——不符合受管 worker 条件。确认两者 idle、交付均已提交（T-077 未跟踪证据在磁盘）后关闭两窗格，经 scripts/launch-worker --resume 重启：s13-t077s → wF:p3H（launch-ba8ddd4d…），s13-t078s → wF:p3J（launch-07b8db56…），argv 已记录（gpt-6.1-sol xhigh、service_tier="default"、--no-daemon、workspace-write、on-request）。/tmp 已被清空：09A-2 保留根 /private/tmp/t078-2-p1-09a2-sm_du7jo 不复存在（fixture 已于先前外置归档，manifest external-archive-93611737…；根中其余未归档原件随重启丢失，记为证据缺口）。外置盘 slot t078-09-d2d9c666… 仍在。无孤儿测试进程。
+收到 answer 20261014T120839Z（用户选 A：用户自行清空并声明"输入框已空，放行"，后台不删字；加提交前拦截：仅对登记派发对不上的提交在 UserPromptSubmit 阻断，不改 Stop）。按此派发 T-078。
