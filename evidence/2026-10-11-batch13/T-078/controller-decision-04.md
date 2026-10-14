@@ -230,3 +230,7 @@ worker 报警（#175）：api.jsonl 实有 3 次 /v1/messages，第 2、3 次都
 ## slice1-green 候选与准备（2026-10-14 UTC 23:5x）
 
 worker 交候选（SLICE-1-GREEN.md）：controller 会话请求文件 producer 与许可 Enter 记账两条红态 red→green，controller relay/caller 22、角色白名单反例 2、worker writer 3、窗口/epochs/pane/inbox 回归通过；产品只改已分配的 8 个文件，controller 请求不补 worker attempt/fence、不经 operator。执行主控以 s13-t078m 身份运行 commit-and-prepare-slice1-green.sh（首提交→入口回归→生成新 slice1-green 实例→材料提交；失败即停）。README stale（issue 20261014T231202Z）：workbench/README.md 当前无其他写入者，分给 T-078，下次提交同步。预算：根提交 2、主 Messages 3、Bash 1、模型 0。
+
+## slice1-green 准备与 launch 批准（2026-10-15 UTC 00:1x）
+
+controller-green-outside-01 失败经诊断为夹具在异步 drain 前断言（SQLite 原件 seq29 执行、seq34 反馈 paste、seq38 CR 均存在），非产品缺陷；修夹具等待（先复现同一 undefined !== '\r'）。commit-and-prepare-slice1-green-2（以 s13-t078m 身份）→ 代码 7e77f8b8、材料 41672c93（README 同步）；outside-02 controller-entry/空框/runtime/input-failures/worker-inbox 全 PASS；新实例 /private/tmp/t078-2-p1-slice1-green-1yhrmwad，launch 284a5916…，静态核对 PASS。批准 slice1-green launch 一次及逐屏只读 screen；按键、readiness、submit、permission 各另批。预算：根 2、主 Messages 3、Bash 1、模型 0。批准引用：`T-078 controller-decision-04 slice1-green-launch`。
