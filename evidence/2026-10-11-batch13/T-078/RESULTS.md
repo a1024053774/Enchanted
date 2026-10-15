@@ -931,3 +931,11 @@ A-07 owner-bound cleanup script已交主控运行；A-08 materials-08 由同一 
 ## A-08 registration newline normalization
 
 实测 A-08 UserPromptSubmit trace 的 prompt 没有末尾换行，而旧 dispatch registration 保留 prompt 文件尾换行，导致 exact block。产品登记现在只去除末尾 CR/LF，内部正文仍逐字比较；真实 signal 红/绿与中间正文变异反例均保留。A-08 active 的合法收回仅是认证窗口用户 Esc/声明路径；本轮不操作现场，等待 A-09 裁定。
+
+## A-09 packet and A-08 cleanup
+
+A-08 owner-bound cleanup script dry-run/formal由主控运行后归档读回；A-09 materials-09 由同一 prepare-09b-executable.py --protocol 生成，协议标记 a07-registered-anthropic-v1。Stage A approval 与 B1 template 留空，screen approvals/tool approval 完整，launch NO_GO。
+
+## A-09 queued I1 recovery
+
+登记只移除末尾 CR/LF；真实 signal 红绿和 A-09 spy 通过。产品没有 queued cancel API；新增 --resume-queued 只读 pane_status/orchestration_events，核对真实 id/seq/原文后写登记并 release，不重新派发或伪造字段。A-09 execute-01 红态保留，execute-02 命令等待主控裁定。

@@ -45,6 +45,9 @@ def custom_request(dispatch):
             'messages': [{'role': 'user', 'content': dispatch['text']}], 'stream': True,
             'model': 'claude-haiku-5-5'}
 
+def canonical_prompt(text):
+    return text.rstrip('\r\n')
+
 
 def resolve_approved_p1(approval):
     p1_value = approval.get('p1_materials')
@@ -109,6 +112,13 @@ def approved_path_spy():
                 'green': 'approved path and matching launch/session accepted', 'red': rejected,
                 'real_process_starts': 0}
 
+def prompt_and_queue_spy():
+    prompt='I1 prompt with approved trailing newline\n'; normalized=canonical_prompt(prompt)
+    event={'id':'dispatch-real','seq':2,'text':f'⟦主控 #2⟧\n{normalized}'}
+    green=event['text']==f'⟦主控 #2⟧\n{canonical_prompt(prompt)}'
+    red=event['text']==f'⟦主控 #2⟧\n{canonical_prompt(prompt).replace("approved","MUTATED")}'
+    return {'status':'PASS' if green and not red else 'INCOMPLETE','name':'queued-dispatch-normalization-red-green','green':green,'red_mutation_rejected':not red,'real_process_starts':0}
+
 
 def gate(root, command, *args):
     env = {**os.environ, 'A2A_OPERATOR_CREDENTIAL': str(root / 'operator.json'),
@@ -122,7 +132,7 @@ def gate(root, command, *args):
     return json.loads(result.stdout.strip().splitlines()[-1])
 
 
-def execute(materials, stage_a, approval, output):
+def execute(materials, stage_a, approval, output, resume_queued=False):
     approval_data = json.loads(approval.read_bytes())
     if approval_data.get('approved_by') != 'executor' or approval_data.get('phase') != 'I1':
         raise RuntimeError('i1_approval_required')
@@ -132,14 +142,25 @@ def execute(materials, stage_a, approval, output):
         raise RuntimeError('approved_p1_root_mismatch')
     root = Path(readiness['root']).resolve(); thread = p1_input['thread']
     prompt = (materials / 'i1-prompt.txt').read_text(encoding='utf-8')
+    normalized_prompt = canonical_prompt(prompt)
     api_root = root / 'roles' / 'ideation'
     api_ready = json.loads((api_root / 'api-ready.json').read_bytes())
     if api_ready.get('protocol') != 'a07-registered-anthropic-v1':
         raise RuntimeError('protocol_api_revision_unbound')
-    queued = gate(root, 'pane_dispatch', '--thread', thread, '--body-file', materials / 'i1-prompt.txt')
-    dispatch = queued['dispatch']
+    if resume_queued:
+        status = gate(root, 'pane_status', '--thread', thread)
+        queued_ids = status.get('queued', [])
+        if len(queued_ids) != 1: raise RuntimeError('queued_dispatch_required')
+        events = gate(root, 'orchestration_events').get('events', [])
+        matches = [e for e in events if e.get('type') == 'dispatch_queued' and e.get('launch') == p1_input['launch'] and e.get('data',{}).get('id') == queued_ids[0]]
+        if len(matches) != 1: raise RuntimeError('queued_dispatch_record_required')
+        data = matches[0]['data']; dispatch = {'id':data['id'],'seq':data['seq'],'source':data.get('source'),'text':data['text'],'registered_at':data.get('registered_at')}
+        queued = {'dispatch':dispatch,'resumed_queued':True}
+    else:
+        queued = gate(root, 'pane_dispatch', '--thread', thread, '--body-file', materials / 'i1-prompt.txt')
+        dispatch = queued['dispatch']
     binding = readiness['target_binding']
-    assert dispatch['seq'] >= 1 and dispatch['text'] == f"⟦主控 #{dispatch['seq']}⟧\n{prompt}"
+    assert dispatch['seq'] >= 1 and dispatch['text'] == f"⟦主控 #{dispatch['seq']}⟧\n{normalized_prompt}"
     registry_dispatch = {**dispatch, 'role': 'ideation',
                          'attempt': binding['attempt_id'], 'session': p1_input['session'], 'fence': binding['fence']}
     registry = {'dispatches': {dispatch['id']: registry_dispatch}, 'message_budget': 6, 'ack_text': 'I1_ACK'}
@@ -177,14 +198,14 @@ def execute(materials, stage_a, approval, output):
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument('--mode', choices=['spy', 'execute'], required=True)
+    parser = argparse.ArgumentParser(); parser.add_argument('--mode', choices=['spy', 'execute'], required=True); parser.add_argument('--resume-queued', action='store_true')
     parser.add_argument('--output', type=Path, required=True); parser.add_argument('--materials', type=Path)
     parser.add_argument('--stage-a', type=Path); parser.add_argument('--approval', type=Path)
     args = parser.parse_args()
     if args.mode == 'spy':
         args.output.mkdir(parents=False, exist_ok=False)
         rows = [spy(None)] + [spy(name) for name in ['text', 'seq', 'identity', 'stop', 'role', 'budget']]
-        rows.append(approved_path_spy())
+        rows.extend([approved_path_spy(), prompt_and_queue_spy()])
         result = {'status': 'PASS' if all(row['status'] == 'PASS' for row in rows) else 'INCOMPLETE',
                   'mode': 'spy', 'checks': rows, 'real_process_starts': 0, 'model_turns': 0,
                   'scope': 'I1 protocol normalization/409 oracle; no socket/API/CLI/daemon/target'}
@@ -192,7 +213,7 @@ def main():
         print(json.dumps(result, ensure_ascii=False)); return 0 if result['status'] == 'PASS' else 1
     if not (args.materials and args.stage_a and args.approval): raise SystemExit('execute requires materials, stage-a and approval')
     try:
-        result = execute(args.materials.resolve(), args.stage_a.resolve(), args.approval.resolve(), args.output.resolve())
+        result = execute(args.materials.resolve(), args.stage_a.resolve(), args.approval.resolve(), args.output.resolve(), resume_queued=args.resume_queued)
     except Exception as error:
         result = {'status': 'INCOMPLETE', 'error': repr(error), 'traceback': traceback.format_exc(),
                   'paths': {'materials': str(args.materials.resolve()) if args.materials else None,

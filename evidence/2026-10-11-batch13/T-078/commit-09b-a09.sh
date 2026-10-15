@@ -22,6 +22,8 @@ subprocess.run(['git','diff','--check'],check=True);ownership=base/'09b-a09-owne
 if check_only:
  ex=json.loads(ownership.read_bytes());assert ex['status']=='PASS' and ex['unowned']==[];print(json.dumps({'status':'PASS','mode':'check-only','head':git('rev-parse','HEAD'),'cached_paths':0,'checked_paths':len(rows),'unowned':bad}));raise SystemExit(0)
 ownership.write_text(json.dumps({'status':'PASS','checked_paths':len(rows),'unowned':bad,'entries':rows},ensure_ascii=False,indent=2)+'\n')
+with (base/'RESULTS.md').open('a',encoding='utf-8') as fh:
+    fh.write('\n## A-09 packet and A-08 cleanup\n\nA-08 owner-bound cleanup script dry-run/formal由主控运行后归档读回；A-09 materials-09 由同一 prepare-09b-executable.py --protocol 生成，协议标记 a07-registered-anthropic-v1。Stage A approval 与 B1 template 留空，screen approvals/tool approval 完整，launch NO_GO。\n')
 subprocess.run(['git','add','--',*first,str(ownership)],check=True);subprocess.run(['git','commit','-m','test(T-078): prepare A09 packet and A08 cleanup'],check=True)
 parent=git('rev-parse','HEAD');prepare=[sys.executable,'-B',str((base/'prepare-09b-executable.py').resolve()),'--label',label,'--protocol'];run=base/'09b-a09-commit-01';run.mkdir()
 with (run/'prepare.stdout.bin').open('xb') as so,(run/'prepare.stderr.bin').open('xb') as se:res=subprocess.run(prepare,stdout=so,stderr=se)
@@ -30,6 +32,5 @@ static=json.loads((materials/'static-check.json').read_bytes());assert static['s
 freeze={'revision':parent,'parent_revision':parent,'materials':'prepare-09b-executable.py --label '+label+' --protocol','protocol_tag':'a07-registered-anthropic-v1','launch':'NO_GO','cleanup':'owner-bound A08 cleanup script'}
 (base/'09b-a09-source-freeze-01.json').write_text(json.dumps(freeze,ensure_ascii=False,indent=2)+'\n')
 approval['source_revision']=static['revision'];approval['basis']='A-09 materials-09 static PASS; protocol-tagged API; sign after review';(base/'a09-stage-a-approval-01.json').write_text(json.dumps(approval,ensure_ascii=False,indent=2)+'\n')
-with (base/'RESULTS.md').open('a',encoding='utf-8') as fh:fh.write('\n## A-09 packet and A-08 cleanup\n\nA-08 owner-bound cleanup script dry-run/formal由主控运行后归档读回；A-09 materials-09 由同一 prepare-09b-executable.py --protocol 生成，协议标记 a07-registered-anthropic-v1。Stage A approval 与 B1 template 留空，screen approvals/tool approval 完整，launch NO_GO。\n')
 subprocess.run(['git','add','--',str(materials),str(base/'09b-a09-source-freeze-01.json'),str(base/'a09-stage-a-approval-01.json'),str(run)],check=True);subprocess.run(['git','commit','-m','docs(T-078): freeze A09 materials'],check=True);assert not git('status','--porcelain');print(json.dumps({'status':'PASS','materials':str(materials),'launch':'NO_GO'}))
 PY
