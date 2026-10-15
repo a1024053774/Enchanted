@@ -867,3 +867,9 @@ B1 仅冻结逐角色审批门禁与 screen-key 计划，绑定 A-05 readiness�
 ## Stage-B B1 P1 prerequisite red/green correction
 
 保留 `09b-stage-b1-ideation` 红态：run_t078_p1 在 spawn 前因 A-05 root 缺 `scenario.json` 退出，p1 exit=1、p1_stderr 含 FileNotFoundError/scenario.json；CLI 未启动这一事实以主控 #207 的 pgrep 读回为准，不从旧 result 推断。补齐 root/input、nonce、scenario 与角色隔离目录后，独立 prerequisite preflight-02 PASS，未启动任何进程。runner 现在传播 p1 非零退出，并分别记录 p1_spawned 与 cli_spawned；approval-02 重新留空签字字段，材料-02 静态 launch NO_GO。
+
+## Stage-B existing API reuse 与首屏 Messages 证据（主控 #221/#222）
+
+reuse resolver 的红绿与读回：旧 `reuse-red-02` 保留 `reused_api_identity_changed`；`reuse-green-07` **PASS**，`cli_spawned=false`、无第二 API。`readback-02` 对 PID 70730 的完整 argv/lstart 两次读取一致，实际脚本为 `workbench/tests/t078_09b_fake_api.py`，role root/role/port 与 A-05 readiness 逐项一致；resolver 变异单测覆盖 pid、role、stage、非法端口、readiness 不符五类拒绝。
+
+关于首屏是否发送 Messages：现有 slice1 green-3 原始 `api.jsonl` 的首个 `/v1/messages` 记录发生在提交 `P1_NONCE_...` 之后；`p1-materials-08e/launch/result.json` 的 launch 阶段只记录 process startup，明确没有首屏抓取或输入。证据因此只能证明在已实跑链路里 Messages 出现在提交之后，不能把“首屏前绝不发送”上调为已验证结论。真实 B1 若在 onboarding/首屏阶段发送 Messages，当前 09B 假 API 的业务 endpoint 返回 409，启动将停在该协议错误；B1 approval-10 保持逐屏与首屏停止，I1 之前必须另取该时序的真实请求证据并实现对应应答。

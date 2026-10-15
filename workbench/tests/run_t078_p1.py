@@ -1,11 +1,14 @@
 """Controller-only P1 lifecycle. Launch pauses for explicit initial-readiness approval."""
-import argparse,base64,json,os,signal,sqlite3,subprocess,sys,time,tarfile,shutil,traceback
+import argparse,base64,json,os,signal,sqlite3,subprocess,sys,time,tarfile,shutil,traceback,shlex
 from pathlib import Path
 from command_evidence import CommandLog,command_json
 from p1_endpoint import resolved_input
 from p1_processes import identity_from_ps,cli_exit_verdict
+from p1_reuse import resolve_reused_api
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
 parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','continue-esc','cleanup'],required=True)
+parser.add_argument('--reuse-stage-a',action='store_true');parser.add_argument('--reuse-api-root',type=Path);parser.add_argument('--stop-before-cli',action='store_true')
+parser.add_argument('--reuse-readiness-file',type=Path)
 parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
 parser.add_argument('--actions-approval',type=Path)
 parser.add_argument('--key',choices=['ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','onboarding-notice','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
@@ -95,12 +98,20 @@ try:
         isolated_settings=(root/'roles'/approval['input']['preset']/'claude/settings.json').read_bytes()
         if isolated_settings!=(materials/'isolated-settings.json').read_bytes() or json.loads(isolated_settings)!={'theme':'dark'}:
             raise RuntimeError('approved_isolated_settings_changed')
-        with (root/'api.stdout').open('xb') as stdout,(root/'api.stderr').open('xb') as stderr:
-            api=subprocess.Popen(['/usr/bin/python3','-B',str(api_script),str(root)],env=env,stdout=stdout,stderr=stderr,start_new_session=True)
-        (root/'api-owner.json').write_text(json.dumps({'pid':api.pid,'argv':['/usr/bin/python3','-B',str(api_script),str(root)]}))
-        wait(lambda:(root/'api-ready.json').exists() or api.poll() is not None)
-        if api.poll() is not None:raise RuntimeError('Local API exited before readiness; retain logs, no restart')
-        bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),api.pid)
+        if args.reuse_stage_a:
+            if not args.reuse_api_root or not args.reuse_readiness_file: raise RuntimeError('reuse_api_root_and_readiness_required')
+            api_root=args.reuse_api_root.resolve(); bound=resolve_reused_api(approval['input'],api_root,args.reuse_readiness_file)
+            result['reused_api']={'root':str(api_root),'pid':bound['reused_api_pid'],'lstart':bound['reused_api_lstart']}
+        else:
+            api_root=root
+            with (root/'api.stdout').open('xb') as stdout,(root/'api.stderr').open('xb') as stderr:
+                api=subprocess.Popen(['/usr/bin/python3','-B',str(api_script),str(root)],env=env,stdout=stdout,stderr=stderr,start_new_session=True)
+            (root/'api-owner.json').write_text(json.dumps({'pid':api.pid,'argv':['/usr/bin/python3','-B',str(api_script),str(root)]}))
+            wait(lambda:(root/'api-ready.json').exists() or api.poll() is not None)
+            if api.poll() is not None:raise RuntimeError('Local API exited before readiness; retain logs, no restart')
+            bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),api.pid)
+        if args.stop_before_cli:
+            result.update(status='PASS',stop_before_cli=True,scope='Read-only reused API identity probe; no API/daemon/CLI/controller start'); save(); raise SystemExit(0)
         with (root/'runtime-input.json').open('x',encoding='utf-8') as f:json.dump(bound,f,ensure_ascii=False,indent=2)
         run([node,SOURCE/'workbench/tests/prepare_t078_p1.ts',root/'runtime-input.json',out/'runtime-manifest.json'])
         runtime=json.loads((out/'runtime-manifest.json').read_text())
@@ -113,16 +124,17 @@ try:
             p=run(argv,runtime['launch']['env'])
             if p.returncode or (argv[-1]=='--version' and p.stdout.strip()!=runtime['launch']['cli_version_expected']):raise RuntimeError('Fixed CLI preflight mismatch')
             if argv[-1]=='--help' and any(flag not in p.stdout for flag in ['--session-id','--model','--effort','--settings','--append-system-prompt','--permission-mode','--strict-mcp-config','--tools','--debug-file']):raise RuntimeError('Required CLI options missing')
-        if sorted(p.name for p in (root/'repo').iterdir())!=['value.txt'] or (root/'repo/value.txt').read_text(encoding='utf-8')!='P1 isolated fixture\n':raise RuntimeError('fixture_repo_changed')
-        run(['git','-C',root/'repo','init','-b','main'])
-        run(['git','-C',root/'repo','add','value.txt']);run(['git','-C',root/'repo','commit','-m','P1 fixture'])
-        call('daemon_start')
-        card={'id':approval['input']['task'],'source':None,'goal':'Claude CLI protocol tracer bullet','non_goals':['worker delivery or integration'],
-              'paths':{'allow':['.'],'deny':[]},'oracle_paths':['value.txt'],'completion_conditions':[{'argv':[sys.executable,'-c',"raise SystemExit('P1 does not deliver a worker candidate')"]}],
-              'red_commands':[],'task_type':'后端逻辑','repair_target':None,'complexity':'L','executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},'base_commit':None,'writer':None}
-        (root/'card.json').write_text(json.dumps(card));task=approval['input']['task']
-        call('card_save','--task',task,'--card',root/'card.json','--expected-version','0')
-        call('create','--task',task,'--repo',root/'repo','--branch','refs/heads/main','--card-version','1','--project','t078-p1-project')
+        if not args.reuse_stage_a:
+            if sorted(p.name for p in (root/'repo').iterdir())!=['value.txt'] or (root/'repo/value.txt').read_text(encoding='utf-8')!='P1 isolated fixture\n':raise RuntimeError('fixture_repo_changed')
+            run(['git','-C',root/'repo','init','-b','main'])
+            run(['git','-C',root/'repo','add','value.txt']);run(['git','-C',root/'repo','commit','-m','P1 fixture'])
+            call('daemon_start')
+            card={'id':approval['input']['task'],'source':None,'goal':'Claude CLI protocol tracer bullet','non_goals':['worker delivery or integration'],
+                  'paths':{'allow':['.'],'deny':[]},'oracle_paths':['value.txt'],'completion_conditions':[{'argv':[sys.executable,'-c',"raise SystemExit('P1 does not deliver a worker candidate')"]}],
+                  'red_commands':[],'task_type':'后端逻辑','repair_target':None,'complexity':'L','executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},'base_commit':None,'writer':None}
+            (root/'card.json').write_text(json.dumps(card));task=approval['input']['task']
+            call('card_save','--task',task,'--card',root/'card.json','--expected-version','0')
+            call('create','--task',task,'--repo',root/'repo','--branch','refs/heads/main','--card-version','1','--project','t078-p1-project')
         scenario=json.loads((root/'scenario.json').read_bytes())
         if scenario['name']=='slice1-inbox-green':
             with sqlite3.connect(state/'state.sqlite3') as db:

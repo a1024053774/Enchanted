@@ -16,6 +16,6 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/
   --dry-run
 ```
 
-真实 B1 命令只删除末行 `--dry-run`；该命令要求 approval 的 `p1_materials` 已绑定 A-05 root、`p1_phase=launch`、逐屏材料齐全。它执行后保存 `run_t078_p1.py` 的 process/PTY 原件并停止，不自动按键或继续。
+真实 B1 命令只删除末行 `--dry-run`；approval-03 另带 `--reuse-stage-a --reuse-api-root <A-05 root/roles/ideation>`，P1 只核对既有 API 的 ready/PID/lstart/command，不自启第二 API，也不重复 daemon/setup。该命令执行后保存 `run_t078_p1.py` 的 process/PTY 原件并停止，不自动按键或继续。
 
 待批材料：stage-a-05 `readiness.json` 与 `result.json` 原件、同一 root 的 PID/lstart/command 读回、ideation 的 approval（含 screen-key approval 文件、security notice 原字节、trust 两键、一次工具 Yes）、`stage-b-approval-template.json` 填写件及独立 actions/停止清单。spy 输出 `09b-stage-b-spies-03/results.json` 还包含三项去检查变异红态；它只证明入口门禁，不能替真实 Claude 启动或屏幕读回。

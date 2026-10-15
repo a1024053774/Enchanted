@@ -82,6 +82,11 @@ def validate_role_approval(approval, binding, materials, role, phase):
     p1_input = json.loads((Path(p1_materials) / 'input.json').read_bytes())
     assert p1_input.get('root') == binding['root'] and p1_input.get('preset') == role and p1_input.get('task') == binding['task']
     assert approval.get('p1_phase') in ('launch', 'screen', 'key')
+    if phase == 'B1':
+        args = approval.get('p1_args', [])
+        assert '--reuse-stage-a' in args and '--reuse-api-root' in args
+        root_index = args.index('--reuse-api-root') + 1
+        assert root_index < len(args) and Path(args[root_index]).resolve() == Path(binding['root']) / 'roles' / role
     return True
 
 
