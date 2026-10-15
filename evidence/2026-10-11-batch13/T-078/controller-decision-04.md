@@ -483,3 +483,8 @@ commit-09b-a06.sh --check-only PASS（17 paths）；正式：a5b37b05 + 5fd62384
 审阅：t078_09b_protocol_core.py 由离线 oracle 与 t078_09b_fake_api.py --protocol 共用；loopback 真 HTTP 09b-http-protocol-red-green-01：旧模式 409 红、protocol SSE 200 绿、正文/seq/身份/角色/预算 5 类 409 反例；RESULTS 记录 cleanup-09b-a05.py 运行后改动（补 archive_bytes 字段）与原因，09b-a05-cleanup/result.json 未改。p1_reuse 以 readiness 记录的 argv 比对，含 --protocol 不冲突。commit-09b-a06-02.sh --check-only PASS（11 paths），正式 exit 0：90115899 + 34f0b9af，9 尾注，工作树干净。
 #241：签 a06-stage-a-approval-01.json（source 90115899，allow_role_cli_spawn false），run-09b.py --materials 09b-a06-materials-02 --protocol → 09b-a06-stage-a-01：rc 1，KeyError('root')（run-09b.py:55 需 static['root'] 的静态夹具 repo/value.txt、oracle/contract-09b.json）。09b-a06-materials-02 非 prepare-09b-executable.py 生成，static-check 无 root。spawned false，无进程；建出的 /private/tmp/t078-2-09b-run-zgikbcl7 只有空目录（0 文件），我以 find -empty -delete 删除。
 #242：A-06 材料须由同一 prepare-09b-executable.py 生成（含静态 root 与 --protocol 记录），不另造平行材料格式；runner 对缺 root 应在建 root 前拒绝（补红绿）；重冻后交我。
+
+## A-06 材料门修复与提交失败 #243（2026-10-15 UTC）
+
+worker 请求沙箱外执行（rm -rf /tmp/pycache-t078-a06、py_compile、写 preflight、跑 check-only），不批升级，已 Esc。审阅：run-09b.py 在建 root 前拒绝缺静态 root 的材料（executable_material_static_root_required），material-gate-green-03 PASS（spawned false、roots_created 0）；红态即 09b-a06-stage-a-01（先建 root 后 KeyError）。commit-09b-a06-03.sh --check-only PASS（14 paths）；正式 exit 1：git add 路径列表含不存在的 workbench/tests/run-09b.py（实际在 evidence/…/T-078/run-09b.py），git 128，未提交；materials-03 未生成。check-only 未覆盖 git add 参数存在性。
+#244：修 git add 路径；check-only 增加"每个将要 add 的路径存在或属 future 生成物"的断言；交我。
