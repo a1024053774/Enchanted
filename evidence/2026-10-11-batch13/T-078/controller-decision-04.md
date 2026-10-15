@@ -366,3 +366,9 @@ commit-09b-stage-b-02.sh exit 0：48dd6ce5 + 92a61308，9 尾注，工作树干�
 ## #212 复用分支红态（2026-10-15 UTC）
 
 签 stage-b-ideation-approval-04.json（p1_args: --reuse-stage-a、--reuse-api-root roles/ideation、--stop-before-cli）并经真实入口运行 → 09b-stage-b1-reuse-red-02：rc 1，p1 exit 1，`RuntimeError('reused_api_identity_changed')`，cli_spawned false；pgrep 无 Claude、无 t078_fake_messages/inbox_tool 新 API；A-05 五进程完好。红态符合预期。待 worker 修身份核对后取绿。
+
+## #213 复用绿态失败与根因 #214（2026-10-15 UTC）
+
+签 stage-b-ideation-approval-05.json 运行 → 09b-stage-b1-reuse-green-03：rc 1，仍 `reused_api_identity_changed`（run_t078_p1.py:107）；无 Claude、无新 API，A-05 五进程 lstart 不变。
+根因：复用分支用 probe_process（第 47 行 `ps -o pid=,lstart=,comm=`）取身份，comm 只有可执行名不含参数，argv[1:] 恒为空。我用同一 identity_from_ps 加 `/bin/ps -ww -o pid=,lstart=,command=`（LC_ALL=C）核对 70730，得到完整 argv 与 expected 一致。
+#214：复用分支改用完整 argv 探测（-ww command=，C locale），保留 probe_process 原用途不动；绿态前须在 worker 侧先以同一函数对 70730 只读核对一次并存档，approval-06 由我签后跑 reuse-green-04。
