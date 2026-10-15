@@ -456,3 +456,9 @@ worker 的 stage-b-key.sh 未采用：批准写入 /tmp 且 trap 删除（签字
 commit-09b-i1.sh --check-only PASS（177 paths）；正式：ad12136f + 6f8bc4fc 落地（9 尾注），随后 heredoc 第 30 行断言失败（exit 1），RESULTS.md 追加未提交。离线 I1：1 root/1 Messages，SSE 四事件；正文/seq/request_id/role/预算五类变异红。
 衔接缺口：A-05 中 ideation 假 API 70730 运行的是阶段 A 代码（Messages 一律 409），ideation Claude（1228）启动时 ANTHROPIC_BASE_URL 固定为 127.0.0.1:57534。09B-I1-PLAN 未说明真实 I1 如何让新应答生效。
 #236：worker 提出最小衔接方案并论证（候选：同端口替换 API 进程并更新 A-05 绑定；或新建 A-06 现场用最终假 API 重走 A/B1；或其他），列出每种方案对既有身份绑定、预算与已完成 B1 证据的影响，交我裁定；同时补交 RESULTS 并说明第 30 行断言为何失败。不启动任何东西。
+
+## I1 衔接裁定 #237（2026-10-15 UTC）
+
+审阅 09B-I1-BRIDGE.md。采纳 B：新建 A-06，用最终协议假 API 从阶段 A 起重走 B1；A-05 身份与 B1 历史原样保留为证据。否决 A（同端口替换使复用绑定的 PID/lstart/ready 失效）与 C（代理/热切换为未登记平行路径）。
+附加要求：A-06 前假 API 须一次实现全部 09B 阶段（I1–I4、E1–E6）按 protocol 的登记与 SSE 应答，离线逐阶段红绿；避免每阶段重建现场。预算不变（I 4/6、E 6/11）。
+顺序：（1）A-05 owner-bound cleanup（含 ideation Claude 1227/1228：先经门禁/controller 停止路径，确认退出；再 daemon_stop、假 API SIGTERM、target；逐成员归档读回后删 root），带 dry-run，交我运行；（2）完整协议假 API 离线红绿；（3）A-06 材料（阶段 A + B1，沿用已验证的复用/label/逐键路径），提交脚本含 RESULTS 补交；交我。
