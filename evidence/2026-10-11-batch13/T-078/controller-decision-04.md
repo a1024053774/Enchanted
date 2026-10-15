@@ -477,3 +477,9 @@ commit-09b-a06.sh --check-only PASS（17 paths）；正式：a5b37b05 + 5fd62384
 缺口：t078_09b_protocol_full.py 是离线 oracle（无 HTTP 服务）；run-09b.py:68 阶段 A 仍启动 t078_09b_fake_api.py（Messages 一律 409）。A-06 若按此材料起，会重复 A-05 的衔接问题。
 证据卫生：cleanup-09b-a05.py 在 A-05 正式清理运行后才改（补记 archive_bytes），而该脚本此前从未提交，提交进去的是事后版本，实际运行版本无法逐字节复原；09b-a05-cleanup/result.json 未改（archive_bytes null）。外部归档大小 8,062,309 字节由我另行 ls 核对。
 #240：（1）让 t078_09b_fake_api.py 这个真实服务进程按完整 protocol 应答（复用离线 oracle 的登记/校验，不另写平行实现），loopback 真 HTTP 测试：先在现版本取 409 红，再取 SSE 绿与反例；run-09b.py/prepare 引用同一文件；重冻 A-06 材料。（2）修 RESULTS 提交步骤并补交。（3）RESULTS 如实写明 cleanup-09b-a05.py 运行后改动的确切 diff 与原因。
+
+## A-06 HTTP 衔接提交与阶段 A 第一次 #241/#242（2026-10-15 UTC）
+
+审阅：t078_09b_protocol_core.py 由离线 oracle 与 t078_09b_fake_api.py --protocol 共用；loopback 真 HTTP 09b-http-protocol-red-green-01：旧模式 409 红、protocol SSE 200 绿、正文/seq/身份/角色/预算 5 类 409 反例；RESULTS 记录 cleanup-09b-a05.py 运行后改动（补 archive_bytes 字段）与原因，09b-a05-cleanup/result.json 未改。p1_reuse 以 readiness 记录的 argv 比对，含 --protocol 不冲突。commit-09b-a06-02.sh --check-only PASS（11 paths），正式 exit 0：90115899 + 34f0b9af，9 尾注，工作树干净。
+#241：签 a06-stage-a-approval-01.json（source 90115899，allow_role_cli_spawn false），run-09b.py --materials 09b-a06-materials-02 --protocol → 09b-a06-stage-a-01：rc 1，KeyError('root')（run-09b.py:55 需 static['root'] 的静态夹具 repo/value.txt、oracle/contract-09b.json）。09b-a06-materials-02 非 prepare-09b-executable.py 生成，static-check 无 root。spawned false，无进程；建出的 /private/tmp/t078-2-09b-run-zgikbcl7 只有空目录（0 文件），我以 find -empty -delete 删除。
+#242：A-06 材料须由同一 prepare-09b-executable.py 生成（含静态 root 与 --protocol 记录），不另造平行材料格式；runner 对缺 root 应在建 root 前拒绝（补红绿）；重冻后交我。
