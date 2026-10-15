@@ -317,3 +317,10 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 
 #198 恢复脚本 dry-run PASS，正式（"主控 #198"）PASS：62217、62218 各一次 SIGKILL 并退出；归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-stage-a-03-recovery/fixture.tar.gz（25,523 字节，71 成员：42 文件、29 目录），逐成员读回 PASS 后删 root。62217/62218/62220 均不存在。假 API 停止红 07（2s 超时）/绿 08 证据已存在。
 commit-09b-run-04.sh exit 1：`Unowned work; no mutation`, workbench/tests/t078_09b_fake_api.py（修复本身不在 allowlist），未提交。#199：补入 allowlist 后再交。
+
+## run-04 提交与阶段 A 第三次运行 #200/#201（2026-10-15 UTC）
+
+#199 后以 s13-t078m 身份重跑 commit-09b-run-04.sh：96e0703e（卡片预检、假 API 停止修复、stage-a-03 恢复证据）+ 2f34ae8e（materials-04），9 条尾注；脚本末尾 `assert not git status` 失败（exit 1），唯一残留为 worker 在提交后更新的 herdr-handoff-receipt-04.json（追加 #199 一行），不影响源码与材料包，由 worker 下次提交。
+#200：签 stage-a-approval-04.json（source 96e0703e，allow_role_cli_spawn=false）运行 → 09b-stage-a-04：exit 1，INCOMPLETE。进展：卡片预检通过；真实 dispatch/claim 回执 attempt f1dd4297…、session 6923b6e0…、fence 1、thread a7b98242…、workspace 齐全，state=claimed。失败：pane_process_info 返回 shell_pid 68179、leader null、processes 仅 /bin/zsh -f -i；codex-receiver 未启动（数秒后复查仍无），不是读取时序问题。
+存活：fake API 68081/68082、daemon 68084、pane zsh 68179；root /private/tmp/t078-2-09b-run-s6slqnu3。未发信号。
+#201：worker 只读诊断（经 CLI 读 pane 屏幕/事件，不向 pane 输入），找出 receiver 未启动的原因；修 runner 与证据（红=09b-stage-a-04）；写 stage-a-04 cleanup（带 dry-run；daemon_stop、假 API 现可 SIGTERM）交我。
