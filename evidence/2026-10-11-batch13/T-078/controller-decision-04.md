@@ -265,3 +265,8 @@ permission 阶段 PASS（模型 0）。执行主控逐项核对：假 API 恰 3 
 3. 再实现共库双角色假 API／逐阶段驱动与 oracle 执行器：绑定实际登记文本与实际 stop/request ID，不写死 #1/#2；dispatch.seq 按全局号核对。
 4. 完成后另冻结可执行 launch 包交审；我批准前不启动任何 CLI/API/目标。
 issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处置。
+
+## 09B-PRE 提交与继续 #188（2026-10-15 UTC）
+
+审阅产品 diff：claudeLaunch 按 roles/<preset>/ 推导 HOME/config/tmp/shell/requests/hooks/user-data/debug，删除共享根路径、无 fallback，state/repo 根校验保留；turn_limit 与 Panes signal 接受 1～6，7 拒绝。红态 09b-profile-red-02（共享六路径、第三根被拒）在改动前保存。以 s13-t078m 身份运行 commit-09b-pre.sh：exit 0，b9b5fdd3（产品+证据）+ 50efd2f0（source freeze），9 条尾注；launch NO_GO。
+#188：按 #187 第 3、4 步继续实现共库双角色假 API／逐阶段驱动／独立 oracle（红→绿→反例），再交可执行 launch 包审阅；批准前不启动。
