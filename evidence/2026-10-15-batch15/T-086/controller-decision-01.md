@@ -8,3 +8,8 @@
 
 Grok wF:p3Z 交 T-086 READY：conflict_acceptance_host.ts 在 createThread 时写 worker-creations（启动记录）；test_worktree_lifecycle_e2e.py 新增 launch_record()，commit_worker 尾注取自该记录并核对与 attempt.delivery 一致。红态（基线两案 trailer_identity_mismatch）、绿态与冲突全套件 PASS；清点写尾注测试 17 项，11 组真实入口回归 PASS；test_task_cards_e2e 直接入口（不起 daemon，connect ENOENT）在基线 git archive 上同样 49 failures、trailer_identity_mismatch 0，判为既有。静态残余：run_worker_delivery.py 期望无 turn context 时钩子写 Effort unknown，门禁只放行 Model unknown（未实测）。
 主控提交 d9dcc107（无 worker 尾注）。证据 28 MB，无单文件 >5 MB。独立审查：新开 fresh Grok wF:p44（cwd a2a-wt-t086），只读，仅写 independent-review-01.md。
+
+## 返工 #13/#16 与第二轮审查 #17（2026-10-15 UTC，执行主控接续）
+
+审查 01 NO_GO 报告提交 8f3d1b5e（exec/t086）。#13 派返工给 Grok wF:p3Z：完成条件分开启动记录与任务卡/thread_id/常量；补 tracer/widen；run_worker_delivery.py 按用户决定"只改脚本期望"（answer 20261015T131159Z-ideation-answer-001）。#16 催收尾。worker 报 T-086 READY：宿主为每个 attempt 写独有 launch/cli/model/effort，runtime_identity.launch 取记录 id；返工红/绿两案、冲突七案 PASS；M1–M4 verify 失败，M5 两案走不到 delivery 分支（未造路径）；tracer PASS，widen wide 并发时 widen_score_after_cas 5 秒等待超时、基线并发同样复现、单跑 PASS；run_worker_delivery.py 未运行。主控核对 diff（仅 conflict_acceptance_host.ts、run_worker_delivery.py 与证据；delivery.turn_id 在 core.ts:3402 存在），提交候选 c9e431aa。证据 120 MB，无单文件 >5 MB。
+#17：新开 fresh Grok s15-t086-rev2（wF:p46，cwd a2a-wt-t086），只读，仅写 independent-review-02.md。
