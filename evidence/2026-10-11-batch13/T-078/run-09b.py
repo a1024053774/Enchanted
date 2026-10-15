@@ -13,7 +13,7 @@ def validate_stage_a_inputs(materials, approval, *, protocol=False):
     static_root=Path(static_root_value)
     assert static_root.is_dir() and (static_root/'repo/value.txt').is_file() and (static_root/'oracle/contract-09b.json').is_file(), 'executable_material_static_root_required'
     if protocol:
-        assert static.get('protocol') is True, 'executable_material_protocol_required'
+        assert static.get('protocol') is True and static.get('protocol_tag') == 'a07-registered-anthropic-v1', 'executable_material_protocol_required'
     validate_material_lineage(materials, static)
     assert approval.get('approved_by')=='executor' and approval.get('stage')=='A' and approval.get('approval_ref')
     assert approval.get('source_revision')==static['revision'] and approval.get('allow_role_cli_spawn') is False

@@ -92,7 +92,7 @@ def execute(materials, stage_a, approval, output):
     prompt = (materials / 'i1-prompt.txt').read_text(encoding='utf-8')
     api_root = root / 'roles' / 'ideation'
     api_ready = json.loads((api_root / 'api-ready.json').read_bytes())
-    if api_ready.get('protocol') != 'a06-registered-anthropic-v1':
+    if api_ready.get('protocol') != 'a07-registered-anthropic-v1':
         raise RuntimeError('protocol_api_revision_unbound')
     queued = gate(root, 'pane_dispatch', '--thread', thread, '--body-file', materials / 'i1-prompt.txt')
     dispatch = queued['dispatch']

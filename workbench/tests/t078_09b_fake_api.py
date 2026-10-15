@@ -6,7 +6,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from t078_09b_protocol_core import anthropic_sse, normalize_anthropic_request, validate_request, ProtocolRefusal
 
 USED_DISPATCHES=set()
-PROTOCOL_TAG='a06-registered-anthropic-v1'
+PROTOCOL_TAG='a07-registered-anthropic-v1'
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self,*args): pass
