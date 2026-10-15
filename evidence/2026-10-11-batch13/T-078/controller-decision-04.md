@@ -450,3 +450,9 @@ worker 的 stage-b-key.sh 未采用：批准写入 /tmp 且 trap 删除（签字
 - s13：Claude Code 空闲提示符，Haiku 5.5 low effort，manual mode，cwd 夹具 repo。全程 roles/ideation/requests 为空、debug 日志无 /v1/messages 与 409。未用 Digit1，未发默认 Enter。
 注：我的简易渲染器不处理光标上移后的覆盖写，选择状态以原始增量字节为准。
 #235：worker 下一步——（1）提交本轮证据（含我的两个助手与 exec-approvals 目录）；（2）实现 I1：09B 假 API 按 protocol 应答 ideation 的 Messages（登记正文、request/stop ID 绑定），以及 I1 回合驱动；先离线红绿，再交 I1 待批材料。executor 角色 B1 在 ideation I 阶段完成后另批（同一时间只一个角色启动步骤）。
+
+## I1 离线提交与真实 I1 衔接问题 #236（2026-10-15 UTC）
+
+commit-09b-i1.sh --check-only PASS（177 paths）；正式：ad12136f + 6f8bc4fc 落地（9 尾注），随后 heredoc 第 30 行断言失败（exit 1），RESULTS.md 追加未提交。离线 I1：1 root/1 Messages，SSE 四事件；正文/seq/request_id/role/预算五类变异红。
+衔接缺口：A-05 中 ideation 假 API 70730 运行的是阶段 A 代码（Messages 一律 409），ideation Claude（1228）启动时 ANTHROPIC_BASE_URL 固定为 127.0.0.1:57534。09B-I1-PLAN 未说明真实 I1 如何让新应答生效。
+#236：worker 提出最小衔接方案并论证（候选：同端口替换 API 进程并更新 A-05 绑定；或新建 A-06 现场用最终假 API 重走 A/B1；或其他），列出每种方案对既有身份绑定、预算与已完成 B1 证据的影响，交我裁定；同时补交 RESULTS 并说明第 30 行断言为何失败。不启动任何东西。
