@@ -24,8 +24,14 @@ const runtime = {
   ...original,
   createThread: async (task: any, attempt: any) => {
     await original.createThread(task, attempt);
-    const creation = { id: attempt.thread_id, role: "worker", cli_version: "controlled-conflict-runtime",
-      model: task.card.executor.model, effort: task.card.executor.effort,
+    // Distinct from the task card, from thread_id, and from a fixed constant.
+    // submit requires this id to equal runtime_identity.launch; verify then
+    // rejects a trailer copied from the card or from thread_id.
+    const creation = {
+      id: "launch-" + attempt.attempt_id, role: "worker",
+      cli_version: "conflict-cli-" + attempt.attempt_id,
+      model: "conflict-model-" + attempt.attempt_id,
+      effort: "conflict-effort-" + attempt.attempt_id,
       thread: attempt.thread_id, task: task.task_id, attempt: attempt.attempt_id, session: attempt.session_id };
     workers.set(attempt.thread_id, creation);
     log("worker-creations", creation);
@@ -48,9 +54,12 @@ const runtime = {
     const turn = turns.has(thread) ? `fixture-turn:${thread}:${turns.get(thread)}` : live.turn;
     const selected = mode();
     const overrides = selected.thread === thread ? selected.observation ?? {} : {};
+    const created = workers.get(thread);
+    if (!created) throw new Error("No controlled conflict worker creation");
     // Stable native identity follows T-076-1; turn changes do not replace it.
+    // launch is the creation id, not the thread id.
     return { ...live, turn,
-      runtime_identity: { launch: thread, thread, shell_pid: 101, leader_pid: 102, native_session: thread },
+      runtime_identity: { launch: created.id, thread, shell_pid: 101, leader_pid: 102, native_session: thread },
       ...overrides };
   },
   sendGateFeedback: async (thread: string, messageId: string, message: string) => {
