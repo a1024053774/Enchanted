@@ -506,3 +506,9 @@ commit-09b-a06-b1.sh --check-only PASS（30 paths），正式 e15d1890（9 尾�
 commit-09b-a06-i1.sh --check-only PASS（212 paths），正式 07a0efdd（工作树干净）。I1：protocol core 归一化真实 /v1/messages，绑定登记正文/seq/角色/attempt/session/fence；fake API 每次请求读取 roles/<role>/protocol-registry.json（动态登记），协议标记 a06-registered-anthropic-v1；I1 驱动 pane_dispatch → 写登记 → pane_release 一次，等 1 响应与 idle 后停。spy：1×200 绿、6×409 反例，0 进程。
 问题：A-06 正在运行的 API（47931/47932）是旧代码，驱动按协议标记拒绝 → 真实 I1 需新现场。
 #249 裁定：先离线证明 I2–I4、E1–E6 都只靠登记文件、无需再改 API 代码（逐阶段红绿）；若需改 API，现在改完。之后 A-06 owner-bound 清理（含 ideation Claude 54976/54977，经 daemon_stop/panes.shutdown，dry-run 先行），再用 prepare 生成 A-07 材料，阶段 A + B1 重走，I1 起在 A-07 上一路走完。
+
+## A-06 清理与 A-07 提交 #250/#251（2026-10-15 UTC）
+
+审阅 09b-a07-protocol-matrix-01：I2–I4、E1–E6 九阶段各 200 绿 + 一类反例，summary PASS；API 代码仅改协议标记为 a07-registered-anthropic-v1。cleanup-09b-a06.py dry-run（"主控 #250"）PASS；正式 PASS：daemon_stop 经 panes.shutdown 关闭 ideation Claude 54976/54977 与 target，API 47931/47932 各一次 SIGTERM，七进程均退出；归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a06-cleanup/fixture.tar.gz（8,062,301 字节，918 成员）逐成员读回 PASS 后删 root。
+commit-09b-a07.sh --check-only PASS（36 paths）；正式：81ea4754 落地，随后 prepare 失败（exit 1）：脚本传 --label 09b-a07-materials-01，prepare-09b-executable.py:11 要求前缀 09b-executable-materials-；09B-A07-STAGE-A-COMMAND.txt 引用 09b-executable-materials-07。材料未生成，失败记录 09b-a07-commit-01/ 保留。
+#251：label 统一为 09b-executable-materials-07；check-only 增加对 prepare 参数前缀与命令文件引用一致的断言；交我。
