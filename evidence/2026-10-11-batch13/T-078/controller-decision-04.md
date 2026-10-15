@@ -626,3 +626,7 @@ I1 未执行：driver 只等 45 秒且材料未写一次性 Yes 的读屏/按键
 
 worker 交 I1 两步流程（dispatch 阶段停在 PermissionRequest；主控读屏签 permission-approval 后经窗口路径发一次 Enter 并读回），离线绿与三个红反例 PASS。commit-09b-a11-i1.sh 提交 9f973a1ed，末尾干净断言因主控 onboarding 输出未跟踪失败，主控另提交 1b481dbea。主控签 I1 approval（#285）执行 dispatch 阶段：INCOMPLETE protocol_i1_permission_wait_deadline，未重试。
 根因：假 API 下发的 Bash tool_use input 为 {argv:[...]}，Claude Code 2.1.296 Bash 工具要求 command，本地 InputValidationError，无 PermissionRequest；is_error tool_result 被假 API 409 tool_result_json_required，Claude 重试 11/11 后停（requests 12 行、responses 1 行，均假 API，真实供应商回合 0）。现场拷至 09b-a11-i1-scene-01/。离线 oracle 未用真实 Bash 工具 schema 是证据缺口。#285 让 worker 修 tool_use 生成、补能抓到本缺陷的红态、核算预算是否需 A-12。
+
+## A-12 重建 #286/#287（2026-10-15 UTC）
+
+worker 修 Bash schema（shlex.join → input.command），用 scene-01 真实 tools 定义补 schema 绿/红，预算判定 A-11 已用 ideation 1 root/12 Messages（上限 4/6），须重建。主控提交 ee02e0d4e 与漏项 9a38d9682（提交脚本第二次漏新文件）。commit-09b-a12.sh PASS（26d2820a1）。A-11 回收 dry-run/正式 PASS（归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a11-cleanup/fixture.tar.gz，读回后删 root）。主控核对 materials-12 对 -11 仅身份/路径差异，签 a12-stage-a-approval-01.json（#287）并执行阶段 A：READY_FOR_APPROVAL，root /private/tmp/t078-2-09b-run-3ec7pe2c，API 93826/93827，daemon 93829，target 93921/93923。#287 让 worker 一次性准备 B1、onboarding、I1 材料与提交脚本。
