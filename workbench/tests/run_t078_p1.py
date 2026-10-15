@@ -9,6 +9,7 @@ SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
 parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','continue-esc','cleanup'],required=True)
 parser.add_argument('--reuse-stage-a',action='store_true');parser.add_argument('--reuse-api-root',type=Path);parser.add_argument('--stop-before-cli',action='store_true')
 parser.add_argument('--reuse-readiness-file',type=Path)
+parser.add_argument('--launch-label')
 parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
 parser.add_argument('--actions-approval',type=Path)
 parser.add_argument('--key',choices=['ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','onboarding-notice','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
@@ -17,6 +18,7 @@ label=args.label or args.phase
 if Path(label).name!=label or label in ['.','..']:parser.error('A single new output-directory name is required')
 source_materials=args.source_materials.resolve() if args.source_materials else materials
 out=materials/label;out.mkdir();log=CommandLog(out)
+launch_dir=materials/(args.launch_label if args.launch_label else 'launch')
 node=approval['launch']['node_executable']
 env={'PATH':'/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin','HOME':str(root/'manager-home'),'TMPDIR':str(root/'tmp'),'A2A_OPERATOR_CREDENTIAL':str(root/'operator.json'),
      'GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':os.devnull,'GIT_CONFIG_COUNT':'2','GIT_CONFIG_KEY_0':'core.hooksPath','GIT_CONFIG_VALUE_0':os.devnull,'GIT_CONFIG_KEY_1':'commit.gpgsign','GIT_CONFIG_VALUE_1':'false',
@@ -50,7 +52,7 @@ def probe_process(pid):
     p=run(['/bin/ps','-p',str(pid),'-o','pid=,lstart=,comm='],child_env={**env,'LC_ALL':'C','LANG':'C'},allowed=(0,1))
     return identity_from_ps(pid,p.returncode,p.stdout,p.stderr)
 def same_cli():
-    manifest=json.loads((materials/'launch/process-manifest.json').read_text(encoding='utf-8'))
+    manifest=json.loads((launch_dir/'process-manifest.json').read_text(encoding='utf-8'))
     if any(manifest.get(k)!=approval['input'][k] for k in ['launch','session']) or probe_process(manifest['cli']['pid'])!=manifest['cli']:
         raise RuntimeError('continuation_cli_identity_changed')
     return manifest
@@ -76,7 +78,7 @@ def verify_readiness():
     owner=json.loads((root/'api-owner.json').read_text())
     bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),owner['pid'])
     if json.loads(runtime_input_path.read_text())!=bound:raise RuntimeError('resolved_api_manifest_changed')
-    if json.loads((materials/'launch/runtime-manifest.json').read_text())['input']!=bound:raise RuntimeError('runtime_launch_manifest_changed')
+    if json.loads((launch_dir/'runtime-manifest.json').read_text())['input']!=bound:raise RuntimeError('runtime_launch_manifest_changed')
     if not args.readiness_file:raise RuntimeError('Explicit startup-readiness file required')
     ready=json.loads(args.readiness_file.read_text(encoding='utf-8'))
     if ready.get('launch')!=approval['input']['launch'] or ready.get('session')!=approval['input']['session'] or ready.get('confirmed_by')!='executor' or ready.get('readiness')!='confirmed' or not ready.get('basis'):raise RuntimeError('Explicit startup-readiness approval required')
@@ -322,7 +324,7 @@ try:
             with sqlite3.connect((state/'state.sqlite3').as_uri()+'?mode=ro',uri=True) as db:
                 if db.execute("SELECT 1 FROM sqlite_master WHERE name='launch_records'").fetchone():
                     attempted=db.execute('SELECT 1 FROM launch_records WHERE id=?',(approval['input']['launch'],)).fetchone() is not None
-        process_file=materials/'launch/process-manifest.json'
+        process_file=launch_dir/'process-manifest.json'
         manifest=json.loads(process_file.read_text()) if process_file.exists() else None
         attempted=attempted or manifest is not None
         if manifest and any(manifest.get(key)!=approval['input'][key] for key in ['launch','session']):
