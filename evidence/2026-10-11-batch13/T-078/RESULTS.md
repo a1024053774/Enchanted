@@ -837,3 +837,7 @@ cleanup 的归档 helper 用临时目录取含普通文件、目录和符号链�
 新 [recovery cleanup](cleanup-09b-stage-a-03-recovery.py) 只绑定该 root 与两个记录 PID，先 dry-run 做双读身份核对；正式阶段确认 daemon 已退出后分别各一次 SIGKILL，逐成员归档并比对普通文件字节、目录类型、符号链接目标，读回 PASS 才删除 root。dry-run 与正式输出目录已列入 run-04 allowlist；主控实际读回 **PASS**：两个 SIGKILL、归档 71 成员／25,523 字节逐个比对 PASS，root 已删。
 
 假 API 停止路径当前实现先取得 [SIGTERM 两秒超时红态](09b-fake-api-stop-red-07/result.json)，随后修为信号处理器抛 `SystemExit(0)`，取得 [两秒内退出绿态](09b-fake-api-stop-green-08/result.json)。两次均为独立短命真实进程，测试根已删除；runner 继续引用同一修复后的 `t078_09b_fake_api.py`。工作树 38 项逐项归属预检 [PASS](09b-run-04-ownership-preflight-09.json)，materials-04 重冻待提交脚本运行，launch 仍 **NO_GO**。
+
+## 阶段 A 卡片预检、假 API 停止修复与 materials-04 冻结
+
+#195 的 `09b-stage-a-03` 与 #197/#198 cleanup BLOCKED 现场均保留：坏卡红态未 dispatch/claim/target；首个假 API 的 SIGTERM 死锁由 sample 证据确认，恢复脚本先 dry-run 再对 62217/62218 各一次经身份核对的 SIGKILL，归档逐成员读回 PASS 后删除 root。假 API 停止测试先取当前实现 SIGTERM 两秒超时红态，再以 signal handler 抛 `SystemExit` 取得两秒内退出绿态。runner 仍先经真实 `taskCards.validateTaskCard` 预检，空 `paths.deny` 由 `oracle_paths` 承担 oracle 保护；materials-04 静态冻结继续 `launch_status=NO_GO`，本轮不启动阶段 A、CLI、目标或供应商模型。
