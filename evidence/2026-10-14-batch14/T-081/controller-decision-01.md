@@ -96,3 +96,4 @@ worker 修正驱动：显式 --codex-home 隔离 home（只含 [permissions] 空
 ## s14-t081 会话退出（2026-10-15 UTC ~04:0x）
 
 退避 5 分钟后催促时窗格已回到 zsh：Codex 会话正常退出（Token usage 摘要与 `codex resume 01a13bc2-d779-7370-88a0-6b71bb434456` 提示）。随后窗格中手动输入了 `codex`（zsh 历史，非主控），启动失败：`Error: account/read failed during TUI bootstrap: account/read failed: failed to load workspace requirements (code -32603)`。主控催促文本未出现在 shell 中。worktree a2a-wt-t081 HEAD 9394e081，未跟踪 6 项（CAPABILITY-RECHECK.md、-01/-02/-03 原件、permission-profile-probe-01.json、run_t081_capability_recheck.py）完好未动。6a 与 git commit 写入范围实测均未开始。T-081 BLOCKED：Codex 新会话当前无法启动（账号读取错误），不由主控重试；等用户决定恢复方式。
+用户决定（本会话选择题）："交给 Grok 做 (Recommended)"——T-084 完成后由 Grok 会话（wF:p3Z）接着做 T-081 的 A 项结果入档、6a 正向核对与 git commit 写入范围实测；无 Codex 启动记录，提交由主控执行，如实记为用户指定的非受管 worker 产出。
