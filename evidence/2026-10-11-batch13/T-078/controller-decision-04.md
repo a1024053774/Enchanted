@@ -390,3 +390,8 @@ readback-stage-b-api-identity.py 单独运行：rc 1，INCOMPLETE，argv_match f
 读回脚本忽略 --output、写死 readback-01（已存在，exist_ok=False 拒绝覆盖，旧证据未动）；未重跑，改由我人工 ps -ww 核对 70730 身份 + 绿态入口自身复核。root/input.json 与 p1-02 cmp 一致。
 签 approval-08 → 09b-stage-b1-reuse-green-06：rc 1，`ValueError('api_ready_identity_mismatch')`（p1_endpoint.resolved_input 第 8 行要求 ready.launch/session 等于本次 input 的 launch/session）。09B 假 API 在阶段 A 先于任何角色 launch 启动，ready 只有 host/port/pid/role/stage，结构上不可能带 launch/session。无 Claude、无新 API，A-05 不变。
 #220（执行层裁定，测试夹具范围）：resolved_input 不改、不放宽。复用分支用独立的 09B 解析函数，绑定强度等价：ready.pid == 完整 argv 探测得到的 PID（两次 lstart 一致）、ready.role == preset、ready.stage == 'A'、ready.host/port 合法、且与 09b-stage-a-05 readiness.api_processes 中该角色的 pid/argv/ready 原值逐项一致；launch/session 由本次 input 提供并记入结果。为该函数先写失败清单（pid 不符、role 不符、readiness 不符、端口非法、stage 不符），逐项红绿；默认 slice1 路径仍走 resolved_input。读回脚本改为尊重 --output。交付前在 worker 侧实跑解析函数单测并附输出。
+
+## #221 复用绿态 PASS（2026-10-15 UTC）
+
+resolver 单测 09b-stage-b1-reuse-resolver-tests-01 PASS（valid 绿；pid/role/stage/端口/readiness 不符各红）。readback-02 PASS：argv_match true，两次 command/lstart 一致。签 approval-09（含 --reuse-readiness-file、--stop-before-cli）→ 09b-stage-b1-reuse-green-07：rc 0，PASS，cli_spawned false；无 Claude、无新 API，A-05 五进程 lstart 不变。红态链：reuse-red-02（旧身份检查）→ green-03/04/05/06 各自失败原因已记录 → green-07 PASS。
+#222：worker 写提交脚本（本轮全部证据、resolver、p1_reuse、读回、approval-04..09 签字件），归属预检后交；回答 B1 首屏是否发 Messages（附 Claude Code 2.1.296 在 slice1 green-3 的实际请求时序证据，不推测）；起草真实 B1 approval-10（去 --stop-before-cli，stop_after first-screen）。
