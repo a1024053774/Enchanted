@@ -851,3 +851,11 @@ cleanup 的归档 helper 用临时目录取含普通文件、目录和符号链�
 ## 阶段 A-04 receiver 修复与 materials-05 冻结
 
 真实 Stage-A-04 红态已读回：dispatch/claim 回执完整，但 pane 只有 zsh，屏幕 `create sessions: File exists`，launch-config receiver 路径存在而未启动；根因是 runner 预创建 CODEX_HOME/sessions。已删除该预创建并以空 HOME receiver 进程回归 PASS。A-04 cleanup dry-run/正式 PASS，两个假 API 各一次 SIGTERM 均在两秒内退出，归档逐成员读回后 root 删除。materials-05 静态 PASS，launch 继续 NO_GO；未启动新的 Stage A、供应商 CLI 或模型。
+
+## 阶段 B 单角色审批门禁与 B1 材料（主控 #202/#203）
+
+A-05 真实 readiness 保留：attempt `766c797e…`、fence 1、thread `c6961479…`、target leader `70839`、shell `70837`、fake API `70730/70731`、daemon `70733`，roles_started=[]、模型0，现场不清理。
+
+新增 `run-09b-stage-b.py` 实现阶段 B 入口核对与执行委托：从 A-05 readiness 重新读 root、attempt/session/fence/thread/workspace，并对所有 PID 重新读取 lstart/command；approval 必须逐 role、逐 phase、逐屏绑定同一 binding，安全提示逐字匹配，信任只接受 `ArrowDown → Yes, I trust this folder → Enter`，工具许可只一次性 Yes。`RoleGate` 拒绝同时启动第二角色并要求 ideation→executor。`--dry-run` 只验证门禁；去掉该标志后只调用既有 `run_t078_p1.py` 的单个 `launch`/`screen`/`key` phase，不另造 CLI 或 pane 通路，每次调用后保存原件并停下。
+
+[Stage-B spies](09b-stage-b-spies-03/results.json) **PASS**：缺 B approval、readiness/binding 不符、第一角色 active 时启动第二角色均拒绝；去掉这三项检查的变异分别接受坏 approval、陈旧 binding、并发角色。合法 ideation B1 approval 纯校验通过且 `spawned=false`。已生成绑定 A-05 root、实际 fake API URL/PID 的 [ideation P1 材料](09b-stage-b-ideation-p1-01/) 与未签字 [approval 草稿](stage-b-ideation-approval.json)；无 Claude CLI、pane 输入、daemon/API/target/model 新启动，待主控签字后再逐项执行。
