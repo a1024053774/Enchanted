@@ -539,3 +539,11 @@ commit-09b-a07-i1.sh --check-only PASS（229 paths），正式 178ca7e4。审阅
 hookTrace.ts 改为按 A2A_PRESET（ideation|executor）推导 <root>/roles/<preset>/hooks 并核对 A2A_LAUNCH，无旧 root/hooks 兼容。真实 cli.ts signal：red-01 复现 invalid_hook_trace_binding，green-03 通过且错 preset/错 launch 仍拒，既有 hook trace 回归 PASS。提交 ea4c6e05（9 尾注）。
 A-07 恢复分析（09b-a07-active-recovery-analysis.md）：active dispatch #2 无 nativeTurn/prompt_id，伪造 Stop 不可；emergencyStop 拒 controller；stopThread 只接受 idle；唯一正规路径为认证窗口用户 Esc→声明/放行。
 裁定 #258：不在 A-07 上做 Esc 恢复（属 09C 场景，会污染 I1 证据，且需认证窗口用户动作），重建 A-08。要求：A-07 owner-bound 清理（含 ideation Claude 10265/10267 经 daemon_stop/panes.shutdown；dry-run 先行）；materials-08 由 prepare 生成；B1 p1 生成器与 I1 材料生成器参数化为按 --stage-a 读取，不再写死阶段路径；A-08 阶段 A 命令与批准草稿。
+
+## A-07 清理、A-08 阶段 A/B1 与 I1 第三次执行 #259–#263（2026-10-15 UTC）
+
+#259：cleanup-09b-a07.py dry-run 与正式 PASS（Claude 10265/10267 与 target 经 daemon_stop/panes.shutdown 关闭，API 5436/5437 各一次 SIGTERM；930 成员读回 PASS，8,078,900 字节归档后删 root）。commit-09b-a08.sh：54086f27 + 9c29ec7d 落地，末尾干净断言又因 RESULTS 追加未提交而失败（反复出现的同一问题）。materials-08 static PASS（revision 54086f27，a07 标记，静态 root 存在）。
+#260：签 a08-stage-a-approval-01 → 09b-a08-stage-a-01 READY：root /private/tmp/t078-2-09b-run-4_qt67n9，API ideation 23124（51640）/executor 23125（51641），daemon 23134，target 23286/23288。
+#261：运行参数化 B1 p1 生成器 → 09b-a08-b1-ideation-p1-01；B1 批准由 worker 新模板填写（不再复制旧批准）。模板缺 runner 必校验的 screen_approvals 与 tool_approval（固定常量），我从 A-07 批准取这两项补齐；首次 dry-run 拒（保留 09b-a08-b1-ideation-dry-run），补后 dry-run-02 PASS。真实 B1 → claude 28969（session b9d90f6e…）；逐屏首启同 A-07（Security notes 247 字符一致；信任路径 /private/tmp/t078-2-09b-run-4_qt67n9/repo），s13 空闲；0 Messages、无 409、无 invalid_hook（hookTrace 修复生效）。
+#262：参数化 I1 材料生成器 → 09b-a08-i1-materials-01（session 与 claude 28969 一致）；签 approval.json 执行 → execute-01：rc 1，i1_response_deadline。实况：UPS 钩子正常运行（hookTrace 已修），返回 decision block："登记注入与实际提交正文不一致"。hook trace stdin：实际提交 prompt 无末尾换行；登记 dispatch text 以 "\n" 结尾（a08-i1-prompt.txt 带换行）。API 未收到请求，Messages 0。
+#263：产品缺陷——派发正文末尾换行在 Claude 提交时被去掉，逐字比对必然不一致。worker 须：查清 Claude 提交前的实际规范化（以本次 trace 与 slice1 证据为准，不推测）；在产品登记处让规范形式等于实际提交形式（不整体放宽比对）；经真实 signal 入口红（本次）绿与反例（正文中间不同仍拦）；并分析 A-08 当前被拦状态能否按已批准的"清空草稿→确认放行"路径（主控批准的模拟用户自动化）收回，或须重建 A-09。交我裁定，不操作现场。
