@@ -81,3 +81,10 @@ fresh-context 只读复审：PASS，P2-01 RESOLVED（矛盾 Session 单案替代
 - B（规则语义）：官方 Rules 文档原文 prefix_rule allow 为 "Run the command outside the sandbox without prompting."；execpolicy check：git commit 命中 allow，git -C … commit、git config、update-ref、push 均无匹配。git commit 在沙箱外运行后的实际 .git 写入范围（hooks/config 副作用）未实测，保持未知。
 - C（代码核对）：CAS 首次发现工作分支移动不拒绝，清除集成意图、重验并重新审查（core.ts:1713-1742、1510-1619、3426-3538），前三次 miss 重验，第四次 paused；审查 diff 为 attempt.base_commit..C（core.ts:2129-2134），外部移入的提交 X 作为新 G 的祖先可进入工作分支而不出现在审查 diff。
 - A（生产布局）：我在沙箱外运行驱动，CODEX_HOME 改为全新空的 /private/tmp/t081-recheck-codex-home（驱动未设，避免读写用户 ~/.codex；运行后删除，仅含 tmp/arg0 包装文件）。驱动报 PASS，但外置盘与 /tmp 两组的 update-ref、push 均 exit 2：codex sandbox 0.162.1 要求 --permission-profile <NAME>，git 未在沙箱内执行；读回 main 均在 G、裸仓库无 probe 分支。A 项 INCOMPLETE，驱动"用法错误报 PASS"为缺陷。证据 CAPABILITY-RECHECK-02/；夹具 sandbox-probe-01 与 /tmp/t081-capability-recheck-01 保留。已退回：用法错误报 INCOMPLETE、查清等价 permission profile、驱动显式设隔离 CODEX_HOME、下次夹具用 -02。
+
+## 第 7 项 A 项生产布局结果（2026-10-15 UTC）
+
+worker 修正驱动：显式 --codex-home 隔离 home（只含 [permissions] 空表的 config.toml）、`codex sandbox --permission-profile :workspace --cd <worker>`（官方 Configuration Reference 将 :workspace 列为 workspace-write 的 permission-profile 等价物）、用法/嵌套 seatbelt 错误一律 INCOMPLETE。我在沙箱外运行（CODEX_HOME=/private/tmp/t081-recheck-codex-home-02，运行后检查仅含 config.toml 与 tmp/arg0 包装文件并删除）→ CAPABILITY-RECHECK-03，status PASS：
+- 外置盘夹具 sandbox-probe-02：git update-ref exit 128（cannot lock ref … main.lock: Operation not permitted），git push exit 1（unable to create temporary object directory / remote rejected）；读回 main=G，裸仓库无 probe。
+- /tmp 对照 /tmp/t081-capability-recheck-02：update-ref exit 0，push exit 0；读回 main=T，裸仓库新增 t081-probe。
+结论：先前 run-04 观察到的 "worker 能移动共享分支并 push" 来自夹具位于 /tmp（workspace-write 默认可写）；生产布局下同一沙箱策略拒绝两者。仍开放：prefix_rule allow 的 git commit 在沙箱外运行，其对共享 .git 的实际写入范围（hooks/config 副作用）未实测；CAS 外部移动走重验/再审查，被移入提交不在审查 diff（C 项）。夹具 sandbox-probe-02、/tmp/t081-capability-recheck-02 保留作证据。
