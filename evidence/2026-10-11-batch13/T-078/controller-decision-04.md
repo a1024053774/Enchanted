@@ -384,3 +384,9 @@ readback-stage-b-api-identity.py 运行即 `ModuleNotFoundError: No module named
 readback-stage-b-api-identity.py 单独运行：rc 1，INCOMPLETE，argv_match false。两次探测 lstart/command 完全一致，实际 argv 指向 /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_09b_fake_api.py；脚本的 argv_expected 却是 /Users/luckye/Documents/Code/workbench/tests/…（SOURCE parents 层数错一级）——脚本自身 oracle 错误，非现场变化。经我人工核对现场身份正确，且绿态入口用 run_t078_p1 的正确常量复核，决定继续。
 签 approval-07 → 09b-stage-b1-reuse-green-05：rc 1，`Approved input changed: input.json`（run_t078_p1.py:91 逐字节比对 root 与 materials 的 input.json/nonce.txt/scenario.json）。p1-02 的 input.json api_url 已改为 http://127.0.0.1:0，A-05 root/input.json 仍为 57534，仅此一行差异。无 Claude、无新 API，A-05 五进程 lstart 不变。
 #218：修读回脚本 SOURCE 路径；把 A-05 root 的 input.json 同步为 p1-02 版本（只此一文件）；交付前在 worker 侧实跑对三个文件的逐字节比对和读回脚本，附输出。
+
+## #219 复用绿态 06 与 ready 绑定差异 #220（2026-10-15 UTC）
+
+读回脚本忽略 --output、写死 readback-01（已存在，exist_ok=False 拒绝覆盖，旧证据未动）；未重跑，改由我人工 ps -ww 核对 70730 身份 + 绿态入口自身复核。root/input.json 与 p1-02 cmp 一致。
+签 approval-08 → 09b-stage-b1-reuse-green-06：rc 1，`ValueError('api_ready_identity_mismatch')`（p1_endpoint.resolved_input 第 8 行要求 ready.launch/session 等于本次 input 的 launch/session）。09B 假 API 在阶段 A 先于任何角色 launch 启动，ready 只有 host/port/pid/role/stage，结构上不可能带 launch/session。无 Claude、无新 API，A-05 不变。
+#220（执行层裁定，测试夹具范围）：resolved_input 不改、不放宽。复用分支用独立的 09B 解析函数，绑定强度等价：ready.pid == 完整 argv 探测得到的 PID（两次 lstart 一致）、ready.role == preset、ready.stage == 'A'、ready.host/port 合法、且与 09b-stage-a-05 readiness.api_processes 中该角色的 pid/argv/ready 原值逐项一致；launch/session 由本次 input 提供并记入结果。为该函数先写失败清单（pid 不符、role 不符、readiness 不符、端口非法、stage 不符），逐项红绿；默认 slice1 路径仍走 resolved_input。读回脚本改为尊重 --output。交付前在 worker 侧实跑解析函数单测并附输出。
