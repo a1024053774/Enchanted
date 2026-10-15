@@ -372,3 +372,9 @@ commit-09b-stage-b-02.sh exit 0：48dd6ce5 + 92a61308，9 尾注，工作树干�
 签 stage-b-ideation-approval-05.json 运行 → 09b-stage-b1-reuse-green-03：rc 1，仍 `reused_api_identity_changed`（run_t078_p1.py:107）；无 Claude、无新 API，A-05 五进程 lstart 不变。
 根因：复用分支用 probe_process（第 47 行 `ps -o pid=,lstart=,comm=`）取身份，comm 只有可执行名不含参数，argv[1:] 恒为空。我用同一 identity_from_ps 加 `/bin/ps -ww -o pid=,lstart=,command=`（LC_ALL=C）核对 70730，得到完整 argv 与 expected 一致。
 #214：复用分支改用完整 argv 探测（-ww command=，C locale），保留 probe_process 原用途不动；绿态前须在 worker 侧先以同一函数对 70730 只读核对一次并存档，approval-06 由我签后跑 reuse-green-04。
+
+## #215 读回脚本失败、复用绿态推进到端点模板 #216（2026-10-15 UTC）
+
+readback-stage-b-api-identity.py 运行即 `ModuleNotFoundError: No module named 'workbench'`（第 4 行 import），未生成输出——worker 未实际运行过即交付。我把读回与绿态同批发出，读回失败未能先拦住绿态；属我的流程疏忽，以后先确认前置 PASS 再签下一步。
+签 approval-06 运行 → 09b-stage-b1-reuse-green-04：rc 1；身份核对已通过，p1 随后在 resolved_input 报 `ValueError('dynamic_endpoint_template_required')`——p1 input.api_url 写死 http://127.0.0.1:57534，而 resolved_input 要求动态端点模板，再由 ready 填入。无 Claude、无新 API，A-05 五进程 lstart 不变。
+#216：修读回脚本导入路径并实际运行；p1 ideation input 改为模板，由 A-05 ready 文件解析（或在复用分支内提供等价绑定，不放宽 resolved_input 检查）；worker 须先在自身沙箱内对不需外部权限的部分实跑，交付时附实际运行输出。
