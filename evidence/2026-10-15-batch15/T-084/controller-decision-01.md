@@ -21,3 +21,8 @@
 ## a2 会话中途容量不足（2026-10-15 UTC）
 
 s14-t084b 开工后读代码途中报 "Selected model is at capacity"；退避 3 分钟后催一次，仍报同一错误。按约定停止自动重试，BLOCKED（外部容量），交用户决定。已做的只读调研未落文件，worktree 无改动。
+
+## 改用用户开的 Grok 会话（2026-10-15 UTC）
+
+用户原话（本会话直接输入）："我开了个 grok,你 084 用 grok 做"。Grok 窗格 wF:p3Z（agent grok，session 01a13da2-f879-7410-8da3-9d9f17550679），屏幕显示 Grok Build 1.0.52、Grok 4.7 (xhigh)、always-approve，cwd 为 a2a 主 checkout。该会话由用户启动，非 scripts/launch-worker，无 A2A 启动记录；always-approve 无沙箱与逐次批准，约束只能写在任务书：只在 a2a-wt-t084 工作、不 commit/push、不写全局配置、不碰 Herdr server、不调真实模型 API。提交由主控执行，提交无 A2A worker 尾注（无启动记录可绑定），如实记为用户指定的非受管 worker 产出。
+s14-t084b 窗格 wF:p3Y 已不存在（非主控关闭），a2a-wt-t084 无改动。派发经 scripts/dispatch（batch 2026-10-15-batch15，--agent wF:p3Z）。
