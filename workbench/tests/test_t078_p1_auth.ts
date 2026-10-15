@@ -11,12 +11,12 @@ const [output] = process.argv.slice(2); mkdirSync(output);
 const root = realpathSync(mkdtempSync("/tmp/t078-2-auth-"));
 for (const name of ["state", "repo", "home", "claude"]) mkdirSync(join(root, name));
 for (const preset of ["ideation", "executor"]) for (const name of ["home", "claude", "tmp", "shell", "requests", "hooks", "user-data"]) mkdirSync(join(root, "roles", preset, name), { recursive: true });
-writeFileSync(join(root, "role.md"), "公开假服务认证构造检查。\n", "utf8");
+writeFileSync(join(root, "roles", "ideation", "role.md"), "公开假服务认证构造检查。\n", "utf8");
 const task: any = { task_id: "auth-fixture", project_id: "t078-p1-project", repo: join(root, "repo"),
   spec_rev: 1, base_commit: "a".repeat(40) };
 const input: any = { schema: 1, root, state: join(root, "state"), task: task.task_id, preset: "ideation",
   launch: randomUUID(), session: randomUUID(), thread: randomUUID(),
-  executable: "/Users/luckye/.local/share/claude/versions/2.1.296", role_file: join(root, "role.md"),
+  executable: "/Users/luckye/.local/share/claude/versions/2.1.296", role_file: join(root, "roles", "ideation", "role.md"),
   code_revision: "a".repeat(40), source_snapshot: join(root, "sources.tar.gz"), api_url: "http://127.0.0.1:12345" };
 const profile = claudeLaunch(task, input);
 const checks: any[] = [];

@@ -26,6 +26,10 @@ onboarding-notice 只允许 Enter：从已登记的主题确认快照之后取�
 遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
 cleanup 绑定 CLI 的 PID、启动时间和命令，确认退出前不报告 PASS 或删除隔离根。
 角色卡经固定 CLI 帮助列出的 `--append-system-prompt` 传完整文本；启动记录仍保留来源路径。
+controller 的 role card 只从绑定 preset 的 `roles/<preset>/role.md` 读取；root/role.md 会被拒绝，
+不保留旧路径兼容分支。两个 preset 共用 broker/state/repo，HOME、config、tmp、shell、requests、
+hooks、user-data 和 debug 按 preset 隔离。Claude 信号回合预算支持 manifest 声明的 1～6 根，
+超出 6 根在 launch 构造处拒绝，Stop/prompt 绑定仍按实际 prompt_id 核对。
 P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并先记录实际 manifest；
 主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
 launch 仅记录进程启动，首屏另经 screen 阶段读回，不把即时输出当作稳定首屏。

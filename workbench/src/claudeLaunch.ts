@@ -33,7 +33,7 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
     realpathSync(rolePaths.requests) === rolePaths.requests && realpathSync(rolePaths.hooks) === rolePaths.hooks &&
     realpathSync(rolePaths.userData) === rolePaths.userData, "isolated_controller_role_root_required");
   requireValue(input.executable === "/Users/luckye/.local/share/claude/versions/2.1.296" && isAbsolute(input.role_file) &&
-    realpathSync(input.role_file) === join(root, "role.md") && /^[0-9a-f]{40}$/.test(input.code_revision) &&
+    realpathSync(input.role_file) === join(roleRoot, "role.md") && /^[0-9a-f]{40}$/.test(input.code_revision) &&
     typeof input.source_snapshot === "string" && isAbsolute(input.source_snapshot), "controller_launch_config_required");
   const url = new URL(input.api_url);
   requireValue(url.protocol === "http:" && url.hostname === "127.0.0.1" && url.port && url.pathname === "/" && !url.username && !url.password && !url.search && !url.hash, "local_messages_api_required");

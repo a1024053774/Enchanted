@@ -791,3 +791,15 @@ cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-
 ## 09B 前置产品切片提交冻结
 
 代码提交 `b9b5fdd30bdfe9ddf6f7682f3033d956a52e41b3`，角色隔离目录、6根Claude信号预算、P1生成／续跑同步及红绿／slice1回归证据已冻结；未启动服务、CLI、API或目标。双角色驱动／独立oracle及可执行launch包留待下一段，当前launch NO_GO。
+
+## 09B 双角色 driver／oracle 前置（主控 #188）
+
+先取 [driver 红态](09b-driver-red-feedback-05/results.json)：登记 dispatch 正文与观察正文只差一个字符，独立 oracle 拒绝 `registered_feedback_text`。绿态 [PASS](09b-driver-green-05/results.json)：两角色根／Messages 为 I=4/6、E=6/11，合计17；stop/request/inbox/ack ID 由本次 scenario 生成，dispatch.seq 在共库全局连续，反馈 prompt 逐字来自实际登记 dispatch。seq-reset、identity、duplicate-esc 三个变异分别被 oracle 捕获。无 socket、进程、CLI、daemon、目标或模型。
+
+交 [09B driver 及 oracle 说明](09B-DRIVER.md) 与 [可执行包静态生成器](prepare-09b-executable.py)。提交脚本会在首提交后运行 driver 证据核对及生成 `09b-executable-materials-01`：两个角色的独立 HOME/config/tmp/shell/requests/hooks/user-data/debug、共用 broker/state/repo、根预算、空审批、target card 的 oracle_paths、实际 target claim 绑定要求和 source tar。材料静态 PASS 仍标 launch NO_GO；不启动任何真实 CLI/API/目标，批准前不填 attempt/fence/null 占位。
+
+## 09B role_file 单路径收紧（主控 #189）
+
+先在双路径旧实现上保存 [红态](09b-role-file-red/results.json)：root/role.md 被接受，按新契约应拒绝。实现后 [绿态](09b-role-file-green-rejection/results.json) 以 `controller_launch_config_required` 拒绝 root/role.md；P1 generator、run_p1、profile/budget tests 已迁到 `roles/<preset>/role.md`，不再保留 root role fallback。
+
+用新目录重跑的 role-only profile、budget、slice1 relay/permission/entry/empty 回归和 driver red/green/seq-reset/identity/duplicate-esc 均保存；driver 绿态仍 I=4/6、E=6/11，全局 dispatch.seq 与登记正文校验保持。旧目录全部保留，不覆盖。提交脚本 allowlist 已同步新 role boundary test、role-only 输出与材料文件；仍不启动真实 CLI/API/目标。

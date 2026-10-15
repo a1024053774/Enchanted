@@ -83,8 +83,10 @@ try:
     if api_script.name=='t078_fake_inbox_tool.py' and args.phase not in ['launch','screen','key']:
         raise RuntimeError('Slice1 submit/permission/readback uses its approved driver; cleanup needs a separate identity-bound script.')
     if not os.path.ismount('/Volumes/WD-Elements'):raise RuntimeError('External volume missing')
-    for name in ['input.json','role.md','nonce.txt','scenario.json',*(['nonce-2.txt'] if scenario_name=='esc-two' else [])]:
+    for name in ['input.json','nonce.txt','scenario.json',*(['nonce-2.txt'] if scenario_name=='esc-two' else [])]:
         if (root/name).read_bytes()!=(materials/name).read_bytes():raise RuntimeError('Approved input changed: '+name)
+    role_path=Path(approval['input']['role_file']);role_expected=SOURCE/role_path.relative_to(root)
+    if role_path.read_bytes()!=(materials/'role.md').read_bytes():raise RuntimeError('Approved role changed')
     frozen=json.loads((source_materials/'source-files.json').read_text())
     with tarfile.open(source_materials/'sources.tar.gz') as archive:
         for name in frozen:

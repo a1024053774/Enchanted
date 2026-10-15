@@ -22,11 +22,11 @@ try:
     (root/'repo/value.txt').write_text('P1 isolated fixture\n',encoding='utf-8')
     with (root/'roles/ideation/claude/settings.json').open('x',encoding='utf-8') as f:json.dump({'theme':'dark'},f,indent=2)
     with (root/'roles/executor/claude/settings.json').open('x',encoding='utf-8') as f:json.dump({'theme':'dark'},f,indent=2)
-    (root/'role.md').write_text('构思主控 P1 隔离协议探针。只回复收到的 nonce；不调用工具，不修改文件，不新增任务。\n',encoding='utf-8')
+    (root/'roles/ideation/role.md').write_text('构思主控 P1 隔离协议探针。只回复收到的 nonce；不调用工具，不修改文件，不新增任务。\n',encoding='utf-8')
     (root/'nonce.txt').write_text('P1_NONCE_'+uuid.uuid4().hex,encoding='utf-8')
     manifest={'schema':1,'root':str(root),'state':str(root/'state'),'task':'t078-p1-'+suffix,'preset':'ideation',
               'launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),
-              'executable':'/Users/luckye/.local/share/claude/versions/2.1.296','role_file':str(root/'role.md'),
+              'executable':'/Users/luckye/.local/share/claude/versions/2.1.296','role_file':str(root/'roles/ideation/role.md'),
               'code_revision':subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip(),
               'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0','turn_limit':2 if two_turn or green else 1}
     requests=[{'nonce':(root/'nonce.txt').read_text(),'mode':'cancel' if two_turn else 'echo','ack':'P1_ACK'}]
@@ -45,13 +45,14 @@ try:
             scenario['inbox_fixture']=[{'id':label+'_'+uuid.uuid4().hex,'schema':1,'kind':'report','from':'executor' if to=='ideation' else 'ideation',
                 'to':to,'body':label,'reply_to':None,'refs':[],'created_at':'2026-10-14T00:00:00Z'}
                 for label,to in [('IDEATION_ONLY_SENTINEL','ideation'),('FOREIGN_EXECUTOR_SENTINEL','executor')]]
-        (root/'role.md').write_text('构思主控单角色收件箱工具切片。收到 nonce 后只调用一次已批准的 Bash 库收件箱 list；工具返回后只确认并结束，让真实 Stop 转交。不得修改文件、新增请求或 agent、重试、打印环境或访问用户配置。工具的真实返回由测试记录，不自称业务通过。\n',encoding='utf-8')
+        (root/'roles/ideation/role.md').write_text('构思主控单角色收件箱工具切片。收到 nonce 后只调用一次已批准的 Bash 库收件箱 list；工具返回后只确认并结束，让真实 Stop 转交。不得修改文件、新增请求或 agent、重试、打印环境或访问用户配置。工具的真实返回由测试记录，不自称业务通过。\n',encoding='utf-8')
     if suffix in ['09a3','09a3-block','09a3r','09a3r-block']:scenario['draft_handling']='retain-draft-for-block' if suffix.endswith('-block') else 'manual-empty-declaration'
     if suffix in ['09a3r2','09a3r2-block']:scenario['draft_handling']='retain-draft-for-block' if suffix.endswith('-block') else 'simulated-empty-declaration'
     with (root/'scenario.json').open('x',encoding='utf-8') as f:json.dump(scenario,f,indent=2)
     with (root/'input.json').open('x',encoding='utf-8') as f:json.dump(manifest,f,ensure_ascii=False,indent=2)
     subprocess.run(['node',SOURCE/'workbench/tests/prepare_t078_p1.ts',root/'input.json',root/'approval.json'],cwd=SOURCE,check=True)
-    for name in ['approval.json','input.json','nonce.txt','role.md','scenario.json',*(['nonce-2.txt'] if two_turn else [])]:shutil.copyfile(root/name,out/name)
+    shutil.copyfile(root/'approval.json',out/'approval.json');shutil.copyfile(root/'input.json',out/'input.json');shutil.copyfile(root/'nonce.txt',out/'nonce.txt');shutil.copyfile(root/'roles/ideation/role.md',out/'role.md');shutil.copyfile(root/'scenario.json',out/'scenario.json')
+    if two_turn:shutil.copyfile(root/'nonce-2.txt',out/'nonce-2.txt')
     shutil.copyfile(root/'roles/ideation/claude/settings.json',out/'isolated-settings.json')
     with (out/'readiness-template.json').open('x',encoding='utf-8') as f:
         json.dump({'launch':manifest['launch'],'session':manifest['session'],'confirmed_by':None,'readiness':'unconfirmed','basis':None},f,indent=2)
