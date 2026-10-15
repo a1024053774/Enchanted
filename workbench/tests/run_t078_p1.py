@@ -10,6 +10,7 @@ parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,req
 parser.add_argument('--reuse-stage-a',action='store_true');parser.add_argument('--reuse-api-root',type=Path);parser.add_argument('--stop-before-cli',action='store_true')
 parser.add_argument('--reuse-readiness-file',type=Path)
 parser.add_argument('--launch-label')
+parser.add_argument('--next-screen-id')
 parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
 parser.add_argument('--actions-approval',type=Path)
 parser.add_argument('--key',choices=['ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','onboarding-notice','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
@@ -172,6 +173,7 @@ try:
         with (out/'reviewed-screen.bin').open('xb') as f:f.write(args.screen_file.read_bytes())
         result['approval']=permitted;result['process_confirmation']=same_cli();save()
         result['key_result']=call('pane_screen_key','--thread',approval['input']['thread'],'--key',args.key,'--purpose',args.purpose,'--screen-id',args.screen_id,'--screen-file',args.screen_file,'--selected-label',permitted['selected_label'],'--authorization-ref',permitted['approval_ref'])
+        if args.next_screen_id: args.screen_id=args.next_screen_id
         result['pty_output']=snapshot();result['events']=events()
         result['scope']='One explicitly approved screen key sent by authenticated executor; inspect again. No automatic Enter or continue.'
         # Screen transitions and trust completion are human observations.

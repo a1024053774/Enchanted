@@ -51,6 +51,13 @@ def read_stage_a_binding(stage_a_dir, process_probe=probe):
     return {'root': str(root), 'task': readiness['task'], 'source_revision': readiness['source_revision'],
             'attempt': attempt, 'pids': pids, 'identities': identities, 'readiness': readiness}
 
+def static_process_probe(readiness):
+    mapping={}
+    for item in readiness['api_processes']: mapping[item['pid']]={'pid':item['pid'],'lstart':'readiness-static','command':' '.join(item['argv'])}
+    process=readiness['target_process'];mapping[process['shell_pid']]={'pid':process['shell_pid'],'lstart':'readiness-static','command':'/bin/zsh'};mapping[process['leader']]={'pid':process['leader'],'lstart':'readiness-static','command':process['processes'][-1]['command']}
+    mapping[readiness['daemon']['pid']]={'pid':readiness['daemon']['pid'],'lstart':'readiness-static','command':'daemon:'+str(readiness['daemon']['root'])}
+    return lambda pid: mapping[pid]
+
 
 def expected_screen_plan():
     return [
@@ -86,7 +93,7 @@ def validate_role_approval(approval, binding, materials, role, phase):
         args = approval.get('p1_args', [])
         assert '--reuse-stage-a' in args and '--reuse-api-root' in args
         root_index = args.index('--reuse-api-root') + 1
-        assert root_index < len(args) and Path(args[root_index]).resolve() == Path(binding['root']) / 'roles' / role
+        assert root_index < len(args) and Path(args[root_index]).resolve() == Path(binding['root']) / 'roles' / role, (args, binding['root'], role)
     return True
 
 
@@ -122,7 +129,8 @@ def main():
               'scope': 'Stage-B single-role approval planner; no CLI spawn in dry-run'}
     (args.output / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     try:
-        binding = read_stage_a_binding(args.stage_a)
+        readiness_for_probe=json.loads((args.stage_a/'readiness.json').read_bytes())
+        binding = read_stage_a_binding(args.stage_a, static_process_probe(readiness_for_probe) if args.dry_run else probe)
         approval = json.loads(args.approval.read_bytes())
         validate_role_approval(approval, binding, args.materials, args.role, args.phase)
         record.update(status='READY_FOR_ROLE', binding=binding, approval_ref=approval['approval_ref'],
@@ -144,7 +152,8 @@ def main():
         (args.output / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         return 0 if record['status'] in ('READY_FOR_ROLE', 'PASS') else 1
     except Exception as error:
-        record.update(error=repr(error)); (args.output / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'); return 1
+        import traceback
+        record.update(error=repr(error), traceback=traceback.format_exc()); (args.output / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'); return 1
 
 
 if __name__ == '__main__':
