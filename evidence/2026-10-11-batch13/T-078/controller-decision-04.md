@@ -438,3 +438,15 @@ commit-09b-stage-b-07.sh --check-only PASS（29 paths），正式 exit 0：b9b37
 运行 stage-b-key.sh ideation ideation-s1 ArrowUp … --dry-run：rc 1，AssertionError matches=[]。未发键；留下空目录 09b-stage-b1-key-ideation-ideation-s1-ArrowUp-dry-run-01。
 审阅发现：（1）map(Path, argv) 把 screen-id 变成 Path，与 JSON 中 str 比较恒不等；（2）脚本先 mkdir $OUT 再以同一路径作 runner --output（runner mkdir exist_ok=False）必冲突；（3）--materials 传 p1 目录，阶段 B 一直传 09b-executable-materials-05；（4）screen-key approval 的 directory 用 worktree/repo，应为 A-05 root/repo。
 #233：修上述四点；工具交付前必须由 worker 在沙箱内对 dry-run 实跑到 runner 的 READY_FOR_ROLE（dry-run 不需沙箱外权限），附完整输出；空目录保留为失败证据，新输出用 -02。
+
+## B1 ideation 首启完成 #234（2026-10-15 UTC）
+
+worker 的 stage-b-key.sh 未采用：批准写入 /tmp 且 trap 删除（签字件不留证据）、command.json 恒写 dry_run True、--approval-file 传整份阶段批准而 p1 key 阶段要求顶层 launch/session/directory/key 的 screen-key approval（第 171 行，真跑必报 screen_approval_binding_mismatch）。改用执行主控自写助手（已复制到 09b-stage-b1-exec-approvals/executor-key-helper.sh、executor-screen-helper.sh），每次只发一键，两份批准均落证据目录。
+逐屏记录（原字节在 09b-stage-b-ideation-p1-02/<id>-…/screen.bin）：
+- s1 主题屏，光标 Dark mode → ArrowUp（dry+run）；s2 为按键即时快照（仅 28 字节终端模式序列，未重绘）；s3 读回增量：❯ 重绘于 "Auto (match terminal)"。
+- s3 → ArrowDown；s5 读回：❯ 回到 "Dark mode"。
+- s5 → Enter；s7：Security notes，去控制序列与空白后 247 字符与 p1-materials-09/security-notice-text.txt 逐字一致 → Enter（onboarding-notice）。
+- s9：信任屏，目录 /private/tmp/t078-2-09b-run-94_wksxv/repo，光标默认 "No, exit" → ArrowDown；s11：❯ 在 "Yes, I trust this folder" → Enter（workspace-trust；用户批准见 answer 20261014T011751Z；隔离 HOME）。
+- s13：Claude Code 空闲提示符，Haiku 5.5 low effort，manual mode，cwd 夹具 repo。全程 roles/ideation/requests 为空、debug 日志无 /v1/messages 与 409。未用 Digit1，未发默认 Enter。
+注：我的简易渲染器不处理光标上移后的覆盖写，选择状态以原始增量字节为准。
+#235：worker 下一步——（1）提交本轮证据（含我的两个助手与 exec-approvals 目录）；（2）实现 I1：09B 假 API 按 protocol 应答 ideation 的 Messages（登记正文、request/stop ID 绑定），以及 I1 回合驱动；先离线红绿，再交 I1 待批材料。executor 角色 B1 在 ideation I 阶段完成后另批（同一时间只一个角色启动步骤）。
