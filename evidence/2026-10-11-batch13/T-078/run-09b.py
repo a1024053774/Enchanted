@@ -8,10 +8,20 @@ NODE=shutil.which('node')
 def validate_stage_a_inputs(materials, approval):
     assert NODE and materials.resolve().parent==BASE and (materials/'static-check.json').exists()
     static=json.loads((materials/'static-check.json').read_bytes());assert static['status']=='PASS' and static['launch_status']=='NO_GO'
-    current_revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip();assert static['revision']==current_revision,'Executable packet is stale; no spawn'
+    validate_material_lineage(materials, static)
     assert approval.get('approved_by')=='executor' and approval.get('stage')=='A' and approval.get('approval_ref')
     assert approval.get('source_revision')==static['revision'] and approval.get('allow_role_cli_spawn') is False
     return static
+
+def validate_material_lineage(materials, static, changed_paths=None):
+    current_revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip()
+    subprocess.run(['git','merge-base','--is-ancestor',static['revision'],current_revision],cwd=SOURCE,check=True)
+    if changed_paths is None:
+        changed_paths=subprocess.check_output(['git','diff','--name-only',static['revision'],current_revision],cwd=SOURCE,text=True).splitlines()
+        dirty=subprocess.check_output(['git','status','--porcelain','--','workbench','scripts',str(BASE/'run-09b.py')],cwd=SOURCE,text=True).strip()
+        assert not dirty,'runner/product worktree changed after material source; no spawn'
+    ticket_prefix=str(BASE.relative_to(SOURCE))+'/';blocked=[p for p in changed_paths if p.startswith('workbench/') or p.startswith('scripts/') or p in [str(BASE.relative_to(SOURCE)/'run-09b.py'),str(BASE.relative_to(SOURCE)/'prepare-09b-executable.py')]]
+    assert not blocked and all(p.startswith(ticket_prefix) for p in changed_paths),{'blocked_changes':blocked,'changes':changed_paths}
 
 def validate_attempt(attempt):
     required=['attempt_id','session_id','fence','thread_id','workspace']
