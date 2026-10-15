@@ -803,3 +803,7 @@ cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-
 先在双路径旧实现上保存 [红态](09b-role-file-red/results.json)：root/role.md 被接受，按新契约应拒绝。实现后 [绿态](09b-role-file-green-rejection/results.json) 以 `controller_launch_config_required` 拒绝 root/role.md；P1 generator、run_p1、profile/budget tests 已迁到 `roles/<preset>/role.md`，不再保留 root role fallback。
 
 用新目录重跑的 role-only profile、budget、slice1 relay/permission/entry/empty 回归和 driver red/green/seq-reset/identity/duplicate-esc 均保存；driver 绿态仍 I=4/6、E=6/11，全局 dispatch.seq 与登记正文校验保持。旧目录全部保留，不覆盖。提交脚本 allowlist 已同步新 role boundary test、role-only 输出与材料文件；仍不启动真实 CLI/API/目标。
+
+## 09B driver 首提交与可执行 launch 包静态冻结
+
+driver／oracle source `31b45c0232eaaa79b81447040871204494e5f58d` 已冻结；纯夹具 red→green→反例通过，I=4/6、E=6/11、合计17、模型0。新 [可执行包](09b-executable-materials-01/static-check.json) 静态 PASS，双角色新 root/manifest/独立目录、target card oracle_paths、空审批与 source tar 均读回；`launch_status=NO_GO`，无目标 claim、attempt/fence、CLI/API/目标启动。
