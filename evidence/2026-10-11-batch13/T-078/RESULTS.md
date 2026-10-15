@@ -863,3 +863,7 @@ A-05 真实 readiness 保留：attempt `766c797e…`、fence 1、thread `c696147
 ## 阶段 B materials-01 静态冻结
 
 B1 仅冻结逐角色审批门禁与 screen-key 计划，绑定 A-05 readiness；spies-02 PASS，含缺 approval/binding/并发三项变异红态，spawned=false；materials-01 静态 PASS 且 launch NO_GO。未启动 Claude、pane 输入、API、daemon、target 或模型。
+
+## Stage-B B1 P1 prerequisite red/green correction
+
+保留 `09b-stage-b1-ideation` 红态：run_t078_p1 在 spawn 前因 A-05 root 缺 `scenario.json` 退出，p1 exit=1、p1_stderr 含 FileNotFoundError/scenario.json；CLI 未启动这一事实以主控 #207 的 pgrep 读回为准，不从旧 result 推断。补齐 root/input、nonce、scenario 与角色隔离目录后，独立 prerequisite preflight-02 PASS，未启动任何进程。runner 现在传播 p1 非零退出，并分别记录 p1_spawned 与 cli_spawned；approval-02 重新留空签字字段，材料-02 静态 launch NO_GO。
