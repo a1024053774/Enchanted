@@ -40,3 +40,7 @@ Grok（wF:p3Z）交 T-084 READY：checkTrailers 加 4 行（attempt.delivery 存
 - 发现 2（P2）：受控宿主把记录 model/effort 抄自任务卡、测试 209 行又要求二者相等，把 Model 比较换成 task.card.executor.model 套件仍 PASS；审查员拆开宿主证明当前实现比的是记录。
 - 发现 3（P2，事实）：只 claim 的 submit 无 delivery，伪造四项可通过尾注核对与审查到 verified；integrate 被 score_provenance_required 拒，主分支不动；票据"拿不到记录就停下"未在运行时发生。属设计问题，交构思主控问用户，本轮不改。
 审查员只写了报告；其 /tmp 探针脚本与输出由主控复制进 independent-review-01-probe/（3.4 MB），与报告一并提交 b4470100（无 worker 尾注）。发现 1、2 退回作者 Grok（wF:p3Z）返工。
+
+## 发现 3 用户决定与返工 #2（2026-10-15 UTC）
+
+answer 20261015T043855Z-ideation-answer-001（ack 20261015T043903Z）：用户选"尾注这关直接拒收 (Recommended)"。主控定拒收码 trailer_launch_record_missing（与"有记录但不一致"的 trailer_identity_mismatch 区分，码本身写明缺启动记录）。票据修订 b94dd1fe。派作者 Grok：claim-only 带尾注无 delivery → 拒收；先在 882638b3 取放行红态；README 91 行同步；受影响旧测试按新契约更新、不留开关；T-081 套件文件若受影响只列出不改；补变异与回归。
