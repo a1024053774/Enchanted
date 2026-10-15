@@ -401,3 +401,7 @@ resolver 单测 09b-stage-b1-reuse-resolver-tests-01 PASS（valid 绿；pid/role
 commit-09b-stage-b-05.sh exit 0：23b6aefa + 54e13274，9 尾注，工作树干净。worker 关于 Messages 的回答：slice1 green-3 中第一次 /v1/messages 发生在 nonce 提交之后；launch 结果没有首屏捕获，B1 首屏时序仍未观察到；若出现 409 即停止条件。
 #223：签 approval-10（去 --stop-before-cli，launch 只启进程、不发输入）。dry-run PASS；真实 → 09b-stage-b1-ideation-03：rc 1，`NameError: name 'task' is not defined`（run_t078_p1.py:144，构造 controller_start 参数时）。task 仅在复用分支跳过的 setup 段赋值。controller_start 未执行；无 Claude 会话进程，A-05 五进程 lstart 不变。副作用：root 下新写 runtime-input.json（22:11:39，open('x')，会阻断下次运行）；另有 B1-02 遗留的 api-owner.json/api.stderr/api.stdout（21:36:18）。
 #224：复用分支给 task 赋值（取 A-05 binding 的 task_id，与 input.task 核对一致）；runtime-input 等每次运行生成的文件改到按 label 区分的路径，不删除、不覆盖既有遗留文件，遗留文件在结果中列出；补一个不启动 CLI 的测试覆盖复用分支到 controller_start 参数构造为止（变异：删掉 task 赋值时红）。approval-11 留空签字栏。
+
+## #224 期间沙箱升级请求处置（2026-10-15 UTC）
+
+s13-t078m 请求以 local 环境（沙箱外）执行 `rm -f evidence/2026-10-11-batch06-allowlist.tmp; git status …`。按常规不批准沙箱升级：已发 Esc 拒绝。核对目标：0 字节、未跟踪、22:16 由该 worker 创建的临时文件；由我在沙箱外删除。之后通知 worker 继续 #224，临时文件以后写在 scratch/tmp，不写进 worktree。
