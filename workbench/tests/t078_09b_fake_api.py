@@ -17,5 +17,10 @@ class Handler(BaseHTTPRequestHandler):
 
 parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,required=True);parser.add_argument('--role',required=True);parser.add_argument('--port',type=int,default=0);a=parser.parse_args();ROOT=a.root.resolve();ROOT.mkdir(parents=True,exist_ok=True)
 server=ThreadingHTTPServer(('127.0.0.1',a.port),Handler);ready=ROOT/'api-ready.json';ready.write_text(json.dumps({'host':'127.0.0.1','port':server.server_port,'api_url':f'http://127.0.0.1:{server.server_port}','pid':os.getpid(),'role':a.role,'stage':'A','model_turns':0})+'\n')
-def stop(*_): server.shutdown()
+def stop(*_):
+    # A Python signal handler runs on the serve_forever thread. Calling
+    # server.shutdown() there waits for serve_forever to return and deadlocks
+    # in socketserver's condition variable. Exit the fixture directly; the
+    # owning cleanup path already closes and archives its private root.
+    raise SystemExit(0)
 signal.signal(signal.SIGTERM,stop);signal.signal(signal.SIGINT,stop);server.serve_forever()

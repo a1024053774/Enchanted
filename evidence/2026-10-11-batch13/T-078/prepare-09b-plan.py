@@ -75,7 +75,7 @@ def main():
       'additional_boundary_review':['wrong native session and revoked capability through actual authenticated hook entry, counted separately from role-command denials'],
       'stop_conditions':['wrong/missing identity or unresolved runtime token','queued mistaken for execution','ack before actual interrupt success','extra root/Messages/tool/permission key/Esc','unexpected API/header/endpoint or changed approval screen','unknown write, role wake or target lifecycle','any attempt to use operator for stop/send/ack']}
     card={'id':task,'source':None,'goal':'受管确定性接收目标：记录中断字节并保持进程及 attempt；不提交候选',
-      'non_goals':['真实 Codex/模型行为','worker交付或集成'],'paths':{'allow':['value.txt'],'deny':['oracle/**']},'oracle_paths':['oracle/contract-09b.json'],
+      'non_goals':['真实 Codex/模型行为','worker交付或集成'],'paths':{'allow':['value.txt'],'deny':[]},'oracle_paths':['oracle/contract-09b.json'],
       'completion_conditions':[{'argv':[sys.executable,'-I','-B','-c',"raise SystemExit('09B target does not submit a worker candidate')"]}],
       'red_commands':[],'task_type':'后端逻辑','repair_target':None,'complexity':'L','executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},'base_commit':None,'writer':None}
     actions=[{'id':'setup','scope':'one new broker/project/repo; save baseline oracle and card, real managed dispatch, compile existing deterministic C receiver; no vendor Codex'},

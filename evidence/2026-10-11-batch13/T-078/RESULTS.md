@@ -819,3 +819,21 @@ runner source `661064d70bfd264825af3e0e51936e766aef8748` 已冻结；默认无 a
 ## 阶段 A 材料 revision lineage 修复与 spy 绿态
 
 旧 [stage-a-01](09b-stage-a-01/result.json) stale 红态保留：spawned=false、无 root。runner 现要求材料 revision 是 HEAD 祖先，revision..HEAD 只允许本票证据目录，并拒绝 workbench/scripts/runner 自身变化。新 [materials-03](09b-executable-materials-03/static-check.json) 静态 PASS；[revision spy](09b-run-revision-spy-03/results.json) 绿态接受当前 lineage，workbench/src 反例拒绝，spawned=false。仍未执行阶段 A。
+
+## 阶段 A 卡片预检修复（主控 #195）
+
+`09b-stage-a-03/result.json` 留存本次真实入口的失败：阶段 A 已创建 root 并启动两个假 API 与 daemon，但在 `card_save` 被 `invalid_task_card` 拒绝；原因是 `paths.deny` 使用了门禁不接受的 `oracle/**` 通配路径。此失败没有 dispatch、claim、target 或 Claude CLI；原 root、日志与 approval 现场保持不动，cleanup 脚本只绑定该 root 与记录的 PID，先做两次 lstart 身份核对。`--dry-run` 只列出 daemon_stop、逐 API 一次 SIGTERM、归档和删除动作，不发信号或删除；正式归档逐个普通文件比对字节，目录核对类型、符号链接核对目标，任一身份或归档比对不符即 `BLOCKED`。
+
+按 `taskCards.validateTaskCard` 的实际 schema，卡片现使用 `paths.deny: []`；oracle 文件由 `oracle_paths` 精确路径声明并受门禁保护，不能由 `red_commands.test_paths` 交叉覆盖。旧的 [card preflight](09b-card-preflight-green-04/results.json) 与新的 [runner card preflight](09b-card-preflight-runner-06/results.json) 均先用真实 Node 门禁验证空 deny 卡通过，再验证 `oracle/**` 被拒；两次预检都没有创建 root、daemon、API 或 target。
+
+runner 已将卡片构造与真实 `taskCards.validateTaskCard` 预检移到 root 创建、编译 receiver、假 API／daemon／target spawn 之前；因此同一类坏卡会在 runtime spawn 前取得 `spawned=false` 红态，修正卡片后才允许继续阶段 A。材料冻结将使用 materials-04 的新 revision；本轮仍未启动阶段 A、真实 CLI、目标或模型，launch 继续 **NO_GO**。
+
+cleanup 的归档 helper 用临时目录取含普通文件、目录和符号链接的夹具验证逐成员字节／类型／目标读回 **PASS**；#195 实例 cleanup 尚未运行，等待主控先运行 dry-run 再运行正式清理。
+
+## 阶段 A 假 API 停止死锁与 SIGKILL 恢复（主控 #197/#198）
+
+正式 cleanup 在认证 `daemon_stop` 后按身份核对只向 62217 发送一次 SIGTERM；15 秒未退出即 `BLOCKED`，62218 未发信号，root 保留。`09b-stage-a-03-cleanup/sample-62217.txt` 记录 Python 信号处理函数在 `serve_forever` 同线程调用 `server.shutdown()` 后停在 `__psynch_cvwait`，因此旧 cleanup 结果与 sample 原件不覆盖。
+
+新 [recovery cleanup](cleanup-09b-stage-a-03-recovery.py) 只绑定该 root 与两个记录 PID，先 dry-run 做双读身份核对；正式阶段确认 daemon 已退出后分别各一次 SIGKILL，逐成员归档并比对普通文件字节、目录类型、符号链接目标，读回 PASS 才删除 root。dry-run 与正式输出目录已列入 run-04 allowlist；主控实际读回 **PASS**：两个 SIGKILL、归档 71 成员／25,523 字节逐个比对 PASS，root 已删。
+
+假 API 停止路径当前实现先取得 [SIGTERM 两秒超时红态](09b-fake-api-stop-red-07/result.json)，随后修为信号处理器抛 `SystemExit(0)`，取得 [两秒内退出绿态](09b-fake-api-stop-green-08/result.json)。两次均为独立短命真实进程，测试根已删除；runner 继续引用同一修复后的 `t078_09b_fake_api.py`。工作树 38 项逐项归属预检 [PASS](09b-run-04-ownership-preflight-09.json)，materials-04 重冻待提交脚本运行，launch 仍 **NO_GO**。

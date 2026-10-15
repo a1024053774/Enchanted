@@ -1,0 +1,69 @@
+{
+  "status": "BLOCKED",
+  "dry_run": false,
+  "root": "/private/tmp/t078-2-09b-run-576xn98k",
+  "approval_ref": "主控 #196",
+  "signals_sent": [
+    {
+      "pid": 62217,
+      "signal": "SIGTERM"
+    }
+  ],
+  "slots_removed": [],
+  "root_removed": false,
+  "scope": "Only #195 failed Stage-A root; no other root/slot",
+  "before": {
+    "apis": {
+      "62217": {
+        "pid": 62217,
+        "started": "Wed Oct 14 20:35:56 2026",
+        "command": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_09b_fake_api.py --root /private/tmp/t078-2-09b-run-576xn98k/roles/ideation --role ideation --port 0"
+      },
+      "62218": {
+        "pid": 62218,
+        "started": "Wed Oct 14 20:35:56 2026",
+        "command": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_09b_fake_api.py --root /private/tmp/t078-2-09b-run-576xn98k/roles/executor --role executor --port 0"
+      }
+    },
+    "daemon": {
+      "pid": 62220,
+      "started": "Wed Oct 14 20:35:56 2026",
+      "command": "/opt/homebrew/Cellar/node/26.5.0/bin/node /Users/luckye/Documents/Code/a2a-wt-t078/workbench/src/daemon.ts /private/tmp/t078-2-09b-run-576xn98k/state {\"codex_bin\":\"/private/tmp/t078-2-09b-run-576xn98k/target/bin/codex-receiver\",\"codex_home\":\"/private/tmp/t078-2-09b-run-576xn98k/target/home\",\"role_card\":\"/private/tmp/t078-2-09b-run-576xn98k/target/role.md\",\"role_card_revision\":\"T078-09B-deterministic\",\"code_revision\":\"885acdae00119db1e190d48452f1439e268c0d7e\",\"source_snapshot\":\"/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-executable-materials-03/sources.tar.gz\",\"hook_authorization\":\"09B Stage A target only; no role CLI\",\"turn_limit\":10,\"turn_authorization\":\"deterministic receiver; model 0\"}"
+    },
+    "ready": {
+      "62217": {
+        "host": "127.0.0.1",
+        "port": 54821,
+        "api_url": "http://127.0.0.1:54821",
+        "pid": 62217,
+        "role": "ideation",
+        "stage": "A",
+        "model_turns": 0
+      },
+      "62218": {
+        "host": "127.0.0.1",
+        "port": 54820,
+        "api_url": "http://127.0.0.1:54820",
+        "pid": 62218,
+        "role": "executor",
+        "stage": "A",
+        "model_turns": 0
+      }
+    }
+  },
+  "identity_checks": "PASS",
+  "planned_actions": [
+    "authenticated daemon_stop for recorded daemon PID",
+    "one SIGTERM at most for each recorded fake API PID",
+    "archive root on external volume and verify every member",
+    "delete root only after archive byte/type readback"
+  ],
+  "daemon_stop": {
+    "exit_code": 0,
+    "stdout": "{\"ok\":true,\"pid\":62220,\"stopping\":true}\n",
+    "stderr": ""
+  },
+  "error": "RuntimeError('API exit unconfirmed: 62217')",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/cleanup-09b-stage-a-03.py\", line 181, in main\n    fail('API exit unconfirmed: ' + str(pid))\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/cleanup-09b-stage-a-03.py\", line 100, in fail\n    raise RuntimeError(message)\nRuntimeError: API exit unconfirmed: 62217\n",
+  "root_retained": true
+}
