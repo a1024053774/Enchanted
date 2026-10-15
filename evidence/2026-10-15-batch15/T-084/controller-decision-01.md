@@ -17,3 +17,7 @@
 ## 用户指示重开会话（2026-10-15 UTC）
 
 用户原话（本会话直接回答）："反正这个对话没做什么，重新换个新对话执行这个任务"。关闭 s14-t084（wF:p3W，idle，无交付、worktree 无改动）。新开 s14-t084b：wF:p3Y，launch-db23395ebc994f2286e1adba1e70316b，attempt a2，session 35b1eada-b8bc-4cdf-8fe7-997088b14355，argv 同前（gpt-6.1-sol xhigh、service_tier="default"、--no-daemon）。重派任务书。
+
+## a2 会话中途容量不足（2026-10-15 UTC）
+
+s14-t084b 开工后读代码途中报 "Selected model is at capacity"；退避 3 分钟后催一次，仍报同一错误。按约定停止自动重试，BLOCKED（外部容量），交用户决定。已做的只读调研未落文件，worktree 无改动。
