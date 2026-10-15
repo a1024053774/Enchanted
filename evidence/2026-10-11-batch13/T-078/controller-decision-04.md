@@ -470,3 +470,10 @@ cleanup-09b-a05.py --dry-run（"主控 #237"）：rc 1，BLOCKED，未发信号�
 ## A-05 清理 PASS #239（2026-10-15 UTC）
 
 dry-run-02 PASS（身份核对全过）。正式（"主控 #237"）PASS：认证 daemon_stop 经 panes.shutdown 关闭 ideation Claude 1227/1228 与 target 70837/70839（无直接信号），确认退出；假 API 70730/70731 各一次 SIGTERM 并退出；归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a05-cleanup/fixture.tar.gz，921 成员（622 文件、298 目录、1 symlink）逐成员读回 PASS 后删 root。七个进程均不存在。result 中 archive_bytes 为 null（字段未填，外部文件大小已另行 ls 核对）。
+
+## A-06 材料审阅与退回 #240（2026-10-15 UTC）
+
+commit-09b-a06.sh --check-only PASS（17 paths）；正式：a5b37b05 + 5fd62384 落地，随后 RESULTS 提交步骤断言失败（同 I1 那次），RESULTS.md 追加仍未提交。
+缺口：t078_09b_protocol_full.py 是离线 oracle（无 HTTP 服务）；run-09b.py:68 阶段 A 仍启动 t078_09b_fake_api.py（Messages 一律 409）。A-06 若按此材料起，会重复 A-05 的衔接问题。
+证据卫生：cleanup-09b-a05.py 在 A-05 正式清理运行后才改（补记 archive_bytes），而该脚本此前从未提交，提交进去的是事后版本，实际运行版本无法逐字节复原；09b-a05-cleanup/result.json 未改（archive_bytes null）。外部归档大小 8,062,309 字节由我另行 ls 核对。
+#240：（1）让 t078_09b_fake_api.py 这个真实服务进程按完整 protocol 应答（复用离线 oracle 的登记/校验，不另写平行实现），loopback 真 HTTP 测试：先在现版本取 409 红，再取 SSE 绿与反例；run-09b.py/prepare 引用同一文件；重冻 A-06 材料。（2）修 RESULTS 提交步骤并补交。（3）RESULTS 如实写明 cleanup-09b-a05.py 运行后改动的确切 diff 与原因。
