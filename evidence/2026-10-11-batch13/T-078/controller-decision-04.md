@@ -651,3 +651,7 @@ worker 交结算修复：假 API 先按排队回执（queued:true、delivered:fa
 ## A-13 真实链路排练 01 #293（2026-10-15 UTC）
 
 worker 交排练 test_t078_a13_rehearsal.ts（真实 daemon/relay/bin-inbox/Stop signal，PTY 为确定性 spy，无 Claude/API/模型）、A-12 脱敏归档脚本与 owner-bound 回收脚本（均未运行）。主控沙箱外运行排练：result.json INCOMPLETE，AssertionError 2 !== 0（未标明哪一步）；进程有句柄未释放不退出，5 分 27 秒后主控 SIGTERM 自己起的 29130；scratch 已由 finally 删除；拷出的 state.sqlite3 只读打不开（疑缺 WAL）。#293 让 worker 给断言加标签、确保自行退出与硬超时、WAL 一致拷贝，并定位 2 !== 0 根因。
+
+## A-13 排练 PASS 与 A-12 收尾 #294（2026-10-15 UTC）
+
+worker 修排练：断言加标签与失败上下文，子进程 5 秒/全局 30 秒超时，checkpoint 后连同 WAL/SHM 拷贝；原 2 !== 0 为 scratch 路径不满足 HookTrace 受管路径约束，非产品 Stop 行为。主控沙箱外独立重跑 09b-a13-rehearsal-09：PASS，五项检查全过（错 launch exit 2、stop 条目仍 1），进程自行退出。A-12：脱敏归档 PASS（12 请求/1 响应，归档扫描无凭据字样）；owner-bound 回收 dry-run/正式 PASS，root 已删。#294 让 worker 准备 A-13 全套材料与提交脚本。
