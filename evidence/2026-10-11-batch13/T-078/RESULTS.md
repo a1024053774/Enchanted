@@ -815,3 +815,7 @@ driver／oracle source `31b45c0232eaaa79b81447040871204494e5f58d` 已冻结；�
 ## 09B 阶段 A runner 与可执行包静态冻结
 
 runner source `661064d70bfd264825af3e0e51936e766aef8748` 已冻结；默认无 approval 不 spawn，A 阶段批准后才创建 root、detached fake API/daemon、card/dispatch/claim target 并写 readiness。新 [executable-02](09b-executable-materials-02/static-check.json) 静态 PASS、launch NO_GO；没有执行 runner、没有真实 CLI/API/目标，阶段 B/C 未启动。
+
+## 阶段 A 材料 revision lineage 修复与 spy 绿态
+
+旧 [stage-a-01](09b-stage-a-01/result.json) stale 红态保留：spawned=false、无 root。runner 现要求材料 revision 是 HEAD 祖先，revision..HEAD 只允许本票证据目录，并拒绝 workbench/scripts/runner 自身变化。新 [materials-03](09b-executable-materials-03/static-check.json) 静态 PASS；[revision spy](09b-run-revision-spy-03/results.json) 绿态接受当前 lineage，workbench/src 反例拒绝，spawned=false。仍未执行阶段 A。
