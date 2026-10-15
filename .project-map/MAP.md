@@ -75,8 +75,8 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `acceptance/entry/a2a_gates.py` | 5fb7009 |
-| [AGENTS.md](../AGENTS.md) | `CONTEXT.md`, `intent.md` | c94d388 |
-| [README.md](../README.md) | `coop.py`, `acceptance/live_muster.py`, `intent.md`, `muster/**`, `scripts/build` | |
+| [CONTEXT.md](../CONTEXT.md) | `intent.md`, `acceptance/entry/a2a_gates.py` | 2876c9fd |
+| [AGENTS.md](../AGENTS.md) | `CONTEXT.md`, `intent.md` | 2876c9fd |
+| [README.md](../README.md) | `coop.py`, `acceptance/live_muster.py`, `intent.md`, `muster/**`, `scripts/build` | 2876c9fd |
 | [findings/README.md](../findings/README.md) | `findings/*.md` | |
 | [workbench/README.md](../workbench/README.md) | `workbench/src/**`, `workbench/hooks/**`, `workbench/app/**`, `workbench/package.json` | 2924f972 |
