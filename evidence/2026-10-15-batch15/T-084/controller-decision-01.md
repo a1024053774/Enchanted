@@ -13,3 +13,7 @@
 ## 退避后第三次（2026-10-15 UTC 03:4x）
 
 退避 10 分钟后给 s14-t081 与 s14-t084 各发一次"继续"：s14-t081 恢复工作；s14-t084 仍 "Selected model is at capacity"（共三次，任务从未开始）。T-084 BLOCKED（外部容量），不再自动重试、不换模型；窗格 wF:p3W 保留 idle。等用户决定：继续等待、关闭该会话后重开新会话一次、或暂缓 T-084。
+
+## 用户指示重开会话（2026-10-15 UTC）
+
+用户原话（本会话直接回答）："反正这个对话没做什么，重新换个新对话执行这个任务"。关闭 s14-t084（wF:p3W，idle，无交付、worktree 无改动）。新开 s14-t084b：wF:p3Y，launch-db23395ebc994f2286e1adba1e70316b，attempt a2，session 35b1eada-b8bc-4cdf-8fe7-997088b14355，argv 同前（gpt-6.1-sol xhigh、service_tier="default"、--no-daemon）。重派任务书。
