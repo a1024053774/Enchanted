@@ -621,3 +621,8 @@ worker 交 B1 材料（P1、stage-b-a11-ideation-approval-01.json 绑定本次 r
 commit-09b-a11-i1.sh PASS（cbf75d617）。主控逐屏读屏、按用户授权逐键代签 onboarding：s1 ArrowUp、s3 ArrowDown、s5 Enter（Dark mode）、s7 Enter（安全提示文本与 security-notice-text.txt 规范化后一致）、s9 ArrowDown、s11 Enter（信任夹具 repo /private/tmp/t078-2-09b-run-j0ogu5t7/repo）；s13：Claude Code v2.1.296 空提示符、manual mode；API requests 为空，0 Messages。批准文件 09b-a11-b1-exec-approvals/。
 材料缺陷：s7 模板 purpose 为 security-notice，run_t078_p1.py 只接受 onboarding-notice；第一次被 argparse 拒绝未发键，另签 ideation-s7-Enter-02.json 后发送，首个文件保留。s9、s13 首次读屏过早，以 -02 读屏为准。
 I1 未执行：driver 只等 45 秒且材料未写一次性 Yes 的读屏/按键办法。#284 让 worker 给出确切流程。
+
+## A-11 I1 失败（工具 schema）#285（2026-10-15 UTC）
+
+worker 交 I1 两步流程（dispatch 阶段停在 PermissionRequest；主控读屏签 permission-approval 后经窗口路径发一次 Enter 并读回），离线绿与三个红反例 PASS。commit-09b-a11-i1.sh 提交 9f973a1ed，末尾干净断言因主控 onboarding 输出未跟踪失败，主控另提交 1b481dbea。主控签 I1 approval（#285）执行 dispatch 阶段：INCOMPLETE protocol_i1_permission_wait_deadline，未重试。
+根因：假 API 下发的 Bash tool_use input 为 {argv:[...]}，Claude Code 2.1.296 Bash 工具要求 command，本地 InputValidationError，无 PermissionRequest；is_error tool_result 被假 API 409 tool_result_json_required，Claude 重试 11/11 后停（requests 12 行、responses 1 行，均假 API，真实供应商回合 0）。现场拷至 09b-a11-i1-scene-01/。离线 oracle 未用真实 Bash 工具 schema 是证据缺口。#285 让 worker 修 tool_use 生成、补能抓到本缺陷的红态、核算预算是否需 A-12。
