@@ -44,3 +44,8 @@ Grok（wF:p3Z）交 T-084 READY：checkTrailers 加 4 行（attempt.delivery 存
 ## 发现 3 用户决定与返工 #2（2026-10-15 UTC）
 
 answer 20261015T043855Z-ideation-answer-001（ack 20261015T043903Z）：用户选"尾注这关直接拒收 (Recommended)"。主控定拒收码 trailer_launch_record_missing（与"有记录但不一致"的 trailer_identity_mismatch 区分，码本身写明缺启动记录）。票据修订 b94dd1fe。派作者 Grok：claim-only 带尾注无 delivery → 拒收；先在 882638b3 取放行红态；README 91 行同步；受影响旧测试按新契约更新、不留开关；T-081 套件文件若受影响只列出不改；补变异与回归。
+
+## 返工 #1、#2 审阅（2026-10-15 UTC）
+
+Grok 完成：返工 #1（受控宿主 observed-facts.json 拆开记录与任务卡；green-02 加 model-card、effort-card、effort-unknown 拒收案；mutants-02 三个错误实现 DETECTED）；返工 #2（core.ts 加 `else if (!attempt.delivery) error = "trailer_launch_record_missing"`，事件带 reason 缺启动记录；red-03 放行复现、green-03 拒收、mutants-03 DETECTED；5 个旧测试按新契约改为无尾注或受管提交，无开关）。
+待办：恢复套件 test_daemon_verify_interruption_and_operation_lock 仍失败（review_launch_config_required，restart 后 daemon 无审查配置），需在基线 fb5dd288（git archive 导出到 /tmp）上跑同套件判定是否既有；四行比较里 `attempt.delivery &&` 已恒真，删除冗余条件并重跑。worker 自做的"只读验收审查"不计为独立审查；之后另开 fresh 审查 02。
