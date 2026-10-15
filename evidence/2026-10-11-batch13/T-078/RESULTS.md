@@ -985,3 +985,7 @@ A-12 materials-12 was generated from the current source revision with protocol=t
 ## A-11 cleanup and A-12 B1/I1 packet
 
 A-11 owner-bound cleanup dry-run/formal PASS：两个 protocol API 各 SIGTERM 一次，七进程退出，逐成员读回后 root 删除，归档在 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a11-cleanup/fixture.tar.gz`。A-12 Stage A READY_FOR_APPROVAL，root/API/daemon/target 绑定与签字 approval 保留；ideation B1 onboarding、0 Messages 断言和 split protocol I1 材料均为 NO_GO 静态准备，本轮未启动角色、未发送输入。
+
+## A-12 I1 Electron permission acknowledgement fix
+
+A-12 I1 dispatch reached the bound PermissionRequest; the first permission attempt produced terminal_focus_intercepted observations but no daemon window_input/terminal_input_write_intent. Root cause was electron_driver terminal-key returning after native sendInputEvent without awaiting the product window IPC receipt. The fixed permission path awaits window.a2a.input(\r), while preserving the bound Electron window, dispatch and one control action. Original execute-01 failure remains; offline red/green oracle covers receipt absence and corrected path. No retry or real key was sent by this fix packet.

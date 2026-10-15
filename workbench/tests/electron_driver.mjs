@@ -217,11 +217,20 @@ async function main() {
           }
           window.focus();
           await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
+          if (request.key === 'Enter' && request.permission === true) {
+            // Permission Enter must await the product window IPC receipt. A
+            // native sendInputEvent returns before xterm's onData promise is
+            // admitted, so focus-mode observations can close the probe before
+            // daemon window_input is recorded.
+            const delivered = await window.webContents.executeJavaScript("window.a2a.input('\\r')");
+            value = { attempted: true, delivered, source: 'test-simulated-user', binding: view };
+          } else {
           const keyCode = request.key === 'Control+C' ? 'C' : request.key;
           const modifiers = request.key === 'Control+C' ? ['control'] : [];
           window.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
           window.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
           value = { attempted: true, source: 'test-simulated-user', binding: view };
+          }
         } else if (request.command === 'queue-release') {
           value = await window.webContents.executeJavaScript(`new Promise(resolve => {
             const deadline = Date.now() + 2500;
