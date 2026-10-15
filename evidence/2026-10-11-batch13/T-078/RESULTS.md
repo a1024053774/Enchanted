@@ -877,3 +877,7 @@ reuse resolver 的红绿与读回：旧 `reuse-red-02` 保留 `reused_api_identi
 ## Stage-B bounded API reuse/readback materials-04
 
 完整 fake API argv/lstart resolver与五类 mutation red/green PASS；readback-02 argv_match true、两次身份一致；reuse-green-07 PASS，cli_spawned=false，A-05 无新 API。approval-10 留空签字，首屏 Messages 时序未在本阶段观测，slice1 证据只证明提交后请求。materials-04 静态 PASS，launch NO_GO。
+
+## B1 task binding/runtime path correction materials-05
+
+保留 approval-10 签字件、dry-run 与真实 B1 NameError 红态；复用分支现绑定 A-05 task 并将 runtime-input 写入按 label 的 P1 输出目录，controller-start 参数构造测试 PASS，删 task 变异被拒。approval-11 留空，materials-05 静态 launch NO_GO，A-05 现场不清理。
