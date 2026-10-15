@@ -597,3 +597,7 @@ worker 再次请求沙箱外执行检查，不批升级、已 Esc；改由主控
 设计要点（worker 交接）：假 API 由登记的 protocol.commands.I_SEND_STOP 生成 tool_use，运行时填实际 dispatch/thread/attempt/synthetic input/stop ID；预期 1 次 PermissionRequest，主控读屏核对完整 Bash 命令后一次性 Yes；tool_result 为第二条 Messages，须匹配原 tool-use ID、argv 与实际 stop 条目；test-simulated-user 动作经 pane_dispatch→pane_release 登记并记为自动化；oracle 读 API 原件、permission_wait/Stop 事件、inbox/relay 记录与目标绑定，真实运行再核对 received.bin 与 idle。
 预算更正：worker 称"A-10 累计 2 roots/3 Messages 在 4/6 内"，只算到 I1。protocol 中 ideation 共 I1(2)+I2(1)+I3(2)+I4(1)=4 roots/6 Messages，正好占满计划预算；A-10 已被管道回合用去 1 root/1 Messages，且 A-10 ideation 的 turn_limit 为 4（09b-a10-b1-ideation-p1-01/input.json），第 5 个 root 会被 signal 检查拒绝，I4 必然无法完成。
 #280 裁定：重建 A-11。A-10 的管道回合保留为独立证据，不计入 09B 预算；A-11 从干净的 ideation 4/6、executor 6/11 开始，按 protocol 依序推进（含 executor B1）。worker 准备 A-10 owner-bound 清理（含 ideation Claude 23893/23894）、materials-11、阶段 A 命令与批准草稿；预算核算按 protocol 全部阶段列明。
+
+## A-10 清理 #281（2026-10-15 UTC，执行主控接续）
+
+worker 交 A-11 静态准备（f664724f 上，--check-only PASS 7 paths）。主控核对 A-10 七进程仍在且与记录一致后执行 cleanup-09b-a10.py：dry-run PASS；正式 PASS（daemon_stop 关闭 Claude 23893/23894 与目标 23602/23605，API 23489/23490 各一次 SIGTERM，归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a10-cleanup/fixture.tar.gz 读回后删 root）。批准引用用"主控 #281"，命令文件中的 #258 为笔误。两个输出目录不在 A-11 allowlist，#281 让 worker 补入并改正命令文件后重跑 --check-only；之后由主控运行 commit-09b-a11.sh，再审材料、签阶段 A。
