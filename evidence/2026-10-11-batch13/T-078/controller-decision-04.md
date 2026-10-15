@@ -415,3 +415,9 @@ commit-09b-stage-b-06.sh exit 1，第一条断言：before='54e13274f6a7bfe8d76c
 
 commit-09b-stage-b-06.sh exit 1，heredoc 第 13 行：断言 'NameError' in red['p1_stderr']，而 09b-stage-b1-ideation-03/result.json 的 p1_stderr 为空、NameError 在 p1_stdout 的 JSON error 字段。未变更。preamble-01 只覆盖到 HEAD/暂存/归属，未覆盖后续读证据断言。
 #226：断言改按实际字段；交付前在 worker 侧把脚本中 `git add` 之前的全部只读断言整段实跑（可抽成 --check-only 模式），附输出。
+
+## stage-b-06 提交与真实 B1 启动 PASS #227/#228（2026-10-15 UTC）
+
+commit-09b-stage-b-06.sh --check-only PASS（23 paths，unowned 0），正式 exit 0：8058def4 + 950dd0e4，9 尾注，工作树干净。
+#227：签 approval-11（launch，无 --stop-before-cli，stop_after first-screen），dry-run PASS；真实 → 09b-stage-b1-ideation-04：rc 0，PASS，cli_spawned true。ideation Claude Code 2.1.296：zsh 1227 → claude 1228（session f7689321…，haiku-5-5、effort low、permission manual、tools Bash,Read、空 MCP、debug 写 roles/ideation/claude-debug.log）。未发送任何输入。假 API 尚无请求（roles/ideation/requests 空；debug 日志无 /v1/、409）。A-05 五进程 lstart 不变。
+#228：worker 起草 screen 阶段 approval-12（只读读屏，screen-id ideation-s1，不发键），我签后运行；之后按读到的首屏逐屏另批键序。
