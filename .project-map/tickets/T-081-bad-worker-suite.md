@@ -23,6 +23,7 @@ ready_rev: 1
 4. 验收后再改候选：审查通过或打分后 worker 再提交；预期集成的不是新提交，或被拒（以现有契约为准，在 RESULTS 写明是哪一种）。
 5. 改动越出 `deny` 路径；预期路径边界打回。
 6. 缺尾注、伪造尾注（错 task/attempt/launch/model）；预期尾注检查打回。
+   - 2026-10-15 用户决定修订（answer `20261015T030558Z-ideation-answer-001`）：6a 完全无尾注维持现契约——"完全无尾注仍记为人工介入并集成，T-081 改为核对\"只记一次人工介入\"；缺一部分、重复、错 task/attempt 仍必须拒收。"本案改为正向核对恰好记一次人工介入。6e 伪造 Launch/Tool/Model/Effort 由 T-084 修复后，本套加对应拒收案与变异体（预期 `trailer_identity_mismatch`），与 T-084 的文件写入错开。
 
 另两项：
 
