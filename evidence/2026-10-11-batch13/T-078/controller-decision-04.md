@@ -299,3 +299,9 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 #194：重签 stage-a-approval-03.json（source 885acdae，allow_role_cli_spawn=false）并运行 → 09b-stage-a-03：exit 1，INCOMPLETE，spawned=true。root /private/tmp/t078-2-09b-run-576xn98k；已启动 fake API 62217（ideation）、62218（executor）与 daemon 62220；card_save 被门禁拒：invalid_task_card，paths.deny "oracle/**" Invalid repository path。未 dispatch，无 target 进程，无 Claude CLI，模型 0。三个进程仍存活，未发信号。
 根因：runner 生成的卡片在 spawn 之后才交门禁校验；卡片 deny 写法不合门禁路径语法。
 #195：（1）cleanup 脚本只针对 09b-stage-a-03 记录的 root 与 PID（daemon 经 daemon_stop，fake API 核对 argv/root/lstart 后各一次 SIGTERM），归档读回后删 root，交我审后运行；（2）修卡片 deny 写法；（3）runner 在任何 spawn 前先用门禁 card_validate（或等价真实入口）校验卡片，补红（当前卡片在 spawn 前即被拒）绿；重冻 materials-04。
+
+## #195 交接审阅：cleanup 退回 #196（2026-10-15 UTC）
+
+未运行 cleanup-09b-stage-a-03.py，也暂不运行 commit-09b-run-04.sh（应先完成 cleanup，再一起冻结）。
+缺陷：（1）API 信号循环比较 `current != identity`，identity 是前一循环残留变量（=62218 身份），62217 必然不符 → 在 daemon 已停后 BLOCKED，留下半清理现场；应比较 api_id[pid]。（2）"byte_readback: PASS" 实为只列成员名，未逐成员与原文件比对字节，标签不实。
+#196：修这两处；加一个不发信号的 dry-run（只核对身份、打印将执行的动作）供我先运行；修后交我。runner/card 预检修复无意见。
