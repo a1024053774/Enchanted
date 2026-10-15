@@ -976,3 +976,8 @@ Protocol I1 材料绑定本次 launch/session/target binding，先由 dispatch p
 A-11 ideation B1 process launch PASS：实际 process manifest 保留于 `09b-a11-b1-ideation-p1-01/09b-a11-b1-ideation-01/`，真实 vendor model turns=0。onboarding 材料逐屏单键、security notice 原文、trust ArrowDown→Enter 和 0 Messages 断言已冻结；本轮未发 onboarding 按键。
 Protocol I1 材料绑定本次 launch/session/target binding，先由 dispatch phase 停在 PermissionRequest 并保存 screen.bin，再由独立 permission phase 通过 Electron window 入口核对完整 Bash 命令、一次性 Yes/Enter，随后完成 tool_result 第二条 Messages、实际 Stop/relay wake 独立读回；离线 shared-core green 与工具 ID/entry/target/seq/role/text、早按键/屏幕变化/错误 dispatch 反例随包保留。I1 approval 留空，executor B1 未启动，未发送 I1。
 A-11 scene-01 的真实 Claude Bash schema 要求 input.command，不接受 argv；12 条请求使 I1 Messages 计数为 12/6，A-11 不再继续，修复后必须重建 A-12。
+
+## A-11 owner-bound cleanup and A-12 rebuild packet
+
+A-11 cleanup is prepared with root `/private/tmp/t078-2-09b-run-j0ogu5t7`, API 24109/24110, daemon 24112, target 24203/24205 and Claude 29924/29925; dry-run and formal commands are both frozen, with external archive/readback before deletion. A-11现场未在本轮操作。
+A-12 materials-12 was generated from the current source revision with protocol=true, fresh root proposal and blank Stage-A approval. The prior A-11 I1 schema failure and 12/6 Messages overrun remain evidence; A-12 launch is NO_GO.
