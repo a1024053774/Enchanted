@@ -787,3 +787,7 @@ cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-
 `panes.ts` Claude 信号接受 1～6 根；P1 生成／续跑同步角色目录、role config/settings、hook 读回和 user-data。profile08、auth、role prompt、两回合预算构造回归以及单角色 relay22、permission3、entry6、empty-declaration17 均 PASS；无 CLI/API/UI/model。
 
 本切片只改 claudeLaunch、panes、P1 生成／续跑和 profile tests；relay/core/daemon/caller/Stop 业务未变，根路径校验保留。交 [前置提交脚本](commit-09b-pre.sh)：提交后再实现双角色 fake API／阶段驱动／独立 oracle，绑定实际登记正文、stop/request ID 和全局 dispatch.seq；另交可执行 launch 包审阅。当前双角色仍 plan-review、launch NO_GO，09B/09C 实跑与独立 reviewer INCOMPLETE。
+
+## 09B 前置产品切片提交冻结
+
+代码提交 `b9b5fdd30bdfe9ddf6f7682f3033d956a52e41b3`，角色隔离目录、6根Claude信号预算、P1生成／续跑同步及红绿／slice1回归证据已冻结；未启动服务、CLI、API或目标。双角色驱动／独立oracle及可执行launch包留待下一段，当前launch NO_GO。
