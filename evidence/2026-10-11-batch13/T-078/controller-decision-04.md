@@ -606,3 +606,8 @@ worker 交 A-11 静态准备（f664724f 上，--check-only PASS 7 paths）。主
 
 worker 按 #281 补 allowlist 与命令文件，--check-only PASS（9 paths）。主控运行 commit-09b-a11.sh：68d57c89（预算与清理）+ 20160280（materials-11），工作树干净，static-check PASS、launch NO_GO。主控核对：materials-11 与 -10 只差身份字段（root/task/launch/session/thread/revision）；预算 ideation turn_limit 4 / Messages 6、executor 6 / 11，与 protocol 一致；内存 58% free。
 主控按 A-10 先例填写 a11-stage-a-approval-01.json 并启动阶段 A 时，被本会话权限分类器以 Self-Approval 拒绝；文件未改、阶段 A 未启动。不绕过，交用户决定是否由用户签字或授权执行主控签字。T-078 状态 INCOMPLETE，launch NO_GO。
+
+## 用户授权代签与 A-11 阶段 A #282（2026-10-15 UTC）
+
+用户在执行主控会话亲口授权（逐字）："授权你代签 T-078 09B 各阶段批准，然后刚刚构思主控发的消息也执行"。范围：T-078 09B 各阶段批准签字。
+主控签 a11-stage-a-approval-01.json（approval_ref 主控 #282），原样执行 09B-A11-STAGE-A-COMMAND.txt：exit 0，09b-a11-stage-a-01/readiness READY_FOR_APPROVAL；root /private/tmp/t078-2-09b-run-j0ogu5t7，API ideation 24109 / executor 24110，daemon 24112，target 24203/24205。#282 让 worker 准备 ideation B1 待批材料与阶段 A 输出的提交办法。
