@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import shlex
 import sqlite3
 import subprocess
 import sys
@@ -50,7 +51,7 @@ def protocol_i1_tool(binding, root, synthetic_input_id):
         if token.endswith('/roles/ideation/stop-body.txt'):
             token = str(root / 'roles' / 'ideation' / 'stop-body.txt')
         argv.append(token)
-    return {'name': 'Bash', 'id': uid(), 'input': {'argv': argv}}, str(protocol_path)
+    return {'name': 'Bash', 'id': uid(), 'input': {'command': shlex.join(argv)}, 'command_argv': argv}, str(protocol_path)
 
 
 def anthropic_body(dispatch):

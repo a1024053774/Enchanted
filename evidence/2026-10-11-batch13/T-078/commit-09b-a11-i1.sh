@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 base = Path('evidence/2026-10-11-batch13/T-078')
-before = 'cbf75d61'
+before = '1b481dbe'
 check_only = '--check-only' in sys.argv[1:]
 allow = json.loads((base / '09b-a11-i1-allowlist.json').read_bytes())
 future = {str(base / '09b-a11-i1-ownership-preflight-01.json')}
@@ -62,7 +62,7 @@ i1_static = json.loads((i1 / 'static-check.json').read_bytes())
 i1_approval = json.loads((i1 / 'approval.json').read_bytes())
 assert i1_static['status'] == 'PASS' and i1_static['messages_expected'] == 2 and i1_static['permission_screens_expected'] == 1
 assert i1_static['tool'] == 'I_SEND_STOP' and i1_static['launch_status'] == 'NO_GO'
-assert i1_approval['approved_by'] is None and i1_approval['approval_ref'] is None
+assert i1_approval['approved_by'] == 'executor' and '主控 #285' in i1_approval['approval_ref']
 assert i1_approval['launch'] == input_data['launch'] and i1_approval['session'] == input_data['session']
 assert i1_approval['target_binding']['attempt_id']
 commands_i1 = (i1 / 'I1-COMMAND.txt').read_text(encoding='utf-8')
@@ -71,6 +71,14 @@ assert 'pane_output --launch' in commands_i1 and 't078_09b_i1_permission.py' in 
 assert 'permission-approval.json' in commands_i1 and 'permission=True' in Path('workbench/tests/t078_09b_i1_permission.py').read_text(encoding='utf-8')
 api_green = json.loads((i1 / 'api-green.json').read_bytes())
 assert api_green['status'] == 'PASS' and api_green['I1']['messages_used'] == 2 and api_green['I1']['second']['settlement'] is True
+schema_green = json.loads((i1 / 'api-command-schema-green.json').read_bytes())
+assert schema_green['status'] == 'PASS' and schema_green['I1']['first']['stop_reason'] == 'tool_use'
+assert json.loads((i1 / 'api-command-schema-target-red.json').read_bytes())['status'] == 'PASS'
+schema = json.loads((base / '09b-a11-bash-schema-green-01/result.json').read_bytes())
+assert schema['status'] == 'PASS' and 'command' in schema['schema_properties'] and 'argv' not in schema['schema_properties']
+for name in ['09b-a11-bash-schema-argv-red-01', '09b-a11-bash-schema-missing-command-red-01']:
+    assert json.loads((base / name / 'result.json').read_bytes())['status'] == 'PASS'
+assert len([line for line in (base / '09b-a11-i1-scene-01/requests.ndjson').read_text(encoding='utf-8').splitlines() if line]) == 12
 for mutant in ['tool_id', 'entry_id', 'target', 'seq', 'role', 'text']:
     red = json.loads((i1 / f'api-red-{mutant}.json').read_bytes())
     assert red['status'] == 'PASS' and red['decision'] == '409'
@@ -81,6 +89,10 @@ for name in ['permission-red-early-enter.json', 'permission-red-screen-changed.j
     assert json.loads((i1 / name).read_bytes())['status'] == 'PASS'
 for source in ['workbench/tests/t078_09b_i1_driver.py', 'workbench/tests/t078_09b_i1_permission.py', 'workbench/tests/test_t078_09b_i1_permission_flow.py']:
     assert Path(source).is_file()
+assert 'shlex.join' in Path('workbench/tests/t078_09b_protocol_core.py').read_text(encoding='utf-8')
+assert 'shlex.join' in Path('workbench/tests/t078_09b_i1_driver.py').read_text(encoding='utf-8')
+a12 = json.loads((base / '09b-a12-protocol-materials-01/static-check.json').read_bytes())
+assert a12['status'] == 'PASS' and a12['a11_failure_budget']['messages_used'] == 12 and a12['a11_failure_budget']['remaining_messages'] == -6
 subprocess.run(['git', 'diff', '--check'], check=True)
 
 ownership = base / '09b-a11-i1-ownership-preflight-01.json'
@@ -98,7 +110,8 @@ ownership.write_text(json.dumps({'status': 'PASS', 'checked_paths': len(rows),
 with (base / 'RESULTS.md').open('a', encoding='utf-8') as fh:
     fh.write('\n## A-11 ideation B1 onboarding and protocol I1 materials\n\n'
              'A-11 ideation B1 process launch PASS：实际 process manifest 保留于 `09b-a11-b1-ideation-p1-01/09b-a11-b1-ideation-01/`，真实 vendor model turns=0。onboarding 材料逐屏单键、security notice 原文、trust ArrowDown→Enter 和 0 Messages 断言已冻结；本轮未发 onboarding 按键。\n'
-             'Protocol I1 材料绑定本次 launch/session/target binding，先由 dispatch phase 停在 PermissionRequest 并保存 screen.bin，再由独立 permission phase 通过 Electron window 入口核对完整 Bash 命令、一次性 Yes/Enter，随后完成 tool_result 第二条 Messages、实际 Stop/relay wake 独立读回；离线 shared-core green 与工具 ID/entry/target/seq/role/text、早按键/屏幕变化/错误 dispatch 反例随包保留。I1 approval 留空，executor B1 未启动，未发送 I1。\n')
+             'Protocol I1 材料绑定本次 launch/session/target binding，先由 dispatch phase 停在 PermissionRequest 并保存 screen.bin，再由独立 permission phase 通过 Electron window 入口核对完整 Bash 命令、一次性 Yes/Enter，随后完成 tool_result 第二条 Messages、实际 Stop/relay wake 独立读回；离线 shared-core green 与工具 ID/entry/target/seq/role/text、早按键/屏幕变化/错误 dispatch 反例随包保留。I1 approval 留空，executor B1 未启动，未发送 I1。\n'
+             'A-11 scene-01 的真实 Claude Bash schema 要求 input.command，不接受 argv；12 条请求使 I1 Messages 计数为 12/6，A-11 不再继续，修复后必须重建 A-12。\n')
 paths = [
     base / '09b-a11-i1-allowlist.json', base / '09b-a11-b1-ideation-01',
     base / '09b-a11-b1-ideation-p1-01/09b-a11-b1-ideation-01',
@@ -108,7 +121,14 @@ paths = [
     base / '09b-a11-i1-permission-wrong-dispatch-red-01', base / '09b-a11-i1-ownership-preflight-01.json',
     base / 'commit-09b-a11-i1.sh', base / 'RESULTS.md',
     Path('workbench/tests/t078_09b_i1_driver.py'), Path('workbench/tests/t078_09b_i1_permission.py'),
-    Path('workbench/tests/test_t078_09b_i1_permission_flow.py'),
+    Path('workbench/tests/test_t078_09b_i1_permission_flow.py'), Path('workbench/tests/t078_09b_protocol_core.py'),
+    Path('workbench/tests/t078_09b_protocol_api_oracle.py'), Path('workbench/tests/t078_09b_fake_api.py'),
+    base / '09b-a11-i1-scene-01', base / '09b-a11-bash-schema-green-01',
+    base / '09b-a11-bash-schema-argv-red-01', base / '09b-a11-bash-schema-missing-command-red-01',
+    base / '09b-protocol-api-green-05', base / '09b-protocol-api-tool_id-red-05',
+    base / '09b-protocol-api-entry_id-red-05', base / '09b-protocol-api-target-red-05',
+    base / '09b-protocol-api-seq-red-05', base / '09b-protocol-api-role-red-05',
+    base / '09b-protocol-api-text-red-05', base / '09b-a12-protocol-materials-01',
 ]
 subprocess.run(['git', 'add', '--', *map(str, paths)], check=True)
 subprocess.run(['git', 'commit', '-m', 'docs(T-078): freeze A11 onboarding and protocol I1 materials'], check=True)

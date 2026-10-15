@@ -5,6 +5,7 @@ does not bind a port, start a process, invoke a gate, or send a Claude turn.
 """
 import argparse
 import json
+import shlex
 import uuid
 from pathlib import Path
 
@@ -56,9 +57,8 @@ def make_case(mutant=None):
         'session': uid(), 'fence': 1,
         'tool_use': {
             'id': tool_id, 'name': 'Bash',
-            'input': {
-                'argv': argv,
-            },
+            'input': {'command': shlex.join(argv)},
+            'command_argv': argv,
         },
         'tool_result': {'entry': stop_entry},
     }
@@ -102,7 +102,9 @@ def make_case(mutant=None):
             payload['entry']['id'] = uid()
             bad['messages'][-1]['content'][0]['content'] = json.dumps(payload, separators=(',', ':'))
         elif mutant == 'target':
-            bad['messages'][1]['content'][0]['input']['argv'][11] = f'thread:{uid()}'
+            argv = shlex.split(bad['messages'][1]['content'][0]['input']['command'])
+            argv[12] = f'thread:{uid()}'
+            bad['messages'][1]['content'][0]['input']['command'] = shlex.join(argv)
         elif mutant == 'text':
             bad['messages'][0]['content'] += ' stale'
         try:
@@ -142,7 +144,7 @@ def run_i2_e1():
         'text': '⟦主控 #4⟧\nActual inbox wake with wrong target probe',
         'request_id': uid(), 'stop_id': stop_id, 'attempt': uid(),
         'session': uid(), 'fence': 1,
-        'tool_use': {'id': uid(), 'name': 'Bash', 'input': {'argv': argv}},
+        'tool_use': {'id': uid(), 'name': 'Bash', 'input': {'command': shlex.join(argv)}, 'command_argv': argv},
         'tool_result': {'ok': False, 'error': 'worker_target_required'},
     }
     registry = {'dispatches': {dispatch['id']: dispatch}, 'message_budget': 11,

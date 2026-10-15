@@ -6,6 +6,7 @@ Both are bound to the same dispatch and tool-use id.  Ordinary (no-tool)
 dispatches keep the original one-request contract.
 """
 import json
+import shlex
 
 class ProtocolRefusal(ValueError): pass
 
@@ -68,6 +69,22 @@ def _tool_result_payload(block, expected=None):
     return payload
 
 
+def _canonical_tool(tool):
+    """Return Anthropic's Bash schema, deriving command from frozen argv."""
+    if not isinstance(tool, dict) or tool.get('name') != 'Bash':
+        raise ProtocolRefusal('bash_tool_required')
+    value = tool.get('input')
+    if not isinstance(value, dict):
+        raise ProtocolRefusal('bash_input_required')
+    command = value.get('command')
+    if not isinstance(command, str) or not command.strip():
+        argv = value.get('argv')
+        if not isinstance(argv, list) or not argv or not all(isinstance(item, str) for item in argv):
+            raise ProtocolRefusal('bash_command_required')
+        command = shlex.join(argv)
+    return {**tool, 'input': {'command': command}}
+
+
 def _tool_use_history(messages, expected):
     matches=[]
     for message in messages:
@@ -78,6 +95,7 @@ def _tool_use_history(messages, expected):
                 matches.append(block)
     if len(matches) != 1:
         raise ProtocolRefusal('tool_use_history_required')
+    expected = _canonical_tool(expected)
     observed=matches[0]
     if observed.get('name') != expected.get('name') or observed.get('input') != expected.get('input'):
         raise ProtocolRefusal('tool_use_binding_mismatch')
@@ -136,7 +154,7 @@ def normalize_anthropic_request(request, registry, role=None):
 def anthropic_sse(result, model, request_id):
     """Return valid streaming events for the real Claude client path."""
     if result.get('tool_use'):
-        tool=result['tool_use']; payload=json.dumps(tool['input'],ensure_ascii=False,separators=(',',':'))
+        tool=_canonical_tool(result['tool_use']); payload=json.dumps(tool['input'],ensure_ascii=False,separators=(',',':'))
         return [
             {'type':'message_start','message':{'id':request_id,'type':'message','role':'assistant','model':model or 'claude-haiku-5-5','content':[],'stop_reason':None,'stop_sequence':None,'usage':{'input_tokens':0,'output_tokens':0}}},
             {'type':'content_block_start','index':0,'content_block':{'type':'tool_use','id':tool['id'],'name':tool['name'],'input':{}}},
@@ -180,7 +198,7 @@ def validate_request(request, registry):
             payload=request.get('tool_result_payload') or _validate_registered_tool_result(dispatch, request.get('tool_result_block'))
             return {'status':'PASS','settlement':True,'tool_result':payload,
                     'sse': _settlement_sse(registry.get('ack_text','STOP_SENT'))}
-        return {'status':'PASS','tool_use':dispatch['tool_use'],
+        return {'status':'PASS','tool_use':_canonical_tool(dispatch['tool_use']),
                 'sse':[{'type':'message_start','message':{'id':request['request_id'],'role':'assistant'}},
                        {'type':'content_block_delta','delta':{'type':'text_delta','text':'tool_use'}},
                        {'type':'message_stop'}]}
