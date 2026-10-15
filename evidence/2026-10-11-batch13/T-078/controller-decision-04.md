@@ -488,3 +488,9 @@ commit-09b-a06.sh --check-only PASS（17 paths）；正式：a5b37b05 + 5fd62384
 
 worker 请求沙箱外执行（rm -rf /tmp/pycache-t078-a06、py_compile、写 preflight、跑 check-only），不批升级，已 Esc。审阅：run-09b.py 在建 root 前拒绝缺静态 root 的材料（executable_material_static_root_required），material-gate-green-03 PASS（spawned false、roots_created 0）；红态即 09b-a06-stage-a-01（先建 root 后 KeyError）。commit-09b-a06-03.sh --check-only PASS（14 paths）；正式 exit 1：git add 路径列表含不存在的 workbench/tests/run-09b.py（实际在 evidence/…/T-078/run-09b.py），git 128，未提交；materials-03 未生成。check-only 未覆盖 git add 参数存在性。
 #244：修 git add 路径；check-only 增加"每个将要 add 的路径存在或属 future 生成物"的断言；交我。
+
+## A-06 材料提交与阶段 A PASS #245（2026-10-15 UTC）
+
+#244 修正后 commit-09b-a06-03.sh --check-only PASS；正式：471c3fae + e5de6ec4（9 尾注），末尾干净断言因脚本在提交后生成 09B-A06-STAGE-A-COMMAND-02.txt 与 a06-stage-a-approval-02.json 而失败（这两项待下次提交）。materials-06 由 prepare-09b-executable.py --protocol 生成：static-check PASS，root /private/tmp/t078-2-09b-executable-5vifu3wd，protocol true，revision 471c3fae。
+#245：签 a06-stage-a-approval-02.json，按 COMMAND-02 运行 → 09b-a06-stage-a-02：rc 0，READY_FOR_APPROVAL。root /private/tmp/t078-2-09b-run-bmnmhs0h；protocol 假 API ideation 47931（61558）、executor 47932（61557）；daemon 47935；target shell 48027、leader 48029；无角色 CLI，模型 0。现场保留供 B1。
+#246：worker 为 A-06 生成 ideation p1 材料（同 p1-02 结构，绑定 A-06 root/readiness、api_url 模板）与 B1 launch 批准草稿（复用 --reuse-stage-a/--reuse-readiness-file/label），签字栏留空；把 COMMAND-02 与 approval-02 纳入下次提交。
