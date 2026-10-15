@@ -771,3 +771,9 @@ cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-
 完整拟序列包含真实send→错误目标拒绝→实际目标stop→执行成功后ack→重复ack幂等、ideation越权ack与已ack stop拒绝；I4根6主Messages，E6根11主Messages，合计17、供应商模型0，均在 #163 上限内。fake API只给工具／中性确认，实际反馈全文／stop/request/inbox ID与角色来源必须读回；不沿用共库固定#1/#2。card模板补oracle_paths，目标不提交候选，真实运行观察由独立oracle定义。
 
 交 [提交与计划包冻结脚本](commit-closeout-and-09b-materials.sh)：成功cleanup后保存green-3实际读回、#184结论与前置事实，生成09b-materials-01提案profile/IDs/目录、协议、oracle、卡与空批准模板，Git/tar字节核对后材料提交。静态PASS仅计划冻结，**不能launch**；profile/回合前置与实际双角色驱动仍待审阅后实现、再冻可执行包。实际09B、09C、独立reviewer与整票 **INCOMPLETE**；本轮没有新CLI/API/目标/UI启动、没有集成或push。
+
+## green-3成功清理与09B计划包冻结（脚本执行读回）
+
+[cleanup-185](p1-materials-slice1-green-3/cleanup-185/result.json) **PASS**：原进程退出、最多仅API49173一次SIGTERM、外置归档字节读回后删除成功根；slot仍保留。source `c6a81742eac12736bb5fd407401d578ded58e5fd`。
+
+[09B计划包](09b-materials-01/static-check.json) 静态 **PASS**，root `/private/tmp/t078-2-09b-plan-4mzvkbne`，source/Git/tar逐文件相同；包含独立角色目录／拟argv/env、协议、oracle、task卡和空审批模板。明确 **launch NO_GO**：当前profile与双角色阶段驱动前置未完成；未创建Git repo／broker／角色／目标，实际09B、09C、独立reviewer、整票仍INCOMPLETE。
