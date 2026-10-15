@@ -405,3 +405,8 @@ commit-09b-stage-b-05.sh exit 0：23b6aefa + 54e13274，9 尾注，工作树干�
 ## #224 期间沙箱升级请求处置（2026-10-15 UTC）
 
 s13-t078m 请求以 local 环境（沙箱外）执行 `rm -f evidence/2026-10-11-batch06-allowlist.tmp; git status …`。按常规不批准沙箱升级：已发 Esc 拒绝。核对目标：0 字节、未跟踪、22:16 由该 worker 创建的临时文件；由我在沙箱外删除。之后通知 worker 继续 #224，临时文件以后写在 scratch/tmp，不写进 worktree。
+
+## stage-b-06 提交失败 #225（2026-10-15 UTC）
+
+commit-09b-stage-b-06.sh exit 1，第一条断言：before='54e13274f6a7bfe8d76c9e5c76e0cc6b508d64e8'，真实 HEAD 54e13274675fc25d9cf558fb40803e2382540941——仅前 8 位一致，余下为手写错误值。未做任何变更。#224 第 2 点已实现（复用分支 runtime-input 写入 out/，run_t078_p1.py:27）。
+#225：before 用 `git rev-parse HEAD` 的实际输出填入（不得手写），改后在 worker 侧实跑脚本前段断言（不提交）并附输出。
