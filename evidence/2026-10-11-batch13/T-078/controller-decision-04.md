@@ -552,3 +552,12 @@ A-07 恢复分析（09b-a07-active-recovery-analysis.md）：active dispatch #2 
 
 worker 再次请求沙箱外执行（rm -rf /tmp/t078-newline-perm && 权限计数回归），不批升级、已 Esc，要求在交接中列命令由主控运行。审阅 09b-a08-newline-analysis.md：A-08 trace UserPromptSubmit.prompt 无末尾换行；store.register 原样保存 prompt 文件尾换行，panes.drain 以 bracketed paste 写入后单独 CR。修复：store.ts 登记时仅去除末尾 CR/LF（canonicalText），内部正文仍逐字比对。真实 signal：red-02（修复前拦截）PASS、green-01（尾换行接受、中间正文变异仍拦）PASS。提交 60a3db95（9 尾注），worktree 干净。
 裁定 #264：重建 A-09。理由：store.register 运行于 daemon，A-08 daemon 加载修复前代码，即使经认证窗口用户 Esc→声明放行收回卡住的 active，后续派发仍走旧登记逻辑；且该收回需认证窗口用户动作。要求 worker：A-08 owner-bound 清理（含 Claude 28968/28969）、A-09 materials（prepare，label 09b-executable-materials-09）、阶段 A 命令与批准草稿、B1 批准模板补全 screen_approvals/tool_approval、需沙箱外运行的回归命令清单（全新输出路径，不 rm -rf）、修复提交脚本末尾 RESULTS 未提交的断言问题。
+
+## A-08 清理、A-09 阶段 A/B1、I1 第四次执行 #265–#269（2026-10-15 UTC）
+
+#265：权限计数回归（node test_t078_permission_accounting.ts /tmp/t078-newline-perm-02）PASS 3/3，结果拷入 09b-newline-perm-regression-02/。cleanup-09b-a08.py（"主控 #265"）dry-run 与正式 PASS：七进程退出，935 成员读回 PASS 后删 root。commit-09b-a09.sh：27e754af + 3aeed23c（末尾 RESULTS 断言仍失败，worker 所称修复未生效）。materials-09 static PASS（revision 27e754af）。
+#266：签 a09-stage-a-approval-01 → 09b-a09-stage-a-01 READY：root /private/tmp/t078-2-09b-run-jyat2h5s，API 65352（59304）/65353（59305），daemon 65355，target 65451/65453。
+#267：B1 p1 生成、模板（已含 screen_approvals/tool_approval）填写 → dry-run PASS → 真实 claude 65991（session 65052abd…）。首启由主控脚本 onboard.py 逐键执行并断言每次重绘（主题 ArrowUp/ArrowDown/Enter、Security notes 247 字符逐字一致、信任路径为本现场 repo、ArrowDown 至 Yes、Enter）；末条 s13 断言因光标定位拆字失败，渲染核对确为空闲提示符（Haiku 5.5 low、manual），0 Messages、无 409、无 invalid_hook。
+#268：主控写 a09-i1-prompt.txt（同 A-08 句式，末尾保留换行以在真实现场验证换行修复），生成 09b-a09-i1-materials-01，签字执行 → rc 1：driver:142 断言 dispatch.text == 头 + 原始 prompt（含尾换行），而产品登记已去尾换行（60a3db95）→ 驱动未同步规范化。pane_dispatch 已成功（queued 90958996…），未写登记、未 release；pane_status active null、queued [90958996…]，未进入 PTY。
+另：/tmp 清理 01（用户选择，1684 项 4.5 GB，见 evidence/2026-10-15-batch15/tmp-cleanup-01/）。
+#269：worker 修驱动按产品规范化比对；并给出处理已排队派发的方案：优先产品现有撤回/取消已排队派发的操作（若有）后重派；否则驱动以门禁 pane_status/记录中的真实 queued 派发（id、seq、原文）写登记并 release，不新派、不伪造。spy 红绿，交我裁定。
