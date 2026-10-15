@@ -615,3 +615,9 @@ worker 按 #281 补 allowlist 与命令文件，--check-only PASS（9 paths）�
 ## A-11 B1 #283（2026-10-15 UTC）
 
 worker 交 B1 材料（P1、stage-b-a11-ideation-approval-01.json 绑定本次 readiness，dry-run READY_FOR_ROLE、spawned=false）。主控核对批准与 A-10 版只差身份字段，按用户授权代签；运行 commit-09b-a11-b1.sh（bf0f94162），再执行 real B1：PASS，ideation Claude 已启动并停在首屏。#283 让 worker 准备 onboard 与 protocol 版 I1 待批材料。
+
+## A-11 onboarding 与 I1 流程问题 #284（2026-10-15 UTC）
+
+commit-09b-a11-i1.sh PASS（cbf75d617）。主控逐屏读屏、按用户授权逐键代签 onboarding：s1 ArrowUp、s3 ArrowDown、s5 Enter（Dark mode）、s7 Enter（安全提示文本与 security-notice-text.txt 规范化后一致）、s9 ArrowDown、s11 Enter（信任夹具 repo /private/tmp/t078-2-09b-run-j0ogu5t7/repo）；s13：Claude Code v2.1.296 空提示符、manual mode；API requests 为空，0 Messages。批准文件 09b-a11-b1-exec-approvals/。
+材料缺陷：s7 模板 purpose 为 security-notice，run_t078_p1.py 只接受 onboarding-notice；第一次被 argparse 拒绝未发键，另签 ideation-s7-Enter-02.json 后发送，首个文件保留。s9、s13 首次读屏过早，以 -02 读屏为准。
+I1 未执行：driver 只等 45 秒且材料未写一次性 Yes 的读屏/按键办法。#284 让 worker 给出确切流程。
