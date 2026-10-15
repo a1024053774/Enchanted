@@ -494,3 +494,9 @@ worker 请求沙箱外执行（rm -rf /tmp/pycache-t078-a06、py_compile、写 p
 #244 修正后 commit-09b-a06-03.sh --check-only PASS；正式：471c3fae + e5de6ec4（9 尾注），末尾干净断言因脚本在提交后生成 09B-A06-STAGE-A-COMMAND-02.txt 与 a06-stage-a-approval-02.json 而失败（这两项待下次提交）。materials-06 由 prepare-09b-executable.py --protocol 生成：static-check PASS，root /private/tmp/t078-2-09b-executable-5vifu3wd，protocol true，revision 471c3fae。
 #245：签 a06-stage-a-approval-02.json，按 COMMAND-02 运行 → 09b-a06-stage-a-02：rc 0，READY_FOR_APPROVAL。root /private/tmp/t078-2-09b-run-bmnmhs0h；protocol 假 API ideation 47931（61558）、executor 47932（61557）；daemon 47935；target shell 48027、leader 48029；无角色 CLI，模型 0。现场保留供 B1。
 #246：worker 为 A-06 生成 ideation p1 材料（同 p1-02 结构，绑定 A-06 root/readiness、api_url 模板）与 B1 launch 批准草稿（复用 --reuse-stage-a/--reuse-readiness-file/label），签字栏留空；把 COMMAND-02 与 approval-02 纳入下次提交。
+
+## A-06 B1 ideation 首启完成 #247/#248（2026-10-15 UTC）
+
+commit-09b-a06-b1.sh --check-only PASS（30 paths），正式 e15d1890（9 尾注，工作树干净）。#247：签 stage-b-a06-ideation-approval-01（launch，复用 A-06 readiness），dry-run PASS；真实 → 09b-a06-b1-ideation-01：PASS，ideation Claude zsh 54976 → claude 54977（session d23ca7a4…）。
+逐屏（执行主控助手 executor-a06-*.sh，批准落 09b-a06-b1-exec-approvals/）：s1 主题屏 → ArrowUp → s3 ❯ 在 Auto → ArrowDown → s5 ❯ 在 Dark mode → Enter → s7 Security notes 247 字符与参考逐字一致 → Enter → s9 信任屏（/private/tmp/t078-2-09b-run-bmnmhs0h/repo，光标默认 No）→ ArrowDown → s11 ❯ 在 Yes → Enter → s13 空闲提示符（Haiku 5.5 low、manual）。全程 roles/ideation/requests 为空，debug 日志无 /v1/messages 与 409。未用 Digit1、未发默认 Enter。
+#248：worker 实现 I1 真实回合驱动（经门禁真实入口登记 dispatch 正文/request/stop/seq，protocol 假 API 按登记应答；ideation 回合经正常输入路径注入，不由 operator 代写；停在 I1 结束），先离线/spy 红绿，交 I1 待批材料（预计 1 root/1 Messages）。
