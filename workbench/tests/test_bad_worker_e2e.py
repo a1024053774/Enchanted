@@ -22,8 +22,17 @@ REFUSALS = {
     'trailer_duplicate': None,  # 身份冲突必须拒收；具体错误码是运行观察，不作为规范 oracle。
     'trailer_task': 'trailer_task_mismatch',
     'trailer_attempt': 'trailer_identity_mismatch',
+    'trailer_launch': 'trailer_identity_mismatch',
+    'trailer_tool': 'trailer_identity_mismatch',
+    'trailer_model': 'trailer_identity_mismatch',
+    'trailer_effort': 'trailer_identity_mismatch',
+    'trailer_no_launch': 'trailer_launch_record_missing',
 }
 NEGATIVES = [*REFUSALS, 'after_review']
+IDENTITY_CASES = ('trailer_launch', 'trailer_tool', 'trailer_model', 'trailer_effort', 'trailer_no_launch')
+IDENTITY_FIELDS = {'trailer_launch': 'Launch', 'trailer_tool': 'Tool',
+                   'trailer_model': 'Model', 'trailer_effort': 'Effort'}
+LAUNCH_RECORD_REASON = '缺启动记录'
 ABSENT = ['trailer_absent']
 ABSENT_EXPECTATION = '完全无尾注恰好记一次人工介入并集成'
 ABSENT_BASIS = ['workbench/README.md#完全无 A2A 尾注',
@@ -116,6 +125,12 @@ class BadWorker(Tracer):
                   'events': fresh, 'expected': expected, 'actual': reply.get('error')}
         matches = reply.get('error') == expected
         expectation = {'ok': False, 'error': expected}
+        if self.case == 'trailer_no_launch':
+            checks = [event for event in fresh if event['type'] == 'trailer_check']
+            matches = (matches and len(checks) == 1
+                       and checks[0]['details'].get('passed') is False
+                       and checks[0]['details'].get('error') == expected
+                       and checks[0]['details'].get('reason') == LAUNCH_RECORD_REASON)
         if self.case == 'trailer_duplicate':
             checks = [event for event in fresh if event['type'] == 'trailer_check'
                       and event['details'].get('commit') == self.duplicate_candidate]
@@ -181,7 +196,10 @@ class BadWorker(Tracer):
         self.refused()
 
     def trailer_partial(self):
-        self.delivered({'src/value.txt': 'worker\n'}, omit=('Effort',))
+        # Native-Session is required and is not read after the shape check.
+        # Omitting Effort reaches the delivery comparison and throws once that
+        # shape check is removed, so the mutant would not admit the commit.
+        self.delivered({'src/value.txt': 'worker\n'}, omit=('Native-Session',))
         self.refused()
 
     def trailer_duplicate(self):
@@ -198,6 +216,73 @@ class BadWorker(Tracer):
 
     def trailer_attempt(self):
         self.delivered({'src/value.txt': 'worker\n'}, changes={'Attempt': 't081-old-attempt'})
+        self.refused()
+
+    def forged_identity(self, field):
+        # One trailer field differs from the launch record copied onto the attempt
+        # at submit. The literal unknown is the only Model value the contract allows
+        # to differ, so none of these forgeries use it.
+        attempt = self.start_worker()
+        records = [json.loads(row['data']) for row in self.rows('launch_records')]
+        launch = next(record for record in records if record['id'] == self.launch)
+        value = TRACE_VALUES[field]
+        if value == 'unknown':
+            raise HarnessFailure('伪造值不能是 Model 允许的字面量 unknown。')
+        candidate = self.make_commit(attempt, {'src/value.txt': 'worker\n'}, changes={field: value})
+        submitted = self.worker_submit(candidate)
+        if not submitted['ok']:
+            raise HarnessFailure('伪造身份的 submit 在尾注检查前失败：' + json.dumps(submitted))
+        delivery = self.cli('status')['task']['current_attempt'].get('delivery')
+        if not delivery:
+            raise HarnessFailure('受管 attempt 在 submit 后应有启动记录副本。')
+        reference = {'Launch': delivery['launch_id'], 'Tool': delivery['cli'],
+                     'Model': delivery['model'], 'Effort': delivery['effort']}
+        recorded = {'Launch': launch['id'], 'Tool': launch['cli_version'],
+                    'Model': launch['model_requested'], 'Effort': launch['effort_requested']}
+        if reference != recorded:
+            raise HarnessFailure('submit 复制的 delivery 与 launch_records 不一致：'
+                                 + json.dumps({'delivery': reference, 'record': recorded}, ensure_ascii=False))
+        fixture = json.loads((self.evidence / ('commit-' + candidate + '.json')).read_text(encoding='utf-8'))
+        changed = [key for key in reference if fixture['trailers'][key] != reference[key]]
+        if changed != [field] or fixture['trailers'][field] != value:
+            raise HarnessFailure('每个拒收案只伪造一个与启动记录不同的字段：' + repr(changed))
+        self.refused()
+
+    def trailer_launch(self):
+        self.forged_identity('Launch')
+
+    def trailer_tool(self):
+        self.forged_identity('Tool')
+
+    def trailer_model(self):
+        self.forged_identity('Model')
+
+    def trailer_effort(self):
+        self.forged_identity('Effort')
+
+    def trailer_no_launch(self):
+        # Claim without dispatch leaves no thread and no delivery. Trailers are
+        # still present, so this is not the no-trailer human-intervention path.
+        self.registered()
+        attempt = self.cli('claim', '--owner', 't081-no-launch')['attempt']
+        if attempt.get('thread_id'):
+            raise HarnessFailure('只认领、不派发的 attempt 不应有 worker 线程。')
+        candidate = self.make_commit(attempt, {'src/value.txt': 'worker\n'})
+        body = self.git('show', '-s', '--format=%B', candidate)
+        keys = [line.split(':', 1)[0] for line in body.splitlines() if line.startswith('A2A-')]
+        expected_keys = ['A2A-Task', 'A2A-Attempt', 'A2A-Session', 'A2A-Role', 'A2A-Tool',
+                         'A2A-Model', 'A2A-Effort', 'A2A-Native-Session', 'A2A-Launch']
+        if keys != expected_keys:
+            raise HarnessFailure('无启动记录案必须带齐九项 A2A 尾注：' + repr(keys))
+        reply = self.gate('submit', '--attempt', attempt['attempt_id'], '--session', attempt['session_id'],
+                          '--fence', str(attempt['fence']), '--spec-rev', str(attempt['spec_rev']),
+                          '--commit', candidate)
+        if not reply.get('ok'):
+            raise HarnessFailure('无启动记录的 submit 在尾注检查前失败：' + json.dumps(reply))
+        current = self.cli('status')['task']['current_attempt']
+        if current.get('thread_id') or current.get('delivery') is not None:
+            raise HarnessFailure('带尾注的无启动记录案在 submit 后仍不应有 delivery。')
+        self.a = attempt
         self.refused()
 
     def stale_attempt(self):

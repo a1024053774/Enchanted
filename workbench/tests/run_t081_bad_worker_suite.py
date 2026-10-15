@@ -1,4 +1,4 @@
-"""主控沙箱外运行：先做 6e 双版本探针，再做变异红态、矩阵与串行回归。"""
+"""主控沙箱外运行：6e 拒收先红后绿，再跑矩阵与串行回归。产品须与 main 一致。"""
 import argparse
 import datetime
 import json
@@ -13,11 +13,11 @@ import traceback
 
 from command_evidence import CommandLog
 from prepare_t081_mutants import CASE_MUTANT, prepare
-from test_bad_worker_e2e import ABSENT, ABSENT_EXPECTATION, NEGATIVES, POSITIVES, PROBES, REFUSALS, IDENTITY_EXPECTATION
+from test_bad_worker_e2e import (ABSENT, ABSENT_EXPECTATION, IDENTITY_CASES, IDENTITY_EXPECTATION,
+                                NEGATIVES, POSITIVES, REFUSALS)
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE = '391d70b07ceda29462c06b47116b36829d767001'
 LIMIT = 5_000_000
 SUITE_ARCHIVES = {
     'run_s3_rebased_regression.py', 'test_worktree_lifecycle_e2e.py',
@@ -65,7 +65,6 @@ def unpack(archive, target):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--probe-only', action='store_true')
     args = parser.parse_args()
     out = args.output.resolve()
     evidence = ROOT / 'evidence/2026-10-14-batch14/T-081'
@@ -79,11 +78,14 @@ def main():
     report = {'status': 'INCOMPLETE', 'controlled_status': 'INCOMPLETE', 'product_status': 'INCOMPLETE',
               'task': 'T-081', 'ready_rev': 1, 'argv': sys.argv, 'real_codex_turns': 0,
               'started_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              'steps': [], 'rows': [{'case': '7', 'status': '待逐次批准', 'counted_as_pass': False,
-                                    'branch_unchanged': '未执行', 'integration_state': '未执行'}],
+              'steps': [], 'rows': [{'case': '7', 'status': '已知行为', 'counted_as_pass': False,
+                                    'finding_verdict': '不改',
+                                    'expected': '记为已知行为，不改',
+                                    'actual': '20261015T044138Z-ideation-answer-001',
+                                    'branch_unchanged': '见 RESULTS.md 第 7 项',
+                                    'integration_state': '本轮不重跑'}],
               'false_rejections': None, 'positive_cases_executed': 0, 'findings': [],
-              'pending': ['6e 等 T-084 合入后再加拒收案，本轮观察不计通过', '7 真实 Codex 逐次批准及能力检查',
-                          '独立交付审查、受管 submit 与验收集成'],
+              'pending': ['独立交付审查由主控另开只读会话'],
               'excluded_file': 'acceptance/test_herdr_traceability_e2e.py（主控 #160：T-083 所有）'}
     fixtures = None
     frozen = {}
@@ -127,18 +129,13 @@ def main():
         if failure:
             valid = (valid and result.returncode == 1 and row.get('outcome') == 'contract_failure'
                      and row.get('failure_id') == failure)
-        elif name in PROBES:
-            valid = (valid and result.returncode == 0 and row.get('outcome') == 'observed'
-                     and data.get('observation_complete') is True
-                     and data.get('evidence_kind') == 'trace_consistency_observation'
-                     and data.get('counts_toward_acceptance') is False)
         else:
             valid = valid and result.returncode == 0 and data['status'] == 'PASS' and row.get('outcome') == 'passed'
         report['steps'].append({'label': label, 'report': str(destination / 'run.json'),
                                 'exit': result.returncode, 'expected_business_failure': failure,
                                 'outcome': row.get('outcome'), 'failure_id': row.get('failure_id'),
-                                'valid_evidence': valid, 'counts_toward_acceptance': name not in PROBES,
-                                'evidence_kind': 'trace_consistency_observation' if name in PROBES else 'acceptance'})
+                                'valid_evidence': valid, 'counts_toward_acceptance': True,
+                                'evidence_kind': 'acceptance'})
         ensure_frozen()
         if not valid:
             raise RuntimeError('非预期结果或非业务红态，停止：' + label)
@@ -173,7 +170,7 @@ def main():
                             ('branch', ['git', 'branch', '--show-current']),
                             ('head', ['git', 'rev-parse', 'HEAD']),
                             ('main-head', ['git', 'rev-parse', '--verify', 'refs/heads/main^{commit}']),
-                            ('product-diff', ['git', 'diff', BASE, '--', 'workbench/src', 'workbench/hooks']),
+                            ('product-diff', ['git', 'diff', 'main', '--', 'workbench/src', 'workbench/hooks']),
                             ('diff-check', ['git', 'diff', '--check'])]:
             result = command(argv)
             save(out / (label + '.json'), {'argv': result.args, 'exit': result.returncode,
@@ -191,7 +188,9 @@ def main():
                 main_revision = result.stdout.strip()
                 report['main_revision'] = main_revision
             if label == 'product-diff' and result.stdout:
-                raise RuntimeError('T-081 产品代码必须与起点一致；发现差异，停止。')
+                raise RuntimeError('T-081 产品代码必须与 main 一致；发现差异，停止。')
+            if label == 'product-diff':
+                report['product_status'] = 'MATCHES_MAIN'
         dependencies = ROOT / 'workbench/node_modules'
         if not dependencies.is_dir():
             raise RuntimeError('已安装依赖不存在。')
@@ -201,9 +200,8 @@ def main():
                     frozen[str(path.relative_to(ROOT))] = path.read_bytes()
         fixtures = Path(tempfile.mkdtemp(prefix='t81-', dir='/tmp')).resolve()
         report['fixture_root'] = str(fixtures)
-        candidate, baseline, current_main = fixtures / 'candidate', fixtures / 'baseline', fixtures / 'main'
+        candidate, current_main = fixtures / 'candidate', fixtures / 'main'
         candidate.mkdir()
-        baseline.mkdir()
         current_main.mkdir()
         for directory in SOURCE_ROOTS:
             shutil.copytree(ROOT / directory, candidate / directory, symlinks=True,
@@ -211,21 +209,16 @@ def main():
         with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as stream:
             for directory in SOURCE_ROOTS:
                 stream.add(candidate / directory, arcname=directory)
-        result = command(['git', 'archive', '--format=tar.gz', BASE, *SOURCE_ROOTS],
-                         stdout_file=out / 'baseline-source.tar.gz')
-        if result.returncode:
-            raise RuntimeError('不能冻结原产品。')
-        unpack(out / 'baseline-source.tar.gz', baseline)
         result = command(['git', 'archive', '--format=tar.gz', main_revision, *SOURCE_ROOTS],
                          stdout_file=out / 'main-source.tar.gz')
         if result.returncode:
             raise RuntimeError('不能冻结当前 main。')
         unpack(out / 'main-source.tar.gz', current_main)
-        for source in (baseline, candidate, current_main):
+        for source in (candidate, current_main):
             (source / 'workbench/node_modules').symlink_to(dependencies.resolve(), target_is_directory=True)
         save(out / 'source-manifest.json', {
-            'baseline_revision': BASE, 'candidate_revision': head, 'main_revision': main_revision,
-            'candidate': str(candidate), 'baseline': str(baseline), 'main': str(current_main),
+            'product_pin': 'main', 'candidate_revision': head, 'main_revision': main_revision,
+            'candidate': str(candidate), 'main': str(current_main),
             'candidate_is_uncommitted': True, 'frozen_paths': list(frozen),
             'source_roots': list(SOURCE_ROOTS),
             'dependencies': str(dependencies.resolve()), 'real_codex_turns': 0,
@@ -243,121 +236,84 @@ def main():
         for label, selected in (('main', current_main), ('candidate', candidate)):
             regression('wide-source-control-' + label, 'test_quality_widen_e2e.py',
                        ['--source', selected, '--group', 'wide', '--case', 'widen_red_rules_success'], driver_root=selected)
-        # Correct deliveries establish that a refusal is not an invalid fixture.
-        for label, source in (('baseline', baseline), ('main', current_main)):
-            case('6e-control-' + label, source, 'positive_single')
-        for name in PROBES:
-            observed = {}
-            for label, source in (('baseline', baseline), ('main', current_main)):
-                observed[label] = case('6e-' + name + '-' + label, source, name)
-            inputs = [(out / ('6e-' + name + '-' + label) / name / 'input.json').read_bytes()
-                      for label in ('baseline', 'main')]
-            if inputs[0] != inputs[1]:
-                raise RuntimeError('原产品与当前 main 的 6e 业务输入不一致。')
-            pair_path = out / (name + '-pair.json')
-            save(pair_path, {'kind': 'trace_consistency_observation', 'same_input': True,
-                             'counts_toward_acceptance': False, 'contract_verdict': '待裁定',
-                             'baseline_revision': BASE, 'main_revision': main_revision,
-                             'observations': observed})
-            admitted = [label for label, value in observed.items() if value['accepted_at_verify']]
-            finding = {'case': name, 'field': observed['baseline']['field'], 'status': 'FINDING',
-                       'disposition': 'NO_GO' if admitted else 'OBSERVED',
-                       'admitted_versions': admitted, 'report': str(pair_path),
-                       'counts_toward_acceptance': False, 'contract_verdict': '待裁定',
-                       'resolution_owner': '构思主控/用户；T-081 不修产品'}
-            report['findings'].append(finding)
-            report['rows'].append({'case': name, 'status': 'FINDING',
-                                   'finding_verdict': finding['disposition'], 'counts_toward_acceptance': False,
-                                   'expected': '仅观察追溯字段一致性；契约待裁定',
-                                   'actual': {label: {'verify_error': value['verify'].get('error'),
-                                                      'state': value['state_after_verify'],
-                                                      'integrated': value['integrated']}
-                                              for label, value in observed.items()},
-                                   'pair_report': str(out / (name + '-pair.json'))})
-            report['rows'][-1].update(event_location=str(out / (name + '-pair.json')) + ' observations.*.events',
-                                      branch_unchanged={label: value['before'] == value['after']
-                                                        for label, value in observed.items()},
-                                      integration_state={label: value['task']['state']
-                                                         for label, value in observed.items()})
-        report['probe_status'] = 'OBSERVATIONS_RECORDED'
-        if args.probe_only:
-            report['controlled_status'] = 'PROBE_RECORDED'
-        else:
-            mutants = {}
-            for name in NEGATIVES:
-                mutation = CASE_MUTANT[name]
-                if mutation not in mutants:
-                    mutants[mutation] = prepare(candidate, fixtures / mutation, mutation,
-                                                out / (mutation + '.patch'))
-                failure = 'BW-FROZEN-INTEGRATION' if name == 'after_review' else 'BW-REJECT-' + name
-                case('red-' + name, Path(mutants[mutation]['source']), name, failure)
-                observed = case('green-' + name, candidate, name)
-                report['rows'].append({'case': name, 'status': 'PASS',
-                                       'expected': IDENTITY_EXPECTATION if name == 'trailer_duplicate' else REFUSALS.get(name, 'stale_turn; integrate C1 only'),
-                                       'actual': observed.get('actual', observed.get('reply', {}).get('error')),
-                                       'mutant': mutation, 'red_failure': failure,
-                                       'event_location': str(out / ('green-' + name) / name / 'observation.json') + ' events',
-                                       'branch_unchanged': ('否；仅允许集成 C1' if name == 'after_review'
-                                                            else observed['before'] == observed['after']),
-                                       'integration_state': observed['task']['state'],
-                                       'observation': str(out / ('green-' + name) / name / 'observation.json')})
-            for name in ABSENT:
-                mutation = CASE_MUTANT[name]
-                if mutation not in mutants:
-                    mutants[mutation] = prepare(candidate, fixtures / mutation, mutation,
-                                                out / (mutation + '.patch'))
-                case('red-' + name, Path(mutants[mutation]['source']), name, 'BW-ABSENT-ONCE')
-                observed = case('green-' + name, candidate, name)
-                report['positive_cases_executed'] += 1
-                report['rows'].append({'case': '6a', 'status': 'PASS', 'expected': ABSENT_EXPECTATION,
-                                       'actual': observed.get('actual'), 'mutant': mutation,
-                                       'red_failure': 'BW-ABSENT-ONCE',
-                                       'event_location': str(out / ('green-' + name) / name / 'observation.json') + ' events',
-                                       'branch_unchanged': False,
-                                       'integration_state': observed['task']['state'],
-                                       'intervention_count': observed.get('intervention_count'),
-                                       'observation': str(out / ('green-' + name) / name / 'observation.json')})
-            save(out / 'mutants.json', mutants)
-            for name in POSITIVES:
-                case('positive-' + name, candidate, name)
-                report['positive_cases_executed'] += 1
-                report['rows'].append({'case': name, 'status': 'PASS', 'actual': 'integrated',
-                                       'event_location': str(out / ('positive-' + name) / name / 'observation.json') + ' events',
-                                       'branch_unchanged': False, 'integration_state': 'accepted'})
-            report['false_rejections'] = 0
-            for suite in ('coop', 'recovery', 'run', 'cas', 'cards'):
-                regression('t075-' + suite, 'run_s3_rebased_regression.py', ['--suite', suite, '--revision', head])
-            regression('t077-lifecycle-conflicts', 'test_worktree_lifecycle_e2e.py', ['--phase', 'candidate'])
-            pane_path = out / 't077-conflict-panes.json'
-            pane = command(['node', ROOT / 'workbench/tests/test_conflict_panes.ts',
-                            '--product', candidate, '--output', pane_path])
-            if pane.returncode or json.loads(pane_path.read_text(encoding='utf-8'))['status'] != 'PASS':
-                raise RuntimeError('T-077 conflict panes 回归失败。')
-            for label, script, flags in [
-                ('t080-protected', 'test_protected_acceptance_e2e.py', []),
-                ('t076-tracer', 'test_quality_tracer_e2e.py', []),
-                ('t076-controls', 'test_quality_chain_e2e.py', ['--group', 'controls', '--card-dialect', 'current']),
-                ('t076-red', 'test_quality_chain_e2e.py', ['--group', 'red', '--card-dialect', 'current']),
-                ('t076-legacy-boundaries', 'test_quality_legacy_e2e.py', []),
-                ('t076-wide', 'test_quality_widen_e2e.py', ['--group', 'wide']),
-                ('t076-review-faults', 'test_quality_widen_e2e.py', ['--group', 'review-red']),
-                ('t076-score-schemas', 'test_score_schemas.py', []),
-                ('t077-review-worktrees', 'test_review_worktree_lifecycle_e2e.py', []),
-                ('t077-joint', 'test_s3_quality_joint_e2e.py', []),
-                ('t077-relay-conflict', 'test_relay_conflict_e2e.py', []),
-                ('t077-trailer-conflict', 'test_conflict_trailer_proofs.py',
-                 ['--input', ROOT / 'evidence/2026-10-11-batch13/T-077/controlled-trailer-input.json']),
-                ('t076-startup-shutdown', 'test_startup_shutdown_e2e.py', []),
-                ('t076-attachment', 'test_attachment_windows.py', []),
-                ('t075-multiturn-identity', 'test_multiturn_identity_e2e.py', []),
-            ]:
-                regression(label, script, ['--source', candidate, *flags])
-            regression('t081-cas-counterfactual', 'run_t081_cas_suite.py', ['--source', candidate])
-            report['controlled_status'] = 'PASS'
+        mutants = {}
+        for name in NEGATIVES:
+            mutation = CASE_MUTANT[name]
+            if mutation not in mutants:
+                mutants[mutation] = prepare(candidate, fixtures / mutation, mutation,
+                                            out / (mutation + '.patch'))
+            failure = 'BW-FROZEN-INTEGRATION' if name == 'after_review' else 'BW-REJECT-' + name
+            red_observed = case('red-' + name, Path(mutants[mutation]['source']), name, failure)
+            if name in IDENTITY_CASES and red_observed.get('reply', {}).get('ok') is not True:
+                raise RuntimeError('变异体未放行该交付，红态不是删掉对应比较：' + name)
+            observed = case('green-' + name, candidate, name)
+            report['rows'].append({'case': name, 'status': 'PASS',
+                                   'expected': IDENTITY_EXPECTATION if name == 'trailer_duplicate' else REFUSALS.get(name, 'stale_turn; integrate C1 only'),
+                                   'actual': observed.get('actual', observed.get('reply', {}).get('error')),
+                                   'mutant': mutation, 'red_failure': failure,
+                                   'event_location': str(out / ('green-' + name) / name / 'observation.json') + ' events',
+                                   'branch_unchanged': ('否；仅允许集成 C1' if name == 'after_review'
+                                                        else observed['before'] == observed['after']),
+                                   'integration_state': observed['task']['state'],
+                                   'observation': str(out / ('green-' + name) / name / 'observation.json')})
+        for name in ABSENT:
+            mutation = CASE_MUTANT[name]
+            if mutation not in mutants:
+                mutants[mutation] = prepare(candidate, fixtures / mutation, mutation,
+                                            out / (mutation + '.patch'))
+            case('red-' + name, Path(mutants[mutation]['source']), name, 'BW-ABSENT-ONCE')
+            observed = case('green-' + name, candidate, name)
+            report['positive_cases_executed'] += 1
+            report['rows'].append({'case': '6a', 'status': 'PASS', 'expected': ABSENT_EXPECTATION,
+                                   'actual': observed.get('actual'), 'mutant': mutation,
+                                   'red_failure': 'BW-ABSENT-ONCE',
+                                   'event_location': str(out / ('green-' + name) / name / 'observation.json') + ' events',
+                                   'branch_unchanged': False,
+                                   'integration_state': observed['task']['state'],
+                                   'intervention_count': observed.get('intervention_count'),
+                                   'observation': str(out / ('green-' + name) / name / 'observation.json')})
+        save(out / 'mutants.json', mutants)
+        for name in POSITIVES:
+            case('positive-' + name, candidate, name)
+            report['positive_cases_executed'] += 1
+            report['rows'].append({'case': name, 'status': 'PASS', 'actual': 'integrated',
+                                   'event_location': str(out / ('positive-' + name) / name / 'observation.json') + ' events',
+                                   'branch_unchanged': False, 'integration_state': 'accepted'})
+        report['false_rejections'] = 0
+        for suite in ('coop', 'recovery', 'run', 'cas', 'cards'):
+            regression('t075-' + suite, 'run_s3_rebased_regression.py', ['--suite', suite, '--revision', head])
+        regression('t077-lifecycle-conflicts', 'test_worktree_lifecycle_e2e.py', ['--phase', 'candidate'])
+        pane_path = out / 't077-conflict-panes.json'
+        pane = command(['node', ROOT / 'workbench/tests/test_conflict_panes.ts',
+                        '--product', candidate, '--output', pane_path])
+        if pane.returncode or json.loads(pane_path.read_text(encoding='utf-8'))['status'] != 'PASS':
+            raise RuntimeError('T-077 conflict panes 回归失败。')
+        for label, script, flags in [
+            ('t080-protected', 'test_protected_acceptance_e2e.py', []),
+            ('t076-tracer', 'test_quality_tracer_e2e.py', []),
+            ('t076-controls', 'test_quality_chain_e2e.py', ['--group', 'controls', '--card-dialect', 'current']),
+            ('t076-red', 'test_quality_chain_e2e.py', ['--group', 'red', '--card-dialect', 'current']),
+            ('t076-legacy-boundaries', 'test_quality_legacy_e2e.py', []),
+            ('t076-wide', 'test_quality_widen_e2e.py', ['--group', 'wide']),
+            ('t076-review-faults', 'test_quality_widen_e2e.py', ['--group', 'review-red']),
+            ('t076-score-schemas', 'test_score_schemas.py', []),
+            ('t077-review-worktrees', 'test_review_worktree_lifecycle_e2e.py', []),
+            ('t077-joint', 'test_s3_quality_joint_e2e.py', []),
+            ('t077-relay-conflict', 'test_relay_conflict_e2e.py', []),
+            ('t077-trailer-conflict', 'test_conflict_trailer_proofs.py',
+             ['--input', ROOT / 'evidence/2026-10-11-batch13/T-077/controlled-trailer-input.json']),
+            ('t076-startup-shutdown', 'test_startup_shutdown_e2e.py', []),
+            ('t076-attachment', 'test_attachment_windows.py', []),
+            ('t075-multiturn-identity', 'test_multiturn_identity_e2e.py', []),
+        ]:
+            regression(label, script, ['--source', candidate, *flags])
+        regression('t081-cas-counterfactual', 'run_t081_cas_suite.py', ['--source', candidate])
+        report['controlled_status'] = 'PASS'
         status = command([sys.executable, '/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py',
                           'status', '--root', ROOT])
         if status.returncode:
             raise RuntimeError('项目地图检查失败。')
+        report['status'] = 'PASS'
         ensure_frozen()
     except Exception as error:
         report.update(error=repr(error), traceback=traceback.format_exc())
@@ -374,12 +330,12 @@ def main():
         lines.extend(['', '正例执行数：' + str(report['positive_cases_executed']),
                       '误拒绝数：' + str(report['false_rejections']),
                       '原始事件与命令输出位置见 run.json 的 steps 与逐案 observation.json。',
-                      '6e 是发现观察，FINDING/NO_GO 不触发全量停止，也不计拒收绿态或正例通过。',
-                      '6a 正向核对完全无尾注恰好记一次人工介入并集成；6e 拒收案等 T-084 合入后再加。真实 Codex 回合为 0；未运行项不计通过。', ''])
+                      '6e 拒收：伪造 Launch、Tool、Model、Effort 期望 trailer_identity_mismatch；带尾注且无启动记录期望 trailer_launch_record_missing。每案先在 /tmp 副本删掉对应比较，红态须放行该交付，再在候选上取绿。',
+                      '6a 正向核对完全无尾注恰好记一次人工介入并集成。三个正例计入正例执行数。正确拒收不计入误拒绝。真实 Codex 回合为 0；未运行项不计通过。', ''])
         with (out / 'RESULTS.md').open('x', encoding='utf-8') as stream:
             stream.write('\n'.join(lines))
     print(json.dumps({key: report[key] for key in ('status', 'controlled_status', 'real_codex_turns')}, ensure_ascii=False))
-    return 0 if report['controlled_status'] in ('PASS', 'PROBE_RECORDED') else 2
+    return 0 if report['status'] == 'PASS' else 2
 
 
 if __name__ == '__main__':

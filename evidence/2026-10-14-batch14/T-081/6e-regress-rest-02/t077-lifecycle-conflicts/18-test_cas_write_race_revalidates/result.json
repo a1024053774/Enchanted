@@ -1,0 +1,423 @@
+{
+  "case": "test_cas_write_race_revalidates",
+  "phase": "candidate",
+  "tests_run": 1,
+  "exit_code": 0,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "business_red": false,
+  "contracts": [
+    {
+      "test": "__main__.CASContracts.test_cas_write_race_revalidates",
+      "claim": "W11 lost prepared comparison triggers fresh verification",
+      "pass": true,
+      "expected": true,
+      "actual": {
+        "ok": true,
+        "task": {
+          "task_id": "check-213f275bbc684ae88e5281fec2f88fd8",
+          "title": "check-213f275bbc684ae88e5281fec2f88fd8",
+          "project_id": "check-213f275bbc684ae88e5281fec2f88fd8",
+          "repo": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "e372cb90-9ea2-404c-979c-ce867ce9c459",
+          "card_version": 1,
+          "card": {
+            "id": "check-213f275bbc684ae88e5281fec2f88fd8",
+            "source": null,
+            "goal": "# Cursor pagination fixture v1\n\nThis is an isolated coding task for the Herdr A2A experiment.\n\nRun `python3 pager.py`. Read one JSON request from stdin and write one JSON response to stdout.\nRequests contain `items` (records with distinct string `id` and integer `ts`), `limit`,\nand optional `after` (null or [integer timestamp, string id]).\nSort records by (ts, id) ascending. Return at most limit records strictly after that pair.\nPreserve all record fields. Return `{\"items\": [...], \"next_cursor\": ...}`.\nThe next cursor is the last returned pair only if additional eligible records remain;\notherwise it is null. Input order must not matter. Do not mutate input records.\n\nLimits must be integers in [1, 100]; booleans are invalid. Invalid limit returns only\n`{\"error\": \"invalid_limit\"}`. An after value with a wrong shape/type returns only\n`{\"error\": \"invalid_cursor\"}`. Check limit before cursor. A cursor need not exist in the input.\nEmpty results have items=[] and next_cursor=null.\n\nThe initial program is deliberately incomplete. Implement this contract without modifying\nthis document or acceptance tools. A successful model turn is not delivery acceptance.\n",
+            "non_goals": [
+              "不改变独立分页合同"
+            ],
+            "paths": {
+              "allow": [
+                "."
+              ],
+              "deny": []
+            },
+            "oracle_paths": [
+              "acceptance/criterion.py",
+              "CONTRACT.md"
+            ],
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "CONTROL = '/tmp/s3-ibg0nggz/t-c3scdso8/oracle barrier'\nORACLE_SOURCE = '\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\\nimport json\\nfrom pathlib import Path\\nimport subprocess\\nimport sys\\n\\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\\nCASES = [\\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\\n     {\"items\": [C, D], \"next_cursor\": None}),\\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\\n     {\"items\": [], \"next_cursor\": None}),\\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\\n     {\"error\": \"invalid_limit\"}),\\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\\n     {\"error\": \"invalid_cursor\"}),\\n]\\ndef main():\\n    root = Path(sys.argv[1]).resolve()\\n    results = []\\n    for name, request, expected in CASES:\\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\\n        try:\\n            p = subprocess.run(command, input=json.dumps(request), text=True,\\n                               capture_output=True, cwd=root, timeout=10)\\n        except subprocess.TimeoutExpired as exc:\\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\\n            continue\\n        try:\\n            actual = json.loads(p.stdout)\\n        except json.JSONDecodeError:\\n            actual = None\\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\\n                        \"pass\": p.returncode == 0 and actual == expected})\\n    ok = all(r[\"pass\"] for r in results)\\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\\n                      \"cases\": results}, ensure_ascii=False, indent=2))\\n    return 0 if ok else 1\\nif __name__ == \"__main__\":\\n    sys.exit(main())\\n'\n\nimport contextlib, io, json, os, pathlib, sys, time, traceback, uuid\ncontrol = pathlib.Path(CONTROL)\nidentity = uuid.uuid4().hex\nentry = control / (identity + \".entry.json\")\nrelease = control / (identity + \".release\")\nentry.write_text(json.dumps({\"pid\": os.getpid(), \"ppid\": os.getppid(),\n    \"argv\": sys.argv, \"candidate_directory\": sys.argv[1],\n    \"release\": str(release), \"phase\": \"oracle\"}), encoding=\"utf-8\")\ndeadline = time.monotonic() + 40\nwhile not release.exists() and not (control / \"release-all\").exists():\n    if time.monotonic() > deadline:\n        raise RuntimeError(\"fixture oracle barrier expired\")\n    time.sleep(0.02)\nstdout, stderr = io.StringIO(), io.StringIO()\ncode = 0\nwith contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):\n    try:\n        exec(compile(ORACLE_SOURCE, \"frozen-independent-pagination-oracle\", \"exec\"))\n    except SystemExit as exit:\n        code = exit.code\n    except Exception:\n        traceback.print_exc()\n        code = 1\n(control / (identity + \".result.json\")).write_text(json.dumps({\n    \"pid\": os.getpid(), \"argv\": sys.argv, \"exit_code\": code,\n    \"stdout\": stdout.getvalue(), \"stderr\": stderr.getvalue()}), encoding=\"utf-8\")\ntry:\n    sys.stdout.write(stdout.getvalue())\n    sys.stderr.write(stderr.getvalue())\nfinally:\n    (control / (identity + \".done\")).write_text(\"oracle exited\", encoding=\"utf-8\")\nsys.exit(code)\n",
+                  "{worktree}"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "M",
+            "executor": {
+              "cli": "Codex",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "a85edcbd7c5f479cf608995f7ab52f1e571ff2d1",
+          "state": "accepted",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "check-213f275bbc684ae88e5281fec2f88fd8",
+            "attempt_id": "56e38217-554f-4c86-8d27-d8a346e206de",
+            "session_id": "1c0d2cb6-31d5-4774-858d-6f38045f064d",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+            "runtime_mode": "approval-required",
+            "turn_id": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+            "runtime_identity": {
+              "launch": "fe2f4842-a549-41ef-8858-91aa008fd8b2",
+              "thread": "24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+              "shell_pid": 10000,
+              "leader_pid": 20000,
+              "native_session": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e"
+            },
+            "workspace": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1",
+            "base_commit": "a85edcbd7c5f479cf608995f7ab52f1e571ff2d1",
+            "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+            "reclaimed": false,
+            "owner": "check-213f275bbc684ae88e5281fec2f88fd8",
+            "state": "accepted",
+            "delivery": {
+              "commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+              "turn_id": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+              "launch_id": "fe2f4842-a549-41ef-8858-91aa008fd8b2",
+              "cli": "controlled-runtime fixture",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh",
+              "number": 1,
+              "submitted_at": "2026-10-15T09:20:50.395Z"
+            },
+            "revalidation": {
+              "candidate_commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+              "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+              "spec_rev": 1,
+              "misses": 1,
+              "previous_verification_id": "9fe7d399-eed7-4882-889e-5a5f890c7fb8"
+            }
+          },
+          "candidate_commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+          "verification": {
+            "verification_id": "bf783f4d-c676-4f30-8d0e-5d4a113424bb",
+            "ordinal": 2,
+            "attempt": {
+              "task_id": "check-213f275bbc684ae88e5281fec2f88fd8",
+              "attempt_id": "56e38217-554f-4c86-8d27-d8a346e206de",
+              "session_id": "1c0d2cb6-31d5-4774-858d-6f38045f064d",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+              "runtime_mode": "approval-required",
+              "turn_id": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+              "runtime_identity": {
+                "launch": "fe2f4842-a549-41ef-8858-91aa008fd8b2",
+                "thread": "24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+                "shell_pid": 10000,
+                "leader_pid": 20000,
+                "native_session": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e"
+              },
+              "workspace": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1",
+              "base_commit": "a85edcbd7c5f479cf608995f7ab52f1e571ff2d1",
+              "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+              "reclaimed": false,
+              "owner": "check-213f275bbc684ae88e5281fec2f88fd8",
+              "state": "submitted",
+              "delivery": {
+                "commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+                "turn_id": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+                "launch_id": "fe2f4842-a549-41ef-8858-91aa008fd8b2",
+                "cli": "controlled-runtime fixture",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh",
+                "number": 1,
+                "submitted_at": "2026-10-15T09:20:50.395Z"
+              },
+              "revalidation": {
+                "candidate_commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+                "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+                "spec_rev": 1,
+                "misses": 1,
+                "previous_verification_id": "9fe7d399-eed7-4882-889e-5a5f890c7fb8"
+              }
+            },
+            "spec_rev": 1,
+            "G": "5483536fb6a3a808a3840bc86ff035e5588dcde4",
+            "C": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+            "M": "898befdc30bdd7f86e8459a34af976fcc93341f0",
+            "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+            "card_version": 1,
+            "commands": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "CONTROL = '/tmp/s3-ibg0nggz/t-c3scdso8/oracle barrier'\nORACLE_SOURCE = '\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\\nimport json\\nfrom pathlib import Path\\nimport subprocess\\nimport sys\\n\\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\\nCASES = [\\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\\n     {\"items\": [C, D], \"next_cursor\": None}),\\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\\n     {\"items\": [], \"next_cursor\": None}),\\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\\n     {\"error\": \"invalid_limit\"}),\\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\\n     {\"error\": \"invalid_cursor\"}),\\n]\\ndef main():\\n    root = Path(sys.argv[1]).resolve()\\n    results = []\\n    for name, request, expected in CASES:\\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\\n        try:\\n            p = subprocess.run(command, input=json.dumps(request), text=True,\\n                               capture_output=True, cwd=root, timeout=10)\\n        except subprocess.TimeoutExpired as exc:\\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\\n            continue\\n        try:\\n            actual = json.loads(p.stdout)\\n        except json.JSONDecodeError:\\n            actual = None\\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\\n                        \"pass\": p.returncode == 0 and actual == expected})\\n    ok = all(r[\"pass\"] for r in results)\\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\\n                      \"cases\": results}, ensure_ascii=False, indent=2))\\n    return 0 if ok else 1\\nif __name__ == \"__main__\":\\n    sys.exit(main())\\n'\n\nimport contextlib, io, json, os, pathlib, sys, time, traceback, uuid\ncontrol = pathlib.Path(CONTROL)\nidentity = uuid.uuid4().hex\nentry = control / (identity + \".entry.json\")\nrelease = control / (identity + \".release\")\nentry.write_text(json.dumps({\"pid\": os.getpid(), \"ppid\": os.getppid(),\n    \"argv\": sys.argv, \"candidate_directory\": sys.argv[1],\n    \"release\": str(release), \"phase\": \"oracle\"}), encoding=\"utf-8\")\ndeadline = time.monotonic() + 40\nwhile not release.exists() and not (control / \"release-all\").exists():\n    if time.monotonic() > deadline:\n        raise RuntimeError(\"fixture oracle barrier expired\")\n    time.sleep(0.02)\nstdout, stderr = io.StringIO(), io.StringIO()\ncode = 0\nwith contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):\n    try:\n        exec(compile(ORACLE_SOURCE, \"frozen-independent-pagination-oracle\", \"exec\"))\n    except SystemExit as exit:\n        code = exit.code\n    except Exception:\n        traceback.print_exc()\n        code = 1\n(control / (identity + \".result.json\")).write_text(json.dumps({\n    \"pid\": os.getpid(), \"argv\": sys.argv, \"exit_code\": code,\n    \"stdout\": stdout.getvalue(), \"stderr\": stderr.getvalue()}), encoding=\"utf-8\")\ntry:\n    sys.stdout.write(stdout.getvalue())\n    sys.stderr.write(stderr.getvalue())\nfinally:\n    (control / (identity + \".done\")).write_text(\"oracle exited\", encoding=\"utf-8\")\nsys.exit(code)\n",
+                  "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2"
+                ],
+                "cwd": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2"
+              }
+            ],
+            "results": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "CONTROL = '/tmp/s3-ibg0nggz/t-c3scdso8/oracle barrier'\nORACLE_SOURCE = '\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\\nimport json\\nfrom pathlib import Path\\nimport subprocess\\nimport sys\\n\\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\\nCASES = [\\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\\n     {\"items\": [C, D], \"next_cursor\": None}),\\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\\n     {\"items\": [], \"next_cursor\": None}),\\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\\n     {\"error\": \"invalid_limit\"}),\\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\\n     {\"error\": \"invalid_cursor\"}),\\n]\\ndef main():\\n    root = Path(sys.argv[1]).resolve()\\n    results = []\\n    for name, request, expected in CASES:\\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\\n        try:\\n            p = subprocess.run(command, input=json.dumps(request), text=True,\\n                               capture_output=True, cwd=root, timeout=10)\\n        except subprocess.TimeoutExpired as exc:\\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\\n            continue\\n        try:\\n            actual = json.loads(p.stdout)\\n        except json.JSONDecodeError:\\n            actual = None\\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\\n                        \"pass\": p.returncode == 0 and actual == expected})\\n    ok = all(r[\"pass\"] for r in results)\\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\\n                      \"cases\": results}, ensure_ascii=False, indent=2))\\n    return 0 if ok else 1\\nif __name__ == \"__main__\":\\n    sys.exit(main())\\n'\n\nimport contextlib, io, json, os, pathlib, sys, time, traceback, uuid\ncontrol = pathlib.Path(CONTROL)\nidentity = uuid.uuid4().hex\nentry = control / (identity + \".entry.json\")\nrelease = control / (identity + \".release\")\nentry.write_text(json.dumps({\"pid\": os.getpid(), \"ppid\": os.getppid(),\n    \"argv\": sys.argv, \"candidate_directory\": sys.argv[1],\n    \"release\": str(release), \"phase\": \"oracle\"}), encoding=\"utf-8\")\ndeadline = time.monotonic() + 40\nwhile not release.exists() and not (control / \"release-all\").exists():\n    if time.monotonic() > deadline:\n        raise RuntimeError(\"fixture oracle barrier expired\")\n    time.sleep(0.02)\nstdout, stderr = io.StringIO(), io.StringIO()\ncode = 0\nwith contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):\n    try:\n        exec(compile(ORACLE_SOURCE, \"frozen-independent-pagination-oracle\", \"exec\"))\n    except SystemExit as exit:\n        code = exit.code\n    except Exception:\n        traceback.print_exc()\n        code = 1\n(control / (identity + \".result.json\")).write_text(json.dumps({\n    \"pid\": os.getpid(), \"argv\": sys.argv, \"exit_code\": code,\n    \"stdout\": stdout.getvalue(), \"stderr\": stderr.getvalue()}), encoding=\"utf-8\")\ntry:\n    sys.stdout.write(stdout.getvalue())\n    sys.stderr.write(stderr.getvalue())\nfinally:\n    (control / (identity + \".done\")).write_text(\"oracle exited\", encoding=\"utf-8\")\nsys.exit(code)\n",
+                  "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2"
+                ],
+                "cwd": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2",
+                "stdout": "{\n  \"status\": \"PASS\",\n  \"candidate\": \"/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2\",\n  \"cases\": [\n    {\n      \"case\": \"unordered-ties\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"continuation\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          }\n        ],\n        \"limit\": 2,\n        \"after\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"missing-cursor\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 1,\n        \"after\": [\n          2,\n          \"az\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"past-end\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"limit\": 3,\n        \"after\": [\n          9,\n          \"z\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"empty\",\n      \"input\": {\n        \"items\": [],\n        \"limit\": 5\n      },\n      \"expected\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"exact-boundary\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"unseen-input\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"limit\": 1\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"invalid-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 0\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"maximum-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 100\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"above-maximum-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"boundary-101\",\n            \"ts\": 1\n          }\n        ],\n        \"limit\": 101\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"boolean-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": true\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"invalid-cursor\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2,\n        \"after\": [\n          true,\n          \"a\"\n        ]\n      },\n      \"expected\": {\n        \"error\": \"invalid_cursor\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_cursor\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    }\n  ]\n}\n",
+                "stderr": "",
+                "exit": 0,
+                "returncode": 0
+              }
+            ],
+            "workspace": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2",
+            "state": "passed",
+            "command_intent": {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "CONTROL = '/tmp/s3-ibg0nggz/t-c3scdso8/oracle barrier'\nORACLE_SOURCE = '\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\\nimport json\\nfrom pathlib import Path\\nimport subprocess\\nimport sys\\n\\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\\nCASES = [\\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\\n     {\"items\": [C, D], \"next_cursor\": None}),\\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\\n     {\"items\": [], \"next_cursor\": None}),\\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\\n     {\"error\": \"invalid_limit\"}),\\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\\n     {\"error\": \"invalid_cursor\"}),\\n]\\ndef main():\\n    root = Path(sys.argv[1]).resolve()\\n    results = []\\n    for name, request, expected in CASES:\\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\\n        try:\\n            p = subprocess.run(command, input=json.dumps(request), text=True,\\n                               capture_output=True, cwd=root, timeout=10)\\n        except subprocess.TimeoutExpired as exc:\\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\\n            continue\\n        try:\\n            actual = json.loads(p.stdout)\\n        except json.JSONDecodeError:\\n            actual = None\\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\\n                        \"pass\": p.returncode == 0 and actual == expected})\\n    ok = all(r[\"pass\"] for r in results)\\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\\n                      \"cases\": results}, ensure_ascii=False, indent=2))\\n    return 0 if ok else 1\\nif __name__ == \"__main__\":\\n    sys.exit(main())\\n'\n\nimport contextlib, io, json, os, pathlib, sys, time, traceback, uuid\ncontrol = pathlib.Path(CONTROL)\nidentity = uuid.uuid4().hex\nentry = control / (identity + \".entry.json\")\nrelease = control / (identity + \".release\")\nentry.write_text(json.dumps({\"pid\": os.getpid(), \"ppid\": os.getppid(),\n    \"argv\": sys.argv, \"candidate_directory\": sys.argv[1],\n    \"release\": str(release), \"phase\": \"oracle\"}), encoding=\"utf-8\")\ndeadline = time.monotonic() + 40\nwhile not release.exists() and not (control / \"release-all\").exists():\n    if time.monotonic() > deadline:\n        raise RuntimeError(\"fixture oracle barrier expired\")\n    time.sleep(0.02)\nstdout, stderr = io.StringIO(), io.StringIO()\ncode = 0\nwith contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):\n    try:\n        exec(compile(ORACLE_SOURCE, \"frozen-independent-pagination-oracle\", \"exec\"))\n    except SystemExit as exit:\n        code = exit.code\n    except Exception:\n        traceback.print_exc()\n        code = 1\n(control / (identity + \".result.json\")).write_text(json.dumps({\n    \"pid\": os.getpid(), \"argv\": sys.argv, \"exit_code\": code,\n    \"stdout\": stdout.getvalue(), \"stderr\": stderr.getvalue()}), encoding=\"utf-8\")\ntry:\n    sys.stdout.write(stdout.getvalue())\n    sys.stderr.write(stderr.getvalue())\nfinally:\n    (control / (identity + \".done\")).write_text(\"oracle exited\", encoding=\"utf-8\")\nsys.exit(code)\n",
+                "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2"
+              ],
+              "cwd": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2"
+            },
+            "quality": {
+              "snapshot": {
+                "source_commit": "a85edcbd7c5f479cf608995f7ab52f1e571ff2d1",
+                "path": ".a2a/quality.json",
+                "raw": null,
+                "rule_checks": []
+              },
+              "red": [],
+              "rules": []
+            },
+            "result": {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "CONTROL = '/tmp/s3-ibg0nggz/t-c3scdso8/oracle barrier'\nORACLE_SOURCE = '\"\"\"Independent subprocess oracle; expected values are literals from the fixture contract.\"\"\"\\nimport json\\nfrom pathlib import Path\\nimport subprocess\\nimport sys\\n\\nA = {\"id\": \"a\", \"ts\": 2, \"value\": \"alpha\"}\\nB = {\"id\": \"b\", \"ts\": 2, \"value\": \"beta\"}\\nC = {\"id\": \"c\", \"ts\": 3, \"value\": \"gamma\"}\\nD = {\"id\": \"d\", \"ts\": 5, \"value\": \"delta\"}\\nCASES = [\\n    (\"unordered-ties\", {\"items\": [D, B, C, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": [2, \"b\"]}),\\n    (\"continuation\", {\"items\": [B, D, A, C], \"limit\": 2, \"after\": [2, \"b\"]},\\n     {\"items\": [C, D], \"next_cursor\": None}),\\n    (\"missing-cursor\", {\"items\": [D, B, C, A], \"limit\": 1, \"after\": [2, \"az\"]},\\n     {\"items\": [B], \"next_cursor\": [2, \"b\"]}),\\n    (\"past-end\", {\"items\": [A, D], \"limit\": 3, \"after\": [9, \"z\"]},\\n     {\"items\": [], \"next_cursor\": None}),\\n    (\"empty\", {\"items\": [], \"limit\": 5}, {\"items\": [], \"next_cursor\": None}),\\n    (\"exact-boundary\", {\"items\": [B, A], \"limit\": 2},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"unseen-input\", {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"limit\": 1},\\n     {\"items\": [{\"id\": \"unique-47\", \"ts\": -7, \"extra\": [1, 9]}], \"next_cursor\": None}),\\n    (\"invalid-limit\", {\"items\": [A], \"limit\": 0}, {\"error\": \"invalid_limit\"}),\\n    (\"maximum-limit\", {\"items\": [B, A], \"limit\": 100},\\n     {\"items\": [A, B], \"next_cursor\": None}),\\n    (\"above-maximum-limit\", {\"items\": [{\"id\": \"boundary-101\", \"ts\": 1}], \"limit\": 101},\\n     {\"error\": \"invalid_limit\"}),\\n    (\"boolean-limit\", {\"items\": [A], \"limit\": True}, {\"error\": \"invalid_limit\"}),\\n    (\"invalid-cursor\", {\"items\": [A], \"limit\": 2, \"after\": [True, \"a\"]},\\n     {\"error\": \"invalid_cursor\"}),\\n]\\ndef main():\\n    root = Path(sys.argv[1]).resolve()\\n    results = []\\n    for name, request, expected in CASES:\\n        command = [sys.executable, \"-B\", str(root / \"pager.py\")]\\n        try:\\n            p = subprocess.run(command, input=json.dumps(request), text=True,\\n                               capture_output=True, cwd=root, timeout=10)\\n        except subprocess.TimeoutExpired as exc:\\n            results.append({\"case\": name, \"pass\": False, \"error\": \"timeout\", \"command\": command})\\n            continue\\n        try:\\n            actual = json.loads(p.stdout)\\n        except json.JSONDecodeError:\\n            actual = None\\n        results.append({\"case\": name, \"input\": request, \"expected\": expected,\\n                        \"actual\": actual, \"exit\": p.returncode, \"stderr\": p.stderr,\\n                        \"pass\": p.returncode == 0 and actual == expected})\\n    ok = all(r[\"pass\"] for r in results)\\n    print(json.dumps({\"status\": \"PASS\" if ok else \"FAIL\", \"candidate\": str(root),\\n                      \"cases\": results}, ensure_ascii=False, indent=2))\\n    return 0 if ok else 1\\nif __name__ == \"__main__\":\\n    sys.exit(main())\\n'\n\nimport contextlib, io, json, os, pathlib, sys, time, traceback, uuid\ncontrol = pathlib.Path(CONTROL)\nidentity = uuid.uuid4().hex\nentry = control / (identity + \".entry.json\")\nrelease = control / (identity + \".release\")\nentry.write_text(json.dumps({\"pid\": os.getpid(), \"ppid\": os.getppid(),\n    \"argv\": sys.argv, \"candidate_directory\": sys.argv[1],\n    \"release\": str(release), \"phase\": \"oracle\"}), encoding=\"utf-8\")\ndeadline = time.monotonic() + 40\nwhile not release.exists() and not (control / \"release-all\").exists():\n    if time.monotonic() > deadline:\n        raise RuntimeError(\"fixture oracle barrier expired\")\n    time.sleep(0.02)\nstdout, stderr = io.StringIO(), io.StringIO()\ncode = 0\nwith contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):\n    try:\n        exec(compile(ORACLE_SOURCE, \"frozen-independent-pagination-oracle\", \"exec\"))\n    except SystemExit as exit:\n        code = exit.code\n    except Exception:\n        traceback.print_exc()\n        code = 1\n(control / (identity + \".result.json\")).write_text(json.dumps({\n    \"pid\": os.getpid(), \"argv\": sys.argv, \"exit_code\": code,\n    \"stdout\": stdout.getvalue(), \"stderr\": stderr.getvalue()}), encoding=\"utf-8\")\ntry:\n    sys.stdout.write(stdout.getvalue())\n    sys.stderr.write(stderr.getvalue())\nfinally:\n    (control / (identity + \".done\")).write_text(\"oracle exited\", encoding=\"utf-8\")\nsys.exit(code)\n",
+                "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2"
+              ],
+              "cwd": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2",
+              "stdout": "{\n  \"status\": \"PASS\",\n  \"candidate\": \"/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-verify-2\",\n  \"cases\": [\n    {\n      \"case\": \"unordered-ties\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"continuation\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          }\n        ],\n        \"limit\": 2,\n        \"after\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"missing-cursor\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"c\",\n            \"ts\": 3,\n            \"value\": \"gamma\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 1,\n        \"after\": [\n          2,\n          \"az\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": [\n          2,\n          \"b\"\n        ]\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"past-end\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"d\",\n            \"ts\": 5,\n            \"value\": \"delta\"\n          }\n        ],\n        \"limit\": 3,\n        \"after\": [\n          9,\n          \"z\"\n        ]\n      },\n      \"expected\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"empty\",\n      \"input\": {\n        \"items\": [],\n        \"limit\": 5\n      },\n      \"expected\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"exact-boundary\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"unseen-input\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"limit\": 1\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"unique-47\",\n            \"ts\": -7,\n            \"extra\": [\n              1,\n              9\n            ]\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"invalid-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 0\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"maximum-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          },\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 100\n      },\n      \"expected\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"actual\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          },\n          {\n            \"id\": \"b\",\n            \"ts\": 2,\n            \"value\": \"beta\"\n          }\n        ],\n        \"next_cursor\": null\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"above-maximum-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"boundary-101\",\n            \"ts\": 1\n          }\n        ],\n        \"limit\": 101\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"boolean-limit\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": true\n      },\n      \"expected\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_limit\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    },\n    {\n      \"case\": \"invalid-cursor\",\n      \"input\": {\n        \"items\": [\n          {\n            \"id\": \"a\",\n            \"ts\": 2,\n            \"value\": \"alpha\"\n          }\n        ],\n        \"limit\": 2,\n        \"after\": [\n          true,\n          \"a\"\n        ]\n      },\n      \"expected\": {\n        \"error\": \"invalid_cursor\"\n      },\n      \"actual\": {\n        \"error\": \"invalid_cursor\"\n      },\n      \"exit\": 0,\n      \"stderr\": \"\",\n      \"pass\": true\n    }\n  ]\n}\n",
+              "stderr": "",
+              "exit": 0,
+              "returncode": 0
+            },
+            "ended": "2026-10-15T09:20:55.590Z",
+            "retained_ref": "refs/a2a/verifications/check-213f275bbc684ae88e5281fec2f88fd8/a1/v2",
+            "cleanup": "removed"
+          },
+          "integration_intent": {
+            "G": "5483536fb6a3a808a3840bc86ff035e5588dcde4",
+            "C": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+            "M": "898befdc30bdd7f86e8459a34af976fcc93341f0",
+            "verification_id": "bf783f4d-c676-4f30-8d0e-5d4a113424bb",
+            "attempt": {
+              "task_id": "check-213f275bbc684ae88e5281fec2f88fd8",
+              "attempt_id": "56e38217-554f-4c86-8d27-d8a346e206de",
+              "session_id": "1c0d2cb6-31d5-4774-858d-6f38045f064d",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+              "runtime_mode": "approval-required",
+              "turn_id": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+              "runtime_identity": {
+                "launch": "fe2f4842-a549-41ef-8858-91aa008fd8b2",
+                "thread": "24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+                "shell_pid": 10000,
+                "leader_pid": 20000,
+                "native_session": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e"
+              },
+              "workspace": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1",
+              "base_commit": "a85edcbd7c5f479cf608995f7ab52f1e571ff2d1",
+              "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+              "reclaimed": false,
+              "owner": "check-213f275bbc684ae88e5281fec2f88fd8",
+              "state": "submitted",
+              "delivery": {
+                "commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+                "turn_id": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+                "launch_id": "fe2f4842-a549-41ef-8858-91aa008fd8b2",
+                "cli": "controlled-runtime fixture",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh",
+                "number": 1,
+                "submitted_at": "2026-10-15T09:20:50.395Z"
+              },
+              "revalidation": {
+                "candidate_commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+                "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+                "spec_rev": 1,
+                "misses": 1,
+                "previous_verification_id": "9fe7d399-eed7-4882-889e-5a5f890c7fb8"
+              }
+            },
+            "spec_rev": 1,
+            "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+            "integration_ref": "refs/heads/main",
+            "worktree": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated repo",
+            "intent_id": "90f8a0e8-26e7-4fa9-ae84-6755e01dfc53",
+            "state": "completed",
+            "score": {
+              "score_id": "score-637e07b0-b9f9-468a-aaaa-e7c0e1e829c5",
+              "data": {
+                "result": "通过",
+                "boundary_discipline": 3,
+                "boundary_reason": "受控测试在合同边界内",
+                "engineering_taste": 2,
+                "engineering_reason": "独立夹具固定评分",
+                "notes": ""
+              }
+            },
+            "command_intent": {
+              "argv": [
+                "git",
+                "-C",
+                "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated repo",
+                "update-ref",
+                "--stdin"
+              ],
+              "cwd": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated repo"
+            },
+            "result": {
+              "argv": [
+                "git",
+                "-C",
+                "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated repo",
+                "update-ref",
+                "--stdin"
+              ],
+              "cwd": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated repo",
+              "stdout": "start: ok\nprepare: ok\ncommit: ok\n",
+              "stderr": "",
+              "exit": 0,
+              "returncode": 0
+            }
+          },
+          "quality": {
+            "source_commit": "a85edcbd7c5f479cf608995f7ab52f1e571ff2d1",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "repair": null,
+          "review": {
+            "review_id": "e9609ccd-45f4-4d05-9581-0a70fc82285b",
+            "ordinal": 1,
+            "task_id": "check-213f275bbc684ae88e5281fec2f88fd8",
+            "attempt": {
+              "task_id": "check-213f275bbc684ae88e5281fec2f88fd8",
+              "attempt_id": "56e38217-554f-4c86-8d27-d8a346e206de",
+              "session_id": "1c0d2cb6-31d5-4774-858d-6f38045f064d",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+              "runtime_mode": "approval-required",
+              "turn_id": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+              "runtime_identity": {
+                "launch": "fe2f4842-a549-41ef-8858-91aa008fd8b2",
+                "thread": "24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+                "shell_pid": 10000,
+                "leader_pid": 20000,
+                "native_session": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e"
+              },
+              "workspace": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1",
+              "base_commit": "a85edcbd7c5f479cf608995f7ab52f1e571ff2d1",
+              "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+              "reclaimed": false,
+              "owner": "check-213f275bbc684ae88e5281fec2f88fd8",
+              "state": "submitted",
+              "delivery": {
+                "commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+                "turn_id": "native-turn:24191d36-9b3d-467f-9ff8-d59bda6ebe8e",
+                "launch_id": "fe2f4842-a549-41ef-8858-91aa008fd8b2",
+                "cli": "controlled-runtime fixture",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh",
+                "number": 1,
+                "submitted_at": "2026-10-15T09:20:50.395Z"
+              }
+            },
+            "candidate_commit": "3e91b945361b7d633cf4d7305016b540bf0feee8",
+            "spec_rev": 1,
+            "card_snapshot_id": "e2d63f9a-f2ed-40e0-b79c-80354cca32b3",
+            "verification_id": "9fe7d399-eed7-4882-889e-5a5f890c7fb8",
+            "thread_id": "c072b6c7-ba62-4fe7-8887-80e2ca8a4b02",
+            "session_id": "059edad0-ed1f-4d48-997f-0f193ac8648f",
+            "workspace": "/private/tmp/s3-ibg0nggz/t-c3scdso8/isolated state/worktrees/check-213f275bbc684ae88e5281fec2f88fd8/check-213f275bbc684ae88e5281fec2f88fd8-a1-review-1",
+            "requested_at": "2026-10-15T09:20:52.276Z",
+            "launch_id": "43ecdfb0-8e1c-4b8a-ad8c-4de12ace01c7",
+            "runtime_identity": {
+              "launch": "43ecdfb0-8e1c-4b8a-ad8c-4de12ace01c7",
+              "thread": "c072b6c7-ba62-4fe7-8887-80e2ca8a4b02",
+              "shell_pid": 31000,
+              "leader_pid": 31001,
+              "native_session": "fixture-native-43ecdfb0-8e1c-4b8a-ad8c-4de12ace01c7"
+            },
+            "state": "passed",
+            "result": {
+              "verdict": "可合并",
+              "findings": [],
+              "turn_id": "fixture-turn-1",
+              "received_at": "2026-10-15T09:20:53.525Z"
+            }
+          }
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-15T09:20:48.396Z"
+        }
+      },
+      "assertion_id": null
+    },
+    {
+      "test": "__main__.CASContracts.test_cas_write_race_revalidates",
+      "claim": "W11 revalidation uses the independent writer head",
+      "pass": true,
+      "expected": "5483536fb6a3a808a3840bc86ff035e5588dcde4",
+      "actual": "5483536fb6a3a808a3840bc86ff035e5588dcde4",
+      "assertion_id": null
+    },
+    {
+      "test": "__main__.CASContracts.test_cas_write_race_revalidates",
+      "claim": "W11 integrated history retains ancestor 3e91b945361b7d633cf4d7305016b540bf0feee8",
+      "pass": true,
+      "expected": 0,
+      "actual": 0,
+      "assertion_id": null
+    },
+    {
+      "test": "__main__.CASContracts.test_cas_write_race_revalidates",
+      "claim": "W11 integrated history retains ancestor 5483536fb6a3a808a3840bc86ff035e5588dcde4",
+      "pass": true,
+      "expected": 0,
+      "actual": 0,
+      "assertion_id": null
+    }
+  ],
+  "inherited_assertions": [],
+  "evidence_layer": "default-daemon-manual-claim"
+}

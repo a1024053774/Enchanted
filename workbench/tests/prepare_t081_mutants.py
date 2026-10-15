@@ -31,6 +31,23 @@ MUTATIONS = {
     'trailer_absent': [(
         '      if (missing) this.appendUserInput({',
         '      if (false) this.appendUserInput({')],
+    # The launch comparison is the first arm. Deleting the line leaves a
+    # dangling else-if, so the comparison itself is replaced with false.
+    'trailer_launch_compare': [(
+        '          if (trailers.launch![0] !== attempt.delivery.launch_id) error = "trailer_identity_mismatch";',
+        '          if (false) error = "trailer_identity_mismatch";')],
+    'trailer_tool_compare': [(
+        '          else if (trailers.tool![0] !== attempt.delivery.cli) error = "trailer_identity_mismatch";',
+        '')],
+    'trailer_model_compare': [(
+        '          else if (trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model) error = "trailer_identity_mismatch";',
+        '')],
+    'trailer_effort_compare': [(
+        '          else if (trailers.effort![0] !== attempt.delivery.effort) error = "trailer_identity_mismatch";',
+        '')],
+    'trailer_launch_record': [(
+        '        } else error = "trailer_launch_record_missing";',
+        '        }')],
     'latest_head': [(
         '          requireGate(v.M, "not_verified");\n          const actual = await this.integration(task);',
         '          requireGate(v.M, "not_verified");\n'
@@ -55,6 +72,9 @@ CASE_MUTANT = {
     'deny_path': 'paths', 'trailer_partial': 'trailer_shape',
     'trailer_duplicate': 'trailer_session_cardinality', 'trailer_task': 'trailer_task',
     'trailer_attempt': 'trailer_attempt', 'trailer_absent': 'trailer_absent',
+    'trailer_launch': 'trailer_launch_compare', 'trailer_tool': 'trailer_tool_compare',
+    'trailer_model': 'trailer_model_compare', 'trailer_effort': 'trailer_effort_compare',
+    'trailer_no_launch': 'trailer_launch_record',
 }
 
 
