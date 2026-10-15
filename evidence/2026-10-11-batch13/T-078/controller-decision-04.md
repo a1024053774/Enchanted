@@ -512,3 +512,10 @@ commit-09b-a06-i1.sh --check-only PASS（212 paths），正式 07a0efdd（工作
 审阅 09b-a07-protocol-matrix-01：I2–I4、E1–E6 九阶段各 200 绿 + 一类反例，summary PASS；API 代码仅改协议标记为 a07-registered-anthropic-v1。cleanup-09b-a06.py dry-run（"主控 #250"）PASS；正式 PASS：daemon_stop 经 panes.shutdown 关闭 ideation Claude 54976/54977 与 target，API 47931/47932 各一次 SIGTERM，七进程均退出；归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a06-cleanup/fixture.tar.gz（8,062,301 字节，918 成员）逐成员读回 PASS 后删 root。
 commit-09b-a07.sh --check-only PASS（36 paths）；正式：81ea4754 落地，随后 prepare 失败（exit 1）：脚本传 --label 09b-a07-materials-01，prepare-09b-executable.py:11 要求前缀 09b-executable-materials-；09B-A07-STAGE-A-COMMAND.txt 引用 09b-executable-materials-07。材料未生成，失败记录 09b-a07-commit-01/ 保留。
 #251：label 统一为 09b-executable-materials-07；check-only 增加对 prepare 参数前缀与命令文件引用一致的断言；交我。
+
+## A-07 材料、阶段 A、B1 完成 #252/#253（2026-10-15 UTC）
+
+#251 修正后 commit-09b-a07.sh --check-only PASS，正式 75ff6832（materials-07：static PASS，revision 81ea4754，protocol_tag a07-registered-anthropic-v1，静态 root 存在）。
+#252：签 a07-stage-a-approval-01.json（source 81ea4754）→ 09b-a07-stage-a-01 READY_FOR_APPROVAL：root /private/tmp/t078-2-09b-run-1o4prsr5；API ideation 5436（54603）、executor 5437（54604），均 --protocol/a07 标记；daemon 5439；target 5535/5537；无角色 CLI。
+#253：主控运行 worker 的 prepare-a07-b1-ideation-p1.py（按 COMMAND-AFTER-STAGE-A）生成 09b-a07-b1-ideation-p1-01；主控写 stage-b-a07-ideation-approval-01.json（结构同 A-06 approval-01，binding 逐字取 A-07 readiness.target_binding）。dry-run PASS；真实 B1 → claude 10267（zsh 10265，session 62b9df2f…）。逐屏（executor-a07-*.sh，批准落 09b-a07-b1-exec-approvals/）：主题 ArrowUp/ArrowDown/Enter（各屏增量核对 ❯ 位置）→ Security notes 247 字符逐字一致后 Enter → 信任屏路径核对为 /private/tmp/t078-2-09b-run-1o4prsr5/repo，ArrowDown 至 Yes 后 Enter → s13 空闲提示符（Haiku 5.5 low、manual）。全程 requests 空，debug 无 /v1/messages 与 409。
+下一步 I1：worker 按 A-07 绑定重生成 I1 材料与批准草稿。
