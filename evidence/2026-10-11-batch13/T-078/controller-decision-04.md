@@ -647,3 +647,7 @@ commit-09b-a12-i1-step3.sh PASS（e980099a5，唯一 slot 与输出 execute-02�
 ## 结算契约与 A-13 前的真实链路排练 #292（2026-10-15 UTC）
 
 worker 交结算修复：假 API 先按排队回执（queued:true、delivered:false、request_id/path 同目录）结算 tool_result，oracle 之后要求实际 stop 条目、relay 回执与 executor 唤醒；不在 tool_result 合成条目。契约与产品一致（inbox send 异步 → Stop 钩子 → relay → gates.inbox_send），主控同意。离线 e2e 绿/三类红 PASS，但 scope 为共享核心 + 模拟 relay、无进程/CLI。鉴于前三次失败均为"离线模拟、真实才暴露"，#292 要求重建 A-13 前在 scratch root 起真实 daemon/relay（不启 Claude、不调模型），用真实 inbox send 与 A-12 启动 argv 中的 Stop 钩子命令走通结算并读回，外加不触发 Stop/错 launch 反例；并要求 A-12 现场脱敏归档与 owner-bound 回收脚本。
+
+## A-13 真实链路排练 01 #293（2026-10-15 UTC）
+
+worker 交排练 test_t078_a13_rehearsal.ts（真实 daemon/relay/bin-inbox/Stop signal，PTY 为确定性 spy，无 Claude/API/模型）、A-12 脱敏归档脚本与 owner-bound 回收脚本（均未运行）。主控沙箱外运行排练：result.json INCOMPLETE，AssertionError 2 !== 0（未标明哪一步）；进程有句柄未释放不退出，5 分 27 秒后主控 SIGTERM 自己起的 29130；scratch 已由 finally 删除；拷出的 state.sqlite3 只读打不开（疑缺 WAL）。#293 让 worker 给断言加标签、确保自行退出与硬超时、WAL 一致拷贝，并定位 2 !== 0 根因。
