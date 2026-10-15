@@ -292,3 +292,10 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 #192：执行主控批准阶段 A（stage-a-approval.json，source_revision 661064d7，allow_role_cli_spawn=false；内存 free+inactive 约 3.8 GB，预计 80–190 MB）。运行结果 09b-stage-a-01/result.json：exit 1，INCOMPLETE，`Executable packet is stale; no spawn`，spawned=false，无 root、无进程。
 根因：run-09b.py 第 11 行要求 HEAD == 材料包 revision，但提交脚本按设计在 source 提交后再提交材料包，HEAD 必然前进一格，条件不可满足。属 runner 缺陷，非环境问题。
 #193：改为核对“材料包 revision 是 HEAD 的祖先，且 revision..HEAD 只改动该材料包目录与本票证据目录”（任何 workbench/、scripts/ 或 runner 本身改动都拒绝）；补红（当前实现在本状态下拒绝，即 09b-stage-a-01）与绿，及反例（revision..HEAD 改动 workbench/src 被拒）；runner 改动后需重冻材料包，approval 重签。09b-stage-a-01 保留。
+
+## 09B-RUN-03 提交、阶段 A 第二次运行与卡片缺陷 #194/#195（2026-10-15 UTC）
+
+审阅 lineage 修复（祖先 + 只允许本票证据变更，workbench/scripts/runner 变更拒绝）；以 s13-t078m 身份运行 commit-09b-run-03.sh：exit 0，885acdae + 09b58c69（materials-03、revision-spy-03），9 条尾注。
+#194：重签 stage-a-approval-03.json（source 885acdae，allow_role_cli_spawn=false）并运行 → 09b-stage-a-03：exit 1，INCOMPLETE，spawned=true。root /private/tmp/t078-2-09b-run-576xn98k；已启动 fake API 62217（ideation）、62218（executor）与 daemon 62220；card_save 被门禁拒：invalid_task_card，paths.deny "oracle/**" Invalid repository path。未 dispatch，无 target 进程，无 Claude CLI，模型 0。三个进程仍存活，未发信号。
+根因：runner 生成的卡片在 spawn 之后才交门禁校验；卡片 deny 写法不合门禁路径语法。
+#195：（1）cleanup 脚本只针对 09b-stage-a-03 记录的 root 与 PID（daemon 经 daemon_stop，fake API 核对 argv/root/lstart 后各一次 SIGTERM），归档读回后删 root，交我审后运行；（2）修卡片 deny 写法；（3）runner 在任何 spawn 前先用门禁 card_validate（或等价真实入口）校验卡片，补红（当前卡片在 spawn 前即被拒）绿；重冻 materials-04。
