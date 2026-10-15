@@ -32,3 +32,11 @@ s14-t084b 窗格 wF:p3Y 已不存在（非主控关闭），a2a-wt-t084 无改�
 Grok（wF:p3Z）交 T-084 READY：checkTrailers 加 4 行（attempt.delivery 存在时 Launch=delivery.launch_id、Tool=delivery.cli、Model=delivery.model 或字面量 unknown、Effort=delivery.effort，码 trailer_identity_mismatch），README 同步。经真实 cli.ts + 受控宿主：红（main 上四种伪造均放行）、绿（四种拒收，match/unknown 过，none 记 1 次人工介入）、变异（逐行删除各放行对应一案）。作者自报局限：无 delivery 的 attempt 仍只要求非空；受控宿主 model/effort 与任务卡相同，不能单独证明比较对象非任务卡；spawn-helper（gitignore）权限改 755。
 主控在 a2a-wt-t084 提交 882638b3（无 A2A worker 尾注：Grok 非 launch-worker 启动、无启动记录；提交说明写明）。证据 6.8 MB，无单文件 >5 MB。
 独立审查：Codex 当前无法启动，按用户"用 Grok"的方向新开 Grok 窗格 wF:p41（cwd a2a-wt-t084，Grok 4.7 xhigh，always-approve，无作者历史），只读，仅可写 independent-review-01.md；冻结候选 882638b3，基线 fb5dd288。
+
+## 独立审查 01：NO_GO（测试完成条件）与返工（2026-10-15 UTC）
+
+审查员 Grok wF:p41（fresh、只读）报告 independent-review-01.md：checkTrailers 四行在受管 submit 上与用户决定一致（重跑绿态、基线红态、Launch 删行变异）。需修复：
+- 发现 1（P2）：绿态无 Effort=unknown 拒收案；把 2002 行改为也放行 unknown，套件仍 PASS。
+- 发现 2（P2）：受控宿主把记录 model/effort 抄自任务卡、测试 209 行又要求二者相等，把 Model 比较换成 task.card.executor.model 套件仍 PASS；审查员拆开宿主证明当前实现比的是记录。
+- 发现 3（P2，事实）：只 claim 的 submit 无 delivery，伪造四项可通过尾注核对与审查到 verified；integrate 被 score_provenance_required 拒，主分支不动；票据"拿不到记录就停下"未在运行时发生。属设计问题，交构思主控问用户，本轮不改。
+审查员只写了报告；其 /tmp 探针脚本与输出由主控复制进 independent-review-01-probe/（3.4 MB），与报告一并提交 b4470100（无 worker 尾注）。发现 1、2 退回作者 Grok（wF:p3Z）返工。
