@@ -113,7 +113,8 @@ def main():
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args(); args.output.mkdir(parents=False, exist_ok=False)
     record = {'status': 'INCOMPLETE', 'stage': 'B', 'role': args.role, 'phase': args.phase,
-              'spawned': False, 'scope': 'Stage-B single-role approval planner; no CLI spawn in dry-run'}
+              'spawned': False, 'p1_spawned': False, 'cli_spawned': False,
+              'scope': 'Stage-B single-role approval planner; no CLI spawn in dry-run'}
     (args.output / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     try:
         binding = read_stage_a_binding(args.stage_a)
@@ -126,12 +127,17 @@ def main():
             assert isinstance(p1_args, list) and all(isinstance(item, str) for item in p1_args)
             command = [sys.executable, str(SOURCE / 'workbench/tests/run_t078_p1.py'), '--materials', approval['p1_materials'], '--phase', approval['p1_phase'], '--label', args.output.name, *p1_args]
             completed = subprocess.run(command, cwd=SOURCE, capture_output=True, text=True)
-            record['command'] = command; record['spawned'] = approval['p1_phase'] == 'launch'
+            record['command'] = command; record['p1_spawned'] = True
             record['p1_exit_code'] = completed.returncode; record['p1_stdout'] = completed.stdout; record['p1_stderr'] = completed.stderr
+            p1_result_path = Path(approval['p1_materials']) / args.output.name / 'result.json'
+            p1_result = json.loads(p1_result_path.read_bytes()) if p1_result_path.exists() else {}
+            record['cli_spawned'] = bool(p1_result.get('process_manifest') or p1_result.get('started'))
+            record['spawned'] = record['cli_spawned']
+            record['p1_result'] = str(p1_result_path)
             record['status'] = 'PASS' if completed.returncode == 0 else 'INCOMPLETE'
             record['next'] = 'Stop after this single approved P1 action; inspect screen/result before another approval.'
         (args.output / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-        return 0
+        return 0 if record['status'] in ('READY_FOR_ROLE', 'PASS') else 1
     except Exception as error:
         record.update(error=repr(error)); (args.output / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'); return 1
 
