@@ -254,3 +254,14 @@ green-3 permission：原生许可屏命令一致、一次性 Yes，permission_wa
 ## green-3 读回：单角色切片 PASS（2026-10-15 UTC 01:0x）
 
 permission 阶段 PASS（模型 0）。执行主控逐项核对：假 API 恰 3 次（API2 回 SLICE1_TOOL_RESULT_RECORDED、API3 回 SLICE1_FINAL_ACK），无 api-error；controller 请求 inbox_list（schema 2，绑定 launch/native session/preset ideation/prompt_id）在真实 Stop 时 relay_processed 一次；参数 --role executor 未覆盖凭据——返回的是 IDEATION_ONLY_SENTINEL；门禁反馈作为第二根（prompt_id dc91281d…）到达；turn_submit_intent 2（seq48、100）、turn_end_signal 2、pane_idle 2；许可 Enter 记为 control action（\r，form action），不新增 intent。单角色 controller inbox 转交切片在真实 CLI（假服务）上成立。下一步：清理本实例、冻结证据；然后按计划冻结 09B 材料交审。
+
+## 09B 材料提交与计划裁定 #187（2026-10-15 UTC）
+
+#186 修复后以 s13-t078m 身份（launch-a2ded34c…，CODEX_THREAD_ID 01a13a72…）重跑 commit-closeout-and-09b-materials.sh：exit 0，c6a81742（收尾/cleanup-185/前置探针）+ d63611ea（09b-materials-01 计划包），9 条 A2A 尾注齐；launch NO_GO，真实 CLI/API/模型/目标启动均为 0。
+审阅 plan.json：预算 ideation 4 根/6 Messages、executor 6 根/11 Messages、合计 17，供应商模型 0，均在 #163/决定 4 上限（每角色 6/12、合计 24）内；operator 只做脚手架、只读观察与另批 cleanup，不代发角色 send/stop/ack。计划批准为方向，launch 不批准。
+裁定（执行层实现缺口，不改设计）：
+1. 前置切片：claudeLaunch 按 preset 推导各自 HOME/config/tmp/shell/requests/hooks/debug/user-data，保留共用 broker/state/repo；turn_limit 与 Panes Claude signal 按批准 manifest 支持到 6 根；同步 P1 生成器；删除共享目录路径，不留 fallback，不删根校验。
+2. 先保存真实入口红态（现状共享六路径、第三根被 invalid_controller_turn_limit 拒绝），再绿态；反例至少：超出 manifest 的根仍拒绝、两角色路径互不重叠、单角色 slice1 回归不变。
+3. 再实现共库双角色假 API／逐阶段驱动与 oracle 执行器：绑定实际登记文本与实际 stop/request ID，不写死 #1/#2；dispatch.seq 按全局号核对。
+4. 完成后另冻结可执行 launch 包交审；我批准前不启动任何 CLI/API/目标。
+issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处置。
