@@ -466,3 +466,7 @@ commit-09b-i1.sh --check-only PASS（177 paths）；正式：ad12136f + 6f8bc4fc
 ## A-05 cleanup dry-run 失败 #238（2026-10-15 UTC）
 
 cleanup-09b-a05.py --dry-run（"主控 #237"）：rc 1，BLOCKED，未发信号。第 34 行 API argv 比较 args[1:]==expected[1:] 错位（args 含 -B，expected 无 -B 且切掉脚本路径），必然失败。退回修正；失败目录 09b-a05-cleanup-dry-run 保留。
+
+## A-05 清理 PASS #239（2026-10-15 UTC）
+
+dry-run-02 PASS（身份核对全过）。正式（"主控 #237"）PASS：认证 daemon_stop 经 panes.shutdown 关闭 ideation Claude 1227/1228 与 target 70837/70839（无直接信号），确认退出；假 API 70730/70731 各一次 SIGTERM 并退出；归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a05-cleanup/fixture.tar.gz，921 成员（622 文件、298 目录、1 symlink）逐成员读回 PASS 后删 root。七个进程均不存在。result 中 archive_bytes 为 null（字段未填，外部文件大小已另行 ls 核对）。
