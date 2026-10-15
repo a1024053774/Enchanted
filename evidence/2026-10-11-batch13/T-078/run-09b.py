@@ -5,9 +5,15 @@ from pathlib import Path
 SOURCE=Path(__file__).resolve().parents[3];BASE=Path(__file__).resolve().parent
 NODE=shutil.which('node')
 
-def validate_stage_a_inputs(materials, approval):
+def validate_stage_a_inputs(materials, approval, *, protocol=False):
     assert NODE and materials.resolve().parent==BASE and (materials/'static-check.json').exists()
     static=json.loads((materials/'static-check.json').read_bytes());assert static['status']=='PASS' and static['launch_status']=='NO_GO'
+    static_root_value=static.get('root')
+    assert isinstance(static_root_value,str) and static_root_value, 'executable_material_static_root_required'
+    static_root=Path(static_root_value)
+    assert static_root.is_dir() and (static_root/'repo/value.txt').is_file() and (static_root/'oracle/contract-09b.json').is_file(), 'executable_material_static_root_required'
+    if protocol:
+        assert static.get('protocol') is True, 'executable_material_protocol_required'
     validate_material_lineage(materials, static)
     assert approval.get('approved_by')=='executor' and approval.get('stage')=='A' and approval.get('approval_ref')
     assert approval.get('source_revision')==static['revision'] and approval.get('allow_role_cli_spawn') is False
@@ -44,7 +50,7 @@ def main():
     def save(): (out/'result.json').write_text(json.dumps(record,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     save()
     try:
-        approval=json.loads(a.approval.read_bytes());static=validate_stage_a_inputs(a.materials,approval)
+        approval=json.loads(a.approval.read_bytes());static=validate_stage_a_inputs(a.materials,approval,protocol=a.protocol)
         if a.stage!='A': raise RuntimeError('Stage B/C require a separate approved continuation; no spawn from this runner.')
         task='t078-09b-runtime-'+uuid.uuid4().hex[:8]
         card={'id':task,'source':None,'goal':'09B deterministic target stage A','non_goals':['real model','candidate submission'],'paths':{'allow':['value.txt'],'deny':[]},'oracle_paths':['oracle/contract-09b.json'],'completion_conditions':[{'argv':[sys.executable,'-I','-B','-c','raise SystemExit(\'no candidate\')']}],'red_commands':[],'task_type':'后端逻辑','repair_target':None,'complexity':'L','executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},'base_commit':None,'writer':None}
