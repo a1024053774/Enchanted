@@ -410,3 +410,8 @@ s13-t078m 请求以 local 环境（沙箱外）执行 `rm -f evidence/2026-10-11
 
 commit-09b-stage-b-06.sh exit 1，第一条断言：before='54e13274f6a7bfe8d76c9e5c76e0cc6b508d64e8'，真实 HEAD 54e13274675fc25d9cf558fb40803e2382540941——仅前 8 位一致，余下为手写错误值。未做任何变更。#224 第 2 点已实现（复用分支 runtime-input 写入 out/，run_t078_p1.py:27）。
 #225：before 用 `git rev-parse HEAD` 的实际输出填入（不得手写），改后在 worker 侧实跑脚本前段断言（不提交）并附输出。
+
+## stage-b-06 提交第二次失败 #226（2026-10-15 UTC）
+
+commit-09b-stage-b-06.sh exit 1，heredoc 第 13 行：断言 'NameError' in red['p1_stderr']，而 09b-stage-b1-ideation-03/result.json 的 p1_stderr 为空、NameError 在 p1_stdout 的 JSON error 字段。未变更。preamble-01 只覆盖到 HEAD/暂存/归属，未覆盖后续读证据断言。
+#226：断言改按实际字段；交付前在 worker 侧把脚本中 `git add` 之前的全部只读断言整段实跑（可抽成 --check-only 模式），附输出。
