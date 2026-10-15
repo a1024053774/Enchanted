@@ -362,3 +362,7 @@ commit-09b-stage-b-02.sh exit 0：48dd6ce5 + 92a61308，9 尾注，工作树干�
 
 未运行 commit-09b-stage-b-03.sh。run_t078_p1.py 复用分支核对 `str(api_script) in identity['command']`，api_script（第 26 行）为 t078_fake_messages.py / t078_fake_inbox_tool.py，而 A-05 的 API 运行 t078_09b_fake_api.py → 真实运行必报 reused_api_identity_changed。reuse-spy-01 为纯 approval 预检，未经过 run_t078_p1 复用分支，未能发现。另：09B 假 API 阶段 A 版只提供 /health、业务 Messages 一律 409；B1（到第一屏）或不需 Messages，但 I1 起必须由 09B 驱动按 protocol 应答。
 #211：复用分支按 09B 假 API 的实际 argv 核对（脚本路径、--root、--role、ready 文件 PID/lstart）；用真实 run_t078_p1 入口对活的 A-05 API 只读探测、在 controller_start 前停（加显式 stop-before-cli 标志）取红（当前代码）/绿；说明 B1 首屏是否会发 Messages 请求，若会，09B 假 API 在 B1 的应答需先实现并取证；I1 起的 Messages 应答计划列入下一步。
+
+## #212 复用分支红态（2026-10-15 UTC）
+
+签 stage-b-ideation-approval-04.json（p1_args: --reuse-stage-a、--reuse-api-root roles/ideation、--stop-before-cli）并经真实入口运行 → 09b-stage-b1-reuse-red-02：rc 1，p1 exit 1，`RuntimeError('reused_api_identity_changed')`，cli_spawned false；pgrep 无 Claude、无 t078_fake_messages/inbox_tool 新 API；A-05 五进程完好。红态符合预期。待 worker 修身份核对后取绿。
