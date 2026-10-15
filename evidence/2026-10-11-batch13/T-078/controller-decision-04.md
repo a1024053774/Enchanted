@@ -347,3 +347,8 @@ commit-09b-run-04.sh exit 1：`Unowned work; no mutation`, workbench/tests/t078_
 #206：核对 stage-b-ideation-approval.json（binding 与 A-05 readiness 一致；5 个现场进程 lstart 未变；内存约 2.9 GB）后签字。dry-run PASS（READY_FOR_ROLE，spawned=false）。真实 B1 → 09b-stage-b1-ideation：runner rc=0 但 status INCOMPLETE；run_t078_p1.py 在第 24 行读 /private/tmp/t078-2-09b-run-94_wksxv/scenario.json 时 FileNotFoundError，p1_exit_code 1。未启动 Claude CLI（pgrep 无），A-05 五个进程完好。
 缺陷：（1）A-05 ideation p1 材料未满足 run_t078_p1 的前置文件（scenario.json 等），#205 只写了部分；（2）runner 在 p1 失败时仍 exit 0，且 spawned=true 指的是 p1 子进程而非 CLI，记录易误读；（3）receipt 反复在提交后变更，提交脚本应把 receipt 更新放在提交之前或不在交接后再改。
 #207：按 run_t078_p1 实际读取的全部前置文件补齐 A-05 材料（先列清单、逐项对照代码），并以不启动 CLI 的方式验证 p1 能读完前置并停在 spawn 前；runner 对 p1 非零退出返回非零，字段改为 p1_spawned/cli_spawned 分开记录；B1 approval 需新签。
+
+## stage-b-02 提交失败 #208（2026-10-15 UTC）
+
+commit-09b-stage-b-02.sh exit 1，第 14 行：断言旧红态 09b-stage-b1-ideation/result.json 的 `cli_spawned is False`，但该结果由旧 runner 生成，只有 `spawned: true`，无 cli_spawned 字段；断言对已保留证据永远不成立。未提交。旧证据不得改写；CLI 未启动的事实来自本日志 #207 的 pgrep 核对。stage-b-ideation-approval.json 的改动是我在 #206 的签字。
+#208：断言改为按旧结果实际字段核对（status INCOMPLETE、p1_exit_code 1、FileNotFoundError scenario.json），并引用 #207 的 pgrep 记录；重跑归属预检后交。
