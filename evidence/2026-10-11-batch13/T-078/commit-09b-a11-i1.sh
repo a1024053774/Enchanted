@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 base = Path('evidence/2026-10-11-batch13/T-078')
-before = 'bf0f9416'
+before = 'cbf75d61'
 check_only = '--check-only' in sys.argv[1:]
 allow = json.loads((base / '09b-a11-i1-allowlist.json').read_bytes())
 future = {str(base / '09b-a11-i1-ownership-preflight-01.json')}
@@ -49,10 +49,13 @@ assert nested['phase'] == 'launch' and nested['real_vendor_model_turns'] == 0
 
 onboard = json.loads((base / '09b-a11-b1-onboard-materials-01/static-check.json').read_bytes())
 assert onboard['status'] == 'PASS' and onboard['messages_expected'] == 0 and onboard['api_requests_expected'] == 0
-assert onboard['screen_steps'] == 6 and onboard['keys_per_step'] == 1
+assert onboard['screen_steps'] == 6 and onboard['screen_reads'] == 7 and onboard['keys_per_step'] == 1
 commands = (base / '09b-a11-b1-onboard-materials-01/ONBOARD-COMMANDS.txt').read_text(encoding='utf-8')
-assert commands.count('--phase screen') == 6 and commands.count('--phase key') == 6
+assert commands.count('--phase screen') == 7 and commands.count('--phase key') == 6
 assert '--launch-label 09b-a11-b1-ideation-01' in commands and 'security-notice-text.txt' in commands
+assert '--purpose onboarding-notice' in commands and 'ideation-s7-Enter-02.json' in commands
+assert 'a11-ideation-s9-screen-02' in commands and 'a11-ideation-s13-screen-02' in commands
+assert (base / '09b-a11-b1-exec-approvals/ideation-s7-Enter-02.json').is_file()
 
 i1 = base / '09b-a11-i1-materials-01'
 i1_static = json.loads((i1 / 'static-check.json').read_bytes())
@@ -62,13 +65,22 @@ assert i1_static['tool'] == 'I_SEND_STOP' and i1_static['launch_status'] == 'NO_
 assert i1_approval['approved_by'] is None and i1_approval['approval_ref'] is None
 assert i1_approval['launch'] == input_data['launch'] and i1_approval['session'] == input_data['session']
 assert i1_approval['target_binding']['attempt_id']
-assert '--protocol' in (i1 / 'I1-COMMAND.txt').read_text(encoding='utf-8')
+commands_i1 = (i1 / 'I1-COMMAND.txt').read_text(encoding='utf-8')
+assert '--protocol' in commands_i1 and '--protocol-phase dispatch' in commands_i1
+assert 'pane_output --launch' in commands_i1 and 't078_09b_i1_permission.py' in commands_i1
+assert 'permission-approval.json' in commands_i1 and 'permission=True' in Path('workbench/tests/t078_09b_i1_permission.py').read_text(encoding='utf-8')
 api_green = json.loads((i1 / 'api-green.json').read_bytes())
 assert api_green['status'] == 'PASS' and api_green['I1']['messages_used'] == 2 and api_green['I1']['second']['settlement'] is True
 for mutant in ['tool_id', 'entry_id', 'target', 'seq', 'role', 'text']:
     red = json.loads((i1 / f'api-red-{mutant}.json').read_bytes())
     assert red['status'] == 'PASS' and red['decision'] == '409'
 assert json.loads((i1 / 'protocol-materials.json').read_bytes())['launch'] == 'NO_GO'
+flow = json.loads((i1 / 'permission-oracle-green.json').read_bytes())
+assert flow['status'] == 'PASS' and flow['messages'] == 2 and flow['enter_form'] == 'action'
+for name in ['permission-red-early-enter.json', 'permission-red-screen-changed.json', 'permission-red-wrong-dispatch.json']:
+    assert json.loads((i1 / name).read_bytes())['status'] == 'PASS'
+for source in ['workbench/tests/t078_09b_i1_driver.py', 'workbench/tests/t078_09b_i1_permission.py', 'workbench/tests/test_t078_09b_i1_permission_flow.py']:
+    assert Path(source).is_file()
 subprocess.run(['git', 'diff', '--check'], check=True)
 
 ownership = base / '09b-a11-i1-ownership-preflight-01.json'
@@ -86,13 +98,17 @@ ownership.write_text(json.dumps({'status': 'PASS', 'checked_paths': len(rows),
 with (base / 'RESULTS.md').open('a', encoding='utf-8') as fh:
     fh.write('\n## A-11 ideation B1 onboarding and protocol I1 materials\n\n'
              'A-11 ideation B1 process launch PASS：实际 process manifest 保留于 `09b-a11-b1-ideation-p1-01/09b-a11-b1-ideation-01/`，真实 vendor model turns=0。onboarding 材料逐屏单键、security notice 原文、trust ArrowDown→Enter 和 0 Messages 断言已冻结；本轮未发 onboarding 按键。\n'
-             'Protocol I1 材料绑定本次 launch/session/target binding，登记 I_SEND_STOP tool_use、一次 PermissionRequest、tool_result 第二条 Messages、实际 Stop/relay wake 独立读回；离线 shared-core green 与工具 ID/entry/target/seq/role/text 409 反例随包保留。I1 approval 留空，executor B1 未启动，未发送 I1。\n')
+             'Protocol I1 材料绑定本次 launch/session/target binding，先由 dispatch phase 停在 PermissionRequest 并保存 screen.bin，再由独立 permission phase 通过 Electron window 入口核对完整 Bash 命令、一次性 Yes/Enter，随后完成 tool_result 第二条 Messages、实际 Stop/relay wake 独立读回；离线 shared-core green 与工具 ID/entry/target/seq/role/text、早按键/屏幕变化/错误 dispatch 反例随包保留。I1 approval 留空，executor B1 未启动，未发送 I1。\n')
 paths = [
     base / '09b-a11-i1-allowlist.json', base / '09b-a11-b1-ideation-01',
     base / '09b-a11-b1-ideation-p1-01/09b-a11-b1-ideation-01',
     base / '09b-a11-b1-onboard-materials-01', base / 'a11-i1-prompt.txt',
-    base / '09b-a11-i1-materials-01', base / '09b-a11-i1-ownership-preflight-01.json',
+    base / '09b-a11-i1-materials-01', base / '09b-a11-i1-permission-oracle-01',
+    base / '09b-a11-i1-permission-early-enter-red-01', base / '09b-a11-i1-permission-screen-changed-red-01',
+    base / '09b-a11-i1-permission-wrong-dispatch-red-01', base / '09b-a11-i1-ownership-preflight-01.json',
     base / 'commit-09b-a11-i1.sh', base / 'RESULTS.md',
+    Path('workbench/tests/t078_09b_i1_driver.py'), Path('workbench/tests/t078_09b_i1_permission.py'),
+    Path('workbench/tests/test_t078_09b_i1_permission_flow.py'),
 ]
 subprocess.run(['git', 'add', '--', *map(str, paths)], check=True)
 subprocess.run(['git', 'commit', '-m', 'docs(T-078): freeze A11 onboarding and protocol I1 materials'], check=True)

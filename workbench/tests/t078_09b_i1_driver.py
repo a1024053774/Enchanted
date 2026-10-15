@@ -215,7 +215,45 @@ def protocol_i1_readback(root, api_root, launch, thread, binding, dispatch, rele
     return result
 
 
-def execute(materials, stage_a, approval, output, stage='I1', resume_queued=False, protocol=False):
+def protocol_i1_wait_permission(root, api_root, launch, thread, binding, dispatch, released,
+                                output, protocol_source, action_path):
+    """Stop after the first tool_use and preserve the exact permission screen."""
+    deadline = time.monotonic() + 45
+    request_rows = []
+    response_rows = []
+    permission_events = []
+    while time.monotonic() < deadline:
+        request_file = api_root / 'requests.ndjson'
+        response_file = api_root / 'responses.ndjson'
+        if request_file.exists():
+            request_rows = [json.loads(line) for line in request_file.read_text(encoding='utf-8').splitlines() if line]
+            request_rows = [row for row in request_rows if row.get('dispatch_id') == dispatch['id']]
+        if response_file.exists():
+            response_rows = [json.loads(line) for line in response_file.read_text(encoding='utf-8').splitlines() if line]
+            response_rows = [row for row in response_rows if row.get('dispatch_id') == dispatch['id']]
+        events = gate(root, 'orchestration_events').get('events', [])
+        permission_events = [event for event in events if event.get('launch') == launch and event.get('type') == 'permission_wait']
+        if len(request_rows) == 1 and request_rows[0].get('message_kind') == 'tool_use' and len(response_rows) == 1 and len(permission_events) == 1:
+            screen = gate(root, 'pane_output', '--launch', launch, '--offset', '0')
+            raw = __import__('base64').b64decode(screen['data_base64'])
+            output.mkdir(parents=False, exist_ok=False)
+            (output / 'permission-screen.bin').write_bytes(raw)
+            (output / 'permission-screen.json').write_text(json.dumps({'launch': launch, 'session': dispatch.get('session'),
+                'dispatch': dispatch['id'], 'permission_event': permission_events[0], 'output': screen}, ensure_ascii=False, indent=2) + '\n')
+            result = {'status': 'READY_FOR_PERMISSION', 'stage': 'I1', 'role': 'ideation',
+                      'dispatch': dispatch, 'release': released, 'requests': request_rows,
+                      'responses': response_rows, 'permission_event': permission_events[0],
+                      'permission_screen': str((output / 'permission-screen.bin').resolve()),
+                      'test_simulated_user_action': str(action_path), 'messages_sent': 1,
+                      'roots_used': 1, 'protocol_source': protocol_source,
+                      'stop_condition': 'pause before permission Enter; no tool_result, Stop or executor wake yet'}
+            (output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
+            return result
+        time.sleep(.1)
+    raise RuntimeError('protocol_i1_permission_wait_deadline')
+
+
+def execute(materials, stage_a, approval, output, stage='I1', resume_queued=False, protocol=False, protocol_phase='full'):
     approval_data = json.loads(approval.read_bytes())
     role=stage_role(stage)
     if approval_data.get('approved_by') != 'executor' or approval_data.get('phase') != stage or approval_data.get('role') != role:
@@ -267,6 +305,9 @@ def execute(materials, stage_a, approval, output, stage='I1', resume_queued=Fals
     (api_root / 'protocol-registry.json').write_text(json.dumps(registry, ensure_ascii=False, indent=2) + '\n')
     released = gate(root, 'pane_release', '--thread', thread, '--reason', 'I1 approval: release one registered dispatch')
     if protocol and stage == 'I1':
+        if protocol_phase == 'dispatch':
+            return protocol_i1_wait_permission(root, api_root, p1_input['launch'], thread, binding, dispatch, released,
+                                               output, protocol_source, action_path)
         return protocol_i1_readback(root, api_root, p1_input['launch'], thread, binding, dispatch, released,
                                     output, protocol_source, action_path)
     deadline = time.monotonic() + 45
@@ -306,7 +347,7 @@ def execute(materials, stage_a, approval, output, stage='I1', resume_queued=Fals
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument('--mode', choices=['spy', 'execute'], required=True); parser.add_argument('--stage', choices=['I1','I2','I3','I4','E1','E2','E3','E4','E5','E6'], default='I1'); parser.add_argument('--resume-queued', action='store_true'); parser.add_argument('--protocol', action='store_true')
+    parser = argparse.ArgumentParser(); parser.add_argument('--mode', choices=['spy', 'execute'], required=True); parser.add_argument('--stage', choices=['I1','I2','I3','I4','E1','E2','E3','E4','E5','E6'], default='I1'); parser.add_argument('--resume-queued', action='store_true'); parser.add_argument('--protocol', action='store_true'); parser.add_argument('--protocol-phase', choices=['dispatch','full'], default='full')
     parser.add_argument('--output', type=Path, required=True); parser.add_argument('--materials', type=Path)
     parser.add_argument('--stage-a', type=Path); parser.add_argument('--approval', type=Path)
     args = parser.parse_args()
@@ -321,7 +362,7 @@ def main():
         print(json.dumps(result, ensure_ascii=False)); return 0 if result['status'] == 'PASS' else 1
     if not (args.materials and args.stage_a and args.approval): raise SystemExit('execute requires materials, stage-a and approval')
     try:
-        result = execute(args.materials.resolve(), args.stage_a.resolve(), args.approval.resolve(), args.output.resolve(), stage=args.stage, resume_queued=args.resume_queued, protocol=args.protocol)
+        result = execute(args.materials.resolve(), args.stage_a.resolve(), args.approval.resolve(), args.output.resolve(), stage=args.stage, resume_queued=args.resume_queued, protocol=args.protocol, protocol_phase=args.protocol_phase)
     except Exception as error:
         result = {'status': 'INCOMPLETE', 'error': repr(error), 'traceback': traceback.format_exc(),
                   'paths': {'materials': str(args.materials.resolve()) if args.materials else None,
