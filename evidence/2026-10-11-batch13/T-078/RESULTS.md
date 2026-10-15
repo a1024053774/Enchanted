@@ -899,3 +899,7 @@ A-05 cleanup 实跑后，脚本仅在事后补充 `archive_bytes=archive.stat().
 ## A-06 executable packet root gate and shared protocol freeze
 
 保留 A-06 阶段 A 红态：旧自造材料缺 static.root，在复制静态夹具处 KeyError 并建空 root；新 runner 在建 root 前拒绝缺 root/oracle/repo 字段，gate green spawned=false。A-06 materials-06 改由 prepare-09b-executable.py 同一格式生成并以 `--protocol` 记录，包含 shared protocol fake API/core，launch NO_GO。阶段 A 运行命令固定带 `--protocol`，让实际服务和离线 oracle 共用协议入口。
+
+## A-06 B1 ideation P1 materials
+
+A-06 stage A readiness 已保留并绑定新 root；生成 ideation P1 材料，input 使用 `http://127.0.0.1:0` 模板，实际 API root/readiness 由 B1 approval 的 reuse 参数绑定。只读前置校验 PASS，未启动 CLI/API/daemon/target。空签字 approval 的 dry-run 被 runner 在 spawn 前拒绝，结果保留为 INCOMPLETE、spawned=false、cli_spawned=false。
