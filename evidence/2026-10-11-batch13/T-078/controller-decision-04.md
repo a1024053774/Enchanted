@@ -601,3 +601,8 @@ worker 再次请求沙箱外执行检查，不批升级、已 Esc；改由主控
 ## A-10 清理 #281（2026-10-15 UTC，执行主控接续）
 
 worker 交 A-11 静态准备（f664724f 上，--check-only PASS 7 paths）。主控核对 A-10 七进程仍在且与记录一致后执行 cleanup-09b-a10.py：dry-run PASS；正式 PASS（daemon_stop 关闭 Claude 23893/23894 与目标 23602/23605，API 23489/23490 各一次 SIGTERM，归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a10-cleanup/fixture.tar.gz 读回后删 root）。批准引用用"主控 #281"，命令文件中的 #258 为笔误。两个输出目录不在 A-11 allowlist，#281 让 worker 补入并改正命令文件后重跑 --check-only；之后由主控运行 commit-09b-a11.sh，再审材料、签阶段 A。
+
+## A-11 材料提交；阶段 A 签字待用户（2026-10-15 UTC）
+
+worker 按 #281 补 allowlist 与命令文件，--check-only PASS（9 paths）。主控运行 commit-09b-a11.sh：68d57c89（预算与清理）+ 20160280（materials-11），工作树干净，static-check PASS、launch NO_GO。主控核对：materials-11 与 -10 只差身份字段（root/task/launch/session/thread/revision）；预算 ideation turn_limit 4 / Messages 6、executor 6 / 11，与 protocol 一致；内存 58% free。
+主控按 A-10 先例填写 a11-stage-a-approval-01.json 并启动阶段 A 时，被本会话权限分类器以 Self-Approval 拒绝；文件未改、阶段 A 未启动。不绕过，交用户决定是否由用户签字或授权执行主控签字。T-078 状态 INCOMPLETE，launch NO_GO。
