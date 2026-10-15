@@ -757,3 +757,17 @@ cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-
 [原场景cleanup](p1-materials-slice1-green/cleanup-184/result.json) **PASS**：确认四个原进程退出、最多仅API44036一次SIGTERM、外置归档字节读回；根／slot保持，原场景仍INCOMPLETE／预算NO_GO。新source `8e99d62e7892ef0468fe2b2b8dabe22387684557`，产品沿用455696c9；相关outside-02源码未变，明确复用、不称新运行。
 
 [新实例静态核对](p1-materials-slice1-green-3/static-check.json) **PASS**：root `/private/tmp/t078-2-p1-slice1-green-3-jzfi4ju5`、launch `c4a5dc22-7d3f-430d-8e82-1b8723fac40f`、session `b733f220-534f-4411-b960-5caabd1ed73e`；新HOME/IDs/nonce，Git/tar逐文件相同、批准字段空。根2/Messages3/Bash1/模型0；未launch，真实完整绿态、独立审查、09B/09C与整票仍 **INCOMPLETE**。
+
+## 单角色 green-3 实际闭环 PASS 与 09B 计划性材料（主控 #185）
+
+主控逐次批准启动／逐屏／信任／nonce／一次工具Yes，`p1-materials-slice1-green-3/permission/result.json` **PASS**。worker [读回原数据库／WAL／hook/API](slice1-green-3-closeout/readback.json) 再核对：三次主Messages（实际ACK与FINAL_ACK）、relay_processed一次、两个intent／turn_end／idle，permission_control_written一次且没有user intent。`inbox_list --role executor`仍返回实际ideation的IDEATION_ONLY_SENTINEL；第一真实Stop执行一次，反馈第二根完整到达并结算。来源source8e99d62e、材料b5b8b165；供应商模型0，范围为实际单角色假服务闭环，不是09B／09C／整票。
+
+#184 的API3字符串表示误判已由原样red→green修复，并在本次全新实例真实复验通过；没有放宽登记正文、身份、预算或工具条件。旧scene仍INCOMPLETE／主Messages4/3 NO_GO，原件与cleanup-184 PASS保留，错误根不删。
+
+交 [本实例cleanup](cleanup-slice1-green-185.py)：认证daemon_stop、原CLI/shell/daemon确认退出、API49173命令/root与双读lifetime后最多一次SIGTERM，确认退出；外置逐成员归档读回、库存未变和四PID仍不存在后才删此成功根。slot处置另列且本轮不动。当前仅脚本就绪，实际cleanup **INCOMPLETE**，worker未执行。
+
+按 #185 先交 [09B计划性材料审阅](09B-MATERIALS-REVIEW-01.md)，不启动、不改产品。当前profile共享六个角色路径且只允许1/2根，静态构造事实已核对／非blocking上报；新09B合同仍INCOMPLETE，launch NO_GO。拟独立HOME/请求/日志等目录、共同broker/state/repo，一项实际受管确定性C目标，真实attempt/fence必须由dispatch/claim取得；材料不伪造尝试或借operator代写业务。
+
+完整拟序列包含真实send→错误目标拒绝→实际目标stop→执行成功后ack→重复ack幂等、ideation越权ack与已ack stop拒绝；I4根6主Messages，E6根11主Messages，合计17、供应商模型0，均在 #163 上限内。fake API只给工具／中性确认，实际反馈全文／stop/request/inbox ID与角色来源必须读回；不沿用共库固定#1/#2。card模板补oracle_paths，目标不提交候选，真实运行观察由独立oracle定义。
+
+交 [提交与计划包冻结脚本](commit-closeout-and-09b-materials.sh)：成功cleanup后保存green-3实际读回、#184结论与前置事实，生成09b-materials-01提案profile/IDs/目录、协议、oracle、卡与空批准模板，Git/tar字节核对后材料提交。静态PASS仅计划冻结，**不能launch**；profile/回合前置与实际双角色驱动仍待审阅后实现、再冻可执行包。实际09B、09C、独立reviewer与整票 **INCOMPLETE**；本轮没有新CLI/API/目标/UI启动、没有集成或push。
