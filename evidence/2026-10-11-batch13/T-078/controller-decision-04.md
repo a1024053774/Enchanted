@@ -421,3 +421,8 @@ commit-09b-stage-b-06.sh exit 1，heredoc 第 13 行：断言 'NameError' in red
 commit-09b-stage-b-06.sh --check-only PASS（23 paths，unowned 0），正式 exit 0：8058def4 + 950dd0e4，9 尾注，工作树干净。
 #227：签 approval-11（launch，无 --stop-before-cli，stop_after first-screen），dry-run PASS；真实 → 09b-stage-b1-ideation-04：rc 0，PASS，cli_spawned true。ideation Claude Code 2.1.296：zsh 1227 → claude 1228（session f7689321…，haiku-5-5、effort low、permission manual、tools Bash,Read、空 MCP、debug 写 roles/ideation/claude-debug.log）。未发送任何输入。假 API 尚无请求（roles/ideation/requests 空；debug 日志无 /v1/、409）。A-05 五进程 lstart 不变。
 #228：worker 起草 screen 阶段 approval-12（只读读屏，screen-id ideation-s1，不发键），我签后运行；之后按读到的首屏逐屏另批键序。
+
+## B1 读屏第一次 #229/#230（2026-10-15 UTC）
+
+签 approval-12（p1_phase screen，screen-id ideation-s1，不发键），dry-run PASS；真实 → 09b-stage-b1-screen-ideation-01：rc 1，FileNotFoundError 09b-stage-b-ideation-p1-02/launch/process-manifest.json。screen/key/continue 阶段的 same_cli 写死 materials/'launch'/process-manifest.json，而复用模式下 launch 输出在按 label 的 09b-stage-b1-ideation-04/process-manifest.json（cli pid 1228）。未发键；claude 1227/1228 存活。
+#230：screen/key/continue 等后续阶段在复用模式下显式接收 --launch-label（或从 approval 指定的 launch 结果目录）读取 process-manifest，不写死、不复制文件；逐个列出后续阶段读取的所有 launch 产物路径并一并改；在 worker 侧用现有 ideation-04 manifest 做不发键的只读校验并附输出；approval-13（签字栏留空）。
