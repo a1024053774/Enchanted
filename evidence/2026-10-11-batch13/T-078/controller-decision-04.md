@@ -340,3 +340,10 @@ commit-09b-run-04.sh exit 1：`Unowned work; no mutation`, workbench/tests/t078_
 
 #204 修订：非 dry-run 委托 run_t078_p1.py 单一 phase；spies-03 含三项变异红态。commit-09b-stage-b.sh exit 1：`Unowned work; no mutation`, 09b-stage-b-allowlist.json（allowlist 未列自身），未提交；herdr-handoff-receipt-04.json 亦有改动。另：B1 approval 需 p1_materials 绑定 A-05 root，但未见为 A-05 生成的 ideation p1 材料目录（role 目录、role.md、launch 输入、fake API URL）。
 #205：提交前用与脚本相同的归属函数对完整 `git status --porcelain` 预检（含 allowlist 自身与 receipt）；生成 A-05 的 ideation p1 材料并起草填好的 B1 approval（approved_by 留空由我签），一并纳入提交。
+
+## stage-B 提交与 B1 首次运行 #206/#207（2026-10-15 UTC）
+
+#205 后以 s13-t078m 身份运行 commit-09b-stage-b.sh：0a63abed + c04bc410，9 尾注；末尾干净断言失败（exit 1），唯一残留又是 worker 交接后更新的 herdr-handoff-receipt-04.json。
+#206：核对 stage-b-ideation-approval.json（binding 与 A-05 readiness 一致；5 个现场进程 lstart 未变；内存约 2.9 GB）后签字。dry-run PASS（READY_FOR_ROLE，spawned=false）。真实 B1 → 09b-stage-b1-ideation：runner rc=0 但 status INCOMPLETE；run_t078_p1.py 在第 24 行读 /private/tmp/t078-2-09b-run-94_wksxv/scenario.json 时 FileNotFoundError，p1_exit_code 1。未启动 Claude CLI（pgrep 无），A-05 五个进程完好。
+缺陷：（1）A-05 ideation p1 材料未满足 run_t078_p1 的前置文件（scenario.json 等），#205 只写了部分；（2）runner 在 p1 失败时仍 exit 0，且 spawned=true 指的是 p1 子进程而非 CLI，记录易误读；（3）receipt 反复在提交后变更，提交脚本应把 receipt 更新放在提交之前或不在交接后再改。
+#207：按 run_t078_p1 实际读取的全部前置文件补齐 A-05 材料（先列清单、逐项对照代码），并以不启动 CLI 的方式验证 p1 能读完前置并停在 spawn 前；runner 对 p1 非零退出返回非零，字段改为 p1_spawned/cli_spawned 分开记录；B1 approval 需新签。
