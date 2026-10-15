@@ -6,6 +6,7 @@ Both are bound to the same dispatch and tool-use id.  Ordinary (no-tool)
 dispatches keep the original one-request contract.
 """
 import json
+from pathlib import Path
 import shlex
 
 class ProtocolRefusal(ValueError): pass
@@ -57,6 +58,17 @@ def _tool_result_payload(block, expected=None):
     except (TypeError, ValueError) as error:
         raise ProtocolRefusal('tool_result_json_required') from error
     expected = expected or {}
+    request_root = expected.get('request_root') if isinstance(expected, dict) else None
+    if request_root and not (payload.get('queued') is True and payload.get('delivered') is False):
+        raise ProtocolRefusal('tool_result_queue_required')
+    if (payload.get('ok') is True and payload.get('queued') is True and
+            payload.get('delivered') is False and isinstance(payload.get('request_id'), str) and
+            payload.get('request_id') and isinstance(payload.get('path'), str) and payload.get('path')):
+        if Path(payload['path']).name != payload['request_id'] + '.json':
+            raise ProtocolRefusal('tool_result_request_path_mismatch')
+        if request_root and Path(payload['path']).parent != Path(request_root):
+            raise ProtocolRefusal('tool_result_request_root_mismatch')
+        return payload
     if expected.get('ok') is False:
         if payload.get('ok') is not False or payload.get('error') != expected.get('error'):
             raise ProtocolRefusal('tool_result_denial_mismatch')

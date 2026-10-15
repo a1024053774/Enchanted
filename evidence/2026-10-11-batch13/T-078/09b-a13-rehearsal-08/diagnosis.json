@@ -1,0 +1,13 @@
+{
+  "prior_failure": "evidence/2026-10-11-batch13/T-078/09b-a13-rehearsal-01/result.json",
+  "prior_error": "AssertionError: Expected values to be strictly equal: 2 !== 0",
+  "root_cause": "The first rehearsal created its scratch root under /tmp/t078-a13-rehearsal-*. HookTrace.start accepts only a state parent under /private/tmp/t078-2-* and therefore the real signal entry rejected the UserPromptSubmit before daemon handling with exit code 2 (invalid_hook_trace_binding).",
+  "fix": "Use /private/tmp/t078-2-a13-rehearsal-* and bind roles/ideation/hooks to that root; do not relax the production HookTrace boundary.",
+  "followup_fixture_fixes": [
+    "controller launch records now carry env.A2A_REQUEST_DIR",
+    "processInfo is keyed by thread so ideation and executor native identities are not crossed",
+    "inbox delivery readback selects the newest append-only receipt",
+    "state queries filter JSON data.kind because inbox_records has no kind column"
+  ],
+  "verification": "09b-a13-rehearsal-08/result.json PASS; no Claude/API/model process; scratch_removed=true"
+}

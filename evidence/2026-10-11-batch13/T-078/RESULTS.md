@@ -993,3 +993,8 @@ A-12 I1 dispatch reached the bound PermissionRequest; the first permission attem
 ## A-12 I1 step3 unique Electron slot
 
 The first permission attempt failed before key delivery because the build slot was already occupied. The new permission runner derives a unique slot from the output label (`execute-02`) and the launch; the signed permission-approval-03 remains blank for review. Original execute-01 logs are retained, and offline slot red/green proves collision rejection and unique naming. No input was sent by this fix packet.
+
+## A-12 closeout and A-13 packet
+
+A-12 redaction PASS：保留 12 requests/1 response 的 tool_use/tool_result 与错误码，未复制 raw logs、debug、system/tools/auth 或凭据。A-12 owner-bound cleanup dry-run/formal PASS；API 93826/93827 各 SIGTERM 一次，daemon_stop 关闭 Claude/target，逐成员字节读回 PASS 后删除 root，归档在 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a12-cleanup/fixture.tar.gz`。
+A-13 rehearsal PASS：真实 daemon/bin-inbox/Stop/relay 链路五项检查通过，错 launch exit 2 且 stop 条目数保持 1；无 Claude/API/model，scratch 自行删除。A-13 materials-13、Stage A、B1、onboarding 和 protocol I1 三步模板均为 NO_GO 写文件准备，binding/签字栏留待实际 Stage A/B1 结果。

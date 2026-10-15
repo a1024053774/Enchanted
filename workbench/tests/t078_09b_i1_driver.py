@@ -301,6 +301,7 @@ def execute(materials, stage_a, approval, output, stage='I1', resume_queued=Fals
                                          'approved_by': approval_data.get('approved_by')}, ensure_ascii=False) + '\n')
         tool, protocol_source = protocol_i1_tool(binding, root, synthetic_input_id)
         registry_dispatch['tool_use'] = tool
+        registry_dispatch['tool_result'] = {'request_root': str(api_root / 'requests')}
         registry_dispatch['protocol_source'] = protocol_source
     registry = {'dispatches': {dispatch['id']: registry_dispatch}, 'message_budget': stage_budget(stage), 'ack_text': stage+'_ACK'}
     (api_root / 'protocol-registry.json').write_text(json.dumps(registry, ensure_ascii=False, indent=2) + '\n')

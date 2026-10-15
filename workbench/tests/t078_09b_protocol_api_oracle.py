@@ -60,7 +60,7 @@ def make_case(mutant=None):
             'input': {'command': shlex.join(argv)},
             'command_argv': argv,
         },
-        'tool_result': {'entry': stop_entry},
+        'tool_result': {'request_root': '/private/tmp/runtime/roles/ideation/requests'},
     }
     registry = {
         'dispatches': {dispatch['id']: dispatch}, 'message_budget': 6,
@@ -77,7 +77,10 @@ def make_case(mutant=None):
         'type': 'tool_use', 'id': tool_id, 'name': 'Bash',
         'input': dispatch['tool_use']['input'],
     }
-    tool_result_payload = {'ok': True, 'entry': stop_entry}
+    tool_result_request_id = uid()
+    tool_result_payload = {'ok': True, 'queued': True, 'delivered': False,
+                           'request_id': tool_result_request_id,
+                           'path': f'/private/tmp/runtime/roles/ideation/requests/{tool_result_request_id}.json'}
     second_body = {
         'model': 'claude-haiku-5-5', 'stream': True,
         'messages': [
@@ -99,7 +102,7 @@ def make_case(mutant=None):
             bad['messages'][-1]['content'][0]['tool_use_id'] = uid()
         elif mutant == 'entry_id':
             payload = json.loads(bad['messages'][-1]['content'][0]['content'])
-            payload['entry']['id'] = uid()
+            payload['path'] = '/private/tmp/foreign/other-request.json'
             bad['messages'][-1]['content'][0]['content'] = json.dumps(payload, separators=(',', ':'))
         elif mutant == 'target':
             argv = shlex.split(bad['messages'][1]['content'][0]['input']['command'])
@@ -129,7 +132,8 @@ def make_case(mutant=None):
                    'sse_events': len(second_events), 'settlement': True,
                    'stop_reason': 'end_turn'},
         'bindings': {'target_thread': target_thread, 'target_attempt': target_attempt,
-                     'synthetic_input': synthetic_input, 'stop_entry': stop_entry},
+                     'synthetic_input': synthetic_input, 'queued_request': tool_result_payload,
+                     'future_stop_entry': stop_entry},
         'protocol_source': protocol_source,
         'scope': 'offline shared protocol core; no socket/API/CLI/daemon/target/model',
     }
