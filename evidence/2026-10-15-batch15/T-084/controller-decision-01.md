@@ -54,3 +54,7 @@ Grok 完成：返工 #1（受控宿主 observed-facts.json 拆开记录与任务
 
 Grok 收尾：四行比较改为 `if (attempt.delivery) {…} else error = "trailer_launch_record_missing"`；green-04 与 green-03 逐案一致，mutants-04 四个 DETECTED（直接删 && 的版本里删拒收行变异变 gate_failure，已如实记录并弃用）。基线 fb5dd288 经 git archive 导出到 /tmp 重跑恢复套件：5/5 失败（4×score_required、1×daemon.ts 进程身份断言），即恢复套件在 main 上已失效、非本票引入；候选 4/5 通过，剩余 1 个（review_launch_config_required）在基线同一用例亦失败。该"main 恢复套件已失效"为范围外发现，另行记录。
 主控提交 9ddf446e（无 worker 尾注）。证据 51 MB，无单文件 >5 MB。独立审查 02：新开 fresh Grok 窗格 wF:p43（cwd a2a-wt-t084），只读，仅可写 independent-review-02.md。
+
+## 独立审查 02 PASS、合入与关闭（2026-10-15 UTC）
+
+审查员 Grok wF:p43（fresh、只读）independent-review-02.md：PASS，无打回缺陷；发现 1、2 已被测试打红；trailer_launch_record_missing 完整；恢复套件基线 5/5 失败、候选 4/5 可复现，剩余失败与尾注无关。提交审查 4e52ccab；exec/t084 变基到 main（d9fc99b7），变基前后 workbench/acceptance/scripts diff 0；main 快进到 c8d4e5d6。票据关闭并写 Resolution；打分不适用（Grok 无启动记录，不伪造）。范围外：恢复套件剩余失败另开 T-085（ready_by executor）。下一步派 T-081 补 6e 拒收案（T-084 已合入）。
