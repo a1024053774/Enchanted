@@ -305,3 +305,10 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 未运行 cleanup-09b-stage-a-03.py，也暂不运行 commit-09b-run-04.sh（应先完成 cleanup，再一起冻结）。
 缺陷：（1）API 信号循环比较 `current != identity`，identity 是前一循环残留变量（=62218 身份），62217 必然不符 → 在 daemon 已停后 BLOCKED，留下半清理现场；应比较 api_id[pid]。（2）"byte_readback: PASS" 实为只列成员名，未逐成员与原文件比对字节，标签不实。
 #196：修这两处；加一个不发信号的 dry-run（只核对身份、打印将执行的动作）供我先运行；修后交我。runner/card 预检修复无意见。
+
+## stage-a-03 cleanup 运行与假 API 死锁 #197/#198（2026-10-15 UTC）
+
+#196 修订审阅：API 比较改为 api_id[pid]；归档逐普通文件字节、目录类型、symlink 目标比对。dry-run（"主控 #196"）PASS，未发信号。正式运行：daemon_stop 成功，62220 已退出；62217 收一次 SIGTERM 后 15 秒未退出 → BLOCKED，root 保留未归档，62218 未发信号。
+根因（sample-62217.txt 栈证据）：t078_09b_fake_api.py 第 20–21 行在 SIGTERM 处理函数中于 serve_forever 同一线程调用 server.shutdown()，shutdown 等待 serve_forever 退出 → __psynch_cvwait 永久等待。属假 API 缺陷，62218 同样会卡。
+#197：执行主控批准针对这两个本测试创建的假 API 的恢复：核对 argv/root/lstart 与 09b-stage-a-03 记录一致后各一次 SIGKILL（62217 已证死锁；62218 SIGTERM 必然死锁，故直接 SIGKILL），确认退出后按 #196 的逐成员读回归档并删 root。
+#198：修假 API 停止路径（处理函数不得在同线程调用 shutdown），补真实进程测试：SIGTERM 后 2 秒内退出，先在当前实现取红（超时）再取绿；runner 引用新假 API 后重冻 materials-04。
