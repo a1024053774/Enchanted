@@ -1,0 +1,72 @@
+=== RED: baseline 6ba3bde4, unmodified recovery suite ===
+test_daemon_after_CAS (__main__.DaemonRecovery) ... ok
+test_daemon_before_CAS (__main__.DaemonRecovery) ... ok
+test_daemon_deleted_ref (__main__.DaemonRecovery) ... ok
+test_daemon_external_X (__main__.DaemonRecovery) ... ok
+test_daemon_verify_interruption_and_operation_lock (__main__.DaemonRecovery) ... FAIL
+
+======================================================================
+FAIL: test_daemon_verify_interruption_and_operation_lock (__main__.DaemonRecovery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/t085-red-src.kEBGna/workbench/tests/test_daemon_recovery_e2e.py", line 182, in test_daemon_verify_interruption_and_operation_lock
+    self.assertEqual(self.finish(following)['exit'], 0)
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 5 tests in 36.749s
+
+FAILED (failures=1)
+RED_OUTPUT=/Users/luckye/Documents/Code/a2a-wt-t085/evidence/2026-10-15-batch15/T-085/red-04
+RED_EXIT=1
+=== GREEN: fixed recovery suite in the working tree ===
+test_daemon_after_CAS (__main__.DaemonRecovery) ... ok
+test_daemon_before_CAS (__main__.DaemonRecovery) ... ok
+test_daemon_deleted_ref (__main__.DaemonRecovery) ... ok
+test_daemon_external_X (__main__.DaemonRecovery) ... ok
+test_daemon_verify_interruption_and_operation_lock (__main__.DaemonRecovery) ... FAIL
+
+======================================================================
+FAIL: test_daemon_verify_interruption_and_operation_lock (__main__.DaemonRecovery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t085/workbench/tests/test_daemon_recovery_e2e.py", line 224, in test_daemon_verify_interruption_and_operation_lock
+    self.assertEqual(after['task']['state'], 'verified')
+AssertionError: 'reviewing' != 'verified'
+- reviewing
++ verified
+
+
+----------------------------------------------------------------------
+Ran 5 tests in 38.987s
+
+FAILED (failures=1)
+GREEN_OUTPUT=/Users/luckye/Documents/Code/a2a-wt-t085/evidence/2026-10-15-batch15/T-085/green-02
+GREEN_EXIT=1
+=== MUTANT: one-time copy with empty restart configuration ===
+test_daemon_after_CAS (__main__.DaemonRecovery) ... ok
+test_daemon_before_CAS (__main__.DaemonRecovery) ... ok
+test_daemon_deleted_ref (__main__.DaemonRecovery) ... ok
+test_daemon_external_X (__main__.DaemonRecovery) ... ok
+test_daemon_verify_interruption_and_operation_lock (__main__.DaemonRecovery) ... FAIL
+
+======================================================================
+FAIL: test_daemon_verify_interruption_and_operation_lock (__main__.DaemonRecovery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/t085-mutant-src.IqMaHG/workbench/tests/test_daemon_recovery_e2e.py", line 211, in test_daemon_verify_interruption_and_operation_lock
+    self.restart()
+  File "/tmp/t085-mutant-src.IqMaHG/workbench/tests/test_daemon_recovery_e2e.py", line 174, in restart
+    self.assertEqual(Path(comparison['after']['source']).resolve(), self.launch_config_path.resolve())
+AssertionError: Posix[14 chars]/tmp/a4r-m4wvp1ke/c-2meiwy_p/empty-review-control/config.json') != Posix[14 chars]/tmp/a4r-m4wvp1ke/c-2meiwy_p/quality-control/config.json')
+
+----------------------------------------------------------------------
+Ran 5 tests in 27.414s
+
+FAILED (failures=1)
+MUTANT_OUTPUT=/Users/luckye/Documents/Code/a2a-wt-t085/evidence/2026-10-15-batch15/T-085/mutant-02
+MUTANT_EXIT=1
+=== EXIT CODES ===
+RED_EXIT=1
+GREEN_EXIT=1
+MUTANT_EXIT=1

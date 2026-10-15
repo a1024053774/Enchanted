@@ -27,6 +27,8 @@ class DaemonRecovery(DaemonCards):
         super().setUp()
         self.controls = []
         self.handles = []
+        self.launch_config_path = self.quality.control / 'config.json'
+        self.launch_config_before = json.loads(self.launch_config_path.read_text(encoding='utf-8'))
         self.addCleanup(self.release_owned_commands)
 
     def release_owned_commands(self):
@@ -106,6 +108,7 @@ class DaemonRecovery(DaemonCards):
         self.assertNotEqual(result['exit'], 0, 'Disconnected client must not report success')
         # This host is the test's child. SIGKILL leaves a zombie until the parent waits.
         self.host.wait(timeout=10)
+        self.host_stdout.close(); self.host_stderr.close()
         deadline = time.monotonic() + 10
         while True:
             seen = self.process(['/bin/ps', '-o', 'pid=', '-p', str(pid)])
@@ -126,9 +129,46 @@ class DaemonRecovery(DaemonCards):
         env_path = self.env['PATH']
         self.env['PATH'] = str(self.root / 'daemon-git') + os.pathsep + env_path
         try:
-            result = self.process(['node', records.GATE, '--state', self.state, 'daemon_start'])
-            self.assertEqual(result.returncode, 0, records.COMMANDS[-1])
+            ready = self.root / 'daemon-restart-ready.json'
+            stdout_path = self.root / 'daemon-restart.stdout'
+            stderr_path = self.root / 'daemon-restart.stderr'
+            host = Path(__file__).resolve().with_name('daemon_acceptance_host.ts')
+            argv = ['node', host, self.state, self.worker_control, ready,
+                    records.ROOT / 'workbench/src/gates/core.ts', self.quality.control]
+            with stdout_path.open('xb') as stdout, stderr_path.open('xb') as stderr:
+                process = subprocess.Popen(list(map(str, argv)), cwd=self.root, env=self.env,
+                                           stdout=stdout, stderr=stderr, start_new_session=True)
+            self.host = process
+            self.host_stdout = stdout_path.open('ab')
+            self.host_stderr = stderr_path.open('ab')
+            deadline = time.monotonic() + 10
+            while not ready.exists():
+                if process.poll() is not None or time.monotonic() >= deadline:
+                    self.fail({'restart_host_failed': {'argv': list(map(str, argv)),
+                                                       'exit': process.poll(),
+                                                       'stdout': stdout_path.read_text(encoding='utf-8'),
+                                                       'stderr': stderr_path.read_text(encoding='utf-8')}})
+                time.sleep(0.03)
             self._daemon_state = self.state
+            ready_record = json.loads(ready.read_text(encoding='utf-8'))
+            config_after_source = (Path(ready_record['review_control']) / 'config.json').resolve()
+            config_after = json.loads(config_after_source.read_text(encoding='utf-8'))
+            initial_ready = json.loads((self.root / 'daemon-ready.json').read_text(encoding='utf-8'))
+            config_before_source = (Path(initial_ready['review_control']) / 'config.json').resolve()
+            comparison = {
+                'before': {'ready': str(self.root / 'daemon-ready.json'),
+                           'source': str(config_before_source), 'config': self.launch_config_before},
+                'after': {'ready': str(ready), 'source': str(config_after_source), 'config': config_after},
+                'equal': self.launch_config_before == config_after,
+                'argv': list(map(str, argv)),
+            }
+            (self.root / 'restart-launch-config.json').write_text(
+                json.dumps(comparison, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            self.assertEqual(Path(comparison['before']['source']).resolve(), self.launch_config_path.resolve())
+            self.assertEqual(Path(comparison['after']['source']).resolve(), self.launch_config_path.resolve())
+            self.assertTrue(comparison['equal'], comparison)
+            self.assertEqual(ready_record['pid'], process.pid)
+            self.assertEqual(Path(ready_record['root']).resolve(), self.state.resolve())
         finally:
             self.env['PATH'] = env_path
 
@@ -180,6 +220,11 @@ class DaemonRecovery(DaemonCards):
         self.assertIsNone(following['process'].poll(), 'Orphan result must not satisfy the new oracle')
         self.release(new_entry)
         self.assertEqual(self.finish(following)['exit'], 0)
+        # start() launches the real CLI directly and therefore bypasses
+        # DaemonCards.cli(), which normally drives the controlled reviewer to
+        # submit its independent result. Complete that reviewer through the
+        # same CLI path before asserting the verification state.
+        self.quality.complete_review(self.task)
         after = self.snapshot('verify-complete')
         self.assertEqual(after['task']['state'], 'verified')
         self.assertEqual(after['task']['current_attempt']['attempt_id'], attempt['attempt_id'])
