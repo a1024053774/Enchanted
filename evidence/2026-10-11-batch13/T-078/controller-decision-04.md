@@ -335,3 +335,8 @@ commit-09b-run-04.sh exit 1：`Unowned work; no mutation`, workbench/tests/t078_
 
 未运行 commit-09b-stage-b.sh。审阅 run-09b-stage-b.py（123 行）：main 只读 readiness、校验 approval 后写 READY_FOR_ROLE 并返回，无论是否 --dry-run 都没有启动 Claude CLI、逐屏按键、读屏、权限 Enter 的代码路径——#203 要求的阶段 B 未实现。spies-01 四项只有绿（拒绝/接受），缺去掉对应检查的变异红态。
 #204：在 runner 中实现真实阶段 B（复用 run_t078_p1.py 已在 slice1 green-3 真实 CLI 上验证过的启动/逐屏/权限机制，经 claudeLaunch 与门禁入口，不另造）：每次调用只执行一个已批准动作（启动到第一屏、一屏一键序、一次权限 Enter、一个 I/E 阶段），执行后读屏存证并停。补三项变异红态。A-05 现场继续保留。
+
+## 阶段 B 修订审阅与提交失败 #205（2026-10-15 UTC）
+
+#204 修订：非 dry-run 委托 run_t078_p1.py 单一 phase；spies-03 含三项变异红态。commit-09b-stage-b.sh exit 1：`Unowned work; no mutation`, 09b-stage-b-allowlist.json（allowlist 未列自身），未提交；herdr-handoff-receipt-04.json 亦有改动。另：B1 approval 需 p1_materials 绑定 A-05 root，但未见为 A-05 生成的 ideation p1 材料目录（role 目录、role.md、launch 输入、fake API URL）。
+#205：提交前用与脚本相同的归属函数对完整 `git status --porcelain` 预检（含 allowlist 自身与 receipt）；生成 A-05 的 ideation p1 材料并起草填好的 B1 approval（approved_by 留空由我签），一并纳入提交。
