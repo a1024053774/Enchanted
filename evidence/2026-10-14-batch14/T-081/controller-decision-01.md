@@ -98,3 +98,8 @@ worker 修正驱动：显式 --codex-home 隔离 home（只含 [permissions] 空
 退避 5 分钟后催促时窗格已回到 zsh：Codex 会话正常退出（Token usage 摘要与 `codex resume 01a13bc2-d779-7370-88a0-6b71bb434456` 提示）。随后窗格中手动输入了 `codex`（zsh 历史，非主控），启动失败：`Error: account/read failed during TUI bootstrap: account/read failed: failed to load workspace requirements (code -32603)`。主控催促文本未出现在 shell 中。worktree a2a-wt-t081 HEAD 9394e081，未跟踪 6 项（CAPABILITY-RECHECK.md、-01/-02/-03 原件、permission-profile-probe-01.json、run_t081_capability_recheck.py）完好未动。6a 与 git commit 写入范围实测均未开始。T-081 BLOCKED：Codex 新会话当前无法启动（账号读取错误），不由主控重试；等用户决定恢复方式。
 用户决定（本会话选择题）："交给 Grok 做 (Recommended)"——T-084 完成后由 Grok 会话（wF:p3Z）接着做 T-081 的 A 项结果入档、6a 正向核对与 git commit 写入范围实测；无 Codex 启动记录，提交由主控执行，如实记为用户指定的非受管 worker 产出。
 用户随后指示（本会话直接输入）："你再开个 grok 窗口"。主控 herdr pane split wF:p3T --direction down → wF:p30（cwd a2a-wt-t081），herdr pane run wF:p30 grok：Grok 4.7 (xhigh)、always-approve（用户 Grok 默认配置）。T-081 改由该会话直接接手（不再排在 T-084 后），任务书含无沙箱约束、隔离 CODEX_HOME、不改 core.ts、三件事顺序。
+
+## Grok 交付：A 项入档、6a、commit 写入范围（2026-10-15 UTC）
+
+Grok（wF:p30）交三件：CAPABILITY-RECHECK.md 写入 -03 实测；6a 正向核对（absent-02 PASS；absent-01 INCOMPLETE 为夹具 harness_error，原件保留）；COMMIT-SCOPE.md（外置盘 commit-scope-01，19 步实测，0 模型）。要点：allow 的 git commit 沙箱外运行，推进 worker worktree 检出的分支（夹具中检出共享 main 即推进 main，--amend 可改写），共享 post-commit 钩子沙箱外运行可 update-ref 他分支；packed-refs/config/hooks/他 worktree 元数据不变。不 allow 的写法（commit 前 -c/--git-dir/--work-tree/-C、环境变量前缀、git config）全进 :workspace 沙箱被拒。主控核对生产 hooksPath：panes.ts:172 → 编排后台 workbench/hooks/；launch-worker:46/90 → 主 checkout scripts/git-hooks，均不在 worker 可写区。
+主控提交 e3bb81e3（无 worker 尾注；Codex s14-t081 写的 CAPABILITY-RECHECK-01 与驱动一并提交，提交说明写明来源）。结果已报构思主控。T-081 剩余：6e 拒收案待 T-084 合入；整票独立审查；合入。
