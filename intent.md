@@ -95,7 +95,7 @@
 | --- | --- | --- |
 | 构思主控 ideation controller | Claude Code（用户 2026-10-09 定为上层主控） | 接收想法、澄清、写决定/spec/ticket、标就绪、向执行主控分发任务、转述完成报告；不直接派发、验收、集成、回收 worker |
 | 执行主控 executor controller | Claude Code（用户 2026-10-06 指定，原称主控） | 在已批准范围内监督就绪 ticket 的执行：派发和回收 worker、验收时打分、汇总证据；不得越过门禁，也不得替未知结果判成功 |
-| 执行 worker | Codex，`gpt-6.1-sol`，xhigh reasoning，Fast service tier | 只在分配的任务卡与 attempt 范围内实现或分析 |
+| 执行 worker | Codex，`gpt-6.1-sol`，xhigh reasoning，普通速度（`service_tier="default"`，不用 Fast；用户 2026-10-13 决定） | 只在分配的任务卡与 attempt 范围内实现或分析 |
 | 审查 reviewer | Codex，默认与 worker 同一个模型，每次交付新开的干净会话 | 只读审查，结论绑定候选提交号；不 submit、不集成 |
 | 监控 monitor | Codex，`gpt-6.1-sol`，high reasoning | 只读记录和报警；不得 claim、submit、集成或宣布成功 |
 | 复盘 | 默认 Claude Code、Opus 5.5、medium，每次可选 | 只读代码和数据，只写自己的报告；改进建议经用户批准才落地 |
