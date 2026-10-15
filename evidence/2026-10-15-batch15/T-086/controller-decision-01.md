@@ -13,3 +13,7 @@ Grok wF:p3Z 交 T-086 READY：conflict_acceptance_host.ts 在 createThread 时�
 
 审查 01 NO_GO 报告提交 8f3d1b5e（exec/t086）。#13 派返工给 Grok wF:p3Z：完成条件分开启动记录与任务卡/thread_id/常量；补 tracer/widen；run_worker_delivery.py 按用户决定"只改脚本期望"（answer 20261015T131159Z-ideation-answer-001）。#16 催收尾。worker 报 T-086 READY：宿主为每个 attempt 写独有 launch/cli/model/effort，runtime_identity.launch 取记录 id；返工红/绿两案、冲突七案 PASS；M1–M4 verify 失败，M5 两案走不到 delivery 分支（未造路径）；tracer PASS，widen wide 并发时 widen_score_after_cas 5 秒等待超时、基线并发同样复现、单跑 PASS；run_worker_delivery.py 未运行。主控核对 diff（仅 conflict_acceptance_host.ts、run_worker_delivery.py 与证据；delivery.turn_id 在 core.ts:3402 存在），提交候选 c9e431aa。证据 120 MB，无单文件 >5 MB。
 #17：新开 fresh Grok s15-t086-rev2（wF:p46，cwd a2a-wt-t086），只读，仅写 independent-review-02.md。
+
+## 验收与合入（2026-10-15 UTC）
+
+审查 02（s15-t086-rev2，fresh Grok）结论 PASS：三条均已解决，自建 M1–M4 在 verify 失败，M5 两案走不到 delivery 分支属实，七案重跑 OK，widen 并发超时为基线既有。提交审查报告后 exec/t086 变基到 main，变基前后 workbench/acceptance/scripts diff 为 0，main 快进到 e38b87cb1。T-086 关闭（Resolution 见票据）。下一步通知 T-081 变基、补 6e 拒收案、全量重跑。
