@@ -807,3 +807,7 @@ cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-
 ## 09B driver 首提交与可执行 launch 包静态冻结
 
 driver／oracle source `31b45c0232eaaa79b81447040871204494e5f58d` 已冻结；纯夹具 red→green→反例通过，I=4/6、E=6/11、合计17、模型0。新 [可执行包](09b-executable-materials-01/static-check.json) 静态 PASS，双角色新 root/manifest/独立目录、target card oracle_paths、空审批与 source tar 均读回；`launch_status=NO_GO`，无目标 claim、attempt/fence、CLI/API/目标启动。
+
+## 阶段 A runner 拒绝路径 spy（主控 #191）
+
+[09b-run-spies-06](09b-run-spies-06/results.json) **PASS／5项**：实际 runner entry 对 approval 字段伪造和 source_revision 不符均在 spawn 前退出，`spawned=false`、无新增 run root；attempt 回执缺任一 attempt/session/fence/thread/workspace 的纯入口变异被拒，去掉该检查的变异被 oracle 放过。阶段 A 正式 runner 尚未执行，未启动 daemon、fake API、target、CLI 或模型。说明与模板见 [09B-RUN-SPY](09B-RUN-SPY.md)。
