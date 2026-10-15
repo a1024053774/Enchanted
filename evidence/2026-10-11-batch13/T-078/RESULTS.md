@@ -903,3 +903,7 @@ A-05 cleanup 实跑后，脚本仅在事后补充 `archive_bytes=archive.stat().
 ## A-06 B1 ideation P1 materials
 
 A-06 stage A readiness 已保留并绑定新 root；生成 ideation P1 材料，input 使用 `http://127.0.0.1:0` 模板，实际 API root/readiness 由 B1 approval 的 reuse 参数绑定。只读前置校验 PASS，未启动 CLI/API/daemon/target。空签字 approval 的 dry-run 被 runner 在 spawn 前拒绝，结果保留为 INCOMPLETE、spawned=false、cli_spawned=false。
+
+## A-06 B1 ideation readback and I1 protocol driver
+
+主控已签 B1 approval 并完成 A-06 ideation 首启、逐屏主题/安全说明/信任选择，停在 s13 idle；B1 executor approvals、环境和原始读回全部保留。I1 新 driver 先取离线/spy 绿态与正文、seq、身份、stop/request、角色、预算六类 409 反例；真实路径只登记一条 dispatch，写入实际 request/stop ID 后 release 一次，预期 1 root/1 Messages，收到响应并 idle 即停。I1 材料 launch NO_GO，未启动新东西。

@@ -1,12 +1,52 @@
 """Shared registered-dispatch validation and deterministic SSE response."""
 class ProtocolRefusal(ValueError): pass
+
+def normalize_anthropic_request(request, registry, role=None):
+    """Bind a real Claude /v1/messages body to exactly one registered dispatch."""
+    if 'dispatch_id' in request:
+        return request, False
+    messages=request.get('messages')
+    if not isinstance(messages,list) or not messages or not isinstance(messages[-1],dict):
+        raise ProtocolRefusal('messages_required')
+    content=messages[-1].get('content')
+    if not isinstance(content,str):
+        raise ProtocolRefusal('registered_text_mismatch')
+    candidates=[item for item in registry.get('dispatches',{}).values()
+                if item.get('text')==content and (role is None or item.get('role')==role)]
+    if len(candidates)!=1:
+        raise ProtocolRefusal('registered_text_mismatch')
+    dispatch=candidates[0]
+    normalized={
+        'path':'/v1/messages', 'dispatch_id':dispatch['id'], 'dispatch_seq':dispatch['seq'],
+        'role':dispatch['role'], 'request_id':dispatch.get('request_id'),
+        'stop_id':dispatch.get('stop_id'), 'attempt':dispatch.get('attempt'),
+        'session':dispatch.get('session'), 'fence':dispatch.get('fence'),
+        'messages':messages, 'stream':request.get('stream'), 'model':request.get('model'),
+    }
+    return normalized, True
+
+def anthropic_sse(result, model, request_id):
+    """Return valid streaming events for the real Claude client path."""
+    text=result['sse'][1]['delta']['text']
+    return [
+        {'type':'message_start','message':{'id':request_id,'type':'message','role':'assistant','model':model or 'claude-haiku-5-5','content':[],'stop_reason':None,'stop_sequence':None,'usage':{'input_tokens':0,'output_tokens':0}}},
+        {'type':'content_block_start','index':0,'content_block':{'type':'text','text':''}},
+        {'type':'content_block_delta','index':0,'delta':{'type':'text_delta','text':text}},
+        {'type':'content_block_stop','index':0},
+        {'type':'message_delta','delta':{'stop_reason':'end_turn','stop_sequence':None},'usage':{'output_tokens':1}},
+        {'type':'message_stop'},
+    ]
+
 def validate_request(request, registry):
     dispatch=registry.get('dispatches',{}).get(request.get('dispatch_id'))
     if not dispatch: raise ProtocolRefusal('dispatch_not_registered')
     if request.get('dispatch_seq')!=dispatch['seq']: raise ProtocolRefusal('global_dispatch_seq_mismatch')
     if request.get('role')!=dispatch['role']: raise ProtocolRefusal('role_mismatch')
-    if request.get('messages',[{}])[-1].get('content')!=dispatch['text']: raise ProtocolRefusal('registered_text_mismatch')
-    if request.get('request_id')!=dispatch.get('request_id'): raise ProtocolRefusal('request_id_mismatch')
+    messages=request.get('messages')
+    if not isinstance(messages,list) or not messages or not isinstance(messages[-1],dict): raise ProtocolRefusal('messages_required')
+    if messages[-1].get('content')!=dispatch['text']: raise ProtocolRefusal('registered_text_mismatch')
+    if dispatch.get('request_id') not in (None,'') and request.get('request_id')!=dispatch.get('request_id'): raise ProtocolRefusal('request_id_mismatch')
+    if dispatch.get('stop_id') not in (None,'') and request.get('stop_id')!=dispatch.get('stop_id'): raise ProtocolRefusal('stop_id_mismatch')
     for key in ['attempt','session','fence']:
         if request.get(key)!=dispatch.get(key): raise ProtocolRefusal('target_binding_mismatch')
     limit=registry.get('message_budget',6 if request.get('role')=='ideation' else 11)
