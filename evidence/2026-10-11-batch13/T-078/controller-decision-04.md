@@ -568,3 +568,8 @@ worker 再次请求沙箱外执行（rm -rf /tmp/t078-newline-perm && 权限计�
 #270：沿用 #268 签字 approval，I1-RESUME-COMMAND（--resume-queued，输出 execute-02）→ rc 1，i1_response_deadline。实况（重大进展）：登记写入（dispatch 90958996…，seq 2）；UserPromptSubmit 放行（尾换行修复在真实现场生效）；Claude 向假 API 发出 /v1/messages（source=repl_main_thread），每次得到 409 `{"error":"name 'ROLE' is not defined"}`，Claude 按自身策略重试（≥7/11）。门禁 pane_status busy，active=该 dispatch，nativeTurn null。
 根因：workbench/tests/t078_09b_fake_api.py:24 `normalize_anthropic_request(request,registry,ROLE)`，ROLE 在文件中从未定义（--role 未赋值）。07a0efdd 引入；A-07 协议矩阵仅离线，未经真实 HTTP。另：requests.ndjson 只记 body_bytes（16855），未存请求原文，不足作证据。
 #271 裁定：修 ROLE（取自 --role），假 API 保存每个请求原文与响应原文；补真实 loopback HTTP 测试，请求体用真实 Claude Code 2.1.296 请求原件（从既有证据取，给出处）——绿：已登记派发 200 SSE；红：当前代码 409 NameError；反例照旧。两个 API 进程都加载了缺陷代码，原端口替换会破坏 readiness 身份绑定（#237 已否决），故 A-09 清理后重建 A-10；A-09 Claude 的重试只打假 API，无外部副作用，任其结束后随清理关闭。
+
+## A-10 准备审阅：HTTP 测试未运行即交付 #272（2026-10-15 UTC）
+
+worker 交：fake API ROLE=a.role；http-exchanges/NNNN.request.bin/response.bin 原文留存；支持 Claude 2.1.296 text-block 请求；A-09 红态原件 09b-a10-http-red-observed-01（11×409 NameError）；请求原件出处 slice1-green-3-readback/api.jsonl。但无 HTTP 绿态证据。主控沙箱外运行 test_t078_09b_fake_api_http_claude.py --output 09b-a10-http-green-01 → 未到 HTTP 即失败：prompt_block 报 `captured dispatch prompt missing`（fixture 解析），说明交付前未运行。失败目录保留。
+#272：先在沙箱内跑通 fixture 解析等不依赖端口的部分；红态经真实 HTTP 对旧 API（git show b36c81aa 版本导出到 /tmp）得 409 NameError；绿态对修复版得 200+完整 SSE；反例照旧。交付时附实际运行输出；需绑定端口的部分写明命令由我跑（新输出目录）。
