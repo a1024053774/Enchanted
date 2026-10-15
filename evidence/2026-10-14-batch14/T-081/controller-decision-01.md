@@ -92,3 +92,7 @@ worker 修正驱动：显式 --codex-home 隔离 home（只含 [permissions] 空
 ## git commit 写入范围实测派发（2026-10-15 UTC）
 
 用户决定（answer 20261015T035418Z-ideation-answer-001，ack 20261015T035429Z）："再实测 git commit 的写入范围"，选项原文"在上面基础上，另跑一组不调用模型的夹具，实测 worker 用 git commit 的各种参数能不能顺带改共享仓库的引用或配置。多花一点时间，把最后一个未知消掉。" CAS 重验行为暂不改。派给 s14-t081（6a 之后）：外置盘夹具 commit-scope-01，按 execpolicy 判定 → allow 沙箱外 / 否则 :workspace 沙箱内运行 → 逐项读回 refs、packed-refs、config、hooks、其他 worktree 元数据；覆盖 commit 后参数、commit 前 -c/--git-dir/--work-tree/-C、环境变量前缀、钩子路径。
+
+## s14-t081 会话退出（2026-10-15 UTC ~04:0x）
+
+退避 5 分钟后催促时窗格已回到 zsh：Codex 会话正常退出（Token usage 摘要与 `codex resume 01a13bc2-d779-7370-88a0-6b71bb434456` 提示）。随后窗格中手动输入了 `codex`（zsh 历史，非主控），启动失败：`Error: account/read failed during TUI bootstrap: account/read failed: failed to load workspace requirements (code -32603)`。主控催促文本未出现在 shell 中。worktree a2a-wt-t081 HEAD 9394e081，未跟踪 6 项（CAPABILITY-RECHECK.md、-01/-02/-03 原件、permission-profile-probe-01.json、run_t081_capability_recheck.py）完好未动。6a 与 git commit 写入范围实测均未开始。T-081 BLOCKED：Codex 新会话当前无法启动（账号读取错误），不由主控重试；等用户决定恢复方式。
