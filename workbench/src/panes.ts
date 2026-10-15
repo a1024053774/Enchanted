@@ -126,7 +126,7 @@ export class Panes implements GateRuntime {
       !this.store.launches().some((record) => record.env.CODEX_HOME === home), "review_home_reused");
     check(!existsSync(join(home, "sessions")) || readdirSync(join(home, "sessions")).length === 0, "review_home_not_empty");
     const attempt = { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
-      workspace: review.workspace, runtime_identity: null, turn_id: null };
+      workspace: review.candidate_workspace, runtime_identity: null, turn_id: null };
     await this.createPane(task, attempt, { ...this.config, ...approved }, review);
     const pane = this.get(review.thread_id);
     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
@@ -152,11 +152,19 @@ export class Panes implements GateRuntime {
     const hook = `[{hooks=[{type="command",command=${JSON.stringify(signalCommand)},timeout=10}]}]`;
     const model = task.card.executor.model, effort = task.card.executor.effort;
     check(task.card.executor.cli === "Codex" && ["gpt-6-astra", "gpt-6.1-sol"].includes(model) && effort === "xhigh", "worker_executor_mismatch");
-    const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", attempt.workspace,
-      "-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,
+    const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
+    const sandboxMode = review ? "workspace-write" : "workspace-write";
+    const networkAccess = review ? "false" : "false";
+    const networkProxy = review ? "false" : "false";
+    const excludeSlashTmp = review ? "true" : "false";
+    const excludeTmpdir = review ? "true" : "false";
+    const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
+      "-a", "never", "--sandbox", sandboxMode, "-m", model,
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="default"',
       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
-      "-c", "sandbox_workspace_write.network_access=false", "-c", "features.network_proxy=false"];
+      "-c", `sandbox_workspace_write.network_access=${networkAccess}`, "-c", `features.network_proxy=${networkProxy}`,
+      ...(review ? ["-c", `sandbox_workspace_write.exclude_slash_tmp=${excludeSlashTmp}`,
+        "-c", `sandbox_workspace_write.exclude_tmpdir_env_var=${excludeTmpdir}`] : [])];
     for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest"]) argv.push("-c", `hooks.${event}=${hook}`);
     argv.push("--dangerously-bypass-hook-trust");
     Object.assign(environment, {
@@ -175,13 +183,15 @@ export class Panes implements GateRuntime {
     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
-      role, sandbox: review ? "read-only" : "workspace-write",
-      ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id, review_home_was_empty: true } : {}),
+      role, sandbox: "workspace-write",
+      ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
+        review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
+        review_home_was_empty: true } : {}),
       created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
       model_requested: model, effort_requested: effort, service_tier_requested: "default",
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
-      role_text: readFileSync(c.role_card, "utf8"), base_commit: attempt.base_commit, worktree: attempt.workspace,
+      role_text: readFileSync(c.role_card, "utf8"), base_commit: attempt.base_commit, worktree: launchWorkspace,
       shell: "/bin/zsh", shell_argv: shellArgv, env: recordedEnvironment, helper, hook_authorization: c.hook_authorization };
     this.store.launch(record);
     mkdirSync(join(this.root, "traces", launch), { recursive: true, mode: 0o700 });

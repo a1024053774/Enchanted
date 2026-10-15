@@ -1,4 +1,4 @@
-"""One controller-only phase: default-tier argv reds, focused greens, readonly mutant."""
+"""One controller-only phase: default-tier argv reds, focused greens, review-boundary mutant."""
 import argparse
 import gzip
 import json
@@ -53,7 +53,7 @@ def main():
         with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as archive:
             archive.add(candidate / 'workbench', arcname='workbench')
         save(out / 'source.json', dict(candidate=str(candidate), baseline_archive='real-delivery-01/source-snapshot.tar.gz',
-                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; readonly unchanged'))
+                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; T-082 candidate-copy reviewer boundary'))
 
         def suite(name, source, cases, expected=0, failure_id=None):
             target = out / name
@@ -74,7 +74,7 @@ def main():
             elif value['status'] != 'PASS': raise RuntimeError('Candidate failed; no retry: ' + name)
 
         suite('worker-missing-override-red', baseline, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
-        suite('reviewer-missing-override-red', baseline, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEWER-DEFAULT-ARGV')
+        suite('reviewer-missing-override-red', baseline, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEW-COPY-ARGV')
         suite('default-tier-green', candidate, ['tracer_launch_policy_worker', 'tracer_launch_policy_reviewer'])
         priority = root / 'priority-mutant'; shutil.copytree(candidate, priority, symlinks=True)
         priority_file = priority / 'workbench/src/panes.ts'; text = priority_file.read_text(encoding='utf-8')
@@ -83,13 +83,13 @@ def main():
         priority_file.write_text(text.replace(before, "'service_tier=\"priority\"'"), encoding='utf-8')
         save(out / 'priority-mutant.json', dict(before=before, failure_id='TRACER-WORKER-DEFAULT-ARGV', source=str(priority)))
         suite('priority-argv-mutant', priority, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
-        mutant = root / 'readonly-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
+        mutant = root / 'review-boundary-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
         path = mutant / 'workbench/src/panes.ts'; text = path.read_text(encoding='utf-8')
-        before = '"-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,'
+        before = 'const sandboxMode = review ? "workspace-write" : "workspace-write";'
         if text.count(before) != 1: raise RuntimeError('Readonly mutation target is not unique.')
-        path.write_text(text.replace(before, '"-a", "never", "--sandbox", "workspace-write", "-m", model,'), encoding='utf-8')
-        save(out / 'readonly-mutant.json', dict(before=before, failure_id='TRACER-READONLY-ARGV', source=str(mutant)))
-        suite('readonly-argv-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-READONLY-ARGV')
+        path.write_text(text.replace(before, 'const sandboxMode = review ? "read-only" : "workspace-write";'), encoding='utf-8')
+        save(out / 'review-boundary-mutant.json', dict(before=before, failure_id='TRACER-REVIEW-COPY-ARGV', source=str(mutant)))
+        suite('review-boundary-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEW-COPY-ARGV')
         report['status'] = 'PASS'
     except Exception as error:
         report.update(error=repr(error), traceback=traceback.format_exc())

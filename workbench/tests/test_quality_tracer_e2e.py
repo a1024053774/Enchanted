@@ -42,13 +42,24 @@ class Tracer(QualityCase):
         record = json.loads((self.control / (launch + '.json')).read_text(encoding='utf-8'))
         rows = [json.loads(row['data']) for row in self.rows('launch_records')]
         details = next(row for row in rows if row['id'] == launch)
-        self.check('TRACER-READONLY-ARGV', details['role'] == 'reviewer' and details['sandbox'] == 'read-only'
-                   and details['argv'][details['argv'].index('--sandbox') + 1] == 'read-only'
+        self.check('TRACER-REVIEW-COPY-ARGV', details['role'] == 'reviewer' and details['sandbox'] == 'workspace-write'
+                   and details['argv'][details['argv'].index('--sandbox') + 1] == 'workspace-write'
+                   and 'sandbox_workspace_write.network_access=false' in details['argv']
+                   and 'features.network_proxy=false' in details['argv']
+                   and 'sandbox_workspace_write.exclude_slash_tmp=true' in details['argv']
+                   and 'sandbox_workspace_write.exclude_tmpdir_env_var=true' in details['argv']
                    and details['session'] != self.a['session_id'] and details['thread'] != self.a['thread_id']
                    and details['env']['CODEX_HOME'] != self.native['env']['CODEX_HOME']
                    and not any(k.startswith('GIT_CONFIG_') for k in details['env']),
-                   'fresh reviewer launch: read-only argv, separate home/session/thread and no Git hook environment', details)
+                   'fresh reviewer launch: writable candidate-copy argv, isolated network/tmp policy, separate home/session/thread and no Git hook environment', details)
         self.check('TRACER-REVIEW-CHECKOUT', self.oid(Path(review['workspace'])) == c, c, self.oid(Path(review['workspace'])))
+        self.check('TRACER-REVIEW-CANDIDATE-COPY', review['candidate_workspace'] == details['candidate_workspace']
+                   and review['candidate_workspace'] != review['workspace']
+                   and Path(review['candidate_workspace']).is_dir()
+                   and not (Path(review['candidate_workspace']) / '.git').exists()
+                   and details['worktree'] == review['candidate_workspace']
+                   and details['argv'][details['argv'].index('-C') + 1] == review['candidate_workspace'],
+                   'reviewer cwd is a disposable non-Git candidate copy distinct from the immutable review worktree', review)
         self.gate('pane_release', '--thread', review['thread_id'], '--reason', 'controlled fresh reviewer release', task=False)
         self.wait_for(lambda: self.gate('pane_status', '--thread', review['thread_id'], task=False),
                       lambda pane: pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1')
@@ -152,7 +163,7 @@ class Tracer(QualityCase):
                    [arg for arg in launch['argv'] if arg.startswith('service_tier=')] == ['service_tier="default"']
                    and launch['argv'][launch['argv'].index('service_tier="default"') - 1] == '-c'
                    and launch['service_tier_requested'] == 'default',
-                   'fresh read-only reviewer explicitly passes exactly one default tier override', launch)
+                   'fresh writable reviewer explicitly passes exactly one default tier override and the candidate-copy policy', launch)
         current = self.send_review(review, record, self.review_packet(review, c))
         self.check('TRACER-VERDICT', current['state'] == 'verified', 'unchanged review protocol accepts this bound verdict', current)
         self.wait_review_reclaimed(review)

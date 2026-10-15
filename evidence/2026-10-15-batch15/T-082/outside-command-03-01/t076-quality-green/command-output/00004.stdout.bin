@@ -1,0 +1,341 @@
+diff --git a/acceptance/test_coop_e2e.py b/acceptance/test_coop_e2e.py
+index 4615e1687..427273586 100644
+--- a/acceptance/test_coop_e2e.py
++++ b/acceptance/test_coop_e2e.py
+@@ -75,7 +75,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         self.git("config", "commit.gpgsign", "false")
+         shutil.copyfile(STARTER, self.repo / "pager.py")
+         shutil.copyfile(CONTRACT, self.repo / "CONTRACT.md")
+-        self.git("add", "pager.py", "CONTRACT.md")
++        (self.repo / "acceptance").mkdir()
++        shutil.copyfile(ORACLE, self.repo / "acceptance/criterion.py")
++        self.git("add", "pager.py", "CONTRACT.md", "acceptance/criterion.py")
+         self.git("commit", "-m", "Independent faulty starter")
+         self.base = self.git("rev-parse", "HEAD").stdout.strip()
+         self.oracle = self.root / "oracle snapshot source.py"
+@@ -142,10 +144,11 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         card = {
+             "id": task, "source": None, "goal": self.instructions.read_text(encoding="utf-8"),
+             "non_goals": ["不改变独立分页合同"], "paths": {"allow": ["."], "deny": []},
++            "oracle_paths": ["acceptance/criterion.py", "CONTRACT.md"],
+             "completion_conditions": [{"argv": [sys.executable, "-I", "-B", "-c",
+                                                  self.oracle.read_text(encoding="utf-8"), "{worktree}"]}],
+             "red_commands": [], "task_type": "后端逻辑", "repair_target": None,
+-            "complexity": "M", "executor": {"cli": "Codex", "model": "fixture", "effort": "xhigh"},
++            "complexity": "M", "executor": {"cli": "Codex", "model": "gpt-6.1-sol", "effort": "xhigh"},
+             "base_commit": None, "writer": None,
+         }
+         self.card_source = self.root / (task + ".card.json")
+@@ -158,8 +161,11 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         self.assertTrue((self.state / "state.sqlite3").is_file())
+         return result["task"]
+ 
+-    def claim(self, task=None, owner="independent-check"):
+-        result = self.cli("claim", "--task", task or self.task, "--owner", owner)
++    def claim(self, task=None, owner="independent-check", overlap_reason=None):
++        task = task or self.task
++        ordinal = self.status(task)["fence"] + 1
++        extra = ("--overlap-reason", overlap_reason) if overlap_reason is not None else ()
++        result = self.cli("claim", "--task", task, "--owner", owner, *extra)
+         attempt = result.get("attempt")
+         self.assertIsInstance(attempt, dict, result)
+         for key in ("attempt_id", "session_id", "fence", "spec_rev", "workspace",
+@@ -174,6 +180,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         self.assertTrue(workspace.is_dir())
+         self.assertNotEqual(workspace, self.repo.resolve())
+         self.assertIn((self.state / "worktrees").resolve(), workspace.parents)
++        self.assertEqual(workspace, (self.state / "worktrees" / task / f"{task}-a{ordinal}").resolve())
++        self.assertEqual(self.git("symbolic-ref", "HEAD", cwd=workspace).stdout.strip(),
++                         f"refs/heads/a2a/{task}-a{ordinal}")
+         self.assertEqual(self.git("rev-parse", "HEAD", cwd=workspace).stdout.strip(),
+                          self.base)
+         return attempt
+@@ -320,6 +329,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
+                                      "--branch", INTEGRATION_REF, "--card-version", "1", ok=False)
+                 self.assertEqual(self.business_state(task), before)
+                 self.assert_rejection_recorded(duplicate["error"], previous_events, task)
++                self.cli("revoke", "--task", task, "--reason", "End this independent claim race before the next task")
++                self.assertFalse(Path(winner["workspace"]).exists())
++                self.assertEqual(self.git("rev-parse", f"refs/a2a/attempts/{task}/a1").stdout.strip(), self.base)
+ 
+     def test_identity_gates_and_revocation_reject_old_verified_attempt(self):
+         self.create()
+@@ -345,7 +357,9 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         self.assertEqual(revoked["state"], "ready")
+         self.assertIsNone(revoked["candidate_commit"])
+         self.assertIsNone(revoked["verification"])
+-        self.assertTrue(Path(attempt["workspace"]).is_dir())
++        self.assertFalse(Path(attempt["workspace"]).exists())
++        self.assertEqual(self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip(), commit)
++        self.assertEqual(self.git("rev-parse", f"refs/heads/a2a/{self.task}-a1").stdout.strip(), commit)
+         retained = self.events()
+         self.assertEqual(retained[:len(events)], events)
+         denied = self.cli("integrate", "--task", self.task, ok=False)
+@@ -404,7 +418,7 @@ class ManagedDeliveryCLI(unittest.TestCase):
+ 
+     def test_good_candidate_uses_oracle_snapshot_and_integrates_once(self):
+         self.create()
+-        attempt = self.claim()
++        attempt = self.dispatch_candidate_attempt()
+         commit = self.candidate(attempt, good=True)
+         self.assert_novel_pagination_inputs(Path(attempt["workspace"]))
+         # Replacing the caller-owned source must not replace the registered oracle.
+@@ -453,12 +467,12 @@ class ManagedDeliveryCLI(unittest.TestCase):
+             self.assertEqual(self.reflog(), log_after)
+             self.assert_rejection_recorded(rejected["error"], events)
+ 
+-    def test_baseline_change_after_verification_rejects_integration(self):
++    def test_baseline_change_after_verification_revalidates_and_integrates(self):
+         self.create()
+-        attempt = self.claim()
++        attempt = self.dispatch_candidate_attempt()
+         candidate = self.candidate(attempt, good=True)
+         self.submit(attempt, candidate)
+-        self.cli("verify", "--task", self.task)
++        first = self.cli("verify", "--task", self.task)["verification"]
+         self.assertEqual(self.status()["state"], "verified")
+         (self.repo / "external-change.txt").write_text("Independent baseline change\n",
+                                                        encoding="utf-8")
+@@ -467,11 +481,26 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         external = self.git("rev-parse", "HEAD").stdout.strip()
+         log_before = self.reflog()
+         events = self.events()
+-        self.cli("integrate", "--task", self.task, ok=False, error="integration_conflict")
+-        self.assertEqual(self.ref(), external)
+-        self.assertEqual(self.reflog(), log_before)
+-        self.assertNotEqual(self.status()["state"], "accepted")
+-        self.assert_rejection_recorded("integration_conflict", events)
++        self.cli("integrate", "--task", self.task)
++        state = self.status()
++        v = state["verification"]
++        self.assertEqual(state["state"], "accepted")
++        self.assertNotEqual(v["verification_id"], first["verification_id"])
++        self.assertEqual(v["C"], candidate)
++        self.assertEqual(v["G"], external)
++        self.assertEqual(self.ref(), v["M"])
++        for ancestor in (external, candidate):
++            self.git("merge-base", "--is-ancestor", ancestor, self.ref())
++        self.assertEqual((self.repo / "external-change.txt").read_bytes(), b"Independent baseline change\n")
++        self.assertEqual(len(self.reflog().splitlines()), len(log_before.splitlines()) + 1)
++        checks = [event for event in self.events()[len(events):] if event["type"] == "completion_check"]
++        self.assertEqual(len(checks), 1)
++        self.assertEqual(checks[0]["details"]["verification_id"], v["verification_id"])
++        self.assertEqual(checks[0]["details"]["result"]["returncode"], 0)
++        self.assert_novel_pagination_inputs(self.repo)
++        accepted_log = self.reflog()
++        self.cli("integrate", "--task", self.task)
++        self.assertEqual(self.reflog(), accepted_log)
+ 
+     def test_submit_requires_clean_head_and_cannot_replace_frozen_candidate(self):
+         self.create()
+@@ -506,9 +535,16 @@ class ManagedDeliveryCLI(unittest.TestCase):
+         self.cli("verify", "--task", self.task)
+         self.assertEqual(self.status()["state"], "verified")
+         self.assertEqual(self.status()["candidate_commit"], candidate)
+-        self.cli("integrate", "--task", self.task)
+-        self.assertEqual(self.ref(), candidate)
+-        self.assertNotEqual(self.ref(), later_bad)
++        # W07 / decision 02: a manual claim has no managed launch provenance.
++        # The complete managed frozen-C integration is a separate explicit case.
++        events = self.events()
++        log_before = self.reflog()
++        reply = self.cli("integrate", "--task", self.task, "--score-file", self.score_file(attempt),
++                         ok=False, error="score_provenance_required")
++        self.assertEqual(self.ref(), self.base, "W07-MANUAL-SOURCE: refuse before Git changes")
++        self.assertEqual(self.reflog(), log_before)
++        self.assertEqual(self.status()["candidate_commit"], candidate)
++        self.assert_rejection_recorded(reply["error"], events)
+ 
+     def test_spec_revision_invalidates_candidate_and_old_identity(self):
+         self.create()
+diff --git a/acceptance/test_run_e2e.py b/acceptance/test_run_e2e.py
+index f3b245ec7..45b40b7ee 100644
+--- a/acceptance/test_run_e2e.py
++++ b/acceptance/test_run_e2e.py
+@@ -217,7 +217,9 @@ class RunCLI(recovery.RecoveryCLI):
+                    ["worktree", attempt["workspace"], self.base],
+                    [native["envMode"], native["workspace"], native["baseRef"]])
+         candidate = self.candidate(attempt, good=True)
++        candidate_bytes = Path(attempt["workspace"], "pager.py").read_bytes()
+         self.submit(attempt, candidate)
++        self.drive_executor_finalize(handle, attempt, candidate)
+         value = self.new_result(self.complete(handle), "run")
+         run = value.get("run", {})
+         self.check(bool(run.get("run_id")) and run.get("attempt_id") == attempt["attempt_id"] and
+@@ -234,7 +236,7 @@ class RunCLI(recovery.RecoveryCLI):
+                    "Project work branch advances from G to the verified M", candidate,
+                    self.git("rev-parse", "HEAD").stdout.strip())
+         self.check(self.git("status", "--porcelain").stdout == "" and
+-                   (self.repo / "pager.py").read_bytes() == Path(attempt["workspace"], "pager.py").read_bytes(),
++                   (self.repo / "pager.py").read_bytes() == candidate_bytes,
+                    "Checked-out worktree and index match M", "clean worktree with candidate contents",
+                    self.git("status", "--porcelain").stdout)
+         readback = self.root / "authoritative accepted readback"
+@@ -243,8 +245,12 @@ class RunCLI(recovery.RecoveryCLI):
+         self.only_own_close(thread)
+         self.check(len(self.store()["prompts"]) == 1, "Normal run prompts exactly once", 1,
+                    len(self.store()["prompts"]))
+-        self.check(Path(attempt["workspace"]).is_dir(), "Reclaim preserves attempt worktree", True,
+-                   Path(attempt["workspace"]).is_dir())
++        self.check(not Path(attempt["workspace"]).exists(), "Reclaim removes the integrated clean worktree", False,
++                   Path(attempt["workspace"]).exists())
++        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
++        self.check(retained == candidate, "Integrated candidate remains under its attempt reference", candidate, retained)
++        branch = self.process(["git", "-C", self.repo, "show-ref", "--verify", "--quiet", f"refs/heads/a2a/{self.task}-a1"])
++        self.check(branch.returncode == 1, "Integrated worker branch name is removed", 1, branch.returncode)
+         self.finish_checks()
+ 
+     def test_transient_tool_activity_keeps_same_thread_owner(self):
+@@ -295,6 +301,7 @@ class RunCLI(recovery.RecoveryCLI):
+         self.create()
+         value = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")
+         attempt = value["attempt"]
++        self.prepare_executor_score(attempt)
+         thread = self.store()["prompts"][0]["thread_id"]
+         self.check(self.status()["state"] != "accepted" and self.ref() == self.base,
+                    "Simulated done never accepts during fixture preparation", self.base, self.ref())
+@@ -321,16 +328,20 @@ class RunCLI(recovery.RecoveryCLI):
+         # An eligible real commit exists, but no explicit submit is sent.
+         self.failed_run(self.complete(handle), error="run_deadline")
+         after = self.snapshot("done-without-submit-ended")
+-        self.check(after["refs"] == before["refs"] and after["reflog"] == before["reflog"],
+-                   "Done and candidate commit do not move any Git ref", before["refs"], after["refs"])
++        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
++        expected_refs[f"refs/heads/a2a/{self.task}-a1"] = candidate
++        expected_refs[f"refs/a2a/attempts/{self.task}/a1"] = candidate
++        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
++        self.check(actual_refs == expected_refs and after["reflog"] == before["reflog"],
++                   "Timeout only retains the unsubmitted attempt tip; integration stays unchanged", expected_refs, actual_refs)
+         self.check(after["status"]["candidate_commit"] is None and
+                    len(self.entries(self.oracle_control)) == 0,
+                    "No submit means no persisted candidate and no oracle", None,
+                    [after["status"]["candidate_commit"],
+                     [(str(path), data) for path, data in self.entries(self.oracle_control)]])
+-        self.check(self.git("rev-parse", "HEAD", cwd=attempt["workspace"]).stdout.strip() == candidate,
+-                   "Timeout preserves the unsubmitted real candidate", candidate,
+-                   self.git("rev-parse", "HEAD", cwd=attempt["workspace"]).stdout.strip())
++        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
++        self.check(retained == candidate and not Path(attempt["workspace"]).exists(),
++                   "Timeout preserves the unsubmitted commit and removes its clean directory", candidate, retained)
+         self.only_own_close(thread)
+         self.finish_checks()
+ 
+@@ -353,6 +364,7 @@ class RunCLI(recovery.RecoveryCLI):
+                    [len(self.store()["prompts"]), len(self.rows(after, "attempt"))])
+         candidate = self.candidate(attempt, good=True)
+         self.submit(attempt, candidate)
++        self.drive_executor_finalize(first, attempt, candidate)
+         self.new_result(self.complete(first), "run")
+         self.check(self.ref() == candidate, "First executor still completes", candidate, self.ref())
+         self.only_own_close(thread)
+@@ -422,9 +434,11 @@ class RunCLI(recovery.RecoveryCLI):
+         closed = self.store()["closes"]
+         self.check(closed in ([], [old_thread]), "Superseded run may clean only its historical thread",
+                    [[], [old_thread]], closed)
+-        self.check(Path(old["workspace"]).is_dir() and Path(replacement["workspace"]).is_dir(),
+-                   "Both attempt worktrees remain inspectable", True,
+-                   [old["workspace"], replacement["workspace"]])
++        self.check(not Path(old["workspace"]).exists() and Path(replacement["workspace"]).is_dir(),
++                   "Only the ended historical workspace is removed", [False, True],
++                   [Path(old["workspace"]).exists(), Path(replacement["workspace"]).is_dir()])
++        retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a1").stdout.strip()
++        self.check(retained == self.base, "Historical attempt retains its own base commit", self.base, retained)
+         self.only_own_close(*closed)
+         self.preserved_history(before, after)
+         self.finish_checks()
+@@ -439,13 +453,22 @@ class RunCLI(recovery.RecoveryCLI):
+         before = self.snapshot("bad-candidate-submitted")
+         self.failed_run(self.complete(handle))
+         after = self.snapshot("oracle-rejected-run")
+-        self.check(after["refs"] == before["refs"] and after["reflog"] == before["reflog"],
+-                   "Oracle rejection leaves Git refs and reflog unchanged", before["refs"], after["refs"])
++        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
++        expected_refs[f"refs/a2a/verifications/{self.task}/a1/v1"] = candidate
++        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
++        self.check(actual_refs == expected_refs and after["reflog"] == before["reflog"],
++                   "Oracle rejection only preserves its candidate and verification references", expected_refs, actual_refs)
+         results = [json.loads(p.read_text()) for p in self.oracle_control.glob("*.result.json")]
+         self.check(len(results) == 1 and results[0]["exit_code"] != 0,
+                    "Actual frozen independent oracle rejects the bad candidate", "one nonzero oracle",
+                    results)
+-        self.only_own_close(thread)
++        self.only_own_close()
++        current = after["status"]["current_attempt"]
++        feedback = [json.loads(line) for line in (self.boundary / "quality-feedback.jsonl").read_text(encoding="utf-8").splitlines()]
++        self.check(current is not None and current["attempt_id"] == attempt["attempt_id"] and not current["reclaimed"]
++                   and len(feedback) == 1 and feedback[0]["registered"] and feedback[0]["attempt"] == attempt["attempt_id"],
++                   "First rejection preserves owned worker and registers its repair input", attempt["attempt_id"],
++                   {"current": current, "feedback": feedback})
+         self.check(Path(attempt["workspace"]).is_dir(), "Rejected candidate worktree survives", True,
+                    Path(attempt["workspace"]).is_dir())
+         self.finish_checks()
+@@ -523,27 +546,31 @@ class RunCLI(recovery.RecoveryCLI):
+         old = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")["attempt"]
+         old_thread = self.store()["prompts"][-1]["thread_id"]
+         self.cli("revoke", "--task", self.task, "--reason", "Preserve history for guarded reclaim")
+-        current = self.claim(owner="current-owner")
++        current = self.claim(owner="current-owner", overlap_reason="Test historical reclaim while the current owner remains active")
+         candidate = self.candidate(current, good=True)
+         self.submit(current, candidate)
+         other_task = "foreign-" + uuid.uuid4().hex
+         self.create(task=other_task)
+-        foreign = self.cli("dispatch", "--task", other_task, "--runtime-mode", "approval-required")["attempt"]
++        foreign = self.cli("dispatch", "--task", other_task, "--runtime-mode", "approval-required",
++                           "--overlap-reason", "Keep a foreign worker alive to detect cross-task cleanup")["attempt"]
+         foreign_thread = self.store()["prompts"][-1]["thread_id"]
+         before = self.snapshot("before-historical-reclaim")
+         self.guard("reclaim", old["attempt_id"])
+         after = self.snapshot("after-historical-reclaim")
+-        self.check(after["status"] == before["status"] and after["refs"] == before["refs"] and
++        expected_refs = {ref: commit for commit, ref in (line.split() for line in before["refs"].splitlines())}
++        expected_refs[f"refs/a2a/attempts/{self.task}/a1"] = self.base
++        actual_refs = {ref: commit for commit, ref in (line.split() for line in after["refs"].splitlines())}
++        self.check(after["status"] == before["status"] and actual_refs == expected_refs and
+                    after["reflog"] == before["reflog"],
+-                   "Historical reclaim does not revoke the current task or change Git", before["status"],
+-                   after["status"])
++                   "Historical reclaim only adds its own retention reference", expected_refs, actual_refs)
+         self.only_own_close(old_thread)
+         self.check(foreign_thread in self.store()["threads"],
+                    "Foreign worker remains live", foreign_thread, self.store())
+         # A second dispatch is legal after historical reclaim. Replaying the
+         # old historical ID must then leave this new binding untouched.
+         self.cli("revoke", "--task", self.task, "--reason", "Bind current replacement after cleanup")
+-        replacement = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required")["attempt"]
++        replacement = self.cli("dispatch", "--task", self.task, "--runtime-mode", "approval-required",
++                               "--overlap-reason", "Keep the replacement and foreign worker live during stale reclaim")["attempt"]
+         current_thread = self.store()["prompts"][-1]["thread_id"]
+         before = self.snapshot("before-historical-reclaim-replay")
+         self.guard("reclaim", old["attempt_id"])
+@@ -562,9 +589,20 @@ class RunCLI(recovery.RecoveryCLI):
+                        "Cross-task reclaim does not revoke foreign task", foreign_before,
+                        self.business_state(other_task))
+             self.only_own_close(old_thread)
+-        self.check(all(Path(a["workspace"]).is_dir() for a in (old, current, replacement, foreign)),
+-                   "Guarded reclaim preserves every attempt worktree", True,
+-                   [a["workspace"] for a in (old, current, replacement, foreign)])
++        directories = [Path(a["workspace"]).exists() for a in (old, current, replacement, foreign)]
++        self.check(directories == [False, False, True, True],
++                   "Only ended clean attempts lose their worktrees", [False, False, True, True], directories)
++        for ordinal, expected in ((1, self.base), (2, candidate)):
++            retained = self.git("rev-parse", f"refs/a2a/attempts/{self.task}/a{ordinal}").stdout.strip()
++            self.check(retained == expected, "Historical retention binds its own attempt " + str(ordinal), expected, retained)
++        for target, reason, expected_conflicts in (
++                (self.task, "Test historical reclaim while the current owner remains active", {old["attempt_id"]}),
++                (other_task, "Keep a foreign worker alive to detect cross-task cleanup", {old["attempt_id"], current["attempt_id"]}),
++                (self.task, "Keep the replacement and foreign worker live during stale reclaim", {foreign["attempt_id"]})):
++            recorded = [e["details"] for e in self.events(target) if e["type"] == "claim_path_check" and e["details"].get("reason") == reason]
++            self.check(len(recorded) == 1 and recorded[0]["passed"] is True and
++                       {c["attempt"] for c in recorded[0]["conflicts"]} == expected_conflicts,
++                       "Explicit overlap reason is recorded with its exact conflict set", sorted(expected_conflicts), recorded)
+         self.finish_checks()
+ 
+     def test_matching_reclaim_guard_is_idempotent_after_automatic_success(self):
+@@ -574,6 +612,7 @@ class RunCLI(recovery.RecoveryCLI):
+         attempt = self.current_attempt()
+         candidate = self.candidate(attempt, good=True)
+         self.submit(attempt, candidate)
++        self.drive_executor_finalize(handle, attempt, candidate)
+         self.new_result(self.complete(handle), "run")
+         before = self.snapshot("before-accepted-reclaim-replay")
+         self.guard("reclaim", attempt["attempt_id"])

@@ -168,7 +168,12 @@ export interface A2AReview {
   verification_id: string;
   thread_id: string;
   session_id: string;
+  /** The detached Git worktree owned by the gate and kept immutable during review. */
   workspace: string;
+  /** A disposable, non-Git copy where the reviewer may construct mutations. */
+  candidate_workspace: string;
+  /** Shared-repository refs captured before the reviewer starts. */
+  shared_refs: string;
   requested_at: string;
   launch_id: string | null;
   runtime_identity: A2ARuntimeIdentity | null;
