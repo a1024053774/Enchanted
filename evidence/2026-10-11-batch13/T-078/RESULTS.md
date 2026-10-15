@@ -947,3 +947,7 @@ A-09 live API 红态原件记录 name ROLE 未定义，11 次重试均只回 409
 ## A-10 phase-parametric I2 driver
 
 I1 regression and I2 spy 均 PASS；driver 现在按 I1–I4/E1–E6 阶段选择 role、Messages budget 和 ACK，I1 默认行为保留。I2 材料由 --stage-a/--p1 读取真实绑定生成，launch NO_GO。
+
+## Protocol I1 tool/inbox stage oracle
+
+冻结 protocol 的 I1 离线绿态实现 I_SEND_STOP tool_use、tool_result、实际 stop/wake 关联；I2/E1 材料边界按协议保留。A-10 管道回合已计入 ideation 4/6（1 root/1 Messages），Protocol I1 追加 1 root/2 Messages 后仍在预算内。未启动或发送。
