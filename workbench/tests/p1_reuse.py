@@ -23,3 +23,7 @@ def resolve_reused_api(template, api_root, readiness_file, process_probe=process
     if second!=identity: raise ValueError('reused_api_lifetime_changed')
     if entry.get('lstart') and entry['lstart']!=identity['started']: raise ValueError('reused_api_lstart_mismatch')
     return {**template,'api_url':ready['api_url'],'reused_api_pid':ready['pid'],'reused_api_lstart':identity['started']}
+
+def controller_start_args(task, runtime_input_path):
+    if not isinstance(task, str) or not task: raise ValueError('controller_task_required')
+    return ['controller_start', '--task', task, '--manifest', str(runtime_input_path)]

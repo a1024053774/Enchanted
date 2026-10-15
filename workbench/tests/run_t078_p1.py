@@ -4,7 +4,7 @@ from pathlib import Path
 from command_evidence import CommandLog,command_json
 from p1_endpoint import resolved_input
 from p1_processes import identity_from_ps,cli_exit_verdict
-from p1_reuse import resolve_reused_api
+from p1_reuse import resolve_reused_api,controller_start_args
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
 parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','continue-esc','cleanup'],required=True)
 parser.add_argument('--reuse-stage-a',action='store_true');parser.add_argument('--reuse-api-root',type=Path);parser.add_argument('--stop-before-cli',action='store_true')
@@ -24,6 +24,7 @@ env={'PATH':'/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin','HOME':str(root/'m
 cli=[node,SOURCE/'workbench/src/gates/cli.ts','--state',state]
 result={'status':'INCOMPLETE','phase':args.phase,'label':label,'source_materials':str(source_materials),
         'real_vendor_model_turns':0,'authentication':'isolated fake API','input':approval['input']}
+task=approval['input']['task']; runtime_input_path=(out/'runtime-input.json') if args.reuse_stage_a else (root/'runtime-input.json')
 scenario_name=json.loads((root/'scenario.json').read_bytes())['name']
 api_script=SOURCE/'workbench/tests'/('t078_fake_inbox_tool.py' if scenario_name in ['slice1-inbox-red','slice1-inbox-green'] else 't078_fake_messages.py')
 def save(): (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
@@ -74,7 +75,7 @@ def raw_hook_receipts():
 def verify_readiness():
     owner=json.loads((root/'api-owner.json').read_text())
     bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),owner['pid'])
-    if json.loads((root/'runtime-input.json').read_text())!=bound:raise RuntimeError('resolved_api_manifest_changed')
+    if json.loads(runtime_input_path.read_text())!=bound:raise RuntimeError('resolved_api_manifest_changed')
     if json.loads((materials/'launch/runtime-manifest.json').read_text())['input']!=bound:raise RuntimeError('runtime_launch_manifest_changed')
     if not args.readiness_file:raise RuntimeError('Explicit startup-readiness file required')
     ready=json.loads(args.readiness_file.read_text(encoding='utf-8'))
@@ -112,8 +113,8 @@ try:
             bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),api.pid)
         if args.stop_before_cli:
             result.update(status='PASS',stop_before_cli=True,scope='Read-only reused API identity probe; no API/daemon/CLI/controller start'); save(); raise SystemExit(0)
-        with (root/'runtime-input.json').open('x',encoding='utf-8') as f:json.dump(bound,f,ensure_ascii=False,indent=2)
-        run([node,SOURCE/'workbench/tests/prepare_t078_p1.ts',root/'runtime-input.json',out/'runtime-manifest.json'])
+        with runtime_input_path.open('x',encoding='utf-8') as f:json.dump(bound,f,ensure_ascii=False,indent=2)
+        run([node,SOURCE/'workbench/tests/prepare_t078_p1.ts',runtime_input_path,out/'runtime-manifest.json'])
         runtime=json.loads((out/'runtime-manifest.json').read_text())
         if runtime['launch']['argv']!=approval['launch']['argv'] or runtime['launch']['settings']!=approval['launch']['settings']:
             raise RuntimeError('approved_cli_argv_changed')
@@ -141,7 +142,7 @@ try:
                 for entry in scenario['inbox_fixture']:db.execute('INSERT INTO inbox_records(id,data) VALUES (?,?)',(entry['id'],json.dumps(entry,ensure_ascii=False)))
                 db.commit()
             result['seeded_inbox_inputs']={'origin':scenario['inbox_fixture_origin'],'entries':scenario['inbox_fixture']};save()
-        result['started']=call('controller_start','--task',task,'--manifest',root/'runtime-input.json')
+        result['started']=call(*controller_start_args(task,runtime_input_path))
         owner_info=None
         def capture_owner():
             global owner_info
