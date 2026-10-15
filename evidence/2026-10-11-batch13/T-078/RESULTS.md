@@ -811,3 +811,7 @@ driver／oracle source `31b45c0232eaaa79b81447040871204494e5f58d` 已冻结；�
 ## 阶段 A runner 拒绝路径 spy（主控 #191）
 
 [09b-run-spies-06](09b-run-spies-06/results.json) **PASS／5项**：实际 runner entry 对 approval 字段伪造和 source_revision 不符均在 spawn 前退出，`spawned=false`、无新增 run root；attempt 回执缺任一 attempt/session/fence/thread/workspace 的纯入口变异被拒，去掉该检查的变异被 oracle 放过。阶段 A 正式 runner 尚未执行，未启动 daemon、fake API、target、CLI 或模型。说明与模板见 [09B-RUN-SPY](09B-RUN-SPY.md)。
+
+## 09B 阶段 A runner 与可执行包静态冻结
+
+runner source `661064d70bfd264825af3e0e51936e766aef8748` 已冻结；默认无 approval 不 spawn，A 阶段批准后才创建 root、detached fake API/daemon、card/dispatch/claim target 并写 readiness。新 [executable-02](09b-executable-materials-02/static-check.json) 静态 PASS、launch NO_GO；没有执行 runner、没有真实 CLI/API/目标，阶段 B/C 未启动。
