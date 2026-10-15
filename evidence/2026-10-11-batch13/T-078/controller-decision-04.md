@@ -584,3 +584,9 @@ commit-09b-a10.sh：db532b6e + f1362104，工作树干净（RESULTS 断言问题
 #276：a10-i1-prompt.txt（末尾带换行）→ 09b-a10-i1-materials-01 → 签字执行（正常模式）：rc 0，**I1 PASS**。driver：dispatch 06a7f3cf…（seq 2）release 一次；API 响应 request_id 96a37691…、6 个 SSE 事件；Stop prompt_id 421d14de… 作为 stop_id；last_assistant_message "I1_ACK"；messages_sent 1、roots_used 1。主控独立读回：http-exchanges 仅 0001（1 次交换）；requests.ndjson 1 行；protocol-registry 已绑定 request_id 与 stop_id；pane_status idle、active null、queued []；claude-debug.log 中 409/API error 0。
 意义：真实 Claude Code 首次经门禁登记 → UPS 钩子 → 协议假 API → Stop 完整走完一个受控回合，预算恰好 1/1。
 下一步 #277：worker 提交本轮证据；把 I1 驱动推广为按阶段参数（I2–I4、E1–E6）的驱动，登记内容按 09B protocol/plan；executor 角色的 B1 启动与首启沿用同一套（同一时间只一个角色启动步骤）；先离线/spy 红绿，交 I2 待批材料。
+
+## 更正：#276 的"I1 PASS"只是管道追踪回合；I2 材料偏离 protocol #278（2026-10-15 UTC）
+
+worker 交 I2（da91e780 已提交）：驱动按阶段参数化，I2 材料内容为"acknowledge this registered phase turn exactly once, do not call tools, and stop"。对照冻结的 09b-materials-01/protocol.json：I1 = 批准的 test-simulated-user 窗口 stop 请求 → 假 API 下发工具调用 I_SEND_STOP（node workbench/bin/inbox send --kind stop …，故意 --from executor，期望实际 from=ideation）、2 Messages、Stop 时真实 send 并唤醒 executor；I2 = 真实 send 执行反馈、只确认；E1–E6、I3–I4 为 wrong-target 拒绝、真实一次 Esc、ack、重复 ack 幂等、越权 ack 拒绝、已 ack stop 拒绝等，按实际 dispatch/request/inbox ID 关联。
+更正：#276 跑通的是"无工具确认回合"，验证了登记→UPS 钩子→协议假 API→Stop 的管道，但**不是 protocol 定义的 I1**；此前日志与对构思主控的汇报中"I1 PASS"一语过度，改称"管道追踪回合 PASS"。I2 材料（再一次确认回合）偏离 protocol，不签、不执行。
+#278：按 protocol 实现真实阶段：假 API 按登记下发 Anthropic tool_use（Bash，argv 取自 protocol.commands，占位由实际 ID 填充），Claude 以 manual 权限模式触发 PermissionRequest，由主控按一次性 Yes 规则逐次批准（沿用屏幕/按键批准机制），工具执行结果作为 tool_result 回到假 API 结算第二条 Messages；I1 的输入是批准的 test-simulated-user 窗口 stop 请求（记为自动化，不记为用户）；独立 oracle 按 inbox/relay/目标 received.bin 读回判定。先离线红绿，再交 I1（protocol 版）待批材料。现场 A-10 保留（已消耗 1 root/1 Messages 于管道回合，需计入 ideation 预算 4/6 或说明是否重建）。
