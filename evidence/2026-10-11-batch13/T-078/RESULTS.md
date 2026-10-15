@@ -943,3 +943,7 @@ A-08 owner-bound cleanup script dry-run/formal由主控运行后归档读回；A
 ## A-10 API role binding and raw HTTP evidence
 
 A-09 live API 红态原件记录 name ROLE 未定义，11 次重试均只回 409；A-10 修复从 --role 赋 ROLE，并按序保存 request/response 原文。真实 Claude 2.1.296 请求原件出处为 slice1-green-3-readback/api.jsonl；A-10 loopback test 使用该结构，launch NO_GO。A-09 owner-bound cleanup 脚本绑定新现场参数，未运行。
+
+## A-10 phase-parametric I2 driver
+
+I1 regression and I2 spy 均 PASS；driver 现在按 I1–I4/E1–E6 阶段选择 role、Messages budget 和 ACK，I1 默认行为保留。I2 材料由 --stage-a/--p1 读取真实绑定生成，launch NO_GO。
