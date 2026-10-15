@@ -526,3 +526,10 @@ worker 指出：我写的 stage-b-a07-ideation-approval-01.json 由 A-06 approva
 commit-09b-a07-i1.sh --check-only PASS（229 paths），正式 178ca7e4。审阅 09b-a07-i1-materials-01：绑定取自 A-07 readiness、B1 input/manifest、ideation api-ready；正文 i1-prompt.txt；dispatch id/seq 由 pane_dispatch 返回，request_id/stop_id 实到后读回；预算 1 root/1 Messages；不符 409、不重送。
 #254：签 approval.json，执行 I1-COMMAND → 09b-a07-i1-execute-01：rc 1，INCOMPLETE，FileNotFoundError，real_process_starts 0。根因：t078_09b_i1_driver.py:89 写死 p1 = materials/'09b-a06-b1-ideation-p1-01'（A-06 残留），未用 approval.p1_materials。失败发生在 pane_dispatch 之前：无 dispatch、无登记（protocol-registry.json 不存在）、无 release、无请求；A-07 七进程完好。驱动异常记录无文件名与 traceback。
 #255：p1 改取 approval.p1_materials（并核对其 input.json 的 launch/session 与 approval 一致）；异常记录补 traceback；spy 增加"p1 路径来自批准"红绿；新输出 execute-02。
+
+## A-07 I1 第二次执行：钩子被 hookTrace 拦截 #256/#257（2026-10-15 UTC）
+
+#255 修正提交 b77ccb29（p1 取自批准并核对 launch/session；异常带 traceback；spy 8 项 PASS）。#256：沿用 #254 签字的 approval.json 执行 → 09b-a07-i1-execute-02：rc 1，i1_response_deadline。实况：pane_dispatch 成功（dispatch 7d714d00…，seq 2），protocol-registry.json 已写，pane_release 已调用；Claude UserPromptSubmit 钩子 exit 2：`invalid_hook_trace_binding`，claude-debug.log 记 "prompt.submit: dropped (UserPromptSubmit operation blocked by hook…)"。API requests/responses 均空，Messages 0。
+根因（产品缺陷）：workbench/src/hookTrace.ts:12 要求 A2A_HOOK_TRACE_DIR == <root>/hooks；#187 前置切片 b9b5fdd3 已把角色 hooks 移到 <root>/roles/<preset>/hooks（claudeLaunch 设置），hookTrace 未同步。B1 从未提交提示，故此前未暴露；本次即真实入口红态。
+现场：门禁 pane_status 为 busy，active=dispatch #2，nativeTurn null（未收到回合开始信号），Claude 10265/10267 存活。
+#257：修 hookTrace 接受角色目录（不留旧 root/hooks 兼容，若单角色路径仍需则说明其实际布局），真实入口红绿；并带证据分析卡住的 active 提交如何处理：产品现有中断/恢复路径能否把它收回（不伪造事件、不由 operator 代写），或须重建 A-08。交我裁定，不启动、不发送。
