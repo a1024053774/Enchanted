@@ -275,3 +275,8 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 
 未运行 commit-09b-driver.sh。原因：claudeLaunch.ts 第 36 行把 role_file 改为同时接受 root/role.md 与 roles/<preset>/role.md，是新旧双路径兼容分支，违反 #187"删除共享目录路径，不留 fallback"及项目"不保留兼容分支"。其余（driver/oracle 纯夹具红绿与三个反例）未发现问题。
 #189：role_file 只接受 roles/<preset>/role.md；P1 生成器、单角色 slice1 夹具与测试同步迁移；补一个反例（root/role.md 被 controller_launch_config_required 拒绝）；重跑 profile/budget/slice1 relay/permission/entry/empty 回归与 driver 红绿反例（新输出目录，旧目录保留）；更新提交脚本的固定 HEAD/allowlist 后再交。
+
+## 09B-DRIVER 提交与运行入口 #190（2026-10-15 UTC）
+
+#189 返工审阅：claudeLaunch 只接受 roles/<preset>/role.md，旧路径红态（被接受）与绿态（controller_launch_config_required 拒绝）分存；回归与 driver 红绿反例新目录重跑 PASS。以 s13-t078m 身份运行 commit-09b-driver.sh：exit 0，31b45c02（driver/oracle/边界测试）+ 05cac8b4（09b-executable-materials-01），9 条尾注；static-check PASS，真实启动全 0，launch NO_GO（target claim 未取得）。
+#190：静态包接受为审阅基线，launch 仍不批准。下一步写分阶段真实入口 runner：阶段 A 建 root、以脱离进程组方式启动 daemon 与假 API、经门禁真实 dispatch/claim 目标并以其回执填 attempt/session/fence/workspace，写 readiness 后停；阶段 B 起每个角色启动、逐屏按键、一次性工具批准沿用 p1 approval 机制。先用 PTY spy 证明批准前不 spawn、伪造/空 claim 被拒（红绿），交提交脚本与阶段 A 待批材料。
