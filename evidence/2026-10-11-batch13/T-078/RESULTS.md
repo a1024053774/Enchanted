@@ -847,3 +847,7 @@ cleanup 的归档 helper 用临时目录取含普通文件、目录和符号链�
 `09b-stage-a-04/result.json` 保留真实红态：门禁 `card_save`、`create`、`dispatch`、`claim` 全部成功，attempt `f1dd4297…`、fence `1`、thread `a7b98242…`、workspace 均由真实回执提供；失败发生在 `pane_process_info`，shell `68179` 的 `leader=null`，复查仍只有 `/bin/zsh`。只读 [readback](09b-stage-a-04-readback-01/result.json) 通过真实 CLI 读取 `daemon_status`、`launch_show`、`pane_status`、`pane_process_info`、`pane_output`、`orchestration_events`，没有向 pane 输入、没有 signal/stop。pane 原文是 `create sessions: File exists` 后回到 zsh 提示符；launch-config 的 `codex_bin` 与 launch argv 第一项均为 target receiver，路径存在，但进程列表没有 receiver。事件只有 `pane_started` 与 `dispatch_queued`，所以不是读取时序或缺 dispatch。
 
 根因为 runner 在 `target/home/sessions` 预先创建目录，而 deterministic receiver 自己用 `mkdir(..., 0700)` 创建 `CODEX_HOME/sessions`；`mkdir` 返回 `EEXIST` 后退出，故 shell 没有 foreground leader。runner 已删除该预创建；[receiver launch 回归](09b-receiver-launch-green-10/result.json) 在空隔离 HOME 中编译并启动真实 receiver，收到 READY、自动创建 sessions 与 `receiver-started.json` 后退出，PASS。阶段 A-04 cleanup 脚本按 root/PID 绑定，先 dry-run，再认证 `daemon_stop`、确认 shell/daemon 退出、各 API 一次 SIGTERM（两秒内）和逐成员归档读回后删 root；未运行时保持 `INCOMPLETE`，launch 继续 **NO_GO**。
+
+## 阶段 A-04 receiver 修复与 materials-05 冻结
+
+真实 Stage-A-04 红态已读回：dispatch/claim 回执完整，但 pane 只有 zsh，屏幕 `create sessions: File exists`，launch-config receiver 路径存在而未启动；根因是 runner 预创建 CODEX_HOME/sessions。已删除该预创建并以空 HOME receiver 进程回归 PASS。A-04 cleanup dry-run/正式 PASS，两个假 API 各一次 SIGTERM 均在两秒内退出，归档逐成员读回后 root 删除。materials-05 静态 PASS，launch 继续 NO_GO；未启动新的 Stage A、供应商 CLI 或模型。
