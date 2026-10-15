@@ -533,3 +533,9 @@ commit-09b-a07-i1.sh --check-only PASS（229 paths），正式 178ca7e4。审阅
 根因（产品缺陷）：workbench/src/hookTrace.ts:12 要求 A2A_HOOK_TRACE_DIR == <root>/hooks；#187 前置切片 b9b5fdd3 已把角色 hooks 移到 <root>/roles/<preset>/hooks（claudeLaunch 设置），hookTrace 未同步。B1 从未提交提示，故此前未暴露；本次即真实入口红态。
 现场：门禁 pane_status 为 busy，active=dispatch #2，nativeTurn null（未收到回合开始信号），Claude 10265/10267 存活。
 #257：修 hookTrace 接受角色目录（不留旧 root/hooks 兼容，若单角色路径仍需则说明其实际布局），真实入口红绿；并带证据分析卡住的 active 提交如何处理：产品现有中断/恢复路径能否把它收回（不伪造事件、不由 operator 代写），或须重建 A-08。交我裁定，不启动、不发送。
+
+## hookTrace 修复与 A-08 重建裁定 #258（2026-10-15 UTC）
+
+hookTrace.ts 改为按 A2A_PRESET（ideation|executor）推导 <root>/roles/<preset>/hooks 并核对 A2A_LAUNCH，无旧 root/hooks 兼容。真实 cli.ts signal：red-01 复现 invalid_hook_trace_binding，green-03 通过且错 preset/错 launch 仍拒，既有 hook trace 回归 PASS。提交 ea4c6e05（9 尾注）。
+A-07 恢复分析（09b-a07-active-recovery-analysis.md）：active dispatch #2 无 nativeTurn/prompt_id，伪造 Stop 不可；emergencyStop 拒 controller；stopThread 只接受 idle；唯一正规路径为认证窗口用户 Esc→声明/放行。
+裁定 #258：不在 A-07 上做 Esc 恢复（属 09C 场景，会污染 I1 证据，且需认证窗口用户动作），重建 A-08。要求：A-07 owner-bound 清理（含 ideation Claude 10265/10267 经 daemon_stop/panes.shutdown；dry-run 先行）；materials-08 由 prepare 生成；B1 p1 生成器与 I1 材料生成器参数化为按 --stage-a 读取，不再写死阶段路径；A-08 阶段 A 命令与批准草稿。
