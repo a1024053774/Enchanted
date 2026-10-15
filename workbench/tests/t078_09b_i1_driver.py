@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 import uuid
+import tempfile
+import traceback
 from pathlib import Path
 
 SOURCE = Path('/Users/luckye/Documents/Code/a2a-wt-t078')
@@ -44,6 +46,22 @@ def custom_request(dispatch):
             'model': 'claude-haiku-5-5'}
 
 
+def resolve_approved_p1(approval):
+    p1_value = approval.get('p1_materials')
+    if not isinstance(p1_value, str) or not p1_value:
+        raise RuntimeError('approved_p1_materials_required')
+    p1 = Path(p1_value).resolve()
+    if not p1.is_dir():
+        raise FileNotFoundError(f'approved_p1_materials_missing: {p1}')
+    input_file = p1 / 'input.json'
+    if not input_file.is_file():
+        raise FileNotFoundError(f'approved_p1_input_missing: {input_file}')
+    p1_input = json.loads(input_file.read_bytes())
+    if p1_input.get('launch') != approval.get('launch') or p1_input.get('session') != approval.get('session'):
+        raise RuntimeError('approved_p1_launch_session_mismatch')
+    return p1, p1_input
+
+
 def spy(mutant=None):
     binding = {'attempt_id': uid(), 'session_id': uid(), 'fence': 1}
     dispatch, registry = registration('I1 A-06 ideation prompt; acknowledge once and stop.', binding)
@@ -69,6 +87,29 @@ def spy(mutant=None):
             'error': 'mutant accepted', 'messages_sent': 1, 'roots_used': 1}
 
 
+def approved_path_spy():
+    with tempfile.TemporaryDirectory(dir='/tmp') as td:
+        root = Path(td); good = root / 'good'; bad = root / 'bad'; good.mkdir(); bad.mkdir()
+        launch, session = uid(), uid()
+        (good / 'input.json').write_text(json.dumps({'launch': launch, 'session': session}) + '\n')
+        valid = {'p1_materials': str(good), 'launch': launch, 'session': session}
+        resolve_approved_p1(valid)
+        rejected = []
+        for candidate in [str(bad), str(root / 'missing')]:
+            try:
+                resolve_approved_p1({'p1_materials': candidate, 'launch': launch, 'session': session})
+            except (RuntimeError, FileNotFoundError):
+                rejected.append(candidate)
+        wrong = {'p1_materials': str(good), 'launch': uid(), 'session': session}
+        try:
+            resolve_approved_p1(wrong)
+        except RuntimeError:
+            rejected.append('launch-session-mismatch')
+        return {'status': 'PASS' if len(rejected) == 3 else 'INCOMPLETE', 'name': 'approved-p1-path-red-green',
+                'green': 'approved path and matching launch/session accepted', 'red': rejected,
+                'real_process_starts': 0}
+
+
 def gate(root, command, *args):
     env = {**os.environ, 'A2A_OPERATOR_CREDENTIAL': str(root / 'operator.json'),
            'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull}
@@ -86,8 +127,9 @@ def execute(materials, stage_a, approval, output):
     if approval_data.get('approved_by') != 'executor' or approval_data.get('phase') != 'I1':
         raise RuntimeError('i1_approval_required')
     readiness = json.loads((stage_a / 'readiness.json').read_bytes())
-    p1 = materials / '09b-a06-b1-ideation-p1-01'
-    p1_input = json.loads((p1 / 'input.json').read_bytes())
+    p1, p1_input = resolve_approved_p1(approval_data)
+    if p1_input.get('root') != str(Path(readiness['root']).resolve()):
+        raise RuntimeError('approved_p1_root_mismatch')
     root = Path(readiness['root']).resolve(); thread = p1_input['thread']
     prompt = (materials / 'i1-prompt.txt').read_text(encoding='utf-8')
     api_root = root / 'roles' / 'ideation'
@@ -142,6 +184,7 @@ def main():
     if args.mode == 'spy':
         args.output.mkdir(parents=False, exist_ok=False)
         rows = [spy(None)] + [spy(name) for name in ['text', 'seq', 'identity', 'stop', 'role', 'budget']]
+        rows.append(approved_path_spy())
         result = {'status': 'PASS' if all(row['status'] == 'PASS' for row in rows) else 'INCOMPLETE',
                   'mode': 'spy', 'checks': rows, 'real_process_starts': 0, 'model_turns': 0,
                   'scope': 'I1 protocol normalization/409 oracle; no socket/API/CLI/daemon/target'}
@@ -151,8 +194,11 @@ def main():
     try:
         result = execute(args.materials.resolve(), args.stage_a.resolve(), args.approval.resolve(), args.output.resolve())
     except Exception as error:
-        result = {'status': 'INCOMPLETE', 'error': repr(error), 'real_process_starts': 0,
-                  'scope': 'I1 execute path; no retry'}
+        result = {'status': 'INCOMPLETE', 'error': repr(error), 'traceback': traceback.format_exc(),
+                  'paths': {'materials': str(args.materials.resolve()) if args.materials else None,
+                            'stage_a': str(args.stage_a.resolve()) if args.stage_a else None,
+                            'approval': str(args.approval.resolve()) if args.approval else None},
+                  'real_process_starts': 0, 'scope': 'I1 execute path; no retry'}
         args.output.mkdir(parents=False, exist_ok=False)
         (args.output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
         print(json.dumps(result, ensure_ascii=False)); return 1

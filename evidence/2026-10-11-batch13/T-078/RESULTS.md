@@ -915,3 +915,7 @@ I2–I4/E1–E6 离线矩阵逐阶段绿态与 409 反例 PASS，ideation 3 阶�
 ## A-07 I1 materials
 
 A-07 readiness、B1 P1 launch/session 与 ideation API 5436/54603 的实际绑定已读回；I1 材料预期 1 root/1 Messages，正文、dispatch.seq、request/stop ID 登记方式和停止条件均冻结，approval 留空、launch NO_GO。B1 signed approval 的冗余 api_reuse 元数据仍指向旧 A-06，已单独审计为 INCOMPLETE，签字证据未改写；I1 使用正确的 A-07 readiness/API root。
+
+## A-07 I1 materials
+
+A-07 readiness、B1 P1 launch/session 与 ideation API 5436/54603 的实际绑定已读回；I1 材料预期 1 root/1 Messages，正文、dispatch.seq、request/stop ID 登记方式和停止条件均冻结，approval 留空、launch NO_GO。B1 signed approval 的冗余 api_reuse 元数据仍指向旧 A-06，已单独审计为 INCOMPLETE，签字证据未改写；I1 使用正确的 A-07 readiness/API root。

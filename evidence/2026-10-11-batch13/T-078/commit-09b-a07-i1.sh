@@ -4,7 +4,7 @@ cd /Users/luckye/Documents/Code/a2a-wt-t078
 python3 -X utf8 -B - "$@" <<'PY'
 import json, subprocess, sys
 from pathlib import Path
-base=Path('evidence/2026-10-11-batch13/T-078');before='75ff6832';check_only='--check-only' in sys.argv[1:]
+base=Path('evidence/2026-10-11-batch13/T-078');before='178ca7e4';check_only='--check-only' in sys.argv[1:]
 allow=json.loads((base/'09b-a07-i1-allowlist.json').read_bytes());future={str(base/'09b-a07-i1-ownership-preflight-01.json')}
 def git(*args):return subprocess.check_output(['git',*args],text=True,encoding='utf-8').strip()
 assert git('rev-parse','HEAD').startswith(before) and not git('diff','--cached','--name-only')
@@ -21,6 +21,9 @@ b1=json.loads((base/'stage-b-a07-ideation-approval-01.json').read_bytes());asser
 material=json.loads((base/'09b-a07-i1-materials-01/static-check.json').read_bytes());assert material['status']=='PASS' and material['launch_status']=='NO_GO' and material['api_pid']==5436 and material['api_port']==54603 and material['api_protocol_tag']=='a07-registered-anthropic-v1' and material['messages_expected']==1
 approval=json.loads((base/'09b-a07-i1-materials-01/approval-template.json').read_bytes());assert approval['approved_by'] is None and approval['approval_ref'] is None and approval['target_binding']==ready['target_binding']
 audit=json.loads((base/'09b-a07-i1-materials-01/b1-approval-audit.json').read_bytes());assert audit['status']=='INCOMPLETE' and audit['b1_p1_args_binding']=='PASS' and audit['signed_evidence_unchanged'] is True
+spy=json.loads((base/'09b-a07-i1-spy-02/results.json').read_bytes());assert spy['status']=='PASS' and len(spy['checks'])==8 and spy['checks'][-1]['name']=='approved-p1-path-red-green'
+old=json.loads((base/'09b-a07-i1-execute-01/result.json').read_bytes());assert old['status']=='INCOMPLETE' and 'FileNotFoundError' in old['error']
+command=(base/'09b-a07-i1-materials-01/I1-COMMAND.txt').read_text(encoding='utf-8');assert '09b-a07-i1-execute-02' in command and '09b-a07-i1-execute-01' not in command
 assert (base/'09b-a07-b1-exec-approvals').is_dir() and (base/'09b-a07-i1-materials-01/I1-COMMAND.txt').is_file()
 subprocess.run(['git','diff','--check'],check=True);ownership=base/'09b-a07-i1-ownership-preflight-01.json'
 if check_only:
