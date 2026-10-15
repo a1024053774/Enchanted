@@ -955,3 +955,8 @@ I1 regression and I2 spy 均 PASS；driver 现在按 I1–I4/E1–E6 阶段选�
 ## A-10 cleanup handoff and A-11 protocol budget
 
 A-10 owner-bound cleanup 已执行 PASS：daemon_stop 关闭 Claude/目标，API 23489/23490 各一次 SIGTERM，七个进程退出；逐成员归档读回后 root 已删除。归档路径为 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a10-cleanup/fixture.tar.gz。批准引用为“主控 #281 T-078 A-10 owner-bound cleanup (executor)”。A-10 cleanup command 保留 dry-run 与正式两条实际命令。A-11 excludes the independent A-10 1-root/1-Message pipeline turn from the 09B budget. Frozen protocol budgets are ideation I1-I4 = 4 roots/6 Messages and executor E1-E6 = 6 roots/11 Messages. A-11 Stage A is prepared with protocol fake APIs and no role CLI spawn; launch remains NO_GO.
+
+## A-11 Stage A and ideation B1 preparation
+
+A-11 Stage A 已由主控 #282 批准并实跑 PASS：readiness READY_FOR_APPROVAL，root `/private/tmp/t078-2-09b-run-j0ogu5t7`，daemon 24112，target shell/leader 24203/24205，ideation/executor protocol API 24109/24110；本提交保留签字 approval 与全部原始输出。
+ideation B1 P1 材料从本次 readiness 生成，复用 `/private/tmp/t078-2-09b-run-j0ogu5t7/roles/ideation` 的既有 API；签字批准绑定实际 attempt/session/fence/thread/workspace，逐屏 onboarding 与一次性工具许可模板完整。dry-run PASS、spawned=false、cli_spawned=false；本轮未启动角色 CLI、未发送输入。
