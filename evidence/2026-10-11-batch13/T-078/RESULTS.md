@@ -923,3 +923,11 @@ A-07 readiness、B1 P1 launch/session 与 ideation API 5436/54603 的实际绑�
 ## A-07 hookTrace binding red/green
 
 真实 cli.ts signal 入口在旧布局假设下取得 invalid_hook_trace_binding 红态；修复后允许 `root/roles/<preset>/hooks`，正确 preset/launch 绿态通过，错 preset/错 launch 仍拒绝。A-07 I1 active 卡住分析保留：Stop/pane stop/emergencyStop 均不能由 operator 合法收回，只有认证窗口用户 Esc/声明路径或 A-08 重建可继续。
+
+## A-08 static packet and parameterized generators
+
+A-07 owner-bound cleanup script已交主控运行；A-08 materials-08 由同一 prepare-09b-executable.py --protocol 生成，协议标记 a07-registered-anthropic-v1。B1 P1 与 I1 生成器均从显式 --stage-a/--p1 读取真实 readiness/input/manifest，不写死 A-06/A-07 路径；approval 从实际输入生成并留空。A-08 launch NO_GO。
+
+## A-08 registration newline normalization
+
+实测 A-08 UserPromptSubmit trace 的 prompt 没有末尾换行，而旧 dispatch registration 保留 prompt 文件尾换行，导致 exact block。产品登记现在只去除末尾 CR/LF，内部正文仍逐字比较；真实 signal 红/绿与中间正文变异反例均保留。A-08 active 的合法收回仅是认证窗口用户 Esc/声明路径；本轮不操作现场，等待 A-09 裁定。

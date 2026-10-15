@@ -73,10 +73,14 @@ export class OrchestrationStore {
   register(launch: string, text: string, source: DispatchSource = "executor", context?: { kind: string; rejection_id: string }, inbox?: { id: string; sender: string }): DispatchItem {
     const id = randomUUID();
     const registered_at = new Date().toISOString();
+    // Claude's UserPromptSubmit payload removes terminal line breaks from a
+    // bracketed-paste submission. Keep the durable registration in that same
+    // canonical form while preserving all internal whitespace exactly.
+    const canonicalText = text.replace(/[\r\n]+$/, "");
     const seq = Number(this.db.prepare("INSERT INTO dispatch_records(id,launch,data) VALUES (?,?,?)")
-      .run(id, launch, JSON.stringify({ text, registered_at, source, ...(context ? { context } : {}),
+      .run(id, launch, JSON.stringify({ text: canonicalText, registered_at, source, ...(context ? { context } : {}),
         ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender } : {}) })).lastInsertRowid);
-    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${text}`, registered_at, ...(context ? { context } : {}),
+    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${canonicalText}`, registered_at, ...(context ? { context } : {}),
       ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender } : {}) };
   }
   read(task?: string) {
