@@ -280,3 +280,8 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 
 #189 返工审阅：claudeLaunch 只接受 roles/<preset>/role.md，旧路径红态（被接受）与绿态（controller_launch_config_required 拒绝）分存；回归与 driver 红绿反例新目录重跑 PASS。以 s13-t078m 身份运行 commit-09b-driver.sh：exit 0，31b45c02（driver/oracle/边界测试）+ 05cac8b4（09b-executable-materials-01），9 条尾注；static-check PASS，真实启动全 0，launch NO_GO（target claim 未取得）。
 #190：静态包接受为审阅基线，launch 仍不批准。下一步写分阶段真实入口 runner：阶段 A 建 root、以脱离进程组方式启动 daemon 与假 API、经门禁真实 dispatch/claim 目标并以其回执填 attempt/session/fence/workspace，写 readiness 后停；阶段 B 起每个角色启动、逐屏按键、一次性工具批准沿用 p1 approval 机制。先用 PTY spy 证明批准前不 spawn、伪造/空 claim 被拒（红绿），交提交脚本与阶段 A 待批材料。
+
+## 09B-RUN 交接退回补证 #191（2026-10-15 UTC）
+
+未运行 commit-09b-run.sh。#190 要求的 spy 红绿证据缺失：工作树与 allowlist 中没有任何 runner 拒绝路径的运行证据（只有 runner、fake API、计划与模板）。runner 写法本身与计划一致（无 approval 时建 root 前退出、dispatch 回执填 attempt、allow_role_cli_spawn=false）。
+#191：经真实 runner 入口补三项拒绝（无/伪造 approval、approval 的 source_revision 与包不符、dispatch 回执缺字段或空 claim），每项以 spawn/root 创建 spy 证明零进程零 root；各有已知坏变异体（去掉对应检查）取红。新输出目录，加入 allowlist 后再交。
