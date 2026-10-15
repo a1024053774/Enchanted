@@ -981,3 +981,7 @@ A-11 scene-01 的真实 Claude Bash schema 要求 input.command，不接受 argv
 
 A-11 cleanup is prepared with root `/private/tmp/t078-2-09b-run-j0ogu5t7`, API 24109/24110, daemon 24112, target 24203/24205 and Claude 29924/29925; dry-run and formal commands are both frozen, with external archive/readback before deletion. A-11现场未在本轮操作。
 A-12 materials-12 was generated from the current source revision with protocol=true, fresh root proposal and blank Stage-A approval. The prior A-11 I1 schema failure and 12/6 Messages overrun remain evidence; A-12 launch is NO_GO.
+
+## A-11 cleanup and A-12 B1/I1 packet
+
+A-11 owner-bound cleanup dry-run/formal PASS：两个 protocol API 各 SIGTERM 一次，七进程退出，逐成员读回后 root 删除，归档在 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a11-cleanup/fixture.tar.gz`。A-12 Stage A READY_FOR_APPROVAL，root/API/daemon/target 绑定与签字 approval 保留；ideation B1 onboarding、0 Messages 断言和 split protocol I1 材料均为 NO_GO 静态准备，本轮未启动角色、未发送输入。
