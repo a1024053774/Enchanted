@@ -573,3 +573,14 @@ worker 再次请求沙箱外执行（rm -rf /tmp/t078-newline-perm && 权限计�
 
 worker 交：fake API ROLE=a.role；http-exchanges/NNNN.request.bin/response.bin 原文留存；支持 Claude 2.1.296 text-block 请求；A-09 红态原件 09b-a10-http-red-observed-01（11×409 NameError）；请求原件出处 slice1-green-3-readback/api.jsonl。但无 HTTP 绿态证据。主控沙箱外运行 test_t078_09b_fake_api_http_claude.py --output 09b-a10-http-green-01 → 未到 HTTP 即失败：prompt_block 报 `captured dispatch prompt missing`（fixture 解析），说明交付前未运行。失败目录保留。
 #272：先在沙箱内跑通 fixture 解析等不依赖端口的部分；红态经真实 HTTP 对旧 API（git show b36c81aa 版本导出到 /tmp）得 409 NameError；绿态对修复版得 200+完整 SSE；反例照旧。交付时附实际运行输出；需绑定端口的部分写明命令由我跑（新输出目录）。
+
+## A-10 重建与 I1 PASS #272–#276（2026-10-15 UTC）
+
+HTTP 修复证据：09b-a10-http-red-02（b36c81aa 旧 API 经 git show 导出，真实 Claude 2.1.296 请求原件 → 409 NameError，五类反例 409）PASS；09b-a10-http-green-02（修复版 → 200 + 完整 SSE，反例 409）PASS。请求原件出处 slice1-green-3-readback/api.jsonl。
+#273：cleanup-09b-a09.py（参数化，填 A-09 真实 PID；p1 manifest 用实际 label 目录 09b-a09-b1-ideation-01）dry-run 与正式 PASS：七进程退出，939 成员读回 PASS 后删 root。（首次以 $ARGS 传参因 zsh 不分词而 usage 退出，未执行任何动作。）
+commit-09b-a10.sh：db532b6e + f1362104，工作树干净（RESULTS 断言问题已修）。materials-10 static PASS（revision db532b6e）。
+#274：A-10 阶段 A READY：root /private/tmp/t078-2-09b-run-t1q79hur，API 23489（64556）/23490（64557），daemon 23492，target 23602/23605。
+#275：B1：p1 生成；批准由 A-09 完整模板填写（binding 取 readiness）；dry-run PASS；claude 23894。onboard.py 逐键断言 ONBOARD PASS；0 Messages、无 409、无 invalid_hook。
+#276：a10-i1-prompt.txt（末尾带换行）→ 09b-a10-i1-materials-01 → 签字执行（正常模式）：rc 0，**I1 PASS**。driver：dispatch 06a7f3cf…（seq 2）release 一次；API 响应 request_id 96a37691…、6 个 SSE 事件；Stop prompt_id 421d14de… 作为 stop_id；last_assistant_message "I1_ACK"；messages_sent 1、roots_used 1。主控独立读回：http-exchanges 仅 0001（1 次交换）；requests.ndjson 1 行；protocol-registry 已绑定 request_id 与 stop_id；pane_status idle、active null、queued []；claude-debug.log 中 409/API error 0。
+意义：真实 Claude Code 首次经门禁登记 → UPS 钩子 → 协议假 API → Stop 完整走完一个受控回合，预算恰好 1/1。
+下一步 #277：worker 提交本轮证据；把 I1 驱动推广为按阶段参数（I2–I4、E1–E6）的驱动，登记内容按 09B protocol/plan；executor 角色的 B1 启动与首启沿用同一套（同一时间只一个角色启动步骤）；先离线/spy 红绿，交 I2 待批材料。
