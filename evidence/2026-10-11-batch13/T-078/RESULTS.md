@@ -885,3 +885,13 @@ reuse resolver 的红绿与读回：旧 `reuse-red-02` 保留 `reused_api_identi
 ## I1 offline Messages protocol red/green
 
 离线 I1 绿色请求 1 Messages/1 root，SSE 四事件；正文、dispatch.seq、request_id、role、预算五类变异均被独立 oracle 拒绝。无 socket/API/CLI/daemon/target/model；I1 待批材料绑定实际 ideation session/target attempt，launch NO_GO。
+
+## A-06 full protocol offline materials
+
+最终协议假 API 离线覆盖 I1-I4/E1-E6、全局 seq/登记正文/身份/预算与 SSE；green 10 stages、I 4/6、E 6/11，四类变异拒绝。A-06 材料静态 PASS、launch NO_GO；A-05 cleanup/历史证据保持。
+
+## A-06 final protocol HTTP red/green 与 A-05 cleanup provenance
+
+A-05 cleanup 实跑后，脚本仅在事后补充 `archive_bytes=archive.stat().st_size` 字段（归档已存在、原 `result.json` 不改写）；原因是正式结果当时只记录 archive path/inventory/readback，缺归档字节数。原运行读回与归档保持不变。
+
+`09b-http-protocol-red-green-01` 用真实 loopback 服务取红/绿：旧阶段 A 模式 `/v1/messages` 返回 409；`--protocol` 模式按共享 `t078_09b_protocol_core.py` 返回 SSE 200；正文、seq、身份、role、超预算五项均返回 409。未启动 Claude、daemon、target 或供应商模型。A-06 runner/prepare 将引用同一 protocol core 与 fake API 文件，材料重冻前仍 launch NO_GO。

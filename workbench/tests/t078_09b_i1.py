@@ -1,6 +1,7 @@
 """Offline I1 Messages protocol fixture and independent oracle; no processes."""
 import argparse, json, uuid
 from pathlib import Path
+from t078_09b_protocol_core import validate_request
 class Refusal(ValueError): pass
 def uid(): return str(uuid.uuid4())
 def run(mutant=None):
@@ -12,14 +13,8 @@ def run(mutant=None):
     if mutant=='request':request['request_id']=uid(); request['registered_request_id']='other'
     if mutant=='role':request['role']='executor'
     if mutant=='budget':request['messages']=[{'role':'user','content':dispatch['text']} for _ in range(7)]
-    if request['role']!=dispatch['role']:raise Refusal('role_mismatch')
-    if request['dispatch_seq']!=dispatch['seq']:raise Refusal('global_dispatch_seq_mismatch')
-    if request['dispatch_id']!=dispatch['id']:raise Refusal('dispatch_id_mismatch')
-    if request['request_id']!=request['registered_request_id']:raise Refusal('request_id_mismatch')
-    if request['messages'][-1]['content']!=dispatch['text']:raise Refusal('registered_text_mismatch')
-    if request['attempt']!=binding['attempt'] or request['session']!=binding['session'] or request['fence']!=binding['fence']:raise Refusal('target_binding_mismatch')
-    if len(request['messages'])>6:raise Refusal('message_budget_exhausted')
-    sse=[{'type':'message_start','message':{'id':uid(),'role':'assistant'}},{'type':'content_block_delta','delta':{'type':'text_delta','text':'I1_ACK'}},{'type':'message_delta','usage':{'output_tokens':1}},{'type':'message_stop'}]
+    dispatch['request_id']=request['registered_request_id'];dispatch.update(attempt=binding['attempt'],session=binding['session'],fence=1)
+    protocol=validate_request(request,{'dispatches':{dispatch['id']:dispatch},'message_budget':6,'ack_text':'I1_ACK'});sse=protocol['sse']
     return {'status':'PASS','request':request,'registered_dispatch':dispatch,'binding':binding,'response_sse':sse,'messages_used':1,'roots_used':1,'model_turns':0}
 def main():
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--mutant',choices=['text','seq','request','role','budget']);a=p.parse_args();a.output.mkdir(parents=False,exist_ok=True)

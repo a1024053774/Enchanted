@@ -39,7 +39,7 @@ def validate_card_preflight(card_file, *, env=None):
     return True
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--materials',type=Path,required=True);p.add_argument('--stage',choices=['A','B','C'],required=True);p.add_argument('--approval',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--materials',type=Path,required=True);p.add_argument('--stage',choices=['A','B','C'],required=True);p.add_argument('--approval',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--protocol',action='store_true');a=p.parse_args()
     out=a.output.resolve();out.mkdir(parents=False,exist_ok=False);record={'status':'INCOMPLETE','stage':a.stage,'spawned':False,'real_vendor_model_turns':0,'commands':[],'scope':'Stage-gated 09B; no role CLI in A, B/C not implemented'}
     def save(): (out/'result.json').write_text(json.dumps(record,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     save()
@@ -65,7 +65,7 @@ def main():
         config_file=root/'target/launch-config.json';config_file.write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         api_pids=[]
         for role in ['ideation','executor']:
-            api_root=root/'roles'/role;log=out/(role+'-api.log');err=out/(role+'-api.err');fout=log.open('w');ferr=err.open('w');proc=subprocess.Popen([sys.executable,'-B',str(SOURCE/'workbench/tests/t078_09b_fake_api.py'),'--root',api_root,'--role',role,'--port','0'],cwd=SOURCE,env=base_env,stdout=fout,stderr=ferr,start_new_session=True);fout.close();ferr.close();api_pids.append({'role':role,'pid':proc.pid,'argv':[sys.executable,'-B',str(SOURCE/'workbench/tests/t078_09b_fake_api.py'),'--root',str(api_root),'--role',role,'--port','0']});record['spawned']=True;save()
+            api_root=root/'roles'/role;log=out/(role+'-api.log');err=out/(role+'-api.err');fout=log.open('w');ferr=err.open('w');argv=[sys.executable,'-B',str(SOURCE/'workbench/tests/t078_09b_fake_api.py'),'--root',api_root,'--role',role,'--port','0']+(['--protocol'] if a.protocol else []);proc=subprocess.Popen(argv,cwd=SOURCE,env=base_env,stdout=fout,stderr=ferr,start_new_session=True);fout.close();ferr.close();api_pids.append({'role':role,'pid':proc.pid,'argv':list(map(str,argv))});record['spawned']=True;save()
         for item in api_pids:
             ready=Path(root/'roles'/item['role']/'api-ready.json');deadline=time.monotonic()+10
             while not ready.exists():
