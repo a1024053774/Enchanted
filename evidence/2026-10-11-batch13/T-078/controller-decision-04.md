@@ -285,3 +285,10 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 
 未运行 commit-09b-run.sh。#190 要求的 spy 红绿证据缺失：工作树与 allowlist 中没有任何 runner 拒绝路径的运行证据（只有 runner、fake API、计划与模板）。runner 写法本身与计划一致（无 approval 时建 root 前退出、dispatch 回执填 attempt、allow_role_cli_spawn=false）。
 #191：经真实 runner 入口补三项拒绝（无/伪造 approval、approval 的 source_revision 与包不符、dispatch 回执缺字段或空 claim），每项以 spawn/root 创建 spy 证明零进程零 root；各有已知坏变异体（去掉对应检查）取红。新输出目录，加入 allowlist 后再交。
+
+## 09B-RUN 提交、阶段 A 批准与入口缺陷 #192/#193（2026-10-15 UTC）
+
+#191 补证审阅：09b-run-spies-06 PASS 5/5（真实入口对伪造 approval、source 不符 exit 1、spawned=false、无新 root；三个变异体接受取红）。以 s13-t078m 身份运行 commit-09b-run.sh：exit 0，661064d7（runner/spy）+ 88d3c422（09b-executable-materials-02），9 条尾注。
+#192：执行主控批准阶段 A（stage-a-approval.json，source_revision 661064d7，allow_role_cli_spawn=false；内存 free+inactive 约 3.8 GB，预计 80–190 MB）。运行结果 09b-stage-a-01/result.json：exit 1，INCOMPLETE，`Executable packet is stale; no spawn`，spawned=false，无 root、无进程。
+根因：run-09b.py 第 11 行要求 HEAD == 材料包 revision，但提交脚本按设计在 source 提交后再提交材料包，HEAD 必然前进一格，条件不可满足。属 runner 缺陷，非环境问题。
+#193：改为核对“材料包 revision 是 HEAD 的祖先，且 revision..HEAD 只改动该材料包目录与本票证据目录”（任何 workbench/、scripts/ 或 runner 本身改动都拒绝）；补红（当前实现在本状态下拒绝，即 09b-stage-a-01）与绿，及反例（revision..HEAD 改动 workbench/src 被拒）；runner 改动后需重冻材料包，approval 重签。09b-stage-a-01 保留。
