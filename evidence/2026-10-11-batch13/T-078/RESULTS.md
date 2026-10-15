@@ -873,3 +873,7 @@ B1 仅冻结逐角色审批门禁与 screen-key 计划，绑定 A-05 readiness�
 reuse resolver 的红绿与读回：旧 `reuse-red-02` 保留 `reused_api_identity_changed`；`reuse-green-07` **PASS**，`cli_spawned=false`、无第二 API。`readback-02` 对 PID 70730 的完整 argv/lstart 两次读取一致，实际脚本为 `workbench/tests/t078_09b_fake_api.py`，role root/role/port 与 A-05 readiness 逐项一致；resolver 变异单测覆盖 pid、role、stage、非法端口、readiness 不符五类拒绝。
 
 关于首屏是否发送 Messages：现有 slice1 green-3 原始 `api.jsonl` 的首个 `/v1/messages` 记录发生在提交 `P1_NONCE_...` 之后；`p1-materials-08e/launch/result.json` 的 launch 阶段只记录 process startup，明确没有首屏抓取或输入。证据因此只能证明在已实跑链路里 Messages 出现在提交之后，不能把“首屏前绝不发送”上调为已验证结论。真实 B1 若在 onboarding/首屏阶段发送 Messages，当前 09B 假 API 的业务 endpoint 返回 409，启动将停在该协议错误；B1 approval-10 保持逐屏与首屏停止，I1 之前必须另取该时序的真实请求证据并实现对应应答。
+
+## Stage-B bounded API reuse/readback materials-04
+
+完整 fake API argv/lstart resolver与五类 mutation red/green PASS；readback-02 argv_match true、两次身份一致；reuse-green-07 PASS，cli_spawned=false，A-05 无新 API。approval-10 留空签字，首屏 Messages 时序未在本阶段观测，slice1 证据只证明提交后请求。materials-04 静态 PASS，launch NO_GO。
