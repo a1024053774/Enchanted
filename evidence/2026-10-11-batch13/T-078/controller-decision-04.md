@@ -611,3 +611,7 @@ worker 按 #281 补 allowlist 与命令文件，--check-only PASS（9 paths）�
 
 用户在执行主控会话亲口授权（逐字）："授权你代签 T-078 09B 各阶段批准，然后刚刚构思主控发的消息也执行"。范围：T-078 09B 各阶段批准签字。
 主控签 a11-stage-a-approval-01.json（approval_ref 主控 #282），原样执行 09B-A11-STAGE-A-COMMAND.txt：exit 0，09b-a11-stage-a-01/readiness READY_FOR_APPROVAL；root /private/tmp/t078-2-09b-run-j0ogu5t7，API ideation 24109 / executor 24110，daemon 24112，target 24203/24205。#282 让 worker 准备 ideation B1 待批材料与阶段 A 输出的提交办法。
+
+## A-11 B1 #283（2026-10-15 UTC）
+
+worker 交 B1 材料（P1、stage-b-a11-ideation-approval-01.json 绑定本次 readiness，dry-run READY_FOR_ROLE、spawned=false）。主控核对批准与 A-10 版只差身份字段，按用户授权代签；运行 commit-09b-a11-b1.sh（bf0f94162），再执行 real B1：PASS，ideation Claude 已启动并停在首屏。#283 让 worker 准备 onboard 与 protocol 版 I1 待批材料。
