@@ -630,3 +630,8 @@ worker 交 I1 两步流程（dispatch 阶段停在 PermissionRequest；主控读
 ## A-12 重建 #286/#287（2026-10-15 UTC）
 
 worker 修 Bash schema（shlex.join → input.command），用 scene-01 真实 tools 定义补 schema 绿/红，预算判定 A-11 已用 ideation 1 root/12 Messages（上限 4/6），须重建。主控提交 ee02e0d4e 与漏项 9a38d9682（提交脚本第二次漏新文件）。commit-09b-a12.sh PASS（26d2820a1）。A-11 回收 dry-run/正式 PASS（归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a11-cleanup/fixture.tar.gz，读回后删 root）。主控核对 materials-12 对 -11 仅身份/路径差异，签 a12-stage-a-approval-01.json（#287）并执行阶段 A：READY_FOR_APPROVAL，root /private/tmp/t078-2-09b-run-3ec7pe2c，API 93826/93827，daemon 93829，target 93921/93923。#287 让 worker 一次性准备 B1、onboarding、I1 材料与提交脚本。
+
+## A-12 B1、onboarding 与 I1 权限按键失败 #288/#289（2026-10-15 UTC）
+
+#288 退回材料三处（缺 B1 批准与命令、onboarding 脚本路径错、读屏过早须 -02 重读）。修好后 commit-09b-a12-b1.sh PASS（872550a46）；real B1 PASS（Claude 3647/3652）；主控逐屏代签 onboarding（09b-a12-b1-exec-approvals/），0 Messages。
+I1：I1-COMMAND.txt 只含第 1 步（材料缺陷），主控按 A-11 形式补做。签 approval.json（#289）跑 dispatch：READY_FOR_PERMISSION（dispatch 3657085a…，permission_seq 68），1 请求/1 响应。gate pane_output 读屏与 permission-screen.bin 逐字节相同，Bash 命令即 protocol I_SEND_STOP，refs 与 readiness 一致，光标 ❯ 1. Yes；主控签 permission-approval.json。第 3 步 t078_09b_i1_permission.py：permission_enter_intent_mismatch；事件显示 5 次 window_request_admitted 均被 terminal_focus_intercepted 拦下、无 terminal_input_write_intent，Enter 未送达，Claude 仍停在权限屏，未重试。#289 交 worker 查根因。
