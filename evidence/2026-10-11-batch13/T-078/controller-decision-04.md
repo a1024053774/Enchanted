@@ -312,3 +312,8 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 根因（sample-62217.txt 栈证据）：t078_09b_fake_api.py 第 20–21 行在 SIGTERM 处理函数中于 serve_forever 同一线程调用 server.shutdown()，shutdown 等待 serve_forever 退出 → __psynch_cvwait 永久等待。属假 API 缺陷，62218 同样会卡。
 #197：执行主控批准针对这两个本测试创建的假 API 的恢复：核对 argv/root/lstart 与 09b-stage-a-03 记录一致后各一次 SIGKILL（62217 已证死锁；62218 SIGTERM 必然死锁，故直接 SIGKILL），确认退出后按 #196 的逐成员读回归档并删 root。
 #198：修假 API 停止路径（处理函数不得在同线程调用 shutdown），补真实进程测试：SIGTERM 后 2 秒内退出，先在当前实现取红（超时）再取绿；runner 引用新假 API 后重冻 materials-04。
+
+## stage-a-03 恢复 PASS；run-04 提交 allowlist 遗漏 #199（2026-10-15 UTC）
+
+#198 恢复脚本 dry-run PASS，正式（"主控 #198"）PASS：62217、62218 各一次 SIGKILL 并退出；归档 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-stage-a-03-recovery/fixture.tar.gz（25,523 字节，71 成员：42 文件、29 目录），逐成员读回 PASS 后删 root。62217/62218/62220 均不存在。假 API 停止红 07（2s 超时）/绿 08 证据已存在。
+commit-09b-run-04.sh exit 1：`Unowned work; no mutation`, workbench/tests/t078_09b_fake_api.py（修复本身不在 allowlist），未提交。#199：补入 allowlist 后再交。
