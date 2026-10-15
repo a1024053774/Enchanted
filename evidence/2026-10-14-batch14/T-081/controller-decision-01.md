@@ -74,3 +74,10 @@ run_t081_duplicate_case.py → duplicate-conflict-01：输入改为同一提交�
 ## 差异复审 02（2026-10-15 UTC 00:4x）
 
 fresh-context 只读复审：PASS，P2-01 RESOLVED（矛盾 Session 单案替代同值案；同值案降为观察、counted_as_pass false）。以同一身份提交。T-081 剩余：用户裁定 6a、6e 与能力收紧；最终组合入口在裁定后完整重跑一次，绑定最终候选，然后合并关票。
+
+## 第 7 项事实复测（2026-10-15 UTC）
+
+用户 6a/6e 决定与第 7 项复测要求见 answer 20261015T030558Z-ideation-answer-001。worker 交 CAPABILITY-RECHECK.md：
+- B（规则语义）：官方 Rules 文档原文 prefix_rule allow 为 "Run the command outside the sandbox without prompting."；execpolicy check：git commit 命中 allow，git -C … commit、git config、update-ref、push 均无匹配。git commit 在沙箱外运行后的实际 .git 写入范围（hooks/config 副作用）未实测，保持未知。
+- C（代码核对）：CAS 首次发现工作分支移动不拒绝，清除集成意图、重验并重新审查（core.ts:1713-1742、1510-1619、3426-3538），前三次 miss 重验，第四次 paused；审查 diff 为 attempt.base_commit..C（core.ts:2129-2134），外部移入的提交 X 作为新 G 的祖先可进入工作分支而不出现在审查 diff。
+- A（生产布局）：我在沙箱外运行驱动，CODEX_HOME 改为全新空的 /private/tmp/t081-recheck-codex-home（驱动未设，避免读写用户 ~/.codex；运行后删除，仅含 tmp/arg0 包装文件）。驱动报 PASS，但外置盘与 /tmp 两组的 update-ref、push 均 exit 2：codex sandbox 0.162.1 要求 --permission-profile <NAME>，git 未在沙箱内执行；读回 main 均在 G、裸仓库无 probe 分支。A 项 INCOMPLETE，驱动"用法错误报 PASS"为缺陷。证据 CAPABILITY-RECHECK-02/；夹具 sandbox-probe-01 与 /tmp/t081-capability-recheck-01 保留。已退回：用法错误报 INCOMPLETE、查清等价 permission profile、驱动显式设隔离 CODEX_HOME、下次夹具用 -02。
