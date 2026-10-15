@@ -72,7 +72,9 @@ def main():
     before = events(state, launch)
     if len([event for event in before if event['type'] == 'permission_wait' and event['seq'] == approval['permission_seq']]) != 1:
         raise RuntimeError('permission_event_missing')
-    slot = 't078-a11-i1-' + launch
+    # Every permission attempt gets a distinct build slot. build.mjs refuses
+    # to overwrite an existing slot, so derive it from the new output label.
+    slot = 't078-a12-i1-' + args.output.name + '-' + launch
     build = subprocess.run(['node', str(SOURCE / 'workbench/app/build.mjs'), '--slot', slot], cwd=SOURCE,
                            capture_output=True, text=True, check=True)
     build_out = json.loads(build.stdout.strip().splitlines()[-1])['out']

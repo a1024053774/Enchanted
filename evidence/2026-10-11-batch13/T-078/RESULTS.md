@@ -989,3 +989,7 @@ A-11 owner-bound cleanup dry-run/formal PASS：两个 protocol API 各 SIGTERM �
 ## A-12 I1 Electron permission acknowledgement fix
 
 A-12 I1 dispatch reached the bound PermissionRequest; the first permission attempt produced terminal_focus_intercepted observations but no daemon window_input/terminal_input_write_intent. Root cause was electron_driver terminal-key returning after native sendInputEvent without awaiting the product window IPC receipt. The fixed permission path awaits window.a2a.input(\r), while preserving the bound Electron window, dispatch and one control action. Original execute-01 failure remains; offline red/green oracle covers receipt absence and corrected path. No retry or real key was sent by this fix packet.
+
+## A-12 I1 step3 unique Electron slot
+
+The first permission attempt failed before key delivery because the build slot was already occupied. The new permission runner derives a unique slot from the output label (`execute-02`) and the launch; the signed permission-approval-03 remains blank for review. Original execute-01 logs are retained, and offline slot red/green proves collision rejection and unique naming. No input was sent by this fix packet.
