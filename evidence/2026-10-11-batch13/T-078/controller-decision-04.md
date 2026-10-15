@@ -395,3 +395,9 @@ readback-stage-b-api-identity.py 单独运行：rc 1，INCOMPLETE，argv_match f
 
 resolver 单测 09b-stage-b1-reuse-resolver-tests-01 PASS（valid 绿；pid/role/stage/端口/readiness 不符各红）。readback-02 PASS：argv_match true，两次 command/lstart 一致。签 approval-09（含 --reuse-readiness-file、--stop-before-cli）→ 09b-stage-b1-reuse-green-07：rc 0，PASS，cli_spawned false；无 Claude、无新 API，A-05 五进程 lstart 不变。红态链：reuse-red-02（旧身份检查）→ green-03/04/05/06 各自失败原因已记录 → green-07 PASS。
 #222：worker 写提交脚本（本轮全部证据、resolver、p1_reuse、读回、approval-04..09 签字件），归属预检后交；回答 B1 首屏是否发 Messages（附 Claude Code 2.1.296 在 slice1 green-3 的实际请求时序证据，不推测）；起草真实 B1 approval-10（去 --stop-before-cli，stop_after first-screen）。
+
+## stage-b-05 提交与真实 B1 第三次运行 #223/#224（2026-10-15 UTC）
+
+commit-09b-stage-b-05.sh exit 0：23b6aefa + 54e13274，9 尾注，工作树干净。worker 关于 Messages 的回答：slice1 green-3 中第一次 /v1/messages 发生在 nonce 提交之后；launch 结果没有首屏捕获，B1 首屏时序仍未观察到；若出现 409 即停止条件。
+#223：签 approval-10（去 --stop-before-cli，launch 只启进程、不发输入）。dry-run PASS；真实 → 09b-stage-b1-ideation-03：rc 1，`NameError: name 'task' is not defined`（run_t078_p1.py:144，构造 controller_start 参数时）。task 仅在复用分支跳过的 setup 段赋值。controller_start 未执行；无 Claude 会话进程，A-05 五进程 lstart 不变。副作用：root 下新写 runtime-input.json（22:11:39，open('x')，会阻断下次运行）；另有 B1-02 遗留的 api-owner.json/api.stderr/api.stdout（21:36:18）。
+#224：复用分支给 task 赋值（取 A-05 binding 的 task_id，与 input.task 核对一致）；runtime-input 等每次运行生成的文件改到按 label 区分的路径，不删除、不覆盖既有遗留文件，遗留文件在结果中列出；补一个不启动 CLI 的测试覆盖复用分支到 controller_start 参数构造为止（变异：删掉 task 赋值时红）。approval-11 留空签字栏。
