@@ -911,3 +911,7 @@ A-06 stage A readiness 已保留并绑定新 root；生成 ideation P1 材料，
 ## A-07 protocol matrix and A-06 cleanup handoff
 
 I2–I4/E1–E6 离线矩阵逐阶段绿态与 409 反例 PASS，ideation 3 阶段、executor 6 阶段，均只写登记和读取共享 protocol core；未启动服务。A-06 owner-bound cleanup 脚本绑定 root、daemon、target、Claude shell/CLI 与两个 API，dry-run 后才允许 daemon_stop、API 一次 SIGTERM、归档逐成员读回和删除。A-07 09b-executable-materials-07 由同一 prepare-09b-executable.py --protocol 生成，协议标记为 a07-registered-anthropic-v1；Stage A/B1 approval 均留空，launch NO_GO。
+
+## A-07 I1 materials
+
+A-07 readiness、B1 P1 launch/session 与 ideation API 5436/54603 的实际绑定已读回；I1 材料预期 1 root/1 Messages，正文、dispatch.seq、request/stop ID 登记方式和停止条件均冻结，approval 留空、launch NO_GO。B1 signed approval 的冗余 api_reuse 元数据仍指向旧 A-06，已单独审计为 INCOMPLETE，签字证据未改写；I1 使用正确的 A-07 readiness/API root。
