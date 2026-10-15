@@ -939,3 +939,7 @@ A-08 owner-bound cleanup script dry-run/formal由主控运行后归档读回；A
 ## A-09 queued I1 recovery
 
 登记只移除末尾 CR/LF；真实 signal 红绿和 A-09 spy 通过。产品没有 queued cancel API；新增 --resume-queued 只读 pane_status/orchestration_events，核对真实 id/seq/原文后写登记并 release，不重新派发或伪造字段。A-09 execute-01 红态保留，execute-02 命令等待主控裁定。
+
+## A-10 API role binding and raw HTTP evidence
+
+A-09 live API 红态原件记录 name ROLE 未定义，11 次重试均只回 409；A-10 修复从 --role 赋 ROLE，并按序保存 request/response 原文。真实 Claude 2.1.296 请求原件出处为 slice1-green-3-readback/api.jsonl；A-10 loopback test 使用该结构，launch NO_GO。A-09 owner-bound cleanup 脚本绑定新现场参数，未运行。
