@@ -378,3 +378,9 @@ commit-09b-stage-b-02.sh exit 0：48dd6ce5 + 92a61308，9 尾注，工作树干�
 readback-stage-b-api-identity.py 运行即 `ModuleNotFoundError: No module named 'workbench'`（第 4 行 import），未生成输出——worker 未实际运行过即交付。我把读回与绿态同批发出，读回失败未能先拦住绿态；属我的流程疏忽，以后先确认前置 PASS 再签下一步。
 签 approval-06 运行 → 09b-stage-b1-reuse-green-04：rc 1；身份核对已通过，p1 随后在 resolved_input 报 `ValueError('dynamic_endpoint_template_required')`——p1 input.api_url 写死 http://127.0.0.1:57534，而 resolved_input 要求动态端点模板，再由 ready 填入。无 Claude、无新 API，A-05 五进程 lstart 不变。
 #216：修读回脚本导入路径并实际运行；p1 ideation input 改为模板，由 A-05 ready 文件解析（或在复用分支内提供等价绑定，不放宽 resolved_input 检查）；worker 须先在自身沙箱内对不需外部权限的部分实跑，交付时附实际运行输出。
+
+## #217 读回与复用绿态 05（2026-10-15 UTC）
+
+readback-stage-b-api-identity.py 单独运行：rc 1，INCOMPLETE，argv_match false。两次探测 lstart/command 完全一致，实际 argv 指向 /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_09b_fake_api.py；脚本的 argv_expected 却是 /Users/luckye/Documents/Code/workbench/tests/…（SOURCE parents 层数错一级）——脚本自身 oracle 错误，非现场变化。经我人工核对现场身份正确，且绿态入口用 run_t078_p1 的正确常量复核，决定继续。
+签 approval-07 → 09b-stage-b1-reuse-green-05：rc 1，`Approved input changed: input.json`（run_t078_p1.py:91 逐字节比对 root 与 materials 的 input.json/nonce.txt/scenario.json）。p1-02 的 input.json api_url 已改为 http://127.0.0.1:0，A-05 root/input.json 仍为 57534，仅此一行差异。无 Claude、无新 API，A-05 五进程 lstart 不变。
+#218：修读回脚本 SOURCE 路径；把 A-05 root 的 input.json 同步为 p1-02 版本（只此一文件）；交付前在 worker 侧实跑对三个文件的逐字节比对和读回脚本，附输出。
