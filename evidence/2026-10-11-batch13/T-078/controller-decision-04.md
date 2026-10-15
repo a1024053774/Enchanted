@@ -270,3 +270,8 @@ issue 20261014T235850Z-worker:t078-09b-issue-001 非 blocking，以本裁定处�
 
 审阅产品 diff：claudeLaunch 按 roles/<preset>/ 推导 HOME/config/tmp/shell/requests/hooks/user-data/debug，删除共享根路径、无 fallback，state/repo 根校验保留；turn_limit 与 Panes signal 接受 1～6，7 拒绝。红态 09b-profile-red-02（共享六路径、第三根被拒）在改动前保存。以 s13-t078m 身份运行 commit-09b-pre.sh：exit 0，b9b5fdd3（产品+证据）+ 50efd2f0（source freeze），9 条尾注；launch NO_GO。
 #188：按 #187 第 3、4 步继续实现共库双角色假 API／逐阶段驱动／独立 oracle（红→绿→反例），再交可执行 launch 包审阅；批准前不启动。
+
+## 09B-DRIVER 提交前审阅退回 #189（2026-10-15 UTC）
+
+未运行 commit-09b-driver.sh。原因：claudeLaunch.ts 第 36 行把 role_file 改为同时接受 root/role.md 与 roles/<preset>/role.md，是新旧双路径兼容分支，违反 #187"删除共享目录路径，不留 fallback"及项目"不保留兼容分支"。其余（driver/oracle 纯夹具红绿与三个反例）未发现问题。
+#189：role_file 只接受 roles/<preset>/role.md；P1 生成器、单角色 slice1 夹具与测试同步迁移；补一个反例（root/role.md 被 controller_launch_config_required 拒绝）；重跑 profile/budget/slice1 relay/permission/entry/empty 回归与 driver 红绿反例（新输出目录，旧目录保留）；更新提交脚本的固定 HEAD/allowlist 后再交。
