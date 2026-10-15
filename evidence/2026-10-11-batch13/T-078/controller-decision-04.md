@@ -462,3 +462,7 @@ commit-09b-i1.sh --check-only PASS（177 paths）；正式：ad12136f + 6f8bc4fc
 审阅 09B-I1-BRIDGE.md。采纳 B：新建 A-06，用最终协议假 API 从阶段 A 起重走 B1；A-05 身份与 B1 历史原样保留为证据。否决 A（同端口替换使复用绑定的 PID/lstart/ready 失效）与 C（代理/热切换为未登记平行路径）。
 附加要求：A-06 前假 API 须一次实现全部 09B 阶段（I1–I4、E1–E6）按 protocol 的登记与 SSE 应答，离线逐阶段红绿；避免每阶段重建现场。预算不变（I 4/6、E 6/11）。
 顺序：（1）A-05 owner-bound cleanup（含 ideation Claude 1227/1228：先经门禁/controller 停止路径，确认退出；再 daemon_stop、假 API SIGTERM、target；逐成员归档读回后删 root），带 dry-run，交我运行；（2）完整协议假 API 离线红绿；（3）A-06 材料（阶段 A + B1，沿用已验证的复用/label/逐键路径），提交脚本含 RESULTS 补交；交我。
+
+## A-05 cleanup dry-run 失败 #238（2026-10-15 UTC）
+
+cleanup-09b-a05.py --dry-run（"主控 #237"）：rc 1，BLOCKED，未发信号。第 34 行 API argv 比较 args[1:]==expected[1:] 错位（args 含 -B，expected 无 -B 且切掉脚本路径），必然失败。退回修正；失败目录 09b-a05-cleanup-dry-run 保留。
