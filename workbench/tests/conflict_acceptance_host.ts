@@ -24,8 +24,11 @@ const runtime = {
   ...original,
   createThread: async (task: any, attempt: any) => {
     await original.createThread(task, attempt);
-    workers.set(attempt.thread_id, { id: attempt.thread_id, role: "worker", cli_version: "controlled-conflict-runtime",
-      model: task.card.executor.model, effort: task.card.executor.effort });
+    const creation = { id: attempt.thread_id, role: "worker", cli_version: "controlled-conflict-runtime",
+      model: task.card.executor.model, effort: task.card.executor.effort,
+      thread: attempt.thread_id, task: task.task_id, attempt: attempt.attempt_id, session: attempt.session_id };
+    workers.set(attempt.thread_id, creation);
+    log("worker-creations", creation);
   },
   sessionFacts: async (thread: string) => {
     const launch = workers.get(thread);
