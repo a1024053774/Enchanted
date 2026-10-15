@@ -352,3 +352,8 @@ commit-09b-run-04.sh exit 1：`Unowned work; no mutation`, workbench/tests/t078_
 
 commit-09b-stage-b-02.sh exit 1，第 14 行：断言旧红态 09b-stage-b1-ideation/result.json 的 `cli_spawned is False`，但该结果由旧 runner 生成，只有 `spawned: true`，无 cli_spawned 字段；断言对已保留证据永远不成立。未提交。旧证据不得改写；CLI 未启动的事实来自本日志 #207 的 pgrep 核对。stage-b-ideation-approval.json 的改动是我在 #206 的签字。
 #208：断言改为按旧结果实际字段核对（status INCOMPLETE、p1_exit_code 1、FileNotFoundError scenario.json），并引用 #207 的 pgrep 记录；重跑归属预检后交。
+
+## stage-b-02 提交与 B1 第二次运行 #209/#210（2026-10-15 UTC）
+
+commit-09b-stage-b-02.sh exit 0：48dd6ce5 + 92a61308，9 尾注，工作树干净。#209：签 stage-b-ideation-approval-02.json（source 64c752ec，B1 first-screen），dry-run rc 0；真实 → 09b-stage-b1-ideation-02：rc 1，p1_spawned true，cli_spawned false；p1 结果 `Local API exited before readiness; retain logs, no restart`（run_t078_p1.py 第 102 行）。p1 launch phase 自行启动一个本地 API，而非使用 A-05 已就绪的 09B ideation 假 API（57534/PID 70730）；该 API 退出且 command-output 为空，无日志。pgrep 无 Claude 进程，无新增残留进程，A-05 五进程完好。
+#210：p1 launch 在 09B 绑定下必须使用 input.api_url 指向的既有假 API，不得自启第二个 API（只核对其 PID/lstart/ready 文件）；单角色 slice1 路径行为不变（回归）；先在当前实现上取红（即本次）再取绿（不启动 CLI 的 spy：停在 spawn 前且未起 API）。另查明自启 API 为何无日志退出并修日志捕获。B1 再用新 approval。
