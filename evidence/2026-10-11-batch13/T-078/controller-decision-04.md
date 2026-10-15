@@ -635,3 +635,7 @@ worker 修 Bash schema（shlex.join → input.command），用 scene-01 真实 t
 
 #288 退回材料三处（缺 B1 批准与命令、onboarding 脚本路径错、读屏过早须 -02 重读）。修好后 commit-09b-a12-b1.sh PASS（872550a46）；real B1 PASS（Claude 3647/3652）；主控逐屏代签 onboarding（09b-a12-b1-exec-approvals/），0 Messages。
 I1：I1-COMMAND.txt 只含第 1 步（材料缺陷），主控按 A-11 形式补做。签 approval.json（#289）跑 dispatch：READY_FOR_PERMISSION（dispatch 3657085a…，permission_seq 68），1 请求/1 响应。gate pane_output 读屏与 permission-screen.bin 逐字节相同，Bash 命令即 protocol I_SEND_STOP，refs 与 readiness 一致，光标 ❯ 1. Yes；主控签 permission-approval.json。第 3 步 t078_09b_i1_permission.py：permission_enter_intent_mismatch；事件显示 5 次 window_request_admitted 均被 terminal_focus_intercepted 拦下、无 terminal_input_write_intent，Enter 未送达，Claude 仍停在权限屏，未重试。#289 交 worker 查根因。
+
+## I1 第 3 步：回执修复与 build slot 失败 #290（2026-10-15 UTC）
+
+worker 定位 #289 根因：terminal_focus_intercepted 是 xterm focus 观察事件；旧 electron_driver 发 sendInputEvent 后不等回执即关窗，Enter 未写入。修为经 renderer window.a2a.input('\r') 并等 daemon 回执，离线绿/旧路径红 PASS。worker 以主控名义预填 permission-approval-02，主控重签（#290，ref 保留 #289 以过提交断言）；commit-09b-a12-i1-fix.sh PASS（9264d94de）。执行第 3 步：按键前 build.mjs 因 slot t078-a11-i1-<launch> 已在 #289 建过而 EEXIST 失败，未发键、未重试；主控手动复现 build 一次（同样 mkdir 失败，无副作用）。output 仍沿用 execute-01。现场仍停在同一权限屏，1 请求/1 响应。#290 交 worker 改为唯一 slot 与新 output 并补红态。
