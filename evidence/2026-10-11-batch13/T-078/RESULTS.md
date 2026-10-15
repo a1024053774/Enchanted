@@ -951,3 +951,7 @@ I1 regression and I2 spy 均 PASS；driver 现在按 I1–I4/E1–E6 阶段选�
 ## Protocol I1 tool/inbox stage oracle
 
 冻结 protocol 的 I1 离线绿态实现 I_SEND_STOP tool_use、tool_result、实际 stop/wake 关联；I2/E1 材料边界按协议保留。A-10 管道回合已计入 ideation 4/6（1 root/1 Messages），Protocol I1 追加 1 root/2 Messages 后仍在预算内。未启动或发送。
+
+## A-10 cleanup handoff and A-11 protocol budget
+
+A-10 owner-bound cleanup 已执行 PASS：daemon_stop 关闭 Claude/目标，API 23489/23490 各一次 SIGTERM，七个进程退出；逐成员归档读回后 root 已删除。归档路径为 /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a10-cleanup/fixture.tar.gz。批准引用为“主控 #281 T-078 A-10 owner-bound cleanup (executor)”。A-10 cleanup command 保留 dry-run 与正式两条实际命令。A-11 excludes the independent A-10 1-root/1-Message pipeline turn from the 09B budget. Frozen protocol budgets are ideation I1-I4 = 4 roots/6 Messages and executor E1-E6 = 6 roots/11 Messages. A-11 Stage A is prepared with protocol fake APIs and no role CLI spawn; launch remains NO_GO.
