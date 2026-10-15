@@ -103,3 +103,4 @@ worker 修正驱动：显式 --codex-home 隔离 home（只含 [permissions] 空
 
 Grok（wF:p30）交三件：CAPABILITY-RECHECK.md 写入 -03 实测；6a 正向核对（absent-02 PASS；absent-01 INCOMPLETE 为夹具 harness_error，原件保留）；COMMIT-SCOPE.md（外置盘 commit-scope-01，19 步实测，0 模型）。要点：allow 的 git commit 沙箱外运行，推进 worker worktree 检出的分支（夹具中检出共享 main 即推进 main，--amend 可改写），共享 post-commit 钩子沙箱外运行可 update-ref 他分支；packed-refs/config/hooks/他 worktree 元数据不变。不 allow 的写法（commit 前 -c/--git-dir/--work-tree/-C、环境变量前缀、git config）全进 :workspace 沙箱被拒。主控核对生产 hooksPath：panes.ts:172 → 编排后台 workbench/hooks/；launch-worker:46/90 → 主 checkout scripts/git-hooks，均不在 worker 可写区。
 主控提交 e3bb81e3（无 worker 尾注；Codex s14-t081 写的 CAPABILITY-RECHECK-01 与驱动一并提交，提交说明写明来源）。结果已报构思主控。T-081 剩余：6e 拒收案待 T-084 合入；整票独立审查；合入。
+第 7 项用户决定（answer 20261015T044138Z-ideation-answer-001，ack 20261015T044144Z）："记为已知行为，不改 (Recommended)"。CAS 不改。已派 Grok 在 RESULTS.md 写第 7 项结论、未覆盖项与"夹具不放 /tmp"注意事项；6e 待 T-084 合入后补，然后全量重跑、合并。
