@@ -26,3 +26,9 @@ s14-t084b 开工后读代码途中报 "Selected model is at capacity"；退避 3
 
 用户原话（本会话直接输入）："我开了个 grok,你 084 用 grok 做"。Grok 窗格 wF:p3Z（agent grok，session 01a13da2-f879-7410-8da3-9d9f17550679），屏幕显示 Grok Build 1.0.52、Grok 4.7 (xhigh)、always-approve，cwd 为 a2a 主 checkout。该会话由用户启动，非 scripts/launch-worker，无 A2A 启动记录；always-approve 无沙箱与逐次批准，约束只能写在任务书：只在 a2a-wt-t084 工作、不 commit/push、不写全局配置、不碰 Herdr server、不调真实模型 API。提交由主控执行，提交无 A2A worker 尾注（无启动记录可绑定），如实记为用户指定的非受管 worker 产出。
 s14-t084b 窗格 wF:p3Y 已不存在（非主控关闭），a2a-wt-t084 无改动。派发经 scripts/dispatch（batch 2026-10-15-batch15，--agent wF:p3Z）。
+
+## Grok 交付审阅、提交与独立审查（2026-10-15 UTC）
+
+Grok（wF:p3Z）交 T-084 READY：checkTrailers 加 4 行（attempt.delivery 存在时 Launch=delivery.launch_id、Tool=delivery.cli、Model=delivery.model 或字面量 unknown、Effort=delivery.effort，码 trailer_identity_mismatch），README 同步。经真实 cli.ts + 受控宿主：红（main 上四种伪造均放行）、绿（四种拒收，match/unknown 过，none 记 1 次人工介入）、变异（逐行删除各放行对应一案）。作者自报局限：无 delivery 的 attempt 仍只要求非空；受控宿主 model/effort 与任务卡相同，不能单独证明比较对象非任务卡；spawn-helper（gitignore）权限改 755。
+主控在 a2a-wt-t084 提交 882638b3（无 A2A worker 尾注：Grok 非 launch-worker 启动、无启动记录；提交说明写明）。证据 6.8 MB，无单文件 >5 MB。
+独立审查：Codex 当前无法启动，按用户"用 Grok"的方向新开 Grok 窗格 wF:p41（cwd a2a-wt-t084，Grok 4.7 xhigh，always-approve，无作者历史），只读，仅可写 independent-review-01.md；冻结候选 882638b3，基线 fb5dd288。
