@@ -330,3 +330,8 @@ commit-09b-run-04.sh exit 1：`Unowned work; no mutation`, workbench/tests/t078_
 #201 诊断审阅：pane_output 实为 `create sessions: File exists`；runner 预建 target/home/sessions，receiver 自行 mkdir 得 EEXIST 退出；删预建，receiver 空 HOME 真实进程 green-10 PASS。cleanup-09b-stage-a-04.py dry-run PASS，正式 PASS：daemon_stop，68081/68082 各一次 SIGTERM 均退出（假 API 修复在真实现场生效），96 成员（55 文件/41 目录）逐成员读回 PASS 后删 root。commit-09b-run-05.sh exit 0：64c752ec + e301f15b（materials-05），9 尾注，工作树干净。
 #202：签 stage-a-approval-05.json（source 64c752ec）运行 → 09b-stage-a-05：exit 0，READY_FOR_APPROVAL。真实 dispatch/claim：attempt 766c797e…、session 3d1411f5…、fence 1、thread c6961479…；target shell 70837、leader 70839 codex-receiver、native 00000000-0078-…0001；fake API 70730/70731，daemon 70733；roles_started=[]，模型 0。现场保留供阶段 B。
 #203：实现 runner 阶段 B（复用 stage-a-05 root 的 runtime binding；每角色独立 approval，先 ideation 后 executor；逐屏 theme/notice/trust 按已批准按键规则；一次性工具批准；I/E 阶段逐次停）。先 spy 红绿（无 B approval 不 spawn；approval 与 readiness 不符拒绝；同时只起一个角色），交 commit 脚本与 B1 待批材料。
+
+## 阶段 B 交付退回 #204（2026-10-15 UTC）
+
+未运行 commit-09b-stage-b.sh。审阅 run-09b-stage-b.py（123 行）：main 只读 readiness、校验 approval 后写 READY_FOR_ROLE 并返回，无论是否 --dry-run 都没有启动 Claude CLI、逐屏按键、读屏、权限 Enter 的代码路径——#203 要求的阶段 B 未实现。spies-01 四项只有绿（拒绝/接受），缺去掉对应检查的变异红态。
+#204：在 runner 中实现真实阶段 B（复用 run_t078_p1.py 已在 slice1 green-3 真实 CLI 上验证过的启动/逐屏/权限机制，经 claudeLaunch 与门禁入口，不另造）：每次调用只执行一个已批准动作（启动到第一屏、一屏一键序、一次权限 Enter、一个 I/E 阶段），执行后读屏存证并停。补三项变异红态。A-05 现场继续保留。
