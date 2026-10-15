@@ -8,8 +8,12 @@ export class HookTrace {
   static start(state: string, launch: string, stdin: Buffer): HookTrace | undefined {
     const requested=process.env.A2A_HOOK_TRACE_DIR;
     if (!requested) return undefined;
-    const root=dirname(realpathSync(state)), trace=realpathSync(requested);
-    if (!root.startsWith("/private/tmp/t078-2-") || trace!==join(root,"hooks") || process.env.A2A_LAUNCH!==launch) throw new Error("invalid_hook_trace_binding");
+    const preset=process.env.A2A_PRESET;
+    const root=dirname(realpathSync(state));
+    if (!/^(?:ideation|executor)$/.test(String(preset)) || !root.startsWith("/private/tmp/t078-2-") || process.env.A2A_LAUNCH!==launch) throw new Error("invalid_hook_trace_binding");
+    const roleRoot=realpathSync(join(root,"roles",String(preset)));
+    const trace=realpathSync(requested);
+    if (trace!==join(roleRoot,"hooks")) throw new Error("invalid_hook_trace_binding");
     return new HookTrace(trace,launch,stdin);
   }
   constructor(root: string, launch: string, stdin: Buffer) {

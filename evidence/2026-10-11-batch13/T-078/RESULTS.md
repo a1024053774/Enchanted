@@ -919,3 +919,7 @@ A-07 readiness、B1 P1 launch/session 与 ideation API 5436/54603 的实际绑�
 ## A-07 I1 materials
 
 A-07 readiness、B1 P1 launch/session 与 ideation API 5436/54603 的实际绑定已读回；I1 材料预期 1 root/1 Messages，正文、dispatch.seq、request/stop ID 登记方式和停止条件均冻结，approval 留空、launch NO_GO。B1 signed approval 的冗余 api_reuse 元数据仍指向旧 A-06，已单独审计为 INCOMPLETE，签字证据未改写；I1 使用正确的 A-07 readiness/API root。
+
+## A-07 hookTrace binding red/green
+
+真实 cli.ts signal 入口在旧布局假设下取得 invalid_hook_trace_binding 红态；修复后允许 `root/roles/<preset>/hooks`，正确 preset/launch 绿态通过，错 preset/错 launch 仍拒绝。A-07 I1 active 卡住分析保留：Stop/pane stop/emergencyStop 均不能由 operator 合法收回，只有认证窗口用户 Esc/声明路径或 A-08 重建可继续。

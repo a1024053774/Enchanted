@@ -13,7 +13,7 @@ import { request } from '../src/transport.ts';
 
 const output=resolve(process.argv[2]); mkdirSync(output);
 const fixtureRoot=realpathSync(mkdtempSync('/tmp/t078-2-declaration-'));
-const root=join(fixtureRoot,'state');mkdirSync(root);mkdirSync(join(fixtureRoot,'hooks'));mkdirSync(join(fixtureRoot,'requests'));
+const root=join(fixtureRoot,'state');mkdirSync(root);mkdirSync(join(fixtureRoot,'roles','ideation','hooks'),{recursive:true});mkdirSync(join(fixtureRoot,'requests'));
 process.env.A2A_OPERATOR_CREDENTIAL=join(root,'operator.json');createOperatorCredential(root);
 const operator=readOperatorCredential(root)!;
 let panes:any,gates:any;
@@ -49,7 +49,7 @@ function declaration(f:any){return {statement:'用户声明输入框已空',laun
 async function interrupt(f:any,w:any){assert.equal((await w.send('window_input',{data:'\x1b'})).ok,true);f.expectedSecond=`⟦主控 #${++dispatchCounter}⟧\nSECOND_FIXED_NONCE`;await panes.dispatch(f.pane,'SECOND_FIXED_NONCE');}
 async function hook(f:any,value:any){
   const cli=resolve('workbench/src/gates/cli.ts');const env:any={PATH:process.env.PATH,A2A_LAUNCH:f.record.id,A2A_CAPABILITY:f.pane.token,
-    A2A_NATIVE_SESSION:f.record.session,A2A_HOOK_TRACE_DIR:join(fixtureRoot,'hooks'),A2A_REQUEST_DIR:join(fixtureRoot,'requests')};
+    A2A_NATIVE_SESSION:f.record.session,A2A_PRESET:'ideation',A2A_HOOK_TRACE_DIR:join(fixtureRoot,'roles','ideation','hooks'),A2A_REQUEST_DIR:join(fixtureRoot,'requests')};
   const args=[cli,'--state',root,'signal','--launch',f.record.id];
   return await new Promise<any>((done,fail)=>{
     const child=spawn(process.execPath,args,{env,stdio:['pipe','pipe','pipe']});let stdout='',stderr='';
@@ -147,5 +147,5 @@ const result={status:checks.every(c=>c.status==='PASS')?'PASS':'INCOMPLETE',chec
 writeFileSync(join(output,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 await request(root,{command:'daemon_stop'},operator);while(existsSync(join(root,'daemon.pid')))await new Promise(r=>setTimeout(r,20));
 cpSync(join(root,'state.sqlite3'),join(output,'state.sqlite3'));
-cpSync(join(fixtureRoot,'hooks'),join(output,'hooks'),{recursive:true});
+cpSync(join(fixtureRoot,'roles','ideation','hooks'),join(output,'hooks'),{recursive:true});
 process.exitCode=result.status==='PASS'?0:1;
