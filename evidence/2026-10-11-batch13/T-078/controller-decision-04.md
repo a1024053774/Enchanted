@@ -324,3 +324,9 @@ commit-09b-run-04.sh exit 1：`Unowned work; no mutation`, workbench/tests/t078_
 #200：签 stage-a-approval-04.json（source 96e0703e，allow_role_cli_spawn=false）运行 → 09b-stage-a-04：exit 1，INCOMPLETE。进展：卡片预检通过；真实 dispatch/claim 回执 attempt f1dd4297…、session 6923b6e0…、fence 1、thread a7b98242…、workspace 齐全，state=claimed。失败：pane_process_info 返回 shell_pid 68179、leader null、processes 仅 /bin/zsh -f -i；codex-receiver 未启动（数秒后复查仍无），不是读取时序问题。
 存活：fake API 68081/68082、daemon 68084、pane zsh 68179；root /private/tmp/t078-2-09b-run-s6slqnu3。未发信号。
 #201：worker 只读诊断（经 CLI 读 pane 屏幕/事件，不向 pane 输入），找出 receiver 未启动的原因；修 runner 与证据（红=09b-stage-a-04）；写 stage-a-04 cleanup（带 dry-run；daemon_stop、假 API 现可 SIGTERM）交我。
+
+## stage-a-04 清理、run-05 提交、阶段 A PASS 与阶段 B 实现 #202/#203（2026-10-15 UTC）
+
+#201 诊断审阅：pane_output 实为 `create sessions: File exists`；runner 预建 target/home/sessions，receiver 自行 mkdir 得 EEXIST 退出；删预建，receiver 空 HOME 真实进程 green-10 PASS。cleanup-09b-stage-a-04.py dry-run PASS，正式 PASS：daemon_stop，68081/68082 各一次 SIGTERM 均退出（假 API 修复在真实现场生效），96 成员（55 文件/41 目录）逐成员读回 PASS 后删 root。commit-09b-run-05.sh exit 0：64c752ec + e301f15b（materials-05），9 尾注，工作树干净。
+#202：签 stage-a-approval-05.json（source 64c752ec）运行 → 09b-stage-a-05：exit 0，READY_FOR_APPROVAL。真实 dispatch/claim：attempt 766c797e…、session 3d1411f5…、fence 1、thread c6961479…；target shell 70837、leader 70839 codex-receiver、native 00000000-0078-…0001；fake API 70730/70731，daemon 70733；roles_started=[]，模型 0。现场保留供阶段 B。
+#203：实现 runner 阶段 B（复用 stage-a-05 root 的 runtime binding；每角色独立 approval，先 ideation 后 executor；逐屏 theme/notice/trust 按已批准按键规则；一次性工具批准；I/E 阶段逐次停）。先 spy 红绿（无 B approval 不 spawn；approval 与 readiness 不符拒绝；同时只起一个角色），交 commit 脚本与 B1 待批材料。
