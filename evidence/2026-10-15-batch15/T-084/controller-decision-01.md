@@ -49,3 +49,8 @@ answer 20261015T043855Z-ideation-answer-001（ack 20261015T043903Z）：用户�
 
 Grok 完成：返工 #1（受控宿主 observed-facts.json 拆开记录与任务卡；green-02 加 model-card、effort-card、effort-unknown 拒收案；mutants-02 三个错误实现 DETECTED）；返工 #2（core.ts 加 `else if (!attempt.delivery) error = "trailer_launch_record_missing"`，事件带 reason 缺启动记录；red-03 放行复现、green-03 拒收、mutants-03 DETECTED；5 个旧测试按新契约改为无尾注或受管提交，无开关）。
 待办：恢复套件 test_daemon_verify_interruption_and_operation_lock 仍失败（review_launch_config_required，restart 后 daemon 无审查配置），需在基线 fb5dd288（git archive 导出到 /tmp）上跑同套件判定是否既有；四行比较里 `attempt.delivery &&` 已恒真，删除冗余条件并重跑。worker 自做的"只读验收审查"不计为独立审查；之后另开 fresh 审查 02。
+
+## 收尾、提交与独立审查 02（2026-10-15 UTC）
+
+Grok 收尾：四行比较改为 `if (attempt.delivery) {…} else error = "trailer_launch_record_missing"`；green-04 与 green-03 逐案一致，mutants-04 四个 DETECTED（直接删 && 的版本里删拒收行变异变 gate_failure，已如实记录并弃用）。基线 fb5dd288 经 git archive 导出到 /tmp 重跑恢复套件：5/5 失败（4×score_required、1×daemon.ts 进程身份断言），即恢复套件在 main 上已失效、非本票引入；候选 4/5 通过，剩余 1 个（review_launch_config_required）在基线同一用例亦失败。该"main 恢复套件已失效"为范围外发现，另行记录。
+主控提交 9ddf446e（无 worker 尾注）。证据 51 MB，无单文件 >5 MB。独立审查 02：新开 fresh Grok 窗格 wF:p43（cwd a2a-wt-t084），只读，仅可写 independent-review-02.md。
