@@ -639,3 +639,7 @@ I1：I1-COMMAND.txt 只含第 1 步（材料缺陷），主控按 A-11 形式补
 ## I1 第 3 步：回执修复与 build slot 失败 #290（2026-10-15 UTC）
 
 worker 定位 #289 根因：terminal_focus_intercepted 是 xterm focus 观察事件；旧 electron_driver 发 sendInputEvent 后不等回执即关窗，Enter 未写入。修为经 renderer window.a2a.input('\r') 并等 daemon 回执，离线绿/旧路径红 PASS。worker 以主控名义预填 permission-approval-02，主控重签（#290，ref 保留 #289 以过提交断言）；commit-09b-a12-i1-fix.sh PASS（9264d94de）。执行第 3 步：按键前 build.mjs 因 slot t078-a11-i1-<launch> 已在 #289 建过而 EEXIST 失败，未发键、未重试；主控手动复现 build 一次（同样 mkdir 失败，无副作用）。output 仍沿用 execute-01。现场仍停在同一权限屏，1 请求/1 响应。#290 交 worker 改为唯一 slot 与新 output 并补红态。
+
+## I1 第 3 步：按键送达，tool_result 结算失败 #291（2026-10-15 UTC）
+
+commit-09b-a12-i1-step3.sh PASS（e980099a5，唯一 slot 与输出 execute-02，slot 碰撞红/绿 PASS）。主控签 permission-approval-03（#291）执行第 3 步：Enter 送达，Claude 执行 I_SEND_STOP，tool_result 为 inbox send 的排队回执（queued:true、delivered:false、request_id 87a3c06e…），假 API 回 409 tool_result_stop_entry_required，Claude 重试 11/11 后停；requests 12 行、responses 1 行；脚本 protocol_i1_messages_mismatch。A-12 ideation 预算超限（1 root/12 Messages），需 A-13。主控拷贝 requests/ 与 http-exchanges/ 现场被权限检查以可能含凭据拦下，未拷；交 worker 脱敏归档。#291 交 worker 定排队语义与结算契约（拿不准写 needs-decision），并要求重建前先给出离线端到端跑通证据。
