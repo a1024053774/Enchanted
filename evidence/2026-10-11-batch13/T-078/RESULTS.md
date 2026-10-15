@@ -841,3 +841,9 @@ cleanup 的归档 helper 用临时目录取含普通文件、目录和符号链�
 ## 阶段 A 卡片预检、假 API 停止修复与 materials-04 冻结
 
 #195 的 `09b-stage-a-03` 与 #197/#198 cleanup BLOCKED 现场均保留：坏卡红态未 dispatch/claim/target；首个假 API 的 SIGTERM 死锁由 sample 证据确认，恢复脚本先 dry-run 再对 62217/62218 各一次经身份核对的 SIGKILL，归档逐成员读回 PASS 后删除 root。假 API 停止测试先取当前实现 SIGTERM 两秒超时红态，再以 signal handler 抛 `SystemExit` 取得两秒内退出绿态。runner 仍先经真实 `taskCards.validateTaskCard` 预检，空 `paths.deny` 由 `oracle_paths` 承担 oracle 保护；materials-04 静态冻结继续 `launch_status=NO_GO`，本轮不启动阶段 A、CLI、目标或供应商模型。
+
+## 阶段 A-04 receiver 启动红态与修复（主控 #200/#201）
+
+`09b-stage-a-04/result.json` 保留真实红态：门禁 `card_save`、`create`、`dispatch`、`claim` 全部成功，attempt `f1dd4297…`、fence `1`、thread `a7b98242…`、workspace 均由真实回执提供；失败发生在 `pane_process_info`，shell `68179` 的 `leader=null`，复查仍只有 `/bin/zsh`。只读 [readback](09b-stage-a-04-readback-01/result.json) 通过真实 CLI 读取 `daemon_status`、`launch_show`、`pane_status`、`pane_process_info`、`pane_output`、`orchestration_events`，没有向 pane 输入、没有 signal/stop。pane 原文是 `create sessions: File exists` 后回到 zsh 提示符；launch-config 的 `codex_bin` 与 launch argv 第一项均为 target receiver，路径存在，但进程列表没有 receiver。事件只有 `pane_started` 与 `dispatch_queued`，所以不是读取时序或缺 dispatch。
+
+根因为 runner 在 `target/home/sessions` 预先创建目录，而 deterministic receiver 自己用 `mkdir(..., 0700)` 创建 `CODEX_HOME/sessions`；`mkdir` 返回 `EEXIST` 后退出，故 shell 没有 foreground leader。runner 已删除该预创建；[receiver launch 回归](09b-receiver-launch-green-10/result.json) 在空隔离 HOME 中编译并启动真实 receiver，收到 READY、自动创建 sessions 与 `receiver-started.json` 后退出，PASS。阶段 A-04 cleanup 脚本按 root/PID 绑定，先 dry-run，再认证 `daemon_stop`、确认 shell/daemon 退出、各 API 一次 SIGTERM（两秒内）和逐成员归档读回后删 root；未运行时保持 `INCOMPLETE`，launch 继续 **NO_GO**。

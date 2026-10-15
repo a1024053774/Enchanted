@@ -60,7 +60,7 @@ def main():
         base_env={k:v for k,v in os.environ.items() if not k.startswith(('A2A_','CLAUDE_','ANTHROPIC_','CODEX_','GIT_'))};base_env.update(PATH=os.environ.get('PATH','/usr/bin:/bin'),A2A_OPERATOR_CREDENTIAL=str(root/'operator.json'),GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL=os.devnull)
         run(['git','-C',root/'repo','init','-b','main']);run(['git','-C',root/'repo','add','value.txt','oracle/contract-09b.json']);run(['git','-C',root/'repo','commit','-m','09B target baseline'],env={**base_env,'GIT_AUTHOR_NAME':'T078 09B','GIT_AUTHOR_EMAIL':'fixture@example.invalid','GIT_COMMITTER_NAME':'T078 09B','GIT_COMMITTER_EMAIL':'fixture@example.invalid'})
         card_file=root/'card.json';shutil.copyfile(preflight_file,card_file);project='t078-09b-runtime-project'
-        receiver=root/'target/bin/codex-receiver';run(['/usr/bin/clang','-Wall','-Wextra','-Werror','-std=c11',SOURCE/'workbench/tests/t078_native_receiver.c','-o',receiver]);(root/'target/home/sessions').mkdir(parents=True)
+        receiver=root/'target/bin/codex-receiver';run(['/usr/bin/clang','-Wall','-Wextra','-Werror','-std=c11',SOURCE/'workbench/tests/t078_native_receiver.c','-o',receiver])
         config={'codex_bin':str(receiver),'codex_home':str(root/'target/home'),'role_card':str(root/'target/role.md'),'role_card_revision':'T078-09B-deterministic','code_revision':static['revision'],'source_snapshot':str(a.materials/'sources.tar.gz'),'hook_authorization':'09B Stage A target only; no role CLI','turn_limit':10,'turn_authorization':'deterministic receiver; model 0'}
         config_file=root/'target/launch-config.json';config_file.write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         api_pids=[]
