@@ -426,3 +426,9 @@ commit-09b-stage-b-06.sh --check-only PASS（23 paths，unowned 0），正式 ex
 
 签 approval-12（p1_phase screen，screen-id ideation-s1，不发键），dry-run PASS；真实 → 09b-stage-b1-screen-ideation-01：rc 1，FileNotFoundError 09b-stage-b-ideation-p1-02/launch/process-manifest.json。screen/key/continue 阶段的 same_cli 写死 materials/'launch'/process-manifest.json，而复用模式下 launch 输出在按 label 的 09b-stage-b1-ideation-04/process-manifest.json（cli pid 1228）。未发键；claude 1227/1228 存活。
 #230：screen/key/continue 等后续阶段在复用模式下显式接收 --launch-label（或从 approval 指定的 launch 结果目录）读取 process-manifest，不写死、不复制文件；逐个列出后续阶段读取的所有 launch 产物路径并一并改；在 worker 侧用现有 ideation-04 manifest 做不发键的只读校验并附输出；approval-13（签字栏留空）。
+
+## stage-b-07 提交与 B1 首屏读回 #231/#232（2026-10-15 UTC）
+
+commit-09b-stage-b-07.sh --check-only PASS（29 paths），正式 exit 0：b9b37d5f + 408e0815，9 尾注，工作树干净。
+#231：签 approval-13（screen，ideation-s1，--launch-label 09b-stage-b1-ideation-04，不发键）→ 09b-stage-b1-screen-ideation-02：rc 0，PASS。首屏为 Claude Code v2.1.296 欢迎 + 主题选择 "Choose the text style that looks best with your terminal"，选项 Auto / Dark mode（光标在 Dark mode，✔）/ Light … ，原字节 09b-stage-b-ideation-p1-02/09b-stage-b1-screen-ideation-02/screen.bin。未发键。
+#232：按既定规则此屏需 ArrowUp→Auto、ArrowDown→Dark、Enter，每键绑定实际读回屏幕。worker 提供阶段 B 的单键批准生成器（类同 09A k9.sh：由模板生成 approval，绑定 screen_file、screen_id、key、purpose、selected_label、approval_ref），以及配对的单屏读取包装，供执行主控逐屏使用；不得批量发键；先 --dry-run 自检并附输出。
