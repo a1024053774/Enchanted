@@ -659,3 +659,7 @@ worker 修排练：断言加标签与失败上下文，子进程 5 秒/全局 30
 ## A-13 阶段 A、B1、onboarding 与 I1 第 1 步 #295/#296（2026-10-15 UTC）
 
 commit-09b-a13.sh 提交 a02baddf8、9c71c35d6，末尾干净断言第三次失败（漏 ownership-preflight），主控另提交 887d85cdb。阶段 A 批准模板缺 allow_role_cli_spawn 等字段，主控按 A-12 字段补齐后签（#295）：READY，root /private/tmp/t078-2-09b-run-0fe6fcpf，API 45050/45051，daemon 45053，target 45144/45148。B1 批准的 screen_approvals 被误改（security-notice→onboarding-notice、去 screen_text），dry-run 断言失败；主控恢复为 A-12 plan 后 dry-run READY_FOR_ROLE。主控在 dry-run 失败后误跑了一次 real 行，同样在断言处失败、未 spawn（09b-a13-b1-ideation-01 现场）；之后改为先确认 dry-run 再跑 real。real B1 用 -02：PASS，Claude 45962/45963。onboarding 逐屏代签完成（s9 以 -02 为准），0 Messages。I1：prepare PASS；主控签 approval（#296）跑第 1 步：已 dispatch、Claude 停在权限屏（1 请求/1 响应，命令为 I_SEND_STOP），但 driver 因输出父目录不存在而写结果失败；第 3 步 manifest 路径也指向 -01。未重试，#296 交 worker 写只读恢复脚本并修路径。
+
+## A-13 I1：按键、结算、条目均成立，投递因 executor 无会话失败 #297（2026-10-15 UTC）
+
+worker 只读恢复 dispatch-01（READY_FOR_PERMISSION，dispatch 8cfff071…，permission seq 68），主控核对恢复屏幕与实时 pane_output 逐字节相同、批准绑定一致后签 permission-approval-01（#297）执行第 3 步：Enter 送达（permission_control_written），tool_result 结算（responses 2），Stop → relay 生成 ideation→executor stop 条目 982f243c…，但投递 undelivered（role_session_missing，executor 尚未启动），relay_rejected wake_undelivered；门禁自动给 ideation 派反馈回合 #3，假 API 未登记，409 dispatch_replayed，Claude 重试 11/11（requests 13、responses 2）。脚本在读回阶段 KeyError protocol_source（恢复结果缺字段）。A-13 预算超限。冻结计划（executor 在 I1 后启动）与产品投递语义冲突，属设计/验收口径问题，按 T-004 写 needs-decision（needs-decision-a13-wake.md）交构思主控，T-078 真实运行暂停，现场保留。
