@@ -519,3 +519,10 @@ commit-09b-a07.sh --check-only PASS（36 paths）；正式：81ea4754 落地，�
 #252：签 a07-stage-a-approval-01.json（source 81ea4754）→ 09b-a07-stage-a-01 READY_FOR_APPROVAL：root /private/tmp/t078-2-09b-run-1o4prsr5；API ideation 5436（54603）、executor 5437（54604），均 --protocol/a07 标记；daemon 5439；target 5535/5537；无角色 CLI。
 #253：主控运行 worker 的 prepare-a07-b1-ideation-p1.py（按 COMMAND-AFTER-STAGE-A）生成 09b-a07-b1-ideation-p1-01；主控写 stage-b-a07-ideation-approval-01.json（结构同 A-06 approval-01，binding 逐字取 A-07 readiness.target_binding）。dry-run PASS；真实 B1 → claude 10267（zsh 10265，session 62b9df2f…）。逐屏（executor-a07-*.sh，批准落 09b-a07-b1-exec-approvals/）：主题 ArrowUp/ArrowDown/Enter（各屏增量核对 ❯ 位置）→ Security notes 247 字符逐字一致后 Enter → 信任屏路径核对为 /private/tmp/t078-2-09b-run-1o4prsr5/repo，ArrowDown 至 Yes 后 Enter → s13 空闲提示符（Haiku 5.5 low、manual）。全程 requests 空，debug 无 /v1/messages 与 409。
 下一步 I1：worker 按 A-07 绑定重生成 I1 材料与批准草稿。
+
+## A-07 I1 材料提交与首次执行 #254/#255（2026-10-15 UTC）
+
+worker 指出：我写的 stage-b-a07-ideation-approval-01.json 由 A-06 approval 复制而来，残留 api_reuse 字段仍指向 A-06 路径；runner 实际使用 p1_args（A-07 路径正确），未造成错误，签字件未改写。主控疏忽，记录在案。
+commit-09b-a07-i1.sh --check-only PASS（229 paths），正式 178ca7e4。审阅 09b-a07-i1-materials-01：绑定取自 A-07 readiness、B1 input/manifest、ideation api-ready；正文 i1-prompt.txt；dispatch id/seq 由 pane_dispatch 返回，request_id/stop_id 实到后读回；预算 1 root/1 Messages；不符 409、不重送。
+#254：签 approval.json，执行 I1-COMMAND → 09b-a07-i1-execute-01：rc 1，INCOMPLETE，FileNotFoundError，real_process_starts 0。根因：t078_09b_i1_driver.py:89 写死 p1 = materials/'09b-a06-b1-ideation-p1-01'（A-06 残留），未用 approval.p1_materials。失败发生在 pane_dispatch 之前：无 dispatch、无登记（protocol-registry.json 不存在）、无 release、无请求；A-07 七进程完好。驱动异常记录无文件名与 traceback。
+#255：p1 改取 approval.p1_materials（并核对其 input.json 的 launch/session 与 approval 一致）；异常记录补 traceback；spy 增加"p1 路径来自批准"红绿；新输出 execute-02。
