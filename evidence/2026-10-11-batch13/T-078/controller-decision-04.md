@@ -357,3 +357,8 @@ commit-09b-stage-b-02.sh exit 1，第 14 行：断言旧红态 09b-stage-b1-idea
 
 commit-09b-stage-b-02.sh exit 0：48dd6ce5 + 92a61308，9 尾注，工作树干净。#209：签 stage-b-ideation-approval-02.json（source 64c752ec，B1 first-screen），dry-run rc 0；真实 → 09b-stage-b1-ideation-02：rc 1，p1_spawned true，cli_spawned false；p1 结果 `Local API exited before readiness; retain logs, no restart`（run_t078_p1.py 第 102 行）。p1 launch phase 自行启动一个本地 API，而非使用 A-05 已就绪的 09B ideation 假 API（57534/PID 70730）；该 API 退出且 command-output 为空，无日志。pgrep 无 Claude 进程，无新增残留进程，A-05 五进程完好。
 #210：p1 launch 在 09B 绑定下必须使用 input.api_url 指向的既有假 API，不得自启第二个 API（只核对其 PID/lstart/ready 文件）；单角色 slice1 路径行为不变（回归）；先在当前实现上取红（即本次）再取绿（不启动 CLI 的 spy：停在 spawn 前且未起 API）。另查明自启 API 为何无日志退出并修日志捕获。B1 再用新 approval。
+
+## #210 交付审阅退回 #211（2026-10-15 UTC）
+
+未运行 commit-09b-stage-b-03.sh。run_t078_p1.py 复用分支核对 `str(api_script) in identity['command']`，api_script（第 26 行）为 t078_fake_messages.py / t078_fake_inbox_tool.py，而 A-05 的 API 运行 t078_09b_fake_api.py → 真实运行必报 reused_api_identity_changed。reuse-spy-01 为纯 approval 预检，未经过 run_t078_p1 复用分支，未能发现。另：09B 假 API 阶段 A 版只提供 /health、业务 Messages 一律 409；B1（到第一屏）或不需 Messages，但 I1 起必须由 09B 驱动按 protocol 应答。
+#211：复用分支按 09B 假 API 的实际 argv 核对（脚本路径、--root、--role、ready 文件 PID/lstart）；用真实 run_t078_p1 入口对活的 A-05 API 只读探测、在 controller_start 前停（加显式 stop-before-cli 标志）取红（当前代码）/绿；说明 B1 首屏是否会发 Messages 请求，若会，09B 假 API 在 B1 的应答需先实现并取证；I1 起的 Messages 应答计划列入下一步。
