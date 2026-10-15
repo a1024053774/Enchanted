@@ -643,3 +643,7 @@ worker 定位 #289 根因：terminal_focus_intercepted 是 xterm focus 观察事
 ## I1 第 3 步：按键送达，tool_result 结算失败 #291（2026-10-15 UTC）
 
 commit-09b-a12-i1-step3.sh PASS（e980099a5，唯一 slot 与输出 execute-02，slot 碰撞红/绿 PASS）。主控签 permission-approval-03（#291）执行第 3 步：Enter 送达，Claude 执行 I_SEND_STOP，tool_result 为 inbox send 的排队回执（queued:true、delivered:false、request_id 87a3c06e…），假 API 回 409 tool_result_stop_entry_required，Claude 重试 11/11 后停；requests 12 行、responses 1 行；脚本 protocol_i1_messages_mismatch。A-12 ideation 预算超限（1 root/12 Messages），需 A-13。主控拷贝 requests/ 与 http-exchanges/ 现场被权限检查以可能含凭据拦下，未拷；交 worker 脱敏归档。#291 交 worker 定排队语义与结算契约（拿不准写 needs-decision），并要求重建前先给出离线端到端跑通证据。
+
+## 结算契约与 A-13 前的真实链路排练 #292（2026-10-15 UTC）
+
+worker 交结算修复：假 API 先按排队回执（queued:true、delivered:false、request_id/path 同目录）结算 tool_result，oracle 之后要求实际 stop 条目、relay 回执与 executor 唤醒；不在 tool_result 合成条目。契约与产品一致（inbox send 异步 → Stop 钩子 → relay → gates.inbox_send），主控同意。离线 e2e 绿/三类红 PASS，但 scope 为共享核心 + 模拟 relay、无进程/CLI。鉴于前三次失败均为"离线模拟、真实才暴露"，#292 要求重建 A-13 前在 scratch root 起真实 daemon/relay（不启 Claude、不调模型），用真实 inbox send 与 A-12 启动 argv 中的 Stop 钩子命令走通结算并读回，外加不触发 Stop/错 launch 反例；并要求 A-12 现场脱敏归档与 owner-bound 回收脚本。
