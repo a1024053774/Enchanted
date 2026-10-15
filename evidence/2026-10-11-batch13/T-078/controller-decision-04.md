@@ -561,3 +561,10 @@ worker 再次请求沙箱外执行（rm -rf /tmp/t078-newline-perm && 权限计�
 #268：主控写 a09-i1-prompt.txt（同 A-08 句式，末尾保留换行以在真实现场验证换行修复），生成 09b-a09-i1-materials-01，签字执行 → rc 1：driver:142 断言 dispatch.text == 头 + 原始 prompt（含尾换行），而产品登记已去尾换行（60a3db95）→ 驱动未同步规范化。pane_dispatch 已成功（queued 90958996…），未写登记、未 release；pane_status active null、queued [90958996…]，未进入 PTY。
 另：/tmp 清理 01（用户选择，1684 项 4.5 GB，见 evidence/2026-10-15-batch15/tmp-cleanup-01/）。
 #269：worker 修驱动按产品规范化比对；并给出处理已排队派发的方案：优先产品现有撤回/取消已排队派发的操作（若有）后重派；否则驱动以门禁 pane_status/记录中的真实 queued 派发（id、seq、原文）写登记并 release，不新派、不伪造。spy 红绿，交我裁定。
+
+## I1 第五次执行：提示通过钩子、假 API NameError #270/#271（2026-10-15 UTC）
+
+#269 方案审阅：产品无撤回已排队派发 API（cli.ts 仅 pane_dispatch/release/status/events）；driver --resume-queued 只读 pane_status 唯一 queued id 与 orchestration_events 同 id 的 dispatch_queued 原文/seq，核对与批准提示规范化后一致再写登记、release 一次，不新派、不伪造。提交 b36c81aa。
+#270：沿用 #268 签字 approval，I1-RESUME-COMMAND（--resume-queued，输出 execute-02）→ rc 1，i1_response_deadline。实况（重大进展）：登记写入（dispatch 90958996…，seq 2）；UserPromptSubmit 放行（尾换行修复在真实现场生效）；Claude 向假 API 发出 /v1/messages（source=repl_main_thread），每次得到 409 `{"error":"name 'ROLE' is not defined"}`，Claude 按自身策略重试（≥7/11）。门禁 pane_status busy，active=该 dispatch，nativeTurn null。
+根因：workbench/tests/t078_09b_fake_api.py:24 `normalize_anthropic_request(request,registry,ROLE)`，ROLE 在文件中从未定义（--role 未赋值）。07a0efdd 引入；A-07 协议矩阵仅离线，未经真实 HTTP。另：requests.ndjson 只记 body_bytes（16855），未存请求原文，不足作证据。
+#271 裁定：修 ROLE（取自 --role），假 API 保存每个请求原文与响应原文；补真实 loopback HTTP 测试，请求体用真实 Claude Code 2.1.296 请求原件（从既有证据取，给出处）——绿：已登记派发 200 SSE；红：当前代码 409 NameError；反例照旧。两个 API 进程都加载了缺陷代码，原端口替换会破坏 readiness 身份绑定（#237 已否决），故 A-09 清理后重建 A-10；A-09 Claude 的重试只打假 API，无外部副作用，任其结束后随清理关闭。
