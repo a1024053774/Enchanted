@@ -432,3 +432,9 @@ commit-09b-stage-b-06.sh --check-only PASS（23 paths，unowned 0），正式 ex
 commit-09b-stage-b-07.sh --check-only PASS（29 paths），正式 exit 0：b9b37d5f + 408e0815，9 尾注，工作树干净。
 #231：签 approval-13（screen，ideation-s1，--launch-label 09b-stage-b1-ideation-04，不发键）→ 09b-stage-b1-screen-ideation-02：rc 0，PASS。首屏为 Claude Code v2.1.296 欢迎 + 主题选择 "Choose the text style that looks best with your terminal"，选项 Auto / Dark mode（光标在 Dark mode，✔）/ Light … ，原字节 09b-stage-b-ideation-p1-02/09b-stage-b1-screen-ideation-02/screen.bin。未发键。
 #232：按既定规则此屏需 ArrowUp→Auto、ArrowDown→Dark、Enter，每键绑定实际读回屏幕。worker 提供阶段 B 的单键批准生成器（类同 09A k9.sh：由模板生成 approval，绑定 screen_file、screen_id、key、purpose、selected_label、approval_ref），以及配对的单屏读取包装，供执行主控逐屏使用；不得批量发键；先 --dry-run 自检并附输出。
+
+## stage-b-key.sh dry-run 失败与审阅 #233（2026-10-15 UTC）
+
+运行 stage-b-key.sh ideation ideation-s1 ArrowUp … --dry-run：rc 1，AssertionError matches=[]。未发键；留下空目录 09b-stage-b1-key-ideation-ideation-s1-ArrowUp-dry-run-01。
+审阅发现：（1）map(Path, argv) 把 screen-id 变成 Path，与 JSON 中 str 比较恒不等；（2）脚本先 mkdir $OUT 再以同一路径作 runner --output（runner mkdir exist_ok=False）必冲突；（3）--materials 传 p1 目录，阶段 B 一直传 09b-executable-materials-05；（4）screen-key approval 的 directory 用 worktree/repo，应为 A-05 root/repo。
+#233：修上述四点；工具交付前必须由 worker 在沙箱内对 dry-run 实跑到 runner 的 READY_FOR_ROLE（dry-run 不需沙箱外权限），附完整输出；空目录保留为失败证据，新输出用 -02。
