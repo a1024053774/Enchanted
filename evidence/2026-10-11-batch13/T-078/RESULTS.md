@@ -859,3 +859,7 @@ A-05 真实 readiness 保留：attempt `766c797e…`、fence 1、thread `c696147
 新增 `run-09b-stage-b.py` 实现阶段 B 入口核对与执行委托：从 A-05 readiness 重新读 root、attempt/session/fence/thread/workspace，并对所有 PID 重新读取 lstart/command；approval 必须逐 role、逐 phase、逐屏绑定同一 binding，安全提示逐字匹配，信任只接受 `ArrowDown → Yes, I trust this folder → Enter`，工具许可只一次性 Yes。`RoleGate` 拒绝同时启动第二角色并要求 ideation→executor。`--dry-run` 只验证门禁；去掉该标志后只调用既有 `run_t078_p1.py` 的单个 `launch`/`screen`/`key` phase，不另造 CLI 或 pane 通路，每次调用后保存原件并停下。
 
 [Stage-B spies](09b-stage-b-spies-03/results.json) **PASS**：缺 B approval、readiness/binding 不符、第一角色 active 时启动第二角色均拒绝；去掉这三项检查的变异分别接受坏 approval、陈旧 binding、并发角色。合法 ideation B1 approval 纯校验通过且 `spawned=false`。已生成绑定 A-05 root、实际 fake API URL/PID 的 [ideation P1 材料](09b-stage-b-ideation-p1-01/) 与未签字 [approval 草稿](stage-b-ideation-approval.json)；无 Claude CLI、pane 输入、daemon/API/target/model 新启动，待主控签字后再逐项执行。
+
+## 阶段 B materials-01 静态冻结
+
+B1 仅冻结逐角色审批门禁与 screen-key 计划，绑定 A-05 readiness；spies-02 PASS，含缺 approval/binding/并发三项变异红态，spawned=false；materials-01 静态 PASS 且 launch NO_GO。未启动 Claude、pane 输入、API、daemon、target 或模型。
