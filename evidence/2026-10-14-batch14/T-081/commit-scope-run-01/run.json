@@ -1,0 +1,3182 @@
+{
+  "status": "PASS",
+  "task": "T-081",
+  "model_turns_started": 0,
+  "codex": "/Users/luckye/.local/bin/codex",
+  "codex_version": {
+    "argv": [
+      "/Users/luckye/.local/bin/codex",
+      "--version"
+    ],
+    "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+    "exit": 0,
+    "stdout": "codex-cli 0.162.1\n",
+    "stderr": "",
+    "outcome": null,
+    "seconds": 0.011
+  },
+  "execpolicy_check_help": {
+    "argv": [
+      "/Users/luckye/.local/bin/codex",
+      "execpolicy",
+      "check",
+      "--help"
+    ],
+    "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+    "exit": 0,
+    "stdout": "Check execpolicy files against a command\n\nUsage: codex execpolicy check [OPTIONS] --rules <PATH> <COMMAND>...\n\nArguments:\n  <COMMAND>...\n          Command tokens to check against the policy\n\nOptions:\n  -c, --config <key=value>\n          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.\n          Use a dotted path (`foo.bar.baz`) to override nested values. The `value` portion is parsed\n          as TOML. If it fails to parse as TOML, the raw string is used as a literal.\n          \n          Examples: - `-c model=\"o3\"` - `-c 'sandbox_permissions=[\"disk-full-read-access\"]'` - `-c\n          shell_environment_policy.inherit=all`\n\n  -r, --rules <PATH>\n          Paths to execpolicy rule files to evaluate (repeatable)\n\n      --enable <FEATURE>\n          Enable a feature (repeatable). Equivalent to `-c features.<name>=true`\n\n      --pretty\n          Pretty-print the JSON output\n\n      --disable <FEATURE>\n          Disable a feature (repeatable). Equivalent to `-c features.<name>=false`\n\n      --resolve-host-executables\n          Resolve absolute program paths against basename rules, gated by any `host_executable()`\n          definitions in the loaded policy files\n\n  -h, --help\n          Print help (see a summary with '-h')\n",
+    "stderr": "",
+    "outcome": null,
+    "seconds": 0.012
+  },
+  "codex_home": "/tmp/t081-commit-scope-codex-home-01",
+  "rules": "prefix_rule(pattern=[\"git\", \"add\"], decision=\"allow\")\nprefix_rule(pattern=[\"git\", \"commit\"], decision=\"allow\")\n",
+  "fixture": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+  "harness_env": {
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_AUTHOR_NAME": "T-081 commit scope",
+    "GIT_AUTHOR_EMAIL": "t081-commit-scope@example.invalid",
+    "GIT_COMMITTER_NAME": "T-081 commit scope",
+    "GIT_COMMITTER_EMAIL": "t081-commit-scope@example.invalid",
+    "T081_HOOK_LOG": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hook-log.txt"
+  },
+  "policy_examples": {
+    "inner_git_commit": {
+      "command": {
+        "argv": [
+          "/Users/luckye/.local/bin/codex",
+          "execpolicy",
+          "check",
+          "--pretty",
+          "--rules",
+          "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+          "--",
+          "git",
+          "commit",
+          "-m",
+          "inner"
+        ],
+        "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+        "exit": 0,
+        "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+        "stderr": "",
+        "outcome": null,
+        "seconds": 0.014
+      },
+      "parsed": {
+        "matchedRules": [
+          {
+            "prefixRuleMatch": {
+              "matchedPrefix": [
+                "git",
+                "commit"
+              ],
+              "decision": "allow"
+            }
+          }
+        ],
+        "decision": "allow"
+      },
+      "decision": "allow",
+      "allow": true,
+      "incomplete": false
+    },
+    "leading_assignment_token": {
+      "command": {
+        "argv": [
+          "/Users/luckye/.local/bin/codex",
+          "execpolicy",
+          "check",
+          "--pretty",
+          "--rules",
+          "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+          "--",
+          "GIT_DIR=/tmp/example.git",
+          "git",
+          "commit",
+          "-m",
+          "assigned"
+        ],
+        "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+        "exit": 0,
+        "stdout": "{\n  \"matchedRules\": []\n}\n",
+        "stderr": "",
+        "outcome": null,
+        "seconds": 0.013
+      },
+      "parsed": {
+        "matchedRules": []
+      },
+      "decision": null,
+      "allow": false,
+      "incomplete": false
+    },
+    "zsh_lc_env": {
+      "command": {
+        "argv": [
+          "/Users/luckye/.local/bin/codex",
+          "execpolicy",
+          "check",
+          "--pretty",
+          "--rules",
+          "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+          "--",
+          "/bin/zsh",
+          "-lc",
+          "GIT_DIR=/tmp/example.git git commit -m assigned"
+        ],
+        "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+        "exit": 0,
+        "stdout": "{\n  \"matchedRules\": []\n}\n",
+        "stderr": "",
+        "outcome": null,
+        "seconds": 0.012
+      },
+      "parsed": {
+        "matchedRules": []
+      },
+      "decision": null,
+      "allow": false,
+      "incomplete": false
+    },
+    "bash_lc_env": {
+      "command": {
+        "argv": [
+          "/Users/luckye/.local/bin/codex",
+          "execpolicy",
+          "check",
+          "--pretty",
+          "--rules",
+          "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+          "--",
+          "/bin/bash",
+          "-lc",
+          "GIT_DIR=/tmp/example.git git commit -m assigned"
+        ],
+        "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+        "exit": 0,
+        "stdout": "{\n  \"matchedRules\": []\n}\n",
+        "stderr": "",
+        "outcome": null,
+        "seconds": 0.012
+      },
+      "parsed": {
+        "matchedRules": []
+      },
+      "decision": null,
+      "allow": false,
+      "incomplete": false
+    },
+    "git_config": {
+      "command": {
+        "argv": [
+          "/Users/luckye/.local/bin/codex",
+          "execpolicy",
+          "check",
+          "--pretty",
+          "--rules",
+          "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+          "--",
+          "git",
+          "config",
+          "core.hooksPath",
+          "/tmp/example-hooks"
+        ],
+        "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+        "exit": 0,
+        "stdout": "{\n  \"matchedRules\": []\n}\n",
+        "stderr": "",
+        "outcome": null,
+        "seconds": 0.014
+      },
+      "parsed": {
+        "matchedRules": []
+      },
+      "decision": null,
+      "allow": false,
+      "incomplete": false
+    }
+  },
+  "variants": [
+    {
+      "id": "plain_on_work_branch",
+      "steps": [
+        {
+          "question": "worker worktree 检出 main 时，普通 commit 是否推进共享 refs/heads/main，以及基线钩子是否运行",
+          "argv": [
+            "git",
+            "commit",
+            "-m",
+            "plain on work branch"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "-m",
+                "plain on work branch"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.012
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "-m",
+              "plain on work branch"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main 3ae2169] plain on work branch\n 1 file changed, 1 insertion(+)\n create mode 100644 probe-plain_on_work_branch.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 0.302,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "3ae21697c4d8dd31deb2bf86f8b8f152d3316dba refs/heads/hook-side\n3ae21697c4d8dd31deb2bf86f8b8f152d3316dba refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "3ae21697c4d8dd31deb2bf86f8b8f152d3316dba",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary plain_on_work_branch\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 29,
+                "sha256": "f6703dc10be1727e5b0fbbc5e5f508a8c514bdcd788eeb4b2d0f444e1b5333ce"
+              },
+              "before_text": "",
+              "after_text": "primary plain_on_work_branch\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "709962cc901b91ec6215f1e4cf79557098b30a174d098e6e7da10ba8c6f7f2e7"
+              },
+              "before_text": null,
+              "after_text": "3ae21697c4d8dd31deb2bf86f8b8f152d3316dba\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "709962cc901b91ec6215f1e4cf79557098b30a174d098e6e7da10ba8c6f7f2e7"
+              },
+              "before_text": null,
+              "after_text": "3ae21697c4d8dd31deb2bf86f8b8f152d3316dba\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 21,
+                "sha256": "e52b7c37fa1e538ebdee3f7e7389014f19be51d5d0baa3d7ff078bb462a713f2"
+              },
+              "before_text": null,
+              "after_text": "plain on work branch\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 222,
+                "sha256": "5ade9d7ca1da670669ec2c469d51b6109dfe09d3a519bb53d933f6fe7f18a1d6"
+              },
+              "after": {
+                "kind": "file",
+                "size": 241,
+                "sha256": "d97f7f05bbbcb5c97602892a197ce919f67168ae000c0e46c6f8c8f06fa8f8b7"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\t#?�j�V�\t#?�\u0001\u0000\u0000\u0017\u0000%\u000f/\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0015��~\u0014>��J�5�e�m|��\u000e7z\u0000\u001eprobe-plain_on_work_branch.txt\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0006\u0000-1 0\n\u0015��d��!1�jSG~��Q�s",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�\t\n:�j�V�:���\u0001\u0000\u0000\u0017\u0000%\u000f#\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\t#?�j�V�\t#?�\u0001\u0000\u0000\u0017\u0000%\u000f/\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0015��~\u0014>��J�5�e�m|��\u000e7z\u0000\u001eprobe-plain_on_work_branch.txt\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0019\u00002 0\nWg)�\u001ej�șs�� �a\u0012�,zQ�s$�;8��܂Q>]\u001bc�a�\u000b_"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 513,
+                "sha256": "7b1b84a6114d99b3e9138cb4d2d05078b9c2478316e1c9cf3963f429b57676e9"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 3ae21697c4d8dd31deb2bf86f8b8f152d3316dba T-081 commit scope <t081-commit-scope@example.invalid> 1792038606 -0400\tcommit: plain on work branch\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "template",
+      "steps": [
+        {
+          "question": "commit --template 是否改到共享引用或配置",
+          "argv": [
+            "git",
+            "commit",
+            "--template",
+            "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/template.txt",
+            "-m",
+            "template flag"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "--template",
+                "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/template.txt",
+                "-m",
+                "template flag"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.012
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "--template",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/template.txt",
+              "-m",
+              "template flag"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main ecf238a] template flag\n 1 file changed, 1 insertion(+)\n create mode 100644 probe-template.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 0.297,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "ecf238a42c3aaa8e19bddb5e377720466076c0ff refs/heads/hook-side\necf238a42c3aaa8e19bddb5e377720466076c0ff refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "ecf238a42c3aaa8e19bddb5e377720466076c0ff",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary template\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 17,
+                "sha256": "d53ae19b02cbf64c566d72ed667be024fd887837a939560084277b8740c9a8b9"
+              },
+              "before_text": "",
+              "after_text": "primary template\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "cf3348185a740703d48ed66e6ca0a33cdd8bf33772fc2397aadf443598c4fe74"
+              },
+              "before_text": null,
+              "after_text": "ecf238a42c3aaa8e19bddb5e377720466076c0ff\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "cf3348185a740703d48ed66e6ca0a33cdd8bf33772fc2397aadf443598c4fe74"
+              },
+              "before_text": null,
+              "after_text": "ecf238a42c3aaa8e19bddb5e377720466076c0ff\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 14,
+                "sha256": "471db6598c3ee7b093e0b6eda34811ba8a1a4063977f84dd9437e084f669c892"
+              },
+              "before_text": null,
+              "after_text": "template flag\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 214,
+                "sha256": "89d7b6ff6682c7e622ff3a963f3ddfd15f30b59b834247e6e10c9530750c69df"
+              },
+              "after": {
+                "kind": "file",
+                "size": 233,
+                "sha256": "7d2bcf9ce9c5b159fc3796d9a04fa16c21d1c9d5fd40e5959fe2869e10332f0a"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\"\u0017\u001c�j�V�\"\u0017\u001c�\u0001\u0000\u0000\u0017\u0000%\u000f�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\t26˦���\u0013�H_�|�\u0005H�=�\u0000\u0012probe-template.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0006\u0000-1 0\n;h�~7CP���)*������\f�",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�!�\u0018�j�V�:���\u0001\u0000\u0000\u0017\u0000%\u000f�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\"\u0017\u001c�j�V�\"\u0017\u001c�\u0001\u0000\u0000\u0017\u0000%\u000f�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\t26˦���\u0013�H_�|�\u0005H�=�\u0000\u0012probe-template.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0019\u00002 0\n\u0001�s�\u0019\u0007�~��ՠ��ڣUB�]\u0016�x}��wz��t�\u0002Cj\u000e_���"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 506,
+                "sha256": "39359586d0c2ddae50bac32ff7de9e6baac318ff5d240a3ada8e910adbc5601f"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 ecf238a42c3aaa8e19bddb5e377720466076c0ff T-081 commit scope <t081-commit-scope@example.invalid> 1792038606 -0400\tcommit: template flag\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "message_file",
+      "steps": [
+        {
+          "question": "commit -F 是否改到共享引用或配置",
+          "argv": [
+            "git",
+            "commit",
+            "-F",
+            "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/message.txt"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "-F",
+                "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/message.txt"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.012
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "-F",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/message.txt"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main 3837d40] message from file\n 1 file changed, 1 insertion(+)\n create mode 100644 probe-message_file.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 0.313,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "3837d40ea1401cd8a9ee08dc4e15c0e1fb16f436 refs/heads/hook-side\n3837d40ea1401cd8a9ee08dc4e15c0e1fb16f436 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "3837d40ea1401cd8a9ee08dc4e15c0e1fb16f436",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary message_file\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 21,
+                "sha256": "636b34d575ab553b6195c2a6cb55461413898996e3263010d4e9529331fddc3c"
+              },
+              "before_text": "",
+              "after_text": "primary message_file\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "9af45c263c134ebb80a9125cb3efb2f628d0b408610026cc6fea4dd16b8ad13e"
+              },
+              "before_text": null,
+              "after_text": "3837d40ea1401cd8a9ee08dc4e15c0e1fb16f436\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "9af45c263c134ebb80a9125cb3efb2f628d0b408610026cc6fea4dd16b8ad13e"
+              },
+              "before_text": null,
+              "after_text": "3837d40ea1401cd8a9ee08dc4e15c0e1fb16f436\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 18,
+                "sha256": "97d46515e94da5d5447a6b663985cd1f99ec614e0ec8742e62ddabff77f43e65"
+              },
+              "before_text": null,
+              "after_text": "message from file\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 214,
+                "sha256": "e3864febbc4213b99d7c55517931cc9564671de0fc3e680cc394a67d89ea429d"
+              },
+              "after": {
+                "kind": "file",
+                "size": 233,
+                "sha256": "67ccac5b1a71171b88ca47b9cb6c59fe8e032a0243e936eef135000872a9ae46"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�:��\u0011j�V�:��\u0011\u0001\u0000\u0000\u0017\u0000%\u000f�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\rn`�D$8�˫�\\�w��o�\u0012{\u0000\u0016probe-message_file.txt\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0006\u0000-1 0\n\t>�z\n��yn��o\u001d[�I�f��",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:���j�V�:���\u0001\u0000\u0000\u0017\u0000%\u000f�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�:��\u0011j�V�:��\u0011\u0001\u0000\u0000\u0017\u0000%\u000f�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\rn`�D$8�˫�\\�w��o�\u0012{\u0000\u0016probe-message_file.txt\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0019\u00002 0\n��aڈ�f��\u001b�.�C�>\u0015��\u00139m��\u0010\u0000��\u0012�\u001a\t$�:\u000bu��"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 510,
+                "sha256": "e6adbbe4e6b38b3d51074f30cefae039b6fb13b60b133aa45e0094fef6a8ea5c"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 3837d40ea1401cd8a9ee08dc4e15c0e1fb16f436 T-081 commit scope <t081-commit-scope@example.invalid> 1792038607 -0400\tcommit: message from file\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixup",
+      "steps": [
+        {
+          "question": "commit --fixup 是否改到共享引用或配置",
+          "argv": [
+            "git",
+            "commit",
+            "--fixup=HEAD"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "--fixup=HEAD"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.012
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "--fixup=HEAD"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main 7a9eade] fixup! seed\n 1 file changed, 1 insertion(+)\n create mode 100644 probe-fixup.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 0.31,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "7a9eadee238be5b2930f56bf95917c327749e0d1 refs/heads/hook-side\n7a9eadee238be5b2930f56bf95917c327749e0d1 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "7a9eadee238be5b2930f56bf95917c327749e0d1",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary fixup\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 14,
+                "sha256": "80da79c87f163269ed0bc903e2f5f6424174dc6b4a3b8cbaee98b3e59466d7e7"
+              },
+              "before_text": "",
+              "after_text": "primary fixup\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "bece17975b71f6f946dd012adadc8658b82301f9cc218855a928c799ef73d4c6"
+              },
+              "before_text": null,
+              "after_text": "7a9eadee238be5b2930f56bf95917c327749e0d1\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "bece17975b71f6f946dd012adadc8658b82301f9cc218855a928c799ef73d4c6"
+              },
+              "before_text": null,
+              "after_text": "7a9eadee238be5b2930f56bf95917c327749e0d1\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 12,
+                "sha256": "41c410c6d4e1aada020fb693dfeb0da95945b04fa4276fda758fef5a81fafbe4"
+              },
+              "before_text": null,
+              "after_text": "fixup! seed\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 206,
+                "sha256": "84f419b4d54d1eb2daf7ac0ed800cce533faf57cacfb11abce6c60fe806cc47b"
+              },
+              "after": {
+                "kind": "file",
+                "size": 225,
+                "sha256": "775e7462237529c6706278807c76fae382820e35a837a5dfd06d070e233c645f"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\u0018�\u0005 j�V�\u0018�\u0005 \u0001\u0000\u0000\u0017\u0000%\u0010^\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0006���s��ĉFW��.dz�S\u0016%�\u0000\u000fprobe-fixup.txt\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0006\u0000-1 0\nѹbG\u0005��lB��Ԇt�#\u0014��\u0010",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�\u0018�$Vj�V�:���\u0001\u0000\u0000\u0017\u0000%\u0010R\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\u0018�\u0005 j�V�\u0018�\u0005 \u0001\u0000\u0000\u0017\u0000%\u0010^\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0006���s��ĉFW��.dz�S\u0016%�\u0000\u000fprobe-fixup.txt\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0019\u00002 0\n2\u000e��P$�Fr��W�\"{©st\u0018��m�I~Zë\u0019���AS�w#"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 504,
+                "sha256": "708d6a1fb4297853d86ede16c1fc34ea74c61c462917109f0cc37d2168d5229d"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 7a9eadee238be5b2930f56bf95917c327749e0d1 T-081 commit scope <t081-commit-scope@example.invalid> 1792038607 -0400\tcommit: fixup! seed\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "amend",
+      "steps": [
+        {
+          "question": "commit --amend 是否改写共享工作分支",
+          "argv": [
+            "git",
+            "commit",
+            "--amend",
+            "-m",
+            "amend flag"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "--amend",
+                "-m",
+                "amend flag"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.015
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "--amend",
+              "-m",
+              "amend flag"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main 1cb33dd] amend flag\n Date: Thu Oct 15 00:30:05 2026 -0400\n 1 file changed, 1 insertion(+)\n create mode 100644 README.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 0.278,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "1cb33dde2bb8af614850d4dd3a8f72f2463a62aa refs/heads/hook-side\n1cb33dde2bb8af614850d4dd3a8f72f2463a62aa refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "1cb33dde2bb8af614850d4dd3a8f72f2463a62aa",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary amend\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 14,
+                "sha256": "603f984dac3bb995070e3f9987045530e52efea00ee4afce5f5215d255f28aea"
+              },
+              "before_text": "",
+              "after_text": "primary amend\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "81fe26714af106517526722bd3101620905163d108c605b0498087f8293365dd"
+              },
+              "before_text": null,
+              "after_text": "1cb33dde2bb8af614850d4dd3a8f72f2463a62aa\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "81fe26714af106517526722bd3101620905163d108c605b0498087f8293365dd"
+              },
+              "before_text": null,
+              "after_text": "1cb33dde2bb8af614850d4dd3a8f72f2463a62aa\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 11,
+                "sha256": "17d8e0d2daa319d6e8cb62c6764af91615e4d935e5c6e7a4a9b8ecf0445d9195"
+              },
+              "before_text": null,
+              "after_text": "amend flag\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 145,
+                "sha256": "58a2e734632f685208737f7edf41fb07a4dfc8504aeefb75f67959a6b0109043"
+              },
+              "after": {
+                "kind": "file",
+                "size": 145,
+                "sha256": "5ba32ac2a1a364715f8865a55f3dfe359a953c9a78da7518e6bb0a76894dc6a5"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0001j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0019\u00001 0\n'�\u000b5L�\u001e\u0001)�T�\u0003@�\u0019�v�g\u0007eZ�b\u0018�\r\u0000���A��H��b�",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0001j�V�2��\u0005j�V�:���\u0001\u0000\u0000\u0017\u0000%\u0010�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0019\u00001 0\n'�\u000b5L�\u001e\u0001)�T�\u0003@�\u0019�v�g����>����Y�@��(gn��]"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 511,
+                "sha256": "5b00ab1ff1a56858064d36e32b1679b044b52ceadb5ba6e70e842712ce6edda9"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 1cb33dde2bb8af614850d4dd3a8f72f2463a62aa T-081 commit scope <t081-commit-scope@example.invalid> 1792038607 -0400\tcommit (amend): amend flag\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "no_verify",
+      "steps": [
+        {
+          "question": "commit --no-verify 是否跳过钩子，同时是否仍推进工作分支",
+          "argv": [
+            "git",
+            "commit",
+            "--no-verify",
+            "-m",
+            "no verify"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "--no-verify",
+                "-m",
+                "no verify"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.012
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "--no-verify",
+              "-m",
+              "no verify"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main 53e35f6] no verify\n 1 file changed, 1 insertion(+)\n create mode 100644 probe-no_verify.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 0.307,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "53e35f647720bbdb3526a1c13535775532953602 refs/heads/hook-side\n53e35f647720bbdb3526a1c13535775532953602 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "53e35f647720bbdb3526a1c13535775532953602",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary no_verify\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 18,
+                "sha256": "6061b918402bb73ca679100f88757edd6023686a9b7f769b8351cd072506222b"
+              },
+              "before_text": "",
+              "after_text": "primary no_verify\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "e0e46d8c2ee5c922ab1ddac9ba2ca7e33115758ae6f137bb90d4240531aa0f37"
+              },
+              "before_text": null,
+              "after_text": "53e35f647720bbdb3526a1c13535775532953602\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "e0e46d8c2ee5c922ab1ddac9ba2ca7e33115758ae6f137bb90d4240531aa0f37"
+              },
+              "before_text": null,
+              "after_text": "53e35f647720bbdb3526a1c13535775532953602\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 10,
+                "sha256": "c2f1cbfef1470961eae3014ba477b657bbe708a37ca6dd63ad013e5a3f04630f"
+              },
+              "before_text": null,
+              "after_text": "no verify\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 214,
+                "sha256": "9f1637a2bbffd426e686cbb00411d513e781b383384285e58e1621ab56dbbc86"
+              },
+              "after": {
+                "kind": "file",
+                "size": 233,
+                "sha256": "a700fa1babe32b923cf2ecc52a8f9dbaae6fae5c040b80d01dfef481b7bd40fb"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\u000eJ.qj�V�\u000eJ.q\u0001\u0000\u0000\u0017\u0000%\u0011\u001e\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\nY'�ި��*\u0012&���\u000bu`�:\u0007�\u0000\u0013probe-no_verify.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0006\u0000-1 0\n��`@�\u0006\u0000�\u00056�\n\u0005�~U\u001fn",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�\u000e.�Bj�V�:���\u0001\u0000\u0000\u0017\u0000%\u0011\u0012\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\u000eJ.qj�V�\u000eJ.q\u0001\u0000\u0000\u0017\u0000%\u0011\u001e\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\nY'�ި��*\u0012&���\u000bu`�:\u0007�\u0000\u0013probe-no_verify.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0019\u00002 0\n8Z��͝<n���5�\u0011��Tɤ�\u0005ޏ�7n\r%\f99\u0001��\u0004^\u001f7��"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 502,
+                "sha256": "1cc3c9327bd717d08fa64ab0b3e0282e04fefb5573af83af5dbd6cd09fc80a83"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 53e35f647720bbdb3526a1c13535775532953602 T-081 commit scope <t081-commit-scope@example.invalid> 1792038608 -0400\tcommit: no verify\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trailer",
+      "steps": [
+        {
+          "question": "commit --trailer 是否改到共享引用或配置",
+          "argv": [
+            "git",
+            "commit",
+            "-m",
+            "trailer flag",
+            "--trailer",
+            "Example: probe"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "-m",
+                "trailer flag",
+                "--trailer",
+                "Example: probe"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.011
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "-m",
+              "trailer flag",
+              "--trailer",
+              "Example: probe"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main 12481cc] trailer flag\n 1 file changed, 1 insertion(+)\n create mode 100644 probe-trailer.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 0.269,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "12481cc88bbf66cc9ec45f6720f1bc4c7e4d0e7b refs/heads/hook-side\n12481cc88bbf66cc9ec45f6720f1bc4c7e4d0e7b refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "12481cc88bbf66cc9ec45f6720f1bc4c7e4d0e7b",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary trailer\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 16,
+                "sha256": "4f3ae2f474d49bc3ad6dc5473990676e9299ebafbd7ab30e1f0543d3c6eb468f"
+              },
+              "before_text": "",
+              "after_text": "primary trailer\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "3be2c169010575ebf3758cca58004b5ed6a58b2cbc9b111aeeb23a0799989218"
+              },
+              "before_text": null,
+              "after_text": "12481cc88bbf66cc9ec45f6720f1bc4c7e4d0e7b\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "3be2c169010575ebf3758cca58004b5ed6a58b2cbc9b111aeeb23a0799989218"
+              },
+              "before_text": null,
+              "after_text": "12481cc88bbf66cc9ec45f6720f1bc4c7e4d0e7b\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 29,
+                "sha256": "f4def1a3b2bdd44de9297797f4e27c8b805e339d5e1c794211e10e1d1ada4052"
+              },
+              "before_text": null,
+              "after_text": "trailer flag\n\nExample: probe\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 206,
+                "sha256": "befe3eb41a6dcc8e53f14474b5352c1ef5ad30bc9261ecd124fb014f4d41a7a3"
+              },
+              "after": {
+                "kind": "file",
+                "size": 225,
+                "sha256": "5053f6a124a1cf04f8dc49d5230309f6d10b0e05d429e2cdd89c6dd0db1d86cb"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�'�\u0000�j�V�'�\u0000�\u0001\u0000\u0000\u0017\u0000%\u0011�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\b+�\t�\u0011\u0002�\"{)\u0000�R+W\u0010�\u0015λ\u0000\u0011probe-trailer.txt\u0000TREE\u0000\u0000\u0000\u0006\u0000-1 0\n�k�\u0012�n�\n�T�~�/�\u001c=GU�",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�'�*uj�V�:���\u0001\u0000\u0000\u0017\u0000%\u0011w\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�'�\u0000�j�V�'�\u0000�\u0001\u0000\u0000\u0017\u0000%\u0011�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\b+�\t�\u0011\u0002�\"{)\u0000�R+W\u0010�\u0015λ\u0000\u0011probe-trailer.txt\u0000TREE\u0000\u0000\u0000\u0019\u00002 0\n\u000f|sH��RQ�%����#��\u001d��^Po��0E���g�,ն�\u0002j�"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 505,
+                "sha256": "e02782e2d5ca597b4d617cca282b9f7dd643631c10a68f817ede088aca10709d"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 12481cc88bbf66cc9ec45f6720f1bc4c7e4d0e7b T-081 commit scope <t081-commit-scope@example.invalid> 1792038608 -0400\tcommit: trailer flag\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cleanup",
+      "steps": [
+        {
+          "question": "commit --cleanup 是否改到共享引用或配置",
+          "argv": [
+            "git",
+            "commit",
+            "-m",
+            "cleanup flag\n\n",
+            "--cleanup=strip"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "-m",
+                "cleanup flag\n\n",
+                "--cleanup=strip"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.013
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "-m",
+              "cleanup flag\n\n",
+              "--cleanup=strip"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main f15d3cb] cleanup flag\n 1 file changed, 1 insertion(+)\n create mode 100644 probe-cleanup.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 3.074,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "f15d3cbb3d4ea6fc32b49444a4e0d4c1614aebd0 refs/heads/hook-side\nf15d3cbb3d4ea6fc32b49444a4e0d4c1614aebd0 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "f15d3cbb3d4ea6fc32b49444a4e0d4c1614aebd0",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary cleanup\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 16,
+                "sha256": "01521b3a6c23e404e182379252ec85d7d80a494e72c8fb62f34552f38dc18454"
+              },
+              "before_text": "",
+              "after_text": "primary cleanup\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "91159d9894a32f5bbf683b1690fe20ef0c6912125832a80c9caa06876ced6d7a"
+              },
+              "before_text": null,
+              "after_text": "f15d3cbb3d4ea6fc32b49444a4e0d4c1614aebd0\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "91159d9894a32f5bbf683b1690fe20ef0c6912125832a80c9caa06876ced6d7a"
+              },
+              "before_text": null,
+              "after_text": "f15d3cbb3d4ea6fc32b49444a4e0d4c1614aebd0\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 13,
+                "sha256": "e07992205a71b10f0d4ef033d0d7c3a89a5104259ac2982cdc56879a2d841214"
+              },
+              "before_text": null,
+              "after_text": "cleanup flag\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 206,
+                "sha256": "c234bfb7c64a0c6d093728ed2a123ffd8510de6749b72442861e18155bd2b3f3"
+              },
+              "after": {
+                "kind": "file",
+                "size": 225,
+                "sha256": "0bd3344c8729210e535f30f3b35f89decd603d8507690129108471b51201b2d9"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\u0003x��j�V�\u0003x��\u0001\u0000\u0000\u0017\u0000%\u0011�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\b�\u001d��XwL0Hb*�\u0004)�!�4ǹ\u0000\u0011probe-cleanup.txt\u0000TREE\u0000\u0000\u0000\u0006\u0000-1 0\n\u0014�\n��>\u0018\u0016m���\f\u0001\u0004W|Z��",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�\u0003a�$j�V�:���\u0001\u0000\u0000\u0017\u0000%\u0011�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\u0003x��j�V�\u0003x��\u0001\u0000\u0000\u0017\u0000%\u0011�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\b�\u001d��XwL0Hb*�\u0004)�!�4ǹ\u0000\u0011probe-cleanup.txt\u0000TREE\u0000\u0000\u0000\u0019\u00002 0\n�NE�@�\u0017�\u0017��+o�{�xu{|�n\u0006�uI��ߛW?\u001b�\t��A\u001a9"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 505,
+                "sha256": "8c2edad2d0ca931eafafcc2d552bf1db6629879313d6fa5b3f8eff06fc756257"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 f15d3cbb3d4ea6fc32b49444a4e0d4c1614aebd0 T-081 commit scope <t081-commit-scope@example.invalid> 1792038609 -0400\tcommit: cleanup flag\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dash_c_hooks_path",
+      "steps": [
+        {
+          "question": "commit 前的 -c core.hooksPath 是否改写配置文件，以及是否改跑另一套钩子",
+          "argv": [
+            "git",
+            "-c",
+            "core.hooksPath=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt",
+            "commit",
+            "-m",
+            "dash c hooksPath"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "-c",
+                "core.hooksPath=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt",
+                "commit",
+                "-m",
+                "dash c hooksPath"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.01
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "-c",
+              "core.hooksPath=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt",
+              "commit",
+              "-m",
+              "dash c hooksPath"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/worktrees/worker/index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.028,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "-c",
+              "core.hooksPath=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt",
+              "commit",
+              "-m",
+              "dash c hooksPath"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "git_dir",
+      "steps": [
+        {
+          "question": "commit 前的 --git-dir 指向共享 git 目录时能否写引用",
+          "argv": [
+            "git",
+            "--git-dir",
+            "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git",
+            "commit",
+            "-m",
+            "git dir"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "--git-dir",
+                "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git",
+                "commit",
+                "-m",
+                "git dir"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.01
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "--git-dir",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git",
+              "commit",
+              "-m",
+              "git dir"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.023,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "--git-dir",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git",
+              "commit",
+              "-m",
+              "git dir"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "work_tree",
+      "steps": [
+        {
+          "question": "commit 前的 --work-tree 指向另一个 worktree 时写哪里",
+          "argv": [
+            "git",
+            "--work-tree",
+            "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt",
+            "commit",
+            "-m",
+            "work tree"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "--work-tree",
+                "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt",
+                "commit",
+                "-m",
+                "work tree"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.01
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "--work-tree",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt",
+              "commit",
+              "-m",
+              "work tree"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/worktrees/worker/index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.024,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "--work-tree",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt",
+              "commit",
+              "-m",
+              "work tree"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "dash_C_other",
+      "steps": [
+        {
+          "question": "commit 前的 -C 指向另一个 worktree 时能否推进那个分支",
+          "argv": [
+            "git",
+            "-C",
+            "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt",
+            "commit",
+            "-m",
+            "dash C other"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "-C",
+                "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt",
+                "commit",
+                "-m",
+                "dash C other"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.01
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "-C",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt",
+              "commit",
+              "-m",
+              "dash C other"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/worktrees/other-wt/index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.024,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "-C",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt",
+              "commit",
+              "-m",
+              "dash C other"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "env_git_dir",
+      "steps": [
+        {
+          "question": "GIT_DIR 前缀是否被 execpolicy 当成 git commit，以及沙箱内能否写共享 git 目录",
+          "argv": [
+            "/bin/zsh",
+            "-lc",
+            "GIT_DIR=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git git commit -m 'env GIT_DIR'"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "/bin/zsh",
+                "-lc",
+                "GIT_DIR=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git git commit -m 'env GIT_DIR'"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.01
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_DIR=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git git commit -m 'env GIT_DIR'"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.06,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_DIR=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git git commit -m 'env GIT_DIR'"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "env_git_work_tree",
+      "steps": [
+        {
+          "question": "GIT_WORK_TREE 前缀的判定和实际写入",
+          "argv": [
+            "/bin/zsh",
+            "-lc",
+            "GIT_WORK_TREE=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt git commit -m 'env GIT_WORK_TREE'"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "/bin/zsh",
+                "-lc",
+                "GIT_WORK_TREE=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt git commit -m 'env GIT_WORK_TREE'"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.011
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_WORK_TREE=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt git commit -m 'env GIT_WORK_TREE'"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/worktrees/worker/index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.06,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_WORK_TREE=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/other-wt git commit -m 'env GIT_WORK_TREE'"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "env_git_index_file",
+      "steps": [
+        {
+          "question": "GIT_INDEX_FILE 前缀的判定和实际写入",
+          "argv": [
+            "/bin/zsh",
+            "-lc",
+            "GIT_INDEX_FILE=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/custom-index git commit -m 'env GIT_INDEX_FILE'"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "/bin/zsh",
+                "-lc",
+                "GIT_INDEX_FILE=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/custom-index git commit -m 'env GIT_INDEX_FILE'"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.011
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_INDEX_FILE=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/custom-index git commit -m 'env GIT_INDEX_FILE'"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/custom-index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.063,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_INDEX_FILE=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/custom-index git commit -m 'env GIT_INDEX_FILE'"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "env_git_config_parameters",
+      "steps": [
+        {
+          "question": "GIT_CONFIG_PARAMETERS 前缀能否把本次 commit 指到另一套钩子或改配置文件",
+          "argv": [
+            "/bin/zsh",
+            "-lc",
+            "GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt'\" git commit -m 'env GIT_CONFIG_PARAMETERS'"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "/bin/zsh",
+                "-lc",
+                "GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt'\" git commit -m 'env GIT_CONFIG_PARAMETERS'"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.012
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt'\" git commit -m 'env GIT_CONFIG_PARAMETERS'"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/worktrees/worker/index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.062,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt'\" git commit -m 'env GIT_CONFIG_PARAMETERS'"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "env_git_config_count",
+      "steps": [
+        {
+          "question": "GIT_CONFIG_COUNT/KEY/VALUE 前缀能否改本次钩子路径或配置文件",
+          "argv": [
+            "/bin/zsh",
+            "-lc",
+            "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt git commit -m 'env GIT_CONFIG_COUNT'"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "/bin/zsh",
+                "-lc",
+                "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt git commit -m 'env GIT_CONFIG_COUNT'"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.011
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt git commit -m 'env GIT_CONFIG_COUNT'"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 128,
+            "stdout": "",
+            "stderr": "致命错误：不能创建 '/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/worktrees/worker/index.lock'：Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.059,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "/bin/zsh",
+              "-lc",
+              "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt git commit -m 'env GIT_CONFIG_COUNT'"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        }
+      ]
+    },
+    {
+      "id": "config_then_commit",
+      "steps": [
+        {
+          "question": "先执行 git config core.hooksPath",
+          "argv": [
+            "git",
+            "config",
+            "core.hooksPath",
+            "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "config",
+                "core.hooksPath",
+                "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": []\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.011
+            },
+            "parsed": {
+              "matchedRules": []
+            },
+            "decision": null,
+            "allow": false,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "config",
+              "core.hooksPath",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 255,
+            "stdout": "",
+            "stderr": "错误：不能锁定配置文件 /Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/repo/.git/config: Operation not permitted\n",
+            "outcome": null,
+            "seconds": 0.026,
+            "via": "codex-sandbox",
+            "sandbox_argv": [
+              "/Users/luckye/.local/bin/codex",
+              "sandbox",
+              "--permission-profile",
+              ":workspace",
+              "--cd",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+              "-c",
+              "model_reasoning_effort=\"xhigh\"",
+              "-c",
+              "service_tier=\"default\"",
+              "-c",
+              "check_for_update_on_startup=false",
+              "-c",
+              "tui.notifications=false",
+              "-c",
+              "sandbox_workspace_write.network_access=false",
+              "-c",
+              "features.network_proxy=false",
+              "--",
+              "git",
+              "config",
+              "core.hooksPath",
+              "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks-alt"
+            ]
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "byte_diff": []
+        },
+        {
+          "question": "改过 hooksPath 之后的 git commit",
+          "argv": [
+            "git",
+            "commit",
+            "-m",
+            "after config hooksPath"
+          ],
+          "policy": {
+            "command": {
+              "argv": [
+                "/Users/luckye/.local/bin/codex",
+                "execpolicy",
+                "check",
+                "--pretty",
+                "--rules",
+                "/tmp/t081-commit-scope-codex-home-01/rules/default.rules",
+                "--",
+                "git",
+                "commit",
+                "-m",
+                "after config hooksPath"
+              ],
+              "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01",
+              "exit": 0,
+              "stdout": "{\n  \"matchedRules\": [\n    {\n      \"prefixRuleMatch\": {\n        \"matchedPrefix\": [\n          \"git\",\n          \"commit\"\n        ],\n        \"decision\": \"allow\"\n      }\n    }\n  ],\n  \"decision\": \"allow\"\n}\n",
+              "stderr": "",
+              "outcome": null,
+              "seconds": 0.012
+            },
+            "parsed": {
+              "matchedRules": [
+                {
+                  "prefixRuleMatch": {
+                    "matchedPrefix": [
+                      "git",
+                      "commit"
+                    ],
+                    "decision": "allow"
+                  }
+                }
+              ],
+              "decision": "allow"
+            },
+            "decision": "allow",
+            "allow": true,
+            "incomplete": false
+          },
+          "run": {
+            "argv": [
+              "git",
+              "commit",
+              "-m",
+              "after config hooksPath"
+            ],
+            "cwd": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/worker",
+            "exit": 0,
+            "stdout": "[main b6e0ac7] after config hooksPath\n 1 file changed, 1 insertion(+)\n create mode 100644 probe-config_then_commit.txt\n",
+            "stderr": "",
+            "outcome": null,
+            "seconds": 0.038,
+            "via": "direct-outside-sandbox"
+          },
+          "status": "MEASURED",
+          "before_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "bbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/hook-side\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": ""
+          },
+          "after_refs": {
+            "show_ref_exit": 0,
+            "show_ref": "b6e0ac7b105ad1ec09aaeda4369e5a7f9b17d514 refs/heads/hook-side\nb6e0ac7b105ad1ec09aaeda4369e5a7f9b17d514 refs/heads/main\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/other\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 refs/heads/packed-keep\n",
+            "main_exit": 0,
+            "main": "b6e0ac7b105ad1ec09aaeda4369e5a7f9b17d514",
+            "other_exit": 0,
+            "other": "bbba164bdd1366f225b6c8849ea38854be3ab7f8",
+            "hooks_path_exit": 0,
+            "hooks_path": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/hooks",
+            "include_exit": 0,
+            "include": "/Volumes/WD-Elements/a2a-evidence/2026-10-14-batch14/T-081/commit-scope-01/include.config",
+            "hook_log": "primary config_then_commit\n"
+          },
+          "byte_diff": [
+            {
+              "path": "hook-log.txt",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "after": {
+                "kind": "file",
+                "size": 27,
+                "sha256": "babb7ed5553e82f3c4c6ac6507ae553c3d8a47b0dfb28a14b74d702ef086099b"
+              },
+              "before_text": "",
+              "after_text": "primary config_then_commit\n"
+            },
+            {
+              "path": "refs/heads/hook-side",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "97e517d7d991c6670ba5a603b6ab25b5e7efe515b565700446a54221d7b81fce"
+              },
+              "before_text": null,
+              "after_text": "b6e0ac7b105ad1ec09aaeda4369e5a7f9b17d514\n"
+            },
+            {
+              "path": "refs/heads/main",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 41,
+                "sha256": "97e517d7d991c6670ba5a603b6ab25b5e7efe515b565700446a54221d7b81fce"
+              },
+              "before_text": null,
+              "after_text": "b6e0ac7b105ad1ec09aaeda4369e5a7f9b17d514\n"
+            },
+            {
+              "path": "worktrees/worker/COMMIT_EDITMSG",
+              "change": "added",
+              "before": null,
+              "after": {
+                "kind": "file",
+                "size": 23,
+                "sha256": "17dc3e4e839940c4abcb131b16a752f1f4d3e7f28ec50c39c47b0b43da9743af"
+              },
+              "before_text": null,
+              "after_text": "after config hooksPath\n"
+            },
+            {
+              "path": "worktrees/worker/index",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 222,
+                "sha256": "6889433a33aaf2e0166a5c669caa61dfad1353c34befc417026a2a15025499a3"
+              },
+              "after": {
+                "kind": "file",
+                "size": 241,
+                "sha256": "853eddc179b837b78cca939de0d370cb369bc92bd807c492a52a703c845af17b"
+              },
+              "before_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�:��\u0003j�V�:��\u0003\u0001\u0000\u0000\u0017\u0000%\u000e�\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\u0019�\u0005�j�V�\u0019�\u0005�\u0001\u0000\u0000\u0017\u0000%\u0015L\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0013��y��\"�?Q����gTJ{��\u0000\u001cprobe-config_then_commit.txt\u0000\u0000\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0006\u0000-1 0\n�a�\u0015'\u0019!.�T\u0004��N���\u00062N",
+              "after_text": "DIRC\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0002j�V�\u0019�H�j�V�:���\u0001\u0000\u0000\u0017\u0000%\u0015@\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0005�\u001d��5�^�� {�C�*�jd\u0017\u0000\nREADME.txt\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000j�V�\u0019�\u0005�j�V�\u0019�\u0005�\u0001\u0000\u0000\u0017\u0000%\u0015L\u0000\u0000��\u0000\u0000\u0001�\u0000\u0000\u0000\u0014\u0000\u0000\u0000\u0013��y��\"�?Q����gTJ{��\u0000\u001cprobe-config_then_commit.txt\u0000\u0000\u0000\u0000\u0000\u0000TREE\u0000\u0000\u0000\u0019\u00002 0\n\u001e�\u000b�\u0019ē~+\u0012�~\u000e�z����J����s��W�(�r`hՏ����"
+            },
+            {
+              "path": "worktrees/worker/logs/HEAD",
+              "change": "changed",
+              "before": {
+                "kind": "file",
+                "size": 330,
+                "sha256": "4910c632630fa7a3be166682b66e094618179bc6c3604f63eda36cc2b5c7c472"
+              },
+              "after": {
+                "kind": "file",
+                "size": 515,
+                "sha256": "9c8bf710a360e3bf9d4552a4bd37e74eb68e6ff910f81829cea802fa7d07ac69"
+              },
+              "before_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\n",
+              "after_text": "0000000000000000000000000000000000000000 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 bbba164bdd1366f225b6c8849ea38854be3ab7f8 T-081 commit scope <t081-commit-scope@example.invalid> 1792038605 -0400\treset: moving to HEAD\nbbba164bdd1366f225b6c8849ea38854be3ab7f8 b6e0ac7b105ad1ec09aaeda4369e5a7f9b17d514 T-081 commit scope <t081-commit-scope@example.invalid> 1792038613 -0400\tcommit: after config hooksPath\n"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "citation": {
+    "execpolicy_check_help": "Command tokens to check against the policy",
+    "rules_doc": "https://learn.chatgpt.com/docs/agent-configuration/rules",
+    "rules_behavior": "When a script uses an environment assignment (FOO=bar), Codex does not split it. The invocation is treated as [\"bash\", \"-lc\", \"<full script>\"] and rules apply to that single invocation."
+  },
+  "codex_home_files_before_delete": [
+    "rules",
+    "config.toml",
+    "tmp",
+    "rules/default.rules",
+    "tmp/arg0"
+  ],
+  "codex_home_deleted": false,
+  "codex_home_unexpected": [
+    "tmp"
+  ]
+}

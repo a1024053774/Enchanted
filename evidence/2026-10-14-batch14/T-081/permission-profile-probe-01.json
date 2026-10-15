@@ -1,0 +1,38 @@
+{
+  "status": "PASS_FOR_PROFILE_RESOLUTION_ONLY",
+  "cli_version": "codex-cli 0.162.1",
+  "scope": "No-model parsing probe; nested Seatbelt cannot establish filesystem behavior",
+  "help_source": "codex sandbox --help: --permission-profile <NAME>, --cd <DIR>",
+  "official_source": {
+    "url": "https://learn.chatgpt.com/docs/config-file/config-reference",
+    "claims": [
+      "default_permissions built-ins are :read-only, :workspace, :danger-full-access",
+      "sandbox_mode workspace-write is the legacy form; permission profiles use :workspace"
+    ],
+    "lines": [1033, 1837]
+  },
+  "commands": [
+    {
+      "profile": ":workspace",
+      "argv": ["codex", "sandbox", "--permission-profile", ":workspace", "--cd", "/tmp", "--", "true"],
+      "exit": 71,
+      "stderr": "sandbox-exec: sandbox_apply: Operation not permitted",
+      "interpretation": "profile accepted; nested Seatbelt blocked by current managed sandbox"
+    },
+    {
+      "profile": ":read-only",
+      "argv": ["codex", "sandbox", "--permission-profile", ":read-only", "--cd", "/tmp", "--", "true"],
+      "exit": 71,
+      "stderr": "sandbox-exec: sandbox_apply: Operation not permitted",
+      "interpretation": "profile accepted; nested Seatbelt blocked by current managed sandbox"
+    },
+    {
+      "profile": ":danger-full-access",
+      "argv": ["codex", "sandbox", "--permission-profile", ":danger-full-access", "--cd", "/tmp", "--", "true"],
+      "exit": 0,
+      "stderr": "",
+      "interpretation": "not used for T-081; it would remove the filesystem boundary"
+    }
+  ],
+  "model_turns_started": 0
+}

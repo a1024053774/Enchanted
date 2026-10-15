@@ -13,7 +13,7 @@ import traceback
 
 from command_evidence import CommandLog
 from prepare_t081_mutants import CASE_MUTANT, prepare
-from test_bad_worker_e2e import NEGATIVES, POSITIVES, PROBES, REFUSALS, IDENTITY_EXPECTATION
+from test_bad_worker_e2e import ABSENT, ABSENT_EXPECTATION, NEGATIVES, POSITIVES, PROBES, REFUSALS, IDENTITY_EXPECTATION
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -79,12 +79,10 @@ def main():
     report = {'status': 'INCOMPLETE', 'controlled_status': 'INCOMPLETE', 'product_status': 'INCOMPLETE',
               'task': 'T-081', 'ready_rev': 1, 'argv': sys.argv, 'real_codex_turns': 0,
               'started_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              'steps': [], 'rows': [{'case': '6a', 'status': '待裁定', 'counted_as_pass': False,
-                                    'branch_unchanged': '未执行', 'integration_state': '未执行'},
-                                   {'case': '7', 'status': '待逐次批准', 'counted_as_pass': False,
+              'steps': [], 'rows': [{'case': '7', 'status': '待逐次批准', 'counted_as_pass': False,
                                     'branch_unchanged': '未执行', 'integration_state': '未执行'}],
               'false_rejections': None, 'positive_cases_executed': 0, 'findings': [],
-              'pending': ['6a 用户裁定', '6e 追溯字段一致性契约待用户裁定，观察不计通过', '7 真实 Codex 逐次批准及能力检查',
+              'pending': ['6e 等 T-084 合入后再加拒收案，本轮观察不计通过', '7 真实 Codex 逐次批准及能力检查',
                           '独立交付审查、受管 submit 与验收集成'],
               'excluded_file': 'acceptance/test_herdr_traceability_e2e.py（主控 #160：T-083 所有）'}
     fixtures = None
@@ -303,6 +301,22 @@ def main():
                                                             else observed['before'] == observed['after']),
                                        'integration_state': observed['task']['state'],
                                        'observation': str(out / ('green-' + name) / name / 'observation.json')})
+            for name in ABSENT:
+                mutation = CASE_MUTANT[name]
+                if mutation not in mutants:
+                    mutants[mutation] = prepare(candidate, fixtures / mutation, mutation,
+                                                out / (mutation + '.patch'))
+                case('red-' + name, Path(mutants[mutation]['source']), name, 'BW-ABSENT-ONCE')
+                observed = case('green-' + name, candidate, name)
+                report['positive_cases_executed'] += 1
+                report['rows'].append({'case': '6a', 'status': 'PASS', 'expected': ABSENT_EXPECTATION,
+                                       'actual': observed.get('actual'), 'mutant': mutation,
+                                       'red_failure': 'BW-ABSENT-ONCE',
+                                       'event_location': str(out / ('green-' + name) / name / 'observation.json') + ' events',
+                                       'branch_unchanged': False,
+                                       'integration_state': observed['task']['state'],
+                                       'intervention_count': observed.get('intervention_count'),
+                                       'observation': str(out / ('green-' + name) / name / 'observation.json')})
             save(out / 'mutants.json', mutants)
             for name in POSITIVES:
                 case('positive-' + name, candidate, name)
@@ -361,7 +375,7 @@ def main():
                       '误拒绝数：' + str(report['false_rejections']),
                       '原始事件与命令输出位置见 run.json 的 steps 与逐案 observation.json。',
                       '6e 是发现观察，FINDING/NO_GO 不触发全量停止，也不计拒收绿态或正例通过。',
-                      '6a 待裁定；真实 Codex 回合为 0；未运行项不计通过。', ''])
+                      '6a 正向核对完全无尾注恰好记一次人工介入并集成；6e 拒收案等 T-084 合入后再加。真实 Codex 回合为 0；未运行项不计通过。', ''])
         with (out / 'RESULTS.md').open('x', encoding='utf-8') as stream:
             stream.write('\n'.join(lines))
     print(json.dumps({key: report[key] for key in ('status', 'controlled_status', 'real_codex_turns')}, ensure_ascii=False))

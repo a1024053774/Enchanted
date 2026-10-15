@@ -26,6 +26,11 @@ MUTATIONS = {
     'trailer_attempt': [(
         '        else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")',
         '        else if (trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")')],
+    # Drop only the inferred-intervention write. The missing-trailer delivery
+    # still passes the gate, so the positive count assertion is what goes red.
+    'trailer_absent': [(
+        '      if (missing) this.appendUserInput({',
+        '      if (false) this.appendUserInput({')],
     'latest_head': [(
         '          requireGate(v.M, "not_verified");\n          const actual = await this.integration(task);',
         '          requireGate(v.M, "not_verified");\n'
@@ -49,7 +54,7 @@ CASE_MUTANT = {
     'stale_attempt': 'historical_attempt', 'after_review': 'latest_head',
     'deny_path': 'paths', 'trailer_partial': 'trailer_shape',
     'trailer_duplicate': 'trailer_session_cardinality', 'trailer_task': 'trailer_task',
-    'trailer_attempt': 'trailer_attempt',
+    'trailer_attempt': 'trailer_attempt', 'trailer_absent': 'trailer_absent',
 }
 
 

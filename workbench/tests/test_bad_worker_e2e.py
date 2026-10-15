@@ -24,6 +24,10 @@ REFUSALS = {
     'trailer_attempt': 'trailer_identity_mismatch',
 }
 NEGATIVES = [*REFUSALS, 'after_review']
+ABSENT = ['trailer_absent']
+ABSENT_EXPECTATION = '完全无尾注恰好记一次人工介入并集成'
+ABSENT_BASIS = ['workbench/README.md#完全无 A2A 尾注',
+                '.project-map/inbox/20261015T030558Z-ideation-answer-001.md']
 IDENTITY_EXPECTATION = '尾注含本会话与其他会话的矛盾身份，必须拒收；实际拒收码单列记录'
 IDENTITY_BASIS = ['.project-map/specs/native-cli-orchestration-2026-10-10.md#第8节',
                   '.project-map/tickets/T-072-traceability-scoring-retrospective-metrics.md#提交追溯',
@@ -51,7 +55,9 @@ class BadWorker(Tracer):
             'oracle_paths': ['acceptance/criterion.py'],
             'expected_refusal': REFUSALS.get(self.case),
             'identity_expectation': IDENTITY_EXPECTATION if self.case == 'trailer_duplicate' else None,
-            'expectation_basis': IDENTITY_BASIS if self.case == 'trailer_duplicate' else None,
+            'expectation_basis': IDENTITY_BASIS if self.case == 'trailer_duplicate' else (
+                ABSENT_BASIS if self.case == 'trailer_absent' else None),
+            'absent_expectation': ABSENT_EXPECTATION if self.case == 'trailer_absent' else None,
             'trace_field': TRACE_FIELDS.get(self.case), 'trace_fixture_values': TRACE_VALUES,
             'real_codex_turns': 0,
         })
@@ -258,6 +264,71 @@ class BadWorker(Tracer):
                    (self.repo / 'src/value.txt').read_text(encoding='utf-8') == 'worker\n',
                    '独立要求的产品值 worker', (self.repo / 'src/value.txt').read_text(encoding='utf-8'))
 
+    def intervention_view(self):
+        status = self.cli('status')
+        interventions = [event for event in self.events() if event['type'] == 'human_intervention']
+        return status, interventions, status['user_inputs']
+
+    def trailer_absent(self):
+        # One commit, every A2A field omitted. Partial, duplicate and wrong
+        # task/attempt stay on the refusal cases.
+        omitted = ('Task', 'Attempt', 'Session', 'Role', 'Tool', 'Model', 'Effort', 'Native-Session', 'Launch')
+        attempt, candidate = self.delivered({'src/value.txt': 'worker\n'}, omit=omitted)
+        body = self.git('show', '-s', '--format=%B', candidate)
+        self.check('BW-ABSENT-INPUT', 'A2A-' not in body and body.strip() == 'T-081 controlled fixture delivery',
+                   '提交说明只有受控正文，没有 A2A 尾注', body)
+        self.approve(candidate)
+        status, interventions, inputs = self.intervention_view()
+        checks = [event for event in self.events() if event['type'] == 'trailer_check'
+                  and event['details'].get('commit') == candidate]
+        observed = {'expected': ABSENT_EXPECTATION, 'expectation_basis': ABSENT_BASIS,
+                    'candidate': candidate, 'attempt': attempt['attempt_id'],
+                    'intervention_count': len(interventions), 'interventions': interventions,
+                    'user_inputs': inputs, 'trailer_checks': checks,
+                    'before': self.branch(), 'task': status['task']}
+        save(self.evidence / 'observation.json', observed)
+        once = (len(checks) == 1 and checks[0]['details'].get('missing') is True
+                and checks[0]['details'].get('passed') is True and checks[0]['details'].get('error') is None
+                and len(interventions) == 1 and len(inputs) == 1
+                and inputs[0]['form'] == 'action' and inputs[0]['certainty'] == 'inferred'
+                and inputs[0]['channel'] == 'commit-trailer'
+                and inputs[0]['source_ref']['label'] == '推断：缺尾注'
+                and inputs[0]['source_ref']['commit'] == candidate
+                and inputs[0]['target']['task'] == self.task
+                and inputs[0]['target']['attempt'] == attempt['attempt_id']
+                and interventions[0]['details']['input_id'] == inputs[0]['id']
+                and interventions[0]['details']['attempt_id'] == attempt['attempt_id']
+                and interventions[0]['details']['task_id'] == self.task
+                and interventions[0]['details']['form'] == 'action'
+                and interventions[0]['details']['channel'] == 'commit-trailer')
+        self.check('BW-ABSENT-ONCE', once, ABSENT_EXPECTATION, observed)
+        before_ref = self.oid()
+        reply = self.gate('integrate', '--attempt', attempt['attempt_id'], '--score-file', self.score_file())
+        integrated_log = self.git('reflog', 'show', '--format=%H', 'refs/heads/main')
+        status, interventions, inputs = self.intervention_view()
+        scores = [event['details'] for event in self.events() if event['type'] == 'score_recorded']
+        again = self.gate('integrate', '--attempt', attempt['attempt_id'], '--score-file', self.score_file())
+        status_again, interventions_again, inputs_again = self.intervention_view()
+        after_log = self.git('reflog', 'show', '--format=%H', 'refs/heads/main')
+        observed.update(integrate=reply, second_integrate=again, after=self.branch(),
+                        task=status_again['task'], intervention_count=len(interventions_again),
+                        interventions=interventions_again, user_inputs=inputs_again, scores=scores,
+                        value=(self.repo / 'src/value.txt').read_text(encoding='utf-8'),
+                        actual='integrated' if self.oid() == candidate else 'not integrated')
+        # save() is exclusive-create. The pre-check snapshot is already there.
+        (self.evidence / 'observation.json').write_text(
+            json.dumps(observed, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        self.check('BW-ABSENT-INTEGRATE',
+                   reply.get('ok') is True and again.get('ok') is True and self.oid() == candidate
+                   and before_ref != candidate and after_log == integrated_log
+                   and len(interventions) == 1 and interventions_again == interventions
+                   and inputs_again == inputs and len(scores) == 1
+                   and scores[0]['facts']['human_interventions'] == 1
+                   and len([event for event in self.events() if event['type'] == 'score_recorded']) == 1
+                   and observed['value'] == 'worker\n' and status_again['task']['state'] == 'accepted',
+                   '集成该提交，再次集成不新增人工介入、分数或工作分支记录', observed)
+        self.cli('reclaim', '--attempt', attempt['attempt_id'])
+
     def positive_single(self):
         _, candidate = self.delivered({'src/value.txt': 'worker\n'})
         self.finish_positive(candidate)
@@ -382,7 +453,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--case', choices=[*NEGATIVES, *POSITIVES, *PROBES], action='append', required=True)
+    parser.add_argument('--case', choices=[*NEGATIVES, *POSITIVES, *PROBES, *ABSENT], action='append', required=True)
     args = parser.parse_args()
     if any(name in PROBES for name in args.case):
         if len(args.case) != 1:
