@@ -547,3 +547,8 @@ A-07 恢复分析（09b-a07-active-recovery-analysis.md）：active dispatch #2 
 #261：运行参数化 B1 p1 生成器 → 09b-a08-b1-ideation-p1-01；B1 批准由 worker 新模板填写（不再复制旧批准）。模板缺 runner 必校验的 screen_approvals 与 tool_approval（固定常量），我从 A-07 批准取这两项补齐；首次 dry-run 拒（保留 09b-a08-b1-ideation-dry-run），补后 dry-run-02 PASS。真实 B1 → claude 28969（session b9d90f6e…）；逐屏首启同 A-07（Security notes 247 字符一致；信任路径 /private/tmp/t078-2-09b-run-4_qt67n9/repo），s13 空闲；0 Messages、无 409、无 invalid_hook（hookTrace 修复生效）。
 #262：参数化 I1 材料生成器 → 09b-a08-i1-materials-01（session 与 claude 28969 一致）；签 approval.json 执行 → execute-01：rc 1，i1_response_deadline。实况：UPS 钩子正常运行（hookTrace 已修），返回 decision block："登记注入与实际提交正文不一致"。hook trace stdin：实际提交 prompt 无末尾换行；登记 dispatch text 以 "\n" 结尾（a08-i1-prompt.txt 带换行）。API 未收到请求，Messages 0。
 #263：产品缺陷——派发正文末尾换行在 Claude 提交时被去掉，逐字比对必然不一致。worker 须：查清 Claude 提交前的实际规范化（以本次 trace 与 slice1 证据为准，不推测）；在产品登记处让规范形式等于实际提交形式（不整体放宽比对）；经真实 signal 入口红（本次）绿与反例（正文中间不同仍拦）；并分析 A-08 当前被拦状态能否按已批准的"清空草稿→确认放行"路径（主控批准的模拟用户自动化）收回，或须重建 A-09。交我裁定，不操作现场。
+
+## 尾换行修复提交与 A-09 重建裁定 #264（2026-10-15 UTC）
+
+worker 再次请求沙箱外执行（rm -rf /tmp/t078-newline-perm && 权限计数回归），不批升级、已 Esc，要求在交接中列命令由主控运行。审阅 09b-a08-newline-analysis.md：A-08 trace UserPromptSubmit.prompt 无末尾换行；store.register 原样保存 prompt 文件尾换行，panes.drain 以 bracketed paste 写入后单独 CR。修复：store.ts 登记时仅去除末尾 CR/LF（canonicalText），内部正文仍逐字比对。真实 signal：red-02（修复前拦截）PASS、green-01（尾换行接受、中间正文变异仍拦）PASS。提交 60a3db95（9 尾注），worktree 干净。
+裁定 #264：重建 A-09。理由：store.register 运行于 daemon，A-08 daemon 加载修复前代码，即使经认证窗口用户 Esc→声明放行收回卡住的 active，后续派发仍走旧登记逻辑；且该收回需认证窗口用户动作。要求 worker：A-08 owner-bound 清理（含 Claude 28968/28969）、A-09 materials（prepare，label 09b-executable-materials-09）、阶段 A 命令与批准草稿、B1 批准模板补全 screen_approvals/tool_approval、需沙箱外运行的回归命令清单（全新输出路径，不 rm -rf）、修复提交脚本末尾 RESULTS 未提交的断言问题。
