@@ -500,3 +500,9 @@ worker 请求沙箱外执行（rm -rf /tmp/pycache-t078-a06、py_compile、写 p
 commit-09b-a06-b1.sh --check-only PASS（30 paths），正式 e15d1890（9 尾注，工作树干净）。#247：签 stage-b-a06-ideation-approval-01（launch，复用 A-06 readiness），dry-run PASS；真实 → 09b-a06-b1-ideation-01：PASS，ideation Claude zsh 54976 → claude 54977（session d23ca7a4…）。
 逐屏（执行主控助手 executor-a06-*.sh，批准落 09b-a06-b1-exec-approvals/）：s1 主题屏 → ArrowUp → s3 ❯ 在 Auto → ArrowDown → s5 ❯ 在 Dark mode → Enter → s7 Security notes 247 字符与参考逐字一致 → Enter → s9 信任屏（/private/tmp/t078-2-09b-run-bmnmhs0h/repo，光标默认 No）→ ArrowDown → s11 ❯ 在 Yes → Enter → s13 空闲提示符（Haiku 5.5 low、manual）。全程 roles/ideation/requests 为空，debug 日志无 /v1/messages 与 409。未用 Digit1、未发默认 Enter。
 #248：worker 实现 I1 真实回合驱动（经门禁真实入口登记 dispatch 正文/request/stop/seq，protocol 假 API 按登记应答；ideation 回合经正常输入路径注入，不由 operator 代写；停在 I1 结束），先离线/spy 红绿，交 I1 待批材料（预计 1 root/1 Messages）。
+
+## A-06 I1 驱动提交与现场重建裁定 #249（2026-10-15 UTC）
+
+commit-09b-a06-i1.sh --check-only PASS（212 paths），正式 07a0efdd（工作树干净）。I1：protocol core 归一化真实 /v1/messages，绑定登记正文/seq/角色/attempt/session/fence；fake API 每次请求读取 roles/<role>/protocol-registry.json（动态登记），协议标记 a06-registered-anthropic-v1；I1 驱动 pane_dispatch → 写登记 → pane_release 一次，等 1 响应与 idle 后停。spy：1×200 绿、6×409 反例，0 进程。
+问题：A-06 正在运行的 API（47931/47932）是旧代码，驱动按协议标记拒绝 → 真实 I1 需新现场。
+#249 裁定：先离线证明 I2–I4、E1–E6 都只靠登记文件、无需再改 API 代码（逐阶段红绿）；若需改 API，现在改完。之后 A-06 owner-bound 清理（含 ideation Claude 54976/54977，经 daemon_stop/panes.shutdown，dry-run 先行），再用 prepare 生成 A-07 材料，阶段 A + B1 重走，I1 起在 A-07 上一路走完。
