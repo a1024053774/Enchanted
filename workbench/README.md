@@ -88,7 +88,7 @@ M验收目录独立，顺序为路径边界、验收文件、完成条件、红�
 在 `claim`、`dispatch` 或 `run` 上显式加 `--overlap-reason '具体理由'`，
 理由、冲突身份和路径一起保存到 `claim_path_check` 事件；worker 的转交通道不增加认领权限。
 门禁检查候选相对起点的净改动，以及 M 相对 G 的净改动。
-尾注归属核对 Task、Attempt、Session、Role。受管提交另把 Launch 与该 attempt 的启动记录号核对，并把 Tool、Model、Effort 与同一条记录核对；Model 为 unknown 时仍接受。不一致时拒收，码为 trailer_identity_mismatch。还没有这份记录的 attempt 只要求 Launch、Tool、Model、Effort 非空。外来任务或坏尾注被拒。
+尾注归属核对 Task、Attempt、Session、Role。受管提交另把 Launch 与该 attempt 的启动记录号核对，并把 Tool、Model、Effort 与同一条记录核对；Model 为 unknown 时仍接受。不一致时拒收，码为 trailer_identity_mismatch。带有 A2A 尾注、但该 attempt 没有这份启动记录时，尾注检查直接拒收，码为 trailer_launch_record_missing，trailer_check 事件写明缺启动记录。外来任务或坏尾注被拒。
 完全无 A2A 尾注的提交产生来源为“推断：缺尾注”的 action 用户输入和派生人工介入，
 不阻止集成，同 attempt 同 commit 重验不重复记录。
 

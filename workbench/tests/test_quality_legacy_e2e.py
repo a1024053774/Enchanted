@@ -27,7 +27,8 @@ class LegacyQuality(Tracer):
         save(self.evidence / ('turn-boundary-' + stage + '.json'), {'before': before, 'active': active, 'task': current})
 
     def manual_claim_reviewed_score_refused(self):
-        a, c = self.manual_candidate()
+        # Claim has no launch record. Trailers are rejected before review; provenance still applies when trailers are absent.
+        a, c = self.manual_candidate(trailers=False)
         driver = QualityDriver(q.base.GATE, self.state, self.control, self.env)
         driver.preparation(self.task, a, '手工 claim')
         self.cli('verify')

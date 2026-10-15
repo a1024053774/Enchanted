@@ -168,7 +168,8 @@ class WorktreeContracts(ContractChecks, DaemonCards):
 
     def test_clean_revoke(self):
         a = self.create()
-        c = self.commit(a)
+        # Claim has no launch record. Trailers would be rejected before this cleanup can run.
+        c = self.commit(a, trailers=False)
         self.submit(a, c)
         self.cli('verify')
         self.cli('revoke', '--reason', 'S3 independent clean revoke')
@@ -201,7 +202,8 @@ class WorktreeContracts(ContractChecks, DaemonCards):
                   ' json.dump({"cwd":os.getcwd(),"ref_exit":p.returncode,"ref":p.stdout},f)\n')
         self.card['completion_conditions'].append({'argv': [sys.executable, '-I', '-B', '-c', source]})
         a = self.create()
-        self.submit(a, self.commit(a))
+        # Claim has no launch record. Trailers would be rejected before the oracle observation is kept.
+        self.submit(a, self.commit(a, trailers=False))
         self.cli('verify')
         observed = json.loads(marker.read_text(encoding='utf-8'))
         self.assertEqual(observed['ref_exit'], 1, 'Verification must be detached while the oracle runs')
@@ -210,7 +212,8 @@ class WorktreeContracts(ContractChecks, DaemonCards):
 
     def test_completed_verification_cleanup(self):
         a = self.create()
-        c = self.commit(a)
+        # Claim has no launch record. Trailers would be rejected before a passed verification exists.
+        c = self.commit(a, trailers=False)
         self.submit(a, c)
         v = self.cli('verify')['verification']
         self.assertEqual(v['state'], 'passed')

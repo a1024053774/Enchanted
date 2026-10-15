@@ -307,9 +307,9 @@ class QualityCase(base.TaskCardsCLI):
         self.git('commit', '-m', 'Freeze independently supplied project rule')
         self.base = self.oid()
 
-    def manual_candidate(self, files=None):
+    def manual_candidate(self, files=None, trailers=True):
         a = self.create()
-        c = self.commit(a, files)
+        c = self.commit(a, files, trailers=trailers)
         self.submit(a, c)
         return a, c
 
@@ -401,7 +401,8 @@ class QualityCase(base.TaskCardsCLI):
                    {'attempt': a['attempt_id'], 'C2': c2}, current)
 
     def red_review_required(self):
-        self.manual_candidate()
+        # Claim has no launch record. Trailers stop at the trailer check, so this review case omits them.
+        self.manual_candidate(trailers=False)
         # The baseline reaches mechanical success. A candidate with this new
         # interface may pause while creating a reviewer; neither path may
         # report verified before an independent verdict.
@@ -413,7 +414,8 @@ class QualityCase(base.TaskCardsCLI):
                    {'reply': reply, 'state': current['state'], 'launches': launches})
 
     def red_terminal_prerequisites(self):
-        self.manual_candidate()
+        # Claim has no launch record. Trailers stop at the trailer check, so this integrate case omits them.
+        self.manual_candidate(trailers=False)
         self.cli('verify')
         before = self.oid()
         reply = self.gate('integrate')

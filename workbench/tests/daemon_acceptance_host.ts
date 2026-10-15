@@ -21,13 +21,25 @@ const audit = join(control, "submit-caller.jsonl");
 const launches = join(control, "worker-creations.jsonl");
 const owned = new Map<string, any>(existsSync(launches) ? readFileSync(launches, "utf8").trim().split("\n").filter(Boolean)
   .map((line) => { const row = JSON.parse(line); return [row.thread, row]; }) : []);
+// No file: the launch record keeps the card executor, as before. A test may write
+// observed-facts.json before dispatch so the record model/effort differ from the card.
+function observedExecutor(task: any): { model: string; effort: string } {
+  const file = join(control, "observed-facts.json");
+  if (!existsSync(file)) return { model: task.card.executor.model, effort: task.card.executor.effort };
+  const spec = JSON.parse(readFileSync(file, "utf8"));
+  if (typeof spec.model !== "string" || spec.model === "" || typeof spec.effort !== "string" || spec.effort === "") {
+    throw new Error("observed-facts.json needs non-empty model and effort strings");
+  }
+  return spec;
+}
 const controlledRuntime = {
   ...runtime,
   createThread: async (task: any, attempt: any) => {
     await runtime.createThread(task, attempt);
+    const observed = observedExecutor(task);
     const creation = { id: randomUUID(), role: "worker", thread: attempt.thread_id, task: task.task_id,
       attempt: attempt.attempt_id, session: attempt.session_id, shell_pid: 10000 + owned.size,
-      cli_version: "controlled-runtime fixture", model: task.card.executor.model, effort: task.card.executor.effort,
+      cli_version: "controlled-runtime fixture", model: observed.model, effort: observed.effort,
       evidence_layer: "synthetic external runtime creation; no provider/model execution" };
     appendFileSync(launches, JSON.stringify(creation) + "\n");
     owned.set(attempt.thread_id, creation);

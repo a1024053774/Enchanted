@@ -37,7 +37,10 @@ class DaemonRecovery(DaemonCards):
 
     def start(self, command):
         path = self.root / ('async-' + str(len(self.handles)))
-        argv = ['node', str(records.GATE), '--state', str(self.state), command, '--task', self.task]
+        extra = []
+        if command == 'integrate' and getattr(self, 'integration_score', None):
+            extra = ['--score-file', str(self.integration_score)]
+        argv = ['node', str(records.GATE), '--state', str(self.state), command, '--task', self.task, *extra]
         with path.with_suffix('.stdout').open('xb') as stdout, path.with_suffix('.stderr').open('xb') as stderr:
             process = subprocess.Popen(argv, cwd=self.root, env=self.env, stdout=stdout, stderr=stderr, start_new_session=True)
         handle = {'process': process, 'argv': argv, 'path': path, 'recorded': False}
@@ -88,15 +91,21 @@ class DaemonRecovery(DaemonCards):
         pid = self.daemon_pid()
         observation = self.process(['/bin/ps', '-o', 'pid=,ppid=,command=', '-p', str(pid)])
         self.assertEqual(observation.returncode, 0)
-        self.assertIn(str(records.GATE.parent.parent / 'daemon.ts'), observation.stdout)
+        # DaemonCards starts daemon_acceptance_host.ts, which calls serve() in-process.
+        # The live command is that host. T-075's direct node daemon.ts process is not this pid.
+        host = Path(__file__).resolve().with_name('daemon_acceptance_host.ts')
+        self.assertIn(str(host), observation.stdout)
         self.assertIn(str(self.state), observation.stdout)
         self.assertEqual(int((self.state / 'daemon.pid').read_text()), pid)
         (self.root / 'fault-owner.json').write_text(json.dumps({'pid': pid, 'signal': 'SIGKILL',
                                                               'ps': observation.stdout}) + '\n', encoding='utf-8')
+        self.assertEqual(self.host.pid, pid)
         os.kill(pid, signal.SIGKILL)
         self._daemon_state = None
         result = self.finish(handle)
         self.assertNotEqual(result['exit'], 0, 'Disconnected client must not report success')
+        # This host is the test's child. SIGKILL leaves a zombie until the parent waits.
+        self.host.wait(timeout=10)
         deadline = time.monotonic() + 10
         while True:
             seen = self.process(['/bin/ps', '-o', 'pid=', '-p', str(pid)])
@@ -141,7 +150,8 @@ class DaemonRecovery(DaemonCards):
             "from pathlib import Path; assert Path(sys.argv[1], 'src/value.txt').read_text() == 'worker\\n'") + '\n' + ORACLE_BARRIER
         self.card['completion_conditions'] = [{'argv': [sys.executable, '-I', '-B', '-c', source, '{worktree}']}]
         attempt = self.create()
-        self.submit(attempt, self.commit(attempt))
+        # Claim has no launch record. Trailers would be rejected before this verify can finish.
+        self.submit(attempt, self.commit(attempt, trailers=False))
         return attempt, control
 
     def test_daemon_verify_interruption_and_operation_lock(self):
@@ -177,7 +187,8 @@ class DaemonRecovery(DaemonCards):
         self.assertEqual(after['events'][:len(before['events'])], before['events'])
 
     def integration(self, phase, changed=None):
-        attempt = self.create()
+        # Integrate needs a launch record and an executor score. Claim-only trailers are rejected first.
+        attempt = self.create_managed()
         self.submit(attempt, self.commit(attempt))
         verified = self.cli('verify')['verification']
         control = self.root / 'git-barrier'; control.mkdir(); self.controls.append(control)

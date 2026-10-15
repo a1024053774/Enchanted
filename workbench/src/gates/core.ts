@@ -1996,13 +1996,16 @@ export class A2AGates {
         else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")
           error = "trailer_identity_mismatch";
         // Delivery is the launch record copied at submit. Model may be the literal unknown; tool, effort and launch may not.
-        else if (attempt.delivery && trailers.launch![0] !== attempt.delivery.launch_id) error = "trailer_identity_mismatch";
-        else if (attempt.delivery && trailers.tool![0] !== attempt.delivery.cli) error = "trailer_identity_mismatch";
-        else if (attempt.delivery && trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model) error = "trailer_identity_mismatch";
-        else if (attempt.delivery && trailers.effort![0] !== attempt.delivery.effort) error = "trailer_identity_mismatch";
+        else if (attempt.delivery) {
+          if (trailers.launch![0] !== attempt.delivery.launch_id) error = "trailer_identity_mismatch";
+          else if (trailers.tool![0] !== attempt.delivery.cli) error = "trailer_identity_mismatch";
+          else if (trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model) error = "trailer_identity_mismatch";
+          else if (trailers.effort![0] !== attempt.delivery.effort) error = "trailer_identity_mismatch";
+        } else error = "trailer_launch_record_missing";
       }
       this.event(task.task_id, "trailer_check", { commit, trailers, verification_id: v.verification_id,
-        card_snapshot_id: v.card_snapshot_id, passed: !error, missing, error });
+        card_snapshot_id: v.card_snapshot_id, passed: !error, missing, error,
+        ...(error === "trailer_launch_record_missing" ? { reason: "缺启动记录" } : {}) });
       requireGate(!error, error ?? "invalid_trailers", { commit, trailers });
       if (missing) this.appendUserInput({
         id: randomUUID(), schema: 1, form: "action", text: `用户本人提交 ${commit}（推断：缺尾注）`,
