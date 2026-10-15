@@ -88,3 +88,7 @@ worker 修正驱动：显式 --codex-home 隔离 home（只含 [permissions] 空
 - 外置盘夹具 sandbox-probe-02：git update-ref exit 128（cannot lock ref … main.lock: Operation not permitted），git push exit 1（unable to create temporary object directory / remote rejected）；读回 main=G，裸仓库无 probe。
 - /tmp 对照 /tmp/t081-capability-recheck-02：update-ref exit 0，push exit 0；读回 main=T，裸仓库新增 t081-probe。
 结论：先前 run-04 观察到的 "worker 能移动共享分支并 push" 来自夹具位于 /tmp（workspace-write 默认可写）；生产布局下同一沙箱策略拒绝两者。仍开放：prefix_rule allow 的 git commit 在沙箱外运行，其对共享 .git 的实际写入范围（hooks/config 副作用）未实测；CAS 外部移动走重验/再审查，被移入提交不在审查 diff（C 项）。夹具 sandbox-probe-02、/tmp/t081-capability-recheck-02 保留作证据。
+
+## git commit 写入范围实测派发（2026-10-15 UTC）
+
+用户决定（answer 20261015T035418Z-ideation-answer-001，ack 20261015T035429Z）："再实测 git commit 的写入范围"，选项原文"在上面基础上，另跑一组不调用模型的夹具，实测 worker 用 git commit 的各种参数能不能顺带改共享仓库的引用或配置。多花一点时间，把最后一个未知消掉。" CAS 重验行为暂不改。派给 s14-t081（6a 之后）：外置盘夹具 commit-scope-01，按 execpolicy 判定 → allow 沙箱外 / 否则 :workspace 沙箱内运行 → 逐项读回 refs、packed-refs、config、hooks、其他 worktree 元数据；覆盖 commit 后参数、commit 前 -c/--git-dir/--work-tree/-C、环境变量前缀、钩子路径。
