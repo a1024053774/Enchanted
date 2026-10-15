@@ -881,3 +881,7 @@ reuse resolver 的红绿与读回：旧 `reuse-red-02` 保留 `reused_api_identi
 ## B1 task binding/runtime path correction materials-05
 
 保留 approval-10 签字件、dry-run 与真实 B1 NameError 红态；复用分支现绑定 A-05 task 并将 runtime-input 写入按 label 的 P1 输出目录，controller-start 参数构造测试 PASS，删 task 变异被拒。approval-11 留空，materials-05 静态 launch NO_GO，A-05 现场不清理。
+
+## I1 offline Messages protocol red/green
+
+离线 I1 绿色请求 1 Messages/1 root，SSE 四事件；正文、dispatch.seq、request_id、role、预算五类变异均被独立 oracle 拒绝。无 socket/API/CLI/daemon/target/model；I1 待批材料绑定实际 ideation session/target attempt，launch NO_GO。
