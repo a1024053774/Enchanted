@@ -895,3 +895,7 @@ reuse resolver 的红绿与读回：旧 `reuse-red-02` 保留 `reused_api_identi
 A-05 cleanup 实跑后，脚本仅在事后补充 `archive_bytes=archive.stat().st_size` 字段（归档已存在、原 `result.json` 不改写）；原因是正式结果当时只记录 archive path/inventory/readback，缺归档字节数。原运行读回与归档保持不变。
 
 `09b-http-protocol-red-green-01` 用真实 loopback 服务取红/绿：旧阶段 A 模式 `/v1/messages` 返回 409；`--protocol` 模式按共享 `t078_09b_protocol_core.py` 返回 SSE 200；正文、seq、身份、role、超预算五项均返回 409。未启动 Claude、daemon、target 或供应商模型。A-06 runner/prepare 将引用同一 protocol core 与 fake API 文件，材料重冻前仍 launch NO_GO。
+
+## A-06 executable packet root gate and shared protocol freeze
+
+保留 A-06 阶段 A 红态：旧自造材料缺 static.root，在复制静态夹具处 KeyError 并建空 root；新 runner 在建 root 前拒绝缺 root/oracle/repo 字段，gate green spawned=false。A-06 materials-06 改由 prepare-09b-executable.py 同一格式生成并以 `--protocol` 记录，包含 shared protocol fake API/core，launch NO_GO。阶段 A 运行命令固定带 `--protocol`，让实际服务和离线 oracle 共用协议入口。
