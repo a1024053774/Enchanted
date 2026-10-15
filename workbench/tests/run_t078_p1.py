@@ -61,7 +61,8 @@ def snapshot():
     return value
 def raw_hook_receipts():
     records=[]
-    for directory in sorted((root/'hooks').iterdir()):
+    role_root=root/'roles'/approval['input']['preset']
+    for directory in sorted((role_root/'hooks').iterdir()):
         if (directory/'finished.json').exists():
             done=json.loads((directory/'finished.json').read_text(encoding='utf-8'))
             payload=json.loads((directory/'stdin.bin').read_bytes())
@@ -89,7 +90,7 @@ try:
         for name in frozen:
             if (SOURCE/name).read_bytes()!=archive.extractfile(name).read():raise RuntimeError('Approved source changed: '+name)
     if args.phase=='launch':
-        isolated_settings=(root/'claude/settings.json').read_bytes()
+        isolated_settings=(root/'roles'/approval['input']['preset']/'claude/settings.json').read_bytes()
         if isolated_settings!=(materials/'isolated-settings.json').read_bytes() or json.loads(isolated_settings)!={'theme':'dark'}:
             raise RuntimeError('approved_isolated_settings_changed')
         with (root/'api.stdout').open('xb') as stdout,(root/'api.stderr').open('xb') as stderr:

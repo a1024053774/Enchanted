@@ -10,6 +10,7 @@ const [materials, output] = process.argv.slice(2);
 mkdirSync(output);
 const approval = JSON.parse(readFileSync(join(materials, "approval.json"), "utf8"));
 const input = approval.input;
+for(const preset of ["ideation","executor"])for(const name of ["home","claude","tmp","shell","requests","hooks","user-data"])mkdirSync(join(input.root,"roles",preset,name),{recursive:true});
 const task: any = { task_id: input.task, project_id: "t078-p1-project", repo: join(input.root, "repo"),
   spec_rev: 1, base_commit: input.code_revision };
 const profile = claudeLaunch(task, input);
@@ -22,17 +23,17 @@ check("isolated_profile_environment", () => {
   assert.equal(Object.hasOwn(profile.env,"IS_DEMO"),false);
   assert.equal(Object.hasOwn(approval.launch.env,"IS_DEMO"),false);
   assert.equal(profile.env.CLAUDE_CODE_DISABLE_TERMINAL_TITLE,"1");
-  assert.equal(profile.env.HOME, join(input.root, "home"));
-  assert.equal(profile.env.CLAUDE_CONFIG_DIR, join(input.root, "claude"));
+  assert.equal(profile.env.HOME, join(input.root, "roles", "ideation", "home"));
+  assert.equal(profile.env.CLAUDE_CONFIG_DIR, join(input.root, "roles", "ideation", "claude"));
 });
 check("isolated_theme_is_only_setting", () => {
-  const settings = readFileSync(join(input.root, "claude/settings.json"));
+  const settings = readFileSync(join(input.root, "roles/ideation/claude/settings.json"));
   assert.deepEqual(JSON.parse(settings.toString("utf8")), { theme: "dark" });
   assert.deepEqual(settings, readFileSync(join(materials, "isolated-settings.json")));
 });
 check("no_internal_state_preseed", () => {
-  assert.equal(existsSync(join(input.root, "claude/.claude.json")), false);
-  assert.equal(existsSync(join(input.root, "home/.claude.json")), false);
+  assert.equal(existsSync(join(input.root, "roles/ideation/claude/.claude.json")), false);
+  assert.equal(existsSync(join(input.root, "roles/ideation/home/.claude.json")), false);
   assert.deepEqual(Object.keys(profile.settings), ["hooks"]);
   assert.equal(profile.argv.includes("--bare"), false);
 });

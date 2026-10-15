@@ -719,7 +719,7 @@ export class Panes implements GateRuntime {
     check(value.session_id === pane.native, "hook_native_session_mismatch");
     if (pane.record.cli === "Claude Code") {
       // 08e recorded prompt_id on UPS and Stop; it identifies the actual CLI prompt.
-      check([1,2].includes(pane.record.turn_limit), "claude_turn_correlation_unverified");
+      check(Number.isInteger(pane.record.turn_limit) && pane.record.turn_limit >= 1 && pane.record.turn_limit <= 6, "claude_turn_correlation_unverified");
       if (value.hook_event_name === "PermissionRequest") {
         check(pane.active && pane.claudePromptId && value.prompt_id === pane.claudePromptId, "permission_prompt_mismatch");
         pane.permission = { prompt_id: value.prompt_id, submission: pane.active.id };

@@ -9,6 +9,7 @@ const help=readFileSync(helpFile,"utf8");
 assert.ok(help.includes("--append-system-prompt <prompt>"),"Official installed CLI help must name the text option");
 const root=realpathSync(mkdtempSync("/tmp/t078-2-role-"));
 for(const name of ["state","repo","home","claude"])mkdirSync(join(root,name));
+for(const preset of ["ideation","executor"])for(const name of ["home","claude","tmp","shell","requests","hooks","user-data"])mkdirSync(join(root,"roles",preset,name),{recursive:true});
 const role="只回复 P1_ROLE_SENTINEL\n保留字符：' \"$()\" `literal`。\n";
 writeFileSync(join(root,"role.md"),role,"utf8");
 const task:any={task_id:"role-fixture",project_id:"role-project",repo:join(root,"repo"),spec_rev:1,base_commit:"a".repeat(40)};

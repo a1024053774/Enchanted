@@ -10,6 +10,7 @@ import { claudeLaunch } from "../src/claudeLaunch.ts";
 const [output] = process.argv.slice(2); mkdirSync(output);
 const root = realpathSync(mkdtempSync("/tmp/t078-2-auth-"));
 for (const name of ["state", "repo", "home", "claude"]) mkdirSync(join(root, name));
+for (const preset of ["ideation", "executor"]) for (const name of ["home", "claude", "tmp", "shell", "requests", "hooks", "user-data"]) mkdirSync(join(root, "roles", preset, name), { recursive: true });
 writeFileSync(join(root, "role.md"), "公开假服务认证构造检查。\n", "utf8");
 const task: any = { task_id: "auth-fixture", project_id: "t078-p1-project", repo: join(root, "repo"),
   spec_rev: 1, base_commit: "a".repeat(40) };
@@ -29,8 +30,8 @@ check("public_bearer_without_api_key", () => {
 });
 check("endpoint_and_isolation_preserved", () => {
   assert.equal(profile.env.ANTHROPIC_BASE_URL, "http://127.0.0.1:12345");
-  assert.equal(profile.env.HOME, join(root, "home"));
-  assert.equal(profile.env.CLAUDE_CONFIG_DIR, join(root, "claude"));
+  assert.equal(profile.env.HOME, join(root, "roles", "ideation", "home"));
+  assert.equal(profile.env.CLAUDE_CONFIG_DIR, join(root, "roles", "ideation", "claude"));
   assert.equal(Object.hasOwn(profile.env,"IS_DEMO"),false);
   assert.deepEqual(Object.keys(profile.settings), ["hooks"]);
   assert.equal(profile.argv.includes("--bare"), false);

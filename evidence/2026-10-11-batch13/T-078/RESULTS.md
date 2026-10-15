@@ -777,3 +777,13 @@ cleanup PASS后交原身份 [冻结／新材料提交脚本](commit-and-prepare-
 [cleanup-185](p1-materials-slice1-green-3/cleanup-185/result.json) **PASS**：原进程退出、最多仅API49173一次SIGTERM、外置归档字节读回后删除成功根；slot仍保留。source `c6a81742eac12736bb5fd407401d578ded58e5fd`。
 
 [09B计划包](09b-materials-01/static-check.json) 静态 **PASS**，root `/private/tmp/t078-2-09b-plan-4mzvkbne`，source/Git/tar逐文件相同；包含独立角色目录／拟argv/env、协议、oracle、task卡和空审批模板。明确 **launch NO_GO**：当前profile与双角色阶段驱动前置未完成；未创建Git repo／broker／角色／目标，实际09B、09C、独立reviewer、整票仍INCOMPLETE。
+
+## 09B 前置产品切片：角色隔离目录与 6 根预算
+
+主控 #187 已审 09B 计划方向，预算 I=4/6、E=6/11、合计17、模型0。本轮只做前置，不实现双角色业务驱动，不启动 CLI/API/目标。
+
+[修改前红态](09b-profile-red-02/results.json) 记录真实 `claudeLaunch` 构造的共享六路径（HOME、CLAUDE_CONFIG_DIR、TMPDIR、ZDOTDIR、A2A_REQUEST_DIR、A2A_HOOK_TRACE_DIR）及第三根 `invalid_controller_turn_limit`。修改后 [绿态](09b-profile-green-01/results.json) 通过真实生产构造器：同一 broker/state/repo 下由 `roles/<preset>/` 推导独立 home/config/tmp/shell/requests/hooks/user-data/debug，路径无交集；3 根接受、7 根拒绝。旧 root 级路径不再由 P1 生成器创建，不留 fallback。
+
+`panes.ts` Claude 信号接受 1～6 根；P1 生成／续跑同步角色目录、role config/settings、hook 读回和 user-data。profile08、auth、role prompt、两回合预算构造回归以及单角色 relay22、permission3、entry6、empty-declaration17 均 PASS；无 CLI/API/UI/model。
+
+本切片只改 claudeLaunch、panes、P1 生成／续跑和 profile tests；relay/core/daemon/caller/Stop 业务未变，根路径校验保留。交 [前置提交脚本](commit-09b-pre.sh)：提交后再实现双角色 fake API／阶段驱动／独立 oracle，绑定实际登记正文、stop/request ID 和全局 dispatch.seq；另交可执行 launch 包审阅。当前双角色仍 plan-review、launch NO_GO，09B/09C 实跑与独立 reviewer INCOMPLETE。
