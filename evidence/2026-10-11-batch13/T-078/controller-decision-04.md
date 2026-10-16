@@ -706,3 +706,7 @@ reviewer s16-t078-rev2 的沙箱外脚本主控运行：M1 首启 drain、M2 入
 ## 完成条件补强与入口复验 #312（2026-10-16 UTC）
 
 worker 补每键后、release 前经真实收据刷新路径断言原条目仍 queued、无 delivered 历史、无 I2，提交 68d7749c2（仅测试，9 条尾注）；领域 15/15 PASS，M5 在新断言处失败。主控沙箱外运行 STARTUP-RECEIPT-ENTRY-COMMAND-01：PASS（09b-startup-receipt-entry-01，legacy_survival false，M5 失败于 "startup refreshed delivery 0: observed delivered expected queued"，0 模型回合）。新的独立审查待 T-082 审查结束后开（Codex 会话上限 3）。
+
+## startup 差异审查 02 PASS 与变基 #313–#316（2026-10-16 UTC）
+
+reviewer s16-t078-rev3 审 68d7749c2（含产品 06fc9feca）：第一轮 P1 已解决（每键后、release 前经真实收据刷新路径断言 queued、无 delivered、无 I2；M5 在新断言失败），四个错误实现（含新增的异步身份核对后状态复查缺失）全部被拒，结论 PASS（仅限该差异）。提交 cd8ca713e，输出归档外置盘 startup-review-02/，窗格回收。#315 派 A-14 回收与 A-15 准备。其间 T-082 合入 main（a75070236），#316 要求先把 exec/t078 变基到 main 并重跑本线回归，A-15 用变基后的源码。
