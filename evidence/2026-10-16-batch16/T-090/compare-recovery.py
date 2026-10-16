@@ -1,4 +1,4 @@
-"""串行采集三个历史版本的两个原恢复用例；不是产品通过判定。"""
+"""串行采集选定历史版本的两个原恢复用例；不是产品通过判定。"""
 import argparse
 import collections
 import datetime
@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[3]
 BASE = Path(__file__).resolve().parent
 ARCHIVE_ROOT = Path('/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090')
 VERSIONS = [('pre-T082', '150ef6516f6ef5aaa6855631b770ce262991ffbf'),
+            ('main-before-T082', '271ac55d82d0e20067e03e2fa4a990e55ef7b434'),
             ('main-T082', '0e6c2b833f6da64243f71d670ea45bb9116fda4d'),
             ('T090', '18dd12c29f523227d9fc6fd4c123a674f10bf7fa')]
 CASES = ['test_after_CAS_deleted_ref_requires_reconciliation',
@@ -34,6 +35,23 @@ def inventory(path):
     paths = list(path.rglob('*'))
     return {'files': sum(p.is_file() or p.is_symlink() for p in paths),
             'bytes': sum(p.lstat().st_size for p in paths if p.is_file() or p.is_symlink())}
+
+
+def daemon_exit_evidence(artifact, daemon):
+    if not daemon.get('confirmed_exited'):
+        raise RuntimeError('宿主退出未确认')
+    injected = [entry for entry in artifact['signals']
+                if entry.get('pid') == daemon['pid'] and entry.get('target') == 'owned-daemon'
+                and entry.get('daemon_generation') == daemon['generation']
+                and entry.get('signal') == 'SIGKILL' and entry.get('signal_number') == 9
+                and entry.get('reason') == 'after real Git CAS']
+    if len(injected) > 1: raise RuntimeError('同代次故障注入记录不唯一')
+    expected = -9 if injected else 0
+    if daemon.get('process_exit') != expected:
+        raise RuntimeError('宿主退出状态与该 PID/代次的故障注入不符')
+    return {'test': artifact['test'], 'pid': daemon['pid'], 'generation': daemon['generation'],
+            'confirmed_exited': daemon['confirmed_exited'], 'process_exit': daemon['process_exit'],
+            'expected_exit': expected, 'fault_injection': injected[0]['reason'] if injected else None}
 
 
 def summarize(folder):
@@ -77,10 +95,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--label', required=True)
     parser.add_argument('--check-only', action='store_true')
+    parser.add_argument('--version', choices=[name for name, _ in VERSIONS], action='append')
     parser.add_argument('--dependencies', type=Path,
                         default=Path('/Users/luckye/Documents/Code/a2a/workbench/node_modules'))
     args = parser.parse_args()
     if not args.label.replace('-', '').isalnum(): raise RuntimeError('Invalid label')
+    if args.version and len(set(args.version)) != len(args.version): raise RuntimeError('Version repeated')
+    selected = [(name, revision) for name, revision in VERSIONS if not args.version or name in args.version]
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(('A2A_', 'GIT_', 'COOP_', 'CODEX_', 'CLAUDE_', 'ANTHROPIC_', 'OPENAI_', 'NODE_COMPILE_CACHE'))}
     env.update(PYTHONDONTWRITEBYTECODE='1', GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1')
@@ -103,14 +124,15 @@ def main():
     if not all(data == originals[0] for data in originals): raise RuntimeError('原恢复验收跨版本字节不同')
     if args.check_only:
         print(json.dumps({'status': 'PASS', 'scope': 'Git objects and dependency paths only; no host/test/clone',
-            'versions': VERSIONS, 'cases': CASES, 'acceptance_same_bytes': True,
+            'versions': VERSIONS, 'selected': selected, 'cases': CASES, 'acceptance_same_bytes': True,
             'overlay_only': RUNNER, 'real_model_turns': 0}, ensure_ascii=False))
         return 0
     if git('diff', 'HEAD', '--', *PROTECTED, RUNNER): raise RuntimeError('当前相关源码有未提交改动')
     out = ARCHIVE_ROOT / args.label; out.mkdir(parents=True, exist_ok=False)
     workspace = Path(tempfile.mkdtemp(prefix='t090-compare-', dir='/tmp')).resolve()
     record = {'status': 'INCOMPLETE', 'product_status': 'INCOMPLETE', 'argv': sys.argv,
-              'scope': 'Three-version diagnostic capture; test outcomes are not overwritten',
+              'scope': 'Selected historical diagnostic capture; test outcomes are not overwritten',
+              'selected': selected,
               'real_model_turns': 0, 'vendor_CLI_starts': 0, 'cases': CASES, 'versions': [],
               'source_workspace': str(workspace), 'commands': [], 'archive': str(out),
               'started_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
@@ -149,7 +171,7 @@ def main():
         version = (out / '01.stdout.txt').read_text(encoding='utf-8').strip()
         if code or not version.startswith('v26.5.'): raise RuntimeError('需要已核对的 Node 26.5 系列')
         record['node'] = version
-        for name, revision in VERSIONS:
+        for name, revision in selected:
             folder = out / name; folder.mkdir()
             checkout = workspace / name
             for argv in (['git', '-c', 'core.hooksPath=/dev/null', 'clone', '--shared', '--no-checkout', ROOT, checkout],
@@ -188,12 +210,11 @@ def main():
             row['daemon_exits'] = []
             for artifact in artifacts:
                 for daemon in artifact['daemons']:
-                    row['daemon_exits'].append({'test': artifact['test'],
-                        **{k: daemon.get(k) for k in ('pid', 'confirmed_exited', 'process_exit')}})
-                    if not daemon.get('confirmed_exited') or daemon.get('process_exit') != 0:
-                        raise RuntimeError('宿主退出未确认；不启动下一版本、不发额外信号')
+                    evidence = daemon_exit_evidence(artifact, daemon)
+                    row['daemon_exits'].append(evidence)
                     observed = subprocess.run(['/bin/ps', '-p', str(daemon['pid']), '-o', 'pid='], env=env,
                                               capture_output=True, text=True)
+                    evidence['ps'] = {'exit_code': observed.returncode, 'stdout': observed.stdout, 'stderr': observed.stderr}
                     if observed.returncode != 1 or observed.stdout.strip():
                         raise RuntimeError('原宿主 PID 仍存在或无法核对，保留全部现场')
             row['fixture_archive'] = archive_owned(Path(result['artifact_root']), 's3f-')
