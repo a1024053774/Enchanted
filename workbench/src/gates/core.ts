@@ -2165,6 +2165,11 @@ export class A2AGates {
     const row = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='review_result' AND json_extract(details,'$.review.review_id')=? ORDER BY seq DESC LIMIT 1")
       .get(task.task_id, attempt.attempt_id, review.review_id);
     requireGate(row && JSON.stringify(JSON.parse(String(row.details)).review) === JSON.stringify(review), "stale_review");
+    // Both callers hold the task operation lock. Reclaim writes this record
+    // under the same lock only after boundary checks and both cleanup steps.
+    const ended = this.db.prepare("SELECT 1 FROM events WHERE task=? AND attempt=? AND type='review_reclaimed' AND json_extract(details,'$.review_id')=?")
+      .get(task.task_id, attempt.attempt_id, review.review_id);
+    requireGate(ended, "review_end_check_required");
     return review;
   }
 
@@ -3446,6 +3451,9 @@ export class A2AGates {
         requireGate(!reused, "review_native_session_reused");
         const verdict = reviewVerdict(args.verdict, args.findings);
         const evidence = reviewEvidence(args.review_requirements, args.report);
+        requireGate(evidence.review_requirements.mutation_checks.workspace === review.candidate_workspace,
+          "review_requirements_mismatch", { expected: review.candidate_workspace,
+            actual: evidence.review_requirements.mutation_checks.workspace });
         review.runtime_identity = bound.runtime_identity;
         review.result = { ...verdict, ...evidence, turn_id: caller.turn, received_at: new Date(this.now()).toISOString() };
         review.state = verdict.verdict === "可合并" ? "passed" : "needs_fix";

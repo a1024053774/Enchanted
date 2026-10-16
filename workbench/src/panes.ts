@@ -153,9 +153,9 @@ export class Panes implements GateRuntime {
     const model = task.card.executor.model, effort = task.card.executor.effort;
     check(task.card.executor.cli === "Codex" && ["gpt-6-astra", "gpt-6.1-sol"].includes(model) && effort === "xhigh", "worker_executor_mismatch");
     const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
-    const sandboxMode = review ? "workspace-write" : "workspace-write";
-    const networkAccess = review ? "false" : "false";
-    const networkProxy = review ? "false" : "false";
+    const sandboxMode = "workspace-write";
+    const networkAccess = "false";
+    const networkProxy = "false";
     const excludeSlashTmp = review ? "true" : "false";
     const excludeTmpdir = review ? "true" : "false";
     const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,

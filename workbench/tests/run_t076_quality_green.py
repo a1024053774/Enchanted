@@ -125,8 +125,8 @@ def main():
             ('score-fields-unchecked', 'tracer_score_required', 'TRACER-SCORE-FIELDS', 'gates/qualityProtocol.ts',
              'export function executorScore(value: unknown, command: "integrate" | "abandon" = "integrate"): Record<string, unknown> {',
              'export function executorScore(value: unknown, command: "integrate" | "abandon" = "integrate"): Record<string, unknown> { return value as Record<string, unknown>;'),
-            ('reviewer-readonly', 'tracer_success', 'TRACER-REVIEW-COPY-ARGV', 'panes.ts',
-             'const sandboxMode = review ? "workspace-write" : "workspace-write";',
+            ('reviewer-readonly', 'tracer_success', 'TRACER-REVIEW-START', 'panes.ts',
+             'const sandboxMode = "workspace-write";',
              'const sandboxMode = review ? "read-only" : "workspace-write";'),
             ('prior-turn-score-facts', 'tracer_missing_delivery_context', 'TRACER-DELIVERY-CONTEXT', 'panes.ts',
              'pane.model = "unknown"; pane.effort = "unknown";', '// Test mutant: retain the prior turn facts'),
@@ -150,6 +150,12 @@ def main():
             row = report['cases'][0]
             if result.returncode != 1 or row['outcome'] != 'contract_failure' or row.get('failure_id') != failure_id:
                 raise RuntimeError('Mutant was not detected at its specified business boundary: ' + name)
+            if name == 'reviewer-readonly':
+                refusal = next(a['actual'] for a in row['assertions']
+                               if a['id'] == 'TRACER-REVIEW-START' and not a['passed'])
+                argv = refusal['details']['launch']['argv']
+                if refusal['error'] != 'review_launch_boundary' or argv[argv.index('--sandbox') + 1] != 'read-only':
+                    raise RuntimeError('Readonly variant did not produce the required gate boundary refusal.')
         record['status'] = 'PASS'
     except Exception as error:
         record.update(error=repr(error), traceback=traceback.format_exc())

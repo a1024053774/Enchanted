@@ -114,6 +114,9 @@ reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含
 2～5 个变异。启动 argv 显式关闭网络代理并排除 `/tmp` 与 `$TMPDIR`，不安装 Git 尾注 hook，
 会话 hook 仍只经启动 argv 传入。审查结束前门禁核对候选提交、审查 worktree、worker worktree
 和共享仓库引用未变，随后删除候选副本；边界不符则作废结论并上报。
+报告入库不等于获得集成资格：`integrate` 在任务操作锁内核对本次 review 的
+`review_reclaimed` 完成记录。结束核对与副本、审查 worktree 清理全部完成后才写该记录；
+完成前集成明确拒收，不前移项目工作分支。
 
 按用户2026-10-13的决定，Codex会话使用gpt-6.1-sol、xhigh及普通速度，
 worker/reviewer的argv显式传`-c service_tier="default"`，派发事件与启动记录写requested tier为`default`。
@@ -123,6 +126,7 @@ worker/reviewer的argv显式传`-c service_tier="default"`，派发事件与启�
 reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选模板由门禁派发。
 模板中的 `review_requirements` 原样返回；`report` 是非空 JSON 对象，须含“完成条件与变异检查”键，用于保存完成条件审查、
 变异命令与结果。解析器严格核对顶层字段，relay 和门禁结果保留完整报告。
+门禁在保存报告前核对其中的 `mutation_checks.workspace` 等于本次候选副本路径。
 门禁只核对报告容器、必需节键与请求格式，不判断报告结论或变异结果是否正确。
 匹配 Stop 的后台 hook 处理器把显式 JSON 落入该 launch 专用请求文件，再经原 B relay
 转交。程序不剥 Markdown fence、不抽取一段 JSON、不从自然语言猜结论。

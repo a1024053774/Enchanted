@@ -12,16 +12,13 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import traceback
 
 
 ROOT = Path(__file__).resolve().parents[2]
 TMP_ROOT = Path('/private/tmp') if Path('/private/tmp').is_dir() else Path('/tmp').resolve()
-
-
-def q76_dirs():
-    return {path.resolve() for path in TMP_ROOT.glob('q76-*') if path.is_dir()}
 
 
 def save(path, value):
@@ -64,8 +61,10 @@ def main():
     result = {'status': 'INCOMPLETE', 'product_status': 'INCOMPLETE', 'real_codex_turns': 0,
               'source': str(source), 'output': str(output), 'steps': [],
               'started_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
-    fixture_root = Path(tempfile.mkdtemp(prefix='t082-boundary-', dir=str(TMP_ROOT))).resolve()
-    q76_before = q76_dirs()
+    fixture_root = Path(tempfile.mkdtemp(prefix='t082-boundary-',
+                        dir=os.environ.get('A2A_TEST_ARTIFACT_PARENT', '/Volumes/WD-Elements'))).resolve()
+    fixture_parent = Path(os.environ.get('A2A_TEST_ARTIFACT_PARENT', str(TMP_ROOT))).resolve()
+    cleanup_confirmed = False
     try:
         green = run_case(source, output, 'tracer_review_copy')
         result['steps'].append({'name': 'green-tracer', **green})
@@ -74,13 +73,13 @@ def main():
             failures.append('green-tracer')
         mutations = [
             ('readonly-argv',
-             'const sandboxMode = review ? "workspace-write" : "workspace-write";',
+             'const sandboxMode = "workspace-write";',
              'const sandboxMode = review ? "read-only" : "workspace-write";'),
             ('wrong-workspace',
              'const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;',
              'const launchWorkspace = review ? review.workspace : attempt.workspace;'),
             ('network-enabled',
-             'const networkAccess = review ? "false" : "false";',
+             'const networkAccess = "false";',
              'const networkAccess = review ? "true" : "false";'),
             ('tmp-writable',
              'const excludeSlashTmp = review ? "true" : "false";',
@@ -95,18 +94,39 @@ def main():
                 failures.append(name)
         result['failures'] = failures
         result['status'] = result['product_status'] = 'PASS' if not failures else 'INCOMPLETE'
+        cleanup_confirmed = True
     except Exception as error:
         result.update(error=repr(error), traceback=traceback.format_exc())
     finally:
         result['ended_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        q76_after = q76_dirs()
-        q76_created = sorted(str(path) for path in q76_after - q76_before)
-        result['q76_created'] = q76_created
-        for path in q76_after - q76_before:
-            shutil.rmtree(path, ignore_errors=True)
-        result['q76_remaining'] = sorted(str(path) for path in q76_dirs() - q76_before)
+        owned = []
+        for index, step in enumerate(result['steps']):
+            report = step.get('report')
+            if not report or any(case.get('cleanup_failures') for case in report['cases']):
+                cleanup_confirmed = False
+                continue
+            artifact = Path(report['artifact_root']).resolve()
+            try:
+                if artifact.parent != fixture_parent or not artifact.name.startswith('q76-'):
+                    raise RuntimeError('Unexpected child fixture ownership: ' + str(artifact))
+                owned.append(artifact)
+                archive = output / ('owned-fixture-%d.tar.gz' % index)
+                with tarfile.open(archive, 'x:gz') as stream:
+                    stream.add(artifact, arcname=artifact.name)
+                step['fixture_archive'] = str(archive)
+                shutil.rmtree(artifact)
+            except Exception as error:
+                cleanup_confirmed = False
+                result.update(status='INCOMPLETE', product_status='INCOMPLETE', cleanup_error=repr(error))
+        result['q76_created'] = list(map(str, owned))
+        result['q76_remaining'] = [str(path) for path in owned if path.exists()]
+        if cleanup_confirmed:
+            try:
+                shutil.rmtree(fixture_root)
+            except Exception as error:
+                result.update(status='INCOMPLETE', product_status='INCOMPLETE', cleanup_error=repr(error))
+        result.update(mutation_fixture_root=str(fixture_root), mutation_fixture_removed=not fixture_root.exists())
         save(output / 'run.json', result)
-        shutil.rmtree(fixture_root, ignore_errors=True)
         print(json.dumps({'status': result['status'], 'product_status': result['product_status'],
                           'real_codex_turns': result['real_codex_turns']}), flush=True)
     return 0 if result['status'] == 'PASS' else 1

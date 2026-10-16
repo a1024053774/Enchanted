@@ -4,8 +4,11 @@ The host supplies only PTY/process observations. The gate remains responsible
 for the review request, candidate-copy lifecycle, launch policy, and refusal.
 """
 import argparse
+import datetime
 import json
 from pathlib import Path
+import socket
+import uuid
 
 from test_quality_chain_e2e import HarnessFailure, run_cases, save
 from test_quality_tracer_e2e import Tracer
@@ -88,6 +91,103 @@ class ReviewBoundary(Tracer):
                    'outside review-worktree change invalidates the result and preserves the disposable copy for diagnosis',
                    {'task': task, 'events': events})
 
+    def shared_refs_changed(self):
+        _, candidate = self.good_submission()
+        review, record = self.start_review(candidate)
+        self.git('update-ref', 'refs/t082/unexpected', candidate)
+        self.send_review(review, record, self.review_packet(review, candidate))
+        events = self.wait_for(self.events, lambda rows: any(
+            e['type'] in ('review_reclaimed', 'review_lifecycle_failed') for e in rows))
+        task = self.cli('status')['task']
+        proof = {'task': task, 'events': events,
+                 'refs': self.git('for-each-ref', '--format=%(refname)=%(objectname)'),
+                 'copy_exists': Path(review['candidate_workspace']).exists(), 'main_head': self.oid()}
+        save(self.evidence / 'shared-refs-readback.json', proof)
+        self.check('REVIEW-REFS-INVALIDATE', task['state'] == 'paused' and task['review']['state'] == 'unknown'
+                   and proof['copy_exists'] and proof['main_head'] == self.base
+                   and any(e['type'] == 'issue_issue' for e in events)
+                   and any(e['type'] == 'review_lifecycle_failed'
+                           and e['details']['details'].get('error') == 'review_shared_refs_changed' for e in events)
+                   and not any(e['type'] == 'review_reclaimed' for e in events),
+                   'changed shared refs invalidate the review, report an issue and retain the copy before integration', proof)
+
+    def requirements_workspace_changed(self):
+        _, candidate = self.good_submission()
+        review, record = self.start_review(candidate)
+        packet = self.review_packet(review, candidate)
+        packet['review_requirements']['mutation_checks']['workspace'] = str(self.root / 'wrong-copy')
+        task = self.send_review(review, record, packet)
+        proof = {'submitted': packet, 'task': task, 'expected_workspace': review['candidate_workspace'],
+                 'events': self.events()}
+        save(self.evidence / 'requirements-workspace-readback.json', proof)
+        self.check('REVIEW-REQUIREMENTS-WORKSPACE', task['state'] == 'paused'
+                   and task['review']['state'] == 'unknown' and not task['review'].get('result')
+                   and not any(e['type'] == 'review_result' for e in proof['events']),
+                   'changed request workspace is refused before any report is persisted', proof)
+
+    def integration_before_end_check(self):
+        self.integration_window(dirty=True)
+
+    def integration_before_end_check_clean(self):
+        self.integration_window(dirty=False)
+
+    def integration_window(self, dirty):
+        _, candidate = self.good_submission()
+        review, record = self.start_review(candidate)
+        outside = Path(review['workspace']) / 'external-before-end.txt'
+        if dirty:
+            outside.write_text('External change must be checked before integration.\n', encoding='utf-8')
+        stop = {'session_id': record['native'], 'turn_id': 'fixture-turn-1', 'hook_event_name': 'Stop',
+                'last_assistant_message': json.dumps(self.review_packet(review, candidate), ensure_ascii=False)}
+        message = {'id': str(uuid.uuid4()), 'input': {'command': 'signal', 'launch': record['launch'],
+                   'raw_stdin': json.dumps(stop, ensure_ascii=False),
+                   'received_at': datetime.datetime.now(datetime.timezone.utc).isoformat()},
+                   'identity': {'launch': record['launch'], 'token': record['env']['A2A_CAPABILITY'],
+                                'native_session': record['native']}}
+        # Keep the real socket's client write-half open. The product still owns
+        # signal handling and its close-triggered reclaim; no callback is mocked.
+        held = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        held.settimeout(15)
+        try:
+            held.connect(str(self.state / 'control.sock'))
+            held.sendall((json.dumps(message, ensure_ascii=False) + '\n').encode())
+            response = b''
+            while b'\n' not in response:
+                chunk = held.recv(65536)
+                if not chunk:
+                    raise HarnessFailure('Signal socket closed before a complete receipt.')
+                response += chunk
+            receipt = json.loads(response.split(b'\n', 1)[0])
+            if not receipt.get('ok') or not receipt.get('completedReview'):
+                raise HarnessFailure('Valid report was not received: ' + json.dumps(receipt))
+            events = self.events()
+            if any(e['type'] == 'review_reclaimed' for e in events):
+                raise HarnessFailure('The held-socket boundary was not established.')
+            before = self.cli('status')['task']
+            result = self.gate('integrate', '--attempt', self.a['attempt_id'], '--score-file', self.score_file())
+            proof = {'stop_receipt': receipt, 'before_integration': before, 'integration': result,
+                     'main_head': self.oid(), 'base': self.base, 'dirty': dirty,
+                     'outside_change_exists': outside.exists(), 'events': self.events()}
+            save(self.evidence / 'integration-before-end-check.json', proof)
+        finally:
+            held.close()
+        events = self.wait_for(self.events, lambda rows: any(
+            e['type'] in ('review_reclaimed', 'review_lifecycle_failed') for e in rows))
+        task = self.cli('status')['task']
+        save(self.evidence / 'after-release.json', {'task': task, 'events': events, 'main_head': self.oid()})
+        self.check('REVIEW-END-BEFORE-INTEGRATE', not result.get('ok') and proof['main_head'] == self.base,
+                   'integration before the review end check must refuse and leave main unchanged', proof)
+        if dirty:
+            self.check('T082-DIRTY-END-INVALIDATE', task['state'] == 'paused'
+                       and task['review']['state'] == 'unknown' and self.oid() == self.base
+                       and not any(e['type'] in ('review_reclaimed', 'integrated') for e in events)
+                       and any(e['type'] == 'issue_issue' for e in events),
+                       'end-check failure invalidates the report before any integration', task)
+        else:
+            integrated = self.gate('integrate', '--attempt', self.a['attempt_id'], '--score-file', self.score_file())
+            self.check('T082-INTEGRATE-AFTER-END', integrated['ok'] and self.oid() == candidate,
+                       'the same valid candidate can integrate after confirmed end checks and cleanup', integrated)
+
     def real_payload_report_roundtrip(self):
         _, candidate = self.good_submission()
         review, record = self.start_review(candidate)
@@ -118,7 +218,8 @@ class ReviewBoundary(Tracer):
 
 
 CASES = ['tracer_review_copy', 'launch_boundary_refused', 'external_review_boundary_invalidated',
-         'real_payload_report_roundtrip']
+         'real_payload_report_roundtrip', 'shared_refs_changed', 'requirements_workspace_changed',
+         'integration_before_end_check', 'integration_before_end_check_clean']
 
 
 def main():

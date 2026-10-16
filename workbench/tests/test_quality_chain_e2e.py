@@ -652,7 +652,9 @@ def run_cases(source, output, names, case_type=QualityCase, dialect='legacy', st
     SOURCE, OUT, DIALECT = source.resolve(), output.resolve(), dialect
     OUT.mkdir(parents=True, exist_ok=False)
     base.GATE = SOURCE / 'workbench/src/gates/cli.ts'
-    base.ARTIFACT_ROOT = Path(tempfile.mkdtemp(prefix='q76-', dir='/tmp')).resolve()
+    # New controlled runs can select the external fixture disk explicitly;
+    # this setting belongs to the test process and is not passed to the gate.
+    base.ARTIFACT_ROOT = Path(tempfile.mkdtemp(prefix='q76-', dir=os.environ.get('A2A_TEST_ARTIFACT_PARENT', '/tmp'))).resolve()
     records = []
     try:
         for name in names:
