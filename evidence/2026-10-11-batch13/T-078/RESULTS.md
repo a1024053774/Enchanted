@@ -1293,3 +1293,15 @@ F1的 [逐POST/hook最小保留清单与代价](09B-MINIMAL-RAW-RETENTION-01.md)
 F4准备期的判定器文件检查首次失败，原trace在 `review-followup-final-check-01/failure.txt`：错误地在单条assertion找business-red，实际它属于原测试`TEST_RESULTS`。这是harness字段错误，不是产品红态。修正后runner额外保存原测试结果，协调器分别要求具体claim失败和原结果business-red；[02文件检查](review-followup-final-check-02/result.json) PASS，三份历史业务红态均接受，setup-error、错loaded core、fixture分类及无业务断言失败均拒绝，scene_actions=0。没有运行F4真实测试，源码冻结元数据会随本次最终harness提交更新，防止交主控的命令仍绑定修正前代码。
 
 F4最终harness与本轮材料提交为 `4fcb60dbe`，完整revision从实际Git读取并更新于 `review-followup-source.json`；它包含上述分类修正，F6 producer/reader及最终业务未再改变。终审01原件已在a853ad58b入库，未修改。最后仅补冻结元数据与只读预检收据，不在提交后追加未跟踪文件；F4实际外侧回归和P3真登录依然未执行。
+
+## 主控 #336：F4 coop失败的只读诊断与历史对照待执行
+
+主控沙箱外check-only PASS；正式 `review-followup-regressions-01` **INCOMPLETE**（revision6f9fae871）。coop8方法均执行，0 failure、1 error；后续recovery9/run18/CAS/cards/三变异没有运行。输入输出原件保留，本轮不改其结论或其他旧结果。
+
+[诊断facts](review-followup-f4-diagnosis-01/facts.json) **PASS（保存现场的根因定位）**：原review_requested=115时shared_refs已记worker HEAD=67ef506f…、候选C=3cc14063…；真实report被接受（review_result=122），审查目录HEAD=C且clean（命令131/133），worker HEAD到结束核对仍为同一个67ef506f…（135），随后review_lifecycle_failed=136，phase=reclaim、error=review_worker_workspace_changed。无review_protocol_failed、无review_reclaimed。宿主正常退出、stderr仅Node模块类型警告。legacy driver等8秒回收超时是该拒绝的后果，不是报告schema未跟上。
+
+源头是T082新增worker HEAD必须等于C的结束guard，与原用例“提交冻结C后worker再提交later_bad，verify仍验证C”的交叉；验收文件在150ef6516和main0e6c2b833之间逐字相同。审查前后worker HEAD没变与“必须等于C”是不同条件，worker clean因HEAD短路没有执行，不补称已读到clean。业务源码是否应按审查开始时实际worker边界绑定，或本来有意收紧，须主控/契约owner裁定；已上报issue `20261016T145441Z-worker:t078-f4-diag-issue-001`。本轮**不改core、driver、acceptance或protocol**，不reset worker、不加超时、不跳过回收。
+
+[两版本对照命令](F4-DIAG-COMMANDS-01.txt)与[语义诊断](F4-REVIEW-BOUNDARY-DIAGNOSIS-01.md)已交准备：新输出review-followup-f4-compare-01，串行在两个临时稀疏clone上跑同一原方法，产品/验收/legacy driver各保留自身历史版本，仅叠加现有单case/证据runner并保留diff；不需要改共享worktree/主仓引用。**实际两版本结果尚INCOMPLETE／未运行**，不把“main预计也失败”写成实测。只读Git对象/依赖/路径预检PASS，临时文件上的tar类型/字节校验与字节变化拒绝PASS，未起宿主/模型。
+
+修复后完整重跑的新目录为review-followup-regressions-02，命令已作为明确标注的后续模板列出；只有语义裁定、分配修复、红绿/边界检查及源码重新冻结后才可运行，当前NO_GO。T082审查期间真实改worker/共享refs/审查目录仍须拒绝的保证不能削弱；当前只读诊断不算修复或整组通过。
