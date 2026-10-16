@@ -1305,3 +1305,18 @@ F4最终harness与本轮材料提交为 `4fcb60dbe`，完整revision从实际Git
 [两版本对照命令](F4-DIAG-COMMANDS-01.txt)与[语义诊断](F4-REVIEW-BOUNDARY-DIAGNOSIS-01.md)已交准备：新输出review-followup-f4-compare-01，串行在两个临时稀疏clone上跑同一原方法，产品/验收/legacy driver各保留自身历史版本，仅叠加现有单case/证据runner并保留diff；不需要改共享worktree/主仓引用。**实际两版本结果尚INCOMPLETE／未运行**，不把“main预计也失败”写成实测。只读Git对象/依赖/路径预检PASS，临时文件上的tar类型/字节校验与字节变化拒绝PASS，未起宿主/模型。
 
 修复后完整重跑的新目录为review-followup-regressions-02，命令已作为明确标注的后续模板列出；只有语义裁定、分配修复、红绿/边界检查及源码重新冻结后才可运行，当前NO_GO。T082审查期间真实改worker/共享refs/审查目录仍须拒绝的保证不能削弱；当前只读诊断不算修复或整组通过。
+
+## 主控 #337：历史对照确认上游缺陷，转T-090；T-078暂停
+
+主控已在沙箱外执行 [两版本对照](review-followup-f4-compare-01/result.json)，同一个原方法 `test_submit_requires_clean_head_and_cannot_replace_frozen_candidate`，验收/产品/各版本legacy driver未修改，仅叠加已留diff的单case/证据runner：
+
+| 版本 | 实际单用例结果 | 审查结束证据 |
+|---|---|---|
+| 合并前exec/t078 `150ef6516f6ef5aaa6855631b770ce262991ffbf` | **PASS**，exit0、0 failure/0 error | review_result119 → review_reclaimed135 |
+| main `0e6c2b833f6da64243f71d670ea45bb9116fda4d` | **INCOMPLETE**，exit1、0 failure/1 error；legacy driver等待回收超时 | review_result122已接受；review_lifecycle_failed136，phase=reclaim、error=review_worker_workspace_changed；无reclaimed |
+
+顶层对照脚本PASS只表示两次结果成功采集，不将main的业务失败上调。真实模型/供应商CLI均0；两个隔离fixture分别147/168个成员逐字节核对归档后删除，clone scratch也已删除；没有重跑整组、没有修改旧失败结论。
+
+主控#337裁定：这是**T-082带入main的产品缺陷**。T-082票原文要求“候选提交号不变、审查目录与worker worktree干净、共享仓库引用未变”，未要求worker HEAD==C；采用“审查开始时绑定worker实际HEAD/分支/干净，结束核对未变”的修复方向。修复由主控在main新建的缺陷票 **T-090**、另一worker处理，**不在T-078内修改core.ts**，不通过改acceptance/protocol或driver reset绕过。
+
+后续顺序：等待T-090合入main；由主控安排T-078再合并main、核对双方意图与实际冻结源码，再以全新 `review-followup-regressions-02` 完整重跑F4各组。当前未合并、未修改源码、未运行该回归。按主控明确要求，完成本次证据/裁定提交后 **暂停T-078工作**，等待T-090或用户对剩余四项的决定；整票仍NO_GO/INCOMPLETE，不自行启动任何后续现场。
