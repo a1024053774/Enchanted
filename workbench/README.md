@@ -416,7 +416,8 @@ ready 只读取该后台已绑定项目的 ticket，返回可执行且依赖已�
 角色地址 ideation/executor 暂无会话时，条目保留为 `pending, reason:role_session_missing`，
 执行结果 `ok:true` 表示已留存，不表示已送达。发送方同 request_id 的 relay_processed 事件
 可见该状态，此时不注入反馈回合。controller_start 注册实际角色后，只恢复明确待上线的条目，
-沿原有 wake/dispatch 队列投递；首启 unknown 时不写业务输入。初始放行后，只有真实
+沿原有 wake/dispatch 队列投递；首启 unknown 时不写业务输入。已有排队条目不阻止经批准的
+主题、安全提示和信任屏单键操作，逐屏按键本身不放行队列。初始放行后，只有真实
 turn_submitted 收据才使投递变为 delivered，再向原发送方登记原有的一条执行反馈，
 关联原 request_id/entry_id，不重做 send；09B 的 I2 在此时只确认，预算不增加。
 原条目 created_at 保持不变，120 秒无 ack 的起点不因上线而重置。

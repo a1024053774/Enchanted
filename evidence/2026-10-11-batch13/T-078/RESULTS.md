@@ -1060,3 +1060,15 @@ project-map status **PASS**：Problems=0、Stale living docs=0。没有修改地
 本地静态预检 `09b-a14-rehearsal-preflight-03/preflight.json` **PASS**（路径、AST、脱敏请求及 queued tool_result 构造），TypeScript host 的 `node --check` exit 0，`git diff --check` exit 0。01/02 原件保留。文档生成首次因 stdin UTF-8 SyntaxError 失败，原错误保留 `09b-a14-rehearsal-doc-write-failure-01.txt`；随后改用 UTF-8 patch 写文档，未据此修改旧运行证据。提交脚本将要求完整排练结果/两场退出和清理/真实 180 秒均通过，且当前源码与实际排练副本逐字节一致后才允许提交。当前缺运行原件，其完整 --check-only 也应拒绝；没有把归属检查当成完整提交检查通过。
 
 主控执行 A14 无模型排练：PASS；正例 POST 为 ideation=3/executor=1；超时场景按要求 INCOMPLETE、未重试，实际 HTTP 等待 180.039063708 秒；两场 owner-bound 清理 PASS、scratch 已删除。原件：09b-a14-rehearsal-01/result.json，供应商模型 0。
+
+## 主控 #308：A-14 executor 首启被 pending 队列阻断
+
+主控实跑 A-14 的 Stage A、ideation B1/onboarding、I1 均 PASS；I1 实际 2 POST/2 response、一次许可 Enter、stop `7d260ac3…` pending/role_session_missing、relay ok、feedback=0。executor B1 上线后正确只登记 inbox 队列，未 paste/submit、API 0 POST；首个主题键却被 screen_requires_startup 拒绝，未发键。旧无模型排练跳过了 executor onboarding，因而未覆盖这项真实交汇，不把其 PASS 外推为首启可用。
+
+根因与范围见 `STARTUP-PENDING-308.md`。产品仅从 screenKey/assertStartup 删除 `!pane.queue.length`，其他条件及三次检查位置不变；screenKey 不 drain，drain 的 idle 前提不变。旧实现领域红态 `09b-startup-pending-red-01` 精确复现首键零写入拒绝；修复后 `09b-startup-pending-green-02` 15/15 PASS，六键期间仍 unknown/active null/队列原样/零业务提交，初始 release 才写出一次。其余启动状态、异步草稿变化、executor 权限、屏幕字节和前台身份反例仍拒绝。输入来自实际 A-14 队列与已签首启屏幕；这是 Panes/store 领域重放，PTY/身份为 spy，不冒称完整实际窗口。
+
+另给真实 gate CLI/daemon/Stop/relay 的离线排练扩展与旧谓词反事实脚本 `run-startup-pending-entry.py`，覆盖 pending→上线队列→六个首启键→release→delivered→原 request 的 I2→ack/负例。当前入口阶段 INCOMPLETE、待主控沙箱外运行；本轮已完成路径/源码前置与 Node 语法检查。首次 Python 脚本检查的多余方括号 SyntaxError 保留为 preflight-failure-01，修复后 preflight-01 PASS。
+
+A-14 本身续行 NO_GO：daemon 持有旧 ESM 方法，P1 批准包的 panes.ts 与修复后源码逐字不同；不改旧包、不跳核对、不热补丁、不重启接管旧 PTY。完整 s1 新 label 命令仅作为 `09b-a14-s1-retry-NO-GO.json` 的禁执行提案保留。主控需在新独立审查后裁定回收/新实例；本轮无按键、业务注入、release、Stop 或现场回收。一次 ps 探测被沙箱拒绝，没有请求升级；只读 SQLite 证据与原命令输出已保存，PID 不冒称本轮重验存活。
+
+本差异独立审查 INCOMPLETE，见 `STARTUP-PENDING-REVIEW-REQUEST-01.md`；不沿用原 pending PASS，不宣布真实 Claude 首启恢复、完整 09B 或整票完成。

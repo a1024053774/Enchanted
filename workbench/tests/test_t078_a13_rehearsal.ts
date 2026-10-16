@@ -27,7 +27,9 @@ type CommandResult = {
 const output = resolve(process.argv[2]);
 const offlineRecipient = process.argv[3] === "--recipient-offline";
 const ambiguousRecipient = process.argv[3] === "--recipient-ambiguous";
-if (process.argv.length > 4 || (process.argv[3] && !offlineRecipient && !ambiguousRecipient)) throw new Error("unknown rehearsal scenario");
+const startupMaterials = process.argv[4] ? resolve(process.argv[4]) : null;
+if (process.argv.length > 5 || (process.argv[3] && !offlineRecipient && !ambiguousRecipient) ||
+    (startupMaterials && !offlineRecipient)) throw new Error("unknown rehearsal scenario");
 mkdirSync(output, { recursive: false });
 const scratch = realpathSync(mkdtempSync("/private/tmp/t078-2-a13-rehearsal-"));
 const state = join(scratch, "state");
@@ -192,7 +194,7 @@ const hardDeadline = setTimeout(() => {
 // The extended scenario makes up to 17 serial native entry calls (5s each).
 // local-02 measured several seconds per Node import under memory pressure;
 // retain the per-call deadline and give the whole extended chain 90s.
-}, offlineRecipient ? 90_000 : 30_000);
+}, startupMaterials ? 120_000 : offlineRecipient ? 90_000 : 30_000);
 
 try {
   await serve(state, {}, (root, value) => {
@@ -359,12 +361,44 @@ try {
       equal("registration replay creates no second dispatch", executor.pane.queue.length, 1);
       for (const id of faultIds) equal("uncertain historical write not replayed", panes.store.inboxDispatch(id), undefined);
     });
+    let startupWriteCount = 0;
+    if (startupMaterials) await check("approved startup keys keep the pending inbox queued", async () => {
+      const fixture = JSON.parse(readFileSync(join(startupMaterials, "fixture.json"), "utf8"));
+      const expectedKeys = ["ArrowUp", "ArrowDown", "Enter", "Enter", "ArrowDown", "Enter"];
+      equal("six actual screen approvals", fixture.frames.length, 6);
+      const beforeQueue = executor.pane.queue.map((item: any) => item.id);
+      const trace = join(state, "traces", executor.record.id, "pty.raw");
+      const operatorEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("A2A_")));
+      operatorEnv.A2A_OPERATOR_CREDENTIAL = join(scratch, "operator.json");
+      for (let index = 0; index < fixture.frames.length; index++) {
+        const frame = fixture.frames[index], screen = join(startupMaterials, frame.file);
+        equal("recorded key " + index, frame.key, expectedKeys[index]);
+        // The provider/PTY boundary is still a spy, fed immutable real screens.
+        // The command, daemon, authority, screenKey, queue and writes are real.
+        writeFileSync(trace, readFileSync(screen));
+        const result = await run([gateCli, "--state", state, "pane_screen_key", "--thread", executor.record.thread,
+          "--key", frame.key, "--purpose", frame.purpose, "--screen-id", "replay-s" + (index * 2 + 1),
+          "--screen-file", screen, "--selected-label", frame.selected_label,
+          "--authorization-ref", frame.approval_ref], "", operatorEnv);
+        equal("startup CLI exit " + index, result.code, 0);
+        equal("startup written receipt " + index, JSON.parse(result.stdout).written, true);
+        equal("startup remains unknown " + index, executor.pane.state, "unknown");
+        equal("startup active remains null " + index, executor.pane.active, null);
+        equal("startup queue unchanged " + index, JSON.stringify(executor.pane.queue.map((item: any) => item.id)), JSON.stringify(beforeQueue));
+      }
+      equal("only six control key writes", JSON.stringify(executor.writes), JSON.stringify(["\x1b[A", "\x1b[B", "\r", "\r", "\x1b[B", "\r"]));
+      const events = panes.store.read().filter((event: any) => event.launch === executor.record.id);
+      equal("no startup business paste or submission", events.filter((event: any) => ["paste_intent", "turn_submit_intent", "turn_submitted"].includes(event.type)).length, 0);
+      equal("no I2 during startup navigation", gateFeedback().length, 0);
+      startupWriteCount = executor.writes.length;
+    });
     await check("initial release writes once then registers exactly the original I2", async () => {
       const result = await request(state, { command: "pane_release", thread: executor.record.thread, reason: "fixture first screen reviewed" }, operator);
       equal("initial release", result.ok, true);
       equal("delivered after CR", latestDelivery().state, "delivered");
-      equal("one bracketed paste", executor.writes.filter(value => value.startsWith("\x1b[200~")).length, 1);
-      equal("one submit CR", executor.writes.filter(value => value === "\r").length, 1);
+      const releasedWrites = executor.writes.slice(startupWriteCount);
+      equal("one bracketed paste", releasedWrites.filter(value => value.startsWith("\x1b[200~")).length, 1);
+      equal("one submit CR", releasedWrites.filter(value => value === "\r").length, 1);
       equal("stop created_at unchanged", stopEntries()[0].created_at, originalCreatedAt);
       const feedback = gateFeedback(); equal("one I2", feedback.length, 1);
       const receipts = JSON.parse(feedback[0].data.text.slice(feedback[0].data.text.indexOf("\n[\n") + 1));
