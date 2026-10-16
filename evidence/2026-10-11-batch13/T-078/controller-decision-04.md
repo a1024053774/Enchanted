@@ -689,3 +689,7 @@ worker 交 A-14 待审包（PLAN、check-only 31 路径/25 条命令路径 PASS�
 
 无模型排练 09b-a14-rehearsal-01 PASS（flow：I1 pending/零反馈、I2 delivered/原 ID/恰一次、E1 到权限屏，POST ideation 3/executor 1；timeout：180.04 秒 409、无重试）。worker 用自身启动身份提交 15cd0cac1、d1ca48022。主控签阶段 A（#306）：READY，root /private/tmp/t078-2-09b-run-gbxz0tyb，API 48453/48454，daemon 48461，target 48560/48562。ideation B1：批准 screen plan 与 A-13 验证版一致、binding 与 readiness 一致，签字后 dry-run READY_FOR_ROLE、real PASS，bind-launch 绑定 09b-a14-b1-ideation-01。onboarding 逐屏代签完成（无需 -02 重读），0 Messages，readiness.json 确认。
 I1（#307）：dispatch READY_FOR_PERMISSION（1/1）；主控 pane_output 读屏与 permission-screen.bin 逐字节相同、命令为 I_SEND_STOP、refs 与 readiness 一致后签 permission-approval-01；一次 awaited Electron Enter：PASS，messages 2、responses 2，READY_FOR_EXECUTOR。relay_receipt ok:true，stop 条目 7d260ac3…（from ideation → executor），delivery pending/role_session_missing，feedback_count 0。首个按冻结 protocol 在真实 Claude 上通过的 I1。
+
+## A-14 executor 上线后首启按键被队列挡住 #308（2026-10-16 UTC）
+
+executor 材料生成 PASS；executor B1 签字（#308）dry-run READY_FOR_ROLE、real PASS、bind-launch PASS。上线后待投递 stop 只入队（事件 109 dispatch_queued source inbox，无 paste/turn_submit），executor API 0 请求，符合 pending 语义。但 onboarding 第一键 s1 ArrowUp 被门禁 screen_requires_startup 拒绝（未发键）：pane state unknown、queued 1 条；panes.ts:671 assertStartup 要求队列为空。待投递入队后首启屏幕无法逐屏按键，executor 到不了初始 release，pending 无法投递——为 #298/#299 计划"首启只入队、逐屏完成并初始 release 后才 drain"的实现缺口，排练中 executor 为 spy 未覆盖。现场保留，交 worker 按根因修并补红绿，修后对该差异再独立审查。
