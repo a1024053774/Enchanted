@@ -1,0 +1,66 @@
+{
+  "status": "PASS",
+  "scope": "Recorded daemon-exit validation only; no new host run or live ps",
+  "known_bad_run": "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/recovery-three-versions-01/run.json",
+  "positive": [
+    {
+      "test": "daemon_acceptance_adapter.DaemonRecovery.test_after_CAS_deleted_ref_requires_reconciliation",
+      "pid": 76241,
+      "generation": 1,
+      "confirmed_exited": "2026-10-16T16:05:45.345672+00:00",
+      "process_exit": 0,
+      "expected_exit": 0,
+      "fault_injection": null
+    },
+    {
+      "test": "daemon_acceptance_adapter.DaemonRecovery.test_after_CAS_external_X_requires_reconciliation",
+      "pid": 77428,
+      "generation": 1,
+      "confirmed_exited": "2026-10-16T16:07:01.299938+00:00",
+      "process_exit": -9,
+      "expected_exit": -9,
+      "fault_injection": "after real Git CAS"
+    },
+    {
+      "test": "daemon_acceptance_adapter.DaemonRecovery.test_after_CAS_external_X_requires_reconciliation",
+      "pid": 78910,
+      "generation": 2,
+      "confirmed_exited": "2026-10-16T16:07:33.991229+00:00",
+      "process_exit": 0,
+      "expected_exit": 0,
+      "fault_injection": null
+    }
+  ],
+  "negative": [
+    {
+      "case": "wrong-signal-pid",
+      "status": "PASS",
+      "observed": "rejected",
+      "reason": "宿主退出状态与该 PID/代次的故障注入不符"
+    },
+    {
+      "case": "wrong-signal-generation",
+      "status": "PASS",
+      "observed": "rejected",
+      "reason": "宿主退出状态与该 PID/代次的故障注入不符"
+    },
+    {
+      "case": "no-injection-proof",
+      "status": "PASS",
+      "observed": "rejected",
+      "reason": "宿主退出状态与该 PID/代次的故障注入不符"
+    },
+    {
+      "case": "no-exit-confirmation",
+      "status": "PASS",
+      "observed": "rejected",
+      "reason": "宿主退出未确认"
+    },
+    {
+      "case": "unexpected-exit-code",
+      "status": "PASS",
+      "observed": "rejected",
+      "reason": "宿主退出状态与该 PID/代次的故障注入不符"
+    }
+  ]
+}

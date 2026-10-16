@@ -39,6 +39,7 @@ def compressed(path, value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--suite', choices=COUNTS, required=True)
+    parser.add_argument('--case', action='append', help='Run selected original methods without replacing their assertions')
     parser.add_argument('--revision', required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
@@ -75,6 +76,10 @@ def main():
     cls, original = selections[args.suite]
     names = sorted(n for n in original.__dict__ if n.startswith('test_')) if original else unittest.defaultTestLoader.getTestCaseNames(cls)
     if len(names) != COUNTS[args.suite]: raise RuntimeError('Required suite membership changed')
+    if args.case:
+        if len(set(args.case)) != len(args.case) or any(name not in names for name in args.case):
+            raise RuntimeError('Selected method is not a unique member of the original suite')
+        names = sorted(args.case)
     owner = original or cards.TaskCardsCLI
     for name in owner.__dict__:
         if name.startswith('test_') and getattr(cls, name) is not getattr(owner, name):
@@ -101,10 +106,11 @@ def main():
     with tarfile.open(out / 'fixtures.tar.gz', 'x:gz') as archive:
         archive.add(fixtures, arcname=fixtures.name)
     large = [str(p) for p in out.rglob('*') if p.is_file() and p.stat().st_size > 5 * 1024 * 1024]
-    passed = (result.wasSuccessful() and result.testsRun == COUNTS[args.suite] and executed == names
+    passed = (result.wasSuccessful() and result.testsRun == len(names) and executed == names
               and not result.skipped and not leftovers and not large)
     record = {'status': 'PASS' if passed else 'INCOMPLETE', 'suite': args.suite,
-        'revision': head, 'argv': sys.argv, 'tests_run': result.testsRun, 'expected_tests': COUNTS[args.suite],
+        'revision': head, 'argv': sys.argv, 'tests_run': result.testsRun, 'expected_tests': len(names),
+        'suite_membership': COUNTS[args.suite],
         'failures': len(result.failures), 'errors': len(result.errors), 'skipped': len(result.skipped),
         'failure_text': [{'test': t.id(), 'traceback': text} for t, text in result.failures],
         'error_text': [{'test': t.id(), 'traceback': text} for t, text in result.errors],
