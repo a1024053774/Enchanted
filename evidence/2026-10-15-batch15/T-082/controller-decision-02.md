@@ -23,3 +23,7 @@ REAL-CODEX-COMMANDS-01.sh 两轮审查后改为纯产品路径（daemon_start �
 
 OUTSIDE-COMMANDS-10.sh（起点 451be8462 源码，外置盘夹具，受控 PTY，0 真实回合）：wrong-workspace、network-enabled、tmp-writable 三案在旧门禁上 T082-LAUNCH-REFUSED 失败（ok:true，未拒收），对应候选绿态已有；只读 argv 红态见 red-state/。提交 9c771dc72（收尾证据）、f589d1938（红态补证）。
 #50：新开 fresh Codex reviewer s16-t082-rev（wF:p4B），argv 同 T-078 审查员；只写 independent-review-01.md 与 REVIEW-OUTSIDE-01.sh。
+
+## 独立审查 01 NO_GO 与返工 #50–#54（2026-10-16 UTC）
+
+fresh Codex reviewer s16-t082-rev（wF:p4B）审 f589d1938。其沙箱外脚本经三轮（归档白名单过窄、读库路径失效两次脚本缺陷后）跑通：01–13 段全部 verified（5 个错误实现均被对应断言检出）；14、15 段 contract_failure。结论 NO_GO：[P1] 收到报告即 verified、结束核对前可 integrate 并前移 main，事后失败不作废（审查经真实 socket 复现）；[P2] review_requirements workspace 未与本 review 副本绑定；[P2] 结束核对负例覆盖不足（M3 被放过）；[P2] T-076 launch-policy 默认 tier 负例被换观测点；[P3] 同值条件表达式。审查报告提交 f09f0dcc8，审查窗格回收，/tmp 输出与夹具归档外置盘后删除。#54 派 worker 按此返工。
