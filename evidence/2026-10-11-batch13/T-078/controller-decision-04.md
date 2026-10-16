@@ -745,3 +745,8 @@ E4 初读 screen_exceeds_review_limit（executor PTY 76,125 字节 > 一页 65,5
 ## #332 E4–E6 PASS，A-15 全阶段完成（2026-10-16 UTC）
 
 worker 修复（源码 c0c5caee3，材料 1f5b56c0b）后，主控沙箱外运行 OUTSIDE-RECHECK：harness 冻结核对 PASS、9 例 PASS、无现场动作。E4：完整读屏 -03（76,125 字节）与恢复参考 screen-recovery-02 逐字节相同，旧截断原屏（65,536）为其前缀；签 permission-approval-02 → Enter PASS → readback-03 PASS（seq 8，target 1 字节）。主控失误：签字前试跑 E4-04-CHECK-ONLY 一次（permission_approval_required），签字后再跑因输出目录已存在 FileExistsError，主控命令的管道（tail|cut）吞掉了失败码继续执行 Enter；Enter 脚本自身的完整读屏与绑定校验通过。此后命令启用 pipefail。E5：START READY_FOR_PERMISSION（seq 10）→ 完整读屏 93,747 字节与 dispatch-01 原屏相同 → 签 permission → CHECK-ONLY PASS → Enter PASS → 读回 PASS（target 1）。E6：START PASS（seq 11）→ 读回 PASS（target 1）。A-15 全部阶段 I1–I4、E1–E6 PASS。待 worker 出全场最终核对、A-15 回收材料与全票独立审查准备。
+
+## blocking issue 20261016T113401Z 处置登记；I1 原屏完整性判断（2026-10-16 UTC）
+
+用户经构思主控抄录（answer 20261016T133142Z-ideation-answer-001，certainty relayed）选"关闭，写明边界 (Recommended)"。issue 只在 a2a-wt-t078 收件箱，主控在该收件箱代为登记 disposition 20261016T133204Z-user-disposition-001（from user、action close、原条目不删），已 ack answer（20261016T133204Z-executor-ack-001）。边界：关闭的只是"原参考截断、修复范围待裁定"；不对 A-15 或整票通过下结论；独立审查仍要做。
+I1 原屏判断（用户交主控判断）：I1 dispatch-01/permission-screen.bin 16,322 字节，没有直接记录 next_offset/total_bytes。一页上限 65,536 而只返回 16,322，按 pane_output 语义推断当时已读到末尾，但只是推断，该证据项仍记 INCOMPLETE，不改写旧结论。不影响 I1 结论：I1 的 PASS 由门禁事件 oracle 判定（stop pending、feedback 0、target 零字节），读屏只用于许可内容核对，而该原屏可见完整命令与 ❯ 1. Yes。交独立审查复核此判断。
