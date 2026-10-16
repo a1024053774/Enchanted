@@ -47,3 +47,10 @@ ready_rev: 2
 5. 09B 补证：用户选"重跑一场 09B，留最小脱敏原件 (Recommended)"，选项原文："假 API、模型 0 回合，同 protocol 与预算，回收前额外保留逐 POST/hook 原件（不含认证信息）供独立复核，由执行主控按已有的 09B 授权代签。代价是几个小时的逐阶段签字，可与 09C 同批准备。"
 
 ## Resolution
+
+### 09C 第 1 场（2026-10-16，执行主控记录，INCOMPLETE）
+
+第 1 场在 C-I1 之后停止。C-I1 的一次 Enter 已写入（stop `fe5603b6-1abf-4045-b267-031e32f762ce`，created_at 2026-10-16T22:35:52.492Z，已 delivered），按键后的结算处理报 `KeyError: 'request_id'`；C-I2 反馈被假 API 错误解析为 `C_actual_delivery_required`，未进入许可等待；ideation 实际 POST 增至 13（超预算 7），executor 11。根因均为测试工具缺陷（结算读取不存在的 `relay_results.data.request_id`；假 API 把反馈 envelope 当执行结果；许可脚本在建新输出目录前就绑定旧目录；启动驱动重复 release），不是门禁或 daemon 缺陷。
+
+**第 1 场的 C-I1 结果文件已丢失**：执行主控排查时误把同一 Enter 命令再执行了一次，它以输出已存在拒绝、未发键，但覆盖了第一次运行的 `execute-02/result.json`。第 1 场 C-I1 的事实只能由 Electron 驱动日志、daemon 事件与 HTTP/hook 原件还原，**均为间接证据，不是该结果文件原件**，不据此补称原件。
+
