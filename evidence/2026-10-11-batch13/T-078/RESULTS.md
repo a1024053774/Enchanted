@@ -1134,3 +1134,9 @@ executor onboarding 每个键后增加只读 gate inbox_list 刷新＋pane statu
 本轮修复发生在上述执行之后，修改前源码与 file-check-03 副本一致并另留存于 09b-a14-cleanup-fix-01。精确变更为保留停机前现场/归档摘要比较并保存其值；停机后只验 tar 成员及摘要字节，移除第二次 collect/SQLite 访问。新增 finish 脚本只校验 #322 原回执、九 PID 缺失和原归档，再删固定 root，无 signal、daemon_stop 或 collect 调用；命令见 09B-A14-CLEANUP-FINISH-COMMAND.txt，实际余步 **INCOMPLETE／未执行**。
 
 `09b-a15-file-check-04` **PASS**：旧后置读库表达式在数据库不可用时精确复现同一 OperationalError；新 helper 不读库而通过，归档字节变化仍拒绝；本次保存的真实停止回执及重复信号负例通过，finish 的禁用动作检查通过。该检查只用临时文件与既有证据，process_probes=0，未访问当前 root、发信号或删除现场。A-15 源码与文件包本轮按主控要求直接 Git 提交冻结，所有 launch/阶段批准仍空，不启动运行。
+
+## 主控 #324：A-14 完成回收，A-15 Stage A 就绪
+
+据主控 #323/#324，外置盘 I/O 曾使 finish 进程阻塞在 open()；主控在 rmtree 前结束该进程，空目录 `09b-a14-cleanup-finish-01/` 留在本机，Git 不保存空目录，本段作为其占位记录，不向旧目录写入伪造结果。恢复后 `09b-a14-cleanup-finish-01-dry-run` **PASS**，正式 `09b-a14-cleanup-finish-02` **PASS**：signals_sent=[]、root_removed=true，无 daemon 命令重发；主控确认旧 root `/private/tmp/t078-2-09b-run-gbxz0tyb` 已不存在。原 #322 BLOCKED 证据与签字不改写，A-14 回收现已完成。
+
+主控签 A-15 stage-a-approval（#324）后运行 `09b-a15-stage-a-01`，状态 READY_FOR_APPROVAL，source_revision=`dedd4f66bc424610183cbff2d7114e991483e1c6`，新 root `/private/tmp/t078-2-09b-run-yp09xosq`，daemon=59398、target shell/leader=59550/59552；真实 dispatch/claim attempt 回执保留，roles_started=[]、供应商模型 0。后续只生成 ideation P1 的文件与未签 B1 批准，B1 dry-run/real 均由主控另批执行，不在本轮启动角色或发送输入。
