@@ -1098,3 +1098,17 @@ A-14 本身续行 NO_GO：daemon 持有旧 ESM 方法，P1 批准包的 panes.ts
 按主控 #316，暂停刚开始的 #315 文件准备，先把 exec/t078 变基到固定 main 提交 `0e6c2b833f6da64243f71d670ea45bb9116fda4d`（含 T-082）。起点 `cd8ca713e1ef0ef62b1bc53c4cc33fd5fcf4e246`，共同基点 `490de67d05a08ccf8a453a78694a106288579b47`；准备时 main 已追加一条本票决策证据，代码未越过固定目标。脚本与完整说明见 `rebase-main-3/`，先提交现有证据与两份未运行的 A-14 草稿，再备份并做有界变基；冲突保留，不自动取任一方。
 
 `09b-a14-cleanup-owner.json` 与 `redact-a14-scene.py` 仅为 #315 已开始写的进度，尚未执行，owner-bound 清理脚本与 A-15 材料尚未完成。A-14 现场本轮没有被查询、输入、发信号或回收。本轮预检只涉及仓库、现有证据、Python 语法和项目地图；变基、冲突处理、变基后的 pending 链／startup 15 项及入口／worker 收件箱 14 项均 **INCOMPLETE／未执行**。T-082 的审查启动和结束语义须完整保留，T-078 的投递与首启语义须在新候选重证后才继续 #315。
+
+## 主控 #319／#320：合并后回归与质量宿主引导修复
+
+主控改用合并，提交 `859fd649765e64926c87c7eb69499854b18ae042` 已完成；本轮不再重放 121 条历史提交。唯一 relay 冲突保留 T-078 命令与 pending/反馈去重，并增加 T-082 的 review_requirements/report；core/panes 的逐段核对与本地报告转交见 `merge-main-3/RESOLUTION.md`。主控确认合并提交后地图 Problems 0／Stale 0，上一节的合并前状态已收尾。
+
+主控沙箱外运行 `merge-main-3-outside-01`，前四段 **PASS**：pending/controller 11 组、startup 领域 15 项与精确 M5、startup 真实入口 14 项与精确 M5、worker 收件箱 14 项。T-082 启动矩阵 **INCOMPLETE**，五个用例均在宿主启动报 operator_credential_required，未到审查边界；最后六个报告/结束核对用例未运行。没有把基础设施错误当作拒收反例。
+
+五份真实 stderr 原本已在嵌套的用例证据目录，未随 q76 scratch 丢失；原文与路径副本保存在 `merge-main-3-fix-01/`。实际质量宿主为 quality_chain_host.ts，尚未接 T-078 的私有 operator 引导；不是 daemon_acceptance_host.ts 自动合并错误，也没有发现 review 副本／pending 的产品语义冲突。本轮只改受控质量夹具：每代新路径、真实产品凭据创建、退出确认后删除；另汇总失败宿主日志至顶层并列入 run.json。产品 src/app/bin 没有变化。
+
+`bootstrap-red-01` 先取得两代真实夹具/宿主入口均缺路径和凭据的红态；修后同一探针 `bootstrap-green-01` 四项 **PASS**（两代独立 0600/state 绑定、退出后移除、失败日志原字节复制）。只在 socket 前截断，不启动服务／PTY／模型，不当作 T-082 真正门禁验收。旧输出不改写。续跑命令 `merge-main-3-fix-01/REGRESSION-02-COMMAND.txt` 只接 T-082 两段，用新目录 `merge-main-3-outside-02`，核对先前四段 PASS 与产品源码未变，保存本次实际夹具源码副本。完整 T-082 回归仍 **INCOMPLETE／待主控执行**，A-14 回收、A-15 与完整 09B 仍待后续，不操作现场。
+
+## 主控 #321：合并后的六段回归完成
+
+主控沙箱外运行 `merge-main-3-outside-02` **PASS**：T-082 tracer 与四种启动边界变异共五项、六项 report/结束核对全部通过，退出码 0。连同 outside-01 的前四段，合并后的六段关键回归全部 **PASS**；outside-01 的宿主启动失败原件原样保留，不把其整体 INCOMPLETE 改写为 PASS。两轮产品源码均绑定合并提交 `859fd649765e64926c87c7eb69499854b18ae042`；第二轮另逐字保存四份实际质量夹具修复源码，凭据正常引导/回收及完整审查边界已有真实门禁运行证据。主控要求本会话直接提交本轮修复与两轮证据，然后继续只写 A-14 owner-bound 回收和 A-15 材料；本节不批准执行回收或启动 A-15，完整 09B 仍 INCOMPLETE。

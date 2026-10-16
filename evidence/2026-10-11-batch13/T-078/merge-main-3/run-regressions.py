@@ -16,6 +16,8 @@ PARENTS = ['150ef6516f6ef5aaa6855631b770ce262991ffbf', '0e6c2b833f6da64243f71d67
 BOUNDARY_CASES = ['real_payload_report_roundtrip', 'external_review_boundary_invalidated',
                   'shared_refs_changed', 'requirements_workspace_changed',
                   'integration_before_end_check', 'integration_before_end_check_clean']
+FIXTURE_FIXES = ['workbench/tests/quality_chain_host.ts', 'workbench/tests/test_quality_chain_e2e.py',
+                'workbench/tests/run_t082_boundary.py', 'workbench/tests/test_t078_quality_host_bootstrap.py']
 
 
 def git(*args):
@@ -58,13 +60,50 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--check-only', action='store_true')
+    parser.add_argument('--resume-t082', action='store_true')
+    parser.add_argument('--previous-result', type=Path)
     args = parser.parse_args()
     out = args.output.resolve()
     planned, required = commands(out)
+    previous = None
+    previous_path = None
+    if args.resume_t082:
+        assert args.previous_result, 'Previous passing T078 stage receipts are required'
+        previous_path = args.previous_result.resolve()
+        assert previous_path == BASE / 'merge-main-3-outside-01/result.json'
+        previous = json.loads(previous_path.read_bytes())
+        assert previous['source_revision'] == '859fd649765e64926c87c7eb69499854b18ae042'
+        assert [row['name'] for row in previous['stages'][:4]] == [row[0] for row in planned[:4]]
+        assert all(row['status'] == 'PASS' and row['exit_code'] == 0 for row in previous['stages'][:4])
+        assert previous['stages'][4]['name'] == planned[4][0] and previous['stages'][4]['status'] == 'INCOMPLETE'
+        planned = planned[4:]
+        for relative in FIXTURE_FIXES:
+            path = ROOT / relative
+            assert path.is_file(), ('missing fixture fix', relative)
+            if path.suffix == '.py':
+                ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+            required.append(path)
+    else:
+        assert args.previous_result is None, 'previous-result requires resume-t082'
+    source_paths = ['workbench/src', 'workbench/tests', 'workbench/app', 'workbench/bin', 'workbench/package.json']
+    def check_source():
+        if previous:
+            # The completed four stages used the same product/frontend. Only
+            # these quality-host fixture files may change for the continuation.
+            protected = [path for path in source_paths if path != 'workbench/tests']
+            assert not git('diff', previous['source_revision'], '--', *protected), 'Previously tested product changed'
+            changed = git('diff', '--name-only', previous['source_revision'], '--', 'workbench/tests').splitlines()
+            assert set(changed).issubset(FIXTURE_FIXES), ('Unrelated fixture changes', changed)
+        else:
+            assert not git('diff', 'HEAD', '--', *source_paths), 'Source differs from the merged commit'
+    if previous:
+        check_source()
     if args.check_only:
         print(json.dumps({'status': 'PASS', 'mode': 'path-and-syntax-check-only',
             'required_inputs': [str(path) for path in dict.fromkeys(required)],
             'commands': [{'name': name, 'argv': command, 'timeout_seconds': timeout} for name, command, _, timeout in planned],
+            'previous_result': str(previous_path) if previous_path else None,
+            'preserved_passed_stages': [row['name'] for row in previous['stages'][:4]] if previous else [],
             'service_starts': 0, 'real_model_turns': 0}, ensure_ascii=False, indent=2))
         return 0
     # Runtime evidence must bind the finished merge, not its first parent's HEAD.
@@ -72,8 +111,7 @@ def main():
     assert not git('diff', '--name-only', '--diff-filter=U'), 'Unresolved merge remains'
     for parent in PARENTS:
         subprocess.run(['git', 'merge-base', '--is-ancestor', parent, 'HEAD'], cwd=ROOT, check=True)
-    source_paths = ['workbench/src', 'workbench/tests', 'workbench/app', 'workbench/bin', 'workbench/package.json']
-    assert not git('diff', 'HEAD', '--', *source_paths), 'Source differs from the merged commit'
+    check_source()
     assert Path('/Volumes/WD-Elements').is_mount(), 'External build disk is required'
     artifacts = Path('/Volumes/WD-Elements/a2a-workbench')
     assert artifacts.is_dir() and not artifacts.is_symlink(), 'External fixture parent is unavailable'
@@ -84,6 +122,17 @@ def main():
     record = {'status': 'INCOMPLETE', 'source_revision': git('rev-parse', 'HEAD'), 'parents': PARENTS,
               'real_model_turns': 0, 'stages': [],
               'scope': 'Merged candidate; real gate/daemon/relay/Git/SQLite and worker Electron entry, controlled provider observations; no A14 scene access'}
+    fixture_snapshot = {}
+    if previous:
+        record.update(scope='T082 continuation only; preserve the prior four T078 PASS receipts because product/frontend are unchanged',
+                      previous_result=str(previous_path), preserved_passed_stages=previous['stages'][:4],
+                      fixture_working_tree_snapshot=[])
+        for relative in FIXTURE_FIXES:
+            raw = (ROOT / relative).read_bytes()
+            fixture_snapshot[relative] = raw
+            target = out / 'fixture-source' / relative
+            target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(raw)
+            record['fixture_working_tree_snapshot'].append({'source': relative, 'copy': str(target)})
 
     def save():
         (out / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
@@ -132,7 +181,8 @@ def main():
             row.update(status='PASS', report=str(result_path)); save()
             print(json.dumps({'stage': name, 'status': 'PASS'}, ensure_ascii=False), flush=True)
         assert git('rev-parse', 'HEAD') == record['source_revision'], 'HEAD changed during regression'
-        assert not git('diff', 'HEAD', '--', *source_paths), 'Source changed during regression'
+        check_source()
+        assert all((ROOT / relative).read_bytes() == raw for relative, raw in fixture_snapshot.items()), 'Fixture source changed during regression'
         record['status'] = 'PASS'
     except Exception as error:
         record.update(error=repr(error), traceback=traceback.format_exc())

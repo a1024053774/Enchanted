@@ -1,0 +1,15 @@
+{
+  "base_revision": "859fd649765e64926c87c7eb69499854b18ae042",
+  "product_mutation": {
+    "name": "key_receipt_is_delivery",
+    "target": "workbench/src/panes.ts",
+    "old": "    return { state: queued ? \"queued\" : \"unknown\", at: item.registered_at };",
+    "new": "    return { state: queued ? (this.store.lastEvent(item.launch, [\"controller_screen_key_written\"]) ? \"delivered\" : \"queued\") : \"unknown\", at: item.registered_at };",
+    "source_archive": "/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/startup-review-01/t078-startup-review-timing-01-1ktwzre1.tar.gz",
+    "source_member": "t078-startup-review-timing-01-1ktwzre1/key_receipt_is_delivery-domain/mutation.diff",
+    "probe_member": "t078-startup-review-timing-01-1ktwzre1/key_receipt_is_delivery-domain/probe.diff",
+    "authority": "Main #312; independent-review-startup-01.md",
+    "constraint": "Apply only to a disposable snapshot; never to product worktree"
+  },
+  "legacy_test_revision": null
+}
