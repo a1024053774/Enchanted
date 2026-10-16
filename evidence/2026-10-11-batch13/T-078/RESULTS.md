@@ -1418,3 +1418,15 @@ F4 顶层仍 **INCOMPLETE**：CAS 子测试已是1 failure/0 error/0 skipped、b
 [B1-HANDOFF](09b-a16-b1-ideation-p1-01/B1-HANDOFF.md) 给出 dry-run/real分步、实际launch绑定、首启逐屏六键、-02重读和停止条件。读屏沿冻结的完整分页reader，需稳定total与EOF原件，不再使用旧单页路径。rev2 API/raw collector/reader闭包与marker已核对；逐POST/hook原件继续留在隔离角色目录，回收前先脱敏归档、逐成员读回并从tar独立重数/留archive清单，再停机；停机后不读SQLite。owner待两角色真实B1 manifests齐全再生成，此时未伪造PID/owner/归档通过。
 
 **本轮没有运行 B1 dry-run、真实B1、读屏、按键、业务输入、gate dispatch/release、服务启动、归档或清理，也未生成executor P1或启动其角色CLI。** 主控下一步从 `B1-COMMANDS.txt` 分别取 dry-run和real两行，签字后各自执行；成功后按 `BIND-LAUNCH.txt` 再用 `ONBOARD-COMMANDS.txt` 一条一条读屏/签键。ideation预算4根/6POST、全场17POST、模型0不变；A16业务补证、09C和整票仍 **INCOMPLETE／NO_GO**。
+
+## 主控 #346：ideation 首启完成；s11 送达与采集状态分别留存
+
+主控运行A16 ideation B1：dry-run **READY_FOR_ROLE**、real外层 **PASS/cli_spawned**、BIND-LAUNCH通过，实际Claude shell36360/CLI36361。六键逐屏核对后签发，初读均相符未用-02；本轮把两层B1、完整读屏/逐键输出、实际launch-binding与签字件一并提交，保持旧原件字节及状态。
+
+s11 Enter的 [原result](09b-a16-b1-ideation-p1-01/a16-ideation-s11-Enter/result.json) **INCOMPLETE**，不改判。它的唯一 `pane_screen_key` 调用exit0、`key_result.written=true`，授权引用/原屏/selected Yes均吻合；随后第一次 `pane_output` offset0→7079、total7079，下一次 offset7079→8913、total8913。新增字节包含Claude欢迎页、空提示符和manual，属于信任确认后正常界面过渡输出；完整reader按契约拒绝变化的total，抛 `output_total_changed`，没有生成不完整screen.bin。
+
+[保存收据独立比对](09b-a16-b1-ideation-p1-01/s11-readback-01/result.json) **PASS，仅读回**：支持该Enter已送达；错误发生在送达后的采集，不影响已有按键证据，不应重按。后续主控另行读取的 [s13](09b-a16-b1-ideation-p1-01/a16-ideation-s13-screen/screen.json)为8921字节，total固定、offset0到8921并有EOF零字节确认；原屏同launch/session/repo、空提示符和manual可核对。P1只读screen结果本身沿生命周期默认仍记INCOMPLETE（无error），不改其文件；本条PASS仅指完整capture/显示内容的检查，不是整票/业务验收。
+
+判断：本次是启动界面继续输出期间的预期采集拒绝，没有按键错误证据。本场保持冻结工具不变，不自动重读/重按或吞掉错误；以后如需改善此类工具体验，可在发键回执已保存后以有界等待再独立取稳定只读快照，仍须严格total/EOF且超时保留INCOMPLETE。这个建议未实施，不作为本场通过条件的变更。
+
+已准备 [readiness确认命令](09b-a16-b1-ideation-p1-01/READINESS-CONFIRM-COMMAND.txt) 和 [I1第一步](09b-a16-b1-ideation-p1-01/phases/I1/STEP1-HANDOFF.md)：确认命令实际运行时才查0 POST/0提交并排他写readiness；I1批准仍空，真实pane_dispatch/release后到许可屏停止，预计1根/1POST，完整I1仍2POST、一次工具许可另批。逐POST/hook原件按rev2即刻留存，回收前额外归档读回/独立重数，不以汇总代替、不停机后读SQLite。本轮未执行确认命令、I1、发键/Enter、任何服务/角色启动或清理；A16后续与09C、整票仍 **INCOMPLETE／NO_GO**。
