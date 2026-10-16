@@ -1257,3 +1257,11 @@ ticket 所列同时输入、组合输入、大粘贴、关窗、重启 unknown�
 新 A15 脚本的本地 file check **PASS**，含 PID 复用/未知子进程拒绝、无守卫坏实现、凭据哨兵/原样复制坏实现、未批准命令拒绝、归档逐成员字节/变更拒绝、旧后置读库坏实现；无实际进程探测或现场清理。范围在 [file-check](09b-a15-closeout-file-check-01/result.json)。
 
 独立审查看 [REVIEW-REQUEST-T078-FINAL](REVIEW-REQUEST-T078-FINAL.md)：业务 dedd4f66…、reader c0c5caee…、运行原件 34aa4e130；完整候选为该请求所在最终冻结提交，由主控传实际 Git 提交号。须覆盖 controller 身份/Stop 转交、pending/I2、startup/M5、输入/空框声明、只读分页证据链与三处调用、T-082 合并边界、异步 request/entry/ack 及残余验收缺口。旧三个独立审查只对原冻结差异有效，不替本次新候选背书；本轮未开子代理或自行给独立 PASS。
+
+## 主控 #333：A-15 回收完成
+
+主控逐命令执行：`09b-a15-cleanup-01-dry-run` **PASS**（无停止/信号/删除）；`09b-a15-redacted-01` **PASS**，外置归档 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a15-redacted-01/scene.tar.gz` **1,766 字节**、逐成员字节读回 PASS，主控扫描凭据字样 0。主控签署的 `09b-a15-cleanup-approval.json` 原样保留，不恢复为空签字模板。
+
+正式 `09b-a15-cleanup-01` **PASS**：认证 daemon_stop 正常关闭角色/目标；API 59387/59388 各一次 SIGTERM，九进程全部退出；停机后仅核对归档、不访问 SQLite/WAL，root `/private/tmp/t078-2-09b-run-yp09xosq` 已删除；slots 未删除。worker 只读核对三个 result.json 和签字件，没有重复清理或发信号。
+
+确认 disposition `20261016T133204Z-user-disposition-001` 由执行主控写入本 worktree 收件箱，worker 仅随 `e682a929c` 提交原件；其关闭边界仍以原文为准，不改写成 worker 代关或整票通过。独立审查候选随本次回收证据提交前进；业务/reader 的运行版本不变，审查请求随后填入实际完整 Git revision。
