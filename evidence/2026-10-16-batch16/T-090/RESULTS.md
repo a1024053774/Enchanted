@@ -11,6 +11,7 @@
 - 四点对照补采 PASS：`recovery-four-versions-02` 中 main-before-T082 `271ac55d82d0e20067e03e2fa4a990e55ef7b434`、main-T082 `0e6c2b833f6da64243f71d670ea45bb9116fda4d`、T090 `18dd12c29f523227d9fc6fd4c123a674f10bf7fa` 各运行同两方法，均为 run 2 / error 0 / failure 0 / skip 0，均有 review_result 与 review_reclaimed，无 review_lifecycle_failed。该结果只覆盖指定两方法，不代替完整回归。
 - 第三轮完整回归 INCOMPLETE：`green-regression-03` 绑定 `e50c16f5cf6bce138c62634952cf381b2251f859`，ready 探针、focused、coop 8、recovery 9 全部通过；run/orchestration 18 为 14 通过、2 failures、2 errors、0 skip。CAS、cards、worker 边界、T-082 与变异阶段未运行。原错误及断言失败不改判，四例只读核对见 `RUN-LOAD-DIAGNOSIS-03.md`、`run-observed-03.json`。
 - 第四轮完整回归 INCOMPLETE：`green-regression-04` 绑定 `8c971b99d46094bc3e9cb3f0bf772de6f6ab3f4a`，ready、focused、coop 8 通过；recovery 原 9 方法中 7 方法通过，after-CAS bookkeeping 与 before-CAS same-intent 两方法各产生正文及清理 error，共 4 errors、0 failures、0 skip。后续组未运行。两条保存事件均没有 review_lifecycle_failed、review_worker_workspace_changed、review_protocol_failed 或 rejected；细节见 `REVIEW-READBACK-04.md`、`review-observed-04.json`。
+- 第五轮完整回归 INCOMPLETE：`green-regression-05` 绑定 `a74adeddc5494474472560a150f5ac33ab4a502e`，ready、focused、coop 8、recovery 9 全部通过；run 18 为 16 通过、1 failure（transient-tool）、1 error（unknown-identity）、0 skip，后续组未运行。两条没有 review_lifecycle_failed 或 review_worker_workspace_changed；unknown-identity 的 identity_conflict 是原负例主动更换 workspace 触发的预期身份拒绝，其方法仍因 5 秒 prompt 超时而 error。详见 `PROCESS-LOAD-DIAGNOSIS-05.md`、`run-observed-05.json`。
 - 修复前项目状态 PASS：主控补齐稀疏检出的 `.grilling` 后，`project_map.py status --root .` 为 0 problems、0 stale living docs。先前非零输出原样保留，未改地图。产品修改后，status 按 covers 规则标记 `workbench/README.md` stale，见 `project-map-candidate.txt`；该文件与地图均不在写入边界，由主控核对 Verified。
 
 ## 产品改动
@@ -49,6 +50,14 @@ before-CAS 的原件与初步转述不同：正文先在原 12 秒 verify 客户
 
 本轮没有出现要求停止的 worker 边界拒收或其他门禁拒收码；按该次负载记录保存时限现象，不将相同 driver 报错文字等同于原 T-090 缺陷复发。实际 error 与整体 INCOMPLETE 原样保留；不据此宣布完整恢复验收通过，不改代码、期限或重试。
 
+## 第五轮与负载来源更正
+
+主控 #16／#10 提供的摘要数值为本地 14:20=1.78、14:23=3.16、14:24=22.68、14:25=58.68；run 组实际从 14:23:02 开始，尖峰与后段方法重合。transient 自己的 run 先 deadline，后台审查／回收后再显式集成，未自动回收 worker，因此缺少 attempt ref；unknown-identity 先在 5 秒 prompt 观察窗超时，随后按该负例预设报 identity_conflict，尚无 candidate、verify 或 worker_boundary。原失败均不改判。
+
+进程设计核对证明：18 个 daemon 生命周期不重叠，峰值 1、均退出 0；没有 18 方法并行、真实 PTY／模型群起。该组却有大量累计短进程调用：291 条 exec 为 Node 的入口、另 133 条 quality-driver Node CLI、389 条 fixture Git、815 个 daemon Git router PID、319 次 Python 边界服务调用。这些不是同时占 CPU 的数量，也不能据此认定 58 的来源。
+
+主控已更正此前把 03／04 全归因于其他项目构建的判断。当前把 03～05 的具体责任进程统一记为未确认：保留负载数值及当时由谁转述，不把“其他项目构建”或“本测试自身”任一假设写成已测得的原因。原件没有尖峰时逐 PID CPU 快照；当前 ps 格式探针被沙箱拒绝，也不能补出历史数据。根因归因仍 INCOMPLETE，见 `run-process-design-05.json`、`load-report-05.json`。
+
 ## 宿主绿态与整组命令
 
 从本 worktree 执行，使用新 label，不覆盖已有红态或基线：
@@ -85,7 +94,17 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/
 
 脚本先归档该已停止的遗留 source checkout，再运行真实子进程/文件系统 ready 发布探针；随后按顺序运行原冻结候选用例、coop 8、recovery 9、run/orchestration 18、CAS 1、cards 15；三条 worker 边界反例；T-082 七条正常及结束核对场景；四个启动变异（只读 argv、错误工作目录、联网、tmp 可写）；省掉 worker 结束检查的坏实现分别运行三条新反例，必须命中 `T090-WORKER-HEAD`、`T090-WORKER-DIRTY`、`T090-WORKER-BRANCH` 的业务失败。最后一项证明新反例能拒绝已知坏实现，宿主或导入错误不算拒绝证据。
 
-该轮已归档 `/private/tmp/t090-source-m1buaeqm`，运行夹具也已归档并清理；新的失败源码现场 `/private/tmp/t090-source-fbwjfo50` 保留。所有旧外置盘原件保持原样。当前只提交本轮只读核对，等待主控安排稳定负载下的后续验证，不自动生成或执行下一轮。
+该轮已归档 `/private/tmp/t090-source-m1buaeqm`，运行夹具也已归档并清理；所有旧外置盘原件保持原样。第五轮的 run 原件在本票外置盘 `green-regression-05/run/`，不覆盖任何旧结果。
+
+当前下一步仅做三个版本完整 run 18 的串行对照，并新增只读进程采样，不先改实现或原验收：
+
+```sh
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/T-090/compare-recovery.py --suite run --sample-processes --label run-three-versions-01 --version main-before-T082 --version main-T082 --version T090
+```
+
+第三点本次固定为实际失败候选 `a74adeddc5494474472560a150f5ac33ab4a502e`（与历史 18dd 的 workbench/acceptance diff 为 0）；另两点仍为 `271ac55d8...`、`0e6c2b833...`。每版完整原 18 方法，只覆盖方法选择／证据采集 runner，版本之间串行，不改变原期限或增加测试重试。父进程约每 5 秒采样 ps/uptime，记录 PID／PPID、状态、CPU、命令名与当前测试 runner 的祖先关系；不采集参数或环境，不操作任何用户进程。真实采样须在宿主预检，若缺失保持诊断 INCOMPLETE，不编造 CPU 结论。细节及监控开销／短命进程漏采的限制见 `PROCESS-LOAD-DIAGNOSIS-05.md`。
+
+新输出位于外置盘 `run-three-versions-01/`，完整日志及进程快照均留外置盘，仓库只存摘要与清单。它不是新一轮完整 green 回归，也不替代后续 CAS/cards、worker/T-082 与独立审查。外层整组看守 600 秒与现有 run-host 相同，不传给原方法。
 
 新 label 的原始输出直接写 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/green-regression-04/`；仓库仅生成摘要及 `.archive.json`。source checkout 与所有变异源码在内置盘 `/tmp/t090-source-*`，完整执行成功后连同运行夹具复制到外置盘，核对文件数、字节数后才清理原件；失败则保留 source checkout 并报告路径。已完成但失败的测试夹具在拒绝退出码之前归档，不改其失败结果；没有自动重试或延长原测试期限。外置盘缺失即报错。借用既有依赖，不安装、不构建、不链接构建输出。真实模型回合为 0，PTY/原生进程观测是受控输入，不据此声称真实 Codex 沙箱边界已复验。
 
@@ -103,4 +122,4 @@ python3 -B "$T090_REPLAY_ROOT/source/workbench/tests/run_s3_rebased_regression.p
 
 PASS：`node --check workbench/src/gates/core.ts`；Python 文件 AST 解析；改动的 TypeScript 测试文件语法检查；ready 发布步骤的真实文件系统/子进程确定性探针及已知坏实现检出；`git diff --check`；UTF-8 回读；修改边界核对。未跑构建（本任务不需要构建，也没有安装依赖）。
 
-INCOMPLETE：稳定负载下完整回归（含 run 18、CAS/cards、worker/T-082 及变异）、主控独立审查、门禁验收与集成，以及 living doc Verified 核对。focused、coop 8、recovery 9 已在第三轮通过，但第三轮 run 18、第四轮 recovery 均未通过，不能借旧通过上调当前结果。此前两个恢复用例的四点证据已有主控裁定；本轮新增两方法只读核对没有门禁拒收，仍不等于完整复验通过。worker 已只读对照 README 的审查段（115–119、194–197 行）：正文要求审查期间 worker 未变，与本修复一致，未发现需要改写的语义；仍由主控完成地图核对。候选完整提交号在 worker 最终交接中报告；本报告不替代显式交付、验收或集成。
+INCOMPLETE：run 18 三版本对照与实际进程负载归因、完整回归（含 CAS/cards、worker/T-082 及变异）、主控独立审查、门禁验收与集成，以及 living doc Verified 核对。第五轮 ready、focused、coop 8、recovery 9 通过，但 run 18 仍失败，不能借旧通过上调本轮结果；不能将旧恢复用例的主控裁定自动扩展到新的编排失败。worker 已只读对照 README 的审查段（115–119、194–197 行）：正文要求审查期间 worker 未变，与本修复一致，未发现需要改写的语义；仍由主控完成地图核对。候选完整提交号在 worker 最终交接中报告；本报告不替代显式交付、验收或集成。

@@ -1,5 +1,6 @@
-"""串行采集选定历史版本的两个原恢复用例；不是产品通过判定。"""
+"""串行采集历史版本的原恢复用例或完整编排组；不是产品通过判定。"""
 import argparse
+import ast
 import collections
 import datetime
 import difflib
@@ -11,6 +12,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 
 ROOT = Path(__file__).resolve().parents[3]
 BASE = Path(__file__).resolve().parent
@@ -18,7 +21,7 @@ ARCHIVE_ROOT = Path('/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090'
 VERSIONS = [('pre-T082', '150ef6516f6ef5aaa6855631b770ce262991ffbf'),
             ('main-before-T082', '271ac55d82d0e20067e03e2fa4a990e55ef7b434'),
             ('main-T082', '0e6c2b833f6da64243f71d670ea45bb9116fda4d'),
-            ('T090', '18dd12c29f523227d9fc6fd4c123a674f10bf7fa')]
+            ('T090', 'a74adeddc5494474472560a150f5ac33ab4a502e')]
 CASES = ['test_after_CAS_deleted_ref_requires_reconciliation',
          'test_after_CAS_external_X_requires_reconciliation']
 RUNNER = 'workbench/tests/run_s3_rebased_regression.py'
@@ -54,11 +57,38 @@ def daemon_exit_evidence(artifact, daemon):
             'expected_exit': expected, 'fault_injection': injected[0]['reason'] if injected else None}
 
 
-def summarize(folder):
+def process_sample(root_pid, env):
+    """Read process names and ancestry, without command arguments or environments."""
+    started = time.monotonic()
+    sampled_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    argv = ['/bin/ps', '-axo', 'pid=,ppid=,pgid=,stat=,pcpu=,time=,comm=']
+    result = subprocess.run(argv, env=dict(env, LC_ALL='C'), capture_output=True, text=True, timeout=10)
+    if result.returncode: raise RuntimeError('ps sample failed: ' + result.stderr)
+    processes = []
+    for line in result.stdout.splitlines():
+        if not line.strip(): continue
+        pid, ppid, pgid, state, cpu, cpu_time, name = line.split(None, 6)
+        processes.append(dict(pid=int(pid), ppid=int(ppid), pgid=int(pgid), state=state,
+                              reported_pcpu=float(cpu), reported_cpu_time=cpu_time, name=name))
+    parents = {row['pid']: row['ppid'] for row in processes}
+    for row in processes:
+        pid = row['pid']; seen = set()
+        while pid in parents and pid != root_pid and pid not in seen:
+            seen.add(pid); pid = parents[pid]
+        row['observed_test_descendant'] = pid == root_pid
+    uptime = subprocess.run(['/usr/bin/uptime'], env=dict(env, LC_ALL='C'),
+                            capture_output=True, text=True, timeout=10)
+    if uptime.returncode: raise RuntimeError('uptime sample failed: ' + uptime.stderr)
+    return dict(sampled_at=sampled_at, elapsed_seconds=time.monotonic() - started,
+                root_pid=root_pid, sampler_pid=os.getpid(), ps_argv=argv,
+                uptime=uptime.stdout.strip(), processes=processes)
+
+
+def summarize(folder, cases=CASES):
     rows = []
     for path in sorted((folder / 'readbacks').glob('*.json')):
         snapshot = json.loads(path.read_text(encoding='utf-8'))
-        if not any(snapshot['test'].endswith('.' + name) for name in CASES): continue
+        if not any(snapshot['test'].endswith('.' + name) for name in cases): continue
         events = [{**e, 'details': json.loads(e['details'])} for e in snapshot['tables']['events']]
         tasks = [json.loads(t['data']) for t in snapshot['tables']['tasks']]
         reviews = []
@@ -95,6 +125,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--label', required=True)
     parser.add_argument('--check-only', action='store_true')
+    parser.add_argument('--suite', choices=['recovery', 'run'], default='recovery')
+    parser.add_argument('--sample-processes', action='store_true',
+                        help='Sample ps/uptime every five seconds outside the test process')
     parser.add_argument('--version', choices=[name for name, _ in VERSIONS], action='append')
     parser.add_argument('--dependencies', type=Path,
                         default=Path('/Users/luckye/Documents/Code/a2a/workbench/node_modules'))
@@ -115,29 +148,42 @@ def main():
         raise RuntimeError('缺少既有依赖；不安装、不回退缓存')
     overlay = (ROOT / RUNNER).read_bytes()
     originals = []
-    for _, revision in VERSIONS:
+    acceptance_path = 'acceptance/test_run_e2e.py' if args.suite == 'run' else 'acceptance/test_recovery_e2e.py'
+    for _, revision in selected:
         if git('rev-parse', revision).decode().strip() != revision: raise RuntimeError('Revision mismatch')
-        originals.append(git('show', revision + ':acceptance/test_recovery_e2e.py'))
+        originals.append(git('show', revision + ':' + acceptance_path))
         for path in (RUNNER, 'workbench/tests/daemon_acceptance_adapter.py',
                      'workbench/tests/legacy_quality_driver.py', 'workbench/tests/daemon_acceptance_host.ts'):
             git('cat-file', '-e', revision + ':' + path)
-    if not all(data == originals[0] for data in originals): raise RuntimeError('原恢复验收跨版本字节不同')
+    if not all(data == originals[0] for data in originals): raise RuntimeError('原验收跨版本字节不同')
+    if args.suite == 'run':
+        owner = next(node for node in ast.parse(originals[0]).body
+                     if isinstance(node, ast.ClassDef) and node.name == 'RunCLI')
+        cases = sorted(node.name for node in owner.body if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'))
+        if len(cases) != 18: raise RuntimeError('原编排组方法数不是 18')
+    else:
+        cases = CASES
     if args.check_only:
         print(json.dumps({'status': 'PASS', 'scope': 'Git objects and dependency paths only; no host/test/clone',
-            'versions': VERSIONS, 'selected': selected, 'cases': CASES, 'acceptance_same_bytes': True,
-            'overlay_only': RUNNER, 'real_model_turns': 0}, ensure_ascii=False))
+            'versions': VERSIONS, 'selected': selected, 'suite': args.suite, 'cases': cases, 'acceptance_same_bytes': True,
+            'overlay_only': RUNNER, 'real_model_turns': 0,
+            'process_sampling_requested': args.sample_processes,
+            'process_probe_executed': False}, ensure_ascii=False))
         return 0
-    if git('diff', 'HEAD', '--', *PROTECTED, RUNNER): raise RuntimeError('当前相关源码有未提交改动')
+    tool_path = str(Path(__file__).resolve().relative_to(ROOT))
+    if git('diff', 'HEAD', '--', *PROTECTED, RUNNER, tool_path):
+        raise RuntimeError('当前相关源码或诊断工具有未提交改动')
     out = ARCHIVE_ROOT / args.label; out.mkdir(parents=True, exist_ok=False)
     workspace = Path(tempfile.mkdtemp(prefix='t090-compare-', dir='/tmp')).resolve()
     record = {'status': 'INCOMPLETE', 'product_status': 'INCOMPLETE', 'argv': sys.argv,
               'scope': 'Selected historical diagnostic capture; test outcomes are not overwritten',
-              'selected': selected,
-              'real_model_turns': 0, 'vendor_CLI_starts': 0, 'cases': CASES, 'versions': [],
+              'selected': selected, 'suite': args.suite, 'sample_processes': args.sample_processes,
+              'real_model_turns': 0, 'vendor_CLI_starts': 0, 'cases': cases, 'versions': [],
               'source_workspace': str(workspace), 'commands': [], 'archive': str(out),
+              'tool_revision': git('rev-parse', 'HEAD').decode().strip(), 'python': sys.version,
               'started_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
 
-    def command(argv, cwd=ROOT, timeout=360):
+    def command(argv, cwd=ROOT, timeout=360, monitor=False):
         number = len(record['commands']) + 1
         row = {'argv': list(map(str, argv)), 'cwd': str(cwd), 'timeout': timeout}
         record['commands'].append(row)
@@ -145,7 +191,33 @@ def main():
                 (out / f'{number:02d}.stderr.txt').open('xb') as stderr:
             child = subprocess.Popen(row['argv'], cwd=cwd, env=env, stdout=stdout, stderr=stderr, start_new_session=True)
             row['pid'] = child.pid
-            row['exit_code'] = child.wait(timeout=timeout)
+            stopped = threading.Event()
+            sampler = None
+            if monitor:
+                row['samples'] = str(out / f'{number:02d}.process-samples.jsonl')
+                row['sample_count'] = 0
+                row['sampling_complete'] = False
+                def sample_loop():
+                    try:
+                        with Path(row['samples']).open('x', encoding='utf-8') as stream:
+                            while not stopped.is_set():
+                                stream.write(json.dumps(process_sample(child.pid, env), ensure_ascii=False) + '\n')
+                                stream.flush()
+                                row['sample_count'] += 1
+                                if stopped.wait(5): break
+                        row['sampling_complete'] = True
+                    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+                        row['sampling_error'] = repr(error)
+                sampler = threading.Thread(target=sample_loop, daemon=True)
+                sampler.start()
+            try:
+                row['exit_code'] = child.wait(timeout=timeout)
+            finally:
+                stopped.set()
+                if sampler is not None:
+                    sampler.join()
+                    if not row['sampling_complete'] or row['sample_count'] == 0:
+                        row.setdefault('sampling_error', 'Process samples were not completed')
         return row['exit_code']
 
     def archive_owned(path, prefix):
@@ -161,9 +233,10 @@ def main():
         return str(target)
 
     def unchanged(checkout, revision):
-        if git('diff', revision, '--', *PROTECTED, cwd=checkout): raise RuntimeError('产品或验收文件被改变')
-        changed = git('diff', '--name-only', revision, '--', 'workbench/tests', cwd=checkout).decode().splitlines()
-        if any(path != RUNNER for path in changed): raise RuntimeError('除选择器以外的历史测试工具被改变')
+        if git('rev-parse', 'HEAD', cwd=checkout).decode().strip() != revision:
+            raise RuntimeError('冻结版本被改变')
+        changed = git('diff', '--name-only', revision, cwd=checkout).decode().splitlines()
+        if any(path != RUNNER for path in changed): raise RuntimeError('除选择器以外的历史文件被改变')
         if (checkout / RUNNER).read_bytes() != overlay: raise RuntimeError('选择器变化')
 
     try:
@@ -171,6 +244,10 @@ def main():
         version = (out / '01.stdout.txt').read_text(encoding='utf-8').strip()
         if code or not version.startswith('v26.5.'): raise RuntimeError('需要已核对的 Node 26.5 系列')
         record['node'] = version
+        if args.sample_processes:
+            # Fail before starting a test if the host cannot supply the requested
+            # observations. No missing sample is replaced with a CPU conclusion.
+            save(out / 'process-preflight.json', process_sample(os.getpid(), env))
         for name, revision in selected:
             folder = out / name; folder.mkdir()
             checkout = workspace / name
@@ -190,23 +267,27 @@ def main():
                 fromfile=revision + '/' + RUNNER, tofile='current-case-selector')), encoding='utf-8')
             (checkout / RUNNER).write_bytes(overlay)
             unchanged(checkout, revision)
-            target = folder / 'recovery'
-            argv = [sys.executable, '-B', checkout / RUNNER, '--suite', 'recovery',
+            target = folder / args.suite
+            argv = [sys.executable, '-B', checkout / RUNNER, '--suite', args.suite,
                     '--revision', revision, '--output', target]
-            for case in CASES: argv.extend(['--case', case])
+            if args.suite == 'recovery':
+                for case in cases: argv.extend(['--case', case])
             row = {'name': name, 'revision': revision, 'capture_status': 'INCOMPLETE',
                    'overlay_only': RUNNER, 'acceptance_or_product_changes': []}
             record['versions'].append(row)
-            code = command(argv, checkout)
+            # 600 seconds is the same outer watchdog as run-host.py for the
+            # complete 18-method group. Original method deadlines are untouched.
+            code = command(argv, checkout, timeout=600 if args.suite == 'run' else 360,
+                           monitor=args.sample_processes)
             result = json.loads((target / 'run.json').read_text(encoding='utf-8'))
             row.update(exit_code=code, test_status=result['status'], tests_run=result['tests_run'],
                        failures=result['failures'], errors=result['errors'], error_text=result['error_text'],
-                       failure_text=result['failure_text'], readbacks=summarize(target))
-            if code not in (0, 1) or result['tests_run'] != 2 or result['skipped'] or result['executed_methods'] != CASES:
+                       failure_text=result['failure_text'], readbacks=summarize(target, cases))
+            if code not in (0, 1) or result['tests_run'] != len(cases) or result['skipped'] or result['executed_methods'] != cases:
                 raise RuntimeError('选择的原方法或运行结果不完整')
             if result['collection_errors']: raise RuntimeError('宿主清理有误，保留全部现场并停止后续版本')
             artifacts = json.loads(gzip.decompress((target / 'artifacts.json.gz').read_bytes()))
-            if len(artifacts) != 2: raise RuntimeError('无法绑定两条原始夹具')
+            if len(artifacts) != len(cases): raise RuntimeError('无法绑定全部原始夹具')
             row['daemon_exits'] = []
             for artifact in artifacts:
                 for daemon in artifact['daemons']:
@@ -223,6 +304,8 @@ def main():
             print(json.dumps({'version': name, 'capture_status': row['capture_status'],
                               'test_status': row['test_status'], 'errors': row['errors']}), flush=True)
         record['source_archive'] = archive_owned(workspace, 't090-compare-')
+        if any(row.get('sampling_error') for row in record['commands']):
+            raise RuntimeError('测试结果已采集，但进程采样不完整；不作进程负载归因')
         record['status'] = 'PASS'
     except Exception as error:
         record.update(error=repr(error), action='preserve; no retry, timeout change, signal or product edit')
@@ -230,7 +313,16 @@ def main():
     finally:
         record['ended_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         save(out / 'run.json', record)
-        save(BASE / (args.label + '.json'), record)
+        # Keep the complete readbacks/tracebacks outside the repository. The
+        # repository summary links them and preserves every original verdict.
+        summary = {**record, 'raw_report': str(out / 'run.json')}
+        summary['versions'] = [{k: row[k] for k in ('name', 'revision', 'capture_status', 'exit_code',
+            'test_status', 'tests_run', 'failures', 'errors', 'fixture_archive') if k in row} |
+            {'error_tests': [e['test'] for e in row.get('error_text', [])],
+             'failure_tests': [e['test'] for e in row.get('failure_text', [])],
+             'readback_directory': str(out / row['name'] / args.suite / 'readbacks')}
+            for row in record['versions']]
+        save(BASE / (args.label + '.json'), summary)
         save(BASE / (args.label + '.archive.json'), {'original': str(out), 'archive': str(out),
              **inventory(out), 'replay': record['argv']})
         print(json.dumps({'status': record['status'], 'product_status': record['product_status'],
