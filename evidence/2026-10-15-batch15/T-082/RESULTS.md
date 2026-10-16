@@ -1,14 +1,14 @@
 # T-082-1 RESULTS
 
-2026-10-16 独立审查 02：第一轮五条均解决，四个错误实现被指定业务断言检出，未发现产品缺陷；整票 **INCOMPLETE**，时间顺序待决项按主控 #58 交上层，worker 不改。另一个 P3 是 launch-policy 成功报告的 status/product_status 不一致，已保留修前红态并修改收尾同步，待 `OUTSIDE-COMMANDS-13.sh` 绿态；详见 `STATUS-SYNC-01.md`。本次不新增真实回合。
+2026-10-16 最终口径更新：依据主控 #59 转交的用户答复 `20261016T051655Z` 及更正 `20261016T051703Z`，采用“接受重建的红态 (Recommended)”与“不迁锚点，三项性质直跑 (Recommended)”。Acceptance 2、7 按下述明确口径记 **PASS**；不改重建证据的时间标注，不迁 T-076 锚点，不再修改 runner 或受保护验收文件。本次只更新此报告，最终验收与合入由执行主控办理。
 
-2026-10-16 返工 01：独立审查 `independent-review-01.md` 结论 **NO_GO**，取代下文旧候选的完成判断。主控 #54 派发的 P1/P2/P3 已进入工作树；主控 #55 确认 OUTSIDE-11 的 01～14 PASS，第 15 段只读变异的预期断言错位，当前 **INCOMPLETE，待 OUTSIDE-COMMANDS-12.sh 单段复验及新的独立审查**；不可冻结为已验收候选。原第 14、15 段红态已只读提取至 `rework-01-red-readback/`，返工及第 15 段诊断详见 `REWORK-01.md`、`launch-policy-diagnosis-01/readback.json`。下文真实回合和历史受控结果仍是原版本证据，不替新修复背书；真实回合仍 2/4，本轮不使用真实回合。
+独立审查 02 对 `5f7f9816eb9a996377c5b255695244d99c0259e7` 确认第一轮五条均解决，四个错误实现被指定业务断言检出，未发现产品缺陷；其原始 **INCOMPLETE** 结论保留。该次剩余的时间顺序口径已由上述用户答复确认；P3 报告字段问题已在 `9fd96145e` 修复，`outside-command-13-01/` 红绿与失败路径检查均 PASS，详见 Acceptance 7。独审 01 的 NO_GO、返工过程及失败现场均保留，不改写为当时已通过。
 
-## 原候选交付记录（已被独立审查取代）
+## 任务与证据范围
 
-任务/执行：T-082-1 / s15-t082 / attempt a1；规格为 T-082 ready_rev 1、D3。最新产品与测试检查点为 `7f2bd40611e920cb962ba20f17b58bb12a9acab0`，真实第 2 回合在此版本运行。本次收尾只补文档和证据，没有再改产品代码或启动真实 Codex。
+任务/执行：T-082-1 / s15-t082 / attempt a1；规格为 T-082 ready_rev 1、D3，验收口径以上述两份用户答复为准。真实第 2 回合在 `7f2bd40611e920cb962ba20f17b58bb12a9acab0` 运行；后续门禁返工由冻结候选 `5f7f9816e` 的独立审查 02 验证，runner 报告修复为 `9fd96145e`。旧真实回合不替新增门禁检查背书。
 
-真实第 2 回合完整路径 **PASS**，真实回合累计 **2/4**，剩余 **2**。七条中第 1、3～7 条的下述检查 **PASS**；第 2 条当前四种拒收 **PASS**，但其中三种未保存逐项修前失败证据，因此该条及整票暂记 **INCOMPLETE**，交主控冻结后独立审查。旧 runner 的拒收和待决项单列，均未改写成通过。
+真实第 2 回合完整路径 **PASS**，真实回合累计 **2/4**，剩余 **2**。下列具体检查及按用户确认口径计算的证据结果为 **PASS**；T-076 完整质量 runner 被审计拒收仍如实记为预期 **INCOMPLETE**，不改写为完整 runner 通过。最终验收与合入尚待执行主控完成。
 
 除明确写出的主 checkout/外置盘绝对路径外，下列输出路径均相对本目录。命令从本 worktree 根运行；真实命令是主控已经执行的记录，不是再次运行的请求。
 
@@ -20,13 +20,17 @@
 
    结果：起点 reviewer 请求没有完成条件充分性/2～5 变异要求，启动仍是 `read-only`，工作目录仍是审查 worktree。T-076 实际原生工具回执为 `write_attempts=1, denied=true, errno=1`；归档中的事后哨兵逐字等于事前内容。历史 launch id 为 `aae6f34a-072c-4740-9ba6-5c4452fe110e`，完整 argv 已读回。历史总报告的 `product_status=INCOMPLETE` 原样保留；仅复用该次只读拒写事实，不用旧结论证明新边界，也不计入本票新真实回合。
 
-2. **受控入口与四种拒收：PASS（当前行为）/ INCOMPLETE（逐项先红证据）**
+2. **受控入口与四种拒收：PASS（按用户确认的红态口径）**
 
    命令：`sh evidence/2026-10-15-batch15/T-082/OUTSIDE-COMMANDS-02.sh`；输出 `outside-command-02-01/`、`outside-command-02-02/`。副本复制探针命令为同目录 `OUTSIDE-COMMANDS-01.sh`，成功输出 `outside-command-04/`。
 
    Tracer bullet 的请求必查项、副本建立/清理、启动核对五案均 PASS：`tracer_review_copy` 验证 `T082-REQUEST-COMPLETION`、`T082-REQUEST-MUTATIONS`、`T082-REVIEW-ARGV`、`T082-COPY-CREATED`、`T082-COPY-REMOVED`；四个启动参数变异均被 `review_launch_boundary` 拒收，断言 `T082-LAUNCH-REFUSED`、`T082-LAUNCH-PAUSED`、`T082-LAUNCH-ISSUE` 通过。副本省略 `.git`，内部 symlink 按内容复制、外部 symlink 拒绝，源目录未变。全部 `real_codex_turns=0`。
 
-   `wrong-workspace` 有真实业务红绿：02-01 中 argv 的 `-C` 被改到副本外，门禁仍返回 `ok:true`，`T082-LAUNCH-REFUSED` 失败；补上实际 argv 工作目录核对后，02-02 拒收。`readonly-argv` 在首次记录已经拒收，`network-enabled` 与 `tmp-writable` 在 02-01 未跑到；三项只有当前绿态，没有保存修前放行导致断言失败的记录。脚本/导入/夹具失败不算业务红态，不宣称满足了四种“每种先见红”。
+   `wrong-workspace` 保留实际修前红态→修后绿态：02-01 中 argv 的 `-C` 被改到副本外，门禁仍返回 `ok:true`，`T082-LAUNCH-REFUSED` 失败；补上实际 argv 工作目录核对后，02-02 拒收。`readonly-argv` 按原有真实先后顺序采用旧 read-only 启动/拒写证据（`red-state/t076-readonly-readback.json`）和候选拒收绿态，不把它列为此次重建项。
+
+   `network-enabled`、`tmp-writable` 采用修复后在起点 `451be8462c85fd08b997cb85453188a8e5751c9d` 重建的反事实红态，命令为 `bash evidence/2026-10-15-batch15/T-082/OUTSIDE-COMMANDS-10.sh`，输出 `outside-command-10-01/`；该批也包含一份额外的 `wrong-workspace` 重建。三案均在确认门禁启动并释放 reviewer 到受控 busy 状态后，于 `T082-LAUNCH-REFUSED` 产生 contract_failure，各自对应候选拒收绿态。网络/tmp 案只证明旧启动边界不检查相应参数，不证明旧 read-only 沙箱实际允许这些操作。
+
+   依据用户答复 `20261016T051655Z` 及更正 `20261016T051703Z` 的“接受重建的红态 (Recommended)”，上述两种反事实满足本条口径。`outside-command-10-01/run.json` 的 `counterfactual_timing` 原文 `reconstructed after the fix on the starting revision; not an earlier chronological run` 保留；不得写成 network/tmp 当时已按时间顺序先运行红态。独立审查 02 的 R/09 另复验四种当前拒收均 PASS。
 
 3. **真实 Codex 边界证明：PASS（第 1 回合边界原文 + 第 2 回合结束读回）**
 
@@ -60,7 +64,7 @@
 
    每回合 `/private/tmp` 新建隔离 home，只复制用户 `auth.json`；额外生成的最小配置、两条 Git allow prefix rule 和文件名清单有留证（`home-trust.toml`、`home-rules.default.rules`、`home-before-delete*.txt`），未复制用户其他配置。信任根限已核对外置 fixture 根；daemon HOME 与 reviewer CODEX_HOME 分开。第 1 回合主控处置记录 `home-after-delete-controller.txt=absent`，第 2 回合脚本 `home-after-delete.txt=absent`。auth 实体和隔离 home 不进入证据/Git，未写用户全局配置。
 
-7. **T-076 三性质、T-077 与地图：PASS；旧 runner 另列 INCOMPLETE**
+7. **T-076 三性质直跑、T-077 与地图：PASS；完整质量 runner 的审计拒收为预期 INCOMPLETE**
 
    命令：`sh evidence/2026-10-15-batch15/T-082/OUTSIDE-COMMANDS-07.sh`、`sh evidence/2026-10-15-batch15/T-082/OUTSIDE-COMMANDS-09.sh`；输出 `outside-command-07-01/t076-property-tracer/`、`outside-command-09-01/t076-properties/` 与 `outside-command-09-01/t077-review-lifecycle/`。runner 的 `--source` 均指本 worktree 候选，不用 main 代跑候选。
 
@@ -68,23 +72,26 @@
    - `tracer_reused_native` → `TRACER-REVIEW-REUSE`；
    - `tracer_writer_cannot_review` → `TRACER-WRITER-REVIEW`。
 
-   三项性质在干净候选 0dd00d09 已通过；协议修复后同三项及 `tracer_malformed_review` 再次 PASS。T-077 套件四案均 PASS：`cleanup_after_persisted_result`、`names_and_ordinals`、`dirty_review_is_preserved_and_reported`、`changed_review_head_is_preserved_and_reported`。上述受控回归 `real_codex_turns=0`；之后新增的报告节键检查由离线红绿和真实 round-2 覆盖。
+   用户答复 `20261016T051655Z` 及更正 `20261016T051703Z` 选择“不迁锚点，三项性质直跑 (Recommended)”。本条 T-076 回归证据为三项性质直接调用候选的 tracer：首次输出 `outside-command-07-01/t076-property-tracer/`；返工后冻结候选的独立复验为审查 02 的 R/07，即 `R=/private/tmp/r82r2-bCfvVo` 下的 `07-t076-properties/`，六案（含这三项、严格协议与两种 default argv）全 PASS。完整命令为 `bash evidence/2026-10-15-batch15/T-082/REVIEW-OUTSIDE-02.sh`，对应报告 `independent-review-02.md`，不以旧完整 runner 的结果代替三项直跑。
+
+   T-077 套件四案均 PASS：`cleanup_after_persisted_result`、`names_and_ordinals`、`dirty_review_is_preserved_and_reported`、`changed_review_head_is_preserved_and_reported`；返工后的独立复验为审查 02 的 R/08（`08-t077-lifecycle/`）。上述受控回归 `real_codex_turns=0`。
 
    地图命令：`python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`，收尾输出 `final-status-01/`，0 problems、0 stale living docs。
 
-   旧质量 runner：`OUTSIDE-COMMANDS-06.sh`，输出 `outside-command-06-01/t076-quality-source-audit/`，**INCOMPLETE**，报 `Source audit failed or original acceptance assertions changed.`。D3 替换的 reviewer 断言已直接进入候选，明细见 `T076-D3-ASSERTION-MAP.md`；审计机制与 `a7f4cc3033c16d5888de50d8352da516c941f8e9` 锚点均未改。必须区分断言变更与本次实际拒收原因：审计记录当前源码 diff，但不因它非空而拒收；本次命令 4 exit 0、stdout 非空，原 acceptance 文件相对 a7f4cc30 已有差异（包括 oracle 夹具接入），触发原样生效的审计。没有证据把这次拒收直接归因为 D3 的 tracer 断言变更。锚点整体迁移由主控交上游待决，本票按主控 #40 改为直接验证上述三性质，旧 runner 不标 PASS。
+   完整质量 runner：`OUTSIDE-COMMANDS-06.sh`，输出 `outside-command-06-01/t076-quality-source-audit/`，报 `Source audit failed or original acceptance assertions changed.`，保留 **INCOMPLETE**。按用户已确认的“不迁锚点”口径，这个审计拒收是预期状态，不是尚待修复的 T-082 回归项；本次不改 T-076 runner 或任何受保护验收文件。审计机制与 `a7f4cc3033c16d5888de50d8352da516c941f8e9` 锚点保持原样：记录当前源码 diff 不等于因 dirty 拒收；实际命令 4 exit 0、原 acceptance 文件对 a7f4cc30 的 diff stdout 非空，触发原审计。该拒收不直接归因于 D3 tracer 断言改动，也不标成完整 runner PASS。T-076 ticket 的说明由主控追加，worker 不改票据。
 
    旧 launch-policy runner：`sh evidence/2026-10-15-batch15/T-082/OUTSIDE-COMMANDS-08.sh` 只读在 main 原样运行，输出 `outside-command-08-01/t076-launch-policy-main/`，**INCOMPLETE**。与候选一样报 `Fixture error is not contract evidence: worker-missing-override-red`：real-delivery-01 旧快照 taskCards.ts 不接受当前夹具的 `oracle_paths`，在 `card_save` 阶段 `invalid_task_card`，未到预期业务红态。主控 #43 已确认是基线既有、与本票无关；本票不修改旧快照或绕过校验。
 
-## 未完成与待决项
+   P3 报告字段修复：提交 `9fd96145e`，命令 `bash evidence/2026-10-15-batch15/T-082/OUTSIDE-COMMANDS-13.sh`，输出 `outside-command-13-01/`，三段检查均 **PASS**。旧成功报告的字段不一致按预期被检查检出；修后成功路径 exit 0，报告和 stdout 均为 `status=PASS / product_status=PASS`；受控前置失败路径 exit 1，报告和 stdout 均为 `INCOMPLETE / INCOMPLETE`。`check_t076_phase_report.py` 读取最终报告、stdout 并与实际退出码核对，修后两个检查的 errors 均为空。失败路径的一致性检查 PASS 不等于该前置失败业务成功。此修复与完整质量 runner 预期审计拒收分别记账。
 
-- **INCOMPLETE，Acceptance 2 证据缺口**：readonly-argv、network-enabled、tmp-writable 未保存逐项修前业务失败；当前四项拒收全 PASS。未用夹具失败或修后绿态替代先红要求，需主控/独立审查核对后决定补证安排。
-- **INCOMPLETE，独立审查**：本次为 worker 收尾，主控冻结后另安排独立审查；本报告不是独立验收或集成授权。
-- **待决，旧 T-076 审计基线**：是否整体迁移 a7f4cc30 锚点由上游决定；本票未改审计、未改锚点。旧 launch-policy 夹具错误为 main 已有问题，保留记录，未扩大范围修复。
+## 最终交接
+
+- 两项验收口径已有用户答复与更正，不再列为 worker 待决项；重建时间标注和完整 runner 的预期 INCOMPLETE 均保留。
+- 独立审查 02 已完成，原结论不改写；所列时间顺序口径及 P3 后续处理如上。最终验收与合入待执行主控办理，本报告不代替主控操作。
 - 第 1 回合的协议失败、初次隔离 home 拒收、第二次未释放提示以及各次 outside 失败现场都保留。第 2 回合正常全路径通过没有把这些历史失败改成成功。删除后的审查哨兵没有直接 after 值，间接证明及范围已注明。
 
 ## 可冻结范围
 
-产品/测试已在 `7f2bd40611e920cb962ba20f17b58bb12a9acab0`；本次新增提交仅需本目录内的 `RESULTS.md`、`T076-D3-ASSERTION-MAP.md`、`ROUND2-READY.md`、`REAL-BOUNDARY-READBACK-01.md`、`red-state/t076-readonly-readback.json`、`real-approvals/round-2.approved`、`real-codex-round-2/`、`final-status-01/`。round-2 为 48 个文件、1,213,814 字节，无单文件超过 5 MB。
+产品返工与独审证据已冻结，P3 修复及 OUTSIDE-13 证据在 `9fd96145e`。本次只提交本目录的 `RESULTS.md`，不改代码、runner、受保护验收文件或票据。既有 round-2 为 48 个文件、1,213,814 字节，无单文件超过 5 MB。
 
 `real-codex-round-1/` 与 `real-codex-round-1-02/` 两次失败现场已纳入前一检查点的可提交证据范围；细目见 `failed-run-scope-readback.json`。auth 副本、隔离 home 和外置完整原生转录不入 Git。证据保留本机路径；凭据字段扫描只是有限检查，不作全面隐私保证。收尾校验记录见 `final-status-01/closeout.json`。
