@@ -1,0 +1,236 @@
+diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts
+index 6440aaf5b..4604c8e6d 100644
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -5,7 +5,7 @@ import { A2AGates, Refusal } from "./gates/core.ts";
+ import { OrchestrationStore } from "./store.ts";
+ import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
+ import { socketPath } from "./transport.ts";
+-import { RequestRelay } from "./relay.ts";
++import { RequestRelay, isPendingInboxResult } from "./relay.ts";
+ import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
+ import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
+ import { randomUUID } from "node:crypto";
+@@ -27,6 +27,33 @@ export async function serve(
+   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
+   const gates = createGates(root, panes);
+   const relay = new RequestRelay(store);
++  const feedbackText = (receipts: unknown[]) =>
++    "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2);
++  const settleInboxFeedback = async () => {
++    for (const receipt of relay.deferredInboxFeedback()) {
++      const delivery = await gates.inboxDeliveryStatus(receipt.result.entry.id);
++      if (delivery?.state !== "delivered") continue;
++      const pane = [...panes.panes.values()].find(value => value.record.id === receipt.launch);
++      if (!pane || pane.stopped || pane.archived || pane.failed) continue;
++      const live = await panes.processInfo(pane.record.thread);
++      const current = await gates.call({ command: "status", task: pane.record.task });
++      if (!current.ok || current.task?.spec_rev !== pane.record.spec_rev || current.task?.project_id !== pane.record.project ||
++          pane.stopped || pane.archived || pane.failed || !live.leader || live.failed ||
++          live.native_session !== pane.native || live.shell_pid !== pane.pty.pid) continue;
++      if (pane.record.role === "controller" && pane.native !== pane.record.session) continue;
++      if (pane.record.role === "worker") {
++        const attempt = current.task.current_attempt;
++        if (!attempt || attempt.reclaimed || attempt.attempt_id !== pane.record.attempt ||
++            attempt.session_id !== pane.record.session || attempt.fence !== pane.record.fence) continue;
++      }
++      if (!relay.claimDeliveredFeedback(receipt.key, delivery)) continue;
++      const { launch: _launch, ...original } = receipt;
++      const final = { ...original, replayed: false, result: { ...receipt.result, delivery } };
++      const dispatch = await panes.dispatch(pane, feedbackText([final]), "gate");
++      store.event("relay_feedback_registered", { key: receipt.key, request_id: receipt.request_id,
++        entry_id: delivery.entry_id, delivery, dispatch: dispatch.id }, pane.record);
++    }
++  };
+   const daemon = randomUUID();
+   type WindowBinding = { id: string; token: string; task: string; launch: string; sequence: number; requests: Set<string> };
+   const windows = new Map<string, WindowBinding>();
+@@ -197,6 +224,7 @@ export async function serve(
+       if (input.manifest?.state !== root) throw new Refusal("controller_state_mismatch");
+       const launch = panes.startController(status.task, input.manifest);
+       gates.registerController(launch.thread);
++      await gates.resumeControllerInbox(launch.thread);
+       return { ok: true, launch };
+     }
+     if (input.command === "daemon_stop") {
+@@ -288,7 +316,7 @@ export async function serve(
+             }
+             return await gates.call(command, caller);
+           });
+-          if (!receipt.replayed) receipts.push(receipt);
++          if (!receipt.replayed && !isPendingInboxResult(receipt.result)) receipts.push(receipt);
+           if (pane.record.role === "reviewer" && !receipt.replayed) {
+             if (receipt.result.ok) completedReview = { task: pane.record.task, id: pane.record.review_id };
+             else {
+@@ -298,8 +326,7 @@ export async function serve(
+             }
+           }
+         }
+-        if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane,
+-          "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2), "gate");
++        if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane, feedbackText(receipts), "gate");
+       });
+       const payload = JSON.parse(input.raw_stdin);
+       if (payload.hook_event_name === "UserPromptSubmit" && !decision) {
+@@ -346,6 +373,9 @@ export async function serve(
+         const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
+         if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: authority.source });
+         result = await handle(envelope, authority);
++        if (result.ok && ["controller_start", "pane_release", "window_release", "signal"].includes(envelope.input.command)) {
++          await settleInboxFeedback();
++        }
+         if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
+           ok: result.ok, error: result.error, details: result.details });
+       } catch (error) {
+@@ -364,6 +394,7 @@ export async function serve(
+           activeRequests++;
+           (async () => {
+             await panes.drain(pane);
++            await settleInboxFeedback();
+             if (result.completedReview) await gates.reclaimReview(result.completedReview.task, result.completedReview.id);
+           })().catch((error) => {
+             pane.failed = String(error); pane.state = "unknown";
+diff --git a/workbench/src/gates/core.ts b/workbench/src/gates/core.ts
+index ce33c1552..53bf4a6a8 100644
+--- a/workbench/src/gates/core.ts
++++ b/workbench/src/gates/core.ts
+@@ -2653,12 +2653,34 @@ export class A2AGates {
+     }
+     return undefined;
+   }
+-  private async deliverInbox(entry: A2AInboxEntry): Promise<A2AInboxDelivery> {
++  private waitingForRole(receipt: A2AInboxDelivery | undefined): boolean {
++    return receipt?.state === "pending" && receipt.reason === "role_session_missing" && !receipt.thread && !receipt.message;
++  }
++  private inboxAccepted(receipt: A2AInboxDelivery | undefined): boolean {
++    return receipt?.state === "queued" || receipt?.state === "delivered" || this.waitingForRole(receipt);
++  }
++  async inboxDeliveryStatus(entryId: string): Promise<A2AInboxDelivery | undefined> {
++    this.inboxEntry(entryId);
++    return await this.refreshInboxDelivery(entryId);
++  }
++  async resumeControllerInbox(thread: string): Promise<void> {
++    requireGate(!this.shuttingDown, "daemon_stopping");
++    const launch = this.runtime?.controllerLaunch?.(thread);
++    requireGate(launch && this.ownedThread(thread)?.role === "controller", "controller_launch_required");
++    for (const entry of this.inboxRecords()) {
++      requireGate(!this.shuttingDown, "daemon_stopping");
++      if (entry.to === launch.preset && this.waitingForRole(this.inboxDelivery(entry.id))) {
++        await this.deliverInbox(entry, true);
++      }
++    }
++  }
++  private async deliverInbox(entry: A2AInboxEntry, resume = false): Promise<A2AInboxDelivery> {
+     const lock = this.operationLock(`inbox-${entry.id}`);
+     try {
+       const previous = this.inboxDelivery(entry.id);
+-      // A persisted pending receipt is unknown, not permission to send again.
+-      if (previous) return previous;
++      // Only a confirmed absence of a role is safe to resume. A bare pending
++      // receipt can be an interrupted external write and must never retry.
++      if (previous && !(resume && this.waitingForRole(previous))) return previous;
+       const created_at = new Date(this.now()).toISOString();
+       this.appendDelivery({ state: "pending", entry_id: entry.id, created_at });
+       let receipt: A2AInboxDelivery;
+@@ -2671,6 +2693,12 @@ export class A2AGates {
+           const [role, thread] = entry.to.split(":");
+           if (thread && this.ownedThread(thread)?.role === role) targets.push(thread);
+         }
++        if (!targets.length && ["ideation", "executor"].includes(entry.to)) {
++          const receipt: A2AInboxDelivery = { state: "pending", entry_id: entry.id,
++            created_at, reason: "role_session_missing" };
++          this.appendDelivery(receipt);
++          return receipt;
++        }
+         requireGate(
+           targets.length === 1,
+           targets.length ? "ambiguous_role_session" : "role_session_missing",
+@@ -2763,10 +2791,10 @@ export class A2AGates {
+         if (previous) {
+           const delivery = await this.refreshInboxDelivery(previous.id);
+           return {
+-            ok: delivery?.state === "delivered" || delivery?.state === "queued",
++            ok: this.inboxAccepted(delivery),
+             entry: previous,
+             ...(delivery ? { delivery } : {}),
+-            ...(!["delivered", "queued"].includes(delivery?.state ?? "") ? { error: "wake_undelivered" } : {}),
++            ...(!this.inboxAccepted(delivery) ? { error: "wake_undelivered" } : {}),
+           };
+         }
+         ack = {
+@@ -2786,10 +2814,10 @@ export class A2AGates {
+       }
+       const delivery = await this.deliverInbox(ack);
+       return {
+-        ok: delivery.state === "delivered" || delivery.state === "queued",
++        ok: this.inboxAccepted(delivery),
+         entry: ack,
+         delivery,
+-        ...(!["delivered", "queued"].includes(delivery.state) ? { error: "wake_undelivered" } : {}),
++        ...(!this.inboxAccepted(delivery) ? { error: "wake_undelivered" } : {}),
+       };
+     }
+     requireGate(
+@@ -2871,7 +2899,7 @@ export class A2AGates {
+           );
+           return {
+             ...result,
+-            ...(result.delivery && !["delivered", "queued"].includes(result.delivery.state)
++            ...(result.delivery && !this.inboxAccepted(result.delivery)
+               ? { ok: false, error: "wake_undelivered" }
+               : {}),
+           };
+@@ -2909,10 +2937,10 @@ export class A2AGates {
+     this.appendInbox(entry);
+     const delivery = await this.deliverInbox(entry);
+     return {
+-      ok: delivery.state === "delivered" || delivery.state === "queued",
++      ok: this.inboxAccepted(delivery),
+       entry,
+       delivery,
+-      ...(!["delivered", "queued"].includes(delivery.state) ? { error: "wake_undelivered" } : {}),
++      ...(!this.inboxAccepted(delivery) ? { error: "wake_undelivered" } : {}),
+     };
+   }
+   private async emergencyStop(args: A2AStopRequest, actor?: GateActor): Promise<A2AGateResult> {
+diff --git a/workbench/src/relay.ts b/workbench/src/relay.ts
+index 1d3b71657..38fb1a31b 100644
+--- a/workbench/src/relay.ts
++++ b/workbench/src/relay.ts
+@@ -2,6 +2,13 @@ import { Refusal } from "./gates/core.ts";
+ import type { RelayFile } from "./relayFiles.ts";
+ import { OrchestrationStore } from "./store.ts";
+ import { reviewRequest } from "./gates/qualityProtocol.ts";
++import type { A2AInboxDelivery } from "./contracts/a2aInbox.ts";
++
++export function isPendingInboxResult(result: any): boolean {
++  return result?.ok === true && typeof result.entry?.id === "string" &&
++    result.delivery?.entry_id === result.entry.id && result.delivery.state === "pending" &&
++    result.delivery.reason === "role_session_missing" && !result.delivery.thread && !result.delivery.message;
++}
+ 
+ interface AttemptRelayBinding {
+   id: string; task: string; attempt: string; session: string; fence: number; spec_rev: number;
+@@ -41,6 +48,22 @@ export class RequestRelay {
+         `CREATE TRIGGER IF NOT EXISTS ${table}_no_${operation.toLowerCase()} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'append only'); END;`);
+     }
+   }
++  deferredInboxFeedback() {
++    return this.store.db.prepare("SELECT q.key,q.launch,q.request_id,r.data FROM relay_requests q JOIN relay_results r ON r.key=q.key ORDER BY q.rowid")
++      .all().map(row => ({ key: String(row.key), launch: String(row.launch), request_id: row.request_id, result: JSON.parse(String(row.data)) }))
++      .filter(receipt => isPendingInboxResult(receipt.result) && !this.store.db.prepare(
++        "SELECT 1 FROM orchestration_events WHERE type='relay_feedback_intent' AND json_extract(data,'$.key')=?").get(receipt.key));
++  }
++  claimDeliveredFeedback(key: string, delivery: A2AInboxDelivery): boolean {
++    const row = this.store.db.prepare("SELECT data FROM relay_results WHERE key=?").get(key);
++    const result = row && JSON.parse(String(row.data));
++    if (!isPendingInboxResult(result) || delivery.entry_id !== result.entry.id || delivery.state !== "delivered") return false;
++    if (this.store.db.prepare("SELECT 1 FROM orchestration_events WHERE type='relay_feedback_intent' AND json_extract(data,'$.key')=?").get(key)) return false;
++    // Reserve synchronously before dispatch can yield. After a crash this
++    // intent is unknown, never authorization to inject the I2 root twice.
++    this.store.event("relay_feedback_intent", { key, entry_id: delivery.entry_id, delivery });
++    return true;
++  }
+   async receive(binding: RelayBinding, file: RelayFile, matchedStop: boolean,
+     perform: (input: Record<string, any>) => Promise<any>) {
+     let input: any = null;

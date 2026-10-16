@@ -123,10 +123,20 @@ def run_worker_inbox(*,source,repo,home,state,attempt,window,call,query,check,re
     call('pane_status','--thread',thread)
     after=(home/'received.bin').read_bytes()
     gate_after=[row for row in query('dispatch_records') if json.loads(row['data'])['source']=='gate']
-    verify('worker_stop_receipts_are_delivered_once',len(queued)==7 and len(gate_dispatches)==1 and len(gate_after)==1
-           and all(ident.encode() in before for ident in queued.values()) and after==before,
-           'Stop 转交真实请求并把七份回执写回 worker；重复旧 Stop 不重发',
-           {'relay_result_count':len(receipts),'gate_dispatch_count':len(gate_after),'byte_count':len(after)})
+    # The user's pending contract suppresses only offline-role feedback. Both
+    # ack requests are durable pending receipts; the other five results still
+    # reach the real worker, and a stale Stop must not repeat any of them.
+    pending_ids={ident for ident,value in receipts.items() if value.get('ok') is True
+                 and value.get('delivery',{}).get('state')=='pending'
+                 and value['delivery'].get('reason')=='role_session_missing'}
+    expected_pending={queued['ack-one'],queued['ack-two']}
+    immediate_ids=set(queued.values())-expected_pending
+    verify('worker_stop_receipts_are_delivered_once',len(queued)==7 and len(receipts)==7
+           and pending_ids==expected_pending and len(gate_dispatches)==1 and len(gate_after)==1
+           and all(ident.encode() in before for ident in immediate_ids)
+           and all(ident.encode() not in before for ident in expected_pending) and after==before,
+           '七份请求均有真实回执；仅两份离线角色 ack 待投递不回灌，其他五份写回；重复旧 Stop 不重发',
+           {'relay_result_count':len(receipts),'pending_ids':sorted(pending_ids),'gate_dispatch_count':len(gate_after),'byte_count':len(after)})
     # Start one explicitly simulated input turn, then revoke its attempt while
     # the owned foreground process remains alive. This checks revocation at
     # transfer time, rather than just whether a capability string is present.

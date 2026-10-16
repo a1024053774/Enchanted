@@ -2,6 +2,13 @@ import { Refusal } from "./gates/core.ts";
 import type { RelayFile } from "./relayFiles.ts";
 import { OrchestrationStore } from "./store.ts";
 import { reviewRequest } from "./gates/qualityProtocol.ts";
+import type { A2AInboxDelivery } from "./contracts/a2aInbox.ts";
+
+export function isPendingInboxResult(result: any): boolean {
+  return result?.ok === true && typeof result.entry?.id === "string" &&
+    result.delivery?.entry_id === result.entry.id && result.delivery.state === "pending" &&
+    result.delivery.reason === "role_session_missing" && !result.delivery.thread && !result.delivery.message;
+}
 
 interface AttemptRelayBinding {
   id: string; task: string; attempt: string; session: string; fence: number; spec_rev: number;
@@ -40,6 +47,22 @@ export class RequestRelay {
       for (const operation of ["UPDATE", "DELETE"]) store.db.exec(
         `CREATE TRIGGER IF NOT EXISTS ${table}_no_${operation.toLowerCase()} BEFORE ${operation} ON ${table} BEGIN SELECT RAISE(ABORT,'append only'); END;`);
     }
+  }
+  deferredInboxFeedback() {
+    return this.store.db.prepare("SELECT q.key,q.launch,q.request_id,r.data FROM relay_requests q JOIN relay_results r ON r.key=q.key ORDER BY q.rowid")
+      .all().map(row => ({ key: String(row.key), launch: String(row.launch), request_id: row.request_id, result: JSON.parse(String(row.data)) }))
+      .filter(receipt => isPendingInboxResult(receipt.result) && !this.store.db.prepare(
+        "SELECT 1 FROM orchestration_events WHERE type='relay_feedback_intent' AND json_extract(data,'$.key')=?").get(receipt.key));
+  }
+  claimDeliveredFeedback(key: string, delivery: A2AInboxDelivery): boolean {
+    const row = this.store.db.prepare("SELECT data FROM relay_results WHERE key=?").get(key);
+    const result = row && JSON.parse(String(row.data));
+    if (!isPendingInboxResult(result) || delivery.entry_id !== result.entry.id || delivery.state !== "delivered") return false;
+    if (this.store.db.prepare("SELECT 1 FROM orchestration_events WHERE type='relay_feedback_intent' AND json_extract(data,'$.key')=?").get(key)) return false;
+    // Reserve synchronously before dispatch can yield. After a crash this
+    // intent is unknown, never authorization to inject the I2 root twice.
+    this.store.event("relay_feedback_intent", { key, entry_id: delivery.entry_id, delivery });
+    return true;
   }
   async receive(binding: RelayBinding, file: RelayFile, matchedStop: boolean,
     perform: (input: Record<string, any>) => Promise<any>) {

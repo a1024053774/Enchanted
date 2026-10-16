@@ -211,7 +211,10 @@ def protocol_i1_readback(root, api_root, launch, thread, binding, dispatch, rele
               'protocol_source': protocol_source, 'test_simulated_user_action': str(action_path),
               'oracle': {'inbox_records': True, 'relay_events': True, 'target_binding': True},
               'stop_condition': 'tool_use + tool_result, actual Stop/relay wake, idle; no retry'}
-    output.mkdir(parents=False, exist_ok=False)
+    # The protocol command deliberately records dispatch and permission
+    # evidence below execute-01/dispatch-01. Create only missing parents; a
+    # pre-existing output directory remains a hard refusal.
+    output.mkdir(parents=True, exist_ok=False)
     (output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
     return result
 
@@ -237,7 +240,7 @@ def protocol_i1_wait_permission(root, api_root, launch, thread, binding, dispatc
         if len(request_rows) == 1 and request_rows[0].get('message_kind') == 'tool_use' and len(response_rows) == 1 and len(permission_events) == 1:
             screen = gate(root, 'pane_output', '--launch', launch, '--offset', '0')
             raw = __import__('base64').b64decode(screen['data_base64'])
-            output.mkdir(parents=False, exist_ok=False)
+            output.mkdir(parents=True, exist_ok=False)
             (output / 'permission-screen.bin').write_bytes(raw)
             (output / 'permission-screen.json').write_text(json.dumps({'launch': launch, 'session': dispatch.get('session'),
                 'dispatch': dispatch['id'], 'permission_event': permission_events[0], 'output': screen}, ensure_ascii=False, indent=2) + '\n')

@@ -2653,12 +2653,34 @@ export class A2AGates {
     }
     return undefined;
   }
-  private async deliverInbox(entry: A2AInboxEntry): Promise<A2AInboxDelivery> {
+  private waitingForRole(receipt: A2AInboxDelivery | undefined): boolean {
+    return receipt?.state === "pending" && receipt.reason === "role_session_missing" && !receipt.thread && !receipt.message;
+  }
+  private inboxAccepted(receipt: A2AInboxDelivery | undefined): boolean {
+    return receipt?.state === "queued" || receipt?.state === "delivered" || this.waitingForRole(receipt);
+  }
+  async inboxDeliveryStatus(entryId: string): Promise<A2AInboxDelivery | undefined> {
+    this.inboxEntry(entryId);
+    return await this.refreshInboxDelivery(entryId);
+  }
+  async resumeControllerInbox(thread: string): Promise<void> {
+    requireGate(!this.shuttingDown, "daemon_stopping");
+    const launch = this.runtime?.controllerLaunch?.(thread);
+    requireGate(launch && this.ownedThread(thread)?.role === "controller", "controller_launch_required");
+    for (const entry of this.inboxRecords()) {
+      requireGate(!this.shuttingDown, "daemon_stopping");
+      if (entry.to === launch.preset && this.waitingForRole(this.inboxDelivery(entry.id))) {
+        await this.deliverInbox(entry, true);
+      }
+    }
+  }
+  private async deliverInbox(entry: A2AInboxEntry, resume = false): Promise<A2AInboxDelivery> {
     const lock = this.operationLock(`inbox-${entry.id}`);
     try {
       const previous = this.inboxDelivery(entry.id);
-      // A persisted pending receipt is unknown, not permission to send again.
-      if (previous) return previous;
+      // Only a confirmed absence of a role is safe to resume. A bare pending
+      // receipt can be an interrupted external write and must never retry.
+      if (previous && !(resume && this.waitingForRole(previous))) return previous;
       const created_at = new Date(this.now()).toISOString();
       this.appendDelivery({ state: "pending", entry_id: entry.id, created_at });
       let receipt: A2AInboxDelivery;
@@ -2670,6 +2692,12 @@ export class A2AGates {
         if (entry.to.includes(":")) {
           const [role, thread] = entry.to.split(":");
           if (thread && this.ownedThread(thread)?.role === role) targets.push(thread);
+        }
+        if (!targets.length && ["ideation", "executor"].includes(entry.to)) {
+          const receipt: A2AInboxDelivery = { state: "pending", entry_id: entry.id,
+            created_at, reason: "role_session_missing" };
+          this.appendDelivery(receipt);
+          return receipt;
         }
         requireGate(
           targets.length === 1,
@@ -2763,10 +2791,10 @@ export class A2AGates {
         if (previous) {
           const delivery = await this.refreshInboxDelivery(previous.id);
           return {
-            ok: delivery?.state === "delivered" || delivery?.state === "queued",
+            ok: this.inboxAccepted(delivery),
             entry: previous,
             ...(delivery ? { delivery } : {}),
-            ...(!["delivered", "queued"].includes(delivery?.state ?? "") ? { error: "wake_undelivered" } : {}),
+            ...(!this.inboxAccepted(delivery) ? { error: "wake_undelivered" } : {}),
           };
         }
         ack = {
@@ -2786,10 +2814,10 @@ export class A2AGates {
       }
       const delivery = await this.deliverInbox(ack);
       return {
-        ok: delivery.state === "delivered" || delivery.state === "queued",
+        ok: this.inboxAccepted(delivery),
         entry: ack,
         delivery,
-        ...(!["delivered", "queued"].includes(delivery.state) ? { error: "wake_undelivered" } : {}),
+        ...(!this.inboxAccepted(delivery) ? { error: "wake_undelivered" } : {}),
       };
     }
     requireGate(
@@ -2871,7 +2899,7 @@ export class A2AGates {
           );
           return {
             ...result,
-            ...(result.delivery && !["delivered", "queued"].includes(result.delivery.state)
+            ...(result.delivery && !this.inboxAccepted(result.delivery)
               ? { ok: false, error: "wake_undelivered" }
               : {}),
           };
@@ -2909,10 +2937,10 @@ export class A2AGates {
     this.appendInbox(entry);
     const delivery = await this.deliverInbox(entry);
     return {
-      ok: delivery.state === "delivered" || delivery.state === "queued",
+      ok: this.inboxAccepted(delivery),
       entry,
       delivery,
-      ...(!["delivered", "queued"].includes(delivery.state) ? { error: "wake_undelivered" } : {}),
+      ...(!this.inboxAccepted(delivery) ? { error: "wake_undelivered" } : {}),
     };
   }
   private async emergencyStop(args: A2AStopRequest, actor?: GateActor): Promise<A2AGateResult> {

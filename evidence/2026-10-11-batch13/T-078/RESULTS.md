@@ -998,3 +998,35 @@ The first permission attempt failed before key delivery because the build slot w
 
 A-12 redaction PASS：保留 12 requests/1 response 的 tool_use/tool_result 与错误码，未复制 raw logs、debug、system/tools/auth 或凭据。A-12 owner-bound cleanup dry-run/formal PASS；API 93826/93827 各 SIGTERM 一次，daemon_stop 关闭 Claude/target，逐成员字节读回 PASS 后删除 root，归档在 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a12-cleanup/fixture.tar.gz`。
 A-13 rehearsal PASS：真实 daemon/bin-inbox/Stop/relay 链路五项检查通过，错 launch exit 2 且 stop 条目数保持 1；无 Claude/API/model，scratch 自行删除。A-13 materials-13、Stage A、B1、onboarding 和 protocol I1 三步模板均为 NO_GO 写文件准备，binding/签字栏留待实际 Stage A/B1 结果。
+
+## 主控 #298：离线角色 pending 契约的红态与实现计划
+
+用户已选择“条目留存，等角色上线再投递”，答复为 `20261016T012505Z-ideation-answer-001`。本轮只整理红态和计划；产品代码未修改，新契约 **INCOMPLETE**，A-14 **NO_GO**。
+
+`09b-pending-live-red-01/readback.json` 通过真实门禁只读取得 A-13 事件 116/117：stop 已正确追加，投递为 undelivered/role_session_missing，relay 返回 wake_undelivered，发送方收到 gate 反馈派发。没有复制 raw API/Claude 日志或凭据，也没有发送输入、Stop、重试或回收现场。
+
+复用 A-13 排练的真实 daemon/bin-inbox/UPS/Stop/relay，新增 `--recipient-offline` 场景；`09b-pending-chain-red-01` 与阶段脚本实跑 `09b-pending-chain-red-02` 均精确复现“一条 stop、错误 relay 结果、一条 gate feedback”。子检查 exit 1 是新契约的预期红态，阶段核验 **PASS** 不代表产品通过；进程约 1 秒自行退出，scratch 已删。`09b-pending-chain-online-baseline-01` 的原有会话五项基线仍 **PASS**，不当作 pending 绿态。仅 native 进程与 PTY 边界为 spy，无 Claude/API/model。
+
+下一步方案见 `PLAN-PENDING-DELIVERY-01.md`，主控独立重跑命令见 `09B-PENDING-RED-COMMANDS-01.txt`。方案守住明确待上线 pending 与未知投递意图的区别、发送方事件可见、上线后的既有唤醒与 ack；单列冻结 I2 的反馈时点待主控核对，不采用先启动 executor 的替代方案、不增预算。A-13 脱敏/owner-bound cleanup、实现后绿态与反例、新独立审查及 A-14 材料尚待后续阶段，本轮不声称完成。
+
+## 主控 #299：pending 投递实现与延后 I2
+
+主控已批准计划 1–3 与验收矩阵，并确认用户原话的共同读法：pending 阶段反馈为零；原有一条 I2 只在条目实际 delivered 后登记，关联原 request_id/entry_id，不重做 send、不额外增加派发、不改成管道确认。依据为 answer `20261016T012505Z-ideation-answer-001` 的原话：“不再给发送方回灌反馈回合”与“protocol 与预算不变”；该答复的字节副本已保留在本票证据目录。
+
+实现复用既有 inbox_records/inbox_deliveries、角色登记和 wake/dispatch。无 ideation/executor 会话时保留可见的 pending/role_session_missing，relay_processed 仍携带发送方 request_id；Stop 不生成即时反馈。真实 controller_start 仅把待上线条目放入 unknown 窗格的队列，初始 release 后只有 turn_submitted 才读回 delivered。延后 I2 先保存与原 request/entry 关联的意图再登记，避免重复或未知写出被重发；旧 relay_results 与 stop.created_at 不改写，120 秒无 ack 起点不重置。bare pending/unknown 不自动恢复，多会话歧义仍失败，executor ack 与权限校验保持真实 caller。
+
+`09b-pending-local-03`：11 组 **PASS**（pending 链 13、在线 6、歧义 6、controller relay 22、controller entry 6、inbox domain 11、权限 3、epochs 7、空框声明 17、pane runtime 11、管理 inbox entry 8）。pending 链经真实 controller_start、inbox 客户端与 UPS/Stop/relay 证明首启零输入、delivered 后唯一 I2、created_at 不变、executor ack/重复 ack 和越权 ack 拒绝；native 进程和 PTY 为 spy，没有真实 Claude/API/model。worker 夹具按新语义明确区分两份 pending ack 与其余五份正常回执；其真实 Electron/worker 入口回归待主控执行，不把未跑部分记为 PASS。
+
+中间失败均留存：green-01 未等异步反馈的提交收据即访问 active；local-02 扩展链在最后越权 ack 步骤耗尽 30 秒总期限，前 14 条子命令均正常返回，事件显示串行 Node 入口耗时数秒。现保留单调用 5 秒期限，扩展最多 17 次调用总期限 90 秒并记录各调用耗时；local-03 全过。local-02 的 scratch 尚待主控用 `cleanup-pending-timeout.py` 确认旧 PID 不存在后归档删除，不发信号。
+
+A-13 只读脱敏归档 `09b-a13-i1-redacted-01` **PASS**：13 请求/2 响应，只保留计数、tool_use/tool_result、错误码，无 raw logs/凭据复制。A-13 owner-bound cleanup dry-run/正式命令在 `09B-A13-CLEANUP-COMMANDS.txt`，绑定原七个 PID、root 和真实 -02 manifest，新增原 B1 lstart 核对；本轮没有执行回收或发键。候选待主控冻结并安排全新独立审查，A-14 **NO_GO**，不宣称 09B 完整验收通过。
+
+## 主控 #300：真实 worker 回归与残留 socket 清理修复
+
+主控沙箱外运行 `09b-pending-runtime-01` **PASS**，worker-inbox 14 项断言通过；前节该回归的“待主控执行”已完成，新独立审查仍 **INCOMPLETE**。
+
+`09b-pending-timeout-cleanup-01` 保留 **BLOCKED**：两个旧 PID 均已不存在，原脚本在移除临时 operator 文件后，对残留 `state/control.sock` 归档时因 unsupported filesystem member 停下，root 未删除。新版脚本仅对这一固定路径用 lstat 确认 socket，记录类型、路径、inode 和持有者检查；只有两次 `lsof -t` 均确认无人持有且 inode 未变，才单独删除该 socket。其他特殊类型仍由未修改的归档器拒绝；凭据文件已缺失会如实记录，不再次要求删除。
+
+socket 原行为红态在 `09b-pending-socket-cleanup-red-01`；首次绿态夹具因 `lsof -F p` 还返回自动 fd 行而失败，原件保留 `09b-pending-socket-cleanup-green-01`。当前 `-t` 路径经真实 Unix socket/真实 lsof 实测三项 **PASS**，见 `09b-pending-socket-cleanup-green-02`：活跃 socket 不删、关闭后的残留 socket 记录并删除且归档字节读回通过、FIFO 继续拒绝。新版回收输出用 `09b-pending-timeout-cleanup-02`，只交主控执行；worker 本轮未回收保留的 scratch 或 A-13，未发信号。
+
+README 已同步 1～6 根、角色 hook 路径、仅尾部 CR/LF 规范化以及 pending/延后 I2 语义。提交前 project-map status 的 stale 提示以最后已提交的 README 为基点，不读取未提交正文来消除历史差异；提交后重新核对，不改地图的 Verified 字段。

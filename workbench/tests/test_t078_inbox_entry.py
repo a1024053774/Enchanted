@@ -2,7 +2,7 @@
 """Real database inbox client; no controller CLI, terminal, model or hook.
 
 A pre-existing logical handoff is fixture input, not evidence of a Claude send.
-Only the daemon can append its ack. Missing recipients remain undelivered.
+Only the daemon can append its ack. Offline controller recipients remain pending.
 """
 import argparse
 from contextlib import closing
@@ -100,15 +100,18 @@ def main():
         listed=command_json(run([*inbox,'list','--role','ideation']))
         check('list_role_from_credential',listed.get('ok') is True and [item['entry']['id'] for item in listed['entries']]==['fixture-handoff'],listed)
         body=root/'body.txt';body.write_text('报告正文：不应变成用户输入。\n',encoding='utf-8')
-        sent=command_json(run([*inbox,'send','--from','user','--to','ideation','--kind','report','--body-file',body],allowed=(1,)))
+        sent=command_json(run([*inbox,'send','--from','user','--to','ideation','--kind','report','--body-file',body]))
         check('send_records_actual_actor_without_claiming_delivery',sent.get('entry',{}).get('from')=='executor'
               and sent['entry']['body']=='报告正文：不应变成用户输入。\n'
-              and sent.get('delivery',{}).get('state')=='undelivered' and not rows('user_inputs'),sent)
-        first=command_json(run([*inbox,'ack','--id','fixture-handoff'],allowed=(1,)))
-        second=command_json(run([*inbox,'ack','--id','fixture-handoff','--role','user'],allowed=(1,)))
+              and sent.get('ok') is True and sent.get('delivery',{}).get('state')=='pending'
+              and sent['delivery'].get('reason')=='role_session_missing' and not rows('user_inputs'),sent)
+        first=command_json(run([*inbox,'ack','--id','fixture-handoff']))
+        second=command_json(run([*inbox,'ack','--id','fixture-handoff','--role','user']))
         acks=[item for item in rows('inbox_records') if item['kind']=='ack']
         check('ack_once_by_real_recipient',len(acks)==1 and acks[0]['from']=='executor'
-              and first.get('entry',{}).get('id')==second.get('entry',{}).get('id')==acks[0]['id'],{'first':first,'second':second,'acks':acks})
+              and first.get('entry',{}).get('id')==second.get('entry',{}).get('id')==acks[0]['id']
+              and all(item.get('ok') is True and item.get('delivery',{}).get('state')=='pending'
+                      and item['delivery'].get('reason')=='role_session_missing' for item in [first,second]),{'first':first,'second':second,'acks':acks})
         remaining=command_json(run([*inbox,'list']))
         check('ack_removes_original_from_unconfirmed',remaining.get('entries')==[],remaining)
         before=rows('inbox_records')

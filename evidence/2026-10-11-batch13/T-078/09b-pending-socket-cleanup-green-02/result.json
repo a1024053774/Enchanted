@@ -1,0 +1,86 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "held_socket_refused",
+      "status": "PASS",
+      "observed": {
+        "residual_socket": {
+          "path": "/private/tmp/t078-socket-test-q9zl_8ve/state/control.sock",
+          "type": "socket",
+          "device": 16777231,
+          "inode": 231566921,
+          "held_by_process": true,
+          "holder_checks": [
+            {
+              "argv": [
+                "/usr/sbin/lsof",
+                "-nP",
+                "-t",
+                "--",
+                "/private/tmp/t078-socket-test-q9zl_8ve/state/control.sock"
+              ],
+              "exit_code": 0,
+              "stdout": "67736\n",
+              "stderr": ""
+            }
+          ],
+          "removed": false
+        }
+      }
+    },
+    {
+      "name": "stale_socket_logged_removed_and_archive_verified",
+      "status": "PASS",
+      "observed": {
+        "residual_socket": {
+          "path": "/private/tmp/t078-socket-test-q9zl_8ve/state/control.sock",
+          "type": "socket",
+          "device": 16777231,
+          "inode": 231566921,
+          "held_by_process": false,
+          "holder_checks": [
+            {
+              "argv": [
+                "/usr/sbin/lsof",
+                "-nP",
+                "-t",
+                "--",
+                "/private/tmp/t078-socket-test-q9zl_8ve/state/control.sock"
+              ],
+              "exit_code": 1,
+              "stdout": "",
+              "stderr": ""
+            },
+            {
+              "argv": [
+                "/usr/sbin/lsof",
+                "-nP",
+                "-t",
+                "--",
+                "/private/tmp/t078-socket-test-q9zl_8ve/state/control.sock"
+              ],
+              "exit_code": 1,
+              "stdout": "",
+              "stderr": ""
+            }
+          ],
+          "removed": true
+        }
+      },
+      "inventory": {
+        "members": 2,
+        "regular_files": 1,
+        "directories": 1,
+        "symlinks": 0
+      }
+    },
+    {
+      "name": "other_special_type_refused",
+      "status": "PASS",
+      "error": "unsupported filesystem member: /private/tmp/t078-socket-test-q9zl_8ve/unexpected.fifo"
+    }
+  ],
+  "signals_sent": [],
+  "scope": "real AF_UNIX/lsof and archive readback; no retained fixture or A13 cleanup"
+}

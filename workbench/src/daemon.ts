@@ -5,7 +5,7 @@ import { A2AGates, Refusal } from "./gates/core.ts";
 import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
-import { RequestRelay } from "./relay.ts";
+import { RequestRelay, isPendingInboxResult } from "./relay.ts";
 import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
 import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
 import { randomUUID } from "node:crypto";
@@ -27,6 +27,33 @@ export async function serve(
   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
   const gates = createGates(root, panes);
   const relay = new RequestRelay(store);
+  const feedbackText = (receipts: unknown[]) =>
+    "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2);
+  const settleInboxFeedback = async () => {
+    for (const receipt of relay.deferredInboxFeedback()) {
+      const delivery = await gates.inboxDeliveryStatus(receipt.result.entry.id);
+      if (delivery?.state !== "delivered") continue;
+      const pane = [...panes.panes.values()].find(value => value.record.id === receipt.launch);
+      if (!pane || pane.stopped || pane.archived || pane.failed) continue;
+      const live = await panes.processInfo(pane.record.thread);
+      const current = await gates.call({ command: "status", task: pane.record.task });
+      if (!current.ok || current.task?.spec_rev !== pane.record.spec_rev || current.task?.project_id !== pane.record.project ||
+          pane.stopped || pane.archived || pane.failed || !live.leader || live.failed ||
+          live.native_session !== pane.native || live.shell_pid !== pane.pty.pid) continue;
+      if (pane.record.role === "controller" && pane.native !== pane.record.session) continue;
+      if (pane.record.role === "worker") {
+        const attempt = current.task.current_attempt;
+        if (!attempt || attempt.reclaimed || attempt.attempt_id !== pane.record.attempt ||
+            attempt.session_id !== pane.record.session || attempt.fence !== pane.record.fence) continue;
+      }
+      if (!relay.claimDeliveredFeedback(receipt.key, delivery)) continue;
+      const { launch: _launch, ...original } = receipt;
+      const final = { ...original, replayed: false, result: { ...receipt.result, delivery } };
+      const dispatch = await panes.dispatch(pane, feedbackText([final]), "gate");
+      store.event("relay_feedback_registered", { key: receipt.key, request_id: receipt.request_id,
+        entry_id: delivery.entry_id, delivery, dispatch: dispatch.id }, pane.record);
+    }
+  };
   const daemon = randomUUID();
   type WindowBinding = { id: string; token: string; task: string; launch: string; sequence: number; requests: Set<string> };
   const windows = new Map<string, WindowBinding>();
@@ -197,6 +224,7 @@ export async function serve(
       if (input.manifest?.state !== root) throw new Refusal("controller_state_mismatch");
       const launch = panes.startController(status.task, input.manifest);
       gates.registerController(launch.thread);
+      await gates.resumeControllerInbox(launch.thread);
       return { ok: true, launch };
     }
     if (input.command === "daemon_stop") {
@@ -288,7 +316,7 @@ export async function serve(
             }
             return await gates.call(command, caller);
           });
-          if (!receipt.replayed) receipts.push(receipt);
+          if (!receipt.replayed && !isPendingInboxResult(receipt.result)) receipts.push(receipt);
           if (pane.record.role === "reviewer" && !receipt.replayed) {
             if (receipt.result.ok) completedReview = { task: pane.record.task, id: pane.record.review_id };
             else {
@@ -298,8 +326,7 @@ export async function serve(
             }
           }
         }
-        if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane,
-          "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2), "gate");
+        if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane, feedbackText(receipts), "gate");
       });
       const payload = JSON.parse(input.raw_stdin);
       if (payload.hook_event_name === "UserPromptSubmit" && !decision) {
@@ -346,6 +373,9 @@ export async function serve(
         const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
         if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: authority.source });
         result = await handle(envelope, authority);
+        if (result.ok && ["controller_start", "pane_release", "window_release", "signal"].includes(envelope.input.command)) {
+          await settleInboxFeedback();
+        }
         if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
           ok: result.ok, error: result.error, details: result.details });
       } catch (error) {
@@ -364,6 +394,7 @@ export async function serve(
           activeRequests++;
           (async () => {
             await panes.drain(pane);
+            await settleInboxFeedback();
             if (result.completedReview) await gates.reclaimReview(result.completedReview.task, result.completedReview.id);
           })().catch((error) => {
             pane.failed = String(error); pane.state = "unknown";

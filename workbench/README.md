@@ -2,7 +2,7 @@
 
 T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
 当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的探针，
-根提交预算须预声明为一或二，不支持真登录或日常主控运行。启动需逐次批准；单角色
+根提交预算须在 manifest 预声明为 1～6 根，不支持真登录或日常主控运行。启动需逐次批准；单角色
 收件箱候选及当前绿态审批流程见 [SLICE-1-GREEN-3](../evidence/2026-10-11-batch13/T-078/SLICE-1-GREEN-3.md)。
 隔离 settings.json 仅设置 `theme: dark`，移除 IS_DEMO，并设置文档化的
 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，禁用标题侧模型请求和终端状态报告。
@@ -21,6 +21,8 @@ onboarding-notice 只允许 Enter：从已登记的主题确认快照之后取�
 与 08c 的固定 Security notes 文字逐字比较；原字节也必须等于本屏批准快照。
 文字不同、额外提示或重复确认均拒绝。其他权限、认证、遥测或共享选择仍停下。
 原生 debug 与 hooks 的原始 stdin、stdout、stderr、退出码和耗时落进该实例目录。
+HookTrace 核对启动的 preset/launch，只接受 `<root>/roles/<preset>/hooks`；
+不接受旧的 `<root>/hooks` 布局。
 单回合及 09A-3R2 两回合 Esc／空框放行、拼接阻断已有绑定版本的实际证据；
 当前 controller 转交候选仍须新实例验证，不能复用这些旧结论作验收。
 遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
@@ -356,6 +358,9 @@ input_id。粘贴去掉协议包裹后保存文本；终端控制键记 action�
 带 base64 原始字节的 action，不把其中的控制字节当成用户提交。上述三项修复
 已通过 outside-input-green-01；主控多窗格和主控凭据运行路径仍待真实 Claude 复核。
 
+后台登记注入正文时仅移除末尾 CR/LF，与已观察到的 Claude 提交形式一致；保留中间文字与空白。
+UserPromptSubmit 对活动注入与实际 prompt 逐字核对，拼接或中间差异仍阻断，不自动重发。
+
 设备查询应答由后台处理，前端用公开 parser 接管查询，避免自动应答混入用户输入。
 按 T-078 执行主控决定 03，前端拦截 DECSET/DECRST 1004；混合序列中的其他模式
 保持顺序交给 xterm。每次拦截记原始序列。CLI 因此收不到工作台窗口的焦点变化。
@@ -407,6 +412,16 @@ ready 只读取该后台已绑定项目的 ticket，返回可执行且依赖已�
 收件箱、ack 和投递收据都只追加。`queued` 是已排队，`delivered` 才是运行时确认写入；
 重复 ack 复用原条目及投递结果，不重发。读取 queued 收据时可追加运行时后来确认的状态。
 没有实际接收者时，条目和未送达原因保留，命令不能报告投递成功。
+
+角色地址 ideation/executor 暂无会话时，条目保留为 `pending, reason:role_session_missing`，
+执行结果 `ok:true` 表示已留存，不表示已送达。发送方同 request_id 的 relay_processed 事件
+可见该状态，此时不注入反馈回合。controller_start 注册实际角色后，只恢复明确待上线的条目，
+沿原有 wake/dispatch 队列投递；首启 unknown 时不写业务输入。初始放行后，只有真实
+turn_submitted 收据才使投递变为 delivered，再向原发送方登记原有的一条执行反馈，
+关联原 request_id/entry_id，不重做 send；09B 的 I2 在此时只确认，预算不增加。
+原条目 created_at 保持不变，120 秒无 ack 的起点不因上线而重置。
+缺少确定结果的旧 pending、unknown 写入与多会话歧义不能自动重送；反馈派发意图已保存但
+结果不明时同样不重发。完整双 Claude 场景仍须新实例与独立审查，不以 PTY spy 代替实测。
 
 worker Stop 收件箱转交已在隔离入口通过验证；controller 已接入同一原生请求文件／
 Stop 通路，实际 Claude 单角色工具绿态仍待批准运行。真实双主控转交、stop→执行→ack、
