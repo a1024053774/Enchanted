@@ -13,3 +13,7 @@ worktree /Users/luckye/Documents/Code/a2a-wt-t090（exec/t090，基于 main f08a
 对照：recovery 两用例在 main-before-T082 271ac55d8、main-T082 0e6c2b833、T090 18dd12c29 上单独运行均 PASS；run 组 18 在三版本上单独运行均 18/0/0 PASS。结论：偶发、短时限敏感，不是 T-090 引入。偶发失败另报非阻塞 issue 20261016T162759Z。
 在 T-090 版本上 coop 8、recovery 9、run 18 分别在不同运行中完整通过，尚未在同一次整组运行里一起通过（如实记录）。剩余步骤 green-remaining-01 PASS：CAS 1、cards 15、worker 三反例（HEAD 改、变脏、分支改仍被拒）、T-082 七场景与四启动变异；三条"删掉 worker 检查"的反事实按预期失败。
 #12：fresh 独立 reviewer s16-t090-rev（wF:p4Q）审冻结候选 ca6ac9aa3，含变异检查。Codex 会话 3 个（t078、t090、t090-rev）。
+
+## 验收与收尾 #13（2026-10-16 UTC）
+
+审查 01 INCOMPLETE 的两项（沙箱内变异未到业务断言、README stale）由主控补证：沙箱外按 reviewer 设计的三变异执行，全部以业务断言失败；README 补注。审查 02 PASS（e89ccaa34，产品与测试同 ca6ac9aa3）。合入 main 89a1915f1（--no-ff），status 0/0，打分 score-ff7303c80b2741848fb1542bfe608ec5（边界 3、工程 2），票关闭（Resolution）。回收：s16-t090（wF:p4P）、s16-t090-rev（wF:p4Q）均 idle、交付已提交后关闭窗格；worktree a2a-wt-t090 移除，分支 exec/t090 删除（已合入）。非阻塞 issue 20261016T162759Z（偶发短时限失败）保持开放。
