@@ -36,3 +36,7 @@ OUTSIDE-COMMANDS-11（outside-command-11-01）：01–14 PASS（独审两处红�
 ## 独立审查 02 #56（2026-10-16 UTC）
 
 T-078 审查员回收后 Codex 会话降回 2 个，新开 fresh Codex reviewer s16-t082-rev2（wF:p4E）审冻结候选 5f7f9816e。
+
+## 独立审查 02 INCOMPLETE 与待决 #57/#58（2026-10-16 UTC）
+
+主控运行 reviewer 02 的沙箱外脚本：11 段全部按预期（候选绿；M1 只查报告、M2 workspace 只查非空、M3 漏共享 refs、M4 谎报副本已删各在指定断言失败；T-076 三性质、T-077、四种启动拒收、tier 证据与最终收据读回 PASS）。结论 INCOMPLETE：无产品缺陷；[P2] "每种先见红"时间顺序未证明（三项红态为修复后重建）；[P3] launch-policy runner 状态字段不同步。审查提交 3c9776943，输出归档外置盘 review-02-outside/，窗格回收。#58 派 worker 修 P3；P2 与 T-076 审计锚点写 needs-decision（needs-decision-01.md）交构思主控。
