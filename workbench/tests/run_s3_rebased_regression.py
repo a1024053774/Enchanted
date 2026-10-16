@@ -114,6 +114,8 @@ def main():
         'revision': head, 'argv': sys.argv, 'tests_run': result.testsRun, 'expected_tests': len(names),
         'complete_original_suite_size': COUNTS[args.suite], 'selected_case': args.case,
         'mutant_core': str(args.mutant_core.resolve()) if args.mutant_core else None,
+        'original_results': (adapter.recovery.TEST_RESULTS if args.suite in ('recovery', 'cas') else
+                             adapter.orchestration.TEST_RESULTS if args.suite == 'run' else []),
         'failures': len(result.failures), 'errors': len(result.errors), 'skipped': len(result.skipped),
         'failure_text': [{'test': t.id(), 'traceback': text} for t, text in result.failures],
         'error_text': [{'test': t.id(), 'traceback': text} for t, text in result.errors],

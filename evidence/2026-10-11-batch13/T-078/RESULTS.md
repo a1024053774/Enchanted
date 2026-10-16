@@ -1279,3 +1279,15 @@ ticket 所列同时输入、组合输入、大粘贴、关窗、重启 unknown�
 F6先通过真实标准prepare生成 `09b-executable-materials-f6-red-01`：旧生成器返回静态PASS/58文件，但独立的三个reader调用者局部import闭包检查 **exit 1／INCOMPLETE**，明确缺 `p1_output.py` 及command_evidence、electron_client、p1_endpoint、p1_processes、p1_reuse、p1_simulated_actions、p1_window_receipts共八个helper。红态在 `review-followup-f6-red-01`，不是socket/CLI设置失败。该包只是源边界探针、launch NO_GO；仅静态Node构造，daemon/API/原生CLI均0，已删除其临时静态root，原包与失败回执保留。
 
 标准prepare仅补这八份reader本地依赖，保持原调用者、根/预算/协议不变；源码提交冻结后才生成新标准包取绿。F4仅给现有原断言runner增加单case/mutant-core参数，以复用原T075 fence/CAS/lock变异，不改业务测试方法或acceptance断言；整组8/9/18、CAS、卡片正反例及三变异的实际运行仍 **INCOMPLETE／未执行**。命令路径/语法/三个变异定位的check-only已PASS，无进程/模型。真登录仍受现有fake-only产品入口约束，准备材料将明确前置，不用直接原生CLI绕过门禁。
+
+F6代码已提交 `a853ad58b91f0363fcb933c50ff15ff15e2d3caf`，九项尾注；之后真实标准prepare生成 `09b-executable-materials-f6-green-01`（66文件）。[绿态](review-followup-f6-green-01/result.json) **PASS**：三个reader调用者的14个局部import模块无缺失；在隔离Python `-I` 子进程只从解包目录导入reader，真实字节/分页/EOF通过，删除p1_output的坏包仍被拒。该包由prepare逐文件与提交字节核对，没有从当前checkout补缺失模块；无daemon/API/原生CLI。静态临时root已删除、源包和读回保留。F6闭包问题可凭上述红绿交主控关闭，不代表新09B/09C获准启动。
+
+[F4说明](REVIEW-FOLLOWUP-F4.md) 和 [确切命令](REVIEW-FOLLOWUP-COMMANDS.txt) 指向新 `review-followup-regressions-01`；预期coop8、recovery9、run18、CAS1、cards15全组PASS，三单点变异各原测试exit1/业务失败/errors0后由协调器另判反例PASS。当前只做check-only，**运行INCOMPLETE**；不将T075非模型门禁正反例说成重跑历史真实Codex/网络沙箱。快照绑定当前最终业务与已提交runner，后续票内文档允许，源码改变即拒绝。
+
+F7已在审查请求末尾追加#335说明，旧报告/原件不改：#333已完成A15回收，root不再存在；回收充分性和F1验收原件充分性是两件事。F3留给主控下一fresh reviewer，允许绑定候选的隔离临时worktree中做2～5个变异，不再要求Herdr期尚未提供的门禁副本；worker本轮未做reviewer变异或给独立PASS。F5仍直接total INCOMPLETE。
+
+[P3真登录最小材料](P3-REAL-LOGIN-MINIMAL-01.md) 给出两真实回合＋第三次另批、两CLI/仅一个真实模型接收者、短基线/实际report唤醒、argv/env/hooks、仅本次会话历史的用户HOME写入许可及停止条件。**P3 launch BLOCKED**：产品尚无normal-login profile；实际CLI正常HOME写集和包含失败/重试的可靠调用计数也未验证。现有授权已确定认证路线，不重复提问；另上报非阻塞issue `20261016T142844Z-worker:t078-review-followup-issue-001` 请主控安排最小实现/前置，不能捏造可执行manifest或直接起原生CLI绕门禁。需要扩大用户HOME非历史写入时才另请用户决定。本轮未访问用户认证/历史、未启动真登录。
+
+F1的 [逐POST/hook最小保留清单与代价](09B-MINIMAL-RAW-RETENTION-01.md) 仅供用户决定：保留每个实际请求/响应/meta、每次原生hook的脱敏stdin/stdout/finished、完整许可/单Enter回执、原事件/目标字节与身份，而非重建汇总。秘密字段定点脱敏，原始顺序/实际ID保留；外置逐成员字节读回，fresh独立重数通过后才另批删root。拟议仍两Claude、0真实Codex/模型、17 POST/七许可；未压缩估计1～5MiB、先留20MiB余量，实际大小/耗时未知。没有决定重跑09B或修改过去的redactor/cleanup；A15历史采集PASS、独立INCOMPLETE的边界不变。整票继续NO_GO/INCOMPLETE。
+
+F4准备期的判定器文件检查首次失败，原trace在 `review-followup-final-check-01/failure.txt`：错误地在单条assertion找business-red，实际它属于原测试`TEST_RESULTS`。这是harness字段错误，不是产品红态。修正后runner额外保存原测试结果，协调器分别要求具体claim失败和原结果business-red；[02文件检查](review-followup-final-check-02/result.json) PASS，三份历史业务红态均接受，setup-error、错loaded core、fixture分类及无业务断言失败均拒绝，scene_actions=0。没有运行F4真实测试，源码冻结元数据会随本次最终harness提交更新，防止交主控的命令仍绑定修正前代码。

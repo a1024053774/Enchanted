@@ -26,3 +26,13 @@
 原 root 中带 headers/system/metadata 的 API 日志按已批准脱敏规则没有原样归档。17 POST 的逐项安全投影、停机前读回与执行主控核对已保存；root 删除后不能再从原 HTTP body 重算。审查应明确该可复核性边界，不把脱敏摘要称为完整原始请求档案。disposition 20261016T133204Z 原件的作者为执行主控，转述用户决定，只关闭 E4 范围裁定阻塞。
 
 请返回 PASS / INCOMPLETE / NO_GO 等真实范围结论，逐条写来源、可达反例与缺口；整票关闭由执行主控按门禁完成。
+
+## 主控 #335 追加说明：F7 回收状态与新审查前置
+
+以上独立终审01的历史目标仍为92874fe7f，不改其报告或运行原件。该历史候选中的旧请求文字曾写“cleanup未运行/仍存进程”，实际同提交已有主控#333的正式PASS回执；后续99417a496已经修正文案，本节再次明确：**A15已回收**，九进程退出、两个API各一次SIGTERM、root删除；`09b-a15-cleanup-01-dry-run/result.json`、`09b-a15-redacted-01/result.json`、`09b-a15-cleanup-01/result.json`和签字件是唯一事实来源，外置tar1,766字节。不得按历史请求去操作或重建旧现场，不读已停机SQLite，不将cleanup PASS当作HTTP/hook验收完整。
+
+独立终审01为整票NO_GO/INCOMPLETE，F1指出汇总投影不能独立复核17 POST/七原生许可。此限制继续有效；用户决定是否补跑09B，worker的[保留方案](09B-MINIMAL-RAW-RETENTION-01.md)不是补跑授权，也不补造旧原件。I1直接total仍缺，F5不改判。
+
+F6已在源码`a853ad58b91f0363fcb933c50ff15ff15e2d3caf`补标准prepare的八个Python reader依赖；标准旧包58文件/闭包红态、新包66文件/归档独立导入和坏包反例均保留。业务`workbench/src`和`app`相对A15版本无变化。F4整组及T075正反例命令已准备、实际未运行；其runner只新增显式单case/mutant参数，不改变原业务方法。后续新review必须由主控明确传入新冻结候选，不能用旧92874fe7f的结论给新增harness背书。
+
+F3按主控#335的Herdr期裁定：下一轮fresh reviewer在**主控提供的、绑定所审完整revision的隔离临时worktree**做2～5个新错误实现检查，沿T082先例；不再将“无门禁副本”当本期无法做变异的理由。先合格candidate，再每变异一处，以独立完成条件检出业务失败，保留patch/退出码/原始断言，临时worktree用后由主控按绑定回收。worker本轮不创建reviewer、不代做该项、不改已回收reviewer的旧报告。

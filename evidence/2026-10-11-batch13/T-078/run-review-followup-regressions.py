@@ -64,7 +64,8 @@ def verify_mutant(folder, name, core, code):
     else:
         labels = {'CAS rejects a changed expected old value', 'CAS preserves the external writer reference'} if name == 'cas' else {
             'Live operation excludes concurrent verify', 'Live operation excludes concurrent integrate', 'Busy commands never start a second oracle'}
-        assert any(item['claim'] in labels and item['pass'] is False and item.get('classification') == 'business-red' for item in assertions)
+        assert any(item['claim'] in labels and item['pass'] is False for item in assertions)
+        assert any(item.get('classification') == 'business-red' for item in result['original_results'])
     return {'status': 'PASS', 'expected_exit': 1, 'actual_exit': code,
             'business_assertion_rejected_mutant': True, 'errors': 0, 'loaded_core': str(core)}
 
