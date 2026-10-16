@@ -714,3 +714,10 @@ reviewer s16-t078-rev3 审 68d7749c2（含产品 06fc9feca）：第一轮 P1 已
 ## 合并 main（T-082）#317–#320（2026-10-16 UTC）
 
 worker 的变基脚本经 Python 调 git 被 Codex 沙箱拒（index.lock），申请升级被主控 Esc 拒绝；改为 worker 直接 git add/git commit 提交证据 150ef6516（9 条尾注），主控建备份分支 backup/t078-pre-rebase-main-3 后执行 rebase。121 个提交重放首个即在 relay.ts 冲突，主控中止 rebase、改用 git merge --no-ff 0e6c2b833（冲突只解一次）。唯一冲突 relay.ts 由 worker 解决（保留 T-082 review 证据与 T-078 inbox/stop 反馈），core.ts/panes.ts 自动合并经 worker 核对；主控提交合并 859fd6497，地图 0/0。合并后回归：pending、startup 领域/入口、worker 收件箱 PASS；T-082 启动边界段失败（受控宿主启动失败 harness_error，T-082 分支上同用例通过），#320 交 worker 定位。
+
+## #322–#323 A-14 回收：外置盘 I/O 卡住，BLOCKED（2026-10-16 UTC）
+
+#322：dry-run PASS；脱敏归档 PASS（外置盘 09b-a14-redacted-01/scene.tar.gz，1164 字节，字节读回 PASS，主控扫描凭据字样 0）；主控签 09b-a14-cleanup-approval.json 后正式清理：daemon_stop exit 0，两只 API 各一次 SIGTERM，九个记录进程全部退出；停机后复核读 SQLite 失败（unable to open database file），root 未删，结果 BLOCKED（09b-a14-cleanup-01/）。
+worker 修复为停机后只验归档（dedd4f66b），A-15 静态封包冻结（5906f4dbb），均为 worker 身份提交。
+#323：运行 finish-09b-a14-cleanup.py 超过 5 分钟无输出；sample 显示进程阻塞在 open()。独立探测：外置盘 /Volumes/WD-Elements 仍挂载（diskutil Mounted: Yes），stat 元数据可读（scene.tar.gz 1164 字节），但读文件、在卷根建文件、列目录均阻塞（10 秒 alarm 中断，Interrupted system call），lsof +D 进入不可中断态。主控在 rmtree 之前结束了 finish 进程与自己的探测进程；未删除任何文件，root /private/tmp/t078-2-09b-run-gbxz0tyb 保留（约 20 MB，无活动进程）。
+状态：A-14 回收 BLOCKED（外部状态：外置盘 I/O 无响应）。按 A-15 PLAN 第 17 行，A-14 回收完成前不签 Stage A。主控不强制卸载或重挂外置盘（用户设备与其他会话共用），已经构思主控报用户。外置盘恢复后重跑同一 finish 命令（先 --dry-run）。
