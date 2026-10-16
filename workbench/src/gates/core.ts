@@ -2217,6 +2217,11 @@ export class A2AGates {
     const reviewWorkspace = join(this.projectWorktrees(task), `${this.attemptName(attempt)}-review-${ordinal}`);
     const candidateWorkspace = this.reviewCandidateWorkspace(reviewId);
     const sharedRefs = await this.sharedRefs(task);
+    const workerBoundary = {
+      head: await this.git(task.task_id, attempt.workspace, ["rev-parse", "HEAD"]),
+      branch: await this.git(task.task_id, attempt.workspace, ["symbolic-ref", "--quiet", "HEAD"], [0, 1]),
+      status: await this.git(task.task_id, attempt.workspace, ["status", "--porcelain=v1", "--untracked-files=all"]),
+    };
     const review: A2AReview = { review_id: reviewId, ordinal, task_id: task.task_id, attempt: { ...attempt },
       candidate_commit: v.C, spec_rev: task.spec_rev, card_snapshot_id: attempt.card_snapshot_id,
       verification_id: v.verification_id, thread_id: randomUUID(), session_id: randomUUID(),
@@ -2224,7 +2229,7 @@ export class A2AGates {
       requested_at: new Date(this.now()).toISOString(),
       launch_id: null, runtime_identity: null, state: "requested" };
     task.review = review; task.state = "reviewing";
-    this.save(task, "review_requested", { task, review });
+    this.save(task, "review_requested", { task, review, worker_boundary: workerBoundary });
     try {
       await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", review.workspace, v.C]);
       this.copyReviewCandidate(review);
@@ -2334,10 +2339,16 @@ export class A2AGates {
     requireGate(worker === join(this.projectWorktrees(task), this.attemptName(review.attempt)) && existsSync(worker) &&
       realPathLeaf(worker) && listed.split("\0").some((field) => field === "worktree " + worker),
       "review_worker_workspace_changed", { worker, listed });
-    requireGate(await this.git(task.task_id, worker, ["rev-parse", "HEAD"]) === review.candidate_commit &&
-      await this.git(task.task_id, worker, ["symbolic-ref", "--quiet", "HEAD"]) === workerBranch &&
-      !(await this.git(task.task_id, worker, ["status", "--porcelain=v1", "--untracked-files=all"])),
-      "review_worker_workspace_changed", { worker, candidate: review.candidate_commit });
+    // The frozen candidate can precede the worker's HEAD. Bind the worker
+    // boundary to this review request, independently of the reviewed commit.
+    const requested = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='review_requested' AND json_extract(details,'$.review.review_id')=?")
+      .get(task.task_id, review.attempt.attempt_id, review.review_id);
+    const expected = requested && JSON.parse(String(requested.details)).worker_boundary;
+    requireGate(expected && expected.branch === workerBranch && expected.status === "" &&
+      await this.git(task.task_id, worker, ["rev-parse", "HEAD"]) === expected.head &&
+      await this.git(task.task_id, worker, ["symbolic-ref", "--quiet", "HEAD"], [0, 1]) === expected.branch &&
+      await this.git(task.task_id, worker, ["status", "--porcelain=v1", "--untracked-files=all"]) === expected.status,
+      "review_worker_workspace_changed", { worker, expected });
   }
 
   private async cleanupReviewCandidate(task: A2ATask, review: A2AReview) {
