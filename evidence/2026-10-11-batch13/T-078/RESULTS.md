@@ -1208,3 +1208,52 @@ E4 首次单独 screen 输出 **INCOMPLETE**，报 screen_exceeds_review_limit�
 blocking issue 20261016T113401Z 的可关闭依据为 #331 范围裁定、三处统一读取、红绿及反例、追加恢复/冻结范围检查；worker 未代关，现场读屏/恢复/Enter 仍 **INCOMPLETE／未执行**，预算不变。独立 fresh review 未运行（遵守不增开 Codex/子代理），已有请求材料，不用自查替代独立 PASS。另非阻塞 issue 20261016T120838Z 提醒下一次标准 prepare 补新增 reader 闭包；本次新包完整，旧 prepare 为保持其余原包不变而未改。
 
 源码已提交为 `c0c5caee3e70e58abadbd55efa4eade72a44370b`，九项尾注齐。随后统一生成器 --check-only **PASS**，实际生成 `09b-a15-reader-harness-01`，新包 65 文件、原包未变 55 文件、改动原 caller 3 个；source byte verifier --check-only **PASS**。harness 版本绑定该真实提交，business 仍为 dedd4f66bc424610183cbff2d7114e991483e1c6。E4 -02、追加恢复、新 -03 全文件 cmp、可选只读预检、一次 Enter、collect，以及 E5 完整流程和 E6 收尾的绝对命令均已生成；未运行任何现场命令。实际 permission-approval-02 必须在主控完成 -02 读屏且恢复器核对前缀后生成，本轮仅提供预审模板，未填假完整原件。
+
+## 主控 #332：A-15 全阶段读回与 T-078 全票状态
+
+主控实际完成 E4 完整读屏/恢复、签 permission-02 后 Enter、E5 全流程及 E6；新增 263 个证据文件与签字件已先提交为 `34aa4e130`（九项尾注，提交后工作树干净）。外侧 reader 复验九组 **PASS**、scene_actions=0；E4 完整屏 76,125 字节、E5 93,747 字节。旧 E4 截断原屏、screen-01 和未签 permission-01 全部保留。E4 签前 check-only 被 permission_approval_required 拒绝，签后再跑因 FileExistsError 失败、主控管道未停；该预检不算 PASS。实际 Enter 自身在 build/窗口/按键前的完整读屏及绑定校验通过，随后一次 CR 与阶段 readback 通过。BSD cmp -n 的 EOF 误报由主控用 Python 核对前缀，不据此改写旧原件。
+
+worker 的最终只读核对 [final-check-04](09b-a15-final-check-04/result.json) **PASS**：从仍存现场的 API 文件直接计数 ideation 6 POST/6 响应、executor 11/11，17 个 HTTP meta 均 200、各完整 6 SSE，无 409；真实 hook 原件为 4/6 个 UPS 与 Stop，七个 PermissionRequest 对应七份 action/CR 回执。各 phase 的工具 command 与 protocol.commands 代入真实 ID 后逐项相等，tool_result 都是实际异步排队回执，业务成功/拒绝另由真实 Stop/relay 读回。目标基线为空、最终恰 `1b`。本轮没有调用 gate/API、窗口/按键、进程探测或 SQLite；只读脚本和完整来源在 [全场核对](09B-A15-FINAL-CHECK.md)。check-01 的 bound 字段 KeyError 原件保留；02/03 为中间核对，最终以 04 为准。
+
+| 阶段 | 实际全局 dispatch.seq | roots / POST | 许可次数 | 门禁结果 |
+|---|---:|---:|---:|---|
+| I1 | 2 | 1 / 2 | 1 | 实际 ideation send；pending、零反馈 |
+| E1 | 3 | 1 / 2 | 1 | worker_target_required，目标仍 0 字节 |
+| I2 | 4 | 1 / 1 | 0 | 原 send 的 delivered 反馈，只确认 |
+| E2 | 5 | 1 / 2 | 1 | executor 仅一次 Esc，目标为 1b |
+| E3 | 6 | 1 / 2 | 1 | 实际 executor ack，伪造 --role 无效 |
+| I3 | 7 | 1 / 2 | 1 | recipient_required，无新 ack |
+| E4 | 8 | 1 / 2 | 1 | 重复 ack 返回同一 id，无重复唤醒/Esc |
+| I4 | 9 | 1 / 1 | 0 | 实际 I3 拒绝反馈，只确认 |
+| E5 | 10 | 1 / 2 | 1 | stop_already_acknowledged，无额外 Esc |
+| E6 | 11 | 1 / 1 | 0 | 最终确认，Stop/idle |
+
+预算准确为 ideation **4 roots/6 POST**、executor **6/11**、合计 **10/17**、七次工具许可、真实供应商模型 **0**。真实 CLI 两角色，确定性目标接收器；假 API 与 test-simulated-user 自动化不冒称真实模型判断或用户亲手输入。全局 seq 按事实列出，I3/E4 交错不重编号。
+
+原 stop c3ab1493…/request 80ef9485… 在 I1 pending 时对发送方可见，feedback=0，created_at 始终 `2026-10-16T10:51:40.728Z`；executor 六个首启键后真实收据仍 queued、无 delivered/I2、unknown/active=null。初始 release 后 turn_submitted 176 才转 delivered，原 I2 反馈 187；反馈、I2 登记、提交各一次，关联原 request/entry、没有重新 send。I2 的该时点是主控 #299 对 answer `20261016T012505Z-ideation-answer-001` 原话同时要求“pending 不回灌反馈”与“protocol 与预算不变”的解释，经既有独立 pending 审查核对；不是用户逐字规定 delivered 后时点。
+
+历史许可原屏 E1/E2/E3/I3 的直接 total 与字节一致；I1 16,322 字节虽与 Electron offset 相同，当时没有直接 gate total 原件，完整性证据仍 **INCOMPLETE**。不改旧 PASS 文件，由主控及独立审查判断其影响。用户随后选择“关闭，写明边界”，执行主控追加的 [disposition](../../../.project-map/inbox/20261016T133204Z-user-disposition-001.md) 只关闭 blocking issue 20261016T113401Z 的“原参考截断、修复范围待裁定”阻塞，不宣告 A-15/整票通过、不覆盖独立审查与 I1 历史缺口；签发原件不改，worker 未代关。非阻塞 20261016T120838Z 的标准 prepare 新 reader 闭包仍需在下一新场景前处理，本次 A-15 专门 harness 已完整。
+
+### 全票对照验收条目
+
+以下逐项对照原 [T-078 ticket](../../../.project-map/tickets/T-078-controllers-in-workbench.md)，不修改 ticket 的勾选或关闭状态。**整票 INCOMPLETE，未请求集成或切换日常派发。**
+
+| 原验收项 | 已有证据与当前状态 | 仍缺／证据边界 |
+|---|---|---|
+| T-075 检查面；同任务两个主控＋一个 worker 的 Electron 截图/录屏 | 非 Claude T-078-1 与 A-15 真实双角色/受管目标身份已证明；各窗口/许可有原件 | **INCOMPLETE**：未将现有单窗格视图冒充三个窗格同任务联合截图验收；目标是确定性接收器，非真实 Codex |
+| 用户打字、后台注入、worker 人工介入正确分类 | **PASS（已验自动化范围）**：outside-final-01、输入入口/失败方式回归；A-15 七许可 CR 均 action，注入根独立登记 | 合成组合输入、模拟用户动作不证明实际系统输入法或自然人亲手；不以本场 stop 文本当真实用户输入 |
+| 空闲/忙时唤醒、回合结束送达、Esc 后用户放行 | **PASS（分场景）**：09A-3R2 clean/block；A-15 pending、六次逐键 queued、初始 release 后 delivered/原 I2；原 Esc/空框声明入口与 epochs 等回归 | 09A 绑定旧场景版本，后续局部回归与本候选整合边界由独立审查核对；不拿清理 PASS 替业务 PASS |
+| 库 send/list/ack/ready 与越权拒绝 | **PASS（夹具项目）**：worker-inbox 14、四权限变异；slice1 green-3；A-15 真实角色 send/ack、实际身份、重复 ack/越权拒绝 | 日常文件 inbox 尚未退役、不双写；独立审查须覆盖合并后的 controller/worker 两种凭据边界 |
+| stop→ack；无 ack 两分钟后只中断；实际调用者 | **09B PASS，整项 INCOMPLETE**：本场 stop→executor 一次 Esc→ack，伪造 from/role 无效 | **09C 未运行**：没有真实时钟 >120000ms、无 ack 且持续停止要求下 ideation 只中断的 CLI 证据。已有受控时钟测试不能替代 |
+| Claude 隔离配置与真实回合授权 | **PASS（假服务阶段）**：两角色独立 HOME/config/tmp/shell/requests/hooks/user-data，实际 model 0，逐阶段主控签字 | 真登录复核 2～3 回合是原 PLAN-2 另列计划，尚未运行；不以假 API 证明供应商认证、额度或真实模型行为 |
+| 8/9/18 与 T-075 正反例不退化 | 已存 8/9/18、CAS 与权限变异 **PASS**；合并后 pending/controller、startup 域/M5/入口、worker 14 与 T-082 边界/结束核对六段 **PASS**，见 merge-main-3-outside-01/02 | 完整 8/9/18 最后运行版本早于本次整合；是否需要最终冻结整组复跑交验收核对，不把局部六段表述为重新全跑 |
+
+ticket 所列同时输入、组合输入、大粘贴、关窗、重启 unknown、重复唤醒，已有 input-failures、runtime、worker 与领域证据；实际系统 IME 未测。09B 假 API 的 180 秒批准门已经在 A-14 无模型排练由真实 HTTP/时钟验证（约180.04秒超时），它与 09C 的两分钟无 ack 规则是不同条件。
+
+### 回收与独立审查交接
+
+[A-15 owner-bound 回收](09B-A15-CLEANUP-PLAN.md) 与三条 [确切命令](09B-A15-CLEANUP-COMMANDS.txt) 已准备：先 dry-run 身份核对，再外置白名单脱敏归档/逐成员读回，另签后 daemon_stop→panes.shutdown，再每只原 API 一次 SIGTERM；停机后只验归档和退出，不读 SQLite。正式签字字段仍空，**dry-run、归档、停机、删除全部 INCOMPLETE／未执行**，现场与 slot 保留。
+
+新 A15 脚本的本地 file check **PASS**，含 PID 复用/未知子进程拒绝、无守卫坏实现、凭据哨兵/原样复制坏实现、未批准命令拒绝、归档逐成员字节/变更拒绝、旧后置读库坏实现；无实际进程探测或现场清理。范围在 [file-check](09b-a15-closeout-file-check-01/result.json)。
+
+独立审查看 [REVIEW-REQUEST-T078-FINAL](REVIEW-REQUEST-T078-FINAL.md)：业务 dedd4f66…、reader c0c5caee…、运行原件 34aa4e130；完整候选为该请求所在最终冻结提交，由主控传实际 Git 提交号。须覆盖 controller 身份/Stop 转交、pending/I2、startup/M5、输入/空框声明、只读分页证据链与三处调用、T-082 合并边界、异步 request/entry/ack 及残余验收缺口。旧三个独立审查只对原冻结差异有效，不替本次新候选背书；本轮未开子代理或自行给独立 PASS。
