@@ -6,6 +6,9 @@ status: open
 blocked_by: []
 claimed_by:
 supersedes:
+ready: yes
+ready_by: ideation
+ready_rev: 1
 ---
 
 ## What to build
@@ -38,5 +41,5 @@ supersedes:
 
 ## 说明
 
-- 来源：用户 2026-10-15 对话，构思主控建票。尚未标 ready，未交执行主控；执行主控现有 T-078、T-081、T-084、T-086 在跑，这张是只读分析，不抢并发名额，等用户说开始再标就绪。
+- 来源：用户 2026-10-15 对话，构思主控建票；2026-10-16 用户说（逐字，会话"a2a-构思主控"）："T-088 的六条细节和 T-087开工"，构思主控据此标就绪（`ready_rev: 1`）。这张是只读分析，不改产品代码；Codex 并行上限 3 仍有效，由执行主控安排。
 - 写入范围（预期）：新文档与生成脚本放 `findings/` 或 `.project-map/` 下，由执行时定；不碰 `workbench/`。
