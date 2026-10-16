@@ -1,0 +1,9 @@
+# 主控 #343：仅主控沙箱外执行；cwd /Users/luckye/Documents/Code/a2a-wt-t078
+# 只运行原 recovery 方法 test_live_verify_excludes_verify_and_integrate 的 lock 变异。
+# 不复跑已过整组、fence、CAS；不启动 A16/09C；新输出已存在则拒绝，不覆盖原件。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/run-review-followup-regressions.py --only-mutant lock --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/review-followup-mutant-lock-04
+
+# 预期：原方法 exit 1，1 failure、0 error/skipped；已加载 manifest 的 lock core，且 classification=business-red。
+# 至少一条原业务断言失败：Live operation excludes concurrent verify / Live operation excludes concurrent integrate / Busy commands never start a second oracle。
+# 顶层 runner exit 0、status PASS、scope "mutant-lock only"。其他失败/超时记 INCOMPLETE，不自动重试。
+# 等待上限沿用原 runner 的900秒；超时保留已登记现场，不盲发信号。真实模型与供应商CLI均0。

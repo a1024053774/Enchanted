@@ -1,0 +1,99 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "Historical saved-result replay and CLI check-only; no runtime gate evidence",
+  "fixture": "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/outside-final-01/mutant-lock",
+  "historical_revision": {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a-wt-t078",
+    "exit_code": 0,
+    "stdout": "b3fb998cf48574821c39440ece3f9ff897f26cf9\n",
+    "stderr": ""
+  },
+  "format_conversion": "Original run JSON and original arrays only repackaged in temporary files; no field synthesis",
+  "claims": [
+    {
+      "claim": "Live operation excludes concurrent verify",
+      "expected": {
+        "ok": false,
+        "error": "operation_busy"
+      },
+      "pass": false,
+      "observed": {
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "claim": "Live operation excludes concurrent integrate",
+      "expected": {
+        "ok": false,
+        "error": "operation_busy"
+      },
+      "pass": false,
+      "observed": {
+        "ok": true,
+        "error": null
+      }
+    },
+    {
+      "claim": "Busy commands never start a second oracle",
+      "expected": 1,
+      "pass": false,
+      "observed": 2
+    }
+  ],
+  "checks": [
+    {
+      "name": "historical-real-lock-business-red",
+      "expected_acceptance": true,
+      "accepted": true,
+      "pass": true
+    },
+    {
+      "name": "unrelated-failure",
+      "expected_acceptance": false,
+      "accepted": false,
+      "pass": true
+    },
+    {
+      "name": "wrong-core",
+      "expected_acceptance": false,
+      "accepted": false,
+      "pass": true
+    },
+    {
+      "name": "harness-error",
+      "expected_acceptance": false,
+      "accepted": false,
+      "pass": true
+    },
+    {
+      "name": "not-business-red",
+      "expected_acceptance": false,
+      "accepted": false,
+      "pass": true
+    },
+    {
+      "name": "real-runner-lock-check-only",
+      "exit_code": 2,
+      "output_created": false,
+      "pass": false
+    }
+  ],
+  "argv": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "-B",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/run-review-followup-regressions.py",
+    "--only-mutant",
+    "lock",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/review-followup-mutant-lock-04",
+    "--check-only"
+  ],
+  "gate_processes": 0,
+  "real_model_turns": 0
+}

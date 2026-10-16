@@ -1384,3 +1384,13 @@ A16/09C沿同一个标准prepare/StageA/API/角色工具；新增显式scene，A
 F4 顶层仍 **INCOMPLETE**：CAS 子测试已是1 failure/0 error/0 skipped、business-red，但本票 runner 期待的两条 claim 不存在于选中的原 CAS 方法，所以在分类处 AssertionError。[诊断](MUTANT-CAS-DIAGNOSIS-01.md) 列出独立原方法与原 assertions 对照：旧 G 未重绑、外部提交祖先关系丢失、oracle只运行1次。变异没有检错位置，属于 **runner 分类器缺陷**。未改 acceptance、workbench、变异 helper 或旧结果；本次把主控放回的原回归目录、签存日志一并原样入库，不重写任何原结论。
 
 分类器按原用例 CAS 契约修复；相同保存原件重放 red→green，**11项 PASS**（1有效红态＋10误判反例），无真实门禁/API/CLI/模型。新 `--only-mutant cas` 的路径/语法/单点位置 check-only 已实测 PASS；[单段命令](MUTANT-CAS-RECHECK-COMMAND.txt) 交主控沙箱外以新 `review-followup-mutant-cas-03` 执行，尚未运行。原 lock 变异未运行，保持INCOMPLETE；本轮不扩大重跑范围、不改写整组结果，也不启动 A16/09C。现有源码冻结包未变；原 Stage A 要求全量回归 PASS 的前置仍未满足。整票仍 **INCOMPLETE／NO_GO**。
+
+## 主控 #343：CAS 单段 PASS，准备原 lock 单段
+
+主控沙箱外 [review-followup-mutant-cas-03](review-followup-mutant-cas-03/result.json) **PASS**，绑定 `0ea5830a6960ef1aae0b4f551e76cf6f3b266127`：只执行 mutant-cas，原子测试 exit1、分类器接受预期业务红态、顶层 exit0；原目录原样随本次提交留存。旧全量顶层 INCOMPLETE 不改写，lock 仍未实跑。
+
+本次 runner 仅两处修改：`--only-mutant` 增加 `lock`；结果 scope 根据实际选项写为 `mutant-lock only` 或 `mutant-cas only`。不改 acceptance、workbench、单点变异、原方法、分类器或冻结包。核对 `acceptance/test_recovery_e2e.py` 的原 `busy_probe`／`test_live_verify_excludes_verify_and_integrate` 与 daemon adapter：并发 verify/integrate 应返回 `ok=false,error=operation_busy`；oracle 应始终只有1个。runner 既有三条 claim 与原用例一致，不存在 CAS 那种标签不匹配：`Live operation excludes concurrent verify`、`Live operation excludes concurrent integrate`、`Busy commands never start a second oracle`。
+
+[重放入口](check-mutant-lock.py) 使用历史 `outside-final-01/mutant-lock` 的原 run.json 与 test-result.json 数组，仅在一次性 scratch 里压缩为当前分类器读取格式，未合成业务字段、未修改旧文件。该历史版本为 `b3fb998cf48574821c39440ece3f9ff897f26cf9`，不是当前源码的变异实跑：其 verify/integrate 实际均 `ok=true`，oracle 实际2，三条 claim 均false。重放接受该真实业务红态；无关失败、错误core、夹具error、非business-red四反例均拒绝。新单段功能先经真实 runner 的 check-only 取 [red-01](mutant-lock-checks-red-01/result.json)（argparse exit2、未创建运行目录），改两行后同入口 [green-01](mutant-lock-checks-green-01/result.json) **6/6 PASS**，lock check-only exit0、suites空、mutants仅lock、未创建运行目录。无门禁/API/角色CLI/模型进程。
+
+[精确单段命令](MUTANT-LOCK-RECHECK-COMMAND.txt) 交主控沙箱外，使用全新 `review-followup-mutant-lock-04/`，仍核对冻结业务/原测试/helper/prepare及已提交runner。当前真实 lock 与 F4完整收尾保持 **INCOMPLETE**；不会以历史重放代替合并后复验，不启动 A16/09C，也不自动修改其全量回归前置。

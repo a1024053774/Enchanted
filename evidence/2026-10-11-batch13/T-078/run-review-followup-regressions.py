@@ -88,7 +88,7 @@ def verify_mutant(folder, name, core, code):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__); parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--only-mutant', choices=['cas'], help='Run only the original CAS mutant case; do not rerun completed suites')
+    parser.add_argument('--only-mutant', choices=['cas', 'lock'], help='Run one original mutant case; do not rerun completed suites')
     parser.add_argument('--check-only', action='store_true'); args = parser.parse_args()
     out = args.output.resolve(); required = check_paths(out)
     if args.check_only:
@@ -110,7 +110,7 @@ def main():
     env = {key: value for key, value in os.environ.items() if not key.startswith(('A2A_', 'GIT_', 'COOP_', 'CODEX_', 'CLAUDE_', 'ANTHROPIC_', 'OPENAI_'))}
     env['PYTHONDONTWRITEBYTECODE'] = '1'
     record = {'status': 'INCOMPLETE', 'revision': head, 'business_revision': freeze['business_revision'],
-              'scope': 'mutant-cas only' if args.only_mutant else 'full regression and three mutants',
+              'scope': 'mutant-' + args.only_mutant + ' only' if args.only_mutant else 'full regression and three mutants',
               'frozen_input_revision': freeze['revision'],
               'real_model_turns': 0, 'vendor_CLI_sessions': 0, 'stages': []}
     def save(): (out / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
