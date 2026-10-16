@@ -761,3 +761,11 @@ T-078 整票仍 INCOMPLETE：RESULTS 对照 ticket 列出未满足项——同�
 fresh Codex reviewer s13-t078-final-rev（wF:p4N，已回收）审冻结候选 92874fe7f：整票关闭 NO_GO，INCOMPLETE，未发现产品业务违约。局部 PASS：controller 身份/Stop/worker 边界；pending→turn_submitted→delivered→原 I2；输入/UPS 源码；三 reader 修复与 65 文件冻结；T-082 合并受控回归；cleanup 流程。主控三项判断：#299 PASS（解释一致，非用户逐字时点）；I1 仅"未被 64KiB 截断"成立，直接完整性 INCOMPLETE；#331 PASS。
 问题：F1[P1] 回收只归档汇总投影，HTTP/hook 原件已删，17 POST/7 许可不能独立复核（主控批准的回收方案缺口）；F2[P1] 09C、三窗格、真登录复核未做；F3[P2] reviewer 变异检查未做；F4[P2] 最终整合版 8/9/18 未整组重跑；F5[P2] I1 直接 total 缺；F6[P2] 标准 prepare 未冻结 p1_output.py；F7[P3] 审查请求 cleanup 状态过时。
 #335 裁定：F3 在 Herdr 期由下一轮 reviewer 在冻结候选隔离临时 worktree 做 2～5 个变异（T-082 先例）；F4/F6/F7 与真登录复核材料（用户 2026-10-12 已选"假服务为主，真登录复核 2～3 回合"）派 worker 准备；F1 是否重跑 09B 属验收证据口径，交用户（needs-decision 已补充）。
+
+## #345–#354 A-16 完成；09C 第 1 场停止（2026-10-16 UTC）
+
+A-16（09B 重跑，留最小脱敏逐 POST/hook 原件）：Stage A、ideation/executor B1 与首启、I1–I4、E1–E6 全部 PASS（主控代签，每次许可前完整读屏 cmp 0）；全场原件核对 17 POST/10 roots/7 许可/135 hook 文件；回收先归档（外置盘 09b-a16-raw-01/scene.tar.gz，826,185 字节、929 成员、凭据扫描 0）、tar 独立重数 17/10/7、再 owner-bound 停机（两只 API 各一次 SIGTERM，九进程全退，root 已删）。补齐 A-15 终审 F1。
+09C 第 1 场：Stage A、两角色 B1/首启/readiness、绑定、owner、C-I3 build、五阶段签字与 ARM 均 PASS。首启改由主控脚本按每屏条件核对后签字发键；一次签字因 bash 把 $sid 与全角冒号拼接成非法 UTF-8、签字脚本先截断写入，onboarding/s1-ArrowUp.json 被写坏（未发键），已从 git 恢复原未签版本，损坏件留 scratchpad，签字脚本改为临时文件 + 原子替换。
+C-I1：INITIALIZE 后 START 报 initial_release_only（驱动在已送达后重复 release）；worker 诊断 dispatch 已自然送达、到许可屏，主控裁定只读续行。主控用计时段脚本 run_09c_timed.sh 执行：C-I1 permission 签字 → CHECK PASS → ENTER 返回 KeyError 'request_id'，脚本停下。electron driver 日志显示 Enter 已写入（written true，约 18:35:52），stop 已创建、计时已开始；KeyError 在按键后的结算处理。
+主控严重失误：查看时误把 PERMISSION-ENTER-COMMAND 再执行一次（18:36:03），它以 FileExistsError 拒绝、未启动 Electron、无新按键，但覆盖了 execute-02/result.json，第一次运行的结果现场丢失；仅 electron driver/stdout/stderr 日志与 daemon 事件可还原。
+判定：第 1 场不能按协议继续（无 C-I1 结算与 stop id，时间很可能已过 C-I2 <120s 窗口，继续批准 C-I2 可能让门禁放行真实停止），INCOMPLETE 停止，不再批准任何阶段、不发键，root /private/tmp/t078-2-09c-run-slm9wocj 保留。派 worker 只读还原 C-I1、定位 KeyError 根因、给第 2 场重做材料与第 1 场先归档后停机的回收命令。
