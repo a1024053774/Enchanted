@@ -1154,3 +1154,11 @@ executor onboarding 每个键后增加只读 gate inbox_list 刷新＋pane statu
 主控签 B1 后，dry-run 为 READY_FOR_ROLE、spawned=false；real 外层 **PASS**、cli_spawned=true、p1_exit_code=0。内层 P1 原件仍为 **INCOMPLETE**，scope 为 Process startup only，next 明确 No input has been sent；这表示只完成启动，尚无首屏或 readiness 结论。实际 manifest 保存 shell/CLI=65816/65817，launch/session 与本次 ideation input 相同。原签字件、内外层输出与 dry-run 一并以 `02afa5df7455d3afe69f66185991221dc5805e3e` 提交，九项尾注齐、当时工作树干净。
 
 后续只运行已有 bind-launch 文件步骤，将实际成功 label `09b-a15-b1-ideation-01` 写入材料。首屏只读命令输出使用 `a15-ideation-s1-screen-01`；读回不符时只用新 -02 重读，不发键。第一键 ArrowUp 的两份可选草稿分别引用 -01/-02 原屏，签字字段均空；主控核对后只能选一份签字和执行，按键后保存 s2 快照即停。命令在 FIRST-SCREEN-COMMANDS.txt，完整说明与静态检查在 `09b-a15-first-screen-preparation-01/`。本轮未读屏、未发键、未调用 gate、未进行新的进程存活探测，未启动其他角色；首屏及首键状态仍 **INCOMPLETE／未运行**。
+
+## 主控 #326：ideation 首启完成，readiness 与 I1 第一步待执行
+
+主控逐屏读后分别签字完成六键（主题 ArrowUp→ArrowDown→Enter，Security notes 核对后 Enter，trust ArrowDown→Enter），每个 key_result 都 written，使用初读原件、没有 -02。s13 只读原件为 `a15-ideation-s13-screen`，主控报告空提示符、manual mode on、零业务输入。六份签字、每键前原屏与输出已先提交为 `a3c36f1ac1c7269176ff5103fcb5c4ed7ed8f07a`（九项尾注）；原 screen/key 结果仍保留 INCOMPLETE，不将其上调为整场通过。
+
+本轮仅准备确认命令与 I1 材料。READINESS-CONFIRM-COMMAND 由主控执行时才核对原屏绑定/尾部提示符/manual、实际 POST/请求/响应计数为 0、该 launch 无提交事件，排他创建 readiness.json，不 release 或发送输入。屏幕标记核对辅助 #326 已有人工读回，不冒充独立终端渲染验收；本轮未执行此确认命令。I1 的 phase approval 补齐模拟用户输入来源、实际 synthetic_input_id、预算和只到许可屏的停止条件，approved_by/approval_ref 仍空；注入文本沿用原 i1-prompt.txt，真实驱动仅经门禁 pane_dispatch/release，API 从真实历史登记 seq、dispatch/request/prompt 关联，tool_use Bash input 使用 command。STEP1-COMMAND 输出为新 `phases/I1/dispatch-01`；父目录已存在，尚未派发、写 stage approval 或调用假 API。
+
+I1 全回合预算 1 root / 2 Messages、一次许可；本次待批第一步只至第 1 POST 与 PermissionRequest，随后保存原屏/事件并停止。许可 Enter 与后半回合仍需另批；executor 不启动。静态语法、路径、未签字段与绑定检查的实际输出保存在 `09b-a15-i1-preparation-01`；readiness 确认、I1 第一步运行均 **INCOMPLETE／未执行**。

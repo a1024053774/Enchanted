@@ -1,0 +1,44 @@
+# 仅由主控核对 #326 的 s13 原屏后执行；只写 readiness.json，不 release、不发送输入。
+python3 -B - <<'PY'
+# -*- coding: utf-8 -*-
+import base64, json, re, sqlite3
+from contextlib import closing
+from pathlib import Path
+p1 = Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-b1-ideation-p1-01')
+inp = json.loads((p1 / 'input.json').read_bytes())
+root = Path(inp['root'])
+screen = p1 / 'a15-ideation-s13-screen'
+meta = json.loads((screen / 'screen.json').read_bytes())
+raw = (screen / 'screen.bin').read_bytes()
+assert meta['screen_id'] == 'ideation-s13'
+assert all(meta[key] == inp[key] for key in ['launch', 'session'])
+assert meta['directory'] == str(root / 'repo')
+assert raw == base64.b64decode(meta['output']['data_base64'])
+assert meta['output']['next_offset'] == meta['output']['total_bytes']
+plain = re.sub(r'\x1b\][^\x07]*(?:\x07|\x1b\\)', '', raw.decode('utf-8'))
+plain = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', plain)
+tail = plain.rsplit('❯', 1)[1]
+assert not tail.splitlines()[0].strip()
+assert 'manualmodeon' in re.sub(r'\s+', '', tail)
+api = root / 'roles/ideation'
+def line_count(name):
+    path = api / name
+    return sum(bool(line.strip()) for line in path.read_bytes().splitlines()) if path.exists() else 0
+counts = {'request_log_lines': line_count('requests.ndjson'),
+          'response_log_lines': line_count('responses.ndjson'),
+          'actual_post_files': len(list((api / 'http-exchanges').glob('*.request.bin')))}
+assert not any(counts.values()), counts
+with closing(sqlite3.connect((root / 'state/state.sqlite3').as_uri() + '?mode=ro', uri=True)) as db:
+    submitted = dict(db.execute('SELECT type,COUNT(*) FROM orchestration_events WHERE launch=? AND type IN (?,?,?,?) GROUP BY type',
+                               (inp['launch'], 'turn_submit_intent', 'turn_submitted', 'turn_start_signal', 'turn_end_signal')))
+assert not submitted, submitted
+value = {'launch': inp['launch'], 'session': inp['session'], 'confirmed_by': 'executor',
+         'readiness': 'confirmed', 'approval_ref': '主控 #326 T-078 A-15 ideation 首启读回',
+         'basis': '主控 #326 逐屏读回 s13：空提示符、manual mode on；本命令复核保存的原屏、0 POST 与无提交事件。',
+         'screen_file': str(screen / 'screen.bin'), 'screen_observed_at': meta['observed_at'],
+         'messages_observation': counts, 'submission_event_counts': submitted}
+with (p1 / 'readiness.json').open('x', encoding='utf-8') as stream:
+    stream.write(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+print(json.dumps({'status': 'PASS', 'readiness_file': str(p1 / 'readiness.json'),
+                  'messages': 0, 'business_input_sent': False}, ensure_ascii=False))
+PY
