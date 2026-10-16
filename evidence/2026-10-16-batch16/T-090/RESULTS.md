@@ -6,6 +6,7 @@
 
 - 红态采集 PASS：`red-01.json`、`red-01.archive.json`，起点 `f08a280bdf6142443efd52d4897d2305fd68987f`。指定原方法 1 test、1 error、0 failure、0 skip；审查报告已接受，结束核对以 `review_worker_workspace_changed` 失败。worker 在开始和结束时 HEAD 相同且不等于 C。详情见 `RED-READBACK-01.md`。
 - 起点反例 PASS：`boundary-baseline-01.json`、`boundary-baseline-01.archive.json`。HEAD 改动、变脏和切换到预先存在的同提交分支三条场景均被拒；共享 refs 未变，task paused、review unknown，产生问题记录并保留现场，没有 `review_reclaimed`。三条均无宿主或清理错误。
+- 第二轮绿态读回：`green-regression-02.json`、`green-regression-02.archive.json`。ready 探针、focused 原用例、coop 原 8 项 PASS；recovery 原 9 项为 7 项通过、2 errors，run 18 及后续未运行。两条失败现场没有 review_lifecycle_failed；当前转入三版本诊断，见 `RECOVERY-DIAGNOSIS-01.md`，不得将该轮上调为 PASS。
 - 修复前项目状态 PASS：主控补齐稀疏检出的 `.grilling` 后，`project_map.py status --root .` 为 0 problems、0 stale living docs。先前非零输出原样保留，未改地图。产品修改后，status 按 covers 规则标记 `workbench/README.md` stale，见 `project-map-candidate.txt`；该文件与地图均不在写入边界，由主控核对 Verified。
 
 ## 产品改动
@@ -26,10 +27,16 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/
 
 上述首轮命令实际在宿主准备阶段遇到 ready 发布竞态，INCOMPLETE；尚未执行业务断言。原件与摘要均保留。诊断、测试工具修复及本地确定性探针见 `READY-RACE-01.md`。产品 `daemon.ts` 未改，T-090 门禁候选行为仍为 `0bcc5ab66deaa5cae69b17672ebb2d2ae3d641c2` 中的实现。
 
-修复后的新命令（包含三个已停止临时目录的明确归档授权）：
+第二轮命令（已执行；包含三个已停止临时目录的明确归档授权，这三个原目录已经归档清理，不能原样重跑）：
 
 ```sh
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/T-090/run-host.py --phase green --label green-regression-02 --archive-owned /private/tmp/t090-ready-feirgO --archive-owned /private/tmp/t090-ready-local-01 --archive-owned /private/tmp/s3f-lpmafq64
+```
+
+当前下一步仅运行三版本、同两条恢复原方法的诊断，不先改产品、原方法或超时：
+
+```sh
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/T-090/compare-recovery.py --label recovery-three-versions-01
 ```
 
 脚本先运行真实子进程/文件系统 ready 发布探针，然后按顺序运行：原冻结候选用例；原交付 8、恢复 9、编排 18；三条 worker 边界反例；T-082 七条正常及结束核对场景；四个启动变异（只读 argv、错误工作目录、联网、tmp 可写）；一个省掉 worker 结束检查的坏实现，分别运行三条新反例，必须命中 `T090-WORKER-HEAD`、`T090-WORKER-DIRTY`、`T090-WORKER-BRANCH` 的业务失败。最后一项证明新反例能拒绝已知坏实现，宿主或导入错误不算拒绝证据。
@@ -50,4 +57,4 @@ python3 -B "$T090_REPLAY_ROOT/source/workbench/tests/run_s3_rebased_regression.p
 
 PASS：`node --check workbench/src/gates/core.ts`；Python 文件 AST 解析；改动的 TypeScript 测试文件语法检查；ready 发布步骤的真实文件系统/子进程确定性探针及已知坏实现检出；`git diff --check`；UTF-8 回读；修改边界核对。未跑构建（本任务不需要构建，也没有安装依赖）。
 
-INCOMPLETE：修复后真实入口绿态、整组回归、三个新反例的坏实现检出、主控独立审查、门禁验收与集成，以及 living doc Verified 核对。worker 已只读对照 README 的审查段（115–119、194–197 行）：正文要求审查期间 worker 未变，与本修复一致，未发现需要改写的语义；仍由主控完成地图核对。候选完整提交号在 worker 最终交接中报告；本报告不替代显式交付、验收或集成。
+INCOMPLETE：完整恢复回归、run 18 与后续 T-082/worker 场景、三个新反例的坏实现检出、主控独立审查、门禁验收与集成，以及 living doc Verified 核对。focused 真实入口绿态与 coop 原 8 已在第二轮通过，不重复称为未运行；两条恢复用例的跨版本归因仍待三版本实跑。worker 已只读对照 README 的审查段（115–119、194–197 行）：正文要求审查期间 worker 未变，与本修复一致，未发现需要改写的语义；仍由主控完成地图核对。候选完整提交号在 worker 最终交接中报告；本报告不替代显式交付、验收或集成。
