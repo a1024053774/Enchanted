@@ -702,3 +702,7 @@ worker 修 #308：仅删除 panes.ts assertStartup 的队列为空前提，提�
 ## 首启差异审查 NO_GO（完成条件）#311/#312（2026-10-16 UTC）
 
 reviewer s16-t078-rev2 的沙箱外脚本主控运行：M1 首启 drain、M2 入队即 delivered、M3 去掉 assertStartup、M4 重复放行均被冻结检查拒绝；M5 首启键收据误算 delivered 在冻结领域 15/15 与真实入口 14/14 下均存活，只被独立时点探针检出。结论 NO_GO／需修复完成条件（未确认产品违约）。审查报告提交 9c0d8be25，/tmp 输出归档外置盘 startup-review-01/ 后删除，审查窗格回收。#312 派 worker 补每键后、release 前的 delivery 仍为 queued 断言并保留 M5 作已知坏实现。
+
+## 完成条件补强与入口复验 #312（2026-10-16 UTC）
+
+worker 补每键后、release 前经真实收据刷新路径断言原条目仍 queued、无 delivered 历史、无 I2，提交 68d7749c2（仅测试，9 条尾注）；领域 15/15 PASS，M5 在新断言处失败。主控沙箱外运行 STARTUP-RECEIPT-ENTRY-COMMAND-01：PASS（09b-startup-receipt-entry-01，legacy_survival false，M5 失败于 "startup refreshed delivery 0: observed delivered expected queued"，0 模型回合）。新的独立审查待 T-082 审查结束后开（Codex 会话上限 3）。
