@@ -1265,3 +1265,9 @@ ticket 所列同时输入、组合输入、大粘贴、关窗、重启 unknown�
 正式 `09b-a15-cleanup-01` **PASS**：认证 daemon_stop 正常关闭角色/目标；API 59387/59388 各一次 SIGTERM，九进程全部退出；停机后仅核对归档、不访问 SQLite/WAL，root `/private/tmp/t078-2-09b-run-yp09xosq` 已删除；slots 未删除。worker 只读核对三个 result.json 和签字件，没有重复清理或发信号。
 
 确认 disposition `20261016T133204Z-user-disposition-001` 由执行主控写入本 worktree 收件箱，worker 仅随 `e682a929c` 提交原件；其关闭边界仍以原文为准，不改写成 worker 代关或整票通过。独立审查候选随本次回收证据提交前进；业务/reader 的运行版本不变，审查请求随后填入实际完整 Git revision。
+
+上述回收证据与签字以 `92874fe7f320a9a4a47e61adacedd26fc58078c7` 提交，九项尾注齐、当时工作树干净。[独立审查请求](REVIEW-REQUEST-T078-FINAL.md) 已显式固定此完整 revision；后续仅计划/说明提交不让 reviewer 自动追逐 HEAD。原 root 的完整 API headers/system/metadata 未原样归档，审查只能用停机前保存的逐项安全投影、主控读回和既有阶段原件，不能在已删除 root 重新计算原始 HTTP body；该证据边界已写入请求。
+
+三项剩余验证的 [计划](PLAN-REMAINING-T078-01.md) **仅准备、运行 INCOMPLETE／launch NO_GO**：09C 拟用两 Claude、一个确定性目标、模型0，ideation 4 roots/7 POST、executor1/1，真实 >120000ms 且总观察≤150秒；三窗格须先裁定三现有窗口同屏或单窗三pane，独立场为两 Claude/零 POST；系统IME独立场无 Claude/Codex/模型，仅真实输入法提交与取消两个样本。每项都给实际入口、独立字节/事件/截图依据、坏实现应失败的位置、权限与待决定事项。现有“代签09B”不扩大到09C；缺人在场/可靠原生IME驱动不以合成事件补称通过。
+
+现源码只有单 Terminal/单 pane、单 BrowserWindow，三窗格口径与权限需主控协调，已作为非阻塞 issue `20261016T135530Z-worker:t078-remaining-plan-issue-001` 上报 triage；不阻塞本轮计划交付，未修改产品或地图。原 issue 中 renderer 的54/161是附近上下文，随后精确核对为构造57、pane157，主记录 [问题正文](REMAINING-DECISIONS-ISSUE.md) 已更正定位，原收件箱条目不覆盖。该 issue 同时报告 README 的旧“单角色/09B仍未运行”描述需同步；本轮未在只写计划范围内顺手改 living doc，地图脚本未报 stale 不代表这段现状文字已正确。
