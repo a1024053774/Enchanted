@@ -40,3 +40,7 @@ T-078 审查员回收后 Codex 会话降回 2 个，新开 fresh Codex reviewer 
 ## 独立审查 02 INCOMPLETE 与待决 #57/#58（2026-10-16 UTC）
 
 主控运行 reviewer 02 的沙箱外脚本：11 段全部按预期（候选绿；M1 只查报告、M2 workspace 只查非空、M3 漏共享 refs、M4 谎报副本已删各在指定断言失败；T-076 三性质、T-077、四种启动拒收、tier 证据与最终收据读回 PASS）。结论 INCOMPLETE：无产品缺陷；[P2] "每种先见红"时间顺序未证明（三项红态为修复后重建）；[P3] launch-policy runner 状态字段不同步。审查提交 3c9776943，输出归档外置盘 review-02-outside/，窗格回收。#58 派 worker 修 P3；P2 与 T-076 审计锚点写 needs-decision（needs-decision-01.md）交构思主控。
+
+## P3 修复 #58（2026-10-16 UTC）
+
+worker 修 launch-policy runner 状态字段同步并加最终报告/退出码一致性检查；主控运行 OUTSIDE-COMMANDS-13：PASS（原报告红态复现；成功与前置失败两条路径绿）。提交 9fd96145e（带 worker 尾注）。T-082 产品与证据侧已无待修项，余下为 needs-decision 20261016T050504Z 的两项验收口径。
