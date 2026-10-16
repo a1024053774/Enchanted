@@ -56,7 +56,7 @@ def main():
             arm.append(c(stage, 'arm', 'armed-01'))
             if stage != 'C-I1':
                 write(folder / 'COLLECT-COMMAND.txt', c(stage, 'collect', 'collect-01'))
-            if stage == 'C-E1':
+            if stage in ['C-E1', 'C-I4']:
                 continue
             write(folder / 'OBSERVE-PERMISSION-COMMAND.txt', c(stage, 'observe', 'dispatch-01'))
             # 观察与读屏不发键。后续原屏必须逐字节相等，不接受前缀。

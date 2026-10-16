@@ -1504,3 +1504,5 @@ finish 收据确认：认证 `daemon_stop → panes.shutdown` 正常关闭角色
 C-I3 [预批准契约](09c-c1-preparation-01/C-I3-PREAPPROVAL-CONTRACT.json) 仍未签；实际完整原屏/模板由该场 Electron 窗口生成，主控逐项核对 command/stop/目标/原屏/事件/窗口与输入代次后，才只填两个签字字段并原子发布。冻结 driver 在真实 wall age >120000ms 且 monotonic 观察 ≥120100ms 后、最迟 130000ms 开始一次 Enter，场景总截止 150000ms；按键前重读完整分页/EOF、全部原屏字节与绑定逐项一致，任一不符即 INCOMPLETE、零新键，写入未知不重按。实际 Stop/relay、无 ack、actor ideation、目标恰一个 Esc 且未回收、原 C-I4 反馈与全部 POST/hook 均须随后读回；本轮不冒称这些已验证。
 
 本轮 **未执行 B1 dry-run/real、读屏、六键、readiness、bind/owner、build、arm、初始化、任何业务阶段、HTTP 请求或真实时钟观察**，只写文件并运行静态校验。业务源码、冻结包与 driver 均未改，09C 实际时序及整票仍 **INCOMPLETE／NO_GO**；系统 IME、T-091/T-092 的边界保持 rev2 原裁定。
+
+材料终查补充：首轮提交 `61065b81e` 的生成器还给无工具 C-I4 多生成了两份许可读屏命令，交接顺序未引用它们，本轮也未执行。已移除这两份无效操作材料并修正生成条件，首轮静态记录仍保留；[最终静态 02](09c-c1-preparation-01/static-check-02.json) **PASS：40 份命令文件、79 条命令/比较步骤**，新增无工具 C-I4/C-E1 不得存在许可命令的检查。该修正限材料，不改冻结业务源码或协议。

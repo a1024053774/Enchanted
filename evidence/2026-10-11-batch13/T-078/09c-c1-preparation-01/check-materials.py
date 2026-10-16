@@ -1,4 +1,5 @@
 """静态材料核对：不调用 runner.main、gate、HTTP、ps、Electron 或时钟等待。"""
+import argparse
 import ast
 import copy
 import importlib.util
@@ -27,7 +28,10 @@ def module(name, path):
 
 
 def main():
-    output = OUT / 'static-check.json'
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, default=OUT / 'static-check.json')
+    output = parser.parse_args().output.resolve()
+    assert output.parent == OUT
     assert not output.exists()
     report = {'status': 'INCOMPLETE', 'scope': '只读材料与实际函数的纯校验；未执行 B1 dry-run/real 或场景操作',
               'scene_process_starts': 0, 'keys_sent': 0, 'HTTP_requests': 0, 'signature_files_written': False}
@@ -95,6 +99,10 @@ def main():
                 approval = load(folder / 'approval.json')
                 assert approval['approved_by'] is None and approval['approval_ref'] is None
                 assert approval['launch'] == inp['launch'] and approval['target_binding'] == ready['target_binding']
+                if folder.name in ['C-I4', 'C-E1']:
+                    assert not (folder / 'OBSERVE-PERMISSION-COMMAND.txt').exists()
+                    assert not (folder / 'PERMISSION-SCREEN-CMP-COMMAND.txt').exists()
+                    assert not (folder / 'PERMISSION-ENTER-COMMAND.txt').exists()
             future[str(p1 / 'launch-binding.json')] = '实际 B1 bind-launch'
             future[str(p1 / 'readiness.json')] = '主控签 s13 readiness 后只读核对'
             roles.append({'role': role, 'p1': str(p1), 'launch': inp['launch'], 'session': inp['session'],

@@ -1,6 +1,6 @@
 # 主控 #351：09C 首启与阶段材料
 
-状态：**静态准备 PASS；所有角色与业务动作未运行，launch NO_GO，批准待主控签字**。[静态原件](static-check.json) 核对 42 份命令文件、82 条命令/比较步骤（含 28 处明确的未来产物依赖），以及真实 B1 校验函数的内存批准夹具；未执行 B1 runner。冻结 312 个源码文件字节一致。本包复用已启动的 Stage A，root `/private/tmp/t078-2-09c-run-slm9wocj`，源码 `7a6edbff87df85077b3a05d38f3cfd5654cde9c1`，冻结包 `09c-executable-materials-02`，四份回归收据不变。Stage A 本次实际为 READY_FOR_APPROVAL、模型 0；不是 09C 全场通过。
+状态：**静态准备 PASS；所有角色与业务动作未运行，launch NO_GO，批准待主控签字**。[最终静态原件](static-check-02.json) 核对 40 份命令文件、79 条命令/比较步骤，以及真实 B1 校验函数的内存批准夹具；未执行 B1 runner。首份 [01](static-check.json) 保留；首轮生成器给无工具 C-I4 多生成的两份许可读屏命令已移除，交接流程未使用、未运行，02 增加无工具阶段不得有许可命令的检查。冻结 312 个源码文件字节一致。本包复用已启动的 Stage A，root `/private/tmp/t078-2-09c-run-slm9wocj`，源码 `7a6edbff87df85077b3a05d38f3cfd5654cde9c1`，冻结包 `09c-executable-materials-02`，四份回归收据不变。Stage A 本次实际为 READY_FOR_APPROVAL、模型 0；不是 09C 全场通过。
 
 以下路径相对于本票证据目录。命令文件是逐条执行的操作清单，**不得整份批量运行**；每条检查结果合格后再推进。输出已存在、任一身份/原屏/命令不符、任一额外 POST 或错误均停，INCOMPLETE，不重试业务动作或不确定的 Enter。
 
