@@ -131,6 +131,8 @@ def main():
                 path.unlink()
         report['oversize_files'] = [str(p) for p in out.rglob('*') if p.is_file() and p.stat().st_size > 5 * 1024 * 1024]
         if report['oversize_files']: report.update(status='INCOMPLETE', archive_required=True)
+        # status owns the verdict; finalize its alias after all cleanup checks.
+        report['product_status'] = report['status']
         save(out / 'run.json', report)
     print(json.dumps({k: report[k] for k in ('status', 'product_status', 'real_codex_turns')}))
     return 0 if report['status'] == 'PASS' else 1
