@@ -1,9 +1,67 @@
 """Stage-gated 09B runner. Without executor approval it performs no spawn."""
-import argparse, json, os, shutil, signal, subprocess, sys, tempfile, time, uuid
+import argparse, json, os, re, shutil, signal, subprocess, sys, tempfile, time, uuid
 from pathlib import Path
 
 SOURCE=Path(__file__).resolve().parents[3];BASE=Path(__file__).resolve().parent
 NODE=shutil.which('node')
+REGRESSION_REPORTS = ['review-followup-regressions-02', 'review-followup-mutant-cas-03',
+                      'review-followup-mutant-lock-04', 'merge-main-4-t078-regressions-01']
+PREFLIGHT_SOURCE = str(Path(__file__).resolve().relative_to(SOURCE))
+CLASSIFIER_SOURCE = str(Path(__file__).resolve().with_name('run-review-followup-regressions.py').relative_to(SOURCE))
+
+def validate_regression_readbacks(static, approval):
+    paths = [str(BASE / name / 'result.json') for name in REGRESSION_REPORTS]
+    assert static.get('regression_readbacks') == approval.get('regression_readbacks') == paths, 'four_bound_regression_readbacks_required'
+    reports = [json.loads(Path(path).read_bytes()) for path in paths]
+    full, cas, lock, own = reports
+    assert full['status'] == 'INCOMPLETE' and full.get('error') == 'AssertionError()', 'legacy_failure_must_be_CAS_classifier_only'
+    stages = full['stages']
+    assert [row['name'] for row in stages] == ['coop', 'recovery', 'run', 'cas', 'cards', 'mutant-fence', 'mutant-cas'], 'unexpected_legacy_failure_boundary'
+    for row in stages[:6]:
+        assert row['status'] == 'PASS' and row['exit_code'] == (1 if row['name'] == 'mutant-fence' else 0), 'legacy_completed_stage_required'
+    assert stages[6]['status'] == 'INCOMPLETE' and stages[6]['exit_code'] == 1 and 'verdict' not in stages[6], 'legacy_CAS_classification_failure_required'
+    trace = full['traceback']
+    frames = re.findall(r'File "([^"]+)", line (\d+), in verify_mutant', trace)
+    classifier = CLASSIFIER_SOURCE
+    assert len(frames) == 1 and frames[0][0] == str(SOURCE / classifier) and trace.rstrip().endswith('AssertionError'), 'legacy_CAS_classifier_frame_required'
+    old_source = subprocess.check_output(['git', 'show', full['revision'] + ':' + classifier], cwd=SOURCE, text=True)
+    predicate = "assert any(item['claim'] in labels and item['pass'] is False for item in assertions)"
+    assert old_source.splitlines()[int(frames[0][1]) - 1].strip() == predicate and predicate in trace, 'legacy_CAS_classifier_assertion_required'
+    assert all(label in old_source for label in ['CAS rejects a changed expected old value', 'CAS preserves the external writer reference']), 'legacy_CAS_classifier_labels_required'
+    suites = [('coop', 8), ('recovery', 9), ('run', 18), ('cas', 1), ('cards', 15)]
+    for suite, count in suites:
+        child = json.loads((Path(paths[0]).parent / suite / 'run.json').read_bytes())
+        assert child['revision'] == full['revision'] and child['status'] == 'PASS' and child['tests_run'] == count
+        assert child['failures'] == child['errors'] == child['skipped'] == 0 and not child['unexecuted_methods'] and not child['collection_errors'], 'complete_original_suite_required'
+    cases = {'cas': 'test_external_write_between_read_and_cas_is_preserved', 'lock': 'test_live_verify_excludes_verify_and_integrate'}
+    legacy_child = json.loads((Path(paths[0]).parent / 'mutant-cas/run.json').read_bytes())
+    assert legacy_child['selected_cases'] == [cases['cas']] and legacy_child['tests_run'] == 1 and legacy_child['failures'] == 1 and legacy_child['errors'] == legacy_child['skipped'] == 0
+    assert any(row.get('classification') == 'business-red' for row in legacy_child['original_results']), 'legacy_CAS_must_be_business_red'
+    for report, name, path in [(cas, 'cas', paths[1]), (lock, 'lock', paths[2])]:
+        assert report['status'] == 'PASS' and report['scope'] == 'mutant-' + name + ' only' and report['business_revision'] == full['business_revision'], 'scoped_mutant_receipt_required'
+        assert len(report['stages']) == 1
+        row = report['stages'][0]; verdict = row['verdict']
+        assert row['name'] == 'mutant-' + name and row['status'] == 'PASS' and row['exit_code'] == 1
+        assert verdict['status'] == 'PASS' and verdict['expected_exit'] == verdict['actual_exit'] == 1 and verdict['errors'] == 0 and verdict['business_assertion_rejected_mutant'] is True
+        child = json.loads((Path(path).parent / ('mutant-' + name) / 'run.json').read_bytes())
+        assert child['revision'] == report['revision'] and child['selected_cases'] == [cases[name]] and child['tests_run'] == 1 and child['failures'] > 0 and child['errors'] == child['skipped'] == 0
+        assert child['mutant_core'] == verdict['loaded_core'] and any(row.get('classification') == 'business-red' for row in child['original_results']), 'scoped_mutant_business_red_required'
+    assert own['status'] == 'PASS' and [row['name'] for row in own['stages']] == ['pending', 'startup-domain', 'startup-entry', 'worker']
+    assert all(row['status'] == 'PASS' and row['exit_code'] == 0 for row in own['stages']), 'T078_regression_required'
+    # Only this Stage A readback preflight changed since the runtime regressions.
+    # The new packet still freezes this file; all other closure members, the
+    # complete product/tests and acceptance remain bound to every tested revision.
+    protected = list(dict.fromkeys(['workbench', 'acceptance', 'scripts', *[p for p in static['source_paths'] if p != PREFLIGHT_SOURCE]]))
+    tested_revisions = []
+    for receipt in reports:
+        tested = receipt.get('revision') or receipt.get('source_revision'); assert tested, 'tested_revision_required'
+        subprocess.run(['git', 'merge-base', '--is-ancestor', tested, 'HEAD'], cwd=SOURCE, check=True)
+        assert not subprocess.check_output(['git', 'diff', tested, '--', *protected], cwd=SOURCE), 'regression_source_changed'
+        tested_revisions.append(tested)
+    return {'status': 'PASS', 'readbacks': paths, 'tested_revisions': tested_revisions,
+            'legacy_overall_status': full['status'], 'legacy_exception': 'CAS classifier assertion only; original result retained',
+            'CAS_replacement': paths[1], 'lock_completion': paths[2], 'completed_original_methods': 51,
+            'regression_scope_excludes': [PREFLIGHT_SOURCE], 'exclusion_reason': 'Only the Stage A readback preflight changed; frozen in the new packet'}
 
 def validate_stage_a_inputs(materials, approval, *, protocol=False):
     assert NODE and materials.resolve().parent==BASE and (materials/'static-check.json').exists()
@@ -18,12 +76,7 @@ def validate_stage_a_inputs(materials, approval, *, protocol=False):
     assert approval.get('approved_by')=='executor' and approval.get('stage')=='A' and approval.get('approval_ref')
     assert approval.get('source_revision')==static['revision'] and approval.get('allow_role_cli_spawn') is False
     assert static['scene'] in ['09B','09C']
-    assert len(static['regression_readbacks'])==2,'two_post_merge_readbacks_required'
-    for path in static['regression_readbacks']:
-        receipt=json.loads(Path(path).read_bytes()); assert receipt['status']=='PASS','post_merge_regression_required'
-        tested=receipt.get('revision') or receipt.get('source_revision'); assert tested,'tested_revision_required'
-        subprocess.run(['git','merge-base','--is-ancestor',tested,'HEAD'],cwd=SOURCE,check=True)
-        assert not subprocess.check_output(['git','diff',tested,'--',*static['source_paths']],cwd=SOURCE),'regression_source_changed'
+    static['regression_validation'] = validate_regression_readbacks(static, approval)
     return static
 
 def validate_material_lineage(materials, static, changed_paths=None):
@@ -59,6 +112,7 @@ def main():
     save()
     try:
         approval=json.loads(a.approval.read_bytes());static=validate_stage_a_inputs(a.materials,approval,protocol=a.protocol)
+        record['regression_validation']=static['regression_validation'];save()
         if a.stage!='A': raise RuntimeError('Stage B/C require a separate approved continuation; no spawn from this runner.')
         scene=static['scene']; prefix='09b' if scene=='09B' else '09c'
         task='t078-'+prefix+'-runtime-'+uuid.uuid4().hex[:8]

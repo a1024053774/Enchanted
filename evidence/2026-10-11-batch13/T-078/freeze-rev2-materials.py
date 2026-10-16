@@ -27,7 +27,8 @@ def main():
     metadata = {'revision': revision, 'business_revision': merge['merge_revision'], 'main_target': merge['main_target'],
                 'scope': 'T090 merged; full source/fixtures frozen; later ticket evidence only; actual regressions remain unrun'}
     (BASE / 'review-followup-source.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    readbacks = [BASE / 'review-followup-regressions-02/result.json', BASE / 'merge-main-4-t078-regressions-01/result.json']
+    readbacks = [BASE / name / 'result.json' for name in ['review-followup-regressions-02',
+        'review-followup-mutant-cas-03', 'review-followup-mutant-lock-04', 'merge-main-4-t078-regressions-01']]
     index = {'status': 'PASS', 'scope': 'static files and source byte freeze only', 'source_revision': revision,
              'merge_revision': merge['merge_revision'], 'launch_status': 'NO_GO', 'scenes': [], 'process_starts': 0}
     for scene, instance, label, folder, output in [
@@ -92,7 +93,7 @@ def main():
                 'replace_only': {'ACTUAL_READINESS_ROOT': 'this scene Stage A readiness.root'}, 'business_actions': 0})
         save(packet / 'SOURCE.json', {**metadata, 'scene': scene, 'material_package': str(executable),
             'static_root': static['root'], 'source_paths': static['source_paths'], 'runtime_binding': 'NOT_CREATED',
-            'regression_status': 'INCOMPLETE; do not launch before both current readbacks PASS', 'launch_status': 'NO_GO'})
+            'regression_status': 'Require explicit four-receipt Stage A validation, including legacy CAS classifier exception', 'launch_status': 'NO_GO'})
         # Runtime values are produced by Stage A/B1, never copied from A15.
         save(packet / 'RUNTIME-FIELDS.json', {'kind': 'UNBOUND_RUNTIME_FIELD_CONTRACT', 'root': 'Stage A readiness.root',
              'claim': 'Stage A actual target_binding, never null at a live entry', 'role_launch': 'actual B1 input/manifest',

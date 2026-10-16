@@ -1394,3 +1394,11 @@ F4 顶层仍 **INCOMPLETE**：CAS 子测试已是1 failure/0 error/0 skipped、b
 [重放入口](check-mutant-lock.py) 使用历史 `outside-final-01/mutant-lock` 的原 run.json 与 test-result.json 数组，仅在一次性 scratch 里压缩为当前分类器读取格式，未合成业务字段、未修改旧文件。该历史版本为 `b3fb998cf48574821c39440ece3f9ff897f26cf9`，不是当前源码的变异实跑：其 verify/integrate 实际均 `ok=true`，oracle 实际2，三条 claim 均false。重放接受该真实业务红态；无关失败、错误core、夹具error、非business-red四反例均拒绝。新单段功能先经真实 runner 的 check-only 取 [red-01](mutant-lock-checks-red-01/result.json)（argparse exit2、未创建运行目录），改两行后同入口 [green-01](mutant-lock-checks-green-01/result.json) **6/6 PASS**，lock check-only exit0、suites空、mutants仅lock、未创建运行目录。无门禁/API/角色CLI/模型进程。
 
 [精确单段命令](MUTANT-LOCK-RECHECK-COMMAND.txt) 交主控沙箱外，使用全新 `review-followup-mutant-lock-04/`，仍核对冻结业务/原测试/helper/prepare及已提交runner。当前真实 lock 与 F4完整收尾保持 **INCOMPLETE**；不会以历史重放代替合并后复验，不启动 A16/09C，也不自动修改其全量回归前置。
+
+## 主控 #344：合并后回归补齐，Stage A 显式绑定四份收据
+
+主控沙箱外 [lock-04](review-followup-mutant-lock-04/result.json) **PASS**（指定原方法 BUSINESS_RED，顶层接受），原件随本轮入库。依主控裁定，F4 由 [02](review-followup-regressions-02/result.json) 的五组51方法与fence、[cas-03](review-followup-mutant-cas-03/result.json)、lock-04共同补齐为 **PASS**；[T-078自身四段](merge-main-4-t078-regressions-01/result.json) **PASS**。02 本身仍 INCOMPLETE，绝不改写原文件或冒称它整次运行已通过；完整收据组合和各补跑范围明确保留。
+
+[四收据预检](STAGE-A-FOUR-READBACKS-01.md) 显式核对 02 只停在旧 CAS claim 分类器：阶段边界、Git中对应版本的断言/行号、原CAS业务失败均吻合，其他失败不能豁免；cas-03替代该判定、lock-04补齐未执行段。两份Stage A批准必须与包内的四路径完全一致，逐份核对测试版本祖先与业务/验收/原测试/驱动闭包无变化。仅新 Stage A 预检脚本的差异单独记录并纳入新包冻结，不以旧回归证明新场景已通过。
+
+旧入口拒绝的红态已保留；保存原件＋12反例共 **13项 PASS**，删掉历史状态/error检查的已知坏预检被两条反例抓到。均只读Git/保存文件或一次性文件夹具，零运行服务/角色/模型。下一步仅按源码提交重新冻结新包（旧包保留）、更新未签批准和命令，不运行场景；整票仍 **INCOMPLETE／NO_GO**，回归补齐不代替09B补证和09C实际验收。
