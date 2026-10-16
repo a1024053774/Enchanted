@@ -27,3 +27,8 @@ OUTSIDE-COMMANDS-10.sh（起点 451be8462 源码，外置盘夹具，受控 PTY�
 ## 独立审查 01 NO_GO 与返工 #50–#54（2026-10-16 UTC）
 
 fresh Codex reviewer s16-t082-rev（wF:p4B）审 f589d1938。其沙箱外脚本经三轮（归档白名单过窄、读库路径失效两次脚本缺陷后）跑通：01–13 段全部 verified（5 个错误实现均被对应断言检出）；14、15 段 contract_failure。结论 NO_GO：[P1] 收到报告即 verified、结束核对前可 integrate 并前移 main，事后失败不作废（审查经真实 socket 复现）；[P2] review_requirements workspace 未与本 review 副本绑定；[P2] 结束核对负例覆盖不足（M3 被放过）；[P2] T-076 launch-policy 默认 tier 负例被换观测点；[P3] 同值条件表达式。审查报告提交 f09f0dcc8，审查窗格回收，/tmp 输出与夹具归档外置盘后删除。#54 派 worker 按此返工。
+
+## 返工复验与冻结 #54/#55（2026-10-16 UTC）
+
+OUTSIDE-COMMANDS-11（outside-command-11-01）：01–14 PASS（独审两处红态保留；修后 03–08 绿；M1 无结束核对前置、M2 无 workspace 绑定、M3 无共享引用核对各在 REVIEW-END-BEFORE-INTEGRATE / REVIEW-REQUIREMENTS-WORKSPACE / REVIEW-REFS-INVALIDATE 失败；launch-boundary、T-076 三性质、T-077 生命周期通过）；15 launch-policy 的只读变异被新门禁提前拒收、runner 预期未更新。#55 修后 OUTSIDE-COMMANDS-12：launch-policy runner PASS（默认 tier 负例仍在 TRACER-REVIEWER-DEFAULT-ARGV 失败）。冻结候选 5f7f9816e（带 worker 尾注）；首次提交误含 5.4 MB fixtures.tar.gz，未推送前移至外置盘 /Volumes/WD-Elements/a2a-evidence/2026-10-15-batch15/T-082/outside-command-11-01/ 并改为指针后 amend。
+独立审查 02 的 reviewer 一度开在 wF:p4D，但会使 Codex 会话达 4 个（超过上限 3），未派发即关闭；待 T-078 审查结束后再开。
