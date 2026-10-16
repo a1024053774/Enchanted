@@ -177,7 +177,7 @@ class Window:
 
 def permission_cases(output, checks):
     labels = ['green', 'changed-screen', 'one-page', 'total-changed', 'zero-progress', 'missing-EOF',
-              'unsigned', 'ack', 'demand-revoked', 'late', 'clock-jump', 'uncertain-write', 'mutant-template-guard', 'visible-command', 'mutant-clock-guard']
+              'unsigned', 'ack', 'demand-revoked', 'late', 'after-scene-deadline', 'clock-jump', 'uncertain-write', 'mutant-template-guard', 'visible-command', 'mutant-clock-guard']
     labels += ['binding-' + key for key in c.BINDING_KEYS]
     for label in labels:
         template, runtime, start, clock = permission_fixture(output / ('permission-' + label))
@@ -189,6 +189,7 @@ def permission_cases(output, checks):
         if label == 'ack': runtime.value['ack'] = True
         if label == 'demand-revoked': runtime.value['demand_valid'] = False
         if label == 'late': clock.elapsed = 130001
+        if label == 'after-scene-deadline': clock.elapsed = 150001
         if label == 'clock-jump': start['wall_ms'] -= 10000
         if label == 'uncertain-write':
             def uncertain(value): runtime.keys.append(b'\r'); raise TimeoutError('unknown write')
@@ -275,10 +276,10 @@ def adapter_cases(output, checks):
             calls.append(command)
             if command == 'pane_status': return {'ok': True, 'state': 'idle', 'active': None, 'queued': []}
             if command == 'pane_dispatch': return {'ok': True, 'dispatch': {'id': 'actual-dispatch', 'seq': 47, 'text': '⟦主控 #47⟧\n真实尾换行'}}
-            if command == 'pane_release': return {'ok': True}
+            if command == 'pane_release': raise RuntimeError('initial_release_only')
             raise AssertionError(command)
         first = c.start_first_turn(plan, {'approval_ref': 'fixture window request'}, gate)
-        check(first['dispatch']['seq'] == 47 and calls == ['pane_status', 'pane_status', 'pane_dispatch', 'pane_release'],
+        check(first['dispatch']['seq'] == 47 and calls == ['pane_status', 'pane_status', 'pane_dispatch'],
               'real gate wrapper/global seq and trailing-newline canonical form')
         try: c.start_first_turn(plan, {'approval_ref': 'fixture window request'}, gate)
         except FileExistsError: pass

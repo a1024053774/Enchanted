@@ -113,10 +113,13 @@ def main():
     parser.add_argument('--protocol',action='store_true')
     args=parser.parse_args(); configure(args.root,args.role,args.protocol)
     server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
-    (ROOT/'api-ready.json').write_text(json.dumps({'host':'127.0.0.1','port':server.server_port,
+    ready=ROOT/'api-ready.json'; pending=ROOT/'api-ready.json.pending'
+    value={'host':'127.0.0.1','port':server.server_port,
         'api_url':f'http://127.0.0.1:{server.server_port}','pid':os.getpid(),'role':ROLE,'stage':'A',
         'model_turns':0,'protocol':PROTOCOL_TAG if PROTOCOL else None,
-        'fixture_profile':'rev2-registered-raw-v1' if PROTOCOL else None})+'\n',encoding='utf-8')
+        'fixture_profile':'rev2-registered-raw-v1' if PROTOCOL else None}
+    with pending.open('x',encoding='utf-8') as stream:stream.write(json.dumps(value)+'\n')
+    os.link(pending,ready);pending.unlink()
     def stop(*_):
         # Never call shutdown on the serve_forever thread (A05 deadlock).
         raise SystemExit(0)

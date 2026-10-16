@@ -9,6 +9,7 @@ import { serve } from "../src/daemon.ts";
 import { A2AGates } from "../src/gates/core.ts";
 import { createOperatorCredential, readOperatorCredential } from "../src/credentials.ts";
 import { request } from "../src/transport.ts";
+import { publishReady } from "./ready_file.ts";
 
 const [scratchArg, configFile, structureFile] = process.argv.slice(2);
 const scratch = realpathSync(scratchArg);
@@ -16,6 +17,9 @@ if (!scratch.startsWith("/private/tmp/t078-2-a14-rehearsal-")) throw new Error("
 const state = join(scratch, "state");
 const peer = resolve("workbench/tests/t078_09b_rehearsal_peer.py");
 const cli = resolve("workbench/src/gates/cli.ts");
+const launchConfig = JSON.parse(readFileSync(configFile, "utf8"));
+const receiver = join(scratch, "target", "bin", "codex-receiver");
+if (realpathSync(launchConfig.codex_bin) !== receiver) throw new Error("owned deterministic receiver required");
 const exec = promisify(execFile);
 process.env.A2A_OPERATOR_CREDENTIAL = join(scratch, "operator.json");
 createOperatorCredential(state);
@@ -23,7 +27,12 @@ const pty = createRequire(import.meta.url)("node-pty"), spawn = pty.spawn;
 let panes: any;
 const actualPeers = new Map<string, { pid: number; role: string; tail: string; start: string | null }>();
 pty.spawn = (file: string, args: string[], options: any) => {
-  if (options.env.A2A_ROLE !== "controller") return spawn(file, args, options);
+  if (options.env.A2A_ROLE !== "controller") {
+    if (file !== "/bin/zsh" || options.env.A2A_ROLE !== "worker" || !args.some(arg => arg.includes(receiver))) {
+      throw new Error("unapproved rehearsal executable; no vendor spawn");
+    }
+    return spawn(file, args, options);
+  }
   const record = panes.store.launchRecord(options.env.A2A_LAUNCH);
   const commands = ["UserPromptSubmit", "Stop", "PermissionRequest"].map(
     event => record.settings.hooks[event][0].hooks[0].command);
@@ -37,7 +46,7 @@ pty.spawn = (file: string, args: string[], options: any) => {
   return terminal;
 };
 
-await serve(state, JSON.parse(readFileSync(configFile, "utf8")), (root, value) => {
+await serve(state, launchConfig, (root, value) => {
   panes = value;
   const original = value.processInfo.bind(value);
   // This is solely the provider identity seam. Check a real peer PID/argv and
@@ -62,8 +71,8 @@ await serve(state, JSON.parse(readFileSync(configFile, "utf8")), (root, value) =
   };
   return new A2AGates(root, value);
 });
-writeFileSync(join(scratch, "host-ready.json"), JSON.stringify({ pid: process.pid, state,
-  provider_boundary: "real node-pty Python replacement; verified PID/argv/lstart; no Claude" }) + "\n");
+publishReady(join(scratch, "host-ready.json"), { pid: process.pid, state,
+  provider_boundary: "real node-pty Python replacement; verified PID/argv/lstart; no Claude" });
 
 let stopping = false;
 const stop = async () => {

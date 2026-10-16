@@ -159,15 +159,16 @@ def phase_for_dispatch(plan, role, dispatch):
     previous = [item for item in accepted(plan['root'], role) if not item.get('error') and
                 item.get('message_kind') == 'tool_result' and item.get('tool_result_payload', {}).get('request_id') == request_id]
     require(len(previous) == 1, 'C_original_request_required')
-    prior = previous[0]['phase']; result = receipts[0]
+    prior = previous[0]['phase']; result = receipts[0].get('result')
+    require(isinstance(result, dict), 'C_feedback_envelope_result_required')
     if prior == 'C-I1':
-        require(result.get('ok') is True and result.get('result', {}).get('entry', {}).get('id') == stop['id'] and
-                result.get('result', {}).get('delivery', {}).get('state') == 'delivered', 'C_actual_delivery_required')
+        require(result.get('ok') is True and result.get('entry', {}).get('id') == stop['id'] and
+                result.get('delivery', {}).get('state') == 'delivered', 'C_actual_delivery_required')
         return 'C-I2'
     if prior == 'C-I2':
         require(result.get('ok') is False and result.get('error') == 'stop_too_early', 'C_actual_early_denial_required')
         return 'C-I3'
-    require(prior == 'C-I3' and result.get('ok') is True and result.get('result', {}).get('interruptRequested') is True,
+    require(prior == 'C-I3' and result.get('ok') is True and result.get('interruptRequested') is True,
             'C_actual_late_interrupt_receipt_required')
     return 'C-I4'
 
@@ -198,8 +199,29 @@ def start_first_turn(plan, approval, gate):
     save(root / 'roles/ideation' / ('window-stop-action-' + dispatch['id'] + '.json'),
          {'source': 'test-simulated-user', 'action': 'window-stop-request', 'action_id': plan['synthetic_input_id'],
           'approval_ref': approval['approval_ref'], 'launch': inp['launch'], 'thread': inp['thread'], 'dispatch': dispatch})
-    gate(root, 'pane_release', '--thread', inp['thread'], '--reason', approval['approval_ref'])
     return {'status': 'DISPATCHED', 'dispatch': dispatch}
+
+
+def original_send(plan):
+    """Bind the original queued receipt to the real request row and result key."""
+    from t078_09b_phase_registry import accepted, rows, stop_entry
+    from t078_09b_phase_driver import phase_events
+    inp = plan['roles']['ideation']; stop = stop_entry(plan)
+    calls = [item for item in accepted(plan['root'], 'ideation') if item.get('phase') == 'C-I1' and
+             item.get('message_kind') == 'tool_result' and not item.get('error')]
+    require(len(calls) == 1, 'C_one_original_send_tool_result_required')
+    request_id = calls[0]['tool_result_payload']['request_id']
+    requests = [row for row in rows(plan['root'], 'relay_requests') if row['launch'] == inp['launch'] and row['request_id'] == request_id]
+    require(len(requests) == 1, 'C_one_original_send_request_required')
+    request = requests[0]; native = json.loads(request['input'])
+    _, _, prompt = phase_events(plan, inp, calls[0]['dispatch_id'])
+    require(all(native.get(key) == value for key, value in [('command','inbox_send'),('launch',inp['launch']),
+        ('session',inp['session']),('native_session',inp['session']),('preset','ideation'),('task',inp['task']),
+        ('request_id',request_id),('prompt_id',prompt)]), 'C_original_send_caller_or_prompt_changed')
+    results = [json.loads(row['data']) for row in rows(plan['root'], 'relay_results') if row['key'] == request['key']]
+    require(len(results) == 1 and results[0].get('ok') is True and results[0].get('entry', {}).get('id') == stop['id'],
+            'C_original_send_result_key_or_entry_changed')
+    return stop, request, results[0]
 
 
 class NativePermission:
@@ -256,13 +278,12 @@ class NativePermission:
         require(isinstance(live, dict), 'C_original_attempt_missing')
         for key in ('task_id', 'attempt_id', 'session_id', 'fence', 'spec_rev', 'thread_id', 'workspace'):
             require(live.get(key) == self.plan['target_binding'][key], 'C_current_attempt_changed:' + key)
-        send = [json.loads(row['data']) for row in rows(self.root, 'relay_results') if
-                json.loads(row['data']).get('entry', {}).get('id') == stop['id']]
-        request_ids = {item['request_id'] for item in send}; require(len(request_ids) == 1, 'C_original_send_request_required')
+        original_stop, send_request, _ = original_send(self.plan)
+        require(original_stop == stop, 'C_original_stop_changed')
         binding = {'source_revision': self.plan['source_revision'], 'package': self.plan['package'],
             'launch': inp['launch'], 'session': inp['session'], 'thread': inp['thread'], 'dispatch': bound['id'],
             'global_seq': bound['seq'], 'prompt_id': prompt, 'tool_use_id': bound['tool_use']['id'],
-            'permission_seq': event['seq'], 'stop': {'id': stop['id'], 'created_at': stop['created_at'], 'request_id': next(iter(request_ids))},
+            'permission_seq': event['seq'], 'stop': {'id': stop['id'], 'created_at': stop['created_at'], 'request_id': send_request['request_id']},
             'target': self.plan['target_identity'], 'command': command, 'argv': bound['tool_use']['command_argv'],
             'window_id': view['window_id'], 'input_generation': view['input_generation']}
         return {'binding': binding, 'active': pane['state'] == 'busy', 'selected_line': '❯ 1. Yes',
@@ -330,7 +351,7 @@ def settle_stage(plan, inp, stage, output):
     if stage == 'C-I1':
         require(receipt.get('ok') is True and receipt.get('entry', {}).get('id') == stop['id'] and
                 receipt.get('delivery', {}).get('state') == 'delivered', 'C_send_must_be_delivered')
-        save(plan['clock_origin_file'], origin({'id': stop['id'], 'created_at': stop['created_at'], 'request_id': receipt['request_id']}, Clock()))
+        save(plan['clock_origin_file'], origin({'id': stop['id'], 'created_at': stop['created_at'], 'request_id': request_id}, Clock()))
     if stage == 'C-I2':
         require(receipt.get('ok') is False and receipt.get('error') == 'stop_too_early', 'C_early_guard_failed')
         require(target_bytes == baseline, 'C_early_interrupt_forbidden')
@@ -394,6 +415,9 @@ def main():
         with_output = args.output.parent / (args.output.name + '-electron')
         client = ElectronClient(Path(plan['source']), args.build, root / 'state', inp['task'], root / 'electron-home', with_output, env, launch=inp['launch'])
         try:
+            client.wait(lambda view: view.get('launch') == inp['launch'] and view.get('thread') == inp['thread'] and
+                        view.get('active_dispatch') and view.get('input_enabled') is True and
+                        re.search(r'^\s*❯\s+1\. Yes\s*$', view.get('terminal', ''), re.M) is not None)
             runtime = NativePermission(plan, args.stage, client)
             observed = read_complete_output(runtime.fetch_page, inp['launch'])
             review = args.output.parent / (args.output.name + '-review'); review.mkdir(parents=True, exist_ok=False)
@@ -465,9 +489,9 @@ def main():
             from t078_09b_phase_registry import stop_entry
             stop = stop_entry(plan)
             if not Path(plan['clock_origin_file']).exists():
-                send = [json.loads(row['data']) for row in rows(root, 'relay_results') if json.loads(row['data']).get('entry', {}).get('id') == stop['id']]
-                require(bool(send), 'C_real_send_receipt_required')
-                save(plan['clock_origin_file'], origin({'id': stop['id'], 'created_at': stop['created_at'], 'request_id': send[0]['request_id']}, Clock()))
+                original_stop, send_request, _ = original_send(plan)
+                require(original_stop == stop, 'C_original_stop_changed')
+                save(plan['clock_origin_file'], origin({'id': stop['id'], 'created_at': stop['created_at'], 'request_id': send_request['request_id']}, Clock()))
         save(args.output / 'result.json', result)
     print(json.dumps(result, ensure_ascii=False))
     return 0 if result['status'] != 'INCOMPLETE' else 1

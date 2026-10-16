@@ -54,6 +54,13 @@ def allowed_command(plan, role, tool):
     """Only the frozen scratch I_SEND_STOP command may execute in this peer."""
     if role != 'ideation' or tool.get('name') != 'Bash' or set(tool.get('input', {})) != {'command'}:
         raise RuntimeError('unapproved_rehearsal_tool')
+    if plan.get('scene') == '09C' and shlex.split(tool['input']['command'])[2:3] == ['stop']:
+        from t078_09b_phase_registry import stop_entry
+        expected = [plan['node'], str(Path(plan['source']) / 'workbench/src/gates/cli.ts'), 'stop',
+                    '--thread', plan['target_binding']['thread_id'], '--stop-id', stop_entry(plan)['id']]
+        if tool['input']['command'] != shlex.join(expected):
+            raise RuntimeError('C_stop_command_outside_owned_target')
+        return tool['input']['command']
     protocol = json.loads(Path(plan['protocol_source']).read_bytes())
     replacements = {'target.thread_id': plan['target_binding']['thread_id'],
                     'target.attempt_id': plan['target_binding']['attempt_id'],
@@ -83,6 +90,7 @@ def main():
     if not root.name.startswith('t078-2-a14-rehearsal-') or root.parent != Path('/private/tmp'):
         raise RuntimeError('owned_scratch_required')
     log = root / 'peer' / role; log.mkdir(parents=True)
+    scene = json.loads((root / 'protocol-plan.json').read_bytes())['scene']
     template = json.loads(args.structure.read_bytes())
     hook_argv = shlex.split(os.environ['T078_REHEARSAL_HOOK'])
     expected = [os.environ['T078_REHEARSAL_NODE'], os.environ['T078_REHEARSAL_CLI'], '--state',
@@ -136,7 +144,13 @@ def main():
             hook('PermissionRequest', prompt, tool_name=response['name'], tool_input=response['input'])
             # E1 stops here; no executor Bash is permitted by this rehearsal.
             save(log / ('permission-' + prompt + '.json'), {'prompt_id': prompt, 'tool_use': response})
-            print('\r\nBash command:\r\n' + response['input']['command'] + '\r\n❯ 1. Yes\r\n  2. No', flush=True)
+            if scene == '09C':
+                import textwrap
+                box = '\r\n'.join('│ ' + line for line in textwrap.wrap(response['input']['command'], width=60,
+                    break_long_words=False, break_on_hyphens=False))
+                print('\r\nRun shell command\r\n' + box + '\r\nThis command requires approval\r\n❯ 1. Yes\r\n  2. No', flush=True)
+            else:
+                print('\r\nBash command:\r\n' + response['input']['command'] + '\r\n❯ 1. Yes\r\n  2. No', flush=True)
             key = os.read(0, 1)
             (log / ('permission-key-' + prompt + '.bin')).write_bytes(key)
             if role == 'executor':
@@ -147,7 +161,8 @@ def main():
             command = allowed_command(plan, role, response)
             done = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', command],
                                   cwd=root / 'repo', capture_output=True, text=True, timeout=15)
-            save(log / 'tool-execution.json', {'command': command, 'exit_code': done.returncode,
+            execution_file = 'tool-execution-' + prompt + '.json' if scene == '09C' else 'tool-execution.json'
+            save(log / execution_file, {'command': command, 'exit_code': done.returncode,
                  'stdout': done.stdout, 'stderr': done.stderr, 'source': 'deterministic-role-peer'})
             if done.returncode:
                 raise RuntimeError('scratch_tool_execution_failed')

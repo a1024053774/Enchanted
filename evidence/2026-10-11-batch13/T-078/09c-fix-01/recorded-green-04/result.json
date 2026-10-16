@@ -1,0 +1,98 @@
+{
+  "status": "PASS",
+  "expected": "green",
+  "checks": [
+    {
+      "name": "settlement-request-id",
+      "desired_contract_passed": true,
+      "error": null,
+      "expected_red_observed": false,
+      "observed": null
+    },
+    {
+      "name": "HTTP-envelope",
+      "desired_contract_passed": true,
+      "error": null,
+      "expected_red_observed": false,
+      "observed": null
+    },
+    {
+      "name": "start-after-initialize",
+      "desired_contract_passed": true,
+      "error": null,
+      "expected_red_observed": false,
+      "observed": null
+    },
+    {
+      "name": "duplicate-output",
+      "desired_contract_passed": true,
+      "error": null,
+      "expected_red_observed": false,
+      "observed": {
+        "original_result_bytes_unchanged": true,
+        "process_or_window_starts": 0,
+        "key_writes": 0
+      }
+    },
+    {
+      "name": "late-early-permission",
+      "desired_contract_passed": true,
+      "error": null,
+      "expected_red_observed": false,
+      "observed": {
+        "late_age_ms": 100000,
+        "process_window_key_calls": 0,
+        "rejected": true
+      }
+    }
+  ],
+  "counterexamples": [
+    {
+      "name": "original-send",
+      "status": "PASS",
+      "accepted": true,
+      "error": null,
+      "key_writes": 0
+    },
+    {
+      "name": "wrong-launch",
+      "status": "PASS",
+      "accepted": false,
+      "error": "ValueError('C_one_original_send_request_required')",
+      "key_writes": 0
+    },
+    {
+      "name": "wrong-key",
+      "status": "PASS",
+      "accepted": false,
+      "error": "ValueError('C_original_send_result_key_or_entry_changed')",
+      "key_writes": 0
+    },
+    {
+      "name": "wrong-native-session",
+      "status": "PASS",
+      "accepted": false,
+      "error": "ValueError('C_original_send_caller_or_prompt_changed')",
+      "key_writes": 0
+    },
+    {
+      "name": "duplicate-request",
+      "status": "PASS",
+      "accepted": false,
+      "error": "ValueError('C_one_original_send_request_required')",
+      "key_writes": 0
+    },
+    {
+      "name": "pending-not-delivered",
+      "status": "PASS",
+      "accepted": false,
+      "error": "ValueError('C_actual_delivery_required')",
+      "key_writes": 0
+    }
+  ],
+  "scope": "Replay attempt-1 records at settlement, HTTP handler and permission CLI entries.\n\nThese focused cases replay recorded I/O; the separate rehearsal uses real\ndaemon/relay/HTTP/PTY. Injected clocks here are not real-time evidence.\n",
+  "recorded_source": "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-attempt-1-diagnosis-01",
+  "model_turns": 0,
+  "role_CLIs": 0,
+  "live_scene_touched": false
+}

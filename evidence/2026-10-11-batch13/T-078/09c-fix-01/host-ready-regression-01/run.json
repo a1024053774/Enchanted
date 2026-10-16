@@ -1,0 +1,209 @@
+{
+  "status": "PASS",
+  "artifact_root": "/private/tmp/t090-ready-Mt5PH2",
+  "source": "/Users/luckye/Documents/Code/a2a-wt-t078",
+  "payload": {
+    "pid": 17,
+    "root": "/independent/fixture",
+    "nonce": "e1809996-a760-4353-b9ea-2b2c16a0dacc",
+    "values": [
+      1,
+      "完整 JSON"
+    ]
+  },
+  "checks": [
+    {
+      "id": "READY-KNOWN-BAD-REJECTED",
+      "passed": true,
+      "actual": {
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+          "--input-type=module",
+          "-e",
+          "\nimport fs from \"node:fs\";\nimport { syncBuiltinESMExports } from \"node:module\";\nimport { pathToFileURL } from \"node:url\";\nconst [module, path, value, pause] = process.argv.slice(1);\nif (pause === \"pause\") {\n  const original = fs.writeFileSync;\n  fs.writeFileSync = (target, data, options) => {\n    const fd = fs.openSync(target, options.flag);\n    fs.writeSync(1, JSON.stringify({stage:\"opened\", target}) + \"\\n\");\n    if (fs.readSync(0, Buffer.alloc(1), 0, 1, null) !== 1) throw new Error(\"Missing observer release\");\n    try { original(fd, data); } finally { fs.closeSync(fd); }\n  };\n  syncBuiltinESMExports();\n}\nconst { publishReady } = await import(pathToFileURL(module).href);\ntry { publishReady(path, JSON.parse(value)); }\ncatch (error) { console.error(error.code ?? String(error)); process.exitCode = 1; }\n",
+          "/private/tmp/t090-ready-Mt5PH2/direct-write.mjs",
+          "/private/tmp/t090-ready-Mt5PH2/known-bad.json",
+          "{\"pid\":17,\"root\":\"/independent/fixture\",\"nonce\":\"e1809996-a760-4353-b9ea-2b2c16a0dacc\",\"values\":[1,\"完整 JSON\"]}",
+          "pause"
+        ],
+        "stdout": "{\"stage\":\"opened\",\"target\":\"/private/tmp/t090-ready-Mt5PH2/known-bad.json\"}\n",
+        "stderr": "",
+        "ready": "/private/tmp/t090-ready-Mt5PH2/known-bad.json",
+        "pid": 71341,
+        "observed": {
+          "stage": "opened",
+          "target": "/private/tmp/t090-ready-Mt5PH2/known-bad.json"
+        },
+        "visible_before_content": true,
+        "exit": 0,
+        "final": {
+          "pid": 17,
+          "root": "/independent/fixture",
+          "nonce": "e1809996-a760-4353-b9ea-2b2c16a0dacc",
+          "values": [
+            1,
+            "完整 JSON"
+          ]
+        },
+        "payload_equal": true,
+        "outcome": "contract_failure"
+      }
+    },
+    {
+      "id": "READY-NO-PARTIAL-PUBLICATION",
+      "passed": true,
+      "actual": {
+        "argv": [
+          "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+          "--input-type=module",
+          "-e",
+          "\nimport fs from \"node:fs\";\nimport { syncBuiltinESMExports } from \"node:module\";\nimport { pathToFileURL } from \"node:url\";\nconst [module, path, value, pause] = process.argv.slice(1);\nif (pause === \"pause\") {\n  const original = fs.writeFileSync;\n  fs.writeFileSync = (target, data, options) => {\n    const fd = fs.openSync(target, options.flag);\n    fs.writeSync(1, JSON.stringify({stage:\"opened\", target}) + \"\\n\");\n    if (fs.readSync(0, Buffer.alloc(1), 0, 1, null) !== 1) throw new Error(\"Missing observer release\");\n    try { original(fd, data); } finally { fs.closeSync(fd); }\n  };\n  syncBuiltinESMExports();\n}\nconst { publishReady } = await import(pathToFileURL(module).href);\ntry { publishReady(path, JSON.parse(value)); }\ncatch (error) { console.error(error.code ?? String(error)); process.exitCode = 1; }\n",
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/ready_file.ts",
+          "/private/tmp/t090-ready-Mt5PH2/candidate.json",
+          "{\"pid\":17,\"root\":\"/independent/fixture\",\"nonce\":\"e1809996-a760-4353-b9ea-2b2c16a0dacc\",\"values\":[1,\"完整 JSON\"]}",
+          "pause"
+        ],
+        "stdout": "{\"stage\":\"opened\",\"target\":\"/private/tmp/t090-ready-Mt5PH2/candidate.json.pending\"}\n",
+        "stderr": "",
+        "ready": "/private/tmp/t090-ready-Mt5PH2/candidate.json",
+        "pid": 71342,
+        "observed": {
+          "stage": "opened",
+          "target": "/private/tmp/t090-ready-Mt5PH2/candidate.json.pending"
+        },
+        "visible_before_content": false,
+        "exit": 0,
+        "final": {
+          "pid": 17,
+          "root": "/independent/fixture",
+          "nonce": "e1809996-a760-4353-b9ea-2b2c16a0dacc",
+          "values": [
+            1,
+            "完整 JSON"
+          ]
+        },
+        "payload_equal": true,
+        "outcome": "passed"
+      }
+    },
+    {
+      "id": "READY-PENDING-REMOVED",
+      "passed": true,
+      "actual": "/private/tmp/t090-ready-Mt5PH2/candidate.json"
+    },
+    {
+      "id": "READY-EXISTING-PRESERVED",
+      "passed": true,
+      "actual": {
+        "exit": 1,
+        "stderr": "EEXIST\n"
+      }
+    },
+    {
+      "id": "READY-CREATE-FAILURE-PRESERVED",
+      "passed": true,
+      "actual": {
+        "exit": 1,
+        "stderr": "EEXIST\n"
+      }
+    }
+  ],
+  "children": [
+    {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "--input-type=module",
+        "-e",
+        "\nimport fs from \"node:fs\";\nimport { syncBuiltinESMExports } from \"node:module\";\nimport { pathToFileURL } from \"node:url\";\nconst [module, path, value, pause] = process.argv.slice(1);\nif (pause === \"pause\") {\n  const original = fs.writeFileSync;\n  fs.writeFileSync = (target, data, options) => {\n    const fd = fs.openSync(target, options.flag);\n    fs.writeSync(1, JSON.stringify({stage:\"opened\", target}) + \"\\n\");\n    if (fs.readSync(0, Buffer.alloc(1), 0, 1, null) !== 1) throw new Error(\"Missing observer release\");\n    try { original(fd, data); } finally { fs.closeSync(fd); }\n  };\n  syncBuiltinESMExports();\n}\nconst { publishReady } = await import(pathToFileURL(module).href);\ntry { publishReady(path, JSON.parse(value)); }\ncatch (error) { console.error(error.code ?? String(error)); process.exitCode = 1; }\n",
+        "/private/tmp/t090-ready-Mt5PH2/direct-write.mjs",
+        "/private/tmp/t090-ready-Mt5PH2/known-bad.json",
+        "{\"pid\":17,\"root\":\"/independent/fixture\",\"nonce\":\"e1809996-a760-4353-b9ea-2b2c16a0dacc\",\"values\":[1,\"完整 JSON\"]}",
+        "pause"
+      ],
+      "stdout": "{\"stage\":\"opened\",\"target\":\"/private/tmp/t090-ready-Mt5PH2/known-bad.json\"}\n",
+      "stderr": "",
+      "ready": "/private/tmp/t090-ready-Mt5PH2/known-bad.json",
+      "pid": 71341,
+      "observed": {
+        "stage": "opened",
+        "target": "/private/tmp/t090-ready-Mt5PH2/known-bad.json"
+      },
+      "visible_before_content": true,
+      "exit": 0,
+      "final": {
+        "pid": 17,
+        "root": "/independent/fixture",
+        "nonce": "e1809996-a760-4353-b9ea-2b2c16a0dacc",
+        "values": [
+          1,
+          "完整 JSON"
+        ]
+      },
+      "payload_equal": true,
+      "outcome": "contract_failure"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "--input-type=module",
+        "-e",
+        "\nimport fs from \"node:fs\";\nimport { syncBuiltinESMExports } from \"node:module\";\nimport { pathToFileURL } from \"node:url\";\nconst [module, path, value, pause] = process.argv.slice(1);\nif (pause === \"pause\") {\n  const original = fs.writeFileSync;\n  fs.writeFileSync = (target, data, options) => {\n    const fd = fs.openSync(target, options.flag);\n    fs.writeSync(1, JSON.stringify({stage:\"opened\", target}) + \"\\n\");\n    if (fs.readSync(0, Buffer.alloc(1), 0, 1, null) !== 1) throw new Error(\"Missing observer release\");\n    try { original(fd, data); } finally { fs.closeSync(fd); }\n  };\n  syncBuiltinESMExports();\n}\nconst { publishReady } = await import(pathToFileURL(module).href);\ntry { publishReady(path, JSON.parse(value)); }\ncatch (error) { console.error(error.code ?? String(error)); process.exitCode = 1; }\n",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/ready_file.ts",
+        "/private/tmp/t090-ready-Mt5PH2/candidate.json",
+        "{\"pid\":17,\"root\":\"/independent/fixture\",\"nonce\":\"e1809996-a760-4353-b9ea-2b2c16a0dacc\",\"values\":[1,\"完整 JSON\"]}",
+        "pause"
+      ],
+      "stdout": "{\"stage\":\"opened\",\"target\":\"/private/tmp/t090-ready-Mt5PH2/candidate.json.pending\"}\n",
+      "stderr": "",
+      "ready": "/private/tmp/t090-ready-Mt5PH2/candidate.json",
+      "pid": 71342,
+      "observed": {
+        "stage": "opened",
+        "target": "/private/tmp/t090-ready-Mt5PH2/candidate.json.pending"
+      },
+      "visible_before_content": false,
+      "exit": 0,
+      "final": {
+        "pid": 17,
+        "root": "/independent/fixture",
+        "nonce": "e1809996-a760-4353-b9ea-2b2c16a0dacc",
+        "values": [
+          1,
+          "完整 JSON"
+        ]
+      },
+      "payload_equal": true,
+      "outcome": "passed"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "--input-type=module",
+        "-e",
+        "\nimport fs from \"node:fs\";\nimport { syncBuiltinESMExports } from \"node:module\";\nimport { pathToFileURL } from \"node:url\";\nconst [module, path, value, pause] = process.argv.slice(1);\nif (pause === \"pause\") {\n  const original = fs.writeFileSync;\n  fs.writeFileSync = (target, data, options) => {\n    const fd = fs.openSync(target, options.flag);\n    fs.writeSync(1, JSON.stringify({stage:\"opened\", target}) + \"\\n\");\n    if (fs.readSync(0, Buffer.alloc(1), 0, 1, null) !== 1) throw new Error(\"Missing observer release\");\n    try { original(fd, data); } finally { fs.closeSync(fd); }\n  };\n  syncBuiltinESMExports();\n}\nconst { publishReady } = await import(pathToFileURL(module).href);\ntry { publishReady(path, JSON.parse(value)); }\ncatch (error) { console.error(error.code ?? String(error)); process.exitCode = 1; }\n",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/ready_file.ts",
+        "/private/tmp/t090-ready-Mt5PH2/existing.json",
+        "{\"pid\":17,\"root\":\"/independent/fixture\",\"nonce\":\"e1809996-a760-4353-b9ea-2b2c16a0dacc\",\"values\":[1,\"完整 JSON\"]}",
+        "run"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "EEXIST\n"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "--input-type=module",
+        "-e",
+        "\nimport fs from \"node:fs\";\nimport { syncBuiltinESMExports } from \"node:module\";\nimport { pathToFileURL } from \"node:url\";\nconst [module, path, value, pause] = process.argv.slice(1);\nif (pause === \"pause\") {\n  const original = fs.writeFileSync;\n  fs.writeFileSync = (target, data, options) => {\n    const fd = fs.openSync(target, options.flag);\n    fs.writeSync(1, JSON.stringify({stage:\"opened\", target}) + \"\\n\");\n    if (fs.readSync(0, Buffer.alloc(1), 0, 1, null) !== 1) throw new Error(\"Missing observer release\");\n    try { original(fd, data); } finally { fs.closeSync(fd); }\n  };\n  syncBuiltinESMExports();\n}\nconst { publishReady } = await import(pathToFileURL(module).href);\ntry { publishReady(path, JSON.parse(value)); }\ncatch (error) { console.error(error.code ?? String(error)); process.exitCode = 1; }\n",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/ready_file.ts",
+        "/private/tmp/t090-ready-Mt5PH2/blocked.json",
+        "{\"pid\":17,\"root\":\"/independent/fixture\",\"nonce\":\"e1809996-a760-4353-b9ea-2b2c16a0dacc\",\"values\":[1,\"完整 JSON\"]}",
+        "run"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "EEXIST\n"
+    }
+  ]
+}

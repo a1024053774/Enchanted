@@ -37,6 +37,21 @@ def events(state, launch):
                 for row in db.execute('SELECT seq,type,launch,data FROM orchestration_events WHERE launch=? ORDER BY seq', (launch,))]
 
 
+def check_early_C_permission(plan, stage):
+    if plan.get('scene') != '09C' or stage != 'C-I2':
+        return
+    from t078_09c_driver import Clock, timing, original_send
+    start = json.loads(Path(plan['clock_origin_file']).read_bytes())
+    stop, request, _ = original_send(plan)
+    if start['stop'] != {'id': stop['id'], 'created_at': stop['created_at'], 'request_id': request['request_id']}:
+        raise ValueError('C_original_clock_stop_mismatch')
+    sample = timing(start, Clock())
+    # A harness cutoff, not a product rule: reserve 30 seconds for the native
+    # tool and Stop/relay. Settlement still proves the actual <120s denial.
+    if sample['wall_age_ms'] >= 90000:
+        raise ValueError('C_early_permission_deadline')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--materials', type=Path, required=True)
@@ -50,7 +65,10 @@ def main():
     parser.add_argument('--check-only', action='store_true')
     args = parser.parse_args()
     global OUTPUT
-    OUTPUT = args.output.resolve(); OUTPUT.mkdir(parents=True, exist_ok=False)
+    OUTPUT = None
+    candidate_output = args.output.resolve()
+    candidate_output.mkdir(parents=True, exist_ok=False)
+    OUTPUT = candidate_output
     materials = args.materials.resolve(); stage_a = args.stage_a.resolve(); dispatch_result = json.loads(args.dispatch_result.read_bytes())
     approval = json.loads(args.approval.read_bytes()); manifest = json.loads(args.process_manifest.read_bytes())
     input_data = json.loads((args.p1 / 'input.json').read_bytes())
@@ -82,6 +100,8 @@ def main():
     before = events(state, launch)
     if len([event for event in before if event['type'] == 'permission_wait' and event['seq'] == approval['permission_seq']]) != 1:
         raise RuntimeError('permission_event_missing')
+    plan = json.loads(Path(dispatch_result['phase_plan']).read_bytes())
+    check_early_C_permission(plan, args.stage)
     if args.check_only:
         result = {'status': 'PASS', 'scope': 'Complete permission screen and active binding verified; stop before build/window/key',
                   'permission_screen_verified_capture': verified_capture, 'business_input_sent': False}
@@ -104,6 +124,7 @@ def main():
                            and value.get('active_dispatch') == dispatch['id'] and value.get('input_enabled') is True
                            and approval['selected_line'] in value.get('terminal', ''))
         before_seq = max([event['seq'] for event in before], default=0)
+        check_early_C_permission(plan, args.stage)
         key_result = client.call('terminal-key', key='Enter', permission=True, launch=launch, thread=thread,
                                  dispatch=dispatch['id'], window_id=view['window_id'], source='test-simulated-user',
                                  approval_ref=approval['approval_ref'])
@@ -114,7 +135,6 @@ def main():
         action_rows = [row for row in rows(state, 'user_inputs') if row.get('source_ref', {}).get('command_id') == intents[0]['data'].get('request_id')]
         if len(action_rows) != 1 or action_rows[0].get('form') != 'action' or action_rows[0].get('content', {}).get('data') != '\r':
             raise RuntimeError('permission_enter_not_control_action')
-        plan = json.loads(Path(dispatch_result['phase_plan']).read_bytes())
         result = settle_stage(plan, input_data, args.stage, args.output.resolve())
         result.update({'permission_approval': approval, 'permission_view': view, 'permission_key_result': key_result,
                        'permission_control_action': action_rows[0], 'process_manifest': str(args.process_manifest.resolve()),

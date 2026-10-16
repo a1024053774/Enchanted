@@ -131,7 +131,8 @@ class Rehearsal:
         return dispatch
 
     def feedback(self, request_id, ok, **result):
-        receipt = {'request_id': request_id, 'ok': ok, **result}
+        receipt = {'key': 'fixture-key-' + request_id, 'request_id': request_id, 'replayed': False,
+                   'result': {'ok': ok, **result}}
         return 'actual-format deterministic gate receipt\n' + json.dumps([receipt], ensure_ascii=False)
 
     def post(self, role, body):
@@ -197,7 +198,7 @@ class Rehearsal:
         while not waiting.exists() or raw.read_json(waiting).get('wire_bytes_confirmed', 0) == 0:
             check(time.monotonic() < deadline, 'C-E1 heartbeat readiness'); time.sleep(.05)
         check(thread.is_alive() and not raw.read_json(waiting)['complete'], 'executor one held POST')
-        second = self.dispatch('ideation', 4, 'gate', self.feedback(request_id, True, result={'entry': stop, 'delivery': {'state': 'delivered'}}))
+        second = self.dispatch('ideation', 4, 'gate', self.feedback(request_id, True, entry=stop, delivery={'state': 'delivered'}))
         early_request, _ = self.tool_turn('C-I2', second)
         third = self.dispatch('ideation', 5, 'gate', self.feedback(early_request, False, error='stop_too_early'))
         # Obtain C-I3's tool_use before waiting, exactly as the real plan parks
@@ -226,7 +227,7 @@ class Rehearsal:
              'path': str(self.root / 'roles/ideation/requests' / (late_request + '.json'))})]
         status, response = self.post('ideation', third_body); check(status == 200 and parse_sse(response)['type'] == 'text', 'C-I3 settlement')
         raw.save(self.root / 'roles/executor/hold-release.json', {'stop_id': stop['id'], 'source_revision': self.plan['source_revision']})
-        fourth = self.dispatch('ideation', 6, 'gate', self.feedback(late_request, True, result={'interruptRequested': True}))
+        fourth = self.dispatch('ideation', 6, 'gate', self.feedback(late_request, True, interruptRequested=True))
         status, response = self.post('ideation', self.request(fourth['text'])); check(status == 200 and parse_sse(response)['type'] == 'text', 'C-I4 neutral confirmation')
         thread.join(timeout=5); check(not thread.is_alive() and held.get('status') == 200, 'executor held request finished once')
         # Heartbeat comments do not count as additional SSE model messages.
@@ -255,7 +256,7 @@ class Rehearsal:
         check(status == 409 and json.loads(response)['error'] == 'actual_controller_launch_required', 'actual launch identity rejected')
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute('UPDATE launch_records SET data=? WHERE id=?', (json.dumps(inp), inp['launch']))
-        excess = self.dispatch('ideation', 7, 'gate', self.feedback(late_request, True, result={'interruptRequested': True}))
+        excess = self.dispatch('ideation', 7, 'gate', self.feedback(late_request, True, interruptRequested=True))
         status, response = self.post('ideation', self.request(excess['text']))
         check(status == 409 and json.loads(response)['error'] == 'message_budget_exhausted', 'actual POST budget rejected')
         raw.save(self.out / 'positive-flow.json', {'status': 'PASS', 'actual_POST_counts': counts, 'clock': result['enter_at'],

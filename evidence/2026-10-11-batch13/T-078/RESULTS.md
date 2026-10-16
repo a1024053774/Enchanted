@@ -1534,3 +1534,25 @@ INITIALIZE 得到 [INITIALIZED/business_input_sent=false](09c-c1-b1-ideation-p1-
 [第 2 场计划](09c-attempt-2-plan-01/PLAN.md) 仍 **未绑定／NO_GO**：新标准包03、Stage A02、c2 两角色；先对本次真实形状做入口红绿与完整 daemon/relay/HTTP/许可结算排练，再修订提交、审查与合格回归绑定后冻结。旧四收据不能自动跨越 C driver/permission 闭包变化沿用或绕过 source guard。预算不变，ideation4根/7POST、executor1根/1POST，模型0，真实时钟和条件式单 Enter 不放宽。两场相关命令 [静态核对](09c-attempt-1-diagnosis-01/materials-static-check.json) PASS（9条命令及嵌入 Python 语法、九PID/草稿/未来依赖），**本轮没有归档、dry-run、停机、删除、prepare 新场景、重试、许可按键或任何业务发送**；只有只读还原。整票仍 **INCOMPLETE／NO_GO**。
 
 补入的历史计时脚本还暴露下一场前置：C结算字段为 stop，旧脚本取 stop_entry；宽泛成功正则须改成精确状态；C-I2 的 B许可入口必须增加按键前的真实早停截止/余量与零键反例，不能仅靠按键后的结算年龄断言。该场 C-I2 尚未进入工具/许可，未触发这一潜在晚停风险；本轮只记方案，没有在运行中修改或执行脚本。
+
+## 主控 #355：四处测试工具修复，固定真实输入红绿；完整排练待沙箱外运行
+
+本轮只改 **workbench/tests**：C-I1 origin 使用已核对的 queued/relay_requests.request_id，NativePermission与observe按原C-I1请求、真实key/caller/native/prompt/stop统一关联；C阶段解析 envelope.result，不改产品反馈格式；permission只有独占建目录成功后才绑定OUTPUT，重复拒绝不写旧目录；start删掉多余pane_release，initialize保留原初始放行。workbench/src、app、acceptance均未修改。
+
+修复前 [recorded-red-03](09c-fix-01/recorded-red-03/result.json) 的四个真实代码入口回放，分别复现 KeyError、Handler409 C_actual_delivery_required、initial_release_only、重复执行覆盖旧result；修后同组转绿。用最终测试器从Git父版本 `f1518b627b85edb0d170fee779cb8202ffae38b3` 只读载入原工具源码再验，[known-bad-replay-01](09c-fix-01/known-bad-replay-01/result.json) 全部命中预期红态，原源码另存source/，不回退或改写工作树。固定样本来自第1场保存的真实record/原屏及已归档HTTP0001/0002的 [脱敏结构](09c-fix-01/request-structure.json)，不读或复用活场景。
+
+最终 [recorded-green-06](09c-fix-01/recorded-green-06/result.json) **PASS**：四处修复、新鲜C-I2预检允许、迟到预检拒绝，以及错launch/key/native、重复request行、pending冒充delivered反例全部符合契约。重复调用原result逐字节不变、进程/窗口/按键均0。结算/start使用记录I/O，HTTP为真实Handler字节流，输出保护走实际permission.__main__；这些是局部入口证据，不外推为真实daemon/Electron全链通过。早期recorded-red-01的测试器异常、02的两个样本构造失败保留，不冒充四项完整红态。
+
+C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，build前与Enter前两次检查，**90秒是测试harness保守截止，留30秒给原生工具/Stop，产品和验收的<120秒不改**；[旧入口迟到红态](09c-fix-01/early-gate-red-01/result.json) 与当前1秒允许/100秒零键拒绝均保留。C-I3新Electron先等实际launch/thread/active/一次性Yes就绪，再取严格模板，不重试按键。原unit oracle曾把重复release当成功，已改为真实initial_release_only，并保持“不重复发送”的断言；真实feedback样本也修正为实际envelope。相关 [43项工具回归](09c-fix-01/tools-regression-03/result.json) PASS，含150001ms零键反例（注入时钟，非真实时钟证据）；[纯Handler回归](09c-fix-01/handler-regression-01/result.json) PASS，仍标明其业务行/窗口为模拟，不替代产品relay。
+
+另用第1场真实Electron journal [回放窗口与parser](09c-fix-01/recorded-window-check.json) PASS：首次inspect未绑定，第5次就绪；实际ElectronClient.wait零键等待，真实Claude2.1.296命令框解析与已签命令精确相等。该证据限已保存视图，不冒充新的真实窗口/时钟排练。
+
+[完整排练代码与说明](09c-fix-01/README.md) 已接好 C-I1～C-I4/C-E1：真实daemon/受管target/两角色controller、真实phase_plan loopback HTTP、真实Bash inbox send/stop、UPS/Stop/relay，provider仅在既有PTY边界替换为核对PID/argv/lstart的确定性Python peer，**不手写成功relay或收件箱结果、不由operator代发业务动作**。C-I1/C-I2走实际permission脚本与Electron结算，C-I3走实际NativePermission/完整reader/真实clock/条件单Enter；独立读取HTTP、core事件时间、实际actor/target/stop、received.bin、原attempt和存活进程，要求7/1POST、4/1根、3许可、单Esc、无ack且真实>120秒/<150秒。失败首停，停机前SQLite一致backup含WAL并验integrity，正常关daemon/API、核对退出并删独有scratch，停机后不读现场SQLite。provider替身是7个实际持久进程，不冒充真实Claude九进程生命周期或首启证据。
+
+就绪发布也有针对性红绿：API.main的 [ready-red-02](09c-fix-01/ready-red-02/result.json) 实测原final空内容可见、已有ready被覆盖；候选pending完整写入后独占link发布，[ready-green-01](09c-fix-01/ready-green-01/result.json)两项PASS（无socket的producer边界测试）。host-ready复用既有publishReady，[真实FS/子进程探针](09c-fix-01/host-ready-regression-01/run.json)五项PASS，自建scratch字节留存后已删除。首次ready-red-01观察器未处理keyword mode，原不完整结果保留、不作两项有效红态。PTY host未知spawn直接拒绝，仅允许自有receiver和确定性peer，不会因接线错误降级成真实供应商CLI。
+
+本轮三个tools回归目录的纯夹具原件已完整收进各自 `*.originals.tar.gz`，顶层原result/日志保留，清单与 [逐成员字节读回](09c-fix-01/unit-archive-readback.json) PASS（936/939/942文件），才收起展开副本；包含原失败，不改其结论、不搬历史已提交产物。单包约147～150KB，沿用本票纯夹具本地tar惯例；live场景全量外置规则不变。
+
+本轮仅运行 [静态预检](09c-fix-01/real-chain-preflight-04/preflight.json)，**完整真实链与真实时钟尚未运行，状态INCOMPLETE**。沙箱外准确命令见 [RUN-OUTSIDE](09c-fix-01/RUN-OUTSIDE-COMMAND.txt)，输出全新real-chain-outside-01；模型0，无供应商CLI，420秒硬超时，场景150秒。后续主控实跑PASS与独立审查之前，不冻结/启动第2场，也不把旧四回归收据跨测试闭包改动自动沿用。
+
+主控并行完成了第1场回收，本轮只读取并随提交保存签字和输出：[dry-run](09c-attempt-1-cleanup-01-dry-run/result.json)、[独立tar计数](09c-attempt-1-raw-readback-01/readback.json)、[失败原件核对](09c-attempt-1-raw-readback-01/failed-scene-review.json)、[finish](09c-attempt-1-cleanup-01/result.json)均为对应操作PASS。原件外置 `.../T-078/09c-attempt-1-raw-01/scene.tar.gz` **340792字节**，POST13/11、roots2/1、许可1/0，C-E1未完成SSE与失败原件如实保留；九进程退出、root删除、停机后SQLite读取0。回收通过不改变第1场INCOMPLETE或其首份result丢失的历史事实。worker未运行该回收；整票仍 **INCOMPLETE／NO_GO**。
