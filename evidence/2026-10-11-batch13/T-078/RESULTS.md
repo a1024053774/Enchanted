@@ -1402,3 +1402,7 @@ F4 顶层仍 **INCOMPLETE**：CAS 子测试已是1 failure/0 error/0 skipped、b
 [四收据预检](STAGE-A-FOUR-READBACKS-01.md) 显式核对 02 只停在旧 CAS claim 分类器：阶段边界、Git中对应版本的断言/行号、原CAS业务失败均吻合，其他失败不能豁免；cas-03替代该判定、lock-04补齐未执行段。两份Stage A批准必须与包内的四路径完全一致，逐份核对测试版本祖先与业务/验收/原测试/驱动闭包无变化。仅新 Stage A 预检脚本的差异单独记录并纳入新包冻结，不以旧回归证明新场景已通过。
 
 旧入口拒绝的红态已保留；保存原件＋12反例共 **13项 PASS**，删掉历史状态/error检查的已知坏预检被两条反例抓到。均只读Git/保存文件或一次性文件夹具，零运行服务/角色/模型。下一步仅按源码提交重新冻结新包（旧包保留）、更新未签批准和命令，不运行场景；整票仍 **INCOMPLETE／NO_GO**，回归补齐不代替09B补证和09C实际验收。
+
+本轮文件冻结已完成，源码提交 **7a6edbff87df85077b3a05d38f3cfd5654cde9c1**。标准prepare生成 `09b-executable-materials-16-02` 与 `09c-executable-materials-02`；[逐成员核对](stage-a-readback-rebind-01/result.json) **PASS**，各312个成员与该Git提交一致，相对旧包只有 `run-09b.py` 一项不同。旧包、旧全量结果及原始回归记录保留，不改业务、原测试或protocol预算。两份当前Stage A批准仍在原目录、签字均空，四份readbacks逐项相同；Stage A／角色材料／owner命令已指向新包。
+
+[完整真实预检函数](stage-a-four-readbacks-final-01/result.json) 两场均 **PASS，仅预检**：包含材料谱系、完整源码闭包、四份实际收据及历史异常的显式核对；实际未签批准均拒绝。正例只在内存填测试批准，没有写实际签字、运行main、创建运行root或启动daemon/API/目标/角色/模型。源码仍为合并T090后的业务，A16/09C实跑和整票结论仍 **INCOMPLETE／NO_GO**，待主控签字与串行执行。
