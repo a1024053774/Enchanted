@@ -168,7 +168,8 @@ class WorktreeContracts(ContractChecks, DaemonCards):
 
     def test_clean_revoke(self):
         a = self.create()
-        c = self.commit(a)
+        # Claim has no launch record. Trailers would be rejected before this cleanup can run.
+        c = self.commit(a, trailers=False)
         self.submit(a, c)
         self.cli('verify')
         self.cli('revoke', '--reason', 'S3 independent clean revoke')
@@ -201,7 +202,8 @@ class WorktreeContracts(ContractChecks, DaemonCards):
                   ' json.dump({"cwd":os.getcwd(),"ref_exit":p.returncode,"ref":p.stdout},f)\n')
         self.card['completion_conditions'].append({'argv': [sys.executable, '-I', '-B', '-c', source]})
         a = self.create()
-        self.submit(a, self.commit(a))
+        # Claim has no launch record. Trailers would be rejected before the oracle observation is kept.
+        self.submit(a, self.commit(a, trailers=False))
         self.cli('verify')
         observed = json.loads(marker.read_text(encoding='utf-8'))
         self.assertEqual(observed['ref_exit'], 1, 'Verification must be detached while the oracle runs')
@@ -210,7 +212,8 @@ class WorktreeContracts(ContractChecks, DaemonCards):
 
     def test_completed_verification_cleanup(self):
         a = self.create()
-        c = self.commit(a)
+        # Claim has no launch record. Trailers would be rejected before a passed verification exists.
+        c = self.commit(a, trailers=False)
         self.submit(a, c)
         v = self.cli('verify')['verification']
         self.assertEqual(v['state'], 'passed')
@@ -620,6 +623,19 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
         return self.request('submit', '--attempt', attempt['attempt_id'], '--session', attempt['session_id'],
                             '--fence', attempt['fence'], '--spec-rev', attempt['spec_rev'], '--commit', commit)
 
+    def launch_record(self, attempt):
+        # Same object sessionFacts returns; written at createThread, before submit copies it to attempt.delivery.
+        rows = [json.loads(line) for line in (self.boundary / 'worker-creations.jsonl').read_text(encoding='utf-8').splitlines() if line.strip()]
+        matches = [row for row in rows if row.get('attempt') == attempt['attempt_id']]
+        if len(matches) != 1:
+            raise AssertionError('expected one launch record for ' + attempt['attempt_id'])
+        row = matches[0]
+        delivery = attempt.get('delivery') or {}
+        if delivery and any(delivery.get(key) != row[field] for key, field in (
+                ('launch_id', 'id'), ('cli', 'cli_version'), ('model', 'model'), ('effort', 'effort'))):
+            raise AssertionError('attempt.delivery disagrees with worker-creations.jsonl')
+        return row
+
     def commit_worker(self, attempt, value, extra=None, foreign=False):
         workspace = Path(attempt['workspace'])
         (workspace / 'src/settings.json').write_text(value, encoding='utf-8')
@@ -628,10 +644,11 @@ class ConflictContracts(ContractChecks, old.DaemonRun):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(contents, encoding='utf-8')
         self.git('add', '.', cwd=workspace)
+        row = self.launch_record(attempt)
         trailers = {'Task': 'foreign-task' if foreign else self.task, 'Attempt': attempt['attempt_id'],
-                    'Session': attempt['session_id'], 'Role': 'worker', 'Tool': 'Codex 0.162.1',
-                    'Model': 'fixture', 'Effort': 'xhigh', 'Native-Session': attempt['thread_id'],
-                    'Launch': attempt['thread_id']}
+                    'Session': attempt['session_id'], 'Role': 'worker', 'Tool': row['cli_version'],
+                    'Model': row['model'], 'Effort': row['effort'], 'Native-Session': attempt['thread_id'],
+                    'Launch': row['id']}
         message = 'Independent worker change\n\n' + '\n'.join('A2A-' + k + ': ' + v for k, v in trailers.items())
         self.git('commit', '-m', message, cwd=workspace)
         return self.git('rev-parse', 'HEAD', cwd=workspace).stdout.strip()

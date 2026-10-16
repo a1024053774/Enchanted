@@ -28,13 +28,27 @@ export function reviewVerdict(verdict: unknown, findings: unknown): { verdict: "
   return { verdict, findings: structuredClone(findings) };
 }
 
+// The report is model-authored evidence. Validate its container, not the
+// correctness of the judgement or whether a mutation should have failed.
+export function reviewEvidence(requirements: unknown, report: unknown) {
+  const value = requirements as any;
+  exact(value, ["completion_conditions_sufficiency", "mutation_checks"], "review_requirements");
+  exact(value.mutation_checks, ["min", "max", "workspace", "report_section"], "mutation_checks");
+  requireValue(value.completion_conditions_sufficiency === true && value.mutation_checks.min === 2 &&
+    value.mutation_checks.max === 5 && nonempty(value.mutation_checks.workspace) &&
+    value.mutation_checks.report_section === "完成条件与变异检查", "review_requirements");
+  requireValue(report && typeof report === "object" && !Array.isArray(report) && Object.keys(report).length > 0, "report");
+  requireValue(Object.hasOwn(report, "完成条件与变异检查"), "report.section");
+  return { review_requirements: structuredClone(value), report: structuredClone(report) as Record<string, unknown> };
+}
+
 export function reviewRequest(raw: unknown): Record<string, any> {
   requireValue(typeof raw === "string", "last_assistant_message");
   let value: any;
   try { value = JSON.parse(raw); }
   catch (error) { if (error instanceof SyntaxError) throw new QualityProtocolError("review_json"); throw error; }
   exact(value, ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev",
-    "review_id", "candidate_commit", "verdict", "findings"], "review_request");
+    "review_id", "candidate_commit", "verdict", "findings", "review_requirements", "report"], "review_request");
   requireValue(value.schema === 1 && value.command === "review_submit", "review_command");
   for (const key of ["task", "attempt", "session", "review_id", "request_id"]) {
     requireValue(typeof value[key] === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(value[key]), key);
@@ -43,6 +57,7 @@ export function reviewRequest(raw: unknown): Record<string, any> {
   requireValue(Number.isSafeInteger(value.fence) && value.fence > 0 && Number.isSafeInteger(value.spec_rev) && value.spec_rev > 0, "review_version");
   requireValue(typeof value.candidate_commit === "string" && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value.candidate_commit), "candidate_commit");
   reviewVerdict(value.verdict, value.findings);
+  reviewEvidence(value.review_requirements, value.report);
   return value;
 }
 

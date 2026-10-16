@@ -1,0 +1,89 @@
+{
+  "cli_hooks": {
+    "UserPromptSubmit": "[{hooks=[{type=\"command\",command=\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t081-capability-01/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t081-capability-01/run-03/state' 'signal' '--launch' '${LAUNCH_ID}'\",timeout=10}]}]",
+    "Stop": "[{hooks=[{type=\"command\",command=\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t081-capability-01/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t081-capability-01/run-03/state' 'signal' '--launch' '${LAUNCH_ID}'\",timeout=10}]}]",
+    "PermissionRequest": "[{hooks=[{type=\"command\",command=\"'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t081-capability-01/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t081-capability-01/run-03/state' 'signal' '--launch' '${LAUNCH_ID}'\",timeout=10}]}]"
+  },
+  "git_hooks": {
+    "workbench/hooks/applypatch-msg": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/commit-msg": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/fsmonitor-watchman": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/hook.py": "#!/usr/bin/env python3\n\"\"\"Add managed identity and the latest root native turn's observed facts.\"\"\"\nimport json\nimport os\nfrom pathlib import Path\nimport subprocess\nimport sys\n\n\ndef latest_turn_facts(env):\n    home, native = env.get('CODEX_HOME'), env['CODEX_THREAD_ID']\n    if not home:\n        return 'unknown', 'unknown'\n    sessions = Path(home).resolve() / 'sessions'\n    files = [path for path in sessions.rglob('*.jsonl') if path.name.endswith(native + '.jsonl')]\n    if not files:\n        return 'unknown', 'unknown'\n    if len(files) != 1 or sessions not in files[0].resolve().parents:\n        raise ValueError('原生会话记录不唯一或路径越界')\n    turn, context, bound = None, None, False\n    with files[0].open('r', encoding='utf-8') as stream:\n        for line in stream:\n            if not line.endswith('\\n'):\n                break  # An incomplete append cannot provide current-turn facts.\n            record = json.loads(line)\n            if not isinstance(record, dict):\n                raise ValueError('原生记录不是 JSON 对象')\n            payload = record.get('payload', {})\n            if record.get('type') in ('session_meta', 'event_msg', 'turn_context') and not isinstance(payload, dict):\n                raise ValueError('原生身份或回合记录的 payload 不合法')\n            if record.get('type') == 'session_meta':\n                if payload.get('id') != native or payload.get('source') != 'cli':\n                    raise ValueError('原生记录不是本根 CLI 会话')\n                bound = True\n            elif record.get('type') == 'event_msg' and payload.get('type') == 'task_started':\n                turn, context = payload.get('turn_id'), None\n            elif record.get('type') == 'turn_context' and turn and payload.get('turn_id') == turn:\n                context = payload\n    if not bound:\n        raise ValueError('原生记录缺少根会话身份')\n    if context is None:\n        return 'unknown', 'unknown'\n    return context.get('model') or 'unknown', context.get('effort') or context.get('reasoning_effort') or 'unknown'\n\n\ndef add_trailers():\n    env = os.environ\n    trailers = {'A2A-Task': env['A2A_TASK'], 'A2A-Attempt': env['A2A_ATTEMPT'],\n                'A2A-Session': env['A2A_SESSION'], 'A2A-Role': env['A2A_ROLE'],\n                'A2A-Tool': env['A2A_TOOL'], 'A2A-Model': 'unknown',\n                'A2A-Effort': 'unknown', 'A2A-Native-Session': env['CODEX_THREAD_ID'],\n                'A2A-Launch': env['A2A_LAUNCH']}\n    # Validate before any edit. Requested launch settings are not observed turn facts.\n    for key, content in trailers.items():\n        if not isinstance(content, str) or not content or '\\n' in content or '\\r' in content:\n            raise ValueError('尾注值不合法：' + key)\n    trailers['A2A-Model'], trailers['A2A-Effort'] = latest_turn_facts(env)\n    for key in ('A2A-Model', 'A2A-Effort'):\n        value = trailers[key]\n        if not isinstance(value, str) or not value or '\\n' in value or '\\r' in value:\n            raise ValueError('原生回合尾注值不合法：' + key)\n    message = sys.argv[1]\n    parsed = subprocess.check_output(['git', 'interpret-trailers', '--parse', '--no-divider', message], text=True)\n    counts = {key.lower(): 0 for key in trailers}\n    for line in parsed.splitlines():\n        key = line.partition(':')[0].strip().lower()\n        if key in counts:\n            counts[key] += 1\n    for _ in range(max(counts.values(), default=0)):\n        clear = ['git', 'interpret-trailers', '--in-place', '--no-divider', '--trim-empty',\n                 '--if-exists', 'replace', '--if-missing', 'doNothing']\n        for key in trailers:\n            clear += ['--trailer', key + ': ']\n        subprocess.run([*clear, message], check=True)\n    argv = ['git', 'interpret-trailers', '--in-place', '--no-divider', '--if-exists', 'replace']\n    for key, content in trailers.items():\n        argv += ['--trailer', key + ': ' + content]\n    subprocess.run([*argv, message], check=True)\n\n\ndef forward():\n    # Run the repository's existing hook without writing its config.\n    name = Path(sys.argv[0]).name\n    original_env = dict(os.environ)\n    if original_env.get('GIT_CONFIG_COUNT') != '1' or original_env.get('GIT_CONFIG_KEY_0') != 'core.hooksPath':\n        raise ValueError('会话 Git 配置改变')\n    for key in ('GIT_CONFIG_COUNT', 'GIT_CONFIG_KEY_0', 'GIT_CONFIG_VALUE_0'):\n        original_env.pop(key)\n    original = Path(subprocess.check_output(['git', 'rev-parse', '--git-path', 'hooks/' + name],\n                                          env=original_env, text=True).strip()).resolve()\n    if original == Path(__file__).resolve():\n        raise ValueError('原钩子递归')\n    if original.is_file() and os.access(original, os.X_OK):\n        subprocess.run([str(original), *sys.argv[1:]], check=True)\n\n\nif __name__ == '__main__':\n    try:\n        if Path(sys.argv[0]).name == 'prepare-commit-msg':\n            add_trailers()\n        forward()\n    except (OSError, KeyError, ValueError, subprocess.CalledProcessError) as error:\n        print('a2a 提交钩子拒绝：' + str(error), file=sys.stderr)\n        sys.exit(1)\n",
+    "workbench/hooks/p4-changelist": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/p4-post-changelist": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/p4-prepare-changelist": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/post-applypatch": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/post-checkout": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/post-commit": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/post-index-change": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/post-merge": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/post-receive": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/post-rewrite": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/post-update": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/pre-applypatch": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/pre-commit": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/pre-merge-commit": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/pre-push": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/pre-rebase": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/pre-receive": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/prepare-commit-msg": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/proc-receive": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/push-to-checkout": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/reference-transaction": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/sendemail-validate": {
+      "link_target": "hook.py"
+    },
+    "workbench/hooks/update": {
+      "link_target": "hook.py"
+    }
+  },
+  "installed": false
+}

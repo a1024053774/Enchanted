@@ -1,0 +1,15 @@
+{
+  "label": "v1-unexpected-oracle-python",
+  "argv": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "-B",
+    "-c",
+    "import json,runpy,sys\nsys.path.insert(0,sys.argv[1]);m=runpy.run_path(sys.argv[1]+\"/score\",run_name=\"reader\")\nrows=[json.loads(l) for l in open(sys.argv[2],encoding=\"utf-8\")]\ntry:\n m[\"validate_scores\"](rows)\nexcept ValueError as error:\n print(json.dumps({\"ok\":False,\"error\":str(error)}));sys.exit(1)\nprint(json.dumps({\"ok\":True,\"rows\":rows}))\n",
+    "/private/tmp/t081score-source-7e1cwld7/candidate/scripts",
+    "/private/tmp/t80score-yo4zbquj/v1-unexpected-oracle.jsonl"
+  ],
+  "cwd": "/private/tmp/t081score-source-7e1cwld7/candidate",
+  "exit": 1,
+  "stdout": "{\"ok\": false, \"error\": \"schema=1 \\u7684\\u6253\\u56de\\u6b21\\u6570\\u5fc5\\u987b\\u5b8c\\u6574\\u5305\\u542b commit_trailers\\u3001completion\\u3001identity_version\\u3001independent_review\\u3001path_boundary\\u3001red_state\\u3001rule_checks\\uff1b\\u4e0d\\u80fd\\u7f3a\\u9879\\u6216\\u542b\\u672a\\u77e5\\u9879\"}\n",
+  "stderr": ""
+}

@@ -112,7 +112,7 @@ export class RequestRelay {
       const base = controller ? ["schema", "request_id", "command", "launch", "preset", "project", "task", "session", "spec_rev", "native_session", "prompt_id"]
         : ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev"];
       const allowed: Record<string, string[]> = binding.role === "reviewer"
-        ? { review_submit: ["review_id", "candidate_commit", "verdict", "findings"] }
+        ? { review_submit: ["review_id", "candidate_commit", "verdict", "findings", "review_requirements", "report"] }
         : {
         submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"],
         inbox_send: ["from", "to", "kind", "reply_to", "refs", "body", "title", "blocking", "action", "reason", "basis", "bundle_id"],

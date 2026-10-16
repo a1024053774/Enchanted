@@ -1,0 +1,176 @@
+{
+  "status": "PASS",
+  "starting_revision": "451be8462c85fd08b997cb85453188a8e5751c9d",
+  "candidate_head": "9c771dc72d0030a77ae7080e1addf8212ddef139",
+  "real_codex_turns": 0,
+  "steps": [
+    {
+      "name": "wrong-workspace",
+      "status": "PASS",
+      "source_changes": [],
+      "gates_unchanged": true,
+      "mutation": {
+        "before": null,
+        "after": null
+      },
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t082/workbench/tests/test_t082_parent_launch_e2e.py",
+        "--source",
+        "/Volumes/WD-Elements/t82-gfv1w8wo/s0",
+        "--fixture-root",
+        "/Volumes/WD-Elements/t82-gfv1w8wo/f0",
+        "--output",
+        "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/wrong-workspace",
+        "--case",
+        "wrong-workspace"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t082",
+      "exit_code": 1,
+      "source_changes_after": [],
+      "report": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/wrong-workspace/run.json",
+      "outcome": "contract_failure",
+      "failure_id": "T082-LAUNCH-REFUSED",
+      "cleanup_failures": [],
+      "parent_readback": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/wrong-workspace/wrong-workspace/parent-start-readback.json",
+      "green_reference": {
+        "report": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-02-02/controlled/launch-boundary-refused-wrong-workspace/run.json",
+        "source": "/Users/luckye/Documents/Code/a2a-wt-t082",
+        "mutation": {
+          "before": "const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;",
+          "after": "const launchWorkspace = review ? review.workspace : attempt.workspace;"
+        },
+        "assertion": "T082-LAUNCH-REFUSED",
+        "passed": true
+      },
+      "expected_business_red": true,
+      "candidate_green": true
+    },
+    {
+      "name": "network-enabled",
+      "status": "PASS",
+      "source_changes": [
+        "workbench/src/panes.ts"
+      ],
+      "gates_unchanged": true,
+      "mutation": {
+        "before": "\"-c\", \"sandbox_workspace_write.network_access=false\", \"-c\", \"features.network_proxy=false\"",
+        "after": "\"-c\", `sandbox_workspace_write.network_access=${review ? \"true\" : \"false\"}`, \"-c\", \"features.network_proxy=false\""
+      },
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t082/workbench/tests/test_t082_parent_launch_e2e.py",
+        "--source",
+        "/Volumes/WD-Elements/t82-gfv1w8wo/s1",
+        "--fixture-root",
+        "/Volumes/WD-Elements/t82-gfv1w8wo/f1",
+        "--output",
+        "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/network-enabled",
+        "--case",
+        "network-enabled"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t082",
+      "exit_code": 1,
+      "source_changes_after": [
+        "workbench/src/panes.ts"
+      ],
+      "report": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/network-enabled/run.json",
+      "outcome": "contract_failure",
+      "failure_id": "T082-LAUNCH-REFUSED",
+      "cleanup_failures": [],
+      "parent_readback": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/network-enabled/network-enabled/parent-start-readback.json",
+      "green_reference": {
+        "report": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-02-02/controlled/launch-boundary-refused-network-enabled/run.json",
+        "source": "/Users/luckye/Documents/Code/a2a-wt-t082",
+        "mutation": {
+          "before": "const networkAccess = review ? \"false\" : \"false\";",
+          "after": "const networkAccess = review ? \"true\" : \"false\";"
+        },
+        "assertion": "T082-LAUNCH-REFUSED",
+        "passed": true
+      },
+      "expected_business_red": true,
+      "candidate_green": true
+    },
+    {
+      "name": "tmp-writable",
+      "status": "PASS",
+      "source_changes": [
+        "workbench/src/panes.ts"
+      ],
+      "gates_unchanged": true,
+      "mutation": {
+        "before": "    for (const event of [\"UserPromptSubmit\", \"Stop\", \"PermissionRequest\"])",
+        "after": "    if (review) argv.push(\"-c\", \"sandbox_workspace_write.exclude_slash_tmp=false\");\n    for (const event of [\"UserPromptSubmit\", \"Stop\", \"PermissionRequest\"])"
+      },
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t082/workbench/tests/test_t082_parent_launch_e2e.py",
+        "--source",
+        "/Volumes/WD-Elements/t82-gfv1w8wo/s2",
+        "--fixture-root",
+        "/Volumes/WD-Elements/t82-gfv1w8wo/f2",
+        "--output",
+        "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/tmp-writable",
+        "--case",
+        "tmp-writable"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t082",
+      "exit_code": 1,
+      "source_changes_after": [
+        "workbench/src/panes.ts"
+      ],
+      "report": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/tmp-writable/run.json",
+      "outcome": "contract_failure",
+      "failure_id": "T082-LAUNCH-REFUSED",
+      "cleanup_failures": [],
+      "parent_readback": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/tmp-writable/tmp-writable/parent-start-readback.json",
+      "green_reference": {
+        "report": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-02-02/controlled/launch-boundary-refused-tmp-writable/run.json",
+        "source": "/Users/luckye/Documents/Code/a2a-wt-t082",
+        "mutation": {
+          "before": "const excludeSlashTmp = review ? \"true\" : \"false\";",
+          "after": "const excludeSlashTmp = review ? \"false\" : \"false\""
+        },
+        "assertion": "T082-LAUNCH-REFUSED",
+        "passed": true
+      },
+      "expected_business_red": true,
+      "candidate_green": true
+    }
+  ],
+  "counterfactual_timing": "reconstructed after the fix on the starting revision; not an earlier chronological run",
+  "started_at": "2026-10-16T02:38:36.752402+00:00",
+  "node_version": "v26.5.0",
+  "fixture_root": "/Volumes/WD-Elements/t82-gfv1w8wo",
+  "materialize_argv": [
+    "git",
+    "-C",
+    "/Users/luckye/Documents/Code/a2a-wt-t082",
+    "archive",
+    "451be8462c85fd08b997cb85453188a8e5751c9d",
+    "--",
+    "workbench/src",
+    "workbench/hooks",
+    "workbench/package.json",
+    "workbench/LICENSE.synara"
+  ],
+  "necessary_paths": [
+    "workbench/src",
+    "workbench/hooks",
+    "workbench/package.json",
+    "workbench/LICENSE.synara"
+  ],
+  "readonly_reference": {
+    "red": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/red-state/t076-readonly-readback.json",
+    "historical_launch": "aae6f34a-072c-4740-9ba6-5c4452fe110e",
+    "green": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-02-02/controlled/launch-boundary-refused-readonly-argv/run.json",
+    "candidate_status": "PASS"
+  },
+  "fixture_archive": "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/outside-command-10-01/parent-fixtures.tar.gz",
+  "fixture_removed": true,
+  "ended_at": "2026-10-16T02:38:57.909206+00:00"
+}

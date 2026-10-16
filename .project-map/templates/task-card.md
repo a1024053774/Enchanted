@@ -15,7 +15,7 @@ Herdr 期由执行主控手填这份 Markdown 后经 `scripts/dispatch` 派发�
 | 任务类型 | `<类型>` | 执行主控：后端逻辑、前端界面、缺陷修复、测试、重构、构建与基础设施、文档、调研。 |
 | 修复对象 | `<原任务卡号或提交号，或不适用>` | 执行主控：缺陷修复类必填。 |
 | 复杂度 | `<S / M / L>` | 执行主控：按任务规模选一个。 |
-| 执行器 | `<CLI、模型、思考强度>` | 执行主控：与实际启动记录一致；worker 请求 Fast，并保存完整 argv。 |
+| 执行器 | `<CLI、模型、思考强度>` | 执行主控：与实际启动记录一致；worker 用 `gpt-6.1-sol` xhigh、`service_tier="default"`，不用 Fast（2026-10-13），并保存完整 argv。 |
 | 起点 | `<完整提交号>` | 脚本；Herdr 期执行主控从实际认领结果抄入工作分支 HEAD。 |
 | 唯一写入者 | `<worker 会话、task/attempt/session/fence>` | 脚本；Herdr 期执行主控从门禁认领结果与 Herdr live pane 抄入。 |
 

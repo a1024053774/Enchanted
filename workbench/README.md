@@ -87,7 +87,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 `acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由后台中的
 `A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
 受管任务通过 JSON 任务卡注册；交付按卡检查路径、验收文件、完成条件与提交尾注，
-机械通过后新开只读 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
+机械通过后新开独立 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
 普通会话的 `attach --instructions` 仍是提示文本，
 不参与受管任务注册。
 旧 HTTP 转接经本次对话确认后删除；本入口只接受本地门禁命令。
@@ -146,7 +146,7 @@ M验收目录独立，顺序为路径边界、验收文件、完成条件、红�
 在 `claim`、`dispatch` 或 `run` 上显式加 `--overlap-reason '具体理由'`，
 理由、冲突身份和路径一起保存到 `claim_path_check` 事件；worker 的转交通道不增加认领权限。
 门禁检查候选相对起点的净改动，以及 M 相对 G 的净改动。
-尾注归属按 Task、Attempt、Session、Role 四项核对；外来任务或坏尾注被拒。
+尾注归属核对 Task、Attempt、Session、Role。受管提交另把 Launch 与该 attempt 的启动记录号核对，并把 Tool、Model、Effort 与同一条记录核对；Model 为 unknown 时仍接受。不一致时拒收，码为 trailer_identity_mismatch。带有 A2A 尾注、但该 attempt 没有这份启动记录时，尾注检查直接拒收，码为 trailer_launch_record_missing，trailer_check 事件写明缺启动记录。外来任务或坏尾注被拒。
 完全无 A2A 尾注的提交产生来源为“推断：缺尾注”的 action 用户输入和派生人工介入，
 不阻止集成，同 attempt 同 commit 重验不重复记录。
 
@@ -167,9 +167,14 @@ Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改�
 不续接旧原生会话。`daemon_start --launch-config` 的 `reviewers` 数组按启动次序提供
 每个已批准 reviewer 的 `codex_home`、`role_card`、`role_card_revision`、`hook_authorization`。
 每项 home 必须独立、没有已有原生会话记录；没有该实例配置就明确拒绝，不沿用 worker home。
-reviewer 用 `--sandbox read-only -a never`，不安装 Git 尾注 hook、不增加可写目录，
-会话 hook 仍只经启动 argv 传入。P-review02已用真实read-only reviewer的单次sentinel写入拒绝
-证明该实例的权限效果；完整结论经Stop/B入库，证据见本卡outside-p-review-02。
+reviewer 的 Git 审查 worktree 和候选提交保持不可写；门禁另建一次性 `candidate_workspace` 副本，
+reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含 `.git`，只允许在其中构造
+2～5 个变异。启动 argv 显式关闭网络代理并排除 `/tmp` 与 `$TMPDIR`，不安装 Git 尾注 hook，
+会话 hook 仍只经启动 argv 传入。审查结束前门禁核对候选提交、审查 worktree、worker worktree
+和共享仓库引用未变，随后删除候选副本；边界不符则作废结论并上报。
+报告入库不等于获得集成资格：`integrate` 在任务操作锁内核对本次 review 的
+`review_reclaimed` 完成记录。结束核对与副本、审查 worktree 清理全部完成后才写该记录；
+完成前集成明确拒收，不前移项目工作分支。
 
 按用户2026-10-13的决定，Codex会话使用gpt-6.1-sol、xhigh及普通速度，
 worker/reviewer的argv显式传`-c service_tier="default"`，派发事件与启动记录写requested tier为`default`。
@@ -177,6 +182,10 @@ worker/reviewer的argv显式传`-c service_tier="default"`，派发事件与启�
 记录仅表示请求设置，不代表供应商实际执行tier；其他沙箱、hook及身份检查不变。
 
 reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选模板由门禁派发。
+模板中的 `review_requirements` 原样返回；`report` 是非空 JSON 对象，须含“完成条件与变异检查”键，用于保存完成条件审查、
+变异命令与结果。解析器严格核对顶层字段，relay 和门禁结果保留完整报告。
+门禁在保存报告前核对其中的 `mutation_checks.workspace` 等于本次候选副本路径。
+门禁只核对报告容器、必需节键与请求格式，不判断报告结论或变异结果是否正确。
 匹配 Stop 的后台 hook 处理器把显式 JSON 落入该 launch 专用请求文件，再经原 B relay
 转交。程序不剥 Markdown fence、不抽取一段 JSON、不从自然语言猜结论。
 非法结论保存原文、上报并暂停；有效结论只接受“可合并”加空清单，或“需修复”加位置、
@@ -224,7 +233,7 @@ reviewer创建失败、后台重启时的未完成审查、退出未确认已有
 经批准的夹具迁移后，8/9/18及T-075/T-076-1受控回归通过，证据见
 [legacy-green-06](../evidence/2026-10-11-batch13/T-076/card-2/outside-legacy-green-06/run.json)。
 手工claim即使有合法review与评分，缺少受管启动来源仍拒绝集成。受控结果不代替真实模型验收；
-先前不传tier的最小复验及P-review02只证明当时冻结版本；显式default最小复验与priority/只读变异体已通过。
+先前不传tier的最小复验及 P-review02 只证明当时冻结版本；显式 default 最小复验与 reviewer 边界变异体需按当前候选重新取得。
 真实正例槽2–6及独立交付审查槽7已完成，累计真实7/8；正例见本卡outside-real-delivery-02，
 审查原文见[REPORT](../evidence/2026-10-11-batch13/T-076/card-2/outside-delivery-review-01/REPORT.md)。
 原日志归档要求及完成收据均保留。tasks/attempts/verifications一致，
@@ -239,7 +248,9 @@ worker 目录为 `<state>/worktrees/<project_id>/<task>-a<N>`，分支为
 
 审查目录为同一项目命名空间下的 `<task>-a<N>-review-<K>`，保持 detached；
 K 按该 attempt 已记录的审查意图递增，同 C 的有效审查复用不新建目录或递增序号。
-审查结论入库后，确认原 reviewer 已停止且归档，再核对目录身份、候选 HEAD 与干净状态并删除目录及 Git worktree 登记。
+每次审查另有 `<state>/review-copies/<review_id>` 一次性候选副本；它不登记为 Git worktree，且不含 `.git`。
+审查结论入库后，确认原 reviewer 已停止且归档，再核对候选提交、审查目录、worker 目录与共享引用未变，
+删除候选副本，最后删除审查目录及 Git worktree 登记。
 清理事件单独追加，不改写 `review_result` 的审查对象，因此目录删除不改变 R8 沿用结论的身份绑定。
 脏目录、未知 HEAD、退出未确认或清理结果未知时保留可核对的现场，沿用审查生命周期的暂停和问题上报语义。
 

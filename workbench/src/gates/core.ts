@@ -4,8 +4,8 @@
 // See ../../LICENSE.synara for the full permission notice.
 
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import {
@@ -37,7 +37,7 @@ import { execFile as execProcessFile, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, pathIntersection, projectRules, type ProjectQuality, type TaskCard } from "./taskCards.ts";
 import { Schema } from "effect";
-import { executorScore, reviewVerdict, QualityProtocolError } from "./qualityProtocol.ts";
+import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
 import { readyTickets } from "./readyTickets.ts";
 import {
@@ -78,6 +78,13 @@ function inputPath(value: string | undefined, directory = false): string {
   const path = realpathSync(value);
   requireGate(directory ? statSync(path).isDirectory() : statSync(path).isFile(), "invalid_path");
   return path;
+}
+function realPathLeaf(path: string): boolean {
+  return realpathSync(path) === join(realpathSync(dirname(path)), basename(path));
+}
+function pathInside(root: string, target: string): boolean {
+  const child = relative(root, target);
+  return child !== ".." && !child.startsWith(".." + sep) && !isAbsolute(child);
 }
 
 // Host-owned lifecycle boundary. The gate does not implement a CLI/provider runtime.
@@ -2014,9 +2021,17 @@ export class A2AGates {
           required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = "invalid_trailers";
         else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")
           error = "trailer_identity_mismatch";
+        // Delivery is the launch record copied at submit. Model may be the literal unknown; tool, effort and launch may not.
+        else if (attempt.delivery) {
+          if (trailers.launch![0] !== attempt.delivery.launch_id) error = "trailer_identity_mismatch";
+          else if (trailers.tool![0] !== attempt.delivery.cli) error = "trailer_identity_mismatch";
+          else if (trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model) error = "trailer_identity_mismatch";
+          else if (trailers.effort![0] !== attempt.delivery.effort) error = "trailer_identity_mismatch";
+        } else error = "trailer_launch_record_missing";
       }
       this.event(task.task_id, "trailer_check", { commit, trailers, verification_id: v.verification_id,
-        card_snapshot_id: v.card_snapshot_id, passed: !error, missing, error });
+        card_snapshot_id: v.card_snapshot_id, passed: !error, missing, error,
+        ...(error === "trailer_launch_record_missing" ? { reason: "缺启动记录" } : {}) });
       requireGate(!error, error ?? "invalid_trailers", { commit, trailers });
       if (missing) this.appendUserInput({
         id: randomUUID(), schema: 1, form: "action", text: `用户本人提交 ${commit}（推断：缺尾注）`,
@@ -2080,7 +2095,83 @@ export class A2AGates {
 
   private reviewAttempt(review: A2AReview): A2AAttempt {
     return { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
-      workspace: review.workspace, runtime_identity: review.runtime_identity, turn_id: null };
+      workspace: review.candidate_workspace, runtime_identity: review.runtime_identity, turn_id: null };
+  }
+
+  private reviewCandidateWorkspace(reviewId: string) {
+    return join(this.root, "review-copies", reviewId);
+  }
+
+  private async sharedRefs(task: A2ATask) {
+    return this.git(task.task_id, task.repo, ["for-each-ref", "--format=%(refname)=%(objectname)"]);
+  }
+
+  /**
+   * Materialize the review input without carrying the worktree's .git link.
+   * Symlinks whose targets stay inside the candidate are copied by content;
+   * this preserves the readable fixture while preventing a mutation from
+   * following a link back into a protected worktree or repository.
+   */
+  private copyReviewCandidate(review: A2AReview) {
+    const source = review.workspace, target = review.candidate_workspace;
+    requireGate(target === this.reviewCandidateWorkspace(review.review_id), "review_candidate_copy_identity_unknown",
+      { expected: this.reviewCandidateWorkspace(review.review_id), actual: target });
+    requireGate(!existsSync(target), "review_candidate_copy_conflict", { target });
+    const canonicalSource = realpathSync(source);
+    const auditSourceLinks = (path: string) => {
+      for (const entry of readdirSync(path, { withFileTypes: true })) {
+        const child = join(path, entry.name);
+        if (entry.isSymbolicLink()) {
+          let resolved: string;
+          try { resolved = realpathSync(child); }
+          catch (error) { throw new Refusal("review_candidate_copy_symlink", { child, error: String(error) }); }
+          requireGate(pathInside(canonicalSource, resolved), "review_candidate_copy_symlink", { child, resolved });
+        } else if (entry.isDirectory()) auditSourceLinks(child);
+      }
+    };
+    auditSourceLinks(source);
+    mkdirSync(dirname(target), { recursive: true });
+    cpSync(source, target, {
+      recursive: true,
+      dereference: true,
+      filter: (path) => path === source || basename(path) !== ".git",
+    });
+    requireGate(existsSync(target) && !lstatSync(target).isSymbolicLink() && realPathLeaf(target),
+      "review_candidate_copy_invalid", { target, resolved: realpathSync(target) });
+    // dereference:true should leave a regular, writable content copy. Keep a
+    // post-copy assertion so a future copy implementation cannot silently
+    // reintroduce links into the reviewer workspace.
+    const walk = (path: string) => {
+      for (const entry of readdirSync(path, { withFileTypes: true })) {
+        const child = join(path, entry.name);
+        requireGate(!entry.isSymbolicLink(), "review_candidate_copy_symlink", { child });
+        if (entry.isDirectory()) walk(child);
+      }
+    };
+    walk(target);
+  }
+
+  private reviewLaunch(task: A2ATask, review: A2AReview, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
+    const row = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(review.launch_id!);
+    const launch = row ? JSON.parse(String(row.data)) : null;
+    const argv: unknown[] = launch?.argv;
+    const sandbox = Array.isArray(argv) ? argv.indexOf("--sandbox") : -1;
+    const cwd = Array.isArray(argv) ? argv.indexOf("-C") : -1;
+    const config = (key: string) => Array.isArray(argv) && argv.includes(key);
+    requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
+      launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
+      launch.thread === review.thread_id && launch.attempt === review.attempt.attempt_id &&
+      launch.sandbox === "workspace-write" && launch.worktree === review.candidate_workspace &&
+      live.workspace === review.candidate_workspace && cwd >= 0 && argv[cwd + 1] === review.candidate_workspace &&
+      sandbox >= 0 && argv[sandbox + 1] === "workspace-write" &&
+      config("sandbox_workspace_write.network_access=false") && config("features.network_proxy=false") &&
+      config("sandbox_workspace_write.exclude_slash_tmp=true") &&
+      config("sandbox_workspace_write.exclude_tmpdir_env_var=true") &&
+      launch.review_home_was_empty === true &&
+      !Object.keys(launch.env ?? {}).some((key) => key.startsWith("GIT_CONFIG_")) &&
+      !argv.some((arg) => ["resume", "fork", "--resume", "--fork"].includes(String(arg))),
+      "review_launch_boundary", { launch, live: { workspace: live.workspace, runtime_identity: live.runtime_identity } });
+    return launch;
   }
 
   private requireReviewed(task: A2ATask, attempt: A2AAttempt) {
@@ -2093,6 +2184,11 @@ export class A2AGates {
     const row = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='review_result' AND json_extract(details,'$.review.review_id')=? ORDER BY seq DESC LIMIT 1")
       .get(task.task_id, attempt.attempt_id, review.review_id);
     requireGate(row && JSON.stringify(JSON.parse(String(row.details)).review) === JSON.stringify(review), "stale_review");
+    // Both callers hold the task operation lock. Reclaim writes this record
+    // under the same lock only after boundary checks and both cleanup steps.
+    const ended = this.db.prepare("SELECT 1 FROM events WHERE task=? AND attempt=? AND type='review_reclaimed' AND json_extract(details,'$.review_id')=?")
+      .get(task.task_id, attempt.attempt_id, review.review_id);
+    requireGate(ended, "review_end_check_required");
     return review;
   }
 
@@ -2137,25 +2233,38 @@ export class A2AGates {
     const reviewId = randomUUID();
     const ordinal = Number(this.db.prepare("SELECT count(*) AS n FROM events WHERE task=? AND attempt=? AND type='review_requested'")
       .get(task.task_id, attempt.attempt_id)!.n) + 1;
+    const reviewWorkspace = join(this.projectWorktrees(task), `${this.attemptName(attempt)}-review-${ordinal}`);
+    const candidateWorkspace = this.reviewCandidateWorkspace(reviewId);
+    const sharedRefs = await this.sharedRefs(task);
     const review: A2AReview = { review_id: reviewId, ordinal, task_id: task.task_id, attempt: { ...attempt },
       candidate_commit: v.C, spec_rev: task.spec_rev, card_snapshot_id: attempt.card_snapshot_id,
       verification_id: v.verification_id, thread_id: randomUUID(), session_id: randomUUID(),
-      workspace: join(this.projectWorktrees(task), `${this.attemptName(attempt)}-review-${ordinal}`), requested_at: new Date(this.now()).toISOString(),
+      workspace: reviewWorkspace, candidate_workspace: candidateWorkspace, shared_refs: sharedRefs,
+      requested_at: new Date(this.now()).toISOString(),
       launch_id: null, runtime_identity: null, state: "requested" };
     task.review = review; task.state = "reviewing";
     this.save(task, "review_requested", { task, review });
     try {
       await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", review.workspace, v.C]);
+      this.copyReviewCandidate(review);
+      this.save(task, "review_candidate_copy_created", { review_id: review.review_id,
+        review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
+        candidate_commit: review.candidate_commit });
       const diff = await this.git(task.task_id, task.repo, ["diff", "--no-ext-diff", "--no-renames", attempt.base_commit, v.C, "--"]);
       const shape = { schema: 1, request_id: "review-" + reviewId, command: "review_submit", task: task.task_id,
         attempt: attempt.attempt_id, session: review.session_id, fence: attempt.fence, spec_rev: task.spec_rev,
-        review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [] };
-      const prompt = `只读审查这一次交付，不实现或提交代码。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。以下身份字段不可改；verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。不能调用 worker 的 submit、不能集成、不能写请求文件。\n${JSON.stringify(shape, null, 2)}`;
+        review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [],
+        review_requirements: {
+          completion_conditions_sufficiency: true,
+          mutation_checks: { min: 2, max: 5, workspace: candidateWorkspace, report_section: "完成条件与变异检查" },
+        }, report: { "完成条件与变异检查": "填写完成条件审查及各变异的改动、命令和结果" } };
+      const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。保留模板的全部顶层字段，不添加其他字段。身份字段和 review_requirements 原样返回。report 必须是 JSON 对象，在其中填写审查报告，并单列“完成条件与变异检查”；不要把 report 写成字符串。verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。\n${JSON.stringify(shape, null, 2)}`;
       await this.runtime.createReview(task, review, prompt);
       const live = await this.runtime.readThread(review.thread_id);
       review.runtime_identity = { ...live.runtime_identity };
       review.launch_id = live.runtime_identity.launch;
       this.checkThread(this.reviewAttempt(review), live);
+      this.reviewLaunch(task, review, live);
       review.state = "running";
       this.member(task, review.thread_id, "reviewer");
       this.save(task, "review_started", { task, review });
@@ -2208,6 +2317,7 @@ export class A2AGates {
         const after = await this.runtime.readThread(review.thread_id);
         this.checkThread(this.reviewAttempt(review), after);
         requireGate(after.stopped && after.archived, "review_reclaim_unconfirmed");
+        await this.cleanupReviewCandidate(this.load(taskId), review);
         await this.cleanupReviewWorktree(this.load(taskId), review);
         this.member(this.load(taskId), review.thread_id, "reviewer", new Date(this.now()).toISOString());
         this.event(taskId, "review_reclaimed", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
@@ -2220,13 +2330,53 @@ export class A2AGates {
     } finally { lock.close(); }
   }
 
+  private async checkReviewBoundary(task: A2ATask, review: A2AReview) {
+    const expectedCopy = this.reviewCandidateWorkspace(review.review_id);
+    requireGate(review.candidate_workspace === expectedCopy && existsSync(review.candidate_workspace) &&
+      !lstatSync(review.candidate_workspace).isSymbolicLink() && realPathLeaf(review.candidate_workspace),
+      "review_candidate_copy_missing", { expected: expectedCopy, actual: review.candidate_workspace });
+    requireGate(review.candidate_workspace !== review.workspace && review.candidate_workspace !== review.attempt.workspace,
+      "review_candidate_copy_identity_unknown", { review, worker_workspace: review.attempt.workspace });
+    const refs = await this.sharedRefs(task);
+    requireGate(refs === review.shared_refs, "review_shared_refs_changed", { expected: review.shared_refs, actual: refs });
+
+    const listed = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
+    requireGate(existsSync(review.workspace) && !lstatSync(review.workspace).isSymbolicLink() &&
+      realPathLeaf(review.workspace) &&
+      listed.split("\0").some((field) => field === "worktree " + review.workspace) &&
+      !(await this.git(task.task_id, review.workspace, ["symbolic-ref", "--quiet", "HEAD"], [0, 1])) &&
+      await this.git(task.task_id, review.workspace, ["rev-parse", "HEAD"]) === review.candidate_commit &&
+      !(await this.git(task.task_id, review.workspace, ["status", "--porcelain=v1", "--untracked-files=all"])),
+      "review_worktree_changed", { workspace: review.workspace, candidate: review.candidate_commit });
+    const worker = review.attempt.workspace;
+    const workerBranch = `refs/heads/a2a/${this.attemptName(review.attempt)}`;
+    requireGate(worker === join(this.projectWorktrees(task), this.attemptName(review.attempt)) && existsSync(worker) &&
+      realPathLeaf(worker) && listed.split("\0").some((field) => field === "worktree " + worker),
+      "review_worker_workspace_changed", { worker, listed });
+    requireGate(await this.git(task.task_id, worker, ["rev-parse", "HEAD"]) === review.candidate_commit &&
+      await this.git(task.task_id, worker, ["symbolic-ref", "--quiet", "HEAD"]) === workerBranch &&
+      !(await this.git(task.task_id, worker, ["status", "--porcelain=v1", "--untracked-files=all"])),
+      "review_worker_workspace_changed", { worker, candidate: review.candidate_commit });
+  }
+
+  private async cleanupReviewCandidate(task: A2ATask, review: A2AReview) {
+    await this.checkReviewBoundary(task, review);
+    const binding = { review_id: review.review_id, candidate_workspace: review.candidate_workspace,
+      review_workspace: review.workspace, candidate_commit: review.candidate_commit, ordinal: review.ordinal,
+      attempt: review.attempt.attempt_id };
+    this.event(task.task_id, "review_candidate_copy_cleanup_intent", binding, review.attempt.attempt_id);
+    rmSync(review.candidate_workspace, { recursive: true, force: false });
+    requireGate(!existsSync(review.candidate_workspace), "review_candidate_copy_unconfirmed", binding);
+    this.event(task.task_id, "review_candidate_copy_removed", binding, review.attempt.attempt_id);
+  }
+
   private async cleanupReviewWorktree(task: A2ATask, review: A2AReview) {
     requireGate(review.result && ["passed", "needs_fix"].includes(review.state), "review_result_required");
     requireGate(review.task_id === task.task_id && review.attempt.task_id === task.task_id &&
       Number.isSafeInteger(review.ordinal) && review.ordinal > 0 &&
       review.workspace === join(this.projectWorktrees(task), `${this.attemptName(review.attempt)}-review-${review.ordinal}`),
       "review_cleanup_identity_unknown");
-    requireGate(!lstatSync(review.workspace).isSymbolicLink() && realpathSync(review.workspace) === review.workspace,
+    requireGate(!lstatSync(review.workspace).isSymbolicLink() && realPathLeaf(review.workspace),
       "review_cleanup_identity_unknown");
     const listed = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
     requireGate(listed.split("\0").includes("worktree " + review.workspace), "review_cleanup_identity_unknown");
@@ -3387,13 +3537,7 @@ export class A2AGates {
         this.bindObservedIdentity(bound, live);
         requireGate(!live.error && !live.blocked && live.running && live.turn === caller.turn &&
           live.runtime_identity.native_session && live.runtime_identity.leader_pid, "review_identity_unknown");
-        const launchRow = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(review.launch_id!);
-        const launch = launchRow ? JSON.parse(String(launchRow.data)) : null;
-        requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
-          launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
-          launch.thread === review.thread_id && launch.attempt === attempt.attempt_id && launch.sandbox === "read-only" &&
-          launch.review_home_was_empty === true && launch.argv[launch.argv.indexOf("--sandbox") + 1] === "read-only" &&
-          !launch.argv.some((arg: string) => ["resume", "fork", "--resume", "--fork"].includes(arg)), "review_not_fresh");
+        const launch = this.reviewLaunch(task, review, live);
         requireGate(review.thread_id !== attempt.thread_id && review.session_id !== attempt.session_id &&
           review.launch_id !== attempt.runtime_identity?.launch &&
           live.runtime_identity.native_session !== attempt.runtime_identity?.native_session, "review_writer_conflict");
@@ -3401,8 +3545,12 @@ export class A2AGates {
           .get(review.launch_id!, live.runtime_identity.native_session);
         requireGate(!reused, "review_native_session_reused");
         const verdict = reviewVerdict(args.verdict, args.findings);
+        const evidence = reviewEvidence(args.review_requirements, args.report);
+        requireGate(evidence.review_requirements.mutation_checks.workspace === review.candidate_workspace,
+          "review_requirements_mismatch", { expected: review.candidate_workspace,
+            actual: evidence.review_requirements.mutation_checks.workspace });
         review.runtime_identity = bound.runtime_identity;
-        review.result = { ...verdict, turn_id: caller.turn, received_at: new Date(this.now()).toISOString() };
+        review.result = { ...verdict, ...evidence, turn_id: caller.turn, received_at: new Date(this.now()).toISOString() };
         review.state = verdict.verdict === "可合并" ? "passed" : "needs_fix";
         task.state = review.state === "passed" ? "verified" : "submitted";
         this.save(task, "review_result", { task, review });

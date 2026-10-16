@@ -298,7 +298,8 @@ class TaskCardsCLI(unittest.TestCase):
         self.save_card(1, v2)
         self.assertEqual(self.cli('card_show', '--card-version', '1')['card']['goal'], self.card['goal'])
         self.assertEqual(self.cli('status')['task']['card_version'], 1)
-        c = self.commit(a)
+        # Claim does not copy a launch record. A trailered commit is rejected; this snapshot case has no trailers.
+        c = self.commit(a, trailers=False)
         self.submit(a, c)
         self.cli('verify')
         with sqlite3.connect(self.state / 'state.sqlite3') as db:

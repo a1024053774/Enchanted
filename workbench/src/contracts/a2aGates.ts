@@ -73,6 +73,8 @@ export const A2AGateRequest = Schema.Struct({
   candidate_commit: Schema.optional(Schema.String),
   verdict: Schema.optional(Schema.String),
   findings: Schema.optional(Schema.Unknown),
+  review_requirements: Schema.optional(Schema.Unknown),
+  report: Schema.optional(Schema.Unknown),
   score_file: Schema.optional(Schema.String),
   wait_seconds: Schema.optional(Schema.Number),
   runtimeMode: Schema.optional(Schema.Literals(["approval-required", "full-access", "workspace-write"])),
@@ -168,12 +170,18 @@ export interface A2AReview {
   verification_id: string;
   thread_id: string;
   session_id: string;
+  /** The detached Git worktree owned by the gate and kept immutable during review. */
   workspace: string;
+  /** A disposable, non-Git copy where the reviewer may construct mutations. */
+  candidate_workspace: string;
+  /** Shared-repository refs captured before the reviewer starts. */
+  shared_refs: string;
   requested_at: string;
   launch_id: string | null;
   runtime_identity: A2ARuntimeIdentity | null;
   state: "requested" | "running" | "passed" | "needs_fix" | "unknown" | "cancelled";
-  result?: { verdict: "可合并" | "需修复"; findings: A2AReviewFinding[]; turn_id: string; received_at: string };
+  result?: { verdict: "可合并" | "需修复"; findings: A2AReviewFinding[];
+    review_requirements: Record<string, unknown>; report: Record<string, unknown>; turn_id: string; received_at: string };
 }
 
 export interface A2AReviewFinding {

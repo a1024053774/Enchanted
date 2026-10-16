@@ -1,4 +1,4 @@
-"""One controller-only phase: default-tier argv reds, focused greens, readonly mutant."""
+"""One controller-only phase: default-tier argv reds, focused greens, review-boundary mutant."""
 import argparse
 import gzip
 import json
@@ -14,7 +14,6 @@ from command_evidence import CommandLog
 from run_t076_quality_red import archive_directory
 
 ROOT = Path(__file__).resolve().parents[2]
-CARD = ROOT / 'evidence/2026-10-11-batch13/T-076/card-2'
 
 
 def main():
@@ -26,6 +25,7 @@ def main():
     report = dict(status='INCOMPLETE', product_status='INCOMPLETE', real_codex_turns=0, argv=sys.argv, steps=[], archives=[])
     env = {k: v for k, v in os.environ.items() if not k.startswith(('A2A_', 'CODEX_', 'GIT_CONFIG_', 'ELECTRON_'))}
     env['PYTHONDONTWRITEBYTECODE'] = '1'
+    env['A2A_TEST_ARTIFACT_PARENT'] = os.environ.get('A2A_TEST_ARTIFACT_PARENT', '/Volumes/WD-Elements')
     artifacts = []; captured = {}
 
     def save(path, value):
@@ -36,24 +36,34 @@ def main():
         if not Path('/Volumes/WD-Elements').is_mount(): raise RuntimeError('External disk is not mounted.')
         version = log.run(['node', '--version'], cwd=ROOT, env=env)
         if version.returncode or version.stdout.strip() != 'v26.5.0': raise RuntimeError('Pinned Node is unavailable.')
-        root = Path(tempfile.mkdtemp(prefix='l76argv-', dir='/tmp')).resolve()
-        candidate, baseline = root / 'candidate', root / 'baseline'
-        shutil.copytree(ROOT / 'workbench', candidate / 'workbench', symlinks=True,
-                        ignore=shutil.ignore_patterns('node_modules', '__pycache__', '.DS_Store'))
+        root = Path(tempfile.mkdtemp(prefix='l76argv-', dir=env.get('A2A_TEST_ARTIFACT_PARENT', '/Volumes/WD-Elements'))).resolve()
+        candidate = root / 'candidate'
+        for directory in ('src', 'hooks', 'tests'):
+            shutil.copytree(ROOT / 'workbench' / directory, candidate / 'workbench' / directory, symlinks=True,
+                            ignore=shutil.ignore_patterns('__pycache__', '.DS_Store'))
+        shutil.copyfile(ROOT / 'workbench/package.json', candidate / 'workbench/package.json')
         (candidate / 'workbench/node_modules').symlink_to((ROOT / 'workbench/node_modules').resolve(), target_is_directory=True)
-        with tarfile.open(CARD / 'real-delivery-01/source-snapshot.tar.gz', 'r:gz') as archive:
-            for member in archive.getmembers():
-                if not member.isfile() or not member.name.startswith('workbench/') or '..' in Path(member.name).parts:
-                    raise RuntimeError('Unexpected retained baseline archive member.')
-            archive.extractall(baseline)
-        (baseline / 'workbench/node_modules').symlink_to((ROOT / 'workbench/node_modules').resolve(), target_is_directory=True)
+        missing = {}
+        before_default = '\"-c\", \'service_tier=\"default\"\','
+        for role in ('worker', 'reviewer'):
+            variant = root / (role + '-missing-default')
+            shutil.copytree(candidate, variant, symlinks=True)
+            path = variant / 'workbench/src/panes.ts'
+            text = path.read_text(encoding='utf-8')
+            if text.count(before_default) != 1: raise RuntimeError('Default override mutation target is not unique.')
+            after_default = ('...(review ? ["-c", \'service_tier="default"\'] : []),'
+                             if role == 'worker' else '...(review ? [] : ["-c", \'service_tier="default"\']),')
+            path.write_text(text.replace(before_default, after_default), encoding='utf-8')
+            missing[role] = variant
+            save(out / (role + '-missing-default.json'), dict(source=str(variant), before=before_default, after=after_default,
+                 boundary='candidate D3 boundary unchanged; only this role loses its explicit default override'))
         for base in ('workbench/src', 'workbench/hooks', 'workbench/tests'):
             for path in (ROOT / base).rglob('*'):
                 if path.is_file() and '__pycache__' not in path.parts: captured[path] = path.read_bytes()
         with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as archive:
             archive.add(candidate / 'workbench', arcname='workbench')
-        save(out / 'source.json', dict(candidate=str(candidate), baseline_archive='real-delivery-01/source-snapshot.tar.gz',
-                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; readonly unchanged'))
+        save(out / 'source.json', dict(candidate=str(candidate), negative_sources={k: str(v) for k, v in missing.items()},
+                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; all D3 boundary facts retained'))
 
         def suite(name, source, cases, expected=0, failure_id=None):
             target = out / name
@@ -73,8 +83,8 @@ def main():
                     raise RuntimeError('The intended argv assertion did not fail: ' + name)
             elif value['status'] != 'PASS': raise RuntimeError('Candidate failed; no retry: ' + name)
 
-        suite('worker-missing-override-red', baseline, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
-        suite('reviewer-missing-override-red', baseline, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEWER-DEFAULT-ARGV')
+        suite('worker-missing-override-red', missing['worker'], ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
+        suite('reviewer-missing-override-red', missing['reviewer'], ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEWER-DEFAULT-ARGV')
         suite('default-tier-green', candidate, ['tracer_launch_policy_worker', 'tracer_launch_policy_reviewer'])
         priority = root / 'priority-mutant'; shutil.copytree(candidate, priority, symlinks=True)
         priority_file = priority / 'workbench/src/panes.ts'; text = priority_file.read_text(encoding='utf-8')
@@ -83,13 +93,25 @@ def main():
         priority_file.write_text(text.replace(before, "'service_tier=\"priority\"'"), encoding='utf-8')
         save(out / 'priority-mutant.json', dict(before=before, failure_id='TRACER-WORKER-DEFAULT-ARGV', source=str(priority)))
         suite('priority-argv-mutant', priority, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
-        mutant = root / 'readonly-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
+        mutant = root / 'review-boundary-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
         path = mutant / 'workbench/src/panes.ts'; text = path.read_text(encoding='utf-8')
-        before = '"-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,'
+        before = 'const sandboxMode = "workspace-write";'
+        after = 'const sandboxMode = review ? "read-only" : "workspace-write";'
         if text.count(before) != 1: raise RuntimeError('Readonly mutation target is not unique.')
-        path.write_text(text.replace(before, '"-a", "never", "--sandbox", "workspace-write", "-m", model,'), encoding='utf-8')
-        save(out / 'readonly-mutant.json', dict(before=before, failure_id='TRACER-READONLY-ARGV', source=str(mutant)))
-        suite('readonly-argv-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-READONLY-ARGV')
+        path.write_text(text.replace(before, after), encoding='utf-8')
+        save(out / 'review-boundary-mutant.json', dict(before=before, after=after,
+             failure_id='TRACER-REVIEW-START', source=str(mutant)))
+        # The gate rejects this argv during verify, before the tracer can
+        # inspect a successfully started reviewer. Require that exact refusal.
+        suite('review-boundary-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEW-START')
+        observed = json.loads((out / 'review-boundary-mutant/run.json').read_text(encoding='utf-8'))['cases'][0]
+        refusal = next(a['actual'] for a in observed['assertions']
+                       if a['id'] == 'TRACER-REVIEW-START' and not a['passed'])
+        argv = refusal['details']['launch']['argv']
+        if refusal['error'] != 'review_launch_boundary' or argv[argv.index('--sandbox') + 1] != 'read-only':
+            raise RuntimeError('Readonly variant did not produce the required gate boundary refusal.')
+        save(out / 'review-boundary-refusal.json', {'failure_id': observed['failure_id'], 'verify': refusal,
+             'actual_sandbox': 'read-only', 'cleanup_failures': observed['cleanup_failures']})
         report['status'] = 'PASS'
     except Exception as error:
         report.update(error=repr(error), traceback=traceback.format_exc())
@@ -109,6 +131,8 @@ def main():
                 path.unlink()
         report['oversize_files'] = [str(p) for p in out.rglob('*') if p.is_file() and p.stat().st_size > 5 * 1024 * 1024]
         if report['oversize_files']: report.update(status='INCOMPLETE', archive_required=True)
+        # status owns the verdict; finalize its alias after all cleanup checks.
+        report['product_status'] = report['status']
         save(out / 'run.json', report)
     print(json.dumps({k: report[k] for k in ('status', 'product_status', 'real_codex_turns')}))
     return 0 if report['status'] == 'PASS' else 1

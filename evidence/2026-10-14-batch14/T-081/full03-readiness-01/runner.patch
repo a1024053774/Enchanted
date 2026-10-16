@@ -1,0 +1,76 @@
+--- full-02/workbench/tests/run_t081_bad_worker_suite.py
++++ full-03/workbench/tests/run_t081_bad_worker_suite.py
+@@ -19,6 +19,13 @@
+ ROOT = Path(__file__).resolve().parents[2]
+ BASE = '391d70b07ceda29462c06b47116b36829d767001'
+ LIMIT = 5_000_000
++SUITE_ARCHIVES = {
++    'run_s3_rebased_regression.py', 'test_worktree_lifecycle_e2e.py',
++    'test_relay_conflict_e2e.py', 'test_conflict_trailer_proofs.py',
++    'test_startup_shutdown_e2e.py', 'test_attachment_windows.py',
++    'test_multiturn_identity_e2e.py',
++}
++SCORE_SOURCES = ('scripts/score', 'scripts/launch_records.py', 'scripts/record_io.py')
+ 
+ 
+ def save(path, value):
+@@ -94,7 +101,13 @@
+             if not path.is_file() or path.read_bytes() != data:
+                 raise RuntimeError('冻结候选发生变化：' + name)
+ 
+-    def archive_fixture(result, destination):
++    def archive_fixture(result, destination, *, suite_owns=False):
++        if suite_owns:
++            archive = destination / 'fixtures.tar.gz'
++            if not archive.is_file() or archive.is_symlink():
++                raise RuntimeError('子套件没有交付普通归档文件：' + str(archive))
++            check_sizes(destination)
++            return
+         artifact = result.get('artifact_root')
+         if artifact:
+             root = Path(artifact)
+@@ -140,10 +153,12 @@
+         argv = [sys.executable, '-B', ROOT / 'workbench/tests' / script, '--output', destination, *flags]
+         result = command(argv, timeout=2400)
+         data = json.loads((destination / 'run.json').read_text(encoding='utf-8'))
+-        archive_fixture(data, destination)
++        archive_data = {'artifact_root': data['fixture']} if script == 'test_score_schemas.py' else data
++        archive_fixture(archive_data, destination, suite_owns=script in SUITE_ARCHIVES)
+         passed = result.returncode == 0 and data['status'] == 'PASS'
+         report['steps'].append({'label': label, 'exit': result.returncode,
+-                                'report': str(destination / 'run.json'), 'passed': passed})
++                                'report': str(destination / 'run.json'), 'passed': passed,
++                                'fixture_archive_owner': 'suite' if script in SUITE_ARCHIVES else 'runner'})
+         ensure_frozen()
+         if not passed:
+             raise RuntimeError('回归失败，停止并保留：' + label)
+@@ -181,6 +196,8 @@
+             for path in (ROOT / directory).rglob('*'):
+                 if path.is_file() and not path.is_symlink() and '__pycache__' not in path.parts:
+                     frozen[str(path.relative_to(ROOT))] = path.read_bytes()
++        for name in SCORE_SOURCES:
++            frozen[name] = (ROOT / name).read_bytes()
+         fixtures = Path(tempfile.mkdtemp(prefix='t81-', dir='/tmp')).resolve()
+         report['fixture_root'] = str(fixtures)
+         candidate, baseline, current_main = fixtures / 'candidate', fixtures / 'baseline', fixtures / 'main'
+@@ -189,8 +206,12 @@
+         current_main.mkdir()
+         shutil.copytree(ROOT / 'workbench', candidate / 'workbench', symlinks=True,
+                         ignore=shutil.ignore_patterns('node_modules', 'dist', '__pycache__', '.DS_Store'))
++        (candidate / 'scripts').mkdir()
++        for name in SCORE_SOURCES:
++            shutil.copy2(ROOT / name, candidate / name)
+         with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as stream:
+             stream.add(candidate / 'workbench', arcname='workbench')
++            stream.add(candidate / 'scripts', arcname='scripts')
+         result = command(['git', 'archive', '--format=tar.gz', BASE, 'workbench'],
+                          stdout_file=out / 'baseline-source.tar.gz')
+         if result.returncode:
+@@ -207,6 +228,7 @@
+             'baseline_revision': BASE, 'candidate_revision': head, 'main_revision': main_revision,
+             'candidate': str(candidate), 'baseline': str(baseline), 'main': str(current_main),
+             'candidate_is_uncommitted': True, 'frozen_paths': list(frozen),
++            'score_support_files': list(SCORE_SOURCES),
+             'dependencies': str(dependencies.resolve()), 'real_codex_turns': 0,
+             'evidence_layer': 'real CLI/daemon/relay/gates/Git/SQLite; controlled PTY/process/native inputs',
+         })

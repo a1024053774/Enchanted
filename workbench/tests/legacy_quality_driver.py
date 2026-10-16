@@ -92,7 +92,11 @@ class QualityDriver:
         packet = dict(schema=1, request_id='review-' + review['review_id'], command='review_submit', task=task,
                       attempt=review['attempt']['attempt_id'], session=review['session_id'], fence=review['attempt']['fence'],
                       spec_rev=review['spec_rev'], review_id=review['review_id'], candidate_commit=review['candidate_commit'],
-                      verdict='可合并', findings=[])
+                      verdict='可合并', findings=[],
+                      review_requirements={'completion_conditions_sufficiency': True,
+                        'mutation_checks': {'min': 2, 'max': 5, 'workspace': review['candidate_workspace'],
+                                            'report_section': '完成条件与变异检查'}},
+                      report={'完成条件与变异检查': '受控 reviewer 报告输入；不声称模型判断已验证'})
         stop = dict(session_id=record['native'], turn_id=pane['turn'], hook_event_name='Stop',
                     last_assistant_message=json.dumps(packet, ensure_ascii=False))
         self.command('signal', '--launch', review['launch_id'], env={**self.env, **record['env']}, stdin=json.dumps(stop))

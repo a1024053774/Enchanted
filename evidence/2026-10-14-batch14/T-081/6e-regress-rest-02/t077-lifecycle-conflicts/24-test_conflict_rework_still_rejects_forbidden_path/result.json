@@ -1,0 +1,928 @@
+{
+  "case": "test_conflict_rework_still_rejects_forbidden_path",
+  "phase": "candidate",
+  "tests_run": 1,
+  "exit_code": 0,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "business_red": false,
+  "contracts": [
+    {
+      "test": "__main__.ConflictContracts.test_conflict_rework_still_rejects_forbidden_path",
+      "claim": "Conflict rework accepts a new explicit candidate from its bound worker",
+      "pass": true,
+      "expected": true,
+      "actual": {
+        "ok": true,
+        "task": {
+          "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+          "title": "check-50598d7295e94f1d84e0239594a3c0e0",
+          "project_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+          "repo": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated repo",
+          "integration_ref": "refs/heads/main",
+          "card_snapshot_id": "11c494e5-2d79-4ba7-8124-04f3bfc26c91",
+          "card_version": 1,
+          "card": {
+            "id": "check-50598d7295e94f1d84e0239594a3c0e0",
+            "source": null,
+            "goal": "设置 worker=ready；保留工作分支上的 host 设置和 host.txt。",
+            "non_goals": [
+              "不修改 host.txt 或 src/private/"
+            ],
+            "paths": {
+              "allow": [
+                "src/"
+              ],
+              "deny": [
+                "src/private/"
+              ]
+            },
+            "oracle_paths": [
+              "acceptance/criterion.py",
+              "CONTRACT.md"
+            ],
+            "completion_conditions": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                ]
+              }
+            ],
+            "red_commands": [],
+            "task_type": "后端逻辑",
+            "repair_target": null,
+            "complexity": "L",
+            "executor": {
+              "cli": "Codex",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh"
+            },
+            "base_commit": null,
+            "writer": null
+          },
+          "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+          "state": "submitted",
+          "spec_rev": 1,
+          "fence": 1,
+          "current_attempt": {
+            "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+            "attempt_id": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+            "session_id": "832d6eb2-bc78-42fe-ba1f-dc027be7d976",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "560673eb-483a-4876-a152-74706000262a",
+            "runtime_mode": "approval-required",
+            "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:2",
+            "runtime_identity": {
+              "launch": "560673eb-483a-4876-a152-74706000262a",
+              "thread": "560673eb-483a-4876-a152-74706000262a",
+              "shell_pid": 101,
+              "leader_pid": 102,
+              "native_session": "560673eb-483a-4876-a152-74706000262a"
+            },
+            "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1",
+            "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+            "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+            "reclaimed": false,
+            "owner": "check-50598d7295e94f1d84e0239594a3c0e0",
+            "state": "submitted",
+            "delivery": {
+              "commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+              "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:2",
+              "launch_id": "560673eb-483a-4876-a152-74706000262a",
+              "cli": "controlled-conflict-runtime",
+              "model": "gpt-6.1-sol",
+              "effort": "xhigh",
+              "number": 2,
+              "submitted_at": "2026-10-15T09:21:18.346Z"
+            },
+            "rework": {
+              "verification_id": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+              "prior_candidate": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+              "base_commit": "03cacfc94a374704103a4a189e64777be0e834ae",
+              "message_id": "6afc852c-7f38-4574-ad86-e93755d756f7",
+              "prior_turn": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+              "state": "submitted",
+              "candidate_commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3"
+            }
+          },
+          "candidate_commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+          "verification": null,
+          "integration_intent": null,
+          "quality": {
+            "source_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+            "path": ".a2a/quality.json",
+            "raw": null,
+            "rule_checks": []
+          },
+          "repair": null,
+          "review": null
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-15T09:21:15.656Z"
+        }
+      },
+      "assertion_id": null
+    },
+    {
+      "test": "__main__.ConflictContracts.test_conflict_rework_still_rejects_forbidden_path",
+      "claim": "Conflict rework still rejects the forbidden path at verify",
+      "pass": true,
+      "expected": {
+        "ok": false,
+        "error": "path_boundary_failed"
+      },
+      "actual": {
+        "ok": false,
+        "error": "path_boundary_failed",
+        "details": {
+          "forbidden": [
+            "src/private/secret.txt"
+          ]
+        },
+        "user_input_observer": {
+          "state": "healthy",
+          "updated_at": "2026-10-15T09:21:15.656Z"
+        }
+      },
+      "assertion_id": "CONFLICT-REWORK-FORBIDDEN-PATH"
+    }
+  ],
+  "inherited_assertions": [],
+  "evidence_layer": "controlled-thread",
+  "target_assertion_id": "CONFLICT-REWORK-FORBIDDEN-PATH",
+  "target_failed": false,
+  "target_passed": true,
+  "required_preconditions": [
+    "scenario_prepared",
+    "text_conflict_observed",
+    "conflict_handling_entered",
+    "conflict_delivered",
+    "explicit_resubmitted",
+    "target_verify_executed"
+  ],
+  "missing_preconditions": [],
+  "classification_issues": [],
+  "target_coverage": "TARGET_PASSED",
+  "conflict_evidence": {
+    "steps": [
+      {
+        "kind": "precondition",
+        "id": "scenario_prepared",
+        "passed": true,
+        "details": {
+          "attempt": {
+            "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+            "attempt_id": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+            "session_id": "832d6eb2-bc78-42fe-ba1f-dc027be7d976",
+            "fence": 1,
+            "spec_rev": 1,
+            "thread_id": "560673eb-483a-4876-a152-74706000262a",
+            "runtime_mode": "approval-required",
+            "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+            "runtime_identity": {
+              "launch": "560673eb-483a-4876-a152-74706000262a",
+              "thread": "560673eb-483a-4876-a152-74706000262a",
+              "shell_pid": 101,
+              "leader_pid": 102,
+              "native_session": "560673eb-483a-4876-a152-74706000262a"
+            },
+            "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1",
+            "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+            "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+            "reclaimed": false,
+            "owner": "check-50598d7295e94f1d84e0239594a3c0e0",
+            "state": "claimed"
+          },
+          "C1": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+          "G": "03cacfc94a374704103a4a189e64777be0e834ae",
+          "worker_path": "src/settings.json",
+          "foreign_path": "host.txt"
+        }
+      },
+      {
+        "kind": "precondition",
+        "id": "worker_session_input_available",
+        "passed": true,
+        "details": {
+          "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+          "thread": "560673eb-483a-4876-a152-74706000262a",
+          "controlled_session": {
+            "thread_id": "560673eb-483a-4876-a152-74706000262a",
+            "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1",
+            "provider": "codex",
+            "turn": "native-turn:560673eb-483a-4876-a152-74706000262a",
+            "running": false,
+            "stopped": false,
+            "archived": false,
+            "blocked": false,
+            "reads": 3,
+            "name": "check-run",
+            "envMode": "worktree",
+            "baseRef": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+            "prompted": true
+          }
+        }
+      },
+      {
+        "kind": "precondition",
+        "id": "text_conflict_observed",
+        "passed": true,
+        "details": {
+          "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+          "C1": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+          "G": "03cacfc94a374704103a4a189e64777be0e834ae",
+          "verification": {
+            "verification_id": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+            "ordinal": 1,
+            "attempt": {
+              "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "attempt_id": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+              "session_id": "832d6eb2-bc78-42fe-ba1f-dc027be7d976",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "560673eb-483a-4876-a152-74706000262a",
+              "runtime_mode": "approval-required",
+              "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+              "runtime_identity": {
+                "launch": "560673eb-483a-4876-a152-74706000262a",
+                "thread": "560673eb-483a-4876-a152-74706000262a",
+                "shell_pid": 101,
+                "leader_pid": 102,
+                "native_session": "560673eb-483a-4876-a152-74706000262a"
+              },
+              "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1",
+              "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+              "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+              "reclaimed": false,
+              "owner": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "state": "submitted",
+              "delivery": {
+                "commit": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+                "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+                "launch_id": "560673eb-483a-4876-a152-74706000262a",
+                "cli": "controlled-conflict-runtime",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh",
+                "number": 1,
+                "submitted_at": "2026-10-15T09:21:17.063Z"
+              }
+            },
+            "spec_rev": 1,
+            "G": "03cacfc94a374704103a4a189e64777be0e834ae",
+            "C": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+            "M": null,
+            "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+            "card_version": 1,
+            "commands": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                ],
+                "cwd": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1"
+              }
+            ],
+            "results": [],
+            "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1",
+            "state": "merge_failed",
+            "command_intent": {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+              ],
+              "cwd": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1"
+            },
+            "quality": {
+              "snapshot": {
+                "source_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+                "path": ".a2a/quality.json",
+                "raw": null,
+                "rule_checks": []
+              },
+              "red": [],
+              "rules": []
+            },
+            "result": {
+              "argv": [
+                "git",
+                "-C",
+                "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1",
+                "-c",
+                "core.hooksPath=/dev/null",
+                "merge",
+                "--no-ff",
+                "--no-commit",
+                "--no-edit",
+                "ba9ec015ca257794d0019b6e27d5fd3451660794"
+              ],
+              "cwd": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1",
+              "stdout": "自动合并 src/settings.json\n冲突（内容）：合并冲突于 src/settings.json\n自动合并失败，修正冲突然后提交修正的结果。\n",
+              "stderr": "",
+              "exit": 1,
+              "returncode": 1
+            },
+            "ended": "2026-10-15T09:21:17.349Z",
+            "conflict": {
+              "files": [
+                "src/settings.json"
+              ],
+              "unmerged": "100644 3a5e6d1e8e69c33ab59657dc36842453d9f44826 1\tsrc/settings.json\u0000100644 0d32e98c65176a5bd5bc9ba7f0cc89ca8eff4fc1 2\tsrc/settings.json\u0000100644 8bba72aeeead43da3e9a69cf8dbcc7289a964eb4 3\tsrc/settings.json\u0000",
+              "diff": "diff --cc src/settings.json\nindex 0d32e98,8bba72a..0000000\n--- a/src/settings.json\n+++ b/src/settings.json\n@@@ -1,1 -1,1 +1,5 @@@\n++<<<<<<< HEAD\n +{\"worker\":\"base\",\"host\":\"ready\"}\n++=======\n+ {\"worker\":\"ready\",\"host\":\"base\"}\n++>>>>>>> ba9ec015ca257794d0019b6e27d5fd3451660794\n",
+              "candidate_ref": "refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v1-candidate",
+              "base_ref": "refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v1-base"
+            },
+            "cleanup": "removed"
+          }
+        }
+      },
+      {
+        "kind": "precondition",
+        "id": "conflict_handling_entered",
+        "passed": true,
+        "details": {
+          "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+          "C1": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+          "G": "03cacfc94a374704103a4a189e64777be0e834ae",
+          "events": [
+            {
+              "seq": 74,
+              "time": "2026-10-15T09:21:17.565Z",
+              "task": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+              "type": "verification_conflict",
+              "details": {
+                "verification_id": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+                "ordinal": 1,
+                "attempt": {
+                  "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+                  "attempt_id": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+                  "session_id": "832d6eb2-bc78-42fe-ba1f-dc027be7d976",
+                  "fence": 1,
+                  "spec_rev": 1,
+                  "thread_id": "560673eb-483a-4876-a152-74706000262a",
+                  "runtime_mode": "approval-required",
+                  "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+                  "runtime_identity": {
+                    "launch": "560673eb-483a-4876-a152-74706000262a",
+                    "thread": "560673eb-483a-4876-a152-74706000262a",
+                    "shell_pid": 101,
+                    "leader_pid": 102,
+                    "native_session": "560673eb-483a-4876-a152-74706000262a"
+                  },
+                  "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1",
+                  "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+                  "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+                  "reclaimed": false,
+                  "owner": "check-50598d7295e94f1d84e0239594a3c0e0",
+                  "state": "submitted",
+                  "delivery": {
+                    "commit": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+                    "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+                    "launch_id": "560673eb-483a-4876-a152-74706000262a",
+                    "cli": "controlled-conflict-runtime",
+                    "model": "gpt-6.1-sol",
+                    "effort": "xhigh",
+                    "number": 1,
+                    "submitted_at": "2026-10-15T09:21:17.063Z"
+                  }
+                },
+                "spec_rev": 1,
+                "G": "03cacfc94a374704103a4a189e64777be0e834ae",
+                "C": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+                "M": null,
+                "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+                "card_version": 1,
+                "commands": [
+                  {
+                    "argv": [
+                      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                      "-I",
+                      "-B",
+                      "-c",
+                      "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                    ],
+                    "cwd": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1"
+                  }
+                ],
+                "results": [],
+                "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1",
+                "state": "merge_failed",
+                "command_intent": {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                  ],
+                  "cwd": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1"
+                },
+                "quality": {
+                  "snapshot": {
+                    "source_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+                    "path": ".a2a/quality.json",
+                    "raw": null,
+                    "rule_checks": []
+                  },
+                  "red": [],
+                  "rules": []
+                },
+                "result": {
+                  "argv": [
+                    "git",
+                    "-C",
+                    "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1",
+                    "-c",
+                    "core.hooksPath=/dev/null",
+                    "merge",
+                    "--no-ff",
+                    "--no-commit",
+                    "--no-edit",
+                    "ba9ec015ca257794d0019b6e27d5fd3451660794"
+                  ],
+                  "cwd": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-1",
+                  "stdout": "自动合并 src/settings.json\n冲突（内容）：合并冲突于 src/settings.json\n自动合并失败，修正冲突然后提交修正的结果。\n",
+                  "stderr": "",
+                  "exit": 1,
+                  "returncode": 1
+                },
+                "ended": "2026-10-15T09:21:17.349Z",
+                "conflict": {
+                  "files": [
+                    "src/settings.json"
+                  ],
+                  "unmerged": "100644 3a5e6d1e8e69c33ab59657dc36842453d9f44826 1\tsrc/settings.json\u0000100644 0d32e98c65176a5bd5bc9ba7f0cc89ca8eff4fc1 2\tsrc/settings.json\u0000100644 8bba72aeeead43da3e9a69cf8dbcc7289a964eb4 3\tsrc/settings.json\u0000",
+                  "diff": "diff --cc src/settings.json\nindex 0d32e98,8bba72a..0000000\n--- a/src/settings.json\n+++ b/src/settings.json\n@@@ -1,1 -1,1 +1,5 @@@\n++<<<<<<< HEAD\n +{\"worker\":\"base\",\"host\":\"ready\"}\n++=======\n+ {\"worker\":\"ready\",\"host\":\"base\"}\n++>>>>>>> ba9ec015ca257794d0019b6e27d5fd3451660794\n",
+                  "candidate_ref": "refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v1-candidate",
+                  "base_ref": "refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v1-base"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "precondition",
+        "id": "conflict_delivered",
+        "passed": true,
+        "details": {
+          "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+          "verification": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+          "feedback": [
+            {
+              "thread": "560673eb-483a-4876-a152-74706000262a",
+              "message_id": "6afc852c-7f38-4574-ad86-e93755d756f7",
+              "text": "验收合并发生内容冲突，尚未通过验收或集成。\n{\n  \"task\": \"check-50598d7295e94f1d84e0239594a3c0e0\",\n  \"verification\": \"ff53d428-c1ad-4866-bb6c-2be4db3a940c\",\n  \"integration_ref\": \"refs/heads/main\",\n  \"G\": \"03cacfc94a374704103a4a189e64777be0e834ae\",\n  \"C\": \"ba9ec015ca257794d0019b6e27d5fd3451660794\",\n  \"files\": [\n    \"src/settings.json\"\n  ],\n  \"candidate_ref\": \"refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v1-candidate\",\n  \"base_ref\": \"refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v1-base\",\n  \"merge_stdout\": \"自动合并 src/settings.json\\n冲突（内容）：合并冲突于 src/settings.json\\n自动合并失败，修正冲突然后提交修正的结果。\\n\",\n  \"merge_stderr\": \"\"\n}\n请检查工作分支最新头，以它为基线重新整理，自己解决冲突并保留任务要求的双方行为。不要直接选择 ours/theirs 覆盖另一方。不要更改任务卡、验收程序、门禁状态或权限。原提交和冲突证据已保留；程序没有改写 worker 工作区或工作分支。\n在允许路径内完成整理，重跑卡上全部完成条件，以本 attempt 的身份和尾注提交新的候选，再用派发时给出的 submit 命令显式重交完整提交号。仍使用各自独立的 git add、git commit 命令。新候选会重跑整串门禁并重新审查，旧候选的通过结论不能沿用。若最新头又发生变化而无法按此基线重交，请上报，不修改身份或绕过检查。"
+            }
+          ],
+          "transport_prompts": [
+            {
+              "thread_id": "560673eb-483a-4876-a152-74706000262a",
+              "name": "check-run",
+              "text": "{\n  \"id\": \"check-50598d7295e94f1d84e0239594a3c0e0\",\n  \"source\": null,\n  \"goal\": \"设置 worker=ready；保留工作分支上的 host 设置和 host.txt。\",\n  \"non_goals\": [\n    \"不修改 host.txt 或 src/private/\"\n  ],\n  \"paths\": {\n    \"allow\": [\n      \"src/\"\n    ],\n    \"deny\": [\n      \"src/private/\"\n    ]\n  },\n  \"oracle_paths\": [\n    \"acceptance/criterion.py\",\n    \"CONTRACT.md\"\n  ],\n  \"completion_conditions\": [\n    {\n      \"argv\": [\n        \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\n        \"-I\",\n        \"-B\",\n        \"-c\",\n        \"import json,os\\nfrom pathlib import Path\\nactual=json.loads(Path(\\\"src/settings.json\\\").read_text())\\nassert actual=={\\\"worker\\\":\\\"ready\\\",\\\"host\\\":\\\"ready\\\"},actual\\nassert Path(\\\"host.txt\\\").read_text()==\\\"integrated host file\\\\n\\\"\\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\\\"a\\\",encoding=\\\"utf-8\\\") as out:\\n out.write(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"actual\\\":actual})+\\\"\\\\n\\\")\\n\"\n      ]\n    }\n  ],\n  \"red_commands\": [],\n  \"task_type\": \"后端逻辑\",\n  \"repair_target\": null,\n  \"complexity\": \"L\",\n  \"executor\": {\n    \"cli\": \"Codex\",\n    \"model\": \"gpt-6.1-sol\",\n    \"effort\": \"xhigh\"\n  },\n  \"base_commit\": \"d40cd6d614ac9feb3f51696b01b746847ff410a7\",\n  \"writer\": {\n    \"task_id\": \"check-50598d7295e94f1d84e0239594a3c0e0\",\n    \"attempt_id\": \"d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd\",\n    \"session_id\": \"832d6eb2-bc78-42fe-ba1f-dc027be7d976\",\n    \"fence\": 1,\n    \"thread_id\": \"560673eb-483a-4876-a152-74706000262a\"\n  }\n}\n\n受管身份：{\"command\":\"submit\",\"task\":\"check-50598d7295e94f1d84e0239594a3c0e0\",\"attempt\":\"d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd\",\"session\":\"832d6eb2-bc78-42fe-ba1f-dc027be7d976\",\"fence\":1,\"spec_rev\":1,\"commit\":\"<FULL_COMMIT_SHA>\"}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a-wt-t081/workbench/src/gates/cli.ts' '--state' '/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state' 'submit' '--task' 'check-50598d7295e94f1d84e0239594a3c0e0' '--attempt' 'd22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd' '--session' '832d6eb2-bc78-42fe-ba1f-dc027be7d976' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。"
+            },
+            {
+              "thread_id": "560673eb-483a-4876-a152-74706000262a",
+              "name": "check-run",
+              "text": "验收合并发生内容冲突，尚未通过验收或集成。\n{\n  \"task\": \"check-50598d7295e94f1d84e0239594a3c0e0\",\n  \"verification\": \"ff53d428-c1ad-4866-bb6c-2be4db3a940c\",\n  \"integration_ref\": \"refs/heads/main\",\n  \"G\": \"03cacfc94a374704103a4a189e64777be0e834ae\",\n  \"C\": \"ba9ec015ca257794d0019b6e27d5fd3451660794\",\n  \"files\": [\n    \"src/settings.json\"\n  ],\n  \"candidate_ref\": \"refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v1-candidate\",\n  \"base_ref\": \"refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v1-base\",\n  \"merge_stdout\": \"自动合并 src/settings.json\\n冲突（内容）：合并冲突于 src/settings.json\\n自动合并失败，修正冲突然后提交修正的结果。\\n\",\n  \"merge_stderr\": \"\"\n}\n请检查工作分支最新头，以它为基线重新整理，自己解决冲突并保留任务要求的双方行为。不要直接选择 ours/theirs 覆盖另一方。不要更改任务卡、验收程序、门禁状态或权限。原提交和冲突证据已保留；程序没有改写 worker 工作区或工作分支。\n在允许路径内完成整理，重跑卡上全部完成条件，以本 attempt 的身份和尾注提交新的候选，再用派发时给出的 submit 命令显式重交完整提交号。仍使用各自独立的 git add、git commit 命令。新候选会重跑整串门禁并重新审查，旧候选的通过结论不能沿用。若最新头又发生变化而无法按此基线重交，请上报，不修改身份或绕过检查。"
+            }
+          ],
+          "events": [
+            {
+              "seq": 77,
+              "time": "2026-10-15T09:21:17.614Z",
+              "task": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+              "type": "conflict_feedback_delivered",
+              "details": {
+                "repair": {
+                  "verification_id": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+                  "prior_candidate": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+                  "base_commit": "03cacfc94a374704103a4a189e64777be0e834ae",
+                  "message_id": "6afc852c-7f38-4574-ad86-e93755d756f7",
+                  "prior_turn": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+                  "state": "delivered"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "precondition",
+        "id": "explicit_resubmitted",
+        "passed": true,
+        "details": {
+          "candidate": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+          "reply": {
+            "ok": true,
+            "task": {
+              "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "title": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "project_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "repo": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated repo",
+              "integration_ref": "refs/heads/main",
+              "card_snapshot_id": "11c494e5-2d79-4ba7-8124-04f3bfc26c91",
+              "card_version": 1,
+              "card": {
+                "id": "check-50598d7295e94f1d84e0239594a3c0e0",
+                "source": null,
+                "goal": "设置 worker=ready；保留工作分支上的 host 设置和 host.txt。",
+                "non_goals": [
+                  "不修改 host.txt 或 src/private/"
+                ],
+                "paths": {
+                  "allow": [
+                    "src/"
+                  ],
+                  "deny": [
+                    "src/private/"
+                  ]
+                },
+                "oracle_paths": [
+                  "acceptance/criterion.py",
+                  "CONTRACT.md"
+                ],
+                "completion_conditions": [
+                  {
+                    "argv": [
+                      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                      "-I",
+                      "-B",
+                      "-c",
+                      "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                    ]
+                  }
+                ],
+                "red_commands": [],
+                "task_type": "后端逻辑",
+                "repair_target": null,
+                "complexity": "L",
+                "executor": {
+                  "cli": "Codex",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh"
+                },
+                "base_commit": null,
+                "writer": null
+              },
+              "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+              "state": "submitted",
+              "spec_rev": 1,
+              "fence": 1,
+              "current_attempt": {
+                "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+                "attempt_id": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+                "session_id": "832d6eb2-bc78-42fe-ba1f-dc027be7d976",
+                "fence": 1,
+                "spec_rev": 1,
+                "thread_id": "560673eb-483a-4876-a152-74706000262a",
+                "runtime_mode": "approval-required",
+                "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:2",
+                "runtime_identity": {
+                  "launch": "560673eb-483a-4876-a152-74706000262a",
+                  "thread": "560673eb-483a-4876-a152-74706000262a",
+                  "shell_pid": 101,
+                  "leader_pid": 102,
+                  "native_session": "560673eb-483a-4876-a152-74706000262a"
+                },
+                "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1",
+                "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+                "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+                "reclaimed": false,
+                "owner": "check-50598d7295e94f1d84e0239594a3c0e0",
+                "state": "submitted",
+                "delivery": {
+                  "commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+                  "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:2",
+                  "launch_id": "560673eb-483a-4876-a152-74706000262a",
+                  "cli": "controlled-conflict-runtime",
+                  "model": "gpt-6.1-sol",
+                  "effort": "xhigh",
+                  "number": 2,
+                  "submitted_at": "2026-10-15T09:21:18.346Z"
+                },
+                "rework": {
+                  "verification_id": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+                  "prior_candidate": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+                  "base_commit": "03cacfc94a374704103a4a189e64777be0e834ae",
+                  "message_id": "6afc852c-7f38-4574-ad86-e93755d756f7",
+                  "prior_turn": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+                  "state": "submitted",
+                  "candidate_commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3"
+                }
+              },
+              "candidate_commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+              "verification": null,
+              "integration_intent": null,
+              "quality": {
+                "source_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+                "path": ".a2a/quality.json",
+                "raw": null,
+                "rule_checks": []
+              },
+              "repair": null,
+              "review": null
+            },
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-15T09:21:15.656Z"
+            }
+          },
+          "task": {
+            "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+            "title": "check-50598d7295e94f1d84e0239594a3c0e0",
+            "project_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+            "repo": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated repo",
+            "integration_ref": "refs/heads/main",
+            "card_snapshot_id": "11c494e5-2d79-4ba7-8124-04f3bfc26c91",
+            "card_version": 1,
+            "card": {
+              "id": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "source": null,
+              "goal": "设置 worker=ready；保留工作分支上的 host 设置和 host.txt。",
+              "non_goals": [
+                "不修改 host.txt 或 src/private/"
+              ],
+              "paths": {
+                "allow": [
+                  "src/"
+                ],
+                "deny": [
+                  "src/private/"
+                ]
+              },
+              "oracle_paths": [
+                "acceptance/criterion.py",
+                "CONTRACT.md"
+              ],
+              "completion_conditions": [
+                {
+                  "argv": [
+                    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                    "-I",
+                    "-B",
+                    "-c",
+                    "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                  ]
+                }
+              ],
+              "red_commands": [],
+              "task_type": "后端逻辑",
+              "repair_target": null,
+              "complexity": "L",
+              "executor": {
+                "cli": "Codex",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh"
+              },
+              "base_commit": null,
+              "writer": null
+            },
+            "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+            "state": "submitted",
+            "spec_rev": 1,
+            "fence": 1,
+            "current_attempt": {
+              "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "attempt_id": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+              "session_id": "832d6eb2-bc78-42fe-ba1f-dc027be7d976",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "560673eb-483a-4876-a152-74706000262a",
+              "runtime_mode": "approval-required",
+              "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:2",
+              "runtime_identity": {
+                "launch": "560673eb-483a-4876-a152-74706000262a",
+                "thread": "560673eb-483a-4876-a152-74706000262a",
+                "shell_pid": 101,
+                "leader_pid": 102,
+                "native_session": "560673eb-483a-4876-a152-74706000262a"
+              },
+              "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1",
+              "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+              "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+              "reclaimed": false,
+              "owner": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "state": "submitted",
+              "delivery": {
+                "commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+                "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:2",
+                "launch_id": "560673eb-483a-4876-a152-74706000262a",
+                "cli": "controlled-conflict-runtime",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh",
+                "number": 2,
+                "submitted_at": "2026-10-15T09:21:18.346Z"
+              },
+              "rework": {
+                "verification_id": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+                "prior_candidate": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+                "base_commit": "03cacfc94a374704103a4a189e64777be0e834ae",
+                "message_id": "6afc852c-7f38-4574-ad86-e93755d756f7",
+                "prior_turn": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+                "state": "submitted",
+                "candidate_commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3"
+              }
+            },
+            "candidate_commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+            "verification": null,
+            "integration_intent": null,
+            "quality": {
+              "source_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+              "path": ".a2a/quality.json",
+              "raw": null,
+              "rule_checks": []
+            },
+            "repair": null,
+            "review": null
+          },
+          "events": [
+            {
+              "seq": 114,
+              "time": "2026-10-15T09:21:18.368Z",
+              "task": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+              "type": "conflict_rework_submitted",
+              "details": {
+                "previous_verification": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+                "previous_candidate": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+                "candidate": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+                "base": "03cacfc94a374704103a4a189e64777be0e834ae",
+                "review_required": "fresh",
+                "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+                "session": "832d6eb2-bc78-42fe-ba1f-dc027be7d976",
+                "fence": 1,
+                "spec_rev": 1,
+                "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "precondition",
+        "id": "target_verify_executed",
+        "passed": true,
+        "details": {
+          "candidate": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+          "reply": {
+            "ok": false,
+            "error": "path_boundary_failed",
+            "details": {
+              "forbidden": [
+                "src/private/secret.txt"
+              ]
+            },
+            "user_input_observer": {
+              "state": "healthy",
+              "updated_at": "2026-10-15T09:21:15.656Z"
+            }
+          },
+          "verification": {
+            "verification_id": "ceb200f4-2dd3-45fc-83ee-aba796a7da5a",
+            "ordinal": 2,
+            "attempt": {
+              "task_id": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "attempt_id": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+              "session_id": "832d6eb2-bc78-42fe-ba1f-dc027be7d976",
+              "fence": 1,
+              "spec_rev": 1,
+              "thread_id": "560673eb-483a-4876-a152-74706000262a",
+              "runtime_mode": "approval-required",
+              "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:2",
+              "runtime_identity": {
+                "launch": "560673eb-483a-4876-a152-74706000262a",
+                "thread": "560673eb-483a-4876-a152-74706000262a",
+                "shell_pid": 101,
+                "leader_pid": 102,
+                "native_session": "560673eb-483a-4876-a152-74706000262a"
+              },
+              "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1",
+              "base_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+              "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+              "reclaimed": false,
+              "owner": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "state": "submitted",
+              "delivery": {
+                "commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+                "turn_id": "fixture-turn:560673eb-483a-4876-a152-74706000262a:2",
+                "launch_id": "560673eb-483a-4876-a152-74706000262a",
+                "cli": "controlled-conflict-runtime",
+                "model": "gpt-6.1-sol",
+                "effort": "xhigh",
+                "number": 2,
+                "submitted_at": "2026-10-15T09:21:18.346Z"
+              },
+              "rework": {
+                "verification_id": "ff53d428-c1ad-4866-bb6c-2be4db3a940c",
+                "prior_candidate": "ba9ec015ca257794d0019b6e27d5fd3451660794",
+                "base_commit": "03cacfc94a374704103a4a189e64777be0e834ae",
+                "message_id": "6afc852c-7f38-4574-ad86-e93755d756f7",
+                "prior_turn": "fixture-turn:560673eb-483a-4876-a152-74706000262a:1",
+                "state": "submitted",
+                "candidate_commit": "29f7a436dfbeb2be989614c2306780c7ff1039f3"
+              }
+            },
+            "spec_rev": 1,
+            "G": "03cacfc94a374704103a4a189e64777be0e834ae",
+            "C": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+            "M": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+            "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+            "card_version": 1,
+            "commands": [
+              {
+                "argv": [
+                  "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                  "-I",
+                  "-B",
+                  "-c",
+                  "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+                ],
+                "cwd": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-2"
+              }
+            ],
+            "results": [],
+            "workspace": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-2",
+            "state": "failed",
+            "command_intent": {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "import json,os\nfrom pathlib import Path\nactual=json.loads(Path(\"src/settings.json\").read_text())\nassert actual=={\"worker\":\"ready\",\"host\":\"ready\"},actual\nassert Path(\"host.txt\").read_text()==\"integrated host file\\n\"\nwith open('/tmp/s3-ibg0nggz/t-k7vo9288/conflict-oracle.jsonl',\"a\",encoding=\"utf-8\") as out:\n out.write(json.dumps({\"cwd\":os.getcwd(),\"actual\":actual})+\"\\n\")\n"
+              ],
+              "cwd": "/private/tmp/s3-ibg0nggz/t-k7vo9288/isolated state/worktrees/check-50598d7295e94f1d84e0239594a3c0e0/check-50598d7295e94f1d84e0239594a3c0e0-a1-verify-2"
+            },
+            "quality": {
+              "snapshot": {
+                "source_commit": "d40cd6d614ac9feb3f51696b01b746847ff410a7",
+                "path": ".a2a/quality.json",
+                "raw": null,
+                "rule_checks": []
+              },
+              "red": [],
+              "rules": []
+            },
+            "ended": "2026-10-15T09:21:18.850Z",
+            "retained_ref": "refs/a2a/verifications/check-50598d7295e94f1d84e0239594a3c0e0/a1/v2",
+            "cleanup": "removed"
+          },
+          "events": [
+            {
+              "seq": 134,
+              "time": "2026-10-15T09:21:18.850Z",
+              "task": "check-50598d7295e94f1d84e0239594a3c0e0",
+              "attempt": "d22186d2-a1a7-4ac2-9dbc-dcb43cdce9fd",
+              "type": "path_check",
+              "details": {
+                "verification_id": "ceb200f4-2dd3-45fc-83ee-aba796a7da5a",
+                "card_snapshot_id": "021d920e-b885-462c-8f2c-cb6156602f5b",
+                "G": "03cacfc94a374704103a4a189e64777be0e834ae",
+                "C": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+                "M": "29f7a436dfbeb2be989614c2306780c7ff1039f3",
+                "paths": [
+                  "src/private/secret.txt",
+                  "src/settings.json"
+                ],
+                "forbidden": [
+                  "src/private/secret.txt"
+                ],
+                "rules": {
+                  "allow": [
+                    "src/"
+                  ],
+                  "deny": [
+                    "src/private/"
+                  ]
+                },
+                "passed": false
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "target",
+        "id": "CONFLICT-REWORK-FORBIDDEN-PATH",
+        "passed": true
+      }
+    ],
+    "cleanup_failures": []
+  },
+  "cleanup_failures": []
+}

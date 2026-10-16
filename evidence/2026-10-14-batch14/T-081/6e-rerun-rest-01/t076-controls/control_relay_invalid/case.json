@@ -1,0 +1,503 @@
+{
+  "case": "control_relay_invalid",
+  "outcome": "passed",
+  "assertions": [
+    {
+      "id": "CONTROL-RELAY-INVALID",
+      "passed": true,
+      "expected": "wrong identity and incomplete request rejected by real relay",
+      "actual": {
+        "wrong-session": {
+          "ok": false,
+          "error": "relay_identity_mismatch",
+          "details": {
+            "field": "session"
+          }
+        },
+        "missing-commit": {
+          "ok": false,
+          "error": "invalid_relay_request",
+          "details": {
+            "field": "commit"
+          }
+        }
+      }
+    },
+    {
+      "id": "CONTROL-RELAY-INVALID.no-submit",
+      "passed": true,
+      "expected": "neither invalid request reaches submit",
+      "actual": {
+        "task_id": "fixture-20261015-1",
+        "title": "fixture-20261015-1",
+        "project_id": "fixture",
+        "repo": "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "integration_ref": "refs/heads/main",
+        "card_snapshot_id": "13cc7efc-f71e-4638-ad03-76c7ac4f5b9a",
+        "card_version": 1,
+        "card": {
+          "id": "fixture-20261015-1",
+          "source": null,
+          "goal": "交付 src/value.txt 中的独立预期内容",
+          "non_goals": [
+            "不修改项目外的文件"
+          ],
+          "paths": {
+            "allow": [
+              "src/",
+              "tests/",
+              ".a2a/quality.json"
+            ],
+            "deny": [
+              "src/private/"
+            ]
+          },
+          "oracle_paths": [
+            "acceptance/criterion.py"
+          ],
+          "completion_conditions": [
+            {
+              "argv": [
+                "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+                "-I",
+                "-B",
+                "-c",
+                "from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')"
+              ]
+            }
+          ],
+          "red_commands": [],
+          "task_type": "后端逻辑",
+          "repair_target": null,
+          "complexity": "L",
+          "executor": {
+            "cli": "Codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh"
+          },
+          "base_commit": null,
+          "writer": null
+        },
+        "base_commit": "029d64e7c79f9aeae2d285ec8ce6705101983d19",
+        "state": "claimed",
+        "spec_rev": 1,
+        "fence": 1,
+        "current_attempt": {
+          "task_id": "fixture-20261015-1",
+          "attempt_id": "eb1e418b-0c88-45d2-9b35-e9253406acae",
+          "session_id": "1c95cd30-9288-485b-bd71-f912de3a7d78",
+          "fence": 1,
+          "spec_rev": 1,
+          "thread_id": "451a5029-8e3a-46e3-9003-e8c5b5bb3e46",
+          "runtime_mode": "workspace-write",
+          "turn_id": null,
+          "runtime_identity": {
+            "launch": "fede0a02-2298-43b7-a3f9-019f35bfbfd3",
+            "thread": "451a5029-8e3a-46e3-9003-e8c5b5bb3e46",
+            "shell_pid": 31000,
+            "leader_pid": 31001,
+            "native_session": "fixture-native-fede0a02-2298-43b7-a3f9-019f35bfbfd3"
+          },
+          "workspace": "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state/worktrees/fixture/fixture-20261015-1-a1",
+          "base_commit": "029d64e7c79f9aeae2d285ec8ce6705101983d19",
+          "card_snapshot_id": "28db5d35-7e38-4bc6-8629-ff2413e30dbd",
+          "reclaimed": false,
+          "owner": "fixture-20261015-1",
+          "state": "claimed"
+        },
+        "candidate_commit": null,
+        "verification": null,
+        "integration_intent": null,
+        "quality": {
+          "source_commit": "029d64e7c79f9aeae2d285ec8ce6705101983d19",
+          "path": ".a2a/quality.json",
+          "raw": null,
+          "rule_checks": []
+        },
+        "repair": null,
+        "review": null
+      }
+    }
+  ],
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "42105",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "card_save",
+        "--task",
+        "fixture-20261015-1",
+        "--card",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "create",
+        "--task",
+        "fixture-20261015-1",
+        "--repo",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "dispatch",
+        "--task",
+        "fixture-20261015-1",
+        "--runtime-mode",
+        "workspace-write"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "pane_status",
+        "--thread",
+        "451a5029-8e3a-46e3-9003-e8c5b5bb3e46"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "pane_release",
+        "--thread",
+        "451a5029-8e3a-46e3-9003-e8c5b5bb3e46",
+        "--reason",
+        "explicit controlled-fixture release"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "pane_status",
+        "--thread",
+        "451a5029-8e3a-46e3-9003-e8c5b5bb3e46"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state/worktrees/fixture/fixture-20261015-1-a1",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state/worktrees/fixture/fixture-20261015-1-a1",
+        "commit",
+        "-m",
+        "Controlled worker fixture commit\n\nA2A-Task: fixture-20261015-1\nA2A-Attempt: eb1e418b-0c88-45d2-9b35-e9253406acae\nA2A-Session: 1c95cd30-9288-485b-bd71-f912de3a7d78\nA2A-Role: worker\nA2A-Tool: codex-cli 0.162.1\nA2A-Model: gpt-6.1-sol\nA2A-Effort: xhigh\nA2A-Native-Session: fixture-native-fede0a02-2298-43b7-a3f9-019f35bfbfd3\nA2A-Launch: fede0a02-2298-43b7-a3f9-019f35bfbfd3"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0014.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 15,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state/worktrees/fixture/fixture-20261015-1-a1",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "pane_status",
+        "--thread",
+        "451a5029-8e3a-46e3-9003-e8c5b5bb3e46"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0016.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 17,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "signal",
+        "--launch",
+        "fede0a02-2298-43b7-a3f9-019f35bfbfd3"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0017.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0017.stderr.bin",
+      "stdin": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0017.stdin.json",
+      "exit": 0
+    },
+    {
+      "id": 18,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "status",
+        "--task",
+        "fixture-20261015-1"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0018.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0018.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 19,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "status",
+        "--task",
+        "fixture-20261015-1"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0019.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0019.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 20,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0020.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0020.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 21,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0021.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0021.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 22,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0022.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0022.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 23,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0023.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0023.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 24,
+      "argv": [
+        "node",
+        "/private/tmp/t81-6e-rest-phbjr317/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-cvqcgitn/c-47_o1ozi/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-cvqcgitn/c-47_o1ozi",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0024.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/6e-rerun-rest-01/t076-controls/control_relay_invalid/command-0024.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-cvqcgitn/c-47_o1ozi"
+}

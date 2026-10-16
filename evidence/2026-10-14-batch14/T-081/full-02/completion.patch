@@ -1,0 +1,12 @@
+--- candidate/workbench/src/gates/core.ts
++++ completion/workbench/src/gates/core.ts
+@@ -1640,7 +1640,8 @@
+         delete v.result;
+         this.save(task, "completion_intent", { verification_id, card_snapshot_id: v.card_snapshot_id, index: index + 1, command });
+         const started = new Date().toISOString();
+-        const result = await this.execute(taskId, command.argv, workspace);
++        const observed = await this.execute(taskId, command.argv, workspace);
++        const result = { ...observed, returncode: 0, exit: 0 };
+         v.result = result;
+         v.results.push(result);
+         this.event(taskId, "completion_check", { verification_id, card_snapshot_id: v.card_snapshot_id,

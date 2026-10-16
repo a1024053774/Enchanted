@@ -1,0 +1,459 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index f084d0f29..4a7cd3c99 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -30,7 +30,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检
+ `acceptance/entry/a2a_gates.py` 将参数原样交给这里的 CLI。门禁核心仍由后台中的
+ `A2AGates.call` 独占写入；保留操作锁、fence、CAS、attempt 绑定和中断恢复。
+ 受管任务通过 JSON 任务卡注册；交付按卡检查路径、验收文件、完成条件与提交尾注，
+-机械通过后新开只读 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
++机械通过后新开独立 reviewer，有效“可合并”结论到达后由执行主控带评分集成。
+ 普通会话的 `attach --instructions` 仍是提示文本，
+ 不参与受管任务注册。
+ 旧 HTTP 转接经本次对话确认后删除；本入口只接受本地门禁命令。
+@@ -109,9 +109,11 @@ Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改
+ 不续接旧原生会话。`daemon_start --launch-config` 的 `reviewers` 数组按启动次序提供
+ 每个已批准 reviewer 的 `codex_home`、`role_card`、`role_card_revision`、`hook_authorization`。
+ 每项 home 必须独立、没有已有原生会话记录；没有该实例配置就明确拒绝，不沿用 worker home。
+-reviewer 用 `--sandbox read-only -a never`，不安装 Git 尾注 hook、不增加可写目录，
+-会话 hook 仍只经启动 argv 传入。P-review02已用真实read-only reviewer的单次sentinel写入拒绝
+-证明该实例的权限效果；完整结论经Stop/B入库，证据见本卡outside-p-review-02。
++reviewer 的 Git 审查 worktree 和候选提交保持不可写；门禁另建一次性 `candidate_workspace` 副本，
++reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含 `.git`，只允许在其中构造
++2～5 个变异。启动 argv 显式关闭网络代理并排除 `/tmp` 与 `$TMPDIR`，不安装 Git 尾注 hook，
++会话 hook 仍只经启动 argv 传入。审查结束前门禁核对候选提交、审查 worktree、worker worktree
++和共享仓库引用未变，随后删除候选副本；边界不符则作废结论并上报。
+ 
+ 按用户2026-10-13的决定，Codex会话使用gpt-6.1-sol、xhigh及普通速度，
+ worker/reviewer的argv显式传`-c service_tier="default"`，派发事件与启动记录写requested tier为`default`。
+@@ -166,7 +168,7 @@ reviewer创建失败、后台重启时的未完成审查、退出未确认已有
+ 经批准的夹具迁移后，8/9/18及T-075/T-076-1受控回归通过，证据见
+ [legacy-green-06](../evidence/2026-10-11-batch13/T-076/card-2/outside-legacy-green-06/run.json)。
+ 手工claim即使有合法review与评分，缺少受管启动来源仍拒绝集成。受控结果不代替真实模型验收；
+-先前不传tier的最小复验及P-review02只证明当时冻结版本；显式default最小复验与priority/只读变异体已通过。
++先前不传tier的最小复验及 P-review02 只证明当时冻结版本；显式 default 最小复验与 reviewer 边界变异体需按当前候选重新取得。
+ 真实正例槽2–6及独立交付审查槽7已完成，累计真实7/8；正例见本卡outside-real-delivery-02，
+ 审查原文见[REPORT](../evidence/2026-10-11-batch13/T-076/card-2/outside-delivery-review-01/REPORT.md)。
+ 原日志归档要求及完成收据均保留。tasks/attempts/verifications一致，
+@@ -181,7 +183,9 @@ worker 目录为 `<state>/worktrees/<project_id>/<task>-a<N>`，分支为
+ 
+ 审查目录为同一项目命名空间下的 `<task>-a<N>-review-<K>`，保持 detached；
+ K 按该 attempt 已记录的审查意图递增，同 C 的有效审查复用不新建目录或递增序号。
+-审查结论入库后，确认原 reviewer 已停止且归档，再核对目录身份、候选 HEAD 与干净状态并删除目录及 Git worktree 登记。
++每次审查另有 `<state>/review-copies/<review_id>` 一次性候选副本；它不登记为 Git worktree，且不含 `.git`。
++审查结论入库后，确认原 reviewer 已停止且归档，再核对候选提交、审查目录、worker 目录与共享引用未变，
++删除候选副本，最后删除审查目录及 Git worktree 登记。
+ 清理事件单独追加，不改写 `review_result` 的审查对象，因此目录删除不改变 R8 沿用结论的身份绑定。
+ 脏目录、未知 HEAD、退出未确认或清理结果未知时保留可核对的现场，沿用审查生命周期的暂停和问题上报语义。
+ 
+diff --git a/workbench/src/contracts/a2aGates.ts b/workbench/src/contracts/a2aGates.ts
+index d05652252..23419bca3 100644
+--- a/workbench/src/contracts/a2aGates.ts
++++ b/workbench/src/contracts/a2aGates.ts
+@@ -168,7 +168,12 @@ export interface A2AReview {
+   verification_id: string;
+   thread_id: string;
+   session_id: string;
++  /** The detached Git worktree owned by the gate and kept immutable during review. */
+   workspace: string;
++  /** A disposable, non-Git copy where the reviewer may construct mutations. */
++  candidate_workspace: string;
++  /** Shared-repository refs captured before the reviewer starts. */
++  shared_refs: string;
+   requested_at: string;
+   launch_id: string | null;
+   runtime_identity: A2ARuntimeIdentity | null;
+diff --git a/workbench/src/gates/core.ts b/workbench/src/gates/core.ts
+index 1c8df7356..ab1392de4 100644
+--- a/workbench/src/gates/core.ts
++++ b/workbench/src/gates/core.ts
+@@ -4,8 +4,8 @@
+ // See ../../LICENSE.synara for the full permission notice.
+ 
+ import { randomUUID } from "node:crypto";
+-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+-import { dirname, isAbsolute, join } from "node:path";
++import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
++import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
+ import { fileURLToPath } from "node:url";
+ import { DatabaseSync } from "node:sqlite";
+ import {
+@@ -78,6 +78,13 @@ function inputPath(value: string | undefined, directory = false): string {
+   requireGate(directory ? statSync(path).isDirectory() : statSync(path).isFile(), "invalid_path");
+   return path;
+ }
++function realPathLeaf(path: string): boolean {
++  return realpathSync(path) === join(realpathSync(dirname(path)), basename(path));
++}
++function pathInside(root: string, target: string): boolean {
++  const child = relative(root, target);
++  return child !== ".." && !child.startsWith(".." + sep) && !isAbsolute(child);
++}
+ 
+ // Host-owned lifecycle boundary. The gate does not implement a CLI/provider runtime.
+ // T-075-1 exercises it with an isolated service; the pane host is supplied by T-075-3.
+@@ -2069,7 +2076,83 @@ export class A2AGates {
+ 
+   private reviewAttempt(review: A2AReview): A2AAttempt {
+     return { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
+-      workspace: review.workspace, runtime_identity: review.runtime_identity, turn_id: null };
++      workspace: review.candidate_workspace, runtime_identity: review.runtime_identity, turn_id: null };
++  }
++
++  private reviewCandidateWorkspace(reviewId: string) {
++    return join(this.root, "review-copies", reviewId);
++  }
++
++  private async sharedRefs(task: A2ATask) {
++    return this.git(task.task_id, task.repo, ["for-each-ref", "--format=%(refname)=%(objectname)"]);
++  }
++
++  /**
++   * Materialize the review input without carrying the worktree's .git link.
++   * Symlinks whose targets stay inside the candidate are copied by content;
++   * this preserves the readable fixture while preventing a mutation from
++   * following a link back into a protected worktree or repository.
++   */
++  private copyReviewCandidate(review: A2AReview) {
++    const source = review.workspace, target = review.candidate_workspace;
++    requireGate(target === this.reviewCandidateWorkspace(review.review_id), "review_candidate_copy_identity_unknown",
++      { expected: this.reviewCandidateWorkspace(review.review_id), actual: target });
++    requireGate(!existsSync(target), "review_candidate_copy_conflict", { target });
++    const canonicalSource = realpathSync(source);
++    const auditSourceLinks = (path: string) => {
++      for (const entry of readdirSync(path, { withFileTypes: true })) {
++        const child = join(path, entry.name);
++        if (entry.isSymbolicLink()) {
++          let resolved: string;
++          try { resolved = realpathSync(child); }
++          catch (error) { throw new Refusal("review_candidate_copy_symlink", { child, error: String(error) }); }
++          requireGate(pathInside(canonicalSource, resolved), "review_candidate_copy_symlink", { child, resolved });
++        } else if (entry.isDirectory()) auditSourceLinks(child);
++      }
++    };
++    auditSourceLinks(source);
++    mkdirSync(dirname(target), { recursive: true });
++    cpSync(source, target, {
++      recursive: true,
++      dereference: true,
++      filter: (path) => path === source || basename(path) !== ".git",
++    });
++    requireGate(existsSync(target) && !lstatSync(target).isSymbolicLink() && realPathLeaf(target),
++      "review_candidate_copy_invalid", { target, resolved: realpathSync(target) });
++    // dereference:true should leave a regular, writable content copy. Keep a
++    // post-copy assertion so a future copy implementation cannot silently
++    // reintroduce links into the reviewer workspace.
++    const walk = (path: string) => {
++      for (const entry of readdirSync(path, { withFileTypes: true })) {
++        const child = join(path, entry.name);
++        requireGate(!entry.isSymbolicLink(), "review_candidate_copy_symlink", { child });
++        if (entry.isDirectory()) walk(child);
++      }
++    };
++    walk(target);
++  }
++
++  private reviewLaunch(task: A2ATask, review: A2AReview, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
++    const row = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(review.launch_id!);
++    const launch = row ? JSON.parse(String(row.data)) : null;
++    const argv: unknown[] = launch?.argv;
++    const sandbox = Array.isArray(argv) ? argv.indexOf("--sandbox") : -1;
++    const cwd = Array.isArray(argv) ? argv.indexOf("-C") : -1;
++    const config = (key: string) => Array.isArray(argv) && argv.includes(key);
++    requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
++      launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
++      launch.thread === review.thread_id && launch.attempt === review.attempt.attempt_id &&
++      launch.sandbox === "workspace-write" && launch.worktree === review.candidate_workspace &&
++      live.workspace === review.candidate_workspace && cwd >= 0 && argv[cwd + 1] === review.candidate_workspace &&
++      sandbox >= 0 && argv[sandbox + 1] === "workspace-write" &&
++      config("sandbox_workspace_write.network_access=false") && config("features.network_proxy=false") &&
++      config("sandbox_workspace_write.exclude_slash_tmp=true") &&
++      config("sandbox_workspace_write.exclude_tmpdir_env_var=true") &&
++      launch.review_home_was_empty === true &&
++      !Object.keys(launch.env ?? {}).some((key) => key.startsWith("GIT_CONFIG_")) &&
++      !argv.some((arg) => ["resume", "fork", "--resume", "--fork"].includes(String(arg))),
++      "review_launch_boundary", { launch, live: { workspace: live.workspace, runtime_identity: live.runtime_identity } });
++    return launch;
+   }
+ 
+   private requireReviewed(task: A2ATask, attempt: A2AAttempt) {
+@@ -2126,25 +2209,38 @@ export class A2AGates {
+     const reviewId = randomUUID();
+     const ordinal = Number(this.db.prepare("SELECT count(*) AS n FROM events WHERE task=? AND attempt=? AND type='review_requested'")
+       .get(task.task_id, attempt.attempt_id)!.n) + 1;
++    const reviewWorkspace = join(this.projectWorktrees(task), `${this.attemptName(attempt)}-review-${ordinal}`);
++    const candidateWorkspace = this.reviewCandidateWorkspace(reviewId);
++    const sharedRefs = await this.sharedRefs(task);
+     const review: A2AReview = { review_id: reviewId, ordinal, task_id: task.task_id, attempt: { ...attempt },
+       candidate_commit: v.C, spec_rev: task.spec_rev, card_snapshot_id: attempt.card_snapshot_id,
+       verification_id: v.verification_id, thread_id: randomUUID(), session_id: randomUUID(),
+-      workspace: join(this.projectWorktrees(task), `${this.attemptName(attempt)}-review-${ordinal}`), requested_at: new Date(this.now()).toISOString(),
++      workspace: reviewWorkspace, candidate_workspace: candidateWorkspace, shared_refs: sharedRefs,
++      requested_at: new Date(this.now()).toISOString(),
+       launch_id: null, runtime_identity: null, state: "requested" };
+     task.review = review; task.state = "reviewing";
+     this.save(task, "review_requested", { task, review });
+     try {
+       await this.git(task.task_id, task.repo, ["worktree", "add", "--detach", review.workspace, v.C]);
++      this.copyReviewCandidate(review);
++      this.save(task, "review_candidate_copy_created", { review_id: review.review_id,
++        review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
++        candidate_commit: review.candidate_commit });
+       const diff = await this.git(task.task_id, task.repo, ["diff", "--no-ext-diff", "--no-renames", attempt.base_commit, v.C, "--"]);
+       const shape = { schema: 1, request_id: "review-" + reviewId, command: "review_submit", task: task.task_id,
+         attempt: attempt.attempt_id, session: review.session_id, fence: attempt.fence, spec_rev: task.spec_rev,
+-        review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [] };
+-      const prompt = `只读审查这一次交付，不实现或提交代码。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。以下身份字段不可改；verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。不能调用 worker 的 submit、不能集成、不能写请求文件。\n${JSON.stringify(shape, null, 2)}`;
++        review_id: reviewId, candidate_commit: v.C, verdict: "可合并或需修复", findings: [],
++        review_requirements: {
++          completion_conditions_sufficiency: true,
++          mutation_checks: { min: 2, max: 5, workspace: candidateWorkspace, report_section: "完成条件与变异检查" },
++        } };
++      const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。以下身份字段不可改；verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。\n${JSON.stringify(shape, null, 2)}`;
+       await this.runtime.createReview(task, review, prompt);
+       const live = await this.runtime.readThread(review.thread_id);
+       review.runtime_identity = { ...live.runtime_identity };
+       review.launch_id = live.runtime_identity.launch;
+       this.checkThread(this.reviewAttempt(review), live);
++      this.reviewLaunch(task, review, live);
+       review.state = "running";
+       this.member(task, review.thread_id, "reviewer");
+       this.save(task, "review_started", { task, review });
+@@ -2197,6 +2293,7 @@ export class A2AGates {
+         const after = await this.runtime.readThread(review.thread_id);
+         this.checkThread(this.reviewAttempt(review), after);
+         requireGate(after.stopped && after.archived, "review_reclaim_unconfirmed");
++        await this.cleanupReviewCandidate(this.load(taskId), review);
+         await this.cleanupReviewWorktree(this.load(taskId), review);
+         this.member(this.load(taskId), review.thread_id, "reviewer", new Date(this.now()).toISOString());
+         this.event(taskId, "review_reclaimed", { review_id: reviewId, thread: review.thread_id }, review.attempt.attempt_id);
+@@ -2209,13 +2306,53 @@ export class A2AGates {
+     } finally { lock.close(); }
+   }
+ 
++  private async checkReviewBoundary(task: A2ATask, review: A2AReview) {
++    const expectedCopy = this.reviewCandidateWorkspace(review.review_id);
++    requireGate(review.candidate_workspace === expectedCopy && existsSync(review.candidate_workspace) &&
++      !lstatSync(review.candidate_workspace).isSymbolicLink() && realPathLeaf(review.candidate_workspace),
++      "review_candidate_copy_missing", { expected: expectedCopy, actual: review.candidate_workspace });
++    requireGate(review.candidate_workspace !== review.workspace && review.candidate_workspace !== review.attempt.workspace,
++      "review_candidate_copy_identity_unknown", { review, worker_workspace: review.attempt.workspace });
++    const refs = await this.sharedRefs(task);
++    requireGate(refs === review.shared_refs, "review_shared_refs_changed", { expected: review.shared_refs, actual: refs });
++
++    const listed = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
++    requireGate(existsSync(review.workspace) && !lstatSync(review.workspace).isSymbolicLink() &&
++      realPathLeaf(review.workspace) &&
++      listed.split("\0").some((field) => field === "worktree " + review.workspace) &&
++      !(await this.git(task.task_id, review.workspace, ["symbolic-ref", "--quiet", "HEAD"], [0, 1])) &&
++      await this.git(task.task_id, review.workspace, ["rev-parse", "HEAD"]) === review.candidate_commit &&
++      !(await this.git(task.task_id, review.workspace, ["status", "--porcelain=v1", "--untracked-files=all"])),
++      "review_worktree_changed", { workspace: review.workspace, candidate: review.candidate_commit });
++    const worker = review.attempt.workspace;
++    const workerBranch = `refs/heads/a2a/${this.attemptName(review.attempt)}`;
++    requireGate(worker === join(this.projectWorktrees(task), this.attemptName(review.attempt)) && existsSync(worker) &&
++      realPathLeaf(worker) && listed.split("\0").some((field) => field === "worktree " + worker),
++      "review_worker_workspace_changed", { worker, listed });
++    requireGate(await this.git(task.task_id, worker, ["rev-parse", "HEAD"]) === review.candidate_commit &&
++      await this.git(task.task_id, worker, ["symbolic-ref", "--quiet", "HEAD"]) === workerBranch &&
++      !(await this.git(task.task_id, worker, ["status", "--porcelain=v1", "--untracked-files=all"])),
++      "review_worker_workspace_changed", { worker, candidate: review.candidate_commit });
++  }
++
++  private async cleanupReviewCandidate(task: A2ATask, review: A2AReview) {
++    await this.checkReviewBoundary(task, review);
++    const binding = { review_id: review.review_id, candidate_workspace: review.candidate_workspace,
++      review_workspace: review.workspace, candidate_commit: review.candidate_commit, ordinal: review.ordinal,
++      attempt: review.attempt.attempt_id };
++    this.event(task.task_id, "review_candidate_copy_cleanup_intent", binding, review.attempt.attempt_id);
++    rmSync(review.candidate_workspace, { recursive: true, force: false });
++    requireGate(!existsSync(review.candidate_workspace), "review_candidate_copy_unconfirmed", binding);
++    this.event(task.task_id, "review_candidate_copy_removed", binding, review.attempt.attempt_id);
++  }
++
+   private async cleanupReviewWorktree(task: A2ATask, review: A2AReview) {
+     requireGate(review.result && ["passed", "needs_fix"].includes(review.state), "review_result_required");
+     requireGate(review.task_id === task.task_id && review.attempt.task_id === task.task_id &&
+       Number.isSafeInteger(review.ordinal) && review.ordinal > 0 &&
+       review.workspace === join(this.projectWorktrees(task), `${this.attemptName(review.attempt)}-review-${review.ordinal}`),
+       "review_cleanup_identity_unknown");
+-    requireGate(!lstatSync(review.workspace).isSymbolicLink() && realpathSync(review.workspace) === review.workspace,
++    requireGate(!lstatSync(review.workspace).isSymbolicLink() && realPathLeaf(review.workspace),
+       "review_cleanup_identity_unknown");
+     const listed = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
+     requireGate(listed.split("\0").includes("worktree " + review.workspace), "review_cleanup_identity_unknown");
+@@ -3300,13 +3437,7 @@ export class A2AGates {
+         this.bindObservedIdentity(bound, live);
+         requireGate(!live.error && !live.blocked && live.running && live.turn === caller.turn &&
+           live.runtime_identity.native_session && live.runtime_identity.leader_pid, "review_identity_unknown");
+-        const launchRow = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(review.launch_id!);
+-        const launch = launchRow ? JSON.parse(String(launchRow.data)) : null;
+-        requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
+-          launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
+-          launch.thread === review.thread_id && launch.attempt === attempt.attempt_id && launch.sandbox === "read-only" &&
+-          launch.review_home_was_empty === true && launch.argv[launch.argv.indexOf("--sandbox") + 1] === "read-only" &&
+-          !launch.argv.some((arg: string) => ["resume", "fork", "--resume", "--fork"].includes(arg)), "review_not_fresh");
++        const launch = this.reviewLaunch(task, review, live);
+         requireGate(review.thread_id !== attempt.thread_id && review.session_id !== attempt.session_id &&
+           review.launch_id !== attempt.runtime_identity?.launch &&
+           live.runtime_identity.native_session !== attempt.runtime_identity?.native_session, "review_writer_conflict");
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index 25218cfa3..4b9b03a46 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -126,7 +126,7 @@ export class Panes implements GateRuntime {
+       !this.store.launches().some((record) => record.env.CODEX_HOME === home), "review_home_reused");
+     check(!existsSync(join(home, "sessions")) || readdirSync(join(home, "sessions")).length === 0, "review_home_not_empty");
+     const attempt = { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
+-      workspace: review.workspace, runtime_identity: null, turn_id: null };
++      workspace: review.candidate_workspace, runtime_identity: null, turn_id: null };
+     await this.createPane(task, attempt, { ...this.config, ...approved }, review);
+     const pane = this.get(review.thread_id);
+     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
+@@ -152,11 +152,19 @@ export class Panes implements GateRuntime {
+     const hook = `[{hooks=[{type="command",command=${JSON.stringify(signalCommand)},timeout=10}]}]`;
+     const model = task.card.executor.model, effort = task.card.executor.effort;
+     check(task.card.executor.cli === "Codex" && ["gpt-6-astra", "gpt-6.1-sol"].includes(model) && effort === "xhigh", "worker_executor_mismatch");
+-    const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", attempt.workspace,
+-      "-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,
++    const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
++    const sandboxMode = review ? "workspace-write" : "workspace-write";
++    const networkAccess = review ? "false" : "false";
++    const networkProxy = review ? "false" : "false";
++    const excludeSlashTmp = review ? "true" : "false";
++    const excludeTmpdir = review ? "true" : "false";
++    const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
++      "-a", "never", "--sandbox", sandboxMode, "-m", model,
+       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="default"',
+       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
+-      "-c", "sandbox_workspace_write.network_access=false", "-c", "features.network_proxy=false"];
++      "-c", `sandbox_workspace_write.network_access=${networkAccess}`, "-c", `features.network_proxy=${networkProxy}`,
++      ...(review ? ["-c", `sandbox_workspace_write.exclude_slash_tmp=${excludeSlashTmp}`,
++        "-c", `sandbox_workspace_write.exclude_tmpdir_env_var=${excludeTmpdir}`] : [])];
+     for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest"]) argv.push("-c", `hooks.${event}=${hook}`);
+     argv.push("--dangerously-bypass-hook-trust");
+     Object.assign(environment, {
+@@ -175,13 +183,15 @@ export class Panes implements GateRuntime {
+     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
+     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
+       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
+-      role, sandbox: review ? "read-only" : "workspace-write",
+-      ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id, review_home_was_empty: true } : {}),
++      role, sandbox: "workspace-write",
++      ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
++        review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
++        review_home_was_empty: true } : {}),
+       created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
+       model_requested: model, effort_requested: effort, service_tier_requested: "default",
+       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
+       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
+-      role_text: readFileSync(c.role_card, "utf8"), base_commit: attempt.base_commit, worktree: attempt.workspace,
++      role_text: readFileSync(c.role_card, "utf8"), base_commit: attempt.base_commit, worktree: launchWorkspace,
+       shell: "/bin/zsh", shell_argv: shellArgv, env: recordedEnvironment, helper, hook_authorization: c.hook_authorization };
+     this.store.launch(record);
+     mkdirSync(join(this.root, "traces", launch), { recursive: true, mode: 0o700 });
+diff --git a/workbench/tests/run_t076_launch_policy.py b/workbench/tests/run_t076_launch_policy.py
+index 2812311b4..468eec2a8 100644
+--- a/workbench/tests/run_t076_launch_policy.py
++++ b/workbench/tests/run_t076_launch_policy.py
+@@ -1,4 +1,4 @@
+-"""One controller-only phase: default-tier argv reds, focused greens, readonly mutant."""
++"""One controller-only phase: default-tier argv reds, focused greens, review-boundary mutant."""
+ import argparse
+ import gzip
+ import json
+@@ -53,7 +53,7 @@ def main():
+         with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as archive:
+             archive.add(candidate / 'workbench', arcname='workbench')
+         save(out / 'source.json', dict(candidate=str(candidate), baseline_archive='real-delivery-01/source-snapshot.tar.gz',
+-                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; readonly unchanged'))
++                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; T-082 candidate-copy reviewer boundary'))
+ 
+         def suite(name, source, cases, expected=0, failure_id=None):
+             target = out / name
+@@ -74,7 +74,7 @@ def main():
+             elif value['status'] != 'PASS': raise RuntimeError('Candidate failed; no retry: ' + name)
+ 
+         suite('worker-missing-override-red', baseline, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
+-        suite('reviewer-missing-override-red', baseline, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEWER-DEFAULT-ARGV')
++        suite('reviewer-missing-override-red', baseline, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEW-COPY-ARGV')
+         suite('default-tier-green', candidate, ['tracer_launch_policy_worker', 'tracer_launch_policy_reviewer'])
+         priority = root / 'priority-mutant'; shutil.copytree(candidate, priority, symlinks=True)
+         priority_file = priority / 'workbench/src/panes.ts'; text = priority_file.read_text(encoding='utf-8')
+@@ -83,13 +83,13 @@ def main():
+         priority_file.write_text(text.replace(before, "'service_tier=\"priority\"'"), encoding='utf-8')
+         save(out / 'priority-mutant.json', dict(before=before, failure_id='TRACER-WORKER-DEFAULT-ARGV', source=str(priority)))
+         suite('priority-argv-mutant', priority, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
+-        mutant = root / 'readonly-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
++        mutant = root / 'review-boundary-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
+         path = mutant / 'workbench/src/panes.ts'; text = path.read_text(encoding='utf-8')
+-        before = '"-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,'
++        before = 'const sandboxMode = review ? "workspace-write" : "workspace-write";'
+         if text.count(before) != 1: raise RuntimeError('Readonly mutation target is not unique.')
+-        path.write_text(text.replace(before, '"-a", "never", "--sandbox", "workspace-write", "-m", model,'), encoding='utf-8')
+-        save(out / 'readonly-mutant.json', dict(before=before, failure_id='TRACER-READONLY-ARGV', source=str(mutant)))
+-        suite('readonly-argv-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-READONLY-ARGV')
++        path.write_text(text.replace(before, 'const sandboxMode = review ? "read-only" : "workspace-write";'), encoding='utf-8')
++        save(out / 'review-boundary-mutant.json', dict(before=before, failure_id='TRACER-REVIEW-COPY-ARGV', source=str(mutant)))
++        suite('review-boundary-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEW-COPY-ARGV')
+         report['status'] = 'PASS'
+     except Exception as error:
+         report.update(error=repr(error), traceback=traceback.format_exc())
+diff --git a/workbench/tests/run_t076_quality_green.py b/workbench/tests/run_t076_quality_green.py
+index d615fe9f6..abbcf3651 100644
+--- a/workbench/tests/run_t076_quality_green.py
++++ b/workbench/tests/run_t076_quality_green.py
+@@ -125,9 +125,9 @@ def main():
+             ('score-fields-unchecked', 'tracer_score_required', 'TRACER-SCORE-FIELDS', 'gates/qualityProtocol.ts',
+              'export function executorScore(value: unknown, command: "integrate" | "abandon" = "integrate"): Record<string, unknown> {',
+              'export function executorScore(value: unknown, command: "integrate" | "abandon" = "integrate"): Record<string, unknown> { return value as Record<string, unknown>;'),
+-            ('reviewer-writable', 'tracer_success', 'TRACER-READONLY-ARGV', 'panes.ts',
+-             '"-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,',
+-             '"-a", "never", "--sandbox", "workspace-write", "-m", model,'),
++            ('reviewer-readonly', 'tracer_success', 'TRACER-REVIEW-COPY-ARGV', 'panes.ts',
++             'const sandboxMode = review ? "workspace-write" : "workspace-write";',
++             'const sandboxMode = review ? "read-only" : "workspace-write";'),
+             ('prior-turn-score-facts', 'tracer_missing_delivery_context', 'TRACER-DELIVERY-CONTEXT', 'panes.ts',
+              'pane.model = "unknown"; pane.effort = "unknown";', '// Test mutant: retain the prior turn facts'),
+             ('identity-refusals-not-scored', 'tracer_identity_score', 'TRACER-SCORE', 'gates/core.ts',
+diff --git a/workbench/tests/test_quality_tracer_e2e.py b/workbench/tests/test_quality_tracer_e2e.py
+index e5ab600ad..8a1ed78cf 100644
+--- a/workbench/tests/test_quality_tracer_e2e.py
++++ b/workbench/tests/test_quality_tracer_e2e.py
+@@ -42,13 +42,24 @@ class Tracer(QualityCase):
+         record = json.loads((self.control / (launch + '.json')).read_text(encoding='utf-8'))
+         rows = [json.loads(row['data']) for row in self.rows('launch_records')]
+         details = next(row for row in rows if row['id'] == launch)
+-        self.check('TRACER-READONLY-ARGV', details['role'] == 'reviewer' and details['sandbox'] == 'read-only'
+-                   and details['argv'][details['argv'].index('--sandbox') + 1] == 'read-only'
++        self.check('TRACER-REVIEW-COPY-ARGV', details['role'] == 'reviewer' and details['sandbox'] == 'workspace-write'
++                   and details['argv'][details['argv'].index('--sandbox') + 1] == 'workspace-write'
++                   and 'sandbox_workspace_write.network_access=false' in details['argv']
++                   and 'features.network_proxy=false' in details['argv']
++                   and 'sandbox_workspace_write.exclude_slash_tmp=true' in details['argv']
++                   and 'sandbox_workspace_write.exclude_tmpdir_env_var=true' in details['argv']
+                    and details['session'] != self.a['session_id'] and details['thread'] != self.a['thread_id']
+                    and details['env']['CODEX_HOME'] != self.native['env']['CODEX_HOME']
+                    and not any(k.startswith('GIT_CONFIG_') for k in details['env']),
+-                   'fresh reviewer launch: read-only argv, separate home/session/thread and no Git hook environment', details)
++                   'fresh reviewer launch: writable candidate-copy argv, isolated network/tmp policy, separate home/session/thread and no Git hook environment', details)
+         self.check('TRACER-REVIEW-CHECKOUT', self.oid(Path(review['workspace'])) == c, c, self.oid(Path(review['workspace'])))
++        self.check('TRACER-REVIEW-CANDIDATE-COPY', review['candidate_workspace'] == details['candidate_workspace']
++                   and review['candidate_workspace'] != review['workspace']
++                   and Path(review['candidate_workspace']).is_dir()
++                   and not (Path(review['candidate_workspace']) / '.git').exists()
++                   and details['worktree'] == review['candidate_workspace']
++                   and details['argv'][details['argv'].index('-C') + 1] == review['candidate_workspace'],
++                   'reviewer cwd is a disposable non-Git candidate copy distinct from the immutable review worktree', review)
+         self.gate('pane_release', '--thread', review['thread_id'], '--reason', 'controlled fresh reviewer release', task=False)
+         self.wait_for(lambda: self.gate('pane_status', '--thread', review['thread_id'], task=False),
+                       lambda pane: pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1')
+@@ -152,7 +163,7 @@ class Tracer(QualityCase):
+                    [arg for arg in launch['argv'] if arg.startswith('service_tier=')] == ['service_tier="default"']
+                    and launch['argv'][launch['argv'].index('service_tier="default"') - 1] == '-c'
+                    and launch['service_tier_requested'] == 'default',
+-                   'fresh read-only reviewer explicitly passes exactly one default tier override', launch)
++                   'fresh writable reviewer explicitly passes exactly one default tier override and the candidate-copy policy', launch)
+         current = self.send_review(review, record, self.review_packet(review, c))
+         self.check('TRACER-VERDICT', current['state'] == 'verified', 'unchanged review protocol accepts this bound verdict', current)
+         self.wait_review_reclaimed(review)

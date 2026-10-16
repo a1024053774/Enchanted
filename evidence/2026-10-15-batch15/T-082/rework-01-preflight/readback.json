@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "scope": "static syntax and unique mutation-target preconditions only; CLI/daemon replays and mutants not run",
+  "checks": [
+    {
+      "name": "M1-no-end-check-precondition",
+      "target_count": 1,
+      "case": "integration_before_end_check_clean",
+      "expected_failure": "REVIEW-END-BEFORE-INTEGRATE"
+    },
+    {
+      "name": "M2-no-workspace-binding",
+      "target_count": 1,
+      "case": "requirements_workspace_changed",
+      "expected_failure": "REVIEW-REQUIREMENTS-WORKSPACE"
+    },
+    {
+      "name": "M3-no-shared-refs-check",
+      "target_count": 1,
+      "case": "shared_refs_changed",
+      "expected_failure": "REVIEW-REFS-INVALIDATE"
+    },
+    {
+      "name": "worker-default-override-absent",
+      "target_count": 1,
+      "argv": [
+        "node",
+        "--check",
+        "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/rework-01-preflight/worker-missing-default.mts"
+      ],
+      "node_syntax_exit": 0
+    },
+    {
+      "name": "reviewer-default-override-absent",
+      "target_count": 1,
+      "argv": [
+        "node",
+        "--check",
+        "/Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/rework-01-preflight/reviewer-missing-default.mts"
+      ],
+      "node_syntax_exit": 0
+    }
+  ],
+  "real_codex_turns_started": 0,
+  "runtime_validation": "INCOMPLETE; controller OUTSIDE-11 pending",
+  "checker_correction": "use .mts filenames for node --check; prior stdin invocation error retained separately"
+}

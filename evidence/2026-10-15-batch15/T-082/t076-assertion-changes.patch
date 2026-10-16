@@ -1,0 +1,105 @@
+diff --git a/workbench/tests/run_t076_launch_policy.py b/workbench/tests/run_t076_launch_policy.py
+index 2812311b4..468eec2a8 100644
+--- a/workbench/tests/run_t076_launch_policy.py
++++ b/workbench/tests/run_t076_launch_policy.py
+@@ -1,4 +1,4 @@
+-"""One controller-only phase: default-tier argv reds, focused greens, readonly mutant."""
++"""One controller-only phase: default-tier argv reds, focused greens, review-boundary mutant."""
+ import argparse
+ import gzip
+ import json
+@@ -53,7 +53,7 @@ def main():
+         with tarfile.open(out / 'candidate-source.tar.gz', 'x:gz') as archive:
+             archive.add(candidate / 'workbench', arcname='workbench')
+         save(out / 'source.json', dict(candidate=str(candidate), baseline_archive='real-delivery-01/source-snapshot.tar.gz',
+-                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; readonly unchanged'))
++                                      oracle='controller #82 / user answer 20261013T142903Z: explicit default override; T-082 candidate-copy reviewer boundary'))
+ 
+         def suite(name, source, cases, expected=0, failure_id=None):
+             target = out / name
+@@ -74,7 +74,7 @@ def main():
+             elif value['status'] != 'PASS': raise RuntimeError('Candidate failed; no retry: ' + name)
+ 
+         suite('worker-missing-override-red', baseline, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
+-        suite('reviewer-missing-override-red', baseline, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEWER-DEFAULT-ARGV')
++        suite('reviewer-missing-override-red', baseline, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEW-COPY-ARGV')
+         suite('default-tier-green', candidate, ['tracer_launch_policy_worker', 'tracer_launch_policy_reviewer'])
+         priority = root / 'priority-mutant'; shutil.copytree(candidate, priority, symlinks=True)
+         priority_file = priority / 'workbench/src/panes.ts'; text = priority_file.read_text(encoding='utf-8')
+@@ -83,13 +83,13 @@ def main():
+         priority_file.write_text(text.replace(before, "'service_tier=\"priority\"'"), encoding='utf-8')
+         save(out / 'priority-mutant.json', dict(before=before, failure_id='TRACER-WORKER-DEFAULT-ARGV', source=str(priority)))
+         suite('priority-argv-mutant', priority, ['tracer_launch_policy_worker'], 1, 'TRACER-WORKER-DEFAULT-ARGV')
+-        mutant = root / 'readonly-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
++        mutant = root / 'review-boundary-mutant'; shutil.copytree(candidate, mutant, symlinks=True)
+         path = mutant / 'workbench/src/panes.ts'; text = path.read_text(encoding='utf-8')
+-        before = '"-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,'
++        before = 'const sandboxMode = review ? "workspace-write" : "workspace-write";'
+         if text.count(before) != 1: raise RuntimeError('Readonly mutation target is not unique.')
+-        path.write_text(text.replace(before, '"-a", "never", "--sandbox", "workspace-write", "-m", model,'), encoding='utf-8')
+-        save(out / 'readonly-mutant.json', dict(before=before, failure_id='TRACER-READONLY-ARGV', source=str(mutant)))
+-        suite('readonly-argv-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-READONLY-ARGV')
++        path.write_text(text.replace(before, 'const sandboxMode = review ? "read-only" : "workspace-write";'), encoding='utf-8')
++        save(out / 'review-boundary-mutant.json', dict(before=before, failure_id='TRACER-REVIEW-COPY-ARGV', source=str(mutant)))
++        suite('review-boundary-mutant', mutant, ['tracer_launch_policy_reviewer'], 1, 'TRACER-REVIEW-COPY-ARGV')
+         report['status'] = 'PASS'
+     except Exception as error:
+         report.update(error=repr(error), traceback=traceback.format_exc())
+diff --git a/workbench/tests/run_t076_quality_green.py b/workbench/tests/run_t076_quality_green.py
+index d615fe9f6..abbcf3651 100644
+--- a/workbench/tests/run_t076_quality_green.py
++++ b/workbench/tests/run_t076_quality_green.py
+@@ -125,9 +125,9 @@ def main():
+             ('score-fields-unchecked', 'tracer_score_required', 'TRACER-SCORE-FIELDS', 'gates/qualityProtocol.ts',
+              'export function executorScore(value: unknown, command: "integrate" | "abandon" = "integrate"): Record<string, unknown> {',
+              'export function executorScore(value: unknown, command: "integrate" | "abandon" = "integrate"): Record<string, unknown> { return value as Record<string, unknown>;'),
+-            ('reviewer-writable', 'tracer_success', 'TRACER-READONLY-ARGV', 'panes.ts',
+-             '"-a", "never", "--sandbox", review ? "read-only" : "workspace-write", "-m", model,',
+-             '"-a", "never", "--sandbox", "workspace-write", "-m", model,'),
++            ('reviewer-readonly', 'tracer_success', 'TRACER-REVIEW-COPY-ARGV', 'panes.ts',
++             'const sandboxMode = review ? "workspace-write" : "workspace-write";',
++             'const sandboxMode = review ? "read-only" : "workspace-write";'),
+             ('prior-turn-score-facts', 'tracer_missing_delivery_context', 'TRACER-DELIVERY-CONTEXT', 'panes.ts',
+              'pane.model = "unknown"; pane.effort = "unknown";', '// Test mutant: retain the prior turn facts'),
+             ('identity-refusals-not-scored', 'tracer_identity_score', 'TRACER-SCORE', 'gates/core.ts',
+diff --git a/workbench/tests/test_quality_tracer_e2e.py b/workbench/tests/test_quality_tracer_e2e.py
+index e5ab600ad..8a1ed78cf 100644
+--- a/workbench/tests/test_quality_tracer_e2e.py
++++ b/workbench/tests/test_quality_tracer_e2e.py
+@@ -42,13 +42,24 @@ class Tracer(QualityCase):
+         record = json.loads((self.control / (launch + '.json')).read_text(encoding='utf-8'))
+         rows = [json.loads(row['data']) for row in self.rows('launch_records')]
+         details = next(row for row in rows if row['id'] == launch)
+-        self.check('TRACER-READONLY-ARGV', details['role'] == 'reviewer' and details['sandbox'] == 'read-only'
+-                   and details['argv'][details['argv'].index('--sandbox') + 1] == 'read-only'
++        self.check('TRACER-REVIEW-COPY-ARGV', details['role'] == 'reviewer' and details['sandbox'] == 'workspace-write'
++                   and details['argv'][details['argv'].index('--sandbox') + 1] == 'workspace-write'
++                   and 'sandbox_workspace_write.network_access=false' in details['argv']
++                   and 'features.network_proxy=false' in details['argv']
++                   and 'sandbox_workspace_write.exclude_slash_tmp=true' in details['argv']
++                   and 'sandbox_workspace_write.exclude_tmpdir_env_var=true' in details['argv']
+                    and details['session'] != self.a['session_id'] and details['thread'] != self.a['thread_id']
+                    and details['env']['CODEX_HOME'] != self.native['env']['CODEX_HOME']
+                    and not any(k.startswith('GIT_CONFIG_') for k in details['env']),
+-                   'fresh reviewer launch: read-only argv, separate home/session/thread and no Git hook environment', details)
++                   'fresh reviewer launch: writable candidate-copy argv, isolated network/tmp policy, separate home/session/thread and no Git hook environment', details)
+         self.check('TRACER-REVIEW-CHECKOUT', self.oid(Path(review['workspace'])) == c, c, self.oid(Path(review['workspace'])))
++        self.check('TRACER-REVIEW-CANDIDATE-COPY', review['candidate_workspace'] == details['candidate_workspace']
++                   and review['candidate_workspace'] != review['workspace']
++                   and Path(review['candidate_workspace']).is_dir()
++                   and not (Path(review['candidate_workspace']) / '.git').exists()
++                   and details['worktree'] == review['candidate_workspace']
++                   and details['argv'][details['argv'].index('-C') + 1] == review['candidate_workspace'],
++                   'reviewer cwd is a disposable non-Git candidate copy distinct from the immutable review worktree', review)
+         self.gate('pane_release', '--thread', review['thread_id'], '--reason', 'controlled fresh reviewer release', task=False)
+         self.wait_for(lambda: self.gate('pane_status', '--thread', review['thread_id'], task=False),
+                       lambda pane: pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1')
+@@ -152,7 +163,7 @@ class Tracer(QualityCase):
+                    [arg for arg in launch['argv'] if arg.startswith('service_tier=')] == ['service_tier="default"']
+                    and launch['argv'][launch['argv'].index('service_tier="default"') - 1] == '-c'
+                    and launch['service_tier_requested'] == 'default',
+-                   'fresh read-only reviewer explicitly passes exactly one default tier override', launch)
++                   'fresh writable reviewer explicitly passes exactly one default tier override and the candidate-copy policy', launch)
+         current = self.send_review(review, record, self.review_packet(review, c))
+         self.check('TRACER-VERDICT', current['state'] == 'verified', 'unchanged review protocol accepts this bound verdict', current)
+         self.wait_review_reclaimed(review)

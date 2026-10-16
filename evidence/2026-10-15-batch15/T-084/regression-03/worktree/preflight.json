@@ -1,0 +1,47 @@
+{
+  "head": {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a-wt-t084",
+    "exit_code": 0,
+    "stdout": "b4470100f0ed246d629b4092ecf4d4c81a746123\n",
+    "stderr": ""
+  },
+  "source_diff": {
+    "argv": [
+      "git",
+      "diff",
+      "HEAD",
+      "--",
+      "workbench/src"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a-wt-t084",
+    "exit_code": 0,
+    "stdout": "diff --git a/workbench/src/gates/core.ts b/workbench/src/gates/core.ts\nindex 0ce1ce73..29c2195f 100644\n--- a/workbench/src/gates/core.ts\n+++ b/workbench/src/gates/core.ts\n@@ -1995,6 +1995,8 @@ export class A2AGates {\n           required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = \"invalid_trailers\";\n         else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== \"worker\")\n           error = \"trailer_identity_mismatch\";\n+        // No launch record was copied at submit, so Launch/Tool/Model/Effort cannot be checked.\n+        else if (!attempt.delivery) error = \"trailer_launch_record_missing\";\n         // Delivery is the launch record copied at submit. Model may be the literal unknown; tool, effort and launch may not.\n         else if (attempt.delivery && trailers.launch![0] !== attempt.delivery.launch_id) error = \"trailer_identity_mismatch\";\n         else if (attempt.delivery && trailers.tool![0] !== attempt.delivery.cli) error = \"trailer_identity_mismatch\";\n@@ -2002,7 +2004,8 @@ export class A2AGates {\n         else if (attempt.delivery && trailers.effort![0] !== attempt.delivery.effort) error = \"trailer_identity_mismatch\";\n       }\n       this.event(task.task_id, \"trailer_check\", { commit, trailers, verification_id: v.verification_id,\n-        card_snapshot_id: v.card_snapshot_id, passed: !error, missing, error });\n+        card_snapshot_id: v.card_snapshot_id, passed: !error, missing, error,\n+        ...(error === \"trailer_launch_record_missing\" ? { reason: \"缺启动记录\" } : {}) });\n       requireGate(!error, error ?? \"invalid_trailers\", { commit, trailers });\n       if (missing) this.appendUserInput({\n         id: randomUUID(), schema: 1, form: \"action\", text: `用户本人提交 ${commit}（推断：缺尾注）`,\n",
+    "stderr": ""
+  },
+  "node": {
+    "argv": [
+      "node",
+      "--version"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a-wt-t084",
+    "exit_code": 0,
+    "stdout": "v26.5.0\n",
+    "stderr": ""
+  },
+  "git": {
+    "argv": [
+      "git",
+      "--version"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a-wt-t084",
+    "exit_code": 0,
+    "stdout": "git version 2.52.0\n",
+    "stderr": ""
+  },
+  "volume_mounted": true
+}

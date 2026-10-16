@@ -1,0 +1,15 @@
+{
+  "label": "v1-history-python",
+  "argv": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "-B",
+    "-c",
+    "import json,runpy,sys\nsys.path.insert(0,sys.argv[1]);m=runpy.run_path(sys.argv[1]+\"/score\",run_name=\"reader\")\nrows=[json.loads(l) for l in open(sys.argv[2],encoding=\"utf-8\")]\ntry:\n m[\"validate_scores\"](rows)\nexcept ValueError as error:\n print(json.dumps({\"ok\":False,\"error\":str(error)}));sys.exit(1)\nprint(json.dumps({\"ok\":True,\"rows\":rows}))\n",
+    "/private/tmp/t81-5l7xck7d/candidate/scripts",
+    "/private/tmp/t80score-atuu2h5f/v1-history.jsonl"
+  ],
+  "cwd": "/private/tmp/t81-5l7xck7d/candidate",
+  "exit": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/runpy.py\", line 267, in run_path\n    code, fname = _get_code_from_file(run_name, path_name)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/runpy.py\", line 237, in _get_code_from_file\n    with io.open_code(decoded_path) as f:\nFileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/t81-5l7xck7d/candidate/scripts/score'\n"
+}

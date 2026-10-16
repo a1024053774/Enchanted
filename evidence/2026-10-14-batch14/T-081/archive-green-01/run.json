@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "scope": "仅 runner 归档边界；不证明门禁或整个 full-03",
+  "command": [
+    "workbench/tests/test_t081_archive_ownership.py",
+    "--output",
+    "evidence/2026-10-14-batch14/T-081/archive-green-01"
+  ],
+  "source_failure": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-02/t075-coop",
+  "cases": [
+    {
+      "case": "child-owned",
+      "passed": true,
+      "expected": "子套件现有归档保留，父流程正常记完该阶段",
+      "error": null,
+      "commands_not_executed": [
+        [
+          "/Library/Developer/CommandLineTools/usr/bin/python3",
+          "-B",
+          "/Users/luckye/Documents/Code/a2a-wt-t081/workbench/tests/run_s3_rebased_regression.py",
+          "--output",
+          "/private/tmp/t81archive-nne_pqfe/child-owned/t075-coop"
+        ]
+      ],
+      "fixture": "/private/tmp/t81archive-nne_pqfe/child-owned"
+    },
+    {
+      "case": "child-missing",
+      "passed": true,
+      "expected": "子套件缺归档时报错，父流程不补造",
+      "error": "RuntimeError('子套件没有交付普通归档文件：/private/tmp/t81archive-nne_pqfe/child-missing/t075-coop/fixtures.tar.gz')",
+      "commands_not_executed": [
+        [
+          "/Library/Developer/CommandLineTools/usr/bin/python3",
+          "-B",
+          "/Users/luckye/Documents/Code/a2a-wt-t081/workbench/tests/run_s3_rebased_regression.py",
+          "--output",
+          "/private/tmp/t81archive-nne_pqfe/child-missing/t075-coop"
+        ]
+      ],
+      "fixture": "/private/tmp/t81archive-nne_pqfe/child-missing"
+    },
+    {
+      "case": "runner-new",
+      "passed": true,
+      "expected": "runner 为未归档夹具创建含独立 sentinel 的完整归档",
+      "error": null,
+      "commands_not_executed": [],
+      "fixture": "/private/tmp/t81archive-nne_pqfe/runner-new"
+    },
+    {
+      "case": "runner-existing",
+      "passed": true,
+      "expected": "runner 意外已有归档继续独占创建失败并保留原件",
+      "error": "FileExistsError(17, 'File exists')",
+      "commands_not_executed": [],
+      "fixture": "/private/tmp/t81archive-nne_pqfe/runner-existing"
+    }
+  ],
+  "real_codex_turns": 0,
+  "daemon_started": false
+}

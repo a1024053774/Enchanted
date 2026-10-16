@@ -1,0 +1,15 @@
+⟦主控 #310⟧
+你是 T-078 'startup 键在有排队 inbox 时放行' 这一差异的 fresh-context 独立 reviewer（执行主控派发）。没有作者会话历史；只审查冻结候选；不实现、不修复、不开子 agent。先读 /Users/luckye/Documents/Code/a2a/.project-map/roles/reviewer.md（只读）。
+
+只读：唯一允许写入 /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/independent-review-startup-01.md 与同目录 REVIEW-STARTUP-OUTSIDE-01.sh（UTF-8、中文）。一次性副本放 /tmp 新目录，只解出必要路径（不要 archive 整个仓库）。不改其他文件，不 git commit/checkout/reset/stash，不 push/submit/集成，不调用模型 API，不复制 auth，不写全局配置，不请求沙箱升级；沙箱外命令写进 REVIEW-STARTUP-OUTSIDE-01.sh（每段 echo 段名、新输出目录、结尾打印退出码，变量用 ${VAR}），写完回一句，我跑完把输出给你。不要碰 A-14 现场（/private/tmp/t078-2-09b-run-gbxz0tyb 及其进程），09b-a14-s1-retry-NO-GO.json 不得执行。
+
+仓库 /Users/luckye/Documents/Code/a2a-wt-t078；产品候选提交 06fc9feca（git rev-parse 确认），基线 d1ca48022。作者交接 STARTUP-PENDING-REVIEW-REQUEST-01.md（只作线索）。主控已在沙箱外运行真实入口复验：09b-startup-pending-entry-02/result.json PASS（旧代码红：首个批准的首启键被队列守卫拒绝且未写出；修复绿：六键、release、delivered、原 I2、ack、越权拒绝链）；首次 entry-01 失败为夹具漏拷 workbench/bin/inbox（09b-startup-entry-309-diagnosis.json）。A-14 原现场与拒绝原件见 controller-decision-04.md #308 与 STARTUP-PENDING-308.md。
+
+上游要求：用户选项 1（answer 20261016T012505Z-ideation-answer-001）与主控 #298/#299：unknown 首启可登记 pending inbox 队列；经批准的一屏一键仍要放行且不得 drain；初始 release 后才写出并标 delivered、登记原有 I2；其余 assertStartup、身份、快照、信任与键次序约束不变。
+
+核对并附证据：
+1. diff 范围：d1ca48022..06fc9feca 的产品改动是否只删除 panes.ts assertStartup 的队列为空条件（README 说明除外），其他三处调用点与条件不变。
+2. 删除该条件后有无新的放行路径：首启键期间队列被 drain、业务 paste/turn_submit 在 release 前写出、用户草稿/写入中/失败/停止状态下仍能按键等——逐条在代码与证据里找答案。
+3. 完成条件够格：在你的一次性副本里构造 2～5 个错误实现（例如首启键顺带 drain 队列、release 前标 delivered、把 assertStartup 整个去掉、release 后投递两次），跑对应检查确认失败点正确。
+4. 有无吞异常、兜底重试、兼容分支、平行 API、热补丁或后台 drain 绕过。
+结论 PASS / INCOMPLETE / NO_GO，按严重度列发现。最后一行写 T-078 STARTUP REVIEW DONE。

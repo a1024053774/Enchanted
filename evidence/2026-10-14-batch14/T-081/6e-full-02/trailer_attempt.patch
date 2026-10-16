@@ -1,0 +1,11 @@
+--- candidate/workbench/src/gates/core.ts
++++ trailer_attempt/workbench/src/gates/core.ts
+@@ -1993,7 +1993,7 @@
+         if (trailers.task?.some((value) => value !== task.task_id)) error = "trailer_task_mismatch";
+         else if (Object.keys(trailers).length !== required.length ||
+           required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = "invalid_trailers";
+-        else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")
++        else if (trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")
+           error = "trailer_identity_mismatch";
+         // Delivery is the launch record copied at submit. Model may be the literal unknown; tool, effort and launch may not.
+         else if (attempt.delivery) {

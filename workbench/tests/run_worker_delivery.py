@@ -204,8 +204,19 @@ def main():
         save('git-readback.json', {'B': baseline, 'G': G, 'C': C, 'M': M})
         commit_message = git('show', '-s', '--format=%B', C)
         save('candidate-trailers.json', {'commit': C, 'message': commit_message})
+        delivered = call('status', '--task', task)['task']['current_attempt']['delivery']
+        turn_contexts = [event['data']['record']['payload'] for event in call('orchestration_events', '--task', task)['events']
+                         if event['type'] == 'native_record' and event['data']['file'].endswith(pane['native_session'] + '.jsonl')
+                         and event['data']['record']['type'] == 'turn_context'
+                         and event['data']['record']['payload'].get('turn_id') == delivered['turn_id']]
+        assert turn_contexts, delivered['turn_id']
+        turn_context = turn_contexts[-1]
+        model = turn_context.get('model') or 'unknown'
+        effort = turn_context.get('effort') or turn_context.get('reasoning_effort') or 'unknown'
+        assert model != 'unknown' and effort != 'unknown'
+        assert delivered['model'] == model and delivered['effort'] == effort
         expected = {'Task': task, 'Attempt': attempt['attempt_id'], 'Session': attempt['session_id'], 'Role': 'worker',
-                    'Tool': 'codex-cli 0.162.1', 'Model': 'unknown', 'Effort': 'unknown', 'Native-Session': pane['native_session'], 'Launch': launch['id']}
+                    'Tool': 'codex-cli 0.162.1', 'Model': model, 'Effort': effort, 'Native-Session': pane['native_session'], 'Launch': launch['id']}
         lines = [line for line in commit_message.splitlines() if line.startswith('A2A-')]
         assert sorted(lines) == sorted('A2A-' + key + ': ' + value for key, value in expected.items())
         events = call('orchestration_events', '--task', task)['events']; save('orchestration-events.json', events)

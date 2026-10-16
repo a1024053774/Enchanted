@@ -1,0 +1,488 @@
+{
+  "case": "control_busy_queue",
+  "outcome": "passed",
+  "assertions": [
+    {
+      "id": "CONTROL-BUSY-QUEUE",
+      "passed": true,
+      "expected": "busy pane registers/queues without writing PTY bytes",
+      "actual": {
+        "pane": {
+          "ok": true,
+          "thread": "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe",
+          "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+          "state": "busy",
+          "lifecycle": "running",
+          "shell_pid": 31000,
+          "state_source": "host_events",
+          "active": {
+            "id": "a5870d30-e702-4286-8df6-eb60dda29002",
+            "dispatch": "3a3e4c28-83ca-4e1c-a291-ab8ad0eb1b2b",
+            "at": "2026-10-14T19:58:25.545Z",
+            "nativeTurn": "fixture-turn-1"
+          },
+          "native_session": "fixture-native-6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+          "turn": "fixture-turn-1",
+          "writing": false,
+          "queued": [
+            "7ccd20fa-26ad-4991-8948-2a8bf801da0b"
+          ],
+          "failed": null,
+          "stopped": false
+        },
+        "writes_before": 2,
+        "writes_after": 2
+      }
+    },
+    {
+      "id": "CONTROL-BUSY-ORDER",
+      "passed": true,
+      "expected": "registered bracketed paste followed by CR with durable submit intent",
+      "actual": [
+        {
+          "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+          "data": "\u001b[200~⟦主控 #2⟧\nSecond controlled executor input.\n\u001b[201~",
+          "registered": [
+            {
+              "seq": 1,
+              "id": "3a3e4c28-83ca-4e1c-a291-ab8ad0eb1b2b",
+              "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+              "data": "{\"text\":\"Controlled test input. No model executes this role.\\n\\n\\n{\\n  \\\"id\\\": \\\"fixture-20261014-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"oracle_paths\\\": [\\n    \\\"acceptance/criterion.py\\\"\\n  ],\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"878b1abe9f35565fef53b83b7895b6dbab5d8f9b\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261014-1\\\",\\n    \\\"attempt_id\\\": \\\"45fb9527-9174-4059-adba-602c5bd4d533\\\",\\n    \\\"session_id\\\": \\\"2e17ac95-8aa6-4279-b1b1-6a158ebe198a\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261014-1\\\",\\\"attempt\\\":\\\"45fb9527-9174-4059-adba-602c5bd4d533\\\",\\\"session\\\":\\\"2e17ac95-8aa6-4279-b1b1-6a158ebe198a\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-53tt5elr/c-i5ncirtg/state' 'submit' '--task' 'fixture-20261014-1' '--attempt' '45fb9527-9174-4059-adba-602c5bd4d533' '--session' '2e17ac95-8aa6-4279-b1b1-6a158ebe198a' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\",\"registered_at\":\"2026-10-14T19:58:25.283Z\",\"source\":\"executor\"}"
+            },
+            {
+              "seq": 2,
+              "id": "7ccd20fa-26ad-4991-8948-2a8bf801da0b",
+              "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+              "data": "{\"text\":\"Second controlled executor input.\\n\",\"registered_at\":\"2026-10-14T19:58:26.066Z\",\"source\":\"executor\"}"
+            }
+          ],
+          "intents": [
+            {
+              "seq": 19,
+              "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+              "data": "{\"id\":\"a5870d30-e702-4286-8df6-eb60dda29002\",\"dispatch\":\"3a3e4c28-83ca-4e1c-a291-ab8ad0eb1b2b\",\"at\":\"2026-10-14T19:58:25.545Z\",\"nativeTurn\":null}"
+            }
+          ]
+        },
+        {
+          "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+          "data": "\r",
+          "registered": [
+            {
+              "seq": 1,
+              "id": "3a3e4c28-83ca-4e1c-a291-ab8ad0eb1b2b",
+              "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+              "data": "{\"text\":\"Controlled test input. No model executes this role.\\n\\n\\n{\\n  \\\"id\\\": \\\"fixture-20261014-1\\\",\\n  \\\"source\\\": null,\\n  \\\"goal\\\": \\\"交付 src/value.txt 中的独立预期内容\\\",\\n  \\\"non_goals\\\": [\\n    \\\"不修改项目外的文件\\\"\\n  ],\\n  \\\"paths\\\": {\\n    \\\"allow\\\": [\\n      \\\"src/\\\",\\n      \\\"tests/\\\",\\n      \\\".a2a/quality.json\\\"\\n    ],\\n    \\\"deny\\\": [\\n      \\\"src/private/\\\"\\n    ]\\n  },\\n  \\\"oracle_paths\\\": [\\n    \\\"acceptance/criterion.py\\\"\\n  ],\\n  \\\"completion_conditions\\\": [\\n    {\\n      \\\"argv\\\": [\\n        \\\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\\\",\\n        \\\"-I\\\",\\n        \\\"-B\\\",\\n        \\\"-c\\\",\\n        \\\"from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')\\\"\\n      ]\\n    }\\n  ],\\n  \\\"red_commands\\\": [],\\n  \\\"task_type\\\": \\\"后端逻辑\\\",\\n  \\\"repair_target\\\": null,\\n  \\\"complexity\\\": \\\"L\\\",\\n  \\\"executor\\\": {\\n    \\\"cli\\\": \\\"Codex\\\",\\n    \\\"model\\\": \\\"gpt-6.1-sol\\\",\\n    \\\"effort\\\": \\\"xhigh\\\"\\n  },\\n  \\\"base_commit\\\": \\\"878b1abe9f35565fef53b83b7895b6dbab5d8f9b\\\",\\n  \\\"writer\\\": {\\n    \\\"task_id\\\": \\\"fixture-20261014-1\\\",\\n    \\\"attempt_id\\\": \\\"45fb9527-9174-4059-adba-602c5bd4d533\\\",\\n    \\\"session_id\\\": \\\"2e17ac95-8aa6-4279-b1b1-6a158ebe198a\\\",\\n    \\\"fence\\\": 1,\\n    \\\"thread_id\\\": \\\"fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe\\\"\\n  }\\n}\\n\\n受管身份：{\\\"command\\\":\\\"submit\\\",\\\"task\\\":\\\"fixture-20261014-1\\\",\\\"attempt\\\":\\\"45fb9527-9174-4059-adba-602c5bd4d533\\\",\\\"session\\\":\\\"2e17ac95-8aa6-4279-b1b1-6a158ebe198a\\\",\\\"fence\\\":1,\\\"spec_rev\\\":1,\\\"commit\\\":\\\"<FULL_COMMIT_SHA>\\\"}\\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\\n'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts' '--state' '/private/tmp/q76-53tt5elr/c-i5ncirtg/state' 'submit' '--task' 'fixture-20261014-1' '--attempt' '45fb9527-9174-4059-adba-602c5bd4d533' '--session' '2e17ac95-8aa6-4279-b1b1-6a158ebe198a' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'\\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。\",\"registered_at\":\"2026-10-14T19:58:25.283Z\",\"source\":\"executor\"}"
+            },
+            {
+              "seq": 2,
+              "id": "7ccd20fa-26ad-4991-8948-2a8bf801da0b",
+              "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+              "data": "{\"text\":\"Second controlled executor input.\\n\",\"registered_at\":\"2026-10-14T19:58:26.066Z\",\"source\":\"executor\"}"
+            }
+          ],
+          "intents": [
+            {
+              "seq": 19,
+              "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+              "data": "{\"id\":\"a5870d30-e702-4286-8df6-eb60dda29002\",\"dispatch\":\"3a3e4c28-83ca-4e1c-a291-ab8ad0eb1b2b\",\"at\":\"2026-10-14T19:58:25.545Z\",\"nativeTurn\":null}"
+            },
+            {
+              "seq": 44,
+              "launch": "6fda8b46-7b46-498b-9af4-c3d8951c3e6f",
+              "data": "{\"id\":\"ca0e3b7d-e8ee-4129-a6b8-9d3b416fcf8f\",\"dispatch\":\"7ccd20fa-26ad-4991-8948-2a8bf801da0b\",\"at\":\"2026-10-14T19:58:26.401Z\",\"nativeTurn\":null}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cleanup_failures": [],
+  "commands": [
+    {
+      "id": 1,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0001.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0001.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0002.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0002.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0003.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0003.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0004.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0004.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0005.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0005.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "argv": [
+        "/bin/ps",
+        "-p",
+        "96319",
+        "-o",
+        "pid=,ppid=,pgid=,command="
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0006.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0006.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 7,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "card_save",
+        "--task",
+        "fixture-20261014-1",
+        "--card",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0007.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0007.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 8,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "create",
+        "--task",
+        "fixture-20261014-1",
+        "--repo",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0008.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0008.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 9,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "dispatch",
+        "--task",
+        "fixture-20261014-1",
+        "--runtime-mode",
+        "workspace-write"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0009.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0009.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 10,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_status",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0010.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0010.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 11,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_release",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe",
+        "--reason",
+        "explicit controlled-fixture release"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0011.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0011.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 12,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_status",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0012.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0012.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 13,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_dispatch",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe",
+        "--body-file",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/queued.txt"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0013.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0013.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 14,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_status",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0014.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0014.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 15,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_status",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0015.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0015.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 16,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "signal",
+        "--launch",
+        "6fda8b46-7b46-498b-9af4-c3d8951c3e6f"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0016.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0016.stderr.bin",
+      "stdin": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0016.stdin.json",
+      "exit": 0
+    },
+    {
+      "id": 17,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_status",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0017.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0017.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 18,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_status",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0018.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0018.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 19,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "pane_status",
+        "--thread",
+        "fcf2ccbe-5ef7-4cf9-9852-d1b26a68d8fe"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0019.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0019.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 20,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/repo",
+        "show-ref"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0020.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0020.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 21,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/repo",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0021.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0021.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 22,
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/repo",
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0022.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0022.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 23,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "daemon_status"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0023.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0023.stderr.bin",
+      "exit": 0
+    },
+    {
+      "id": 24,
+      "argv": [
+        "node",
+        "/private/tmp/t81-7n2jb4f5/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/q76-53tt5elr/c-i5ncirtg/state",
+        "daemon_stop"
+      ],
+      "cwd": "/private/tmp/q76-53tt5elr/c-i5ncirtg",
+      "stdout": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0024.stdout.bin",
+      "stderr": "/Users/luckye/Documents/Code/a2a-wt-t081/evidence/2026-10-14-batch14/T-081/full-03/t076-controls/control_busy_queue/command-0024.stderr.bin",
+      "exit": 0
+    }
+  ],
+  "fixture": "/private/tmp/q76-53tt5elr/c-i5ncirtg"
+}

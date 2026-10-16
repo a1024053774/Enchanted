@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "scope": "分类、缺身份/错身份反例及真实 Git 空白错误；未 add、commit 或修改 index",
+  "checked_examples": [
+    "workbench/tests/commit_t081_closeout.py",
+    "acceptance/criterion.py",
+    "scripts/check",
+    ".project-map/tickets/T-081.md",
+    "evidence/2026-10-14-batch14/T-081/COMMIT-READY.md",
+    "evidence/2026-10-14-batch14/T-081/full-04/RESULTS.md",
+    "evidence/2026-10-14-batch14/T-081/closeout-final-01/RESULTS.md"
+  ],
+  "raw_excluded_examples": [
+    "evidence/2026-10-14-batch14/T-081/capability-run-03/traces/native/pty.raw",
+    "evidence/2026-10-14-batch14/T-081/capability-run-04/fixture_artifacts.py",
+    "evidence/2026-10-14-batch14/T-081/capability-review-03/FIRST-TURN.template.md",
+    "evidence/2026-10-14-batch14/T-081/capability-review-04/ROLE-BODY.md"
+  ],
+  "identity_errors": [
+    {
+      "case": "missing-all",
+      "error": "缺少提交身份环境变量；先由主控按 s14-t081 记录设置：A2A_PROJECT, A2A_TASK, A2A_ATTEMPT, A2A_SESSION, A2A_ROLE, A2A_LAUNCH, A2A_LAUNCHES, CODEX_THREAD_ID, GIT_CONFIG_COUNT, GIT_CONFIG_KEY_0, GIT_CONFIG_VALUE_0"
+    },
+    {
+      "case": "wrong-native",
+      "error": "A2A_LAUNCH / CODEX_THREAD_ID 必须匹配主控 #179 指定的 s14-t081 启动和原生会话。"
+    },
+    {
+      "case": "wrong-owner-session",
+      "error": "环境变量与启动记录不符：A2A_SESSION"
+    }
+  ],
+  "valid_identity": {
+    "agent": "s14-t081",
+    "launch": "launch-517c75701a0443ec9633fb6388e8ad2f",
+    "native_session": "01a13bc2-d779-7370-88a0-6b71bb434456",
+    "native_source": "主控 #179 / Herdr 记录",
+    "ledger": "/Users/luckye/Documents/Code/a2a/records/launches.jsonl",
+    "native_binding_in_ledger": "unknown",
+    "task": "T-081",
+    "attempt": "a1",
+    "session": "6962bde6-a95a-4810-b4cf-58f34515d820",
+    "role": "worker",
+    "hooks": "/Users/luckye/Documents/Code/a2a/scripts/git-hooks"
+  },
+  "code_whitespace_counterexample": {
+    "argv": [
+      "git",
+      "diff",
+      "--no-index",
+      "--check",
+      "--",
+      "/dev/null",
+      "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t081-white-svmp0jnr/source.py"
+    ],
+    "exit": 3,
+    "stdout": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t081-white-svmp0jnr/source.py:1: trailing whitespace.\n+value = 1 \n",
+    "stderr": ""
+  },
+  "real_codex_turns": 0,
+  "raw_evidence_modified": false
+}
