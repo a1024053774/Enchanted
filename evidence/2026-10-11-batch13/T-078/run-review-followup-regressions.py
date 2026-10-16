@@ -61,8 +61,24 @@ def verify_mutant(folder, name, core, code):
             if any(fence == claim['fence'] + 31 and session == claim['session_id'] for claim in claims):
                 violations.append(json.loads(item['stdout']).get('ok') is True)
         assert any(violations), 'fence red must show the wrong fence was accepted'
+    elif name == 'cas':
+        # The original CAS race contract requires rebinding G with unchanged C,
+        # preserving the external ancestor, and running verification again.
+        assert result['selected_cases'] == [BAD['cas'][1]], 'CAS original method required'
+        def one(claim):
+            rows = [item for item in assertions if item['claim'] == claim]
+            assert len(rows) == 1, 'CAS assertion missing or duplicated: ' + claim
+            return rows[0]
+        binding = one('CAS revalidation binds the new G and unchanged C')
+        external, candidate = binding['expected']
+        assert binding['pass'] is False and binding['observed']['G'] != external and binding['observed']['C'] == candidate, 'CAS stale G with unchanged C required'
+        ancestor = one('CAS integration preserves ancestor ' + external)
+        assert ancestor['pass'] is False and ancestor['expected'] == 0 and ancestor['observed'] == 1, 'CAS external commit must be lost from ancestry'
+        oracle = one('CAS revalidation executes the oracle again')
+        assert oracle['pass'] is False and oracle['expected'] == 2 and oracle['observed'] == 1, 'CAS omitted revalidation required'
+        assert any(item.get('classification') == 'business-red' for item in result['original_results'])
     else:
-        labels = {'CAS rejects a changed expected old value', 'CAS preserves the external writer reference'} if name == 'cas' else {
+        labels = {
             'Live operation excludes concurrent verify', 'Live operation excludes concurrent integrate', 'Busy commands never start a second oracle'}
         assert any(item['claim'] in labels and item['pass'] is False for item in assertions)
         assert any(item.get('classification') == 'business-red' for item in result['original_results'])
@@ -72,15 +88,21 @@ def verify_mutant(folder, name, core, code):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__); parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--only-mutant', choices=['cas'], help='Run only the original CAS mutant case; do not rerun completed suites')
     parser.add_argument('--check-only', action='store_true'); args = parser.parse_args()
     out = args.output.resolve(); required = check_paths(out)
     if args.check_only:
         print(json.dumps({'status': 'PASS', 'scope': 'paths, syntax, mutation sites only; no runtime tests',
-              'required_inputs': [str(path) for path in required], 'suites': SUITES, 'mutants': BAD,
+              'required_inputs': [str(path) for path in required], 'suites': [] if args.only_mutant else SUITES,
+              'mutants': {args.only_mutant: BAD[args.only_mutant]} if args.only_mutant else BAD,
               'new_processes': 0, 'real_model_turns': 0})); return 0
     freeze = json.loads((BASE / 'review-followup-source.json').read_bytes()); head = git('rev-parse', 'HEAD')
     subprocess.run(['git', 'merge-base', '--is-ancestor', freeze['revision'], head], cwd=SOURCE, check=True)
-    assert not git('diff', freeze['revision'], '--', *PROTECTED), 'Frozen source changed'
+    # A scoped classifier repair can change this committed harness only. Runtime,
+    # original tests, mutation helper and prepare remain byte-identical to freeze.
+    protected = PROTECTED[:-1] if args.only_mutant else PROTECTED
+    assert not git('diff', freeze['revision'], '--', *protected), 'Frozen source changed'
+    assert not git('diff', 'HEAD', '--', PROTECTED[-1]), 'Commit the classifier before runtime execution'
     assert not git('ls-files', '--others', '--exclude-standard', '--', 'workbench', 'acceptance', 'scripts')
     assert not git('diff', freeze['business_revision'], '--', 'workbench/src', 'workbench/app')
     assert Path('/Volumes/WD-Elements').is_mount(), 'External build disk required'
@@ -88,6 +110,8 @@ def main():
     env = {key: value for key, value in os.environ.items() if not key.startswith(('A2A_', 'GIT_', 'COOP_', 'CODEX_', 'CLAUDE_', 'ANTHROPIC_', 'OPENAI_'))}
     env['PYTHONDONTWRITEBYTECODE'] = '1'
     record = {'status': 'INCOMPLETE', 'revision': head, 'business_revision': freeze['business_revision'],
+              'scope': 'mutant-cas only' if args.only_mutant else 'full regression and three mutants',
+              'frozen_input_revision': freeze['revision'],
               'real_model_turns': 0, 'vendor_CLI_sessions': 0, 'stages': []}
     def save(): (out / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     def run(argv, name, timeout=900):
@@ -102,7 +126,7 @@ def main():
     save()
     try:
         entry = SOURCE / 'workbench/tests/run_s3_rebased_regression.py'
-        for suite, count in SUITES:
+        for suite, count in ([] if args.only_mutant else SUITES):
             row, code = run([sys.executable, '-B', entry, '--suite', suite, '--revision', head, '--output', out / suite], suite)
             result = json.loads((out / suite / 'run.json').read_bytes())
             assert code == 0 and result['status'] == 'PASS' and result['tests_run'] == count
@@ -114,11 +138,13 @@ def main():
         manifest_path = helper.prepare(out / 'mutants', task='T-078-review-followup-F4')
         manifest = json.loads(manifest_path.read_bytes())
         record['mutation_source_fixture'] = manifest['root']; save()
-        for name, (suite, case) in BAD.items():
+        for name in ([args.only_mutant] if args.only_mutant else BAD):
+            suite, case = BAD[name]
             core = Path(manifest['mutants'][name]['core']); folder = out / ('mutant-' + name)
             row, code = run([sys.executable, '-B', entry, '--suite', suite, '--revision', head, '--case', case, '--mutant-core', core, '--output', folder], 'mutant-' + name)
             row['verdict'] = verify_mutant(folder, name, core, code); row['status'] = 'PASS'; save()
-        assert git('rev-parse', 'HEAD') == head and not git('diff', freeze['revision'], '--', *PROTECTED)
+        assert git('rev-parse', 'HEAD') == head and not git('diff', freeze['revision'], '--', *protected)
+        assert not git('diff', 'HEAD', '--', PROTECTED[-1])
         record['status'] = 'PASS'
     except Exception as error:
         record.update(error=repr(error), traceback=traceback.format_exc(), retry=False)

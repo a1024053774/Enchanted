@@ -1376,3 +1376,11 @@ A16/09C沿同一个标准prepare/StageA/API/角色工具；新增显式scene，A
 本轮文件冻结完成：source commit **1b86f2c91c781cd4867227230185fc2a2c145aeb**（含merge43d085c5d/main6d85482ff），A16 `09b-executable-materials-16` 与C `09c-executable-materials-01` 各312个源码/输入成员，均从该Git提交逐字节核对。两份SOURCE.json、StageA命令及空签字批准已生成；C预算原生turn_limit明确4/1，旧共享布局和旧marker不兼容。标准包含完整受控宿主ready_file、app/reader/API/owner/角色生成闭包。
 
 [final-static](merge-main-4/final-static.json) **PASS，仅静态**：10条命令/入口检查、实际输入存在或明确列为StageA/B1后生成、未签字段、两组预算、源码闭包核对及两个runner的check-only均通过。静态root在/private/tmp保留供主控StageA复制，不是已运行场景。没有执行StageA、原生CLI、fakeAPI、daemon、按键或回归；两份真实回归收据仍缺，StageA机械拒绝缺收据的启动。原主控工具实跑目录已无损打包为rev2-tools-outside-01.originals.tar.gz，逐字读回后保留原样JSON摘要与originals.archive.json，原失败/反例/HTTP均在包内，非改写旧结果。
+
+## 主控 #342：合并后整组通过；mutant-cas 分类器 claim 错误
+
+主控在 `7f45637794b5455d46125242dae90efba4863aee` 沙箱外运行：[T078 自身](merge-main-4-t078-regressions-01/result.json) 四段全部 **PASS**（pending/controller/input、startup 领域与 M5、startup 真实入口与 M5、worker-inbox）；[F4 整组](review-followup-regressions-02/result.json) coop8/recovery9/run18/CAS1/cards15 共51方法首次在同一次运行全 **PASS**，fence 变异按预期业务失败。主控报告负载最高1分钟3.51，原日志 [regressions-load.log](merge-main-4/regressions-load.log) 留存；不据此宣称稳定性改善。
+
+F4 顶层仍 **INCOMPLETE**：CAS 子测试已是1 failure/0 error/0 skipped、business-red，但本票 runner 期待的两条 claim 不存在于选中的原 CAS 方法，所以在分类处 AssertionError。[诊断](MUTANT-CAS-DIAGNOSIS-01.md) 列出独立原方法与原 assertions 对照：旧 G 未重绑、外部提交祖先关系丢失、oracle只运行1次。变异没有检错位置，属于 **runner 分类器缺陷**。未改 acceptance、workbench、变异 helper 或旧结果；本次把主控放回的原回归目录、签存日志一并原样入库，不重写任何原结论。
+
+分类器按原用例 CAS 契约修复；相同保存原件重放 red→green，**11项 PASS**（1有效红态＋10误判反例），无真实门禁/API/CLI/模型。新 `--only-mutant cas` 的路径/语法/单点位置 check-only 已实测 PASS；[单段命令](MUTANT-CAS-RECHECK-COMMAND.txt) 交主控沙箱外以新 `review-followup-mutant-cas-03` 执行，尚未运行。原 lock 变异未运行，保持INCOMPLETE；本轮不扩大重跑范围、不改写整组结果，也不启动 A16/09C。现有源码冻结包未变；原 Stage A 要求全量回归 PASS 的前置仍未满足。整票仍 **INCOMPLETE／NO_GO**。
