@@ -150,7 +150,9 @@ def normalize_anthropic_request(request, registry, role=None):
     normalized_messages=list(messages)
     text_index=next(index for index in user_indexes if dispatch['text'] in _text_blocks(messages[index]))
     normalized_messages[text_index]={**messages[text_index],'content':matched_text}
-    tool_result = _tool_result_block(messages, dispatch.get('tool_use', {}).get('id')) if dispatch.get('tool_use') else None
+    # Prior roots remain in Claude's transcript. Only blocks following the
+    # current registered root belong to this tool invocation.
+    tool_result = _tool_result_block(messages[text_index:], dispatch.get('tool_use', {}).get('id')) if dispatch.get('tool_use') else None
     normalized={
         'path':'/v1/messages', 'dispatch_id':dispatch['id'], 'dispatch_seq':dispatch['seq'],
         'role':dispatch['role'], 'request_id':dispatch.get('request_id'),
@@ -203,7 +205,9 @@ def validate_request(request, registry):
     for key in ['attempt','session','fence']:
         if request.get(key)!=dispatch.get(key): raise ProtocolRefusal('target_binding_mismatch')
     limit=registry.get('message_budget',6 if request.get('role')=='ideation' else 11)
-    if len(request.get('messages',[]))>limit: raise ProtocolRefusal('message_budget_exhausted')
+    # Messages is the count of HTTP calls, not the length of the transcript.
+    # The service supplies this count; it is never taken from the request.
+    if registry.get('messages_used', 0)>limit: raise ProtocolRefusal('message_budget_exhausted')
     if dispatch.get('tool_use'):
         if request.get('tool_result'):
             _tool_use_history(messages, dispatch['tool_use'])

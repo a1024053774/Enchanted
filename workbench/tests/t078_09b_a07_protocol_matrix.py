@@ -41,7 +41,7 @@ def run_stage(stage, role, mutant, seq):
     if mutant == 'identity': bad['attempt'] = ''
     if mutant == 'stop': bad['stop_id'] = 'wrong-stop'
     if mutant == 'role': bad['role'] = 'ideation' if role == 'executor' else 'executor'
-    if mutant == 'budget': bad['messages'] = [bad['messages'][0] for _ in range(registry['message_budget'] + 1)]
+    if mutant == 'budget': registry['messages_used'] = registry['message_budget'] + 1
     try:
         validate_request(bad, registry)
     except ProtocolRefusal as error:

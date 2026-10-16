@@ -1,4 +1,4 @@
-"""Approve exactly one native Bash permission for protocol I1.
+"""Approve exactly one native Bash permission for one registered 09B stage.
 
 The dispatch phase must have stopped at ``READY_FOR_PERMISSION`` first.  This
 script reads the bound permission screen, uses the real Electron window input
@@ -12,13 +12,17 @@ import os
 import sqlite3
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parents[2]
 TESTS = SOURCE / 'workbench/tests'
 sys.path.insert(0, str(TESTS))
 from electron_client import ElectronClient
-from t078_09b_i1_driver import gate, protocol_i1_readback
+from t078_09b_i1_driver import gate
+from t078_09b_phase_driver import settle_stage
+
+OUTPUT = None
 
 
 def rows(state, table):
@@ -35,18 +39,23 @@ def events(state, launch):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--materials', type=Path, required=True)
+    parser.add_argument('--p1', type=Path, required=True)
+    parser.add_argument('--stage', required=True)
     parser.add_argument('--stage-a', type=Path, required=True)
     parser.add_argument('--dispatch-result', type=Path, required=True)
     parser.add_argument('--process-manifest', type=Path, required=True)
     parser.add_argument('--approval', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
+    global OUTPUT
+    OUTPUT = args.output.resolve(); OUTPUT.mkdir(parents=True, exist_ok=False)
     materials = args.materials.resolve(); stage_a = args.stage_a.resolve(); dispatch_result = json.loads(args.dispatch_result.read_bytes())
     approval = json.loads(args.approval.read_bytes()); manifest = json.loads(args.process_manifest.read_bytes())
-    input_data = json.loads((materials / 'b1-input.json').read_bytes())
+    input_data = json.loads((args.p1 / 'input.json').read_bytes())
     readiness = json.loads((stage_a / 'readiness.json').read_bytes())
     root = Path(readiness['root']).resolve(); state = root / 'state'; launch = input_data['launch']; thread = input_data['thread']
     if dispatch_result.get('status') != 'READY_FOR_PERMISSION': raise RuntimeError('protocol_dispatch_phase_required')
+    if dispatch_result.get('stage') != args.stage: raise RuntimeError('permission_stage_mismatch')
     if approval.get('approved_by') != 'executor' or not approval.get('approval_ref'):
         raise RuntimeError('permission_approval_required')
     for key in ['launch', 'session']:
@@ -61,7 +70,7 @@ def main():
     if approval.get('key') != 'Enter' or approval.get('selected_label') != 'Yes' or approval.get('selected_line') != '❯ 1. Yes':
         raise RuntimeError('permission_yes_binding_required')
     command = permission_event.get('data', {}).get('tool_input', {}).get('command')
-    if not command or approval.get('bash_command') != command:
+    if not command or approval.get('bash_command') != command or dispatch.get('tool_use', {}).get('input') != {'command': command}:
         raise RuntimeError('permission_command_mismatch')
     observed = gate(root, 'pane_output', '--launch', launch, '--offset', '0')
     if base64.b64decode(observed['data_base64']) != screen_file.read_bytes():
@@ -74,11 +83,10 @@ def main():
         raise RuntimeError('permission_event_missing')
     # Every permission attempt gets a distinct build slot. build.mjs refuses
     # to overwrite an existing slot, so derive it from the new output label.
-    slot = 't078-a12-i1-' + args.output.name + '-' + launch
+    slot = 't078-a14-' + args.stage + '-' + args.output.name + '-' + launch
     build = subprocess.run(['node', str(SOURCE / 'workbench/app/build.mjs'), '--slot', slot], cwd=SOURCE,
                            capture_output=True, text=True, check=True)
     build_out = json.loads(build.stdout.strip().splitlines()[-1])['out']
-    env = json.loads((materials / 'b1-input.json').read_bytes())
     client_env = {**os.environ, 'PATH': '/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin',
                   'HOME': str(root / 'manager-home'), 'TMPDIR': str(root / 'tmp'),
                   'A2A_OPERATOR_CREDENTIAL': str(root / 'operator.json'),
@@ -100,9 +108,8 @@ def main():
         action_rows = [row for row in rows(state, 'user_inputs') if row.get('source_ref', {}).get('command_id') == intents[0]['data'].get('request_id')]
         if len(action_rows) != 1 or action_rows[0].get('form') != 'action' or action_rows[0].get('content', {}).get('data') != '\r':
             raise RuntimeError('permission_enter_not_control_action')
-        result = protocol_i1_readback(root, root / 'roles' / 'ideation', launch, thread, readiness['target_binding'], dispatch,
-                                      dispatch_result.get('release'), args.output.resolve(), dispatch_result['protocol_source'],
-                                      Path(dispatch_result['test_simulated_user_action']))
+        plan = json.loads(Path(dispatch_result['phase_plan']).read_bytes())
+        result = settle_stage(plan, input_data, args.stage, args.output.resolve())
         result.update({'permission_approval': approval, 'permission_view': view, 'permission_key_result': key_result,
                        'permission_control_action': action_rows[0], 'process_manifest': str(args.process_manifest.resolve())})
         (args.output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
@@ -113,4 +120,9 @@ def main():
 
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        if OUTPUT is not None:
+            (OUTPUT / 'result.json').write_text(json.dumps({'status':'INCOMPLETE','error':repr(error),'traceback':traceback.format_exc()},ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+        raise

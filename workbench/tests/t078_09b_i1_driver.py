@@ -1,4 +1,4 @@
-"""A-06 I1 driver: register one dispatch, arm protocol, release once, stop at idle."""
+"""Approved 09B phase entry; historical no-tool pipeline checks stay separate."""
 import argparse
 import json
 import os
@@ -33,25 +33,6 @@ def registration(prompt, binding, seq=1, role='ideation'):
     }
     registry = {'dispatches': {dispatch['id']: dispatch}, 'message_budget': 6, 'ack_text': 'I1_ACK'}
     return dispatch, registry
-
-
-def protocol_i1_tool(binding, root, synthetic_input_id):
-    """Build I_SEND_STOP from the frozen command with live IDs substituted."""
-    protocol_path = SOURCE / 'evidence/2026-10-11-batch13/T-078/09b-materials-01/protocol.json'
-    commands = json.loads(protocol_path.read_bytes())['commands']
-    values = {
-        '{target.thread_id}': binding['thread_id'],
-        '{target.attempt_id}': binding['attempt_id'],
-        '{synthetic_user_input.id}': synthetic_input_id,
-    }
-    argv = []
-    for token in commands['I_SEND_STOP']['argv']:
-        for placeholder, value in values.items():
-            token = token.replace(placeholder, str(value))
-        if token.endswith('/roles/ideation/stop-body.txt'):
-            token = str(root / 'roles' / 'ideation' / 'stop-body.txt')
-        argv.append(token)
-    return {'name': 'Bash', 'id': uid(), 'input': {'command': shlex.join(argv)}, 'command_argv': argv}, str(protocol_path)
 
 
 def anthropic_body(dispatch):
@@ -107,7 +88,7 @@ def spy(mutant=None, stage='I1'):
     if mutant == 'identity': request['attempt'] = ''
     if mutant == 'stop': request['stop_id'] = 'wrong-stop'
     if mutant == 'role': request['role'] = 'executor'
-    if mutant == 'budget': request['messages'] = [request['messages'][0] for _ in range(stage_budget(stage)+1)]
+    if mutant == 'budget': registry['messages_used'] = stage_budget(stage)+1
     try:
         validate_request(request, registry)
     except ProtocolRefusal as error:
@@ -148,7 +129,7 @@ def prompt_and_queue_spy():
 
 
 def gate(root, command, *args):
-    env = {**os.environ, 'A2A_OPERATOR_CREDENTIAL': str(root / 'operator.json'),
+    env = {**{k:v for k,v in os.environ.items() if not k.startswith('A2A_')}, 'A2A_OPERATOR_CREDENTIAL': str(root / 'operator.json'),
            'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull}
     result = subprocess.run([
         '/opt/homebrew/bin/node', str(SOURCE / 'workbench/src/gates/cli.ts'),
@@ -156,108 +137,18 @@ def gate(root, command, *args):
     ], cwd=SOURCE, env=env, capture_output=True, text=True)
     if result.returncode:
         raise RuntimeError({'command': command, 'exit': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr})
-    return json.loads(result.stdout.strip().splitlines()[-1])
+    value = json.loads(result.stdout.strip().splitlines()[-1])
+    if value.get('ok') is not True:
+        raise RuntimeError({'gate_refused': value, 'command': command})
+    return value
 
 
-def protocol_i1_readback(root, api_root, launch, thread, binding, dispatch, released, output,
-                         protocol_source, action_path):
-    """Wait for exactly tool_use/tool_result, then read inbox/relay state."""
-    deadline = time.monotonic() + 45
-    request_rows = []
-    response_rows = []
-    stop_events = []
-    permission_events = []
-    stop_entries = []
-    while time.monotonic() < deadline:
-        request_file = api_root / 'requests.ndjson'
-        response_file = api_root / 'responses.ndjson'
-        if request_file.exists():
-            request_rows = [json.loads(line) for line in request_file.read_text(encoding='utf-8').splitlines() if line]
-            request_rows = [row for row in request_rows if row.get('dispatch_id') == dispatch['id']]
-        if response_file.exists():
-            response_rows = [json.loads(line) for line in response_file.read_text(encoding='utf-8').splitlines() if line]
-            response_rows = [row for row in response_rows if row.get('dispatch_id') == dispatch['id']]
-        events = gate(root, 'orchestration_events').get('events', [])
-        stop_events = [event for event in events if event.get('launch') == launch and event.get('type') == 'turn_end_signal']
-        permission_events = [event for event in events if event.get('launch') == launch and event.get('type') == 'permission_wait']
-        if len(request_rows) == 2 and [row.get('message_kind') for row in request_rows] == ['tool_use', 'tool_result'] and len(response_rows) == 2 and len(stop_events) >= 2 and len(permission_events) == 1:
-            state = root / 'state' / 'state.sqlite3'
-            if state.exists():
-                with sqlite3.connect(f'file:{state}?mode=ro', uri=True) as db:
-                    rows = db.execute('SELECT data FROM inbox_records ORDER BY rowid').fetchall()
-                records = [json.loads(row[0]) for row in rows]
-                required_refs = {f"thread:{binding['thread_id']}", f"attempt:{binding['attempt_id']}"}
-                stop_entries = [record for record in records
-                                if record.get('kind') == 'stop'
-                                and record.get('from') == 'ideation'
-                                and record.get('to') == 'executor'
-                                and required_refs.issubset(set(record.get('refs', [])))]
-            if stop_entries:
-                break
-        time.sleep(.1)
-    if len(request_rows) != 2 or [row.get('message_kind') for row in request_rows] != ['tool_use', 'tool_result']:
-        raise RuntimeError('protocol_i1_messages_mismatch')
-    if len(response_rows) != 2 or len(permission_events) != 1:
-        raise RuntimeError('protocol_i1_permission_or_response_mismatch')
-    if not stop_entries:
-        raise RuntimeError('protocol_i1_stop_entry_missing')
-    status = gate(root, 'pane_status', '--thread', thread)
-    if status.get('state') != 'idle':
-        raise RuntimeError('i1_not_idle')
-    result = {'status': 'PASS', 'stage': 'I1', 'role': 'ideation', 'dispatch': dispatch,
-              'release': released, 'requests': request_rows, 'responses': response_rows,
-              'permission_events': permission_events, 'stop_events': stop_events,
-              'stop_entry': stop_entries[-1], 'messages_sent': 2, 'roots_used': 1,
-              'protocol_source': protocol_source, 'test_simulated_user_action': str(action_path),
-              'oracle': {'inbox_records': True, 'relay_events': True, 'target_binding': True},
-              'stop_condition': 'tool_use + tool_result, actual Stop/relay wake, idle; no retry'}
-    # The protocol command deliberately records dispatch and permission
-    # evidence below execute-01/dispatch-01. Create only missing parents; a
-    # pre-existing output directory remains a hard refusal.
-    output.mkdir(parents=True, exist_ok=False)
-    (output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
-    return result
-
-
-def protocol_i1_wait_permission(root, api_root, launch, thread, binding, dispatch, released,
-                                output, protocol_source, action_path):
-    """Stop after the first tool_use and preserve the exact permission screen."""
-    deadline = time.monotonic() + 45
-    request_rows = []
-    response_rows = []
-    permission_events = []
-    while time.monotonic() < deadline:
-        request_file = api_root / 'requests.ndjson'
-        response_file = api_root / 'responses.ndjson'
-        if request_file.exists():
-            request_rows = [json.loads(line) for line in request_file.read_text(encoding='utf-8').splitlines() if line]
-            request_rows = [row for row in request_rows if row.get('dispatch_id') == dispatch['id']]
-        if response_file.exists():
-            response_rows = [json.loads(line) for line in response_file.read_text(encoding='utf-8').splitlines() if line]
-            response_rows = [row for row in response_rows if row.get('dispatch_id') == dispatch['id']]
-        events = gate(root, 'orchestration_events').get('events', [])
-        permission_events = [event for event in events if event.get('launch') == launch and event.get('type') == 'permission_wait']
-        if len(request_rows) == 1 and request_rows[0].get('message_kind') == 'tool_use' and len(response_rows) == 1 and len(permission_events) == 1:
-            screen = gate(root, 'pane_output', '--launch', launch, '--offset', '0')
-            raw = __import__('base64').b64decode(screen['data_base64'])
-            output.mkdir(parents=True, exist_ok=False)
-            (output / 'permission-screen.bin').write_bytes(raw)
-            (output / 'permission-screen.json').write_text(json.dumps({'launch': launch, 'session': dispatch.get('session'),
-                'dispatch': dispatch['id'], 'permission_event': permission_events[0], 'output': screen}, ensure_ascii=False, indent=2) + '\n')
-            result = {'status': 'READY_FOR_PERMISSION', 'stage': 'I1', 'role': 'ideation',
-                      'dispatch': dispatch, 'release': released, 'requests': request_rows,
-                      'responses': response_rows, 'permission_event': permission_events[0],
-                      'permission_screen': str((output / 'permission-screen.bin').resolve()),
-                      'test_simulated_user_action': str(action_path), 'messages_sent': 1,
-                      'roots_used': 1, 'protocol_source': protocol_source,
-                      'stop_condition': 'pause before permission Enter; no tool_result, Stop or executor wake yet'}
-            (output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
-            return result
-        time.sleep(.1)
-    raise RuntimeError('protocol_i1_permission_wait_deadline')
-
-
-def execute(materials, stage_a, approval, output, stage='I1', resume_queued=False, protocol=False, protocol_phase='full'):
+def execute(materials, stage_a, approval, output, stage='I1', resume_queued=False, protocol=False, protocol_phase='dispatch'):
+    if protocol:
+        if resume_queued:
+            raise RuntimeError('A14 protocol never re-dispatches an old root')
+        from t078_09b_phase_driver import execute as execute_phase
+        return execute_phase(materials, stage_a, approval, output, stage, protocol_phase)
     approval_data = json.loads(approval.read_bytes())
     role=stage_role(stage)
     if approval_data.get('approved_by') != 'executor' or approval_data.get('phase') != stage or approval_data.get('role') != role:
@@ -291,30 +182,9 @@ def execute(materials, stage_a, approval, output, stage='I1', resume_queued=Fals
     assert dispatch['seq'] >= 1 and dispatch['text'] == f"⟦主控 #{dispatch['seq']}⟧\n{normalized_prompt}"
     registry_dispatch = {**dispatch, 'role': role,
                          'attempt': binding['attempt_id'], 'session': p1_input['session'], 'fence': binding['fence']}
-    protocol_source = None
-    if protocol and stage == 'I1':
-        synthetic_input_id = uid()
-        action = {'id': synthetic_input_id, 'source': 'test-simulated-user',
-                  'action': 'window-stop-request', 'approval_ref': approval_data.get('approval_ref'),
-                  'launch': p1_input['launch'], 'thread': thread}
-        action_path = root / 'roles' / role / f'window-stop-action-{dispatch["id"]}.json'
-        action_path.write_text(json.dumps(action, ensure_ascii=False, indent=2) + '\n')
-        body_path = root / 'roles' / role / 'stop-body.txt'
-        body_path.write_text(json.dumps({'action_id': synthetic_input_id, 'source': 'test-simulated-user',
-                                         'approved_by': approval_data.get('approved_by')}, ensure_ascii=False) + '\n')
-        tool, protocol_source = protocol_i1_tool(binding, root, synthetic_input_id)
-        registry_dispatch['tool_use'] = tool
-        registry_dispatch['tool_result'] = {'request_root': str(api_root / 'requests')}
-        registry_dispatch['protocol_source'] = protocol_source
     registry = {'dispatches': {dispatch['id']: registry_dispatch}, 'message_budget': stage_budget(stage), 'ack_text': stage+'_ACK'}
     (api_root / 'protocol-registry.json').write_text(json.dumps(registry, ensure_ascii=False, indent=2) + '\n')
     released = gate(root, 'pane_release', '--thread', thread, '--reason', 'I1 approval: release one registered dispatch')
-    if protocol and stage == 'I1':
-        if protocol_phase == 'dispatch':
-            return protocol_i1_wait_permission(root, api_root, p1_input['launch'], thread, binding, dispatch, released,
-                                               output, protocol_source, action_path)
-        return protocol_i1_readback(root, api_root, p1_input['launch'], thread, binding, dispatch, released,
-                                    output, protocol_source, action_path)
     deadline = time.monotonic() + 45
     response = None
     events = []
@@ -341,18 +211,13 @@ def execute(materials, stage_a, approval, output, stage='I1', resume_queued=Fals
     result = {'status': 'PASS', 'stage': stage, 'role': role, 'dispatch': dispatch, 'registered': registry_dispatch,
               'response': response, 'stop_event': stop_events[0], 'release': released, 'messages_sent': 1,
               'roots_used': 1, 'stop_condition': 'one response, one turn idle, no retry'}
-    if protocol and stage == 'I1':
-        result.update({'messages_expected': 2, 'permission_screens_expected': 1,
-                       'test_simulated_user_action': str(root / 'roles' / role / f'window-stop-action-{dispatch["id"]}.json'),
-                       'protocol_source': protocol_source,
-                       'stop_condition': 'tool_use + tool_result, actual Stop/relay wake, idle; no retry'})
     output.mkdir(parents=False, exist_ok=False)
     (output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
     return result
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument('--mode', choices=['spy', 'execute'], required=True); parser.add_argument('--stage', choices=['I1','I2','I3','I4','E1','E2','E3','E4','E5','E6'], default='I1'); parser.add_argument('--resume-queued', action='store_true'); parser.add_argument('--protocol', action='store_true'); parser.add_argument('--protocol-phase', choices=['dispatch','full'], default='full')
+    parser = argparse.ArgumentParser(); parser.add_argument('--mode', choices=['spy', 'execute'], required=True); parser.add_argument('--stage', choices=['I1','I2','I3','I4','E1','E2','E3','E4','E5','E6'], default='I1'); parser.add_argument('--resume-queued', action='store_true'); parser.add_argument('--protocol', action='store_true'); parser.add_argument('--protocol-phase', choices=['dispatch','arm','collect','release','observe'], default='dispatch')
     parser.add_argument('--output', type=Path, required=True); parser.add_argument('--materials', type=Path)
     parser.add_argument('--stage-a', type=Path); parser.add_argument('--approval', type=Path)
     args = parser.parse_args()
@@ -366,6 +231,7 @@ def main():
         (args.output / 'results.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
         print(json.dumps(result, ensure_ascii=False)); return 0 if result['status'] == 'PASS' else 1
     if not (args.materials and args.stage_a and args.approval): raise SystemExit('execute requires materials, stage-a and approval')
+    if args.output.exists(): raise SystemExit('output_exists; no action')
     try:
         result = execute(args.materials.resolve(), args.stage_a.resolve(), args.approval.resolve(), args.output.resolve(), stage=args.stage, resume_queued=args.resume_queued, protocol=args.protocol, protocol_phase=args.protocol_phase)
     except Exception as error:
@@ -374,7 +240,7 @@ def main():
                             'stage_a': str(args.stage_a.resolve()) if args.stage_a else None,
                             'approval': str(args.approval.resolve()) if args.approval else None},
                   'real_process_starts': 0, 'scope': 'I1 execute path; no retry'}
-        args.output.mkdir(parents=False, exist_ok=False)
+        args.output.mkdir(parents=True, exist_ok=True)
         (args.output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
         print(json.dumps(result, ensure_ascii=False)); return 1
     print(json.dumps(result, ensure_ascii=False)); return 0

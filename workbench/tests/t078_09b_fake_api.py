@@ -30,6 +30,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(409); self.send_header('Content-Type','application/json'); self.end_headers(); self.wfile.write(response); return
         try:
             request=json.loads(body); registry=json.loads((ROOT/'protocol-registry.json').read_bytes())
+            phase=None
+            if 'phase_plan' in registry:
+                from t078_09b_phase_registry import resolve_request
+                registry,phase=resolve_request(request,registry,ROOT,ROLE)
+            registry['messages_used']=sequence
             normalized,anthropic=normalize_anthropic_request(request,registry,ROLE)
             if not normalized.get('request_id'):
                 normalized['request_id']=self.headers.get('X-Request-Id') or uuid.uuid4().hex
@@ -46,6 +51,9 @@ class Handler(BaseHTTPRequestHandler):
                 DISPATCH_STATES[dispatch_id]='tool_sent' if result.get('tool_use') else 'settled'
             request_log.update({'dispatch_id':dispatch_id,'dispatch_seq':normalized['dispatch_seq'],'request_id':normalized['request_id'],'stop_id':normalized.get('stop_id'),'attempt':normalized.get('attempt'),'session':normalized.get('session'),'fence':normalized.get('fence'),'anthropic':anthropic})
             request_log['message_kind']='tool_result' if normalized.get('tool_result') else ('tool_use' if result.get('tool_use') else 'text')
+            request_log['phase']=phase
+            if normalized.get('tool_result_payload'):
+                request_log['tool_result_payload']=normalized['tool_result_payload']
             if normalized.get('tool_result_block'):
                 request_log['tool_use_id']=normalized['tool_result_block'].get('tool_use_id')
             with (ROOT/'requests.ndjson').open('a',encoding='utf-8') as f:f.write(json.dumps(request_log,ensure_ascii=False)+'\n')
@@ -65,7 +73,7 @@ class Handler(BaseHTTPRequestHandler):
 
 parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,required=True);parser.add_argument('--role',required=True);parser.add_argument('--port',type=int,default=0);parser.add_argument('--protocol',action='store_true');a=parser.parse_args();ROOT=a.root.resolve();PROTOCOL=a.protocol;ROOT.mkdir(parents=True,exist_ok=True)
 ROLE=a.role
-server=ThreadingHTTPServer(('127.0.0.1',a.port),Handler);ready=ROOT/'api-ready.json';ready.write_text(json.dumps({'host':'127.0.0.1','port':server.server_port,'api_url':f'http://127.0.0.1:{server.server_port}','pid':os.getpid(),'role':a.role,'stage':'A','model_turns':0,'protocol':PROTOCOL_TAG if PROTOCOL else None})+'\n')
+server=ThreadingHTTPServer(('127.0.0.1',a.port),Handler);ready=ROOT/'api-ready.json';ready.write_text(json.dumps({'host':'127.0.0.1','port':server.server_port,'api_url':f'http://127.0.0.1:{server.server_port}','pid':os.getpid(),'role':a.role,'stage':'A','model_turns':0,'protocol':PROTOCOL_TAG if PROTOCOL else None,'fixture_profile':'a14-approved-gate-history-v1' if PROTOCOL else None})+'\n')
 def stop(*_):
     # A Python signal handler runs on the serve_forever thread. Calling
     # server.shutdown() there waits for serve_forever to return and deadlocks

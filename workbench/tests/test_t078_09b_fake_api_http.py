@@ -22,7 +22,7 @@ def main():
    if mutant=='seq':body['dispatch_seq']=2
    if mutant=='identity':body['attempt']='other'
    if mutant=='role':body['role']='executor'
-   if mutant=='budget':body['messages']=[body['messages'][0] for _ in range(7)]
+   if mutant=='budget':reg['message_budget']=0;(rroot/'protocol-registry.json').write_text(json.dumps(reg))
    code,_=request(ready['api_url'],body);p.terminate();p.wait(5);checks.append({'name':'protocol-green' if mutant is None else 'protocol-'+mutant+'-red','status':'PASS' if ((code==200)==(mutant is None)) else 'INCOMPLETE','http':code})
  result={'status':'PASS' if all(c['status']=='PASS' for c in checks) else 'INCOMPLETE','checks':checks,'scope':'real loopback fake API HTTP only; no Claude/daemon/target/model'};(a.output/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(json.dumps(result));return 0 if result['status']=='PASS' else 1
 if __name__=='__main__':raise SystemExit(main())

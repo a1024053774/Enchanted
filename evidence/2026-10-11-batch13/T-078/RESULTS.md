@@ -1030,3 +1030,33 @@ A-13 只读脱敏归档 `09b-a13-i1-redacted-01` **PASS**：13 请求/2 响应�
 socket 原行为红态在 `09b-pending-socket-cleanup-red-01`；首次绿态夹具因 `lsof -F p` 还返回自动 fd 行而失败，原件保留 `09b-pending-socket-cleanup-green-01`。当前 `-t` 路径经真实 Unix socket/真实 lsof 实测三项 **PASS**，见 `09b-pending-socket-cleanup-green-02`：活跃 socket 不删、关闭后的残留 socket 记录并删除且归档字节读回通过、FIFO 继续拒绝。新版回收输出用 `09b-pending-timeout-cleanup-02`，只交主控执行；worker 本轮未回收保留的 scratch 或 A-13，未发信号。
 
 README 已同步 1～6 根、角色 hook 路径、仅尾部 CR/LF 规范化以及 pending/延后 I2 语义。提交前 project-map status 的 stale 提示以最后已提交的 README 为基点，不读取未提交正文来消除历史差异；提交后重新核对，不改地图的 Verified 字段。
+
+## 主控 #303：独立审查收尾与 A-14 待审材料
+
+待投递产品候选 `7039840565754f7999b27061191b6506e61ef9d2`（冻结 `4b48664fd689aab8d52a8721098939067928847e`）的全新独立审查 **PASS**，见 `independent-review-pending-01.md`。主控已确认 A-13 现场与超时排练 scratch 清理完成；前节的待清理/待审状态已收尾，不复用其 PID。审查覆盖范围不等于整张 T-078 或完整 09B 通过。
+
+用户答复 `20261016T012505Z-ideation-answer-001` 要求“目标角色没有会话时”留存 pending、发送方可见、不回灌反馈，同时 protocol 与预算不变。pending 零反馈、条目实际 delivered 后才登记原有 I2，是主控 #299 对这些约束的解释；独立审查确认其与用户原话一致，但不能说成用户另行逐字批准过 I2 的延后时点。
+
+A-14 静态材料见 `09b-a14-materials-01/PLAN.md`，冻结 protocol 逐字不变：ideation 4 roots/6 Messages，executor 6/11，七次工具许可。阶段驱动只有 I1 使用批准的 test-simulated-user 模拟窗口停止请求，经正常 pane_dispatch/release 注入；随后所有 I/E 根都读取产品实际 gate feedback/inbox wake，按实际全局 seq/request/entry/Stop 关联。I1 Stop 后必须读到 pending/零反馈；executor 串行首启 unknown 时零业务输入，主控确认空提示符后初始 release，真实 turn_submitted 后的原 send 回执才可作为 I2。不会用 operator 代发 send/stop/ack，不合成业务结果。
+
+新增 fixture phase-plan 模式只读真实门禁记录登记 API 应答，并在同一 HTTP 请求上等待本阶段独立批准，最长 180 秒，超时拒绝后整场停止，不自动重试。该夹具等待机制及真实双角色时序尚 **INCOMPLETE**，本轮未启动 API/daemon/Claude/target、未发键。完整 HTTP/窗口证明不能由纯数据检查替代，launch **NO_GO**，需主控先审新增驱动；产品 workbench/src 本轮未改。
+
+`09b-a14-static-check-03.json` **PASS**：冻结父版本在多根历史上确实因 tool_use_id_mismatch 拒绝；当前共享 core 作用域限定为当前登记根、按实际 POST 次数核算，完整历史 6/11 结算通过，错误工具 ID/重复当前结果/正文中间差异/seq/身份/角色/超预算七类反例均拒绝。Bash command schema 读自 A11 实际 Claude tools；I2/E1/I3 解析读取既有真实 SQLite 事件正文，但 API 日志关联在该检查内为纯数据输入，不冒称新真实 relay/HTTP 排练。输出保留 01/02/03，均为逐步扩充检查，不覆盖原件。
+
+材料检查包含实际成功 B1 label 绑定、角色本地输入、完整 screen_approvals/tool_approval、B1 plan 的 security-notice+screen_text 与实际 key 的 onboarding-notice 分开、读屏不符用新 -02、不丢签字件、awaited Electron 控制动作回执、唯一 stage/output/launch slot、嵌套输出先建父目录、tail CR/LF 规范化，以及已知/延后生成命令路径的分类。提交脚本在第一次提交前已有本段 RESULTS，并模拟所有现有与将生成文件被两次提交覆盖；ownership 报告本身也在清单中。统一 prepare 只在源码提交后生成 executable materials-14 和静态 root，第二次提交后不再追加 RESULTS/receipt/output。
+
+project-map status **PASS**：Problems=0、Stale living docs=0。没有修改地图或审查启动代码。所有实际阶段批准签字留空；单角色 slice1 的运行回归和新增 phase-plan 的真实 HTTP/Electron 边界检查本轮 **NOT_RUN**，待主控安排，不能用旧独立审查为新夹具背书。
+
+## 主控 #304：A-14 无模型真实边界排练待执行
+
+新增 `test_t078_a14_rehearsal.py`、真实 daemon 测试 host 与确定性 PTY 角色替身；范围、替代边界和确切命令见 `09B-A14-REHEARSAL-PLAN.md`、`09B-A14-REHEARSAL-COMMAND.txt`。完整排练 **INCOMPLETE**，本轮只写材料，不起服务、窗口或模型，不发键。A-14 提交/Stage A **NO_GO**，须等主控沙箱外排练读回 PASS。
+
+请求脱敏结构直接读取 A12 实际 Claude 2.1.296 的原始请求并按白名单生成，保留消息/块/Bash schema 结构；tool_result 用 A12 已脱敏的实际 queued 回执形状。未复制 system、reminder、描述、metadata、headers 或用户凭据。替身从实际 launch settings 取得原生 signal 命令，只在本 scratch 角色上下文执行冻结 I_SEND_STOP；不由 operator 代写业务。controller 的 provider spawn/liveness 是明确替代边界，其余 daemon/relay/gates/PTY/HTTP/SQLite/窗口输入均走真实代码。managed target 的 attempt/session/fence/workspace 必须由真实 dispatch/claim 产生。
+
+正例从缺批准、HTTP 已等待且零 SSE/工具开始，批准到位才应答；复用现有 driver 的 arm/只读 observe 和真实 Electron permission helper，只送 I1 一次 CR。验收停在 I1 pending/零反馈 → executor unknown 零业务输入 → 初始 release → delivered → 原 I2 恰一次 → E1 PermissionRequest/零按键。预期实际 POST：I1=2、I2=1、E1前半=1，roots ideation=2/executor=1；不冒称完整 E1 或后续阶段已完成。独立 scratch 的反例真实等 180 秒，409 phase_approval_deadline 后场景 INCOMPLETE、自行退出、无重试/条目/relay；汇总可将该预期拒绝记为检查 PASS，不能把场景本身升为成功。
+
+正常收尾走 daemon_stop→panes.shutdown，API 子进程各一次 SIGTERM/2 秒确认；确认所有角色、target、Electron 已退出后 checkpoint/SQLite backup 与 WAL/SHM 一并留证、integrity_check 通过再删 scratch。全场 500 秒硬超时，失败写具名步骤与命令原件；清理不确定时 BLOCKED 并保留 root。实际退出、清理、180 秒时钟与 HTTP/Electron 本轮均未运行。
+
+本地静态预检 `09b-a14-rehearsal-preflight-03/preflight.json` **PASS**（路径、AST、脱敏请求及 queued tool_result 构造），TypeScript host 的 `node --check` exit 0，`git diff --check` exit 0。01/02 原件保留。文档生成首次因 stdin UTF-8 SyntaxError 失败，原错误保留 `09b-a14-rehearsal-doc-write-failure-01.txt`；随后改用 UTF-8 patch 写文档，未据此修改旧运行证据。提交脚本将要求完整排练结果/两场退出和清理/真实 180 秒均通过，且当前源码与实际排练副本逐字节一致后才允许提交。当前缺运行原件，其完整 --check-only 也应拒绝；没有把归属检查当成完整提交检查通过。
+
+主控执行 A14 无模型排练：PASS；正例 POST 为 ideation=3/executor=1；超时场景按要求 INCOMPLETE、未重试，实际 HTTP 等待 180.039063708 秒；两场 owner-bound 清理 PASS、scratch 已删除。原件：09b-a14-rehearsal-01/result.json，供应商模型 0。
