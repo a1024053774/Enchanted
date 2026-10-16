@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[3]
 BASE = Path(__file__).resolve().parent
@@ -33,6 +34,8 @@ def main():
     parser.add_argument('--label', required=True)
     parser.add_argument('--dependencies', type=Path,
                         default=Path('/Users/luckye/Documents/Code/a2a/workbench/node_modules'))
+    parser.add_argument('--archive-owned', type=Path, action='append', default=[],
+                        help='Archive an explicitly identified, stopped T-090 temporary directory')
     args = parser.parse_args()
     if not VOLUME.is_mount(): raise RuntimeError('外置盘未挂载，不回退内置盘。')
     if not args.label.replace('-', '').isalnum(): raise RuntimeError('Invalid label')
@@ -59,12 +62,13 @@ def main():
             result = subprocess.run(row['argv'], cwd=cwd, env=env, stdout=stdout, stderr=stderr, timeout=timeout)
         row.update(exit_code=result.returncode, stdout=str(out / f'{number:02d}.stdout.txt'),
                    stderr=str(out / f'{number:02d}.stderr.txt'))
-        if result.returncode != expected: raise RuntimeError('命令退出码不符：' + repr(row))
+        if expected is not None and result.returncode != expected:
+            raise RuntimeError('命令退出码不符：' + repr(row))
         return Path(row['stdout']).read_text(encoding='utf-8').strip()
 
     def retain_fixture(path):
         path = Path(path).resolve()
-        if path.parent != Path('/private/tmp') or not path.name.startswith(('s3f-', 'q76-')):
+        if path.parent != Path('/private/tmp') or not path.name.startswith(('s3f-', 'q76-', 't090-ready-', 't090-source-')):
             raise RuntimeError('Unexpected fixture owner: ' + str(path))
         target = out / 'fixtures' / path.name
         before = inventory(path)
@@ -74,6 +78,7 @@ def main():
         save(out / (path.name + '.archive.json'), {'original': str(path), 'archive': str(target),
              **before, 'replay': report['argv']})
         shutil.rmtree(path)
+        return str(target)
 
     try:
         version = command(['node', '--version'])
@@ -82,7 +87,11 @@ def main():
         report['revision'] = revision
         patch = subprocess.check_output(['git', 'diff', 'HEAD', '--', 'workbench/src/gates', 'workbench/tests'], cwd=ROOT)
         (out / 'candidate.patch').write_bytes(patch)
-        source = out / 'source'
+        for owned in args.archive_owned:
+            report.setdefault('collected_archives', []).append(retain_fixture(owned))
+        workspace = Path(tempfile.mkdtemp(prefix='t090-source-', dir='/tmp')).resolve()
+        source = workspace / 'source'
+        report['source_workspace'] = str(workspace)
         command(['git', '-c', 'core.hooksPath=/dev/null', 'clone', '--shared', '--no-checkout', ROOT, source])
         command(['git', 'sparse-checkout', 'init', '--cone'], source)
         command(['git', 'sparse-checkout', 'set', 'workbench', 'acceptance', 'fixtures', 'scripts', '.project-map', '.grilling',
@@ -105,9 +114,14 @@ def main():
             argv = [sys.executable, '-B', source / 'workbench/tests/run_s3_rebased_regression.py',
                     '--suite', suite, '--revision', revision, '--output', target]
             if focused: argv.extend(['--case', FOCUSED])
-            command(argv, source, expected)
+            # Collect a completed failed run before rejecting its exit status.
+            # This preserves the fixture without retrying or changing verdicts.
+            command(argv, source, None)
+            exit_code = report['steps'][-1]['exit_code']
             result = json.loads((target / 'run.json').read_text(encoding='utf-8'))
+            if result['collection_errors']: raise RuntimeError('运行夹具退出未确认，保留原目录')
             retain_fixture(result['artifact_root'])
+            if exit_code != expected: raise RuntimeError('原验收退出码不符，已归档现场：' + str(target))
             return result
 
         def controlled(name, selected, script, cases=(), expected_failure=None):
@@ -115,15 +129,20 @@ def main():
             argv = [sys.executable, '-B', source / 'workbench/tests' / script,
                     '--source', selected, '--output', target]
             for case in cases: argv.extend(['--case', case])
-            command(argv, source, 1 if expected_failure else 0)
+            command(argv, source, None)
+            exit_code = report['steps'][-1]['exit_code']
             value = json.loads((target / 'run.json').read_text(encoding='utf-8'))
-            if any(row['outcome'] == 'harness_error' or row['cleanup_failures'] for row in value['cases']):
+            if any(row['cleanup_failures'] for row in value['cases']):
+                raise RuntimeError('宿主退出未确认，保留原目录：' + name)
+            retain_fixture(value['artifact_root'])
+            if exit_code != (1 if expected_failure else 0):
+                raise RuntimeError('受控检查退出码不符，已归档现场：' + name)
+            if any(row['outcome'] == 'harness_error' for row in value['cases']):
                 raise RuntimeError('宿主或清理错误不能作为业务证据：' + name)
             if not expected_failure and value['status'] != 'PASS':
                 raise RuntimeError('业务检查未通过：' + name)
             if expected_failure and not any(row.get('failure_id') == expected_failure for row in value['cases']):
                 raise RuntimeError('变异没有命中指定断言：' + name)
-            retain_fixture(value['artifact_root'])
             report.setdefault('checks', []).append({'name': name, 'status': 'PASS',
                  'test_status': value['status'], 'expected_failure': expected_failure,
                  'cases': [{'case': row['case'], 'outcome': row['outcome'],
@@ -154,6 +173,11 @@ def main():
                                      'phase': e['details']['phase'],
                                      'error': e['details']['details']['error']} for e in errors]
         else:
+            command(['node', source / 'workbench/tests/test_ready_file.ts', source, out / 'ready-file-probe'], source)
+            publication = json.loads((out / 'ready-file-probe/run.json').read_text(encoding='utf-8'))
+            if publication['status'] != 'PASS': raise RuntimeError('Ready 发布探针未通过')
+            retain_fixture(publication['artifact_root'])
+            report['ready_file_checks'] = [{'id': row['id'], 'passed': row['passed']} for row in publication['checks']]
             result = legacy('focused', 'coop', True)
             if result['tests_run'] != 1 or result['errors'] or result['failures']:
                 raise RuntimeError('原冻结候选用例未通过')
@@ -181,14 +205,14 @@ def main():
                 ('tmp-writable', 'const excludeSlashTmp = review ? "true" : "false";',
                  'const excludeSlashTmp = review ? "false" : "false";'),
             ]:
-                variant = out / 'mutants' / name
+                variant = workspace / 'mutants' / name
                 materialize(source, variant, before, after)
                 controlled(name, variant, 'test_t082_review_boundary_e2e.py', ['launch_boundary_refused'])
 
             # A deliberately wrong implementation that skips the unchanged
             # worker check must fail each new behavioral assertion. It leaves
             # copy/launch/refs/reviewer handling intact.
-            variant = out / 'mutants' / 'worker-check-omitted'
+            variant = workspace / 'mutants' / 'worker-check-omitted'
             shutil.copytree(source / 'workbench', variant / 'workbench', symlinks=True,
                             ignore=shutil.ignore_patterns('node_modules', '__pycache__', '.DS_Store'))
             (variant / 'workbench/node_modules').symlink_to(dependencies, target_is_directory=True)
@@ -211,6 +235,7 @@ def main():
         changed = [str(p) for p, data in frozen.items() if p.read_bytes() != data]
         report['changed_source_paths'] = changed
         if changed: raise RuntimeError('测试期间源码变化')
+        report['source_archive'] = retain_fixture(workspace)
         if args.phase == 'green': report['product_status'] = 'PASS'
         report['status'] = 'PASS'
     except Exception as error:

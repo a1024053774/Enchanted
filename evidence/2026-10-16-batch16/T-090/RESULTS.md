@@ -1,6 +1,6 @@
 # T-090-1 修复与宿主验收交接
 
-状态：INCOMPLETE。最小产品修复与静态检查完成；修复后的宿主绿态、整组回归及独立审查尚未运行，不宣称产品 PASS。task `T-090`、attempt `a1`、worker `s16-t090`，身份与完整启动 argv 见 `worker-launch.json`。启动参数请求 `gpt-6.1-sol`、xhigh、default tier；实际供应商 tier 未核对。
+状态：INCOMPLETE。最小产品修复与静态检查完成；修复后的宿主绿态、整组回归及独立审查尚未完成，不宣称产品 PASS。task `T-090`、attempt `a1`、worker `s16-t090`，身份与完整启动 argv 见 `worker-launch.json`。启动参数请求 `gpt-6.1-sol`、xhigh、default tier；实际供应商 tier 未核对。
 
 ## 已核对证据
 
@@ -24,20 +24,30 @@
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/T-090/run-host.py --phase green --label green-regression-01
 ```
 
-脚本按顺序运行：原冻结候选用例；原交付 8、恢复 9、编排 18；三条 worker 边界反例；T-082 七条正常及结束核对场景；四个启动变异（只读 argv、错误工作目录、联网、tmp 可写）；一个省掉 worker 结束检查的坏实现，分别运行三条新反例，必须命中 `T090-WORKER-HEAD`、`T090-WORKER-DIRTY`、`T090-WORKER-BRANCH` 的业务失败。最后一项证明新反例能拒绝已知坏实现，宿主或导入错误不算拒绝证据。
+上述首轮命令实际在宿主准备阶段遇到 ready 发布竞态，INCOMPLETE；尚未执行业务断言。原件与摘要均保留。诊断、测试工具修复及本地确定性探针见 `READY-RACE-01.md`。产品 `daemon.ts` 未改，T-090 门禁候选行为仍为 `0bcc5ab66deaa5cae69b17672ebb2d2ae3d641c2` 中的实现。
 
-原始输出直接写 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/green-regression-01/`；仓库仅生成摘要及 `.archive.json`。临时运行夹具复制到外置盘并核对文件数、字节数后才清理原件；外置盘缺失即报错。借用既有依赖，不安装、不构建、不链接构建输出。真实模型回合为 0，PTY/原生进程观测是受控输入，不据此声称真实 Codex 沙箱边界已复验。
-
-红态可在保留的起点源码快照复现（输出目录必须另取新名）：
+修复后的新命令（包含三个已停止临时目录的明确归档授权）：
 
 ```sh
-python3 -B /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/red-01/source/workbench/tests/run_s3_rebased_regression.py --suite coop --case test_submit_requires_clean_head_and_cannot_replace_frozen_candidate --revision f08a280bdf6142443efd52d4897d2305fd68987f --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/red-replay-01
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/T-090/run-host.py --phase green --label green-regression-02 --archive-owned /private/tmp/t090-ready-feirgO --archive-owned /private/tmp/t090-ready-local-01 --archive-owned /private/tmp/s3f-lpmafq64
 ```
 
-重放旧 runner 的临时夹具仍需按 T-088 归档，不能因重放失败覆盖原件。
+脚本先运行真实子进程/文件系统 ready 发布探针，然后按顺序运行：原冻结候选用例；原交付 8、恢复 9、编排 18；三条 worker 边界反例；T-082 七条正常及结束核对场景；四个启动变异（只读 argv、错误工作目录、联网、tmp 可写）；一个省掉 worker 结束检查的坏实现，分别运行三条新反例，必须命中 `T090-WORKER-HEAD`、`T090-WORKER-DIRTY`、`T090-WORKER-BRANCH` 的业务失败。最后一项证明新反例能拒绝已知坏实现，宿主或导入错误不算拒绝证据。
+
+新 label 的原始输出直接写 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/green-regression-02/`；仓库仅生成摘要及 `.archive.json`。source checkout 与所有变异源码在内置盘 `/tmp/t090-source-*`，完整执行成功后连同运行夹具复制到外置盘，核对文件数、字节数后才清理原件；失败则保留 source checkout 并报告路径。已完成但失败的测试夹具在拒绝退出码之前归档，不改其失败结果。外置盘缺失即报错。借用既有依赖，不安装、不构建、不链接构建输出。真实模型回合为 0，PTY/原生进程观测是受控输入，不据此声称真实 Codex 沙箱边界已复验。
+
+红态可复制保留的起点源码快照到内置盘复现（输出目录必须另取新名，复制来源保持只读）：
+
+```sh
+T090_REPLAY_ROOT="$(mktemp -d /tmp/t090-red-replay-XXXXXX)"
+cp -R /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/red-01/source "$T090_REPLAY_ROOT/source"
+python3 -B "$T090_REPLAY_ROOT/source/workbench/tests/run_s3_rebased_regression.py" --suite coop --case test_submit_requires_clean_head_and_cannot_replace_frozen_candidate --revision f08a280bdf6142443efd52d4897d2305fd68987f --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/red-replay-01
+```
+
+重放旧 runner 的临时夹具与内置盘源码副本仍需按 T-088 归档，不能因重放失败覆盖原件。
 
 ## 当前检查及限制
 
-PASS：`node --check workbench/src/gates/core.ts`；三个 Python 文件 AST 解析；`git diff --check`；UTF-8 回读；修改边界核对。未跑构建（本任务不需要构建，也没有安装依赖）。
+PASS：`node --check workbench/src/gates/core.ts`；Python 文件 AST 解析；改动的 TypeScript 测试文件语法检查；ready 发布步骤的真实文件系统/子进程确定性探针及已知坏实现检出；`git diff --check`；UTF-8 回读；修改边界核对。未跑构建（本任务不需要构建，也没有安装依赖）。
 
 INCOMPLETE：修复后真实入口绿态、整组回归、三个新反例的坏实现检出、主控独立审查、门禁验收与集成，以及 living doc Verified 核对。worker 已只读对照 README 的审查段（115–119、194–197 行）：正文要求审查期间 worker 未变，与本修复一致，未发现需要改写的语义；仍由主控完成地图核对。候选完整提交号在 worker 最终交接中报告；本报告不替代显式交付、验收或集成。

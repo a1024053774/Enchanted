@@ -1,5 +1,5 @@
 // Test host for the existing controlled thread service. No provider execution.
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -8,6 +8,7 @@ import type { SubmitCaller } from "../src/gates/core.ts";
 import { boundary, runtime } from "../../acceptance/entry/native-runtime.ts";
 import { installControlledPTY } from "./controlled_quality_pty.ts";
 import { withReviewerRuntime } from "./legacy_review_runtime.ts";
+import { publishReady } from "./ready_file.ts";
 
 const [state, control, ready, gate, reviewControl] = process.argv.slice(2);
 if (!state || !control || !ready || !gate || !reviewControl || process.argv.length !== 7) {
@@ -94,8 +95,8 @@ await serve(state, config, (root, panes) => {
   bind(panes);
   return new ControlledThreadGates(root, withReviewerRuntime(controlledRuntime, panes));
 });
-writeFileSync(ready, JSON.stringify({ pid: process.pid, root: resolve(state),
+publishReady(ready, { pid: process.pid, root: resolve(state),
   gate,
   daemon: fileURLToPath(new URL("../src/daemon.ts", import.meta.url)),
   runtime: fileURLToPath(new URL("../../acceptance/entry/native-runtime.ts", import.meta.url)),
-  control: resolve(control), review_control: reviewControl, real_codex_turns: 0, argv: process.argv }) + "\n", { flag: "wx" });
+  control: resolve(control), review_control: reviewControl, real_codex_turns: 0, argv: process.argv });
