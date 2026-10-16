@@ -667,3 +667,7 @@ worker 只读恢复 dispatch-01（READY_FOR_PERMISSION，dispatch 8cfff071…，
 ## 用户选项 1：条目留存待上线投递 #298（2026-10-16 UTC）
 
 用户经构思主控作答（answer 20261016T012505Z-ideation-answer-001，逐字）选"条目留存，等角色上线再投递"：目标角色无会话时条目照常保存、状态为待投递、不回灌反馈回合，角色启动后由现有唤醒路径投递；"待投递"必须对发送方可见、不能显示成已送达；protocol 与预算不变。已 ack（20261016T012534Z-executor-ack-001）。#298 派 worker：以 A-13 现场为红态并在离线真实链路复现，改 relay/投递语义（pending 可读、无反馈回合、上线后投递并 ack），绿与反例检查，A-13 脱敏归档与回收，之后准备 A-14，改完走独立审查。与 T-082 在 core.ts 重叠，先合入者先走。
+
+## 待投递红态与实现计划批准 #299（2026-10-16 UTC）
+
+worker 交红态（A-13 事件 116/117 只读读回；真实离线链路复现 undelivered/role_session_missing → wake_undelivered → 1 条反馈）与 PLAN-PENDING-DELIVERY-01.md（根因：deliverInbox 无目标抛错、inboxCall 只认 queued/delivered、daemon Stop transfer 对所有回执生成反馈、controller_start 无待投递恢复）。主控独立重跑 09b-pending-chain-red-03：PASS（预期旧行为）。批准计划。I2 时点裁定：用户原话"不再给发送方回灌反馈回合"针对待投递阶段，同时要求"protocol 与预算不变"，而 protocol 含 I2（实际 send 执行反馈）；故 pending 阶段反馈为零，原有 I2 在实际 delivered 后登记、关联原 request/entry、不重发 send、不额外派发。若实现须改 protocol/预算则停下上报。
