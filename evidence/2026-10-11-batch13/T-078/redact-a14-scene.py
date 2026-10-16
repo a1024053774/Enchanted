@@ -6,6 +6,7 @@ import re
 import shlex
 import sqlite3
 import tarfile
+import traceback
 from contextlib import closing
 from pathlib import Path
 
@@ -45,6 +46,7 @@ def tool_projection(row, role, owner, pending):
                 continue
             if block.get('type') == 'tool_use':
                 assert role == 'ideation' and block.get('name') == 'Bash'
+                assert isinstance(block.get('id'), str) and re.fullmatch(r'[A-Za-z0-9_-]{1,160}', block['id'])
                 assert set(block['input']) == {'command'}
                 argv = shlex.split(block['input']['command'])
                 protocol = json.loads((BASE / '09b-materials-01/protocol.json').read_bytes())
@@ -63,11 +65,11 @@ def tool_projection(row, role, owner, pending):
                 if isinstance(content, list): content = ''.join(part['text'] for part in content if part.get('type') == 'text')
                 payload = json.loads(content) if isinstance(content, str) else content
                 assert isinstance(payload, dict)
-                safe = {key: payload[key] for key in ['ok', 'queued', 'delivered', 'request_id', 'path', 'error'] if key in payload}
-                if 'error' in safe: safe['error'] = code(safe['error'])
-                if safe.get('queued') is True:
-                    assert safe['request_id'] == pending['request_id'] and safe['delivered'] is False
-                    assert Path(safe['path']) == ROOT / 'roles' / role / 'requests' / (safe['request_id'] + '.json')
+                assert role == 'ideation' and payload.get('ok') is True and payload.get('queued') is True and payload.get('delivered') is False
+                assert payload.get('request_id') == pending['request_id']
+                assert Path(payload['path']) == ROOT / 'roles' / role / 'requests' / (pending['request_id'] + '.json')
+                assert isinstance(block.get('tool_use_id'), str) and re.fullmatch(r'[A-Za-z0-9_-]{1,160}', block['tool_use_id'])
+                safe = {key: payload[key] for key in ['ok', 'queued', 'delivered', 'request_id', 'path']}
                 results.append({'tool_use_id': block['tool_use_id'], 'content': safe, 'is_error': bool(block.get('is_error', False))})
     return {'tool_use': uses, 'tool_result': results, 'error_code': code(row.get('error'))}
 
@@ -81,6 +83,13 @@ def collect(owner):
                    if json.loads(data).get('ok') is True and json.loads(data).get('entry', {}).get('kind') == 'stop']
         assert len(matches) == 1
         pending = safe_pending(*matches[0])
+        expected = json.loads(Path(owner['I1_result']).read_bytes())
+        assert expected['status'] == 'READY_FOR_EXECUTOR' and expected['messages'] == 2
+        assert pending == safe_pending(expected['request_id'], expected['relay_receipt'])
+        history = [json.loads(row[0]) for row in db.execute('SELECT data FROM inbox_deliveries WHERE entry=? ORDER BY seq', (pending['entry']['id'],))]
+        assert history and not any(row['state'] == 'delivered' for row in history)
+        feedback = db.execute("SELECT count(*) FROM orchestration_events WHERE type IN ('relay_feedback_intent','relay_feedback_registered') AND json_extract(data,'$.entry_id')=?", (pending['entry']['id'],)).fetchone()[0]
+        assert feedback == 0
         errors = []
         for event_type, data in db.execute("SELECT type,data FROM orchestration_events WHERE type IN ('request_result','request_rejected','relay_rejected')"):
             value = json.loads(data); error = value.get('error') or value.get('result', {}).get('error')
@@ -92,7 +101,13 @@ def collect(owner):
         roles[role] = {'request_count': len(requests), 'response_count': len(responses),
                        'http_POST_files': len(list((api_root / 'http-exchanges').glob('*.request.bin'))),
                        'requests': [tool_projection(row, role, owner, pending) for row in requests]}
+    assert [(roles[role]['request_count'], roles[role]['response_count']) for role in ['ideation', 'executor']] == [(2, 2), (0, 0)]
+    uses = [value for row in roles['ideation']['requests'] for value in row['tool_use']]
+    results = [value for row in roles['ideation']['requests'] for value in row['tool_result']]
+    assert len(uses) == len(results) == 1 and uses[0]['id'] == results[0]['tool_use_id']
+    assert (ROOT / 'target/home/received.bin').read_bytes() == (ROOT / 'target-baseline.bin').read_bytes()
     return {'schema': 1, 'status': 'PASS', 'roles': roles, 'errors': errors, 'original_I1_pending_receipt': pending,
+            'delivery_states': [row['state'] for row in history], 'feedback_count': feedback, 'target_new_bytes': 0,
             'raw_messages_retained': False, 'headers_metadata_system_auth_retained': False}
 
 
@@ -110,6 +125,7 @@ def verify_archive(result):
     with tarfile.open(archive) as tar:
         members = tar.getmembers()
         assert {item.name for item in members} == {'projection', 'projection/summary.json'}
+        assert tar.getmember('projection').isdir() and tar.getmember('projection/summary.json').isfile()
         assert tar.extractfile('projection/summary.json').read() == summary_file.read_bytes()
     return json.loads(summary_file.read_bytes())
 
@@ -121,18 +137,22 @@ def main():
     args = parser.parse_args(); owner = json.loads(args.owner.read_bytes())
     assert Path(owner['root']) == ROOT
     out = args.output.resolve(); out.mkdir(exist_ok=False)
-    summary = collect(owner)
-    archive = Path(owner['external_archive'])
-    assert Path('/Volumes/WD-Elements').is_mount() and archive.parent.parent.resolve() == archive.parent.parent
-    archive.parent.mkdir(exist_ok=False)
-    inventory = archive_projection(summary, out, archive)
-    result = {'status': 'PASS', 'root': str(ROOT), 'archive': str(archive), 'archive_bytes': archive.stat().st_size,
-              'summary_file': str(out / 'projection/summary.json'), 'byte_readback': 'PASS', 'inventory': inventory,
-              'scope': 'counts, approved tool_use/tool_result, error codes and original I1 pending receipt only'}
-    assert verify_archive(result) == summary
+    result = {'status': 'BLOCKED', 'root': str(ROOT), 'scope': 'counts, approved tool_use/tool_result, error codes and original I1 pending receipt only'}
+    try:
+        summary = collect(owner)
+        archive = Path(owner['external_archive'])
+        assert Path('/Volumes/WD-Elements').is_mount() and archive.parent.parent.resolve() == archive.parent.parent
+        archive.parent.mkdir(exist_ok=False)
+        inventory = archive_projection(summary, out, archive)
+        result.update(archive=str(archive), archive_bytes=archive.stat().st_size,
+                      summary_file=str(out / 'projection/summary.json'), byte_readback='PASS', inventory=inventory)
+        assert verify_archive(result) == summary
+        result['status'] = 'PASS'
+    except Exception as error:
+        result.update(error=repr(error), traceback=traceback.format_exc())
     (out / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print(json.dumps({'status': 'PASS', 'roles': {role: [value['request_count'], value['response_count']] for role, value in summary['roles'].items()},
-                      'archive': str(archive), 'byte_readback': 'PASS'}, ensure_ascii=False))
+    print(json.dumps({key: result.get(key) for key in ['status', 'archive', 'byte_readback', 'error']}, ensure_ascii=False))
+    return 0 if result['status'] == 'PASS' else 1
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__': raise SystemExit(main())

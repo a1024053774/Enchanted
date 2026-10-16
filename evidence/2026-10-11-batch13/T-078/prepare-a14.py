@@ -1,7 +1,8 @@
-"""Generate only files for A14; runtime bindings come from Stage A and actual P1."""
+"""Generate only files for an explicit 09B instance; bind actual Stage A/P1."""
 import argparse
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import tarfile
@@ -41,6 +42,8 @@ def phase_commands(stage_a, p1, stage):
 
 
 def prepare_role(args):
+    assert isinstance(args.instance, str) and re.fullmatch(r'a[1-9][0-9]*', args.instance), 'explicit_instance_required'
+    assert args.prompt_file and args.prompt_file.is_file(), 'explicit_prompt_file_required'
     stage_a, packet, out = args.stage_a.resolve(), args.packet.resolve(), args.output.resolve()
     ready = json.loads((stage_a / 'readiness.json').read_bytes())
     static = json.loads((packet / 'static-check.json').read_bytes())
@@ -68,9 +71,9 @@ def prepare_role(args):
            'executable': '/Users/luckye/.local/share/claude/versions/2.1.296', 'role_file': str(role_root / 'role.md'),
            'code_revision': static['revision'], 'source_snapshot': str(packet / 'sources.tar.gz'),
            'api_url': 'http://127.0.0.1:0', 'turn_limit': 4 if role == 'ideation' else 6}
-    nonce = 'A14_' + role + '_' + uuid.uuid4().hex
+    nonce = args.instance.upper() + '_' + role + '_' + uuid.uuid4().hex
     save(role_root / 'input.json', inp)
-    save(role_root / 'scenario.json', {'schema': 1, 'name': 'a14-' + role, 'nonce': nonce})
+    save(role_root / 'scenario.json', {'schema': 1, 'name': args.instance + '-' + role, 'nonce': nonce})
     (role_root / 'nonce.txt').write_text(nonce, encoding='utf-8')
     subprocess.run(['node', str(SOURCE / 'workbench/tests/prepare_t078_p1.ts'), str(role_root / 'input.json'), str(role_root / 'approval.json')], cwd=SOURCE, check=True)
     out.mkdir()
@@ -82,7 +85,7 @@ def prepare_role(args):
         save(out / 'source-files.json', arc.getnames())
     plan_path = root / 'protocol-plan.json'
     if role == 'ideation':
-        prompt = (BASE / '09b-a14-materials-01/i1-prompt.txt').read_text(encoding='utf-8')
+        prompt = args.prompt_file.read_text(encoding='utf-8')
         plan = {'schema': 1, 'root': str(root), 'target_binding': ready['target_binding'], 'roles': {},
                 'protocol_source': str(BASE / '09b-materials-01/protocol.json'), 'synthetic_input_id': str(uuid.uuid4()), 'i1_prompt': prompt}
         baseline = root / 'target/home/received.bin'; before = baseline.read_bytes()
@@ -97,7 +100,7 @@ def prepare_role(args):
     save(role_root / 'protocol-registry.json', {'phase_plan': str(plan_path), 'dispatches': {}, 'message_budget': 6 if role == 'ideation' else 11})
     if role == 'ideation':
         (out / 'i1-prompt.txt').write_text(plan['i1_prompt'], encoding='utf-8')
-    launch_label = '09b-a14-b1-' + role + '-01'
+    launch_label = '09b-' + args.instance + '-b1-' + role + '-01'
     screens, tool = screen_plan()
     approval = {'approved_by': None, 'approval_ref': None, 'stage': 'B', 'phase': 'B1', 'role': role,
                 'source_revision': static['revision'], 'binding': ready['target_binding'], 'p1_materials': str(out),
@@ -118,7 +121,7 @@ def prepare_role(args):
             ('s9', 'ArrowDown', 'workspace-trust', 'Yes, I trust this folder'), ('s11', 'Enter', 'workspace-trust', 'Yes, I trust this folder')]
     lines = ['# 每次只运行一条批准的命令，读屏不符时换新 -02 label 重读，不发键。LAUNCH_LABEL 在 bind-launch 后从实际结果替换。']
     for index, (screen, key, purpose, selected) in enumerate(keys):
-        read_label = 'a14-' + role + '-' + screen + '-screen'
+        read_label = args.instance + '-' + role + '-' + screen + '-screen'
         for suffix in ['', '-02']:
             lines += [f'# {screen}: ' + ('仅在初读不符时重读；仍不符继续停下。' if suffix else '只读。'),
                       f'python3 -B {SOURCE/"workbench/tests/run_t078_p1.py"} --materials {out} --reuse-stage-a --launch-label LAUNCH_LABEL --phase screen --label {read_label+suffix} --screen-id {role}-{screen}']
@@ -128,9 +131,12 @@ def prepare_role(args):
         save(out / 'onboarding' / (screen + '-' + key + '.json'), draft)
         next_screen = role + '-' + (keys[index + 1][0] if index < len(keys) - 1 else 's13')
         lines += ['# 若实际采用 -02，批准和本条 --screen-file 同时绑定该 -02 原件。',
-                  f'python3 -B {SOURCE/"workbench/tests/run_t078_p1.py"} --materials {out} --reuse-stage-a --launch-label LAUNCH_LABEL --phase key --label a14-{role}-{screen}-{key} --screen-id {role}-{screen} --key {key} --purpose {purpose} --approval-file {out/"onboarding"/(screen+"-"+key+".json")} --screen-file {out/read_label/"screen.bin"} --next-screen-id {next_screen}']
+                  f'python3 -B {SOURCE/"workbench/tests/run_t078_p1.py"} --materials {out} --reuse-stage-a --launch-label LAUNCH_LABEL --phase key --label {args.instance}-{role}-{screen}-{key} --screen-id {role}-{screen} --key {key} --purpose {purpose} --approval-file {out/"onboarding"/(screen+"-"+key+".json")} --screen-file {out/read_label/"screen.bin"} --next-screen-id {next_screen}']
+        if role == 'executor':
+            lines += ['# 每个键后、下一键与初始 release 前，刷新原 stop 收据；不是 delivered/不是 I2。失败立即停。',
+                      f'python3 -B {BASE/"observe-startup-queued.py"} --p1 {out} --i1-result {args.result.resolve()} --expected-keys {index+1} --output {out/"onboarding"/(screen+"-queued-readback.json")}']
     for suffix in ['', '-02']:
-        lines += [f'# s13{suffix}: 只读最终空提示符/manual；不符就停。', f'python3 -B {SOURCE/"workbench/tests/run_t078_p1.py"} --materials {out} --reuse-stage-a --launch-label LAUNCH_LABEL --phase screen --label a14-{role}-s13-screen{suffix} --screen-id {role}-s13']
+        lines += [f'# s13{suffix}: 只读最终空提示符/manual；不符就停。', f'python3 -B {SOURCE/"workbench/tests/run_t078_p1.py"} --materials {out} --reuse-stage-a --launch-label LAUNCH_LABEL --phase screen --label {args.instance}-{role}-s13-screen{suffix} --screen-id {role}-s13']
     (out / 'ONBOARD-COMMANDS.txt').write_text('\n\n'.join(lines) + '\n', encoding='utf-8')
     protocol = json.loads((BASE / '09b-materials-01/protocol.json').read_bytes())
     for phase in protocol['phases']:
@@ -142,7 +148,7 @@ def prepare_role(args):
              'p1_materials': str(out), 'source_revision': static['revision'],
              'startup_readiness_file': str(out / 'readiness.json'), 'messages_expected': phase['messages'], 'tool': phase['tool']})
         (folder / 'COMMANDS.txt').write_text(phase_commands(stage_a, out, stage), encoding='utf-8')
-    save(out / 'generation.json', {'status': 'PASS', 'role': role, 'launch_status': 'NO_GO', 'stage_a': str(stage_a), 'real_process_starts': 0})
+    save(out / 'generation.json', {'status': 'PASS', 'instance': args.instance, 'role': role, 'launch_status': 'NO_GO', 'stage_a': str(stage_a), 'prompt_file': str(args.prompt_file.resolve()), 'real_process_starts': 0})
 
 
 def bind_launch(args):
@@ -175,6 +181,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--mode', choices=['role', 'bind-launch', 'permission'], required=True)
     parser.add_argument('--role', choices=['ideation', 'executor'])
+    parser.add_argument('--instance')
+    parser.add_argument('--prompt-file', type=Path)
     for key in ['stage-a', 'packet', 'p1', 'result', 'output']:
         parser.add_argument('--' + key, type=Path, required=key == 'output')
     args = parser.parse_args()

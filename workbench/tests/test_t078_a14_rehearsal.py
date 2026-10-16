@@ -199,6 +199,7 @@ class Scene:
     def role(self, role, i1_result=None):
         p1 = self.output / (role + '-p1')
         argv = [sys.executable, '-B', BASE / 'prepare-a14.py', '--mode', 'role', '--role', role,
+                '--instance', 'a14', '--prompt-file', BASE / '09b-a14-materials-01/i1-prompt.txt',
                 '--stage-a', self.stage_a, '--packet', self.packet, '--output', p1]
         if i1_result:
             argv += ['--result', i1_result]

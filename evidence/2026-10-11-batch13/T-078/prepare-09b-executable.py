@@ -4,7 +4,8 @@ from pathlib import Path
 SOURCE=Path(__file__).resolve().parents[3];BASE=Path(__file__).resolve().parent
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--label',default='09b-executable-materials-02');parser.add_argument('--protocol',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--label',required=True);parser.add_argument('--protocol',action='store_true');parser.add_argument('--prompt-file',type=Path,required=True);args=parser.parse_args()
+    assert args.prompt_file.is_file() and args.prompt_file.resolve().is_relative_to(BASE), 'explicit_ticket_prompt_required'
     revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip()
     assert not subprocess.check_output(['git','diff','HEAD','--','workbench'],cwd=SOURCE)
     assert not subprocess.check_output(['git','ls-files','--others','--exclude-standard','--','workbench'],cwd=SOURCE)
@@ -37,7 +38,10 @@ def main():
     (out/'actions-approval-template.json').write_text(json.dumps({'approved_by':None,'approval_ref':None,'launch_status':'NO_GO','actions':[]},indent=2)+'\n',encoding='utf-8')
     (out/'launch-approval-template.json').write_text(json.dumps({'approved_by':None,'approval_ref':None,'launch_status':'NO_GO','roles':['ideation','executor'],'real_vendor_model_turns':0},indent=2)+'\n',encoding='utf-8')
     files=[SOURCE/'workbench/src/claudeLaunch.ts',SOURCE/'workbench/src/panes.ts',SOURCE/'workbench/src/relay.ts',SOURCE/'workbench/src/gates/core.ts',SOURCE/'workbench/src/gates/cli.ts',SOURCE/'workbench/tests/t078_09b_driver.py',SOURCE/'workbench/tests/t078_09b_fake_api.py',SOURCE/'workbench/tests/t078_09b_protocol_core.py',SOURCE/'workbench/tests/t078_09b_protocol_full.py',SOURCE/'workbench/tests/t078_09b_i1_driver.py',SOURCE/'workbench/tests/t078_09b_a07_protocol_matrix.py',SOURCE/'workbench/tests/test_t078_09b_fake_api_stop.py',SOURCE/'workbench/tests/test_t078_09b_fake_api_http.py',SOURCE/'workbench/tests/test_t078_09b_receiver_launch.py',SOURCE/'workbench/tests/test_t078_09b_runner_spies.py',SOURCE/'workbench/tests/test_t078_09b_revision_gate.py',SOURCE/'workbench/tests/test_t078_runner_card_preflight.py',SOURCE/'workbench/tests/test_t078_role_file_boundary.ts',SOURCE/'workbench/tests/regenerate_t078_p1.py',BASE/'09B-DRIVER.md',BASE/'09B-RUN-PLAN.md',BASE/'09B-RUN-SPY.md',BASE/'run-09b.py',BASE/'diagnose-stage-a-04.py',BASE/'cleanup-09b-stage-a-03.py',BASE/'cleanup-09b-stage-a-03-recovery.py',BASE/'cleanup-09b-stage-a-04.py',BASE/'prepare-09b-executable.py']
-    files += [SOURCE/'workbench/src/daemon.ts',SOURCE/'workbench/src/store.ts',SOURCE/'workbench/src/hookTrace.ts',SOURCE/'workbench/tests/run_t078_p1.py',SOURCE/'workbench/tests/t078_09b_i1_permission.py',SOURCE/'workbench/tests/t078_09b_phase_registry.py',SOURCE/'workbench/tests/t078_09b_phase_driver.py',BASE/'prepare-a14.py',BASE/'09b-materials-01/protocol.json',BASE/'stage-b-a12-ideation-approval-01.json',BASE/'09b-a14-materials-01/i1-prompt.txt']
+    files += [SOURCE/'workbench/src/daemon.ts',SOURCE/'workbench/src/store.ts',SOURCE/'workbench/src/hookTrace.ts',SOURCE/'workbench/tests/run_t078_p1.py',SOURCE/'workbench/tests/t078_09b_i1_permission.py',SOURCE/'workbench/tests/t078_09b_phase_registry.py',SOURCE/'workbench/tests/t078_09b_phase_driver.py',BASE/'prepare-a14.py',BASE/'09b-materials-01/protocol.json',BASE/'stage-b-a12-ideation-approval-01.json',args.prompt_file.resolve()]
+    # Include the complete product source closure, including T-082 contracts
+    # and strict review protocol, without duplicate archive members.
+    files = list(dict.fromkeys([*files, BASE/'observe-startup-queued.py', *sorted((SOURCE/'workbench/src').rglob('*.ts'))]))
     with tarfile.open(out/'sources.tar.gz','x:gz') as arc:
         for f in files:arc.add(f,arcname=str(f.relative_to(SOURCE)))
     with tarfile.open(out/'sources.tar.gz') as arc:

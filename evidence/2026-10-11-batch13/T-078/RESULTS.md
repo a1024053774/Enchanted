@@ -1112,3 +1112,25 @@ A-14 本身续行 NO_GO：daemon 持有旧 ESM 方法，P1 批准包的 panes.ts
 ## 主控 #321：合并后的六段回归完成
 
 主控沙箱外运行 `merge-main-3-outside-02` **PASS**：T-082 tracer 与四种启动边界变异共五项、六项 report/结束核对全部通过，退出码 0。连同 outside-01 的前四段，合并后的六段关键回归全部 **PASS**；outside-01 的宿主启动失败原件原样保留，不把其整体 INCOMPLETE 改写为 PASS。两轮产品源码均绑定合并提交 `859fd649765e64926c87c7eb69499854b18ae042`；第二轮另逐字保存四份实际质量夹具修复源码，凭据正常引导/回收及完整审查边界已有真实门禁运行证据。主控要求本会话直接提交本轮修复与两轮证据，然后继续只写 A-14 owner-bound 回收和 A-15 材料；本节不批准执行回收或启动 A-15，完整 09B 仍 INCOMPLETE。
+
+## 主控 #321：A-14 回收与 A-15 静态材料
+
+本会话已直接提交 `f2e07d077293909bd02aa19f9e0fdda85ca3e182`（质量宿主 operator 引导、日志留存、bootstrap 检查与两轮合并回归原件），钩子生成九项尾注，提交后 git status 为空。随后只准备本节文件，未访问 A-14 的当前进程、数据库、窗口或 API，未执行清理，也未启动 A-15。
+
+A-14 固定 owner 为 root `…/t078-2-09b-run-gbxz0tyb` 与原九个 PID；两个实际 B1 manifest 均已从保存证据取值。`cleanup-09b-a14.py` 先只读双读身份/父子/前台关系，正式模式要求独立主控签字和已完成的脱敏外置归档，再经认证 daemon_stop→panes.shutdown 关闭两角色和 target；只对两个原 API 各一次 SIGTERM。原 shell 没有历史 lstart 的限制如实写进 `09B-A14-CLEANUP-PLAN.md`，不补造值。只归档计数、批准工具/排队回执、错误码、原 I1 pending 收据和状态摘要；每个保留成员按类型与字节读回，确认九进程退出后才删 raw root；不留 raw HOME/auth/debug/messages/SQLite，不删 slot。实际 dry-run、脱敏与回收仍 **INCOMPLETE／未执行**。
+
+A-15 计划见 `09b-a15-materials-01/PLAN.md`，protocol 逐字不变，预算 I 4/6、E 6/11、模型 0。沿用已验证的 API profile `a14-approved-gate-history-v1`（协议版本名），实例 nonce/scenario/B1/按键/读屏 label 用明确的 a15 参数；提示文件也显式给出，不默认读取 A-14 材料。source_base 为当前 f2e07d077，提交脚本先冻结生成器，再由同一个 unified prepare 生成 executable materials-15 与实际 source_revision；批准字段仍空。首次提交前已有本段 RESULTS，自生预检和二次生成物都进清单，第二次提交后不追加文件。
+
+executor onboarding 每个键后增加只读 gate inbox_list 刷新＋pane status/SQLite 观测，要求原 stop 仍 queued、没有 delivered 历史和原 I2、unknown/active=null、同一原队列，零业务写出/零 POST；初始 release 在六项通过后才允许。B1 plan 的 security-notice/screen_text 和实际键的 onboarding-notice 分开，旧屏 -02 重读、实际成功 manifest 绑定、唯一 slot/output、I1 三步与 180 秒批准期限全部沿用原路径。
+
+`09b-a15-file-check-03` 本地纯检查 **PASS**：九进程登记字段的正例、五种身份反例、无守卫的坏 validator 拒绝；凭据哨兵被白名单剔除、额外 shell 命令拒绝、归档字节变更拒绝；六份已保存的真实首启 queued 收据通过，真实 M5 错误收据在新观测器中拒绝；两角色文件生成均为新 A15 nonce/label、正确预算、executor 六次逐键观测；旧 A14 nonce 变异被拒。测试开始前保存所用源码并在结束逐字核对，未用真实 API/daemon/角色进程或模型，不外推为 A-15 运行验收。01 是变异文本替换引发 SyntaxError 的预检失败，未算业务红态；02/03 为修正后的已知坏 nonce 拒绝，均保留。
+
+本轮新 A-15 的完整 HTTP/Electron/Claude 时序仍 **INCOMPLETE／未运行**，launch **NO_GO**。A-14 清理批准、A-15 Stage A/B1/业务阶段批准均由主控后续逐次审签，不在本轮签字或执行。
+
+## 主控 #322：A-14 停止已完成，归档删除余步待执行
+
+主控运行 A-14 dry-run **PASS**、脱敏归档 **PASS**，外置 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a14-redacted-01/scene.tar.gz` 为 1,164 字节，逐成员读回通过；凭据字样扫描为 0（主控读回）。已签的 09b-a14-cleanup-approval.json 原样保留。正式清理 **BLOCKED**：认证 daemon_stop 已成功，九进程已退出，两只 API 各一次 SIGTERM；删除前再次 collect 时 SQLite 查询报 unable to open database file，root 未删。该结果不改写成 PASS，也不重发停止或信号。
+
+本轮修复发生在上述执行之后，修改前源码与 file-check-03 副本一致并另留存于 09b-a14-cleanup-fix-01。精确变更为保留停机前现场/归档摘要比较并保存其值；停机后只验 tar 成员及摘要字节，移除第二次 collect/SQLite 访问。新增 finish 脚本只校验 #322 原回执、九 PID 缺失和原归档，再删固定 root，无 signal、daemon_stop 或 collect 调用；命令见 09B-A14-CLEANUP-FINISH-COMMAND.txt，实际余步 **INCOMPLETE／未执行**。
+
+`09b-a15-file-check-04` **PASS**：旧后置读库表达式在数据库不可用时精确复现同一 OperationalError；新 helper 不读库而通过，归档字节变化仍拒绝；本次保存的真实停止回执及重复信号负例通过，finish 的禁用动作检查通过。该检查只用临时文件与既有证据，process_probes=0，未访问当前 root、发信号或删除现场。A-15 源码与文件包本轮按主控要求直接 Git 提交冻结，所有 launch/阶段批准仍空，不启动运行。
