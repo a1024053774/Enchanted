@@ -8,6 +8,7 @@
 - 起点反例 PASS：`boundary-baseline-01.json`、`boundary-baseline-01.archive.json`。HEAD 改动、变脏和切换到预先存在的同提交分支三条场景均被拒；共享 refs 未变，task paused、review unknown，产生问题记录并保留现场，没有 `review_reclaimed`。三条均无宿主或清理错误。
 - 第二轮绿态读回：`green-regression-02.json`、`green-regression-02.archive.json`。ready 探针、focused 原用例、coop 原 8 项 PASS；recovery 原 9 项为 7 项通过、2 errors，run 18 及后续未运行。两条失败现场没有 review_lifecycle_failed；当前转入三版本诊断，见 `RECOVERY-DIAGNOSIS-01.md`，不得将该轮上调为 PASS。
 - 首轮历史对照 `recovery-three-versions-01`：exec/t078 的 `150ef6516` 已运行两方法，deleted-ref error、external-X PASS。比较器误把原恢复故障注入的确认退出 -9 当作“未确认”，停止了后续版本；原结果保留。已修诊断脚本，增加真正的 main 合入前点，续采命令及证据见 `EXIT-CHECK-DIAGNOSIS-01.md`。
+- 四点对照补采 PASS：`recovery-four-versions-02` 中 main-before-T082 `271ac55d82d0e20067e03e2fa4a990e55ef7b434`、main-T082 `0e6c2b833f6da64243f71d670ea45bb9116fda4d`、T090 `18dd12c29f523227d9fc6fd4c123a674f10bf7fa` 各运行同两方法，均为 run 2 / error 0 / failure 0 / skip 0，均有 review_result 与 review_reclaimed，无 review_lifecycle_failed。该结果只覆盖指定两方法，不代替完整回归。
 - 修复前项目状态 PASS：主控补齐稀疏检出的 `.grilling` 后，`project_map.py status --root .` 为 0 problems、0 stale living docs。先前非零输出原样保留，未改地图。产品修改后，status 按 covers 规则标记 `workbench/README.md` stale，见 `project-map-candidate.txt`；该文件与地图均不在写入边界，由主控核对 Verified。
 
 ## 产品改动
@@ -17,6 +18,16 @@
 审查候选仍绑定冻结 C；原有审查目录干净、共享 refs 未变、副本与启动参数核对、结束核对后才写 `review_reclaimed` 和集成前置均未改。没有修改 `acceptance/`、公共契约类型、冻结协议、启动策略、测试 driver 的回收逻辑；没有 reset worker、跳过回收或伪造事件。
 
 测试增加三条通过真实 CLI/后台/relay/Git/SQLite 的外部变更反例。原整组 runner 仅增加原方法选择参数，仍核对完整原组成员数量、继承方法身份与原断言。
+
+## 两个恢复用例的主控裁定与非阻塞 issue
+
+主控 #13／#7 在当前对话明确裁定（逐字）：
+
+> 这两例是偶发、对时序/负载敏感的失败，不是 T-090 引入，也不是 T-082 引入。
+
+本报告采用该裁定：四点原件表明同类客户端超时在合入前分支也出现，而三个 main／T-090 点的同两例均可通过，记录为既有测试的时序敏感问题。具体慢点与负载因果机制尚未定位，不据此声称稳定性已证明或所有后续超时都可忽略。旧 error 保留为 error，完整回归不跳过、不加长超时、不加重试。
+
+已用 `scripts/inbox send --from worker:s16-t090 --to triage --kind issue` 上报 [20261016T162759Z-worker:s16-t090-issue-001](../../../.project-map/inbox/20261016T162759Z-worker:s16-t090-issue-001.md)，读回确认 `blocking:false`。正文 `ISSUE-RECOVERY-VERIFY-TIMEOUT.md` 附三处原件：`green-regression-02/recovery/`、`recovery-three-versions-01/pre-T082/recovery/`、`recovery-four-versions-02/`。此条 inbox 写入由主控本轮明确要求，未改地图、ticket、验收或全局配置。
 
 ## 宿主绿态与整组命令
 
@@ -34,15 +45,23 @@ python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/T-090/run-host.py --phase green --label green-regression-02 --archive-owned /private/tmp/t090-ready-feirgO --archive-owned /private/tmp/t090-ready-local-01 --archive-owned /private/tmp/s3f-lpmafq64
 ```
 
-原三版本命令只采集了首点即停止。当前下一步只补采三个尚未运行的点：main 合入 T-082 前、main 合入后、T-090；与旧分支首点组成四点对照，不重跑首点，不先改产品、原方法或超时：
+四点对照的补采命令已执行并通过（原件与旧首点分开）：
 
 ```sh
 python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/T-090/compare-recovery.py --label recovery-four-versions-02 --version main-before-T082 --version main-T082 --version T090
 ```
 
-脚本先运行真实子进程/文件系统 ready 发布探针，然后按顺序运行：原冻结候选用例；原交付 8、恢复 9、编排 18；三条 worker 边界反例；T-082 七条正常及结束核对场景；四个启动变异（只读 argv、错误工作目录、联网、tmp 可写）；一个省掉 worker 结束检查的坏实现，分别运行三条新反例，必须命中 `T090-WORKER-HEAD`、`T090-WORKER-DIRTY`、`T090-WORKER-BRANCH` 的业务失败。最后一项证明新反例能拒绝已知坏实现，宿主或导入错误不算拒绝证据。
+当前完整整组回归命令（主控沙箱外执行，新 label，不覆盖任何旧输出）：
 
-新 label 的原始输出直接写 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/green-regression-02/`；仓库仅生成摘要及 `.archive.json`。source checkout 与所有变异源码在内置盘 `/tmp/t090-source-*`，完整执行成功后连同运行夹具复制到外置盘，核对文件数、字节数后才清理原件；失败则保留 source checkout 并报告路径。已完成但失败的测试夹具在拒绝退出码之前归档，不改其失败结果。外置盘缺失即报错。借用既有依赖，不安装、不构建、不链接构建输出。真实模型回合为 0，PTY/原生进程观测是受控输入，不据此声称真实 Codex 沙箱边界已复验。
+```sh
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t090/evidence/2026-10-16-batch16/T-090/run-host.py --phase green --label green-regression-03 --archive-owned /private/tmp/t090-compare-4sx2giy2 --archive-owned /private/tmp/s3f-pobyg0vj --archive-owned /private/tmp/t090-source-bsolfugr
+```
+
+脚本先归档上述已停止的遗留目录，再运行真实子进程/文件系统 ready 发布探针；随后按顺序运行原冻结候选用例、coop 8、recovery 9、run/orchestration 18、CAS 1、cards 15；三条 worker 边界反例；T-082 七条正常及结束核对场景；四个启动变异（只读 argv、错误工作目录、联网、tmp 可写）；省掉 worker 结束检查的坏实现分别运行三条新反例，必须命中 `T090-WORKER-HEAD`、`T090-WORKER-DIRTY`、`T090-WORKER-BRANCH` 的业务失败。最后一项证明新反例能拒绝已知坏实现，宿主或导入错误不算拒绝证据。
+
+三个遗留目录的存在、文件数与字节数预检见 `archive-owned-03-plan.json`。补采 -02 的新临时目录与夹具已经归档并清理，不列入重复归档参数。旧 -01/-02 外置盘原件保持原样。
+
+新 label 的原始输出直接写 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-090/green-regression-03/`；仓库仅生成摘要及 `.archive.json`。source checkout 与所有变异源码在内置盘 `/tmp/t090-source-*`，完整执行成功后连同运行夹具复制到外置盘，核对文件数、字节数后才清理原件；失败则保留 source checkout 并报告路径。已完成但失败的测试夹具在拒绝退出码之前归档，不改其失败结果；没有自动重试或延长原测试期限。外置盘缺失即报错。借用既有依赖，不安装、不构建、不链接构建输出。真实模型回合为 0，PTY/原生进程观测是受控输入，不据此声称真实 Codex 沙箱边界已复验。
 
 红态可复制保留的起点源码快照到内置盘复现（输出目录必须另取新名，复制来源保持只读）：
 
@@ -58,4 +77,4 @@ python3 -B "$T090_REPLAY_ROOT/source/workbench/tests/run_s3_rebased_regression.p
 
 PASS：`node --check workbench/src/gates/core.ts`；Python 文件 AST 解析；改动的 TypeScript 测试文件语法检查；ready 发布步骤的真实文件系统/子进程确定性探针及已知坏实现检出；`git diff --check`；UTF-8 回读；修改边界核对。未跑构建（本任务不需要构建，也没有安装依赖）。
 
-INCOMPLETE：完整恢复回归、run 18 与后续 T-082/worker 场景、三个新反例的坏实现检出、主控独立审查、门禁验收与集成，以及 living doc Verified 核对。focused 真实入口绿态与 coop 原 8 已在第二轮通过，不重复称为未运行；两条恢复用例的跨版本归因仍待四点对照补齐。worker 已只读对照 README 的审查段（115–119、194–197 行）：正文要求审查期间 worker 未变，与本修复一致，未发现需要改写的语义；仍由主控完成地图核对。候选完整提交号在 worker 最终交接中报告；本报告不替代显式交付、验收或集成。
+INCOMPLETE：green-regression-03 完整重跑（含 CAS/cards）、三个新反例的坏实现检出、主控独立审查、门禁验收与集成，以及 living doc Verified 核对。focused 真实入口绿态与 coop 原 8 已在第二轮通过，不重复称为未运行；两条恢复用例的四点证据已采集并由主控裁定为既有时序问题。worker 已只读对照 README 的审查段（115–119、194–197 行）：正文要求审查期间 worker 未变，与本修复一致，未发现需要改写的语义；仍由主控完成地图核对。候选完整提交号在 worker 最终交接中报告；本报告不替代显式交付、验收或集成。

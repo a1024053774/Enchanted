@@ -68,7 +68,7 @@ def main():
 
     def retain_fixture(path):
         path = Path(path).resolve()
-        if path.parent != Path('/private/tmp') or not path.name.startswith(('s3f-', 'q76-', 't090-ready-', 't090-source-')):
+        if path.parent != Path('/private/tmp') or not path.name.startswith(('s3f-', 'q76-', 't090-ready-', 't090-source-', 't090-compare-')):
             raise RuntimeError('Unexpected fixture owner: ' + str(path))
         target = out / 'fixtures' / path.name
         before = inventory(path)
@@ -181,7 +181,7 @@ def main():
             result = legacy('focused', 'coop', True)
             if result['tests_run'] != 1 or result['errors'] or result['failures']:
                 raise RuntimeError('原冻结候选用例未通过')
-            for suite, count in [('coop', 8), ('recovery', 9), ('run', 18)]:
+            for suite, count in [('coop', 8), ('recovery', 9), ('run', 18), ('cas', 1), ('cards', 15)]:
                 result = legacy(suite, suite)
                 if result['tests_run'] != count or result['status'] != 'PASS':
                     raise RuntimeError('整组回归未通过：' + suite)
