@@ -1090,3 +1090,11 @@ A-14 本身续行 NO_GO：daemon 持有旧 ESM 方法，P1 批准包的 panes.ts
 审查员 M5 原始 diff、probe.diff 和注入说明从外置归档选择性保留在 `startup-receipt-oracle-312/`。先实跑 `09b-startup-receipt-legacy-M5-01`，冻结旧测试确实仍放过 M5（15/15）。新测试的最终本地运行 `09b-startup-receipt-domain-03`：候选 15/15 PASS，七次 pre-release 刷新 queued/无 delivered 历史/无 I2；M5 两项正例在第一键后的新断言实际 delivered／预期 queued，exit 1、用例 INCOMPLETE，保存了 queued→delivered 历史、unknown、一条队列和仅 ArrowUp 字节。运行器 PASS 表示确实拒绝该已知坏实现，不把变异用例升为业务成功。领域仍是 PTY/进程身份 spy，没有冒称 daemon 的 I2 调度已在本地实测。
 
 沙箱外复验命令见 `STARTUP-RECEIPT-ENTRY-COMMAND-01.txt`，使用全新输出 `09b-startup-receipt-entry-01`，同样先精确 M5 再候选；要求 M5 在 startup refreshed delivery 0 这一新断言失败。入口完整运行仍 INCOMPLETE，主控待执行。组装与真实 inbox 加载的无服务预检已 PASS，原单调用 5 秒不变；六次查询使首启场景总期限为 160 秒、外层 190 秒，不快进时钟、不重试。新独立审查仍 INCOMPLETE，见 `STARTUP-RECEIPT-REVIEW-REQUEST-02.md`。未操作或回收 A-14，launch 仍 NO_GO。
+
+## 主控 #316：先变基 T-082，再回收 A-14／准备 A-15
+
+主控已完成入口复验与 startup 第二轮独立审查，`independent-review-startup-02.md` 对冻结候选 `68d7749c2`／产品 `06fc9feca` 的指定差异为 **PASS**，报告提交 `cd8ca713e1ef0ef62b1bc53c4cc33fd5fcf4e246`。原先未提交的 `09b-startup-receipt-entry-01/` 在本次交接清单中保留：候选入口 14/14、六次真实 queued 刷新；M5 在首键后的新断言失败。该结论仅属变基前差异，不外推为完整 09B 通过或 A-14 可续行。
+
+按主控 #316，暂停刚开始的 #315 文件准备，先把 exec/t078 变基到固定 main 提交 `0e6c2b833f6da64243f71d670ea45bb9116fda4d`（含 T-082）。起点 `cd8ca713e1ef0ef62b1bc53c4cc33fd5fcf4e246`，共同基点 `490de67d05a08ccf8a453a78694a106288579b47`；准备时 main 已追加一条本票决策证据，代码未越过固定目标。脚本与完整说明见 `rebase-main-3/`，先提交现有证据与两份未运行的 A-14 草稿，再备份并做有界变基；冲突保留，不自动取任一方。
+
+`09b-a14-cleanup-owner.json` 与 `redact-a14-scene.py` 仅为 #315 已开始写的进度，尚未执行，owner-bound 清理脚本与 A-15 材料尚未完成。A-14 现场本轮没有被查询、输入、发信号或回收。本轮预检只涉及仓库、现有证据、Python 语法和项目地图；变基、冲突处理、变基后的 pending 链／startup 15 项及入口／worker 收件箱 14 项均 **INCOMPLETE／未执行**。T-082 的审查启动和结束语义须完整保留，T-078 的投递与首启语义须在新候选重证后才继续 #315。
