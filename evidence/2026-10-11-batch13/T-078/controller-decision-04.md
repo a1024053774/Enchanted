@@ -730,3 +730,8 @@ worker 修复为停机后只验归档（dedd4f66b），A-15 静态封包冻结�
 ## 外置盘 issue 处置登记（2026-10-16 UTC）
 
 用户经构思主控抄录（certainty relayed）选择"关闭，记下根因未明 (Recommended)"：disposition 20261016T104340Z-user-disposition-001 关闭 blocking issue 20261016T093805Z-executor-issue-001。登记：起因未明（未查到是休眠、线缆还是供电）；没有文件被删；外置盘 batch13～15 归档当时未核对。执行主控随后做了只读核对：evidence/2026-10-16-batch16/disk-archive-check-01/（PASS，读错误 0、字节数不符 0、gzip 损坏 0、未引用 0；8 条脚本"缺失"逐条核对为非归档路径）。
+
+## #325–#329 A-15 B1、首启、I1、executor 首启、I2 arm、E1 release（2026-10-16 UTC）
+
+全部由主控按用户授权代签。ideation：B1 dry-run READY_FOR_ROLE、real PASS；首启六键逐屏读后逐键签发（主题 ArrowUp/ArrowDown/Enter、Security notes Enter〔与 B1 screen_text 一致〕、信任屏 ArrowDown/Enter），s13 空提示符 manual；readiness PASS（0 Messages）。I1：STEP1 → READY_FOR_PERMISSION；permission 屏完整命令（inbox send --kind stop，与 A-14 同形）与 ❯ 1. Yes 核对后签字，Electron 一次 Enter → READY_FOR_EXECUTOR：stop c3ab1493… from ideation→executor pending、feedback 0、target 零字节、POST 2。
+executor：B1 dry-run/real PASS，BIND-LAUNCH PASS；首启六键同上，每键后 observe-startup-queued 六次 PASS（queued、无 delivered、无 I2、业务写出 0、API POST 0）；s13 空提示符 manual；readiness PASS。I2 签字后 ARMED（不发输入）；E1 签字后 initial release → READY_FOR_PERMISSION（source inbox，entry c3ab1493…）。DELIVERY-I2-READBACK PASS：turn_submitted seq 176 后 delivered（feedback seq 187），feedback_count 1，原 I2 恰一次（registration 1、submission 1）关联原 request 80ef9485…/entry c3ab1493…；POST ideation 3/6、executor 1/11。主控误重跑读回命令一次，以 output_exists 拒绝、无副作用。
