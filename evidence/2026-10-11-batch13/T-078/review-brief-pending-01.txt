@@ -1,0 +1,16 @@
+⟦主控 #301⟧
+你是 T-078 '离线角色留存待投递' 改动的 fresh-context 独立 reviewer（执行主控派发）。没有作者会话历史；只审查一个冻结候选；不实现、不修复、不开子 agent。先读 /Users/luckye/Documents/Code/a2a/.project-map/roles/reviewer.md（只读）。
+
+只读：唯一允许写入 /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/independent-review-pending-01.md 与同目录 REVIEW-PENDING-OUTSIDE-01.sh（UTF-8、中文）。一次性副本放 /tmp 新目录，只解出 workbench、acceptance、scripts、fixtures 等必要路径（不要 archive 整个仓库，evidence 很大）。不改其他文件，不 git commit/checkout/reset/stash，不 push/submit/集成，不调用模型 API，不复制 auth，不写全局配置，不请求沙箱升级；需要沙箱外跑的命令写进 REVIEW-PENDING-OUTSIDE-01.sh（每段 echo 段名、输出到新目录、结尾打印退出码），写完回一句，我跑完把输出给你。
+
+仓库 /Users/luckye/Documents/Code/a2a-wt-t078；冻结候选：产品/测试提交 703984056（git rev-parse 确认），冻结记录 4b48664fd；改动前基线 887d85cdb。
+用户决定（逐字，构思主控 answer 20261016T012505Z-ideation-answer-001，副本在本目录）：'产品改：目标角色没有会话时，条目照常追加保存，状态记为待投递，不再给发送方回灌反馈回合；角色启动后由现有唤醒路径投递。符合追加式收件箱。注意“待投递”必须对发送方可见，不能显示成已送达，否则紧急停止的 2 分钟无 ack 规则就失效。改的是产品语义和验收口径，protocol 与预算不变。'
+主控裁定（#299）：pending 阶段反馈为零；protocol 原有的 I2（实际 send 执行反馈）在条目实际 delivered 后登记，关联原 request_id/entry_id，不重做 send、不额外派发。请独立判断该裁定是否与用户原话一致，有异议写进报告。
+作者交接：PENDING-REVIEW-REQUEST-01.md、PLAN-PENDING-DELIVERY-01.md（只作线索，不作结论）。
+
+核对并附证据：
+1. diff 范围：887d85cdb..703984056 的产品改动只在收件箱投递/恢复/结果判定、daemon controller_start 接线与 Stop 反馈筛选、relay 待反馈查询；无 T-082 审查启动区域改动、无新业务入口、无 operator 代发。
+2. 交接里列的每条验收（无会话 → pending 可按 request_id 查、无反馈；上线只入队、首启 unknown 零业务字节、turn_submitted 后才 delivered；I2 恰一条且在写出收据之后；created_at 不变；ack 去重与越权 ack 拒绝；有会话仍立即 delivered；bare pending/unknown 历史不自动重送；身份校验不变）——逐条找到对应实现与检查，在基线上应失败的要有红态。
+3. 完成条件够格：在你的一次性副本里构造 2～5 个错误实现（例如 pending 显示成 delivered、仍回灌反馈、上线后重置 created_at、对 bare pending 自动重送、I2 先于写出收据），跑对应检查确认失败点正确。
+4. 有无吞异常、宽 catch、兜底重试、兼容分支、平行 API。
+结论 PASS / INCOMPLETE / NO_GO，按严重度列发现。最后一行写 T-078 PENDING REVIEW DONE。
