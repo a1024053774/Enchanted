@@ -5,6 +5,7 @@ from command_evidence import CommandLog,command_json
 from p1_endpoint import resolved_input
 from p1_processes import identity_from_ps,cli_exit_verdict
 from p1_reuse import resolve_reused_api,controller_start_args
+from p1_output import read_complete_output
 SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
 parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','continue-esc','cleanup'],required=True)
 parser.add_argument('--reuse-stage-a',action='store_true');parser.add_argument('--reuse-api-root',type=Path);parser.add_argument('--stop-before-cli',action='store_true')
@@ -59,13 +60,12 @@ def same_cli():
         raise RuntimeError('continuation_cli_identity_changed')
     return manifest
 def snapshot():
-    value=call('pane_output','--launch',approval['input']['launch'],'--offset','0')
-    if value['next_offset']!=value['total_bytes']:raise RuntimeError('screen_exceeds_review_limit')
-    raw=base64.b64decode(value['data_base64'])
+    captured=read_complete_output(lambda offset:call('pane_output','--launch',approval['input']['launch'],'--offset',str(offset)),approval['input']['launch'])
+    value=captured['output'];raw=captured['raw']
     with (out/'screen.bin').open('xb') as f:f.write(raw)
     with (out/'screen.json').open('x',encoding='utf-8') as f:
         json.dump({'observed_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
-                   'directory':str(root/'repo'),'screen_id':args.screen_id,'launch':approval['input']['launch'],'session':approval['input']['session'],'output':value},f,ensure_ascii=False,indent=2)
+                   'directory':str(root/'repo'),'screen_id':args.screen_id,'launch':approval['input']['launch'],'session':approval['input']['session'],'output':value,'capture':captured['capture']},f,ensure_ascii=False,indent=2)
     return value
 def raw_hook_receipts():
     records=[]

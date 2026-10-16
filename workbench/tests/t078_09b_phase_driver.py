@@ -1,11 +1,11 @@
 """Approved 09B phase control and independent persistent-state readback."""
-import base64
 import json
 import os
 import time
 from pathlib import Path
 
 from t078_09b_phase_registry import rows, accepted, validate_phase_approval
+from p1_output import read_complete_output
 
 
 def write_new(path, value):
@@ -196,14 +196,15 @@ def execute(materials, stage_a, approval_path, output, stage, action):
             events, _, prompt = phase_events(plan, inp, dispatch_id)
             permission = [event for event in events if event['type'] == 'permission_wait' and event['data']['prompt_id'] == prompt]
             if permission:
-                screen = gate(root, 'pane_output', '--launch', inp['launch'], '--offset', '0')
+                screen = read_complete_output(lambda offset: gate(root, 'pane_output', '--launch', inp['launch'], '--offset', str(offset)), inp['launch'])
                 Path(output).mkdir(parents=True, exist_ok=True)
                 path = Path(output) / 'permission-screen.bin'
                 with path.open('xb') as stream:
-                    stream.write(base64.b64decode(screen['data_base64']))
+                    stream.write(screen['raw'])
                 bound = json.loads((root / 'roles' / role / ('bound-' + dispatch_id + '.json')).read_bytes())
                 result = {'status': 'READY_FOR_PERMISSION', 'stage': stage, 'role': role, 'dispatch': bound,
-                          'permission_event': permission[0], 'permission_screen': str(path.resolve()), 'phase_plan': str(root / 'protocol-plan.json')}
+                          'permission_event': permission[0], 'permission_screen': str(path.resolve()),
+                          'permission_screen_capture': screen['capture'], 'phase_plan': str(root / 'protocol-plan.json')}
                 write_new(Path(output) / 'result.json', result); return result
             if stage in ['I2', 'I4', 'E6']:
                 return settle_stage(plan, inp, stage, output)

@@ -1194,3 +1194,15 @@ executor readiness **PASS**（0 Messages）；主控签 I2 后 arm=ARMED，不�
 E4 首次单独 screen 输出 **INCOMPLETE**，报 screen_exceeds_review_limit、未写 screen.bin。只读检查已保存原返回：offset 0→65536，total_bytes=76125。进一步发现 E4 dispatch-01/permission-screen.bin 也只有 65536 字节，与该分页前缀逐字相同；因此直接补齐完整读取不能再和旧截断文件作全文件 cmp。当前 Enter 前只读校验也只取一页，AST 隔离反例用同一真实保存页证明：它接受相同前缀，却仍有 10589 字节未读。此反例没有执行 gate、Enter、CLI/API、进程或数据库操作，不能算修复绿态。
 
 三个关联 reader 调用均在原冻结包：P1 snapshot、phase_driver 许可截图、permission Enter 前的只读比较。E5 的同一追加式累计输出也会超限；仅改一个显示函数会遇到旧参考与源码冻结检查的下一处失败。本轮不改变原文件、未签 E4 permission 草稿或运行现场；实现暂停，已上报 blocking issue `20261016T113401Z-worker:t078-e4-screen-issue-001`（工具强制 issue 送 triage，主控在当前会话同步获知）。完整事实与最小建议在 `09b-a15-e4-screen-diagnosis-01/NEEDS-DECISION.md`：建议授权同一条完整只读分页证据链、保留旧截断原件并追加引用同一实际事件的完整恢复收据、另签新 permission，以及显式新的只读 harness 源冻结；不重启角色/daemon/API，不改业务输入与预算。当前修复/续行 **INCOMPLETE／needs-decision，NO_GO**。
+
+## 主控 #331：完整只读证据链修复，现场恢复待执行
+
+#331 明确批准原四点建议，限测试证据链，不改业务输入、Stop/relay、protocol、预算、验收标准或产品代码。三个原 reader 调用统一为 p1_output：固定 total、连续 offset、逐页字节数、最后 EOF 再确认；变化 total、零进度、截断/缺页/越界拒绝，不重试。Enter 前必须有完整 capture，旧截断参考不能靠相同首个页继续放行。新增 check-only 在 build/窗口/按键前只验证屏幕与 active binding；原 Enter 业务段 AST 不变。
+
+聚焦证据 **PASS（夹具范围）**：真实 P1 参数/screen 入口候选 6/6，旧 reader 的同入口红态及只读一页坏实现均被检出；permission CLI check-only 7/7，缺少完整捕获也拒绝；phase execute 许可截图原红 65536/155701、候选绿 155701/155701；恢复器 5/5，删掉前缀校验的坏实现检出；冻结范围 3/3，三个调用批准只读段以外 AST 相同。输出传输与身份均明确是隔离夹具；沙箱 /bin/ps 被拒，身份用 spy，真实身份外侧复验脚本另交，尚 **INCOMPLETE／未运行**。未用这些结果声称已经在 A-15 恢复。夹具初期的固定 node/operator.json 与 /tmp 别名错误均保留，不算产品红态。
+
+历史审计仅查旧原件：E1/E2/E3/I3 的许可参考为 16026/32797/52533/44869 字节，均与当时保存的完整 gate total 和原屏逐字节一致，未受本次上限截断。I1 为 16322 字节，与 Enter 前 Electron offset 相同，但未保存直接 gate total；直接完整性证据仍 **INCOMPLETE**，由主控判断对旧 PASS 的影响，不改任何旧结论。E4 的 65536/76125 截断事实保留。
+
+本次源码提交后生成新的 reader harness 冻结：原 58 文件只改三个只读 caller，其余 55 文件逐字节相同；分页 helper、恢复器、源校验入口及测试显式入包。业务源码继续标为 dedd4f66bc424610183cbff2d7114e991483e1c6，新 harness 版本从实际 Git HEAD 读取。新命令显式验证该包；P1 还传 --source-materials，不跳过原冻结检查。E4 以新 -02 完整读屏→只读追加恢复（原前缀匹配、同一 dispatch/event）→新 -03 与独立完整参考 cmp→主控签新 permission-02 后才 Enter。恢复原件与新 permission-02 由主控执行只读命令后生成，本轮不伪造现场材料。E5 从许可截图到 Enter 前都完整读取，E6 延用同一新冻结命令。
+
+blocking issue 20261016T113401Z 的可关闭依据为 #331 范围裁定、三处统一读取、红绿及反例、追加恢复/冻结范围检查；worker 未代关，现场读屏/恢复/Enter 仍 **INCOMPLETE／未执行**，预算不变。独立 fresh review 未运行（遵守不增开 Codex/子代理），已有请求材料，不用自查替代独立 PASS。另非阻塞 issue 20261016T120838Z 提醒下一次标准 prepare 补新增 reader 闭包；本次新包完整，旧 prepare 为保持其余原包不变而未改。

@@ -6,7 +6,6 @@ path for one Enter, and then delegates final Messages/Stop/inbox readback to
 the shared protocol driver.  It is never run as part of material preparation.
 """
 import argparse
-import base64
 import json
 import os
 import sqlite3
@@ -21,6 +20,7 @@ sys.path.insert(0, str(TESTS))
 from electron_client import ElectronClient
 from t078_09b_i1_driver import gate
 from t078_09b_phase_driver import settle_stage
+from p1_output import verify_permission_output
 
 OUTPUT = None
 
@@ -46,6 +46,7 @@ def main():
     parser.add_argument('--process-manifest', type=Path, required=True)
     parser.add_argument('--approval', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--check-only', action='store_true')
     args = parser.parse_args()
     global OUTPUT
     OUTPUT = args.output.resolve(); OUTPUT.mkdir(parents=True, exist_ok=False)
@@ -72,15 +73,19 @@ def main():
     command = permission_event.get('data', {}).get('tool_input', {}).get('command')
     if not command or approval.get('bash_command') != command or dispatch.get('tool_use', {}).get('input') != {'command': command}:
         raise RuntimeError('permission_command_mismatch')
-    observed = gate(root, 'pane_output', '--launch', launch, '--offset', '0')
-    if base64.b64decode(observed['data_base64']) != screen_file.read_bytes():
-        raise RuntimeError('permission_screen_changed')
+    verified_capture = verify_permission_output(dispatch_result,
+        lambda offset: gate(root, 'pane_output', '--launch', launch, '--offset', str(offset)), launch, screen_file.read_bytes())
     pane = gate(root, 'pane_status', '--thread', thread)
     if pane.get('state') != 'busy' or pane.get('active', {}).get('dispatch') != dispatch['id']:
         raise RuntimeError('permission_active_dispatch_mismatch')
     before = events(state, launch)
     if len([event for event in before if event['type'] == 'permission_wait' and event['seq'] == approval['permission_seq']]) != 1:
         raise RuntimeError('permission_event_missing')
+    if args.check_only:
+        result = {'status': 'PASS', 'scope': 'Complete permission screen and active binding verified; stop before build/window/key',
+                  'permission_screen_verified_capture': verified_capture, 'business_input_sent': False}
+        (args.output / 'result.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+        print(json.dumps(result)); return 0
     # Every permission attempt gets a distinct build slot. build.mjs refuses
     # to overwrite an existing slot, so derive it from the new output label.
     slot = 't078-a14-' + args.stage + '-' + args.output.name + '-' + launch
@@ -111,7 +116,8 @@ def main():
         plan = json.loads(Path(dispatch_result['phase_plan']).read_bytes())
         result = settle_stage(plan, input_data, args.stage, args.output.resolve())
         result.update({'permission_approval': approval, 'permission_view': view, 'permission_key_result': key_result,
-                       'permission_control_action': action_rows[0], 'process_manifest': str(args.process_manifest.resolve())})
+                       'permission_control_action': action_rows[0], 'process_manifest': str(args.process_manifest.resolve()),
+                       'permission_screen_verified_capture': verified_capture})
         (args.output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
         print(json.dumps({'status': 'PASS', 'messages_sent': 2, 'permission_enter': 'control action'}, ensure_ascii=False))
     finally:
