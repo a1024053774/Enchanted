@@ -1,0 +1,11 @@
+--- candidate/panes.ts
++++ key_receipt_is_delivery/panes.ts
+@@ -544,7 +544,7 @@
+     const pane = this.panes.get(thread);
+     const queued = pane && !pane.failed && !pane.stopped && !pane.archived &&
+       (pane.sending === message || pane.queue.some(row => row.id === message));
+-    return { state: queued ? "queued" : "unknown", at: item.registered_at };
++    return { state: queued ? (this.store.lastEvent(item.launch, ["controller_screen_key_written"]) ? "delivered" : "queued") : "unknown", at: item.registered_at };
+   };
+   async drain(pane: Pane) {
+     if (pane.state !== "idle" || pane.writing || pane.pendingInputs > 0 || pane.userDraft || pane.interrupted || !pane.queue.length || pane.failed) return;

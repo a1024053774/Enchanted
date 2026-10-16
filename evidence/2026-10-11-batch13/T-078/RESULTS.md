@@ -1072,3 +1072,21 @@ project-map status **PASS**：Problems=0、Stale living docs=0。没有修改地
 A-14 本身续行 NO_GO：daemon 持有旧 ESM 方法，P1 批准包的 panes.ts 与修复后源码逐字不同；不改旧包、不跳核对、不热补丁、不重启接管旧 PTY。完整 s1 新 label 命令仅作为 `09b-a14-s1-retry-NO-GO.json` 的禁执行提案保留。主控需在新独立审查后裁定回收/新实例；本轮无按键、业务注入、release、Stop 或现场回收。一次 ps 探测被沙箱拒绝，没有请求升级；只读 SQLite 证据与原命令输出已保存，PID 不冒称本轮重验存活。
 
 本差异独立审查 INCOMPLETE，见 `STARTUP-PENDING-REVIEW-REQUEST-01.md`；不沿用原 pending PASS，不宣布真实 Claude 首启恢复、完整 09B 或整票完成。
+
+## 主控 #309：真实入口复验的副本漏拷
+
+`09b-startup-pending-entry-01` 原样保留 INCOMPLETE。原始 command-2.stderr 明确为 Node MODULE_NOT_FOUND：副本未包含 `workbench/bin/inbox`，不是调用者身份、请求目录或会话拒绝。该命令根本没有加载 inbox；UPS 虽 PASS，失败库的 relay_requests/relay_results/inbox_records 均为 0，尚未到达首启键。这次不能算 queue 谓词的真实入口红态。
+
+`09b-startup-layout-red-01` 用原副本布局在无服务条件下再次取得同一 MODULE_NOT_FOUND。修复只改排练副本组装：把真实 bin/inbox 与 package.json 连同 src、测试文件放进同一个包布局，不新增替代入口。预检和 red/green 正式运行共用 prepare_snapshot，并在启动服务前实际用副本入口执行无效命令，要求到达 inbox 参数合同而非缺模块。
+
+`09b-startup-layout-green-01` 本地实跑 PASS：真实副本入口成功加载，预期退出 2/inbox_client_arguments；无 daemon/API/model，临时副本已删除。完整链仍 INCOMPLETE，主控下一次输出固定用 `09b-startup-pending-entry-02`，命令在 `STARTUP-PENDING-ENTRY-COMMAND-02.txt`。产品源码与 A-14 现场均未改动、未发键、未重试或回收。
+
+## 主控 #312：独立审查 NO_GO 与完成条件补强
+
+主控后续运行 entry-02，旧完成条件真实入口 14/14 PASS；但新独立审查 `independent-review-startup-01.md` 明确为 NO_GO／需修复完成条件：M5 key_receipt_is_delivery 在冻结领域 15/15、真实入口 14/14 均存活，仅独立时点探针检出。没有将它描述为候选产品缺陷，也不沿用原局部通过结论授予审查 PASS。
+
+本轮不改任何 workbench/src 产品代码。领域两个正例在每个按键后使用真实 A2AGates.inboxDeliveryStatus→refreshInboxDelivery→Panes.readWakeDelivery 刷新同一个原 stop；新夹具保留实际记录的 entry 身份与同库 queued 收据。真实入口排练在每个 pane_screen_key 后通过真实、认证的 inbox list 查询该 entry，逐次断言 queued、无 delivered 历史、无原 I2 intent/registered/dispatch，且 thread/message 仍指向原队列；六个时点分别保存原件。仅查未刷新行的旧做法不再作为投递证明。
+
+审查员 M5 原始 diff、probe.diff 和注入说明从外置归档选择性保留在 `startup-receipt-oracle-312/`。先实跑 `09b-startup-receipt-legacy-M5-01`，冻结旧测试确实仍放过 M5（15/15）。新测试的最终本地运行 `09b-startup-receipt-domain-03`：候选 15/15 PASS，七次 pre-release 刷新 queued/无 delivered 历史/无 I2；M5 两项正例在第一键后的新断言实际 delivered／预期 queued，exit 1、用例 INCOMPLETE，保存了 queued→delivered 历史、unknown、一条队列和仅 ArrowUp 字节。运行器 PASS 表示确实拒绝该已知坏实现，不把变异用例升为业务成功。领域仍是 PTY/进程身份 spy，没有冒称 daemon 的 I2 调度已在本地实测。
+
+沙箱外复验命令见 `STARTUP-RECEIPT-ENTRY-COMMAND-01.txt`，使用全新输出 `09b-startup-receipt-entry-01`，同样先精确 M5 再候选；要求 M5 在 startup refreshed delivery 0 这一新断言失败。入口完整运行仍 INCOMPLETE，主控待执行。组装与真实 inbox 加载的无服务预检已 PASS，原单调用 5 秒不变；六次查询使首启场景总期限为 160 秒、外层 190 秒，不快进时钟、不重试。新独立审查仍 INCOMPLETE，见 `STARTUP-RECEIPT-REVIEW-REQUEST-02.md`。未操作或回收 A-14，launch 仍 NO_GO。

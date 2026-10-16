@@ -194,7 +194,8 @@ const hardDeadline = setTimeout(() => {
 // The extended scenario makes up to 17 serial native entry calls (5s each).
 // local-02 measured several seconds per Node import under memory pressure;
 // retain the per-call deadline and give the whole extended chain 90s.
-}, startupMaterials ? 120_000 : offlineRecipient ? 90_000 : 30_000);
+// Main #312 adds six serial receipt queries, each retaining its 5s limit.
+}, startupMaterials ? 160_000 : offlineRecipient ? 90_000 : 30_000);
 
 try {
   await serve(state, {}, (root, value) => {
@@ -382,6 +383,26 @@ try {
           "--authorization-ref", frame.approval_ref], "", operatorEnv);
         equal("startup CLI exit " + index, result.code, 0);
         equal("startup written receipt " + index, JSON.parse(result.stdout).written, true);
+        const query = await run([resolve("workbench/bin/inbox"), "--state", state, "list", "--role", "executor"], "", operatorEnv);
+        equal("startup receipt query exit " + index, query.code, 0);
+        const listed = JSON.parse(query.stdout);
+        equal("startup receipt query ok " + index, listed.ok, true);
+        const refreshed = listed.entries.find((item: any) => item.entry.id === entry.id);
+        const history = panes.store.db.prepare("SELECT data FROM inbox_deliveries WHERE entry=? ORDER BY seq").all(entry.id)
+          .map((row: any) => JSON.parse(row.data));
+        const i2 = panes.store.read().filter((event: any) =>
+          (["relay_feedback_intent", "relay_feedback_registered"].includes(event.type) && event.data.entry_id === entry.id) ||
+          (event.launch === ideation.record.id && event.type === "dispatch_queued" && event.data.source === "gate"));
+        const observation = { key: frame.key, index, entry_id: entry.id, refreshed, history, I2: i2,
+          state: executor.pane.state, active: executor.pane.active, queue: executor.pane.queue.map((item: any) => item.id),
+          writes: [...executor.writes] };
+        writeFileSync(join(output, `startup-receipt-${index}.json`), JSON.stringify(observation, null, 2) + "\n", { flag: "wx" });
+        equal("startup receipt original entry " + index, refreshed?.entry.id, entry.id);
+        equal("startup receipt original message " + index, refreshed?.delivery.message, beforeQueue[0]);
+        equal("startup receipt original thread " + index, refreshed?.delivery.thread, executor.record.thread);
+        equal("startup refreshed delivery " + index, refreshed?.delivery.state, "queued");
+        equal("startup has no delivered history " + index, history.filter((row: any) => row.state === "delivered").length, 0);
+        equal("startup has no I2 " + index, i2.length, 0);
         equal("startup remains unknown " + index, executor.pane.state, "unknown");
         equal("startup active remains null " + index, executor.pane.active, null);
         equal("startup queue unchanged " + index, JSON.stringify(executor.pane.queue.map((item: any) => item.id)), JSON.stringify(beforeQueue));
