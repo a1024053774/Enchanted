@@ -1162,3 +1162,11 @@ executor onboarding 每个键后增加只读 gate inbox_list 刷新＋pane statu
 本轮仅准备确认命令与 I1 材料。READINESS-CONFIRM-COMMAND 由主控执行时才核对原屏绑定/尾部提示符/manual、实际 POST/请求/响应计数为 0、该 launch 无提交事件，排他创建 readiness.json，不 release 或发送输入。屏幕标记核对辅助 #326 已有人工读回，不冒充独立终端渲染验收；本轮未执行此确认命令。I1 的 phase approval 补齐模拟用户输入来源、实际 synthetic_input_id、预算和只到许可屏的停止条件，approved_by/approval_ref 仍空；注入文本沿用原 i1-prompt.txt，真实驱动仅经门禁 pane_dispatch/release，API 从真实历史登记 seq、dispatch/request/prompt 关联，tool_use Bash input 使用 command。STEP1-COMMAND 输出为新 `phases/I1/dispatch-01`；父目录已存在，尚未派发、写 stage approval 或调用假 API。
 
 I1 全回合预算 1 root / 2 Messages、一次许可；本次待批第一步只至第 1 POST 与 PermissionRequest，随后保存原屏/事件并停止。许可 Enter 与后半回合仍需另批；executor 不启动。静态语法、路径、未签字段与绑定检查的实际输出保存在 `09b-a15-i1-preparation-01`；readiness 确认、I1 第一步运行均 **INCOMPLETE／未执行**。
+
+## 主控 #327：A-15 I1 到 pending 通过，executor 材料待批
+
+readiness 确认 **PASS**（0 Messages、无业务提交事件）。主控签 I1 后，dispatch-01 返回 READY_FOR_PERMISSION（真实 dispatch=`c9f2322a-0526-4430-a3d6-98b376b8b140`、全局 seq=2）；核对完整 Bash command、refs 和 ❯ 1. Yes 后签 permission，一次 awaited Electron Enter。execute-02 为 **READY_FOR_EXECUTOR**：2 Messages，真实 Stop→relay 得到 ideation→executor stop `c3ab1493-5c73-4af5-947f-a0f16f19d6c7`，request=`80ef9485-80df-43f3-9791-bab43261cb5b`，relay ok、pending=true/role_session_missing、feedback_count=0、target_byte_count=0；Enter 记为 action/control。stop.created_at=`2026-10-16T10:51:40.728Z` 原样保留。这只证明 I1 阶段，不上调为完整 09B 通过。
+
+先以 `1aded2e073d959457233a4ee06351f0b76fa8788` 提交以上原始输出与签字件，九项尾注齐、当时工作树干净。随后只执行原统一生成器的 executor 文件命令；它先核对真实 relay pending 行，再生成 `09b-a15-b1-executor-p1-01`，绑定同一 Stage A target attempt、独立 executor launch/session 和原 API 59388/64829，api_url 仍为动态模板。B1 与六键签字字段均空，dry-run/real 未运行；没有新 API、daemon 或角色进程。
+
+executor 的 B1-COMMANDS、BIND-LAUNCH、ONBOARD-COMMANDS 与六键草稿一并冻结；实际 launch label 必须在 B1 后由 bind-launch 取得，本轮不伪造 manifest。每键后安排 expected-keys=1…6 的 observe-startup-queued，刷新本次原 stop，要求仍 queued、无 delivered 历史、无 I2、unknown/active=null、同一队列、零业务写出/POST，entry.created_at 不变；未通过不得下一键或 release。s7 实际按键 purpose=onboarding-notice，B1 screen plan 保留 security-notice + 原文；旧屏用 -02 重读，不发键。当前仅文件与命令静态核对 **PASS**；executor B1、逐屏与六项 queued 观测仍 **INCOMPLETE／未运行**，材料明细在 `09b-a15-executor-b1-preparation-01/HANDOFF.md`。
