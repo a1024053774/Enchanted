@@ -726,3 +726,7 @@ worker 修复为停机后只验归档（dedd4f66b），A-15 静态封包冻结�
 
 外置盘恢复可读（列目录、tar -t 正常）。finish-09b-a14-cleanup.py：--dry-run PASS（09b-a14-cleanup-finish-01-dry-run）；正式运行因卡住那次留下的空目录 09b-a14-cleanup-finish-01 报 FileExistsError（保留该目录为证据，未删），改输出 09b-a14-cleanup-finish-02：PASS，signals_sent []，root_removed true。A-14 回收完成。
 主控签 09b-a15-materials-01/stage-a-approval.json（代签依据：用户在本会话授权执行主控代签 T-078 09B 各阶段批准），STAGE-A-COMMAND → READY_FOR_APPROVAL（09b-a15-stage-a-01；root /private/tmp/t078-2-09b-run-yp09xosq，daemon 59398，target leader 59552，模型回合 0）。派 worker 提交证据并准备 ideation B1。外置盘 issue 20261016T093805Z-executor-issue-001 标 blocking，主控不自行关闭，已经构思主控报告恢复。
+
+## 外置盘 issue 处置登记（2026-10-16 UTC）
+
+用户经构思主控抄录（certainty relayed）选择"关闭，记下根因未明 (Recommended)"：disposition 20261016T104340Z-user-disposition-001 关闭 blocking issue 20261016T093805Z-executor-issue-001。登记：起因未明（未查到是休眠、线缆还是供电）；没有文件被删；外置盘 batch13～15 归档当时未核对。执行主控随后做了只读核对：evidence/2026-10-16-batch16/disk-archive-check-01/（PASS，读错误 0、字节数不符 0、gzip 损坏 0、未引用 0；8 条脚本"缺失"逐条核对为非归档路径）。
