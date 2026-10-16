@@ -698,3 +698,7 @@ executor 材料生成 PASS；executor B1 签字（#308）dry-run READY_FOR_ROLE�
 
 worker 修 #308：仅删除 panes.ts assertStartup 的队列为空前提，提交 06fc9feca（9 条尾注），离线 15/15 PASS。A-14 现场 daemon 加载旧代码、P1 快照拒绝新文件，A-14 不能续跑（09b-a14-s1-retry-NO-GO.json 不执行），现场保留待回收，修复通过审查后需 A-15。主控沙箱外运行真实入口复验：entry-01 失败（夹具漏拷 workbench/bin/inbox，MODULE_NOT_FOUND），worker 补齐后 entry-02 PASS（旧代码红：首个批准首启键被队列守卫拒绝且未写出；修复绿：六键、release、delivered、原 I2、ack、越权拒绝链；0 模型回合）。
 #310：新开 fresh Codex reviewer s16-t078-rev2（wF:p4C）审 06fc9feca 这一差异。
+
+## 首启差异审查 NO_GO（完成条件）#311/#312（2026-10-16 UTC）
+
+reviewer s16-t078-rev2 的沙箱外脚本主控运行：M1 首启 drain、M2 入队即 delivered、M3 去掉 assertStartup、M4 重复放行均被冻结检查拒绝；M5 首启键收据误算 delivered 在冻结领域 15/15 与真实入口 14/14 下均存活，只被独立时点探针检出。结论 NO_GO／需修复完成条件（未确认产品违约）。审查报告提交 9c0d8be25，/tmp 输出归档外置盘 startup-review-01/ 后删除，审查窗格回收。#312 派 worker 补每键后、release 前的 delivery 仍为 queued 断言并保留 M5 作已知坏实现。

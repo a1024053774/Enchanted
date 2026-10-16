@@ -1,0 +1,13 @@
+⟦主控 #56⟧
+你是 T-082 第二轮 fresh-context 独立 reviewer（执行主控派发）。没有作者会话、也没有第一轮审查者的会话历史；只审查冻结候选；不实现、不修复、不开子 agent。先读 /Users/luckye/Documents/Code/a2a/.project-map/roles/reviewer.md（只读）。
+
+只读：唯一允许写入 /Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/independent-review-02.md 与同目录 REVIEW-OUTSIDE-02.sh（UTF-8、中文）。一次性副本放 /tmp 新目录，只解出必要路径（归档白名单按实际成员，例如 workbench/hooks 含 git 钩子脚本；读数据库要在用例清理前保存或用保存的凭据）。不改其他文件，不 git commit/checkout/reset/stash，不 push/submit/集成，不调用模型 API，不复制 auth，不启动真实 Codex，不写全局配置，不请求沙箱升级；沙箱外命令写进 REVIEW-OUTSIDE-02.sh（每段 echo 段名、新输出目录、结尾打印退出码，变量用 ${VAR}），写完回一句，我跑完把输出给你。
+
+仓库 /Users/luckye/Documents/Code/a2a-wt-t082（稀疏检出；历史证据在主 checkout 只读；超 5 MB 的原件在外置盘 /Volumes/WD-Elements/a2a-evidence/2026-10-15-batch15/T-082/）。冻结候选 5f7f9816e（git rev-parse 确认）；第一轮冻结候选 f589d1938；起点 451be8462。票据：/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-082-reviewer-oracle-sufficiency-mutation.md。第一轮审查：evidence/2026-10-15-batch15/T-082/independent-review-01.md（NO_GO：P1 结束核对前可集成；P2 workspace 未绑定；P2 结束核对负例不足；P2 T-076 默认 tier 负例换了观测点；P3 同值条件式）。作者返工说明 REWORK-01.md、RESULTS.md；主控复验 outside-command-11-01、outside-command-12-01。
+
+核对并附证据：
+1. 第一轮五条逐条是否解决（读 f589d1938..5f7f9816e 的产品 diff 与新测试；P1 的修法是否把本 review 的 review_reclaimed 设为 integrate 前置且持锁；有无引入新的放行路径或死锁）。
+2. 票据 Acceptance 七条整体是否成立（红在先、四种启动参数改前红/改后绿、真实边界证明 round-1-03 与 round-2、结束核对作废与删副本、真实交付审查、真实回合 2/4、T-076 三性质与 T-077、T-076 launch-policy 默认 tier 负例）。
+3. 完成条件够格：在你的一次性副本里构造 2～5 个错误实现（重点：把 review_reclaimed 前置去掉或只查报告、workspace 绑定只查非空、结束核对漏共享 refs、release 后不删副本），确认对应检查在正确断言处失败。
+4. 有无吞异常、兜底重试、兼容分支、平行 API。
+结论 PASS / INCOMPLETE / NO_GO，按严重度列发现。最后一行写 T-082 REVIEW 02 DONE。
