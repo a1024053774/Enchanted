@@ -1140,3 +1140,11 @@ executor onboarding 每个键后增加只读 gate inbox_list 刷新＋pane statu
 据主控 #323/#324，外置盘 I/O 曾使 finish 进程阻塞在 open()；主控在 rmtree 前结束该进程，空目录 `09b-a14-cleanup-finish-01/` 留在本机，Git 不保存空目录，本段作为其占位记录，不向旧目录写入伪造结果。恢复后 `09b-a14-cleanup-finish-01-dry-run` **PASS**，正式 `09b-a14-cleanup-finish-02` **PASS**：signals_sent=[]、root_removed=true，无 daemon 命令重发；主控确认旧 root `/private/tmp/t078-2-09b-run-gbxz0tyb` 已不存在。原 #322 BLOCKED 证据与签字不改写，A-14 回收现已完成。
 
 主控签 A-15 stage-a-approval（#324）后运行 `09b-a15-stage-a-01`，状态 READY_FOR_APPROVAL，source_revision=`dedd4f66bc424610183cbff2d7114e991483e1c6`，新 root `/private/tmp/t078-2-09b-run-yp09xosq`，daemon=59398、target shell/leader=59550/59552；真实 dispatch/claim attempt 回执保留，roles_started=[]、供应商模型 0。后续只生成 ideation P1 的文件与未签 B1 批准，B1 dry-run/real 均由主控另批执行，不在本轮启动角色或发送输入。
+
+## 主控 #324：A-15 ideation P1 文件已生成，B1 待审签
+
+先以 `bcf94eaf461877325963564d1cd847954991b90b` 提交上述收尾与 Stage A 证据，九项尾注齐、工作树干净。随后只运行 ROLE-MATERIAL-COMMANDS 第一条文件生成命令，生成 `09b-a15-b1-ideation-p1-01`，实际 exit 0；未运行 executor 生成命令、B1 runner、Claude 或业务输入。生成阶段仅调用既有 TypeScript 静态构造 helper；没有启动 API、daemon 或角色进程。
+
+本次 ideation launch=`298e0f0e-3f2c-4a76-89b5-4cd5a12053a0`、session=`be13441f-b3da-48aa-8ed4-d7f70dc3d04a`；B1 binding 与 A-15 readiness 原 attempt 对象一致，P1 input.api_url 保留动态模板，复用保存的 ideation API 59387/64830。`stage-b-approval.json` 签字字段仍空。屏幕计划与 runner 的 security-notice/screen_text 逐项一致，实际 s7 按键为 onboarding-notice；dry-run、real 的完整命令在 P1 的 B1-COMMANDS.txt。
+
+`09b-a15-b1-preparation-01/static-check.json` **PASS**：58 个 source 文件及 root/P1 输入逐字节相同，角色独立目录和 hooks 绑定一致，批准所需字段、真实 attempt、协议预算与两条 B1 命令路径均通过；新输出目录均不存在。该检查只读文件/Git，不访问 API 或 gate、不做 ps 身份检查，也没有执行 B1 dry-run。B1 运行状态仍 **INCOMPLETE／未运行**；待主控签字后先 dry-run 读回再决定 real。实际 preflight 输出、生成 stdout/stderr 和复验脚本一并保存。
