@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "scope": "仅验证文档引用存在性与图表一致性的校验器；不是来源语义抽查",
+  "artifacts": "/tmp/t087-document-probes-x0uw86wh",
+  "cases": [
+    {
+      "case": "source_line_zero",
+      "expected": "拒绝损坏文档（exit 1）",
+      "argv": [
+        "python3",
+        "findings/generate_t087_graph.py",
+        "--check",
+        "/tmp/t087-document-probes-x0uw86wh/source_line_zero.md"
+      ],
+      "exit": 1,
+      "diagnostic": "INCOMPLETE: 来源行号不存在或标签不符：T-077:blocked_by",
+      "status": "PASS"
+    },
+    {
+      "case": "missing_point_source",
+      "expected": "拒绝损坏文档（exit 1）",
+      "argv": [
+        "python3",
+        "findings/generate_t087_graph.py",
+        "--check",
+        "/tmp/t087-document-probes-x0uw86wh/missing_point_source.md"
+      ],
+      "exit": 1,
+      "diagnostic": "INCOMPLETE: 点/连接缺少来源引用：| Q3 | 确定性步骤 / 验收文件保护 | oracle_paths 相对认领起点与 G→M 改动有交集即 oracle_modified。 | 无引用 |",
+      "status": "PASS"
+    },
+    {
+      "case": "missing_edge_source",
+      "expected": "拒绝损坏文档（exit 1）",
+      "argv": [
+        "python3",
+        "findings/generate_t087_graph.py",
+        "--check",
+        "/tmp/t087-document-probes-x0uw86wh/missing_edge_source.md"
+      ],
+      "exit": 1,
+      "diagnostic": "INCOMPLETE: 点/连接缺少来源引用：| E21 | Q2 → Q3 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | 无引用 |",
+      "status": "PASS"
+    },
+    {
+      "case": "diagram_edge_removed",
+      "expected": "拒绝损坏文档（exit 1）",
+      "argv": [
+        "python3",
+        "findings/generate_t087_graph.py",
+        "--check",
+        "/tmp/t087-document-probes-x0uw86wh/diagram_edge_removed.md"
+      ],
+      "exit": 1,
+      "diagnostic": "INCOMPLETE: 图与点/连接清单不一致",
+      "status": "PASS"
+    }
+  ]
+}
