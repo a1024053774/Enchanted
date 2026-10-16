@@ -755,3 +755,9 @@ I1 原屏判断（用户交主控判断）：I1 dispatch-01/permission-screen.bi
 
 worker 全场最终核对（e682a929c，09B-A15-FINAL-CHECK.md）：ideation 4 roots/6 POST、executor 6/11，合计 17 POST、7 次工具许可、模型 0、target 恰一个 Esc，逐阶段 seq 与 pending→delivered→I2 时点有来源。A-15 回收：dry-run PASS；脱敏归档 PASS（外置盘 09b-a15-redacted-01/scene.tar.gz 1766 字节，字节读回 PASS，凭据扫描 0）；主控签 09b-a15-cleanup-approval.json 后正式回收 PASS（两只 API 各一次 SIGTERM，九进程全退，root 已删）。
 T-078 整票仍 INCOMPLETE：RESULTS 对照 ticket 列出未满足项——同任务三窗格 Electron 截图/录屏、09C 两分钟无 ack 只中断的真实时钟证据、系统 IME。派 worker 写这三项的最小计划（只写不跑），并更新独立审查冻结候选。
+
+## #334–#335 整票独立终审 01：NO_GO（2026-10-16 UTC）
+
+fresh Codex reviewer s13-t078-final-rev（wF:p4N，已回收）审冻结候选 92874fe7f：整票关闭 NO_GO，INCOMPLETE，未发现产品业务违约。局部 PASS：controller 身份/Stop/worker 边界；pending→turn_submitted→delivered→原 I2；输入/UPS 源码；三 reader 修复与 65 文件冻结；T-082 合并受控回归；cleanup 流程。主控三项判断：#299 PASS（解释一致，非用户逐字时点）；I1 仅"未被 64KiB 截断"成立，直接完整性 INCOMPLETE；#331 PASS。
+问题：F1[P1] 回收只归档汇总投影，HTTP/hook 原件已删，17 POST/7 许可不能独立复核（主控批准的回收方案缺口）；F2[P1] 09C、三窗格、真登录复核未做；F3[P2] reviewer 变异检查未做；F4[P2] 最终整合版 8/9/18 未整组重跑；F5[P2] I1 直接 total 缺；F6[P2] 标准 prepare 未冻结 p1_output.py；F7[P3] 审查请求 cleanup 状态过时。
+#335 裁定：F3 在 Herdr 期由下一轮 reviewer 在冻结候选隔离临时 worktree 做 2～5 个变异（T-082 先例）；F4/F6/F7 与真登录复核材料（用户 2026-10-12 已选"假服务为主，真登录复核 2～3 回合"）派 worker 准备；F1 是否重跑 09B 属验收证据口径，交用户（needs-decision 已补充）。
