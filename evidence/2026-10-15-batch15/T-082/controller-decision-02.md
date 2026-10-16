@@ -14,3 +14,7 @@ REAL-CODEX-COMMANDS-01.sh 两轮审查后改为纯产品路径（daemon_start �
 - fixture-02：pane_release 拒 foreground_codex_required（隔离 home 缺信任配置，Codex 停首屏；屏幕未存），未耗回合。
 - fixture-03（隔离 home 写入夹具根信任、git add/commit 两条 prefix_rule、首启 UI 标记，均留证）：reviewer 完成 1 个真实回合（消耗 1/4）。报告内边界证明齐全：副本写入与测试成功；审查目录、worker worktree、共享 .git 写入 Operation not permitted；git update-ref exit 128；curl 域名/直连 IP 均失败；完成条件节 3 个变异均被拒。但门禁以 review_request 拒收 review_submit（review_protocol_failed，task paused），runner 900 秒超时保留现场。
 主控处置：转录 gzip 归档外置盘（含 Codex 指令原文，不入仓库），daemon_stop 停 31690，删除隔离 home（含 auth 副本）读回 absent。#46 交 worker 查 review_submit 解析契约并补红绿。
+
+## 真实第 2 回合 PASS #48（2026-10-16 UTC）
+
+检查点提交 7f2bd4061（review_submit 契约修复 + 报告节键检查，离线 12 项 PASS）。fixture-04 偏弱任务卡（目标要求 value.txt 与 details.txt，oracle 只查 value.txt）。主控签 round-2（#48）运行：real-readback 九项全 true（入库、候选不变、审查目录移除前干净、worker worktree 干净、共享 refs 不变、副本删除、审查目录移除、review_reclaimed、哨兵不变）；报告含"完成条件与变异检查"、5 个变异；reviewer 判"需修复"并指出漏查 details.txt。隔离 home 删除读回 absent。累计真实回合 2/4。#48 让 worker 收尾 RESULTS.md。
