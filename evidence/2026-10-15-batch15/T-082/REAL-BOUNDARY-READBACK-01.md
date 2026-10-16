@@ -1,5 +1,7 @@
 # T-082 第一个真实回合的边界证据读回
 
+收尾注：下文预算及 INCOMPLETE 状态均为第 1 回合读回时的记录。真实第 2 回合随后在 `7f2bd406` 完成正常结束路径，累计 2/4；它不改变第 1 回合的协议失败事实。最终七条状态见 [RESULTS.md](RESULTS.md)。
+
 范围：`real-codex-round-1-03`，候选检查点 `0dd00d09`，夹具 `fixture-03`；不是第 2 回合。主控已停 daemon、删隔离 home，记录 `home-after-delete-controller.txt=absent`。原转录只读保留于外置盘，本次仅提取与边界有关的工具输出，没有复制认证或完整指令正文。
 
 原转录：`/Volumes/WD-Elements/a2a-evidence/2026-10-15-batch15/T-082/real-codex-round-1-03/rollout-2026-10-15T21-28-02-01a14252-c3dc-7f33-97a1-6213dae979a7.jsonl.gz`。

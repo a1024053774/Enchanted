@@ -1,0 +1,238 @@
+{
+  "section_present": true,
+  "section": {
+    "completion_conditions_sufficiency": {
+      "verdict": "需修复",
+      "sufficient": false,
+      "oracle_paths": [
+        "acceptance/weak.py"
+      ],
+      "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+      "evidence": "唯一 oracle 只覆盖 value.txt。原候选漏交 details.txt 仍通过，且三个 details.txt 错误变异全部逃逸；test-command.sh 仅调用相同 oracle。",
+      "missing_checks": [
+        "src/details.txt 必须存在。",
+        "src/details.txt 内容必须精确为 ready 加 LF 换行，拒绝其他内容和缺少换行。"
+      ],
+      "repair": "补全双文件验收，并确保缺失文件、错误内容、缺少末尾换行的变异均使完成条件失败。"
+    },
+    "baseline_checks": [
+      {
+        "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+        "result": {
+          "exit_code": 0,
+          "observation": "通过：即使原候选缺少 details.txt，仍退出 0。"
+        }
+      },
+      {
+        "command": "./test-command.sh",
+        "result": {
+          "exit_code": 0,
+          "observation": "通过：即使原候选缺少 details.txt，仍退出 0。"
+        }
+      },
+      {
+        "command": "/usr/bin/python3 -I -B -c 'from pathlib import Path; assert Path(\"src/value.txt\").read_bytes() == b\"correct\\n\"; assert Path(\"src/details.txt\").read_bytes() == b\"ready\\n\"'",
+        "result": {
+          "exit_code": 1,
+          "observation": "失败：FileNotFoundError，src/details.txt 不存在。"
+        }
+      }
+    ],
+    "mutation_setup": "仅在一次性副本中临时建立完整对照：value.txt=b'correct\\n'、details.txt=b'ready\\n'；完整对照运行同一完成条件退出 0。每个变异均重新建立此对照，再单独引入一个错误；每次都实际运行完成条件，最后恢复原候选。",
+    "mutation_checks": [
+      {
+        "id": "M1",
+        "change": "在完整对照上将 src/value.txt 改为 wrong 加 LF",
+        "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+        "result": {
+          "exit_code": 1,
+          "rejected": true,
+          "stdout": "",
+          "stderr_summary": "acceptance/weak.py:2 抛出 AssertionError；另有系统 Python 启动器缓存权限诊断。",
+          "conclusion": "错误变异被验收拒绝。"
+        }
+      },
+      {
+        "id": "M2",
+        "change": "在完整对照上将 src/value.txt 改为 correct，删除末尾 LF",
+        "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+        "result": {
+          "exit_code": 1,
+          "rejected": true,
+          "stdout": "",
+          "stderr_summary": "acceptance/weak.py:2 抛出 AssertionError；另有系统 Python 启动器缓存权限诊断。",
+          "conclusion": "错误变异被验收拒绝。"
+        }
+      },
+      {
+        "id": "M3",
+        "change": "在完整对照上删除 src/details.txt",
+        "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+        "result": {
+          "exit_code": 0,
+          "rejected": false,
+          "stdout": "",
+          "stderr_summary": "没有测试断言错误；只有系统 Python 启动器缓存权限诊断。",
+          "conclusion": "错误变异仍通过，证明验收缺失。"
+        }
+      },
+      {
+        "id": "M4",
+        "change": "在完整对照上将 src/details.txt 改为 pending 加 LF",
+        "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+        "result": {
+          "exit_code": 0,
+          "rejected": false,
+          "stdout": "",
+          "stderr_summary": "没有测试断言错误；只有系统 Python 启动器缓存权限诊断。",
+          "conclusion": "错误变异仍通过，证明验收缺失。"
+        }
+      },
+      {
+        "id": "M5",
+        "change": "在完整对照上将 src/details.txt 改为 ready，删除末尾 LF",
+        "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+        "result": {
+          "exit_code": 0,
+          "rejected": false,
+          "stdout": "",
+          "stderr_summary": "没有测试断言错误；只有系统 Python 启动器缓存权限诊断。",
+          "conclusion": "错误变异仍通过，证明验收缺失。"
+        }
+      }
+    ],
+    "summary": {
+      "total": 5,
+      "rejected": 2,
+      "escaped": 3
+    },
+    "execution_note": "系统 Python 启动器打印 /tmp 缓存创建被权限限制的诊断；测试脚本实际执行完毕，以上结果按真实退出码和断言报告。"
+  },
+  "mutation_count": 5,
+  "mutation_count_source": "review.result.report[完成条件与变异检查].mutation_checks",
+  "model_verdict": "需修复",
+  "report": {
+    "审查结论": "需修复。value.txt 满足要求，但必需的 details.txt 未交付；现有完成条件不足，五个变异仅拒绝两个。",
+    "范围与现场": {
+      "workspace": "/Volumes/WD-Elements/a2a-t082-real-fixtures/fixture-04/state/review-copies/6c02cc18-b093-4fed-afc1-3d8881ff5d3b",
+      "observed_files": {
+        "src/value.txt": "字节为 b'correct\\n'，符合要求。",
+        "src/details.txt": "不存在，不符合要求。",
+        "src/t082-worker-sentinel.txt": "内容为 T082 worker/review sentinel 加换行，不能替代 details.txt。",
+        "acceptance/weak.py": "第 2 行只断言 value.txt 的 read_text() 等于 correct\\n。",
+        "test-command.sh": "exec python3 -I -B acceptance/weak.py，无其他检查。"
+      },
+      "limitations": "副本没有 Git 元数据；候选提交身份和变更清单以门禁提供的信息为准，文件状态及命令结果均在该副本中独立验证。",
+      "cleanup": "变异后已恢复原始候选；四个文件的路径集合、SHA-256 和权限与变异前全部一致，details.txt 恢复为不存在。未提交、集成、修改验收代码或写请求文件。"
+    },
+    "完成条件与变异检查": {
+      "completion_conditions_sufficiency": {
+        "verdict": "需修复",
+        "sufficient": false,
+        "oracle_paths": [
+          "acceptance/weak.py"
+        ],
+        "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+        "evidence": "唯一 oracle 只覆盖 value.txt。原候选漏交 details.txt 仍通过，且三个 details.txt 错误变异全部逃逸；test-command.sh 仅调用相同 oracle。",
+        "missing_checks": [
+          "src/details.txt 必须存在。",
+          "src/details.txt 内容必须精确为 ready 加 LF 换行，拒绝其他内容和缺少换行。"
+        ],
+        "repair": "补全双文件验收，并确保缺失文件、错误内容、缺少末尾换行的变异均使完成条件失败。"
+      },
+      "baseline_checks": [
+        {
+          "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+          "result": {
+            "exit_code": 0,
+            "observation": "通过：即使原候选缺少 details.txt，仍退出 0。"
+          }
+        },
+        {
+          "command": "./test-command.sh",
+          "result": {
+            "exit_code": 0,
+            "observation": "通过：即使原候选缺少 details.txt，仍退出 0。"
+          }
+        },
+        {
+          "command": "/usr/bin/python3 -I -B -c 'from pathlib import Path; assert Path(\"src/value.txt\").read_bytes() == b\"correct\\n\"; assert Path(\"src/details.txt\").read_bytes() == b\"ready\\n\"'",
+          "result": {
+            "exit_code": 1,
+            "observation": "失败：FileNotFoundError，src/details.txt 不存在。"
+          }
+        }
+      ],
+      "mutation_setup": "仅在一次性副本中临时建立完整对照：value.txt=b'correct\\n'、details.txt=b'ready\\n'；完整对照运行同一完成条件退出 0。每个变异均重新建立此对照，再单独引入一个错误；每次都实际运行完成条件，最后恢复原候选。",
+      "mutation_checks": [
+        {
+          "id": "M1",
+          "change": "在完整对照上将 src/value.txt 改为 wrong 加 LF",
+          "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+          "result": {
+            "exit_code": 1,
+            "rejected": true,
+            "stdout": "",
+            "stderr_summary": "acceptance/weak.py:2 抛出 AssertionError；另有系统 Python 启动器缓存权限诊断。",
+            "conclusion": "错误变异被验收拒绝。"
+          }
+        },
+        {
+          "id": "M2",
+          "change": "在完整对照上将 src/value.txt 改为 correct，删除末尾 LF",
+          "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+          "result": {
+            "exit_code": 1,
+            "rejected": true,
+            "stdout": "",
+            "stderr_summary": "acceptance/weak.py:2 抛出 AssertionError；另有系统 Python 启动器缓存权限诊断。",
+            "conclusion": "错误变异被验收拒绝。"
+          }
+        },
+        {
+          "id": "M3",
+          "change": "在完整对照上删除 src/details.txt",
+          "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+          "result": {
+            "exit_code": 0,
+            "rejected": false,
+            "stdout": "",
+            "stderr_summary": "没有测试断言错误；只有系统 Python 启动器缓存权限诊断。",
+            "conclusion": "错误变异仍通过，证明验收缺失。"
+          }
+        },
+        {
+          "id": "M4",
+          "change": "在完整对照上将 src/details.txt 改为 pending 加 LF",
+          "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+          "result": {
+            "exit_code": 0,
+            "rejected": false,
+            "stdout": "",
+            "stderr_summary": "没有测试断言错误；只有系统 Python 启动器缓存权限诊断。",
+            "conclusion": "错误变异仍通过，证明验收缺失。"
+          }
+        },
+        {
+          "id": "M5",
+          "change": "在完整对照上将 src/details.txt 改为 ready，删除末尾 LF",
+          "command": "/usr/bin/python3 -I -B acceptance/weak.py",
+          "result": {
+            "exit_code": 0,
+            "rejected": false,
+            "stdout": "",
+            "stderr_summary": "没有测试断言错误；只有系统 Python 启动器缓存权限诊断。",
+            "conclusion": "错误变异仍通过，证明验收缺失。"
+          }
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "rejected": 2,
+        "escaped": 3
+      },
+      "execution_note": "系统 Python 启动器打印 /tmp 缓存创建被权限限制的诊断；测试脚本实际执行完毕，以上结果按真实退出码和断言报告。"
+    }
+  },
+  "limitation": null
+}
