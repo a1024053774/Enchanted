@@ -2,7 +2,7 @@
 id: T-082
 title: 门禁加固 D3：reviewer 必查完成条件是否够格，并在一次性副本里做变异检查
 type: build
-status: open
+status: closed
 blocked_by: [T-077]
 claimed_by:
 supersedes:
@@ -24,16 +24,24 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 红态在先：当前 `main` 上审查请求不含完成条件审查与变异要求，reviewer 在审查目录写文件被拒（沿用 T-076 的只读证明，保存读回）。
-- [ ] 受控入口：审查启动 argv 与新边界一致；门禁对旧的只读 argv、工作目录不是副本、网络开启、`/tmp` 可写这几种启动参数都拒绝（每种先见红）。
-- [ ] 边界证明（真实 Codex reviewer 会话，隔离 home）：在副本里写文件和跑测试成功；向审查目录、worker worktree、共享仓库 `.git` 写入失败（哨兵文件不变、实际 EPERM 原文留证）；`git update-ref` 共享仓库失败；网络请求失败。
-- [ ] 结束核对：人为在副本外留下改动的变体使审查结论作废并上报；正常结束副本被删除。
-- [ ] 一次真实交付审查：选一张完成条件明显偏弱的夹具任务卡，reviewer 报告里有完成条件审查一节和至少 2 个变异的命令与结果；reviewer 判断是否正确如实记录，不作为门禁通过条件（模型行为不由本票保证）。
-- [ ] 真实回合合计不超过 4 个（边界证明加交付审查）；完整 argv 留证；隔离 home 用后删除。
-- [ ] 回归 T-076 质量串（审查绑定、不续接会话、写入会话不能审查）与 T-077 套件通过；`project_map.py status` 0 problems。
+- [x] 红态在先：当前 `main` 上审查请求不含完成条件审查与变异要求，reviewer 在审查目录写文件被拒（沿用 T-076 的只读证明，保存读回）。
+- [x] 受控入口：审查启动 argv 与新边界一致；门禁对旧的只读 argv、工作目录不是副本、网络开启、`/tmp` 可写这几种启动参数都拒绝（每种先见红）。
+- [x] 边界证明（真实 Codex reviewer 会话，隔离 home）：在副本里写文件和跑测试成功；向审查目录、worker worktree、共享仓库 `.git` 写入失败（哨兵文件不变、实际 EPERM 原文留证）；`git update-ref` 共享仓库失败；网络请求失败。
+- [x] 结束核对：人为在副本外留下改动的变体使审查结论作废并上报；正常结束副本被删除。
+- [x] 一次真实交付审查：选一张完成条件明显偏弱的夹具任务卡，reviewer 报告里有完成条件审查一节和至少 2 个变异的命令与结果；reviewer 判断是否正确如实记录，不作为门禁通过条件（模型行为不由本票保证）。
+- [x] 真实回合合计不超过 4 个（边界证明加交付审查）；完整 argv 留证；隔离 home 用后删除。
+- [x] 回归 T-076 质量串（审查绑定、不续接会话、写入会话不能审查）与 T-077 套件通过；`project_map.py status` 0 problems。
 
 ## 说明
 
 - 改动在 `workbench/src/panes.ts`（审查启动参数）、`workbench/src/gates/core.ts`（审查请求、启动核对、副本建立与清理）；与 T-077 刚接入的审查目录命名与清理重叠，所以 `blocked_by: [T-077]`；与 T-080 重叠的文件由执行主控安排串行。
 - T-076 的“只读 reviewer”证明随本票换成新边界的证明，旧结论不替新边界背书。
 - 授权来源：用户 2026-10-14 在旁路会话"A2A 多Agent协作的确定性架构"说（逐字）："……第一个 P1 做……然后变异测试可以做，就比如在 reviewer 里做，平台倒是没必要单独做……"，"第一个 P1"= D3；权限做法由用户 2026-10-14 在会话"a2a-构思主控"以选择题作答（逐字）："给一次性副本可写 (Recommended)"，选项原文："门禁为每次审查另建一份候选副本，reviewer 只在这份副本里可写、断网；候选提交和审查目录仍不可改，门禁事后核对它们没变并删副本。最贴近你说的‘在 reviewer 里做’。代价：reviewer 不再是纯只读，T-076 的只读证明要按新边界重做。"`ready_by: ideation`，`ready_rev: 1`。
+
+## Resolution
+
+**2026-10-16：执行主控验收 PASS，关闭。** 合入 main `a75070236`（产品最后改动 `5f7f9816e` 与 P3 `9fd96145e`，变基前后 workbench/acceptance/scripts diff 为 0）。门禁为每次审查建一次性候选副本，reviewer 以副本为 cwd、workspace-write、断网、排除 /tmp 与 $TMPDIR 启动；门禁核对启动参数（-C 必须是副本）并拒收旧只读 argv、错误工作目录、网络开、/tmp 可写；审查请求写明完成条件审查与 2～5 个变异要求，report 须含"完成条件与变异检查"节，review_requirements.workspace 须等于本次副本；结束核对（审查目录与 worker worktree 干净、共享 refs 不变、候选不变、副本删除）写 review_reclaimed 后才允许 integrate（持锁）。证据 `evidence/2026-10-15-batch15/T-082/`（RESULTS.md）。
+- 真实 Codex 回合 2/4：round-1-03 reviewer 在会话内证明边界（副本写与测试成功；审查目录、worker worktree、共享 .git 写入 Operation not permitted；git update-ref 失败；网络失败）；round-2 偏弱任务卡交付审查全路径（入库→回收→结束核对→删副本九项读回 PASS），reviewer 判"需修复"并指出漏查 details.txt。隔离 home 均删除读回 absent；转录归档外置盘。
+- 独立审查 01 NO_GO（P1 结束核对前可 integrate；P2 workspace 未绑定、结束负例不足、T-076 默认 tier 负例换观测点；P3 同值条件式）→ 返工 → 审查 02 INCOMPLETE（无产品缺陷；"先见红"时间顺序、runner 状态字段）→ P3 修复 → 用户决定（answer `20261016T051655Z-ideation-answer-001`，更正 `20261016T051703Z`）：接受修复后在起点 451be8462 重建的红态（wrong-workspace、readonly-argv 有原顺序；network-enabled、tmp-writable 为重建，run.json 标注保留）；不迁 T-076 审计锚点，T-076 回归证据为三项性质直跑（T-076 ticket 已补记）。
+- 既有、与本票无关：T-076 完整质量 runner 因源码审计（a7f4cc30）拒收为预期状态。
+- 打分见 records/scores.jsonl（launch-a6aca9f0379b4363b678e21e1c54bf98）。
