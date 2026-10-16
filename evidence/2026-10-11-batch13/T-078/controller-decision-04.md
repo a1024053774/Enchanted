@@ -710,3 +710,7 @@ worker 补每键后、release 前经真实收据刷新路径断言原条目仍 q
 ## startup 差异审查 02 PASS 与变基 #313–#316（2026-10-16 UTC）
 
 reviewer s16-t078-rev3 审 68d7749c2（含产品 06fc9feca）：第一轮 P1 已解决（每键后、release 前经真实收据刷新路径断言 queued、无 delivered、无 I2；M5 在新断言失败），四个错误实现（含新增的异步身份核对后状态复查缺失）全部被拒，结论 PASS（仅限该差异）。提交 cd8ca713e，输出归档外置盘 startup-review-02/，窗格回收。#315 派 A-14 回收与 A-15 准备。其间 T-082 合入 main（a75070236），#316 要求先把 exec/t078 变基到 main 并重跑本线回归，A-15 用变基后的源码。
+
+## 合并 main（T-082）#317–#320（2026-10-16 UTC）
+
+worker 的变基脚本经 Python 调 git 被 Codex 沙箱拒（index.lock），申请升级被主控 Esc 拒绝；改为 worker 直接 git add/git commit 提交证据 150ef6516（9 条尾注），主控建备份分支 backup/t078-pre-rebase-main-3 后执行 rebase。121 个提交重放首个即在 relay.ts 冲突，主控中止 rebase、改用 git merge --no-ff 0e6c2b833（冲突只解一次）。唯一冲突 relay.ts 由 worker 解决（保留 T-082 review 证据与 T-078 inbox/stop 反馈），core.ts/panes.ts 自动合并经 worker 核对；主控提交合并 859fd6497，地图 0/0。合并后回归：pending、startup 领域/入口、worker 收件箱 PASS；T-082 启动边界段失败（受控宿主启动失败 harness_error，T-082 分支上同用例通过），#320 交 worker 定位。
