@@ -77,6 +77,7 @@ flowchart TD
   Q4["Q4 完成条件"]
   Q5["Q5 红态"]
   Q6["Q6 规则式检查"]
+  Q13["Q13 质量证据核对（checkQualityEvidence）"]
   Q7["Q7 提交尾注"]
   A5(["A5 reviewer 独立审查"])
   Q8["Q8 审查协议与绑定"]
@@ -90,8 +91,9 @@ flowchart TD
   Q3 -->|"E22 通过后进入下一关"| Q4
   Q4 -->|"E23 通过后进入下一关"| Q5
   Q5 -->|"E24 通过后进入下一关"| Q6
-  Q6 -->|"E25 通过后进入下一关"| Q7
-  Q7 -->|"E26 通过后进入下一关"| A5
+  Q6 -->|"E25 通过后进入下一关"| Q13
+  Q13 -->|"E26 通过后进入下一关"| Q7
+  Q7 -->|"E27 通过后进入下一关"| A5
   A5 -.->|"I08 隐式/靠主控判断：reviewer 判可合并或需修复"| Q8
   Q8 -->|"E30 可合并；等 idle 后核对结束边界"| Q9
   Q9 -.->|"I09 隐式/靠主控判断：执行主控打分"| Q10
@@ -111,6 +113,7 @@ flowchart TD
   Q4["Q4 完成条件"]
   Q5["Q5 红态"]
   Q6["Q6 规则式检查"]
+  Q13["Q13 质量证据核对（checkQualityEvidence）"]
   Q7["Q7 提交尾注"]
   A5(["A5 reviewer 独立审查"])
   Q8["Q8 审查协议与绑定"]
@@ -125,13 +128,13 @@ flowchart TD
   R6["R6 CAS 落空重新验收"]
   R7["R7 冲突返工"]
   R8["R8 撤销 / 修订 / 终结 attempt"]
-  Q2 -->|"E40 已知失败 / 需修复"| R1
-  Q3 -->|"E41 已知失败 / 需修复"| R1
-  Q4 -->|"E42 已知失败 / 需修复"| R1
-  Q5 -->|"E43 已知失败 / 需修复"| R1
-  Q6 -->|"E44 已知失败 / 需修复"| R1
-  Q7 -->|"E45 已知失败 / 需修复"| R1
-  Q8 -->|"E46 已知失败 / 需修复"| R1
+  Q2 -->|"E40 已知检查失败"| R1
+  Q3 -->|"E41 已知检查失败"| R1
+  Q4 -->|"E42 已知检查失败"| R1
+  Q5 -->|"E43 已知红态失败（四码）"| R1
+  Q6 -->|"E44 rule_check_failed"| R1
+  Q7 -->|"E45 已知检查失败"| R1
+  Q8 -->|"E46 有效的需修复业务结论"| R1
   R1 -->|"E47 count＜3：回写，修复后重交新 C"| A3
   R1 -->|"E48 count≥3：paused，停止自动回写"| R2
   Q1 -->|"E49 verifying 中断且锁已释放，再发 verify"| R4
@@ -152,6 +155,10 @@ flowchart TD
   R8 -->|"E62 仅 revoke/revise 回 ready 后可重新 claim"| L3
   A5 -->|"E63 审查创建失败或重启无法接管"| R2
   R8 -->|"E64 终结后原 attempt 仍须经门禁回收"| Q12
+  Q5 -->|"E65 五个已知失败码之外：verification_unknown"| R2
+  Q6 -->|"E66 五个已知失败码之外：verification_unknown"| R2
+  Q13 -->|"E67 五个已知失败码之外：verification_unknown"| R2
+  Q8 -->|"E68 当前运行审查的协议解析或转交门禁失败"| R2
 ```
 
 ## 每个点的来源
@@ -177,15 +184,16 @@ flowchart TD
 | Q4 | 确定性步骤 / 完成条件 | 在 M 的验证工作区按卡执行 argv；逐条存意图、结果，非零打回。 | [completion](#s-completion)、[completionlog](#s-completionlog) |
 | Q5 | 确定性步骤 / 红态 | 卡写了才查：起点加候选测试必须失败，候选必须通过；未写记 red_not_applicable。 | [red](#s-red)、[quality](#s-quality) |
 | Q6 | 确定性步骤 / 规则式检查 | 项目质量快照配置的规则在 M 执行；空列表记 rules_not_applicable。 | [rules](#s-rules) |
-| Q7 | 确定性步骤 / 提交尾注 | 完整匹配 task/attempt/session/worker 和交付 launch/tool/model/effort；全无尾注按人工介入处理。 | [trailers](#s-trailers)、[no-trailers](#s-no-trailers) |
+| Q13 | 确定性步骤 / 质量证据核对（checkQualityEvidence） | 红态与规则式检查返回后，核对质量快照、结果数量、测试清单和通过证据，再进入尾注。verify 中 quality_reverification_required 走未知结果暂停，不计作打回。 | [quality-evidence-call](#s-quality-evidence-call)、[quality-evidence](#s-quality-evidence)、[quality-evidence-code](#s-quality-evidence-code)、[quality-known](#s-quality-known)、[quality-unknown-code](#s-quality-unknown-code) |
+| Q7 | 确定性步骤 / 提交尾注 | task/attempt/session/worker 与交付 launch/tool/effort 必须匹配；model 为字面量 unknown 时不要求与交付模型相等，否则须匹配。有 A2A 尾注时，所有必需字段仍须齐全、唯一且非空；全无尾注按人工介入处理。 | [trailers](#s-trailers)、[no-trailers](#s-no-trailers)、[model-unknown](#s-model-unknown) |
 | A5 | agent 会话 / reviewer 独立审查 | 每次新建干净会话；T-082 一次性候选副本可写、断网，候选 Git 与共享仓库不可写。判断完成条件是否够格并做 2～5 个变异。 | [reviewrole](#s-reviewrole)、[reviewlaunch](#s-reviewlaunch)、[reviewrequirements](#s-reviewrequirements) |
-| Q8 | 确定性步骤 / 审查协议与绑定 | 核对身份、版本、候选、非写入会话、结构化报告；可合并→verified，需修复→submitted/打回。协议格式不能证明判断正确。 | [reviewsubmit](#s-reviewsubmit)、[reviewresult](#s-reviewresult)、[b82judgment](#s-b82judgment) |
+| Q8 | 确定性步骤 / 审查协议与绑定 | 核对身份、版本、候选、非写入会话、结构化报告；有效可合并→verified，有效需修复→submitted/打回。当前运行审查的协议解析或转交门禁失败，经 failReviewProtocol 暂停并上报，不增加打回计数。协议格式不能证明判断正确。 | [reviewsubmit](#s-reviewsubmit)、[reviewresult](#s-reviewresult)、[review-needs-fix](#s-review-needs-fix)、[review-parse](#s-review-parse)、[review-relay-failed](#s-review-relay-failed)、[review-protocol](#s-review-protocol)、[b82judgment](#s-b82judgment) |
 | Q9 | 确定性步骤 / 审查结束核对 | reviewer 已 idle；核对 refs、审查/worker worktree 与候选；清理副本和审查目录后写 review_reclaimed。verified 本身不够集成。 | [reviewend](#s-reviewend)、[reviewboundary](#s-reviewboundary)、[reviewremoved](#s-reviewremoved)、[reviewrequired](#s-reviewrequired) |
 | Q10 | 确定性步骤 / 验收打分参数 | 执行主控提供主观评分及理由；门禁校验格式、launch 来源并填写客观事实。 | [score](#s-score)、[score-save](#s-score-save) |
 | Q11 | 确定性步骤 / Integration / CAS | 核对当前 verification/review/结束记录和打分；持久意图后以 G→M CAS，读回后 accepted、记分。 | [integrate](#s-integrate)、[intent-save](#s-intent-save)、[cas](#s-cas)、[integrated](#s-integrated) |
 | Q12 | 确定性步骤 / 回收与清理 | 核对身份、idle、停止/归档读回；保留 Git 引用后清理干净工作区，异常保留并上报。 | [reclaim](#s-reclaim)、[cleanup](#s-cleanup)、[cleanupsave](#s-cleanupsave) |
-| R1 | 确定性步骤 / 打回记录与计数 | 同一 attempt 计 delivery_rejected；少于三次允许回写，第三次 paused 并停止自动回写。 | [reject](#s-reject)、[rejectsave](#s-rejectsave)、[feedback](#s-feedback) |
-| R2 | 确定性步骤 / 暂停或等待核对 | 未知执行结果、审查生命周期失败、超限或外部效果未知，不能等同成功。具体 state 见各路径。 | [unknown](#s-unknown)、[reviewfailed](#s-reviewfailed)、[revalidate](#s-revalidate)、[conflictunknown](#s-conflictunknown) |
+| R1 | 确定性步骤 / 打回记录与计数 | 已知检查失败或有效需修复业务结论调用 rejectDelivery，同一 attempt 计 delivery_rejected；少于三次允许回写，第三次 paused 并停止自动回写。质量未知结果与审查协议失败不计入。 | [reject](#s-reject)、[rejectsave](#s-rejectsave)、[feedback](#s-feedback)、[quality-known](#s-quality-known)、[review-needs-fix](#s-review-needs-fix)、[review-protocol](#s-review-protocol) |
+| R2 | 确定性步骤 / 暂停或等待核对 | 完成条件/质量串/质量证据的未知结果、运行中审查的协议失败、审查生命周期失败、超限或外部效果未知，不能等同成功。质量未知与协议失败是已有机械暂停路径，不是主控选择要不要打回。具体 state 见各路径。 | [unknown](#s-unknown)、[quality-unknown-code](#s-quality-unknown-code)、[review-protocol-save](#s-review-protocol-save)、[reviewfailed](#s-reviewfailed)、[revalidate](#s-revalidate)、[conflictunknown](#s-conflictunknown) |
 | R3 | 人工决定点 / 执行主控处置 | 三次打回/未知/异常后继续修复、放弃、升级或请求用户决定；不是统一自动恢复。 | [triage](#s-triage)、[stoprule](#s-stoprule)、[abandon](#s-abandon) |
 | R4 | 确定性步骤 / 中断验收重跑 | 锁释放后同一 verify 保留旧 interrupted/unknown 证据并新建 verification，不复活过期身份。 | [interrupt](#s-interrupt)、[verify](#s-verify)、[verifybinding](#s-verifybinding) |
 | R5 | 确定性步骤 / 集成意图恢复 | 同 intent：引用为 G 继续 CAS；为 M 核对内容补账；第三值或丢失需核对。 | [integrate](#s-integrate)、[reconcile](#s-reconcile) |
@@ -228,20 +236,21 @@ flowchart TD
 | E22 | Q3 → Q4 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | [completion](#s-completion)、[save](#s-save) |
 | E23 | Q4 → Q5 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | [quality](#s-quality)、[save](#s-save) |
 | E24 | Q5 → Q6 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | [rules](#s-rules)、[save](#s-save) |
-| E25 | Q6 → Q7 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | [trailers](#s-trailers)、[save](#s-save) |
-| E26 | Q7 → A5 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | [requestreview](#s-requestreview)、[save](#s-save) |
-| I08 | A5 → Q8 | 隐式/靠主控判断：reviewer 判可合并或需修复 | 格式、身份、C 绑定能核对；判断正确性无自动证明 | [reviewrequirements](#s-reviewrequirements)、[reviewsubmit](#s-reviewsubmit)、[b82judgment](#s-b82judgment) |
+| E25 | Q6 → Q13 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | [quality-evidence-call](#s-quality-evidence-call)、[save](#s-save) |
+| E26 | Q13 → Q7 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | [trailers](#s-trailers)、[save](#s-save) |
+| E27 | Q7 → A5 | 通过后进入下一关 | 检查意图/结果与 verification 关联入库；不适用项也记事件 | [requestreview](#s-requestreview)、[save](#s-save) |
+| I08 | A5 → Q8 | 隐式/靠主控判断：reviewer 判可合并或需修复 | 格式、身份、C 绑定能核对；判断正确性无自动证明 | [reviewrequirements](#s-reviewrequirements)、[reviewsubmit](#s-reviewsubmit)、[review-protocol](#s-review-protocol)、[b82judgment](#s-b82judgment) |
 | E30 | Q8 → Q9 | 可合并；等 idle 后核对结束边界 | review_result 和 review_reclaimed 分开保存 | [reviewresult](#s-reviewresult)、[reviewend](#s-reviewend) |
 | I09 | Q9 → Q10 | 隐式/靠主控判断：执行主控打分 | 评分文件作参数；门禁校验并补客观字段 | [score](#s-score)、[score-save](#s-score-save)、[executor](#s-executor) |
 | E31 | Q10 → Q11 | integrate 核对并持久意图 | intent 绑定 attempt/session/fence/spec/G/C/M/score | [integrate](#s-integrate)、[intent-save](#s-intent-save)、[verifybinding](#s-verifybinding)、[reviewrequired](#s-reviewrequired) |
 | E32 | Q11 → Q12 | accepted 后回收 | 分支读回+integrated+score；回收另写 reclaimed | [integrated](#s-integrated)、[reclaim](#s-reclaim)、[cleanup](#s-cleanup) |
-| E40 | Q2 → R1 | 已知失败 / 需修复 | delivery_rejected、失败检查、候选、count 持久化 | [path](#s-path)、[rejectsave](#s-rejectsave) |
-| E41 | Q3 → R1 | 已知失败 / 需修复 | delivery_rejected、失败检查、候选、count 持久化 | [oracle](#s-oracle)、[rejectsave](#s-rejectsave) |
-| E42 | Q4 → R1 | 已知失败 / 需修复 | delivery_rejected、失败检查、候选、count 持久化 | [completion](#s-completion)、[rejectsave](#s-rejectsave) |
-| E43 | Q5 → R1 | 已知失败 / 需修复 | delivery_rejected、失败检查、候选、count 持久化 | [red](#s-red)、[rejectsave](#s-rejectsave) |
-| E44 | Q6 → R1 | 已知失败 / 需修复 | delivery_rejected、失败检查、候选、count 持久化 | [rules](#s-rules)、[rejectsave](#s-rejectsave) |
-| E45 | Q7 → R1 | 已知失败 / 需修复 | delivery_rejected、失败检查、候选、count 持久化 | [trailers](#s-trailers)、[rejectsave](#s-rejectsave) |
-| E46 | Q8 → R1 | 已知失败 / 需修复 | delivery_rejected、失败检查、候选、count 持久化 | [reviewresult](#s-reviewresult)、[rejectsave](#s-rejectsave) |
+| E40 | Q2 → R1 | 已知检查失败 | delivery_rejected、失败检查、候选、count 持久化 | [path](#s-path)、[rejectsave](#s-rejectsave) |
+| E41 | Q3 → R1 | 已知检查失败 | delivery_rejected、失败检查、候选、count 持久化 | [oracle](#s-oracle)、[rejectsave](#s-rejectsave) |
+| E42 | Q4 → R1 | 已知检查失败 | delivery_rejected、失败检查、候选、count 持久化 | [completion](#s-completion)、[rejectsave](#s-rejectsave) |
+| E43 | Q5 → R1 | 已知红态失败（四码） | delivery_rejected、失败检查、候选、count 持久化 | [red](#s-red)、[rejectsave](#s-rejectsave)、[quality-known](#s-quality-known) |
+| E44 | Q6 → R1 | rule_check_failed | delivery_rejected、失败检查、候选、count 持久化 | [rules](#s-rules)、[rejectsave](#s-rejectsave)、[quality-known](#s-quality-known) |
+| E45 | Q7 → R1 | 已知检查失败 | delivery_rejected、失败检查、候选、count 持久化 | [trailers](#s-trailers)、[rejectsave](#s-rejectsave) |
+| E46 | Q8 → R1 | 有效的需修复业务结论 | review_result 后调用 independent_review 打回，增加 delivery_rejected 计数；协议失败不走此边 | [reviewresult](#s-reviewresult)、[review-needs-fix](#s-review-needs-fix)、[rejectsave](#s-rejectsave) |
 | E47 | R1 → A3 | count＜3：回写，修复后重交新 C | 派发记录与原 attempt 绑定；整串重跑 | [reject](#s-reject)、[feedback](#s-feedback)、[submitted](#s-submitted) |
 | E48 | R1 → R2 | count≥3：paused，停止自动回写 | blocking issue 与计数入库 | [reject](#s-reject)、[feedback](#s-feedback)、[issue-save](#s-issue-save) |
 | E49 | Q1 → R4 | verifying 中断且锁已释放，再发 verify | 旧 verification=interrupted，缺失输出/退出码保持 unknown | [lock](#s-lock)、[interrupt](#s-interrupt)、[verify](#s-verify) |
@@ -257,11 +266,15 @@ flowchart TD
 | E59 | R7 → R2 | 外部停止/投递/创建结果未知 | conflict_rework_unknown；不盲重送/重建 | [conflictunknown](#s-conflictunknown) |
 | E60 | Q4 → R2 | verification_unknown | unknown 结果与 paused 保存，不计作已知失败 | [unknown](#s-unknown) |
 | E61 | Q9 → R2 | 结束边界失败或重启无法接管 reviewer | review_lifecycle_failed；结论失效并上报 | [reviewfailed](#s-reviewfailed)、[reviewrestart](#s-reviewrestart) |
-| I10 | R2 → R3 | 隐式/靠主控判断：选处置方案 | issue 有记录；不存在通用自动解锁成功路径 | [triage](#s-triage)、[stoprule](#s-stoprule)、[abandon](#s-abandon) |
+| I10 | R2 → R3 | 隐式/靠主控判断：选处置方案 | issue 有记录；不存在通用自动解锁成功路径 | [triage](#s-triage)、[stoprule](#s-stoprule)、[abandon](#s-abandon)、[quality-unknown](#s-quality-unknown)、[review-protocol](#s-review-protocol) |
 | I11 | R3 → R8 | 隐式/靠主控判断：撤销、修订、放弃、升级 | 经对应命令保存；设计/验收/权限变化须问用户 | [revise](#s-revise)、[abandon](#s-abandon)、[stoprule](#s-stoprule) |
 | E62 | R8 → L3 | 仅 revoke/revise 回 ready 后可重新 claim | 旧 attempt 撤销，新 attempt/fence；abandon 不能直接 claim | [invalidate](#s-invalidate)、[claim](#s-claim) |
 | E63 | A5 → R2 | 审查创建失败或重启无法接管 | review_lifecycle_failed，当前执行暂停并上报 | [reviewfailed](#s-reviewfailed)、[reviewrestart](#s-reviewrestart) |
 | E64 | R8 → Q12 | 终结后原 attempt 仍须经门禁回收 | 命令绑定原 attempt；回收历史执行不接管新执行 | [abandon](#s-abandon)、[reclaim](#s-reclaim)、[cleanup](#s-cleanup) |
+| E65 | Q5 → R2 | 五个已知失败码之外：verification_unknown | verification_result 保留 unknown、task paused 并上报；不调用 rejectDelivery，不增加 delivery_rejected 计数 | [quality-evidence-call](#s-quality-evidence-call)、[quality-evidence-code](#s-quality-evidence-code)、[quality-known](#s-quality-known)、[quality-unknown](#s-quality-unknown)、[quality-unknown-code](#s-quality-unknown-code)、[command-unknown](#s-command-unknown) |
+| E66 | Q6 → R2 | 五个已知失败码之外：verification_unknown | verification_result 保留 unknown、task paused 并上报；不调用 rejectDelivery，不增加 delivery_rejected 计数 | [quality-evidence-call](#s-quality-evidence-call)、[quality-evidence-code](#s-quality-evidence-code)、[quality-known](#s-quality-known)、[quality-unknown](#s-quality-unknown)、[quality-unknown-code](#s-quality-unknown-code)、[command-unknown](#s-command-unknown) |
+| E67 | Q13 → R2 | 五个已知失败码之外：verification_unknown | verification_result 保留 unknown、task paused 并上报；不调用 rejectDelivery，不增加 delivery_rejected 计数 | [quality-evidence-call](#s-quality-evidence-call)、[quality-evidence-code](#s-quality-evidence-code)、[quality-known](#s-quality-known)、[quality-unknown](#s-quality-unknown)、[quality-unknown-code](#s-quality-unknown-code)、[command-unknown](#s-command-unknown) |
+| E68 | Q8 → R2 | 当前运行审查的协议解析或转交门禁失败 | failReviewProtocol 核对当前审查与 caller 后，review unknown、task paused，保存 review_protocol_failed 并上报；不调用 rejectDelivery，不增加 delivery_rejected 计数 | [review-parse](#s-review-parse)、[review-relay-failed](#s-review-relay-failed)、[review-protocol](#s-review-protocol)、[review-protocol-save](#s-review-protocol-save)、[review-evidence](#s-review-evidence)、[review-format-code](#s-review-format-code) |
 
 ## 收件箱类型
 
@@ -290,11 +303,13 @@ flowchart TD
 | 交付身份/候选 | `stale_attempt` [code:stale_attempt](#s-code:stale_attempt)；`stale_session` [code:stale_session](#s-code:stale_session)；`stale_fence` [code:stale_fence](#s-code:stale_fence)；`stale_spec` [code:stale_spec](#s-code:stale_spec)；`stale_thread` [code:stale_thread](#s-code:stale_thread)；`identity_conflict` [code:identity_conflict](#s-code:identity_conflict)；`stale_turn` [code:stale_turn](#s-code:stale_turn)；`candidate_conflict` [code:candidate_conflict](#s-code:candidate_conflict)；`not_descendant` [code:not_descendant](#s-code:not_descendant)；`workspace_head_mismatch` [code:workspace_head_mismatch](#s-code:workspace_head_mismatch)；`dirty_worktree` [code:dirty_worktree](#s-code:dirty_worktree)；`repair_requires_new_candidate` [code:repair_requires_new_candidate](#s-code:repair_requires_new_candidate)；`delivery_facts_unknown` [code:delivery_facts_unknown](#s-code:delivery_facts_unknown) | 拒收，核对身份或交新候选；不把迟到提交迁移到新 attempt |
 | 验证前置/合并/完成条件 | `quality_rejection_limit` [code:quality_rejection_limit](#s-code:quality_rejection_limit)；`repair_submission_required` [code:repair_submission_required](#s-code:repair_submission_required)；`not_submitted` [code:not_submitted](#s-code:not_submitted)；`needs_reconciliation` [code:needs_reconciliation](#s-code:needs_reconciliation)；`merge_conflict` [code:merge_conflict](#s-code:merge_conflict)；`oracle_failed` [code:oracle_failed](#s-code:oracle_failed)；`verification_unknown` [code:verification_unknown](#s-code:verification_unknown) | 按打回、冲突、未知三条路径分别处理 |
 | 路径/验收文件 | `oracle_not_found` [code:oracle_not_found](#s-code:oracle_not_found)；`path_boundary_failed` [code:path_boundary_failed](#s-code:path_boundary_failed)；`oracle_modified` [code:oracle_modified](#s-code:oracle_modified) | 认领起点须存在；交付越界/改验收文件打回 |
-| 红态/规则 | `red_state_failed` [code:red_state_failed](#s-code:red_state_failed)；`red_test_file_invalid` [code:red_test_file_invalid](#s-code:red_test_file_invalid)；`red_test_not_changed` [code:red_test_not_changed](#s-code:red_test_not_changed)；`red_test_symlink` [code:red_test_symlink](#s-code:red_test_symlink)；`rule_check_failed` [code:rule_check_failed](#s-code:rule_check_failed)；`quality_reverification_required` [code:quality_reverification_required](#s-code:quality_reverification_required) | 已知质量失败进入打回；未知结果暂停 |
-| 提交尾注 | `trailer_task_mismatch` [code:trailer_task_mismatch](#s-code:trailer_task_mismatch)；`invalid_trailers` [code:invalid_trailers](#s-code:invalid_trailers)；`trailer_identity_mismatch` [code:trailer_identity_mismatch](#s-code:trailer_identity_mismatch)；`trailer_launch_record_missing` [code:trailer_launch_record_missing](#s-code:trailer_launch_record_missing) | 打回；全无尾注是人工介入分支，不在此拒收列表 |
+| 红态/规则的五个已知失败码 | `red_state_failed` [code:red_state_failed](#s-code:red_state_failed)；`red_test_file_invalid` [code:red_test_file_invalid](#s-code:red_test_file_invalid)；`red_test_not_changed` [code:red_test_not_changed](#s-code:red_test_not_changed)；`red_test_symlink` [code:red_test_symlink](#s-code:red_test_symlink)；`rule_check_failed` [code:rule_check_failed](#s-code:rule_check_failed) | 仅这五码在 verify 的质量块进入 rejectDelivery、增加 delivery_rejected；其余错误走 E65–E67 |
+| 提交尾注 | `trailer_task_mismatch` [code:trailer_task_mismatch](#s-code:trailer_task_mismatch)；`invalid_trailers` [code:invalid_trailers](#s-code:invalid_trailers)；`trailer_identity_mismatch` [code:trailer_identity_mismatch](#s-code:trailer_identity_mismatch)；`trailer_launch_record_missing` [code:trailer_launch_record_missing](#s-code:trailer_launch_record_missing) | 打回；model=字面量 unknown 时不要求等于交付模型，其余必需字段仍须存在、唯一且非空；全无尾注是人工介入分支，不在此拒收列表 |
 | 审查绑定/结束 | `review_launch_boundary` [code:review_launch_boundary](#s-code:review_launch_boundary)；`review_required` [code:review_required](#s-code:review_required)；`stale_review` [code:stale_review](#s-code:stale_review)；`review_end_check_required` [code:review_end_check_required](#s-code:review_end_check_required)；`reviewer_not_idle` [code:reviewer_not_idle](#s-code:reviewer_not_idle)；`review_shared_refs_changed` [code:review_shared_refs_changed](#s-code:review_shared_refs_changed)；`review_worktree_changed` [code:review_worktree_changed](#s-code:review_worktree_changed)；`review_worker_workspace_changed` [code:review_worker_workspace_changed](#s-code:review_worker_workspace_changed) | 边界失败使审查失效并上报；缺结束记录不能 integrate |
 | 审查协议 | `reviewer_required` [code:reviewer_required](#s-code:reviewer_required)；`review_candidate_mismatch` [code:review_candidate_mismatch](#s-code:review_candidate_mismatch)；`review_verification_mismatch` [code:review_verification_mismatch](#s-code:review_verification_mismatch)；`review_writer_conflict` [code:review_writer_conflict](#s-code:review_writer_conflict)；`review_native_session_reused` [code:review_native_session_reused](#s-code:review_native_session_reused)；`review_requirements_mismatch` [code:review_requirements_mismatch](#s-code:review_requirements_mismatch) | 拒绝不匹配审查；格式合规仍不证明 reviewer 判断正确 |
 | 打分 | `score_required` [code:score_required](#s-code:score_required)；`invalid_score` [code:invalid_score](#s-code:invalid_score)；`score_provenance_required` [code:score_provenance_required](#s-code:score_provenance_required)；`attempt_already_scored` [code:attempt_already_scored](#s-code:attempt_already_scored) | 补合法且绑定的打分，不绕过原 attempt |
+| verify 质量块的未知结果 | `command_timeout` / `command_unavailable` [command-unknown](#s-command-unknown)；`quality_reverification_required` [quality-evidence-call](#s-quality-evidence-call)、[quality-evidence-code](#s-quality-evidence-code)；对外转换成 `verification_unknown` [quality-known](#s-quality-known)、[quality-unknown-code](#s-quality-unknown-code) | 红态、规则命令无法启动/超时，或质量证据不符等非五码错误：unknown、paused、保存与上报，不调用 rejectDelivery，不增加 delivery_rejected。这里限定 verify；review_submit/integrate 的直接质量证据复核可原样返回拒收码。 |
+| 审查格式错误 | `invalid_review_result` [review-evidence](#s-review-evidence)、[review-format-code](#s-review-format-code)、[review-parse](#s-review-parse) | QualityProtocolError 映射为格式拒收；真实 Stop 入口解析失败或转交门禁回执失败，再经 failReviewProtocol 将当前运行审查设 unknown、task paused，保存 review_protocol_failed 并上报，不增加 delivery_rejected。已 cancelled 的审查只记 review_after_termination。[review-relay-failed](#s-review-relay-failed)、[review-protocol](#s-review-protocol)、[review-protocol-save](#s-review-protocol-save) |
 
 集成的 `integration_compare_failed`、`integration_revalidation_limit`、`needs_reconciliation` 与回收的 `worker_working` 分别见 [revalidate](#s-revalidate)、[cas](#s-cas)、[integrate](#s-integrate)、[reclaim](#s-reclaim)；路径分别画在 E51–E56、E32。恢复时不能删锁文件、改 SQLite 或用锁已释放推断成功。
 
@@ -306,9 +321,10 @@ flowchart TD
 | 收件箱 → 执行主控 | Herdr 条目 O_EXCL staging、fsync、link 原子发布；ack/disposition 另加条目。授权正文的含义仍靠人判断。 | [inboxwrite](#s-inboxwrite)、[authref](#s-authref) |
 | 认领 → agent 会话 | 后台先保存 claim/dispatch intent、任务卡快照、attempt/session/fence，再建 worktree/会话。Herdr 的 launch 与 dispatch 分落 records/launches.jsonl 和 evidence/<batch>/dispatch.jsonl。 | [claimsave](#s-claimsave)、[launch](#s-launch)、[dispatchlog](#s-dispatchlog)、[store](#s-store) |
 | Submit → Acceptance | C、交付 launch/tool/model/effort、attempt/session/fence/spec、任务卡快照均有绑定；verify 新建 G/C/M 与 verification_id。 | [submitted](#s-submitted)、[verifysave](#s-verifysave)、[verifybinding](#s-verifybinding) |
-| 每项检查 | completion_intent/result、red/rule、path/oracle/trailer 事件落库；执行中丢失的结果保持 unknown，不据此通过。 | [completionlog](#s-completionlog)、[red](#s-red)、[rules](#s-rules)、[unknown](#s-unknown)、[save](#s-save) |
-| reviewer 请求 → 结束 | review 请求、启动记录、一次性副本、结构化结果、结束核对与清理事件分开；报告要求持久化，模型如何选变异与判断正确性无程序证明。 | [reviewrequest](#s-reviewrequest)、[reviewrequirements](#s-reviewrequirements)、[reviewresult](#s-reviewresult)、[reviewend](#s-reviewend)、[b82judgment](#s-b82judgment) |
+| 每项检查 | completion_intent/result、red/rule、path/oracle/trailer 事件落库；红态/规则之后、尾注之前另核对质量证据。执行中丢失的结果保持 unknown，不据此通过。 | [completionlog](#s-completionlog)、[red](#s-red)、[rules](#s-rules)、[quality-evidence-call](#s-quality-evidence-call)、[quality-evidence](#s-quality-evidence)、[unknown](#s-unknown)、[save](#s-save) |
+| reviewer 请求 → 结束 | review 请求、启动记录、一次性副本、有效结构化结果、结束核对与清理事件分开；协议失败另记 review_protocol_failed。报告要求持久化，模型如何选变异与判断正确性无程序证明。 | [reviewrequest](#s-reviewrequest)、[reviewrequirements](#s-reviewrequirements)、[reviewresult](#s-reviewresult)、[review-protocol-save](#s-review-protocol-save)、[reviewend](#s-reviewend)、[b82judgment](#s-b82judgment) |
 | 打回 → worker | 失败检查/候选/计数先落库，后台回写有 dispatch 记录；第三次取消待回写队列并记 quality_feedback_stopped。 | [rejectsave](#s-rejectsave)、[feedback](#s-feedback)、[store](#s-store) |
+| 质量未知 / 审查协议失败 → 暂停 | verify 质量块五个已知失败码之外：verification_result=unknown、task paused 并上报；当前运行审查的协议解析/门禁转交失败：review unknown、task paused，保存 review_protocol_failed 并上报。两条路径均不调用 rejectDelivery、不增加 delivery_rejected。 | [quality-known](#s-quality-known)、[quality-unknown-code](#s-quality-unknown-code)、[quality-unknown](#s-quality-unknown)、[review-parse](#s-review-parse)、[review-relay-failed](#s-review-relay-failed)、[review-protocol-save](#s-review-protocol-save) |
 | Integration → Git | SQLite 先持久 pending intent；Git update-ref prepare/commit 做 CAS；读回引用/内容后记 accepted 和打分。SQLite 与 Git 不是同一事务，靠 intent 恢复。 | [intent-save](#s-intent-save)、[cas](#s-cas)、[integrated](#s-integrated)、[reconcile](#s-reconcile) |
 | 回收 → 删除工作区 | 身份和 idle 读回；Git 保留引用与 cleanup intent 先于 worktree remove；脏目录或未解决验收保留。 | [reclaim](#s-reclaim)、[cleanup](#s-cleanup)、[cleanupsave](#s-cleanupsave) |
 | 人工判断 → 后续操作 | I01–I12 可能有文字记录，但没有能证明判断充分或原子完成路由的状态。日志存在不等于判断正确。派发结果未知时也不能凭重发补齐。 | [authref](#s-authref)、[triage](#s-triage)、[dispatchunknown](#s-dispatchunknown)、[b82judgment](#s-b82judgment) |
@@ -327,9 +343,9 @@ flowchart TD
 | I06 / Q12 → L5 | 漏卡或漏证据仍把 ticket 关闭，或 accepted 后忘记关闭/报告。 | 覆盖单个受管交付的错误拒收与固定候选；不覆盖 ticket 汇总关闭。 | 覆盖每次审查与结束边界；不覆盖多卡汇总和 ticket 状态写回。 | [executor](#s-executor)、[integrated](#s-integrated)、[report](#s-report)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
 | I12 / H1 → L0 | 误把未做成或被放弃的工作写成完成；取代关系与活跃执行脱节。 | 不覆盖 ticket 取代/范围决定。 | 不覆盖 ticket 取代/范围决定。 | [superseded](#s-superseded)、[supersededwhy](#s-supersededwhy)、[outscope](#s-outscope)、[outscopewhy](#s-outscopewhy)、[authorize](#s-authorize)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
 | I07 / Q0 → Q1 | 候选停在 submitted，或错误地把提交/终端 idle 当已验收。 | 覆盖仅自报成功不能通过完成条件；不保证主控及时触发 verify。 | 审查请求发生在 verify 后；不覆盖触发时机。 | [submitted](#s-submitted)、[executor](#s-executor)、[runverify](#s-runverify)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
-| I08 / A5 → Q8 | 完成条件过弱或变异选错仍报可合并；结构化布尔值与报告标题不能证明判断正确。 | 坏 worker 样本与正例检查门禁，不证明任意 reviewer 判断正确。 | 直接增加充分性与变异要求；真实偏弱卡案例如实记录，明确不把判断正确作为门禁条件。 | [reviewrequirements](#s-reviewrequirements)、[reviewsubmit](#s-reviewsubmit)、[b82judgment](#s-b82judgment)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
+| I08 / A5 → Q8 | 完成条件过弱或变异选错仍报可合并；结构化布尔值与报告标题不能证明判断正确。这里指有效业务结论的语义判断；协议解析/转交失败由 E68 机械暂停，不属这条隐式边，也不消耗打回计数。 | 坏 worker 样本与正例检查门禁，不证明任意 reviewer 判断正确。 | 直接增加充分性与变异要求；真实偏弱卡案例如实记录，明确不把判断正确作为门禁条件；不能因此将所有协议失败场景称为已覆盖。 | [reviewrequirements](#s-reviewrequirements)、[reviewsubmit](#s-reviewsubmit)、[review-protocol](#s-review-protocol)、[b82judgment](#s-b82judgment)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
 | I09 / Q9 → Q10 | 评分无根据或尺度漂移；合规 JSON 仍产生失真的评价数据。 | 不覆盖主观分值/理由质量。 | 不覆盖打分尺度。 | [score](#s-score)、[score-save](#s-score-save)、[executor](#s-executor)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
-| I10 / R2 → R3 | 把未知结果当成功，重复外部副作用，或一直暂停无人处置。 | 覆盖分支被改后的 CAS/拒收样本；不覆盖所有未知恢复的人工作法。 | 覆盖 reviewer 结束边界与失效上报；不覆盖主控之后的决定。 | [triage](#s-triage)、[stoprule](#s-stoprule)、[abandon](#s-abandon)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
+| I10 / R2 → R3 | 把未知结果当成功，重复外部副作用，或一直暂停无人处置。质量未知与审查协议失败已有 E65–E68 的机械暂停；这条隐式边只表示暂停之后如何处置。 | 覆盖分支被改后的 CAS/拒收样本；不覆盖所有未知恢复的人工作法。 | 覆盖 reviewer 结束边界与失效上报；不覆盖主控之后的决定，不将其扩大为全部质量未知或协议失败路径的验证。 | [triage](#s-triage)、[stoprule](#s-stoprule)、[abandon](#s-abandon)、[quality-unknown](#s-quality-unknown)、[review-protocol](#s-review-protocol)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
 | I11 / R3 → R8 | 越权改验收/权限，或错误结束 attempt 后想沿用旧身份。 | 覆盖旧身份拒收；不证明放弃/升级的业务判断或用户授权。 | 不覆盖撤销/修订/升级的授权；可保护原候选审查边界。 | [revise](#s-revise)、[abandon](#s-abandon)、[stoprule](#s-stoprule)、[b81](#s-b81)、[b81cases](#s-b81cases)、[b82](#s-b82)、[b82judgment](#s-b82judgment) |
 
 ## 再生成、引用检查与证据边界
@@ -439,7 +455,6 @@ python3 findings/generate_t087_graph.py --check findings/ticket-gates-graph-2026
 | <a id="s-code:oracle_not_found"></a>code:oracle_not_found | [workbench/src/gates/core.ts:1879](../workbench/src/gates/core.ts#L1879) | "requireGate(missing.length === 0, \"oracle_not_found\", { base_commit: base, missing });" |
 | <a id="s-code:path_boundary_failed"></a>code:path_boundary_failed | [workbench/src/gates/core.ts:1867](../workbench/src/gates/core.ts#L1867) | "requireGate(forbidden.length === 0, \"path_boundary_failed\", { forbidden });" |
 | <a id="s-code:quality_rejection_limit"></a>code:quality_rejection_limit | [workbench/src/gates/core.ts:1520](../workbench/src/gates/core.ts#L1520) | "requireGate(!task.repair, task.repair?.stopped ? \"quality_rejection_limit\" : \"repair_submission_required\", task.repair);" |
-| <a id="s-code:quality_reverification_required"></a>code:quality_reverification_required | [workbench/src/gates/core.ts:1981](../workbench/src/gates/core.ts#L1981) | "\"quality_reverification_required\");" |
 | <a id="s-code:red_state_failed"></a>code:red_state_failed | [workbench/src/gates/core.ts:1683](../workbench/src/gates/core.ts#L1683) | "const expected = error instanceof Refusal && [\"red_state_failed\", \"red_test_file_invalid\", \"red_test_not_changed\", \"red_test_symlink\", \"rule_check_failed\"].includes(error.code);" |
 | <a id="s-code:red_test_file_invalid"></a>code:red_test_file_invalid | [workbench/src/gates/core.ts:1683](../workbench/src/gates/core.ts#L1683) | "const expected = error instanceof Refusal && [\"red_state_failed\", \"red_test_file_invalid\", \"red_test_not_changed\", \"red_test_symlink\", \"rule_check_failed\"].includes(error.code);" |
 | <a id="s-code:red_test_not_changed"></a>code:red_test_not_changed | [workbench/src/gates/core.ts:1683](../workbench/src/gates/core.ts#L1683) | "const expected = error instanceof Refusal && [\"red_state_failed\", \"red_test_file_invalid\", \"red_test_not_changed\", \"red_test_symlink\", \"rule_check_failed\"].includes(error.code);" |
@@ -474,6 +489,7 @@ python3 findings/generate_t087_graph.py --check findings/ticket-gates-graph-2026
 | <a id="s-code:trailer_task_mismatch"></a>code:trailer_task_mismatch | [workbench/src/gates/core.ts:2000](../workbench/src/gates/core.ts#L2000) | "if (trailers.task?.some((value) => value !== task.task_id)) error = \"trailer_task_mismatch\";" |
 | <a id="s-code:verification_unknown"></a>code:verification_unknown | [workbench/src/gates/core.ts:1674](../workbench/src/gates/core.ts#L1674) | "throw new Refusal(\"verification_unknown\", v);" |
 | <a id="s-code:workspace_head_mismatch"></a>code:workspace_head_mismatch | [workbench/src/gates/core.ts:3521](../workbench/src/gates/core.ts#L3521) | "\"workspace_head_mismatch\"," |
+| <a id="s-command-unknown"></a>command-unknown | [workbench/src/gates/core.ts:1231](../workbench/src/gates/core.ts#L1231) | "const refusal = error.killed ? \"command_timeout\" : \"command_unavailable\";" |
 | <a id="s-completion"></a>completion | [workbench/src/gates/core.ts:1644](../workbench/src/gates/core.ts#L1644) | "for (const [index, command] of v.commands.entries()) {" |
 | <a id="s-completionlog"></a>completionlog | [workbench/src/gates/core.ts:1653](../workbench/src/gates/core.ts#L1653) | "this.event(taskId, \"completion_check\", { verification_id, card_snapshot_id: v.card_snapshot_id," |
 | <a id="s-conflict"></a>conflict | [workbench/src/gates/core.ts:1452](../workbench/src/gates/core.ts#L1452) | "private async writeConflict(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {" |
@@ -509,6 +525,7 @@ python3 findings/generate_t087_graph.py --check findings/ticket-gates-graph-2026
 | <a id="s-lock"></a>lock | [workbench/src/gates/core.ts:238](../workbench/src/gates/core.ts#L238) | "private operationLock(task: string): DatabaseSync {" |
 | <a id="s-markready"></a>markready | [.project-map/roles/ideation.md:8](../.project-map/roles/ideation.md#L8) | "- 把用户已决定、验收条件写清、依赖已关闭的 build/task/research ticket 标为就绪：`ready: yes`、`ready_by: ideation`、`ready_rev`。" |
 | <a id="s-merge"></a>merge | [workbench/src/gates/core.ts:1626](../workbench/src/gates/core.ts#L1626) | "this.save(task, \"merge_candidate\", v);" |
+| <a id="s-model-unknown"></a>model-unknown | [workbench/src/gates/core.ts:2009](../workbench/src/gates/core.ts#L2009) | "else if (trailers.model![0] !== \"unknown\" && trailers.model![0] !== attempt.delivery.model) error = \"trailer_identity_mismatch\";" |
 | <a id="s-monitor"></a>monitor | [.project-map/roles/monitor.md:15](../.project-map/roles/monitor.md#L15) | "- 不 claim，不 submit，不集成，不宣布成功。" |
 | <a id="s-no-trailers"></a>no-trailers | [workbench/src/gates/core.ts:1998](../workbench/src/gates/core.ts#L1998) | "const missing = Object.keys(trailers).length === 0;" |
 | <a id="s-oracle"></a>oracle | [workbench/src/gates/core.ts:1631](../workbench/src/gates/core.ts#L1631) | "await this.checkOraclePaths(task, attempt, v);" |
@@ -516,6 +533,12 @@ python3 findings/generate_t087_graph.py --check findings/ticket-gates-graph-2026
 | <a id="s-outscopewhy"></a>outscopewhy | [.project-map/tickets/T-028-app-tracer-bullet.md:30](../.project-map/tickets/T-028-app-tracer-bullet.md#L30) | "**2026-10-07：out-of-scope。** GPUI 的 Muster.app 不再建设，见 T-030、T-032。" |
 | <a id="s-path"></a>path | [workbench/src/gates/core.ts:1629](../workbench/src/gates/core.ts#L1629) | "await this.checkPaths(task, attempt, v);" |
 | <a id="s-quality"></a>quality | [workbench/src/gates/core.ts:1679](../workbench/src/gates/core.ts#L1679) | "await this.checkQuality(task, attempt, v);" |
+| <a id="s-quality-evidence"></a>quality-evidence | [workbench/src/gates/core.ts:1973](../workbench/src/gates/core.ts#L1973) | "private checkQualityEvidence(task: A2ATask, attempt: A2AAttempt, v: A2AVerification) {" |
+| <a id="s-quality-evidence-call"></a>quality-evidence-call | [workbench/src/gates/core.ts:1680](../workbench/src/gates/core.ts#L1680) | "this.checkQualityEvidence(task, attempt, v);" |
+| <a id="s-quality-evidence-code"></a>quality-evidence-code | [workbench/src/gates/core.ts:1981](../workbench/src/gates/core.ts#L1981) | "\"quality_reverification_required\");" |
+| <a id="s-quality-known"></a>quality-known | [workbench/src/gates/core.ts:1683](../workbench/src/gates/core.ts#L1683) | "const expected = error instanceof Refusal && [\"red_state_failed\", \"red_test_file_invalid\", \"red_test_not_changed\", \"red_test_symlink\", \"rule_check_failed\"].includes(error.code);" |
+| <a id="s-quality-unknown"></a>quality-unknown | [workbench/src/gates/core.ts:1695](../workbench/src/gates/core.ts#L1695) | "else this.qualityIssue(task, attempt, \"质量检查结果未知，等待核对\", failure);" |
+| <a id="s-quality-unknown-code"></a>quality-unknown-code | [workbench/src/gates/core.ts:1696](../workbench/src/gates/core.ts#L1696) | "throw expected ? error : new Refusal(\"verification_unknown\", failure);" |
 | <a id="s-ready"></a>ready | [.project-map/specs/controller-split-user-input-2026-10-09.md:249](../.project-map/specs/controller-split-user-input-2026-10-09.md#L249) | "可执行的 ticket 类型是 build、task、research；decide、compare、prototype 与用户一起解决，不由执行主控执行。`scripts/inbox ready` 列出满足下面全部条件的 ticket：`ready: yes`，三个字段齐全，类型可执行，`status: open`，无人认领，`blocked_by` 里每一项都是 closed 或 superseded。字段缺失的列为不合规，不算就绪。碰到 T-004 那几类（目标、范围、验收、权限、不可逆外部效果、方向取舍、预算与风险）一律不自标，发 `needs-decision`。" |
 | <a id="s-readydeps"></a>readydeps | [scripts/inbox:366](../scripts/inbox#L366) | "if all(dep in tickets and tickets[dep].get(\"status\") in (\"closed\", \"superseded\") for dep in dependencies):" |
 | <a id="s-readyfilter"></a>readyfilter | [scripts/inbox:346](../scripts/inbox#L346) | "if item.get(\"status\") != \"open\":" |
@@ -528,6 +551,13 @@ python3 findings/generate_t087_graph.py --check findings/ticket-gates-graph-2026
 | <a id="s-requestfailure"></a>requestfailure | [workbench/src/gates/core.ts:3752](../workbench/src/gates/core.ts#L3752) | "this.event(taskId, \"rejected\", { error: code, details, input: raw });" |
 | <a id="s-requestreview"></a>requestreview | [workbench/src/gates/core.ts:1717](../workbench/src/gates/core.ts#L1717) | "await this.requestReview(task, attempt);" |
 | <a id="s-revalidate"></a>revalidate | [workbench/src/gates/core.ts:1723](../workbench/src/gates/core.ts#L1723) | "private async revalidateForIntegration(task: A2ATask, attempt: A2AAttempt, v: A2AVerification, actual: string) {" |
+| <a id="s-review-evidence"></a>review-evidence | [workbench/src/gates/qualityProtocol.ts:33](../workbench/src/gates/qualityProtocol.ts#L33) | "export function reviewEvidence(requirements: unknown, report: unknown) {" |
+| <a id="s-review-format-code"></a>review-format-code | [workbench/src/gates/core.ts:3735](../workbench/src/gates/core.ts#L3735) | "error instanceof QualityProtocolError ? (error.field.startsWith(\"score\") ? \"invalid_score\" : \"invalid_review_result\") :" |
+| <a id="s-review-needs-fix"></a>review-needs-fix | [workbench/src/gates/core.ts:3462](../workbench/src/gates/core.ts#L3462) | "if (review.state === \"needs_fix\") await this.rejectDelivery(task, attempt, \"independent_review\", review.result);" |
+| <a id="s-review-parse"></a>review-parse | [workbench/src/daemon.ts:102](../workbench/src/daemon.ts#L102) | "try { request = reviewRequest(stop.last_assistant_message); }" |
+| <a id="s-review-protocol"></a>review-protocol | [workbench/src/gates/core.ts:2260](../workbench/src/gates/core.ts#L2260) | "async failReviewProtocol(taskId: string, reviewId: string, details: unknown, caller: SubmitCaller) {" |
+| <a id="s-review-protocol-save"></a>review-protocol-save | [workbench/src/gates/core.ts:2274](../workbench/src/gates/core.ts#L2274) | "this.save(task, \"review_protocol_failed\", { task, review, details });" |
+| <a id="s-review-relay-failed"></a>review-relay-failed | [workbench/src/daemon.ts:135](../workbench/src/daemon.ts#L135) | "await gates.failReviewProtocol(pane.record.task, pane.record.review_id, { receipt, stop }, caller);" |
 | <a id="s-reviewboundary"></a>reviewboundary | [workbench/src/gates/core.ts:2314](../workbench/src/gates/core.ts#L2314) | "private async checkReviewBoundary(task: A2ATask, review: A2AReview) {" |
 | <a id="s-reviewend"></a>reviewend | [workbench/src/gates/core.ts:2281](../workbench/src/gates/core.ts#L2281) | "async reclaimReview(taskId: string, reviewId: string) {" |
 | <a id="s-reviewfailed"></a>reviewfailed | [workbench/src/gates/core.ts:2176](../workbench/src/gates/core.ts#L2176) | "private reviewLifecycleFailed(task: A2ATask, review: A2AReview, phase: string, details: unknown) {" |

@@ -67,14 +67,28 @@ ANCHORS = {
     "quality": (G, 'await this.checkQuality(task, attempt, v);'),
     "red": (G, 'const baseResult = await this.qualityCommand(task, v, "red_state"'),
     "rules": (G, 'for (const rule of task.quality.rule_checks)'),
+    "quality-known": (G, 'const expected = error instanceof Refusal && ["red_state_failed"'),
+    "quality-unknown": (G, 'else this.qualityIssue(task, attempt, "质量检查结果未知，等待核对", failure);'),
+    "quality-unknown-code": (G, 'throw expected ? error : new Refusal("verification_unknown", failure);'),
+    "quality-evidence": (G, 'private checkQualityEvidence('),
+    "quality-evidence-code": (G, '"quality_reverification_required");'),
+    "command-unknown": (G, 'const refusal = error.killed ? "command_timeout" : "command_unavailable";'),
     "trailers": (G, 'try { await this.checkTrailers(task, attempt, v); }'),
     "no-trailers": (G, 'const missing = Object.keys(trailers).length === 0;'),
+    "model-unknown": (G, 'else if (trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model)'),
     "requestreview": (G, 'await this.requestReview(task, attempt);'),
     "reviewrequest": (G, 'const review: A2AReview = {'),
     "reviewrequirements": (G, 'mutation_checks: { min: 2, max: 5, workspace: candidateWorkspace'),
     "reviewlaunch": (G, 'private reviewLaunch('),
     "reviewsubmit": (G, 'if (args.command === "review_submit") {'),
     "reviewresult": (G, 'this.save(task, "review_result", { task, review });'),
+    "review-needs-fix": (G, 'if (review.state === "needs_fix") await this.rejectDelivery(task, attempt, "independent_review", review.result);'),
+    "review-parse": ("workbench/src/daemon.ts", 'try { request = reviewRequest(stop.last_assistant_message); }'),
+    "review-relay-failed": ("workbench/src/daemon.ts", 'await gates.failReviewProtocol(pane.record.task, pane.record.review_id, { receipt, stop }, caller);'),
+    "review-protocol": (G, 'async failReviewProtocol('),
+    "review-protocol-save": (G, 'this.save(task, "review_protocol_failed", { task, review, details });'),
+    "review-evidence": ("workbench/src/gates/qualityProtocol.ts", 'export function reviewEvidence('),
+    "review-format-code": (G, 'error instanceof QualityProtocolError ? (error.field.startsWith("score") ? "invalid_score" : "invalid_review_result")'),
     "reviewend": (G, 'async reclaimReview('),
     "reviewboundary": (G, 'private async checkReviewBoundary('),
     "reviewremoved": (G, 'this.event(task.task_id, "review_candidate_copy_removed"'),
@@ -184,6 +198,14 @@ def build(root):
     s = Sources(root)
     for key, (path, needle) in ANCHORS.items():
         s.add(key, path, needle)
+    # The same check is called again by review_submit and integrate. Select the
+    # one in verifyCandidate's quality block, not an arbitrary global occurrence.
+    quality_lines, quality_first = s.span("quality", "trailers")
+    evidence_calls = [(quality_first + index, line.strip()) for index, line in enumerate(quality_lines)
+                      if line.strip() == "this.checkQualityEvidence(task, attempt, v);"]
+    if len(evidence_calls) != 1:
+        raise ValueError("verifyCandidate 质量串须有唯一 checkQualityEvidence 调用")
+    s.entries["quality-evidence-call"] = (G, *evidence_calls[0])
 
     # Read literal kind names, never import or execute the inbox program.
     kinds = None
@@ -228,15 +250,16 @@ def build(root):
     point("Q4", "gate", "确定性步骤", "完成条件", "在 M 的验证工作区按卡执行 argv；逐条存意图、结果，非零打回。", "completion completionlog")
     point("Q5", "gate", "确定性步骤", "红态", "卡写了才查：起点加候选测试必须失败，候选必须通过；未写记 red_not_applicable。", "red quality")
     point("Q6", "gate", "确定性步骤", "规则式检查", "项目质量快照配置的规则在 M 执行；空列表记 rules_not_applicable。", "rules")
-    point("Q7", "gate", "确定性步骤", "提交尾注", "完整匹配 task/attempt/session/worker 和交付 launch/tool/model/effort；全无尾注按人工介入处理。", "trailers no-trailers")
+    point("Q13", "gate", "确定性步骤", "质量证据核对（checkQualityEvidence）", "红态与规则式检查返回后，核对质量快照、结果数量、测试清单和通过证据，再进入尾注。verify 中 quality_reverification_required 走未知结果暂停，不计作打回。", "quality-evidence-call quality-evidence quality-evidence-code quality-known quality-unknown-code")
+    point("Q7", "gate", "确定性步骤", "提交尾注", "task/attempt/session/worker 与交付 launch/tool/effort 必须匹配；model 为字面量 unknown 时不要求与交付模型相等，否则须匹配。有 A2A 尾注时，所有必需字段仍须齐全、唯一且非空；全无尾注按人工介入处理。", "trailers no-trailers model-unknown")
     point("A5", "gate", "agent 会话", "reviewer 独立审查", "每次新建干净会话；T-082 一次性候选副本可写、断网，候选 Git 与共享仓库不可写。判断完成条件是否够格并做 2～5 个变异。", "reviewrole reviewlaunch reviewrequirements")
-    point("Q8", "gate", "确定性步骤", "审查协议与绑定", "核对身份、版本、候选、非写入会话、结构化报告；可合并→verified，需修复→submitted/打回。协议格式不能证明判断正确。", "reviewsubmit reviewresult b82judgment")
+    point("Q8", "gate", "确定性步骤", "审查协议与绑定", "核对身份、版本、候选、非写入会话、结构化报告；有效可合并→verified，有效需修复→submitted/打回。当前运行审查的协议解析或转交门禁失败，经 failReviewProtocol 暂停并上报，不增加打回计数。协议格式不能证明判断正确。", "reviewsubmit reviewresult review-needs-fix review-parse review-relay-failed review-protocol b82judgment")
     point("Q9", "gate", "确定性步骤", "审查结束核对", "reviewer 已 idle；核对 refs、审查/worker worktree 与候选；清理副本和审查目录后写 review_reclaimed。verified 本身不够集成。", "reviewend reviewboundary reviewremoved reviewrequired")
     point("Q10", "gate", "确定性步骤", "验收打分参数", "执行主控提供主观评分及理由；门禁校验格式、launch 来源并填写客观事实。", "score score-save")
     point("Q11", "gate", "确定性步骤", "Integration / CAS", "核对当前 verification/review/结束记录和打分；持久意图后以 G→M CAS，读回后 accepted、记分。", "integrate intent-save cas integrated")
     point("Q12", "gate", "确定性步骤", "回收与清理", "核对身份、idle、停止/归档读回；保留 Git 引用后清理干净工作区，异常保留并上报。", "reclaim cleanup cleanupsave")
-    point("R1", "recovery", "确定性步骤", "打回记录与计数", "同一 attempt 计 delivery_rejected；少于三次允许回写，第三次 paused 并停止自动回写。", "reject rejectsave feedback")
-    point("R2", "recovery", "确定性步骤", "暂停或等待核对", "未知执行结果、审查生命周期失败、超限或外部效果未知，不能等同成功。具体 state 见各路径。", "unknown reviewfailed revalidate conflictunknown")
+    point("R1", "recovery", "确定性步骤", "打回记录与计数", "已知检查失败或有效需修复业务结论调用 rejectDelivery，同一 attempt 计 delivery_rejected；少于三次允许回写，第三次 paused 并停止自动回写。质量未知结果与审查协议失败不计入。", "reject rejectsave feedback quality-known review-needs-fix review-protocol")
+    point("R2", "recovery", "确定性步骤", "暂停或等待核对", "完成条件/质量串/质量证据的未知结果、运行中审查的协议失败、审查生命周期失败、超限或外部效果未知，不能等同成功。质量未知与协议失败是已有机械暂停路径，不是主控选择要不要打回。具体 state 见各路径。", "unknown quality-unknown-code review-protocol-save reviewfailed revalidate conflictunknown")
     point("R3", "recovery", "人工决定点", "执行主控处置", "三次打回/未知/异常后继续修复、放弃、升级或请求用户决定；不是统一自动恢复。", "triage stoprule abandon")
     point("R4", "recovery", "确定性步骤", "中断验收重跑", "锁释放后同一 verify 保留旧 interrupted/unknown 证据并新建 verification，不复活过期身份。", "interrupt verify verifybinding")
     point("R5", "recovery", "确定性步骤", "集成意图恢复", "同 intent：引用为 G 继续 CAS；为 M 核对内容补账；第三值或丢失需核对。", "integrate reconcile")
@@ -272,7 +295,7 @@ def build(root):
     # Extract the relative order of the actual verification calls, rather than
     # copying the narrative list in intent.md. Internal red/rule order is read too.
     order = [("Q2", "path"), ("Q3", "oracle"), ("Q4", "completion"),
-             ("Q5", "quality"), ("Q7", "trailers"), ("A5", "requestreview")]
+             ("Q5", "quality"), ("Q13", "quality-evidence-call"), ("Q7", "trailers"), ("A5", "requestreview")]
     order.sort(key=lambda item: s.entries[item[1]][1])
     if not s.entries["red"][1] < s.entries["rules"][1]:
         raise ValueError("checkQuality 内红态/规则顺序变化，须重新分析")
@@ -281,14 +304,16 @@ def build(root):
     for number, (target, anchor) in enumerate(order, 20):
         edge("E" + str(number), "gate", previous, target, "通过后进入下一关", "检查意图/结果与 verification 关联入库；不适用项也记事件", anchor + " save", )
         previous = target
-    edge("I08", "gate", "A5", "Q8", "隐式/靠主控判断：reviewer 判可合并或需修复", "格式、身份、C 绑定能核对；判断正确性无自动证明", "reviewrequirements reviewsubmit b82judgment", "I08")
+    edge("I08", "gate", "A5", "Q8", "隐式/靠主控判断：reviewer 判可合并或需修复", "格式、身份、C 绑定能核对；判断正确性无自动证明", "reviewrequirements reviewsubmit review-protocol b82judgment", "I08")
     edge("E30", "gate", "Q8", "Q9", "可合并；等 idle 后核对结束边界", "review_result 和 review_reclaimed 分开保存", "reviewresult reviewend")
     edge("I09", "gate", "Q9", "Q10", "隐式/靠主控判断：执行主控打分", "评分文件作参数；门禁校验并补客观字段", "score score-save executor", "I09")
     edge("E31", "gate", "Q10", "Q11", "integrate 核对并持久意图", "intent 绑定 attempt/session/fence/spec/G/C/M/score", "integrate intent-save verifybinding reviewrequired")
     edge("E32", "gate", "Q11", "Q12", "accepted 后回收", "分支读回+integrated+score；回收另写 reclaimed", "integrated reclaim cleanup")
 
-    for number, (src, anchor) in enumerate([("Q2", "path"), ("Q3", "oracle"), ("Q4", "completion"), ("Q5", "red"), ("Q6", "rules"), ("Q7", "trailers"), ("Q8", "reviewresult")], 40):
-        edge("E" + str(number), "recovery", src, "R1", "已知失败 / 需修复", "delivery_rejected、失败检查、候选、count 持久化", anchor + " rejectsave")
+    for number, (src, anchor) in enumerate([("Q2", "path"), ("Q3", "oracle"), ("Q4", "completion"), ("Q5", "red"), ("Q6", "rules"), ("Q7", "trailers")], 40):
+        label = "已知红态失败（四码）" if src == "Q5" else "rule_check_failed" if src == "Q6" else "已知检查失败"
+        edge("E" + str(number), "recovery", src, "R1", label, "delivery_rejected、失败检查、候选、count 持久化", anchor + " rejectsave" + (" quality-known" if src in ("Q5", "Q6") else ""))
+    edge("E46", "recovery", "Q8", "R1", "有效的需修复业务结论", "review_result 后调用 independent_review 打回，增加 delivery_rejected 计数；协议失败不走此边", "reviewresult review-needs-fix rejectsave")
     edge("E47", "recovery", "R1", "A3", "count＜3：回写，修复后重交新 C", "派发记录与原 attempt 绑定；整串重跑", "reject feedback submitted")
     edge("E48", "recovery", "R1", "R2", "count≥3：paused，停止自动回写", "blocking issue 与计数入库", "reject feedback issue-save")
     edge("E49", "recovery", "Q1", "R4", "verifying 中断且锁已释放，再发 verify", "旧 verification=interrupted，缺失输出/退出码保持 unknown", "lock interrupt verify")
@@ -304,11 +329,14 @@ def build(root):
     edge("E59", "recovery", "R7", "R2", "外部停止/投递/创建结果未知", "conflict_rework_unknown；不盲重送/重建", "conflictunknown")
     edge("E60", "recovery", "Q4", "R2", "verification_unknown", "unknown 结果与 paused 保存，不计作已知失败", "unknown")
     edge("E61", "recovery", "Q9", "R2", "结束边界失败或重启无法接管 reviewer", "review_lifecycle_failed；结论失效并上报", "reviewfailed reviewrestart")
-    edge("I10", "recovery", "R2", "R3", "隐式/靠主控判断：选处置方案", "issue 有记录；不存在通用自动解锁成功路径", "triage stoprule abandon", "I10")
+    edge("I10", "recovery", "R2", "R3", "隐式/靠主控判断：选处置方案", "issue 有记录；不存在通用自动解锁成功路径", "triage stoprule abandon quality-unknown review-protocol", "I10")
     edge("I11", "recovery", "R3", "R8", "隐式/靠主控判断：撤销、修订、放弃、升级", "经对应命令保存；设计/验收/权限变化须问用户", "revise abandon stoprule", "I11")
     edge("E62", "recovery", "R8", "L3", "仅 revoke/revise 回 ready 后可重新 claim", "旧 attempt 撤销，新 attempt/fence；abandon 不能直接 claim", "invalidate claim")
     edge("E63", "recovery", "A5", "R2", "审查创建失败或重启无法接管", "review_lifecycle_failed，当前执行暂停并上报", "reviewfailed reviewrestart")
     edge("E64", "recovery", "R8", "Q12", "终结后原 attempt 仍须经门禁回收", "命令绑定原 attempt；回收历史执行不接管新执行", "abandon reclaim cleanup")
+    for ident, src in (("E65", "Q5"), ("E66", "Q6"), ("E67", "Q13")):
+        edge(ident, "recovery", src, "R2", "五个已知失败码之外：verification_unknown", "verification_result 保留 unknown、task paused 并上报；不调用 rejectDelivery，不增加 delivery_rejected 计数", "quality-evidence-call quality-evidence-code quality-known quality-unknown quality-unknown-code command-unknown")
+    edge("E68", "recovery", "Q8", "R2", "当前运行审查的协议解析或转交门禁失败", "failReviewProtocol 核对当前审查与 caller 后，review unknown、task paused，保存 review_protocol_failed 并上报；不调用 rejectDelivery，不增加 delivery_rejected 计数", "review-parse review-relay-failed review-protocol review-protocol-save review-evidence review-format-code")
 
     point_ids = {p[0] for p in points}
     if len(point_ids) != len(points) or len({e[0] for e in edges}) != len(edges):
@@ -349,8 +377,8 @@ def build(root):
         ("交付身份/候选", "submit", "integrate", ["stale_attempt", "stale_session", "stale_fence", "stale_spec", "stale_thread", "identity_conflict", "stale_turn", "candidate_conflict", "not_descendant", "workspace_head_mismatch", "dirty_worktree", "repair_requires_new_candidate", "delivery_facts_unknown"], "拒收，核对身份或交新候选；不把迟到提交迁移到新 attempt"),
         ("验证前置/合并/完成条件", "verify", "integrate", ["quality_rejection_limit", "repair_submission_required", "not_submitted", "needs_reconciliation", "merge_conflict", "oracle_failed", "verification_unknown"], "按打回、冲突、未知三条路径分别处理"),
         ("路径/验收文件", "claim", "integrate", ["oracle_not_found", "path_boundary_failed", "oracle_modified"], "认领起点须存在；交付越界/改验收文件打回"),
-        ("红态/规则", "quality", "integrate", ["red_state_failed", "red_test_file_invalid", "red_test_not_changed", "red_test_symlink", "rule_check_failed", "quality_reverification_required"], "已知质量失败进入打回；未知结果暂停"),
-        ("提交尾注", "no-trailers", "integrate", ["trailer_task_mismatch", "invalid_trailers", "trailer_identity_mismatch", "trailer_launch_record_missing"], "打回；全无尾注是人工介入分支，不在此拒收列表"),
+        ("红态/规则的五个已知失败码", "quality", "integrate", ["red_state_failed", "red_test_file_invalid", "red_test_not_changed", "red_test_symlink", "rule_check_failed"], "仅这五码在 verify 的质量块进入 rejectDelivery、增加 delivery_rejected；其余错误走 E65–E67"),
+        ("提交尾注", "no-trailers", "integrate", ["trailer_task_mismatch", "invalid_trailers", "trailer_identity_mismatch", "trailer_launch_record_missing"], "打回；model=字面量 unknown 时不要求等于交付模型，其余必需字段仍须存在、唯一且非空；全无尾注是人工介入分支，不在此拒收列表"),
         ("审查绑定/结束", "reviewlaunch", "integrate", ["review_launch_boundary", "review_required", "stale_review", "review_end_check_required", "reviewer_not_idle", "review_shared_refs_changed", "review_worktree_changed", "review_worker_workspace_changed"], "边界失败使审查失效并上报；缺结束记录不能 integrate"),
         ("审查协议", "reviewsubmit", "submit", ["reviewer_required", "review_candidate_mismatch", "review_verification_mismatch", "review_writer_conflict", "review_native_session_reused", "review_requirements_mismatch"], "拒绝不匹配审查；格式合规仍不证明 reviewer 判断正确"),
         ("打分", "score", "integrate", ["score_required", "invalid_score", "score_provenance_required", "attempt_already_scored"], "补合法且绑定的打分，不绕过原 attempt"),
@@ -368,6 +396,12 @@ def build(root):
             s.entries[key] = (G, number, excerpt.strip())
             links.append("`" + code + "` " + s.refs(key))
         refusal_rows.append([group, "；".join(links), consequence])
+    refusal_rows += [
+        ["verify 质量块的未知结果", "`command_timeout` / `command_unavailable` " + s.refs("command-unknown") + "；`quality_reverification_required` " + s.refs("quality-evidence-call quality-evidence-code") + "；对外转换成 `verification_unknown` " + s.refs("quality-known quality-unknown-code"),
+         "红态、规则命令无法启动/超时，或质量证据不符等非五码错误：unknown、paused、保存与上报，不调用 rejectDelivery，不增加 delivery_rejected。这里限定 verify；review_submit/integrate 的直接质量证据复核可原样返回拒收码。"],
+        ["审查格式错误", "`invalid_review_result` " + s.refs("review-evidence review-format-code review-parse"),
+         "QualityProtocolError 映射为格式拒收；真实 Stop 入口解析失败或转交门禁回执失败，再经 failReviewProtocol 将当前运行审查设 unknown、task paused，保存 review_protocol_failed 并上报，不增加 delivery_rejected。已 cancelled 的审查只记 review_after_termination。" + s.refs("review-relay-failed review-protocol review-protocol-save")],
+    ]
 
     implicit_details = {
         "I01": ("ready 看似合法但授权/验收未真正确认，可能执行越权工作。", "不覆盖用户授权的含义判断。", "不覆盖授权；只判断候选与完成条件。"),
@@ -377,9 +411,9 @@ def build(root):
         "I05": ("取消通知已确认，活跃 attempt 却仍可运行；误以为 cancel 等于 revoke。", "不覆盖 cancel 到门禁撤销的人工路由。", "不覆盖 cancel；审查生命周期核对不是取消决策。"),
         "I06": ("漏卡或漏证据仍把 ticket 关闭，或 accepted 后忘记关闭/报告。", "覆盖单个受管交付的错误拒收与固定候选；不覆盖 ticket 汇总关闭。", "覆盖每次审查与结束边界；不覆盖多卡汇总和 ticket 状态写回。"),
         "I07": ("候选停在 submitted，或错误地把提交/终端 idle 当已验收。", "覆盖仅自报成功不能通过完成条件；不保证主控及时触发 verify。", "审查请求发生在 verify 后；不覆盖触发时机。"),
-        "I08": ("完成条件过弱或变异选错仍报可合并；结构化布尔值与报告标题不能证明判断正确。", "坏 worker 样本与正例检查门禁，不证明任意 reviewer 判断正确。", "直接增加充分性与变异要求；真实偏弱卡案例如实记录，明确不把判断正确作为门禁条件。"),
+        "I08": ("完成条件过弱或变异选错仍报可合并；结构化布尔值与报告标题不能证明判断正确。这里指有效业务结论的语义判断；协议解析/转交失败由 E68 机械暂停，不属这条隐式边，也不消耗打回计数。", "坏 worker 样本与正例检查门禁，不证明任意 reviewer 判断正确。", "直接增加充分性与变异要求；真实偏弱卡案例如实记录，明确不把判断正确作为门禁条件；不能因此将所有协议失败场景称为已覆盖。"),
         "I09": ("评分无根据或尺度漂移；合规 JSON 仍产生失真的评价数据。", "不覆盖主观分值/理由质量。", "不覆盖打分尺度。"),
-        "I10": ("把未知结果当成功，重复外部副作用，或一直暂停无人处置。", "覆盖分支被改后的 CAS/拒收样本；不覆盖所有未知恢复的人工作法。", "覆盖 reviewer 结束边界与失效上报；不覆盖主控之后的决定。"),
+        "I10": ("把未知结果当成功，重复外部副作用，或一直暂停无人处置。质量未知与审查协议失败已有 E65–E68 的机械暂停；这条隐式边只表示暂停之后如何处置。", "覆盖分支被改后的 CAS/拒收样本；不覆盖所有未知恢复的人工作法。", "覆盖 reviewer 结束边界与失效上报；不覆盖主控之后的决定，不将其扩大为全部质量未知或协议失败路径的验证。"),
         "I11": ("越权改验收/权限，或错误结束 attempt 后想沿用旧身份。", "覆盖旧身份拒收；不证明放弃/升级的业务判断或用户授权。", "不覆盖撤销/修订/升级的授权；可保护原候选审查边界。"),
         "I12": ("误把未做成或被放弃的工作写成完成；取代关系与活跃执行脱节。", "不覆盖 ticket 取代/范围决定。", "不覆盖 ticket 取代/范围决定。"),
     }
@@ -438,9 +472,10 @@ def build(root):
                 ["收件箱 → 执行主控", "Herdr 条目 O_EXCL staging、fsync、link 原子发布；ack/disposition 另加条目。授权正文的含义仍靠人判断。", s.refs("inboxwrite authref")],
                 ["认领 → agent 会话", "后台先保存 claim/dispatch intent、任务卡快照、attempt/session/fence，再建 worktree/会话。Herdr 的 launch 与 dispatch 分落 records/launches.jsonl 和 evidence/<batch>/dispatch.jsonl。", s.refs("claimsave launch dispatchlog store")],
                 ["Submit → Acceptance", "C、交付 launch/tool/model/effort、attempt/session/fence/spec、任务卡快照均有绑定；verify 新建 G/C/M 与 verification_id。", s.refs("submitted verifysave verifybinding")],
-                ["每项检查", "completion_intent/result、red/rule、path/oracle/trailer 事件落库；执行中丢失的结果保持 unknown，不据此通过。", s.refs("completionlog red rules unknown save")],
-                ["reviewer 请求 → 结束", "review 请求、启动记录、一次性副本、结构化结果、结束核对与清理事件分开；报告要求持久化，模型如何选变异与判断正确性无程序证明。", s.refs("reviewrequest reviewrequirements reviewresult reviewend b82judgment")],
+                ["每项检查", "completion_intent/result、red/rule、path/oracle/trailer 事件落库；红态/规则之后、尾注之前另核对质量证据。执行中丢失的结果保持 unknown，不据此通过。", s.refs("completionlog red rules quality-evidence-call quality-evidence unknown save")],
+                ["reviewer 请求 → 结束", "review 请求、启动记录、一次性副本、有效结构化结果、结束核对与清理事件分开；协议失败另记 review_protocol_failed。报告要求持久化，模型如何选变异与判断正确性无程序证明。", s.refs("reviewrequest reviewrequirements reviewresult review-protocol-save reviewend b82judgment")],
                 ["打回 → worker", "失败检查/候选/计数先落库，后台回写有 dispatch 记录；第三次取消待回写队列并记 quality_feedback_stopped。", s.refs("rejectsave feedback store")],
+                ["质量未知 / 审查协议失败 → 暂停", "verify 质量块五个已知失败码之外：verification_result=unknown、task paused 并上报；当前运行审查的协议解析/门禁转交失败：review unknown、task paused，保存 review_protocol_failed 并上报。两条路径均不调用 rejectDelivery、不增加 delivery_rejected。", s.refs("quality-known quality-unknown-code quality-unknown review-parse review-relay-failed review-protocol-save")],
                 ["Integration → Git", "SQLite 先持久 pending intent；Git update-ref prepare/commit 做 CAS；读回引用/内容后记 accepted 和打分。SQLite 与 Git 不是同一事务，靠 intent 恢复。", s.refs("intent-save cas integrated reconcile")],
                 ["回收 → 删除工作区", "身份和 idle 读回；Git 保留引用与 cleanup intent 先于 worktree remove；脏目录或未解决验收保留。", s.refs("reclaim cleanup cleanupsave")],
                 ["人工判断 → 后续操作", "I01–I12 可能有文字记录，但没有能证明判断充分或原子完成路由的状态。日志存在不等于判断正确。派发结果未知时也不能凭重发补齐。", s.refs("authref triage dispatchunknown b82judgment")],
