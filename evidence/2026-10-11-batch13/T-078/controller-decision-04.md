@@ -663,3 +663,7 @@ commit-09b-a13.sh 提交 a02baddf8、9c71c35d6，末尾干净断言第三次失�
 ## A-13 I1：按键、结算、条目均成立，投递因 executor 无会话失败 #297（2026-10-15 UTC）
 
 worker 只读恢复 dispatch-01（READY_FOR_PERMISSION，dispatch 8cfff071…，permission seq 68），主控核对恢复屏幕与实时 pane_output 逐字节相同、批准绑定一致后签 permission-approval-01（#297）执行第 3 步：Enter 送达（permission_control_written），tool_result 结算（responses 2），Stop → relay 生成 ideation→executor stop 条目 982f243c…，但投递 undelivered（role_session_missing，executor 尚未启动），relay_rejected wake_undelivered；门禁自动给 ideation 派反馈回合 #3，假 API 未登记，409 dispatch_replayed，Claude 重试 11/11（requests 13、responses 2）。脚本在读回阶段 KeyError protocol_source（恢复结果缺字段）。A-13 预算超限。冻结计划（executor 在 I1 后启动）与产品投递语义冲突，属设计/验收口径问题，按 T-004 写 needs-decision（needs-decision-a13-wake.md）交构思主控，T-078 真实运行暂停，现场保留。
+
+## 用户选项 1：条目留存待上线投递 #298（2026-10-16 UTC）
+
+用户经构思主控作答（answer 20261016T012505Z-ideation-answer-001，逐字）选"条目留存，等角色上线再投递"：目标角色无会话时条目照常保存、状态为待投递、不回灌反馈回合，角色启动后由现有唤醒路径投递；"待投递"必须对发送方可见、不能显示成已送达；protocol 与预算不变。已 ack（20261016T012534Z-executor-ack-001）。#298 派 worker：以 A-13 现场为红态并在离线真实链路复现，改 relay/投递语义（pending 可读、无反馈回合、上线后投递并 ack），绿与反例检查，A-13 脱敏归档与回收，之后准备 A-14，改完走独立审查。与 T-082 在 core.ts 重叠，先合入者先走。
