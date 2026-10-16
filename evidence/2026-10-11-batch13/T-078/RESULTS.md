@@ -1271,3 +1271,11 @@ ticket 所列同时输入、组合输入、大粘贴、关窗、重启 unknown�
 三项剩余验证的 [计划](PLAN-REMAINING-T078-01.md) **仅准备、运行 INCOMPLETE／launch NO_GO**：09C 拟用两 Claude、一个确定性目标、模型0，ideation 4 roots/7 POST、executor1/1，真实 >120000ms 且总观察≤150秒；三窗格须先裁定三现有窗口同屏或单窗三pane，独立场为两 Claude/零 POST；系统IME独立场无 Claude/Codex/模型，仅真实输入法提交与取消两个样本。每项都给实际入口、独立字节/事件/截图依据、坏实现应失败的位置、权限与待决定事项。现有“代签09B”不扩大到09C；缺人在场/可靠原生IME驱动不以合成事件补称通过。
 
 现源码只有单 Terminal/单 pane、单 BrowserWindow，三窗格口径与权限需主控协调，已作为非阻塞 issue `20261016T135530Z-worker:t078-remaining-plan-issue-001` 上报 triage；不阻塞本轮计划交付，未修改产品或地图。原 issue 中 renderer 的54/161是附近上下文，随后精确核对为构造57、pane157，主记录 [问题正文](REMAINING-DECISIONS-ISSUE.md) 已更正定位，原收件箱条目不覆盖。该 issue 同时报告 README 的旧“单角色/09B仍未运行”描述需同步；本轮未在只写计划范围内顺手改 living doc，地图脚本未报 stale 不代表这段现状文字已正确。
+
+## 主控 #335：独立终审 NO_GO 与 F6 源闭包红态
+
+[独立终审01](independent-review-final-01.md) 原件入库、不改其字节。其目标92874fe7f，整票 **NO_GO／INCOMPLETE**；源码/保存回执的局部PASS不等于17 POST/七原生许可的独立证明。F1确认回收仅留汇总投影使HTTP/hook原件无法复核，没有证据推翻当时运行，但历史A15不能补造缺失原件。F1是否重跑09B由用户决定；F3由主控安排下一轮reviewer在冻结候选的隔离临时worktree做2～5个变异，不要求门禁副本。F2/F4/F5/F6/F7按报告分别保留，当前整票仍不关闭。
+
+F6先通过真实标准prepare生成 `09b-executable-materials-f6-red-01`：旧生成器返回静态PASS/58文件，但独立的三个reader调用者局部import闭包检查 **exit 1／INCOMPLETE**，明确缺 `p1_output.py` 及command_evidence、electron_client、p1_endpoint、p1_processes、p1_reuse、p1_simulated_actions、p1_window_receipts共八个helper。红态在 `review-followup-f6-red-01`，不是socket/CLI设置失败。该包只是源边界探针、launch NO_GO；仅静态Node构造，daemon/API/原生CLI均0，已删除其临时静态root，原包与失败回执保留。
+
+标准prepare仅补这八份reader本地依赖，保持原调用者、根/预算/协议不变；源码提交冻结后才生成新标准包取绿。F4仅给现有原断言runner增加单case/mutant-core参数，以复用原T075 fence/CAS/lock变异，不改业务测试方法或acceptance断言；整组8/9/18、CAS、卡片正反例及三变异的实际运行仍 **INCOMPLETE／未执行**。命令路径/语法/三个变异定位的check-only已PASS，无进程/模型。真登录仍受现有fake-only产品入口约束，准备材料将明确前置，不用直接原生CLI绕过门禁。

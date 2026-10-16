@@ -41,6 +41,8 @@ def main():
     parser.add_argument('--suite', choices=COUNTS, required=True)
     parser.add_argument('--revision', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--case')
+    parser.add_argument('--mutant-core', type=Path)
     args = parser.parse_args()
     out = args.output.resolve(); out.mkdir(parents=True, exist_ok=False)
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
@@ -67,6 +69,8 @@ def main():
     os.environ.update(COOP_E2E_ARTIFACT_ROOT=str(fixtures), COOP_E2E_TRACE=str(fixtures / 'trace.json'),
                      COOP_E2E_READBACK_ROOT=str(out / 'readbacks'), COOP_SCRIPT=str(adapter.ENTRY),
                      COOP_NATIVE_ENTRY=str(adapter.CLI))
+    if args.mutant_core:
+        os.environ['COOP_E2E_MUTANT_CORE'] = str(args.mutant_core.resolve(strict=True))
     (out / 'readbacks').mkdir(); cards.ARTIFACT_ROOT = fixtures
     selections = {'coop': (adapter.DaemonDelivery, adapter.delivery.ManagedDeliveryCLI),
         'recovery': (adapter.DaemonRecovery, adapter.recovery.RecoveryCLI),
@@ -75,6 +79,9 @@ def main():
     cls, original = selections[args.suite]
     names = sorted(n for n in original.__dict__ if n.startswith('test_')) if original else unittest.defaultTestLoader.getTestCaseNames(cls)
     if len(names) != COUNTS[args.suite]: raise RuntimeError('Required suite membership changed')
+    if args.case:
+        if args.case not in names: raise ValueError('Selected case is not an original suite member')
+        names = [args.case]
     owner = original or cards.TaskCardsCLI
     for name in owner.__dict__:
         if name.startswith('test_') and getattr(cls, name) is not getattr(owner, name):
@@ -101,10 +108,12 @@ def main():
     with tarfile.open(out / 'fixtures.tar.gz', 'x:gz') as archive:
         archive.add(fixtures, arcname=fixtures.name)
     large = [str(p) for p in out.rglob('*') if p.is_file() and p.stat().st_size > 5 * 1024 * 1024]
-    passed = (result.wasSuccessful() and result.testsRun == COUNTS[args.suite] and executed == names
+    passed = (result.wasSuccessful() and result.testsRun == len(names) and executed == names
               and not result.skipped and not leftovers and not large)
     record = {'status': 'PASS' if passed else 'INCOMPLETE', 'suite': args.suite,
-        'revision': head, 'argv': sys.argv, 'tests_run': result.testsRun, 'expected_tests': COUNTS[args.suite],
+        'revision': head, 'argv': sys.argv, 'tests_run': result.testsRun, 'expected_tests': len(names),
+        'complete_original_suite_size': COUNTS[args.suite], 'selected_case': args.case,
+        'mutant_core': str(args.mutant_core.resolve()) if args.mutant_core else None,
         'failures': len(result.failures), 'errors': len(result.errors), 'skipped': len(result.skipped),
         'failure_text': [{'test': t.id(), 'traceback': text} for t, text in result.failures],
         'error_text': [{'test': t.id(), 'traceback': text} for t, text in result.errors],
