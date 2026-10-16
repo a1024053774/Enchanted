@@ -1186,3 +1186,11 @@ executor readiness **PASS**（0 Messages）；主控签 I2 后 arm=ARMED，不�
 本轮只生成 E1 真实 PermissionRequest 的空签字草稿（permission_wait seq 195、原 command/screen/dispatch），以及 E1→E2→E3→E4→I3→I4→E5→E6 的独立逐阶段命令。七份未来 phase approval 签字字段均空；未来 permission 必须等实际 dispatch/事件后由原 prepare 生成，不预造 request/tool/ack/seq。工具阶段每次先 START 到许可屏，读屏/cmp、生成未签 permission、主控核对一次 Yes 后单 Enter，再只读 collect；I4/E6 无工具、无 Enter。自动根只消费真实 gate feedback/inbox wake，不重新 pane_dispatch、send 或代写 ack；全局 seq 按真实登记与 readback 字段核对。
 
 预算仍 ideation 4/6、executor 6/11（共 17 实际 POST、7 工具许可、模型 0）；当前已 4 POST，E1 第二条及之后余 13 POST。E3 会同时触发 I3 与 E4，两角色可能交错；待批准而未返回 SSE 的真实 POST 也计预算，180 秒超时即整场 INCOMPLETE，不重试。所有后续运行状态仍 **INCOMPLETE／未执行**；本轮仅文件、命令路径/字段与预算静态检查，材料索引见 `09b-a15-later-stages-preparation-01/stages.json` 和 HANDOFF.md。
+
+## 主控 #330：E1/E2/E3/I3/I4 已读回，E4 只读原屏截断需裁定
+
+主控逐阶段签字执行，E1、E2、E3 的许可/读回 **PASS**，实际全局 seq 分别为 3、5、6；E2 的原 target 恰收到一个 Esc（1b）。E4、I3 并行 START 到许可屏，实际 seq 分别为 8、7；I3 许可及读回 **PASS**（真实越权 ack），I4 START/读回 **PASS**（seq 9、target_byte_count=1），ideation 用满 6/6 POST。主控报告 E1/E2/E3/I3 的读屏 cmp 均为 0、批准命令与原屏一致；I3 的误重复生成/读屏被已存在检查拒绝，未为该拒绝补造产物。
+
+E4 首次单独 screen 输出 **INCOMPLETE**，报 screen_exceeds_review_limit、未写 screen.bin。只读检查已保存原返回：offset 0→65536，total_bytes=76125。进一步发现 E4 dispatch-01/permission-screen.bin 也只有 65536 字节，与该分页前缀逐字相同；因此直接补齐完整读取不能再和旧截断文件作全文件 cmp。当前 Enter 前只读校验也只取一页，AST 隔离反例用同一真实保存页证明：它接受相同前缀，却仍有 10589 字节未读。此反例没有执行 gate、Enter、CLI/API、进程或数据库操作，不能算修复绿态。
+
+三个关联 reader 调用均在原冻结包：P1 snapshot、phase_driver 许可截图、permission Enter 前的只读比较。E5 的同一追加式累计输出也会超限；仅改一个显示函数会遇到旧参考与源码冻结检查的下一处失败。本轮不改变原文件、未签 E4 permission 草稿或运行现场；实现暂停，已上报 blocking issue `20261016T113401Z-worker:t078-e4-screen-issue-001`（工具强制 issue 送 triage，主控在当前会话同步获知）。完整事实与最小建议在 `09b-a15-e4-screen-diagnosis-01/NEEDS-DECISION.md`：建议授权同一条完整只读分页证据链、保留旧截断原件并追加引用同一实际事件的完整恢复收据、另签新 permission，以及显式新的只读 harness 源冻结；不重启角色/daemon/API，不改业务输入与预算。当前修复/续行 **INCOMPLETE／needs-decision，NO_GO**。
