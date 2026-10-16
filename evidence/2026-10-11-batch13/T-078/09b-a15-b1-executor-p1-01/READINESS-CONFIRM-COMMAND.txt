@@ -1,0 +1,42 @@
+# 主控核对 #328 的 s13 后运行；刷新原 queued 收据，再写 readiness。无 arm/release/按键。
+set -e
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/observe-startup-queued.py --p1 /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-b1-executor-p1-01 --i1-result /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-b1-ideation-p1-01/phases/I1/execute-02/result.json --expected-keys 6 --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-b1-executor-p1-01/onboarding/readiness-queued-readback.json
+python3 -B - <<'PY'
+# -*- coding: utf-8 -*-
+import base64, json, re
+from pathlib import Path
+p1 = Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-b1-executor-p1-01')
+inp = json.loads((p1 / 'input.json').read_bytes())
+screen = p1 / 'a15-executor-s13-screen'
+meta = json.loads((screen / 'screen.json').read_bytes())
+raw = (screen / 'screen.bin').read_bytes()
+assert meta['screen_id'] == 'executor-s13'
+assert all(meta[key] == inp[key] for key in ['launch', 'session'])
+assert meta['directory'] == str(Path(inp['root']) / 'repo')
+assert raw == base64.b64decode(meta['output']['data_base64'])
+assert meta['output']['next_offset'] == meta['output']['total_bytes']
+plain = re.sub(r'\x1b\][^\x07]*(?:\x07|\x1b\\)', '', raw.decode('utf-8'))
+plain = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', plain)
+tail = plain.rsplit('❯', 1)[1]
+assert not tail.splitlines()[0].strip() and 'manualmodeon' in re.sub(r'\s+', '', tail)
+for index, name in enumerate(['s1', 's3', 's5', 's7', 's9', 's11'], 1):
+    value = json.loads((p1 / 'onboarding' / (name + '-queued-readback.json')).read_bytes())
+    assert value['status'] == 'PASS' and value['startup_keys'] == index and value['business_inputs'] == 0
+fresh = json.loads((p1 / 'onboarding/readiness-queued-readback.json').read_bytes())
+assert fresh['status'] == 'PASS' and fresh['startup_keys'] == 6 and fresh['business_inputs'] == 0
+api = Path(inp['root']) / 'roles/executor'
+counts = {'actual_post_files': len(list((api / 'http-exchanges').glob('*.request.bin')))}
+for name in ['requests.ndjson', 'responses.ndjson']:
+    path = api / name
+    counts[name] = sum(bool(line.strip()) for line in path.read_bytes().splitlines()) if path.exists() else 0
+assert not any(counts.values()), counts
+value = {'launch': inp['launch'], 'session': inp['session'], 'confirmed_by': 'executor',
+         'readiness': 'confirmed', 'approval_ref': '主控 #328 T-078 A-15 executor 首启读回',
+         'basis': '主控 #328 逐屏确认 s13 为空提示符/manual；六键后 queued 观测全过，本命令刷新原收据并复核 0 POST。',
+         'screen_file': str(screen / 'screen.bin'), 'screen_observed_at': meta['observed_at'],
+         'messages_observation': counts, 'queued_readback_file': str(p1 / 'onboarding/readiness-queued-readback.json')}
+with (p1 / 'readiness.json').open('x', encoding='utf-8') as stream:
+    stream.write(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+print(json.dumps({'status': 'PASS', 'readiness_file': str(p1 / 'readiness.json'),
+                  'messages': 0, 'business_input_sent': False}, ensure_ascii=False))
+PY

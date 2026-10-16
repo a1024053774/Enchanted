@@ -1170,3 +1170,11 @@ readiness 确认 **PASS**（0 Messages、无业务提交事件）。主控签 I1
 先以 `1aded2e073d959457233a4ee06351f0b76fa8788` 提交以上原始输出与签字件，九项尾注齐、当时工作树干净。随后只执行原统一生成器的 executor 文件命令；它先核对真实 relay pending 行，再生成 `09b-a15-b1-executor-p1-01`，绑定同一 Stage A target attempt、独立 executor launch/session 和原 API 59388/64829，api_url 仍为动态模板。B1 与六键签字字段均空，dry-run/real 未运行；没有新 API、daemon 或角色进程。
 
 executor 的 B1-COMMANDS、BIND-LAUNCH、ONBOARD-COMMANDS 与六键草稿一并冻结；实际 launch label 必须在 B1 后由 bind-launch 取得，本轮不伪造 manifest。每键后安排 expected-keys=1…6 的 observe-startup-queued，刷新本次原 stop，要求仍 queued、无 delivered 历史、无 I2、unknown/active=null、同一队列、零业务写出/POST，entry.created_at 不变；未通过不得下一键或 release。s7 实际按键 purpose=onboarding-notice，B1 screen plan 保留 security-notice + 原文；旧屏用 -02 重读，不发键。当前仅文件与命令静态核对 **PASS**；executor B1、逐屏与六项 queued 观测仍 **INCOMPLETE／未运行**，材料明细在 `09b-a15-executor-b1-preparation-01/HANDOFF.md`。
+
+## 主控 #328：executor 首启与逐键 queued 观测通过，E1 材料待执行
+
+主控审签 executor B1 后 dry-run READY_FOR_ROLE、real PASS/cli_spawned，实际 bind-launch PASS。六键逐屏签发且每屏初读相符，s13 空提示符/manual 为主控读回；逐键 observe-startup-queued 六次全部 **PASS**，原条目始终 queued、历史无 delivered、无 I2、unknown/active=null、零业务写出。以上原件和签字先以 `019414f9cdea56902bc668c409de65096b0b5af5` 提交（九项尾注）。原消息=`b91b5f60-62e9-4983-b48e-f73630f1f854`，原 stop/request 仍为 I1 的 c3ab1493…/80ef9485…，未重置 stop.created_at。
+
+随后仅生成材料：executor readiness 命令再刷新一次原 queued 收据并核对 0 POST、s13 与六份原件，才创建确认；I2 空签字草稿的 arm 命令只预登记原 I2、不发输入；E1 空签字草稿的 initial-release 命令只放行原队列，到真实许可屏即停。原 I2 在 delivered 后响应的时点仍是主控 #299 对用户原话的解释，不冒称用户逐字批准。后续读回先走既有 I2 collect，再核对原 request/entry、原队列消息 turn_submitted 与 delivered 时间对应、I2 注册/提交/反馈各恰一次，预期实际 POST 为 ideation 3、executor 1；此时 E1 Enter 尚未批准。executor readiness、arm/release/collect 和读回本轮均 **INCOMPLETE／未运行**。
+
+本轮材料检查中，直接用 mode=ro 查看历史 A-14 排练 SQLite 导致其 SHM 读标记变化；已留存变化前后两份 32,768 字节副本、来源提交与原因说明，之后逐字节恢复受控原件，未操作 A-15 现场，也未丢弃异常证据。记录在 `09b-a15-e1-preparation-01/historical-sqlite-read-side-effect-01`；后续不再直接打开历史数据库。该准备期副作用与上述真实运行结果分开记录。
