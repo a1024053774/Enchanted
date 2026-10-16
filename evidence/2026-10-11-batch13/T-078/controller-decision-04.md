@@ -676,3 +676,7 @@ worker 交红态（A-13 事件 116/117 只读读回；真实离线链路复现 u
 
 主控沙箱外运行 run-pending-checks.py --suite runtime：PASS（09b-pending-runtime-01，14 项）。cleanup-pending-timeout.py 首次 BLOCKED（残留 control.sock），worker 修为"有人持有拒删、无人持有才删、FIFO 仍拒"；主控本想用 --help 看用法，脚本忽略参数直接执行了正式清理：PASS（无人持有、归档读回、root 删除、未发信号，输出 09b-pending-timeout-cleanup-02）——结果即预定下一步，但属主控误触发，如实记录。commit-pending-delivery.sh 需 worker 启动身份，由 worker 在本会话运行：703984056（产品/测试/证据）、4b48664fd（冻结记录），各 9 项自动尾注，工作树干净。A-13：脱敏归档已由 worker 完成并提交；owner-bound 回收 dry-run/正式 PASS（API 45050/45051 SIGTERM，七进程退出，root 删除）。
 #301：新开 fresh Codex reviewer s16-t078-rev（wF:p4A），argv `herdr agent start s16-t078-rev --kind codex -- --no-daemon -m gpt-6.1-sol -c model_reasoning_effort="xhigh" -c service_tier="default" -c check_for_update_on_startup=false --sandbox workspace-write --ask-for-approval on-request`，只写审查报告与沙箱外脚本；要求独立判断 #299 的 I2 裁定是否与用户原话一致。
+
+## 待投递独立审查 PASS 与 A-14 准备 #302/#303（2026-10-16 UTC）
+
+fresh Codex reviewer s16-t078-rev 审 703984056：本地核对冻结 diff、验收对应、基线红态、自建 5 个错误实现均被拒；主控运行其沙箱外脚本，四段检查 exit 0（真实 Electron/node-pty/worker 收件箱回归 14 项 PASS），脚本收尾行因变量名混入非 ASCII 字符报错（辅助脚本 P2，保留原样）。结论 PASS，仅绑定该冻结候选。审查认为 #299 的 I2 读法与用户原话一致，但属主控解释、非用户逐字批准的时点。审查报告与清理记录已提交，审查窗格回收，/tmp 输出删除。#303 派 worker 准备 A-14（protocol/预算不变，按新语义串阶段，预先核对 A-11～A-13 的已知问题）。
