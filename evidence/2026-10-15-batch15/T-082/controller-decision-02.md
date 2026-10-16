@@ -18,3 +18,8 @@ REAL-CODEX-COMMANDS-01.sh 两轮审查后改为纯产品路径（daemon_start �
 ## 真实第 2 回合 PASS #48（2026-10-16 UTC）
 
 检查点提交 7f2bd4061（review_submit 契约修复 + 报告节键检查，离线 12 项 PASS）。fixture-04 偏弱任务卡（目标要求 value.txt 与 details.txt，oracle 只查 value.txt）。主控签 round-2（#48）运行：real-readback 九项全 true（入库、候选不变、审查目录移除前干净、worker worktree 干净、共享 refs 不变、副本删除、审查目录移除、review_reclaimed、哨兵不变）；报告含"完成条件与变异检查"、5 个变异；reviewer 判"需修复"并指出漏查 details.txt。隔离 home 删除读回 absent。累计真实回合 2/4。#48 让 worker 收尾 RESULTS.md。
+
+## 改前红态补齐与独立审查 #49/#50（2026-10-16 UTC）
+
+OUTSIDE-COMMANDS-10.sh（起点 451be8462 源码，外置盘夹具，受控 PTY，0 真实回合）：wrong-workspace、network-enabled、tmp-writable 三案在旧门禁上 T082-LAUNCH-REFUSED 失败（ok:true，未拒收），对应候选绿态已有；只读 argv 红态见 red-state/。提交 9c771dc72（收尾证据）、f589d1938（红态补证）。
+#50：新开 fresh Codex reviewer s16-t082-rev（wF:p4B），argv 同 T-078 审查员；只写 independent-review-01.md 与 REVIEW-OUTSIDE-01.sh。

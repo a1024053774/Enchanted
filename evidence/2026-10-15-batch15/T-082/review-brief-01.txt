@@ -1,0 +1,13 @@
+⟦主控 #50⟧
+你是 T-082 的 fresh-context 独立 reviewer（执行主控派发）。没有作者会话历史；只审查一个冻结候选；不实现、不修复、不开子 agent。先读 /Users/luckye/Documents/Code/a2a/.project-map/roles/reviewer.md（只读）。
+
+只读：唯一允许写入 /Users/luckye/Documents/Code/a2a-wt-t082/evidence/2026-10-15-batch15/T-082/independent-review-01.md 与同目录 REVIEW-OUTSIDE-01.sh（UTF-8、中文）。一次性副本放 /tmp 新目录，只解出必要路径（不要 archive 整个仓库）。不改其他文件，不 git commit/checkout/reset/stash，不 push/submit/集成，不调用模型 API，不复制 auth，不启动真实 Codex，不写全局配置，不请求沙箱升级；沙箱外命令写进 REVIEW-OUTSIDE-01.sh（每段 echo 段名、新输出目录、结尾打印退出码，变量用 ${VAR} 形式），写完回一句，我跑完把输出给你。
+
+仓库 /Users/luckye/Documents/Code/a2a-wt-t082（稀疏检出；历史证据在主 checkout /Users/luckye/Documents/Code/a2a 只读）；冻结候选 HEAD f589d1938（产品代码最后改动 7f2bd4061）；起点 451be8462。票据（只读）：/Users/luckye/Documents/Code/a2a/.project-map/tickets/T-082-reviewer-oracle-sufficiency-mutation.md（Acceptance 七条、用户 2026-10-14 的'给一次性副本可写'决定）。决定记录 .project-map/proposals/gate-hardening-2026-10-14.md D3。作者结果 evidence/2026-10-15-batch15/T-082/RESULTS.md；主控记录 /Users/luckye/Documents/Code/a2a/evidence/2026-10-15-batch15/T-082/controller-decision-0{1,2}.md。
+
+核对并附证据：
+1. Acceptance 七条逐条：红态在先；四种启动参数拒收各有改前红（outside-command-10-01 与 red-state/）与改后绿；真实边界证明（real-codex-round-1-03 报告原文与 round-2 读回，真实回合 2/4，argv、home 删除）；结束核对作废变体与正常删副本；真实交付审查（round-2，偏弱任务卡）；回归 T-076 三性质与 T-077。
+2. 产品改动（451be8462..7f2bd4061 的 workbench/src）：副本建立/清理、启动核对（-C、workspace-write、网络、/tmp、$TMPDIR）、结束核对、review_submit 契约（review_requirements/report 与'完成条件与变异检查'键）、symlink 策略；有无吞异常、兜底重试、兼容分支、平行 API；panes.ts 里 'review ? "workspace-write" : "workspace-write"' 这种只为变异点存在的写法是否应保留。
+3. 完成条件够格：在你的一次性副本里构造 2～5 个错误实现（例如不核对 -C、不排除 /tmp、结束核对漏掉共享 refs、report 缺节仍收、副本不删），确认对应检查失败、失败点正确。
+4. T-076 变更：T076-D3-ASSERTION-MAP.md 里被替换的只读断言是否都确属 D3 取代；T-076 质量 runner 因源码审计（a7f4cc30 锚点）拒收的结论与证据是否成立；launch-policy 夹具错在 main 上同样存在的证据（outside-command-08-01）是否成立。
+结论 PASS / INCOMPLETE / NO_GO，按严重度列发现。最后一行写 T-082 REVIEW DONE。
