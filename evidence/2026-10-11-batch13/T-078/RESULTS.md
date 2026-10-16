@@ -1406,3 +1406,15 @@ F4 顶层仍 **INCOMPLETE**：CAS 子测试已是1 failure/0 error/0 skipped、b
 本轮文件冻结已完成，源码提交 **7a6edbff87df85077b3a05d38f3cfd5654cde9c1**。标准prepare生成 `09b-executable-materials-16-02` 与 `09c-executable-materials-02`；[逐成员核对](stage-a-readback-rebind-01/result.json) **PASS**，各312个成员与该Git提交一致，相对旧包只有 `run-09b.py` 一项不同。旧包、旧全量结果及原始回归记录保留，不改业务、原测试或protocol预算。两份当前Stage A批准仍在原目录、签字均空，四份readbacks逐项相同；Stage A／角色材料／owner命令已指向新包。
 
 [完整真实预检函数](stage-a-four-readbacks-final-01/result.json) 两场均 **PASS，仅预检**：包含材料谱系、完整源码闭包、四份实际收据及历史异常的显式核对；实际未签批准均拒绝。正例只在内存填测试批准，没有写实际签字、运行main、创建运行root或启动daemon/API/目标/角色/模型。源码仍为合并T090后的业务，A16/09C实跑和整票结论仍 **INCOMPLETE／NO_GO**，待主控签字与串行执行。
+
+## 主控 #345：A-16 Stage A READY，ideation B1/首启仅备材料
+
+主控签 [Stage A批准](09b-a16-materials-01/stage-a-approval.json) 并在沙箱外运行 [09b-a16-stage-a-01](09b-a16-stage-a-01/result.json)，结果 **READY_FOR_APPROVAL**、供应商模型0；root为 `/private/tmp/t078-2-09b-run-z9ov_cco`。签字原件与完整输出随本轮提交，不改主控记录。
+
+本轮按主包 `ROLE-MATERIAL-COMMANDS.txt` 第一条实际运行已冻结 `prepare-a14.py --mode role`，只写ideation P1/隔离角色配置和phase-plan文件，生成 [09b-a16-b1-ideation-p1-01](09b-a16-b1-ideation-p1-01/generation.json)。实际attempt/任务/root/API取本次readiness，不复用旧A15绑定；ideation API34330/64318仍用动态端点模板和既有复用身份检查，不起第二只API。
+
+[材料静态核对](09b-a16-b1-ideation-p1-01/preparation-static.json) **PASS，仅静态**：312个冻结源码成员与当前源文件逐字一致；B1 binding/schema/首启计划完整，签字为空；六键草稿均未签，s7单键为onboarding-notice，而B1整体计划保留security-notice和原提示文本；23条B1/绑定/首启命令的入口与现有输入路径通过检查。实际B1 manifest、各屏screen.bin和launch label明确为后续产物，先实跑B1、再BIND-LAUNCH从真实结果填入；不假装它们已经存在。
+
+[B1-HANDOFF](09b-a16-b1-ideation-p1-01/B1-HANDOFF.md) 给出 dry-run/real分步、实际launch绑定、首启逐屏六键、-02重读和停止条件。读屏沿冻结的完整分页reader，需稳定total与EOF原件，不再使用旧单页路径。rev2 API/raw collector/reader闭包与marker已核对；逐POST/hook原件继续留在隔离角色目录，回收前先脱敏归档、逐成员读回并从tar独立重数/留archive清单，再停机；停机后不读SQLite。owner待两角色真实B1 manifests齐全再生成，此时未伪造PID/owner/归档通过。
+
+**本轮没有运行 B1 dry-run、真实B1、读屏、按键、业务输入、gate dispatch/release、服务启动、归档或清理，也未生成executor P1或启动其角色CLI。** 主控下一步从 `B1-COMMANDS.txt` 分别取 dry-run和real两行，签字后各自执行；成功后按 `BIND-LAUNCH.txt` 再用 `ONBOARD-COMMANDS.txt` 一条一条读屏/签键。ideation预算4根/6POST、全场17POST、模型0不变；A16业务补证、09C和整票仍 **INCOMPLETE／NO_GO**。
