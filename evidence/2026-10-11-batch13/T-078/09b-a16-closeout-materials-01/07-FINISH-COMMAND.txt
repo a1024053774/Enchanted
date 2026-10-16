@@ -1,0 +1,15 @@
+# 必须先完成归档逐字读回、tar核对及独立readback签字；以下预检不发信号，任何失败即停。
+set -e
+python3 -B - <<'PY'
+import json
+from pathlib import Path
+p=Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a16-raw-readback-01')
+review=json.loads((p/'a16-review-check.json').read_bytes())
+assert review['status']=='PASS' and review['counts']=={'POST':17,'roots':10,'permissions':7}
+r=json.loads((p/'readback.json').read_bytes())
+assert r['approved_by']=='executor' and r['approval_ref']
+assert review['archive']==r['archive']=='/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a16-raw-01/scene.tar.gz'
+assert review['root']=='/private/tmp/t078-2-09b-run-z9ov_cco'
+assert review['source_revision']=='7a6edbff87df85077b3a05d38f3cfd5654cde9c1'
+PY
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_raw_retention.py --mode finish --owner /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a16-materials-01/owner.json --archive /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a16-raw-01/scene.tar.gz --approval /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a16-closeout-materials-01/cleanup-approval.json --capture-result /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a16-capture-01/capture-result.json --independent-readback /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a16-raw-readback-01/readback.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a16-cleanup-01

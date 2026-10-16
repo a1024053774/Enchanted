@@ -1,0 +1,17 @@
+# 归档通过后、停机前，只复制轻量原始bundle清单与指针索引，不复制secret inventory或raw payload。
+python3 -B - <<'PY'
+
+import json
+from pathlib import Path
+archive=Path('/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a16-raw-01/scene.tar.gz');destination=Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a16-closeout-materials-01')
+original=archive.parent/'bundle.archive.json'
+receipt=json.loads(original.read_bytes())
+assert receipt['status']=='PASS' and receipt['byte_readback']=='PASS' and receipt['archive']==str(archive)
+with (destination/'bundle.archive.json').open('xb') as stream:stream.write(original.read_bytes())
+value={'archive':str(archive),'bundle_receipt':str(original),'pointers_directory':str(archive.parent/'pointers'),
+       'member_prefix':'files/','root':receipt['root'],'source_revision':receipt['source_revision'],
+       'note':'Each original has its own .archive.json pointer in the external pointers tree; raw payloads stay external'}
+with (destination/'raw-pointers.archive.json').open('x',encoding='utf-8') as stream:stream.write(json.dumps(value,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps({'status':'PASS','saved_manifest':str(destination/'bundle.archive.json')}))
+
+PY

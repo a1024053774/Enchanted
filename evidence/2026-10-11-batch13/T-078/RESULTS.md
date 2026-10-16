@@ -1456,3 +1456,21 @@ executor s11与ideation同类：[原result](09b-a16-b1-executor-p1-01/a16-execut
 [材料静态核对](09b-a16-e1-preparation-01/static-check.json) **PASS**：43份命令文件、61条命令/比较步骤、9份空签字phase批准、现有实际B1 manifest、完整reader闭包和新输出检查通过；I2 delivered读回与A15已实跑的oracle仅实例路径不同。预算表见 [stages](09b-a16-e1-preparation-01/stages.json)，ideation4根/6POST、executor6根/11POST，合计17POST/七次许可/模型0；I1已用1根/2POST/一次许可，后续预期9根/15POST/六次许可。
 
 本轮 **未执行 readiness、arm、initial release、任何阶段、读屏、Enter、collect、owner生成、归档或清理**。HTTP/hook逐条原件继续留在活root，结束前必须按rev2先外置归档/逐字读回/独立重数并留archive清单，再正常停机，停机后不读SQLite。当前A16后续、09C与整票保持 **INCOMPLETE／NO_GO**；本次材料PASS不代替未来真实运行。
+
+## 主控 #349：A-16 全阶段完成；逐 POST/hook 原件核对与回收待批
+
+主控逐阶段代签执行全部I/E阶段，每次工具许可前完整读屏、核对命令/原stop/❯ 1. Yes，check通过后一次Enter。本轮把executor readiness、I2 arm/collect、E1～E6与I3/I4的全部START/许可/Enter/Electron/读回/签字，以及原delivered-I2读回一并提交，原文件不覆盖改判。主控实跑各阶段结果均符合冻结protocol；worker本轮未执行业务或许可动作。
+
+[全场核对](A16-FINAL-READBACK.md) 与 [最终JSON原件索引](09b-a16-final-check-03/result.json) **PASS，限worker只读核对，非新会话独立验收**：直接读取逐POST request/response/meta、hook stdin/started/finished/stdout/stderr，得到ideation6POST/4根/2许可、executor11POST/6根/5许可，合计 **17POST、10根、7许可、135个hook文件、模型0**。17次HTTP均200/complete，原件字节与meta/wire一致；Bash.command/真实tool_result同ID、7次CR action各关联唯一写出，UPS/Stop/idle/原登记逐根吻合，E578282字节原屏完整分页/EOF。模型0依据实际两角色runtime-manifest指向原loopback假API及冻结无转发SSE源码，不把CLI模型标签当供应商执行证明。
+
+实际全局seq为 **I1=2、E1=3、I2=4、E2=5、E3=6、I3=7、E4=8、I4=9、E5=10、E6=11**，从原请求登记正文、实际dispatch_records/事件关联核对，不按阶段号推算。目标received.bin相对baseline恰增加 **1b**，唯一实际中断actor executor、thread为原target；错目标/越权ack/已ack再停的真实拒绝均符合contract，E3/E4同一ack且只有一次wake。
+
+原stop `d48f9f7c-187e-4fcd-b125-58ec345710b6` 的created_at仍21:06:39.345Z，原request `4c754e99-a65e-450f-8381-bbb92d6114a0`；I1 Stop结果pending/role_session_missing、此前没有原I2反馈。角色上线后先queued，**E1 turn_submitted seq176** 才delivered（21:27:34.209Z），再有 **原I2 feedback seq187**；原I2反馈/登记/提交各一次。来源为原I1 HTTP tool_result及停机前活库一致只读事务，交叉核对已有DELIVERY-I2原件。该时点继续如实归于主控#299的解释，不改用户原话。
+
+核对器自身首轮 [01](09b-a16-final-check-01/result.json) 因误读HTTP meta不存在的dispatch_seq而INCOMPLETE，失败保留；修为读取原请求登记标记和实际派发行后 [02](09b-a16-final-check-02/result.json) PASS，增加逐根idle/Stop和单ack wake后的03 PASS。缺response、截断SSE、重复UPS三种一次性副本反例被同一读取函数拒绝，副本已删，活root/原件未改。两次s11的发键后采集拒绝仍为原INCOMPLETE，不能据此重按或修改冻结reader。
+
+[回收材料](09b-a16-closeout-materials-01/README.md) **静态准备PASS，实际回收INCOMPLETE**：只写01～07分步命令，先用原Stage A/B1绑定九PID完整argv/lstart/图、生成空签字cleanup草稿与只读dry-run，再停机前rev2结构脱敏capture。staging与tar均在外置盘，预定 `.../T-078/09b-a16-raw-01/scene.tar.gz`，逐成员字节读回、每原件archive指针、独立tar重数/原stop-I2/单Esc核对通过且readback签字后，才认证daemon_stop/panes.shutdown，两原API各一次SIGTERM，确认九进程退出、文件/归档及尾部未变后删root；停机后不读SQLite。slot不删除。归档/staging/仓内readback与cleanup输出目录已只读检查为全新。
+
+cleanup静态记录 [02](09b-a16-closeout-materials-01/static-check-02.json) 修正首份报告把here-doc数量写成4的元数据笔误（实际3），原报告保留，已执行的语法/路径guard结论不变。**本轮没有运行owner、cleanup批准生成、dry-run、capture、tar readback、签字、停机或删除**。逐POST/hook原件仍在活root，当前不能宣称F1外置保留已完成；主控需依序实跑并保留实际bundle/pointers和cleanup收据。
+
+A16业务阶段与原件worker核对局部 **PASS**；归档/回收与独立审查尚未完成，09C尚未执行。系统IME按用户选择仍未验证/INCOMPLETE；三窗格与真登录分别移T091/T092。本票整体仍 **INCOMPLETE／NO_GO**，不以本轮全场核对替代其余验收或宣布整票通过。
