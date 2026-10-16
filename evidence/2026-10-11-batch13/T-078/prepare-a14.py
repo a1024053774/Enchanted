@@ -42,14 +42,17 @@ def phase_commands(stage_a, p1, stage):
 
 
 def prepare_role(args):
-    assert isinstance(args.instance, str) and re.fullmatch(r'a[1-9][0-9]*', args.instance), 'explicit_instance_required'
+    assert isinstance(args.instance, str) and re.fullmatch(r'[ac][1-9][0-9]*', args.instance), 'explicit_instance_required'
     assert args.prompt_file and args.prompt_file.is_file(), 'explicit_prompt_file_required'
     stage_a, packet, out = args.stage_a.resolve(), args.packet.resolve(), args.output.resolve()
     ready = json.loads((stage_a / 'readiness.json').read_bytes())
     static = json.loads((packet / 'static-check.json').read_bytes())
     assert ready['status'] == 'READY_FOR_APPROVAL' and static['revision'] == ready['source_revision'] and static['protocol'] is True
+    scene=static['scene']; assert ready['scene']==scene
+    prefix='09b' if scene=='09B' else '09c'
+    assert args.instance.startswith('a' if scene=='09B' else 'c')
     root = Path(ready['root']); role = args.role; role_root = root / 'roles' / role
-    if role == 'executor':
+    if role == 'executor' and scene=='09B':
         pending = json.loads(args.result.read_bytes())
         assert pending['status'] == 'READY_FOR_EXECUTOR' and pending['pending'] is True and pending['feedback_count'] == 0
         import sys
@@ -63,14 +66,15 @@ def prepare_role(args):
     assert not out.exists()
     for name in ['home', 'claude', 'tmp', 'shell', 'requests', 'hooks', 'user-data']:
         (role_root / name).mkdir(parents=True, exist_ok=True)
-    role_text = f'09B {role} deterministic role. Use only approved phase input and exact registered tool commands. No retry or extra role.\n'
+    role_text = f'{scene} {role} deterministic role. Use only approved phase input and exact registered tool commands. No retry or extra role.\n'
     (role_root / 'role.md').write_text(role_text, encoding='utf-8')
     (role_root / 'claude/settings.json').write_text('{"theme":"dark"}\n', encoding='utf-8')
     inp = {'schema': 1, 'root': str(root), 'state': str(root / 'state'), 'task': ready['task'], 'preset': role,
            'launch': str(uuid.uuid4()), 'session': str(uuid.uuid4()), 'thread': str(uuid.uuid4()),
            'executable': '/Users/luckye/.local/share/claude/versions/2.1.296', 'role_file': str(role_root / 'role.md'),
            'code_revision': static['revision'], 'source_snapshot': str(packet / 'sources.tar.gz'),
-           'api_url': 'http://127.0.0.1:0', 'turn_limit': 4 if role == 'ideation' else 6}
+           'api_url': 'http://127.0.0.1:0', 'turn_limit': json.loads((packet/'plan.json').read_bytes())['roles'][role]['root_budget']}
+    if scene=='09C': inp['readiness_file']=str(out/'readiness.json')
     nonce = args.instance.upper() + '_' + role + '_' + uuid.uuid4().hex
     save(role_root / 'input.json', inp)
     save(role_root / 'scenario.json', {'schema': 1, 'name': args.instance + '-' + role, 'nonce': nonce})
@@ -86,21 +90,25 @@ def prepare_role(args):
     plan_path = root / 'protocol-plan.json'
     if role == 'ideation':
         prompt = args.prompt_file.read_text(encoding='utf-8')
-        plan = {'schema': 1, 'root': str(root), 'target_binding': ready['target_binding'], 'roles': {},
+        plan = {'scene':scene,'schema': 1, 'root': str(root), 'target_binding': ready['target_binding'], 'roles': {},
                 'protocol_source': str(BASE / '09b-materials-01/protocol.json'), 'synthetic_input_id': str(uuid.uuid4()), 'i1_prompt': prompt}
         baseline = root / 'target/home/received.bin'; before = baseline.read_bytes()
         assert baseline.read_bytes() == before
         with (root / 'target-baseline.bin').open('xb') as stream:
             stream.write(before)
+        if scene=='09C':
+            plan.update(source=str(SOURCE),node=str(Path(shutil.which('node')).resolve()),source_revision=static['revision'],package=str(packet),
+                prompt_file=str(out/'i1-prompt.txt'),clock_origin_file=str(root/'clock-origin.json'),owner_file=str(root/'raw-owner.json'),
+                continued_demand_file=str(root/'continued-demand.json'),target_bytes='target/home/received.bin',target_baseline_hex=before.hex())
         save(plan_path, plan)
     plan = json.loads(plan_path.read_bytes())
     assert role not in plan['roles'] and plan['target_binding'] == ready['target_binding']
     plan['roles'][role] = inp
     temporary = root / 'protocol-plan.tmp'; save(temporary, plan); temporary.replace(plan_path)
-    save(role_root / 'protocol-registry.json', {'phase_plan': str(plan_path), 'dispatches': {}, 'message_budget': 6 if role == 'ideation' else 11})
+    save(role_root / 'protocol-registry.json', {'phase_plan': str(plan_path), 'dispatches': {}, 'message_budget': (6 if role == 'ideation' else 11) if scene=='09B' else (7 if role=='ideation' else 1)})
     if role == 'ideation':
         (out / 'i1-prompt.txt').write_text(plan['i1_prompt'], encoding='utf-8')
-    launch_label = '09b-' + args.instance + '-b1-' + role + '-01'
+    launch_label = prefix+'-' + args.instance + '-b1-' + role + '-01'
     screens, tool = screen_plan()
     approval = {'approved_by': None, 'approval_ref': None, 'stage': 'B', 'phase': 'B1', 'role': role,
                 'source_revision': static['revision'], 'binding': ready['target_binding'], 'p1_materials': str(out),
@@ -132,13 +140,13 @@ def prepare_role(args):
         next_screen = role + '-' + (keys[index + 1][0] if index < len(keys) - 1 else 's13')
         lines += ['# 若实际采用 -02，批准和本条 --screen-file 同时绑定该 -02 原件。',
                   f'python3 -B {SOURCE/"workbench/tests/run_t078_p1.py"} --materials {out} --reuse-stage-a --launch-label LAUNCH_LABEL --phase key --label {args.instance}-{role}-{screen}-{key} --screen-id {role}-{screen} --key {key} --purpose {purpose} --approval-file {out/"onboarding"/(screen+"-"+key+".json")} --screen-file {out/read_label/"screen.bin"} --next-screen-id {next_screen}']
-        if role == 'executor':
+        if role == 'executor' and scene=='09B':
             lines += ['# 每个键后、下一键与初始 release 前，刷新原 stop 收据；不是 delivered/不是 I2。失败立即停。',
                       f'python3 -B {BASE/"observe-startup-queued.py"} --p1 {out} --i1-result {args.result.resolve()} --expected-keys {index+1} --output {out/"onboarding"/(screen+"-queued-readback.json")}']
     for suffix in ['', '-02']:
         lines += [f'# s13{suffix}: 只读最终空提示符/manual；不符就停。', f'python3 -B {SOURCE/"workbench/tests/run_t078_p1.py"} --materials {out} --reuse-stage-a --launch-label LAUNCH_LABEL --phase screen --label {args.instance}-{role}-s13-screen{suffix} --screen-id {role}-s13']
     (out / 'ONBOARD-COMMANDS.txt').write_text('\n\n'.join(lines) + '\n', encoding='utf-8')
-    protocol = json.loads((BASE / '09b-materials-01/protocol.json').read_bytes())
+    protocol = json.loads((BASE / ('09b-materials-01/protocol.json' if scene=='09B' else 'rev2-prefreeze-materials-01/09C-STAGES.json')).read_bytes())
     for phase in protocol['phases']:
         if phase['role'] != role:
             continue
@@ -146,8 +154,26 @@ def prepare_role(args):
         save(folder / 'approval.json', {'approved_by': None, 'approval_ref': None, 'stage': stage, 'phase': stage, 'role': role,
              'launch': inp['launch'], 'session': inp['session'], 'target_binding': ready['target_binding'],
              'p1_materials': str(out), 'source_revision': static['revision'],
-             'startup_readiness_file': str(out / 'readiness.json'), 'messages_expected': phase['messages'], 'tool': phase['tool']})
-        (folder / 'COMMANDS.txt').write_text(phase_commands(stage_a, out, stage), encoding='utf-8')
+             'startup_readiness_file': str(out / 'readiness.json'), 'messages_expected': phase['messages'] if scene=='09B' else phase['messages_POST'], 'tool': phase['tool'], 'continued_stop_demand': scene=='09C' and stage=='C-I1'})
+        if scene=='09B': commands_text=phase_commands(stage_a,out,stage)
+        else:
+            driver=SOURCE/'workbench/tests/t078_09c_driver.py'
+            head=f'python3 -B {driver} --plan {plan_path} --stage {stage} --approval {folder/"approval.json"}'
+            commands_text=f'# 每步各自批准；自动根绝不重新派发。\n{head} --mode arm --output {folder/"armed-01"}\n'
+            if stage=='C-I1':
+                commands_text+=f'{head} --mode initialize --output {folder/"initialized-01"}\n{head} --mode start --output {folder/"start-01"}\n'
+            if phase['tool']:
+                commands_text+=f'{head} --mode observe --output {folder/"dispatch-01"}\n'
+                if stage=='C-I3':
+                    slot='t078-'+args.instance+'-CI3-'+inp['launch']+'-execute02'
+                    build_out=Path('/Volumes/WD-Elements/a2a-workbench')/slot/'dist'
+                    (folder/'BUILD-COMMAND.txt').write_text(f'node {SOURCE/"workbench/app/build.mjs"} --slot {slot}\n',encoding='utf-8')
+                    commands_text+=f'# 两分钟之前单独批准并执行BUILD-COMMAND，备好原屏/签字；本命令只写review/template，不默认批准。\n{head} --mode permission --build {build_out} --output {folder/"execute-02"}\n'
+                else:
+                    commands_text+=(f'python3 -B {BASE/"prepare-a14.py"} --mode permission --p1 {out} --result {folder/"dispatch-01/result.json"} --output {folder/"permission-approval-01.json"}\n'
+                        f'python3 -B {SOURCE/"workbench/tests/t078_09b_i1_permission.py"} --materials {out} --p1 {out} --stage {stage} --stage-a {stage_a} --dispatch-result {folder/"dispatch-01/result.json"} --process-manifest LAUNCH_MANIFEST --approval {folder/"permission-approval-01.json"} --output {folder/"execute-02"}\n')
+            else: commands_text+=f'{head} --mode collect --output {folder/"collect-01"}\n'
+        (folder/'COMMANDS.txt').write_text(commands_text,encoding='utf-8')
     save(out / 'generation.json', {'status': 'PASS', 'instance': args.instance, 'role': role, 'launch_status': 'NO_GO', 'stage_a': str(stage_a), 'prompt_file': str(args.prompt_file.resolve()), 'real_process_starts': 0})
 
 

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "scene": "09C",
+  "kind": "UNBOUND_STAGE_PLAN",
+  "launch_status": "NO_GO",
+  "authority": "controller #338 / ready_rev 2, actual command/stop/target/screen must match signed template",
+  "roles": {
+    "ideation": {
+      "roots": 4,
+      "messages_POST": 7
+    },
+    "executor": {
+      "roots": 1,
+      "messages_POST": 1
+    }
+  },
+  "combined_messages_POST": 8,
+  "tool_permissions": 3,
+  "real_vendor_model_turns": 0,
+  "phases": [
+    {
+      "id": "C-I1",
+      "role": "ideation",
+      "source": "approved test-simulated-user stop request via pane_dispatch/release",
+      "tool": "C_SEND_STOP",
+      "roots": 1,
+      "messages_POST": 2,
+      "permissions": 1,
+      "settlement": "actual Stop relays queued inbox send; preserve actual stop created_at"
+    },
+    {
+      "id": "C-E1",
+      "role": "executor",
+      "source": "actual stop inbox wake",
+      "tool": null,
+      "roots": 1,
+      "messages_POST": 1,
+      "permissions": 0,
+      "settlement": "one held SSE POST, no tool/ack; neutral completion after late-interrupt evidence"
+    },
+    {
+      "id": "C-I2",
+      "role": "ideation",
+      "source": "actual delivered send feedback",
+      "tool": "C_EARLY_STOP",
+      "roots": 1,
+      "messages_POST": 2,
+      "permissions": 1,
+      "settlement": "actual gate stop_too_early before 120000ms; target delta empty"
+    },
+    {
+      "id": "C-I3",
+      "role": "ideation",
+      "source": "actual early-stop denial feedback",
+      "tool": "C_LATE_STOP",
+      "roots": 1,
+      "messages_POST": 2,
+      "permissions": 1,
+      "settlement": "prepare actual permission screen early; conditional single Enter only after threshold; actual Stop relays interrupt"
+    },
+    {
+      "id": "C-I4",
+      "role": "ideation",
+      "source": "actual successful late-stop execution feedback",
+      "tool": null,
+      "roots": 1,
+      "messages_POST": 1,
+      "permissions": 0,
+      "settlement": "confirm only, Stop/idle; no extra tool or ack"
+    }
+  ],
+  "timing": {
+    "origin": "actual stop.created_at, never rewritten",
+    "early_gate_age_ms_lt": 120000,
+    "late_gate_age_ms_gt": 120000,
+    "conditional_enter_monotonic_elapsed_ms_min": 120100,
+    "scenario_observation_deadline_ms": 150000,
+    "sample_interval_ms_max": 20000,
+    "conditional_enter_start_deadline_ms": 130000
+  },
+  "C_I3_permission_timing": "obtain real screen/PermissionRequest before the threshold where possible; executor signs the exact current original screen/template; wait without keys; re-read complete bytes immediately before the one Enter",
+  "executor_hold": "single POST with SSE heartbeat, no tool/ack; no retries or extra root; end neutrally after late oracle, within deadline",
+  "runtime_ids": "absent until actual binding, never copied from A15/A16",
+  "target_delta_hex": "1b",
+  "forbidden_actions": [
+    "operator business send/stop/ack",
+    "clock fast-forward",
+    "created_at rewrite",
+    "direct signal to target",
+    "kill/reclaim/archive target as business stop",
+    "retry on uncertain Enter",
+    "reuse A16 live root/session/API"
+  ]
+}

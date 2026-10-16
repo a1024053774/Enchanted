@@ -82,7 +82,7 @@ def main():
     subprocess.run(['git', 'merge-base', '--is-ancestor', freeze['revision'], head], cwd=SOURCE, check=True)
     assert not git('diff', freeze['revision'], '--', *PROTECTED), 'Frozen source changed'
     assert not git('ls-files', '--others', '--exclude-standard', '--', 'workbench', 'acceptance', 'scripts')
-    assert not git('diff', 'dedd4f66bc424610183cbff2d7114e991483e1c6', '--', 'workbench/src', 'workbench/app')
+    assert not git('diff', freeze['business_revision'], '--', 'workbench/src', 'workbench/app')
     assert Path('/Volumes/WD-Elements').is_mount(), 'External build disk required'
     out.mkdir(exist_ok=False)
     env = {key: value for key, value in os.environ.items() if not key.startswith(('A2A_', 'GIT_', 'COOP_', 'CODEX_', 'CLAUDE_', 'ANTHROPIC_', 'OPENAI_'))}

@@ -1359,3 +1359,16 @@ C-I3在阈值前尽早停在实际PermissionRequest、完整取屏并由执行�
 提交前又取两条工具自身的局部红绿：HTTP meta 在truncate/write交错下暴露无效JSON，改临时文件原子replace后同探针PASS、旧writer变异RED；许可Enter回执窗口内若下一根gate反馈已到，旧adapter误把它计为CR新增intent（rev2-permission-feedback-red-01），现按同一真实request_id关联控制动作，增强后的42项PASS。晚业务结算失败保存partial原件且最终INCOMPLETE；C真实CLI参数入口以09B的E6冒充C的E1预算时，在任何动作前明确拒绝（rev2-C-budget-entry-01）。最新Handler重跑rev2-handler-post-atomic-01 PASS。全部仍是明确标注的工具/夹具证据；没有实际点击或业务Stop。
 
 系统时钟已在本会话单独执行：[rev2-real-clock-01](rev2-real-clock-01/result.json) **PASS**，系统time.time/monotonic实等120.109656/120.108549秒；同一conditional_enter在wall age120109.138ms、观察elapsed120107.939ms时只调用一次替身CR，145秒硬超时未触发。没有注入时钟、端口、GUI、角色CLI或模型。此证明限工具时钟/条件按键，实际09C角色/门禁仍INCOMPLETE，真实HTTP组合排练仍交主控。
+
+
+## 主控 #340/#341：main/T090 已合并，准备两场新冻结（不运行）
+
+合并提交 **43d085c5d0fe3584b350d7c1420a17533be8b43e**，父为acf8b8a3f和main6d85482ff；备份由主控建立。三个冲突仅测试宿主/runner，取舍见[RESOLUTION](merge-main-4/RESOLUTION.md)：保留operator凭据引导和失败原件，两个ready统一用T090完整写入后原子发布；一个可重复的--case保留唯一原方法检查、--mutant-core/original_results和单例/多例字段。worker没有再改core.ts，自动合并的worker_boundary按review_id核对语义与T078 pending/startup共存。语法/冲突标记/引导顺序静态检查PASS，合并后实际回归仍INCOMPLETE。
+
+主控放回的[rev2-tools-outside-01](rev2-tools-outside-01/result.json)为acf8b8a3f上的六段PASS：真实loopback+系统时钟120.688秒组合排练、两只API正常SIGTERM、先字节读回归档再停止/删除均完成；C正例7/1 POST，随后五反例原件也保留。它明确使用确定性库行/窗口/normal_stop替身，不是合并后的真实角色/门禁C验收，不上调旧A15的F1。
+
+[新回归命令](merge-main-4/REGRESSION-COMMANDS.txt)交主控沙箱外：review-followup-regressions-02全8/9/18、CAS1、cards15及三业务变异；merge-main-4-t078-regressions-01覆盖pending/controller/input11组、startup候选15与真实入口14及M5、worker收件箱14。T090既有短期限偶发issue不授权重试、延长或跳过；首败即停保留。原F4对dedd4f66的写死源检查改按本轮business_revision/source冻结核对，原验收断言和期限不改，旧结果不重写。
+
+A16/09C沿同一个标准prepare/StageA/API/角色工具；新增显式scene，A16预算I4/6、E6/11（17 POST七许可），C为I4/7、E1/1（八POST三许可），真实模型0。两场静态包绑定合并后的实际source提交，未签NO_GO；StageA建root/进程之前要求两份当前源码回归收据PASS，卡片仍先真实入口预检。StageA将保存原始五PID完整argv/lstart，后续owner从实际B1 manifests补四PID，不伪造attempt/null；C的role/phase/owner生成器已纳入闭包，未来只填实际数据，不在启动后再换API。所有本轮新增生成器/接口适配只做静态检查与文件生成，尚未运行合并后场景。
+
+详细阶段顺序、C真实时钟/完整原屏条件单Enter、原件先归档逐字读回再停机/停机后不读SQLite、-02重读、唯一slot、I2时点的归属说明和停止条件见[HANDOFF](merge-main-4/HANDOFF.md)。三窗格/真登录仍移T091/T092，系统IME未验证INCOMPLETE。当前未运行StageA、B1、按键、模型或回归；冻结文件PASS只指文件/版本/预算/闭包，不是业务验收。整体仍INCOMPLETE/NO_GO，等待主控复验和逐阶段签字。

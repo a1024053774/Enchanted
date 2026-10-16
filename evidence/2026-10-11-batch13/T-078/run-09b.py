@@ -17,6 +17,13 @@ def validate_stage_a_inputs(materials, approval, *, protocol=False):
     validate_material_lineage(materials, static)
     assert approval.get('approved_by')=='executor' and approval.get('stage')=='A' and approval.get('approval_ref')
     assert approval.get('source_revision')==static['revision'] and approval.get('allow_role_cli_spawn') is False
+    assert static['scene'] in ['09B','09C']
+    assert len(static['regression_readbacks'])==2,'two_post_merge_readbacks_required'
+    for path in static['regression_readbacks']:
+        receipt=json.loads(Path(path).read_bytes()); assert receipt['status']=='PASS','post_merge_regression_required'
+        tested=receipt.get('revision') or receipt.get('source_revision'); assert tested,'tested_revision_required'
+        subprocess.run(['git','merge-base','--is-ancestor',tested,'HEAD'],cwd=SOURCE,check=True)
+        assert not subprocess.check_output(['git','diff',tested,'--',*static['source_paths']],cwd=SOURCE),'regression_source_changed'
     return static
 
 def validate_material_lineage(materials, static, changed_paths=None):
@@ -26,7 +33,8 @@ def validate_material_lineage(materials, static, changed_paths=None):
         changed_paths=subprocess.check_output(['git','diff','--name-only',static['revision'],current_revision],cwd=SOURCE,text=True).splitlines()
         dirty=subprocess.check_output(['git','status','--porcelain','--','workbench','scripts',str(BASE/'run-09b.py')],cwd=SOURCE,text=True).strip()
         assert not dirty,'runner/product worktree changed after material source; no spawn'
-    ticket_prefix=str(BASE.relative_to(SOURCE))+'/';blocked=[p for p in changed_paths if p.startswith('workbench/') or p.startswith('scripts/') or p in [str(BASE.relative_to(SOURCE)/'run-09b.py'),str(BASE.relative_to(SOURCE)/'prepare-09b-executable.py')]]
+        assert not subprocess.check_output(['git','diff',static['revision'],'--',*static['source_paths']],cwd=SOURCE),'frozen source closure changed; no spawn'
+    ticket_prefix=str(BASE.relative_to(SOURCE))+'/';blocked=[p for p in changed_paths if p in static['source_paths'] or p.startswith('workbench/') or p.startswith('scripts/') or p in [str(BASE.relative_to(SOURCE)/'run-09b.py'),str(BASE.relative_to(SOURCE)/'prepare-09b-executable.py')]]
     assert not blocked and all(p.startswith(ticket_prefix) for p in changed_paths),{'blocked_changes':blocked,'changes':changed_paths}
 
 def validate_attempt(attempt):
@@ -46,17 +54,18 @@ def validate_card_preflight(card_file, *, env=None):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--materials',type=Path,required=True);p.add_argument('--stage',choices=['A','B','C'],required=True);p.add_argument('--approval',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--protocol',action='store_true');a=p.parse_args()
-    out=a.output.resolve();out.mkdir(parents=False,exist_ok=False);record={'status':'INCOMPLETE','stage':a.stage,'spawned':False,'real_vendor_model_turns':0,'commands':[],'scope':'Stage-gated 09B; no role CLI in A, B/C not implemented'}
+    out=a.output.resolve();out.mkdir(parents=False,exist_ok=False);record={'status':'INCOMPLETE','stage':a.stage,'spawned':False,'real_vendor_model_turns':0,'commands':[],'scope':'Stage-gated 09B/09C; no role CLI in A; role launch uses the separate Stage B runner'}
     def save(): (out/'result.json').write_text(json.dumps(record,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     save()
     try:
         approval=json.loads(a.approval.read_bytes());static=validate_stage_a_inputs(a.materials,approval,protocol=a.protocol)
         if a.stage!='A': raise RuntimeError('Stage B/C require a separate approved continuation; no spawn from this runner.')
-        task='t078-09b-runtime-'+uuid.uuid4().hex[:8]
-        card={'id':task,'source':None,'goal':'09B deterministic target stage A','non_goals':['real model','candidate submission'],'paths':{'allow':['value.txt'],'deny':[]},'oracle_paths':['oracle/contract-09b.json'],'completion_conditions':[{'argv':[sys.executable,'-I','-B','-c','raise SystemExit(\'no candidate\')']}],'red_commands':[],'task_type':'后端逻辑','repair_target':None,'complexity':'L','executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},'base_commit':None,'writer':None}
+        scene=static['scene']; prefix='09b' if scene=='09B' else '09c'
+        task='t078-'+prefix+'-runtime-'+uuid.uuid4().hex[:8]
+        card={'id':task,'source':None,'goal':scene+' deterministic target stage A','non_goals':['real model','candidate submission'],'paths':{'allow':['value.txt'],'deny':[]},'oracle_paths':['oracle/contract-09b.json'],'completion_conditions':[{'argv':[sys.executable,'-I','-B','-c','raise SystemExit(\'no candidate\')']}],'red_commands':[],'task_type':'后端逻辑','repair_target':None,'complexity':'L','executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'xhigh'},'base_commit':None,'writer':None}
         preflight_file=out/'card-preflight.json';preflight_file.write_text(json.dumps(card,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         validate_card_preflight(preflight_file);record['card_preflight']='taskCards.validateTaskCard via real Node gate module; no root/API/daemon/target';save()
-        root=Path(tempfile.mkdtemp(prefix='t078-2-09b-run-',dir='/private/tmp')).resolve();record['root']=str(root)
+        root=Path(tempfile.mkdtemp(prefix='t078-2-'+prefix+'-run-',dir='/private/tmp')).resolve();record['root']=str(root);record['scene']=scene
         for d in ['state','repo','oracle','target','target/home','target/bin','roles/ideation','roles/executor']: (root/d).mkdir(parents=True,exist_ok=True)
         static_root=Path(static['root']);shutil.copyfile(static_root/'repo/value.txt',root/'repo/value.txt');shutil.copyfile(static_root/'oracle/contract-09b.json',root/'oracle/contract-09b.json')
         (root/'target/role.md').write_text('Deterministic 09B target; no model.\n',encoding='utf-8')
@@ -83,8 +92,16 @@ def main():
         run([NODE,SOURCE/'workbench/src/gates/cli.ts','--state',root/'state','card_save','--task',task,'--card',card_file,'--expected-version','0'],env=base_env);run([NODE,SOURCE/'workbench/src/gates/cli.ts','--state',root/'state','create','--task',task,'--repo',root/'repo','--branch','refs/heads/main','--card-version','1','--project',project],env=base_env)
         dispatch=run([NODE,SOURCE/'workbench/src/gates/cli.ts','--state',root/'state','dispatch','--task',task,'--runtime-mode','workspace-write'],env=base_env,timeout=120);assert dispatch.get('attempt');attempt=dispatch['attempt'];validate_attempt(attempt);record['task']=task;record['project']=project;record['attempt']=attempt;record['dispatch_claim']='dispatch path returned a live non-null attempt; no operator-authored attempt fields'
         info=run([NODE,SOURCE/'workbench/src/gates/cli.ts','--state',root/'state','pane_process_info','--thread',attempt['thread_id']],env=base_env);assert info.get('shell_pid') and info.get('leader');record['target_process']=info
+        sys.path.insert(0,str(SOURCE/'workbench/tests'))
+        from p1_reuse import process_command
+        original_processes={}
+        for label,pid in [('daemon',daemon['pid']),('target_shell',info['shell_pid']),('target_leader',info['leader'])]+[(item['role']+'_api',item['pid']) for item in api_pids]:
+            first=process_command(pid);assert first is not None and process_command(pid)==first,'stage_a_process_identity_changed'
+            original_processes[label]=first
+        for item in api_pids:item['lstart']=original_processes[item['role']+'_api']['started']
+        record['original_processes']=original_processes
         record['runtime_binding']={'task':task,'attempt':attempt,'process':info,'api':api_pids,'daemon':daemon,'target_claim':'runtime dispatch receipt'}
-        (out/'readiness.json').write_text(json.dumps({'status':'READY_FOR_APPROVAL','stage':'A','source_revision':static['revision'],'root':str(root),'task':task,'roles_started':[],'target_binding':attempt,'target_process':info,'api_processes':api_pids,'daemon':daemon,'cleanup_plan':'Authenticated daemon_stop; verify target/API argv+PID/lstart; stop owned APIs once; archive and delete root only after byte readback; slots separate'},ensure_ascii=False,indent=2)+'\n',encoding='utf-8');record['status']='READY_FOR_APPROVAL';record['next']='Stop here; main approval required before stage B role launches';save()
+        (out/'readiness.json').write_text(json.dumps({'status':'READY_FOR_APPROVAL','stage':'A','source_revision':static['revision'],'root':str(root),'task':task,'scene':scene,'materials':str(a.materials.resolve()),'roles_started':[],'target_binding':attempt,'target_process':info,'original_processes':original_processes,'api_processes':api_pids,'daemon':daemon,'cleanup_plan':'Authenticated daemon_stop; verify target/API argv+PID/lstart; stop owned APIs once; archive and delete root only after byte readback; slots separate'},ensure_ascii=False,indent=2)+'\n',encoding='utf-8');record['status']='READY_FOR_APPROVAL';record['next']='Stop here; main approval required before stage B role launches';save()
     except Exception as error:
         record.update(error=repr(error),traceback=__import__('traceback').format_exc());save();return 1
     return 0
