@@ -1,0 +1,8 @@
+⟦主控 #12⟧
+你是 T-090 的独立 reviewer（fresh-context，执行主控派发，只读）。先读 /Users/luckye/Documents/Code/a2a/.project-map/roles/reviewer.md、.project-map/tickets/T-090-review-end-check-worker-boundary.md、.project-map/tickets/T-082-*.md（只读）。
+冻结候选：/Users/luckye/Documents/Code/a2a-wt-t090，exec/t090，revision ca6ac9aa3d998fd376dc4693bb06a6f05cd77f46（开始与写报告前 git rev-parse 核对；HEAD 前移就按该 revision 用 git show/diff 审）。产品改动只在 workbench/src/gates/core.ts（0bcc5ab66）；其余为测试工具与证据。
+从 T-090 票、T-082 票原文（"审查结束后门禁核对：候选提交号不变、审查目录与 worker worktree 干净、共享仓库引用未变"）与受保护验收 acceptance/test_coop_e2e.py:505–536 重建验收，不把 worker 的 RESULTS 当答案。
+重点：(1) 修复是否只放宽了'worker HEAD 必须等于候选'，而没有放松 T-082 其余保证（候选号不变、审查目录干净、共享 refs、副本、集成前置）；(2) 用 review_requested 事件里保存的 worker_boundary 做结束比对是否可被绕过（快照缺失、按错误 review_id 取、审查开始时 worker 已不干净、分支为 detached 等）；(3) 证据：红态、基线、修复后 focused/coop/recovery/run/CAS/cards/worker 三反例/T-082 七场景与四变异/三条'删掉 worker 检查'的反事实——注意整组从未在同一次运行里全部通过，各套件分别在不同运行中通过，请评估这是否足以验收；(4) 偶发失败归因（run/recovery 的短时限超时，三版本对照 PASS）是否站得住。
+变异检查：在冻结候选的隔离临时副本（/tmp 新目录，git worktree 或 clone）里自己做 2～5 个错误实现，用候选自带测试确认能抓到；不在共享 worktree 改文件。
+写入：只允许写 evidence/2026-10-16-batch16/T-090/independent-review-01.md（中文）；临时文件用完删。不 git commit/checkout/reset 共享 worktree，不调模型 API，不写全局配置，不请求沙箱升级（需沙箱外的命令写进报告交主控）。
+结论 PASS / INCOMPLETE / NO_GO，按严重度列问题（来源文件:行、可达反例）。最后一行写 T-090 REVIEW DONE。

@@ -2,7 +2,7 @@
 id: T-088
 title: 证据体量：大块原始输出归档到外置盘，仓库只留摘要与清单（decide）
 type: decide
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -16,22 +16,32 @@ supersedes:
 
 问题"evidence 目录已约 4.3 GB……证据怎么存？"，用户选"大块归档到外置盘 (Recommended)"，选项原文："今后新证据只把摘要、清单、RESULTS.md 留在仓库，原始 run 目录和 fixtures 压缩包放 /Volumes/WD-Elements，仓库里留路径和清单。已提交的历史不改写。会改"证据进入版本控制"的规则，我拉一张 decide 票再写进 AGENTS.md。"
 
-## 本票要定、尚未定的
+## 决定（2026-10-16，用户逐字作答，会话"a2a-构思主控"）
 
-1. **留什么、归档什么**：仓库保留的最小集合（RESULTS.md、审查报告、run.json 摘要、命令与清单）与归档的类别（run 目录、fixtures.tar.gz、监视器日志）。以 T-081、T-086 的实际目录为样本列出，不凭想象。
-2. **清单格式**：路径、大小、归档位置；是否需要校验值。AGENTS 的通用规则是除非校验值替代了更贵的操作且结果改变下一步，否则不算，所以默认不加，除非用户要求证据防篡改。
-3. **外置盘未挂载时**：沿用构建规则，写归档时缺盘报错，不回退到内置盘。读旧证据时缺盘怎么提示。
-4. **门禁与任务卡对证据路径的依赖**：现有 ticket、RESULTS、审查报告引用 `evidence/...` 路径；查清门禁或脚本有没有读这些路径，归档后不能让引用悬空。
-5. **已提交历史**：不改写（用户已定）。是否另开票评估开源前的仓库瘦身，等用户提出，不在本票。
-6. **生效时点**：新规则从哪个批次开始，执行主控与 worker 的任务卡怎么写（"只写摘要到仓库，原始输出写到哪里"），不增加额外提示轮次。
+用户说："T-088 的六条细节和 T-087开工"，随后以选择题逐项作答：
+
+1. **留与归档**，用户选"文本摘要留，run 目录归档 (Recommended)"。仓库留：RESULTS.md、审查报告、controller-decision、命令脚本、run.json 摘要，以及任何被测试或门禁当输入读取的小文件（例如 `run_daemon_acceptance.py` 读的 `controller-decision-01.md`、`outside-sandbox.sh`、`readback-timing-probe.py`）。归档到外置盘：整个 run/fixtures 目录、`*.tar.gz`、`*.bin`、sqlite 及 `-wal`、监视器日志。
+2. **清单格式**，用户选"不带，只记路径、大小、归档位置 (Recommended)"。不带校验值；原目录删除前核对文件数与总字节数一致即可（`run_s3_regression.py` 的 `archive_large_files` 现行做法是逐字节比较后再删，沿用）。
+3. **生效点与历史**（原第 5、6 条），用户选"新批次起生效，历史不动 (Recommended)"。从 `evidence/2026-10-16-batch16` 起；已提交批次不改写、不迁移；开源前是否瘦身历史，等用户提出另开票。
+
+## 构思主控按已有规则推出的默认（用户未逐条问，异议可随时改）
+
+- **缺盘**：归档写入时外置盘未挂载就报错退出，不回退内置盘（AGENTS.md 构建规则已有同样原则）。读旧归档缺盘时，清单里的路径让提示指向 `/Volumes/WD-Elements`，不静默跳过。
+- **门禁与脚本对证据路径的依赖**：我查了：`workbench/src/`、`scripts/` 不把 `evidence/` 当输入读（只有 `scripts/launch-worker:57` 一条注释引用）；`workbench/tests/` 与 `acceptance/` 里有测试读固定的几个小文件，按上面第 1 条留在仓库，不悬空。
+- **布局沿用现有先例**：`/Volumes/WD-Elements/a2a-evidence/<批次目录>/<ticket>/…`，外置盘上已有 batch13～15（约 382 MB）；仓库侧每个被归档的文件或目录留 `*.archive.json`（字段：original、archive、bytes、replay），就是 `run_s3_regression.py` 现在写的那种。
+- **现状数字（2026-10-16 实测）**：`evidence/` 4.8 GB、163,155 个文件（git 跟踪 136,623 个）、`.git` pack 825 MiB；T-081 一票 836 MB，`full-04` 一个目录就 180 MB、11,958 个文件。外置盘空余 806 GiB。
 
 ## 完成条件
 
-- [ ] 用户接受上述 1～6 的决定；之后才改 `AGENTS.md` 里"证据进入版本控制"相关条款（`AGENTS.md` 的"内嵌测试 Git repo"和"证据和交付"两处）和任务卡模板。
-- [ ] 改规则后拉一张 build 票做归档脚本与一次回放：对一个已有批次演练归档，仓库侧引用不悬空。
-- [ ] `project_map.py status` 0 problems。
+- [x] 用户已作答第 1、2、5、6 条（见上）；第 3、4 条为按已有规则推出的默认。`AGENTS.md` 的"证据和交付"已追加条款（2026-10-16）；任务卡模板不在构思主控写入范围，由 T-089 修改。
+- [x] 改规则后的 build 票是 [T-089](T-089-evidence-archive-tool.md)。
+- [x] `project_map.py status` 0 problems（关闭前复跑）。
 
 ## 说明
 
 - 来源：执行主控完成报告 `20261015T152406Z-executor-report-001`，用户本人在构思主控会话里选择了方向。
-- 在本票关闭前，执行主控按现行规则照旧写入证据，不自行改变存放方式。
+- 本票关闭后、T-089 合入前：执行主控从 batch16 起新证据只把摘要写仓库，原始大块输出尽量写到外置盘布局下；归档脚本由 T-089 提供。
+
+## Resolution
+
+2026-10-16 关闭，结论 PASS（决定类，无运行证据）：新批次（`evidence/2026-10-16-batch16` 起）只把文本摘要与 `*.archive.json` 清单留在仓库，run/fixtures 目录、`*.tar.gz`、`*.bin`、sqlite 与监视器日志归档到 `/Volumes/WD-Elements/a2a-evidence/<批次目录>/<ticket>/`；清单不带校验值；缺盘报错；已提交历史不改写。用户作答第 1、2、5、6 条；第 3、4 条是构思主控按已有规则推出的默认，用户未逐条确认。规则已写入 `AGENTS.md` 的"证据和交付"。落地由 [T-089](T-089-evidence-archive-tool.md) 做，尚未标就绪。

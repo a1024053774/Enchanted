@@ -706,3 +706,58 @@ reviewer s16-t078-rev2 的沙箱外脚本主控运行：M1 首启 drain、M2 入
 ## 完成条件补强与入口复验 #312（2026-10-16 UTC）
 
 worker 补每键后、release 前经真实收据刷新路径断言原条目仍 queued、无 delivered 历史、无 I2，提交 68d7749c2（仅测试，9 条尾注）；领域 15/15 PASS，M5 在新断言处失败。主控沙箱外运行 STARTUP-RECEIPT-ENTRY-COMMAND-01：PASS（09b-startup-receipt-entry-01，legacy_survival false，M5 失败于 "startup refreshed delivery 0: observed delivered expected queued"，0 模型回合）。新的独立审查待 T-082 审查结束后开（Codex 会话上限 3）。
+
+## startup 差异审查 02 PASS 与变基 #313–#316（2026-10-16 UTC）
+
+reviewer s16-t078-rev3 审 68d7749c2（含产品 06fc9feca）：第一轮 P1 已解决（每键后、release 前经真实收据刷新路径断言 queued、无 delivered、无 I2；M5 在新断言失败），四个错误实现（含新增的异步身份核对后状态复查缺失）全部被拒，结论 PASS（仅限该差异）。提交 cd8ca713e，输出归档外置盘 startup-review-02/，窗格回收。#315 派 A-14 回收与 A-15 准备。其间 T-082 合入 main（a75070236），#316 要求先把 exec/t078 变基到 main 并重跑本线回归，A-15 用变基后的源码。
+
+## 合并 main（T-082）#317–#320（2026-10-16 UTC）
+
+worker 的变基脚本经 Python 调 git 被 Codex 沙箱拒（index.lock），申请升级被主控 Esc 拒绝；改为 worker 直接 git add/git commit 提交证据 150ef6516（9 条尾注），主控建备份分支 backup/t078-pre-rebase-main-3 后执行 rebase。121 个提交重放首个即在 relay.ts 冲突，主控中止 rebase、改用 git merge --no-ff 0e6c2b833（冲突只解一次）。唯一冲突 relay.ts 由 worker 解决（保留 T-082 review 证据与 T-078 inbox/stop 反馈），core.ts/panes.ts 自动合并经 worker 核对；主控提交合并 859fd6497，地图 0/0。合并后回归：pending、startup 领域/入口、worker 收件箱 PASS；T-082 启动边界段失败（受控宿主启动失败 harness_error，T-082 分支上同用例通过），#320 交 worker 定位。
+
+## #322–#323 A-14 回收：外置盘 I/O 卡住，BLOCKED（2026-10-16 UTC）
+
+#322：dry-run PASS；脱敏归档 PASS（外置盘 09b-a14-redacted-01/scene.tar.gz，1164 字节，字节读回 PASS，主控扫描凭据字样 0）；主控签 09b-a14-cleanup-approval.json 后正式清理：daemon_stop exit 0，两只 API 各一次 SIGTERM，九个记录进程全部退出；停机后复核读 SQLite 失败（unable to open database file），root 未删，结果 BLOCKED（09b-a14-cleanup-01/）。
+worker 修复为停机后只验归档（dedd4f66b），A-15 静态封包冻结（5906f4dbb），均为 worker 身份提交。
+#323：运行 finish-09b-a14-cleanup.py 超过 5 分钟无输出；sample 显示进程阻塞在 open()。独立探测：外置盘 /Volumes/WD-Elements 仍挂载（diskutil Mounted: Yes），stat 元数据可读（scene.tar.gz 1164 字节），但读文件、在卷根建文件、列目录均阻塞（10 秒 alarm 中断，Interrupted system call），lsof +D 进入不可中断态。主控在 rmtree 之前结束了 finish 进程与自己的探测进程；未删除任何文件，root /private/tmp/t078-2-09b-run-gbxz0tyb 保留（约 20 MB，无活动进程）。
+状态：A-14 回收 BLOCKED（外部状态：外置盘 I/O 无响应）。按 A-15 PLAN 第 17 行，A-14 回收完成前不签 Stage A。主控不强制卸载或重挂外置盘（用户设备与其他会话共用），已经构思主控报用户。外置盘恢复后重跑同一 finish 命令（先 --dry-run）。
+
+## #324 外置盘恢复；A-14 回收 PASS；A-15 Stage A READY（2026-10-16 UTC）
+
+外置盘恢复可读（列目录、tar -t 正常）。finish-09b-a14-cleanup.py：--dry-run PASS（09b-a14-cleanup-finish-01-dry-run）；正式运行因卡住那次留下的空目录 09b-a14-cleanup-finish-01 报 FileExistsError（保留该目录为证据，未删），改输出 09b-a14-cleanup-finish-02：PASS，signals_sent []，root_removed true。A-14 回收完成。
+主控签 09b-a15-materials-01/stage-a-approval.json（代签依据：用户在本会话授权执行主控代签 T-078 09B 各阶段批准），STAGE-A-COMMAND → READY_FOR_APPROVAL（09b-a15-stage-a-01；root /private/tmp/t078-2-09b-run-yp09xosq，daemon 59398，target leader 59552，模型回合 0）。派 worker 提交证据并准备 ideation B1。外置盘 issue 20261016T093805Z-executor-issue-001 标 blocking，主控不自行关闭，已经构思主控报告恢复。
+
+## 外置盘 issue 处置登记（2026-10-16 UTC）
+
+用户经构思主控抄录（certainty relayed）选择"关闭，记下根因未明 (Recommended)"：disposition 20261016T104340Z-user-disposition-001 关闭 blocking issue 20261016T093805Z-executor-issue-001。登记：起因未明（未查到是休眠、线缆还是供电）；没有文件被删；外置盘 batch13～15 归档当时未核对。执行主控随后做了只读核对：evidence/2026-10-16-batch16/disk-archive-check-01/（PASS，读错误 0、字节数不符 0、gzip 损坏 0、未引用 0；8 条脚本"缺失"逐条核对为非归档路径）。
+
+## #325–#329 A-15 B1、首启、I1、executor 首启、I2 arm、E1 release（2026-10-16 UTC）
+
+全部由主控按用户授权代签。ideation：B1 dry-run READY_FOR_ROLE、real PASS；首启六键逐屏读后逐键签发（主题 ArrowUp/ArrowDown/Enter、Security notes Enter〔与 B1 screen_text 一致〕、信任屏 ArrowDown/Enter），s13 空提示符 manual；readiness PASS（0 Messages）。I1：STEP1 → READY_FOR_PERMISSION；permission 屏完整命令（inbox send --kind stop，与 A-14 同形）与 ❯ 1. Yes 核对后签字，Electron 一次 Enter → READY_FOR_EXECUTOR：stop c3ab1493… from ideation→executor pending、feedback 0、target 零字节、POST 2。
+executor：B1 dry-run/real PASS，BIND-LAUNCH PASS；首启六键同上，每键后 observe-startup-queued 六次 PASS（queued、无 delivered、无 I2、业务写出 0、API POST 0）；s13 空提示符 manual；readiness PASS。I2 签字后 ARMED（不发输入）；E1 签字后 initial release → READY_FOR_PERMISSION（source inbox，entry c3ab1493…）。DELIVERY-I2-READBACK PASS：turn_submitted seq 176 后 delivered（feedback seq 187），feedback_count 1，原 I2 恰一次（registration 1、submission 1）关联原 request 80ef9485…/entry c3ab1493…；POST ideation 3/6、executor 1/11。主控误重跑读回命令一次，以 output_exists 拒绝、无副作用。
+
+## #330–#331 E1–E3、I3、I4 PASS；E4 读屏截断，裁定只读修复范围（2026-10-16 UTC）
+
+#330（全部主控代签，每次许可前新读屏与 dispatch 原屏 cmp 0、批准件命令与屏一致）：E1 许可 Enter PASS、读回 PASS（seq 3，worker_target_required）；E2 START→许可（gates/cli.ts stop --thread acef0de8…）→Enter PASS，读回 PASS（seq 5，target 恰一个 Esc）；E3 START→许可（inbox ack --role ideation --id c3ab1493…）→Enter PASS，读回 PASS（seq 6）；E4 与 I3 并行 START 均 READY_FOR_PERMISSION（E4 seq 8、I3 seq 7）；I3 许可（越权 ack）→Enter PASS，读回 PASS（seq 7）；I4 START PASS，读回 PASS（seq 9，target 仍 1 字节）。ideation POST 6/6。主控失误两处（解析 E3 读回输出时 JSON 控制字符报错，致 E4/I3 晚启动约一分钟但均正常到许可屏；对 I3 误跑检查脚本第二次，均以已存在拒绝、无改动），已记。
+E4 初读 screen_exceeds_review_limit（executor PTY 76,125 字节 > 一页 65,536）。worker 诊断：E4 dispatch 原屏本身截断为 65,536 字节，Enter 前校验也只读一页，前缀比较不能证明完整核对；E5 同样受影响。worker 提 needs-decision 并上报 blocking issue 20261016T113401Z-worker:t078-e4-screen-issue-001。
+#331 裁定：批准 worker 四点最小建议（三处只读调用共用严格分页读取并补红绿与截断反例；旧原屏/screen -01/未签 approval-01 保留，追加完整读屏恢复收据与 approval-02；冻结新只读 harness、其余原包逐字节不变；E5 同样用完整读取）。依据：测试证据链工具缺陷，修复让"Enter 前核对完整许可屏"真正成立，不改业务输入、protocol、预算、验收标准与产品代码，在 T-078 已批准范围内。另要求核对已完成阶段的许可原屏是否也有截断。E4 停在许可屏，未发键，无待批准 POST。
+
+## #332 E4–E6 PASS，A-15 全阶段完成（2026-10-16 UTC）
+
+worker 修复（源码 c0c5caee3，材料 1f5b56c0b）后，主控沙箱外运行 OUTSIDE-RECHECK：harness 冻结核对 PASS、9 例 PASS、无现场动作。E4：完整读屏 -03（76,125 字节）与恢复参考 screen-recovery-02 逐字节相同，旧截断原屏（65,536）为其前缀；签 permission-approval-02 → Enter PASS → readback-03 PASS（seq 8，target 1 字节）。主控失误：签字前试跑 E4-04-CHECK-ONLY 一次（permission_approval_required），签字后再跑因输出目录已存在 FileExistsError，主控命令的管道（tail|cut）吞掉了失败码继续执行 Enter；Enter 脚本自身的完整读屏与绑定校验通过。此后命令启用 pipefail。E5：START READY_FOR_PERMISSION（seq 10）→ 完整读屏 93,747 字节与 dispatch-01 原屏相同 → 签 permission → CHECK-ONLY PASS → Enter PASS → 读回 PASS（target 1）。E6：START PASS（seq 11）→ 读回 PASS（target 1）。A-15 全部阶段 I1–I4、E1–E6 PASS。待 worker 出全场最终核对、A-15 回收材料与全票独立审查准备。
+
+## blocking issue 20261016T113401Z 处置登记；I1 原屏完整性判断（2026-10-16 UTC）
+
+用户经构思主控抄录（answer 20261016T133142Z-ideation-answer-001，certainty relayed）选"关闭，写明边界 (Recommended)"。issue 只在 a2a-wt-t078 收件箱，主控在该收件箱代为登记 disposition 20261016T133204Z-user-disposition-001（from user、action close、原条目不删），已 ack answer（20261016T133204Z-executor-ack-001）。边界：关闭的只是"原参考截断、修复范围待裁定"；不对 A-15 或整票通过下结论；独立审查仍要做。
+I1 原屏判断（用户交主控判断）：I1 dispatch-01/permission-screen.bin 16,322 字节，没有直接记录 next_offset/total_bytes。一页上限 65,536 而只返回 16,322，按 pane_output 语义推断当时已读到末尾，但只是推断，该证据项仍记 INCOMPLETE，不改写旧结论。不影响 I1 结论：I1 的 PASS 由门禁事件 oracle 判定（stop pending、feedback 0、target 零字节），读屏只用于许可内容核对，而该原屏可见完整命令与 ❯ 1. Yes。交独立审查复核此判断。
+
+## #333 A-15 全场最终核对 PASS；A-15 回收 PASS（2026-10-16 UTC）
+
+worker 全场最终核对（e682a929c，09B-A15-FINAL-CHECK.md）：ideation 4 roots/6 POST、executor 6/11，合计 17 POST、7 次工具许可、模型 0、target 恰一个 Esc，逐阶段 seq 与 pending→delivered→I2 时点有来源。A-15 回收：dry-run PASS；脱敏归档 PASS（外置盘 09b-a15-redacted-01/scene.tar.gz 1766 字节，字节读回 PASS，凭据扫描 0）；主控签 09b-a15-cleanup-approval.json 后正式回收 PASS（两只 API 各一次 SIGTERM，九进程全退，root 已删）。
+T-078 整票仍 INCOMPLETE：RESULTS 对照 ticket 列出未满足项——同任务三窗格 Electron 截图/录屏、09C 两分钟无 ack 只中断的真实时钟证据、系统 IME。派 worker 写这三项的最小计划（只写不跑），并更新独立审查冻结候选。
+
+## #334–#335 整票独立终审 01：NO_GO（2026-10-16 UTC）
+
+fresh Codex reviewer s13-t078-final-rev（wF:p4N，已回收）审冻结候选 92874fe7f：整票关闭 NO_GO，INCOMPLETE，未发现产品业务违约。局部 PASS：controller 身份/Stop/worker 边界；pending→turn_submitted→delivered→原 I2；输入/UPS 源码；三 reader 修复与 65 文件冻结；T-082 合并受控回归；cleanup 流程。主控三项判断：#299 PASS（解释一致，非用户逐字时点）；I1 仅"未被 64KiB 截断"成立，直接完整性 INCOMPLETE；#331 PASS。
+问题：F1[P1] 回收只归档汇总投影，HTTP/hook 原件已删，17 POST/7 许可不能独立复核（主控批准的回收方案缺口）；F2[P1] 09C、三窗格、真登录复核未做；F3[P2] reviewer 变异检查未做；F4[P2] 最终整合版 8/9/18 未整组重跑；F5[P2] I1 直接 total 缺；F6[P2] 标准 prepare 未冻结 p1_output.py；F7[P3] 审查请求 cleanup 状态过时。
+#335 裁定：F3 在 Herdr 期由下一轮 reviewer 在冻结候选隔离临时 worktree 做 2～5 个变异（T-082 先例）；F4/F6/F7 与真登录复核材料（用户 2026-10-12 已选"假服务为主，真登录复核 2～3 回合"）派 worker 准备；F1 是否重跑 09B 属验收证据口径，交用户（needs-decision 已补充）。

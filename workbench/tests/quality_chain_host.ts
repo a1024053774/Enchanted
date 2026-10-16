@@ -1,10 +1,11 @@
 // Test-only PTY and process observations. The daemon, CLI, relay, gates,
 // registration queue, Git and SQLite remain the selected product source.
 // This host never runs Codex or supplies a review verdict.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { installControlledPTY } from "./controlled_quality_pty.ts";
 import { pathToFileURL } from "node:url";
+import { publishReady } from "./ready_file.ts";
 
 const [source, root, control, ready] = process.argv.slice(2);
 if (process.argv.length !== 6) throw new Error("Expected source, state, control and ready paths.");
@@ -21,6 +22,6 @@ await serve(root, config, (state: string, runtime: any) => {
   bind(runtime);
   return new A2AGates(state, runtime);
 });
-writeFileSync(ready, JSON.stringify({ pid: process.pid, source, root, control, argv: process.argv,
+publishReady(ready, { pid: process.pid, source, root, control, argv: process.argv,
   evidence_layer: "real-CLI-daemon-relay-gates-Git-SQLite; controlled-PTY-process-native-inputs",
-  real_codex_turns: 0, replaces: ["node-pty.spawn", "Panes.processInfo"] }) + "\n", { flag: "wx" });
+  real_codex_turns: 0, replaces: ["node-pty.spawn", "Panes.processInfo"] });

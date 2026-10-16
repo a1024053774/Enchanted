@@ -24,5 +24,6 @@ T-012 已缩小为[研究阶段产物与移交证据](../.project-map/tickets/T-
 - [Claude 主控与 Codex 的 SiteCraft 实际经验](claude-sitecraft-experience-2026-10-06.zh-CN.md)：指定对话的消息来源、独立验收、版本与材料绑定、资源归属和主控交接记录。
 - [图形客户端方向评估](gui-client-assessment-2026-10-06.zh-CN.md)：2026-10-06 的日期记录，比较基于 Zed 二次开发、独立 GPUI、Electron 等路线。其推荐的"Herdr 客户端"路线未被采用；同日 grilling 决定自建工作台（Herdr 引擎硬分叉加 GPUI），见 [intent.md](../intent.md) 与 T-016～T-021。
 - [原生 CLI 状态信号与 PTY 注入](native-cli-signals-injection-2026-10-10.zh-CN.md)：T-074 rev 4 的本地提交记忙、Stop 放行、模拟人工 release 验证，以及旧反例与适用范围。
+- [ticket 生命周期与门禁检查串的显式图](ticket-gates-graph-2026-10-16.zh-CN.md)：T-087 的日期记录，含可重跑生成脚本、逐点逐边来源、持久化边界与隐式边清单；来源语义抽查另由非作图会话完成（抽查 01 指出的未知结果暂停、审查协议暂停与 model unknown 例外已补；抽查 02 指出的 R2 各分支持久记录已逐支写明）。
 
 `reports/` 中的旧文件只保留跳转入口，正文以本目录为准。分类调整不改写历史消息，不把已经登记的待办写成已经完成的改进。

@@ -171,7 +171,7 @@ reviewer 的 Git 审查 worktree 和候选提交保持不可写；门禁另建�
 reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含 `.git`，只允许在其中构造
 2～5 个变异。启动 argv 显式关闭网络代理并排除 `/tmp` 与 `$TMPDIR`，不安装 Git 尾注 hook，
 会话 hook 仍只经启动 argv 传入。审查结束前门禁核对候选提交、审查 worktree、worker worktree
-和共享仓库引用未变，随后删除候选副本；边界不符则作废结论并上报。
+和共享仓库引用未变（worker worktree 与审查开始时 `review_requested` 记下的 HEAD、分支和干净状态比较，不要求等于候选；T-090），随后删除候选副本；边界不符则作废结论并上报。
 报告入库不等于获得集成资格：`integrate` 在任务操作锁内核对本次 review 的
 `review_reclaimed` 完成记录。结束核对与副本、审查 worktree 清理全部完成后才写该记录；
 完成前集成明确拒收，不前移项目工作分支。
@@ -249,7 +249,7 @@ worker 目录为 `<state>/worktrees/<project_id>/<task>-a<N>`，分支为
 审查目录为同一项目命名空间下的 `<task>-a<N>-review-<K>`，保持 detached；
 K 按该 attempt 已记录的审查意图递增，同 C 的有效审查复用不新建目录或递增序号。
 每次审查另有 `<state>/review-copies/<review_id>` 一次性候选副本；它不登记为 Git worktree，且不含 `.git`。
-审查结论入库后，确认原 reviewer 已停止且归档，再核对候选提交、审查目录、worker 目录与共享引用未变，
+审查结论入库后，确认原 reviewer 已停止且归档，再核对候选提交、审查目录、worker 目录（相对审查开始时的快照）与共享引用未变，
 删除候选副本，最后删除审查目录及 Git worktree 登记。
 清理事件单独追加，不改写 `review_result` 的审查对象，因此目录删除不改变 R8 沿用结论的身份绑定。
 脏目录、未知 HEAD、退出未确认或清理结果未知时保留可核对的现场，沿用审查生命周期的暂停和问题上报语义。

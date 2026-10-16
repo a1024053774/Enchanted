@@ -39,9 +39,9 @@ def compressed(path, value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--suite', choices=COUNTS, required=True)
+    parser.add_argument('--case', action='append', help='Run selected original methods without replacing their assertions')
     parser.add_argument('--revision', required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--case')
     parser.add_argument('--mutant-core', type=Path)
     args = parser.parse_args()
     out = args.output.resolve(); out.mkdir(parents=True, exist_ok=False)
@@ -80,8 +80,9 @@ def main():
     names = sorted(n for n in original.__dict__ if n.startswith('test_')) if original else unittest.defaultTestLoader.getTestCaseNames(cls)
     if len(names) != COUNTS[args.suite]: raise RuntimeError('Required suite membership changed')
     if args.case:
-        if args.case not in names: raise ValueError('Selected case is not an original suite member')
-        names = [args.case]
+        if len(set(args.case)) != len(args.case) or any(name not in names for name in args.case):
+            raise RuntimeError('Selected method is not a unique member of the original suite')
+        names = sorted(args.case)
     owner = original or cards.TaskCardsCLI
     for name in owner.__dict__:
         if name.startswith('test_') and getattr(cls, name) is not getattr(owner, name):
@@ -112,7 +113,9 @@ def main():
               and not result.skipped and not leftovers and not large)
     record = {'status': 'PASS' if passed else 'INCOMPLETE', 'suite': args.suite,
         'revision': head, 'argv': sys.argv, 'tests_run': result.testsRun, 'expected_tests': len(names),
-        'complete_original_suite_size': COUNTS[args.suite], 'selected_case': args.case,
+        'complete_original_suite_size': COUNTS[args.suite],
+        'selected_case': args.case[0] if args.case and len(args.case) == 1 else None,
+        'selected_cases': args.case or [], 'suite_membership': COUNTS[args.suite],
         'mutant_core': str(args.mutant_core.resolve()) if args.mutant_core else None,
         'original_results': (adapter.recovery.TEST_RESULTS if args.suite in ('recovery', 'cas') else
                              adapter.orchestration.TEST_RESULTS if args.suite == 'run' else []),

@@ -1,0 +1,16 @@
+diff --git a/private/tmp/t090-mut-j4Cs3T/source/workbench/src/gates/core.ts b/private/tmp/t090-mut-j4Cs3T/M1-omit-worker/workbench/src/gates/core.ts
+index 2de45f85d..2d3458523 100644
+--- a/private/tmp/t090-mut-j4Cs3T/source/workbench/src/gates/core.ts
++++ b/private/tmp/t090-mut-j4Cs3T/M1-omit-worker/workbench/src/gates/core.ts
+@@ -2344,11 +2344,6 @@ export class A2AGates {
+     const requested = this.db.prepare("SELECT details FROM events WHERE task=? AND attempt=? AND type='review_requested' AND json_extract(details,'$.review.review_id')=?")
+       .get(task.task_id, review.attempt.attempt_id, review.review_id);
+     const expected = requested && JSON.parse(String(requested.details)).worker_boundary;
+-    requireGate(expected && expected.branch === workerBranch && expected.status === "" &&
+-      await this.git(task.task_id, worker, ["rev-parse", "HEAD"]) === expected.head &&
+-      await this.git(task.task_id, worker, ["symbolic-ref", "--quiet", "HEAD"], [0, 1]) === expected.branch &&
+-      await this.git(task.task_id, worker, ["status", "--porcelain=v1", "--untracked-files=all"]) === expected.status,
+-      "review_worker_workspace_changed", { worker, expected });
+   }
+ 
+   private async cleanupReviewCandidate(task: A2ATask, review: A2AReview) {

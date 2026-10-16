@@ -1,0 +1,14 @@
+⟦主控 #2⟧
+你是 T-087 的独立来源抽查者（fresh-context reviewer，执行主控派发）。你没有画这张图，也没有作图者的会话历史。先读 /Users/luckye/Documents/Code/a2a/.project-map/roles/reviewer.md 与 .project-map/tickets/T-087-explicit-graph-view.md（只读）。
+
+只读：唯一允许写入 /Users/luckye/Documents/Code/a2a-wt-t087/evidence/2026-10-16-batch16/T-087/source-spot-check-01.md（UTF-8、中文）；临时文件放 /tmp 新目录用完删。不改其他文件，不 git commit/checkout/reset，不调用模型 API，不写全局配置，不请求沙箱升级。
+
+冻结候选：exec/t087 HEAD aba81b52c（git rev-parse 确认）。图文档 findings/ticket-gates-graph-2026-10-16.zh-CN.md，生成脚本 findings/generate_t087_graph.py。按票据要求：抽查时**不读作者的说明与证据报告**（evidence/2026-10-16-batch16/T-087/RESULTS.md 等），直接对照来源。
+
+核对并附证据：
+1. 门禁检查串的顺序与每一关的拒收码：自己从 workbench/src/gates/（core.ts 等）读出 submit→verify→review→integrate 等实际检查顺序和拒收码，逐项与图比对；列出图中缺的、多的、顺序错的、拒收码错的。
+2. 至少再抽 10 条其他连接（覆盖 ticket 字段 blocked_by/ready/ready_by、收件箱条目类型、恢复路径、持久化边界各至少 2 条），打开引用的文件:行，判断引用是否真的支持这条连接（存在 ≠ 支持）。
+3. 隐式边清单：抽 3～4 条，判断是否确实没有机械来源（自己 grep 一遍），以及'T-081/T-082 覆盖与否'的判断是否成立。
+4. 重跑生成脚本一次，确认输出与提交的文档一致（只做文本比较）。
+5. 术语：是否在代码或文档里发明了新的总称（票据要求先用现有词）。
+结论 PASS / INCOMPLETE / NO_GO，按严重度列问题（每条给图中位置与来源实际内容）。最后一行写 T-087 SPOT-CHECK DONE。
