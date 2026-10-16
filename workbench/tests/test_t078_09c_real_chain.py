@@ -24,6 +24,7 @@ from test_t078_a14_rehearsal import Scene, save, require, wait_for, process_exis
 from p1_reuse import process_command
 from t078_raw_retention import NativeRuntime, check_identities
 from p1_output import read_complete_output, validate_capture
+from t078_09c_driver import visible_command
 
 SOURCE=Path(__file__).resolve().parents[2]
 TESTS=SOURCE/'workbench/tests'
@@ -164,6 +165,25 @@ class CScene(Scene):
         expected={'arm':'ARMED','initialize':'INITIALIZED','start':'DISPATCHED','observe':'READY_FOR_PERMISSION','collect':'PASS'}[mode]
         require(value['status']==expected,'exact stage result: '+stage+'/'+mode,value['status'],expected)
         return result
+
+    def review_permission(self,inp,stage):
+        number=0
+        def observe():
+            nonlocal number
+            events=[e for e in self.events() if e['launch']==inp['launch'] and e['type']=='permission_wait'
+                    and e['seq']>getattr(self,'last_permission',0)]
+            if not events:return None
+            event=events[-1];command=event['data']['tool_input']['command']
+            observed=read_complete_output(lambda offset:self.gate('pane_output','--launch',inp['launch'],'--offset',str(offset)),inp['launch'])
+            raw=observed['raw'];number+=1
+            path=self.output/f'{stage}-review-screen-{number:02d}.bin'
+            with path.open('xb') as stream:stream.write(raw)
+            save(path.with_suffix('.json'),{'permission_event':event,'command':command,'screen_capture':observed['capture']})
+            terminal=raw.decode('utf-8');box=terminal.rsplit('Run shell command',1)
+            if len(box)!=2 or 'This command requires approval' not in box[1] or '❯ 1. Yes' not in box[1]:return None
+            if visible_command(terminal)!=command:raise ValueError('rehearsal_permission_command_mismatch')
+            return str(path)
+        return wait_for(stage+'_actual_permission_display',observe,seconds=15)
 
     def permission(self,stage):
         inp=self.inputs['ideation'];p1=self.p1s['ideation'];folder=p1/'phases'/stage

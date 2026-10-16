@@ -1556,3 +1556,13 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 本轮仅运行 [静态预检](09c-fix-01/real-chain-preflight-04/preflight.json)，**完整真实链与真实时钟尚未运行，状态INCOMPLETE**。沙箱外准确命令见 [RUN-OUTSIDE](09c-fix-01/RUN-OUTSIDE-COMMAND.txt)，输出全新real-chain-outside-01；模型0，无供应商CLI，420秒硬超时，场景150秒。后续主控实跑PASS与独立审查之前，不冻结/启动第2场，也不把旧四回归收据跨测试闭包改动自动沿用。
 
 主控并行完成了第1场回收，本轮只读取并随提交保存签字和输出：[dry-run](09c-attempt-1-cleanup-01-dry-run/result.json)、[独立tar计数](09c-attempt-1-raw-readback-01/readback.json)、[失败原件核对](09c-attempt-1-raw-readback-01/failed-scene-review.json)、[finish](09c-attempt-1-cleanup-01/result.json)均为对应操作PASS。原件外置 `.../T-078/09c-attempt-1-raw-01/scene.tar.gz` **340792字节**，POST13/11、roots2/1、许可1/0，C-E1未完成SSE与失败原件如实保留；九进程退出、root删除、停机后SQLite读取0。回收通过不改变第1场INCOMPLETE或其首份result丢失的历史事实。worker未运行该回收；整票仍 **INCOMPLETE／NO_GO**。
+
+## 主控 #356：09C 无模型真实链排练首停；许可框等待按根因修复
+
+主控沙箱外 [real-chain-outside-01](09c-fix-01/real-chain-outside-01/result.json) **INCOMPLETE**：15秒 `C-I1_actual_permission_display` 超时；cleanup **PASS**，停前 SQLite 一致备份包含 WAL、停后数据库读0、scratch已删。该原结果不改写为PASS。
+
+[逐件只读诊断](09c-fix-02/diagnosis.json) **PASS，限定位**：实际API1为200/complete（6个SSE事件），Bash tool_use 已到peer；PermissionRequest实际hook exit0、事件seq46。116次完整pane_output/原屏均522字节，原生分行命令框和一次性Yes都在。根因是CScene仍继承09B连续命令子串判断，框线/换行使之恒为假；当时尚未进入Electron，零window/Enter，stop与relay业务行均0。不是低负载下执行太慢，也不需延长15秒。
+
+只在09C排练中复用既有原生命令框解析与严格分页reader，完整command对实际hook逐字核对，保存capture/原事件；产品、09B、protocol、预算、真实时钟边界均不改。[真实入口原件回放红态](09c-fix-02/display-red-01/result.json)与[Git旧源码重放](09c-fix-02/known-bad-display-01/result.json)都复现该超时，[候选9项](09c-fix-02/display-green-03/result.json) **PASS**，另含正文差异、缺Yes、截断、total变化、零进度、错launch反例。回放只用保存的gate I/O和注入等待，无进程/按键，不冒称真实完整链路通过。
+
+[新排练命令](09c-fix-02/REHEARSAL-02-COMMAND.txt)使用全新 `real-chain-outside-02`；本地路径/AST/preflight PASS，完整daemon/relay/HTTP/Electron及>120秒实钟仍 **INCOMPLETE，待主控沙箱外执行**。旧HTTP/hook/屏幕/一致备份与失败原件随本次提交保留，首个本地诊断脚本导入失误另有转录；独立审查未做，整票状态不上调。
