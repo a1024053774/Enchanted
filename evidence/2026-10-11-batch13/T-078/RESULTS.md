@@ -1474,3 +1474,19 @@ executor s11与ideation同类：[原result](09b-a16-b1-executor-p1-01/a16-execut
 cleanup静态记录 [02](09b-a16-closeout-materials-01/static-check-02.json) 修正首份报告把here-doc数量写成4的元数据笔误（实际3），原报告保留，已执行的语法/路径guard结论不变。**本轮没有运行owner、cleanup批准生成、dry-run、capture、tar readback、签字、停机或删除**。逐POST/hook原件仍在活root，当前不能宣称F1外置保留已完成；主控需依序实跑并保留实际bundle/pointers和cleanup收据。
 
 A16业务阶段与原件worker核对局部 **PASS**；归档/回收与独立审查尚未完成，09C尚未执行。系统IME按用户选择仍未验证/INCOMPLETE；三窗格与真登录分别移T091/T092。本票整体仍 **INCOMPLETE／NO_GO**，不以本轮全场核对替代其余验收或宣布整票通过。
+
+## 主控 #350：A-16 原件外置保留与回收 PASS；09C Stage A 冻结复核
+
+以上是 #349 交接时点。本次主控已依次执行九进程 owner 核对、签署 cleanup 批准、dry-run、停机前原件采集归档、tar 独立重数并签字、归档验证、保存清单，最后正常停机回收，全部 **PASS**。实际收据及签字件随本次提交保留：[dry-run](09b-a16-cleanup-01-dry-run/result.json)、[cleanup 批准](09b-a16-closeout-materials-01/cleanup-approval.json)、[签字重数](09b-a16-raw-readback-01/readback.json)、[tar 内关联核对](09b-a16-raw-readback-01/a16-review-check.json)、[finish](09b-a16-cleanup-01/result.json)。本轮 worker 仅只读核对这些原件，未再执行采集、停机、信号或删除。
+
+归档为 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a16-raw-01/scene.tar.gz`，**826,185 字节、929 成员**。仓内保留 [bundle 清单](09b-a16-closeout-materials-01/bundle.archive.json) 与 [逐原件指针入口](09b-a16-closeout-materials-01/raw-pointers.archive.json)，每份原件的 `*.archive.json` 留在外置盘 `09b-a16-raw-01/pointers/`。HTTP request/response/meta 与 hook stdin/started/finished/stdout/stderr 均保留脱敏原件；采集接口不接收认证头，HOME、凭据与 SQLite 不入 tar。主控报告凭据扫描为 0；这一扫描结论归于主控，不冒称 worker 另做了凭据扫描。
+
+主控从 tar 独立重数：ideation **6 POST / 4 根 / 2 次 PermissionRequest**，executor **11 POST / 6 根 / 5 次 PermissionRequest**，合计 **17 POST / 10 根 / 7 次工具许可**。worker [本次只读复核](09c-stage-a-recheck-01/result.json) 再用冻结 reader 读取 tar，计数与签字收据一致、无未完成 HTTP/hook；并逐成员核对 staging 的类型与字节、逐原件核对 archive 指针。原 stop/request、target 恰一个 Esc、`turn_submitted 176 → delivered → 原 I2 feedback 187`、I2 反馈/登记/提交各一次的 tar 读回见上述关联核对，与 [A-16 全场记录](A16-FINAL-READBACK.md) 对照。模型 0 的依据仍为实际 loopback 启动记录与无转发的假 API，不外推为供应商账单观测。
+
+因此，A-15 终审 **F1 所要求的可独立复核原件缺口，由替代场次 A-16 补证完成**：后续 reviewer 可以直接从 tar 重数与核对逐 POST/hook，证据不再只剩汇总投影。A-15 原件已缺失的历史事实、旧 NO_GO 报告及原结论不改；主控独立重数与 worker 复核也不冒充全新 reviewer 的终审。
+
+finish 收据确认：认证 `daemon_stop → panes.shutdown` 正常关闭角色与目标，两只原 API（34330、34331）各收到一次 SIGTERM，九进程全部退出；归档与原件稳定性核对通过后，根 `/private/tmp/t078-2-09b-run-z9ov_cco` 已删除，**停机后 SQLite 读取为 0**。worker 只读确认根不存在；slot 未处置。
+
+09C Stage A **静态准备 PASS，实际运行 INCOMPLETE／NO_GO**。本次通过真实 `validate_stage_a_inputs` 的静态校验路径（仅内存签字夹具；未调用 runner.main/card/root/spawn），并确认实际未签批准被拒。`09c-executable-materials-02` 的 **312 个冻结源码文件**与 `7a6edbff87df85077b3a05d38f3cfd5654cde9c1` 及当前工作树逐字节相同，静态 root 与必要夹具仍在；该源码之后仅本票证据变化，**无需重新冻结**。四份绑定回归收据仍适用：整组 [02](review-followup-regressions-02/result.json) 的整体 INCOMPLETE 仅为旧 mutant-cas 分类断言，明确由 [cas-03](review-followup-mutant-cas-03/result.json) 替代，未运行的 lock 由 [lock-04](review-followup-mutant-lock-04/result.json) 补齐，另有 [T-078 自身回归](merge-main-4-t078-regressions-01/result.json) PASS；未静默忽略 02 的失败状态，旧原件保留。
+
+沿用 [Stage A 命令](09c-materials-01/STAGE-A-COMMAND.txt) 与 [未签批准件](09c-materials-01/stage-a-approval.json)（`approved_by`、`approval_ref` 均仍为空），输出 `09c-stage-a-01/` 尚不存在。主控签字后由主控执行；本轮未运行 09C、未创建现场或发送输入。09C 预算仍为 ideation **4 根 / 7 POST**、executor **1 根 / 1 POST**，模型 0；后续真实时钟、完整原屏逐项核对与条件式单 Enter 的停止条件不变。系统 IME 保持未验证／INCOMPLETE，三窗格与真登录已分别移 T-091/T-092；整票仍 **INCOMPLETE／NO_GO**，待 09C 与新一轮独立审查。
