@@ -1442,3 +1442,17 @@ s11 Enter的 [原result](09b-a16-b1-ideation-p1-01/a16-ideation-s11-Enter/result
 按主包第二条ROLE命令，worker仅运行已冻结生成器写 [executor P1](09b-a16-b1-executor-p1-01/generation.json)，并只读核对真实pending relay。复用本次Stage A attempt/root与executor API34331/64319，不起第二只API，不重发stop，不改 `created_at=2026-10-16T21:06:39.345Z`。[静态核对](09b-a16-b1-executor-p1-01/preparation-static.json) **PASS，仅材料**：312源码成员不变，B1与六键均空签字，29条命令入口/现有输入或明确后续产物检查通过；六次observe按expected-keys1～6绑定原I1结果与条目。
 
 [executor交接](09b-a16-b1-executor-p1-01/B1-HANDOFF.md)：B1 dry-run与real分别执行，成功后BIND-LAUNCH取实际manifest；逐屏六键每键后刷新原收据，必须仍queued、无delivered历史、无I2、unknown/active null/业务输入0，然后才能下一键。读屏沿完整分页/EOF检查，初读不符用-02新label，不自动重按。s13之后不initial release，I2 arm/E1另批。本轮没有执行executor B1 dry-run、角色启动、读屏、发键、observe、release或归档/清理；ideation当前已用1根/2POST，executor首启预期0根/0POST，预算仍4/6与6/11，模型0。A16后续、09C和整票仍 **INCOMPLETE／NO_GO**。
+
+## 主控 #348：executor 首启 queued 六次通过；准备原 I2 与 E1 放行
+
+主控完成executor B1：dry-run **READY_FOR_ROLE**、real外层 **PASS**、BIND-LAUNCH通过，六键均逐屏核对后签发，初读均相符未用-02；六次 [queued检查](09b-a16-b1-executor-p1-01/onboarding/s11-queued-readback.json) 全 **PASS**，累计键数1～6、业务输入0、原stop仍queued、无delivered历史、无I2。本轮把完整B1/首启输出、实际manifest、六键签字及六次收据原样提交。
+
+executor s11与ideation同类：[原result](09b-a16-b1-executor-p1-01/a16-executor-s11-Enter/result.json) 保留 **INCOMPLETE/output_total_changed**。唯一pane_screen_key exit0、written=true，之后两页total7051→8885；这是发键后的界面过渡输出，reader按契约拒绝变化的total，不是按键未送达，不能重按。后续s13完整8893字节、有固定total与EOF，空提示符/manual；screen阶段原生命周期status仍默认INCOMPLETE（无error），不改原文件。[保存证据核对](09b-a16-e1-preparation-01/onboarding-readback.json) **PASS，仅读回**；本场没有修改或放宽冻结reader，也没有自动补键/重读。
+
+按A15流程仅写 [readiness确认命令](09b-a16-b1-executor-p1-01/READINESS-CONFIRM-COMMAND.txt)、ideation原I2的ARM命令、executor E1的INITIAL-RELEASE，以及 [delivered/I2读回](09b-a16-e1-preparation-01/DELIVERY-I2-READBACK-COMMAND.txt)。执行顺序为：主控确认executor readiness（重新刷新仍queued/0 POST）→单签I2并arm（不发输入）→单签E1，只release原排队stop到许可屏→collect原I2并核对turn_submitted之后才delivered/反馈，原request/entry/created_at不变、feedback/登记/提交各一次。该I2时点仍如实归于主控#299的解释及既有独立审查，不冒称用户逐字指定时点。
+
+本轮亦备好 E1许可与 E2～E6/I3～I4 的独立START、完整读屏/cmp、从真实事件生成空签字permission、只读check-only、一次Enter、只读collect命令；未来dispatch/request/permission ID不预填，自动根只观察真实gate feedback/inbox wake，实际全局seq不按阶段号推算。E3后E4/I3可交错，先分别及时START到许可屏，按A15顺序先结算I3/I4再回E4，不重发180秒批准等待中的POST。所有已有phase批准仍空；未来permission批准只能等真实dispatch/原屏后生成。
+
+[材料静态核对](09b-a16-e1-preparation-01/static-check.json) **PASS**：43份命令文件、61条命令/比较步骤、9份空签字phase批准、现有实际B1 manifest、完整reader闭包和新输出检查通过；I2 delivered读回与A15已实跑的oracle仅实例路径不同。预算表见 [stages](09b-a16-e1-preparation-01/stages.json)，ideation4根/6POST、executor6根/11POST，合计17POST/七次许可/模型0；I1已用1根/2POST/一次许可，后续预期9根/15POST/六次许可。
+
+本轮 **未执行 readiness、arm、initial release、任何阶段、读屏、Enter、collect、owner生成、归档或清理**。HTTP/hook逐条原件继续留在活root，结束前必须按rev2先外置归档/逐字读回/独立重数并留archive清单，再正常停机，停机后不读SQLite。当前A16后续、09C与整票保持 **INCOMPLETE／NO_GO**；本次材料PASS不代替未来真实运行。
