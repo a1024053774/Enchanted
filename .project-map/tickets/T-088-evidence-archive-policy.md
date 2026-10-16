@@ -41,3 +41,7 @@ supersedes:
 
 - 来源：执行主控完成报告 `20261015T152406Z-executor-report-001`，用户本人在构思主控会话里选择了方向。
 - 本票关闭后、T-089 合入前：执行主控从 batch16 起新证据只把摘要写仓库，原始大块输出尽量写到外置盘布局下；归档脚本由 T-089 提供。
+
+## Resolution
+
+2026-10-16 关闭，结论 PASS（决定类，无运行证据）：新批次（`evidence/2026-10-16-batch16` 起）只把文本摘要与 `*.archive.json` 清单留在仓库，run/fixtures 目录、`*.tar.gz`、`*.bin`、sqlite 与监视器日志归档到 `/Volumes/WD-Elements/a2a-evidence/<批次目录>/<ticket>/`；清单不带校验值；缺盘报错；已提交历史不改写。用户作答第 1、2、5、6 条；第 3、4 条是构思主控按已有规则推出的默认，用户未逐条确认。规则已写入 `AGENTS.md` 的"证据和交付"。落地由 [T-089](T-089-evidence-archive-tool.md) 做，尚未标就绪。
