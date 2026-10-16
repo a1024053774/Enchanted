@@ -1320,3 +1320,23 @@ F4最终harness与本轮材料提交为 `4fcb60dbe`，完整revision从实际Git
 主控#337裁定：这是**T-082带入main的产品缺陷**。T-082票原文要求“候选提交号不变、审查目录与worker worktree干净、共享仓库引用未变”，未要求worker HEAD==C；采用“审查开始时绑定worker实际HEAD/分支/干净，结束核对未变”的修复方向。修复由主控在main新建的缺陷票 **T-090**、另一worker处理，**不在T-078内修改core.ts**，不通过改acceptance/protocol或driver reset绕过。
 
 后续顺序：等待T-090合入main；由主控安排T-078再合并main、核对双方意图与实际冻结源码，再以全新 `review-followup-regressions-02` 完整重跑F4各组。当前未合并、未修改源码、未运行该回归。按主控明确要求，完成本次证据/裁定提交后 **暂停T-078工作**，等待T-090或用户对剩余四项的决定；整票仍NO_GO/INCOMPLETE，不自行启动任何后续现场。
+
+## 主控 #338：ready_rev 2，A16／09C仅做前冻结计划
+
+本轮按主控新指令恢复**材料写作**，不解除实际场景的NO_GO。已读取main票“修订rev 2”与revise `20261016T174154Z-ideation-revise-001`，逐字副本在 [前冻结材料](rev2-prefreeze-materials-01/README.md)；本worktree旧ticket尚未合并，worker不改地图/ticket，实际新运行按ready_rev 2重新绑定。
+
+| 用户2026-10-16决定 | 本票当前处理与状态 |
+|---|---|
+| 09C“授权执行主控代签 (Recommended)” | 已授权各阶段及满足实际命令/stop/目标/原屏/预批准模板逐项一致后的自动单Enter；任一不符停并INCOMPLETE。预算I4 roots/7 POST、E1/1，假API、模型0。旧“09C代签待用户决定”是历史文字，不再重复询问路线；实际模板尚未签/绑定 |
+| 三窗格“拆出去：T-078其余先收，截图项另开UI票” | 移到 **T-091**，不再作为T078本轮验收阻塞项；本票未覆盖同窗多pane，不把单窗格截图算通过 |
+| 系统输入法“本轮不做”，原文“保持INCOMPLETE” | **未验证／INCOMPLETE**；本轮不采系统IME，不把已有合成composition测试上调为系统实测 |
+| 09B“重跑一场09B，留最小脱敏原件” | 已决定A16重跑，沿原protocol与I4/6、E6/11、合计17 POST/七工具许可，模型0；逐POST请求/响应元数据与正文、hook stdin/finished等可独立复核原件外置保留，不含认证信息。A15历史F1缺口不补造/改判 |
+| 真登录“另开一张票，T-078先不等它” | 移到 **T-092**；T078本轮按假API证据验收，明确未覆盖正常HOME登录/真实模型。已备P3真登录材料不运行任何真实模型回合，不在本票实现/启动normal-login profile |
+
+A16与09C可同批准备、串行执行，各新root/两角色/API/target/身份；两场合计15根/25个主Messages POST、10次工具许可、供应商模型0、真实Codex0，不把两场塞入一个旧turn_limit会话。本轮仅写 [A16阶段](rev2-prefreeze-materials-01/A16-STAGES.json)、[09C阶段](rev2-prefreeze-materials-01/09C-STAGES.json)、签字字段/条件式C-I3模板、两份明确标TEMPLATE的 `*.archive.json`、[归档清单](rev2-prefreeze-materials-01/RAW-RETENTION-AND-ARCHIVE.md)、[回收脚本契约](rev2-prefreeze-materials-01/CLEANUP-SCRIPT-CONTRACT.md)与[预算/停止条件](rev2-prefreeze-materials-01/BUDGET-AND-STOPS.md)。**这些是未绑定施工材料，不是已实现/验证的raw cleanup或C driver**；当前无可执行launch命令、不伪造PID/claim/permission/screen/归档字节PASS。
+
+C-I3在阈值前尽早停在实际PermissionRequest、完整取屏并由执行主控签实值预批准；>120000ms且monotonic观察≥120100ms时再完整读取全部页/EOF，与原屏逐字节相等，逐项核对命令、stop/target、native/window/事件/签字/无ack/持续要求，才沿原Electron通路最多一个awaited CR，保存真实action/intent/written。若等待中原屏变化或写入未知，不自动改签/重按，INCOMPLETE。自动开始截止130秒为驱动留结算余量，不改变产品>120秒门槛；整场观察/结论仍≤150秒，不快进clock或重置created_at。
+
+归档新契约先在daemon仍活着时捕获逐条原件/一致事件行快照，结构脱敏后外置tar，成员类型/目标/普通文件字节逐一读回，实际成功才产生archive.json清单；独立方从包重数，不以summary代替原件。再单签owner-bound正常daemon_stop/panes.shutdown、两原API各一次SIGTERM；停机后只验文件/归档，**不读SQLite/WAL**。关停出现新的POST/hook/finished或原件变化则阻止root删除，不能再漏尾部。旧A15 summary-only出口不可作为A16 fallback。
+
+按主控要求，**本轮没有生成依赖源码版本的冻结包**，没有sources.tar.gz/实际root/UUID/PID/签字/归档回执，不运行prepare、场景、测试、API、daemon、CLI、Electron或按键。新的raw保留/回收与C保持/条件Enter需按施工单在合并后实现、真实无模型排练，再纳入完整源码闭包；T090合入main、T078合并main并完整F4复验后才冻结/重新绑定两场。整票仍INCOMPLETE／NO_GO；旧独立终审原件保留，后续fresh审查按rev2范围及逐记录原件重新核对，不能由本轮计划替代。
