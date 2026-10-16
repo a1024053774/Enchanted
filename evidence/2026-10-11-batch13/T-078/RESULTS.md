@@ -1206,3 +1206,5 @@ E4 首次单独 screen 输出 **INCOMPLETE**，报 screen_exceeds_review_limit�
 本次源码提交后生成新的 reader harness 冻结：原 58 文件只改三个只读 caller，其余 55 文件逐字节相同；分页 helper、恢复器、源校验入口及测试显式入包。业务源码继续标为 dedd4f66bc424610183cbff2d7114e991483e1c6，新 harness 版本从实际 Git HEAD 读取。新命令显式验证该包；P1 还传 --source-materials，不跳过原冻结检查。E4 以新 -02 完整读屏→只读追加恢复（原前缀匹配、同一 dispatch/event）→新 -03 与独立完整参考 cmp→主控签新 permission-02 后才 Enter。恢复原件与新 permission-02 由主控执行只读命令后生成，本轮不伪造现场材料。E5 从许可截图到 Enter 前都完整读取，E6 延用同一新冻结命令。
 
 blocking issue 20261016T113401Z 的可关闭依据为 #331 范围裁定、三处统一读取、红绿及反例、追加恢复/冻结范围检查；worker 未代关，现场读屏/恢复/Enter 仍 **INCOMPLETE／未执行**，预算不变。独立 fresh review 未运行（遵守不增开 Codex/子代理），已有请求材料，不用自查替代独立 PASS。另非阻塞 issue 20261016T120838Z 提醒下一次标准 prepare 补新增 reader 闭包；本次新包完整，旧 prepare 为保持其余原包不变而未改。
+
+源码已提交为 `c0c5caee3e70e58abadbd55efa4eade72a44370b`，九项尾注齐。随后统一生成器 --check-only **PASS**，实际生成 `09b-a15-reader-harness-01`，新包 65 文件、原包未变 55 文件、改动原 caller 3 个；source byte verifier --check-only **PASS**。harness 版本绑定该真实提交，business 仍为 dedd4f66bc424610183cbff2d7114e991483e1c6。E4 -02、追加恢复、新 -03 全文件 cmp、可选只读预检、一次 Enter、collect，以及 E5 完整流程和 E6 收尾的绝对命令均已生成；未运行任何现场命令。实际 permission-approval-02 必须在主控完成 -02 读屏且恢复器核对前缀后生成，本轮仅提供预审模板，未填假完整原件。
