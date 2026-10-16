@@ -1291,3 +1291,5 @@ F7已在审查请求末尾追加#335说明，旧报告/原件不改：#333已完
 F1的 [逐POST/hook最小保留清单与代价](09B-MINIMAL-RAW-RETENTION-01.md) 仅供用户决定：保留每个实际请求/响应/meta、每次原生hook的脱敏stdin/stdout/finished、完整许可/单Enter回执、原事件/目标字节与身份，而非重建汇总。秘密字段定点脱敏，原始顺序/实际ID保留；外置逐成员字节读回，fresh独立重数通过后才另批删root。拟议仍两Claude、0真实Codex/模型、17 POST/七许可；未压缩估计1～5MiB、先留20MiB余量，实际大小/耗时未知。没有决定重跑09B或修改过去的redactor/cleanup；A15历史采集PASS、独立INCOMPLETE的边界不变。整票继续NO_GO/INCOMPLETE。
 
 F4准备期的判定器文件检查首次失败，原trace在 `review-followup-final-check-01/failure.txt`：错误地在单条assertion找business-red，实际它属于原测试`TEST_RESULTS`。这是harness字段错误，不是产品红态。修正后runner额外保存原测试结果，协调器分别要求具体claim失败和原结果business-red；[02文件检查](review-followup-final-check-02/result.json) PASS，三份历史业务红态均接受，setup-error、错loaded core、fixture分类及无业务断言失败均拒绝，scene_actions=0。没有运行F4真实测试，源码冻结元数据会随本次最终harness提交更新，防止交主控的命令仍绑定修正前代码。
+
+F4最终harness与本轮材料提交为 `4fcb60dbe`，完整revision从实际Git读取并更新于 `review-followup-source.json`；它包含上述分类修正，F6 producer/reader及最终业务未再改变。终审01原件已在a853ad58b入库，未修改。最后仅补冻结元数据与只读预检收据，不在提交后追加未跟踪文件；F4实际外侧回归和P3真登录依然未执行。
