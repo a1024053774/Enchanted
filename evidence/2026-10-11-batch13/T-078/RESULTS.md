@@ -1490,3 +1490,17 @@ finish 收据确认：认证 `daemon_stop → panes.shutdown` 正常关闭角色
 09C Stage A **静态准备 PASS，实际运行 INCOMPLETE／NO_GO**。本次通过真实 `validate_stage_a_inputs` 的静态校验路径（仅内存签字夹具；未调用 runner.main/card/root/spawn），并确认实际未签批准被拒。`09c-executable-materials-02` 的 **312 个冻结源码文件**与 `7a6edbff87df85077b3a05d38f3cfd5654cde9c1` 及当前工作树逐字节相同，静态 root 与必要夹具仍在；该源码之后仅本票证据变化，**无需重新冻结**。四份绑定回归收据仍适用：整组 [02](review-followup-regressions-02/result.json) 的整体 INCOMPLETE 仅为旧 mutant-cas 分类断言，明确由 [cas-03](review-followup-mutant-cas-03/result.json) 替代，未运行的 lock 由 [lock-04](review-followup-mutant-lock-04/result.json) 补齐，另有 [T-078 自身回归](merge-main-4-t078-regressions-01/result.json) PASS；未静默忽略 02 的失败状态，旧原件保留。
 
 沿用 [Stage A 命令](09c-materials-01/STAGE-A-COMMAND.txt) 与 [未签批准件](09c-materials-01/stage-a-approval.json)（`approved_by`、`approval_ref` 均仍为空），输出 `09c-stage-a-01/` 尚不存在。主控签字后由主控执行；本轮未运行 09C、未创建现场或发送输入。09C 预算仍为 ideation **4 根 / 7 POST**、executor **1 根 / 1 POST**，模型 0；后续真实时钟、完整原屏逐项核对与条件式单 Enter 的停止条件不变。系统 IME 保持未验证／INCOMPLETE，三窗格与真登录已分别移 T-091/T-092；整票仍 **INCOMPLETE／NO_GO**，待 09C 与新一轮独立审查。
+
+## 主控 #351：09C Stage A READY；两角色首启与全部阶段材料
+
+主控已按 rev2 授权签署 [Stage A 批准](09c-materials-01/stage-a-approval.json)，运行得到 [READY_FOR_APPROVAL](09c-stage-a-01/readiness.json)，root `/private/tmp/t078-2-09c-run-slm9wocj`，实际目标 claim/attempt/fence/thread 齐全、模型 0。本次将签字原件及 Stage A 全部输出入库；签字件不恢复为空。源码仍为 `7a6edbff87df85077b3a05d38f3cfd5654cde9c1`，四份回归收据组成与 #350 相同。
+
+用冻结的 `prepare-a14.py --mode role --instance c1` 仅生成文件，已备 [ideation P1/B1](09c-c1-b1-ideation-p1-01/B1-COMMANDS.txt)、[executor P1/B1](09c-c1-b1-executor-p1-01/B1-COMMANDS.txt)，各有实际 Stage A binding、独立 launch/session、模板端点 `http://127.0.0.1:0` 与原 API ready 绑定、空签 B1、六键逐屏草稿、完整分页读屏及 `-02` 重读命令、签后 readiness 核对。B1 plan 保留 `security-notice + screen_text`，实际 s7 key 使用 `onboarding-notice`。两角色启动步骤必须串行：ideation 首启结束后才启动 executor；**本场 executor 必须在 C-I1 前完成首启**，避免把两分钟无 ack 计时消耗在 onboarding 上。
+
+[交接顺序](09c-c1-preparation-01/HANDOFF.md) 与 [静态核对](09c-c1-preparation-01/static-check.json) **PASS，限材料**：42 份命令文件、82 条命令/比较步骤、28 处明确的未来产物依赖；312 个冻结源码文件及两 P1 副本逐字节一致，两角色路径隔离，实际 B1 校验函数用内存夹具通过，现场批准仍空。所有现有入口路径存在，未来 manifest/permission/original-screen/stop 等只等前序实际运行产生，不预造 ID。独立命令在实际两 B1 bind-launch 后，再用文件专用绑定步骤填入真实 manifest 路径，不复制或写死历史场景路径。
+
+已备 C-I1、C-E1、C-I2、C-I3、C-I4 的空签 phase 批准、独立 arm/observe/许可/collect 命令。两角色 0 POST/空提示符 readiness、owner 九进程核对与唯一 C-I3 build 均在计时前完成；五阶段预签 arm 不发送业务输入。C-I1 才经 pane_dispatch/release 输入批准的 test-simulated-user 请求；之后只读实际 inbox wake 与 gate feedback，不新派发、不硬编码 global seq。预算 ideation **4 roots / 7 POST**、executor **1 / 1**，共 **5 roots / 8 POST / 3 次工具许可、模型 0**；C-E1 单条 SSE 保持无 ack，C-I3 实际中断证据完成后才结束。
+
+C-I3 [预批准契约](09c-c1-preparation-01/C-I3-PREAPPROVAL-CONTRACT.json) 仍未签；实际完整原屏/模板由该场 Electron 窗口生成，主控逐项核对 command/stop/目标/原屏/事件/窗口与输入代次后，才只填两个签字字段并原子发布。冻结 driver 在真实 wall age >120000ms 且 monotonic 观察 ≥120100ms 后、最迟 130000ms 开始一次 Enter，场景总截止 150000ms；按键前重读完整分页/EOF、全部原屏字节与绑定逐项一致，任一不符即 INCOMPLETE、零新键，写入未知不重按。实际 Stop/relay、无 ack、actor ideation、目标恰一个 Esc 且未回收、原 C-I4 反馈与全部 POST/hook 均须随后读回；本轮不冒称这些已验证。
+
+本轮 **未执行 B1 dry-run/real、读屏、六键、readiness、bind/owner、build、arm、初始化、任何业务阶段、HTTP 请求或真实时钟观察**，只写文件并运行静态校验。业务源码、冻结包与 driver 均未改，09C 实际时序及整票仍 **INCOMPLETE／NO_GO**；系统 IME、T-091/T-092 的边界保持 rev2 原裁定。
