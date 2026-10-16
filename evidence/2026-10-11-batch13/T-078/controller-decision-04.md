@@ -769,3 +769,9 @@ A-16（09B 重跑，留最小脱敏逐 POST/hook 原件）：Stage A、ideation/
 C-I1：INITIALIZE 后 START 报 initial_release_only（驱动在已送达后重复 release）；worker 诊断 dispatch 已自然送达、到许可屏，主控裁定只读续行。主控用计时段脚本 run_09c_timed.sh 执行：C-I1 permission 签字 → CHECK PASS → ENTER 返回 KeyError 'request_id'，脚本停下。electron driver 日志显示 Enter 已写入（written true，约 18:35:52），stop 已创建、计时已开始；KeyError 在按键后的结算处理。
 主控严重失误：查看时误把 PERMISSION-ENTER-COMMAND 再执行一次（18:36:03），它以 FileExistsError 拒绝、未启动 Electron、无新按键，但覆盖了 execute-02/result.json，第一次运行的结果现场丢失；仅 electron driver/stdout/stderr 日志与 daemon 事件可还原。
 判定：第 1 场不能按协议继续（无 C-I1 结算与 stop id，时间很可能已过 C-I2 <120s 窗口，继续批准 C-I2 可能让门禁放行真实停止），INCOMPLETE 停止，不再批准任何阶段、不发键，root /private/tmp/t078-2-09c-run-slm9wocj 保留。派 worker 只读还原 C-I1、定位 KeyError 根因、给第 2 场重做材料与第 1 场先归档后停机的回收命令。
+
+## #355 09C 第 1 场根因、报告与回收（2026-10-16 UTC）
+
+worker 只读还原（f1518b627）：C-I1 一次 Enter 已写入，stop fe5603b6-1abf-4045-b267-031e32f762ce，created_at 2026-10-16T22:35:52.492Z，已 delivered；KeyError 来自结算读取不存在的 relay_results.data.request_id；C-I2 反馈被假 API 错把 envelope 当执行结果，报 C_actual_delivery_required、未进入许可等待，ideation 被 409 反复拒绝，POST 增至 13（超预算 7），executor 11；之后稳定不再增长（主控隔 30 秒两次计数）。四处缺陷都在测试工具（结算字段、假 API 解析、许可脚本先绑旧输出目录、启动驱动重复 release），不是门禁或 daemon。
+按构思主控转达（answer 20261016T223743Z-ideation-answer-001，非用户批准），第 2 场开始前已向构思主控报告根因结论与避免办法（四处修复各取真实入口红绿与反例，正式开场前做一次无模型完整排练）；T-078 Resolution 已追加第 1 场记录，写明 C-I1 结果文件丢失、现有事实为间接证据（main 9ca8e915b）。
+第 1 场回收（主控代签）：九进程核对后签 cleanup-approval → dry-run PASS → 停机前采集归档 PASS（外置盘 09c-attempt-1-raw-01/scene.tar.gz，340,792 字节，596 成员，凭据扫描 0）→ tar 独立重数 POST 13/11、根 2/1、PermissionRequest 1，如实签 readback（不改为计划值）→ verify PASS（scene_status INCOMPLETE）→ 清单已保存 → finish PASS（两只 API 各一次 SIGTERM，九进程全退，root 已删）。派 worker 修四处缺陷并做无模型完整排练。
