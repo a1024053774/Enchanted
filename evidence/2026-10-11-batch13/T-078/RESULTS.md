@@ -1506,3 +1506,15 @@ C-I3 [预批准契约](09c-c1-preparation-01/C-I3-PREAPPROVAL-CONTRACT.json) 仍
 本轮 **未执行 B1 dry-run/real、读屏、六键、readiness、bind/owner、build、arm、初始化、任何业务阶段、HTTP 请求或真实时钟观察**，只写文件并运行静态校验。业务源码、冻结包与 driver 均未改，09C 实际时序及整票仍 **INCOMPLETE／NO_GO**；系统 IME、T-091/T-092 的边界保持 rev2 原裁定。
 
 材料终查补充：首轮提交 `61065b81e` 的生成器还给无工具 C-I4 多生成了两份许可读屏命令，交接顺序未引用它们，本轮也未执行。已移除这两份无效操作材料并修正生成条件，首轮静态记录仍保留；[最终静态 02](09c-c1-preparation-01/static-check-02.json) **PASS：40 份命令文件、79 条命令/比较步骤**，新增无工具 C-I4/C-E1 不得存在许可命令的检查。该修正限材料，不改冻结业务源码或协议。
+
+## 主控 #353：09C 首启与初始化完成；C-I1 已提交，START 重复 release 失败
+
+主控报告两角色 B1、逐屏六键、readiness、BIND-COMMAND-REFERENCES、九进程 owner、C-I3 唯一 slot build 均 PASS；五份 phase 批准已签且 arm 均 ARMED/input_sent=false。以上签字、绑定及全部仓内运行输出随本次提交保留。主控另报告一次 shell 签字因 `$sid` 与全角冒号拼接产生非法 UTF-8，未发键；损坏件留在主控 scratchpad，工作树从 Git 恢复未签版本后重新签，签字脚本改成临时文件加原子替换。本轮仅记主控来源，不冒称看过该 scratchpad 损坏原件；仓内现存 JSON 均单独检查可解析。
+
+INITIALIZE 得到 [INITIALIZED/business_input_sent=false](09c-c1-b1-ideation-p1-01/phases/C-I1/initialized-01/result.json)，但 [START 原件](09c-c1-b1-ideation-p1-01/phases/C-I1/start-01/result.json) 保持 **INCOMPLETE**：dispatch 成功后，多余的 pane_release 被 initial_release_only 拒绝。本轮只读诊断 [PASS](09c-ci1-start-diagnosis-01/result.json)，不是场次通过。两角色初始 release 为事件88/91；唯一 ideation dispatch `0e15f303-ece9-46e6-b19e-d0da8440a676`、global seq2，实际事件为 queued98 → paste99/100 → submit_intent101 → submitted102 → UPS108 → PermissionRequest112。UPS 正文与登记规范化文本精确一致，假 API 已有 C-I1 tool_use **1 POST/1 响应、无 error**；executor 0 POST。原屏完整 **16,074 字节**及固定 total/EOF capture、当前 pane_status、登记表行与事件均已保存。
+
+当前 **ideation busy、同一 active dispatch、queued=[]、failed=null；executor idle/空队列**，并非“登记后未放行”。没有本场 stop 条目、tool_result/Stop、clock-origin，目标 delta 空；已用 ideation1 root/1 POST，尚余3 roots/6 POST，executor尚余1/1。工具仍等待许可，没有按键，本次等待诊断未消耗基于 stop.created_at 的业务两分钟起点。
+
+[根因与续行方案](09c-ci1-start-diagnosis-01/DIAGNOSIS.md)：产品 dispatch 会在已初始化 idle 时自然 drain/发送，release 仅供 unknown 初始放行；驱动 start 又调一次 release 才报错。initialize 的放行符合 start 自己的 idle 前置，不应删除它来绕过产品契约。未来最小驱动修订为删掉 start 的多余 release；**本轮未改产品、driver 或冻结包**，避免运行中换源。
+
+无需因这条驱动错误重建场景，续行仍待主控裁定与当时状态复核。不得重跑 START/INITIALIZE/dispatch/release；应只运行 [原冻结 observe 命令](09c-ci1-start-diagnosis-01/CONTINUE-READONLY-COMMAND.txt)，从同一实际 dispatch/PermissionRequest 写全新 dispatch-01/READY_FOR_PERMISSION，再按原完整 screen/cmp、生成未签 permission、主控逐项签字、check、一次 Enter 的流程。该命令入口/输入存在、输出尚不存在，[静态路径核对](09c-ci1-start-diagnosis-01/continuation-path-check.json) PASS，**未运行续行命令**。本轮只有只读门禁 pane_status/pane_output 和一致 SELECT，没有发键、业务请求或重试。旧 START 不改判；09C 与整票仍 **INCOMPLETE／NO_GO**。
