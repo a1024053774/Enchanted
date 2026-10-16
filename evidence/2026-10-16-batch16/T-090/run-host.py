@@ -30,13 +30,16 @@ def inventory(root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=['red', 'baseline', 'green'], required=True)
+    parser.add_argument('--phase', choices=['red', 'baseline', 'green', 'remaining'], required=True)
     parser.add_argument('--label', required=True)
+    parser.add_argument('--revision', help='Expected full HEAD commit; required for remaining')
     parser.add_argument('--dependencies', type=Path,
                         default=Path('/Users/luckye/Documents/Code/a2a/workbench/node_modules'))
     parser.add_argument('--archive-owned', type=Path, action='append', default=[],
                         help='Archive an explicitly identified, stopped T-090 temporary directory')
     args = parser.parse_args()
+    if args.phase == 'remaining' and not args.revision:
+        parser.error('remaining requires --revision with the full delivery commit')
     if not VOLUME.is_mount(): raise RuntimeError('外置盘未挂载，不回退内置盘。')
     if not args.label.replace('-', '').isalnum(): raise RuntimeError('Invalid label')
     dependencies = args.dependencies.resolve(strict=True)
@@ -85,6 +88,16 @@ def main():
         if not version.startswith('v26.5.'): raise RuntimeError('需要已核对的 Node 26.5 系列')
         revision = command(['git', 'rev-parse', 'HEAD'])
         report['revision'] = revision
+        report['requested_revision'] = args.revision
+        if args.revision and args.revision != revision:
+            raise RuntimeError('HEAD 与显式绑定提交不符；不运行测试。')
+        if args.phase == 'remaining':
+            dirty = command(['git', 'status', '--porcelain=v1', '--untracked-files=all', '--',
+                             'workbench/src', 'workbench/tests', 'acceptance', 'fixtures',
+                             str(Path(__file__).resolve().relative_to(ROOT))])
+            if dirty:
+                raise RuntimeError('剩余步骤要求提交中的干净源码与宿主脚本：' + dirty)
+            report['scope'] = 'Remaining steps only; not a same-run full regression verdict'
         patch = subprocess.check_output(['git', 'diff', 'HEAD', '--', 'workbench/src/gates', 'workbench/tests'], cwd=ROOT)
         (out / 'candidate.patch').write_bytes(patch)
         for owned in args.archive_owned:
@@ -98,11 +111,12 @@ def main():
                  'evidence/2026-10-15-batch15/T-082/protocol-red-green-01'], source)
         command(['git', '-c', 'core.hooksPath=/dev/null', 'checkout', '--detach', revision], source)
         if patch: command(['git', 'apply', out / 'candidate.patch'], source)
-        for path in (ROOT / 'workbench/tests').rglob('*'):
-            if path.is_file() and '__pycache__' not in path.parts and not (source / path.relative_to(ROOT)).exists():
-                target = source / path.relative_to(ROOT)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(path, target)
+        if args.phase != 'remaining':
+            for path in (ROOT / 'workbench/tests').rglob('*'):
+                if path.is_file() and '__pycache__' not in path.parts and not (source / path.relative_to(ROOT)).exists():
+                    target = source / path.relative_to(ROOT)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(path, target)
         (source / 'workbench/node_modules').symlink_to(dependencies, target_is_directory=True)
         frozen = {p: p.read_bytes() for base in ('workbench/src', 'workbench/tests', 'acceptance', 'fixtures')
                   for p in (source / base).rglob('*') if p.is_file() and '__pycache__' not in p.parts}
@@ -173,15 +187,19 @@ def main():
                                      'phase': e['details']['phase'],
                                      'error': e['details']['details']['error']} for e in errors]
         else:
-            command(['node', source / 'workbench/tests/test_ready_file.ts', source, out / 'ready-file-probe'], source)
-            publication = json.loads((out / 'ready-file-probe/run.json').read_text(encoding='utf-8'))
-            if publication['status'] != 'PASS': raise RuntimeError('Ready 发布探针未通过')
-            retain_fixture(publication['artifact_root'])
-            report['ready_file_checks'] = [{'id': row['id'], 'passed': row['passed']} for row in publication['checks']]
-            result = legacy('focused', 'coop', True)
-            if result['tests_run'] != 1 or result['errors'] or result['failures']:
-                raise RuntimeError('原冻结候选用例未通过')
-            for suite, count in [('coop', 8), ('recovery', 9), ('run', 18), ('cas', 1), ('cards', 15)]:
+            if args.phase == 'green':
+                command(['node', source / 'workbench/tests/test_ready_file.ts', source, out / 'ready-file-probe'], source)
+                publication = json.loads((out / 'ready-file-probe/run.json').read_text(encoding='utf-8'))
+                if publication['status'] != 'PASS': raise RuntimeError('Ready 发布探针未通过')
+                retain_fixture(publication['artifact_root'])
+                report['ready_file_checks'] = [{'id': row['id'], 'passed': row['passed']} for row in publication['checks']]
+                result = legacy('focused', 'coop', True)
+                if result['tests_run'] != 1 or result['errors'] or result['failures']:
+                    raise RuntimeError('原冻结候选用例未通过')
+            suites = [('cas', 1), ('cards', 15)] if args.phase == 'remaining' else [
+                ('coop', 8), ('recovery', 9), ('run', 18), ('cas', 1), ('cards', 15)]
+            report['legacy_suites'] = [{'suite': suite, 'expected_count': count} for suite, count in suites]
+            for suite, count in suites:
                 result = legacy(suite, suite)
                 if result['tests_run'] != count or result['status'] != 'PASS':
                     raise RuntimeError('整组回归未通过：' + suite)
