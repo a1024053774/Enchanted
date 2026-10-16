@@ -693,3 +693,8 @@ I1（#307）：dispatch READY_FOR_PERMISSION（1/1）；主控 pane_output 读�
 ## A-14 executor 上线后首启按键被队列挡住 #308（2026-10-16 UTC）
 
 executor 材料生成 PASS；executor B1 签字（#308）dry-run READY_FOR_ROLE、real PASS、bind-launch PASS。上线后待投递 stop 只入队（事件 109 dispatch_queued source inbox，无 paste/turn_submit），executor API 0 请求，符合 pending 语义。但 onboarding 第一键 s1 ArrowUp 被门禁 screen_requires_startup 拒绝（未发键）：pane state unknown、queued 1 条；panes.ts:671 assertStartup 要求队列为空。待投递入队后首启屏幕无法逐屏按键，executor 到不了初始 release，pending 无法投递——为 #298/#299 计划"首启只入队、逐屏完成并初始 release 后才 drain"的实现缺口，排练中 executor 为 spy 未覆盖。现场保留，交 worker 按根因修并补红绿，修后对该差异再独立审查。
+
+## 首启键修复与独立审查 #309/#310（2026-10-16 UTC）
+
+worker 修 #308：仅删除 panes.ts assertStartup 的队列为空前提，提交 06fc9feca（9 条尾注），离线 15/15 PASS。A-14 现场 daemon 加载旧代码、P1 快照拒绝新文件，A-14 不能续跑（09b-a14-s1-retry-NO-GO.json 不执行），现场保留待回收，修复通过审查后需 A-15。主控沙箱外运行真实入口复验：entry-01 失败（夹具漏拷 workbench/bin/inbox，MODULE_NOT_FOUND），worker 补齐后 entry-02 PASS（旧代码红：首个批准首启键被队列守卫拒绝且未写出；修复绿：六键、release、delivered、原 I2、ack、越权拒绝链；0 模型回合）。
+#310：新开 fresh Codex reviewer s16-t078-rev2（wF:p4C）审 06fc9feca 这一差异。
