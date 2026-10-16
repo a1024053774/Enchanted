@@ -721,3 +721,8 @@ worker 的变基脚本经 Python 调 git 被 Codex 沙箱拒（index.lock），�
 worker 修复为停机后只验归档（dedd4f66b），A-15 静态封包冻结（5906f4dbb），均为 worker 身份提交。
 #323：运行 finish-09b-a14-cleanup.py 超过 5 分钟无输出；sample 显示进程阻塞在 open()。独立探测：外置盘 /Volumes/WD-Elements 仍挂载（diskutil Mounted: Yes），stat 元数据可读（scene.tar.gz 1164 字节），但读文件、在卷根建文件、列目录均阻塞（10 秒 alarm 中断，Interrupted system call），lsof +D 进入不可中断态。主控在 rmtree 之前结束了 finish 进程与自己的探测进程；未删除任何文件，root /private/tmp/t078-2-09b-run-gbxz0tyb 保留（约 20 MB，无活动进程）。
 状态：A-14 回收 BLOCKED（外部状态：外置盘 I/O 无响应）。按 A-15 PLAN 第 17 行，A-14 回收完成前不签 Stage A。主控不强制卸载或重挂外置盘（用户设备与其他会话共用），已经构思主控报用户。外置盘恢复后重跑同一 finish 命令（先 --dry-run）。
+
+## #324 外置盘恢复；A-14 回收 PASS；A-15 Stage A READY（2026-10-16 UTC）
+
+外置盘恢复可读（列目录、tar -t 正常）。finish-09b-a14-cleanup.py：--dry-run PASS（09b-a14-cleanup-finish-01-dry-run）；正式运行因卡住那次留下的空目录 09b-a14-cleanup-finish-01 报 FileExistsError（保留该目录为证据，未删），改输出 09b-a14-cleanup-finish-02：PASS，signals_sent []，root_removed true。A-14 回收完成。
+主控签 09b-a15-materials-01/stage-a-approval.json（代签依据：用户在本会话授权执行主控代签 T-078 09B 各阶段批准），STAGE-A-COMMAND → READY_FOR_APPROVAL（09b-a15-stage-a-01；root /private/tmp/t078-2-09b-run-yp09xosq，daemon 59398，target leader 59552，模型回合 0）。派 worker 提交证据并准备 ideation B1。外置盘 issue 20261016T093805Z-executor-issue-001 标 blocking，主控不自行关闭，已经构思主控报告恢复。
