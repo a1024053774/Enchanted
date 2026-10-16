@@ -680,3 +680,7 @@ worker 交红态（A-13 事件 116/117 只读读回；真实离线链路复现 u
 ## 待投递独立审查 PASS 与 A-14 准备 #302/#303（2026-10-16 UTC）
 
 fresh Codex reviewer s16-t078-rev 审 703984056：本地核对冻结 diff、验收对应、基线红态、自建 5 个错误实现均被拒；主控运行其沙箱外脚本，四段检查 exit 0（真实 Electron/node-pty/worker 收件箱回归 14 项 PASS），脚本收尾行因变量名混入非 ASCII 字符报错（辅助脚本 P2，保留原样）。结论 PASS，仅绑定该冻结候选。审查认为 #299 的 I2 读法与用户原话一致，但属主控解释、非用户逐字批准的时点。审查报告与清理记录已提交，审查窗格回收，/tmp 输出删除。#303 派 worker 准备 A-14（protocol/预算不变，按新语义串阶段，预先核对 A-11～A-13 的已知问题）。
+
+## A-14 包审阅与排练要求 #304（2026-10-16 UTC）
+
+worker 交 A-14 待审包（PLAN、check-only 31 路径/25 条命令路径 PASS、commit-09b-a14.sh）：显式 phase_plan 夹具从真实 dispatch/turn_submitted/relay/inbox 记录绑定应答；每阶段同一 HTTP 调用在批准未到位时最多等 180 秒，超时整场停止不重试；Messages 按实际 POST 计数。主控认可方向，但因 A-11～A-13 均在"离线未跑真实时序"处失败，要求提交与启动前先做无模型排练：真实 daemon/relay/phase_plan 假 API，确定性 Claude 替身按已记录的真实请求形状与钩子行为，覆盖 I1→pending→executor 上线→delivered→I2→E1 权限屏与 180 秒批准门，含预算计数与进程/scratch 收尾。
