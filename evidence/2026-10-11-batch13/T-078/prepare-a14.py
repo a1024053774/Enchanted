@@ -59,7 +59,7 @@ def prepare_role(args):
         assert any(value.get('entry', {}).get('id') == pending['stop_entry']['id']
                    and value.get('delivery', {}).get('state') == 'pending' for value in actual)
     api = next(item for item in ready['api_processes'] if item['role'] == role)
-    assert api['ready']['fixture_profile'] == 'a14-approved-gate-history-v1'
+    assert api['ready']['fixture_profile'] == 'rev2-registered-raw-v1'
     assert not out.exists()
     for name in ['home', 'claude', 'tmp', 'shell', 'requests', 'hooks', 'user-data']:
         (role_root / name).mkdir(parents=True, exist_ok=True)

@@ -40,6 +40,9 @@ def phase_events(plan, inp, dispatch_id):
 
 def settle_stage(plan, inp, stage, output):
     """Read actual HTTP, Stop, relay, entry, delivery and target bytes; no sends."""
+    if plan.get('scene') == '09C':
+        from t078_09c_driver import settle_stage as settle_c
+        return settle_c(plan, inp, stage, output)
     deadline = time.monotonic() + 45
     expected = next(item for item in json.loads(Path(plan['protocol_source']).read_bytes())['phases'] if item['id'] == stage)
     while time.monotonic() < deadline:

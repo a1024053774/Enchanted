@@ -98,7 +98,10 @@ def tool_for(plan, stage):
 
 
 def validate_phase_approval(approval, plan, role, stage):
-    if role not in ORDER or stage not in ORDER[role]:
+    order = ORDER
+    if plan.get('scene') == '09C':
+        order = {'ideation': ['C-I1', 'C-I2', 'C-I3', 'C-I4'], 'executor': ['C-E1']}
+    if role not in order or stage not in order[role]:
         raise ProtocolRefusal('phase_role_mismatch')
     inp = plan['roles'][role]
     if (approval.get('approved_by') != 'executor' or not approval.get('approval_ref') or approval.get('stage') != stage
@@ -129,7 +132,10 @@ def resolve_request(request, registry, api_root, role):
                  and row['launch'] == inp['launch'] and json.loads(row['data']).get('dispatch') == dispatch['id']]
     if len(submitted) != 1:
         raise ProtocolRefusal('actual_submission_required')
-    stage = phase_for_dispatch(plan, role, dispatch)
+    phase_resolver, tool_resolver = phase_for_dispatch, tool_for
+    if plan.get('scene') == '09C':
+        from t078_09c_driver import phase_for_dispatch as phase_resolver, tool_for as tool_resolver
+    stage = phase_resolver(plan, role, dispatch)
     bound_file = Path(api_root) / ('bound-' + dispatch['id'] + '.json')
     if bound_file.exists():
         bound = json.loads(bound_file.read_bytes())
@@ -138,7 +144,7 @@ def resolve_request(request, registry, api_root, role):
     else:
         bound = {**dispatch, 'phase': stage, 'role': role, 'attempt': plan['target_binding']['attempt_id'],
                  'session': inp['session'], 'fence': plan['target_binding']['fence']}
-        tool = tool_for(plan, stage)
+        tool = tool_resolver(plan, stage)
         if tool:
             bound.update(tool_use=tool, tool_result={'request_root': str(Path(api_root) / 'requests')})
         with bound_file.open('x', encoding='utf-8') as stream:
@@ -149,9 +155,14 @@ def resolve_request(request, registry, api_root, role):
     waiting = Path(api_root) / 'waiting-phase.json'
     waiting.write_text(json.dumps({'stage': stage, 'dispatch': dispatch, 'approval_file': str(approval_file)}) + '\n', encoding='utf-8')
     deadline = time.monotonic() + 180
+    if plan.get('scene') == '09C' and stage != 'C-I1':
+        from t078_09c_driver import created_ms
+        remaining = (150000 - (time.time() * 1000 - created_ms(stop_entry(plan)['created_at']))) / 1000
+        deadline = min(deadline, time.monotonic() + remaining)
     while not approval_file.is_file():
         if time.monotonic() >= deadline:
             raise ProtocolRefusal('phase_approval_deadline')
         time.sleep(.05)
     validate_phase_approval(json.loads(approval_file.read_bytes()), plan, role, stage)
-    return {**registry, 'dispatches': {bound['id']: bound}, 'ack_text': stage + '_ACK'}, stage
+    return {**registry, 'dispatches': {bound['id']: bound}, 'ack_text': stage + '_ACK',
+            'message_budget': (7 if role == 'ideation' else 1) if plan.get('scene') == '09C' else registry.get('message_budget', 6 if role == 'ideation' else 11)}, stage

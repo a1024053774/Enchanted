@@ -164,7 +164,7 @@ def execute(materials, stage_a, approval, output, stage='I1', resume_queued=Fals
     normalized_prompt = canonical_prompt(prompt)
     api_root = root / 'roles' / role
     api_ready = json.loads((api_root / 'api-ready.json').read_bytes())
-    if api_ready.get('protocol') != 'a07-registered-anthropic-v1':
+    if api_ready.get('protocol') != 'rev2-raw-c-profile-v1':
         raise RuntimeError('protocol_api_revision_unbound')
     if resume_queued:
         status = gate(root, 'pane_status', '--thread', thread)

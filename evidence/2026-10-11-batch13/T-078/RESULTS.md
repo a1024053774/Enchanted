@@ -1340,3 +1340,22 @@ C-I3在阈值前尽早停在实际PermissionRequest、完整取屏并由执行�
 归档新契约先在daemon仍活着时捕获逐条原件/一致事件行快照，结构脱敏后外置tar，成员类型/目标/普通文件字节逐一读回，实际成功才产生archive.json清单；独立方从包重数，不以summary代替原件。再单签owner-bound正常daemon_stop/panes.shutdown、两原API各一次SIGTERM；停机后只验文件/归档，**不读SQLite/WAL**。关停出现新的POST/hook/finished或原件变化则阻止root删除，不能再漏尾部。旧A15 summary-only出口不可作为A16 fallback。
 
 按主控要求，**本轮没有生成依赖源码版本的冻结包**，没有sources.tar.gz/实际root/UUID/PID/签字/归档回执，不运行prepare、场景、测试、API、daemon、CLI、Electron或按键。新的raw保留/回收与C保持/条件Enter需按施工单在合并后实现、真实无模型排练，再纳入完整源码闭包；T090合入main、T078合并main并完整F4复验后才冻结/重新绑定两场。整票仍INCOMPLETE／NO_GO；旧独立终审原件保留，后续fresh审查按rev2范围及逐记录原件重新核对，不能由本轮计划替代。
+
+
+## 主控 #339：先实现 rev2 测试工具，实际场景仍待合并后绑定
+
+按主控新授权提前实现测试工具，替代#338施工单中“尚未实现”的当前状态；#338原记录、旧A15/F1缺口和终审结论不改。本轮未改 `workbench/src`、acceptance、冻结protocol或地图，没有启动原生Claude/Codex、Electron、daemon、真实目标或模型，也未生成任何版本依赖的launch冻结包。T090合入后再合并/重跑/冻结的顺序不变。
+
+[工具交接与确切命令](REV2-TOOLS-01.md)、[先列的失败方式](REV2-TOOLS-FAILURE-MODES.md) 对应两项实现：`t078_raw_retention.py`全量逐HTTP/hook原件、定点脱敏、一致停机前行导出、每文件archive指针/成员字节核对、独立读回前置、owner/九进程正常停止、停机后只验文件与尾部；`t078_09c_driver.py`真实阶段判定/登记、Bash.command、原生queued结算、单held SSE、系统时钟/单调时钟、完整原屏与逐字段模板、独占fsync单Enter意图、实际Stop/relay/无ack/单Esc/不回收目标的结算。窗口发送复用原Electron terminal-key permission路径，CR记control action；中间按键成功与最终业务结算分开，晚失败保留partial-result且顶层INCOMPLETE。
+
+同一个真实假API服务新增C profile并在校验前保存所有请求、逐块响应及method/path/status/时间/长度/complete元数据，认证头值不进入捕获接口。未来std prepare/runner/I1/角色生成器同步只认新marker `rev2-raw-c-profile-v1` / `rev2-registered-raw-v1`，不复用旧进程、不留旧marker兼容；只改生成器/测试工具，没有运行prepare。Python运行闭包补入raw与C两模块。B协议/预算维持原文；C预算I4根/7 POST、E1/1，模型0。
+
+[本地最终契约](rev2-tools-final-check-02/result.json) **PASS 42项**，含模板每个字段不符、单页/total变化/零进度/无EOF、可见命令不符、ack/要求撤销、时钟跳变/超时、未知写入不重按、归档字节变时零stop/零删除、原件新增在停机前阻断、关停尾部在删除前阻断、dry-run零副作用。三个去检查坏实现（字节验证、模板、时钟）均在新oracle处RED。工具新增前同入口contract-red为“未实现”红态，不当旧产品缺陷；首次green相对路径错误与handler-04离线API标签缺失均原样保留，修后新目录通过，不重写失败。
+
+[C真实Handler字节流排练](rev2-tools-local-01/C-handler-final-02/result.json) **PASS**：按既有Claude2.1.296脱敏结构走C-I1→held C-E1→C-I2→C-I3→C-I4，正例实际Handler调用7/1，正文/seq/真实launch身份/角色/预算五类反例409也全部保存。随后从tar直接重数为I11/E2（含五反例，不能混入正式场景预算）。先归档、逐字节读回，再用相同finish函数执行确定性normal_stop/API生命周期、SQLite已不可用时仅文件复核、删scratch。Bash.input变异为argv时，实际Handler的SSE在捕获Claude tools schema断言处RED；B既有core与九阶段矩阵PASS。详细原件将无损压缩保留，结果JSON不改。
+
+边界：上述时钟为明确标注的注入单测、HTTP为实际Handler字节流、窗口/库行/normal_stop为确定性夹具。**真实loopback及实际API SIGTERM尚INCOMPLETE**；已交`run-rev2-tools-outside.py`串行六段完整命令、路径/语法预检PASS，正式由主控沙箱外运行。它只起两只假API，不起真实角色CLI/模型/Electron，C real-clock阶段210秒硬超时、外层230秒。**原生C门禁/Electron全链、实际九PID owner、独立审查和整票验收仍INCOMPLETE／NO_GO**，不以此模拟排练替代。未启额外agent；后续由主控安排fresh独立审查、合并T090及两场实值绑定。
+
+提交前又取两条工具自身的局部红绿：HTTP meta 在truncate/write交错下暴露无效JSON，改临时文件原子replace后同探针PASS、旧writer变异RED；许可Enter回执窗口内若下一根gate反馈已到，旧adapter误把它计为CR新增intent（rev2-permission-feedback-red-01），现按同一真实request_id关联控制动作，增强后的42项PASS。晚业务结算失败保存partial原件且最终INCOMPLETE；C真实CLI参数入口以09B的E6冒充C的E1预算时，在任何动作前明确拒绝（rev2-C-budget-entry-01）。最新Handler重跑rev2-handler-post-atomic-01 PASS。全部仍是明确标注的工具/夹具证据；没有实际点击或业务Stop。
+
+系统时钟已在本会话单独执行：[rev2-real-clock-01](rev2-real-clock-01/result.json) **PASS**，系统time.time/monotonic实等120.109656/120.108549秒；同一conditional_enter在wall age120109.138ms、观察elapsed120107.939ms时只调用一次替身CR，145秒硬超时未触发。没有注入时钟、端口、GUI、角色CLI或模型。此证明限工具时钟/条件按键，实际09C角色/门禁仍INCOMPLETE，真实HTTP组合排练仍交主控。

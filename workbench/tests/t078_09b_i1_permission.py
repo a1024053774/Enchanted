@@ -6,6 +6,7 @@ path for one Enter, and then delegates final Messages/Stop/inbox readback to
 the shared protocol driver.  It is never run as part of material preparation.
 """
 import argparse
+from contextlib import closing
 import json
 import os
 import sqlite3
@@ -26,12 +27,12 @@ OUTPUT = None
 
 
 def rows(state, table):
-    with sqlite3.connect((state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True) as db:
+    with closing(sqlite3.connect((state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True)) as db:
         return [json.loads(row[0]) for row in db.execute(f'SELECT data FROM {table}')]
 
 
 def events(state, launch):
-    with sqlite3.connect((state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True) as db:
+    with closing(sqlite3.connect((state / 'state.sqlite3').as_uri() + '?mode=ro', uri=True)) as db:
         return [{'seq': row[0], 'type': row[1], 'launch': row[2], 'data': json.loads(row[3])}
                 for row in db.execute('SELECT seq,type,launch,data FROM orchestration_events WHERE launch=? ORDER BY seq', (launch,))]
 

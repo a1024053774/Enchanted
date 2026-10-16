@@ -43,7 +43,7 @@ def main():
     args.output.mkdir(parents=False, exist_ok=False)
     root = Path(tempfile.mkdtemp(prefix='t078-fake-api-stop-', dir='/private/tmp')).resolve()
     process = subprocess.Popen(
-        [sys.executable, '-B', str(FAKE_API), '--root', root, '--role', 'probe', '--port', '0'],
+        [sys.executable, '-B', str(FAKE_API), '--root', root, '--role', 'ideation', '--port', '0'],
         cwd=SOURCE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True,
     )
     record = {'status': 'INCOMPLETE', 'expect': args.expect, 'root': str(root), 'pid': process.pid,

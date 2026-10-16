@@ -30,7 +30,7 @@ def main():
         roles[role]={'input':data,'approval':str(approval.relative_to(BASE)),'root_budget':budget,'messages_budget':messages,'target_claim_status':'PENDING_RUNTIME_DISPATCH','launch_status':'NO_GO'}
     target={'task':task,'claim_status':'PENDING_RUNTIME_DISPATCH','attempt':None,'session':None,'fence':None,'thread':None,'workspace':str(root/'repo'),'oracle_paths':['oracle/contract-09b.json'],'candidate_submission':False,
             'binding_rule':'Populate only from actual card_save/dispatch/claim and live target process; no placeholders or operator writes'}
-    plan={'status':'PASS','launch_status':'NO_GO','revision':revision,'root':str(root),'task':task,'roles':roles,'target':target,'protocol':args.protocol,'protocol_tag':'a07-registered-anthropic-v1' if args.protocol else None,
+    plan={'status':'PASS','launch_status':'NO_GO','revision':revision,'root':str(root),'task':task,'roles':roles,'target':target,'protocol':args.protocol,'protocol_tag':'rev2-raw-c-profile-v1' if args.protocol else None,
           'budgets':{'ideation':{'roots':4,'messages':6},'executor':{'roots':6,'messages':11},'combined_messages':17,'tool_calls':7,'real_vendor_model_turns':0},
           'driver':'workbench/tests/t078_09b_driver.py','identity':'Actual registered dispatch text, stop/request/inbox IDs and global dispatch.seq; no fixed #1/#2'}
     (out/'plan.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -43,6 +43,7 @@ def main():
     # source freeze. A host checkout must not silently supply missing helpers.
     files += [SOURCE/'workbench/tests'/name for name in ['command_evidence.py', 'electron_client.py',
         'p1_endpoint.py', 'p1_processes.py', 'p1_reuse.py', 'p1_output.py',
+        't078_raw_retention.py', 't078_09c_driver.py',
         'p1_simulated_actions.py', 'p1_window_receipts.py']]
     # Include the complete product source closure, including T-082 contracts
     # and strict review protocol, without duplicate archive members.
@@ -51,6 +52,6 @@ def main():
         for f in files:arc.add(f,arcname=str(f.relative_to(SOURCE)))
     with tarfile.open(out/'sources.tar.gz') as arc:
         for f in files:assert arc.extractfile(str(f.relative_to(SOURCE))).read()==f.read_bytes()==subprocess.check_output(['git','show',revision+':'+str(f.relative_to(SOURCE))],cwd=SOURCE)
-    static={'status':'PASS','launch_status':'NO_GO','revision':revision,'root':str(root),'task':task,'roles':['ideation','executor'],'protocol':args.protocol,'protocol_tag':'a07-registered-anthropic-v1' if args.protocol else None,'source_files':len(files),'real_cli_starts':0,'api_starts':0,'target_starts':0,'real_vendor_model_turns':0,'approval_fields_empty':True}
+    static={'status':'PASS','launch_status':'NO_GO','revision':revision,'root':str(root),'task':task,'roles':['ideation','executor'],'protocol':args.protocol,'protocol_tag':'rev2-raw-c-profile-v1' if args.protocol else None,'source_files':len(files),'real_cli_starts':0,'api_starts':0,'target_starts':0,'real_vendor_model_turns':0,'approval_fields_empty':True}
     (out/'static-check.json').write_text(json.dumps(static,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');print(json.dumps(static,ensure_ascii=False))
 if __name__=='__main__':main()
