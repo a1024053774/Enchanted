@@ -1372,3 +1372,7 @@ C-I3在阈值前尽早停在实际PermissionRequest、完整取屏并由执行�
 A16/09C沿同一个标准prepare/StageA/API/角色工具；新增显式scene，A16预算I4/6、E6/11（17 POST七许可），C为I4/7、E1/1（八POST三许可），真实模型0。两场静态包绑定合并后的实际source提交，未签NO_GO；StageA建root/进程之前要求两份当前源码回归收据PASS，卡片仍先真实入口预检。StageA将保存原始五PID完整argv/lstart，后续owner从实际B1 manifests补四PID，不伪造attempt/null；C的role/phase/owner生成器已纳入闭包，未来只填实际数据，不在启动后再换API。所有本轮新增生成器/接口适配只做静态检查与文件生成，尚未运行合并后场景。
 
 详细阶段顺序、C真实时钟/完整原屏条件单Enter、原件先归档逐字读回再停机/停机后不读SQLite、-02重读、唯一slot、I2时点的归属说明和停止条件见[HANDOFF](merge-main-4/HANDOFF.md)。三窗格/真登录仍移T091/T092，系统IME未验证INCOMPLETE。当前未运行StageA、B1、按键、模型或回归；冻结文件PASS只指文件/版本/预算/闭包，不是业务验收。整体仍INCOMPLETE/NO_GO，等待主控复验和逐阶段签字。
+
+本轮文件冻结完成：source commit **1b86f2c91c781cd4867227230185fc2a2c145aeb**（含merge43d085c5d/main6d85482ff），A16 `09b-executable-materials-16` 与C `09c-executable-materials-01` 各312个源码/输入成员，均从该Git提交逐字节核对。两份SOURCE.json、StageA命令及空签字批准已生成；C预算原生turn_limit明确4/1，旧共享布局和旧marker不兼容。标准包含完整受控宿主ready_file、app/reader/API/owner/角色生成闭包。
+
+[final-static](merge-main-4/final-static.json) **PASS，仅静态**：10条命令/入口检查、实际输入存在或明确列为StageA/B1后生成、未签字段、两组预算、源码闭包核对及两个runner的check-only均通过。静态root在/private/tmp保留供主控StageA复制，不是已运行场景。没有执行StageA、原生CLI、fakeAPI、daemon、按键或回归；两份真实回归收据仍缺，StageA机械拒绝缺收据的启动。原主控工具实跑目录已无损打包为rev2-tools-outside-01.originals.tar.gz，逐字读回后保留原样JSON摘要与originals.archive.json，原失败/反例/HTTP均在包内，非改写旧结果。
