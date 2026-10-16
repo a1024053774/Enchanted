@@ -15,3 +15,8 @@ worker 交付图文档 findings/ticket-gates-graph-2026-10-16.zh-CN.md 与生成
 
 fresh 抽查者 s16-t087-rev 不读作者说明、直接对照源码：主串顺序正确、重生成一致；NO_GO——[P2-01] 红态/规则/质量证据核对的未知结果出口（verification_unknown、暂停、不计打回）缺失；[P2-02] 审查协议失败暂停路径（failReviewProtocol、invalid_review_result）缺失；[P3-01] 尾注 model 为 unknown 的例外漏写。报告提交 db71960b8，窗格回收。worker 修生成脚本与文档（221 条引用存在性 PASS，重生成一致），findings/README.md 索引行补注修订以消 stale，主控按启动记录写尾注提交 c69da1c81。
 #4：新开第二轮抽查者 s16-t087-rev2（wF:p4K），复核三项并自找至少两条未查过的恢复/暂停路径。
+
+## 抽查 02 NO_GO 与修订 #5/#6（2026-10-16 UTC）
+
+第二轮抽查者 s16-t087-rev2：第一轮三项已按来源补正；NO_GO——[P2-03] I10 把 R2 各分支统一写成"issue 有记录"，E60 完成条件未知与 E53 pending 集成意图引用不匹配两条无 issue（报告提交 3b0896deb，窗格回收）。worker 逐分支改写并自查同类统一断言（241 条引用存在性 PASS，重生成一致）；主控补 README 索引行、按启动记录写尾注提交 70875e71c。
+#6：第三轮抽查者 s16-t087-rev3（wF:p4M），重点核对所有持久化/记录/issue/上报断言逐分支有来源支持。
