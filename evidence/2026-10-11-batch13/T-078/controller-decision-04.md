@@ -684,3 +684,8 @@ fresh Codex reviewer s16-t078-rev 审 703984056：本地核对冻结 diff、验�
 ## A-14 包审阅与排练要求 #304（2026-10-16 UTC）
 
 worker 交 A-14 待审包（PLAN、check-only 31 路径/25 条命令路径 PASS、commit-09b-a14.sh）：显式 phase_plan 夹具从真实 dispatch/turn_submitted/relay/inbox 记录绑定应答；每阶段同一 HTTP 调用在批准未到位时最多等 180 秒，超时整场停止不重试；Messages 按实际 POST 计数。主控认可方向，但因 A-11～A-13 均在"离线未跑真实时序"处失败，要求提交与启动前先做无模型排练：真实 daemon/relay/phase_plan 假 API，确定性 Claude 替身按已记录的真实请求形状与钩子行为，覆盖 I1→pending→executor 上线→delivered→I2→E1 权限屏与 180 秒批准门，含预算计数与进程/scratch 收尾。
+
+## A-14：排练 PASS、阶段 A、ideation B1/onboarding、I1 PASS #305–#307（2026-10-16 UTC）
+
+无模型排练 09b-a14-rehearsal-01 PASS（flow：I1 pending/零反馈、I2 delivered/原 ID/恰一次、E1 到权限屏，POST ideation 3/executor 1；timeout：180.04 秒 409、无重试）。worker 用自身启动身份提交 15cd0cac1、d1ca48022。主控签阶段 A（#306）：READY，root /private/tmp/t078-2-09b-run-gbxz0tyb，API 48453/48454，daemon 48461，target 48560/48562。ideation B1：批准 screen plan 与 A-13 验证版一致、binding 与 readiness 一致，签字后 dry-run READY_FOR_ROLE、real PASS，bind-launch 绑定 09b-a14-b1-ideation-01。onboarding 逐屏代签完成（无需 -02 重读），0 Messages，readiness.json 确认。
+I1（#307）：dispatch READY_FOR_PERMISSION（1/1）；主控 pane_output 读屏与 permission-screen.bin 逐字节相同、命令为 I_SEND_STOP、refs 与 readiness 一致后签 permission-approval-01；一次 awaited Electron Enter：PASS，messages 2、responses 2，READY_FOR_EXECUTOR。relay_receipt ok:true，stop 条目 7d260ac3…（from ideation → executor），delivery pending/role_session_missing，feedback_count 0。首个按冻结 protocol 在真实 Claude 上通过的 I1。
