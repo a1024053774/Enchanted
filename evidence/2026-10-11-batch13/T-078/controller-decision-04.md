@@ -750,3 +750,8 @@ worker 修复（源码 c0c5caee3，材料 1f5b56c0b）后，主控沙箱外运�
 
 用户经构思主控抄录（answer 20261016T133142Z-ideation-answer-001，certainty relayed）选"关闭，写明边界 (Recommended)"。issue 只在 a2a-wt-t078 收件箱，主控在该收件箱代为登记 disposition 20261016T133204Z-user-disposition-001（from user、action close、原条目不删），已 ack answer（20261016T133204Z-executor-ack-001）。边界：关闭的只是"原参考截断、修复范围待裁定"；不对 A-15 或整票通过下结论；独立审查仍要做。
 I1 原屏判断（用户交主控判断）：I1 dispatch-01/permission-screen.bin 16,322 字节，没有直接记录 next_offset/total_bytes。一页上限 65,536 而只返回 16,322，按 pane_output 语义推断当时已读到末尾，但只是推断，该证据项仍记 INCOMPLETE，不改写旧结论。不影响 I1 结论：I1 的 PASS 由门禁事件 oracle 判定（stop pending、feedback 0、target 零字节），读屏只用于许可内容核对，而该原屏可见完整命令与 ❯ 1. Yes。交独立审查复核此判断。
+
+## #333 A-15 全场最终核对 PASS；A-15 回收 PASS（2026-10-16 UTC）
+
+worker 全场最终核对（e682a929c，09B-A15-FINAL-CHECK.md）：ideation 4 roots/6 POST、executor 6/11，合计 17 POST、7 次工具许可、模型 0、target 恰一个 Esc，逐阶段 seq 与 pending→delivered→I2 时点有来源。A-15 回收：dry-run PASS；脱敏归档 PASS（外置盘 09b-a15-redacted-01/scene.tar.gz 1766 字节，字节读回 PASS，凭据扫描 0）；主控签 09b-a15-cleanup-approval.json 后正式回收 PASS（两只 API 各一次 SIGTERM，九进程全退，root 已删）。
+T-078 整票仍 INCOMPLETE：RESULTS 对照 ticket 列出未满足项——同任务三窗格 Electron 截图/录屏、09C 两分钟无 ack 只中断的真实时钟证据、系统 IME。派 worker 写这三项的最小计划（只写不跑），并更新独立审查冻结候选。
