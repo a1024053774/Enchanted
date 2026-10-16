@@ -1148,3 +1148,9 @@ executor onboarding 每个键后增加只读 gate inbox_list 刷新＋pane statu
 本次 ideation launch=`298e0f0e-3f2c-4a76-89b5-4cd5a12053a0`、session=`be13441f-b3da-48aa-8ed4-d7f70dc3d04a`；B1 binding 与 A-15 readiness 原 attempt 对象一致，P1 input.api_url 保留动态模板，复用保存的 ideation API 59387/64830。`stage-b-approval.json` 签字字段仍空。屏幕计划与 runner 的 security-notice/screen_text 逐项一致，实际 s7 按键为 onboarding-notice；dry-run、real 的完整命令在 P1 的 B1-COMMANDS.txt。
 
 `09b-a15-b1-preparation-01/static-check.json` **PASS**：58 个 source 文件及 root/P1 输入逐字节相同，角色独立目录和 hooks 绑定一致，批准所需字段、真实 attempt、协议预算与两条 B1 命令路径均通过；新输出目录均不存在。该检查只读文件/Git，不访问 API 或 gate、不做 ps 身份检查，也没有执行 B1 dry-run。B1 运行状态仍 **INCOMPLETE／未运行**；待主控签字后先 dry-run 读回再决定 real。实际 preflight 输出、生成 stdout/stderr 和复验脚本一并保存。
+
+## 主控 #325：A-15 ideation B1 已启动，首屏与首键材料待执行
+
+主控签 B1 后，dry-run 为 READY_FOR_ROLE、spawned=false；real 外层 **PASS**、cli_spawned=true、p1_exit_code=0。内层 P1 原件仍为 **INCOMPLETE**，scope 为 Process startup only，next 明确 No input has been sent；这表示只完成启动，尚无首屏或 readiness 结论。实际 manifest 保存 shell/CLI=65816/65817，launch/session 与本次 ideation input 相同。原签字件、内外层输出与 dry-run 一并以 `02afa5df7455d3afe69f66185991221dc5805e3e` 提交，九项尾注齐、当时工作树干净。
+
+后续只运行已有 bind-launch 文件步骤，将实际成功 label `09b-a15-b1-ideation-01` 写入材料。首屏只读命令输出使用 `a15-ideation-s1-screen-01`；读回不符时只用新 -02 重读，不发键。第一键 ArrowUp 的两份可选草稿分别引用 -01/-02 原屏，签字字段均空；主控核对后只能选一份签字和执行，按键后保存 s2 快照即停。命令在 FIRST-SCREEN-COMMANDS.txt，完整说明与静态检查在 `09b-a15-first-screen-preparation-01/`。本轮未读屏、未发键、未调用 gate、未进行新的进程存活探测，未启动其他角色；首屏及首键状态仍 **INCOMPLETE／未运行**。
