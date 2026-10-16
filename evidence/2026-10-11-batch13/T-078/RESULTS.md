@@ -1430,3 +1430,15 @@ s11 Enter的 [原result](09b-a16-b1-ideation-p1-01/a16-ideation-s11-Enter/result
 判断：本次是启动界面继续输出期间的预期采集拒绝，没有按键错误证据。本场保持冻结工具不变，不自动重读/重按或吞掉错误；以后如需改善此类工具体验，可在发键回执已保存后以有界等待再独立取稳定只读快照，仍须严格total/EOF且超时保留INCOMPLETE。这个建议未实施，不作为本场通过条件的变更。
 
 已准备 [readiness确认命令](09b-a16-b1-ideation-p1-01/READINESS-CONFIRM-COMMAND.txt) 和 [I1第一步](09b-a16-b1-ideation-p1-01/phases/I1/STEP1-HANDOFF.md)：确认命令实际运行时才查0 POST/0提交并排他写readiness；I1批准仍空，真实pane_dispatch/release后到许可屏停止，预计1根/1POST，完整I1仍2POST、一次工具许可另批。逐POST/hook原件按rev2即刻留存，回收前额外归档读回/独立重数，不以汇总代替、不停机后读SQLite。本轮未执行确认命令、I1、发键/Enter、任何服务/角色启动或清理；A16后续与09C、整票仍 **INCOMPLETE／NO_GO**。
+
+## 主控 #347：A16 I1 pending 通过，executor B1/首启材料就绪
+
+主控执行 [ideation readiness](09b-a16-b1-ideation-p1-01/readiness.json)，0 Messages；签I1后派发 `f2b2cd4d-a2c3-4ed9-bbbd-e1b30c700693`、全局seq2，原 [dispatch-01](09b-a16-b1-ideation-p1-01/phases/I1/dispatch-01/result.json) **READY_FOR_PERMISSION**。许可原屏完整15877字节，命令/本次thread/attempt一致；主控签 [permission批准](09b-a16-b1-ideation-p1-01/phases/I1/permission-approval-01.json) 后Electron一次Enter。原 [execute-02](09b-a16-b1-ideation-p1-01/phases/I1/execute-02/result.json) **READY_FOR_EXECUTOR**：两POST，stop `d48f9f7c-187e-4fcd-b125-58ec345710b6` 为ideation→executor、pending/role_session_missing、relay ok、feedback0、target0。业务stop没有因参数里的伪造from变成executor。
+
+[本轮只读核对](09b-a16-b1-ideation-p1-01/phases/I1/readback-01/result.json) **PASS**：实际0001/0002 HTTP meta均200/complete，request/response文件存在、大小与meta/wire一致；请求日志顺序tool_use→tool_result且无error，UPS/PermissionRequest/Stop原件均有finished、exit0。这里没有执行HTTP请求/钩子或按键。主控关于request正文中authorization只出现在系统提示语境的扫描作为其观察保留，不要求正文清掉正常单词；rev2捕获接口不接收认证头值。本轮未采集认证信息。
+
+原逐POST/hook文件仍在**活root**，此时尚未外置归档。已提交本轮readiness、dispatch/许可/Enter/Electron输出及签字件；上述summary不替代原件。后续收尾必须按rev2先保存脱敏逐条原件、逐成员读回并独立重数/留archive指针，全部通过才停机，不能重复A15只留汇总的问题。
+
+按主包第二条ROLE命令，worker仅运行已冻结生成器写 [executor P1](09b-a16-b1-executor-p1-01/generation.json)，并只读核对真实pending relay。复用本次Stage A attempt/root与executor API34331/64319，不起第二只API，不重发stop，不改 `created_at=2026-10-16T21:06:39.345Z`。[静态核对](09b-a16-b1-executor-p1-01/preparation-static.json) **PASS，仅材料**：312源码成员不变，B1与六键均空签字，29条命令入口/现有输入或明确后续产物检查通过；六次observe按expected-keys1～6绑定原I1结果与条目。
+
+[executor交接](09b-a16-b1-executor-p1-01/B1-HANDOFF.md)：B1 dry-run与real分别执行，成功后BIND-LAUNCH取实际manifest；逐屏六键每键后刷新原收据，必须仍queued、无delivered历史、无I2、unknown/active null/业务输入0，然后才能下一键。读屏沿完整分页/EOF检查，初读不符用-02新label，不自动重按。s13之后不initial release，I2 arm/E1另批。本轮没有执行executor B1 dry-run、角色启动、读屏、发键、observe、release或归档/清理；ideation当前已用1根/2POST，executor首启预期0根/0POST，预算仍4/6与6/11，模型0。A16后续、09C和整票仍 **INCOMPLETE／NO_GO**。
