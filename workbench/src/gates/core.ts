@@ -37,7 +37,7 @@ import { execFile as execProcessFile, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, pathIntersection, projectRules, type ProjectQuality, type TaskCard } from "./taskCards.ts";
 import { Schema } from "effect";
-import { executorScore, reviewVerdict, QualityProtocolError } from "./qualityProtocol.ts";
+import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
 import {
   ensureRolePermissionTables,
@@ -2233,8 +2233,8 @@ export class A2AGates {
         review_requirements: {
           completion_conditions_sufficiency: true,
           mutation_checks: { min: 2, max: 5, workspace: candidateWorkspace, report_section: "完成条件与变异检查" },
-        } };
-      const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。以下身份字段不可改；verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。\n${JSON.stringify(shape, null, 2)}`;
+        }, report: { "完成条件与变异检查": "填写完成条件审查及各变异的改动、命令和结果" } };
+      const prompt = `审查这一次交付。审查目录和候选 Git worktree 只读；门禁为你准备的一次性候选副本是唯一可写工作目录：${candidateWorkspace}。不要实现或提交代码，不要调用 worker 的 submit、不能集成、不能写请求文件。独立判断候选是否满足任务卡；不要把机械通过当作审查结论。\n\n必查完成条件：判断完成条件（含验收文件 oracle_paths）是否足以拒绝明显错误的实现；不足时结论写“需修复”并列出缺失。\n必做变异检查：针对候选关键逻辑在一次性候选副本中构造 2～5 个少量错误实现，分别运行完成条件或候选新增测试，确认每个会失败；副本改动不提交、不进入集成。报告必须单列“完成条件与变异检查”，逐项写改了什么、运行的命令、结果。\n\n任务卡：\n${JSON.stringify(this.boundCard(attempt), null, 2)}\n候选改动：\n${diff}\n机械验收：\n${JSON.stringify(v, null, 2)}\n上一轮问题清单：\n${JSON.stringify(previous)}\n最终消息必须是一个完整 JSON 对象，不能加 Markdown 或说明文字。明确发起 review_submit，Stop hook 才会转交；结束回合本身不算交付。保留模板的全部顶层字段，不添加其他字段。身份字段和 review_requirements 原样返回。report 必须是 JSON 对象，在其中填写审查报告，并单列“完成条件与变异检查”；不要把 report 写成字符串。verdict 只选“可合并”或“需修复”。可合并时 findings 为空；需修复时每项为 {"location":{"path":"仓库相对路径","line":1},"failure_scenario":"具体失败场景","suggestion":"修复建议"}，至少一项。\n${JSON.stringify(shape, null, 2)}`;
       await this.runtime.createReview(task, review, prompt);
       const live = await this.runtime.readThread(review.thread_id);
       review.runtime_identity = { ...live.runtime_identity };
@@ -3445,8 +3445,9 @@ export class A2AGates {
           .get(review.launch_id!, live.runtime_identity.native_session);
         requireGate(!reused, "review_native_session_reused");
         const verdict = reviewVerdict(args.verdict, args.findings);
+        const evidence = reviewEvidence(args.review_requirements, args.report);
         review.runtime_identity = bound.runtime_identity;
-        review.result = { ...verdict, turn_id: caller.turn, received_at: new Date(this.now()).toISOString() };
+        review.result = { ...verdict, ...evidence, turn_id: caller.turn, received_at: new Date(this.now()).toISOString() };
         review.state = verdict.verdict === "可合并" ? "passed" : "needs_fix";
         task.state = review.state === "passed" ? "verified" : "submitted";
         this.save(task, "review_result", { task, review });

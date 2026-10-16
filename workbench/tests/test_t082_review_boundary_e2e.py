@@ -88,8 +88,37 @@ class ReviewBoundary(Tracer):
                    'outside review-worktree change invalidates the result and preserves the disposable copy for diagnosis',
                    {'task': task, 'events': events})
 
+    def real_payload_report_roundtrip(self):
+        _, candidate = self.good_submission()
+        review, record = self.start_review(candidate)
+        captured = Path(__file__).resolve().parents[2] / 'evidence/2026-10-15-batch15/T-082/protocol-red-green-01/real-review-submit.json'
+        actual = json.loads(captured.read_text(encoding='utf-8'))
+        packet = self.review_packet(review, candidate)
+        packet['report'] = actual['report']
+        dispatch = next(json.loads(row['data'])['text'] for row in self.rows('dispatch_records')
+                        if row['launch'] == record['launch'])
+        template_start = dispatch.rfind('\n{\n  "schema":')
+        if template_start < 0:
+            raise HarnessFailure('No final response template in the product review request')
+        template = json.loads(dispatch[template_start:])
+        self.check('T082-TEMPLATE-FIELDS', set(template) == set(actual),
+                   'product response template declares every field returned by the real reviewer', list(template))
+        self.check('T082-TEMPLATE-REPORT', isinstance(template['report'], dict),
+                   'response template explicitly requires an object report', template['report'])
+        current = self.send_review(review, record, packet)
+        self.wait_review_reclaimed(review)
+        current = self.cli('status')['task']
+        result = current['review'].get('result', {})
+        self.check('T082-REPORT-PERSISTED', current['state'] == 'verified'
+                   and result.get('report') == actual['report']
+                   and result.get('review_requirements') == packet['review_requirements'],
+                   'Stop/strict parser/relay/gate persist the complete report without changing the verdict binding', current)
+        self.check('T082-REPORT-COPY-REMOVED', not Path(review['candidate_workspace']).exists(),
+                   'report submission completes the gate-owned copy lifecycle', review['candidate_workspace'])
 
-CASES = ['tracer_review_copy', 'launch_boundary_refused', 'external_review_boundary_invalidated']
+
+CASES = ['tracer_review_copy', 'launch_boundary_refused', 'external_review_boundary_invalidated',
+         'real_payload_report_roundtrip']
 
 
 def main():

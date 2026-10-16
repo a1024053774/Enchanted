@@ -69,7 +69,11 @@ class Tracer(QualityCase):
         return {'schema': 1, 'request_id': 'review-' + review['review_id'], 'command': 'review_submit',
                 'task': self.task, 'attempt': self.a['attempt_id'], 'session': review['session_id'],
                 'fence': self.a['fence'], 'spec_rev': self.a['spec_rev'], 'review_id': review['review_id'],
-                'candidate_commit': c, 'verdict': verdict, 'findings': [] if findings is None else findings}
+                'candidate_commit': c, 'verdict': verdict, 'findings': [] if findings is None else findings,
+                'review_requirements': {'completion_conditions_sufficiency': True,
+                    'mutation_checks': {'min': 2, 'max': 5, 'workspace': review['candidate_workspace'],
+                                        'report_section': '完成条件与变异检查'}},
+                'report': {'完成条件与变异检查': '受控 reviewer 报告输入；不声称模型判断已验证'}}
 
     def send_review(self, review, record, packet=None, raw=None):
         text = json.dumps(packet, ensure_ascii=False) if raw is None else raw

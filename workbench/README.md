@@ -121,6 +121,9 @@ worker/reviewer的argv显式传`-c service_tier="default"`，派发事件与启�
 记录仅表示请求设置，不代表供应商实际执行tier；其他沙箱、hook及身份检查不变。
 
 reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选模板由门禁派发。
+模板中的 `review_requirements` 原样返回；`report` 是非空 JSON 对象，须含“完成条件与变异检查”键，用于保存完成条件审查、
+变异命令与结果。解析器严格核对顶层字段，relay 和门禁结果保留完整报告。
+门禁只核对报告容器、必需节键与请求格式，不判断报告结论或变异结果是否正确。
 匹配 Stop 的后台 hook 处理器把显式 JSON 落入该 launch 专用请求文件，再经原 B relay
 转交。程序不剥 Markdown fence、不抽取一段 JSON、不从自然语言猜结论。
 非法结论保存原文、上报并暂停；有效结论只接受“可合并”加空清单，或“需修复”加位置、

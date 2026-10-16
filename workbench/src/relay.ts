@@ -71,7 +71,7 @@ export class RequestRelay {
       if (binding.role !== "worker" && binding.role !== "reviewer") throw new Refusal("relay_role_required");
       const base = ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev"];
       const allowed: Record<string, string[]> = binding.role === "reviewer"
-        ? { review_submit: ["review_id", "candidate_commit", "verdict", "findings"] }
+        ? { review_submit: ["review_id", "candidate_commit", "verdict", "findings", "review_requirements", "report"] }
         : { submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"] };
       const extra = allowed[input.command];
       if (input.schema !== 1 || !requestId || !extra || base.some((field) => !Object.hasOwn(input, field)) ||

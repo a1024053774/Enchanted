@@ -73,6 +73,8 @@ export const A2AGateRequest = Schema.Struct({
   candidate_commit: Schema.optional(Schema.String),
   verdict: Schema.optional(Schema.String),
   findings: Schema.optional(Schema.Unknown),
+  review_requirements: Schema.optional(Schema.Unknown),
+  report: Schema.optional(Schema.Unknown),
   score_file: Schema.optional(Schema.String),
   wait_seconds: Schema.optional(Schema.Number),
   runtimeMode: Schema.optional(Schema.Literals(["approval-required", "full-access", "workspace-write"])),
@@ -178,7 +180,8 @@ export interface A2AReview {
   launch_id: string | null;
   runtime_identity: A2ARuntimeIdentity | null;
   state: "requested" | "running" | "passed" | "needs_fix" | "unknown" | "cancelled";
-  result?: { verdict: "可合并" | "需修复"; findings: A2AReviewFinding[]; turn_id: string; received_at: string };
+  result?: { verdict: "可合并" | "需修复"; findings: A2AReviewFinding[];
+    review_requirements: Record<string, unknown>; report: Record<string, unknown>; turn_id: string; received_at: string };
 }
 
 export interface A2AReviewFinding {
