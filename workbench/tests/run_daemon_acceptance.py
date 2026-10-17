@@ -64,7 +64,7 @@ def preflight(out):
     try:
         scope = audit(ROOT)
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
-        scope = {'error': str(error)}; problems.append('断言变更超出批准hunk：' + str(error))
+        scope = {'error': str(error)}; problems.append('断言与任务卡冻结基线不一致：' + str(error))
     if not problems:
         observations.append(observe(["node", "--input-type=module", "-e",
             "import { spawnHelper } from './workbench/src/panes.ts'; console.log(spawnHelper());"]))

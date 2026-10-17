@@ -142,3 +142,55 @@ python3 -B workbench/tests/test_t091_cleanup_verdict.py evidence/2026-10-16-batc
 ```
 
 该检查三项 **PASS**；它是纯逻辑故障注入，不是实际 macOS 删除／退出证据。`cleanup-verdict-red-01.json` 保留产品判定缺陷；`cleanup-verdict-green-01.json` 保留一次检查夹具错误：给定 call 未接收实际入口的位置参数，修正检查边界的签名后 green-02 通过，不改生产业务预期。最终脚本尚无新的独立通过结论，仍待主控实跑和最终只读审查。
+
+## green-01、回归 -01 及用户裁定 A
+
+本节来源：执行主控 #15／#18 的实跑反馈，worker 随后只读核对外置原件。候选为 `5d096caa2d690fe172ba8487226e8b16cf95950a`。旧 run.json／archive.json 不改写，顶层结果均保持 **INCOMPLETE**。
+
+green-01／rc 1 在 `run_three_panes.py:310` 探测 `/Users/luckye/.local/share/claude/versions/2.1.296 --version` 时真实报 `FileNotFoundError: [Errno 2] No such file or directory`，尚未调用产品 controller_start 或创建窗口。Electron 0、主控 CLI 0、受控 receiver 3 串行、峰值 1、假 POST 0、模型回合 0；cleanup_complete=true、archive_complete=true、cleanup_errors=[]。停止后副本 87 文件／456,333 字节，comparison=true，原件保留。它证明锁定路径已缺失的环境红态，不补称产品版本检查已通过。外置根为 `.../T-091/green-01/`，仓库保留对应原始摘要与清单。
+
+五类回归原件根为 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/<case>-regression-01/`。按层核对如下；不能把顶层包装器失败误记为所有原业务断言均未执行，也不能把局部 PASS 上调为整场 PASS。
+
+| 场景 | 原测试实际结果 | 顶层失败与归类 | 本次修正 |
+| --- | --- | --- | --- |
+| core | coop 启动前退出 2；0 个业务方法执行 | preflight-error：旧 T-076 审计查找 `test_baseline_change_after_verification_rejects_integration`，当前已接受的源码方法为 `...revalidates_and_integrates`；包装器过时 | 以任务卡起点 44bbb7828 为独立冻结来源，逐字节比较三份 acceptance 源码及 task-cards 测试；不屏蔽方法或改断言 |
+| window | 构建、快照、未知 launch 三项 PASS；真实窗口项超时 | 驱动 inspect 选择窗格时将整页 text 覆盖为单格 text，导致原任务标题检查看不到页面标题；驱动缺陷 | 保留返回的整页 text；单格 text 仍在 panes 内；原窗口断言不变 |
+| runtime | 12 项全部 PASS，原测试 rc 0，cleanup_complete=true | 包装器在停止后的 WAL 库执行 SELECT 时报 `OperationalError: unable to open database file`；采集缺陷 | 读取原测试在库仍存活时保存的 readback-orchestration_events，不再重开已停止的库 |
+| input-failures | 11 项全部 PASS，原测试 rc 0，cleanup_complete=true | 同上；并非产品行为断言失败 | 同上，收集两代 daemon 及其他登记 writer |
+| worker-inbox | 14 项全部 PASS，原测试 rc 0，cleanup_complete=true | 同上；并非 worker 收件箱业务断言失败 | 同上 |
+
+只读复核普通 `mode=ro` 的 SELECT 仍重现报错；同一已停库以 immutable 读回能取得 115 条事件，不能据此断言具体文件系统原因。最终包装器没有增加 immutable/fallback 分支，而是统一使用原测试已有的停机前读回文件；window 测试只增存一份同源事件读回，不改其任何业务预期。`collection-readback-replay-02.json` 仅重放了三个 -01 原件的 PID 采集，分别取得 4／5／4 个登记 writer，未运行 ps、停机或归档，也不把旧场景补判 PASS。主控报告无残留 Electron／daemon；worker 没有另查实时进程。
+
+用户裁定 A 的原文（收件箱 `20261017T133907Z-ideation-answer-001`，执行主控 #18 转达）：
+
+> 主控 CLI 版本不再写死路径，从配置值读取；启动时实际跑一次 --version 核对，不符就报错；配置值先设 2.1.302；T-078 的证据仍绑定 2.1.296，在 T-091 Resolution 里写明。不动用户全局设置、不关自动更新。这是产品行为改动，须有红态（锁定版本缺失时起不来）、绿态与反例（版本不符被拒），不得补称为 PASS；自动更新以后再删版本时应是清楚的报错而非静默起不来。
+
+**REALITY GATE: PASS（仅实施方向）**。目标是配置版本、实际启动检查及五类包装器修正；非目标为更改业务断言、真登录、修改全局配置或管理自动更新。observed：green-01 实际缺失路径、产品原先固定 2.1.296、上述 -01 原始结果与四份已恢复的 core 原件。measured：本轮纯逻辑／静态检查与停机前事件采集重放。unknown：新版本 CLI 实际启动、实际拒绝与完整三格／回归仍未验证。probe：由主控在新候选上运行 green-02 和五类 -02；缺版本、版本不符、身份或收尾未知均停报 INCOMPLETE，不换版本或重试。已将版本差异写入 T-091 Resolution，但 ticket 保持 open，验收框未勾。
+
+### 当前实现与本地证据
+
+`claudeLaunch` 仍只构造配置，从现有 manifest 的 executable／version 得到明确路径与预期版本；实际 --version 探测放在拥有进程的 Panes.startController，使用对应角色的隔离环境，10 秒期限／64 KiB 输出上限。成功才登记并创建 PTY，保存实际版本与探测 argv／stdout／stderr。不存在、探测失败、输出不符分别返回 `controller_executable_missing`、`controller_version_probe_failed`、`controller_version_mismatch`；不扫描或自动选择其他版本，也不关闭自动更新。等待探测后再做一次同步的 preset 所有权核对，两个并发启动只能一个注册成功；daemon 直接调用方等待结果。
+
+历史纯配置夹具只补显式 version=2.1.296，不改其断言。配置构造仍无 CLI 副作用；旧 T-078 实跑证据保持其 2.1.296 和代码版本，不替新 2.1.302 候选背书。
+
+| 本地证据 | 结果与范围 |
+| --- | --- |
+| claude-version-red-01 | 新配置在旧硬编码产品上被拒，预期红态；不是真实 CLI 启动 |
+| claude-version-green-04 | 8 项 PASS：配置路径、恰一次探测、实际输出保存、缺失／失败错误码、版本不符、配置变化、未关闭更新、并发 preset 唯一；实际 builder／启动方法，IO 边界由测试给定 |
+| 删除版本比较条件的变异 | 被独立的版本不符断言拒绝；不是以导入或环境错误冒充反例 |
+| driver-page-text-red-01／green-01 | 原驱动实际选择逻辑覆盖整页文本被拒；当前 6 项 PASS，给定 DOM 观察值，未启动 GUI |
+| core-audit-red-01／regression-collection-green-01 | 原审计实际失败；当前冻结源码逐字节相符，改动断言字节被拒；5 个独立 writer 哨兵完整，删掉 daemon 收集的变异被拒，缺读回文件拒绝 |
+| profile-config-02／auth／budget／isolation／role-boundary／port-guard | 原有配置与隔离检查 PASS；不启动 CLI、PTY、daemon，port-guard 使用真实隔离 SQLite，证明端口 0 仍在探测／注册前同步拒绝 |
+| cleanup-verdict-version-01 | 原收尾故障的 3 项检查仍 PASS |
+
+中间检查异常均保留：claude-version-green-01 实际已拒绝比较变异，但检查对 Node AssertionError 文本用了错误前缀；改为识别完整断言消息后 green-02 PASS。把探测移回实际托管启动边界后，green-03 的给定对象漏了 this.root，补齐边界后 green-04 PASS。两者不是产品通过或真实绿态。
+
+复现命令均需换新输出名：
+
+```sh
+node --experimental-vm-modules workbench/tests/test_t091_claude_version.mjs evidence/2026-10-16-batch16/T-091/claude-version-green-04.json
+node workbench/tests/test_t091_driver_selection.mjs evidence/2026-10-16-batch16/T-091/driver-page-text-green-01.json
+python3 -B workbench/tests/test_t091_regression_collection.py evidence/2026-10-16-batch16/T-091/regression-collection-green-01.json
+```
+
+green-02 包含脚本开始时一次真实版本探测、两个真实主控启动各自的产品探测，以及缺路径／错误版本的真实拒绝；完整计数与原始输出保存。五类 -02 继续原断言，并确认登记 writer 退出后归档。worker 未执行任何原生 CLI、Electron、daemon、PTY、ps 或截图；实跑命令见 THREE-PANES-RUN，当前整票仍 **INCOMPLETE**。

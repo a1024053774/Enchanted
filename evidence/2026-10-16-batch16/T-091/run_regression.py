@@ -43,13 +43,33 @@ import json
 import os
 from pathlib import Path
 import shlex
-import sqlite3
 import sys
 import tempfile
 import time
 import traceback
 
 from run_red import VOLUME, archive_fixture, write_json
+
+
+def recorded_writers(child, fixture):
+    """Use original live readbacks; never reopen a stopped WAL database."""
+    pids = []
+    for logfile in child.glob('*-driver.jsonl'):
+        for line in logfile.read_text(encoding='utf-8').splitlines():
+            row = json.loads(line)
+            if row.get('pid'):
+                pids.append(row['pid'])
+    for started in fixture.rglob('receiver-started.json'):
+        pids.append(json.loads(started.read_text(encoding='utf-8'))['pid'])
+    events = json.loads((child / 'readback-orchestration_events.json').read_text(encoding='utf-8'))
+    for row in events:
+        kind = row['type']
+        if kind in ['daemon_started', 'pane_started']:
+            value = json.loads(row['data'])
+            pids.append(value['pid'] if kind == 'daemon_started' else value['shell_pid'])
+    if not pids:
+        raise RuntimeError('recorded_processes_unavailable')
+    return sorted(set(pids))
 
 
 def main():
@@ -180,20 +200,9 @@ def main():
             if args.case != 'window':
                 check('original_cleanup', record['cleanup_complete'] is True)
             fixture = Path(record['fixture'])
-            # Read only the now-stopped fixture and test-owned logs; do not search
-            # user process trees or discover replacement processes by name.
-            pids = []
-            for logfile in child.glob('*-driver.jsonl'):
-                for line in logfile.read_text(encoding='utf-8').splitlines():
-                    row = json.loads(line)
-                    if row.get('pid'):
-                        pids.append(row['pid'])
-            for started in fixture.rglob('receiver-started.json'):
-                pids.append(json.loads(started.read_text(encoding='utf-8'))['pid'])
-            database = fixture / 'state/state.sqlite3'
-            with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
-                for kind, data in db.execute("SELECT type,data FROM orchestration_events WHERE type IN ('daemon_started','pane_started')"):
-                    value = json.loads(data); pids.append(value['pid'] if kind == 'daemon_started' else value['shell_pid'])
+            # Original tests save these records while the database is live.
+            # Only recorded IDs are checked; no process discovery or DB writes.
+            pids = recorded_writers(child, fixture)
             check('recorded_processes_available', bool(pids))
             archive_stopped(fixture, args.case, pids)
         archive_stopped(isolation, 'environment', [])

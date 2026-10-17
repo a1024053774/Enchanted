@@ -35,7 +35,7 @@ def exercise(source):
                 if fail_unlink:
                     raise PermissionError('fixture credential deletion refused')
 
-        result = {'green_observed': True, 'negatives_passed': True, 'cleanup_complete': False,
+        result = {'green_observed': True, 'negatives_passed': True, 'version_refusals_passed': True, 'cleanup_complete': False,
                   'archive_complete': True, 'fake_posts': 0, 'screen_read_count': 1,
                   'capture_count': 3, 'electron_windows_created': 1}
         errors = []

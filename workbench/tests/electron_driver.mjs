@@ -142,7 +142,7 @@ async function main() {
         : selection.launch ? observed.panes.filter(pane => pane.launch === selection.launch) : observed.panes;
       if (!selected.length && !selection.pane_key && !selection.launch) return { ...observed, offset: 0 };
       if (selected.length !== 1) throw new Error('Select exactly one pane key or launch');
-      return { ...observed, ...selected[0] };
+      return { ...observed, ...selected[0], text: observed.text };
     };
     const inPane = async (selection, expression) => {
       const view = await inspect(selection);

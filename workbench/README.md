@@ -344,8 +344,15 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 此命令只构造 argv 和追加启动记录：包含 `--session-id`、`--model`、`--effort`、
 `--settings` 及角色卡正文，attempt 为 null，execution_state 为 prepared。
 它不创建进程、不读取 CLI 版本、不签发会话凭据；CLI 版本记 unknown，生命周期为
-“未启动”，明确标记“待真实 Claude 复核”。静态构造／存储红绿已通过，真实 CLI
-和主控多窗格继续等待用户的认证与额度决定。
+“未启动”，明确标记“待真实 Claude 复核”。静态构造／存储的通过不替代真实启动验证。
+
+受控假 API 主控的实际入口为 `controller_start --task ID --manifest /绝对路径/manifest.json`。
+现有 manifest 的 `executable` 为明确的 CLI 绝对路径，`version` 为预期版本（例如 `2.1.302`）。
+后台在该角色的隔离环境中执行一次 `--version`，要求完整输出为 `<version> (Claude Code)`，
+通过后才登记启动记录并启动 PTY。记录保留实际版本和探测的 argv／stdout／stderr。
+路径不存在返回 `controller_executable_missing`，探测失败返回 `controller_version_probe_failed`，
+版本不符返回 `controller_version_mismatch`；不自动查找或改用其他版本，不修改全局设置，
+不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的新版本实跑与反例尚待主控验证。
 
 ## Electron 窗口
 

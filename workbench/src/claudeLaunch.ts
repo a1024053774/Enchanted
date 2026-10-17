@@ -6,7 +6,7 @@ import { Refusal } from "./gates/core.ts";
 
 export interface ClaudeLaunchInput {
   schema: 1; root: string; state: string; task: string; preset: "ideation" | "executor";
-  launch: string; session: string; thread: string; executable: string;
+  launch: string; session: string; thread: string; executable: string; version: string;
   role_file: string; code_revision: string; source_snapshot: string; api_url: string;
   turn_limit?: number;
 }
@@ -32,7 +32,8 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
     realpathSync(rolePaths.tmp) === rolePaths.tmp && realpathSync(rolePaths.shell) === rolePaths.shell &&
     realpathSync(rolePaths.requests) === rolePaths.requests && realpathSync(rolePaths.hooks) === rolePaths.hooks &&
     realpathSync(rolePaths.userData) === rolePaths.userData, "isolated_controller_role_root_required");
-  requireValue(input.executable === "/Users/luckye/.local/share/claude/versions/2.1.296" && isAbsolute(input.role_file) &&
+  requireValue(typeof input.executable === "string" && isAbsolute(input.executable) &&
+    typeof input.version === "string" && /^\d+\.\d+\.\d+$/.test(input.version) && isAbsolute(input.role_file) &&
     realpathSync(input.role_file) === join(roleRoot, "role.md") && /^[0-9a-f]{40}$/.test(input.code_revision) &&
     typeof input.source_snapshot === "string" && isAbsolute(input.source_snapshot), "controller_launch_config_required");
   const url = new URL(input.api_url);
@@ -47,7 +48,7 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
     "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--tools", "Bash,Read", "--disable-slash-commands", "--debug-file", rolePaths.debug];
   const env = { PATH: "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin", SHELL: "/bin/zsh", TERM: "xterm-256color",
     COLORTERM: "truecolor", LANG: "en_US.UTF-8", LC_CTYPE: "UTF-8", TMPDIR: rolePaths.tmp, ZDOTDIR: rolePaths.shell,
-    HOME: rolePaths.home, CLAUDE_CONFIG_DIR: rolePaths.config, A2A_USER_DATA: rolePaths.userData, DISABLE_AUTOUPDATER: "1", CLAUDE_CODE_DISABLE_TERMINAL_TITLE: "1",
+    HOME: rolePaths.home, CLAUDE_CONFIG_DIR: rolePaths.config, A2A_USER_DATA: rolePaths.userData, CLAUDE_CODE_DISABLE_TERMINAL_TITLE: "1",
     ANTHROPIC_BASE_URL: url.origin, ANTHROPIC_AUTH_TOKEN: "a2a-fixture-key-not-a-secret",
     A2A_PROJECT: task.project_id, A2A_TASK: task.task_id, A2A_SESSION: input.session, A2A_ROLE: "controller",
     A2A_PRESET: input.preset, A2A_LAUNCH: input.launch, A2A_STATE: state, A2A_NATIVE_SESSION: input.session,
@@ -57,7 +58,8 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
     "isolated_controller_home_required");
   return { id: input.launch, project: task.project_id, task: task.task_id, attempt: null, session: input.session, fence: null,
     spec_rev: task.spec_rev, thread: input.thread, role: "controller", preset: input.preset, cli: "Claude Code",
-    cli_version_expected: "2.1.296 (Claude Code)", node_executable: process.execPath, node_version: process.version,
+    cli_version_expected: `${input.version} (Claude Code)`,
+    node_executable: process.execPath, node_version: process.version,
     argv, settings, env, worktree: repo,
     shell: "/bin/zsh", shell_argv: ["-f", "-i", "-c", argv.map(quote).join(" ") + "; exec /bin/zsh -f -i"],
     role_card: input.role_file, role_card_revision: "T-078-2/P1", role_text: roleText,

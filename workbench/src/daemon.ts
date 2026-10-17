@@ -222,7 +222,7 @@ export async function serve(
       const status = await gates.call({ command: "status", task: input.task });
       if (!status.ok || !status.task) return status;
       if (input.manifest?.state !== root) throw new Refusal("controller_state_mismatch");
-      const launch = panes.startController(status.task, input.manifest);
+      const launch = await panes.startController(status.task, input.manifest);
       gates.registerController(launch.thread);
       await gates.resumeControllerInbox(launch.thread);
       return { ok: true, launch };

@@ -16,7 +16,7 @@ const task: any = { task_id: "auth-fixture", project_id: "t078-p1-project", repo
   spec_rev: 1, base_commit: "a".repeat(40) };
 const input: any = { schema: 1, root, state: join(root, "state"), task: task.task_id, preset: "ideation",
   launch: randomUUID(), session: randomUUID(), thread: randomUUID(),
-  executable: "/Users/luckye/.local/share/claude/versions/2.1.296", role_file: join(root, "roles", "ideation", "role.md"),
+  executable: "/Users/luckye/.local/share/claude/versions/2.1.296", version: "2.1.296", role_file: join(root, "roles", "ideation", "role.md"),
   code_revision: "a".repeat(40), source_snapshot: join(root, "sources.tar.gz"), api_url: "http://127.0.0.1:12345" };
 const profile = claudeLaunch(task, input);
 const checks: any[] = [];

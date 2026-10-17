@@ -178,6 +178,8 @@ def main():
                 window.call('capture', name='claimed-no-pane')
                 with sqlite3.connect(f'file:{state / "state.sqlite3"}?mode=ro', uri=True) as db:
                     assert db.execute('SELECT count(*) FROM user_inputs').fetchone()[0] == 0
+                    save('readback-orchestration_events.json', [dict(type=kind, data=data) for kind, data in
+                        db.execute('SELECT type,data FROM orchestration_events ORDER BY seq')])
                 after = call('status', '--task', task)['task']
                 assert after == recorded, 'Viewing must not mutate the gate state'
             check('electron_real_window', window_contract)

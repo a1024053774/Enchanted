@@ -3,7 +3,9 @@
 
 Review BEFORE this run; do not reuse any previous approval.
   CLI/process budget: Node 26.5+, one production daemon, zsh PTYs; fixed real
-    Claude Code 2.1.296: two --version probes and TWO interactive controller starts;
+    Claude path and version are required parameters: one preflight --version,
+    TWO interactive controller starts (each checks --version), one missing-path
+    refusal and one version-mismatch refusal (one more actual --version).
     THREE sequential controlled C receiver starts (foreign task, old attempt,
     current worker), NOT real Codex. clang once; fixture Git init/add/commit only.
     Initial pane_release TWO times, only the controlled foreign/old receiver;
@@ -55,7 +57,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from capture_window import process_identity
-from run_red import CLAUDE, Observer, VOLUME, archive_fixture, write_json
+from run_red import Observer, VOLUME, archive_fixture, write_json
 
 
 def receiver_probe(source, nonce):
@@ -88,6 +90,8 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--label', required=True)
     parser.add_argument('--approval-ref', required=True)
+    parser.add_argument('--claude', type=Path, required=True)
+    parser.add_argument('--claude-version', required=True)
     args = parser.parse_args()
     source, output = args.source.resolve(strict=True), args.output.resolve()
     script_dir = Path(__file__).resolve().parent
@@ -101,11 +105,12 @@ def main():
             raise RuntimeError('summary_exists; choose a new label')
     output.mkdir(parents=True, exist_ok=False)
     fixture = Path(tempfile.mkdtemp(prefix='t078-2-t091-three-', dir='/private/tmp')).resolve()
-    for name in ['repo', 'state', 'home', 'receiver-home', 'tmp', 'ui', 'bin']:
+    for name in ['repo', 'state', 'home', 'receiver-home', 'tmp', 'ui', 'bin', 'version-config']:
         (fixture / name).mkdir()
     credential = fixture.parent / (fixture.name + '-operator.json')
     env = {key: os.environ[key] for key in ['PATH', 'USER', 'LOGNAME'] if key in os.environ}
     env.update(HOME=str(fixture / 'home'), TMPDIR=str(fixture / 'tmp'), LANG='en_US.UTF-8', LC_ALL='C',
+               CLAUDE_CONFIG_DIR=str(fixture / 'version-config'),
                A2A_OPERATOR_CREDENTIAL=str(credential), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
                GIT_CONFIG_COUNT='2', GIT_CONFIG_KEY_0='core.hooksPath', GIT_CONFIG_VALUE_0=os.devnull,
                GIT_CONFIG_KEY_1='commit.gpgsign', GIT_CONFIG_VALUE_1='false',
@@ -119,6 +124,8 @@ def main():
               'worker_session': 'd4277ace-1dde-425b-99b8-8988f1df751f',
               'worker_native_session': '01a14a05-4472-70e1-af77-58414340c1ee',
               'approval_ref': args.approval_ref, 'argv': sys.argv, 'fixture': str(fixture),
+              'claude_executable': str(args.claude.absolute()), 'claude_version_configured': args.claude_version,
+              'claude_version_probe_attempts': 0, 'version_refusals_passed': False,
               'supplier_model_turns': 0, 'controller_cli_starts_budget': 2, 'controller_start_attempts': 0, 'controlled_receiver_starts_budget': 3,
               'real_codex_cli_starts': 0, 'electron_starts_budget': 1, 'electron_start_attempts': 0,
               'peak_controlled_receivers': 0, 'driver_rpc_limit': 120, 'screen_read_upper_bound': 360,
@@ -247,6 +254,32 @@ def main():
             raise RuntimeError('node_26_5_or_later_26_required')
         if run(['git', 'diff', 'HEAD', '--', 'workbench/app/', 'workbench/src/', 'workbench/tests/']).stdout:
             raise RuntimeError('freeze_product_and_tests_before_running')
+        class RejectAPI(BaseHTTPRequestHandler):
+            def log_message(self, *unused):
+                pass
+
+            def do_POST(self):
+                requests.append({'method': 'POST', 'path': self.path})
+                self.send_error(403, 'T091 zero model budget')
+
+            def do_GET(self):
+                requests.append({'method': 'GET', 'path': self.path})
+                self.send_error(403, 'T091 isolated fake API')
+
+        api = ThreadingHTTPServer(('127.0.0.1', 0), RejectAPI)
+        api.daemon_threads = True
+        threading.Thread(target=api.serve_forever, daemon=True).start()
+        api_url = f'http://127.0.0.1:{api.server_port}/'
+        result['fake_api_url'] = api_url
+        env.update(ANTHROPIC_BASE_URL=api_url, ANTHROPIC_AUTH_TOKEN='a2a-fixture-key-not-a-secret')
+        result['claude_version_probe_attempts'] += 1
+        try:
+            version = commands.run([args.claude.absolute(), '--version'], cwd=source, env=env, timeout=20)
+        except FileNotFoundError as error:
+            raise RuntimeError('controller_executable_missing: ' + str(args.claude.absolute())) from error
+        result['claude_version_probe'] = {'command_id': version.evidence['id'], 'exit': version.returncode,
+            'stdout': version.stdout, 'stderr': version.stderr}
+        check('configured_claude_version', version.returncode == 0 and version.stdout.strip() == args.claude_version + ' (Claude Code)')
         cli = [node, source / 'workbench/src/gates/cli.ts', '--state', state]
         run(['git', '-C', repo, 'init', '-b', 'main'])
         (repo / 'value.txt').write_text('T091 isolated panes\n', encoding='utf-8')
@@ -265,23 +298,6 @@ def main():
             'hook_authorization': args.approval_ref, 'turn_limit': 1,
             'turn_authorization': args.approval_ref + ': controlled receiver only, zero provider rounds'})
 
-        class RejectAPI(BaseHTTPRequestHandler):
-            def log_message(self, *unused):
-                pass
-
-            def do_POST(self):
-                requests.append({'method': 'POST', 'path': self.path})
-                self.send_error(403, 'T091 zero model budget')
-
-            def do_GET(self):
-                requests.append({'method': 'GET', 'path': self.path})
-                self.send_error(403, 'T091 isolated fake API')
-
-        api = ThreadingHTTPServer(('127.0.0.1', 0), RejectAPI)
-        api.daemon_threads = True
-        threading.Thread(target=api.serve_forever, daemon=True).start()
-        api_url = f'http://127.0.0.1:{api.server_port}/'
-        result['fake_api_url'] = api_url
         daemon = call('daemon_start', '--launch-config', fixture / 'launch.json'); started = True
         owned.append(process_identity(daemon['pid']))
         task = 't091-three-' + uuid.uuid4().hex[:8]
@@ -302,15 +318,31 @@ def main():
             (folder / 'role.md').write_text('只停在隔离首屏等待主控；不输入、不运行模型或工具。\n', encoding='utf-8')
             manifest = {'schema': 1, 'root': str(fixture), 'state': str(state), 'task': task, 'preset': preset,
                 'launch': str(uuid.uuid4()), 'session': str(uuid.uuid4()), 'thread': str(uuid.uuid4()),
-                'executable': CLAUDE, 'role_file': str(folder / 'role.md'), 'code_revision': result['source_revision'],
+                'executable': str(args.claude.absolute()), 'version': args.claude_version,
+                'role_file': str(folder / 'role.md'), 'code_revision': result['source_revision'],
                 'source_snapshot': str(source), 'api_url': api_url, 'turn_limit': 1}
             write_json(folder / 'manifest.json', manifest)
-            role_env = {**env, 'HOME': str(folder / 'home'), 'CLAUDE_CONFIG_DIR': str(folder / 'claude'),
-                        'TMPDIR': str(folder / 'tmp'), 'DISABLE_AUTOUPDATER': '1'}
-            version = commands.run([CLAUDE, '--version'], cwd=source, env=role_env, timeout=20)
-            check(preset + '_fixed_version', version.returncode == 0 and version.stdout.strip() == '2.1.296 (Claude Code)')
+            if preset == 'ideation':
+                before_refusals = call('orchestration_events')['events']
+                for label, changes, code in [
+                    ('missing-cli', {'executable': str(fixture / 'absent-claude')}, 'controller_executable_missing'),
+                    ('version-mismatch', {'version': '0.0.0'}, 'controller_version_mismatch')]:
+                    negative = folder / (label + '.json'); write_json(negative, {**manifest, **changes})
+                    result['claude_version_probe_attempts'] += 1
+                    refused = commands.run([*cli, 'controller_start', '--task', task, '--manifest', negative], cwd=source, env=env, timeout=30)
+                    reply = command_json(refused)
+                    check(label + '_refused', refused.returncode == 1 and reply.get('ok') is False and reply.get('error') == code)
+                    write_json(output / (label + '.refusal.json'), reply)
+                after_refusals = call('orchestration_events')['events']
+                check('version_refusals_create_no_panes', [row for row in before_refusals if row['type'] == 'pane_started'] ==
+                    [row for row in after_refusals if row['type'] == 'pane_started'])
+                result['version_refusals_passed'] = True
+            result['claude_version_probe_attempts'] += 1
             result['controller_start_attempts'] += 1
             launch = call('controller_start', '--task', task, '--manifest', folder / 'manifest.json')['launch']
+            check(preset + '_product_version_probe', launch['cli_version'] == args.claude_version + ' (Claude Code)' and
+                launch['cli_version_expected'] == args.claude_version + ' (Claude Code)' and
+                launch['version_probe']['argv'] == [str(args.claude.absolute()), '--version'])
             info = wait(lambda: (value if (value := call('pane_process_info', '--thread', manifest['thread'])).get('leader') else None), preset + '_identity')
             check(preset + '_native_identity', not info.get('failed') and info.get('native_session') == manifest['session'])
             owned.extend([process_identity(info['shell_pid']), process_identity(info['leader'])])
@@ -524,13 +556,13 @@ def main():
         if result['cleanup_complete']:
             try:
                 copied = archive_fixture(fixture, output / 'fixture')
-                replay = shlex.join([sys.executable, str(Path(__file__).resolve()), '--source', str(source), '--output', str(output) + '-replay-new', '--label', args.label + '-replay-new', '--approval-ref', '<本次新批准引用>'])
+                replay = shlex.join([sys.executable, str(Path(__file__).resolve()), '--source', str(source), '--output', str(output) + '-replay-new', '--label', args.label + '-replay-new', '--claude', str(args.claude.absolute()), '--claude-version', args.claude_version, '--approval-ref', '<本次新批准引用>'])
                 manifest = {'original': str(fixture), 'archive': str(output / 'fixture'), **copied, 'original_retained': True, 'replay': replay}
                 write_json(script_dir / f'{args.label}.archive.json', manifest)
                 result.update(archive=manifest, archive_complete=True)
             except Exception as error:
                 result['archive_error'] = repr(error)
-        result['status'] = 'PASS' if result['green_observed'] and result['negatives_passed'] and result['cleanup_complete'] and not result['cleanup_errors'] and result['archive_complete'] and result['fake_posts'] == 0 and not result.get('error') and not result.get('metrics_error') and result.get('screen_read_count', 361) <= 360 and result['capture_count'] == 3 and result.get('electron_windows_created') == 1 else 'INCOMPLETE'
+        result['status'] = 'PASS' if result['green_observed'] and result['negatives_passed'] and result['version_refusals_passed'] and result['cleanup_complete'] and not result['cleanup_errors'] and result['archive_complete'] and result['fake_posts'] == 0 and not result.get('error') and not result.get('metrics_error') and result.get('screen_read_count', 361) <= 360 and result['capture_count'] == 3 and result.get('electron_windows_created') == 1 else 'INCOMPLETE'
         write_json(output / 'run.json', result); write_json(script_dir / f'{args.label}.run.json', result)
     print(json.dumps({key: result.get(key) for key in ['status', 'green_observed', 'negatives_passed', 'cleanup_complete',
         'archive_complete', 'fake_posts', 'controller_start_attempts', 'controlled_receiver_start_attempts',
