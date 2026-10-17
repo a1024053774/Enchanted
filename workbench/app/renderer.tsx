@@ -1,7 +1,7 @@
 // Codex dark theme seed from Synara 49cae984f, apps/web/src/theme/theme.seed.generated.ts.
 // Copyright (c) 2026 T3 Tools Inc. and Emanuele Di Pietro. MIT; see ../LICENSE.synara.
 import { createRoot } from 'react-dom/client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
@@ -32,8 +32,9 @@ const gateNames: Record<string, string> = { ready: '待认领', preparing: '准�
 const activityNames: Record<string, string> = { unknown: '未知', idle: '空闲', busy: '忙' };
 const lifecycleNames: Record<string, string> = { running: '运行中', interrupted: '已中断', unknown: '未知', ended: '已结束', not_started: '未启动' };
 
-function Workbench() {
-  const [paneKey] = window.a2a.paneKeys;
+type PaneStatus = { snapshot: Snapshot | null; error: string | null; connecting: boolean };
+
+function SessionPane({ paneKey, onStatus }: { paneKey: string; onStatus: (key: string, status: PaneStatus) => void }) {
   const mount = useRef<HTMLDivElement>(null);
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
@@ -47,6 +48,7 @@ function Workbench() {
   const [declarationReady, setDeclarationReady] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
+  useEffect(() => { onStatus(paneKey, { snapshot, error, connecting }); }, [paneKey, snapshot, error, connecting, onStatus]);
 
   useEffect(() => {
     let mounted = true, running = false, cursor = 0, total = 0;
@@ -160,20 +162,7 @@ function Workbench() {
     : snapshot?.launch?.role === 'worker' ? '受管 worker' : snapshot?.launch?.role ?? '窗格';
   const inputEnabled = Boolean(snapshot?.input_enabled && !inputError && !error);
   const inputTarget = keyboardFocused && inputEnabled;
-  return <div className="workbench">
-    <aside className="sidebar">
-      <div className="brand">a2a <span>工作台</span></div>
-      <div className="nav-label">项目</div>
-      <div className="project-name">{task?.project_id ?? '读取中'}</div>
-      <div className="task-row" aria-current="page"><span className="nav-dot" /><span>{task?.title ?? '正在连接后台'}</span></div>
-      <div className="sidebar-footer">原生 CLI · 本地编排</div>
-    </aside>
-    <main>
-      <header className="task-header">
-        <div><div className="eyebrow">{task?.task_id ?? '任务'}</div><h1>{task?.title ?? '正在读取任务'}</h1></div>
-        <span className={'connection ' + (error ? 'warning' : '')}>{error ? '后台未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
-      </header>
-      <section className={'pane' + (inputTarget ? ' pane-focused' : '')} aria-label={role + '交互终端'}
+  return <section className={'pane' + (inputTarget ? ' pane-focused' : '')} aria-label={role + '交互终端'}
         data-pane-key={paneKey} data-task-id={task?.task_id} data-window-id={snapshot?.window_id}
         data-role={snapshot?.launch?.role} data-preset={snapshot?.launch?.preset ?? ''}
         data-attempt-id={snapshot?.launch?.attempt ?? ''} data-keyboard-focused={keyboardFocused}
@@ -198,7 +187,34 @@ function Workbench() {
         <TerminalScrollToBottom terminal={terminal} />
         <div className="pane-footer"><span>{pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'
           : snapshot?.launch?.role === 'worker' ? '在此窗格输入会记录为人工介入' : '在此窗格输入会记录为用户输入'}</span><span data-lifecycle={pane?.lifecycle ?? 'unknown'}>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>
-      </section>
+      </section>;
+}
+
+function Workbench() {
+  const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
+  const onStatus = useCallback((key: string, status: PaneStatus) => {
+    setStatuses(previous => ({ ...previous, [key]: status }));
+  }, []);
+  const states = Object.values(statuses);
+  const task = states.find(value => value.snapshot)?.snapshot?.task;
+  const error = states.some(value => value.error);
+  const connecting = states.length < window.a2a.paneKeys.length || states.some(value => value.connecting);
+  return <div className="workbench">
+    <aside className="sidebar">
+      <div className="brand">a2a <span>工作台</span></div>
+      <div className="nav-label">项目</div>
+      <div className="project-name">{task?.project_id ?? '读取中'}</div>
+      <div className="task-row" aria-current="page"><span className="nav-dot" /><span>{task?.title ?? '正在连接后台'}</span></div>
+      <div className="sidebar-footer">原生 CLI · 本地编排</div>
+    </aside>
+    <main>
+      <header className="task-header">
+        <div><div className="eyebrow">{task?.task_id ?? '任务'}</div><h1>{task?.title ?? '正在读取任务'}</h1></div>
+        <span className={'connection ' + (error ? 'warning' : '')}>{error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
+      </header>
+      <div className={'pane-grid' + (window.a2a.paneKeys.length > 1 ? ' multi' : '')} aria-label="任务会话">
+        {window.a2a.paneKeys.map(key => <SessionPane key={key} paneKey={key} onStatus={onStatus} />)}
+      </div>
       <section className="gate" aria-label="门禁状态">
         <div><span className="eyebrow">当前任务门禁</span><strong data-gate-state={task?.state ?? 'unknown'}>{gateNames[task?.state ?? ''] ?? '未知'}</strong></div>
         <dl><div><dt>执行尝试</dt><dd>{task?.current_attempt?.attempt_id.slice(0, 8) ?? '尚未认领'}</dd></div>

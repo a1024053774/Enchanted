@@ -66,6 +66,7 @@ def main():
               'user_input_source':'test-simulated-user','setup_complete':False,'cleanup_complete':False}
     started = False
     window = None
+    window_attempted = False
     failure = False
 
     def save(name, data):
@@ -151,6 +152,7 @@ def main():
         else:
             build = command_json(run([node, source / 'workbench/app/build.mjs','--slot','t078-input-'+fixture.name],timeout=120))
         save('build.json',build)
+        window_attempted = True
         window = ElectronClient(source,Path(build['out']),state,task,fixture / 'ui',output / 'window',env)
         window.wait(lambda view:'T078_DETERMINISTIC_RECEIVER_READY' in view['terminal'])
         window.call('capture',name='before-input')
@@ -221,15 +223,14 @@ def main():
             from t078_input_failures import run_input_failures
             run_input_failures(home=home,state=state,attempt=attempt,window=window,call=call,query=query,
                                check=check,result=result,output=output,credential=credential)
-            window = None
         elif args.runtime_probe:
             from t078_runtime_scenario import run_runtime
             closed = run_runtime(home=home,state=state,attempt=attempt,window=window,call=call,query=query,
                                  check=check,result=result,output=output,credential=credential)
-            if closed: window = None
+            if closed: result['runtime_window_closed'] = True
         for table in ['launch_records','dispatch_records','orchestration_events','user_inputs','events','inbox_records','inbox_deliveries']:
             save('readback-'+table+'.json',query(table))
-        if window: window.call('capture',name='after-input')
+        if window and not result.get('runtime_window_closed'): window.call('capture',name='after-input')
     except Exception as error:
         failure = True
         result['setup_or_probe_error'] = {'error':repr(error),'traceback':traceback.format_exc()}
@@ -237,6 +238,8 @@ def main():
         try:
             if window and not result.get('runtime_window_closed'):
                 window.close()
+            if window_attempted and (window is None or not window.ready_confirmed or not window.exit_confirmed):
+                raise RuntimeError('Electron ready/exit unconfirmed; backend shutdown and archive deferred to controller')
             if started:
                 call('daemon_stop')
                 deadline = time.monotonic()+10
@@ -253,9 +256,10 @@ def main():
             result['cleanup_error'] = {'error':repr(error),'traceback':traceback.format_exc()}
         # A failed cleanup retains the private local capability for inspection,
         # but no archive includes it. The receiver home has no vendor auth.
-        with tarfile.open(output / 'fixture.tar.gz','x:gz') as archive:
-            archive.add(fixture,arcname=fixture.name,
-                        filter=lambda item: None if item.name == fixture.name+'/operator-credential.json' else item)
+        if result['cleanup_complete']:
+            with tarfile.open(output / 'fixture.tar.gz','x:gz') as archive:
+                archive.add(fixture,arcname=fixture.name,
+                            filter=lambda item: None if item.name == fixture.name+'/operator-credential.json' else item)
         expected_count = 14 if args.worker_inbox else 11 if args.input_failures else 12 if args.runtime_probe else 4
         result['status'] = 'PASS' if not failure and len(result['checks']) == expected_count and all(row['status'] == 'PASS' for row in result['checks']) else 'INCOMPLETE'
         save('results.json',result)

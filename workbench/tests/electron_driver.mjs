@@ -1,5 +1,5 @@
 // Test process only. Observe product lifecycle and actual IPC without changing it.
-import { app, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { isAbsolute, join } from 'node:path';
@@ -58,7 +58,7 @@ async function reply(value) {
 async function main() {
   stage('parse_args_started');
   const { values } = parseArgs({ args: process.argv.slice(2), options: Object.fromEntries(
-    ['build', 'state', 'task', 'launch', 'user-data', 'output'].map((key) => [key, { type: 'string' }])) });
+    ['build', 'state', 'task', 'launch', 'user-data', 'output'].map((key) => [key, { type: 'string', ...(key === 'launch' ? { multiple: true } : {}) }])) });
   const output = values.output;
   if (!output || join(output, 'stages.jsonl') !== diagnostics) throw new Error('Output must match the harness diagnostic directory');
   stage('parse_args_completed');
@@ -66,6 +66,7 @@ async function main() {
   stage('manifest_loaded', { main: build.main, preload: build.preload, renderer: build.renderer });
   const originalHandle = ipcMain.handle.bind(ipcMain);
   let firstSnapshot = true;
+  let screenReads = 0;
   const checkpoints = new Map();
   const outputPauses = new Map();
   const latestSnapshots = new Map();
@@ -107,10 +108,13 @@ async function main() {
   void run({ state: values.state, task: values.task, launch: values.launch, userData: values['user-data'] }).then(async (window) => {
     stage('product_run_completed', { window: window.id });
     const inspect = async (selection = {}) => {
+      stage('screen_read', { count: ++screenReads });
       const observed = await window.webContents.executeJavaScript(`({
         text: document.body.innerText,
+        viewport: { width: innerWidth, height: innerHeight },
         gate: document.querySelector('[data-gate-state]')?.dataset.gateState,
         bridge: Object.keys(window.a2a), node: typeof window.require,
+        pane_keys_frozen: Object.isFrozen(window.a2a.paneKeys), pane_keys: [...window.a2a.paneKeys],
         panes: [...document.querySelectorAll('section.pane')].map(pane => ({
           pane_key: pane.dataset.paneKey, task: pane.dataset.taskId, role: pane.dataset.role,
           preset: pane.dataset.preset, attempt: pane.dataset.attemptId, window_id: pane.dataset.windowId ?? null,
@@ -120,6 +124,10 @@ async function main() {
           launch: pane.dataset.launchId, thread: pane.dataset.threadId,
           active_dispatch: pane.dataset.activeDispatch, input_enabled: pane.dataset.inputEnabled === 'true',
           keyboard_focused: pane.dataset.keyboardFocused === 'true', input_target: pane.dataset.inputTarget === 'true',
+          text: pane.innerText, focused_border: getComputedStyle(pane).boxShadow,
+          bounds: (() => { const r = pane.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })(),
+          terminal_bounds: (() => { const r = pane.querySelector('.terminal-scroll').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })(),
+          scroll: (() => { const e = pane.querySelector('.terminal-scroll'); return { left: e.scrollLeft, top: e.scrollTop, width: e.scrollWidth, height: e.scrollHeight }; })(),
           terminal: [...pane.querySelectorAll('.xterm-accessibility-tree [role="listitem"]')].map(x => x.textContent).join('\\n')
         }))
       })`);
@@ -151,6 +159,26 @@ async function main() {
         let value;
         if (request.command === 'inspect') value = await inspect(request);
         else if (request.command === 'inspect-all') value = await inspect({ all: true });
+        else if (request.command === 'try-open') {
+          if (!Array.isArray(request.launches) || request.launches.length !== 3 || request.launches.some(launch => typeof launch !== 'string' || !launch)) throw new Error('Three explicit launch IDs required');
+          const before = BrowserWindow.getAllWindows().map(item => item.id);
+          let opened;
+          try {
+            opened = await run({ state: values.state, task: values.task, launch: request.launches, userData: values['user-data'] });
+            value = { accepted: true, browser_window: opened.id };
+          } catch (error) { value = { rejected: true, error: String(error) }; }
+          // Retain an unexpectedly accepted window for owner-verified normal cleanup.
+          value.windows_before = before;
+          value.windows_after = BrowserWindow.getAllWindows().map(item => item.id);
+        } else if (request.command === 'resize') {
+          if (!Number.isSafeInteger(request.width) || !Number.isSafeInteger(request.height) || request.width < 900 || request.height < 650) throw new Error('Invalid test window size');
+          window.setSize(request.width, request.height);
+          value = { window_size: window.getSize(), content_size: window.getContentSize(), ...await inspect({ all: true }) };
+        } else if (request.command === 'scroll-pane') {
+          if (![request.left, request.top].every(value => Number.isSafeInteger(value) && value >= 0)) throw new Error('Invalid pane scroll');
+          await inPane(request, `(() => { const e = pane.querySelector('.terminal-scroll'); e.scrollLeft = ${request.left}; e.scrollTop = ${request.top}; })()`);
+          value = await inspect(request);
+        }
         else if (request.command === 'bridge-call') {
           if (!['snapshot', 'output', 'input', 'beginComposition', 'releaseQueue', 'observeFocus'].includes(request.operation) ||
               !Array.isArray(request.args) || request.args.length > 4) throw new Error('Invalid public bridge probe');
@@ -252,7 +280,7 @@ async function main() {
             throw new Error('An explicit bound permission Enter approval is required');
           }
           const view = await inspect(request);
-          if (!request.launch || !request.thread || !request.dispatch || (values.launch && request.launch !== values.launch) ||
+          if (!request.launch || !request.thread || !request.dispatch ||
               view.launch !== request.launch || view.thread !== request.thread ||
               (request.key === 'Escape' || request.key === 'Enter' ? view.active_dispatch !== request.dispatch :
                 view.active_dispatch !== '' || !view.interrupted || !request.window_id || view.window_id !== request.window_id ||

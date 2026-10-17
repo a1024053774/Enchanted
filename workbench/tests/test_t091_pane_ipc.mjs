@@ -1,7 +1,8 @@
 // Pure main/preload contract check. No Electron, daemon, PTY, ps, socket or model.
 // The actual TS modules execute in a VM; only their external boundaries are supplied.
 // Failure cases: missing/wrong key, cross-window key, iframe sender, duplicated
-// global handlers or credentials, shared sequence, retargeted output, close/open race.
+// global handlers or credentials, shared sequence, retargeted output, close/open race,
+// lost panes in one window, foreign-task/stale selection, credentials issued on refusal.
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
 import { EventEmitter } from 'node:events';
@@ -42,6 +43,8 @@ async function exercise(source) {
   const records = {
     worker: { id: 'worker', thread: 'thread-worker', role: 'worker', preset: null, attempt: 'attempt-one' },
     controller: { id: 'controller', thread: 'thread-controller', role: 'controller', preset: 'executor', attempt: null },
+    ideation: { id: 'ideation', thread: 'thread-ideation', role: 'controller', preset: 'ideation', attempt: null },
+    foreign: { id: 'foreign', task: 'task-other', thread: 'thread-foreign', role: 'worker', attempt: 'attempt-one' },
     historical: { id: 'historical', thread: 'thread-old', role: 'worker', preset: null, attempt: 'attempt-old' },
     opening: { id: 'opening', thread: 'thread-opening', role: 'worker', preset: null, attempt: 'attempt-one' },
   };
@@ -146,8 +149,34 @@ async function exercise(source) {
   assert.ok(a.destroyed); assert.equal(handlers.size, 6);
   await invoke(b, 'a2a:input', bKey, 'still B');
   assert.equal(requests.at(-1).target, 'controller');
+  const three = await run({ ...options, launch: ['worker', 'controller', 'ideation'] });
+  const threeKeys = JSON.parse(three.options.webPreferences.additionalArguments[0].slice('--a2a-pane-keys='.length));
+  assert.equal(threeKeys.length, 3, 'Three selected launches must create three pane keys in one window');
+  const threeSnapshots = await Promise.all(threeKeys.map(paneKey => invoke(three, 'a2a:snapshot', paneKey)));
+  assert.deepEqual(threeSnapshots.map(value => value.launch.id), ['ideation', 'controller', 'worker']);
+  assert.equal(new Set(threeSnapshots.map(value => value.window_id)).size, 3);
+  for (const [index, paneKey] of threeKeys.entries()) {
+    await invoke(three, 'a2a:input', paneKey, 'pane-' + index);
+    assert.equal((await invoke(three, 'a2a:output', paneKey, 0)).launch, threeSnapshots[index].launch.id);
+  }
+  assert.deepEqual(requests.filter(row => row.command === 'window_input').slice(-3).map(row => row.input.sequence), [1, 1, 1]);
+  for (const [index, paneKey] of threeKeys.entries()) {
+    await invoke(three, 'a2a:release-queue', paneKey, { window_id: threeSnapshots[index].window_id, launch: threeSnapshots[index].launch.id });
+  }
+  const declarations = requests.filter(row => row.command === 'window_release').slice(-3);
+  assert.deepEqual(declarations.map(row => [row.window, row.input.declaration.window_id, row.input.declaration.launch]),
+    threeSnapshots.map(value => [value.window_id, value.window_id, value.launch.id]));
+  assert.equal(registrations.length, 6, 'Adding panes must not register more IPC handlers');
+  for (const launch of ['foreign', 'historical']) {
+    const beforeWindows = windowNumber, beforeCredentials = credentialNumber;
+    await assert.rejects(() => run({ ...options, launch: ['ideation', 'controller', launch] }));
+    assert.equal(windowNumber, beforeWindows, 'Invalid third pane must not create a window');
+    assert.equal(credentialNumber, beforeCredentials, 'Invalid third pane must not receive a credential');
+  }
+  await assert.rejects(() => run({ ...options, launch: ['worker', 'worker'] }));
   return ['unregistered_key_rejected', 'six_handlers_once', 'per_window_keys_and_sequences', 'iframe_and_other_window_denied',
-    'bound_output', 'nullable_controller_and_historical_worker', 'keyed_preload', 'close_drains_identity_and_keeps_other_window'];
+    'bound_output', 'nullable_controller_and_historical_worker', 'keyed_preload', 'close_drains_identity_and_keeps_other_window',
+    'three_panes_independent_credentials_sequences_output', 'foreign_task_and_old_launch_rejected_before_window', 'duplicate_launch_rejected'];
 }
 
 try {
@@ -159,6 +188,14 @@ try {
     report.known_bad_result = { rejected: failedForContract, error: String(error) };
   }
   assert.ok(failedForContract, 'Known-bad must fail the pane-key admission assertion');
+  const tracer = execFileSync('git', ['show', '7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86:workbench/app/main.ts'], { encoding: 'utf8' });
+  let missingPanes = false;
+  try { await exercise(tracer); }
+  catch (error) {
+    missingPanes = error instanceof assert.AssertionError && error.message.startsWith('Three selected launches must create three pane keys in one window');
+    report.single_pane_counterexample = { revision: '7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86', rejected: missingPanes, error: String(error) };
+  }
+  assert.ok(missingPanes, 'Single-pane tracer must fail the simultaneous pane-count assertion');
   report.checks = await exercise(readFileSync(mainURL, 'utf8'));
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.stack = error.stack; }

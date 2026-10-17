@@ -9,7 +9,7 @@ import { readOperatorCredential } from '../src/credentials.ts';
 import { randomUUID } from 'node:crypto';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
 
-type Options = { state: string; task: string; launch?: string; userData: string };
+type Options = { state: string; task: string; launch?: string | string[]; userData: string };
 type PaneBinding = {
   key: string; launch?: string; identity?: Record<string, unknown>; opening?: Promise<void>;
   sequence: number; inputQueue: Promise<unknown>; pendingRelease: Promise<any> | null;
@@ -22,6 +22,17 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const windows = new Map<number, WindowBinding>();
 let handlersRegistered = false;
 let appUserData: string | undefined;
+
+function requireCurrentPane(task: string, launch: string, result: any) {
+  if (!result.ok) throw new Error(result.error);
+  const record = result.launch;
+  if (result.task?.task_id !== task || record?.task !== task || record?.id !== launch) throw new Error('Pane task or launch mismatch');
+  if (result.pane?.lifecycle !== 'running' || result.pane.failed || result.pane.historical ||
+      !(record.role === 'controller' && record.attempt === null && ['ideation', 'executor'].includes(record.preset) ||
+        record.role === 'worker' && record.attempt !== null && result.task.current_attempt?.attempt_id === record.attempt)) {
+    throw new Error('Pane is not a current running session');
+  }
+}
 
 function target(event: Electron.IpcMainInvokeEvent, key: string) {
   const context = windows.get(event.sender.id);
@@ -65,6 +76,7 @@ function registerHandlers() {
     const result = await request(context.options.state, { command: 'workbench_snapshot', task: context.options.task,
       ...(pane.launch ? { launch: pane.launch } : {}) });
     if (!result.ok) throw new Error(result.error);
+    if (context.panes.size > 1) requireCurrentPane(context.options.task, pane.launch!, result);
     if (pane.launch && result.launch?.id !== pane.launch) throw new Error('Pane launch changed');
     if (result.launch) pane.launch = result.launch.id;
     const writable = result.pane?.lifecycle === 'running' && !result.pane.failed &&
@@ -115,8 +127,21 @@ function registerHandlers() {
 
 export async function run(options: Options) {
   if (!isAbsolute(options.state) || !isAbsolute(options.userData) || !options.task) throw new Error('Absolute data paths and a task are required');
+  const launches = options.launch === undefined ? [undefined] : typeof options.launch === 'string' ? [options.launch] : [...options.launch];
+  if (!launches.length || launches.some(launch => launch !== undefined && (typeof launch !== 'string' || !launch)) ||
+      new Set(launches).size !== launches.length) throw new Error('Distinct nonempty pane launches are required');
   const operator = readOperatorCredential(options.state);
   if (!operator) throw new Error('operator_credential_required');
+  if (launches.length > 1) {
+    // Reject the complete selection before creating a window or input credential.
+    const ranks = new Map<string, number>();
+    for (const launch of launches) {
+      const value = await request(options.state, { command: 'workbench_snapshot', task: options.task, launch });
+      requireCurrentPane(options.task, launch!, value);
+      ranks.set(launch!, value.launch.role === 'worker' ? 2 : value.launch.preset === 'ideation' ? 0 : 1);
+    }
+    launches.sort((a, b) => ranks.get(a!)! - ranks.get(b!)!);
+  }
   if (appUserData && appUserData !== options.userData) throw new Error('Windows in one process must share application user-data');
   if (!appUserData) {
     appUserData = options.userData;
@@ -130,14 +155,14 @@ export async function run(options: Options) {
     app.setPath('crashDumps', join(options.userData, 'crashes'));
   }
   await app.whenReady();
-  const pane: PaneBinding = { key: randomUUID(), launch: options.launch, sequence: 0,
-    inputQueue: Promise.resolve(), pendingRelease: null };
+  const panes: PaneBinding[] = launches.map(launch => ({ key: randomUUID(), launch, sequence: 0,
+    inputQueue: Promise.resolve(), pendingRelease: null }));
   const window = new BrowserWindow({ width: 1440, height: 900, minWidth: 900, minHeight: 650,
     title: 'a2a 工作台', backgroundColor: '#111111',
     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,
       contextIsolation: true, sandbox: true, backgroundThrottling: false,
-      additionalArguments: ['--a2a-pane-keys=' + JSON.stringify([pane.key])] } });
-  const context: WindowBinding = { window, options, operator, panes: new Map([[pane.key, pane]]), closing: false, closed: false };
+      additionalArguments: ['--a2a-pane-keys=' + JSON.stringify(panes.map(pane => pane.key))] } });
+  const context: WindowBinding = { window, options, operator, panes: new Map(panes.map(pane => [pane.key, pane])), closing: false, closed: false };
   const senderId = window.webContents.id;
   windows.set(senderId, context);
   registerHandlers();
@@ -171,7 +196,7 @@ export async function run(options: Options) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values } = parseArgs({ args: process.argv.slice(2), options: Object.fromEntries(
-    ['state', 'task', 'launch', 'user-data'].map(key => [key, { type: 'string' as const }])) });
+    ['state', 'task', 'launch', 'user-data'].map(key => [key, { type: 'string' as const, ...(key === 'launch' ? { multiple: true } : {}) }])) });
   const state = values.state ?? join(homedir(), 'Library/Application Support/a2a-orchestrator');
   run({ state, task: values.task!, launch: values.launch, userData: values['user-data'] ?? join(state, 'ui') })
     .catch(error => { console.error(error); app.exit(1); });

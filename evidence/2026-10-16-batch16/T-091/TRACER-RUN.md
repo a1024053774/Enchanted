@@ -1,5 +1,7 @@
 # T-091 单格 Tracer bullet：主控执行材料
 
+本文件保留单格交接时的范围与未验证项；主控随后完成 tracer-01，结果见 [RESULTS.md](RESULTS.md)。当前三格候选的执行入口为 [THREE-PANES-RUN.md](THREE-PANES-RUN.md)，不要复用已使用的 tracer-01 标签。
+
 状态：**INCOMPLETE**。基线红态与 close 系列已记录、提交，见 [RESULTS.md](RESULTS.md)。本候选已将单格迁到按 sender 窗口和 pane key 路由的生产路径；没有保留旧的无 key IPC 实现，也尚未扩为三个窗格。
 
 本阶段验收目标：从真实 renderer／preload 经六条 keyed IPC 到现有 daemon，读回同一受管 worker 的输出与输入收据；确认完整身份、键盘焦点、独立序号、错误 key 拒绝和关闭后的后台存续。门禁、紧急停止、收件箱语义与 160×45 网格不变。单格实跑通过后才扩三格，符合已确认的“先跑通读回，再扩”顺序。

@@ -125,7 +125,7 @@ def archive_fixture(source, destination):
 
 
 class Observer:
-    def __init__(self, argv, env, output):
+    def __init__(self, argv, env, output, *, max_calls=120, max_stdout_bytes=32 * 1024 * 1024):
         self.log = (output / 'observer-protocol.jsonl').open('x', encoding='utf-8')
         self.stderr = (output / 'observer.stderr.txt').open('xb')
         self.stdout = (output / 'observer.stdout.bin').open('xb')
@@ -136,6 +136,8 @@ class Observer:
         self.selector.register(self.process.stdout, selectors.EVENT_READ)
         self.buffer = bytearray()
         self.number = 0
+        self.max_calls = max_calls
+        self.max_stdout_bytes = max_stdout_bytes
         self.owner = None
         self.exit_confirmed = False
         self.ready_confirmed = False
@@ -161,6 +163,8 @@ class Observer:
             self.stdout.write(chunk); self.stdout.flush(); self.buffer.extend(chunk)
 
     def call(self, command, **values):
+        if self.number >= self.max_calls or self.stdout.tell() >= self.max_stdout_bytes:
+            raise RuntimeError('observer_budget_exhausted; close owned Electron and retain failed evidence')
         self.number += 1
         self.process.stdin.write((json.dumps({'id': self.number, 'command': command, **values}) + '\n').encode())
         self.process.stdin.flush()

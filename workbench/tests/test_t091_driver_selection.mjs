@@ -19,8 +19,8 @@ function reader(source) {
   const snapshots = new Map(observations.panes.map(pane => [pane.pane_key, { window_id: pane.window_id,
     pane: { interruption: pane.pane_key === 'key-E' ? 72 : 12, input_generation: 4, interrupted: true } }]));
   const window = { webContents: { executeJavaScript: async () => structuredClone(observations) } };
-  return new Function('window', 'latestSnapshots', 'latestSnapshot', source.slice(start, end) + ';return inspect;')(
-    window, snapshots, snapshots.get('key-I'));
+  return new Function('window', 'latestSnapshots', 'latestSnapshot', 'stage', 'let screenReads = 0;\n' + source.slice(start, end) + ';return inspect;')(
+    window, snapshots, snapshots.get('key-I'), () => {});
 }
 try {
   const bad = reader(execFileSync('git', ['show', `${badRevision}:workbench/tests/electron_driver.mjs`], { encoding: 'utf8' }));

@@ -1,6 +1,6 @@
 # T-091 结果记录
 
-日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，启动记录 `launch-a818e11600754e8b8ad79aab63a17f83`，ticket ready_rev 1。整票状态：**INCOMPLETE**。单窗口三窗格的基线红态已取得；产品实现、绿态、反例、回归与独立交付审查尚未完成。
+日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，ticket ready_rev 1。接手启动记录为 `launch-71afbd1600cb451a9d9354aa7768e72b`；下方早期运行保留原启动记录 `launch-a818e11600754e8b8ad79aab63a17f83` 的归属。整票状态：**INCOMPLETE**。三窗格基线红态和单格 Tracer bullet 真实读回已取得；三格代码已实现，真实绿态、反例、回归与最终交付审查尚未完成。
 
 ## red 与 close 系列
 
@@ -80,3 +80,53 @@ task `t091-tracer-f18b846b`，launch `3d4a9a80-39f7-408f-bcd0-d0b98ed11df7`，pa
 主控查看原始单帧，报告完整 role／task／launch／attempt、蓝色边线和“正在输入”可见，终端有 READY 与 T091_OUTPUT nonce，底部为共享门禁栏；截图只有一格，不作三格绿态。原图只在外置盘，指针 [tracer-01.single-frame.pointer.json](tracer-01.single-frame.pointer.json)：246,886 字节、2880×1800、PID 91515、窗口号 10793。全部原件根为 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/tracer-01/`；夹具副本 157 文件、3,084,805 字节，comparison=true、原件保留。摘要 [tracer-01.run.json](tracer-01.run.json)，清单 [tracer-01.archive.json](tracer-01.archive.json)。日志为主控 scratchpad 的 `t091-tracer-01.log`。
 
 单格真实读回门槛已满足，开始沿同一生产路径扩三格；整票仍为 **INCOMPLETE**。此前只读审查的 INCOMPLETE 原报告保留，不能补称其当时已取得运行证据。
+
+## 三格实现候选与回归脚本
+
+tracer-01 的结果及指针先提交为 `3ac3edc92`，随后才扩三格。生产启动器与 main 均支持重复 --launch；main 先核对各 launch 的 task、role／preset、运行状态与当前 worker attempt，再按构思主控／执行主控／worker 排序，建一个 BrowserWindow。错误 task、旧 attempt 或重复 launch 在建窗／签发凭据前拒绝；单格历史查看仍只读。renderer 只有一套 SessionPane 实现，每格各持终端、decoder、offset、错误、输入占用和放行声明；共用任务外壳和当前任务门禁栏。160×45 不变，各格独立滚动；小于 1000px 三行，实际 textarea 焦点才显示蓝线和“正在输入”。daemon 本票仍仅新增 preset 投影，门禁未改。
+
+本地检查命令及结果（均不启动 Electron、后台、PTY，不运行 ps 或截图）：
+
+| 命令 | 结果与范围 |
+| --- | --- |
+| `python3 -B evidence/2026-10-16-batch16/T-091/check_baseline_bridge.py evidence/2026-10-16-batch16/T-091/baseline-bridge-assertion-01.json` | rc 0，起点 44bbb7828 的原 preload 和原断言实际单独执行；原断言 FAIL：已公开六方法，却只允许 output／snapshot。没有运行完整旧 window suite |
+| `node --experimental-vm-modules workbench/tests/test_t091_pane_ipc.mjs evidence/2026-10-16-batch16/T-091/pane-ipc-unit-04.json` | rc 0、11 项 PASS；真实 main／preload 模块，给定外部边界；单格 7e1c68 因只有一 key 而被三格数量断言拒绝，6974c2 因接受未知 key 被拒；含三格独立凭据、序号、输出、声明和建窗前拒绝 |
+| `node --experimental-vm-modules workbench/tests/test_t091_start.mjs evidence/2026-10-16-batch16/T-091/launcher-unit-01.json` | rc 0、2 项 PASS；起点丢失前两份重复 --launch，被断言拒绝；未真正 spawn Electron |
+| `node workbench/tests/test_t091_driver_selection.mjs evidence/2026-10-16-batch16/T-091/driver-selection-unit-02.json` | rc 0、5 项 PASS；给定三格观察值，按 key／launch 选择，拒绝歧义；不是实际三格 DOM |
+| `node workbench/tests/test_t078_window_binding.mjs evidence/2026-10-16-batch16/T-091/t078-window-binding-01` | rc 0、13 项 PASS；使用主控恢复的原 snapshot，未修改原件；仅生产谓词／驱动分支，外部边界由测试提供 |
+| `python3 -B workbench/tests/test_t091_client_cleanup.py evidence/2026-10-16-batch16/T-091/client-cleanup-unit-01.json` | rc 0、4 项 PASS；旧客户端对 unready 执行关闭／强杀，被已知坏断言拒绝；不是 AppKit 或真实退出证明 |
+| Node --check、Vite transformWithOxc 内存转换、Python compile | 已跑部分通过；最终脚本预检记录随冻结候选保存，无完整构建或目标进程启动 |
+
+`pane-ipc-unit-02.json` 保留一次实现中的失败：多格身份校验误放入普通输入回执处，正常输入返回不含快照而报 mismatch；校验移回 snapshot 后 unit-03／04 通过。`three-script-preflight-01.json` 保留一次 Python comprehension 中 walrus 的编译错误；改为先读取观察值再迭代后 preflight-02 通过。没有覆盖失败文件或将它们改判 PASS。
+
+主控 #11／本对话 #40 确认旧 bridge 断言不受 T-080 保护，并授权先留起点结果再修正；已按上述结果把预期精确列为 beginComposition、input、observeFocus、output、paneKeys、releaseQueue、snapshot，不用宽松数量比较。复核真实窗口入口还发现隔离 bootstrap 凭据未配置、旧客户端失败时自动强杀且后台／归档仍可能继续；已仅修正测试的凭据与生命周期收尾，不改其业务 oracle。当前 receiver／GUI 回归按新批准逐场运行，不沿用 T-078 的批准。
+
+主控执行材料见 [THREE-PANES-RUN.md](THREE-PANES-RUN.md)。`run_three_panes.py` 提供三格同屏、三份快照／进程、输出归属、worker 输入收据链、错 task／旧 launch 拒绝及三种尺寸原始帧；`run_regression.py` 分 core／window／runtime／input-failures／worker-inbox，继续调用原业务断言。T-074 的固定注入合同由原 runtime 场景在当前生产路径回归，不声称重跑供应商模型实验。所有实跑、实际截图和独立最终验收仍 **INCOMPLETE**，本轮没有启动这些场景。
+
+## 重启后新会话接手
+
+当前受管 session 为 `d4277ace-1dde-425b-99b8-8988f1df751f`，原生会话为 `01a14a05-4472-70e1-af77-58414340c1ee`，launch 为 `launch-71afbd1600cb451a9d9354aa7768e72b`。这些值来自本会话环境，提交尾注由现有钩子生成；未沿用旧会话进程身份。起点 HEAD `3ac3edc92afdd40f31926b94d83fdba4c8c5bf65` 的未提交三格工作全部保留并核对。
+
+本次本地检查为 **PASS**，范围仅为给定外部边界的逻辑、静态转换与材料读回。实际 Electron、daemon、PTY、原生 agent、ps、截图启动／执行均为 0，模型回合 0；没有复制 auth 或写外置盘，没有运行下方主控专用脚本。
+
+```sh
+node --experimental-vm-modules workbench/tests/test_t091_pane_ipc.mjs evidence/2026-10-16-batch16/T-091/pane-ipc-takeover-01.json
+node --experimental-vm-modules workbench/tests/test_t091_start.mjs evidence/2026-10-16-batch16/T-091/launcher-takeover-01.json
+node workbench/tests/test_t091_driver_selection.mjs evidence/2026-10-16-batch16/T-091/driver-selection-takeover-01.json
+python3 -B workbench/tests/test_t091_client_cleanup.py evidence/2026-10-16-batch16/T-091/client-cleanup-takeover-01.json
+python3 -B workbench/tests/test_t091_run_budgets.py evidence/2026-10-16-batch16/T-091/run-budgets-green-02.json
+node workbench/tests/test_t078_window_binding.mjs evidence/2026-10-16-batch16/T-091/t078-window-binding-takeover-01
+python3 -B evidence/2026-10-16-batch16/T-091/test_red_cleanup.py --output evidence/2026-10-16-batch16/T-091/observer-cleanup-takeover-01.json
+```
+
+以上输出均已存在，重放须换新文件名。结果分别为 11、2、5、4、两种客户端、13、6 项 PASS。三格数量、独立身份／序号与输出、错 task／旧 launch、重复 launch、旧启动器丢弃重复参数、未知／歧义选择等，均有拒绝已知坏实现的反事实记录。`product-parse-takeover-01.json` 的 TS／TSX 内存转换与 MJS 语法检查、`script-parse-takeover-01.json` 的 Python compile 通过，未完整构建。
+
+根据主控转达的资源约束，本次为两种实际客户端增加探测额度：三格脚本 120 次 RPC（最多 360 次读屏），GUI 回归 400 次（最多 1200 次读屏）；驱动记录实际读屏数。stdout 分别在 32／64 MiB 时停止下一次探测，允许一份在途回复跨过阈值。正常关闭不消耗 GUI 探测额度；额度耗尽仍进入原归属核对／关闭／停机／归档流程，不增加强杀。完整输出直接落外置文件，Terminal 只收到一行短摘要。限额检查的首次红态保存在 `run-budgets-red-01.json`，修正后 `run-budgets-green-02.json` PASS，固定坏版本为 `3ac3edc92`；不声称这些逻辑检查证明了真实内存占用或 macOS 收尾能力。
+
+三格场景的新真实 Codex CLI 启动为 0；两个真实 Claude 主控与一个受控 receiver 同时存在，反例的另两个 receiver 先退出再启动下一个，Electron 最多一个。run.json 记录启动尝试、峰值 receiver、实际窗数、读屏、截图与 stdout 字节数。Herdr 中已存在的 Codex 会话总数由主控逐场核对，不从 worker 的局部夹具推断。
+
+**core 回归材料缺件，仍 INCOMPLETE。** 原运行器固定读取的四份受控文件未进入本稀疏 checkout，清单在 `core-materials-takeover-01.json`。它们在 HEAD 中存在：分页 CONTRACT／pager 两份，以及 T-076/card-2 的 controller-decision-03／legacy-acceptance-hunks 两份。worker 只读运行 `prepare_core_materials.py --source /Users/luckye/Documents/Code/a2a-wt-t091`，rc 1，未恢复或改写原件。主控专用 `--restore` 仅写回缺失的 HEAD 原字节，拒绝已有内容不符或链接路径；core wrapper 在启动业务测试前先拒绝缺件。完整命令见 THREE-PANES-RUN。此缺件不是产品红态，不能算回归通过。
+
+bridge 断言修订沿用主控裁定：起点原断言只允许 output／snapshot，但起点 preload 实际已有六个公开方法，原断言单独执行 FAIL。新预期逐项为 beginComposition、input、observeFocus、output、paneKeys、releaseQueue、snapshot，另要求 renderer 无 Node；没有运行起点完整 window suite。主控恢复的 p1-materials-09 原 snapshot 未改，当前 13 项绑定检查仍 PASS。
+
+交付边界仍是脚本准备完成，等待主控依次实跑三格绿态／拒绝反例与五类回归；真实结果和最终门禁验收不能以本地 PASS 替代。

@@ -349,10 +349,13 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 
 ## Electron 窗口
 
-T-091 当前候选是单格 Tracer bullet，尚未实现同窗三格；须先取得单格真实读回，
-再扩到两个主控与一个 worker。实跑清单见
-[T-091 单格检查](../evidence/2026-10-16-batch16/T-091/TRACER-RUN.md)。
-本候选的本地 VM 检查不代表 Electron、PTY 或门禁运行验收通过。
+T-091 单格 Tracer bullet 已取得真实输入输出读回；当前候选沿同一条通路支持一个任务内的
+多个会话窗格。重复 `--launch` 传入两个主控与当前 worker，窗口会按真实 role／preset
+排列为上方构思主控、执行主控，下方全宽 worker；窗宽小于 1000px 时排成三行。
+各格保持 160×45 与独立滚动，不因尺寸改变重建终端或更换身份。
+三格真实绿态、反例与回归尚待执行，清单见
+[T-091 三格检查](../evidence/2026-10-16-batch16/T-091/THREE-PANES-RUN.md)。
+本地 VM 检查不代表三格 Electron、PTY 或门禁运行验收通过。
 
 运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
 每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、
@@ -360,7 +363,7 @@ active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝�
 用户动作、PTY 写入意图与写入收据，不能用 `sent:true` 代替。
 
 窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
-窗格和门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
+多个会话窗格和共享的当前任务门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
 键盘、IME 和粘贴入口，历史窗格保持只读；全部输入由后台写入 node-pty，renderer
 没有后台凭据、PTY 或数据库权限。每个窗格的窗口输入凭据绑定一个 launch，关闭时撤销，不随
 current_attempt 更换目标。后台在等待前占用窗口序号和 request_id，重用请求号会被拒绝；
@@ -375,6 +378,8 @@ releaseQueue、observeFocus 均显式带 key，不保留无 key 的输入通路�
 同一 Electron 进程共用应用级 user-data，不把每会话 HOME 与应用级目录混为一谈。
 
 窗格显示完整 task、launch、worker attempt；主控角色依据快照中启动记录的 preset。
+多 launch 在建窗及签发凭据前逐项检查同任务、运行状态和当前 worker attempt；错误 task、
+旧 attempt、未运行或重复 launch 均拒绝，不静默替换成当前 worker。单格历史查看仍保持只读。
 输入能力与焦点分开：实际 textarea 聚焦且允许输入时才显示“正在输入”和蓝色边线；
 不自动聚焦。输出读取错误时暂停该格输入。系统 IME 仍不在本票验收范围。
 
@@ -399,6 +404,8 @@ P1 与首个候选的四项输入合同已经通过；其余失败方式和当�
 ```sh
 npm --prefix workbench run build -- --slot local-01
 node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
+# 同一任务三格（身份取自已有启动记录）
+node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --launch 构思主控launch --launch 执行主控launch --launch 当前workerlaunch --user-data /绝对路径/ui
 ```
 
 Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main
