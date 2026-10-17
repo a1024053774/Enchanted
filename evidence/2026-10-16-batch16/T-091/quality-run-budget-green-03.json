@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "argv": [
+    "workbench/tests/test_t091_quality_run_budget.py",
+    "evidence/2026-10-16-batch16/T-091/quality-run-budget-green-03.json"
+  ],
+  "scope": "Check the real adapter's fixture budget without running the original suites.\n\nThe controlled quality path needs its declared 30-second positive-case budget.\nFailure cases: positives retain the old short budget; negative deadlines expand;\ncaller fields change; budget translation has no evidence. No daemon/PTY/ps starts.\n",
+  "known_bad": {
+    "revision": "f20a74ada49564499691cd14cf019f8cec448db1",
+    "rejected": true,
+    "error": "Full quality positive keeps its declared budget"
+  },
+  "checks": [
+    {
+      "test": "test_run_entry_point_completes_registered_task",
+      "requested": 8,
+      "expected": 30
+    },
+    {
+      "test": "test_transient_tool_activity_keeps_same_thread_owner",
+      "requested": 8,
+      "expected": 30
+    },
+    {
+      "test": "test_matching_reclaim_guard_is_idempotent_after_automatic_success",
+      "requested": 8,
+      "expected": 30
+    },
+    {
+      "test": "test_done_without_submit_hits_deadline_and_cannot_accept_committed_candidate",
+      "requested": 2,
+      "expected": 2
+    },
+    {
+      "test": "test_oracle_failure_is_not_success_and_reclaims_only_owned_thread",
+      "requested": 8,
+      "expected": 8
+    },
+    {
+      "test": "test_concurrent_duplicate_run_has_one_prompt_and_one_attempt",
+      "requested": 30,
+      "expected": 30
+    },
+    {
+      "test": "test_run_entry_point_completes_registered_task",
+      "requested": 5,
+      "expected": 5
+    }
+  ],
+  "negative_budget_mutant": {
+    "rejected": true,
+    "error": "Negative or explicit nondefault budget must stay unchanged"
+  }
+}

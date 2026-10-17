@@ -352,7 +352,8 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 通过后才登记启动记录并启动 PTY。记录保留实际版本和探测的 argv／stdout／stderr。
 路径不存在返回 `controller_executable_missing`，探测失败返回 `controller_version_probe_failed`，
 版本不符返回 `controller_version_mismatch`；不自动查找或改用其他版本，不修改全局设置，
-不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的新版本实跑与反例尚待主控验证。
+不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的 2.1.302 启动与版本反例已由
+green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记录。
 
 ## Electron 窗口
 
@@ -360,9 +361,11 @@ T-091 单格 Tracer bullet 已取得真实输入输出读回；当前候选沿�
 多个会话窗格。重复 `--launch` 传入两个主控与当前 worker，窗口会按真实 role／preset
 排列为上方构思主控、执行主控，下方全宽 worker；窗宽小于 1000px 时排成三行。
 各格保持 160×45 与独立滚动，不因尺寸改变重建终端或更换身份。
-三格真实绿态、反例与回归尚待执行，清单见
+三格真实绿态及反例、四类 GUI 回归已在 f20a74ada 上通过；core 回归与最终独立审查
+仍为 INCOMPLETE，结果见
+[T-091 结果记录](../evidence/2026-10-16-batch16/T-091/RESULTS.md)，重跑清单见
 [T-091 三格检查](../evidence/2026-10-16-batch16/T-091/THREE-PANES-RUN.md)。
-本地 VM 检查不代表三格 Electron、PTY 或门禁运行验收通过。
+本地 VM 检查不替代真实 Electron、PTY 或门禁运行证据。
 
 运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
 每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、

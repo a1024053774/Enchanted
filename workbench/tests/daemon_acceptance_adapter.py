@@ -484,7 +484,20 @@ class DaemonRecovery(DaemonLifecycle, recovery.RecoveryCLI):
 
 
 class DaemonRun(DaemonLifecycle, orchestration.RunCLI):
-    pass
+    def run_args(self, seconds=3, name='check-run'):
+        quality_positives = {
+            'test_run_entry_point_completes_registered_task',
+            'test_transient_tool_activity_keeps_same_thread_owner',
+            'test_matching_reclaim_guard_is_idempotent_after_automatic_success',
+        }
+        # These inherited positives now include real reviewer cleanup and an
+        # external executor action. Their old 8s fixture budget expired before
+        # integration in T-091 core-regression-02; negative deadlines stay exact.
+        if seconds == 8 and self._testMethodName in quality_positives:
+            self.lifecycle('quality_run_wait_budget', requested_seconds=8, configured_seconds=30,
+                           reason='controlled reviewer and executor stages')
+            seconds = 30
+        return super().run_args(seconds=seconds, name=name)
 
 
 class DaemonCAS(DaemonLifecycle, cas.CASRace):

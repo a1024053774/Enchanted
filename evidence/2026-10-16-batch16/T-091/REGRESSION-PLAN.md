@@ -1,6 +1,6 @@
 # T-091 回归命令与材料问题
 
-状态：**INCOMPLETE，以下 -02 尚未执行**。-01 包装器失败及原测试局部结果已逐项诊断，详见 RESULTS；新版本配置与包装器修正不能沿用旧候选结论。当前统一执行入口和逐场预算见 [THREE-PANES-RUN.md](THREE-PANES-RUN.md)；下面保留 core wrapper 所调用的完整 suite／method 参数，不能重复使用同一输出标签。
+状态：**INCOMPLETE，core -03 待执行**。green-02 和四类 GUI 回归 -02 已在 f20a74ada 通过，core -02 的 coop／recovery 通过，run 首个方法因质量夹具正例预算不足失败。具体原始结果与修正见 RESULTS。当前只重跑 [THREE-PANES-RUN.md](THREE-PANES-RUN.md) 末尾的 core-regression-03；下面保留旧 -02 参数作为记录，不应复用旧输出根或标签。
 
 CLI 核心回归使用现有 daemon acceptance adapter：Python／Node／Git、隔离后台与测试运行器；没有 Electron、真 Claude／Codex 或供应商模型回合。recovery 和反例包含隔离夹具自建进程的受控故障／终止，不操作用户 Herdr 或其他应用。所有路径与标签须是全新目录，原始输出直接放外置盘。主控需同时核对原运行器的收尾／原件归档记录，不能把顶层 rc 当成唯一通过证明。
 

@@ -1,6 +1,6 @@
 # T-091 结果记录
 
-日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，ticket ready_rev 1。接手启动记录为 `launch-71afbd1600cb451a9d9354aa7768e72b`；下方早期运行保留原启动记录 `launch-a818e11600754e8b8ad79aab63a17f83` 的归属。整票状态：**INCOMPLETE**。三窗格基线红态和单格 Tracer bullet 真实读回已取得；三格代码已实现，真实绿态、反例、回归与最终交付审查尚未完成。
+日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，ticket ready_rev 1。接手启动记录为 `launch-71afbd1600cb451a9d9354aa7768e72b`；下方早期运行保留原启动记录 `launch-a818e11600754e8b8ad79aab63a17f83` 的归属。整票状态：**INCOMPLETE**。green-02 已取得真实三格绿态及反例 PASS，四类 GUI 回归 -02 PASS；core -02 因正例夹具等待预算耗尽而失败，修正后待 core -03，最终独立审查尚未完成。
 
 ## red 与 close 系列
 
@@ -196,3 +196,62 @@ python3 -B workbench/tests/test_t091_regression_collection.py evidence/2026-10-1
 green-02 包含脚本开始时一次真实版本探测、两个真实主控启动各自的产品探测，以及缺路径／错误版本的真实拒绝；完整计数与原始输出保存。五类 -02 继续原断言，并确认登记 writer 退出后归档。worker 未执行任何原生 CLI、Electron、daemon、PTY、ps 或截图；实跑命令见 THREE-PANES-RUN，当前整票仍 **INCOMPLETE**。
 
 当前产品与脚本已冻结提交为 `20aa73e83479392841c726781a9f61be77f62da7`；九项尾注使用本会话身份。fresh 只读工具审查结论为 **INCOMPLETE**，未发现本范围内可确定复现或静态可达的违规；原报告 [version-wrapper-acceptance-audit-02.md](version-wrapper-acceptance-audit-02.md) 保留，不能上调为 PASS。它独立重放了版本拒绝／无 launch 或 PTY 副作用的给定边界探针、版本比较变异及三份 -01 事件采集，未运行真实场景。审查后交付只新增报告与记录，产品／测试／脚本不再更改。版本差异已记入 T-091 Resolution，票据仍 open；实际 green-02、四类拒绝及五类回归 -02 等主控逐场运行。
+
+## green-02 与回归 -02 的真实结果
+
+执行来源为执行主控 #21（本对话主控 #46）；冻结候选 `f20a74ada49564499691cd14cf019f8cec448db1`。worker 本轮只读核对外置原件、原始摘要和停机前数据库读回，没有重新启动原生 CLI、Electron、daemon、PTY、ps 或截图。以下 PASS 均绑定这次冻结候选；本轮只改 core 测试适配器的正例等待配置与证据记录，产品／窗口源码未变。
+
+**green-02：PASS／rc 0。** green_observed、negatives_passed、version_refusals_passed、cleanup_complete、archive_complete 均 true；error、post_close_error、archive_error 为空，cleanup_errors=[]。假 POST 0、供应商模型回合 0；真实主控 CLI 两个，版本 2.1.302；受控 receiver 三个串行、峰值一个；Electron 一个；读屏 30 次、原始单帧三张。版本探测五次尝试包含一次缺失路径，未自动选择其他版本或复制 auth。
+
+task 为 `t091-three-91e0bcc6`，三格绑定读回如下。三份原始 snapshot、process 及 expected.json 一致；其归属靠后台字段与进程核对，不靠标题。
+
+| 角色 | launch | 原生会话 | CLI leader／shell PID |
+| --- | --- | --- | --- |
+| 构思主控 | 3f876a9e-8e87-4e20-97d6-7dfb147611ab | fd0a9920-f661-4d02-a7ef-c98718575eb1 | 88375／88374 |
+| 执行主控 | c6215593-c80f-403d-bcc8-f8a1757251b5 | d7f221ef-0667-493f-98be-17340043ba8b | 88388／88387 |
+| 受管 worker（C receiver） | d10d8a1e-0948-4b9f-b0a0-a42e558eeb70 | 30e24581-66ee-4f0c-9c74-197059c5551b | 88352／88350 |
+
+三份 window_id 为 `2dc4eb69-fa0f-42ba-8520-1a68d46a41ce`、`8ef1bfe8-3c1c-4bd5-bb6b-5227069b6f8d`、`9be012bc-cbab-41e0-a8c8-79289e6cc658`，各不相同。worker attempt 为 `b52caea0-2578-4135-a26b-56f26dc7f319`。原始记录显示各自独立输出、输入序号与正确请求收据链，跨格放行被拒；三份凭据关闭后原 agent 仍存活，随后后台正常收尾。只读对账见 [green-02-readback.json](green-02-readback.json)，不把 receiver 的原生日志形状当成真实 Codex 模型证据。
+
+真实拒绝结果：缺失路径为 `controller_executable_missing`，错误版本为 `controller_version_mismatch`；错 task 为 `launch_task_mismatch`，旧 launch 为 `Pane is not a current running session`。后两项均在建新窗口／签发新凭据前拒绝；缺路径／错版本没有增加 pane_started。版本比较的删除变异仍由此前的独立给定输入检查拒绝，不补称在本轮额外运行过变异场景。
+
+主控已查看 `green-original.png` 和 `green-900x650-original.png` 两张原始帧，报告三格同屏、身份完整、仅 worker 格有焦点。worker 本轮只读对账对应 view JSON，没有冒称另做屏幕观察。三张原始单帧都只在外置 `green-02/` 下，未拼接或裁切；完整捕获 argv、窗口归属及其余 1200×800 原帧也在同一目录。
+
+外置根 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/green-02/`；停止后夹具副本 197 文件条目／5,290,401 字节，其中两条链接原样保存、不跟随；comparison=true、原件保留。摘要 [green-02.run.json](green-02.run.json)，清单 [green-02.archive.json](green-02.archive.json)。red-02 与 T-078 的 CLI 仍是 2.1.296，不能把本轮 2.1.302 的结果改写到旧证据上。
+
+四类 GUI 回归均为 **PASS／rc 0**，全部原断言通过且 archive_complete=true、无 error 或 metrics_error；每场各一个 Electron，按序运行。副本比较均 true，原件保留。
+
+| 场景 | 原业务检查数 | 读屏／截图数 | 夹具文件数／字节数 |
+| --- | --- | --- | --- |
+| window-regression-02 | 4 | 5／1 | 89／2,841,561 |
+| runtime-regression-02 | 12 | 26／2 | 113／2,428,275 |
+| input-failures-regression-02 | 11 | 18／2 | 100／2,160,051 |
+| worker-inbox-regression-02 | 14 | 15／2 | 150／2,259,924 |
+
+原件均在同一外置根的对应 `<case>-regression-02/`；仓库保留各自原始 run.json 摘要及 archive.json。旧 -01 顶层 INCOMPLETE 不改判；新 PASS 不替当前未执行的 core -03 或最终独立审查背书。
+
+### core-regression-02：原断言失败，根因为质量夹具正例等待预算
+
+状态仍为 **INCOMPLETE／rc 1**，archive_complete=false；不是启动包装器未进入业务。coop 8、recovery 9 方法已 PASS，均 0 failure/error/skipped。run suite 以 failfast 执行首个方法 `test_run_entry_point_completes_registered_task`，1 个 failure、0 error；CAS 与三个门禁变异未执行。原失败落点为 `acceptance/test_run_e2e.py:250`：找不到 `refs/a2a/attempts/<task>/a1`，原记录的 business-red 分类保留。完整诊断见 [core-regression-02-diagnosis.json](core-regression-02-diagnosis.json)。
+
+停机前真实事件先后顺序为：
+
+| UTC 时间 | 事件 |
+| --- | --- |
+| 14:11:44.685 | run_started，显式 wait_seconds=8 |
+| 14:11:51.892 | review_started |
+| 14:11:53.951 | run_finished，phase=waiting_executor、outcome=deadline、error=run_deadline |
+| 14:11:56.208 | review_reclaimed |
+| 14:11:59.682 | 外部执行主控完成 integrated |
+
+最终 task=accepted，但原 run 已按期限结束、attempt.reclaimed=false，不能补称其自动回收成功。8 秒预算不足以覆盖适配器新加的真实 reviewer 收尾和外部 executor 集成阶段；门禁没有违反此期限，不能通过改门禁、补建引用、伪造 completed 或放宽原断言解决。
+
+最小修正位于 `DaemonRun.run_args`：只对三个走完整质量串、原请求为 8 秒的正例，显式配置 30 秒，并追加 `quality_run_wait_budget` 记录原值、实际值和理由。它们是正常完成、同组临时辅助进程、成功后的幂等回收正例。其余调用不改：未 submit 的超时负例仍 2 秒，oracle 失败仍 8 秒，重复 run 原 30 秒及其他显式预算也原样保留；没有重试或自适应延长。产品门禁和 acceptance 原业务源码不改。
+
+本地检查 `quality-run-budget-red-03.json` 保留旧配置红态；`quality-run-budget-green-03.json` 的七组独立配置输入 PASS，旧 f20a74ada 仍被拒。将所有场景统一延长到 30 秒的变异被负例预算断言拒绝。检查执行真实 adapter/helper 的 AST，不启动 daemon 或 suite；它证明配置与负例边界，没有证明修正后 18 方法全部通过。
+
+```sh
+python3 -B workbench/tests/test_t091_quality_run_budget.py evidence/2026-10-16-batch16/T-091/quality-run-budget-green-03.json
+```
+
+文件已存在，复验须换新输出名。主控用全新标签重跑完整 core，成功条件仍为 8／9／18／1 原方法、0 failure/error/skipped，三个门禁反例命中业务断言且进程退出／归档确认；任何未完成均保留 INCOMPLETE。本轮按主控安排将候选交给后续独立审查，不另把原审查结论沿用给本次预算变更。

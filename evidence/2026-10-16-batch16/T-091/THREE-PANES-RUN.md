@@ -1,6 +1,6 @@
 # T-091 三格候选：主控实跑材料
 
-日期：2026-10-17。状态 **INCOMPLETE，green-02 与回归 -02 待实跑**。green-01 因固定 CLI 2.1.296 已被自动更新删除而在建窗前失败；五类回归 -01 的包装问题及局部真实结果见 RESULTS。旧输出原样保留，不能沿用给新候选。界面方向不变。
+日期：2026-10-17。状态 **INCOMPLETE，core-regression-03 与最终独立审查待执行**。green-02 和四类 GUI 回归 -02 已在 f20a74ada 取得真实 PASS；core -02 的原 run 正例因质量夹具等待预算不足而失败。诊断与修正见 RESULTS。以下 green-02 及回归 -02 命令均为已用标签，不能原地重跑；本轮只交下方 core -03 命令。旧失败输出原样保留，界面方向不变。
 
 重启后接手的交付身份：`launch-71afbd1600cb451a9d9354aa7768e72b`，受管 session `d4277ace-1dde-425b-99b8-8988f1df751f`，原生会话 `01a14a05-4472-70e1-af77-58414340c1ee`。脚本摘要与本次提交使用这些值；旧运行的身份不改写。
 
@@ -74,3 +74,20 @@ baseline-bridge-assertion-01 在起点 44bbb7828 取出原 preload 与原断言�
 冻结候选 03b80c4 的只读工具审查为 FAIL，发现凭据删除失败仍可能 PASS；原报告见 `three-pane-acceptance-audit-01.md`。此后已将完成标记移至删除成功后，且最终判定检查 cleanup_errors 为空。`cleanup-verdict-green-02.json` 三项纯逻辑检查 PASS，并拒绝该坏候选；最终脚本没有新的独立通过结论。交主控实跑时仍须逐项核对 cleanup_complete、错误列表、外置归档与进程退出，不以旧审查或本地逻辑检查替代实际收尾。
 
 配置版本及包装器修正冻结为 20aa73e83479392841c726781a9f61be77f62da7 后，一次 fresh 只读工具审查返回 INCOMPLETE，未发现确定违规；报告 `version-wrapper-acceptance-audit-02.md`。真实 green-02／回归 -02 仍未运行；T-078 与 red-02 的 2.1.296 证据不替 2.1.302 背书。
+
+## 本轮只重跑 core-regression-03
+
+原 core -02：coop 8／recovery 9 PASS；run 首个原业务方法失败，CAS 和三个变异未执行。8 秒正例预算先于外部 reviewer 收尾和 executor 集成耗尽，原 run 正确记 deadline，不能伪造已回收或补建引用。适配器仅将三个完整质量串正例的旧 8 秒请求显式配置为 30 秒，原超时／故障负例及其他显式预算不变；追加记录原值、实际值与理由。没有改产品门禁或原业务断言，没有自动延长或重试。
+
+```sh
+python3 -B evidence/2026-10-16-batch16/T-091/run_regression.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t091 \
+  --case core \
+  --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/core-regression-03 \
+  --label core-regression-03 \
+  --approval-ref '<执行主控对本轮 core 清单及三个正例 30 秒预算的批准引用>'
+```
+
+启动清单仍为 Node／Python／Git、隔离 daemon／受控线程、原四套业务测试和三个门禁变异，Electron 0、真实 Claude／Codex 0、模型回合 0。不复用 -02 的批准引用或目录。成功仍须原 8／9／18／1 方法全部通过、三个变异在业务断言失败、登记 writer 退出及 archive_complete=true；否则保持 INCOMPLETE。
+
+`quality-run-budget-green-03.json` 七组本地配置检查 PASS，拒绝旧 8 秒正例配置及把负例一并延长的变异。它没有运行真实 suite；core -03 仍待主控实跑，之后按主控安排开独立审查。

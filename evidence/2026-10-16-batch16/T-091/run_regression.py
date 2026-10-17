@@ -6,7 +6,9 @@ Review the selected case BEFORE each run; no prior approval carries over.
     output only; no auth.json, global writes, real Claude/Codex or provider rounds.
   core: existing coop 8 / recovery 9 / run 18 / CAS 1, then fence/CAS/lock single-site
     mutants in disposable source copies. Production daemon and controlled test
-    threads; recovery deliberately stops ONLY fixture-owned processes. No Electron,
+    threads. Three full-quality run positives explicitly use 30s in the adapter;
+    timeout/fault cases retain their original deadlines. No retry or gate change.
+    Recovery deliberately stops ONLY fixture-owned processes. No Electron,
     keyboard or vendor hook. Git fixture commits, verify/integrate and cleanup are
     performed by the ORIGINAL tests through the gate. No push or project integration.
   window: one Electron, one daemon, gate claim but no worker/model. Attempts readonly
