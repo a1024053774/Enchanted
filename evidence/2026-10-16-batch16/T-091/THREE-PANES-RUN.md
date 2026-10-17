@@ -72,3 +72,5 @@ baseline-bridge-assertion-01 在起点 44bbb7828 取出原 preload 与原断言�
 接手复验：`pane-ipc-takeover-01` 11 项、`launcher-takeover-01` 2 项、`driver-selection-takeover-01` 5 项、`client-cleanup-takeover-01` 4 项、`t078-window-binding-takeover-01` 13 项及 `observer-cleanup-takeover-01` 6 项均 PASS；资源限额以 `run-budgets-red-01` 保留红态，`run-budgets-green-02` 在两种实际客户端上拒绝旧实现，并验证计数／stdout 阈值与关闭额度。`product-parse-takeover-01` 和 `script-parse-takeover-01` 仅证明内存转换／语法，未构建或运行产品。
 
 冻结候选 03b80c4 的只读工具审查为 FAIL，发现凭据删除失败仍可能 PASS；原报告见 `three-pane-acceptance-audit-01.md`。此后已将完成标记移至删除成功后，且最终判定检查 cleanup_errors 为空。`cleanup-verdict-green-02.json` 三项纯逻辑检查 PASS，并拒绝该坏候选；最终脚本没有新的独立通过结论。交主控实跑时仍须逐项核对 cleanup_complete、错误列表、外置归档与进程退出，不以旧审查或本地逻辑检查替代实际收尾。
+
+配置版本及包装器修正冻结为 20aa73e83479392841c726781a9f61be77f62da7 后，一次 fresh 只读工具审查返回 INCOMPLETE，未发现确定违规；报告 `version-wrapper-acceptance-audit-02.md`。真实 green-02／回归 -02 仍未运行；T-078 与 red-02 的 2.1.296 证据不替 2.1.302 背书。

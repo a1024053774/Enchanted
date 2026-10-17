@@ -194,3 +194,5 @@ python3 -B workbench/tests/test_t091_regression_collection.py evidence/2026-10-1
 ```
 
 green-02 包含脚本开始时一次真实版本探测、两个真实主控启动各自的产品探测，以及缺路径／错误版本的真实拒绝；完整计数与原始输出保存。五类 -02 继续原断言，并确认登记 writer 退出后归档。worker 未执行任何原生 CLI、Electron、daemon、PTY、ps 或截图；实跑命令见 THREE-PANES-RUN，当前整票仍 **INCOMPLETE**。
+
+当前产品与脚本已冻结提交为 `20aa73e83479392841c726781a9f61be77f62da7`；九项尾注使用本会话身份。fresh 只读工具审查结论为 **INCOMPLETE**，未发现本范围内可确定复现或静态可达的违规；原报告 [version-wrapper-acceptance-audit-02.md](version-wrapper-acceptance-audit-02.md) 保留，不能上调为 PASS。它独立重放了版本拒绝／无 launch 或 PTY 副作用的给定边界探针、版本比较变异及三份 -01 事件采集，未运行真实场景。审查后交付只新增报告与记录，产品／测试／脚本不再更改。版本差异已记入 T-091 Resolution，票据仍 open；实际 green-02、四类拒绝及五类回归 -02 等主控逐场运行。
