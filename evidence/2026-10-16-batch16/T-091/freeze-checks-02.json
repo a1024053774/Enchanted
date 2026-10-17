@@ -1,0 +1,554 @@
+{
+  "status": "PASS",
+  "task": "T-091",
+  "attempt": "a1",
+  "worker": "s16-t091",
+  "worker_launch": "launch-71afbd1600cb451a9d9354aa7768e72b",
+  "worker_session": "d4277ace-1dde-425b-99b8-8988f1df751f",
+  "worker_native_session": "01a14a05-4472-70e1-af77-58414340c1ee",
+  "checked_at": "2026-10-17T15:49:29.625280+00:00",
+  "code_candidate": "3db9b6def91826d5a52dd02590c559b0c4ce35a0",
+  "scope": "Read-only source/evidence/document checks before the documentation freeze commit; no runtime tests or external writes.",
+  "prior_incomplete": "freeze-checks-01.json: the whole wrapper changed in its core branch; compare the GUI branch separately.",
+  "checks": [
+    {
+      "name": "code_candidate",
+      "status": "PASS",
+      "command": {
+        "argv": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "exit": 0,
+        "stdout": "3db9b6def91826d5a52dd02590c559b0c4ce35a0\n",
+        "stderr": ""
+      }
+    },
+    {
+      "name": "gui_product_source_unchanged",
+      "status": "PASS",
+      "command": {
+        "argv": [
+          "git",
+          "diff",
+          "f20a74ada49564499691cd14cf019f8cec448db1",
+          "HEAD",
+          "--",
+          "workbench/src",
+          "workbench/app",
+          "acceptance"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "name": "gui_test_driver_unchanged",
+      "status": "PASS",
+      "command": {
+        "argv": [
+          "git",
+          "diff",
+          "f20a74ada49564499691cd14cf019f8cec448db1",
+          "HEAD",
+          "--",
+          "workbench/tests/test_electron_e2e.py",
+          "workbench/tests/test_t078_input_entry.py",
+          "workbench/tests/electron_client.py",
+          "workbench/tests/electron_driver.mjs"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "name": "original_acceptance_and_gates_unchanged",
+      "status": "PASS",
+      "command": {
+        "argv": [
+          "git",
+          "diff",
+          "44bbb7828459d81fab0d46069a19d3dd515a7732",
+          "HEAD",
+          "--",
+          "acceptance",
+          "workbench/src/gates"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "name": "wrapper_gui_branch_unchanged",
+      "status": "PASS",
+      "path": "evidence/2026-10-16-batch16/T-091/run_regression.py",
+      "baseline": "f20a74ada49564499691cd14cf019f8cec448db1",
+      "method": "Compare parsed GUI else-branch only; full wrapper diff retained in freeze-checks-01.json. No business expectations are changed."
+    },
+    {
+      "name": "working_product_and_tests_unchanged",
+      "status": "PASS",
+      "command": {
+        "argv": [
+          "git",
+          "diff",
+          "HEAD",
+          "--",
+          "workbench",
+          "acceptance"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "name": "core04_original_summary",
+      "status": "PASS",
+      "source": "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/core-regression-04/run.json",
+      "check_count": 8
+    },
+    {
+      "name": "core04_original_suites",
+      "status": "PASS",
+      "final_run_records": {
+        "coop": {
+          "status": "PASS",
+          "exit_code": 0,
+          "tests_run": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "recovery": {
+          "status": "PASS",
+          "exit_code": 0,
+          "tests_run": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "run": {
+          "status": "PASS",
+          "exit_code": 0,
+          "tests_run": 18,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "cas": {
+          "status": "PASS",
+          "exit_code": 0,
+          "tests_run": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "name": "core04_business_counterexamples",
+      "status": "PASS",
+      "final_records": {
+        "fence": {
+          "child_status": "INCOMPLETE",
+          "exit_code": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "counterexample_pass": true,
+          "loaded_core": [
+            "/private/tmp/a5-mutants-42tz8u_a/fence/workbench/src/gates/core.ts"
+          ],
+          "contract_checks": {}
+        },
+        "cas": {
+          "child_status": "INCOMPLETE",
+          "exit_code": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "counterexample_pass": true,
+          "loaded_core": [
+            "/private/tmp/a5-mutants-42tz8u_a/cas/workbench/src/gates/core.ts"
+          ],
+          "contract_checks": {
+            "selected_original_method": true,
+            "bound_business_red": true,
+            "required_assertions_once": true,
+            "stale_G_unchanged_C": true,
+            "external_ancestor_lost": true,
+            "revalidation_omitted": true
+          }
+        },
+        "lock": {
+          "child_status": "INCOMPLETE",
+          "exit_code": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "counterexample_pass": true,
+          "loaded_core": [
+            "/private/tmp/a5-mutants-42tz8u_a/lock/workbench/src/gates/core.ts"
+          ],
+          "contract_checks": {}
+        }
+      }
+    },
+    {
+      "name": "core04_archive_receipt",
+      "status": "PASS",
+      "fixtures": 9,
+      "files": 3623,
+      "bytes": 255327757,
+      "symlinks": 3,
+      "scope": "Read receipt assertions only; no new inventory copy or archive write."
+    },
+    {
+      "name": "document_encoding",
+      "status": "PASS",
+      "files": [
+        {
+          "path": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "utf8": true,
+          "bom": false,
+          "replacement_character": false,
+          "newline": "LF"
+        },
+        {
+          "path": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "utf8": true,
+          "bom": false,
+          "replacement_character": false,
+          "newline": "LF"
+        },
+        {
+          "path": "evidence/2026-10-16-batch16/T-091/core-regression-04.run.json",
+          "utf8": true,
+          "bom": false,
+          "replacement_character": false,
+          "newline": "LF"
+        },
+        {
+          "path": "evidence/2026-10-16-batch16/T-091/core-regression-04.archive.json",
+          "utf8": true,
+          "bom": false,
+          "replacement_character": false,
+          "newline": "LF"
+        },
+        {
+          "path": "evidence/2026-10-16-batch16/T-091/freeze-checks-01.json",
+          "utf8": true,
+          "bom": false,
+          "replacement_character": false,
+          "newline": "LF"
+        }
+      ]
+    },
+    {
+      "name": "document_local_links",
+      "status": "PASS",
+      "count": 64,
+      "links": [
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "REVIEW-REQUEST-T091-01.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "red-02.single-frame.pointer.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "red-01-close-03.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "red-02.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "TRACER-RUN.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "REGRESSION-PLAN.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "tracer-acceptance-audit-01.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "tracer-01.single-frame.pointer.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "tracer-01.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "tracer-01.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "THREE-PANES-RUN.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "three-pane-acceptance-audit-01.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "version-wrapper-acceptance-audit-02.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "green-02-readback.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "green-02.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "green-02.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "core-regression-02-diagnosis.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "core-regression-03-diagnosis.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "baseline-timing-evidence-04.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "core-regression-04.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "core-regression-04.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "REVIEW-REQUEST-T091-01.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "freeze-checks-01.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/RESULTS.md",
+          "target": "freeze-checks-02.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "freeze-checks-02.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "freeze-checks-01.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "task-card-T-091-1.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "../../../.project-map/tickets/T-091-single-window-multi-pane.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "UI-DIRECTION.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "RESULTS.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "red-02.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "red-02.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "red-02.single-frame.pointer.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "green-02.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "green-02-readback.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "green-02.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "pane-ipc-takeover-01.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "t078-controller-window-01/results.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "freeze-checks-02.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "window-regression-02.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "window-regression-02.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "runtime-regression-02.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "runtime-regression-02.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "input-failures-regression-02.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "input-failures-regression-02.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "worker-inbox-regression-02.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "worker-inbox-regression-02.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "core-regression-04.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "core-regression-04.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "cas-classifier-green-04d.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "core-regression-03-diagnosis.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "regression-01-diagnosis.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "green-01.run.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "green-01.archive.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "claude-version-red-01.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "claude-version-green-04.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "core-regression-02-diagnosis.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "quality-run-budget-green-03.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "baseline-timing-evidence-04.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "baseline-bridge-assertion-01.json"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "THREE-PANES-RUN.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "REGRESSION-PLAN.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "three-pane-acceptance-audit-01.md"
+        },
+        {
+          "document": "evidence/2026-10-16-batch16/T-091/REVIEW-REQUEST-T091-01.md",
+          "target": "version-wrapper-acceptance-audit-02.md"
+        }
+      ]
+    },
+    {
+      "name": "diff_whitespace",
+      "status": "PASS",
+      "command": {
+        "argv": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "name": "project_map_status",
+      "status": "PASS",
+      "command": {
+        "argv": [
+          "python3",
+          "/Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py",
+          "status",
+          "--root",
+          "."
+        ],
+        "exit": 0,
+        "stdout": "Problems (0):\nStale living docs (0):\nFrontier (8):\n  - T-010 [task] Account for descendant agent sessions and model settings\n  - T-011 [task] Check monitor coverage and finding disposition\n  - T-012 [task] Define research deliverables and handoff evidence\n  - T-013 [task] Make fixture governance scope explicit\n  - T-014 [task] Check evidence capture and artifact packaging before model runs\n  - T-089 [build] 证据归档脚本：把批次里的大块原始输出搬到外置盘并留清单，并改任务卡模板\n  - T-091 [build] 工作台单窗口同任务多窗格：两个主控窗格加一个 worker 窗格同屏\n  - T-093 [build] 正常登录启动方式落地：隔离 HOME 加登录凭据、本地转发层调用计数、事实核对脚本\n",
+        "stderr": ""
+      }
+    }
+  ],
+  "runtime_tests_run": 0,
+  "electron_starts": 0,
+  "daemon_starts": 0,
+  "real_vendor_cli_starts": 0,
+  "screen_reads": 0,
+  "captures": 0,
+  "external_writes": 0,
+  "final_independent_review": "INCOMPLETE"
+}

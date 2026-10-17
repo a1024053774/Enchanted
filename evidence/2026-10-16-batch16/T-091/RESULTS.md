@@ -1,6 +1,6 @@
 # T-091 结果记录
 
-日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，ticket ready_rev 1。接手启动记录为 `launch-71afbd1600cb451a9d9354aa7768e72b`；下方早期运行保留原启动记录 `launch-a818e11600754e8b8ad79aab63a17f83` 的归属。整票状态：**INCOMPLETE**。green-02 与四类 GUI 回归 -02 PASS；core -03 四组原套件及 fence 反例通过，CAS 变异已触发业务断言，但分类器漏判，lock 尚未执行。分类器修正后待 core -04，最终独立审查未完成。
+日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，ticket ready_rev 1。接手启动记录为 `launch-71afbd1600cb451a9d9354aa7768e72b`；下方早期运行保留原启动记录 `launch-a818e11600754e8b8ad79aab63a17f83` 的归属。整票状态：**INCOMPLETE（待最终独立审查与主控门禁验收）**。green-02、四类 GUI 回归 -02、core-regression-04 均 PASS；core -04 的分类器前置检查、四组原套件及 fence／CAS／lock 三个业务反例共八项全部通过，archive_complete=true。冻结代码候选为 `3db9b6def91826d5a52dd02590c559b0c4ce35a0`，本次交接仅增加文档和证据收据；逐条证据见 [独立审查请求](REVIEW-REQUEST-T091-01.md)。下文保留各阶段当时的状态，不回改旧失败或未完成记录。
 
 ## red 与 close 系列
 
@@ -296,3 +296,26 @@ python3 -B workbench/tests/test_t091_business_mutant.py evidence/2026-10-16-batc
 已只读比较起点 `44bbb7828459d81fab0d46069a19d3dd515a7732` 与超时候选 f20a74ada：run 门禁 core、legacy_quality_driver、原 test_run_e2e、daemon_acceptance_adapter 四份关键源码完全相同。起点已经有相同质量串与旧 8 秒配置；这是源码事实，不能替代相同环境中的起点实测。
 
 现有数据只包含候选上的同一场景：core -02 配置 8 秒，run_started→run_finished 为 9.266 秒、outcome=deadline；core -03 配置 30 秒，同一区间为 15.131 秒、outcome=completed。这是 **run 事件区间，不是完整方法耗时**，两者也不是起点与候选的独立对照。起点是否同样超过 8 秒仍为推断；若要作因果结论，须另在起点独立 checkout、相同环境下运行同一方法计时。范围与原始读回索引保存在 [baseline-timing-evidence-04.json](baseline-timing-evidence-04.json)。本轮没有执行该起点实验，30 秒仍只是三个质量正例的显式夹具预算，原超时负例与其他预算不变。
+
+## core-regression-04 与最终冻结交接
+
+执行来源为执行主控 #25（本对话主控 #48）；实跑候选 `3db9b6def91826d5a52dd02590c559b0c4ce35a0`。状态 **PASS／rc 0**，八项检查全部 PASS，archive_complete=true。worker 只读核对外置顶层 run.json、七个子运行的最终 run.json、原始测试计数及三个 business-counterexample.json，仓库摘要与外置顶层记录相同；没有重跑场景或改写原件。
+
+| 检查 | 本次实际结果 |
+| --- | --- |
+| business_classifier_preflight | PASS；长套件前执行分类器合同检查 |
+| coop_original_suite | PASS，8 个原方法，0 failure/error/skipped |
+| recovery_original_suite | PASS，9 个原方法，0 failure/error/skipped |
+| run_original_suite | PASS，18 个原方法，0 failure/error/skipped |
+| cas_original_suite | PASS，1 个原方法，0 failure/error/skipped |
+| fence_business_counterexample | PASS；指定变异 core，1 个原测试实际失败，0 error/skipped，错误 fence 被业务断言识别 |
+| cas_business_counterexample | PASS；指定变异 core，1 个原测试实际失败，0 error/skipped；新 G 未绑定、外部祖先丢失、oracle 未重验三项违反同时成立，六个 contract_checks 全 true |
+| lock_business_counterexample | PASS；指定变异 core，1 个原测试实际失败，0 error/skipped，并发 verify 被错误放行的业务断言触发 |
+
+变异子运行自身仍是 **INCOMPLETE／exit 1**，这是要求的坏实现失败，不改成原套件 PASS。顶层对它们的 PASS 指业务反例被正确识别。`test-result.json` 是最终判定前保存的阶段记录，需连同各子目录最终 `run.json` 的退出码／计数及顶层判定一起读，不能只读其初始化 status 字段。
+
+本次供应商模型回合、真实供应商 CLI 启动、Electron 启动、窗口、读屏和截图均为 0。原件根 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/core-regression-04/`；九份停止后夹具副本共 3,623 个文件条目、255,327,757 字节，含三条依赖链接，均按链接本身保存而不跟随。九份 comparison 均 true，原目录全部保留；仓库仅提交 [core-regression-04.run.json](core-regression-04.run.json) 和 [core-regression-04.archive.json](core-regression-04.archive.json)。主控日志为 `/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/tasks/b1bdymv2s.output`。完整命令和批准引用在 run.json，已使用的输出标签不得覆盖。
+
+执行主控已核对 f20a74ada→3db9b6def 的 `workbench/src/`、`workbench/app/`、`acceptance/` 无变化；worker 本轮通过相同范围的 git diff 再次只读核对，输出为空。因此 green-02 与四类 GUI 回归 -02 对应的产品代码仍相同；core -04 则实际覆盖了最新预算适配器和分类器。该结论有明确源码范围，不将旧审查报告或旧候选的其他测试结论一并沿用。
+
+本次冻结提交只更新本结果记录、新增 [REVIEW-REQUEST-T091-01.md](REVIEW-REQUEST-T091-01.md)、core -04 两份原始收据及冻结检查收据，不改产品、测试、脚本或验收条件。[freeze-checks-01.json](freeze-checks-01.json) 保留一次核对范围错误：把增加 core 前置检查的整个包装器误纳入“GUI 文件未变”比较；最终 [freeze-checks-02.json](freeze-checks-02.json) 分别核对产品、GUI 原测试／驱动及包装器 GUI 分支，并检查文档、链接和项目状态。最终冻结版本以本请求所在提交及交接回复的 FROZEN SHA 为准。独立 reviewer 由主控另开，ticket 仍 open，验收框未代勾；此前 FAIL／INCOMPLETE 的只读工具审查及 red／green／回归失败原件均保留。交接后停止修改，等待主控审查流程。
