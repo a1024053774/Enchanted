@@ -1600,3 +1600,11 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 完整要求仍是实际POST7/1、roots4/1、三许可、模型0、原stop无ack、实际>120且<150秒、目标恰一个Esc及原attempt/活目标。第一次完整PASS后用同CLI/同输出做拒绝探针，要求result及所有phase原字节不变、事件/POST/按键增量0；不重试失败业务。成败保留完整原件/一致数据库与clock-origin，原owner路径停机回收，停后SQLite读0。
 
 本轮仅[静态预检](09c-coordinator-rehearsal-01/preflight-02/preflight.json)、[307源码常规成员/字节与新输出路径检查](09c-coordinator-rehearsal-01/static-source-02/result.json)和局部检查 **PASS**，现有timed guards也PASS；没有启动现场。[沙箱外命令](09c-coordinator-rehearsal-01/RUN-OUTSIDE-COMMAND.txt) 指向全新real-chain-outside-01，完整协调器排练仍 **INCOMPLETE**。源码闭包已变，旧第2场materials-03 **过期／NO_GO**，保留原件，待本次PASS后再重冻绑定；当前不签/启动第2场，整票状态不上调。
+
+## 主控 #360：协调器完整排练 PASS；第2场仅重冻收据绑定
+
+主控沙箱外 [协调器排练](09c-coordinator-rehearsal-01/real-chain-outside-01/result.json) **PASS**，运行基线dc15dc3f0169f8689c5cded440676031cfa48bf5：POST7/1、roots4/1、scene_age_ms123303.453125、completion_age_ms123477.2919921875，模型0；cleanup PASS/root已删/停后SQLite读0。[重复拒绝](09c-coordinator-rehearsal-01/real-chain-outside-01/flow/coordinator-duplicate-refusal/result.json)完整执行1次、拒绝探针1次，122文件/1615318字节保持原样，gate/POST/key/覆盖增量0；原stop无ack、目标恰一Esc、实钟边界由原独立读回核对。该排练仍是确定性PTY替身，不冒称真实Claude第2场已完成。
+
+[新重冻说明与整场顺序](09c-attempt-2-refreeze-01/README.md) 保持所有运行代码、protocol与预算不变，只将校验元数据接到本次协调器收据。新 `runtime_source_revision` 明确等于dc15，完整冻结提交另记，整个workbench/acceptance/scripts字节都必须等于已实跑版本。收据校验的[旧入口红态](09c-attempt-2-refreeze-01/binding-red-01.json)与[新绿态](09c-attempt-2-refreeze-01/binding-green-01.json)已保存；不改变原四回归收据的组合判定。
+
+新材料目标为09c-executable-materials-04与09c-attempt-2-materials-02，Stage A批准保持空签字；Stage A/B1仍从本场实际readiness/manifest逐步绑定新root与身份，协调器签名由主控同一文本填入预批准与 `--signature-ref`。本轮只写/静态核对，没有启动第2场、发键或调模型；第2场与整票状态仍INCOMPLETE。

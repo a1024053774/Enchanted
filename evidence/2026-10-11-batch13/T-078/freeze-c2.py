@@ -8,7 +8,7 @@ import sys
 import tarfile
 
 SOURCE=Path(__file__).resolve().parents[3];BASE=Path(__file__).resolve().parent
-MATERIAL=BASE/'09c-attempt-2-materials-01';PACKET=BASE/'09c-executable-materials-03'
+MATERIAL=BASE/'09c-attempt-2-materials-02';PACKET=BASE/'09c-executable-materials-04'
 STAGE_A=BASE/'09c-stage-a-02'
 
 
@@ -35,6 +35,7 @@ def main():
     revalidation=load_module(BASE/'c2-revalidation.py','C2_revalidation')
     rehearsal=str(revalidation.REHEARSAL/'result.json')
     raw=json.loads(Path(rehearsal).read_bytes());assert raw['status']=='PASS' and raw['source_revision']==revalidation.REPAIR_REVISION
+    assert not subprocess.check_output(['git','diff',revalidation.REPAIR_REVISION,'--','workbench','acceptance','scripts'],cwd=SOURCE), 'runtime must match the completed coordinator rehearsal'
     prepare=[sys.executable,'-B',BASE/'prepare-09b-executable.py','--scene','09C','--label',PACKET.name,'--protocol',
              '--prompt-file',MATERIAL/'i1-prompt.txt']
     generated=subprocess.run(list(map(str,prepare)),cwd=SOURCE,capture_output=True,text=True,timeout=300)
@@ -44,12 +45,14 @@ def main():
     runner=load_module(BASE/'run-09b.py','C2_stage_a')
     readbacks=[str(BASE/name/'result.json') for name in runner.REGRESSION_REPORTS]
     delta=['workbench/tests/'+name for name in revalidation.REPAIRS]+revalidation.NEW_FILES+[str(BASE.relative_to(SOURCE)/'prepare-09b-executable.py')]
-    static.update(regression_readbacks=readbacks,harness_rehearsal=rehearsal,harness_delta_paths=delta)
+    static.update(regression_readbacks=readbacks,harness_rehearsal=rehearsal,harness_delta_paths=delta,
+                  runtime_source_revision=revalidation.REPAIR_REVISION)
     (PACKET/'static-check.json').write_text(json.dumps(static,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     approval={'approved_by':None,'approval_ref':None,'stage':'A','scene':'09C','source_revision':revision,
        'launch_status':'NO_GO','protocol':True,'materials':PACKET.name,'allow_role_cli_spawn':False,
        'final_protocol_api':True,'protocol_tag':'rev2-raw-c-profile-v1','fixture_profile':'rev2-registered-raw-v1',
        'real_vendor_model_turns':0,'regression_readbacks':readbacks,'harness_rehearsal':rehearsal,'harness_delta_paths':delta,
+       'runtime_source_revision':revalidation.REPAIR_REVISION,
        'actions':['preflight task card before root or spawn','start two detached fake APIs and daemon',
            'real managed deterministic target dispatch/claim; bind original PID/argv/lstart',
            'stop at READY_FOR_APPROVAL; no role CLI; fresh attempt-2 root only']}
@@ -77,9 +80,11 @@ def main():
          '--output',BASE/'09c-c2-preparation-01']))
     save(MATERIAL/'SOURCE.json',{'status':'PASS','revision':revision,'rehearsed_repair_revision':revalidation.REPAIR_REVISION,
         'business_revision':revalidation.BUSINESS_REVISION,'product_app_acceptance_bytes_unchanged':True,
+        'runtime_source_revision':revalidation.REPAIR_REVISION,'runtime_workbench_acceptance_scripts_bytes_unchanged':True,
+        'freeze_revision_scope':'full checkout including receipt-binding metadata; runtime bytes are exactly dc15dc3f0',
         'regression_validation':regression,'snapshot':str(PACKET/'sources.tar.gz'),'source_paths':static['source_paths'],
         'runtime_root':'NOT_CREATED; Stage A creates a fresh root','role_binding':'actual new Stage A/B1 only',
-        'new_timed_coordinator':'NOT_RUN; frozen for controller review; no claim of another live rehearsal',
+        'new_timed_coordinator':'completed real CLI rehearsal PASS at dc15dc3f0; second Claude scene NOT_RUN',
         'scene_process_starts':0,'signature_fields_empty':True,'launch_status':'NO_GO'})
     save(MATERIAL/'BUDGET.json',{'ideation':{'roots':4,'POST':7},'executor':{'roots':1,'POST':1},'combined_POST':8,
          'tool_permissions':3,'real_model_turns':0,'early_gate_ms_lt':120000,'late_gate_ms_gt':120000,
