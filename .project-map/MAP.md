@@ -55,6 +55,7 @@
 - [T-071 权限、状态信号、派发唤醒、数据与主控提问](tickets/T-071-permissions-signals-dispatch-data.md): 权限四层；只认结构化状态信号；派发与唤醒写进窗格；唯一 SQLite 库；面板收主控提问
 - [T-072 提交追溯、验收打分、复盘与指标](tickets/T-072-traceability-scoring-retrospective-metrics.md): `A2A-*` 尾注；每个 attempt 结束随验收命令打分；手动或定期复盘；原始事件全记、四个指标视图；Herdr 期先用三样
 - [T-088 证据体量：大块归档到外置盘](tickets/T-088-evidence-archive-policy.md): 2026-10-16 起新批次只留文本摘要与 `*.archive.json` 清单，run/fixtures 目录、gz、sqlite、监视器日志归档到 `/Volumes/WD-Elements/a2a-evidence/`；不带校验值；缺盘报错；已提交历史不改写；落地见 T-089
+- [T-092 正常登录启动方式](tickets/T-092-normal-login-profile.md): 2026-10-17 决定：隔离 HOME 加只复制登录凭据、本地转发层逐条计数、脚本只核对事实放行由用户定、现有登录总上限 3 回合先做小复核；落地见 T-093（未就绪）
 
 ## Not yet specified
 
