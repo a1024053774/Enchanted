@@ -21,6 +21,7 @@ import sys
 import tempfile
 import termios
 import time
+import unicodedata
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
@@ -292,7 +293,14 @@ def environment(root):
             "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
 
 
-def prepare_onboarding_state(root):
+def prepare_onboarding_state(root, *, trust_isolated_cwd=False):
+    payload = {"hasCompletedOnboarding": True}
+    trusted_cwd = None
+    if trust_isolated_cwd:
+        cwd = root / "cwd"
+        require(cwd.is_dir() and not cwd.is_symlink() and cwd.resolve() == cwd, "isolated_cwd_required")
+        trusted_cwd = unicodedata.normalize("NFC", str(cwd))
+        payload["projects"] = {trusted_cwd: {"hasTrustDialogAccepted": True}}
     relative = Path("home/.claude/.claude.json")
     path = root / relative
     parent = open_parent_directory(path)
@@ -302,9 +310,12 @@ def prepare_onboarding_state(root):
         os.close(parent)
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
         os.fchmod(fd, 0o600)
-        stream.write(encode({"hasCompletedOnboarding": True}))
-    return {"relative_path": str(relative), "keys": ["hasCompletedOnboarding"], "mode": "0600",
-            "source": "generated", "before_cli_and_credentials": True}
+        stream.write(encode(payload))
+    result = {"relative_path": str(relative), "keys": list(payload), "mode": "0600",
+              "source": "generated", "before_cli_and_credentials": True}
+    if trusted_cwd is not None:
+        result["trusted_cwd"] = trusted_cwd
+    return result
 
 
 def credentials(home, env, cwd, report):
@@ -581,7 +592,7 @@ def home_references(value, home, field="launch"):
     return []
 
 
-def route(executable, profile, env, cwd, root, report, secrets, *, terminal_output=None, identities=()):
+def route(executable, profile, env, cwd, root, report, secrets, *, terminal_output=None, identities=(), startup_controls_enabled=True):
     arguments = [executable, "--model", "claude-haiku-5-5", "--effort", "low",
                  "--permission-mode", "manual", "--tools", "", "--strict-mcp-config",
                  "--mcp-config", '{"mcpServers":{}}', "--disable-slash-commands", PROMPT]
@@ -605,7 +616,7 @@ def route(executable, profile, env, cwd, root, report, secrets, *, terminal_outp
     except OSError:
         foreground_is_child = None
     # 只处理已知的一次性主题/说明/隔离 cwd 信任屏；未知屏幕到期即停。
-    known = (("Choose the text style", b"1\r", "theme"),
+    known = () if not startup_controls_enabled else (("Choose the text style", b"1\r", "theme"),
              ("Please review the security notes", b"\r", "security_notice"),
              ("Do you trust the files in this folder?", b"1\r", "isolated_cwd_trust"),
              ("Is this a project you created or one you trust?", b"1\r", "isolated_cwd_trust"))
@@ -677,7 +688,8 @@ def route(executable, profile, env, cwd, root, report, secrets, *, terminal_outp
                                       "stopped_by_probe": exit_before_stop is None, "deadline_reached": deadline_reached,
                                       "pty_eof_seen": eof, "output_truncated": output_truncated,
                                       "protocol_replies": replies_count, "terminal": terminal_facts(captured, PROMPT),
-                                      "query_via_argv": True, "submission": submission_facts(root, PROMPT)}
+                                      "query_via_argv": True, "startup_controls_enabled": startup_controls_enabled,
+                                      "submission": submission_facts(root, PROMPT)}
         if terminal_output is not None:
             report["terminal_export"] = {"requested": True, "written": False}
             report["terminal_export"].update(write_terminal_output(terminal_output, captured, secrets, identities))
@@ -694,6 +706,7 @@ def run(args):
     require(args.output is not None, "output_required")
     output = Path(args.output).absolute()
     require(output.parent.is_dir() and not output.exists(), "new_output_file_required")
+    require(not args.trust_isolated_cwd or args.prepare_onboarding_state, "onboarding_state_required_for_cwd_trust")
     terminal_output = Path(args.terminal_output) if args.terminal_output else None
     if terminal_output is not None:
         require(terminal_output == TERMINAL_OUTPUT, "terminal_export_path_not_authorized")
@@ -720,7 +733,7 @@ def run(args):
         before = metadata(real_home)
         env = environment(root)
         if args.prepare_onboarding_state:
-            report["onboarding_state"] = prepare_onboarding_state(root)
+            report["onboarding_state"] = prepare_onboarding_state(root, trust_isolated_cwd=args.trust_isolated_cwd)
         cwd = str(root / "cwd")
         profile = sandbox_profile(root, real_home, executable)
         # 先用无凭据子进程检查读保护、写保护和网络保护。
@@ -825,7 +838,8 @@ else:
                                          "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
         require(code == 0, "local_sink_tcp_unreachable")
         identities.update(auth_status(str(executable), profile, env, cwd, report, "status_with_base_url", secrets))
-        route(str(executable), profile, env, cwd, root, report, secrets, terminal_output=terminal_output, identities=identities)
+        route(str(executable), profile, env, cwd, root, report, secrets, terminal_output=terminal_output, identities=identities,
+              startup_controls_enabled=not args.trust_isolated_cwd)
         auth_status(str(executable), profile, env, cwd, report, "status_after_route", secrets)
         report["status"] = "PASS"
     except StopProbe as error:
@@ -879,6 +893,7 @@ def main():
     parser.add_argument("--output")
     parser.add_argument("--terminal-output", help="仅允许主控指定的 probe-09 脱敏终端临时文件；不覆盖。")
     parser.add_argument("--prepare-onboarding-state", action="store_true", help="probe-08：只在隔离配置中新建一个 onboarding 完成字段。")
+    parser.add_argument("--trust-isolated-cwd", action="store_true", help="probe-10：只预置本次隔离 cwd 的项目信任状态，禁用业务按键。")
     parser.add_argument("--sink", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.sink:

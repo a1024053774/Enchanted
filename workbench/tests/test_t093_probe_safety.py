@@ -29,6 +29,72 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    def test_workspace_trust_state_contains_only_this_private_cwd(self):
+        for _ in range(2):
+            with tempfile.TemporaryDirectory(prefix="t093-trust-state-") as temp:
+                root = Path(temp).resolve()
+                probe.environment(root)
+                try:
+                    result = probe.prepare_onboarding_state(root, trust_isolated_cwd=True)
+                except TypeError:
+                    self.fail("尚未支持显式生成隔离 cwd 信任状态。")
+                state = json.loads((root / "home/.claude/.claude.json").read_text(encoding="utf-8"))
+                expected_cwd = str(root / "cwd")
+                self.assertEqual(state, {"hasCompletedOnboarding": True,
+                                         "projects": {expected_cwd: {"hasTrustDialogAccepted": True}}})
+                self.assertIs(state["projects"][expected_cwd]["hasTrustDialogAccepted"], True)
+                self.assertEqual(result["trusted_cwd"], expected_cwd)
+                self.assertEqual(stat.S_IMODE((root / "home/.claude/.claude.json").stat().st_mode), 0o600)
+                linked = root / "linked"
+                linked.mkdir(); probe.environment(linked)
+                (linked / "cwd").rmdir()
+                (linked / "cwd").symlink_to(root / "cwd", target_is_directory=True)
+                with self.assertRaises(probe.StopProbe):
+                    probe.prepare_onboarding_state(linked, trust_isolated_cwd=True)
+                self.assertFalse((linked / "home/.claude/.claude.json").exists())
+
+    @unittest.skipUnless(sys.platform == "darwin", "探针入口只支持 macOS")
+    def test_workspace_trust_option_requires_onboarding_state_preparation(self):
+        with tempfile.TemporaryDirectory(prefix="t093-trust-options-") as temp:
+            args = SimpleNamespace(claude=sys.executable, output=str(Path(temp) / "report.json"),
+                                   terminal_output=None, prepare_onboarding_state=False, trust_isolated_cwd=True)
+            with patch.object(probe.tempfile, "mkdtemp", side_effect=probe.StopProbe("private_setup_attempted")), \
+                 patch.object(probe, "credentials") as read_credentials:
+                with self.assertRaises(probe.StopProbe) as stopped:
+                    probe.run(args)
+            self.assertEqual(str(stopped.exception), "onboarding_state_required_for_cwd_trust")
+            self.assertFalse(read_credentials.called)
+
+    def test_pretrusted_route_answers_protocol_but_sends_no_startup_keys(self):
+        with tempfile.TemporaryDirectory(prefix="t093-route-peer-") as temp:
+            root = Path(temp).resolve()
+            env = probe.environment(root)
+            peer = root / "interactive-peer"
+            peer.write_text("#!" + sys.executable + "\n" + '''import os,tty,time,select,json
+from pathlib import Path
+tty.setraw(0)
+os.write(1,b"Choose the text style\\nIs this a project you created or one you trust?\\n\\x1b[6n")
+data=b""
+deadline=time.monotonic()+0.6
+while time.monotonic()<deadline:
+    if select.select([0],[],[],0.05)[0]:data+=os.read(0,4096)
+(Path(os.environ["HOME"])/"input-facts.json").write_text(json.dumps({"cursor_reply":b"\\x1b[1;1R" in data,"non_protocol_bytes":len(data.replace(b"\\x1b[1;1R",b"",1))}),encoding="utf-8")
+''', encoding="utf-8")
+            peer.chmod(0o700)
+            report, stopped = {"captured_output_secret_hits": 0}, None
+            with patch.object(probe, "guarded", side_effect=lambda profile, argv: argv):
+                try:
+                    probe.route(str(peer), "synthetic-profile", env, str(root / "cwd"), root, report, [],
+                                startup_controls_enabled=False)
+                except TypeError:
+                    self.fail("尚未提供禁止业务按键的探针模式。")
+                except probe.StopProbe as error:
+                    stopped = str(error)
+            self.assertEqual(stopped, "no_authenticated_local_messages_request")
+            self.assertEqual(json.loads((root / "home/input-facts.json").read_text(encoding="utf-8")),
+                             {"cursor_reply": True, "non_protocol_bytes": 0})
+            self.assertEqual(report["startup_controls"], [])
+
     @unittest.skipUnless(sys.platform == "darwin", "探针入口只支持 macOS")
     def test_terminal09_is_the_only_approved_export_destination(self):
         base = "/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/scratchpad/"
@@ -38,7 +104,7 @@ class ProbeSafety(unittest.TestCase):
             with self.subTest(filename=filename), tempfile.TemporaryDirectory(prefix="t093-export09-") as temp:
                 root = Path(temp).resolve()
                 args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"),
-                                       terminal_output=base + filename, prepare_onboarding_state=True)
+                                       terminal_output=base + filename, prepare_onboarding_state=True, trust_isolated_cwd=False)
                 with patch.object(probe, "open_parent_directory", side_effect=lambda path: os.open(root, os.O_RDONLY | os.O_DIRECTORY)), \
                      patch.object(probe.tempfile, "mkdtemp", side_effect=probe.StopProbe("private_setup_attempted")), \
                      patch.object(probe, "credentials") as read_credentials, \
@@ -73,8 +139,8 @@ class ProbeSafety(unittest.TestCase):
 
     @unittest.skipUnless(sys.platform == "darwin", "探针入口只支持 macOS")
     def test_onboarding_state_precedes_cli_and_auth_only_when_requested(self):
-        for prepare in (False, True):
-            with self.subTest(prepare=prepare), tempfile.TemporaryDirectory(prefix="t093-onboarding-order-") as temp:
+        for prepare, trust in ((False, False), (True, False), (True, True)):
+            with self.subTest(prepare=prepare, trust=trust), tempfile.TemporaryDirectory(prefix="t093-onboarding-order-") as temp:
                 outer = Path(temp).resolve()
                 home, isolated = outer / "source", outer / "isolated"
                 home.mkdir(); isolated.mkdir()
@@ -87,11 +153,14 @@ class ProbeSafety(unittest.TestCase):
                     state = isolated / "home/.claude/.claude.json"
                     self.assertEqual(state.exists(), prepare)
                     if prepare:
-                        self.assertEqual(json.loads(state.read_text(encoding="utf-8")), {"hasCompletedOnboarding": True})
+                        expected = {"hasCompletedOnboarding": True}
+                        if trust:
+                            expected["projects"] = {str(isolated / "cwd"): {"hasTrustDialogAccepted": True}}
+                        self.assertEqual(json.loads(state.read_text(encoding="utf-8")), expected)
                     return (0, b"", b"") if len(calls) == 1 else (65, b"", b"synthetic profile stop")
 
                 args = SimpleNamespace(claude=sys.executable, output=str(outer / "report.json"),
-                                       terminal_output=None, prepare_onboarding_state=prepare)
+                                       terminal_output=None, prepare_onboarding_state=prepare, trust_isolated_cwd=trust)
                 with patch.object(probe.Path, "home", return_value=home), \
                      patch.object(probe.tempfile, "mkdtemp", return_value=str(isolated)), \
                      patch.object(probe, "capture", side_effect=fake_capture), \
@@ -182,7 +251,7 @@ class ProbeSafety(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="t093-terminal-destination-") as temp:
             root = Path(temp).resolve()
             args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"),
-                                   terminal_output=str(root / "unauthorized.txt"), prepare_onboarding_state=False)
+                                   terminal_output=str(root / "unauthorized.txt"), prepare_onboarding_state=False, trust_isolated_cwd=False)
             with patch.object(probe.tempfile, "mkdtemp", side_effect=probe.StopProbe("private_setup_attempted")) as setup, \
                  patch.object(probe, "credentials") as read_credentials:
                 with self.assertRaises(probe.StopProbe) as stopped:
@@ -362,7 +431,7 @@ except urllib.error.HTTPError as error:assert error.code==400
                     raise probe.StopProbe("unexpected_post_version_capture")
 
                 args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"), terminal_output=None,
-                                       prepare_onboarding_state=False)
+                                       prepare_onboarding_state=False, trust_isolated_cwd=False)
                 with patch.object(probe.Path, "home", return_value=source_home), \
                      patch.object(probe, "capture", side_effect=fake_capture), \
                      patch.object(probe, "credentials") as read_credentials, \
