@@ -10,6 +10,7 @@ import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
 import type { A2AInboxEntry } from "./contracts/a2aInbox.ts";
 import { claudeLaunch, type ClaudeLaunchInput } from "./claudeLaunch.ts";
+import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 
 const exec = promisify(execFile);
@@ -63,6 +64,8 @@ type Pane = {
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   permission?: { prompt_id: string; submission: string } | null;
+  login?: ClaudeLogin;
+  loginCleanup?: Promise<void>;
 };
 
 export class Panes implements GateRuntime {
@@ -76,15 +79,17 @@ export class Panes implements GateRuntime {
     this.onEventWriteFailed = onEventWriteFailed;
   }
   ensureProject = async (_project: string, _repo: string) => {};
-  startController(task: A2ATask, input: ClaudeLaunchInput) {
-    check(new URL(input.api_url).port !== "0", "messages_api_not_bound");
-    const record = { ...claudeLaunch(task, input), created_at: new Date().toISOString(),
+  async startController(task: A2ATask, input: ClaudeLaunchInput) {
+    let login: ClaudeLogin | undefined;
+    try {
+    if (input.authentication === "normal-login") login = await ClaudeLogin.prepare(input, task.repo);
+    else check(new URL(input.api_url!).port !== "0", "messages_api_not_bound");
+    const record = { ...claudeLaunch(task, input, login?.isolation), created_at: new Date().toISOString(),
       cli_version: "unknown", version_probe: null as { argv: string[]; stdout: string; stderr: string } | null };
-    return (async () => {
       const expectedVersion = record.cli_version_expected;
       let probe;
       try {
-        probe = await exec(input.executable, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
+        probe = login?.versionProbe ?? await exec(input.executable, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
       } catch (error) {
         const failure = error as NodeJS.ErrnoException;
         throw new Refusal(failure.code === "ENOENT" ? "controller_executable_missing" : "controller_version_probe_failed",
@@ -93,7 +98,7 @@ export class Panes implements GateRuntime {
       const version = probe.stdout.trim();
       if (version !== expectedVersion) throw new Refusal("controller_version_mismatch", { expected: expectedVersion, observed: version });
       record.cli_version = version;
-      record.version_probe = { argv: [input.executable, "--version"], stdout: probe.stdout, stderr: probe.stderr };
+      record.version_probe = { argv: login?.versionProbe.argv ?? [input.executable, "--version"], stdout: probe.stdout, stderr: probe.stderr };
       // The probe awaits a child process; keep this ownership check next to the
       // synchronous registration so two concurrent starts cannot claim one preset.
       check(![...this.panes.values()].some(p => !p.stopped && p.record.preset === input.preset), "controller_already_started");
@@ -109,20 +114,38 @@ export class Panes implements GateRuntime {
         archived: false, failed: null, leader: null, native: record.session, turn: null, nativeEnded: false, active: null,
         queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
         userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
-        terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
+        terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set(), login };
       this.panes.set(record.thread, pane);
       this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
       terminal.onData((data: string) => {
-        try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
+        try { if (login) login.observe(data, trace); else appendFileSync(trace, data); this.terminalProtocol(pane, data); }
         catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
       });
       terminal.onExit((event: unknown) => {
         pane.stopped = true; pane.state = "unknown";
         try { this.store.event("pane_exit", event, record); }
         catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+        if (login) {
+          // The normal profile execs the CLI in this PTY's process group.
+          // Remove any remaining hook/tool children before deleting its HOME.
+          pane.loginCleanup = (async () => {
+            try { process.kill(-terminal.pid, "SIGKILL"); }
+            catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw new Refusal("login_group_cleanup_failed"); }
+            const until = Date.now() + 5000;
+            for (;;) {
+              try { process.kill(-terminal.pid, 0); }
+              catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") break; throw new Refusal("login_group_cleanup_failed"); }
+              if (Date.now() >= until) throw new Refusal("login_group_exit_unconfirmed");
+              await new Promise(resolve => setTimeout(resolve, 25));
+            }
+            await login.finish(record);
+          })().catch(() => {
+            this.recordFailure(pane, "login_fact_collection_failed", new Refusal("login_fact_collection_failed"));
+          });
+        }
       });
       return record;
-    })();
+    } catch (error) { await login?.discard(); throw error; }
   }
   // T-078-1/#49: prepare argv and its durable record only. Actual Claude launch,
   // auth, hooks and completion matching await decision 20261011T101958Z. This
@@ -884,13 +907,14 @@ export class Panes implements GateRuntime {
     this.store.event("pane_archived", {}, pane.record); pane.archived = true;
   };
   async terminate(pane: Pane, reason: string) {
-    if (pane.stopped) return;
+    if (pane.stopped) { await pane.loginCleanup; return; }
     this.store.event("pane_stop_intent", { reason, shell_pid: pane.pty.pid }, pane.record);
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Refusal("pane_stop_unconfirmed")), 5000);
       pane.pty.onExit(() => { clearTimeout(timer); resolve(); });
       pane.pty.kill("SIGHUP");
     });
+    await pane.loginCleanup;
   }
   async shutdown() { for (const pane of this.panes.values()) await this.terminate(pane, "daemon_shutdown_interruption"); }
 }

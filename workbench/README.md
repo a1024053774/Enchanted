@@ -1,8 +1,9 @@
 # a2a 门禁、编排后台与工作台
 
 T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
-当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的探针，
-根提交预算须在 manifest 预声明为 1～6 根，不支持真登录或日常主控运行。启动需逐次批准；单角色
+T-078 的假 API profile 使用隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token 和 loopback Messages API。
+T-093 另加正常登录 profile，配置与事实核对见下节；真实模型回合仍须用户在合入后另说开工。
+根提交预算须在 manifest 预声明为 1～6 根，尚不宣称可用于日常主控。假 API 启动需逐次批准；单角色
 收件箱候选及当前绿态审批流程见 [SLICE-1-GREEN-3](../evidence/2026-10-11-batch13/T-078/SLICE-1-GREEN-3.md)。
 隔离 settings.json 仅设置 `theme: dark`，移除 IS_DEMO，并设置文档化的
 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，禁用标题侧模型请求和终端状态报告。
@@ -354,6 +355,73 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 版本不符返回 `controller_version_mismatch`；不自动查找或改用其他版本，不修改全局设置，
 不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的 2.1.302 启动与版本反例已由
 green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记录。
+
+## 正常登录 profile（T-093）
+
+仍使用同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留
+UserPromptSubmit、PermissionRequest、Stop 和队列转交。manifest 在既有身份、角色卡、
+代码版本及目录字段之外，设置 `authentication: "normal-login"`、`version: "2.1.302"`、
+`credential_source: "macos-keychain"`（或明确选 `"file"`），以及 `upstream_url`。
+上游只接受 `https://api.anthropic.com` 或测试用 `http://127.0.0.1:实际端口`；
+正常模式的本地监听端口由后台分配，无须提供 `api_url`。默认假 API profile 的合同不变。
+root 必须是规范绝对路径，state 为 root/state；角色目录仍为 root/roles/ideation 或 executor，
+包含 home、claude、tmp、shell、requests、hooks、user-data 及 role.md。
+正常模式的 task.repo 可以是独立的规范工作区路径。
+
+后台先在新建的 `/private/tmp/a2a-claude-login-*` 环境里核对版本，再只读取得登录对象。
+钥匙串只读取 `Claude Code-credentials` 和明确的 `~/Library/Keychains/login.keychain-db`；
+文件来源只读 `~/.claude/.credentials.json`，没有自动切换来源或枚举其他条目。
+只复制 claudeAiOauth，凭据文件权限 0600；不复制设置、历史或其他认证对象。
+需要 macOS 的 sandbox-exec、security、/usr/bin/python3。源路径不跟随符号链接。
+版本或准备失败只返回固定错误类别，不把 auth status、security 的原始输出写入事件。
+
+隔离配置新建 `hasCompletedOnboarding: true` 和唯一当前规范工作区的
+`projects[路径].hasTrustDialogAccepted: true`。这两个是 **2.1.302 内部状态**，
+更换版本必须重新探针核对。CLI 的信任语义涵盖该工作区子目录，不设置其他项目或全局信任。
+onboarding 预检会直接访问 api.anthropic.com/api/hello 与 platform.claude.com/v1/oauth/hello，
+不经过 BASE_URL；不能遗漏计数。正常模式预先生成状态，并把可见预检失败单列为
+`onboarding.preflight_observed`。CLI 及其子进程只能连接本地转发端口和精确 daemon Unix socket，
+直接外连被系统 profile 阻断。因此转发记录不能证明“尝试过的全部网络请求”，
+事实报告明确保留这个观察边界；它记录到的是转发器接收的全部 HTTP 请求。
+
+为运行原生 hook，产品 profile 保留派生／执行子进程能力；子进程继承同一 sandbox。
+真实 HOME 默认禁止读写，仅给 CLI/Node 可执行文件、当前 workbench 源码与依赖、
+工作区、state 和角色目录开必要例外；其中写入例外仅为工作区、state、角色目录。
+真实 .claude、.claude.json、.claude.json.backup 和 Library/Keychains 仍明确禁止读写，
+Security Mach 服务也禁止。启动记录保留这些真实 HOME 路径引用，事实脚本逐项列出字段及次数，
+不将“引用存在”解释为已读写，也不自动忽略引用。
+
+转发器在连接上游前逐条落盘并 fsync；请求体与认证头不落盘。
+`state/login-audits/<launch>/requests.jsonl` 保留序号、方法、路径（无 query）、
+正文长度、bearer 是否匹配副本，以及每次响应或错误结果。400 后的 CLI 重试计入新请求；
+转发器自身不重试、不跟随重定向。日志写入失败时不再转发新请求。
+终端只持久化已去凭据的字节；原值以及 JSON、URL、base64 变体都参与替换与扫描，
+跨输出片段的未完成凭据前缀暂不公开。debug、配置和会话历史留在隔离 HOME 根目录内。
+CLI 退出后清理其剩余进程组，关闭转发器，收集事实，再删除整个隔离根。
+退出或采集失败不补造 PASS；中断／崩溃导致的未确认清理仍须人工核对。
+
+会话正常结束后运行只读事实命令：
+
+```sh
+node workbench/src/claudeLoginCheck.ts /绝对路径/state/login-audits/LAUNCH
+```
+
+它重新数原始请求记录，并与会话结束时保存的入口计数对账；输出启动参数／环境中的真实 HOME
+引用、凭据扫描命中数、隔离根删除结果及真实 HOME 清单差异。
+扫描范围是该次 state，扫描时间是结束时；此命令不重读认证源，也不冒称做了新的凭据扫描。
+前后清单只读 .claude、.claude.json、.claude.json.backup、Library/Keychains 的目录及 lstat 元数据，
+不读正文、不跟随链接、不比较 atime、不使用校验值，其余 HOME 路径显式排除。
+所有差异照实列出，不推断因果；其他会话的并发写入也保留，待主控裁定。
+脚本退出码只表示能否读完报告，不自动批准或拒绝模型调用。
+
+无模型验证使用合成登录对象、编译的确定性假 CLI、真实 PTY/daemon/hook/Stop 和本地假上游：
+
+```sh
+python3 workbench/tests/run_t093_login_chain.py --output /绝对路径/新的摘要.json
+```
+
+需由主控在沙箱外运行，后台进程脱离调用者进程组；不执行供应商 CLI，不读真实认证源。
+探针事实与正式链路验证分别报告，旧探针 PASS 不替代产品候选的验收。
 
 ## Electron 窗口
 
