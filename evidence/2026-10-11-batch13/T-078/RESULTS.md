@@ -1672,3 +1672,15 @@ TURN旧末断言必败的原因是混淆提交id与dispatch：实际turn_submitt
 [第3场准备](09c-attempt-3-materials-01/PLAN.md)未冻结/NO_GO：新标准materials-05、Stage A03、c3两P1/新root/claim/launch/session。生成器实例/运行准备目录显式传入，executor P1从实际plan.readiness_file取，许可读屏label取本场session、slot含实际实例/launch；原C2硬路径的合同红态与新绿态保存。预算/协议不变4/7+1/1。新freeze-c3及唯一C3 Stage A收据校验拒绝旧七进程排练，明确核对内核正反例、实际九身份/两个辅助/标准归档/单Esc/原clock/重复拒绝、确切已跑工具与四份原业务回归组合。本地缺新收据时已在prepare/建root前拒绝，packet未生成；不填假PASS来冻结。标准prepare/P1与排练源码闭包同步包含新依赖和元数据脚本。
 
 本地source-scope AST检查PASS（相对既有业务版本精确30个测试工具文件，产品/app/acceptance/scripts无改动），相关topology/retention/时序模板/协调器路径/真实记录入口/纯Handler回归PASS，真实内核与完整排练、两回收、第三场及新独立审查均INCOMPLETE。夹具准备错误原样保留：非法REHEARSAL旧spy期望不合新profile、relative archive路径、漏--expect、heredoc分隔符；各自说明/新输出保留，非业务红态。纯unit遗留scratch已逐成员字节归档后删，无现场进程动作。本轮未启动真实角色/API/daemon/窗口，没有模型调用、业务输入或现场信号。
+
+## 主控 #368：两旧现场已回收；无豁免九进程排练业务 PASS、回收 BLOCKED
+
+主控代签执行的 [探针回收](09c-topology-probe-cleanup-01/result.json)与[第2场回收](09c-attempt-2-cleanup-01/result.json)均 **PASS**，原root已删，外置归档逐成员字节读回与独立签字重数均留存。探针9623成员、POST1/0、roots1/0、PermissionRequest1、target0字节无Esc、凭据扫描0；第2场650成员、POST3/11、roots2/1、target0，8处凭据样式命中经主控遮蔽核对均为业务字段名hook_authorization/turn_authorization。第二场始终INCOMPLETE，不将失败清理PASS称为业务PASS。主控曾只执行04/05 heredoc文件首行，被拒且无动作，随后改为整文件执行；按#368原话记录。主控[内核路径正反例](09c-caffeinate-kernel-outside-01/result.json)PASS，支持真/伪同名程序的实际proc_pidpath区分。
+
+新 [九进程排练](09c-caffeinate-parity-rehearsal-01/result.json)业务 **PASS**：POST7/1、roots4/1、scene_age_ms123174.22607421875、completion_age_ms123343.53588867188、协调器执行1、重复拒绝PASS、模型0；原身份/完整拓扑检查照常执行，没有REHEARSAL豁免。但[标准finish](09c-caffeinate-parity-rehearsal-01/flow/cleanup-standard/result.json)在认证daemon_stop返回后等待七个非API受管PID缺席20秒失败，整体仍 **INCOMPLETE**、清理 **BLOCKED**，signals_sent=[]、root保留。它尚未走到辅助caffeinate等待或API信号分支，不能将该错误直接归因于caffeinate。
+
+[本轮只读诊断](09c-parity-diag-01/DIAGNOSIS.md)保留事实/假设/缺口：七标签为daemon26924、target27014/27016、ideation27047/27048、executor27061/27062；两个辅助27049/27063单列，不在失败等待集合。原wait没有留每轮ps/stat/剩余标签，daemon日志为空，所以**无法还原超时具体PID**。原图与harness记录证明宿主26924是Python26889直接子进程，而CScene只有finish PASS后才wait原Popen；“已退出但未reap”是有代码与父链依据、尚待验证的假设，不冒称历史实证。主控当前观察仅API26921/26923、PPID1；worker只读ps被沙箱拒绝，未提权。探针成功清理的auxiliary-before-stop为空，不能证明存活helper的回收已过。
+
+已备[独立短命子进程机制探针](09c-parity-diag-01/01-CHILD-PROBE.txt)，供主控沙箱外用原wait入口取“未reap超时→原Popen wait后真实ps缺席”的红绿；不启动场景/API/模型、不发信号。它尚未运行，不能据此修改共享finish或提升第三场。后续最小修法候选只调整排练创建者reap原Popen的顺序，并保留受管PID实际缺席要求；等待原始ps/stat/remaining标签也应入回收输出。未确认前不更改辅助允许项、不忽略Z进程、不延长超时、不启动第三场。
+
+[本次残留回收工具与顺序](09c-parity-diag-01/DIAGNOSIS.md)另备：原九身份/StageA/B1/归档/失败收据、七个非API与原两个helper/旧harness均缺席、API完整argv/lstart双读且PPID1，才可把原停前脱敏快照与当前失败/身份收据重新归档至外置盘09c-parity-recovery-01，逐成员字节读回、独立tar重数签字；然后只对原API26921/26923各一次SIGTERM，全部缺席与字节复核通过再删exact root。无重复daemon_stop、无角色/目标/helper信号、停后SQLite读0、slot不动。批准草稿未签，真实inspect/归档/回收未跑。只读[文件/guard检查](09c-parity-diag-01/file-check.json)PASS，包含原tar真实字节比较、损坏字节反例及明确ps运输夹具的身份反例；不冒称物理退出或新独立审查。第三场冻结仍NO_GO，整票INCOMPLETE。
