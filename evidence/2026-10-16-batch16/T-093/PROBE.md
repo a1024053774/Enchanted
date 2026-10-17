@@ -1,8 +1,8 @@
 # T-093 前置探针交接（2026-10-17）
 
 状态：INCOMPLETE。probe-02 已证明精确钥匙串读取与无 BASE_URL 时的隔离登录识别；
-probe-06 再次识别登录，交互 CLI 自己退出 1，本地请求为零；现有摘要未定位根因。
-当前 probe-07 按主控 #68 裁定仅向指定临时文件导出脱敏终端，见 [PROBE-07.md](PROBE-07.md)；
+主控已从 probe-07 脱敏输出定位到 onboarding 的官方连通性检查；该临时文件已由主控删除。
+静态发现见 [ONBOARDING-STATIC-08.md](ONBOARDING-STATIC-08.md)，当前只新建一个最小私有状态字段的 probe-08 见 [PROBE-08.md](PROBE-08.md)。
 原权限保持、旧探针全部保留，未改产品代码。终端正文不进入本目录或 Git。
 4 处真实 HOME 引用的说明仍见 [PROBE-05.md](PROBE-05.md)，主控 #67 已表示可接受。
 本轮不做 fs_usage 或归属采集，原始清单差异继续照实记录，验收修订等待构思主控裁定。
@@ -52,7 +52,8 @@ REALITY GATE: INCOMPLETE
    启动前用无凭据子进程检查真实 HOME 读保护、隔离夹具写保护、活跃的本地拒绝端口与实际 fork 拒绝。
    精确钥匙串读取单独施加只读、无网络、禁止 fork 的 profile；假上游禁止 fork 与主动外连。
    如 CLI 需要创建辅助进程才能完成初始化，本次探针停止，不自动放宽限制。
-   复制凭据前，先在带端口 profile、空隔离 HOME 下单独验证版本与读/写/fork 限制、许可端口正例和另一活跃端口反例。
+   复制凭据前，先在带端口 profile、无凭据隔离 HOME 下单独验证版本与读/写/fork 限制、许可端口正例和另一活跃端口反例。
+   probe-08 显式选项只预先生成完成状态，其他文件不复制；未选时保持空配置。
    网络例外仅为 `remote tcp4 "localhost:<固定端口>"`，其余限制不变。
 2. 先执行 `--version`、`--help`、`auth --help`、`auth status --help`。
    帮助里有 `status` 和必要启动参数、版本精确为 `2.1.302 (Claude Code)` 才继续读取登录凭据。
@@ -92,7 +93,7 @@ python3 workbench/tests/probe_t093_normal_login.py
 ```
 
 必须使用实际可执行文件（不复制），输出路径必须是已存在目录中的新文件。
-主控本轮的完整 --run 命令见 [PROBE-07.md](PROBE-07.md)。后续运行使用新的报告名，保留旧结果；不自行更换脱敏文件的授权路径。
+主控本轮的完整 --run 命令见 [PROBE-08.md](PROBE-08.md)。后续运行使用新的报告名，保留旧结果；不自行更换脱敏文件的授权路径。
 脚本不打印捕获的 CLI/security 输出，不把凭据放到参数或环境中，不把隔离目录归档进 evidence 或 Git。
 后台假上游及 CLI 子进程都通过 `start_new_session=True` 脱离调用者进程组。
 脚本退出 0 表示探针范围 PASS；退出 2 为 INCOMPLETE 或 NO_GO。产品工作仍等待主控读回探针结果。

@@ -94,6 +94,13 @@ def main():
          'encoded, url_encoded', "test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths"),
         ("terminal_export_accepts_incomplete_control_strings", '(?![\\[\\]PX^_])[ -/]*[0-~]', '[ -/]*[@-Z\\\\-_]',
          "test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths"),
+        ("onboarding_state_has_wrong_value", 'stream.write(encode({"hasCompletedOnboarding": True}))',
+         'stream.write(encode({"hasCompletedOnboarding": False}))',
+         "test_onboarding_state_is_one_new_field_in_private_config"),
+        ("onboarding_state_uses_home_instead_of_config_dir", 'relative = Path("home/.claude/.claude.json")',
+         'relative = Path("home/.claude.json")', "test_onboarding_state_is_one_new_field_in_private_config"),
+        ("onboarding_state_option_is_ignored", 'if args.prepare_onboarding_state:', 'if False:',
+         "test_onboarding_state_precedes_cli_and_auth_only_when_requested"),
     ]
     records = []
     baseline = subprocess.run([sys.executable, str(test)], cwd=repo, capture_output=True, text=True, timeout=20)

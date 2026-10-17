@@ -29,6 +29,65 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    def test_onboarding_state_is_one_new_field_in_private_config(self):
+        self.assertTrue(callable(getattr(probe, "prepare_onboarding_state", None)))
+        with tempfile.TemporaryDirectory(prefix="t093-onboarding-state-") as temp:
+            root = Path(temp).resolve()
+            probe.environment(root)
+            result = probe.prepare_onboarding_state(root)
+            path = root / "home/.claude/.claude.json"
+            self.assertTrue(path.is_file(), "状态应在隔离 CLAUDE_CONFIG_DIR 内。")
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"hasCompletedOnboarding": True})
+            self.assertIs(json.loads(path.read_text(encoding="utf-8"))["hasCompletedOnboarding"], True)
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertEqual(result["relative_path"], "home/.claude/.claude.json")
+            self.assertFalse((root / "home/.claude.json").exists())
+            with self.assertRaises(FileExistsError):
+                probe.prepare_onboarding_state(root)
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"hasCompletedOnboarding": True})
+            linked, outside = root / "linked", root / "outside"
+            linked.mkdir(); (outside / ".claude").mkdir(parents=True)
+            (linked / "home").symlink_to(outside, target_is_directory=True)
+            with self.assertRaises(OSError):
+                probe.prepare_onboarding_state(linked)
+            self.assertFalse((outside / ".claude/.claude.json").exists())
+
+    @unittest.skipUnless(sys.platform == "darwin", "探针入口只支持 macOS")
+    def test_onboarding_state_precedes_cli_and_auth_only_when_requested(self):
+        for prepare in (False, True):
+            with self.subTest(prepare=prepare), tempfile.TemporaryDirectory(prefix="t093-onboarding-order-") as temp:
+                outer = Path(temp).resolve()
+                home, isolated = outer / "source", outer / "isolated"
+                home.mkdir(); isolated.mkdir()
+                foreign = home / ".claude.json"
+                foreign.write_text('{"must_not_copy":"foreign-state"}', encoding="utf-8")
+                calls = []
+
+                def fake_capture(argv, **kwargs):
+                    calls.append(argv)
+                    state = isolated / "home/.claude/.claude.json"
+                    self.assertEqual(state.exists(), prepare)
+                    if prepare:
+                        self.assertEqual(json.loads(state.read_text(encoding="utf-8")), {"hasCompletedOnboarding": True})
+                    return (0, b"", b"") if len(calls) == 1 else (65, b"", b"synthetic profile stop")
+
+                args = SimpleNamespace(claude=sys.executable, output=str(outer / "report.json"),
+                                       terminal_output=None, prepare_onboarding_state=prepare)
+                with patch.object(probe.Path, "home", return_value=home), \
+                     patch.object(probe.tempfile, "mkdtemp", return_value=str(isolated)), \
+                     patch.object(probe, "capture", side_effect=fake_capture), \
+                     patch.object(probe, "credentials") as read_credentials, \
+                     patch.object(probe.resource, "setrlimit"), patch.object(probe.signal, "signal"), \
+                     patch.object(probe.os, "umask"), patch.object(sys, "stdout", io.StringIO()):
+                    code = probe.run(args)
+                report = json.loads((outer / "report.json").read_text(encoding="utf-8"))
+                self.assertEqual(code, 2)
+                self.assertEqual(report["stop_reason"], "precredential_bound_profile_cli_version_failed")
+                self.assertEqual(len(calls), 2)
+                self.assertEqual("onboarding_state" in report, prepare)
+                self.assertFalse(read_credentials.called or isolated.exists())
+                self.assertEqual(foreign.read_text(encoding="utf-8"), '{"must_not_copy":"foreign-state"}')
+
     def test_terminal_export_redacts_variants_identities_and_preserves_diagnostics(self):
         self.assertTrue(callable(getattr(probe, "write_terminal_output", None)), "需要仅写脱敏正文的入口。")
         with tempfile.TemporaryDirectory(prefix="t093-terminal-export-") as temp:
@@ -104,7 +163,7 @@ class ProbeSafety(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="t093-terminal-destination-") as temp:
             root = Path(temp).resolve()
             args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"),
-                                   terminal_output=str(root / "unauthorized.txt"))
+                                   terminal_output=str(root / "unauthorized.txt"), prepare_onboarding_state=False)
             with patch.object(probe.tempfile, "mkdtemp", side_effect=probe.StopProbe("private_setup_attempted")) as setup, \
                  patch.object(probe, "credentials") as read_credentials:
                 with self.assertRaises(probe.StopProbe) as stopped:
@@ -283,7 +342,8 @@ except urllib.error.HTTPError as error:assert error.code==400
                         return code, stdout, b"sandbox-exec: synthetic failure"
                     raise probe.StopProbe("unexpected_post_version_capture")
 
-                args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"), terminal_output=None)
+                args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"), terminal_output=None,
+                                       prepare_onboarding_state=False)
                 with patch.object(probe.Path, "home", return_value=source_home), \
                      patch.object(probe, "capture", side_effect=fake_capture), \
                      patch.object(probe, "credentials") as read_credentials, \

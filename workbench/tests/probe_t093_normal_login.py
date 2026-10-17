@@ -104,8 +104,8 @@ def redact_terminal(raw, secrets, identities):
     return text
 
 
-def terminal_parent(path):
-    require(path.is_absolute(), "terminal_export_absolute_path_required")
+def open_parent_directory(path):
+    require(path.is_absolute(), "absolute_path_required")
     directory = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         for ancestor in path.parent.parts[1:]:
@@ -124,7 +124,7 @@ def write_terminal_output(path, raw, secrets, identities):
     require(hits == 0, "terminal_export_credential_scan_failed")
     require(secret_hits(text, identities) == 0, "terminal_export_identity_scan_failed")
     # 扫描通过后才打开文件；逐级拒绝祖先链接，且不覆盖已有文件。
-    parent = terminal_parent(path)
+    parent = open_parent_directory(path)
     try:
         fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=parent)
     finally:
@@ -290,6 +290,21 @@ def environment(root):
             "SHELL": "/bin/zsh", "TERM": "xterm-256color", "LANG": "en_US.UTF-8",
             "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
             "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"}
+
+
+def prepare_onboarding_state(root):
+    relative = Path("home/.claude/.claude.json")
+    path = root / relative
+    parent = open_parent_directory(path)
+    try:
+        fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=parent)
+    finally:
+        os.close(parent)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        os.fchmod(fd, 0o600)
+        stream.write(encode({"hasCompletedOnboarding": True}))
+    return {"relative_path": str(relative), "keys": ["hasCompletedOnboarding"], "mode": "0600",
+            "source": "generated", "before_cli_and_credentials": True}
 
 
 def credentials(home, env, cwd, report):
@@ -682,7 +697,7 @@ def run(args):
     terminal_output = Path(args.terminal_output) if args.terminal_output else None
     if terminal_output is not None:
         require(terminal_output == TERMINAL_OUTPUT, "terminal_export_path_not_authorized")
-        parent = terminal_parent(terminal_output)
+        parent = open_parent_directory(terminal_output)
         try:
             try:
                 os.stat(terminal_output.name, dir_fd=parent, follow_symlinks=False)
@@ -704,6 +719,8 @@ def run(args):
     try:
         before = metadata(real_home)
         env = environment(root)
+        if args.prepare_onboarding_state:
+            report["onboarding_state"] = prepare_onboarding_state(root)
         cwd = str(root / "cwd")
         profile = sandbox_profile(root, real_home, executable)
         # 先用无凭据子进程检查读保护、写保护和网络保护。
@@ -861,6 +878,7 @@ def main():
     parser.add_argument("--claude", default=str(Path.home() / ".local/share/claude/versions/2.1.302"))
     parser.add_argument("--output")
     parser.add_argument("--terminal-output", help="仅允许主控指定的 probe-07 脱敏终端临时文件；不覆盖。")
+    parser.add_argument("--prepare-onboarding-state", action="store_true", help="probe-08：只在隔离配置中新建一个 onboarding 完成字段。")
     parser.add_argument("--sink", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.sink:
