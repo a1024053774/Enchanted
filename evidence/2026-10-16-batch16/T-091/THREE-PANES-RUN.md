@@ -1,6 +1,6 @@
 # T-091 三格候选：主控实跑材料
 
-日期：2026-10-17。状态 **INCOMPLETE，core-regression-03 与最终独立审查待执行**。green-02 和四类 GUI 回归 -02 已在 f20a74ada 取得真实 PASS；core -02 的原 run 正例因质量夹具等待预算不足而失败。诊断与修正见 RESULTS。以下 green-02 及回归 -02 命令均为已用标签，不能原地重跑；本轮只交下方 core -03 命令。旧失败输出原样保留，界面方向不变。
+日期：2026-10-17。状态 **INCOMPLETE，core-regression-04 与最终独立审查待执行**。green-02、四类 GUI 回归 -02，以及 core -03 的四组原套件已 PASS；CAS 变异实际命中业务断言，旧分类器漏判，lock 未执行。本轮只交末尾 core -04 命令；下方旧标签均已使用，不能原地重跑。旧失败输出原样保留，界面方向不变。
 
 重启后接手的交付身份：`launch-71afbd1600cb451a9d9354aa7768e72b`，受管 session `d4277ace-1dde-425b-99b8-8988f1df751f`，原生会话 `01a14a05-4472-70e1-af77-58414340c1ee`。脚本摘要与本次提交使用这些值；旧运行的身份不改写。
 
@@ -75,7 +75,7 @@ baseline-bridge-assertion-01 在起点 44bbb7828 取出原 preload 与原断言�
 
 配置版本及包装器修正冻结为 20aa73e83479392841c726781a9f61be77f62da7 后，一次 fresh 只读工具审查返回 INCOMPLETE，未发现确定违规；报告 `version-wrapper-acceptance-audit-02.md`。真实 green-02／回归 -02 仍未运行；T-078 与 red-02 的 2.1.296 证据不替 2.1.302 背书。
 
-## 本轮只重跑 core-regression-03
+## core-regression-03（已执行的历史命令）
 
 原 core -02：coop 8／recovery 9 PASS；run 首个原业务方法失败，CAS 和三个变异未执行。8 秒正例预算先于外部 reviewer 收尾和 executor 集成耗尽，原 run 正确记 deadline，不能伪造已回收或补建引用。适配器仅将三个完整质量串正例的旧 8 秒请求显式配置为 30 秒，原超时／故障负例及其他显式预算不变；追加记录原值、实际值与理由。没有改产品门禁或原业务断言，没有自动延长或重试。
 
@@ -90,4 +90,21 @@ python3 -B evidence/2026-10-16-batch16/T-091/run_regression.py \
 
 启动清单仍为 Node／Python／Git、隔离 daemon／受控线程、原四套业务测试和三个门禁变异，Electron 0、真实 Claude／Codex 0、模型回合 0。不复用 -02 的批准引用或目录。成功仍须原 8／9／18／1 方法全部通过、三个变异在业务断言失败、登记 writer 退出及 archive_complete=true；否则保持 INCOMPLETE。
 
-`quality-run-budget-green-03.json` 七组本地配置检查 PASS，拒绝旧 8 秒正例配置及把负例一并延长的变异。它没有运行真实 suite；core -03 仍待主控实跑，之后按主控安排开独立审查。
+`quality-run-budget-green-03.json` 七组本地配置检查 PASS，拒绝旧 8 秒正例配置及把负例一并延长的变异。该交付时尚未运行真实 suite；随后 core -03 的四组套件通过，CAS 分类漏判后中断，当前命令见下方 -04。
+
+## 当前重跑：core-regression-04
+
+core -03 已执行：8／9／18／1 原方法全部 PASS，fence 反例 PASS。CAS 原始变异实际产生旧 G、丢失外部祖先与一次 oracle 三项 BUSINESS_RED；旧分类器仍查废弃文案，漏判后中断了 lock。新分类器沿用 T-078 已批准补判的三项严格条件，拒绝缺项、重复、错测试、错 core、环境错误与 skipped；不改原断言或产品门禁。
+
+入口先自动执行纯分类器自检，再执行完整 suite／mutant 串。原 -03 顶层 INCOMPLETE 与 archive_complete=false 不改写；本地只读重放的 fence／CAS 分类 PASS 不替代新一轮完整结果。
+
+```sh
+python3 -B evidence/2026-10-16-batch16/T-091/run_regression.py \
+  --source /Users/luckye/Documents/Code/a2a-wt-t091 \
+  --case core \
+  --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/core-regression-04 \
+  --label core-regression-04 \
+  --approval-ref '<执行主控对本轮 core 清单的批准引用>'
+```
+
+预算与 -03 一致：Node／Python／Git、隔离 daemon／受控线程、Electron 0、真实 Claude／Codex 0、模型回合 0；新增前置自检不启动这些服务。三个质量正例为显式 30 秒，其他预算不改，不重试。没有起点 44bbb7828 上同一方法的计时，不能断言起点也会超时；源码一致只支持推断，详见 RESULTS 的计时范围说明。

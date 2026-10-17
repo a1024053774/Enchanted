@@ -43,4 +43,6 @@ T-078 原验收有一条"Electron 截图或录屏：两个主控窗格、一个 
 
 **INCOMPLETE，验收未完成，ticket 仍 open。** 2026-10-17 用户裁定 A（收件箱 `20261017T133907Z-ideation-answer-001`，执行主控 #18 逐字转达）：主控 CLI 的路径与预期版本从配置读取，启动时实际执行一次 --version 核对；不符报错，不改用户全局设置，不关闭自动更新，不自动改用其他版本。
 
-T-078 已有证据及 T-091 的 red-02 使用 Claude Code **2.1.296**，仅对各自冻结版本成立。T-091 新绿态夹具配置为 **2.1.302**；green-01 因 2.1.296 路径已不存在而在建窗前 INCOMPLETE，原件保留。green-02 的三格同屏、版本／错误绑定反例及四类 GUI 回归 -02 已在 f20a74ada 取得真实 PASS；core -02 在原 run 正例因质量夹具等待预算不足而失败，修正后待 core -03，最终独立审查仍未完成。整票不能上调 PASS，验收框仍由主控在完成检查后处理。执行材料及具体结果见 [RESULTS](../../evidence/2026-10-16-batch16/T-091/RESULTS.md) 与 [实跑清单](../../evidence/2026-10-16-batch16/T-091/THREE-PANES-RUN.md)。
+T-078 已有证据及 T-091 的 red-02 使用 Claude Code **2.1.296**，仅对各自冻结版本成立。T-091 新绿态夹具配置为 **2.1.302**；green-01 因 2.1.296 路径已不存在而在建窗前 INCOMPLETE，原件保留。green-02 的三格同屏、版本／错误绑定反例及四类 GUI 回归 -02 已在 f20a74ada 取得真实 PASS；core -03 的四组原套件与 fence 反例通过，CAS 变异触发业务断言但分类器漏判，lock 未执行。分类器修正后待 core -04，最终独立审查仍未完成。整票不能上调 PASS，验收框仍由主控在完成检查后处理。执行材料及具体结果见 [RESULTS](../../evidence/2026-10-16-batch16/T-091/RESULTS.md) 与 [实跑清单](../../evidence/2026-10-16-batch16/T-091/THREE-PANES-RUN.md)。
+
+重复的 CAS 分类器漏判已接入机械前置检查：[test_t091_business_mutant.py](../../workbench/tests/test_t091_business_mutant.py) 由 core 回归入口自动执行，要求完整三项违反并拒绝不完整／无关失败；主控无需再记住另做人工补判。起点 main 的相同方法计时未取得，不把候选上超时归因于 T-091。

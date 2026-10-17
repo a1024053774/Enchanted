@@ -490,7 +490,7 @@ class DaemonRun(DaemonLifecycle, orchestration.RunCLI):
             'test_transient_tool_activity_keeps_same_thread_owner',
             'test_matching_reclaim_guard_is_idempotent_after_automatic_success',
         }
-        # These inherited positives now include real reviewer cleanup and an
+        # These inherited positives include real reviewer cleanup and an
         # external executor action. Their old 8s fixture budget expired before
         # integration in T-091 core-regression-02; negative deadlines stay exact.
         if seconds == 8 and self._testMethodName in quality_positives:

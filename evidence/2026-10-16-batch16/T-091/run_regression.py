@@ -5,7 +5,8 @@ Review the selected case BEFORE each run; no prior approval carries over.
   Every case: Python/Node 26.5/Git, new isolated HOME/TMP/state/user-data, external
     output only; no auth.json, global writes, real Claude/Codex or provider rounds.
   core: existing coop 8 / recovery 9 / run 18 / CAS 1, then fence/CAS/lock single-site
-    mutants in disposable source copies. Production daemon and controlled test
+    mutants in disposable source copies. A pure classifier self-check runs first.
+    Production daemon and controlled test
     threads. Three full-quality run positives explicitly use 30s in the adapter;
     timeout/fault cases retain their original deadlines. No retry or gate change.
     Recovery deliberately stops ONLY fixture-owned processes. No Electron,
@@ -148,6 +149,10 @@ def main():
         if run(['git', 'diff', 'HEAD', '--', 'workbench/app/', 'workbench/src/', 'workbench/tests/']).stdout:
             raise RuntimeError('freeze_product_and_tests_before_running')
         if args.case == 'core':
+            run([sys.executable, '-B', source / 'workbench/tests/test_t091_business_mutant.py',
+                 output / 'classifier-preflight.json'], raw_name='classifier-preflight')
+            classifier_check = json.loads((output / 'classifier-preflight.json').read_text(encoding='utf-8'))
+            check('business_classifier_preflight', classifier_check['status'] == 'PASS')
             missing = [name for name in ['fixtures/pagination/CONTRACT.md', 'fixtures/pagination/pager.py',
                 'evidence/2026-10-11-batch13/T-076/card-2/controller-decision-03.md',
                 'evidence/2026-10-11-batch13/T-076/card-2/legacy-acceptance-hunks.diff'] if not (source / name).is_file()]

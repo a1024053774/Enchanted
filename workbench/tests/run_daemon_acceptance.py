@@ -262,8 +262,10 @@ def business_mutant(output, name, core):
     loaded = [generation.get("host_ready", {}).get("gate")
               for artifact in record["artifacts"] for generation in artifact["daemons"]]
     base = (record["exit_code"] == 1 and record["tests_run"] == 1 and record["failures"] > 0
-            and record["errors"] == 0 and bool(loaded) and all(path == str(core) for path in loaded))
+            and record["errors"] == 0 and record.get("skipped") == 0
+            and bool(loaded) and all(path == str(core) for path in loaded))
     evidence = []
+    contract_checks = {}
     if name == "fence":
         attempts = [json.loads(item["stdout"])["attempt"] for item in record["commands"]
                     if item.get("label") == "coop:claim" and item.get("exit_code") == 0]
@@ -277,17 +279,50 @@ def business_mutant(output, name, core):
             if any(fence == attempt["fence"] + 31 and session == attempt["session_id"] for attempt in attempts):
                 evidence.append({"submitted_fence": fence, "session": session, "gate_reply": reply})
         rejected_contract = any(item["gate_reply"].get("ok") is True for item in evidence)
+    elif name == "cas":
+        method = "test_external_write_between_read_and_cas_is_preserved"
+        business_tests = {item["test"] for item in record["original_results"]
+                          if item.get("classification") == "business-red" and item["test"].rsplit(".", 1)[-1] == method}
+
+        def one(claim):
+            rows = [item for item in record["assertions"]
+                    if item["claim"] == claim and item["test"] in business_tests]
+            return rows[0] if len(rows) == 1 else None
+
+        binding = one("CAS revalidation binds the new G and unchanged C")
+        expected = binding.get("expected") if binding else None
+        pair = (isinstance(expected, list) and len(expected) == 2 and
+                all(isinstance(value, str) and value for value in expected) and expected[0] != expected[1])
+        ancestor = one("CAS integration preserves ancestor " + expected[0]) if pair else None
+        oracle = one("CAS revalidation executes the oracle again")
+        observed = binding.get("observed") if binding else None
+        contract_checks = {
+            "selected_original_method": record.get("selected_original_methods") == [method],
+            "bound_business_red": bool(business_tests),
+            "required_assertions_once": bool(binding and ancestor and oracle),
+            "stale_G_unchanged_C": bool(pair and isinstance(observed, dict) and binding["pass"] is False and
+                                         isinstance(observed.get("G"), str) and observed["G"] and
+                                         observed.get("G") != expected[0] and observed.get("C") == expected[1]),
+            "external_ancestor_lost": bool(ancestor and ancestor["pass"] is False and
+                                           ancestor["expected"] == 0 and ancestor["observed"] == 1),
+            "revalidation_omitted": bool(oracle and oracle["pass"] is False and
+                                         oracle["expected"] == 2 and oracle["observed"] == 1),
+        }
+        if binding and pair and isinstance(observed, dict):
+            evidence.append({"test": binding["test"], "claim": binding["claim"], "expected": expected,
+                             "observed": {"G": observed.get("G"), "C": observed.get("C")}, "pass": binding["pass"]})
+        evidence.extend(item for item in [ancestor, oracle] if item is not None)
+        rejected_contract = all(contract_checks.values())
     else:
-        claims = ({"CAS rejects a changed expected old value", "CAS preserves the external writer reference"}
-                  if name == "cas" else {"Live operation excludes concurrent verify",
-                      "Live operation excludes concurrent integrate", "Busy commands never start a second oracle"})
+        claims = {"Live operation excludes concurrent verify", "Live operation excludes concurrent integrate",
+                  "Busy commands never start a second oracle"}
         evidence = [item for item in record["assertions"] if item["claim"] in claims and item["pass"] is False]
         rejected_contract = bool(evidence) and any(item.get("classification") == "business-red"
                                                    for item in record["original_results"])
     return {"pass": bool(base and rejected_contract), "classification": "business-counterfactual",
             "mutant_test_status": record["status"], "mutant_test_exit": record["exit_code"],
             "failures": record["failures"], "errors": record["errors"], "loaded_core": loaded,
-            "business_evidence": evidence}
+            "business_evidence": evidence, "contract_checks": contract_checks}
 
 
 def run_validation(label, out):

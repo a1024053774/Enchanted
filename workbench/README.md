@@ -367,6 +367,10 @@ T-091 单格 Tracer bullet 已取得真实输入输出读回；当前候选沿�
 [T-091 三格检查](../evidence/2026-10-16-batch16/T-091/THREE-PANES-RUN.md)。
 本地 VM 检查不替代真实 Electron、PTY 或门禁运行证据。
 
+core 回归入口会先运行 `workbench/tests/test_t091_business_mutant.py`，检查 CAS 分类器的
+三项业务证据、拒绝控制及原合同文本，防止旧断言名称导致已触发的变异被漏判。
+core -03 的四组原套件已通过；分类器修正后的完整 -04 及 lock 反例仍待实跑。
+
 运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
 每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、
 active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝试，送达须有同一窗口请求的

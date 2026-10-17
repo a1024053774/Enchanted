@@ -1,6 +1,6 @@
 # T-091 结果记录
 
-日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，ticket ready_rev 1。接手启动记录为 `launch-71afbd1600cb451a9d9354aa7768e72b`；下方早期运行保留原启动记录 `launch-a818e11600754e8b8ad79aab63a17f83` 的归属。整票状态：**INCOMPLETE**。green-02 已取得真实三格绿态及反例 PASS，四类 GUI 回归 -02 PASS；core -02 因正例夹具等待预算耗尽而失败，修正后待 core -03，最终独立审查尚未完成。
+日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，ticket ready_rev 1。接手启动记录为 `launch-71afbd1600cb451a9d9354aa7768e72b`；下方早期运行保留原启动记录 `launch-a818e11600754e8b8ad79aab63a17f83` 的归属。整票状态：**INCOMPLETE**。green-02 与四类 GUI 回归 -02 PASS；core -03 四组原套件及 fence 反例通过，CAS 变异已触发业务断言，但分类器漏判，lock 尚未执行。分类器修正后待 core -04，最终独立审查未完成。
 
 ## red 与 close 系列
 
@@ -244,7 +244,7 @@ task 为 `t091-three-91e0bcc6`，三格绑定读回如下。三份原始 snapsho
 | 14:11:56.208 | review_reclaimed |
 | 14:11:59.682 | 外部执行主控完成 integrated |
 
-最终 task=accepted，但原 run 已按期限结束、attempt.reclaimed=false，不能补称其自动回收成功。8 秒预算不足以覆盖适配器新加的真实 reviewer 收尾和外部 executor 集成阶段；门禁没有违反此期限，不能通过改门禁、补建引用、伪造 completed 或放宽原断言解决。
+最终 task=accepted，但原 run 已按期限结束、attempt.reclaimed=false，不能补称其自动回收成功。在 f20a74ada 这次运行中，8 秒预算先于完整质量串完成而耗尽；门禁没有违反此期限，不能通过改门禁、补建引用、伪造 completed 或放宽原断言解决。该质量串在起点已经存在，并非 T-091 新增；起点是否也会超时没有实测，见下方专门说明。
 
 最小修正位于 `DaemonRun.run_args`：只对三个走完整质量串、原请求为 8 秒的正例，显式配置 30 秒，并追加 `quality_run_wait_budget` 记录原值、实际值和理由。它们是正常完成、同组临时辅助进程、成功后的幂等回收正例。其余调用不改：未 submit 的超时负例仍 2 秒，oracle 失败仍 8 秒，重复 run 原 30 秒及其他显式预算也原样保留；没有重试或自适应延长。产品门禁和 acceptance 原业务源码不改。
 
@@ -255,3 +255,44 @@ python3 -B workbench/tests/test_t091_quality_run_budget.py evidence/2026-10-16-b
 ```
 
 文件已存在，复验须换新输出名。主控用全新标签重跑完整 core，成功条件仍为 8／9／18／1 原方法、0 failure/error/skipped，三个门禁反例命中业务断言且进程退出／归档确认；任何未完成均保留 INCOMPLETE。本轮按主控安排将候选交给后续独立审查，不另把原审查结论沿用给本次预算变更。
+
+## core-regression-03：CAS 已触发，分类器漏判
+
+执行来源为执行主控 #23（本对话 #47），候选 `37d3475abca2ad47451d110288938a9e8cc92f0f`。顶层仍 **INCOMPLETE／rc 1**、archive_complete=false，原件与原摘要不改写。
+
+| 阶段 | 原始结果 |
+| --- | --- |
+| coop／recovery／run／cas 原套件 | PASS，分别 8／9／18／1 方法，0 failure/error/skipped |
+| fence | 原测试按预期失败；业务反例分类 PASS |
+| CAS | 原测试 1 failure、0 error/skipped，明确 BUSINESS_RED；旧分类器返回 pass=false、business_evidence=[] |
+| lock | 前序分类中断，未执行 |
+
+CAS 原件加载了指定单处变异的 core。原 `test_external_write_between_read_and_cas_is_preserved` 明确拒绝三项实际行为：
+
+1. 应绑定新 G=`d016a459bdaacb7652600af4d17418b3fe045990` 与原 C=`416d0d01618dd40ad73e0240622a5709799afdc4`，实际 G 仍为旧 `36147c619ef871833b41bcb9708ac1afaf7b4656`、C 未变。
+2. 外部提交的祖先关系检查应返回 0，实际 Git `merge-base --is-ancestor` 返回 1。
+3. 应执行两次 oracle，实际一次。
+
+这不是变异未触发或环境错误。旧 `business_mutant` 仍查找已废弃的 `CAS rejects a changed expected old value`／`CAS preserves the external writer reference`，所以漏掉当前“重验并保留外部写入”的合同。诊断摘要见 [core-regression-03-diagnosis.json](core-regression-03-diagnosis.json)。
+
+已只读核对 Git 中的 T-078 `run-review-followup-regressions.py` 及 `review-followup-mutant-cas-03/result.json`：当时补判要求同一原方法、指定变异 core、零 error/skipped，以及上述三项违反同时成立。当前修复复用这套独立合同条件，不复用它的通过结论，也不改原业务断言。
+
+新分类器要求：准确选中原 CAS 方法、同一 test 的 business-red、每项断言恰好一份、旧 G／原 C、外部祖先丢失、oracle 未重验六个条件全部成立；同时保留原有单测试失败、零 error/skipped 和实际加载 core 路径的检查。输出 compact business_evidence 与逐项 contract_checks，不以任意 rc 1 或任意 BUSINESS_RED 放行。fence／lock 判定逻辑不放宽。
+
+本地 `cas-classifier-red-04.json` 保留旧分类器漏判；最终 `cas-classifier-green-04d.json` 的 16 组独立输入检查 PASS，覆盖缺项／重复、缺 G、错方法／来源、换 C、保留祖先、已重验、环境错误、跳过和错 core。过程中发现缺 G 会被 .get 视为不同 G，已补“G 必须是已观察到的非空字符串”；`cas-classifier-incomplete-G-red-04.json` 保留该中间失败。把分类器削弱成“只要测试失败就算反例”的变异被拒。`core03-classifier-replay-04.json` 通过真实函数对原 -03 文件只读重放，fence 和 CAS 分类均 PASS；这不是重跑 gate，不改 -03 顶层 INCOMPLETE，也不补称 lock 已执行。
+
+同类漏判已在 T-078 发生。本票将 `test_t091_business_mutant.py` 接入 core 包装器的自动前置检查：先核对独立反例／拒绝控制和原 CAS 合同文本，再启动长套件；不依靠后续人工记得补判。检查入口在 workbench README 与本票 Resolution 中索引，未改 AGENTS.md 或建立另一份治理账本。
+
+```sh
+python3 -B workbench/tests/test_t091_business_mutant.py evidence/2026-10-16-batch16/T-091/cas-classifier-green-04d.json
+```
+
+输出已存在，复验须换新名。完整 core-regression-04 尚未实跑，仍需四组套件、三个业务反例、进程退出与归档全部通过，之后由主控安排独立审查。
+
+### 8 秒改为 30 秒：起点 main 是否也会超时
+
+**没有起点 main 上同一方法的计时证据，不能断言它也会超时。** 先前说明应只解释 core-regression-02 的本轮事实，不能据此归因于 T-091 或宣称性能变差／改善。
+
+已只读比较起点 `44bbb7828459d81fab0d46069a19d3dd515a7732` 与超时候选 f20a74ada：run 门禁 core、legacy_quality_driver、原 test_run_e2e、daemon_acceptance_adapter 四份关键源码完全相同。起点已经有相同质量串与旧 8 秒配置；这是源码事实，不能替代相同环境中的起点实测。
+
+现有数据只包含候选上的同一场景：core -02 配置 8 秒，run_started→run_finished 为 9.266 秒、outcome=deadline；core -03 配置 30 秒，同一区间为 15.131 秒、outcome=completed。这是 **run 事件区间，不是完整方法耗时**，两者也不是起点与候选的独立对照。起点是否同样超过 8 秒仍为推断；若要作因果结论，须另在起点独立 checkout、相同环境下运行同一方法计时。范围与原始读回索引保存在 [baseline-timing-evidence-04.json](baseline-timing-evidence-04.json)。本轮没有执行该起点实验，30 秒仍只是三个质量正例的显式夹具预算，原超时负例与其他预算不变。
