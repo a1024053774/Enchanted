@@ -52,6 +52,14 @@ def validate_regression_readbacks(static, approval):
     # The new packet still freezes this file; all other closure members, the
     # complete product/tests and acceptance remain bound to every tested revision.
     protected = list(dict.fromkeys(['workbench', 'acceptance', 'scripts', *[p for p in static['source_paths'] if p != PREFLIGHT_SOURCE]]))
+    harness_validation = None
+    if static['scene'] == '09C' and static.get('harness_rehearsal'):
+        import importlib.util
+        path = BASE/'c2-revalidation.py';spec = importlib.util.spec_from_file_location('c2_revalidation',path)
+        module = importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        exclusions, harness_validation = module.validate(static, approval)
+        protected = [p for p in protected if p not in exclusions]
+        protected += [':(exclude,literal)' + p for p in exclusions]
     tested_revisions = []
     for receipt in reports:
         tested = receipt.get('revision') or receipt.get('source_revision'); assert tested, 'tested_revision_required'
@@ -61,7 +69,8 @@ def validate_regression_readbacks(static, approval):
     return {'status': 'PASS', 'readbacks': paths, 'tested_revisions': tested_revisions,
             'legacy_overall_status': full['status'], 'legacy_exception': 'CAS classifier assertion only; original result retained',
             'CAS_replacement': paths[1], 'lock_completion': paths[2], 'completed_original_methods': 51,
-            'regression_scope_excludes': [PREFLIGHT_SOURCE], 'exclusion_reason': 'Only the Stage A readback preflight changed; frozen in the new packet'}
+            'regression_scope_excludes': [PREFLIGHT_SOURCE], 'exclusion_reason': 'Stage A preflight is frozen in the new packet',
+            'harness_validation': harness_validation}
 
 def validate_stage_a_inputs(materials, approval, *, protocol=False):
     assert NODE and materials.resolve().parent==BASE and (materials/'static-check.json').exists()

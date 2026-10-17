@@ -1578,3 +1578,11 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 [最终跨进程绿态](09c-fix-03/clock-green-03/result.json) **PASS**，wall/mono两耗时差约0.012ms；另8项边界（±1000允许、±1001拒绝、mono倒退、150秒截止、stop绑定）与原origin清理留存通过。既有[条件式Enter回归](09c-fix-03/permission-regression-01/result.json)32项PASS（跳变零键，去掉时钟检查的坏变异被捕获），[原记录入口/绑定回归](09c-fix-03/recorded-regression-01/result.json)6+6项PASS。注入时间/window反例不冒称真实120秒证据。
 
 [新排练命令](09c-fix-03/REHEARSAL-03-COMMAND.txt)用全新real-chain-outside-03，本地路径/AST/preflight已实跑PASS。完整真实链/实钟仍 **INCOMPLETE，待主控沙箱外运行**；本轮没有起daemon/API/Electron、没有真实角色CLI/模型或业务按键，只起并回收了Python时钟测试子进程。原失败与新检查均保留，独立审查未做，整票仍INCOMPLETE／NO_GO。
+
+## 主控 #358：真实链/实钟排练 PASS；09C 第2场准备
+
+主控沙箱外 [real-chain-outside-03](09c-fix-01/real-chain-outside-03/result.json) **PASS**，绑定0da09fb9f：实际POST7/1、roots4/1、scene_age_ms122778.90014648438，>120000且<150000、模型0；cleanup PASS、scratch已删、停后SQLite读0，clock-origin原件留存。主控另用独立Python3.9进程复核时钟基准，结论归主控观察。该排练的原HTTP/hook/窗口/时钟/事件/一致数据库与结果随本次提交保留；确定性PTY替身的通过不冒充真实Claude第2场完成。
+
+[第2场准备说明](09c-attempt-2-plan-02/README.md) 只生成冻结与未签材料，实际新root、launch/session/claim/stop全部由新Stage A/B1/真实Stop绑定。产品src、app、acceptance自7a6edbff8无变化；原四回归收据仍显式核对，修复工具按确切差异绑定0da09fb9f完整排练，不默称旧测试源码未变。新单入口协调器复用现有NativePermission/Electron与phase/settlement通路，参数接主控预给签名，C-I2/C-I3原屏/命令/目标/stop逐项核对才各一次Enter；目录独占、结果不覆盖，初始release只在initialize。
+
+新增协调器的局部[timed guards](09c-attempt-2-plan-02/timed-guards-01/result.json) **PASS**，包含实际保存模板、错误绑定/拼接/截断、坏变异与实际重复入口零键/原结果不变。它尚未整段实时执行；第2场仍 **INCOMPLETE／NO_GO，待冻结材料审阅和主控签字**，预算仍ideation4/7、executor1/1、模型0。本轮未启动任何现场或发键；不以准备或局部检查宣布整票通过。

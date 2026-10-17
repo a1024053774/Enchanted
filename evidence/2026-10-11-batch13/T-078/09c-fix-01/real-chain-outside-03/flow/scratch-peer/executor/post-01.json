@@ -1,0 +1,95 @@
+{
+  "model": "claude-haiku-5-5",
+  "stream": true,
+  "max_tokens": 128000,
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Redacted fixture context."
+        },
+        {
+          "type": "text",
+          "text": "Redacted fixture context."
+        },
+        {
+          "type": "text",
+          "text": "⟦主控 #3⟧\n收件箱 stop 8bfc2bf6-ae78-44d5-8c9e-9f78797a6d44\n{\n  \"source\": \"test-simulated-user\",\n  \"action_id\": \"43254887-2075-436a-8138-ec5dcee1b39c\",\n  \"approval_ref\": \"Main #355 deterministic scratch rehearsal C-I1\"\n}"
+        }
+      ]
+    },
+    {
+      "role": "system",
+      "content": [
+        {
+          "type": "text",
+          "text": "Redacted fixture context.",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "output_config": {
+        "effort": "low"
+      }
+    }
+  ],
+  "system": [
+    {
+      "type": "text",
+      "text": "Redacted fixture context."
+    },
+    {
+      "type": "text",
+      "text": "Redacted fixture context.",
+      "cache_control": {
+        "type": "ephemeral"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Redacted fixture context.",
+      "cache_control": {
+        "type": "ephemeral"
+      }
+    }
+  ],
+  "tools": [
+    {
+      "name": "Bash",
+      "description": "Recorded Bash schema.",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "command": {
+            "description": "The command to execute",
+            "type": "string"
+          },
+          "timeout": {
+            "description": "Optional timeout in milliseconds (max 600000 for a foreground command)",
+            "type": "number"
+          },
+          "description": {
+            "description": "Clear, concise description of what this command does in active voice. Never use words like \"complex\" or \"risk\" in the description - just describe what it does.\n\nSay what the command does in plain words: do not echo the command's text, its flags, or file paths - the user reads this description, often without seeing the command.\n\nFor simple commands (git, npm, standard CLI tools), keep it brief (5-10 words):\n- ls → \"List files in current directory\"\n- git status → \"Show working tree status\"\n- npm install → \"Install package dependencies\"\n\nFor commands that are harder to parse at a glance (piped commands, obscure flags, etc.), add enough context to clarify what it does:\n- find . -name \"*.tmp\" -exec rm {} \\; → \"Find and delete all .tmp files recursively\"\n- git reset --hard origin/main → \"Discard all local changes and match remote main\"\n- curl -s url | jq '.data[]' → \"Fetch JSON from URL and extract data array elements\"",
+            "type": "string"
+          },
+          "run_in_background": {
+            "description": "Set to true to run this command in the background.",
+            "type": "boolean"
+          },
+          "dangerouslyDisableSandbox": {
+            "description": "Set this to true to dangerously override sandbox mode and run commands without sandboxing.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
