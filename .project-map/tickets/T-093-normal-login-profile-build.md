@@ -6,6 +6,9 @@ status: open
 blocked_by: []
 claimed_by:
 supersedes:
+ready: yes
+ready_by: ideation
+ready_rev: 1
 ---
 
 ## What to build
@@ -32,4 +35,9 @@ supersedes:
 
 ## 说明
 
-- 来源：T-092 的 build 票，构思主控建票；**未标就绪**，用户尚未说开工。写入范围预期：`workbench/src/`、`workbench/tests/`、本票证据。
+- 来源：T-092 的 build 票，构思主控建票；已标就绪（见下）。写入范围预期：`workbench/src/`、`workbench/tests/`、本票证据。
+
+## 就绪
+
+用户 2026-10-17 说（逐字，会话"a2a-构思主控"）："开1，2， 用fast，快重制了，是我改的"，构思主控据此标就绪（`ready_rev: 1`）。
+本票只做落地与无模型验证；真实模型回合（总上限 3）仍须用户在本票合入后另说开工。

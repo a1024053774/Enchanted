@@ -6,6 +6,9 @@ status: open
 blocked_by: []
 claimed_by:
 supersedes:
+ready: yes
+ready_by: ideation
+ready_rev: 1
 ---
 
 ## What to build
@@ -28,4 +31,8 @@ supersedes:
 
 ## 说明
 
-- 来源：用户 2026-10-17 说（逐字，会话"a2a-构思主控"）："launch-worker 启动失败要开缺陷票"。**未标就绪**，用户尚未说开工。Herdr 期工具，日常派发改走工作台后可能停用，由执行主控判断优先级。
+- 来源：用户 2026-10-17 说（逐字，会话"a2a-构思主控"）："launch-worker 启动失败要开缺陷票"。已标就绪（见下）。Herdr 期工具，日常派发改走工作台后可能停用，由执行主控判断优先级。
+
+## 就绪
+
+用户 2026-10-17 说（逐字，会话"a2a-构思主控"）："开1，2， 用fast，快重制了，是我改的"，构思主控据此标就绪（`ready_rev: 1`）。
