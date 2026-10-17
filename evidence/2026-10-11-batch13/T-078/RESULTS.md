@@ -1736,3 +1736,14 @@ finish在归档/读回/独立签字通过之后才认证daemon_stop，经panes.s
 本轮把全部新回收输出与原签字入库，再将终审02目标固定到包含这些收据的完整提交。业务源码/运行工具未改；三窗格转T091、真登录转T092、IME本轮未验证/INCOMPLETE不变，F3仍待新reviewer在绑定副本完成2～5个变异。**回收前置已PASS，独立终审02未执行、整票仍INCOMPLETE；不由worker派审查、集成、push或关闭票。**
 
 终审02唯一冻结候选更新为 `022a2d2902e8a2c6233c3523b3475cc803b3bb91`，含主控#374全部回收输出/签字/外置清单。审查请求与候选JSON已同步当前已回收状态，明确只读Git/tar、不操作旧root/PID/SQLite；F3仍待主控派新reviewer，本worker未派发。随后仅请求文字提交不改变该固定TARGET，不追HEAD。
+
+
+## 主控 #375：整票独立终审02 PASS，等待主控集成与闭票
+
+fresh reviewer `s13-t078-rev2`（launch `launch-0f40afe0c56049ec8788d907bc703daa`）对固定候选 `022a2d2902e8a2c6233c3523b3475cc803b3bb91` 的[整票终审02](independent-review-final-02.md)结论为 **PASS（ticket rev 2 范围）**。报告原字节入库，worker未改字、未重跑审查。好候选通过，5个单处变异M1～M5均以具体业务断言失败；F1～F7逐项PASS。报告直接读取A16/C3逐POST、hook、许可、时钟、relay、目标及退出原件，不把汇总投影或worker自报当作独立答案。
+
+reviewer scratch原路径 `/private/tmp/t078-final02-mut-out` 已由主控复制到外置盘 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/final-review-02-scratch`，652文件、7465960字节，两侧一致（主控#375）。仓内仅新增[归档清单](final-review-02-scratch.archive.json)，记录原路径、外置路径、数量及报告中的重放命令，不含校验值或大块原件；worker只读核对外置目录数量/字节和重放程序存在，没有执行这些命令。
+
+边界保持原判：A15原件缺口与旧I1直接total仍 **INCOMPLETE**，F1/F5的PASS来自用户批准的A16新场替代证据，未补造A15；系统IME本轮未验证，仍 **INCOMPLETE**。09C第1/2场失败、超预算及首场结果丢失的记录仍INCOMPLETE，第3场PASS不改写它们。三窗格转T-091、真登录转T-092，不计本票rev2通过分母；未运行真登录材料。假API/真实Claude交互CLI证据不证明真实模型判断、真实Codex行为、正常登录profile或可靠性/吞吐/成本收益。
+
+当前状态为 **终审02 PASS、待主控验收集成与闭票**；本worker只提交报告、清单与本条记录，不派审查、不集成、不push、不关闭ticket，也不宣布切换日常派发。终审01及所有历史失败原件保持原样。
