@@ -130,14 +130,15 @@ class Observer:
             if self.process.returncode != 0:
                 raise RuntimeError('observer_exit_nonzero')
         finally:
-            if self.exit_confirmed:
-                while self.selector.select(0):
-                    chunk = os.read(self.process.stdout.fileno(), 65536)
-                    if not chunk:
-                        self.selector.unregister(self.process.stdout)
-                        break
-                    self.stdout.write(chunk)
-                self.stdout.flush()
+            # Preserve available bytes even if normal exit was not confirmed.
+            # The child records a detached protocol in its file, without exiting.
+            while self.selector.select(0):
+                chunk = os.read(self.process.stdout.fileno(), 65536)
+                if not chunk:
+                    self.selector.unregister(self.process.stdout)
+                    break
+                self.stdout.write(chunk)
+            self.stdout.flush()
             self.selector.close()
             self.log.close(); self.stderr.close(); self.stdout.close()
             self.process.stdin.close(); self.process.stdout.close()

@@ -57,13 +57,17 @@ python3 -B evidence/2026-10-16-batch16/T-091/run_red.py \
 
 ## 已跑检查与未跑项
 
-已执行以下纯检查，未调用 Electron、AppKit、ps 或任何原生 CLI：
+已执行以下纯检查，未调用 Electron、AppKit、ps，未启动 Claude 或 Codex：
 
 ```sh
-python3 -B evidence/2026-10-16-batch16/T-091/test_red_cleanup.py --output evidence/2026-10-16-batch16/T-091/red-02-script-checks.json
+python3 -B evidence/2026-10-16-batch16/T-091/test_red_cleanup.py --output evidence/2026-10-16-batch16/T-091/red-02-script-checks-03.json
 node --check evidence/2026-10-16-batch16/T-091/red_window.mjs
 ```
 
-纯 Python 两项检查为 **PASS**：启动未完成时收尾不等待未安装的 close RPC；Electron 退出未确认时不调用 daemon_stop。两项均执行原提交 `034257dc5d22810a2b40e7acac7a3a46551f052e` 的实际脚本类／finally 片段，分别因 RPC 等待和错误停后台行为被断言拒绝；当前片段通过。模拟边界仅覆盖 Python 编排，不证明 macOS 正常退出能力或 Electron ready 已修好。Python AST 语法检查、Node 语法检查通过；产品及原有测试相对起点 diff 仍为空。
+两项 Python 检查为 **PASS**：启动未完成时收尾不等待未安装的 close RPC；Electron 退出未确认时不调用 daemon_stop。两项均执行原提交 `034257dc5d22810a2b40e7acac7a3a46551f052e` 的实际脚本类／finally 片段，分别因 RPC 等待和错误停后台行为被断言拒绝；当前片段通过。模拟边界仅覆盖 Python 编排，不证明 macOS 正常退出能力或 Electron ready 已修好。Python AST 语法检查、Node 语法检查通过；产品及原有测试相对起点 diff 仍为空。
+
+冻结候选 `7f5d07091ff8c38558812678315774c9f1cc8473` 的一次 fresh 只读 behavioral-acceptance-review 为 **FAIL**，原文保留在 `red-02-script-audit-01.md`。审查使用独立工具子会话，`fork_turns: none`，请求 `gpt-6.1-sol`／xhigh；未启动原生 reviewer CLI，不冒称观测到供应商实际档位。P1 是“正常退出未确认，父端关闭 stdout，迟到 ready 的 EPIPE 经 fatal 触发 app.exit(2)”这条可达路径。
+
+已修正 P1：父端退出前排空当时可读的原始 stdout；子进程将 EPIPE／ERR_STREAM_DESTROYED 记为 `protocol_failed` 并停止后续回复，不直接退出、不重试、不记录 reply_written，继续保留独立文件诊断，等待按原身份正常退出。第三项 Node VM 检查使用实际的错误处理／reply 片段、注入 EPIPE 回调及迟到回复；已知坏候选出现四次直接退出并被拒绝，修正后无直接退出、仅尝试一次写入且记录协议失联。它证明错误处理逻辑，不是实际 OS 断管或 Electron/AppKit 实验。三个检查的最新结果均为 **PASS**，旧检查结果保留；最终脚本未再次独立审查。
 
 仍未运行：对 6599 的任何退出操作、原夹具归档、red-02、截图、Tracer bullet 实现、三格绿态、反例与产品回归。当前交付到此，等主控实跑结果再推进。

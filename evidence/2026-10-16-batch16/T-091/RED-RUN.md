@@ -48,6 +48,6 @@ python3 evidence/2026-10-16-batch16/T-091/run_red.py \
 
 仓库只新增 `<label>.run.json` 摘要、`<label>.RESULTS.md`、`<label>.archive.json` 清单。清单含 original、archive、files、bytes、replay，不带校验值。脚本不删除夹具原件，不覆盖旧输出。若实跑失败，换新标签重跑必须先处理原现场，不能把一次新运行写进旧目录。
 
-本次修正仅做静态检查和纯 Python 收尾反例检查，不表示 red-02 的 Claude 启动、Electron ready、正常退出、截图或归档已通过；红态、Tracer bullet、三格绿态、反例和产品回归均为 INCOMPLETE。
+本次修正仅做静态检查和 Python／Node 的收尾、迟到回复反例检查，不表示 red-02 的 Claude 启动、Electron ready、正常退出、截图或归档已通过；红态、Tracer bullet、三格绿态、反例和产品回归均为 INCOMPLETE。一次只读审查指出的断管直接退出 P1 已修正并加反例，失败报告保留，最终脚本未复审。
 
 本地已执行的静态检查：两个 Python 文件经 `ast.parse` 解析，`node --check evidence/2026-10-16-batch16/T-091/red_window.mjs` 退出 0；产品及现有测试相对起点的 `git diff` 为空。这些检查未启动上述运行清单中的应用或后台。

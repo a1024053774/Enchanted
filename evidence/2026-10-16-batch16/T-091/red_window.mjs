@@ -10,7 +10,14 @@ import { join } from 'node:path';
 const [planFile, logFile] = process.argv.slice(2);
 const log = value => appendFileSync(logFile, JSON.stringify({ at: new Date().toISOString(),
   pid: process.pid, app_ready: app.isReady(), ...value }) + '\n');
+let protocolFailed = false;
 function fatal(error) {
+  if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
+    protocolFailed = true;
+    log({ stage: 'protocol_failed', error: String(error), code: error.code,
+      policy: 'No further replies; retain the application for owner-verified normal quit' });
+    return;
+  }
   try { log({ stage: 'fatal', error: String(error), stack: error?.stack }); }
   catch (recordError) { process.stderr.write(String(recordError) + '\n'); }
   process.stderr.write((error?.stack ?? String(error)) + '\n');
@@ -18,6 +25,10 @@ function fatal(error) {
 }
 const reply = value => new Promise((resolve, reject) => {
   log({ stage: 'reply_requested', id: value.id ?? null, ready: value.ready ?? false });
+  if (protocolFailed) {
+    reject(Object.assign(new Error('observer_protocol_detached'), { code: 'ERR_STREAM_DESTROYED' }));
+    return;
+  }
   process.stdout.write(JSON.stringify(value) + '\n', error => {
     if (error) reject(error);
     else { log({ stage: 'reply_written', id: value.id ?? null }); resolve(); }
@@ -25,6 +36,7 @@ const reply = value => new Promise((resolve, reject) => {
 });
 process.on('uncaughtException', fatal);
 process.on('unhandledRejection', fatal);
+process.stdout.on('error', fatal);
 log({ stage: 'module_loaded', argv: process.argv, electron: process.versions.electron });
 for (const event of ['ready', 'before-quit', 'will-quit', 'quit']) app.on(event, () => log({ stage: event }));
 app.on('browser-window-created', (_event, created) => {
