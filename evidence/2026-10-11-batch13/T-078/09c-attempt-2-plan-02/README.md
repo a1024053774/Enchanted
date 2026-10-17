@@ -1,6 +1,6 @@
 # 主控 #358：09C 第2场冻结与计时段单入口
 
-状态：**材料与静态核对待冻结；场景 NOT_RUN／INCOMPLETE**。本轮只写工具、材料及运行不启动场景的局部检查，没有启动 daemon、API、角色、Electron，没有发业务输入或按键。模型预算0。不得执行已移到T092的真登录材料。
+状态：**材料冻结与静态核对 PASS；场景 NOT_RUN／INCOMPLETE**。冻结源码为 `0599c601a38bf96aebb1dde100082ca2a4093ae0`，详情见 [SOURCE](../09c-attempt-2-materials-01/SOURCE.json)。本轮只写工具、材料及运行不启动场景的局部检查，没有启动 daemon、API、角色、Electron，没有发业务输入或按键。模型预算0。不得执行已移到T092的真登录材料。
 
 ## 基线与授权
 
@@ -28,6 +28,7 @@ Stage A预检仍逐项核对四份原回归收据，包括02的INCOMPLETE只来�
 6. ideation `phases/C-I1/INITIALIZE-COMMAND.txt` 仅初始release两角色一次；`START-COMMAND.txt` 只登记/派发批准提示，让已放行窗格自然送达，不再release。`OBSERVE-COMMAND.txt` 只读等待真实PermissionRequest，完整分页读屏并cmp到原件，不按键。
 7. 运行C-I1 `PREPARE-PERMISSION-COMMAND.txt` 生成未签许可及独立 `SCREEN-CMP-COMMAND.txt`。主控完整读屏cmp、核对登记的I_SEND_STOP Bash.command、实际target thread/attempt/input refs与`❯ 1. Yes`后签 `permission-approval-01.json`。不能把一次性工具Enter当成新提示提交。
 8. 在 `09c-c2-preparation-01/TIMED-RUN-COMMAND.txt` 中只替换 `--signature-ref` 的占位文字为预签policy的完全相同approval_ref，再执行**这一条**。它先check/Enter C-I1、结算并保存原origin，随后无人工等待地执行下述计时段。不要另跑C-I1 Enter或任何C-I2/C-I3按键命令。
+9. 计时段返回后、任何回收前执行材料 `CLOCK-ORIGIN-SAVE-COMMAND.txt`，把根级原origin逐字节保存到C-I1 execute目录；失败场若origin已经生成也照做。该目录属于owner已登记的phases证据树，后续逐成员脱敏归档必须包含它。计时段本身不删除root，也不执行回收；停机/外置归档仍另批。
 
 所有读取使用严格完整分页reader。每条命令绑定本次实际readiness/input/manifest；未来文件依赖在运行时出现前不伪造attempt或stop ID。
 
@@ -46,3 +47,5 @@ Stage A预检仍逐项核对四份原回归收据，包括02的INCOMPLETE只来�
 单入口的顶层输出先mkdir独占成功才绑定结果；重复调用立即拒绝，原result逐字节不变。所有阶段输出与许可文件预先检查不存在，随后由各自真实入口独占创建。C-I2签字留未签原件，C-I3 draft与approved独立命名，发布不覆盖。任一步不符立即停止**后续**按键；已经发生的C-I1/C-I2动作按原收据留存，不能倒称整场零键。后台driver异常时只中断自有harness进程以执行finally关闭其Electron，不向角色或目标发信号；不确定Enter不重试。
 
 新协调器静态保护 [timed-guards-01](timed-guards-01/result.json) PASS：真实排练C-I3模板正例、拼接/错thread/stop/request/seq/tool/target/Yes/截断反例，去掉验证器的坏变异暴露到按键哨兵；实际重复CLI入口在已有输出上零进程/窗口/键、原字节不变。这些是保存输入与transport spy的局部合同检查，**整段协调器实时执行尚未运行**，本包不是launch批准或09C验收PASS。
+
+[冻结后路径与前置检查](material-check-02/result.json) 实跑PASS：322成员逐字节核对、四原回归与显式修复闭包检查通过；未签Stage A被拒，错排练收据与额外产品差异被拒。Stage A与四条后续材料入口（两角色各一条、owner、运行命令绑定）现有脚本/输入路径存在，所有输出均全新；依赖实际readiness/P1的路径明确标记future_inputs，未伪造它们存在。
