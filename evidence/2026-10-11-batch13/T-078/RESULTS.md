@@ -1724,3 +1724,13 @@ worker[全场核对](09C-C3-FINAL-READBACK.md)及[最终JSON](09c-c3-final-check
 补强后的[最终只读核对live-06](09c-c3-final-check-01/live-06/result.json)仍PASS，并直接核对已复制原protocol-plan、原continued-stop-demand同stop/still_required=true、原clock与主控副本字节相同；8个坏证据反例含撤销持续停止要求均拒绝。live-05等旧结果不改。回收capture-owner同步只扩到live-06及原control文件树，运行代码/原owner身份不动；真实tar/回收尚未跑。审查准备件会固定包含这些补强的候选，归档/回收后主控须显式补收据重冻后再派发，不让reviewer追HEAD。
 
 终审02[准备请求](REVIEW-REQUEST-T078-FINAL-02.md)与[候选元数据](REVIEW-CANDIDATE-T078-FINAL-02.json)已写，当前准备冻结候选 `38c97f8ada641829f955b48d0ba26ce584c07fcd`，含全部技术核对/原件/回收待批材料。审查未派发，F3未代做；C3实际归档/回收未跑，主控完成后须提交收据并明确更新冻结目标，再新开reviewer，不追移动HEAD。
+
+## 主控 #374：09C第3场外置原件及正式回收PASS；终审02待派发
+
+主控代签并在沙箱外逐步执行：[dry-run](09c-attempt-3-cleanup-01-dry-run/result.json) PASS、停前capture/逐成员字节读回PASS、[独立标准重数与签字](09c-attempt-3-raw-readback-01/readback.json)、[tar原件全场核对](09c-c3-tar-check-01/result.json) PASS、[独立原件/凭据审阅](09c-attempt-3-raw-readback-01/review.json) PASS、保存manifest PASS、[正式finish](09c-attempt-3-cleanup-01/result.json) **PASS**。本场外置tar为 `/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-attempt-3-raw-01/scene.tar.gz`：压缩776457字节，778成员（648文件/130目录），普通文件共8478871字节。644份逐原件.archive.json在外置pointers树，仓内保留[bundle](09c-c3-closeout-materials-01/bundle.archive.json)与[指针入口](09c-c3-closeout-materials-01/raw-pointers.archive.json)，大块HTTP/hook原件不复制入Git。
+
+tar独立重数POST7/1、roots4/1、许可3/0、unfinished为空，中断距原stop **121993ms**、单Esc/无ack；原第1/2场仍INCOMPLETE。执行主控审阅778成员，无不安全路径/链接、无auth/凭据/SQLite/WAL/HOME成员，sk-ant/sk-/Bearer/authorization头/x-api-key/refresh_token扫描0命中，签字原文与实际counts保留在review.json；不把普通业务字段名误算认证头。
+
+finish在归档/读回/独立签字通过之后才认证daemon_stop，经panes.shutdown正常关两角色与目标；两原API40009/40010各一次SIGTERM，确认全部原PID缺席，停后SQLite读取0，原root `/private/tmp/t078-2-09c-run-kwp5kj5g` 已删除。slot不动，不重跑任何旧场景/回收命令。worker本轮仅只读归档/staging/回执：[落库核对](09c-c3-closeout-materials-01/closeout-frozen-check.json)再次逐成员字节比较通过、bundle与外置原件相同、644指针均指向真实成员且长度相符、root确实不存在；未读已停SQLite、未查/操作旧PID、未发信号或派审查。
+
+本轮把全部新回收输出与原签字入库，再将终审02目标固定到包含这些收据的完整提交。业务源码/运行工具未改；三窗格转T091、真登录转T092、IME本轮未验证/INCOMPLETE不变，F3仍待新reviewer在绑定副本完成2～5个变异。**回收前置已PASS，独立终审02未执行、整票仍INCOMPLETE；不由worker派审查、集成、push或关闭票。**

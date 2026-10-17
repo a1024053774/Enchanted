@@ -1,5 +1,7 @@
 # 09C 第3场全场核对（主控 #373）
 
+> **主控 #374 追加当前状态：** 第3场归档、逐成员字节读回、独立tar重数/凭据审阅及正式回收均PASS，原root已删；下文“尚未归档/回收”保留#373核对时点，不代表当前状态。最新来源：[正式回收](09c-attempt-3-cleanup-01/result.json)、[独立审阅](09c-attempt-3-raw-readback-01/review.json)、[tar核对](09c-c3-tar-check-01/result.json)、[644指针入口](09c-c3-closeout-materials-01/raw-pointers.archive.json)。不要重跑旧业务或回收。
+
 **业务场景PASS；worker原件核对PASS；全新独立终审未执行，整票INCOMPLETE。** 所有阶段由执行主控依据用户rev2授权代签，键为批准的test-simulated-user自动化，不冒称用户亲手操作。真实Claude Code2.1.296两角色，本地假API、供应商模型0，确定性receiver而非真实Codex。
 
 运行输出/签字先独立提交 `91fe77992e15b33170b462e67feab4e0b034fa32`。业务/app/acceptance仍等于7a6edbff8，当前运行工具等于已排练77865b044，完整材料源码为8f359d364。主控计时段结果是 [timed-01](09c-c3-preparation-01/timed-01/result.json)。worker另读原HTTP/hooks与一次只读数据库事务，[live-06](09c-c3-final-check-01/live-06/result.json)为本表来源，不只采信driver的PASS。

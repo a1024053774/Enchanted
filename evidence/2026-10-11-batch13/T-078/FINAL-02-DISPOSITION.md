@@ -10,7 +10,7 @@
 | F4：整合版8/9/18等未重跑 | T090修复审查边界后main合并，review-followup-regressions-02的coop8/recovery9/run18/CAS1/cards15均PASS，fence变异按预期红；原顶层INCOMPLETE只因CAS分类器，cas-03替代判定、lock-04补齐。T078自身pending/startup/entry/worker四段PASS；Stage A冻结明确逐项校验四份收据与例外，没有改原02结果。 | 核对原run.json的方法数/0 errors与BUSINESS_RED原断言、源码版本/合并关系；不把02整体写成PASS。测试工具差异由后续固定样本/原入口/完整九进程排练补证，不当作整组重新运行。 |
 | F5：A15 I1缺直接total | 旧缺口仍未知。A16 I1原屏15877字节，capture.complete、next=total=15877和Enter前verified capture均保留在tar，[本轮直接tar读取](09c-c3-final-check-01/A16-archive-recheck.json)。新C3三许可直接total15945/33352/47553，另读原件相同。 | 抽取对应tar成员/原屏/capture/签字/控制收据，不把旧cursor推断补写为历史total；明确哪些比较原raw未另存、仅有冻结代码与检查收据。 |
 | F6：标准prepare未含reader闭包 | a853ad58b已补八个Python依赖，review-followup-f6-red-01/green-01为旧缺包红态/新独立归档导入及坏包反例。当前标准prepare包05的336源码与Git原文逐字节一致，含p1_output与各直接caller本地依赖，[静态核对](09c-c3-freeze-check-01/material-check-01/result.json)。 | 从源码tar独立导入/检查闭包，禁止用host checkout悄悄补缺模块；复核完整分页的未读完/total变化/零进度拒绝。 |
-| F7：审查请求回收状态过时 | A15、A16、第1/2场、拓扑探针及最近parity排练现场均已有各自正式回收PASS；C3当前仅业务PASS，原root保留，原九身份见owner；本轮回收材料未执行，外置C3 tar/签字/finish仍待主控运行。旧准备文档保留其原时点，不代替本表当前状态。 | 审前再核对当前回收回执。C3归档及cleanup完成后须提交新收据并明确新冻结候选再派发终审；不能拿当前计划当cleanup PASS，也不能按旧文案操作已删除场景。 |
+| F7：审查请求回收状态过时 | A15、A16、第1/2场、拓扑探针及最近parity排练现场均已各自回收；主控#374的C3归档/字节读回/独立审阅/finish也全部PASS，原root已删，API40009/40010各一次SIGTERM、停后SQLite0。新收据、原签字、外置bundle与644指针入口纳入新冻结；旧准备文档保留其原时点。 | 直接核对09c-attempt-3-cleanup-01、raw-readback-01/review.json与tar-check-01，使用新请求指定的冻结revision，不按旧计划重跑或操作已删场景。审查未执行不等于cleanup未执行。 |
 
 范围仍包括：controller真实身份与Stop转交、worker fence/attempt隔离、空框声明/输入代次/控制action/UPS精确匹配、pending与首启队列时点、三reader与字段/时钟/拓扑/回收工具闭包、T082/T090合并共存。09A历史真实场景绑定各自旧版本，不上调为新业务源码上的新实跑；reviewer按当前源码差异与回归判断证据充分性。
 

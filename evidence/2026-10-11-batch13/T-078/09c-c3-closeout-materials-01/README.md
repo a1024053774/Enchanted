@@ -1,5 +1,7 @@
 # 09C 第3场回收材料（只写未跑）
 
+> **主控 #374 追加当前状态：** 本套已逐步执行完，全部PASS、root已删，原签字/输出已入库；下文为#373准备记录，不能再次运行。实际来源：[finish](../09c-attempt-3-cleanup-01/result.json)、[独立审阅](../09c-attempt-3-raw-readback-01/review.json)、[tar核对](../09c-c3-tar-check-01/result.json)、[冻结核对](closeout-frozen-check.json)。大块原件留外置盘，停后SQLite读0。
+
 本场业务与worker原件复核PASS；**归档/回收尚未执行**，不能把本计划写成cleanup PASS。仅使用原owner九身份，capture-owner只扩展evidence_trees，其他字段逐项不变。
 
 root `/private/tmp/t078-2-09c-run-kwp5kj5g`；daemon40012，target shell/leader40103/40105，API ideation/executor40009/40010，ideation shell/CLI40231/40233，executor40818/40819。数值来自原收据，当前存活及PID/argv/lstart/父链由步骤01/06实时双读；worker没有在本机ps实测。caffeinate仅按原窄规则单列，不能替代原受管进程，仍须消失。
