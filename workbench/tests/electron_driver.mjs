@@ -7,12 +7,18 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const diagnostics = process.env.A2A_ELECTRON_DIAGNOSTICS;
+let protocolFailed = false;
 function stage(name, detail = {}) {
   if (!diagnostics || !isAbsolute(diagnostics)) throw new Error('Absolute A2A_ELECTRON_DIAGNOSTICS is required');
   appendFileSync(diagnostics, JSON.stringify({ time: new Date().toISOString(), pid: process.pid,
     stage: name, app_ready: app.isReady(), ...detail }) + '\n');
 }
 function fatal(error) {
+  if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
+    protocolFailed = true;
+    stage('protocol_failed', { error: String(error), policy: 'retain process for owner-verified cleanup; no more replies' });
+    return;
+  }
   const detail = { error: String(error), stack: error?.stack };
   try { stage('fatal', detail); }
   catch (recordError) { process.stderr.write('Diagnostic write failed: ' + String(recordError) + '\n'); }
@@ -21,6 +27,7 @@ function fatal(error) {
 }
 process.on('uncaughtException', fatal);
 process.on('unhandledRejection', fatal);
+process.stdout.on('error', fatal);
 try { stage('module_loaded', { argv: process.argv, electron: process.versions.electron }); }
 catch (error) { fatal(error); }
 app.on('ready', () => stage('app_ready_event'));
@@ -42,6 +49,7 @@ app.on('browser-window-created', (_event, window) => {
   window.webContents.on('console-message', (_event, ...details) => stage('renderer_console', { details }));
 });
 async function reply(value) {
+  if (protocolFailed) throw Object.assign(new Error('observer_protocol_detached'), { code: 'ERR_STREAM_DESTROYED' });
   if (value.ready) stage('ready_send');
   await new Promise((resolve, reject) => process.stdout.write(JSON.stringify(value) + '\n', (error) => error ? reject(error) : resolve()));
   if (value.ready) stage('ready_written');
@@ -58,29 +66,32 @@ async function main() {
   stage('manifest_loaded', { main: build.main, preload: build.preload, renderer: build.renderer });
   const originalHandle = ipcMain.handle.bind(ipcMain);
   let firstSnapshot = true;
-  let checkpoint = null;
-  let outputPause = null;
-  let latestSnapshot = null;
+  const checkpoints = new Map();
+  const outputPauses = new Map();
+  const latestSnapshots = new Map();
   ipcMain.handle = (channel, handler) => originalHandle(channel, async (...args) => {
     // Only pause a subsequent read. Every daemon response below is delivered
     // unchanged, including its bytes and cursor. The PTY keeps running.
-    if (channel === 'a2a:output' && outputPause) await outputPause.promise;
+    const paneKey = args[1];
+    if (channel === 'a2a:output' && outputPauses.has(paneKey)) await outputPauses.get(paneKey).promise;
     if (channel === 'a2a:snapshot' && firstSnapshot) stage('first_snapshot_requested');
     const value = await handler(...args);
     if (channel === 'a2a:output') {
       appendFileSync(join(output, 'received.ndjson'), JSON.stringify(value) + '\n');
+      const checkpoint = checkpoints.get(paneKey);
       if (checkpoint && value.next_offset === value.total_bytes && value.total_bytes >= checkpoint.minimum) {
         let release;
         const promise = new Promise((resolve) => { release = resolve; });
-        outputPause = { promise, release, highwater: value.total_bytes };
-        const pending = checkpoint; checkpoint = null;
-        const observed = { launch: value.launch, highwater: value.total_bytes, minimum: pending.minimum };
+        outputPauses.set(paneKey, { promise, release, highwater: value.total_bytes });
+        const pending = checkpoint; checkpoints.delete(paneKey);
+        const observed = { pane_key: paneKey, launch: value.launch, highwater: value.total_bytes, minimum: pending.minimum };
         stage('output_checkpoint', observed);
         pending.resolve(observed);
       }
     }
     if (channel === 'a2a:snapshot') {
-      latestSnapshot = value;
+      if (value.pane_key !== paneKey) throw new Error('Snapshot pane key changed');
+      latestSnapshots.set(paneKey, value);
       appendFileSync(join(output, 'snapshots.ndjson'), JSON.stringify(value) + '\n');
       if (firstSnapshot) {
         stage('first_snapshot', { task: value.task?.task_id, gate: value.task?.state, launch: value.launch?.id ?? null });
@@ -95,42 +106,77 @@ async function main() {
   stage('product_run_started');
   void run({ state: values.state, task: values.task, launch: values.launch, userData: values['user-data'] }).then(async (window) => {
     stage('product_run_completed', { window: window.id });
-    const inspect = () => window.webContents.executeJavaScript(`({
-      text: document.body.innerText,
-      offset: Number(document.querySelector('[data-output-offset]')?.dataset.outputOffset ?? 0),
-      state: document.querySelector('[data-state]')?.dataset.state,
-      lifecycle: document.querySelector('[data-lifecycle]')?.dataset.lifecycle,
-      gate: document.querySelector('[data-gate-state]')?.dataset.gateState,
-      launch: document.querySelector('[data-launch-id]')?.dataset.launchId,
-      thread: document.querySelector('[data-thread-id]')?.dataset.threadId,
-      active_dispatch: document.querySelector('[data-active-dispatch]')?.dataset.activeDispatch,
-      input_enabled: document.querySelector('[data-input-enabled]')?.dataset.inputEnabled === 'true',
-      window_id: ${JSON.stringify(latestSnapshot?.window_id ?? null)},
-      interrupted: ${latestSnapshot?.pane?.interrupted === true},
-      interruption: ${JSON.stringify(latestSnapshot?.pane?.interruption ?? null)},
-      input_generation: ${JSON.stringify(latestSnapshot?.pane?.input_generation ?? null)},
-      // xterm 6 AccessibilityManager renders CoreBrowserTerminal.buffer,
-      // which is the active buffer, but its DOM refresh can lag term.write.
-      terminal: [...document.querySelectorAll('.xterm-accessibility-tree [role="listitem"]')].map(x => x.textContent).join('\\n'),
-      bridge: Object.keys(window.a2a),
-      node: typeof window.require
-    })`);
-    await reply({ ready: true, pid: process.pid });
+    const inspect = async (selection = {}) => {
+      const observed = await window.webContents.executeJavaScript(`({
+        text: document.body.innerText,
+        gate: document.querySelector('[data-gate-state]')?.dataset.gateState,
+        bridge: Object.keys(window.a2a), node: typeof window.require,
+        panes: [...document.querySelectorAll('section.pane')].map(pane => ({
+          pane_key: pane.dataset.paneKey, task: pane.dataset.taskId, role: pane.dataset.role,
+          preset: pane.dataset.preset, attempt: pane.dataset.attemptId, window_id: pane.dataset.windowId ?? null,
+          offset: Number(pane.querySelector('[data-output-offset]')?.dataset.outputOffset ?? 0),
+          state: pane.querySelector('[data-state]')?.dataset.state,
+          lifecycle: pane.querySelector('[data-lifecycle]')?.dataset.lifecycle,
+          launch: pane.dataset.launchId, thread: pane.dataset.threadId,
+          active_dispatch: pane.dataset.activeDispatch, input_enabled: pane.dataset.inputEnabled === 'true',
+          keyboard_focused: pane.dataset.keyboardFocused === 'true', input_target: pane.dataset.inputTarget === 'true',
+          terminal: [...pane.querySelectorAll('.xterm-accessibility-tree [role="listitem"]')].map(x => x.textContent).join('\\n')
+        }))
+      })`);
+      for (const pane of observed.panes) {
+        const snapshot = latestSnapshots.get(pane.pane_key);
+        Object.assign(pane, { snapshot: snapshot ?? null, interrupted: snapshot?.pane?.interrupted === true,
+          interruption: snapshot?.pane?.interruption ?? null, input_generation: snapshot?.pane?.input_generation ?? null });
+        if (snapshot && pane.window_id && pane.window_id !== (snapshot.window_id ?? null)) throw new Error('DOM window identity differs from its pane snapshot');
+      }
+      if (selection.all) return observed;
+      const selected = selection.pane_key ? observed.panes.filter(pane => pane.pane_key === selection.pane_key)
+        : selection.launch ? observed.panes.filter(pane => pane.launch === selection.launch) : observed.panes;
+      if (!selected.length && !selection.pane_key && !selection.launch) return { ...observed, offset: 0 };
+      if (selected.length !== 1) throw new Error('Select exactly one pane key or launch');
+      return { ...observed, ...selected[0] };
+    };
+    const inPane = async (selection, expression) => {
+      const view = await inspect(selection);
+      if (!view.pane_key) throw new Error('Pane is not mounted');
+      return window.webContents.executeJavaScript(`(pane => { if (!pane) throw new Error('Pane disappeared'); return (${expression}); })(
+        [...document.querySelectorAll('section.pane')].find(pane => pane.dataset.paneKey === ${JSON.stringify(view.pane_key)}))`);
+    };
+    await reply({ ready: true, pid: process.pid, electron: process.versions.electron, browser_window: window.id });
     let pending = Promise.resolve();
     createInterface({ input: process.stdin }).on('line', (line) => {
       pending = pending.then(async () => {
         const request = JSON.parse(line);
         stage('request_received', { command: request.command, id: request.id });
         let value;
-        if (request.command === 'inspect') value = await inspect();
+        if (request.command === 'inspect') value = await inspect(request);
+        else if (request.command === 'inspect-all') value = await inspect({ all: true });
+        else if (request.command === 'bridge-call') {
+          if (!['snapshot', 'output', 'input', 'beginComposition', 'releaseQueue', 'observeFocus'].includes(request.operation) ||
+              !Array.isArray(request.args) || request.args.length > 4) throw new Error('Invalid public bridge probe');
+          value = await window.webContents.executeJavaScript(`(async () => {
+            try { return { resolved: true, value: await window.a2a[${JSON.stringify(request.operation)}](${JSON.stringify(request.pane_key)}, ...${JSON.stringify(request.args)}) }; }
+            catch (error) { return { rejected: true, error: String(error) }; }
+          })()`);
+        } else if (request.command === 'focus-pane') {
+          window.focus();
+          await inPane(request, "pane.querySelector('.xterm-helper-textarea').focus()");
+          value = await inspect(request);
+        } else if (request.command === 'blur-pane') {
+          await inPane(request, "(() => { if (pane.contains(document.activeElement)) document.activeElement.blur(); })()");
+          value = await inspect(request);
+        }
         else if (request.command === 'output-checkpoint') {
-          if (!Number.isSafeInteger(request.minimum) || request.minimum < 0 || checkpoint || outputPause) {
+          const selected = await inspect(request);
+          const key = selected.pane_key;
+          if (!key || !Number.isSafeInteger(request.minimum) || request.minimum < 0 || checkpoints.has(key) || outputPauses.has(key)) {
             throw new Error('Invalid or overlapping output checkpoint');
           }
-          value = await new Promise((resolve) => { checkpoint = { minimum: request.minimum, resolve }; });
+          value = await new Promise((resolve) => { checkpoints.set(key, { minimum: request.minimum, resolve }); });
         } else if (request.command === 'resume-output') {
-          if (!outputPause) throw new Error('No output checkpoint is active');
-          const held = outputPause; outputPause = null;
+          const key = (await inspect(request)).pane_key;
+          if (!outputPauses.has(key)) throw new Error('No output checkpoint is active');
+          const held = outputPauses.get(key); outputPauses.delete(key);
           held.release(); value = { resumed_after: held.highwater };
           stage('output_resumed', value);
         }
@@ -139,46 +185,46 @@ async function main() {
           await window.webContents.executeJavaScript('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');
           const picture = await window.webContents.capturePage();
           writeFileSync(join(output, request.name + '.png'), picture.toPNG(), { flag: 'wx' });
-          value = await inspect();
+          value = await inspect(request);
           writeFileSync(join(output, request.name + '.json'), JSON.stringify(value, null, 2) + '\n', { flag: 'wx' });
         } else if (request.command === 'readonly-input') {
           window.focus();
-          await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
+          await inPane(request, "pane.querySelector('.xterm-helper-textarea').focus()");
           window.webContents.sendInputEvent({ type: 'char', keyCode: 'Z' });
           window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
           window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
           // Use a local synthetic ClipboardEvent; never replace the user's clipboard.
-          await window.webContents.executeJavaScript(`(() => { const data = new DataTransfer(); data.setData('text/plain', 'READ_ONLY_SENTINEL');
-            document.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); })()`);
+          await inPane(request, `(() => { const data = new DataTransfer(); data.setData('text/plain', 'READ_ONLY_SENTINEL');
+            pane.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); })()`);
           value = { sent: true };
         } else if (request.command === 'terminal-input') {
           if (typeof request.paste !== 'string' || request.paste.length > 262144 || typeof request.submit !== 'boolean') {
             throw new Error('Invalid terminal input probe');
           }
           window.focus();
-          await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
-          await window.webContents.executeJavaScript(`(() => { const data = new DataTransfer();
+          await inPane(request, "pane.querySelector('.xterm-helper-textarea').focus()");
+          await inPane(request, `(() => { const data = new DataTransfer();
             data.setData('text/plain', ${JSON.stringify(request.paste)});
-            document.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); })()`);
+            pane.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); })()`);
           if (request.submit) {
             window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
             window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
           }
           value = { sent: true, source: 'test-simulated-user' };
         } else if (request.command === 'terminal-compose-start') {
-          await window.webContents.executeJavaScript(`(async () => {
-            const textarea = document.querySelector('.xterm-helper-textarea');
+          await inPane(request, `(async () => {
+            const textarea = pane.querySelector('.xterm-helper-textarea');
             textarea.focus(); textarea.value = '';
             textarea.dispatchEvent(new CompositionEvent('compositionstart', {data:'',bubbles:true}));
             // This public empty observation waits behind any composition IPC;
             // it cannot create user input or write PTY bytes (decision 02).
-            await window.a2a.input('');
+            await window.a2a.input(pane.dataset.paneKey, '');
           })()`);
           value = { sent: true, source: 'synthetic-composition-start' };
         } else if (request.command === 'terminal-compose') {
           if (typeof request.text !== 'string' || request.text.length > 1024) throw new Error('Invalid composition probe');
-          await window.webContents.executeJavaScript(`(async () => {
-            const textarea = document.querySelector('.xterm-helper-textarea');
+          await inPane(request, `(async () => {
+            const textarea = pane.querySelector('.xterm-helper-textarea');
             textarea.focus();
             if (!${Boolean(request.started)}) {
               textarea.value = '';
@@ -193,8 +239,8 @@ async function main() {
         } else if (request.command === 'terminal-mouse-binary') {
           // The product terminal is fixed at 160 columns and 45 rows. Use a
           // cell center, without xterm private fields or synthetic onBinary.
-          const point = await window.webContents.executeJavaScript(`(() => {
-            const rect = document.querySelector('.xterm-screen').getBoundingClientRect();
+          const point = await inPane(request, `(() => {
+            const rect = pane.querySelector('.xterm-screen').getBoundingClientRect();
             return {x:Math.round(rect.left + rect.width * 130.5 / 160),y:Math.round(rect.top + rect.height * 6.5 / 45)};
           })()`);
           window.focus();
@@ -205,7 +251,7 @@ async function main() {
           if (request.key === 'Enter' && (request.permission !== true || request.source !== 'test-simulated-user' || !request.approval_ref || !request.window_id)) {
             throw new Error('An explicit bound permission Enter approval is required');
           }
-          const view = await inspect();
+          const view = await inspect(request);
           if (!request.launch || !request.thread || !request.dispatch || (values.launch && request.launch !== values.launch) ||
               view.launch !== request.launch || view.thread !== request.thread ||
               (request.key === 'Escape' || request.key === 'Enter' ? view.active_dispatch !== request.dispatch :
@@ -216,13 +262,13 @@ async function main() {
             throw new Error('Window is not bound to the requested busy dispatch');
           }
           window.focus();
-          await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
+          await inPane(request, "pane.querySelector('.xterm-helper-textarea').focus()");
           if (request.key === 'Enter' && request.permission === true) {
             // Permission Enter must await the product window IPC receipt. A
             // native sendInputEvent returns before xterm's onData promise is
             // admitted, so focus-mode observations can close the probe before
             // daemon window_input is recorded.
-            const delivered = await window.webContents.executeJavaScript("window.a2a.input('\\r')");
+            const delivered = await inPane(request, "window.a2a.input(pane.dataset.paneKey, '\\r')");
             value = { attempted: true, delivered, source: 'test-simulated-user', binding: view };
           } else {
           const keyCode = request.key === 'Control+C' ? 'C' : request.key;
@@ -232,10 +278,10 @@ async function main() {
           value = { attempted: true, source: 'test-simulated-user', binding: view };
           }
         } else if (request.command === 'queue-release') {
-          value = await window.webContents.executeJavaScript(`new Promise(resolve => {
+          value = await inPane(request, `new Promise(resolve => {
             const deadline = Date.now() + 2500;
             const observe = () => {
-              const button = [...document.querySelectorAll('button')].find(x => x.textContent === '输入框已空，放行');
+              const button = [...pane.querySelectorAll('button')].find(x => x.textContent === '输入框已空，放行');
               if (!button || (button.disabled && Date.now() >= deadline)) return resolve({ clicked: false });
               if (button.disabled) return setTimeout(observe, 50);
               button.click(); resolve({ clicked: true });
@@ -245,8 +291,8 @@ async function main() {
           value.source = 'test-simulated-user';
         } else if (request.command === 'terminal-empty-composition') {
           window.focus();
-          await window.webContents.executeJavaScript(`(() => {
-            const textarea = document.querySelector('.xterm-helper-textarea');
+          await inPane(request, `(() => {
+            const textarea = pane.querySelector('.xterm-helper-textarea');
             textarea.focus(); textarea.value = '';
             textarea.dispatchEvent(new CompositionEvent('compositionstart', {data:'',bubbles:true}));
           })()`);
@@ -254,7 +300,7 @@ async function main() {
           window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
           value = { sent: true, source: 'test-simulated-empty-composition-and-enter' };
         } else if (request.command === 'reconnect') {
-          await window.webContents.executeJavaScript("[...document.querySelectorAll('button')].find(x => x.textContent === '重新连接').click()");
+          await inPane(request, "[...pane.querySelectorAll('button')].find(x => x.textContent === '重新连接').click()");
           value = { clicked: true };
         } else if (request.command === 'close') {
           await reply({ id: request.id, ok: true }); window.close(); return;

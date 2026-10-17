@@ -349,6 +349,11 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 
 ## Electron 窗口
 
+T-091 当前候选是单格 Tracer bullet，尚未实现同窗三格；须先取得单格真实读回，
+再扩到两个主控与一个 worker。实跑清单见
+[T-091 单格检查](../evidence/2026-10-16-batch16/T-091/TRACER-RUN.md)。
+本候选的本地 VM 检查不代表 Electron、PTY 或门禁运行验收通过。
+
 运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
 每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、
 active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝试，送达须有同一窗口请求的
@@ -357,9 +362,21 @@ active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝�
 窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
 窗格和门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
 键盘、IME 和粘贴入口，历史窗格保持只读；全部输入由后台写入 node-pty，renderer
-没有后台凭据、PTY 或数据库权限。窗口凭据绑定一个 launch，关闭时撤销，不随
+没有后台凭据、PTY 或数据库权限。每个窗格的窗口输入凭据绑定一个 launch，关闭时撤销，不随
 current_attempt 更换目标。后台在等待前占用窗口序号和 request_id，重用请求号会被拒绝；
 输入调用失败时停止后续发送，不自动重投。
+
+六条 IPC handler 每进程只注册一次，以 sender 窗口及该窗口登记的 pane key 路由，
+拒绝未知 key、其他窗口的 key 和非 mainFrame 调用。preload 的只读 `paneKeys` 来自
+BrowserWindow 的非机密启动参数；snapshot、output、input、beginComposition、
+releaseQueue、observeFocus 均显式带 key，不保留无 key 的输入通路。凭据只留 main。
+每格独立持有输入序号、发送队列和放行请求；并发 snapshot 共用一次窗口凭据请求。
+关闭会等待已接收的输入与凭据请求，随后撤销凭据，不移除其他窗口仍使用的 handler。
+同一 Electron 进程共用应用级 user-data，不把每会话 HOME 与应用级目录混为一谈。
+
+窗格显示完整 task、launch、worker attempt；主控角色依据快照中启动记录的 preset。
+输入能力与焦点分开：实际 textarea 聚焦且允许输入时才显示“正在输入”和蓝色边线；
+不自动聚焦。输出读取错误时暂停该格输入。系统 IME 仍不在本票验收范围。
 
 输入在写入 PTY 前进入 user_inputs；受管 worker 的人工介入在同一事务里派生，带
 input_id。粘贴去掉协议包裹后保存文本；终端控制键记 action。长度为零的 onData

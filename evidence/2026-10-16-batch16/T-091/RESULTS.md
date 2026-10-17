@@ -58,3 +58,11 @@ python3 -B evidence/2026-10-16-batch16/T-091/run_red.py --source /Users/luckye/D
 下一步为单格 **Tracer bullet**：同一生产入口经 sender 窗口及 pane key 查询快照、读输出、发输入和放行；不保留旧单格 IPC 实现。单格真实读回交执行主控跑通后，再扩到已确认的上方双主控／下方全宽 worker；窗宽小于 1000px 时三行，160×45 网格与独立滚动保持不变。
 
 绿态、错 task／旧 launch 反例、T-074／T-075 正反例及 T-078 输入回归均为 **INCOMPLETE**，不得用本轮红态或旧候选通过结论替代。仍只在隔离场景验证，所有 Electron／daemon／PTY／ps／截图实跑交执行主控，不在 worker 沙箱外执行。
+
+## 单格实现候选（待实跑）
+
+单格已迁到 sender 窗口／pane key 的唯一生产通路，六条 IPC 进程内单次注册；preset 是 daemon 唯一新增投影。完整身份、实际焦点标识、原输入序号／放行声明与 160×45 网格保留；未扩三格。
+
+本地 `pane-ipc-unit-01.json` 的八项 main／preload 边界检查为 PASS；未知 key 的旧 API 被已知坏版本反例拒绝。`driver-selection-unit-01.json` 在给定观察值上验证显式选择、角色／快照绑定、未知／歧义拒绝，旧驱动不拒绝歧义而失败。这些是 VM／给定边界证据，不是 GUI 或后台实跑。脚本语法、TS／TSX 内存转换通过；没有在 worker 中完整构建、启动 Electron 或后台。
+
+待主控核对并运行 [TRACER-RUN.md](TRACER-RUN.md) 的 tracer-01；原图仍只留外置盘。按已确认顺序，取得真实单格读回后再扩三格并重跑新候选的绿态、反例和回归。[REGRESSION-PLAN.md](REGRESSION-PLAN.md) 给出现有 CLI 全命令，并列出旧验收材料／包装器问题，不把它们隐去或记为通过。

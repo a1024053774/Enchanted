@@ -160,9 +160,9 @@ class Observer:
                 raise RuntimeError('observer_exited_before_response')
             self.stdout.write(chunk); self.stdout.flush(); self.buffer.extend(chunk)
 
-    def call(self, command):
+    def call(self, command, **values):
         self.number += 1
-        self.process.stdin.write((json.dumps({'id': self.number, 'command': command}) + '\n').encode())
+        self.process.stdin.write((json.dumps({'id': self.number, 'command': command, **values}) + '\n').encode())
         self.process.stdin.flush()
         result = self.receive()
         if result.get('id') != self.number or result.get('ok') is not True:
