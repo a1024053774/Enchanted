@@ -1,6 +1,6 @@
 # 主控 #360：绑定已通过的协调器排练，重冻第2场
 
-状态：**协调器排练 PASS；第2场材料准备中，场景 NOT_RUN／INCOMPLETE**。本轮不启动现场，不发键、不调模型。旧materials-03与所有失败/签字原件保留，不改写旧结论。
+状态：**协调器排练与第2场材料静态核对 PASS；第2场 NOT_RUN／INCOMPLETE**。本轮不启动现场，不发键、不调模型。旧materials-03与所有失败/签字原件保留，不改写旧结论。
 
 ## 运行基线与冻结提交分开记录
 
@@ -15,6 +15,8 @@
 ## 新文件与执行顺序
 
 新包 **09c-executable-materials-04**，未签材料 **09c-attempt-2-materials-02**；Stage A输出仍为从未创建的 **09c-stage-a-02**，运行时另建全新root，不复用第一场或排练的进程/身份。`i1-prompt.txt` 与前一包逐字节相同，protocol、预算、阶段顺序、协调器逻辑均不改。
+
+[SOURCE](../09c-attempt-2-materials-02/SOURCE.json) 记录运行基线dc15与完整冻结提交 `1dfa09207b34c7ccadfe81cb92a46338fa619526`；后者仅新增收据校验元数据和证据。新[未签Stage A批准](../09c-attempt-2-materials-02/stage-a-approval.json) 与[精确命令](../09c-attempt-2-materials-02/STAGE-A-COMMAND.txt) 均已生成。[静态检查](material-check-02/result.json) 实跑PASS：324成员字节相等，原四回归与新协调器收据通过，未签批准拒绝、错收据/运行基线/额外产品差异拒绝，5条当前入口程序与已有输入存在、输出全新；实际Stage A/B1输入仍标future_inputs，没有伪造存在。
 
 1. 主控核对/签新材料 `stage-a-approval.json`，运行 `STAGE-A-COMMAND.txt`；到READY_FOR_APPROVAL停。Stage A只起两只假API、daemon、确定性目标，不起角色。
 2. 新 `ROLE-MATERIAL-COMMANDS.txt` 第一条只生成ideation P1。从其完整未签B1批准开始，dry-run→real→bind-launch；按新P1的ONBOARD-COMMANDS逐屏只发六键（ArrowUp、ArrowDown、Enter、Security notes Enter、信任ArrowDown、Enter）。B1 plan是security-notice+原文，s7实际key purpose为onboarding-notice。不符仅换-02重读，不按键。

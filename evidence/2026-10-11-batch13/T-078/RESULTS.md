@@ -1608,3 +1608,5 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 [新重冻说明与整场顺序](09c-attempt-2-refreeze-01/README.md) 保持所有运行代码、protocol与预算不变，只将校验元数据接到本次协调器收据。新 `runtime_source_revision` 明确等于dc15，完整冻结提交另记，整个workbench/acceptance/scripts字节都必须等于已实跑版本。收据校验的[旧入口红态](09c-attempt-2-refreeze-01/binding-red-01.json)与[新绿态](09c-attempt-2-refreeze-01/binding-green-01.json)已保存；不改变原四回归收据的组合判定。
 
 新材料目标为09c-executable-materials-04与09c-attempt-2-materials-02，Stage A批准保持空签字；Stage A/B1仍从本场实际readiness/manifest逐步绑定新root与身份，协调器签名由主控同一文本填入预批准与 `--signature-ref`。本轮只写/静态核对，没有启动第2场、发键或调模型；第2场与整票状态仍INCOMPLETE。
+
+本次新冻结已完成：[SOURCE](09c-attempt-2-materials-02/SOURCE.json) 的 `runtime_source_revision=dc15dc3f0169f8689c5cded440676031cfa48bf5`，完整冻结提交另为 `1dfa09207b34c7ccadfe81cb92a46338fa619526`（仅校验元数据/证据变化，不冒称该提交已实跑）。[静态核对](09c-attempt-2-refreeze-01/material-check-02/result.json) **PASS**：324成员与冻结字节一致，原回归组合与本次coordinator PASS绑定通过，未签Stage A与错收据/错运行版本/额外产品差异均拒绝，5条现有入口路径存在、未来输入标清、输出全新。新的[Stage A未签件](09c-attempt-2-materials-02/stage-a-approval.json)与[命令](09c-attempt-2-materials-02/STAGE-A-COMMAND.txt)已备；签名由主控给定，未执行Stage A或其他场景动作。

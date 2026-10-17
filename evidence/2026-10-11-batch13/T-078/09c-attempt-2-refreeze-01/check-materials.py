@@ -35,6 +35,10 @@ def main():
     try:revalidation.validate(static,bad)
     except AssertionError as error:negative.append({'case':'wrong-rehearsal','status':'PASS','error':str(error)})
     else:raise AssertionError('wrong rehearsal accepted')
+    bad=copy.deepcopy(approval);bad['runtime_source_revision']='unrehearsed-runtime'
+    try:revalidation.validate(static,bad)
+    except AssertionError as error:negative.append({'case':'wrong-runtime-revision','status':'PASS','error':str(error)})
+    else:raise AssertionError('unrehearsed runtime accepted')
     real=subprocess.check_output
     def altered(argv,*a,**kw):
         if argv[:3]==['git','diff','--name-only']:
