@@ -101,6 +101,8 @@ def main():
          'relative = Path("home/.claude.json")', "test_onboarding_state_is_one_new_field_in_private_config"),
         ("onboarding_state_option_is_ignored", 'if args.prepare_onboarding_state:', 'if False:',
          "test_onboarding_state_precedes_cli_and_auth_only_when_requested"),
+        ("terminal09_still_uses_old_authorization", 't093-terminal-09.txt', 't093-terminal-07.txt',
+         "test_terminal09_is_the_only_approved_export_destination"),
     ]
     records = []
     baseline = subprocess.run([sys.executable, str(test)], cwd=repo, capture_output=True, text=True, timeout=20)

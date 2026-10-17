@@ -2,7 +2,7 @@
 
 状态：INCOMPLETE。probe-02 已证明精确钥匙串读取与无 BASE_URL 时的隔离登录识别；
 主控已从 probe-07 脱敏输出定位到 onboarding 的官方连通性检查；该临时文件已由主控删除。
-静态发现见 [ONBOARDING-STATIC-08.md](ONBOARDING-STATIC-08.md)，当前只新建一个最小私有状态字段的 probe-08 见 [PROBE-08.md](PROBE-08.md)。
+静态发现见 [ONBOARDING-STATIC-08.md](ONBOARDING-STATIC-08.md)。probe-08 的完成状态已生效；主控 #70 要求 probe-09 保留状态并导出新屏幕，见 [PROBE-09.md](PROBE-09.md)。
 原权限保持、旧探针全部保留，未改产品代码。终端正文不进入本目录或 Git。
 4 处真实 HOME 引用的说明仍见 [PROBE-05.md](PROBE-05.md)，主控 #67 已表示可接受。
 本轮不做 fs_usage 或归属采集，原始清单差异继续照实记录，验收修订等待构思主控裁定。
@@ -93,7 +93,7 @@ python3 workbench/tests/probe_t093_normal_login.py
 ```
 
 必须使用实际可执行文件（不复制），输出路径必须是已存在目录中的新文件。
-主控本轮的完整 --run 命令见 [PROBE-08.md](PROBE-08.md)。后续运行使用新的报告名，保留旧结果；不自行更换脱敏文件的授权路径。
+主控本轮的完整 --run 命令见 [PROBE-09.md](PROBE-09.md)。后续运行使用新的报告名，保留旧结果；不自行更换脱敏文件的授权路径。
 脚本不打印捕获的 CLI/security 输出，不把凭据放到参数或环境中，不把隔离目录归档进 evidence 或 Git。
 后台假上游及 CLI 子进程都通过 `start_new_session=True` 脱离调用者进程组。
 脚本退出 0 表示探针范围 PASS；退出 2 为 INCOMPLETE 或 NO_GO。产品工作仍等待主控读回探针结果。

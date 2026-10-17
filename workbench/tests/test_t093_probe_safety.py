@@ -29,6 +29,25 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == "darwin", "探针入口只支持 macOS")
+    def test_terminal09_is_the_only_approved_export_destination(self):
+        base = "/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/scratchpad/"
+        for filename, expected in (("t093-terminal-09.txt", "private_setup_attempted"),
+                                   ("t093-terminal-07.txt", "terminal_export_path_not_authorized"),
+                                   ("t093-terminal-09.txt.extra", "terminal_export_path_not_authorized")):
+            with self.subTest(filename=filename), tempfile.TemporaryDirectory(prefix="t093-export09-") as temp:
+                root = Path(temp).resolve()
+                args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"),
+                                       terminal_output=base + filename, prepare_onboarding_state=True)
+                with patch.object(probe, "open_parent_directory", side_effect=lambda path: os.open(root, os.O_RDONLY | os.O_DIRECTORY)), \
+                     patch.object(probe.tempfile, "mkdtemp", side_effect=probe.StopProbe("private_setup_attempted")), \
+                     patch.object(probe, "credentials") as read_credentials, \
+                     patch.object(probe.resource, "setrlimit"), patch.object(probe.os, "umask"):
+                    with self.assertRaises(probe.StopProbe) as stopped:
+                        probe.run(args)
+                self.assertEqual(str(stopped.exception), expected)
+                self.assertFalse(read_credentials.called)
+
     def test_onboarding_state_is_one_new_field_in_private_config(self):
         self.assertTrue(callable(getattr(probe, "prepare_onboarding_state", None)))
         with tempfile.TemporaryDirectory(prefix="t093-onboarding-state-") as temp:

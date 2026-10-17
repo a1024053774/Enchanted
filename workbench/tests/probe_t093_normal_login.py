@@ -29,7 +29,7 @@ SERVICE = "Claude Code-credentials"
 VERSION = "2.1.302 (Claude Code)"
 PROMPT = "T-093 本地假上游探针。请求只到本机，不执行工具。"
 CHILDREN = []
-TERMINAL_OUTPUT = Path("/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/scratchpad/t093-terminal-07.txt")
+TERMINAL_OUTPUT = Path("/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/scratchpad/t093-terminal-09.txt")
 
 
 class StopProbe(Exception):
@@ -877,7 +877,7 @@ def main():
     parser.add_argument("--run", action="store_true")
     parser.add_argument("--claude", default=str(Path.home() / ".local/share/claude/versions/2.1.302"))
     parser.add_argument("--output")
-    parser.add_argument("--terminal-output", help="仅允许主控指定的 probe-07 脱敏终端临时文件；不覆盖。")
+    parser.add_argument("--terminal-output", help="仅允许主控指定的 probe-09 脱敏终端临时文件；不覆盖。")
     parser.add_argument("--prepare-onboarding-state", action="store_true", help="probe-08：只在隔离配置中新建一个 onboarding 完成字段。")
     parser.add_argument("--sink", help=argparse.SUPPRESS)
     args = parser.parse_args()
