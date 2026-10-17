@@ -33,6 +33,7 @@ def main():
     runner=load('run-09b');readbacks=[str(BASE/name/'result.json') for name in runner.REGRESSION_REPORTS]
     static=json.loads((PACKET/'static-check.json').read_bytes());delta=['workbench/tests/'+name for name in gate.REPAIRS]+gate.META
     binding={'regression_readbacks':readbacks,'harness_profile':'c3-caffeinate-v1','harness_rehearsal':str(gate.REHEARSAL/'result.json'),
+             'harness_kernel_check':str(gate.KERNEL),'coordinator_rehearsal':str(BASE/'09c-coordinator-rehearsal-01/real-chain-outside-01/result.json'),
              'runtime_source_revision':receipt['source_revision'],'harness_delta_paths':delta}
     static.update(binding);(PACKET/'static-check.json').write_text(json.dumps(static,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     approval={'approved_by':None,'approval_ref':None,'stage':'A','scene':'09C','source_revision':revision,'launch_status':'NO_GO',
@@ -52,6 +53,21 @@ def main():
         '--packet',PACKET,'--ideation',ideation,'--executor',executor,'--output',MATERIAL/'owner.json'])
     command(MATERIAL/'RUNTIME-COMMAND-MATERIALS.txt',[sys.executable,'-B',BASE/'prepare-c2-runtime.py','--mode','bind',
         '--stage-a',STAGE,'--packet',PACKET,'--ideation',ideation,'--executor',executor,'--output',preparation])
+    clock_save=f'''# 计时段返回后、任何回收前只读保留原origin；失败场若origin已存在也保存，不覆盖。
+python3 -B - <<'PY'
+import json
+from pathlib import Path
+ready=json.loads(Path({str(STAGE/'readiness.json')!r}).read_bytes())
+source=Path(ready['root'])/'clock-origin.json'
+raw=source.read_bytes();origin=json.loads(raw)
+assert origin['observer_pid'] and origin['clock_type']=='t078_09c_driver.Clock'
+target=Path({str(ideation/'phases/C-I1/execute-02/clock-origin.json')!r})
+with target.open('xb') as stream:stream.write(raw)
+assert target.read_bytes()==raw
+print(json.dumps({{'status':'PASS','bytes':len(raw),'source':str(source),'retained':str(target),'business_actions':0}}))
+PY
+'''
+    with (MATERIAL/'CLOCK-ORIGIN-SAVE-COMMAND.txt').open('x',encoding='utf-8') as f:f.write(clock_save)
     save(MATERIAL/'SOURCE.json',{'status':'PASS','revision':revision,'runtime_source_revision':receipt['source_revision'],
         'regression_validation':verification,'snapshot':str(PACKET/'sources.tar.gz'),'scene_starts':0,'launch_status':'NO_GO'})
     print(json.dumps({'status':'PASS','source_revision':revision,'materials':str(MATERIAL),'scene_starts':0}))

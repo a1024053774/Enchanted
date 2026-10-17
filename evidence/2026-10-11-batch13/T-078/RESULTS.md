@@ -1694,3 +1694,9 @@ TURN旧末断言必败的原因是混淆提交id与dispatch：实际turn_submitt
 [改前红态](09c-child-reap-fix-01/red-01/result.json)与[Git旧源码重放](09c-child-reap-fix-01/red-02/result.json)均命中未reap先查缺席及缺Z诊断；[绿态10项](09c-child-reap-fix-01/green-02/result.json)PASS，包含真实Z固定样本、实际CScene.cleanup调用顺序、launchd Z→缺席、活进程/复用PID/错误创建者/handle错绑/重复/等待超时反例。把Z当缺席的[已知坏变异](09c-child-reap-fix-01/mutant-verdict.json)在新真实Z断言失败。[拓扑22项](09c-child-reap-fix-01/topology-01/result.json)、[归档8项](09c-child-reap-fix-01/retention-regression-01/result.json)与[完整链check-only](09c-child-reap-fix-01/scene-preflight-01/preflight.json)PASS。Popen/ps/SQLite运输层明确为夹具，不冒称本地物理生命周期或新独立审查；本会话场景进程/信号/按键/模型均0。
 
 新的[沙箱外命令](09c-child-reap-fix-01/REHEARSAL-COMMAND.txt)输出09c-caffeinate-parity-rehearsal-02，路径存在性/全新输出已核对，**尚未执行**。要求无豁免九进程、POST7/1、roots4/1、三许可、单Esc/无ack、>120秒/<150秒、协调器一次与重复拒绝、REAPED原handle收据、真实ps缺席、标准cleanup/root删除全部PASS。旧-01仍整体INCOMPLETE；第三场收据/闭包不提前放宽或重冻，整票仍INCOMPLETE。
+
+## 主控 #370：九进程排练02 PASS，第三场按实际运行版本准备冻结
+
+主控沙箱外[parity-rehearsal-02](09c-caffeinate-parity-rehearsal-02/result.json) **PASS**：源码77865b044b5a5fedeeec12e62eae1314b87bf885，POST7/1、roots4/1、scene_age_ms123416.47998046875、completion_age_ms123590.11303710938，协调器1次、重复拒绝PASS、模型0；原九进程拓扑照常执行，标准归档/字节读回后认证停机、两只API各一次SIGTERM、原Popen均REAPED、真实ps缺席、root删除、停后SQLite读0。新完整输出保留入库，旧失败-01不改写。
+
+[冻结证据范围](09c-c3-freeze-check-01/README.md)明确：当前运行代码严格等于本次77865b044；完整冻结提交另含收据选择/生成元数据。内核正反例继续绑定e26a7379d的原测试与路径相关函数，逐段原文核对不变；新waitpid只由本次完整排练背书。四份原业务回归与CAS分类器例外继续逐项核对，同时绑定原协调器收据与新九进程收据。旧校验的两条红态、新核对与9项反例PASS；没有启动现场、发键、发信号或调用模型。第三场只准备未签材料，实际运行与整票仍INCOMPLETE。
