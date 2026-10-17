@@ -1734,3 +1734,5 @@ tar独立重数POST7/1、roots4/1、许可3/0、unfinished为空，中断距原s
 finish在归档/读回/独立签字通过之后才认证daemon_stop，经panes.shutdown正常关两角色与目标；两原API40009/40010各一次SIGTERM，确认全部原PID缺席，停后SQLite读取0，原root `/private/tmp/t078-2-09c-run-kwp5kj5g` 已删除。slot不动，不重跑任何旧场景/回收命令。worker本轮仅只读归档/staging/回执：[落库核对](09c-c3-closeout-materials-01/closeout-frozen-check.json)再次逐成员字节比较通过、bundle与外置原件相同、644指针均指向真实成员且长度相符、root确实不存在；未读已停SQLite、未查/操作旧PID、未发信号或派审查。
 
 本轮把全部新回收输出与原签字入库，再将终审02目标固定到包含这些收据的完整提交。业务源码/运行工具未改；三窗格转T091、真登录转T092、IME本轮未验证/INCOMPLETE不变，F3仍待新reviewer在绑定副本完成2～5个变异。**回收前置已PASS，独立终审02未执行、整票仍INCOMPLETE；不由worker派审查、集成、push或关闭票。**
+
+终审02唯一冻结候选更新为 `022a2d2902e8a2c6233c3523b3475cc803b3bb91`，含主控#374全部回收输出/签字/外置清单。审查请求与候选JSON已同步当前已回收状态，明确只读Git/tar、不操作旧root/PID/SQLite；F3仍待主控派新reviewer，本worker未派发。随后仅请求文字提交不改变该固定TARGET，不追HEAD。
