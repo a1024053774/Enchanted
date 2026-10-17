@@ -1,0 +1,19 @@
+{
+  "task": "T-093",
+  "status": "INCOMPLETE",
+  "kind": "contract test",
+  "claim": "标准单字符/字符集 ANSI 要去掉，不完整控制字符串须在创建文件前拒绝",
+  "command": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "workbench/tests/test_t093_probe_safety.py",
+    "ProbeSafety.test_terminal_export_redacts_variants_identities_and_preserves_diagnostics",
+    "ProbeSafety.test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths"
+  ],
+  "exit_code": 1,
+  "expected_failure_observed": true,
+  "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 2, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+  "stderr": "test_terminal_export_redacts_variants_identities_and_preserves_diagnostics (__main__.ProbeSafety) ... FAIL\ntest_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_terminal_export_redacts_variants_identities_and_preserves_diagnostics (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 62, in test_terminal_export_redacts_variants_identities_and_preserves_diagnostics\n    self.assertIsNone(stopped, \"合法脱敏内容应能保存。\")\nAssertionError: 'terminal_export_unsupported_escape' is not None : 合法脱敏内容应能保存。\n\n======================================================================\nFAIL: test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 99, in test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths\n    probe.write_terminal_output(root / \"incomplete.txt\", raw, [token], {account})\nAssertionError: (<class 't093_probe.StopProbe'>, <class 'UnicodeDecodeError'>) not raised\n\n----------------------------------------------------------------------\nRan 2 tests in 0.004s\n\nFAILED (failures=2)\n",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0,
+  "designated_terminal_file_created": false
+}

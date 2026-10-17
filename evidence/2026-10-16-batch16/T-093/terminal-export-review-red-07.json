@@ -1,0 +1,21 @@
+{
+  "task": "T-093",
+  "attempt": "a1",
+  "candidate": "T093-export-v8",
+  "status": "INCOMPLETE",
+  "kind": "defect reproduction",
+  "claim": "URL 百分号大小写等价形式、无填充 base64 以及带边框的账号标签不得漏出",
+  "command": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "workbench/tests/test_t093_probe_safety.py",
+    "ProbeSafety.test_terminal_export_redacts_variants_identities_and_preserves_diagnostics",
+    "ProbeSafety.test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths"
+  ],
+  "exit_code": 1,
+  "expected_failure_observed": true,
+  "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 2, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+  "stderr": "test_terminal_export_redacts_variants_identities_and_preserves_diagnostics (__main__.ProbeSafety) ... FAIL\ntest_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_terminal_export_redacts_variants_identities_and_preserves_diagnostics (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 67, in test_terminal_export_redacts_variants_identities_and_preserves_diagnostics\n    self.assertFalse(value in saved, \"脱敏文件仍含禁止内容。\")\nAssertionError: True is not false : 脱敏文件仍含禁止内容。\n\n======================================================================\nFAIL: test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 82, in test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths\n    probe.write_terminal_output(root / \"must-not-exist.txt\", b\"synthetic\", [token], {account})\nAssertionError: StopProbe not raised\n\n----------------------------------------------------------------------\nRan 2 tests in 0.003s\n\nFAILED (failures=2)\n",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0,
+  "designated_terminal_file_created": false
+}

@@ -7,8 +7,10 @@ import importlib.util
 import io
 import json
 import os
+import re
 from pathlib import Path
 import select
+import stat
 import subprocess
 import sys
 import tempfile
@@ -16,7 +18,7 @@ import time
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from uuid import uuid4
 
 
@@ -27,6 +29,89 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    def test_terminal_export_redacts_variants_identities_and_preserves_diagnostics(self):
+        self.assertTrue(callable(getattr(probe, "write_terminal_output", None)), "需要仅写脱敏正文的入口。")
+        with tempfile.TemporaryDirectory(prefix="t093-terminal-export-") as temp:
+            root = Path(temp).resolve()
+            token = "t093-敏感-" + uuid4().hex + ' /+"?%'
+            org, account = "组织-" + uuid4().hex, "User " + uuid4().hex
+            email = "用户+" + uuid4().hex + "@example.invalid"
+            payload = {"loggedIn": True, "authMethod": "claude.ai", "configDirectory": str(root),
+                       "email": email, "orgName": org, "account": {"displayName": account}}
+            report = {"captured_output_secret_hits": 0}
+            with patch.object(probe, "capture", return_value=(0, json.dumps(payload).encode(), b"")):
+                identities = probe.auth_status("synthetic-cli", "synthetic-profile", {"CLAUDE_CONFIG_DIR": str(root)},
+                                               str(root), report, "status_with_base_url", [token])
+            variants = [token, json.dumps(token)[1:-1], quote(token, safe=""), base64.b64encode(token.encode()).decode()]
+            encoded = quote(token, safe="")
+            lower = re.sub(r"%[0-9A-F]{2}", lambda match: match[0].lower(), encoded)
+            mixed = re.sub(r"%[0-9A-F]{2}", lambda match: match[0].lower() if match.start() % 2 else match[0], encoded)
+            self.assertEqual(unquote(mixed), token)
+            variants += [lower, mixed, base64.b64encode(token.encode()).decode().rstrip("="),
+                         base64.urlsafe_b64encode(token.encode()).decode().rstrip("=")]
+            raw = ("\x1b7\x1b(B\x1b[31mError: diagnostic remains\x1b[0m\x1b8\n" + "\n".join(variants) + "\n" +
+                   token[:12] + "\x1b[0m" + token[12:] + "\n" + org + "\n" + account + "\n" + email +
+                   "\nUnknown+alias@example.invalid\nAccount: Unlisted Alias\nWelcome back, Hidden Display!\nSigned in as Another Alias\n" +
+                   "│ Welcome back, Decorated Greeting! │\n│ Account: Decorated Alias │\n").encode()
+            destination = root / "redacted.txt"
+            stopped, result = None, None
+            try:
+                result = probe.write_terminal_output(destination, raw, [token], identities)
+            except probe.StopProbe as error:
+                stopped = str(error)
+            self.assertIsNone(stopped, "合法脱敏内容应能保存。")
+            saved = destination.read_text(encoding="utf-8")
+            self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
+            self.assertEqual(result["credential_scan_hits"], 0)
+            self.assertTrue(result["written"])
+            for value in [*variants, org, account, email, "Unknown+alias@example.invalid", "Unlisted Alias", "Hidden Display", "Another Alias", "Decorated Greeting", "Decorated Alias", "\x1b"]:
+                self.assertFalse(value in saved, "脱敏文件仍含禁止内容。")
+            for marker in ("<CREDENTIAL>", "<EMAIL>", "<ACCOUNT>", "Error: diagnostic remains"):
+                self.assertIn(marker, saved)
+            for value in (org, account, email, token):
+                self.assertFalse(value in json.dumps(report) or value in json.dumps(result), "摘要只能保留计数。")
+
+    def test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths(self):
+        self.assertTrue(callable(getattr(probe, "write_terminal_output", None)), "需要在写盘前拒绝泄漏。")
+        with tempfile.TemporaryDirectory(prefix="t093-terminal-safety-") as temp:
+            root = Path(temp).resolve()
+            token, account = "t093-secret-" + uuid4().hex + " /+?!", "Account " + uuid4().hex
+            encoded = re.sub(r"%[0-9A-F]{2}", lambda match: match[0].lower(), quote(token, safe=""))
+            self.assertNotEqual(base64.b64encode(token.encode()).decode(), base64.b64encode(token.encode()).decode().rstrip("="))
+            for leak in (token, account, encoded, base64.b64encode(token.encode()).decode().rstrip("=")):
+                with patch.object(probe, "redact_terminal", return_value=leak):
+                    with self.assertRaises(probe.StopProbe):
+                        probe.write_terminal_output(root / "must-not-exist.txt", b"synthetic", [token], {account})
+                self.assertFalse((root / "must-not-exist.txt").exists())
+            existing = root / "existing.txt"
+            existing.write_text("KEEP", encoding="utf-8")
+            with self.assertRaises(FileExistsError):
+                probe.write_terminal_output(existing, b"safe diagnostic", [token], {account})
+            self.assertEqual(existing.read_text(encoding="utf-8"), "KEEP")
+            outside = root / "outside"
+            outside.mkdir()
+            (root / "linked").symlink_to(outside, target_is_directory=True)
+            with self.assertRaises(OSError):
+                probe.write_terminal_output(root / "linked/redacted.txt", b"safe diagnostic", [token], {account})
+            self.assertFalse((outside / "redacted.txt").exists())
+            for raw in (b"\x1b]unfinished", b"\x1bPunfinished", b"\x1b(", b"\xff"):
+                with self.assertRaises((probe.StopProbe, UnicodeDecodeError)):
+                    probe.write_terminal_output(root / "incomplete.txt", raw, [token], {account})
+                self.assertFalse((root / "incomplete.txt").exists())
+
+    @unittest.skipUnless(sys.platform == "darwin", "探针入口只支持 macOS")
+    def test_terminal_export_wrong_destination_stops_before_private_setup(self):
+        with tempfile.TemporaryDirectory(prefix="t093-terminal-destination-") as temp:
+            root = Path(temp).resolve()
+            args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"),
+                                   terminal_output=str(root / "unauthorized.txt"))
+            with patch.object(probe.tempfile, "mkdtemp", side_effect=probe.StopProbe("private_setup_attempted")) as setup, \
+                 patch.object(probe, "credentials") as read_credentials:
+                with self.assertRaises(probe.StopProbe) as stopped:
+                    probe.run(args)
+            self.assertEqual(str(stopped.exception), "terminal_export_path_not_authorized")
+            self.assertFalse(setup.called or read_credentials.called)
+
     def test_terminal_process_denials_and_host_failures_keep_only_categories(self):
         token, email = "t093-synthetic-" + uuid4().hex, uuid4().hex + "@example.invalid"
         cases = [
@@ -81,7 +166,7 @@ class ProbeSafety(unittest.TestCase):
 
     def test_route_drains_output_from_a_child_that_already_exited(self):
         with tempfile.TemporaryDirectory(prefix="t093-route-exit-") as temp:
-            root = Path(temp)
+            root = Path(temp).resolve()
             env = probe.environment(root)
             token, email = "t093-synthetic-" + uuid4().hex, uuid4().hex + "@example.invalid"
             peer = root / "exit-peer"
@@ -100,7 +185,8 @@ class ProbeSafety(unittest.TestCase):
                  patch.object(probe.subprocess, "Popen", side_effect=completed_child), \
                  patch.object(probe.os, "write", wraps=os.write) as pty_write:
                 try:
-                    probe.route(str(peer), "synthetic-profile", env, str(root / "cwd"), root, report, [token])
+                    probe.route(str(peer), "synthetic-profile", env, str(root / "cwd"), root, report, [token],
+                                terminal_output=root / "terminal.txt", identities={email})
                 except probe.StopProbe as error:
                     stopped = str(error)
                 writes_after_exit = pty_write.call_count
@@ -112,6 +198,9 @@ class ProbeSafety(unittest.TestCase):
             self.assertEqual(writes_after_exit, 0, "已知退出后只能排空输出，不得再写 PTY。")
             self.assertEqual(diagnostic["protocol_replies"], {})
             self.assertEqual(report["startup_controls"], [])
+            self.assertTrue(report["terminal_export"]["written"])
+            exported = (root / "terminal.txt").read_text(encoding="utf-8")
+            self.assertFalse(token in exported or email in exported or "\x1b" in exported)
             self.assertTrue(diagnostic["terminal"]["mentions_permission_error"])
             self.assertEqual(diagnostic["submission"]["matching_user_records"], 0)
             saved = json.dumps(report)
@@ -194,7 +283,7 @@ except urllib.error.HTTPError as error:assert error.code==400
                         return code, stdout, b"sandbox-exec: synthetic failure"
                     raise probe.StopProbe("unexpected_post_version_capture")
 
-                args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"))
+                args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"), terminal_output=None)
                 with patch.object(probe.Path, "home", return_value=source_home), \
                      patch.object(probe, "capture", side_effect=fake_capture), \
                      patch.object(probe, "credentials") as read_credentials, \

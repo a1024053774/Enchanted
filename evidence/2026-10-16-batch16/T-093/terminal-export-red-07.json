@@ -1,0 +1,29 @@
+{
+  "task": "T-093",
+  "attempt": "a1",
+  "base_revision": "c7cf6e434fbe1b4784d38156c0cc8e4014ebd69f",
+  "status": "INCOMPLETE",
+  "kind": "contract test",
+  "claim": "仅把脱敏且扫描无命中的交互终端正文写到独占 0600 文件",
+  "failure_modes": [
+    "凭据原值或编码变体漏替换",
+    "ANSI 把凭据分段",
+    "邮箱和已知/有标签的账号名漏替换",
+    "扫描前创建文件",
+    "覆盖文件或跟随祖先链接",
+    "mode 非 0600",
+    "摘要泄漏正文"
+  ],
+  "command": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "workbench/tests/test_t093_probe_safety.py",
+    "ProbeSafety.test_terminal_export_redacts_variants_identities_and_preserves_diagnostics",
+    "ProbeSafety.test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths"
+  ],
+  "exit_code": 1,
+  "expected_failure_observed": true,
+  "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 2, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+  "stderr": "test_terminal_export_redacts_variants_identities_and_preserves_diagnostics (__main__.ProbeSafety) ... FAIL\ntest_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_terminal_export_redacts_variants_identities_and_preserves_diagnostics (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 32, in test_terminal_export_redacts_variants_identities_and_preserves_diagnostics\n    self.assertTrue(callable(getattr(probe, \"write_terminal_output\", None)), \"需要仅写脱敏正文的入口。\")\nAssertionError: False is not true : 需要仅写脱敏正文的入口。\n\n======================================================================\nFAIL: test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 62, in test_terminal_export_scans_before_create_and_refuses_existing_or_linked_paths\n    self.assertTrue(callable(getattr(probe, \"write_terminal_output\", None)), \"需要在写盘前拒绝泄漏。\")\nAssertionError: False is not true : 需要在写盘前拒绝泄漏。\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nFAILED (failures=2)\n",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0
+}

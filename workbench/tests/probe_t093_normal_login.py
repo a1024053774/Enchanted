@@ -29,6 +29,7 @@ SERVICE = "Claude Code-credentials"
 VERSION = "2.1.302 (Claude Code)"
 PROMPT = "T-093 本地假上游探针。请求只到本机，不执行工具。"
 CHILDREN = []
+TERMINAL_OUTPUT = Path("/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/scratchpad/t093-terminal-07.txt")
 
 
 class StopProbe(Exception):
@@ -44,14 +45,94 @@ def encode(value):
     return json.dumps(value, ensure_ascii=False, indent=2) + "\n"
 
 
-def secret_hits(data, secrets):
-    # 同时检查原值、JSON 转义、URL 编码和 base64。只返回次数。
+def canonical_percent(text):
+    # URL 百分号十六进制大小写等价；不改变未编码字符的大小写。
+    return re.sub(r"%[0-9a-fA-F]{2}", lambda match: match[0].upper(), text)
+
+
+def secret_variants(secrets):
     from urllib.parse import quote
     variants = set()
     for value in secrets:
+        encoded = base64.b64encode(value.encode()).decode()
+        url_encoded = base64.urlsafe_b64encode(value.encode()).decode()
         variants.update((value, json.dumps(value)[1:-1], quote(value, safe=""),
-                         base64.b64encode(value.encode()).decode()))
+                         encoded, encoded.rstrip("="), url_encoded, url_encoded.rstrip("=")))
+    return {canonical_percent(value) for value in variants if value}
+
+
+def secret_hits(data, secrets):
+    # 同时检查原值、JSON 转义、URL 编码和 base64。只返回次数。
+    data = canonical_percent(data)
+    variants = secret_variants(secrets)
     return sum(data.count(value) for value in variants if value)
+
+
+def account_values(value):
+    # 只处理已经读取的 auth status；不读额外配置或身份来源。
+    result = set()
+    fields = {"name", "email", "emailaddress", "org", "orgname", "orgid", "organization", "organizationname",
+              "organizationid", "organisation", "organisationname", "account", "accountname", "accountid",
+              "user", "username", "userid", "fullname", "displayname"}
+    if isinstance(value, dict):
+        for key, child in value.items():
+            field = re.sub(r"[^a-z]", "", key.lower())
+            if (field in fields or field.endswith("name")) and isinstance(child, str) and child:
+                result.add(child)
+            result.update(account_values(child))
+    elif isinstance(value, list):
+        for child in value:
+            result.update(account_values(child))
+    return result
+
+
+def redact_terminal(raw, secrets, identities):
+    text = raw.decode("utf-8", "strict")
+    text = re.sub(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][\s\S]*?(?:\x07|\x1b\\)|[PX^_][\s\S]*?\x1b\\|(?![\[\]PX^_])[ -/]*[0-~])", "", text)
+    require(not re.search(r"[\x1b\x80-\x9f]", text), "terminal_export_unsupported_escape")
+    text = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", text)
+    text = canonical_percent(text)
+    for value in sorted(secret_variants(secrets), key=len, reverse=True):
+        text = text.replace(value, "<CREDENTIAL>")
+    for identity in sorted(identities, key=len, reverse=True):
+        replacement = "<EMAIL>" if "@" in identity else "<ACCOUNT>"
+        for value in sorted(secret_variants([identity]), key=len, reverse=True):
+            text = text.replace(value, replacement)
+    text = re.sub(r'''(?:"(?:[^"\\]|\\.)+"|[\w.!#$%&'*+/=?^`{|}~-]+)@[\w-]+(?:\.[\w-]+)*''', "<EMAIL>", text)
+    text = re.sub(r"(?im)^([ \t|+\u2500-\u257f]*(?:(?:organization|organisation|org|account|user)(?:\s+name)?|组织(?:名)?|账号(?:名)?)[ \t]*[:：=][ \t]*)[^\n]+", r"\1<ACCOUNT>", text)
+    text = re.sub(r"(?im)^([ \t|+\u2500-\u257f]*(?:welcome(?: back)?[, ]+|(?:you are )?(?:signed|logged) in as\s+))[^\n]+", r"\1<ACCOUNT>", text)
+    return text
+
+
+def terminal_parent(path):
+    require(path.is_absolute(), "terminal_export_absolute_path_required")
+    directory = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for ancestor in path.parent.parts[1:]:
+            child = os.open(ancestor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+            os.close(directory)
+            directory = child
+        return directory
+    except BaseException:
+        os.close(directory)
+        raise
+
+
+def write_terminal_output(path, raw, secrets, identities):
+    text = redact_terminal(raw, secrets, identities)
+    hits = secret_hits(text, secrets)
+    require(hits == 0, "terminal_export_credential_scan_failed")
+    require(secret_hits(text, identities) == 0, "terminal_export_identity_scan_failed")
+    # 扫描通过后才打开文件；逐级拒绝祖先链接，且不覆盖已有文件。
+    parent = terminal_parent(path)
+    try:
+        fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=parent)
+    finally:
+        os.close(parent)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        os.fchmod(stream.fileno(), 0o600)
+        stream.write(text)
+    return {"written": True, "bytes": len(text.encode("utf-8")), "mode": "0600", "credential_scan_hits": hits}
 
 
 def output_shape(raw):
@@ -277,6 +358,7 @@ def auth_status(executable, profile, env, cwd, report, name, secrets):
                     "config_is_isolated": data.get("configDirectory") == env["CLAUDE_CONFIG_DIR"]}
     require(code == 0 and all(report[name][key] for key in
                              ("loggedIn", "uses_claude_ai", "config_is_isolated")), "isolated_login_not_recognized")
+    return account_values(data)
 
 
 def sink(root):
@@ -484,7 +566,7 @@ def home_references(value, home, field="launch"):
     return []
 
 
-def route(executable, profile, env, cwd, root, report, secrets):
+def route(executable, profile, env, cwd, root, report, secrets, *, terminal_output=None, identities=()):
     arguments = [executable, "--model", "claude-haiku-5-5", "--effort", "low",
                  "--permission-mode", "manual", "--tools", "", "--strict-mcp-config",
                  "--mcp-config", '{"mcpServers":{}}', "--disable-slash-commands", PROMPT]
@@ -581,6 +663,9 @@ def route(executable, profile, env, cwd, root, report, secrets):
                                       "pty_eof_seen": eof, "output_truncated": output_truncated,
                                       "protocol_replies": replies_count, "terminal": terminal_facts(captured, PROMPT),
                                       "query_via_argv": True, "submission": submission_facts(root, PROMPT)}
+        if terminal_output is not None:
+            report["terminal_export"] = {"requested": True, "written": False}
+            report["terminal_export"].update(write_terminal_output(terminal_output, captured, secrets, identities))
     report["route_observed"] = any(row["method"] == "POST" and row["path"] == "/v1/messages" and
                                    row["has_messages"] and row["bearer_matches_copied_login"] for row in rows(root))
     require(report["route_observed"], "no_authenticated_local_messages_request")
@@ -594,6 +679,19 @@ def run(args):
     require(args.output is not None, "output_required")
     output = Path(args.output).absolute()
     require(output.parent.is_dir() and not output.exists(), "new_output_file_required")
+    terminal_output = Path(args.terminal_output) if args.terminal_output else None
+    if terminal_output is not None:
+        require(terminal_output == TERMINAL_OUTPUT, "terminal_export_path_not_authorized")
+        parent = terminal_parent(terminal_output)
+        try:
+            try:
+                os.stat(terminal_output.name, dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                pass
+            else:
+                raise StopProbe("terminal_export_file_already_exists")
+        finally:
+            os.close(parent)
     require(not os.environ.get("CLAUDE_CONFIG_DIR"), "custom_source_config_requires_review")
     os.umask(0o077)
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -684,7 +782,7 @@ else:
                     require("--json" in text, "auth_status_json_flag_missing_from_help")
                 report[label] = text.strip()
         secrets = credentials(real_home, env, cwd, report)
-        auth_status(str(executable), profile, env, cwd, report, "status_without_base_url", secrets)
+        identities = auth_status(str(executable), profile, env, cwd, report, "status_without_base_url", secrets)
         sink_profile = ('(version 1)(allow default)(deny process-fork)(deny network-outbound)'
                         '(deny file-write*)(allow file-write* (subpath ' + json.dumps(str(root)) + '))')
         server = subprocess.Popen(guarded(sink_profile, [sys.executable, str(Path(__file__).resolve()), "--sink", str(root)]),
@@ -709,8 +807,8 @@ else:
         report["sink_tcp_preflight"] = {"exit_code": code, "connected": code == 0,
                                          "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
         require(code == 0, "local_sink_tcp_unreachable")
-        auth_status(str(executable), profile, env, cwd, report, "status_with_base_url", secrets)
-        route(str(executable), profile, env, cwd, root, report, secrets)
+        identities.update(auth_status(str(executable), profile, env, cwd, report, "status_with_base_url", secrets))
+        route(str(executable), profile, env, cwd, root, report, secrets, terminal_output=terminal_output, identities=identities)
         auth_status(str(executable), profile, env, cwd, report, "status_after_route", secrets)
         report["status"] = "PASS"
     except StopProbe as error:
@@ -762,6 +860,7 @@ def main():
     parser.add_argument("--run", action="store_true")
     parser.add_argument("--claude", default=str(Path.home() / ".local/share/claude/versions/2.1.302"))
     parser.add_argument("--output")
+    parser.add_argument("--terminal-output", help="仅允许主控指定的 probe-07 脱敏终端临时文件；不覆盖。")
     parser.add_argument("--sink", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.sink:
