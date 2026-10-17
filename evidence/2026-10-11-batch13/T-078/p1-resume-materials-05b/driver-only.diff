@@ -1,0 +1,109 @@
+--- p1-launch-05/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh
++++ continue-05b/evidence/2026-10-11-batch13/T-078/outside-sandbox.sh
+@@ -1,9 +1,12 @@
+ #!/bin/bash
+ set -eu
+-case "${1:-p1-launch-05}" in
+-  p1-launch-05) phase=launch ;;
+-  p1-continue-05) phase=continue ;;
+-  p1-cleanup-05) phase=cleanup ;;
++extra=()
++case "${1:-p1-continue-05b}" in
++  p1-continue-05b)
++    phase=continue
++    label=continue-05b
++    extra=(--readiness-file /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-resume-materials-05b/readiness.json) ;;
++  p1-cleanup-05b) phase=cleanup; label=cleanup-05b ;;
+   *) echo 'Unknown P1 stage; no process started' >&2; exit 2 ;;
+ esac
+-/usr/bin/python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/run_t078_p1.py --materials /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-materials-05 --phase "$phase"
++/usr/bin/python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/run_t078_p1.py --materials /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-materials-05 --phase "$phase" --label "$label" --source-materials /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/p1-resume-materials-05b "${extra[@]}"
+--- p1-launch-05/workbench/README.md
++++ continue-05b/workbench/README.md
+@@ -3,14 +3,16 @@
+ T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
+ 当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 key、loopback Messages API 的单提交探针，
+ 不支持真登录或多回合主控。启动需逐次批准；完整材料及静态检查见
+-[P1 引导与退出核对材料](../evidence/2026-10-11-batch13/T-078/P1-APPROVAL-05.md)。
++[P1 引导与退出核对材料](../evidence/2026-10-11-batch13/T-078/P1-APPROVAL-05.md)，
++同实例续跑见 [P1-continue-05b](../evidence/2026-10-11-batch13/T-078/P1-CONTINUE-05b.md)。
+ 当前材料仅在隔离 settings.json 设置 `theme: dark`，并加入 `IS_DEMO=1`；
+-启动仍待单独审批。遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
++主控已观察到 CLI 直接进入提示符；continue 仍需显式就绪文件和单独审批。
++遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
+ cleanup 绑定 CLI 的 PID、启动时间和命令，确认退出前不报告 PASS 或删除隔离根。
+ 角色卡经固定 CLI 帮助列出的 `--append-system-prompt` 传完整文本；启动记录仍保留来源路径。
+ P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并先记录实际 manifest；
+ 主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
+-真实 CLI 曾停在首次使用的主题引导；本次配置尚未运行，hook 与主控协议仍未验证。
++当前配置已由主控启动到提示符，尚未发送输入，hook 与主控协议仍未验证。
+ 旧 T-078-1 的通过结果不替它背书。
+ 
+ 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+--- p1-launch-05/workbench/tests/run_t078_p1.py
++++ continue-05b/workbench/tests/run_t078_p1.py
+@@ -1,19 +1,24 @@
+ """Controller-only P1 lifecycle. Launch pauses for explicit initial-readiness approval."""
+-import argparse,base64,json,os,signal,sqlite3,subprocess,sys,time,tarfile,shutil
++import argparse,base64,json,os,signal,sqlite3,subprocess,sys,time,tarfile,shutil,traceback
+ from pathlib import Path
+ from command_evidence import CommandLog,command_json
+ from p1_endpoint import resolved_input
+ from p1_processes import identity_from_ps,cli_exit_verdict
+ SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
+ parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','continue','cleanup'],required=True)
++parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
+ args=parser.parse_args();materials=args.materials.resolve();approval=json.loads((materials/'approval.json').read_text());root=Path(approval['input']['root']);state=root/'state'
+-out=materials/args.phase;out.mkdir();log=CommandLog(out)
++label=args.label or args.phase
++if Path(label).name!=label or label in ['.','..']:parser.error('A single new output-directory name is required')
++source_materials=args.source_materials.resolve() if args.source_materials else materials
++out=materials/label;out.mkdir();log=CommandLog(out)
+ node=approval['launch']['node_executable']
+ env={'PATH':'/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin','HOME':str(root/'manager-home'),'TMPDIR':str(root/'tmp'),'A2A_OPERATOR_CREDENTIAL':str(root/'operator.json'),
+      'GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':os.devnull,'GIT_CONFIG_COUNT':'2','GIT_CONFIG_KEY_0':'core.hooksPath','GIT_CONFIG_VALUE_0':os.devnull,'GIT_CONFIG_KEY_1':'commit.gpgsign','GIT_CONFIG_VALUE_1':'false',
+      'GIT_AUTHOR_NAME':'T078 P1 fixture','GIT_AUTHOR_EMAIL':'fixture@example.invalid','GIT_COMMITTER_NAME':'T078 P1 fixture','GIT_COMMITTER_EMAIL':'fixture@example.invalid'}
+ cli=[node,SOURCE/'workbench/src/gates/cli.ts','--state',state]
+-result={'status':'INCOMPLETE','phase':args.phase,'real_vendor_model_turns':0,'authentication':'isolated fake API','input':approval['input']}
++result={'status':'INCOMPLETE','phase':args.phase,'label':label,'source_materials':str(source_materials),
++        'real_vendor_model_turns':0,'authentication':'isolated fake API','input':approval['input']}
+ def save(): (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
+ def run(argv,child_env=env,allowed=(0,)):
+     p=log.run(argv,cwd=SOURCE,env=child_env,timeout=15)
+@@ -38,8 +43,8 @@
+     if not os.path.ismount('/Volumes/WD-Elements'):raise RuntimeError('External volume missing')
+     for name in ['input.json','role.md','nonce.txt']:
+         if (root/name).read_bytes()!=(materials/name).read_bytes():raise RuntimeError('Approved input changed: '+name)
+-    frozen=json.loads((materials/'source-files.json').read_text())
+-    with tarfile.open(materials/'sources.tar.gz') as archive:
++    frozen=json.loads((source_materials/'source-files.json').read_text())
++    with tarfile.open(source_materials/'sources.tar.gz') as archive:
+         for name in frozen:
+             if (SOURCE/name).read_bytes()!=archive.extractfile(name).read():raise RuntimeError('Approved source changed: '+name)
+     if args.phase=='launch':
+@@ -95,9 +100,15 @@
+         if json.loads((root/'runtime-input.json').read_text())!=bound:raise RuntimeError('resolved_api_manifest_changed')
+         runtime=json.loads((materials/'launch/runtime-manifest.json').read_text())
+         if runtime['input']!=bound:raise RuntimeError('runtime_launch_manifest_changed')
+-        ready=json.loads((root/'initial-ready.json').read_text())
++        if not args.readiness_file:raise RuntimeError('Explicit startup-readiness file required')
++        ready=json.loads(args.readiness_file.read_text(encoding='utf-8'))
+         if ready.get('launch')!=approval['input']['launch'] or ready.get('session')!=approval['input']['session'] or ready.get('confirmed_by')!='executor' or ready.get('readiness')!='confirmed' or not ready.get('basis'):
+             raise RuntimeError('Explicit startup-readiness approval required; never use task input as a trust answer')
++        result['readiness_file']=str(args.readiness_file.resolve());result['readiness_confirmation']=ready;save()
++        process_manifest=json.loads((materials/'launch/process-manifest.json').read_text(encoding='utf-8'))
++        if any(process_manifest.get(key)!=approval['input'][key] for key in ['launch','session']) or probe_process(process_manifest['cli']['pid'])!=process_manifest['cli']:
++            raise RuntimeError('continuation_cli_identity_changed')
++        result['process_confirmation']=process_manifest;save()
+         thread=approval['input']['thread'];call('pane_release','--thread',thread,'--reason','P1 explicit initial readiness approved by executor')
+         result['dispatch']=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce.txt')
+         wait(lambda:(root/'api-request.json').exists())
+@@ -144,6 +155,8 @@
+             shutil.rmtree(root);result['status']='PASS';result['cleanup']='Only this recorded fixture and owned processes removed.'
+ except Exception as error:
+     result['error']=repr(error)
++    result['error_filename']=getattr(error,'filename',None)
++    result['traceback']=traceback.format_exc()
+     if args.phase=='cleanup':result['status']='BLOCKED'
+ finally:save()
+ print(json.dumps({'status':result['status'],'phase':args.phase,'output':str(out),'error':result.get('error')}))

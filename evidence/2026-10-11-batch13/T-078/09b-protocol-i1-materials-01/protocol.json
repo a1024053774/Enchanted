@@ -1,0 +1,193 @@
+{
+  "phases": [
+    {
+      "id": "I1",
+      "role": "ideation",
+      "input": "approved synthetic user-window stop request",
+      "tool": "I_SEND_STOP",
+      "messages": 2,
+      "Stop_effect": "send actual stop and wake executor; queue actual send receipt"
+    },
+    {
+      "id": "I2",
+      "role": "ideation",
+      "input": "actual send execution feedback",
+      "tool": null,
+      "messages": 1,
+      "Stop_effect": "confirm only"
+    },
+    {
+      "id": "E1",
+      "role": "executor",
+      "input": "actual inbox wake containing stop.id and target binding",
+      "tool": "E_WRONG_TARGET",
+      "messages": 2,
+      "Stop_effect": "real wrong-target denial"
+    },
+    {
+      "id": "E2",
+      "role": "executor",
+      "input": "actual E1 denial feedback",
+      "tool": "E_STOP",
+      "messages": 2,
+      "Stop_effect": "one managed target interrupt"
+    },
+    {
+      "id": "E3",
+      "role": "executor",
+      "input": "actual successful E2 execution feedback",
+      "tool": "E_ACK",
+      "messages": 2,
+      "Stop_effect": "append actual ack and wake ideation"
+    },
+    {
+      "id": "E4",
+      "role": "executor",
+      "input": "actual E3 ack execution feedback",
+      "tool": "E_DUP_ACK",
+      "messages": 2,
+      "Stop_effect": "idempotent ack; no second wake"
+    },
+    {
+      "id": "I3",
+      "role": "ideation",
+      "input": "actual executor ack inbox wake",
+      "tool": "I_FOREIGN_ACK",
+      "messages": 2,
+      "Stop_effect": "real foreign-recipient denial"
+    },
+    {
+      "id": "I4",
+      "role": "ideation",
+      "input": "actual I3 denial feedback",
+      "tool": null,
+      "messages": 1,
+      "Stop_effect": "final confirm and idle"
+    },
+    {
+      "id": "E5",
+      "role": "executor",
+      "input": "actual E4 duplicate-ack execution feedback",
+      "tool": "E_STOP_ACKED",
+      "messages": 2,
+      "Stop_effect": "real already-acknowledged denial"
+    },
+    {
+      "id": "E6",
+      "role": "executor",
+      "input": "actual E5 denial feedback",
+      "tool": null,
+      "messages": 1,
+      "Stop_effect": "final confirm and idle"
+    }
+  ],
+  "commands": {
+    "I_SEND_STOP": {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+        "send",
+        "--from",
+        "executor",
+        "--to",
+        "executor",
+        "--kind",
+        "stop",
+        "--body-file",
+        "/private/tmp/t078-2-09b-plan-4mzvkbne/roles/ideation/stop-body.txt",
+        "--ref",
+        "thread:{target.thread_id}",
+        "--ref",
+        "attempt:{target.attempt_id}",
+        "--ref",
+        "input:{synthetic_user_input.id}"
+      ],
+      "result": "one actual stop entry, from=ideation"
+    },
+    "I_FOREIGN_ACK": {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+        "ack",
+        "--id",
+        "{stop.id}"
+      ],
+      "result": "recipient_required; no new ack/wake"
+    },
+    "E_WRONG_TARGET": {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/src/gates/cli.ts",
+        "stop",
+        "--thread",
+        "12994e06-fcd7-4262-8b40-e5929e8d19ac",
+        "--stop-id",
+        "{stop.id}"
+      ],
+      "result": "worker_target_required; no Esc"
+    },
+    "E_STOP": {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/src/gates/cli.ts",
+        "stop",
+        "--thread",
+        "{target.thread_id}",
+        "--stop-id",
+        "{stop.id}"
+      ],
+      "result": "interruptRequested=true; actor=executor; one target Esc"
+    },
+    "E_ACK": {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+        "ack",
+        "--role",
+        "ideation",
+        "--id",
+        "{stop.id}"
+      ],
+      "result": "one actual ack from=executor, reply_to=stop.id"
+    },
+    "E_DUP_ACK": {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+        "ack",
+        "--id",
+        "{stop.id}"
+      ],
+      "result": "same ack entry ID; new request ID; no new ack/wake/Esc"
+    },
+    "E_STOP_ACKED": {
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/src/gates/cli.ts",
+        "stop",
+        "--thread",
+        "{target.thread_id}",
+        "--stop-id",
+        "{stop.id}"
+      ],
+      "result": "stop_already_acknowledged; no extra Esc"
+    }
+  },
+  "identity_binding": {
+    "source": "actual managed dispatch/claim receipt and live pane identity",
+    "required": [
+      "task_id",
+      "attempt_id",
+      "session_id",
+      "fence",
+      "thread_id",
+      "workspace",
+      "launch",
+      "shell_pid",
+      "leader_pid",
+      "native_session"
+    ],
+    "forbidden": "No placeholder may be passed to a live command; no direct attempt/credential database insertion"
+  },
+  "interleaving": "I/E feedback and inbox may arrive in either wall-clock order; correlate by actual dispatch/request/inbox IDs, not global phase order"
+}

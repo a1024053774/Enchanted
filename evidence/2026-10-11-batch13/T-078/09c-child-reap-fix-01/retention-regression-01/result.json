@@ -1,0 +1,67 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "retention-green",
+      "status": "PASS",
+      "actual": "PASS",
+      "calls": [
+        "daemon_stop",
+        "SIGTERM:ideation_api",
+        "SIGTERM:executor_api"
+      ]
+    },
+    {
+      "name": "retention-dry-run",
+      "status": "PASS",
+      "actual": "PASS",
+      "calls": []
+    },
+    {
+      "name": "retention-bad-archive",
+      "status": "PASS",
+      "actual": "BLOCKED",
+      "calls": []
+    },
+    {
+      "name": "retention-missing-readback",
+      "status": "PASS",
+      "actual": "BLOCKED",
+      "calls": []
+    },
+    {
+      "name": "retention-wrong-PID",
+      "status": "PASS",
+      "actual": "BLOCKED",
+      "calls": []
+    },
+    {
+      "name": "retention-raw-before-stop",
+      "status": "PASS",
+      "actual": "BLOCKED",
+      "calls": []
+    },
+    {
+      "name": "retention-tail-after-stop",
+      "status": "PASS",
+      "actual": "BLOCKED",
+      "calls": [
+        "daemon_stop",
+        "SIGTERM:ideation_api",
+        "SIGTERM:executor_api"
+      ]
+    },
+    {
+      "name": "mutant-skip-bytes",
+      "status": "PASS",
+      "known_bad_observed": "RED",
+      "assertion": "corrupt archive must prevent stop and delete",
+      "calls": [
+        "daemon_stop",
+        "SIGTERM:ideation_api",
+        "SIGTERM:executor_api"
+      ]
+    }
+  ],
+  "scope": "real files and explicit transport fixtures; no API/daemon/CLI/process"
+}

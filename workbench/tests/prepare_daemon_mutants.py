@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "evidence/2026-10-10-batch12/T-075/card-5"
 
 
-def prepare(out):
+def prepare(out, task="T-075-5"):
     out.mkdir(exist_ok=False)
     root = Path(tempfile.mkdtemp(prefix="a5-mutants-", dir="/tmp")).resolve()
     candidate = root / "candidate/workbench"
@@ -45,7 +45,7 @@ def prepare(out):
         records[name] = {"core": str(target / "src/gates/core.ts"), "patch": name + ".patch"}
     with tarfile.open(out / "sources.tar.gz", "x:gz") as archive:
         archive.add(root, arcname=root.name)
-    record = {"task": "T-075-5", "root": str(root), "candidate": str(candidate), "mutants": records,
+    record = {"task": task, "root": str(root), "candidate": str(candidate), "mutants": records,
               "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "dependency_link": str(ROOT / "workbench/node_modules"),
               "scope": "Each gate differs at one site; the final CLI and daemon listener are unchanged."}

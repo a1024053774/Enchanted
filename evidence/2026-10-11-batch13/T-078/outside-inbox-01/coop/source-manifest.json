@@ -1,0 +1,81 @@
+{
+  "paths": [
+    "workbench/src/contracts/a2aGates.ts",
+    "workbench/src/contracts/a2aInbox.ts",
+    "workbench/src/contracts/a2aMembership.ts",
+    "workbench/src/contracts/a2aRolePermissions.ts",
+    "workbench/src/contracts/baseSchemas.ts",
+    "workbench/src/contracts/index.ts",
+    "workbench/src/contracts/modelOptions.ts",
+    "workbench/src/contracts/modelSelection.ts",
+    "workbench/src/credentials.ts",
+    "workbench/src/daemon.ts",
+    "workbench/src/gates/cli.ts",
+    "workbench/src/gates/core.ts",
+    "workbench/src/gates/membership.ts",
+    "workbench/src/gates/readyTickets.ts",
+    "workbench/src/gates/rolePermissions.ts",
+    "workbench/src/gates/taskCards.ts",
+    "workbench/src/panes.ts",
+    "workbench/src/relay.ts",
+    "workbench/src/relayFiles.ts",
+    "workbench/src/store.ts",
+    "workbench/src/transport.ts",
+    "workbench/tests/daemon_acceptance_adapter.py",
+    "workbench/tests/daemon_acceptance_host.ts",
+    "workbench/tests/run_daemon_acceptance.py",
+    "workbench/tests/prepare_daemon_mutants.py",
+    "workbench/tests/test_cas_race.py",
+    "workbench/package.json",
+    "workbench/package-lock.json",
+    "workbench/.npmrc",
+    "acceptance/test_coop_e2e.py",
+    "acceptance/test_recovery_e2e.py",
+    "acceptance/test_run_e2e.py",
+    "acceptance/pagination_oracle.py",
+    "acceptance/reference/pager.py",
+    "acceptance/entry/a2a_gates.py",
+    "acceptance/entry/native-runtime.ts",
+    "acceptance/entry/native-entry.py",
+    "acceptance/entry/native-entry.ts",
+    "acceptance/entry/thread-boundary.py",
+    "fixtures/pagination/CONTRACT.md",
+    "fixtures/pagination/pager.py",
+    ".project-map/specs/recovery-2026-10-06.md",
+    ".project-map/specs/managed-delivery-2026-10-06.md",
+    ".project-map/specs/supervised-run-2026-10-06.md",
+    "evidence/2026-10-10-batch12/T-075/card-5/controller-decision-01.md",
+    "evidence/2026-10-10-batch12/T-075/card-5/outside-sandbox.sh",
+    "evidence/2026-10-10-batch12/T-075/card-5/readback-timing-probe.py",
+    "evidence/2026-10-10-batch12/T-075/run-acceptance.py"
+  ],
+  "head": {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a-wt-t078",
+    "exit_code": 0,
+    "stdout": "14b57d22a84bcaebfa91c5051b9909b53a570fac\n",
+    "stderr": ""
+  },
+  "diff": {
+    "argv": [
+      "git",
+      "diff",
+      "--",
+      "workbench/src/daemon.ts"
+    ],
+    "cwd": "/Users/luckye/Documents/Code/a2a-wt-t078",
+    "exit_code": 0,
+    "stdout": "diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts\nindex 6c7ca83d..7401abb1 100644\n--- a/workbench/src/daemon.ts\n+++ b/workbench/src/daemon.ts\n@@ -7,6 +7,7 @@ import { Panes, spawnHelper, type LaunchConfig } from \"./panes.ts\";\n import { socketPath } from \"./transport.ts\";\n import { RequestRelay } from \"./relay.ts\";\n import { randomUUID } from \"node:crypto\";\n+import { readOperatorCredential } from \"./credentials.ts\";\n \n export async function serve(\n   root: string,\n@@ -17,12 +18,32 @@ export async function serve(\n   root = realpathSync(root);\n   const socket = socketPath(root);\n   if (existsSync(socket)) throw new Error(\"socket exists; refusing to replace it\");\n+  const operator = readOperatorCredential(root);\n+  if (!operator) throw new Error(\"operator_credential_required\");\n   const helper = spawnHelper();\n   const store = new OrchestrationStore(root);\n   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus(\"failed\", { reason }));\n   const gates = createGates(root, panes);\n   const relay = new RequestRelay(store);\n   const daemon = randomUUID();\n+  type WindowBinding = { id: string; token: string; task: string; launch: string; sequence: number };\n+  const windows = new Map<string, WindowBinding>();\n+  const readOnly = new Set([\"daemon_status\", \"orchestration_events\", \"pane_output\", \"workbench_snapshot\",\n+    \"pane_status\", \"pane_process_info\", \"launch_show\", \"status\", \"events\", \"issues\", \"card_show\", \"card_template\", \"card_validate\"]);\n+  const authenticate = (identity: any): { source: string; kind: \"operator\" | \"window\" | \"launch\" | \"anonymous\"; window?: WindowBinding } => {\n+    if (!identity) return { source: \"anonymous\", kind: \"anonymous\" };\n+    if (identity.kind === \"operator\") {\n+      if (identity.token !== operator.token || identity.epoch !== operator.epoch || identity.state !== root) throw new Refusal(\"invalid_operator_identity\");\n+      return { source: \"executor\", kind: \"operator\" };\n+    }\n+    if (identity.kind === \"window\") {\n+      const window = windows.get(identity.window);\n+      if (!window || identity.token !== window.token) throw new Refusal(\"invalid_window_identity\");\n+      return { source: \"user\", kind: \"window\", window };\n+    }\n+    const pane = panes.authenticate(identity);\n+    return { source: `worker:${pane.record.thread}`, kind: \"launch\" };\n+  };\n   gates.setUserInputObserverStatus(\"healthy\");\n   let stopping = false;\n   let activeRequests = 0;\n@@ -36,14 +57,75 @@ export async function serve(\n     if (existsSync(socket)) unlinkSync(socket);\n     unlinkSync(join(root, \"daemon.pid\"));\n   };\n-  const handle = async (envelope: any) => {\n+  const handle = async (envelope: any, authority: ReturnType<typeof authenticate>) => {\n     const input = envelope.input;\n     if (!input || typeof input.command !== \"string\") throw new Refusal(\"invalid_request\");\n     const identity = envelope.identity;\n-    if (identity) {\n-      panes.authenticate(identity);\n+    if (authority.kind === \"anonymous\" && !readOnly.has(input.command)) throw new Refusal(\"caller_identity_required\");\n+    if (authority.kind === \"launch\") {\n       if (input.command !== \"signal\") throw new Refusal(\"worker_requests_require_stop\");\n     }\n+    if (authority.kind === \"window\" && ![\"window_input\", \"window_observation\", \"window_close\"].includes(input.command)) {\n+      throw new Refusal(\"window_command_forbidden\");\n+    }\n+    if (input.command === \"window_open\") {\n+      if (authority.kind !== \"operator\") throw new Refusal(\"operator_required\");\n+      const record = panes.launchRecord(input.launch);\n+      if (record.task !== input.task) throw new Refusal(\"launch_task_mismatch\");\n+      const window = { id: randomUUID(), token: randomUUID(), task: record.task, launch: record.id, sequence: 0 };\n+      windows.set(window.id, window);\n+      store.event(\"window_opened\", { window_id: window.id, actor: \"user\" }, record as any);\n+      return { ok: true, identity: { kind: \"window\", window: window.id, token: window.token } };\n+    }\n+    if ([\"window_input\", \"window_observation\", \"window_close\"].includes(input.command)) {\n+      const window = authority.window;\n+      if (!window) throw new Refusal(\"window_identity_required\");\n+      const record = panes.launchRecord(window.launch);\n+      if (input.command === \"window_close\") {\n+        windows.delete(window.id);\n+        store.event(\"window_closed\", { window_id: window.id }, record as any);\n+        return { ok: true };\n+      }\n+      if (!Number.isSafeInteger(input.sequence) || input.sequence !== window.sequence + 1 ||\n+          typeof input.request_id !== \"string\" || !input.request_id) throw new Refusal(\"invalid_window_sequence\");\n+      const receipt = { window_id: window.id, sequence: input.sequence, request_id: input.request_id, received_at: new Date().toISOString() };\n+      if (input.command === \"window_observation\") {\n+        if (input.type !== \"focus-mode-intercept\" || typeof input.raw_sequence !== \"string\" || input.raw_sequence.length > 4096) {\n+          throw new Refusal(\"invalid_window_observation\");\n+        }\n+        store.event(\"terminal_focus_intercepted\", { ...receipt, raw_sequence: input.raw_sequence }, record as any);\n+        window.sequence = input.sequence;\n+        return { ok: true };\n+      }\n+      if (typeof input.data !== \"string\" || Buffer.byteLength(input.data, \"utf8\") > 1024 * 1024) throw new Refusal(\"invalid_terminal_input\");\n+      if (input.data.length === 0) {\n+        store.event(\"terminal_input_empty\", { ...receipt, byte_length: 0 }, record as any);\n+        window.sequence = input.sequence;\n+        return { ok: true, observed: true, written: false };\n+      }\n+      const assertCurrent = async () => {\n+        const status = await gates.call({ command: \"status\", task: record.task });\n+        const attempt = status.task?.current_attempt;\n+        if (!attempt || attempt.attempt_id !== record.attempt || attempt.session_id !== record.session ||\n+            attempt.fence !== record.fence || status.task?.spec_rev !== record.spec_rev || attempt.reclaimed) throw new Refusal(\"stale_attempt\");\n+        if (gates.userInputObserverStatus()?.state === \"failed\") throw new Refusal(\"user_input_observer_failed\");\n+      };\n+      await panes.userInput(window.launch, input.data, receipt, async (text, control) => {\n+        try {\n+          gates.appendUserInput({ id: randomUUID(), schema: 1, form: control ? \"action\" : \"message\", text,\n+            target: { project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,\n+              turn: panes.get(record.thread).turn, message: null, request: null },\n+            channel: \"terminal-window\", reply_to: null, certainty: \"observed\", created_at: receipt.received_at,\n+            source_ref: { command_id: receipt.request_id, source_sequence: receipt.sequence, window_id: receipt.window_id },\n+            ...(control ? { content: { action: \"terminal-key\", data: input.data } } : {}) }, `window:${receipt.request_id}`);\n+        } catch (error) {\n+          gates.setUserInputObserverStatus(\"failed\", { reason: String(error) });\n+          throw error;\n+        }\n+      }, assertCurrent);\n+      window.sequence = input.sequence;\n+      return { ok: true, written: true, request_id: receipt.request_id };\n+    }\n     if (input.command === \"daemon_status\") return { ok: true, pid: process.pid, node: process.version, root, helper };\n     if (input.command === \"daemon_stop\") {\n       if (activeRequests !== 1) throw new Refusal(\"daemon_busy\");\n@@ -97,10 +179,11 @@ export async function serve(\n       return { ok: true };\n     }\n     if (input.command === \"launch_show\") {\n-      if (identity && identity.launch !== input.launch) throw new Refusal(\"stale_launch\");\n+      if (authority.kind === \"launch\" && identity.launch !== input.launch) throw new Refusal(\"stale_launch\");\n       return { ok: true, ...panes.launchInfo(input.launch) };\n     }\n-    const caller = identity ? await panes.caller(identity) : undefined;\n+    const caller = authority.kind === \"operator\" ? { thread: `operator:${operator.epoch}`, turn: \"\", address: \"executor\",\n+      assertActive: async () => { if (stopping) throw new Refusal(\"daemon_stopping\"); } } : undefined;\n     return await gates.call(input, caller);\n   };\n   const server = createServer((connection) => {\n@@ -122,9 +205,10 @@ export async function serve(\n       let result: any;\n       try {\n         envelope = JSON.parse(buffer.slice(0, end));\n+        const authority = authenticate(envelope.identity);\n         const viewing = [\"workbench_snapshot\", \"pane_output\"].includes(envelope.input?.command);\n-        if (!viewing) store.event(\"request_received\", { id: envelope.id, input: envelope.input, source: envelope.identity ? \"worker\" : \"executor\" });\n-        result = await handle(envelope);\n+        if (!viewing) store.event(\"request_received\", { id: envelope.id, input: envelope.input, source: authority.source });\n+        result = await handle(envelope, authority);\n         if (!viewing || !result.ok) store.event(\"request_result\", { id: envelope.id, command: envelope.input.command,\n           ok: result.ok, error: result.error, details: result.details });\n       } catch (error) {\n",
+    "stderr": ""
+  },
+  "skills": [
+    "project-map",
+    "reality-first-engineering",
+    "evidence-first-testing",
+    "document-writing"
+  ]
+}

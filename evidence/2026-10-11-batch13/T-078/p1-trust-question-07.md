@@ -1,0 +1,16 @@
+# T-078-2：交互 hooks 的目录信任门槛需要决定
+
+2026-10-13，worker s13-t078s，依据主控 #95 的只读诊断任务。当前 **BLOCKED**，不启动 CLI，不发新输入，不写内部信任状态，不按键穿过提示。
+
+观察来源为材料 06 的原始 cleanup/fixture.tar.gz（未改动）：后台事件完整读副本没有 hook_received 或 turn_start_signal，signal 请求也未到后台；隔离 claude/.claude.json 中本 repo 的 hasTrustDialogAccepted=false。没有 CLI debug 或 hook stdin／退出文件，不能补称观察到超时或 payload 拒收。详见 p1-diagnosis-07/summary.json、events.json、isolated-project-trust.json。
+
+[官方 hooks 的 workspace trust 说明](https://code.claude.com/docs/en/hooks#workspace-trust) 要求交互会话接受目录信任后才运行设置中的 hooks；用户当前禁止未文档化预置和按键穿提示。IS_DEMO 能省掉显示引导，没有为本实例产生已接受的目录信任。这是 hooks 成功验证的实际前提，不能靠调大 timeout、放宽 signal 身份或制造回合事件绕过。
+
+另一个已确认的夹具问题：标题侧请求占住串行 HTTPServer，并被错误当成主请求；runner 在 hook 缺失处停下，没有写 release，因此 API 没发出任何 SSE。官方 [CLAUDE_CODE_DISABLE_TERMINAL_TITLE](https://code.claude.com/docs/en/env-vars) 文档明确可跳过标题模型请求，同时关闭终端标题与状态报告。最小假服务修改是对该 profile 设置此变量，不按文字内容识别标题，不扩请求预算，不加并行回应或重试。应以 hooks 证明本探针忙闲，不外推 OSC 状态报告。
+
+需要构思主控／用户决定的最小选项：
+
+1. 允许执行主控在审核仅含 value.txt 的新隔离夹具 repo 后，按明确指定的 UI 操作完成一次目录信任；不使用默认 Enter，不写内部状态。为显示真实信任界面，应不设置 IS_DEMO，仍保持 theme、假 Bearer token、隔离 HOME／CLAUDE_CONFIG_DIR，实际引导停点逐步读回审批。CLI 自己写该隔离目录的信任记录可接受与否也需明确。
+2. 继续禁止任何信任确认或内部状态预置：保存当前诊断，交互 hooks 验证保持 BLOCKED，不能以 -p、--bare、模拟 hooks 或缺少信号的到提示符代替本票验收。
+
+07 先是诊断／提案材料，未实现需要信任决定的产品候选。建议获准后加入 --debug-file 指向新实例和 hook 原始 stdin／stdout／stderr／退出／耗时留证；保持 3 秒，除非真实记录证明超时。所有真实启动与 UI 操作仍须单独审批，真登录阶段的权限不扩展。

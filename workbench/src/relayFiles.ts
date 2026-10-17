@@ -1,4 +1,4 @@
-import { closeSync, constants, fstatSync, fsyncSync, openSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, fsyncSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -25,16 +25,49 @@ export function writeReviewRequest(directory: string, input: Record<string, any>
   return { name, raw };
 }
 
-export function queueWorkerRequest(input: Record<string, any>, env = process.env) {
+export type ControllerContext = {
+  schema: 2; launch: string; preset: "ideation" | "executor"; project: string; task: string;
+  session: string; native_session: string; spec_rev: number; prompt_id: string;
+};
+export function writeControllerContext(directory: string, context: ControllerContext) {
+  if (!isAbsolute(directory) || realpathSync(directory) !== directory) throw new Error("request_directory_changed");
+  const temporary = join(directory, "controller-context." + randomUUID() + ".tmp");
+  const fd = openSync(temporary, "wx", 0o600);
+  try { writeFileSync(fd, JSON.stringify(context) + "\n"); fsyncSync(fd); }
+  finally { closeSync(fd); }
+  renameSync(temporary, join(directory, "controller-context"));
+}
+
+export function queueSessionRequest(input: Record<string, any>, env = process.env) {
   const directory = env.A2A_REQUEST_DIR;
-  if (!directory || !isAbsolute(directory) || env.A2A_ROLE !== "worker") throw new Error("worker_request_directory_required");
+  if (!directory || !isAbsolute(directory) || !["worker", "controller"].includes(env.A2A_ROLE ?? "")) throw new Error("session_request_directory_required");
   const root = realpathSync(directory);
   const request_id = input.request_id ?? randomUUID();
   if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(request_id)) throw new Error("invalid_request_id");
-  const request = { schema: 1, request_id, task: env.A2A_TASK, attempt: env.A2A_ATTEMPT,
-    session: env.A2A_SESSION, fence: Number(env.A2A_FENCE), spec_rev: Number(env.A2A_SPEC_REV), ...input };
-  if (!request.task || !request.attempt || !request.session || !Number.isSafeInteger(request.fence) || !Number.isSafeInteger(request.spec_rev)) {
-    throw new Error("worker_binding_required");
+  let request: Record<string, any>;
+  if (env.A2A_ROLE === "controller") {
+    if (root !== directory) throw new Error("request_directory_changed");
+    const fd = openSync(join(root, "controller-context"), constants.O_RDONLY | constants.O_NOFOLLOW);
+    let context: ControllerContext;
+    try {
+      if (!fstatSync(fd).isFile()) throw new Error("controller_context_required");
+      context = JSON.parse(readFileSync(fd, "utf8"));
+    } finally { closeSync(fd); }
+    const expected = { launch: env.A2A_LAUNCH, preset: env.A2A_PRESET, project: env.A2A_PROJECT, task: env.A2A_TASK,
+      session: env.A2A_SESSION, native_session: env.A2A_NATIVE_SESSION, spec_rev: Number(env.A2A_SPEC_REV) };
+    if (context.schema !== 2 || !["ideation", "executor"].includes(context.preset) ||
+        Object.entries(expected).some(([key, value]) => !value || context[key as keyof ControllerContext] !== value) ||
+        !Number.isSafeInteger(context.spec_rev) || context.spec_rev < 1 ||
+        typeof context.prompt_id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(context.prompt_id)) {
+      throw new Error("controller_context_mismatch");
+    }
+    request = { ...context, ...input, schema: 2, request_id };
+  } else {
+    request = { schema: 1, request_id, task: env.A2A_TASK, attempt: env.A2A_ATTEMPT,
+      session: env.A2A_SESSION, fence: Number(env.A2A_FENCE), spec_rev: Number(env.A2A_SPEC_REV), ...input };
+    if (!request.task || !request.attempt || !request.session || !Number.isSafeInteger(request.fence) || !Number.isSafeInteger(request.spec_rev)) {
+      throw new Error("worker_binding_required");
+    }
   }
   const file = join(root, request_id + ".json");
   const fd = openSync(file, "wx", 0o600);

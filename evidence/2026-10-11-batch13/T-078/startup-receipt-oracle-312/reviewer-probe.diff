@@ -1,0 +1,10 @@
+--- frozen-completion.ts
++++ reviewer-delivery-probe.ts
+@@ -57,6 +57,7 @@
+ 
+ await test("unknown_with_one_inbox_allows_exact_ArrowUp_without_drain", async ({ pane, panes, queued, writes, send, store }) => {
+   await send();
++  assert.equal((await panes.readWakeDelivery(pane.record.thread, queued.id)).state, "queued", "reviewer: startup key cannot deliver inbox");
+   assert.deepEqual(writes, ["\x1b[A"]); assert.equal(pane.state, "unknown"); assert.equal(pane.active, null);
+   assert.deepEqual(pane.queue.map((item: any) => item.id), [queued.id]);
+   await panes.drain(pane); assert.deepEqual(writes, ["\x1b[A"]);

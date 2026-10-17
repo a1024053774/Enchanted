@@ -1,4 +1,49 @@
-# a2a 门禁、编排后台与只读工作台
+# a2a 门禁、编排后台与工作台
+
+T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
+当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的探针，
+根提交预算须在 manifest 预声明为 1～6 根，不支持真登录或日常主控运行。启动需逐次批准；单角色
+收件箱候选及当前绿态审批流程见 [SLICE-1-GREEN-3](../evidence/2026-10-11-batch13/T-078/SLICE-1-GREEN-3.md)。
+隔离 settings.json 仅设置 `theme: dark`，移除 IS_DEMO，并设置文档化的
+`CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，禁用标题侧模型请求和终端状态报告。
+假服务用文档化的 `ANTHROPIC_AUTH_TOKEN`，
+移除 `ANTHROPIC_API_KEY`，只由假 API 验证 Bearer 头，不设置 apiKeyHelper 或内部批准状态。
+启动、每屏明确按键、continue、cleanup 分别审批。按键经后台 operator 凭据认证，
+保存目录与屏幕原字节，执行主控操作不记为用户亲手输入；不自动补 Enter。
+主题数字键无已核对依据，不配置。`selected_label` 是按键的目标项：
+ArrowUp 到 Auto、ArrowDown 到 Dark mode，再单独批准 Enter 确认 Dark；
+启动时直接 Enter 默认项被拒，同一屏 ID／原字节不能再次操作。
+workspace-trust 用单独批准的 ArrowDown 到 `Yes, I trust this folder`，读回后另批 Enter；
+前一条必须是同一窗格的该次导航，确认快照须延续导航原文。默认 Enter 和 Digit1 均拒绝，
+整个 launch 只允许一次信任确认；不保留数字键路径。
+用途只适用隔离假服务实例：onboarding-theme／onboarding-notice／workspace-trust。
+onboarding-notice 只允许 Enter：从已登记的主题确认快照之后取输出，剥离终端控制序列，
+与 08c 的固定 Security notes 文字逐字比较；原字节也必须等于本屏批准快照。
+文字不同、额外提示或重复确认均拒绝。其他权限、认证、遥测或共享选择仍停下。
+原生 debug 与 hooks 的原始 stdin、stdout、stderr、退出码和耗时落进该实例目录。
+HookTrace 核对启动的 preset/launch，只接受 `<root>/roles/<preset>/hooks`；
+不接受旧的 `<root>/hooks` 布局。
+单回合及 09A-3R2 两回合 Esc／空框放行、拼接阻断已有绑定版本的实际证据；
+当前 controller 转交候选仍须新实例验证，不能复用这些旧结论作验收。
+遇到 API key 批准或目录信任提示，保存终端原文并停下，不输入或选默认。
+cleanup 绑定 CLI 的 PID、启动时间和命令，确认退出前不报告 PASS 或删除隔离根。
+角色卡经固定 CLI 帮助列出的 `--append-system-prompt` 传完整文本；启动记录仍保留来源路径。
+controller 的 role card 只从绑定 preset 的 `roles/<preset>/role.md` 读取；root/role.md 会被拒绝，
+不保留旧路径兼容分支。两个 preset 共用 broker/state/repo，HOME、config、tmp、shell、requests、
+hooks、user-data 和 debug 按 preset 隔离。Claude 信号回合预算支持 manifest 声明的 1～6 根，
+超出 6 根在 launch 构造处拒绝，Stop/prompt 绑定仍按实际 prompt_id 核对。
+P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并先记录实际 manifest；
+主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
+launch 仅记录进程启动，首屏另经 screen 阶段读回，不把即时输出当作稳定首屏。
+Bearer 已取得标题侧请求；08b 的 Enter 因目标项字段误判被拒，已用实际批准文件复现并修复；
+08d 已在真实 CLI 确认主题与固定 Security notes，停在默认 No 的信任屏后清理；
+08e 已确认信任，并取得一回合主请求、实际 UPS/Stop exit 0 和 busy→idle（变基前可行性）。
+09A 用两条 nonce：实际 hook 的 prompt_id 绑定回合，Esc 写出后释放 active、保留队列，
+用户在窗口放行后才提交第二条；旧 Stop 不结束新回合。nullable 主控窗口按任务版本与
+实际 CLI 身份核对，worker 仍核对 attempt。09A-3R2 两场景的实际假服务／CLI／UI
+结果及归档见 [RESULTS](../evidence/2026-10-11-batch13/T-078/RESULTS.md)，不外推到新候选。
+09B/09C 的实际双主控收件箱与 stop/ack、120 秒无 ack 只中断仍未启用／未完成，范围保留。
+旧 T-078-1 的通过结果不替它背书。
 
 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
 
@@ -14,6 +59,18 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 `daemon_stop` 显式进入关闭流程，返回 `stopping: true` 是受理确认；以 PID/端点消失确认退出。
 关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
 随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
+
+启动前显式设置 `A2A_OPERATOR_CREDENTIAL`，指向本次启动专用、尚不存在的绝对文件路径。
+启动者创建 0600 凭据文件，后续管理 CLI 与 Electron 从同一环境变量读取；后台按凭据
+认定执行主控身份，不按 `--from` 或 `--role` 自报。每次后台启动使用新凭据，旧文件不覆盖。
+不要把凭据内容放进 argv、证据或 Git；后台停止后由创建者清理。只读查询仍可匿名调用。
+这条凭据路径与交互输入的首个候选已通过四项真实入口合同；库客户端通过八项检查。
+8/9/18 复验曾在 coop 的 submit 出现身份回归；分开管理凭据与原生身份后，
+outside-inbox-02 的 8/9/18 全部通过。后续窗格运行时变更尚待真实入口复验。
+这些局部结果不代表 T-078 整票完成。
+
+后台把认证后的角色作为 GateActor 传给门禁；只有真实原生会话才提供 SubmitCaller
+的 thread/turn。管理凭据不虚构线程，不能替代受管 worker 的原生身份。
 后台常驻与一次真实窗格派发已验证；工具沙箱的 socket 连接曾被 EPERM 拒绝。
 T-075 rev 4 的 A2 探针在工具层被拒，未验证成；按用户决定改用 B 文件转交。
 B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检查与 CAS 集成。
@@ -40,6 +97,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 使用同一个 CLI 生成模板，填写目标、非目标、路径、验收文件、argv 完成条件等字段后校验并保存：
 
 ```sh
+export A2A_OPERATOR_CREDENTIAL=/绝对路径/隔离目录/operator-本次启动.json
 node workbench/src/gates/cli.ts --state /绝对路径/state daemon_start
 node workbench/src/gates/cli.ts --state /绝对路径/state card_template --task T-080-1 --repo /绝对路径/repo --ticket /绝对路径/T-080.md
 node workbench/src/gates/cli.ts --state /绝对路径/state card_validate --task T-080-1 --card /绝对路径/card.json
@@ -264,15 +322,60 @@ workspace-write、任务卡指定模型（当前统一 gpt-6.1-sol）、xhigh、
 执行主控再用 `pane_release --thread ID --reason 原因` 首次放行，记 executor action，
 不当作用户输入或人工介入。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
 只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
-本卡暂只提供首次 release，后续人工输入与中断放行尚未完成，见证据目录 RESULTS。
+Esc 后先由用户自行处理 CLI 草稿，看到输入框为空后点击“输入框已空，放行”。
+该 action 记为“用户声明输入框已空”，引用实际中断写入收据；后台不删除草稿，
+也不把声明记成机器读到的输入框状态。后台核对当前窗口、launch、中断和窗格输入代次，
+声明后又有键入、粘贴、二进制输入或组合输入则拒绝陈旧放行。受管 worker 同时记人工介入。
+UserPromptSubmit 只阻断当前登记注入的正文错配，输出 hook JSON block 并保留原始诊断；
+不按文本标记拦截手打提交，不裁剪、不重送，Stop 的提交匹配语义不变。
+09A-3R2 的实际隔离场景证据已有独立版本绑定；新候选的入口检查使用真实
+daemon/window socket 与 hook CLI、模拟 PTY 和 vendor 身份，不等于实际 Claude 复验。
 
 `daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
 
-## 只读 Electron 窗口
+## 主控启动记录（静态准备）
+
+主控启动的静态准备入口为 `controller_prepare --task ID --preset ideation|executor`，
+使用后台的管理凭据。启动配置的 `controllers` 按这两个 preset 分别提供
+`executable`（绝对路径）、`model`、`effort`、`settings`、`role_card`、
+`role_card_revision`，并提供公共 `code_revision`。settings 当前只收 hooks 与
+permissions；认证环境另待用户决定，不能把凭据放入 settings。
+
+此命令只构造 argv 和追加启动记录：包含 `--session-id`、`--model`、`--effort`、
+`--settings` 及角色卡正文，attempt 为 null，execution_state 为 prepared。
+它不创建进程、不读取 CLI 版本、不签发会话凭据；CLI 版本记 unknown，生命周期为
+“未启动”，明确标记“待真实 Claude 复核”。静态构造／存储红绿已通过，真实 CLI
+和主控多窗格继续等待用户的认证与额度决定。
+
+## Electron 窗口
+
+运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
+每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、
+active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝试，送达须有同一窗口请求的
+用户动作、PTY 写入意图与写入收据，不能用 `sent:true` 代替。
 
 窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
-窗格和门禁状态；终端网格固定为 160×45，只允许选择、复制和滚动。没有终端输入接口，
-用户输入记录与 Esc 后人工放行属于 S4，设备查询应答仍由后台处理。
+窗格和门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
+键盘、IME 和粘贴入口，历史窗格保持只读；全部输入由后台写入 node-pty，renderer
+没有后台凭据、PTY 或数据库权限。窗口凭据绑定一个 launch，关闭时撤销，不随
+current_attempt 更换目标。后台在等待前占用窗口序号和 request_id，重用请求号会被拒绝；
+输入调用失败时停止后续发送，不自动重投。
+
+输入在写入 PTY 前进入 user_inputs；受管 worker 的人工介入在同一事务里派生，带
+input_id。粘贴去掉协议包裹后保存文本；终端控制键记 action。长度为零的 onData
+只记带窗口、序号和时间的 terminal_input_empty，不写 PTY、不生成用户输入或介入。
+组合输入开始时先登记草稿占用；结束或取消组合输入不代表 CLI 输入行为空，
+占用由用户提交或 Esc 后明确放行清除。二进制终端输入按原始单字节写入，保存
+带 base64 原始字节的 action，不把其中的控制字节当成用户提交。上述三项修复
+已通过 outside-input-green-01；主控多窗格和主控凭据运行路径仍待真实 Claude 复核。
+
+后台登记注入正文时仅移除末尾 CR/LF，与已观察到的 Claude 提交形式一致；保留中间文字与空白。
+UserPromptSubmit 对活动注入与实际 prompt 逐字核对，拼接或中间差异仍阻断，不自动重发。
+
+设备查询应答由后台处理，前端用公开 parser 接管查询，避免自动应答混入用户输入。
+按 T-078 执行主控决定 03，前端拦截 DECSET/DECRST 1004；混合序列中的其他模式
+保持顺序交给 xterm。每次拦截记原始序列。CLI 因此收不到工作台窗口的焦点变化。
+P1 与首个候选的四项输入合同已经通过；其余失败方式和当前扩展后的候选仍待复验。
 
 构建必须在外置盘真实挂载后进行，每次使用一个尚未存在的构建槽：
 
@@ -281,12 +384,61 @@ npm --prefix workbench run build -- --slot local-01
 node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
 ```
 
+Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main
+进程中读取，并用于领取窄的窗口输入凭据，不传给 preload 或 renderer。
+
 缓存、构建临时目录和 dist 都在外置盘；没有内置盘回退。`A2A_BUILD_VOLUME` 可指定
 验收用的检查路径，普通目录和符号链接不能通过挂载检查。已有构建槽不会覆盖；不要在
 输出目录中放源码或依赖链接。启动只读取已有构建产物，不自动构建、装包或启动后台。
 
 默认后台目录为 `~/Library/Application Support/a2a-orchestrator`，默认 Electron 数据位于其
 `ui/` 子目录。验证时同时显式指定后台与 UI 的 `/tmp` 隔离目录。
+
+## 库版收件箱客户端（当前只在夹具项目验证）
+
+`workbench/bin/inbox` 复用同一门禁 CLI 与后台，不打开数据库、不读写文件版收件箱。
+必须显式传 state（或本会话 A2A_STATE）。管理端提供对应的管理凭据；worker 和 controller 的
+send/list/ack/ready 沿既有 B 请求文件通路，由本会话 Stop 携带实际 launch 凭据
+转交，结果以门禁回执写回。queued 只表示本地请求已排队，不是后台执行成功。
+worker 转交时及门禁内同时核对原生进程和当前 attempt，撤销后不能继续写入。
+controller 使用 schema2 请求，带实际 launch、preset、project、task、spec_rev、受管身份、
+native_session 和当前 prompt_id，不补 worker attempt/fence。匹配 UPS 后后台发布当前
+context；实际库客户端写请求文件，匹配 Stop 才执行。caller 同时核对持久启动记录、
+当前任务项目／版本、active／prompt、shell／leader 和原生会话，并在异步观察后重新核对。
+`--from`、`--role` 只是沿用命令格式，不能改变实际身份；worker 只能发 issue、
+读取本人的条目、ack 本人的条目；ready 按权限拒绝 worker。
+worker 入口已通过 outside-worker-inbox-green-01 的 14 项检查；四项单规则变异体
+分别产生了可读回的越权结果，且只触发对应断言失败。最终变基候选仍须重新验证。
+
+```sh
+workbench/bin/inbox --state /绝对路径/state ready --project 项目编号
+workbench/bin/inbox --state /绝对路径/state list
+workbench/bin/inbox --state /绝对路径/state send --to ideation --kind report --body-file /绝对路径/report.txt
+workbench/bin/inbox --state /绝对路径/state ack --id 收件箱条目号
+```
+
+ready 只读取该后台已绑定项目的 ticket，返回可执行且依赖已关闭的就绪项；字段
+不合规时返回诊断和失败状态。它不标记就绪、不写项目地图，也不接受任意仓库路径。
+
+收件箱、ack 和投递收据都只追加。`queued` 是已排队，`delivered` 才是运行时确认写入；
+重复 ack 复用原条目及投递结果，不重发。读取 queued 收据时可追加运行时后来确认的状态。
+没有实际接收者时，条目和未送达原因保留，命令不能报告投递成功。
+
+角色地址 ideation/executor 暂无会话时，条目保留为 `pending, reason:role_session_missing`，
+执行结果 `ok:true` 表示已留存，不表示已送达。发送方同 request_id 的 relay_processed 事件
+可见该状态，此时不注入反馈回合。controller_start 注册实际角色后，只恢复明确待上线的条目，
+沿原有 wake/dispatch 队列投递；首启 unknown 时不写业务输入。已有排队条目不阻止经批准的
+主题、安全提示和信任屏单键操作，逐屏按键本身不放行队列。初始放行后，只有真实
+turn_submitted 收据才使投递变为 delivered，再向原发送方登记原有的一条执行反馈，
+关联原 request_id/entry_id，不重做 send；09B 的 I2 在此时只确认，预算不增加。
+原条目 created_at 保持不变，120 秒无 ack 的起点不因上线而重置。
+缺少确定结果的旧 pending、unknown 写入与多会话歧义不能自动重送；反馈派发意图已保存但
+结果不明时同样不重发。完整双 Claude 场景仍须新实例与独立审查，不以 PTY spy 代替实测。
+
+worker Stop 收件箱转交已在隔离入口通过验证；controller 已接入同一原生请求文件／
+Stop 通路，实际 Claude 单角色工具绿态仍待批准运行。真实双主控转交、stop→执行→ack、
+120 秒无 ack 只中断仍未完成，不能作日常派发入口。本仓库的 `scripts/inbox` 保持原样，
+切换前不双写。局部领域与 native/PTY spy 不代替实际 Claude 窗格或独立验收。
 
 ```sh
 node workbench/src/gates/cli.ts --state /绝对路径/state workbench_snapshot --task 任务编号
@@ -342,6 +494,10 @@ CLI 将带 task、attempt、session、fence、spec_rev 的请求写入 `A2A_REQU
 处理结果未知时保留意图，不自动重试。一次 Stop 的新结果合成一条 `⟦门禁 #序号⟧`
 回执，先登记，再在空闲窗格里 bracketed paste 并单独回车。回执会启动新的原生回合，
 计入启动记录里的回合上限；本卡已获准一个交付回合和一个只确认回执的回合。
+Stop 响应关闭后后台才排空反馈队列；响应成功或 paste_written 不表示回车已写出。
+观察者应等待该反馈 dispatch 的 turn_submitted，并核对活动提交及写入收据。
+Claude 的 PermissionRequest 必须匹配当前 prompt／active；同窗口一次许可 Enter
+只记 control action/write，不增加根提交 intent 或替换原 active，普通 Enter 仍按用户提交记录。
 Git 尾注钩子从隔离 CODEX_HOME 中读取 CODEX_THREAD_ID 绑定的唯一根 CLI JSONL，
 以最新 task_started 对应的 turn_context 取实际模型与强度；辅助会话不提供取值。
 当前回合缺上下文时写 unknown，不沿用上一回合或请求值。启动请求另存

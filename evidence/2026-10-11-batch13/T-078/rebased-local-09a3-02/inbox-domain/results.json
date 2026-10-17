@@ -1,0 +1,210 @@
+{
+  "status": "PASS",
+  "scope": "domain-only; not credential or live CLI acceptance",
+  "root": "/tmp/t78-domain-oiIpx9",
+  "argv": [
+    "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_inbox_domain.ts",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/rebased-local-09a3-02/inbox-domain"
+  ],
+  "node": "v26.5.0",
+  "real_model_turns": 0,
+  "claude_fixture": false,
+  "checks": [
+    {
+      "name": "queue_is_not_delivery",
+      "expectation": "收件箱已接纳；delivery.state=queued，from 取 caller executor",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "entry": {
+          "id": "0d69960a-04de-4a0d-83ed-9fb7e59af410",
+          "schema": 1,
+          "kind": "report",
+          "from": "executor",
+          "to": "ideation",
+          "reply_to": null,
+          "refs": [],
+          "created_at": "2026-10-11T12:00:00.000Z",
+          "body": "固定报告原文"
+        },
+        "delivery": {
+          "state": "queued",
+          "entry_id": "0d69960a-04de-4a0d-83ed-9fb7e59af410",
+          "created_at": "2026-10-11T12:00:00.000Z",
+          "thread": "domain-ideation",
+          "message": "dispatch-0d69960a-04de-4a0d-83ed-9fb7e59af410"
+        }
+      }
+    },
+    {
+      "name": "queued_delivery_can_be_read_back",
+      "expectation": "读回运行时已写入的投递结果",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "entries": [
+          {
+            "entry": {
+              "id": "0d69960a-04de-4a0d-83ed-9fb7e59af410",
+              "schema": 1,
+              "kind": "report",
+              "from": "executor",
+              "to": "ideation",
+              "reply_to": null,
+              "refs": [],
+              "created_at": "2026-10-11T12:00:00.000Z",
+              "body": "固定报告原文"
+            },
+            "delivery": {
+              "state": "delivered",
+              "entry_id": "0d69960a-04de-4a0d-83ed-9fb7e59af410",
+              "created_at": "2026-10-11T12:00:00.000Z",
+              "thread": "domain-ideation",
+              "message": "dispatch-0d69960a-04de-4a0d-83ed-9fb7e59af410"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ack_is_append_only_and_not_resent",
+      "expectation": "同一 ack 重复调用只有一条 ack 与一次 wake；排队仍是 queued",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "entry": {
+          "id": "fcdc53be-9a07-48a3-8732-60f78163ffcc",
+          "schema": 1,
+          "kind": "ack",
+          "from": "ideation",
+          "to": "executor",
+          "reply_to": "0d69960a-04de-4a0d-83ed-9fb7e59af410",
+          "refs": [],
+          "created_at": "2026-10-11T12:00:00.000Z",
+          "body": "确认收到。"
+        },
+        "delivery": {
+          "state": "queued",
+          "entry_id": "fcdc53be-9a07-48a3-8732-60f78163ffcc",
+          "created_at": "2026-10-11T12:00:00.000Z",
+          "thread": "domain-executor",
+          "message": "dispatch-fcdc53be-9a07-48a3-8732-60f78163ffcc"
+        }
+      }
+    },
+    {
+      "name": "worker_cannot_assign",
+      "expectation": "worker 凭据所代表的角色不能被 from=ideation 覆盖",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "invalid_direction",
+        "details": "Error: invalid_direction"
+      }
+    },
+    {
+      "name": "ready_bound_project",
+      "expectation": "只返回 R-ready；关闭、缺依赖的 ticket 不算就绪",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "ready": [
+          {
+            "id": "R-ready",
+            "title": "R-ready",
+            "type": "build",
+            "ready_by": "ideation",
+            "ready_rev": 1
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "ready_rejects_unbound_project",
+      "expectation": "未知项目被拒，不根据客户端路径读取",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "unknown_project",
+        "details": "Error: unknown_project"
+      }
+    },
+    {
+      "name": "executor_honors_stop_immediately",
+      "expectation": "执行主控可以立即中断，不关会话、不改门禁状态，actor=executor",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "interruptRequested": true
+      }
+    },
+    {
+      "name": "ideation_cannot_interrupt_early",
+      "expectation": "构思主控必须等超过两分钟",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "stop_too_early",
+        "details": "Error: stop_too_early"
+      }
+    },
+    {
+      "name": "late_stop_actor_comes_from_caller",
+      "expectation": "超时中断记录实际 ideation，不采用 actor=user 参数",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "interruptRequested": true
+      }
+    },
+    {
+      "name": "ack_blocks_break_glass",
+      "expectation": "已有执行主控 ack 后不得超时中断",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "stop_already_acknowledged",
+        "details": "Error: stop_already_acknowledged"
+      }
+    },
+    {
+      "name": "inbox_tables_are_append_only",
+      "expectation": "UPDATE/DELETE 都被触发器拒绝",
+      "status": "PASS",
+      "observed": [
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  ],
+  "wakes": [
+    {
+      "thread": "domain-ideation",
+      "entry": "0d69960a-04de-4a0d-83ed-9fb7e59af410",
+      "message": "dispatch-0d69960a-04de-4a0d-83ed-9fb7e59af410"
+    },
+    {
+      "thread": "domain-executor",
+      "entry": "fcdc53be-9a07-48a3-8732-60f78163ffcc",
+      "message": "dispatch-fcdc53be-9a07-48a3-8732-60f78163ffcc"
+    },
+    {
+      "thread": "domain-executor",
+      "entry": "ab07ca11-0762-4e8e-8471-8eb4702a8708",
+      "message": "dispatch-ab07ca11-0762-4e8e-8471-8eb4702a8708"
+    },
+    {
+      "thread": "domain-ideation",
+      "entry": "fb9d3476-36d1-463b-8ee9-5fd4dd96fa6d",
+      "message": "dispatch-fb9d3476-36d1-463b-8ee9-5fd4dd96fa6d"
+    }
+  ],
+  "interrupts": [
+    "domain-worker",
+    "domain-worker"
+  ]
+}

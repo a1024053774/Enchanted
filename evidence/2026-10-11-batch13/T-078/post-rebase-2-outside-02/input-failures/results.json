@@ -1,0 +1,444 @@
+{
+  "status": "PASS",
+  "task": "T-078-1",
+  "ready_rev": 1,
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_input_entry.py",
+    "--source",
+    "/Users/luckye/Documents/Code/a2a-wt-t078",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/post-rebase-2-outside-02/input-failures",
+    "--input-failures",
+    "--reuse-build",
+    "/Volumes/WD-Elements/a2a-workbench/t078-input-t78-vcch4tpa/dist"
+  ],
+  "source": "/Users/luckye/Documents/Code/a2a-wt-t078",
+  "backend_source": "/Users/luckye/Documents/Code/a2a-wt-t078",
+  "fixture": "/private/tmp/t78-n89psfqg",
+  "checks": [
+    {
+      "name": "window_input_reaches_pty",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": {
+        "bytes": 41,
+        "file": "expected-input.bin"
+      },
+      "observed": {
+        "bytes": 41,
+        "file": "observed-input.bin"
+      }
+    },
+    {
+      "name": "user_input_and_intervention",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "一句独立中文输入；一个同 attempt 且带 input_id 的人工介入",
+      "observed": {
+        "matching_inputs": [
+          {
+            "id": "8679a32c-bd84-4698-862e-95ba6d18c98e",
+            "schema": 1,
+            "form": "message",
+            "text": "T078：中文输入与来源",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+              "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+              "turn": null,
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:00.165Z",
+            "source_ref": {
+              "command_id": "2432c3ba-5ef4-40cd-8aef-6f5d6406e017",
+              "source_sequence": 1,
+              "window_id": "69803e1e-a1c5-4722-9ad8-3267a9113b66"
+            }
+          }
+        ],
+        "interventions": [
+          {
+            "seq": 28,
+            "time": "2026-10-14T20:11:00.166Z",
+            "task": "input-contract",
+            "attempt": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+            "type": "human_intervention",
+            "details": "{\"input_id\":\"8679a32c-bd84-4698-862e-95ba6d18c98e\",\"task_id\":\"input-contract\",\"attempt_id\":\"f79041d6-52bc-46c5-bdfd-b4c4420ef166\",\"thread_id\":\"fed98cfa-2b08-4d51-9585-775f085113b8\",\"turn_id\":null,\"message_id\":null,\"request_id\":null,\"channel\":\"terminal-window\",\"form\":\"message\",\"event_id\":\"2432c3ba-5ef4-40cd-8aef-6f5d6406e017\",\"source_sequence\":1,\"session_id\":\"f0988358-bc6a-4e02-a99d-1488a4a31848\",\"fence\":1,\"spec_rev\":1,\"dispatch_origin\":\"user\",\"text\":\"T078：中文输入与来源\"}"
+          }
+        ],
+        "all_inputs": [
+          {
+            "id": "8679a32c-bd84-4698-862e-95ba6d18c98e",
+            "schema": 1,
+            "form": "message",
+            "text": "T078：中文输入与来源",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+              "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+              "turn": null,
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:00.165Z",
+            "source_ref": {
+              "command_id": "2432c3ba-5ef4-40cd-8aef-6f5d6406e017",
+              "source_sequence": 1,
+              "window_id": "69803e1e-a1c5-4722-9ad8-3267a9113b66"
+            }
+          },
+          {
+            "id": "26aac8d7-6085-4b4b-8b6e-ea1b0dac556d",
+            "schema": 1,
+            "form": "action",
+            "text": "\r",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+              "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+              "turn": null,
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:00.167Z",
+            "source_ref": {
+              "command_id": "839dd268-44f7-4f02-8230-7684375decdd",
+              "source_sequence": 2,
+              "window_id": "69803e1e-a1c5-4722-9ad8-3267a9113b66"
+            },
+            "content": {
+              "action": "terminal-key",
+              "data": "\r"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty_callback_is_observation_only",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "空回调有窗口、序号、时刻与 request_id；不产生输入记录；只有随后 Enter 的 CR 到达 PTY",
+      "observed": {
+        "empty_events": [
+          {
+            "seq": 31,
+            "time": "2026-10-14T20:11:00.201Z",
+            "type": "terminal_input_empty",
+            "launch": "14e94288-1ba2-45e2-a848-09f16e84d92f",
+            "task": "input-contract",
+            "attempt": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+            "data": "{\"window_id\":\"69803e1e-a1c5-4722-9ad8-3267a9113b66\",\"sequence\":4,\"request_id\":\"4a4359fb-bf9d-45fe-ade5-eeda97cff2dc\",\"received_at\":\"2026-10-14T20:11:00.201Z\",\"byte_length\":0}"
+          }
+        ],
+        "empty_inputs": [],
+        "empty_interventions": [],
+        "before_hex": "1b5b3230307e54303738efbc9ae4b8ade69687e8be93e585a5e4b88ee69da5e6ba901b5b3230317e0d",
+        "after_hex": "1b5b3230307e54303738efbc9ae4b8ade69687e8be93e585a5e4b88ee69da5e6ba901b5b3230317e0d0d"
+      }
+    },
+    {
+      "name": "anonymous_role_spoof_rejected_before_append",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "没有会话凭据时拒绝，inbox_records 完全不变",
+      "observed": {
+        "exit": 1,
+        "reply": {
+          "ok": false,
+          "error": "caller_identity_required",
+          "details": "Error: caller_identity_required"
+        },
+        "before": [],
+        "after": []
+      }
+    },
+    {
+      "name": "composition_holds_injection",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "组合输入开始但尚未提交时，即使收到上一回合 Stop，也不能注入初始排队提示",
+      "observed": {
+        "ok": true,
+        "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+        "launch": "14e94288-1ba2-45e2-a848-09f16e84d92f",
+        "state": "idle",
+        "lifecycle": "running",
+        "shell_pid": 7541,
+        "state_source": "host_events",
+        "active": null,
+        "native_session": "00000000-0078-4000-8000-000000000001",
+        "turn": "turn-2",
+        "writing": false,
+        "user_draft": true,
+        "interrupted": false,
+        "input_generation": 5,
+        "interruption": null,
+        "queued": [
+          "453011cb-0ebb-4cc9-9a00-3745e8400ebc"
+        ],
+        "failed": null,
+        "stopped": false
+      }
+    },
+    {
+      "name": "composition_reaches_backend_once",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "中文合成组合事件只提交一次准确文本，绑定活动 attempt",
+      "observed": {
+        "inputs": [
+          {
+            "id": "5d3766c5-1551-4f6b-ad65-0ac0b4434eb4",
+            "schema": 1,
+            "form": "message",
+            "text": "组合输入：中文乙",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+              "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+              "turn": "turn-2",
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:00.738Z",
+            "source_ref": {
+              "command_id": "60a20800-33cc-4172-9f57-823780537abd",
+              "source_sequence": 8,
+              "window_id": "69803e1e-a1c5-4722-9ad8-3267a9113b66"
+            }
+          }
+        ],
+        "received_suffix": "e7bb84e59088e8be93e585a5efbc9ae4b8ade69687e4b999"
+      }
+    },
+    {
+      "name": "request_id_reuse_is_not_written",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "同一窗口 request_id 重用且正文不同，第二次必须拒绝并且不写字节",
+      "observed": {
+        "first": {
+          "ok": true,
+          "written": true,
+          "request_id": "same-window-request"
+        },
+        "second": {
+          "ok": false,
+          "error": "window_request_reused",
+          "details": "Error: window_request_reused"
+        },
+        "received_suffix": "46495253545f4f4e4c59"
+      }
+    },
+    {
+      "name": "closed_window_credential_is_rejected",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "已关闭窗口的凭据不能再写 PTY",
+      "observed": {
+        "ok": false,
+        "error": "invalid_window_identity",
+        "details": "Error: invalid_window_identity"
+      }
+    },
+    {
+      "name": "binary_mouse_bytes_and_action",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "第 131 列第 7 行左键按下／抬起的 12 字节完整写入；两个二进制用户 action，不按 UTF-8 扩展 0xa3",
+      "observed": {
+        "mouse": {
+          "sent": true,
+          "column": 131,
+          "row": 7,
+          "point": {
+            "x": 1109,
+            "y": 243
+          },
+          "source": "test-simulated-mouse"
+        },
+        "expected_hex": "1b5b4d20a3271b5b4d23a327",
+        "received_suffix": "1b5b4d20a3271b5b4d23a327",
+        "records": [
+          {
+            "id": "1c173d72-c500-45f7-acd9-c44fe4aef4fa",
+            "schema": 1,
+            "form": "action",
+            "text": "终端二进制输入",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+              "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+              "turn": "turn-2",
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:00.989Z",
+            "source_ref": {
+              "command_id": "8a77af6f-dbe3-4f1d-9b54-a817e3710ee8",
+              "source_sequence": 9,
+              "window_id": "69803e1e-a1c5-4722-9ad8-3267a9113b66"
+            },
+            "content": {
+              "action": "terminal-binary",
+              "data_base64": "G1tNIKMn"
+            }
+          },
+          {
+            "id": "bb0bff37-9acf-4f8a-a7d2-5cca1c5937bf",
+            "schema": 1,
+            "form": "action",
+            "text": "终端二进制输入",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+              "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+              "turn": "turn-2",
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:00.990Z",
+            "source_ref": {
+              "command_id": "08e3b70e-acaf-4f1f-9d7f-b94673f2c1e3",
+              "source_sequence": 10,
+              "window_id": "69803e1e-a1c5-4722-9ad8-3267a9113b66"
+            },
+            "content": {
+              "action": "terminal-binary",
+              "data_base64": "G1tNI6Mn"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "recorder_failure_prevents_pty_write",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "输入登记故障必须拒绝、标记记录器失败，且不写 PTY 或伪造输入",
+      "observed": {
+        "response": {
+          "ok": false,
+          "error": "orchestration_failed",
+          "details": "Error: T078 injected recorder failure"
+        },
+        "observer": {
+          "state": "failed",
+          "updated_at": "2026-10-14T20:11:01.259Z",
+          "failure": {
+            "reason": "Error: T078 injected recorder failure"
+          }
+        }
+      }
+    },
+    {
+      "name": "restart_is_unknown_without_replay_or_old_credentials",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "冷启动把历史窗格标 unknown；旧凭据被拒，当前管理凭据也不能重放历史 PTY",
+      "observed": {
+        "pane": {
+          "ok": true,
+          "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+          "launch": "14e94288-1ba2-45e2-a848-09f16e84d92f",
+          "state": "unknown",
+          "lifecycle": "interrupted",
+          "shell_pid": 7541,
+          "state_source": "pane_recovered",
+          "active": null,
+          "native_session": null,
+          "turn": null,
+          "writing": false,
+          "queued": [],
+          "failed": null,
+          "stopped": true,
+          "historical": true
+        },
+        "old_window": {
+          "ok": false,
+          "error": "invalid_window_identity",
+          "details": "Error: invalid_window_identity"
+        },
+        "old_operator": {
+          "ok": false,
+          "error": "invalid_operator_identity",
+          "details": "Error: invalid_operator_identity"
+        },
+        "current_dispatch": {
+          "ok": false,
+          "error": "unknown_pane",
+          "details": "Error: unknown_pane"
+        }
+      }
+    }
+  ],
+  "runtime": "production Electron/daemon/node-pty with deterministic receiver",
+  "receiver_is_vendor_cli": false,
+  "claude_started": false,
+  "real_model_turns": 0,
+  "user_input_source": "test-simulated-user",
+  "setup_complete": true,
+  "cleanup_complete": true,
+  "source_revision": "ee2f7c1b7c19153ffec07abd2eb30574863d8c77",
+  "product_diff": "",
+  "node_version": "v26.5.0",
+  "daemon_start": {
+    "ok": true,
+    "pid": 7452,
+    "root": "/private/tmp/t78-n89psfqg/state",
+    "helper": "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper"
+  },
+  "attempt": {
+    "task_id": "input-contract",
+    "attempt_id": "f79041d6-52bc-46c5-bdfd-b4c4420ef166",
+    "session_id": "f0988358-bc6a-4e02-a99d-1488a4a31848",
+    "fence": 1,
+    "spec_rev": 1,
+    "thread_id": "fed98cfa-2b08-4d51-9585-775f085113b8",
+    "runtime_mode": "workspace-write",
+    "turn_id": null,
+    "runtime_identity": {
+      "launch": "14e94288-1ba2-45e2-a848-09f16e84d92f",
+      "thread": "fed98cfa-2b08-4d51-9585-775f085113b8",
+      "shell_pid": 7541,
+      "leader_pid": 7543,
+      "native_session": "00000000-0078-4000-8000-000000000001"
+    },
+    "workspace": "/private/tmp/t78-n89psfqg/state/worktrees/t078-fixture/input-contract-a1",
+    "base_commit": "b94080db1823cb3e1794d74bd616da67daff87bd",
+    "card_snapshot_id": "fafedbbd-68e7-4781-a7fa-bf76e6cd1a55",
+    "reclaimed": false,
+    "owner": "input-contract",
+    "state": "claimed"
+  },
+  "reused_frontend_build": "/Volumes/WD-Elements/a2a-workbench/t078-input-t78-vcch4tpa/dist",
+  "input_failure_scope": "真实 Electron/daemon/PTY；组合输入事件为合成事件；无供应商 CLI、Claude 夹具或模型",
+  "runtime_window_closed": true,
+  "operator_credential_removed": true
+}

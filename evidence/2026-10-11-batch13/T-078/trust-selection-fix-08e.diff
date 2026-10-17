@@ -1,0 +1,122 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index d348504f..4d889607 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -12,7 +12,10 @@ T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manife
+ 保存目录与屏幕原字节，执行主控操作不记为用户亲手输入；不自动补 Enter。
+ 主题数字键无已核对依据，不配置。`selected_label` 是按键的目标项：
+ ArrowUp 到 Auto、ArrowDown 到 Dark mode，再单独批准 Enter 确认 Dark；
+-启动时直接 Enter 默认项被拒，同一屏 ID／原字节不能再次操作，workspace-trust 仍只允许一次。
++启动时直接 Enter 默认项被拒，同一屏 ID／原字节不能再次操作。
++workspace-trust 用单独批准的 ArrowDown 到 `Yes, I trust this folder`，读回后另批 Enter；
++前一条必须是同一窗格的该次导航，确认快照须延续导航原文。默认 Enter 和 Digit1 均拒绝，
++整个 launch 只允许一次信任确认；不保留数字键路径。
+ 用途只适用隔离假服务实例：onboarding-theme／onboarding-notice／workspace-trust。
+ onboarding-notice 只允许 Enter：从已登记的主题确认快照之后取输出，剥离终端控制序列，
+ 与 08c 的固定 Security notes 文字逐字比较；原字节也必须等于本屏批准快照。
+@@ -26,7 +29,8 @@ P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并
+ 主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
+ launch 仅记录进程启动，首屏另经 screen 阶段读回，不把即时输出当作稳定首屏。
+ Bearer 已取得标题侧请求；08b 的 Enter 因目标项字段误判被拒，已用实际批准文件复现并修复；
+-08c 已在真实 CLI 确认主题，停在 Security notes 后清理；单回合主请求、hooks 与完成仍待 08d 验证。
++08d 已在真实 CLI 确认主题与固定 Security notes，停在默认 No 的信任屏后清理；
++实际信任选择、单回合主请求、hooks 与完成仍待 08e 验证。
+ 旧 T-078-1 的通过结果不替它背书。
+ 
+ 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index b6cca972..67bbc30c 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -539,14 +539,21 @@ export class Panes implements GateRuntime {
+     const pane=this.get(thread);
+     check(source==="executor" && pane.record.cli==="Claude Code" && pane.record.role==="controller" && pane.record.authentication==="isolated fake API only", "screen_operator_required");
+     const {key,purpose,screen_id,screen_base64,authorization_ref,selected_label}=input;
+-    const keys:Record<string,string>={ArrowUp:"\x1b[A",ArrowDown:"\x1b[B",Enter:"\r",Digit1:"1"};
+-    check((purpose==="onboarding-theme" && ["ArrowUp","ArrowDown","Enter"].includes(key)) || (purpose==="workspace-trust" && key==="Digit1") || (purpose==="onboarding-notice" && key==="Enter"),"invalid_screen_key");
++    const keys:Record<string,string>={ArrowUp:"\x1b[A",ArrowDown:"\x1b[B",Enter:"\r"};
++    check((purpose==="onboarding-theme" && ["ArrowUp","ArrowDown","Enter"].includes(key)) || (purpose==="workspace-trust" && ["ArrowDown","Enter"].includes(key)) || (purpose==="onboarding-notice" && key==="Enter"),"invalid_screen_key");
+     check(typeof screen_id==="string" && screen_id.length>0 && screen_id.length<=128 && typeof authorization_ref==="string" && authorization_ref.trim() && typeof selected_label==="string" && selected_label.trim(),"invalid_screen_approval");
+     const history=()=>this.store.read().filter(e=>e.launch===pane.record.id && e.type==="controller_screen_key_intent");
+     const assertUnused=()=>{
+       const past=history();
+       check(!past.some(e=>e.data.screen_id===screen_id || e.data.screen_base64===screen_base64),"screen_key_already_used");
+-      if(purpose==="workspace-trust")check(!past.some(e=>e.data.purpose==="workspace-trust"),"workspace_trust_already_used");
++      if(purpose==="workspace-trust"){
++        check(!past.some(e=>e.data.purpose==="workspace-trust" && e.data.key==="Enter"),"workspace_trust_already_used");
++        check(selected_label==="Yes, I trust this folder","trust_selection_not_explicit");
++        if(key==="Enter"){
++          const previous=past.at(-1)?.data;
++          check(previous?.purpose==="workspace-trust" && previous.key==="ArrowDown" && previous.selected_label==="Yes, I trust this folder","trust_selection_not_explicit");
++        }
++      }
+       if(purpose==="onboarding-notice"){
+         check(!past.some(e=>e.data.purpose==="onboarding-notice"),"onboarding_notice_already_used");
+         const previous=past.at(-1)?.data;
+@@ -566,6 +573,10 @@ export class Panes implements GateRuntime {
+       const info=await this.processInfo(thread);check(info.leader && !info.failed,"foreground_claude_required");assertStartup();
+       const observed=this.output(pane.record.id,0);
+       check(observed.next_offset===observed.total_bytes && observed.data_base64===screen_base64 && screen_base64.length>0,"screen_changed");
++      if(purpose==="workspace-trust" && key==="Enter"){
++        const before=Buffer.from(history().at(-1)!.data.screen_base64,"base64"),raw=Buffer.from(screen_base64,"base64");
++        check(raw.length>before.length && raw.subarray(0,before.length).equals(before),"trust_screen_not_continued");
++      }
+       if(purpose==="onboarding-notice"){
+         const before=Buffer.from(history().at(-1)!.data.screen_base64,"base64"),raw=Buffer.from(screen_base64,"base64");
+         check(raw.length>before.length && raw.subarray(0,before.length).equals(before),"notice_trace_prefix_changed");
+diff --git a/workbench/tests/regenerate_t078_p1.py b/workbench/tests/regenerate_t078_p1.py
+index 5ef1985c..6c71a6c9 100644
+--- a/workbench/tests/regenerate_t078_p1.py
++++ b/workbench/tests/regenerate_t078_p1.py
+@@ -8,7 +8,7 @@ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--label
+ args=parser.parse_args()
+ if not args.label.startswith('p1-materials-'):parser.error('A new p1-materials-NN label is required')
+ suffix=args.label[len('p1-materials-'):]
+-if not (suffix.isdigit() or (suffix[-1:] in ['b','c','d'] and suffix[:-1].isdigit())):parser.error('A numeric label with an optional b, c or d suffix is required')
++if not (suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A numeric label with an optional b, c, d or e suffix is required')
+ out=BASE/args.label;out.mkdir()
+ root=Path(tempfile.mkdtemp(prefix='t078-2-p1-'+suffix+'-',dir='/tmp')).resolve()
+ record={'status':'INCOMPLETE','argv':__import__('sys').argv,'root':str(root),'real_cli_starts':0,'api_starts':0}
+@@ -43,7 +43,7 @@ try:
+              'isolated_settings':{'path':str(root/'claude/settings.json'),'content':{'theme':'dark'},'approval_file':str(out/'isolated-settings.json')},
+              'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':1,'start_runs':0}
+     with (out/'control-plane.json').open('x',encoding='utf-8') as f:json.dump(control,f,ensure_ascii=False,indent=2)
+-    names=['test_t078_claude_signals.ts','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
++    names=['test_t078_claude_signals.ts','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
+            'regenerate_t078_p1.py','run_t078_p1.py','t078_fake_messages.py','command_evidence.py','archive_t078_evidence.py']
+     extra=[]
+     for p in args.extra_source:
+diff --git a/workbench/tests/run_t078_p1.py b/workbench/tests/run_t078_p1.py
+index 7fa2be3b..7fd81a23 100644
+--- a/workbench/tests/run_t078_p1.py
++++ b/workbench/tests/run_t078_p1.py
+@@ -7,7 +7,7 @@ from p1_processes import identity_from_ps,cli_exit_verdict
+ SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
+ parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','cleanup'],required=True)
+ parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
+-parser.add_argument('--key',choices=['Digit1','ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','onboarding-notice','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
++parser.add_argument('--key',choices=['ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','onboarding-notice','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
+ args=parser.parse_args();materials=args.materials.resolve();approval=json.loads((materials/'approval.json').read_text());root=Path(approval['input']['root']);state=root/'state'
+ label=args.label or args.phase
+ if Path(label).name!=label or label in ['.','..']:parser.error('A single new output-directory name is required')
+diff --git a/workbench/tests/test_t078_screen_key.ts b/workbench/tests/test_t078_screen_key.ts
+index 46d2167d..9cfa9c00 100644
+--- a/workbench/tests/test_t078_screen_key.ts
++++ b/workbench/tests/test_t078_screen_key.ts
+@@ -33,9 +33,13 @@ await test("same_snapshot_cannot_use_a_new_id",async()=>{
+ });
+ await test("workspace_trust_separate_once",async()=>{
+   // New real screen and a fresh serialization lane; rejected operations remain closed.
+-  pane.writes=Promise.resolve();setScreen("Reviewed workspace trust screen");
+-  await (panes as any).screenKey(record.thread,input("trust-1","Digit1","workspace-trust","Yes, I trust this folder"),"executor");
++  pane.writes=Promise.resolve();setScreen("Reviewed workspace trust screen: No, exit");
++  await assert.rejects((panes as any).screenKey(record.thread,input("trust-default","Enter","workspace-trust","Yes, I trust this folder"),"executor"),(e:any)=>e.code==="trust_selection_not_explicit");
++  await assert.rejects((panes as any).screenKey(record.thread,input("trust-digit","Digit1","workspace-trust","Yes, I trust this folder"),"executor"),(e:any)=>e.code==="invalid_screen_key");
++  await (panes as any).screenKey(record.thread,input("trust-select","ArrowDown","workspace-trust","Yes, I trust this folder"),"executor");
++  setScreen("Reviewed workspace trust screen: No, exit\nReviewed Yes cursor after ArrowDown");
++  await (panes as any).screenKey(record.thread,input("trust-confirm","Enter","workspace-trust","Yes, I trust this folder"),"executor");
+   pane.writes=Promise.resolve();setScreen("Changed trust repaint");
+-  await assert.rejects((panes as any).screenKey(record.thread,input("trust-2","Digit1","workspace-trust","Yes, I trust this folder"),"executor"),(e:any)=>e.code==="workspace_trust_already_used");
++  await assert.rejects((panes as any).screenKey(record.thread,input("trust-2","Enter","workspace-trust","Yes, I trust this folder"),"executor"),(e:any)=>e.code==="workspace_trust_already_used");
+ });
+ const r={status:checks.every(c=>c.status==="PASS")?"PASS":"INCOMPLETE",checks,written:writes,argv:process.argv,scope:"Domain fixture only; no UI or actual trust/theme selection"};writeFileSync(join(out,"results.json"),JSON.stringify(r,null,2));store.close();console.log(JSON.stringify(r));process.exitCode=r.status==="PASS"?0:1;

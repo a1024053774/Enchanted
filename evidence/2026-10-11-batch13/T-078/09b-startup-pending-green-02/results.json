@@ -1,0 +1,160 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "unknown_with_one_inbox_allows_exact_ArrowUp_without_drain",
+      "status": "PASS",
+      "writes": [
+        "\u001b[A"
+      ],
+      "queue": [
+        "4f18f57b-bf66-4c04-90fd-fe13110b26c6"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "six_onboarding_keys_hold_inbox_until_initial_release",
+      "status": "PASS",
+      "writes": [
+        "\u001b[A",
+        "\u001b[B",
+        "\r",
+        "\r",
+        "\u001b[B",
+        "\r",
+        "\u001b[200~⟦主控 #1⟧\n收件箱 stop 7d260ac3-3489-4f6f-a452-66234776deeb\n{\"source\": \"test-simulated-user\", \"action_id\": \"b2d91bfb-9f6c-41fb-94f3-6c62236d75d7\", \"approval_ref\": \"\\u4e3b\\u63a7 #307 T-078 09B A-14 I1 protocol dispatch\\uff08\\u7528\\u6237 2026-10-15 \\u6388\\u6743\\u6267\\u884c\\u4e3b\\u63a7\\u4ee3\\u7b7e 09B \\u5404\\u9636\\u6bb5\\u6279\\u51c6\\uff09\"}\u001b[201~",
+        "\r"
+      ],
+      "queue": [],
+      "state": "busy"
+    },
+    {
+      "name": "queued_busy_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "455eb096-7f33-4e21-adaf-84c2015d8dac"
+      ],
+      "state": "busy"
+    },
+    {
+      "name": "queued_idle_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "836961d8-bfb3-4165-872e-978f06b7be01"
+      ],
+      "state": "idle"
+    },
+    {
+      "name": "queued_active_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "8fccc473-5325-4727-a9ad-a32608b8eab4"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queued_failed_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "88c366ce-6039-41d2-abaf-1a0beb75310e"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queued_stopped_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "2d32cfb0-f877-47d2-924c-00ad6d43302b"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queued_archived_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "4cf5b7f2-d23b-4146-b246-3960d2f3ac61"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queued_writing_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "c8b76710-1328-4711-ba95-c87580e4ac8c"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queued_draft_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "e83305eb-d366-4b81-886b-62765dce6986"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queued_pending_input_still_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "6953309a-32ea-4588-84fc-40991515703b"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "state_change_during_identity_check_is_denied",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "a60234ed-ba74-442b-8a3d-83157f4f52b9"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queue_does_not_bypass_executor_approval",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "edcf9143-16c1-46ed-aa72-01bf01b1267e"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queue_does_not_bypass_screen_bytes",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "7bf07c01-1298-483b-99d3-1e106f0e94ca"
+      ],
+      "state": "unknown"
+    },
+    {
+      "name": "queue_does_not_bypass_foreground_check",
+      "status": "PASS",
+      "writes": [],
+      "queue": [
+        "f511afb6-0bde-4eeb-826f-fe8e1ef8f01a"
+      ],
+      "state": "unknown"
+    }
+  ],
+  "base_revision": "d1ca480223dd874721af71c36488af0ed8b96f37",
+  "product_diff": "diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts\nindex a1b96a20a..1acbb84a6 100644\n--- a/workbench/src/panes.ts\n+++ b/workbench/src/panes.ts\n@@ -668,7 +668,7 @@ export class Panes implements GateRuntime {\n         check(selected_label===\"Dark mode\" && before?.purpose===\"onboarding-theme\" && before.key===\"ArrowUp\" && before.selected_label===\"Auto (match terminal)\" && previous?.purpose===\"onboarding-theme\" && previous.key===\"ArrowDown\" && previous.selected_label===\"Dark mode\",\"theme_selection_not_explicit\");\n       }\n     };\n-    const assertStartup=()=>check(pane.state===\"unknown\" && !pane.active && !pane.failed && !pane.stopped && !pane.archived && !pane.writing && !pane.queue.length && !pane.userDraft && !pane.pendingInputs,\"screen_requires_startup\");\n+    const assertStartup=()=>check(pane.state===\"unknown\" && !pane.active && !pane.failed && !pane.stopped && !pane.archived && !pane.writing && !pane.userDraft && !pane.pendingInputs,\"screen_requires_startup\");\n     assertStartup();assertUnused();\n     await this.serializeWrite(pane,async()=>{\n       assertStartup();assertUnused();\n",
+  "argv": [
+    "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_startup_pending.ts",
+    "evidence/2026-10-11-batch13/T-078/09b-startup-pending-green-02",
+    "evidence/2026-10-11-batch13/T-078/09b-startup-pending-fixture-01"
+  ],
+  "expected_source": "Main #308; actual A14 queue state and recorded A14 signed onboarding screens",
+  "scope": "Domain replay only; real Panes/store, PTY and identity spies; no daemon/API/CLI/window/key/model process",
+  "scratch_removed": true
+}

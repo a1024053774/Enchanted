@@ -1,0 +1,125 @@
+{
+  "schema": 1,
+  "scene": "A16-09B",
+  "kind": "UNBOUND_STAGE_PLAN",
+  "launch_status": "NO_GO",
+  "authority": "controller #338 / ready_rev 2",
+  "protocol_ref": "../09b-materials-01/protocol.json",
+  "protocol_changes": false,
+  "roles": {
+    "ideation": {
+      "roots": 4,
+      "messages_POST": 6
+    },
+    "executor": {
+      "roots": 6,
+      "messages_POST": 11
+    }
+  },
+  "combined_messages_POST": 17,
+  "tool_permissions": 7,
+  "real_vendor_model_turns": 0,
+  "phases": [
+    {
+      "id": "I1",
+      "role": "ideation",
+      "input": "approved synthetic user-window stop request",
+      "tool": "I_SEND_STOP",
+      "messages": 2,
+      "Stop_effect": "send actual stop and wake executor; queue actual send receipt"
+    },
+    {
+      "id": "I2",
+      "role": "ideation",
+      "input": "actual send execution feedback",
+      "tool": null,
+      "messages": 1,
+      "Stop_effect": "confirm only"
+    },
+    {
+      "id": "E1",
+      "role": "executor",
+      "input": "actual inbox wake containing stop.id and target binding",
+      "tool": "E_WRONG_TARGET",
+      "messages": 2,
+      "Stop_effect": "real wrong-target denial"
+    },
+    {
+      "id": "E2",
+      "role": "executor",
+      "input": "actual E1 denial feedback",
+      "tool": "E_STOP",
+      "messages": 2,
+      "Stop_effect": "one managed target interrupt"
+    },
+    {
+      "id": "E3",
+      "role": "executor",
+      "input": "actual successful E2 execution feedback",
+      "tool": "E_ACK",
+      "messages": 2,
+      "Stop_effect": "append actual ack and wake ideation"
+    },
+    {
+      "id": "E4",
+      "role": "executor",
+      "input": "actual E3 ack execution feedback",
+      "tool": "E_DUP_ACK",
+      "messages": 2,
+      "Stop_effect": "idempotent ack; no second wake"
+    },
+    {
+      "id": "I3",
+      "role": "ideation",
+      "input": "actual executor ack inbox wake",
+      "tool": "I_FOREIGN_ACK",
+      "messages": 2,
+      "Stop_effect": "real foreign-recipient denial"
+    },
+    {
+      "id": "I4",
+      "role": "ideation",
+      "input": "actual I3 denial feedback",
+      "tool": null,
+      "messages": 1,
+      "Stop_effect": "final confirm and idle"
+    },
+    {
+      "id": "E5",
+      "role": "executor",
+      "input": "actual E4 duplicate-ack execution feedback",
+      "tool": "E_STOP_ACKED",
+      "messages": 2,
+      "Stop_effect": "real already-acknowledged denial"
+    },
+    {
+      "id": "E6",
+      "role": "executor",
+      "input": "actual E5 denial feedback",
+      "tool": null,
+      "messages": 1,
+      "Stop_effect": "final confirm and idle"
+    }
+  ],
+  "operational_order": [
+    "stage-A",
+    "ideation-B1-onboard-readiness",
+    "I1-dispatch-permission-settle-pending",
+    "executor-B1-onboard-six-queued-observations",
+    "arm-original-I2",
+    "E1-initial-release-delivered",
+    "I2-confirm-original-feedback",
+    "E1-permission-settle",
+    "E2",
+    "E3",
+    "E4-and-I3-causal-fork",
+    "I4",
+    "E5",
+    "E6",
+    "raw-archive-independent-readback",
+    "owner-bound-cleanup"
+  ],
+  "global_dispatch_seq": "read actual global seq; no hard-coded phase numbers",
+  "identity_binding": "all target fields from actual dispatch/claim; controller launch/session/prompt from actual registration",
+  "permission_policy": "existing 09B delegation, one approved Enter per actual PermissionRequest; no persistent allow"
+}

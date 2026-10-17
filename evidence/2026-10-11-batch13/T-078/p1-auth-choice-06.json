@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-13",
+  "scope": "Read-only official documentation; no CLI/API/model",
+  "choice": "ANTHROPIC_AUTH_TOKEN with no ANTHROPIC_API_KEY or apiKeyHelper",
+  "sources": [
+    {
+      "url": "https://code.claude.com/docs/en/llm-gateway-connect#conflicts-with-an-existing-login",
+      "finding": "Bearer 变量立即接管；API_KEY 在交互模式先批准一次。"
+    },
+    {
+      "url": "https://code.claude.com/docs/en/llm-gateway-connect#set-the-base-url-and-credential",
+      "finding": "CLI 支持每次启动的 BASE_URL 与 AUTH_TOKEN 配置。"
+    },
+    {
+      "url": "https://code.claude.com/docs/en/env-vars",
+      "finding": "AUTH_TOKEN 变为 Authorization Bearer，BASE_URL 覆盖 API 地址。"
+    },
+    {
+      "url": "https://code.claude.com/docs/en/authentication#authentication-precedence",
+      "finding": "Bearer 优先于 API_KEY 与 apiKeyHelper。"
+    },
+    {
+      "url": "https://code.claude.com/docs/en/settings-reference#apikeyhelper",
+      "finding": "helper 输出可作为两个认证头；project/local 来源在交互模式需要目录信任；来源为本日保存的官方 settings-reference 原文。"
+    }
+  ],
+  "inference": "公开固定值无轮换，不需要额外 helper 命令。文档支持免 API_KEY 批准的 Bearer 路径，固定 2.1.296 的实际请求仍待运行。",
+  "real_cli_starts": 0,
+  "real_vendor_model_turns": 0
+}

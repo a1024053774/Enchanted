@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { claudeLaunch } from "../src/claudeLaunch.ts";
+
+// Controller #97: theme=dark, no IS_DEMO, title request disabled.
+// Failure cases: missing demo variable; absent or extra settings; approval drift;
+// preseeded internal key/trust/onboarding state. This test starts no vendor CLI.
+const [materials, output] = process.argv.slice(2);
+mkdirSync(output);
+const approval = JSON.parse(readFileSync(join(materials, "approval.json"), "utf8"));
+const input = approval.input;
+for(const preset of ["ideation","executor"])for(const name of ["home","claude","tmp","shell","requests","hooks","user-data"])mkdirSync(join(input.root,"roles",preset,name),{recursive:true});
+const task: any = { task_id: input.task, project_id: "t078-p1-project", repo: join(input.root, "repo"),
+  spec_rev: 1, base_commit: input.code_revision };
+const profile = claudeLaunch(task, input);
+const checks: any[] = [];
+function check(name: string, run: () => void) {
+  try { run(); checks.push({ name, status: "PASS" }); }
+  catch (error) { checks.push({ name, status: "INCOMPLETE", error: String(error) }); }
+}
+check("isolated_profile_environment", () => {
+  assert.equal(Object.hasOwn(profile.env,"IS_DEMO"),false);
+  assert.equal(Object.hasOwn(approval.launch.env,"IS_DEMO"),false);
+  assert.equal(profile.env.CLAUDE_CODE_DISABLE_TERMINAL_TITLE,"1");
+  assert.equal(profile.env.HOME, join(input.root, "roles", "ideation", "home"));
+  assert.equal(profile.env.CLAUDE_CONFIG_DIR, join(input.root, "roles", "ideation", "claude"));
+});
+check("isolated_theme_is_only_setting", () => {
+  const settings = readFileSync(join(input.root, "roles/ideation/claude/settings.json"));
+  assert.deepEqual(JSON.parse(settings.toString("utf8")), { theme: "dark" });
+  assert.deepEqual(settings, readFileSync(join(materials, "isolated-settings.json")));
+});
+check("no_internal_state_preseed", () => {
+  assert.equal(existsSync(join(input.root, "roles/ideation/claude/.claude.json")), false);
+  assert.equal(existsSync(join(input.root, "roles/ideation/home/.claude.json")), false);
+  assert.deepEqual(Object.keys(profile.settings), ["hooks"]);
+  assert.equal(profile.argv.includes("--bare"), false);
+});
+const result = { status: checks.every(c => c.status === "PASS") ? "PASS" : "INCOMPLETE", checks,
+  argv: process.argv, scope: "Static profile and prepared files only; onboarding remains unverified",
+  real_cli_starts: 0, api_starts: 0, real_vendor_model_turns: 0 };
+writeFileSync(join(output, "results.json"), JSON.stringify(result, null, 2));
+console.log(JSON.stringify(result));
+process.exitCode = result.status === "PASS" ? 0 : 1;

@@ -1,0 +1,91 @@
+{
+  "status": "PASS",
+  "scope": "read-only diagnosis; no runtime test executed",
+  "source_revision": "7f45637794b5455d46125242dae90efba4863aee",
+  "old_expected_claims": [
+    "CAS rejects a changed expected old value",
+    "CAS preserves the external writer reference"
+  ],
+  "old_expected_claims_present": false,
+  "original_assertions": [
+    {
+      "test": "daemon_acceptance_adapter.DaemonCAS.test_external_write_between_read_and_cas_is_preserved",
+      "claim": "CAS failure revalidates before integration",
+      "expected": true,
+      "observed": true,
+      "pass": true
+    },
+    {
+      "test": "daemon_acceptance_adapter.DaemonCAS.test_external_write_between_read_and_cas_is_preserved",
+      "claim": "Only the new complete verification accepts",
+      "expected": "accepted",
+      "observed": "accepted",
+      "pass": true
+    },
+    {
+      "test": "daemon_acceptance_adapter.DaemonCAS.test_external_write_between_read_and_cas_is_preserved",
+      "claim": "CAS revalidation binds the new G and unchanged C",
+      "expected": [
+        "d7aad81945b9faf39a91af4a20230f4033617d1a",
+        "af04bc3ad17feac4e5a9db9578a4416f3efe4990"
+      ],
+      "observed": {
+        "verification_id": "73112c1b-b3c2-4ff8-a4c1-cc189dc03749",
+        "ordinal": 1,
+        "G": "932b795cc4460345ee4e211f2f441cb39e54afaa",
+        "C": "af04bc3ad17feac4e5a9db9578a4416f3efe4990"
+      },
+      "pass": false
+    },
+    {
+      "test": "daemon_acceptance_adapter.DaemonCAS.test_external_write_between_read_and_cas_is_preserved",
+      "claim": "CAS integration preserves ancestor d7aad81945b9faf39a91af4a20230f4033617d1a",
+      "expected": 0,
+      "observed": 1,
+      "pass": false
+    },
+    {
+      "test": "daemon_acceptance_adapter.DaemonCAS.test_external_write_between_read_and_cas_is_preserved",
+      "claim": "CAS integration preserves ancestor af04bc3ad17feac4e5a9db9578a4416f3efe4990",
+      "expected": 0,
+      "observed": 0,
+      "pass": true
+    },
+    {
+      "test": "daemon_acceptance_adapter.DaemonCAS.test_external_write_between_read_and_cas_is_preserved",
+      "claim": "CAS preserves external writer content",
+      "expected": "External writer owns this value.\n",
+      "observed": "External writer owns this value.\n",
+      "pass": true
+    },
+    {
+      "test": "daemon_acceptance_adapter.DaemonCAS.test_external_write_between_read_and_cas_is_preserved",
+      "claim": "CAS revalidation executes the oracle again",
+      "expected": 2,
+      "observed": 1,
+      "pass": false
+    }
+  ],
+  "child": {
+    "mutant_core": "/private/tmp/a5-mutants-ciqepcmd/cas/workbench/src/gates/core.ts",
+    "tests_run": 1,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "selected_cases": [
+      "test_external_write_between_read_and_cas_is_preserved"
+    ]
+  },
+  "classification": [
+    "business-red"
+  ],
+  "loaded_core": [
+    "/private/tmp/a5-mutants-ciqepcmd/cas/workbench/src/gates/core.ts"
+  ],
+  "original_mutation_patch": "--- candidate/core.ts\n+++ cas/core.ts\n@@ -1831,7 +1831,7 @@\n     try {\n       await send(\"start\\n\", \"start: ok\");\n       phase = \"preparing\";\n-      await send(`update ${intent.integration_ref} ${intent.M} ${intent.G}\\nprepare\\n`, \"prepare: ok\");\n+      await send(`update ${intent.integration_ref} ${intent.M}\\nprepare\\n`, \"prepare: ok\");\n       phase = \"prepared\";\n       if (intent.worktree) {\n         for (const dryRun of [true, false]) {\n",
+  "preserved_mutant_matches_unchanged_helper": true,
+  "product_tests_acceptance_scripts_unchanged": true,
+  "syntax": "PASS",
+  "real_model_turns": 0,
+  "runtime_processes": 0
+}

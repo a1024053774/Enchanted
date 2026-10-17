@@ -1,0 +1,16 @@
+# T-078 收尾范围需要明确
+
+状态：BLOCKED（仅阻塞冻结、变基和最终验收；现有输入绿态不受影响）。
+
+主控 #46 要求按 #44 收尾非 Claude 部分。只读核对主 checkout 的 evidence/2026-10-11-batch13/dispatch.jsonl，sequence=44 的接收者是 s13-t077，文本属于 T-077；没有找到给 T-078 的 #44 范围收缩决定。
+
+T-078 原卡仍有两项非 Claude 代码缺口：
+
+- workbench/src/gates/cli.ts 的会话身份分支只转交 submit/status/issue；workbench/bin/inbox 发出的 inbox_send/list/ack/ready 会在 worker 客户端被 worker_command_forbidden 拒绝。现有 8 项库客户端入口证据使用 operator 凭据，领域层 worker 权限反例不等于 worker 客户端已接通。
+- workbench/src/panes.ts 目前只构造 Codex worker 启动参数，尚无 Claude --session-id/--model/--effort/--settings 的静态启动记录骨架。attempt 可空的迁移已经通过，但不能替代该骨架。
+
+这两项不能写成“只等真实 Claude 复核”。RESULTS 一直将它们列为未完成。真实 Claude 及其夹具仍须等待 needs-decision 20261011T101958Z，无论怎样收尾都不启动。
+
+建议按原卡补齐这两项后再冻结候选。如果本轮要求停止功能开发，请明确允许以 INCOMPLETE 交付现有部分，并把两个缺口列入后续卡。范围未明确前，不将当前实现称为最终非 Claude 候选，不做可能需要重复的最终 8/9/18。
+
+独立工作已继续：读回 outside-input-green-01 的 11/11 PASS；准备了 run_t078_stage2.py 的 --final 路径（未运行），它要求 workbench 已提交且 main 为当前 HEAD 的祖先，再各跑一次完成条件、8/9/18、CAS 和三项原业务变异反例。主控确认冻结边界后，再交沙箱外脚本做 Git 写操作、变基及检查。之后只开一次只读独立审查。

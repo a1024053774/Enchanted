@@ -8,7 +8,9 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { request as daemonRequest, startDaemon } from "../transport.ts";
-import { queueWorkerRequest, readWorkerRequests } from "../relayFiles.ts";
+import { queueSessionRequest, readWorkerRequests } from "../relayFiles.ts";
+import { readOperatorCredential } from "../credentials.ts";
+import { HookTrace } from "../hookTrace.ts";
 
 const commands: Record<string, { required: string[]; optional?: string[] }> = {
   daemon_start: { required: [], optional: ["launch-config"] },
@@ -20,8 +22,11 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   pane_process_info: { required: ["thread"] },
   pane_release: { required: ["thread", "reason"] },
   pane_dispatch: { required: ["thread", "body-file"] },
+  pane_screen_key: { required: ["thread", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref"] },
   signal: { required: ["launch"] },
   launch_show: { required: ["launch"] },
+  controller_prepare: { required: ["preset"] },
+  controller_start: { required: ["manifest"] },
   orchestration_events: { required: [], optional: ["task"] },
   card_template: { required: ["repo"], optional: ["ticket", "project"] },
   card_validate: { required: ["card"] },
@@ -52,23 +57,28 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   disposition: { required: ["issue", "action"], optional: ["reason", "basis"] },
   reclaim: { required: [], optional: ["attempt", "thread"] },
   inbox_send: {
-    required: ["from", "to", "kind", "body"],
-    optional: ["reply-to", "refs", "title", "blocking", "action", "reason", "basis", "bundle-id"],
+    required: ["to", "kind", "body"],
+    optional: ["from", "reply-to", "refs", "title", "blocking", "action", "reason", "basis", "bundle-id"],
   },
-  inbox_list: { required: ["role"] },
-  inbox_ack: { required: ["role", "id"], optional: ["body"] },
+  inbox_list: { required: [], optional: ["role"] },
+  inbox_ack: { required: ["id"], optional: ["role", "body"] },
+  inbox_ready: { required: ["project"] },
   stop: { required: ["thread", "stop-id"] },
 };
 
-async function emit(result: unknown) {
+async function emit(result: unknown, trace?: HookTrace) {
+  const bytes=JSON.stringify(result)+"\n";
+  trace?.stdout(bytes);
   await new Promise<void>((resolve, reject) => {
-    process.stdout.write(JSON.stringify(result) + "\n", (error) =>
+    process.stdout.write(bytes, (error) =>
       error ? reject(error) : resolve(),
     );
   });
 }
 
 export async function main(argv = process.argv.slice(2)) {
+  let trace: HookTrace | undefined;
+  const finish=(code: number)=>trace ? trace.finish(code) : code;
   let root: string;
   let request: Record<string, unknown>;
   try {
@@ -110,7 +120,7 @@ export async function main(argv = process.argv.slice(2)) {
       "id",
       "bundle-id",
       "stop-id",
-      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes",
+      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref",
       "score-file", "review-file",
       "file",
     ];
@@ -152,6 +162,11 @@ export async function main(argv = process.argv.slice(2)) {
       } else if (key === "model-selection") request.modelSelection = JSON.parse(value!);
       else if (key === "answers") request.answers = JSON.parse(value!);
       else if (key === "refs") request.refs = JSON.parse(value!);
+      else if (key === "manifest") request.manifest = JSON.parse(readFileSync(value!, "utf8"));
+      else if (key === "screen-file") request.screen_base64 = readFileSync(value!).toString("base64");
+      else if (key === "authorization-ref") request.authorization_ref = value;
+      else if (key === "screen-id") request.screen_id = value;
+      else if (key === "selected-label") request.selected_label = value;
       else if (key === "blocking") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
         request.blocking = value === "true";
@@ -161,7 +176,9 @@ export async function main(argv = process.argv.slice(2)) {
     }
     if (command === "signal") {
       request.received_at = new Date().toISOString();
-      request.raw_stdin = readFileSync(0, "utf8");
+      const raw=readFileSync(0);
+      trace=HookTrace.start(root,String(request.launch),raw);
+      request.raw_stdin=raw.toString("utf8");
       if (JSON.parse(String(request.raw_stdin)).hook_event_name === "Stop" && process.env.A2A_ROLE !== "reviewer") {
         request.relay_files = readWorkerRequests(process.env.A2A_REQUEST_DIR!);
       }
@@ -174,32 +191,36 @@ export async function main(argv = process.argv.slice(2)) {
       request = { ...body, command, task: request.task };
     }
   } catch (error) {
-    console.error("usage: --state ABS_DIR COMMAND --task ID ...\n" + String(error));
-    return 2;
+    const bytes="usage: --state ABS_DIR COMMAND --task ID ...\n"+String(error)+"\n";
+    trace?.stderr(bytes);process.stderr.write(bytes);
+    return finish(2);
   }
   try {
     const identity = process.env.A2A_LAUNCH ? {
       launch: process.env.A2A_LAUNCH,
       token: process.env.A2A_CAPABILITY,
-      native_session: process.env.CODEX_THREAD_ID,
+      native_session: process.env.A2A_NATIVE_SESSION ?? process.env.CODEX_THREAD_ID,
     } : undefined;
-    if (identity && ["submit", "status", "issue"].includes(String(request.command))) {
-      await emit(queueWorkerRequest(request));
-      return 0;
+    if (identity && ["submit", "status", "issue", "inbox_send", "inbox_list", "inbox_ack", "inbox_ready", "stop"].includes(String(request.command))) {
+      await emit(queueSessionRequest(request));
+      return finish(0);
     }
     if (identity && request.command !== "signal") throw new Error("worker_command_forbidden");
+    const operator = request.command === "daemon_start" || identity ? undefined : readOperatorCredential(root);
     const result = request.command === "daemon_start"
       ? await startDaemon(root, request["launch-config"] ? JSON.parse(readFileSync(String(request["launch-config"]), "utf8")) : {})
-      : await daemonRequest(root, request, identity);
-    await emit(request.command === "signal" && result.ok ? {} : result);
-    return result.ok ? 0 : 1;
+      : await daemonRequest(root, request, identity ?? operator);
+    const hookOutput = request.command === "signal" && result.ok &&
+      JSON.parse(String(request.raw_stdin)).hook_event_name === "UserPromptSubmit" ? result.hook_output : undefined;
+    await emit(hookOutput ?? (request.command === "signal" && result.ok ? {} : result), trace);
+    return finish(result.ok ? 0 : 1);
   } catch (error) {
     await emit({
       ok: false,
       error: "daemon_call_failed",
       details: String(error),
-    });
-    return 1;
+    }, trace);
+    return finish(1);
   }
 }
 if (import.meta.main) process.exitCode = await main();

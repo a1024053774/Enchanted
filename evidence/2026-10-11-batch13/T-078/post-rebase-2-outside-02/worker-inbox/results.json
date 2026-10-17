@@ -1,0 +1,930 @@
+{
+  "status": "PASS",
+  "task": "T-078-1",
+  "ready_rev": 1,
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_input_entry.py",
+    "--source",
+    "/Users/luckye/Documents/Code/a2a-wt-t078",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/post-rebase-2-outside-02/worker-inbox",
+    "--worker-inbox",
+    "--reuse-build",
+    "/Volumes/WD-Elements/a2a-workbench/t078-input-t78-vcch4tpa/dist"
+  ],
+  "source": "/Users/luckye/Documents/Code/a2a-wt-t078",
+  "backend_source": "/Users/luckye/Documents/Code/a2a-wt-t078",
+  "fixture": "/private/tmp/t78-8bgtmksx",
+  "checks": [
+    {
+      "name": "window_input_reaches_pty",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": {
+        "bytes": 41,
+        "file": "expected-input.bin"
+      },
+      "observed": {
+        "bytes": 41,
+        "file": "observed-input.bin"
+      }
+    },
+    {
+      "name": "user_input_and_intervention",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "一句独立中文输入；一个同 attempt 且带 input_id 的人工介入",
+      "observed": {
+        "matching_inputs": [
+          {
+            "id": "79c6e70c-d1e4-4277-bef9-9b02cf65ea75",
+            "schema": 1,
+            "form": "message",
+            "text": "T078：中文输入与来源",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+              "thread": "3f243056-5188-4f89-85c5-39ce9c78c9d5",
+              "turn": null,
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:04.681Z",
+            "source_ref": {
+              "command_id": "5db50a74-f5cd-4d76-8449-24b463f63a5e",
+              "source_sequence": 1,
+              "window_id": "756a2a90-4611-4605-9f19-a37aa78c14f2"
+            }
+          }
+        ],
+        "interventions": [
+          {
+            "seq": 28,
+            "time": "2026-10-14T20:11:04.682Z",
+            "task": "input-contract",
+            "attempt": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+            "type": "human_intervention",
+            "details": "{\"input_id\":\"79c6e70c-d1e4-4277-bef9-9b02cf65ea75\",\"task_id\":\"input-contract\",\"attempt_id\":\"cba4087f-ee19-4937-b95a-6d76575fdf7c\",\"thread_id\":\"3f243056-5188-4f89-85c5-39ce9c78c9d5\",\"turn_id\":null,\"message_id\":null,\"request_id\":null,\"channel\":\"terminal-window\",\"form\":\"message\",\"event_id\":\"5db50a74-f5cd-4d76-8449-24b463f63a5e\",\"source_sequence\":1,\"session_id\":\"7e386a2b-5a61-4300-b66b-a483929b7035\",\"fence\":1,\"spec_rev\":1,\"dispatch_origin\":\"user\",\"text\":\"T078：中文输入与来源\"}"
+          }
+        ],
+        "all_inputs": [
+          {
+            "id": "79c6e70c-d1e4-4277-bef9-9b02cf65ea75",
+            "schema": 1,
+            "form": "message",
+            "text": "T078：中文输入与来源",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+              "thread": "3f243056-5188-4f89-85c5-39ce9c78c9d5",
+              "turn": null,
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:04.681Z",
+            "source_ref": {
+              "command_id": "5db50a74-f5cd-4d76-8449-24b463f63a5e",
+              "source_sequence": 1,
+              "window_id": "756a2a90-4611-4605-9f19-a37aa78c14f2"
+            }
+          },
+          {
+            "id": "aaa8649a-0dcb-412c-9538-5998ae69a7ab",
+            "schema": 1,
+            "form": "action",
+            "text": "\r",
+            "target": {
+              "project": "t078-fixture",
+              "task": "input-contract",
+              "attempt": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+              "thread": "3f243056-5188-4f89-85c5-39ce9c78c9d5",
+              "turn": null,
+              "message": null,
+              "request": null
+            },
+            "channel": "terminal-window",
+            "reply_to": null,
+            "certainty": "observed",
+            "created_at": "2026-10-14T20:11:04.683Z",
+            "source_ref": {
+              "command_id": "10cda938-e2d4-48e4-ae5c-ee370b616660",
+              "source_sequence": 2,
+              "window_id": "756a2a90-4611-4605-9f19-a37aa78c14f2"
+            },
+            "content": {
+              "action": "terminal-key",
+              "data": "\r"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty_callback_is_observation_only",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "空回调有窗口、序号、时刻与 request_id；不产生输入记录；只有随后 Enter 的 CR 到达 PTY",
+      "observed": {
+        "empty_events": [
+          {
+            "seq": 31,
+            "time": "2026-10-14T20:11:04.719Z",
+            "type": "terminal_input_empty",
+            "launch": "fc11a9ac-87ef-47e1-b1bb-c591f960f954",
+            "task": "input-contract",
+            "attempt": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+            "data": "{\"window_id\":\"756a2a90-4611-4605-9f19-a37aa78c14f2\",\"sequence\":4,\"request_id\":\"f9b7d0dd-3dbe-4218-81ad-242af2f3bafb\",\"received_at\":\"2026-10-14T20:11:04.719Z\",\"byte_length\":0}"
+          }
+        ],
+        "empty_inputs": [],
+        "empty_interventions": [],
+        "before_hex": "1b5b3230307e54303738efbc9ae4b8ade69687e8be93e585a5e4b88ee69da5e6ba901b5b3230317e0d",
+        "after_hex": "1b5b3230307e54303738efbc9ae4b8ade69687e8be93e585a5e4b88ee69da5e6ba901b5b3230317e0d0d"
+      }
+    },
+    {
+      "name": "anonymous_role_spoof_rejected_before_append",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "没有会话凭据时拒绝，inbox_records 完全不变",
+      "observed": {
+        "exit": 1,
+        "reply": {
+          "ok": false,
+          "error": "caller_identity_required",
+          "details": "Error: caller_identity_required"
+        },
+        "before": [],
+        "after": []
+      }
+    },
+    {
+      "name": "controller_prepare_is_static",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "两条静态主控启动计划入库；实际只启动一个 worker 接收器；Claude 不启动",
+      "observed": [
+        {
+          "id": "c2d71675-dbba-441e-9b5a-02804a458bfc",
+          "project": "t078-fixture",
+          "task": "input-contract",
+          "attempt": null,
+          "session": "a9d36a4a-bf32-4637-b448-accc37100e91",
+          "fence": null,
+          "spec_rev": 1,
+          "thread": "e6ed531f-9377-409b-959f-3c2c144138f4",
+          "role": "controller",
+          "preset": "ideation",
+          "execution_state": "prepared",
+          "validation": "待真实 Claude 复核",
+          "created_at": "2026-10-14T20:11:04.959Z",
+          "cli": "Claude Code",
+          "cli_version": "unknown",
+          "argv": [
+            "/private/tmp/t78-8bgtmksx/absent-claude",
+            "--session-id",
+            "a9d36a4a-bf32-4637-b448-accc37100e91",
+            "--model",
+            "static-model-A",
+            "--effort",
+            "medium",
+            "--settings",
+            "{\"permissions\":{\"allow\":[\"Read\"]},\"hooks\":{}}"
+          ],
+          "settings": {
+            "permissions": {
+              "allow": [
+                "Read"
+              ]
+            },
+            "hooks": {}
+          },
+          "model_requested": "static-model-A",
+          "effort_requested": "medium",
+          "code_revision": "ee2f7c1b7c19153ffec07abd2eb30574863d8c77",
+          "source_snapshot": null,
+          "role_card": "/private/tmp/t78-8bgtmksx/ideation-role.md",
+          "role_card_revision": "T078-static-ideation",
+          "role_text": "静态角色卡：ideation。待真实 Claude 复核。\n",
+          "base_commit": "1a3f486d7f30129d60af89188708ba7d56a3d846",
+          "worktree": "/private/tmp/t78-8bgtmksx/repo",
+          "shell": "/bin/zsh",
+          "shell_argv": [
+            "-f",
+            "-i",
+            "-c",
+            "'/private/tmp/t78-8bgtmksx/absent-claude' '--session-id' 'a9d36a4a-bf32-4637-b448-accc37100e91' '--model' 'static-model-A' '--effort' 'medium' '--settings' '{\"permissions\":{\"allow\":[\"Read\"]},\"hooks\":{}}'; exec /bin/zsh -f -i"
+          ],
+          "env": {
+            "A2A_PROJECT": "t078-fixture",
+            "A2A_TASK": "input-contract",
+            "A2A_SESSION": "a9d36a4a-bf32-4637-b448-accc37100e91",
+            "A2A_ROLE": "controller",
+            "A2A_PRESET": "ideation",
+            "A2A_LAUNCH": "c2d71675-dbba-441e-9b5a-02804a458bfc",
+            "A2A_STATE": "/private/tmp/t78-8bgtmksx/state"
+          }
+        },
+        {
+          "id": "31ef6501-b782-4190-a20b-715d850bc6fd",
+          "project": "t078-fixture",
+          "task": "input-contract",
+          "attempt": null,
+          "session": "19d8c7a6-7453-4f12-87b7-207801328130",
+          "fence": null,
+          "spec_rev": 1,
+          "thread": "cf81cce9-8f6a-4328-bf02-1f18065d6131",
+          "role": "controller",
+          "preset": "executor",
+          "execution_state": "prepared",
+          "validation": "待真实 Claude 复核",
+          "created_at": "2026-10-14T20:11:05.083Z",
+          "cli": "Claude Code",
+          "cli_version": "unknown",
+          "argv": [
+            "/private/tmp/t78-8bgtmksx/absent-claude",
+            "--session-id",
+            "19d8c7a6-7453-4f12-87b7-207801328130",
+            "--model",
+            "static-model-B",
+            "--effort",
+            "high",
+            "--settings",
+            "{\"permissions\":{\"allow\":[\"Read\"]},\"hooks\":{}}"
+          ],
+          "settings": {
+            "permissions": {
+              "allow": [
+                "Read"
+              ]
+            },
+            "hooks": {}
+          },
+          "model_requested": "static-model-B",
+          "effort_requested": "high",
+          "code_revision": "ee2f7c1b7c19153ffec07abd2eb30574863d8c77",
+          "source_snapshot": null,
+          "role_card": "/private/tmp/t78-8bgtmksx/executor-role.md",
+          "role_card_revision": "T078-static-executor",
+          "role_text": "静态角色卡：executor。待真实 Claude 复核。\n",
+          "base_commit": "1a3f486d7f30129d60af89188708ba7d56a3d846",
+          "worktree": "/private/tmp/t78-8bgtmksx/repo",
+          "shell": "/bin/zsh",
+          "shell_argv": [
+            "-f",
+            "-i",
+            "-c",
+            "'/private/tmp/t78-8bgtmksx/absent-claude' '--session-id' '19d8c7a6-7453-4f12-87b7-207801328130' '--model' 'static-model-B' '--effort' 'high' '--settings' '{\"permissions\":{\"allow\":[\"Read\"]},\"hooks\":{}}'; exec /bin/zsh -f -i"
+          ],
+          "env": {
+            "A2A_PROJECT": "t078-fixture",
+            "A2A_TASK": "input-contract",
+            "A2A_SESSION": "19d8c7a6-7453-4f12-87b7-207801328130",
+            "A2A_ROLE": "controller",
+            "A2A_PRESET": "executor",
+            "A2A_LAUNCH": "31ef6501-b782-4190-a20b-715d850bc6fd",
+            "A2A_STATE": "/private/tmp/t78-8bgtmksx/state"
+          }
+        }
+      ]
+    },
+    {
+      "name": "worker_client_queues_inbox_commands",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "七个真实 worker 客户端调用均由会话身份写请求文件，不借 operator、不提前声称送达",
+      "observed": {
+        "identity": {
+          "role": "worker",
+          "launch": "fc11a9ac-87ef-47e1-b1bb-c591f960f954",
+          "task": "input-contract",
+          "attempt": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+          "session": "7e386a2b-5a61-4300-b66b-a483929b7035",
+          "capability_present": true,
+          "operator_credential_present": false
+        },
+        "commands": [
+          {
+            "name": "issue",
+            "argv": [
+              "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+              "--state",
+              "/private/tmp/t78-8bgtmksx/state",
+              "send",
+              "--kind",
+              "issue",
+              "--to",
+              "triage",
+              "--from",
+              "ideation",
+              "--title",
+              "WORKER_REAL_CLIENT",
+              "--body-file",
+              "/private/tmp/t78-8bgtmksx/receiver-home/worker-body.txt"
+            ],
+            "exit": 0,
+            "response": {
+              "ok": true,
+              "queued": true,
+              "delivered": false,
+              "request_id": "e69c4a2a-22f7-472d-81ae-774435a55410",
+              "path": "/private/tmp/a2a-requests-PV355o/e69c4a2a-22f7-472d-81ae-774435a55410.json"
+            }
+          },
+          {
+            "name": "assign",
+            "argv": [
+              "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+              "--state",
+              "/private/tmp/t78-8bgtmksx/state",
+              "send",
+              "--kind",
+              "assign",
+              "--to",
+              "executor",
+              "--from",
+              "ideation",
+              "--body-file",
+              "/private/tmp/t78-8bgtmksx/receiver-home/worker-body.txt"
+            ],
+            "exit": 0,
+            "response": {
+              "ok": true,
+              "queued": true,
+              "delivered": false,
+              "request_id": "654c5170-3e50-4c76-bc6a-4bfbfb1c52c3",
+              "path": "/private/tmp/a2a-requests-PV355o/654c5170-3e50-4c76-bc6a-4bfbfb1c52c3.json"
+            }
+          },
+          {
+            "name": "list",
+            "argv": [
+              "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+              "--state",
+              "/private/tmp/t78-8bgtmksx/state",
+              "list",
+              "--role",
+              "ideation"
+            ],
+            "exit": 0,
+            "response": {
+              "ok": true,
+              "queued": true,
+              "delivered": false,
+              "request_id": "12f9523f-2b5c-4739-90b1-2009d8df3838",
+              "path": "/private/tmp/a2a-requests-PV355o/12f9523f-2b5c-4739-90b1-2009d8df3838.json"
+            }
+          },
+          {
+            "name": "ack-one",
+            "argv": [
+              "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+              "--state",
+              "/private/tmp/t78-8bgtmksx/state",
+              "ack",
+              "--id",
+              "owned-message",
+              "--role",
+              "user"
+            ],
+            "exit": 0,
+            "response": {
+              "ok": true,
+              "queued": true,
+              "delivered": false,
+              "request_id": "03fc4c84-419f-4746-aab4-a6ed44f3696f",
+              "path": "/private/tmp/a2a-requests-PV355o/03fc4c84-419f-4746-aab4-a6ed44f3696f.json"
+            }
+          },
+          {
+            "name": "ack-two",
+            "argv": [
+              "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+              "--state",
+              "/private/tmp/t78-8bgtmksx/state",
+              "ack",
+              "--id",
+              "owned-message",
+              "--role",
+              "user"
+            ],
+            "exit": 0,
+            "response": {
+              "ok": true,
+              "queued": true,
+              "delivered": false,
+              "request_id": "7a61533f-3b68-4b8b-b7ff-5a6d7f242d19",
+              "path": "/private/tmp/a2a-requests-PV355o/7a61533f-3b68-4b8b-b7ff-5a6d7f242d19.json"
+            }
+          },
+          {
+            "name": "ready",
+            "argv": [
+              "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+              "--state",
+              "/private/tmp/t78-8bgtmksx/state",
+              "ready",
+              "--project",
+              "t078-fixture"
+            ],
+            "exit": 0,
+            "response": {
+              "ok": true,
+              "queued": true,
+              "delivered": false,
+              "request_id": "9d13811b-9d5a-43bf-8d3c-208201d8fe0c",
+              "path": "/private/tmp/a2a-requests-PV355o/9d13811b-9d5a-43bf-8d3c-208201d8fe0c.json"
+            }
+          },
+          {
+            "name": "ack-foreign",
+            "argv": [
+              "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+              "--state",
+              "/private/tmp/t78-8bgtmksx/state",
+              "ack",
+              "--id",
+              "foreign-message",
+              "--role",
+              "user"
+            ],
+            "exit": 0,
+            "response": {
+              "ok": true,
+              "queued": true,
+              "delivered": false,
+              "request_id": "de25539e-93f3-4729-aec4-52e92d71533e",
+              "path": "/private/tmp/a2a-requests-PV355o/de25539e-93f3-4729-aec4-52e92d71533e.json"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "worker_issue_records_real_sender",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "实际 worker 身份写 issue；from=ideation 不生效；正文原样，客户端调用不算用户输入",
+      "observed": {
+        "ok": false,
+        "entry": {
+          "id": "41b14b0f-e657-4025-99bd-d6e30bca01fd",
+          "schema": 1,
+          "kind": "issue",
+          "from": "worker:3f243056-5188-4f89-85c5-39ce9c78c9d5",
+          "to": "triage",
+          "reply_to": null,
+          "refs": [],
+          "created_at": "2026-10-14T20:11:06.301Z",
+          "body": "WORKER_ISSUE 中文 𐐀\n",
+          "title": "WORKER_REAL_CLIENT",
+          "blocking": false
+        },
+        "delivery": {
+          "state": "undelivered",
+          "entry_id": "41b14b0f-e657-4025-99bd-d6e30bca01fd",
+          "created_at": "2026-10-14T20:11:06.301Z",
+          "reason": "role_session_missing"
+        },
+        "error": "wake_undelivered"
+      }
+    },
+    {
+      "name": "worker_assign_spoof_denied",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "越权 assign 在真实角色门禁拒绝，而非客户端一律禁止命令",
+      "observed": {
+        "ok": false,
+        "error": "invalid_direction",
+        "details": "Error: invalid_direction"
+      }
+    },
+    {
+      "name": "worker_list_uses_real_scope",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "忽略伪造 role=ideation；至少看到未确认的本人条目，不泄露他人条目",
+      "observed": {
+        "ok": true,
+        "entries": [
+          {
+            "entry": {
+              "id": "visible-message",
+              "schema": 1,
+              "kind": "disposition",
+              "from": "executor",
+              "to": "worker:3f243056-5188-4f89-85c5-39ce9c78c9d5",
+              "action": "snooze",
+              "body": "固定入站处置 visible-message",
+              "reply_to": "seed-issue",
+              "refs": [],
+              "created_at": "2026-10-14T20:11:05.337856+00:00"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "worker_ack_is_owned_and_idempotent",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "本人条目两次 ack 只有一条记录；role=user 不改变来源",
+      "observed": {
+        "first": {
+          "ok": false,
+          "entry": {
+            "id": "9409d4e9-d243-4357-9789-a4f25dd353d5",
+            "schema": 1,
+            "kind": "ack",
+            "from": "worker:3f243056-5188-4f89-85c5-39ce9c78c9d5",
+            "to": "executor",
+            "reply_to": "owned-message",
+            "refs": [],
+            "created_at": "2026-10-14T20:11:06.100Z",
+            "body": "确认收到。"
+          },
+          "delivery": {
+            "state": "undelivered",
+            "entry_id": "9409d4e9-d243-4357-9789-a4f25dd353d5",
+            "created_at": "2026-10-14T20:11:06.100Z",
+            "reason": "role_session_missing"
+          },
+          "error": "wake_undelivered"
+        },
+        "second": {
+          "ok": false,
+          "entry": {
+            "id": "9409d4e9-d243-4357-9789-a4f25dd353d5",
+            "schema": 1,
+            "kind": "ack",
+            "from": "worker:3f243056-5188-4f89-85c5-39ce9c78c9d5",
+            "to": "executor",
+            "reply_to": "owned-message",
+            "refs": [],
+            "created_at": "2026-10-14T20:11:06.100Z",
+            "body": "确认收到。"
+          },
+          "delivery": {
+            "state": "undelivered",
+            "entry_id": "9409d4e9-d243-4357-9789-a4f25dd353d5",
+            "created_at": "2026-10-14T20:11:06.100Z",
+            "reason": "role_session_missing"
+          },
+          "error": "wake_undelivered"
+        }
+      }
+    },
+    {
+      "name": "worker_ready_is_role_denied",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "ready 已转交后台，按真实 worker 角色拒绝",
+      "observed": {
+        "ok": false,
+        "error": "controller_required",
+        "details": "Error: controller_required"
+      }
+    },
+    {
+      "name": "worker_foreign_ack_is_denied",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "不能确认另一 worker 的条目",
+      "observed": {
+        "ok": false,
+        "error": "recipient_required",
+        "details": "Error: recipient_required"
+      }
+    },
+    {
+      "name": "worker_stop_receipts_are_delivered_once",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "Stop 转交真实请求并把七份回执写回 worker；重复旧 Stop 不重发",
+      "observed": {
+        "relay_result_count": 7,
+        "gate_dispatch_count": 1,
+        "byte_count": 7163
+      }
+    },
+    {
+      "name": "revoked_worker_inbox_is_rejected",
+      "status": "PASS",
+      "kind": "contract",
+      "expected": "原 worker 凭据仍存在时，已撤销 attempt 的新请求必须在后台拒绝，不追加 inbox",
+      "observed": {
+        "ok": false,
+        "error": "stale_attempt"
+      }
+    }
+  ],
+  "runtime": "production Electron/daemon/node-pty with deterministic receiver",
+  "receiver_is_vendor_cli": false,
+  "claude_started": false,
+  "real_model_turns": 0,
+  "user_input_source": "test-simulated-user",
+  "setup_complete": true,
+  "cleanup_complete": true,
+  "source_revision": "ee2f7c1b7c19153ffec07abd2eb30574863d8c77",
+  "product_diff": "",
+  "node_version": "v26.5.0",
+  "daemon_start": {
+    "ok": true,
+    "pid": 7590,
+    "root": "/private/tmp/t78-8bgtmksx/state",
+    "helper": "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper"
+  },
+  "attempt": {
+    "task_id": "input-contract",
+    "attempt_id": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+    "session_id": "7e386a2b-5a61-4300-b66b-a483929b7035",
+    "fence": 1,
+    "spec_rev": 1,
+    "thread_id": "3f243056-5188-4f89-85c5-39ce9c78c9d5",
+    "runtime_mode": "workspace-write",
+    "turn_id": null,
+    "runtime_identity": {
+      "launch": "fc11a9ac-87ef-47e1-b1bb-c591f960f954",
+      "thread": "3f243056-5188-4f89-85c5-39ce9c78c9d5",
+      "shell_pid": 7678,
+      "leader_pid": 7680,
+      "native_session": "00000000-0078-4000-8000-000000000001"
+    },
+    "workspace": "/private/tmp/t78-8bgtmksx/state/worktrees/t078-fixture/input-contract-a1",
+    "base_commit": "1a3f486d7f30129d60af89188708ba7d56a3d846",
+    "card_snapshot_id": "479cd984-9b1b-4002-a148-89e6d6e03dff",
+    "reclaimed": false,
+    "owner": "input-contract",
+    "state": "claimed"
+  },
+  "reused_frontend_build": "/Volumes/WD-Elements/a2a-workbench/t078-input-t78-vcch4tpa/dist",
+  "ready_fixture": "/private/tmp/t78-8bgtmksx/repo/.project-map/tickets/W-READY.md",
+  "seeded_inbox_inputs": {
+    "origin": "test fixture input; not an authenticated controller send",
+    "entries": [
+      {
+        "id": "seed-issue",
+        "schema": 1,
+        "kind": "issue",
+        "from": "worker:3f243056-5188-4f89-85c5-39ce9c78c9d5",
+        "to": "triage",
+        "title": "固定问题",
+        "body": "固定问题",
+        "blocking": false,
+        "reply_to": null,
+        "refs": [],
+        "created_at": "2026-10-14T20:11:05.337712+00:00"
+      },
+      {
+        "id": "owned-message",
+        "schema": 1,
+        "kind": "disposition",
+        "from": "executor",
+        "to": "worker:3f243056-5188-4f89-85c5-39ce9c78c9d5",
+        "action": "snooze",
+        "body": "固定入站处置 owned-message",
+        "reply_to": "seed-issue",
+        "refs": [],
+        "created_at": "2026-10-14T20:11:05.337853+00:00"
+      },
+      {
+        "id": "visible-message",
+        "schema": 1,
+        "kind": "disposition",
+        "from": "executor",
+        "to": "worker:3f243056-5188-4f89-85c5-39ce9c78c9d5",
+        "action": "snooze",
+        "body": "固定入站处置 visible-message",
+        "reply_to": "seed-issue",
+        "refs": [],
+        "created_at": "2026-10-14T20:11:05.337856+00:00"
+      },
+      {
+        "id": "foreign-message",
+        "schema": 1,
+        "kind": "disposition",
+        "from": "executor",
+        "to": "worker:other-thread",
+        "action": "snooze",
+        "body": "固定入站处置 foreign-message",
+        "reply_to": "seed-issue",
+        "refs": [],
+        "created_at": "2026-10-14T20:11:05.337857+00:00"
+      }
+    ]
+  },
+  "worker_client": {
+    "identity": {
+      "role": "worker",
+      "launch": "fc11a9ac-87ef-47e1-b1bb-c591f960f954",
+      "task": "input-contract",
+      "attempt": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+      "session": "7e386a2b-5a61-4300-b66b-a483929b7035",
+      "capability_present": true,
+      "operator_credential_present": false
+    },
+    "commands": [
+      {
+        "name": "issue",
+        "argv": [
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+          "--state",
+          "/private/tmp/t78-8bgtmksx/state",
+          "send",
+          "--kind",
+          "issue",
+          "--to",
+          "triage",
+          "--from",
+          "ideation",
+          "--title",
+          "WORKER_REAL_CLIENT",
+          "--body-file",
+          "/private/tmp/t78-8bgtmksx/receiver-home/worker-body.txt"
+        ],
+        "exit": 0,
+        "response": {
+          "ok": true,
+          "queued": true,
+          "delivered": false,
+          "request_id": "e69c4a2a-22f7-472d-81ae-774435a55410",
+          "path": "/private/tmp/a2a-requests-PV355o/e69c4a2a-22f7-472d-81ae-774435a55410.json"
+        }
+      },
+      {
+        "name": "assign",
+        "argv": [
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+          "--state",
+          "/private/tmp/t78-8bgtmksx/state",
+          "send",
+          "--kind",
+          "assign",
+          "--to",
+          "executor",
+          "--from",
+          "ideation",
+          "--body-file",
+          "/private/tmp/t78-8bgtmksx/receiver-home/worker-body.txt"
+        ],
+        "exit": 0,
+        "response": {
+          "ok": true,
+          "queued": true,
+          "delivered": false,
+          "request_id": "654c5170-3e50-4c76-bc6a-4bfbfb1c52c3",
+          "path": "/private/tmp/a2a-requests-PV355o/654c5170-3e50-4c76-bc6a-4bfbfb1c52c3.json"
+        }
+      },
+      {
+        "name": "list",
+        "argv": [
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+          "--state",
+          "/private/tmp/t78-8bgtmksx/state",
+          "list",
+          "--role",
+          "ideation"
+        ],
+        "exit": 0,
+        "response": {
+          "ok": true,
+          "queued": true,
+          "delivered": false,
+          "request_id": "12f9523f-2b5c-4739-90b1-2009d8df3838",
+          "path": "/private/tmp/a2a-requests-PV355o/12f9523f-2b5c-4739-90b1-2009d8df3838.json"
+        }
+      },
+      {
+        "name": "ack-one",
+        "argv": [
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+          "--state",
+          "/private/tmp/t78-8bgtmksx/state",
+          "ack",
+          "--id",
+          "owned-message",
+          "--role",
+          "user"
+        ],
+        "exit": 0,
+        "response": {
+          "ok": true,
+          "queued": true,
+          "delivered": false,
+          "request_id": "03fc4c84-419f-4746-aab4-a6ed44f3696f",
+          "path": "/private/tmp/a2a-requests-PV355o/03fc4c84-419f-4746-aab4-a6ed44f3696f.json"
+        }
+      },
+      {
+        "name": "ack-two",
+        "argv": [
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+          "--state",
+          "/private/tmp/t78-8bgtmksx/state",
+          "ack",
+          "--id",
+          "owned-message",
+          "--role",
+          "user"
+        ],
+        "exit": 0,
+        "response": {
+          "ok": true,
+          "queued": true,
+          "delivered": false,
+          "request_id": "7a61533f-3b68-4b8b-b7ff-5a6d7f242d19",
+          "path": "/private/tmp/a2a-requests-PV355o/7a61533f-3b68-4b8b-b7ff-5a6d7f242d19.json"
+        }
+      },
+      {
+        "name": "ready",
+        "argv": [
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+          "--state",
+          "/private/tmp/t78-8bgtmksx/state",
+          "ready",
+          "--project",
+          "t078-fixture"
+        ],
+        "exit": 0,
+        "response": {
+          "ok": true,
+          "queued": true,
+          "delivered": false,
+          "request_id": "9d13811b-9d5a-43bf-8d3c-208201d8fe0c",
+          "path": "/private/tmp/a2a-requests-PV355o/9d13811b-9d5a-43bf-8d3c-208201d8fe0c.json"
+        }
+      },
+      {
+        "name": "ack-foreign",
+        "argv": [
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+          "--state",
+          "/private/tmp/t78-8bgtmksx/state",
+          "ack",
+          "--id",
+          "foreign-message",
+          "--role",
+          "user"
+        ],
+        "exit": 0,
+        "response": {
+          "ok": true,
+          "queued": true,
+          "delivered": false,
+          "request_id": "de25539e-93f3-4729-aec4-52e92d71533e",
+          "path": "/private/tmp/a2a-requests-PV355o/de25539e-93f3-4729-aec4-52e92d71533e.json"
+        }
+      }
+    ]
+  },
+  "revoked_worker_client": {
+    "identity": {
+      "role": "worker",
+      "launch": "fc11a9ac-87ef-47e1-b1bb-c591f960f954",
+      "task": "input-contract",
+      "attempt": "cba4087f-ee19-4937-b95a-6d76575fdf7c",
+      "session": "7e386a2b-5a61-4300-b66b-a483929b7035",
+      "capability_present": true,
+      "operator_credential_present": false
+    },
+    "commands": [
+      {
+        "name": "stale-issue",
+        "argv": [
+          "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/bin/inbox",
+          "--state",
+          "/private/tmp/t78-8bgtmksx/state",
+          "send",
+          "--kind",
+          "issue",
+          "--to",
+          "triage",
+          "--title",
+          "MUST_NOT_APPEND_AFTER_REVOKE",
+          "--body-file",
+          "/private/tmp/t78-8bgtmksx/receiver-home/worker-body.txt"
+        ],
+        "exit": 0,
+        "response": {
+          "ok": true,
+          "queued": true,
+          "delivered": false,
+          "request_id": "b4c871a6-1736-44ed-9e8e-ab30cb36062f",
+          "path": "/private/tmp/a2a-requests-PV355o/b4c871a6-1736-44ed-9e8e-ab30cb36062f.json"
+        }
+      }
+    ]
+  },
+  "operator_credential_removed": true
+}

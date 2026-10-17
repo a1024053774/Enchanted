@@ -26,7 +26,8 @@ export const A2AInboxKind = Schema.Literals([
   "ack",
 ]);
 export const A2AInboxRequest = Schema.Struct({
-  command: Schema.Literals(["inbox_send", "inbox_list", "inbox_ack"]),
+  command: Schema.Literals(["inbox_send", "inbox_list", "inbox_ack", "inbox_ready"]),
+  project: Schema.optional(Schema.String),
   from: Schema.optional(Schema.String),
   to: Schema.optional(Schema.String),
   kind: Schema.optional(A2AInboxKind),
@@ -72,7 +73,7 @@ export interface A2AInboxEntry {
   bundle_id?: string;
 }
 export interface A2AInboxDelivery {
-  state: "pending" | "delivered" | "undelivered" | "unknown";
+  state: "pending" | "queued" | "delivered" | "undelivered" | "unknown";
   entry_id: string;
   created_at: string;
   thread?: string;

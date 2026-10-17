@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>T-078 P1 · 输入来源探针</title>
+<link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css">
+<style>body{background:#111;color:#eee;font:14px sans-serif}#terminal{width:900px;height:460px}</style>
+<p>T-078 P1：仅本地终端库；无 Claude、无模型。合成输入不等于真实输入法验证。</p>
+<div id="terminal"></div>
+<script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
+<script type="module">
+import { createFocusSafeWriter, ownTerminalQueries } from '../app/terminalOutput.mjs';
+// Probe only. Every xterm member below is in the installed public typings.
+// The parser extension API is public; no underscored member is read.
+const term = new Terminal({cols:100,rows:24,screenReaderMode:true});
+term.open(document.querySelector('#terminal'));
+const rows = [];
+let phase = 'initial';
+function observe(kind, detail) {
+  rows.push({seq:rows.length+1,phase,kind,
+    ...(kind === 'owned-query' ? {} : {at:new Date().toISOString(),window:'p1-local-window'}),...detail});
+}
+term.onData(data => {
+  // An empty callback remains observable, but is not an input or a write.
+  // This probe has no PTY/database sink; the product entry probe checks those.
+  observe(data.length === 0 ? 'empty-data' : 'data', {
+    data, source:'unattributed',
+    ...(data.length === 0 ? {routing:'observation-only'} : {})
+  });
+});
+term.onBinary(data => observe('binary', {data}));
+term.onKey(({key,domEvent}) => observe('key', {key,eventType:domEvent.type,isTrusted:domEvent.isTrusted}));
+for (const type of ['keydown','keypress','keyup','compositionstart','compositionupdate','compositionend','input','paste']) {
+  term.textarea.addEventListener(type, event => observe('dom', {
+    eventType:type,data:event.data ?? null,key:event.key ?? null,keyCode:event.keyCode ?? null,
+    inputType:event.inputType ?? null,isComposing:event.isComposing ?? null,
+    textareaLength:term.textarea.value.length,isTrusted:event.isTrusted
+  }), true);
+}
+const write = createFocusSafeWriter(term, observe);
+window.p1 = {
+  rows,
+  phase(name) { phase = name; },
+  write,
+  focus() { term.focus(); },
+  blur() { term.blur(); },
+  bracketedPasteMode() { return term.modes.bracketedPasteMode; },
+  startEmptyComposition() {
+    term.textarea.value = '';
+    term.textarea.dispatchEvent(new CompositionEvent('compositionstart',{data:'',bubbles:true}));
+  },
+  installQueryOwners() {
+    ownTerminalQueries(term, observe);
+  },
+  paste(text) {
+    const data = new DataTransfer(); data.setData('text/plain',text);
+    term.textarea.dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true}));
+  },
+  async compose(text) {
+    // Deliberately synthetic. Chromium's actual system IME is a separate check.
+    term.textarea.value = '';
+    term.textarea.dispatchEvent(new CompositionEvent('compositionstart',{data:'',bubbles:true}));
+    term.textarea.dispatchEvent(new CompositionEvent('compositionupdate',{data:text,bubbles:true}));
+    term.textarea.value = text;
+    await new Promise(resolve => setTimeout(resolve,0));
+    term.textarea.dispatchEvent(new CompositionEvent('compositionend',{data:text,bubbles:true}));
+  }
+};
+</script>

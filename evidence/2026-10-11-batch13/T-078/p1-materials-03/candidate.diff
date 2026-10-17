@@ -1,0 +1,246 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index e1be5a22..2fa8f815 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -1,5 +1,14 @@
+ # a2a 门禁、编排后台与工作台
+ 
++T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
++当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 key、loopback Messages API 的单提交探针，
++不支持真登录或多回合主控。启动需逐次批准；完整材料及静态检查见
++[P1 参数修正审批材料](../evidence/2026-10-11-batch13/T-078/P1-APPROVAL-03.md)。
++角色卡经固定 CLI 帮助列出的 `--append-system-prompt` 传完整文本；启动记录仍保留来源路径。
++P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并先记录实际 manifest；
++主控运行入口拒绝未分配的端口 0。旧实例材料已过期。
++这条新入口尚未运行真实 Claude CLI；旧 T-078-1 的通过结果不替它背书。
++
+ 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+ 
+ ```sh
+diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts
+index 11dfb702..56e66a51 100644
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -42,7 +42,7 @@ export async function serve(
+       return { source: "user", kind: "window", window };
+     }
+     const pane = panes.authenticate(identity);
+-    return { source: `worker:${pane.record.thread}`, kind: "launch" };
++    return { source: pane.record.role === "controller" ? pane.record.preset : `worker:${pane.record.thread}`, kind: "launch" };
+   };
+   gates.setUserInputObserverStatus("healthy");
+   let stopping = false;
+@@ -168,6 +168,13 @@ export async function serve(
+       if (!status.ok || !status.task) return status;
+       return { ok: true, prepared: panes.prepareControllerLaunch(status.task, input.preset) };
+     }
++    if (input.command === "controller_start") {
++      if (authority.kind !== "operator") throw new Refusal("operator_required");
++      const status = await gates.call({ command: "status", task: input.task });
++      if (!status.ok || !status.task) return status;
++      if (input.manifest?.state !== root) throw new Refusal("controller_state_mismatch");
++      return { ok: true, launch: panes.startController(status.task, input.manifest) };
++    }
+     if (input.command === "daemon_stop") {
+       stopping = true;
+       gates.beginShutdown();
+@@ -196,6 +203,10 @@ export async function serve(
+       if (!identity || identity.launch !== input.launch) throw new Refusal("signal_identity_required");
+       await panes.signal(input.launch, input.raw_stdin, input.received_at, async (pane, stop, matched) => {
+         if (!Array.isArray(input.relay_files)) throw new Refusal("relay_files_required");
++        if (pane.record.cli === "Claude Code") {
++          if (input.relay_files.length) throw new Refusal("controller_relay_not_enabled");
++          return;
++        }
+         const receipts = [];
+         for (const file of input.relay_files) {
+           const receipt = await relay.receive(pane.record as any, file, matched, async (command) => {
+diff --git a/workbench/src/gates/cli.ts b/workbench/src/gates/cli.ts
+index 165ba24f..29fd571b 100644
+--- a/workbench/src/gates/cli.ts
++++ b/workbench/src/gates/cli.ts
+@@ -24,6 +24,7 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
+   signal: { required: ["launch"] },
+   launch_show: { required: ["launch"] },
+   controller_prepare: { required: ["preset"] },
++  controller_start: { required: ["manifest"] },
+   orchestration_events: { required: [], optional: ["task"] },
+   card_template: { required: ["repo"], optional: ["ticket", "project"] },
+   card_validate: { required: ["card"] },
+@@ -109,7 +110,7 @@ export async function main(argv = process.argv.slice(2)) {
+       "id",
+       "bundle-id",
+       "stop-id",
+-      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes",
++      "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest",
+     ];
+     const { values, positionals } = parseArgs({
+       args: argv,
+@@ -149,6 +150,7 @@ export async function main(argv = process.argv.slice(2)) {
+       } else if (key === "model-selection") request.modelSelection = JSON.parse(value!);
+       else if (key === "answers") request.answers = JSON.parse(value!);
+       else if (key === "refs") request.refs = JSON.parse(value!);
++      else if (key === "manifest") request.manifest = JSON.parse(readFileSync(value!, "utf8"));
+       else if (key === "blocking") {
+         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
+         request.blocking = value === "true";
+@@ -172,7 +174,7 @@ export async function main(argv = process.argv.slice(2)) {
+     const identity = process.env.A2A_LAUNCH ? {
+       launch: process.env.A2A_LAUNCH,
+       token: process.env.A2A_CAPABILITY,
+-      native_session: process.env.CODEX_THREAD_ID,
++      native_session: process.env.A2A_NATIVE_SESSION ?? process.env.CODEX_THREAD_ID,
+     } : undefined;
+     if (identity && ["submit", "status", "issue", "inbox_send", "inbox_list", "inbox_ack", "inbox_ready"].includes(String(request.command))) {
+       await emit(queueWorkerRequest(request));
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index 7d87dedc..e8fd24d4 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -9,6 +9,7 @@ import type { A2AAttempt, A2ATask } from "./contracts/a2aGates.ts";
+ import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
+ import { OrchestrationStore, type DispatchSource } from "./store.ts";
+ import type { A2AInboxEntry } from "./contracts/a2aInbox.ts";
++import { claudeLaunch, type ClaudeLaunchInput } from "./claudeLaunch.ts";
+ 
+ const exec = promisify(execFile);
+ const require = createRequire(import.meta.url);
+@@ -41,8 +42,8 @@ export interface LaunchConfig {
+   turn_authorization?: string;
+ }
+ type Pane = {
+-  record: Record<string, any> & { id: string; task: string; attempt: string };
+-  token: string; task: A2ATask; attempt: A2AAttempt; pty: any;
++  record: Record<string, any> & { id: string; task: string; attempt: string | null };
++  token: string; task: A2ATask; attempt: A2AAttempt | null; pty: any;
+   state: "unknown" | "idle" | "busy"; stopped: boolean; archived: boolean;
+   failed: string | null; leader: number | null; native: string | null; turn: string | null;
+   active: { id: string; dispatch: string; at: string; nativeTurn: string | null } | null;
+@@ -51,6 +52,7 @@ type Pane = {
+   writes: Promise<void>; pendingInputs: number; userDraft: boolean; interrupted: boolean; sending: string | null;
+   offsets: Map<string, number>; model: string; effort: string;
+   terminalBuffer: string;
++  claudePrompt?: boolean;
+ };
+ 
+ export class Panes implements GateRuntime {
+@@ -64,6 +66,36 @@ export class Panes implements GateRuntime {
+     this.onEventWriteFailed = onEventWriteFailed;
+   }
+   ensureProject = async (_project: string, _repo: string) => {};
++  startController(task: A2ATask, input: ClaudeLaunchInput) {
++    check(new URL(input.api_url).port !== "0", "messages_api_not_bound");
++    check(![...this.panes.values()].some(p => !p.stopped && p.record.preset === input.preset), "controller_already_started");
++    const record = { ...claudeLaunch(task, input), created_at: new Date().toISOString(), cli_version: "unknown" };
++    const token = randomUUID();
++    this.store.launch(record);
++    const trace = join(this.root, "traces", record.id, "pty.raw");
++    mkdirSync(dirname(trace), { recursive: true, mode: 0o700 }); appendFileSync(trace, "", { flag: "wx", mode: 0o600 });
++    const terminal = require("node-pty").spawn(record.shell, record.shell_argv, {
++      name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
++      env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
++    });
++    const pane: Pane = { record, token, task, attempt: null, pty: terminal, state: "unknown", stopped: false,
++      archived: false, failed: null, leader: null, native: record.session, turn: null, active: null,
++      queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
++      userDraft: false, interrupted: false, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
++      terminalBuffer: "", claudePrompt: false };
++    this.panes.set(record.thread, pane);
++    this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
++    terminal.onData((data: string) => {
++      try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
++      catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
++    });
++    terminal.onExit((event: unknown) => {
++      pane.stopped = true; pane.state = "unknown";
++      try { this.store.event("pane_exit", event, record); }
++      catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
++    });
++    return record;
++  }
+   // T-078-1/#49: prepare argv and its durable record only. Actual Claude launch,
+   // auth, hooks and completion matching await decision 20261011T101958Z. This
+   // method neither creates a live pane nor issues a launch capability.
+@@ -293,13 +325,14 @@ export class Panes implements GateRuntime {
+     const owned = rows.filter((row) => descendants.has(row.pid));
+     const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.argv[0]);
+     const leader = leaders.length === 1 ? leaders[0]!.pid : null;
+-    if (pane.leader !== null && leader !== pane.leader) pane.failed = "codex_leader_replaced_or_exited";
++    if (pane.leader !== null && leader !== pane.leader) pane.failed = pane.record.cli === "Claude Code" ? "claude_leader_replaced_or_exited" : "codex_leader_replaced_or_exited";
+     if (pane.leader === null && leader !== null) pane.leader = leader;
+     this.scan(pane);
+     return { shell_pid: pane.pty.pid, leader, native_session: pane.native, processes: owned, failed: pane.failed };
+   }
+   scan(pane: Pane, final = false) {
+     if (pane.stopped) return;
++    if (pane.record.cli === "Claude Code") return;
+     const home = this.config.codex_home!;
+     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
+@@ -495,7 +528,7 @@ export class Panes implements GateRuntime {
+     const pane = this.get(thread);
+     check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
+     const info = await this.processInfo(thread);
+-    check(info.leader && !info.failed, "foreground_codex_required", info);
++    check(info.leader && !info.failed, pane.record.cli === "Claude Code" ? "foreground_claude_required" : "foreground_codex_required", info);
+     this.store.event("executor_action", { action: "initial_release", reason, source: "executor", process_info: info }, pane.record);
+     pane.state = "idle";
+     await this.drain(pane);
+@@ -526,6 +559,34 @@ export class Panes implements GateRuntime {
+     this.store.event("hook_received", { raw_stdin: raw, received_at }, pane.record);
+     const value = JSON.parse(raw); this.scan(pane);
+     check(value.session_id === pane.native, "hook_native_session_mismatch");
++    if (pane.record.cli === "Claude Code") {
++      // P1's configured single submission avoids claiming cross-turn Stop
++      // correlation before the actual CLI payload has been observed (T-078-2).
++      check(pane.record.turn_limit === 1, "claude_turn_correlation_unverified");
++      if (value.hook_event_name === "PermissionRequest") {
++        this.store.event("permission_wait", value, pane.record); pane.state = "busy"; return;
++      }
++      if (value.hook_event_name === "UserPromptSubmit") {
++        const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
++        check(pane.state === "busy" && item && value.prompt === item.text && !pane.claudePrompt, "claude_submission_unmatched");
++        pane.claudePrompt = true; this.store.event("turn_start_signal", value, pane.record); return;
++      }
++      check(value.hook_event_name === "Stop", "unsupported_hook");
++      this.store.event("turn_end_signal", value, pane.record);
++      const active = pane.active;
++      const matched = Boolean(active && pane.claudePrompt && !pane.failed && !pane.stopInProgress &&
++        value.stop_hook_active === false && Date.parse(received_at) >= Date.parse(active.at));
++      if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
++      pane.stopInProgress = true;
++      try {
++        if (transfer) await transfer(pane, value, true);
++        pane.active = null; pane.claudePrompt = false; pane.state = pane.interrupted ? "busy" : "idle";
++        this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
++      } catch (error) {
++        this.recordFailure(pane, "stop_transfer_failed", error); throw error;
++      } finally { pane.stopInProgress = false; }
++      return;
++    }
+     if (value.hook_event_name === "PermissionRequest") {
+       pane.failed = "unexpected_permission_request"; pane.state = "unknown";
+       this.store.event("permission_wait", value, pane.record);
+@@ -556,17 +617,20 @@ export class Panes implements GateRuntime {
+   }
+   async caller(identity: any): Promise<SubmitCaller> {
+     const pane = this.authenticate(identity);
++    check(pane.attempt, "worker_attempt_required");
++    const attempt = pane.attempt;
+     this.scan(pane);
+     check(pane.turn && pane.native === identity.native_session, "native_identity_required");
+     const turn = pane.turn;
+-    return { thread: pane.attempt.thread_id, turn, address: `worker:${pane.attempt.thread_id}`,
++    return { thread: attempt.thread_id, turn, address: `worker:${attempt.thread_id}`,
+       assertActive: async () => {
+-        const info = await this.processInfo(pane.attempt.thread_id);
++        const info = await this.processInfo(attempt.thread_id);
+         check(info.leader && !info.failed && pane.state === "busy" && pane.active?.nativeTurn === turn, "worker_not_active");
+       } };
+   }
+   readThread = async (thread: string) => {
+     const pane = this.get(thread);
++    check(pane.attempt, "worker_attempt_required");
+     if (!pane.stopped) await this.processInfo(thread);
+     return { workspace: pane.attempt.workspace, provider: "codex", turn: pane.turn,
+       runtime_identity: { launch: pane.record.id, thread, shell_pid: pane.pty.pid,

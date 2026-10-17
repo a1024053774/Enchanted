@@ -1,0 +1,11 @@
+# 09A-3R：slot 清理脚本与旧文案不一致
+
+2026-10-14，准备主控 #147／#148 的新材料时发现。**非 blocking；本轮 launch 准备继续，清理未授权、未执行。**
+
+现有 `workbench/tests/cleanup_t078_electron_slot.py` 最后保存 `before-delete.json` 中的文件名／大小清单，然后 `shutil.rmtree(slot)`。该文件没有 tar／copy 或逐字节读回逻辑。因此旧 `P2-APPROVAL-09A3.md` 的“归档再删”不能作为这个 slot 脚本的事实；新包起草时沿用了该说法，读实际脚本后已在新 `P2-APPROVAL-09A3R.md` 更正。原日期记录保留，不反写成正确证据。
+
+根目录的 cleanup 确实另有 fixture.tar.gz；它不包括外置盘构建 slot，不能用它宣称 slot 已归档。当前新两套 slot 均未创建，本轮未调用任何 cleanup、删除、ps 或 GUI。
+
+本次只交 launch 审批，slot-cleanup 已明确是后续另批步骤，因此不阻塞本包静态准备。本轮不扩大到修改清理工具。建议主控在清理阶段选择：按现有清单＋精确删除范围单独批准，或者先另行归档 slot／派修清理脚本后再批准。若要宣称 slot 完整归档，须有实际归档与读回证据，不能靠本次准备检查。
+
+引用：`workbench/tests/cleanup_t078_electron_slot.py:34` 的 `before-delete.json`／`:35` 的 `shutil.rmtree`；`evidence/2026-10-11-batch13/T-078/P2-APPROVAL-09A3.md` 的“清理与静态复核”；新包 `P2-APPROVAL-09A3R.md` 的“分别批准清理”。上报条目的 metadata 引用误写为 #L43，正确为 #L34／#L35；最终交接条目追加正确引用，不修改原条目。

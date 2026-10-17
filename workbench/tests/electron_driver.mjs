@@ -60,6 +60,7 @@ async function main() {
   let firstSnapshot = true;
   let checkpoint = null;
   let outputPause = null;
+  let latestSnapshot = null;
   ipcMain.handle = (channel, handler) => originalHandle(channel, async (...args) => {
     // Only pause a subsequent read. Every daemon response below is delivered
     // unchanged, including its bytes and cursor. The PTY keeps running.
@@ -79,6 +80,7 @@ async function main() {
       }
     }
     if (channel === 'a2a:snapshot') {
+      latestSnapshot = value;
       appendFileSync(join(output, 'snapshots.ndjson'), JSON.stringify(value) + '\n');
       if (firstSnapshot) {
         stage('first_snapshot', { task: value.task?.task_id, gate: value.task?.state, launch: value.launch?.id ?? null });
@@ -99,6 +101,14 @@ async function main() {
       state: document.querySelector('[data-state]')?.dataset.state,
       lifecycle: document.querySelector('[data-lifecycle]')?.dataset.lifecycle,
       gate: document.querySelector('[data-gate-state]')?.dataset.gateState,
+      launch: document.querySelector('[data-launch-id]')?.dataset.launchId,
+      thread: document.querySelector('[data-thread-id]')?.dataset.threadId,
+      active_dispatch: document.querySelector('[data-active-dispatch]')?.dataset.activeDispatch,
+      input_enabled: document.querySelector('[data-input-enabled]')?.dataset.inputEnabled === 'true',
+      window_id: ${JSON.stringify(latestSnapshot?.window_id ?? null)},
+      interrupted: ${latestSnapshot?.pane?.interrupted === true},
+      interruption: ${JSON.stringify(latestSnapshot?.pane?.interruption ?? null)},
+      input_generation: ${JSON.stringify(latestSnapshot?.pane?.input_generation ?? null)},
       // xterm 6 AccessibilityManager renders CoreBrowserTerminal.buffer,
       // which is the active buffer, but its DOM refresh can lag term.write.
       terminal: [...document.querySelectorAll('.xterm-accessibility-tree [role="listitem"]')].map(x => x.textContent).join('\\n'),
@@ -141,6 +151,108 @@ async function main() {
           await window.webContents.executeJavaScript(`(() => { const data = new DataTransfer(); data.setData('text/plain', 'READ_ONLY_SENTINEL');
             document.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); })()`);
           value = { sent: true };
+        } else if (request.command === 'terminal-input') {
+          if (typeof request.paste !== 'string' || request.paste.length > 262144 || typeof request.submit !== 'boolean') {
+            throw new Error('Invalid terminal input probe');
+          }
+          window.focus();
+          await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
+          await window.webContents.executeJavaScript(`(() => { const data = new DataTransfer();
+            data.setData('text/plain', ${JSON.stringify(request.paste)});
+            document.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); })()`);
+          if (request.submit) {
+            window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+            window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+          }
+          value = { sent: true, source: 'test-simulated-user' };
+        } else if (request.command === 'terminal-compose-start') {
+          await window.webContents.executeJavaScript(`(async () => {
+            const textarea = document.querySelector('.xterm-helper-textarea');
+            textarea.focus(); textarea.value = '';
+            textarea.dispatchEvent(new CompositionEvent('compositionstart', {data:'',bubbles:true}));
+            // This public empty observation waits behind any composition IPC;
+            // it cannot create user input or write PTY bytes (decision 02).
+            await window.a2a.input('');
+          })()`);
+          value = { sent: true, source: 'synthetic-composition-start' };
+        } else if (request.command === 'terminal-compose') {
+          if (typeof request.text !== 'string' || request.text.length > 1024) throw new Error('Invalid composition probe');
+          await window.webContents.executeJavaScript(`(async () => {
+            const textarea = document.querySelector('.xterm-helper-textarea');
+            textarea.focus();
+            if (!${Boolean(request.started)}) {
+              textarea.value = '';
+              textarea.dispatchEvent(new CompositionEvent('compositionstart', {data:'',bubbles:true}));
+            }
+            textarea.dispatchEvent(new CompositionEvent('compositionupdate', {data:${JSON.stringify(request.text)},bubbles:true}));
+            textarea.value = ${JSON.stringify(request.text)};
+            await new Promise(resolve => setTimeout(resolve, 0));
+            textarea.dispatchEvent(new CompositionEvent('compositionend', {data:${JSON.stringify(request.text)},bubbles:true}));
+          })()`);
+          value = { sent: true, source: 'synthetic-composition-events' };
+        } else if (request.command === 'terminal-mouse-binary') {
+          // The product terminal is fixed at 160 columns and 45 rows. Use a
+          // cell center, without xterm private fields or synthetic onBinary.
+          const point = await window.webContents.executeJavaScript(`(() => {
+            const rect = document.querySelector('.xterm-screen').getBoundingClientRect();
+            return {x:Math.round(rect.left + rect.width * 130.5 / 160),y:Math.round(rect.top + rect.height * 6.5 / 45)};
+          })()`);
+          window.focus();
+          for (const type of ['mouseDown', 'mouseUp']) window.webContents.sendInputEvent({type, ...point, button:'left', clickCount:1});
+          value = {sent:true, column:131, row:7, point, source:'test-simulated-mouse'};
+        } else if (request.command === 'terminal-key') {
+          if (!['Escape', 'Control+C', 'Enter'].includes(request.key)) throw new Error('Unsupported terminal key probe');
+          if (request.key === 'Enter' && (request.permission !== true || request.source !== 'test-simulated-user' || !request.approval_ref || !request.window_id)) {
+            throw new Error('An explicit bound permission Enter approval is required');
+          }
+          const view = await inspect();
+          if (!request.launch || !request.thread || !request.dispatch || (values.launch && request.launch !== values.launch) ||
+              view.launch !== request.launch || view.thread !== request.thread ||
+              (request.key === 'Escape' || request.key === 'Enter' ? view.active_dispatch !== request.dispatch :
+                view.active_dispatch !== '' || !view.interrupted || !request.window_id || view.window_id !== request.window_id ||
+                !Number.isSafeInteger(request.interruption) || view.interruption !== request.interruption) ||
+              (request.key === 'Enter' && view.window_id !== request.window_id) ||
+              view.state !== 'busy' || view.lifecycle !== 'running' || !view.input_enabled) {
+            throw new Error('Window is not bound to the requested busy dispatch');
+          }
+          window.focus();
+          await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
+          if (request.key === 'Enter' && request.permission === true) {
+            // Permission Enter must await the product window IPC receipt. A
+            // native sendInputEvent returns before xterm's onData promise is
+            // admitted, so focus-mode observations can close the probe before
+            // daemon window_input is recorded.
+            const delivered = await window.webContents.executeJavaScript("window.a2a.input('\\r')");
+            value = { attempted: true, delivered, source: 'test-simulated-user', binding: view };
+          } else {
+          const keyCode = request.key === 'Control+C' ? 'C' : request.key;
+          const modifiers = request.key === 'Control+C' ? ['control'] : [];
+          window.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
+          window.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
+          value = { attempted: true, source: 'test-simulated-user', binding: view };
+          }
+        } else if (request.command === 'queue-release') {
+          value = await window.webContents.executeJavaScript(`new Promise(resolve => {
+            const deadline = Date.now() + 2500;
+            const observe = () => {
+              const button = [...document.querySelectorAll('button')].find(x => x.textContent === '输入框已空，放行');
+              if (!button || (button.disabled && Date.now() >= deadline)) return resolve({ clicked: false });
+              if (button.disabled) return setTimeout(observe, 50);
+              button.click(); resolve({ clicked: true });
+            };
+            observe();
+          })`);
+          value.source = 'test-simulated-user';
+        } else if (request.command === 'terminal-empty-composition') {
+          window.focus();
+          await window.webContents.executeJavaScript(`(() => {
+            const textarea = document.querySelector('.xterm-helper-textarea');
+            textarea.focus(); textarea.value = '';
+            textarea.dispatchEvent(new CompositionEvent('compositionstart', {data:'',bubbles:true}));
+          })()`);
+          window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+          window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+          value = { sent: true, source: 'test-simulated-empty-composition-and-enter' };
         } else if (request.command === 'reconnect') {
           await window.webContents.executeJavaScript("[...document.querySelectorAll('button')].find(x => x.textContent === '重新连接').click()");
           value = { clicked: true };

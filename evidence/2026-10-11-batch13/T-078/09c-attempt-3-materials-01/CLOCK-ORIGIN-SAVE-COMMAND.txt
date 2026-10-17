@@ -1,0 +1,13 @@
+# 计时段返回后、任何回收前只读保留原origin；失败场若origin已存在也保存，不覆盖。
+python3 -B - <<'PY'
+import json
+from pathlib import Path
+ready=json.loads(Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-stage-a-03/readiness.json').read_bytes())
+source=Path(ready['root'])/'clock-origin.json'
+raw=source.read_bytes();origin=json.loads(raw)
+assert origin['observer_pid'] and origin['clock_type']=='t078_09c_driver.Clock'
+target=Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-c3-b1-ideation-p1-01/phases/C-I1/execute-02/clock-origin.json')
+with target.open('xb') as stream:stream.write(raw)
+assert target.read_bytes()==raw
+print(json.dumps({'status':'PASS','bytes':len(raw),'source':str(source),'retained':str(target),'business_actions':0}))
+PY

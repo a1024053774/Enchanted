@@ -42,6 +42,7 @@ def main():
     parser.add_argument('--case', action='append', help='Run selected original methods without replacing their assertions')
     parser.add_argument('--revision', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--mutant-core', type=Path)
     args = parser.parse_args()
     out = args.output.resolve(); out.mkdir(parents=True, exist_ok=False)
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
@@ -68,6 +69,8 @@ def main():
     os.environ.update(COOP_E2E_ARTIFACT_ROOT=str(fixtures), COOP_E2E_TRACE=str(fixtures / 'trace.json'),
                      COOP_E2E_READBACK_ROOT=str(out / 'readbacks'), COOP_SCRIPT=str(adapter.ENTRY),
                      COOP_NATIVE_ENTRY=str(adapter.CLI))
+    if args.mutant_core:
+        os.environ['COOP_E2E_MUTANT_CORE'] = str(args.mutant_core.resolve(strict=True))
     (out / 'readbacks').mkdir(); cards.ARTIFACT_ROOT = fixtures
     selections = {'coop': (adapter.DaemonDelivery, adapter.delivery.ManagedDeliveryCLI),
         'recovery': (adapter.DaemonRecovery, adapter.recovery.RecoveryCLI),
@@ -110,7 +113,12 @@ def main():
               and not result.skipped and not leftovers and not large)
     record = {'status': 'PASS' if passed else 'INCOMPLETE', 'suite': args.suite,
         'revision': head, 'argv': sys.argv, 'tests_run': result.testsRun, 'expected_tests': len(names),
-        'suite_membership': COUNTS[args.suite],
+        'complete_original_suite_size': COUNTS[args.suite],
+        'selected_case': args.case[0] if args.case and len(args.case) == 1 else None,
+        'selected_cases': args.case or [], 'suite_membership': COUNTS[args.suite],
+        'mutant_core': str(args.mutant_core.resolve()) if args.mutant_core else None,
+        'original_results': (adapter.recovery.TEST_RESULTS if args.suite in ('recovery', 'cas') else
+                             adapter.orchestration.TEST_RESULTS if args.suite == 'run' else []),
         'failures': len(result.failures), 'errors': len(result.errors), 'skipped': len(result.skipped),
         'failure_text': [{'test': t.id(), 'traceback': text} for t, text in result.failures],
         'error_text': [{'test': t.id(), 'traceback': text} for t, text in result.errors],

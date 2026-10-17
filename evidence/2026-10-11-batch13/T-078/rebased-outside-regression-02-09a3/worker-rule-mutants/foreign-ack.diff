@@ -1,0 +1,11 @@
+--- candidate/src/gates/core.ts
++++ foreign-ack/src/gates/core.ts
+@@ -2696,7 +2696,7 @@
+     if (args.command === "inbox_ack" || args.kind === "ack") {
+       const original = this.inboxEntry(args.id ?? args.reply_to ?? "");
+       requireGate(original.kind !== "ack", "ack_is_terminal");
+-      requireGate(original.to === role, "recipient_required");
++      // MUTANT: allow acknowledgement of another recipient's entry.
+       if (args.command === "inbox_send")
+         requireGate(args.to === original.from, "recipient_required");
+       const lock = this.operationLock(`inbox-${original.id}`);

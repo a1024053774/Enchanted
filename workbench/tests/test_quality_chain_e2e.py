@@ -48,6 +48,7 @@ class QualityCase(base.TaskCardsCLI):
         self.host_generation = 0
         self.run_child = None
         self.streams = []
+        self.operator_credentials = []
 
     def id(self):
         return 'T-076-2.' + self.case
@@ -137,6 +138,11 @@ class QualityCase(base.TaskCardsCLI):
             raise HarnessFailure('The fixture already owns a live host.')
         self.host_generation += 1
         prefix = 'host-%02d' % self.host_generation
+        credential = self.root / ('operator-%02d.credential.json' % self.host_generation)
+        if credential.exists() or credential.is_symlink():
+            raise HarnessFailure('Owned host credential path is already occupied.')
+        self.env['A2A_OPERATOR_CREDENTIAL'] = str(credential)
+        self.operator_credentials.append(credential)
         ready = self.root / (prefix + '.ready.json')
         stdout = (self.evidence / (prefix + '.stdout.bin')).open('xb')
         stderr = (self.evidence / (prefix + '.stderr.bin')).open('xb')
@@ -149,7 +155,7 @@ class QualityCase(base.TaskCardsCLI):
         deadline = time.monotonic() + 10
         while not ready.exists():
             if self.host.poll() is not None or time.monotonic() >= deadline:
-                raise HarnessFailure('Controlled host startup failed; inspect host stderr.')
+                raise HarnessFailure('Controlled host startup failed; stderr=' + str(self.evidence / (prefix + '.stderr.bin')))
             time.sleep(0.02)
         self.ready = json.loads(ready.read_text(encoding='utf-8'))
         if self.ready['pid'] != self.host.pid or self.ready['root'] != str(self.state):
@@ -625,8 +631,27 @@ class QualityCase(base.TaskCardsCLI):
                 failures.append({'phase': 'run-exit', 'error': repr(error), 'pid': self.run_child.pid})
         for stream in self.streams:
             stream.close()
+        removed_credentials = []
+        for credential in self.operator_credentials:
+            try:
+                if credential.is_symlink():
+                    raise HarnessFailure('Owned credential became a symlink.')
+                if not credential.exists():
+                    continue  # Startup may fail before creating its capability.
+                if self.host is not None and self.host.poll() is None:
+                    raise HarnessFailure('Retain the credential while the owned host is live.')
+                if credential.parent != self.root or credential.stat().st_mode & 0o077:
+                    raise HarnessFailure('Owned credential path or mode changed.')
+                value = json.loads(credential.read_text(encoding='utf-8'))
+                if value.get('kind') != 'operator' or value.get('state') != str(self.state.resolve()):
+                    raise HarnessFailure('Owned credential state binding changed.')
+                credential.unlink()
+                removed_credentials.append(str(credential))
+            except Exception as error:
+                failures.append({'phase': 'credential-cleanup', 'path': str(credential), 'error': repr(error)})
         save(self.evidence / 'cleanup.json', {'failures': failures,
-             'host_exit': self.host.poll() if self.host else None, 'preserved_fixture': str(getattr(self, 'root', ''))})
+             'host_exit': self.host.poll() if self.host else None, 'preserved_fixture': str(getattr(self, 'root', '')),
+             'removed_operator_credentials': removed_credentials})
         return failures
 
 

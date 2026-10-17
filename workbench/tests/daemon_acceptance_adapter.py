@@ -214,6 +214,9 @@ class DaemonLifecycle:
                   "gate_module": self.mutant_core or str(ROOT / "workbench/src/gates/core.ts"),
                   "started": delivery.utc_now()}
         self.daemons.append(record)
+        credential = self.root / ('operator-%02d.credential.json' % record['generation'])
+        self.env['A2A_OPERATOR_CREDENTIAL'] = str(credential)
+        record['credential_file'] = str(credential)
         if record["test_host"]:
             prefix = self.root / ("host-%02d" % record["generation"])
             ready = prefix.with_suffix(".ready.json")
@@ -334,6 +337,8 @@ class DaemonLifecycle:
             if (self.state / "daemon.pid").exists() or (self.state / "control.sock").exists():
                 raise recovery.FixtureError("Graceful daemon stop left its endpoint or PID file")
             record["stopped"] = delivery.utc_now()
+            Path(record['credential_file']).unlink()
+            record['credential_removed'] = True
             self.active_daemon = None
             self.lifecycle("daemon_stopped", **record)
 
@@ -427,6 +432,8 @@ class DaemonLifecycle:
         if result.returncode == 0 or value.get("error") != "daemon_call_failed":
             raise recovery.FixtureError("Disconnected client did not report the real daemon call failure")
         self.wait_exit(record)
+        Path(record['credential_file']).unlink()
+        record['credential_removed'] = True
         # Default daemon_start is detached: no parent wait status is available.
         # Record the signal request and independent disappearance, never invent -9.
         if (int((self.state / "daemon.pid").read_text(encoding="utf-8")) != record["pid"] or

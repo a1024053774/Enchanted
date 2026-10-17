@@ -1,0 +1,9 @@
+# 独立审阅/签字后，保存轻量清单和逐原件指针入口；不复制原HTTP/hook入Git。
+python3 -B - <<'PY'
+import json
+from pathlib import Path
+archive=Path('/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-attempt-2-raw-01/scene.tar.gz');out=Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-caffeinate-fix-01/attempt2-closeout');bundle=json.loads((archive.parent/'bundle.archive.json').read_bytes())
+assert bundle['status']==bundle['byte_readback']=='PASS' and bundle['root']=='/private/tmp/t078-2-09c-run-iznfrv18'
+with (out/'bundle.archive.json').open('xb') as f:f.write((archive.parent/'bundle.archive.json').read_bytes())
+with (out/'pointers.archive.json').open('x',encoding='utf-8') as f:f.write(json.dumps({'archive':str(archive),'pointers_directory':str(archive.parent/'pointers'),'scene_status':'INCOMPLETE'},ensure_ascii=False,indent=2)+'\n')
+PY

@@ -1,10 +1,11 @@
 // Test host for the existing controlled thread service. No provider execution.
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { serve } from "../src/daemon.ts";
-import type { SubmitCaller } from "../src/gates/core.ts";
+import type { GateActor, SubmitCaller } from "../src/gates/core.ts";
+import { createOperatorCredential } from "../src/credentials.ts";
 import { boundary, runtime } from "../../acceptance/entry/native-runtime.ts";
 import { installControlledPTY } from "./controlled_quality_pty.ts";
 import { withReviewerRuntime } from "./legacy_review_runtime.ts";
@@ -68,20 +69,21 @@ const controlledRuntime = {
 };
 
 class ControlledThreadGates extends A2AGates {
-  async call(raw: unknown, caller?: SubmitCaller) {
+  async call(raw: unknown, caller?: SubmitCaller, actor: GateActor | undefined = caller) {
     const input = raw as Record<string, unknown>;
-    if (input?.command !== "submit" || caller) return await super.call(raw, caller);
+    if (input?.command !== "submit" || caller) return await super.call(raw, caller, actor);
+    if (actor) await actor.assertActive();
     const status = await super.call({ command: "status", task: input.task });
     const attempt = status.task?.current_attempt;
-    if (!attempt?.thread_id) return await super.call(raw, caller);
+    if (!attempt?.thread_id) return await super.call(raw, caller, actor);
     const live = await boundary("submit-begin", { thread: attempt.thread_id });
     const supplied = { thread: attempt.thread_id, turn: live.turn, assertActive: async () => {} };
     appendFileSync(audit, JSON.stringify({ at: new Date().toISOString(), pid: process.pid,
-      request: raw, thread: supplied.thread, turn: supplied.turn, phase: "begin" }) + "\n");
+      request: raw, thread: supplied.thread, turn: supplied.turn, transport_actor: actor?.address ?? null, phase: "begin" }) + "\n");
     try {
       // Pass the socket request unchanged to the real gate. Only the external
       // thread service and its active-turn caller are supplied by this fixture.
-      const result = await super.call(raw, supplied);
+      const result = await super.call(raw, supplied, actor);
       appendFileSync(audit, JSON.stringify({ at: new Date().toISOString(), pid: process.pid,
         request: raw, result, phase: "result" }) + "\n");
       return result;
@@ -91,6 +93,8 @@ class ControlledThreadGates extends A2AGates {
   }
 }
 
+mkdirSync(state, { recursive: true, mode: 0o700 });
+createOperatorCredential(state);
 await serve(state, config, (root, panes) => {
   bind(panes);
   return new ControlledThreadGates(root, withReviewerRuntime(controlledRuntime, panes));

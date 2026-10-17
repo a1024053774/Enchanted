@@ -1,0 +1,462 @@
+{
+  "status": "INCOMPLETE",
+  "checks": [
+    {
+      "name": "clean-clears-and-declares",
+      "status": "PASS",
+      "commands": [
+        {
+          "command": "capture",
+          "name": "before-user-release"
+        },
+        {
+          "command": "capture",
+          "name": "restored-draft"
+        },
+        {
+          "command": "terminal-key",
+          "key": "Control+C",
+          "launch": "launch-sentinel",
+          "thread": "thread-sentinel",
+          "dispatch": "first-dispatch",
+          "window_id": "window-sentinel",
+          "interruption": 9,
+          "approval_ref": "step-clear-restored-draft"
+        },
+        {
+          "command": "capture",
+          "name": "cleared-draft"
+        },
+        {
+          "command": "queue-release",
+          "source": "test-simulated-user",
+          "approval_ref": "step-declare-empty-release",
+          "launch": "launch-sentinel",
+          "interruption": 9,
+          "input_generation": 2
+        },
+        {
+          "command": "capture",
+          "name": "after-declaration"
+        }
+      ],
+      "error": null
+    },
+    {
+      "name": "block-retains-and-declares",
+      "status": "PASS",
+      "commands": [
+        {
+          "command": "capture",
+          "name": "before-user-release"
+        },
+        {
+          "command": "capture",
+          "name": "restored-draft"
+        },
+        {
+          "command": "queue-release",
+          "source": "test-simulated-user",
+          "approval_ref": "step-declare-empty-release",
+          "launch": "launch-sentinel",
+          "interruption": 9,
+          "input_generation": 1
+        },
+        {
+          "command": "capture",
+          "name": "after-declaration"
+        }
+      ],
+      "error": null
+    },
+    {
+      "name": "reject-residual-draft",
+      "status": "INCOMPLETE",
+      "commands": [
+        {
+          "command": "capture",
+          "name": "before-user-release"
+        },
+        {
+          "command": "capture",
+          "name": "restored-draft"
+        },
+        {
+          "command": "terminal-key",
+          "key": "Control+C",
+          "launch": "launch-sentinel",
+          "thread": "thread-sentinel",
+          "dispatch": "first-dispatch",
+          "window_id": "window-sentinel",
+          "interruption": 9,
+          "approval_ref": "step-clear-restored-draft"
+        },
+        {
+          "command": "capture",
+          "name": "cleared-draft"
+        },
+        {
+          "command": "queue-release",
+          "source": "test-simulated-user",
+          "approval_ref": "step-declare-empty-release",
+          "launch": "launch-sentinel",
+          "interruption": 9,
+          "input_generation": 2
+        },
+        {
+          "command": "capture",
+          "name": "after-declaration"
+        }
+      ],
+      "error": null
+    },
+    {
+      "name": "reject-missing-restored",
+      "status": "PASS",
+      "commands": [
+        {
+          "command": "capture",
+          "name": "before-user-release"
+        }
+      ],
+      "error": "TimeoutError('Observed view did not meet contract')"
+    },
+    {
+      "name": "reject-control-as-message",
+      "status": "PASS",
+      "commands": [
+        {
+          "command": "capture",
+          "name": "before-user-release"
+        },
+        {
+          "command": "capture",
+          "name": "restored-draft"
+        },
+        {
+          "command": "terminal-key",
+          "key": "Control+C",
+          "launch": "launch-sentinel",
+          "thread": "thread-sentinel",
+          "dispatch": "first-dispatch",
+          "window_id": "window-sentinel",
+          "interruption": 9,
+          "approval_ref": "step-clear-restored-draft"
+        }
+      ],
+      "error": "TimeoutError('Observed facts did not meet contract')"
+    },
+    {
+      "name": "reject-missing-written",
+      "status": "PASS",
+      "commands": [
+        {
+          "command": "capture",
+          "name": "before-user-release"
+        },
+        {
+          "command": "capture",
+          "name": "restored-draft"
+        },
+        {
+          "command": "terminal-key",
+          "key": "Control+C",
+          "launch": "launch-sentinel",
+          "thread": "thread-sentinel",
+          "dispatch": "first-dispatch",
+          "window_id": "window-sentinel",
+          "interruption": 9,
+          "approval_ref": "step-clear-restored-draft"
+        }
+      ],
+      "error": "TimeoutError('Observed facts did not meet contract')"
+    },
+    {
+      "name": "reject-old-output",
+      "status": "PASS",
+      "commands": [
+        {
+          "command": "capture",
+          "name": "before-user-release"
+        },
+        {
+          "command": "capture",
+          "name": "restored-draft"
+        },
+        {
+          "command": "terminal-key",
+          "key": "Control+C",
+          "launch": "launch-sentinel",
+          "thread": "thread-sentinel",
+          "dispatch": "first-dispatch",
+          "window_id": "window-sentinel",
+          "interruption": 9,
+          "approval_ref": "step-clear-restored-draft"
+        }
+      ],
+      "error": "TimeoutError('Observed view did not meet contract')"
+    },
+    {
+      "name": "valid-unseen-approval",
+      "status": "PASS",
+      "input": {
+        "launch": "approval-unseen-launch",
+        "session": "approval-unseen-session",
+        "scenario": "approval-sentinel",
+        "source": "test-simulated-user",
+        "approved_by": "executor",
+        "approval_ref": "main150",
+        "basis": "explicit approval",
+        "actions": [
+          {
+            "action": "Escape",
+            "approved_by": "executor",
+            "approval_ref": "esc-ref",
+            "basis": "Esc approved"
+          },
+          {
+            "action": "clear-restored-draft",
+            "key": "Control+C",
+            "approved_by": "executor",
+            "approval_ref": "clear-ref",
+            "basis": "single Ctrl+C approved"
+          },
+          {
+            "action": "declare-empty-release",
+            "truth": "empty",
+            "approved_by": "executor",
+            "approval_ref": "declare-ref",
+            "basis": "declare after observation approved"
+          }
+        ]
+      },
+      "error": null
+    },
+    {
+      "name": "missing-step-approval",
+      "status": "PASS",
+      "input": {
+        "launch": "approval-unseen-launch",
+        "session": "approval-unseen-session",
+        "scenario": "approval-sentinel",
+        "source": "test-simulated-user",
+        "approved_by": "executor",
+        "approval_ref": "main150",
+        "basis": "explicit approval",
+        "actions": [
+          {
+            "action": "Escape",
+            "approved_by": "executor",
+            "approval_ref": "esc-ref",
+            "basis": "Esc approved"
+          },
+          {
+            "action": "clear-restored-draft",
+            "key": "Control+C",
+            "approved_by": null,
+            "approval_ref": "clear-ref",
+            "basis": "single Ctrl+C approved"
+          },
+          {
+            "action": "declare-empty-release",
+            "truth": "empty",
+            "approved_by": "executor",
+            "approval_ref": "declare-ref",
+            "basis": "declare after observation approved"
+          }
+        ]
+      },
+      "error": "ValueError('Each simulated-user action requires approval')"
+    },
+    {
+      "name": "wrong-source",
+      "status": "PASS",
+      "input": {
+        "launch": "approval-unseen-launch",
+        "session": "approval-unseen-session",
+        "scenario": "approval-sentinel",
+        "source": "real-user",
+        "approved_by": "executor",
+        "approval_ref": "main150",
+        "basis": "explicit approval",
+        "actions": [
+          {
+            "action": "Escape",
+            "approved_by": "executor",
+            "approval_ref": "esc-ref",
+            "basis": "Esc approved"
+          },
+          {
+            "action": "clear-restored-draft",
+            "key": "Control+C",
+            "approved_by": "executor",
+            "approval_ref": "clear-ref",
+            "basis": "single Ctrl+C approved"
+          },
+          {
+            "action": "declare-empty-release",
+            "truth": "empty",
+            "approved_by": "executor",
+            "approval_ref": "declare-ref",
+            "basis": "declare after observation approved"
+          }
+        ]
+      },
+      "error": "ValueError('Explicit executor approval for automation required')"
+    },
+    {
+      "name": "stale-session",
+      "status": "PASS",
+      "input": {
+        "launch": "approval-unseen-launch",
+        "session": "stale",
+        "scenario": "approval-sentinel",
+        "source": "test-simulated-user",
+        "approved_by": "executor",
+        "approval_ref": "main150",
+        "basis": "explicit approval",
+        "actions": [
+          {
+            "action": "Escape",
+            "approved_by": "executor",
+            "approval_ref": "esc-ref",
+            "basis": "Esc approved"
+          },
+          {
+            "action": "clear-restored-draft",
+            "key": "Control+C",
+            "approved_by": "executor",
+            "approval_ref": "clear-ref",
+            "basis": "single Ctrl+C approved"
+          },
+          {
+            "action": "declare-empty-release",
+            "truth": "empty",
+            "approved_by": "executor",
+            "approval_ref": "declare-ref",
+            "basis": "declare after observation approved"
+          }
+        ]
+      },
+      "error": "ValueError('Actions approval identity mismatch')"
+    },
+    {
+      "name": "unapproved-key",
+      "status": "PASS",
+      "input": {
+        "launch": "approval-unseen-launch",
+        "session": "approval-unseen-session",
+        "scenario": "approval-sentinel",
+        "source": "test-simulated-user",
+        "approved_by": "executor",
+        "approval_ref": "main150",
+        "basis": "explicit approval",
+        "actions": [
+          {
+            "action": "Escape",
+            "approved_by": "executor",
+            "approval_ref": "esc-ref",
+            "basis": "Esc approved"
+          },
+          {
+            "action": "clear-restored-draft",
+            "key": "Control+U",
+            "approved_by": "executor",
+            "approval_ref": "clear-ref",
+            "basis": "single Ctrl+C approved"
+          },
+          {
+            "action": "declare-empty-release",
+            "truth": "empty",
+            "approved_by": "executor",
+            "approval_ref": "declare-ref",
+            "basis": "declare after observation approved"
+          }
+        ]
+      },
+      "error": "ValueError('Actions approval plan mismatch')"
+    },
+    {
+      "name": "false-clean-declaration",
+      "status": "PASS",
+      "input": {
+        "launch": "approval-unseen-launch",
+        "session": "approval-unseen-session",
+        "scenario": "approval-sentinel",
+        "source": "test-simulated-user",
+        "approved_by": "executor",
+        "approval_ref": "main150",
+        "basis": "explicit approval",
+        "actions": [
+          {
+            "action": "Escape",
+            "approved_by": "executor",
+            "approval_ref": "esc-ref",
+            "basis": "Esc approved"
+          },
+          {
+            "action": "clear-restored-draft",
+            "key": "Control+C",
+            "approved_by": "executor",
+            "approval_ref": "clear-ref",
+            "basis": "single Ctrl+C approved"
+          },
+          {
+            "action": "declare-empty-release",
+            "truth": "intentionally-false",
+            "approved_by": "executor",
+            "approval_ref": "declare-ref",
+            "basis": "declare after observation approved"
+          }
+        ]
+      },
+      "error": "ValueError('Actions approval plan mismatch')"
+    },
+    {
+      "name": "missing-global-reference",
+      "status": "PASS",
+      "input": {
+        "launch": "approval-unseen-launch",
+        "session": "approval-unseen-session",
+        "scenario": "approval-sentinel",
+        "source": "test-simulated-user",
+        "approved_by": "executor",
+        "approval_ref": null,
+        "basis": "explicit approval",
+        "actions": [
+          {
+            "action": "Escape",
+            "approved_by": "executor",
+            "approval_ref": "esc-ref",
+            "basis": "Esc approved"
+          },
+          {
+            "action": "clear-restored-draft",
+            "key": "Control+C",
+            "approved_by": "executor",
+            "approval_ref": "clear-ref",
+            "basis": "single Ctrl+C approved"
+          },
+          {
+            "action": "declare-empty-release",
+            "truth": "empty",
+            "approved_by": "executor",
+            "approval_ref": "declare-ref",
+            "basis": "declare after observation approved"
+          }
+        ]
+      },
+      "error": "ValueError('Explicit executor approval for automation required')"
+    }
+  ],
+  "argv": [
+    "workbench/tests/test_t078_simulated_draft.py",
+    "--mutant",
+    "always-empty",
+    "--output",
+    "evidence/2026-10-11-batch13/T-078/simulated-empty-mutant-09a3r2"
+  ],
+  "scope": "Actual runner branch and approval helper, synthetic client/window facts; no CLI/API/UI/model starts",
+  "real_model_turns": 0,
+  "mutant": "always-empty"
+}

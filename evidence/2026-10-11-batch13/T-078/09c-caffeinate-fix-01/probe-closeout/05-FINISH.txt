@@ -1,0 +1,12 @@
+# 待主控分步审签，本轮未执行。
+set -e
+python3 -B - <<'PY'
+import json
+from pathlib import Path
+p=Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-raw-readback-01');review=json.loads((p/'review.json').read_bytes());raw=json.loads((p/'readback.json').read_bytes())
+assert review['status']=='PASS' and review['scene_status']=='INCOMPLETE' and review['approved_by']==raw['approved_by']=='executor'
+assert review['approval_ref'] and raw['approval_ref']
+assert review['archive']==raw['archive']=='/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-topology-probe-raw-01/scene.tar.gz' and review['counts']==raw['counts']
+assert review['root']=='/private/tmp/t078-2-a14-rehearsal-i4jb8gm3' and review['source_revision']=='ce0dba18c563da875077128d636583b81fc40f2b'
+PY
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_raw_retention.py --owner /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-caffeinate-fix-01/probe-closeout/owner.json --archive /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-topology-probe-raw-01/scene.tar.gz --mode finish --approval /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-caffeinate-fix-01/probe-closeout/cleanup-approval.json --capture-result /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-topology-probe-capture-01/capture-result.json --independent-readback /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-raw-readback-01/readback.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-cleanup-01

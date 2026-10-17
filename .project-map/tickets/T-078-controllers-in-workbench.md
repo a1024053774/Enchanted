@@ -2,7 +2,7 @@
 id: T-078
 title: S4 两个主控进工作台：主控窗格、交互输入、收件箱进库、唤醒、用户输入记录、紧急停止
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -24,13 +24,13 @@ ready_rev: 2
 
 ## Acceptance
 
-- [ ] 检查面同 T-075。（修订 rev 2：原有的"Electron 截图或录屏：两个主控窗格、一个 worker 窗格同时在一个任务下"一项移到 [T-091](T-091-single-window-multi-pane.md)，用户 2026-10-16 选择，见下方"修订 rev 2"。）
-- [ ] 用户输入：在窗格里亲手输入的一句被记为用户输入；同一窗格里后台注入的一句不被记为用户输入；worker 窗格里亲手输入的记为人工介入。
-- [ ] 唤醒：执行主控写 report 后构思主控窗格在空闲时收到带标记的唤醒；它在回合中时排队，回合结束后送达；Esc 中断后不自动放出，用户放行后送达。
-- [ ] 收件箱：库版 `scripts/inbox` 的 send、list、ack、ready 在夹具项目上可用；按角色越权写入被拒（例如 worker 写 assign）。
-- [ ] 紧急停止：stop → ack 正例；无 ack 2 分钟后的只中断正例；停止记录的调用者为实际角色，参数里伪造的被忽略。
-- [ ] Claude 会话不写 `~/.claude` 的设置与权限；如需真实 Claude 回合，先在 needs-decision 里报认证方式与额度，由用户决定（T-074 的例外只覆盖 T-074）。
-- [ ] 8/9/18 三组与 T-075 的正反例不退化。
+- [x] 检查面同 T-075。（修订 rev 2：原有的"Electron 截图或录屏：两个主控窗格、一个 worker 窗格同时在一个任务下"一项移到 [T-091](T-091-single-window-multi-pane.md)，用户 2026-10-16 选择，见下方"修订 rev 2"。）
+- [x] 用户输入：在窗格里亲手输入的一句被记为用户输入；同一窗格里后台注入的一句不被记为用户输入；worker 窗格里亲手输入的记为人工介入。
+- [x] 唤醒：执行主控写 report 后构思主控窗格在空闲时收到带标记的唤醒；它在回合中时排队，回合结束后送达；Esc 中断后不自动放出，用户放行后送达。
+- [x] 收件箱：库版 `scripts/inbox` 的 send、list、ack、ready 在夹具项目上可用；按角色越权写入被拒（例如 worker 写 assign）。
+- [x] 紧急停止：stop → ack 正例；无 ack 2 分钟后的只中断正例；停止记录的调用者为实际角色，参数里伪造的被忽略。
+- [x] Claude 会话不写 `~/.claude` 的设置与权限；如需真实 Claude 回合，先在 needs-decision 里报认证方式与额度，由用户决定（T-074 的例外只覆盖 T-074）。
+- [x] 8/9/18 三组与 T-075 的正反例不退化。
 
 ## 说明
 
@@ -47,6 +47,37 @@ ready_rev: 2
 5. 09B 补证：用户选"重跑一场 09B，留最小脱敏原件 (Recommended)"，选项原文："假 API、模型 0 回合，同 protocol 与预算，回收前额外保留逐 POST/hook 原件（不含认证信息）供独立复核，由执行主控按已有的 09B 授权代签。代价是几个小时的逐阶段签字，可与 09C 同批准备。"
 
 ## Resolution
+
+2026-10-17，执行主控按门禁验收 **PASS**，按 rev 2 范围关闭；合入 main（不 push）。最终冻结候选 `022a2d2902e8a2c6233c3523b3475cc803b3bb91`（exec/t078，之后 `43db303f6`、`b68ec5339` 只加审查请求、报告与清单），业务源码与 `7a6edbff8` 逐字节一致，含 T-082/T-090。
+
+- **09B（A16）**：按冻结 protocol 重跑，假 API、真实 Claude CLI、模型回合 0，执行主控按授权代签；回收前保留逐 POST/hook 脱敏原件于外置盘（`09b-a16-raw-01/scene.tar.gz`），独立复核 POST ideation 6/executor 11、roots 4/6、许可 2/5，pending→首启→delivered→原 I2 成立。
+- **09C（第 3 场）**：PASS。真实时钟：C-I2 早停 4,655ms 被拒（stop_too_early）、目标零字节；C-I3 在原 stop 建立后 121,993ms 由 ideation 只做一次中断，目标恰收一个 Esc、无 ack；POST 7/1、roots 4/1、许可 3/0。条件式单 Enter 按用户 rev 2 授权由主控代签。回收先归档、tar 独立重数与凭据扫描（0 命中）后 owner-bound 停机，停后 SQLite 读取 0，root 已删。第 1 场（下方记录）与第 2 场（C-I2 拓扑自检停止，零 C-I2 按键；根因为 Claude Code 每回合派生的 `caffeinate`，已按窄规则放行）均 INCOMPLETE，保留不改判。
+- **独立终审 02**：fresh 只读 reviewer（launch-0f40afe0c56049ec8788d907bc703daa）[independent-review-final-02](../../evidence/2026-10-11-batch13/T-078/independent-review-final-02.md) **PASS**；终审 01 的 F1～F7 逐项处置 PASS；5 个新单处错误实现（caller 被参数覆盖、过早紧急中断、UPS 不阻断拼接、reader 提前返回、落库 from 被覆盖）均以业务断言失败，好候选通过。审查 scratch 在外置盘（`final-review-02-scratch.archive.json`）。
+- 回归：同业务源码上 coop 8、recovery 9、run 18、CAS 1、cards 15 共 51 方法 0 failure/error/skipped；`review-followup-regressions-02` 顶层 INCOMPLETE（CAS 分类器）由 03/04 补证，原状态不改判。
+
+**未覆盖、不算通过**：
+- 两个主控加一个 worker 同窗三窗格 → [T-091](T-091-single-window-multi-pane.md)（rev 2 移出本票验收）。
+- 真登录 profile 复核 → [T-092](T-092-normal-login-profile.md)；本票全部为假 API 证据，没有运行真登录命令。
+- 系统输入法组合输入：用户选"本轮不做"，**INCOMPLETE**；合成 composition 不代替系统 IME。
+- A15 原件缺失与 A15 I1 直接 total 缺失不补造，A16 是用户批准的替代证据；09C 第 1 场 C-I1 首份结果文件丢失，只有间接证据。
+
+主控日志见 `evidence/2026-10-11-batch13/T-078/controller-decision-04.md`（至 #375）。打分 `score-64a0fb9cd7d449a891692d96e611fc48`（边界 3、工程 2）。
+
+### 历史记录（交付过程中的阶段性 Resolution，保留原文）
+
+2026-10-11，T-078-1 非 Claude 范围的最终验收与一次新上下文只读独立审查均为局部 **PASS**；T-078 整票 **INCOMPLETE，待主控关闭**。已验收代码提交 `b3fb998cf48574821c39440ece3f9ff897f26cf9`，基于 main `532c51f4cc12352bb7cf545ce1e5f824d68bdc4a`，保留 T-076-1 的稳定身份及停机收尾改动。窗口输入经后台写入 PTY，区分用户输入／人工介入与注入，覆盖组合输入占用、请求去重、二进制字节、Esc 后用户放行；worker 库收件箱使用实际会话身份经已认证 Stop 转交并核对当前 attempt；Claude 启动参数及记录只作静态准备。
+
+最终证据见 [RESULTS](../../evidence/2026-10-11-batch13/T-078/RESULTS.md) 和 [outside-final-01](../../evidence/2026-10-11-batch13/T-078/outside-final-01/checkpoint.json)：领域 11、管理客户端 8、窗格状态 11、静态骨架 2、运行时入口 12、输入失败方式 11、worker 入口 14 全部通过；原 coop/recovery/run 8/9/18 与 CAS 1 均为 0 failures/errors/skipped；四项权限及 fence/CAS/lock 三项原业务变异反例均实际触发业务违约，原失败现场保留。旧 worker_command_forbidden 仅证明入口缺失，没有冒充权限业务规则红态。六个超限原件按规则归档外置盘，仓库保留摘要与重放路径。
+
+[独立审查](../../evidence/2026-10-11-batch13/T-078/independent-review-01.md) 未确认该局部范围内的可达违约或结构性阻断问题，核对了冻结源码、原始字节、SQLite 内存读副本和外置原件。使用会话内独立只读 agent，fork_turns=none，请求 gpt-6-astra/xhigh；实际模型配置与服务档位未独立观测，不冒称 Fast 已生效。审查未写候选、submit 或集成。
+
+真实 Claude 启动、主控角色凭据和 hook 接线、实际主控互相唤醒、两个主控加一个 worker 的同任务窗口验收仍未完成，等待 needs-decision `20261011T101958Z`。两分钟无 ack 条件为受控时钟／逻辑角色证据，IME 为合成组合事件；不外推为实际主控链路或系统输入法验证。测试未启动 Claude 或其夹具，待真实 Claude 复核；不切换日常文件版 inbox，不 push。Ticket 保持 open、待主控关闭。
+
+2026-10-14，以上为 T-078-1 交付时点。用户已答复认证与预算，T-078-2 经逐次批准推进假服务验证：08e 的真实 CLI 单回合、实际 UserPromptSubmit/Stop、busy→idle 与主 Messages 请求均 PASS，真实供应商模型回合为 0。结论绑定变基前代码，尚不证明双主控／紧急停止／真登录。原件与边界见 [RESULTS](../../evidence/2026-10-11-batch13/T-078/RESULTS.md)。
+
+09A 的 Esc 实跑 INCOMPLETE，失败和外置原件保留。主控 #122 要求的只读诊断确认驱动过早发键及 nullable 主控窗口永久禁输入；修复独立提交 `7cd19b586fe757268384d99f243f5d0a583a5ad3`，域／驱动红转绿，收据及身份反例通过。[09A-2 材料](../../evidence/2026-10-11-batch13/T-078/P2-APPROVAL-09A2.md) 静态准备 PASS，实际启动未执行，待主控审批。T-077 合入后才变基、重新生成并完整重跑；09B/09C 与真登录仍未完成。整票保持 open、INCOMPLETE、待主控关闭。
+
+主控 #124 随后实跑 09A-2：Esc 送达／退休／队列 held 正例成立，但放行把 CLI 恢复进编辑框的第一提示与第二条拼接，hook/API 原件确认，产品 INCOMPLETE。只读诊断、最小方案与用户输入语义取舍见 [DRAFT-OPTIONS](../../evidence/2026-10-11-batch13/T-078/DRAFT-OPTIONS-09A2.md)。草稿占用标记不等于 CLI 编辑框检测；本轮未实现任何修复选项，停在方案决定。失败根及 slot 的外置归档／处置脚本另交主控执行，不把清理通过算作产品通过。整票仍 open、INCOMPLETE、待主控关闭。
 
 ### 09C 第 1 场（2026-10-16，执行主控记录，INCOMPLETE）
 

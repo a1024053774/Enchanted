@@ -1,0 +1,89 @@
+{
+  "status": "PASS",
+  "suite": "entry",
+  "legacy_survival": false,
+  "real_model_turns": 0,
+  "runs": [
+    {
+      "mode": "m5",
+      "command": [
+        "node",
+        "/private/tmp/t078-startup-receipt-aq5671y6/m5/workbench/tests/test_t078_a13_rehearsal.ts",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/merge-main-4-t078-regressions-01/startup-entry/m5/test",
+        "--recipient-offline",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-startup-pending-fixture-01"
+      ],
+      "cwd": "/private/tmp/t078-startup-receipt-aq5671y6/m5",
+      "timeout_seconds": 190,
+      "exit_code": 1,
+      "test_status": "INCOMPLETE",
+      "failure": {
+        "status": "INCOMPLETE",
+        "step": "approved startup keys keep the pending inbox queued",
+        "observed": "delivered",
+        "expected": "queued",
+        "error": "Error: startup refreshed delivery 0: observed=\"delivered\" expected=\"queued\"",
+        "checks": [
+          {
+            "name": "UserPromptSubmit gate accepts current controller context",
+            "status": "PASS"
+          },
+          {
+            "name": "inbox send writes an undelivered queued request",
+            "status": "PASS"
+          },
+          {
+            "name": "no Stop entry exists before Stop hook",
+            "status": "PASS"
+          },
+          {
+            "name": "old Stop cannot transfer the queued request",
+            "status": "PASS"
+          },
+          {
+            "name": "offline role keeps a visible pending receipt without feedback",
+            "status": "PASS"
+          },
+          {
+            "name": "seed uncertain historical writes without claiming delivery",
+            "status": "PASS"
+          },
+          {
+            "name": "real controller_start queues without writing to unknown first screen",
+            "status": "PASS"
+          },
+          {
+            "name": "approved startup keys keep the pending inbox queued",
+            "status": "INCOMPLETE",
+            "observed": "delivered",
+            "expected": "queued",
+            "error": "Error: startup refreshed delivery 0: observed=\"delivered\" expected=\"queued\""
+          }
+        ],
+        "scratch_removed": true,
+        "scope": "real daemon/relay/bin-inbox/Stop signal; no Claude/API/model"
+      },
+      "meaning": "M5 rejected at the new refreshed-delivery assertion"
+    },
+    {
+      "mode": "candidate",
+      "command": [
+        "node",
+        "/private/tmp/t078-startup-receipt-aq5671y6/candidate/workbench/tests/test_t078_a13_rehearsal.ts",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/merge-main-4-t078-regressions-01/startup-entry/candidate/test",
+        "--recipient-offline",
+        "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-startup-pending-fixture-01"
+      ],
+      "cwd": "/private/tmp/t078-startup-receipt-aq5671y6/candidate",
+      "timeout_seconds": 190,
+      "exit_code": 0,
+      "test_status": "PASS",
+      "checks": 14,
+      "meaning": "candidate accepted",
+      "pre_release_refreshes": 6
+    }
+  ],
+  "scope": "M5 counterfactual and candidate; no product edits or A14 scene access",
+  "source_scratch_removed": true,
+  "check_only": false
+}

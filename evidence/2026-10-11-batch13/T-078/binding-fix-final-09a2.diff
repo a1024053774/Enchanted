@@ -1,0 +1,363 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index cc3ec026..220067b6 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -170,6 +170,11 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
+ 
+ ## Electron 窗口
+ 
++运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
++每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、
++active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝试，送达须有同一窗口请求的
++用户动作、PTY 写入意图与写入收据，不能用 `sent:true` 代替。
++
+ 窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
+ 窗格和门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
+ 键盘、IME 和粘贴入口，历史窗格保持只读；全部输入由后台写入 node-pty，renderer
+diff --git a/workbench/app/main.ts b/workbench/app/main.ts
+index 58bea808..7d367b74 100644
+--- a/workbench/app/main.ts
++++ b/workbench/app/main.ts
+@@ -43,7 +43,8 @@ export async function run(options: Options) {
+     if (!result.ok) throw new Error(result.error);
+     if (result.launch) launch = result.launch.id;
+     const writable = result.pane?.lifecycle === 'running' && !result.pane.failed &&
+-      result.task.current_attempt?.attempt_id === result.launch?.attempt;
++      Boolean(result.launch && (result.launch.role === 'controller' && result.launch.attempt === null ||
++        result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
+     if (result.launch && !identity) {
+       const opened = await request(options.state, { command: 'window_open', task: options.task, launch }, operator);
+       if (!opened.ok) throw new Error(opened.error);
+diff --git a/workbench/app/renderer.tsx b/workbench/app/renderer.tsx
+index 1c5a7442..0a3e5e30 100644
+--- a/workbench/app/renderer.tsx
++++ b/workbench/app/renderer.tsx
+@@ -14,9 +14,9 @@ type Snapshot = {
+   task: { task_id: string; title: string; project_id: string; repo: string; state: string;
+     current_attempt: { attempt_id: string; state: string } | null; candidate_commit: string | null;
+     verification: { state: string } | null; integration_intent: { state: string } | null };
+-  launch: { id: string; attempt: string | null; role: string; cli_version: string; model_requested: string } | null;
++  launch: { id: string; thread: string; attempt: string | null; role: string; cli_version: string; model_requested: string } | null;
+   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
+-    interrupted?: boolean } | null;
++    interrupted?: boolean; active?: { dispatch: string } | null } | null;
+ };
+ type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
+ declare global { interface Window { a2a: { snapshot(): Promise<Snapshot>; output(offset: number): Promise<Chunk>;
+@@ -114,7 +114,7 @@ function Workbench() {
+   }, []);
+   const task = snapshot?.task;
+   const pane = snapshot?.pane;
+-  const historical = Boolean(snapshot?.launch && task?.current_attempt?.attempt_id !== snapshot.launch.attempt);
++  const historical = Boolean(snapshot?.launch?.attempt && task?.current_attempt?.attempt_id !== snapshot.launch.attempt);
+   return <div className="workbench">
+     <aside className="sidebar">
+       <div className="brand">a2a <span>工作台</span></div>
+@@ -130,7 +130,9 @@ function Workbench() {
+       </header>
+       {error && <div className="connection-error" role="alert"><span>{error}</span><button onClick={() => reconnect.current()}>重新连接</button></div>}
+       {inputError && <div className="connection-error" role="alert">{inputError}</div>}
+-      <section className="pane" aria-label="交互终端">
++      <section className="pane" aria-label="交互终端" data-launch-id={snapshot?.launch?.id}
++        data-thread-id={snapshot?.launch?.thread} data-active-dispatch={pane?.active?.dispatch ?? ''}
++        data-input-enabled={Boolean(snapshot?.input_enabled && !inputError && !error)}>
+         <div className="pane-header"><strong>{snapshot?.launch?.cli_version ?? '窗格'}</strong>
+           <span className="readonly">{snapshot?.input_enabled && !inputError ? '可输入' : '只读'}</span><span className="pane-identity">{snapshot?.launch ? `${snapshot.launch.role} · ${snapshot.launch.id.slice(0, 8)}` : '尚未启动窗格'}</span>
+           <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
+diff --git a/workbench/tests/cleanup_t078_electron_slot.py b/workbench/tests/cleanup_t078_electron_slot.py
+new file mode 100644
+index 00000000..b30ddc3b
+--- /dev/null
++++ b/workbench/tests/cleanup_t078_electron_slot.py
+@@ -0,0 +1,39 @@
++"""Controller-only cleanup of the exact build slot owned by one completed P1 fixture."""
++import argparse, json, shutil, subprocess, traceback
++from pathlib import Path
++SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
++p=argparse.ArgumentParser();p.add_argument('--materials',type=Path,required=True);a=p.parse_args()
++m=a.materials.resolve();m.relative_to(SOURCE/'evidence/2026-10-11-batch13/T-078')
++out=m/'slot-cleanup';out.mkdir()
++r={'status':'BLOCKED','argv':__import__('sys').argv,'signals_sent':0}
++try:
++    approval=json.loads((m/'approval.json').read_text(encoding='utf-8'))
++    run=json.loads((m/'continue-esc/result.json').read_text(encoding='utf-8'))
++    assert json.loads((m/'cleanup/result.json').read_text(encoding='utf-8'))['status']=='PASS','Fixture cleanup must finish first'
++    launch=approval['input']['launch'];slot=Path('/Volumes/WD-Elements/a2a-workbench')/('t078-09-'+launch)
++    volume=Path('/Volumes/WD-Elements')
++    assert volume.resolve(strict=True)==volume and volume.stat().st_dev!=volume.parent.stat().st_dev,'External volume is not mounted'
++    assert run['input']['launch']==launch and run['electron_build']==str(slot/'dist')
++    assert not slot.is_symlink() and slot.resolve(strict=True)==slot,'Build slot contains a link'
++    build=json.loads((slot/'dist/build.json').read_text(encoding='utf-8'))
++    assert build['source']==str(SOURCE/'workbench/app') and build['out']==str(slot/'dist')
++    log=[json.loads(line) for line in (m/'continue-esc/electron-driver.jsonl').read_text(encoding='utf-8').splitlines()]
++    owner=next(e for e in log if 'argv' in e and 'pid' in e)
++    assert owner['argv'][owner['argv'].index('--build')+1]==str(slot/'dist')
++    stages=[json.loads(line) for line in (m/'continue-esc/electron/stages.jsonl').read_text(encoding='utf-8').splitlines()]
++    assert any(e['stage']=='quit' and e['pid']==owner['pid'] for e in stages),'No recorded Electron exit'
++    ps=subprocess.run(['/bin/ps','-p',str(owner['pid']),'-o','pid=,lstart=,command='],capture_output=True,text=True)
++    r['process_check']={'pid':owner['pid'],'exit':ps.returncode,'stdout':ps.stdout,'stderr':ps.stderr}
++    assert ps.returncode==1 and not ps.stdout.strip() and not ps.stderr,'Recorded Electron PID still exists; no deletion'
++    files=[]
++    for f in slot.rglob('*'):
++        assert not f.is_symlink(),'Build slot contains a link; no deletion'
++        if f.is_file():files.append({'path':str(f.relative_to(slot)),'bytes':f.stat().st_size})
++    r.update(slot=str(slot),owner_launch=launch,build_manifest=build,files=files,
++             replay=run.get('input',{}).get('source_snapshot'),ownership='This worker fixture only; controller executes cleanup outside sandbox')
++    (out/'before-delete.json').write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
++    shutil.rmtree(slot)
++    assert not slot.exists();r['status']='PASS'
++except Exception as error:r.update(error=repr(error),traceback=traceback.format_exc())
++with (out/'result.json').open('x',encoding='utf-8') as f:json.dump(r,f,ensure_ascii=False,indent=2)
++print(json.dumps(r,ensure_ascii=False));raise SystemExit(0 if r['status']=='PASS' else 1)
+diff --git a/workbench/tests/electron_driver.mjs b/workbench/tests/electron_driver.mjs
+index 5fb891a8..f7c894e8 100644
+--- a/workbench/tests/electron_driver.mjs
++++ b/workbench/tests/electron_driver.mjs
+@@ -99,6 +99,10 @@ async function main() {
+       state: document.querySelector('[data-state]')?.dataset.state,
+       lifecycle: document.querySelector('[data-lifecycle]')?.dataset.lifecycle,
+       gate: document.querySelector('[data-gate-state]')?.dataset.gateState,
++      launch: document.querySelector('[data-launch-id]')?.dataset.launchId,
++      thread: document.querySelector('[data-thread-id]')?.dataset.threadId,
++      active_dispatch: document.querySelector('[data-active-dispatch]')?.dataset.activeDispatch,
++      input_enabled: document.querySelector('[data-input-enabled]')?.dataset.inputEnabled === 'true',
+       // xterm 6 AccessibilityManager renders CoreBrowserTerminal.buffer,
+       // which is the active buffer, but its DOM refresh can lag term.write.
+       terminal: [...document.querySelectorAll('.xterm-accessibility-tree [role="listitem"]')].map(x => x.textContent).join('\\n'),
+@@ -192,11 +196,17 @@ async function main() {
+           value = {sent:true, column:131, row:7, point, source:'test-simulated-mouse'};
+         } else if (request.command === 'terminal-key') {
+           if (request.key !== 'Escape') throw new Error('Unsupported terminal key probe');
++          const view = await inspect();
++          if (!request.launch || !request.thread || !request.dispatch || (values.launch && request.launch !== values.launch) ||
++              view.launch !== request.launch || view.thread !== request.thread || view.active_dispatch !== request.dispatch ||
++              view.state !== 'busy' || view.lifecycle !== 'running' || !view.input_enabled) {
++            throw new Error('Window is not bound to the requested busy dispatch');
++          }
+           window.focus();
+           await window.webContents.executeJavaScript("document.querySelector('.xterm-helper-textarea').focus()");
+           window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+           window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+-          value = { sent: true, source: 'test-simulated-user' };
++          value = { attempted: true, source: 'test-simulated-user', binding: view };
+         } else if (request.command === 'queue-release') {
+           value = await window.webContents.executeJavaScript(`new Promise(resolve => {
+             const deadline = Date.now() + 2500;
+diff --git a/workbench/tests/p1_window_receipts.py b/workbench/tests/p1_window_receipts.py
+new file mode 100644
+index 00000000..962dea92
+--- /dev/null
++++ b/workbench/tests/p1_window_receipts.py
+@@ -0,0 +1,20 @@
++"""Correlate window action, PTY intent/write and submission retirement from stored facts."""
++def confirmed_escape(events, inputs, *, launch, thread, dispatch, window, after_seq):
++    actions = [v for v in inputs if v.get('form') == 'action' and v.get('channel') == 'terminal-window'
++               and v.get('content') == {'action': 'terminal-key', 'data': '\x1b'}
++               and v.get('target', {}).get('thread') == thread
++               and v.get('source_ref', {}).get('window_id') == window]
++    for action in actions:
++        source = action['source_ref']
++        matching = [e for e in events if e['seq'] > after_seq and e['launch'] == launch
++                    and e['data'].get('window_id') == window
++                    and e['data'].get('request_id') == source['command_id']
++                    and e['data'].get('sequence') == source['source_sequence']]
++        intent = [e for e in matching if e['type'] == 'terminal_input_write_intent' and e['data'].get('data') == '\x1b' and e['data'].get('encoding') == 'utf8' and e['data'].get('byte_length') == 1]
++        written = [e for e in matching if e['type'] == 'terminal_input_written' and e['data'].get('encoding') == 'utf8' and e['data'].get('byte_length') == 1]
++        admitted = [e for e in matching if e['type'] == 'window_request_admitted' and e['data'].get('command') == 'window_input']
++        retired = [e for e in events if e['seq'] > after_seq and e['launch'] == launch and e['type'] == 'claude_submission_retired'
++                   and e['data'].get('dispatch') == dispatch and e['data'].get('reason') == 'user-esc']
++        if len(admitted) == len(intent) == len(written) == len(retired) == 1 and admitted[0]['seq'] < intent[0]['seq'] < written[0]['seq'] < retired[0]['seq']:
++            return {'action': action, 'admitted': admitted[0], 'intent': intent[0], 'written': written[0], 'retired': retired[0]}
++    return None
+diff --git a/workbench/tests/regenerate_t078_p1.py b/workbench/tests/regenerate_t078_p1.py
+index 64ab8e3a..37753983 100644
+--- a/workbench/tests/regenerate_t078_p1.py
++++ b/workbench/tests/regenerate_t078_p1.py
+@@ -8,7 +8,8 @@ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--label
+ args=parser.parse_args()
+ if not args.label.startswith('p1-materials-'):parser.error('A new p1-materials-NN label is required')
+ suffix=args.label[len('p1-materials-'):]
+-if not (suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A numeric label with an optional b, c, d or e suffix is required')
++if not (suffix=='09a2' or suffix.isdigit() or (suffix[-1:] in ['b','c','d','e'] and suffix[:-1].isdigit())):parser.error('A numeric label with an optional b, c, d or e suffix, or 09a2, is required')
++two_turn=suffix in ['09','09a2']
+ out=BASE/args.label;out.mkdir()
+ root=Path(tempfile.mkdtemp(prefix='t078-2-p1-'+suffix+'-',dir='/tmp')).resolve()
+ record={'status':'INCOMPLETE','argv':__import__('sys').argv,'root':str(root),'real_cli_starts':0,'api_starts':0}
+@@ -22,15 +23,15 @@ try:
+               'launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),
+               'executable':'/Users/luckye/.local/share/claude/versions/2.1.296','role_file':str(root/'role.md'),
+               'code_revision':subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip(),
+-              'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0','turn_limit':2 if suffix=='09' else 1}
+-    requests=[{'nonce':(root/'nonce.txt').read_text(),'mode':'cancel' if suffix=='09' else 'echo','ack':'P1_ACK'}]
+-    if suffix=='09':
++              'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0','turn_limit':2 if two_turn else 1}
++    requests=[{'nonce':(root/'nonce.txt').read_text(),'mode':'cancel' if two_turn else 'echo','ack':'P1_ACK'}]
++    if two_turn:
+         (root/'nonce-2.txt').write_text('P2_NONCE_'+uuid.uuid4().hex,encoding='utf-8')
+         requests.append({'nonce':(root/'nonce-2.txt').read_text(),'mode':'echo','ack':'P2_ACK'})
+-    with (root/'scenario.json').open('x',encoding='utf-8') as f:json.dump({'schema':1,'name':'esc-two' if suffix=='09' else 'single','requests':requests},f,indent=2)
++    with (root/'scenario.json').open('x',encoding='utf-8') as f:json.dump({'schema':1,'name':'esc-two' if two_turn else 'single','requests':requests},f,indent=2)
+     with (root/'input.json').open('x',encoding='utf-8') as f:json.dump(manifest,f,ensure_ascii=False,indent=2)
+     subprocess.run(['node',SOURCE/'workbench/tests/prepare_t078_p1.ts',root/'input.json',root/'approval.json'],cwd=SOURCE,check=True)
+-    for name in ['approval.json','input.json','nonce.txt','role.md','scenario.json',*(['nonce-2.txt'] if suffix=='09' else [])]:shutil.copyfile(root/name,out/name)
++    for name in ['approval.json','input.json','nonce.txt','role.md','scenario.json',*(['nonce-2.txt'] if two_turn else [])]:shutil.copyfile(root/name,out/name)
+     shutil.copyfile(root/'claude/settings.json',out/'isolated-settings.json')
+     with (out/'readiness-template.json').open('x',encoding='utf-8') as f:
+         json.dump({'launch':manifest['launch'],'session':manifest['session'],'confirmed_by':None,'readiness':'unconfirmed','basis':None},f,indent=2)
+@@ -41,14 +42,15 @@ try:
+                            'GIT_COMMITTER_NAME':'T078 P1 fixture','GIT_COMMITTER_EMAIL':'fixture@example.invalid'},
+              'api_argv':['/usr/bin/python3','-B',str(SOURCE/'workbench/tests/t078_fake_messages.py'),str(root)],
+              'driver_argv':['/usr/bin/python3','-B',str(SOURCE/'workbench/tests/run_t078_p1.py'),'--materials',str(out),'--phase','launch'],
+-             'continue_driver_argv':['/usr/bin/python3','-B',str(SOURCE/'workbench/tests/run_t078_p1.py'),'--materials',str(out),'--phase','continue','--readiness-file',str(out/'readiness.json')],
++             'continue_driver_argv':['/usr/bin/python3','-B',str(SOURCE/'workbench/tests/run_t078_p1.py'),'--materials',str(out),'--phase','continue-esc' if two_turn else 'continue','--readiness-file',str(out/'readiness.json'),
++                                     *(['--actions-approval',str(out/'actions-approval.json')] if two_turn else [])],
+              'readiness':{'template':str(out/'readiness-template.json'),'approved_file':str(out/'readiness.json'),'confirmation_required':'executor observes this new instance and explicitly approves its first nonce'},
+              'endpoint_resolution':{'bind_host':'127.0.0.1','bind_port':0,'ready_file':str(root/'api-ready.json'),'runtime_input':str(root/'runtime-input.json'),
+                                     'runtime_manifest':str(out/'launch/runtime-manifest.json'),'changes_allowed':['api_url','launch.env.ANTHROPIC_BASE_URL']},
+              'isolated_settings':{'path':str(root/'claude/settings.json'),'content':{'theme':'dark'},'approval_file':str(out/'isolated-settings.json')},
+              'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':manifest['turn_limit'],'start_runs':0}
+     with (out/'control-plane.json').open('x',encoding='utf-8') as f:json.dump(control,f,ensure_ascii=False,indent=2)
+-    names=['test_t078_claude_signals.ts','test_t078_claude_epochs.ts','test_t078_controller_window.ts','test_t078_two_turn_profile.ts','test_t078_fake_two_requests.py','electron_client.py','electron_driver.mjs','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
++    names=['test_t078_window_binding.mjs','test_t078_window_receipts.py','p1_window_receipts.py','cleanup_t078_electron_slot.py','test_t078_claude_signals.ts','test_t078_claude_epochs.ts','test_t078_controller_window.ts','test_t078_two_turn_profile.ts','test_t078_fake_two_requests.py','electron_client.py','electron_driver.mjs','t078_runtime_scenario.py','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
+            'regenerate_t078_p1.py','run_t078_p1.py','t078_fake_messages.py','command_evidence.py','archive_t078_evidence.py']
+     extra=[]
+     for p in args.extra_source:
+diff --git a/workbench/tests/run_t078_p1.py b/workbench/tests/run_t078_p1.py
+index 2e11669e..d0b6a5ea 100644
+--- a/workbench/tests/run_t078_p1.py
++++ b/workbench/tests/run_t078_p1.py
+@@ -37,7 +37,9 @@ def wait(predicate,seconds=30):
+         if time.monotonic()>deadline:raise RuntimeError('Observed-state deadline; no retry')
+         time.sleep(.05)
+ def events():
+-    with sqlite3.connect((state/'state.sqlite3').as_uri()+'?mode=ro',uri=True) as db:return [{'type':r[0],'data':json.loads(r[1])} for r in db.execute('SELECT type,data FROM orchestration_events ORDER BY seq')]
++    with sqlite3.connect((state/'state.sqlite3').as_uri()+'?mode=ro',uri=True) as db:return [{'seq':r[0],'time':r[1],'launch':r[2],'type':r[3],'data':json.loads(r[4])} for r in db.execute('SELECT seq,time,launch,type,data FROM orchestration_events ORDER BY seq')]
++def user_inputs():
++    with sqlite3.connect((state/'state.sqlite3').as_uri()+'?mode=ro',uri=True) as db:return [json.loads(r[0]) for r in db.execute('SELECT data FROM user_inputs')]
+ def probe_process(pid):
+     p=run(['/bin/ps','-p',str(pid),'-o','pid=,lstart=,comm='],allowed=(0,1))
+     return identity_from_ps(pid,p.returncode,p.stdout,p.stderr)
+@@ -180,7 +182,18 @@ try:
+             second=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce-2.txt');result['second_dispatch']=second
+             queued=call('pane_status','--thread',thread);assert queued['queued']==[second['dispatch']['id']] and not (root/'api-request-2.json').exists()
+             assert not any(e['type']=='paste_intent' and e['data']['dispatch']==second['dispatch']['id'] for e in events());save()
+-            client.call('terminal-key',key='Escape')
++            binding = {'launch':approval['input']['launch'], 'thread':thread, 'dispatch':first['dispatch']['id']}
++            view = client.wait(lambda v:v.get('launch')==binding['launch'] and v.get('thread')==binding['thread'] and
++                               v.get('active_dispatch')==binding['dispatch'] and v.get('state')=='busy' and
++                               v.get('lifecycle')=='running' and v.get('input_enabled') is True)
++            result['window_before_esc']=view
++            prior=events();after_seq=max(e['seq'] for e in prior)
++            window_id=next(e['data']['window_id'] for e in reversed(prior) if e['type']=='window_opened' and e['launch']==binding['launch'])
++            result['key_attempt']=client.call('terminal-key',key='Escape',**binding);save()
++            from p1_window_receipts import confirmed_escape
++            def receipt():return confirmed_escape(events(),user_inputs(),**binding,window=window_id,after_seq=after_seq)
++            wait(lambda:receipt() is not None)
++            result['escape_delivery']=receipt();save()
+             wait(lambda:call('pane_status','--thread',thread)['active'] is None)
+             wait(lambda:(root/'api-cancelled-1.json').exists())
+             held=call('pane_status','--thread',thread);assert held['state']=='busy' and held['interrupted'] and held['queued']==[second['dispatch']['id']]
+diff --git a/workbench/tests/t078_runtime_scenario.py b/workbench/tests/t078_runtime_scenario.py
+index b0e7a309..242c5b72 100644
+--- a/workbench/tests/t078_runtime_scenario.py
++++ b/workbench/tests/t078_runtime_scenario.py
+@@ -115,7 +115,10 @@ def run_runtime(*, home, state, attempt, window, call, query, check, result, out
+            'Stop 后将指定收件箱处置按固定正文送达 PTY；注入不算用户输入',
+            {'entry':queued['entry'],'submission_events':submissions})
+ 
+-    window.call('terminal-key',key='Escape')
++    binding = {'launch':launch['id'], 'thread':thread, 'dispatch':queued['delivery']['message']}
++    window.wait(lambda v:v.get('launch')==binding['launch'] and v.get('thread')==thread and
++                v.get('active_dispatch')==binding['dispatch'] and v.get('state')=='busy' and v.get('input_enabled') is True)
++    window.call('terminal-key',key='Escape',**binding)
+     wait_for(lambda:len(bytes_now())>=len(after_wake)+1,'window Esc')
+     seed('issue','worker:'+thread,'runtime-issue-2')
+     queued2 = call('inbox_send','--to','worker:'+thread,'--kind','disposition','--reply-to','runtime-issue-2',
+diff --git a/workbench/tests/test_t078_window_binding.mjs b/workbench/tests/test_t078_window_binding.mjs
+new file mode 100644
+index 00000000..80fdd12f
+--- /dev/null
++++ b/workbench/tests/test_t078_window_binding.mjs
+@@ -0,0 +1,42 @@
++import assert from 'node:assert/strict';
++import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
++import { join } from 'node:path';
++const out = process.argv[2]; mkdirSync(out);
++const base = 'evidence/2026-10-11-batch13/T-078/p1-materials-09/continue-esc/';
++const snapshots = readFileSync(base + 'electron/snapshots.ndjson', 'utf8').trim().split('\n').map(JSON.parse);
++const actual = snapshots.find(v => v.pane.state === 'busy' && v.pane.active);
++const code = readFileSync(new URL('../app/main.ts', import.meta.url), 'utf8');
++const start = code.indexOf("    const writable =");
++const end = code.indexOf('\n  });', start);
++const evaluate = new Function('result', 'identity', 'closing', 'return (async()=>{' + code.slice(start, end) + '})()');
++const driver = readFileSync(new URL('./electron_driver.mjs', import.meta.url), 'utf8');
++const marker = "        } else if (request.command === 'terminal-key') {";
++const keyStart = driver.indexOf(marker) + marker.length;
++const keyEnd = driver.indexOf("        } else if (request.command === 'queue-release')", keyStart);
++const simulate = new Function('request', 'window', 'inspect', 'values', 'let value; return (async()=>{' + driver.slice(keyStart, keyEnd) + ';return value;})()');
++const request = {key:'Escape', launch:actual.launch.id, thread:actual.launch.thread, dispatch:actual.pane.active.dispatch};
++const good = {launch:request.launch, thread:request.thread, active_dispatch:request.dispatch, state:'busy', lifecycle:'running', input_enabled:true};
++const checks = [];
++async function test(name, f) {try {await f(); checks.push({name,status:'PASS'});} catch(e) {checks.push({name,status:'INCOMPLETE',error:String(e)});}}
++await test('nullable_controller_window_accepts_input', async()=>assert.equal((await evaluate(actual, {id:'window'}, false)).input_enabled, true));
++await test('stale_worker_remains_readonly', async()=>{
++  const v = structuredClone(actual); v.launch.role='worker'; v.launch.attempt='old'; v.task.current_attempt={attempt_id:'new'};
++  assert.equal((await evaluate(v, {id:'window'}, false)).input_enabled, false);
++});
++await test('closing_window_remains_readonly', async()=>assert.equal((await evaluate(actual, {id:'window'}, true)).input_enabled, false));
++for (const [name, view] of [['unconnected_key_is_not_sent', {state:'unknown'}], ['wrong_pane_is_not_sent', {...good,launch:'other'}],
++  ['wrong_active_dispatch_is_not_sent', {...good,active_dispatch:'other'}], ['disabled_input_is_not_sent', {...good,input_enabled:false}]]) {
++  await test(name, async()=>{
++    const writes=[]; const window={focus(){writes.push('focus');},webContents:{executeJavaScript:async()=>{},sendInputEvent:e=>writes.push(e)}};
++    await assert.rejects(()=>simulate(request,window,async()=>view,{launch:request.launch}),/Window is not bound to the requested busy dispatch/);
++    assert.deepEqual(writes,[]);
++  });
++}
++await test('bound_key_reports_attempt_not_delivery', async()=>{
++  const writes=[]; const window={focus(){},webContents:{executeJavaScript:async()=>{},sendInputEvent:e=>writes.push(e)}};
++  const v=await simulate(request,window,async()=>good,{launch:request.launch});
++  assert.equal(v.attempted,true); assert.equal(v.sent,undefined); assert.equal(writes.length,2);
++});
++const r={status:checks.every(c=>c.status==='PASS')?'PASS':'INCOMPLETE',checks,argv:process.argv,
++  scope:'Exact snapshot predicate and Electron key branch; archived 09A identity and a simulated renderer, no UI/socket/model starts'};
++writeFileSync(join(out,'results.json'),JSON.stringify(r,null,2)); console.log(JSON.stringify(r)); process.exitCode=r.status==='PASS'?0:1;
+diff --git a/workbench/tests/test_t078_window_receipts.py b/workbench/tests/test_t078_window_receipts.py
+new file mode 100644
+index 00000000..12e3b04d
+--- /dev/null
++++ b/workbench/tests/test_t078_window_receipts.py
+@@ -0,0 +1,34 @@
++"""Reject an attempted key or an uncorrelated/incomplete PTY receipt as delivery."""
++import argparse, copy, json
++from pathlib import Path
++from p1_window_receipts import confirmed_escape
++p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--mutant-no-write',action='store_true');a=p.parse_args()
++binding=dict(launch='launch',thread='thread',dispatch='dispatch',window='window',after_seq=10)
++source=dict(command_id='request',source_sequence=2,window_id='window')
++action=dict(form='action',channel='terminal-window',content={'action':'terminal-key','data':'\x1b'},target={'thread':'thread'},source_ref=source)
++receipt=dict(request_id='request',sequence=2,window_id='window',encoding='utf8',byte_length=1)
++events=[dict(seq=11,launch='launch',type='window_request_admitted',data={**receipt,'command':'window_input'}),
++        dict(seq=12,launch='launch',type='terminal_input_write_intent',data={**receipt,'data':'\x1b'}),
++        dict(seq=13,launch='launch',type='terminal_input_written',data=receipt),
++        dict(seq=14,launch='launch',type='claude_submission_retired',data={'dispatch':'dispatch','reason':'user-esc'})]
++if a.mutant_no_write:
++    # Execute a known-bad verifier that invents the missing write receipt.
++    code=Path(__file__).with_name('p1_window_receipts.py').read_text(encoding='utf-8')
++    marker="        retired = [e for e in events"
++    code=code.replace(marker,"        if not written and intent: written = [{**intent[0], 'seq': intent[0]['seq'] + 0.5}]\n"+marker)
++    scope={};exec(compile(code,'mutant-no-write','exec'),scope);confirmed_escape=scope['confirmed_escape']
++checks=[]
++def check(name,es,ins,expected):
++    v=confirmed_escape(es,ins,**binding);checks.append({'name':name,'status':'PASS' if bool(v)==expected else 'INCOMPLETE','delivery_observed':bool(v)})
++check('attempt_without_backend_facts_is_not_delivery',[],[],False)
++check('complete_matching_receipt_is_delivery',events,[action],True)
++for kind in ['window_request_admitted','terminal_input_write_intent','terminal_input_written','claude_submission_retired']:
++    check('missing_'+kind,[e for e in events if e['type']!=kind],[action],False)
++for field,value in [('request_id','other'),('window_id','other'),('sequence',3)]:
++    altered=copy.deepcopy(events);altered[2]['data'][field]=value;check('wrong_'+field,altered,[action],False)
++check('missing_user_action',events,[],False)
++altered=copy.deepcopy(action);altered['target']['thread']='other';check('wrong_action_thread',events,[altered],False)
++altered=copy.deepcopy(events);altered[3]['data']['dispatch']='other';check('wrong_retired_dispatch',altered,[action],False)
++r={'status':'PASS' if all(v['status']=='PASS' for v in checks) else 'INCOMPLETE','checks':checks,'argv':__import__('sys').argv,'scope':'Synthetic persisted facts only; no daemon, PTY or UI starts','mutant_no_write':a.mutant_no_write}
++with a.output.open('x',encoding='utf-8') as f:json.dump(r,f,indent=2)
++print(json.dumps(r));raise SystemExit(0 if r['status']=='PASS' else 1)

@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "kind": "ARCHIVE_POINTER_CONTRACT",
+  "state": "TEMPLATE_NOT_A_RECEIPT",
+  "logical_scene_paths": {
+    "A16-09B": "/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a16-raw-<new-run-label>/scene.tar.gz",
+    "09C": "/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-raw-<new-run-label>/scene.tar.gz"
+  },
+  "sidecar_name": "<logical-original-name>.archive.json",
+  "required_generated_fields": [
+    "scene",
+    "source_revision",
+    "task_attempt_session_fence_spec_rev",
+    "role_launch_native_session",
+    "source_relative_path",
+    "archive_absolute_path",
+    "archive_member",
+    "member_type",
+    "original_bytes",
+    "archived_bytes",
+    "encoding_or_compression",
+    "redacted",
+    "redaction_map_member_if_changed",
+    "record_sequence_or_hook_trace_id",
+    "capture_time",
+    "byte_readback",
+    "inventory_membership"
+  ],
+  "must_retain": [
+    "every POST including rejected/failed/retried, metadata plus body",
+    "every response metadata plus raw SSE/error body",
+    "every hook trace started/stdin/stdout/stderr/finished, including failures/incomplete traces",
+    "complete permission output/capture, signatures and actual window writes",
+    "pre-stop immutable selected event/row exports",
+    "target baseline/final bytes and actual identity receipts"
+  ],
+  "forbidden_retention": [
+    "Authorization/Cookie/API credentials",
+    "operator/worker/window capability values",
+    "user authentication files/settings/history",
+    "whole SQLite/WAL/SHM"
+  ],
+  "post_stop_validation": "filesystem inventory and archive bytes only; never SQLite; any new/changed raw record blocks root deletion",
+  "byte_readback_policy": "no PASS field may be emitted before actual member type/target/content-byte equality is read back",
+  "missing_or_new_record_policy": "archive/cleanup BLOCKED, retain root and diagnostics; do not synthesize from summary"
+}

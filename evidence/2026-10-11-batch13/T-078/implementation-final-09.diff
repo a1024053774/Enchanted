@@ -1,0 +1,470 @@
+diff --git a/workbench/README.md b/workbench/README.md
+index 4d889607..cc3ec026 100644
+--- a/workbench/README.md
++++ b/workbench/README.md
+@@ -30,7 +30,11 @@ P1 API 在启动时绑定 loopback 的端口 0，由操作系统分配端口并
+ launch 仅记录进程启动，首屏另经 screen 阶段读回，不把即时输出当作稳定首屏。
+ Bearer 已取得标题侧请求；08b 的 Enter 因目标项字段误判被拒，已用实际批准文件复现并修复；
+ 08d 已在真实 CLI 确认主题与固定 Security notes，停在默认 No 的信任屏后清理；
+-实际信任选择、单回合主请求、hooks 与完成仍待 08e 验证。
++08e 已确认信任，并取得一回合主请求、实际 UPS/Stop exit 0 和 busy→idle（变基前可行性）。
++09A 用两条 nonce：实际 hook 的 prompt_id 绑定回合，Esc 写出后释放 active、保留队列，
++用户在窗口放行后才提交第二条；旧 Stop 不结束新回合。nullable 主控窗口按任务版本与
++实际 CLI 身份核对，worker 仍核对 attempt。CLI/API/UI 实测仍待逐次审批。
++09B/09C 的实际双主控收件箱与 stop/ack、120 秒无 ack 只中断仍未启用／未完成，范围保留。
+ 旧 T-078-1 的通过结果不替它背书。
+ 
+ 用 Node 26.5 及其原生 TypeScript 类型剥离直接运行，无 Bun、打包或编译步骤：
+diff --git a/workbench/src/claudeLaunch.ts b/workbench/src/claudeLaunch.ts
+index f7c25643..c4d79426 100644
+--- a/workbench/src/claudeLaunch.ts
++++ b/workbench/src/claudeLaunch.ts
+@@ -8,6 +8,7 @@ export interface ClaudeLaunchInput {
+   schema: 1; root: string; state: string; task: string; preset: "ideation" | "executor";
+   launch: string; session: string; thread: string; executable: string;
+   role_file: string; code_revision: string; source_snapshot: string; api_url: string;
++  turn_limit?: 1 | 2;
+ }
+ const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
+ const requireValue = (v: unknown, code: string) => { if (!v) throw new Refusal(code); };
+@@ -16,6 +17,8 @@ const requireValue = (v: unknown, code: string) => { if (!v) throw new Refusal(c
+ // launch and multi-turn completion await P2/P3 protocol evidence and approval.
+ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
+   requireValue(input.schema === 1 && ["ideation", "executor"].includes(input.preset) && input.task === task.task_id, "invalid_controller_launch");
++  const turnLimit=input.turn_limit??1;
++  requireValue(turnLimit===1 || turnLimit===2,"invalid_controller_turn_limit");
+   for (const field of ["launch", "session", "thread"] as const) requireValue(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(input[field]), "invalid_controller_identity");
+   const root = realpathSync(input.root), state = realpathSync(input.state), repo = realpathSync(task.repo);
+   requireValue(root.startsWith("/private/tmp/t078-2-") && input.root === root && state === join(root, "state") && repo === join(root, "repo"), "isolated_controller_root_required");
+@@ -47,5 +50,5 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput) {
+     shell: "/bin/zsh", shell_argv: ["-f", "-i", "-c", argv.map(quote).join(" ") + "; exec /bin/zsh -f -i"],
+     role_card: input.role_file, role_card_revision: "T-078-2/P1", role_text: roleText,
+     code_revision: input.code_revision, source_snapshot: input.source_snapshot, base_commit: task.base_commit, model_requested: "claude-haiku-5-5", effort_requested: "low",
+-    authentication: "isolated fake API only", turn_limit: 1, hook_authorization: "controller-decision-04/P1", execution_state: "started" };
++    authentication: "isolated fake API only", turn_limit: turnLimit, hook_authorization: "controller-decision-04/P1", execution_state: "started" };
+ }
+diff --git a/workbench/src/daemon.ts b/workbench/src/daemon.ts
+index 0c6ad2fd..40615570 100644
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -114,7 +114,11 @@ export async function serve(
+         if (windows.get(window.id) !== window) throw new Refusal("invalid_window_identity");
+         const status = await gates.call({ command: "status", task: record.task });
+         const attempt = status.task?.current_attempt;
+-        if (!attempt || attempt.attempt_id !== record.attempt || attempt.session_id !== record.session ||
++        if(record.role==="controller" && record.attempt===null){
++          const pane=panes.get(record.thread),info=await panes.processInfo(record.thread);
++          if(status.task?.task_id!==record.task || status.task?.spec_rev!==record.spec_rev || pane.record.id!==record.id ||
++              pane.native!==record.session || pane.failed || pane.stopped || pane.archived || !info.leader || info.failed)throw new Refusal("stale_controller");
++        }else if (!attempt || attempt.attempt_id !== record.attempt || attempt.session_id !== record.session ||
+             attempt.fence !== record.fence || status.task?.spec_rev !== record.spec_rev || attempt.reclaimed) throw new Refusal("stale_attempt");
+         if (gates.userInputObserverStatus()?.state === "failed") throw new Refusal("user_input_observer_failed");
+       };
+diff --git a/workbench/src/panes.ts b/workbench/src/panes.ts
+index 67bbc30c..84beb66e 100644
+--- a/workbench/src/panes.ts
++++ b/workbench/src/panes.ts
+@@ -53,7 +53,8 @@ type Pane = {
+   writes: Promise<void>; pendingInputs: number; userDraft: boolean; interrupted: boolean; sending: string | null;
+   offsets: Map<string, number>; model: string; effort: string;
+   terminalBuffer: string;
+-  claudePrompt?: boolean;
++  claudePromptId?: string | null;
++  claudePromptIds?: Set<string>;
+ };
+ 
+ export class Panes implements GateRuntime {
+@@ -83,7 +84,7 @@ export class Panes implements GateRuntime {
+       archived: false, failed: null, leader: null, native: record.session, turn: null, active: null,
+       queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
+       userDraft: false, interrupted: false, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
+-      terminalBuffer: "", claudePrompt: false };
++      terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
+     this.panes.set(record.thread, pane);
+     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
+     terminal.onData((data: string) => {
+@@ -422,6 +423,7 @@ export class Panes implements GateRuntime {
+       try {
+         pane.pty.write(binary ? bytes : data);
+         this.store.event("terminal_input_written", { ...receipt, encoding, byte_length: bytes.length }, pane.record);
++        if(!binary && data==="\x1b")this.retireClaudeSubmission(pane,"user-esc");
+       } catch (error) {
+         this.recordFailure(pane, "terminal_input_write_unknown", error, receipt);
+         throw error;
+@@ -504,7 +506,7 @@ export class Panes implements GateRuntime {
+       await assertCurrent();
+       check(!pane.failed && !pane.stopped && !pane.archived, "pane_unavailable");
+       this.store.event("user_queue_release", { reason, previous_state: pane.state, previous_submission: pane.active?.id ?? null }, pane.record);
+-      pane.active = null; pane.userDraft = false; pane.interrupted = false; pane.state = "idle";
++      pane.active = null; pane.claudePromptId = null; pane.userDraft = false; pane.interrupted = false; pane.state = "idle";
+     });
+     await this.drain(pane);
+     return this.status(thread);
+@@ -522,9 +524,15 @@ export class Panes implements GateRuntime {
+       try {
+         pane.pty.write("\x1b");
+         this.store.event("pane_interrupt_written", { source: "gate", leader: info.leader }, pane.record);
++        this.retireClaudeSubmission(pane,"gate-interrupt");
+       } catch (error) { this.recordFailure(pane, "pane_interrupt_unknown", error); throw error; }
+     });
+   };
++  retireClaudeSubmission(pane: Pane, reason: string) {
++    if(pane.record.cli!=="Claude Code" || !pane.active)return;
++    this.store.event("claude_submission_retired",{reason,submission:pane.active.id,dispatch:pane.active.dispatch,prompt_id:pane.claudePromptId},pane.record);
++    pane.active=null;pane.claudePromptId=null;
++  }
+   async release(thread: string, reason: string) {
+     const pane = this.get(thread);
+     check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
+@@ -615,27 +623,29 @@ export class Panes implements GateRuntime {
+     const value = JSON.parse(raw); this.scan(pane);
+     check(value.session_id === pane.native, "hook_native_session_mismatch");
+     if (pane.record.cli === "Claude Code") {
+-      // P1's configured single submission avoids claiming cross-turn Stop
+-      // correlation before the actual CLI payload has been observed (T-078-2).
+-      check(pane.record.turn_limit === 1, "claude_turn_correlation_unverified");
++      // 08e recorded prompt_id on UPS and Stop; it identifies the actual CLI prompt.
++      check([1,2].includes(pane.record.turn_limit), "claude_turn_correlation_unverified");
+       if (value.hook_event_name === "PermissionRequest") {
+         this.store.event("permission_wait", value, pane.record); pane.state = "busy"; return;
+       }
+       if (value.hook_event_name === "UserPromptSubmit") {
+         const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
+-        check(pane.state === "busy" && item && value.prompt === item.text && !pane.claudePrompt, "claude_submission_unmatched");
+-        pane.claudePrompt = true; this.store.event("turn_start_signal", value, pane.record); return;
++        check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
++        check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
++        check(pane.state === "busy" && item && value.prompt === item.text && !pane.claudePromptId, "claude_submission_unmatched");
++        pane.claudePromptIds.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record); return;
+       }
+       check(value.hook_event_name === "Stop", "unsupported_hook");
+       this.store.event("turn_end_signal", value, pane.record);
+       const active = pane.active;
+-      const matched = Boolean(active && pane.claudePrompt && !pane.failed && !pane.stopInProgress &&
++      const matched = Boolean(active && pane.claudePromptId && value.prompt_id===pane.claudePromptId && !pane.failed && !pane.stopInProgress &&
+         value.stop_hook_active === false && Date.parse(received_at) >= Date.parse(active.at));
+       if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
+       pane.stopInProgress = true;
+       try {
+         if (transfer) await transfer(pane, value, true);
+-        pane.active = null; pane.claudePrompt = false; pane.state = pane.interrupted ? "busy" : "idle";
++        if(pane.active!==active || pane.claudePromptId!==value.prompt_id){this.store.event("stop_not_matched",{...value,stage:"after_transfer"},pane.record);return;}
++        pane.active = null; pane.claudePromptId = null; pane.state = pane.interrupted ? "busy" : "idle";
+         this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
+       } catch (error) {
+         this.recordFailure(pane, "stop_transfer_failed", error); throw error;
+diff --git a/workbench/tests/regenerate_t078_p1.py b/workbench/tests/regenerate_t078_p1.py
+index 6c71a6c9..64ab8e3a 100644
+--- a/workbench/tests/regenerate_t078_p1.py
++++ b/workbench/tests/regenerate_t078_p1.py
+@@ -22,10 +22,15 @@ try:
+               'launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),
+               'executable':'/Users/luckye/.local/share/claude/versions/2.1.296','role_file':str(root/'role.md'),
+               'code_revision':subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip(),
+-              'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0'}
++              'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0','turn_limit':2 if suffix=='09' else 1}
++    requests=[{'nonce':(root/'nonce.txt').read_text(),'mode':'cancel' if suffix=='09' else 'echo','ack':'P1_ACK'}]
++    if suffix=='09':
++        (root/'nonce-2.txt').write_text('P2_NONCE_'+uuid.uuid4().hex,encoding='utf-8')
++        requests.append({'nonce':(root/'nonce-2.txt').read_text(),'mode':'echo','ack':'P2_ACK'})
++    with (root/'scenario.json').open('x',encoding='utf-8') as f:json.dump({'schema':1,'name':'esc-two' if suffix=='09' else 'single','requests':requests},f,indent=2)
+     with (root/'input.json').open('x',encoding='utf-8') as f:json.dump(manifest,f,ensure_ascii=False,indent=2)
+     subprocess.run(['node',SOURCE/'workbench/tests/prepare_t078_p1.ts',root/'input.json',root/'approval.json'],cwd=SOURCE,check=True)
+-    for name in ['approval.json','input.json','nonce.txt','role.md']:shutil.copyfile(root/name,out/name)
++    for name in ['approval.json','input.json','nonce.txt','role.md','scenario.json',*(['nonce-2.txt'] if suffix=='09' else [])]:shutil.copyfile(root/name,out/name)
+     shutil.copyfile(root/'claude/settings.json',out/'isolated-settings.json')
+     with (out/'readiness-template.json').open('x',encoding='utf-8') as f:
+         json.dump({'launch':manifest['launch'],'session':manifest['session'],'confirmed_by':None,'readiness':'unconfirmed','basis':None},f,indent=2)
+@@ -41,14 +46,14 @@ try:
+              'endpoint_resolution':{'bind_host':'127.0.0.1','bind_port':0,'ready_file':str(root/'api-ready.json'),'runtime_input':str(root/'runtime-input.json'),
+                                     'runtime_manifest':str(out/'launch/runtime-manifest.json'),'changes_allowed':['api_url','launch.env.ANTHROPIC_BASE_URL']},
+              'isolated_settings':{'path':str(root/'claude/settings.json'),'content':{'theme':'dark'},'approval_file':str(out/'isolated-settings.json')},
+-             'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':1,'start_runs':0}
++             'launch_input_budget':0,'real_vendor_model_budget':0,'messages_request_budget':manifest['turn_limit'],'start_runs':0}
+     with (out/'control-plane.json').open('x',encoding='utf-8') as f:json.dump(control,f,ensure_ascii=False,indent=2)
+-    names=['test_t078_claude_signals.ts','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
++    names=['test_t078_claude_signals.ts','test_t078_claude_epochs.ts','test_t078_controller_window.ts','test_t078_two_turn_profile.ts','test_t078_fake_two_requests.py','electron_client.py','electron_driver.mjs','test_t078_p1_port_guard.ts','test_t078_p1_endpoint.py','test_t078_role_prompt.ts','test_t078_p1_bootstrap.ts','test_t078_p1_auth.ts','test_t078_p1_bearer.py','test_t078_p1_cleanup.py','test_t078_profile08.ts','test_t078_hook_trace.py','test_t078_screen_key.ts','test_t078_theme_confirmation.ts','test_t078_notice_key.ts','test_t078_trust_selection.ts','p1_processes.py','p1_endpoint.py','prepare_t078_p1.ts',
+            'regenerate_t078_p1.py','run_t078_p1.py','t078_fake_messages.py','command_evidence.py','archive_t078_evidence.py']
+     extra=[]
+     for p in args.extra_source:
+         resolved=p.resolve();resolved.relative_to(SOURCE);extra.append(resolved)
+-    files=sorted([*SOURCE.joinpath('workbench/src').rglob('*.ts'),*[SOURCE/'workbench/tests'/n for n in names],
++    files=sorted([*SOURCE.joinpath('workbench/src').rglob('*.ts'),*[p for p in SOURCE.joinpath('workbench/app').rglob('*') if p.is_file()],*[SOURCE/'workbench/tests'/n for n in names],
+                   SOURCE/'workbench/README.md',SOURCE/'workbench/package.json',SOURCE/'workbench/package-lock.json',BASE/'outside-sandbox.sh',*extra])
+     with tarfile.open(out/'sources.tar.gz','x:gz') as arc:
+         for p in files:arc.add(p,arcname=str(p.relative_to(SOURCE)))
+diff --git a/workbench/tests/run_t078_p1.py b/workbench/tests/run_t078_p1.py
+index 7fd81a23..2e11669e 100644
+--- a/workbench/tests/run_t078_p1.py
++++ b/workbench/tests/run_t078_p1.py
+@@ -5,8 +5,9 @@ from command_evidence import CommandLog,command_json
+ from p1_endpoint import resolved_input
+ from p1_processes import identity_from_ps,cli_exit_verdict
+ SOURCE=Path('/Users/luckye/Documents/Code/a2a-wt-t078')
+-parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','cleanup'],required=True)
++parser=argparse.ArgumentParser();parser.add_argument('--materials',type=Path,required=True);parser.add_argument('--phase',choices=['launch','screen','key','continue','continue-esc','cleanup'],required=True)
+ parser.add_argument('--label');parser.add_argument('--source-materials',type=Path);parser.add_argument('--readiness-file',type=Path)
++parser.add_argument('--actions-approval',type=Path)
+ parser.add_argument('--key',choices=['ArrowUp','ArrowDown','Enter']);parser.add_argument('--purpose',choices=['onboarding-theme','onboarding-notice','workspace-trust']);parser.add_argument('--screen-id');parser.add_argument('--approval-file',type=Path);parser.add_argument('--screen-file',type=Path)
+ args=parser.parse_args();materials=args.materials.resolve();approval=json.loads((materials/'approval.json').read_text());root=Path(approval['input']['root']);state=root/'state'
+ label=args.label or args.phase
+@@ -21,8 +22,8 @@ cli=[node,SOURCE/'workbench/src/gates/cli.ts','--state',state]
+ result={'status':'INCOMPLETE','phase':args.phase,'label':label,'source_materials':str(source_materials),
+         'real_vendor_model_turns':0,'authentication':'isolated fake API','input':approval['input']}
+ def save(): (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
+-def run(argv,child_env=env,allowed=(0,)):
+-    p=log.run(argv,cwd=SOURCE,env=child_env,timeout=15)
++def run(argv,child_env=env,allowed=(0,),timeout=15):
++    p=log.run(argv,cwd=SOURCE,env=child_env,timeout=timeout)
+     if p.returncode not in allowed:raise RuntimeError({'unexpected_exit':p.evidence})
+     return p
+ def call(command,*argv):
+@@ -62,9 +63,20 @@ def raw_hook_receipts():
+             payload=json.loads((directory/'stdin.bin').read_bytes())
+             records.append({'event':payload.get('hook_event_name'),'exit_code':done['exit_code'],'launch':done['launch'],'directory':str(directory)})
+     return records
++def verify_readiness():
++    owner=json.loads((root/'api-owner.json').read_text())
++    bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),owner['pid'])
++    if json.loads((root/'runtime-input.json').read_text())!=bound:raise RuntimeError('resolved_api_manifest_changed')
++    if json.loads((materials/'launch/runtime-manifest.json').read_text())['input']!=bound:raise RuntimeError('runtime_launch_manifest_changed')
++    if not args.readiness_file:raise RuntimeError('Explicit startup-readiness file required')
++    ready=json.loads(args.readiness_file.read_text(encoding='utf-8'))
++    if ready.get('launch')!=approval['input']['launch'] or ready.get('session')!=approval['input']['session'] or ready.get('confirmed_by')!='executor' or ready.get('readiness')!='confirmed' or not ready.get('basis'):raise RuntimeError('Explicit startup-readiness approval required')
++    result['readiness_file']=str(args.readiness_file.resolve());result['readiness_confirmation']=ready
++    result['process_confirmation']=same_cli();save()
++    return approval['input']['thread']
+ try:
+     if not os.path.ismount('/Volumes/WD-Elements'):raise RuntimeError('External volume missing')
+-    for name in ['input.json','role.md','nonce.txt']:
++    for name in ['input.json','role.md','nonce.txt','scenario.json',*(['nonce-2.txt'] if approval['input'].get('turn_limit')==2 else [])]:
+         if (root/name).read_bytes()!=(materials/name).read_bytes():raise RuntimeError('Approved input changed: '+name)
+     frozen=json.loads((source_materials/'source-files.json').read_text())
+     with tarfile.open(source_materials/'sources.tar.gz') as archive:
+@@ -134,23 +146,13 @@ try:
+         result['scope']='One explicitly approved screen key sent by authenticated executor; inspect again. No automatic Enter or continue.'
+         # Screen transitions and trust completion are human observations.
+     elif args.phase=='continue':
+-        owner=json.loads((root/'api-owner.json').read_text())
+-        bound=resolved_input(approval['input'],json.loads((root/'api-ready.json').read_text()),owner['pid'])
+-        if json.loads((root/'runtime-input.json').read_text())!=bound:raise RuntimeError('resolved_api_manifest_changed')
+-        runtime=json.loads((materials/'launch/runtime-manifest.json').read_text())
+-        if runtime['input']!=bound:raise RuntimeError('runtime_launch_manifest_changed')
+-        if not args.readiness_file:raise RuntimeError('Explicit startup-readiness file required')
+-        ready=json.loads(args.readiness_file.read_text(encoding='utf-8'))
+-        if ready.get('launch')!=approval['input']['launch'] or ready.get('session')!=approval['input']['session'] or ready.get('confirmed_by')!='executor' or ready.get('readiness')!='confirmed' or not ready.get('basis'):
+-            raise RuntimeError('Explicit startup-readiness approval required; never use task input as a trust answer')
+-        result['readiness_file']=str(args.readiness_file.resolve());result['readiness_confirmation']=ready;save()
+-        result['process_confirmation']=same_cli();save()
+-        thread=approval['input']['thread'];call('pane_release','--thread',thread,'--reason','P1 explicit initial readiness approved by executor')
++        if approval['input']['turn_limit']!=1:raise RuntimeError('Two-turn scenario requires the explicit esc/release driver, not single-round continue')
++        thread=verify_readiness();call('pane_release','--thread',thread,'--reason','P1 explicit initial readiness approved by executor')
+         result['dispatch']=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce.txt')
+-        wait(lambda:(root/'api-request.json').exists())
++        wait(lambda:(root/'api-request-1.json').exists())
+         result['before_completion']=call('pane_status','--thread',thread)
+         if result['before_completion']['state']!='busy' or not any(e['type']=='turn_start_signal' for e in events()):raise RuntimeError('CR/hook did not establish the registered active submission')
+-        (root/'api-release').write_text('release the one scripted response')
++        (root/'api-release-1').write_text('release the one scripted response')
+         wait(lambda:call('pane_status','--thread',thread)['state']=='idle')
+         result['events']=events();result['after_completion']=call('pane_status','--thread',thread)
+         wait(lambda:('P1_ACK '+(root/'nonce.txt').read_text()).encode('utf-8') in base64.b64decode(call('pane_output','--launch',approval['input']['launch'],'--offset','0')['data_base64']))
+@@ -158,6 +160,51 @@ try:
+         wait(lambda:all(any(h['event']==event and h['exit_code']==0 and h['launch']==approval['input']['launch'] for h in raw_hook_receipts()) for event in ['UserPromptSubmit','Stop']))
+         result['hook_receipts']=raw_hook_receipts()
+         result['status']='PASS';result['scope']='One real Claude CLI using scripted SSE; no real model or multi-turn claim.'
++    elif args.phase=='continue-esc':
++        if approval['input']['turn_limit']!=2 or not args.actions_approval:raise RuntimeError('Explicit two-turn actions approval required')
++        consent=json.loads(args.actions_approval.read_text(encoding='utf-8'))
++        if any(consent.get(k)!=approval['input'][k] for k in ['launch','session']) or consent.get('actions')!=['Escape','queue-release'] or consent.get('approved_by')!='executor' or not consent.get('approval_ref') or not consent.get('basis'):raise RuntimeError('Actions approval binding mismatch')
++        result['actions_approval']=consent;thread=verify_readiness()
++        from electron_client import ElectronClient
++        slot='t078-09-'+approval['input']['launch']
++        built=run([node,SOURCE/'workbench/app/build.mjs','--slot',slot],timeout=90);build=Path(command_json(built)['out'])
++        result['electron_build']=str(build);save()
++        client=ElectronClient(SOURCE,build,state,approval['input']['task'],root/'electron-home',out/'electron',env,launch=approval['input']['launch'])
++        try:
++            client.call('inspect')
++            call('pane_release','--thread',thread,'--reason','09A explicit initial readiness approved by executor')
++            first=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce.txt');result['first_dispatch']=first;save()
++            wait(lambda:(root/'api-request-1.json').exists() and any(e['type']=='turn_start_signal' for e in events()))
++            before=call('pane_status','--thread',thread);assert before['state']=='busy' and before['active']['dispatch']==first['dispatch']['id']
++            prompt1=next(e['data']['prompt_id'] for e in events() if e['type']=='turn_start_signal');result['before_esc']=before;result['prompt1']=prompt1
++            second=call('pane_dispatch','--thread',thread,'--body-file',root/'nonce-2.txt');result['second_dispatch']=second
++            queued=call('pane_status','--thread',thread);assert queued['queued']==[second['dispatch']['id']] and not (root/'api-request-2.json').exists()
++            assert not any(e['type']=='paste_intent' and e['data']['dispatch']==second['dispatch']['id'] for e in events());save()
++            client.call('terminal-key',key='Escape')
++            wait(lambda:call('pane_status','--thread',thread)['active'] is None)
++            wait(lambda:(root/'api-cancelled-1.json').exists())
++            held=call('pane_status','--thread',thread);assert held['state']=='busy' and held['interrupted'] and held['queued']==[second['dispatch']['id']]
++            assert not (root/'api-request-2.json').exists() and not any(e['type']=='turn_end_signal' for e in events())
++            result['after_esc']=held;result['cancelled_request']=json.loads((root/'api-cancelled-1.json').read_bytes());save()
++            client.call('capture',name='before-user-release')
++            released=client.call('queue-release');assert released['clicked'];result['user_release']=released;save()
++            wait(lambda:(root/'api-request-2.json').exists() and len([e for e in events() if e['type']=='turn_start_signal'])==2)
++            prompt2=[e['data']['prompt_id'] for e in events() if e['type']=='turn_start_signal'][-1];assert prompt2 and prompt2!=prompt1
++            active2=call('pane_status','--thread',thread);assert active2['state']=='busy' and active2['active']['dispatch']==second['dispatch']['id']
++            result['before_second_completion']=active2;result['prompt2']=prompt2;save()
++            (root/'api-release-2').write_text('release second approved scripted response')
++            wait(lambda:call('pane_status','--thread',thread)['state']=='idle')
++            receipts=raw_hook_receipts()
++            wait(lambda:len(raw_hook_receipts())==3 and all(h['exit_code']==0 for h in raw_hook_receipts()))
++            final=events();assert len([e for e in final if e['type']=='pane_idle'])==1
++            assert [e['data']['prompt_id'] for e in final if e['type']=='turn_end_signal']==[prompt2]
++            assert len([e for e in final if e['type']=='user_queue_release'])==1
++            assert len([e for e in final if e['type']=='turn_submitted' and e['data']['dispatch']==second['dispatch']['id']])==1
++            result['events']=final;result['hook_receipts']=raw_hook_receipts();result['after_completion']=call('pane_status','--thread',thread)
++            client.call('capture',name='second-completion');result['pty_output']=snapshot()
++            assert ('P2_ACK '+(root/'nonce-2.txt').read_text()).encode() in base64.b64decode(result['pty_output']['data_base64'])
++            result['status']='PASS';result['scope']='09A real CLI and controlled Electron user actions, two fake API requests; not dual-controller or emergency-stop proof'
++        finally:client.close()
+     else:
+         attempted=False
+         if (state/'state.sqlite3').exists():
+diff --git a/workbench/tests/t078_fake_messages.py b/workbench/tests/t078_fake_messages.py
+index 168e94f4..8d817d5a 100644
+--- a/workbench/tests/t078_fake_messages.py
++++ b/workbench/tests/t078_fake_messages.py
+@@ -1,49 +1,81 @@
+-"""P1-only local Messages endpoint; never forwards requests or records headers."""
+-import json,os,sys,time
++"""Isolated scripted Messages endpoint. Never forward requests or record headers."""
++import json,os,socket,sys,threading,time
+ from pathlib import Path
+-from http.server import BaseHTTPRequestHandler,HTTPServer
+-root=Path(sys.argv[1]);manifest=json.loads((root/'input.json').read_text())
+-nonce=(root/'nonce.txt').read_text();messages=0
++from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
++
++def failure(reason,**detail):
++    with lock:
++        if not (root/'api-error.json').exists():
++            with (root/'api-error.json').open('x',encoding='utf-8') as f:json.dump({'reason':reason,**detail},f)
++
++def packet(kind,data):return ('event: '+kind+'\ndata: '+json.dumps(data)+'\n\n').encode()
++
+ class Handler(BaseHTTPRequestHandler):
+     def log_message(self,*args):pass
+     def do_POST(self):
+         global messages
+         if self.headers.get('Authorization')!='Bearer a2a-fixture-key-not-a-secret' or self.headers.get('x-api-key') is not None:
+-            (root/'api-error.json').write_text('{"reason":"request did not use only the public fixture bearer token; headers not recorded"}')
+-            self.send_error(401);return
++            failure('Request did not use only the public fixture bearer token; headers not recorded');self.send_error(401);return
+         body=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+         path=self.path.split('?',1)[0]
+-        with (root/'api.jsonl').open('a',encoding='utf-8') as f:f.write(json.dumps({'path':path,'body':body,'at':time.time()},ensure_ascii=False)+'\n')
++        with lock:
++            with (root/'api.jsonl').open('a',encoding='utf-8') as f:f.write(json.dumps({'path':path,'body':body,'at':time.time()},ensure_ascii=False)+'\n')
++            if path!='/v1/messages/count_tokens':messages+=1
++            number=messages
+         if path=='/v1/messages/count_tokens':
+-            self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers()
+-            self.wfile.write(b'{"input_tokens":128}');return
+-        messages+=1
+-        if path!='/v1/messages' or messages!=1 or not body.get('stream') or nonce not in json.dumps(body.get('messages',[]),ensure_ascii=False):
+-            (root/'api-error.json').write_text(json.dumps({'path':path,'messages':messages,'reason':'unexpected protocol/input or request budget'}))
+-            self.send_error(400);return
+-        (root/'api-request.json').write_text(json.dumps(body,ensure_ascii=False))
+-        deadline=time.monotonic()+60
+-        while not (root/'api-release').exists():
+-            if time.monotonic()>deadline:self.send_error(408);return
+-            time.sleep(.02)
++            self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(b'{"input_tokens":128}');return
++        if path!='/v1/messages' or number>len(scenario['requests']):
++            failure('Unexpected path or request budget',path=path,messages=number);self.send_error(400);return
++        planned=scenario['requests'][number-1];expected=f'⟦主控 #{number}⟧\n'+planned['nonce']
++        texts=[part.get('text') for message in body.get('messages',[]) if message.get('role')=='user' for part in message.get('content',[]) if isinstance(part,dict) and part.get('type')=='text']
++        if body.get('model')!='claude-haiku-5-5' or body.get('stream') is not True or not texts or texts[-1]!=expected:
++            failure('Request did not match declared model, stream and exact input',number=number);self.send_error(400);return
++        with (root/f'api-request-{number}.json').open('x',encoding='utf-8') as f:json.dump(body,f,ensure_ascii=False)
+         self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
+-        mid='msg_t078_p1'
+-        events=[('message_start',{'type':'message_start','message':{'id':mid,'type':'message','role':'assistant','model':'claude-haiku-5-5','content':[],'stop_reason':None,'stop_sequence':None,'usage':{'input_tokens':128,'output_tokens':0}}}),
+-                ('content_block_start',{'type':'content_block_start','index':0,'content_block':{'type':'text','text':''}}),
+-                ('content_block_delta',{'type':'content_block_delta','index':0,'delta':{'type':'text_delta','text':'P1_ACK '+nonce}}),
+-                ('content_block_stop',{'type':'content_block_stop','index':0}),
+-                ('message_delta',{'type':'message_delta','delta':{'stop_reason':'end_turn','stop_sequence':None},'usage':{'output_tokens':16}}),
+-                ('message_stop',{'type':'message_stop'})]
+-        with (root/'api-response.sse').open('xb') as trace:
+-            for kind,data in events:
+-                packet=('event: '+kind+'\ndata: '+json.dumps(data)+'\n\n').encode()
+-                trace.write(packet);trace.flush();self.wfile.write(packet);self.wfile.flush()
+-        (root/'api-finished').write_text(mid)
+-if manifest['api_url']!='http://127.0.0.1:0':raise RuntimeError('dynamic_endpoint_template_required')
+-server=HTTPServer(('127.0.0.1',0),Handler)
+-with (root/'api-ready.tmp').open('x',encoding='utf-8') as ready:
+-    json.dump({'host':'127.0.0.1','port':server.server_port,'api_url':'http://127.0.0.1:'+str(server.server_port),
+-               'pid':os.getpid(),'launch':manifest['launch'],'session':manifest['session']},ready)
+-os.link(root/'api-ready.tmp',root/'api-ready.json')
+-(root/'api-ready.tmp').unlink()
+-server.serve_forever()
++        mid=f'msg_t078_{manifest["launch"]}_{number}'
++        def cancelled(reason):
++            with (root/f'api-cancelled-{number}.json').open('x',encoding='utf-8') as f:json.dump({'number':number,'observed_at':time.time(),'reason':reason},f)
++        with (root/f'api-response-{number}.sse').open('xb') as trace:
++            def emit(kind,data):
++                payload=packet(kind,data);trace.write(payload);trace.flush();self.wfile.write(payload);self.wfile.flush()
++            try:
++                emit('message_start',{'type':'message_start','message':{'id':mid,'type':'message','role':'assistant','model':'claude-haiku-5-5','content':[],
++                    'stop_reason':None,'stop_sequence':None,'usage':{'input_tokens':128,'output_tokens':0}}})
++            except (BrokenPipeError,ConnectionResetError):
++                if planned['mode']=='cancel':cancelled('Peer closed during response start')
++                else:failure('Client closed a response declared to complete',number=number)
++                return
++            if planned['mode']=='cancel':
++                self.connection.settimeout(.05);deadline=time.monotonic()+90
++                while time.monotonic()<deadline:
++                    try:received=self.connection.recv(1,socket.MSG_PEEK)
++                    except socket.timeout:continue
++                    except ConnectionResetError:received=b''
++                    if received==b'':cancelled('Peer closed/reset');return
++                    failure('Unexpected data on held response connection',number=number);return
++                failure('Peer cancellation deadline; no retry',number=number);return
++            deadline=time.monotonic()+60
++            while not (root/f'api-release-{number}').exists():
++                if time.monotonic()>deadline:failure('Response release deadline; no retry',number=number);return
++                time.sleep(.02)
++            try:
++                emit('content_block_start',{'type':'content_block_start','index':0,'content_block':{'type':'text','text':''}})
++                emit('content_block_delta',{'type':'content_block_delta','index':0,'delta':{'type':'text_delta','text':planned['ack']+' '+planned['nonce']}})
++                emit('content_block_stop',{'type':'content_block_stop','index':0})
++                emit('message_delta',{'type':'message_delta','delta':{'stop_reason':'end_turn','stop_sequence':None},'usage':{'output_tokens':16}})
++                emit('message_stop',{'type':'message_stop'})
++            except (BrokenPipeError,ConnectionResetError):failure('Client closed a response declared to complete',number=number);return
++        with (root/f'api-finished-{number}.json').open('x',encoding='utf-8') as f:json.dump({'number':number,'id':mid},f)
++
++def main():
++    global root,manifest,scenario,messages,lock
++    root=Path(sys.argv[1]);manifest=json.loads((root/'input.json').read_text());scenario=json.loads((root/'scenario.json').read_text())
++    if manifest['api_url']!='http://127.0.0.1:0' or scenario['schema']!=1 or len(scenario['requests'])!=manifest['turn_limit']:raise RuntimeError('Invalid approved endpoint/budget template')
++    expected_modes=['echo'] if scenario['name']=='single' else ['cancel','echo'] if scenario['name']=='esc-two' else []
++    if [x['mode'] for x in scenario['requests']]!=expected_modes:raise RuntimeError('Unsupported declared scenario')
++    messages=0;lock=threading.Lock();server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
++    with (root/'api-ready.tmp').open('x',encoding='utf-8') as f:json.dump({'host':'127.0.0.1','port':server.server_port,'api_url':'http://127.0.0.1:'+str(server.server_port),
++        'pid':os.getpid(),'launch':manifest['launch'],'session':manifest['session']},f)
++    os.link(root/'api-ready.tmp',root/'api-ready.json');(root/'api-ready.tmp').unlink();server.serve_forever()
++
++if __name__=='__main__':main()
+diff --git a/workbench/tests/test_t078_claude_signals.ts b/workbench/tests/test_t078_claude_signals.ts
+index 226af671..0b5b8c9a 100644
+--- a/workbench/tests/test_t078_claude_signals.ts
++++ b/workbench/tests/test_t078_claude_signals.ts
+@@ -14,7 +14,7 @@ const item = store.register(record.id, "独立输入 P1_NONCE");
+ const pane: any = { record, task: {}, attempt: null, token: "test-only", native: record.session,
+   state: "busy", failed: null, stopped: false, archived: false, interrupted: false, stopInProgress: false,
+   active: { id: "submission", dispatch: item.id, at: "2026-10-11T00:00:00Z", nativeTurn: null },
+-  claudePrompt: false, queue: [], writing: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false };
++  claudePromptId: null, claudePromptIds: new Set(), queue: [], writing: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false };
+ panes.panes.set(record.thread, pane);
+ const checks: any[] = [];
+ async function test(name: string, run: () => Promise<void>) {
+@@ -22,7 +22,7 @@ async function test(name: string, run: () => Promise<void>) {
+   catch (error) { checks.push({ name, status: "INCOMPLETE", error: String(error) }); }
+ }
+ const signal = (event: string, extra = {}) => panes.signal(record.id, JSON.stringify({ session_id: record.session,
+-  hook_event_name: event, ...extra }), "2026-10-11T00:01:00Z");
++  prompt_id:"00000000-0000-4000-8000-000000000001",hook_event_name: event, ...extra }), "2026-10-11T00:01:00Z");
+ await test("controller_runtime_entry_exists", async () => assert.equal(typeof (panes as any).startController, "function"));
+ await test("real_hook_shape_matches_one_registered_submission", async () => {
+   await signal("UserPromptSubmit", { prompt: item.text }); assert.equal(pane.state, "busy");

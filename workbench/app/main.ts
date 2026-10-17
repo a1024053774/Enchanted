@@ -5,12 +5,17 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { request } from '../src/transport.ts';
+import { readOperatorCredential } from '../src/credentials.ts';
+import { randomUUID } from 'node:crypto';
+import type { EmptyInputDeclaration } from '../src/panes.ts';
 
 type Options = { state: string; task: string; launch?: string; userData: string };
 const directory = dirname(fileURLToPath(import.meta.url));
 
 export async function run(options: Options) {
   if (!isAbsolute(options.state) || !isAbsolute(options.userData) || !options.task) throw new Error('Absolute data paths and a task are required');
+  const operator = readOperatorCredential(options.state);
+  if (!operator) throw new Error('operator_credential_required');
   mkdirSync(options.userData, { recursive: true, mode: 0o700 });
   const sessionData = join(options.userData, 'session');
   for (const path of [sessionData, join(options.userData, 'logs'), join(options.userData, 'crashes')]) {
@@ -26,6 +31,11 @@ export async function run(options: Options) {
     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,
       contextIsolation: true, sandbox: true, backgroundThrottling: false } });
   let launch = options.launch;
+  let identity: Record<string, unknown> | undefined;
+  let sequence = 0;
+  let inputQueue = Promise.resolve();
+  let pendingRelease: Promise<any> | null = null;
+  let closing = false, closed = false;
   const checkSender = (event: Electron.IpcMainInvokeEvent) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) throw new Error('Unknown window');
   };
@@ -34,7 +44,59 @@ export async function run(options: Options) {
     const result = await request(options.state, { command: 'workbench_snapshot', task: options.task, ...(launch ? { launch } : {}) });
     if (!result.ok) throw new Error(result.error);
     if (result.launch) launch = result.launch.id;
-    return result;
+    const writable = result.pane?.lifecycle === 'running' && !result.pane.failed &&
+      Boolean(result.launch && (result.launch.role === 'controller' && result.launch.attempt === null ||
+        result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
+    if (result.launch && !identity) {
+      const opened = await request(options.state, { command: 'window_open', task: options.task, launch }, operator);
+      if (!opened.ok) throw new Error(opened.error);
+      identity = opened.identity;
+    }
+    return { ...result, window_id: identity?.window, input_enabled: Boolean(writable && identity && !closing) };
+  });
+  const sendWindowCommand = (input: Record<string, unknown>) => {
+    if (!identity || closing) throw new Error('Window is not available for input');
+    if (input.command === 'window_release' && pendingRelease) throw new Error('Queue release is already pending');
+    const command = { ...input, sequence: ++sequence, request_id: randomUUID() };
+    const receive = (result: any) => {
+      if (input.command === 'window_release' && !result.ok &&
+          ['empty_input_declaration_required', 'empty_input_declaration_stale', 'pane_not_interrupted'].includes(result.error)) return result;
+      if (!result.ok) throw new Error(result.error);
+      return result;
+    };
+    if (input.command === 'window_release') {
+      // Keep sending order, but allow later input to reach pane admission while
+      // release awaits identity/recording. Panes owns the actual PTY write order.
+      let response: Promise<any>;
+      inputQueue = inputQueue.then(() => { response = request(options.state, command, identity); });
+      const result = inputQueue.then(() => response).then(receive);
+      pendingRelease = result;
+      const finished = () => { if (pendingRelease === result) pendingRelease = null; };
+      void result.then(finished, finished);
+      return result;
+    }
+    inputQueue = inputQueue.then(() => request(options.state, command, identity)).then(receive);
+    return inputQueue;
+  };
+  ipcMain.handle('a2a:input', (event, data: string, encoding: 'utf8' | 'binary' = 'utf8') => {
+    checkSender(event);
+    if (!['utf8', 'binary'].includes(encoding) || typeof data !== 'string' ||
+        (encoding === 'binary' ? data.length : Buffer.byteLength(data, 'utf8')) > 1024 * 1024 ||
+        (encoding === 'binary' && [...data].some(char => char.charCodeAt(0) > 255))) throw new Error('Invalid terminal input');
+    return sendWindowCommand({ command: 'window_input', data, encoding });
+  });
+  ipcMain.handle('a2a:composition-start', event => {
+    checkSender(event);
+    return sendWindowCommand({ command: 'window_composition' });
+  });
+  ipcMain.handle('a2a:release-queue', (event, declaration: EmptyInputDeclaration) => {
+    checkSender(event);
+    return sendWindowCommand({ command: 'window_release', declaration });
+  });
+  ipcMain.handle('a2a:focus-observation', (event, rawSequence: string) => {
+    checkSender(event);
+    if (typeof rawSequence !== 'string' || rawSequence.length > 4096) throw new Error('Invalid focus observation');
+    return sendWindowCommand({ command: 'window_observation', type: 'focus-mode-intercept', raw_sequence: rawSequence });
   });
   ipcMain.handle('a2a:output', async (event, offset: number) => {
     checkSender(event);
@@ -45,7 +107,26 @@ export async function run(options: Options) {
   });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
-  window.on('closed', () => { ipcMain.removeHandler('a2a:snapshot'); ipcMain.removeHandler('a2a:output'); });
+  window.on('close', event => {
+    if (closed) return;
+    event.preventDefault();
+    if (closing) return;
+    closing = true;
+    void (async () => {
+      const outcomes = await Promise.allSettled([inputQueue, pendingRelease]);
+      for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Window input outcome remains unconfirmed:', String(outcome.reason));
+      try {
+        if (identity) {
+          const result = await request(options.state, { command: 'window_close' }, identity);
+          if (!result.ok) throw new Error(result.error);
+        }
+      } catch (error) { console.error('Window credential revocation was not confirmed:', String(error)); }
+      finally { closed = true; window.destroy(); }
+    })();
+  });
+  window.on('closed', () => {
+    for (const channel of ['a2a:snapshot', 'a2a:output', 'a2a:input', 'a2a:composition-start', 'a2a:release-queue', 'a2a:focus-observation']) ipcMain.removeHandler(channel);
+  });
   app.on('window-all-closed', () => app.quit());
   await window.loadFile(join(directory, 'renderer/index.html'));
   return window;

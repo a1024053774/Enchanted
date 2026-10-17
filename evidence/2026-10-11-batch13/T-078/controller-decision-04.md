@@ -788,3 +788,22 @@ worker 修四处测试工具缺陷（11c119da8）；排练又暴露并修两处�
 (2) 删除 REHEARSAL 豁免（ce0dba18c）；无豁免九进程排练首跑业务 PASS 但回收 BLOCKED（owned_process_exit_unconfirmed）；受控探针证实"创建者未 reap 的直接子进程呈 Z、被判未退出"，修为排练宿主 wait 原 Popen 后再查缺席（77865b044，不放宽 Z 判定，超时保存 ps 报 PID/PPID/stat）；复跑 parity-rehearsal-02 PASS（POST 7/1、123.4s、拓扑照常、回收 PASS）。残留回收（两只 API 各一次 SIGTERM、root 删）PASS。
 现场回收（主控代签）：拓扑探针 tar 9623 成员、凭据 0、重数 POST 1/0、目标 0 字节，PASS；第 2 场 tar 650 成员、重数 POST 3/11 roots 2/1、凭据样式 8 处经遮蔽核对为字段名 hook_authorization/turn_authorization、目标 0 字节，PASS。主控失误：回收探针时只跑了 04/05 命令文件首行（heredoc 截断、未执行、现场无变化），改为整文件运行。
 第 3 场（09c-attempt-3-materials-01，运行 77865b044）：Stage A、两角色首启与 readiness、owner、build、五阶段与 timed-preapproval 签字、ARM、C-I1 全部 PASS；TIMED-RUN PASS：POST 7/1、roots 4/1、C-I3 wall_age 123,102ms；C-I2 stop_too_early（5,344ms），target 空、no_ack；C-I3 PASS；C-I4/C-E1 target 1b、no_ack；模型 0。clock-origin 已留存。派 worker 提交、出全场核对、准备回收与整票终审 02 请求。
+
+## #374（2026-10-17）09C 第 3 场回收 PASS；T-089 开工
+
+- 依据：用户授权代签 09C 各阶段（rev 2）；ideation assign 20261017T092953Z-ideation-assign-001（引用用户"那现在都idle了，让他继续啊，漏掉的也开工"）。
+- 签 cleanup-approval 前实时 ps：九身份（daemon 40012→target 40103/40105、ideation 40231/40233、executor 40818/40819；API 40009/40010 由 launchd 收养）与原收据一致，CLI 下无子进程。
+- 沙箱外整文件按序：01 dry-run PASS → 02 capture PASS（byte_readback PASS）→ 03 readback → 04 tar-check PASS（POST 7/1、roots 4/1、permissions 3、中断距 stop 121,993ms）→ 主控独立 tar 检查：778 成员（648 文件/130 目录，8,478,871 字节），无不安全路径，无 auth/凭据/SQLite/HOME 成员，sk-ant/sk-/Bearer/authorization 头/x-api-key/refresh_token 扫描 0 命中，meta 无请求头字段，POST 原件独立重数 7/1 → 写签 review.json、签 readback.json → 05 manifest PASS（644 逐原件指针）→ 06 finish PASS（daemon_stop、两 API 各一次 SIGTERM、原 PID 全缺席、停后 SQLite 读取 0、root 删除）。
+- 停后仍见 3 个 caffeinate，父进程为用户其他 Claude 会话（1437、42797 等），不属现场，未处理。
+- 派 T-078 worker 提交收据、更新终审 02 冻结候选。
+- T-089：稀疏 worktree a2a-wt-t089（exec/t089，起点 c544b2904），worker s16-t089，launch-27fa492686c840c7b5735426e52a3f8f；任务卡 evidence/2026-10-16-batch16/T-089/task-card-T-089-1.md（在该 worktree）。
+- T-091 排在 T-078 合入并回收 worker 之后（workbench/app 可能重叠；Codex 并行上限 3）。T-092 不动。
+
+## #375（2026-10-17）整票终审 02 PASS；T-078 验收关闭
+
+- worker 冻结 TARGET `022a2d290`（含第 3 场全部回收收据），请求更新 `43db303f6`。主控建绑定 TARGET 的 detached 变异副本 /private/tmp/t078-final02-mut（复制 node_modules），开 fresh reviewer s13-t078-rev2（launch-0f40afe0c56049ec8788d907bc703daa）。
+- 终审 02 **PASS**：必审 1～6 全 PASS；F1～F7 逐项 PASS（A15 原缺口、A15 I1 旧 total、IME 仍 INCOMPLETE 照写）；5 个新单处变异 M1–M5 均以业务断言失败；无沙箱外请求。
+- reviewer scratch 复制到外置盘 final-review-02-scratch（652 文件 / 7,465,960 字节，两侧一致）；回收 reviewer 窗格 wF:p4S，删除变异 worktree（受控文件无差异）。
+- worker 原样提交报告与清单 `b68ec5339`（九项尾注）。合入 main：唯一冲突在 T-078 ticket Resolution（exec 侧的阶段性 Resolution 与 main 侧"09C 第 1 场"记录），两侧全部保留，写入最终 Resolution，status closed。
+- 打分 score-64a0fb9cd7d449a891692d96e611fc48（边界 3、工程 2；事实 score-facts.json）。
+- T-089 reviewer 启动：launch-5c71733aa38d4e12ae7ca12dcf14a36e（wF:p4T，Codex 起来但 herdr 未命名）与 launch-aadd73d0b1e24088a11af8b8d7fa71b5（wF:p4V，2 秒内失败、pane 停在 shell）均记 failed，窗格已关；之后一次手动 `herdr agent start --timeout 60000` 探针（zz-probe，read-only，未派活）成功后关闭；第三次 launch-38d9637ee26a427d87df0d7a80274894 成功。推测为 worktree 中 shell/Codex 就绪慢于 launch-worker 的 30 秒默认时限，**未证实**。

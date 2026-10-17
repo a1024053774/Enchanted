@@ -1,0 +1,50 @@
+{
+  "status": "INCOMPLETE",
+  "expected": "CR creates zero user turn intents; subsequent gate feedback is a distinct legitimate root",
+  "observed": {
+    "form": "action",
+    "data": "\r",
+    "intent_count": 1,
+    "written_count": 1,
+    "new_turn_intents": 1,
+    "window_receipt": {
+      "written": true
+    },
+    "action": {
+      "form": "action",
+      "source_ref": {
+        "command_id": "key-one"
+      },
+      "content": {
+        "data": "\r"
+      }
+    },
+    "events": [
+      {
+        "seq": 1,
+        "type": "terminal_input_write_intent",
+        "data": {
+          "data": "\r",
+          "request_id": "key-one"
+        }
+      },
+      {
+        "seq": 2,
+        "type": "terminal_input_written",
+        "data": {
+          "request_id": "key-one"
+        }
+      },
+      {
+        "seq": 3,
+        "type": "turn_submit_intent",
+        "data": {
+          "source": "gate",
+          "dispatch": "real-C-I4",
+          "id": "next-submission"
+        }
+      }
+    ]
+  },
+  "scope": "actual Python adapter with deterministic event interleaving; no window/process"
+}

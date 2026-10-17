@@ -1,0 +1,210 @@
+{
+  "status": "PASS",
+  "scope": "domain-only; not credential or live CLI acceptance",
+  "root": "/tmp/t78-domain-6ZlW4n",
+  "argv": [
+    "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_inbox_domain.ts",
+    "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/domain-green-02"
+  ],
+  "node": "v26.5.0",
+  "real_model_turns": 0,
+  "claude_fixture": false,
+  "checks": [
+    {
+      "name": "queue_is_not_delivery",
+      "expectation": "收件箱已接纳；delivery.state=queued，from 取 caller executor",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "entry": {
+          "id": "578f17ed-5566-46db-a2a9-0adba9a90566",
+          "schema": 1,
+          "kind": "report",
+          "from": "executor",
+          "to": "ideation",
+          "reply_to": null,
+          "refs": [],
+          "created_at": "2026-10-11T12:00:00.000Z",
+          "body": "固定报告原文"
+        },
+        "delivery": {
+          "state": "queued",
+          "entry_id": "578f17ed-5566-46db-a2a9-0adba9a90566",
+          "created_at": "2026-10-11T12:00:00.000Z",
+          "thread": "domain-ideation",
+          "message": "dispatch-578f17ed-5566-46db-a2a9-0adba9a90566"
+        }
+      }
+    },
+    {
+      "name": "queued_delivery_can_be_read_back",
+      "expectation": "读回运行时已写入的投递结果",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "entries": [
+          {
+            "entry": {
+              "id": "578f17ed-5566-46db-a2a9-0adba9a90566",
+              "schema": 1,
+              "kind": "report",
+              "from": "executor",
+              "to": "ideation",
+              "reply_to": null,
+              "refs": [],
+              "created_at": "2026-10-11T12:00:00.000Z",
+              "body": "固定报告原文"
+            },
+            "delivery": {
+              "state": "delivered",
+              "entry_id": "578f17ed-5566-46db-a2a9-0adba9a90566",
+              "created_at": "2026-10-11T12:00:00.000Z",
+              "thread": "domain-ideation",
+              "message": "dispatch-578f17ed-5566-46db-a2a9-0adba9a90566"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ack_is_append_only_and_not_resent",
+      "expectation": "同一 ack 重复调用只有一条 ack 与一次 wake；排队仍是 queued",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "entry": {
+          "id": "b89a00fa-9feb-4228-bbb0-44f92cfdf48c",
+          "schema": 1,
+          "kind": "ack",
+          "from": "ideation",
+          "to": "executor",
+          "reply_to": "578f17ed-5566-46db-a2a9-0adba9a90566",
+          "refs": [],
+          "created_at": "2026-10-11T12:00:00.000Z",
+          "body": "确认收到。"
+        },
+        "delivery": {
+          "state": "queued",
+          "entry_id": "b89a00fa-9feb-4228-bbb0-44f92cfdf48c",
+          "created_at": "2026-10-11T12:00:00.000Z",
+          "thread": "domain-executor",
+          "message": "dispatch-b89a00fa-9feb-4228-bbb0-44f92cfdf48c"
+        }
+      }
+    },
+    {
+      "name": "worker_cannot_assign",
+      "expectation": "worker 凭据所代表的角色不能被 from=ideation 覆盖",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "invalid_direction",
+        "details": "Error: invalid_direction"
+      }
+    },
+    {
+      "name": "ready_bound_project",
+      "expectation": "只返回 R-ready；关闭、缺依赖的 ticket 不算就绪",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "ready": [
+          {
+            "id": "R-ready",
+            "title": "R-ready",
+            "type": "build",
+            "ready_by": "ideation",
+            "ready_rev": 1
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "ready_rejects_unbound_project",
+      "expectation": "未知项目被拒，不根据客户端路径读取",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "unknown_project",
+        "details": "Error: unknown_project"
+      }
+    },
+    {
+      "name": "executor_honors_stop_immediately",
+      "expectation": "执行主控可以立即中断，不关会话、不改门禁状态，actor=executor",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "interruptRequested": true
+      }
+    },
+    {
+      "name": "ideation_cannot_interrupt_early",
+      "expectation": "构思主控必须等超过两分钟",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "stop_too_early",
+        "details": "Error: stop_too_early"
+      }
+    },
+    {
+      "name": "late_stop_actor_comes_from_caller",
+      "expectation": "超时中断记录实际 ideation，不采用 actor=user 参数",
+      "status": "PASS",
+      "observed": {
+        "ok": true,
+        "interruptRequested": true
+      }
+    },
+    {
+      "name": "ack_blocks_break_glass",
+      "expectation": "已有执行主控 ack 后不得超时中断",
+      "status": "PASS",
+      "observed": {
+        "ok": false,
+        "error": "stop_already_acknowledged",
+        "details": "Error: stop_already_acknowledged"
+      }
+    },
+    {
+      "name": "inbox_tables_are_append_only",
+      "expectation": "UPDATE/DELETE 都被触发器拒绝",
+      "status": "PASS",
+      "observed": [
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  ],
+  "wakes": [
+    {
+      "thread": "domain-ideation",
+      "entry": "578f17ed-5566-46db-a2a9-0adba9a90566",
+      "message": "dispatch-578f17ed-5566-46db-a2a9-0adba9a90566"
+    },
+    {
+      "thread": "domain-executor",
+      "entry": "b89a00fa-9feb-4228-bbb0-44f92cfdf48c",
+      "message": "dispatch-b89a00fa-9feb-4228-bbb0-44f92cfdf48c"
+    },
+    {
+      "thread": "domain-executor",
+      "entry": "72fe95be-a549-43af-95dc-a3221f316dfe",
+      "message": "dispatch-72fe95be-a549-43af-95dc-a3221f316dfe"
+    },
+    {
+      "thread": "domain-ideation",
+      "entry": "228a5f48-1204-4b77-ad03-142e1c417011",
+      "message": "dispatch-228a5f48-1204-4b77-ad03-142e1c417011"
+    }
+  ],
+  "interrupts": [
+    "domain-worker",
+    "domain-worker"
+  ]
+}

@@ -1,0 +1,51 @@
+--- red/workbench/src/gates/cli.ts
++++ candidate/workbench/src/gates/cli.ts
+@@ -174,7 +174,7 @@
+       token: process.env.A2A_CAPABILITY,
+       native_session: process.env.CODEX_THREAD_ID,
+     } : undefined;
+-    if (identity && ["submit", "status", "issue"].includes(String(request.command))) {
++    if (identity && ["submit", "status", "issue", "inbox_send", "inbox_list", "inbox_ack", "inbox_ready"].includes(String(request.command))) {
+       await emit(queueWorkerRequest(request));
+       return 0;
+     }
+--- red/workbench/src/relay.ts
++++ candidate/workbench/src/relay.ts
+@@ -61,7 +61,11 @@
+     try {
+       if (parseError || !input || typeof input !== "object" || Array.isArray(input)) throw new Refusal("invalid_relay_request", parseError);
+       const base = ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev"];
+-      const allowed: Record<string, string[]> = { submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"] };
++      const allowed: Record<string, string[]> = {
++        submit: ["commit"], status: [], issue: ["title", "body", "blocking", "refs"],
++        inbox_send: ["from", "to", "kind", "reply_to", "refs", "body", "title", "blocking", "action", "reason", "basis", "bundle_id"],
++        inbox_list: ["role"], inbox_ack: ["id", "role", "body"], inbox_ready: ["project"],
++      };
+       const extra = allowed[input.command];
+       if (input.schema !== 1 || !requestId || !extra || base.some((field) => !Object.hasOwn(input, field)) ||
+           Object.keys(input).some((field) => ![...base, ...extra].includes(field)) ||
+--- red/workbench/src/daemon.ts
++++ candidate/workbench/src/daemon.ts
+@@ -192,6 +192,22 @@
+         for (const file of input.relay_files) {
+           const receipt = await relay.receive(pane.record as any, file, matched, async (command) => {
+             const caller = await panes.caller({ ...identity, native_session: stop.session_id });
++            if (command.command.startsWith("inbox_")) {
++              const assertNative = caller.assertActive;
++              // Native liveness alone does not preserve a revoked attempt's
++              // authority. Recheck the credential's bound attempt after each
++              // native check, including checks performed inside the inbox gate.
++              caller.assertActive = async () => {
++                await assertNative();
++                const current = await gates.call({ command: "status", task: pane.record.task });
++                const active = current.task?.current_attempt;
++                const bound = pane.record;
++                if (!active || active.attempt_id !== bound.attempt || active.session_id !== bound.session ||
++                    active.fence !== bound.fence || current.task?.spec_rev !== bound.spec_rev || active.reclaimed) {
++                  throw new Refusal("stale_attempt");
++                }
++              };
++            }
+             await caller.assertActive();
+             if (command.command === "issue") return await gates.raiseIssue({ title: command.title, body: command.body,
+               blocking: command.blocking ?? false, refs: command.refs ?? [] }, caller);

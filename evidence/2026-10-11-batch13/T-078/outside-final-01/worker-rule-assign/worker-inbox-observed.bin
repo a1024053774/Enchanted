@@ -1,0 +1,232 @@
+[200~T078：中文输入与来源[201~[200~⟦主控 #1⟧
+仅收集输入字节，不运行任何模型或工具。
+
+
+{
+  "id": "input-contract",
+  "source": null,
+  "goal": "验证窗口用户输入及来源记录",
+  "non_goals": [
+    "不运行模型",
+    "不交付或集成代码"
+  ],
+  "paths": {
+    "allow": [
+      "value.txt"
+    ],
+    "deny": []
+  },
+  "completion_conditions": [
+    {
+      "argv": [
+        "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+        "-I",
+        "-B",
+        "-c",
+        "from pathlib import Path; assert Path('value.txt').read_text(encoding='utf-8') == '夹具基线\\n'"
+      ]
+    }
+  ],
+  "red_commands": [],
+  "task_type": "后端逻辑",
+  "repair_target": null,
+  "complexity": "L",
+  "executor": {
+    "cli": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "base_commit": "e972d74dfa78703ae07bf43692095c14a190873e",
+  "writer": {
+    "task_id": "input-contract",
+    "attempt_id": "c3914998-0e12-4e42-a678-431f420554ca",
+    "session_id": "c538eaed-39a0-42bf-8ba5-c94ae58dba1d",
+    "fence": 1,
+    "thread_id": "3a3a727d-9d29-44a9-a3cf-758bd1a72e06"
+  }
+}
+
+受管身份：{"command":"submit","task":"input-contract","attempt":"c3914998-0e12-4e42-a678-431f420554ca","session":"c538eaed-39a0-42bf-8ba5-c94ae58dba1d","fence":1,"spec_rev":1,"commit":"<FULL_COMMIT_SHA>"}
+Git 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。
+完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：
+'/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t78-rule-mutants-z_psne1v/assign/workbench/src/gates/cli.ts' '--state' '/private/tmp/t78-sxro915q/state' 'submit' '--task' 'input-contract' '--attempt' 'c3914998-0e12-4e42-a678-431f420554ca' '--session' 'c538eaed-39a0-42bf-8ba5-c94ae58dba1d' '--fence' '1' '--spec-rev' '1' '--commit' 'FULL_COMMIT_SHA'
+本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。[201~[200~⟦门禁 #2⟧
+本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。
+[
+  {
+    "key": "id:06e438ea-4ab6-4d66-a74f-fac71ed08291",
+    "request_id": "06e438ea-4ab6-4d66-a74f-fac71ed08291",
+    "replayed": false,
+    "result": {
+      "ok": false,
+      "error": "recipient_required",
+      "details": "Error: recipient_required"
+    }
+  },
+  {
+    "key": "id:09e76a29-eafd-45e1-b27c-d08ce784a07e",
+    "request_id": "09e76a29-eafd-45e1-b27c-d08ce784a07e",
+    "replayed": false,
+    "result": {
+      "ok": false,
+      "error": "controller_required",
+      "details": "Error: controller_required"
+    }
+  },
+  {
+    "key": "id:3f9f39f4-10f9-40f9-90aa-d6c8dd115aa5",
+    "request_id": "3f9f39f4-10f9-40f9-90aa-d6c8dd115aa5",
+    "replayed": false,
+    "result": {
+      "ok": true,
+      "entries": [
+        {
+          "entry": {
+            "id": "owned-message",
+            "schema": 1,
+            "kind": "disposition",
+            "from": "executor",
+            "to": "worker:3a3a727d-9d29-44a9-a3cf-758bd1a72e06",
+            "action": "snooze",
+            "body": "固定入站处置 owned-message",
+            "reply_to": "seed-issue",
+            "refs": [],
+            "created_at": "2026-10-11T21:01:28.690770+00:00"
+          }
+        },
+        {
+          "entry": {
+            "id": "visible-message",
+            "schema": 1,
+            "kind": "disposition",
+            "from": "executor",
+            "to": "worker:3a3a727d-9d29-44a9-a3cf-758bd1a72e06",
+            "action": "snooze",
+            "body": "固定入站处置 visible-message",
+            "reply_to": "seed-issue",
+            "refs": [],
+            "created_at": "2026-10-11T21:01:28.690772+00:00"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "key": "id:50ac4b3b-dbf4-4302-b53f-10c80266c1e8",
+    "request_id": "50ac4b3b-dbf4-4302-b53f-10c80266c1e8",
+    "replayed": false,
+    "result": {
+      "ok": false,
+      "entry": {
+        "id": "ec4a006c-d2d3-44ab-8b66-e526642e0232",
+        "schema": 1,
+        "kind": "ack",
+        "from": "worker:3a3a727d-9d29-44a9-a3cf-758bd1a72e06",
+        "to": "executor",
+        "reply_to": "owned-message",
+        "refs": [],
+        "created_at": "2026-10-11T21:01:29.802Z",
+        "body": "确认收到。"
+      },
+      "delivery": {
+        "state": "undelivered",
+        "entry_id": "ec4a006c-d2d3-44ab-8b66-e526642e0232",
+        "created_at": "2026-10-11T21:01:29.803Z",
+        "reason": "role_session_missing"
+      },
+      "error": "wake_undelivered"
+    }
+  },
+  {
+    "key": "id:6968252b-cff7-487c-939b-9844d3035091",
+    "request_id": "6968252b-cff7-487c-939b-9844d3035091",
+    "replayed": false,
+    "result": {
+      "ok": false,
+      "entry": {
+        "id": "7093ffcb-9b68-41b3-a0db-a09aabc94ccb",
+        "schema": 1,
+        "kind": "issue",
+        "from": "worker:3a3a727d-9d29-44a9-a3cf-758bd1a72e06",
+        "to": "triage",
+        "reply_to": null,
+        "refs": [],
+        "created_at": "2026-10-11T21:01:29.866Z",
+        "body": "WORKER_ISSUE 中文 𐐀\n",
+        "title": "WORKER_REAL_CLIENT",
+        "blocking": false
+      },
+      "delivery": {
+        "state": "undelivered",
+        "entry_id": "7093ffcb-9b68-41b3-a0db-a09aabc94ccb",
+        "created_at": "2026-10-11T21:01:29.867Z",
+        "reason": "role_session_missing"
+      },
+      "error": "wake_undelivered"
+    }
+  },
+  {
+    "key": "id:b7b37629-902d-410b-b630-c80ee071007d",
+    "request_id": "b7b37629-902d-410b-b630-c80ee071007d",
+    "replayed": false,
+    "result": {
+      "ok": false,
+      "entry": {
+        "id": "e8443079-0f16-4379-b749-591482b3d0cb",
+        "schema": 1,
+        "kind": "assign",
+        "from": "worker:3a3a727d-9d29-44a9-a3cf-758bd1a72e06",
+        "to": "executor",
+        "reply_to": null,
+        "refs": [],
+        "created_at": "2026-10-11T21:01:29.936Z",
+        "body": "WORKER_ISSUE 中文 𐐀\n"
+      },
+      "delivery": {
+        "state": "undelivered",
+        "entry_id": "e8443079-0f16-4379-b749-591482b3d0cb",
+        "created_at": "2026-10-11T21:01:29.937Z",
+        "reason": "role_session_missing"
+      },
+      "error": "wake_undelivered"
+    }
+  },
+  {
+    "key": "id:d0ed723a-5e2b-404f-9d69-a1d4c9891ce9",
+    "request_id": "d0ed723a-5e2b-404f-9d69-a1d4c9891ce9",
+    "replayed": false,
+    "result": {
+      "ok": false,
+      "entry": {
+        "id": "ec4a006c-d2d3-44ab-8b66-e526642e0232",
+        "schema": 1,
+        "kind": "ack",
+        "from": "worker:3a3a727d-9d29-44a9-a3cf-758bd1a72e06",
+        "to": "executor",
+        "reply_to": "owned-message",
+        "refs": [],
+        "created_at": "2026-10-11T21:01:29.802Z",
+        "body": "确认收到。"
+      },
+      "delivery": {
+        "state": "undelivered",
+        "entry_id": "ec4a006c-d2d3-44ab-8b66-e526642e0232",
+        "created_at": "2026-10-11T21:01:29.803Z",
+        "reason": "role_session_missing"
+      },
+      "error": "wake_undelivered"
+    }
+  }
+][201~[200~REVOKE_PROBE[201~[200~⟦门禁 #3⟧
+本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。
+[
+  {
+    "key": "id:9386ba2c-56e9-4748-be2e-9b978f663f84",
+    "request_id": "9386ba2c-56e9-4748-be2e-9b978f663f84",
+    "replayed": false,
+    "result": {
+      "ok": false,
+      "error": "stale_attempt"
+    }
+  }
+][201~

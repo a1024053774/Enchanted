@@ -1,0 +1,58 @@
+{
+  "file": "workbench/tests/t078_raw_retention.py",
+  "function_line": 63,
+  "checks": [
+    {
+      "line": 66,
+      "code": "require(owner['scene'] in ('A16', '09C'), 'operational_scene_required')"
+    },
+    {
+      "line": 67,
+      "code": "require(re.fullmatch('[0-9a-f]{40}', owner['source_revision']) is not None, 'bound_source_revision_required')"
+    },
+    {
+      "line": 69,
+      "code": "require(ready['root'] == str(root) and ready['target_binding'] == owner['claim_binding'], 'original_claim_binding_changed')"
+    },
+    {
+      "line": 72,
+      "code": "require(target[key] == claim[key], 'original_target_changed:' + key)"
+    },
+    {
+      "line": 73,
+      "code": "require(target['launch'] == claim['runtime_identity']['launch'], 'original_target_launch_changed')"
+    },
+    {
+      "line": 76,
+      "code": "require(original['root'] == str(root) and original['processes'] == processes, 'original_process_receipt_changed')"
+    },
+    {
+      "line": 77,
+      "code": "require(ready['daemon']['pid'] == processes['daemon']['pid'], 'original_daemon_changed')"
+    },
+    {
+      "line": 78,
+      "code": "require(ready['target_process']['shell_pid'] == processes['target_shell']['pid'] and ready['target_process']['leader'] == processes['target_leader']['pid'], 'original_target_PID_changed')"
+    },
+    {
+      "line": 83,
+      "code": "require(api['pid'] == identity['pid'] and api['ready'] == read_json(root / 'roles' / role / 'api-ready.json'), 'original_API_ready_changed:' + role)"
+    },
+    {
+      "line": 84,
+      "code": "require(api['ready']['pid'] == identity['pid'] and api['ready']['role'] == role and (api['ready']['stage'] == 'A') and (api['ready']['protocol'] == 'rev2-raw-c-profile-v1') and (api['ready']['model_turns'] == 0), 'original_API_profile_changed:' + role)"
+    },
+    {
+      "line": 86,
+      "code": "require(shlex.split(identity['command'])[1:] == api['argv'][1:], 'original_API_argv_changed:' + role)"
+    },
+    {
+      "line": 88,
+      "code": "require(binding['launch'] == manifest['launch'] and binding['session'] == manifest['session'] and (manifest['shell_pid'] == processes[role + '_shell']['pid']) and (manifest['cli']['pid'] == processes[role + '_cli']['pid']) and (manifest['cli']['started'] == processes[role + '_cli']['started']), 'original_role_manifest_changed:' + role)"
+    },
+    {
+      "line": 93,
+      "code": "require(argv[0] == manifest['cli']['command'] and argv[argv.index('--session-id') + 1] == binding['session'] and (str(root / 'roles' / role / 'claude-debug.log') in argv), 'original_role_argv_changed:' + role)"
+    }
+  ]
+}

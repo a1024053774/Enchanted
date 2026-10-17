@@ -1,0 +1,20 @@
+{
+  "previous_attempt": {
+    "status": "BLOCKED",
+    "reason": "SyntaxError: Non-UTF-8 code starting with '\\xe8' in file <stdin> on line 7, but no encoding declared; see http://python.org/dev/peps/pep-0263/ for details",
+    "native_message_sent": false,
+    "reason_for_no_send": "Python failed during compilation before any statement ran"
+  },
+  "argv": [
+    "herdr",
+    "agent",
+    "prompt",
+    "wF:pM",
+    "# T-078 cards host 启动失败诊断与续跑\n\n根因诊断及最小复现／修复检查 **PASS**；完整 cards 和之后未运行的入口仍 **INCOMPLETE**。原 `post-rebase-2-outside-01` 不改、不重试。本轮不改产品源码或卡业务断言，不启动真实 Claude、Electron、后台服务或模型。\n\n`credentials.ts` 要求 daemon 启动者明确提供绝对 `A2A_OPERATOR_CREDENTIAL`，不会自动选路径；这是现有安全边界。父夹具 `TaskCardsCLI.setUp` 清掉继承的 A2A 环境；`DaemonCards.setUp` 没有重新提供本夹具路径，却直接启动需要该字段的 daemon_acceptance_host。其它已使用的 `DaemonLifecycle.start_daemon` 在启动 host 前设置每代自己的 operator 路径。缺口在 cards 的生命周期 adapter，产品拒绝缺凭据符合契约。\n\n/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/POST-REBASE-2B.md\nsh /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/commit-post-rebase-2b.sh\npython3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/post-rebase-2-stage.py --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/post-rebase-2-outside-02\nT-078 POST-REBASE-2B READY"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"id\":\"cli:agent:prompt\",\"result\":{\"agent\":{\"agent\":\"claude\",\"agent_session\":{\"agent\":\"claude\",\"kind\":\"id\",\"source\":\"herdr:claude\",\"value\":\"9a64ed90-d8e7-497a-803e-3ecdbc8fd69e\"},\"agent_status\":\"idle\",\"completion_seq\":829,\"cwd\":\"/Users/luckye/Documents/Code/a2a\",\"focused\":true,\"foreground_cwd\":\"/Users/luckye/Documents/Code/a2a\",\"pane_id\":\"wF:pM\",\"revision\":3,\"state_change_seq\":829,\"tab_id\":\"wF:t2\",\"terminal_id\":\"term_65dcc22770ccce\",\"terminal_title\":\"✳ A2A 客户端整体评估\",\"terminal_title_stripped\":\"A2A 客户端整体评估\",\"workspace_id\":\"wF\"},\"type\":\"agent_prompted\"}}\n",
+  "stderr": "",
+  "target_session": "9a64ed90-d8e7-497a-803e-3ecdbc8fd69e",
+  "scope": "Executor handoff only; no new agent or experiment"
+}

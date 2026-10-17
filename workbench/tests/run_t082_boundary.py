@@ -47,9 +47,26 @@ def run_case(source, output, case, output_name=None):
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, timeout=300)
     report = json.loads((target / 'run.json').read_text(encoding='utf-8')) if (target / 'run.json').exists() else None
+    diagnostics = []
+    if result.returncode or not report or report.get('status') != 'PASS':
+        # Capture outside the disposable fixture, before main archives/deletes
+        # it. These files contain only the owned host's output/start argv.
+        logs = sorted(target.glob('*/host-*.stderr.bin'))
+        destination = target / 'host-startup-diagnostics'
+        destination.mkdir(exist_ok=False)
+        for index, stderr in enumerate(logs, 1):
+            item = {'source_stderr': str(stderr)}
+            for suffix in ['stderr.bin', 'stdout.bin', 'start.json']:
+                source = stderr.with_name(stderr.name.replace('stderr.bin', suffix))
+                if source.is_file():
+                    copy = destination / ('%02d.' % index + suffix)
+                    shutil.copyfile(source, copy)
+                    item[suffix.split('.')[0]] = str(copy)
+            diagnostics.append(item)
+        save(target / 'host-diagnostics.json', {'logs': diagnostics, 'copied_before_fixture_cleanup': True})
     return {'argv': list(map(str, argv)), 'returncode': result.returncode,
             'stdout': result.stdout, 'stderr': result.stderr,
-            'report': report, 'report_path': str(target / 'run.json')}
+            'report': report, 'report_path': str(target / 'run.json'), 'host_diagnostics': diagnostics}
 
 
 def main():

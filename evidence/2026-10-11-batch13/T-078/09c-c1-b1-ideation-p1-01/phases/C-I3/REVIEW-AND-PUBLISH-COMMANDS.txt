@@ -1,0 +1,26 @@
+# 与 CONDITIONAL-ENTER 进程并行执行；先只把真实模板复制成签字草稿。
+python3 -B - <<'PY'
+import json
+from pathlib import Path
+review = Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-c1-b1-ideation-p1-01/phases/C-I3/execute-02-review')
+source = review / 'template.json'
+with (review / 'approval-draft.json').open('x', encoding='utf-8') as stream:
+    stream.write(source.read_text(encoding='utf-8'))
+print('主控核对 template/screen/命令/stop/目标后，只填写 approval-draft.json 的 approved_by=executor 和 approval_ref；未签不得运行下一条。')
+PY
+
+# 主控签草稿后原子发布；driver 不读取草稿。任何非签字字段变化均拒绝；不覆盖 approved。
+python3 -B - <<'PY'
+import json, os
+from pathlib import Path
+review = Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-c1-b1-ideation-p1-01/phases/C-I3/execute-02-review')
+template = json.loads((review / 'template.json').read_bytes())
+signed = json.loads((review / 'approval-draft.json').read_bytes())
+assert signed['approved_by'] == 'executor' and signed['approval_ref']
+assert {k:v for k,v in signed.items() if k not in ('approved_by','approval_ref')} == {k:v for k,v in template.items() if k not in ('approved_by','approval_ref')}
+pending = review / 'approved-publication.json'
+with pending.open('x', encoding='utf-8') as stream:
+    stream.write(json.dumps(signed, ensure_ascii=False, indent=2)+'\n')
+    stream.flush(); os.fsync(stream.fileno())
+os.link(pending, review / 'approved.json')
+PY

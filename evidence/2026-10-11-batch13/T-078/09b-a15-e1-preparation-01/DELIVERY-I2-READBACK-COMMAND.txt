@@ -1,0 +1,69 @@
+# 仅在 E1 返回 READY_FOR_PERMISSION 后运行；保持 E1 许可屏，不按 Enter。
+# 先用既有 oracle collect 原 I2，再核对原 ID 与实际投递事件；不 arm/release/派发。
+set -e
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_09b_i1_driver.py --mode execute --protocol --stage I2 --materials /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-b1-ideation-p1-01 --stage-a /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-stage-a-01 --approval /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-b1-ideation-p1-01/phases/I2/approval.json --protocol-phase collect --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a15-b1-ideation-p1-01/phases/I2/collect-01
+python3 -B - <<'PY'
+import json, sqlite3, traceback
+from contextlib import closing
+from pathlib import Path
+base = Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078')
+ip = base / '09b-a15-b1-ideation-p1-01'
+ep = base / '09b-a15-b1-executor-p1-01'
+output = base / '09b-a15-e1-preparation-01/delivery-i2-readback-01.json'
+with output.open('x', encoding='utf-8') as stream:
+    stream.write('{"status":"INCOMPLETE"}\n')
+result = {'status': 'INCOMPLETE', 'scope': 'Read existing collect result, actual event/receipt rows and POST counts; no business commands'}
+try:
+    i1 = json.loads((ip / 'phases/I1/execute-02/result.json').read_bytes())
+    i2 = json.loads((ip / 'phases/I2/collect-01/result.json').read_bytes())
+    e1 = json.loads((ep / 'phases/E1/dispatch-01/result.json').read_bytes())
+    inp = json.loads((ep / 'input.json').read_bytes())
+    ideation = json.loads((ip / 'input.json').read_bytes())
+    original = i1['stop_entry']
+    message = json.loads((ep / 'onboarding/s11-queued-readback.json').read_bytes())['observation']['queue'][0]
+    assert e1['status'] == 'READY_FOR_PERMISSION' and e1['dispatch']['id'] == message
+    assert i2['status'] == 'PASS' and i2['stage'] == 'I2' and i2['messages'] == 1
+    assert i2['original_request_id'] == i1['request_id'] and i2['stop_entry']['id'] == original['id']
+    assert i2['stop_entry']['created_at'] == original['created_at']
+    root = Path(inp['root'])
+    with closing(sqlite3.connect((root / 'state/state.sqlite3').as_uri() + '?mode=ro', uri=True)) as db:
+        db.execute('BEGIN')
+        events = [{'seq': row[0], 'time': row[1], 'launch': row[2], 'type': row[3], 'data': json.loads(row[4])}
+                  for row in db.execute("SELECT seq,time,launch,type,data FROM orchestration_events WHERE type IN ('turn_submitted','turn_submit_intent','relay_feedback_registered','dispatch_queued') ORDER BY seq")]
+        history = [json.loads(row[0]) for row in db.execute('SELECT data FROM inbox_deliveries WHERE entry=? ORDER BY seq', (original['id'],))]
+        entries = [json.loads(row[0]) for row in db.execute('SELECT data FROM inbox_records WHERE id=?', (original['id'],))]
+    assert len(entries) == 1 and entries[0] == original
+    delivery = history[-1]
+    assert delivery['state'] == 'delivered' and delivery['entry_id'] == original['id']
+    assert delivery['message'] == message and delivery['thread'] == inp['thread']
+    written = [row for row in events if row['type'] == 'turn_submitted' and row['launch'] == inp['launch'] and row['data'].get('dispatch') == message]
+    feedback = [row for row in events if row['type'] == 'relay_feedback_registered' and row['data'].get('request_id') == i1['request_id']]
+    assert len(written) == 1 and len(feedback) == 1
+    assert delivery['created_at'] == written[0]['time']
+    assert feedback[0]['data']['entry_id'] == original['id'] and feedback[0]['data']['delivery'] == delivery
+    assert feedback[0]['seq'] > written[0]['seq'] and feedback[0]['data']['dispatch'] == i2['dispatch_id']
+    registered = [row for row in events if row['type'] == 'dispatch_queued' and row['data'].get('id') == i2['dispatch_id']]
+    submitted = [row for row in events if row['type'] == 'turn_submit_intent' and row['data'].get('dispatch') == i2['dispatch_id']]
+    assert len(registered) == 1 and registered[0]['launch'] == ideation['launch'] and registered[0]['data']['source'] == 'gate'
+    assert len(submitted) == 1 and submitted[0]['launch'] == ideation['launch']
+    totals, phases = {}, {}
+    for role, expected in [('ideation', 3), ('executor', 1)]:
+        api = root / 'roles' / role
+        calls = [json.loads(line) for line in (api / 'requests.ndjson').read_text(encoding='utf-8').splitlines() if line.strip()]
+        posts = len(list((api / 'http-exchanges').glob('*.request.bin')))
+        assert len(calls) == posts == expected and not any(call.get('error') for call in calls)
+        totals[role] = posts
+        for call in calls:
+            phases[call['phase']] = phases.get(call['phase'], 0) + 1
+    assert phases == {'I1': 2, 'I2': 1, 'E1': 1}
+    result.update(status='PASS', original_request_id=i1['request_id'], original_entry_id=original['id'],
+                  original_created_at=original['created_at'], queued_dispatch=message, delivery=delivery,
+                  turn_submitted_seq=written[0]['seq'], feedback_seq=feedback[0]['seq'], feedback_count=1,
+                  i2_dispatch=i2['dispatch_id'], i2_registration_count=1, i2_submission_count=1,
+                  actual_post_totals=totals, actual_posts_by_phase=phases)
+except Exception as error:
+    result.update(error=repr(error), traceback=traceback.format_exc())
+output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(result, ensure_ascii=False))
+raise SystemExit(0 if result['status'] == 'PASS' else 1)
+PY

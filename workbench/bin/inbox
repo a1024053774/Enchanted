@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+import { parseArgs } from 'node:util';
+import { readFileSync } from 'node:fs';
+import { main as gateClient } from '../src/gates/cli.ts';
+
+// CLI spelling only. Transport, credentials and all decisions stay in the
+// existing gate client/daemon. No SQLite or file-inbox access occurs here.
+async function main() {
+  const keys = ['state','project','from','to','kind','body-file','role','id','reply-to','title','action','reason','basis','bundle-id'];
+  const {values,positionals} = parseArgs({options:{
+    ...Object.fromEntries(keys.map(key => [key,{type:'string'}])),
+    ref:{type:'string',multiple:true},blocking:{type:'boolean'},
+  },allowPositionals:true});
+  const command = positionals[0];
+  const contracts = {
+    send:{required:['to','kind','body-file'],optional:['from','reply-to','title','ref','blocking','action','reason','basis','bundle-id']},
+    list:{required:[],optional:['role']},
+    ack:{required:['id'],optional:['role','body-file']},
+    ready:{required:['project'],optional:[]},
+  };
+  const contract = contracts[command];
+  if (positionals.length !== 1 || !contract) throw new Error('Expected send, list, ack or ready');
+  const state = values.state ?? process.env.A2A_STATE;
+  if (!state) throw new Error('Explicit --state or A2A_STATE is required');
+  const allowed = ['state',...contract.required,...contract.optional];
+  if (contract.required.some(key => values[key] === undefined) || Object.keys(values).some(key => !allowed.includes(key))) {
+    throw new Error('Invalid inbox arguments');
+  }
+  const argv = ['--state',state,'inbox_'+command];
+  for (const [key,value] of Object.entries(values)) {
+    if (key === 'state') continue;
+    if (key === 'body-file') argv.push('--body',new TextDecoder('utf-8',{fatal:true}).decode(readFileSync(value)));
+    else if (key === 'ref') argv.push('--refs',JSON.stringify(value));
+    else argv.push('--'+key,String(value));
+  }
+  return gateClient(argv);
+}
+try { process.exitCode = await main(); }
+catch (error) {
+  process.stdout.write(JSON.stringify({ok:false,error:'inbox_client_arguments',details:String(error)})+'\n');
+  process.exitCode=2;
+}

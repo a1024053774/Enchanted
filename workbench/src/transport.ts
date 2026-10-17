@@ -4,6 +4,7 @@ import { closeSync, existsSync, mkdirSync, openSync, realpathSync } from "node:f
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+import { createOperatorCredential } from "./credentials.ts";
 
 export function statePath(root: string) {
   if (!isAbsolute(root)) throw new Error("state must be an absolute path");
@@ -43,10 +44,12 @@ export async function startDaemon(root: string, options: Record<string, unknown>
   mkdirSync(root, { recursive: true, mode: 0o700 });
   root = realpathSync(root);
   if (existsSync(socketPath(root))) throw new Error("socket exists; query its owner, do not replace it");
+  const credential = createOperatorCredential(root);
   const stdout = openSync(join(root, "daemon.stdout.log"), "a", 0o600);
   const stderr = openSync(join(root, "daemon.stderr.log"), "a", 0o600);
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_")) delete env[key];
+  env.A2A_OPERATOR_CREDENTIAL = credential;
   const child = spawn(process.execPath, [fileURLToPath(new URL("./daemon.ts", import.meta.url)), root, JSON.stringify(options)], {
     detached: true, stdio: ["ignore", stdout, stderr, "ipc"], env,
   });

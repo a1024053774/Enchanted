@@ -1,0 +1,18 @@
+After a fresh protocol-stage binding and a signed approval, run exactly one
+protocol I1 stage (no launch in this packet; the command is a template):
+
+```text
+PYTHONPATH=workbench/tests python3 -B workbench/tests/t078_09b_i1_driver.py \
+  --mode execute --protocol --stage I1 \
+  --materials <I1-materials> --stage-a <stage-A-output> \
+  --approval <signed-I1-approval> --output <new-output>
+```
+
+The driver obtains the dispatch sequence, request/Stop IDs, target binding,
+and synthetic window-action ID at runtime.  It substitutes those values into
+`protocol.commands.I_SEND_STOP`, records the action as
+`test-simulated-user`, and uses the product `pane_dispatch`/`pane_release`
+entry.  It must observe one PermissionRequest and one approved Enter, exactly
+two `/v1/messages` requests (`tool_use`, then `tool_result`), the actual
+ideation→executor stop entry and delivery, and idle.  It never asks the
+operator to author `send`, `stop`, or `ack`.

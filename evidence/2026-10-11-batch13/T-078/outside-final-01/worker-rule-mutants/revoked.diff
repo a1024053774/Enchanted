@@ -1,0 +1,12 @@
+--- candidate/src/daemon.ts
++++ revoked/src/daemon.ts
+@@ -210,8 +210,7 @@
+                 const current = await gates.call({ command: "status", task: pane.record.task });
+                 const active = current.task?.current_attempt;
+                 const bound = pane.record;
+-                if (!active || active.attempt_id !== bound.attempt || active.session_id !== bound.session ||
+-                    active.fence !== bound.fence || current.task?.spec_rev !== bound.spec_rev || active.reclaimed) {
++                if (false /* MUTANT: keep revoked inbox authority */) {
+                   throw new Refusal("stale_attempt");
+                 }
+               };

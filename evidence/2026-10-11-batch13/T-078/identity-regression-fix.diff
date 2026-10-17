@@ -1,0 +1,186 @@
+--- a/workbench/src/daemon.ts
++++ b/workbench/src/daemon.ts
+@@ -182,9 +182,9 @@
+       if (authority.kind === "launch" && identity.launch !== input.launch) throw new Refusal("stale_launch");
+       return { ok: true, ...panes.launchInfo(input.launch) };
+     }
+-    const caller = authority.kind === "operator" ? { thread: `operator:${operator.epoch}`, turn: "", address: "executor",
++    const actor = authority.kind === "operator" ? { address: "executor",
+       assertActive: async () => { if (stopping) throw new Refusal("daemon_stopping"); } } : undefined;
+-    return await gates.call(input, caller);
++    return await gates.call(input, undefined, actor);
+   };
+   const server = createServer((connection) => {
+     connection.setEncoding("utf8");
+--- a/workbench/src/gates/core.ts
++++ b/workbench/src/gates/core.ts
+@@ -100,11 +100,14 @@
+   readWakeDelivery?(thread: string, message: string): Promise<{ state: "queued" | "delivered" | "unknown"; at: string }>;
+   interruptThread?(thread: string): Promise<void>;
+ }
+-export interface SubmitCaller {
++export interface GateActor {
++  assertActive(): Promise<void>;
++  address?: string;
++}
++// A role/transport credential is not a native thread or turn identity.
++export interface SubmitCaller extends GateActor {
+   thread: string;
+   turn: string;
+-  assertActive(): Promise<void>;
+-  address?: string;
+ }
+ 
+ /** The sole mutation owner. Lifecycle signals alone do not constitute delivery. */
+@@ -1658,16 +1661,16 @@
+       lock.close();
+     }
+   }
+-  private async inboxCall(args: A2AInboxRequest, caller?: SubmitCaller): Promise<A2AGateResult> {
+-    requireGate(caller?.address, "caller_identity_required");
+-    const role = caller.address;
++  private async inboxCall(args: A2AInboxRequest, actor?: GateActor, caller?: SubmitCaller): Promise<A2AGateResult> {
++    requireGate(actor?.address, "caller_identity_required");
++    const role = actor.address;
+     requireGate(
+       /^(?:user|ideation|executor|system|triage|(?:worker|reviewer|monitor):[A-Za-z0-9_.-]+)$/.test(
+         role,
+       ),
+       "invalid_address",
+     );
+-    if (!["inbox_list", "inbox_ready"].includes(args.command)) await caller.assertActive();
++    if (!["inbox_list", "inbox_ready"].includes(args.command)) await actor.assertActive();
+     if (args.command === "inbox_ready") {
+       requireGate(["ideation", "executor"].includes(role), "controller_required");
+       requireGate(args.project, "project_required");
+@@ -1869,10 +1872,10 @@
+       ...(!["delivered", "queued"].includes(delivery.state) ? { error: "wake_undelivered" } : {}),
+     };
+   }
+-  private async emergencyStop(args: A2AStopRequest, caller?: SubmitCaller): Promise<A2AGateResult> {
+-    requireGate(caller?.address, "caller_identity_required");
+-    requireGate(["ideation", "executor", "user"].includes(caller.address), "controller_required");
+-    await caller.assertActive();
++  private async emergencyStop(args: A2AStopRequest, actor?: GateActor): Promise<A2AGateResult> {
++    requireGate(actor?.address, "caller_identity_required");
++    requireGate(["ideation", "executor", "user"].includes(actor.address), "controller_required");
++    await actor.assertActive();
+     const stop = this.inboxEntry(args.stop_id);
+     requireGate(
+       stop.kind === "stop" && stop.to === "executor" && ["user", "ideation"].includes(stop.from),
+@@ -1887,7 +1890,7 @@
+     let entryLock: DatabaseSync | undefined;
+     try {
+       entryLock = this.operationLock(`inbox-${stop.id}`);
+-      if (caller.address === "ideation") requireGate(this.now() - Date.parse(stop.created_at) > 120_000, "stop_too_early");
++      if (actor.address === "ideation") requireGate(this.now() - Date.parse(stop.created_at) > 120_000, "stop_too_early");
+       requireGate(!this.inboxConfirmed(stop.id, "executor"), "stop_already_acknowledged");
+       requireGate(
+         stop.refs.includes(`thread:${args.thread}`) ||
+@@ -1903,13 +1906,13 @@
+           live.provider === (target.attachment?.modelSelection.provider ?? "codex"),
+         "identity_conflict",
+       );
+-      await caller.assertActive();
++      await actor.assertActive();
+       this.checkUserInputObserver();
+       await this.runtime.interruptThread(args.thread);
+       this.event(
+         target.task.task_id,
+         "emergency_interrupt_requested",
+-        { stop_id: stop.id, thread: args.thread, actor: caller.address },
++        { stop_id: stop.id, thread: args.thread, actor: actor.address },
+         target.attempt?.attempt_id ?? null,
+       );
+       return { ok: true, interruptRequested: true };
+@@ -1918,13 +1921,13 @@
+       taskLock.close();
+     }
+   }
+-  async call(raw: unknown, caller?: SubmitCaller): Promise<A2AGateResult> {
++  async call(raw: unknown, caller?: SubmitCaller, actor: GateActor | undefined = caller): Promise<A2AGateResult> {
+     const command = (raw as { command?: unknown } | null)?.command;
+     if (typeof command === "string" && (command.startsWith("inbox_") || command === "stop")) {
+       try {
+         return command === "stop"
+-          ? await this.emergencyStop(Schema.decodeUnknownSync(A2AStopRequest)(raw), caller)
+-          : await this.inboxCall(Schema.decodeUnknownSync(A2AInboxRequest)(raw), caller);
++          ? await this.emergencyStop(Schema.decodeUnknownSync(A2AStopRequest)(raw), actor)
++          : await this.inboxCall(Schema.decodeUnknownSync(A2AInboxRequest)(raw), actor, caller);
+       } catch (error) {
+         return {
+           ok: false,
+@@ -1933,12 +1936,12 @@
+         };
+       }
+     }
+-    const result = await this.request(raw, caller);
++    const result = await this.request(raw, caller, undefined, actor);
+     const observer = this.userInputObserverStatus();
+     return { ...result, ...(observer ? { user_input_observer: observer } : {}) };
+   }
+ 
+-  private async request(raw: unknown, caller?: SubmitCaller, run?: A2ARun): Promise<A2AGateResult> {
++  private async request(raw: unknown, caller?: SubmitCaller, run?: A2ARun, actor: GateActor | undefined = caller): Promise<A2AGateResult> {
+     let taskId: string | undefined;
+     let lock: DatabaseSync | undefined;
+     try {
+@@ -1969,6 +1972,10 @@
+             details: JSON.parse(String(r.details)) as unknown,
+           })),
+         };
++      }
++      if (actor && !caller) {
++        requireGate(["executor", "user"].includes(actor.address ?? ""), "controller_required");
++        await actor.assertActive();
+       }
+       if (caller) {
+         if (caller.address === "executor") await caller.assertActive();
+@@ -2008,7 +2015,7 @@
+           );
+           await caller.assertActive();
+         }
+-        return await this.disposeIssue(args, caller);
++        return await this.disposeIssue(args, caller, actor?.address);
+       }
+       if (args.command === "answer_issue" || args.command === "answer_issues")
+         return await this.answerIssues(args);
+--- a/workbench/tests/daemon_acceptance_host.ts
++++ b/workbench/tests/daemon_acceptance_host.ts
+@@ -3,7 +3,7 @@
+ import { resolve, join } from "node:path";
+ import { fileURLToPath } from "node:url";
+ import { serve } from "../src/daemon.ts";
+-import type { SubmitCaller } from "../src/gates/core.ts";
++import type { GateActor, SubmitCaller } from "../src/gates/core.ts";
+ import { createOperatorCredential } from "../src/credentials.ts";
+ import { boundary, runtime } from "../../acceptance/entry/native-runtime.ts";
+ 
+@@ -18,21 +18,21 @@
+ const audit = join(control, "submit-caller.jsonl");
+ 
+ class ControlledThreadGates extends A2AGates {
+-  async call(raw: unknown, caller?: SubmitCaller) {
++  async call(raw: unknown, caller?: SubmitCaller, actor: GateActor | undefined = caller) {
+     const input = raw as Record<string, unknown>;
+-    if (input?.command !== "submit" || (caller && caller.address !== "executor")) return await super.call(raw, caller);
+-    if (caller) await caller.assertActive();
++    if (input?.command !== "submit" || caller) return await super.call(raw, caller, actor);
++    if (actor) await actor.assertActive();
+     const status = await super.call({ command: "status", task: input.task });
+     const attempt = status.task?.current_attempt;
+-    if (!attempt?.thread_id) return await super.call(raw, caller);
++    if (!attempt?.thread_id) return await super.call(raw, caller, actor);
+     const live = await boundary("submit-begin", { thread: attempt.thread_id });
+     const supplied = { thread: attempt.thread_id, turn: live.turn, assertActive: async () => {} };
+     appendFileSync(audit, JSON.stringify({ at: new Date().toISOString(), pid: process.pid,
+-      request: raw, thread: supplied.thread, turn: supplied.turn, transport_actor: caller?.address ?? null, phase: "begin" }) + "\n");
++      request: raw, thread: supplied.thread, turn: supplied.turn, transport_actor: actor?.address ?? null, phase: "begin" }) + "\n");
+     try {
+       // Pass the socket request unchanged to the real gate. Only the external
+       // thread service and its active-turn caller are supplied by this fixture.
+-      const result = await super.call(raw, supplied);
++      const result = await super.call(raw, supplied, actor);
+       appendFileSync(audit, JSON.stringify({ at: new Date().toISOString(), pid: process.pid,
+         request: raw, result, phase: "result" }) + "\n");
+       return result;

@@ -1,0 +1,12 @@
+# 待主控审阅后逐条运行；不要整份批量执行。本轮 worker 只写文件。
+
+# 1. 身份 dry-run；不要求正式签字，不归档、不停止、不发信号、不删文件。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/cleanup-09b-a14.py --owner /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-cleanup-owner.json --approval /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-cleanup-approval.json --redaction-result /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-redacted-01/result.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-cleanup-01-dry-run --dry-run
+
+# 2. 只留计数、批准的 tool_use/tool_result、错误码和 I1 pending 收据；先外置归档并逐成员字节读回。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/redact-a14-scene.py --owner /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-cleanup-owner.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-redacted-01
+
+# 3. 主控核对以上结果后，填写 cleanup-approval 的 approved_by=executor 与实际 approval_ref；未签正式命令会拒绝。
+
+# 4. 正式清理；只使用这一个 owner，daemon_stop 后才允许两只 API 各一次 SIGTERM。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/cleanup-09b-a14.py --owner /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-cleanup-owner.json --approval /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-cleanup-approval.json --redaction-result /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-redacted-01/result.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a14-cleanup-01

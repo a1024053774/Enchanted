@@ -1,0 +1,76 @@
+# 05独立重数后只读tar与停机前导出的JSON；不打开活SQLite、不发信号。通过后主控核对并签readback.json两字段。
+python3 -B - <<'PY'
+
+import json,tarfile,traceback
+from pathlib import Path
+archive=Path('/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09b-a16-raw-01/scene.tar.gz')
+owner=json.loads(Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a16-materials-01/owner.json').read_bytes())
+directory=Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09b-a16-raw-readback-01')
+output=directory/'a16-review-check.json'
+assert not output.exists(), 'Review output exists; no overwrite'
+result={'status':'INCOMPLETE','scope':'Only saved tar/owner/readback JSON; no live root, SQLite, process, signals or deletion'}
+def need(ok,label):
+    if not ok: raise AssertionError(label)
+def one(rows,label):
+    need(len(rows)==1,label)
+    return rows[0]
+try:
+    receipt=json.loads((directory/'readback.json').read_bytes());c=receipt['counts']
+    need(receipt['archive']==str(archive),'archive binding')
+    need(c['Messages_POST']=={'ideation':6,'executor':11} and c['roots']=={'ideation':4,'executor':6},'17 POST and 10 roots')
+    need({role:len(value) for role,value in c['permission_requests'].items()}=={'ideation':2,'executor':5},'seven native permissions')
+    need(not c['unfinished_http'] and not c['unfinished_hooks'],'no unfinished originals')
+    with tarfile.open(archive,'r:gz') as tar:
+        members=tar.getmembers()
+        need(len(members)==len({x.name for x in members}),'unique tar members')
+        need(all(not Path(x.name).is_absolute() and '..' not in Path(x.name).parts for x in members),'safe tar names')
+        def data(name):
+            member=tar.getmember(name);need(member.isfile(),'regular original required')
+            return tar.extractfile(member).read()
+        def load(name):return json.loads(data(name))
+        snapshot=load('snapshot.json');identity=load('identity-receipts.json');tables=load('live-rows.json')
+        need(snapshot['root']==owner['root'] and snapshot['source_revision']==owner['source_revision'] and snapshot['target_binding']==owner['target_binding'],'snapshot owner')
+        need(identity['root']==owner['root'] and identity['roles']==owner['roles'],'identity role bindings')
+        need(set(identity['processes'])==set(owner['processes']) and all(
+             identity['processes'][label]['pid']==value['pid'] and identity['processes'][label]['started']==value['started']
+             for label,value in owner['processes'].items()),'public process lifetimes')
+        for role in ['ideation','executor']:
+            need(all(p['session_id']==identity['roles'][role]['session'] for p in c['permission_requests'][role]),'native permission session')
+        need(data('files/target/received.bin')==data('files/target/baseline.bin')+b'\x1b','target exactly one Esc')
+        entries=[json.loads(x['data']) for x in tables['inbox_records']]
+        stop=one([x for x in entries if x['kind']=='stop'],'one original stop')
+        need(stop['from']=='ideation' and stop['to']=='executor','actual sender')
+        need('thread:'+owner['target_binding']['thread_id'] in stop['refs'] and 'attempt:'+owner['target_binding']['attempt_id'] in stop['refs'],'original target binding')
+        first_response=data('files/roles/ideation/http-exchanges/0001.response.bin')
+        sse=[json.loads(line[6:]) for line in first_response.decode('utf-8').splitlines() if line.startswith('data: ')]
+        tool_id=sse[1]['content_block']['id']
+        request=load('files/roles/ideation/http-exchanges/0002.request.bin')
+        block=one([item for m in request['messages'] if m['role']=='user' and isinstance(m['content'],list)
+                   for item in m['content'] if item.get('type')=='tool_result' and item.get('tool_use_id')==tool_id],'same I1 tool_result')
+        queued=json.loads(block['content']);need(queued.get('queued') is True and queued.get('delivered') is False,'async queued result')
+        rr=one([r for r in tables['relay_requests'] if r['request_id']==queued['request_id'] and r['launch']==identity['roles']['ideation']['launch']],'original I1 relay')
+        relay=json.loads(one([r for r in tables['relay_results'] if r['key']==rr['key']],'original pending receipt')['data'])
+        need(relay['ok'] is True and relay['entry']==stop and relay['delivery']['state']=='pending','pending without fabricated entry')
+        history=[json.loads(r['data']) for r in tables['inbox_deliveries'] if r['entry']==stop['id']]
+        delivered=one([r for r in history if r['state']=='delivered'],'one delivered receipt')
+        events=[{**r,'data':json.loads(r['data'])} for r in tables['orchestration_events']]
+        submitted=one([r for r in events if r['type']=='turn_submitted' and r['data'].get('dispatch')==delivered['message']],'one actual executor submission')
+        feedback=one([r for r in events if r['type']=='relay_feedback_registered' and r['data'].get('request_id')==queued['request_id']],'original I2 once')
+        need(delivered['created_at']==submitted['time'] and feedback['seq']>submitted['seq'] and feedback['data']['entry_id']==stop['id'],'delivery before I2')
+        i2id=feedback['data']['dispatch']
+        need(len([r for r in events if r['type']=='dispatch_queued' and r['data'].get('id')==i2id])==1,'one I2 registration')
+        need(len([r for r in events if r['type']=='turn_submit_intent' and r['data'].get('dispatch')==i2id])==1,'one I2 submission')
+        total_hooks=sum(sum(x.values()) for x in c['hooks'].values())
+        result.update(status='PASS',archive=str(archive),root=owner['root'],source_revision=owner['source_revision'],
+                      counts={'POST':17,'roots':10,'permissions':7},hook_invocations=total_hooks,
+                      original_entry_id=stop['id'],original_created_at=stop['created_at'],original_request_id=queued['request_id'],
+                      target_delta_hex='1b',turn_submitted_seq=submitted['seq'],feedback_seq=feedback['seq'],
+                      I2_feedback_registration_submission_each=1,
+                      raw_pointer_directory=str(archive.parent/'pointers'))
+except Exception as error:
+    result.update(error=repr(error),traceback=traceback.format_exc())
+with output.open('x',encoding='utf-8') as stream:stream.write(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps(result,ensure_ascii=False))
+raise SystemExit(0 if result['status']=='PASS' else 1)
+
+PY
