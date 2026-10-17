@@ -1,0 +1,125 @@
+{
+  "status": "PASS",
+  "external": false,
+  "fixture_root": "/private/tmp/t089-checks-aophupbo",
+  "command": "/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/archive_evidence.py",
+  "cases": [
+    {
+      "case": "fixture",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/archive_evidence.py",
+        "/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture",
+        "--mount-point",
+        "/",
+        "--archive-root",
+        "/private/tmp/t089-checks-aophupbo/archives/fixture",
+        "--timeout",
+        "15",
+        "--keep",
+        "run-kept/input.bin",
+        "--replay",
+        "python3",
+        "fixture-producer.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"status\": \"PASS\", \"archives\": [{\"original\": \"/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture/arbitrary-name\", \"archive\": \"/private/tmp/t089-checks-aophupbo/archives/fixture/arbitrary-name\", \"bytes\": 27, \"files\": 2, \"replay\": [\"python3\", \"fixture-producer.py\"]}, {\"original\": \"/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture/fixtures\", \"archive\": \"/private/tmp/t089-checks-aophupbo/archives/fixture/fixtures\", \"bytes\": 12, \"files\": 1, \"replay\": [\"python3\", \"fixture-producer.py\"]}, {\"original\": \"/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture/monitor-01.log\", \"archive\": \"/private/tmp/t089-checks-aophupbo/archives/fixture/monitor-01.log\", \"bytes\": 15, \"files\": 1, \"replay\": [\"python3\", \"fixture-producer.py\"]}, {\"original\": \"/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture/output.bin\", \"archive\": \"/private/tmp/t089-checks-aophupbo/archives/fixture/output.bin\", \"bytes\": 4, \"files\": 1, \"replay\": [\"python3\", \"fixture-producer.py\"]}, {\"original\": \"/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture/run-01\", \"archive\": \"/private/tmp/t089-checks-aophupbo/archives/fixture/run-01\", \"bytes\": 15, \"files\": 2, \"replay\": [\"python3\", \"fixture-producer.py\"]}, {\"original\": \"/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture/snapshot.tar.gz\", \"archive\": \"/private/tmp/t089-checks-aophupbo/archives/fixture/snapshot.tar.gz\", \"bytes\": 13, \"files\": 1, \"replay\": [\"python3\", \"fixture-producer.py\"]}, {\"original\": \"/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture/state.sqlite3\", \"archive\": \"/private/tmp/t089-checks-aophupbo/archives/fixture/state.sqlite3\", \"bytes\": 14, \"files\": 1, \"replay\": [\"python3\", \"fixture-producer.py\"]}, {\"original\": \"/private/tmp/t089-checks-aophupbo/fixture/evidence/batch/T-fixture/state.sqlite3-wal\", \"archive\": \"/private/tmp/t089-checks-aophupbo/archives/fixture/state.sqlite3-wal\", \"bytes\": 3, \"files\": 1, \"replay\": [\"python3\", \"fixture-producer.py\"]}]}\n",
+      "stderr": "",
+      "elapsed_seconds": 0.059282458
+    },
+    {
+      "case": "unmounted",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/archive_evidence.py",
+        "/private/tmp/t089-checks-aophupbo/unmounted/source",
+        "--mount-point",
+        "/private/tmp/t089-checks-aophupbo/not-a-mount",
+        "--archive-root",
+        "/private/tmp/t089-checks-aophupbo/not-a-mount/must-not-be-created",
+        "--timeout",
+        "15",
+        "--replay",
+        "python3",
+        "fixture-producer.py"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "归档失败：归档失败：外置盘未挂载；拒绝写入：/private/tmp/t089-checks-aophupbo/not-a-mount\n",
+      "elapsed_seconds": 0.055157082999999996
+    },
+    {
+      "case": "existing-target",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/archive_evidence.py",
+        "/private/tmp/t089-checks-aophupbo/existing-target/source",
+        "--mount-point",
+        "/",
+        "--archive-root",
+        "/private/tmp/t089-checks-aophupbo/archives/existing-target",
+        "--timeout",
+        "15",
+        "--replay",
+        "python3",
+        "fixture-producer.py"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "归档失败：归档失败：目标或清单已存在：/private/tmp/t089-checks-aophupbo/archives/existing-target/b.bin\n",
+      "elapsed_seconds": 0.05344241699999999
+    },
+    {
+      "case": "truncated",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/archive_evidence.py",
+        "/private/tmp/t089-checks-aophupbo/truncated/source",
+        "--mount-point",
+        "/",
+        "--archive-root",
+        "/private/tmp/t089-checks-aophupbo/archives/truncated",
+        "--timeout",
+        "15",
+        "--replay",
+        "python3",
+        "fixture-producer.py"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "归档失败：归档失败：文件数或字节数不一致：/private/tmp/t089-checks-aophupbo/truncated/source/b.bin\n",
+      "elapsed_seconds": 0.056623583000000005
+    },
+    {
+      "case": "same-size-corruption",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/archive_evidence.py",
+        "/private/tmp/t089-checks-aophupbo/same-size-corruption/source",
+        "--mount-point",
+        "/",
+        "--archive-root",
+        "/private/tmp/t089-checks-aophupbo/archives/same-size-corruption",
+        "--timeout",
+        "15",
+        "--replay",
+        "python3",
+        "fixture-producer.py"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "归档失败：归档失败：归档与原件逐字节比较不一致：/private/tmp/t089-checks-aophupbo/same-size-corruption/source/b.bin\n",
+      "elapsed_seconds": 0.05517850000000002
+    }
+  ],
+  "errors": [],
+  "skipped": [
+    "真实外置盘",
+    "受控挂起（须主控运行 --external）"
+  ]
+}

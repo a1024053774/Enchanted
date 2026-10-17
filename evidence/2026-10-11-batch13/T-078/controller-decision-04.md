@@ -807,3 +807,9 @@ worker 修四处测试工具缺陷（11c119da8）；排练又暴露并修两处�
 - worker 原样提交报告与清单 `b68ec5339`（九项尾注）。合入 main：唯一冲突在 T-078 ticket Resolution（exec 侧的阶段性 Resolution 与 main 侧"09C 第 1 场"记录），两侧全部保留，写入最终 Resolution，status closed。
 - 打分 score-64a0fb9cd7d449a891692d96e611fc48（边界 3、工程 2；事实 score-facts.json）。
 - T-089 reviewer 启动：launch-5c71733aa38d4e12ae7ca12dcf14a36e（wF:p4T，Codex 起来但 herdr 未命名）与 launch-aadd73d0b1e24088a11af8b8d7fa71b5（wF:p4V，2 秒内失败、pane 停在 shell）均记 failed，窗格已关；之后一次手动 `herdr agent start --timeout 60000` 探针（zz-probe，read-only，未派活）成功后关闭；第三次 launch-38d9637ee26a427d87df0d7a80274894 成功。推测为 worktree 中 shell/Codex 就绪慢于 launch-worker 的 30 秒默认时限，**未证实**。
+
+## #376（2026-10-17）T-089 验收关闭；T-091 进行中
+
+- T-089：审查 01 NO_GO（删除阶段超时会部分删原件；S3 证据没走到实际 main）→ worker 修复 `ef3b1ade9`（两阶段；check_s3_main.py）→ 审查 02 NO_GO（回收阶段契约）→ needs-decision 20261017T105154Z → 用户裁定 A（ideation answer 20261017T111636Z，ticket 144d5afee）→ 审查 03 PASS。worker 原样提交审查报告 `20c056d75`，合入 main，关票，打分 score-5b0be6b254dc408bbf0ffbb0bcefbcd0。
+- launch-worker 在 a2a-wt-t089 中间歇启动失败（5 次中 3 次），登记 issue 20261017T104229Z（非阻塞）。
+- T-091：界面方向确认；red-01 INCOMPLETE（Electron 入口模块顶层 await run() 与 ready 互等；收尾在 Electron 退出前就停了后台）。6599 正常退出被拒（卡在 ready 前），主控核对 argv 与启动时间后发了一次 SIGTERM，2 秒后退出；close-03 归档原夹具（符号链接按链接本身复制）。red-02 取得红态：expected 3、observed 1，原始单帧只截隔离窗口，按键 0、模型 0、假 POST 0，收尾完成。实现进行中。
