@@ -70,3 +70,13 @@ python3 -B evidence/2026-10-16-batch16/T-091/run_red.py --source /Users/luckye/D
 基线结果及指针已先提交为 `8df399ca76bedd327364d94ed9cdb4c36f1205cc`，随后单格生产路径与实跑脚本提交为 `7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86`。新开的只读审查会话 `/root/tracer_acceptance_audit` 使用 gpt-6.1-sol／xhigh，按 behavioral-acceptance-review 检查该冻结代码候选；结果为 **INCOMPLETE**，没有确定可达的违规发现，但缺少真实 Electron／PTY 边界证据，不能作 PASS 或全票交付结论。原文见 [tracer-acceptance-audit-01.md](tracer-acceptance-audit-01.md)。审查未改文件，也未启动服务或 GUI。
 
 交接前再次执行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`，rc 0，Problems (0)、Stale living docs (0)；`git diff --check` rc 0。本次三份审查／交接文档回读均为 UTF-8、无 BOM、无替换字符，未改变既有 LF 换行。
+
+## tracer-01 真实单格读回
+
+状态 **PASS／rc 0**，仅指单格 Tracer bullet。执行来源为主控 #11／本对话 #40，冻结源码 `06575f5dc4f6a0d2cd264922158343952d0a0c21`；worker 只读核对外置 run.json、capture.json 与仓库摘要，没有重新启动场景。trace_passed、cleanup_complete、archive_complete 均为 true；fake_posts=0、供应商模型回合 0、真实供应商 CLI 启动 0，error／post_close_error／archive_error 为空、cleanup_errors=[]。此次仅测试夹具粘贴，无 Enter／Esc；自动测试字节不作真实用户历史。
+
+task `t091-tracer-f18b846b`，launch `3d4a9a80-39f7-408f-bcd0-d0b98ed11df7`，pane key `f451023c-869d-4114-a902-e601eb59c1d8`，window_id `329412db-a3cd-4d4f-b2a2-c8f3121492bc`。真实读回确认六个未知 key 拒绝、输出 nonce 与原 trace 一致、正确窗格收到精确 bracketed paste 字节、输入记录和人工介入相符、独立序号为 1～4、没有 Enter／队列派发；关闭界面后凭据撤销，同一 receiver 仍存活，再停止后台。
+
+主控查看原始单帧，报告完整 role／task／launch／attempt、蓝色边线和“正在输入”可见，终端有 READY 与 T091_OUTPUT nonce，底部为共享门禁栏；截图只有一格，不作三格绿态。原图只在外置盘，指针 [tracer-01.single-frame.pointer.json](tracer-01.single-frame.pointer.json)：246,886 字节、2880×1800、PID 91515、窗口号 10793。全部原件根为 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/tracer-01/`；夹具副本 157 文件、3,084,805 字节，comparison=true、原件保留。摘要 [tracer-01.run.json](tracer-01.run.json)，清单 [tracer-01.archive.json](tracer-01.archive.json)。日志为主控 scratchpad 的 `t091-tracer-01.log`。
+
+单格真实读回门槛已满足，开始沿同一生产路径扩三格；整票仍为 **INCOMPLETE**。此前只读审查的 INCOMPLETE 原报告保留，不能补称其当时已取得运行证据。
