@@ -10,7 +10,9 @@ import select
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+from unittest.mock import patch
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -22,6 +24,51 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    def test_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards(self):
+        with tempfile.TemporaryDirectory(prefix="t093-keychain-helper-") as temp:
+            real_home = Path(temp) / "source-home"
+            keychain = real_home / "Library/Keychains/login.keychain-db"
+            keychain.parent.mkdir(parents=True)
+            keychain.touch()
+            isolated = Path(temp) / "isolated"
+            isolated.mkdir()
+            env = probe.environment(isolated)
+            original_env = dict(env)
+            access = "t093-synthetic-access-" + uuid4().hex
+            refresh = "t093-synthetic-refresh-" + uuid4().hex
+            oauth = {"accessToken": access, "refreshToken": refresh, "expiresAt": (time.time() + 3600) * 1000}
+            payload = json.dumps({"claudeAiOauth": oauth, "mcpOAuth": {"must_not_copy": "synthetic-other-login"}}).encode()
+            calls = []
+
+            def fake_capture(argv, *, env, cwd, timeout):
+                self.assertEqual(argv[:2], ["/usr/bin/sandbox-exec", "-p"])
+                # 合同来自本次约束：原只读、无网络、禁止 fork 的 profile 不变。
+                self.assertEqual(argv[2], '(version 1)(allow default)(deny file-write*)(deny network*)(deny process-fork)')
+                self.assertEqual(env, original_env)
+                calls.append(argv[3:])
+                command = argv[3:]
+                if command == ["/usr/bin/security", "find-generic-password", "-s", "Claude Code-credentials", str(keychain)]:
+                    return 0, b"discarded synthetic attributes", b""
+                if command == ["/usr/bin/security", "find-generic-password", "-s", "Claude Code-credentials", "-w", str(keychain)]:
+                    return 0, payload, b""
+                # 重现用户给出的反差：隔离 HOME 中的默认搜索返回 44。
+                return 44, b"", b"synthetic item not visible in default search scope"
+
+            report, stopped, result = {}, None, None
+            with patch.object(probe, "capture", side_effect=fake_capture):
+                try:
+                    result = probe.credentials(real_home, env, str(isolated / "cwd"), report)
+                except probe.StopProbe as error:
+                    stopped = str(error)
+            self.assertIsNone(stopped, "精确服务在指定钥匙串可见，不应因隔离 HOME 的默认搜索遗漏而判缺失。")
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(result, [access, refresh])
+            destination = Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json"
+            self.assertEqual(json.loads(destination.read_text(encoding="utf-8")), {"claudeAiOauth": oauth})
+            self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
+            self.assertNotIn(access, json.dumps(report))
+            self.assertNotIn(refresh, json.dumps(report))
+
     def test_scanner_detects_sentinel_and_encoded_forms(self):
         sentinel = "t093-synthetic/" + uuid4().hex + "+secret"
         for value in (sentinel, quote(sentinel, safe=""), base64.b64encode(sentinel.encode()).decode()):

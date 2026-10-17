@@ -1,6 +1,7 @@
 # T-093 前置探针交接（2026-10-17）
 
-状态：INCOMPLETE。本次只交探针；未运行真实 CLI 探针，未改产品代码，未取得正常登录可用结论。
+状态：INCOMPLETE。主控已执行 probe-01，停在精确钥匙串服务不可见；未改产品代码，未取得正常登录可用结论。
+本次查询目标修正与 probe-02 命令见 [PROBE-02.md](PROBE-02.md)；原 probe-01 保留。
 绑定：T-093-1 / attempt a1 / writer s16-t093 / ready_rev 1 / 起点 `61786370428c3ec5f894ea60acccf2695d54c2dc`。
 
 目标是核对三件事实：现有订阅登录的存储位置、只复制登录凭据后隔离 HOME 的登录识别、
@@ -23,7 +24,9 @@
 证据目录和源码位于 `~/Documents`，在比较范围之外。
 
 凭据来源限 `~/.claude/.credentials.json` 与钥匙串精确服务 `Claude Code-credentials`。
-只执行该服务的 `security find-generic-password`，不枚举其他条目、不写钥匙串。
+只执行该服务的 `security find-generic-password`，显式限定到 `~/Library/Keychains/login.keychain-db`，
+不使用隔离 HOME 的默认搜索位置，不枚举其他条目、不写钥匙串。该文件已只读核对为现存普通文件，路径含链接或文件缺失即停止。
+精确查询的只读 profile 与隔离环境均不变，不添加 Mach allow 或放宽其他权限。
 若出现系统钥匙串授权对话框，不点 Allow 或 Always Allow；让 5 秒期限结束并报告失败。
 若文件和精确服务同时存在、来源为自定义 `CLAUDE_CONFIG_DIR`、登录过期或格式未知，立即停止。
 仅将 `claudeAiOauth` 对象写入隔离目录的 `.credentials.json`（0600）；不复制设置、账号资料、历史或其他凭据。
@@ -34,7 +37,8 @@ REALITY GATE: INCOMPLETE
 
 - **observed**：现有产品只构造固定假 token 的本地 API profile；`controller_start → startController → claudeLaunch` 是现有通路。
 - **observed**：本机 CLI 链接指向 `~/.local/share/claude/versions/2.1.302`；未在本 worker 中运行它。
-- **unknown**：本机实际登录来源、凭据文件在 macOS 隔离环境中能否被识别、自定义地址是否仍用原登录。
+- **observed（主控 #58）**：probe-01 在隔离环境不可见的精确服务，在主控未加 profile 的环境中查询返回 0；未读取密码。
+- **unknown**：显式单一钥匙串能否消除该上下文差异、凭据文件在 macOS 隔离环境中能否被识别、自定义地址是否仍用原登录。
 - **probe owner**：执行主控在沙箱外运行下面脚本。证据为新建的 JSON 摘要，始终不覆盖旧结果。
 
 1. 建立 `/private/tmp/t093-probe-*`，所有 CLI 工作目录、HOME、配置、tmp 均在其中。
@@ -75,7 +79,7 @@ REALITY GATE: INCOMPLETE
 
 ```sh
 python3 workbench/tests/probe_t093_normal_login.py
-python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-01.json
+python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-02.json
 ```
 
 必须使用实际可执行文件（不复制），输出路径必须是已存在目录中的新文件。

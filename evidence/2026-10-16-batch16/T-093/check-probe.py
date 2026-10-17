@@ -31,6 +31,9 @@ def main():
         ("sink_reloads_writable_credential", 'self.headers.get("Authorization") == "Bearer " + expected',
          'self.headers.get("Authorization") == "Bearer " + json.loads((root / "home/.claude/.credentials.json").read_text(encoding="utf-8"))["claudeAiOauth"]["accessToken"]',
          "test_real_sink_separates_matching_and_wrong_bearer_without_leak"),
+        ("keychain_uses_isolated_default_search_scope", 'guarded(read_only, [*command, str(keychain)])',
+         'guarded(read_only, command)',
+         "test_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards"),
     ]
     records = []
     baseline = subprocess.run([sys.executable, str(test)], cwd=repo, capture_output=True, text=True, timeout=20)

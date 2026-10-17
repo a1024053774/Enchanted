@@ -178,18 +178,28 @@ def credentials(home, env, cwd, report):
     require(not (home / ".claude").is_symlink(), "credential_directory_is_symlink")
     # 不枚举钥匙串，不使用 dump-keychain，不访问其他服务。
     command = ["/usr/bin/security", "find-generic-password", "-s", SERVICE]
+    # Security 会用 HOME 展开默认搜索位置；显式限定到已核对的单一
+    # login keychain，避免隔离 HOME 被误当作真实登录的搜索根。
+    keychain = home / "Library/Keychains/login.keychain-db"
+    for relative in ("Library", "Library/Keychains", "Library/Keychains/login.keychain-db"):
+        require(not (home / relative).is_symlink(), "keychain_path_is_symlink")
+    require(keychain.is_file(), "reviewed_login_keychain_missing")
     read_only = '(version 1)(allow default)(deny file-write*)(deny network*)(deny process-fork)'
-    code, _, _ = capture(guarded(read_only, command), env=env, cwd=cwd, timeout=5)
+    code, _, _ = capture(guarded(read_only, [*command, str(keychain)]), env=env, cwd=cwd, timeout=5)
+    report["keychain_query"] = {"service": SERVICE, "keychain": "~/Library/Keychains/login.keychain-db",
+                                "exit_code": code, "profile_changed": False,
+                                "home_is_isolated": env["HOME"] != str(home)}
     require(code in (0, 44), "keychain_lookup_unavailable")
     report["credential_locations"] = {"file_present": source.exists(),
                                       "exact_keychain_service_present": code == 0}
     require(not (source.exists() and code == 0), "credential_source_is_ambiguous")
     if code == 0:
-        code, raw, _ = capture(guarded(read_only, [*command, "-w"]), env=env, cwd=cwd, timeout=5)
+        code, raw, _ = capture(guarded(read_only, [*command, "-w", str(keychain)]), env=env, cwd=cwd, timeout=5)
+        report["keychain_read_exit_code"] = code
         require(code == 0, "keychain_read_unavailable")
         report["credential_source"] = "macOS Keychain: " + SERVICE
     else:
-        require(source.is_file(), "login_credential_not_found")
+        require(source.is_file(), "login_credential_not_visible_in_reviewed_scope")
         require(source.stat().st_size < 1024 * 1024, "credential_file_too_large")
         raw = source.read_bytes()
         report["credential_source"] = "~/.claude/.credentials.json"
