@@ -7,7 +7,6 @@ import io
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -15,6 +14,7 @@ import tempfile
 import unittest
 
 import audit_s3_assertions as audit
+from archive_evidence import archive_large_files
 import daemon_acceptance_adapter as adapter
 import test_task_cards_e2e as cards
 from test_daemon_gates_e2e import DaemonCards
@@ -58,33 +58,6 @@ def finish_evidence(out, fixture_root, artifacts):
     with tarfile.open(out / 'fixtures.tar.gz', 'x:gz') as archive:
         archive.add(fixture_root, arcname=fixture_root.name)
     return derived, collection_errors
-
-
-def archive_large_files(out):
-    relocated = []
-    for path in sorted(out.rglob('*')):
-        if not path.is_file() or path.stat().st_size <= 5 * 1024 * 1024:
-            continue
-        relative = path.relative_to(out)
-        destination = Path('/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-077') / out.name / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        with path.open('rb') as source, destination.open('xb') as target:
-            shutil.copyfileobj(source, target)
-            target.flush()
-            os.fsync(target.fileno())
-        with path.open('rb') as source, destination.open('rb') as target:
-            while True:
-                left, right = source.read(1024 * 1024), target.read(1024 * 1024)
-                if left != right:
-                    raise ValueError('External archive differs from the original bytes: ' + str(path))
-                if not left:
-                    break
-        entry = {'original': str(path), 'archive': str(destination), 'bytes': path.stat().st_size,
-                 'replay': ['python3', '-B', str(ROOT / 'workbench/tests/run_s3_regression.py'), *sys.argv[1:]]}
-        write_new(path.with_name(path.name + '.archive.json'), entry)
-        path.unlink()
-        relocated.append(entry)
-    return relocated
 
 
 def main():
@@ -191,7 +164,10 @@ def main():
         layers = list(summary['runtime_layers'].values())
         if layers.count('isolated-orchestration') != 13 or layers.count('default-production-daemon') != 5:
             collection_errors.append({'error': 'The expected 13 controlled / 5 default runtime split changed', 'layers': layers})
-    relocated = archive_large_files(out)
+    relocated = archive_large_files(
+        out, archive_root=Path('/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-077') / out.name,
+        minimum_bytes=5 * 1024 * 1024,
+        replay=['python3', '-B', str(ROOT / 'workbench/tests/run_s3_regression.py'), *sys.argv[1:]])
     summary['external_archives'] = relocated
     summary.pop('failure_text')
     summary.pop('error_text')

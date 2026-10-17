@@ -23,6 +23,8 @@ Herdr 期由执行主控手填这份 Markdown 后经 `scripts/dispatch` 派发�
 
 把表中的完成条件展开为命令、输入、预期结果和证据路径。交付绑定 task、attempt、session/fence、规格版本及完整提交号；显式 submit。说明需保留的失败现场、重放命令和不在本卡范围的问题上报入口。
 
+摘要与测试或门禁读取的小文件留在仓库，原始大块输出归档到 `/Volumes/WD-Elements/a2a-evidence/<批次目录>/<ticket>/`，仓库留 `*.archive.json` 清单。
+
 ## Herdr 期启动与打分
 
 从已核对的主控 shell 使用 `scripts/launch-worker --cwd <worktree> --agent <唯一名> --project <项目短名> --task <卡号> --attempt <attempt> --session <session>`。脚本只启动 worker，不认领或集成任务；门禁身份由执行主控传入。用 `scripts/dispatch` 发本卡，追加到 `records/launches.jsonl` 的启动记录号会出现在提交尾注。模型与强度取启动记录；如果会话内切换配置，先另开受记录的会话，不把旧启动配置当作新配置的证明。
