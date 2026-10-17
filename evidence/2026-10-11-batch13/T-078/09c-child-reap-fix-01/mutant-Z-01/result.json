@@ -1,0 +1,96 @@
+{
+  "status": "INCOMPLETE",
+  "expect": "green",
+  "results": [
+    {
+      "name": "recorded_Z_diagnostic",
+      "status": "FAIL",
+      "error": "AssertionError('Z must never count as absent')",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 183, in main\n    try: results.append({'name': name, **call()})\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 181, in <lambda>\n    for name, call in [('recorded_Z_diagnostic', lambda: recorded_zombie(raw, out / 'Z')),\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 43, in recorded_zombie\n    else: raise AssertionError('Z must never count as absent')\nAssertionError: Z must never count as absent\n"
+    },
+    {
+      "name": "creator_reaps_before_OS_absence",
+      "status": "PASS",
+      "scope": "actual CScene.cleanup; explicit transport fixtures",
+      "calls": [
+        "daemon_stop",
+        "wait:daemon",
+        "wait:coordinator",
+        "ps:daemon",
+        "ps:target_shell",
+        "ps:target_leader",
+        "ps:ideation_shell",
+        "ps:ideation_cli",
+        "ps:executor_shell",
+        "ps:executor_cli",
+        "SIGTERM:ideation_api",
+        "wait:ideation_api",
+        "ps:ideation_api",
+        "SIGTERM:executor_api",
+        "wait:executor_api",
+        "ps:executor_api"
+      ]
+    },
+    {
+      "name": "launchd_reaps_Z",
+      "status": "PASS",
+      "actual_verdict": "PASS"
+    },
+    {
+      "name": "live_is_not_absent",
+      "status": "PASS",
+      "actual_verdict": "BLOCKED"
+    },
+    {
+      "name": "reused_PID",
+      "status": "PASS",
+      "actual_verdict": "BLOCKED"
+    },
+    {
+      "name": "foreign_parent",
+      "status": "PASS",
+      "waits": 0,
+      "signals": 0
+    },
+    {
+      "name": "changed_handle_PID",
+      "status": "PASS",
+      "waits": 0,
+      "signals": 0
+    },
+    {
+      "name": "changed_spawn_argv",
+      "status": "PASS",
+      "waits": 0,
+      "signals": 0
+    },
+    {
+      "name": "duplicate_handle",
+      "status": "PASS",
+      "waits": 0,
+      "signals": 0
+    },
+    {
+      "name": "child_timeout_blocks_before_API_signal",
+      "status": "PASS",
+      "receipt": {
+        "name": "daemon",
+        "pid": 51000,
+        "argv": [
+          "/fixture/daemon"
+        ],
+        "creator_pid": 34514,
+        "scope": "wait original Popen only; no signal; OS absence still required",
+        "status": "BLOCKED",
+        "reason": "original_child_exit_unconfirmed"
+      }
+    }
+  ],
+  "sample": "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-parity-child-exit-probe-01/before-reap-4.json",
+  "raw_source": "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-child-reap-fix-01/mutant-Z-counts-as-absent.py",
+  "scene_source": "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_09c_real_chain.py",
+  "processes_started": 0,
+  "actual_signals": 0,
+  "model_turns": 0,
+  "limitations": "ps/Popen transports are explicit fixtures; full nine-process outside rehearsal still required"
+}

@@ -49,6 +49,50 @@ def preflight():
             'models':0,'vendor_CLIs':0,'expected_wall_wait_seconds':120.1,'hard_timeout_seconds':420}
 
 
+class DirectChildRuntime(NativeRuntime):
+    """The rehearsal creator reaps its original Popen children after stop.
+
+    Detached/live scene cleanup uses NativeRuntime and never enters this path.
+    No PID discovered by ps is adopted as a waitpid target.
+    """
+    def __init__(self, owner, children, output):
+        super().__init__(owner)
+        self.children = {item['name']: item for item in children}
+        require(len(self.children) == len(children) and
+                len({item['pid'] for item in children}) == len(children), 'unique original child handles')
+        for item in children:
+            require(item['child'].pid == item['pid'] and item['child'].args == item['argv'], 'original Popen binding')
+        for label in ['daemon', 'ideation_api', 'executor_api']:
+            name = label.replace('_', '-')
+            require(name in self.children and self.children[name]['pid'] == owner['processes'][label]['pid'] and
+                    owner['process_graph'][label]['ppid'] == os.getpid(), 'original direct child creator', label)
+        self.child_output = Path(output) / 'child-waits'
+
+    def reap(self, name, seconds):
+        item = self.children[name]
+        receipt = {'name': name, 'pid': item['pid'], 'argv': item['argv'], 'creator_pid': os.getpid(),
+                   'scope': 'wait original Popen only; no signal; OS absence still required'}
+        try: receipt.update(status='REAPED', exit_code=item['child'].wait(timeout=seconds))
+        except subprocess.TimeoutExpired:
+            receipt.update(status='BLOCKED', reason='original_child_exit_unconfirmed')
+            save(self.child_output / (name + '.json'), receipt)
+            raise
+        save(self.child_output / (name + '.json'), receipt)
+
+    def normal_stop(self):
+        super().normal_stop()
+        self.reap('daemon', 20)
+        # Subprocess.run children are already reaped by run. This registry
+        # additionally owns coordinator/conditional-driver Popen handles.
+        for name in self.children:
+            if name not in ['daemon', 'ideation-api', 'executor-api']: self.reap(name, 5)
+
+    def terminate(self, label):
+        require(label in ['ideation_api', 'executor_api'], 'only original API termination')
+        super().terminate(label)
+        self.reap(label.replace('_', '-'), 3)
+
+
 class CScene(Scene):
     def __init__(self,out):
         super().__init__(out,'09C');self.p1s={};self.inputs={};self.signature='REHEARSAL ONLY main #365 deterministic native chain'
@@ -370,10 +414,11 @@ class CScene(Scene):
         raw.save(self.output/'cleanup-approval.json',approval)
         independent={'approved_by':'executor','approval_ref':'REHEARSAL ONLY independent tar recount',
             'archive':str(archive),'counts':counts}
-        result=raw.finish(owner,approval,captured,independent,self.output/'cleanup-standard',raw.NativeRuntime(owner))
+        cleanup_output=self.output/'cleanup-standard'
+        runtime=DirectChildRuntime(owner,self.children,cleanup_output)
+        result=raw.finish(owner,approval,captured,independent,cleanup_output,runtime)
         require(result['status']=='PASS' and result['root_removed'],'standard archive/readback/finish',result)
-        for child in self.children:
-            child['child'].wait(timeout=5)
+        require(all(item['child'].returncode is not None for item in self.children), 'all original children reaped')
         details={**result,'scratch_removed':True,'SQLite_backup':'live consistent backup includes WAL; integrity ok',
             'scope':'same raw owner/identity/topology/capture/readback/finish gates as live scenes'}
         save(self.output/'cleanup.json',details);return details

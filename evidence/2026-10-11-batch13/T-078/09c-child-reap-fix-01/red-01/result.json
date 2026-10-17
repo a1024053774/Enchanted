@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "expect": "red",
+  "results": [
+    {
+      "name": "recorded_Z_diagnostic",
+      "status": "FAIL",
+      "error": "AssertionError(('missing_Z_identity_diagnostic', 'owned_process_exit_unconfirmed'))",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 148, in main\n    try: results.append({'name': name, **call()})\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 146, in <lambda>\n    for name, call in [('recorded_Z_diagnostic', lambda: recorded_zombie(raw, out / 'Z')),\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 44, in recorded_zombie\n    assert f'pid={pid}' in reason and f'ppid={parent}' in reason and 'stat=Z' in reason, ('missing_Z_identity_diagnostic', reason)\nAssertionError: ('missing_Z_identity_diagnostic', 'owned_process_exit_unconfirmed')\n"
+    },
+    {
+      "name": "creator_reaps_before_OS_absence",
+      "status": "FAIL",
+      "error": "ValueError('owned_process_exit_unconfirmed')",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 148, in main\n    try: results.append({'name': name, **call()})\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 147, in <lambda>\n    ('creator_reaps_before_OS_absence', lambda: cleanup_wiring(raw, scene, out / 'wiring'))]:\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 106, in cleanup_wiring\n    scene.cleanup()\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_09c_real_chain.py\", line 373, in cleanup\n    result=raw.finish(owner,approval,captured,independent,self.output/'cleanup-standard',raw.NativeRuntime(owner))\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_child_reaping.py\", line 97, in finish\n    runtime.wait_absent([label for label in processes if not label.endswith('_api')], 0)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_raw_retention.py\", line 496, in wait_absent\n    require(time.monotonic() < until, 'owned_process_exit_unconfirmed')\n  File \"/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_raw_retention.py\", line 41, in require\n    raise ValueError(reason)\nValueError: owned_process_exit_unconfirmed\n"
+    }
+  ],
+  "sample": "/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-parity-child-exit-probe-01/before-reap-4.json",
+  "raw_source": "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_raw_retention.py",
+  "scene_source": "/Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/test_t078_09c_real_chain.py",
+  "processes_started": 0,
+  "actual_signals": 0,
+  "model_turns": 0,
+  "limitations": "ps/Popen transports are explicit fixtures; full nine-process outside rehearsal still required"
+}

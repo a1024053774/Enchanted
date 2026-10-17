@@ -382,7 +382,10 @@ class HttpExchange:
 
 
 class NativeRuntime:
-    def __init__(self, owner): self.owner = owner
+    def __init__(self, owner):
+        self.owner = owner
+        self.exit_output = None
+        self.exit_wait_sequence = 0
 
     def identities(self):
         found = {}
@@ -489,12 +492,60 @@ class NativeRuntime:
     def terminate(self, label): os.kill(self.owner['processes'][label]['pid'], signal.SIGTERM)
 
     def wait_absent(self, labels, seconds):
+        # A zombie is present until its original parent reaps it. This observer
+        # neither signals nor reaps any PID, including launchd's children.
+        require(self.exit_output is not None, 'exit_observation_directory_required')
+        self.exit_wait_sequence += 1
+        folder = Path(self.exit_output) / f'wait-{self.exit_wait_sequence:03d}'
+        folder.mkdir(parents=True, exist_ok=False)
         until = time.monotonic() + seconds
-        while True:
-            observed = self.identities()
-            if all(observed[label] is None for label in labels): return
-            require(time.monotonic() < until, 'owned_process_exit_unconfirmed')
-            time.sleep(.1)
+        sequence = 0; remaining = []; zombies = []
+        try:
+            while True:
+                sequence += 1; probes = []
+                for label in labels:
+                    pid = self.owner['processes'][label]['pid']
+                    argv = ['/bin/ps', '-ww', '-p', str(pid), '-o', 'pid=,ppid=,pgid=,stat=,lstart=,command=']
+                    try:
+                        result = subprocess.run(argv, capture_output=True, text=True, timeout=5,
+                                                env={**os.environ, 'LC_ALL': 'C', 'LANG': 'C'})
+                    except subprocess.TimeoutExpired as error:
+                        save(folder / f'sample-{sequence:04d}.json',
+                             {'at': time.time(), 'probes': probes, 'probe_timeout': {'label': label, 'pid': pid, 'argv': argv}})
+                        raise ValueError('owned_exit_probe_timeout:' + label + ':pid=' + str(pid)) from error
+                    probes.append({'label': label, 'pid': pid, 'argv': argv, 'exit': result.returncode,
+                                   'stdout': result.stdout, 'stderr': result.stderr})
+                # Preserve raw output before parsing or refusing a state.
+                sample = folder / f'sample-{sequence:04d}.json'
+                save(sample, {'at': time.time(), 'probes': probes})
+                remaining = []
+                for probe in probes:
+                    label, pid = probe['label'], probe['pid']
+                    require(not probe['stderr'].strip() and probe['exit'] in (0, 1), 'owned_exit_probe_failed:' + label)
+                    if probe['exit'] == 1:
+                        require(not probe['stdout'].strip(), 'ambiguous_owned_exit:' + label); continue
+                    lines = probe['stdout'].splitlines()
+                    require(len(lines) == 1, 'ambiguous_owned_exit_identity:' + label)
+                    cells = lines[0].split(None, 9)
+                    require(len(cells) == 10 and int(cells[0]) == pid, 'owned_exit_identity_parse_failed:' + label)
+                    started = ' '.join(cells[4:9])
+                    identity = identity_from_ps(pid, 0, f'{pid} {started} {cells[9]}', '')
+                    detail = {'label': label, **identity, 'ppid': int(cells[1]), 'pgid': int(cells[2]), 'stat': cells[3]}
+                    remaining.append(detail)
+                    require(started == self.owner['processes'][label]['started'],
+                            'owned_process_identity_changed_during_exit:' + label + ':pid=' + str(pid))
+                    if 'Z' in cells[3]: zombies.append({'sample': str(sample), **detail})
+                if not remaining:
+                    save(folder / 'result.json', {'status': 'PASS', 'labels': labels, 'samples': sequence,
+                                                 'remaining': [], 'zombie_observations': zombies})
+                    return
+                detail = '; '.join(f"{row['label']}(pid={row['pid']},ppid={row['ppid']},stat={row['stat']})" for row in remaining)
+                require(time.monotonic() < until, 'owned_process_exit_unconfirmed: ' + detail)
+                time.sleep(.1)
+        except Exception as error:
+            save(folder / 'result.json', {'status': 'BLOCKED', 'labels': labels, 'samples': sequence,
+                                         'remaining': remaining, 'zombie_observations': zombies, 'error': repr(error)})
+            raise
 
 
 def check_identities(owner, runtime, labels=None):
@@ -517,6 +568,7 @@ def check_identities(owner, runtime, labels=None):
 def finish(owner, approval, captured, independent, output, runtime, dry_run=False):
     """No database reads here. Archive and independent readback precede stop."""
     root = owned_root(owner); output = Path(output); output.mkdir(parents=True, exist_ok=False)
+    runtime.exit_output = output / 'exit-observations'
     log = {'status': 'BLOCKED', 'signals_sent': [], 'root_removed': False, 'dry_run': dry_run, 'steps': []}
     def step(name):
         log['steps'].append({'name': name, 'at': time.time()})

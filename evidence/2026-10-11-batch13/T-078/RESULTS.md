@@ -1684,3 +1684,13 @@ TURN旧末断言必败的原因是混淆提交id与dispatch：实际turn_submitt
 已备[独立短命子进程机制探针](09c-parity-diag-01/01-CHILD-PROBE.txt)，供主控沙箱外用原wait入口取“未reap超时→原Popen wait后真实ps缺席”的红绿；不启动场景/API/模型、不发信号。它尚未运行，不能据此修改共享finish或提升第三场。后续最小修法候选只调整排练创建者reap原Popen的顺序，并保留受管PID实际缺席要求；等待原始ps/stat/remaining标签也应入回收输出。未确认前不更改辅助允许项、不忽略Z进程、不延长超时、不启动第三场。
 
 [本次残留回收工具与顺序](09c-parity-diag-01/DIAGNOSIS.md)另备：原九身份/StageA/B1/归档/失败收据、七个非API与原两个helper/旧harness均缺席、API完整argv/lstart双读且PPID1，才可把原停前脱敏快照与当前失败/身份收据重新归档至外置盘09c-parity-recovery-01，逐成员字节读回、独立tar重数签字；然后只对原API26921/26923各一次SIGTERM，全部缺席与字节复核通过再删exact root。无重复daemon_stop、无角色/目标/helper信号、停后SQLite读0、slot不动。批准草稿未签，真实inspect/归档/回收未跑。只读[文件/guard检查](09c-parity-diag-01/file-check.json)PASS，包含原tar真实字节比较、损坏字节反例及明确ps运输夹具的身份反例；不冒称物理退出或新独立审查。第三场冻结仍NO_GO，整票INCOMPLETE。
+
+## 主控 #369：原Popen子进程回收顺序修复候选；新排练待复跑
+
+主控沙箱外 [01物理探针](09c-parity-child-exit-probe-01/result.json) **PASS**：直接子进程32408已exit0而父32407尚未reap时，原ps为Z、旧wait_absent拒绝；原Popen wait后同一缺席确认通过。该结果证实回收顺序缺陷机制，**不补称历史20秒超时具体PID已确认**。主控 [inspect](09c-parity-recovery-inspect-01/result.json)、[重新归档](09c-parity-recovery-archive-01/result.json)、[独立签字重数](09c-parity-recovery-readback-01/readback.json)、[finish](09c-parity-recovery-finish-01/result.json)均PASS；外置09c-parity-recovery-01/scene.tar.gz为167497字节，字节读回PASS、POST7/1、roots4/1、PermissionRequest3、主控严格凭据扫描0；仅API26921/26923各一次SIGTERM，无重复daemon_stop、原root已删、停后SQLite读0。全部新原件与原签字保留。
+
+本轮[候选说明](09c-child-reap-fix-01/README.md)只改测试工具：排练创建者在认证daemon_stop后wait原daemon Popen和其他原直接Popen；各API既有一次SIGTERM后wait原Popen。原handle的PID/argv、原三子进程PPID/创建者须一致，不接管ps发现的PID，不给角色/目标/helper补信号；之后仍经标准OS缺席、helper缺席与归档字节门。标准真实场景继续NativeRuntime，未增加waitpid；launchd暂存Z只留原ps并继续等真实缺席，不把Z当退出。wait_absent的每轮完整ps及PID/父进程/stat落在独占cleanup输出，超时明确列剩余标签；PID复用/读回失败仍拒绝，停后不读SQLite。
+
+[改前红态](09c-child-reap-fix-01/red-01/result.json)与[Git旧源码重放](09c-child-reap-fix-01/red-02/result.json)均命中未reap先查缺席及缺Z诊断；[绿态10项](09c-child-reap-fix-01/green-02/result.json)PASS，包含真实Z固定样本、实际CScene.cleanup调用顺序、launchd Z→缺席、活进程/复用PID/错误创建者/handle错绑/重复/等待超时反例。把Z当缺席的[已知坏变异](09c-child-reap-fix-01/mutant-verdict.json)在新真实Z断言失败。[拓扑22项](09c-child-reap-fix-01/topology-01/result.json)、[归档8项](09c-child-reap-fix-01/retention-regression-01/result.json)与[完整链check-only](09c-child-reap-fix-01/scene-preflight-01/preflight.json)PASS。Popen/ps/SQLite运输层明确为夹具，不冒称本地物理生命周期或新独立审查；本会话场景进程/信号/按键/模型均0。
+
+新的[沙箱外命令](09c-child-reap-fix-01/REHEARSAL-COMMAND.txt)输出09c-caffeinate-parity-rehearsal-02，路径存在性/全新输出已核对，**尚未执行**。要求无豁免九进程、POST7/1、roots4/1、三许可、单Esc/无ack、>120秒/<150秒、协调器一次与重复拒绝、REAPED原handle收据、真实ps缺席、标准cleanup/root删除全部PASS。旧-01仍整体INCOMPLETE；第三场收据/闭包不提前放宽或重冻，整票仍INCOMPLETE。
