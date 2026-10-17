@@ -35,3 +35,7 @@ onboarding 的两个官方 hello 候选绕过 BASE_URL，正式 profile 阻断�
 真实 HOME 清单的所有差异保留，不做归属采集、不以其他会话为由自动忽略。该验收裁定仍由主控处理。
 
 当前 project_map.py status：0 problems、0 stale living docs；最终交付前仍须重跑并保存新证据。
+
+补充：外层脚本已加入主控实际 HOME 的同范围前后清单，只读元数据；daemon 的合成源 HOME 与实际 HOME 分开报告。
+完整清单只在内存比较，摘要只保存前后条目数及全部差异，不将原始目录树入 Git。
+最终待执行命令改用 product-chain-03.json（与同名前缀的 .host-home.json）；先前脚本材料和结果不覆盖。

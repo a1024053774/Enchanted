@@ -133,7 +133,9 @@ export class ClaudeLogin {
         counts, forwarder: this.#forwarder!.counters,
         launch_home_references: homeReferences(record, this.realHome),
         inventory: { scope: scopes, excludes: ["atime", "file contents", "symlink targets", "other HOME paths"],
-          before: this.#before, after, changed, attribution: "No causal attribution; concurrent sessions may write these paths." },
+          before_entries: Object.keys(this.#before).length, after_entries: Object.keys(after).length, changed,
+          differences: changed.map(path => ({ path, before: this.#before[path] ?? null, after: after[path] ?? null })),
+          attribution: "No causal attribution; concurrent sessions may write these paths." },
         credential_scan: { ...scan, scope: this.#input.state, timing: "session finalization" },
         onboarding: { generated: true, trusted_project: this.#repo, internal_state_version: "2.1.302",
           preflight_observed: preflightObserved(this.#raw), direct_network_blocked: true }, isolated_home_removed: false };

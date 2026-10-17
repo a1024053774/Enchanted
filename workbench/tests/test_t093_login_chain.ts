@@ -21,6 +21,7 @@ const sourceHome = join(root, "source-home"), token = "synthetic-login-only-" + 
 const exec = promisify(execFile), checks: string[] = [];
 let panes: any, gates: any, failure: string | null = null, daemonStarted = false, launch: any, facts: any;
 let upstreamReceived = 0;
+let candidate = "unknown";
 const upstream = createServer((req, res) => {
   assert.equal(req.method, "POST"); assert.equal(req.url, "/v1/messages");
   assert.equal(req.headers.authorization, "Bearer " + token);
@@ -37,6 +38,7 @@ async function wait(test: () => boolean, name: string, timeout = 20_000) {
   while (!test()) { if (Date.now() > until) throw new Error(name); await new Promise(resolve => setTimeout(resolve, 30)); }
 }
 try {
+  candidate = (await exec("git", ["rev-parse", "HEAD"])).stdout.trim();
   for (const name of ["state", "repo", "source-home/.claude"]) mkdirSync(join(root, name), { recursive: true, mode: 0o700 });
   for (const name of ["home", "claude", "tmp", "shell", "requests", "hooks", "user-data"]) mkdirSync(join(root, "roles/ideation", name), { recursive: true, mode: 0o700 });
   writeFileSync(join(root, "roles/ideation/role.md"), "确定性正常登录链路测试。\n");
@@ -59,10 +61,10 @@ try {
   panes.store.db.prepare("INSERT INTO inbox_records VALUES (?,?)").run("t093-independent-sentinel", JSON.stringify({ schema: 1,
     id: "t093-independent-sentinel", kind: "report", from: "executor", to: "ideation", body: "独立 Stop 转交哨兵", reply_to: null, refs: [], created_at: new Date().toISOString() }));
   const manifest = { schema: 1, root, state, task: task.task_id, preset: "ideation", launch: randomUUID(), session: randomUUID(), thread: randomUUID(),
-    executable, version: "2.1.302", role_file: join(root, "roles/ideation/role.md"), code_revision: "a".repeat(40), source_snapshot: root,
+    executable, version: "2.1.302", role_file: join(root, "roles/ideation/role.md"), code_revision: candidate, source_snapshot: root,
     authentication: "normal-login", credential_source: "file", upstream_url: `http://127.0.0.1:${upstreamPort}`, turn_limit: 3 };
   const started = await request(state, { command: "controller_start", task: task.task_id, manifest }, operator);
-  assert.equal(started.ok, true, "controller_start failed: " + started.error); launch = started.launch;
+  assert.equal(started.ok, true, "controller_start failed: " + started.error + " stage=" + started.details?.stage); launch = started.launch;
   const trace = join(state, "traces", launch.id, "pty.raw");
   await wait(() => readFileSync(trace, "utf8").includes("fixture-ready"), "fixture startup deadline");
   assert(readFileSync(trace, "utf8").includes("fixture-sandbox-child-protection-PASS"));
@@ -104,7 +106,7 @@ finally {
   upstream.closeAllConnections(); await new Promise<void>(resolve => upstream.close(() => resolve()));
   if (launch?.env?.HOME) assert.equal(existsSync(launch.env.HOME), false, "private HOME cleanup must finish");
   if (originalHome === undefined) delete process.env.HOME; else process.env.HOME = originalHome;
-  const result = { status: failure ? "INCOMPLETE" : "PASS", task: "T-093", checks, failure,
+  const result = { status: failure ? "INCOMPLETE" : "PASS", task: "T-093", candidate, node_version: process.version, checks, failure,
     upstream_requests: upstreamReceived, real_upstream_requests: 0, real_cli_starts: 0,
     auth_source: "synthetic fixture HOME only", facts, fixture_removed: false };
   // Private source, generated executable, sqlite and raw PTY stay out of evidence.
