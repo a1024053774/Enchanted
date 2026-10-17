@@ -61,7 +61,7 @@ def check_late_reply(source):
         'reply_written' not in observed['stages'], observed
 
 
-def check_observer_close(source):
+def check_observer_close(source, ready=True):
     definition = next(node for node in ast.parse(source).body if isinstance(node, ast.ClassDef) and node.name == 'Observer')
     events = []
 
@@ -77,6 +77,7 @@ def check_observer_close(source):
     observer.process = process
     observer.owner = {'pid': 123, 'started': 'fixture', 'command': 'fixture'}
     observer.exit_confirmed = False
+    observer.ready_confirmed = ready
     observer.selector = SimpleNamespace(select=lambda wait: [], close=lambda: None)
     observer.log = io.StringIO(); observer.stderr = io.BytesIO(); observer.stdout = io.BytesIO()
 
@@ -88,9 +89,13 @@ def check_observer_close(source):
     failure = None
     try:
         observer.close()
-    except TimeoutError as error:
-        failure = str(error)
-    assert failure is None and events == ['normal_quit'], {'failure': failure, 'events': events}
+    except Exception as error:
+        failure = error
+    if ready:
+        assert failure is None and events == ['normal_quit'], {'failure': str(failure), 'events': events}
+    else:
+        assert isinstance(failure, RuntimeError) and 'wait_for_controller' in str(failure) and \
+            events == [] and not observer.exit_confirmed, {'failure': str(failure), 'events': events}
 
 
 def check_backend_order(source):
@@ -114,6 +119,7 @@ def check_backend_order(source):
         raise TimeoutError('normal exit was not confirmed')
 
     namespace = {'observer': SimpleNamespace(close=unconfirmed_close, exit_confirmed=False,
+                                             ready_confirmed=False,
                                              process=SimpleNamespace(pid=123)),
                  'observer_attempted': True, 'started': True, 'result': {}, 'owned': [],
                  'call': lambda command: events.append(command), 'fixture': MissingPath(), 'credential': MissingPath()}
@@ -129,12 +135,15 @@ def main():
     candidate = Path(run_red.__file__).read_text(encoding='utf-8')
     old_transport = subprocess.check_output(['git', 'show', f'{TRANSPORT_BAD}:{TRANSPORT_PATH}'], text=True)
     new_transport = Path(run_red.__file__).with_name('red_window.mjs').read_text(encoding='utf-8')
+    before_policy = subprocess.check_output(['git', 'show', f'2f29e666c76d1581ea554b9c5d7595cb5a13639e:{PATH}'], text=True)
     checks = []
     result = {'status': 'INCOMPLETE', 'scope': 'pure Python/Node cleanup and stream-error logic; no Electron/macOS runtime proof',
               'known_bad': BAD, 'keys': [], 'model_turns': 0, 'checks': checks}
     try:
         for name, check, known_bad, current, revision in [
-                ('startup_close_does_not_wait_for_uninstalled_rpc', check_observer_close, original, candidate, BAD),
+                ('ready_close_does_not_depend_on_stdin_rpc', check_observer_close, original, candidate, BAD),
+                ('before_ready_waits_without_normal_quit_or_signal', lambda source: check_observer_close(source, ready=False),
+                 before_policy, candidate, '2f29e666c76d1581ea554b9c5d7595cb5a13639e'),
                 ('daemon_stop_waits_for_confirmed_electron_exit', check_backend_order, original, candidate, BAD),
                 ('late_ready_after_unconfirmed_quit_does_not_exit_application', check_late_reply,
                  old_transport, new_transport, TRANSPORT_BAD)]:

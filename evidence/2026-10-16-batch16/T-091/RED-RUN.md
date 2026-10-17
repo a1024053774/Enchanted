@@ -1,6 +1,6 @@
 # T-091 红态读回：主控执行材料
 
-状态：**INCOMPLETE**。red-01 已由主控实跑，observer 启动等待超时，没有取得产品红态；原失败证据保留。当前脚本供 red-02 使用，尚未实跑，未修改 `workbench/app/`、`workbench/src/` 或现有测试。诊断与只处理原 PID 6599 的收尾命令见 [RED-01-DIAGNOSIS.md](RED-01-DIAGNOSIS.md)。界面方向已按主控 #29 确认；实现等待主控返回红态结果。
+状态：**INCOMPLETE**。red-01 已由主控实跑，observer 启动等待超时，没有取得产品红态；原失败证据保留。6599 的正常退出请求被拒后，执行主控核对身份并亲自发一次 SIGTERM，报告 2 秒后退出；不是 worker 或脚本发信号。close-02 已走已退出检查，但旧归档拒绝链接。当前 close-03／red-02 的命令、符号链接规则与 ready 前停等策略见 [ARCHIVE-FOLLOWUP.md](ARCHIVE-FOLLOWUP.md)；此前诊断保留在 [RED-01-DIAGNOSIS.md](RED-01-DIAGNOSIS.md)。产品、门禁及原有验收文件仍未改。
 
 实现时按本次确认的“窗宽 <1000px”取完整窗口视口宽度作为断点；不沿用原方向稿“扣除侧栏后的会话区域宽度”的表述。其余方向保持已确认内容。
 
@@ -16,14 +16,14 @@ hook 命令都是本 checkout 的 Node CLI：`NODE workbench/src/gates/cli.ts --
 
 ## 精确命令
 
-先完成 red-01 的收尾，再审阅 `run_red.py`、`red_window.mjs`、`capture_window.py`、`owned_electron.py`。核对清单后，用本次真实批准引用替换参数值；以下目录和标签必须尚不存在。命令的工作目录是本 worktree。
+先完成 close-03 的已退出核对及符号链接归档，再审阅 `run_red.py`、`red_window.mjs`、`capture_window.py`、`owned_electron.py`。核对清单后，用本次真实批准引用替换参数值；以下目录和标签必须尚不存在。命令的工作目录是本 worktree。
 
 ```sh
 python3 evidence/2026-10-16-batch16/T-091/run_red.py \
   --source /Users/luckye/Documents/Code/a2a-wt-t091 \
   --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/red-02 \
   --label red-02 \
-  --approval-ref '主控对本次脚本清单的实际批准位置'
+  --approval-ref '主控对 red-02 清单及 ready 前停等、不自动 SIGTERM 策略的本次批准位置'
 ```
 
 这是预期失败的合同读回，正常取得红态时也退出 **1**，产品状态保持 **INCOMPLETE**。不能只看退出码：必须有 `red_observed: true`、`expected: 3`、`observed: 1`，并核对 `cleanup_complete: true`、无 `error`／`archive_error`／收尾错误。启动失败、构建失败、权限缺失或截图失败不会设置 `red_observed: true`。
@@ -44,7 +44,7 @@ python3 evidence/2026-10-16-batch16/T-091/run_red.py \
 
 外置输出保存完整命令／原始 stdout 和 stderr、三份快照、启动记录、进程身份、首屏字节、Electron 观察日志、单帧与 `run.json`。原始终端首屏只供主控检查，不意味着主题、信任、登录或权限已确认；本脚本从不代选。
 
-结束时通过 `NSRunningApplication.terminate()` 请求本次已核对 PID 的 Electron 正常退出，不等 stdin 的 close 回执，不发信号、不强退。确认 Electron 退出后才对本次 state 调 `daemon_stop`，再观察已登记后台及子进程退出。Electron 退出未确认时不调用 `daemon_stop`，不复制运行中夹具，报告 `backend_cleanup_deferred`；脚本自己的 loopback 拒绝服务随脚本结束停止，后台／CLI 现场保留，不能声称该实例仍是完整可复用的运行。停止确认后，把整个夹具复制到该外置输出的 `fixture/`，逐项统计文件数和总字节数比较，保留 `/private/tmp` 原件；操作凭据在夹具外单独生成，确认停止后清理，不进入归档或 Git。
+收尾策略预先固定：ready 前卡住时正常退出请求不可用，选择停下等主控，脚本不发 SIGTERM。未确认 ready 且进程仍活着时不再调用正常退出；只有 ready 已确认，才通过 `NSRunningApplication.terminate()` 请求同一已核对 PID 正常退出。确认 Electron 退出后才对本次 state 调 `daemon_stop`，再观察后台及子进程退出。退出未确认时不停止后台、不复制运行中夹具，报告 `backend_cleanup_deferred`；脚本自己的 loopback 拒绝服务随父脚本结束停止，保留现场不声称仍是完整可复用运行。停止确认后，以 symlinks=True 复制整个夹具、核对条目／总字节数／链接目标原文；目标不跟随、不改写，原夹具外及归档目录外的目标都列明。原件保留；操作凭据不入归档或 Git。
 
 仓库只新增 `<label>.run.json` 摘要、`<label>.RESULTS.md`、`<label>.archive.json` 清单。清单含 original、archive、files、bytes、replay，不带校验值。脚本不删除夹具原件，不覆盖旧输出。若实跑失败，换新标签重跑必须先处理原现场，不能把一次新运行写进旧目录。
 

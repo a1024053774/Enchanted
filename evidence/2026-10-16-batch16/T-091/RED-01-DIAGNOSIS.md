@@ -2,6 +2,8 @@
 
 日期：2026-10-17。状态：**INCOMPLETE**。red-01 不是有效产品红态；当前仅完成诊断、脚本修正及局部检查。未操作 PID 6599，未运行 Electron／daemon／PTY／系统进程查询／AppKit／截图，未改产品代码。
 
+后续记录：主控已实跑 close-01／02，并亲自核对身份后对 6599 发一次 SIGTERM；本文件以下“未运行”指当时的 worker 交付范围。原失败状态保留；最新 close-03、链接归档及 ready 前停等策略见 [ARCHIVE-FOLLOWUP.md](ARCHIVE-FOLLOWUP.md)，不要重跑下面已经使用过的输出标签。
+
 执行主控 #30 报告：“没有发生任何按键或模型回合”。原 `run.json` 同时记录 keys 为空、supplier_model_turns 为 0；本次诊断和新收尾脚本均不增加按键或模型回合。red-01 的 `red_observed: false`、`cleanup_complete: false` 和全部原件不改写，后续收尾成功也不把 red-01 上调为产品 PASS。
 
 ## 零输出的原因与证据边界

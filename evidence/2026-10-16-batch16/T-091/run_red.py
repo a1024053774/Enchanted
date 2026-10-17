@@ -26,6 +26,9 @@ Review this inventory before running (current approval only; no T-078 approval r
        Electron normal quit uses NSRunningApplication.terminate() for its verified PID;
        no close RPC, signal, force quit, or process-group kill. If exit is unconfirmed,
        do NOT stop the daemon or archive the live fixture; stop and report.
+       A process stuck before ready cannot accept normal quit (red-01 observation).
+       Without a confirmed ready handshake, do not attempt normal quit: wait for
+       the controller. This script NEVER sends SIGTERM, including this failure.
   Missing permission / setup or cleanup failure => INCOMPLETE. Preserve first-screen
        bytes for controller review; no screen is treated as ready or approved for keys.
        No permission request, retry, fallback, real login, or substitute model run.
@@ -38,6 +41,7 @@ from pathlib import Path
 import selectors
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -62,13 +66,60 @@ def write_json(path, value):
 
 
 def inventory(root):
-    files = list(root.rglob('*'))
-    if any(path.is_symlink() for path in files):
-        raise RuntimeError('fixture_archive_contains_symlink')
-    regular = [path for path in files if path.is_file()]
-    if any(not path.is_file() and not path.is_dir() for path in files):
-        raise RuntimeError('fixture_archive_contains_live_special_file')
-    return {'files': len(regular), 'bytes': sum(path.stat().st_size for path in regular)}
+    root = Path(os.path.abspath(root))
+    if not stat.S_ISDIR(root.lstat().st_mode):
+        raise RuntimeError('fixture_archive_root_must_be_directory')
+    entries, links, pending = [], [], [root]
+    regular_files = regular_bytes = link_bytes = directories = 0
+    while pending:
+        with os.scandir(pending.pop()) as children:
+            for child in children:
+                path = Path(child.path)
+                relative = path.relative_to(root).as_posix()
+                info = child.stat(follow_symlinks=False)
+                if stat.S_ISLNK(info.st_mode):
+                    target = os.readlink(path)
+                    size = len(os.fsencode(target))
+                    # Classify the target text lexically. Do not resolve, stat,
+                    # open or descend through the target, including link chains.
+                    lexical = os.path.abspath(os.path.join(path.parent, target))
+                    outside = os.path.commonpath([str(root), lexical]) != str(root)
+                    links.append({'path': relative, 'target': target, 'bytes': size,
+                                  'outside_fixture': outside, 'lexical_target': lexical})
+                    entries.append({'path': relative, 'kind': 'symlink', 'bytes': size, 'target': target})
+                    link_bytes += size
+                elif stat.S_ISDIR(info.st_mode):
+                    entries.append({'path': relative, 'kind': 'directory'})
+                    directories += 1
+                    pending.append(path)
+                elif stat.S_ISREG(info.st_mode):
+                    entries.append({'path': relative, 'kind': 'file', 'bytes': info.st_size})
+                    regular_files += 1
+                    regular_bytes += info.st_size
+                else:
+                    raise RuntimeError('fixture_archive_contains_live_special_file: ' + relative)
+    return {'files': regular_files + len(links), 'bytes': regular_bytes + link_bytes,
+            'regular_files': regular_files, 'regular_bytes': regular_bytes,
+            'symlink_count': len(links), 'symlink_bytes': link_bytes, 'directories': directories,
+            'entries': sorted(entries, key=lambda row: row['path']),
+            'symlinks': sorted(links, key=lambda row: row['path'])}
+
+
+def archive_fixture(source, destination):
+    before = inventory(source)
+    shutil.copytree(source, destination, symlinks=True)
+    after = inventory(destination)
+    compared = [key for key in before if key != 'symlinks']
+    if any(before[key] != after[key] for key in compared):
+        raise RuntimeError('archive_file_count_bytes_or_link_target_mismatch')
+    archived_links = {row['path']: row for row in after['symlinks']}
+    return {**{key: before[key] for key in compared if key != 'entries'},
+            'symlinks': [{**row, 'outside_archive_fixture': archived_links[row['path']]['outside_fixture'],
+                          'archive_lexical_target': archived_links[row['path']]['lexical_target']}
+                         for row in before['symlinks']],
+            'symlink_policy': 'copy link itself; compare exact target text; never follow targets',
+            'bytes_definition': 'regular file bytes plus filesystem-encoded link target bytes; directories excluded',
+            'comparison': True}
 
 
 class Observer:
@@ -85,6 +136,7 @@ class Observer:
         self.number = 0
         self.owner = None
         self.exit_confirmed = False
+        self.ready_confirmed = False
 
     def identify(self, argv, output):
         # Save ownership before waiting for any ready/protocol response.
@@ -121,6 +173,8 @@ class Observer:
             if self.process.poll() is None:
                 if self.owner is None:
                     raise RuntimeError('electron_owner_unconfirmed; stop without closing another process')
+                if not self.ready_confirmed:
+                    raise RuntimeError('electron_startup_unconfirmed_wait_for_controller; normal_quit_not_attempted; automatic_sigterm_disabled')
                 def observe(value):
                     self.log.write(json.dumps(value) + '\n'); self.log.flush()
                 normal_quit(self.owner, observe=observe, child=self.process)
@@ -181,7 +235,10 @@ def main():
               'worker': 's16-t091', 'worker_launch': 'launch-a818e11600754e8b8ad79aab63a17f83',
               'baseline': BASELINE, 'approval_ref': args.approval_ref, 'argv': sys.argv,
               'fixture': str(fixture), 'output': str(output), 'supplier_model_turns': 0,
-              'keys': [], 'synthetic_hooks': [], 'red_observed': False, 'cleanup_complete': False}
+              'keys': [], 'synthetic_hooks': [], 'red_observed': False, 'cleanup_complete': False,
+              'cleanup_policy': {'before_ready': 'stop_wait_for_controller; no normal quit request',
+                                 'after_ready': 'owner-verified normal quit, then confirm exit',
+                                 'signals': 'no automatic SIGTERM or force quit'}}
     started = False
     observer = None
     observer_attempted = False
@@ -364,6 +421,7 @@ def main():
         ready = observer.receive()
         if ready.get('ready') is not True or ready.get('pid') != observer.process.pid or ready.get('electron') != '43.4.1':
             raise RuntimeError('electron_owner_not_confirmed')
+        observer.ready_confirmed = True
         result['electron_version'] = ready['electron']
         owner = observer.owner
         if process_identity(observer.process.pid) != {key: owner[key] for key in ['pid', 'started', 'command']}:
@@ -412,6 +470,7 @@ def main():
                 cleanup_errors.append({'electron': repr(error), 'owned_pid': observer.process.pid})
             electron_closed = observer.exit_confirmed
         result['electron_exit_confirmed'] = electron_closed
+        result['electron_ready_confirmed'] = observer.ready_confirmed if observer is not None else False
         if started and not electron_closed:
             result['backend_cleanup_deferred'] = 'Electron exit unconfirmed; daemon_stop and fixture archive were not attempted'
         if started and electron_closed:
@@ -444,17 +503,13 @@ def main():
         result['cleanup_errors'] = cleanup_errors
         if result['cleanup_complete']:
             try:
-                before = inventory(fixture)
                 archive = output / 'fixture'
-                shutil.copytree(fixture, archive)
-                after = inventory(archive)
-                if before != after:
-                    raise RuntimeError('archive_file_count_or_bytes_mismatch')
+                copied = archive_fixture(fixture, archive)
                 replay = shlex.join([sys.executable, str(Path(__file__).resolve()), '--source', str(source),
                                    '--output', str(output) + '-replay-new', '--label', args.label + '-replay-new',
                                    '--approval-ref', '<本次新批准引用>'])
-                manifest = {'original': str(fixture), 'archive': str(archive), **after,
-                            'replay': replay, 'original_retained': True, 'comparison': before == after}
+                manifest = {'original': str(fixture), 'archive': str(archive), **copied,
+                            'replay': replay, 'original_retained': True}
                 write_json(script_dir / f'{args.label}.archive.json', manifest)
                 result['archive'] = manifest
             except Exception as error:

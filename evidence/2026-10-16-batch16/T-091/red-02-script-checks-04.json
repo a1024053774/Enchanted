@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "scope": "pure Python/Node cleanup and stream-error logic; no Electron/macOS runtime proof",
+  "known_bad": "034257dc5d22810a2b40e7acac7a3a46551f052e",
+  "keys": [],
+  "model_turns": 0,
+  "checks": [
+    {
+      "name": "ready_close_does_not_depend_on_stdin_rpc",
+      "candidate": "PASS",
+      "known_bad": {
+        "revision": "034257dc5d22810a2b40e7acac7a3a46551f052e",
+        "rejected": true,
+        "assertion": "{'failure': 'ready/listener was not reached', 'events': ['stdin_close_rpc']}"
+      }
+    },
+    {
+      "name": "before_ready_waits_without_normal_quit_or_signal",
+      "candidate": "PASS",
+      "known_bad": {
+        "revision": "2f29e666c76d1581ea554b9c5d7595cb5a13639e",
+        "rejected": true,
+        "assertion": "{'failure': 'None', 'events': ['normal_quit']}"
+      }
+    },
+    {
+      "name": "daemon_stop_waits_for_confirmed_electron_exit",
+      "candidate": "PASS",
+      "known_bad": {
+        "revision": "034257dc5d22810a2b40e7acac7a3a46551f052e",
+        "rejected": true,
+        "assertion": "{'forbidden_backend_calls_after_unconfirmed_window_exit': ['daemon_stop']}"
+      }
+    },
+    {
+      "name": "late_ready_after_unconfirmed_quit_does_not_exit_application",
+      "candidate": "PASS",
+      "known_bad": {
+        "revision": "7f5d07091ff8c38558812678315774c9f1cc8473",
+        "rejected": true,
+        "assertion": "{'forbidden_direct_exit_after_pipe_loss': {'exits': [2, 2, 2, 2], 'attempts': ['{\"ready\":true}\\n', '{\"ready\":true}\\n'], 'stages': ['module_loaded', 'reply_requested', 'fatal', 'fatal', 'reply_requested', 'fatal', 'fatal']}}"
+      }
+    }
+  ]
+}

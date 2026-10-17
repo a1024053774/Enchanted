@@ -2,10 +2,11 @@
 """Controller-only cleanup for red-01 Electron PID 6599 and its exact fixture.
 
 Starts: no Electron, daemon, agent, API or PTY. Hooks/keys/model turns: 0.
-Reads /bin/ps; requests normal quit ONLY through NSRunningApplication.terminate()
-for PID 6599 after checking start time, full command and fixture. No force quit,
+Reads /bin/ps; requires PID 6599 already absent after controller-owned SIGTERM.
+If present, check its start time/full command then STOP; normal quit is unavailable
+for this pre-ready hang. No quit request, force quit,
 signals, process-group operations, daemon_stop, restart, deletion or PID override.
-If normal quit fails or identity changes, stop and report BLOCKED. After verified
+If any original writer is present or identity changes, stop and report BLOCKED. After verified
 exit of every recorded writer, copy the fixture to a NEW external directory,
 compare file count/bytes, retain the original and save a text archive manifest.
 """
@@ -14,12 +15,11 @@ import json
 import os
 from pathlib import Path
 import shlex
-import shutil
 import sys
 import traceback
 
-from owned_electron import confirm_owner, normal_quit, read_process
-from run_red import inventory, write_json
+from owned_electron import confirm_owner, read_process
+from run_red import archive_fixture, write_json
 
 PID = 6599
 STARTED = 'Sat Oct 17 06:30:34 2026'
@@ -32,7 +32,7 @@ OLD = ROOT / 'red-01'
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True, help='NEW directory directly under external T-091 evidence root')
-    parser.add_argument('--label', default='red-01-close-01')
+    parser.add_argument('--label', default='red-01-close-03')
     parser.add_argument('--approval-ref', required=True)
     args = parser.parse_args()
     output = args.output.resolve()
@@ -45,10 +45,16 @@ def main():
         if (script_dir / f'{args.label}.{suffix}').exists():
             raise RuntimeError('cleanup_summary_exists; use a new output and label')
     output.mkdir(exist_ok=False)
-    result = {'status': 'BLOCKED', 'scope': 'red-01 PID 6599 normal quit and stopped-fixture archive only',
+    result = {'status': 'BLOCKED', 'scope': 'red-01 already-absent check and stopped-fixture archive only',
               'approval_ref': args.approval_ref, 'argv': sys.argv, 'pid': PID, 'fixture': str(FIXTURE),
               'red_01_status': 'INCOMPLETE', 'red_observed': False, 'keys': [], 'model_turns': 0,
-              'zero_input_basis': 'controller #30 reports no key or model turn; cleanup adds neither'}
+              'zero_input_basis': 'controller #30/#35 reports no key or model turn; archive adds neither',
+              'controller_intervention': {'source': 'controller #35 / execution controller #6',
+                  'pid': PID, 'identity_checks': ['full argv', '06:30:34 start time', 'ppid 1'],
+                  'action': 'one SIGTERM sent by controller, not by worker or script',
+                  'reported_exit_after_seconds': 2,
+                  'normal_quit': 'refused for the process stuck before ready',
+                  'worker_sent_signal': False}}
 
     def observe(event):
         with (output / 'cleanup-events.jsonl').open('a', encoding='utf-8') as stream:
@@ -71,7 +77,9 @@ def main():
                  'executable': executable, 'driver': driver}
         write_json(output / 'expected-owner.json', owner)
         current = confirm_owner(owner)
-        observe({'identity_before_normal_quit': current})
+        observe({'identity_before_archive': current})
+        if current is not None:
+            raise RuntimeError('electron_6599_present_wait_for_controller; pre_ready_normal_quit_unavailable; no_signal_sent')
         # Other PIDs are read-only checks. This script has no operation to stop them.
         writers = json.loads((OLD / 'owned-processes.json').read_text(encoding='utf-8'))
         if {row['pid'] for row in writers} != {5171, 5524, 5535, 5574, 5575, 5744, 5750}:
@@ -83,20 +91,16 @@ def main():
                 raise RuntimeError('another_recorded_pid_is_present; only_6599_cleanup_is_authorized')
         if (FIXTURE / 'state/control.sock').exists() or (FIXTURE / 'state/daemon.pid').exists():
             raise RuntimeError('daemon_stop_is_not_confirmed')
-        normal_quit(owner, observe=observe, timeout=15)
+        observe({'normal_quit': {'pid': PID, 'method': 'already_absent', 'requested': False}})
         if confirm_owner(owner) is not None:
             raise RuntimeError('electron_exit_is_not_confirmed')
         for writer in writers:
             if read_process(writer['pid']) is not None:
                 raise RuntimeError('writer_absence_changed_before_archive')
-        before = inventory(FIXTURE)
         archive = output / 'fixture'
-        shutil.copytree(FIXTURE, archive)
-        after = inventory(archive)
-        if before != after:
-            raise RuntimeError('archive_file_count_or_bytes_mismatch')
-        manifest = {'original': str(FIXTURE), 'archive': str(archive), **after,
-                    'original_retained': True, 'comparison': before == after,
+        copied = archive_fixture(FIXTURE, archive)
+        manifest = {'original': str(FIXTURE), 'archive': str(archive), **copied,
+                    'original_retained': True,
                     'replay': shlex.join([sys.executable, str(Path(__file__).resolve()), '--output', str(output) + '-new',
                                           '--label', args.label + '-new', '--approval-ref', '<本次新批准引用>'])}
         write_json(script_dir / f'{args.label}.archive.json', manifest)
