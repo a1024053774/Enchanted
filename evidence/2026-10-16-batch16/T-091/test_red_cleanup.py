@@ -98,7 +98,7 @@ def check_observer_close(source, ready=True):
             events == [] and not observer.exit_confirmed, {'failure': str(failure), 'events': events}
 
 
-def check_backend_order(source):
+def check_backend_order(source, early_exit=None):
     main = next(node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == 'main')
     final = next(node for node in main.body if isinstance(node, ast.Try)).finalbody
     prefix = []
@@ -116,15 +116,21 @@ def check_backend_order(source):
             return False
 
     def unconfirmed_close():
+        if early_exit is not None:
+            observer.exit_confirmed = True
+            if early_exit == 0:
+                return
+            raise RuntimeError('observer_exit_nonzero')
         raise TimeoutError('normal exit was not confirmed')
 
-    namespace = {'observer': SimpleNamespace(close=unconfirmed_close, exit_confirmed=False,
-                                             ready_confirmed=False,
-                                             process=SimpleNamespace(pid=123)),
-                 'observer_attempted': True, 'started': True, 'result': {}, 'owned': [],
+    observer = SimpleNamespace(close=unconfirmed_close, exit_confirmed=False,
+                               ready_confirmed=False, process=SimpleNamespace(pid=123))
+    namespace = {'observer': observer,
+                 'observer_attempted': True, 'started': True, 'result': {'cleanup_complete': False}, 'owned': [],
                  'call': lambda command: events.append(command), 'fixture': MissingPath(), 'credential': MissingPath()}
     exec(compile(ast.Module(body=prefix, type_ignores=[]), '<actual cleanup prefix>', 'exec'), namespace)
     assert events == [], {'forbidden_backend_calls_after_unconfirmed_window_exit': events}
+    assert namespace['result']['cleanup_complete'] is False, 'archive must remain disabled after unconfirmed startup'
 
 
 def main():
@@ -136,6 +142,7 @@ def main():
     old_transport = subprocess.check_output(['git', 'show', f'{TRANSPORT_BAD}:{TRANSPORT_PATH}'], text=True)
     new_transport = Path(run_red.__file__).with_name('red_window.mjs').read_text(encoding='utf-8')
     before_policy = subprocess.check_output(['git', 'show', f'2f29e666c76d1581ea554b9c5d7595cb5a13639e:{PATH}'], text=True)
+    before_early_exit = subprocess.check_output(['git', 'show', f'df8144f97a3d70a8ae55c9e6b98584d978e72d63:{PATH}'], text=True)
     checks = []
     result = {'status': 'INCOMPLETE', 'scope': 'pure Python/Node cleanup and stream-error logic; no Electron/macOS runtime proof',
               'known_bad': BAD, 'keys': [], 'model_turns': 0, 'checks': checks}
@@ -145,6 +152,10 @@ def main():
                 ('before_ready_waits_without_normal_quit_or_signal', lambda source: check_observer_close(source, ready=False),
                  before_policy, candidate, '2f29e666c76d1581ea554b9c5d7595cb5a13639e'),
                 ('daemon_stop_waits_for_confirmed_electron_exit', check_backend_order, original, candidate, BAD),
+                ('before_ready_exit_0_still_defers_backend_and_archive', lambda source: check_backend_order(source, early_exit=0),
+                 before_early_exit, candidate, 'df8144f97a3d70a8ae55c9e6b98584d978e72d63'),
+                ('before_ready_exit_nonzero_still_defers_backend_and_archive', lambda source: check_backend_order(source, early_exit=1),
+                 before_early_exit, candidate, 'df8144f97a3d70a8ae55c9e6b98584d978e72d63'),
                 ('late_ready_after_unconfirmed_quit_does_not_exit_application', check_late_reply,
                  old_transport, new_transport, TRANSPORT_BAD)]:
             row = {'name': name, 'candidate': 'INCOMPLETE'}

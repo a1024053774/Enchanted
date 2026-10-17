@@ -44,7 +44,7 @@ python3 evidence/2026-10-16-batch16/T-091/run_red.py \
 
 外置输出保存完整命令／原始 stdout 和 stderr、三份快照、启动记录、进程身份、首屏字节、Electron 观察日志、单帧与 `run.json`。原始终端首屏只供主控检查，不意味着主题、信任、登录或权限已确认；本脚本从不代选。
 
-收尾策略预先固定：ready 前卡住时正常退出请求不可用，选择停下等主控，脚本不发 SIGTERM。未确认 ready 且进程仍活着时不再调用正常退出；只有 ready 已确认，才通过 `NSRunningApplication.terminate()` 请求同一已核对 PID 正常退出。确认 Electron 退出后才对本次 state 调 `daemon_stop`，再观察后台及子进程退出。退出未确认时不停止后台、不复制运行中夹具，报告 `backend_cleanup_deferred`；脚本自己的 loopback 拒绝服务随父脚本结束停止，保留现场不声称仍是完整可复用运行。停止确认后，以 symlinks=True 复制整个夹具、核对条目／总字节数／链接目标原文；目标不跟随、不改写，原夹具外及归档目录外的目标都列明。原件保留；操作凭据不入归档或 Git。
+收尾策略预先固定：ready 前卡住时正常退出请求不可用，选择停下等主控，脚本不对 Electron 自动发 SIGTERM。未确认 ready 且进程仍活着时不调用正常退出；已尝试启动但 ready 未确认时，不论仍活着或提前自行退出，后台清理和归档都暂缓。只有 ready 已确认，才请求同一已核对 PID 正常退出，确认退出后经既有 `daemon_stop` 收尾后台／PTY。退出未确认也停报。脚本自己的 loopback 拒绝服务随父脚本结束停止，保留现场不声称仍是完整可复用运行。停止确认后，以 symlinks=True 复制整个夹具、核对条目／总字节数／链接目标原文；目标不跟随、不改写，原夹具外及归档目录外的目标都列明。原件保留；操作凭据不入归档或 Git。
 
 仓库只新增 `<label>.run.json` 摘要、`<label>.RESULTS.md`、`<label>.archive.json` 清单。清单含 original、archive、files、bytes、replay，不带校验值。脚本不删除夹具原件，不覆盖旧输出。若实跑失败，换新标签重跑必须先处理原现场，不能把一次新运行写进旧目录。
 

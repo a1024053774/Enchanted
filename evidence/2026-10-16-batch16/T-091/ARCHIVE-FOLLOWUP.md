@@ -47,7 +47,7 @@ python3 -B evidence/2026-10-16-batch16/T-091/close_red01.py \
 
 ## 再执行 red-02：ready 前卡住就停等主控
 
-**事先选择的策略是停下等主控，脚本不发 SIGTERM。** 未收到匹配 PID／版本的 ready 握手，且进程仍活着时，`Observer.close()` 不尝试正常退出、不强退，报 `electron_startup_unconfirmed_wait_for_controller`；后台清理与归档暂缓。`electron-owner.json` 已在等待 ready 前保存，主控可据此处理现场。本次对 6599 的手工 SIGTERM 不成为脚本对后续 PID 的自动授权。
+**事先选择的策略是停下等主控，脚本不对 Electron 自动发 SIGTERM。** 未收到匹配 PID／版本的 ready 握手，且进程仍活着时，`Observer.close()` 不尝试正常退出、不强退，报 `electron_startup_unconfirmed_wait_for_controller`。只要 Electron 已尝试启动但 ready 未确认，后台清理与归档都暂缓，即使它自行提前退出（退出码 0 或非 0）也不放行。`electron-owner.json` 已在等待 ready 前保存，主控可据此处理现场。本次对 6599 的手工 SIGTERM 不成为脚本对后续 PID 的自动授权。
 
 只有 ready 已确认，才由脚本对同一已核对进程请求正常退出；确认 Electron 退出后才停后台、核对 writer、归档。正常退出被拒或退出未确认仍停报。管道丢失继续只记录 protocol_failed，不因迟到 ready 的 EPIPE 直接退出。脚本自己的拒绝式假 API 在父脚本结束时停止，保留的后台／CLI 不声称仍构成完整可复用运行。
 
@@ -67,11 +67,13 @@ python3 -B evidence/2026-10-16-batch16/T-091/run_red.py \
 
 `test_fixture_archive.py` 的真实本地文件复制检查 **PASS**：两个普通文件、十条链接，覆盖内部／外部目标、绝对／相对路径、目录链接、悬空链接、自环和中文目标；外部 65,536 字节哨兵未被计入或复制为链接内容。旧提交 `2f29e666c76d1581ea554b9c5d7595cb5a13639e` 的实际 inventory 以原错误拒绝这份合法输入；当前复制与清单断言通过。同字节长度的链接目标替换反例也被拒绝。结果在 `archive-script-checks-01.json`；成功后仅清除了本次自行生成的本地测试数据。
 
-`test_red_cleanup.py` 的四项纯 Python／Node 检查 **PASS**，新增“未确认 ready 时不请求正常退出、不发信号、停等主控”；旧提交实际进入正常退出请求而被断言拒绝。结果在 `red-02-script-checks-04.json`。这些检查不证明实际 AppKit、进程退出、外置盘复制或 Electron ready。
+`test_red_cleanup.py` 的六项纯 Python／Node 检查 **PASS**，覆盖未确认 ready 时存活、提前退出 0、提前退出非 0 三种状态均停等，不请求正常退出、不停后台、不归档。旧提交实际进入正常退出请求或 daemon_stop 的分支均被断言拒绝。最新结果在 `red-02-script-checks-05.json`，先前四项结果保留。这些检查不证明实际 AppKit、进程退出、外置盘复制或 Electron ready。
 
 ```sh
 python3 -B evidence/2026-10-16-batch16/T-091/test_fixture_archive.py --output evidence/2026-10-16-batch16/T-091/archive-script-checks-01.json
-python3 -B evidence/2026-10-16-batch16/T-091/test_red_cleanup.py --output evidence/2026-10-16-batch16/T-091/red-02-script-checks-04.json
+python3 -B evidence/2026-10-16-batch16/T-091/test_red_cleanup.py --output evidence/2026-10-16-batch16/T-091/red-02-script-checks-05.json
 ```
 
 上面是本次已跑命令；报告已存在，重放需换新输出名，不能覆盖。close-03、原夹具外置复制、red-02、截图与产品实现均未运行，等待执行主控读回结果。
+
+本次一次 fresh 只读 behavioral-acceptance-review 针对冻结候选 `df8144f97a3d70a8ae55c9e6b98584d978e72d63`，结果 **FAIL**，原报告保留在 `archive-script-audit-01.md`。它未发现链接复制与目标比较的确定违规，指出“未 ready 但自行退出”会继续后台清理的 P1；现已统一暂缓，并以该坏候选补了两个边界反例。审查为独立工具子会话，`fork_turns: none`，请求 gpt-6.1-sol／xhigh，不冒称实际供应商档位；未启动原生 reviewer CLI，未实跑退出或外置复制。最终脚本未再次独立审查。

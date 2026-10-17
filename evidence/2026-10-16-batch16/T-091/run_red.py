@@ -29,6 +29,8 @@ Review this inventory before running (current approval only; no T-078 approval r
        A process stuck before ready cannot accept normal quit (red-01 observation).
        Without a confirmed ready handshake, do not attempt normal quit: wait for
        the controller. This script NEVER sends SIGTERM, including this failure.
+       Even if the unconfirmed startup exits by itself, defer daemon_stop and
+       archive until the controller decides how to close that failed run.
   Missing permission / setup or cleanup failure => INCOMPLETE. Preserve first-screen
        bytes for controller review; no screen is treated as ready or approved for keys.
        No permission request, retry, fallback, real login, or substitute model run.
@@ -471,9 +473,10 @@ def main():
             electron_closed = observer.exit_confirmed
         result['electron_exit_confirmed'] = electron_closed
         result['electron_ready_confirmed'] = observer.ready_confirmed if observer is not None else False
-        if started and not electron_closed:
-            result['backend_cleanup_deferred'] = 'Electron exit unconfirmed; daemon_stop and fixture archive were not attempted'
-        if started and electron_closed:
+        backend_cleanup_allowed = electron_closed and (not observer_attempted or result['electron_ready_confirmed'])
+        if started and not backend_cleanup_allowed:
+            result['backend_cleanup_deferred'] = 'Electron startup or exit unconfirmed; wait for controller; daemon_stop and fixture archive were not attempted'
+        if started and backend_cleanup_allowed:
             try:
                 call('daemon_stop')
                 # Only observations here; the daemon owns stopping its registered PTYs.
