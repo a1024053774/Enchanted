@@ -1642,3 +1642,14 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 三时点探针只准备、未运行：新root、原生daemon/受管确定性目标、共用协议假API，标准B1→run_t078_p1→claudeLaunch/controller_start启动**一个**真实Claude2.1.296角色，隔离HOME/config/tmp、模型0；不启executor Claude或额外Codex。主控先审签B1/逐屏六键，在空提示符采10秒；注入一条批准的test-simulated-user请求后，利用现有phase-approval屏障保持同一真实POST未返回，采15秒；再只发布该响应的批准、到真实Bash PermissionRequest，采15秒。**许可Enter上限0、工具不执行、预算1根/1POST**。每个采样保存全图原件和本树详情、出现/消失观察边界；有vanished/竞态就保留不完整证据，不能猜argv或生成允许项。取证后root保留，单角色七进程回收需按实际owner另批，不为凑九进程额外启动角色。
 
 源码提交后由[只写材料脚本](09c-topology-fix-01/write-materials.py)从实际git提交号生成未签setup批准与精确分阶段命令；完整九进程排练、pending/startup/worker受影响回归命令一并交主控。全部未运行，不冻结第3场，也不将当前候选当作09C验收完成。
+
+
+## 主控 #366：三时点probe首启完成；idle读取复现并修正ANSI判断
+
+主控签setup/B1并运行探针新root `/private/tmp/t078-2-a14-rehearsal-i4jb8gm3`；dry-run/real/BIND-LAUNCH与六键均通过，s13为空提示符/manual、0业务输入。签字件及 `09b-a365-b1-ideation-01[-dry-run]`、`09c-topology-probe-run-01` 全部现有输出随本次提交保存。原 [idle-01](09c-topology-probe-run-01/idle-01/result.json) 保持INCOMPLETE：旧观察器在原VT字节里查连续的manual mode on，实际词间夹CSI定位序列；尚未写owner日志、采样或发送输入。
+
+[修复说明](09c-topology-idle-fix-01/README.md)：把原prepare-c2-runtime.readiness的OSC/CSI清理提为共享函数，并复用既有prompt_frame；严格capture/EOF通过后，要求最后一个完整编辑框的全部草稿为空、该框后首状态行是manual。不是仅有❯就放行，也不从历史manual/主题/信任屏认定当前就绪。probe与readiness共用此规则，失败也保留已取完整原屏。只改测试工具，产品/协议/预算、原daemon/API/角色绑定与原签字不变；没有重启或操作活场景。
+
+用主控已保存的真实2.1.296 s13 **8799字节**在实际observe入口[取红](09c-topology-idle-fix-01/red-01/result.json)，Git旧源[重放红态](09c-topology-idle-fix-01/known-bad-red-01/result.json)同样命中；[绿态10项](09c-topology-idle-fix-01/green-03/result.json)中，真实原屏与完整空manual正例通过；原native字节内直接插草稿/改plan，以及单行与多行非空、旧manual但当前plan、manual off、截断transport、缺编辑框结束线反例，均在owner日志/采样前拒绝。只看❯的[坏变异](09c-topology-idle-fix-01/marker-only-red-01/result.json)被非空草稿反例捕获。这里pane_output与进程采样为明确记录I/O/spy，不冒称新的真实ps；键、模型、场景启动均0。相关probe入口5项、模拟草稿14项、分页reader6项回归PASS。
+
+[IDLE-02](09c-topology-idle-fix-01/IDLE-02-COMMAND.txt) 与 [TURN](09c-topology-idle-fix-01/TURN-COMMAND.txt) 新命令已写、未执行；idle-02/turn-01均全新。主控先跑idle-02；通过后审签本目录从实际旧模板复制的空签 [turn-approval-01](09c-topology-idle-fix-01/turn-approval-01.json)，才跑turn。仍是一个真实Claude、模型0、1根/1POST、许可Enter0，依原API屏障采进行中/许可等待；无需重建probe或重做首启。运行服务source仍为ce0d，本次新观察工具另由该修复提交绑定；不把旧服务宣称为加载新代码。真实三时点取证、合法子进程判断、新九进程排练仍INCOMPLETE，无允许项新增，第3场NO_GO。

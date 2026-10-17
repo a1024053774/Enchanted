@@ -14,6 +14,7 @@ SOURCE=Path(__file__).resolve().parents[3];BASE=Path(__file__).resolve().parent
 sys.path.insert(0,str(SOURCE/'workbench/tests'))
 from t078_raw_retention import read_json, save, require
 from p1_output import validate_capture
+from p1_simulated_actions import empty_manual_prompt
 
 
 def text(path,value):
@@ -65,9 +66,7 @@ def readiness(args):
     require(meta['screen_id']==inp['preset']+'-s13' and meta['launch']==inp['launch'] and meta['session']==inp['session'] and
             meta['directory']==str(Path(inp['root'])/'repo'),'readiness_screen_binding')
     validate_capture(raw,meta['capture']);require(raw==base64.b64decode(meta['output']['data_base64'],validate=True),'readiness_complete_bytes')
-    plain=re.sub(r'\x1b\][^\x07]*(?:\x07|\x1b\\)','',raw.decode('utf-8'))
-    plain=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',plain);tail=plain.rsplit('❯',1)[1]
-    require(not tail.splitlines()[0].strip() and 'manualmodeon' in re.sub(r'\s+','',tail),'readiness_empty_manual_prompt')
+    empty_manual_prompt(raw,meta['capture'])
     api=Path(inp['root'])/'roles'/inp['preset']
     require(not list((api/'http-exchanges').glob('*.request.bin')) and
         all(not (api/name).exists() or not (api/name).read_bytes().strip() for name in ['requests.ndjson','responses.ndjson']), 'readiness_zero_POSTs')

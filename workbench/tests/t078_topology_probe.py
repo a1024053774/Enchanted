@@ -15,6 +15,7 @@ from test_t078_a14_rehearsal import Scene, save, require, wait_for, NODE, CLI
 from test_t078_09c_coordinator_chain import CoordinatorScene
 from p1_reuse import process_command
 from p1_output import read_complete_output
+from p1_simulated_actions import empty_manual_prompt
 from t078_process_tree import snapshot
 
 SOURCE=Path(__file__).resolve().parents[2];BASE=SOURCE/'evidence/2026-10-11-batch13/T-078'
@@ -140,10 +141,10 @@ def observe(args):
     out=args.output
     if args.mode=='idle':
         screen=read_complete_output(lambda offset:gate(root,'pane_output','--launch',inp['launch'],'--offset',offset),inp['launch'])
-        text=screen['raw'].decode('utf-8')
-        require('manual mode on' in text and '❯' in text,'complete manual empty-prompt screen required')
-        require(not list((root/'roles/ideation/http-exchanges').glob('*.request.bin')),'idle zero POST')
         (out/'screen.bin').write_bytes(screen['raw']);save(out/'screen-capture.json',screen['capture'])
+        readiness=empty_manual_prompt(screen['raw'],screen['capture'])
+        require(not list((root/'roles/ideation/http-exchanges').glob('*.request.bin')),'idle zero POST')
+        save(out/'prompt-readback.json',readiness)
         save(args.probe/'probe-original-role.json',owner)
         sample_for(owner,out,10)
         save(args.probe/'idle-observation.json',{'output':str(out)})

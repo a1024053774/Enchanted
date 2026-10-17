@@ -1,4 +1,27 @@
-"""Approval and terminal-frame facts for the two simulated-user P1 scenarios."""
+"""Approval, terminal-frame and readiness facts for P1 scenarios."""
+import re
+from p1_output import validate_capture
+
+
+def terminal_text(raw):
+    # Same OSC/CSI removal used by the approved native readiness reader.
+    plain=re.sub(r'\x1b\][^\x07]*(?:\x07|\x1b\\)','',raw.decode('utf-8'))
+    return re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',plain)
+
+
+def empty_manual_prompt(raw,capture):
+    validate_capture(raw,capture)
+    # CR/CRLF screen redraws produce blank separator rows. Keep every
+    # nonblank row, including any nonempty line of the actual draft.
+    text='\n'.join(line for line in terminal_text(raw).splitlines() if line.strip())
+    editor=prompt_frame({'terminal':text})
+    if not editor['empty']:raise ValueError('readiness_prompt_not_empty')
+    footer=text.splitlines()[editor['end_row']+1:]
+    if not footer or not re.match(r'^⏸\s*manual\s*mode\s*on(?=\s|·|$)',footer[0].strip()):
+        raise ValueError('readiness_manual_mode_required')
+    return {'editor':editor,'mode':'manual','mode_row':footer[0],'terminal_text':text}
+
+
 def action_plan(handling):
     if handling=='simulated-empty-declaration':
         return [{'action':'Escape'},{'action':'clear-restored-draft','key':'Control+C'},
