@@ -312,7 +312,8 @@ try:
                 "empty-credential-variants": "reviewer raw synthetic credential injection",
                 "hide-count-mismatch": "fact entry must report a dropped request row",
             }[name]
-            caught = row["exit_code"] != 0 and not row["timed_out"] and expected in failure and clean
+            caught = (row["exit_code"] != 0 and not row["timed_out"] and expected in failure and clean
+                      and (name != "omit-first-request" or "ledger must exist before receipt" in failure))
             verdicts.append({"name": name, "mutation": {"file": module, "before": before, "after": after},
                              "entry": "PASS" if caught else "INCOMPLETE", "rejected": caught,
                              "exit_code": row["exit_code"], "failure": failure,

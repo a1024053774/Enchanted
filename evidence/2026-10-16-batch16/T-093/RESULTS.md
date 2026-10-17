@@ -7,6 +7,9 @@
 **整票 INCOMPLETE：实现及下列无模型运行检查 PASS，最终冻结候选的独立审查、门禁验收与集成尚未完成。**
 不修改 ticket 验收框，不把 Git 提交当作 Gate submit 或 integration 收据。
 
+更新：独立审查 01 对第一次冻结候选 1d4c58b4a 给出 **NO_GO（验收文件缺口）**，报告原文保留。
+下文首次交付的 PASS 均是当时运行证据，不提升为新候选的独立审查通过。当前仅修正验收输入与审查驱动的失败保存，产品源码未改；新外部复验与新独立审查仍待完成，见末节。
+
 ## 变更与版本
 
 起点 main 为 61786370428c3ec5f894ea60acccf2695d54c2dc。
@@ -73,7 +76,7 @@ node workbench/tests/test_t093_forwarder.ts /private/tmp/新的摘要.json /priv
 python3 workbench/tests/test_t093_counterfactuals.py /private/tmp/新的反事实.json
 ```
 
-完整链已由主控 #73 执行，rc 0；本轮没有新增必须在沙箱外运行的检查。
+第一次冻结前，完整链已由主控 #73 执行，rc 0；当时没有新增必须在沙箱外运行的检查。本次审查修正后的外部复验另见末节。
 若独立 reviewer 需要复验，必须由主控另选新输出，后台服务脱离调用者进程组：
 
 ```sh
@@ -86,3 +89,37 @@ python3 workbench/tests/run_t093_login_chain.py --output evidence/2026-10-16-bat
 本票没有运行真实模型回合，合入后仍等用户另说开工；没有可靠性、吞吐或成本收益主张。
 
 冻结后由执行主控安排新的只读 reviewer 与唯一门禁；本结果不代替最终审查、submit 或 integration。
+
+## 独立审查 01 后的验收修正
+
+主控 #77 转交 [independent-review-01.md](independent-review-01.md)，要求修正两处验收证据。该报告未改字，旧 NO_GO 原样保留；没有据此声称产品行为存在缺陷。
+代码／驱动修正候选为 c34d71a975b59a0db8c1e97bb40c0f7a94e629d1；相对第一次冻结，workbench/src、完整链脚本及假 CLI 都没有变化。
+
+| 问题 | 红态与修正 | 当前证据和边界 |
+| --- | --- | --- |
+| 生产凭据变体列表为空后，候选检查跳过全部注入，仅由清理 ENOENT 退出 | [counterfactuals-05-red.json](counterfactuals-05-red.json) 复现：expected_business_assertion 未观察到、fixture_missing_error=true。现在输入由测试自己的原值、JSON、URL、base64、无填充 base64、base64url 构造；检查列表非空、文件确实创建且内容吻合、正命中及每项均执行；公开字节的禁止值也来自测试输入，不用被测枚举器／扫描器作答案 | [forwarder-green-04.json](forwarder-green-04.json) 对照通过；[counterfactuals-07.json](counterfactuals-07.json) 12 项通过。清空生产枚举器命中 `credential injection must be detected`；空场景、跳过循环、取消写入分别命中非空／执行／文件存在的指定 AssertionError，均无 ENOENT |
+| 首条请求不记账的原始失败被审查驱动清理断言盖住 | 原审查外置 omit-first-request.stderr 只留下 `private HOME cleanup must finish`，没有结果 JSON；原业务断言保持 INCOMPLETE。新建 EVIDENCE-RECHECK-02.sh，旧审查脚本 01／02 不动。生成驱动保留首个 failure；清理等待明确不观察已记录的 boundaryFailure；清理异常独立写 cleanup_failures，移除清理断言覆盖主失败的路径 | [evidence-recheck-local-02.json](evidence-recheck-local-02.json)：实际生成驱动在 setup 前强制业务与清理双失败，旧式未捕获清理异常会遮盖主失败并被拒；修正版同时保留 primary_business_probe 与 secondary_cleanup_probe。此为 L1 驱动回归，未启动 PTY/auth/ps；真实首条漏记的完整链尚未复跑，INCOMPLETE |
+
+本轮没有修改 reviewer 的 independent-review-01.md 或 REVIEW-OUTSIDE-01／02.sh。新脚本由 worker 派生，修正不代替新的独立审查。
+新的反事实还要求具体业务断言，不再仅因存在 AssertionError 或退出非零就记作“清空变体”已被拒绝。首次红态和旧摘要都保留。
+
+已完成的本地命令（输出路径均为首次创建）：
+
+```sh
+node workbench/tests/test_t093_forwarder.ts evidence/2026-10-16-batch16/T-093/forwarder-green-04.json
+python3 workbench/tests/test_t093_counterfactuals.py evidence/2026-10-16-batch16/T-093/counterfactuals-07.json
+bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-02.sh /Users/luckye/Documents/Code/a2a-wt-t093 c34d71a975b59a0db8c1e97bb40c0f7a94e629d1 --check-only
+```
+
+--check-only 的两个失败优先级进程、三种生成代码语法检查均通过；它不运行真实 PTY、auth helper、ps 或模型，不冒称外部完整链证据。
+完整沙箱外命令由主控对**新冻结提交**执行；第二个参数换成最后交接的完整 SHA，省略 --check-only：
+
+```sh
+bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-02.sh /Users/luckye/Documents/Code/a2a-wt-t093 FULL_FROZEN_SHA
+```
+
+脚本自动创建新的 /private/tmp/t093-evidence-02-* 输出，核对 HEAD 与给定 SHA，一次性导出该版本 workbench，不改仓库或全局配置；后台进程脱离调用者进程组。
+它先验证失败优先级，再跑未改对照、独立反例对照，最后跑首条漏记、HOME 漏报、空凭据枚举器、计数恒一致四种生产单处变异；空枚举器另跑候选自己的完成检查。
+读取 SUMMARY.json 时，首条漏记必须以 independent_upstream_assertion 为主失败；cleanup_failures 与外层 cleanup.json 分开检查。不得用 ENOENT、超时或另一清理错误替代业务拒绝。
+真实 HOME 仍只比较四个既定范围的元数据，所有差异保留；凭据只用合成输入，隔离根和夹具按本轮登记收尾，真实 CLI／真实 auth／真实上游／真实模型均为 0。
+尚未执行这条完整命令；当前整票 INCOMPLETE，等待该复验结果和新冻结候选的独立审查。新的审查入口见 REVIEW-REQUEST-T093-02.md。
