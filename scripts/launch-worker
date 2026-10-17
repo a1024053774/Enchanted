@@ -172,6 +172,15 @@ def main():
                     if value["pane_id"] != pane:
                         raise ValueError("失败诊断返回的 pane 身份不符")
                     observed[key] = value
+                    if key == "process_info" and error_code == "agent_pane_busy":
+                        # 只提升第一次失败后快照；不把采样到的进程断言为拒绝时的根因。
+                        failure["busy_foreground"] = dict(
+                            sampled_at=utc_now(),
+                            foreground_process_group_id=value.get("foreground_process_group_id"),
+                            processes=[{k: p.get(k) for k in ("pid", "name", "argv")}
+                                       for p in value.get("foreground_processes", [])])
+                        failure["error"] += "；busy 后的前台采样=" + json.dumps(
+                            failure["busy_foreground"], ensure_ascii=False)
                     if key == "agent":
                         registration_absent = value.get("name") is None
                     failure["observations"].append(dict(last_call, value=value))
@@ -196,7 +205,7 @@ def main():
             validate_launches([*read_records(logfile), failure])
             append_record(logfile, failure)
         print(f"启动未完成，保留 pane={pane} 交主控处置，launch={launch_id}，错误={error_code}，"
-              f"结果={failure['outcome']}，不得盲目重试：{exc}",
+              f"结果={failure['outcome']}，不得盲目重试：{failure['error']}",
               file=sys.stderr)
         return exc.returncode if isinstance(exc, subprocess.CalledProcessError) else 1
     row = dict(row, phase="started", pane=pane, agent=args.agent, herdr_start_argv=start_argv,

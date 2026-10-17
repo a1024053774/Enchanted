@@ -24,6 +24,7 @@ def main():
     p.add_argument("--cwd", type=Path, required=True)
     p.add_argument("--unregistered", action="store_true", help="反例：只在自建 pane 启动未命名 Codex")
     p.add_argument("--expect-diagnostics", action="store_true", help="核对失败记录包含错误身份与 pane")
+    p.add_argument("--expect-busy-foreground", action="store_true", help="核对 busy 错误直接包含首次前台采样")
     args = p.parse_args()
     if os.environ.get("HERDR_ENV") != "1":
         p.error("必须由 Herdr 内的执行主控运行")
@@ -169,6 +170,13 @@ sys.exit(r.returncode)
             if not (row.get("error_code") and row.get("herdr_stderr") and row.get("pane") == a["pane_ids"][0]
                     and row.get("pane_disposition") == "retained_for_controller"):
                 violations.append("失败诊断不完整：" + str(a["number"]))
+        if args.expect_busy_foreground and row.get("error_code") == "agent_pane_busy":
+            foreground = row.get("busy_foreground")
+            if not (foreground and "foreground_process_group_id" in foreground
+                    and "processes" in foreground
+                    and json.dumps(foreground, ensure_ascii=False) in row.get("error", "")
+                    and json.dumps(foreground, ensure_ascii=False) in a["launch"]["stderr"]):
+                violations.append("busy 前台错误身份不完整：" + str(a["number"]))
         if args.unregistered and not (row.get("outcome") == "started_unregistered"
                                      and row.get("error_code") == "agent_name_not_found"
                                      and a["launch"]["returncode"] != 0):

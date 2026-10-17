@@ -1,6 +1,6 @@
 # T-094-1：启动失败诊断（2026-10-17）
 
-状态：INCOMPLETE。真实红态、修复后的可读失败诊断和真实半成功分类已有证据；间歇 `agent_pane_busy` 的具体根因尚未证实，独立审查尚未完成。green-01 的启动结果为 4 次成功、1 次失败，不能记为全部启动成功。本次只补充证据与报告，生产代码仍为已测试的 `515b814574e533226a6e63d12eff908fee38058a`。
+状态：INCOMPLETE。真实红态、可读失败诊断和真实半成功分类已有证据；间歇 `agent_pane_busy` 的具体根因尚未证实，独立审查尚未完成。green-01 的启动结果为 4 次成功、1 次失败，不能记为全部启动成功；它验证的是 `515b814574e533226a6e63d12eff908fee38058a`。本轮按主控 #60 增加错误身份中的前台 argv，真实复现待主控运行，旧候选的通过结论不替新增字段背书。
 
 绑定：task T-094 / attempt a1 / worker s16-t094；启动记录 `launch-efca9e180a594c2e98ec594874eaf253`；session `1f06c59c-a447-47e4-8075-9a7571db35d3`；规格 T-094 ready_rev 1；基线 `61786370428c3ec5f894ea60acccf2695d54c2dc`。任务书未给 fence、门禁 state 或 submit 参数，worker 不推测这些身份。
 
@@ -24,6 +24,18 @@
 
 依据是任务卡允许“失败时记录带可读原因”，同时禁止盲目重试与单纯加长时限。现有进程快照不是对下一次 API 调用的就绪保证，也不足以支持另加一个可靠的等待条件。因此保留 Herdr 的拒绝并将它明确暴露；本候选没有消除间歇启动失败，也没有证明延长等待可以解决它。Herdr CLI 自己的就绪处理仍由原版本负责，探针记录的一次 CLI 调用不等于只有一次 server 内部请求。
 
+### 主控 #60：把首次前台采样提升到错误身份
+
+复用收到 busy 后紧接着的第一次 `herdr pane process-info`，不新增查询或轮询。校对 pane 身份后，将采样时刻、前台进程组、各进程的 PID / name / argv 写入 `busy_foreground`，同时附在 `error` 字符串和终端错误摘要末尾。原始 Herdr stderr 保持原样。argv 缺失时保留 null，不推测命令；查询失败仍留在 observations，不伪造占用者。该采样发生在 CLI 返回 busy 后，不能冒充 server 做出拒绝判断的同一时刻。
+
+新增合同测试把带随机独立参数的 `git status` 进程放入边界夹具，核对 argv 出现在记录错误和终端报错中，并核对 start 后只有一次 process-info、接着原有 agent get；没有再次 start 或关闭 pane。修复前在 `264e6df66970b419398e27ee7d2ff9235cca006b` 上因缺少 `busy_foreground` 取得合同红态；修复后全部 7 个边界场景通过。记录见 `busy-contract-red-01.txt`、`busy-contract-green-01.txt`、`busy-contract-summary-01.json`。这是诊断合同证据，夹具中的 Git 不是对真实根因的发现。
+
+本轮还通过未修改的旧验收场景 `test_delayed_shell_then_commit` 和 `test_agent_start_failure_is_not_retried`，结果分别见 `busy-existing-shell-01.txt`、`busy-existing-start-01.txt`。本轮完整命令输出与夹具暂存在 `/tmp/t094-busy-details-01`，由下述复现脚本一并归档，不覆盖前轮证据。
+
+主控运行 `sh evidence/2026-10-16-batch16/T-094/outside-busy.sh`：默认在同一稀疏 worktree 独立启动 8 次，也可传 `<新label> <5～10>`。沿用隔离 CODEX_HOME、只到首屏、0 个模型回合和每次 finally 只关闭自建 pane 的探针；原件直接写外置盘。busy 记录必须把前台采样放进 error 和终端 stderr，否则探针报诊断不完整。每次 argv 会打印到主控日志，清单生成在本目录。
+
+本轮真实数据尚未回传，提示符 Git 假说仍未证实。收到原件后再判断：若采样只有 shell，记录瞬态已过、无法定位；若捕获 Git，须区分“采到了 Git 命令”和“已证实由提示符调用”，不能只凭进程名宣布根因。若证实来自用户提示符，本票只记录其属于用户 shell 配置，不修改该配置。
+
 ## 主控 #59 回传原件的核对
 
 主控在沙箱外运行 `outside-green.sh`，脚本 rc 0；worker 随后直接读取外置盘上的 `identity/records/launches.jsonl`、`herdr.jsonl` 和 `run.json`，确认启动记录原件与探针保存的快照逐字段一致。核对命令为 `python3 -B evidence/2026-10-16-batch16/T-094/check-recorded-green.py`；结果见 `recorded-green-check-01.txt`，精简数据与原件清单见 `green-01-summary.json`、`unregistered-01-summary.json` 及同名 `*.archive.json`。重放只读核对时加 `--output <不存在的新目录>`，原始记录与已有摘要均保留。
@@ -45,8 +57,8 @@ green-01 第 2 次的 `herdr_stderr` 包含 `agent target pane wF:p5D is not an 
 - `python3 -B scripts/test_launch_worker_failure.py --launcher evidence/2026-10-16-batch16/T-094/launch-worker.parent --report .../contract-final-red-01.json -v`：旧实现拒绝不了诊断/分类缺陷；失败日志保留。
 - `python3 -B scripts/test_launch_worker_failure.py --report .../contract-final-green-01.json -v`：6 个场景全部通过。夹具显式替换 Herdr/Codex，不连接 socket，不证明真实 Herdr 时序。pane id 每次使用新的随机输入；每次仅一次 start；所有场景均断言入口不关闭 pane。
 - `python3 -B acceptance/test_launcher_shell_ready_e2e.py --artifacts /tmp/t094-existing-launcher-contract-01`：6 个场景全部通过，用时 70.800 秒，结果见 `existing-contract-01.txt`。验收文件未修改；原始夹具与命令日志已归档，见 `existing-contract-01.archive.json`（15 文件 / 103147 字节）。边界测试完整输出见 `contract-details-01.archive.json`（5 文件 / 178556 字节）；历史摘要中的 pending 路径是归档前的记录，原件没有覆盖。
-- `project_map.py status --root .`：0 problems、0 stale living docs；本轮最终结果见 `project-map-status-02.txt`。
+- `project_map.py status --root .`：前轮 0 problems、0 stale living docs，见 `project-map-status-02.txt`；本轮结果另存 `project-map-status-03.txt`。
 
-`outside-green.sh` 已执行完毕，原件全部保留在外置盘。无需为本次仅补充报告的提交再次启动 Codex 或重复测试；后续重放须换用新的 label 和归档目录，避免覆盖历史原件。
+`outside-green.sh` 已执行完毕，原件全部保留在外置盘。本轮新增诊断改用 `outside-busy.sh` 取得真实证据；后续重放须换用新的 label 和归档目录，避免覆盖历史原件。
 
 按 behavioral-acceptance-review 的独立性要求，最终验收须由主控另开干净只读 reviewer 会话。worker 的测试和诊断不能代替该结论。此前自动关闭方案的日志保留为历史证据，已在 TEST-PLAN.md 标明不适用于修订后的候选。

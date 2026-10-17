@@ -49,6 +49,9 @@ if a[:2] == ['pane', 'split']:
 elif a[:2] == ['pane', 'process-info']:
  started = Path(os.environ['T094_STARTED']).exists()
  processes = [{'pid': 70, 'name': 'codex', 'argv': ['codex', '--no-daemon']}] if started and scenario in ('unregistered', 'blocked', 'diagnostic-error', 'unregistered-null-name') else [{'pid': 60, 'name': 'zsh'}]
+ if started and scenario == 'busy-git':
+  processes = [{'pid': 60, 'name': 'zsh', 'argv': ['-zsh']},
+               {'pid': 71, 'name': 'git', 'argv': json.loads(os.environ['T094_BUSY_ARGV'])}]
  print(json.dumps({'result': {'process_info': {'pane_id': pane, 'shell_pid': 60,
        'foreground_process_group_id': 70 if processes[0]['pid'] == 70 else 60,
        'foreground_processes': processes}}}))
@@ -103,6 +106,23 @@ else:
         self.assertIn('fixture readable cause', row['herdr_stderr'])
         self.assertIn('fixture stdout before failure', row['herdr_stdout'])
         self.assertEqual(row['outcome'], 'not_started')
+        self.assertEqual(row['pane_disposition'], 'retained_for_controller')
+
+    def test_busy_foreground_argv_is_in_error_identity(self):
+        busy_argv = ['git', 'status', '--porcelain=v1', '--', '独立输入 ' + uuid.uuid4().hex[:12]]
+        self.env['T094_BUSY_ARGV'] = json.dumps(busy_argv)
+        r, row, calls = self.launch('busy-git')
+        self.assertEqual(r.returncode, 1)
+        self.assertEqual(row['error_code'], 'agent_pane_busy')
+        self.assertEqual(row['busy_foreground']['foreground_process_group_id'], 60)
+        self.assertEqual(row['busy_foreground']['processes'], [
+            {'pid': 60, 'name': 'zsh', 'argv': ['-zsh']},
+            {'pid': 71, 'name': 'git', 'argv': busy_argv}])
+        for text in (row['error'], r.stderr):
+            self.assertIn(json.dumps(busy_argv, ensure_ascii=False), text)
+        after_start = calls[next(i for i, c in enumerate(calls) if c[:2] == ['agent', 'start']) + 1:]
+        self.assertEqual(after_start, [['pane', 'process-info', '--pane', self.pane],
+                                       ['agent', 'get', self.pane]])
         self.assertEqual(row['pane_disposition'], 'retained_for_controller')
 
     def test_process_started_without_registration_is_distinct(self):
