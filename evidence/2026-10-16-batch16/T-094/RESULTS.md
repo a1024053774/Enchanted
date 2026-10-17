@@ -1,6 +1,6 @@
 # T-094-1：启动失败诊断（2026-10-17）
 
-状态：INCOMPLETE。busy-01 已确认两次拒绝后前台仍有用户 zsh 的 conda 初始化，撤回先前的 Git 提示符推测。启动器的问题是把初始化间隙的一次 shell 独占快照当作初始化完成。主控 #62 要求的“前台只有 shell 本身”条件已经存在；它不能区分这个间隙与真正完成，原样重复该条件不能修复。已保留受控红态，尚无修复绿态；需要主控确认初始化完成信号后继续。生产代码仍为 `96456ceac63ae29b76fcfb519317007b70b47c69`，本轮没有把未修复候选写成通过。
+状态：INCOMPLETE。已按主控 #63 的裁定实现 1500 毫秒稳定窗口，修正后的同一套受控夹具在旧候选上取得两项红态、新候选上 9 项全部通过；busy-02 的 10 次真实复现与独立审查待主控进行。受保护旧验收另有采样次数和固定 CLI 版本预期冲突，已保留失败证据，不能称为全部验收通过。busy-01 捕获的是 conda 初始化，先前 Git 提示符推测已撤回。
 
 绑定：task T-094 / attempt a1 / worker s16-t094；启动记录 `launch-efca9e180a594c2e98ec594874eaf253`；session `1f06c59c-a447-47e4-8075-9a7571db35d3`；规格 T-094 ready_rev 1；基线 `61786370428c3ec5f894ea60acccf2695d54c2dc`。任务书未给 fence、门禁 state 或 submit 参数，worker 不推测这些身份。
 
@@ -20,9 +20,9 @@ red-01 紧邻 start 前的 process-info 报告 shell 独占前台组；再前一
 
 ### agent_pane_busy 的当前处理与依据
 
-截至 `96456ceac`，入口在调用 start 之前沿用原有的 shell 检查，最多等 30 秒：shell 必须独占前台进程组。第一次检查通过就只调用一次 `herdr agent start`。收到 `agent_pane_busy` 后，入口不再等待或重新启动；它保存原始错误、只读查询该 pane 的进程和注册状态、写入失败结果、以 Herdr 原退出码 1 返回，并将 pane 留给主控。两次诊断查询各有 5 秒上限，这些是取证，不是等待 shell 就绪或重试启动。
+入口在调用 start 前要求 shell 独占前台组的采样持续稳定 1500 毫秒，目标采样启动间隔为 100 毫秒；任一采样出现子进程或其他不满足条件的状态就重新计算稳定窗口。shell 检查总期限仍为 30 秒，不随重计时延长。通过后只调用一次 `herdr agent start`。收到 `agent_pane_busy` 后仍保存诊断、报错退出、保留 pane，不重试；这保留了稳定窗口误判时的明确失败路径。
 
-此前按任务卡的“失败时记录带可读原因”分支交付诊断，但这不等于主控 #62 现在要求的初始化就绪修复已经完成。当前候选没有消除间歇启动失败，也没有证明延长等待可以解决它。Herdr CLI 自己的就绪处理仍由原版本负责，探针记录的一次 CLI 调用不等于只有一次 server 内部请求。
+稳定窗口是主控 #63 明确选择的就绪判据，不是初始化完成证明。初始化中途若空闲超过窗口，或子进程只在采样之间运行，仍可能误判；README 已写明。Herdr CLI 自己的就绪处理仍由原版本负责，探针记录的一次 CLI 调用不等于只有一次 server 内部请求。
 
 ### 主控 #60：把首次前台采样提升到错误身份
 
@@ -55,9 +55,32 @@ busy-01 数据已回传，8 次中 6 次成功、2 次失败；捕获的是 cond
 
 受控红态：`python3 -B scripts/test_launch_worker_failure.py --report /tmp/t094-init-gap-details-01/red.json LaunchFailure.test_initializer_gap_is_not_initialization_complete -v`。夹具时序由测试独立指定为“首次 shell 独占 → conda 子进程 → 初始化完成”，在完成之前启动会被拒绝。当前代码在首次快照后调用 start，返回 `agent_pane_busy`，测试失败，见 `init-gap-red-01.txt` / `init-gap-red-summary-01.json`。完整边界套件本轮结果为 8 项中原有 7 项通过、新红态 1 项失败，见 `init-gap-suite-red-01.txt`，不能称为全绿，也不能据此集成。完整原件暂存 `/tmp/t094-init-gap-details-01`，等待后续主控归档。
 
-重复同一谓词、连续采样固定次数或增加固定静默时长，都不能提供确定的初始化完成条件。需要先确认额外完成信号。最小候选方案是仅对新建的本次 pane，通过一条无副作用的 shell 命令取得执行回执，再核对现有的前台进程条件；用分段随机标记避免把命令回显当作已执行。这会新增向 pane 写命令的行为，当前等待循环只有读取，因此按任务卡“语义拿不准就停下报我”先交主控确认，不擅自加入，也不把它包装成现有条件的小修。
+主控 #63 已否决 shell 执行回执，原因是会写入用户真实 shell 的历史并显示在 pane 中。本票没有实现、也不会运行该回执方案。主控选择稳定窗口并接受其不能证明初始化完成的局限，执行方式见下一节。
 
-在完成信号确认前，修复、绿态与 busy-02 新候选复现均未完成。本轮不生成“已修复”的 busy-02 运行结论；主控确认后再完成有期限等待、超时携带最近前台 argv，并交付 busy-02 的 8～10 次真实复现脚本。
+## 主控 #63：稳定窗口实现与验证
+
+取值：1500 毫秒采用主控建议区间的上限，接受每次至少约 1.5 秒预启动检查的代价，拒绝本轮要求模拟的 200 毫秒初始化间隙；100 毫秒为目标采样启动间隔，查询本身超过该间隔时不堆叠调用。这是经主控选择的参数，不宣称从对照实验得出了最优值，也不声称所有初始化间隙都短于它。
+
+`scripts/launch-worker` 保留现有 shell / pgid / 子进程检查，以单进程 `time.monotonic()` 计算稳定窗口和总期限。不合格采样清空稳定起点，30 秒截止点始终不变。成功采样后再次核对截止点，防止查询跨越期限后放行。启动记录增加 `shell_ready_policy={stable_ms:1500,sample_interval_ms:100,timeout_ms:30000}`。超时不再查询或启动 agent：将最后一次成功采样的完整前台信息写入 `shell_foreground`、`error` 和 stderr；若从未成功采样则为 null。保留 pane，仍不改 `.zshrc`、Herdr 或全局配置。
+
+两个受控场景经过真实 launch-worker 命令入口，Herdr / Codex 是显式替身，不连接真实服务、没有模型回合：
+
+- 初始化间隙：前 200 毫秒只有 shell，200～1000 毫秒出现前台 conda 子进程，随后 shell 独占。旧候选提前调用 start 并被拒绝；新候选等待最终稳定段至少 1500 毫秒才调用一次 start，测试同时检查计时重置。
+- 持续占用：每次采样都有前台子进程，30 秒期限内没有 start；到期记录最后 argv（含每次独立生成的参数），错误记录和终端输出都必须包含它，pane 留给主控。新候选通过实时时限与 argv 断言。
+
+正式反事实命令：`python3 -B scripts/test_launch_worker_failure.py --launcher evidence/2026-10-16-batch16/T-094/launch-worker.pre-stable --report /tmp/t094-stable-details-01/red-02.json LaunchFailure.test_initializer_gap_is_not_initialization_complete LaunchFailure.test_persistent_child_times_out_with_last_argv -v`，旧候选为 `b7b7472b7031241cac733443cee8934afd2e24c9` 的原脚本。两项均红：提前启动、缺少最后前台 argv，见 `stable-contract-red-02.txt`。
+
+正式绿态命令：`python3 -B scripts/test_launch_worker_failure.py --report /tmp/t094-stable-details-01/green-02.json -v`，9 项全部通过，用时 56.459 秒，见 `stable-contract-green-02.txt`。完整原件与既有初始化间隙红态由 `outside-busy-02.sh` 归档，当前仍在 `/tmp/t094-stable-details-01` 和 `/tmp/t094-init-gap-details-01`；仓库只留文本摘要。
+
+首轮夹具曾跨子进程比较 monotonic 值。本机 Python 3.9.6 的观测显示每个进程的数值起点不同，导致模拟子进程阶段没有出现；该轮 `stable-contract-red-01.txt` / `stable-contract-green-01.txt` 保留，但不作为 200 毫秒场景的通过证据。已改用跨进程 Unix 时间并重新取得上述同夹具红绿对照；产品内部计时一直使用同一进程的单调时钟。探针的跨 CLI 时间记录也改成 Unix 纳秒。时钟观测见 `stable-clock-probe-01.txt`。
+
+新增真实复现：主控运行 `sh evidence/2026-10-16-batch16/T-094/outside-busy-02.sh`，标签 `busy-02`，10 次独立首屏启动、0 个模型回合，每次只清理自建 pane。脚本保留每次启动次数和错误身份，并用原始 CLI 采样时间独立核对成功 start 前最后一段 shell 独占采样至少 1500 毫秒。所有输出直接写外置盘；失败仍按失败计数，不以脚本 rc 0 表示每次启动都成功。当前尚未运行，不宣称真实场景已通过。
+
+### 验收文件与范围外问题（交主控处理）
+
+- `acceptance/test_launcher_shell_ready_e2e.py:111–112` 写死恰好 5 次 process-info；新判据正确增加采样，启动成功后该断言失败。原文件未改，失败保留在 `stable-legacy-delayed-01.txt`，原件位于上述 stable-details 的 `legacy-delayed/`。
+- `acceptance/test_herdr_traceability_e2e.py:110–113` 固定期待 CLI 版本 0.162.1；当前实际 0.163.0，真实提交已生成九项尾注，但该版本断言失败，见 `stable-trailers-01.txt` 与 stable-details 的 `trailers/`。未伪装 CLI 版本或改验收文件来制造通过。
+- 根 README 的既有“原生门禁入口”段落仍指向 Synara fork，与 `acceptance/entry/a2a_gates.py` 实际转交本仓库 workbench CLI 的事实不符。本轮仅按授权新增启动器稳定窗口与局限说明；门禁文档更正超出本票范围，留给主控另行处理。
 
 ## 主控 #59 回传原件的核对
 
@@ -80,8 +103,8 @@ green-01 第 2 次的 `herdr_stderr` 包含 `agent target pane wF:p5D is not an 
 - `python3 -B scripts/test_launch_worker_failure.py --launcher evidence/2026-10-16-batch16/T-094/launch-worker.parent --report .../contract-final-red-01.json -v`：旧实现拒绝不了诊断/分类缺陷；失败日志保留。
 - `python3 -B scripts/test_launch_worker_failure.py --report .../contract-final-green-01.json -v`：6 个场景全部通过。夹具显式替换 Herdr/Codex，不连接 socket，不证明真实 Herdr 时序。pane id 每次使用新的随机输入；每次仅一次 start；所有场景均断言入口不关闭 pane。
 - `python3 -B acceptance/test_launcher_shell_ready_e2e.py --artifacts /tmp/t094-existing-launcher-contract-01`：6 个场景全部通过，用时 70.800 秒，结果见 `existing-contract-01.txt`。验收文件未修改；原始夹具与命令日志已归档，见 `existing-contract-01.archive.json`（15 文件 / 103147 字节）。边界测试完整输出见 `contract-details-01.archive.json`（5 文件 / 178556 字节）；历史摘要中的 pending 路径是归档前的记录，原件没有覆盖。
-- `project_map.py status --root .`：前轮结果见 `project-map-status-02.txt` / `project-map-status-03.txt`；主控 #62 本轮结果另存 `project-map-status-04.txt`。
+- `project_map.py status --root .`：前轮结果见 `project-map-status-02.txt` 至 `project-map-status-04.txt`；主控 #63 本轮结果另存 `project-map-status-05.txt`。
 
-`outside-green.sh` 已执行完毕，原件全部保留在外置盘。本轮新增诊断改用 `outside-busy.sh` 取得真实证据；后续重放须换用新的 label 和归档目录，避免覆盖历史原件。
+历史 `outside-green.sh` / busy-01 原件全部保留。本轮稳定窗口使用 `outside-busy-02.sh` 取得真实证据；后续重放须换用新的 label 和归档目录，避免覆盖历史原件。
 
 按 behavioral-acceptance-review 的独立性要求，最终验收须由主控另开干净只读 reviewer 会话。worker 的测试和诊断不能代替该结论。此前自动关闭方案的日志保留为历史证据，已在 TEST-PLAN.md 标明不适用于修订后的候选。

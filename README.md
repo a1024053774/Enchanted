@@ -72,6 +72,12 @@ python3 acceptance/entry/a2a_gates.py --state /absolute/state revise \
 
 原生运行身份核对 thread、turn 与 worktree。回收带指定 attempt 时只处理该任务绑定的历史会话，不能撤销或回收新执行者。成功收据要求 task 为 accepted 且自己的会话已回收；收据记录协调结果，不替代业务验收。受管会话中的人工输入记录为人工介入；记录故障可从 status/events 和界面核对，并阻止进一步状态变更。
 
+## Herdr worker 启动
+
+Herdr 期从主控 shell 使用 `scripts/launch-worker` 启动受管 worker。启动前检查本次 pane 的前台进程组：只有 shell 本身、没有前台子进程的采样必须连续稳定 1500 毫秒，采样启动间隔目标为 100 毫秒；查询本身耗时较长时，实际间隔会相应增加。任一采样不满足条件就重新计算稳定窗口，总期限仍为 30 秒，不随重计时延长。
+
+稳定窗口是就绪判据，不保证 shell 初始化已经完成：初始化中途若空闲超过 1500 毫秒，或子进程只在相邻采样之间运行，仍可能误判。超时会记录最后一次成功采样的前台 argv，报错并保留 pane；后续 `agent_pane_busy` 同样保存诊断、退出并留给主控处理，不重试启动。不向 pane 写回执命令，不修改用户的 zsh 配置或 Herdr。
+
 ## 隔离验收与证据
 
 三个套件分别保持交付 8、恢复 9、编排 18 项。真实 CLI、Git、SQLite、独立分页 oracle 保留；编排的原生 thread 服务是外部替身，不能证明真实 provider、模型、实际服务 tier 或长期收益。

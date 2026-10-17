@@ -84,6 +84,7 @@ def main():
 import json, os, shlex, subprocess, sys, time
 from pathlib import Path
 started = time.monotonic()
+started_ns = time.time_ns()
 real = os.environ['T094_REAL_HERDR']
 args = sys.argv[1:]
 def call(a):
@@ -117,7 +118,8 @@ else:
  r = subprocess.run([real, *args], capture_output=True, text=True)
 with Path(os.environ['T094_TRACE']).open('a', encoding='utf-8') as f:
  f.write(json.dumps(dict(argv=sys.argv[1:], returncode=r.returncode, stdout=r.stdout,
-                         stderr=r.stderr, seconds=time.monotonic()-started)) + '\\n')
+                         stderr=r.stderr, seconds=time.monotonic()-started,
+                         started_unix_ns=started_ns, finished_unix_ns=time.time_ns())) + '\\n')
 sys.stdout.write(r.stdout)
 sys.stderr.write(r.stderr)
 sys.exit(r.returncode)
@@ -164,10 +166,14 @@ sys.exit(r.returncode)
     violations = []
     for a in summary["attempts"]:
         row = a.get("launch_record", {})
-        if a["start_calls"] != 1:
-            violations.append("启动次数不为 1：" + str(a["number"]))
+        expected_starts = 0 if row.get("failure_stage") in ("shell", "split") else 1
+        if a["start_calls"] != expected_starts:
+            violations.append("启动次数与失败阶段不符：" + str(a["number"]))
         if args.expect_diagnostics and a["launch"]["returncode"] != 0:
-            if not (row.get("error_code") and row.get("herdr_stderr") and row.get("pane") == a["pane_ids"][0]
+            reason = row.get("herdr_stderr") or (row.get("failure_stage") == "shell"
+                     and row.get("error_code") == "timeout" and row.get("shell_foreground")
+                     and json.dumps(row["shell_foreground"], ensure_ascii=False) in row.get("error", ""))
+            if not (row.get("error_code") and reason and row.get("pane") == a["pane_ids"][0]
                     and row.get("pane_disposition") == "retained_for_controller"):
                 violations.append("失败诊断不完整：" + str(a["number"]))
         if args.expect_busy_foreground and row.get("error_code") == "agent_pane_busy":

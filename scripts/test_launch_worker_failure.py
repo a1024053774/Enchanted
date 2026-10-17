@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import uuid
 
@@ -34,7 +35,7 @@ class LaunchFailure(unittest.TestCase):
         fakebin = self.root / "explicit-fake-bin"
         fakebin.mkdir()
         for tool, source in {"codex": "print('codex-cli fixture')\n", "herdr": '''
-import json, os, sys
+import json, os, sys, time
 from pathlib import Path
 a = sys.argv[1:]
 pane = os.environ['T094_PANE']
@@ -49,13 +50,16 @@ if a[:2] == ['pane', 'split']:
 elif a[:2] == ['pane', 'process-info']:
  started = Path(os.environ['T094_STARTED']).exists()
  processes = [{'pid': 70, 'name': 'codex', 'argv': ['codex', '--no-daemon']}] if started and scenario in ('unregistered', 'blocked', 'diagnostic-error', 'unregistered-null-name') else [{'pid': 60, 'name': 'zsh'}]
- if scenario == 'init-gap':
-  counter = Path(os.environ['T094_STARTED'] + '.reads')
-  reads = int(counter.read_text()) + 1 if counter.exists() else 1
-  counter.write_text(str(reads))
-  if reads in (2, 3):
+ if scenario in ('init-gap', 'init-always-busy'):
+  epoch = Path(os.environ['T094_STARTED'] + '.epoch')
+  if not epoch.exists():
+   epoch.write_text(str(time.time()))
+  elapsed = time.time() - float(epoch.read_text())
+  if scenario == 'init-always-busy' or 0.2 <= elapsed < 1.0:
    processes = [{'pid': 60, 'name': 'zsh', 'argv': ['-zsh']},
-                {'pid': 72, 'name': 'python3.13', 'argv': ['conda', 'shell.zsh', 'hook']}]
+                {'pid': 72, 'name': 'python3.13', 'argv': json.loads(os.environ['T094_INIT_ARGV'])}]
+  with Path(os.environ['T094_STARTED'] + '.samples').open('a') as f:
+   f.write(json.dumps(dict(elapsed=elapsed, busy=len(processes) > 1)) + '\\n')
  if started and scenario == 'busy-git':
   processes = [{'pid': 60, 'name': 'zsh', 'argv': ['-zsh']},
                {'pid': 71, 'name': 'git', 'argv': json.loads(os.environ['T094_BUSY_ARGV'])}]
@@ -65,8 +69,9 @@ elif a[:2] == ['pane', 'process-info']:
 elif a[:2] == ['agent', 'start']:
  Path(os.environ['T094_STARTED']).touch()
  if scenario == 'init-gap':
-  reads = int(Path(os.environ['T094_STARTED'] + '.reads').read_text())
-  if reads < 4:
+  elapsed = time.time() - float(Path(os.environ['T094_STARTED'] + '.epoch').read_text())
+  Path(os.environ['T094_STARTED'] + '.start-time').write_text(str(elapsed))
+  if elapsed < 1.0:
    error('agent_pane_busy', 'fixture conda initialization is not complete')
  if scenario in ('success', 'init-gap'):
   print(json.dumps({'result': {'agent': {'name': a[2], 'agent': 'codex', 'pane_id': pane}}}))
@@ -94,17 +99,20 @@ else:
         self.env.update(PATH=str(fakebin) + os.pathsep + self.env["PATH"],
                         T094_CALLS=str(self.root / "calls.jsonl"),
                         T094_STARTED=str(self.root / "start-called"), T094_PANE=self.pane)
+        self.init_argv = ['/opt/miniconda3/bin/conda', 'shell.zsh', 'hook', uuid.uuid4().hex[:12]]
+        self.env['T094_INIT_ARGV'] = json.dumps(self.init_argv)
 
     def launch(self, scenario):
+        began = time.monotonic()
         r = subprocess.run([sys.executable, str(LAUNCHER), "--root", str(self.root), "--cwd", str(self.root),
              "--agent", "fixture-worker", "--project", "fixture", "--task", "T-094", "--attempt", "a1",
              "--session", "fixture-session"], env=dict(self.env, T094_SCENARIO=scenario),
-             capture_output=True, text=True, timeout=10)
+             capture_output=True, text=True, timeout=45)
         rows = [json.loads(s) for s in (self.root / "records/launches.jsonl").read_text().splitlines()]
         calls = [json.loads(s) for s in (self.root / "calls.jsonl").read_text().splitlines()]
-        REPORTS.append(dict(scenario=scenario, command=r.args, exit_code=r.returncode,
+        REPORTS.append(dict(scenario=scenario, command=r.args, exit_code=r.returncode, elapsed_seconds=time.monotonic()-began,
                             stdout=r.stdout, stderr=r.stderr, rows=rows, herdr_calls=calls))
-        self.assertEqual(sum(c[:2] == ['agent', 'start'] for c in calls), 1, calls)
+        self.assertEqual(sum(c[:2] == ['agent', 'start'] for c in calls), 0 if scenario == 'init-always-busy' else 1, calls)
         self.assertFalse(any(c[:2] == ['pane', 'close'] for c in calls), calls)
         self.assertEqual([r['phase'] for r in rows], ['prepared', 'started' if scenario in ('success', 'init-gap') else 'failed'])
         self.assertEqual(rows[-1]['pane'], self.pane)
@@ -137,11 +145,32 @@ else:
         self.assertEqual(row['pane_disposition'], 'retained_for_controller')
 
     def test_initializer_gap_is_not_initialization_complete(self):
-        # 独立时序：首次只看到 shell，随后初始化产生子进程，最后才完成。
+        # 外部时序：空闲 200ms、子进程到 1000ms、随后才进入最终稳定段。
         r, row, calls = self.launch('init-gap')
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(row['phase'], 'started')
         self.assertEqual(sum(c[:2] == ['agent', 'start'] for c in calls), 1)
+        samples = [json.loads(s) for s in Path(self.env['T094_STARTED'] + '.samples').read_text().splitlines()]
+        self.assertTrue(any(s['busy'] for s in samples))
+        last_busy = max(i for i, s in enumerate(samples) if s['busy'])
+        first_final_idle = samples[last_busy + 1]['elapsed']
+        start_time = float(Path(self.env['T094_STARTED'] + '.start-time').read_text())
+        self.assertGreaterEqual(start_time - first_final_idle, 1.5)
+        self.assertEqual(row['shell_ready_policy'], dict(stable_ms=1500, sample_interval_ms=100, timeout_ms=30000))
+
+    def test_persistent_child_times_out_with_last_argv(self):
+        r, row, calls = self.launch('init-always-busy')
+        self.assertEqual(r.returncode, 1)
+        self.assertEqual(row['failure_stage'], 'shell')
+        self.assertEqual(row['error_code'], 'timeout')
+        self.assertEqual(row['shell_foreground']['foreground_processes'][1]['argv'], self.init_argv)
+        for text in (row['error'], r.stderr):
+            self.assertIn(json.dumps(self.init_argv, ensure_ascii=False), text)
+        self.assertEqual(row['pane_disposition'], 'retained_for_controller')
+        self.assertFalse(any(c[:2] == ['agent', 'start'] for c in calls))
+        elapsed = REPORTS[-1]['elapsed_seconds']
+        self.assertGreaterEqual(elapsed, 30)
+        self.assertLess(elapsed, 38)
 
     def test_process_started_without_registration_is_distinct(self):
         r, row, calls = self.launch('unregistered')

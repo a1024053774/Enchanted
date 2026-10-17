@@ -13,6 +13,10 @@ import uuid
 from launch_records import validate_launches
 from record_io import append_record, locked, read_records, token, utc_now
 
+SHELL_STABLE_SECONDS = 1.5
+SHELL_SAMPLE_SECONDS = 0.1
+SHELL_TIMEOUT_SECONDS = 30
+
 
 def output(argv, cwd=None):
     return subprocess.check_output(argv, cwd=cwd, text=True).strip()
@@ -80,7 +84,10 @@ def main():
                launcher_commit=output(["git", "rev-parse", "HEAD"], Path(__file__).resolve().parents[1]),
                role_card=str(role_card), role_card_version=output(["git", "log", "-1", "--format=%H", "--",
                                                                 ".project-map/roles/worker.md"], root),
-               native_session="unknown")
+               native_session="unknown", shell_ready_policy=dict(
+                   stable_ms=int(SHELL_STABLE_SECONDS * 1000),
+                   sample_interval_ms=int(SHELL_SAMPLE_SECONDS * 1000),
+                   timeout_ms=SHELL_TIMEOUT_SECONDS * 1000))
     with locked(lockfile):
         validate_launches([*read_records(logfile), row])
         append_record(logfile, row)
@@ -88,6 +95,7 @@ def main():
     start_argv = None
     last_call = None
     stage = "split"
+    last_shell_info = None
 
     def invoke(command, *, timeout=None):
         nonlocal last_call
@@ -123,15 +131,21 @@ def main():
         stage = "shell"
         # Herdr 0.9.3 available_pane_shell_from_job: shell owns the foreground
         # group, and no other foreground process remains (including rc helpers).
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + SHELL_TIMEOUT_SECONDS
+        stable_since = None
         while True:
-            remaining = deadline - time.monotonic()
+            sample_started = time.monotonic()
+            remaining = deadline - sample_started
             if remaining <= 0:
                 raise TimeoutError("等待 shell 可用超过 30 秒；不启动 agent")
             info = invoke(["herdr", "pane", "process-info", "--pane", pane],
                           timeout=remaining)["result"]["process_info"]
             if info["pane_id"] != pane:
                 raise ValueError("shell 状态返回的 pane 身份不符")
+            last_shell_info = dict(info, sampled_at=utc_now())
+            sampled = time.monotonic()
+            if sampled >= deadline:
+                raise TimeoutError("等待 shell 可用超过 30 秒；不启动 agent")
             shell_pid = info.get("shell_pid")
             processes = info.get("foreground_processes", [])
             if (shell_pid is not None and shell_pid > 0
@@ -140,8 +154,15 @@ def main():
                     and processes[0]["name"].rsplit("/", 1)[-1].lstrip("-").removesuffix(".exe").lower()
                     in {"sh", "bash", "dash", "zsh", "fish", "ksh", "mksh", "csh", "tcsh",
                         "elvish", "xonsh", "nu", "pwsh", "powershell", "cmd"}):
-                break
-            time.sleep(min(0.1, max(0, deadline - time.monotonic())))
+                if stable_since is None:
+                    stable_since = sampled
+                if sampled - stable_since >= SHELL_STABLE_SECONDS:
+                    break
+            else:
+                stable_since = None
+            now = time.monotonic()
+            time.sleep(min(max(0, SHELL_SAMPLE_SECONDS - (now - sample_started)),
+                           max(0, deadline - now)))
         start_argv = ["herdr", "agent", "start", args.agent, "--kind", "codex", "--pane", pane,
                       "--", *argv[1:]]
         stage = "agent_start"
@@ -159,6 +180,10 @@ def main():
                        outcome="unknown" if stage == "agent_start" else "not_started",
                        observations=[], pane_disposition="retained_for_controller" if pane else "not_created",
                        observed_at=utc_now())
+        if stage == "shell" and isinstance(exc, (TimeoutError, subprocess.TimeoutExpired)):
+            failure["shell_foreground"] = last_shell_info
+            failure["error"] += "；shell 等待的最后前台采样=" + json.dumps(
+                last_shell_info, ensure_ascii=False)
         if pane is not None and stage == "agent_start":
             # 失败后只观察本次 split 的 pane；绝不按名称操作其他会话。
             observed = {}
