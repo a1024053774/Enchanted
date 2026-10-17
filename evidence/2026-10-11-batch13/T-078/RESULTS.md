@@ -1704,3 +1704,19 @@ TURN旧末断言必败的原因是混淆提交id与dispatch：实际turn_submitt
 第三场[标准冻结](09c-attempt-3-materials-01/SOURCE.json)已完成：完整源码提交8f359d3640702b6e36bac282237250f19128495d，实际运行版本仍为77865b044b5a5fedeeec12e62eae1314b87bf885；新包09c-executable-materials-05。新[未签Stage A](09c-attempt-3-materials-01/stage-a-approval.json)与[精确命令](09c-attempt-3-materials-01/STAGE-A-COMMAND.txt)输出09c-stage-a-03，[整场顺序](09c-attempt-3-materials-01/RUN-ORDER.md)按第2场的两个角色串行B1/首启/readiness、实际owner/引用、唯一build、五阶段ARM、C-I1一次初始放行、一个协调器计时段、原clock保存与停前原件归档/读回来准备；所有c3目录全新，不复用第2场身份。
 
 [静态材料核对](09c-c3-freeze-check-01/material-check-01/result.json) **PASS**：336个源码成员与Git冻结提交及当前文件逐字节一致，含p1_output.py完整reader/Python依赖与新子进程回收工具；七份绑定收据也与冻结提交原文字节一致。原整体INCOMPLETE的CAS分类器例外/替代/lock补齐明确保留；未签Stage A被实际预检拒绝，正例仅在内存签字夹具调用validator、不运行main。五条命令现有入口/输入存在、未来Stage A/B1路径单列、输出未建；clock保存heredoc AST/shell核对通过。最新排练tar独立重数POST7/1、roots4/1、三许可、无未完成HTTP/hook。当前只有静态fixture与文件，没有启动本场API/daemon/target/角色CLI、未签批准、未发键，模型0。真实第三场及整票仍INCOMPLETE，launch NO_GO待主控逐阶段批准。
+
+## 主控 #373：09C第3场业务PASS；原件复核与终审02准备
+
+主控代签执行第三场：Stage A、两角色串行B1/逐屏六键/readiness、九身份owner、实际引用、唯一build、五阶段/计时policy签字与ARM、C-I1初始化/单dispatch/完整许可、单协调器计时段均 **PASS**。完整输出和签字先提交91fe77992e15b33170b462e67feab4e0b034fa32；没有把控制自动化写成用户手打。源码/冻结版本与预算不变，供应商模型0。
+
+worker[全场核对](09C-C3-FINAL-READBACK.md)及[最终JSON](09c-c3-final-check-01/live-05/result.json) **PASS（原件只读复核范围）**：从实际请求/响应/meta与hooks重数POST7/1、roots4/1、3许可，13组hooks均finished/exit0；8响应均200/complete，SSE完整，3个真实Bash.command/同ID queued tool_result与原Stop/relay相符。三个许可各一条intent/written/action-CR，未新增根；原屏/另读完整字节与签字/命令匹配，direct total15945/33352/47553。实际dispatch全局seq依次为target初始1，C-I1 2、C-E1 3、C-I2 4、C-I3 5、C-I4 6，不是驱动硬编码阶段号。
+
+原stop a649f79c-f2a1-4cd1-bcd3-f623abe6f16c、request8961bfe0-821e-45c6-af9d-ea173dafd9cd，created_at2026-10-17T04:03:56.934Z；早期relay_rejected seq236在04:04:01.589Z（4655ms）实际返回stop_too_early，C-I2 collect稍后约5344ms/目标0。C-I3按键前wall_age121527.934ms、OS mono elapsed121185.517ms；实际emergency_interrupt_requested seq31在04:05:58.927Z，独立原事件差 **121993ms**，>120000/<150000、actor ideation、同stop/目标。协调器最终观察123102.578ms/122760.159ms是完成时点，不冒称Enter时点。target原字节恰1b、无ack；只读task快照仍原attempt/fence/claimed/reclaimed=false，无业务kill/reclaim/integrate。当前实际OS存活仍待回收dry-run，不把元数据当ps实测。
+
+核对器的live-01（误把SQL裸正文当含包头）、live-03（误以为C-I2 Enter收据有capture字段）均保持INCOMPLETE；修的是worker只读核对器，不改场景/runtime/原件。live-02为初步核对，live-04增补许可，最终live-05为准。7个坏证据反例均被同一函数拒绝；合成tar命名空间/错owner/重复成员/句柄关闭/SQLite0检查PASS，**不冒称实际C3归档已跑，也不替reviewer的产品变异**。
+
+第1场仍 **INCOMPLETE**：字段/反馈解析错误、首份结果被错误的重复执行处理覆盖，后补还原仅间接证据；最终13/11 POST超预算，原tar/失败审阅/cleanup PASS不能补回丢失结果。第2场仍 **INCOMPLETE**：C-I1后C-I2签名前拓扑拒绝，零C-I2 Enter，3/11 POST；故障瞬间额外PID缺失，后续caffeinate真探针只支持合法模式，不伪造历史PID。两场原报告、原件、回收PASS不改判；第三场只为新场景提供正例。
+
+当前C3 root仍保留，**外置归档/独立tar重数/凭据审阅/停机尚未执行**。[回收材料](09c-c3-closeout-materials-01/README.md)仅准备：原九身份、只扩evidence树，完整保留后生成的许可读屏/计时/clock/一次性意图，另复制10份不含凭据的原control JSON（含持续原停止要求）；主控签字后dry-run→停前全量结构脱敏capture→逐成员字节读回→标准tar重数与同一核对器tar入口→独立凭据/原件审阅签字→保存逐原件.archive.json入口→原owner-bound finish。只经daemon_stop正常关角色/target、两原API各一次SIGTERM、实际全部缺席后删root；停后不打开SQLite，不动slot。本worker没有发键、业务请求、停机或信号。
+
+[终审01 F1～F7处置](FINAL-02-DISPOSITION.md)逐项说明：A16的17 POST/10根/7许可原tar仍可读，当前再次重数6/11、4/6、2/5，I1直接total15877留存，补F1/F5新场景证据但不改A15历史；F4四份原回归组合与明示CAS例外、F6标准reader闭包已补；F3仍待fresh reviewer在绑定候选的临时worktree做2～5个产品变异，worker不代做独立审查。F7当前状态明确区分已回收旧场与未回收C3。rev2范围不变：三窗格转T091、真登录转T092，IME本轮未验证/INCOMPLETE。**整票仍INCOMPLETE，待C3实际归档/回收及终审02；不集成、不push、不关闭票或切换日常派发。**
