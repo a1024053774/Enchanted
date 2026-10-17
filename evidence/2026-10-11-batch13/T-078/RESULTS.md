@@ -1700,3 +1700,7 @@ TURN旧末断言必败的原因是混淆提交id与dispatch：实际turn_submitt
 主控沙箱外[parity-rehearsal-02](09c-caffeinate-parity-rehearsal-02/result.json) **PASS**：源码77865b044b5a5fedeeec12e62eae1314b87bf885，POST7/1、roots4/1、scene_age_ms123416.47998046875、completion_age_ms123590.11303710938，协调器1次、重复拒绝PASS、模型0；原九进程拓扑照常执行，标准归档/字节读回后认证停机、两只API各一次SIGTERM、原Popen均REAPED、真实ps缺席、root删除、停后SQLite读0。新完整输出保留入库，旧失败-01不改写。
 
 [冻结证据范围](09c-c3-freeze-check-01/README.md)明确：当前运行代码严格等于本次77865b044；完整冻结提交另含收据选择/生成元数据。内核正反例继续绑定e26a7379d的原测试与路径相关函数，逐段原文核对不变；新waitpid只由本次完整排练背书。四份原业务回归与CAS分类器例外继续逐项核对，同时绑定原协调器收据与新九进程收据。旧校验的两条红态、新核对与9项反例PASS；没有启动现场、发键、发信号或调用模型。第三场只准备未签材料，实际运行与整票仍INCOMPLETE。
+
+第三场[标准冻结](09c-attempt-3-materials-01/SOURCE.json)已完成：完整源码提交8f359d3640702b6e36bac282237250f19128495d，实际运行版本仍为77865b044b5a5fedeeec12e62eae1314b87bf885；新包09c-executable-materials-05。新[未签Stage A](09c-attempt-3-materials-01/stage-a-approval.json)与[精确命令](09c-attempt-3-materials-01/STAGE-A-COMMAND.txt)输出09c-stage-a-03，[整场顺序](09c-attempt-3-materials-01/RUN-ORDER.md)按第2场的两个角色串行B1/首启/readiness、实际owner/引用、唯一build、五阶段ARM、C-I1一次初始放行、一个协调器计时段、原clock保存与停前原件归档/读回来准备；所有c3目录全新，不复用第2场身份。
+
+[静态材料核对](09c-c3-freeze-check-01/material-check-01/result.json) **PASS**：336个源码成员与Git冻结提交及当前文件逐字节一致，含p1_output.py完整reader/Python依赖与新子进程回收工具；七份绑定收据也与冻结提交原文字节一致。原整体INCOMPLETE的CAS分类器例外/替代/lock补齐明确保留；未签Stage A被实际预检拒绝，正例仅在内存签字夹具调用validator、不运行main。五条命令现有入口/输入存在、未来Stage A/B1路径单列、输出未建；clock保存heredoc AST/shell核对通过。最新排练tar独立重数POST7/1、roots4/1、三许可、无未完成HTTP/hook。当前只有静态fixture与文件，没有启动本场API/daemon/target/角色CLI、未签批准、未发键，模型0。真实第三场及整票仍INCOMPLETE，launch NO_GO待主控逐阶段批准。
