@@ -66,7 +66,9 @@ class CScene(Scene):
             ['.py','.ts','.mjs','.js','.c','.html','.css','.json'] or name.startswith(('workbench/bin/','workbench/app/')))]
         paths += [SOURCE/'workbench/package.json',SOURCE/'workbench/package-lock.json',STRUCTURE,
                   BASE/'prepare-a14.py',BASE/'prepare-rev2-owner.py',BASE/'09b-materials-01/protocol.json',
-                  BASE/'stage-b-a12-ideation-approval-01.json']
+                  BASE/'stage-b-a12-ideation-approval-01.json',BASE/'prepare-c2-runtime.py',BASE/'run-09b-stage-b.py',
+                  BASE/'p1-materials-09/security-notice-text.txt',BASE/'run-09b.py',BASE/'prepare-09b-executable.py',
+                  BASE/'c3-revalidation.py',BASE/'freeze-c3.py']
         paths=sorted(set(paths));names=[]
         with tarfile.open(snapshot,'x:gz') as archive:
             for path in paths:
@@ -184,7 +186,9 @@ class CScene(Scene):
         self.command([sys.executable,'-B',BASE/'prepare-rev2-owner.py','--mode','owner','--stage-a',self.stage_a,
             '--packet',self.packet,'--ideation',self.p1s['ideation'],'--executor',self.p1s['executor'],'--output',owner_file])
         owner=json.loads(owner_file.read_bytes())
-        check_identities(owner,NativeRuntime(owner))
+        helpers=check_identities(owner,NativeRuntime(owner))
+        startup=self.output/'startup-topology';startup.mkdir()
+        save(startup/'helpers.json',{'allowed_helpers':helpers,'owner_process_count':len(owner['processes'])})
         plan=json.loads((self.root/'protocol-plan.json').read_bytes());self.target_identity=plan['target_identity']
         save(self.output/'identity-seam.json',{'scope':'nine real processes; common original receipts and topology gate; Python provider, not Claude',
             'owner_file':str(owner_file),'processes':owner['processes'],'process_graph':owner['process_graph']})
@@ -343,6 +347,9 @@ class CScene(Scene):
         owner=raw.read_json(owner_file)
         coordinator=self.output/'coordinator-01'
         if coordinator.is_dir():owner={**owner,'evidence_trees':owner['evidence_trees']+[str(coordinator)]}
+        startup=self.output/'startup-topology'
+        require(startup.is_dir(),'original startup topology required')
+        owner={**owner,'evidence_trees':owner['evidence_trees']+[str(startup)]}
         # Save committed WAL consistently while the daemon is still alive.
         database=self.output/'sqlite';database.mkdir()
         with closing(sqlite3.connect((self.state/'state.sqlite3').as_uri()+'?mode=ro',uri=True)) as src:
@@ -351,8 +358,9 @@ class CScene(Scene):
         clock=self.root/'clock-origin.json'
         if clock.exists():
             with (self.output/'clock-origin.json').open('xb') as stream:stream.write(clock.read_bytes())
-        raw.check_identities(owner,raw.NativeRuntime(owner))
+        helpers=raw.check_identities(owner,raw.NativeRuntime(owner))
         staging=self.output/'retention-staging';raw.capture(owner,staging)
+        raw.save(staging/'topology-verification.json',{'allowed_helpers':helpers,'owner_process_count':len(owner['processes'])})
         archive=self.output/'retention-archive/scene.tar.gz'
         captured=raw.archive_capture(owner,staging,archive);counts=raw.readback(archive)
         raw.save(self.output/'retention-readback.json',{'archive':str(archive),'counts':counts,'scope':'deterministic rehearsal independent tar recount'})

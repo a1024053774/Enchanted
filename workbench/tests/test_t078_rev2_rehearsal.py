@@ -296,7 +296,7 @@ class Rehearsal:
                 return {label: (None if (self.stopped if label == 'daemon' else
                         ((not self.api_alive[label] if scene.offline else owned_apis[label].poll() is not None) if label.endswith('_api') else self.stopped)) else value)
                         for label, value in owner['processes'].items()}
-            def topology(self):check(len(owner['processes'])==9,'unit fixture reaches topology transport')
+            def topology(self):check(len(owner['processes'])==9,'unit fixture reaches topology transport');return []
             def normal_stop(self):
                 self.stopped = True; shutil.rmtree(scene.root / 'state')
             def terminate(self, label):

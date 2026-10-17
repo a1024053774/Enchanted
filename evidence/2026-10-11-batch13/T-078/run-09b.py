@@ -55,7 +55,7 @@ def validate_regression_readbacks(static, approval):
     harness_validation = None
     if static['scene'] == '09C' and static.get('harness_rehearsal'):
         import importlib.util
-        path = BASE/'c2-revalidation.py';spec = importlib.util.spec_from_file_location('c2_revalidation',path)
+        path = BASE/'c3-revalidation.py';spec = importlib.util.spec_from_file_location('c3_revalidation',path)
         module = importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         exclusions, harness_validation = module.validate(static, approval)
         protected = [p for p in protected if p not in exclusions]

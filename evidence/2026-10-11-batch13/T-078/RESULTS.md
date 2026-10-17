@@ -1653,3 +1653,22 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 用主控已保存的真实2.1.296 s13 **8799字节**在实际observe入口[取红](09c-topology-idle-fix-01/red-01/result.json)，Git旧源[重放红态](09c-topology-idle-fix-01/known-bad-red-01/result.json)同样命中；[绿态10项](09c-topology-idle-fix-01/green-03/result.json)中，真实原屏与完整空manual正例通过；原native字节内直接插草稿/改plan，以及单行与多行非空、旧manual但当前plan、manual off、截断transport、缺编辑框结束线反例，均在owner日志/采样前拒绝。只看❯的[坏变异](09c-topology-idle-fix-01/marker-only-red-01/result.json)被非空草稿反例捕获。这里pane_output与进程采样为明确记录I/O/spy，不冒称新的真实ps；键、模型、场景启动均0。相关probe入口5项、模拟草稿14项、分页reader6项回归PASS。
 
 [IDLE-02](09c-topology-idle-fix-01/IDLE-02-COMMAND.txt) 与 [TURN](09c-topology-idle-fix-01/TURN-COMMAND.txt) 新命令已写、未执行；idle-02/turn-01均全新。主控先跑idle-02；通过后审签本目录从实际旧模板复制的空签 [turn-approval-01](09c-topology-idle-fix-01/turn-approval-01.json)，才跑turn。仍是一个真实Claude、模型0、1根/1POST、许可Enter0，依原API屏障采进行中/许可等待；无需重建probe或重做首启。运行服务source仍为ce0d，本次新观察工具另由该修复提交绑定；不把旧服务宣称为加载新代码。真实三时点取证、合法子进程判断、新九进程排练仍INCOMPLETE，无允许项新增，第3场NO_GO。
+
+
+## 主控 #367：合法caffeinate窄规则、TURN提交ID修复、两现场回收与第3场准备
+
+主控审阅真实 [idle-02](09c-topology-probe-run-01/idle-02/summary.json) 与 [in-flight](09c-topology-probe-run-01/turn-01/in-flight/summary.json)/[permission-wait](09c-topology-probe-run-01/turn-01/permission-wait/summary.json)：idle七原进程无extra；后两阶段94/95次均capture_complete，PID12761的command为 `caffeinate -i -t 300`，父链12761→8705 Claude→8703 zsh→8505 daemon，主控裁定合法防休眠子进程。原ps及本轮所有签字/运行输出入库。此证据支持第2场的归因，但不能恢复丢失的故障时PID集合，历史限制不改。
+
+[新窄规则](09c-caffeinate-fix-01/README.md)只在测试工具：直接父必须原登记角色CLI领导PID，父身份再核对，内核proc_pidpath解析必须为/usr/bin/caffeinate，argv恰caffeinate/-i/-t/N、ASCII整数1～300、每角色最多一个，双读辅助身份/路径与复读图稳定。它只列为auxiliary，原七/九身份、完整argv/lstart和图不能缺失/替换；其他任何进程仍拒绝。所有拒绝先留原ps，归档包括辅助收据，正常停机后单独确认已见辅助进程消失，否则BLOCKED不删根；不直接向helper发信号。
+
+[原ps入口红态](09c-caffeinate-fix-01/red-01/result.json)与Git旧源重放命中旧unknown-descendant；[22项绿态](09c-caffeinate-fix-01/caffeinate-green-03/result.json)覆盖主控要求的全部反例及边界。去路径、argv、数量限制的三个坏变异均被捕获。**旧ps没有内核路径；本地回放的路径值明确是transport输入，不能冒称原PID的内核原件。**新的 [KERNEL命令](09c-caffeinate-fix-01/KERNEL-COMMAND.txt)用两个自有短命程序实际检验系统程序与同名同参数假程序的proc_pidpath，尚未运行。
+
+TURN旧末断言必败的原因是混淆提交id与dispatch：实际turn_submitted seq56 的id为41705a5b…，dispatch为1c526942…；PermissionRequest seq64同回合等待。原 [turn-01/result](09c-topology-probe-run-01/turn-01/result.json)保持INCOMPLETE。新入口按active.dispatch关联派发，按active.id关联唯一实际提交，并要求busy/无失败；完整pane_status先落盘。旧断言红态及7项绿/反例PASS，status重放由原提交字段构造，**不冒称丢失的历史pane_status原件**。不重跑TURN或追加根/POST，原一次派发与turn-intent保留。
+
+[回收材料](09c-caffeinate-fix-01/CLOSEOUT.md)分别绑定probe root /private/tmp/t078-2-a14-rehearsal-i4jb8gm3 的七原PID与第2场root /private/tmp/t078-2-09c-run-iznfrv18 的九原PID。单角色TOPOLOGY_PROBE是明确的已登记profile：原Stage A/claim/target、两API、实际B1与五加二原身份全部验证，不能造executor补九；09C NativePermission与协调器显式要求九进程09C，七进程profile不能代用。profile/回收次序5项PASS。两套均空签/未跑：停前全部POST/hook、ps、clock/事件脱敏外置、逐成员字节读回、独立tar重数签字，才durable shutdown-intent→认证daemon_stop/panes.shutdown→确认原进程/helper退出→两API各一次SIGTERM→停后只验文件/归档、SQLite0→删根。slot不动。两失败业务结论始终INCOMPLETE。
+
+新的 [九进程排练命令](09c-caffeinate-fix-01/REHEARSAL-COMMAND.txt)尚未执行。确定性peer真实派生系统caffeinate、ready在创建helper后原子发布，正常HUP只收回自己的Popen子进程；使用同一owner/全部拓扑/归档门，无REHEARSAL豁免。启动helper收据与停前收据分别保留，允许自然到期，不把辅助进程计作角色。要求实际7/1POST、4/1根、三许可、单Esc/无ack、>120秒/<150秒、模型0及标准cleanup。
+
+[第3场准备](09c-attempt-3-materials-01/PLAN.md)未冻结/NO_GO：新标准materials-05、Stage A03、c3两P1/新root/claim/launch/session。生成器实例/运行准备目录显式传入，executor P1从实际plan.readiness_file取，许可读屏label取本场session、slot含实际实例/launch；原C2硬路径的合同红态与新绿态保存。预算/协议不变4/7+1/1。新freeze-c3及唯一C3 Stage A收据校验拒绝旧七进程排练，明确核对内核正反例、实际九身份/两个辅助/标准归档/单Esc/原clock/重复拒绝、确切已跑工具与四份原业务回归组合。本地缺新收据时已在prepare/建root前拒绝，packet未生成；不填假PASS来冻结。标准prepare/P1与排练源码闭包同步包含新依赖和元数据脚本。
+
+本地source-scope AST检查PASS（相对既有业务版本精确30个测试工具文件，产品/app/acceptance/scripts无改动），相关topology/retention/时序模板/协调器路径/真实记录入口/纯Handler回归PASS，真实内核与完整排练、两回收、第三场及新独立审查均INCOMPLETE。夹具准备错误原样保留：非法REHEARSAL旧spy期望不合新profile、relative archive路径、漏--expect、heredoc分隔符；各自说明/新输出保留，非业务红态。纯unit遗留scratch已逐成员字节归档后删，无现场进程动作。本轮未启动真实角色/API/daemon/窗口，没有模型调用、业务输入或现场信号。

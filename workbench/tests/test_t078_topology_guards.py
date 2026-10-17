@@ -21,13 +21,15 @@ def run(output,only=None):
     # Requirements come from #364: a scene label cannot remove the check.
     for scene in ([] if only=='diagnostics' else ['09C','REHEARSAL']):
         value={**owner,'scene':scene};calls=[]
-        def receipts(arg):calls.append('receipt')
+        def receipts(arg):
+            calls.append('receipt')
+            if arg['scene']=='REHEARSAL':raise ValueError('scene_required')
         try:
             with patch.object(raw,'validate_owner_receipts',receipts):raw.check_identities(value,Transport())
-        except ValueError as error:assert str(error)=='actual topology sentinel'
-        else:raise AssertionError('topology bypass:'+scene)
+        except ValueError as error:assert str(error)==('scene_required' if scene=='REHEARSAL' else 'actual topology sentinel')
+        else:raise AssertionError('receipt/topology bypass:'+scene)
         assert calls==['receipt']
-        checks.append('receipt/topology always reached:'+scene)
+        checks.append('receipt rejects invalid scene' if scene=='REHEARSAL' else 'receipt/topology reached:09C')
     if only is None:
         value=copy.deepcopy(owner);value['processes'].pop('executor_api')
         class Eight:
@@ -72,7 +74,7 @@ def run(output,only=None):
 def metadata_cases(output):
     from t078_owner_receipt_fixture import write_owner_receipts
     results=[]
-    labels=['green','scene','source','claim','target','receipt','daemon','target-pids','api-ready','api-role','api-stage','api-protocol','api-model','api-argv','manifest-session','manifest-cli','manifest-shell','role-argv','missing-process','PID-reuse','reordered-labels']
+    labels=['green','scene','forged-probe-scene','source','claim','target','receipt','daemon','target-pids','api-ready','api-role','api-stage','api-protocol','api-model','api-argv','manifest-session','manifest-cli','manifest-shell','role-argv','missing-process','PID-reuse','reordered-labels']
     for label in labels:
         with tempfile.TemporaryDirectory(prefix='t078-owner-metadata-',dir='/private/tmp') as tmp:
             root=Path(tmp).resolve();(root/'roles/ideation').mkdir(parents=True);(root/'roles/executor').mkdir()
@@ -83,6 +85,7 @@ def metadata_cases(output):
             ready=Path(value['stage_a'])/'readiness.json';api=root/'roles/ideation/api-ready.json'
             manifest=Path(value['roles']['ideation']['manifest'])
             if label=='scene':value['scene']='REHEARSAL'
+            if label=='forged-probe-scene':value['scene']='TOPOLOGY_PROBE'
             if label=='source':value['source_revision']='unbound'
             if label=='claim':value['claim_binding']['fence']=2
             if label=='target':value['target_binding']['attempt_id']='foreign'
@@ -101,10 +104,10 @@ def metadata_cases(output):
             if label=='role-argv':alter(manifest,lambda x:x['cli'].update(command='/fixture/wrong'))
             if label=='missing-process':value['processes'].pop('executor_cli')
             runtime=type('Transport',(),{'identities':lambda self:copy.deepcopy(value['processes']),
-                'topology':lambda self:None})()
+                'topology':lambda self:[]})()
             if label=='PID-reuse':runtime.identities=lambda:{**value['processes'],'daemon':{**value['processes']['daemon'],'started':'reused'}}
             topology=[]
-            if label=='reordered-labels':runtime.topology=lambda:topology.append('called')
+            if label=='reordered-labels':runtime.topology=lambda:(topology.append('called') or [])
             error=None
             try:raw.check_identities(value,runtime,list(reversed(value['processes'])) if label=='reordered-labels' else None)
             except (ValueError,KeyError) as ex:error=str(ex)

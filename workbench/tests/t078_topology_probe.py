@@ -136,6 +136,15 @@ def sample_for(owner,output,seconds):
         'capture_complete':not partial})
 
 
+def verify_active_submission(status,dispatch,events):
+    submitted=[row for row in events if row['type']=='turn_submitted' and row['data'].get('dispatch')==dispatch['id']]
+    require(len(submitted)==1,'one original probe submission required')
+    active=status.get('active')
+    require(status.get('state')=='busy' and not status.get('failed') and active and
+        active.get('dispatch')==dispatch['id'] and active.get('id')==submitted[0]['data']['id'],
+        'same actual dispatch remains active at PermissionRequest')
+
+
 def observe(args):
     data,root,p1,inp,owner=load_probe(args.probe)
     out=args.output
@@ -189,9 +198,10 @@ def observe(args):
     after=read_complete_output(lambda offset:gate(root,'pane_output','--launch',inp['launch'],'--offset',offset),inp['launch'])
     (out/'permission-screen-after-sampling.bin').write_bytes(after['raw']);save(out/'permission-capture-after-sampling.json',after['capture'])
     status=gate(root,'pane_status','--thread',inp['thread'])
-    require(status['active'] and status['active']['id']==dispatch['dispatch']['id'] and status['state']=='busy',
-        'same actual dispatch remains active at PermissionRequest')
     save(out/'permission-pane-status.json',status)
+    from t078_09b_phase_registry import rows
+    events=[{**row,'data':json.loads(row['data'])} for row in rows(root,'orchestration_events') if row['launch']==inp['launch']]
+    verify_active_submission(status,dispatch['dispatch'],events)
     idle=Path(json.loads((args.probe/'idle-observation.json').read_bytes())['output'])
     save(out/'three-state-index.json',{'status':'PASS','states':{'idle':str(idle),'in-flight':str(busy),'permission-wait':str(pending)},
         'classification':'UNKNOWN; assess all raw snapshots before proposing a rule','exact_birth_exit_times':'not recorded; bounded by observations and lstart',

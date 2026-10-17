@@ -28,7 +28,7 @@ def probes(Timed,root):
     for stage in ['C-I1','C-I2','C-I3','C-I4','C-E1']:
         folder=(executor if stage=='C-E1' else p1)/'phases'/stage/'armed-01';folder.mkdir(parents=True)
         (folder/'result.json').write_text('{"status":"ARMED"}',encoding='utf-8')
-    value=SimpleNamespace(p1=p1,executor=executor,root=root,plan=plan,output=output,policy={},
+    value=SimpleNamespace(p1=p1,executor=executor,root=root,plan=plan,output=output,policy={},inp={'session':'fixture-session'},
         check_policy=lambda:None,permission_argv=lambda *a:[],run=lambda *a:None)
     def loading(name,path):captured['demand']=str(path);raise Captured()
     with patch.object(importlib.util,'spec_from_file_location',loading):

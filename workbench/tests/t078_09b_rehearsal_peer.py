@@ -4,6 +4,7 @@ import copy
 import json
 import os
 import shlex
+import signal
 import subprocess
 import sys
 import termios
@@ -188,7 +189,20 @@ def main():
         print('\r\nT078_REHEARSAL_IDLE\r\n', flush=True)
 
     original = termios.tcgetattr(0); tty.setraw(0)
-    save(log / 'ready.json', {'pid': os.getpid(), 'ppid':os.getppid(), 'session':args.session_id,'role': role, 'fixture': True})
+    # Actual OS helper, not a mocked successful topology receipt. It remains
+    # auxiliary to the registered Python provider and is reaped on normal HUP.
+    helper=subprocess.Popen(['caffeinate','-i','-t','300'],executable='/usr/bin/caffeinate',
+                            stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    save(log/'caffeinate-owner.json',{'pid':helper.pid,'ppid':os.getpid(),'argv':['caffeinate','-i','-t','300'],
+                                    'executable':'/usr/bin/caffeinate','scope':'deterministic peer owned helper; not a role identity'})
+    def normal_close(*_):
+        if helper.poll() is None:helper.terminate()
+        helper.wait(timeout=3)
+        raise SystemExit(0)
+    for number in [signal.SIGHUP,signal.SIGTERM,signal.SIGINT]:signal.signal(number,normal_close)
+    ready=log/'ready.pending'
+    save(ready,{'pid':os.getpid(),'ppid':os.getppid(),'session':args.session_id,'role':role,'fixture':True})
+    os.link(ready,log/'ready.json');ready.unlink()
     print('T078_REHEARSAL_READY\r\n\x1b[?2004h', end='', flush=True)
     buffer = b''
     try:

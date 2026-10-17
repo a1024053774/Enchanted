@@ -68,6 +68,7 @@ class Lifecycle:
         # This file tests archive ordering, not real ps. The real-chain test
         # uses NativeRuntime and cannot use this explicit transport spy.
         check(len(self.current)==9,'all original metadata labels reach topology')
+        return []
     def normal_stop(self):
         self.calls.append('daemon_stop')
         for name in self.current:

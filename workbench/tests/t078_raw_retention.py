@@ -4,6 +4,7 @@ Only explicitly enumerated evidence trees enter the archive. Authentication
 headers, HOME, credentials and SQLite files never enter the tar input.
 """
 import argparse
+import ctypes
 from contextlib import closing
 import json
 import os
@@ -54,7 +55,7 @@ def owned_root(owner):
     root = Path(owner['root'])
     require(root.is_dir() and not root.is_symlink() and root == root.resolve(), 'root_realpath_required')
     require(root.parent == Path('/private/tmp') and root.name.startswith('t078-'), 'owned_scratch_root_required')
-    require(owner['scene'] in ('A16', '09C'), 'scene_required')
+    require(owner['scene'] in ('A16', '09C', 'TOPOLOGY_PROBE'), 'scene_required')
     require(bool(owner['source_revision']) and bool(owner['target_binding']), 'source_and_target_binding_required')
     for key in ('task_id', 'attempt_id', 'session_id', 'fence', 'spec_rev', 'thread_id', 'workspace', 'launch'):
         require(bool(owner['target_binding'].get(key)), 'target_binding_required:' + key)
@@ -64,7 +65,7 @@ def owned_root(owner):
 def validate_owner_receipts(owner):
     """Match the owner to original Stage A and both actual B1 manifests."""
     root = owned_root(owner)
-    require(owner['scene'] in ('A16', '09C'), 'operational_scene_required')
+    require(owner['scene'] in ('A16', '09C', 'TOPOLOGY_PROBE'), 'operational_scene_required')
     require(re.fullmatch('[0-9a-f]{40}', owner['source_revision']) is not None, 'bound_source_revision_required')
     ready = read_json(Path(owner['stage_a']) / 'readiness.json')
     require(ready['root'] == str(root) and ready['target_binding'] == owner['claim_binding'], 'original_claim_binding_changed')
@@ -85,6 +86,18 @@ def validate_owner_receipts(owner):
         require(api['ready']['pid'] == identity['pid'] and api['ready']['role'] == role and api['ready']['stage'] == 'A' and
                 api['ready']['protocol'] == 'rev2-raw-c-profile-v1' and api['ready']['model_turns'] == 0, 'original_API_profile_changed:' + role)
         require(shlex.split(identity['command'])[1:] == api['argv'][1:], 'original_API_argv_changed:' + role)
+    manifest_roles=ROLES if owner['scene'] in ('A16','09C') else ('ideation',)
+    require(set(owner['roles'])==set(manifest_roles),'original_role_set_changed')
+    if owner['scene']=='TOPOLOGY_PROBE':
+        probe=read_json(owner['probe_record'])
+        require(probe['status']=='PREPARED' and probe['root']==str(root) and probe['source_revision']==owner['source_revision'] and
+                probe['stage_a']==owner['stage_a'] and probe['original_processes']=={k:processes[k] for k in probe['original_processes']},
+                'original_probe_binding_changed')
+        inp=read_json(Path(probe['p1'])/'input.json')
+        require(inp['root']==str(root) and inp['task']==ready['task'] and inp['preset']=='ideation' and
+                inp['launch']==owner['roles']['ideation']['launch'] and inp['session']==owner['roles']['ideation']['session'],
+                'original_probe_role_changed')
+    for role in manifest_roles:
         binding = owner['roles'][role]; manifest = read_json(binding['manifest'])
         require(binding['launch'] == manifest['launch'] and binding['session'] == manifest['session'] and
                 manifest['shell_pid'] == processes[role + '_shell']['pid'] and
@@ -382,7 +395,7 @@ class NativeRuntime:
 
     def topology(self):
         from t078_process_tree import graph_rows, descendants, snapshot
-        result = None
+        result = None; second = None
         try:
             result = subprocess.run(['/bin/ps', '-axo', 'pid=,ppid=,pgid=,tpgid='],
                                     capture_output=True, text=True, timeout=5)
@@ -393,13 +406,77 @@ class NativeRuntime:
                 require(graph.get(identity['pid']) == expected[label], 'process_graph_changed:' + label)
             actual = descendants(graph, self.owner['processes']['daemon']['pid'])
             managed = {item['pid'] for label, item in self.owner['processes'].items() if not label.endswith('_api')}
-            require(actual == managed, 'unexpected_daemon_descendants')
+            require(managed.issubset(actual), 'managed_process_missing_from_tree')
+            parents={self.owner['processes'][role+'_cli']['pid']:role for role in ROLES if role+'_cli' in self.owner['processes']}
+            allowed=[];counts={}
+            for pid in sorted(actual-managed):
+                parent=graph[pid]['ppid'];require(parent in parents,'unexpected_daemon_descendants')
+                first=self.helper_identity(pid);require(first is not None,'helper_disappeared')
+                require(first['ppid']==parent,'helper_parent_changed')
+                argv=shlex.split(first['command']);require(bool(argv) and argv[0]=='caffeinate','unexpected_daemon_descendants')
+                path=self.executable_path(pid)
+                require(os.path.realpath(path)=='/usr/bin/caffeinate','caffeinate_executable_mismatch')
+                require(len(argv)==4 and argv[:3]==['caffeinate','-i','-t'] and
+                        re.fullmatch('[0-9]+',argv[3]) is not None and 1<=int(argv[3])<=300,
+                        'caffeinate_argv_mismatch')
+                role=parents[parent];counts[role]=counts.get(role,0)+1
+                require(counts[role]<=1,'multiple_caffeinate_for_role')
+                parent_probe=subprocess.run(['/bin/ps','-ww','-p',str(parent),'-o','pid=,lstart=,command='],
+                    capture_output=True,text=True,timeout=5,env={**os.environ,'LC_ALL':'C','LANG':'C'})
+                require(identity_from_ps(parent,parent_probe.returncode,parent_probe.stdout,parent_probe.stderr)==self.owner['processes'][role+'_cli'],
+                        'helper_parent_role_identity_changed')
+                require(self.helper_identity(pid)==first and self.executable_path(pid)==path,'helper_identity_changed')
+                allowed.append({**first,'executable':path,'role':role,'identity_kind':'auxiliary; never a role identity'})
+            second=subprocess.run(['/bin/ps','-axo','pid=,ppid=,pgid=,tpgid='],capture_output=True,text=True,timeout=5)
+            require(second.returncode==0 and not second.stderr.strip(),'process_graph_recheck_failed')
+            again=graph_rows(second.stdout)
+            require(descendants(again,self.owner['processes']['daemon']['pid'])==actual and
+                    all(again.get(pid)==graph[pid] for pid in actual|{v['pid'] for v in self.owner['processes'].values()}),
+                    'owned_process_graph_changed_during_check')
+            return allowed
         except Exception as error:
             folder = Path(self.owner['root']) / 'topology-diagnostics' / uuid.uuid4().hex
             if result is None:
                 result = subprocess.CompletedProcess(['/bin/ps','-axo','pid=,ppid=,pgid=,tpgid='], -1, '', repr(error))
             snapshot(self.owner, folder, graph_result=result, reason=str(error))
+            if second is not None:
+                (folder/'recheck.stdout.bin').write_bytes(second.stdout.encode())
+                (folder/'recheck.stderr.bin').write_bytes(second.stderr.encode())
             raise
+
+    def helper_identity(self,pid):
+        result=subprocess.run(['/bin/ps','-ww','-p',str(pid),'-o','pid=,ppid=,pgid=,tpgid=,lstart=,command='],
+            capture_output=True,text=True,timeout=5,env={**os.environ,'LC_ALL':'C','LANG':'C'})
+        if result.returncode==1 and not result.stdout.strip():return None
+        require(result.returncode==0 and not result.stderr.strip(),'helper_ps_failed')
+        cells=result.stdout.strip().split(None,9)
+        require(len(cells)==10 and int(cells[0])==pid,'helper_ps_parse_failed')
+        return {'pid':pid,'ppid':int(cells[1]),'pgid':int(cells[2]),'tpgid':int(cells[3]),
+                'started':' '.join(cells[4:9]),'command':cells[9]}
+
+    def executable_path(self,pid):
+        # macOS SDK libproc.h: proc_pidpath; proc_info.h MAXSIZE=4*MAXPATHLEN.
+        # Read the kernel's executable path. Never resolve a process name with PATH.
+        library=ctypes.CDLL('/usr/lib/libproc.dylib',use_errno=True)
+        function=library.proc_pidpath;function.argtypes=[ctypes.c_int,ctypes.c_void_p,ctypes.c_uint32];function.restype=ctypes.c_int
+        buffer=ctypes.create_string_buffer(4096)
+        size=function(pid,buffer,len(buffer))
+        require(size>0,'process_executable_unavailable:'+str(pid)+':'+str(ctypes.get_errno()))
+        path=buffer.value.decode('utf-8');require(path.startswith('/'),'absolute_process_executable_required')
+        return path
+
+    def wait_helpers_absent(self,helpers,seconds):
+        deadline=time.monotonic()+seconds
+        while True:
+            living=[]
+            for expected in helpers:
+                current=self.helper_identity(expected['pid'])
+                if current is not None:
+                    require(current['started']==expected['started'] and current['command']==expected['command'] and
+                            self.executable_path(expected['pid'])==expected['executable'],'helper_PID_reused_after_stop')
+                    living.append(expected['pid'])
+            if not living:return
+            require(time.monotonic()<deadline,'auxiliary_exit_unconfirmed');time.sleep(.1)
 
     def normal_stop(self):
         root = Path(self.owner['root']); source = Path(self.owner['source'])
@@ -423,15 +500,18 @@ class NativeRuntime:
 def check_identities(owner, runtime, labels=None):
     expected = owner['processes']; labels = list(expected) if labels is None else labels
     validate_owner_receipts(owner)
-    require(set(expected) == {'daemon', 'target_shell', 'target_leader', 'ideation_shell', 'ideation_cli',
-                             'executor_shell', 'executor_cli', 'ideation_api', 'executor_api'}, 'nine_owned_processes_required')
+    required={'daemon','target_shell','target_leader','ideation_shell','ideation_cli','ideation_api','executor_api'}
+    if owner['scene'] in ('A16','09C'):required|={'executor_shell','executor_cli'}
+    require(set(expected)==required,'seven_probe_processes_required' if owner['scene']=='TOPOLOGY_PROBE' else 'nine_owned_processes_required')
     require(len({item['pid'] for item in expected.values()}) == len(expected), 'duplicate_owned_PID')
     for _ in range(2):
         actual = runtime.identities()
         for label in labels:
             require(actual.get(label) is not None, 'owned_process_not_alive:' + label)
             require(actual.get(label) == expected[label], 'process_identity_changed:' + label)
-    if set(labels) == set(expected): runtime.topology()
+    if set(labels) == set(expected):
+        helpers=runtime.topology();require(isinstance(helpers,list),'topology_receipt_required');return helpers
+    return []
 
 
 def finish(owner, approval, captured, independent, output, runtime, dry_run=False):
@@ -445,7 +525,7 @@ def finish(owner, approval, captured, independent, output, runtime, dry_run=Fals
         require(approval.get('approved_by') == 'executor' and bool(approval.get('approval_ref')), 'signed_cleanup_required')
         for key in ('root', 'scene', 'source_revision', 'target_binding', 'processes'):
             require(approval.get(key) == owner[key], 'cleanup_approval_mismatch:' + key)
-        check_identities(owner, runtime); step('OWNERS_VERIFIED')
+        first_helpers=check_identities(owner, runtime); step('OWNERS_VERIFIED')
         if dry_run:
             log['status'] = 'PASS'; step('READ_ONLY_NO_ARCHIVE_STOP_OR_DELETE'); return log
         require(captured['root'] == str(root) and captured['source_revision'] == owner['source_revision'] and
@@ -458,7 +538,12 @@ def finish(owner, approval, captured, independent, output, runtime, dry_run=Fals
         require(not incomplete or approval.get('retain_failed_scene') is True, 'unfinished_scene_requires_explicit_cleanup_approval')
         require(verify_archive(stage, archive) == captured['inventory'], 'archive_inventory_changed')
         assert_stable(owner, stage); step('ARCHIVE_BYTES_AND_RAW_FILES_VERIFIED_BEFORE_STOP')
-        check_identities(owner, runtime)
+        helpers=check_identities(owner, runtime)
+        tracked={}
+        for helper in first_helpers+helpers:
+            old=tracked.get(helper['pid']);require(old is None or old==helper,'auxiliary_identity_changed_before_stop')
+            tracked[helper['pid']]=helper
+        save(output/'auxiliary-before-stop.json',list(tracked.values()))
         # Each invocation is durable before its side effect. An uncertain
         # shutdown cannot be repeated with another output label.
         journal = archive.parent / 'shutdown-intent.json'
@@ -467,6 +552,7 @@ def finish(owner, approval, captured, independent, output, runtime, dry_run=Fals
         apis = ['ideation_api', 'executor_api']
         managed = [key for key in owner['processes'] if key not in apis]
         runtime.wait_absent(managed, 20)
+        if tracked:runtime.wait_helpers_absent(list(tracked.values()),3)
         require(not os.path.lexists(root / 'state/control.sock') and not os.path.lexists(root / 'state/daemon.pid'),
                 'daemon_socket_or_PID_file_remains')
         for label in apis:
@@ -510,10 +596,11 @@ def main():
         if args.mode == 'capture':
             # Do not make an external mount directory on the internal disk.
             require(Path('/Volumes/WD-Elements').is_mount() and args.archive.resolve().is_relative_to(Path('/Volumes/WD-Elements/a2a-evidence')), 'external_archive_volume_required')
-            check_identities(owner, NativeRuntime(owner))
+            helpers=check_identities(owner, NativeRuntime(owner))
             args.output.mkdir(parents=True, exist_ok=False)
             stage = args.output / 'redacted'
             capture(owner, stage)
+            save(stage/'topology-verification.json',{'allowed_helpers':helpers,'owner_process_count':len(owner['processes'])})
             result = archive_capture(owner, stage, args.archive.resolve())
             shutil.copytree(args.archive.parent / 'pointers', args.output / 'archive-pointers')
             save(args.output / 'capture-result.json', result)

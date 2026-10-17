@@ -53,7 +53,7 @@ def main():
     files += [SOURCE/name for name in tracked if Path(name).suffix in ['.ts','.py','.mjs','.js','.c','.html','.css','.json'] or name.startswith(('workbench/bin/','workbench/app/'))]
     files += [BASE/name for name in ['run-09b-stage-b.py','p1-materials-09/security-notice-text.txt','prepare-rev2-owner.py','prepare-a14.py','rev2-prefreeze-materials-01/09C-STAGES.json']]
     if scene == '09C':
-        files += [BASE/name for name in ['c2-revalidation.py','prepare-c2-runtime.py','freeze-c2.py']]
+        files += [BASE/name for name in ['c3-revalidation.py','prepare-c2-runtime.py','freeze-c3.py']]
     files += [SOURCE/name for name in ['workbench/package.json','workbench/package-lock.json','workbench/LICENSE.synara'] if (SOURCE/name).is_file()]
     files=list(dict.fromkeys(files))
     (out/'source-files.json').write_text(json.dumps([str(f.relative_to(SOURCE)) for f in files],ensure_ascii=False,indent=2)+'\n',encoding='utf-8')

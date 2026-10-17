@@ -87,7 +87,8 @@ class Timed:
                 'timed_preapproval_source_target')
         require(p['launch'] == self.inp['launch'] == plan['roles']['ideation']['launch'] and
                 p['session'] == self.inp['session'] and p['thread'] == self.inp['thread'], 'timed_preapproval_role')
-        owner = read_json(plan['owner_file']); check_identities(owner, NativeRuntime(owner))
+        owner = read_json(plan['owner_file']);require(owner['scene']==plan['scene']=='09C','timed_nine_process_scene_required')
+        check_identities(owner, NativeRuntime(owner))
         require(owner['source_revision'] == plan['source_revision'] and owner['claim_binding'] == plan['target_binding'],
                 'timed_original_owner_required')
         require(read_json(self.executor / 'input.json') == plan['roles']['executor'], 'timed_executor_input_changed')
@@ -130,7 +131,7 @@ class Timed:
         self.run(stage + '-observe', self.phase_argv(stage, 'observe', 'dispatch-01'))
         folder = self.p1 / 'phases' / stage; dispatch = read_json(folder / 'dispatch-01/result.json')
         binding = read_json(self.p1 / 'launch-binding.json')
-        label = 'c2-ideation-' + stage + '-permission-screen-01'
+        label = self.inp['session'][:8]+'-ideation-' + stage + '-permission-screen-01'
         self.run(stage + '-screen', [sys.executable, '-B', TESTS / 'run_t078_p1.py', '--materials', self.p1,
             '--reuse-stage-a', '--launch-label', binding['launch_label'], '--phase', 'screen', '--label', label,
             '--screen-id', 'ideation-' + stage + '-permission'])
@@ -241,7 +242,7 @@ class Timed:
         destinations = [self.p1/'phases/C-I1/permission-check-timed-01', self.p1/'phases/C-I1/execute-02']
         for stage in ['C-I2','C-I3']:
             destinations += [self.p1/'phases'/stage/name for name in ['dispatch-01','execute-02','execute-02-review','permission-check-01']]
-            destinations += [self.p1/('c2-ideation-'+stage+'-permission-screen-01')]
+            destinations += [self.p1/(self.inp['session'][:8]+'-ideation-'+stage+'-permission-screen-01')]
         destinations += [self.p1/'phases/C-I2'/name for name in ['permission-approval-01.json','permission-signed-pending.json',
             'permission-signed.json','preapproved-template.json','execute-02-electron']]
         destinations += [Path(self.plan['continued_demand_file'])]

@@ -248,7 +248,9 @@ class NativePermission:
         from t078_09b_phase_driver import phase_events
         from t078_raw_retention import NativeRuntime, check_identities
         # The signed owner freezes full argv/lstart for all nine processes.
-        owner = read_json(self.plan['owner_file']); check_identities(owner, NativeRuntime(owner))
+        owner = read_json(self.plan['owner_file'])
+        require(owner['scene']==self.plan['scene']=='09C','C_nine_process_scene_required')
+        check_identities(owner, NativeRuntime(owner))
         require(self.plan['source_revision'] == owner['source_revision'] and self.plan['target_binding'] == owner['claim_binding'],
                 'C_plan_source_or_claim_not_owned')
         require(read_json(Path(self.plan['package']) / 'static-check.json')['revision'] == owner['source_revision'],

@@ -1,4 +1,4 @@
-"""Write attempt-2 commands from this attempt's actual Stage A and B1 receipts."""
+"""Write 09C commands from an explicit instance and actual Stage A/B1 receipts."""
 import argparse
 import base64
 from contextlib import closing
@@ -30,14 +30,15 @@ def driver(plan,p1,stage,mode,label):
 
 
 def role(args):
+    require(args.instance and re.fullmatch('c[1-9][0-9]*',args.instance) and args.preparation,'explicit_C_instance_and_preparation_required')
     require(not args.output.exists(),'role_output_exists')
-    argv=[sys.executable,'-B',BASE/'prepare-a14.py','--mode','role','--instance','c2','--prompt-file',args.prompt_file,
+    argv=[sys.executable,'-B',BASE/'prepare-a14.py','--mode','role','--instance',args.instance,'--prompt-file',args.prompt_file,
           '--role',args.role,'--stage-a',args.stage_a,'--packet',args.packet,'--output',args.output]
     subprocess.run(list(map(str,argv)),cwd=SOURCE,check=True)
     p1=args.output;inp=read_json(p1/'input.json')
     save(p1/'readiness-consent.json',{**read_json(p1/'readiness-template.json'),'approval_ref':None})
     text(p1/'READINESS-COMMAND.txt', '# 主控签 readiness-consent.json；s13初读不符仅用-02重读，并把本条--screen改为那份完整原屏。\n'+command([
-        sys.executable,'-B',Path(__file__),'--mode','readiness','--p1',p1,'--screen',p1/('c2-'+args.role+'-s13-screen'),
+        sys.executable,'-B',Path(__file__),'--mode','readiness','--p1',p1,'--screen',p1/(args.instance+'-'+args.role+'-s13-screen'),
         '--approval',p1/'readiness-consent.json','--output',p1/'readiness.json']))
     # Stage B keeps security-notice + exact screen_text; individual key purpose
     # remains onboarding-notice. Both are produced by the unchanged standard generator.
@@ -51,7 +52,7 @@ def role(args):
             text(folder/'INITIALIZE-COMMAND.txt',command(driver(plan,p1,stage,'initialize','initialized-01')))
             text(folder/'START-COMMAND.txt',command(driver(plan,p1,stage,'start','start-01')))
             text(folder/'OBSERVE-COMMAND.txt',command([sys.executable,'-B',Path(__file__),'--mode','c1-observe',
-                '--p1',p1,'--stage-a',args.stage_a,'--approval',BASE/'09c-c2-preparation-01/timed-preapproval.json',
+                '--p1',p1,'--stage-a',args.stage_a,'--approval',args.preparation/'timed-preapproval.json',
                 '--output',folder/'observe-logs-01']))
             text(folder/'PREPARE-PERMISSION-COMMAND.txt',command([sys.executable,'-B',Path(__file__),'--mode','c1-permission',
                 '--p1',p1,'--stage-a',args.stage_a,'--output',folder/'permission-approval-01.json']))
@@ -81,7 +82,7 @@ def c1_permission(args):
     require(not args.output.exists(),'permission_draft_exists')
     subprocess.run(list(map(str,[sys.executable,'-B',BASE/'prepare-a14.py','--mode','permission','--p1',p1,
         '--result',folder/'dispatch-01/result.json','--output',args.output])),cwd=SOURCE,check=True)
-    label='c2-ideation-C-I1-permission-screen-02'
+    label=read_json(p1/'input.json')['session'][:8]+'-ideation-C-I1-permission-screen-02'
     text(folder/'SCREEN-CMP-COMMAND.txt',command([sys.executable,'-B',SOURCE/'workbench/tests/run_t078_p1.py',
         '--materials',p1,'--reuse-stage-a','--launch-label',binding['launch_label'],'--phase','screen','--label',label,
         '--screen-id','ideation-C-I1-permission'])+command(['cmp',p1/label/'screen.bin',folder/'dispatch-01/permission-screen.bin']))
@@ -104,7 +105,9 @@ def bind(args):
                 'C-I2 age <90000ms then actual gate stop_too_early','C-I3 wall >120000ms and mono >=120100ms; scene <=150000ms',
                 'any mismatch stops future keys; never retry an uncertain key']}
     save(args.output/'timed-preapproval.json',policy)
-    slot='t078-c2-CI3-'+inp['launch']+'-timed-01';build=Path('/Volumes/WD-Elements/a2a-workbench')/slot/'dist'
+    instance=read_json(p1/'scenario.json')['name'].removesuffix('-ideation')
+    require(re.fullmatch('c[1-9][0-9]*',instance) and read_json(executor/'scenario.json')['name']==instance+'-executor','same_actual_C_instance_required')
+    slot='t078-'+instance+'-CI3-'+inp['launch']+'-timed-01';build=Path('/Volumes/WD-Elements/a2a-workbench')/slot/'dist'
     require(not build.parent.exists(),'build_slot_exists')
     text(args.output/'C-I3-BUILD-COMMAND.txt',command([sys.executable,'-B',Path(__file__),'--mode','build','--slot',slot,
         '--output',args.output/'C-I3-build-01']))
@@ -124,7 +127,7 @@ def bind(args):
 
 def build(args):
     args.output.mkdir(parents=True,exist_ok=False)
-    require(re.fullmatch(r't078-c2-CI3-[0-9a-f-]+-timed-01',args.slot),'explicit_C2_build_slot')
+    require(re.fullmatch(r't078-c[1-9][0-9]*-CI3-[0-9a-f-]+-timed-01',args.slot),'explicit_C_build_slot')
     require(not (Path('/Volumes/WD-Elements/a2a-workbench')/args.slot).exists(),'build_slot_exists')
     argv=['node',str(SOURCE/'workbench/app/build.mjs'),'--slot',args.slot]
     result=subprocess.run(argv,cwd=SOURCE,capture_output=True,timeout=120)
@@ -139,8 +142,9 @@ def observe_C1(args):
     from t078_09c_timed_run import Timed
     args.output.mkdir(parents=True,exist_ok=False)
     inp=read_json(args.p1/'input.json')
+    plan=read_json(Path(inp['root'])/'protocol-plan.json')
     runtime=argparse.Namespace(plan=Path(inp['root'])/'protocol-plan.json',ideation=args.p1,
-        executor=BASE/'09c-c2-b1-executor-p1-01',preapproval=args.approval,stage_a=args.stage_a,
+        executor=Path(plan['roles']['executor']['readiness_file']).parent,preapproval=args.approval,stage_a=args.stage_a,
         signature_ref='',build=None)
     runner=Timed(runtime,args.output)
     try:
@@ -152,9 +156,9 @@ def observe_C1(args):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--mode',choices=['role','readiness','c1-permission','c1-observe','bind','build'],required=True)
-    for name in ['stage-a','packet','prompt-file','p1','screen','approval','ideation','executor','output']:
+    for name in ['stage-a','packet','prompt-file','p1','screen','approval','ideation','executor','output','preparation']:
         parser.add_argument('--'+name,type=Path,required=name=='output')
-    parser.add_argument('--role',choices=['ideation','executor']);parser.add_argument('--slot');args=parser.parse_args()
+    parser.add_argument('--role',choices=['ideation','executor']);parser.add_argument('--slot');parser.add_argument('--instance');args=parser.parse_args()
     {'role':role,'readiness':readiness,'c1-permission':c1_permission,'c1-observe':observe_C1,'bind':bind,'build':build}[args.mode](args)
     print(json.dumps({'status':'PASS','mode':args.mode,'output':str(args.output)},ensure_ascii=False))
 
