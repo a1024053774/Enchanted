@@ -1,0 +1,20 @@
+# 逐阶段由主控执行；签字字段保持空。不得整份无条件串行执行。
+# 1. 主控签本目录setup-approval；建新root/API/daemon/确定性目标，尚不启动角色CLI。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_topology_probe.py --mode setup --approval /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-materials-01/setup-approval.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-run-01
+
+# 2. 审签新生成的ideation-p1/stage-b-approval.json；按B1-COMMANDS两行先dry-run再real。
+# 文件只列命令不自动签。B1/首启依现有标准工具；一次只运行一个批准动作。
+# 3. 真实B1后执行BIND-LAUNCH.txt；随后逐屏读取并各自签六键onboarding/*.json。
+# s7的key purpose为onboarding-notice；B1 screen_plan仍为security-notice+原文。
+# 首读不符用新-02只读；发生output_total_changed不重发已written的键。
+# 4. 主控核对s13完整空提示符/manual、0 POST后，拍idle的10秒连续ps。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_topology_probe.py --mode idle --probe /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-run-01 --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-run-01/idle-01
+
+# 5. 从turn-approval-template另存turn-approval.json，由主控签：1根/1POST、许可Enter=0。
+# 此调用只初始release+派发一个批准的模拟用户stop请求；API先保持该POST未返回，采样15秒。
+# 然后只发布这一条HTTP响应的阶段批准，让Claude到I_SEND_STOP许可屏，再采样15秒；不按许可Enter。
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_topology_probe.py --mode turn --probe /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-run-01 --approval /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-run-01/turn-approval.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-topology-probe-run-01/turn-01
+
+# 6. 主控审完整许可原屏/PermissionRequest与三时点index、各summary和逐样本ps。
+# 捕获成功不等于进程合法；partial/vanished不得猜argv。取证后保留root，按原七进程单角色owner-bound流程另批回收。
+# 本材料不提供直接给Claude/未知子进程的信号命令、不删除root。

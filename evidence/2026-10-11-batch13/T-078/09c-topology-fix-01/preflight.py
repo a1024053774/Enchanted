@@ -47,6 +47,11 @@ def main():
         expected_add_paths=[folder,HERE]
     else:expected_add_paths=[SOURCE/'workbench/tests'/name for name in CODE]+[BASE/'RESULTS.md',HERE,BASE/'09c-attempt-2-diag-01/current-topology-01']
     for path in expected_add_paths:assert path.exists(),('git-add path missing',str(path))
+    add_names=[str(path.relative_to(SOURCE)) for path in expected_add_paths]
+    for name in names:
+        assert any(name==root or name.startswith(root+'/') for root in add_names),('allowed but omitted from git-add list',name)
+    own_output=str(a.output.resolve().relative_to(SOURCE))
+    assert any(own_output==root or own_output.startswith(root+'/') for root in add_names),'preflight output omitted from add list'
     for path in [HERE/'README.md',HERE/'PARITY.md',BASE/'RESULTS.md']:
         text=path.read_text(encoding='utf-8');assert '\ufffd' not in text and not text.startswith('\ufeff')
     result={'status':'PASS','HEAD':git('rev-parse','HEAD').decode().strip(),'owned_paths':names,
