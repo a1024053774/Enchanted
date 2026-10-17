@@ -26,7 +26,7 @@ try:
     (root/'nonce.txt').write_text('P1_NONCE_'+uuid.uuid4().hex,encoding='utf-8')
     manifest={'schema':1,'root':str(root),'state':str(root/'state'),'task':'t078-p1-'+suffix,'preset':'ideation',
               'launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),
-              'executable':'/Users/luckye/.local/share/claude/versions/2.1.296','role_file':str(root/'roles/ideation/role.md'),
+              'executable':'/Users/luckye/.local/share/claude/versions/2.1.296','version':'2.1.296','role_file':str(root/'roles/ideation/role.md'),
               'code_revision':subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip(),
               'source_snapshot':str(out/'sources.tar.gz'),'api_url':'http://127.0.0.1:0','turn_limit':2 if two_turn or green else 1}
     requests=[{'nonce':(root/'nonce.txt').read_text(),'mode':'cancel' if two_turn else 'echo','ack':'P1_ACK'}]

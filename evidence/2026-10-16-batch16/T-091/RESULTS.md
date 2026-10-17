@@ -1,0 +1,321 @@
+# T-091 结果记录
+
+日期：2026-10-17。task `T-091`，attempt `a1`，worker `s16-t091`，ticket ready_rev 1。接手启动记录为 `launch-71afbd1600cb451a9d9354aa7768e72b`；下方早期运行保留原启动记录 `launch-a818e11600754e8b8ad79aab63a17f83` 的归属。整票状态：**INCOMPLETE（待最终独立审查与主控门禁验收）**。green-02、四类 GUI 回归 -02、core-regression-04 均 PASS；core -04 的分类器前置检查、四组原套件及 fence／CAS／lock 三个业务反例共八项全部通过，archive_complete=true。冻结代码候选为 `3db9b6def91826d5a52dd02590c559b0c4ce35a0`，本次交接仅增加文档和证据收据；逐条证据见 [独立审查请求](REVIEW-REQUEST-T091-01.md)。下文保留各阶段当时的状态，不回改旧失败或未完成记录。
+
+## red 与 close 系列
+
+| 运行 | 原状态／退出码 | 事实与结论 |
+| --- | --- | --- |
+| red-01 | INCOMPLETE／rc 1 | observer_response_deadline；三个 observer 输出为零，未取得产品红态。后台三个窗格读回已生成，但 Electron 6599 未退出，cleanup_complete=false。原失败不改判 |
+| close-01 | BLOCKED／rc 2 | 6599 卡在 ready 前，正常退出请求被拒：electron_normal_quit_request_refused |
+| 主控人工处置 | 主控报告 | 执行主控核对 6599 的完整 argv、06:30:34 启动时间与 ppid 1 后，亲自发一次 SIGTERM，报告 2 秒后退出且无残留。不是 worker 或脚本动作；2 秒未经 worker 独立测量，不补造具体命令 argv 或精确时间戳 |
+| close-02 | BLOCKED／rc 2 | already_absent，未发退出请求；复制前 inventory 拒绝符号链接，fixture_archive_contains_symlink |
+| close-03 | PASS／rc 0 | 已核对 6599 和原 writer 不存在；仅复制已停止夹具，链接按自身保存，原件保留。71 个文件条目、2,482,692 字节、2 条链接，comparison=true。PASS 只指收尾与归档，不上调 red-01 |
+| red-02 | INCOMPLETE／rc 1，**有效红态已取得** | red_observed=true，expected=3、observed=1；实际一个窗口只有 worker 终端。ready／退出均确认、cleanup_complete=true，error／archive_error 缺省为空，cleanup_errors=[]。该轮产品仍未实现三窗格，rc 1 是要求的合同失败 |
+
+执行与原图检查来源为执行主控 #9／本对话主控 #36。worker 本轮只读核对外置 JSON、日志、原始单帧，没有重启或操作该场景。场景供应商模型回合 0、假 Messages POST 0、keys=[]、没有粘贴或放行；受管 worker 是现有受控 C receiver，不能把其 Codex 形状版本号／原生日志当成真实 Codex 模型回合。
+
+close-03 与 red-02 都以 `6974c2aad1233133264b7448e1277cd19fa0b6ba` 的脚本运行；red-02 的产品源码与起点 `44bbb7828459d81fab0d46069a19d3dd515a7732` 相同。Node v26.5.0，Electron 43.4.1；两个 Claude CLI 固定 2.1.296，停在隔离首屏，不走真登录。完整 argv、输出、快照和进程事实见外置原件。
+
+## red-02 的独立输入与真实读回
+
+任务：`t091-red-c6e65649`，任务标题“T-091 同任务三窗格基线”。三个预先登记的启动身份为：
+
+| 角色／preset（来自启动记录） | launch | 外置读回 |
+| --- | --- | --- |
+| controller／ideation | `295b635c-42dc-491c-a356-38359b24c1df` | ideation.snapshot.json、ideation.process.json、ideation.launch.json |
+| controller／executor | `d0f2b1e2-f2cc-4269-8cb2-8c6d0c89e848` | executor.snapshot.json、executor.process.json、executor.launch.json |
+| 受管 worker | `e7145a5d-ae59-457c-accb-3a6fe71fc22e` | worker.snapshot.json、worker.process.json |
+
+基线 snapshot 尚未投影 preset；不能仅凭两个 controller 字样区分构思／执行角色，须核对对应启动记录。单帧也不代替这些身份读回。
+
+`view.json` 和原图都显示一个 BrowserWindow 内仅一个终端格，绑定上述 worker；屏幕含 `T078_DETERMINISTIC_RECEIVER_READY`，没有两个主控格，底部保留任务门禁栏。主控已看原图；worker 本轮只读查看同一张原图，所见一致。未拼图、未把顺次切换截图当同时显示，未覆盖标签。
+
+原始单帧只留外置盘：`/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/red-02/baseline-original.png`。指针为 [red-02.single-frame.pointer.json](red-02.single-frame.pointer.json)，原件 213,422 字节，2880×1800；对应逻辑窗口 1440×900、Electron PID 64741、CoreGraphics 窗口号 10448。实际捕获命令是 `/usr/sbin/screencapture -x -o -l 10448 <外置原图路径>`；完整 argv 保存在 capture.json。仓库不复制 PNG、原始二进制、SQLite 或整个 fixtures。
+
+## 原件位置与重放条件
+
+统一外置根：`/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/`。
+
+- `red-01/`、`red-01-close-01/`、`red-01-close-02/`：失败原件不覆盖。
+- `red-01-close-03/fixture/`：原 red-01 夹具的停止后副本；清单 [red-01-close-03.archive.json](red-01-close-03.archive.json)，原目录 `/private/tmp/t078-2-t091-red-05cht89k` 保留。
+- `red-02/fixture/`：172 个文件条目、5,222,955 字节、2 条链接，comparison=true；清单 [red-02.archive.json](red-02.archive.json)，原目录 `/private/tmp/t078-2-t091-red-bh38vd4j` 保留。
+- `red-02/`：三份 snapshot、process、first-screen，expected.json、view.json、capture.json、observer 日志与完整命令原始输出。链接清单同时标记原夹具／归档目录外目标，链接不跟随、绝对目标不重写。
+
+主控日志位于 `/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/scratchpad/` 下的 `t091-close03.log`、`t091-red-02.log`，早期失败另见相应 red／close 日志。
+
+本轮执行入口及参数为：
+
+```sh
+python3 -B evidence/2026-10-16-batch16/T-091/close_red01.py --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/red-01-close-03 --label red-01-close-03 --approval-ref '<本轮主控批准，逐字值见 run.json>'
+python3 -B evidence/2026-10-16-batch16/T-091/run_red.py --source /Users/luckye/Documents/Code/a2a-wt-t091 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/red-02 --label red-02 --approval-ref '<本轮主控批准，逐字值见 run.json>'
+```
+
+这是已执行命令的可读形式，输出标签均已使用。重放须使用冻结版本和新标签／新批准；后续产品实现会使当前 worktree 不再满足 red 脚本的基线检查，不能直接把修改后的源码冒作基线重放。完整原始脚本 argv 与批准引用保留在各 run.json。
+
+## 实现顺序与当前边界
+
+下一步为单格 **Tracer bullet**：同一生产入口经 sender 窗口及 pane key 查询快照、读输出、发输入和放行；不保留旧单格 IPC 实现。单格真实读回交执行主控跑通后，再扩到已确认的上方双主控／下方全宽 worker；窗宽小于 1000px 时三行，160×45 网格与独立滚动保持不变。
+
+绿态、错 task／旧 launch 反例、T-074／T-075 正反例及 T-078 输入回归均为 **INCOMPLETE**，不得用本轮红态或旧候选通过结论替代。仍只在隔离场景验证，所有 Electron／daemon／PTY／ps／截图实跑交执行主控，不在 worker 沙箱外执行。
+
+## 单格实现候选（待实跑）
+
+单格已迁到 sender 窗口／pane key 的唯一生产通路，六条 IPC 进程内单次注册；preset 是 daemon 唯一新增投影。完整身份、实际焦点标识、原输入序号／放行声明与 160×45 网格保留；未扩三格。
+
+本地 `pane-ipc-unit-01.json` 的八项 main／preload 边界检查为 PASS；未知 key 的旧 API 被已知坏版本反例拒绝。`driver-selection-unit-01.json` 在给定观察值上验证显式选择、角色／快照绑定、未知／歧义拒绝，旧驱动不拒绝歧义而失败。这些是 VM／给定边界证据，不是 GUI 或后台实跑。脚本语法、TS／TSX 内存转换通过；没有在 worker 中完整构建、启动 Electron 或后台。
+
+待主控核对并运行 [TRACER-RUN.md](TRACER-RUN.md) 的 tracer-01；原图仍只留外置盘。按已确认顺序，取得真实单格读回后再扩三格并重跑新候选的绿态、反例和回归。[REGRESSION-PLAN.md](REGRESSION-PLAN.md) 给出现有 CLI 全命令，并列出旧验收材料／包装器问题，不把它们隐去或记为通过。
+
+基线结果及指针已先提交为 `8df399ca76bedd327364d94ed9cdb4c36f1205cc`，随后单格生产路径与实跑脚本提交为 `7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86`。新开的只读审查会话 `/root/tracer_acceptance_audit` 使用 gpt-6.1-sol／xhigh，按 behavioral-acceptance-review 检查该冻结代码候选；结果为 **INCOMPLETE**，没有确定可达的违规发现，但缺少真实 Electron／PTY 边界证据，不能作 PASS 或全票交付结论。原文见 [tracer-acceptance-audit-01.md](tracer-acceptance-audit-01.md)。审查未改文件，也未启动服务或 GUI。
+
+交接前再次执行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`，rc 0，Problems (0)、Stale living docs (0)；`git diff --check` rc 0。本次三份审查／交接文档回读均为 UTF-8、无 BOM、无替换字符，未改变既有 LF 换行。
+
+## tracer-01 真实单格读回
+
+状态 **PASS／rc 0**，仅指单格 Tracer bullet。执行来源为主控 #11／本对话 #40，冻结源码 `06575f5dc4f6a0d2cd264922158343952d0a0c21`；worker 只读核对外置 run.json、capture.json 与仓库摘要，没有重新启动场景。trace_passed、cleanup_complete、archive_complete 均为 true；fake_posts=0、供应商模型回合 0、真实供应商 CLI 启动 0，error／post_close_error／archive_error 为空、cleanup_errors=[]。此次仅测试夹具粘贴，无 Enter／Esc；自动测试字节不作真实用户历史。
+
+task `t091-tracer-f18b846b`，launch `3d4a9a80-39f7-408f-bcd0-d0b98ed11df7`，pane key `f451023c-869d-4114-a902-e601eb59c1d8`，window_id `329412db-a3cd-4d4f-b2a2-c8f3121492bc`。真实读回确认六个未知 key 拒绝、输出 nonce 与原 trace 一致、正确窗格收到精确 bracketed paste 字节、输入记录和人工介入相符、独立序号为 1～4、没有 Enter／队列派发；关闭界面后凭据撤销，同一 receiver 仍存活，再停止后台。
+
+主控查看原始单帧，报告完整 role／task／launch／attempt、蓝色边线和“正在输入”可见，终端有 READY 与 T091_OUTPUT nonce，底部为共享门禁栏；截图只有一格，不作三格绿态。原图只在外置盘，指针 [tracer-01.single-frame.pointer.json](tracer-01.single-frame.pointer.json)：246,886 字节、2880×1800、PID 91515、窗口号 10793。全部原件根为 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/tracer-01/`；夹具副本 157 文件、3,084,805 字节，comparison=true、原件保留。摘要 [tracer-01.run.json](tracer-01.run.json)，清单 [tracer-01.archive.json](tracer-01.archive.json)。日志为主控 scratchpad 的 `t091-tracer-01.log`。
+
+单格真实读回门槛已满足，开始沿同一生产路径扩三格；整票仍为 **INCOMPLETE**。此前只读审查的 INCOMPLETE 原报告保留，不能补称其当时已取得运行证据。
+
+## 三格实现候选与回归脚本
+
+tracer-01 的结果及指针先提交为 `3ac3edc92`，随后才扩三格。生产启动器与 main 均支持重复 --launch；main 先核对各 launch 的 task、role／preset、运行状态与当前 worker attempt，再按构思主控／执行主控／worker 排序，建一个 BrowserWindow。错误 task、旧 attempt 或重复 launch 在建窗／签发凭据前拒绝；单格历史查看仍只读。renderer 只有一套 SessionPane 实现，每格各持终端、decoder、offset、错误、输入占用和放行声明；共用任务外壳和当前任务门禁栏。160×45 不变，各格独立滚动；小于 1000px 三行，实际 textarea 焦点才显示蓝线和“正在输入”。daemon 本票仍仅新增 preset 投影，门禁未改。
+
+本地检查命令及结果（均不启动 Electron、后台、PTY，不运行 ps 或截图）：
+
+| 命令 | 结果与范围 |
+| --- | --- |
+| `python3 -B evidence/2026-10-16-batch16/T-091/check_baseline_bridge.py evidence/2026-10-16-batch16/T-091/baseline-bridge-assertion-01.json` | rc 0，起点 44bbb7828 的原 preload 和原断言实际单独执行；原断言 FAIL：已公开六方法，却只允许 output／snapshot。没有运行完整旧 window suite |
+| `node --experimental-vm-modules workbench/tests/test_t091_pane_ipc.mjs evidence/2026-10-16-batch16/T-091/pane-ipc-unit-04.json` | rc 0、11 项 PASS；真实 main／preload 模块，给定外部边界；单格 7e1c68 因只有一 key 而被三格数量断言拒绝，6974c2 因接受未知 key 被拒；含三格独立凭据、序号、输出、声明和建窗前拒绝 |
+| `node --experimental-vm-modules workbench/tests/test_t091_start.mjs evidence/2026-10-16-batch16/T-091/launcher-unit-01.json` | rc 0、2 项 PASS；起点丢失前两份重复 --launch，被断言拒绝；未真正 spawn Electron |
+| `node workbench/tests/test_t091_driver_selection.mjs evidence/2026-10-16-batch16/T-091/driver-selection-unit-02.json` | rc 0、5 项 PASS；给定三格观察值，按 key／launch 选择，拒绝歧义；不是实际三格 DOM |
+| `node workbench/tests/test_t078_window_binding.mjs evidence/2026-10-16-batch16/T-091/t078-window-binding-01` | rc 0、13 项 PASS；使用主控恢复的原 snapshot，未修改原件；仅生产谓词／驱动分支，外部边界由测试提供 |
+| `python3 -B workbench/tests/test_t091_client_cleanup.py evidence/2026-10-16-batch16/T-091/client-cleanup-unit-01.json` | rc 0、4 项 PASS；旧客户端对 unready 执行关闭／强杀，被已知坏断言拒绝；不是 AppKit 或真实退出证明 |
+| Node --check、Vite transformWithOxc 内存转换、Python compile | 已跑部分通过；最终脚本预检记录随冻结候选保存，无完整构建或目标进程启动 |
+
+`pane-ipc-unit-02.json` 保留一次实现中的失败：多格身份校验误放入普通输入回执处，正常输入返回不含快照而报 mismatch；校验移回 snapshot 后 unit-03／04 通过。`three-script-preflight-01.json` 保留一次 Python comprehension 中 walrus 的编译错误；改为先读取观察值再迭代后 preflight-02 通过。没有覆盖失败文件或将它们改判 PASS。
+
+主控 #11／本对话 #40 确认旧 bridge 断言不受 T-080 保护，并授权先留起点结果再修正；已按上述结果把预期精确列为 beginComposition、input、observeFocus、output、paneKeys、releaseQueue、snapshot，不用宽松数量比较。复核真实窗口入口还发现隔离 bootstrap 凭据未配置、旧客户端失败时自动强杀且后台／归档仍可能继续；已仅修正测试的凭据与生命周期收尾，不改其业务 oracle。当前 receiver／GUI 回归按新批准逐场运行，不沿用 T-078 的批准。
+
+主控执行材料见 [THREE-PANES-RUN.md](THREE-PANES-RUN.md)。`run_three_panes.py` 提供三格同屏、三份快照／进程、输出归属、worker 输入收据链、错 task／旧 launch 拒绝及三种尺寸原始帧；`run_regression.py` 分 core／window／runtime／input-failures／worker-inbox，继续调用原业务断言。T-074 的固定注入合同由原 runtime 场景在当前生产路径回归，不声称重跑供应商模型实验。所有实跑、实际截图和独立最终验收仍 **INCOMPLETE**，本轮没有启动这些场景。
+
+## 重启后新会话接手
+
+当前受管 session 为 `d4277ace-1dde-425b-99b8-8988f1df751f`，原生会话为 `01a14a05-4472-70e1-af77-58414340c1ee`，launch 为 `launch-71afbd1600cb451a9d9354aa7768e72b`。这些值来自本会话环境，提交尾注由现有钩子生成；未沿用旧会话进程身份。起点 HEAD `3ac3edc92afdd40f31926b94d83fdba4c8c5bf65` 的未提交三格工作全部保留并核对。
+
+本次本地检查为 **PASS**，范围仅为给定外部边界的逻辑、静态转换与材料读回。实际 Electron、daemon、PTY、原生 agent、ps、截图启动／执行均为 0，模型回合 0；没有复制 auth 或写外置盘，没有运行下方主控专用脚本。
+
+```sh
+node --experimental-vm-modules workbench/tests/test_t091_pane_ipc.mjs evidence/2026-10-16-batch16/T-091/pane-ipc-takeover-01.json
+node --experimental-vm-modules workbench/tests/test_t091_start.mjs evidence/2026-10-16-batch16/T-091/launcher-takeover-01.json
+node workbench/tests/test_t091_driver_selection.mjs evidence/2026-10-16-batch16/T-091/driver-selection-takeover-01.json
+python3 -B workbench/tests/test_t091_client_cleanup.py evidence/2026-10-16-batch16/T-091/client-cleanup-takeover-01.json
+python3 -B workbench/tests/test_t091_run_budgets.py evidence/2026-10-16-batch16/T-091/run-budgets-green-02.json
+node workbench/tests/test_t078_window_binding.mjs evidence/2026-10-16-batch16/T-091/t078-window-binding-takeover-01
+python3 -B evidence/2026-10-16-batch16/T-091/test_red_cleanup.py --output evidence/2026-10-16-batch16/T-091/observer-cleanup-takeover-01.json
+```
+
+以上输出均已存在，重放须换新文件名。结果分别为 11、2、5、4、两种客户端、13、6 项 PASS。三格数量、独立身份／序号与输出、错 task／旧 launch、重复 launch、旧启动器丢弃重复参数、未知／歧义选择等，均有拒绝已知坏实现的反事实记录。`product-parse-takeover-01.json` 的 TS／TSX 内存转换与 MJS 语法检查、`script-parse-takeover-01.json` 的 Python compile 通过，未完整构建。
+
+根据主控转达的资源约束，本次为两种实际客户端增加探测额度：三格脚本 120 次 RPC（最多 360 次读屏），GUI 回归 400 次（最多 1200 次读屏）；驱动记录实际读屏数。stdout 分别在 32／64 MiB 时停止下一次探测，允许一份在途回复跨过阈值。正常关闭不消耗 GUI 探测额度；额度耗尽仍进入原归属核对／关闭／停机／归档流程，不增加强杀。完整输出直接落外置文件，Terminal 只收到一行短摘要。限额检查的首次红态保存在 `run-budgets-red-01.json`，修正后 `run-budgets-green-02.json` PASS，固定坏版本为 `3ac3edc92`；不声称这些逻辑检查证明了真实内存占用或 macOS 收尾能力。
+
+三格场景的新真实 Codex CLI 启动为 0；两个真实 Claude 主控与一个受控 receiver 同时存在，反例的另两个 receiver 先退出再启动下一个，Electron 最多一个。run.json 记录启动尝试、峰值 receiver、实际窗数、读屏、截图与 stdout 字节数。Herdr 中已存在的 Codex 会话总数由主控逐场核对，不从 worker 的局部夹具推断。
+
+**core 回归材料缺件，仍 INCOMPLETE。** 原运行器固定读取的四份受控文件未进入本稀疏 checkout，清单在 `core-materials-takeover-01.json`。它们在 HEAD 中存在：分页 CONTRACT／pager 两份，以及 T-076/card-2 的 controller-decision-03／legacy-acceptance-hunks 两份。worker 只读运行 `prepare_core_materials.py --source /Users/luckye/Documents/Code/a2a-wt-t091`，rc 1，未恢复或改写原件。主控专用 `--restore` 仅写回缺失的 HEAD 原字节，拒绝已有内容不符或链接路径；core wrapper 在启动业务测试前先拒绝缺件。完整命令见 THREE-PANES-RUN。此缺件不是产品红态，不能算回归通过。
+
+bridge 断言修订沿用主控裁定：起点原断言只允许 output／snapshot，但起点 preload 实际已有六个公开方法，原断言单独执行 FAIL。新预期逐项为 beginComposition、input、observeFocus、output、paneKeys、releaseQueue、snapshot，另要求 renderer 无 Node；没有运行起点完整 window suite。主控恢复的 p1-materials-09 原 snapshot 未改，当前 13 项绑定检查仍 PASS。
+
+交付边界仍是脚本准备完成，等待主控依次实跑三格绿态／拒绝反例与五类回归；真实结果和最终门禁验收不能以本地 PASS 替代。
+
+### 冻结审查与收尾判定修正
+
+三格候选先冻结为 `03b80c4d86feb20140d0df630ae100db40d68ecf`；提交九项尾注已核对，均使用新会话身份，工具为 codex-cli 0.163.0。新开的只读工具子会话按 behavioral-acceptance-review 审查此冻结候选，结论 **FAIL**，原报告 [three-pane-acceptance-audit-01.md](three-pane-acceptance-audit-01.md) 保留。审查没有启动真实 reviewer CLI 或场景，不作为最终门禁独立终审。
+
+该审查复现了隔离 operator 凭据删除失败仍被判 PASS 的 P2。修正只把 `cleanup_complete` 的设置移到删除成功后，并在最终 PASS 条件要求 `cleanup_errors` 为空。`test_t091_cleanup_verdict.py` 执行 runner 实际 AST 的收尾段与最终判定，文件系统故障由独立输入注入；固定坏候选 03b80c4 被拒，当前删除失败为 INCOMPLETE／cleanup_complete=false，正常收尾仍 PASS，已有收尾错误不能 PASS。
+
+```sh
+python3 -B workbench/tests/test_t091_cleanup_verdict.py evidence/2026-10-16-batch16/T-091/cleanup-verdict-green-02.json
+```
+
+该检查三项 **PASS**；它是纯逻辑故障注入，不是实际 macOS 删除／退出证据。`cleanup-verdict-red-01.json` 保留产品判定缺陷；`cleanup-verdict-green-01.json` 保留一次检查夹具错误：给定 call 未接收实际入口的位置参数，修正检查边界的签名后 green-02 通过，不改生产业务预期。最终脚本尚无新的独立通过结论，仍待主控实跑和最终只读审查。
+
+## green-01、回归 -01 及用户裁定 A
+
+本节来源：执行主控 #15／#18 的实跑反馈，worker 随后只读核对外置原件。候选为 `5d096caa2d690fe172ba8487226e8b16cf95950a`。旧 run.json／archive.json 不改写，顶层结果均保持 **INCOMPLETE**。
+
+green-01／rc 1 在 `run_three_panes.py:310` 探测 `/Users/luckye/.local/share/claude/versions/2.1.296 --version` 时真实报 `FileNotFoundError: [Errno 2] No such file or directory`，尚未调用产品 controller_start 或创建窗口。Electron 0、主控 CLI 0、受控 receiver 3 串行、峰值 1、假 POST 0、模型回合 0；cleanup_complete=true、archive_complete=true、cleanup_errors=[]。停止后副本 87 文件／456,333 字节，comparison=true，原件保留。它证明锁定路径已缺失的环境红态，不补称产品版本检查已通过。外置根为 `.../T-091/green-01/`，仓库保留对应原始摘要与清单。
+
+五类回归原件根为 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/<case>-regression-01/`。按层核对如下；不能把顶层包装器失败误记为所有原业务断言均未执行，也不能把局部 PASS 上调为整场 PASS。
+
+| 场景 | 原测试实际结果 | 顶层失败与归类 | 本次修正 |
+| --- | --- | --- | --- |
+| core | coop 启动前退出 2；0 个业务方法执行 | preflight-error：旧 T-076 审计查找 `test_baseline_change_after_verification_rejects_integration`，当前已接受的源码方法为 `...revalidates_and_integrates`；包装器过时 | 以任务卡起点 44bbb7828 为独立冻结来源，逐字节比较三份 acceptance 源码及 task-cards 测试；不屏蔽方法或改断言 |
+| window | 构建、快照、未知 launch 三项 PASS；真实窗口项超时 | 驱动 inspect 选择窗格时将整页 text 覆盖为单格 text，导致原任务标题检查看不到页面标题；驱动缺陷 | 保留返回的整页 text；单格 text 仍在 panes 内；原窗口断言不变 |
+| runtime | 12 项全部 PASS，原测试 rc 0，cleanup_complete=true | 包装器在停止后的 WAL 库执行 SELECT 时报 `OperationalError: unable to open database file`；采集缺陷 | 读取原测试在库仍存活时保存的 readback-orchestration_events，不再重开已停止的库 |
+| input-failures | 11 项全部 PASS，原测试 rc 0，cleanup_complete=true | 同上；并非产品行为断言失败 | 同上，收集两代 daemon 及其他登记 writer |
+| worker-inbox | 14 项全部 PASS，原测试 rc 0，cleanup_complete=true | 同上；并非 worker 收件箱业务断言失败 | 同上 |
+
+只读复核普通 `mode=ro` 的 SELECT 仍重现报错；同一已停库以 immutable 读回能取得 115 条事件，不能据此断言具体文件系统原因。最终包装器没有增加 immutable/fallback 分支，而是统一使用原测试已有的停机前读回文件；window 测试只增存一份同源事件读回，不改其任何业务预期。`collection-readback-replay-02.json` 仅重放了三个 -01 原件的 PID 采集，分别取得 4／5／4 个登记 writer，未运行 ps、停机或归档，也不把旧场景补判 PASS。主控报告无残留 Electron／daemon；worker 没有另查实时进程。
+
+用户裁定 A 的原文（收件箱 `20261017T133907Z-ideation-answer-001`，执行主控 #18 转达）：
+
+> 主控 CLI 版本不再写死路径，从配置值读取；启动时实际跑一次 --version 核对，不符就报错；配置值先设 2.1.302；T-078 的证据仍绑定 2.1.296，在 T-091 Resolution 里写明。不动用户全局设置、不关自动更新。这是产品行为改动，须有红态（锁定版本缺失时起不来）、绿态与反例（版本不符被拒），不得补称为 PASS；自动更新以后再删版本时应是清楚的报错而非静默起不来。
+
+**REALITY GATE: PASS（仅实施方向）**。目标是配置版本、实际启动检查及五类包装器修正；非目标为更改业务断言、真登录、修改全局配置或管理自动更新。observed：green-01 实际缺失路径、产品原先固定 2.1.296、上述 -01 原始结果与四份已恢复的 core 原件。measured：本轮纯逻辑／静态检查与停机前事件采集重放。unknown：新版本 CLI 实际启动、实际拒绝与完整三格／回归仍未验证。probe：由主控在新候选上运行 green-02 和五类 -02；缺版本、版本不符、身份或收尾未知均停报 INCOMPLETE，不换版本或重试。已将版本差异写入 T-091 Resolution，但 ticket 保持 open，验收框未勾。
+
+### 当前实现与本地证据
+
+`claudeLaunch` 仍只构造配置，从现有 manifest 的 executable／version 得到明确路径与预期版本；实际 --version 探测放在拥有进程的 Panes.startController，使用对应角色的隔离环境，10 秒期限／64 KiB 输出上限。成功才登记并创建 PTY，保存实际版本与探测 argv／stdout／stderr。不存在、探测失败、输出不符分别返回 `controller_executable_missing`、`controller_version_probe_failed`、`controller_version_mismatch`；不扫描或自动选择其他版本，也不关闭自动更新。等待探测后再做一次同步的 preset 所有权核对，两个并发启动只能一个注册成功；daemon 直接调用方等待结果。
+
+历史纯配置夹具只补显式 version=2.1.296，不改其断言。配置构造仍无 CLI 副作用；旧 T-078 实跑证据保持其 2.1.296 和代码版本，不替新 2.1.302 候选背书。
+
+| 本地证据 | 结果与范围 |
+| --- | --- |
+| claude-version-red-01 | 新配置在旧硬编码产品上被拒，预期红态；不是真实 CLI 启动 |
+| claude-version-green-04 | 8 项 PASS：配置路径、恰一次探测、实际输出保存、缺失／失败错误码、版本不符、配置变化、未关闭更新、并发 preset 唯一；实际 builder／启动方法，IO 边界由测试给定 |
+| 删除版本比较条件的变异 | 被独立的版本不符断言拒绝；不是以导入或环境错误冒充反例 |
+| driver-page-text-red-01／green-01 | 原驱动实际选择逻辑覆盖整页文本被拒；当前 6 项 PASS，给定 DOM 观察值，未启动 GUI |
+| core-audit-red-01／regression-collection-green-01 | 原审计实际失败；当前冻结源码逐字节相符，改动断言字节被拒；5 个独立 writer 哨兵完整，删掉 daemon 收集的变异被拒，缺读回文件拒绝 |
+| profile-config-02／auth／budget／isolation／role-boundary／port-guard | 原有配置与隔离检查 PASS；不启动 CLI、PTY、daemon，port-guard 使用真实隔离 SQLite，证明端口 0 仍在探测／注册前同步拒绝 |
+| cleanup-verdict-version-01 | 原收尾故障的 3 项检查仍 PASS |
+
+中间检查异常均保留：claude-version-green-01 实际已拒绝比较变异，但检查对 Node AssertionError 文本用了错误前缀；改为识别完整断言消息后 green-02 PASS。把探测移回实际托管启动边界后，green-03 的给定对象漏了 this.root，补齐边界后 green-04 PASS。两者不是产品通过或真实绿态。
+
+复现命令均需换新输出名：
+
+```sh
+node --experimental-vm-modules workbench/tests/test_t091_claude_version.mjs evidence/2026-10-16-batch16/T-091/claude-version-green-04.json
+node workbench/tests/test_t091_driver_selection.mjs evidence/2026-10-16-batch16/T-091/driver-page-text-green-01.json
+python3 -B workbench/tests/test_t091_regression_collection.py evidence/2026-10-16-batch16/T-091/regression-collection-green-01.json
+```
+
+green-02 包含脚本开始时一次真实版本探测、两个真实主控启动各自的产品探测，以及缺路径／错误版本的真实拒绝；完整计数与原始输出保存。五类 -02 继续原断言，并确认登记 writer 退出后归档。worker 未执行任何原生 CLI、Electron、daemon、PTY、ps 或截图；实跑命令见 THREE-PANES-RUN，当前整票仍 **INCOMPLETE**。
+
+当前产品与脚本已冻结提交为 `20aa73e83479392841c726781a9f61be77f62da7`；九项尾注使用本会话身份。fresh 只读工具审查结论为 **INCOMPLETE**，未发现本范围内可确定复现或静态可达的违规；原报告 [version-wrapper-acceptance-audit-02.md](version-wrapper-acceptance-audit-02.md) 保留，不能上调为 PASS。它独立重放了版本拒绝／无 launch 或 PTY 副作用的给定边界探针、版本比较变异及三份 -01 事件采集，未运行真实场景。审查后交付只新增报告与记录，产品／测试／脚本不再更改。版本差异已记入 T-091 Resolution，票据仍 open；实际 green-02、四类拒绝及五类回归 -02 等主控逐场运行。
+
+## green-02 与回归 -02 的真实结果
+
+执行来源为执行主控 #21（本对话主控 #46）；冻结候选 `f20a74ada49564499691cd14cf019f8cec448db1`。worker 本轮只读核对外置原件、原始摘要和停机前数据库读回，没有重新启动原生 CLI、Electron、daemon、PTY、ps 或截图。以下 PASS 均绑定这次冻结候选；本轮只改 core 测试适配器的正例等待配置与证据记录，产品／窗口源码未变。
+
+**green-02：PASS／rc 0。** green_observed、negatives_passed、version_refusals_passed、cleanup_complete、archive_complete 均 true；error、post_close_error、archive_error 为空，cleanup_errors=[]。假 POST 0、供应商模型回合 0；真实主控 CLI 两个，版本 2.1.302；受控 receiver 三个串行、峰值一个；Electron 一个；读屏 30 次、原始单帧三张。版本探测五次尝试包含一次缺失路径，未自动选择其他版本或复制 auth。
+
+task 为 `t091-three-91e0bcc6`，三格绑定读回如下。三份原始 snapshot、process 及 expected.json 一致；其归属靠后台字段与进程核对，不靠标题。
+
+| 角色 | launch | 原生会话 | CLI leader／shell PID |
+| --- | --- | --- | --- |
+| 构思主控 | 3f876a9e-8e87-4e20-97d6-7dfb147611ab | fd0a9920-f661-4d02-a7ef-c98718575eb1 | 88375／88374 |
+| 执行主控 | c6215593-c80f-403d-bcc8-f8a1757251b5 | d7f221ef-0667-493f-98be-17340043ba8b | 88388／88387 |
+| 受管 worker（C receiver） | d10d8a1e-0948-4b9f-b0a0-a42e558eeb70 | 30e24581-66ee-4f0c-9c74-197059c5551b | 88352／88350 |
+
+三份 window_id 为 `2dc4eb69-fa0f-42ba-8520-1a68d46a41ce`、`8ef1bfe8-3c1c-4bd5-bb6b-5227069b6f8d`、`9be012bc-cbab-41e0-a8c8-79289e6cc658`，各不相同。worker attempt 为 `b52caea0-2578-4135-a26b-56f26dc7f319`。原始记录显示各自独立输出、输入序号与正确请求收据链，跨格放行被拒；三份凭据关闭后原 agent 仍存活，随后后台正常收尾。只读对账见 [green-02-readback.json](green-02-readback.json)，不把 receiver 的原生日志形状当成真实 Codex 模型证据。
+
+真实拒绝结果：缺失路径为 `controller_executable_missing`，错误版本为 `controller_version_mismatch`；错 task 为 `launch_task_mismatch`，旧 launch 为 `Pane is not a current running session`。后两项均在建新窗口／签发新凭据前拒绝；缺路径／错版本没有增加 pane_started。版本比较的删除变异仍由此前的独立给定输入检查拒绝，不补称在本轮额外运行过变异场景。
+
+主控已查看 `green-original.png` 和 `green-900x650-original.png` 两张原始帧，报告三格同屏、身份完整、仅 worker 格有焦点。worker 本轮只读对账对应 view JSON，没有冒称另做屏幕观察。三张原始单帧都只在外置 `green-02/` 下，未拼接或裁切；完整捕获 argv、窗口归属及其余 1200×800 原帧也在同一目录。
+
+外置根 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/green-02/`；停止后夹具副本 197 文件条目／5,290,401 字节，其中两条链接原样保存、不跟随；comparison=true、原件保留。摘要 [green-02.run.json](green-02.run.json)，清单 [green-02.archive.json](green-02.archive.json)。red-02 与 T-078 的 CLI 仍是 2.1.296，不能把本轮 2.1.302 的结果改写到旧证据上。
+
+四类 GUI 回归均为 **PASS／rc 0**，全部原断言通过且 archive_complete=true、无 error 或 metrics_error；每场各一个 Electron，按序运行。副本比较均 true，原件保留。
+
+| 场景 | 原业务检查数 | 读屏／截图数 | 夹具文件数／字节数 |
+| --- | --- | --- | --- |
+| window-regression-02 | 4 | 5／1 | 89／2,841,561 |
+| runtime-regression-02 | 12 | 26／2 | 113／2,428,275 |
+| input-failures-regression-02 | 11 | 18／2 | 100／2,160,051 |
+| worker-inbox-regression-02 | 14 | 15／2 | 150／2,259,924 |
+
+原件均在同一外置根的对应 `<case>-regression-02/`；仓库保留各自原始 run.json 摘要及 archive.json。旧 -01 顶层 INCOMPLETE 不改判；新 PASS 不替当前未执行的 core -03 或最终独立审查背书。
+
+### core-regression-02：原断言失败，根因为质量夹具正例等待预算
+
+状态仍为 **INCOMPLETE／rc 1**，archive_complete=false；不是启动包装器未进入业务。coop 8、recovery 9 方法已 PASS，均 0 failure/error/skipped。run suite 以 failfast 执行首个方法 `test_run_entry_point_completes_registered_task`，1 个 failure、0 error；CAS 与三个门禁变异未执行。原失败落点为 `acceptance/test_run_e2e.py:250`：找不到 `refs/a2a/attempts/<task>/a1`，原记录的 business-red 分类保留。完整诊断见 [core-regression-02-diagnosis.json](core-regression-02-diagnosis.json)。
+
+停机前真实事件先后顺序为：
+
+| UTC 时间 | 事件 |
+| --- | --- |
+| 14:11:44.685 | run_started，显式 wait_seconds=8 |
+| 14:11:51.892 | review_started |
+| 14:11:53.951 | run_finished，phase=waiting_executor、outcome=deadline、error=run_deadline |
+| 14:11:56.208 | review_reclaimed |
+| 14:11:59.682 | 外部执行主控完成 integrated |
+
+最终 task=accepted，但原 run 已按期限结束、attempt.reclaimed=false，不能补称其自动回收成功。在 f20a74ada 这次运行中，8 秒预算先于完整质量串完成而耗尽；门禁没有违反此期限，不能通过改门禁、补建引用、伪造 completed 或放宽原断言解决。该质量串在起点已经存在，并非 T-091 新增；起点是否也会超时没有实测，见下方专门说明。
+
+最小修正位于 `DaemonRun.run_args`：只对三个走完整质量串、原请求为 8 秒的正例，显式配置 30 秒，并追加 `quality_run_wait_budget` 记录原值、实际值和理由。它们是正常完成、同组临时辅助进程、成功后的幂等回收正例。其余调用不改：未 submit 的超时负例仍 2 秒，oracle 失败仍 8 秒，重复 run 原 30 秒及其他显式预算也原样保留；没有重试或自适应延长。产品门禁和 acceptance 原业务源码不改。
+
+本地检查 `quality-run-budget-red-03.json` 保留旧配置红态；`quality-run-budget-green-03.json` 的七组独立配置输入 PASS，旧 f20a74ada 仍被拒。将所有场景统一延长到 30 秒的变异被负例预算断言拒绝。检查执行真实 adapter/helper 的 AST，不启动 daemon 或 suite；它证明配置与负例边界，没有证明修正后 18 方法全部通过。
+
+```sh
+python3 -B workbench/tests/test_t091_quality_run_budget.py evidence/2026-10-16-batch16/T-091/quality-run-budget-green-03.json
+```
+
+文件已存在，复验须换新输出名。主控用全新标签重跑完整 core，成功条件仍为 8／9／18／1 原方法、0 failure/error/skipped，三个门禁反例命中业务断言且进程退出／归档确认；任何未完成均保留 INCOMPLETE。本轮按主控安排将候选交给后续独立审查，不另把原审查结论沿用给本次预算变更。
+
+## core-regression-03：CAS 已触发，分类器漏判
+
+执行来源为执行主控 #23（本对话 #47），候选 `37d3475abca2ad47451d110288938a9e8cc92f0f`。顶层仍 **INCOMPLETE／rc 1**、archive_complete=false，原件与原摘要不改写。
+
+| 阶段 | 原始结果 |
+| --- | --- |
+| coop／recovery／run／cas 原套件 | PASS，分别 8／9／18／1 方法，0 failure/error/skipped |
+| fence | 原测试按预期失败；业务反例分类 PASS |
+| CAS | 原测试 1 failure、0 error/skipped，明确 BUSINESS_RED；旧分类器返回 pass=false、business_evidence=[] |
+| lock | 前序分类中断，未执行 |
+
+CAS 原件加载了指定单处变异的 core。原 `test_external_write_between_read_and_cas_is_preserved` 明确拒绝三项实际行为：
+
+1. 应绑定新 G=`d016a459bdaacb7652600af4d17418b3fe045990` 与原 C=`416d0d01618dd40ad73e0240622a5709799afdc4`，实际 G 仍为旧 `36147c619ef871833b41bcb9708ac1afaf7b4656`、C 未变。
+2. 外部提交的祖先关系检查应返回 0，实际 Git `merge-base --is-ancestor` 返回 1。
+3. 应执行两次 oracle，实际一次。
+
+这不是变异未触发或环境错误。旧 `business_mutant` 仍查找已废弃的 `CAS rejects a changed expected old value`／`CAS preserves the external writer reference`，所以漏掉当前“重验并保留外部写入”的合同。诊断摘要见 [core-regression-03-diagnosis.json](core-regression-03-diagnosis.json)。
+
+已只读核对 Git 中的 T-078 `run-review-followup-regressions.py` 及 `review-followup-mutant-cas-03/result.json`：当时补判要求同一原方法、指定变异 core、零 error/skipped，以及上述三项违反同时成立。当前修复复用这套独立合同条件，不复用它的通过结论，也不改原业务断言。
+
+新分类器要求：准确选中原 CAS 方法、同一 test 的 business-red、每项断言恰好一份、旧 G／原 C、外部祖先丢失、oracle 未重验六个条件全部成立；同时保留原有单测试失败、零 error/skipped 和实际加载 core 路径的检查。输出 compact business_evidence 与逐项 contract_checks，不以任意 rc 1 或任意 BUSINESS_RED 放行。fence／lock 判定逻辑不放宽。
+
+本地 `cas-classifier-red-04.json` 保留旧分类器漏判；最终 `cas-classifier-green-04d.json` 的 16 组独立输入检查 PASS，覆盖缺项／重复、缺 G、错方法／来源、换 C、保留祖先、已重验、环境错误、跳过和错 core。过程中发现缺 G 会被 .get 视为不同 G，已补“G 必须是已观察到的非空字符串”；`cas-classifier-incomplete-G-red-04.json` 保留该中间失败。把分类器削弱成“只要测试失败就算反例”的变异被拒。`core03-classifier-replay-04.json` 通过真实函数对原 -03 文件只读重放，fence 和 CAS 分类均 PASS；这不是重跑 gate，不改 -03 顶层 INCOMPLETE，也不补称 lock 已执行。
+
+同类漏判已在 T-078 发生。本票将 `test_t091_business_mutant.py` 接入 core 包装器的自动前置检查：先核对独立反例／拒绝控制和原 CAS 合同文本，再启动长套件；不依靠后续人工记得补判。检查入口在 workbench README 与本票 Resolution 中索引，未改 AGENTS.md 或建立另一份治理账本。
+
+```sh
+python3 -B workbench/tests/test_t091_business_mutant.py evidence/2026-10-16-batch16/T-091/cas-classifier-green-04d.json
+```
+
+输出已存在，复验须换新名。完整 core-regression-04 尚未实跑，仍需四组套件、三个业务反例、进程退出与归档全部通过，之后由主控安排独立审查。
+
+### 8 秒改为 30 秒：起点 main 是否也会超时
+
+**没有起点 main 上同一方法的计时证据，不能断言它也会超时。** 先前说明应只解释 core-regression-02 的本轮事实，不能据此归因于 T-091 或宣称性能变差／改善。
+
+已只读比较起点 `44bbb7828459d81fab0d46069a19d3dd515a7732` 与超时候选 f20a74ada：run 门禁 core、legacy_quality_driver、原 test_run_e2e、daemon_acceptance_adapter 四份关键源码完全相同。起点已经有相同质量串与旧 8 秒配置；这是源码事实，不能替代相同环境中的起点实测。
+
+现有数据只包含候选上的同一场景：core -02 配置 8 秒，run_started→run_finished 为 9.266 秒、outcome=deadline；core -03 配置 30 秒，同一区间为 15.131 秒、outcome=completed。这是 **run 事件区间，不是完整方法耗时**，两者也不是起点与候选的独立对照。起点是否同样超过 8 秒仍为推断；若要作因果结论，须另在起点独立 checkout、相同环境下运行同一方法计时。范围与原始读回索引保存在 [baseline-timing-evidence-04.json](baseline-timing-evidence-04.json)。本轮没有执行该起点实验，30 秒仍只是三个质量正例的显式夹具预算，原超时负例与其他预算不变。
+
+## core-regression-04 与最终冻结交接
+
+执行来源为执行主控 #25（本对话主控 #48）；实跑候选 `3db9b6def91826d5a52dd02590c559b0c4ce35a0`。状态 **PASS／rc 0**，八项检查全部 PASS，archive_complete=true。worker 只读核对外置顶层 run.json、七个子运行的最终 run.json、原始测试计数及三个 business-counterexample.json，仓库摘要与外置顶层记录相同；没有重跑场景或改写原件。
+
+| 检查 | 本次实际结果 |
+| --- | --- |
+| business_classifier_preflight | PASS；长套件前执行分类器合同检查 |
+| coop_original_suite | PASS，8 个原方法，0 failure/error/skipped |
+| recovery_original_suite | PASS，9 个原方法，0 failure/error/skipped |
+| run_original_suite | PASS，18 个原方法，0 failure/error/skipped |
+| cas_original_suite | PASS，1 个原方法，0 failure/error/skipped |
+| fence_business_counterexample | PASS；指定变异 core，1 个原测试实际失败，0 error/skipped，错误 fence 被业务断言识别 |
+| cas_business_counterexample | PASS；指定变异 core，1 个原测试实际失败，0 error/skipped；新 G 未绑定、外部祖先丢失、oracle 未重验三项违反同时成立，六个 contract_checks 全 true |
+| lock_business_counterexample | PASS；指定变异 core，1 个原测试实际失败，0 error/skipped，并发 verify 被错误放行的业务断言触发 |
+
+变异子运行自身仍是 **INCOMPLETE／exit 1**，这是要求的坏实现失败，不改成原套件 PASS。顶层对它们的 PASS 指业务反例被正确识别。`test-result.json` 是最终判定前保存的阶段记录，需连同各子目录最终 `run.json` 的退出码／计数及顶层判定一起读，不能只读其初始化 status 字段。
+
+本次供应商模型回合、真实供应商 CLI 启动、Electron 启动、窗口、读屏和截图均为 0。原件根 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/core-regression-04/`；九份停止后夹具副本共 3,623 个文件条目、255,327,757 字节，含三条依赖链接，均按链接本身保存而不跟随。九份 comparison 均 true，原目录全部保留；仓库仅提交 [core-regression-04.run.json](core-regression-04.run.json) 和 [core-regression-04.archive.json](core-regression-04.archive.json)。主控日志为 `/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/tasks/b1bdymv2s.output`。完整命令和批准引用在 run.json，已使用的输出标签不得覆盖。
+
+执行主控已核对 f20a74ada→3db9b6def 的 `workbench/src/`、`workbench/app/`、`acceptance/` 无变化；worker 本轮通过相同范围的 git diff 再次只读核对，输出为空。因此 green-02 与四类 GUI 回归 -02 对应的产品代码仍相同；core -04 则实际覆盖了最新预算适配器和分类器。该结论有明确源码范围，不将旧审查报告或旧候选的其他测试结论一并沿用。
+
+本次冻结提交只更新本结果记录、新增 [REVIEW-REQUEST-T091-01.md](REVIEW-REQUEST-T091-01.md)、core -04 两份原始收据及冻结检查收据，不改产品、测试、脚本或验收条件。[freeze-checks-01.json](freeze-checks-01.json) 保留一次核对范围错误：把增加 core 前置检查的整个包装器误纳入“GUI 文件未变”比较；最终 [freeze-checks-02.json](freeze-checks-02.json) 分别核对产品、GUI 原测试／驱动及包装器 GUI 分支，并检查文档、链接和项目状态。最终冻结版本以本请求所在提交及交接回复的 FROZEN SHA 为准。独立 reviewer 由主控另开，ticket 仍 open，验收框未代勾；此前 FAIL／INCOMPLETE 的只读工具审查及 red／green／回归失败原件均保留。交接后停止修改，等待主控审查流程。

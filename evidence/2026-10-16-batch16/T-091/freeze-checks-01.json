@@ -1,0 +1,30 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-091",
+  "attempt": "a1",
+  "phase": "pre-freeze document/source verification",
+  "code_candidate": "3db9b6def91826d5a52dd02590c559b0c4ce35a0",
+  "checked_at": "2026-10-17T15:48:47.153902+00:00",
+  "failed_check": "gui_test_driver_unchanged",
+  "original_failure": "AssertionError: gui_test_driver_unchanged",
+  "diagnostic_command": {
+    "argv": [
+      "git",
+      "diff",
+      "f20a74ada49564499691cd14cf019f8cec448db1",
+      "HEAD",
+      "--",
+      "workbench/tests/test_electron_e2e.py",
+      "workbench/tests/test_t078_input_entry.py",
+      "workbench/tests/electron_client.py",
+      "workbench/tests/electron_driver.mjs",
+      "evidence/2026-10-16-batch16/T-091/run_regression.py"
+    ],
+    "exit": 0,
+    "stdout": "diff --git a/evidence/2026-10-16-batch16/T-091/run_regression.py b/evidence/2026-10-16-batch16/T-091/run_regression.py\nindex 727a7dbf4..6f81e5d1a 100644\n--- a/evidence/2026-10-16-batch16/T-091/run_regression.py\n+++ b/evidence/2026-10-16-batch16/T-091/run_regression.py\n@@ -5,8 +5,11 @@ Review the selected case BEFORE each run; no prior approval carries over.\n   Every case: Python/Node 26.5/Git, new isolated HOME/TMP/state/user-data, external\n     output only; no auth.json, global writes, real Claude/Codex or provider rounds.\n   core: existing coop 8 / recovery 9 / run 18 / CAS 1, then fence/CAS/lock single-site\n-    mutants in disposable source copies. Production daemon and controlled test\n-    threads; recovery deliberately stops ONLY fixture-owned processes. No Electron,\n+    mutants in disposable source copies. A pure classifier self-check runs first.\n+    Production daemon and controlled test\n+    threads. Three full-quality run positives explicitly use 30s in the adapter;\n+    timeout/fault cases retain their original deadlines. No retry or gate change.\n+    Recovery deliberately stops ONLY fixture-owned processes. No Electron,\n     keyboard or vendor hook. Git fixture commits, verify/integrate and cleanup are\n     performed by the ORIGINAL tests through the gate. No push or project integration.\n   window: one Electron, one daemon, gate claim but no worker/model. Attempts readonly\n@@ -146,6 +149,10 @@ def main():\n         if run(['git', 'diff', 'HEAD', '--', 'workbench/app/', 'workbench/src/', 'workbench/tests/']).stdout:\n             raise RuntimeError('freeze_product_and_tests_before_running')\n         if args.case == 'core':\n+            run([sys.executable, '-B', source / 'workbench/tests/test_t091_business_mutant.py',\n+                 output / 'classifier-preflight.json'], raw_name='classifier-preflight')\n+            classifier_check = json.loads((output / 'classifier-preflight.json').read_text(encoding='utf-8'))\n+            check('business_classifier_preflight', classifier_check['status'] == 'PASS')\n             missing = [name for name in ['fixtures/pagination/CONTRACT.md', 'fixtures/pagination/pager.py',\n                 'evidence/2026-10-11-batch13/T-076/card-2/controller-decision-03.md',\n                 'evidence/2026-10-11-batch13/T-076/card-2/legacy-acceptance-hunks.diff'] if not (source / name).is_file()]\n",
+    "stderr": ""
+  },
+  "diagnosis": "检查范围错误地包含整个 run_regression.py；其 core 分支新增分类器前置检查，故不能宣称整个包装器未变。GUI 原测试和驱动无差异，包装器的变化仅为 core 说明及 core 分支。保留此检查失败，最终检查另用 freeze-checks-02.json，不重跑业务场景。",
+  "runtime_tests_run": 0,
+  "external_writes": 0
+}

@@ -344,10 +344,32 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 此命令只构造 argv 和追加启动记录：包含 `--session-id`、`--model`、`--effort`、
 `--settings` 及角色卡正文，attempt 为 null，execution_state 为 prepared。
 它不创建进程、不读取 CLI 版本、不签发会话凭据；CLI 版本记 unknown，生命周期为
-“未启动”，明确标记“待真实 Claude 复核”。静态构造／存储红绿已通过，真实 CLI
-和主控多窗格继续等待用户的认证与额度决定。
+“未启动”，明确标记“待真实 Claude 复核”。静态构造／存储的通过不替代真实启动验证。
+
+受控假 API 主控的实际入口为 `controller_start --task ID --manifest /绝对路径/manifest.json`。
+现有 manifest 的 `executable` 为明确的 CLI 绝对路径，`version` 为预期版本（例如 `2.1.302`）。
+后台在该角色的隔离环境中执行一次 `--version`，要求完整输出为 `<version> (Claude Code)`，
+通过后才登记启动记录并启动 PTY。记录保留实际版本和探测的 argv／stdout／stderr。
+路径不存在返回 `controller_executable_missing`，探测失败返回 `controller_version_probe_failed`，
+版本不符返回 `controller_version_mismatch`；不自动查找或改用其他版本，不修改全局设置，
+不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的 2.1.302 启动与版本反例已由
+green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记录。
 
 ## Electron 窗口
+
+T-091 单格 Tracer bullet 已取得真实输入输出读回；当前候选沿同一条通路支持一个任务内的
+多个会话窗格。重复 `--launch` 传入两个主控与当前 worker，窗口会按真实 role／preset
+排列为上方构思主控、执行主控，下方全宽 worker；窗宽小于 1000px 时排成三行。
+各格保持 160×45 与独立滚动，不因尺寸改变重建终端或更换身份。
+三格真实绿态及反例、四类 GUI 回归已在 f20a74ada 上通过；core 回归与最终独立审查
+仍为 INCOMPLETE，结果见
+[T-091 结果记录](../evidence/2026-10-16-batch16/T-091/RESULTS.md)，重跑清单见
+[T-091 三格检查](../evidence/2026-10-16-batch16/T-091/THREE-PANES-RUN.md)。
+本地 VM 检查不替代真实 Electron、PTY 或门禁运行证据。
+
+core 回归入口会先运行 `workbench/tests/test_t091_business_mutant.py`，检查 CAS 分类器的
+三项业务证据、拒绝控制及原合同文本，防止旧断言名称导致已触发的变异被漏判。
+core -03 的四组原套件已通过；分类器修正后的完整 -04 及 lock 反例仍待实跑。
 
 运行中的主控窗格没有 worker attempt，仍可输入；worker 窗格须匹配当前 attempt。
 每次写入继续由后台核对窗口凭据、任务版本与原生身份。窗口展示的 launch、thread、
@@ -355,11 +377,25 @@ active dispatch 与输入可用状态供驱动核对；驱动发键只代表尝�
 用户动作、PTY 写入意图与写入收据，不能用 `sent:true` 代替。
 
 窗口经同一个 Unix socket 查询后台，不加载 node-pty 或 SQLite。显示一个项目、任务、
-窗格和门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
+多个会话窗格和共享的当前任务门禁状态；终端网格固定为 160×45。当前输入候选在固定的活动 launch 上启用
 键盘、IME 和粘贴入口，历史窗格保持只读；全部输入由后台写入 node-pty，renderer
-没有后台凭据、PTY 或数据库权限。窗口凭据绑定一个 launch，关闭时撤销，不随
+没有后台凭据、PTY 或数据库权限。每个窗格的窗口输入凭据绑定一个 launch，关闭时撤销，不随
 current_attempt 更换目标。后台在等待前占用窗口序号和 request_id，重用请求号会被拒绝；
 输入调用失败时停止后续发送，不自动重投。
+
+六条 IPC handler 每进程只注册一次，以 sender 窗口及该窗口登记的 pane key 路由，
+拒绝未知 key、其他窗口的 key 和非 mainFrame 调用。preload 的只读 `paneKeys` 来自
+BrowserWindow 的非机密启动参数；snapshot、output、input、beginComposition、
+releaseQueue、observeFocus 均显式带 key，不保留无 key 的输入通路。凭据只留 main。
+每格独立持有输入序号、发送队列和放行请求；并发 snapshot 共用一次窗口凭据请求。
+关闭会等待已接收的输入与凭据请求，随后撤销凭据，不移除其他窗口仍使用的 handler。
+同一 Electron 进程共用应用级 user-data，不把每会话 HOME 与应用级目录混为一谈。
+
+窗格显示完整 task、launch、worker attempt；主控角色依据快照中启动记录的 preset。
+多 launch 在建窗及签发凭据前逐项检查同任务、运行状态和当前 worker attempt；错误 task、
+旧 attempt、未运行或重复 launch 均拒绝，不静默替换成当前 worker。单格历史查看仍保持只读。
+输入能力与焦点分开：实际 textarea 聚焦且允许输入时才显示“正在输入”和蓝色边线；
+不自动聚焦。输出读取错误时暂停该格输入。系统 IME 仍不在本票验收范围。
 
 输入在写入 PTY 前进入 user_inputs；受管 worker 的人工介入在同一事务里派生，带
 input_id。粘贴去掉协议包裹后保存文本；终端控制键记 action。长度为零的 onData
@@ -382,6 +418,8 @@ P1 与首个候选的四项输入合同已经通过；其余失败方式和当�
 ```sh
 npm --prefix workbench run build -- --slot local-01
 node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
+# 同一任务三格（身份取自已有启动记录）
+node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --launch 构思主控launch --launch 执行主控launch --launch 当前workerlaunch --user-data /绝对路径/ui
 ```
 
 Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main

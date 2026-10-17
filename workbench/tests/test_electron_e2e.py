@@ -37,6 +37,8 @@ def main():
     env = {key: value for key, value in os.environ.items()
            if not key.startswith(('A2A_', 'CODEX_', 'GIT_'))}
     env.pop('ELECTRON_RUN_AS_NODE', None)
+    credential = fixture / 'operator-credential.json'
+    env['A2A_OPERATOR_CREDENTIAL'] = str(credential)
     env.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
                GIT_CONFIG_COUNT='2', GIT_CONFIG_KEY_0='core.hooksPath',
                GIT_CONFIG_VALUE_0=os.devnull, GIT_CONFIG_KEY_1='commit.gpgsign',
@@ -54,6 +56,7 @@ def main():
     started = False
     pid = None
     window = None
+    window_attempted = False
     build_manifest = None
     verdict = {'status': 'INCOMPLETE', 'stage': args.stage, 'source': str(source),
                'fixture': str(fixture), 'task': task, 'project': project, 'title': title,
@@ -160,6 +163,7 @@ def main():
         check('daemon_output_unknown_launch', unknown_launch_contract)
         if args.stage == 'window' and all(item['status'] == 'PASS' for item in checks):
             from electron_client import ElectronClient
+            window_attempted = True
             window = ElectronClient(source, Path(build_manifest['out']), state, task,
                                     fixture / 'ui', output / 'window', env)
             verdict['electron_started'] = True
@@ -167,11 +171,15 @@ def main():
                 value = window.wait(lambda item: title in item['text'] and item['gate'] == 'claimed')
                 assert project in value['text'] and '只读' in value['text']
                 assert value['state'] == 'unknown' and value['offset'] == 0
-                assert sorted(value['bridge']) == ['output', 'snapshot'] and value['node'] == 'undefined'
+                assert sorted(value['bridge']) == ['beginComposition', 'input', 'observeFocus', 'output',
+                                                  'paneKeys', 'releaseQueue', 'snapshot']
+                assert value['node'] == 'undefined'
                 window.call('readonly-input')
                 window.call('capture', name='claimed-no-pane')
                 with sqlite3.connect(f'file:{state / "state.sqlite3"}?mode=ro', uri=True) as db:
                     assert db.execute('SELECT count(*) FROM user_inputs').fetchone()[0] == 0
+                    save('readback-orchestration_events.json', [dict(type=kind, data=data) for kind, data in
+                        db.execute('SELECT type,data FROM orchestration_events ORDER BY seq')])
                 after = call('status', '--task', task)['task']
                 assert after == recorded, 'Viewing must not mutate the gate state'
             check('electron_real_window', window_contract)
@@ -186,6 +194,8 @@ def main():
             except Exception as error:
                 verdict.update(status='INCOMPLETE', window_cleanup_error=repr(error))
         try:
+            if window_attempted and (window is None or not window.ready_confirmed or not window.exit_confirmed):
+                raise RuntimeError('Electron ready/exit unconfirmed; backend shutdown and archive deferred to controller')
             if started:
                 call('daemon_stop')
                 deadline = time.monotonic() + 10
@@ -200,6 +210,8 @@ def main():
                     time.sleep(0.1)
                 verdict['daemon_stopped'] = True
             if not started or verdict.get('daemon_stopped'):
+                if credential.exists():
+                    credential.unlink()
                 with tarfile.open(output / 'fixture.tar.gz', 'x:gz') as archive:
                     archive.add(fixture, arcname=fixture.name)
         except Exception as error:

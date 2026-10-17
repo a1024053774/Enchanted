@@ -78,33 +78,51 @@ export class Panes implements GateRuntime {
   ensureProject = async (_project: string, _repo: string) => {};
   startController(task: A2ATask, input: ClaudeLaunchInput) {
     check(new URL(input.api_url).port !== "0", "messages_api_not_bound");
-    check(![...this.panes.values()].some(p => !p.stopped && p.record.preset === input.preset), "controller_already_started");
-    const record = { ...claudeLaunch(task, input), created_at: new Date().toISOString(), cli_version: "unknown" };
-    const token = randomUUID();
-    this.store.launch(record);
-    const trace = join(this.root, "traces", record.id, "pty.raw");
-    mkdirSync(dirname(trace), { recursive: true, mode: 0o700 }); appendFileSync(trace, "", { flag: "wx", mode: 0o600 });
-    const terminal = require("node-pty").spawn(record.shell, record.shell_argv, {
-      name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
-      env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
-    });
-    const pane: Pane = { record, token, task, attempt: null, pty: terminal, state: "unknown", stopped: false,
-      archived: false, failed: null, leader: null, native: record.session, turn: null, nativeEnded: false, active: null,
-      queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
-      userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
-      terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
-    this.panes.set(record.thread, pane);
-    this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
-    terminal.onData((data: string) => {
-      try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
-      catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
-    });
-    terminal.onExit((event: unknown) => {
-      pane.stopped = true; pane.state = "unknown";
-      try { this.store.event("pane_exit", event, record); }
-      catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
-    });
-    return record;
+    const record = { ...claudeLaunch(task, input), created_at: new Date().toISOString(),
+      cli_version: "unknown", version_probe: null as { argv: string[]; stdout: string; stderr: string } | null };
+    return (async () => {
+      const expectedVersion = record.cli_version_expected;
+      let probe;
+      try {
+        probe = await exec(input.executable, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
+      } catch (error) {
+        const failure = error as NodeJS.ErrnoException;
+        throw new Refusal(failure.code === "ENOENT" ? "controller_executable_missing" : "controller_version_probe_failed",
+          { executable: input.executable, expected: expectedVersion, cause: failure.code, message: failure.message });
+      }
+      const version = probe.stdout.trim();
+      if (version !== expectedVersion) throw new Refusal("controller_version_mismatch", { expected: expectedVersion, observed: version });
+      record.cli_version = version;
+      record.version_probe = { argv: [input.executable, "--version"], stdout: probe.stdout, stderr: probe.stderr };
+      // The probe awaits a child process; keep this ownership check next to the
+      // synchronous registration so two concurrent starts cannot claim one preset.
+      check(![...this.panes.values()].some(p => !p.stopped && p.record.preset === input.preset), "controller_already_started");
+      const token = randomUUID();
+      this.store.launch(record);
+      const trace = join(this.root, "traces", record.id, "pty.raw");
+      mkdirSync(dirname(trace), { recursive: true, mode: 0o700 }); appendFileSync(trace, "", { flag: "wx", mode: 0o600 });
+      const terminal = require("node-pty").spawn(record.shell, record.shell_argv, {
+        name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
+        env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
+      });
+      const pane: Pane = { record, token, task, attempt: null, pty: terminal, state: "unknown", stopped: false,
+        archived: false, failed: null, leader: null, native: record.session, turn: null, nativeEnded: false, active: null,
+        queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
+        userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
+        terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
+      this.panes.set(record.thread, pane);
+      this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
+      terminal.onData((data: string) => {
+        try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
+        catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
+      });
+      terminal.onExit((event: unknown) => {
+        pane.stopped = true; pane.state = "unknown";
+        try { this.store.event("pane_exit", event, record); }
+        catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+      });
+      return record;
+    })();
   }
   // T-078-1/#49: prepare argv and its durable record only. Actual Claude launch,
   // auth, hooks and completion matching await decision 20261011T101958Z. This

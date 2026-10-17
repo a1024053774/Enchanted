@@ -222,7 +222,7 @@ export async function serve(
       const status = await gates.call({ command: "status", task: input.task });
       if (!status.ok || !status.task) return status;
       if (input.manifest?.state !== root) throw new Refusal("controller_state_mismatch");
-      const launch = panes.startController(status.task, input.manifest);
+      const launch = await panes.startController(status.task, input.manifest);
       gates.registerController(launch.thread);
       await gates.resumeControllerInbox(launch.thread);
       return { ok: true, launch };
@@ -243,7 +243,7 @@ export async function serve(
       const pane = record ? panes.status(record.thread) : null;
       const launch = record ? { id: record.id, project: record.project, task: record.task, attempt: record.attempt,
         session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,
-        role: record.role, cli_version: record.cli_version, model_requested: record.model_requested,
+        role: record.role, preset: record.preset ?? null, cli_version: record.cli_version, model_requested: record.model_requested,
         effort_requested: record.effort_requested, created_at: record.created_at } : null;
       return { ok: true, daemon, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
     }

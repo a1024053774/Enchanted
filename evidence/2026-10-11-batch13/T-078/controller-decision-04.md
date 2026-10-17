@@ -813,3 +813,11 @@ worker 修四处测试工具缺陷（11c119da8）；排练又暴露并修两处�
 - T-089：审查 01 NO_GO（删除阶段超时会部分删原件；S3 证据没走到实际 main）→ worker 修复 `ef3b1ade9`（两阶段；check_s3_main.py）→ 审查 02 NO_GO（回收阶段契约）→ needs-decision 20261017T105154Z → 用户裁定 A（ideation answer 20261017T111636Z，ticket 144d5afee）→ 审查 03 PASS。worker 原样提交审查报告 `20c056d75`，合入 main，关票，打分 score-5b0be6b254dc408bbf0ffbb0bcefbcd0。
 - launch-worker 在 a2a-wt-t089 中间歇启动失败（5 次中 3 次），登记 issue 20261017T104229Z（非阻塞）。
 - T-091：界面方向确认；red-01 INCOMPLETE（Electron 入口模块顶层 await run() 与 ready 互等；收尾在 Electron 退出前就停了后台）。6599 正常退出被拒（卡在 ready 前），主控核对 argv 与启动时间后发了一次 SIGTERM，2 秒后退出；close-03 归档原夹具（符号链接按链接本身复制）。red-02 取得红态：expected 3、observed 1，原始单帧只截隔离窗口，按键 0、模型 0、假 POST 0，收尾完成。实现进行中。
+
+## #377（2026-10-17）T-091 验收关闭
+
+- 重启恢复：Herdr 用不带参数的 `codex resume` 恢复了 worker（PID 7209），没有启动记录，已关闭；之后用 launch-worker --resume 接回（launch-97cdf0bc72c94bbe92d7bf83ad676990），被"open in another app"锁住；改为新开会话 launch-71afbd1600cb451a9d9354aa7768e72b 接手。
+- green-01 INCOMPLETE：脚本写死的 CLI 2.1.296 已被自动更新删除，而产品 claudeLaunch 同样写死 → needs-decision 20261017T133756Z → 用户裁定 A（20261017T133907Z）→ 改为从配置读取并在启动时核对 --version，配置 2.1.302 → green-02 PASS。
+- 回归：-01 全部卡在包装器 → -02 四类 GUI PASS，core INCOMPLETE（质量正例 8 秒预算不够）→ core-03 的 CAS 分类器误判 → core-04 PASS。quality-timing-01：同为 8 秒时，起点与候选各 9/9 次触发 deadline，判为既有问题。
+- 独立审查 01 PASS（reviewer launch-e1cd719b7b644f5e9b617716d1faf133；第一次启动失败 launch-b17e1b4e84c54ae4bc6b943fef4060c2，已关闭）。合入 main，关票，打分 score-c9e338907bdc48308ebde063b321ab21。
+- 观察：2026-10-17 12:38，用户全局 ~/.codex/config.toml 出现 `service_tier = "fast"`（不是执行主控改的，未触碰）。正在运行的 worker 与 reviewer 会话随即显示 "Service tier set to priority / xhigh fast"。reviewer 的 PASS 结论在同一分钟写出，切换发生在定稿之前还是之后，无法分辨。之后没有再给任何 Codex 会话派活。

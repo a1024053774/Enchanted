@@ -7,13 +7,20 @@ const snapshots = readFileSync(base + 'electron/snapshots.ndjson', 'utf8').trim(
 const actual = snapshots.find(v => v.pane.state === 'busy' && v.pane.active);
 const code = readFileSync(new URL('../app/main.ts', import.meta.url), 'utf8');
 const start = code.indexOf("    const writable =");
-const end = code.indexOf('\n  });', start);
-const evaluate = new Function('result', 'identity', 'closing', 'return (async()=>{' + code.slice(start, end) + '})()');
+const end = code.indexOf('\n    if (result.launch', start);
+const returned = code.indexOf('    return { ...result, pane_key:', end);
+const returnedEnd = code.indexOf('\n  });', returned);
+assert.ok(start >= 0 && end > start && returned > end && returnedEnd > returned);
+const evaluate = new Function('result', 'identity', 'closing',
+  'const pane={key:"fixture-pane",identity}; const context={closing}; return (async()=>{' +
+  code.slice(start, end) + code.slice(returned, returnedEnd) + '})()');
 const driver = readFileSync(process.argv[3] ?? new URL('./electron_driver.mjs', import.meta.url), 'utf8');
 const marker = "        } else if (request.command === 'terminal-key') {";
 const keyStart = driver.indexOf(marker) + marker.length;
 const keyEnd = driver.indexOf("        } else if (request.command === 'queue-release')", keyStart);
-const simulate = new Function('request', 'window', 'inspect', 'values', 'let value; return (async()=>{' + driver.slice(keyStart, keyEnd) + ';return value;})()');
+const execute = new Function('request', 'window', 'inspect', 'values', 'inPane', 'let value; return (async()=>{' + driver.slice(keyStart, keyEnd) + ';return value;})()');
+const simulate = (request, window, inspect, values) => execute(request, window, inspect, values,
+  (_selection, expression) => window.webContents.executeJavaScript(expression));
 const request = {key:'Escape', launch:actual.launch.id, thread:actual.launch.thread, dispatch:actual.pane.active.dispatch};
 const good = {launch:request.launch, thread:request.thread, active_dispatch:request.dispatch, state:'busy', lifecycle:'running', input_enabled:true};
 const checks = [];

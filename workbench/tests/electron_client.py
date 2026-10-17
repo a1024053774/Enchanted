@@ -4,7 +4,6 @@ from contextlib import contextmanager
 import os
 from pathlib import Path
 import selectors
-import signal
 import subprocess
 import time
 
@@ -27,25 +26,33 @@ class ElectronClient:
         self.stderr = (output.parent / (output.name + '-stderr.txt')).open('xb')
         self.stdout = (output.parent / (output.name + '-stdout.txt')).open('xb')
         self.sequence = 0
+        self.calls = 0
+        self.max_calls = 400
+        self.max_stdout_bytes = 64 * 1024 * 1024
         self.buffer = bytearray()
         self.selector = selectors.DefaultSelector()
         self.process = None
+        self.ready_confirmed = False
+        self.exit_confirmed = False
+        self.streams_closed = False
+        self.owner = None
         command_env = {**env, 'A2A_ELECTRON_DIAGNOSTICS': str(output / 'stages.jsonl')}
         try:
             self.process = subprocess.Popen(argv, env=command_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                             stderr=self.stderr, bufsize=0, start_new_session=True)
+            self.owner = self.process_identity()
             os.set_blocking(self.process.stdout.fileno(), False)
             self.selector.register(self.process.stdout, selectors.EVENT_READ)
             self.record({'argv': argv, 'pid': self.process.pid,
+                         'owner': self.owner,
                          'diagnostics': command_env['A2A_ELECTRON_DIAGNOSTICS']})
             ready = self.receive(30)
             assert ready.get('ready') is True, ready
+            self.ready_confirmed = True
         except Exception as error:
             self.record({'startup_error': repr(error), 'owned_pid': self.process.pid if self.process else None})
-            try:
-                self.kill_owned()
-            finally:
-                self.close_streams()
+            # Retain the failed startup for the controller. A pre-ready process
+            # cannot be normally closed; never convert this into an automatic kill.
             raise
 
     def record(self, value):
@@ -75,25 +82,22 @@ class ElectronClient:
             self.buffer.extend(chunk)
         return chunk
 
-    def kill_owned(self):
-        if self.process is None:
-            return
-        if self.process.poll() is None:
-            try:
-                group = os.getpgid(self.process.pid)
-                if group != self.process.pid:
-                    raise RuntimeError('Refusing to signal a process group not created by this harness')
-                self.record({'cleanup_signal': 'SIGKILL', 'owned_pid': self.process.pid, 'owned_pgid': group})
-                # Popen created this independent session. Kill its entire group,
-                # including helpers or an error dialog, without a restart/retry.
-                os.killpg(group, signal.SIGKILL)
-            except ProcessLookupError:
-                # An exit raced the signal; wait() still confirms our child.
-                pass
-        code = self.process.wait(timeout=10)
-        self.record({'owned_process_exited': self.process.pid, 'exit_code': code})
+    def process_identity(self):
+        value = subprocess.run(['/bin/ps', '-ww', '-p', str(self.process.pid), '-o', 'pid=,lstart=,command='],
+                               capture_output=True, text=True, timeout=5,
+                               env={'PATH': '/usr/bin:/bin', 'LC_ALL': 'C'})
+        if value.returncode == 1 and not value.stdout.strip() and not value.stderr.strip():
+            return None
+        if value.returncode or value.stderr.strip():
+            raise RuntimeError('Cannot verify the owned Electron process')
+        fields = value.stdout.strip().split(maxsplit=6)
+        if len(fields) != 7 or int(fields[0]) != self.process.pid:
+            raise RuntimeError('Incomplete Electron ownership readback')
+        return {'pid': int(fields[0]), 'started': ' '.join(fields[1:6]), 'command': fields[6]}
 
     def close_streams(self):
+        if self.streams_closed:
+            return
         try:
             while self.selector.select(0):
                 if not self.read_stdout():
@@ -105,8 +109,13 @@ class ElectronClient:
                 self.process.stdout.close()
             self.stdout.close()
             self.stderr.close()
+            self.streams_closed = True
 
     def call(self, command, **values):
+        if command != 'close':
+            if self.calls >= self.max_calls or self.stdout.tell() >= self.max_stdout_bytes:
+                raise RuntimeError('Electron observation/output budget exhausted; close the owned window')
+            self.calls += 1
         self.sequence += 1
         request = dict(id=self.sequence, command=command, **values)
         self.record({'request': request})
@@ -140,14 +149,23 @@ class ElectronClient:
             self.call('resume-output')
 
     def close(self):
+        if self.exit_confirmed:
+            return
         try:
+            if not self.ready_confirmed:
+                raise RuntimeError('Electron ready unconfirmed; wait for controller; no normal quit or signal')
             if self.process.poll() is None:
+                if not self.owner or self.process_identity() != self.owner:
+                    raise RuntimeError('Electron PID, start time or command changed; no close request')
                 self.call('close')
                 self.process.wait(timeout=10)
+            if self.process_identity() is not None:
+                raise RuntimeError('Owned Electron exit is unconfirmed')
+            self.exit_confirmed = True
             assert self.process.returncode == 0, self.process.returncode
         except Exception as error:
             self.record({'close_error': repr(error)})
-            self.kill_owned()
             raise
         finally:
-            self.close_streams()
+            if self.exit_confirmed:
+                self.close_streams()

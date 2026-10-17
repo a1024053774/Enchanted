@@ -10,7 +10,7 @@ for(const preset of ["ideation","executor"])for(const n of ["home","claude","tmp
 writeFileSync(join(root,"roles","ideation","role.md"),"仅回复 nonce。\n");
 const task:any={task_id:"p08",project_id:"p08",repo:join(root,"repo"),spec_rev:1,base_commit:"a".repeat(40)};
 const input:any={schema:1,root,state:join(root,"state"),task:"p08",preset:"ideation",launch:randomUUID(),session:randomUUID(),thread:randomUUID(),
-  executable:"/Users/luckye/.local/share/claude/versions/2.1.296",role_file:join(root,"roles","ideation","role.md"),code_revision:"a".repeat(40),source_snapshot:join(root,"source.tar.gz"),api_url:"http://127.0.0.1:12345"};
+  executable:"/Users/luckye/.local/share/claude/versions/2.1.296",version:"2.1.296",role_file:join(root,"roles","ideation","role.md"),code_revision:"a".repeat(40),source_snapshot:join(root,"source.tar.gz"),api_url:"http://127.0.0.1:12345"};
 const p=claudeLaunch(task,input),checks:any[]=[];
 for(const [name,run] of [
   ["title_disabled_and_demo_removed",()=>{assert.equal((p.env as any).CLAUDE_CODE_DISABLE_TERMINAL_TITLE,"1");assert.equal(Object.hasOwn(p.env,"IS_DEMO"),false);}],

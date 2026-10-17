@@ -14,7 +14,7 @@ const role="只回复 P1_ROLE_SENTINEL\n保留字符：' \"$()\" `literal`。\n"
 writeFileSync(join(root,"roles","ideation","role.md"),role,"utf8");
 const task:any={task_id:"role-fixture",project_id:"role-project",repo:join(root,"repo"),spec_rev:1,base_commit:"a".repeat(40)};
 const input:any={schema:1,root,state:join(root,"state"),task:task.task_id,preset:"ideation",launch:randomUUID(),session:randomUUID(),thread:randomUUID(),
-  executable:"/Users/luckye/.local/share/claude/versions/2.1.296",role_file:join(root,"roles","ideation","role.md"),code_revision:"a".repeat(40),source_snapshot:join(root,"source.tar.gz"),api_url:"http://127.0.0.1:12345"};
+  executable:"/Users/luckye/.local/share/claude/versions/2.1.296",version:"2.1.296",role_file:join(root,"roles","ideation","role.md"),code_revision:"a".repeat(40),source_snapshot:join(root,"source.tar.gz"),api_url:"http://127.0.0.1:12345"};
 const launch=claudeLaunch(task,input);let passed=false,error:string|null=null;
 try {
   const index=launch.argv.indexOf("--append-system-prompt");assert.ok(index>=0);

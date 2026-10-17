@@ -342,7 +342,7 @@ try {
       for (const name of ["home", "claude", "tmp", "shell", "requests", "hooks", "user-data"]) mkdirSync(join(roleRoot, name), { recursive: true });
       writeFileSync(join(roleRoot, "role.md"), "Deterministic executor boundary spy\n");
       const input = { schema: 1, root: scratch, state, task: task.task_id, preset: "executor",
-        launch: randomUUID(), session: randomUUID(), thread: randomUUID(), executable: "/Users/luckye/.local/share/claude/versions/2.1.296",
+        launch: randomUUID(), session: randomUUID(), thread: randomUUID(), executable: "/Users/luckye/.local/share/claude/versions/2.1.296", version: "2.1.296",
         role_file: join(roleRoot, "role.md"), code_revision: "a".repeat(40), source_snapshot: join(scratch, "snapshot.tar.gz"), api_url: "http://127.0.0.1:1", turn_limit: 6 };
       const writes: string[] = [];
       const pty = createRequire(import.meta.url)("node-pty"), original = pty.spawn;
