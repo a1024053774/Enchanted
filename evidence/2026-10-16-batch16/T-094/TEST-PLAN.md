@@ -1,6 +1,6 @@
 # T-094-1 验证边界（2026-10-17）
 
-状态：INCOMPLETE。执行主控已回传真实红态 red-01；修复后真实绿态与真实半成功反例待主控运行。
+状态：INCOMPLETE。主控已回传 red-01、green-01 与 unregistered-01。green-01 为 4 次启动成功、1 次失败有可读诊断；unregistered-01 的真实未命名进程被分类为半成功。具体 busy 根因与独立审查仍未完成，详见 RESULTS.md。
 
 独立预期来自任务卡与 ticket Acceptance。边界夹具不证明真实 Herdr 的时序根因，仅隔离以下可观察缺陷：
 
