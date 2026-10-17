@@ -37,25 +37,6 @@ class CoordinatorScene(CScene):
     def __init__(self,output,signature):
         super().__init__(output);self.signature=signature;self.coordinator=None
 
-    def freeze_sources(self,snapshot):
-        # Match the coordinator's strict file-only source closure. No directory
-        # entries and no dependency/cache trees may enter this archive.
-        tracked=subprocess.check_output(['git','ls-files','-z','--','workbench/src','workbench/app','workbench/bin','workbench/tests'],cwd=SOURCE).decode().split('\0')
-        paths=[SOURCE/name for name in tracked if name and (Path(name).suffix in
-            ['.py','.ts','.mjs','.js','.c','.html','.css','.json'] or name.startswith(('workbench/bin/','workbench/app/')))]
-        paths += [SOURCE/'workbench/package.json',SOURCE/'workbench/package-lock.json',STRUCTURE,
-                  BASE/'prepare-a14.py',BASE/'prepare-rev2-owner.py',BASE/'09b-materials-01/protocol.json',
-                  BASE/'stage-b-a12-ideation-approval-01.json']
-        paths=sorted(set(paths));names=[]
-        with tarfile.open(snapshot,'x:gz') as archive:
-            for path in paths:
-                require(path.is_file() and path.resolve()==path,'regular source path',str(path))
-                name=str(path.relative_to(SOURCE));archive.add(path,arcname=name,recursive=False);names.append(name)
-        with tarfile.open(snapshot) as archive:
-            require(archive.getnames()==names,'unique regular source closure')
-            for path,name in zip(paths,names):require(archive.extractfile(name).read()==path.read_bytes(),'source byte readback',name)
-        return names
-
     def approve(self,p1,stage):
         path=p1/'phases'/stage/'approval.json';value=json.loads(path.read_bytes())
         require(value['approved_by'] is None and value['approval_ref'] is None,'unsigned fresh phase approval')
@@ -64,22 +45,12 @@ class CoordinatorScene(CScene):
         path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');return path
 
     def bind_peer_launch(self,role):
+        # Base setup now binds the real shell/peer manifest before owner checks.
         p1=self.p1s[role];inp=self.inputs[role]
-        peer=json.loads((self.root/'peer'/role/'ready.json').read_bytes())
-        identities=[];commands=[]
-        for _ in range(2):
-            argv=['/bin/ps','-p',str(peer['pid']),'-o','pid=,lstart=,comm=']
-            result=subprocess.run(argv,env={**self.env,'LC_ALL':'C','LANG':'C'},capture_output=True,text=True,timeout=5)
-            identities.append(identity_from_ps(peer['pid'],result.returncode,result.stdout,result.stderr))
-            commands.append({'argv':argv,'exit':result.returncode,'stdout':result.stdout,'stderr':result.stderr})
-        require(identities[0] is not None and identities[0]==identities[1],'stable actual peer comm identity')
-        info=self.gate('pane_process_info','--thread',inp['thread'])
-        require(info['leader']==peer['pid'],'actual peer leader')
-        launch=p1/'rehearsal-launch';launch.mkdir()
-        save(launch/'process-manifest.json',{'launch':inp['launch'],'session':inp['session'],
-            'shell_pid':info['shell_pid'],'cli':identities[0],'scope':'actual deterministic PTY peer; not a Claude process'})
-        save(p1/'launch-binding.json',{'launch_label':launch.name,'process_manifest':str(launch/'process-manifest.json')})
-        save(launch/'identity-probes.json',{'scope':'real ps twice; exact format read by P1 same_cli','commands':commands})
+        binding=json.loads((p1/'launch-binding.json').read_bytes())
+        manifest=json.loads(Path(binding['process_manifest']).read_bytes())
+        require(manifest['launch']==inp['launch'] and manifest['session']==inp['session'] and
+            manifest['shell_pid']!=manifest['cli']['pid'],'actual nine-process launch binding')
 
     def prepare_C_I1(self):
         inp=self.inputs['ideation'];p1=self.p1s['ideation'];folder=p1/'phases/C-I1'

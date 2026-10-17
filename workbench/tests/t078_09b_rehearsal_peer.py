@@ -85,11 +85,16 @@ def main():
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--role', choices=['ideation', 'executor'], required=True)
     parser.add_argument('--structure', type=Path, required=True)
+    parser.add_argument('--session-id', required=True)
+    parser.add_argument('--debug-file', type=Path, required=True)
     args = parser.parse_args()
     root = args.root.resolve(); role = args.role
     if not root.name.startswith('t078-2-a14-rehearsal-') or root.parent != Path('/private/tmp'):
         raise RuntimeError('owned_scratch_required')
     log = root / 'peer' / role; log.mkdir(parents=True)
+    if args.session_id != os.environ['A2A_SESSION'] or args.debug_file != root/'roles'/role/'claude-debug.log':
+        raise ValueError('peer_actual_session_or_debug_binding_mismatch')
+    with args.debug_file.open('x',encoding='utf-8') as stream:stream.write('Deterministic Python provider; not Claude Code.\n')
     scene = json.loads((root / 'protocol-plan.json').read_bytes())['scene']
     template = json.loads(args.structure.read_bytes())
     hook_argv = shlex.split(os.environ['T078_REHEARSAL_HOOK'])
@@ -183,7 +188,7 @@ def main():
         print('\r\nT078_REHEARSAL_IDLE\r\n', flush=True)
 
     original = termios.tcgetattr(0); tty.setraw(0)
-    save(log / 'ready.json', {'pid': os.getpid(), 'role': role, 'fixture': True})
+    save(log / 'ready.json', {'pid': os.getpid(), 'ppid':os.getppid(), 'session':args.session_id,'role': role, 'fixture': True})
     print('T078_REHEARSAL_READY\r\n\x1b[?2004h', end='', flush=True)
     buffer = b''
     try:

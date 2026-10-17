@@ -1625,3 +1625,20 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 [本地静态/元数据/解析核对](09c-attempt-2-diag-01/local-check-01/result.json) PASS：UTF8/AST/命令语法、原owner字段不变、两份ps解析夹具、重复output零ps/原字节不变。实际ps、合法子进程分类、去豁免后的真实九进程排练及反例仍INCOMPLETE。只有 #364 要求的PID/完整命令/父链/时间及工具归属证明到位，才可写最小允许描述；未知子进程、错误父链/参数、复用PID、原节点改变、竞态仍拒绝。当前按该证据门停下，不自行放宽。
 
 [第2场回收材料](09c-attempt-2-closeout-materials-01/README.md) 已写、未运行：仅原九PID/argv/lstart与原图；capture-owner只扩展证据树，原身份/claim/source不变。先活场景全量脱敏POST/hook与一致行导出、外置tar逐成员字节读回/独立签字，再认证daemon_stop/panes.shutdown、两API各一次SIGTERM、确认退出、停后只验文件并删root。**原strict拓扑未过时仍BLOCKED，不能为清理绕过它。**第三场[最小计划](09c-attempt-2-diag-01/ATTEMPT-3-PLAN.md)只列前置、顺序和不变预算4/7+1/1；未冻结、未签、未创建现场，状态NO_GO。整票仍INCOMPLETE。
+
+
+## 主控 #365：独立真实Claude三时点拓扑探针候选；删除排练豁免
+
+主控沙箱外 [current-topology-01](09c-attempt-2-diag-01/current-topology-01/result.json) 两次采样PASS：原daemon七后代、extra/missing均空、零信号/零按键。本轮保留这份原件；当前树已无额外成员不等于找回故障时的PID/argv/创建者。caffeinate仍为待证假设，没有写入任何允许项，第2场不操作、第3场NO_GO。
+
+本轮仅改测试工具：[候选说明](09c-topology-fix-01/README.md)。拓扑拒绝前先把本次原始数值ps与stderr落到自有root的独占topology-diagnostics目录，再保存该树/原身份的完整command、comm、lstart、PPID链、时间和差异；消失/竞态如实标INCOMPLETE。标准raw_sources把这份失败证据纳入原件归档。原九身份/节点关系/完整后代集合要求不放宽；不以名字、root子串或“所有CLI后代”放行。
+
+`check_identities` 的两处REHEARSAL豁免已删除，REHEARSAL owner现在拒绝；所有运行都核对原收据、九标签、两次身份、全量拓扑，标签顺序也不能逃过。确定性真实链改为真实zsh→Python peer两组，并经同一原Stage A/B1/ready/owner producer与validator。manifest明确标Python，不填假Claude PID；新增真实P1 stop-before-cli前置与同一B1原身份/批准/屏幕计划检查。完整链回收改走同一capture→逐成员tar字节读回→独立重数→finish/拓扑→正常daemon_stop/API各一次SIGTERM→删根，停后SQLite读0。新链未跑，不能把这段实现说明记成实际九进程PASS。
+
+本地旧入口红态 [guard-red-01](09c-topology-fix-01/guard-red-01/result.json) 为scene豁免，旧拒绝缺原ps [diagnostic-red-01](09c-topology-fix-01/diagnostic-red-01/result.json)与Git旧源重放均命中；[新入口](09c-topology-fix-01/guard-green-04/result.json)和21项metadata反例PASS，去掉receipt/九进程/topology/失败快照的[四变异](09c-topology-fix-01/guard-mutants-02/result.json)全部在新断言失败。ps运输层是明确夹具，不是实际子进程证据。原43项工具回归PASS，纯Handler离线回归第二次PASS；第一次因unit API-ready重复建文件失败保留。生产ready原件不改，fixture改为核对其原producer字段。第一次变异准备的字符串匹配失误亦保留，不计有效红态。新的probe入口五项拒绝/重复字节/时点记账PASS，Python AST与TS语法PASS，所有这些检查没有启动场景、端口、真实角色或模型。
+
+[检查差异落实表](09c-topology-fix-01/PARITY.md)保留逐项范围与尚缺证据：直接scene豁免已消除；实际九进程/job-control/归档停止路径待沙箱外整链；真实供应商version/help/六键/空提示符由单独真实Claude探针取证，不让Python peer假冒供应商。scratch本身未冒称通过全部四历史回归收据的生产Stage A冻结门；若要求该额外包等价，仍需当前工具回归后重绑，不能伪造历史PASS。新完整排练与本差异的独立审查均INCOMPLETE。
+
+三时点探针只准备、未运行：新root、原生daemon/受管确定性目标、共用协议假API，标准B1→run_t078_p1→claudeLaunch/controller_start启动**一个**真实Claude2.1.296角色，隔离HOME/config/tmp、模型0；不启executor Claude或额外Codex。主控先审签B1/逐屏六键，在空提示符采10秒；注入一条批准的test-simulated-user请求后，利用现有phase-approval屏障保持同一真实POST未返回，采15秒；再只发布该响应的批准、到真实Bash PermissionRequest，采15秒。**许可Enter上限0、工具不执行、预算1根/1POST**。每个采样保存全图原件和本树详情、出现/消失观察边界；有vanished/竞态就保留不完整证据，不能猜argv或生成允许项。取证后root保留，单角色七进程回收需按实际owner另批，不为凑九进程额外启动角色。
+
+源码提交后由[只写材料脚本](09c-topology-fix-01/write-materials.py)从实际git提交号生成未签setup批准与精确分阶段命令；完整九进程排练、pending/startup/worker受影响回归命令一并交主控。全部未运行，不冻结第3场，也不将当前候选当作09C验收完成。

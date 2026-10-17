@@ -18,6 +18,7 @@ import subprocess
 import tarfile
 import time
 import traceback
+import uuid
 
 from p1_processes import identity_from_ps
 
@@ -53,7 +54,7 @@ def owned_root(owner):
     root = Path(owner['root'])
     require(root.is_dir() and not root.is_symlink() and root == root.resolve(), 'root_realpath_required')
     require(root.parent == Path('/private/tmp') and root.name.startswith('t078-'), 'owned_scratch_root_required')
-    require(owner['scene'] in ('A16', '09C', 'REHEARSAL'), 'scene_required')
+    require(owner['scene'] in ('A16', '09C'), 'scene_required')
     require(bool(owner['source_revision']) and bool(owner['target_binding']), 'source_and_target_binding_required')
     for key in ('task_id', 'attempt_id', 'session_id', 'fence', 'spec_rev', 'thread_id', 'workspace', 'launch'):
         require(bool(owner['target_binding'].get(key)), 'target_binding_required:' + key)
@@ -154,6 +155,8 @@ def raw_sources(owner):
     root = owned_root(owner); files = {}
     trees = [(f'roles/{role}/{name}', root / 'roles' / role / name)
              for role in ROLES for name in ('http-exchanges', 'hooks')]
+    if (root / 'topology-diagnostics').exists():
+        trees.append(('topology-diagnostics', root / 'topology-diagnostics'))
     for index, item in enumerate(owner.get('evidence_trees', [])):
         path = Path(item)
         require(path.is_absolute() and path.is_dir() and path == path.resolve(), 'evidence_tree_realpath_required')
@@ -378,23 +381,25 @@ class NativeRuntime:
         return found
 
     def topology(self):
-        result = subprocess.run(['/bin/ps', '-axo', 'pid=,ppid=,pgid=,tpgid='],
-                                capture_output=True, text=True, timeout=5)
-        require(result.returncode == 0 and not result.stderr.strip(), 'process_graph_read_failed')
-        graph = {}
-        for line in result.stdout.splitlines():
-            pid, ppid, pgid, tpgid = map(int, line.split())
-            graph[pid] = {'ppid': ppid, 'pgid': pgid, 'tpgid': tpgid}
-        expected = self.owner['process_graph']
-        for label, identity in self.owner['processes'].items():
-            require(graph.get(identity['pid']) == expected[label], 'process_graph_changed:' + label)
-        daemon = self.owner['processes']['daemon']['pid']; descendants = {daemon}
-        while True:
-            expanded = descendants | {pid for pid, item in graph.items() if item['ppid'] in descendants}
-            if expanded == descendants: break
-            descendants = expanded
-        managed = {item['pid'] for label, item in self.owner['processes'].items() if not label.endswith('_api')}
-        require(descendants == managed, 'unexpected_daemon_descendants')
+        from t078_process_tree import graph_rows, descendants, snapshot
+        result = None
+        try:
+            result = subprocess.run(['/bin/ps', '-axo', 'pid=,ppid=,pgid=,tpgid='],
+                                    capture_output=True, text=True, timeout=5)
+            require(result.returncode == 0 and not result.stderr.strip(), 'process_graph_read_failed')
+            graph = graph_rows(result.stdout)
+            expected = self.owner['process_graph']
+            for label, identity in self.owner['processes'].items():
+                require(graph.get(identity['pid']) == expected[label], 'process_graph_changed:' + label)
+            actual = descendants(graph, self.owner['processes']['daemon']['pid'])
+            managed = {item['pid'] for label, item in self.owner['processes'].items() if not label.endswith('_api')}
+            require(actual == managed, 'unexpected_daemon_descendants')
+        except Exception as error:
+            folder = Path(self.owner['root']) / 'topology-diagnostics' / uuid.uuid4().hex
+            if result is None:
+                result = subprocess.CompletedProcess(['/bin/ps','-axo','pid=,ppid=,pgid=,tpgid='], -1, '', repr(error))
+            snapshot(self.owner, folder, graph_result=result, reason=str(error))
+            raise
 
     def normal_stop(self):
         root = Path(self.owner['root']); source = Path(self.owner['source'])
@@ -417,17 +422,16 @@ class NativeRuntime:
 
 def check_identities(owner, runtime, labels=None):
     expected = owner['processes']; labels = list(expected) if labels is None else labels
-    if owner['scene'] != 'REHEARSAL':
-        validate_owner_receipts(owner)
-        require(set(expected) == {'daemon', 'target_shell', 'target_leader', 'ideation_shell', 'ideation_cli',
-                                 'executor_shell', 'executor_cli', 'ideation_api', 'executor_api'}, 'nine_owned_processes_required')
+    validate_owner_receipts(owner)
+    require(set(expected) == {'daemon', 'target_shell', 'target_leader', 'ideation_shell', 'ideation_cli',
+                             'executor_shell', 'executor_cli', 'ideation_api', 'executor_api'}, 'nine_owned_processes_required')
     require(len({item['pid'] for item in expected.values()}) == len(expected), 'duplicate_owned_PID')
     for _ in range(2):
         actual = runtime.identities()
         for label in labels:
             require(actual.get(label) is not None, 'owned_process_not_alive:' + label)
             require(actual.get(label) == expected[label], 'process_identity_changed:' + label)
-    if labels == list(expected) and owner['scene'] != 'REHEARSAL': runtime.topology()
+    if set(labels) == set(expected): runtime.topology()
 
 
 def finish(owner, approval, captured, independent, output, runtime, dry_run=False):

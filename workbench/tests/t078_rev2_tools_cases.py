@@ -48,8 +48,10 @@ def fixture(parent):
                  for index, name in enumerate(('daemon', 'ideation_api', 'executor_api'))}
     target = {name: 'fixture-' + name for name in ('task_id', 'attempt_id', 'session_id', 'spec_rev', 'thread_id', 'workspace', 'launch')}
     target['fence'] = 1
-    owner = {'scene': 'REHEARSAL', 'root': str(root), 'source_revision': 'unbound-tools-fixture', 'target_binding': target,
+    owner = {'scene': '09C', 'root': str(root), 'source_revision': 'unbound-tools-fixture', 'target_binding': target,
              'processes': processes, 'target_bytes': 'target/received.bin', 'target_baseline': 'target/baseline.bin'}
+    from t078_owner_receipt_fixture import write_owner_receipts
+    write_owner_receipts(owner,parent/'unit-owner-receipts')
     stage = parent / 'redacted'; raw.capture(owner, stage)
     archive = parent / 'external' / 'scene.tar.gz'; receipt = raw.archive_capture(owner, stage, archive)
     approval = {**owner, 'approved_by': 'executor', 'approval_ref': 'deterministic rehearsal only', 'archive': str(archive)}
@@ -62,9 +64,14 @@ class Lifecycle:
     def __init__(self, owner, tail=False):
         self.owner = owner; self.current = copy.deepcopy(owner['processes']); self.calls = []; self.tail = tail
     def identities(self): return copy.deepcopy(self.current)
+    def topology(self):
+        # This file tests archive ordering, not real ps. The real-chain test
+        # uses NativeRuntime and cannot use this explicit transport spy.
+        check(len(self.current)==9,'all original metadata labels reach topology')
     def normal_stop(self):
         self.calls.append('daemon_stop')
-        self.current['daemon'] = None
+        for name in self.current:
+            if not name.endswith('_api'):self.current[name]=None
         # If cleanup reads SQLite after this point it will fail the green.
         shutil.rmtree(Path(self.owner['root']) / 'state')
         if self.tail:

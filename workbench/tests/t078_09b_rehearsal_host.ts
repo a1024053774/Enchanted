@@ -1,7 +1,7 @@
 // Production daemon/relay/gates with a real PTY deterministic provider boundary.
 // No vendor executable is spawned. The worker target remains the native receiver.
 import { createRequire } from "node:module";
-import { readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -25,7 +25,7 @@ process.env.A2A_OPERATOR_CREDENTIAL = join(scratch, "operator.json");
 createOperatorCredential(state);
 const pty = createRequire(import.meta.url)("node-pty"), spawn = pty.spawn;
 let panes: any;
-const actualPeers = new Map<string, { pid: number; role: string; tail: string; start: string | null }>();
+const actualPeers = new Map<string, { shell: number; role: string; tail: string; start: string | null }>();
 pty.spawn = (file: string, args: string[], options: any) => {
   if (options.env.A2A_ROLE !== "controller") {
     if (file !== "/bin/zsh" || options.env.A2A_ROLE !== "worker" || !args.some(arg => arg.includes(receiver))) {
@@ -37,10 +37,14 @@ pty.spawn = (file: string, args: string[], options: any) => {
   const commands = ["UserPromptSubmit", "Stop", "PermissionRequest"].map(
     event => record.settings.hooks[event][0].hooks[0].command);
   if (!commands.every(command => command === commands[0])) throw new Error("native hook commands differ");
-  const peerArgs = ["-B", peer, "--root", scratch, "--role", record.preset, "--structure", resolve(structureFile)];
-  const terminal = spawn("/usr/bin/python3", peerArgs, { ...options, env: { ...options.env,
+  const peerArgs = ["-B", peer, "--root", scratch, "--role", record.preset, "--structure", resolve(structureFile),
+    "--session-id", record.session, "--debug-file", join(scratch,"roles",record.preset,"claude-debug.log")];
+  const quote = (arg: string) => "'" + arg.replaceAll("'", "'\\''") + "'";
+  // Keep a real shell parent. The command after Python prevents tail exec.
+  const command = ["/usr/bin/python3", ...peerArgs].map(quote).join(" ") + "; peer_status=$?; exit $peer_status";
+  const terminal = spawn("/bin/zsh", ["-f","-i","-c",command], { ...options, env: { ...options.env,
     T078_REHEARSAL_HOOK: commands[0], T078_REHEARSAL_NODE: process.execPath, T078_REHEARSAL_CLI: cli } });
-  actualPeers.set(record.id, { pid: terminal.pid, role: record.preset, tail: peerArgs.join(" "), start: null });
+  actualPeers.set(record.id, { shell: terminal.pid, role: record.preset, tail: peerArgs.join(" "), start: null });
   writeFileSync(join(scratch, "peer-identities.json"), JSON.stringify([...actualPeers.entries()].map(
     ([launch, value]) => ({ launch, ...value })), null, 2) + "\n");
   return terminal;
@@ -55,19 +59,24 @@ await serve(state, launchConfig, (root, value) => {
     const pane = value.get(thread);
     if (pane.record.role !== "controller") return original(thread);
     const owned = actualPeers.get(pane.record.id);
-    if (!owned || owned.pid !== pane.pty.pid) throw new Error("provider peer binding changed");
+    if (!owned || owned.shell !== pane.pty.pid) throw new Error("provider peer binding changed");
+    const readyFile=join(scratch,"peer",owned.role,"ready.json");
+    if (!existsSync(readyFile)) return {shell_pid:owned.shell,leader:null,processes:[],failed:pane.failed};
+    const actual=JSON.parse(readFileSync(readyFile,"utf8"));
+    if (actual.role!==owned.role || actual.session!==pane.record.session) throw new Error("provider peer session changed");
+    const pid=actual.pid;
     const probe = async () => {
-      const result = await exec("/bin/ps", ["-ww", "-p", String(owned.pid), "-o", "lstart=,command="],
+      const result = await exec("/bin/ps", ["-ww", "-p", String(pid), "-o", "ppid=,lstart=,command="],
         { env: { ...process.env, LC_ALL: "C", LANG: "C" } });
-      const match = /^\s*(\w{3}\s+\w{3}\s+\d+\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+(.+?)\s*$/.exec(result.stdout);
-      if (!match || !match[2].endsWith(" " + owned.tail)) throw new Error("provider peer argv changed");
-      return match[1];
+      const match = /^\s*(\d+)\s+(\w{3}\s+\w{3}\s+\d+\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+(.+?)\s*$/.exec(result.stdout);
+      if (!match || Number(match[1])!==owned.shell || !match[3].endsWith(" " + owned.tail)) throw new Error("provider peer argv/parent changed");
+      return match[2];
     };
     const first = await probe(), second = await probe();
     if (first !== second || (owned.start !== null && owned.start !== first)) throw new Error("provider peer lifetime changed");
     owned.start = first;
-    return { shell_pid: owned.pid, leader: owned.pid, native_session: pane.native,
-      session_ended: false, processes: [{ pid: owned.pid, command: peer }], failed: pane.failed };
+    return { shell_pid: owned.shell, leader: pid, native_session: pane.native,
+      session_ended: false, processes: [{ pid: owned.shell, command: "/bin/zsh" },{ pid, command: peer }], failed: pane.failed };
   };
   return new A2AGates(root, value);
 });

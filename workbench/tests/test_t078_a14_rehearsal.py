@@ -78,7 +78,7 @@ def preflight():
 
 
 class Scene:
-    def __init__(self, output, kind):
+    def __init__(self, output, kind, *, vendor_processes_allowed=False):
         self.output = output; output.mkdir()
         self.kind = kind; self.root = Path(tempfile.mkdtemp(prefix='t078-2-a14-rehearsal-', dir='/private/tmp')).resolve()
         self.state = self.root / 'state'; self.children = []; self.commands = []; self.number = 0
@@ -93,7 +93,8 @@ class Scene:
                         GIT_CONFIG_KEY_1='commit.gpgsign', GIT_CONFIG_VALUE_1='false', PYTHONDONTWRITEBYTECODE='1',
                         GIT_AUTHOR_NAME='T078 rehearsal', GIT_AUTHOR_EMAIL='fixture@example.invalid',
                         GIT_COMMITTER_NAME='T078 rehearsal', GIT_COMMITTER_EMAIL='fixture@example.invalid')
-        save(output / 'owner.json', {'root': str(self.root), 'kind': kind, 'harness_pid': os.getpid(), 'no_vendor_process': True})
+        save(output / 'owner.json', {'root': str(self.root), 'kind': kind, 'harness_pid': os.getpid(),
+             'no_vendor_process': not vendor_processes_allowed})
 
     def command(self, argv, timeout=30):
         self.number += 1; name = f'command-{self.number:03d}'

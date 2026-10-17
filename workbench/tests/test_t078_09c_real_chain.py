@@ -51,25 +51,31 @@ def preflight():
 
 class CScene(Scene):
     def __init__(self,out):
-        super().__init__(out,'09C');self.p1s={};self.inputs={}
+        super().__init__(out,'09C');self.p1s={};self.inputs={};self.signature='REHEARSAL ONLY main #365 deterministic native chain'
 
     def approve(self,p1,stage):
         path=p1/'phases'/stage/'approval.json';value=json.loads(path.read_bytes())
-        value.update(approved_by='executor',approval_ref='Main #355 deterministic scratch rehearsal '+stage)
+        value.update(approved_by='executor',approval_ref=self.signature+' / '+stage)
         path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');return path
 
     def freeze_sources(self,snapshot):
-        with tarfile.open(snapshot,'x:gz') as arc:
-            arc.add(SOURCE/'workbench/src',arcname='workbench/src')
-            arc.add(SOURCE/'workbench/app',arcname='workbench/app')
-            for name in ['package.json','package-lock.json']:
-                arc.add(SOURCE/'workbench'/name,arcname='workbench/'+name)
-            arc.add(STRUCTURE,arcname=str(STRUCTURE.relative_to(SOURCE)))
-            for path in sorted(TESTS.iterdir()):
-                if path.is_file() and path.suffix in ['.py','.ts','.mjs','.c']:
-                    arc.add(path,arcname='workbench/tests/'+path.name)
-            for path in [BASE/'prepare-a14.py',BASE/'09b-materials-01/protocol.json',BASE/'stage-b-a12-ideation-approval-01.json']:
-                arc.add(path,arcname=str(path.relative_to(SOURCE)))
+        # Match the coordinator's strict file-only source closure. No directory
+        # entries and no dependency/cache trees may enter this archive.
+        tracked=subprocess.check_output(['git','ls-files','-z','--','workbench/src','workbench/app','workbench/bin','workbench/tests'],cwd=SOURCE).decode().split('\0')
+        paths=[SOURCE/name for name in tracked if name and (Path(name).suffix in
+            ['.py','.ts','.mjs','.js','.c','.html','.css','.json'] or name.startswith(('workbench/bin/','workbench/app/')))]
+        paths += [SOURCE/'workbench/package.json',SOURCE/'workbench/package-lock.json',STRUCTURE,
+                  BASE/'prepare-a14.py',BASE/'prepare-rev2-owner.py',BASE/'09b-materials-01/protocol.json',
+                  BASE/'stage-b-a12-ideation-approval-01.json']
+        paths=sorted(set(paths));names=[]
+        with tarfile.open(snapshot,'x:gz') as archive:
+            for path in paths:
+                require(path.is_file() and path.resolve()==path,'regular source path',str(path))
+                name=str(path.relative_to(SOURCE));archive.add(path,arcname=name,recursive=False);names.append(name)
+        with tarfile.open(snapshot) as archive:
+            require(archive.getnames()==names,'unique regular source closure')
+            for path,name in zip(paths,names):require(archive.extractfile(name).read()==path.read_bytes(),'source byte readback',name)
+        return names
 
     def setup(self):
         (self.root/'repo/value.txt').write_text('09C deterministic baseline\n',encoding='utf-8')
@@ -109,9 +115,15 @@ class CScene(Scene):
         wait_for('target-received',lambda:(self.root/'target/home/received.bin').is_file())
         target=wait_for('target-leader',lambda:self.target_info(claim['thread_id']))
         self.request_dir=Path(next(json.loads(r['data'])['request_dir'] for r in self.rows('launch_records') if json.loads(r['data']).get('role')=='worker'))
-        self.ready={'status':'READY_FOR_APPROVAL','root':str(self.root),'task':task,'scene':'09C','source_revision':revision,
+        original_processes={}
+        for label,pid in [('daemon',self.host.pid),('target_shell',target['shell_pid']),('target_leader',target['leader'])]+[(a['role']+'_api',a['pid']) for a in apis]:
+            first=process_command(pid);require(first is not None and process_command(pid)==first,'original Stage A process identity',label)
+            original_processes[label]=first
+        for api in apis:api['lstart']=original_processes[api['role']+'_api']['started']
+        self.ready={'status':'READY_FOR_APPROVAL','stage':'A','root':str(self.root),'task':task,'scene':'09C','source_revision':revision,'original_processes':original_processes,
                     'target_binding':claim,'target_process':target,'api_processes':apis,'daemon':{'pid':self.host.pid,'root':str(self.state)}}
         self.stage_a=self.output/'stage-a';self.stage_a.mkdir();save(self.stage_a/'readiness.json',self.ready)
+        save(self.stage_a/'result.json',{'status':'READY_FOR_APPROVAL','stage':'A','root':str(self.root),'attempt':claim})
         self.packet=self.output/'packet';self.packet.mkdir()
         static={'scene':'09C','revision':revision,'protocol':True}
         if source_paths is not None:static['source_paths']=source_paths
@@ -124,6 +136,20 @@ class CScene(Scene):
                 '--prompt-file',BASE/'09c-materials-01/i1-prompt.txt','--stage-a',self.stage_a,'--packet',self.packet,'--output',p1])
             inp=json.loads((p1/'input.json').read_bytes());api=next(a for a in apis if a['role']==role)
             save(p1/'runtime-input.json',{**inp,'api_url':api['ready']['api_url']})
+            # Same B1 receipt/approval and P1 launch-prefix checks. The only
+            # replaced boundary below is the vendor executable in node-pty.
+            import importlib.util
+            spec=importlib.util.spec_from_file_location('rehearsal_stage_b',BASE/'run-09b-stage-b.py')
+            module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+            binding=module.read_stage_a_binding(self.stage_a)
+            approval=json.loads((p1/'stage-b-approval.json').read_bytes())
+            approval.update(approved_by='executor',approval_ref=self.signature)
+            module.validate_role_approval(approval,binding,self.packet,role,'B1')
+            save(p1/'rehearsal-B1-approval.json',approval)
+            self.command([sys.executable,'-B',TESTS/'run_t078_p1.py','--materials',p1,'--phase','launch',
+                '--label','rehearsal-launch-prefix','--reuse-stage-a','--reuse-api-root',self.root/'roles'/role,
+                '--reuse-readiness-file',self.stage_a/'readiness.json','--stop-before-cli'])
+            require(json.loads((p1/'rehearsal-launch-prefix/result.json').read_bytes())['stop_before_cli'] is True,'real P1 prefix gate')
             self.gate('controller_start','--task',task,'--manifest',p1/'runtime-input.json')
             wait_for('actual peer ready',lambda:(self.root/'peer'/role/'ready.json').is_file())
             save(p1/'readiness.json',{'launch':inp['launch'],'session':inp['session'],'confirmed_by':'executor','readiness':'confirmed',
@@ -137,26 +163,31 @@ class CScene(Scene):
             self.phase_c(stage,'arm','armed-01')
 
     def bind_owner(self):
-        plan=json.loads((self.root/'protocol-plan.json').read_bytes());claim=self.ready['target_binding']
-        peer=json.loads((self.root/'peer-identities.json').read_bytes())
-        ids={'daemon':self.host.pid,'target_shell':self.ready['target_process']['shell_pid'],'target_leader':self.ready['target_process']['leader']}
-        ids.update({a['role']+'_api':a['pid'] for a in self.ready['api_processes']})
-        ids.update({value['role']+'_cli':value['pid'] for value in peer})
-        processes={k:process_command(pid) for k,pid in ids.items()}
-        require(all(processes.values()),'real owned process lifetimes',processes)
-        target={k:claim[k] for k in ['task_id','attempt_id','session_id','fence','spec_rev','thread_id','workspace']}
-        target['launch']=claim['runtime_identity']['launch']
-        owner={'scene':'REHEARSAL','root':str(self.root),'source':str(SOURCE),'source_revision':self.ready['source_revision'],
-               'target_binding':target,'claim_binding':claim,'processes':processes,
-               'roles':{r:{'launch':i['launch'],'session':i['session']} for r,i in self.inputs.items()}}
-        save(self.root/'rehearsal-owner.json',owner);check_identities(owner,NativeRuntime(owner))
-        plan['owner_file']=str(self.root/'rehearsal-owner.json')
-        plan['target_identity']={**target,'shell_pid':ids['target_shell'],'leader_pid':ids['target_leader'],
-            'native_session':claim['runtime_identity']['native_session'],'lstart':processes['target_leader']['started']}
-        self.target_identity=plan['target_identity']
-        (self.root/'protocol-plan.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-        save(self.output/'identity-seam.json',{'scope':'7 real processes; verified deterministic PTY provider replacement, not nine-process Claude evidence',
-             'roles':self.inputs,'target':plan['target_identity'],'processes':processes})
+        # Same owner producer and validator as live scenes; nine real lifetimes.
+        # The manifest explicitly names Python, never a fictional Claude PID.
+        from p1_processes import identity_from_ps
+        for role,inp in self.inputs.items():
+            p1=self.p1s[role];peer=json.loads((self.root/'peer'/role/'ready.json').read_bytes())
+            info=self.gate('pane_process_info','--thread',inp['thread'])
+            identities=[]
+            for _ in range(2):
+                result=subprocess.run(['/bin/ps','-p',str(peer['pid']),'-o','pid=,lstart=,comm='],
+                    env={**self.env,'LC_ALL':'C','LANG':'C'},capture_output=True,text=True,timeout=5)
+                identities.append(identity_from_ps(peer['pid'],result.returncode,result.stdout,result.stderr))
+            require(identities[0] is not None and identities[0]==identities[1],'stable real peer lifetime')
+            require(info['leader']==peer['pid'] and info['shell_pid']!=peer['pid'] and peer['ppid']==info['shell_pid'],'real shell parent distinct from peer')
+            launch=p1/'rehearsal-launch';launch.mkdir()
+            save(launch/'process-manifest.json',{'launch':inp['launch'],'session':inp['session'],
+                'shell_pid':info['shell_pid'],'cli':identities[0],'provider_kind':'deterministic Python PTY peer'})
+            save(p1/'launch-binding.json',{'launch_label':launch.name,'process_manifest':str(launch/'process-manifest.json')})
+        owner_file=self.root/'raw-owner.json'
+        self.command([sys.executable,'-B',BASE/'prepare-rev2-owner.py','--mode','owner','--stage-a',self.stage_a,
+            '--packet',self.packet,'--ideation',self.p1s['ideation'],'--executor',self.p1s['executor'],'--output',owner_file])
+        owner=json.loads(owner_file.read_bytes())
+        check_identities(owner,NativeRuntime(owner))
+        plan=json.loads((self.root/'protocol-plan.json').read_bytes());self.target_identity=plan['target_identity']
+        save(self.output/'identity-seam.json',{'scope':'nine real processes; common original receipts and topology gate; Python provider, not Claude',
+            'owner_file':str(owner_file),'processes':owner['processes'],'process_graph':owner['process_graph']})
 
     def phase_c(self,stage,mode,label,spawn=False):
         p1=self.p1s['executor' if stage=='C-E1' else 'ideation'];folder=p1/'phases'/stage
@@ -306,45 +337,37 @@ class CScene(Scene):
         return {'status':'PASS','POST':posts,'roots':roots,'scene_age_ms':elapsed,'model_turns':0}
 
     def cleanup(self):
-        # Snapshot the live DB, including WAL, before authenticated stop. Never
-        # reopen the live database after daemon_stop.
-        details={'status':'INCOMPLETE','root':str(self.root),'post_stop_SQLite_reads':0,'scratch_removed':False}
-        clock_origin=self.root/'clock-origin.json'
-        if clock_origin.is_file():
-            retained=self.output/'clock-origin.json'
-            with retained.open('xb') as stream:stream.write(clock_origin.read_bytes())
-            details['clock_origin']=str(retained)
-        if (self.state/'state.sqlite3').exists():
-            if self.request_dir is None:
-                workers=[json.loads(row['data']) for row in self.rows('launch_records') if json.loads(row['data']).get('role')=='worker']
-                if workers:self.request_dir=Path(workers[0]['request_dir'])
-            directory=self.output/'sqlite';directory.mkdir()
-            with closing(sqlite3.connect((self.state/'state.sqlite3').as_uri()+'?mode=ro',uri=True)) as src:
-                with closing(sqlite3.connect(directory/'state.sqlite3')) as dst:src.backup(dst)
-            with closing(sqlite3.connect(directory/'state.sqlite3')) as db:require(db.execute('PRAGMA integrity_check').fetchone()[0]=='ok','SQLite backup integrity')
-            details['sqlite']='live consistent backup includes committed WAL; integrity ok before stop'
-        for name in ['peer','roles']:
-            if (self.root/name).exists():shutil.copytree(self.root/name,self.output/('scratch-'+name),ignore=shutil.ignore_patterns('home','claude','tmp','shell','user-data'))
-        if getattr(self,'host',None) and self.host.poll() is None:self.gate('daemon_stop');self.host.wait(timeout=15)
-        for item in self.children:
-            child=item['child']
-            if item['name'].endswith('-api') and child.poll() is None:child.terminate();child.wait(timeout=3)
-            if not item['name'].endswith('-api') and child.poll() is None:
-                try:child.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    child.terminate();child.wait(timeout=5)
-            require(child.poll() is not None,'owned child exited',item['name'])
-        peers=self.root/'peer-identities.json'
-        if peers.exists():
-            for item in json.loads(peers.read_bytes()):wait_for('peer exited',lambda pid=item['pid']:not process_exists(pid),seconds=5)
-        if self.ready:
-            for pid in [self.ready['target_process']['shell_pid'],self.ready['target_process']['leader']]:wait_for('target exited',lambda pid=pid:not process_exists(pid),seconds=5)
-        for name in ['peer','roles']:
-            if (self.root/name).exists():shutil.copytree(self.root/name,self.output/('after-stop-'+name),ignore=shutil.ignore_patterns('home','claude','tmp','shell','user-data'))
-        if self.request_dir and self.request_dir.exists():
-            require(self.request_dir.parent==Path('/private/tmp') and self.request_dir.name.startswith('a2a-requests-'),'owned requests path')
-            shutil.rmtree(self.request_dir)
-        shutil.rmtree(self.root);details.update(status='PASS',scratch_removed=True)
+        import t078_raw_retention as raw
+        owner_file=self.root/'raw-owner.json'
+        require(owner_file.is_file(),'owner must bind before standard cleanup; retain incomplete setup')
+        owner=raw.read_json(owner_file)
+        coordinator=self.output/'coordinator-01'
+        if coordinator.is_dir():owner={**owner,'evidence_trees':owner['evidence_trees']+[str(coordinator)]}
+        # Save committed WAL consistently while the daemon is still alive.
+        database=self.output/'sqlite';database.mkdir()
+        with closing(sqlite3.connect((self.state/'state.sqlite3').as_uri()+'?mode=ro',uri=True)) as src:
+            with closing(sqlite3.connect(database/'state.sqlite3')) as dst:src.backup(dst)
+        with closing(sqlite3.connect(database/'state.sqlite3')) as db:require(db.execute('PRAGMA integrity_check').fetchone()[0]=='ok','SQLite backup integrity')
+        clock=self.root/'clock-origin.json'
+        if clock.exists():
+            with (self.output/'clock-origin.json').open('xb') as stream:stream.write(clock.read_bytes())
+        raw.check_identities(owner,raw.NativeRuntime(owner))
+        staging=self.output/'retention-staging';raw.capture(owner,staging)
+        archive=self.output/'retention-archive/scene.tar.gz'
+        captured=raw.archive_capture(owner,staging,archive);counts=raw.readback(archive)
+        raw.save(self.output/'retention-readback.json',{'archive':str(archive),'counts':counts,'scope':'deterministic rehearsal independent tar recount'})
+        approval={k:owner[k] for k in ['root','scene','source_revision','target_binding','processes']}
+        approval.update(approved_by='executor',approval_ref='REHEARSAL ONLY owner-bound capture/readback before stop',
+            archive=str(archive),retain_failed_scene=True)
+        raw.save(self.output/'cleanup-approval.json',approval)
+        independent={'approved_by':'executor','approval_ref':'REHEARSAL ONLY independent tar recount',
+            'archive':str(archive),'counts':counts}
+        result=raw.finish(owner,approval,captured,independent,self.output/'cleanup-standard',raw.NativeRuntime(owner))
+        require(result['status']=='PASS' and result['root_removed'],'standard archive/readback/finish',result)
+        for child in self.children:
+            child['child'].wait(timeout=5)
+        details={**result,'scratch_removed':True,'SQLite_backup':'live consistent backup includes WAL; integrity ok',
+            'scope':'same raw owner/identity/topology/capture/readback/finish gates as live scenes'}
         save(self.output/'cleanup.json',details);return details
 
 

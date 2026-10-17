@@ -101,7 +101,9 @@ class Rehearsal:
                             events[2]['delta']['partial_json'] = json.dumps({'argv': ['/wrong/legacy/schema']})
                         return events
                     module.anthropic_sse = bad_schema
-                raw.save(api / 'api-ready.json', {'api_url': 'in-memory-handler://' + role})
+                raw.save(api / 'api-ready.json', {'api_url': 'in-memory-handler://' + role,
+                    'pid':os.getpid()+10000+raw.ROLES.index(role),'role':role,'stage':'A',
+                    'protocol':'rev2-raw-c-profile-v1','model_turns':0,'scope':'in-memory unit fixture, not an actual ready process'})
                 continue
             stdout = (output / (role + '.stdout.bin')).open('xb'); stderr = (output / (role + '.stderr.bin')).open('xb')
             child = subprocess.Popen([sys.executable, '-B', str(TESTS / 't078_09b_fake_api.py'), '--root', str(api),
@@ -267,7 +269,7 @@ class Rehearsal:
         # Save a consistent DB backup before shutting down APIs, not WAL-less
         # copying. This DB contains only synthetic rows, no credentials.
         with closing(sqlite3.connect(self.db)) as src, closing(sqlite3.connect(self.out / 'fixture.sqlite3')) as dst: src.backup(dst)
-        owner = {'scene': 'REHEARSAL', 'root': str(self.root), 'source_revision': self.plan['source_revision'],
+        owner = {'scene': '09C', 'root': str(self.root), 'source_revision': self.plan['source_revision'],
                  'target_binding': self.plan['target_binding'], 'target_bytes': 'target/received.bin', 'target_baseline': 'target/baseline.bin'}
         owned_apis = {role + '_api': item[0] for role, item in zip(raw.ROLES, self.children)}
         owner['processes'] = {'daemon': {'pid': os.getpid(), 'started': 'fixture-coordinator', 'command': 'normal-stop spy; never signalled'}}
@@ -276,6 +278,8 @@ class Rehearsal:
         if self.offline:
             for index, role in enumerate(raw.ROLES):
                 owner['processes'][role + '_api'] = {'pid': os.getpid() + 10000 + index, 'started': 'in-memory fixture only', 'command': role + ' handler; no process or signal'}
+        from t078_owner_receipt_fixture import write_owner_receipts
+        write_owner_receipts(owner,self.out/'unit-owner-receipts')
         raw.capture(owner, self.out / 'redacted')
         archived = raw.archive_capture(owner, self.out / 'redacted', self.out / 'archive' / 'scene.tar.gz')
         check(b'NEVER_RETAIN_THIS_HEADER' not in b''.join(path.read_bytes() for path in (self.out / 'redacted').rglob('*') if path.is_file()), 'authorization value absent from originals')
@@ -290,8 +294,9 @@ class Rehearsal:
             def __init__(self): self.stopped = False; self.api_alive = {role + '_api': True for role in raw.ROLES}
             def identities(self):
                 return {label: (None if (self.stopped if label == 'daemon' else
-                        (not self.api_alive[label] if scene.offline else owned_apis[label].poll() is not None)) else value)
+                        ((not self.api_alive[label] if scene.offline else owned_apis[label].poll() is not None) if label.endswith('_api') else self.stopped)) else value)
                         for label, value in owner['processes'].items()}
+            def topology(self):check(len(owner['processes'])==9,'unit fixture reaches topology transport')
             def normal_stop(self):
                 self.stopped = True; shutil.rmtree(scene.root / 'state')
             def terminate(self, label):
@@ -299,7 +304,7 @@ class Rehearsal:
                 else: owned_apis[label].terminate()
             def wait_absent(self, labels, seconds):
                 for label in labels:
-                    if label != 'daemon' and not scene.offline: owned_apis[label].wait(timeout=seconds)
+                    if label.endswith('_api') and not scene.offline: owned_apis[label].wait(timeout=seconds)
                 check(all(self.identities()[label] is None for label in labels), 'owned lifecycle exit')
         cleaned = raw.finish(owner, {**owner, 'approved_by': 'executor', 'approval_ref': 'test-tool fixture cleanup, not live role authority',
                              'archive': archived['archive']}, archived,
