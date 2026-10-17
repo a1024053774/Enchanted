@@ -362,6 +362,19 @@ def terminal_facts(raw, prompt):
     text = raw.decode("utf-8", "replace")
     clean = re.sub(r"\x1b\][^\x07]*?(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]", "", text)
     tail = clean[-32768:].lower()
+    normalized = " ".join(clean.lower().split())
+    denial = r"\b(?:eperm|eacces|operation not permitted|permission denied|denied)\b"
+    operations = (("fork", r"\b(?:fork|vfork)\b"),
+                  ("exec", r"\bexec(?:ve|vpe|vp|v|le|lp|l)?\b"),
+                  ("spawn", r"\b(?:posix_spawnp?|spawnsync|spawn)\b"))
+    # 固定词在 160 字符内相邻仅是终端文字信号，不是 syscall/沙箱归属证明。
+    process_denials = [name for name, pattern in operations if re.search(
+        pattern + r".{0,160}" + denial + "|" + denial + r".{0,160}" + pattern, normalized)]
+    failure = r"(?:failed|unable) to connect"
+    targets = (r"\b" + failure + r"(?: to)?\s+(?:https?://)?([a-z0-9.-]+)(?=$|[\s:/,;!?)\]])",
+               r"(?<![\w.@/-])(?:https?://)?([a-z0-9.-]+)(?::[0-9]+)?\s*:\s*" + failure + r"\b")
+    host_connection_failure = any(match[1].rstrip(".") == "api.anthropic.com"
+                                  for pattern in targets for match in re.finditer(pattern, normalized))
     categories = {"theme": ("choose the text style",),
                   "security_notice": ("security notes:", "please review the security notes"),
                   "workspace_trust": ("do you trust the files", "is this a project you created", "trust this folder"),
@@ -369,8 +382,14 @@ def terminal_facts(raw, prompt):
                   "terminal_setup": ("terminal setup",),
                   "argument_error": ("unknown option", "allowed choices", "invalid argument", "unexpected argument"),
                   "runtime_error": ("error:", "typeerror", "eperm", "permission denied", "operation not permitted"),
-                  "connection_error": ("unable to connect", "connection refused", "econnrefused", "fetch failed")}
-    return {**output_shape(raw), "tail_marker_classes": [name for name, markers in categories.items() if any(m in tail for m in markers)],
+                  "connection_error": ("unable to connect", "failed to connect", "connection refused", "econnrefused", "fetch failed")}
+    classes = [name for name, markers in categories.items() if any(m in tail for m in markers)]
+    if process_denials:
+        classes.append("process_launch_denial")
+    if host_connection_failure:
+        classes.append("official_host_connectivity_failure")
+    return {**output_shape(raw), "tail_marker_classes": classes,
+            "process_denial_operations": process_denials, "official_host_connectivity_failure": host_connection_failure,
             "prompt_echo_seen": prompt in clean, "prompt_like_marker": bool(re.search(r"(?:^|\n)\s*[❯>]\s", clean)),
             "mentions_official_api_host": "api.anthropic.com" in clean.lower(),
             "mentions_spawn": "spawn" in clean.lower()}

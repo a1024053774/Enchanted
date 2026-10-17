@@ -27,6 +27,34 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    def test_terminal_process_denials_and_host_failures_keep_only_categories(self):
+        token, email = "t093-synthetic-" + uuid4().hex, uuid4().hex + "@example.invalid"
+        cases = [
+            (b"fork: Operation not permitted", ["fork"], False),
+            (b"EPERM: posix_spawn /bin/zsh", ["spawn"], False),
+            (b"execve: Permission denied", ["exec"], False),
+            (b"\x1b[31mspawn\x1b[0m /bin/zsh EACCES", ["spawn"], False),
+            (b"Failed to connect to api.anthropic.com", [], True),
+            (b"Unable to connect to\n\x1b[31mapi.anthropic.com\x1b[0m", [], True),
+            (b"api.anthropic.com: unable to connect", [], True),
+            (b"https://api.anthropic.com:443: failed to connect", [], True),
+            (b"Unable to connect to 127.0.0.1:54321.\nAPI documentation: https://api.anthropic.com", [], False),
+            (b"Failed to connect to api.anthropic.com.invalid", [], False),
+            (b"Failed to connect to https://api.anthropic.com@unrelated.invalid", [], False),
+            (b"api.anthropic.com", [], False),
+            (b"fork succeeded; spawn complete; exec ready", [], False),
+            (b"Failed to connect to 127.0.0.1", [], False),
+        ]
+        for text, operations, host_failure in cases:
+            with self.subTest(text=text):
+                raw = text + b"\n" + token.encode() + b" " + email.encode()
+                result = probe.terminal_facts(raw, "unseen prompt " + uuid4().hex)
+                self.assertIn("process_denial_operations", result)
+                self.assertEqual(result["process_denial_operations"], operations)
+                self.assertEqual(result["official_host_connectivity_failure"], host_failure)
+                saved = json.dumps(result)
+                self.assertFalse(token in saved or email in saved, "分类不能保留原文、凭据或邮箱。")
+
     def test_submission_reader_does_not_follow_an_ancestor_symlink(self):
         with tempfile.TemporaryDirectory(prefix="t093-submission-") as temp:
             root, outside = Path(temp) / "root", Path(temp) / "outside"

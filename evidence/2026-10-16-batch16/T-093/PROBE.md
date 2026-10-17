@@ -1,8 +1,9 @@
 # T-093 前置探针交接（2026-10-17）
 
 状态：INCOMPLETE。probe-02 已证明精确钥匙串读取与无 BASE_URL 时的隔离登录识别；
-probe-04 已证明修正后的 profile 可运行同版本 CLI、自定义地址下仍识别登录，但交互式请求未到本地假上游。
-当前逐项路径说明、只读进程核对及 probe-05 命令见 [PROBE-05.md](PROBE-05.md)；旧探针全部保留，未改产品代码。
+probe-05 再次识别登录，交互 CLI 自己退出 1，本地请求为零；现有摘要未确认 fork/exec 拒绝。
+当前 probe-06 保留原权限，只补终端分类，见 [PROBE-06.md](PROBE-06.md)；旧探针全部保留，未改产品代码。
+4 处真实 HOME 引用的说明仍见 [PROBE-05.md](PROBE-05.md)，主控 #67 已表示可接受。
 本轮不做 fs_usage 或归属采集，原始清单差异继续照实记录，验收修订等待构思主控裁定。
 绑定：T-093-1 / attempt a1 / writer s16-t093 / ready_rev 1 / 起点 `61786370428c3ec5f894ea60acccf2695d54c2dc`。
 
@@ -87,11 +88,11 @@ REALITY GATE: INCOMPLETE
 
 ```sh
 python3 workbench/tests/probe_t093_normal_login.py
-python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-05.json
+python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-06.json
 ```
 
 必须使用实际可执行文件（不复制），输出路径必须是已存在目录中的新文件。
-后续运行改为新的 `probe-06.json` 等，保留旧结果。
+后续运行改为新的 `probe-07.json` 等，保留旧结果。
 脚本不打印捕获的 CLI/security 输出，不把凭据放到参数或环境中，不把隔离目录归档进 evidence 或 Git。
 后台假上游及 CLI 子进程都通过 `start_new_session=True` 脱离调用者进程组。
 脚本退出 0 表示探针范围 PASS；退出 2 为 INCOMPLETE 或 NO_GO。产品工作仍等待主控读回探针结果。
