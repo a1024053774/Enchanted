@@ -780,3 +780,11 @@ worker 只读还原（f1518b627）：C-I1 一次 Enter 已写入，stop fe5603b6
 
 worker 修四处测试工具缺陷（11c119da8）；排练又暴露并修两处：许可框命令折行致等待条件不匹配（43d757413）、Python 3.9 time.monotonic 为进程局部起点跨进程不可相减（0da09fb9f，主控用两个独立进程亲自验证，改用 CLOCK_MONOTONIC，1000ms 阈值不变）。真实链排练 real-chain-outside-03 PASS（POST 7/1，scene_age 122.8s）；新计时协调器排练 09c-coordinator-rehearsal-01 PASS（POST 7/1，123.3s，执行 1 次，重复入口拒绝）。产品代码未改。
 第 2 场（材料 09c-attempt-2-materials-02，源码运行基线 dc15dc3f0）：Stage A、两角色 B1/首启/readiness、OWNER-BIND（9 进程）、运行命令生成、C-I3 build、五阶段与 timed-preapproval 签字、ARM 五条、C-I1 INITIALIZE/START（未重复 release）/OBSERVE/PREPARE/SCREEN-CMP（cmp 0）均 PASS，主控签 C-I1 permission。TIMED-RUN 21:06:10 起：C-I1 check 与 Enter PASS（stop 约 21:06:12 创建，计时开始）；C-I2 observe/screen/prepare 完成后，协调器签名前自检 topology 报 unexpected_daemon_descendants，INCOMPLETE，C-I2 未签、零按键，门禁未收到第二次 stop，目标未被中断。topology 检查仅在 scene != REHEARSAL 时运行，两次排练都未覆盖——排练设计缺口。主控判定第 2 场停止，不临场修改、不重跑协调器（单入口不支持续跑），现场保留；派 worker 只读查明后代进程、判断检查过严或真异常、修复并让排练覆盖 topology、给第 2 场回收与第 3 场材料。
+
+## #364–#373 拓扑根因、允许项、两现场回收与 09C 第 3 场 PASS（2026-10-16～17 UTC）
+
+构思主控转达 answer 20261017T010730Z-ideation-answer-001（非用户批准）：第 3 场前须先报（1）拓扑子进程是什么、依据，（2）所有只在非排练场景执行的检查纳入排练。
+(1) 第 2 场现场只读拓扑探针：当前无多余进程（故障时快照缺失）。受控复现（真实 Claude CLI 2.1.296、假 API、模型 0、许可 Enter 0）：idle 无多余；回合进行中（94 采样）与许可等待（95 采样）均有 PID 12761 `caffeinate -i -t 300`，父链 Claude CLI→角色 zsh→daemon。判定合法。窄允许项（e26a7379d）：父为已登记角色 CLI 领导进程、内核路径 /usr/bin/caffeinate、argv 恰为 -i -t N（N≤300）、同角色至多一个、不计入身份；其余全拒；内核检查 PASS（真伪 caffeinate 区分）、22 项正反例 PASS。
+(2) 删除 REHEARSAL 豁免（ce0dba18c）；无豁免九进程排练首跑业务 PASS 但回收 BLOCKED（owned_process_exit_unconfirmed）；受控探针证实"创建者未 reap 的直接子进程呈 Z、被判未退出"，修为排练宿主 wait 原 Popen 后再查缺席（77865b044，不放宽 Z 判定，超时保存 ps 报 PID/PPID/stat）；复跑 parity-rehearsal-02 PASS（POST 7/1、123.4s、拓扑照常、回收 PASS）。残留回收（两只 API 各一次 SIGTERM、root 删）PASS。
+现场回收（主控代签）：拓扑探针 tar 9623 成员、凭据 0、重数 POST 1/0、目标 0 字节，PASS；第 2 场 tar 650 成员、重数 POST 3/11 roots 2/1、凭据样式 8 处经遮蔽核对为字段名 hook_authorization/turn_authorization、目标 0 字节，PASS。主控失误：回收探针时只跑了 04/05 命令文件首行（heredoc 截断、未执行、现场无变化），改为整文件运行。
+第 3 场（09c-attempt-3-materials-01，运行 77865b044）：Stage A、两角色首启与 readiness、owner、build、五阶段与 timed-preapproval 签字、ARM、C-I1 全部 PASS；TIMED-RUN PASS：POST 7/1、roots 4/1、C-I3 wall_age 123,102ms；C-I2 stop_too_early（5,344ms），target 空、no_ack；C-I3 PASS；C-I4/C-E1 target 1b、no_ack；模型 0。clock-origin 已留存。派 worker 提交、出全场核对、准备回收与整票终审 02 请求。
