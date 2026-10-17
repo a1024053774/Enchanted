@@ -35,6 +35,8 @@
 
 候选须已提交，产品和测试相对 HEAD 无未提交差异。主控核对上述清单及脚本后，填本次批准引用，使用全新输出目录和标签：
 
+本轮生产代码冻结候选为 `7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86`；其后的审查报告提交只补文本记录。只读审查结果为 INCOMPLETE，真实读回待本命令取得，见 [tracer-acceptance-audit-01.md](tracer-acceptance-audit-01.md)。
+
 ```sh
 python3 -B evidence/2026-10-16-batch16/T-091/run_tracer.py \
   --source /Users/luckye/Documents/Code/a2a-wt-t091 \

@@ -66,3 +66,7 @@ python3 -B evidence/2026-10-16-batch16/T-091/run_red.py --source /Users/luckye/D
 本地 `pane-ipc-unit-01.json` 的八项 main／preload 边界检查为 PASS；未知 key 的旧 API 被已知坏版本反例拒绝。`driver-selection-unit-01.json` 在给定观察值上验证显式选择、角色／快照绑定、未知／歧义拒绝，旧驱动不拒绝歧义而失败。这些是 VM／给定边界证据，不是 GUI 或后台实跑。脚本语法、TS／TSX 内存转换通过；没有在 worker 中完整构建、启动 Electron 或后台。
 
 待主控核对并运行 [TRACER-RUN.md](TRACER-RUN.md) 的 tracer-01；原图仍只留外置盘。按已确认顺序，取得真实单格读回后再扩三格并重跑新候选的绿态、反例和回归。[REGRESSION-PLAN.md](REGRESSION-PLAN.md) 给出现有 CLI 全命令，并列出旧验收材料／包装器问题，不把它们隐去或记为通过。
+
+基线结果及指针已先提交为 `8df399ca76bedd327364d94ed9cdb4c36f1205cc`，随后单格生产路径与实跑脚本提交为 `7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86`。新开的只读审查会话 `/root/tracer_acceptance_audit` 使用 gpt-6.1-sol／xhigh，按 behavioral-acceptance-review 检查该冻结代码候选；结果为 **INCOMPLETE**，没有确定可达的违规发现，但缺少真实 Electron／PTY 边界证据，不能作 PASS 或全票交付结论。原文见 [tracer-acceptance-audit-01.md](tracer-acceptance-audit-01.md)。审查未改文件，也未启动服务或 GUI。
+
+交接前再次执行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`，rc 0，Problems (0)、Stale living docs (0)；`git diff --check` rc 0。本次三份审查／交接文档回读均为 UTF-8、无 BOM、无替换字符，未改变既有 LF 换行。
