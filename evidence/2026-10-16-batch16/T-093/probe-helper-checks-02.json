@@ -1,0 +1,43 @@
+{
+  "task": "T-093",
+  "status": "PASS",
+  "scope": "合成凭据辅助逻辑与单点变异；不证明真实 CLI、钥匙串、OS 沙箱或产品通路",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0,
+  "records": [
+    {
+      "case": "baseline",
+      "exit_code": 0,
+      "stdout": "{\"status\": \"PASS\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 4, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety) ... ok\ntest_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety) ... ok\ntest_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety) ... ok\ntest_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 2.750s\n\nOK\n"
+    },
+    {
+      "case": "scanner_omits_secrets",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 4, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety) ... ok\ntest_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety) ... ok\ntest_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety) ... ok\ntest_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-g7sy88kh/test_t093_probe_safety.py\", line 28, in test_scanner_detects_sentinel_and_encoded_forms\n    self.assertGreater(probe.secret_hits(\"before \" + value + \" after\", [sentinel]), 0)\nAssertionError: 0 not greater than 0\n\n----------------------------------------------------------------------\nRan 4 tests in 2.739s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "sink_accepts_wrong_bearer",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 4, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety) ... ok\ntest_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety) ... ok\ntest_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety) ... FAIL\ntest_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety) ... ok\n\n======================================================================\nFAIL: test_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-nvht4j8f/test_t093_probe_safety.py\", line 80, in test_real_sink_separates_matching_and_wrong_bearer_without_leak\n    self.assertEqual([row[\"bearer_matches_copied_login\"] for row in observed], [True, False, True])\nAssertionError: Lists differ: [True, True, True] != [True, False, True]\n\nFirst differing element 1:\nTrue\nFalse\n\n- [True, True, True]\n?        ^^^\n\n+ [True, False, True]\n?        ^^^^\n\n\n----------------------------------------------------------------------\nRan 4 tests in 2.775s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "inventory_omits_scope",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 4, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety) ... ok\ntest_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety) ... FAIL\ntest_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety) ... ok\ntest_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety) ... ok\n\n======================================================================\nFAIL: test_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-lwjdqik2/test_t093_probe_safety.py\", line 44, in test_inventory_detects_metadata_change_without_following_symlink\n    self.assertIn(\".claude/history\", changed)\nAssertionError: '.claude/history' not found in []\n\n----------------------------------------------------------------------\nRan 4 tests in 2.688s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "timeout_reported_as_success",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 4, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety) ... FAIL\ntest_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety) ... ok\ntest_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety) ... ok\ntest_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety) ... ok\n\n======================================================================\nFAIL: test_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-q_u_xzwk/test_t093_probe_safety.py\", line 50, in test_capture_stops_a_process_that_ignores_sigterm\n    probe.capture([sys.executable, \"-c\", \"import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(30)\"],\nAssertionError: StopProbe not raised\n\n----------------------------------------------------------------------\nRan 4 tests in 2.780s\n\nFAILED (failures=1)\n"
+    }
+  ]
+}
