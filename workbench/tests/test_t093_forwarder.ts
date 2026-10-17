@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { ClaudeForwarder } from "../src/claudeForwarder.ts";
 import { credentialHits, credentialVariants, countForwarderRecords, homeReferences, preflightObserved, safeTerminal, scanCredentialFiles } from "../src/claudeLoginFacts.ts";
 
 const output = process.argv[2]; assert(output);
+const retained = process.argv[3];
+if (retained) assert.equal(existsSync(retained), false, "preserve earlier records");
 const root = mkdtempSync("/private/tmp/t093-forwarder-"), token = "synthetic-only/" + randomUUID();
 const observed: number[] = [], checks: string[] = [];
 let relay: ClaudeForwarder;
@@ -35,16 +38,20 @@ try {
   const ledger = readFileSync(relay.ledger, "utf8");
   assert.equal(credentialHits(ledger, [token]), 0); assert(!ledger.includes("independent fixture prompt"));
   checks.push("each retry and failure journaled before upstream; no header or body persisted");
-  assert.deepEqual(homeReferences({ argv: ["cli", "/fixture-real-home/private"] }, "/fixture-real-home"), [{ field: "launch.argv[1]", occurrences: 1 }]);
+  const injectedHome = homeReferences({ argv: ["cli", "/fixture-real-home/private"] }, "/fixture-real-home");
+  assert.deepEqual(injectedHome, [{ field: "launch.argv[1]", occurrences: 1 }]);
   checks.push("real HOME launch path injection reported");
   const leak = join(root, "synthetic-leak.txt");
-  for (const variant of credentialVariants([token])) {
-    writeFileSync(leak, variant); assert(scanCredentialFiles(root, [token]).hits > 0);
+  const injections: { variant: number; hits: number }[] = [];
+  for (const [variant, value] of credentialVariants([token]).entries()) {
+    writeFileSync(leak, value); const hits = scanCredentialFiles(root, [token]).hits; assert(hits > 0);
+    injections.push({ variant, hits });
   }
   rmSync(leak); assert.equal(scanCredentialFiles(root, [token]).hits, 0);
   checks.push("raw JSON URL base64 credential injections detected; fixture removed");
   writeFileSync(relay.ledger, ledger.split("\n").filter(line => !line.includes('"kind":"request","sequence":2')).join("\n"));
-  assert.equal(countForwarderRecords(relay.ledger, 2).counts_match, false);
+  const missing = countForwarderRecords(relay.ledger, 2);
+  assert.equal(missing.counts_match, false);
   checks.push("dropped request row detected against independent upstream and ingress counts");
   for (const variant of credentialVariants([token])) {
     const raw = "start " + variant.slice(0, 5) + "\x1b[31m" + variant.slice(5) + " end\n";
@@ -69,8 +76,27 @@ try {
     }
   }
   checks.push("raw public bytes contain no credential in OSC title, OSC8, DCS or CSI across every split");
-  writeFileSync(output, JSON.stringify({ status: "PASS", task: "T-093", checks, upstream_requests: observed.length,
-    real_upstream_requests: 0, synthetic_credential_files_removed: true }, null, 2) + "\n", { flag: "wx" });
+  let retainedScan: { hits: number; files: number } | null = null, gitIndexHits: number | null = null;
+  if (retained) {
+    mkdirSync(retained, { mode: 0o700 });
+    mkdirSync(join(retained, "missing-row"), { mode: 0o700 });
+    const facts = { schema: 1, task: "T-093", scope: "independent forwarding run; not product-chain-03", forwarder: relay.counters,
+      upstream_requests: observed.length, credential_scan: { hits: 0, scope: "retained metadata records; synthetic token" } };
+    writeFileSync(join(retained, "requests.jsonl"), ledger, { flag: "wx", mode: 0o600 });
+    writeFileSync(join(retained, "facts.json"), JSON.stringify(facts, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+    writeFileSync(join(retained, "missing-row/requests.jsonl"), readFileSync(relay.ledger), { flag: "wx", mode: 0o600 });
+    writeFileSync(join(retained, "missing-row/facts.json"), JSON.stringify(facts, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+    retainedScan = scanCredentialFiles(retained, [token]); assert.equal(retainedScan.hits, 0);
+    const scan = spawnSync("git", ["grep", "--cached", "--quiet", "-F", "-f", "-", "--"],
+      { input: credentialVariants([token]).join("\n") + "\n", encoding: "utf8" });
+    assert.equal(scan.status, 1, "synthetic credential must not occur in the current Git index"); gitIndexHits = 0;
+  }
+  const report = { status: "PASS", task: "T-093", checks, upstream_requests: observed.length, retained_records: retained ?? null,
+    counterexamples: { home_references: injectedHome, credential_injections: injections, missing_record: missing },
+    evidence_credential_scan: retainedScan, git_index_synthetic_credential_hits: gitIndexHits,
+    real_upstream_requests: 0, synthetic_credential_files_removed: true };
+  assert.equal(credentialHits(JSON.stringify(report), [token]), 0);
+  writeFileSync(output, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
   console.log(JSON.stringify({ status: "PASS", checks: checks.length }));
 } finally {
   await relay!?.close(); upstream.closeAllConnections(); await new Promise<void>(resolve => upstream.close(() => resolve()));
