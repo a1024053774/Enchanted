@@ -23,6 +23,9 @@ Review this inventory before running (current approval only; no T-078 approval r
   End: close owned Electron; daemon_stop only this state; confirm registered PIDs exit;
        copy the stopped fixture to the mounted external evidence volume, compare counts
        and bytes, retain the original. Only text summaries/manifests go into the repo.
+       Electron normal quit uses NSRunningApplication.terminate() for its verified PID;
+       no close RPC, signal, force quit, or process-group kill. If exit is unconfirmed,
+       do NOT stop the daemon or archive the live fixture; stop and report.
   Missing permission / setup or cleanup failure => INCOMPLETE. Preserve first-screen
        bytes for controller review; no screen is treated as ready or approved for keys.
        No permission request, retry, fallback, real login, or substitute model run.
@@ -45,6 +48,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from capture_window import process_identity
+from owned_electron import normal_quit
 
 BASELINE = '44bbb7828459d81fab0d46069a19d3dd515a7732'
 CLAUDE = '/Users/luckye/.local/share/claude/versions/2.1.296'
@@ -79,6 +83,13 @@ class Observer:
         self.selector.register(self.process.stdout, selectors.EVENT_READ)
         self.buffer = bytearray()
         self.number = 0
+        self.owner = None
+        self.exit_confirmed = False
+
+    def identify(self, argv, output):
+        # Save ownership before waiting for any ready/protocol response.
+        self.owner = {**process_identity(self.process.pid), 'driver': argv[1], 'executable': argv[0]}
+        write_json(output / 'electron-owner.json', self.owner)
 
     def receive(self, timeout=40):
         deadline = time.monotonic() + timeout
@@ -105,14 +116,28 @@ class Observer:
         return result['value']
 
     def close(self):
-        # Failure remains INCOMPLETE; never kill an unrelated PID or restart Electron.
+        # Normal quit is independent of the observer's stdin/ready protocol.
         try:
             if self.process.poll() is None:
-                self.call('close')
-                self.process.wait(timeout=15)
+                if self.owner is None:
+                    raise RuntimeError('electron_owner_unconfirmed; stop without closing another process')
+                def observe(value):
+                    self.log.write(json.dumps(value) + '\n'); self.log.flush()
+                normal_quit(self.owner, observe=observe, child=self.process)
+            self.exit_confirmed = self.process.poll() is not None
+            if not self.exit_confirmed:
+                raise RuntimeError('electron_exit_unconfirmed')
             if self.process.returncode != 0:
                 raise RuntimeError('observer_exit_nonzero')
         finally:
+            if self.exit_confirmed:
+                while self.selector.select(0):
+                    chunk = os.read(self.process.stdout.fileno(), 65536)
+                    if not chunk:
+                        self.selector.unregister(self.process.stdout)
+                        break
+                    self.stdout.write(chunk)
+                self.stdout.flush()
             self.selector.close()
             self.log.close(); self.stderr.close(); self.stdout.close()
             self.process.stdin.close(); self.process.stdout.close()
@@ -122,7 +147,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True, help='NEW directory under the mounted external T-091 evidence directory')
-    parser.add_argument('--label', required=True, help='New text summary prefix, e.g. red-01')
+    parser.add_argument('--label', required=True, help='New text summary prefix, e.g. red-02')
     parser.add_argument('--approval-ref', required=True, help='Current controller approval for this exact inventory')
     args = parser.parse_args()
     source = args.source.resolve(strict=True)
@@ -158,6 +183,7 @@ def main():
               'keys': [], 'synthetic_hooks': [], 'red_observed': False, 'cleanup_complete': False}
     started = False
     observer = None
+    observer_attempted = False
     api = None
     owned = []
     requests = []
@@ -331,14 +357,16 @@ def main():
         argv = [str(executable), str(script_dir / 'red_window.mjs'), str(output / 'window-plan.json'),
                 str(output / 'observer-events.jsonl')]
         write_json(output / 'electron-command.json', {'argv': argv, 'start_new_session': True})
+        observer_attempted = True
         observer = Observer(argv, env, output)
+        observer.identify(argv, output)
         ready = observer.receive()
         if ready.get('ready') is not True or ready.get('pid') != observer.process.pid or ready.get('electron') != '43.4.1':
             raise RuntimeError('electron_owner_not_confirmed')
         result['electron_version'] = ready['electron']
-        owner = {**process_identity(observer.process.pid), 'driver': str(script_dir / 'red_window.mjs'),
-                 'executable': str(executable)}
-        write_json(output / 'electron-owner.json', owner)
+        owner = observer.owner
+        if process_identity(observer.process.pid) != {key: owner[key] for key in ['pid', 'started', 'command']}:
+            raise RuntimeError('electron_owner_changed_during_startup')
         view = None
 
         def view_ready():
@@ -375,12 +403,17 @@ def main():
         result.update(error=repr(error), traceback=traceback.format_exc())
     finally:
         cleanup_errors = []
+        electron_closed = not observer_attempted
         if observer is not None:
             try:
                 observer.close()
             except Exception as error:
                 cleanup_errors.append({'electron': repr(error), 'owned_pid': observer.process.pid})
-        if started:
+            electron_closed = observer.exit_confirmed
+        result['electron_exit_confirmed'] = electron_closed
+        if started and not electron_closed:
+            result['backend_cleanup_deferred'] = 'Electron exit unconfirmed; daemon_stop and fixture archive were not attempted'
+        if started and electron_closed:
             try:
                 call('daemon_stop')
                 # Only observations here; the daemon owns stopping its registered PTYs.
@@ -403,6 +436,10 @@ def main():
                 cleanup_errors.append({'daemon': repr(error)})
         if api is not None:
             api.shutdown(); api.server_close()
+        result['fake_api_stopped'] = True
+        with requests_lock:
+            result['fake_messages_posts_final'] = sum(row['method'] == 'POST' and
+                row['path'].split('?')[0].rstrip('/') == '/v1/messages' for row in requests)
         result['cleanup_errors'] = cleanup_errors
         if result['cleanup_complete']:
             try:

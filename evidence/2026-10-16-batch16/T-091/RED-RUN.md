@@ -1,6 +1,6 @@
 # T-091 红态读回：主控执行材料
 
-状态：**INCOMPLETE**。这次交付只含变更前读回脚本，尚未实跑，未修改 `workbench/app/`、`workbench/src/` 或现有测试。界面方向已按主控 #29 确认；实现等待主控返回红态结果。
+状态：**INCOMPLETE**。red-01 已由主控实跑，observer 启动等待超时，没有取得产品红态；原失败证据保留。当前脚本供 red-02 使用，尚未实跑，未修改 `workbench/app/`、`workbench/src/` 或现有测试。诊断与只处理原 PID 6599 的收尾命令见 [RED-01-DIAGNOSIS.md](RED-01-DIAGNOSIS.md)。界面方向已按主控 #29 确认；实现等待主控返回红态结果。
 
 实现时按本次确认的“窗宽 <1000px”取完整窗口视口宽度作为断点；不沿用原方向稿“扣除侧栏后的会话区域宽度”的表述。其余方向保持已确认内容。
 
@@ -16,13 +16,13 @@ hook 命令都是本 checkout 的 Node CLI：`NODE workbench/src/gates/cli.ts --
 
 ## 精确命令
 
-先审阅这三个文件：`run_red.py`、`red_window.mjs`、`capture_window.py`。核对清单后，用本次真实批准引用替换参数值；以下目录和标签必须尚不存在。命令的工作目录是本 worktree。
+先完成 red-01 的收尾，再审阅 `run_red.py`、`red_window.mjs`、`capture_window.py`、`owned_electron.py`。核对清单后，用本次真实批准引用替换参数值；以下目录和标签必须尚不存在。命令的工作目录是本 worktree。
 
 ```sh
 python3 evidence/2026-10-16-batch16/T-091/run_red.py \
   --source /Users/luckye/Documents/Code/a2a-wt-t091 \
-  --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/red-01 \
-  --label red-01 \
+  --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-091/red-02 \
+  --label red-02 \
   --approval-ref '主控对本次脚本清单的实际批准位置'
 ```
 
@@ -44,10 +44,10 @@ python3 evidence/2026-10-16-batch16/T-091/run_red.py \
 
 外置输出保存完整命令／原始 stdout 和 stderr、三份快照、启动记录、进程身份、首屏字节、Electron 观察日志、单帧与 `run.json`。原始终端首屏只供主控检查，不意味着主题、信任、登录或权限已确认；本脚本从不代选。
 
-结束时先关本次 Electron，再对本次 state 调 `daemon_stop`；仅观察已登记 PID 的退出，不自行 kill 不明进程。退出或归属无法核对时保留现场，报告 INCOMPLETE。停止确认后，把整个夹具复制到该外置输出的 `fixture/`，逐项统计文件数和总字节数比较，保留 `/private/tmp` 原件；操作凭据在夹具外单独生成，确认停止后清理，不进入归档或 Git。
+结束时通过 `NSRunningApplication.terminate()` 请求本次已核对 PID 的 Electron 正常退出，不等 stdin 的 close 回执，不发信号、不强退。确认 Electron 退出后才对本次 state 调 `daemon_stop`，再观察已登记后台及子进程退出。Electron 退出未确认时不调用 `daemon_stop`，不复制运行中夹具，报告 `backend_cleanup_deferred`；脚本自己的 loopback 拒绝服务随脚本结束停止，后台／CLI 现场保留，不能声称该实例仍是完整可复用的运行。停止确认后，把整个夹具复制到该外置输出的 `fixture/`，逐项统计文件数和总字节数比较，保留 `/private/tmp` 原件；操作凭据在夹具外单独生成，确认停止后清理，不进入归档或 Git。
 
 仓库只新增 `<label>.run.json` 摘要、`<label>.RESULTS.md`、`<label>.archive.json` 清单。清单含 original、archive、files、bytes、replay，不带校验值。脚本不删除夹具原件，不覆盖旧输出。若实跑失败，换新标签重跑必须先处理原现场，不能把一次新运行写进旧目录。
 
-本交付仅做静态语法和路径检查，不表示 Claude 启动、进程读回、截图或归档已通过；红态、Tracer bullet、三格绿态、反例和回归均为 INCOMPLETE。
+本次修正仅做静态检查和纯 Python 收尾反例检查，不表示 red-02 的 Claude 启动、Electron ready、正常退出、截图或归档已通过；红态、Tracer bullet、三格绿态、反例和产品回归均为 INCOMPLETE。
 
 本地已执行的静态检查：两个 Python 文件经 `ast.parse` 解析，`node --check evidence/2026-10-16-batch16/T-091/red_window.mjs` 退出 0；产品及现有测试相对起点的 `git diff` 为空。这些检查未启动上述运行清单中的应用或后台。

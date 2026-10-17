@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "scope": "pure Python cleanup orchestration; no Electron/macOS runtime proof",
+  "known_bad": "034257dc5d22810a2b40e7acac7a3a46551f052e",
+  "keys": [],
+  "model_turns": 0,
+  "checks": [
+    {
+      "name": "startup_close_does_not_wait_for_uninstalled_rpc",
+      "candidate": "PASS",
+      "known_bad": {
+        "rejected": true,
+        "assertion": "{'failure': 'ready/listener was not reached', 'events': ['stdin_close_rpc']}"
+      }
+    },
+    {
+      "name": "daemon_stop_waits_for_confirmed_electron_exit",
+      "candidate": "PASS",
+      "known_bad": {
+        "rejected": true,
+        "assertion": "{'forbidden_backend_calls_after_unconfirmed_window_exit': ['daemon_stop']}"
+      }
+    }
+  ]
+}
