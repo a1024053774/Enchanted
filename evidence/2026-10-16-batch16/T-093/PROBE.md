@@ -1,8 +1,8 @@
 # T-093 前置探针交接（2026-10-17）
 
 状态：INCOMPLETE。probe-02 已证明精确钥匙串读取与无 BASE_URL 时的隔离登录识别；
-设置 BASE_URL 后状态输出不是 JSON，原因尚未确定。未改产品代码。
-当前安全诊断与 probe-03 命令见 [PROBE-03.md](PROBE-03.md)；probe-01、probe-02 均保留。
+probe-03 将后续失败定位到带端口 profile 的编译阶段；该语法现已修正并通过本机编译器，实际启动仍待验证。
+当前 probe-04 命令见 [PROBE-04.md](PROBE-04.md)，清单归属方案另行交审；旧探针全部保留。未改产品代码。
 绑定：T-093-1 / attempt a1 / writer s16-t093 / ready_rev 1 / 起点 `61786370428c3ec5f894ea60acccf2695d54c2dc`。
 
 目标是核对三件事实：现有订阅登录的存储位置、只复制登录凭据后隔离 HOME 的登录识别、
@@ -48,6 +48,8 @@ REALITY GATE: INCOMPLETE
    启动前用无凭据子进程检查真实 HOME 读保护、隔离夹具写保护、活跃的本地拒绝端口与实际 fork 拒绝。
    精确钥匙串读取单独施加只读、无网络、禁止 fork 的 profile；假上游禁止 fork 与主动外连。
    如 CLI 需要创建辅助进程才能完成初始化，本次探针停止，不自动放宽限制。
+   复制凭据前，先在带端口 profile、空隔离 HOME 下单独验证版本与读/写/fork 限制、许可端口正例和另一活跃端口反例。
+   网络例外仅为 `remote tcp4 "localhost:<固定端口>"`，其余限制不变。
 2. 先执行 `--version`、`--help`、`auth --help`、`auth status --help`。
    帮助里有 `status` 和必要启动参数、版本精确为 `2.1.302 (Claude Code)` 才继续读取登录凭据。
    官方 CLI 文档将 `auth status` 定义为本地登录状态查询；探针仍禁止其所有网络。
@@ -83,11 +85,11 @@ REALITY GATE: INCOMPLETE
 
 ```sh
 python3 workbench/tests/probe_t093_normal_login.py
-python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-03.json
+python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-04.json
 ```
 
 必须使用实际可执行文件（不复制），输出路径必须是已存在目录中的新文件。
-后续运行改为新的 `probe-04.json` 等，保留旧结果。
+后续运行改为新的 `probe-05.json` 等，保留旧结果。
 脚本不打印捕获的 CLI/security 输出，不把凭据放到参数或环境中，不把隔离目录归档进 evidence 或 Git。
 后台假上游及 CLI 子进程都通过 `start_new_session=True` 脱离调用者进程组。
 脚本退出 0 表示探针范围 PASS；退出 2 为 INCOMPLETE 或 NO_GO。产品工作仍等待主控读回探针结果。

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """只验证 T-093 探针辅助逻辑；不运行 Claude、不读取任何真实凭据。"""
 import base64
+import ctypes
 import http.client
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -13,6 +15,7 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -24,6 +27,64 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == "darwin", "探针入口只支持 macOS")
+    def test_bound_profile_failure_stops_before_credential_read(self):
+        for code, stdout in ((65, b""), (0, b"wrong version\n")):
+            with self.subTest(code=code), tempfile.TemporaryDirectory(prefix="t093-order-") as temp:
+                root = Path(temp)
+                source_home = root / "source-home"
+                source_home.mkdir()
+                calls = []
+
+                def fake_capture(argv, **kwargs):
+                    calls.append(argv)
+                    if len(calls) == 1:
+                        return 0, b"", b""
+                    if len(calls) == 2:
+                        self.assertEqual(argv[-1], "--version")
+                        self.assertRegex(argv[2], r'\(remote tcp4 "localhost:[0-9]+"\)')
+                        self.assertEqual(list((Path(kwargs["env"]["HOME"]) / ".claude").iterdir()), [])
+                        return code, stdout, b"sandbox-exec: synthetic failure"
+                    raise probe.StopProbe("unexpected_post_version_capture")
+
+                args = SimpleNamespace(claude=sys.executable, output=str(root / "report.json"))
+                with patch.object(probe.Path, "home", return_value=source_home), \
+                     patch.object(probe, "capture", side_effect=fake_capture), \
+                     patch.object(probe, "credentials") as read_credentials, \
+                     patch.object(probe.resource, "setrlimit"), patch.object(probe.signal, "signal"), \
+                     patch.object(probe.os, "umask"), patch.object(sys, "stdout", io.StringIO()):
+                    exit_code = probe.run(args)
+                saved = json.loads((root / "report.json").read_text(encoding="utf-8"))
+                self.assertEqual(exit_code, 2)
+                self.assertEqual(saved["stop_reason"], "precredential_bound_profile_cli_version_failed")
+                self.assertEqual(len(calls), 2)
+                self.assertFalse(read_credentials.called, "版本前检失败后不得触及凭据。")
+                self.assertTrue(saved["isolated_home_removed"])
+
+    @unittest.skipUnless(sys.platform == "darwin", "此边界只存在于 macOS")
+    def test_bound_profile_compiles_without_applying_it(self):
+        library = ctypes.CDLL("/usr/lib/libsandbox.1.dylib")
+        library.sandbox_compile_string.argtypes = [ctypes.c_char_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p)]
+        library.sandbox_compile_string.restype = ctypes.c_void_p
+        library.sandbox_free_profile.argtypes = [ctypes.c_void_p]
+        library.sandbox_free_error.argtypes = [ctypes.c_char_p]
+        root, home, executable = Path("/private/tmp/t093-compile-fixture"), Path("/private/tmp/t093-source-fixture"), Path("/usr/bin/true")
+        baseline = probe.sandbox_profile(root, home, executable)
+        for port in (1, 45678, 65535):
+            profile = probe.sandbox_profile(root, home, executable, port)
+            error = ctypes.c_char_p()
+            compiled = library.sandbox_compile_string(profile.encode(), None, ctypes.byref(error))
+            try:
+                self.assertTrue(bool(compiled), "带端口的 profile 必须通过本机编译器。")
+                rule = '(allow network-outbound (remote tcp4 "localhost:' + str(port) + '"))'
+                self.assertIn(rule, profile)
+                self.assertEqual(profile.replace(rule, ""), baseline, "除指定 loopback TCP4 端口规则外，原限制不变。")
+            finally:
+                if compiled:
+                    library.sandbox_free_profile(compiled)
+                if error.value:
+                    library.sandbox_free_error(error)
+
     def test_auth_status_keeps_only_safe_structure_and_stops_on_non_json(self):
         config = "/private/tmp/t093-synthetic-config"
         access = "t093-access-" + uuid4().hex

@@ -43,6 +43,11 @@ def main():
         ("auth_ignores_exit_code", 'require(code == 0 and all(report[name][key] for key in',
          'require(all(report[name][key] for key in',
          "test_auth_status_keeps_only_safe_structure_and_stops_on_non_json"),
+        ("profile_uses_rejected_numeric_host", '(remote tcp4 "localhost:{port}")',
+         '(remote tcp4 "127.0.0.1:{port}")',
+         "test_bound_profile_compiles_without_applying_it"),
+        ("profile_failure_gate_is_skipped", 'code == 0 and report["precredential_bound_profile_probe"]["version_matches"]',
+         'True', "test_bound_profile_failure_stops_before_credential_read"),
     ]
     records = []
     baseline = subprocess.run([sys.executable, str(test)], cwd=repo, capture_output=True, text=True, timeout=20)

@@ -177,7 +177,7 @@ def capture(argv, *, env, cwd, timeout=12):
 
 def sandbox_profile(root, real_home, executable, port=None):
     literal = lambda path: json.dumps(str(path))
-    network = (f'(allow network-outbound (remote ip "127.0.0.1:{port}"))'
+    network = (f'(allow network-outbound (remote tcp4 "localhost:{port}"))'
                if port is not None else "")
     return f'''(version 1)
 (allow default)
@@ -437,6 +437,29 @@ else:
                                                   str(real_home), str(blocked.getsockname()[1]),
                                                   str(root / "readonly")]), env=env, cwd=cwd)
             require(code == 0, "sandbox_preflight_failed")
+            # 先独立验证带端口的 profile；此时尚未查询或复制任何登录凭据。
+            with socket.socket() as allowed:
+                allowed.bind(("127.0.0.1", 0))
+                allowed.listen(1)
+                allowed_port = allowed.getsockname()[1]
+                bound_profile = sandbox_profile(root, real_home, executable, allowed_port)
+                bound_env = {**env, "ANTHROPIC_BASE_URL": f"http://127.0.0.1:{allowed_port}"}
+                code, stdout, stderr = capture(guarded(bound_profile, [str(executable), "--version"]), env=bound_env, cwd=cwd)
+                report["precredential_bound_profile_probe"] = {
+                    "exit_code": code, "version_matches": stdout.strip() == VERSION.encode(),
+                    "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
+                require(code == 0 and report["precredential_bound_profile_probe"]["version_matches"],
+                        "precredential_bound_profile_cli_version_failed")
+                bound_check = check_script + '\nwith socket.create_connection(("127.0.0.1", int(sys.argv[4])), timeout=2):\n    pass\n'
+                code, stdout, stderr = capture(guarded(bound_profile, [sys.executable, "-c", bound_check,
+                                                                      str(real_home), str(blocked.getsockname()[1]),
+                                                                      str(root / "readonly"), str(allowed_port)]), env=bound_env, cwd=cwd)
+                report["precredential_bound_profile_guards"] = {
+                    "exit_code": code, "passed": code == 0,
+                    "checks": ["other_loopback_port_denied", "real_home_read_denied", "fixture_write_denied",
+                               "fork_denied", "bound_loopback_port_connected"],
+                    "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
+                require(code == 0, "precredential_bound_profile_guards_failed")
         finally:
             blocked.close()
         for command, label in ((["--version"], "version"), (["--help"], "help"),
