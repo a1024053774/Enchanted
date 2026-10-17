@@ -1,6 +1,6 @@
 # T-094-1 验证边界（2026-10-17）
 
-状态：INCOMPLETE。主控已回传 red-01、green-01 与 unregistered-01。green-01 为 4 次启动成功、1 次失败有可读诊断；unregistered-01 的真实未命名进程被分类为半成功。具体 busy 根因与独立审查仍未完成，详见 RESULTS.md。
+状态：INCOMPLETE。busy-01 已捕获 conda 初始化，撤回 Git 提示符推测。已有“前台只有 shell”谓词会在初始化间隙放行，受控红态已保留；尚无初始化完成信号与修复绿态，详见 RESULTS.md 的主控 #62 一节。旧 green-01 的诊断通过结论不替本轮初始化修复背书。
 
 主控 #60 的新增合同：收到 busy 后第一次 process-info 的前台进程组与 argv 直接出现在错误身份及报错摘要，不新增等待或重试。先在旧候选上取得合同红态，再验证新候选；默认 8 次真实复现由主控运行 `outside-busy.sh`，不把夹具中的 git status 当作真实根因证据。
 

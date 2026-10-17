@@ -49,6 +49,13 @@ if a[:2] == ['pane', 'split']:
 elif a[:2] == ['pane', 'process-info']:
  started = Path(os.environ['T094_STARTED']).exists()
  processes = [{'pid': 70, 'name': 'codex', 'argv': ['codex', '--no-daemon']}] if started and scenario in ('unregistered', 'blocked', 'diagnostic-error', 'unregistered-null-name') else [{'pid': 60, 'name': 'zsh'}]
+ if scenario == 'init-gap':
+  counter = Path(os.environ['T094_STARTED'] + '.reads')
+  reads = int(counter.read_text()) + 1 if counter.exists() else 1
+  counter.write_text(str(reads))
+  if reads in (2, 3):
+   processes = [{'pid': 60, 'name': 'zsh', 'argv': ['-zsh']},
+                {'pid': 72, 'name': 'python3.13', 'argv': ['conda', 'shell.zsh', 'hook']}]
  if started and scenario == 'busy-git':
   processes = [{'pid': 60, 'name': 'zsh', 'argv': ['-zsh']},
                {'pid': 71, 'name': 'git', 'argv': json.loads(os.environ['T094_BUSY_ARGV'])}]
@@ -57,7 +64,11 @@ elif a[:2] == ['pane', 'process-info']:
        'foreground_processes': processes}}}))
 elif a[:2] == ['agent', 'start']:
  Path(os.environ['T094_STARTED']).touch()
- if scenario == 'success':
+ if scenario == 'init-gap':
+  reads = int(Path(os.environ['T094_STARTED'] + '.reads').read_text())
+  if reads < 4:
+   error('agent_pane_busy', 'fixture conda initialization is not complete')
+ if scenario in ('success', 'init-gap'):
   print(json.dumps({'result': {'agent': {'name': a[2], 'agent': 'codex', 'pane_id': pane}}}))
  elif scenario == 'blocked':
   error('agent_not_ready', 'fixture startup approval')
@@ -95,7 +106,7 @@ else:
                             stdout=r.stdout, stderr=r.stderr, rows=rows, herdr_calls=calls))
         self.assertEqual(sum(c[:2] == ['agent', 'start'] for c in calls), 1, calls)
         self.assertFalse(any(c[:2] == ['pane', 'close'] for c in calls), calls)
-        self.assertEqual([r['phase'] for r in rows], ['prepared', 'started' if scenario == 'success' else 'failed'])
+        self.assertEqual([r['phase'] for r in rows], ['prepared', 'started' if scenario in ('success', 'init-gap') else 'failed'])
         self.assertEqual(rows[-1]['pane'], self.pane)
         return r, rows[-1], calls
 
@@ -124,6 +135,13 @@ else:
         self.assertEqual(after_start, [['pane', 'process-info', '--pane', self.pane],
                                        ['agent', 'get', self.pane]])
         self.assertEqual(row['pane_disposition'], 'retained_for_controller')
+
+    def test_initializer_gap_is_not_initialization_complete(self):
+        # 独立时序：首次只看到 shell，随后初始化产生子进程，最后才完成。
+        r, row, calls = self.launch('init-gap')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(row['phase'], 'started')
+        self.assertEqual(sum(c[:2] == ['agent', 'start'] for c in calls), 1)
 
     def test_process_started_without_registration_is_distinct(self):
         r, row, calls = self.launch('unregistered')
