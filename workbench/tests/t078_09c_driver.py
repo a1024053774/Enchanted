@@ -36,20 +36,28 @@ def created_ms(value):
 class Clock:
     """System clocks in operational use. Unit tests label injected clocks."""
     def wall(self): return time.time() * 1000
-    def mono(self): return time.monotonic() * 1000
+    # Python 3.9 on macOS subtracts a process-local t0 in time.monotonic().
+    # Origins are read by later processes, so use the shared POSIX clock directly.
+    def mono(self): return time.clock_gettime_ns(time.CLOCK_MONOTONIC) / 1000000
     def sleep(self, seconds): time.sleep(seconds)
 
 
 def origin(stop, clock):
-    age = clock.wall() - created_ms(stop['created_at'])
+    wall, mono = clock.wall(), clock.mono()
+    age = wall - created_ms(stop['created_at'])
     require(0 <= age < 10000, 'observe_stop_within_first_ten_seconds')
-    return {'stop': stop, 'wall_ms': clock.wall(), 'mono_ms': clock.mono(), 'initial_age_ms': age}
+    return {'stop': stop, 'wall_ms': wall, 'mono_ms': mono, 'initial_age_ms': age,
+            'observer_pid': os.getpid(), 'clock_type': type(clock).__module__ + '.' + type(clock).__qualname__}
 
 
 def timing(start, clock):
     wall, mono = clock.wall(), clock.mono()
     elapsed = mono - start['mono_ms']; wall_elapsed = wall - start['wall_ms']
-    require(elapsed >= 0 and abs(wall_elapsed - elapsed) <= 1000, 'clock_discontinuity')
+    require(elapsed >= 0 and abs(wall_elapsed - elapsed) <= 1000,
+            {'reason': 'clock_discontinuity', 'start': start, 'wall_ms': wall, 'mono_ms': mono,
+             'wall_elapsed_ms': wall_elapsed, 'monotonic_elapsed_ms': elapsed,
+             'difference_ms': wall_elapsed - elapsed, 'observer_pid': os.getpid(),
+             'clock_type': type(clock).__module__ + '.' + type(clock).__qualname__})
     age = wall - created_ms(start['stop']['created_at'])
     require(age <= 150000, 'scenario_deadline_150_seconds')
     return {'wall_ms': wall, 'monotonic_ms': mono, 'wall_age_ms': age, 'observed_elapsed_ms': elapsed}

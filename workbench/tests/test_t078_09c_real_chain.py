@@ -302,6 +302,11 @@ class CScene(Scene):
         # Snapshot the live DB, including WAL, before authenticated stop. Never
         # reopen the live database after daemon_stop.
         details={'status':'INCOMPLETE','root':str(self.root),'post_stop_SQLite_reads':0,'scratch_removed':False}
+        clock_origin=self.root/'clock-origin.json'
+        if clock_origin.is_file():
+            retained=self.output/'clock-origin.json'
+            with retained.open('xb') as stream:stream.write(clock_origin.read_bytes())
+            details['clock_origin']=str(retained)
         if (self.state/'state.sqlite3').exists():
             if self.request_dir is None:
                 workers=[json.loads(row['data']) for row in self.rows('launch_records') if json.loads(row['data']).get('role')=='worker']

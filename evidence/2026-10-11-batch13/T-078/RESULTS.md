@@ -1566,3 +1566,15 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 只在09C排练中复用既有原生命令框解析与严格分页reader，完整command对实际hook逐字核对，保存capture/原事件；产品、09B、protocol、预算、真实时钟边界均不改。[真实入口原件回放红态](09c-fix-02/display-red-01/result.json)与[Git旧源码重放](09c-fix-02/known-bad-display-01/result.json)都复现该超时，[候选9项](09c-fix-02/display-green-03/result.json) **PASS**，另含正文差异、缺Yes、截断、total变化、零进度、错launch反例。回放只用保存的gate I/O和注入等待，无进程/按键，不冒称真实完整链路通过。
 
 [新排练命令](09c-fix-02/REHEARSAL-02-COMMAND.txt)使用全新 `real-chain-outside-02`；本地路径/AST/preflight PASS，完整daemon/relay/HTTP/Electron及>120秒实钟仍 **INCOMPLETE，待主控沙箱外执行**。旧HTTP/hook/屏幕/一致备份与失败原件随本次提交保留，首个本地诊断脚本导入失误另有转录；独立审查未做，整票状态不上调。
+
+## 主控 #357：09C 排练到 C-I2；修复 Python3.9 跨进程时钟基准
+
+主控 [real-chain-outside-02](09c-fix-01/real-chain-outside-02/result.json) **INCOMPLETE**：C-I1许可识别/一次Enter、实际Stop/relay与delivered结算通过，C-I2按键前 `clock_discontinuity`；cleanup **PASS**、scratch已删。原件有ideation3POST（C-I1两条、C-I2首条均200），executor首条未完成；不计为完整排练通过。
+
+[字段清单](09c-fix-03/clock-evidence.json) 如实标明缺失：旧清理没复制根级clock-origin，C-I2错误没保存两读值，故**无法提供该旧场景原origin.wall/initial_age/PID或C-I2瞬时读值**。实际C-I1 settlement的wall=`1792195229244.405`、mono=`3684.8457909999997`、elapsed=`192.9561249999997`；相减可推导origin.mono=`3491.889666`，只称推导，不冒充原件。调用链为C-I1 permission Python进程写origin，C-I2新Python进程读；没有混入Node时钟。
+
+本机Python3.9.6/macOS的 `time.monotonic` 减各进程局部t0，两个进程的读值不可直接相减；源码及官方文档依据见 [诊断](09c-fix-03/README.md)。[修前真实跨进程红态](09c-fix-03/clock-red-01/result.json) 在真实C-I2检查入口算得wall耗时127.695ms、mono耗时-1246.477ms，错误拒绝；Git旧源码重放也复现。最小修复为系统 `CLOCK_MONOTONIC` 直接纳秒读值，不重置起点、不加fallback，**1000ms阈值不变**；异常补采样上下文，origin记observer身份，清理前保存origin原字节。
+
+[最终跨进程绿态](09c-fix-03/clock-green-03/result.json) **PASS**，wall/mono两耗时差约0.012ms；另8项边界（±1000允许、±1001拒绝、mono倒退、150秒截止、stop绑定）与原origin清理留存通过。既有[条件式Enter回归](09c-fix-03/permission-regression-01/result.json)32项PASS（跳变零键，去掉时钟检查的坏变异被捕获），[原记录入口/绑定回归](09c-fix-03/recorded-regression-01/result.json)6+6项PASS。注入时间/window反例不冒称真实120秒证据。
+
+[新排练命令](09c-fix-03/REHEARSAL-03-COMMAND.txt)用全新real-chain-outside-03，本地路径/AST/preflight已实跑PASS。完整真实链/实钟仍 **INCOMPLETE，待主控沙箱外运行**；本轮没有起daemon/API/Electron、没有真实角色CLI/模型或业务按键，只起并回收了Python时钟测试子进程。原失败与新检查均保留，独立审查未做，整票仍INCOMPLETE／NO_GO。
