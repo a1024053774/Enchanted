@@ -24,6 +24,53 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    def test_auth_status_keeps_only_safe_structure_and_stops_on_non_json(self):
+        config = "/private/tmp/t093-synthetic-config"
+        access = "t093-access-" + uuid4().hex
+        refresh = "t093-refresh-" + uuid4().hex
+        email = "t093-" + uuid4().hex + "@example.invalid"
+        status = json.dumps({"loggedIn": True, "authMethod": "claude.ai", "configDirectory": config,
+                             "email": email, "unknown": access}).encode()
+        cases = [
+            (0, status, b"", "json_object", True, False, False),
+            (0, ("Warning: " + email + " " + access + "\n").encode() + status, b"", "warning", False, True, True),
+            (1, b"", ("Error: OAuth subscription is not supported with this base URL " + email + " " + refresh).encode(), "empty", False, False, True),
+            (65, b"", b"sandbox-exec: synthetic profile error\n", "empty", False, False, True),
+            (0, b"[]", b"", "json_array", True, False, True),
+            (1, status, b"", "json_object", True, False, True),
+        ]
+        for code, stdout, stderr, prefix, is_json, has_prefix, must_stop in cases:
+            with self.subTest(code=code, prefix=prefix, must_stop=must_stop):
+                report, stopped = {"captured_output_secret_hits": 0}, None
+                calls = []
+
+                def fake_capture(argv, **kwargs):
+                    calls.append(argv)
+                    return code, stdout, stderr
+
+                with patch.object(probe, "capture", side_effect=fake_capture):
+                    try:
+                        probe.auth_status("/synthetic/claude", "synthetic-profile", {"CLAUDE_CONFIG_DIR": config},
+                                          "/synthetic/cwd", report, "status_with_base_url", [access, refresh])
+                    except probe.StopProbe as error:
+                        stopped = str(error)
+                self.assertIn("status_with_base_url_output", report, "失败也须保留安全结构，不能只留 not_json。")
+                diagnostic = report["status_with_base_url_output"]
+                self.assertEqual(diagnostic["exit_code"], code)
+                self.assertEqual(diagnostic["stdout"]["prefix_kind"], prefix)
+                self.assertEqual(diagnostic["stdout"]["is_json"], is_json)
+                self.assertEqual(diagnostic["stdout"]["json_after_prefix"], has_prefix)
+                self.assertEqual(diagnostic["stdout"]["line_count"], len(stdout.splitlines()))
+                self.assertEqual(stopped is not None, must_stop)
+                self.assertEqual(calls[0][-4:], ["/synthetic/claude", "auth", "status", "--json"])
+                saved = json.dumps(report)
+                for value in (email, access, refresh, "unknown", "synthetic profile error"):
+                    self.assertFalse(value in saved, "摘要不得包含被禁止的字段或合成原文。")
+                if code == 65:
+                    self.assertEqual(diagnostic["stderr"]["prefix_kind"], "sandbox_exec")
+                if not is_json:
+                    self.assertNotIn("status_with_base_url", report)
+
     def test_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards(self):
         with tempfile.TemporaryDirectory(prefix="t093-keychain-helper-") as temp:
             real_home = Path(temp) / "source-home"

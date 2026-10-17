@@ -34,6 +34,15 @@ def main():
         ("keychain_uses_isolated_default_search_scope", 'guarded(read_only, [*command, str(keychain)])',
          'guarded(read_only, command)',
          "test_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards"),
+        ("auth_diagnostic_leaks_stdout", 'report[name + "_output"] = {"exit_code": code, "stdout": output_shape(stdout), "stderr": output_shape(stderr)}',
+         'report[name + "_output"] = {"exit_code": code, "stdout": output_shape(stdout), "stderr": output_shape(stderr), "raw": stdout.decode("utf-8")}',
+         "test_auth_status_keeps_only_safe_structure_and_stops_on_non_json"),
+        ("auth_accepts_json_after_warning", 'data = json.loads(stdout)',
+         'data = json.loads(stdout[stdout.find(b"{"):])',
+         "test_auth_status_keeps_only_safe_structure_and_stops_on_non_json"),
+        ("auth_ignores_exit_code", 'require(code == 0 and all(report[name][key] for key in',
+         'require(all(report[name][key] for key in',
+         "test_auth_status_keeps_only_safe_structure_and_stops_on_non_json"),
     ]
     records = []
     baseline = subprocess.run([sys.executable, str(test)], cwd=repo, capture_output=True, text=True, timeout=20)

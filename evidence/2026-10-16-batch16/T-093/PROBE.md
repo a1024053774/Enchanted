@@ -1,7 +1,8 @@
 # T-093 前置探针交接（2026-10-17）
 
-状态：INCOMPLETE。主控已执行 probe-01，停在精确钥匙串服务不可见；未改产品代码，未取得正常登录可用结论。
-本次查询目标修正与 probe-02 命令见 [PROBE-02.md](PROBE-02.md)；原 probe-01 保留。
+状态：INCOMPLETE。probe-02 已证明精确钥匙串读取与无 BASE_URL 时的隔离登录识别；
+设置 BASE_URL 后状态输出不是 JSON，原因尚未确定。未改产品代码。
+当前安全诊断与 probe-03 命令见 [PROBE-03.md](PROBE-03.md)；probe-01、probe-02 均保留。
 绑定：T-093-1 / attempt a1 / writer s16-t093 / ready_rev 1 / 起点 `61786370428c3ec5f894ea60acccf2695d54c2dc`。
 
 目标是核对三件事实：现有订阅登录的存储位置、只复制登录凭据后隔离 HOME 的登录识别、
@@ -50,10 +51,13 @@ REALITY GATE: INCOMPLETE
 2. 先执行 `--version`、`--help`、`auth --help`、`auth status --help`。
    帮助里有 `status` 和必要启动参数、版本精确为 `2.1.302 (Claude Code)` 才继续读取登录凭据。
    官方 CLI 文档将 `auth status` 定义为本地登录状态查询；探针仍禁止其所有网络。
-3. 只复制 auth，再执行 `auth status`。要求 JSON 的 `loggedIn=true`、`authMethod=claude.ai`，
+3. 只复制 auth，再执行帮助确认支持的 `auth status --json`。要求 JSON 的 `loggedIn=true`、`authMethod=claude.ai`，
    `configDirectory` 精确为隔离目录。原始状态输出可能含邮箱，始终只在内存，不写证据。
+   在解析前记录 stdout/stderr 的退出码、字节/行数、固定前缀类别及结构布尔值；不保存原始前缀或内容。
+   非 JSON 或包含警告前缀时停止，不剥离前缀继续，不改成文本格式。
 4. 启动独立假上游，设置 `ANTHROPIC_BASE_URL=http://127.0.0.1:<端口>`，只放行该端口。
-   再做一次状态查询，然后通过 PTY 启动交互式 CLI，传入一条固定探针输入；不用 `-p`/无头模式。
+   先用 `--version` 核对新端口 profile 能启动同一 CLI，再做一次状态查询；失败时保存同样的安全结构摘要并停止。
+   然后通过 PTY 启动交互式 CLI，传入一条固定探针输入；不用 `-p`/无头模式。
    自动按键仅限已知主题、说明、隔离工作目录信任屏，每种只按一次；未知屏幕 35 秒内停下。
    假上游固定返回 400，没有上游地址、外连或转发代码，不生成任何模型回复。
    最初复制的 token 通过匿名管道进入假上游内存并固定，不从 CLI 可写副本重读。
@@ -79,11 +83,11 @@ REALITY GATE: INCOMPLETE
 
 ```sh
 python3 workbench/tests/probe_t093_normal_login.py
-python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-02.json
+python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-03.json
 ```
 
 必须使用实际可执行文件（不复制），输出路径必须是已存在目录中的新文件。
-后续运行改为新的 `probe-02.json` 等，保留旧结果。
+后续运行改为新的 `probe-04.json` 等，保留旧结果。
 脚本不打印捕获的 CLI/security 输出，不把凭据放到参数或环境中，不把隔离目录归档进 evidence 或 Git。
 后台假上游及 CLI 子进程都通过 `start_new_session=True` 脱离调用者进程组。
 脚本退出 0 表示探针范围 PASS；退出 2 为 INCOMPLETE 或 NO_GO。产品工作仍等待主控读回探针结果。

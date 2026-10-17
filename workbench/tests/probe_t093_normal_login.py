@@ -54,6 +54,45 @@ def secret_hits(data, secrets):
     return sum(data.count(value) for value in variants if value)
 
 
+def output_shape(raw):
+    # 只返回固定标签、布尔值和计数；绝不返回原始前缀、JSON 字段或错误正文。
+    text = raw.decode("utf-8", "replace")
+    leading = text.lstrip()
+    prefix = "text"
+    for marker, kind in (("sandbox-exec:", "sandbox_exec"), ("warning", "warning"),
+                         ("error", "error"), ("usage:", "usage"), ("\x1b", "ansi_escape"),
+                         ("{", "json_object"), ("[", "json_array")):
+        if leading.lower().startswith(marker):
+            prefix = kind
+            break
+    if not leading:
+        prefix = "empty"
+    is_json = True
+    try:
+        json.loads(raw)
+    except ValueError:
+        is_json = False
+    after_prefix = False
+    if not is_json:
+        for marker in ("{", "["):
+            index = text.find(marker)
+            if index <= 0:
+                continue
+            try:
+                json.loads(text[index:])
+                after_prefix = True
+            except ValueError:
+                pass
+    lower = text.lower()
+    return {"bytes": len(raw), "line_count": len(raw.splitlines()), "prefix_kind": prefix,
+            "starts_with_json": leading.startswith(("{", "[")), "is_json": is_json,
+            "json_after_prefix": after_prefix, "has_ansi": "\x1b" in text,
+            "mentions_oauth": "oauth" in lower, "mentions_subscription": "subscription" in lower,
+            "mentions_base_url": "base_url" in lower or "base url" in lower,
+            "mentions_not_supported": "not supported" in lower or "unsupported" in lower,
+            "mentions_permission_error": any(word in lower for word in ("eperm", "eacces", "permission denied", "operation not permitted"))}
+
+
 def metadata(home):
     result = {}
 
@@ -224,12 +263,14 @@ def credentials(home, env, cwd, report):
 
 
 def auth_status(executable, profile, env, cwd, report, name, secrets):
-    code, stdout, stderr = capture(guarded(profile, [executable, "auth", "status"]), env=env, cwd=cwd)
+    code, stdout, stderr = capture(guarded(profile, [executable, "auth", "status", "--json"]), env=env, cwd=cwd)
     report["captured_output_secret_hits"] += secret_hits((stdout + stderr).decode("utf-8", "replace"), secrets)
+    report[name + "_output"] = {"exit_code": code, "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
     try:
         data = json.loads(stdout)
     except ValueError:
         raise StopProbe("auth_status_not_json") from None
+    require(isinstance(data, dict), "auth_status_json_not_object")
     # 不保存原始状态输出（可含邮箱、账号标识等）。
     report[name] = {"exit_code": code, "loggedIn": data.get("loggedIn") is True,
                     "uses_claude_ai": data.get("authMethod") == "claude.ai",
@@ -412,6 +453,8 @@ else:
                 report[label] = [line.strip() for line in text.splitlines() if "auth" in line.lower()]
             else:
                 require("status" in text.lower(), "auth_status_missing_from_help")
+                if label == "status_help":
+                    require("--json" in text, "auth_status_json_flag_missing_from_help")
                 report[label] = text.strip()
         secrets = credentials(real_home, env, cwd, report)
         auth_status(str(executable), profile, env, cwd, report, "status_without_base_url", secrets)
@@ -427,6 +470,12 @@ else:
         port = int(server.stdout.readline())
         env["ANTHROPIC_BASE_URL"] = f"http://127.0.0.1:{port}"
         profile = sandbox_profile(root, real_home, executable, port)
+        # BASE_URL 与端口规则同时改变；先区分沙箱/启动错误和状态输出错误。
+        code, stdout, stderr = capture(guarded(profile, [str(executable), "--version"]), env=env, cwd=cwd)
+        report["captured_output_secret_hits"] += secret_hits((stdout + stderr).decode("utf-8", "replace"), secrets)
+        report["bound_profile_probe"] = {"exit_code": code, "version_matches": stdout.strip() == VERSION.encode(),
+                                          "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
+        require(code == 0 and report["bound_profile_probe"]["version_matches"], "bound_profile_cli_version_failed")
         auth_status(str(executable), profile, env, cwd, report, "status_with_base_url", secrets)
         route(str(executable), profile, env, cwd, root, report, secrets)
         auth_status(str(executable), profile, env, cwd, report, "status_after_route", secrets)
