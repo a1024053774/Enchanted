@@ -58,16 +58,7 @@ class CScene(Scene):
         value.update(approved_by='executor',approval_ref='Main #355 deterministic scratch rehearsal '+stage)
         path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');return path
 
-    def setup(self):
-        (self.root/'repo/value.txt').write_text('09C deterministic baseline\n',encoding='utf-8')
-        (self.root/'repo/oracle/contract.json').write_text('{"model":0}\n',encoding='utf-8')
-        for argv in [['git','-C',self.root/'repo','init','-b','main'],['git','-C',self.root/'repo','add','value.txt','oracle/contract.json'],
-                     ['git','-C',self.root/'repo','commit','-m','09C scratch only']]:self.command(argv)
-        receiver=self.root/'target/bin/codex-receiver'
-        self.command(['/usr/bin/clang','-Wall','-Wextra','-Werror','-std=c11',TESTS/'t078_native_receiver.c','-o',receiver])
-        (self.root/'target/role.md').write_text('Deterministic target; no model.\n',encoding='utf-8')
-        revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip()
-        snapshot=self.root/'sources.tar.gz'
+    def freeze_sources(self,snapshot):
         with tarfile.open(snapshot,'x:gz') as arc:
             arc.add(SOURCE/'workbench/src',arcname='workbench/src')
             arc.add(SOURCE/'workbench/app',arcname='workbench/app')
@@ -79,6 +70,17 @@ class CScene(Scene):
                     arc.add(path,arcname='workbench/tests/'+path.name)
             for path in [BASE/'prepare-a14.py',BASE/'09b-materials-01/protocol.json',BASE/'stage-b-a12-ideation-approval-01.json']:
                 arc.add(path,arcname=str(path.relative_to(SOURCE)))
+
+    def setup(self):
+        (self.root/'repo/value.txt').write_text('09C deterministic baseline\n',encoding='utf-8')
+        (self.root/'repo/oracle/contract.json').write_text('{"model":0}\n',encoding='utf-8')
+        for argv in [['git','-C',self.root/'repo','init','-b','main'],['git','-C',self.root/'repo','add','value.txt','oracle/contract.json'],
+                     ['git','-C',self.root/'repo','commit','-m','09C scratch only']]:self.command(argv)
+        receiver=self.root/'target/bin/codex-receiver'
+        self.command(['/usr/bin/clang','-Wall','-Wextra','-Werror','-std=c11',TESTS/'t078_native_receiver.c','-o',receiver])
+        (self.root/'target/role.md').write_text('Deterministic target; no model.\n',encoding='utf-8')
+        revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip()
+        snapshot=self.root/'sources.tar.gz';source_paths=self.freeze_sources(snapshot)
         config={'codex_bin':str(receiver),'codex_home':str(self.root/'target/home'),'role_card':str(self.root/'target/role.md'),
                 'role_card_revision':'09C-rehearsal','code_revision':revision,'source_snapshot':str(snapshot),
                 'hook_authorization':'Main #355 deterministic rehearsal; no vendor executable','turn_limit':10}
@@ -111,7 +113,9 @@ class CScene(Scene):
                     'target_binding':claim,'target_process':target,'api_processes':apis,'daemon':{'pid':self.host.pid,'root':str(self.state)}}
         self.stage_a=self.output/'stage-a';self.stage_a.mkdir();save(self.stage_a/'readiness.json',self.ready)
         self.packet=self.output/'packet';self.packet.mkdir()
-        save(self.packet/'static-check.json',{'scene':'09C','revision':revision,'protocol':True})
+        static={'scene':'09C','revision':revision,'protocol':True}
+        if source_paths is not None:static['source_paths']=source_paths
+        save(self.packet/'static-check.json',static)
         save(self.packet/'plan.json',{'roles':{'ideation':{'root_budget':4},'executor':{'root_budget':1}}})
         shutil.copyfile(snapshot,self.packet/'sources.tar.gz')
         for role in ['ideation','executor']:
@@ -253,6 +257,9 @@ class CScene(Scene):
         require(late['status']=='PASS' and late['enter_at']['wall_age_ms']>120000 and late['enter_at']['wall_age_ms']<130000 and
                 late['enter_at']['observed_elapsed_ms']>=120100,'actual late Enter threshold',late)
         self.phase_c('C-I4','collect','collect-01');self.phase_c('C-E1','collect','collect-01')
+        return self.readback(stop,early,late,control_segment_mono)
+
+    def readback(self,stop,early,late,control_segment_mono):
         posts=self.counts();require(posts=={'ideation':7,'executor':1},'actual HTTP POST budget',posts)
         per_stage={}
         for role in ['ideation','executor']:

@@ -1590,3 +1590,13 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 第2场已冻结到 [materials-03](09c-executable-materials-03/static-check.json)，实际源码提交 `0599c601a38bf96aebb1dde100082ca2a4093ae0`；[SOURCE](09c-attempt-2-materials-01/SOURCE.json) 绑定0da09fb9f完整排练及四份原回归收据。Stage A未签批准在新[材料目录](09c-attempt-2-materials-01/stage-a-approval.json)，实际root尚未创建，输出09c-stage-a-02；两角色P1/完整未签B1与逐屏/五阶段/预批准模板仅由提供的生成器从本场实际readiness、B1 manifest生成，不复制第1场身份。
 
 [冻结后实测静态检查](09c-attempt-2-plan-02/material-check-02/result.json) **PASS**：322源码成员与冻结字节一致，新回归前置通过（旧版本[确切红态](09c-attempt-2-plan-02/old-source-preflight-red-01.json)为regression_source_changed），未签Stage A拒绝、错排练/额外产品差异拒绝，5条现有入口命令路径存在、输出全新，future_inputs明确等待真实Stage A/B1。只生成文件与调用只读函数，无场景启动或按键；新协调器完整实时执行与真实Claude第2场仍INCOMPLETE。
+
+## 主控 #359：新协调器接入真实链排练；待沙箱外执行
+
+[新排练材料](09c-coordinator-rehearsal-01/README.md) 复用已通过CScene的真实daemon/relay/inbox/Stop/HTTP/Electron与确定性PTY seam，阶段编排改为独立调用真实 `t078_09c_timed_run.py`。从C-I1 check/Enter起，到C-I2、C-I3、C-I4/C-E1均由协调器执行；签名由外层 `--signature-ref` 原样传入，明标REHEARSAL ONLY。父进程不模拟relay成功、不补发工具或业务输入。
+
+新增实际peer ps双读manifest、常规文件源码闭包；原CScene只抽取source freeze和最终oracle以复用，原排练入口保留。发现并修复协调器把辅助脚本错误定位到packet.parent的夹具布局假设：Git旧源码两个方法调用边界[红态](09c-coordinator-rehearsal-01/helper-path-red-01/result.json)命中不存在路径，统一用仓库规范TICKET路径后[绿态](09c-coordinator-rehearsal-01/helper-path-green-01/result.json)PASS；零场景/按键，非完整链证据。
+
+完整要求仍是实际POST7/1、roots4/1、三许可、模型0、原stop无ack、实际>120且<150秒、目标恰一个Esc及原attempt/活目标。第一次完整PASS后用同CLI/同输出做拒绝探针，要求result及所有phase原字节不变、事件/POST/按键增量0；不重试失败业务。成败保留完整原件/一致数据库与clock-origin，原owner路径停机回收，停后SQLite读0。
+
+本轮仅[静态预检](09c-coordinator-rehearsal-01/preflight-02/preflight.json)、[307源码常规成员/字节与新输出路径检查](09c-coordinator-rehearsal-01/static-source-02/result.json)和局部检查 **PASS**，现有timed guards也PASS；没有启动现场。[沙箱外命令](09c-coordinator-rehearsal-01/RUN-OUTSIDE-COMMAND.txt) 指向全新real-chain-outside-01，完整协调器排练仍 **INCOMPLETE**。源码闭包已变，旧第2场materials-03 **过期／NO_GO**，保留原件，待本次PASS后再重冻绑定；当前不签/启动第2场，整票状态不上调。

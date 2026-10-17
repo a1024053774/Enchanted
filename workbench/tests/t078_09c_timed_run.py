@@ -23,6 +23,7 @@ from t078_raw_retention import read_json, save, require, NativeRuntime, check_id
 
 SOURCE = Path(__file__).resolve().parents[2]
 TESTS = SOURCE / 'workbench/tests'
+TICKET = SOURCE / 'evidence/2026-10-11-batch13/T-078'
 
 
 def expected_stop_command(plan, stop):
@@ -152,7 +153,7 @@ class Timed:
     def early(self):
         stage = 'C-I2'; folder = self.p1 / 'phases' / stage
         dispatch, original = self.observe(stage)
-        self.run('C-I2-prepare', [sys.executable, '-B', Path(self.plan['package']).parent / 'prepare-a14.py',
+        self.run('C-I2-prepare', [sys.executable, '-B', TICKET / 'prepare-a14.py',
              '--mode', 'permission', '--p1', self.p1, '--result', folder / 'dispatch-01/result.json',
              '--output', folder / 'permission-approval-01.json'])
         env = {**os.environ, 'PATH': '/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin',
@@ -251,7 +252,7 @@ class Timed:
         self.run('C-I1-check', self.permission_argv('C-I1','permission-check-timed-01',True))
         self.run('C-I1-Enter', self.permission_argv('C-I1','execute-02'))
         from importlib.util import spec_from_file_location, module_from_spec
-        spec = spec_from_file_location('timed_demand', Path(self.plan['package']).parent/'prepare-rev2-owner.py')
+        spec = spec_from_file_location('timed_demand', TICKET/'prepare-rev2-owner.py')
         module = module_from_spec(spec); spec.loader.exec_module(module)
         module.demand(argparse.Namespace(result=self.p1/'phases/C-I1/execute-02/settlement.json',
              approval=self.p1/'phases/C-I1/approval.json', output=Path(self.plan['continued_demand_file'])))
