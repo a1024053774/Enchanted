@@ -1,0 +1,110 @@
+{
+  "status": "PASS",
+  "source_binding": "external CLI snapshot and actual-main candidate source equal current files byte-for-byte",
+  "reclaim_cases": [
+    {
+      "case": "delete-error",
+      "remaining": [
+        "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/checks-20261017T103307Z/delete-error/source/b.bin"
+      ],
+      "unverified": {},
+      "elapsed": 0.10673595799999996
+    },
+    {
+      "case": "delete-inspection-error",
+      "remaining": [],
+      "unverified": {
+        "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/checks-20261017T103307Z/delete-inspection-error/source/b.bin": "[Errno 5] remaining metadata unreadable"
+      },
+      "elapsed": 0.12319212499999999
+    },
+    {
+      "case": "delete-hang",
+      "remaining": [
+        "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/checks-20261017T103307Z/delete-hang/source/b.bin"
+      ],
+      "unverified": {},
+      "elapsed": 0.9640584159999999
+    }
+  ],
+  "actual_main_cases": [
+    {
+      "phase": "baseline",
+      "main_exit_code": 0,
+      "accepted": true,
+      "oracle": {
+        "status": "PASS",
+        "tests_run": 1,
+        "moved_bytes": 5242912,
+        "retained_bytes": 5242880,
+        "manifest": {
+          "original": "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/s3-main-02-mpb065p2/baseline/output/cas/forced-large.dat",
+          "archive": "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/s3-main-02-mpb065p2/baseline/archive/cas/forced-large.dat",
+          "bytes": 5242912,
+          "replay": [
+            "python3",
+            "-B",
+            "/private/tmp/t089-main-lwpfyj6y/repo/workbench/tests/run_s3_regression.py",
+            "--suite",
+            "cas",
+            "--base",
+            "c544b29049861998e11eeb7344b457103fab3c98",
+            "--output",
+            "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/s3-main-02-mpb065p2/baseline/output/cas"
+          ]
+        },
+        "main": "/private/tmp/t089-main-lwpfyj6y/repo/workbench/tests/run_s3_regression.py"
+      }
+    },
+    {
+      "phase": "candidate",
+      "main_exit_code": 0,
+      "accepted": true,
+      "oracle": {
+        "status": "PASS",
+        "tests_run": 1,
+        "moved_bytes": 5242912,
+        "retained_bytes": 5242880,
+        "manifest": {
+          "original": "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/s3-main-02-mpb065p2/candidate/output/cas/forced-large.dat",
+          "archive": "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/s3-main-02-mpb065p2/candidate/archive/cas/forced-large.dat",
+          "bytes": 5242912,
+          "files": 1,
+          "replay": [
+            "python3",
+            "-B",
+            "/private/tmp/t089-main-q9kp0pq_/repo/workbench/tests/run_s3_regression.py",
+            "--suite",
+            "cas",
+            "--base",
+            "c544b29049861998e11eeb7344b457103fab3c98",
+            "--output",
+            "/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-089/s3-main-02-mpb065p2/candidate/output/cas"
+          ]
+        },
+        "main": "/private/tmp/t089-main-q9kp0pq_/repo/workbench/tests/run_s3_regression.py"
+      }
+    },
+    {
+      "phase": "threshold-mutant",
+      "main_exit_code": 0,
+      "accepted": true,
+      "oracle": {
+        "status": "NO_GO",
+        "error": "AssertionError('actual main used the wrong archive threshold')"
+      }
+    },
+    {
+      "phase": "destination-mutant",
+      "main_exit_code": 0,
+      "accepted": true,
+      "oracle": {
+        "status": "NO_GO",
+        "error": "FileNotFoundError(2, 'No such file or directory')"
+      }
+    }
+  ],
+  "real_t077_exists_after": false,
+  "before_t077": "主控 #6 报告跑前也不存在；worker 不补称独立事前观察",
+  "replay": "t086-external-02.json"
+}

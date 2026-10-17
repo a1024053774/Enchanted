@@ -122,6 +122,57 @@ class Checks:
             else:
                 raise AssertionError('受控挂起的归档子进程仍存活')
 
+    def reclaim_failure(self, label, hang=False, inspection_error=False):
+        source = self.root / label / 'source'
+        expected = {'a.bin': b'one original', 'b.bin': b'second original'}
+        for name, data in expected.items():
+            write(source / name, data)
+        target = self.root / 'archives' / label
+        marker = self.root / (label + '-pid')
+        # Same filesystem boundary as independent-review-01: the first unlink
+        # succeeds; the second either stops its process or raises EIO.
+        action = ('Path(' + repr(str(marker)) + ').write_text(str(os.getpid()),encoding="utf-8"); '
+                  'os.kill(os.getpid(),signal.SIGSTOP)' if hang else
+                  'raise OSError(5,"independent simulated unlink I/O error")')
+        if inspection_error:
+            action = 'Path(' + repr(str(marker)) + ').write_text("metadata error",encoding="utf-8"); ' + action
+        hook = ('import os,signal\nfrom pathlib import Path\nold=Path.unlink\n'
+                'def changed(self,*args,**kw):\n if self.name=="b.bin": ' + action + '\n'
+                ' return old(self,*args,**kw)\nPath.unlink=changed\n')
+        if inspection_error:
+            hook += ('old_stat=os.lstat\ndef changed_stat(path,*args,**kw):\n'
+                     ' if os.fspath(path)==' + repr(str(source / 'b.bin')) + ' and Path('
+                     + repr(str(marker)) + ').exists(): raise OSError(5,"remaining metadata unreadable")\n'
+                     ' return old_stat(path,*args,**kw)\nos.lstat=changed_stat\n')
+        p = self.call(label, source, target, hook=hook, timeout=0.8 if hang else 5)
+        assert p.returncode == 1, p.stderr
+        assert snapshot(target) == expected
+        assert not (source / 'a.bin').exists()
+        assert (source / 'b.bin').read_bytes() == expected['b.bin']
+        assert '归档已完成并核对、原件回收未完成' in p.stderr, p.stderr
+        assert '保留原件与已有副本' not in p.stderr, p.stderr
+        state = json.loads(p.stderr)
+        assert state['status'] == 'INCOMPLETE' and state['phase'] == 'reclaim'
+        assert state['archive_verified'] is True
+        if inspection_error:
+            assert state['remaining_originals'] == []
+            assert list(state['unverified_originals']) == [str(source / 'b.bin')]
+            assert 'remaining metadata unreadable' in state['unverified_originals'][str(source / 'b.bin')]
+        else:
+            assert state['remaining_originals'] == [str(source / 'b.bin')]
+            assert state['unverified_originals'] == {}
+        for name in expected:
+            entry = json.loads((source / (name + '.archive.json')).read_text(encoding='utf-8'))
+            assert entry['original'] == str(source / name) and entry['archive'] == str(target / name)
+        if hang:
+            assert '超时' in state['reason'] and self.results[-1]['elapsed_seconds'] < 5
+            try:
+                os.kill(int(marker.read_text(encoding='utf-8')), 0)
+            except ProcessLookupError:
+                pass
+            else:
+                raise AssertionError('回收子进程在超时后仍存活')
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -129,6 +180,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True, help='只写新文本结果文件')
     parser.add_argument('--external', action='store_true', help='主控运行：真实外置盘及受控挂起')
     parser.add_argument('--fixture-only', action='store_true', help='红态时运行与绿态相同的夹具路径')
+    parser.add_argument('--reclaim-error-only', action='store_true', help='不挂起的回收错误红态/绿态')
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError(args.output)
@@ -139,18 +191,25 @@ def main():
         root.mkdir(parents=True, exist_ok=False)
     else:
         root = Path(tempfile.mkdtemp(prefix='t089-checks-', dir='/tmp')).resolve()
-    checks = Checks(root, args.command, args.external)
+    tested_command = root / 'tested-source/archive_evidence.py'
+    write(tested_command, args.command.read_bytes())
+    checks = Checks(root, tested_command, args.external)
     cases = [('fixture', checks.fixture)]
-    if not args.fixture_only:
+    if args.reclaim_error_only:
+        cases = [('delete-error', lambda: checks.reclaim_failure('delete-error'))]
+    elif not args.fixture_only:
         cases += [('unmounted', lambda: checks.failure('unmounted', missing=True)),
                   ('existing-target', lambda: checks.failure('existing-target', collision=True))]
         truncated = 'import shutil\norig=shutil.copyfileobj\ndef copy(a,b,*args,**kw):\n orig(a,b,*args,**kw)\n if b.name.endswith("b.bin"): b.truncate(1)\nshutil.copyfileobj=copy\n'
         corrupt = 'import shutil\norig=shutil.copyfileobj\ndef copy(a,b,*args,**kw):\n orig(a,b,*args,**kw)\n if b.name.endswith("b.bin"): b.seek(0); b.write(b"X")\nshutil.copyfileobj=copy\n'
         cases += [('truncated', lambda: checks.failure('truncated', hook=truncated)),
-                  ('same-size-corruption', lambda: checks.failure('same-size-corruption', hook=corrupt))]
+                  ('same-size-corruption', lambda: checks.failure('same-size-corruption', hook=corrupt)),
+                  ('delete-error', lambda: checks.reclaim_failure('delete-error')),
+                  ('delete-inspection-error', lambda: checks.reclaim_failure('delete-inspection-error', inspection_error=True))]
         if args.external:
             hang = 'import os,signal,shutil\nfrom pathlib import Path\ndef hang(a,b,*args,**kw):\n Path(' + repr(str(root / 'hang-entered')) + ').write_text(str(os.getpid()),encoding="utf-8")\n os.kill(os.getpid(),signal.SIGSTOP)\nshutil.copyfileobj=hang\n'
             cases += [('io-timeout', lambda: checks.failure('io-timeout', hook=hang, timeout=2))]
+            cases += [('delete-hang', lambda: checks.reclaim_failure('delete-hang', hang=True))]
     errors = []
     for label, case in cases:
         try:
@@ -158,7 +217,8 @@ def main():
         except (AssertionError, OSError, ValueError, subprocess.TimeoutExpired) as error:
             errors.append({'case': label, 'error': repr(error), 'traceback': traceback.format_exc()})
     result = {'status': 'PASS' if not errors else 'INCOMPLETE', 'external': args.external,
-              'fixture_root': str(root), 'command': str(args.command), 'cases': checks.results,
+              'fixture_root': str(root), 'command': str(args.command), 'tested_command': str(tested_command),
+              'cases': checks.results,
               'errors': errors, 'skipped': [] if args.external else ['真实外置盘', '受控挂起（须主控运行 --external）']}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

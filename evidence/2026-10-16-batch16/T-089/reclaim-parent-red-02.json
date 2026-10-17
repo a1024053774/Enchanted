@@ -1,0 +1,42 @@
+{
+  "status": "INCOMPLETE",
+  "external": false,
+  "fixture_root": "/private/tmp/t089-checks-9bkngdan",
+  "command": "/tmp/t089-reclaim-bad-dpzy2ej0/archive_evidence.py",
+  "tested_command": "/private/tmp/t089-checks-9bkngdan/tested-source/archive_evidence.py",
+  "cases": [
+    {
+      "case": "delete-error",
+      "argv": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/private/tmp/t089-checks-9bkngdan/tested-source/archive_evidence.py",
+        "/private/tmp/t089-checks-9bkngdan/delete-error/source",
+        "--mount-point",
+        "/",
+        "--archive-root",
+        "/private/tmp/t089-checks-9bkngdan/archives/delete-error",
+        "--timeout",
+        "5",
+        "--replay",
+        "python3",
+        "fixture-producer.py"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "归档失败：归档失败：[Errno 5] independent simulated unlink I/O error\n",
+      "elapsed_seconds": 0.05254112500000001
+    }
+  ],
+  "errors": [
+    {
+      "case": "delete-error",
+      "error": "AssertionError('归档失败：归档失败：[Errno 5] independent simulated unlink I/O error\\n')",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/run_evidence_archive_checks.py\", line 202, in main\n    case()\n  File \"/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/run_evidence_archive_checks.py\", line 186, in <lambda>\n    cases = [('delete-error', lambda: checks.reclaim_failure('delete-error'))]\n  File \"/Users/luckye/Documents/Code/a2a-wt-t089/workbench/tests/run_evidence_archive_checks.py\", line 145, in reclaim_failure\n    assert '归档已完成并核对、原件回收未完成' in p.stderr, p.stderr\nAssertionError: 归档失败：归档失败：[Errno 5] independent simulated unlink I/O error\n\n"
+    }
+  ],
+  "skipped": [
+    "真实外置盘",
+    "受控挂起（须主控运行 --external）"
+  ]
+}

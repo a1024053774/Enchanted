@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""归档静止的证据目录；复制、核对和清单全部完成后才删除原件。"""
+"""归档静止的证据目录；有期限的准备阶段完成后，单独回收原件。"""
 import argparse
 import json
 import math
@@ -11,6 +11,17 @@ import subprocess
 import sys
 
 VOLUME = Path('/Volumes/WD-Elements')
+
+
+class ReclaimIncomplete(RuntimeError):
+    def __init__(self, entries, reason, state):
+        self.entries = entries
+        self.reason = reason
+        self.remaining = state['remaining_originals']
+        self.unverified = state['unverified_originals']
+        super().__init__('归档已完成并核对、原件回收未完成；剩余原件：'
+                         + json.dumps(self.remaining, ensure_ascii=False) + '；无法核对的原件：'
+                         + json.dumps(self.unverified, ensure_ascii=False) + '；原因：' + reason)
 
 
 def walk_error(error):
@@ -96,7 +107,7 @@ def verify(source, target, expected):
                     break
 
 
-def relocate(request):
+def prepare(request):
     source = Path(request['source'])
     mount = Path(request['mount_point'])
     target_root = Path(request['archive_root'])
@@ -149,27 +160,39 @@ def relocate(request):
             handle.write('\n')
             handle.flush()
             os.fsync(handle.fileno())
-    for path, _, _, _, _ in plan:
+    return [entry for _, _, _, _, entry in plan]
+
+
+def reclaim(entries):
+    for entry in entries:
+        path = Path(entry['original'])
         if path.is_dir():
             shutil.rmtree(path)
         else:
             path.unlink()
-    return [entry for _, _, _, _, entry in plan]
 
 
-def archive_large_files(out, *, archive_root, replay, mount_point=VOLUME,
-                        timeout=60, keep=(), minimum_bytes=None):
-    """Bound all filesystem I/O in one child; failures retain diagnostic copies."""
-    if not math.isfinite(timeout) or timeout <= 0:
-        raise ValueError('timeout 必须是有限正数')
-    request = {'source': os.path.abspath(out), 'archive_root': os.path.abspath(archive_root),
-               'mount_point': os.path.abspath(mount_point), 'replay': replay,
-               'keep': list(keep), 'minimum_bytes': minimum_bytes}
-    child = subprocess.Popen([sys.executable, '-B', str(Path(__file__).absolute()), '--worker'],
+def inspect_remaining(entries):
+    state = {'remaining_originals': [], 'unverified_originals': {}}
+    for entry in entries:
+        path = entry['original']
+        try:
+            os.lstat(path)
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            state['unverified_originals'][path] = str(error)
+        else:
+            state['remaining_originals'].append(path)
+    return state
+
+
+def run_phase(phase, payload, timeout):
+    child = subprocess.Popen([sys.executable, '-B', str(Path(__file__).absolute()), '--' + phase],
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              text=True, start_new_session=True)
     try:
-        stdout, stderr = child.communicate(json.dumps(request), timeout=timeout)
+        stdout, stderr = child.communicate(json.dumps(payload), timeout=timeout)
     except subprocess.TimeoutExpired:
         child.kill()
         # Do not wait indefinitely for a process stuck in kernel I/O.
@@ -177,10 +200,34 @@ def archive_large_files(out, *, archive_root, replay, mount_point=VOLUME,
             child.communicate(timeout=1)
         except subprocess.TimeoutExpired:
             pass
-        raise TimeoutError('归档读写超时；保留原件与已有副本') from None
+        raise TimeoutError(phase + ' 阶段超时') from None
     if child.returncode:
-        raise RuntimeError(stderr.strip() or '归档子进程失败')
+        raise RuntimeError(stderr.strip() or phase + ' 子进程失败')
     return json.loads(stdout)
+
+
+def archive_large_files(out, *, archive_root, replay, mount_point=VOLUME,
+                        timeout=60, keep=(), minimum_bytes=None):
+    """Prepare without deletion; reclaim only after the parent receives completion."""
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError('timeout 必须是有限正数')
+    request = {'source': os.path.abspath(out), 'archive_root': os.path.abspath(archive_root),
+               'mount_point': os.path.abspath(mount_point), 'replay': replay,
+               'keep': list(keep), 'minimum_bytes': minimum_bytes}
+    try:
+        entries = run_phase('prepare', request, timeout)
+    except TimeoutError:
+        raise TimeoutError('归档准备读写超时；保留原件与已有副本') from None
+    try:
+        run_phase('reclaim', entries, timeout)
+    except (OSError, ValueError, RuntimeError) as error:
+        try:
+            state = run_phase('remaining', entries, timeout)
+        except (OSError, ValueError, RuntimeError) as inspection_error:
+            state = {'remaining_originals': [], 'unverified_originals': {
+                entry['original']: '状态核对失败：' + str(inspection_error) for entry in entries}}
+        raise ReclaimIncomplete(entries, str(error), state) from error
+    return entries
 
 
 def main():
@@ -188,7 +235,7 @@ def main():
     parser.add_argument('source', type=Path, help='evidence/<批次>/<ticket>；先停止证据生产者')
     parser.add_argument('--mount-point', type=Path, default=VOLUME)
     parser.add_argument('--archive-root', type=Path, help='默认 <挂载点>/a2a-evidence/<批次>/<ticket>')
-    parser.add_argument('--timeout', type=float, default=60, help='全部读写的期限（秒）')
+    parser.add_argument('--timeout', type=float, default=60, help='准备、回收及失败后状态核对各自的期限（秒）')
     parser.add_argument('--keep', action='append', default=[], help='保留输入小文件的相对路径；其祖先 run/fixtures 也保留')
     parser.add_argument('--replay', nargs=argparse.REMAINDER, required=True, help='产生或重放此证据的命令 argv（放在参数末尾）')
     args = parser.parse_args()
@@ -202,10 +249,21 @@ def main():
 
 if __name__ == '__main__':
     try:
-        if sys.argv[1:] == ['--worker']:
-            print(json.dumps(relocate(json.load(sys.stdin)), ensure_ascii=False))
+        if sys.argv[1:] == ['--prepare']:
+            print(json.dumps(prepare(json.load(sys.stdin)), ensure_ascii=False))
+        elif sys.argv[1:] == ['--reclaim']:
+            reclaim(json.load(sys.stdin))
+            print('null')
+        elif sys.argv[1:] == ['--remaining']:
+            print(json.dumps(inspect_remaining(json.load(sys.stdin)), ensure_ascii=False))
         else:
             main()
+    except ReclaimIncomplete as error:
+        print(json.dumps({'status': 'INCOMPLETE', 'phase': 'reclaim', 'archive_verified': True,
+                          'remaining_originals': error.remaining, 'unverified_originals': error.unverified,
+                          'archives': error.entries,
+                          'reason': error.reason, 'error': str(error)}, ensure_ascii=False), file=sys.stderr)
+        raise SystemExit(1)
     except (OSError, ValueError, RuntimeError) as error:
         print('归档失败：' + str(error), file=sys.stderr)
         raise SystemExit(1)
