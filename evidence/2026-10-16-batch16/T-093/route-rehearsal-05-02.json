@@ -1,0 +1,11 @@
+{
+  "task": "T-093",
+  "status": "INCOMPLETE",
+  "command": "python3 workbench/tests/test_t093_probe_safety.py ProbeSafety.test_route_drains_output_from_a_child_that_already_exited ProbeSafety.test_route_peer_needs_terminal_reply_and_records_external_prompt",
+  "exit_code": 1,
+  "observed": "保留原 PTY 启动方式后，交互协议与认证 HTTP peer 通过；快速退出 peer 的 bytes 仍为 0，触发 AssertionError。",
+  "decision": "把 parent 持有的 slave fd 延迟到读取/排空结束再关闭，保留原有进程组启动方式；不修改 signal 权限。",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0,
+  "limitations": "本轮不能作为最终绿态；也没有取得中断前夹具是否残留的进程核对事实。"
+}

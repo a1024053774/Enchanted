@@ -329,6 +329,142 @@ def rows(root):
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
 
 
+def terminal_replies(pending, part):
+    # 与 workbench/src/panes.ts terminalProtocol 使用同一组固定终端协议。
+    # 回复没有 Enter，不是用户输入或未知屏幕授权。
+    pending += part
+    replies = []
+    table = {b"6n": ("cursor_position", b"\x1b[1;1R"),
+             b"c": ("primary_attributes", b"\x1b[?1;2c"), b"0c": ("primary_attributes", b"\x1b[?1;2c"),
+             b">c": ("secondary_attributes", b"\x1b[>0;0;0c"), b">0c": ("secondary_attributes", b"\x1b[>0;0;0c"),
+             b"?u": ("keyboard_protocol", b"\x1b[?0u"),
+             b"11;?": ("background_color", b"\x1b]11;rgb:0000/0000/0000\x1b\\")}
+    while True:
+        start = pending.find(b"\x1b")
+        if start < 0:
+            return b"", replies
+        pending = pending[start:]
+        if len(pending) == 1:
+            return pending, replies
+        if pending[1:2] not in (b"[", b"]"):
+            pending = pending[2:]
+            continue
+        match = re.match(rb"^(?:\x1b\[([0-?]*[ -/]*[@-~])|\x1b\]([^\x07]*?)(?:\x07|\x1b\\))", pending)
+        if not match:
+            return pending if len(pending) <= 4096 else b"", replies
+        reply = table.get(match[1] or match[2])
+        if reply:
+            replies.append(reply)
+        pending = pending[match.end():]
+
+
+def terminal_facts(raw, prompt):
+    text = raw.decode("utf-8", "replace")
+    clean = re.sub(r"\x1b\][^\x07]*?(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    tail = clean[-32768:].lower()
+    categories = {"theme": ("choose the text style",),
+                  "security_notice": ("security notes:", "please review the security notes"),
+                  "workspace_trust": ("do you trust the files", "is this a project you created", "trust this folder"),
+                  "login": ("select login method", "how would you like to log in", "sign in to your account"),
+                  "terminal_setup": ("terminal setup",),
+                  "argument_error": ("unknown option", "allowed choices", "invalid argument", "unexpected argument"),
+                  "runtime_error": ("error:", "typeerror", "eperm", "permission denied", "operation not permitted"),
+                  "connection_error": ("unable to connect", "connection refused", "econnrefused", "fetch failed")}
+    return {**output_shape(raw), "tail_marker_classes": [name for name, markers in categories.items() if any(m in tail for m in markers)],
+            "prompt_echo_seen": prompt in clean, "prompt_like_marker": bool(re.search(r"(?:^|\n)\s*[❯>]\s", clean)),
+            "mentions_official_api_host": "api.anthropic.com" in clean.lower(),
+            "mentions_spawn": "spawn" in clean.lower()}
+
+
+def submission_facts(root, prompt):
+    result = {"scope": "isolated home/.claude/projects/<project>/*.jsonl", "available": False,
+              "matching_user_records": 0, "jsonl_files": 0, "parse_errors": 0,
+              "io_errors": 0, "symlinks_skipped": 0, "partial_lines": 0, "limit_reached": False}
+    directory = None
+    try:
+        directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        for part in ("home", ".claude", "projects"):
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+            os.close(directory)
+            directory = child
+        result["available"] = True
+        total = 0
+        for project in os.listdir(directory):
+            info = os.stat(project, dir_fd=directory, follow_symlinks=False)
+            if stat.S_ISLNK(info.st_mode):
+                result["symlinks_skipped"] += 1
+                continue
+            if not stat.S_ISDIR(info.st_mode):
+                continue
+            project_fd = os.open(project, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+            try:
+                for name in os.listdir(project_fd):
+                    if not name.endswith(".jsonl"):
+                        continue
+                    info = os.stat(name, dir_fd=project_fd, follow_symlinks=False)
+                    if stat.S_ISLNK(info.st_mode):
+                        result["symlinks_skipped"] += 1
+                        continue
+                    if not stat.S_ISREG(info.st_mode):
+                        continue
+                    if result["jsonl_files"] >= 64 or total >= 8 * 1024 * 1024:
+                        result["limit_reached"] = True
+                        return result
+                    result["jsonl_files"] += 1
+                    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=project_fd)
+                    with os.fdopen(fd, "rb") as stream:
+                        while True:
+                            line = stream.readline(262145)
+                            if not line:
+                                break
+                            total += len(line)
+                            if len(line) > 262144 or total > 8 * 1024 * 1024:
+                                result["limit_reached"] = True
+                                return result
+                            if not line.endswith(b"\n"):
+                                result["partial_lines"] += 1
+                                break
+                            try:
+                                record = json.loads(line)
+                            except ValueError:
+                                result["parse_errors"] += 1
+                                continue
+                            message = record.get("message") if isinstance(record, dict) and record.get("type") == "user" else None
+                            if not isinstance(message, dict) or message.get("role") != "user":
+                                continue
+                            content = message.get("content")
+                            if isinstance(content, str):
+                                texts = [content]
+                            elif isinstance(content, list):
+                                texts = [block.get("text") for block in content if isinstance(block, dict) and block.get("type") == "text"]
+                            else:
+                                texts = []
+                            result["matching_user_records"] += int(prompt in texts)
+            finally:
+                os.close(project_fd)
+    except FileNotFoundError:
+        if result["available"]:
+            result["io_errors"] += 1
+    except OSError:
+        result["io_errors"] += 1
+    finally:
+        if directory is not None:
+            os.close(directory)
+        result["scanned_scope_complete"] = result["available"] and not any(result[key] for key in
+            ("parse_errors", "io_errors", "symlinks_skipped", "partial_lines", "limit_reached"))
+    return result
+
+
+def home_references(value, home, field="launch"):
+    if isinstance(value, dict):
+        return [item for key, child in value.items() for item in home_references(child, home, field + "." + key)]
+    if isinstance(value, list):
+        return [item for index, child in enumerate(value) for item in home_references(child, home, field + "[" + str(index) + "]")]
+    if isinstance(value, str):
+        return [{"field": field, "line": index + 1} for index, line in enumerate(value.splitlines()) for _ in range(line.count(home))]
+    return []
+
+
 def route(executable, profile, env, cwd, root, report, secrets):
     arguments = [executable, "--model", "claude-haiku-5-5", "--effort", "low",
                  "--permission-mode", "manual", "--tools", "", "--strict-mcp-config",
@@ -336,11 +472,22 @@ def route(executable, profile, env, cwd, root, report, secrets):
     report["launch"] = {"argv": guarded(profile, arguments), "cli_argv": arguments, "env": env}
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 45, 160, 0, 0))
-    child = subprocess.Popen(guarded(profile, arguments), cwd=cwd, env=env,
-                             stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
+    try:
+        child = subprocess.Popen(guarded(profile, arguments), cwd=cwd, env=env,
+                                 stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
+    except (OSError, subprocess.SubprocessError) as error:
+        report["route_diagnostic"] = {"child_started": False, "spawn_error_errno": getattr(error, "errno", None)}
+        os.close(slave); os.close(master)
+        raise StopProbe("interactive_process_start_failed") from None
     CHILDREN.append(child)
-    os.close(slave)
-    captured, screen, answered = bytearray(), "", []
+    # 保留本进程的 slave 引用到排空结束，避免最后一个 slave 关闭时
+    # 快速退出子进程留下的 PTY 输出被丢弃；本进程不向 slave 写入。
+    captured, screen, answered, pending = bytearray(), "", [], b""
+    replies_count, eof, deadline_reached, output_truncated = {}, False, False, False
+    try:
+        foreground_is_child = os.tcgetpgrp(master) == child.pid
+    except OSError:
+        foreground_is_child = None
     # 只处理已知的一次性主题/说明/隔离 cwd 信任屏；未知屏幕到期即停。
     known = (("Choose the text style", b"1\r", "theme"),
              ("Please review the security notes", b"\r", "security_notice"),
@@ -354,32 +501,70 @@ def route(executable, profile, env, cwd, root, report, secrets):
                    row["has_messages"] and row["bearer_matches_copied_login"] for row in observed):
                 report["route_observed"] = True
                 break
-            if child.poll() is not None:
-                break
             ready, _, _ = select.select([master], [], [], 0.1)
             if not ready:
+                if child.poll() is not None:
+                    break
                 continue
             try:
                 part = os.read(master, 65536)
             except OSError as error:
                 if error.errno == errno.EIO:
+                    eof = True
                     break
                 raise
+            if not part:
+                eof = True
+                break
             captured.extend(part)
             require(len(captured) < 4 * 1024 * 1024, "terminal_output_limit")
+            if child.poll() is not None:
+                continue
             screen += re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", part.decode("utf-8", "replace"))
+            pending, replies = terminal_replies(pending, part)
+            for name, response in replies:
+                os.write(master, response)
+                replies_count[name] = replies_count.get(name, 0) + 1
             for marker, key, name in known:
                 if marker in screen and name not in answered:
                     os.write(master, key)
                     answered.append(name)
                     screen = ""
                     break
-        report["startup_controls"] = answered
-        require(report.get("route_observed"), "no_authenticated_local_messages_request")
+        else:
+            deadline_reached = True
     finally:
+        exit_before_stop = child.poll()
         stop_child(child)
+        # 子进程可能快速退出；仍须排空它已经写入 PTY 的字节，只做诊断，不再发键。
+        while select.select([master], [], [], 0)[0]:
+            try:
+                part = os.read(master, 65536)
+            except OSError as error:
+                if error.errno == errno.EIO:
+                    eof = True
+                    break
+                raise
+            if not part:
+                eof = True
+                break
+            if len(captured) + len(part) > 4 * 1024 * 1024:
+                output_truncated = True
+                break
+            captured.extend(part)
+        os.close(slave)
         os.close(master)
         report["captured_output_secret_hits"] += secret_hits(captured.decode("utf-8", "replace"), secrets)
+        report["startup_controls"] = answered
+        report["route_diagnostic"] = {"child_started": True, "foreground_is_child": foreground_is_child,
+                                      "exit_code_before_stop": exit_before_stop, "exit_code_after_stop": child.returncode,
+                                      "stopped_by_probe": exit_before_stop is None, "deadline_reached": deadline_reached,
+                                      "pty_eof_seen": eof, "output_truncated": output_truncated,
+                                      "protocol_replies": replies_count, "terminal": terminal_facts(captured, PROMPT),
+                                      "query_via_argv": True, "submission": submission_facts(root, PROMPT)}
+    report["route_observed"] = any(row["method"] == "POST" and row["path"] == "/v1/messages" and
+                                   row["has_messages"] and row["bearer_matches_copied_login"] for row in rows(root))
+    require(report["route_observed"], "no_authenticated_local_messages_request")
 
 
 def run(args):
@@ -499,6 +684,12 @@ else:
         report["bound_profile_probe"] = {"exit_code": code, "version_matches": stdout.strip() == VERSION.encode(),
                                           "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
         require(code == 0 and report["bound_profile_probe"]["version_matches"], "bound_profile_cli_version_failed")
+        # 同一 profile 到真实假上游端口的 TCP 正例，不发送 HTTP 或任何凭据。
+        tcp_check = 'import socket,sys\nwith socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=2):\n    pass\n'
+        code, stdout, stderr = capture(guarded(profile, [sys.executable, "-c", tcp_check, str(port)]), env=env, cwd=cwd)
+        report["sink_tcp_preflight"] = {"exit_code": code, "connected": code == 0,
+                                         "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
+        require(code == 0, "local_sink_tcp_unreachable")
         auth_status(str(executable), profile, env, cwd, report, "status_with_base_url", secrets)
         route(str(executable), profile, env, cwd, root, report, secrets)
         auth_status(str(executable), profile, env, cwd, report, "status_after_route", secrets)
@@ -530,8 +721,8 @@ else:
         finally:
             shutil.rmtree(root)
             report["isolated_home_removed"] = not root.exists()
-    launch_text = encode(report.get("launch", {}))
-    report["real_home_path_mentions_in_launch"] = launch_text.count(str(real_home)) if "launch" in report else None
+    report["real_home_path_references"] = home_references(report.get("launch", {}), str(real_home))
+    report["real_home_path_mentions_in_launch"] = len(report["real_home_path_references"]) if "launch" in report else None
     report["route_launch_attempted"] = "launch" in report
     report_text = encode(report)
     report["credential_scan_hits"] = secret_hits(report_text, secrets)

@@ -27,6 +27,125 @@ spec.loader.exec_module(probe)
 
 
 class ProbeSafety(unittest.TestCase):
+    def test_submission_reader_does_not_follow_an_ancestor_symlink(self):
+        with tempfile.TemporaryDirectory(prefix="t093-submission-") as temp:
+            root, outside = Path(temp) / "root", Path(temp) / "outside"
+            root.mkdir()
+            project = outside / ".claude/projects/external"
+            project.mkdir(parents=True)
+            prompt = "external input " + uuid4().hex
+            (project / "foreign.jsonl").write_text(json.dumps({"type": "user", "message": {"role": "user", "content": prompt}}) + "\n", encoding="utf-8")
+            (root / "home").symlink_to(outside)
+            result = probe.submission_facts(root, prompt)
+            self.assertEqual(result["matching_user_records"], 0)
+            self.assertFalse(result["scanned_scope_complete"])
+            self.assertGreater(result["io_errors"], 0)
+
+    def test_home_references_include_policy_and_duplicate_executable_fields(self):
+        home = "/synthetic-real-home"
+        executable = home + "/.local/share/claude/versions/2.1.302"
+        policy = '(deny file-read* (subpath "' + home + '"))\n(allow file-read* (literal "' + executable + '"))'
+        launch = {"argv": ["/usr/bin/sandbox-exec", "-p", policy, executable],
+                  "cli_argv": [executable], "env": {"HOME": "/private/tmp/t093-synthetic/home"}}
+        self.assertEqual(probe.home_references(launch, home), [
+            {"field": "launch.argv[2]", "line": 1}, {"field": "launch.argv[2]", "line": 2},
+            {"field": "launch.argv[3]", "line": 1}, {"field": "launch.cli_argv[0]", "line": 1}])
+
+    def test_route_drains_output_from_a_child_that_already_exited(self):
+        with tempfile.TemporaryDirectory(prefix="t093-route-exit-") as temp:
+            root = Path(temp)
+            env = probe.environment(root)
+            token, email = "t093-synthetic-" + uuid4().hex, uuid4().hex + "@example.invalid"
+            peer = root / "exit-peer"
+            peer.write_text("#!" + sys.executable + "\nimport os\nos.write(1, " +
+                            repr(("\x1b[6nChoose the text style\nError: spawn denied EPERM " + token + " " + email + "\n").encode()) + ")\nraise SystemExit(7)\n", encoding="utf-8")
+            peer.chmod(0o700)
+            original_popen = subprocess.Popen
+
+            def completed_child(*args, **kwargs):
+                child = original_popen(*args, **kwargs)
+                child.wait(timeout=3)
+                return child
+
+            report, stopped = {"captured_output_secret_hits": 0}, None
+            with patch.object(probe, "guarded", side_effect=lambda profile, argv: argv), \
+                 patch.object(probe.subprocess, "Popen", side_effect=completed_child), \
+                 patch.object(probe.os, "write", wraps=os.write) as pty_write:
+                try:
+                    probe.route(str(peer), "synthetic-profile", env, str(root / "cwd"), root, report, [token])
+                except probe.StopProbe as error:
+                    stopped = str(error)
+                writes_after_exit = pty_write.call_count
+            self.assertEqual(stopped, "no_authenticated_local_messages_request")
+            self.assertIn("route_diagnostic", report, "快速退出也须读完 PTY 并保留安全诊断。")
+            diagnostic = report["route_diagnostic"]
+            self.assertGreater(diagnostic["terminal"]["bytes"], 0)
+            self.assertEqual(diagnostic["exit_code_before_stop"], 7)
+            self.assertEqual(writes_after_exit, 0, "已知退出后只能排空输出，不得再写 PTY。")
+            self.assertEqual(diagnostic["protocol_replies"], {})
+            self.assertEqual(report["startup_controls"], [])
+            self.assertTrue(diagnostic["terminal"]["mentions_permission_error"])
+            self.assertEqual(diagnostic["submission"]["matching_user_records"], 0)
+            saved = json.dumps(report)
+            self.assertFalse(token in saved or email in saved, "不得把终端原文写入报告。")
+
+    def test_route_peer_needs_terminal_reply_and_records_external_prompt(self):
+        with tempfile.TemporaryDirectory(prefix="t093-route-peer-") as temp:
+            root = Path(temp)
+            env = probe.environment(root)
+            token, prompt = "t093-synthetic-" + uuid4().hex, "external prompt " + uuid4().hex
+            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text(
+                json.dumps({"claudeAiOauth": {"accessToken": token}}), encoding="utf-8")
+            server = subprocess.Popen([sys.executable, str(SOURCE.resolve()), "--sink", str(root)], cwd=root, env=env,
+                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+            probe.CHILDREN.append(server)
+            try:
+                server.stdin.write(json.dumps([token]).encode()); server.stdin.close()
+                self.assertTrue(select.select([server.stdout], [], [], 5)[0])
+                env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:" + str(int(server.stdout.readline()))
+                peer = root / "interactive-peer"
+                peer.write_text("#!" + sys.executable + "\n" + '''import os,sys,json,tty,select,time
+from pathlib import Path
+import urllib.request,urllib.error
+assert os.isatty(0)
+tty.setraw(0)
+os.write(1,b"\\x1b[6n")
+received=b""
+def expect(value):
+    global received
+    deadline=time.monotonic()+2
+    while value not in received and time.monotonic()<deadline:
+        if select.select([0],[],[],0.1)[0]:received+=os.read(0,4096)
+    if value not in received:raise SystemExit(68)
+expect(b"\\x1b[1;1R")
+os.write(1,b"Choose the text style that looks best with your terminal\\n")
+expect(b"1\\r")
+config=Path(os.environ["CLAUDE_CONFIG_DIR"])
+log=config/"projects"/"peer"/"session.jsonl"
+log.parent.mkdir(parents=True)
+log.write_text(json.dumps({"type":"user","message":{"role":"user","content":sys.argv[-1]}})+"\\n",encoding="utf-8")
+token=json.loads((config/".credentials.json").read_text(encoding="utf-8"))["claudeAiOauth"]["accessToken"]
+request=urllib.request.Request(os.environ["ANTHROPIC_BASE_URL"]+"/v1/messages",data=json.dumps({"messages":[{"role":"user","content":sys.argv[-1]}]}).encode(),headers={"Authorization":"Bearer "+token,"Content-Type":"application/json"})
+opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+try:opener.open(request,timeout=2)
+except urllib.error.HTTPError as error:assert error.code==400
+''', encoding="utf-8")
+                peer.chmod(0o700)
+                report, stopped = {"captured_output_secret_hits": 0}, None
+                with patch.object(probe, "guarded", side_effect=lambda profile, argv: argv), patch.object(probe, "PROMPT", prompt):
+                    try:
+                        probe.route(str(peer), "synthetic-profile", env, str(root / "cwd"), root, report, [token])
+                    except probe.StopProbe as error:
+                        stopped = str(error)
+                self.assertIsNone(stopped, "独立终端 peer 应完成协议握手、主题按键与本地 HTTP 请求。")
+                self.assertTrue(report["route_observed"])
+                self.assertEqual(report["route_diagnostic"]["protocol_replies"]["cursor_position"], 1)
+                self.assertEqual(report["route_diagnostic"]["submission"]["matching_user_records"], 1)
+                self.assertFalse(token in json.dumps(report), "报告不得含合成凭据。")
+            finally:
+                probe.stop_child(server)
+                server.stdout.close(); server.stderr.close()
+
     @unittest.skipUnless(sys.platform == "darwin", "探针入口只支持 macOS")
     def test_bound_profile_failure_stops_before_credential_read(self):
         for code, stdout in ((65, b""), (0, b"wrong version\n")):

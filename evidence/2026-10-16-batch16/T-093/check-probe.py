@@ -48,6 +48,20 @@ def main():
          "test_bound_profile_compiles_without_applying_it"),
         ("profile_failure_gate_is_skipped", 'code == 0 and report["precredential_bound_profile_probe"]["version_matches"]',
          'True', "test_bound_profile_failure_stops_before_credential_read"),
+        ("terminal_queries_are_not_answered", 'replies.append(reply)', 'pass',
+         "test_route_peer_needs_terminal_reply_and_records_external_prompt"),
+        ("exited_child_still_receives_keys", 'if child.poll() is not None:\n                continue\n            screen +=',
+         'if False:\n                continue\n            screen +=',
+         "test_route_drains_output_from_a_child_that_already_exited"),
+        ("terminal_raw_output_is_saved", '"terminal": terminal_facts(captured, PROMPT)',
+         '"terminal": {**terminal_facts(captured, PROMPT), "raw": captured.decode("utf-8", "replace")}',
+         "test_route_drains_output_from_a_child_that_already_exited"),
+        ("submission_reader_follows_home_symlink", 'child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)',
+         'child = os.open(part, os.O_RDONLY | os.O_DIRECTORY, dir_fd=directory)',
+         "test_submission_reader_does_not_follow_an_ancestor_symlink"),
+        ("home_references_always_empty", 'def home_references(value, home, field="launch"):\n',
+         'def home_references(value, home, field="launch"):\n    return []\n',
+         "test_home_references_include_policy_and_duplicate_executable_fields"),
     ]
     records = []
     baseline = subprocess.run([sys.executable, str(test)], cwd=repo, capture_output=True, text=True, timeout=20)

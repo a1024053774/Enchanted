@@ -1,8 +1,9 @@
 # T-093 前置探针交接（2026-10-17）
 
 状态：INCOMPLETE。probe-02 已证明精确钥匙串读取与无 BASE_URL 时的隔离登录识别；
-probe-03 将后续失败定位到带端口 profile 的编译阶段；该语法现已修正并通过本机编译器，实际启动仍待验证。
-当前 probe-04 命令见 [PROBE-04.md](PROBE-04.md)，清单归属方案另行交审；旧探针全部保留。未改产品代码。
+probe-04 已证明修正后的 profile 可运行同版本 CLI、自定义地址下仍识别登录，但交互式请求未到本地假上游。
+当前逐项路径说明、只读进程核对及 probe-05 命令见 [PROBE-05.md](PROBE-05.md)；旧探针全部保留，未改产品代码。
+本轮不做 fs_usage 或归属采集，原始清单差异继续照实记录，验收修订等待构思主控裁定。
 绑定：T-093-1 / attempt a1 / writer s16-t093 / ready_rev 1 / 起点 `61786370428c3ec5f894ea60acccf2695d54c2dc`。
 
 目标是核对三件事实：现有订阅登录的存储位置、只复制登录凭据后隔离 HOME 的登录识别、
@@ -39,7 +40,8 @@ REALITY GATE: INCOMPLETE
 - **observed**：现有产品只构造固定假 token 的本地 API profile；`controller_start → startController → claudeLaunch` 是现有通路。
 - **observed**：本机 CLI 链接指向 `~/.local/share/claude/versions/2.1.302`；未在本 worker 中运行它。
 - **observed（主控 #58）**：probe-01 在隔离环境不可见的精确服务，在主控未加 profile 的环境中查询返回 0；未读取密码。
-- **unknown**：显式单一钥匙串能否消除该上下文差异、凭据文件在 macOS 隔离环境中能否被识别、自定义地址是否仍用原登录。
+- **observed（主控 #61、#65）**：显式单一钥匙串读取退出 0；隔离 HOME 中无/有 BASE_URL 的状态均识别 claude.ai 登录。
+- **unknown**：交互启动为何未产生本地 HTTP；自定义地址实际请求是否携带复制的登录凭据。
 - **probe owner**：执行主控在沙箱外运行下面脚本。证据为新建的 JSON 摘要，始终不覆盖旧结果。
 
 1. 建立 `/private/tmp/t093-probe-*`，所有 CLI 工作目录、HOME、配置、tmp 均在其中。
@@ -85,11 +87,11 @@ REALITY GATE: INCOMPLETE
 
 ```sh
 python3 workbench/tests/probe_t093_normal_login.py
-python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-04.json
+python3 workbench/tests/probe_t093_normal_login.py --run --claude /Users/luckye/.local/share/claude/versions/2.1.302 --output evidence/2026-10-16-batch16/T-093/probe-05.json
 ```
 
 必须使用实际可执行文件（不复制），输出路径必须是已存在目录中的新文件。
-后续运行改为新的 `probe-05.json` 等，保留旧结果。
+后续运行改为新的 `probe-06.json` 等，保留旧结果。
 脚本不打印捕获的 CLI/security 输出，不把凭据放到参数或环境中，不把隔离目录归档进 evidence 或 Git。
 后台假上游及 CLI 子进程都通过 `start_new_session=True` 脱离调用者进程组。
 脚本退出 0 表示探针范围 PASS；退出 2 为 INCOMPLETE 或 NO_GO。产品工作仍等待主控读回探针结果。

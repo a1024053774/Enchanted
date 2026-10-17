@@ -1,0 +1,16 @@
+{
+  "task": "T-093",
+  "candidate": "b01524e5c1a878ef488e37e04f8cf1f0b943bc26",
+  "status": "INCOMPLETE",
+  "command": "python3 workbench/tests/test_t093_probe_safety.py ProbeSafety.test_route_drains_output_from_a_child_that_already_exited ProbeSafety.test_route_peer_needs_terminal_reply_and_records_external_prompt",
+  "exit_code": 1,
+  "assertion_failures": 2,
+  "observed": [
+    "已退出的真实 Python peer 留有 PTY 输出，但旧 route 在读取前见 poll 结果就停止，没有安全诊断。",
+    "独立交互 peer 要求前台终端、终端查询回复和主题按键；旧 route 没有完成该合同，本地认证请求未出现。"
+  ],
+  "real_boundary_evidence": "probe-04 已证明自定义地址下登录识别，但没有本地 HTTP 请求；该候选未保留退出状态或屏幕结构。",
+  "limitations": "合成 peer 不是 Claude；这些反例证明终端通路缺口，不证明它们是 probe-04 实际失败的唯一原因。",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0
+}
