@@ -1610,3 +1610,18 @@ C-I2另外补了已列出的按键前门：核对实际原stop/request/clock，b
 新材料目标为09c-executable-materials-04与09c-attempt-2-materials-02，Stage A批准保持空签字；Stage A/B1仍从本场实际readiness/manifest逐步绑定新root与身份，协调器签名由主控同一文本填入预批准与 `--signature-ref`。本轮只写/静态核对，没有启动第2场、发键或调模型；第2场与整票状态仍INCOMPLETE。
 
 本次新冻结已完成：[SOURCE](09c-attempt-2-materials-02/SOURCE.json) 的 `runtime_source_revision=dc15dc3f0169f8689c5cded440676031cfa48bf5`，完整冻结提交另为 `1dfa09207b34c7ccadfe81cb92a46338fa619526`（仅校验元数据/证据变化，不冒称该提交已实跑）。[静态核对](09c-attempt-2-refreeze-01/material-check-02/result.json) **PASS**：324成员与冻结字节一致，原回归组合与本次coordinator PASS绑定通过，未签Stage A与错收据/错运行版本/额外产品差异均拒绝，5条现有入口路径存在、未来输入标清、输出全新。新的[Stage A未签件](09c-attempt-2-materials-02/stage-a-approval.json)与[命令](09c-attempt-2-materials-02/STAGE-A-COMMAND.txt)已备；签名由主控给定，未执行Stage A或其他场景动作。
+
+
+## 主控 #363/#364：09C 第2场拓扑拒绝；额外进程身份不足，第三场 NO_GO
+
+主控运行第2场的Stage A、两角色B1/逐屏/readiness/owner、五阶段ARM与C-I3 build；本轮将原签字与全部仓内输出保留入库。C-I1 check/一次Enter成功、实际工具/Stop/relay产生stop `bfa23030-9da9-413f-87fc-e7cb81317987`（created_at `2026-10-17T01:06:15.258Z`），原queued request `95058fd0-1e9d-4028-b1c1-f45845dd3584`。协调器到C-I2 observe/完整读屏/prepare后，在签名前的 `NativePermission.actual → check_identities → topology` 拒绝 `unexpected_daemon_descendants`；C-I2未签、未按Enter。原[外层结果](09c-c2-preparation-01/timed-01/result.json)和[C-I2结果](09c-c2-b1-ideation-p1-01/phases/C-I2/execute-02/result.json)保持INCOMPLETE，不重写。
+
+[只读诊断](09c-attempt-2-diag-01/DIAGNOSIS.md) **INCOMPLETE／UNKNOWN**：异常没有保存故障时ps图或额外PID，不能还原其进程名/argv/父链/创建者。CLI日志出现数次 `Started caffeinate`、Bash工具开始/结束，仅有时间没有子PID，**不足以确认其为本次额外子进程或合法允许项**。daemon processInfo也可能临时派生ps，只是另一待排除假设。本worker只读ps被沙箱拒绝，未提权；已交[只读取证命令](09c-attempt-2-diag-01/PROBE-OUTSIDE-COMMAND.txt)，新probe保存两次原始数值图、完整argv/lstart/当前父链，仍不冒称历史fork证明。未更改受管集合、原owner或任何workbench源码。
+
+本轮只读HTTP meta观察为ideation **3 POST**；executor首条保持SSE在150秒后 `C_executor_hold_deadline`，随后CLI自动重试至第11 POST、409 `dispatch_replayed`。原件需全量脱敏归档，不能以3/11冒充计划7/1；本场预算和时点均不能续行。原clock-origin、日志安全选行及逐POST错误清点保存在[forensic-originals](09c-attempt-2-diag-01/forensic-originals/evidence-index.json)，不复制认证信息或HOME到Git。
+
+[排练检查差异清单](09c-attempt-2-diag-01/SKIPPED-CHECKS.md) 逐处列出原文件/行号：REHEARSAL直接跳过owner原收据、恰九进程、原节点/完整后代拓扑；七进程owner、direct controller_start/手写readiness与简化cleanup还绕过了标准Stage A/B1/归档→读回→finish入口。扫描2716份源码文本、167处条件候选、284份source tar及52处guard别名，历史冻结不改。本地实际原 `check_identities` 的[3条现状红态](09c-attempt-2-diag-01/guard-audit-01/bypass-red.json)证实scene豁免；transport为明确spy，零现场动作，**绿态尚未实现**。旧完整排练PASS继续只支持其业务/实钟断言，不支持九进程来源/拓扑与回收等价；不能再用旧PASS替代该缺口。
+
+[本地静态/元数据/解析核对](09c-attempt-2-diag-01/local-check-01/result.json) PASS：UTF8/AST/命令语法、原owner字段不变、两份ps解析夹具、重复output零ps/原字节不变。实际ps、合法子进程分类、去豁免后的真实九进程排练及反例仍INCOMPLETE。只有 #364 要求的PID/完整命令/父链/时间及工具归属证明到位，才可写最小允许描述；未知子进程、错误父链/参数、复用PID、原节点改变、竞态仍拒绝。当前按该证据门停下，不自行放宽。
+
+[第2场回收材料](09c-attempt-2-closeout-materials-01/README.md) 已写、未运行：仅原九PID/argv/lstart与原图；capture-owner只扩展证据树，原身份/claim/source不变。先活场景全量脱敏POST/hook与一致行导出、外置tar逐成员字节读回/独立签字，再认证daemon_stop/panes.shutdown、两API各一次SIGTERM、确认退出、停后只验文件并删root。**原strict拓扑未过时仍BLOCKED，不能为清理绕过它。**第三场[最小计划](09c-attempt-2-diag-01/ATTEMPT-3-PLAN.md)只列前置、顺序和不变预算4/7+1/1；未冻结、未签、未创建现场，状态NO_GO。整票仍INCOMPLETE。

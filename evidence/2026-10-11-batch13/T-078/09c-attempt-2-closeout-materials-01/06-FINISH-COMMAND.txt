@@ -1,0 +1,21 @@
+# 待主控逐步审批；本轮未运行。拓扑未知/不符时保持 BLOCKED。
+set -e
+python3 -B - <<'PY'
+import json
+from pathlib import Path
+base=Path('/Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078')
+approval=json.loads((base/'09c-attempt-2-closeout-materials-01/cleanup-approval.json').read_bytes())
+review=json.loads((base/'09c-attempt-2-raw-readback-01/failed-scene-review.json').read_bytes())
+counts=json.loads((base/'09c-attempt-2-raw-readback-01/readback.json').read_bytes())
+assert review['status']=='PASS' and review['scene_status']=='INCOMPLETE'
+assert review['archive']==counts['archive']==approval['archive']=='/Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-attempt-2-raw-01/scene.tar.gz'
+assert review['root']==approval['root']=='/private/tmp/t078-2-09c-run-iznfrv18'
+assert review['source_revision']==approval['source_revision']=='1dfa09207b34c7ccadfe81cb92a46338fa619526'
+assert review['approved_by']==counts['approved_by']=='executor' and review['approval_ref'] and counts['approval_ref']
+assert review['counts']==counts['counts']
+assert review['stop_id']=='bfa23030-9da9-413f-87fc-e7cb81317987'
+assert review['created_at']=='2026-10-17T01:06:15.258Z'
+assert review['original_request_id']=='95058fd0-1e9d-4028-b1c1-f45845dd3584'
+assert review['no_ack'] is True and review['C_I2_Enter_count']==0 and review['target_delta_hex']==''
+PY
+python3 -B /Users/luckye/Documents/Code/a2a-wt-t078/workbench/tests/t078_raw_retention.py --owner /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-attempt-2-closeout-materials-01/capture-owner.json --archive /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-attempt-2-raw-01/scene.tar.gz --mode finish --approval /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-attempt-2-closeout-materials-01/cleanup-approval.json --capture-result /Volumes/WD-Elements/a2a-evidence/2026-10-11-batch13/T-078/09c-attempt-2-capture-01/capture-result.json --independent-readback /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-attempt-2-raw-readback-01/readback.json --output /Users/luckye/Documents/Code/a2a-wt-t078/evidence/2026-10-11-batch13/T-078/09c-attempt-2-cleanup-01
