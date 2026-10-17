@@ -6,6 +6,9 @@ status: open
 blocked_by: []
 claimed_by:
 supersedes:
+ready: yes
+ready_by: ideation
+ready_rev: 1
 ---
 
 ## What to build
@@ -31,3 +34,7 @@ T-078 原验收有一条"Electron 截图或录屏：两个主控窗格、一个 
 
 - 构思主控建票，未标 ready；开工前先过一遍界面方向（可用 `frontend-production` 与 `same-visual-family` 两个 skill 的约束）。与 T-078 不再互相等待。
 - 不改门禁、不改紧急停止或收件箱语义。
+
+## 就绪
+
+用户 2026-10-17 说（逐字，会话"a2a-构思主控"）："那现在都idle了，让他继续啊，漏掉的也开工"，构思主控据此标就绪（`ready_rev: 1`）。
