@@ -45,14 +45,23 @@ export function terminalText(raw: string) {
   return { text, positions, end };
 }
 export function safeTerminal(raw: string, secrets: readonly string[]) {
-  const { text, positions, end } = terminalText(raw), normalized = percent(text);
-  let cut = text.length;
+  // OSC/DCS/SOS/PM/APC payloads never belong in the public trace. Incomplete
+  // controls remain withheld by terminalText until their terminator arrives.
+  raw = raw.replace(/\x1b(?:\][\s\S]*?(?:\x07|\x1b\\)|[PX^_][\s\S]*?\x1b\\)/g, "");
+  const { text, positions, end } = terminalText(raw);
+  let cut = end;
   const matches: { start: number; end: number }[] = [];
   for (const value of credentialVariants(secrets)) {
-    for (const match of text.matchAll(pattern(value))) matches.push({ start: match.index!, end: match.index! + match[0].length });
-    const candidate = percent(value);
-    for (let n = Math.min(candidate.length - 1, normalized.length); n > text.length - cut; n--) {
-      if (normalized.endsWith(candidate.slice(0, n))) { cut = text.length - n; break; }
+    for (const match of raw.matchAll(pattern(value))) matches.push({ start: match.index!, end: match.index! + match[0].length });
+    for (const match of text.matchAll(pattern(value))) matches.push({ start: positions[match.index!]!, end: positions[match.index! + match[0].length - 1]! + 1 });
+    for (const [candidateText, visible] of [[raw, false], [text, true]] as const) {
+      const normalized = percent(candidateText), candidate = percent(value);
+      for (let n = Math.min(candidate.length - 1, normalized.length); n > 0; n--) {
+        if (normalized.endsWith(candidate.slice(0, n))) {
+          const start = candidateText.length - n;
+          cut = Math.min(cut, visible ? positions[start]! : start); break;
+        }
+      }
     }
   }
   // Never publish the prefix of a complete match when another credential can
@@ -62,7 +71,6 @@ export function safeTerminal(raw: string, secrets: readonly string[]) {
     if (!crossing) break;
     cut = crossing.start;
   }
-  const rawEnd = cut < text.length ? positions[cut]! : end;
   const ranges = matches.filter(m => m.end <= cut).sort((a, b) => a.start - b.start || b.end - a.end);
   const merged: { start: number; end: number }[] = [];
   for (const range of ranges) {
@@ -72,10 +80,9 @@ export function safeTerminal(raw: string, secrets: readonly string[]) {
   }
   let safe = "", offset = 0;
   for (const range of merged) {
-    const start = positions[range.start]!, finish = positions[range.end - 1]! + 1;
-    safe += raw.slice(offset, start) + "<CREDENTIAL>"; offset = finish;
+    safe += raw.slice(offset, range.start) + "<CREDENTIAL>"; offset = range.end;
   }
-  return safe + raw.slice(offset, rawEnd);
+  return safe + raw.slice(offset, cut);
 }
 export function preflightObserved(raw: string) {
   const text = terminalText(raw).text.replace(/\s+/g, " ");

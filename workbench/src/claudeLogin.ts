@@ -57,7 +57,7 @@ export class ClaudeLogin {
   #secrets: string[] = [];
   #forwarder: ClaudeForwarder | null = null;
   #raw = "";
-  #published = 0;
+  #published = "";
   #finish: Promise<void> | null = null;
   #stage = "inventory";
   versionProbe!: { argv: string[]; stdout: string; stderr: string };
@@ -115,8 +115,8 @@ export class ClaudeLogin {
     this.#raw += data;
     if (Buffer.byteLength(this.#raw) > 32 * 1024 * 1024) throw new Refusal("login_terminal_limit");
     const safe = safeTerminal(this.#raw, this.#secrets);
-    if (safe.length < this.#published) throw new Refusal("login_terminal_redaction_changed");
-    appendFileSync(publicTrace, safe.slice(this.#published)); this.#published = safe.length;
+    if (!safe.startsWith(this.#published)) throw new Refusal("login_terminal_redaction_changed");
+    appendFileSync(publicTrace, safe.slice(this.#published.length)); this.#published = safe;
   }
   finish(record: unknown) {
     return this.#finish ??= this.finalize(record);
@@ -146,6 +146,6 @@ export class ClaudeLogin {
   async discard() {
     await this.#forwarder?.close();
     rmSync(this.isolation.homeRoot, { recursive: true, force: true });
-    this.#secrets = []; this.#raw = "";
+    this.#secrets = []; this.#raw = ""; this.#published = "";
   }
 }

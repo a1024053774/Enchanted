@@ -23,7 +23,7 @@ mutations = [
      'export function preflightObserved(raw: string) { return false;'),
 ]
 checks = []
-for name, filename, old, new in [("unmodified_control", "", "", ""), *mutations]:
+for name, filename, old, new in [("unmodified_control", "", "", ""), *mutations, ("pre_control_payload_fix", "", "", "")]:
     with tempfile.TemporaryDirectory(prefix="t093-counterfactual-", dir="/private/tmp") as temporary:
         root = Path(temporary)
         (root / "src").mkdir(); (root / "tests").mkdir()
@@ -31,6 +31,9 @@ for name, filename, old, new in [("unmodified_control", "", "", ""), *mutations]
         (root / "src/gates").symlink_to(source / "src/gates", target_is_directory=True)
         for module in ("claudeForwarder.ts", "claudeLoginFacts.ts"):
             text = (source / "src" / module).read_text()
+            if name == "pre_control_payload_fix" and module == "claudeLoginFacts.ts":
+                text = subprocess.run(["git", "show", "ff625c371:workbench/src/claudeLoginFacts.ts"], cwd=source,
+                                      capture_output=True, text=True, check=True).stdout
             if module == filename:
                 assert text.count(old) == 1
                 text = text.replace(old, new)

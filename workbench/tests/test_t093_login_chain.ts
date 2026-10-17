@@ -57,7 +57,7 @@ try {
     base_commit: "a".repeat(40), state: "registered", current_attempt: null };
   panes.store.db.prepare("INSERT INTO tasks VALUES (?,?)").run(task.task_id, JSON.stringify(task));
   panes.store.db.prepare("INSERT INTO inbox_records VALUES (?,?)").run("t093-independent-sentinel", JSON.stringify({ schema: 1,
-    id: "t093-independent-sentinel", kind: "report", from: "ideation", to: "executor", body: "独立 Stop 转交哨兵", reply_to: null, refs: [], created_at: new Date().toISOString() }));
+    id: "t093-independent-sentinel", kind: "report", from: "executor", to: "ideation", body: "独立 Stop 转交哨兵", reply_to: null, refs: [], created_at: new Date().toISOString() }));
   const manifest = { schema: 1, root, state, task: task.task_id, preset: "ideation", launch: randomUUID(), session: randomUUID(), thread: randomUUID(),
     executable, version: "2.1.302", role_file: join(root, "roles/ideation/role.md"), code_revision: "a".repeat(40), source_snapshot: root,
     authentication: "normal-login", credential_source: "file", upstream_url: `http://127.0.0.1:${upstreamPort}`, turn_limit: 3 };
@@ -69,7 +69,7 @@ try {
   checks.push("controller_start; sandboxed child cannot read/write source HOME or connect to another port");
   const released = await request(state, { command: "pane_release", thread: launch.thread, reason: "deterministic fixture ready" }, operator);
   assert.equal(released.ok, true);
-  const dispatched = await request(state, { command: "pane_dispatch", thread: launch.thread, body: "请通过原生 inbox list 读取 executor 收件箱并在 Stop 转交。" }, operator);
+  const dispatched = await request(state, { command: "pane_dispatch", thread: launch.thread, body: "请通过原生 inbox list 读取当前角色收件箱并在 Stop 转交。" }, operator);
   assert.equal(dispatched.ok, true);
   await wait(() => readFileSync(trace, "utf8").includes("fixture-turn-2-complete"), "two hook/Stop cycles deadline");
   assert.equal(upstreamReceived, 2);

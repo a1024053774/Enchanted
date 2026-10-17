@@ -59,6 +59,16 @@ try {
   assert(preflightObserved("Unable to connect to Anthropic services\nFailed to connect to api.anthropic.com: ENOTFOUND"));
   assert.equal(preflightObserved("ordinary terminal output"), false);
   checks.push("split ANSI credentials withheld and redacted; bypass preflight classified");
+  for (const control of ["\x1b]0;" + token + "\x07", "\x1b]8;;https://local/" + token + "\x1b\\link\x1b]8;;\x1b\\", "\x1bP" + token + "\x1b\\", "\x1b[" + token]) {
+    const raw = "before " + control + " after\n";
+    let published = "";
+    for (let n = 0; n <= raw.length; n++) {
+      const safe = safeTerminal(raw.slice(0, n), [token]);
+      assert(safe.startsWith(published)); assert.equal(credentialHits(safe, [token]), 0);
+      published = safe;
+    }
+  }
+  checks.push("raw public bytes contain no credential in OSC title, OSC8, DCS or CSI across every split");
   writeFileSync(output, JSON.stringify({ status: "PASS", task: "T-093", checks, upstream_requests: observed.length,
     real_upstream_requests: 0, synthetic_credential_files_removed: true }, null, 2) + "\n", { flag: "wx" });
   console.log(JSON.stringify({ status: "PASS", checks: checks.length }));

@@ -75,7 +75,7 @@ if turn == 1:
                 raise SystemExit(26)
             response.read()
     inbox = str(Path(command[1]).parent.parent.parent / "bin/inbox")
-    receipt = json.loads(run([command[0], inbox, "list", "--role", "executor"]))
+    receipt = json.loads(run([command[0], inbox, "list", "--role", "ideation"]))
     if receipt.get("queued") is not True or receipt.get("delivered") is not False:
         raise SystemExit(27)
 hook("Stop", stop_hook_active=False)

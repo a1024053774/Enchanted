@@ -27,15 +27,19 @@ int main(int argc, char **argv) {
     struct termios mode; if (tcgetattr(0, &mode)) return 5; cfmakeraw(&mode); tcsetattr(0, TCSANOW, &mode);
     if (peer(script, "", 0)) return 6;
     puts("fixture-ready"); fflush(stdout);
-    char line[131072]; size_t used=0; int turn=0; char c;
+    char line[131072]; size_t used=0; int turn=0, pasting=0; char c;
     while (read(0, &c, 1)==1) {
-        if (c=='\r' || c=='\n') {
+        if ((c=='\r' || c=='\n') && !pasting) {
             line[used]='\0';
             char *start=line; if (!strncmp(start,"\033[200~",6)) start+=6;
             size_t length=strlen(start); if (length>=6 && !strcmp(start+length-6,"\033[201~")) start[length-6]='\0';
             if (peer(script, start, ++turn)) return 7;
             printf("fixture-turn-%d-complete\n", turn); fflush(stdout); used=0;
-        } else if (used+1<sizeof line) line[used++]=c; else return 8;
+        } else if (used+1<sizeof line) {
+            line[used++]=c; line[used]='\0';
+            if (used==6 && !strncmp(line,"\033[200~",6)) pasting=1;
+            if (used>=6 && !strcmp(line+used-6,"\033[201~")) pasting=0;
+        } else return 8;
     }
     return 0;
 }
