@@ -7,7 +7,7 @@ root `/private/tmp/t078-2-09c-run-kwp5kj5g`；daemon40012，target shell/leader4
 执行主控逐项核对后签cleanup-approval.json，再按序整文件执行；不能拼接成跳过签字的自动回收：
 
 1. `01-DRY-RUN.txt`：原九身份/拓扑/批准核对；不采集、不停机、不发信号、不删root。任何不符BLOCKED保留。
-2. `02-CAPTURE.txt`：daemon仍活着时，标准raw-retention一致只读事务导出live-rows，捕获全部HTTP请求/响应/meta、完整hooks、目标baseline/received、原许可屏/签字/动作与计时/一次性意图。新增树涵盖本场后生成的完整读屏目录、整个preparation、worker live-05的task-boundary快照和root/permission-intents。认证头从未进入HTTP捕获接口；结构敏感值按原规则脱敏，留字节span映射；不包含HOME、认证文件、环境或原SQLite/WAL。
+2. `02-CAPTURE.txt`：daemon仍活着时，标准raw-retention一致只读事务导出live-rows，捕获全部HTTP请求/响应/meta、完整hooks、目标baseline/received、原许可屏/签字/动作与计时/一次性意图。新增树涵盖本场后生成的完整读屏目录、整个preparation、worker live-06的task-boundary快照和root/permission-intents。认证头从未进入HTTP捕获接口；结构敏感值按原规则脱敏，留字节span映射；不包含HOME、认证文件、环境或原SQLite/WAL。
 3. `03-TAR-READBACK.txt`：从tar重新计POST7/1、roots4/1、PermissionRequest3/0，unfinished均空；readback.json签字留空。不能用成功响应数或HTTP日志行数代替POST原件。
 4. `04-TAR-CHECK.txt`：同一只读核对器换成tar原件入口，核对请求/SSE/工具/UPS/Stop/三许可、完整屏、原request→relay→stop、早拒绝、>120秒后中断、目标单Esc、无ack、原attempt未reclaim及原clock。仅读tar与已保存owner，不打开现场SQLite。输出09c-c3-tar-check-01；任何缺件或错绑必须失败。
 5. 执行主控独立检查tar全部成员/脱敏span、扫描真实凭据、核对04与标准重数。由review-template另写 `09c-attempt-3-raw-readback-01/review.json`，填实际counts、status/credential_scan=PASS并签字；同时另签readback.json。正常业务字段名hook_authorization/turn_authorization和系统提示中的authorization不是认证头，若扫描命中须逐项说明，不能无条件忽略。未审阅不得填PASS。

@@ -14,6 +14,7 @@ OWNER=BASE/'09c-attempt-3-materials-01/owner.json'
 P1=BASE/'09c-c3-b1-ideation-p1-01'
 E1=BASE/'09c-c3-b1-executor-p1-01'
 TIMED=BASE/'09c-c3-preparation-01/timed-01/result.json'
+CONTROLS=BASE/'09c-c3-closeout-materials-01/original-control-files'
 TABLES=['dispatch_records','orchestration_events','events','inbox_records','relay_requests','relay_results','user_inputs']
 EXPECTED={'C-I1':('ideation',2,True),'C-I2':('ideation',2,True),'C-I3':('ideation',2,True),
           'C-I4':('ideation',1,False),'C-E1':('executor',1,False)}
@@ -178,6 +179,12 @@ def inspect(reader):
     require(not any(e['type'] in ['pane_exit','pane_stop_intent'] and e['launch']==o['claim_binding']['runtime_identity']['launch'] for e in events),'target_not_stopped_in_scene_events')
     clock_path=P1/'phases/C-I1/execute-02/clock-origin.json';origin=reader.json_source(clock_path)
     require(origin['stop']=={'id':stop['id'],'created_at':stop['created_at'],'request_id':data['C-I1']['queued_request']},'original_clock_binding')
+    require(reader.source(clock_path)==reader.source(CONTROLS/'clock-origin.json'),'original_clock_copies_exact')
+    plan=reader.json_source(CONTROLS/'protocol-plan.json')
+    require(plan['root']==o['root'] and plan['source_revision']==o['source_revision'] and plan['target_binding']==o['claim_binding'],'original_plan_binding')
+    demand=reader.json_source(CONTROLS/Path(plan['continued_demand_file']).relative_to(reader.root))
+    require(demand['stop_id']==stop['id'] and demand['still_required'] is True and demand['source']=='test-simulated-user' and
+        bool(demand['approval_ref']),'continued_original_stop_demand')
     late=reader.json_source(P1/'phases/C-I3/execute-02/result.json');enter=late['enter_at']
     require(enter['wall_age_ms']>120000 and enter['observed_elapsed_ms']>=120100,'late_control_clock_boundaries')
     require(abs(enter['observed_elapsed_ms']-(enter['monotonic_ms']-origin['mono_ms']))<1 and
@@ -216,7 +223,7 @@ def inspect(reader):
         'early_relay_event':{'seq':early[0]['seq'],'time':early[0]['time'],'age_ms':stamp(early[0]['time'])-stamp(stop['created_at'])},
         'late_emergency_event':event,'independent_emergency_age_ms':age,'late_Enter_clock':enter,'completion_observation':timed['observed_time'],
         'global_dispatch_sequence':[{'seq':d['seq'],'id':d['id'],'source':d['body']['source'],'stage':phases.get(d['id'],'target_initial')} for d in dispatches],
-        'target_delta_hex':'1b','target_total_bytes':len(received),'baseline_bytes':len(baseline),'no_ack':True,'current_attempt_unchanged':True,
+        'target_delta_hex':'1b','target_total_bytes':len(received),'baseline_bytes':len(baseline),'no_ack':True,'current_attempt_unchanged':True,'continued_original_stop_demand':demand,
         'model_turns':0,'model_scope':'actual local fake-API paths and frozen deterministic handler; no supplier response claimed',
         'sources':{'http_hooks':'roles/<role>/http-exchanges and hooks original files','gate_rows':'one live read transaction' if not reader.archive else 'tar live-rows.json captured before stop','clock':str(clock_path)},
         'limitations':'Worker readback is not independent reviewer acceptance. Current OS liveness awaits owner-bound dry-run; original stage drivers saved its checks. Cleanup not run.'}

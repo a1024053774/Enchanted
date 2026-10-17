@@ -17,7 +17,8 @@ def main():
     try:
         for case,reason in [('extra_POST','actual_POST_budget'),('double_Esc','exactly_one_Esc'),
             ('ack_added','original_stop_no_ack'),('early_emergency','real_event_age_gt120_lt150'),
-            ('truncated_screen','complete_permission_screen'),('clock_jump','recorded_clock_arithmetic'),('HTTP409','actual_HTTP_success')]:
+            ('truncated_screen','complete_permission_screen'),('clock_jump','recorded_clock_arithmetic'),('HTTP409','actual_HTTP_success'),
+            ('demand_revoked','continued_original_stop_demand')]:
             class Changed:
                 def __init__(self):
                     self.rows=copy.deepcopy(base.rows);self.names=set(base.names)
@@ -39,6 +40,8 @@ def main():
                         value=json.loads(data);value['permission_screen_capture']['complete']=False;return json.dumps(value).encode()
                     if case=='clock_jump' and Path(name)==audit.P1/'phases/C-I3/execute-02/result.json':
                         value=json.loads(data);value['enter_at']['monotonic_ms']+=2000;return json.dumps(value).encode()
+                    if case=='demand_revoked' and Path(name).parent==audit.CONTROLS and 'stop_id' in json.loads(data):
+                        value=json.loads(data);value['still_required']=False;return json.dumps(value).encode()
                     return data
                 def json_source(self,name):return json.loads(self.source(name))
             try:audit.inspect(Changed())

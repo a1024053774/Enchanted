@@ -1720,3 +1720,5 @@ worker[全场核对](09C-C3-FINAL-READBACK.md)及[最终JSON](09c-c3-final-check
 当前C3 root仍保留，**外置归档/独立tar重数/凭据审阅/停机尚未执行**。[回收材料](09c-c3-closeout-materials-01/README.md)仅准备：原九身份、只扩evidence树，完整保留后生成的许可读屏/计时/clock/一次性意图，另复制10份不含凭据的原control JSON（含持续原停止要求）；主控签字后dry-run→停前全量结构脱敏capture→逐成员字节读回→标准tar重数与同一核对器tar入口→独立凭据/原件审阅签字→保存逐原件.archive.json入口→原owner-bound finish。只经daemon_stop正常关角色/target、两原API各一次SIGTERM、实际全部缺席后删root；停后不打开SQLite，不动slot。本worker没有发键、业务请求、停机或信号。
 
 [终审01 F1～F7处置](FINAL-02-DISPOSITION.md)逐项说明：A16的17 POST/10根/7许可原tar仍可读，当前再次重数6/11、4/6、2/5，I1直接total15877留存，补F1/F5新场景证据但不改A15历史；F4四份原回归组合与明示CAS例外、F6标准reader闭包已补；F3仍待fresh reviewer在绑定候选的临时worktree做2～5个产品变异，worker不代做独立审查。F7当前状态明确区分已回收旧场与未回收C3。rev2范围不变：三窗格转T091、真登录转T092，IME本轮未验证/INCOMPLETE。**整票仍INCOMPLETE，待C3实际归档/回收及终审02；不集成、不push、不关闭票或切换日常派发。**
+
+补强后的[最终只读核对live-06](09c-c3-final-check-01/live-06/result.json)仍PASS，并直接核对已复制原protocol-plan、原continued-stop-demand同stop/still_required=true、原clock与主控副本字节相同；8个坏证据反例含撤销持续停止要求均拒绝。live-05等旧结果不改。回收capture-owner同步只扩到live-06及原control文件树，运行代码/原owner身份不动；真实tar/回收尚未跑。审查准备件会固定包含这些补强的候选，归档/回收后主控须显式补收据重冻后再派发，不让reviewer追HEAD。
