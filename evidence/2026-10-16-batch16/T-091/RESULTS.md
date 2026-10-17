@@ -130,3 +130,15 @@ python3 -B evidence/2026-10-16-batch16/T-091/test_red_cleanup.py --output eviden
 bridge 断言修订沿用主控裁定：起点原断言只允许 output／snapshot，但起点 preload 实际已有六个公开方法，原断言单独执行 FAIL。新预期逐项为 beginComposition、input、observeFocus、output、paneKeys、releaseQueue、snapshot，另要求 renderer 无 Node；没有运行起点完整 window suite。主控恢复的 p1-materials-09 原 snapshot 未改，当前 13 项绑定检查仍 PASS。
 
 交付边界仍是脚本准备完成，等待主控依次实跑三格绿态／拒绝反例与五类回归；真实结果和最终门禁验收不能以本地 PASS 替代。
+
+### 冻结审查与收尾判定修正
+
+三格候选先冻结为 `03b80c4d86feb20140d0df630ae100db40d68ecf`；提交九项尾注已核对，均使用新会话身份，工具为 codex-cli 0.163.0。新开的只读工具子会话按 behavioral-acceptance-review 审查此冻结候选，结论 **FAIL**，原报告 [three-pane-acceptance-audit-01.md](three-pane-acceptance-audit-01.md) 保留。审查没有启动真实 reviewer CLI 或场景，不作为最终门禁独立终审。
+
+该审查复现了隔离 operator 凭据删除失败仍被判 PASS 的 P2。修正只把 `cleanup_complete` 的设置移到删除成功后，并在最终 PASS 条件要求 `cleanup_errors` 为空。`test_t091_cleanup_verdict.py` 执行 runner 实际 AST 的收尾段与最终判定，文件系统故障由独立输入注入；固定坏候选 03b80c4 被拒，当前删除失败为 INCOMPLETE／cleanup_complete=false，正常收尾仍 PASS，已有收尾错误不能 PASS。
+
+```sh
+python3 -B workbench/tests/test_t091_cleanup_verdict.py evidence/2026-10-16-batch16/T-091/cleanup-verdict-green-02.json
+```
+
+该检查三项 **PASS**；它是纯逻辑故障注入，不是实际 macOS 删除／退出证据。`cleanup-verdict-red-01.json` 保留产品判定缺陷；`cleanup-verdict-green-01.json` 保留一次检查夹具错误：给定 call 未接收实际入口的位置参数，修正检查边界的签名后 green-02 通过，不改生产业务预期。最终脚本尚无新的独立通过结论，仍待主控实跑和最终只读审查。

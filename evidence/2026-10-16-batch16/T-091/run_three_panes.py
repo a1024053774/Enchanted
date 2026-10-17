@@ -508,9 +508,9 @@ def main():
                     raise RuntimeError('daemon_endpoint_exit_unconfirmed')
                 if worker_start_attempted != worker_bound:
                     raise RuntimeError('worker_identity_unbound; retain fixture')
-                result['cleanup_complete'] = not cleanup_errors
                 if credential.exists():
                     credential.unlink()
+                result['cleanup_complete'] = not cleanup_errors
             except Exception as error:
                 cleanup_errors.append({'backend': repr(error)})
         elif started:
@@ -530,7 +530,7 @@ def main():
                 result.update(archive=manifest, archive_complete=True)
             except Exception as error:
                 result['archive_error'] = repr(error)
-        result['status'] = 'PASS' if result['green_observed'] and result['negatives_passed'] and result['cleanup_complete'] and result['archive_complete'] and result['fake_posts'] == 0 and not result.get('error') and not result.get('metrics_error') and result.get('screen_read_count', 361) <= 360 and result['capture_count'] == 3 and result.get('electron_windows_created') == 1 else 'INCOMPLETE'
+        result['status'] = 'PASS' if result['green_observed'] and result['negatives_passed'] and result['cleanup_complete'] and not result['cleanup_errors'] and result['archive_complete'] and result['fake_posts'] == 0 and not result.get('error') and not result.get('metrics_error') and result.get('screen_read_count', 361) <= 360 and result['capture_count'] == 3 and result.get('electron_windows_created') == 1 else 'INCOMPLETE'
         write_json(output / 'run.json', result); write_json(script_dir / f'{args.label}.run.json', result)
     print(json.dumps({key: result.get(key) for key in ['status', 'green_observed', 'negatives_passed', 'cleanup_complete',
         'archive_complete', 'fake_posts', 'controller_start_attempts', 'controlled_receiver_start_attempts',
