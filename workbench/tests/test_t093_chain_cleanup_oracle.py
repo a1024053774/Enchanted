@@ -15,9 +15,11 @@ with tempfile.TemporaryDirectory(prefix='t093-oracle-unit-',dir='/private/tmp') 
  # A canonical absent root; these are external test inputs, not product output.
  root=Path('/private/tmp')/('t093-chain-oracle-absent-'+directory.name)
  primary='external_primary_probe'
- control={'fixture_root':str(root),'checkpoint_sequence':3,'writer_exit':{'all_exited':True,'daemon_closed':True,'groups':[{'role':name,'exited':True} for name in ('F','D','U','S','M','G0','G1','G2')],'children':[{'pid':440901,'exited':True}],'reporter_pid':440902},'source_home_cleanup':{'profile':'D test source cleanup','source_home':str(root/'source-home'),'removed':True,'credential_body_read':False,'checkpoint_sequence':2},'service_receipts':{'D_guards':{'source_content_read':{'denied':True,'bytes_read':0,'errno':1}}}}
+ roles=('F','D','U','S','M','G0','G1','G2')
+ identities={role:440910+index for index,role in enumerate(roles)}
+ control={'fixture_root':str(root),'checkpoint_sequence':3,'processes':{**{role:{'pgrp':identities[role]} for role in roles[:5]},'G':[{'pid':identities[role]} for role in roles[5:]],'C':[{'pid':440901},{'pid':440902}]},'writer_exit':{'all_exited':True,'daemon_closed':True,'groups':[{'role':name,'pgrp':identities[name],'exited':True} for name in roles],'children':[{'pid':440901,'exited':True}],'reporter_pid':440902},'source_home_cleanup':{'profile':'D test source cleanup','source_home':str(root/'source-home'),'removed':True,'credential_body_read':False,'checkpoint_sequence':2},'service_receipts':{'D_guards':{'source_content_read':{'denied':True,'bytes_read':0,'errno':1}}}}
  history=[{'sequence':1,'phase':'business_pending','primary_failure':None},{'sequence':2,'phase':'cleanup_pending','primary_failure':primary},{'sequence':3,'phase':'complete','primary_failure':primary,'fixture_removed':True}]
- for kind in ('control','writer_alive','primary_lost','source_unconfirmed','source_body_readable','source_before_checkpoint','history_missing','reporter_alive'):
+ for kind in ('control','writer_alive','primary_lost','source_unconfirmed','source_body_readable','source_before_checkpoint','history_missing','reporter_alive','false_group_exit','false_child_exit','wrong_group_identity','omitted_child'):
   value=copy.deepcopy(control);events=copy.deepcopy(history)
   if kind=='writer_alive':value['writer_exit']['all_exited']=False
   if kind=='primary_lost':events[1]['primary_failure']=None
@@ -25,12 +27,20 @@ with tempfile.TemporaryDirectory(prefix='t093-oracle-unit-',dir='/private/tmp') 
   if kind=='source_body_readable':value['service_receipts']['D_guards']['source_content_read']['denied']=False
   if kind=='source_before_checkpoint':value['source_home_cleanup']['checkpoint_sequence']=1
   if kind=='history_missing':events=[]
+  if kind=='wrong_group_identity':value['writer_exit']['groups'][0]['pgrp']=441000
+  if kind=='omitted_child':value['writer_exit']['children']=[]
   Path(str(target)+'.events.jsonl').write_text(''.join(json.dumps(v)+'\n' for v in events))
   def probe(pid,signal):
-   assert signal==0 and pid==440902
-   if kind!='reporter_alive':raise ProcessLookupError()
-  with patch.object(mod.os,'kill',side_effect=probe):errors=mod.cleanup_proof(value,target,primary)
-  assert (errors==[])==(kind=='control'),'bad_cleanup_receipt_must_be_rejected: '+kind
-  checks.append({'case':kind,'accepted':not errors,'failures':errors})
-with output.open('x') as stream:json.dump({'status':'PASS','scope':'independent result oracle logical counterexamples; no actual process or OS boundary execution','checks':checks},stream,indent=2);stream.write('\n')
-print(json.dumps({'status':'PASS','checks':len(checks)}))
+   assert signal==0
+   if kind=='reporter_alive' and pid==440902:return
+   if kind=='false_child_exit' and pid==440901:return
+   raise ProcessLookupError()
+  def group_probe(group,signal):
+   assert signal==0
+   if kind=='false_group_exit' and group==identities['F']:return
+   raise ProcessLookupError()
+  with patch.object(mod.os,'kill',side_effect=probe),patch.object(mod.os,'killpg',side_effect=group_probe):errors=mod.cleanup_proof(value,target,primary)
+  checks.append({'case':kind,'status':'PASS' if (errors==[])==(kind=='control') else 'FAIL','accepted':not errors,'failures':errors})
+status='PASS' if all(v['status']=='PASS' for v in checks) else 'FAIL'
+with output.open('x') as stream:json.dump({'status':status,'scope':'independent result oracle logical counterexamples; no actual process or OS boundary execution','checks':checks},stream,indent=2);stream.write('\n')
+print(json.dumps({'status':status,'checks':len(checks)}));raise SystemExit(0 if status=='PASS' else 2)

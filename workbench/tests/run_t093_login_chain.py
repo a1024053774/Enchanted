@@ -60,6 +60,7 @@ def run_git(source, profile, arguments, context, input_text=None, timeout=15):
 
 
 def write_setup_failure(context, error, cleanup=True):
+    error=context.setdefault('primary_error',error)
     variants=set()
     for value in context.get('secrets',[]):
         encoded=base64.b64encode(value.encode()).decode()
@@ -87,6 +88,7 @@ def write_setup_failure(context, error, cleanup=True):
             'source_credentials_removed':False,'cleanup_pending':True,'real_model_turns':0,'real_cli_starts':0,'real_upstream_requests':0,'real_auth_reads':0,
             'diagnostic_scan_scope':'generated setup credentials and raw/JSON/URL/base64 variants; no original auth read'}
     if context.get('private_root'):report['isolated_home']=context['private_root']
+    if context.get('preparation_cleanup_error'):report['preparation_cleanup_error']=context['preparation_cleanup_error']
     target=Path(context['output']).resolve()
     if Path('/private/tmp') not in target.parents:raise ValueError('setup_report_must_be_outside_HOME')
     def publish():
@@ -213,7 +215,13 @@ def main(context):
     (root/'upstream-port').write_text(str(u));(root/'host-home').write_text(str(home))
     manifest={'schema':1,'root':str(root),'state':str(root/'state'),'task':'t093-chain','preset':'ideation','launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),'executable':str(root/'fake-claude'),'version':'2.1.302','role_file':str(root/'roles/ideation/role.md'),'code_revision':args.source_revision,'source_snapshot':str(code_source),'authentication':'normal-login','credential_source':'file','upstream_url':f'http://127.0.0.1:{u}','turn_limit':3}
     context['setup_stage']='prepare_session'
-    session=runtime.prepare(manifest,root/'repo',p,'127.0.0.1',180,root/'source-home')
+    def preparation_failure(error, private, pending, cleanup_error):
+        context['private_root']=str(private)
+        if cleanup_error:
+            context['cleanup_failures'].append('private_preparation_cleanup_failed')
+            context['preparation_cleanup_error']={'type':type(cleanup_error).__name__,'errno':cleanup_error.errno,'path':cleanup_error.filename}
+        write_setup_failure(context,error,cleanup=False)
+    session=runtime.prepare(manifest,root/'repo',p,'127.0.0.1',180,root/'source-home',on_failure=preparation_failure)
     baseline_profile=session['profiles']['D']
     source_barrier='(deny file-read* file-write* (subpath '+json.dumps(str(root/'source-home'))+'))'
     assert session['profiles']['D'].count(source_barrier)==1

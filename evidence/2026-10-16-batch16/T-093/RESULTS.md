@@ -345,7 +345,7 @@ R 的 Git 终止／生成认证目录删除之前也先保存原异常，修正�
 C/F 与真实 HOME、网络、Security、fork 边界均不变。原始基线 helper 仍用未扩展 D，结果另列 D_baseline 的完整规则。
 D 删合成源并提交带所见检查点序号的收据后退出。C 再确认 U 关闭、daemon 关闭、F/D/U/S/M/G 组与登记子进程退出，最后同步删剩余根。
 无法确认写入者就不删根；ENOTEMPTY 等删除错误记录为次要清理失败，不能取代原主失败。报告 PID 最后由外部 V 确认退出。
-正式产品不删除用户认证源；本次修改仅在测试／清理／核对与文档范围内，产品 src 未改变。
+正式产品不删除用户认证源；首轮 de956c2de 只修改测试／清理／核对与文档，产品 src 未改变。随后审查指出产品准备函数内部同样先清理后报告，修正见下段。
 
 局部红绿为 chain-publication-red-02／green-04：同一检查在 bc87 的真实旧清理尾部命中 primary_JSON_must_exist_before_any_cleanup，当前发布器通过主失败、ENOTEMPTY、存活写入者、次要收尾错误与已有证据不覆盖五项检查。
 setup-publication-red-01／green-02 对 R 命中 R_primary_JSON_must_exist_before_source_cleanup，修复后同时核对先落盘再终止 Git。
@@ -358,3 +358,12 @@ cleanup-quiescence-green-07 增加 C 的活动／正对照；retained-cleanup-lo
 两场及独立核对全部符合预期后才运行正式六场；新命令、实际进程 profile 表和停止条件见 REVIEW-REQUEST-T093-10.md。
 唯一新残留用 CLEANUP-CHAIN-06.sh 清理，精确范围在 retained-cleanup-scope-06.json；不读认证正文、不 chmod，R/G/C 未停或形态不符均拒绝。
 所有旧审查报告保持原文，旧 PASS 不替本候选的 OS 演练／六场复验背书。真实供应商 CLI、真实 auth、真实上游与模型本轮均未运行。
+
+首轮冻结 de956c2de 的只读审查为 FAIL，原文 CLEANUP-PUBLICATION-REVIEW-01.md 保留不改。
+它在准备函数内部复现“清理先于原异常落盘”，并证明 V 只信任退出布尔值，活动组／子进程也能通过。
+产品 prepare 现要求调用方提供失败发布者，在内部清理前发布，清理异常另报，最后仍抛原异常；真实入口只保存类型／errno，主失败与清理用不可覆盖的独立 JSON，测试入口保存完整脱敏摘要。
+C/F/D/G/V 的既有 OS 权限规则未变，测试 D 的合成源 unlink 例外仍按上文单列。不是对准备错误的忽略或成功降级。
+V 现把组／子进程身份与原登记记录绑定，并独立用信号 0 核对每个 PID／组；只有 ESRCH 可判已退出，权限错误或仍存活都拒绝。
+prepare-failure-red-03 在旧产品源码上拒绝原异常落盘顺序及覆盖；green-03 覆盖实际 prepare＋测试发布器和真实 R main 的类型收据／次要清理错误。
+chain-cleanup-oracle-red-03 拒绝旧核对器，green-04 的 12 项检查包括谎报退出、身份错配及漏子进程。
+两项均是无 auth／无 OS 执行的合成检查；新沙箱外演练、固定残留删除与正式六场仍待主控，整票保持 INCOMPLETE。

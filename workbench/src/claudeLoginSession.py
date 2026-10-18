@@ -117,7 +117,7 @@ def policies(session):
     return {"C": c, "F": f, "D": d}
 
 
-def prepare(manifest, repo, forward_port, upstream_address, lifetime, credential_home=None):
+def prepare(manifest, repo, forward_port, upstream_address, lifetime, credential_home=None, *, on_failure):
     home = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
     if manifest.get("authentication") != "normal-login" or manifest.get("version") != "2.1.302":
         raise ValueError("normal_login_version_requires_probe")
@@ -178,8 +178,14 @@ def prepare(manifest, repo, forward_port, upstream_address, lifetime, credential
              "projects": {unicodedata.normalize('NFC', str(repo)): {"hasTrustDialogAccepted": True}}})
         save(private / "session.json", session)
         return session
-    except BaseException:
-        shutil.rmtree(private)
+    except BaseException as error:
+        # The caller owns the durable failure report. Publication must succeed
+        # before this owner removes preparation data; keep the original error.
+        on_failure(error, private, True, None)
+        cleanup_error = None
+        try: shutil.rmtree(private)
+        except OSError as secondary: cleanup_error = secondary
+        on_failure(error, private, False, cleanup_error)
         raise
 
 
@@ -419,7 +425,22 @@ def main():
     if not args.manifest or not args.repo or not args.forward_port or not args.upstream_address:
         parser.error("manifest, repo, forward-port and upstream-address are required")
     validate_bootstrap()
-    session = prepare(read(args.manifest), args.repo, args.forward_port, args.upstream_address, args.lifetime_seconds)
+    manifest=read(args.manifest)
+    failure_path=None
+    def preparation_failure(error, private, pending, cleanup_error):
+        nonlocal failure_path
+        if failure_path is None:
+            home=Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
+            directory=outside_home(manifest['state'],home)
+            failure_path=directory/('login-preparation-failure-'+str(uuid.uuid4())+'.json')
+        # Error text can contain auth input. The production entry publishes
+        # types and errno only; the synthetic test caller has its own redactor.
+        value={'status':'INCOMPLETE','phase':'R','primary_failure':type(error).__name__,'isolated_home':str(private),'cleanup_pending':pending,
+               'cleanup_failures':[] if cleanup_error is None else [{'type':type(cleanup_error).__name__,'errno':cleanup_error.errno}]}
+        # Immutable primary and separate cleanup receipt; never truncate the
+        # already durable primary while recording a secondary cleanup error.
+        save(failure_path if pending else failure_path.with_suffix('.cleanup.json'),value)
+    session = prepare(manifest, args.repo, args.forward_port, args.upstream_address, args.lifetime_seconds,on_failure=preparation_failure)
     start_services(session)
     enter_cli(session, [NODE, str(SOURCE / "daemon.ts"), session['manifest']['state']])
 

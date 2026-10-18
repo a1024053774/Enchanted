@@ -66,7 +66,7 @@ with tempfile.TemporaryDirectory(prefix='t093-session-unit-',dir='/private/tmp')
  def baseline(value):order.append('baseline');return {},{'profile':'D simulated in unit'}
  def copied(*args):order.append('auth');return original_auth(*args)
  with patch.object(runtime,'collect_baseline',side_effect=baseline),patch.object(runtime,'read_auth',side_effect=copied) as auth,patch('socket.getaddrinfo',side_effect=AssertionError('DNS_must_not_run')):
-  session=runtime.prepare(manifest,root/'repo',52101,'127.0.0.1',60,root/'source-home')
+  session=runtime.prepare(manifest,root/'repo',52101,'127.0.0.1',60,root/'source-home',on_failure=lambda *args:None)
   assert auth.call_count==1
   assert order==['baseline','auth'],'before_inventory_must_precede_original_auth_read'
  try:
@@ -85,13 +85,13 @@ with tempfile.TemporaryDirectory(prefix='t093-session-paths-',dir='/private/tmp'
  (root/'source-home/.claude/.credentials.json').write_text(json.dumps({'claudeAiOauth':oauth}))
  base={**manifest,'root':str(root),'state':str(root/'state'),'launch':'../../redirect'}
  with patch.object(runtime,'read_auth',wraps=runtime.read_auth) as auth:
-  try:runtime.prepare(base,root/'repo',52101,'127.0.0.1',60,root/'source-home')
+  try:runtime.prepare(base,root/'repo',52101,'127.0.0.1',60,root/'source-home',on_failure=lambda *args:None)
   except ValueError as error:assert str(error)=='invalid_controller_identity'
   else:raise AssertionError('invalid_launch_path_must_fail_before_auth')
   assert auth.call_count==0
  (root/'state/login-audits').symlink_to(root/'redirect',target_is_directory=True)
  base['launch']=str(uuid.uuid4())
- try:runtime.prepare(base,root/'repo',52101,'127.0.0.1',60,root/'source-home')
+ try:runtime.prepare(base,root/'repo',52101,'127.0.0.1',60,root/'source-home',on_failure=lambda *args:None)
  except ValueError as error:assert str(error)=='canonical_audit_path_required'
  else:raise AssertionError('audit_parent_symlink_must_be_rejected')
  assert not list((root/'redirect').iterdir())

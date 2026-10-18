@@ -23,6 +23,21 @@ def cleanup_proof(value, path, expected_primary):
     require({v.get('role') for v in groups}=={'F','D','U','S','M','G0','G1','G2'} and all(v.get('exited') is True for v in groups),'owned_groups_not_confirmed_exited')
     require(bool(children) and all(v.get('exited') is True for v in children),'registered_children_not_confirmed_exited')
     reporter=proof.get('reporter_pid')
+    processes=value.get('processes',{})
+    expected_groups={role:processes.get(role,{}).get('pgrp') for role in ('F','D','U','S','M')}
+    expected_groups.update({'G'+str(index):entry.get('pid') for index,entry in enumerate(processes.get('G',[]))})
+    valid_id=lambda identity:isinstance(identity,int) and not isinstance(identity,bool) and identity>1
+    require(len(groups)==8 and len({row.get('pgrp') for row in groups})==8 and all(valid_id(row.get('pgrp')) and row.get('pgrp')==expected_groups.get(row.get('role')) for row in groups),'group_identity_mismatch')
+    expected_children={row.get('pid') for row in processes.get('C',[]) if row.get('pid')!=reporter}
+    require({row.get('pid') for row in children}==expected_children and len(children)==len(expected_children) and all(valid_id(row.get('pid')) for row in children),'child_identity_mismatch')
+    for rows,field,probe,label in ((groups,'pgrp',os.killpg,'group'),(children,'pid',os.kill,'child')):
+        for row in rows:
+            identity=row.get(field)
+            if not valid_id(identity):continue
+            try:probe(identity,0)
+            except ProcessLookupError:pass
+            except OSError:errors.append(label+'_exit_unavailable')
+            else:errors.append(label+'_still_running')
     if not isinstance(reporter,int) or reporter<=1:errors.append('invalid_reporter_identity')
     else:
         try:os.kill(reporter,0)
