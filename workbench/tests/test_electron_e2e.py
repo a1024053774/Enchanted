@@ -171,7 +171,7 @@ def main():
                 value = window.wait(lambda item: title in item['text'] and item['gate'] == 'claimed')
                 assert project in value['text'] and '只读' in value['text']
                 assert value['state'] == 'unknown' and value['offset'] == 0
-                assert sorted(value['bridge']) == ['beginComposition', 'input', 'observeFocus', 'output',
+                assert sorted(value['bridge']) == ['beginComposition', 'closePane', 'input', 'observeFocus', 'output',
                                                   'paneKeys', 'releaseQueue', 'snapshot']
                 assert value['node'] == 'undefined'
                 window.call('readonly-input')

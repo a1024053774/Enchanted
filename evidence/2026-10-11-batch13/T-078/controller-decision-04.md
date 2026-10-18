@@ -834,3 +834,10 @@ worker 修四处测试工具缺陷（11c119da8）；排练又暴露并修两处�
 - T-094：根因是 conda 初始化（busy 当刻采样证实）；修法为 1500ms 稳定窗口；busy-02 10/10。受保护验收两条按用户裁定 A 修订；独立审查 01 PASS，主控重放 rc 0。合入 main，关票，打分 score-39c41d2b9a7e4e109c6012393cf06e26。
 - T-093 探针 probe-01～10：先后排除钥匙串 profile 误判、带端口 profile 写错、首启 onboarding 直连官方地址（通过新建 hasCompletedOnboarding 绕过）、信任屏（新建隔离 cwd 信任状态）这几个问题，probe-10 PASS：本地收到 2 个带复制凭据的 /v1/messages，真实上游 0。产品链 product-chain-03 PASS。审查 01 NO_GO（凭据检查在空变体时跳过；漏记变异被清理断言掩盖）→ 已修。真实 HOME"无差异"一条经用户裁定 A，改为 OS 沙箱禁写加反例。父进程 profile 禁写反例成立；嵌套 sandbox-exec 不可用（exit 71），已要求改成单一最外层 profile。
 - 主控拒绝了 T-093 worker 对 /bin/ps 的提权请求（应写成脚本交主控）。主控读过两份脱敏终端输出（probe-07、probe-09），读后即删。
+
+## #380（2026-10-18）T-096 验收关闭；T-093/T-095 进行中
+
+- T-096：裁定 B 范围内七场真实运行加空集重开全部 PASS，初始化按键由主控逐屏批准（批准助手 scratchpad onboard096.sh：逐屏 capture，机械核对最后一帧的文字与光标，填写批准后单键执行，有任何不符即停止）。审查 01 NO_GO（空集被当成未保存）→ 修复 → 审查 02 PASS；README P3 由主控在合入前修正。合入，关票，打分 score-7b0c0185dcf94382b789b904093cd7fb。
+- T-095：用户在现场说"095 不用等吧"，探针临时把 Codex 并行升到 4。红、绿、独立绿三次各 1 根回合，共 3 个（第 3 个为主控追加授权）。绿态 01 三阶段都读成 unknown（NO_GO，照实保留）；解析器按真实结构修订后，跑了独立绿态，原件待 worker 读回。
+- T-093：pane_release 被拒的根因是 daemon 在 C profile 内 spawn setuid /bin/ps 时报 EPERM；worker 改用 libproc helper（产品改动，影响所有 pane，审查须覆盖 T-091/T-096 回归）。现卡在上游收据的 prompt_matches_fixture=false。
+- 用户问能否用配置跳过 Claude 初始化屏：构思主控已建 T-099（未就绪，低优先级）。

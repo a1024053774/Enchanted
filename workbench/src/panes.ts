@@ -11,6 +11,7 @@ import { OrchestrationStore, type DispatchSource } from "./store.ts";
 import type { A2AInboxEntry } from "./contracts/a2aInbox.ts";
 import { claudeLaunch, type ClaudeLaunchInput } from "./claudeLaunch.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
+import { resumeArgv, nativeSessionFile } from "./paneRecovery.ts";
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -60,6 +61,7 @@ type Pane = {
   inputGeneration: number; interruption: number | null;
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
+  nativeFile?: string;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   permission?: { prompt_id: string; submission: string } | null;
@@ -174,8 +176,23 @@ export class Panes implements GateRuntime {
     check(record, "unknown_launch");
     return record;
   }
-  // A restarted host can describe historical launches, never adopt their PTYs.
-  recover(daemon: string) {
+  rememberOpen(id: string, position: number) {
+    check(Number.isSafeInteger(position) && position >= 0, "invalid_pane_position");
+    const record = this.launchRecord(id), pane = this.panes.get(record.thread);
+    const previous = this.store.openPanes().find(p => p.launch === id);
+    check(pane && !pane.stopped && !pane.archived || previous, "pane_unavailable");
+    if (pane) this.scan(pane);
+    const native = pane?.native ?? previous?.native_session ?? null;
+    // A pane can open before native metadata has arrived. Keep that unknown
+    // explicit; scan() records its later binding without inventing a session.
+    this.store.event("pane_layout_opened", { position, native_session: native,
+      resume_argv: native ? resumeArgv(record, native) : null }, record as any);
+  }
+  forgetOpen(id: string) {
+    const record = this.launchRecord(id);
+    this.store.event("pane_layout_closed", {}, record as any);
+  }
+  async recover(daemon: string) {
     for (const record of this.store.launches()) {
       if (record.execution_state === "prepared") continue;
       if (this.store.lastEvent(record.id, ["pane_recovered", "pane_archived"])) continue;
@@ -184,6 +201,87 @@ export class Panes implements GateRuntime {
       this.store.event("pane_recovered", { daemon, state: "unknown", lifecycle: exit ? "interrupted" : "unknown",
         reason: "daemon_restart", shell_pid: start?.data.shell_pid ?? null,
         exit_event: exit?.seq ?? null, session: record.session, fence: record.fence, spec_rev: record.spec_rev }, record as any);
+    }
+    for (const opened of this.store.openPanes()) {
+      const record = this.launchRecord(opened.launch);
+      this.store.event("pane_restore_pending", { daemon, position: opened.position }, record as any);
+      try {
+        // T-096 decision B: worker/reviewer attempts retain their gate-owned
+        // runtime binding. Restoration must neither spawn nor mutate an attempt.
+        check(record.attempt === null, "restore_managed_attempt_requires_reclaim");
+        check(record.role === "controller" && record.cli === "Claude Code" &&
+          ["ideation", "executor"].includes(record.preset), "restore_controller_required");
+        const previous = this.store.lastEvent(record.id, ["pane_started", "pane_restored"]);
+        if (Number.isSafeInteger(previous?.data.shell_pid) && previous!.data.shell_pid > 1) {
+          try {
+            process.kill(previous!.data.shell_pid, 0);
+            throw new Refusal("restore_previous_process_alive");
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+          }
+        }
+        const argv = resumeArgv(record, opened.native_session);
+        check(opened.resume_argv && argv.length === opened.resume_argv.length &&
+          argv.every((arg, index) => arg === opened.resume_argv![index]), "restore_argv_changed");
+        const taskRow = this.store.db.prepare("SELECT data FROM tasks WHERE id=?").get(record.task);
+        const task = taskRow && JSON.parse(String(taskRow.data));
+        check(task && task.project_id === record.project && task.spec_rev === record.spec_rev, "restore_task_stale");
+        check(typeof record.cli_version === "string" && record.cli_version !== "unknown", "restore_version_missing");
+        const probe = await exec(argv[0]!, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
+        check(probe.stdout.trim() === record.cli_version, "restore_version_mismatch", {
+          expected: record.cli_version, observed: probe.stdout.trim() });
+        const nativeFile = nativeSessionFile(record, opened.native_session!);
+        check(record.shell === "/bin/zsh" && record.env && isAbsolute(record.worktree), "restore_launch_invalid");
+        const token = randomUUID();
+        const trace = join(this.root, "traces", record.id, "pty.raw");
+        check(existsSync(trace), "trace_unavailable");
+        const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; exec /bin/zsh -f -i"];
+        const terminal = require("node-pty").spawn(record.shell, shellArgv, {
+          name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
+          env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
+        });
+        const pane: Pane = { record: record as Pane["record"], token, task, attempt: null, pty: terminal,
+          state: "unknown", stopped: false, archived: false, failed: null, leader: null,
+          native: opened.native_session, nativeFile, turn: null, nativeEnded: false, active: null,
+          queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
+          userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
+          offsets: new Map([[nativeFile, readFileSync(nativeFile).length]]), model: "unknown", effort: "unknown",
+          terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
+        this.panes.set(record.thread, pane);
+        terminal.onData((data: string) => {
+          try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
+          catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
+        });
+        terminal.onExit((event: unknown) => {
+          pane.stopped = true; pane.state = "unknown";
+          try { this.store.event("pane_exit", event, pane.record); }
+          catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+        });
+        // Creating a shell is not proof the recorded CLI resumed. Require the
+        // existing foreground executable/native-identity check before success.
+        const deadline = Date.now() + 10000;
+        let info: Awaited<ReturnType<Panes["processInfo"]>>;
+        do {
+          info = await this.processInfo(record.thread);
+          check(!info.failed && !pane.stopped, "restore_process_failed");
+          if (info.leader) break;
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } while (Date.now() < deadline);
+        check(info.leader, "restore_process_missing");
+        this.store.event("pane_restored", { daemon, position: opened.position, argv,
+          shell_argv: shellArgv, shell_pid: terminal.pid, leader: info.leader,
+          native_session: opened.native_session, version_probe: { argv: [argv[0], "--version"], stdout: probe.stdout, stderr: probe.stderr } }, pane.record);
+      } catch (error) {
+        const pane = this.panes.get(record.thread);
+        let cleanup: string | null = null;
+        if (pane) {
+          pane.failed = "restore_failed";
+          try { await this.terminate(pane, "restore_failed"); }
+          catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
+        }
+        this.store.event("pane_restore_failed", { daemon, error: error instanceof Refusal ? error.code : "restore_failed",
+          details: String(error), cleanup, native_session: opened.native_session }, record as any);
+      }
     }
   }
   launchInfo(id: string) {
@@ -405,7 +503,8 @@ export class Panes implements GateRuntime {
     const home = pane.record.env.CODEX_HOME as string;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
-    const files = final ? [...pane.offsets.keys()].filter((file) => pane.native && file.endsWith(pane.native + ".jsonl")) : walk(join(home, "sessions"));
+    const files = final ? [...pane.offsets.keys()].filter((file) => pane.native && file.endsWith(pane.native + ".jsonl")) :
+      pane.nativeFile ? [pane.nativeFile] : walk(join(home, "sessions"));
     if (final) check(pane.native && files.length === 1, "native_bound_log_unavailable", { native_session: pane.native, files });
     for (const file of files) {
       const bytes = readFileSync(file);
@@ -426,6 +525,8 @@ export class Panes implements GateRuntime {
         appendFileSync(join(this.root, "traces", pane.record.id, "native.jsonl"), raw + "\n");
         if (event.type === "session_meta" && event.payload.source === "cli") {
           check(!pane.native || pane.native === event.payload.id, "ambiguous_native_session");
+          if (!pane.native) this.store.event("pane_native_session", { native_session: event.payload.id,
+            resume_argv: resumeArgv(pane.record, event.payload.id) }, pane.record);
           pane.native = event.payload.id;
         }
         // Only the root CLI file contributes identity or model facts.
@@ -720,6 +821,10 @@ export class Panes implements GateRuntime {
     return {key,purpose,screen_id,written:true,state:pane.state};
   }
   status(thread: string) {
+    const record = this.store.threadLaunch(thread);
+    const restore = record && this.store.lastEvent(record.id, ["pane_restore_pending", "pane_restored", "pane_restore_failed"]);
+    const restoration = !restore ? null : { status: restore.type === "pane_restored" ? "restored" :
+      restore.type === "pane_restore_failed" ? "failed" : "pending", error: restore.data.error ?? null, details: restore.data.details ?? null };
     const pane = this.panes.get(thread);
     if (pane) {
       this.scan(pane);
@@ -728,15 +833,14 @@ export class Panes implements GateRuntime {
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
-        queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped };
+        queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration };
     }
-    const record = this.store.threadLaunch(thread);
     check(record, "unknown_pane");
     const archived = this.store.lastEvent(record.id, ["pane_archived"]);
     const recovered = this.store.lastEvent(record.id, ["pane_recovered"]);
     return { thread, launch: record.id, state: "unknown", lifecycle: record.execution_state === "prepared" ? "not_started" : archived ? "ended" : recovered?.data.lifecycle ?? "unknown",
       shell_pid: recovered?.data.shell_pid ?? null, state_source: record.execution_state === "prepared" ? "launch_prepared" : archived ? "pane_archived" : recovered ? "pane_recovered" : "launch_record",
-      active: null, native_session: null, turn: null, writing: false, queued: [], failed: null,
+      active: null, native_session: null, turn: null, writing: false, queued: [], failed: restoration?.error ?? null, restoration,
       stopped: archived ? true : recovered?.data.exit_event ? true : null, historical: true };
   }
   async signal(launch: string, raw: string, received_at: string,
@@ -881,6 +985,7 @@ export class Panes implements GateRuntime {
   };
   archiveThread = async (thread: string) => {
     const pane = this.get(thread); check(pane.stopped, "worker_not_stopped");
+    this.forgetOpen(pane.record.id);
     this.store.event("pane_archived", {}, pane.record); pane.archived = true;
   };
   async terminate(pane: Pane, reason: string) {

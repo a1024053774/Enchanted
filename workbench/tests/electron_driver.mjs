@@ -179,6 +179,11 @@ async function main() {
           await inPane(request, `(() => { const e = pane.querySelector('.terminal-scroll'); e.scrollLeft = ${request.left}; e.scrollTop = ${request.top}; })()`);
           value = await inspect(request);
         }
+        else if (request.command === 'close-pane') {
+          const view = await inspect(request);
+          await inPane(request, "(() => { const button = [...pane.querySelectorAll('button')].find(item => item.textContent === '关闭窗格'); if (!button) throw new Error('Close pane button missing'); button.click(); })()");
+          value = { requested: true, pane_key: view.pane_key };
+        }
         else if (request.command === 'bridge-call') {
           if (!['snapshot', 'output', 'input', 'beginComposition', 'releaseQueue', 'observeFocus'].includes(request.operation) ||
               !Array.isArray(request.args) || request.args.length > 4) throw new Error('Invalid public bridge probe');

@@ -1,5 +1,16 @@
 # a2a 门禁、编排后台与工作台
 
+T-096 恢复候选尚未验收：Electron 创建或显式关闭窗格时，把 launch 与位置追加到
+现有 SQLite 事件流；退出应用只断开视图，保留打开集。未传 `--launch` 时读取该任务
+保存的窗格集，并沿用位置。只有从未保存过布局才选择当前窗格；明确关闭最后一格后，
+保存集为空，重开仍显示空视图。后台只自动恢复主控窗格：按原启动记录构造完整续接 argv，
+Claude 仅把 `--session-id` 换为 `--resume`；其余参数与 profile 环境取原记录。
+缺 argv、版本不符、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
+恢复不发送提示词或放行旧队列。按 T-096 的 2026-10-18 裁定 B，worker 窗格保留并显示
+“未恢复”，不启动 CLI、不重绑定、不改变 attempt；后续由执行主控按中断恢复流程处理。
+真实 Electron／daemon／CLI 验证入口与已知限制见
+[运行说明](../evidence/2026-10-16-batch16/T-096/RUN-RESTART.md)。
+
 T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
 当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的探针，
 根提交预算须在 manifest 预声明为 1～6 根，不支持真登录或日常主控运行。启动需逐次批准；单角色
@@ -489,8 +500,8 @@ start_offset、next_offset、total_bytes；每块最多 65536 字节，从同一
 新窗口从 0 补回，已有窗口收到 xterm 的解析完成回调才推进游标；缺失、缩短或错序
 明确报错，不跳过字节。关掉 Electron 只断开视图，后台和窗格由独立进程托管。
 
-后台重启会追加 `pane_recovered`，原窗格只作历史查询，不重建 PTY、令牌、队列或
-worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
+后台重启会追加 `pane_recovered`。主控窗格按启动记录的原 argv 重建 PTY 并续接原会话（T-096，用户裁定 B）；
+worker 窗格只作历史查询并显示“未恢复”，不重建 PTY、令牌、队列，也不改它的 attempt。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
 窗格退出回调会最后增量读取已绑定的原生会话文件，再记录 pane_exit；主动停止和后台
 停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、
 截断、解析失败或未完成的一行记为 native_final_read_failed，保留读到的位置，窗格
@@ -501,7 +512,8 @@ worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有
 `test_stopped_readback.py` 重放三个停止后直读原库失败的夹具。
 门禁状态原值保留，因此“门禁已认领”和“执行已中断”可以同时出现。原 verify/integrate
 命令显式重放才执行恢复，启动或读取窗口不能把未知结果改成通过。
-崩溃残留的 socket/PID 文件阻止启动；产品不会按 PID 猜测所有者并自动接管。
+崩溃残留的 socket/PID 文件：能证明所有者已退出、端点已死的，允许重启（T-096）；所有者存活或未知、端点仍活着的，
+仍然阻止启动，产品不会按 PID 猜测所有者并自动接管。
 
 默认产品路径为 `~/Library/Application Support/a2a-orchestrator`；本卡测试只用显式
 `--state /tmp/...`，不创建默认路径，不接触正式 `a2a-workbench` 目录。

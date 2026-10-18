@@ -53,6 +53,25 @@ export class OrchestrationStore {
     const row = this.db.prepare("SELECT data FROM launch_records WHERE json_extract(data,'$.thread')=? ORDER BY rowid DESC LIMIT 1").get(thread);
     return row ? JSON.parse(String(row.data)) : undefined;
   }
+  // The open set is a projection of the existing append-only event stream.
+  // Launch/profile records remain the sole source of launch configuration.
+  hasPaneLayout(task?: string) {
+    return Boolean(this.db.prepare(`SELECT 1 FROM orchestration_events
+      WHERE type IN ('pane_layout_opened','pane_layout_closed')${task ? " AND task=?" : ""} LIMIT 1`)
+      .get(...(task ? [task] : [])));
+  }
+  openPanes(task?: string) {
+    const opened = new Map<string, { launch: string; task: string; position: number; native_session: string | null; resume_argv: string[] | null }>();
+    const rows = this.db.prepare(`SELECT type,launch,task,data FROM orchestration_events
+      WHERE type IN ('pane_layout_opened','pane_layout_closed','pane_native_session') ORDER BY seq`).all();
+    for (const row of rows) {
+      const id = String(row.launch), data = JSON.parse(String(row.data));
+      if (row.type === "pane_layout_closed") opened.delete(id);
+      else if (row.type === "pane_layout_opened") opened.set(id, { launch: id, task: String(row.task), ...data });
+      else if (opened.has(id)) Object.assign(opened.get(id)!, data);
+    }
+    return [...opened.values()].filter(p => !task || p.task === task).sort((a, b) => a.position - b.position);
+  }
   lastEvent(launch: string, types: string[]) {
     const row = this.db.prepare(`SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (${types.map(() => "?").join(",")}) ORDER BY seq DESC LIMIT 1`)
       .get(launch, ...types);
