@@ -172,7 +172,10 @@ try {
 }catch(error){const message=error instanceof Error?error.message.split("\n",1)[0].split(":",1)[0]:"chain_failed";failure=/^[A-Za-z0-9_]{1,120}$/.test(message)?message:"chain_operation_failed";primaryError=errorSummary(error);childExit=typeof (error as any)?.code==="number"?(error as any).code:null;}
 finally{
   const result:any=snapshot();
-  const gone=(identity:number,group=false)=>{try{process.kill(group?-identity:identity,0);return false;}catch(error:any){if(error.code==="ESRCH")return true;throw error;}};
+  // A peer publishes its endpoint closure before its process finishes exiting.
+  // EPERM cannot confirm absence; keep polling within the existing deadlines.
+  // Only ESRCH confirms exit, including for D and the final writer barrier.
+  const gone=(identity:number,group=false)=>{try{process.kill(group?-identity:identity,0);return false;}catch(error:any){if(error.code==="ESRCH")return true;if(error.code==="EPERM")return false;throw error;}};
   const steps=[
     {name:"source_cleanup_permit_failed",run:()=>{exclusiveJson(join(session.metadata_directory,"source-cleanup-permit.json"),{output,candidate:fixture.candidate});}},
     {name:"credential_injection_cleanup_failed",run:()=>{const leak=join(state,"synthetic-credential-injection");if(existsSync(leak))rmSync(leak);}},

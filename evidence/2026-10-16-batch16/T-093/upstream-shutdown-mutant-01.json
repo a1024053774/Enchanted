@@ -1,0 +1,80 @@
+{
+  "status": "FAIL",
+  "scope": "actual C shutdown callback and finishChain with supplied signal/receipt timing; no OS queries/services/auth",
+  "checks": [
+    {
+      "name": "receipt_before_exit_permission_window",
+      "status": "FAIL",
+      "business_failure": "transient_query_denial_must_wait_for_ESRCH",
+      "observations": [
+        "EPERM"
+      ]
+    },
+    {
+      "name": "receipt_before_exit_alive_window",
+      "status": "PASS",
+      "observations": [
+        "alive",
+        "ESRCH"
+      ],
+      "elapsed": 1000,
+      "cleanup_failures": []
+    },
+    {
+      "name": "already_exited",
+      "status": "PASS",
+      "observations": [
+        "ESRCH"
+      ],
+      "elapsed": 0,
+      "cleanup_failures": []
+    },
+    {
+      "name": "permanent_permission_denial",
+      "status": "FAIL",
+      "business_failure": "unconfirmed_shutdown_must_fail",
+      "observations": [
+        "EPERM"
+      ]
+    },
+    {
+      "name": "group_still_alive",
+      "status": "PASS",
+      "observations": [
+        "alive",
+        "alive",
+        "alive",
+        "alive",
+        "alive",
+        "alive"
+      ],
+      "elapsed": 6000,
+      "cleanup_failures": [
+        "upstream_shutdown_unconfirmed",
+        "fixture_remove_skipped_live_or_unconfirmed_writer"
+      ]
+    },
+    {
+      "name": "missing_endpoint_receipt",
+      "status": "PASS",
+      "observations": [],
+      "elapsed": 0,
+      "cleanup_failures": [
+        "upstream_shutdown_unconfirmed",
+        "fixture_remove_skipped_live_or_unconfirmed_writer"
+      ]
+    },
+    {
+      "name": "unexpected_query_error",
+      "status": "PASS",
+      "observations": [
+        "EINVAL"
+      ],
+      "elapsed": 0,
+      "cleanup_failures": [
+        "upstream_shutdown_unconfirmed",
+        "fixture_remove_skipped_live_or_unconfirmed_writer"
+      ]
+    }
+  ]
+}

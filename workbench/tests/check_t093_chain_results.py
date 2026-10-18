@@ -69,9 +69,11 @@ def main():
     parser.add_argument('--guarded',action='store_true',help=argparse.SUPPRESS)
     parser.add_argument('--candidate',required=True)
     parser.add_argument('--rehearsal',action='store_true')
+    parser.add_argument('--counts-only',action='store_true',help='Check only the counts-always-match mutation; not a full-suite verdict.')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('results',type=Path,nargs='+')
     args=parser.parse_args()
+    if args.counts_only and args.rehearsal:parser.error('counts-only and rehearsal are mutually exclusive')
     home=Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
     if any(Path('/private/tmp') not in path.resolve().parents for path in [args.output,*args.results]):parser.error('results and output must be under /private/tmp')
     if not args.guarded:
@@ -86,6 +88,7 @@ def main():
         os.execve('/usr/bin/sandbox-exec',['sandbox-exec','-p',policy,'/usr/bin/python3','-I','-S','-B',str(Path(__file__).resolve()),'--guarded',*sys.argv[1:]],{'PATH':'/usr/bin:/bin','LANG':'C'})
     if args.output.exists() or home in args.output.resolve().parents:parser.error('select a new output outside real HOME')
     expected_cases={'primary':'rehearsal_primary_probe','green':None} if args.rehearsal else EXPECTED
+    if args.counts_only:expected_cases={'counts-always-match':EXPECTED['counts-always-match']}
     cases=[];seen=set()
     for path in args.results:
         value=json.loads(path.read_text());kind=value.get('rehearsal') if args.rehearsal else value.get('mutation');expected=expected_cases.get(kind,'unknown')
@@ -146,7 +149,7 @@ def main():
             good=good and all(isinstance(p,str) and Path(p).parent==home and Path(p).name.startswith('.a2a-t093-deny-') for p in expected_paths)
         cases.append({'case':kind if kind in expected_cases else 'unknown','pass':bool(good),'expected_primary':expected if kind in expected_cases else None,'primary_matched':value.get('primary_failure')==expected,'cleanup_errors':cleanup_errors})
     result={'status':'PASS' if seen==set(expected_cases) and all(c['pass'] for c in cases) else 'INCOMPLETE','candidate':args.candidate,'cases':cases,
-            'rehearsal':args.rehearsal,'scope':'Independent fixture verdict only. No authorization to start a model turn.','profile':'V; no HOME writes, network or Security'}
+            'rehearsal':args.rehearsal,'scope':'Independent counts mutation verdict only; not a full-suite verdict.' if args.counts_only else 'Independent fixture verdict only. No authorization to start a model turn.','profile':'V; no HOME writes, network or Security'}
     with args.output.open('x') as stream:json.dump(result,stream,indent=2);stream.write('\n')
     print(json.dumps({'status':result['status'],'cases':len(cases)}));return 0 if result['status']=='PASS' else 2
 

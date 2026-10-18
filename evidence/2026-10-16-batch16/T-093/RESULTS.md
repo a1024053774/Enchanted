@@ -466,3 +466,17 @@ T-078 runtime 11 项与 controller relay 22 项通过；它们的 liveness 是 s
 审查者独立运行上游精确结构 13 项、实际 dispatch/store→PTY 四项、T-091 IPC 11 项及其历史反例；内容单项／包含两种变异被业务断言拒绝。
 未发现 oracle 独立性或认证／计数／清理断言弱化；仅更正请求 13 的 T-096 方法标签为 recover(daemon) 内 openPanes 循环，不修改受审运行代码。
 新 OS primary04／green04／六场及跨票恢复仍待执行，保持 INCOMPLETE。地图终检 0 problems、0 stale；冻结核对见 freeze-checks-26.json。
+
+## 主控 #116：上游端点关闭与进程退出之间的查询窗口
+
+**INCOMPLETE。** 079842e8b 的 primary04 达到预定主动失败，两条完整 JSON 均匹配、清理完整；green04 及其独立核对通过。正式 chain-07 的 none 通过、五个变异的主失败均符合预期；counts 的次要清理错误使六场独立核对保持 INCOMPLETE。
+原独立结论为 chain-07-check.json、rehearsal-04-check.json；chain-07-validation-summary.json 保留阶段、原错误及后续 writer 确认，原临时结果不覆盖。
+
+counts 已读到 U/closed.json，随后 signal 0 查询组时得到 EPERM；旧 gone 立即抛出，记为 upstream_shutdown_unconfirmed。最终同一谓词又以 ESRCH 确认 U 组消失。
+U 的关闭收据写在 server_close 之后、进程返回之前；counts 变异只改对账返回值，不改请求和关闭路径。定位为端点关闭到进程退出确认之间的时序窗口，未采集 EPERM 的具体内核来源，不把它当退出证据。
+测试链 gone 现在在原期限内把 EPERM 保持为未确认，只有 ESRCH 才通过；D 与全部 writer 屏障同样处理。关闭收据、5000ms 退出期限、主失败先落盘及删除前退出证明均保留。
+
+upstream-shutdown-red-02 在旧真实回调上拒绝提前失败；green-01 的七种时序通过。将 EPERM 当退出的变异被业务断言拒绝，持续 EPERM、存活、缺收据、其他错误仍失败。
+V 新增显式 --counts-only，用原有全部每场断言核对这一场，默认六场要求不变；十项局部检查包括权限未知和活 writer 拒绝。另有发布五项、独立清理十二项及精确 JSON 十三项回归通过。
+以上仅 L1，不运行实际进程／profile、auth、CLI、网络或模型。首轮测试提取器的 parser 错误单列 harness-01，不计业务红态。
+按主控要求仅交 chain-08-counts 与 counts-check 两条沙箱外命令，见 REVIEW-REQUEST-T093-14.md；实际复验和既有 T-096 跨票集成仍为 INCOMPLETE。
