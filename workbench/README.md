@@ -367,6 +367,8 @@ C 只连接 F。权限已定，新 OS 组合尚待沙箱外实测，产品仍未
 [平级 profile 核对](../evidence/2026-10-16-batch16/T-093/PARALLEL-PROFILES-PLAN-02.md)和
 [请求 05](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-05.md)。
 不要把旧完整链 PASS 当作新方案的验收，也不再重复已失败的嵌套探针。
+上游 URL 解析已按配置值选择 HTTPS 地址／端口，保留本地 HTTP 假上游及凭据、路径、query 等校验；
+这项纯解析修正已取得红绿证据，新进程保护和完整链仍待实测。
 
 仍使用同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留
 UserPromptSubmit、PermissionRequest、Stop 和队列转交。manifest 在既有身份、角色卡、

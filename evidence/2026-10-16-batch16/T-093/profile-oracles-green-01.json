@@ -1,0 +1,61 @@
+{
+  "status": "PASS",
+  "scope": "Mach predicate and exec deadline only. No sandbox, auth, HOME write, Security lookup or network.",
+  "mach_cases": [
+    {
+      "name": "permission_denied",
+      "expected": true,
+      "observed": true,
+      "pass": true
+    },
+    {
+      "name": "service_unavailable",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    },
+    {
+      "name": "other_failure",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    },
+    {
+      "name": "service_available",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    },
+    {
+      "name": "empty_results",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    },
+    {
+      "name": "one_missing_service",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    }
+  ],
+  "guarded_timer": {
+    "omit_deadline": false,
+    "observed_exit_before_cleanup": -14,
+    "primary_failure": null,
+    "cleanup_killed_owned_group": false,
+    "exit_after_cleanup": -14,
+    "stdout_bytes": 0,
+    "stderr_bytes": 0
+  },
+  "missing_timer_mutant": {
+    "omit_deadline": true,
+    "observed_exit_before_cleanup": null,
+    "primary_failure": "detached_phase_must_end_at_hard_deadline",
+    "cleanup_killed_owned_group": true,
+    "exit_after_cleanup": -9,
+    "stdout_bytes": 0,
+    "stderr_bytes": 0
+  },
+  "missing_timer_mutant_rejected": true
+}

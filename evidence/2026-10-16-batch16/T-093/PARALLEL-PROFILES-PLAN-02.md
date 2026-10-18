@@ -31,11 +31,11 @@ ACCEPTANCE：完整假上游链与原反例仍需复验；另加 F 越界出站�
 
 U 的第二端口是“未配置地址”的活跃哨兵，只有测试专用 U 能监听它；F 和 C 均不能连接。另一个未使用端口验证 F 不能换端口监听。拒连／拒绑定必须是 EPERM 或 EACCES，ECONNREFUSED、超时或端口占用均不算通过。配置端口冲突直接 INCOMPLETE，不换端口重试。
 
-每个实际 PID／PPID／进程组／profile、exec 阶段都写入结果。F/U 与 CLI 不构成父子链，端点被 reparent 后才视作独立。后台服务均脱离调用者进程组；正常退出和失败清理分开，端点另有 60 秒截止，防止 C 启动异常后永久遗留。
+每个实际 PID／PPID／进程组／profile、exec 阶段都写入结果。F/U 与 CLI 不构成父子链，端点被 reparent 后才视作独立。后台服务均脱离调用者进程组；正常退出和失败清理分开。各脱离进程在角色工作前安装 ITIMER_REAL 硬截止，跨 exec 保留，覆盖 Node 前后 Python 的清单阶段；Node 另做正常截止收尾。
 
 真实 HOME 写入只尝试不存在的随机唯一文件名，O_EXCL／O_NOFOLLOW；若 OS 意外允许创建，原安全函数立即按 inode/dev 确认所有权后删除并记录，业务断言仍失败。C 读屏障内的 absence 结果不能独立证明文件不存在，U 在相同 UID、受保护的只读元数据阶段再逐条确认 C 的路径不存在。
 
-M 只在合成 HOME 写入。这证明断言可检出缺失禁写规则，并记录实际创建和删除；不证明删除真实 HOME 规则后的行为。Security 服务查询仅记录 Mach 返回码，不读取 Keychain 条目；无未受限查询对照，不能单靠非零返回码证明服务存在或拒绝原因。
+M 只在合成 HOME 写入。这证明断言可检出缺失禁写规则，并记录实际创建和删除；不证明删除真实 HOME 规则后的行为。Security 服务查询不读取 Keychain 条目；只接受 SDK bootstrap.h 的 BOOTSTRAP_NOT_PRIVILEGED=1100。UNKNOWN_SERVICE=1102、其他非零码或空结果均不能证明权限拒绝，判为 INCOMPLETE。
 
 PASS 条件是上述正例与拒绝、M 的业务失败、实际删除、进程清理和清单采集均成立。清单差异数量不参与 PASS。任何 profile 编译失败、非权限类连接失败、业务断言失败或清理不确定，都保留 INCOMPLETE；不通过放宽规则修复。
 
@@ -45,3 +45,36 @@ PASS 条件是上述正例与拒绝、M 的业务失败、实际删除、进程�
 若 PASS，沿一个保留在产品里的 Tracer bullet 改造：链外精确复制到私有 HOME，配置固定 F 端点与私有描述文件；F 独立受保护运行；C 最外层一次，daemon／PTY／hook／事实子进程继承；移除现有内层 sandbox-exec 和 daemon 内原始 auth 读取／转发服务。随后用原 controller_start 入口完成全链、旧三反例、新拒连与删规则变异复验。
 
 本探针不证明产品已经可用，也不证明真实域名 DNS／TLS 或真实登录的完整新链。真实上游和模型请求保持 0；命名上游的 OS 地址表示仍须在产品实现中明确处理，不能静默放行任意地址或自动选 fallback。
+
+## 本地修正证据
+
+[独立只读审查](PARALLEL-PROBE-REVIEW-01.md) 绑定 034964517，结论 INCOMPLETE，指出非零 Mach 码误判和前后 Python 阶段无硬期限。该报告保留原文；当前修正没有新的独立通过结论。
+mach-oracle-red-01.json 证明原业务断言错误接受 1102 和其他非权限码；profile-oracles-green-01.json 的六项数据反例通过。跨 Python→Node→Python 的实际 exec 检查由 SIGALRM 终止；移除计时的变异被 detached_phase_must_end_at_hard_deadline 业务断言拒绝，随后清理自己的进程组。
+
+另外，上游 URL 解析的旧硬编码会拒绝两个不同的配置域名／端口，已用同一纯解析测试在 034964517 原函数取得红态，再将 HTTPS 地址与端口改为读取配置值；upstream-config-red-01.json／upstream-config-green-01.json 保存红绿。测试 `.invalid` 名称只作 URL 字符串，不做 DNS 或请求；没有 fallback。此单行产品修正不代表新隔离／转发生命周期已经落地。
+
+本地绿态精确复现命令（输出必须换全新路径）：
+
+```sh
+python3 -I -S -B workbench/tests/test_t093_profile_oracles.py --output /private/tmp/t093-profile-oracles-replay-NEW.json
+/opt/homebrew/bin/node workbench/tests/test_t093_upstream_configuration.ts /private/tmp/t093-upstream-config-replay-NEW.json
+```
+
+URL 红态精确复现：从冻结父版读出原模块，只改临时副本的两个相对导入，使用同一测试；原模块行为和预期输入不改，不操作工作树。
+
+```sh
+python3 -B - <<'PY'
+from pathlib import Path
+import subprocess, tempfile
+root = Path.cwd()
+out = Path(tempfile.mkdtemp(prefix='t093-url-red-replay-', dir='/private/tmp'))
+source = subprocess.run(['git', 'show', '034964517cc57d404e417eb3dec07d794e565d35:workbench/src/claudeForwarder.ts'], capture_output=True, text=True, check=True).stdout
+source = source.replace('"./gates/core.ts"', repr((root/'workbench/src/gates/core.ts').as_uri())).replace('"./claudeLoginFacts.ts"', repr((root/'workbench/src/claudeLoginFacts.ts').as_uri()))
+(out/'claudeForwarder.ts').write_text(source)
+test = (root/'workbench/tests/test_t093_upstream_configuration.ts').read_text().replace('"../src/claudeForwarder.ts"', '"./claudeForwarder.ts"')
+(out/'test.ts').write_text(test)
+run = subprocess.run(['/opt/homebrew/bin/node', str(out/'test.ts'), str(out/'red.json')])
+assert run.returncode == 2, 'configured_upstream_must_fail_on_old_hardcoded_parser'
+print(out/'red.json')
+PY
+```

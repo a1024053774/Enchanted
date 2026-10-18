@@ -10,7 +10,7 @@ const hop = new Set(["host", "connection", "keep-alive", "proxy-authenticate", "
 export function upstreamUrl(value: string) {
   const url = new URL(value);
   if (url.username || url.password || url.pathname !== "/" || url.search || url.hash ||
-      !(url.protocol === "https:" && url.hostname === "api.anthropic.com" && (!url.port || url.port === "443") ||
+      !(url.protocol === "https:" && url.hostname && (!url.port || Number(url.port) > 0) ||
         url.protocol === "http:" && url.hostname === "127.0.0.1" && Number(url.port) > 0)) throw new Refusal("invalid_login_upstream");
   return url;
 }

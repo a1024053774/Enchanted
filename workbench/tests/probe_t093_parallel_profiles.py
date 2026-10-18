@@ -94,6 +94,19 @@ def mach_denials():
     return result
 
 
+def security_denied(results):
+    # macOS SDK bootstrap.h: NOT_PRIVILEGED=1100, UNKNOWN_SERVICE=1102.
+    # Unavailable services and an empty table do not prove a permission denial.
+    return set(results) == {"com.apple.securityd", "com.apple.SecurityServer"} and all(code == 1100 for code in results.values())
+
+
+def arm_deadline(deadline_ms):
+    # ITIMER_REAL survives exec. Install it before role work, including the
+    # Python metadata walks. No other process is needed to enforce the limit.
+    signal.signal(signal.SIGALRM, signal.SIG_DFL)
+    signal.setitimer(signal.ITIMER_REAL, max(0.001, deadline_ms / 1000 - time.time()))
+
+
 def fork_denied():
     try:
         pid = os.fork()
@@ -125,7 +138,7 @@ def worker(options, role):
         result["unconfigured_upstream"] = connect_denied(options["other_port"])
         result["outside_records_write"] = parent_probe.attempt(root)
     required = [result["real_home_write"]["denied"], result["real_home_write"]["absent_after"],
-                result["fork"]["denied"], all(value != 0 for value in result["security_lookup"].values())]
+                result["fork"]["denied"], security_denied(result["security_lookup"])]
     if role == "F":
         required += [result["unconfigured_upstream"]["denied"], result["outside_records_write"]["denied"],
                      result["outside_records_write"]["absent_after"]]
@@ -188,7 +201,7 @@ def controller(options):
             result["processes"].append({key: preflight[key] for key in ("role", "pid", "ppid", "pgrp", "profile")})
             assert preflight["real_home_write"]["denied"] and preflight["real_home_write"]["absent_after"], "endpoint_home_write_must_be_denied"
             assert preflight["fork"]["denied"], "endpoint_fork_must_be_denied"
-            assert all(code != 0 for code in preflight["security_lookup"].values()), "security_lookup_must_be_denied"
+            assert security_denied(preflight["security_lookup"]), "security_lookup_must_be_denied"
             ready = wait_file(root / role / "ready.json")
             assert ready["pid"] == preflight["pid"] and ready["ppid"] == 1, "endpoint_must_be_a_separate_protected_process"
         before = wait_file(root / "U/inventory-before.json")
@@ -326,6 +339,7 @@ def detach(options_path, role, policy, directory):
     first = os.fork()
     if first == 0:
         os.setsid()
+        arm_deadline(read(options_path)["deadline_ms"])
         second = os.fork()
         if second:
             save(directory / "bootstrap.json", {"pid": second, "pgrp": os.getpgrp()})
@@ -337,6 +351,9 @@ def detach(options_path, role, policy, directory):
                 if null > 2: os.close(null)
             os.execve("/usr/bin/sandbox-exec", ["sandbox-exec", "-p", policy, "/usr/bin/true"],
                       {"PATH": "/usr/bin:/bin", "LANG": "C"})
+        # Interval timers do not survive fork, so install the child's own
+        # timer before its first role operation or sandbox-exec.
+        arm_deadline(read(options_path)["deadline_ms"])
         for descriptor in (0, 1, 2):
             null = os.open(directory / "startup.stderr", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600) if descriptor == 2 else os.open("/dev/null", os.O_RDWR)
             os.dup2(null, descriptor)
@@ -358,6 +375,8 @@ def main():
     args = parser.parse_args()
     if args.stage != "bootstrap":
         options = read(args.options)
+        if args.stage in ("U", "F", "S", "M", "U-after"):
+            arm_deadline(options["deadline_ms"])
         if args.stage == "C": return controller(options)
         if args.stage == "U-after": return upstream_after(options)
         if args.stage == "cli-child":

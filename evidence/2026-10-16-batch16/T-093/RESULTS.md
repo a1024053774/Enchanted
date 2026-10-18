@@ -14,7 +14,7 @@
 
 再更新（主控 #82）：父进程拒写成立，嵌套 C 已以 exit 71 实测失败。当前改为单层重设计，转发层的上游网络权限边界待明确授权，整票 INCOMPLETE。最新请求为 REVIEW-REQUEST-T093-04.md；不再重复嵌套探针。
 
-当前状态（主控 #83）：F 网络边界已明确，授权阻点已解决。新增平级 profile 边界探针，等待主控在沙箱外实测新组合；产品源码尚未改造，整票 INCOMPLETE。最新入口为 REVIEW-REQUEST-T093-05.md，精确命令脚本为 PROBE-PARALLEL-01.sh。本轮本地只检查语法／纯构造／Mach 符号可用性，没有执行新 OS 探针、读 auth、查询 Security 服务、启动供应商 CLI 或模型。
+当前状态（主控 #83）：F 网络边界已明确，授权阻点已解决。新增平级 profile 边界探针，等待主控在沙箱外实测新组合；产品隔离／转发生命周期尚未改造，整票 INCOMPLETE。最新入口为 REVIEW-REQUEST-T093-05.md，精确命令脚本为 PROBE-PARALLEL-01.sh。初次探针只读审查指出两处 P1，原文保留，已通过权限码数据反例和跨 exec 计时／删计时变异修正。另有上游 URL 配置解析的单行产品修正，纯解析红绿见 upstream-config-red-01.json／upstream-config-green-01.json。本轮未执行新 OS 沙箱探针、读 auth、查询 Security 服务、启动供应商 CLI 或模型。
 
 ## 变更与版本
 
