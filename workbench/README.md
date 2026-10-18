@@ -358,6 +358,13 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
+用户裁定 A（main c06a73179）将 HOME 验收改为“OS 强制禁写真实 HOME 加拒写反例”；
+清单差异照实报告，不再作通过条件。当前进程树的父层 profile 兼容性仍待沙箱外探针，
+尚不能宣称下面的旧 CLI 隔离方式已满足所有父／辅助进程的禁写要求，整票 INCOMPLETE。
+不要把旧完整链脚本的历史 PASS 当作裁定 A 的通过；当前先运行
+`probe_t093_parent_sandbox.py`，步骤与每个进程的现状／计划 profile 见
+[HOME-GUARD-A-PLAN](../evidence/2026-10-16-batch16/T-093/HOME-GUARD-A-PLAN.md)。
+
 仍使用同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留
 UserPromptSubmit、PermissionRequest、Stop 和队列转交。manifest 在既有身份、角色卡、
 代码版本及目录字段之外，设置 `authentication: "normal-login"`、`version: "2.1.302"`、
@@ -413,6 +420,8 @@ node workbench/src/claudeLoginCheck.ts /绝对路径/state/login-audits/LAUNCH
 前后清单只读 .claude、.claude.json、.claude.json.backup、Library/Keychains 的目录及 lstat 元数据，
 不读正文、不跟随链接、不比较 atime、不使用校验值，其余 HOME 路径显式排除。
 所有差异照实列出，不推断因果；其他会话的并发写入也保留，待主控裁定。
+按裁定 A，有无这些差异均不决定通过；报告以 pass_condition=false 和裁定来源明确标注，
+其他子进程失败、凭据命中、计数失配及清理等条件不因此放宽。
 脚本退出码只表示能否读完报告，不自动批准或拒绝模型调用。
 
 无模型验证使用合成登录对象、编译的确定性假 CLI、真实 PTY/daemon/hook/Stop 和本地假上游：

@@ -43,7 +43,9 @@ except (subprocess.TimeoutExpired, KeyboardInterrupt):
     code = 2
 after = inventory()
 changed = [path for path in sorted(set(before) | set(after)) if before.get(path) != after.get(path)]
-report = {"status": "PASS" if code == 0 and not changed else "INCOMPLETE", "child_exit": code,
+report = {"status": "PASS" if code == 0 else "INCOMPLETE", "child_exit": code,
+          "pass_condition": False,
+          "acceptance_basis": "User decision A; main c06a73179 T-093 decision section; inventory differences are informational",
           "scope": [".claude", ".claude.json", ".claude.json.backup", "Library/Keychains"],
           "excludes": ["atime", "contents", "symlink targets", "other HOME paths"],
           "before_entries": len(before), "after_entries": len(after), "changed": changed,
@@ -54,6 +56,4 @@ with os.fdopen(fd, "w") as stream:
     json.dump(report, stream, ensure_ascii=False, indent=2)
     stream.write("\n")
 print(json.dumps({"status": report["status"], "child_exit": code, "host_home_differences": len(changed)}))
-if changed:
-    code = 2
 raise SystemExit(code)

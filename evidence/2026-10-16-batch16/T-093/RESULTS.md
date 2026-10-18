@@ -10,6 +10,8 @@
 更新：独立审查 01 对第一次冻结候选 1d4c58b4a 给出 **NO_GO（验收文件缺口）**，报告原文保留。
 下文首次交付的 PASS 均是当时运行证据，不提升为新候选的独立审查通过。当前仅修正验收输入与审查驱动的失败保存，产品源码未改；新外部复验与新独立审查仍待完成，见末节。
 
+最新状态（主控 #79）：用户裁定 A 改了 HOME 条件。清单差异已不作通过条件，但所有父／辅助进程的 OS 禁写尚未完成，父子 profile 兼容性必须先实测。当前仍 INCOMPLETE；当前工作快照不是 A 已落地的验收候选，最新入口为 REVIEW-REQUEST-T093-03.md。下面的旧版本状态与“产品未改”说明仅对应各自历史阶段。
+
 ## 变更与版本
 
 起点 main 为 61786370428c3ec5f894ea60acccf2695d54c2dc。
@@ -123,3 +125,28 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-02.sh /Users/luckye/Docu
 读取 SUMMARY.json 时，首条漏记必须以 independent_upstream_assertion 为主失败；cleanup_failures 与外层 cleanup.json 分开检查。不得用 ENOENT、超时或另一清理错误替代业务拒绝。
 真实 HOME 仍只比较四个既定范围的元数据，所有差异保留；凭据只用合成输入，隔离根和夹具按本轮登记收尾，真实 CLI／真实 auth／真实上游／真实模型均为 0。
 尚未执行这条完整命令；当前整票 INCOMPLETE，等待该复验结果和新冻结候选的独立审查。新的审查入口见 REVIEW-REQUEST-T093-02.md。
+
+## 用户裁定 A 后：清单仅报告、父层保护事实待定
+
+来源是用户主控 #79、main c06a73179 的 T-093“裁定”节及 20261018T004018Z-ideation-answer-001：验收改为 OS 强制禁写真实 HOME 加一个拒写反例；清单差异照实报告，不作通过条件。worker 不改受限的项目地图或旧审查原文。
+
+已完成的确定部分：生产 facts 的 inventory 标注 pass_condition=false 与裁定来源；完整链检查继续要求差异数据存在，但不要求空列表；外层返回码保留 child 结果，有差异不再改为失败，child 失败也不放行。复验摘要仍保存原始 home_unchanged 信息，但不以它决定结果。扫描、计数、preflight、清理和身份等其他断言没有放宽。
+
+[inventory-policy-red-01.json](inventory-policy-red-01.json) 在旧逻辑上复现“child=0、有差异仍退出 2”；[inventory-policy-green-01.json](inventory-policy-green-01.json) 的四组 child 成功／失败和有／无差异组合均符合新裁定，前后差异元数据完整保留，旧零差异门槛被拒。边界是 L1 分类，元数据和 child 结果由测试提供，不是 OS 拒写证据。
+
+尚未完成的是所有应用进程的 OS guard。逐进程现状与目标 profile、实际 HOME 与合成认证源 HOME 的区别、输出／FD 边界，以及决定性 SDK 兼容性未知均列在 [HOME-GUARD-A-PLAN.md](HOME-GUARD-A-PLAN.md)。当前不能把只限制 CLI 的旧 C profile 说成父进程和全部 helper 已被保护。
+
+先由主控在沙箱外运行小探针（不要覆盖已存在输出）：
+
+```sh
+python3 -I -S -B workbench/tests/probe_t093_parent_sandbox.py --output /private/tmp/t093-parent-profile-01.json --source-revision FULL_FROZEN_SHA
+```
+
+它在任何应用工作前同 PID exec H，所有实际 helper 继承 H，记录真实 HOME 唯一新文件拒写及文件未出现，并验证更严格子 profile 在 H 后代中是否真能生效。
+删规则变异只在合成 HOME 中做，实际 HOME 规则保留；要求真实独占创建、立即删除及指定业务断言失败，创建／删除记录入证据。这个选择避免主动移除真实 HOME 的保护；它不证明实际 HOME 去掉规则后会写入成功。
+清单 helper 也在 H 中，仅记录四范围元数据差异，差异不决定通过；采集失败仍保持 INCOMPLETE。
+
+本地 [parent-probe-safety-02.json](parent-probe-safety-02.json) 仅证明合成文件的独占创建／删除、既有文件保护和未禁写情况下的业务拒绝，实际 HOME 尝试 0，OS profile 执行 0。探针语法已检查，未在 worker 沙箱里运行实际沙箱／ps／CLI，也未读 auth、请求升级或跑模型。
+
+若 sandbox-exec 不能在已有 H 的子进程里施加现有 C/R，必须保持 INCOMPLETE 回主控处理，不能移除 CLI 的网络或 Security 限制来冒充成功。
+因此之前 EVIDENCE-RECHECK-02 的完整模式现在直接停止，防止无父层保护时对 A 给出 PASS；旧审查 01／02 脚本和全部旧报告保持原文。新小探针的输出回来后，才能完成全进程保护实现和真实链复验。

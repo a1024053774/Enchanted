@@ -25,6 +25,11 @@ CANDIDATE = sys.argv[2]
 CHECK_ONLY = sys.argv[3] == "--check-only"
 if not re.fullmatch(r"[0-9a-f]{40}", CANDIDATE) or sys.argv[3] not in ("", "--check-only"):
     raise SystemExit("usage: script REPO FULL_FROZEN_SHA [--check-only]")
+# Decision A adds an all-process OS guard. This older full runner lacks it;
+# keep it from reporting a new-contract PASS. Check-only remains a developer
+# syntax/failure-classification check, never application/OS evidence.
+if not CHECK_ONLY:
+    raise SystemExit("INCOMPLETE: decision A parent-profile gate pending; run probe_t093_parent_sandbox.py first")
 NODE = "/opt/homebrew/bin/node"
 OUT = Path(tempfile.mkdtemp(prefix="t093-evidence-02-", dir="/private/tmp"))
 print("输出目录：" + str(OUT), flush=True)
@@ -157,8 +162,8 @@ async function wait''')
         '''const damaged = await exec(process.execPath, [resolve("workbench/src/claudeLoginCheck.ts"), audit]);
   assert.equal(JSON.parse(damaged.stdout).counts.counts_match, false, "fact entry must report a dropped request row");''')
     # 凭据注入属于反例，不是零命中绿态；摘要只保留命中数，不保留该原值。
-    replace_once(path, '"fact command recounts all attempts; private HOME removed; inventory unchanged; credential scan zero"',
-        '"reviewer fact entry: raw credential and argv HOME injections detected; all attempts counted; private HOME removed; synthetic inventory unchanged"')
+    replace_once(path, '"fact command recounts all attempts; private HOME removed; inventory reported; credential scan zero"',
+        '"reviewer fact entry: raw credential and argv HOME injections detected; all attempts counted; private HOME removed; synthetic inventory reported"')
 
 
 def cleanup(output):
@@ -323,10 +328,13 @@ try:
         "accepted_bad_implementation", "vacuous_fixture_failure") for v in verdicts)
     oracle_observed = all(v.get("oracle_result") != "INCOMPLETE" for v in verdicts)
     complete = controls_ok and all(v.get("rejected", True) for v in verdicts)
-    home_unchanged = all(v.get("host_home") and v["host_home"]["status"] == "PASS" for v in verdicts[:2])
-    status = "NO_GO" if gap else "PASS" if complete and home_unchanged and oracle_observed else "INCOMPLETE"
+    home_unchanged = all(v.get("host_home") and not v["host_home"].get("changed") for v in verdicts[:2])
+    home_reporting_valid = all(v.get("host_home") and v["host_home"].get("pass_condition") is False for v in verdicts[:2])
+    status = "NO_GO" if gap else "PASS" if complete and home_reporting_valid and oracle_observed else "INCOMPLETE"
     save(OUT / "SUMMARY.json", {"status": status, "candidate": CANDIDATE, "base": "61786370428c3ec5f894ea60acccf2695d54c2dc",
          "controls_ok": controls_ok, "mutants_rejected": complete, "failure_priority": priority_probe, "host_home_unchanged": home_unchanged,
+         "host_home_is_pass_condition": False, "home_reporting_valid": home_reporting_valid,
+         "acceptance_basis": "User decision A; main c06a73179 T-093 decision section",
          "candidate_oracle_gap": gap, "verdicts": verdicts, "commands": results,
          "real_vendor_cli_starts": 0, "real_credential_reads": 0, "real_upstream_requests": 0,
          "note": "所有源副本与日志保留在本次 /tmp 输出目录；合成 auth、隔离 HOME、PTY 与运行夹具已按登记路径收尾。"})

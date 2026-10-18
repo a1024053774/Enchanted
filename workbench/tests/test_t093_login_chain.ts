@@ -88,10 +88,11 @@ try {
   assert.equal(facts.counts.counts_match, true); assert.equal(facts.counts.model_requests, 2);
   assert.equal(facts.forwarder.forwarded, upstreamReceived); assert.equal(facts.credential_scan.hits, 0);
   assert.equal(facts.isolated_home_removed, true); assert.equal(existsSync(launch.env.HOME), false);
-  assert.deepEqual(facts.inventory.changed, []); assert.equal(facts.onboarding.preflight_observed, false);
+  assert(Array.isArray(facts.inventory.changed), "inventory differences must be reported");
+  assert.equal(facts.inventory.pass_condition, false); assert.equal(facts.onboarding.preflight_observed, false);
   const checked = await exec(process.execPath, [resolve("workbench/src/claudeLoginCheck.ts"), audit]);
   assert.equal(JSON.parse(checked.stdout).counts.model_requests, upstreamReceived);
-  checks.push("fact command recounts all attempts; private HOME removed; inventory unchanged; credential scan zero");
+  checks.push("fact command recounts all attempts; private HOME removed; inventory reported; credential scan zero");
   const ledger = join(audit, "requests.jsonl");
   const rows = readFileSync(ledger, "utf8").split("\n");
   writeFileSync(ledger, rows.filter(line => !line.includes('"kind":"request","sequence":2')).join("\n"));
