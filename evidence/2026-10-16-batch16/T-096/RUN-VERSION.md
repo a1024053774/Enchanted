@@ -1,6 +1,6 @@
 # T-096：version-b-01 收尾与 version-b-02
 
-状态 **INCOMPLETE**。先完成固定夹具收尾；确认摘要 PASS／cleanup true 后，再启动 version-b-02。两个命令均由执行主控在沙箱外运行，本 worker 不申请升级。
+状态 **PASS（本阶段）**。主控 #107／#15 已完成固定夹具收尾和 version-b-02，均 PASS／cleanup true。以下命令保留作复现记录，不重跑已有输出路径。候选已冻结待独立审查，最终场景结论见 `RESULTS.md`。两个命令均由执行主控在沙箱外运行，本 worker 不申请升级。
 
 version-b-01 的八项业务检查全部 PASS，包括 `restore_version_mismatch`、真实 Electron 中只读“未恢复”、没有 `pane_restored`、fake POST 0。第二个窗口 79678 在 12:06:59 UTC 完成 ready／读回，12:07:01.860 UTC 记录 will_quit／quit，exit_code 0；无 fatal 或崩溃退出。journal 中的启动时间和最后两次已保存 ps 一致。现有证据支持正常退出阶段的身份核对竞态，没有证据表明版本反例触发提前退出或 PID 被复用。旧 helper 没保存触发拒绝那次 ps，也没把正常退出回执传到最终摘要，不能把推断写成已证实排除 PID 复用。
 

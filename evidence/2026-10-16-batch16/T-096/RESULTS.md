@@ -1,10 +1,28 @@
 # T-096-1 当前交付记录
 
-**INCOMPLETE**：真实 main 红态、单格／三格恢复与历史 nonce、缺 argv、缺 session、失败隔离均已由主控实跑 PASS，fake POST 0。version-b-01 八项业务检查通过，但收尾未完成；固定收尾与 version-b-02 命令见 `RUN-VERSION.md`。完整验收仍待该重跑、独立审查与门禁交付。
+**PASS（本票实跑）**：七个最终场景全部通过，全部 cleanup true、fake API POST 0、模型回合 0。候选按主控 #107／#15 要求冻结，等待独立审查；门禁 submit、验收与集成尚未完成，不把实跑 PASS 当作门禁结论。审查入口见 `REVIEW-REQUEST-T096-01.md`。
 
 当前范围以主控 #89 转达和 main `8cf91b26e` 的 T-096“裁定”节为准：只恢复两个主控；worker 保留为“未恢复”，不启动 CLI、不重绑定、不改 attempt。不修改 `workbench/src/gates/`。主控 #88 允许先完成不依赖门禁裁定的路径。
 
 主控没有跨重启的固定 PID 绑定：`Panes.controllerLaunch()` 返回的身份不含 PID；`caller()` 在单次请求内固定当次 leader（`panes.ts` 的 controller 分支），daemon 的 `assertCurrent()` 核对当次前台进程；`core.ts:340` 的 `registerController()` 只核对 task/project/spec_rev。worker 的旧 PID 绑定留在 `core.ts:2485`，没有改动。
+
+最终场景结论（主控 #107／#15 确认，2026-10-18）：
+
+| 场景 | 结论 | 独立读回重点 | 收尾 |
+| --- | --- | --- | --- |
+| red-b-05 | PASS，识别到 main 的真实红态 | main 遗留死端点阻断第二轮启动，行为为 NO_GO；不是产品恢复成功 | cleanup true、归档比较通过 |
+| tracer-b-05 | PASS，15 项 | 单主控原 session 的真实历史 nonce、内核 argv 全字段、绑定和显式关闭集 | cleanup true、归档比较通过 |
+| three-b-01 | PASS，26 项 | 两主控原历史恢复；worker 只读“未恢复”；完整 gate task／attempt 前后相等 | cleanup true、归档比较通过 |
+| no-argv-b-02 | PASS，9 项 | 缺 argv 明确拒绝，真实窗口保留“未恢复”，没有成功事件 | cleanup true、归档比较通过 |
+| version-b-02 | PASS，9 项 | 版本不符明确拒绝，真实窗口保留“未恢复”，正常退出及已保存窗格集读回 | cleanup true、归档比较通过 |
+| no-session-b-01 | PASS，9 项 | 缺 session 明确拒绝，保留现场，不新建会话 | cleanup true、归档比较通过 |
+| isolation-b-01 | PASS，20 项 | 一个主控拒绝恢复不影响另一主控；失败窗格无成功事件，worker attempt 不变 | cleanup true、归档比较通过 |
+
+初始化按键全部由执行主控逐屏读取原始屏幕后明确批准：每个主控 profile 六键，加一次空队列就绪放行。主控 #104／#14 与 #107／#15 确认批准来源；每屏材料与批准回执在各场外置盘 `startup-screens/`，daemon 事件和 run.json 保存实际按键序列。red-b-05 不发初始化键。所有最终场景的 fake API 原始请求记录均无 POST，恢复不提交模型提示词，模型回合为 0；未做真实登录或写用户全局配置。
+
+`cleanup-version-b-01.run.json` **PASS**：核对固定身份后仅一次 daemon_stop，79664 已退出，651 文件／207,761,842 字节归档比较通过；私密 operator-1／2 只从副本排除，原件保留。`version-b-02.archive.json` 为 652 文件／177,406,492 字节，comparison true。新四份 run／清理／归档产物一并提交。no-argv-b-01、version-b-01 及更早失败的原始摘要、原件和诊断保持原样；补做清理不把失败摘要改记 PASS。
+
+用户询问用预置 hasCompletedOnboarding 和隔离目录信任状态绕过 Claude 初始化屏，主控已明确另交构思主控处理；本票不实现，也不把这条未决定路径计入本次验收。
 
 2026-10-18 主控 #104／#14 的原生验收结果与 version 收尾：
 
@@ -86,7 +104,7 @@ version 第二个 Electron 79678 的最后两次已保存 ps 与 journal 的 PID
 
 `static-checks-b-01.json` 的语法、编码、修改范围和项目地图检查 **PASS**（0 problems、0 stale living docs）。Claude 启动版本与 driver 选择局部回归分别见 `t091-version-regression-b-01.json`、`driver-selection-b-01.json`，均 PASS，适用范围仍为替代边界。
 
-尚未完成：version-b-01 固定收尾、version-b-02 完整重跑、独立审查、门禁 submit；其他实跑通过的范围见本页最新记录。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
+尚未完成：独立审查、门禁 submit／验收／集成；本票实跑及故障现场清理已完成。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。下文各日期段保留当时的阶段状态，最终结论以上方七场表为准。
 
 下列为第一轮 WIP 的原始局部证据，保留其适用范围：
 

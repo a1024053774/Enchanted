@@ -1,6 +1,6 @@
 # T-096：执行主控真实重启验证
 
-状态：**INCOMPLETE**。主控 #104／#14 实跑中，red-b-05、tracer-b-05、three-b-01、no-argv-b-02、no-session-b-01、isolation-b-01 均 PASS，包含真实原生历史 nonce。version-b-01 八项业务检查通过，但 Electron 收尾失败；先按 [RUN-VERSION.md](RUN-VERSION.md) 收尾其固定夹具，再运行 version-b-02。不要重跑已有标签／输出目录；同一时刻最多一个 Electron。以下命令保留作流程说明，当前下一步以 RUN-VERSION 为准。
+状态：**PASS（本票实跑）**。主控 #107／#15 确认 red-b-05、tracer-b-05、three-b-01、no-argv-b-02、version-b-02、no-session-b-01、isolation-b-01 全部通过，失败现场也已清理归档。候选冻结待独立审查，详见 `REVIEW-REQUEST-T096-01.md`；以下命令仅保留为复现说明，不重跑已有标签／输出目录。任何经主控安排的新场景仍须逐屏批准、模型预算 0，同一时刻最多一个 Electron。
 
 候选先冻结成提交；新 label／外置盘输出／构建槽不覆盖旧运行。`--expect red|restore` 现在必填，漏传会在资源启动之前退出。red 模式保留死端点去测试真实重启，不预先删除端点掩盖缺陷；仅识别原件中明确的、发生在新凭据和进程创建之前的拒绝。超时、其他报错或新 epoch 身份不明仍为 INCOMPLETE。
 
