@@ -1,12 +1,12 @@
 # T-093 修订网络边界与 main 恢复兼容交接 16
 
-**NO_GO（组合恢复边界待裁定）；网络／规范身份修正及局部红绿完成，新 OS profile／无模型链、T-096 原生七场尚未执行。**
-新增阻塞：[普通 daemon 恢复正常登录记录的 profile 缺口](ISSUE-NORMAL-LOGIN-RESTORE-16.md) 已以实际 recover＋给定边界复现，源代码缺原受保护上下文检查。主控范围裁定待回；该路径 NO_GO，不给整体集成结论。下面七场是假 API 恢复，不覆盖该缺口。
+**INCOMPLETE：主控 #125 的正常登录恢复拒绝已落实，网络／规范身份修正及局部红绿完成；新 OS profile／无模型链、T-096 原生七场尚未执行。**
+原组合阻点 [普通 daemon 恢复正常登录记录的 profile 缺口](ISSUE-NORMAL-LOGIN-RESTORE-16.md) 已由主控 #125 收窄处理：正常登录记录在任何 CLI 命令前标为“未恢复”，返回 normal_login_restore_requires_protected_start 并提示经正常登录入口重启；不重建 R/F/D/C、不扩大 T-096。独立旧探针红态、同探针绿态、零版本／PTY 与历史不变／假 API 正例见 [NORMAL-RESTORE-17.md](NORMAL-RESTORE-17.md)。下面七场仍只核对假 API 的原生恢复。
 候选绑定最后 `T-093 FROZEN <完整 SHA>`。本次基线为主控完成的合并 64c6456de2b7c0111628defce442d999a26734db，包含 main 0e92f78ec6824265cdfcbb9387ba4b454d7eee7f（含 T-096 fd5c93e6e）；无冲突。task T-093 / attempt a1；worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 不 push、不 rebase、不改门禁／地图或验收状态；Git 冻结不代替 submit、验收或集成。本票不启动真实模型，仍须用户合入后另说开工。
 首轮限定审查 [NETWORK-RESTORE-REVIEW-01.md](NETWORK-RESTORE-REVIEW-01.md) 对 e1177a02d 报 FAIL，确认交接脚本在 Bash 3.2 的 verify-six 空数组错误。现改用位置参数；outside-wrapper-red-01／green-01 用实际系统 Bash、exec 参数哨兵验证七分支，不调用 Python／OS profile，V 六场要求未变。
-一次针对性复核 [NETWORK-RESTORE-REVIEW-02.md](NETWORK-RESTORE-REVIEW-02.md) 对 8771ba58d 报 FAIL：原 Bash P2 已关闭，但独立新建 SQLite／native session 的实际 recover 再次证明普通上下文能执行正常登录版本命令并启动 PTY。该 P1 尚未修正；冻结后的归档提交只加入报告和状态，不改变产品／V。下列命令交付供主控保留，不能据其局部通过解除恢复路径的 NO_GO。
-最终冻结检查为 [freeze-checks-33.json](freeze-checks-33.json)：地图 0 problems／0 stale，主控第二轮审查原件未改；不补称新 OS 或原生恢复已运行。恢复范围裁定未回，尚无 submit／验收／集成收据。
+一次针对性复核 [NETWORK-RESTORE-REVIEW-02.md](NETWORK-RESTORE-REVIEW-02.md) 对 8771ba58d 报 FAIL：原 Bash P2 已关闭，独立确认正常登录恢复 P1。报告原文不改。此次按 #125 新裁定修正该入口拒绝；不沿用旧审查作为新修正通过证据。
+当前冻结前检查会另存 freeze-checks-34.json；freeze-checks-33.json 保留旧 NO_GO。地图须为 0 problems／0 stale，主控第二轮审查原件不改；不补称新 OS 或原生恢复已运行，尚无 submit／验收／集成收据。
 
 ## 事实、授权与边界变化
 
@@ -48,33 +48,33 @@ test_t096_restore.mjs 保留两个合法旧记录正例，另跑已有身份匹�
 repo=/Users/luckye/Documents/Code/a2a-wt-t093
 candidate=替换为本次完整冻结SHA
 osrun="$repo/evidence/2026-10-16-batch16/T-093/T093-OS-16.sh"
-bash "$osrun" compile "$repo" "$candidate" /private/tmp/t093-r16-compile-01.json
+bash "$osrun" compile "$repo" "$candidate" /private/tmp/t093-r17-compile-01.json
 ```
 
 要求 rc 0／PASS，loopback 和 203.0.113.31 都能编译，报告 OS_host_filter=false、仅出站 443。此命令只调用编译器，不应用 sandbox、不联网、不读 auth；任一不符即停。
 
 ```sh
-bash "$osrun" primary "$repo" "$candidate" /private/tmp/t093-r16-primary-01.json
+bash "$osrun" primary "$repo" "$candidate" /private/tmp/t093-r17-primary-01.json
 ```
 
 期望 rc 2／INCOMPLETE，但 primary 恰为 rehearsal_primary_probe、两次 U 收据／精确 JSON、应用主机负例、OS 非 443 拒连及 CLI 直连 U 拒绝全部成立；cleanup=[]、fixture_removed=true、最终 writer 每行确认。其他失败即停。
 U 独占监听本地 443，若被占用或权限不足，会报 fake_upstream_listener_unavailable 及 errno；不换端口、不复用别人 listener、不申请 root。所有请求只在实际 U 成功绑定、写本场 ready 后才会发出。
 
 ```sh
-bash "$osrun" green "$repo" "$candidate" /private/tmp/t093-r16-green-01.json
-bash "$osrun" verify-rehearsal "$repo" "$candidate" /private/tmp/t093-r16-rehearsal-check-01.json /private/tmp/t093-r16-primary-01.json /private/tmp/t093-r16-green-01.json
+bash "$osrun" green "$repo" "$candidate" /private/tmp/t093-r17-green-01.json
+bash "$osrun" verify-rehearsal "$repo" "$candidate" /private/tmp/t093-r17-rehearsal-check-01.json /private/tmp/t093-r17-primary-01.json /private/tmp/t093-r17-green-01.json
 ```
 
 两项均须 rc 0／PASS 后再逐场运行正式六场；每场须核对预定主失败及完整清理，失败不同即停，不连续盲跑：
 
 ```sh
-bash "$osrun" none "$repo" "$candidate" /private/tmp/t093-chain-09-none.json
-bash "$osrun" home-references-empty "$repo" "$candidate" /private/tmp/t093-chain-09-home.json
-bash "$osrun" scanner-zero "$repo" "$candidate" /private/tmp/t093-chain-09-scanner.json
-bash "$osrun" counts-always-match "$repo" "$candidate" /private/tmp/t093-chain-09-counts.json
-bash "$osrun" drop-first-record "$repo" "$candidate" /private/tmp/t093-chain-09-drop.json
-bash "$osrun" empty-credential-cases "$repo" "$candidate" /private/tmp/t093-chain-09-empty.json
-bash "$osrun" verify-six "$repo" "$candidate" /private/tmp/t093-chain-09-check.json /private/tmp/t093-chain-09-none.json /private/tmp/t093-chain-09-home.json /private/tmp/t093-chain-09-scanner.json /private/tmp/t093-chain-09-counts.json /private/tmp/t093-chain-09-drop.json /private/tmp/t093-chain-09-empty.json
+bash "$osrun" none "$repo" "$candidate" /private/tmp/t093-chain-10-none.json
+bash "$osrun" home-references-empty "$repo" "$candidate" /private/tmp/t093-chain-10-home.json
+bash "$osrun" scanner-zero "$repo" "$candidate" /private/tmp/t093-chain-10-scanner.json
+bash "$osrun" counts-always-match "$repo" "$candidate" /private/tmp/t093-chain-10-counts.json
+bash "$osrun" drop-first-record "$repo" "$candidate" /private/tmp/t093-chain-10-drop.json
+bash "$osrun" empty-credential-cases "$repo" "$candidate" /private/tmp/t093-chain-10-empty.json
+bash "$osrun" verify-six "$repo" "$candidate" /private/tmp/t093-chain-10-check.json /private/tmp/t093-chain-10-none.json /private/tmp/t093-chain-10-home.json /private/tmp/t093-chain-10-scanner.json /private/tmp/t093-chain-10-counts.json /private/tmp/t093-chain-10-drop.json /private/tmp/t093-chain-10-empty.json
 ```
 
 none 为 rc 0／PASS；其余 rc 2、预定主失败依次为 home_path_injection_must_be_reported、credential_injection_must_be_detected、missing_raw_request_must_be_detected、forwarder_record_count_must_match_upstream、credential_injection_cases_must_not_be_empty；每场清理完整，V 为 rc 0／PASS。JSON 与同名 events 全保留。
@@ -88,13 +88,13 @@ none 为 rc 0／PASS；其余 rc 2、预定主失败依次为 home_path_injectio
 resume="$repo/evidence/2026-10-16-batch16/T-093/T096-REGRESSION-16.sh"
 cli=/已核对的Claude_Code_2.1.302可执行文件绝对路径
 approval=主控本次运行授权位置
-bash "$resume" tracer "$repo" "$candidate" "$cli" "$approval" t093-r16-tracer-01
-bash "$resume" three "$repo" "$candidate" "$cli" "$approval" t093-r16-three-01
-bash "$resume" missing-argv "$repo" "$candidate" "$cli" "$approval" t093-r16-no-argv-01
-bash "$resume" version-mismatch "$repo" "$candidate" "$cli" "$approval" t093-r16-version-01
-bash "$resume" missing-session "$repo" "$candidate" "$cli" "$approval" t093-r16-no-session-01
-bash "$resume" isolation "$repo" "$candidate" "$cli" "$approval" t093-r16-isolation-01
-bash "$resume" empty-reopen "$repo" "$candidate" "$cli" "$approval" t093-r16-empty-reopen-01
+bash "$resume" tracer "$repo" "$candidate" "$cli" "$approval" t093-r17-tracer-01
+bash "$resume" three "$repo" "$candidate" "$cli" "$approval" t093-r17-three-01
+bash "$resume" missing-argv "$repo" "$candidate" "$cli" "$approval" t093-r17-no-argv-01
+bash "$resume" version-mismatch "$repo" "$candidate" "$cli" "$approval" t093-r17-version-01
+bash "$resume" missing-session "$repo" "$candidate" "$cli" "$approval" t093-r17-no-session-01
+bash "$resume" isolation "$repo" "$candidate" "$cli" "$approval" t093-r17-isolation-01
+bash "$resume" empty-reopen "$repo" "$candidate" "$cli" "$approval" t093-r17-empty-reopen-01
 ```
 
 原件写 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-093/<label>`，盘未挂载报错，不回退。沿用的 runner 会在 evidence/T-096 写本次新 label 的 run/archive 文本摘要，不覆盖旧标签／attempt；由主控运行和收取这些原件。

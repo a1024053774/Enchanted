@@ -2,6 +2,8 @@
 // Failure list: lost open set/order; config drift; argv/version/session refusal;
 // one failure aborting siblings; worker resumed or attempt mutated; closed pane
 // resurrected; success before process identity; history/queued prompts replayed.
+// Normal-login records (with or without native session) must fail before any
+// CLI/version/PTY boundary, keep their history, and leave fake API siblings intact.
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
 import { execFileSync } from 'node:child_process';
@@ -85,7 +87,8 @@ async function exercise(source, identity = 'legacy') {
     });
     await module.evaluate();
     const records = [], expected = new Map();
-    const labels = ['missing-argv', 'version-mismatch', 'ideation', 'missing-session', 'executor', 'worker', 'closed'];
+    const labels = ['missing-argv', 'version-mismatch', 'ideation', 'missing-session', 'executor', 'worker',
+      'normal-login', 'normal-login-missing-session', 'closed'];
     for (const [position, label] of labels.entries()) {
       const session = randomUUID(), config = join(root, label), worker = label === 'worker';
       const executable = worker ? '/fixture/codex' : label === 'version-mismatch' ? '/fixture/wrong-version' : '/fixture/claude';
@@ -96,13 +99,14 @@ async function exercise(source, identity = 'legacy') {
         role: worker ? 'worker' : 'controller', preset: label === 'executor' ? 'executor' : 'ideation',
         session, thread: 'thread-' + label, spec_rev: 1, cli: worker ? 'Codex' : 'Claude Code',
         cli_version: worker ? 'codex-cli 0.162.1' : '2.1.302 (Claude Code)',
+        ...(label.startsWith('normal-login') ? { authentication: 'isolated normal login' } : {}),
         ...(label === 'missing-argv' ? {} : { argv }), shell: '/bin/zsh',
         env: { CLAUDE_CONFIG_DIR: config, CODEX_HOME: config, HOME: root, TEST_EXECUTABLE: executable }, worktree: '/fixture' };
       if (['ideation', 'executor'].includes(label) && identity !== 'legacy')
         record.executable_path = identity === 'changed' && label === 'ideation' ? '/fixture/previous/claude' : canonical(executable);
       records.push(record); expected.set(record.id, resume);
       const directory = join(config, worker ? 'sessions' : 'projects/-fixture'); mkdirSync(directory, { recursive: true });
-      if (label !== 'missing-session') writeFileSync(join(directory, (worker ? 'rollout-' : '') + session + '.jsonl'), JSON.stringify(worker ?
+      if (!['missing-session', 'normal-login-missing-session'].includes(label)) writeFileSync(join(directory, (worker ? 'rollout-' : '') + session + '.jsonl'), JSON.stringify(worker ?
         { type: 'session_meta', payload: { source: 'cli', id: session, cwd: '/fixture' } } : { type: 'user', sessionId: session, cwd: '/fixture' }) + '\n');
       mkdirSync(join(root, 'traces', record.id), { recursive: true }); writeFileSync(join(root, 'traces', record.id, 'pty.raw'), 'initial trace\n');
       store.launch(record); store.event('pane_started', { shell_pid: 7 }, record);
@@ -121,6 +125,17 @@ async function exercise(source, identity = 'legacy') {
     const workerStatus = panes.status(worker.thread);
     assert.equal(workerStatus.restoration?.error, 'restore_managed_attempt_requires_reclaim', 'Managed worker must remain unrestored pending explicit reclaim');
     assert.equal(panes.panes.has(worker.thread), false, 'Managed worker must not own a new PTY');
+    for (const label of ['normal-login', 'normal-login-missing-session']) {
+      const record = records.find(row => row.id === 'launch-' + label);
+      assert.deepEqual(operations.filter(row => row.label === label), [], 'Normal-login restore must stop before version, identity and PTY boundaries');
+      assert.equal(panes.panes.has(record.thread), false, 'Normal-login record must not own a PTY');
+      const status = panes.status(record.thread);
+      assert.equal(status.restoration.status, 'failed', 'Normal-login pane stays unrestored');
+      assert.equal(status.restoration.error, 'normal_login_restore_requires_protected_start');
+      assert.equal(status.restoration.details, '正常登录会话不自动续接，请经正常登录入口重新启动。');
+      assert.equal(store.lastEvent(record.id, ['pane_restored']), null);
+      assert.deepEqual(store.launchRecord(record.id), record, 'Refused normal-login history must remain immutable');
+    }
     const valid = identity === 'changed' ? ['executor'] : ['ideation', 'executor'];
     assert.equal(starts.length, valid.length, identity === 'changed' ? 'Changed executable identity must be refused before PTY spawn' : 'Exactly the two valid controllers must resume despite failed siblings');
     for (const label of valid) {
@@ -151,7 +166,7 @@ async function exercise(source, identity = 'legacy') {
     }
     assert.equal(store.lastEvent('launch-closed', ['pane_restored', 'pane_restore_failed']), null);
     assert.equal(store.db.prepare('SELECT data FROM tasks WHERE id=?').get('task').data, taskBefore, 'Worker attempt must remain byte-for-byte unchanged');
-    assert.deepEqual(store.openPanes('task').map(p => p.position), [0, 1, 2, 3, 4, 5]);
+    assert.deepEqual(store.openPanes('task').map(p => p.position), [0, 1, 2, 3, 4, 5, 6, 7]);
     assert.equal(writes, 0, 'Restoration must not write a prompt or release an old queue');
     for (const record of records) store.event('pane_layout_closed', {}, record);
     const reopened = new OrchestrationStore(root);
@@ -162,7 +177,8 @@ async function exercise(source, identity = 'legacy') {
     } finally { reopened.close(); }
     return [identity === 'changed' ? 'replacement_refused_sibling_restored' : 'two_controllers_resume', 'three_refusals_isolate_siblings', 'worker_unrestored_no_pty', 'attempt_unchanged',
       'argv_every_field_equal', 'actual_pty_argv_every_field_equal', 'launch_immutable', 'saved_positions', 'explicit_close_excluded', 'zero_input_writes',
-      'saved_empty_persists_in_sqlite', 'never_saved_and_native_only_distinct', 'layout_saved_state_scoped_to_task', 'runtime_canonical_identity', 'version_identity_spawn_order'];
+      'saved_empty_persists_in_sqlite', 'never_saved_and_native_only_distinct', 'layout_saved_state_scoped_to_task', 'runtime_canonical_identity', 'version_identity_spawn_order',
+      'normal_login_zero_cli_or_pty', 'normal_login_unrestored_restart_hint', 'normal_login_history_immutable', 'normal_login_missing_session_also_refused'];
   } finally { store.close(); }
 }
 const report = { status: 'INCOMPLETE', scope: 'real SQLite/native files; supplied process boundaries; not GUI/CLI end-to-end evidence', checks: [], model_turns: 0 };
@@ -175,6 +191,11 @@ try {
   report.checks = await exercise(candidate);
   report.identity_matching = await exercise(candidate, 'matching');
   report.identity_changed = await exercise(candidate, 'changed');
+  const normalGuard = 'check(record.authentication !== "isolated normal login", "normal_login_restore_requires_protected_start");';
+  assert.equal(candidate.split(normalGuard).length, 2);
+  try { await exercise(candidate.replace(normalGuard, '')); }
+  catch (error) { report.normal_restore_guard_mutant = { rejected: error instanceof assert.AssertionError && error.message.startsWith('Normal-login restore must stop before version, identity and PTY boundaries'), error: String(error) }; }
+  assert.equal(report.normal_restore_guard_mutant?.rejected, true, 'Removing the normal-login refusal must fail at the first CLI boundary');
   const mutant = candidate.replace('const shellArgv = ["-f", "-i", "-c", shellCommand(argv)',
     'const shellArgv = ["-f", "-i", "-c", shellCommand([argv[0]!, "--resume", opened.native_session!])');
   assert.notEqual(mutant, candidate);

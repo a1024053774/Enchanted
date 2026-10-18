@@ -3,10 +3,10 @@
 T-096 恢复已合入 main；与 T-093 libproc 组合的原生恢复回归仍待执行。Electron 创建或显式关闭窗格时，把 launch 与位置追加到
 现有 SQLite 事件流；退出应用只断开视图，保留打开集。未传 `--launch` 时读取该任务
 保存的窗格集，并沿用位置。只有从未保存过布局才选择当前窗格；明确关闭最后一格后，
-保存集为空，重开仍显示空视图。后台只自动恢复主控窗格：按原启动记录构造完整续接 argv，
-Claude 仅把 `--session-id` 换为 `--resume`；其余参数与 profile 环境取原记录。
+保存集为空，重开仍显示空视图。后台只自动恢复假 API 的主控窗格：按原启动记录构造完整续接 argv，
+Claude 仅把 `--session-id` 换为 `--resume`；其余参数与隔离假 API 环境取原记录。
 恢复在原版本／session 核对之后、PTY 启动之前建立规范 executable_path；旧历史记录不变，只给运行时副本补齐。已有规范身份与当前目标不同则拒绝，不改变 argv 或硬设 leader。
-组合恢复当前还有未解决的边界：普通 daemon 自动恢复正常登录记录时没有重建其受保护 profile，尚不能据此用于正常登录恢复或宣布集成通过，详见 [问题记录](../evidence/2026-10-16-batch16/T-093/ISSUE-NORMAL-LOGIN-RESTORE-16.md)。
+已知限制：正常登录的主控记录不自动续接。recover 在任何 CLI 命令之前识别 `authentication="isolated normal login"`，保留窗格并标为“未恢复”，返回 `normal_login_restore_requires_protected_start`；不执行版本命令、不启动 PTY、不读 auth。请经正常登录入口重新启动。状态接口的 `restoration.details` 也给出这条中文提示；现有界面显示“未恢复”与错误码。完整重建 R/F/D/C 生命周期的恢复属于另票范围，见 [裁定与局部证据](../evidence/2026-10-16-batch16/T-093/NORMAL-RESTORE-17.md)。
 缺 argv、版本不符、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
 恢复不发送提示词或放行旧队列。按 T-096 的 2026-10-18 裁定 B，worker 窗格保留并显示
 “未恢复”，不启动 CLI、不重绑定、不改变 attempt；后续由执行主控按中断恢复流程处理。
@@ -372,6 +372,7 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 ## 正常登录 profile（T-093）
 
 当前为 INCOMPLETE：第二轮审查确认非 loopback F profile 无法编译及恢复身份不兼容。现已按修订裁定改为 OS 限 TCP 443、应用层锁配置主机，并合入 main 修复恢复运行时身份；局部红绿通过，新 OS 与原生恢复回归仍待主控。
+主控 #125 进一步限定：正常登录记录一律保留为“未恢复”，需经正常登录入口重新启动；假 API 恢复合同不变。该拒绝已用独立旧探针及实际 recover 局部合同取得红绿，不代表原生 OS／恢复验收已完成。
 夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
 最新修正、OS 验证与恢复回归命令见 [交接请求 16](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-16.md)；
 共享调用点与 T-091／T-078／T-096 回归命令仍见 [请求 13](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-13.md)。

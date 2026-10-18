@@ -240,6 +240,9 @@ export class Panes implements GateRuntime {
         check(record.attempt === null, "restore_managed_attempt_requires_reclaim");
         check(record.role === "controller" && record.cli === "Claude Code" &&
           ["ideation", "executor"].includes(record.preset), "restore_controller_required");
+        // T-093: normal-login restoration cannot reconstruct R/F/D/C here.
+        // Require a fresh protected start until that lifecycle has its own ticket.
+        check(record.authentication !== "isolated normal login", "normal_login_restore_requires_protected_start");
         const previous = this.store.lastEvent(record.id, ["pane_started", "pane_restored"]);
         if (Number.isSafeInteger(previous?.data.shell_pid) && previous!.data.shell_pid > 1) {
           try {
@@ -314,7 +317,9 @@ export class Panes implements GateRuntime {
           catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
         }
         this.store.event("pane_restore_failed", { daemon, error: error instanceof Refusal ? error.code : "restore_failed",
-          details: String(error), cleanup, native_session: opened.native_session }, record as any);
+          details: error instanceof Refusal && error.code === "normal_login_restore_requires_protected_start" ?
+            "正常登录会话不自动续接，请经正常登录入口重新启动。" : String(error),
+          cleanup, native_session: opened.native_session }, record as any);
       }
     }
   }

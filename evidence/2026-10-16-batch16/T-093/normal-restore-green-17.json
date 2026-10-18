@@ -1,0 +1,57 @@
+{
+  "status": "PASS",
+  "candidate": "working-tree-after-67ffe60add74c187a0fe01238a65babfb1ffd8e8",
+  "scope": "actual recover, real fresh SQLite/native files, ordinary context; all subprocess/PTY boundaries supplied; no OS/CLI/auth/network",
+  "contract": "normal-login restore requires protected context before any CLI or PTY boundary",
+  "results": [
+    {
+      "name": "normal-surviving-session",
+      "authentication": "isolated normal login",
+      "sessionExists": true,
+      "outer_session": false,
+      "calls": [],
+      "starts": 0,
+      "restoration": "pane_restore_failed",
+      "error": "normal_login_restore_requires_protected_start",
+      "history_unchanged": true
+    },
+    {
+      "name": "normal-missing-session",
+      "authentication": "isolated normal login",
+      "sessionExists": false,
+      "outer_session": false,
+      "calls": [],
+      "starts": 0,
+      "restoration": "pane_restore_failed",
+      "error": "normal_login_restore_requires_protected_start",
+      "history_unchanged": true
+    },
+    {
+      "name": "fake-control",
+      "authentication": "isolated fake API only",
+      "sessionExists": true,
+      "outer_session": false,
+      "calls": [
+        "cli-version",
+        "pty-spawn",
+        "given-process-snapshot"
+      ],
+      "starts": 1,
+      "restoration": "pane_restored",
+      "error": null,
+      "history_unchanged": true
+    }
+  ],
+  "replay": {
+    "source": "working tree after 67ffe60; only normal-login preflight refusal and refusal hint changed",
+    "command": [
+      "node",
+      "--experimental-vm-modules",
+      "/private/tmp/t093-normal-green17-5l647xjm/normal-independent.mjs"
+    ],
+    "input_change": "same independent probe: only snapshot read path and candidate metadata updated",
+    "process_exit": 0,
+    "fixture": "/private/tmp/t093-normal-green17-5l647xjm",
+    "actual_cli_auth_os_network_model": 0
+  }
+}

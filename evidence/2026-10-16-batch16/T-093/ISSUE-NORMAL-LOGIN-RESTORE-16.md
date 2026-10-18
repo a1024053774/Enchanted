@@ -1,6 +1,6 @@
 # 新增组合边界：普通 daemon 直接恢复正常登录记录
 
-**NO_GO（该恢复路径）；整体候选不得据此宣称可集成。待主控按 #122 重开 T-096 并裁定处理范围。**
+**历史 NO_GO：该路径在 8771ba58d／67ffe60ad 不可集成。主控 #125 已裁定正常登录记录不续接；当前增加版本／PTY 前的明确拒绝，局部红绿见 [NORMAL-RESTORE-17.md](NORMAL-RESTORE-17.md)。完整受保护恢复另票处理，不扩大 T-096。**
 这是 worker 在限定审查结束后追加的给定边界检查，不是 NETWORK-RESTORE-REVIEW-01 的独立 finding，也不是已执行真实 CLI／OS 后观察到的泄漏。
 后续一次针对性独立复核已用全新 SQLite／native session 记录确认相同 P1，原文见 [NETWORK-RESTORE-REVIEW-02.md](NETWORK-RESTORE-REVIEW-02.md)。仍为给定进程边界证据；缺 session 的负例也会先执行版本命令。
 
@@ -32,4 +32,4 @@ node --experimental-vm-modules "$probe_dir/normal-independent.mjs"
 
 最小安全选项是本票先明确把不能保留受保护上下文的正常登录恢复标为“未恢复”，拒绝在普通 daemon 下执行 CLI（包括版本命令）；完整重建 R/F/D/C 生命周期由重开的 T-096／后续设计处理。
 另一选项是在重开的 T-096 统一补完整受保护恢复，本候选在此之前不集成。不能通过重新复制 env、固定 leader、继承普通 daemon 权限或自动补登录解决。
-worker 已向主控提出范围裁定，未自行增加正常登录恢复设计或改变其恢复范围。F 网络／规范身份修复与 Bash wrapper 修正可独立审查；七项现有假 API 原生回归不覆盖本问题。
+上面是裁定前的建议；主控 #125 已选择先明确拒绝正常登录恢复。worker 仅实现该拒绝，没有增加完整恢复生命周期。F 网络／规范身份修复与 Bash wrapper 修正可独立审查；七项现有假 API 原生回归不覆盖本问题，故另保留本问题的拒绝反例。
