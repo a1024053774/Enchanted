@@ -1,0 +1,34 @@
+test_busy_foreground_argv_is_in_error_identity (__main__.LaunchFailure) ... ok
+test_error_keeps_stderr_stdout_and_retains_pane (__main__.LaunchFailure) ... ok
+test_failed_registration_query_does_not_claim_unregistered (__main__.LaunchFailure) ... ok
+test_initializer_gap_is_not_initialization_complete (__main__.LaunchFailure) ... FAIL
+test_live_process_and_null_name_is_unregistered (__main__.LaunchFailure) ... ok
+test_process_started_without_registration_is_distinct (__main__.LaunchFailure) ... ok
+test_registered_but_blocked_is_not_unregistered_or_success (__main__.LaunchFailure) ... ok
+test_success_keeps_the_pane (__main__.LaunchFailure) ... ok
+
+======================================================================
+FAIL: test_initializer_gap_is_not_initialization_complete (__main__.LaunchFailure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/luckye/Documents/Code/a2a-wt-t094/scripts/test_launch_worker_failure.py", line 141, in test_initializer_gap_is_not_initialization_complete
+    r, row, calls = self.launch('init-gap')
+  File "/Users/luckye/Documents/Code/a2a-wt-t094/scripts/test_launch_worker_failure.py", line 109, in launch
+    self.assertEqual([r['phase'] for r in rows], ['prepared', 'started' if scenario in ('success', 'init-gap') else 'failed'])
+AssertionError: Lists differ: ['prepared', 'failed'] != ['prepared', 'started']
+
+First differing element 1:
+'failed'
+'started'
+
+- ['prepared', 'failed']
+?               ^ ^^
+
++ ['prepared', 'started']
+?               ^^ ^^
+
+
+----------------------------------------------------------------------
+Ran 8 tests in 7.502s
+
+FAILED (failures=1)

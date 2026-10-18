@@ -10,6 +10,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+import uuid
 
 import test_herdr_traceability_e2e as traceability
 
@@ -22,9 +23,14 @@ class LauncherContract(traceability.Contract):
         self.home = self.root / "codex home 中文"
         self.home.mkdir()
         self.env["FAKE_SHELL_READS"] = str(self.root / "shell-reads.txt")
+        self.env["FAKE_SHELL_EVENTS"] = str(self.root / "shell-events.jsonl")
+        self.child_argv = ["conda", "shell.zsh", "hook", "独立参数-" + uuid.uuid4().hex[:12]]
+        self.env["FAKE_CHILD_ARGV"] = json.dumps(self.child_argv)
         codex = self.fakebin / "codex"
-        codex.write_text("#!" + sys.executable + "\nimport sys\n"
+        codex.write_text("#!" + sys.executable + "\nimport json, os, sys\nfrom pathlib import Path\n"
                          "if sys.argv[1:] != ['--version']: sys.exit(2)\n"
+                         "with Path(os.environ['FAKE_VERSION_RECEIPTS']).open('a', encoding='utf-8') as f:\n"
+                         " f.write(json.dumps(dict(argv=sys.argv[1:], returncode=0, stdout='codex-cli 0.162.1\\n')) + '\\n')\n"
                          "print('codex-cli 0.162.1')\n", encoding="utf-8")
         codex.chmod(0o755)
         (self.fakebin / "herdr").write_text("#!" + sys.executable + "\n" + '''
@@ -35,6 +41,9 @@ with Path(os.environ['FAKE_CALLS']).open('a') as f:
  f.write(json.dumps(args) + '\\n')
 counter = Path(os.environ['FAKE_SHELL_READS'])
 reads = int(counter.read_text()) if counter.exists() else 0
+def observe(kind, sample=None):
+ with Path(os.environ['FAKE_SHELL_EVENTS']).open('a', encoding='utf-8') as f:
+  f.write(json.dumps(dict(kind=kind, observed_ns=time.time_ns(), sample=sample)) + '\\n')
 if args[:2] == ['pane', 'split']:
  values = dict(args[i+1].split('=',1) for i,v in enumerate(args) if v == '--env')
  Path(os.environ['FAKE_ENV']).write_text(json.dumps(values), encoding='utf-8')
@@ -53,7 +62,10 @@ elif args[:2] == ['pane', 'process-info']:
  counter.write_text(str(reads))
  shell = {'pid': 842, 'name': '-zsh'}
  sample = {'pane_id': 'fake:pane'}
- if not os.environ.get('FAKE_NEVER_READY'):
+ if os.environ.get('FAKE_CHILD_ALWAYS'):
+  sample.update(shell_pid=842, foreground_process_group_id=842,
+                foreground_processes=[shell, {'pid': 913, 'name': 'conda', 'argv': json.loads(os.environ['FAKE_CHILD_ARGV'])}])
+ elif not os.environ.get('FAKE_NEVER_READY'):
   if reads == 2:
    sample.update(shell_pid=842, foreground_process_group_id=842,
                  foreground_processes=[shell, {'pid': 913, 'name': 'kiro-cli'}])
@@ -67,8 +79,10 @@ elif args[:2] == ['pane', 'process-info']:
    sample.update(shell_pid=842, foreground_process_group_id=842, foreground_processes=[shell])
  if os.environ.get('FAKE_WRONG_PANE'):
   sample['pane_id'] = 'another:pane'
+ observe('process_info', sample)
  print(json.dumps({'result': {'process_info': sample}}))
 elif args[:2] == ['agent', 'start']:
+ observe('agent_start')
  if reads < 5:
   print(json.dumps({'error': {'code': 'agent_pane_busy', 'message': 'shell is still initializing'}}), file=sys.stderr)
   sys.exit(1)
@@ -93,12 +107,17 @@ else:
         return result
 
     def launch(self, attempt=None, env=None, expected=0):
+        before = len(self.version_events())
         result = self.run_command([str(LAUNCHER), "--root", str(self.root), "--cwd", str(self.root),
                                   "--agent", "fixture-worker", "--project", "sentinel-project",
                                   "--task", self.task, "--attempt", attempt or self.attempt,
                                   "--session", self.session, "--codex-home", str(self.home)],
                                  env=env, expected=expected)
-        return result if expected else json.loads(result.stdout)["launch_id"]
+        if expected:
+            return result
+        launch = json.loads(result.stdout)["launch_id"]
+        self.assert_start_version(launch, before)
+        return launch
 
     def calls(self):
         return [json.loads(line) for line in (self.root / "fake-calls.jsonl").read_text().splitlines()]
@@ -108,8 +127,28 @@ else:
         # foreground group, and an exec-replaced shell PID before availability.
         launch = self.launch()
         calls = self.calls()
-        self.assertEqual([v[:2] for v in calls], [["pane", "split"],
-                         *([["pane", "process-info"]] * 5), ["agent", "start"]])
+        self.assertEqual(calls[0][:2], ["pane", "split"])
+        self.assertTrue(all(v[:2] == ["pane", "process-info"] for v in calls[1:-1]))
+        self.assertEqual(calls[-1][:2], ["agent", "start"])
+        events = [json.loads(line) for line in (self.root / "shell-events.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(sum(e["kind"] == "agent_start" for e in events), 1)
+        stable_since = None
+        saw_child = False
+        for event in events:
+            if event["kind"] == "agent_start":
+                self.assertIsNotNone(stable_since, "前台仍有子进程或不是 shell 时不得启动")
+                self.assertGreaterEqual(event["observed_ns"] - stable_since, 1500000000)
+                break
+            info = event["sample"]
+            processes = info.get("foreground_processes", [])
+            saw_child = saw_child or len(processes) > 1
+            if (info.get("shell_pid") == 842 and info.get("foreground_process_group_id") == 842
+                    and len(processes) == 1 and processes[0]["pid"] == 842 and processes[0]["name"] == "-zsh"):
+                if stable_since is None:
+                    stable_since = event["observed_ns"]
+            else:
+                stable_since = None
+        self.assertTrue(saw_child, "夹具必须覆盖前台初始化子进程")
         env = self.managed_env()
         self.assertEqual(env["CODEX_HOME"], str(self.home))
         self.assertEqual(env["A2A_PROJECT"], "sentinel-project")
@@ -146,6 +185,13 @@ else:
         self.assert_wait_failure("FAKE_NEVER_READY")
         self.assertIn("30", self.rows("launches.jsonl")[-1]["error"])
 
+    def test_child_foreground_times_out_with_argv(self):
+        self.assert_wait_failure("FAKE_CHILD_ALWAYS")
+        row = self.rows("launches.jsonl")[-1]
+        self.assertEqual(row["shell_foreground"]["foreground_processes"][1]["argv"], self.child_argv)
+        self.assertIn(json.dumps(self.child_argv, ensure_ascii=False), row["error"])
+        self.assertIn(json.dumps(self.child_argv, ensure_ascii=False), traceability.COMMANDS[-1]["stderr"])
+
     def test_hung_status_query_times_out(self):
         self.assert_wait_failure("FAKE_PROCESS_HANG")
         self.assertEqual(len(self.calls()), 2)
@@ -165,7 +211,7 @@ else:
         self.assertFalse(any(v[:2] == ["pane", "close"] for v in self.calls()))
 
 
-CASES = ("test_delayed_shell_then_commit", "test_unknown_shell_times_out", "test_hung_status_query_times_out",
+CASES = ("test_delayed_shell_then_commit", "test_child_foreground_times_out_with_argv", "test_unknown_shell_times_out", "test_hung_status_query_times_out",
          "test_status_error_is_not_retried", "test_wrong_pane_is_rejected", "test_agent_start_failure_is_not_retried")
 
 if __name__ == "__main__":
