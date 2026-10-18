@@ -14,6 +14,8 @@ helper-diagnostics-red-21-02.json 在基线入口取得业务红态：9 类失�
 
 本轮 worker 未运行任何真实 CLI、helper/libproc、daemon/socket、auth 或模型。下方 t093-r21-* 七场只交命令，**何时运行由用户决定，不自动执行**。全部新候选原生结果、独立审查／门禁仍待完成；旧 r20 的两场 PASS 只绑定旧候选。
 
+限定独立审查 HELPER-DIAGNOSTICS-REVIEW-21.md 对 a4fdee0b8ebf7b60ec26ceea32515ee0ef694832 报 L0/L1 PASS：新输入 15/15、旧基线 10 个失败输入均命中诊断缺失业务断言。真实新建并重开的 SQLite 核对回复／事件相同；原错误、停止与生命周期不变。其夹具 run-01 的跨 VM 比较假红保留，修正后另存 run-02。最终归档仅加报告／文本，源码和测试不再改；新候选原生七场及整票独审／门禁仍待完成。
+
 局部绿态重放（全新输出；无真实 helper／服务）：
 
 ```sh

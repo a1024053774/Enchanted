@@ -16,6 +16,8 @@ processInfo 在原异常上附带 helper 已捕获的 stdout／stderr、退出�
 
 局部回归 observer 11 项、alias 2 项、T-096 恢复合同（三种身份模式和原反例）、T-091 IPC 19 项通过。恢复白名单及完整 argv／版本／session／leader、OS／网络／转发／门禁均未改。新七场标签已在 [请求 20](REVIEW-REQUEST-T093-20.md) 改为 t093-r21-*，output 仍固定外置 T-096 下；何时运行由用户决定，worker 不启动。新候选独审、原生七场和唯一门禁仍待完成。
 
+限定独立审查 [HELPER-DIAGNOSTICS-REVIEW-21.md](HELPER-DIAGNOSTICS-REVIEW-21.md) 对 a4fdee0b8ebf7b60ec26ceea32515ee0ef694832 给出 PASS（仅 L0/L1）：15 个新输入通过，10 类失败在旧基线上均被同一诊断缺失业务断言拒绝，无导入／环境错误；实际 daemon 回复与重开 SQLite 后的事件一致。原错误对象／类型／代码、单次调用、停止／生命周期结果保持。首轮审查夹具跨 VM 原型比较的假红保留，修正临时夹具后另写 run-02。最终归档提交只加报告／文本和清单，运行源码与测试与受审版本逐字相同。真实 helper、OS／socket、原生七场仍未运行，用户决定重跑时机；此局部 PASS 不替整票独审或门禁。
+
 下文均保留为各旧候选及阶段的历史记录。
 
 ## 第三轮 P1 后：恢复白名单
