@@ -100,6 +100,9 @@ def main():
             good=good and value.get('mutation')=='none' and value.get('upstream_requests')==2
             good=good and len(value.get('checks',[]))>=4 and len(value.get('counterexamples',{}).get('credential_injections',[]))==6
         else:good=good and value.get('rehearsal')=='none'
+        observed=value.get('counterexamples',{}).get('foreground_process_query',{})
+        good=good and observed.get('observer',{}).get('method')=='macOS libproc' and observed.get('observer',{}).get('root_pid')==observed.get('shell_pid')
+        good=good and any(row.get('pid')==observed.get('leader') and row.get('pid')==row.get('pgid')==row.get('tpgid') and isinstance(row.get('command'),str) and Path(row['command']).name=='fake-claude' for row in observed.get('processes',[]))
         if kind in ('none','green'):
             raw=value.get('forwarder_raw_records',[]);requests=[r for r in raw if r.get('kind')=='request'];outcomes=[r for r in raw if r.get('kind')=='outcome']
             receipts=value.get('independent_upstream_receipts',[]);facts=value.get('facts',{});counter=value.get('counterexamples',{})

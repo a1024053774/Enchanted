@@ -358,10 +358,10 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：旧残留已清理；primary 演练在 pane_release 返回 not ok 后停止，收尾完整。
-本候选补齐 daemon.error／details 与调用前后 status 的脱敏留证；原回复已丢失，实际拒绝原因仍需沙箱外重新取得。
-新命令与停止条件见
-[交接请求 11](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-11.md)。
+当前为 INCOMPLETE：已确认 release 的 EPERM 来自旧 processInfo 启动 setuid-root /bin/ps。
+本候选选择方案 b，改由继承 C 的非 setuid Python/helper 通过 macOS libproc 查询本 PTY 进程树，全部 CLI 权限不变。
+局部身份核对与 SDK ABI 检查通过；同 profile 的新 primary 演练待主控运行，见
+[交接请求 12](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-12.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
@@ -395,7 +395,7 @@ CLI executable 使用规范实际路径，避免版本符号链接与进程身�
 | 进程／阶段 | profile 与权限 |
 | --- | --- |
 | R 凭据准备 | 在业务沙箱之外精确读一次。文件来源只读 ~/.claude/.credentials.json；钥匙串只查 Claude Code-credentials 和指定 login.keychain-db，不枚举、不换来源。仅复制 claudeAiOauth 到私有 /private/tmp/a2a-claude-login-*，文件 0600 |
-| C 根 daemon、PTY、zsh、CLI、原生 hook／tool、ps、事实子进程 | 最外层只施加一次 C，后代继承；禁写整个真实 HOME，保留 HOME 读取屏障，只例外读取 CLI／Node、workbench 源码及依赖；TCP 只到 F 的固定本地端口，Unix socket 仅本次 control.sock；禁止 Security，保留 fork／exec |
+| C 根 daemon、PTY、zsh、CLI、原生 hook／tool、进程查询 helper、事实子进程 | 最外层只施加一次 C，后代继承；禁写整个真实 HOME，保留 HOME 读取屏障，只例外读取 CLI／Node、workbench 源码及依赖；TCP 只到 F 的固定本地端口，Unix socket 仅本次 control.sock；禁止 Security，保留 fork／exec |
 | F 独立进程 | 在 C 启动前独立施加 F，脱离调用者进程组并 reparent；只写自己的 forwarder 记录目录、只监听固定 P、只连接配置上游地址及端口；禁止其他网络、Security 与 fork |
 | D 基线及清单／隔离根清理 helper | 原始 auth 读取前由一次短 D 进程采基线；长期 D 独立施加相同 profile。无出站、无 Security、无 fork，只写私有根及自己的收据目录。HOME 只读目录/stat，不读正文（源码除外）；快照仅留私有根，C 输出差异后由 D 删除整个根 |
 
@@ -406,6 +406,12 @@ R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没�
 短脱离 helper 各自以对应 profile 的 true 结束，实际 PID 与退出码单列。各后台进程有覆盖
 前置检查、服务与收尾的硬期限。D 在失败／根进程退出时清理本次登记的组与私有根；
 清理不确定会记录失败，不能补作 PASS。已有可写 HOME FD 在应用 profile 前关闭；日志不得重定向进真实 HOME。
+
+前台身份核对统一调用 `/usr/bin/python3 -I -S -B workbench/src/processSnapshot.py PTY_PID`，5 秒期限。
+它在同一 C 内调用系统 libproc，只枚举该 PTY 的后代，读取 PID／PPID／PGID、TTY 前台组和可执行文件路径，不读 argv、环境或认证。
+查询前后复核进程出生时间及身份；权限拒绝、短数据、截断、身份变化或不连通的树均拒绝，不改用 ps 或无保护查询。
+已观察到的退出／僵尸不作为活 leader；多次内核读取不宣称原子快照，原有 hook／Stop 的身份重查保留。
+原来的前台组与可执行路径条件不变，helper 的实际 PID 也登记在 C 的进程记录里。
 
 版本检查、auth status、交互 CLI 均直接继承 C，不再调用内层 sandbox-exec。
 未通过启动器的正常登录请求返回 normal_login_outer_profile_required；不会退回未受保护模式。
@@ -456,7 +462,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-旧唯一残留已由主控清理。先按交接请求 11 使用新输出重跑 REHEARSE-CHAIN-01.sh 的 primary；取得实际 daemon 回复并达到预期后，才继续 green／独立核对。
+旧唯一残留已由主控清理。先按交接请求 12 使用新输出重跑 REHEARSE-CHAIN-01.sh 的 primary，验证内核查询身份与两次 hook／Stop；达到预期后才继续 green／独立核对。
 演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
 两场通过后才执行正式六场，预期业务断言与命令均在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
 

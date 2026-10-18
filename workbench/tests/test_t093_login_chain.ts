@@ -115,6 +115,13 @@ try {
   const released=await request(state,{command:"pane_release",thread:launch.thread,reason:"deterministic fixture ready"},operator);
   counterexamples.pane_release={before:releaseBefore,after:panes.status(launch.thread),response:released};
   assertDaemonOk("pane_release",released);
+  const releaseObservation=panes.store.lastEvent(launch.id,["executor_action"])?.data;
+  assert.equal(releaseObservation?.action,"initial_release","release_process_observation_required");
+  const observedProcess=releaseObservation.process_info;
+  assert.equal(observedProcess.observer?.method,"macOS libproc","non_setuid_process_observer_required");
+  assert.equal(observedProcess.observer.root_pid,releaseBefore.shell_pid);
+  assert(observedProcess.processes.some((row:any)=>row.pid===observedProcess.leader&&row.pid===row.pgid&&row.pgid===row.tpgid&&row.command===session.manifest.executable),"kernel_foreground_identity_must_match_fixture");
+  counterexamples.foreground_process_query=observedProcess;
   const dispatched=await request(state,{command:"pane_dispatch",thread:launch.thread,body:fixture.prompt},operator);
   assertDaemonOk("pane_dispatch",dispatched);
   await wait(()=>readFileSync(trace,"utf8").includes("fixture-turn-2-complete"),"two_hook_Stop_cycles_deadline");

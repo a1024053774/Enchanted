@@ -16,6 +16,7 @@ import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
 const cli = fileURLToPath(new URL("./gates/cli.ts", import.meta.url));
+const processQuery = fileURLToPath(new URL("./processSnapshot.py", import.meta.url));
 const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
 const shellCommand = (argv: string[]) => argv.map(quote).join(" ");
 function check(value: unknown, error: string, details?: unknown): asserts value {
@@ -395,20 +396,20 @@ export class Panes implements GateRuntime {
   }
   async processInfo(thread: string) {
     const pane = this.get(thread);
-    const operation = exec("/bin/ps", ["-axo", "pid=,ppid=,pgid=,tpgid=,comm="]);
-    pane.login?.recordChild((operation as any).child.pid, "ps");
-    const output = (await operation).stdout;
-    const rows = output.trim().split("\n").map((line) => {
-      const m = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+)\s+(.+)$/.exec(line);
-      check(m, "invalid_process_row", line);
-      return { pid: Number(m[1]), ppid: Number(m[2]), pgid: Number(m[3]), tpgid: Number(m[4]), command: m[5]! };
-    });
+    const operation = exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pane.pty.pid)], { timeout: 5000, maxBuffer: 4 * 1024 * 1024 });
+    pane.login?.recordChild((operation as any).child.pid, "libproc process observer");
+    const observed = JSON.parse((await operation).stdout);
+    check(observed.schema === 1 && observed.root_pid === pane.pty.pid && observed.method === "macOS libproc" && Array.isArray(observed.rows), "invalid_process_snapshot");
+    const rows = observed.rows as {pid:number;ppid:number;pgid:number;tpgid:number;command:string}[];
+    const positive = (value: unknown) => Number.isSafeInteger(value) && (value as number) > 0;
+    check(rows.length <= 4096 && rows.every(row=>row && positive(row.pid) && Number.isSafeInteger(row.ppid) && row.ppid>=0 && positive(row.pgid) && Number.isSafeInteger(row.tpgid) && row.tpgid>=-1 && typeof row.command === "string" && isAbsolute(row.command) && !row.command.includes("\0")) && new Set(rows.map(row=>row.pid)).size === rows.length, "invalid_process_row");
     const descendants = new Set<number>([pane.pty.pid]);
     for (let changed = true; changed;) {
       changed = false;
       for (const row of rows) if (descendants.has(row.ppid) && !descendants.has(row.pid)) { descendants.add(row.pid); changed = true; }
     }
     const owned = rows.filter((row) => descendants.has(row.pid));
+    check(owned.length === rows.length && (!rows.length || rows.some(row=>row.pid===pane.pty.pid)), "invalid_process_tree");
     const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.argv[0]);
     const leader = leaders.length === 1 ? leaders[0]!.pid : null;
     const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
@@ -424,6 +425,7 @@ export class Panes implements GateRuntime {
     if (pane.leader === null && leader !== null) pane.leader = leader;
     this.scan(pane);
     return { shell_pid: pane.pty.pid, leader, native_session: pane.native, session_ended: pane.nativeEnded,
+      observer: { method: observed.method, root_pid: observed.root_pid },
       processes: owned, failed: pane.failed };
   }
   scan(pane: Pane, final = false) {

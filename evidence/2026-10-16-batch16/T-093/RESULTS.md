@@ -395,3 +395,29 @@ daemon-rejection-red-01／green-01 对实际 release 代码块的三种合成回
 诊断实现冻结 d594057a9672e2b7441ca17c4e8632296927f1b4 的只读审查对 L1 留证范围给出 PASS，原文 DAEMON-ERROR-REVIEW-01.md。
 审查者独立重跑新旧 release 代码块，并以新 nonce 拒绝码、不同状态、含合成凭据的详情核对清理前发布；原件以 daemon-rejection-review-* 和 publication-review-green-01 保存。
 PASS 不覆盖真实 daemon 拒绝原因或 OS 链路。产品／权限／release 条件未改，整票 INCOMPLETE；请求 11 仍需主控先运行新的 primary。
+
+## 主控 #105：方案 b 替换 setuid ps
+
+**INCOMPLETE：修复已实现，OS primary 待执行。** 主控在 6f6e2820b 实际取得 pane_release_rejected，daemon.error=orchestration_failed、details=Error: spawn EPERM；before／after 无 active、queue、writing 或 draft。
+旧 release 的第 688 行调用 processInfo，第 398 行唯一 spawn 是 /bin/ps -axo pid=,ppid=,pgid=,tpgid=,comm=；本机 stat 确认 04755，原始回复摘要为 rehearsal-02-primary-summary.json。
+结合此前受保护 ps 的实捕拒绝，已定位该 setuid 查询启动；不再把它写成队列或屏幕问题。
+
+选择主控准许的 b：Panes.processInfo 统一改由 /usr/bin/python3 -I -S -B processSnapshot.py 查询 macOS libproc。
+helper 在原 C 中继承全部禁令，只遍历本 PTY 后代，不读参数／环境／认证、不全机枚举、不启动子进程。
+SDK sys/proc_info.h 的 136 字节 ABI、关键偏移和退出标记均通过静态编译对照；函数语义核对本机 libproc.h 与 Apple 官方开源 libproc.c。
+查询保留原 PID／PGID／TTY 前台组／可执行路径条件，复核出生时间／身份变化；权限拒绝／短数据／截断／坏树都拒绝，僵尸和已知退出不作活 leader。
+这是多次只读内核查询，不宣称原子快照或后续存活保证；原有 hook／Stop 身份重查继续执行。
+没有分离 daemon、增加 CLI 权限或 fallback；所有 OS profile、auth 复制、网络、Security、fork 与门禁源文件保持不变。
+
+REALITY GATE: INCOMPLETE。observed 为真实 spawn EPERM、唯一 ps 调用和 04755；measured 为 SDK ABI 编译通过；inferred 为去掉 setuid exec 可消除已定位的启动障碍。
+material unknown 是同一 C 下实际 libproc 查询是否可读以及整链是否成功，不能用模拟结果替代。
+最小 Tracer bullet 保留在真实 release／原生 hook／Stop 生产路径，新 primary 同时作为查询权限与两次转交探针；执行主控按请求 12 在沙箱外跑，错误或清理不符即停。
+
+process-observer-red-02 在旧产品上由同一当前测试拒绝 setuid ps；green-04 的 11 场（含随机 PID）通过。
+process-snapshot-green-03 的 23 项合成缓冲／树及 ABI 编译通过；ignored-denial 变异命中明确业务断言，见 process-snapshot-mutant-01。
+受影响旧 pane 测试首轮失败不是新查询导致：旧产品＋旧测试也重现 writes.then 缺字段，原件 conflict-panes-parent-01；补齐当前 fixture 字段、保留原断言后 conflict-panes-green-02 四项通过。
+新观察留证导致旧提取测试包含 TS 注解，parser-red-03 的 Unexpected token 保留；修正提取范围后 daemon-rejection-green-04 三项与 chain-publication-green-06 五项通过。
+这些均无真实 libproc／ps／pgrep 查询、OS profile、认证、网络或模型执行。
+
+完整链现在导出实际 release 的 foreground_process_query，独立 V 要求其 observer 方法、PTY root 与内核前台身份匹配假 CLI。
+primary-03 的命令和停止条件见 REVIEW-REQUEST-T093-12.md；只有主动失败及完整清理均符合预期，才跑 green／V 和正式六场。

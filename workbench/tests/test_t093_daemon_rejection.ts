@@ -9,7 +9,8 @@ assert(!existsSync(output));const text=readFileSync(source,'utf8'),checks:any[]=
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
 const start=text.indexOf('  stage="turns";'),end=text.indexOf('  assert((await request(state,{command:"pane_dispatch"',start);
 // Both revisions have a fixed end marker after the release call.
-const stop=end>=0?end:text.indexOf('  const dispatched=',start);
+const retained=text.indexOf('  const releaseObservation=',start);
+const stop=end>=0?end:retained>=0?retained:text.indexOf('  const dispatched=',start);
 assert(start>=0&&stop>start,'actual_chain_release_block_required');
 const code=text.slice(start,stop);
 for(const rejection of ['initial_release_only','foreground_claude_required','orchestration_failed']){
