@@ -1,5 +1,7 @@
 # T-093 修订网络边界与 main 恢复兼容交接 16
 
+此请求已由 [请求 18](REVIEW-REQUEST-T093-18.md) 取代。主控 #126 在 7bba61000 上取得 compile PASS；primary／green 因 U 无法监听 443 而失败，后续未跑。以下保留为当时的命令与判断条件，不在新候选上继续使用 r17 输出名或要求本地 443 空闲。
+
 **INCOMPLETE：主控 #125 的正常登录恢复拒绝已落实，网络／规范身份修正及局部红绿完成；新 OS profile／无模型链、T-096 原生七场尚未执行。**
 原组合阻点 [普通 daemon 恢复正常登录记录的 profile 缺口](ISSUE-NORMAL-LOGIN-RESTORE-16.md) 已由主控 #125 收窄处理：正常登录记录在任何 CLI 命令前标为“未恢复”，返回 normal_login_restore_requires_protected_start 并提示经正常登录入口重启；不重建 R/F/D/C、不扩大 T-096。独立旧探针红态、同探针绿态、零版本／PTY 与历史不变／假 API 正例见 [NORMAL-RESTORE-17.md](NORMAL-RESTORE-17.md)。下面七场仍只核对假 API 的原生恢复。
 候选绑定最后 `T-093 FROZEN <完整 SHA>`。本次基线为主控完成的合并 64c6456de2b7c0111628defce442d999a26734db，包含 main 0e92f78ec6824265cdfcbb9387ba4b454d7eee7f（含 T-096 fd5c93e6e）；无冲突。task T-093 / attempt a1；worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。

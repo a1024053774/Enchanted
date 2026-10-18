@@ -168,10 +168,12 @@ def main(context):
     parser.add_argument('--source-revision',required=True)
     parser.add_argument('--mutation',choices=('none','home-references-empty','scanner-zero','counts-always-match','drop-first-record','empty-credential-cases'),default='none')
     parser.add_argument('--rehearsal',choices=('none','primary','green'),default='none')
+    parser.add_argument('--upstream-port',type=int,default=18443)
     args=parser.parse_args();source=Path(__file__).resolve().parents[2]
     context.update(output=str(args.output),candidate=args.source_revision,mutation=args.mutation,setup_stage='bootstrap',processes=[],cleanup_failures=[])
     load_module(source/'workbench/src/claudeLoginSession.py').validate_bootstrap()
     context['setup_stage']='input_validation'
+    if not 1024 <= args.upstream_port <= 65535:parser.error('test upstream port must be unprivileged')
     if len(args.source_revision)!=40 or any(c not in '0123456789abcdef' for c in args.source_revision):parser.error('full source revision required')
     output=args.output.resolve();home=Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
     if os.path.lexists(output) or not output.parent.is_dir() or Path('/private/tmp') not in output.parents or home in output.parents:parser.error('select a new output outside real HOME under /private/tmp')
@@ -209,12 +211,14 @@ def main(context):
     code_source=snapshot(source,root,args.mutation)
     runtime=load_module(code_source/'workbench/src/claudeLoginSession.py')
     context['setup_stage']='choose_ports'
+    u=args.upstream_port
     ports=set()
-    while len(ports)<3:ports.add(49152+secrets.randbelow(16000))
+    while len(ports)<3:
+        selected=49152+secrets.randbelow(16000)
+        if selected!=u:ports.add(selected)
     p,other,bind=sorted(ports)
-    # The current F contract permits outbound TCP 443 only. Never fall back
-    # to another port or reuse a listener owned by another application.
-    u=443
+    # Production stays on 443. Change only the port parameter in the shared
+    # prepare/policies functions; never reuse or stop another listener.
     (root/'upstream-port').write_text(str(u));(root/'host-home').write_text(str(home))
     manifest={'schema':1,'root':str(root),'state':str(root/'state'),'task':'t093-chain','preset':'ideation','launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),'executable':str(root/'fake-claude'),'version':'2.1.302','role_file':str(root/'roles/ideation/role.md'),'code_revision':args.source_revision,'source_snapshot':str(code_source),'authentication':'normal-login','credential_source':'file','upstream_url':f'http://127.0.0.1:{u}','turn_limit':3}
     context['setup_stage']='prepare_session'
@@ -224,7 +228,7 @@ def main(context):
             context['cleanup_failures'].append('private_preparation_cleanup_failed')
             context['preparation_cleanup_error']={'type':type(cleanup_error).__name__,'errno':cleanup_error.errno,'path':cleanup_error.filename}
         write_setup_failure(context,error,cleanup=False)
-    session=runtime.prepare(manifest,root/'repo',p,'127.0.0.1',180,root/'source-home',on_failure=preparation_failure)
+    session=runtime.prepare(manifest,root/'repo',p,'127.0.0.1',180,root/'source-home',on_failure=preparation_failure,upstream_port=u)
     baseline_profile=session['profiles']['D']
     source_barrier='(deny file-read* file-write* (subpath '+json.dumps(str(root/'source-home'))+'))'
     assert session['profiles']['D'].count(source_barrier)==1
@@ -242,6 +246,7 @@ def main(context):
     # External oracle: the native-CLI spec dispatch adds the managed marker.
     # This fresh database's first dispatch is #1. Do not copy production output.
     fixture['expected_request_body']={'messages':[{'role':'user','content':'⟦主控 #1⟧\n'+fixture['prompt']}]}
+    fixture['port_configuration']={'generator':'claudeLoginSession.policies','production_upstream_port':443,'test_upstream_port':u}
     peer=code_source/'workbench/tests/t093_parallel_chain_peer.py'
     command=lambda role:['/usr/bin/python3','-I','-S','-B',str(peer),'--session',str(private/'session.json'),'--role',role]
     q=lambda value:json.dumps(str(value))

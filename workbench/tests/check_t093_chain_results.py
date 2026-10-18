@@ -68,11 +68,13 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--guarded',action='store_true',help=argparse.SUPPRESS)
     parser.add_argument('--candidate',required=True)
+    parser.add_argument('--upstream-port',type=int,default=18443)
     parser.add_argument('--rehearsal',action='store_true')
     parser.add_argument('--counts-only',action='store_true',help='Check only the counts-always-match mutation; not a full-suite verdict.')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('results',type=Path,nargs='+')
     args=parser.parse_args()
+    if not 1024 <= args.upstream_port <= 65535:parser.error('test upstream port must be unprivileged')
     if args.counts_only and args.rehearsal:parser.error('counts-only and rehearsal are mutually exclusive')
     home=Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
     if any(Path('/private/tmp') not in path.resolve().parents for path in [args.output,*args.results]):parser.error('results and output must be under /private/tmp')
@@ -97,7 +99,13 @@ def main():
         good=good and value.get('primary_failure')==expected and value.get('status')==('PASS' if expected is None else 'INCOMPLETE')
         good=good and value.get('cleanup_failures')==[] and value.get('fixture_removed') is True
         good=good and all(value.get(k)==0 for k in ('real_model_turns','real_cli_starts','real_upstream_requests','real_auth_reads','git_index_credential_hits'))
-        good=good and (value.get('facts') or {}).get('network_boundary')=={'os_host_filter':False,'os_remote_ports':[443],'application_host_lock':True}
+        good=good and value.get('port_configuration')=={'generator':'claudeLoginSession.policies','production_upstream_port':443,'test_upstream_port':args.upstream_port}
+        good=good and (value.get('facts') or {}).get('network_boundary')=={'os_host_filter':False,'os_remote_ports':[args.upstream_port],'application_host_lock':True}
+        upstream_close=value.get('service_receipts',{}).get('U',{})
+        upstream_pid=value.get('processes',{}).get('U',{}).get('pid')
+        good=good and isinstance(upstream_pid,int) and not isinstance(upstream_pid,bool) and upstream_pid>1
+        good=good and upstream_close.get('all_closed') is True and upstream_close.get('startup_completed') is True and upstream_close.get('listeners_bound')==2 and upstream_close.get('closed_listeners')==2 and upstream_close.get('close_errors')==[]
+        good=good and upstream_close.get('pid')==value.get('processes',{}).get('U',{}).get('pid') and upstream_close.get('pgrp')==value.get('processes',{}).get('U',{}).get('pgrp')
         cleanup_errors=cleanup_proof(value,path,expected)
         good=good and not cleanup_errors
         if args.rehearsal:
@@ -131,8 +139,8 @@ def main():
             initial=counter.get('preflight',{})
             good=good and initial.get('phase')=='before_cli_input' and initial.get('counts',{}).get('model_requests')==0 and initial.get('counts',{}).get('counts_match') is True and initial.get('credential_scan',{}).get('hits')==0 and initial.get('credential_scan',{}).get('launch_record_hits')==0 and initial.get('inventory',{}).get('comparison_pending') is True
             good=good and counter.get('synthetic_guard',{}).get('mutant_rejected') is True
-            port_guard=counter.get('forwarder',{}).get('non_443_port',{})
-            good=good and port_guard.get('denied') is True and isinstance(port_guard.get('port'),int) and port_guard['port']!=443 and counter.get('cli',{}).get('upstream_bypass',{}).get('denied') is True
+            port_guard=counter.get('forwarder',{}).get('unconfigured_port',{})
+            good=good and port_guard.get('denied') is True and isinstance(port_guard.get('port'),int) and port_guard['port']!=args.upstream_port and counter.get('cli',{}).get('upstream_bypass',{}).get('denied') is True
             good=good and len(counter.get('credential_injections',[]))==6 and all(r.get('hits',0)>0 for r in counter.get('credential_injections',[]))
             good=good and counter.get('missing_record',{}).get('counts',{}).get('counts_match') is False
             good=good and facts.get('cleanup',{}).get('cleanup_failures')==[] and facts.get('cleanup',{}).get('primary_failure') is None

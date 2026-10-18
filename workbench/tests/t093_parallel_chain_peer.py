@@ -120,6 +120,8 @@ def main():
             self.send_response(status); self.send_header('Content-Length','2'); self.end_headers(); self.wfile.write(b'{}')
         def log_message(self, *args): pass
     servers = []
+    startup_completed = False
+    close_errors = []
     try:
         try:
             for port in (fixture['upstream_port'], fixture['other_port']):
@@ -128,12 +130,20 @@ def main():
             runtime.save(root / 'U/startup-failed.json', {**own, 'error': 'fake_upstream_listener_failed', 'errno': error.errno, 'port': port})
             raise
         runtime.save(root / 'U/ready.json', own)
+        startup_completed = True
         while not (root / 'U/stop').exists() and time.time() < session['deadline']:
             ready,_,_ = select.select(servers,[],[],.03)
             for server in ready: server.handle_request()
     finally:
-        for server in servers: server.server_close()
-    runtime.save(root / 'U/closed.json', {**own, 'received': received})
-    return 0
+        closed_listeners = 0
+        for server in servers:
+            try: server.server_close(); closed_listeners += 1
+            except OSError as error: close_errors.append({'error_type':type(error).__name__,'errno':error.errno})
+        # A failed startup still needs a durable close receipt. Preserve its
+        # original error and report any endpoint close error separately.
+        runtime.save(root / 'U/closed.json', {**own, 'received': received, 'startup_completed':startup_completed,
+                     'listeners_bound':len(servers),'closed_listeners':closed_listeners,
+                     'all_closed':not close_errors,'close_errors':close_errors})
+    return 2 if close_errors else 0
 
 if __name__ == '__main__': raise SystemExit(main())

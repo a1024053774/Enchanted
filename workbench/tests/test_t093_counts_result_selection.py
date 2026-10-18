@@ -27,15 +27,21 @@ with tempfile.TemporaryDirectory(prefix='t093-counts-oracle-unit-',dir='/private
   'source_home_cleanup':{'profile':'D test source cleanup','source_home':str(root/'source-home'),'removed':True,'credential_body_read':False,'checkpoint_sequence':2},
   'service_receipts':{'D_guards':{'source_content_read':{'denied':True,'bytes_read':0,'errno':1}}},
   'counterexamples':{'foreground_process_query':{'observer':{'method':'macOS libproc','root_pid':550900},'shell_pid':550900,'leader':550903,'processes':[{'pid':550903,'pgid':550903,'tpgid':550903,'command':str(root/'fake-claude')}]}}}
- control['facts']={'network_boundary':{'os_host_filter':False,'os_remote_ports':[443],'application_host_lock':True}}
+ control['port_configuration']={'generator':'claudeLoginSession.policies','production_upstream_port':443,'test_upstream_port':18443}
+ control['facts']={'network_boundary':{'os_host_filter':False,'os_remote_ports':[18443],'application_host_lock':True}}
+ control['processes']['U']['pid']=550930
+ control['service_receipts']['U']={'pid':550930,'pgrp':identities['U'],'all_closed':True,'startup_completed':True,'listeners_bound':2,'closed_listeners':2,'close_errors':[]}
  control['counterexamples']['application_host_lock']={'status':'PASS','checks':[{'case':name,'status':'PASS','connections_started':0 if denied else 1,'recorded_error':'upstream_host_mismatch' if denied else None} for name,denied in [('configured',False),('incoming_host_ignored',False),('non_configured_target',True),('lookup_hostname_mismatch',True),('redirect_not_followed',False)]]}
  history=[{'sequence':1,'phase':'business_pending','primary_failure':None},{'sequence':2,'phase':'cleanup_pending','primary_failure':primary},{'sequence':3,'phase':'complete','primary_failure':primary,'fixture_removed':True}]
- for case in ('counts_only','cleanup_failure','permission_unknown','writer_alive','wrong_primary','wrong_case','wrong_candidate','duplicate','default_requires_all_six','rehearsal_conflict'):
+ for case in ('counts_only','cleanup_failure','permission_unknown','writer_alive','wrong_primary','wrong_case','wrong_candidate','duplicate','default_requires_all_six','rehearsal_conflict','wrong_port','U_not_closed','U_wrong_owner'):
   value=copy.deepcopy(control);target=directory/(case+'.input.json');verdict=directory/(case+'.verdict.json')
   if case=='cleanup_failure':value['cleanup_failures']=['upstream_shutdown_unconfirmed']
   if case=='wrong_primary':value['primary_failure']='unexpected_failure'
   if case=='wrong_case':value['mutation']='scanner-zero'
   if case=='wrong_candidate':value['candidate']='f'*40
+  if case=='wrong_port':value['facts']['network_boundary']['os_remote_ports']=[443]
+  if case=='U_not_closed':value['service_receipts']['U']['all_closed']=False
+  if case=='U_wrong_owner':value['service_receipts']['U']['pid']=550999
   target.write_text(json.dumps(value));Path(str(target)+'.events.jsonl').write_text(''.join(json.dumps(v)+'\n' for v in history))
   argv=['check','--guarded','--candidate',candidate,'--output',str(verdict)]
   if case!='default_requires_all_six':argv.append('--counts-only')

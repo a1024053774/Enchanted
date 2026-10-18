@@ -100,6 +100,9 @@ def policies(session):
         source_barrier = '(deny file-read* file-write* (subpath ' + q(session["credential_home"]) + '))'
     common = '(version 1)(allow default)(deny file-write* (subpath ' + q(home) + '))(deny network*)(deny mach-lookup (global-name-regex #".*[Ss]ecurity.*"))'
     port = session["forward_port"]
+    upstream_port = session["upstream_port"]
+    if type(upstream_port) is not int or not 1 <= upstream_port <= 65535:
+        raise ValueError("invalid_upstream_port")
     socket_path = str(Path(session["manifest"]["state"]) / "control.sock")
     c = common + read_barrier + source_barrier
     c += '(allow network-outbound (remote tcp4 "localhost:' + str(port) + '"))'
@@ -108,8 +111,9 @@ def policies(session):
     f = common + read_barrier + source_barrier + '(deny process-fork)(deny file-write*)(allow file-write* (subpath ' + q(session["forwarder_directory"]) + '))'
     f += '(allow network-bind network-inbound (local tcp4 "localhost:' + str(port) + '"))'
     # macOS accepts * or localhost, not numeric remote-host filters.
-    # The application locks the configured hostname; OS permits only TCP 443.
-    f += '(allow network-outbound (remote tcp4 "*:443"))'
+    # Production fixes this port to 443. The no-model chain supplies its local
+    # test port to this same generator; every other rule stays identical.
+    f += '(allow network-outbound (remote tcp4 "*:' + str(upstream_port) + '"))'
     # D reads directories/stat in the four approved scopes, never HOME file
     # bodies (except this program's source). Its private snapshots are removed
     # with the isolated HOME, before facts can be considered complete.
@@ -119,7 +123,7 @@ def policies(session):
     return {"C": c, "F": f, "D": d}
 
 
-def prepare(manifest, repo, forward_port, upstream_address, lifetime, credential_home=None, *, on_failure):
+def prepare(manifest, repo, forward_port, upstream_address, lifetime, credential_home=None, *, on_failure, upstream_port=443):
     home = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
     if manifest.get("authentication") != "normal-login" or manifest.get("version") != "2.1.302":
         raise ValueError("normal_login_version_requires_probe")
@@ -129,14 +133,15 @@ def prepare(manifest, repo, forward_port, upstream_address, lifetime, credential
         raise ValueError("invalid_controller_identity")
     if str(Path(manifest['executable']).resolve()) != manifest['executable']:
         raise ValueError("canonical_cli_executable_required")
-    if not 1 <= forward_port <= 65535 or not 10 <= lifetime <= 3600:
+    if type(upstream_port) is not int or not 1 <= upstream_port <= 65535 or not 1 <= forward_port <= 65535 or not 10 <= lifetime <= 3600:
         raise ValueError("invalid_session_port_or_lifetime")
     socket.inet_pton(socket.AF_INET, upstream_address)
     url = urlsplit(manifest["upstream_url"])
     if url.username or url.password or url.path not in ('', '/') or url.query or url.fragment or not url.hostname:
         raise ValueError("invalid_login_upstream")
     peer_port = url.port if url.port is not None else (443 if url.scheme == 'https' else 0)
-    if peer_port != 443: raise ValueError("upstream_port_443_required")
+    if peer_port != upstream_port:
+        raise ValueError("upstream_port_443_required" if upstream_port == 443 else "upstream_port_mismatch")
     if not 1 <= peer_port <= 65535 or not (url.scheme == 'https' or url.scheme == 'http' and url.hostname == upstream_address == '127.0.0.1'):
         raise ValueError("invalid_login_upstream")
     if ':' in url.hostname:
@@ -443,7 +448,9 @@ def main():
         # Immutable primary and separate cleanup receipt; never truncate the
         # already durable primary while recording a secondary cleanup error.
         save(failure_path if pending else failure_path.with_suffix('.cleanup.json'),value)
-    session = prepare(manifest, args.repo, args.forward_port, args.upstream_address, args.lifetime_seconds,on_failure=preparation_failure)
+    # Public production entry has no port override; the test caller passes its
+    # local port directly to prepare(), without changing this entry contract.
+    session = prepare(manifest, args.repo, args.forward_port, args.upstream_address, args.lifetime_seconds,on_failure=preparation_failure,upstream_port=443)
     start_services(session)
     enter_cli(session, [NODE, str(SOURCE / "daemon.ts"), session['manifest']['state']])
 

@@ -374,14 +374,16 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 当前为 INCOMPLETE：第二轮审查确认非 loopback F profile 无法编译及恢复身份不兼容。现已按修订裁定改为 OS 限 TCP 443、应用层锁配置主机，并合入 main 修复恢复运行时身份；局部红绿通过，新 OS 与原生恢复回归仍待主控。
 主控 #125 进一步限定：正常登录记录一律保留为“未恢复”，需经正常登录入口重新启动；假 API 恢复合同不变。该拒绝已用独立旧探针及实际 recover 局部合同取得红绿，不代表原生 OS／恢复验收已完成。
 夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
-最新修正、OS 验证与恢复回归命令见 [交接请求 16](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-16.md)；
+最新修正、OS 验证与恢复回归命令见 [交接请求 18](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-18.md)；
 共享调用点与 T-091／T-078／T-096 回归命令仍见 [请求 13](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-13.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
 manifest 在既有字段外设置 `authentication: "normal-login"`、`version: "2.1.302"`、
 明确的 `credential_source: "macos-keychain"` 或 `"file"`，以及唯一的 `upstream_url`。
-正常登录上游端口必须为 443：使用配置的 HTTPS 地址，或测试用 `http://127.0.0.1:443`；没有默认上游或 fallback。
+生产正常登录入口的上游端口固定为 443，使用配置的 HTTPS 地址，没有端口覆盖选项或 fallback。
+无模型测试链使用可配置的非特权端口，默认 `http://127.0.0.1:18443`，不占用用户的 443。生产入口显式向 `prepare` 传 443；测试入口传测试端口，两者均由同一个 `claudeLoginSession.policies(session)` 读取 upstream_port 生成 F profile，只改变端口参数。
+测试脚本的 `T093_TEST_UPSTREAM_PORT` 同时传给链路、编译检查与独立核对器；端口冲突时保留失败，不切换端口、不复用或关闭别人的监听。
 
 正常登录使用独立的受保护 daemon。先准备已有合同要求的角色目录、task 和 manifest，再由操作者启动：
 
@@ -454,7 +456,8 @@ python3 -I -S -B workbench/src/claudeLoginSession.py --stage facts --preflight -
 ```
 
 preflight 标明 before_cli_input、当时的入口计数与扫描结果，结束后 HOME 对比仍是 pending；
-preflight 与结束事实的 network_boundary 明确报告 os_host_filter=false、os_remote_ports=[443]、application_host_lock=true；这不是逐连接网络审计。
+preflight 与结束事实的 network_boundary 明确报告 os_host_filter=false、实际 os_remote_ports 和 application_host_lock=true。生产为 [443]，无模型测试为所配置的测试端口；这不是逐连接网络审计。
+测试 U 在零监听、部分监听或正常退出时均写关闭收据，记录成功创建／关闭的监听器数和独立关闭错误。C 必须核对收据的 PID／进程组、全部端点关闭和 ESRCH 才确认收尾；启动失败本身不代替退出证明。
 后续重新读取会重数当前原件，保存的入口计数／扫描时间仍是历史事实。它不批准模型输入。
 正常结束后用同一入口去掉 `--preflight`。C 内部子进程使用 `node workbench/src/claudeLoginCheck.ts [--preflight] AUDIT`，
 继承 C，不再嵌套 V。外部入口关闭额外 FD、禁写真实 HOME、禁网络和 Security，并保留 HOME 读取屏障。
@@ -478,7 +481,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-旧残留已由主控清理。旧演练与 chain-07/08 仅属于各自候选；新 F 权限及 main 组合须按请求 16 重新验证，不沿用旧本地端口规则的 PASS。
+旧残留已由主控清理。旧演练与 chain-07/08 仅属于各自候选；请求 16 的生产 443 profile 编译已在 7bba61000 通过，primary／green 因假 U 不能监听本地 443 而失败。当前须按请求 18 用同一生成器的测试端口重新验证，不沿用旧链路 PASS。
 演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
 正式六场的预期业务断言与命令在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
 

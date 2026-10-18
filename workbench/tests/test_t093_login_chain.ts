@@ -43,7 +43,7 @@ const injectionCases = [
 const safe=(value:unknown)=>assert.equal(credentialHits(JSON.stringify(value),secrets),0,"credentials_must_not_enter_public_evidence");
 function snapshot(){return {status:"INCOMPLETE",task:"T-093",candidate:fixture.candidate,mutation:fixture.mutation,rehearsal:fixture.rehearsal??"none",fixture_root:root,checks,primary_failure:failure,error_summary:primaryError,cleanup_failures:cleanupFailures,
   upstream_requests:receipts.length,independent_upstream_receipts:receipts,real_upstream_requests:0,real_cli_starts:0,real_model_turns:0,real_auth_reads:0,
-  auth_source:"synthetic file only; one original read in independent preparation",git_index_credential_hits:fixture.git_index_hits,facts,forwarder_raw_records:rawRecords,counterexamples,
+  auth_source:"synthetic file only; one original read in independent preparation",git_index_credential_hits:fixture.git_index_hits,port_configuration:fixture.port_configuration,facts,forwarder_raw_records:rawRecords,counterexamples,
   processes:{C:[],F:services.F,D:services.D,...testServices,G:fixture.G_processes,baseline:{...session.initial_inventory_process,profile:"D_baseline"}},profiles:{...session.profiles,...fixture.test_profiles,G:fixture.G_profile},fixture_removed:false,
   failure_stage:failure?stage:null,child_exit:childExit,node_version:process.version,scope:"compiled deterministic fixture, not the vendor CLI",service_receipts:{}};}
 writer.publish({...snapshot(),phase:"business_pending",cleanup_pending:true});
@@ -61,8 +61,9 @@ try {
     const failed=join(root,"U/startup-failed.json");
     if(existsSync(failed))throw Object.assign(new Error("fake_upstream_listener_unavailable"),{errno:load(failed).errno,path:failed});
     return existsSync(join(root,"U/ready.json"));
-  },"fake_upstream_443_ready_deadline");
-  assert.equal(fixture.upstream_port,443,"fake_upstream_must_use_443");
+  },"fake_upstream_ready_deadline");
+  assert.equal(session.upstream_port,fixture.upstream_port,"profile_port_must_match_fake_upstream");
+  assert(session.profiles.F.includes(`(remote tcp4 "*:${fixture.upstream_port}")`),"shared_generator_must_use_test_port");
   stage="compile";
   await run("/usr/bin/clang",["-O0","-Wall","-Werror",join(fixture.source,"workbench/tests/t093_fake_claude.c"),"-o",session.manifest.executable]);
   copyFileSync(join(fixture.source,"workbench/tests/t093_fake_login_peer.py"),join(root,"fake-login-peer.py"));
@@ -84,6 +85,7 @@ try {
   assert.equal(preflight.credential_scan.hits,0);assert.equal(preflight.credential_scan.launch_record_hits,0);assert.equal(preflight.inventory.comparison_pending,true);
   const initialFacts=JSON.parse((await run(process.execPath,[join(fixture.source,"workbench/src/claudeLoginCheck.ts"),"--preflight",audit])).stdout);
   assert.equal(initialFacts.counts.model_requests,0);assert.equal(initialFacts.inventory.before_phase,"before_original_auth_read");
+  assert.deepEqual(initialFacts.network_boundary,{os_host_filter:false,os_remote_ports:[fixture.upstream_port],application_host_lock:true},"preflight_must_report_actual_test_port");
   counterexamples.preflight=initialFacts;
   const trace=join(state,"traces",launch.id,"pty.raw");
   stage="boundaries";
@@ -100,8 +102,8 @@ try {
   assert(fGuard.home_read_boundary.content.denied&&fGuard.home_read_boundary.content.bytes_read===0,"F_actual_HOME_content_read_must_remain_denied");
   assert(fGuard.home_read_boundary.ancestor_directory_entries.denied,"F_ancestor_directory_enumeration_must_remain_denied");
   assert.equal(fGuard.outside_records_write.denied,true,"F_write_must_stay_in_records");
-  assert.equal(fGuard.non_443_port.denied,true,"F_non_443_port_must_be_denied");
-  assert.notEqual(fGuard.non_443_port.port,443,"OS_port_negative_must_not_probe_443");
+  assert.equal(fGuard.unconfigured_port.denied,true,"F_unconfigured_port_must_be_denied");
+  assert.notEqual(fGuard.unconfigured_port.port,fixture.upstream_port,"OS_port_negative_must_probe_another_port");
   assert.equal(fGuard.other_listener.denied,true,"F_other_listener_must_be_denied");assert.equal(fGuard.fork.denied,true,"F_fork_must_be_denied");counterexamples.forwarder=fGuard;
   const pythonGuards=[];
   for(const path of [join(session.forwarder_directory,"python-guards.json"),join(session.metadata_directory,"guards.json"),join(root,"U/guards.json")]){
@@ -152,7 +154,7 @@ try {
   await run(process.execPath,["--experimental-vm-modules",join(fixture.source,"workbench/tests/test_t093_forwarder_host.ts"),hostReport]);
   counterexamples.application_host_lock=load(hostReport);
   assert.equal(counterexamples.application_host_lock.status,"PASS","F_application_host_lock_must_reject_other_host");
-  checks.push("OS permits only TCP 443 without host filter; application hostname guard rejects supplied wrong targets without network");
+  checks.push("OS permits only the configured test TCP port without host filter; production port is 443; application hostname guard rejects supplied wrong targets without network");
   stage="counterexamples";
   const extra=launch.argv.length, injected={...launch,argv:[...launch.argv,session.real_home+"/t093-path-counterexample"]};
   const refs=homeReferences(injected,session.real_home);
@@ -193,7 +195,15 @@ finally{
   const steps=[
     {name:"source_cleanup_permit_failed",run:()=>{exclusiveJson(join(session.metadata_directory,"source-cleanup-permit.json"),{output,candidate:fixture.candidate});}},
     {name:"credential_injection_cleanup_failed",run:()=>{const leak=join(state,"synthetic-credential-injection");if(existsSync(leak))rmSync(leak);}},
-    {name:"upstream_shutdown_unconfirmed",run:async()=>{if(!existsSync(join(root,"U/stop")))writeFileSync(join(root,"U/stop"),"\n",{flag:"wx",mode:0o600});await file(join(root,"U/closed.json"));await wait(()=>gone(testServices.U.pgrp,true),"upstream_exit_unconfirmed",5000);}},
+    {name:"upstream_shutdown_unconfirmed",run:async()=>{
+      if(!existsSync(join(root,"U/stop")))writeFileSync(join(root,"U/stop"),"\n",{flag:"wx",mode:0o600});
+      const closed=await file(join(root,"U/closed.json"));
+      result.service_receipts.U=closed;
+      assert.equal(closed.pid,testServices.U.pid,"U_close_receipt_pid_must_match");assert.equal(closed.pgrp,testServices.U.pgrp,"U_close_receipt_group_must_match");
+      assert.equal(typeof closed.startup_completed,"boolean");assert(Number.isInteger(closed.listeners_bound)&&closed.listeners_bound>=0&&closed.listeners_bound<=2);
+      assert.equal(closed.all_closed,true,"U_endpoints_must_be_closed");assert.equal(closed.closed_listeners,closed.listeners_bound,"U_every_listener_must_be_closed");assert.deepEqual(closed.close_errors,[]);
+      await wait(()=>gone(testServices.U.pgrp,true),"upstream_exit_unconfirmed",5000);
+    }},
     {name:"daemon_cleanup_unconfirmed",run:async()=>{if(daemonStarted||existsSync(join(state,"daemon.pid"))){assertDaemonOk("daemon_stop",await request(state,{command:"daemon_stop"},readOperatorCredential(state)));await wait(()=>!existsSync(join(state,"daemon.pid")),"cleanup_daemon_deadline");}daemonStarted=false;}},
     {name:"session_abort_cleanup_unconfirmed",run:async()=>{if(existsSync(privateRoot)){const abort=join(session.metadata_directory,"abort");if(!existsSync(abort))writeFileSync(abort,"\n",{flag:"wx",mode:0o600});await file(join(session.metadata_directory,"removed.json"));}}},
     {name:"source_home_cleanup_unconfirmed",run:async()=>{const source=await file(join(session.metadata_directory,"source-home-removed.json"));assert.equal(source.source_home,join(root,"source-home"));assert.equal(source.removed,true,"independent_source_HOME_removal_required");result.source_home_cleanup=source;await wait(()=>gone(services.D.pgrp,true),"D_owner_exit_unconfirmed",5000);}},
