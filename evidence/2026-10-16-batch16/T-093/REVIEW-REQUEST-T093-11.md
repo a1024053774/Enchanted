@@ -1,7 +1,9 @@
 # T-093 daemon 拒绝原因留证交接 11
 
 **INCOMPLETE：修复错误留证，pane_release 的实际拒绝原因仍需沙箱外重新取得；没有宣称完整链已修复。**
-候选绑定 worker 最后一行 `T-093 FROZEN <完整 SHA>`。task T-093 / attempt a1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
+候选绑定 worker 最后一行 `T-093 FROZEN <完整 SHA>`。
+诊断实现冻结为 d594057a9672e2b7441ca17c4e8632296927f1b4；[DAEMON-ERROR-REVIEW-01.md](DAEMON-ERROR-REVIEW-01.md) 对 L1 诊断留证给出 PASS，真实拒绝原因和 OS 复验仍为 INCOMPLETE。最终冻结仅补审查原件／文本摘要，运行命令使用最终 SHA。
+task T-093 / attempt a1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 
 ## 已确认
 

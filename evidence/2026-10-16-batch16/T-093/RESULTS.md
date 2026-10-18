@@ -391,3 +391,7 @@ chain-cleanup-oracle-red-03 拒绝旧核对器，green-04 的 12 项检查包括
 daemon-rejection-red-01／green-01 对实际 release 代码块的三种合成回复复现并修复错误丢失，green 验证 details 的合成凭据被脱敏；chain-publication-green-05 的五项主失败／清理检查通过。
 这些仅证明 L1 回复留证，不证明本轮真实 daemon 拒绝原因。当前只修复诊断，业务拒绝根因待下一次真实回复，不宣称整链已修好。
 请求 11 给出 rehearsal-02-primary 命令；若错误仍为 pane_release_rejected，回传结构化 error／details 和前后状态，停止绿态及正式六场。
+
+诊断实现冻结 d594057a9672e2b7441ca17c4e8632296927f1b4 的只读审查对 L1 留证范围给出 PASS，原文 DAEMON-ERROR-REVIEW-01.md。
+审查者独立重跑新旧 release 代码块，并以新 nonce 拒绝码、不同状态、含合成凭据的详情核对清理前发布；原件以 daemon-rejection-review-* 和 publication-review-green-01 保存。
+PASS 不覆盖真实 daemon 拒绝原因或 OS 链路。产品／权限／release 条件未改，整票 INCOMPLETE；请求 11 仍需主控先运行新的 primary。
