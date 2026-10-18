@@ -4,6 +4,10 @@
 task T-093 / attempt a1 / ready_rev 1；worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 以最后 FROZEN 完整 SHA 为候选；冻结不代替 submit、独立验收或集成回执。
 
+元数据源码冻结 0a52043f86e5384efae943cbafe859ccb535ec14 的只读审查为 INCOMPLETE，
+原文见 [METADATA-REVIEW-01.md](METADATA-REVIEW-01.md)。未发现本次边界内的新违约；
+五种坏读取记录均被结果谓词拒绝，但缺少新的 OS 证据。审查后产品源码未改，新增的外部 V 启动脚本尚未执行。
+
 ## 原因与修正边界
 
 主控 #92 的候选 47286b7bda7d6497a1c62a067308b18ea3fc1f7a：
@@ -54,6 +58,18 @@ C、F 与外部事实入口 V 使用同一个生成函数，D 的清单规则没
 新候选的实际 PID／组尚待外验填写，不能把表中设计当作已经运行的 PID 证据。
 
 ## 主控沙箱外命令
+
+先单独验证外部 V 的真实入口，不读 auth、不启动服务，不创建登录 HOME：
+
+```sh
+python3 -I -S -B workbench/tests/run_t093_facts_entry.py \
+  --audit /private/tmp/t093-facts-entry-05 --output /private/tmp/t093-facts-entry-05.json
+```
+
+它只准备两份小型合成输入，同 PID 进入实际 --stage facts，单次施加 V 并 exec Node，输出独占创建、0600。
+期望 rc 0，输出 JSON 的 counts.model_requests=2、counts.counts_match=true，fixture_nonce 非空；
+单靠 rc 0 不作 PASS。两份无认证输入留在所选 audit 路径，供检查和重放；未创建隔离 HOME，也不把这些输入当作登录清理证据。
+若仍在 Node main 前退出、没有有效 JSON，保留日志并回报；这不是模型许可。
 
 复用原 EVIDENCE-RECHECK-03.sh，没有新增长期监督脚本。日志必须放 HOME 外，输出均选新路径。
 先只跑 none；若仍未得到 rc 0 与 PASS JSON，保留日志并回传，停止后续五场。

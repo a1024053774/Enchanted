@@ -259,3 +259,9 @@ metadata-local-red-01 用旧冻结源码命中缺少祖先元数据规则；meta
 
 新完整命令见 REVIEW-REQUEST-T093-07.md；使用新的 chain-05 路径，先 none，成功才继续五项变异与独立核对。
 整票 INCOMPLETE；没有真实供应商 CLI／真实 auth／真实上游／模型回合，没有新的独立验收通过结论。
+
+元数据候选 0a52043f86e5384efae943cbafe859ccb535ec14 的只读审查原文为 METADATA-REVIEW-01.md：
+INCOMPLETE，未发现本次边界内的新违约；纯内存对照拒绝正文可读、读取一字节却声称拒绝、ENOENT、目录可枚举和入口未解析五种坏记录。
+审查不替代 OS 执行。产品源码随后未变；另补 run_t093_facts_entry.py 供主控验证实际外部 V 入口，
+同 PID 准备无认证小输入后进入真正 --stage facts，不嵌套 profile、不留无保护监督进程。
+该脚本只做语法检查，未在 worker 中执行；命令、预期计数与保留输入的范围已补在交接请求 07。
