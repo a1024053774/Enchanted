@@ -265,3 +265,31 @@ INCOMPLETE，未发现本次边界内的新违约；纯内存对照拒绝正文�
 审查不替代 OS 执行。产品源码随后未变；另补 run_t093_facts_entry.py 供主控验证实际外部 V 入口，
 同 PID 准备无认证小输入后进入真正 --stage facts，不嵌套 profile、不留无保护监督进程。
 该脚本只做语法检查，未在 worker 中执行；命令、预期计数与保留输入的范围已补在交接请求 07。
+
+## 主控 #94：V 入口通过、R Git 阶段失败
+
+候选 2d4eba04b42ae7dd83f0f190ff99a08aabb9a0b4 的外部 V 已实际通过，原件 external-facts-05.json：
+rc 0、两次请求重数一致、fixture_nonce 非空。本轮产品源码未变，保留该入口事实，不提升为完整链通过。
+完整 none 原件 product-chain-05-setup-red.json 仍为 INCOMPLETE；其后五场按停止条件未跑。
+
+只读检查定位最新根 /private/tmp/t093-chain-_7290n4q，没有端口／session／audit，只到初始角色与合成认证源，
+故失败范围是三个 Git 检查。创建哨兵到结果落盘为 15.236 秒，符合原来的 15 秒超时；相同全索引操作用无认证独立哨兵本地耗时 19.325 秒、正常返回 1。
+setup-05-inspection.json 保留目录元数据及测量；未读取认证正文。原异常／stderr 已丢弃，不能恢复哪一条原命令确切超时，超时结论保留为有证据支持的推断。
+
+现在只有完整索引扫描使用 90 秒、有界且只执行一次；原扫描范围、返回码要求和其他断言不变。
+R 结果新增 setup_stage、原异常类型／脱敏消息／errno 或 timeout／栈位置，以及最近 Git 的原输出摘要、用时、返回码和回收状态。
+诊断先脱敏再截断、写盘前再扫，保留原主失败，清理异常单列。超时持有者终止并回收本次独立 Git 组；部分 stderr 即使回收失败也保留。
+R 失败删除新生成的 source-home/.claude，保留其他现场及真实的未完成状态。
+
+setup-diagnostics-red-04 用旧驱动拒绝五项要求；setup-diagnostics-green-04 对当前驱动通过，
+覆盖超时回收、90 秒单次扫描、raw／JSON／URL／base64 脱敏、主失败不被清理盖住、实际 main 到 Git 阶段的上下文。
+进程及信号为模拟，不代替实际 G 和完整链复验。局部修正过程中 red-02 的回收错误覆盖问题和旧摘要均原样保留。
+
+七个历史根仍有合成认证源，见 retained-fixtures-05.json；不原样归档凭据，选择在保留结果／清单后整根删除。
+新 cleanup_t093_retained_fixture.py 只接受已知任务结构、当前 UID、确认已清理的私有 HOME 和已消失的记录 PID／组；未知或活动现场拒绝。
+它不读认证正文，只删除依赖链接本身，不沿链接删除实际依赖；单次 X 禁 HOME 写入、网络／Security／fork。
+retained-structure-local-01 的初版不识别变异源码副本，结果保留；02 只读识别全部七根，但进程探测为模拟，未实际删除。
+retained-cleanup-local-02 的五个合成场景通过；实际清理收据仍待主控执行，不声称已删。
+
+新沙箱外命令、七根逐项清理及 chain-06 复验见 REVIEW-REQUEST-T093-08.md。所有旧结果和审查原文不改。
+地图与局部检查见新的 freeze 摘要；没有真实模型／供应商 CLI／真实认证／真实上游回合，整票 INCOMPLETE。
