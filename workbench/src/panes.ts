@@ -85,7 +85,7 @@ export class Panes implements GateRuntime {
     try {
     if (input.authentication === "normal-login") login = await ClaudeLogin.prepare(input, task.repo);
     else check(new URL(input.api_url!).port !== "0", "messages_api_not_bound");
-    const record = { ...claudeLaunch(task, input, login?.isolation), created_at: new Date().toISOString(),
+    const record = { ...claudeLaunch(task, input, login?.isolation), created_at: new Date().toISOString(), executable_path: "",
       cli_version: "unknown", version_probe: null as { argv: string[]; stdout: string; stderr: string } | null };
       const expectedVersion = record.cli_version_expected;
       let probe;
@@ -98,6 +98,9 @@ export class Panes implements GateRuntime {
       }
       const version = probe.stdout.trim();
       if (version !== expectedVersion) throw new Refusal("controller_version_mismatch", { expected: expectedVersion, observed: version });
+      // Keep the actual argv (which may use a valid alias), but bind the live
+      // identity to the canonical executable now, before starting the PTY.
+      record.executable_path = realpathSync(input.executable);
       record.cli_version = version;
       record.version_probe = { argv: login?.versionProbe.argv ?? [input.executable, "--version"], stdout: probe.stdout, stderr: probe.stderr };
       if (login) await login.preflight(record);
@@ -317,7 +320,7 @@ export class Panes implements GateRuntime {
       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
         review_home_was_empty: true } : {}),
-      created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
+      created_at: new Date().toISOString(), cli_version: version, argv, executable_path: codex, request_dir: requestDirectory,
       model_requested: model, effort_requested: effort, service_tier_requested: "default",
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
@@ -410,7 +413,7 @@ export class Panes implements GateRuntime {
     }
     const owned = rows.filter((row) => descendants.has(row.pid));
     check(owned.length === rows.length && (!rows.length || rows.some(row=>row.pid===pane.pty.pid)), "invalid_process_tree");
-    const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.argv[0]);
+    const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.executable_path);
     const leader = leaders.length === 1 ? leaders[0]!.pid : null;
     const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
     if (pane.record.cli !== "Claude Code" && !pane.nativeEnded && !pane.failed && pane.leader !== null && pane.native !== null &&

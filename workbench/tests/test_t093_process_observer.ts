@@ -31,7 +31,7 @@ const directory=mkdtempSync('/private/tmp/t093-process-boundary-');const checks:
 for(kind of ['healthy','healthy_nonce','denied','malformed','wrong_parent','background','wrong_path','empty_tree','missing_root','wrong_root','replaced_leader']){
  rootPid=kind==='healthy_nonce'?randomInt(1000,50000):201;
  const root=join(directory,kind);mkdirSync(root);const store=new OrchestrationStore(root);
- const pane:any={record:{id:kind,task:'task',attempt:null,cli:'Claude Code',argv:['/fixture/claude'],session:'fixture-session'},pty:{pid:201},state:'unknown',failed:null,active:null,native:'fixture-session',nativeEnded:false,queue:[],writing:false,userDraft:false,stopped:false,archived:false,leader:null};
+ const pane:any={record:{id:kind,task:'task',attempt:null,cli:'Claude Code',argv:['/fixture/claude'],executable_path:'/fixture/claude',session:'fixture-session'},pty:{pid:201},state:'unknown',failed:null,active:null,native:'fixture-session',nativeEnded:false,queue:[],writing:false,userDraft:false,stopped:false,archived:false,leader:null};
  const panes=new Panes(root,store,{},()=>{});panes.panes.set('fixture-thread',pane);
  pane.pty.pid=rootPid;
  if(kind==='replaced_leader')pane.leader=777;

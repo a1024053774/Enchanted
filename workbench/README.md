@@ -411,7 +411,7 @@ R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没�
 它在同一 C 内调用系统 libproc，只枚举该 PTY 的后代，读取 PID／PPID／PGID、TTY 前台组和可执行文件路径，不读 argv、环境或认证。
 查询前后复核进程出生时间及身份；权限拒绝、短数据、截断、身份变化或不连通的树均拒绝，不改用 ps 或无保护查询。
 已观察到的退出／僵尸不作为活 leader；多次内核读取不宣称原子快照，原有 hook／Stop 的身份重查保留。
-原来的前台组与可执行路径条件不变，helper 的实际 PID 也登记在 C 的进程记录里。
+前台组条件不变；真实启动边界另外记录规范 executable_path 与内核路径比较，实际 argv 原样保留。alias 启动后改指另一目标不能接管原身份，helper 的实际 PID 也登记在 C 的进程记录里。
 
 版本检查、auth status、交互 CLI 均直接继承 C，不再调用内层 sandbox-exec。
 未通过启动器的正常登录请求返回 normal_login_outer_profile_required；不会退回未受保护模式。

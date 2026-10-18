@@ -421,3 +421,12 @@ process-snapshot-green-03 的 23 项合成缓冲／树及 ABI 编译通过；ign
 
 完整链现在导出实际 release 的 foreground_process_query，独立 V 要求其 observer 方法、PTY root 与内核前台身份匹配假 CLI。
 primary-03 的命令和停止条件见 REVIEW-REQUEST-T093-12.md；只有主动失败及完整清理均符合预期，才跑 green／V 和正式六场。
+
+首轮查询实现冻结 3fca92984443d0954f1fda8fbe0ba68230c66dcc 的只读审查为 FAIL，原文 PROCESS-OBSERVER-REVIEW-01.md。
+审查者对 native/observer/rejection/publication 的 42 项 L1 检查通过，但指出合法假 API alias 会因 argv[0] 与内核可执行路径不同而误拒。
+实际 Claude 启动边界现于原版本校验后、PTY 启动前保存规范 executable_path，Codex 使用原来已规范化的路径；保留实际 argv，不在查询时重新解析 alias。
+process-alias-red-02 在首轮冻结上命中 valid_alias_must_keep_foreground_identity；green-02 的真实 start/release＋模拟执行／PTY／内核返回通过 alias 与不同目标反例。
+process-alias-mutant-01 将目标改为每次 query 再解析 alias，启动后 alias 改指的其他程序因而被误认；同一反例拒绝了这种错误修法。
+version-boundary-green-01 的原版本／并发断言与 conflict-panes-green-03 的原四项业务断言继续通过。新增版本夹具只提供 realpath 的 IO 边界，未削弱版本比较。
+首次 alias 夹具用了不符合旧假 API 合同的根前缀，被 isolated_controller_root_required 拒绝、无 JSON；修正为该入口既有 t078-2 前缀后，使用同一最终夹具重新取得红绿，未改产品边界。
+以上仍不证明真实 C 的 libproc 权限或完整链成功；新 primary 命令不变，等待主控执行。

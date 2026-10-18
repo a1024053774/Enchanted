@@ -26,7 +26,7 @@ Panes.processInfo 现在启动非 setuid 的 `/usr/bin/python3 -I -S -B processS
 固定上限 4096 个进程；缓冲填满／短数据／非法字段／权限错误／循环或父子关系变化都失败，禁止自动重试、fallback 或无保护查询。
 ESRCH、已知僵尸／退出态可标为已退出，不能伪装成权限拒绝后的空列表。
 查询和返回前复核 PID、父 PID、组／前台组与出生时间；多次内核读取不是原子快照，不扩大成未来存活保证。
-产品仍要求 leader 的 PID=PGID=TTY 前台组、可执行路径等于 launch.argv[0]，并保留后续 hook／Stop 的原身份重查。
+产品仍要求 leader 的 PID=PGID=TTY 前台组，内核可执行路径等于实际启动边界记录的规范 executable_path；实际启动 argv 保留原值。后续 hook／Stop 的原身份重查不变。
 Node 还检查 helper 协议、root、行字段、唯一 PID 和连通树；错误仍经 daemon.error／details 留证后清理。
 
 实际 release 的 executor_action.process_info 记录观察方法／root；完整链导出为 counterexamples.foreground_process_query。
@@ -43,6 +43,12 @@ Node 还检查 helper 协议、root、行字段、唯一 PID 和连通树；错�
 - daemon-rejection-green-04／chain-publication-green-06：返回原因留证和主失败先落盘仍通过。parser-red-03 保留测试提取范围误含 TypeScript 注解的失败；修正提取边界后再通过。
 
 以上为 L1 及 SDK 编译，不能证明本机 C 下 libproc 的实际读权限或整链成功；worker 没有尝试嵌套 sandbox、ps／pgrep 或真实进程探测。
+
+首轮实现冻结 3fca92984443d0954f1fda8fbe0ba68230c66dcc 的只读审查为 FAIL，原文 [PROCESS-OBSERVER-REVIEW-01.md](PROCESS-OBSERVER-REVIEW-01.md)。
+它发现旧假 API 入口的合法绝对 alias 与新内核路径语义不同。现在真实 startController 在版本校验后、PTY 启动前保存 executable_path=realpathSync(input.executable)，Codex 继续使用其原本已规范化的路径；不改变实际 argv。
+process-alias-red-02 在首轮冻结上复现合法 alias 被误拒，green-02 通过真实 start/release 的 alias 正例和启动后指向另一目标的拒绝；执行／PTY／内核返回都为模拟。
+把“启动时捕获”改成“每次查询重新解析 alias”的变异会错误接管不同目标，被 process-alias-mutant-01 的业务断言拒绝。
+version-boundary-green-01 保留原版本／并发检查，conflict-panes-green-03 保留旧生命周期／转交断言；仍没有实际 CLI 或内核查询。
 
 ## 沙箱外先跑新的 primary
 
