@@ -164,10 +164,10 @@ export async function run(options: Options) {
     const layout = await request(options.state, { command: 'pane_layout', task: options.task });
     if (!layout.ok) throw new Error(layout.error);
     launches = layout.panes.map((pane: { launch: string }) => pane.launch);
-    saved = launches.length > 0;
+    saved = layout.saved;
     if (!saved) launches = [undefined];
   } else launches = typeof options.launch === 'string' ? [options.launch] : [...options.launch];
-  if (!launches.length || launches.some(launch => launch !== undefined && (typeof launch !== 'string' || !launch)) ||
+  if ((!launches.length && !saved) || launches.some(launch => launch !== undefined && (typeof launch !== 'string' || !launch)) ||
       new Set(launches).size !== launches.length) throw new Error('Distinct nonempty pane launches are required');
   const operator = readOperatorCredential(options.state);
   if (!operator) throw new Error('operator_credential_required');

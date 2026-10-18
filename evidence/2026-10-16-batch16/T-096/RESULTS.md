@@ -1,5 +1,37 @@
 # T-096-1 当前交付记录
 
+2026-10-18，主控 #110／#16 派发的独立审查修复：**PASS（局部合同）；INCOMPLETE（新候选整体验收）**。上一冻结候选 `11b32303bebf276d20026a6e718719d15f5d4068` 被独立审查 01 判为 NO_GO：明确关闭最后一格后，重开又选择当前 worker。七场原生实跑证据仍成立，但没有覆盖空集边界，也不替这次产品改动背书。reviewer 的 `independent-review-01.md`、`REVIEW-OUTSIDE-01.sh` 原文一并提交；它们始终针对旧候选，脚本预期仍为 NO_GO／退出 1。
+
+本会话身份：task T-096、attempt a1、session `f1635b4b-e7a1-4d4c-9789-94069e6de12e`、native session `01a14f20-ba1c-7362-843e-307ae25f8975`、launch `launch-a336907aa67c4d9799f9a24cb71860f7`；Codex CLI 0.163.0，gpt-6.1-sol／xhigh，启动 argv 请求 fast，实际供应 tier 未核对。合同仍为 ready_rev 1 加用户裁定 B；未沿用前一进程身份。
+
+改动只保留已有事件流中的事实：`pane_layout` 返回该任务是否有打开／关闭布局事件，主进程只在从未保存时选择默认窗格。已保存的空集创建零个 pane key，preload 接纳空列表，renderer 使用已有空状态。没有新表、配置副本、门禁改动或 worker 自动续接。**Ubiquitous language** 沿用“窗格、启动记录、未恢复”；**Deep modules** 的配置来源与边界不变。这次是既有 **Tracer bullet** 的集合边界修复。
+
+| 本轮证据 | 结论与范围 |
+| --- | --- |
+| `empty-layout-red-02.json` | 缺陷红态；产品仍为 `11b32303b`，真实 main/preload、替代 Electron／transport；退出 1，命中 `Explicitly closed final pane must stay absent when app reopens`，实际 1、预期 0。 |
+| `empty-layout-green-02.json` | PASS；同一入口转绿，首次默认选择仍工作；关闭最后一格后连续重开两次仍为空；空 preload 正常、无新输入凭据，显式指定 launch 可重新打开。测试内再次读取完整旧 SHA，确认同一业务断言拒绝它。 |
+| `spawn-argv-green-02.json` | PASS；真实 SQLite 重开后保存空集仍可识别，任务隔离、仅原生元数据不算布局；两个主控恢复、三个拒绝、worker 不启动及 attempt 不变仍通过。实际交给 PTY 的命令核对全部外部输入参数；M1 丢启动参数、只保留正确事件的变异被业务断言拒绝。 |
+| `empty-layout-transport-01.json` | PASS；现有死／活／未知端点、PID 文件变更、活动 socket、非 socket 合同回归；仍限替代 IO 边界。 |
+| `empty-reopen-cleanup-03.json`、`empty-reopen-startup-01.json` | PASS；新脚本退出未确认时不重复退出、不停止后台、不归档，移除该保护的变异被拒；原有收尾及逐屏批准合同保持。没有真实进程／GUI／模型。 |
+
+精确复现命令（输出文件须换新名称，不能覆盖上述证据）：
+
+```sh
+node --experimental-vm-modules workbench/tests/test_t091_pane_ipc.mjs /tmp/t096-ipc-新名称.json
+node --experimental-vm-modules workbench/tests/test_t096_restore.mjs /tmp/t096-restore-新名称.json
+node --experimental-vm-modules workbench/tests/test_t096_daemon_restart.mjs /tmp/t096-transport-新名称.json
+python3 workbench/tests/test_t096_restart_cleanup.py /tmp/t096-cleanup-新名称.json
+python3 workbench/tests/test_t096_red_startup.py /tmp/t096-startup-新名称.json
+```
+
+首跑 `empty-layout-red-01.json` 是新增首次打开场景改变凭据计数后的测试适配失败，不算缺陷红态；`empty-reopen-cleanup-01.json` 是 AST 夹具未提供新增收尾状态变量，不算产品退化。两份原始失败均保留，后续报告没有改写它们。
+
+真实 Electron 新边界**未运行**，交主控的入口为 `RUN-EMPTY-LAYOUT.sh`，完整启动与按键预算写在脚本开头；它复用 `run_restart.py --check-empty-reopen`，三格原生读回后关闭全部窗格，正常退出并用第三个串行 Electron 重开，检查空 DOM／pane key／保存集、无新窗格或凭据事件、完整 task 不变。原生 CLI 仍按原流程逐屏批准，模型预算 0。具体命令见 `RUN-RESTART.md` 新增说明。此脚本的真实 Electron／daemon／CLI 路径、标准构建以及新候选独立审查、门禁 submit／验收／集成均未执行，整票保持 INCOMPLETE。
+
+`empty-layout-static-01.json`：静态与路径核对 PASS，Node v26.5.0、Python 3.9.6；TS／Python／shell 语法、UTF-8／LF、diff 检查通过；项目地图为 0 problems、0 stale living docs。未改地图、ticket、角色卡、全局配置或 gates。冻结版本由包含本轮证据的提交及本会话自动生成的九项尾注标识，完整 SHA 在交付末行。
+
+以下保留上一冻结候选的历史交付记录及七场实跑结论：
+
 **PASS（本票实跑）**：七个最终场景全部通过，全部 cleanup true、fake API POST 0、模型回合 0。候选按主控 #107／#15 要求冻结，等待独立审查；门禁 submit、验收与集成尚未完成，不把实跑 PASS 当作门禁结论。审查入口见 `REVIEW-REQUEST-T096-01.md`。
 
 当前范围以主控 #89 转达和 main `8cf91b26e` 的 T-096“裁定”节为准：只恢复两个主控；worker 保留为“未恢复”，不启动 CLI、不重绑定、不改 attempt。不修改 `workbench/src/gates/`。主控 #88 允许先完成不依赖门禁裁定的路径。

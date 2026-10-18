@@ -55,6 +55,11 @@ export class OrchestrationStore {
   }
   // The open set is a projection of the existing append-only event stream.
   // Launch/profile records remain the sole source of launch configuration.
+  hasPaneLayout(task?: string) {
+    return Boolean(this.db.prepare(`SELECT 1 FROM orchestration_events
+      WHERE type IN ('pane_layout_opened','pane_layout_closed')${task ? " AND task=?" : ""} LIMIT 1`)
+      .get(...(task ? [task] : [])));
+  }
   openPanes(task?: string) {
     const opened = new Map<string, { launch: string; task: string; position: number; native_session: string | null; resume_argv: string[] | null }>();
     const rows = this.db.prepare(`SELECT type,launch,task,data FROM orchestration_events

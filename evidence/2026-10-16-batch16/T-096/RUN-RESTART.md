@@ -1,5 +1,17 @@
 # T-096：执行主控真实重启验证
 
+2026-10-18 审查后补充：旧候选 `11b32303b` 的独立审查为 NO_GO，缺陷是明确关闭最后一格后重开会重新选择 worker。局部合同修复已转绿，新候选的真实 Electron 重跑仍为 **INCOMPLETE**；下文七场 PASS 只描述旧候选的已跑范围。
+
+新边界入口（仅执行主控运行，先冻结代码；标签须全新）：
+
+```sh
+sh evidence/2026-10-16-batch16/T-096/RUN-EMPTY-LAYOUT.sh /已核对的绝对路径/claude-2.1.302 本次运行授权位置 empty-layout-b-01
+```
+
+启动及收尾沿用下文逐屏批准流程；不复用旧批准。脚本跑三格恢复并保留两个主控历史／实际 argv 和 worker 未恢复的核对，然后点击三个“关闭窗格”，正常退出第二个 Electron，确认退出才启动第三个（不传 `--launch`），后台保持运行。必须同时读到第三个真实窗口的空状态、空 pane key／DOM、后端 saved=true 且 panes=[]，以及无新增打开／凭据／恢复事件、完整 task 不变。新增原件为 `empty-layout-before-reopen.json`、`empty-reopened-view.json`、`empty-layout-after-reopen.json` 和 window-3；任何退出不明均保留现场，不再发退出请求。预算：两主控各启动及续接一次、一个受控 worker receiver、两个后台 epoch、三个串行 Electron，模型／POST 0；每个主控六键及一次就绪放行仍需逐屏批准，不截屏。运行完成须检查 `<新标签>.run.json` 的业务检查、fake_posts=0、cleanup_complete=true 和对应归档清单，不能只看退出码。
+
+`REVIEW-OUTSIDE-01.sh` 是 reviewer 对固定旧 SHA 的合同复现脚本，原文保留，预期仍是 NO_GO／退出 1；它不启动真实 Electron，不用于给新候选判绿。
+
 状态：**PASS（本票实跑）**。主控 #107／#15 确认 red-b-05、tracer-b-05、three-b-01、no-argv-b-02、version-b-02、no-session-b-01、isolation-b-01 全部通过，失败现场也已清理归档。候选冻结待独立审查，详见 `REVIEW-REQUEST-T096-01.md`；以下命令仅保留为复现说明，不重跑已有标签／输出目录。任何经主控安排的新场景仍须逐屏批准、模型预算 0，同一时刻最多一个 Electron。
 
 候选先冻结成提交；新 label／外置盘输出／构建槽不覆盖旧运行。`--expect red|restore` 现在必填，漏传会在资源启动之前退出。red 模式保留死端点去测试真实重启，不预先删除端点掩盖缺陷；仅识别原件中明确的、发生在新凭据和进程创建之前的拒绝。超时、其他报错或新 epoch 身份不明仍为 INCOMPLETE。

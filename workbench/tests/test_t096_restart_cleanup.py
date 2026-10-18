@@ -68,7 +68,10 @@ def crash(source):
 def final_cleanup(source,unconfirmed=None,expected_red=False,crashed=False):
     main=next(n for n in ast.parse(source).body if isinstance(n,ast.FunctionDef) and n.name=='main')
     final=next(n for n in main.body if isinstance(n,ast.Try)).finalbody
-    item=observer(); actions=[]; stopped=False
+    item=observer(); actions=[]; close_calls=[]; stopped=False
+    def close(*args,**kwargs):
+        close_calls.append('close_observer')
+        return support.close_observer(*args,**kwargs)
     owner=dict(pid=201,started='daemon birth',command='fixture daemon')
     fixture=Path(tempfile.mkdtemp(prefix='t096-cleanup-unit-',dir='/private/tmp'))
     def request(state,command,credential,**fields):
@@ -81,11 +84,11 @@ def final_cleanup(source,unconfirmed=None,expected_red=False,crashed=False):
         if command=='pane_layout': raise RuntimeError('caller_identity_required')
         return dict(ok=True)
     def wait(fn,*unused,**kw): assert fn(), 'fixture writer must already be absent after stop'
-    ns=dict(observer=item,observer_expected_crash=True,observer_start_unconfirmed=False,daemon_start_unconfirmed=False,expected_layout=[],daemon_live=True,
+    ns=dict(observer=item,observer_expected_crash=True,observer_start_unconfirmed=False,reopen_close_unconfirmed=False,daemon_start_unconfirmed=False,expected_layout=[],daemon_live=True,
         result=dict(status='INCOMPLETE',error='original failure',cleanup_complete=False),args=SimpleNamespace(expect_red=False,label='unit'),
         call=call,check=lambda name,ok:None,operator_request=request,env={'A2A_OPERATOR_CREDENTIAL':str(fixture/'operator-1.json')},
         fixture=fixture,owned=[owner],alive=lambda o:not stopped,wait=wait,Path=Path,
-        close_observer=support.close_observer,read_process=lambda pid:None,identify=lambda pid:None,normal_quit=lambda *a,**kw:None,
+        close_observer=close,read_process=lambda pid:None,identify=lambda pid:None,normal_quit=lambda *a,**kw:None,
         finish_cleanup=support.finish_cleanup,archive_fixture=lambda *args:dict(bytes=9,files=1,comparison=True),
         write_json=lambda *args:None,HERE=fixture,output=fixture,source=fixture,summary=fixture/'summary.json',
         api=None,requests=[],commands=[],sys=sys,json=json,shlex=__import__('shlex'))
@@ -105,10 +108,12 @@ def final_cleanup(source,unconfirmed=None,expected_red=False,crashed=False):
             return dict(bytes=9,files=1,comparison=True)
         ns['copy_view']=copy_view
     if unconfirmed=='electron': ns.update(observer=None,observer_start_unconfirmed=True)
+    if unconfirmed=='reopen-quit': ns.update(reopen_close_unconfirmed=True)
     if unconfirmed=='daemon': ns.update(daemon_start_unconfirmed=True)
     tree=ast.fix_missing_locations(ast.Module(body=[Globals().visit(n) for n in final],type_ignores=[]))
     with contextlib.redirect_stdout(io.StringIO()): exec(compile(tree,'runner-finally','exec'),ns)
     if unconfirmed:
+        if unconfirmed=='reopen-quit': assert close_calls==[], 'Unconfirmed reopen quit must not send a second quit request'
         assert 'daemon_stop' not in actions and not ns['result']['cleanup_complete'] and ns['result']['handoff'], 'Unconfirmed spawn must be handed back, never declared absent'
         return
     if expected_red or crashed:
@@ -128,8 +133,14 @@ try:
             report.setdefault('known_bad',{})[name]=dict(revision='10c0168db',rejected=True,error=str(error))
     assert len(report.get('known_bad',{}))==2, 'Both reported defects must reject the known-bad runner'
     current=(FOLDER/'run_restart.py').read_text(encoding='utf-8')
+    unsafe=current.replace("            if reopen_close_unconfirmed: raise RuntimeError('prior Electron quit unconfirmed; no repeated quit or archive')\n",'')
+    assert unsafe!=current
+    try: final_cleanup(unsafe,'reopen-quit')
+    except AssertionError as error: report['reopen_quit_mutant']=dict(rejected=str(error).startswith('Unconfirmed reopen quit must not send'),error=str(error))
+    assert report.get('reopen_quit_mutant',{}).get('rejected'), 'Repeated quit mutant must be rejected'
     crash(current); final_cleanup(current)
-    final_cleanup(current,'electron'); final_cleanup(current,'daemon'); final_cleanup(current,expected_red=True)
+    final_cleanup(current,'electron'); final_cleanup(current,'daemon'); final_cleanup(current,'reopen-quit'); final_cleanup(current,expected_red=True)
+    report['checks'].append('unconfirmed_reopen_quit_no_second_quit_or_daemon_stop')
     final_cleanup(current,crashed=True)
     old_crash=subprocess.check_output(['git','show','da6a095fc:evidence/2026-10-16-batch16/T-096/run_restart.py'],cwd=ROOT,text=True)
     try: final_cleanup(old_crash,crashed=True)

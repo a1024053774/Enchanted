@@ -110,7 +110,7 @@ export async function serve(
     if (authority.kind === "window" && !["window_input", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       throw new Refusal("window_command_forbidden");
     }
-    if (input.command === "pane_layout") return { ok: true, recovering, panes: store.openPanes(input.task) };
+    if (input.command === "pane_layout") return { ok: true, recovering, saved: store.hasPaneLayout(input.task), panes: store.openPanes(input.task) };
     if (["pane_layout_open", "pane_layout_close"].includes(input.command)) {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const record = panes.launchRecord(input.launch);

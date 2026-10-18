@@ -16,6 +16,14 @@ async function exercise(source) {
   const root = mkdtempSync('/private/tmp/t096-contract-'), store = new OrchestrationStore(root);
   let starts = [], writes = 0;
   try {
+    assert.equal(store.hasPaneLayout('task'), false, 'No layout event means never saved');
+    const other = { id: 'other-launch', task: 'other-task' };
+    store.event('pane_native_session', { native_session: 'metadata-only' }, { id: 'metadata', task: 'task' });
+    assert.equal(store.hasPaneLayout('task'), false, 'Native metadata alone is not a saved layout');
+    store.event('pane_layout_opened', { position: 0 }, other);
+    store.event('pane_layout_closed', {}, other);
+    assert.equal(store.hasPaneLayout('other-task'), true, 'Explicit empty layout retains its saved state');
+    assert.equal(store.hasPaneLayout('task'), false, 'Another task cannot initialize this task layout');
     const fixtureProcess = { execPath: process.execPath, kill() { throw Object.assign(new Error('fixture process absent'), { code: 'ESRCH' }); } };
     const context = vm.createContext({ console, process: fixtureProcess, Buffer, setTimeout, clearTimeout, URL, TextDecoder });
     const module = new vm.SourceTextModule(stripTypeScriptTypes(source), { context,
@@ -88,6 +96,10 @@ async function exercise(source) {
       const event = store.lastEvent(record.id, ['pane_restored', 'pane_restore_failed']);
       assert.equal(event.type, 'pane_restored');
       assert.deepEqual(event.data.argv, expected.get(record.id), 'Every resume argv token must equal the independently specified input');
+      const spawned = starts.find(start => start.args[3].includes(record.session));
+      const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+      assert.equal(spawned?.args[3], expected.get(record.id).map(quote).join(' ') + '; exec /bin/zsh -f -i',
+        'Actual PTY command must carry every independently supplied argv field');
       assert.deepEqual(store.launchRecord(record.id), record, 'Launch record stays immutable');
       assert.equal(panes.status(record.thread).restoration.status, 'restored');
       assert.equal(panes.get(record.thread).attempt, null, 'Controller must not adopt the task worker attempt');
@@ -101,8 +113,16 @@ async function exercise(source) {
     assert.equal(store.db.prepare('SELECT data FROM tasks WHERE id=?').get('task').data, taskBefore, 'Worker attempt must remain byte-for-byte unchanged');
     assert.deepEqual(store.openPanes('task').map(p => p.position), [0, 1, 2, 3, 4, 5]);
     assert.equal(writes, 0, 'Restoration must not write a prompt or release an old queue');
+    for (const record of records) store.event('pane_layout_closed', {}, record);
+    const reopened = new OrchestrationStore(root);
+    try {
+      assert.equal(reopened.hasPaneLayout('task'), true, 'Saved state survives reopening SQLite after the final close');
+      assert.deepEqual(reopened.openPanes('task'), [], 'Persisted empty layout remains empty');
+      assert.equal(reopened.hasPaneLayout('never-opened-task'), false, 'Never-opened task stays distinct after reopening SQLite');
+    } finally { reopened.close(); }
     return ['two_controllers_resume', 'three_refusals_isolate_siblings', 'worker_unrestored_no_pty', 'attempt_unchanged',
-      'argv_every_field_equal', 'launch_immutable', 'saved_positions', 'explicit_close_excluded', 'zero_input_writes'];
+      'argv_every_field_equal', 'actual_pty_argv_every_field_equal', 'launch_immutable', 'saved_positions', 'explicit_close_excluded', 'zero_input_writes',
+      'saved_empty_persists_in_sqlite', 'never_saved_and_native_only_distinct', 'layout_saved_state_scoped_to_task'];
   } finally { store.close(); }
 }
 const report = { status: 'INCOMPLETE', scope: 'real SQLite/native files; supplied process boundaries; not GUI/CLI end-to-end evidence', checks: [], model_turns: 0 };
@@ -111,7 +131,14 @@ try {
   try { await exercise(execFileSync('git', ['show', revision + ':workbench/src/panes.ts'], { encoding: 'utf8' })); }
   catch (error) { report.known_bad = { revision, rejected: error instanceof assert.AssertionError && error.message.startsWith('Managed worker must remain unrestored'), error: String(error) }; }
   assert.equal(report.known_bad?.rejected, true, 'Previous candidate must fail the worker non-resume contract');
-  report.checks = await exercise(readFileSync(panesURL, 'utf8')); report.status = 'PASS';
+  const candidate = readFileSync(panesURL, 'utf8');
+  const mutant = candidate.replace('const shellArgv = ["-f", "-i", "-c", shellCommand(argv)',
+    'const shellArgv = ["-f", "-i", "-c", shellCommand([argv[0]!, "--resume", opened.native_session!])');
+  assert.notEqual(mutant, candidate);
+  try { await exercise(mutant); }
+  catch (error) { report.spawn_argv_mutant = { rejected: error instanceof assert.AssertionError && error.message.startsWith('Actual PTY command must carry every independently supplied argv field'), error: String(error) }; }
+  assert.equal(report.spawn_argv_mutant?.rejected, true, 'Event-only argv mutant must fail at the actual PTY boundary');
+  report.checks = await exercise(candidate); report.status = 'PASS';
 } catch (error) { report.error = String(error); report.stack = error.stack; }
 writeFileSync(process.argv[2], JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
 console.log(JSON.stringify(report)); process.exitCode = report.status === 'PASS' ? 0 : 1;

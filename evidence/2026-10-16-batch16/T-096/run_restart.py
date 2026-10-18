@@ -9,6 +9,8 @@ Inventory BEFORE running:
   are passed by argv; no synthetic hook invocation.
   Each Claude start probes --version. <=4 interactive Claude starts, <=4 probes,
   one clang, two daemon epochs, two sequential Electron instances, isolated Git.
+  --check-empty-reopen adds ONE sequential Electron after explicitly closing ALL
+  saved panes. No extra CLI start/key/prompt; the daemon stays alive for this reopen.
   Fake API binds loopback once; every POST is recorded/rejected. POST budget 0.
   No model prompt/paste/focus. Restore mode waits up to the declared
   startup deadline for principal-approved native UI initialization. At most SIX
@@ -31,7 +33,9 @@ Inventory BEFORE running:
   <=200 journaled runner process reads;
   normal quit additionally uses its bounded 15-second owner/exit readback. Native argv read via macOS sysctl (argv only, never environment).
   <=64 observer RPCs per Electron. With --check-close: ONE close-pane button
-  click after readbacks; no terminal keys or prompt submission. No screenshot.
+  click after readbacks; --check-empty-reopen instead closes all <=3 panes,
+  normally quits the second Electron and opens a third without --launch.
+  No terminal keys or prompt submission. No screenshot.
   Standard build/new slot and all raw output on mounted external disk; bounded
   command/observer output, one short terminal summary. No auth.json/global writes.
   Startup polling is bounded by --startup-wait-seconds (1..600), once per two
@@ -86,10 +90,13 @@ def main():
     parser.add_argument('--expect',choices=['red','restore'],required=True)
     parser.add_argument('--startup-wait-seconds',type=int,default=300)
     parser.add_argument('--check-close', action='store_true')
+    parser.add_argument('--check-empty-reopen', action='store_true')
     args = parser.parse_args()
     args.expect_red=args.expect=='red'
     if not 1<=args.startup_wait_seconds<=600: raise RuntimeError('startup wait must be 1..600 seconds')
     if args.expect_red and args.fault != 'none': raise RuntimeError('red_requires_unmodified_fixture')
+    if args.check_empty_reopen and (not args.check_close or args.expect_red):
+        raise RuntimeError('empty_reopen_requires_restore_and_check_close')
     if not re.fullmatch('[a-z0-9_-]+', args.label): raise RuntimeError('invalid_label')
     if args.claude_version != '2.1.302': raise RuntimeError('this_fixture_requires_configured_2.1.302')
     source, volume, output = args.source.resolve(strict=True), Path('/Volumes/WD-Elements'), args.output.resolve()
@@ -116,6 +123,7 @@ def main():
     observer = None
     observer_expected_crash = False
     observer_start_unconfirmed = False
+    reopen_close_unconfirmed = False
     daemon_start_unconfirmed = False
     expected_layout = None
     daemon_live = False
@@ -264,11 +272,14 @@ def main():
             time.sleep(2)
         raise TimeoutError('startup approvals incomplete; no crash or history assertion attempted')
 
-    def inspect_window():
+    def inspect_window(expected_panes=None):
         view=observer.call('inspect-all')
-        return view if len(view['panes'])==args.panes and all(p.get('snapshot') for p in view['panes']) else None
+        count=args.panes if expected_panes is None else expected_panes
+        ready=len(view['panes'])==count and all(p.get('snapshot') for p in view['panes'])
+        if count==0: ready=ready and view['pane_keys']==[] and '当前任务没有打开的窗格。' in view['text']
+        return view if ready else None
 
-    def open_window(epoch, launches=None):
+    def open_window(epoch, launches=None, expected_panes=None):
         nonlocal observer, observer_expected_crash, observer_start_unconfirmed
         observer_expected_crash=False
         folder=output/f'window-{epoch}'; folder.mkdir()
@@ -293,7 +304,7 @@ def main():
         ready=observer.receive(timeout=50)
         if ready.get('ready') is not True: raise RuntimeError(dict(electron_not_ready=ready))
         observer.ready_confirmed=True
-        return wait(inspect_window,'complete renderer snapshots',timeout=4)
+        return wait(lambda:inspect_window(expected_panes),'complete renderer snapshots',timeout=4)
 
     def crash_window():
         nonlocal observer, observer_expected_crash, observer_start_unconfirmed
@@ -481,12 +492,33 @@ def main():
                 check('worker_never_restored',not any(e['type']=='pane_restored' and e['launch']==worker['id'] for e in events))
                 check('worker_receiver_not_restarted',len(list((fixture/'codex-home').glob('receiver-*.json')))==1)
             if args.check_close and not args.expect_red:
-                target=second['panes'][-1]
-                observer.call('close-pane',pane_key=target['pane_key'])
-                wait(lambda:len(observer.call('inspect-all')['panes'])==args.panes-1,'explicit pane close reflected in renderer',timeout=4)
+                targets=second['panes'] if args.check_empty_reopen else [second['panes'][-1]]
+                for index,target in enumerate(targets):
+                    observer.call('close-pane',pane_key=target['pane_key'])
+                    wait(lambda:len(observer.call('inspect-all')['panes'])==args.panes-index-1,'explicit pane close reflected in renderer',timeout=4)
                 layout=call('pane_layout',task='t096-fixture')['panes']
-                check('explicit_close_persisted',all(p['launch']!=target['launch'] for p in layout) and len(layout)==args.panes-1)
+                closed_launches={target['launch'] for target in targets}
+                check('explicit_close_persisted',all(p['launch'] not in closed_launches for p in layout) and len(layout)==args.panes-len(targets))
                 check('close_does_not_mutate_attempt',call('status',task='t096-fixture')['task']['current_attempt']==task_before['current_attempt'])
+                if args.check_empty_reopen:
+                    before_empty=call('pane_layout',task='t096-fixture')
+                    write_json(output/'empty-layout-before-reopen.json',before_empty)
+                    check('explicit_empty_saved',before_empty['saved'] is True and before_empty['panes']==[])
+                    cutoff=call('orchestration_events')['events'][-1]['seq']
+                    reopen_close_unconfirmed=True
+                    closed=close_observer(observer,expected_crash=False,read_process=identify,normal_quit=normal_quit)
+                    result['empty_reopen_quit']=closed
+                    if not closed['exited'] or closed['diagnostics']: raise RuntimeError('empty-reopen Electron quit unconfirmed; preserve fixture')
+                    observer=None; reopen_close_unconfirmed=False
+                    empty=open_window(3,expected_panes=0)
+                    write_json(output/'empty-reopened-view.json',empty)
+                    after_empty=call('pane_layout',task='t096-fixture')
+                    write_json(output/'empty-layout-after-reopen.json',after_empty)
+                    check('empty_reopen_has_no_panes_or_keys',empty['panes']==[] and empty['pane_keys']==[])
+                    check('empty_reopen_keeps_saved_empty',after_empty['saved'] is True and after_empty['panes']==[])
+                    events=call('orchestration_events')['events']
+                    check('empty_reopen_does_not_open_or_authorize_worker',not any(e['seq']>cutoff and e['type'] in ['pane_layout_opened','window_opened','pane_restored'] for e in events))
+                    check('empty_reopen_task_unchanged',call('status',task='t096-fixture')['task']==gate_after)
             check('zero_fake_posts',not any(r['method']=='POST' for r in requests))
             if not args.expect_red: expected_layout=call('pane_layout',task='t096-fixture')['panes']
             result['status']='PASS'
@@ -495,6 +527,7 @@ def main():
     finally:
         def close_electron():
             nonlocal observer, observer_start_unconfirmed
+            if reopen_close_unconfirmed: raise RuntimeError('prior Electron quit unconfirmed; no repeated quit or archive')
             if observer is None:
                 if observer_start_unconfirmed: raise RuntimeError('Electron constructor/start outcome unconfirmed; see start-intent and receipt')
                 return dict(exited=True,diagnostics=[])

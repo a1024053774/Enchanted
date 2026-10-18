@@ -3,6 +3,8 @@
 // Failure cases: missing/wrong key, cross-window key, iframe sender, duplicated
 // global handlers or credentials, shared sequence, retargeted output, close/open race,
 // lost panes in one window, foreign-task/stale selection, credentials issued on refusal.
+// Layout boundaries: first use selects current worker; explicit final close stays
+// empty on repeated reopen; empty preload works; explicit selection can reopen.
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
 import { EventEmitter } from 'node:events';
@@ -22,6 +24,7 @@ const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with 
 async function exercise(source, withRecovery = false) {
   const expectedHandlers = withRecovery ? 7 : 6;
   const layout = new Map(), restorations = new Map();
+  let layoutSaved = false;
   const handlers = new Map(), registrations = [], requests = [], liveCredentials = new Map();
   let windowNumber = 0, credentialNumber = 0, openingResolve;
   const app = Object.assign(new EventEmitter(), { setPath() {}, whenReady: async () => {}, quit() {} });
@@ -53,15 +56,16 @@ async function exercise(source, withRecovery = false) {
   async function request(state, input, identity) {
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
-    if (input.command === 'pane_layout') return { ok: true, panes: [...layout.values()].sort((a, b) => a.position - b.position) };
+    if (input.command === 'pane_layout') return { ok: true, saved: layoutSaved, panes: [...layout.values()].sort((a, b) => a.position - b.position) };
     if (['pane_layout_open', 'pane_layout_close'].includes(input.command)) {
       assert.equal(identity.kind, 'operator', 'Layout persistence requires the operator identity');
+      layoutSaved = true;
       if (input.command === 'pane_layout_open') layout.set(input.launch, { launch: input.launch, position: input.position });
       else layout.delete(input.launch);
       return { ok: true };
     }
     if (input.command === 'workbench_snapshot') return { ok: true, task: { task_id: 'task-one', current_attempt: { attempt_id: 'attempt-one' } },
-      launch: { task: 'task-one', ...records[input.launch] }, pane: restorations.get(input.launch) ?? { lifecycle: 'running', failed: null } };
+      launch: { task: 'task-one', ...records[input.launch ?? 'worker'] }, pane: restorations.get(input.launch) ?? { lifecycle: 'running', failed: null } };
     if (input.command === 'window_open') {
       assert.equal(identity.kind, 'operator');
       const credential = { kind: 'window', window: 'fixture-window-' + ++credentialNumber, token: 'non-secret-fixture-token' };
@@ -101,6 +105,16 @@ async function exercise(source, withRecovery = false) {
   }
   const { run } = await load(source, mainURL);
   const options = { state: '/fixture/state', task: 'task-one', userData: '/fixture/ui' };
+  if (withRecovery) {
+    const initial = await run(options);
+    const initialKeys = JSON.parse(initial.options.webPreferences.additionalArguments[0].slice('--a2a-pane-keys='.length));
+    assert.equal(initialKeys.length, 1, 'Never-saved layout must still select the current worker');
+    assert.equal((await handlers.get('a2a:snapshot')({ sender: initial.webContents, senderFrame: initial.webContents.mainFrame }, initialKeys[0])).launch.id, 'worker');
+    assert.equal(layoutSaved, true, 'Initial default selection must be persisted');
+    initial.close();
+    for (let n = 0; !initial.destroyed && n < 20; n++) await Promise.resolve();
+  }
+  const credentialRequestsBeforeA = requests.filter(row => row.command === 'window_open').length;
   const a = await run({ ...options, launch: 'worker' });
   const event = window => ({ sender: window.webContents, senderFrame: window.webContents.mainFrame });
   const invoke = (window, channel, key, ...args) => Promise.resolve().then(() => handlers.get(channel)(event(window), key, ...args));
@@ -112,7 +126,7 @@ async function exercise(source, withRecovery = false) {
   const aKey = key(a);
   const [first, simultaneous] = await Promise.all([invoke(a, 'a2a:snapshot', aKey), invoke(a, 'a2a:snapshot', aKey)]);
   assert.equal(first.pane_key, aKey); assert.equal(first.window_id, simultaneous.window_id); assert.equal(first.input_enabled, true);
-  assert.equal(requests.filter(row => row.command === 'window_open').length, 1);
+  assert.equal(requests.filter(row => row.command === 'window_open').length - credentialRequestsBeforeA, 1);
   const b = await run({ ...options, launch: 'controller' });
   const bKey = key(b), second = await invoke(b, 'a2a:snapshot', bKey);
   assert.equal(second.input_enabled, true, 'Nullable controller attempt must remain writable');
@@ -199,6 +213,36 @@ async function exercise(source, withRecovery = false) {
     assert.deepEqual(snapshots.map(value => value.launch.id), ['controller', 'worker'], 'Saved positions survive reload without explicit launch arguments');
     assert.equal(snapshots[0].input_enabled, true); assert.equal(snapshots[1].input_enabled, false);
     assert.equal(snapshots[1].window_id, undefined, 'Unrestored worker gets no input credential');
+    for (const k of keys) await invoke(restored, 'a2a:close-pane', k);
+    assert.equal(layout.size, 0);
+    restorations.delete('worker');
+    const sole = await run({ ...options, launch: 'worker' });
+    await invoke(sole, 'a2a:snapshot', key(sole));
+    await invoke(sole, 'a2a:close-pane', key(sole));
+    assert.equal(layout.size, 0, 'All explicit pane closes persisted an empty set');
+    sole.close();
+    for (let n = 0; !sole.destroyed && n < 20; n++) await Promise.resolve();
+    const beforeReopen = requests.length;
+    for (let repeat = 0; repeat < 2; repeat++) {
+      const reopened = await run(options);
+      const emptyKeys = JSON.parse(reopened.options.webPreferences.additionalArguments[0].slice('--a2a-pane-keys='.length));
+      // Exercise a real snapshot if the faulty default selector reappears.
+      for (const k of emptyKeys) await invoke(reopened, 'a2a:snapshot', k);
+      assert.equal(layout.size, 0, 'Explicitly closed final pane must stay absent when app reopens');
+      assert.equal(emptyKeys.length, 0, 'Saved empty layout must create no pane keys');
+      rendererEvent = event(reopened);
+      fakeProcess.argv = ['node', 'preload', ...reopened.options.webPreferences.additionalArguments];
+      await load(readFileSync(preloadURL, 'utf8'), preloadURL);
+      assert.equal(bridge.paneKeys.length, 0, 'Preload must expose the saved empty pane set');
+      reopened.close();
+      for (let n = 0; !reopened.destroyed && n < 20; n++) await Promise.resolve();
+      assert.ok(reopened.destroyed, 'Empty window can close normally');
+    }
+    assert.ok(requests.slice(beforeReopen).every(row => row.command === 'pane_layout'), 'Empty reopen must not select a worker or issue input credentials');
+    await assert.rejects(() => run({ ...options, launch: [] }), /Distinct nonempty pane launches/);
+    const explicit = await run({ ...options, launch: 'worker' });
+    await invoke(explicit, 'a2a:snapshot', key(explicit));
+    assert.deepEqual([...layout.keys()], ['worker'], 'Explicit selection may reopen a closed pane');
   }
   return ['unregistered_key_rejected', 'keyed_handlers_once', 'per_window_keys_and_sequences', 'iframe_and_other_window_denied',
     'bound_output', 'nullable_controller_and_historical_worker', 'keyed_preload', 'close_drains_identity_and_keeps_other_window',
@@ -228,8 +272,13 @@ try {
   try { await exercise(mutant, true); }
   catch (error) { report.close_mutant = { rejected: error instanceof assert.AssertionError && error.message.startsWith('Explicit pane close must persist removal'), error: String(error) }; }
   assert.equal(report.close_mutant?.rejected, true, 'Close-without-removal mutant must fail the saved-layout assertion');
+  const emptyBadRevision = '11b32303bebf276d20026a6e718719d15f5d4068';
+  try { await exercise(execFileSync('git', ['show', emptyBadRevision + ':workbench/app/main.ts'], { encoding: 'utf8' }), true); }
+  catch (error) { report.empty_layout_known_bad = { revision: emptyBadRevision, rejected: error instanceof assert.AssertionError && error.message.startsWith('Explicitly closed final pane must stay absent when app reopens'), error: String(error) }; }
+  assert.equal(report.empty_layout_known_bad?.rejected, true, 'Previous frozen candidate must fail the explicit empty-layout contract');
   report.checks = await exercise(candidate, true);
-  report.checks.push('app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential');
+  report.checks.push('app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential',
+    'never_saved_default_selection', 'final_close_stays_empty_on_repeated_reopen', 'empty_preload_and_no_credentials', 'explicit_selection_reopens');
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.stack = error.stack; }
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
