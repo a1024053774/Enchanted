@@ -11,8 +11,30 @@ import os
 from pathlib import Path
 import socket
 import stat
+import subprocess
 import struct
 import uuid
+
+
+
+def probe_process(pid, *, run=None):
+    if not isinstance(pid,int) or isinstance(pid,bool) or pid<=0:
+        raise RuntimeError('positive process PID required')
+    argv=['/bin/ps','-ww','-p',str(pid),'-o','pid=,lstart=,command=']
+    if run is None:
+        response=subprocess.run(argv,env={'PATH':'/usr/bin:/bin','LC_ALL':'C','LANG':'C'},capture_output=True,text=True,timeout=5)
+    else:
+        response=run(argv,allow_failure=True)
+    if not isinstance(response.stdout,str) or not isinstance(response.stderr,str):
+        raise RuntimeError('process probe output not captured')
+    if response.returncode==1 and not response.stdout.strip() and not response.stderr.strip():
+        return None
+    if response.returncode!=0:
+        raise subprocess.CalledProcessError(response.returncode,argv,output=response.stdout,stderr=response.stderr)
+    pieces=response.stdout.strip().split(maxsplit=6)
+    if response.stderr.strip() or len(pieces)!=7 or int(pieces[0])!=pid:
+        raise RuntimeError('process identity readback invalid')
+    return dict(pid=pid,started=' '.join(pieces[1:6]),command=pieces[6])
 
 
 def parse_native_argv(data):

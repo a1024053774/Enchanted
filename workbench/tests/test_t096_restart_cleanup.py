@@ -53,10 +53,10 @@ def nested(source,name):
 
 
 def crash(source):
-    item=observer(); ns=dict(observer=item,observer_expected_crash=False,observer_start_unconfirmed=False,result={},owned=[],
+    item=observer(); gone=set(); ns=dict(observer=item,observer_expected_crash=False,observer_start_unconfirmed=False,result={},owned=[],
         run=lambda argv:SimpleNamespace(stdout='101 1\n102 101\n'),
-        identify=lambda pid:dict(pid=pid,started='fixture birth',command='fixture Electron'),register=lambda owner,kind:owner,
-        kill=lambda owner:None,alive=lambda owner:False,wait=lambda fn,*args,**kw:fn(),
+        identify=lambda pid:None if pid in gone else dict(pid=pid,started='fixture birth',command='fixture Electron'),register=lambda owner,kind:owner,
+        kill=lambda owner:gone.add(owner['pid']),alive=lambda owner:False,wait=lambda fn,*args,**kw:fn(),
         close_observer=support.close_observer,read_process=lambda pid:None,normal_quit=lambda *a,**kw:None)
     tree=ast.fix_missing_locations(ast.Module(body=[Globals().visit(nested(source,'crash_window'))],type_ignores=[]))
     exec(compile(tree,'runner-crash','exec'),ns); ns['crash_window']()
@@ -85,7 +85,7 @@ def final_cleanup(source,unconfirmed=None):
         result=dict(status='INCOMPLETE',error='original failure',cleanup_complete=False),args=SimpleNamespace(expect_red=False,label='unit'),
         call=call,check=lambda name,ok:None,operator_request=request,env={'A2A_OPERATOR_CREDENTIAL':str(fixture/'operator-1.json')},
         fixture=fixture,owned=[owner],alive=lambda o:not stopped,wait=wait,Path=Path,
-        close_observer=support.close_observer,read_process=lambda pid:None,normal_quit=lambda *a,**kw:None,
+        close_observer=support.close_observer,read_process=lambda pid:None,identify=lambda pid:None,normal_quit=lambda *a,**kw:None,
         finish_cleanup=support.finish_cleanup,archive_fixture=lambda *args:dict(bytes=9,files=1,comparison=True),
         write_json=lambda *args:None,HERE=fixture,output=fixture,source=fixture,summary=fixture/'summary.json',
         api=None,requests=[],commands=[],sys=sys,json=json,shlex=__import__('shlex'))

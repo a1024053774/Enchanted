@@ -56,9 +56,8 @@ HERE = Path(__file__).resolve().parent
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(HERE.parent / 'T-091'))
 from run_red import Observer, archive_fixture, write_json
-from capture_window import process_identity
-from owned_electron import normal_quit, read_process
-from restart_cleanup import native_argv, operator_request, close_observer, finish_cleanup
+from owned_electron import normal_quit
+from restart_cleanup import native_argv, operator_request, close_observer, finish_cleanup, probe_process
 
 
 
@@ -155,9 +154,12 @@ def main():
     def identify(pid):
         result['process_reads'] += 1
         if result['process_reads']>200: raise RuntimeError('process_read_budget_exhausted')
-        return process_identity(pid)
+        current=probe_process(pid,run=run)
+        if current is None: result.setdefault('exited_process_probes',[]).append(pid)
+        return current
 
     def register(owner, kind):
+        if owner is None: raise RuntimeError(kind+' exited before identity registration')
         identity={key:owner[key] for key in ['pid','started','command']}
         if identity not in owned: owned.append(identity)
         result['owned']=list(owned)
@@ -167,15 +169,19 @@ def main():
         return identity
 
     def alive(owner):
-        result['process_reads'] += 1
-        if result['process_reads']>200: raise RuntimeError('process_read_budget_exhausted')
-        p=run(['/bin/ps','-ww','-p',owner['pid'],'-o','pid=,lstart=,command='],allow_failure=True)
-        if p.returncode==1 and not p.stdout.strip() and not p.stderr.strip(): return False
-        if identify(owner['pid']) != owner: raise RuntimeError('PID identity changed; refusing to signal')
+        current=identify(owner['pid'])
+        if current is None: return False
+        if current!=owner: raise RuntimeError('PID identity changed; refusing to signal')
         return True
 
     def kill(owner):
-        if alive(owner): os.kill(owner['pid'],signal.SIGKILL)
+        sent=False
+        if alive(owner):
+            try:
+                os.kill(owner['pid'],signal.SIGKILL); sent=True
+            except ProcessLookupError:
+                pass  # The verified process exited between the read and signal.
+        result.setdefault('signal_receipts',[]).append(dict(pid=owner['pid'],signal_sent=sent,already_exited=not sent))
 
     def start_daemon(epoch):
         nonlocal daemon_live, daemon_start_unconfirmed
@@ -209,7 +215,10 @@ def main():
         observer=Observer(argv,env,folder,max_calls=64,max_stdout_bytes=8*1024*1024)
         result['electron_start_receipt']=dict(pid=observer.process.pid,epoch=epoch,output=str(folder))
         write_json(folder/'start-receipt.json',result['electron_start_receipt'])
-        observer.identify(argv,folder)
+        current=identify(observer.process.pid)
+        if current is None: raise RuntimeError('Electron exited before startup identity registration; start receipt retained')
+        observer.owner={**current,'driver':argv[1],'executable':argv[0]}
+        write_json(folder/'electron-owner.json',observer.owner)
         register(observer.owner,'electron')
         observer_start_unconfirmed=False
         ready=observer.receive(timeout=50)
@@ -225,12 +234,16 @@ def main():
             added={pid for pid,parent in rows if parent in descendants}-descendants
             if not added: break
             descendants.update(added)
-        electron_owners=[register(identify(pid),'electron-descendant') for pid in descendants]
+        electron_owners=[]
+        for pid in descendants:
+            owner=identify(pid)
+            if owner is not None: electron_owners.append(register(owner,'electron-descendant'))
+            else: result.setdefault('exited_before_crash_registration',[]).append(pid)
         observer_expected_crash=True
         # Kill descendants first, then the verified main process.
         for owner in sorted(electron_owners,key=lambda o:o['pid']==observer.owner['pid']): kill(owner)
         observer.process.wait(timeout=10)
-        closed=close_observer(observer,expected_crash=True,read_process=read_process,normal_quit=normal_quit)
+        closed=close_observer(observer,expected_crash=True,read_process=identify,normal_quit=normal_quit)
         observer=None; observer_start_unconfirmed=False
         result['crash_observer']=closed
         if closed['diagnostics']: raise RuntimeError('crash observer stream cleanup incomplete: '+str(closed['diagnostics']))
@@ -415,7 +428,7 @@ def main():
             if observer is None:
                 if observer_start_unconfirmed: raise RuntimeError('Electron constructor/start outcome unconfirmed; see start-intent and receipt')
                 return dict(exited=True,diagnostics=[])
-            closed=close_observer(observer,expected_crash=observer_expected_crash,read_process=read_process,normal_quit=normal_quit)
+            closed=close_observer(observer,expected_crash=observer_expected_crash,read_process=identify,normal_quit=normal_quit)
             observer=None; observer_start_unconfirmed=False
             if expected_layout is not None:
                 try: check('application_exit_preserves_panes',call('pane_layout',task='t096-fixture')['panes']==expected_layout)

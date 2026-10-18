@@ -1,10 +1,21 @@
 # T-096-1 当前交付记录
 
-**INCOMPLETE**：主控已执行 `red-b-01` 与 `tracer-b-01`，两场均在脚本 crash_window 失败，rc 1、cleanup false；没有得到有效重启红态／绿态。原始摘要保留，定向收尾及修复后的 `-02` 重跑待主控执行。
+**INCOMPLETE**：`-01` 残留已由主控收尾、归档，收尾操作 PASS；`red-b-02` 与 `tracer-b-02` 均在第一轮后台故障注入阶段失败，尚未到达重启读回。修复后的 `-03` 及 `-02` 只读归档命令待主控运行。原失败摘要保持不变。
 
 当前范围以主控 #89 转达和 main `8cf91b26e` 的 T-096“裁定”节为准：只恢复两个主控；worker 保留为“未恢复”，不启动 CLI、不重绑定、不改 attempt。不修改 `workbench/src/gates/`。主控 #88 允许先完成不依赖门禁裁定的路径。
 
 主控没有跨重启的固定 PID 绑定：`Panes.controllerLaunch()` 返回的身份不含 PID；`caller()` 在单次请求内固定当次 leader（`panes.ts` 的 controller 分支），daemon 的 `assertCurrent()` 核对当次前台进程；`core.ts:340` 的 `registerController()` 只核对 task/project/spec_rev。worker 的旧 PID 绑定留在 `core.ts:2485`，没有改动。
+
+2026-10-18 主控 #91 的实跑、原件核对与退出探针修复：
+
+- `cleanup-failed-01.run.json` **PASS**：两场 `-01` 的六个 PID 已由主控确认退出，两个夹具已复制并比较。`red-b-01-cleanup-failed-01.archive.json` 为 78 文件／3,129,075 字节，`tracer-b-01-cleanup-failed-01.archive.json` 为 75 文件／3,080,910 字节，comparison 均为 true；这些现有记录一起提交，不改旧失败摘要。
+- 原件核对见 `phase-readback-02.json`：两场均只有 epoch 1 的 daemon 启动收据、一次 controller_start、`window-1` 与 `before-view.json`；没有 `daemon-start-2.json`、`window-2`、`after-view.json` 或 `gate-after.json`。异常调用点为 `for owner in owned: kill(owner)`，位于第二轮后台启动之前。因此两场都**没有到达重启读回**，不能记作红态／绿态通过；仅初始真实 Claude argv 核对 PASS，fake POST 均为 0。
+- `red-b-02.run.json` 的主异常 PID 为 15840，`tracer-b-02.run.json` 为 16098。调用链显示 alive 先执行一次 ps，再由 process_identity 立即执行第二次 ps；第二次遇进程消失时抛 rc 1。主控事后核对 14 个 PID 都已退出；原目录仍有死端点，故 finally 报 endpoint remains、cleanup false。本 worker 只读核对这些原件，未运行实际 ps 或归档。
+- 修复为当前 runner 和 `-02` 归档命令共用的 `probe_process`：每次只用一个 ps 结果，rc 1 且 stdout／stderr 都为空才判退出；其余错误照旧。alive 不再做重复查询，发信号前刚好退出的 ProcessLookupError 明确记入退出回执；权限错误和身份变化不吞掉。
+- `process-probe-contract-01.json` **PASS**：替代 ps／信号边界，覆盖空 rc 1、带输出 rc 1、其他返回码、坏格式、单次读回、信号前退出、权限错误和 PID 变化；上一候选 `958ede25f` 被退出竞态反例拒绝。
+- `archive_failed_02.py` 只读核对固定两个 `-02` 夹具、14 个 PID 和端点状态；不启动或停止 agent、不改源目录。明确排除死 IPC socket 与 operator 私密凭据，保留其原件，复制其余部分并比较数量／字节／路径。清单列明排除项及比较范围，不把过滤后的副本称为完整原树。
+- `archive-02-contract-01.json` **PASS**：真实临时文件、复制和 symlink，替代 PID／socket 探针；存活 PID、活动／未知端点及后续 epoch 均拒绝，源文件／旧摘要原样保留，私密和 IPC 不进入副本；独立已知文件数／字节数核对通过，绕过排除项的变异被拒绝。未操作真实两场 `-02` 目录。
+- 既有收尾、固定 `-01` 收尾入口和 argv 解析局部回归分别为 `restart-cleanup-contract-07.json`、`fixed-cleanup-contract-04.json`、`runner-materials-probe-01.json`，均 PASS，仍限替代进程边界。下一次使用 `red-b-03`／`tracer-b-03`，命令见 `RUN-RESTART.md`。
 
 2026-10-18 主控 #90 的实跑与脚本修复：
 
@@ -27,7 +38,7 @@
 
 `static-checks-b-01.json` 的语法、编码、修改范围和项目地图检查 **PASS**（0 problems、0 stale living docs）。Claude 启动版本与 driver 选择局部回归分别见 `t091-version-regression-b-01.json`、`driver-selection-b-01.json`，均 PASS，适用范围仍为替代边界。
 
-尚未完成：两个旧场景的真实收尾、`-02` 的真实单格与三格重启、三个独立故障和失败隔离、真实 CLI 历史读回、完整 GUI 回归、独立审查、门禁 submit。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
+尚未完成：两个 `-02` 夹具的真实只读归档、`-03` 的真实单格与三格重启、三个独立故障和失败隔离、真实 CLI 历史读回、完整 GUI 回归、独立审查、门禁 submit。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
 
 下列为第一轮 WIP 的原始局部证据，保留其适用范围：
 
