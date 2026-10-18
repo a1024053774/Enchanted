@@ -13,6 +13,7 @@ type Options = { state: string; task: string; launch?: string | string[]; userDa
 type PaneBinding = {
   key: string; launch?: string; identity?: Record<string, unknown>; opening?: Promise<void>;
   sequence: number; inputQueue: Promise<unknown>; pendingRelease: Promise<any> | null;
+  closing?: boolean;
 };
 type WindowBinding = {
   window: BrowserWindow; options: Options; operator: NonNullable<ReturnType<typeof readOperatorCredential>>;
@@ -51,7 +52,7 @@ function target(event: Electron.IpcMainInvokeEvent, key: string) {
 }
 
 function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Record<string, unknown>) {
-  if (!pane.identity || context.closing) throw new Error('Window is not available for input');
+  if (!pane.identity || context.closing || pane.closing) throw new Error('Window is not available for input');
   if (input.command === 'window_release' && pane.pendingRelease) throw new Error('Queue release is already pending');
   const command = { ...input, sequence: ++pane.sequence, request_id: randomUUID() };
   const receive = (result: any) => {
@@ -90,7 +91,8 @@ function registerHandlers() {
       if (!opened.ok) throw new Error(opened.error);
       pane.launch = result.launch.id;
     }
-    const writable = result.pane?.lifecycle === 'running' && !result.pane.failed &&
+    const writable = !result.recovering && !pane.closing && result.pane?.lifecycle === 'running' && !result.pane.failed &&
+      result.pane?.restoration?.status !== 'pending' &&
       Boolean(result.launch && (result.launch.role === 'controller' && result.launch.attempt === null ||
         result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
     if (writable && result.launch && !pane.identity && !context.closing) {
@@ -132,6 +134,24 @@ function registerHandlers() {
     const result = await request(context.options.state, { command: 'pane_output', launch: pane.launch, offset, max_bytes: 65536 });
     if (!result.ok) throw new Error(result.error);
     return result;
+  });
+  ipcMain.handle('a2a:close-pane', async (event, key: string) => {
+    const { context, pane } = target(event, key);
+    if (pane.closing || context.closing) throw new Error('Pane is closing');
+    pane.closing = true;
+    const outcomes = await Promise.allSettled([pane.inputQueue, pane.pendingRelease, pane.opening]);
+    for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Pane input outcome remains unconfirmed:', String(outcome.reason));
+    if (pane.launch) {
+      const closed = await request(context.options.state, { command: 'pane_layout_close', task: context.options.task,
+        launch: pane.launch }, context.operator);
+      if (!closed.ok) { pane.closing = false; throw new Error(closed.error); }
+    }
+    if (pane.identity) {
+      const closed = await request(context.options.state, { command: 'window_close' }, pane.identity);
+      if (!closed.ok) throw new Error(closed.error);
+    }
+    context.panes.delete(key);
+    return { ok: true };
   });
   app.on('window-all-closed', () => app.quit());
 }
@@ -205,10 +225,6 @@ export async function run(options: Options) {
       for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Window input outcome remains unconfirmed:', String(outcome.reason));
       for (const value of context.panes.values()) {
         try {
-          if (value.launch) {
-            const closed = await request(options.state, { command: 'pane_layout_close', task: options.task, launch: value.launch }, operator);
-            if (!closed.ok) throw new Error(closed.error);
-          }
           if (value.identity) {
             const result = await request(options.state, { command: 'window_close' }, value.identity);
             if (!result.ok) throw new Error(result.error);

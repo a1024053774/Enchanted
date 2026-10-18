@@ -25,6 +25,7 @@ type Snapshot = {
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   snapshot(key: string): Promise<Snapshot>; output(key: string, offset: number): Promise<Chunk>;
+  closePane(key: string): Promise<{ ok: boolean }>;
   input(key: string, data: string, encoding?: 'utf8' | 'binary'): Promise<void>; beginComposition(key: string): Promise<void>;
   releaseQueue(key: string, declaration: EmptyInputDeclaration): Promise<{ ok: boolean; error?: string }>;
   observeFocus(key: string, rawSequence: string): Promise<void> } } }
@@ -32,10 +33,15 @@ const gateNames: Record<string, string> = { ready: '待认领', preparing: '准�
   verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销' };
 const activityNames: Record<string, string> = { unknown: '未知', idle: '空闲', busy: '忙' };
 const lifecycleNames: Record<string, string> = { running: '运行中', interrupted: '已中断', unknown: '未知', ended: '已结束', not_started: '未启动' };
+const restoreErrors: Record<string, string> = {
+  restore_managed_attempt_requires_reclaim: '受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领',
+  restore_argv_missing: '启动记录缺少完整参数', restore_version_mismatch: 'CLI 版本与启动记录不符',
+  restore_session_missing: '原生会话不存在',
+};
 
 type PaneStatus = { snapshot: Snapshot | null; error: string | null; connecting: boolean };
 
-function SessionPane({ paneKey, onStatus }: { paneKey: string; onStatus: (key: string, status: PaneStatus) => void }) {
+function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string) => void }) {
   const mount = useRef<HTMLDivElement>(null);
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
@@ -49,6 +55,8 @@ function SessionPane({ paneKey, onStatus }: { paneKey: string; onStatus: (key: s
   const [declarationReady, setDeclarationReady] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
   useEffect(() => { onStatus(paneKey, { snapshot, error, connecting }); }, [paneKey, snapshot, error, connecting, onStatus]);
 
   useEffect(() => {
@@ -173,13 +181,20 @@ function SessionPane({ paneKey, onStatus }: { paneKey: string; onStatus: (key: s
         {error && <div className="connection-error" role="alert"><span>{error}</span><button onClick={() => reconnect.current()}>重新连接</button></div>}
         {inputError && <div className="connection-error" role="alert">{inputError}</div>}
         {releaseError && <div className="connection-error" role="alert">{releaseError}</div>}
-        {pane?.restoration?.status === 'failed' && <div className="connection-error" role="alert">未恢复：{pane.restoration.error}。启动记录已保留。</div>}
+        {pane?.restoration?.status === 'failed' && <div className="connection-error" role="alert">未恢复：{restoreErrors[pane.restoration.error ?? ''] ?? pane.restoration.error}。启动记录已保留。</div>}
+        {closeError && <div className="connection-error" role="alert">{closeError}</div>}
         {pane?.restoration?.status === 'pending' && <div className="connection-error" role="status">正在恢复原生会话…</div>}
         <div className="pane-header"><strong>{role}</strong><span>{snapshot?.launch?.cli_version ?? '读取中'}</span>
           <span className="readonly">{inputEnabled ? '可输入' : '只读'}</span>
           <span className="input-target">{inputTarget ? `正在输入：${role}` : historical ? '历史 attempt · 只读' : '终端未聚焦'}</span>
           <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
           <button disabled={!inputEnabled} onClick={() => terminal?.focus()}>进入终端</button>
+          <button disabled={closing} onClick={() => {
+            setClosing(true); setCloseError(null);
+            void window.a2a.closePane(paneKey).then(() => onClose(paneKey)).catch(error => {
+              setCloseError('关闭窗格未确认：' + String(error)); setClosing(false);
+            });
+          }}>关闭窗格</button>
           <button disabled={!snapshot?.input_enabled || !pane?.interrupted || !declarationReady || releasing || Boolean(inputError || error)}
             onClick={() => releaseQueue.current()}>输入框已空，放行</button>
           <span className="pane-identity">{snapshot?.launch ?
@@ -195,13 +210,18 @@ function SessionPane({ paneKey, onStatus }: { paneKey: string; onStatus: (key: s
 
 function Workbench() {
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
+  const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
+  const onClose = useCallback((key: string) => {
+    setPaneKeys(previous => previous.filter(value => value !== key));
+    setStatuses(previous => { const next = { ...previous }; delete next[key]; return next; });
+  }, []);
   const onStatus = useCallback((key: string, status: PaneStatus) => {
     setStatuses(previous => ({ ...previous, [key]: status }));
   }, []);
   const states = Object.values(statuses);
   const task = states.find(value => value.snapshot)?.snapshot?.task;
   const error = states.some(value => value.error);
-  const connecting = states.length < window.a2a.paneKeys.length || states.some(value => value.connecting);
+  const connecting = states.length < paneKeys.length || states.some(value => value.connecting);
   return <div className="workbench">
     <aside className="sidebar">
       <div className="brand">a2a <span>工作台</span></div>
@@ -215,8 +235,9 @@ function Workbench() {
         <div><div className="eyebrow">{task?.task_id ?? '任务'}</div><h1>{task?.title ?? '正在读取任务'}</h1></div>
         <span className={'connection ' + (error ? 'warning' : '')}>{error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
       </header>
-      <div className={'pane-grid' + (window.a2a.paneKeys.length > 1 ? ' multi' : '')} aria-label="任务会话">
-        {window.a2a.paneKeys.map(key => <SessionPane key={key} paneKey={key} onStatus={onStatus} />)}
+      <div className={'pane-grid' + (paneKeys.length > 1 ? ' multi' : '')} aria-label="任务会话">
+        {paneKeys.map(key => <SessionPane key={key} paneKey={key} onStatus={onStatus} onClose={onClose} />)}
+        {!paneKeys.length && <p>当前任务没有打开的窗格。</p>}
       </div>
       <section className="gate" aria-label="门禁状态">
         <div><span className="eyebrow">当前任务门禁</span><strong data-gate-state={task?.state ?? 'unknown'}>{gateNames[task?.state ?? ''] ?? '未知'}</strong></div>

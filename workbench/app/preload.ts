@@ -9,6 +9,7 @@ if (!Array.isArray(paneKeys) || !paneKeys.length || paneKeys.some(key => typeof 
 contextBridge.exposeInMainWorld('a2a', Object.freeze({
   paneKeys: Object.freeze(paneKeys),
   snapshot: (key: string) => ipcRenderer.invoke('a2a:snapshot', key),
+  closePane: (key: string) => ipcRenderer.invoke('a2a:close-pane', key),
   output: (key: string, offset: number) => ipcRenderer.invoke('a2a:output', key, offset),
   input: (key: string, data: string, encoding: 'utf8' | 'binary' = 'utf8') => ipcRenderer.invoke('a2a:input', key, data, encoding),
   beginComposition: (key: string) => ipcRenderer.invoke('a2a:composition-start', key),

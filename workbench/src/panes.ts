@@ -206,15 +206,26 @@ export class Panes implements GateRuntime {
       const record = this.launchRecord(opened.launch);
       this.store.event("pane_restore_pending", { daemon, position: opened.position }, record as any);
       try {
+        // T-096 decision B: worker/reviewer attempts retain their gate-owned
+        // runtime binding. Restoration must neither spawn nor mutate an attempt.
+        check(record.attempt === null, "restore_managed_attempt_requires_reclaim");
+        check(record.role === "controller" && record.cli === "Claude Code" &&
+          ["ideation", "executor"].includes(record.preset), "restore_controller_required");
+        const previous = this.store.lastEvent(record.id, ["pane_started", "pane_restored"]);
+        if (Number.isSafeInteger(previous?.data.shell_pid) && previous!.data.shell_pid > 1) {
+          try {
+            process.kill(previous!.data.shell_pid, 0);
+            throw new Refusal("restore_previous_process_alive");
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+          }
+        }
         const argv = resumeArgv(record, opened.native_session);
-        check(opened.resume_argv && JSON.stringify(argv) === JSON.stringify(opened.resume_argv), "restore_argv_changed");
+        check(opened.resume_argv && argv.length === opened.resume_argv.length &&
+          argv.every((arg, index) => arg === opened.resume_argv![index]), "restore_argv_changed");
         const taskRow = this.store.db.prepare("SELECT data FROM tasks WHERE id=?").get(record.task);
         const task = taskRow && JSON.parse(String(taskRow.data));
         check(task && task.project_id === record.project && task.spec_rev === record.spec_rev, "restore_task_stale");
-        const attempt = task.current_attempt ?? null;
-        check(record.attempt === null || attempt && !attempt.reclaimed && attempt.attempt_id === record.attempt &&
-          attempt.thread_id === record.thread && attempt.session_id === record.session && attempt.fence === record.fence,
-          "restore_attempt_stale");
         check(typeof record.cli_version === "string" && record.cli_version !== "unknown", "restore_version_missing");
         const probe = await exec(argv[0]!, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
         check(probe.stdout.trim() === record.cli_version, "restore_version_mismatch", {
@@ -229,7 +240,7 @@ export class Panes implements GateRuntime {
           name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
           env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
         });
-        const pane: Pane = { record: record as Pane["record"], token, task, attempt, pty: terminal,
+        const pane: Pane = { record: record as Pane["record"], token, task, attempt: null, pty: terminal,
           state: "unknown", stopped: false, archived: false, failed: null, leader: null,
           native: opened.native_session, nativeFile, turn: null, nativeEnded: false, active: null,
           queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,

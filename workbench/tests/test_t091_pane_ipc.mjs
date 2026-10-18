@@ -19,7 +19,9 @@ const badRevision = '6974c2aad1233133264b7448e1277cd19fa0b6ba';
 const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with supplied Electron/transport/filesystem boundaries; no GUI or backend proof',
   argv: process.argv, known_bad: badRevision, checks: [], model_turns: 0 };
 
-async function exercise(source) {
+async function exercise(source, withRecovery = false) {
+  const expectedHandlers = withRecovery ? 7 : 6;
+  const layout = new Map(), restorations = new Map();
   const handlers = new Map(), registrations = [], requests = [], liveCredentials = new Map();
   let windowNumber = 0, credentialNumber = 0, openingResolve;
   const app = Object.assign(new EventEmitter(), { setPath() {}, whenReady: async () => {}, quit() {} });
@@ -51,12 +53,15 @@ async function exercise(source) {
   async function request(state, input, identity) {
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
+    if (input.command === 'pane_layout') return { ok: true, panes: [...layout.values()].sort((a, b) => a.position - b.position) };
     if (['pane_layout_open', 'pane_layout_close'].includes(input.command)) {
       assert.equal(identity.kind, 'operator', 'Layout persistence requires the operator identity');
+      if (input.command === 'pane_layout_open') layout.set(input.launch, { launch: input.launch, position: input.position });
+      else layout.delete(input.launch);
       return { ok: true };
     }
     if (input.command === 'workbench_snapshot') return { ok: true, task: { task_id: 'task-one', current_attempt: { attempt_id: 'attempt-one' } },
-      launch: { task: 'task-one', ...records[input.launch] }, pane: { lifecycle: 'running', failed: null } };
+      launch: { task: 'task-one', ...records[input.launch] }, pane: restorations.get(input.launch) ?? { lifecycle: 'running', failed: null } };
     if (input.command === 'window_open') {
       assert.equal(identity.kind, 'operator');
       const credential = { kind: 'window', window: 'fixture-window-' + ++credentialNumber, token: 'non-secret-fixture-token' };
@@ -112,7 +117,7 @@ async function exercise(source) {
   const bKey = key(b), second = await invoke(b, 'a2a:snapshot', bKey);
   assert.equal(second.input_enabled, true, 'Nullable controller attempt must remain writable');
   assert.notEqual(aKey, bKey); assert.notEqual(first.window_id, second.window_id);
-  assert.equal(registrations.length, 6); assert.equal(new Set(registrations).size, 6);
+  assert.equal(registrations.length, expectedHandlers); assert.equal(new Set(registrations).size, expectedHandlers);
   const beforeDenied = requests.length;
   for (const channel of registrations) {
     await assert.rejects(() => invoke(a, channel, bKey, 'must-not-arrive'));
@@ -150,7 +155,8 @@ async function exercise(source) {
   assert.ok(![...liveCredentials.values()].includes('opening'), 'Late identity must be revoked');
   a.close();
   for (let n = 0; !a.destroyed && n < 20; n++) await Promise.resolve();
-  assert.ok(a.destroyed); assert.equal(handlers.size, 6);
+  assert.ok(a.destroyed); assert.equal(handlers.size, expectedHandlers);
+  if (withRecovery) assert.ok(layout.has('worker'), 'Closing the application view must preserve the open pane set');
   await invoke(b, 'a2a:input', bKey, 'still B');
   assert.equal(requests.at(-1).target, 'controller');
   const three = await run({ ...options, launch: ['worker', 'controller', 'ideation'] });
@@ -170,7 +176,7 @@ async function exercise(source) {
   const declarations = requests.filter(row => row.command === 'window_release').slice(-3);
   assert.deepEqual(declarations.map(row => [row.window, row.input.declaration.window_id, row.input.declaration.launch]),
     threeSnapshots.map(value => [value.window_id, value.window_id, value.launch.id]));
-  assert.equal(registrations.length, 6, 'Adding panes must not register more IPC handlers');
+  assert.equal(registrations.length, expectedHandlers, 'Adding panes must not register more IPC handlers');
   for (const launch of ['foreign', 'historical']) {
     const beforeWindows = windowNumber, beforeCredentials = credentialNumber;
     await assert.rejects(() => run({ ...options, launch: ['ideation', 'controller', launch] }));
@@ -178,7 +184,23 @@ async function exercise(source) {
     assert.equal(credentialNumber, beforeCredentials, 'Invalid third pane must not receive a credential');
   }
   await assert.rejects(() => run({ ...options, launch: ['worker', 'worker'] }));
-  return ['unregistered_key_rejected', 'six_handlers_once', 'per_window_keys_and_sequences', 'iframe_and_other_window_denied',
+  if (withRecovery) {
+    const sibling = threeSnapshots[1].window_id;
+    await invoke(three, 'a2a:close-pane', threeKeys[0]);
+    assert.equal(layout.has('ideation'), false, 'Explicit pane close must persist removal');
+    assert.ok(liveCredentials.has(sibling), 'Closing one pane keeps its sibling credential');
+    await assert.rejects(() => invoke(three, 'a2a:snapshot', threeKeys[0]));
+    layout.clear(); layout.set('worker', { launch: 'worker', position: 3 }); layout.set('controller', { launch: 'controller', position: 1 });
+    restorations.set('worker', { lifecycle: 'unknown', historical: true, failed: 'restore_managed_attempt_requires_reclaim',
+      restoration: { status: 'failed', error: 'restore_managed_attempt_requires_reclaim' } });
+    const restored = await run(options);
+    const keys = JSON.parse(restored.options.webPreferences.additionalArguments[0].slice('--a2a-pane-keys='.length));
+    const snapshots = await Promise.all(keys.map(k => invoke(restored, 'a2a:snapshot', k)));
+    assert.deepEqual(snapshots.map(value => value.launch.id), ['controller', 'worker'], 'Saved positions survive reload without explicit launch arguments');
+    assert.equal(snapshots[0].input_enabled, true); assert.equal(snapshots[1].input_enabled, false);
+    assert.equal(snapshots[1].window_id, undefined, 'Unrestored worker gets no input credential');
+  }
+  return ['unregistered_key_rejected', 'keyed_handlers_once', 'per_window_keys_and_sequences', 'iframe_and_other_window_denied',
     'bound_output', 'nullable_controller_and_historical_worker', 'keyed_preload', 'close_drains_identity_and_keeps_other_window',
     'three_panes_independent_credentials_sequences_output', 'foreign_task_and_old_launch_rejected_before_window', 'duplicate_launch_rejected'];
 }
@@ -200,7 +222,14 @@ try {
     report.single_pane_counterexample = { revision: '7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86', rejected: missingPanes, error: String(error) };
   }
   assert.ok(missingPanes, 'Single-pane tracer must fail the simultaneous pane-count assertion');
-  report.checks = await exercise(readFileSync(mainURL, 'utf8'));
+  const candidate = readFileSync(mainURL, 'utf8');
+  const mutant = candidate.replace("command: 'pane_layout_close'", "command: 'pane_layout_open'");
+  assert.notEqual(mutant, candidate);
+  try { await exercise(mutant, true); }
+  catch (error) { report.close_mutant = { rejected: error instanceof assert.AssertionError && error.message.startsWith('Explicit pane close must persist removal'), error: String(error) }; }
+  assert.equal(report.close_mutant?.rejected, true, 'Close-without-removal mutant must fail the saved-layout assertion');
+  report.checks = await exercise(candidate, true);
+  report.checks.push('app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential');
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.stack = error.stack; }
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });

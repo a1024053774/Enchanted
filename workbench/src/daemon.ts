@@ -258,7 +258,7 @@ export async function serve(
         session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,
         role: record.role, preset: record.preset ?? null, cli_version: record.cli_version, model_requested: record.model_requested,
         effort_requested: record.effort_requested, created_at: record.created_at } : null;
-      return { ok: true, daemon, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
+      return { ok: true, daemon, recovering, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
     }
     if (input.command === "pane_status") return { ok: true, ...panes.status(input.thread) };
     if (input.command === "pane_process_info") return { ok: true, ...await panes.processInfo(input.thread) };

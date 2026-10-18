@@ -1,12 +1,14 @@
 # a2a 门禁、编排后台与工作台
 
-T-096 恢复候选尚未验收：Electron 打开或关闭窗格时，把 launch 与位置追加到
-现有 SQLite 事件流；未传 `--launch` 时读取该任务保存的窗格集。后台重启按原启动记录
-构造完整续接 argv，Claude 仅把 `--session-id` 换为 `--resume`，Codex 在原参数末尾
-追加 `resume <原生会话 ID>`。模型、思考强度、沙箱、service tier 和 profile 环境均取原记录。
-缺 argv、版本不符、原生会话文件不存在时保留窗格并显示“未恢复”；不发送提示词或放行旧队列。
-受管 worker 的后续交付仍受门禁绑定的旧 shell PID 阻挡，需主控协调门禁内的身份重绑定；
-当前候选不能作为可用的受管恢复交付。
+T-096 恢复候选尚未验收：Electron 创建或显式关闭窗格时，把 launch 与位置追加到
+现有 SQLite 事件流；退出应用只断开视图，保留打开集。未传 `--launch` 时读取该任务
+保存的窗格集，并沿用位置。后台只自动恢复主控窗格：按原启动记录构造完整续接 argv，
+Claude 仅把 `--session-id` 换为 `--resume`；其余参数与 profile 环境取原记录。
+缺 argv、版本不符、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
+恢复不发送提示词或放行旧队列。按 T-096 的 2026-10-18 裁定 B，worker 窗格保留并显示
+“未恢复”，不启动 CLI、不重绑定、不改变 attempt；后续由执行主控按中断恢复流程处理。
+真实 Electron／daemon／CLI 验证入口与已知限制见
+[运行说明](../evidence/2026-10-16-batch16/T-096/RUN-RESTART.md)。
 
 T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
 当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的探针，
