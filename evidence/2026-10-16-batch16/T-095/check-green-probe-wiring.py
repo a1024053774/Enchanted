@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 bad_source = "--bad-source" in sys.argv[2:]
+stuck = "--stuck" in sys.argv[2:]
 canary = "T095_AUTH_CANARY"
 spec = importlib.util.spec_from_file_location("controlled_probe", HERE / "controlled-panel-probe.py")
 probe = importlib.util.module_from_spec(spec)
@@ -20,6 +21,8 @@ inputs = json.loads((HERE / "real-green-inputs.json").read_text(encoding="utf-8"
 for capture in inputs["captures"].values():
     for key in ("before", "after"):
         capture[key] = json.loads(capture[key])["result"]["agent"]
+# 接线替身仅借用已有的普通活动画面；不冒充真实“已回答”原件。
+inputs["captures"]["answered"] = inputs["captures"]["expanded" if stuck else "cancelled"]
 inputs["native_records"] = json.loads((HERE / "real-native-inputs.json").read_text(encoding="utf-8"))["records"]
 (root / "inputs.json").write_text(json.dumps(inputs), encoding="utf-8")
 (root / "phase").write_text("startup", encoding="utf-8")
@@ -82,12 +85,12 @@ for name in ("herdr", "codex"):
     path = root / "bin" / name
     path.write_text("#!" + sys.executable + "\n" + fake, encoding="utf-8")
     path.chmod(0o755)
-tokens = iter(("SHELL_READY", "CODEX_IDLE", "COLLAPSED", "EXPANDED", "CANCELLED"))
+tokens = iter(("SHELL_READY", "CODEX_IDLE", "COLLAPSED", "EXPANDED", "ANSWERED"))
 
 
 def confirm(_message):
     token = next(tokens)
-    if token in ("COLLAPSED", "EXPANDED", "CANCELLED"):
+    if token in ("COLLAPSED", "EXPANDED", "ANSWERED"):
         (root / "phase").write_text(token.lower(), encoding="utf-8")
     return token
 
@@ -106,7 +109,7 @@ try:
             patch.object(os, "isatty", return_value=True), patch("builtins.input", side_effect=confirm), \
             patch.object(probe.time, "sleep", side_effect=advance), patch.object(probe.time, "monotonic", side_effect=lambda: clock[0]), \
             patch.object(sys, "argv", [str(HERE / "controlled-panel-probe.py"), "--approve-one-root-turn",
-                                       "--phase", "green-anchor-independent", "--auth-json", str(root / "auth.json")]):
+                                       "--phase", "answered", "--auth-json", str(root / "auth.json")]):
         code = probe.main()
     run = json.loads(next((root / "archive").glob("*/run.json")).read_text(encoding="utf-8"))
     projections = [item["output"]["state"] for item in run.get("projections", [])]
@@ -114,20 +117,26 @@ try:
         assert code == 1 and run.get("error") == "native_log_identity_mismatch", run
         assert "native_archive" not in run and not run.get("native_session"), run
     else:
-        assert projections == ["waiting_controller_answer", "waiting_controller_answer", "unknown", "unknown", "unknown"], projections
+        expected = ["waiting_controller_answer"] * 5 if stuck else ["waiting_controller_answer", "waiting_controller_answer", "unknown", "unknown", "unknown"]
+        assert projections == expected, projections
         assert waits == [30, 30], waits
-        assert run["operator_collapsed_before_first_expand"] and run["prior_root_turns"] == 3 and run["authorized_total_root_turns"] == 4
-        assert run["projections"][-1]["output"]["conflicts"]
+        assert run["operator_collapsed_before_first_expand"] and run["prior_root_turns"] == 4 and run["authorized_total_root_turns"] == 5
+        assert run["operator_answer"]["option"] == "A" and run["operator_answer"]["key"] == "Enter" and run["operator_answer"]["submissions"] == 1
+        assert run["post_answer_observation_seconds"] == [30, 60] and run["automatic_answers"] == 0
+        assert [item["label"] for item in run["projections"]] == ["collapsed", "expanded", "answered", "answered-followup-30s", "answered-followup-60s"]
+        assert (not stuck) == bool(run["projections"][-1]["output"]["conflicts"])
         assert run["native_session"] == "wire-native" and run["native_archive"]["bytes"] > 0
         assert all(item["output"]["launch"] == run["probe_launch"] and item["output"]["worker"] == run["worker"] for item in run["projections"])
-        assert code == 0
+        assert code == 0 and run["status"] == "INCOMPLETE"  # 采集器不能把卡住或完成采集写成验收通过。
     assert run["pane_closed"] and run["isolated_home_deleted"] and run["empty_scratch_removed"]
     assert all(canary.encode() not in p.read_bytes() for p in (root / "archive").rglob("*") if p.is_file())
     calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()]
     assert sum(call[1:3] == ["agent", "prompt"] for call in calls) == 1
     assert not any("send-keys" in call for call in calls)
+    assert sum(call[0] == "codex" for call in calls) == 1 and [call for call in calls if call[0] == "codex"][0] == ["codex", "--version"]
+    assert [call for call in calls if call[1:3] == ["pane", "close"]] == [["herdr", "pane", "close", "wire:p1"]]
     report.update(status="PASS", projections=projections, prompt_intents=1, real_model_turns=0, rejected_credential_source=bad_source,
-                  post_skip_waits=waits, fixture=None)
+                  post_answer_waits=waits, stuck_result_preserved=stuck, fixture=None)
 finally:
     target = Path(sys.argv[1])
     with target.open("x", encoding="utf-8") as stream:

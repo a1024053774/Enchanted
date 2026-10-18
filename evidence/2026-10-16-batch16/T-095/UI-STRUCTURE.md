@@ -18,6 +18,8 @@ Ubiquitous language 保持内部值 `waiting_controller_answer`、显示名“�
 
 ## 原件回归与已知限制
 
-red 折叠原件只有 Working、没有上述锚点，按新规则为 unknown，记录 blocked 单边成立。删除了旧的“原生 pending + blocked + 普通活动画面就判等待”的路径。red 展开、green 和 green-independent 的两种面板均有相应锚点；三份原件离线回放只算回归，下一次新会话才是新的独立验证。
+red 折叠原件只有 Working、没有上述锚点，按新规则为 unknown，记录 blocked 单边成立。删除了旧的“原生 pending + blocked + 普通活动画面就判等待”的路径。red 展开、green 和 green-independent 的两种面板均有相应锚点；三份原件离线回放只算回归。faa2b9b3 冻结后采集的第 4 回合 green-anchor-independent，两形态现场与读回均为等待；原件位置见 RESULTS.md。
 
 三个历史 run 的实际投影和 NO_GO 结果保持不变。skip 后原生没有可关联的解决事件，即便出现同 turn sleep 返回或继续执行，也只能证明屏幕不再显示面板，不能证明已解决；继续 unknown 并留冲突。`accepted:true` 始终只是回执。
+
+主控 #120 转达用户选 B，main `0e92f78ec6824265cdfcbb9387ba4b454d7eee7f` 的 T-095“裁定”明确：红态改为修前读取没有独立等待状态；回落改为离开等待，skip 后 unknown 算满足，但仍不证明问题已解决。第 4 回合三个 skip 后阶段因此满足新回落标准，旧合同的 NO_GO 记录保留。只追加第 5 个根提示回合验证操作者提交 A 的路径，之后不得再追加；答完仍停在等待即失败。该裁定不改变上述产品识别、原生绑定或冲突保护。

@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-# 真实模型预算：本次最多新增 1 个根提示回合（主控 #115 追加授权）。
-# 原三次探针已用 3 个；本次跑完累计最多 4 个，不重跑旧阶段。
+# 真实模型预算：本次最多新增 1 个根提示回合（用户选 B，主控 #120）。
+# 已用 4 个；本次是最后一个，累计最多 5 个，之后不得追加或重跑。
 # 不自动回答、不重投、不 resume。根回合限额不是 API 请求数或费用硬限额。
 # 只有执行主控核对后，才能在沙箱外加 --approve-one-root-turn 运行。
 # 用户已允许 T-095 不用等名额；此例外不扩展到其他任务。
 # 默认只打印计划：不复制凭据、不创建 pane、不调用模型。
 # 操作顺序：COLLAPSED 之前保持默认折叠，不按 Shift+←，也不先展开再折叠；
 # 收到 CAPTURED collapsed 后，在自建 pane 用 Shift+← 展开；
-# 收到 CAPTURED expanded 后，按界面明确提供的 Ctrl+] skip 跳过问题，
-# 不按 Enter 提交答案；没有 skip 提示时终止，不猜测取消键。
+# 收到展开采集及投影完成的提示后，确认光标为“› 1. A”，直接按一次 Enter 提交 A。
+# 不按数字键 1，不按 Ctrl+] skip；若光标不在 A，用 ↑ / ↓ 移到 A，再按 Enter。
+# 没有 A 或 enter submit 提示时终止，不猜测按键。
 # 操作完每一步，都回脚本终端输入对应确认词；脚本不代按方向键。
-# skip 即时采集完成后，再只读观察 30 秒和 60 秒两个截止点，留存后续原生事件，再关闭自建 pane。
+# 提交 A 的即时采集完成后，再只读观察 30 秒和 60 秒，留存原生事件，再关闭自建 pane。
 """T-095 真实面板采集草案；只准备探针，不实现状态判定。"""
 import argparse
 import datetime as dt
@@ -34,7 +35,8 @@ PROMPT = """这是 T-095 提问面板的受控复现，不是开发任务。
 “T-095 面板复现：请选择 A 或 B。”选项固定为“A”和“B”。
 调用后等待操作者回答，不自行回答，不关闭问题，不再提出第二个问题。
 如果没有 request_user_input_async 工具，只回复 PANEL_TOOL_UNAVAILABLE 并结束。
-操作者会采集面板的折叠和展开画面，然后取消并关闭本测试。
+操作者会先采集默认折叠和展开画面，再在面板选择 A 并按 Enter 提交。
+收到操作者答案后，不再提出问题，只回复 ANSWER_RECEIVED 并结束。
 """
 
 
@@ -66,13 +68,16 @@ def native_args(workspace):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--approve-one-root-turn", action="store_true")
-    parser.add_argument("--phase", choices=("green-anchor-independent",), default="green-anchor-independent")
+    parser.add_argument("--phase", choices=("answered",), default="answered")
     parser.add_argument("--auth-json", type=Path, default=Path.home() / ".codex/auth.json")
     args = parser.parse_args()
     plan = dict(status="INCOMPLETE", phase=args.phase, root_turn_limit=1, automatic_answers=0,
-                prior_root_turns=3, authorized_total_root_turns=4, authorization="executor #115 / controller #8",
-                collapsed_before_first_expand=True, post_skip_observation_seconds=[30, 60],
-                post_skip_observation_reference="cancelled capture completed",
+                prior_root_turns=4, authorized_total_root_turns=5, authorization="user option B; executor #120 / controller #10",
+                collapsed_before_first_expand=True, post_answer_observation_seconds=[30, 60],
+                post_answer_observation_reference="answered capture completed",
+                manual_answer=dict(option="A", key="Enter", count_limit=1, source="operator_declaration"),
+                acceptance=dict(panels="waiting_controller_answer with worker and launch identity",
+                                after_answer="leave waiting_controller_answer; unknown is allowed; native resolution is recorded separately"),
                 retries=0, expected_codex=EXPECTED_CODEX, prompt=PROMPT,
                 argv=["codex", *native_args(Path("/tmp/<new-fixture>"))],
                 archive=str(ARCHIVE), wall_seconds=240)
@@ -136,8 +141,7 @@ def main():
         manifest.setdefault("captures", []).append(dict(label=label, first=first, last=sequence, at=now(),
                                                        layout_source="operator_declaration"))
         save()
-        print(f"CAPTURED {label}：{pane} 采集完成；下一步以脚本提示为准。", flush=True)
-        if label in ("collapsed", "expanded", "cancelled", "cancelled-followup-30s", "cancelled-followup-60s"):
+        if label in ("collapsed", "expanded", "answered", "answered-followup-30s", "answered-followup-60s"):
             if not manifest.get("native_session"):
                 binding = isolated_session(record["native_store"], workspace)
                 native = binding["id"]
@@ -154,6 +158,7 @@ def main():
             manifest.setdefault("projections", []).append(dict(label=label, command=sequence,
                                                                  output=json.loads(raw)))
             save()
+        print(f"CAPTURED {label}：{pane} 的读屏与状态投影均已完成；下一步以脚本提示为准。", flush=True)
 
     def confirm(token, instruction):
         print(instruction, flush=True)
@@ -228,14 +233,16 @@ def main():
         capture("collapsed")
         confirm("EXPANDED", f"步骤 2：已输出 CAPTURED collapsed。现在切回自建 {pane}，按 Shift+← 展开，核对同一个问题内容。不要输入答案。完成后回到脚本终端输入 EXPANDED，脚本才会采集展开画面。")
         capture("expanded")
-        confirm("CANCELLED", f"步骤 3：已输出 CAPTURED expanded。现在只在自建 {pane} 按界面明确提供的 Ctrl+] skip 跳过当前问题；如还有待答问题，继续按该界面提供的 skip，直到面板不再显示。Shift+→ 只折叠，不能当作取消。不要按 Enter 提交答案，也不要猜测 Esc。确认面板不再显示后回脚本终端输入 CANCELLED；脚本立即采集一次，再只读观察 30 秒和 60 秒两个截止点，不发送新提示或答案，随后关闭自建 pane、归档原生记录并删除隔离 HOME。没有 skip 提示或无法结束时输入其他内容终止，脚本仍会关闭自建 pane。")
-        capture("cancelled")
-        manifest["post_skip_observation_started_at"] = now()
+        confirm("ANSWERED", f"步骤 3：展开读屏与状态投影已完成。现在只在自建 {pane} 的提问面板核对选项 A 与 enter submit。若光标显示 › 1. A，直接按一次 Enter 提交 A，不要按数字键 1；若光标在 B 或 Other，用 ↑ / ↓ 移到 A，看到 › 1. A 后再按一次 Enter。不要按 Ctrl+] skip、Shift+→ 或 Esc，不在主输入框另发 A，不发第二条提示。提交后确认提问面板已消失；若面板仍在，照实回脚本输入 ANSWERED 并采集，不再次按键。完成这一次提交后回脚本终端输入 ANSWERED；没有选项 A、没有 enter submit 提示或不能确认提交时输入其他内容终止，不重试。随后即时、30 秒和 60 秒只读采集，期间不要再输入或关闭 pane。脚本不会发送答案。")
+        manifest["operator_answer"] = dict(option="A", key="Enter", submissions=1, source="operator_declaration", confirmed_at=now())
+        save()
+        capture("answered")
+        manifest["post_answer_observation_started_at"] = now()
         observed_at = time.monotonic()
         for seconds in (30, 60):
-            print(f"只读观察 skip 后原生事件：等待到 {seconds} 秒截止点；请勿输入或关闭自建 {pane}。", flush=True)
+            print(f"只读观察提交 A 后原生事件：等待到 {seconds} 秒截止点；请勿输入或关闭自建 {pane}。", flush=True)
             time.sleep(max(0, observed_at + seconds - time.monotonic()))
-            capture(f"cancelled-followup-{seconds}s")
+            capture(f"answered-followup-{seconds}s")
         manifest["collection_complete"] = True
         # 采集完成不等于红态、绿态或验收通过；由独立检查核对原件。
     except (OSError, ValueError, KeyError, RuntimeError, TimeoutError, subprocess.TimeoutExpired, KeyboardInterrupt, EOFError) as exc:

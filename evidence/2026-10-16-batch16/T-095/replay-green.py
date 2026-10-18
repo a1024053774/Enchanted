@@ -77,7 +77,8 @@ def main():
         (case / "stderr.txt").write_text(result.stderr, encoding="utf-8")
         (case / "exit.txt").write_text(str(result.returncode) + "\n", encoding="utf-8")
         observed = json.loads(result.stdout)
-        expected = "waiting_controller_answer" if label in ("collapsed", "expanded") else "working"
+        panel = label in ("collapsed", "expanded")
+        expected = ["waiting_controller_answer"] if panel else ["working", "idle", "unknown"]
         matches_recorded = all(observed[key] == capture["observed_projection"][key]
                                for key in ("state", "reason", "raw_state", "conflicts"))
         identity_correct = (observed["worker"] == inputs["worker"] and observed["launch"] == inputs["launch"]
@@ -88,7 +89,7 @@ def main():
                             raw_state=observed["raw_state"], returncode=result.returncode,
                             conflicts=observed["conflicts"], identity_correct=identity_correct,
                             matches_recorded=matches_recorded, read_only=read_only,
-                            meets_contract=observed["state"] == expected and identity_correct,
+                            meets_contract=observed["state"] in expected and identity_correct,
                             command=argv, raw_output=str(case / "stdout.json"), native_bytes=cutoff))
     replay_ok = all(row["identity_correct"] and row["read_only"] and row["returncode"] in (0, 2) for row in results)
     accepted = all(row["meets_contract"] for row in results)
@@ -99,6 +100,7 @@ def main():
                   matches_original_projection=all(row["matches_recorded"] for row in results),
                   candidate_revision=subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip(),
                   source_archive=inputs["source_archive"], command=[sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+                  acceptance_source="main 0e92f78ec6824265cdfcbb9387ba4b454d7eee7f T-095 裁定；主控 #120：回落为离开等待，unknown 满足",
                   real_model_turns=0, cases=results, fixture=str(directory), files=len(files), bytes=sum(path.stat().st_size for path in files),
                   adaptations=["Recreate only the archived launch native_store path in a temporary SQLite index.",
                                "Replay captured Herdr replies through an explicit fake executable; do not contact the closed live pane.",
