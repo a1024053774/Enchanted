@@ -8,7 +8,7 @@
 
 1. **两层网络限制。** 生产 R 入口显式要求上游端口 443，没有端口覆盖 CLI 选项；F 的 OS 规则为 TCP `*:443`，**OS 层不再按主机限制**。F 应用层固定配置 hostname／IPv4，连接前和 lookup 核对、拒绝不符并记账；不跟随 redirect、不接受入站 Host 改目标、无 fallback。CLI C 只允许转发层本地端口，直接访问上游被拒。无模型链用同一个 policies(session) 生成 18443，编译逐字比较仅端口不同；实跑另一个活端口被 OS 拒绝，应用主机反例不联网。不得把测试端口实跑外推成真实上游 443 连通性。
 2. **正常登录不恢复。** 按主控 #125，recover 在任何 CLI 命令（含 --version／PTY）前识别 authentication="isolated normal login"，保留为未恢复，错误 normal_login_restore_requires_protected_start，提示从正常登录入口重新启动。即使提供上下文标记也不续接，不读 auth；完整 R/F/D/C 恢复另票。假 API／合法旧记录恢复不退化，worker 不恢复／不改 attempt。
-3. **运行时身份。** 版本和 session 核对后、PTY 前由完整 argv[0] 的 realpath 建立 runtimeRecord 的 executable_path；历史 record 不写回，已有规范身份改变即拒绝。不得删合法旧记录正例、截 argv、硬塞 leader、跳过版本或 session。原生七场核对保存的内核 argv、进程／session、任务／角色、原 launch 和历史 nonce；正常登录拒绝另有独立 L0/L1 证据，七场 fake API 不替它背书。
+3. **运行时身份。** 版本和 session 核对后、PTY 前由完整 argv[0] 的 realpath 建立 runtimeRecord 的 executable_path；历史 record 不写回，已有规范身份改变即拒绝。不得删合法旧记录正例、截 argv、硬塞 leader、跳过版本或 session。原生七场核对保存的内核 argv、进程／session、任务／角色、原 launch 和历史 nonce。缺 executable_path 的合法旧记录正例由 test_t096_restore 的 L1 及其独立审查覆盖，不冒称七场新启动的原生记录就是该旧记录场景；正常登录拒绝也另有独立 L0/L1 证据。
 4. **libproc 对所有 pane 的影响。** Panes.processInfo 从 setuid ps 改为 Python libproc helper，不是 T-093 专用路径。审查 helper 的错误传播／树与前台组／唯一规范执行文件，以及所有 14 个直接调用；临时 helper 不可当 leader、未知结果不可放行。不能只看“正常登录链通过”。下表与 T-091／T-078／T-096 回归需一起核对。
 5. **证据与收尾。** 请求先逐条持久化后转发，400→200 重试两条都计入；真实 HOME 全目录 OS 禁写、独占不存在文件的拒写与事后不存在、合成 HOME 删规则变异、只读清单按裁定 A 仅报告。凭据／正文不入 Git／日志；R 的原 auth 一次精确读取例外不扩为其他条目。U 零／部分监听也有关闭收据，错误收据／EPERM／活进程不当退出；主失败先落盘、清理错误单列，写入者逐项退出后才删整根。原三个反例、空凭据变体、首条漏记及恒一致计数变异不放宽。
 
