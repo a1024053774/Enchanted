@@ -97,6 +97,7 @@ def main():
         good=good and value.get('primary_failure')==expected and value.get('status')==('PASS' if expected is None else 'INCOMPLETE')
         good=good and value.get('cleanup_failures')==[] and value.get('fixture_removed') is True
         good=good and all(value.get(k)==0 for k in ('real_model_turns','real_cli_starts','real_upstream_requests','real_auth_reads','git_index_credential_hits'))
+        good=good and (value.get('facts') or {}).get('network_boundary')=={'os_host_filter':False,'os_remote_ports':[443],'application_host_lock':True}
         cleanup_errors=cleanup_proof(value,path,expected)
         good=good and not cleanup_errors
         if args.rehearsal:
@@ -110,6 +111,14 @@ def main():
         observed=value.get('counterexamples',{}).get('foreground_process_query',{})
         good=good and observed.get('observer',{}).get('method')=='macOS libproc' and observed.get('observer',{}).get('root_pid')==observed.get('shell_pid')
         good=good and any(row.get('pid')==observed.get('leader') and row.get('pid')==row.get('pgid')==row.get('tpgid') and isinstance(row.get('command'),str) and Path(row['command']).name=='fake-claude' for row in observed.get('processes',[]))
+        if kind!='drop-first-record':
+            app=value.get('counterexamples',{}).get('application_host_lock',{})
+            app_rows=app.get('checks',[])
+            expected_app={'configured','incoming_host_ignored','non_configured_target','lookup_hostname_mismatch','redirect_not_followed'}
+            good=good and app.get('status')=='PASS' and len(app_rows)==5 and {row.get('case') for row in app_rows}==expected_app and all(row.get('status')=='PASS' for row in app_rows)
+            for row in app_rows:
+                rejected=row.get('case') in ('non_configured_target','lookup_hostname_mismatch')
+                good=good and row.get('connections_started')==(0 if rejected else 1) and row.get('recorded_error')==('upstream_host_mismatch' if rejected else None)
         if kind in ('none','green'):
             raw=value.get('forwarder_raw_records',[]);requests=[r for r in raw if r.get('kind')=='request'];outcomes=[r for r in raw if r.get('kind')=='outcome']
             receipts=value.get('independent_upstream_receipts',[]);facts=value.get('facts',{});counter=value.get('counterexamples',{})
@@ -122,7 +131,8 @@ def main():
             initial=counter.get('preflight',{})
             good=good and initial.get('phase')=='before_cli_input' and initial.get('counts',{}).get('model_requests')==0 and initial.get('counts',{}).get('counts_match') is True and initial.get('credential_scan',{}).get('hits')==0 and initial.get('credential_scan',{}).get('launch_record_hits')==0 and initial.get('inventory',{}).get('comparison_pending') is True
             good=good and counter.get('synthetic_guard',{}).get('mutant_rejected') is True
-            good=good and counter.get('forwarder',{}).get('unconfigured_upstream',{}).get('denied') is True and counter.get('cli',{}).get('upstream_bypass',{}).get('denied') is True
+            port_guard=counter.get('forwarder',{}).get('non_443_port',{})
+            good=good and port_guard.get('denied') is True and isinstance(port_guard.get('port'),int) and port_guard['port']!=443 and counter.get('cli',{}).get('upstream_bypass',{}).get('denied') is True
             good=good and len(counter.get('credential_injections',[]))==6 and all(r.get('hits',0)>0 for r in counter.get('credential_injections',[]))
             good=good and counter.get('missing_record',{}).get('counts',{}).get('counts_match') is False
             good=good and facts.get('cleanup',{}).get('cleanup_failures')==[] and facts.get('cleanup',{}).get('primary_failure') is None

@@ -1,10 +1,11 @@
 # a2a 门禁、编排后台与工作台
 
-T-096 恢复候选尚未验收：Electron 创建或显式关闭窗格时，把 launch 与位置追加到
+T-096 恢复已合入 main；与 T-093 libproc 组合的原生恢复回归仍待执行。Electron 创建或显式关闭窗格时，把 launch 与位置追加到
 现有 SQLite 事件流；退出应用只断开视图，保留打开集。未传 `--launch` 时读取该任务
 保存的窗格集，并沿用位置。只有从未保存过布局才选择当前窗格；明确关闭最后一格后，
 保存集为空，重开仍显示空视图。后台只自动恢复主控窗格：按原启动记录构造完整续接 argv，
 Claude 仅把 `--session-id` 换为 `--resume`；其余参数与 profile 环境取原记录。
+恢复在原版本／session 核对之后、PTY 启动之前建立规范 executable_path；旧历史记录不变，只给运行时副本补齐。已有规范身份与当前目标不同则拒绝，不改变 argv 或硬设 leader。
 缺 argv、版本不符、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
 恢复不发送提示词或放行旧队列。按 T-096 的 2026-10-18 裁定 B，worker 窗格保留并显示
 “未恢复”，不启动 CLI、不重绑定、不改变 attempt；后续由执行主控按中断恢复流程处理。
@@ -369,16 +370,16 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：primary04／green04 及演练独立核对通过；chain-07 的五场与 chain-08 counts 单场均符合预期，后者已完成严格关闭确认及独立核对。两组分别绑定两个候选，最终独立审查与门禁仍未完成。
+当前为 INCOMPLETE：第二轮审查确认非 loopback F profile 无法编译及恢复身份不兼容。现已按修订裁定改为 OS 限 TCP 443、应用层锁配置主机，并合入 main 修复恢复运行时身份；局部红绿通过，新 OS 与原生恢复回归仍待主控。
 夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
-最新证据清单及第二轮独立审查范围见 [交接请求 15](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-15.md)；
+最新修正、OS 验证与恢复回归命令见 [交接请求 16](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-16.md)；
 共享调用点与 T-091／T-078／T-096 回归命令仍见 [请求 13](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-13.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
 manifest 在既有字段外设置 `authentication: "normal-login"`、`version: "2.1.302"`、
 明确的 `credential_source: "macos-keychain"` 或 `"file"`，以及唯一的 `upstream_url`。
-URL 可以是配置的 HTTPS 地址／端口，或测试用的 `http://127.0.0.1:端口`；没有默认上游或 fallback。
+正常登录上游端口必须为 443：使用配置的 HTTPS 地址，或测试用 `http://127.0.0.1:443`；没有默认上游或 fallback。
 
 正常登录使用独立的受保护 daemon。先准备已有合同要求的角色目录、task 和 manifest，再由操作者启动：
 
@@ -399,15 +400,16 @@ CLI executable 使用规范实际路径，避免版本符号链接与进程身�
 准备函数失败时先让 R 保存主错误，再删除私有准备根；清理错误不替换原异常。真实入口在 state 下
 独占保存 login-preparation-failure-UUID.json 和单独的 .cleanup.json，只记录类型／errno，不公开错误原文。
 
-`upstream-address` 是 URL 的显式 IPv4 网络地址，由操作者配置。F 仅连接该地址与 URL 的端口；
-不查询 DNS、不轮换地址，TLS 使用 URL 的原始主机名验证证书。HTTP 假上游必须匹配 127.0.0.1；
+`upstream-address` 是 URL 的显式 IPv4 网络地址，由操作者配置。**OS 层不再按主机限制**，F 的 OS 出站规则为 TCP `*:443`；其他出站端口不允许。
+应用层捕获配置主机，在 transport 前及 lookup 边界核对；不匹配即拒绝并记 upstream_host_mismatch。入站 Host 不决定目标，F 不跟随重定向。
+正常请求固定连接配置的 IPv4，不查询 DNS、不轮换地址，TLS 使用 URL 的原始主机名验证证书。HTTP 假上游必须匹配 127.0.0.1；
 不支持 IPv6。绿态只配置本地假上游，真实域名的 DNS／TLS 与真实模型仍未实测。
 
 | 进程／阶段 | profile 与权限 |
 | --- | --- |
 | R 凭据准备 | 在业务沙箱之外精确读一次。文件来源只读 ~/.claude/.credentials.json；钥匙串只查 Claude Code-credentials 和指定 login.keychain-db，不枚举、不换来源。仅复制 claudeAiOauth 到私有 /private/tmp/a2a-claude-login-*，文件 0600 |
 | C 根 daemon、PTY、zsh、CLI、原生 hook／tool、进程查询 helper、事实子进程 | 最外层只施加一次 C，后代继承；禁写整个真实 HOME，保留 HOME 读取屏障，只例外读取 CLI／Node、workbench 源码及依赖；TCP 只到 F 的固定本地端口，Unix socket 仅本次 control.sock；禁止 Security，保留 fork／exec |
-| F 独立进程 | 在 C 启动前独立施加 F，脱离调用者进程组并 reparent；只写自己的 forwarder 记录目录、只监听固定 P、只连接配置上游地址及端口；禁止其他网络、Security 与 fork |
+| F 独立进程 | 在 C 启动前独立施加 F，脱离调用者进程组并 reparent；只写自己的 forwarder 记录目录、只监听固定 P；OS 允许任意主机的 TCP 443，配置主机／IPv4 由应用层锁定；禁止其他出站端口、Security 与 fork |
 | D 基线及清单／隔离根清理 helper | 原始 auth 读取前由一次短 D 进程采基线；长期 D 独立施加相同 profile。无出站、无 Security、无 fork，只写私有根及自己的收据目录。HOME 只读目录/stat，不读正文（源码除外）；快照仅留私有根，C 输出差异后由 D 删除整个根 |
 
 R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没有不受保护的长期监督进程。
@@ -450,6 +452,7 @@ python3 -I -S -B workbench/src/claudeLoginSession.py --stage facts --preflight -
 ```
 
 preflight 标明 before_cli_input、当时的入口计数与扫描结果，结束后 HOME 对比仍是 pending；
+preflight 与结束事实的 network_boundary 明确报告 os_host_filter=false、os_remote_ports=[443]、application_host_lock=true；这不是逐连接网络审计。
 后续重新读取会重数当前原件，保存的入口计数／扫描时间仍是历史事实。它不批准模型输入。
 正常结束后用同一入口去掉 `--preflight`。C 内部子进程使用 `node workbench/src/claudeLoginCheck.ts [--preflight] AUDIT`，
 继承 C，不再嵌套 V。外部入口关闭额外 FD、禁写真实 HOME、禁网络和 Security，并保留 HOME 读取屏障。
@@ -473,7 +476,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-旧残留已由主控清理。演练已确认完整派发 JSON 与两次 hook／Stop；counts 收尾复验和独立核对已完成，按请求 15 进入第二轮独立审查。
+旧残留已由主控清理。旧演练与 chain-07/08 仅属于各自候选；新 F 权限及 main 组合须按请求 16 重新验证，不沿用旧本地端口规则的 PASS。
 演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
 正式六场的预期业务断言与命令在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
 
@@ -484,7 +487,7 @@ C/F 对认证源的拒读拒写不变。D 先读回 C 已 fsync 的 cleanup_pend
 最终 all_exited 必须与每条最终 group／child 退出记录一致；`node workbench/tests/test_t093_writer_exit.mjs 新输出.json` 检查先前 ESRCH 后最终 EPERM 的时序，任一未确认行禁止删除。
 所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
 结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
-processInfo 影响所有 pane：窗口输入、放行／中断、反馈和 hook／Stop 身份重查。T-091 IPC 与 T-078 局部回归已执行；T-096 不在本 worktree，集成前必须核对恢复运行的规范身份与旧记录合同，不能沿用其旧 PASS，详见请求 13。
+processInfo 影响所有 pane：窗口输入、放行／中断、反馈和 hook／Stop 身份重查。合并后 T-091 IPC、T-078 及 T-096 纯恢复合同回归通过；T-096 原生 tracer、three、四个故障及 empty-reopen 仍待逐屏批准实跑，失败交主控重开 T-096，不能沿用旧 PASS。
 
 ## Electron 窗口
 

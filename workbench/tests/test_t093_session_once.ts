@@ -27,8 +27,9 @@ try{
  await owner.preflight({argv:['cli','/synthetic-home/injected']});
  const initial=JSON.parse(readFileSync(join(root,'audit/preflight.json'),'utf8'));
  assert.equal(initial.phase,'before_cli_input');assert.equal(initial.counts.model_requests,0);assert.equal(initial.credential_scan.hits,0);assert.equal(initial.inventory.comparison_pending,true);assert.equal(initial.launch_home_references.length,1);
- writeFileSync(process.argv[2],JSON.stringify({status:'PASS',scope:'synthetic ownership/preflight only; fake PID and counter files, no service or OS evidence',checks:['exactly one concurrent prepare succeeds','second prepare fails before acquiring or cleaning shared resources','input-before checkpoint records counts, references, scan and pending inventory']},null,2)+'\n',{flag:'wx'});
- console.log('{"status":"PASS","checks":3}');
+ assert.deepEqual(initial.network_boundary,{os_host_filter:false,os_remote_ports:[443],application_host_lock:true},'facts_must_disclose_OS_host_filter_removed');
+ writeFileSync(process.argv[2],JSON.stringify({status:'PASS',scope:'synthetic ownership/preflight only; fake PID and counter files, no service or OS evidence',checks:['exactly one concurrent prepare succeeds','second prepare fails before acquiring or cleaning shared resources','input-before checkpoint records counts, references, scan and pending inventory','facts disclose no OS host filter, TCP 443 and application host lock']},null,2)+'\n',{flag:'wx'});
+ console.log('{"status":"PASS","checks":4}');
 }finally{
  process.env=previous;rmSync(privateRoot,{recursive:true});rmSync(root,{recursive:true});
 }

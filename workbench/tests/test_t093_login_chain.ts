@@ -56,6 +56,13 @@ try {
   assert(readBoundary.content.denied&&readBoundary.content.bytes_read===0,"C_actual_HOME_content_read_must_remain_denied");
   assert(readBoundary.ancestor_directory_entries.denied,"C_ancestor_directory_enumeration_must_remain_denied");
   await file(join(session.metadata_directory,"ready.json"));
+  stage="wait_upstream";
+  await wait(()=>{
+    const failed=join(root,"U/startup-failed.json");
+    if(existsSync(failed))throw Object.assign(new Error("fake_upstream_listener_unavailable"),{errno:load(failed).errno,path:failed});
+    return existsSync(join(root,"U/ready.json"));
+  },"fake_upstream_443_ready_deadline");
+  assert.equal(fixture.upstream_port,443,"fake_upstream_must_use_443");
   stage="compile";
   await run("/usr/bin/clang",["-O0","-Wall","-Werror",join(fixture.source,"workbench/tests/t093_fake_claude.c"),"-o",session.manifest.executable]);
   copyFileSync(join(fixture.source,"workbench/tests/t093_fake_login_peer.py"),join(root,"fake-login-peer.py"));
@@ -93,7 +100,8 @@ try {
   assert(fGuard.home_read_boundary.content.denied&&fGuard.home_read_boundary.content.bytes_read===0,"F_actual_HOME_content_read_must_remain_denied");
   assert(fGuard.home_read_boundary.ancestor_directory_entries.denied,"F_ancestor_directory_enumeration_must_remain_denied");
   assert.equal(fGuard.outside_records_write.denied,true,"F_write_must_stay_in_records");
-  assert.equal(fGuard.unconfigured_upstream.denied,true,"F_unconfigured_upstream_must_be_denied");
+  assert.equal(fGuard.non_443_port.denied,true,"F_non_443_port_must_be_denied");
+  assert.notEqual(fGuard.non_443_port.port,443,"OS_port_negative_must_not_probe_443");
   assert.equal(fGuard.other_listener.denied,true,"F_other_listener_must_be_denied");assert.equal(fGuard.fork.denied,true,"F_fork_must_be_denied");counterexamples.forwarder=fGuard;
   const pythonGuards=[];
   for(const path of [join(session.forwarder_directory,"python-guards.json"),join(session.metadata_directory,"guards.json"),join(root,"U/guards.json")]){
@@ -139,6 +147,12 @@ try {
   const results=panes.store.db.prepare("SELECT data FROM relay_results").all().map((r:any)=>JSON.parse(r.data));
   assert.equal(results.length,1);assert.equal(results[0].ok,true);assert.deepEqual(results[0].entries.map((v:any)=>v.entry.id),[fixture.inbox_sentinel]);assert.equal(panes.status(launch.thread).state,"idle");
   checks.push("two attempts journaled before independent upstream; 400 retry counted; native hook/Stop inbox sentinel delivered once");
+  stage="application_host_boundary";
+  const hostReport=join(root,"application-host-boundary.json");
+  await run(process.execPath,["--experimental-vm-modules",join(fixture.source,"workbench/tests/test_t093_forwarder_host.ts"),hostReport]);
+  counterexamples.application_host_lock=load(hostReport);
+  assert.equal(counterexamples.application_host_lock.status,"PASS","F_application_host_lock_must_reject_other_host");
+  checks.push("OS permits only TCP 443 without host filter; application hostname guard rejects supplied wrong targets without network");
   stage="counterexamples";
   const extra=launch.argv.length, injected={...launch,argv:[...launch.argv,session.real_home+"/t093-path-counterexample"]};
   const refs=homeReferences(injected,session.real_home);

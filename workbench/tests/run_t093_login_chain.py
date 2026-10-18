@@ -130,7 +130,7 @@ def snapshot(source, root, mutation):
     target=root/'code'; work=target/'workbench'; work.mkdir(parents=True)
     shutil.copytree(source/'workbench/src',work/'src',ignore=shutil.ignore_patterns('__pycache__'))
     (work/'tests').mkdir(); (work/'bin').mkdir()
-    for name in ('test_t093_login_chain.ts','t093_chain_evidence.ts','t093_fake_claude.c','t093_fake_login_peer.py','t093_parallel_chain_peer.py','t093_forwarder_guard.ts','t093_home_read_boundary.ts','probe_t093_parent_sandbox.py','probe_t093_parallel_profiles.py'):
+    for name in ('test_t093_login_chain.ts','t093_chain_evidence.ts','t093_fake_claude.c','t093_fake_login_peer.py','t093_parallel_chain_peer.py','t093_forwarder_guard.ts','test_t093_forwarder_host.ts','t093_home_read_boundary.ts','probe_t093_parent_sandbox.py','probe_t093_parallel_profiles.py'):
         shutil.copyfile(source/'workbench/tests'/name,work/'tests'/name)
     shutil.copyfile(source/'workbench/bin/inbox',work/'bin/inbox')
     shutil.copyfile(source/'workbench/package.json',work/'package.json')
@@ -210,8 +210,11 @@ def main(context):
     runtime=load_module(code_source/'workbench/src/claudeLoginSession.py')
     context['setup_stage']='choose_ports'
     ports=set()
-    while len(ports)<4:ports.add(49152+secrets.randbelow(16000))
-    p,u,other,bind=sorted(ports)
+    while len(ports)<3:ports.add(49152+secrets.randbelow(16000))
+    p,other,bind=sorted(ports)
+    # The current F contract permits outbound TCP 443 only. Never fall back
+    # to another port or reuse a listener owned by another application.
+    u=443
     (root/'upstream-port').write_text(str(u));(root/'host-home').write_text(str(home))
     manifest={'schema':1,'root':str(root),'state':str(root/'state'),'task':'t093-chain','preset':'ideation','launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),'executable':str(root/'fake-claude'),'version':'2.1.302','role_file':str(root/'roles/ideation/role.md'),'code_revision':args.source_revision,'source_snapshot':str(code_source),'authentication':'normal-login','credential_source':'file','upstream_url':f'http://127.0.0.1:{u}','turn_limit':3}
     context['setup_stage']='prepare_session'

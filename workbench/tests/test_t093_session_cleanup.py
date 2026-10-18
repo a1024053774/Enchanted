@@ -61,7 +61,7 @@ with tempfile.TemporaryDirectory(prefix='t093-session-unit-',dir='/private/tmp')
  for name in ('state','repo','source-home/.claude'):(root/name).mkdir(parents=True)
  oauth={'accessToken':'synthetic-session-unit-token','expiresAt':(time.time()+600)*1000}
  (root/'source-home/.claude/.credentials.json').write_text(json.dumps({'claudeAiOauth':oauth,'unrelated':'do-not-copy'}))
- manifest={'authentication':'normal-login','version':'2.1.302','credential_source':'file','upstream_url':'https://configured.invalid:9443/','root':str(root),'state':str(root/'state'),'launch':str(uuid.uuid4()),'executable':'/usr/bin/true'}
+ manifest={'authentication':'normal-login','version':'2.1.302','credential_source':'file','upstream_url':'https://configured.invalid/','root':str(root),'state':str(root/'state'),'launch':str(uuid.uuid4()),'executable':'/usr/bin/true'}
  order=[];original_auth=runtime.read_auth
  def baseline(value):order.append('baseline');return {},{'profile':'D simulated in unit'}
  def copied(*args):order.append('auth');return original_auth(*args)
@@ -73,12 +73,12 @@ with tempfile.TemporaryDirectory(prefix='t093-session-unit-',dir='/private/tmp')
   private=Path(session['private_root']);copied=runtime.read(private/'home/.claude/.credentials.json')
   assert list(copied)==['claudeAiOauth']
   assert runtime.read(private/'home/.claude/.claude.json')=={'hasCompletedOnboarding':True,'projects':{str(root/'repo'):{'hasTrustDialogAccepted':True}}}
-  assert session['upstream_port']==9443 and '(remote tcp4 "localhost:9443")' in session['profiles']['F']
+  assert session['upstream_port']==443 and '(remote tcp4 "*:443")' in session['profiles']['F']
   assert '(deny process-fork)' in session['profiles']['F'] and '(deny process-fork)' in session['profiles']['D']
   assert '(allow network-bind network-inbound (literal '+json.dumps(str(root/'state/control.sock'))+'))' in session['profiles']['C']
   assert all(p.count('(version 1)')==1 for p in session['profiles'].values())
  finally:shutil.rmtree(private)
-checks.append('one synthetic auth read; only OAuth copied; generated minimal state; explicit peer/port, no DNS or nested profile')
+checks.append('one synthetic auth read; only OAuth copied; generated minimal state; F OS allows TCP 443 without host filter; no DNS or nested profile')
 with tempfile.TemporaryDirectory(prefix='t093-session-paths-',dir='/private/tmp') as temporary:
  root=Path(temporary)
  for name in ('state','repo','source-home/.claude','redirect'):(root/name).mkdir(parents=True)

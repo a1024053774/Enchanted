@@ -20,6 +20,7 @@ export class ClaudeForwarder {
   readonly #token: string;
   readonly #secrets: readonly string[];
   readonly #upstream: URL;
+  readonly #hostname: string;
   readonly #address: string;
   readonly #server = createServer((req, res) => this.receive(req, res));
   readonly #sockets = new Set<Socket>();
@@ -32,6 +33,7 @@ export class ClaudeForwarder {
   #failure: string | null = null;
   private constructor(options: { directory: string; upstream_url: string; upstream_address: string; port: number; access_token: string; secrets: readonly string[] }) {
     this.directory = options.directory; this.#upstream = upstreamUrl(options.upstream_url);
+    this.#hostname = this.#upstream.hostname;
     this.#address = options.upstream_address;
     this.#token = options.access_token; this.#secrets = options.secrets;
     mkdirSync(this.directory, { mode: 0o700 });
@@ -94,11 +96,18 @@ export class ClaudeForwarder {
       req.resume(); settle(401, "login_bearer_required"); res.writeHead(401, { "content-type": "application/json" }).end('{"error":"login_bearer_required"}'); return;
     }
     const headers = Object.fromEntries(Object.entries(req.headers).filter(([key]) => !hop.has(key)));
+    // OS restricts ports only. Reject target drift before any transport call.
+    if (this.#upstream.hostname !== this.#hostname) {
+      req.resume(); settle(null, "upstream_host_mismatch"); res.writeHead(502).end(); return;
+    }
     const send = this.#upstream.protocol === "https:" ? httpsRequest : httpRequest;
     // Journal request and fsync are complete before this network boundary.
     this.#forwarded++;
     try { upstream = send(this.#upstream, { method: req.method, path: req.url, headers, family: 4, autoSelectFamily: false, agent: false,
-      lookup: (_hostname, _options, callback) => callback(null, this.#address, 4) }, response => {
+      lookup: (hostname, _options, callback) => {
+        if (hostname !== this.#hostname) { callback(Object.assign(new Error("upstream_host_mismatch"), { code: "A2A_UPSTREAM_HOST_MISMATCH" }), "", 4); return; }
+        callback(null, this.#address, 4);
+      } }, response => {
       res.writeHead(response.statusCode!, Object.fromEntries(Object.entries(response.headers).filter(([key]) => !hop.has(key))));
       response.on("end", () => settle(response.statusCode!, null));
       response.on("error", () => { settle(response.statusCode!, "upstream_response_error"); res.destroy(); });
@@ -107,7 +116,7 @@ export class ClaudeForwarder {
       settle(null, "upstream_request_invalid"); req.resume(); res.writeHead(502).end(); return;
     }
     upstream.setTimeout(300_000, () => { settle(null, "upstream_timeout"); upstream!.destroy(); res.destroy(); });
-    upstream.on("error", () => { settle(null, "upstream_error"); if (!res.headersSent) res.writeHead(502); res.end(); });
+    upstream.on("error", (error: NodeJS.ErrnoException) => { settle(null, error.code === "A2A_UPSTREAM_HOST_MISMATCH" ? "upstream_host_mismatch" : "upstream_error"); if (!res.headersSent) res.writeHead(502); res.end(); });
     res.on("close", () => { if (!finished) { settle(null, "client_closed"); upstream?.destroy(); } });
     req.pipe(upstream);
   }

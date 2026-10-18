@@ -261,6 +261,11 @@ export class Panes implements GateRuntime {
           expected: record.cli_version, observed: probe.stdout.trim() });
         const nativeFile = nativeSessionFile(record, opened.native_session!);
         check(record.shell === "/bin/zsh" && record.env && isAbsolute(record.worktree), "restore_launch_invalid");
+        const executablePath = realpathSync(argv[0]!);
+        check(record.executable_path === undefined || record.executable_path === executablePath, "restore_executable_changed");
+        // Legacy launch history is immutable. Bind this restored runtime only,
+        // after the original version/session checks and before creating a PTY.
+        const runtimeRecord = { ...record, executable_path: executablePath };
         const token = randomUUID();
         const trace = join(this.root, "traces", record.id, "pty.raw");
         check(existsSync(trace), "trace_unavailable");
@@ -269,7 +274,7 @@ export class Panes implements GateRuntime {
           name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
           env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
         });
-        const pane: Pane = { record: record as Pane["record"], token, task, attempt: null, pty: terminal,
+        const pane: Pane = { record: runtimeRecord as Pane["record"], token, task, attempt: null, pty: terminal,
           state: "unknown", stopped: false, archived: false, failed: null, leader: null,
           native: opened.native_session, nativeFile, turn: null, nativeEnded: false, active: null,
           queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,

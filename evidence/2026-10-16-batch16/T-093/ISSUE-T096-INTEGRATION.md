@@ -1,6 +1,7 @@
 # 集成前检查：T-096 恢复入口与进程查询接口
 
 状态：**INCOMPLETE，阻塞 T-093＋T-096 的集成通过结论；不阻塞本票提示比对修复的局部检查。**
+2026-10-18 主控 #122 更新：main 0e92f78ec（含 T-096 fd5c93e6e）已由主控合并为 64c6456de2b7c0111628defce442d999a26734db。worker 已在恢复路径实现运行时规范身份，旧记录／argv／版本／session 合同保留；原生七项恢复回归仍未执行，故集成通过结论继续 INCOMPLETE。失败按主控裁定重开 T-096。
 来源：主控 #111 要求列出全 pane 影响；只读来源为 exec/t096 的 d61876fe29916ccf577da7b9b912cf305d9fdd9d，未修改该分支或其 attempt。
 
 观察到：该版本 `workbench/src/panes.ts:230–246` 在版本校验后创建恢复 PTY，并直接以保存的旧 record 作为 pane.record；原版本 record 没有 executable_path。
@@ -15,4 +16,5 @@ T-093 的进程查询使用该字段与内核路径比较。若集成时只替�
 4. 更新纯合同测试的 subprocess／realpath IO 替身以对应实际新边界，保留原业务预期和变异断言。不得绕开 processInfo、把 leader 固定为成功或删除旧记录正例。
 5. 执行请求 13 中的 T-096 纯合同与原生重启回归；缺任一层证据，整体仍 INCOMPLETE。
 
-本 worker 没有把 T-096 代码合进本 worktree，不 push、不 rebase、不直接修改另一票的文件或地图，也没有把 T-096 旧 PASS 当本候选的非退化证据。
+以上观察及建议保留为主控 #111 阶段的原始问题。主控 #122 合并后，已在版本／native session 核对之后、PTY spawn 之前 realpathSync(argv[0])；已有 executable_path 不一致则拒绝，合法旧记录仅在运行时 record 副本补齐。
+test_t096_restore.mjs 的旧记录正例仍保留，另覆盖已有身份匹配／改变，历史记录不变、完整 argv、worker 未恢复、空布局及原变异断言均保留；IO 替身对应 libproc JSON，不给固定 leader。合并后的纯合同已通过，原生回归入口见请求 16；不 push、不 rebase、不改另一票地图／验收状态。

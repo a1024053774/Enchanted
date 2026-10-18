@@ -97,6 +97,7 @@ export class ClaudeLogin {
     const ledger = "forwarder/journal/requests.jsonl";
     const scan = scanCredentialFiles(this.#input.state, this.#secrets);
     const facts = { schema: 2, phase: "before_cli_input", task: this.#input.task, launch: this.#input.launch,
+      network_boundary: { os_host_filter: false, os_remote_ports: [443], application_host_lock: true },
       session: this.#input.session, code_revision: this.#input.code_revision, ledger,
       forwarder: counters, counts: countForwarderRecords(join(s.audit_directory, ledger), counters.received),
       launch_home_references: homeReferences(record, this.realHome),
@@ -149,6 +150,7 @@ export class ClaudeLogin {
       const stateIntact = config.hasCompletedOnboarding === true && config.projects?.[s.repo.normalize("NFC")]?.hasTrustDialogAccepted === true;
       const removed = await this.removeHome();
       const facts = { schema: 2, build_ticket: "T-093", task: this.#input.task, launch: this.#input.launch,
+        network_boundary: { os_host_filter: false, os_remote_ports: [443], application_host_lock: true },
         session: this.#input.session, thread: this.#input.thread, preset: this.#input.preset,
         code_revision: this.#input.code_revision, source_snapshot: this.#input.source_snapshot,
         spec_rev: (record as Record<string, unknown>).spec_rev, cli_version: "2.1.302", ledger, counts,

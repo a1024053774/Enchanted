@@ -3,6 +3,7 @@
 All session data must be outside the OS account HOME. No DNS lookup, fallback,
 vendor turn, or global setting is performed. The caller supplies one pinned
 IPv4 peer for the configured URL. TLS still checks that URL's hostname.
+F's OS policy restricts ports only; the forwarder enforces the configured host.
 """
 import sys
 sys.dont_write_bytecode = True
@@ -99,7 +100,6 @@ def policies(session):
         source_barrier = '(deny file-read* file-write* (subpath ' + q(session["credential_home"]) + '))'
     common = '(version 1)(allow default)(deny file-write* (subpath ' + q(home) + '))(deny network*)(deny mach-lookup (global-name-regex #".*[Ss]ecurity.*"))'
     port = session["forward_port"]
-    peer = 'localhost' if session["upstream_address"] == '127.0.0.1' else session["upstream_address"]
     socket_path = str(Path(session["manifest"]["state"]) / "control.sock")
     c = common + read_barrier + source_barrier
     c += '(allow network-outbound (remote tcp4 "localhost:' + str(port) + '"))'
@@ -107,7 +107,9 @@ def policies(session):
     c += '(allow network-bind network-inbound (literal ' + q(socket_path) + '))'
     f = common + read_barrier + source_barrier + '(deny process-fork)(deny file-write*)(allow file-write* (subpath ' + q(session["forwarder_directory"]) + '))'
     f += '(allow network-bind network-inbound (local tcp4 "localhost:' + str(port) + '"))'
-    f += '(allow network-outbound (remote tcp4 "' + peer + ':' + str(session["upstream_port"]) + '"))'
+    # macOS accepts * or localhost, not numeric remote-host filters.
+    # The application locks the configured hostname; OS permits only TCP 443.
+    f += '(allow network-outbound (remote tcp4 "*:443"))'
     # D reads directories/stat in the four approved scopes, never HOME file
     # bodies (except this program's source). Its private snapshots are removed
     # with the isolated HOME, before facts can be considered complete.
@@ -133,7 +135,8 @@ def prepare(manifest, repo, forward_port, upstream_address, lifetime, credential
     url = urlsplit(manifest["upstream_url"])
     if url.username or url.password or url.path not in ('', '/') or url.query or url.fragment or not url.hostname:
         raise ValueError("invalid_login_upstream")
-    peer_port = url.port or (443 if url.scheme == 'https' else 0)
+    peer_port = url.port if url.port is not None else (443 if url.scheme == 'https' else 0)
+    if peer_port != 443: raise ValueError("upstream_port_443_required")
     if not 1 <= peer_port <= 65535 or not (url.scheme == 'https' or url.scheme == 'http' and url.hostname == upstream_address == '127.0.0.1'):
         raise ValueError("invalid_login_upstream")
     if ':' in url.hostname:

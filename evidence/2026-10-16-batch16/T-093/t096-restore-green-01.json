@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "scope": "real SQLite/native files; supplied process boundaries; not GUI/CLI end-to-end evidence",
+  "checks": [
+    "two_controllers_resume",
+    "three_refusals_isolate_siblings",
+    "worker_unrestored_no_pty",
+    "attempt_unchanged",
+    "argv_every_field_equal",
+    "actual_pty_argv_every_field_equal",
+    "launch_immutable",
+    "saved_positions",
+    "explicit_close_excluded",
+    "zero_input_writes",
+    "saved_empty_persists_in_sqlite",
+    "never_saved_and_native_only_distinct",
+    "layout_saved_state_scoped_to_task"
+  ],
+  "model_turns": 0,
+  "known_bad": {
+    "revision": "a8fbc72bdf88de661f25ffce8d9ac9dff3f3c4f6",
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Managed worker must remain unrestored pending explicit reclaim\n+ actual - expected\n\n+ null\n- 'restore_managed_attempt_requires_reclaim'\n"
+  },
+  "spawn_argv_mutant": {
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Actual PTY command must carry every independently supplied argv field\n+ actual - expected\n\n+ \"'/fixture/claude' '--resume' 'eacddfd6-4000-46e0-ac1a-5a434da618fe'; exec /bin/zsh -f -i\"\n- `'/fixture/claude' '--resume' 'eacddfd6-4000-46e0-ac1a-5a434da618fe' '--model' 'sentinel-ideation' '--effort' 'low' '--settings' '{\"hooks\":{},\"sentinel\":\"a b\\\\\"c\"}'; exec /bin/zsh -f -i`\n"
+  }
+}

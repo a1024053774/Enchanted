@@ -25,7 +25,7 @@ try {
   const isolation: any = { homeRoot: privateRoot, home: join(privateRoot, "home"), config: join(privateRoot, "home/.claude"),
     tmp: join(privateRoot, "tmp"), shell: join(privateRoot, "shell"), debug: join(privateRoot, "debug.log"),
     api_url: "http://127.0.0.1:23102", audit_directory: join(root, "audit") };
-  const normal = { ...common, authentication: "normal-login", credential_source: "file", upstream_url: "http://127.0.0.1:23103" };
+  const normal = { ...common, authentication: "normal-login", credential_source: "file", upstream_url: "http://127.0.0.1:443" };
   const check = (name: string, run: () => void) => {
     try { run(); checks.push({ name, status: "PASS" }); }
     catch (error) { checks.push({ name, status: "INCOMPLETE", error: String(error) }); }

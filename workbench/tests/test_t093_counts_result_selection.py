@@ -27,6 +27,8 @@ with tempfile.TemporaryDirectory(prefix='t093-counts-oracle-unit-',dir='/private
   'source_home_cleanup':{'profile':'D test source cleanup','source_home':str(root/'source-home'),'removed':True,'credential_body_read':False,'checkpoint_sequence':2},
   'service_receipts':{'D_guards':{'source_content_read':{'denied':True,'bytes_read':0,'errno':1}}},
   'counterexamples':{'foreground_process_query':{'observer':{'method':'macOS libproc','root_pid':550900},'shell_pid':550900,'leader':550903,'processes':[{'pid':550903,'pgid':550903,'tpgid':550903,'command':str(root/'fake-claude')}]}}}
+ control['facts']={'network_boundary':{'os_host_filter':False,'os_remote_ports':[443],'application_host_lock':True}}
+ control['counterexamples']['application_host_lock']={'status':'PASS','checks':[{'case':name,'status':'PASS','connections_started':0 if denied else 1,'recorded_error':'upstream_host_mismatch' if denied else None} for name,denied in [('configured',False),('incoming_host_ignored',False),('non_configured_target',True),('lookup_hostname_mismatch',True),('redirect_not_followed',False)]]}
  history=[{'sequence':1,'phase':'business_pending','primary_failure':None},{'sequence':2,'phase':'cleanup_pending','primary_failure':primary},{'sequence':3,'phase':'complete','primary_failure':primary,'fixture_removed':True}]
  for case in ('counts_only','cleanup_failure','permission_unknown','writer_alive','wrong_primary','wrong_case','wrong_candidate','duplicate','default_requires_all_six','rehearsal_conflict'):
   value=copy.deepcopy(control);target=directory/(case+'.input.json');verdict=directory/(case+'.verdict.json')

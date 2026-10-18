@@ -35,7 +35,7 @@ def policy():
  actual=set(re.findall(r'\(literal "([^"]+)"\)',metadata))
  assert actual==expected,'metadata_allowance_must_use_exact_ancestors'
  assert metadata==''.join('(literal '+json.dumps(path)+')'+' ' for path in sorted(expected)).rstrip()+')'
- session={'real_home':home,'private_root':'/private/tmp/private','credential_home':home,'manifest':{'executable':home+'/.local/claude/2.1.302','state':'/private/tmp/state'},'forward_port':52101,'upstream_address':'127.0.0.1','upstream_port':52102,'forwarder_directory':'/private/tmp/F','metadata_directory':'/private/tmp/D'}
+ session={'real_home':home,'private_root':'/private/tmp/private','credential_home':home,'manifest':{'executable':home+'/.local/claude/2.1.302','state':'/private/tmp/state'},'forward_port':52101,'upstream_address':'127.0.0.1','upstream_port':443,'forwarder_directory':'/private/tmp/F','metadata_directory':'/private/tmp/D'}
  profiles=runtime.policies(session)
  for role in ('C','F'):
   assert prefix in profiles[role] and '(deny file-write* (subpath "/Users/fixture-user"))' in profiles[role]

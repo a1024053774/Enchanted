@@ -121,8 +121,12 @@ def main():
         def log_message(self, *args): pass
     servers = []
     try:
-        for port in (fixture['upstream_port'], fixture['other_port']):
-            server = LocalServer(('127.0.0.1', port), Handler); server.timeout = 2; servers.append(server)
+        try:
+            for port in (fixture['upstream_port'], fixture['other_port']):
+                server = LocalServer(('127.0.0.1', port), Handler); server.timeout = 2; servers.append(server)
+        except OSError as error:
+            runtime.save(root / 'U/startup-failed.json', {**own, 'error': 'fake_upstream_listener_failed', 'errno': error.errno, 'port': port})
+            raise
         runtime.save(root / 'U/ready.json', own)
         while not (root / 'U/stop').exists() and time.time() < session['deadline']:
             ready,_,_ = select.select(servers,[],[],.03)

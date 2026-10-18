@@ -9,6 +9,8 @@
 
 最新交接为 [第二轮独立审查请求 15](REVIEW-REQUEST-T093-15.md)。主控 #117 已回传 chain-08 counts／V 单场 PASS；它与 chain-07 的其余五场、rehearsal-04 的预期结果均符合要求，但分别绑定下文列出的两个候选，不存在新候选六场统一重跑的记录。T-096 跨票恢复检查仍未完成。以下各“当前／最新”文字均保留为其对应阶段的历史记录。
 
+最新交接改为 [修订候选请求 16](REVIEW-REQUEST-T093-16.md)：第二轮审查报告 independent-review-02.md 保持原文；主控 #121/#122 修订 F 为 OS 仅限 TCP 443、应用层锁主机，**OS 层不再按主机限制**。main 已合入，恢复运行时身份及新网络逻辑的局部检查通过；新 OS 与 T-096 原生七场仍 INCOMPLETE，旧链路 PASS 不替本候选背书。
+
 更新：独立审查 01 对第一次冻结候选 1d4c58b4a 给出 **NO_GO（验收文件缺口）**，报告原文保留。
 下文首次交付的 PASS 均是当时运行证据，不提升为新候选的独立审查通过。当前仅修正验收输入与审查驱动的失败保存，产品源码未改；新外部复验与新独立审查仍待完成，见末节。
 
@@ -517,3 +519,22 @@ git diff 确认产品 workbench/src、app、hooks 和依赖配置完全未变，
 
 rehearsal-04 的 primary／green 与 V PASS 继续绑定 079842e8b。主失败先落盘、完整派发 JSON、hook／Stop 和产品不变量未变；新 finally 的变化另由 chain-08 OS 实跑及 UPSTREAM-SHUTDOWN-REVIEW-02 的局部时序／删条件变异证明。没有重跑新候选两场演练。
 独立审查应核对上述证据延续范围，不能只看组合场景均符合预期就宣布同一新版本全套通过。下一步由主控安排新的只读第二轮审查；本轮只整理既有文本，不再启动链路、OS 查询、auth 或模型。
+
+## 主控 #121/#122：端口规则、应用主机锁定与恢复身份修复
+
+**整票 INCOMPLETE；局部检查通过，真实模型仍为 0。** 第二轮独立审查为 INCOMPLETE，independent-review-02.md、REVIEW-OUTSIDE-03.sh 均按原字保留。主控在沙箱外编译实际 F：127.0.0.1 通过，203.0.113.31 报 host must be * or localhost；原件摘要 profile-compile-review02-red.json 保留。
+worker 合并因 ORIG_HEAD.lock 写共享 Git 目录被沙箱拒绝，未申请升级；主控执行 MERGE-MAIN-16.sh 并代为提交，合并头为 64c6456de2b7c0111628defce442d999a26734db，双亲含旧 T-093 与 main 0e92f78ec（T-096 fd5c93e6e）。无冲突。MERGE-BLOCKED-16.md 是此前暂停记录；本段覆盖其“尚未合并”状态。
+
+主控 #121 修订其网络裁定，构思主控在 #122 确认没有超出 T-092 决定。F 的 OS 规则现在为 remote tcp4 "*:443"，**OS 层不再按主机限制**。应用捕获配置 hostname，在 transport 前拒绝目标漂移，lookup 再核对 hostname 并只返回配置 IPv4；入站 Host 被剔除，不跟随重定向。非配置目标拒绝记录为 upstream_host_mismatch；原件仍先写 request 并 fsync，失败／重试仍逐条计数。
+prepare 在读取原始 auth 或启动服务前拒绝非 443；本地假链固定 HTTP 127.0.0.1:443，若占用或权限不足报 INCOMPLETE，不换端口、不重用别人的 listener、不申请 root。C、D、HOME、Security、fork、Unix socket、门禁规则未放宽。preflight／结束事实新增 network_boundary 三字段，明确 OS 主机过滤为 false，不能当作全网络审计。
+forwarder-host-red-02 在旧实际 handler 的两种非配置目标时序命中业务拒绝，green-02 五项通过；分别去掉 transport 前和 lookup 校验的变异都被 non_configured_host_must_not_connect 拒绝。测试只用 supplied transport，不向 127.0.0.2 或假主机联网。端口最终 green-02 五项为纯构造／prepare 校验，含显式 0；旧 or 会将 0 当默认端口，port-zero-red-01 复现，现只对未声明端口的 HTTPS 默认 443。**这些不证明本机编译或 OS 拒连已通过**。
+network-fact-red-01 因缺少新边界字段被业务断言拒绝，green-02 验证实际 preflight；没有把事实字段常量当 OS 执行证明。旧记录与回归仍保留。
+
+恢复红态在合并原源码上复现：版本／session／给定内核身份均合法，缺 executable_path 的旧记录仍报 restore_process_missing。最终同信号红态 t096-restore-red-03 没有早期 PTY 替身的 kill 缺字段干扰；red-01/02 仍保留，不丢弃失败。
+修复在原版本与 native session 核对后、PTY spawn 前建立 realpathSync(argv[0])，已有规范身份不同则 restore_executable_changed。只给运行时 record 副本补字段，历史启动记录不变、原 argv 完整，leader 仍来自实际 processInfo，未改版本／session 条件或 worker 归属。
+test_t096_restore 的两个旧记录正例、已有身份匹配、身份改变拒绝均通过；保留历史 worker 误恢复反例、实际 PTY argv 缩短变异，新增删除身份校验／伪造 leader 变异均命中业务断言。测试给定 subprocess／PTY／clock／realpath 边界，真实 SQLite/native 文件；不是原生恢复实跑。
+合并后的 T-091 IPC（含空布局）19 项、版本 8 项、observer 11 项、alias 2 项、T-078 runtime 11 项／relay 22 项、T-096 daemon 7 项／进程 probe 11 项／argv 材料 5 项通过；均注明边界替身，未执行真实进程查询或 Electron。
+
+新 OS 入口为 T093-OS-16.sh：先只编译，再 primary／green／V 与正式六场。新链实际 F 负例检查非 443 端口，应用目标反例在 C 内用真实 handler＋传输替身验证；两个层次分别留证。旧 probe_t093_parallel_profiles.py 的 standalone 入口与旧 OS 结果属于原 localhost/端口方案，不作为新 F 权限证明。
+T096-REGRESSION-16.sh 提供 tracer、three、missing-argv、version-mismatch、missing-session、isolation、empty-reopen；仅主控沙箱外运行，初始化仍逐屏批准，脚本不自动按键／登录或预置内部状态。任何失败保留现场，交主控按裁定重开 T-096，worker 不自行修改另一票验收或自动重试。
+本轮没有真实 auth 读取、真实供应商 CLI、实际 OS profile、真实上游或模型回合。合并／修复局部通过不等于七场原生恢复或新网络权限已验收。报告复制遇旧同名文件时独占创建拒绝，旧件未覆盖，新件改用 r16 名称，见 evidence-copy-collision-16.json。
