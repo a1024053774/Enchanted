@@ -12,6 +12,7 @@ import sys
 sys.dont_write_bytecode = True
 from launch_records import FIELDS, find_launch
 from record_io import read_records, token, utc_now
+from native_questions import NativeUnreadable, read_native
 
 
 LABELS = {"unknown": "未知", "working": "工作中", "idle": "空闲",
@@ -117,14 +118,16 @@ def check_identity(record, initial, before, after):
                 or not isinstance(initial_native.get("value"), str) or not initial_native["value"]):
             raise Unreadable("invalid_launch_native_identity")
         initial_bound = initial_native["value"]
+    if initial_bound is not None and natives[0] is None:
+        raise Unreadable("live_native_identity_missing")
     bound = registered if registered != "unknown" else initial_bound
-    if bound is not None and natives[0] != bound:
+    if bound is not None and natives[0] is not None and natives[0] != bound:
         raise Unreadable("launch_native_identity_mismatch")
     if (type(before.get("state_change_seq")) is not int
             or before["state_change_seq"] != after.get("state_change_seq")
             or before.get("agent_status") != after.get("agent_status")):
         raise Unreadable("live_state_changed")
-    binding = "launch_record" if bound is not None else "launch_terminal_and_stable_current_native" if natives[0] is not None else "launch_terminal"
+    binding = "launch_record" if bound is not None and natives[0] is not None else "native_log_required"
     return dict(terminal=initial["terminal_id"], native_session=natives[0], native_binding=binding,
                 revision_before=before.get("revision"), revision_after=after.get("revision"))
 
@@ -189,10 +192,11 @@ def main():
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1], help="保存 records/launches.jsonl 的 checkout")
     parser.add_argument("--launch", required=True, type=token)
     parser.add_argument("--timeout", type=float, default=3.0, help="每次只读 Herdr 调用的期限，秒")
+    parser.add_argument("--native-store", type=Path, help="当前 worker 的 Codex 原生索引；未传则用启动记录 native_store")
     args = parser.parse_args()
     output = dict(schema=1, observed_at=utc_now(), launch=args.launch, project=None, task=None, attempt=None,
                   worker=None, pane=None, state="unknown", state_label=LABELS["unknown"],
-                  raw_state=None, reason=None, identity=None, evidence=[], calls=[])
+                  raw_state=None, reason=None, identity=None, native=None, conflicts=[], evidence=[], calls=[])
     try:
         if not 0 < args.timeout <= 10:
             raise Unreadable("invalid_timeout")
@@ -203,14 +207,27 @@ def main():
         pane = record["pane"]
         before = live_agent(herdr(["agent", "get", pane], args.timeout, output["calls"]))
         output["raw_state"] = before.get("agent_status")
+        check_identity(record, initial, before, before)
+        store = str(args.native_store) if args.native_store is not None else record.get("native_store")
+        if args.native_store is not None and record.get("native_store") and args.native_store.resolve() != Path(record["native_store"]).resolve():
+            raise Unreadable("native_index_configuration_conflict")
+        native_before = read_native(store, record)
         screens = {source: herdr(["agent", "read", pane, "--source", source, "--format", "text"], args.timeout, output["calls"])
                    for source in ("visible", "detection")}
         after = live_agent(herdr(["agent", "get", pane], args.timeout, output["calls"]))
         current, current_initial = launch_identity(read_records(args.root.resolve() / "records/launches.jsonl"), args.launch, {})
-        if any(record[field] != current[field] for field in FIELDS) or initial != current_initial:
+        if (any(record[field] != current[field] for field in FIELDS) or initial != current_initial
+                or record.get("native_store") != current.get("native_store")):
             raise Unreadable("launch_record_changed_during_read")
         record = current
         output["identity"] = check_identity(record, initial, before, after)
+        native_after = read_native(store, record)
+        output["native"] = native_after
+        if any(native_before[key] != native_after[key] for key in ("turn_id", "pending", "resolved", "path", "device", "inode")):
+            output["conflicts"].append(dict(native_before=native_before["state"], native_after=native_after["state"],
+                                            reason="native_changed_during_screen_read", decision="unknown"))
+            raise Unreadable("native_question_state_changed")
+        output["identity"].update(native_session=record["native_session"], native_binding="launch_record_and_native_log")
         frames = {source: screen_frame(text, record) for source, text in screens.items()}
         for source, frame in frames.items():
             output["evidence"].append(dict(source=source, **frame))
@@ -218,11 +235,17 @@ def main():
         if len(kinds) != 1:
             raise Unreadable("screen_readings_disagree")
         kind = next(iter(kinds))
-        if kind == "question":
+        pending = native_after["state"] == "pending"
+        if pending and kind == "activity" and output["raw_state"] == "blocked":
+            output.update(state="waiting_controller_answer", reason="native_question_and_action_required", panel_form="collapsed")
+        elif pending and kind == "question":
             selections = {(frame["selected_option"], frame["option_count"]) for frame in frames.values()}
             if len(selections) != 1:
                 raise Unreadable("question_selection_changed")
             output.update(state="waiting_controller_answer", reason="question_panel_controls", panel_form="expanded")
+        elif pending or kind == "question":
+            output["conflicts"].append(dict(native=native_after["state"], screen=kind, herdr=output["raw_state"], decision="unknown"))
+            raise Unreadable("screen_native_conflict")
         elif kind == "activity" and output["raw_state"] == "working":
             output.update(state="working", reason="current_activity_frame")
         elif kind == "activity" and output["raw_state"] == "blocked":
@@ -233,6 +256,8 @@ def main():
             raise Unreadable("activity_and_raw_state_disagree")
     except Unreadable as exc:
         output.update(state="unknown", reason=exc.reason, details=exc.details)
+    except NativeUnreadable as exc:
+        output.update(state="unknown", reason=exc.reason, native=dict(state="unknown", details=exc.details))
     except (OSError, ValueError, KeyError, TypeError) as exc:
         output.update(state="unknown", reason="invalid_launch_record", details=dict(error=str(exc)))
     output["state_label"] = LABELS[output["state"]]

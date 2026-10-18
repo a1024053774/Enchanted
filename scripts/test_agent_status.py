@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,11 @@ if data.get('record_change') and a[:2] == ['agent','read']:
     for row in rows:
         row['task'] = 'externally-replaced-task'
     target.write_text(''.join(json.dumps(row) + '\\n' for row in rows), encoding='utf-8')
+if data.get('native_change') and a[:2] == ['agent','read'] and not (p/'native-shifted').exists():
+    with pathlib.Path(data['native_log']).open('a',encoding='utf-8') as f:
+        f.write(json.dumps({'type':'response_item','payload':{'type':'function_call_output','call_id':'question-call',
+                      'output':json.dumps({'answers':{'q1':{'answers':['A']}}})}})+chr(10))
+    (p/'native-shifted').write_text('explicit producer mutation')
 if data.get('fail_command') == a[:2]:
     print('explicit synthetic Herdr failure', file=sys.stderr)
     sys.exit(1)
@@ -48,6 +54,35 @@ def frame(body="• Working (14s • esc to interrupt)"):
     return (body + "\n\n\n› Ask Codex to do anything\n\n"
             "  GPT-6.1-Sol xhigh fast · /fixture · synthetic contract\n"
             "  ? for shortcuts\n")
+
+
+def native_rows(session, cwd, mode="clear"):
+    result = [dict(type="session_meta", payload=dict(id=session, cwd=cwd, source="cli", cli_version="0.163.0")),
+              dict(type="event_msg", payload=dict(type="task_started", turn_id="fixture-turn"))]
+    if mode == "clear":
+        return result
+    asynchronous = mode in ("pending", "receipt", "publication-incomplete", "async-answered", "async-empty", "foreign-delivery", "uncorrelated-user", "invalid-receipt")
+    request = dict(type="response_item", payload=dict(type="function_call", name="request_user_input_async" if asynchronous else "request_user_input",
+        call_id="question-call", arguments=json.dumps({"questions":[{"title":"fixture question"}] if asynchronous else [{"id":"q1","header":"fixture","question":"fixture question"}]}),
+        internal_chat_message_metadata_passthrough=dict(turn_id="fixture-turn")))
+    result.append(request)
+    if asynchronous:
+        result.append(dict(type="event_msg",payload=dict(type="item_completed",thread_id=session,turn_id="fixture-turn",
+            item=dict(type="AgentMessage",id="question-call",delivery="async",questions=[{"title":"fixture question"}]))))
+        if mode != "publication-incomplete":
+            result.append(dict(type="response_item",payload=dict(type="function_call_output",call_id="question-call",output='{"accepted":true}')))
+        if mode in ("async-answered", "async-empty"):
+            result.append(dict(type="response_item",payload=dict(type="function_call_output",call_id="question-call",
+                output=json.dumps({"answers":{} if mode=="async-empty" else {"q1":{"answers":["A"]}}}))))
+        if mode=="foreign-delivery": result[3]["payload"]["thread_id"]="foreign-session"
+        if mode=="invalid-receipt": result[4]["payload"]["output"]='{"accepted":1}'
+        if mode=="uncorrelated-user":
+            result.append(dict(type="event_msg",payload=dict(type="item_completed",thread_id=session,turn_id="fixture-turn",
+                item=dict(type="UserMessage",id="unmatched-user",content=[{"type":"text","text":"not interpreted as an answer"}]))))
+    elif mode in ("answered", "empty-response", "orphan-response"):
+        result.append(dict(type="response_item",payload=dict(type="function_call_output",call_id="other-call" if mode=="orphan-response" else "question-call",
+            output=json.dumps({"answers":{} if mode=="empty-response" else {"q1":{"answers":["A"]}}}))))
+    return result
 
 
 def run_case(entry, directory, number, case):
@@ -86,8 +121,8 @@ def run_case(entry, directory, number, case):
     if case.get("empty_initial_native"):
         started["herdr_result"]["result"]["agent"]["agent_session"] = []
     rows = [prepared, started]
-    if case.get("bound"):
-        rows.append(dict(started, phase="native-session", native_session=native))
+    if recorded:
+        native = json.loads((EVIDENCE / "real-native-inputs.json").read_text(encoding="utf-8"))["records"][0]["payload"]["id"]
     data = dict(before=copy.deepcopy(live), after=copy.deepcopy(live),
                 visible=case.get("screen", frame()), detection=case.get("detection", case.get("screen", frame())))
     if recorded:
@@ -100,7 +135,7 @@ def run_case(entry, directory, number, case):
         for target in ("before", "after"):
             data[target]["agent_session"]["value"] = "replaced-native"
     if case.get("latest_mutation"):
-        rows.append(dict(started, phase="native-session", native_session=native, agent="other-worker"))
+        pass  # Applied to the bound row below, without invalidating phase order.
     if case.get("superseded"):
         other = dict(prepared, launch_id="launch-newer")
         rows.extend([other, dict(other, phase="started", pane=pane, agent=agent_name, herdr_result=started["herdr_result"])])
@@ -108,6 +143,33 @@ def run_case(entry, directory, number, case):
         data["fail_command"] = case["fail_command"]
     if case.get("record_change"):
         data.update(record_change=True, record_path=str(root / "records/launches.jsonl"))
+    native_log, native_store = root / "misleading-file-name.log", root / "native-index.sqlite"
+    if case.get("native_change"):
+        data.update(native_change=True,native_log=str(native_log))
+    native_mode = case.get("native", "clear")
+    events = native_rows(native, prepared["cwd"], native_mode)
+    if recorded:
+        captured_native=json.loads((EVIDENCE / "real-native-inputs.json").read_text(encoding="utf-8"))["records"]
+        events=copy.deepcopy(captured_native[:2] if case.get("native_after_submit") else captured_native)
+    if case.get("wrong_native_header"):
+        events[0]["payload"]["id"]="foreign-session"
+    content_native="".join(json.dumps(row)+"\n" for row in events)
+    if case.get("partial_native"):
+        content_native=content_native[:-1]
+    if case.get("native_no_turn"):
+        content_native=json.dumps(events[0])+"\n"
+    native_log.write_text(content_native,encoding="utf-8")
+    db=sqlite3.connect(native_store)
+    db.execute("CREATE TABLE threads (id TEXT PRIMARY KEY, rollout_path TEXT, cwd TEXT, source TEXT)")
+    db.execute("INSERT INTO threads VALUES (?,?,?,?)",("foreign-id" if case.get("wrong_index_id") else native,
+               str(case.get("native_original",native_log)),prepared["cwd"],"cli"))
+    db.commit();db.close()
+    if not case.get("native_unbound"):
+        rows.append(dict(started,phase="native-session",native_session=native,native_store=str(native_store)))
+    if case.get("latest_mutation"):
+        rows[-1]["agent"]="other-worker"
+    if case.get("missing_native_store"):
+        native_store.unlink()
     if case.get("prepared_only"):
         rows = rows[:1]
     launches = root / "records/launches.jsonl"
@@ -154,10 +216,15 @@ def run_case(entry, directory, number, case):
             if expected in ("working", "waiting_controller_answer"):
                 assert value["pane"] == pane and value["task"] == prepared["task"], value
                 assert {item["source"] for item in value["evidence"]} == {"visible", "detection"}, value
+            if case.get("conflict"):
+                assert value["conflicts"], value
         calls = [json.loads(line) for line in (observer / "calls.jsonl").read_text(encoding="utf-8").splitlines()] if (observer / "calls.jsonl").exists() else []
         assert all(a[:2] in (["agent", "get"], ["agent", "read"]) and a[2] == pane for a in calls), calls
         assert not (root / "records/.launches.lock").exists()
-        assert sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file()) == ([] if case.get("missing_record") else ["records/launches.jsonl"])
+        expected_files={"misleading-file-name.log"}
+        if not case.get("missing_native_store"): expected_files.add("native-index.sqlite")
+        if not case.get("missing_record"): expected_files.add("records/launches.jsonl")
+        assert {str(p.relative_to(root)) for p in root.rglob("*") if p.is_file()} == expected_files
         if launches.exists() and not case.get("record_change"):
             assert launches.read_text(encoding="utf-8") == content
     except (AssertionError, KeyError, ValueError, OSError, subprocess.TimeoutExpired) as exc:
@@ -172,6 +239,7 @@ def main():
     parser.add_argument("--entry", type=Path, default=REPO / "scripts/agent-status")
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--panel-contract", action="store_true", help="核对两种真实面板都必须正判等待；不能用安全 unknown 通过")
+    parser.add_argument("--full-native-red", action="store_true", help="通过索引绑定未裁剪的红态原生日志，只回放同一 worker 的三种稳定画面")
     args = parser.parse_args()
     if args.report.exists():
         raise ValueError("报告已存在，保留旧证据；请使用新文件名")
@@ -217,8 +285,8 @@ def main():
     meta = json.loads((EVIDENCE / "real-panel-inputs.json").read_text(encoding="utf-8"))
     panel = "\n  独立哨兵问题，不匹配 T-095 或 A/B 文本。\n\n  › 2. 任意选项\n\n  enter submit   ⌃] skip   option 2/4   ⇧→ main prompt\n"
     cases.extend([
-        dict(name="question-with-unseen-title-and-selection", expected="waiting_controller_answer", screen=panel),
-        dict(name="question-despite-raw-blocked", expected="waiting_controller_answer", screen=panel, raw_state="blocked"),
+        dict(name="question-with-unseen-title-and-selection", expected="waiting_controller_answer", screen=panel,native="pending"),
+        dict(name="question-despite-raw-blocked", expected="waiting_controller_answer", screen=panel, raw_state="blocked",native="pending"),
         dict(name="question-quoted-in-transcript", expected="working", screen=frame("• Printed a synthetic quote:" + panel + "\n• Working (4s • esc to interrupt)")),
         dict(name="question-controls-truncated", expected="unknown", screen=panel.replace("   ⇧→ main prompt", "")),
         dict(name="question-title-truncated", expected="unknown", screen=panel.replace("  独立哨兵问题，不匹配 T-095 或 A/B 文本。\n", "")),
@@ -228,15 +296,42 @@ def main():
     ])
     recorded_cases = [dict(name="real-" + label, expected=expected,
                            recorded=dict(meta=meta, capture=meta["captures"][label]),
+                           native_after_submit=label=="after-submit",conflict=label=="cancelled",
                            source=meta["source_archive"] + "/run.json; exact captured read payloads")
-                      for label, expected in (("collapsed", "unknown"), ("expanded", "waiting_controller_answer"),
-                                              ("cancelled", "working"), ("after-submit", "unknown"))]
+                      for label, expected in (("collapsed", "waiting_controller_answer"), ("expanded", "waiting_controller_answer"),
+                                              ("cancelled", "unknown"), ("after-submit", "unknown"))]
     if args.panel_contract:
         cases = [dict(case, expected="waiting_controller_answer") for case in recorded_cases[:2]]
     else:
         cases.extend(recorded_cases)
         cases.append(dict(recorded_cases[1], name="real-question-then-manual-skip",
-                          sequence=["waiting_controller_answer", "working"], next_capture=meta["captures"]["cancelled"]))
+                          sequence=["waiting_controller_answer", "unknown"], next_capture=meta["captures"]["cancelled"]))
+        cases.extend([
+            dict(name="folded-pending-question",expected="waiting_controller_answer",native="pending",raw_state="blocked"),
+            dict(name="accepted-receipt-does-not-resolve",expected="waiting_controller_answer",native="receipt",raw_state="blocked"),
+            dict(name="pending-against-ordinary-working-is-conflict",expected="unknown",native="pending",conflict=True),
+            dict(name="clear-event-against-question-screen-is-conflict",expected="unknown",screen=panel,conflict=True),
+            dict(name="matched-answer-returns-working",expected="working",native="answered"),
+            dict(name="empty-answer-map-returns-working",expected="working",native="empty-response"),
+            dict(name="correlated-async-answer-closes-request",expected="working",native="async-answered"),
+            dict(name="correlated-async-empty-response-closes-request",expected="working",native="async-empty"),
+            dict(name="foreign-thread-question-not-adopted",expected="unknown",native="foreign-delivery"),
+            dict(name="plain-user-text-is-not-a-resolution",expected="unknown",native="uncorrelated-user"),
+            dict(name="native-publication-incomplete",expected="unknown",native="publication-incomplete",raw_state="blocked"),
+            dict(name="unmatched-answer-is-unknown",expected="unknown",native="orphan-response"),
+            dict(name="partial-native-line",expected="unknown",partial_native=True),
+            dict(name="wrong-native-header",expected="unknown",wrong_native_header=True),
+            dict(name="index-selects-only-bound-id",expected="unknown",wrong_index_id=True),
+            dict(name="missing-native-store",expected="unknown",missing_native_store=True),
+            dict(name="native-session-unbound",expected="unknown",native_unbound=True),
+            dict(name="numeric-receipt-is-not-true",expected="unknown",native="invalid-receipt",raw_state="blocked"),
+            dict(name="native-turn-not-observed",expected="unknown",native_no_turn=True),
+            dict(name="native-changes-during-screen-read",expected="unknown",native="pending",raw_state="blocked",native_change=True,conflict=True),
+        ])
+    if args.full_native_red:
+        original=json.loads((EVIDENCE/"real-native-inputs.json").read_text(encoding="utf-8"))["original"]
+        selected=cases if args.panel_contract else recorded_cases[:3]
+        cases=[dict(case,native_original=original) for case in selected]
     directory = Path(tempfile.mkdtemp(prefix="t095-status-contract-", dir="/tmp"))
     reports = [run_case(args.entry.resolve(), directory / str(i), i, case) for i, case in enumerate(cases, 1)]
     passed = all(row["status"] == "PASS" for row in reports)

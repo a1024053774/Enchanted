@@ -2,7 +2,7 @@
 # 真实模型预算：单次最多 1 个根提示回合；红、绿各一次合计最多 2 个根回合。
 # 不自动回答、不重投、不 resume。根回合限额不是 API 请求数或费用硬限额。
 # 只有执行主控核对后，才能在沙箱外加 --approve-one-root-turn 运行。
-# 启动会占用 1 个 Codex 名额；主控须确认启动后并行总数不超过 3。
+# 用户已允许 T-095 不用等名额；此例外不扩展到其他任务。
 # 默认只打印计划：不复制凭据、不创建 pane、不调用模型。
 # 操作顺序：脚本提示 COLLAPSED 时，在自建 pane 用 Shift+→ 折叠；
 # 收到 CAPTURED collapsed 后，在自建 pane 用 Shift+← 展开；
@@ -21,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import uuid
+sys.dont_write_bytecode = True
 
 EXPECTED_CODEX = "codex-cli 0.163.0"
 ARCHIVE = Path("/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-095")
@@ -131,6 +132,17 @@ def main():
         save()
         print(f"CAPTURED {label}：{pane} 采集完成；下一步以脚本提示为准。", flush=True)
         if args.phase == "green" and label in ("collapsed", "expanded", "cancelled"):
+            if not manifest.get("native_session"):
+                binding = isolated_session(record["native_store"], workspace)
+                native = binding["id"]
+                bound = dict(record, phase="native-session", pane=pane, agent=agent,
+                             herdr_result=started, native_session=native)
+                with bound_native_log(record["native_store"], bound) as (native_path, *_):
+                    verified_path = str(native_path)
+                with launches.open("a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(bound, ensure_ascii=False) + "\n")
+                manifest["native_session"] = native
+                manifest["native_log"] = verified_path
             raw = call([sys.executable, str(repository / "scripts/agent-status"), "--root", str(output),
                         "--launch", manifest["probe_launch"]], timeout=30, allowed_codes=(0, 2))
             manifest.setdefault("projections", []).append(dict(label=label, command=sequence,
@@ -151,6 +163,8 @@ def main():
     try:
         manifest["herdr_status"] = call(["herdr", "status"]).decode("utf-8")
         repository = Path(__file__).resolve().parents[3]
+        sys.path.insert(0, str(repository / "scripts"))
+        from native_questions import NativeUnreadable, bound_native_log, isolated_session
         manifest["code_revision"] = call(["git", "-C", str(repository), "rev-parse", "HEAD"]).decode("ascii").strip()
         scratch = Path(tempfile.mkdtemp(prefix="t095-panel-", dir="/tmp"))
         isolated, workspace = scratch / "codex-home", scratch / "fixture"
@@ -171,7 +185,7 @@ def main():
         save()
         screen = call(["herdr", "pane", "read", pane, "--source", "visible"]).decode("utf-8")
         print(screen, flush=True)
-        confirm("SHELL_READY", f"只检查新建 {pane}：确认真实 shell 命令提示符已就绪，且没有初始化/更新提问。主控另核对并行 Codex 启动后不超过 3。")
+        confirm("SHELL_READY", f"只检查新建 {pane}：确认真实 shell 命令提示符已就绪，且没有初始化/更新提问。用户已允许 T-095 不用等名额。")
         agent = "t095-probe-" + uuid.uuid4().hex[:10]
         argv = ["herdr", "agent", "start", agent, "--kind", "codex", "--pane", pane,
                 "--timeout", "30000", "--", *native_args(workspace)]
@@ -183,6 +197,7 @@ def main():
                       service_tier_requested="fast", cwd=str(workspace), project_commit=manifest["code_revision"],
                       launcher_commit=manifest["code_revision"], role_card=str(Path(__file__).resolve()),
                       role_card_version=manifest["code_revision"], argv=manifest["argv"], native_session="unknown",
+                      native_store=str(isolated / "state_5.sqlite"),
                       scope="controlled probe; no gate claim")
         (output / "records").mkdir()
         launches = output / "records/launches.jsonl"
@@ -223,10 +238,24 @@ def main():
                 manifest["pane_closed"] = False
         if isolated is not None:
             try:
-                sessions = isolated / "sessions"
-                if sessions.exists():
-                    shutil.copytree(sessions, output / "native-sessions")
-            except OSError as exc:
+                if manifest.get("native_log"):
+                    target = output / "native-bound.jsonl"
+                    bound = dict(record, native_session=manifest["native_session"])
+                    with bound_native_log(record["native_store"], bound) as (source, stream, _, _):
+                        stream.seek(0)
+                        with target.open("xb") as saved:
+                            shutil.copyfileobj(stream, saved)
+                        source_bytes = source.stat().st_size
+                    required = max(((item["output"].get("native", {}) or {}).get("bytes", 0) for item in manifest.get("projections", [])), default=0)
+                    if source_bytes != target.stat().st_size or target.stat().st_size < required:
+                        raise OSError("已绑定原生记录归档字节数不一致")
+                    manifest["native_archive"] = dict(original=str(source), archive=str(target), bytes=target.stat().st_size,
+                                                      replay="按各 projection.native.bytes 截取前缀，经同一会话绑定回放")
+                else:
+                    sessions = isolated / "sessions"
+                    if sessions.exists():
+                        shutil.copytree(sessions, output / "native-sessions")
+            except (OSError, NativeUnreadable) as exc:
                 manifest["native_archive_error"] = str(exc)
             finally:
                 shutil.rmtree(isolated)

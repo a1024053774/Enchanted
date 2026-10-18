@@ -1,5 +1,7 @@
 # T-095 真实探针读回（2026-10-18）
 
+此页保留首次读回和 UI 候选 `7c0dbddcce9bfc5842ec75988c2cc3495de7f0d7` 的判断。执行主控 #102 此后确认增加绑定原生会话的结构化事实源；当前候选与关闭阶段的来源冲突见 [RESULTS.md](RESULTS.md)。本页的原始 Herdr / 屏幕观察不变。
+
 **INCOMPLETE。** 原件位于 `real-red-readback.json` 指向的外置盘目录；原始命令输出、ANSI 与原生记录未改写。`real-panel-inputs.json` 只摘录命令测试读取的小输入，原件仍保留在外置盘。
 
 | 操作者阶段 | 同期两次 Herdr 原值 | 当前画面 | 能证明什么 |
