@@ -33,16 +33,17 @@ else:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--inputs", type=Path, default=HERE / "real-green-inputs.json", help="已保存的真实采集输入；不改变产品读取器")
     parser.add_argument("--panels-only", action="store_true", help="只回归两种面板；不据此宣称关闭回落或真实绿态通过")
     args = parser.parse_args()
     if args.report.exists():
         raise ValueError("报告已存在；不覆盖失败证据")
-    inputs = json.loads((HERE / "real-green-inputs.json").read_text(encoding="utf-8"))
+    inputs = json.loads(args.inputs.read_text(encoding="utf-8"))
     native = Path(inputs["native_archive"]["archive"]).read_bytes()
     directory = Path(tempfile.mkdtemp(prefix="t095-green-readback-", dir="/tmp"))
     results = []
     for label, capture in inputs["captures"].items():
-        if args.panels_only and label == "cancelled":
+        if args.panels_only and label not in ("collapsed", "expanded"):
             continue
         case = directory / label
         (case / "records").mkdir(parents=True)
@@ -76,7 +77,7 @@ def main():
         (case / "stderr.txt").write_text(result.stderr, encoding="utf-8")
         (case / "exit.txt").write_text(str(result.returncode) + "\n", encoding="utf-8")
         observed = json.loads(result.stdout)
-        expected = "working" if label == "cancelled" else "waiting_controller_answer"
+        expected = "waiting_controller_answer" if label in ("collapsed", "expanded") else "working"
         matches_recorded = all(observed[key] == capture["observed_projection"][key]
                                for key in ("state", "reason", "raw_state", "conflicts"))
         identity_correct = (observed["worker"] == inputs["worker"] and observed["launch"] == inputs["launch"]
@@ -94,7 +95,7 @@ def main():
     files = [path for path in directory.rglob("*") if path.is_file()]
     report = dict(status="PASS" if replay_ok and accepted else "INCOMPLETE", replay_status="PASS" if replay_ok else "NO_GO",
                   regression_status="PASS" if accepted else "NO_GO", source_revision=inputs["source_revision"],
-                  scope="两种旧面板回归；不是独立真实绿态" if args.panels_only else "旧面板与回落合同回归；不是独立真实绿态",
+                  scope="归档两种面板读回；不新增真实运行" if args.panels_only else "归档面板与回落合同读回；不新增真实运行",
                   matches_original_projection=all(row["matches_recorded"] for row in results),
                   candidate_revision=subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip(),
                   source_archive=inputs["source_archive"], command=[sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
