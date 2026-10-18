@@ -1,5 +1,7 @@
 # T-093 单层 profile 重设计 01
 
+更新（主控 #83）：F 的独立受保护进程、单配置上游、单监听端口、禁止 fork 等边界已明确。下面“待授权”文字保留为当时的历史记录；当前没有该授权阻点。实施前 OS 实测与每个进程的 profile 见 PARALLEL-PROFILES-PLAN-02.md／REVIEW-REQUEST-T093-05.md，整票仍 INCOMPLETE。
+
 **REALITY GATE: INCOMPLETE：单层部署方向已明确，转发层的网络权限边界待裁定。**
 本文件是可审的设计，不是已实现、已运行或已获授权的 profile 清单；不代替最后的独立审查／门禁。
 
