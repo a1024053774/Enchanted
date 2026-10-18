@@ -9,7 +9,7 @@ from pathlib import Path
 import struct
 import sys
 
-source = Path(__file__).resolve().parents[2] / 'evidence/2026-10-16-batch16/T-096/run_restart.py'
+source = Path(__file__).resolve().parents[2] / 'evidence/2026-10-16-batch16/T-096/restart_cleanup.py'
 module = ast.parse(source.read_text(encoding='utf-8'))
 function = next(node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == 'parse_native_argv')
 namespace = {'struct': struct}

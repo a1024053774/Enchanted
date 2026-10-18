@@ -1,10 +1,20 @@
 # T-096-1 当前交付记录
 
-**INCOMPLETE**：裁定 B 的产品候选和主控执行脚本已备好；真实 Electron／daemon／CLI 读回由主控执行，尚未据此宣称验收通过。
+**INCOMPLETE**：主控已执行 `red-b-01` 与 `tracer-b-01`，两场均在脚本 crash_window 失败，rc 1、cleanup false；没有得到有效重启红态／绿态。原始摘要保留，定向收尾及修复后的 `-02` 重跑待主控执行。
 
 当前范围以主控 #89 转达和 main `8cf91b26e` 的 T-096“裁定”节为准：只恢复两个主控；worker 保留为“未恢复”，不启动 CLI、不重绑定、不改 attempt。不修改 `workbench/src/gates/`。主控 #88 允许先完成不依赖门禁裁定的路径。
 
 主控没有跨重启的固定 PID 绑定：`Panes.controllerLaunch()` 返回的身份不含 PID；`caller()` 在单次请求内固定当次 leader（`panes.ts` 的 controller 分支），daemon 的 `assertCurrent()` 核对当次前台进程；`core.ts:340` 的 `registerController()` 只核对 task/project/spec_rev。worker 的旧 PID 绑定留在 `core.ts:2485`，没有改动。
+
+2026-10-18 主控 #90 的实跑与脚本修复：
+
+- 两场原始摘要为 `red-b-01.run.json`、`tracer-b-01.run.json`，完整日志在各自外置盘目录。真实初始 Claude argv 核对通过，fake POST 均为 0；两场都未走到重启后的验收断言，不能当作合同红态或绿态。
+- 已确认脚本缺陷：`process.stdout.read()` 在非阻塞模式可能为 None；计划内杀掉 Electron 后旧 Observer.close 拒绝非零退出；旧 finally 在布局查询／Observer 收尾出错后跳过 daemon_stop。原摘要中的 cleanup_error 分别是 caller_identity_required、observer_exit_nonzero。另：red-b-01 的实际 argv 未含 `--expect-red`，重跑命令明确带上该参数。
+- 修复集中在本票脚本和测试，没有改产品 src/app/gates。`restart_cleanup.py` 由 runner 和固定收尾脚本共用，负责非阻塞输出、退出证明、私有 operator 请求及顺序收尾；失败诊断被保留，不作无声 fallback 或重放停止请求。
+- `cleanup_failed_01.py` 只处理主控列出的两个夹具／六个 PID。先核对全部身份，再各用原 operator 凭据执行 daemon_stop；不强杀、不新开 attempt，确认退出才归档，原件和旧失败摘要保留。旧运行缺历史精确 lstart 的限制已写进脚本、preflight 和运行说明。
+- `restart-cleanup-contract-06.json` **PASS**：以 `10c0168db` 为反事实，两个真实报告的缺陷均在替代进程边界重现；当前 runner 的实际 AST 及共用收尾函数通过 None／部分输出、计划内非零退出、布局诊断、身份变化、停止回执丢失、活写入者、归档失败和私有凭据等检查。没有执行真实残留收尾。
+- `fixed-cleanup-contract-03.json` **PASS**：固定收尾脚本真实入口在替代进程／socket／归档边界下，只有两场／六 PID、第二场不符时零 stop、停止前 PID 变更拒绝、退出先于归档、凭据不进归档、原失败摘要不变。删掉最后身份复核的变异被业务断言拒绝。
+- `restart-cleanup-contract-01.json` 的局部夹具缺 cleanup_complete 字段属于测试适配失败，原件保留；后续报告不覆盖它。
 
 本次局部证据：
 
@@ -17,7 +27,7 @@
 
 `static-checks-b-01.json` 的语法、编码、修改范围和项目地图检查 **PASS**（0 problems、0 stale living docs）。Claude 启动版本与 driver 选择局部回归分别见 `t091-version-regression-b-01.json`、`driver-selection-b-01.json`，均 PASS，适用范围仍为替代边界。
 
-尚未执行：真实单格与三格重启、三个独立故障和失败隔离、真实 CLI 历史读回、完整 GUI 回归、独立审查、门禁 submit。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
+尚未完成：两个旧场景的真实收尾、`-02` 的真实单格与三格重启、三个独立故障和失败隔离、真实 CLI 历史读回、完整 GUI 回归、独立审查、门禁 submit。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
 
 下列为第一轮 WIP 的原始局部证据，保留其适用范围：
 

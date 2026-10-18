@@ -20,25 +20,27 @@ Inventory BEFORE running:
   never tasks/attempts/gates. Missing argv/version/session each has its own run;
   --panes 3 --fault missing-argv also proves a failed sibling does not block others.
   SIGKILL only verified owned daemon, shell/CLI and Electron descendants. Every
-  signal checks PID/start-time/command. <=200 runner process reads. Native argv read via macOS sysctl (argv only, never environment).
+  signal checks PID/start-time/command. <=200 journaled runner process reads;
+  normal quit additionally uses its bounded 15-second owner/exit readback. Native argv read via macOS sysctl (argv only, never environment).
   <=64 observer RPCs per Electron. With --check-close: ONE close-pane button
   click after readbacks; no terminal keys or prompt submission. No screenshot.
   Standard build/new slot and all raw output on mounted external disk; bounded
   command/observer output, one short terminal summary. No auth.json/global writes.
+  Every identified writer is journaled before the crash; cleanup sends an
+  authenticated daemon_stop directly to the existing socket (no CLI subprocess).
   Cleanup: owned Electron normal quit only after ready, daemon_stop and PID
   absence. If ownership/startup/cleanup is unknown: stop, retain the live fixture,
   no archive. Ephemeral operator credentials are removed after all writers exit
   and before any archive; credential contents never enter evidence. Stopped fixtures copied with file-count/byte comparison, retained.
 """
 import argparse
-import ctypes
-import struct
 import json
 import os
 from pathlib import Path
 import re
 import shutil
 import signal
+import shlex
 import socket
 import subprocess
 import sys
@@ -55,18 +57,9 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(HERE.parent / 'T-091'))
 from run_red import Observer, archive_fixture, write_json
 from capture_window import process_identity
+from owned_electron import normal_quit, read_process
+from restart_cleanup import native_argv, operator_request, close_observer, finish_cleanup
 
-
-
-def parse_native_argv(data):
-    argc=struct.unpack_from('i',data)[0]
-    if argc<1 or argc>256: raise RuntimeError('native argc invalid')
-    cursor=data.index(b'\0',4)+1
-    while cursor<len(data) and data[cursor]==0: cursor+=1
-    args=[]
-    for unused in range(argc):
-        end=data.index(b'\0',cursor); args.append(data[cursor:end].decode('utf-8')); cursor=end+1
-    return args
 
 
 def main():
@@ -105,6 +98,10 @@ def main():
         model_turns=0, fake_posts=0, keys=[], checks=[], cleanup_complete=False, process_reads=0,
         history_source='synthetic fixture pair seeded after crash; no vendor/model-generated history')
     observer = None
+    observer_expected_crash = False
+    observer_start_unconfirmed = False
+    daemon_start_unconfirmed = False
+    expected_layout = None
     daemon_live = False
     owned = []
     commands, requests, controllers = [], [], []
@@ -155,21 +152,19 @@ def main():
             time.sleep(.2)
         raise TimeoutError(description)
 
-    def native_argv(pid):
-        # KERN_PROCARGS2 contains argv followed by environment. Decode exactly
-        # argc entries and discard the buffer; never print or save environment.
-        libc=ctypes.CDLL('/usr/lib/libSystem.B.dylib',use_errno=True)
-        mib=(ctypes.c_int*3)(1,49,pid)
-        size=ctypes.c_size_t()
-        if libc.sysctl(mib,3,None,ctypes.byref(size),None,0): raise RuntimeError('native argv size unavailable')
-        raw=ctypes.create_string_buffer(size.value)
-        if libc.sysctl(mib,3,raw,ctypes.byref(size),None,0): raise RuntimeError('native argv unavailable')
-        return parse_native_argv(raw.raw[:size.value])
-
     def identify(pid):
         result['process_reads'] += 1
         if result['process_reads']>200: raise RuntimeError('process_read_budget_exhausted')
         return process_identity(pid)
+
+    def register(owner, kind):
+        identity={key:owner[key] for key in ['pid','started','command']}
+        if identity not in owned: owned.append(identity)
+        result['owned']=list(owned)
+        with (output/'ownership.jsonl').open('a',encoding='utf-8') as journal:
+            journal.write(json.dumps(dict(time=time.time(),kind=kind,fixture=str(fixture),owner=identity))+'\n')
+            journal.flush(); os.fsync(journal.fileno())
+        return identity
 
     def alive(owner):
         result['process_reads'] += 1
@@ -183,10 +178,15 @@ def main():
         if alive(owner): os.kill(owner['pid'],signal.SIGKILL)
 
     def start_daemon(epoch):
-        nonlocal daemon_live
+        nonlocal daemon_live, daemon_start_unconfirmed
         env['A2A_OPERATOR_CREDENTIAL']=str(fixture/f'operator-{epoch}.json')
+        daemon_start_unconfirmed=True
         p=call('daemon_start',launch_config=fixture/'launch.json')
-        owner=identify(p['pid']); owned.append(owner); daemon_live=True
+        result['daemon_start_receipt']=dict(epoch=epoch,pid=p['pid'],state=str(fixture/'state'))
+        write_json(output/f'daemon-start-{epoch}.json',result['daemon_start_receipt'])
+        daemon_live=True
+        owner=register(identify(p['pid']),'daemon')
+        daemon_start_unconfirmed=False
         return owner
 
     def inspect_window():
@@ -194,7 +194,8 @@ def main():
         return view if len(view['panes'])==args.panes and all(p.get('snapshot') for p in view['panes']) else None
 
     def open_window(epoch, launches=None):
-        nonlocal observer
+        nonlocal observer, observer_expected_crash, observer_start_unconfirmed
+        observer_expected_crash=False
         folder=output/f'window-{epoch}'; folder.mkdir()
         env['A2A_ELECTRON_DIAGNOSTICS']=str(folder/'stages.jsonl')
         rel=(source/'workbench/node_modules/electron/path.txt').read_text(encoding='utf-8').strip()
@@ -202,28 +203,37 @@ def main():
         argv=[str(electron),str(source/'workbench/tests/electron_driver.mjs'),'--build',build['out'],
             '--state',str(fixture/'state'),'--task','t096-fixture','--user-data',str(fixture/'ui'),'--output',str(folder)]
         for launch in launches or []: argv += ['--launch',launch]
+        result['electron_start_intent']=dict(argv=argv,state=str(fixture/'state'),output=str(folder))
+        write_json(folder/'start-intent.json',result['electron_start_intent'])
+        observer_start_unconfirmed=True
         observer=Observer(argv,env,folder,max_calls=64,max_stdout_bytes=8*1024*1024)
+        result['electron_start_receipt']=dict(pid=observer.process.pid,epoch=epoch,output=str(folder))
+        write_json(folder/'start-receipt.json',result['electron_start_receipt'])
         observer.identify(argv,folder)
+        register(observer.owner,'electron')
+        observer_start_unconfirmed=False
         ready=observer.receive(timeout=50)
         if ready.get('ready') is not True: raise RuntimeError(dict(electron_not_ready=ready))
         observer.ready_confirmed=True
         return wait(inspect_window,'complete renderer snapshots',timeout=4)
 
     def crash_window():
-        nonlocal observer
+        nonlocal observer, observer_expected_crash, observer_start_unconfirmed
         rows=[list(map(int,row.split())) for row in run(['/bin/ps','-axo','pid=,ppid=']).stdout.splitlines() if row.strip()]
         descendants={observer.owner['pid']}
         while True:
             added={pid for pid,parent in rows if parent in descendants}-descendants
             if not added: break
             descendants.update(added)
-        electron_owners=[identify(pid) for pid in descendants]
+        electron_owners=[register(identify(pid),'electron-descendant') for pid in descendants]
+        observer_expected_crash=True
         # Kill descendants first, then the verified main process.
         for owner in sorted(electron_owners,key=lambda o:o['pid']==observer.owner['pid']): kill(owner)
         observer.process.wait(timeout=10)
-        remaining=observer.process.stdout.read(); observer.stdout.write(remaining); observer.stdout.flush()
-        observer.selector.close(); observer.log.close(); observer.stderr.close(); observer.stdout.close()
-        observer.process.stdin.close(); observer.process.stdout.close(); observer=None
+        closed=close_observer(observer,expected_crash=True,read_process=read_process,normal_quit=normal_quit)
+        observer=None; observer_start_unconfirmed=False
+        result['crash_observer']=closed
+        if closed['diagnostics']: raise RuntimeError('crash observer stream cleanup incomplete: '+str(closed['diagnostics']))
         wait(lambda: all(not alive(owner) for owner in electron_owners),'owned Electron tree absent',timeout=5)
 
     def seed_history(record):
@@ -290,7 +300,7 @@ def main():
             write_json(folder/'manifest.json',manifest)
             record=call('controller_start',task='t096-fixture',manifest=folder/'manifest.json')['launch']
             info=wait(lambda:(v if (v:=call('pane_process_info',thread=record['thread'])).get('leader') else None),'Claude foreground identity')
-            owned.extend([identify(info[k]) for k in ['shell_pid','leader']]); controllers.append(record)
+            [register(identify(info[k]),k) for k in ['shell_pid','leader']]; controllers.append(record)
             actual_argv=native_argv(info['leader'])
             check(preset+'_initial_native_argv',actual_argv==record['argv'])
             write_json(output/(preset+'.initial-argv.json'),actual_argv)
@@ -299,7 +309,7 @@ def main():
         if args.panes==3:
             attempt=call('dispatch',task='t096-fixture',runtime_mode='workspace-write')['attempt']
             info=wait(lambda:(v if (v:=call('pane_process_info',thread=attempt['thread_id'])).get('leader') and v.get('native_session') else None),'receiver identity')
-            owned.extend([identify(info[k]) for k in ['shell_pid','leader']])
+            [register(identify(info[k]),k) for k in ['shell_pid','leader']]
             worker=call('workbench_snapshot',task='t096-fixture')['launch']
         task_before=call('status',task='t096-fixture')['task']
         write_json(output/'gate-before.json',task_before)
@@ -360,7 +370,7 @@ def main():
             check(record['preset']+'_restored',restoration['status']=='restored')
             info=call('pane_process_info',thread=record['thread'])
             check(record['preset']+'_identity',info.get('leader') and not info.get('failed') and info['native_session']==record['session'])
-            owned.extend([identify(info[k]) for k in ['shell_pid','leader']])
+            [register(identify(info[k]),k) for k in ['shell_pid','leader']]
             events=call('orchestration_events')['events']
             restored=[e for e in events if e['type']=='pane_restored' and e['launch']==record['id']]
             expected_argv=[record['argv'][0],'--resume',*record['argv'][2:]]
@@ -395,36 +405,78 @@ def main():
             check('explicit_close_persisted',all(p['launch']!=target['launch'] for p in layout) and len(layout)==args.panes-1)
             check('close_does_not_mutate_attempt',call('status',task='t096-fixture')['task']['current_attempt']==task_before['current_attempt'])
         check('zero_fake_posts',not any(r['method']=='POST' for r in requests))
+        if not args.expect_red: expected_layout=call('pane_layout',task='t096-fixture')['panes']
         result['status']='PASS'
-    except Exception as error:
+    except BaseException as error:
         result['error']=str(error); result['traceback']=traceback.format_exc()
     finally:
-        try:
-            if observer:
-                expected_layout=None if args.expect_red else call('pane_layout',task='t096-fixture')['panes']
-                observer.close(); observer=None
-                if expected_layout is not None:
-                    check('application_exit_preserves_panes',call('pane_layout',task='t096-fixture')['panes']==expected_layout)
+        def close_electron():
+            nonlocal observer, observer_start_unconfirmed
+            if observer is None:
+                if observer_start_unconfirmed: raise RuntimeError('Electron constructor/start outcome unconfirmed; see start-intent and receipt')
+                return dict(exited=True,diagnostics=[])
+            closed=close_observer(observer,expected_crash=observer_expected_crash,read_process=read_process,normal_quit=normal_quit)
+            observer=None; observer_start_unconfirmed=False
+            if expected_layout is not None:
+                try: check('application_exit_preserves_panes',call('pane_layout',task='t096-fixture')['panes']==expected_layout)
+                except BaseException as error: closed['diagnostics'].append('layout readback: '+str(error))
+            return closed
+
+        def stop_backend():
+            nonlocal daemon_live
+            if daemon_start_unconfirmed: raise RuntimeError('daemon_start outcome unconfirmed; preserve state and receipt')
             if daemon_live:
-                call('daemon_stop'); wait(lambda:not (fixture/'state/daemon.pid').exists(),'daemon cleanup')
+                credential=Path(env['A2A_OPERATOR_CREDENTIAL'])
+                reply=operator_request(fixture/'state','daemon_status',credential)
+                daemon_owner=next((owner for owner in reversed(owned) if owner['pid']==reply['pid']),None)
+                if daemon_owner is None or not alive(daemon_owner): raise RuntimeError('daemon identity not confirmed; preserve fixture')
+                receipt=operator_request(fixture/'state','daemon_stop',credential)
+                wait(lambda:not (fixture/'state/daemon.pid').exists(),'daemon cleanup')
                 daemon_live=False
-            wait(lambda:all(not alive(o) for o in owned),'all owned writers absent',timeout=5)
-            if (fixture/'state/daemon.pid').exists(): raise RuntimeError('daemon endpoint remains; startup/stop outcome unknown; fixture retained')
+                return dict(command='daemon_stop',pid=daemon_owner['pid'],stopping=receipt.get('stopping',False))
+            return dict(command='none',reason='no live epoch owned by this runner')
+
+        def confirm_writers():
+            if daemon_start_unconfirmed: raise RuntimeError('unconfirmed daemon start cannot be treated as absent')
+            wait(lambda:all(not alive(o) for o in owned),'all registered writers absent',timeout=5)
+            if (fixture/'state/daemon.pid').exists() or (fixture/'state/control.sock').exists():
+                raise RuntimeError('daemon endpoint remains; fixture retained')
+
+        def archive_stopped():
             for epoch in [1,2]:
                 credential=fixture/f'operator-{epoch}.json'
-                if credential.is_symlink(): raise RuntimeError('unexpected credential link; stop and preserve fixture')
+                if credential.is_symlink(): raise RuntimeError('unexpected credential link; preserve fixture')
                 if credential.exists(): credential.unlink()
-            result['cleanup_complete']=True
             stats=archive_fixture(fixture,output/'fixture')
-            write_json(HERE/(args.label+'.archive.json'),dict(original=str(fixture),archive=str(output/'fixture'),bytes=stats['bytes'],files=stats['files'],comparison=stats['comparison'],replay=' '.join(sys.argv)))
-        except Exception as error:
-            result['cleanup_error']=str(error); result['status']='INCOMPLETE'
-        if api: api.shutdown(); api.server_close()
+            write_json(HERE/(args.label+'.archive.json'),dict(original=str(fixture),archive=str(output/'fixture'),bytes=stats['bytes'],files=stats['files'],comparison=stats['comparison'],replay=shlex.join(sys.argv)))
+
+        cleanup=finish_cleanup(close_electron=close_electron,stop_daemon=stop_backend,confirm_writers=confirm_writers,archive=archive_stopped)
+        result['cleanup']=cleanup; result['cleanup_complete']=cleanup['cleanup_complete']
+        if not cleanup['cleanup_complete'] or cleanup['diagnostics']:
+            result['status']='INCOMPLETE'
+            result['cleanup_error']=cleanup['handoff'] or '; '.join(cleanup['diagnostics'])
+        if not cleanup['cleanup_complete']:
+            result['handoff']=dict(reason=cleanup['handoff'],fixture=str(fixture),source=str(source),state=str(fixture/'state'),
+                operator_credential=env.get('A2A_OPERATOR_CREDENTIAL'),writers=owned,
+                electron=observer.owner if observer else None,daemon_start=result.get('daemon_start_receipt'),electron_start=result.get('electron_start_receipt'),policy='No force quit or second crash attempt; controller must verify this fixture')
+        if api:
+            for operation in [api.shutdown,api.server_close]:
+                try: operation()
+                except BaseException as error:
+                    result.setdefault('api_cleanup_errors',[]).append(str(error)); result['status']='INCOMPLETE'
         result['fake_posts']=sum(r['method']=='POST' for r in requests)
         if result['fake_posts']: result['status']='INCOMPLETE'
-        write_json(output/'fake-api-requests.json',requests)
-        result['commands']=commands; write_json(summary,result)
-        print(json.dumps(dict(status=result['status'],summary=str(summary),error=result.get('error'),cleanup=result['cleanup_complete'])))
+        result['commands']=commands
+        for path,payload in [(output/'fake-api-requests.json',requests),(summary,result)]:
+            try: write_json(path,payload)
+            except BaseException as error:
+                result.setdefault('evidence_write_errors',[]).append(dict(path=str(path),error=str(error)))
+                result['status']='INCOMPLETE'
+        handoff=None
+        if result.get('handoff') or result.get('evidence_write_errors'):
+            handoff=dict(fixture=str(fixture),ownership=str(output/'ownership.jsonl'),registered_pids=[o['pid'] for o in owned],
+                reason=cleanup['handoff'] or 'Evidence write incomplete; original paths retained',unverified_electron=result.get('electron_start_receipt'))
+        print(json.dumps(dict(status=result['status'],summary=str(summary),error=result.get('error'),cleanup=result['cleanup_complete'],handoff=handoff)))
     return 0 if result['status']=='PASS' else 1
 
 if __name__=='__main__': sys.exit(main())
