@@ -1,16 +1,10 @@
 # T-096：执行主控真实重启验证
 
-状态：**INCOMPLETE**。red-b-03 已由主控归档 PASS；red-b-04 在故障注入时遇到 shell 的 ps command 变成 `(zsh)`，仍未形成完整红态。**暂停 tracer-b-04 和新的原生重启运行**；先按 [RUN-PROCESS-TREE.md](RUN-PROCESS-TREE.md) 跑旧候选红态、当前修复绿态与 red-b-04 归档。以下原生启动命令仅保留为后续流程说明，未重新获准前不执行。tracer-b-03 的 nonce 失败仍未解决。
+状态：**INCOMPLETE**。主控 #99／#13 已完成真实进程树对照：旧候选按预期失败，当前修复四场 PASS，全部独立收尾完成；red-b-04 已归档 PASS。下一步按该消息授权依次运行 red-b-05、tracer-b-05。runner 参数和逐屏批准流程不变，只换 label、output 与对应 context 路径；同一时刻最多一个 Electron。tracer-b-03 的 nonce 失败仍未解决，不能用进程树 PASS 替代原生历史续接证据。
 
 候选先冻结成提交；新 label／外置盘输出／构建槽不覆盖旧运行。`--expect red|restore` 现在必填，漏传会在资源启动之前退出。red 模式保留死端点去测试真实重启，不预先删除端点掩盖缺陷；仅识别原件中明确的、发生在新凭据和进程创建之前的拒绝。超时、其他报错或新 epoch 身份不明仍为 INCOMPLETE。
 
-固定旧场景的只读归档（无新 CLI／agent、信号或源目录写入）：
-
-```sh
-python3 evidence/2026-10-16-batch16/T-096/archive_failed_02.py --case red-b-03 --label archive-red-b-03 --approval-ref '执行主控 T-096 #10：只读核对并归档 red-b-03'
-```
-
-该 case 只接受 `/private/tmp/t078-2-t096-7sh2mwtq` 的七个原 PID。`--case 02-pair` 是已完成的两场 `-02` 归档入口，不要重跑已有归档。归档保留全部原件；只排除不能复制的死 socket 与私密 operator 凭据，清单列明范围，其余文件核对数量／字节／路径和 symlink 原始目标。活动或未知端点、存活 PID、后续 epoch、已有归档均拒绝。
+两场 `-02`、red-b-03 和 red-b-04 的固定归档均已完成，不重跑已有归档。清单明确排除死 socket 与私密 operator 凭据，其余文件核对数量／字节／路径和 symlink 原始目标，原件保留。
 
 restore 模式先完成真正的原生引导：runner 输出一条 `WAITING_FOR_STARTUP_APPROVAL` 和 context 路径，在声明期限内等执行主控逐屏批准。原 `workbench/README.md` 要求“启动、每屏明确按键、continue、cleanup 分别审批”；本流程没有预先批准 Enter，也不写 hasCompletedOnboarding 或 trust 内部标志。按键只走现有 `pane_screen_key`，一次批准一个原始屏幕。
 
@@ -25,15 +19,15 @@ restore 模式先完成真正的原生引导：runner 输出一条 `WAITING_FOR_
 先跑 main 红态和候选单格 Tracer bullet；单格成立后再跑三格和故障。示例：
 
 ```sh
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/red-b-04 --label red-b-04 --approval-ref T-096-main-red --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect red
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/tracer-b-04 --label tracer-b-04 --approval-ref T-096-controller-tracer --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --check-close
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/red-b-05 --label red-b-05 --approval-ref T-096-main-red --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect red
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/tracer-b-05 --label tracer-b-05 --approval-ref T-096-controller-tracer --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --check-close
 python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/three-b-01 --label three-b-01 --approval-ref T-096-controller-three --claude CLAUDE --claude-version 2.1.302 --panes 3 --expect restore --startup-wait-seconds 600 --check-close
 ```
 
-单格 tracer 命令会先停在引导等待。让该命令保持运行，在另一个主控终端读取打印出的 context（例如外置盘 `tracer-b-04/ideation.startup.json`），执行：
+单格 tracer 命令会先停在引导等待。让该命令保持运行，在另一个主控终端读取打印出的 context（例如外置盘 `tracer-b-05/ideation.startup.json`），执行：
 
 ```sh
-python3 evidence/2026-10-16-batch16/T-096/startup_controls.py capture --context /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/tracer-b-04/ideation.startup.json --name theme-auto-01
+python3 evidence/2026-10-16-batch16/T-096/startup_controls.py capture --context /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/tracer-b-05/ideation.startup.json --name theme-auto-01
 ```
 
 capture 输出 `.screen.json`、仅供查看的 `.txt`、原始 `.raw` 和批准模板。执行主控读取实际屏幕，将模板另存为本次批准文件；逐字填入 approved_by=`executor`、本次 approval_ref、具体 basis，以及本屏的 key／purpose／selected_label。模板默认均为空，不产生批准。只有核对过当前原始屏幕后才能执行：

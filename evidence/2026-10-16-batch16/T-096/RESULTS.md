@@ -1,10 +1,17 @@
 # T-096-1 当前交付记录
 
-**INCOMPLETE**：red-b-03 已由主控归档 PASS；red-b-04 又在 runner 的故障注入路径失败。真实进程树红／绿演练命令已备好，待主控在沙箱外运行，tracer-b-04 暂停。真实历史续接仍未证明；不据替代边界检查宣布恢复通过。
+**INCOMPLETE**：主控已完成真实进程树红／绿对照，当前修复四场 PASS，red-b-04 已归档 PASS。下一步依次运行 red-b-05／tracer-b-05，参数和逐屏批准流程不变。真实历史续接仍未证明；进程树演练的通过不替代原生重启验收。
 
 当前范围以主控 #89 转达和 main `8cf91b26e` 的 T-096“裁定”节为准：只恢复两个主控；worker 保留为“未恢复”，不启动 CLI、不重绑定、不改 attempt。不修改 `workbench/src/gates/`。主控 #88 允许先完成不依赖门禁裁定的路径。
 
 主控没有跨重启的固定 PID 绑定：`Panes.controllerLaunch()` 返回的身份不含 PID；`caller()` 在单次请求内固定当次 leader（`panes.ts` 的 controller 分支），daemon 的 `assertCurrent()` 核对当次前台进程；`core.ts:340` 的 `registerController()` 只核对 task/project/spec_rev。worker 的旧 PID 绑定留在 `core.ts:2485`，没有改动。
+
+2026-10-18 主控 #99／#13 的真实进程树结果读回：
+
+- `process-tree-red-02.run.json`：旧候选 `da6a095fc` 的四场均 INCOMPLETE，测试自身 cleanup 全为 true。原始 `zombie` 场景实际读到 Z，kill 抛身份变化拒绝；另外三场的候选 finally 在死端点归档处失败。这是所需缺陷红态，原失败摘要不改记 PASS。
+- `process-tree-green-01.run.json` **PASS**：候选与 harness 均对应 `4c49db73b`，父死子随退出、Z 状态后回收、提前退出和存活 exec 替代四场均 PASS；每场 runner_cleanup／独立 cleanup 均 true、handoff null。原始 JSON 核对：三个自然退出的子进程均未收到信号；Z 场景记录 exited_without_signal；存活替代命令记录 identity_changed 且未收到信号。没有供应商 CLI／模型／Electron；适用范围为 runner 的真实进程 kill／finally。
+- `archive-red-b-04.run.json` **PASS**：83 文件／3,921,101 字节，comparison true，死 socket／私密 operator 文件明确排除，原件保留；清单为 `red-b-04-archive-red-b-04.archive.json`。旧 red-b-04.run.json 保持 INCOMPLETE。
+- 上述四份主控产物一并提交。本轮只读核对原始记录、更新运行说明，runner 与产品代码不变；没有重跑已经通过的演练。red-b-05／tracer-b-05 的 label、外置盘 output 和 context 路径见 `RUN-RESTART.md`，逐屏批准与严格 nonce／argv／0 POST 断言不变。
 
 2026-10-18 主控 #95／#96 的实跑与进程树交接：
 
@@ -60,7 +67,7 @@
 
 `static-checks-b-01.json` 的语法、编码、修改范围和项目地图检查 **PASS**（0 problems、0 stale living docs）。Claude 启动版本与 driver 选择局部回归分别见 `t091-version-regression-b-01.json`、`driver-selection-b-01.json`，均 PASS，适用范围仍为替代边界。
 
-尚未完成：red-b-03 的真实只读归档、`-04` 的真实单格与三格重启及原生历史验证、三个独立故障和失败隔离、真实 CLI 历史读回、完整 GUI 回归、独立审查、门禁 submit。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
+尚未完成：red-b-05／tracer-b-05 的真实单格重启与原生历史验证、三格重启、三个独立故障和失败隔离、完整 GUI 回归、独立审查、门禁 submit。旧失败场景归档与真实进程树演练已完成。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
 
 下列为第一轮 WIP 的原始局部证据，保留其适用范围：
 
