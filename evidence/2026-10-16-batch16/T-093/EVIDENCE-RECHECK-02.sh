@@ -29,7 +29,7 @@ if not re.fullmatch(r"[0-9a-f]{40}", CANDIDATE) or sys.argv[3] not in ("", "--ch
 # keep it from reporting a new-contract PASS. Check-only remains a developer
 # syntax/failure-classification check, never application/OS evidence.
 if not CHECK_ONLY:
-    raise SystemExit("INCOMPLETE: decision A parent-profile gate pending; run probe_t093_parent_sandbox.py first")
+    raise SystemExit("INCOMPLETE: The forwarding profile needs approval. See REVIEW-REQUEST-T093-04.md.")
 NODE = "/opt/homebrew/bin/node"
 OUT = Path(tempfile.mkdtemp(prefix="t093-evidence-02-", dir="/private/tmp"))
 print("输出目录：" + str(OUT), flush=True)

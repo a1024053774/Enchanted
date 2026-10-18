@@ -359,11 +359,12 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 ## 正常登录 profile（T-093）
 
 用户裁定 A（main c06a73179）将 HOME 验收改为“OS 强制禁写真实 HOME 加拒写反例”；
-清单差异照实报告，不再作通过条件。当前进程树的父层 profile 兼容性仍待沙箱外探针，
-尚不能宣称下面的旧 CLI 隔离方式已满足所有父／辅助进程的禁写要求，整票 INCOMPLETE。
-不要把旧完整链脚本的历史 PASS 当作裁定 A 的通过；当前先运行
-`probe_t093_parent_sandbox.py`，步骤与每个进程的现状／计划 profile 见
-[HOME-GUARD-A-PLAN](../evidence/2026-10-16-batch16/T-093/HOME-GUARD-A-PLAN.md)。
+清单差异照实报告，不再作通过条件。父层 H 已实测拒写，但嵌套 C exit 71，不能按嵌套方案实现。
+目前尚不能宣称旧 CLI 隔离方式已满足所有父／辅助进程要求，整票 INCOMPLETE。
+单层业务 profile 仅能连接本地转发端口时，转发层所需的上游网络权限仍需明确；独立 F 的方案
+尚未获批或实现。当前设计及实际 probe PID/profile 见
+[单层重设计](../evidence/2026-10-16-batch16/T-093/SINGLE-PROFILE-DESIGN-01.md)，
+不要把旧完整链 PASS 当作新设计的验收，也不再重复已失败的嵌套探针。
 
 仍使用同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留
 UserPromptSubmit、PermissionRequest、Stop 和队列转交。manifest 在既有身份、角色卡、

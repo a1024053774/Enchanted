@@ -12,6 +12,8 @@
 
 最新状态（主控 #79）：用户裁定 A 改了 HOME 条件。清单差异已不作通过条件，但所有父／辅助进程的 OS 禁写尚未完成，父子 profile 兼容性必须先实测。当前仍 INCOMPLETE；当前工作快照不是 A 已落地的验收候选，最新入口为 REVIEW-REQUEST-T093-03.md。下面的旧版本状态与“产品未改”说明仅对应各自历史阶段。
 
+再更新（主控 #82）：父进程拒写成立，嵌套 C 已以 exit 71 实测失败。当前改为单层重设计，转发层的上游网络权限边界待明确授权，整票 INCOMPLETE。最新请求为 REVIEW-REQUEST-T093-04.md；不再重复嵌套探针。
+
 ## 变更与版本
 
 起点 main 为 61786370428c3ec5f894ea60acccf2695d54c2dc。
@@ -150,3 +152,17 @@ python3 -I -S -B workbench/tests/probe_t093_parent_sandbox.py --output /private/
 
 若 sandbox-exec 不能在已有 H 的子进程里施加现有 C/R，必须保持 INCOMPLETE 回主控处理，不能移除 CLI 的网络或 Security 限制来冒充成功。
 因此之前 EVIDENCE-RECHECK-02 的完整模式现在直接停止，防止无父层保护时对 A 给出 PASS；旧审查 01／02 脚本和全部旧报告保持原文。新小探针的输出回来后，才能完成全进程保护实现和真实链复验。
+
+## 单层重设计：父层拒写已成立，转发权限待裁定
+
+主控 #82 回传 probe rc 2／INCOMPLETE；原件 [parent-profile-01.json](parent-profile-01.json) 已读回留存。
+父 PID 60365 在 H 下独占创建真实 HOME 新文件被 errno 1 拒绝，created=false、absent_after=true；两个 inventory helper 继承 H。
+子进程 60700 请求第二层 C 失败，exit 71、Operation not permitted、无实际 child 结果；C 不可列为已生效。清单 5555→5555、无差异、pass_condition=false；临时根删除、清理无错误，auth／CLI／模型／网络均 0。
+
+用户已授权凭据复制单独移到业务 profile 之前／之外，且只精确读一次。后续设计不使用嵌套 profile，也不在 C 内重读原始凭据。
+但若包括转发器的所有进程都共用一个只允许本地端口 P 的 profile，现有 http/https.request 无法连接真实上游，另端口 U 的假上游也被禁止。
+把 F 移为独立受保护树并给予上游网络，是新的额外边界；不能从凭据准备例外自动推导其授权。
+
+[SINGLE-PROFILE-DESIGN-01.md](SINGLE-PROFILE-DESIGN-01.md) 列明最小建议：R 精确凭据准备，C 单层业务树，另一个平级 F 负责先记后转／上游网络；所有阶段仍禁写 HOME，F/C 禁 Security，CLI 不增加直连上游能力。
+本设计尚待明确批准，产品未按它修改；[请求 04](REVIEW-REQUEST-T093-04.md) 将该决定交主控／构思主控。
+本轮没有新的必须沙箱外运行的命令，不以进一步 probe 代替权限裁定；原审查报告不改。

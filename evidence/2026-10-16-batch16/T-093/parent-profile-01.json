@@ -1,0 +1,81 @@
+{
+  "status": "INCOMPLETE",
+  "stop_reason": "nested_profile_unavailable",
+  "scope": "parent profile compatibility probe only; product not implemented",
+  "real_home": "/Users/luckye",
+  "profiles": {
+    "H": "(version 1)(allow default)(deny file-write* (subpath \"/Users/luckye\"))",
+    "C": "(version 1)(allow default)(deny file-write* (subpath \"/Users/luckye\"))(deny network*)(deny mach-lookup (global-name-regex #\".*[Ss]ecurity.*\"))(deny file-write* (subpath \"/private/tmp/t093-parent-probe-_ne8moxj/synthetic-home\"))"
+  },
+  "source_revision": "698f6798073c7b8188a01ce22205dc5f65f88429",
+  "revision_source": "caller supplied; run from the frozen worktree",
+  "real_cli_starts": 0,
+  "auth_reads": 0,
+  "network_requests": 0,
+  "ps_calls": 0,
+  "primary_failure": null,
+  "cleanup_failures": [],
+  "processes": [
+    {
+      "role": "probe parent after exec",
+      "pid": 60365,
+      "profile": "H"
+    },
+    {
+      "role": "inventory before helper",
+      "pid": 60637,
+      "profile": "H inherited"
+    },
+    {
+      "role": "nested sandbox-exec / child",
+      "profile": "H inherited + C requested"
+    },
+    {
+      "role": "inventory after helper",
+      "pid": 60702,
+      "profile": "H inherited"
+    }
+  ],
+  "parent_write": {
+    "path": "/Users/luckye/.a2a-t093-deny-1a0de43bd74d493d96d152e88a9b73db",
+    "exclusive_create": true,
+    "preexisting": false,
+    "denied": true,
+    "created": false,
+    "deleted": false,
+    "absent_after": true,
+    "errno": 1
+  },
+  "nested_profile": {
+    "pid": 60700,
+    "exit": 71,
+    "timed_out": false,
+    "result": null,
+    "stdout_lines": 0,
+    "stderr_lines": 1,
+    "sandbox_exec_error": true,
+    "operation_not_permitted": true
+  },
+  "inventory": {
+    "pass_condition": false,
+    "acceptance_basis": "User decision A; main c06a73179 T-093 decision section",
+    "scope": [
+      ".claude",
+      ".claude.json",
+      ".claude.json.backup",
+      "Library/Keychains"
+    ],
+    "excludes": [
+      "atime",
+      "contents",
+      "symlink targets",
+      "other HOME paths"
+    ],
+    "collection_complete": true,
+    "before_entries": 5555,
+    "after_entries": 5555,
+    "changed": [],
+    "differences": []
+  },
+  "probe_root_removed": true
+}
