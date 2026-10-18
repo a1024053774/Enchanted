@@ -2,7 +2,7 @@
 id: T-098
 title: pane 里 shell 就绪后再等一个可设置的启动延时才输入命令（软件设置里的下拉框）
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -35,3 +35,10 @@ ready_rev: 1
 
 - 构思主控据用户上述原话建票并标就绪。写入范围预期：`workbench/src/`、`workbench/app/`、`workbench/tests/`、`scripts/launch-worker`（若 Herdr 期启动器同样适用，执行时判断，两处不分叉）。
 - 本机 `~/.zshrc` 的 oh-my-zsh 更新模式（第 38 到 40 行）都是注释状态，默认会提问；改成 `zstyle ':omz:update' mode reminder`（或 `disabled`/`auto`）可消除这个已知提问源，**是用户自己文件里的改动，需用户同意**，未做。
+
+## Resolution
+
+2026-10-18 关闭，**未实现**（决定类收尾，无运行证据）：用户在构思主控提示改 `~/.zshrc` 后说（逐字，会话"a2a-构思主控"）："改成只提醒不问，那这样的话就不用加延时了，T-098 关闭"。构思主控已把 `~/.zshrc` 第 40 行改为 `zstyle ':omz:update' mode reminder`（改前备份在 `/private/tmp/claude-501/memsample/zshrc.bak-20261018`），并用 `zsh -i -c` 读回 mode=reminder。
+
+边界（如实）：这消除的是 oh-my-zsh 更新提问这一个**已知**提问源，不是"前台只剩 shell 不等于 shell 在等命令"这个一般缺陷；其他会在初始化阶段弹出的提问仍可能吞掉启动命令。执行主控每次启动后核对 pane 回显的做法保持。issue `20261018T020010Z` 为 blocking，由用户的这句话作为处置依据，由执行主控按处置流程引用。
+
