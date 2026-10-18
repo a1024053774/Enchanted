@@ -21,9 +21,8 @@ ACTIVITY = re.compile(
     r"• Working \((?:[0-9]+h )?(?:[0-9]+m )?[0-9]+s • esc to interrupt\)"
     r"(?: · [0-9]+ background terminals? running · /ps to view · /stop to close)?")
 SHORTCUTS = re.compile(r"\? for shortcuts(?:\s+⚠ [0-9]+ warnings? · f2 to view)?")
-QUESTION_CONTROLS = re.compile(r"  enter submit\s{2,}⌃\] skip(?:\s{2,}option ([1-9][0-9]*)/([1-9][0-9]*))?\s{2,}⇧→ main prompt")
-QUESTION_OPTION = re.compile(r"  (› |  )([1-9][0-9]*)\. .+")
-QUESTION_COUNT = re.compile(r"  \? ([1-9][0-9]*) (question|questions)")
+QUESTION_COUNT = re.compile(r"\?\s+([1-9][0-9]*)\s+questions?")
+ANCHOR_TAIL_LINES = 12
 
 
 class Unreadable(Exception):
@@ -133,45 +132,23 @@ def check_identity(record, initial, before, after):
                 revision_before=before.get("revision"), revision_after=after.get("revision"))
 
 
-def question_frame(lines):
-    rows = [line.rstrip() for line in lines if line.strip()]
-    if not rows:
-        return None
-    controls = QUESTION_CONTROLS.fullmatch(rows[-1])
-    if controls is None:
-        return None
-    if ACTIVITY.fullmatch(rows[0]):
-        rows = rows[1:]
-    if rows and rows[0] == "• Queued follow-up inputs":
-        rows = rows[1:]
-    options = [(i, QUESTION_OPTION.fullmatch(line)) for i, line in enumerate(rows[:-1])]
-    options = [(i, match) for i, match in options if match is not None]
-    selected = [match for _, match in options if match[1] == "› "]
-    if (not options or options[0][0] == 0 or len(selected) != 1
-            or not all(line.startswith("  ") for line in rows[:options[0][0]])
-            or len(options) != len(rows) - 1 - options[0][0]):
-        raise Unreadable("incomplete_question_panel")
-    numbers = [int(match[2]) for _, match in options]
-    if controls[1] is not None:
-        index, total = map(int, controls.groups())
-    else:
-        index, total = int(selected[0][2]), max(numbers)
-        if numbers != list(range(1, len(numbers) + 1)):
-            raise Unreadable("incomplete_question_options_without_counter")
-    if int(selected[0][2]) != index or index > total:
-        raise Unreadable("question_selection_disagrees_with_footer")
-    if numbers != sorted(set(numbers)) or max(numbers) > total:
-        raise Unreadable("inconsistent_question_options")
-    return dict(kind="question", panel_form="expanded", controls=rows[-1].strip(), selected_option=index, option_count=total)
+def question_anchors(text):
+    if "\x1b" in text:
+        raise Unreadable("unreadable_screen")
+    rows = [(number, line.strip()) for number, line in enumerate(text.splitlines(), 1) if line.strip()]
+    anchors = [dict(form="expanded", line=number, markers=["⌃] skip", "⇧→ main prompt"])
+               for number, line in rows if "⌃] skip" in line and "⇧→ main prompt" in line]
+    for number, line in rows[-ANCHOR_TAIL_LINES:]:
+        count = QUESTION_COUNT.match(line)
+        if count:
+            anchors.append(dict(form="collapsed", line=number, marker=count[0], question_count=count[1]))
+    return anchors
 
 
 def screen_frame(text, record):
     if not text or "\x1b" in text:
         raise Unreadable("unreadable_screen")
     lines = text.splitlines()
-    question = question_frame(lines)
-    if question is not None:
-        return question
     prompts = [i for i, line in enumerate(lines) if line.startswith("›")]
     if not prompts:
         raise Unreadable("composer_missing")
@@ -186,12 +163,6 @@ def screen_frame(text, record):
     body = [line.rstrip() for line in lines[:composer] if line.strip()]
     if not body:
         raise Unreadable("activity_or_completion_missing")
-    if len(body) >= 3 and body[-3] == "• Queued follow-up inputs" and body[-1] == "    ⇧← to answer":
-        count = QUESTION_COUNT.fullmatch(body[-2])
-        if count is None or count[2] != ("question" if int(count[1]) == 1 else "questions"):
-            raise Unreadable("incomplete_folded_question_panel")
-        return dict(kind="question", panel_form="collapsed", question_count=int(count[1]),
-                    controls=body[-1].strip(), composer=lines[composer], footer=footer)
     tip = None
     if body[-1].startswith("  └ Tip: "):
         tip = body.pop()
@@ -214,7 +185,7 @@ def main():
     args = parser.parse_args()
     output = dict(schema=1, observed_at=utc_now(), launch=args.launch, project=None, task=None, attempt=None,
                   worker=None, pane=None, state="unknown", state_label=LABELS["unknown"],
-                  raw_state=None, reason=None, identity=None, native=None, conflicts=[], evidence=[], calls=[])
+                  raw_state=None, reason=None, identity=None, native=None, anchors={}, conflicts=[], evidence=[], calls=[])
     try:
         if not 0 < args.timeout <= 10:
             raise Unreadable("invalid_timeout")
@@ -246,45 +217,37 @@ def main():
                                             reason="native_changed_during_screen_read", decision="unknown"))
             raise Unreadable("native_question_state_changed")
         output["identity"].update(native_session=record["native_session"], native_binding="launch_record_and_native_log")
-        frames = {source: screen_frame(text, record) for source, text in screens.items()}
-        for source, frame in frames.items():
-            output["evidence"].append(dict(source=source, **frame))
-        kinds = {frame["kind"] for frame in frames.values()}
-        if len(kinds) != 1:
-            raise Unreadable("screen_readings_disagree")
-        kind = next(iter(kinds))
-        pending = native_after["state"] == "pending"
-        if pending and kind == "activity" and output["raw_state"] == "blocked":
-            output.update(state="waiting_controller_answer", reason="native_question_and_action_required", panel_form="collapsed")
-        elif pending and kind == "question":
-            forms = {frame["panel_form"] for frame in frames.values()}
-            if len(forms) != 1:
-                raise Unreadable("question_form_changed")
-            form = next(iter(forms))
-            if form == "collapsed":
-                counts = {frame["question_count"] for frame in frames.values()}
-                if len(counts) != 1:
-                    raise Unreadable("question_count_changed")
-                native_count = sum(item["question_count"] for item in native_after["pending"])
-                if next(iter(counts)) != native_count:
-                    output["conflicts"].append(dict(native_question_count=native_count, screen_question_count=next(iter(counts)), decision="unknown"))
-                    raise Unreadable("screen_native_question_count_conflict")
+        anchors = {source: question_anchors(text) for source, text in screens.items()}
+        output["anchors"] = anchors
+        blocked = output["raw_state"] == "blocked"
+        if blocked or any(anchors.values()):
+            output["evidence"] = [dict(source=source, kind="question_anchors", anchors=found)
+                                  for source, found in anchors.items()]
+            if blocked and all(anchors.values()):
+                forms = {anchor["form"] for found in anchors.values() for anchor in found}
+                output.update(state="waiting_controller_answer", reason="screen_anchor_and_blocked",
+                              panel_form=next(iter(forms)) if len(forms) == 1 else "mixed")
             else:
-                selections = {(frame["selected_option"], frame["option_count"]) for frame in frames.values()}
-                if len(selections) != 1:
-                    raise Unreadable("question_selection_changed")
-            output.update(state="waiting_controller_answer", reason="question_panel_controls", panel_form=form)
-        elif pending or kind == "question":
-            output["conflicts"].append(dict(native=native_after["state"], screen=kind, herdr=output["raw_state"], decision="unknown"))
-            raise Unreadable("screen_native_conflict")
-        elif kind == "activity" and output["raw_state"] == "working":
-            output.update(state="working", reason="current_activity_frame")
-        elif kind == "activity" and output["raw_state"] == "blocked":
-            raise Unreadable("blocked_activity_without_question_controls")
-        elif kind == "settled" and output["raw_state"] in ("idle", "done"):
-            output.update(state="idle", reason="settled_agent_and_plain_composer")
+                output["conflicts"].append(dict(screen_anchors={source:bool(found) for source, found in anchors.items()},
+                                                herdr=output["raw_state"], decision="unknown"))
+                raise Unreadable("screen_anchor_herdr_conflict")
         else:
-            raise Unreadable("activity_and_raw_state_disagree")
+            frames = {source: screen_frame(text, record) for source, text in screens.items()}
+            for source, frame in frames.items():
+                output["evidence"].append(dict(source=source, **frame))
+            kinds = {frame["kind"] for frame in frames.values()}
+            if len(kinds) != 1:
+                raise Unreadable("screen_readings_disagree")
+            kind = next(iter(kinds))
+            if native_after["state"] == "pending":
+                output["conflicts"].append(dict(native="pending", screen=kind, herdr=output["raw_state"], decision="unknown"))
+                raise Unreadable("screen_native_conflict")
+            if kind == "activity" and output["raw_state"] == "working":
+                output.update(state="working", reason="current_activity_frame")
+            elif kind == "settled" and output["raw_state"] in ("idle", "done"):
+                output.update(state="idle", reason="settled_agent_and_plain_composer")
+            else:
+                raise Unreadable("activity_and_raw_state_disagree")
     except Unreadable as exc:
         output.update(state="unknown", reason=exc.reason, details=exc.details)
     except NativeUnreadable as exc:

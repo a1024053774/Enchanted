@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# 真实模型预算：本次最多新增 1 个根提示回合（主控 #109 追加授权）。
-# 原红态和未通过的绿态已用 2 个；本次跑完总数最多 3 个，不重跑旧阶段。
+# 真实模型预算：本次最多新增 1 个根提示回合（主控 #115 追加授权）。
+# 原三次探针已用 3 个；本次跑完累计最多 4 个，不重跑旧阶段。
 # 不自动回答、不重投、不 resume。根回合限额不是 API 请求数或费用硬限额。
 # 只有执行主控核对后，才能在沙箱外加 --approve-one-root-turn 运行。
 # 用户已允许 T-095 不用等名额；此例外不扩展到其他任务。
@@ -66,11 +66,11 @@ def native_args(workspace):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--approve-one-root-turn", action="store_true")
-    parser.add_argument("--phase", choices=("green-independent",), default="green-independent")
+    parser.add_argument("--phase", choices=("green-anchor-independent",), default="green-anchor-independent")
     parser.add_argument("--auth-json", type=Path, default=Path.home() / ".codex/auth.json")
     args = parser.parse_args()
     plan = dict(status="INCOMPLETE", phase=args.phase, root_turn_limit=1, automatic_answers=0,
-                prior_root_turns=2, authorized_total_root_turns=3, authorization="executor #109 / controller #6",
+                prior_root_turns=3, authorized_total_root_turns=4, authorization="executor #115 / controller #8",
                 collapsed_before_first_expand=True, post_skip_observation_seconds=[30, 60],
                 post_skip_observation_reference="cancelled capture completed",
                 retries=0, expected_codex=EXPECTED_CODEX, prompt=PROMPT,

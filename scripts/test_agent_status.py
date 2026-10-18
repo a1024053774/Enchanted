@@ -122,7 +122,7 @@ def run_case(entry, directory, number, case):
         started["herdr_result"]["result"]["agent"]["agent_session"] = []
     rows = [prepared, started]
     if recorded:
-        native = json.loads((EVIDENCE / "real-native-inputs.json").read_text(encoding="utf-8"))["records"][0]["payload"]["id"]
+        native = meta["native_session"]
     data = dict(before=copy.deepcopy(live), after=copy.deepcopy(live),
                 visible=case.get("screen", frame()), detection=case.get("detection", case.get("screen", frame())))
     if recorded:
@@ -134,8 +134,6 @@ def run_case(entry, directory, number, case):
     if case.get("native_both"):
         for target in ("before", "after"):
             data[target]["agent_session"]["value"] = "replaced-native"
-    if case.get("latest_mutation"):
-        pass  # Applied to the bound row below, without invalidating phase order.
     if case.get("superseded"):
         other = dict(prepared, launch_id="launch-newer")
         rows.extend([other, dict(other, phase="started", pane=pane, agent=agent_name, herdr_result=started["herdr_result"])])
@@ -155,9 +153,6 @@ def run_case(entry, directory, number, case):
         events.append(dict(type="event_msg",payload=dict(type="task_complete",turn_id="fixture-turn")))
     elif case.get("native_tail") == "next-turn":
         events.append(dict(type="event_msg",payload=dict(type="task_started",turn_id="next-fixture-turn")))
-    if recorded:
-        captured_native=json.loads((EVIDENCE / "real-native-inputs.json").read_text(encoding="utf-8"))["records"]
-        events=copy.deepcopy(captured_native[:2] if case.get("native_after_submit") else captured_native)
     if case.get("wrong_native_header"):
         events[0]["payload"]["id"]="foreign-session"
     content_native="".join(json.dumps(row)+"\n" for row in events)
@@ -165,11 +160,16 @@ def run_case(entry, directory, number, case):
         content_native=content_native[:-1]
     if case.get("native_no_turn"):
         content_native=json.dumps(events[0])+"\n"
-    native_log.write_text(content_native,encoding="utf-8")
+    if case.get("native_original"):
+        content = Path(case["native_original"]).read_bytes()[:case["native_bytes"]]
+        assert content.endswith(b"\n") and len(content) == case["native_bytes"]
+        native_log.write_bytes(content)
+    else:
+        native_log.write_text(content_native,encoding="utf-8")
     db=sqlite3.connect(native_store)
     db.execute("CREATE TABLE threads (id TEXT PRIMARY KEY, rollout_path TEXT, cwd TEXT, source TEXT)")
     db.execute("INSERT INTO threads VALUES (?,?,?,?)",("foreign-id" if case.get("wrong_index_id") else native,
-               str(case.get("native_original",native_log)),prepared["cwd"],"cli"))
+               str(native_log),prepared["cwd"],"cli"))
     db.commit();db.close()
     if not case.get("native_unbound"):
         rows.append(dict(started,phase="native-session",native_session=native,native_store=str(native_store)))
@@ -245,8 +245,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--entry", type=Path, default=REPO / "scripts/agent-status")
     parser.add_argument("--report", type=Path, required=True)
-    parser.add_argument("--panel-contract", action="store_true", help="核对两种真实面板都必须正判等待；不能用安全 unknown 通过")
-    parser.add_argument("--full-native-red", action="store_true", help="通过索引绑定未裁剪的红态原生日志，只回放同一 worker 的三种稳定画面")
+    parser.add_argument("--archives-only", action="store_true", help="按主控 #115 的锚点合同回放三份真实归档，保留无锚点的 unknown")
     args = parser.parse_args()
     if args.report.exists():
         raise ValueError("报告已存在，保留旧证据；请使用新文件名")
@@ -289,92 +288,78 @@ def main():
     detection = (EVIDENCE / "ordinary-working-detection.txt").read_text(encoding="utf-8")
     cases.append(dict(name="captured-ordinary-working-screen", expected="working", screen=visible, detection=detection,
                       source="ordinary-working-source.json; existing worker screen, synthetic identity transport"))
-    meta = json.loads((EVIDENCE / "real-panel-inputs.json").read_text(encoding="utf-8"))
-    panel = "\n  独立哨兵问题，不匹配 T-095 或 A/B 文本。\n\n  › 2. 任意选项\n\n  enter submit   ⌃] skip   option 2/4   ⇧→ main prompt\n"
+    folded = "\n? 7 questions · age 2m 19s / arbitrary suffix\n"
+    bar = "residual output\nanything ⌃] skip / unrelated decoration / ⇧→ main prompt tail\nmore output\n"
     cases.extend([
-        dict(name="question-with-unseen-title-and-selection", expected="waiting_controller_answer", screen=panel,native="pending"),
-        dict(name="question-despite-raw-blocked", expected="waiting_controller_answer", screen=panel, raw_state="blocked",native="pending"),
-        dict(name="question-quoted-in-transcript", expected="working", screen=frame("• Printed a synthetic quote:" + panel + "\n• Working (4s • esc to interrupt)")),
-        dict(name="question-controls-truncated", expected="unknown", screen=panel.replace("   ⇧→ main prompt", "")),
-        dict(name="question-title-truncated", expected="unknown", screen=panel.replace("  独立哨兵问题，不匹配 T-095 或 A/B 文本。\n", "")),
-        dict(name="question-selection-disagrees-with-footer", expected="unknown", screen=panel.replace("option 2/4", "option 1/4")),
-        dict(name="question-readings-disagree", expected="unknown", screen=panel, detection=frame()),
-        dict(name="blocked-and-activity-alone-is-ambiguous", expected="unknown", raw_state="blocked"),
-    ])
-    folded_one = frame("• Working (9s • esc to interrupt)\n• Queued follow-up inputs\n  ? 1 question\n    ⇧← to answer")
-    folded_two = folded_one.replace("? 1 question", "? 2 questions")
-    expanded = ("\n  与题材和固定问题无关的哨兵标题\n  › 1. 一\n    2. 二\n    3. 三\n"
-                "  enter submit   ⌃] skip   ⇧→ main prompt\n")
-    selected_four = expanded.replace("  › 1. 一", "    1. 一").replace("    3. 三", "    3. 三\n  › 4. 四\n    5. 五")
-    cases.extend([
-        dict(name="folded-question-tail",expected="waiting_controller_answer",screen=folded_one,native="pending",raw_state="blocked"),
-        dict(name="folded-markers-independent-of-activity",expected="waiting_controller_answer",screen=frame("• Queued follow-up inputs\n  ? 1 question\n    ⇧← to answer"),native="pending",raw_state="idle"),
-        dict(name="folded-plural-and-working-raw",expected="waiting_controller_answer",screen=folded_two,native="pending",native_question_count=2),
-        dict(name="folded-count-conflicts-with-native",expected="unknown",screen=folded_two,native="pending",conflict=True),
-        dict(name="folded-question-count-changes",expected="unknown",screen=folded_one,detection=folded_two,native="pending",native_question_count=2),
-        dict(name="folded-without-queue-header",expected="unknown",screen=folded_one.replace("• Queued follow-up inputs\n", ""),native="pending"),
-        dict(name="folded-without-answer-key",expected="unknown",screen=folded_one.replace("    ⇧← to answer\n", ""),native="pending"),
-        dict(name="folded-zero-count",expected="unknown",screen=folded_one.replace("? 1 question", "? 0 questions"),native="pending"),
-        dict(name="folded-count-grammar-incomplete",expected="unknown",screen=folded_one.replace("? 1 question", "? 2 question"),native="pending",native_question_count=2),
-        dict(name="folded-quote-is-not-current",expected="working",screen=frame(folded_one+"\n• Working (7s • esc to interrupt)")),
-        dict(name="expanded-no-option-counter",expected="waiting_controller_answer",screen=expanded,native="pending"),
-        dict(name="expanded-activity-and-queue-prefix",expected="waiting_controller_answer",screen="• Working (7s • esc to interrupt)\n• Queued follow-up inputs\n"+expanded,native="pending"),
-        dict(name="expanded-queue-only-prefix",expected="waiting_controller_answer",screen="• Queued follow-up inputs\n"+selected_four,native="pending"),
-        dict(name="expanded-activity-only-prefix",expected="waiting_controller_answer",screen="• Working (7s • esc to interrupt)\n"+selected_four,native="pending"),
-        dict(name="expanded-no-counter-truncated-list",expected="unknown",screen=expanded.replace("  › 1. 一\n", "").replace("    2. 二", "  › 2. 二"),native="pending"),
-        dict(name="expanded-no-counter-duplicate-option",expected="unknown",screen=expanded.replace("3. 三", "2. 三"),native="pending"),
-        dict(name="expanded-no-counter-truncated-controls",expected="unknown",screen=expanded.replace("   ⇧→ main prompt", ""),native="pending"),
-        dict(name="expanded-arbitrary-prefix-is-unknown",expected="unknown",screen="Unverified prefix\n"+expanded,native="pending"),
-        dict(name="expanded-no-counter-against-clear-event",expected="unknown",screen=expanded,conflict=True),
-        dict(name="folded-and-expanded-readings-disagree",expected="unknown",screen=folded_one,detection=expanded,native="pending"),
+        dict(name="folded-anchor-blocked",expected="waiting_controller_answer",screen=folded,raw_state="blocked"),
+        dict(name="folded-no-header-footer-or-arrow",expected="waiting_controller_answer",screen="? 1 question",raw_state="blocked"),
+        dict(name="folded-suffix-is-unrestricted",expected="waiting_controller_answer",screen="  ? 12 questions🚀not-a-timer",raw_state="blocked"),
+        dict(name="folded-native-count-not-a-third-vote",expected="waiting_controller_answer",screen=folded,raw_state="blocked",native="pending"),
+        dict(name="folded-marker-only",expected="unknown",screen=folded,conflict=True),
+        dict(name="blocked-only-even-with-native-question",expected="unknown",raw_state="blocked",native="pending",conflict=True),
+        dict(name="blocked-only-clear-native",expected="unknown",raw_state="blocked",conflict=True),
+        dict(name="blocked-empty-screen",expected="unknown",screen="",raw_state="blocked",conflict=True),
+        dict(name="expanded-no-title-options-or-enter",expected="waiting_controller_answer",screen=bar,raw_state="blocked"),
+        dict(name="expanded-unrelated-prefix-and-suffix",expected="waiting_controller_answer",screen="prefix\n"*30+bar+"suffix\n"*20,raw_state="blocked"),
+        dict(name="expanded-markers-must-share-line",expected="unknown",screen="⌃] skip\n⇧→ main prompt",raw_state="blocked",conflict=True),
+        dict(name="expanded-skip-only",expected="unknown",screen="⌃] skip",raw_state="blocked",conflict=True),
+        dict(name="expanded-main-prompt-only",expected="unknown",screen="⇧→ main prompt",raw_state="blocked",conflict=True),
+        dict(name="expanded-marker-only",expected="unknown",screen=bar,conflict=True),
+        dict(name="expanded-idle-with-marker",expected="unknown",screen=bar,raw_state="idle",conflict=True),
+        dict(name="marker-presence-disagrees-between-reads",expected="unknown",screen=folded,detection=frame(),raw_state="blocked",conflict=True),
+        dict(name="presentation-can-change-between-reads",expected="waiting_controller_answer",screen=folded,detection=bar,raw_state="blocked"),
+        dict(name="count-presentation-can-change",expected="waiting_controller_answer",screen=folded,detection="? 99 question · any",raw_state="blocked"),
+        dict(name="old-folded-marker-above-bottom-region",expected="working",screen=frame("? 8 questions\n"+"historical output\n"*20+"• Working (8s • esc to interrupt)")),
+        dict(name="nonpositive-count-is-not-an-anchor",expected="unknown",screen="? 0 questions",raw_state="blocked",conflict=True),
+        dict(name="anchor-does-not-bypass-native-identity",expected="unknown",screen=bar,raw_state="blocked",wrong_native_header=True),
+        dict(name="pending-against-ordinary-working-is-conflict",expected="unknown",native="pending",conflict=True),
+        dict(name="accepted-receipt-does-not-resolve",expected="unknown",native="receipt",conflict=True),
+        dict(name="matched-answer-returns-working",expected="working",native="answered"),
+        dict(name="empty-answer-map-returns-working",expected="working",native="empty-response"),
+        dict(name="correlated-async-answer-closes-request",expected="working",native="async-answered"),
+        dict(name="correlated-async-empty-response-closes-request",expected="working",native="async-empty"),
+        dict(name="foreign-thread-question-not-adopted",expected="unknown",native="foreign-delivery"),
+        dict(name="plain-user-text-is-not-resolution",expected="unknown",native="uncorrelated-user"),
+        dict(name="native-publication-incomplete",expected="unknown",native="publication-incomplete",raw_state="blocked"),
+        dict(name="unmatched-answer-is-unknown",expected="unknown",native="orphan-response"),
+        dict(name="partial-native-line",expected="unknown",partial_native=True),
+        dict(name="index-selects-only-bound-id",expected="unknown",wrong_index_id=True),
+        dict(name="missing-native-store",expected="unknown",missing_native_store=True),
+        dict(name="native-session-unbound",expected="unknown",native_unbound=True),
+        dict(name="numeric-receipt-is-not-true",expected="unknown",native="invalid-receipt",raw_state="blocked"),
+        dict(name="native-turn-not-observed",expected="unknown",native_no_turn=True),
+        dict(name="native-changes-during-screen-read",expected="unknown",screen=folded,native="pending",raw_state="blocked",native_change=True,conflict=True),
         dict(name="later-same-turn-output-is-not-resolution",expected="unknown",native="pending",native_tail="output",conflict=True),
-        dict(name="turn-completion-is-not-a-question-answer",expected="unknown",native="pending",native_tail="completed",conflict=True),
-        dict(name="new-turn-does-not-silently-resolve-question",expected="unknown",native="pending",native_tail="next-turn"),
+        dict(name="turn-completion-is-not-question-resolution",expected="unknown",native="pending",native_tail="completed",conflict=True),
+        dict(name="new-turn-does-not-resolve-question",expected="unknown",native="pending",native_tail="next-turn"),
     ])
-    recorded_cases = [dict(name="real-" + label, expected=expected,
-                           recorded=dict(meta=meta, capture=meta["captures"][label]),
-                           native_after_submit=label=="after-submit",conflict=label=="cancelled",
-                           source=meta["source_archive"] + "/run.json; exact captured read payloads")
-                      for label, expected in (("collapsed", "waiting_controller_answer"), ("expanded", "waiting_controller_answer"),
-                                              ("cancelled", "unknown"), ("after-submit", "unknown"))]
-    if args.panel_contract:
-        cases = [dict(case, expected="waiting_controller_answer") for case in recorded_cases[:2]]
-    else:
-        cases.extend(recorded_cases)
-        cases.append(dict(recorded_cases[1], name="real-question-then-manual-skip",
-                          sequence=["waiting_controller_answer", "unknown"], next_capture=meta["captures"]["cancelled"]))
-        cases.extend([
-            dict(name="folded-pending-question",expected="waiting_controller_answer",native="pending",raw_state="blocked"),
-            dict(name="accepted-receipt-does-not-resolve",expected="waiting_controller_answer",native="receipt",raw_state="blocked"),
-            dict(name="pending-against-ordinary-working-is-conflict",expected="unknown",native="pending",conflict=True),
-            dict(name="clear-event-against-question-screen-is-conflict",expected="unknown",screen=panel,conflict=True),
-            dict(name="matched-answer-returns-working",expected="working",native="answered"),
-            dict(name="empty-answer-map-returns-working",expected="working",native="empty-response"),
-            dict(name="correlated-async-answer-closes-request",expected="working",native="async-answered"),
-            dict(name="correlated-async-empty-response-closes-request",expected="working",native="async-empty"),
-            dict(name="foreign-thread-question-not-adopted",expected="unknown",native="foreign-delivery"),
-            dict(name="plain-user-text-is-not-a-resolution",expected="unknown",native="uncorrelated-user"),
-            dict(name="native-publication-incomplete",expected="unknown",native="publication-incomplete",raw_state="blocked"),
-            dict(name="unmatched-answer-is-unknown",expected="unknown",native="orphan-response"),
-            dict(name="partial-native-line",expected="unknown",partial_native=True),
-            dict(name="wrong-native-header",expected="unknown",wrong_native_header=True),
-            dict(name="index-selects-only-bound-id",expected="unknown",wrong_index_id=True),
-            dict(name="missing-native-store",expected="unknown",missing_native_store=True),
-            dict(name="native-session-unbound",expected="unknown",native_unbound=True),
-            dict(name="numeric-receipt-is-not-true",expected="unknown",native="invalid-receipt",raw_state="blocked"),
-            dict(name="native-turn-not-observed",expected="unknown",native_no_turn=True),
-            dict(name="native-changes-during-screen-read",expected="unknown",native="pending",raw_state="blocked",native_change=True,conflict=True),
-        ])
-    if args.full_native_red:
-        original=json.loads((EVIDENCE/"real-native-inputs.json").read_text(encoding="utf-8"))["original"]
-        selected=cases if args.panel_contract else recorded_cases[:3]
-        cases=[dict(case,native_original=original) for case in selected]
+    archived = []
+    red = json.loads((EVIDENCE / "real-panel-inputs.json").read_text(encoding="utf-8"))
+    red_native = json.loads((EVIDENCE / "real-native-inputs.json").read_text(encoding="utf-8"))
+    red["native_session"] = red_native["records"][0]["payload"]["id"]
+    for label in ("collapsed", "expanded", "cancelled"):
+        archived.append(dict(name="archive-red-"+label,expected="waiting_controller_answer" if label=="expanded" else "unknown",
+                             recorded=dict(meta=red,capture=red["captures"][label]),native_original=red_native["original"],
+                             native_bytes=Path(red_native["original"]).stat().st_size,conflict=label!="expanded",
+                             source=red["source_archive"]+"; current anchor contract; reconstructed launch binding from archived start reply and verified native header"))
+    for prefix, filename in (("green","real-green-inputs.json"),("green-independent","real-independent-inputs.json")):
+        saved=json.loads((EVIDENCE/filename).read_text(encoding="utf-8"))
+        started=next(row for row in saved["launches"] if row["phase"]=="started")
+        meta=dict(worker=saved["worker"],launch=saved["launch"],cwd=started["cwd"],cli_version=started["cli_version"],
+                  model=started["model"],effort=started["effort"],code_revision=saved["source_revision"],start=started["herdr_result"],native_session=saved["native_session"])
+        for label,capture in saved["captures"].items():
+            values={key:capture[key] for key in ("visible","detection")}
+            for key in ("before","after"):values[key]=json.loads(capture[key])["result"]["agent"]
+            archived.append(dict(name="archive-"+prefix+"-"+label,expected="waiting_controller_answer" if label in ("collapsed","expanded") else "unknown",
+                                 recorded=dict(meta=meta,capture=values),native_original=saved["native_archive"]["archive"],native_bytes=capture["native_bytes"],
+                                 conflict=label not in ("collapsed","expanded"),source=saved["source_archive"]+"; exact captured surfaces and projection native-byte cutoff"))
+    cases = archived if args.archives_only else cases + archived
     directory = Path(tempfile.mkdtemp(prefix="t095-status-contract-", dir="/tmp"))
     reports = [run_case(args.entry.resolve(), directory / str(i), i, case) for i, case in enumerate(cases, 1)]
     passed = all(row["status"] == "PASS" for row in reports)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     with args.report.open("x", encoding="utf-8") as file:
-        json.dump(dict(status="PASS" if passed else "FAIL", scope="recorded panel contract" if args.panel_contract else "contract and replay; not live green acceptance",
+        json.dump(dict(status="PASS" if passed else "FAIL", scope="anchor contract for three archived runs; not fresh live validation" if args.archives_only else "anchor, identity and conservative working contract; not fresh live validation",
                        command=[sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
                        fixture=None if passed else str(directory), cases=reports), file, ensure_ascii=False, indent=2)
     if passed:

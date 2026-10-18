@@ -106,7 +106,7 @@ try:
             patch.object(os, "isatty", return_value=True), patch("builtins.input", side_effect=confirm), \
             patch.object(probe.time, "sleep", side_effect=advance), patch.object(probe.time, "monotonic", side_effect=lambda: clock[0]), \
             patch.object(sys, "argv", [str(HERE / "controlled-panel-probe.py"), "--approve-one-root-turn",
-                                       "--phase", "green-independent", "--auth-json", str(root / "auth.json")]):
+                                       "--phase", "green-anchor-independent", "--auth-json", str(root / "auth.json")]):
         code = probe.main()
     run = json.loads(next((root / "archive").glob("*/run.json")).read_text(encoding="utf-8"))
     projections = [item["output"]["state"] for item in run.get("projections", [])]
@@ -116,7 +116,7 @@ try:
     else:
         assert projections == ["waiting_controller_answer", "waiting_controller_answer", "unknown", "unknown", "unknown"], projections
         assert waits == [30, 30], waits
-        assert run["operator_collapsed_before_first_expand"] and run["authorized_total_root_turns"] == 3
+        assert run["operator_collapsed_before_first_expand"] and run["prior_root_turns"] == 3 and run["authorized_total_root_turns"] == 4
         assert run["projections"][-1]["output"]["conflicts"]
         assert run["native_session"] == "wire-native" and run["native_archive"]["bytes"] > 0
         assert all(item["output"]["launch"] == run["probe_launch"] and item["output"]["worker"] == run["worker"] for item in run["projections"])
