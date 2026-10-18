@@ -4,6 +4,13 @@
 task T-093 / attempt a1 / ready_rev 1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 最后 FROZEN SHA 绑定当前源码与命令，不代替受管 submit、独立审查或集成回执。九项尾注由提交钩子生成。
 
+冻结 1e556ce716220b6c1ff3200a0a5407166d8938c6 的独立复核为 FAIL，原文保存于
+[PRODUCT-PARALLEL-REVIEW-01.md](PRODUCT-PARALLEL-REVIEW-01.md)。本次修正两项发现：
+正式 Python 入口在其他导入前关闭字节码写入，并要求 `-I -S -B`；D 异常清理把 C 组纳入同一身份核对、终止和退出确认，未确认时保留私有根及主失败。
+[review-regressions-red-02.json](review-regressions-red-02.json) 用同一检查拒绝旧冻结源码，
+[review-regressions-green-03.json](review-regressions-green-03.json) 对修正源码通过四项；缓存写入被拦截、信号被模拟，没有新 OS 验收结论。
+本文件下列命令继续适用，但 SHA 必须使用本次最终 FROZEN 值；这次修正尚未取得新的独立通过结论。
+
 ## 已核实的外部事实
 
 主控 #84 的 [parallel-profile-01.json](parallel-profile-01.json) 绑定 1243d810a72cde3bf76c0595901c6443dcf665e9。
@@ -32,7 +39,7 @@ U 的原始收尾 stderr 随旧临时根删除，无法断言具体异常。本�
 
 | 进程 | profile／生命周期 |
 | --- | --- |
-| R 初始准备 | 仅参数／FD／临时目录、原始凭据读取在业务 profile 之前；无长期未保护监督进程。关闭额外 FD，拒绝 HOME 内 stdout/stderr |
+| R 初始准备 | 以 -I -S -B 启动，导入前禁写字节码；仅参数／FD／临时目录、原始凭据读取在业务 profile 之前；无长期未保护监督进程。关闭额外 FD，拒绝 HOME 内 stdout/stderr |
 | Git 版本／索引检查 | G，禁写真实 HOME、禁网络、禁 Security；只读检查，关闭 optional locks，凭据变体只走 stdin |
 | U/F/D/S/M 短脱离 helper | 先 setsid/fork，随后独立施加各自 profile 执行 true 并退出；helper PID、profile、退出码单列 |
 | F Python→Node，同 PID | 单次 F；禁写真实 HOME，只写自身 forwarder 目录，单 P 监听、单配置上游出站，禁 Security／fork |

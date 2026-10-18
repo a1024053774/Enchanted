@@ -372,7 +372,7 @@ URL 可以是配置的 HTTPS 地址／端口，或测试用的 `http://127.0.0.1
 正常登录使用独立的受保护 daemon。先准备已有合同要求的角色目录、task 和 manifest，再由操作者启动：
 
 ```sh
-python3 workbench/src/claudeLoginSession.py --manifest /绝对路径/manifest.json \
+python3 -I -S -B workbench/src/claudeLoginSession.py --manifest /绝对路径/manifest.json \
   --repo /真实HOME以外的工作区 --forward-port 本地固定端口 \
   --upstream-address 配置上游的固定IPv4 --lifetime-seconds 600
 ```
@@ -383,6 +383,8 @@ root/roles/ideation 或 executor，包含 home、claude、tmp、shell、requests
 CLI executable 使用规范实际路径，避免版本符号链接与进程身份不一致；Git 元数据也须在真实 HOME 外。
 启动器直接 exec 进入 C 中的现有 daemon 入口，并在 C 中创建本次 root/operator.json；
 后续操作继续走原入口。后台与 PTY 生命周期不依赖前端窗口。
+正式 Python 入口必须使用 `-I -S -B`，关闭环境／site 启动和字节码缓存；入口会核对三项标志，
+并在其他导入前关闭字节码写入。普通 Python 启动不在支持范围内，其解释器启动早于脚本检查。
 
 `upstream-address` 是 URL 的显式 IPv4 网络地址，由操作者配置。F 仅连接该地址与 URL 的端口；
 不查询 DNS、不轮换地址，TLS 使用 URL 的原始主机名验证证书。HTTP 假上游必须匹配 127.0.0.1；
@@ -422,7 +424,7 @@ CLI 的 400 后重试算新请求；记录失败时停止转发新请求。终�
 操作者在发送模型提示前，使用独立 V profile 的只读事实入口：
 
 ```sh
-python3 workbench/src/claudeLoginSession.py --stage facts --preflight --audit /绝对路径/state/login-audits/LAUNCH
+python3 -I -S -B workbench/src/claudeLoginSession.py --stage facts --preflight --audit /绝对路径/state/login-audits/LAUNCH
 ```
 
 preflight 标明 before_cli_input、当时的入口计数与扫描结果，结束后 HOME 对比仍是 pending；

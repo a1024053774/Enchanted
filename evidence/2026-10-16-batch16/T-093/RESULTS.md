@@ -194,3 +194,37 @@ inventory-race-red-01／green-01 另复现并修正目录在 stat 后、枚举�
 probe-10 三条边界仍保留：两个内部状态只对 2.1.302 有事实支持，换版本须重核；onboarding 的两个 hello 直连官方域名，不经过 BASE_URL，必须避免触发并报告终端／私有 debug 的可见信号；400 后的每次重试都算新请求。沉默的被拒网络尝试未测量，不能用转发原件冒称全网络审计。
 
 本候选没有运行真实供应商 CLI、读取真实登录、连接真实接口或产生模型回合。完整新产品 OS 运行、真实域名 DNS/TLS 和独立验收均未取得；不使用旧 PASS、局部模拟或进程标签冒称这些结论。全部原审查与失败保持原文，Git／提交仅冻结候选，不代替受管交付门禁。
+
+## 候选 06 的独立复核与修正
+
+冻结 1e556ce716220b6c1ff3200a0a5407166d8938c6 的新只读复核返回 FAIL，原文保存在
+[PRODUCT-PARALLEL-REVIEW-01.md](PRODUCT-PARALLEL-REVIEW-01.md)，没有改写旧审查报告。
+复核发现两个可达问题：正式普通 Python 命令可能在挂 profile 前写真实 HOME 的字节码缓存；
+D 的意外失败路径只发 TERM，没有确认 C 组退出就可能删除私有根、给出成功清理收据。
+
+入口现在先禁止字节码写入，正式命令统一使用并核对 `-I -S -B`。不支持普通 Python 启动；
+解释器的 site／环境启动早于脚本检查，不能把脚本检查当作任意解释器启动的 OS 防护。
+D 在意外失败时将 C 根组加入现有的身份核对、KILL、退出确认；明确取消仍保留负责报告的 C 进程。
+若 C 组退出未确认，保留原始 PermissionError、单列清理错误并保留私有根，不写成功删除收据。
+没有扩大 profile 权限或真实 HOME 写入例外。
+
+同一 [test_t093_review_regressions.py](../../../workbench/tests/test_t093_review_regressions.py)
+在旧冻结源码上得到四项预定业务失败，在修正源码上通过：冷缓存禁止写入、缺失启动标志拒绝、
+C 忽略 TERM 时仍确认退出、C 仍存活时拒绝成功清理。对照为 review-regressions-red-02.json 与
+review-regressions-green-03.json；整个检查缓存写入被拦截、进程信号被模拟，没有真实 auth、网络或 OS profile。
+旧源码从 Git 原文读入 /private/tmp，不回退或修改工作树。复现命令：
+
+```sh
+python3 -I -S -B workbench/tests/test_t093_review_regressions.py /private/tmp/t093-review-regressions-new.json
+```
+
+review-regressions-green-01／02 保留为失败诊断：最初测试在关闭字节码标志后才读取测试源码，
+把测试自身加载 _bootlocale 的缓存尝试也纳入了被测入口。最终测试在拦截前准备代码对象，再运行入口；
+red-02 用同一最终测试重新拒绝旧实现，未靠删除失败或仅绿态掩盖该问题。debug-01 也原样保留。
+
+相关局部复验 cleanup-local-08、once-local-06、facts-local-06、private-files-local-04、launch-local-07 均通过。
+这些仅证明局部逻辑；本候选完整 OS 绿态、五项变异和修正后的 U 收尾仍未在沙箱外执行。
+外验命令、每个进程的 profile 及预期业务失败见 REVIEW-REQUEST-T093-06.md；当前整票仍为 INCOMPLETE。
+
+最终局部汇总为 freeze-checks-10.json：43 个脚本／源码语法检查、UTF-8、diff、修改范围和旧 profile AST 核对通过，地图 0 problems／0 stale。
+freeze-checks-09.json 保留文档范围检查的错误基线诊断；10 改用上次冻结版本比较，本次没有改动 README 正常登录节以外的内容。

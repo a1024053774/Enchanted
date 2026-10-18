@@ -4,6 +4,22 @@ All session data must be outside the OS account HOME. No DNS lookup, fallback,
 vendor turn, or global setting is performed. The caller supplies one pinned
 IPv4 peer for the configured URL. TLS still checks that URL's hostname.
 """
+import sys
+sys.dont_write_bytecode = True
+
+
+def require_safe_python():
+    if not (sys.flags.isolated and sys.flags.no_site and sys.flags.dont_write_bytecode):
+        raise ValueError("python_isolated_no_site_no_bytecode_required")
+
+
+if __name__ == "__main__":
+    try:
+        require_safe_python()
+    except ValueError:
+        sys.stderr.write("python_isolated_no_site_no_bytecode_required\n")
+        raise SystemExit(2)
+
 import argparse
 import fcntl
 import importlib.util
@@ -18,7 +34,6 @@ import signal
 import socket
 import stat
 import subprocess
-import sys
 import tempfile
 import time
 import unicodedata
@@ -326,6 +341,8 @@ def metadata_service(session):
             for line in pty_path.read_text().splitlines():
                 if line:
                     value=json.loads(line); owners[value['pgrp']]=value['pgrp']
+        if primary and primary != "SessionCancelled":
+            owners[session['c_root_pid']] = session['c_root_pid']
         groups=[]
         for group,pid in owners.items():
             if not isinstance(group,int) or not isinstance(pid,int) or group<=1 or pid<=1 or group==os.getpgrp():
@@ -351,10 +368,6 @@ def metadata_service(session):
                 if time.monotonic() >= until:
                     cleanup.append("owned_group_exit_unconfirmed"); break
                 time.sleep(.03)
-        if primary and primary != "SessionCancelled":
-            try: os.killpg(session["c_root_pid"], signal.SIGTERM)
-            except ProcessLookupError: pass
-            except OSError: cleanup.append("cli_root_cleanup_failed")
         if not cleanup:
             try: shutil.rmtree(private)
             except OSError: cleanup.append("isolated_home_cleanup_failed")
