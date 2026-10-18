@@ -2,6 +2,8 @@
 
 **INCOMPLETE：局部红绿通过；本候选的 OS 编译、完整无模型链和 T-096 原生七场待主控沙箱外运行。** task T-093 / attempt a1，worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645；基线 7bba61000d8ae5b643135b58111768a403a5d04c。最终候选绑定末行 `T-093 FROZEN <完整 SHA>`，不 push、不 rebase；冻结不代替 submit／验收／集成。
 
+限定独立审查 [PORT-STARTUP-REVIEW-18.md](PORT-STARTUP-REVIEW-18.md) 对代码候选 e5b8329e4f7d0c8104b7e666c346531357612372 报 INCOMPLETE，L0/L1 局部 PASS、无 finding；新端口 39524／nonce、生产解析器、共享函数、Bash argv、U 关闭、C 收据／退出和应用主机锁均取得独立行为证据。OS／完整链／native7 仍待运行。最终归档候选只加报告与文本清单，产品／测试／脚本与审查对象相同；见 freeze-checks-37.json。
+
 ## 外部事实与修正范围
 
 主控 #126 已在基线上取得生产 F 的 443 profile 编译 PASS。primary／green 均在 U 启动阶段以 fake_upstream_listener_unavailable、errno 13 失败，cleanup_failures=[upstream_shutdown_unconfirmed]；两个夹具已删除，无残留。小摘要为 [os-r17-failure-summary-18.json](os-r17-failure-summary-18.json)。主控另确认用户的 IPNExtension/Tailscale 占用 IPv4／IPv6 *:443，worker 没有对它查询、停用或修改，也没有申请升级。
@@ -22,6 +24,8 @@ U 原先在 try 抛绑定错误后，虽然 finally 执行 close，但位于 fin
 - 首次 upstream-startup-red-18.json 的 AST 取样漏掉旧 try 之后的正常关闭语句，已保留，不用它证明旧正常路径缺收据；最终 red-18-02 覆盖完整尾段。首次 host-lock-green-18.json 误漏 `--experimental-vm-modules`，五项为 vm.SourceTextModule 环境错误，不作业务红态；补该参数后的 -02 为实际局部绿态，C 原调用本来就带该参数。
 
 正常登录不自动恢复的 #125 限制、假 API／legacy 正例和此前独立局部 PASS 仍保留，panes.ts／恢复测试本轮未改。probe-10 的三个边界不变：2.1.302 内部 onboarding／唯一 cwd trust 状态升级须重核；官方 hello 候选不经 BASE_URL，必须避免且报告可见迹象，不能把沉默被拒当零尝试；失败与重试逐次计数。用户裁定 A 的真实 HOME OS 禁写及各反例、清单仅报告、凭据／正文不进证据规则不变。R 之外的 C/F/D/U/S/M/G/V 仍各按既有单层／平级 profile 身份运行；除测试上游端口替换，其他权限不变。
+
+独立小摘要为 independent-port-startup-18.json，三个探针原文为 PORT-STARTUP-PROBE-18.py／PORT-STARTUP-CLEANUP-18.mjs／PORT-STARTUP-HOST-18.mjs。复跑时分别复制到全新临时目录，沿用报告中的 python3 -I -S -B／node 参数；它们读取当前源码，报告版本标签固定为 e5b8329e4，不能据此宣称新源码也已审查。原始较大 JSON、首轮审查工具失败与夹具仍留报告里的临时目录，不进 Git、不覆盖。
 
 ## 主控沙箱外命令
 

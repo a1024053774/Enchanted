@@ -7,6 +7,7 @@
 **整票 INCOMPLETE：主控 #125 已裁定正常登录不自动恢复，版本／PTY 前的明确拒绝已取得局部红绿；新 OS 与 T-096 原生七场仍未运行，门禁验收与集成尚未完成。**
 最新交接为 [请求 18](REVIEW-REQUEST-T093-18.md)。主控 #126 回传 7bba61000 的生产 443 profile compile PASS，primary／green 在 U bind 阶段以 errno 13 失败；主控确认本机 IPNExtension/Tailscale 已占用 *:443。旧失败摘要 [os-r17-failure-summary-18.json](os-r17-failure-summary-18.json) 保留，不把 errno 13 自身外推为占用的独立证明；worker 没有查询或操作该服务。
 当前生产入口仍明确固定 443；无模型链默认 18443，可显式配置，生产和测试均调用同一 prepare／policies，只有 port 参数不同。preflight／结束事实报告实际端口；OS 仍不按主机限制，主机锁定仍由应用完成，无 fallback。U 的关闭收据移入 finally，绑定失败也提供零／部分监听关闭数，主错误不被关闭错误覆盖。C 仍须核对完整收据及 ESRCH，V 仍拒绝端口不符／未关闭／错误拥有者。局部红绿与反例见请求 18；当前候选的新 OS 链和原生七场尚未运行，整票 INCOMPLETE。
+限定独立审查 [PORT-STARTUP-REVIEW-18.md](PORT-STARTUP-REVIEW-18.md) 对 e5b8329e4 报 INCOMPLETE，L0/L1 局部 PASS、无 finding。新端口 39524／新 nonce 验证生产入口固定 443、同函数仅换端口、Bash 参数、U 零／部分监听及关闭错误、C 严格收据与 ESRCH、应用层主机锁；硬写 443、跳过 close、EPERM 当退出、删主机检查均被独立业务断言拒绝。最终归档仅加报告／摘要和清单，运行源码／测试／脚本未变；OS／完整链／native7／真实 V 入口未运行，不上调整票状态。
 不修改 ticket 验收框，不把 Git 提交当作 Gate submit 或 integration 收据。
 
 最新交接为 [第二轮独立审查请求 15](REVIEW-REQUEST-T093-15.md)。主控 #117 已回传 chain-08 counts／V 单场 PASS；它与 chain-07 的其余五场、rehearsal-04 的预期结果均符合要求，但分别绑定下文列出的两个候选，不存在新候选六场统一重跑的记录。T-096 跨票恢复检查仍未完成。以下各“当前／最新”文字均保留为其对应阶段的历史记录。
