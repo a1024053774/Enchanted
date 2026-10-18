@@ -1,6 +1,7 @@
 # 正常登录恢复的明确拒绝
 
 **局部逻辑 PASS；整票 INCOMPLETE，新 OS 与 T-096 原生七场尚未运行。**
+限定独立审查 [NORMAL-RESTORE-REVIEW-17.md](NORMAL-RESTORE-REVIEW-17.md) 对代码候选 91cd22d523af28ab9a13631d6919635be430ba34 给出 PASS；归档后的最终候选不再改产品或测试。该 PASS 仅覆盖 #125 的局部合同，不代替整票 OS／原生验收。
 
 依据是主控 #125／#31 的明确裁定：“正常登录的主控记录不在恢复路径里续接。” recover 须在任何 CLI 命令前识别 `authentication="isolated normal login"`，保留为“未恢复”；假 API 恢复仍沿 T-096。完整重建 R/F/D/C 生命周期属于新范围，另票处理。本次不改门禁、app 或全局配置，不读真实 auth，不运行真实 CLI／OS 查询／网络或模型。
 
@@ -31,3 +32,5 @@ node --experimental-vm-modules workbench/tests/test_t096_restore.mjs /private/tm
 第一项测试预期 rc 1，第二项 rc 0；旧源不能覆盖产品工作树。独立探针的原文、旧失败和新观察均保留，输入选择／精确 node 命令／临时路径记录在对应 red／green JSON 的 replay。临时 SQLite／整套夹具不入 Git。没有实际 auth 读取边界，也没有据此宣称 OS 权限已实测。
 
 新候选的 OS 编译、443 无模型链与 T-096 七场仍须主控在沙箱外按 [请求 16](REVIEW-REQUEST-T093-16.md) 顺序执行，初始化继续逐屏批准。原生恢复回归失败即按主控要求交回 T-096，不放宽旧断言，不自动补 Enter。
+
+独立摘要与探针原文分别保留为 normal-restore-independent-17.json／NORMAL-RESTORE-INDEPENDENT-17.mjs；不把约 30 KB／35 KB 的原始状态输出或 SQLite 夹具放入仓库。复跑须把探针复制到全新临时目录，并用 `git show 8771ba58d71a3fc025b09e32c45096b39858572e:workbench/src/panes.ts` 在该目录创建 `known-bad-panes.ts`，再执行 node --experimental-vm-modules probe.mjs。探针以给定边界读取当前产品和 paneRecovery，包含新随机输入和已知坏源对照；其中 candidate 字段固定为审查时版本。整套临时原件仍按审查报告里的路径保留，不覆盖。

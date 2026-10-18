@@ -6,7 +6,8 @@
 不 push、不 rebase、不改门禁／地图或验收状态；Git 冻结不代替 submit、验收或集成。本票不启动真实模型，仍须用户合入后另说开工。
 首轮限定审查 [NETWORK-RESTORE-REVIEW-01.md](NETWORK-RESTORE-REVIEW-01.md) 对 e1177a02d 报 FAIL，确认交接脚本在 Bash 3.2 的 verify-six 空数组错误。现改用位置参数；outside-wrapper-red-01／green-01 用实际系统 Bash、exec 参数哨兵验证七分支，不调用 Python／OS profile，V 六场要求未变。
 一次针对性复核 [NETWORK-RESTORE-REVIEW-02.md](NETWORK-RESTORE-REVIEW-02.md) 对 8771ba58d 报 FAIL：原 Bash P2 已关闭，独立确认正常登录恢复 P1。报告原文不改。此次按 #125 新裁定修正该入口拒绝；不沿用旧审查作为新修正通过证据。
-当前冻结前检查会另存 freeze-checks-34.json；freeze-checks-33.json 保留旧 NO_GO。地图须为 0 problems／0 stale，主控第二轮审查原件不改；不补称新 OS 或原生恢复已运行，尚无 submit／验收／集成收据。
+冻结前检查见 freeze-checks-34.json，独立审查后归档见 freeze-checks-35.json；freeze-checks-33.json 保留旧 NO_GO。地图为 0 problems／0 stale，主控第二轮审查原件不改；不补称新 OS 或原生恢复已运行，尚无 submit／验收／集成收据。
+新限定独立审查 [NORMAL-RESTORE-REVIEW-17.md](NORMAL-RESTORE-REVIEW-17.md) 对代码候选 91cd22d523af28ab9a13631d6919635be430ba34 的 #125 合同给出 PASS，无 finding；独立新输入验证正常登录零版本／PTY、明确未恢复、历史不变与假 API／legacy 恢复正例，旧 8771ba58d 被业务断言拒绝。最终归档候选与它的产品／测试相同。下面所有命令的 candidate 必须填本轮末行完整冻结 SHA，输出已换成 r17／chain-10；先编译与 primary，再逐项继续，不覆盖旧结果。
 
 ## 事实、授权与边界变化
 

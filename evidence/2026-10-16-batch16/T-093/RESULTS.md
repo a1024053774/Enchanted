@@ -14,6 +14,7 @@
 一次针对性独立复核 [NETWORK-RESTORE-REVIEW-02.md](NETWORK-RESTORE-REVIEW-02.md) 已关闭 8771ba58d 的 Bash 脚本问题，但以全新 SQLite／native session 独立确认同一正常登录恢复 P1，结论 FAIL。缺 session 的对照仍会先执行版本命令，因此不能靠清理通常成功来保证安全。该历史检查只使用给定 subprocess／PTY 边界，没有运行真实 CLI／OS，也没有声称观察到实际越权写入。67ffe60ad 只归档报告和状态。
 
 主控 #125 的范围裁定现已落实：正常登录主控记录不在 recover 续接，先返回 `normal_login_restore_requires_protected_start`，状态“未恢复”，提示“请经正常登录入口重新启动”。这是一项已知限制；恢复完整 R/F/D/C 生命周期须另票。假 API 与合法旧记录继续按 T-096 恢复，原历史记录不变。[NORMAL-RESTORE-17.md](NORMAL-RESTORE-17.md) 对应 8771ba58d 的独立探针红态、同探针绿态、实际恢复合同和删拒绝检查变异。正常登录版本／PTY 均为 0，假 API 正例恢复；T-091 IPC 19 项与 T-096 daemon 7 场局部回归通过。当前并非整票 PASS；请求 16 已更新为新输出名和最终冻结 SHA 变量，供主控在沙箱外执行。
+限定独立审查 [NORMAL-RESTORE-REVIEW-17.md](NORMAL-RESTORE-REVIEW-17.md) 对 91cd22d52 的 #125 局部合同给出 PASS，新 SQLite／nonce 输入验证零正常登录边界、明确未恢复／重启提示、历史与 attempt 不变、假 API／legacy 正例及原身份拒绝；同一信号拒绝 8771ba58d。最终归档提交只加入报告／摘要和文本状态，不改变产品或测试；新 OS／原生七场仍 INCOMPLETE。
 
 更新：独立审查 01 对第一次冻结候选 1d4c58b4a 给出 **NO_GO（验收文件缺口）**，报告原文保留。
 下文首次交付的 PASS 均是当时运行证据，不提升为新候选的独立审查通过。当前仅修正验收输入与审查驱动的失败保存，产品源码未改；新外部复验与新独立审查仍待完成，见末节。
