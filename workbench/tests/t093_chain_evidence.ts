@@ -7,7 +7,16 @@ export function errorSummary(error:unknown) {
   const value=error as any;
   // Keep complete values until publication redacts them. Truncating a raw
   // message first could leave a credential prefix that an exact scan misses.
-  return {type:value?.name??"Error",message:String(value?.message??error),code:value?.code??null,errno:value?.errno??null,path:value?.path??null,stack:typeof value?.stack==="string"?value.stack:null};
+  return {type:value?.name??"Error",message:String(value?.message??error),code:value?.code??null,errno:value?.errno??null,path:value?.path??null,stack:typeof value?.stack==="string"?value.stack:null,
+    ...(value?.daemon_response?{daemon_response:value.daemon_response}:{})};
+}
+
+export function assertDaemonOk(command:string,response:any) {
+  if(response?.ok===true)return;
+  const error=Object.assign(new Error(command+"_rejected: "+String(response?.error??"daemon_error_field_missing")),{
+    daemon_response:{command,ok:response?.ok??null,error:response?.error??null,details:response?.details??null}
+  });
+  throw error;
 }
 
 export function exclusiveJson(path:string,value:unknown) {

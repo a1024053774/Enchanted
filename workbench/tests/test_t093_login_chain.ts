@@ -14,7 +14,7 @@ import { credentialHits, countForwarderRecords, homeReferences, redactCredential
 import { recordLoginProcess } from "../src/claudeLoginProcessTrace.ts";
 import { observeHomeReadBoundary } from "./t093_home_read_boundary.ts";
 import { fileURLToPath } from "node:url";
-import { ChainEvidence, finishChain, exclusiveJson, errorSummary } from "./t093_chain_evidence.ts";
+import { ChainEvidence, finishChain, exclusiveJson, errorSummary, assertDaemonOk } from "./t093_chain_evidence.ts";
 
 const load=(path:string)=>JSON.parse(readFileSync(path,"utf8"));
 const session=load(process.env.A2A_CLAUDE_LOGIN_SESSION!), privateRoot=session.private_root;
@@ -71,7 +71,7 @@ try {
   panes.store.db.prepare("INSERT INTO inbox_records VALUES (?,?)").run(fixture.inbox_sentinel,JSON.stringify({schema:1,id:fixture.inbox_sentinel,kind:"report",from:"executor",to:"ideation",body:"独立 Stop 转交哨兵",reply_to:null,refs:[],created_at:new Date().toISOString()}));
   stage="controller_start";
   const started=await request(state,{command:"controller_start",task:task.task_id,manifest:session.manifest},operator);
-  assert.equal(started.ok,true,"controller_start_must_succeed: "+started.error);launch=started.launch;
+  assertDaemonOk("controller_start",started);launch=started.launch;
   const preflight=load(join(audit,"preflight.json"));
   assert.equal(preflight.phase,"before_cli_input");assert.equal(preflight.counts.model_requests,0);assert.equal(preflight.counts.counts_match,true);
   assert.equal(preflight.credential_scan.hits,0);assert.equal(preflight.credential_scan.launch_record_hits,0);assert.equal(preflight.inventory.comparison_pending,true);
@@ -111,8 +111,12 @@ try {
   writeFileSync(join(privateRoot,"home-probes.json"),JSON.stringify(probes),{mode:0o600,flag:"wx"});
   checks.push("actual HOME writes denied; F peer/listener/fork/write boundaries; CLI direct upstream denied; synthetic missing guard rejected and deleted");
   stage="turns";
-  assert((await request(state,{command:"pane_release",thread:launch.thread,reason:"deterministic fixture ready"},operator)).ok);
-  assert((await request(state,{command:"pane_dispatch",thread:launch.thread,body:fixture.prompt},operator)).ok);
+  const releaseBefore=panes.status(launch.thread);
+  const released=await request(state,{command:"pane_release",thread:launch.thread,reason:"deterministic fixture ready"},operator);
+  counterexamples.pane_release={before:releaseBefore,after:panes.status(launch.thread),response:released};
+  assertDaemonOk("pane_release",released);
+  const dispatched=await request(state,{command:"pane_dispatch",thread:launch.thread,body:fixture.prompt},operator);
+  assertDaemonOk("pane_dispatch",dispatched);
   await wait(()=>readFileSync(trace,"utf8").includes("fixture-turn-2-complete"),"two_hook_Stop_cycles_deadline");
   receipts=load(join(root,"U/received.json"));rawRecords=readFileSync(ledger,"utf8").split("\n").filter(Boolean).map(JSON.parse);
   assert.equal(receipts.length,2,"independent_upstream_must_receive_two_attempts");
@@ -136,7 +140,7 @@ try {
   checks.push("actual launch record HOME injection reported; independent raw/JSON/URL/base64 injections detected and removed");
   if(fixture.rehearsal==="primary"){stage="rehearsal_before_finalization";throw new Error("rehearsal_primary_probe");}
   stage="finalization";
-  assert((await request(state,{command:"daemon_stop"},operator)).ok);
+  assertDaemonOk("daemon_stop",await request(state,{command:"daemon_stop"},operator));
   await wait(()=>!existsSync(join(state,"daemon.pid")),"daemon_shutdown_deadline");daemonStarted=false;
   facts=load(join(audit,"facts.json"));
   assert.equal(facts.counts.counts_match,true,"final_counts_must_match");assert.equal(facts.counts.model_requests,receipts.length);assert.equal(facts.forwarder.forwarded,receipts.length);assert.equal(facts.credential_scan.hits,0);
@@ -161,7 +165,7 @@ finally{
     {name:"source_cleanup_permit_failed",run:()=>{exclusiveJson(join(session.metadata_directory,"source-cleanup-permit.json"),{output,candidate:fixture.candidate});}},
     {name:"credential_injection_cleanup_failed",run:()=>{const leak=join(state,"synthetic-credential-injection");if(existsSync(leak))rmSync(leak);}},
     {name:"upstream_shutdown_unconfirmed",run:async()=>{if(!existsSync(join(root,"U/stop")))writeFileSync(join(root,"U/stop"),"\n",{flag:"wx",mode:0o600});await file(join(root,"U/closed.json"));await wait(()=>gone(testServices.U.pgrp,true),"upstream_exit_unconfirmed",5000);}},
-    {name:"daemon_cleanup_unconfirmed",run:async()=>{if(daemonStarted||existsSync(join(state,"daemon.pid"))){await request(state,{command:"daemon_stop"},readOperatorCredential(state));await wait(()=>!existsSync(join(state,"daemon.pid")),"cleanup_daemon_deadline");}daemonStarted=false;}},
+    {name:"daemon_cleanup_unconfirmed",run:async()=>{if(daemonStarted||existsSync(join(state,"daemon.pid"))){assertDaemonOk("daemon_stop",await request(state,{command:"daemon_stop"},readOperatorCredential(state)));await wait(()=>!existsSync(join(state,"daemon.pid")),"cleanup_daemon_deadline");}daemonStarted=false;}},
     {name:"session_abort_cleanup_unconfirmed",run:async()=>{if(existsSync(privateRoot)){const abort=join(session.metadata_directory,"abort");if(!existsSync(abort))writeFileSync(abort,"\n",{flag:"wx",mode:0o600});await file(join(session.metadata_directory,"removed.json"));}}},
     {name:"source_home_cleanup_unconfirmed",run:async()=>{const source=await file(join(session.metadata_directory,"source-home-removed.json"));assert.equal(source.source_home,join(root,"source-home"));assert.equal(source.removed,true,"independent_source_HOME_removal_required");result.source_home_cleanup=source;await wait(()=>gone(services.D.pgrp,true),"D_owner_exit_unconfirmed",5000);}},
     {name:"final_receipt_collection_failed",run:()=>{

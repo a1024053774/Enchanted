@@ -358,10 +358,10 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：外部 V 与旧七根清理已通过；新完整链的根删除错误曾掩盖主失败。
-本候选改为先保存脱敏原异常，再由独立 D 删除合成认证源；确认写入者退出后才删剩余根。
-局部反例已通过，同 OS profile 的失败／绿态演练与正式六场等待主控沙箱外执行，见
-[交接请求 10](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-10.md)。
+当前为 INCOMPLETE：旧残留已清理；primary 演练在 pane_release 返回 not ok 后停止，收尾完整。
+本候选补齐 daemon.error／details 与调用前后 status 的脱敏留证；原回复已丢失，实际拒绝原因仍需沙箱外重新取得。
+新命令与停止条件见
+[交接请求 11](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-11.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
@@ -456,7 +456,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-先按交接请求 10 清理唯一残留，再运行 REHEARSE-CHAIN-01.sh 的 primary／green 两场，并由独立核对器确认。
+旧唯一残留已由主控清理。先按交接请求 11 使用新输出重跑 REHEARSE-CHAIN-01.sh 的 primary；取得实际 daemon 回复并达到预期后，才继续 green／独立核对。
 演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
 两场通过后才执行正式六场，预期业务断言与命令均在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
 

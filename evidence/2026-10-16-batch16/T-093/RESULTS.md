@@ -372,3 +372,22 @@ chain-cleanup-oracle-red-03 拒绝旧核对器，green-04 的 12 项检查包括
 审查者独立执行 prepare 3 项与 oracle 12 项合成检查均通过，认定前两项 P1 的 L1 缺口已关闭；实际 OS 边界仍未测。
 原始小报告另存 prepare-review-green-01.json、oracle-review-green-01.json。实现自该冻结后未改；后续只补文本证据。
 按请求 10 先清理 e189ndt0，再做同 profile 的两场演练，通过独立核对后才做正式六场；旧候选通过不沿用。
+
+
+## 主控 #103：pane_release 的 not-ok 回复被断言丢弃
+
+**INCOMPLETE。** 候选 4533ebeb7 的固定残留清理 rc 0／PASS，e189ndt0 已删除；原件 cleanup-07.json。
+同候选 primary 演练 rc 2，主失败 chain_operation_failed，失败位置为 turns 的 pane_release 布尔断言，并未到 rehearsal_primary_probe。
+边界全部通过，请求 0；主失败先落盘，source HOME／隔离 HOME／夹具删除及写入者退出已确认，cleanup_failures=[]。
+原结果摘要与检查点为 rehearsal-01-primary-summary.json、rehearsal-01-primary.events.jsonl。绿态、正式六场均未跑。
+
+旧断言丢弃了 daemon.error／details，event store 又随夹具删除，不能恢复实际拒绝码。
+当前 worktree 的 release 检查初始 unknown／无 active、failed，再执行 processInfo 的前台身份核对；没有 T-096 的屏幕就绪条件。
+其中 /bin/ps 与之前 X 下被拒的 setuid 程序相同，是待验证嫌疑，不能写成已确认的本轮原因。
+没有据此改产品、全局配置或 OS profile，也没有自动重试、放行状态或绕过身份核对。
+
+测试调用现在把 command／实际 error／details 写入 error_summary.daemon_response，message 也保留实际返回码；pane_release 保存前后 status 和返回值。
+同样处理 controller_start、pane_dispatch 与 daemon_stop 的 not-ok，清理错误仍为次要；全部内容经既有凭据脱敏与独立扫描后落盘。
+daemon-rejection-red-01／green-01 对实际 release 代码块的三种合成回复复现并修复错误丢失，green 验证 details 的合成凭据被脱敏；chain-publication-green-05 的五项主失败／清理检查通过。
+这些仅证明 L1 回复留证，不证明本轮真实 daemon 拒绝原因。当前只修复诊断，业务拒绝根因待下一次真实回复，不宣称整链已修好。
+请求 11 给出 rehearsal-02-primary 命令；若错误仍为 pane_release_rejected，回传结构化 error／details 和前后状态，停止绿态及正式六场。
