@@ -10,30 +10,30 @@
 
 ## 机械识别与不变部分
 
-白名单来自实际 fd5c93e6e／当前 claudeLaunch 记录，而不是以“不是 normal”作准入：controller／Claude Code／既有 preset、zsh，P1 role_card_revision，公开假 token、规范 loopback http origin／合法显式端口、规范 /private/tmp HOME／config 同时匹配。认证字段只能缺省或为 isolated fake API only；未知认证、NODE_OPTIONS、API_KEY／OAuth token 不进入此合同。判定只读内存字段和纯路径／URL，不读 auth、文件或钥匙串。
+白名单来自实际 fd5c93e6e／当前 claudeLaunch 记录，而不是以“不是 normal”作准入：controller／Claude Code／既有 preset、zsh，P1 role_card_revision、既有四项 shell argv／回到 zsh 的命令形式，公开假 token、规范 loopback http origin／合法显式端口、规范 /private/tmp HOME／config 同时匹配。认证字段只能缺省或为 isolated fake API only；未知认证、NODE_OPTIONS、API_KEY／OAuth token 不进入此合同。判定只读内存字段和纯路径／URL，不读 auth、文件或钥匙串。
 
-任何已知正常登录标记优先拒绝：authentication、T-093/normal-login/ role revision、login audit/preflight、T-093 hook 授权、profile process log、a2a-claude-login 私有 HOME/config、已知 trace loader。返回 normal_login_restore_requires_protected_start 和原中文重启指引。其余不满足白名单者返回 restore_record_unrecognized；旧窗格／位置与历史记录保留。允许的假 API 才继续原 argv／task／版本／session／shell／规范执行路径／实际前台 leader 检查。worker attempt reclaim 规则不变。
+任何已知正常登录标记优先拒绝：authentication、T-093/normal-login/ role revision、login audit/preflight、T-093 hook 授权、profile process log、a2a-claude-login 私有 HOME/config、已知 trace loader、以 exec 开头的正常登录 shell 形式。返回 normal_login_restore_requires_protected_start 和原中文重启指引。其余不满足白名单者返回 restore_record_unrecognized；旧窗格／位置与历史记录保留。允许的假 API 才继续原 argv／task／版本／session／shell／规范执行路径／实际前台 leader 检查。worker attempt reclaim 规则不变。
 
 没有增加恢复 fallback、默认 argv、固定 leader、版本或 session 绕过。仅 panes.ts 与恢复测试改变；controller_start、hook／Stop、转发器、OS profile、事实脚本、processSnapshot 不改。
 
 ## 红绿与反例
 
 - restore-whitelist-red-20.json／red-command：精确 git-show 788d75f4a 与 reviewer 候选源码逐字相同；同探针实际生成输入只删除 auth，观察版本 1／PTY 1／pane_restored，rc 2。scratch 和输入路径迁移到新根，不改旧现场。
-- reviewer-replay-green-20.json：同 reviewer 案例／oracle，正常及缺 auth 正常均版本=PTY=0、明确错误；fake／legacy-fake 各正常恢复，历史不变。恢复输入来自实际 claudeLaunch 的原合成记录，未手造其形状。
+- reviewer-replay-green-20.json 是首次白名单候选的历史绿态。该原探针的 fake 子例将 shell 命令写成 synthetic recorded original argv，不满足最终正面 shell 合同，故不再以其为最终 fake 正例；原文／原输入保留不改。
 - restore-contract-red-20-02.json：扩展合同在 788d75f4a 上命中 Normal-login restore must stop before version, identity and PTY boundaries；文件为 INCOMPLETE／rc 1，保留原字作为业务红态。
-- restore-contract-green-20-03.json：10 个正常登录／部分标记、12 个未知、2 个无 auth 的旧假 API、1 个显式假 API、1 个 worker 有逐项调用数／错误／历史观察；另保留缺 argv／错误版本／缺 session、失败兄弟隔离、保存位置／空集、完整实际 shell argv、规范身份三模式与 worker attempt 不变。两个旧缺 executable_path／auth 正例未删除，补齐真实 P1 合同元数据。
+- restore-contract-green-20-04.json：11 个正常登录／部分标记、14 个未知、2 个无 auth 的旧假 API、1 个显式假 API、1 个 worker 有逐项调用数／错误／历史观察；另保留缺 argv／错误版本／缺 session、失败兄弟隔离、保存位置／空集、完整实际 shell argv、规范身份三模式与 worker attempt 不变。两个旧缺 executable_path／auth 正例未删除，补齐真实 P1 合同元数据。
+- 第一次限定独立复核 RESTORE-ALLOWLIST-REVIEW-20-01.md 对 116985ec9 报 FAIL：29 场中仅保留正常登录 shell exec 形式的混合输入到达了版本／PTY。原文及 restore-independent-red-20-01.json 保留；扩展 test_t096_restore 在该候选上以同类业务断言失败，见 restore-contract-shell-red-20.json。现补该标记，并要求已知 fake shell 形式；缺失／未知 shell 默认拒绝。原 argv、版本和 session 的后续核对不变。
 - 复原单 auth guard、分别删 P1 revision／公开假 token／loopback URL 证据、截实际 argv、删已有身份一致性、固定 leader、历史 worker 坏实现均被对应业务断言拒绝。没有用集合为空或环境崩溃冒充检出。
 - T-091 IPC 19 项、T-096 daemon 7 项局部回归通过；均无真实 CLI／OS 查询，不代替新七场。旧 r18b 原生 PASS 只绑定旧恢复入口。
 
-可重放给定边界探针（输出须全新，不执行真实 CLI）：
+可重放历史红态及最终合同（输出须全新，不执行真实 CLI）：
 
 ```sh
 python3 -B evidence/2026-10-16-batch16/T-093/REPLAY-RESTORE-PROBE-20.py --revision 788d75f4a75a861a7beb23f3f0ac97a6ecc70938 --output /private/tmp/新的白名单红态.json
-python3 -B evidence/2026-10-16-batch16/T-093/REPLAY-RESTORE-PROBE-20.py --output /private/tmp/新的白名单绿态.json
 node --experimental-vm-modules workbench/tests/test_t096_restore.mjs /private/tmp/新的恢复合同.json
 ```
 
-第一项预期 rc 2、FAIL；后两项 rc 0、PASS。REVIEWER-RESTORE-PROBE-20.mjs 和 generated-normal-record-review03-20.json 是 reviewer 原文／合成输入的原字副本；helper 只把 scratch／模块依赖 URL 和输入目录前缀迁移到新根。真实 auth 读取、模型、CLI／PTY 实际执行和 OS profile 操作均为 0，所有调用来自给定边界。
+第一项预期 rc 2、FAIL；第二项 rc 0、PASS。REVIEWER-RESTORE-PROBE-20.mjs 和 generated-normal-record-review03-20.json 是 reviewer 原文／合成输入的原字副本；helper 只把 scratch／模块依赖 URL 和输入目录前缀迁移到新根。真实 auth 读取、模型、CLI／PTY 实际执行和 OS profile 操作均为 0，所有调用来自给定边界。
 
 ## 主控沙箱外：新候选七场
 

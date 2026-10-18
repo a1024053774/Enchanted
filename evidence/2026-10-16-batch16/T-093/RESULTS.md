@@ -12,11 +12,15 @@
 
 当前 recover 默认拒绝，仅正面识别现有 T-096 假 API 主控合同才进入原 argv／task／版本／session／规范身份核对。依据来自 fd5c93e6e 及当前 claudeLaunch：role_card_revision=T-078-2/P1、公开假 token、规范 http://127.0.0.1:显式端口 origin、规范 /private/tmp 隔离 HOME／config、zsh 等同时成立；authentication 可缺省或为假 API 类别，不接受其他类别、额外真实 API/OAuth key 或 NODE_OPTIONS。它是既存认证 profile 的机械识别，不新建策略引擎或恢复生命周期。
 
-正常登录 auth、role revision、audit/preflight、hook 授权、process log、私有 HOME/config 前缀、已知 trace loader 任一标记存在，优先拒绝为 normal_login_restore_requires_protected_start；不能靠删除 authentication 降级。不能确认的记录为 restore_record_unrecognized，两者都保留未恢复，在任何 CLI／PTY／auth 读取之前结束。worker 的 reclaim 拒绝、历史 launch、完整 argv、版本／session、规范执行路径和实际 leader 核对不放宽。
+正常登录 auth、role revision、audit/preflight、hook 授权、process log、私有 HOME/config 前缀、已知 trace loader、正常登录以 exec 开头的 shell 命令任一标记存在，优先拒绝为 normal_login_restore_requires_protected_start；不能靠删除 authentication 降级。不能确认的记录为 restore_record_unrecognized，两者都保留未恢复，在任何 CLI／PTY／auth 读取之前结束。worker 的 reclaim 拒绝、历史 launch、完整 argv、版本／session、规范执行路径和实际 leader 核对不放宽。
 
-[同 reviewer 探针绿态](reviewer-replay-green-20.json) 中 normal／normal-auth-missing 均版本=PTY=0；fake／legacy-fake 均正常恢复，历史不变。[restore-contract-green-20-03.json](restore-contract-green-20-03.json) 保存 26 个 profile 观察：10 个完整／缺字段／部分正常登录、12 个无法识别、2 个合法无 auth 的旧假 API＋1 个显式假 API、1 个 worker。拒绝项均零版本／PTY；三模式各 22 个命名不变量通过，不冒称 66 场原生测试。两个旧记录正例未删，补上既存 P1 的实际元数据；显式假 API 是新增正例。恢复旧单字段 guard、分别删角色版本／假 token／loopback URL 依据、截实际 argv、删身份一致性、固定 leader 及历史 worker 坏实现均被业务断言拒绝。
+第一次白名单候选 116985ec9 的局部限定审查仍为 FAIL，原文保留在 [RESTORE-ALLOWLIST-REVIEW-20-01.md](RESTORE-ALLOWLIST-REVIEW-20-01.md)。独立 29 场中，正常登录仅残留 shell 的 exec 形式仍被恢复；[原始结果摘要](restore-independent-red-20-01.json) 与 [扩展合同红态](restore-contract-shell-red-20.json) 都保留版本／PTY 到达的业务失败。该候选不能放行。后续修正补上此标记，且正面要求 fake P1 的四项 shell argv 与“完整命令后回到 zsh”的既有形式；缺失／未知 shell 也默认拒绝。只识别形式，不执行或从记录恢复 shell 命令，真正恢复仍使用原 argv 的逐项核对。
 
-本轮仅改 panes.ts 的恢复准入和 test_t096_restore.mjs；T-091 IPC 19 项、T-096 daemon 7 项局部回归通过。网络 profile／转发器／事实脚本／processSnapshot 与其余调用点不改，第三轮其余 PASS 仍只覆盖原报告范围。旧 r18b 七场与局部替身不能替新恢复准入背书；必须按请求 20 以新候选重跑七场，output 固定在外置盘 T-096 下，逐屏批准，模型／fake POST 预算 0。
+[restore-contract-green-20-04.json](restore-contract-green-20-04.json) 保存 29 个 profile 观察：11 个完整／缺字段／部分正常登录、14 个无法识别、2 个合法无 auth 的旧假 API＋1 个显式假 API、1 个 worker。拒绝项均零版本／PTY；三模式各 22 个命名不变量通过，不冒称 66 场原生测试。两个旧记录正例未删，补齐历史 launcher 确实保存的 P1 元数据及 shell 形式；显式假 API 是新增正例。恢复旧单字段 guard、分别删角色版本／假 token／loopback URL 依据、截实际 argv、删身份一致性、固定 leader 及历史 worker 坏实现均被业务断言拒绝。
+
+[旧 reviewer 探针绿态](reviewer-replay-green-20.json) 和 green-20-03 等只证明首次白名单候选，不替本次 shell 修正背书。其 fake 子例写的是 synthetic recorded original argv，未保留真实 launcher 的 shell 形式，当前不再把它算合法 P1 正例；探针原文和输入不改写。最终两类 fake 正例由上述实际恢复合同及使用实际 claudeLaunch 成对生成记录的限定独立复核重新核对。
+
+本轮仅改 panes.ts 的恢复准入和 test_t096_restore.mjs；T-091 IPC 19 项、T-096 daemon 7 项局部回归在 shell 修正后再次通过（regression-20-02）。网络 profile／转发器／事实脚本／processSnapshot 与其余调用点不改，第三轮其余 PASS 仍只覆盖原报告范围。旧 r18b 七场与局部替身不能替新恢复准入背书；必须按请求 20 以新候选重跑七场，output 固定在外置盘 T-096 下，逐屏批准，模型／fake POST 预算 0。
 
 下文请求 19 的结果均保留为旧候选历史，不把第三轮 NO_GO 上调。
 

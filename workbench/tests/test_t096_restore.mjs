@@ -88,10 +88,10 @@ async function exercise(source, identity = 'legacy', observations) {
     await module.evaluate();
     const records = [], expected = new Map();
     const normalLabels = ['normal-login', 'normal-login-missing-session', 'normal-auth-missing',
-      'normal-role-only', 'normal-audit-only', 'normal-preflight-only', 'normal-hook-only', 'normal-log-only', 'normal-home-only', 'normal-loader-only'];
+      'normal-role-only', 'normal-audit-only', 'normal-preflight-only', 'normal-hook-only', 'normal-log-only', 'normal-home-only', 'normal-loader-only', 'normal-shell-only'];
     const unknownLabels = ['unrecognized', 'unrecognized-no-revision', 'unrecognized-no-token', 'unrecognized-no-url',
       'unrecognized-auth', 'unrecognized-home', 'unrecognized-api-key', 'unrecognized-options', 'unrecognized-url-origin',
-      'unrecognized-role', 'unrecognized-cli', 'unrecognized-preset'];
+      'unrecognized-role', 'unrecognized-cli', 'unrecognized-preset', 'unrecognized-shell-missing', 'unrecognized-shell-command'];
     const labels = ['missing-argv', 'version-mismatch', 'ideation', 'missing-session', 'executor', 'worker',
       'fake-explicit', ...normalLabels, ...unknownLabels, 'closed'];
     for (const [position, label] of labels.entries()) {
@@ -108,6 +108,11 @@ async function exercise(source, identity = 'legacy', observations) {
         ...(label === 'missing-argv' ? {} : { argv }), shell: '/bin/zsh',
         env: { CLAUDE_CONFIG_DIR: config, CODEX_HOME: config, HOME: root, TEST_EXECUTABLE: executable,
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:53179', ANTHROPIC_AUTH_TOKEN: 'a2a-fixture-key-not-a-secret' }, worktree: '/fixture' };
+      const quotedArgv = argv.map(value => "'" + value.replaceAll("'", "'\\''") + "'").join(' ');
+      record.shell_argv = ['-f', '-i', '-c', quotedArgv + '; exec /bin/zsh -f -i'];
+      if(label==='normal-shell-only')record.shell_argv[3]='exec '+quotedArgv;
+      if(label==='unrecognized-shell-missing')delete record.shell_argv;
+      if(label==='unrecognized-shell-command')record.shell_argv[3]='synthetic unrecognized command';
       if (['normal-login','normal-login-missing-session','normal-auth-missing'].includes(label)) {
         record.role_card_revision='T-093/normal-login/2.1.302';
         record.login_audit_directory=join(root,label,'login-audit');record.login_preflight_file=join(root,label,'preflight.json');

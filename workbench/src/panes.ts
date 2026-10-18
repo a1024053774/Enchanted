@@ -25,6 +25,8 @@ function check(value: unknown, error: string, details?: unknown): asserts value 
 }
 function requireFakeControllerRestore(record: Record<string, any>) {
   const env = record.env && typeof record.env === "object" && !Array.isArray(record.env) ? record.env : {};
+  const shell = record.shell_argv;
+  const command = Array.isArray(shell) ? shell[3] : undefined;
   // T-093: a missing authentication field must not downgrade a protected
   // launch. Any surviving normal-login marker requires a fresh protected start.
   const normal = record.authentication === "isolated normal login" ||
@@ -32,7 +34,8 @@ function requireFakeControllerRestore(record: Record<string, any>) {
     record.login_audit_directory !== undefined || record.login_preflight_file !== undefined ||
     record.hook_authorization === "T-093/controller-start" || env.A2A_PROFILE_PROCESS_LOG !== undefined ||
     [env.HOME, env.CLAUDE_CONFIG_DIR].some(value => typeof value === "string" && value.startsWith("/private/tmp/a2a-claude-login-")) ||
-    typeof env.NODE_OPTIONS === "string" && env.NODE_OPTIONS.includes("claudeLoginProcessTrace");
+    typeof env.NODE_OPTIONS === "string" && env.NODE_OPTIONS.includes("claudeLoginProcessTrace") ||
+    typeof command === "string" && /^exec(?:\s|$)/.test(command);
   check(!normal, "normal_login_restore_requires_protected_start");
   // T-096's existing P1 contract is positive evidence, including for legacy
   // records without authentication. Unknown profiles never execute a CLI here.
@@ -42,6 +45,8 @@ function requireFakeControllerRestore(record: Record<string, any>) {
   check(record.role === "controller" && record.cli === "Claude Code" && ["ideation", "executor"].includes(record.preset) &&
     (record.authentication === undefined || record.authentication === "isolated fake API only") &&
     record.role_card_revision === "T-078-2/P1" && record.shell === "/bin/zsh" &&
+    Array.isArray(shell) && shell.length === 4 && shell[0] === "-f" && shell[1] === "-i" && shell[2] === "-c" &&
+    typeof command === "string" && command.startsWith("'") && command.endsWith("; exec /bin/zsh -f -i") &&
     env.ANTHROPIC_AUTH_TOKEN === "a2a-fixture-key-not-a-secret" && base && Number(base[1]) <= 65535 &&
     new URL(env.ANTHROPIC_BASE_URL).origin === env.ANTHROPIC_BASE_URL &&
     temporary(env.HOME) && temporary(env.CLAUDE_CONFIG_DIR) && env.NODE_OPTIONS === undefined &&
