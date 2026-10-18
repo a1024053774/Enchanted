@@ -392,7 +392,9 @@ export async function serve(
         if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
           ok: result.ok, error: result.error, details: result.details });
       } catch (error) {
-        result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error) };
+        const processQuery = (error as { process_query?: unknown })?.process_query;
+        result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error),
+          ...(processQuery ? { diagnostics: { process_query: processQuery } } : {}) };
         try { store.event("request_rejected", { id: envelope?.id, input: envelope?.input, result }); }
         catch (recordError) {
           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });

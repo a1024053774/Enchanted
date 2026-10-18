@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
@@ -534,38 +535,59 @@ export class Panes implements GateRuntime {
   }
   async processInfo(thread: string) {
     const pane = this.get(thread);
-    const operation = exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pane.pty.pid)], { timeout: 5000, maxBuffer: 4 * 1024 * 1024 });
-    pane.login?.recordChild((operation as any).child.pid, "libproc process observer");
-    const observed = JSON.parse((await operation).stdout);
-    check(observed.schema === 1 && observed.root_pid === pane.pty.pid && observed.method === "macOS libproc" && Array.isArray(observed.rows), "invalid_process_snapshot");
-    const rows = observed.rows as {pid:number;ppid:number;pgid:number;tpgid:number;command:string}[];
-    const positive = (value: unknown) => Number.isSafeInteger(value) && (value as number) > 0;
-    check(rows.length <= 4096 && rows.every(row=>row && positive(row.pid) && Number.isSafeInteger(row.ppid) && row.ppid>=0 && positive(row.pgid) && Number.isSafeInteger(row.tpgid) && row.tpgid>=-1 && typeof row.command === "string" && isAbsolute(row.command) && !row.command.includes("\0")) && new Set(rows.map(row=>row.pid)).size === rows.length, "invalid_process_row");
-    const descendants = new Set<number>([pane.pty.pid]);
-    for (let changed = true; changed;) {
-      changed = false;
-      for (const row of rows) if (descendants.has(row.ppid) && !descendants.has(row.pid)) { descendants.add(row.pid); changed = true; }
+    const started = performance.now();
+    let operation: ReturnType<typeof exec> | undefined;
+    let completed = false, stdout = "", stderr = "";
+    try {
+      operation = exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pane.pty.pid)], { timeout: 5000, maxBuffer: 4 * 1024 * 1024, encoding: "utf8" });
+      pane.login?.recordChild((operation as any).child.pid, "libproc process observer");
+      const captured = await operation;
+      completed = true; stdout = captured.stdout; stderr = captured.stderr;
+      const observed = JSON.parse(stdout);
+      check(observed.schema === 1 && observed.root_pid === pane.pty.pid && observed.method === "macOS libproc" && Array.isArray(observed.rows), "invalid_process_snapshot");
+      const rows = observed.rows as {pid:number;ppid:number;pgid:number;tpgid:number;command:string}[];
+      const positive = (value: unknown) => Number.isSafeInteger(value) && (value as number) > 0;
+      check(rows.length <= 4096 && rows.every(row=>row && positive(row.pid) && Number.isSafeInteger(row.ppid) && row.ppid>=0 && positive(row.pgid) && Number.isSafeInteger(row.tpgid) && row.tpgid>=-1 && typeof row.command === "string" && isAbsolute(row.command) && !row.command.includes("\0")) && new Set(rows.map(row=>row.pid)).size === rows.length, "invalid_process_row");
+      const descendants = new Set<number>([pane.pty.pid]);
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const row of rows) if (descendants.has(row.ppid) && !descendants.has(row.pid)) { descendants.add(row.pid); changed = true; }
+      }
+      const owned = rows.filter((row) => descendants.has(row.pid));
+      check(owned.length === rows.length && (!rows.length || rows.some(row=>row.pid===pane.pty.pid)), "invalid_process_tree");
+      const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.executable_path);
+      const leader = leaders.length === 1 ? leaders[0]!.pid : null;
+      const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
+      if (pane.record.cli !== "Claude Code" && !pane.nativeEnded && !pane.failed && pane.leader !== null && pane.native !== null &&
+        leader === null && shellAlone && pane.state === "idle" && !pane.active && !pane.writing && !pane.queue.length) {
+        this.store.event("native_session_ended", { shell_pid: pane.pty.pid, leader_pid: pane.leader,
+          native_session: pane.native, processes: owned }, pane.record);
+        pane.nativeEnded = true;
+      }
+      if (pane.nativeEnded && !shellAlone) pane.failed = "process_after_session_end";
+      else if (!pane.nativeEnded && pane.leader !== null && leader !== pane.leader) pane.failed =
+        pane.record.cli === "Claude Code" ? "claude_leader_replaced_or_exited" : "codex_leader_replaced_or_exited";
+      if (pane.leader === null && leader !== null) pane.leader = leader;
+      this.scan(pane);
+      return { shell_pid: pane.pty.pid, leader, native_session: pane.native, session_ended: pane.nativeEnded,
+        observer: { method: observed.method, root_pid: observed.root_pid },
+        processes: owned, failed: pane.failed };
+    } catch (error) {
+      const failure = error as Error & { code?: string | number; signal?: string; killed?: boolean; stdout?: string; stderr?: string };
+      const child = (operation as any)?.child;
+      Object.assign(failure, { process_query: {
+        root_pid: pane.pty.pid, helper_pid: child?.pid ?? null,
+        stdout: completed ? stdout : failure.stdout ?? stdout,
+        stderr: completed ? stderr : failure.stderr ?? stderr,
+        exit_code: child?.exitCode ?? (completed ? 0 : typeof failure.code === "number" ? failure.code : null),
+        signal: child?.signalCode ?? failure.signal ?? null, killed: child?.killed ?? failure.killed ?? false,
+        error_code: !completed && typeof failure.code === "string" ? failure.code : null,
+        elapsed_ms: performance.now() - started,
+      } });
+      throw failure;
     }
-    const owned = rows.filter((row) => descendants.has(row.pid));
-    check(owned.length === rows.length && (!rows.length || rows.some(row=>row.pid===pane.pty.pid)), "invalid_process_tree");
-    const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.executable_path);
-    const leader = leaders.length === 1 ? leaders[0]!.pid : null;
-    const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
-    if (pane.record.cli !== "Claude Code" && !pane.nativeEnded && !pane.failed && pane.leader !== null && pane.native !== null &&
-      leader === null && shellAlone && pane.state === "idle" && !pane.active && !pane.writing && !pane.queue.length) {
-      this.store.event("native_session_ended", { shell_pid: pane.pty.pid, leader_pid: pane.leader,
-        native_session: pane.native, processes: owned }, pane.record);
-      pane.nativeEnded = true;
-    }
-    if (pane.nativeEnded && !shellAlone) pane.failed = "process_after_session_end";
-    else if (!pane.nativeEnded && pane.leader !== null && leader !== pane.leader) pane.failed =
-      pane.record.cli === "Claude Code" ? "claude_leader_replaced_or_exited" : "codex_leader_replaced_or_exited";
-    if (pane.leader === null && leader !== null) pane.leader = leader;
-    this.scan(pane);
-    return { shell_pid: pane.pty.pid, leader, native_session: pane.native, session_ended: pane.nativeEnded,
-      observer: { method: observed.method, root_pid: observed.root_pid },
-      processes: owned, failed: pane.failed };
   }
+
   scan(pane: Pane, final = false) {
     if (pane.stopped) return;
     if (pane.record.cli === "Claude Code") return;

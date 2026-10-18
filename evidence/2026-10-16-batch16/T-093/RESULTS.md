@@ -6,6 +6,18 @@
 
 **整票 INCOMPLETE：第三轮独审的旧候选 NO_GO 已保留；本轮恢复白名单局部红绿通过，新候选 T-096 原生七场、后续独审／门禁尚未完成。** 最新交接为 [请求 20](REVIEW-REQUEST-T093-20.md)，依据主控 #129 延续 #125 的保守裁定。真实模型回合仍不跑。
 
+## 主控 #132：helper 失败诊断（基线 19c297315）
+
+**整票 INCOMPLETE。** r20 七场仅由主控完成 tracer／three 两场 PASS、cleanup=true；no-argv 在初始化被中断，后四场未跑。本轮没有重跑，旧候选两场不替新候选背书。原始 fixture／T-096 外置输出／日志保留，独立审查报告原文不改。只读诊断摘要 [r20-no-argv-diagnosis-21.json](r20-no-argv-diagnosis-21.json) 的根因仍 unknown：事件 105 是 helper 输出 JSON 解析失败，缺少当次输出和退出信息，内存压力只有相关迹象，不能补称因果。
+
+processInfo 在原异常上附带 helper 已捕获的 stdout／stderr、退出码／信号、killed、spawn 错误码、根 PID／helper PID、单调耗时。daemon 追加 diagnostics.process_query，原回复和 request_rejected 事件同时保留。解析／执行异常仍返回 orchestration_failed；Refusal 类型／代码和原 details 不改。元数据未知时明确 null，执行失败不伪造 exit=0。身份未知仍立即停止，无重试、回落、缓存成功或终端放行；不新增其他日志文件，helper 本身仍不读 auth／argv／环境。
+
+[红态](helper-diagnostics-red-21-02.json)：基线真实入口通过给定边界收到空／截断 JSON、退出 0 但 killed=true 的空输出、非零退出、SIGKILL、超时终止、EPERM、坏 schema／row，9 项均以诊断缺失的业务断言失败，健康项通过。[绿态](helper-diagnostics-green-21-02.json)：同一 10 场全通过，实际 daemon handler、Panes 和 SQLite；每失败请求仅一次 helper，返回与持久事件相等，精确保留 nonce／输出／退出信息及给定单调耗时，零释放／终端写入。没有执行真实 helper、daemon/socket、CLI、auth 或模型；这不是内存压力复现或根因修复证明。
+
+局部回归 observer 11 项、alias 2 项、T-096 恢复合同（三种身份模式和原反例）、T-091 IPC 19 项通过。恢复白名单及完整 argv／版本／session／leader、OS／网络／转发／门禁均未改。新七场标签已在 [请求 20](REVIEW-REQUEST-T093-20.md) 改为 t093-r21-*，output 仍固定外置 T-096 下；何时运行由用户决定，worker 不启动。新候选独审、原生七场和唯一门禁仍待完成。
+
+下文均保留为各旧候选及阶段的历史记录。
+
 ## 第三轮 P1 后：恢复白名单
 
 [independent-review-03.md](independent-review-03.md) 与 REVIEW-OUTSIDE-04.sh 原文保留。审查在 788d75f4a 观察到实际 claudeLaunch 生成的正常登录记录仅缺 authentication 就执行版本／PTY 并记为已恢复。worker 用同一 reviewer 探针、精确 788d75f4a 源码在新目录复现：[restore-whitelist-red-20.json](restore-whitelist-red-20.json) 中 cli_calls=pty_calls=1，pane_restored。原案例／oracle 不变，只迁移 scratch／依赖 URL 和合成输入路径，未覆盖旧 reviewer 现场。

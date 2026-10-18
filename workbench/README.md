@@ -372,7 +372,7 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前整票 INCOMPLETE：第三轮独审对 788d75f4a 报 NO_GO，P1 为缺 authentication 的正常登录记录被恢复。本轮仅修恢复入口的白名单及其测试，局部红绿通过；新候选 T-096 七场原生重跑尚未完成。网络两层、运行时身份、libproc 等其余审查结论仍按报告的范围保留，不替新恢复入口背书。
+当前整票 INCOMPLETE：第三轮独审对 788d75f4a 报 NO_GO，P1 为缺 authentication 的正常登录记录被恢复。恢复白名单局部红绿通过；r20 仅两场原生 PASS，no-argv 初始化中断，根因 unknown。本轮补 helper 失败诊断及红绿，不放宽身份条件；新候选 t093-r21-* 七场何时运行由用户决定，尚未重跑。网络两层、运行时身份、libproc 等其余审查结论仍按报告的范围保留，不替新恢复入口背书。
 主控 #125 进一步限定：正常登录记录一律保留为“未恢复”，需经正常登录入口重新启动；假 API 恢复合同不变。该拒绝已用独立旧探针及实际 recover 局部合同取得红绿，不代表原生 OS／恢复验收已完成。
 夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
 最新修正与七场重跑命令见 [请求 20](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-20.md)；请求 19／18 保留旧审查与运行来源，重复运行必须另选全新输出名。
@@ -428,6 +428,7 @@ R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没�
 前台身份核对统一调用 `/usr/bin/python3 -I -S -B workbench/src/processSnapshot.py PTY_PID`，5 秒期限。
 它在同一 C 内调用系统 libproc，只枚举该 PTY 的后代，读取 PID／PPID／PGID、TTY 前台组和可执行文件路径，不读 argv、环境或认证。
 查询前后复核进程出生时间及身份；权限拒绝、短数据、截断、身份变化或不连通的树均拒绝，不改用 ps 或无保护查询。
+查询异常保留原错误码／details，daemon 回复和 request_rejected 事件另带 diagnostics.process_query：helper 的 stdout、stderr、exit_code／signal、killed、error_code、root_pid／helper_pid、单调 elapsed_ms。spawn 未成功或状态未知时用 null；捕获范围仍受原 maxBuffer 限制。身份核对失败仍立即停止，不重试、不回落、不放行终端写入。
 已观察到的退出／僵尸不作为活 leader；多次内核读取不宣称原子快照，原有 hook／Stop 的身份重查保留。
 前台组条件不变；真实启动边界另外记录规范 executable_path 与内核路径比较，实际 argv 原样保留。alias 启动后改指另一目标不能接管原身份，helper 的实际 PID 也登记在 C 的进程记录里。
 

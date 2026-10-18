@@ -1,6 +1,28 @@
-# T-093 第三轮 P1 修正：恢复白名单
+# T-093 请求 20：恢复白名单与 helper 失败诊断
 
 **INCOMPLETE：局部红绿通过，新候选 T-096 原生七场与后续独立审查／门禁待完成。** task T-093 / attempt a1，worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645；基线 788d75f4a75a861a7beb23f3f0ac97a6ecc70938。最终候选绑定本轮末行 `T-093 FROZEN <完整 SHA>`。不 push、不 rebase、不改 gates／acceptance／地图或全局配置；不跑真实模型。
+
+## 本轮更新：主控 #130／#132
+
+基线为 19c2973157b31e5f6c51320e6dcc77e53e0bce7d。主控回传 r20-tracer／three 为 PASS、cleanup=true；r20-no-argv 在初始化第五屏的身份查询失败，随后后台被资源不足中断，后四场未跑。旧原件和夹具不改、不删除。只读诊断为 unknown，不能据此认定环境或产品缺陷；见 r20-no-argv-diagnosis-21.json：事件 105 的原始错误为 SyntaxError: Unexpected end of JSON input，此前同一 pane 查询成功 10 次，恢复事件为 0，第五键未写入。此结论不因本次补诊断而改变。
+
+依主控 #132，本轮仅给 processInfo 异常补诊断，并由原 daemon catch 同时写入回复及 request_rejected.result.diagnostics.process_query。字段为 stdout、stderr、exit_code、signal、killed、error_code、root_pid、helper_pid、elapsed_ms。耗时来自单调时钟；spawn 未成功时 PID／退出码／信号可为 null，错误码单列，不伪造退出。stdout／stderr 保存现有 maxBuffer 内捕获的原内容；helper 只读进程身份，不读 argv、环境或 auth。没有新增文件日志或外部上报。
+
+抛出的是原错误，类型、原 details 和错误码不变：JSON 解析／helper 执行异常仍为 orchestration_failed，既有 invalid_process_snapshot／invalid_process_row 等 Refusal 仍用原码。未知身份仍立即停止，一次请求只执行一次 helper，不重试、不用缓存或其他查询回落、不放行终端写入。没有改恢复白名单、版本／session／leader 条件、profile、网络、转发器或门禁。
+
+helper-diagnostics-red-21-02.json 在基线入口取得业务红态：9 类失败都因“诊断未到达 daemon 回复”被拒，原失败码和健康正例成立。helper-diagnostics-green-21-02.json 同一 10 场全通过，使用实际 Panes／daemon handler 和真实 SQLite，但 helper、连接、时钟为给定边界。除逐项输出／退出／信号／精确耗时，还比较事件库与返回结果相等，验证每请求一次调用、失败不释放／零终端写入。observer 11 项、alias 2 项、恢复合同、T-091 IPC 局部回归均通过。它们不证明真实内存压力或原始丢输出的原因。
+
+本轮 worker 未运行任何真实 CLI、helper/libproc、daemon/socket、auth 或模型。下方 t093-r21-* 七场只交命令，**何时运行由用户决定，不自动执行**。全部新候选原生结果、独立审查／门禁仍待完成；旧 r20 的两场 PASS 只绑定旧候选。
+
+局部绿态重放（全新输出；无真实 helper／服务）：
+
+```sh
+node --experimental-vm-modules workbench/tests/test_t093_process_diagnostics.mjs /private/tmp/新的helper诊断绿态.json
+```
+
+基线红态可在新临时目录取 git show 19c297315 的 panes.ts、daemon.ts，再作为该测试第三、第四参数；预期 rc 2，9 项业务断言失败，健康项通过。不得执行真实 helper 来补称本轮红绿。
+
+以下恢复白名单的红绿段落保留为请求 20 原阶段记录；新增诊断不改其准入逻辑。
 
 ## 原问题与裁定
 
@@ -14,7 +36,7 @@
 
 任何已知正常登录标记优先拒绝：authentication、T-093/normal-login/ role revision、login audit/preflight、T-093 hook 授权、profile process log、a2a-claude-login 私有 HOME/config、已知 trace loader、以 exec 开头的正常登录 shell 形式。返回 normal_login_restore_requires_protected_start 和原中文重启指引。其余不满足白名单者返回 restore_record_unrecognized；旧窗格／位置与历史记录保留。允许的假 API 才继续原 argv／task／版本／session／shell／规范执行路径／实际前台 leader 检查。worker attempt reclaim 规则不变。
 
-没有增加恢复 fallback、默认 argv、固定 leader、版本或 session 绕过。仅 panes.ts 与恢复测试改变；controller_start、hook／Stop、转发器、OS profile、事实脚本、processSnapshot 不改。
+没有增加恢复 fallback、默认 argv、固定 leader、版本或 session 绕过。恢复白名单阶段仅 panes.ts 与恢复测试改变；本轮另改 daemon 的诊断透传与诊断测试，controller_start、hook／Stop、转发器、OS profile、事实脚本、processSnapshot 不改。
 
 ## 红绿与反例
 
@@ -49,7 +71,7 @@ candidate=替换为本轮完整冻结SHA
 cli=/Users/luckye/.local/share/claude/versions/2.1.302
 approval=主控本轮逐屏初始化批准记录位置
 resume="$repo/evidence/2026-10-16-batch16/T-093/T096-REGRESSION-16.sh"
-bash "$resume" tracer "$repo" "$candidate" "$cli" "$approval" t093-r20-tracer-01
+bash "$resume" tracer "$repo" "$candidate" "$cli" "$approval" t093-r21-tracer-01
 ```
 
 先核对 tracer rc 0／PASS、同原 session／历史 nonce、完整事件与内核 argv、规范身份、原 launch 不变、关闭持久化、model_turns=fake_posts=0、cleanup_complete=true。任一失败保留现场即停，不继续后场、不自动补按键；按主控原裁定交回处理。
@@ -57,12 +79,12 @@ bash "$resume" tracer "$repo" "$candidate" "$cli" "$approval" t093-r20-tracer-01
 tracer 通过后逐场运行，出现失败同样停：
 
 ```sh
-bash "$resume" three "$repo" "$candidate" "$cli" "$approval" t093-r20-three-01
-bash "$resume" missing-argv "$repo" "$candidate" "$cli" "$approval" t093-r20-no-argv-01
-bash "$resume" version-mismatch "$repo" "$candidate" "$cli" "$approval" t093-r20-version-01
-bash "$resume" missing-session "$repo" "$candidate" "$cli" "$approval" t093-r20-no-session-01
-bash "$resume" isolation "$repo" "$candidate" "$cli" "$approval" t093-r20-isolation-01
-bash "$resume" empty-reopen "$repo" "$candidate" "$cli" "$approval" t093-r20-empty-reopen-01
+bash "$resume" three "$repo" "$candidate" "$cli" "$approval" t093-r21-three-01
+bash "$resume" missing-argv "$repo" "$candidate" "$cli" "$approval" t093-r21-no-argv-01
+bash "$resume" version-mismatch "$repo" "$candidate" "$cli" "$approval" t093-r21-version-01
+bash "$resume" missing-session "$repo" "$candidate" "$cli" "$approval" t093-r21-no-session-01
+bash "$resume" isolation "$repo" "$candidate" "$cli" "$approval" t093-r21-isolation-01
+bash "$resume" empty-reopen "$repo" "$candidate" "$cli" "$approval" t093-r21-empty-reopen-01
 ```
 
 three 须两主控恢复、worker 未恢复／receiver 未重启／无成功事件且 attempt 不变；三个单故障仍为 restore_argv_missing／restore_version_mismatch／restore_session_missing、保留未恢复／只读；isolation 中 executor 仍正常恢复；empty-reopen 第三窗口 panes／keys=[]、saved=true，不重新授权 worker 或改 task。全部 rc 0／PASS、cleanup=true、模型与 fake POST 0。原生旧记录缺字段正例仍由 L1 合同覆盖，不冒称这七场新生成原生记录就是它。
