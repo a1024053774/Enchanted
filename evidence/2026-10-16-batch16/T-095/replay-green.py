@@ -33,6 +33,7 @@ else:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--panels-only", action="store_true", help="只回归两种面板；不据此宣称关闭回落或真实绿态通过")
     args = parser.parse_args()
     if args.report.exists():
         raise ValueError("报告已存在；不覆盖失败证据")
@@ -41,6 +42,8 @@ def main():
     directory = Path(tempfile.mkdtemp(prefix="t095-green-readback-", dir="/tmp"))
     results = []
     for label, capture in inputs["captures"].items():
+        if args.panels_only and label == "cancelled":
+            continue
         case = directory / label
         (case / "records").mkdir(parents=True)
         (case / "bin").mkdir()
@@ -86,11 +89,13 @@ def main():
                             matches_recorded=matches_recorded, read_only=read_only,
                             meets_contract=observed["state"] == expected and identity_correct,
                             command=argv, raw_output=str(case / "stdout.json"), native_bytes=cutoff))
-    replay_ok = all(row["matches_recorded"] and row["identity_correct"] and row["read_only"] for row in results)
+    replay_ok = all(row["identity_correct"] and row["read_only"] and row["returncode"] in (0, 2) for row in results)
     accepted = all(row["meets_contract"] for row in results)
     files = [path for path in directory.rglob("*") if path.is_file()]
     report = dict(status="PASS" if replay_ok and accepted else "INCOMPLETE", replay_status="PASS" if replay_ok else "NO_GO",
-                  acceptance_status="PASS" if accepted else "NO_GO", source_revision=inputs["source_revision"],
+                  regression_status="PASS" if accepted else "NO_GO", source_revision=inputs["source_revision"],
+                  scope="两种旧面板回归；不是独立真实绿态" if args.panels_only else "旧面板与回落合同回归；不是独立真实绿态",
+                  matches_original_projection=all(row["matches_recorded"] for row in results),
                   candidate_revision=subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip(),
                   source_archive=inputs["source_archive"], command=[sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
                   real_model_turns=0, cases=results, fixture=str(directory), files=len(files), bytes=sum(path.stat().st_size for path in files),
@@ -101,7 +106,7 @@ def main():
     with args.report.open("x", encoding="utf-8") as stream:
         json.dump(report, stream, ensure_ascii=False, indent=2)
         stream.write("\n")
-    print(json.dumps(dict(status=report["status"], replay_status=report["replay_status"], acceptance_status=report["acceptance_status"],
+    print(json.dumps(dict(status=report["status"], replay_status=report["replay_status"], regression_status=report["regression_status"],
                           states=[row["actual"] for row in results], report=str(args.report)), ensure_ascii=False))
     return 0 if replay_ok and accepted else 1
 

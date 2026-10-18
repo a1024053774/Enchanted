@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-# 真实模型预算：单次最多 1 个根提示回合；红、绿各一次合计最多 2 个根回合。
+# 真实模型预算：本次最多新增 1 个根提示回合（主控 #109 追加授权）。
+# 原红态和未通过的绿态已用 2 个；本次跑完总数最多 3 个，不重跑旧阶段。
 # 不自动回答、不重投、不 resume。根回合限额不是 API 请求数或费用硬限额。
 # 只有执行主控核对后，才能在沙箱外加 --approve-one-root-turn 运行。
 # 用户已允许 T-095 不用等名额；此例外不扩展到其他任务。
 # 默认只打印计划：不复制凭据、不创建 pane、不调用模型。
-# 操作顺序：脚本提示 COLLAPSED 时，在自建 pane 用 Shift+→ 折叠；
+# 操作顺序：COLLAPSED 之前保持默认折叠，不按 Shift+←，也不先展开再折叠；
 # 收到 CAPTURED collapsed 后，在自建 pane 用 Shift+← 展开；
 # 收到 CAPTURED expanded 后，按界面明确提供的 Ctrl+] skip 跳过问题，
 # 不按 Enter 提交答案；没有 skip 提示时终止，不猜测取消键。
 # 操作完每一步，都回脚本终端输入对应确认词；脚本不代按方向键。
+# skip 即时采集完成后，再只读观察 30 秒和 60 秒两个截止点，留存后续原生事件，再关闭自建 pane。
 """T-095 真实面板采集草案；只准备探针，不实现状态判定。"""
 import argparse
 import datetime as dt
@@ -20,6 +22,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 sys.dont_write_bytecode = True
 
@@ -63,10 +66,13 @@ def native_args(workspace):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--approve-one-root-turn", action="store_true")
-    parser.add_argument("--phase", choices=("red", "green"), default="red")
+    parser.add_argument("--phase", choices=("green-independent",), default="green-independent")
     parser.add_argument("--auth-json", type=Path, default=Path.home() / ".codex/auth.json")
     args = parser.parse_args()
     plan = dict(status="INCOMPLETE", phase=args.phase, root_turn_limit=1, automatic_answers=0,
+                prior_root_turns=2, authorized_total_root_turns=3, authorization="executor #109 / controller #6",
+                collapsed_before_first_expand=True, post_skip_observation_seconds=[30, 60],
+                post_skip_observation_reference="cancelled capture completed",
                 retries=0, expected_codex=EXPECTED_CODEX, prompt=PROMPT,
                 argv=["codex", *native_args(Path("/tmp/<new-fixture>"))],
                 archive=str(ARCHIVE), wall_seconds=240)
@@ -131,7 +137,7 @@ def main():
                                                        layout_source="operator_declaration"))
         save()
         print(f"CAPTURED {label}：{pane} 采集完成；下一步以脚本提示为准。", flush=True)
-        if args.phase == "green" and label in ("collapsed", "expanded", "cancelled"):
+        if label in ("collapsed", "expanded", "cancelled", "cancelled-followup-30s", "cancelled-followup-60s"):
             if not manifest.get("native_session"):
                 binding = isolated_session(record["native_store"], workspace)
                 native = binding["id"]
@@ -217,12 +223,19 @@ def main():
         save()
         call(["herdr", "agent", "prompt", pane, PROMPT])
         capture("after-submit")
-        confirm("COLLAPSED", f"步骤 1：提示已经提交。现在切到自建 {pane}，等提问面板出现；若当前展开，按 Shift+→ 折叠，若已折叠则保持。不要输入答案，也不要按 Enter。确认是同一待答问题后，回到运行本脚本的终端输入 COLLAPSED，脚本才会采集折叠画面。若工具不可用或没有同类面板，输入其他内容终止，不重投。")
+        confirm("COLLAPSED", f"步骤 1：提示已经提交。现在只观察自建 {pane}，等待默认折叠的待答状态；在首次 COLLAPSED 采集前不要按 Shift+← 或 Shift+→，不要先展开核对再折叠。没有问题正文也不要展开，脚本会只读核对原生提问身份。不要输入答案或按 Enter。默认折叠状态就绪后回脚本终端输入 COLLAPSED；如已被展开、工具不可用或不能确认保持默认状态，输入其他内容终止，不重投。")
+        manifest["operator_collapsed_before_first_expand"] = True
         capture("collapsed")
         confirm("EXPANDED", f"步骤 2：已输出 CAPTURED collapsed。现在切回自建 {pane}，按 Shift+← 展开，核对同一个问题内容。不要输入答案。完成后回到脚本终端输入 EXPANDED，脚本才会采集展开画面。")
         capture("expanded")
-        confirm("CANCELLED", f"步骤 3：已输出 CAPTURED expanded。现在只在自建 {pane} 按界面明确提供的 Ctrl+] skip 跳过当前问题；如还有待答问题，继续按该界面提供的 skip，直到问题不再待答。Shift+→ 只折叠，不能当作取消。不要按 Enter 提交答案，也不要猜测 Esc。确认问题不再待答后，回脚本终端输入 CANCELLED，脚本采集退出后的画面，然后关闭自建 pane 并清理隔离 CODEX_HOME。没有 skip 提示或无法结束时，输入其他内容终止，脚本仍会关闭自建 pane。")
+        confirm("CANCELLED", f"步骤 3：已输出 CAPTURED expanded。现在只在自建 {pane} 按界面明确提供的 Ctrl+] skip 跳过当前问题；如还有待答问题，继续按该界面提供的 skip，直到面板不再显示。Shift+→ 只折叠，不能当作取消。不要按 Enter 提交答案，也不要猜测 Esc。确认面板不再显示后回脚本终端输入 CANCELLED；脚本立即采集一次，再只读观察 30 秒和 60 秒两个截止点，不发送新提示或答案，随后关闭自建 pane、归档原生记录并删除隔离 HOME。没有 skip 提示或无法结束时输入其他内容终止，脚本仍会关闭自建 pane。")
         capture("cancelled")
+        manifest["post_skip_observation_started_at"] = now()
+        observed_at = time.monotonic()
+        for seconds in (30, 60):
+            print(f"只读观察 skip 后原生事件：等待到 {seconds} 秒截止点；请勿输入或关闭自建 {pane}。", flush=True)
+            time.sleep(max(0, observed_at + seconds - time.monotonic()))
+            capture(f"cancelled-followup-{seconds}s")
         manifest["collection_complete"] = True
         # 采集完成不等于红态、绿态或验收通过；由独立检查核对原件。
     except (OSError, ValueError, KeyError, RuntimeError, TimeoutError, subprocess.TimeoutExpired, KeyboardInterrupt, EOFError) as exc:

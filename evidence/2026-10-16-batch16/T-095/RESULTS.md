@@ -1,115 +1,73 @@
-# T-095-1 冻结读回（2026-10-18）
+# T-095-1：UI 结构修复候选与独立验证交接
 
-**INCOMPLETE；当前候选不具备验收通过条件。** 真实绿态的折叠、展开、手动 skip 后三个现场投影均为 unknown；经 `scripts/agent-status` 离线回放原件，也得到相同状态和原因。两种形态没有读出“等待主控回答”，关闭后的正常状态回落也未证明成功。本次按执行主控 #106 要求冻结、提交证据并写审查请求，不修改产品解析器，不将旧红态回放的 PASS 上调为真实绿态 PASS，未 submit、验收或集成。
+**INCOMPLETE。** 两种旧面板的离线回归已通过；新的独立真实绿态尚未运行。skip 后没有可关联的原生解决事件，因此关闭阶段仍只能证明“不再显示面板”，不能证明“已解决”，继续 unknown 并保留冲突。未 submit、独立审查、验收或集成。
 
-产品代码仍为真实绿态所运行的 `504abc34ad2df27fa60b7cc998c499c122143d98`；本次新增证据、零模型回放工具与审查请求。冻结候选是承载本报告的提交，完整 SHA 见交付末行。task T-095 / attempt a1 / session `983db526-dfe8-473a-857b-b3f2af0af582` / launch `launch-4b1abba18e87460da9cbacec04905c78` / ready_rev 1；基线 `3c9016d0230223945f0e16543b230a047c2ad032`。
+本候选按主控 #109 / 主控 #6 修复、提交并冻结，完整提交号见交付末行。task T-095 / attempt a1 / session `983db526-dfe8-473a-857b-b3f2af0af582` / launch `launch-4b1abba18e87460da9cbacec04905c78` / ready_rev 1；基线 `3c9016d0230223945f0e16543b230a047c2ad032`。前一冻结 `afe1602920fe43b64232e6b7610e49a2f69cf46c` 的报告逐字保存在 [FROZEN-afe160292.md](FROZEN-afe160292.md)，其真实 INCOMPLETE / NO_GO 结果不改写、不上调。
 
-## 本次真实绿态：两种形态均未通过
+## 修复了哪些机械结构
 
-原件位于 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-095/green-20261018T125458Z-76e72ee1`，清单见 `real-green.archive.json`：169 个文件、163,147 字节，直接采集到外置盘。探针身份为 worker `t095-probe-5c6f76bc7f`、launch `launch-t095-probe-79a62b96962f4f49908477009c041f71`、pane `wF:p6D`、原生 UUID `01a14f14-e6ef-7470-bf2e-f3b515e94ff2`。三次投影均已核对绑定身份；失败来自状态识别，并非缺少 launch 或日志身份。
+标记组合、数值与位置规则、依据和局限见 [UI-STRUCTURE.md](UI-STRUCTURE.md)。本机包元数据确认版本 0.163.0；二进制包含异步提问渲染模块路径及控制文案，见 `ui-structure-source.json`。没有取得 Rust 渲染源码，不能将这些字符串当作完整控制流证明。
 
-| 阶段 | 原始 Herdr | 现场投影 / 原件回放 | 判断 |
-| --- | --- | --- | --- |
-| collapsed | blocked → blocked | unknown，`unverified_screen_tail`，退出码 2 | **NO_GO**。屏幕有 `• Queued follow-up inputs / ? 1 question / ⇧← to answer`；解析器未覆盖该折叠尾部结构。 |
-| expanded | blocked → blocked | unknown，`composer_missing`，退出码 2 | **NO_GO**。控制条为 `enter submit / ⌃] skip / ⇧→ main prompt`，没有旧样本的 `option N/M`，且前方有 Working 与 Queued follow-up 行；当前面板匹配失败后落入普通输入框解析。 |
-| cancelled | working → working | unknown，`screen_native_conflict`，退出码 2 | **INCOMPLETE，回落未通过**。原生仍为 pending，当前 UI 是普通活动，`conflicts` 如实保存；符合冲突时保守 unknown 的约束，但不是正常回落成功。 |
+- 折叠：完整普通输入框与底栏之前，不依赖前面的 Working 行，紧邻 `• Queued follow-up inputs / ? N question(s) / ⇧← to answer`。N 为正数、单复数正确，两份读数一致，并与已绑定原生日志的 pending 问题总数一致。
+- 展开：非空标题、唯一选中编号行和完整 `enter submit / ⌃] skip / ⇧→ main prompt` 控制条；标题前允许当前 Working、Queued follow-up 两种机械前缀。`option N/M` 可有可无；没有计数提示时要求可见列表从 1 开始连续、无重复。有计数提示时支持旧原件只显示选中项的布局，并核对选中值和可见编号。
+- 继续支持旧原件的“无专属提示活动画面 + Herdr blocked + 本会话完整 pending 提问”组合；单独 blocked 或 Working 都不足以证明提问。
+- 不匹配 T-095、A/B、问题意图或特定正文；不同计数、选项数、选中位置和标题均有入口级检查。未识别、截断、身份不符、计数冲突、两份读数不一致均 unknown；普通 working 的机械依据保持不变。
 
-**人工操作（来源：执行主控 #106 / 主控 #5 的操作者记录）：** SHELL_READY 前台为 -zsh，CODEX_IDLE 为空闲输入框。提交约 7 秒后看到 blocked 与 Working、没有面板文字。**在输入 COLLAPSED 之前，操作者先 Shift+← 展开，核对固定问题，再 Shift+→ 折叠；随后脚本才采集折叠态。** 收到 CAPTURED collapsed 后再次 Shift+← 展开并输入 EXPANDED；最后按界面提供的 Ctrl+] skip，Herdr 变成 working，输入 CANCELLED。首次展开再折叠是人工介入，不能把这个样本称作“从未展开的默认折叠态”。它对布局变化是否有因果影响尚未证明。
+产品仍只有 `scripts/agent-status` 一个读取入口。不改 dispatch、launch-worker、工作台、门禁或全局配置；`native_questions.py` 本轮未变。没有第二份产品状态，没有针对测试的产品分支。
 
-原生日志共 20 条、94,654 字节，三次现场投影的字节截止点均等于整个归档长度。第 12 条是提问调用，第 13 条是同 thread / turn / call 的发布，第 15 条是 `accepted:true` 回执；没有关联的应答或 skip 解决事件。日志最后一条时间为 12:56:04.930 UTC，关闭阶段采集结束于 12:56:53.457948 UTC；这段时间没有落盘解决信号。不能把缺失补成答案，也不能把 accepted 当作已经解决。
+## 回落：没有找到可证明已解决的后续事件
 
-脚本记录 pane close 返回成功，隔离 HOME 已删除、fixture 与 scratch 均已清理；本 worker 只读核对这些路径确已不存在。单次 1 个根回合、0 个自动答案；红绿合计 **2 / 2 个根回合，剩余 0**。不再次运行真实探针，不 resume，不向已关闭 pane 发命令。
+`skip-tail-investigation.json` 核对了原生 UUID 已绑定的完整红、绿归档，截止各自 pane 关闭。红态 40 条、绿态 20 条；最后原生时间分别为 11:12:37.212 UTC、12:56:04.930 UTC，均早于展开阶段结束，因此也早于操作者之后的 skip。没有 skip 后的同 turn 输出、新 turn 或完成事件可读回。原隔离 HOME 已删除，无法补查未保留的尾部；未扫描别的 worker 的记录。
 
-## 原件回放与归档读回
+红态中，问题未回答时模型已经有同 turn 后续输出和继续执行，故普通输出本身不能作为清除问题的事实。也没有证据证明 turn 完成或新 turn 就必定清除该 UI 请求。相关合成反例确认这些事件不会被本读取器当作解决；它们不构成 Codex 实际生命周期的证明。
 
-```sh
-PYTHONDONTWRITEBYTECODE=1 python3 evidence/2026-10-16-batch16/T-095/replay-green.py --report <新报告路径>
-```
+`accepted:true` 始终只是接收回执。当前只接受关联同 call_id 的正式答案映射作为解决信号；该分支的合成验证不能替代真实 async skip。原生 pending 与普通 Working 冲突时继续 unknown，不靠计时、后续文字或新 turn 猜测清除。
 
-本次输出见 `green-readback-01.json`：`replay_status=PASS` 只表示三个状态、原因、冲突与现场投影一致、身份核对正确、只执行 get/read；`acceptance_status=NO_GO`，总状态 INCOMPLETE，命令退出 1。期望值来自 ticket：两种面板必须等待，当前关闭后的普通活动应回 working；没有把 actual unknown 抄成通过预期。
+## 检查：离线回归与真实验证分开
 
-回放用测试输入 `real-green-inputs.json` 中的原始 get/read 与启动记录，在临时目录重建只读查询用索引，把 `native_store` 改为该临时索引；worker、launch、pane、原生 UUID、cwd 和原生前缀字节不变。明确假 Herdr 可执行文件只返回归档读数，调用实际 `scripts/agent-status`，不接触服务器和已关闭 pane，不调用模型。边界限制：外层采集早于现场投影内部读取，不能还原未保存的内部每次屏幕；现场投影的原始 stdout 本身另存于原件 command 026 / 033 / 040，不能用回放代替现场结论。
+详见 `ui-repair-checks.json`；完整输出、失败夹具、已知坏源码与 mutant 均保留在 `ui-repair.archive.json` 指向的源目录。摘要没有替换原始输出。
 
-离线原件归档现已 **PASS**：主控执行后保存的 receipt 与本 worker 逐文件名称、字节数读回相符，共 1,764 文件、5,498,933 字节，原件未删除。见 `native-offline-confirmed.archive.json`；先前 `native-offline-evidence.archive.json` 的 INCOMPLETE 是执行前的历史清单，不改写该事实。
-
-本次新增回放夹具与完整读回报告共 34 文件、367,016 字节，源保留在 `green-replay.archive.json` 指向的 `/tmp` staging。其外置盘复制仍待主控在沙箱外执行；仓库只保存摘要、小输入与清单，不纳入 sqlite 或完整 fixture。此命令不消耗模型回合：
-
-```sh
-python3 evidence/2026-10-16-batch16/T-095/archive-offline-evidence.py --manifest green-replay.archive.json --apply
-```
-
-审查请求见 [REVIEW-REQUEST.md](REVIEW-REQUEST.md)。目前没有独立审查结论；实现者的回放不是独立验收。
-
-## 红态原件与前一候选
-
-原始目录为 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-095/red-20261018T110936Z-f4d263d1`，文件数、字节数和回放入口见 `real-red.archive.json`。原件未修改；仓库只留文本记录和测试读取的小输入。
-
-- **2026-10-17 T-094：** ticket 与执行主控报告，当时 worker 在提问面板待答，Herdr 显示 working，用户先发现。本 worker 没有取得当时的读屏原件，不能补称已独立复验。
-- **2026-10-18 受控红态：** 折叠、展开时各两次 Herdr 原值均为 **blocked**；手动 Ctrl+] skip 后为 working。折叠屏幕只有 Working 活动行、普通输入框和底栏；展开才有选择行及 `enter submit / ⌃] skip / option N/M / ⇧→ main prompt` 控制条。两次观察不一致，原因未知；屏幕的 Working 字样不能替换 Herdr 原值。
-- **原 ticket 的“两种形态当前读成 working”未复现，仍不能勾选。** 本次原件能证明缺少独立提问状态，不能补成 ticket 要求的 working 红态。
-- 原件只有 1 个根回合，1 次 `request_user_input_async`、3 次 `clock.sleep`，0 个自动答案，没有命令或文件工具调用。主控手动按 Ctrl+] skip；这不是自动应答，也不是 Esc。
-
-前一候选 `7c0dbddcce9bfc5842ec75988c2cc3495de7f0d7` 仅用 UI，折叠保持 unknown；其检查与失败报告全部保留。执行主控 #102 随后确认增加“结构化提问 / 解决信号”，要求按启动记录绑定原生会话，来源不可读、身份不符、事件不完整或来源冲突时输出 unknown。以下是按该确认补充的候选。
-
-## 唯一读取入口与机械依据
-
-唯一产品入口仍是 `scripts/agent-status`；不改 dispatch、工作台或门禁，不另存一套产品状态。Ubiquitous language 统一为内部值 `waiting_controller_answer`、显示名“等待主控回答”。`native_questions.py` 隐藏索引查询、身份核对和事件关联；这是入口到真实只读边界的 Tracer bullet，没有新增后台服务。
-
-已有启动记录可显式指定已核对的索引，例如读取本 worker：
-
-```sh
-scripts/agent-status --root /Users/luckye/Documents/Code/a2a --launch launch-4b1abba18e87460da9cbacec04905c78 --native-store /Users/luckye/.codex/state_5.sqlite
-```
-
-也可用该 launch 记录中的 `native_store`；参数与记录冲突时 unknown。**必须已有 `native_session` 绑定**，读取器不猜测、不补写绑定。探针只在自己新建且仅有一个 worker 的隔离 HOME 内建立首次绑定，随后也走相同读取入口。
-
-按启动记录的原生 UUID，只读 SQLite `threads WHERE id=?` 得到 `rollout_path`，再核对日志头里的 UUID、cwd、CLI 来源和版本。路径名称不参与身份判断；不扫描其他 worker 的记录，不改 Herdr、Codex 或全局配置。启动记录、live pane / worker / terminal / cwd、可观测原生身份和读取前后稳定性均须核对。`revision` 只作观察字段，不当作进程身份。没有绑定、缺索引、错日志头或半条事件均为 unknown。
-
-| 原生事实与当前 UI / Herdr 的组合 | 投影 |
+| 检查 | 结果与边界 |
 | --- | --- |
-| 本会话本回合的提问调用、对应异步发布与 accepted 回执齐全；两份普通活动结构；Herdr blocked | 等待主控回答，collapsed |
-| 同上；两份完整面板控制条与一致的选择位置 | 等待主控回答，expanded |
-| 没有待答问题；两份普通活动结构；Herdr working | working |
-| 没有待答问题；两份结束结构；Herdr idle / done | idle |
-| 原生问题仍待答，屏幕与 Herdr 已恢复普通 working；或原生已清除但屏幕仍是面板 | unknown，保存 `conflicts` |
-| 读取 UI 期间原生问题状态改变 | unknown，保存前后来源冲突 |
+| 修前合同 | **FAIL，87 项中 8 项失败**，正好覆盖缺失的折叠 / 无计数展开结构，以及缺少来源冲突记录；源码为前一冻结候选。保留 `contract-before.json`，不是无关启动失败。 |
+| 修后合同 | **PASS，89 项**；`contract-frozen.json`。新增了计数、选中位置、不同前缀、截断、引用、来源不符，以及普通后续输出 / turn 完成 / 新 turn 不擅自解决的反例。单复数反例将原生计数也设为 2 后另经真实入口核对通过。 |
+| 两种旧真实面板回归 | 修前 unknown / unknown，修后 **等待 / 等待**；`panels-before.json` 与 `panels-frozen.json`。输入参与了修改，只算回归，不能独立证明真实绿态。 |
+| 关闭合同回归 | `close-limit-after.json` 为等待 / 等待 / unknown，退出 1，**INCOMPLETE / NO_GO**；没有把关闭项排除后宣称整个合同通过。`--panels-only` 明确只核对前两项。 |
+| 针对性坏实现 | 移除单复数校验时，在原生计数也匹配的输入上错判等待；`grammar-mutant.json` 被预期 unknown 的业务断言拒绝。坏副本与失败原件保留。另以移除 Working 上下文的折叠结构做反例，修前失败，最终合同已通过，防止提问状态依赖模型是否仍在计算。 |
+| 当前 worker 普通 working | **PASS，仅普通工作状态**；`ordinary-frozen.json`，真实只读 get/read 与本 worker 的原生绑定，未增加探针根回合。 |
+| 新探针离线接线 | **PASS，0 个真实模型根回合**；`independent-probe-wiring-final.json`。显式假 Herdr / Codex，核对单次提示、首次折叠声明、两次只读延后采集、身份与清理。 |
+| 拒绝凭据作为原生日志 | **PASS，0 个真实模型根回合**；`independent-probe-reject-auth.json`。保留假凭据 canary 检查，错误日志头不发布绑定、不归档凭据。 |
+| 新的独立真实绿态 | **NOT_RUN**；只有主控在本候选冻结后运行的新会话才计入第二层验证。 |
+| 项目地图 | `ui-repair-map-status.txt`：0 problems / 0 stale living docs。 |
 
-不匹配问题正文，不解释自然语言答复。`accepted:true` 仅证明已接收，**不是解决信号**。同 call_id 的正式 `answers` 映射或空映射可关闭请求；格式依据本地 CLI 0.163.0 生成的 schema，出处见 `native-schema-source.json`。这些解决分支目前只用合成事件验证，尚未取得本次异步 skip 的实际对应事件。
-
-**红态关闭阶段的限制：** 归档的完整原生日志共有 40 条记录，仍保留待答请求，没有可关联的应答或跳过事件。因此该阶段回放为 unknown，并记录 `native=pending / screen=activity / herdr=working` 冲突。本次真实绿态也未取得该解决信号；两次都不能报告为状态已成功回落。
-
-## 检查与反事实
-
-下列 PASS 仅适用于各行范围，不等于真实绿态或整票 PASS。报告文件均在本目录；重新运行使用新报告路径，避免覆盖旧证据。
-
-按 T-088，前次详细检查输出已收为 JSON 摘要，各文件的 `full_archive` 指向完整原件。20 份详细输出和 17 个失败夹具已经主控复制到外置盘，并完成本次读回核对；新确认清单为 `native-offline-confirmed.archive.json`。以下旧检查只证明各自列出的合同或回放，不覆盖本次真实绿态新布局。
-
-| 范围 | 证据与结果 |
-| --- | --- |
-| 真实入口合同、合成反例与小输入回放 | **PASS，66 项**；`native-contract-release-candidate.json`。覆盖普通思考 / 命令活动、无专属标记、身份替换、未绑定、半条日志、来源冲突、读取中变化、答案与空映射。 |
-| 未裁剪的真实红态原生日志 + 真实读屏 | **PASS，3 项回放合同**；`native-full-raw-release-candidate.json`：折叠、展开为等待；关闭为 unknown 且有冲突。索引直接绑定外置盘原件，未把合成解决事件混入原件。 |
-| 严格两种面板正判合同 | **PASS，2 项回放**；`native-panel-contract-01.json`，不允许用安全 unknown 通过。 |
-| 已知坏实现 | `native-contract-before-01.json` 拒绝前一 UI 候选；`native-receipt-mutant.json` 拒绝“accepted 回执就是解决”的坏副本；`native-change-before.json` 保留未记录来源变化冲突时的失败。后两者的 FAIL 是反事实检出，不是当前候选通过结果。 |
-| 当前 worker 的普通 working，真实只读入口 | **PASS，仅普通活动**；`native-live-ordinary-release-candidate.json`，核对真实原生 UUID，不增加模型回合。 |
-| 绿态采集脚本离线接线 | **PASS，0 个真实模型回合**；`native-green-wire-release-candidate.json`。明确假 Herdr / Codex，采集等待 / 等待 / unknown，核对身份、1 次提示意图、无代按键、只关闭自建 pane、清理隔离 HOME 与空目录。 |
-| 错误原生路径指向凭据 | **PASS，0 个真实模型回合**；`native-green-wire-reject-auth.json`。用假凭据 canary 验证拒绝日志头不符的源，不发布原生绑定，不归档该文件；检查所有归档文件没有 canary。正常归档也只复制重新核对后的绑定文件描述符。 |
-| 清理 | `red-temp-cleanup.json`：红态 scratch 只剩空 fixture，已用 rmdir 清掉，凭据与隔离 HOME 均不存在。旧失败夹具与坏副本的外置盘副本现已核对；本次绿态 scratch 也已不存在。 |
-| 项目地图 | `native-map-status.txt` 与本次 `frozen-map-status.txt`：0 problems / 0 stale living docs。 |
-
-复现命令：
+可复现的零模型命令（报告路径必须新建）：
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/test_agent_status.py --report <新报告路径>
-PYTHONDONTWRITEBYTECODE=1 python3 scripts/test_agent_status.py --full-native-red --report <新报告路径>
-PYTHONDONTWRITEBYTECODE=1 python3 scripts/test_agent_status.py --panel-contract --report <新报告路径>
-PYTHONDONTWRITEBYTECODE=1 python3 evidence/2026-10-16-batch16/T-095/check-green-probe-wiring.py <新报告路径>
-PYTHONDONTWRITEBYTECODE=1 python3 evidence/2026-10-16-batch16/T-095/check-green-probe-wiring.py <新报告路径> --bad-source
+PYTHONDONTWRITEBYTECODE=1 python3 evidence/2026-10-16-batch16/T-095/replay-green.py --panels-only --report <新报告路径>
+PYTHONDONTWRITEBYTECODE=1 python3 evidence/2026-10-16-batch16/T-095/replay-green.py --report <新报告路径>
 ```
 
-中间失败未覆盖：`native-contract-after-01.json` 发现原生身份消失的漏拒绝，已修正；`native-contract-after-02.json` 记录一次显式假 Herdr 的启动超时，后续 66 项检查通过，不把这次失败改成 PASS。其余旧报告仍保留。尚未执行独立 behavioral-acceptance-review 或设计审查；由主控在真实绿态后针对冻结候选另开只读审查，不能由实现者自签通过。
+## 旧真实失败和人工介入保持原样
 
-## 冻结边界
+- 2026-10-17 T-094 的 working 来自主控 / 用户报告，本 worker 未取得当时原件。2026-10-18 受控红态和首轮绿态的两种面板阶段均为 blocked。原 ticket 要求的“两种形态当前为 working”仍未复现，不能勾选。
+- 首轮真实绿态运行的是 `504abc34ad2df27fa60b7cc998c499c122143d98`，三个现场投影仍是 unknown / unknown / unknown，原始 command 026 / 033 / 040 不变，见 `real-green.archive.json` 与 `green-readback-01.json`。
+- 该轮 **COLLAPSED 前操作者曾先 Shift+← 展开核对，再 Shift+→ 折叠**；之后才采集，再展开和手动 Ctrl+] skip。不能将它记作从未展开的默认折叠态，也不推断这次操作与布局变化的因果关系。
+- 先前 1,764 文件、5,498,933 字节的外置盘归档已读回核对 PASS，原件未删除，见 `native-offline-confirmed.archive.json`。
 
-真实探针预算已用尽。`controlled-panel-probe.py` 保留为已运行程序的来源，不构成继续运行的授权。其配置为 Codex 0.163.0、gpt-6.1-sol / xhigh / 请求 fast；完整 argv、输入、人工操作和原始输出均在红绿两个外置盘 run，未改 Herdr 或全局配置。
+## 交给主控的新独立探针
 
-当前未覆盖的两种绿态 UI 布局需要后续修复；真实 async skip 的可关联解决事实仍缺失。冻结本身不改变目标、验收条件、事件完整性要求或模型预算；后续处理由执行主控依据独立审查结果安排，本 worker 不自行扩大范围或追加真实回合。
+主控 #109 追加授权 **1 个根回合**。先前已用 2 个，本次未启动新探针；本次运行后累计最多 3 个。不重试、不 resume、不自动答题，不等待并行名额。由主控在本 worktree 的沙箱外 Herdr 终端依次运行：
+
+```sh
+python3 evidence/2026-10-16-batch16/T-095/archive-offline-evidence.py --manifest ui-repair.archive.json --apply
+python3 evidence/2026-10-16-batch16/T-095/controlled-panel-probe.py --approve-one-root-turn --phase green-independent
+```
+
+第一条只归档，不调用模型；717 文件、4,325,347 字节，包含本次检查、失败夹具、坏副本，以及前轮尚待复制的 34 文件派生读回。源与异常现场全部保留。外置盘未挂载、源变化或目标存在均停止，不覆盖。当前清单仍为 INCOMPLETE，待主控复制后读回确认。
+
+第二条默认不带批准参数只打印计划，见 `independent-probe-plan.json`。完整启动参数与模型保持 Codex 0.163.0 / gpt-6.1-sol / xhigh / 请求 fast；只复制 auth.json 到隔离 HOME，不写全局配置，不让模型运行命令或改文件。
+
+操作仍为 SHELL_READY、CODEX_IDLE、COLLAPSED、EXPANDED、CANCELLED。**首次 COLLAPSED 之前只观察默认折叠，不能先展开或先展开再折叠；若已经展开则终止，不重投。** 收到 CAPTURED collapsed 后再 Shift+← 展开，收到 CAPTURED expanded 后仅按界面提供的 Ctrl+] skip。脚本在即时关闭阶段采集完成后，再于 30 秒、60 秒截止点只读采集并投影，以保留可能的后续事件；不发送新提示或答案。总期限仍为 240 秒；最后只关闭自建 pane、归档绑定原生文件、删除隔离 HOME 与空 scratch。
+
+采集完成仍是 INCOMPLETE，需按原件判断两形态、身份和已知回落限制。独立审查在新探针读回后另发；`REVIEW-REQUEST.md` 明确标为旧冻结候选的历史请求，不能给当前修复候选背书。`T-095 READY <sha>` 仅交付冻结代码与脚本，不表示整票 PASS。

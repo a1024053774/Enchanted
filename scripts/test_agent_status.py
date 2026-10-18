@@ -56,19 +56,19 @@ def frame(body="• Working (14s • esc to interrupt)"):
             "  ? for shortcuts\n")
 
 
-def native_rows(session, cwd, mode="clear"):
+def native_rows(session, cwd, mode="clear", question_count=1):
     result = [dict(type="session_meta", payload=dict(id=session, cwd=cwd, source="cli", cli_version="0.163.0")),
               dict(type="event_msg", payload=dict(type="task_started", turn_id="fixture-turn"))]
     if mode == "clear":
         return result
     asynchronous = mode in ("pending", "receipt", "publication-incomplete", "async-answered", "async-empty", "foreign-delivery", "uncorrelated-user", "invalid-receipt")
     request = dict(type="response_item", payload=dict(type="function_call", name="request_user_input_async" if asynchronous else "request_user_input",
-        call_id="question-call", arguments=json.dumps({"questions":[{"title":"fixture question"}] if asynchronous else [{"id":"q1","header":"fixture","question":"fixture question"}]}),
+        call_id="question-call", arguments=json.dumps({"questions":[{"title":f"fixture question {n}"} for n in range(question_count)] if asynchronous else [{"id":"q1","header":"fixture","question":"fixture question"}]}),
         internal_chat_message_metadata_passthrough=dict(turn_id="fixture-turn")))
     result.append(request)
     if asynchronous:
         result.append(dict(type="event_msg",payload=dict(type="item_completed",thread_id=session,turn_id="fixture-turn",
-            item=dict(type="AgentMessage",id="question-call",delivery="async",questions=[{"title":"fixture question"}]))))
+            item=dict(type="AgentMessage",id="question-call",delivery="async",questions=[{"title":f"fixture question {n}"} for n in range(question_count)]))))
         if mode != "publication-incomplete":
             result.append(dict(type="response_item",payload=dict(type="function_call_output",call_id="question-call",output='{"accepted":true}')))
         if mode in ("async-answered", "async-empty"):
@@ -147,7 +147,14 @@ def run_case(entry, directory, number, case):
     if case.get("native_change"):
         data.update(native_change=True,native_log=str(native_log))
     native_mode = case.get("native", "clear")
-    events = native_rows(native, prepared["cwd"], native_mode)
+    events = native_rows(native, prepared["cwd"], native_mode, case.get("native_question_count", 1))
+    if case.get("native_tail") == "output":
+        events.append(dict(type="event_msg",payload=dict(type="item_completed",thread_id=native,turn_id="fixture-turn",
+                      item=dict(type="AgentMessage",id="later-message",delivery="follow-up",text="still running"))))
+    elif case.get("native_tail") == "completed":
+        events.append(dict(type="event_msg",payload=dict(type="task_complete",turn_id="fixture-turn")))
+    elif case.get("native_tail") == "next-turn":
+        events.append(dict(type="event_msg",payload=dict(type="task_started",turn_id="next-fixture-turn")))
     if recorded:
         captured_native=json.loads((EVIDENCE / "real-native-inputs.json").read_text(encoding="utf-8"))["records"]
         events=copy.deepcopy(captured_native[:2] if case.get("native_after_submit") else captured_native)
@@ -293,6 +300,36 @@ def main():
         dict(name="question-selection-disagrees-with-footer", expected="unknown", screen=panel.replace("option 2/4", "option 1/4")),
         dict(name="question-readings-disagree", expected="unknown", screen=panel, detection=frame()),
         dict(name="blocked-and-activity-alone-is-ambiguous", expected="unknown", raw_state="blocked"),
+    ])
+    folded_one = frame("• Working (9s • esc to interrupt)\n• Queued follow-up inputs\n  ? 1 question\n    ⇧← to answer")
+    folded_two = folded_one.replace("? 1 question", "? 2 questions")
+    expanded = ("\n  与题材和固定问题无关的哨兵标题\n  › 1. 一\n    2. 二\n    3. 三\n"
+                "  enter submit   ⌃] skip   ⇧→ main prompt\n")
+    selected_four = expanded.replace("  › 1. 一", "    1. 一").replace("    3. 三", "    3. 三\n  › 4. 四\n    5. 五")
+    cases.extend([
+        dict(name="folded-question-tail",expected="waiting_controller_answer",screen=folded_one,native="pending",raw_state="blocked"),
+        dict(name="folded-markers-independent-of-activity",expected="waiting_controller_answer",screen=frame("• Queued follow-up inputs\n  ? 1 question\n    ⇧← to answer"),native="pending",raw_state="idle"),
+        dict(name="folded-plural-and-working-raw",expected="waiting_controller_answer",screen=folded_two,native="pending",native_question_count=2),
+        dict(name="folded-count-conflicts-with-native",expected="unknown",screen=folded_two,native="pending",conflict=True),
+        dict(name="folded-question-count-changes",expected="unknown",screen=folded_one,detection=folded_two,native="pending",native_question_count=2),
+        dict(name="folded-without-queue-header",expected="unknown",screen=folded_one.replace("• Queued follow-up inputs\n", ""),native="pending"),
+        dict(name="folded-without-answer-key",expected="unknown",screen=folded_one.replace("    ⇧← to answer\n", ""),native="pending"),
+        dict(name="folded-zero-count",expected="unknown",screen=folded_one.replace("? 1 question", "? 0 questions"),native="pending"),
+        dict(name="folded-count-grammar-incomplete",expected="unknown",screen=folded_one.replace("? 1 question", "? 2 question"),native="pending",native_question_count=2),
+        dict(name="folded-quote-is-not-current",expected="working",screen=frame(folded_one+"\n• Working (7s • esc to interrupt)")),
+        dict(name="expanded-no-option-counter",expected="waiting_controller_answer",screen=expanded,native="pending"),
+        dict(name="expanded-activity-and-queue-prefix",expected="waiting_controller_answer",screen="• Working (7s • esc to interrupt)\n• Queued follow-up inputs\n"+expanded,native="pending"),
+        dict(name="expanded-queue-only-prefix",expected="waiting_controller_answer",screen="• Queued follow-up inputs\n"+selected_four,native="pending"),
+        dict(name="expanded-activity-only-prefix",expected="waiting_controller_answer",screen="• Working (7s • esc to interrupt)\n"+selected_four,native="pending"),
+        dict(name="expanded-no-counter-truncated-list",expected="unknown",screen=expanded.replace("  › 1. 一\n", "").replace("    2. 二", "  › 2. 二"),native="pending"),
+        dict(name="expanded-no-counter-duplicate-option",expected="unknown",screen=expanded.replace("3. 三", "2. 三"),native="pending"),
+        dict(name="expanded-no-counter-truncated-controls",expected="unknown",screen=expanded.replace("   ⇧→ main prompt", ""),native="pending"),
+        dict(name="expanded-arbitrary-prefix-is-unknown",expected="unknown",screen="Unverified prefix\n"+expanded,native="pending"),
+        dict(name="expanded-no-counter-against-clear-event",expected="unknown",screen=expanded,conflict=True),
+        dict(name="folded-and-expanded-readings-disagree",expected="unknown",screen=folded_one,detection=expanded,native="pending"),
+        dict(name="later-same-turn-output-is-not-resolution",expected="unknown",native="pending",native_tail="output",conflict=True),
+        dict(name="turn-completion-is-not-a-question-answer",expected="unknown",native="pending",native_tail="completed",conflict=True),
+        dict(name="new-turn-does-not-silently-resolve-question",expected="unknown",native="pending",native_tail="next-turn"),
     ])
     recorded_cases = [dict(name="real-" + label, expected=expected,
                            recorded=dict(meta=meta, capture=meta["captures"][label]),
