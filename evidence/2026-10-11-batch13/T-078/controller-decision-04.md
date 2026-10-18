@@ -821,3 +821,23 @@ worker 修四处测试工具缺陷（11c119da8）；排练又暴露并修两处�
 - 回归：-01 全部卡在包装器 → -02 四类 GUI PASS，core INCOMPLETE（质量正例 8 秒预算不够）→ core-03 的 CAS 分类器误判 → core-04 PASS。quality-timing-01：同为 8 秒时，起点与候选各 9/9 次触发 deadline，判为既有问题。
 - 独立审查 01 PASS（reviewer launch-e1cd719b7b644f5e9b617716d1faf133；第一次启动失败 launch-b17e1b4e84c54ae4bc6b943fef4060c2，已关闭）。合入 main，关票，打分 score-c9e338907bdc48308ebde063b321ab21。
 - 观察：2026-10-17 12:38，用户全局 ~/.codex/config.toml 出现 `service_tier = "fast"`（不是执行主控改的，未触碰）。正在运行的 worker 与 reviewer 会话随即显示 "Service tier set to priority / xhigh fast"。reviewer 的 PASS 结论在同一分钟写出，切换发生在定稿之前还是之后，无法分辨。之后没有再给任何 Codex 会话派活。
+
+## #378（2026-10-17）T-094、T-093 开工；提问面板识别
+
+- 用户（构思主控转达，assign 20261017T172126Z）："开1，2， 用fast，快重制了，是我改的"。12:38 的 ~/.codex/config.toml service_tier=fast 是用户本人改的；本期 Codex 临时可用 fast，启动记录照实写 fast。
+- T-094：worker s16-t094，launch-efca9e180a594c2e98ec594874eaf253（fast），稀疏 worktree a2a-wt-t094。T-093：worker s16-t093，launch-45148b6732394eccab3b21224b238513（fast），a2a-wt-t093。两张票起点都是 617863704。
+- T-094 红态 red-01：5 次启动中 2 次 rc 1，Herdr trace 已保存，模型回合 0，自建 pane 全部关闭，隔离 CODEX_HOME 已删除。验收冲突：acceptance/test_launcher_shell_ready_e2e.py 要求失败时保留 pane。主控裁定：失败 pane 记录清楚，但不由 launch-worker 自动关闭。
+- 用户指出 T-094 worker 用 Codex 提问面板（默认折叠，shift+← 展开）等主控回答，Herdr 却报 working，主控漏看了。处理：回答已送达；主控监视读 visible 屏最后 3 行识别提问面板。这是**临时手段**：第一版匹配整屏时被自己消息里的原文误判，已收窄。issue 20261017T172907Z；构思主控裁定另开 T-095（未就绪），不并入 T-094。
+
+## #379（2026-10-17）T-094 验收关闭；T-093 进行中
+
+- T-094：根因是 conda 初始化（busy 当刻采样证实）；修法为 1500ms 稳定窗口；busy-02 10/10。受保护验收两条按用户裁定 A 修订；独立审查 01 PASS，主控重放 rc 0。合入 main，关票，打分 score-39c41d2b9a7e4e109c6012393cf06e26。
+- T-093 探针 probe-01～10：先后排除钥匙串 profile 误判、带端口 profile 写错、首启 onboarding 直连官方地址（通过新建 hasCompletedOnboarding 绕过）、信任屏（新建隔离 cwd 信任状态）这几个问题，probe-10 PASS：本地收到 2 个带复制凭据的 /v1/messages，真实上游 0。产品链 product-chain-03 PASS。审查 01 NO_GO（凭据检查在空变体时跳过；漏记变异被清理断言掩盖）→ 已修。真实 HOME"无差异"一条经用户裁定 A，改为 OS 沙箱禁写加反例。父进程 profile 禁写反例成立；嵌套 sandbox-exec 不可用（exit 71），已要求改成单一最外层 profile。
+- 主控拒绝了 T-093 worker 对 /bin/ps 的提权请求（应写成脚本交主控）。主控读过两份脱敏终端输出（probe-07、probe-09），读后即删。
+
+## #380（2026-10-18）T-096 验收关闭；T-093/T-095 进行中
+
+- T-096：裁定 B 范围内七场真实运行加空集重开全部 PASS，初始化按键由主控逐屏批准（批准助手 scratchpad onboard096.sh：逐屏 capture，机械核对最后一帧的文字与光标，填写批准后单键执行，有任何不符即停止）。审查 01 NO_GO（空集被当成未保存）→ 修复 → 审查 02 PASS；README P3 由主控在合入前修正。合入，关票，打分 score-7b0c0185dcf94382b789b904093cd7fb。
+- T-095：用户在现场说"095 不用等吧"，探针临时把 Codex 并行升到 4。红、绿、独立绿三次各 1 根回合，共 3 个（第 3 个为主控追加授权）。绿态 01 三阶段都读成 unknown（NO_GO，照实保留）；解析器按真实结构修订后，跑了独立绿态，原件待 worker 读回。
+- T-093：pane_release 被拒的根因是 daemon 在 C profile 内 spawn setuid /bin/ps 时报 EPERM；worker 改用 libproc helper（产品改动，影响所有 pane，审查须覆盖 T-091/T-096 回归）。现卡在上游收据的 prompt_matches_fixture=false。
+- 用户问能否用配置跳过 Claude 初始化屏：构思主控已建 T-099（未就绪，低优先级）。

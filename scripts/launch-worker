@@ -13,9 +13,24 @@ import uuid
 from launch_records import validate_launches
 from record_io import append_record, locked, read_records, token, utc_now
 
+SHELL_STABLE_SECONDS = 1.5
+SHELL_SAMPLE_SECONDS = 0.1
+SHELL_TIMEOUT_SECONDS = 30
+
 
 def output(argv, cwd=None):
     return subprocess.check_output(argv, cwd=cwd, text=True).strip()
+
+
+def herdr_error_code(stderr):
+    try:
+        body = json.loads(stderr)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(body, dict) and isinstance(body.get("error"), dict):
+        code = body["error"].get("code")
+        return code if isinstance(code, str) and code else None
+    return None
 
 
 def main():
@@ -69,18 +84,35 @@ def main():
                launcher_commit=output(["git", "rev-parse", "HEAD"], Path(__file__).resolve().parents[1]),
                role_card=str(role_card), role_card_version=output(["git", "log", "-1", "--format=%H", "--",
                                                                 ".project-map/roles/worker.md"], root),
-               native_session="unknown")
+               native_session="unknown", shell_ready_policy=dict(
+                   stable_ms=int(SHELL_STABLE_SECONDS * 1000),
+                   sample_interval_ms=int(SHELL_SAMPLE_SECONDS * 1000),
+                   timeout_ms=SHELL_TIMEOUT_SECONDS * 1000))
     with locked(lockfile):
         validate_launches([*read_records(logfile), row])
         append_record(logfile, row)
     pane = None
+    start_argv = None
+    last_call = None
+    stage = "split"
+    last_shell_info = None
 
     def invoke(command, *, timeout=None):
-        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+        nonlocal last_call
+        last_call = dict(argv=command, returncode=None, stdout="", stderr="")
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            # TimeoutExpired 的部分输出可能为 bytes；repr 保留原字节转义。
+            last_call.update(stdout=exc.stdout if isinstance(exc.stdout, str) else repr(exc.stdout or b""),
+                             stderr=exc.stderr if isinstance(exc.stderr, str) else repr(exc.stderr or b""))
+            raise
+        last_call.update(returncode=result.returncode, stdout=result.stdout, stderr=result.stderr)
         if result.returncode:
             print(result.stdout, end="")
             print(result.stderr, end="", file=sys.stderr)
-            raise subprocess.CalledProcessError(result.returncode, command)
+            raise subprocess.CalledProcessError(result.returncode, command,
+                                                output=result.stdout, stderr=result.stderr)
         return json.loads(result.stdout)
 
     try:
@@ -96,17 +128,24 @@ def main():
             split_argv.extend(["--env", key + "=" + value])
         response = invoke(split_argv)
         pane = response["result"]["pane"]["pane_id"]
+        stage = "shell"
         # Herdr 0.9.3 available_pane_shell_from_job: shell owns the foreground
         # group, and no other foreground process remains (including rc helpers).
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + SHELL_TIMEOUT_SECONDS
+        stable_since = None
         while True:
-            remaining = deadline - time.monotonic()
+            sample_started = time.monotonic()
+            remaining = deadline - sample_started
             if remaining <= 0:
-                raise TimeoutError("等待 shell 可用超过 30 秒；保留 pane，不启动 agent")
+                raise TimeoutError("等待 shell 可用超过 30 秒；不启动 agent")
             info = invoke(["herdr", "pane", "process-info", "--pane", pane],
                           timeout=remaining)["result"]["process_info"]
             if info["pane_id"] != pane:
                 raise ValueError("shell 状态返回的 pane 身份不符")
+            last_shell_info = dict(info, sampled_at=utc_now())
+            sampled = time.monotonic()
+            if sampled >= deadline:
+                raise TimeoutError("等待 shell 可用超过 30 秒；不启动 agent")
             shell_pid = info.get("shell_pid")
             processes = info.get("foreground_processes", [])
             if (shell_pid is not None and shell_pid > 0
@@ -115,17 +154,84 @@ def main():
                     and processes[0]["name"].rsplit("/", 1)[-1].lstrip("-").removesuffix(".exe").lower()
                     in {"sh", "bash", "dash", "zsh", "fish", "ksh", "mksh", "csh", "tcsh",
                         "elvish", "xonsh", "nu", "pwsh", "powershell", "cmd"}):
-                break
-            time.sleep(min(0.1, max(0, deadline - time.monotonic())))
+                if stable_since is None:
+                    stable_since = sampled
+                if sampled - stable_since >= SHELL_STABLE_SECONDS:
+                    break
+            else:
+                stable_since = None
+            now = time.monotonic()
+            time.sleep(min(max(0, SHELL_SAMPLE_SECONDS - (now - sample_started)),
+                           max(0, deadline - now)))
         start_argv = ["herdr", "agent", "start", args.agent, "--kind", "codex", "--pane", pane,
                       "--", *argv[1:]]
+        stage = "agent_start"
         started = invoke(start_argv)
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        failure = dict(row, phase="failed", pane=pane, error=str(exc), observed_at=utc_now())
+        call = last_call or dict(argv=[], returncode=None, stdout="", stderr="")
+        error_code = ("command_failed" if isinstance(exc, subprocess.CalledProcessError)
+                      else "timeout" if isinstance(exc, (TimeoutError, subprocess.TimeoutExpired))
+                      else "invalid_response" if isinstance(exc, (ValueError, KeyError)) else "os_error")
+        error_code = herdr_error_code(call["stderr"]) or error_code
+        failure = dict(row, phase="failed", pane=pane, agent=args.agent, error=str(exc),
+                       error_code=error_code, failure_stage=stage, herdr_start_argv=start_argv,
+                       herdr_command=call["argv"], herdr_returncode=call["returncode"],
+                       herdr_stdout=call["stdout"], herdr_stderr=call["stderr"],
+                       outcome="unknown" if stage == "agent_start" else "not_started",
+                       observations=[], pane_disposition="retained_for_controller" if pane else "not_created",
+                       observed_at=utc_now())
+        if stage == "shell" and isinstance(exc, (TimeoutError, subprocess.TimeoutExpired)):
+            failure["shell_foreground"] = last_shell_info
+            failure["error"] += "；shell 等待的最后前台采样=" + json.dumps(
+                last_shell_info, ensure_ascii=False)
+        if pane is not None and stage == "agent_start":
+            # 失败后只观察本次 split 的 pane；绝不按名称操作其他会话。
+            observed = {}
+            registration_absent = False
+            for key, command in (
+                ("process_info", ["herdr", "pane", "process-info", "--pane", pane]),
+                ("agent", ["herdr", "agent", "get", pane]),
+            ):
+                try:
+                    value = invoke(command, timeout=5)["result"][key]
+                    if value["pane_id"] != pane:
+                        raise ValueError("失败诊断返回的 pane 身份不符")
+                    observed[key] = value
+                    if key == "process_info" and error_code == "agent_pane_busy":
+                        # 只提升第一次失败后快照；不把采样到的进程断言为拒绝时的根因。
+                        failure["busy_foreground"] = dict(
+                            sampled_at=utc_now(),
+                            foreground_process_group_id=value.get("foreground_process_group_id"),
+                            processes=[{k: p.get(k) for k in ("pid", "name", "argv")}
+                                       for p in value.get("foreground_processes", [])])
+                        failure["error"] += "；busy 后的前台采样=" + json.dumps(
+                            failure["busy_foreground"], ensure_ascii=False)
+                    if key == "agent":
+                        registration_absent = value.get("name") is None
+                    failure["observations"].append(dict(last_call, value=value))
+                except (OSError, ValueError, KeyError, subprocess.CalledProcessError,
+                        subprocess.TimeoutExpired) as diagnostic_error:
+                    failure["observations"].append(dict(last_call, error=str(diagnostic_error)))
+                    if key == "agent" and herdr_error_code(last_call["stderr"]) == "agent_not_found":
+                        registration_absent = True
+            info = observed.get("process_info", {})
+            agent = observed.get("agent", {})
+            processes = info.get("foreground_processes", [])
+            codex_running = any(p.get("name", "").rsplit("/", 1)[-1] == "codex"
+                                for p in processes)
+            if agent.get("name") == args.agent and agent.get("agent") == "codex":
+                failure["outcome"] = ("started_not_ready" if agent.get("agent_status") == "blocked"
+                                      else "started_unconfirmed")
+            elif codex_running and registration_absent:
+                failure["outcome"] = "started_unregistered"
+            elif info and error_code == "agent_pane_busy" and not codex_running:
+                failure["outcome"] = "not_started"
         with locked(lockfile):
-            validate_launches(read_records(logfile))
+            validate_launches([*read_records(logfile), failure])
             append_record(logfile, failure)
-        print(f"启动未完成，保留 pane={pane}，launch={launch_id}，不得盲目重试：{exc}", file=sys.stderr)
+        print(f"启动未完成，保留 pane={pane} 交主控处置，launch={launch_id}，错误={error_code}，"
+              f"结果={failure['outcome']}，不得盲目重试：{failure['error']}",
+              file=sys.stderr)
         return exc.returncode if isinstance(exc, subprocess.CalledProcessError) else 1
     row = dict(row, phase="started", pane=pane, agent=args.agent, herdr_start_argv=start_argv,
                herdr_result=started, observed_at=utc_now())

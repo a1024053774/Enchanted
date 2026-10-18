@@ -58,7 +58,7 @@ export async function serve(
   type WindowBinding = { id: string; token: string; task: string; launch: string; sequence: number; requests: Set<string> };
   const windows = new Map<string, WindowBinding>();
   const readOnly = new Set(["daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "anonymous"; window?: WindowBinding } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
     if (identity.kind === "operator") {
@@ -76,6 +76,8 @@ export async function serve(
   };
   gates.setUserInputObserverStatus("healthy");
   let stopping = false;
+  let recovering = true;
+  let recovery: Promise<void>;
   let activeRequests = 0;
   let requestsDrained: (() => void) | undefined;
   const activityFinished = () => {
@@ -87,6 +89,7 @@ export async function serve(
     // Requests and deferred receipt writes retain their stores until their
     // final results are durable. run observes beginShutdown at safe boundaries.
     if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });
+    await recovery;
     await panes.shutdown();
     store.event("daemon_stopped", { pid: process.pid });
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -100,11 +103,21 @@ export async function serve(
     if (!input || typeof input.command !== "string") throw new Refusal("invalid_request");
     const identity = envelope.identity;
     if (authority.kind === "anonymous" && !readOnly.has(input.command)) throw new Refusal("caller_identity_required");
+    if (recovering && !readOnly.has(input.command) && !["daemon_stop", "signal"].includes(input.command)) throw new Refusal("daemon_recovering");
     if (authority.kind === "launch") {
       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
     }
     if (authority.kind === "window" && !["window_input", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       throw new Refusal("window_command_forbidden");
+    }
+    if (input.command === "pane_layout") return { ok: true, recovering, saved: store.hasPaneLayout(input.task), panes: store.openPanes(input.task) };
+    if (["pane_layout_open", "pane_layout_close"].includes(input.command)) {
+      if (authority.kind !== "operator") throw new Refusal("operator_required");
+      const record = panes.launchRecord(input.launch);
+      if (record.task !== input.task) throw new Refusal("launch_task_mismatch");
+      if (input.command === "pane_layout_open") panes.rememberOpen(input.launch, input.position);
+      else panes.forgetOpen(input.launch);
+      return { ok: true };
     }
     if (input.command === "window_open") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
@@ -245,7 +258,7 @@ export async function serve(
         session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,
         role: record.role, preset: record.preset ?? null, cli_version: record.cli_version, model_requested: record.model_requested,
         effort_requested: record.effort_requested, created_at: record.created_at } : null;
-      return { ok: true, daemon, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
+      return { ok: true, daemon, recovering, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
     }
     if (input.command === "pane_status") return { ok: true, ...panes.status(input.thread) };
     if (input.command === "pane_process_info") return { ok: true, ...await panes.processInfo(input.thread) };
@@ -411,7 +424,8 @@ export async function serve(
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socket, resolve); });
   chmodSync(socket, 0o600);
   writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
-  panes.recover(daemon);
+  recovery = panes.recover(daemon).finally(() => { recovering = false; });
+  void recovery.catch(error => gates.setUserInputObserverStatus("failed", { reason: String(error) }));
   gates.recoverReviews();
   store.event("daemon_started", { daemon, pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
   process.send?.({ ok: true, pid: process.pid, root, helper });

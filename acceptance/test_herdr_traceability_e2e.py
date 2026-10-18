@@ -64,6 +64,24 @@ else:sys.exit(2)
         fake.chmod(0o755)
         self.env.update(PATH=str(self.fakebin)+os.pathsep+self.env["PATH"],
                         FAKE_CALLS=str(self.root/"fake-calls.jsonl"), FAKE_ENV=str(self.root/"fake-env.json"))
+        self.cli_versions = {}
+        self.version_receipts = self.root / "version-receipts.jsonl"
+        self.env.update(FAKE_VERSION_RECEIPTS=str(self.version_receipts),
+                        FAKE_REAL_CODEX=shutil.which("codex", path=self.env["PATH"]))
+        codex = self.fakebin / "codex"
+        codex.write_text("#!" + sys.executable + "\n" + '''
+import json, os, subprocess, sys
+from pathlib import Path
+if sys.argv[1:] != ['--version']:
+ sys.exit(2)
+r = subprocess.run([os.environ['FAKE_REAL_CODEX'], '--version'], capture_output=True, text=True)
+with Path(os.environ['FAKE_VERSION_RECEIPTS']).open('a', encoding='utf-8') as f:
+ f.write(json.dumps(dict(argv=sys.argv[1:], returncode=r.returncode, stdout=r.stdout)) + '\\n')
+sys.stdout.write(r.stdout)
+sys.stderr.write(r.stderr)
+sys.exit(r.returncode)
+''', encoding="utf-8")
+        codex.chmod(0o755)
         self.task = "T-sentinel-" + uuid.uuid4().hex[:10] + "-1"
         self.attempt, self.session = "attempt-"+uuid.uuid4().hex, "session-"+uuid.uuid4().hex
 
@@ -87,12 +105,29 @@ else:sys.exit(2)
 
     def launch(self, attempt=None, env=None, expected=0):
         self.assertTrue((SCRIPTS / "launch-worker").is_file(), "EXPECTED_RED launch entry missing")
+        before = len(self.version_events())
         r = self.run_command([str(SCRIPTS / "launch-worker"), "--root", str(self.root), "--cwd", str(self.root),
                               "--agent", "fixture-worker", "--project", "sentinel-project", "--task", self.task,
                               "--attempt", attempt or self.attempt, "--session", self.session], env=env, expected=expected)
         if expected:
             return r
-        return json.loads(r.stdout)["launch_id"]
+        launch = json.loads(r.stdout)["launch_id"]
+        self.assert_start_version(launch, before)
+        return launch
+
+    def version_events(self):
+        return [json.loads(line) for line in self.version_receipts.read_text(encoding="utf-8").splitlines()] if self.version_receipts.exists() else []
+
+    def assert_start_version(self, launch, before):
+        receipts = self.version_events()[before:]
+        self.assertTrue(receipts, "启动时没有观察到 --version 调用")
+        self.assertTrue(all(r["argv"] == ["--version"] and r["returncode"] == 0 for r in receipts))
+        versions = {r["stdout"].strip() for r in receipts}
+        self.assertEqual(len(versions), 1, "启动期间版本输出不一致")
+        observed = versions.pop()
+        prepared = next(r for r in self.rows("launches.jsonl") if r["launch_id"] == launch and r["phase"] == "prepared")
+        self.assertEqual(prepared["cli_version"], observed)
+        self.cli_versions[launch] = observed
 
     def managed_env(self):
         env = dict(self.env, CODEX_THREAD_ID="native-"+uuid.uuid4().hex)
@@ -108,7 +143,7 @@ else:sys.exit(2)
         actual = [line for line in message.splitlines() if line.startswith("A2A-")]
         self.assertEqual(len(actual), 9, message)
         expected = {"A2A-Task":self.task,"A2A-Attempt":self.attempt,"A2A-Session":self.session,
-                    "A2A-Role":"worker","A2A-Tool":"codex-cli 0.162.1","A2A-Model":"gpt-6.1-sol",
+                    "A2A-Role":"worker","A2A-Tool":self.cli_versions[launch_id],"A2A-Model":"gpt-6.1-sol",
                     "A2A-Effort":"xhigh","A2A-Native-Session":env["CODEX_THREAD_ID"],"A2A-Launch":launch_id}
         self.assertEqual(dict(line.split(": ",1) for line in actual),expected)
         bound = self.rows("launches.jsonl")[-1]
