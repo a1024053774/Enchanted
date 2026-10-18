@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+"""读取指定 Herdr worker 的状态投影；无法核对的状态输出 unknown。"""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+# A read command must not create Python cache files in the checkout.
+sys.dont_write_bytecode = True
+from launch_records import FIELDS, find_launch
+from record_io import read_records, token, utc_now
+from native_questions import NativeUnreadable, read_native
+
+
+LABELS = {"unknown": "未知", "working": "工作中", "idle": "空闲",
+          "waiting_controller_answer": "等待主控回答"}
+ACTIVITY = re.compile(
+    r"• Working \((?:[0-9]+h )?(?:[0-9]+m )?[0-9]+s • esc to interrupt\)"
+    r"(?: · [0-9]+ background terminals? running · /ps to view · /stop to close)?")
+SHORTCUTS = re.compile(r"\? for shortcuts(?:\s+⚠ [0-9]+ warnings? · f2 to view)?")
+QUESTION_COUNT = re.compile(r"\?\s+([1-9][0-9]*)\s+questions?")
+ANCHOR_TAIL_LINES = 12
+
+
+class Unreadable(Exception):
+    def __init__(self, reason, **details):
+        self.reason, self.details = reason, details
+
+
+def herdr(argv, timeout, calls):
+    command = ["herdr", *argv]
+    call = dict(argv=command, returncode=None)
+    calls.append(call)
+    try:
+        result = subprocess.run(command, capture_output=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired as exc:
+        raise Unreadable("herdr_timeout", argv=command) from exc
+    except OSError as exc:
+        raise Unreadable("herdr_unavailable", argv=command, error=str(exc)) from exc
+    call["returncode"] = result.returncode
+    if result.returncode:
+        raise Unreadable("herdr_command_failed", argv=command, returncode=result.returncode,
+                         stderr=result.stderr.decode("utf-8", errors="replace")[:1024])
+    if len(result.stdout) > 65536:
+        raise Unreadable("herdr_output_too_large", argv=command, bytes=len(result.stdout))
+    try:
+        return result.stdout.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise Unreadable("herdr_output_not_utf8", argv=command) from exc
+
+
+def live_agent(raw):
+    try:
+        agent = json.loads(raw)["result"]["agent"]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise Unreadable("invalid_live_agent") from exc
+    if not isinstance(agent, dict):
+        raise Unreadable("invalid_live_agent")
+    return agent
+
+
+def launch_identity(rows, launch, output):
+    latest = find_launch(rows, launch)
+    started = next(row for row in rows if row["launch_id"] == launch and row["phase"] == "started")
+    output.update(project=started["project"], task=started["task"], attempt=started["attempt"],
+                  worker=started.get("agent"), pane=started.get("pane"))
+    if started["role"] != "worker" or started["cli"] != "codex":
+        raise Unreadable("unsupported_launch_role_or_cli")
+    if started["cli_version"] != "codex-cli 0.163.0":
+        raise Unreadable("unverified_cli_layout", cli_version=started["cli_version"])
+    for key in ("pane", "agent"):
+        value = started.get(key)
+        if not isinstance(value, str) or not value or value.startswith("-") or any(c.isspace() for c in value):
+            raise Unreadable("invalid_launch_target", field=key)
+        if latest.get(key) != value:
+            raise Unreadable("launch_identity_changed", field=key)
+    for row in rows[rows.index(started) + 1:]:
+        if row["phase"] == "started" and row["launch_id"] != launch and row.get("pane") == started["pane"]:
+            raise Unreadable("launch_superseded", newer_launch=row["launch_id"])
+    try:
+        initial = started["herdr_result"]["result"]["agent"]
+    except (KeyError, TypeError) as exc:
+        raise Unreadable("launch_runtime_identity_missing") from exc
+    if (not isinstance(initial, dict) or initial.get("name") != started["agent"]
+            or initial.get("pane_id") != started["pane"] or initial.get("agent") != "codex"
+            or not isinstance(initial.get("terminal_id"), str) or not initial["terminal_id"]):
+        raise Unreadable("invalid_launch_runtime_identity")
+    return latest, initial
+
+
+def check_identity(record, initial, before, after):
+    expected = dict(name=record["agent"], agent="codex", pane_id=record["pane"],
+                    terminal_id=initial["terminal_id"])
+    natives = []
+    for sample in (before, after):
+        for key, value in expected.items():
+            if sample.get(key) != value:
+                raise Unreadable("live_identity_mismatch", field=key)
+        for key in ("cwd", "foreground_cwd"):
+            value = sample.get(key)
+            if not isinstance(value, str) or Path(value).resolve() != Path(record["cwd"]).resolve():
+                raise Unreadable("live_identity_mismatch", field=key)
+        native = sample.get("agent_session")
+        if native is not None and (not isinstance(native, dict) or native.get("agent") != "codex" or native.get("kind") != "id"
+                                   or not isinstance(native.get("value"), str) or not native["value"]):
+            raise Unreadable("live_native_identity_missing")
+        natives.append(native["value"] if native is not None else None)
+    if natives[0] != natives[1]:
+        raise Unreadable("live_native_identity_changed")
+    registered = record["native_session"]
+    initial_native = initial.get("agent_session")
+    initial_bound = None
+    if initial_native is not None:
+        if (not isinstance(initial_native, dict) or initial_native.get("agent") != "codex" or initial_native.get("kind") != "id"
+                or not isinstance(initial_native.get("value"), str) or not initial_native["value"]):
+            raise Unreadable("invalid_launch_native_identity")
+        initial_bound = initial_native["value"]
+    if initial_bound is not None and natives[0] is None:
+        raise Unreadable("live_native_identity_missing")
+    bound = registered if registered != "unknown" else initial_bound
+    if bound is not None and natives[0] is not None and natives[0] != bound:
+        raise Unreadable("launch_native_identity_mismatch")
+    if (type(before.get("state_change_seq")) is not int
+            or before["state_change_seq"] != after.get("state_change_seq")
+            or before.get("agent_status") != after.get("agent_status")):
+        raise Unreadable("live_state_changed")
+    binding = "launch_record" if bound is not None and natives[0] is not None else "native_log_required"
+    return dict(terminal=initial["terminal_id"], native_session=natives[0], native_binding=binding,
+                revision_before=before.get("revision"), revision_after=after.get("revision"))
+
+
+def question_anchors(text):
+    if "\x1b" in text:
+        raise Unreadable("unreadable_screen")
+    rows = [(number, line.strip()) for number, line in enumerate(text.splitlines(), 1) if line.strip()]
+    anchors = [dict(form="expanded", line=number, markers=["⌃] skip", "⇧→ main prompt"])
+               for number, line in rows if "⌃] skip" in line and "⇧→ main prompt" in line]
+    for number, line in rows[-ANCHOR_TAIL_LINES:]:
+        count = QUESTION_COUNT.match(line)
+        if count:
+            anchors.append(dict(form="collapsed", line=number, marker=count[0], question_count=count[1]))
+    return anchors
+
+
+def screen_frame(text, record):
+    if not text or "\x1b" in text:
+        raise Unreadable("unreadable_screen")
+    lines = text.splitlines()
+    prompts = [i for i, line in enumerate(lines) if line.startswith("›")]
+    if not prompts:
+        raise Unreadable("composer_missing")
+    composer = prompts[-1]
+    if lines[composer].rstrip() not in ("›", "› Ask Codex to do anything"):
+        raise Unreadable("composer_not_empty")
+    footer = [line.strip() for line in lines[composer + 1:] if line.strip()]
+    model = record["model"].casefold() + " " + record["effort"]
+    if (len(footer) != 2 or not SHORTCUTS.fullmatch(footer[1])
+            or not any(footer[0].casefold().startswith(model + suffix) for suffix in (" · ", " fast · "))):
+        raise Unreadable("unverified_footer")
+    body = [line.rstrip() for line in lines[:composer] if line.strip()]
+    if not body:
+        raise Unreadable("activity_or_completion_missing")
+    tip = None
+    if body[-1].startswith("  └ Tip: "):
+        tip = body.pop()
+    if not body:
+        raise Unreadable("activity_or_completion_missing")
+    activity = body[-1] if ACTIVITY.fullmatch(body[-1]) else None
+    # Unknown tails cannot supply positive working or completion evidence.
+    if activity is None and (tip is not None or not body[-1].startswith("• ")
+                             or body[-1].startswith(("• Queued follow-up inputs", "• Messages to be submitted"))):
+        raise Unreadable("unverified_screen_tail")
+    return dict(kind="activity" if activity else "settled", activity=activity, composer=lines[composer], footer=footer)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1], help="保存 records/launches.jsonl 的 checkout")
+    parser.add_argument("--launch", required=True, type=token)
+    parser.add_argument("--timeout", type=float, default=3.0, help="每次只读 Herdr 调用的期限，秒")
+    parser.add_argument("--native-store", type=Path, help="当前 worker 的 Codex 原生索引；未传则用启动记录 native_store")
+    args = parser.parse_args()
+    output = dict(schema=1, observed_at=utc_now(), launch=args.launch, project=None, task=None, attempt=None,
+                  worker=None, pane=None, state="unknown", state_label=LABELS["unknown"],
+                  raw_state=None, reason=None, identity=None, native=None, anchors={}, conflicts=[], evidence=[], calls=[])
+    try:
+        if not 0 < args.timeout <= 10:
+            raise Unreadable("invalid_timeout")
+        if os.environ.get("HERDR_ENV") != "1":
+            raise Unreadable("herdr_context_required")
+        rows = read_records(args.root.resolve() / "records/launches.jsonl")
+        record, initial = launch_identity(rows, args.launch, output)
+        pane = record["pane"]
+        before = live_agent(herdr(["agent", "get", pane], args.timeout, output["calls"]))
+        output["raw_state"] = before.get("agent_status")
+        check_identity(record, initial, before, before)
+        store = str(args.native_store) if args.native_store is not None else record.get("native_store")
+        if args.native_store is not None and record.get("native_store") and args.native_store.resolve() != Path(record["native_store"]).resolve():
+            raise Unreadable("native_index_configuration_conflict")
+        native_before = read_native(store, record)
+        screens = {source: herdr(["agent", "read", pane, "--source", source, "--format", "text"], args.timeout, output["calls"])
+                   for source in ("visible", "detection")}
+        after = live_agent(herdr(["agent", "get", pane], args.timeout, output["calls"]))
+        current, current_initial = launch_identity(read_records(args.root.resolve() / "records/launches.jsonl"), args.launch, {})
+        if (any(record[field] != current[field] for field in FIELDS) or initial != current_initial
+                or record.get("native_store") != current.get("native_store")):
+            raise Unreadable("launch_record_changed_during_read")
+        record = current
+        output["identity"] = check_identity(record, initial, before, after)
+        native_after = read_native(store, record)
+        output["native"] = native_after
+        if any(native_before[key] != native_after[key] for key in ("turn_id", "pending", "resolved", "path", "device", "inode")):
+            output["conflicts"].append(dict(native_before=native_before["state"], native_after=native_after["state"],
+                                            reason="native_changed_during_screen_read", decision="unknown"))
+            raise Unreadable("native_question_state_changed")
+        output["identity"].update(native_session=record["native_session"], native_binding="launch_record_and_native_log")
+        anchors = {source: question_anchors(text) for source, text in screens.items()}
+        output["anchors"] = anchors
+        blocked = output["raw_state"] == "blocked"
+        if blocked or any(anchors.values()):
+            output["evidence"] = [dict(source=source, kind="question_anchors", anchors=found)
+                                  for source, found in anchors.items()]
+            if blocked and all(anchors.values()):
+                forms = {anchor["form"] for found in anchors.values() for anchor in found}
+                output.update(state="waiting_controller_answer", reason="screen_anchor_and_blocked",
+                              panel_form=next(iter(forms)) if len(forms) == 1 else "mixed")
+            else:
+                output["conflicts"].append(dict(screen_anchors={source:bool(found) for source, found in anchors.items()},
+                                                herdr=output["raw_state"], decision="unknown"))
+                raise Unreadable("screen_anchor_herdr_conflict")
+        else:
+            frames = {source: screen_frame(text, record) for source, text in screens.items()}
+            for source, frame in frames.items():
+                output["evidence"].append(dict(source=source, **frame))
+            kinds = {frame["kind"] for frame in frames.values()}
+            if len(kinds) != 1:
+                raise Unreadable("screen_readings_disagree")
+            kind = next(iter(kinds))
+            if native_after["state"] == "pending":
+                output["conflicts"].append(dict(native="pending", screen=kind, herdr=output["raw_state"], decision="unknown"))
+                raise Unreadable("screen_native_conflict")
+            if kind == "activity" and output["raw_state"] == "working":
+                output.update(state="working", reason="current_activity_frame")
+            elif kind == "settled" and output["raw_state"] in ("idle", "done"):
+                output.update(state="idle", reason="settled_agent_and_plain_composer")
+            else:
+                raise Unreadable("activity_and_raw_state_disagree")
+    except Unreadable as exc:
+        output.update(state="unknown", reason=exc.reason, details=exc.details)
+    except NativeUnreadable as exc:
+        output.update(state="unknown", reason=exc.reason, native=dict(state="unknown", details=exc.details))
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        output.update(state="unknown", reason="invalid_launch_record", details=dict(error=str(exc)))
+    output["state_label"] = LABELS[output["state"]]
+    print(json.dumps(output, ensure_ascii=False))
+    return 2 if output["state"] == "unknown" else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
