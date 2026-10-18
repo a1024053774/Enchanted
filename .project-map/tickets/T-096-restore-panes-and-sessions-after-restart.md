@@ -37,3 +37,10 @@ ready_rev: 1
 
 - 构思主控据用户上述原话建票并标就绪（用户说"这个是应该的"，未单独说"开工"；若不对请撤回）。无真实模型回合，不触及 T-004 停止条件。
 - 写入范围预期：`workbench/src/`、`workbench/app/`、`workbench/tests/`、本票证据。
+
+## 裁定（2026-10-18）
+
+执行主控 needs-decision：受管 worker 续接原会话后拿到新的 shell 与 leader PID，门禁 `checkThread()`（core.ts:2485）要求 PID 与绑定时完全相同且无重绑定入口，恢复后的 worker 交付会被拒。用户选"B: 只恢复主控窗格，worker 需重新认领 (Recommended)"，选项原文："主控窗格自动回来（这是你每天要用的）；worker 窗格恢复后标为“未恢复”，重启中断的任务按现有的中断恢复语义 reclaim 后开新 attempt。不改门禁，风险最低。代价：重启时正在跑的 worker 不会无缝续上，要重新认领。"
+
+据此范围收窄：本票只恢复主控窗格并按记录的启动参数续接；worker 窗格恢复后显示"未恢复"，不自动续接、不重绑定、不改门禁语义。Acceptance 中三窗格恢复一条改为"两个主控窗格恢复、worker 窗格显示未恢复且其 attempt 状态未被改动"。
+
