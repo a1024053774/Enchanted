@@ -1,6 +1,6 @@
 # T-094-1：启动失败诊断（2026-10-17）
 
-状态：INCOMPLETE。busy-02 已复核为 10 次真实启动全部成功，且每次 start 前有至少 1500ms 稳定采样。按 main `c06a73179` 中的用户裁定与主控 #78，两个获准修订的验收文件已改为检查行为，新候选 14 个用例全部通过；旧 `617863704` 的稳定窗口和超时 argv 检查为红，错误版本变异体也为红。但旧 `617863704` 已正确实现启动时读取版本，其修订后的版本检查实际通过，无法满足“这一项旧实现也必须失败”的字面要求，交主控裁定，不制造无关失败。独立审查和本轮原件归档仍待完成。
+状态：INCOMPLETE，仅待独立审查与最终门禁验收。主控 #80 已接受两类红态的不同来源：第 1 条在旧 `617863704` 上取得稳定窗口与超时 argv 红态；第 2 条以“记录错误版本”的变异体取得红态，旧实现正确记录版本的正例保留。新候选 14 个用例全部通过；busy-02 的 10 次真实启动全部成功且均有至少 1500ms 稳定采样。本轮原件已归档并核对为 268 文件、864829 字节。实现与验收锚点为 `b612e6f68680a5a308f8a91b6bd0e09469b86493`；本次冻结只更新证据说明和审查请求，不改变已测试代码。
 
 绑定：task T-094 / attempt a1 / worker s16-t094；启动记录 `launch-efca9e180a594c2e98ec594874eaf253`；session `1f06c59c-a447-47e4-8075-9a7571db35d3`；规格 T-094 ready_rev 1；基线 `61786370428c3ec5f894ea60acccf2695d54c2dc`。任务书未给 fence、门禁 state 或 submit 参数，worker 不推测这些身份。
 
@@ -16,7 +16,7 @@ red-01 紧邻 start 前的 process-info 报告 shell 独占前台组；再前一
 
 `scripts/launch-worker` 现将失败命令、退出码、stdout、stderr、错误码、失败阶段和完整 start argv 写入启动记录。start 失败后，只读观察本次 pane 的进程和 agent 注册状态，分别记录 `outcome=started_unregistered`、`started_not_ready`、`started_unconfirmed` 或 `unknown`；未启动的明确拒绝记录 `not_started`。查询失败保留诊断，不将未知注册状态当作名称缺失。
 
-按主控 #57 的修订，入口不关闭失败 pane：记录 `pane_disposition=retained_for_controller` 和 pane id，交主控处置。复现探针仍会关闭自己创建的 pane。半成功保留 `phase=failed` 的拒收语义，同时带独立 outcome；不会被现有提交尾注入口当作成功启动。未改动范围外的启动记录校验器、acceptance/、地图、全局配置或 Herdr server。
+按主控 #57 的修订，入口不关闭失败 pane：记录 `pane_disposition=retained_for_controller` 和 pane id，交主控处置。复现探针仍会关闭自己创建的 pane。半成功保留 `phase=failed` 的拒收语义，同时带独立 outcome；不会被现有提交尾注入口当作成功启动。未改动启动记录校验器、地图、全局配置或 Herdr server；acceptance/ 仅修改主控 #78 明确放开的两个文件。
 
 ### agent_pane_busy 的当前处理与依据
 
@@ -30,7 +30,7 @@ red-01 紧邻 start 前的 process-info 报告 shell 独占前台组；再前一
 
 新增合同测试把带随机独立参数的 `git status` 进程放入边界夹具，核对 argv 出现在记录错误和终端报错中，并核对 start 后只有一次 process-info、接着原有 agent get；没有再次 start 或关闭 pane。修复前在 `264e6df66970b419398e27ee7d2ff9235cca006b` 上因缺少 `busy_foreground` 取得合同红态；修复后全部 7 个边界场景通过。记录见 `busy-contract-red-01.txt`、`busy-contract-green-01.txt`、`busy-contract-summary-01.json`。这是诊断合同证据，夹具中的 Git 不是对真实根因的发现。
 
-本轮还通过未修改的旧验收场景 `test_delayed_shell_then_commit` 和 `test_agent_start_failure_is_not_retried`，结果分别见 `busy-existing-shell-01.txt`、`busy-existing-start-01.txt`。本轮完整命令输出与夹具暂存在 `/tmp/t094-busy-details-01`，由下述复现脚本一并归档，不覆盖前轮证据。
+该轮还通过当时未修改的旧验收场景 `test_delayed_shell_then_commit` 和 `test_agent_start_failure_is_not_retried`，结果分别见 `busy-existing-shell-01.txt`、`busy-existing-start-01.txt`。完整命令输出与夹具已归档，见 `busy-01-contract-details.archive.json`，不覆盖前轮证据。
 
 主控运行 `sh evidence/2026-10-16-batch16/T-094/outside-busy.sh`：默认在同一稀疏 worktree 独立启动 8 次，也可传 `<新label> <5～10>`。沿用隔离 CODEX_HOME、只到首屏、0 个模型回合和每次 finally 只关闭自建 pane 的探针；原件直接写外置盘。busy 记录必须把前台采样放进 error 和终端 stderr，否则探针报诊断不完整。每次 argv 会打印到主控日志，清单生成在本目录。
 
@@ -53,7 +53,7 @@ busy-01 数据已回传，8 次中 6 次成功、2 次失败；捕获的是 cond
 - `scripts/launch-worker:143` 见到第一次符合条件的快照便 `break`，随即第 145–148 行调用 start。30 秒只是检查失败时的截止期限，不是初始化完成证明。
 - busy-01 在这个 break 前确实只有 shell，随后初始化继续派生 conda。问题不是“把存在子进程的同一份快照误判成空闲”，而是“一次无子进程的快照不能证明以后不再派生初始化子进程”。
 
-受控红态：`python3 -B scripts/test_launch_worker_failure.py --report /tmp/t094-init-gap-details-01/red.json LaunchFailure.test_initializer_gap_is_not_initialization_complete -v`。夹具时序由测试独立指定为“首次 shell 独占 → conda 子进程 → 初始化完成”，在完成之前启动会被拒绝。当前代码在首次快照后调用 start，返回 `agent_pane_busy`，测试失败，见 `init-gap-red-01.txt` / `init-gap-red-summary-01.json`。完整边界套件本轮结果为 8 项中原有 7 项通过、新红态 1 项失败，见 `init-gap-suite-red-01.txt`，不能称为全绿，也不能据此集成。完整原件暂存 `/tmp/t094-init-gap-details-01`，等待后续主控归档。
+受控红态：`python3 -B scripts/test_launch_worker_failure.py --report /tmp/t094-init-gap-details-01/red.json LaunchFailure.test_initializer_gap_is_not_initialization_complete -v`。夹具时序由测试独立指定为“首次 shell 独占 → conda 子进程 → 初始化完成”，在完成之前启动会被拒绝。当时的代码在首次快照后调用 start，返回 `agent_pane_busy`，测试失败，见 `init-gap-red-01.txt` / `init-gap-red-summary-01.json`。该轮完整边界套件为原有 7 项通过、新红态 1 项失败，见 `init-gap-suite-red-01.txt`，不作为全绿或集成证据。完整原件已归档，见 `init-gap-details-01.archive.json`。
 
 主控 #63 已否决 shell 执行回执，原因是会写入用户真实 shell 的历史并显示在 pane 中。本票没有实现、也不会运行该回执方案。主控选择稳定窗口并接受其不能证明初始化完成的局限，执行方式见下一节。
 
@@ -70,7 +70,7 @@ busy-01 数据已回传，8 次中 6 次成功、2 次失败；捕获的是 cond
 
 正式反事实命令：`python3 -B scripts/test_launch_worker_failure.py --launcher evidence/2026-10-16-batch16/T-094/launch-worker.pre-stable --report /tmp/t094-stable-details-01/red-02.json LaunchFailure.test_initializer_gap_is_not_initialization_complete LaunchFailure.test_persistent_child_times_out_with_last_argv -v`，旧候选为 `b7b7472b7031241cac733443cee8934afd2e24c9` 的原脚本。两项均红：提前启动、缺少最后前台 argv，见 `stable-contract-red-02.txt`。
 
-正式绿态命令：`python3 -B scripts/test_launch_worker_failure.py --report /tmp/t094-stable-details-01/green-02.json -v`，9 项全部通过，用时 56.459 秒，见 `stable-contract-green-02.txt`。完整原件与既有初始化间隙红态由 `outside-busy-02.sh` 归档，当前仍在 `/tmp/t094-stable-details-01` 和 `/tmp/t094-init-gap-details-01`；仓库只留文本摘要。
+正式绿态命令：`python3 -B scripts/test_launch_worker_failure.py --report /tmp/t094-stable-details-01/green-02.json -v`，9 项全部通过，用时 56.459 秒，见 `stable-contract-green-02.txt`。完整原件与既有初始化间隙红态已由 `outside-busy-02.sh` 归档，见 `stable-details-01.archive.json` 和 `init-gap-details-01.archive.json`；仓库只留文本摘要。
 
 首轮夹具曾跨子进程比较 monotonic 值。本机 Python 3.9.6 的观测显示每个进程的数值起点不同，导致模拟子进程阶段没有出现；该轮 `stable-contract-red-01.txt` / `stable-contract-green-01.txt` 保留，但不作为 200 毫秒场景的通过证据。已改用跨进程 Unix 时间并重新取得上述同夹具红绿对照；产品内部计时一直使用同一进程的单调时钟。探针的跨 CLI 时间记录也改成 Unix 纳秒。时钟观测见 `stable-clock-probe-01.txt`。
 
@@ -94,7 +94,7 @@ busy-01 数据已回传，8 次中 6 次成功、2 次失败；捕获的是 cond
 
 没有放宽其他断言：`revised-assertion-scope-01.json` 保存 AST 核对结果；两个目标以外的原方法保持一致，稳定窗口测试中从 managed_env 开始的全部原断言保持一致，提交尾注核对仅改变 A2A-Tool 预期来源，剩余方法体保持一致。
 
-统一重放命令：`python3 -B evidence/2026-10-16-batch16/T-094/run-revised-acceptance.py`。脚本在 /tmp 建立从 `61786370428c3ec5f894ea60acccf2695d54c2dc` 提取的 scripts 副本和错误版本变异体，只运行真实 Git、显式 Herdr 替身和 codex --version，不启动真实 Herdr 或模型。每条确切命令、退出码与耗时见 `revised-acceptance-summary-01.json`；完整 stdout/stderr、夹具和本轮修订测试源码快照在 `/tmp/t094-revised-acceptance-01`。脚本返回 1，状态为 INCOMPLETE，因为下表版本旧实现红态要求未满足。
+统一重放命令：`python3 -B evidence/2026-10-16-batch16/T-094/run-revised-acceptance.py`。脚本在 /tmp 建立从 `61786370428c3ec5f894ea60acccf2695d54c2dc` 提取的 scripts 副本和错误版本变异体，只运行真实 Git、显式 Herdr 替身和 codex --version，不启动真实 Herdr 或模型。每条确切命令、退出码与耗时见 `revised-acceptance-summary-01.json`；完整 stdout/stderr、夹具和修订测试源码快照已归档到 `revised-acceptance-01.archive.json` 所指目录。原脚本返回 1、状态 INCOMPLETE，是主控 #80 裁定前仍要求版本旧实现必须红的历史运行结果；原始状态和 requested_exit 未回改。
 
 | 检查 | 旧 617863704 | 新候选 | 解释 |
 | --- | --- | --- | --- |
@@ -103,9 +103,19 @@ busy-01 数据已回传，8 次中 6 次成功、2 次失败；捕获的是 cond
 | 启动版本等于实际 --version 输出 | **通过** | 通过 | 旧脚本第 65 行原本就正确读取输出 |
 | 实际执行 --version、却把记录版本加上错误后缀 | 变异体红 | 不适用 | 断言因 cli_version 不等于独立回执而拒绝，不是设置或其他错误 |
 
-新候选共 14 个用例全部通过：LauncherContract 7 项（含新超时 argv 用例）、原 Contract 7 项（含提交、amend/rebase/merge、版本、原生身份替换、打分与损坏拒收）。两项旧 shell 红态、版本旧实现正例及错误版本反例共另 4 步，合计 18 步全部保留。用户要求版本旧实现必须红与代码事实不符，本 worker 不擅自把它判红，也不自行将变异体替代认作该要求已获批准；需主控裁定是否接受“旧版本正例 + 错误记录版本反例”的证据组合。
+新候选共 14 个用例全部通过：LauncherContract 7 项（含新超时 argv 用例）、原 Contract 7 项（含提交、amend/rebase/merge、版本、原生身份替换、打分与损坏拒收）。两项旧 shell 红态、版本旧实现正例及错误版本反例共另 4 步，合计 18 步全部保留。“旧版本正例 + 错误记录版本反例”的组合现已由主控 #80 明确接受，依据见下一节。
 
-本轮无需沙箱外模型复验。请主控运行 `sh evidence/2026-10-16-batch16/T-094/archive-revised-acceptance.sh`，把完整本地原件归档到外置盘并生成清单；该脚本不会将 INCOMPLETE 上调为 PASS。独立 reviewer 应依据新修订断言、原始回执和已知坏实现结果审查最终候选。
+本轮无需沙箱外模型复验。主控已运行 `archive-revised-acceptance.sh`，完整原件归档为 268 个文件、864829 字节，worker 已核对清单与外置原件一致。归档保留历史 INCOMPLETE；当前证据解释依据下述裁定。独立 reviewer 应依据新修订断言、原始回执和已知坏实现结果审查冻结候选。
+
+## 主控 #80：版本反例裁定与冻结
+
+裁定来源为本对话“⟦主控 #80⟧ / ⟦主控 #8⟧”，原文：
+
+> 对版本这条，红态改用“记录了错误版本”的变异体来取得，你已经做到了，这个变异体被拒绝，可以接受。
+
+第 1 条的红态来自旧 `617863704`：连续稳定窗口不足时提前 start，以及超时缺少前台 argv；新候选对应检查通过。第 2 条的红态来自真实执行 --version 后将记录字段附加错误后缀的变异体；同一版本断言因记录值不等于独立回执而拒绝它。旧实现原本正确读取 --version，原固定 0.162.1 的失败属于验收中的环境漂移预期，保留旧实现的版本正例，不人为把它改为红态。第 2 条改用变异体的依据就是上述主控裁定。
+
+本次冻结不再改变产品、测试或重放脚本，也不重复已完成的运行。实现与验收锚点为 `b612e6f68680a5a308f8a91b6bd0e09469b86493`，最终审查对象为包含 `REVIEW-REQUEST-T094-01.md` 的冻结提交，完整 SHA 由最后一行 `T-094 FROZEN <sha>` 交接。冻结检查见 `freeze-checks-T094-01.json`。整票仍为 INCOMPLETE：独立审查与唯一门禁最终验收尚未完成，不由本 worker 宣布通过或集成。
 
 ## 主控 #59 回传原件的核对
 
@@ -128,7 +138,7 @@ green-01 第 2 次的 `herdr_stderr` 包含 `agent target pane wF:p5D is not an 
 - `python3 -B scripts/test_launch_worker_failure.py --launcher evidence/2026-10-16-batch16/T-094/launch-worker.parent --report .../contract-final-red-01.json -v`：旧实现拒绝不了诊断/分类缺陷；失败日志保留。
 - `python3 -B scripts/test_launch_worker_failure.py --report .../contract-final-green-01.json -v`：6 个场景全部通过。夹具显式替换 Herdr/Codex，不连接 socket，不证明真实 Herdr 时序。pane id 每次使用新的随机输入；每次仅一次 start；所有场景均断言入口不关闭 pane。
 - `python3 -B acceptance/test_launcher_shell_ready_e2e.py --artifacts /tmp/t094-existing-launcher-contract-01`：6 个场景全部通过，用时 70.800 秒，结果见 `existing-contract-01.txt`。验收文件未修改；原始夹具与命令日志已归档，见 `existing-contract-01.archive.json`（15 文件 / 103147 字节）。边界测试完整输出见 `contract-details-01.archive.json`（5 文件 / 178556 字节）；历史摘要中的 pending 路径是归档前的记录，原件没有覆盖。
-- `project_map.py status --root .`：主控 #63 结果为 `project-map-status-05.txt`；主控 #78 本轮结果另存 `project-map-status-06.txt`。
+- `project_map.py status --root .`：历史结果为 `project-map-status-05.txt`、`project-map-status-06.txt`；本次冻结结果保存于 `freeze-checks-T094-01.json`。
 
 历史 `outside-green.sh` / busy-01 原件全部保留。本轮稳定窗口使用 `outside-busy-02.sh` 取得真实证据；后续重放须换用新的 label 和归档目录，避免覆盖历史原件。
 
