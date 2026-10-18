@@ -1,6 +1,6 @@
 # T-096：执行主控真实重启验证
 
-状态：**INCOMPLETE**。`-02` 归档已由主控执行 PASS；`red-b-03` 记录了 main 的死端点启动拒绝，但旧 runner 未接纳此类红态、未归档。`tracer-b-03` 已到 epoch 2，严格历史 nonce 断言失败；原件显示 CLI 停在首次主题引导屏，尚无原生历史加载成功的证据。先归档 red-b-03，再跑显式选择预期结果的 `-04`。
+状态：**INCOMPLETE**。red-b-03 已由主控归档 PASS；red-b-04 在故障注入时遇到 shell 的 ps command 变成 `(zsh)`，仍未形成完整红态。**暂停 tracer-b-04 和新的原生重启运行**；先按 [RUN-PROCESS-TREE.md](RUN-PROCESS-TREE.md) 跑旧候选红态、当前修复绿态与 red-b-04 归档。以下原生启动命令仅保留为后续流程说明，未重新获准前不执行。tracer-b-03 的 nonce 失败仍未解决。
 
 候选先冻结成提交；新 label／外置盘输出／构建槽不覆盖旧运行。`--expect red|restore` 现在必填，漏传会在资源启动之前退出。red 模式保留死端点去测试真实重启，不预先删除端点掩盖缺陷；仅识别原件中明确的、发生在新凭据和进程创建之前的拒绝。超时、其他报错或新 epoch 身份不明仍为 INCOMPLETE。
 

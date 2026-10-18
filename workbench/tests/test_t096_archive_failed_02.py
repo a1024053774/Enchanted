@@ -26,7 +26,7 @@ def module(text):
 
 
 def exercise(text,scenario,case='02-pair'):
-    product=module(text); real_targets=product.TARGETS if case=='02-pair' else [product.RED03]
+    product=module(text); real_targets=product.TARGETS if case=='02-pair' else [product.RED03 if case=='red-b-03' else product.RED04]
     home=Path(tempfile.mkdtemp(prefix='t096-archive-02-unit-',dir='/private/tmp'))
     product.HERE=home/'reports'; product.HERE.mkdir(); product.BASE=home/'evidence'; product.BASE.mkdir()
     targets=[]; originals={}; controls=set(); connect_calls=[]
@@ -47,11 +47,12 @@ def exercise(text,scenario,case='02-pair'):
         for path in [fixture/'repo/value.txt',fixture/'state/daemon.pid',control,credential]: originals[path]=path.read_bytes()
     if scenario=='later-epoch': (Path(targets[0]['fixture'])/'operator-2.json').write_bytes(b'unread new epoch')
     if case=='02-pair': product.TARGETS=targets
-    else: product.RED03=targets[0]
+    elif case=='red-b-03': product.RED03=targets[0]
+    else: product.RED04=targets[0]
     reads=[]
     def probe(pid):
         reads.append(pid)
-        if scenario=='live-pid' and pid==(15840 if case=='02-pair' else 26605): return dict(pid=pid,started='still live',command='still live')
+        if scenario=='live-pid' and pid==({'02-pair':15840,'red-b-03':26605,'red-b-04':53458}[case]): return dict(pid=pid,started='still live',command='still live')
         return None
     product.probe_process=probe
     real_lstat=Path.lstat
@@ -90,7 +91,7 @@ def exercise(text,scenario,case='02-pair'):
     assert all(path.read_bytes()==value for path,value in originals.items()), 'Every original file and old summary must remain unchanged'
     assert len(reads)<=56
 
-report=dict(status='INCOMPLETE',scope='actual archive entry, temporary real file copies; supplied PID/socket probes; no actual -02/-03 fixture action',checks=[])
+report=dict(status='INCOMPLETE',scope='actual archive entry, temporary real file copies; supplied PID/socket probes; no actual failed fixture action',checks=[])
 try:
     actual=module(source)
     assert {t['fixture']:set(t['pids']) for t in actual.TARGETS}=={
@@ -101,6 +102,9 @@ try:
         exercise(source,scenario); report['checks'].append(scenario)
     assert actual.RED03['fixture']=='/private/tmp/t078-2-t096-7sh2mwtq' and set(actual.RED03['pids'])=={26509,26605,26607,26727,26759,26750,26751}
     exercise(source,'normal','red-b-03'); exercise(source,'live-pid','red-b-03'); report['checks'].append('red03_fixed_case_and_handoff')
+    assert actual.RED04['fixture']=='/private/tmp/t078-2-t096-mhufgnng' and set(actual.RED04['pids'])=={53370,53458,53459,53506,53533,53550,53534}
+    for scenario in ['normal','live-pid','live-endpoint','unknown-endpoint','later-epoch']: exercise(source,scenario,'red-b-04')
+    report['checks'].append('red04_fixed_case_and_handoff')
     mutant=source.replace('symlinks=True,ignore=ignore','symlinks=True,ignore=lambda directory,names:[]')
     assert mutant!=source
     try: exercise(mutant,'normal')

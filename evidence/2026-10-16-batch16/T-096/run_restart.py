@@ -26,7 +26,9 @@ Inventory BEFORE running:
   never tasks/attempts/gates. Missing argv/version/session each has its own run;
   --panes 3 --fault missing-argv also proves a failed sibling does not block others.
   SIGKILL only verified owned daemon, shell/CLI and Electron descendants. Every
-  signal checks PID/start-time/command. <=200 journaled runner process reads;
+  signal checks PID/start-time/command. A same-start command change is never
+  signalled: wait <=3s for natural exit, otherwise hand back the changed identity.
+  <=200 journaled runner process reads;
   normal quit additionally uses its bounded 15-second owner/exit readback. Native argv read via macOS sysctl (argv only, never environment).
   <=64 observer RPCs per Electron. With --check-close: ONE close-pane button
   click after readbacks; no terminal keys or prompt submission. No screenshot.
@@ -186,7 +188,22 @@ def main():
     def alive(owner):
         current=identify(owner['pid'])
         if current is None: return False
-        if current!=owner: raise RuntimeError('PID identity changed; refusing to signal')
+        if current!=owner:
+            if current['started']!=owner['started']: raise RuntimeError('PID identity changed; refusing to signal')
+            # ps can lose argv while a process is exiting (red-b-04: (zsh)).
+            # Do not normalize that command or signal it. Only observed absence
+            # resolves this case; a live exec replacement remains a refusal.
+            transition=dict(pid=owner['pid'],observed=current,outcome='unconfirmed')
+            result.setdefault('exit_transitions',[]).append(transition)
+            deadline=time.monotonic()+3
+            while time.monotonic()<deadline:
+                time.sleep(.05)
+                current=identify(owner['pid'])
+                if current is None:
+                    transition['outcome']='exited_without_signal'; return False
+                if current['started']!=owner['started']: break
+            transition['outcome']='identity_changed'
+            raise RuntimeError('PID identity changed; refusing to signal')
         return True
 
     def kill(owner):
@@ -383,6 +400,8 @@ def main():
         launches=[record['id'] for record in controllers]+([worker['id']] if worker else [])
         first=open_window(1,launches); write_json(output/'before-view.json',first)
         crash_window()
+        result['backend_crash']=dict(epoch=1,pids=[owner['pid'] for owner in owned])
+        write_json(output/'backend-crash-intent.json',result['backend_crash'])
         for owner in owned: kill(owner)
         daemon_live=False
         wait(lambda:all(not alive(o) for o in owned),'crashed backend/CLI processes absent',timeout=5)
@@ -507,11 +526,17 @@ def main():
                 expected=result['expected_red']
                 if endpoint_state(fixture,expected['daemon'])!=expected['endpoints']: raise RuntimeError('expected-red endpoint changed; preserve fixture')
             elif (fixture/'state/daemon.pid').exists() or (fixture/'state/control.sock').exists():
-                raise RuntimeError('daemon endpoint remains; fixture retained')
+                receipt=result.get('daemon_start_receipt',{})
+                if not result.get('backend_crash') or receipt.get('epoch')!=1 or (fixture/'operator-2.json').exists():
+                    raise RuntimeError('daemon endpoint remains; fixture retained')
+                if not any(owner['pid']==receipt['pid'] for owner in owned): raise RuntimeError('crashed daemon owner unrecorded')
+                result['stopped_crash_endpoints']=endpoint_state(fixture,receipt['pid'])
 
         def archive_stopped():
             excluded={}
-            if result.get('expected_red'):
+            if result.get('expected_red') or result.get('stopped_crash_endpoints'):
+                endpoints=result.get('stopped_crash_endpoints') or result['expected_red']['endpoints']
+                if endpoint_state(fixture,result['daemon_start_receipt']['pid'])!=endpoints: raise RuntimeError('stopped endpoint changed before archive; preserve fixture')
                 excluded={'state/control.sock':dict(reason='verified dead IPC; original retained'),'operator-1.json':dict(reason='private credential; original retained')}
                 stats=copy_view(fixture,output/'fixture',excluded)
             else:

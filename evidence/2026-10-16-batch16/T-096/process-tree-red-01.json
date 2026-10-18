@@ -1,0 +1,55 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t096_process_tree.py",
+    "--candidate",
+    "da6a095fce268e2c8c6707e08ce432851bbfddbb",
+    "--output",
+    "evidence/2026-10-16-batch16/T-096/process-tree-red-01.json"
+  ],
+  "candidate": "da6a095fce268e2c8c6707e08ce432851bbfddbb",
+  "scope": "real owned Python tree and actual runner kill/finally; no model/CLI/Electron",
+  "cases": [
+    {
+      "case": "parent-death",
+      "status": "INCOMPLETE",
+      "fixture": "/private/tmp/t096-tree-fznr5zm0/fixture",
+      "parent": 56541,
+      "observations": [
+        {
+          "argv": [
+            "/bin/ps",
+            "-ww",
+            "-p",
+            "56541",
+            "-o",
+            "pid=,lstart=,command="
+          ]
+        },
+        {
+          "argv": [
+            "/bin/ps",
+            "-ww",
+            "-p",
+            "56541",
+            "-o",
+            "pid=,lstart=,command="
+          ]
+        }
+      ],
+      "cleanup_complete": false,
+      "child": 56543,
+      "error": "[Errno 1] Operation not permitted: '/bin/ps'",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t096/workbench/tests/test_t096_process_tree.py\", line 120, in scenario\n    owners=[identity(pid) for pid in pids]; assert all(owners)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t096/workbench/tests/test_t096_process_tree.py\", line 120, in <listcomp>\n    owners=[identity(pid) for pid in pids]; assert all(owners)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t096/workbench/tests/test_t096_process_tree.py\", line 110, in identity\n    def identity(pid): return probe_process(pid,run=run)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t096/evidence/2026-10-16-batch16/T-096/restart_cleanup.py\", line 35, in probe_process\n    response=run(argv,allow_failure=True)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t096/workbench/tests/test_t096_process_tree.py\", line 107, in run\n    value=subprocess.run(argv,capture_output=True,text=True,env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'},timeout=5)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py\", line 505, in run\n    with Popen(*popenargs, **kwargs) as process:\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py\", line 951, in __init__\n    self._execute_child(args, executable, preexec_fn, close_fds,\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py\", line 1821, in _execute_child\n    raise child_exception_type(errno_num, err_msg, err_filename)\nPermissionError: [Errno 1] Operation not permitted: '/bin/ps'\n",
+      "handoff": {
+        "reason": "[Errno 1] Operation not permitted: '/bin/ps'",
+        "fixture": "/private/tmp/t096-tree-fznr5zm0/fixture",
+        "pids": [
+          56541,
+          56543
+        ],
+        "policy": "No signal retry; inspect only this test-owned tree"
+      }
+    }
+  ]
+}

@@ -37,6 +37,7 @@ TARGETS=[
 ]
 
 RED03=dict(label='red-b-03',fixture='/private/tmp/t078-2-t096-7sh2mwtq',daemon=26509,pids=[26509,26605,26607,26727,26759,26750,26751])
+RED04=dict(label='red-b-04',fixture='/private/tmp/t078-2-t096-mhufgnng',daemon=53370,pids=[53370,53458,53459,53506,53533,53550,53534])
 
 
 def endpoint_state(fixture,daemon):
@@ -95,7 +96,7 @@ def copy_view(fixture,destination,excluded):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--case',choices=['02-pair','red-b-03'],required=True)
+    parser.add_argument('--case',choices=['02-pair','red-b-03','red-b-04'],required=True)
     parser.add_argument('--label',required=True); parser.add_argument('--approval-ref',required=True)
     args=parser.parse_args()
     if not args.label or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-_' for c in args.label): raise RuntimeError('invalid archive label')
@@ -103,7 +104,7 @@ def main():
     summary=HERE/(args.label+'.run.json')
     if summary.exists(): raise RuntimeError('choose a new archive label')
     output=BASE/args.label; output.mkdir(parents=True,exist_ok=False)
-    selected=TARGETS if args.case=='02-pair' else [RED03]
+    selected=TARGETS if args.case=='02-pair' else [RED03 if args.case=='red-b-03' else RED04]
     result=dict(status='INCOMPLETE',argv=sys.argv,approval_ref=args.approval_ref,case=args.case,targets=[],process_reads=0,model_turns=0,keys=[],source_writes=0)
     plans=[]
     def require_absent(target):

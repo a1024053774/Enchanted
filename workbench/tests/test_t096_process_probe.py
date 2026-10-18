@@ -21,7 +21,7 @@ support=importlib.util.module_from_spec(spec); spec.loader.exec_module(support)
 def callbacks(source, responses, signal_error=None):
     main=next(n for n in ast.parse(source).body if isinstance(n,ast.FunctionDef) and n.name=='main')
     functions=[n for n in main.body if isinstance(n,ast.FunctionDef) and n.name in ['identify','alive','kill']]
-    calls=[]
+    calls=[]; clock=[0]
     def run(argv,**kwargs):
         calls.append(argv); return responses.pop(0)
     def legacy(pid): raise subprocess.CalledProcessError(1,['/bin/ps'],output='',stderr='')
@@ -29,7 +29,7 @@ def callbacks(source, responses, signal_error=None):
         calls.append(('signal',pid,code))
         if signal_error: raise signal_error
     namespace=dict(result=dict(process_reads=0),run=run,process_identity=legacy,probe_process=support.probe_process,
-        os=SimpleNamespace(kill=kill),signal=signal)
+        os=SimpleNamespace(kill=kill),signal=signal,time=SimpleNamespace(monotonic=lambda:clock[0],sleep=lambda seconds:clock.__setitem__(0,clock[0]+seconds)))
     exec(compile(ast.Module(body=functions,type_ignores=[]),'runner-probe','exec'),namespace)
     return namespace,calls
 
@@ -58,6 +58,21 @@ try:
         report['known_bad']=dict(revision='958ede25f',rejected=error.returncode==1,error=str(error))
     assert report['known_bad']['rejected'], 'Known-bad second identity lookup must reject a process that just exited'
     current=(FOLDER/'run_restart.py').read_text(encoding='utf-8')
+    exiting=response(0,'201 Sun Oct 18 02:02:04 2026 (zsh)\n')
+    old_exit=subprocess.check_output(['git','show','da6a095fc:evidence/2026-10-16-batch16/T-096/run_restart.py'],cwd=ROOT,text=True)
+    bad,calls=callbacks(old_exit,[exiting,response(1)])
+    try: bad['kill'](owner)
+    except RuntimeError as error: report['exit_transition_known_bad']=dict(revision='da6a095fc',rejected=True,error=str(error))
+    assert report['exit_transition_known_bad']['rejected']
+    fixed,calls=callbacks(current,[exiting,response(1)])
+    fixed['kill'](owner)
+    assert len(calls)==2 and fixed['result']['signal_receipts'][0]['already_exited']
+    assert fixed['result']['exit_transitions'][0]['outcome']=='exited_without_signal'
+    fixed,calls=callbacks(current,[exiting]*70)
+    try: fixed['kill'](owner)
+    except RuntimeError: pass
+    else: raise AssertionError('Live changed command must never be signalled')
+    assert all(isinstance(call,list) for call in calls) and len(calls)<=62
     fixed,calls=callbacks(current,[response(1)])
     fixed['kill'](owner)
     assert len(calls)==1 and fixed['result']['signal_receipts']==[dict(pid=201,signal_sent=False,already_exited=True)]
@@ -74,7 +89,8 @@ try:
     else: raise AssertionError('Changed owner must reject signal')
     assert len(calls)==1
     report['checks']=['rc1_empty_is_exited','other_rc_and_noise_remain_errors','invalid_identity_refused','valid_identity',
-        'one_identity_read','already_exited_no_signal','exit_before_signal_recorded','permission_error_not_swallowed','changed_pid_no_signal']
+        'one_identity_read','already_exited_no_signal','exit_before_signal_recorded','permission_error_not_swallowed','changed_pid_no_signal',
+        'changed_command_waits_for_observed_absence_without_signal','stable_live_replacement_refused_with_deadline']
     report['status']='PASS'
 except BaseException as error: report['error']=str(error); report['traceback']=__import__('traceback').format_exc()
 with Path(sys.argv[1]).open('x',encoding='utf-8') as output: output.write(json.dumps(report,ensure_ascii=False,indent=2)+'\n')

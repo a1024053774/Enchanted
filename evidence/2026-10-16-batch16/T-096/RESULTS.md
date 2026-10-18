@@ -1,10 +1,20 @@
 # T-096-1 当前交付记录
 
-**INCOMPLETE**：`-02` 归档已由主控执行 PASS；`red-b-03` 是 main 死端点阻止重启的真实缺陷证据，但原运行预期未声明、收尾不全，原摘要仍保留 INCOMPLETE。`tracer-b-03` 已进入第二轮并核对实际 argv，历史 nonce 未出现；原件显示仍在主题引导屏。`-04` 先经原生逐屏批准完成隔离 profile，再重试同一严格历史断言，不据局部检查宣布恢复通过。
+**INCOMPLETE**：red-b-03 已由主控归档 PASS；red-b-04 又在 runner 的故障注入路径失败。真实进程树红／绿演练命令已备好，待主控在沙箱外运行，tracer-b-04 暂停。真实历史续接仍未证明；不据替代边界检查宣布恢复通过。
 
 当前范围以主控 #89 转达和 main `8cf91b26e` 的 T-096“裁定”节为准：只恢复两个主控；worker 保留为“未恢复”，不启动 CLI、不重绑定、不改 attempt。不修改 `workbench/src/gates/`。主控 #88 允许先完成不依赖门禁裁定的路径。
 
 主控没有跨重启的固定 PID 绑定：`Panes.controllerLaunch()` 返回的身份不含 PID；`caller()` 在单次请求内固定当次 leader（`panes.ts` 的 controller 分支），daemon 的 `assertCurrent()` 核对当次前台进程；`core.ts:340` 的 `registerController()` 只核对 task/project/spec_rev。worker 的旧 PID 绑定留在 `core.ts:2485`，没有改动。
+
+2026-10-18 主控 #95／#96 的实跑与进程树交接：
+
+- `archive-red-b-03.run.json` **PASS**：85 文件／3,921,951 字节，comparison true，排除死 socket 与私密 operator 文件，原件保留。该摘要及 `red-b-03-archive-red-b-03.archive.json` 一并提交；原 red-b-03.run.json 的 INCOMPLETE 不变。
+- red-b-04 的 command-34：shell 53458 的 lstart 与登记相同，但 command 由完整 zsh 启动命令变成 `(zsh)`；command-39 已为空 rc 1。此前只发出了四个 Electron 进程和 daemon 53370 的 kill，未对该 shell 发信号。旧 ps 未请求 stat，故不能把 `(zsh)` 直接认定为僵尸；这次失败属于 runner 身份核对把退出过程当作身份更换，未到第二轮后台启动。七 PID 最终退出的事实来自主控事后读回，本 worker 未在沙箱外探测。
+- 修复：同启动时间的 command 变化不会被规范化或获准发信号，只限时等待最多 3 秒，观察到 PID 不存在才继续；持续存在或启动时间变化仍拒绝。确认旧 epoch 全部写入者退出后，finally 可核对故障注入留下的死端点并归档，保留原件、私密文件与原失败状态。没有 crash intent、新 epoch 存在、身份未知或活动端点均不接纳。
+- `process-probe-exit-01.json`、`restart-cleanup-exit-01.json`、`archive-04-contract-01.json`、`red-startup-exit-01.json` **PASS**：均限替代进程／socket 边界。旧 `da6a095fc` 被同启动时间 command 变更后退出、故障中断后的死端点收尾反例拒绝；存活替代命令不得收到信号，nonce 断言仍严格。
+- `test_t096_process_tree.py` 是待主控执行的真实 Python 父子树演练，覆盖父死子随 EOF 退出、实际 Z 状态后由父回收、kill 前已退出，以及持续存活的 exec 替代反例。它执行候选实际 kill 和完整 finally，并单独记录测试自身的独立收尾；进程／信号边界不用替身。真实演练当前 **INCOMPLETE**，不是上述局部 PASS 的结论。
+- 本 worker 的 `process-tree-red-01.json` 在首次 ps 被沙箱拒绝：这是环境失败，不算已知坏候选的行为红态。已发送私有 shutdown 并等父进程返回；后续 ps 同样被拒绝，原记录保留 cleanup false 和 PID 56541／56543 的交接。升级申请被主控拒绝，未运行，本 worker 不再申请升级。只读核对这些 PID、红态／绿态完整命令、输出路径与 red-b-04 归档命令见 [RUN-PROCESS-TREE.md](RUN-PROCESS-TREE.md)。后续进程树证据先通过，再安排原生场景。
+
 
 2026-10-18 主控 #93 的实跑、原件诊断与最小探针：
 
