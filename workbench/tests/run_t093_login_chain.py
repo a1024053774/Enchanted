@@ -26,7 +26,7 @@ def snapshot(source, root, mutation):
     target=root/'code'; work=target/'workbench'; work.mkdir(parents=True)
     shutil.copytree(source/'workbench/src',work/'src',ignore=shutil.ignore_patterns('__pycache__'))
     (work/'tests').mkdir(); (work/'bin').mkdir()
-    for name in ('test_t093_login_chain.ts','t093_fake_claude.c','t093_fake_login_peer.py','t093_parallel_chain_peer.py','t093_forwarder_guard.ts','probe_t093_parent_sandbox.py','probe_t093_parallel_profiles.py'):
+    for name in ('test_t093_login_chain.ts','t093_fake_claude.c','t093_fake_login_peer.py','t093_parallel_chain_peer.py','t093_forwarder_guard.ts','t093_home_read_boundary.ts','probe_t093_parent_sandbox.py','probe_t093_parallel_profiles.py'):
         shutil.copyfile(source/'workbench/tests'/name,work/'tests'/name)
     shutil.copyfile(source/'workbench/bin/inbox',work/'bin/inbox')
     shutil.copyfile(source/'workbench/package.json',work/'package.json')
@@ -68,6 +68,8 @@ def main():
     if len(args.source_revision)!=40 or any(c not in '0123456789abcdef' for c in args.source_revision):parser.error('full source revision required')
     output=args.output.resolve();home=Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
     if os.path.lexists(output) or not output.parent.is_dir() or Path('/private/tmp') not in output.parents or home in output.parents:parser.error('select a new output outside real HOME under /private/tmp')
+    read_target=source/'AGENTS.md'
+    assert home in read_target.parents and read_target.is_file() and not read_target.is_symlink(),'read_counterexample_requires_public_AGENTS_in_actual_HOME'
     root=Path(tempfile.mkdtemp(prefix='t093-chain-',dir='/private/tmp')).resolve()
     for name in ('state','repo','source-home/.claude','U','S','M','synthetic-home'):(root/name).mkdir(parents=True,mode=0o700)
     for name in ('home','claude','tmp','shell','requests','hooks','user-data'):(root/'roles/ideation'/name).mkdir(parents=True,mode=0o700)
@@ -103,7 +105,7 @@ def main():
     manifest={'schema':1,'root':str(root),'state':str(root/'state'),'task':'t093-chain','preset':'ideation','launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),'executable':str(root/'fake-claude'),'version':'2.1.302','role_file':str(root/'roles/ideation/role.md'),'code_revision':args.source_revision,'source_snapshot':str(code_source),'authentication':'normal-login','credential_source':'file','upstream_url':f'http://127.0.0.1:{u}','turn_limit':3}
     session=runtime.prepare(manifest,root/'repo',p,'127.0.0.1',180,root/'source-home')
     private=Path(session['private_root'])
-    fixture={'root':str(root),'source':str(code_source),'candidate':args.source_revision,'output':str(output),'mutation':args.mutation,'upstream_port':u,'other_port':other,'bind_probe_port':bind,'git_index_hits':0,'G_processes':processes,'G_profile':g,
+    fixture={'root':str(root),'source':str(code_source),'candidate':args.source_revision,'output':str(output),'mutation':args.mutation,'upstream_port':u,'other_port':other,'bind_probe_port':bind,'git_index_hits':0,'G_processes':processes,'G_profile':g,'read_boundary_target':str(read_target),
              'inbox_sentinel':'t093-independent-'+uuid.uuid4().hex,'prompt':'无模型链路哨兵 '+uuid.uuid4().hex+'；请读取本角色收件箱并在 Stop 转交。'}
     peer=code_source/'workbench/tests/t093_parallel_chain_peer.py'
     command=lambda role:['/usr/bin/python3','-I','-S','-B',str(peer),'--session',str(private/'session.json'),'--role',role]

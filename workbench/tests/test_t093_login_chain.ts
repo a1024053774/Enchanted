@@ -12,6 +12,8 @@ import { createOperatorCredential, readOperatorCredential } from "../src/credent
 import { request } from "../src/transport.ts";
 import { credentialHits, countForwarderRecords, homeReferences, redactCredentials, scanCredentialFiles } from "../src/claudeLoginFacts.ts";
 import { recordLoginProcess } from "../src/claudeLoginProcessTrace.ts";
+import { observeHomeReadBoundary } from "./t093_home_read_boundary.ts";
+import { fileURLToPath } from "node:url";
 
 const load=(path:string)=>JSON.parse(readFileSync(path,"utf8"));
 const session=load(process.env.A2A_CLAUDE_LOGIN_SESSION!), privateRoot=session.private_root;
@@ -38,6 +40,12 @@ const injectionCases = [
 const safe=(value:unknown)=>assert.equal(credentialHits(JSON.stringify(value),secrets),0,"credentials_must_not_enter_public_evidence");
 try {
   assert.equal(process.pid,session.c_root_pid);
+  stage="home_read_boundary";
+  const readBoundary=observeHomeReadBoundary(session.real_home,fixture.read_boundary_target,fileURLToPath(import.meta.url));
+  counterexamples.home_read_boundary_C=readBoundary;
+  assert(readBoundary.entry_resolved&&readBoundary.metadata.every(v=>v.is_directory),"C_source_ancestor_metadata_must_be_readable");
+  assert(readBoundary.content.denied&&readBoundary.content.bytes_read===0,"C_actual_HOME_content_read_must_remain_denied");
+  assert(readBoundary.ancestor_directory_entries.denied,"C_ancestor_directory_enumeration_must_remain_denied");
   await file(join(session.metadata_directory,"ready.json"));
   stage="compile";
   await run("/usr/bin/clang",["-O0","-Wall","-Werror",join(fixture.source,"workbench/tests/t093_fake_claude.c"),"-o",session.manifest.executable]);
@@ -72,6 +80,9 @@ try {
   assert.deepEqual(cliGuard.source_home,{r:true,a:true},"source_home_read_and_write_must_be_denied");assert.equal(cliGuard.config_matches,true,"minimal_onboarding_and_trust_state_must_match");
   const fGuard=await file(join(session.forwarder_directory,"guards.json"));
   assert.equal(fGuard.real_home_write.denied,true,"F_home_write_must_be_denied");
+  assert(fGuard.home_read_boundary.entry_resolved&&fGuard.home_read_boundary.metadata.every((v:any)=>v.is_directory),"F_source_ancestor_metadata_must_be_readable");
+  assert(fGuard.home_read_boundary.content.denied&&fGuard.home_read_boundary.content.bytes_read===0,"F_actual_HOME_content_read_must_remain_denied");
+  assert(fGuard.home_read_boundary.ancestor_directory_entries.denied,"F_ancestor_directory_enumeration_must_remain_denied");
   assert.equal(fGuard.outside_records_write.denied,true,"F_write_must_stay_in_records");
   assert.equal(fGuard.unconfigured_upstream.denied,true,"F_unconfigured_upstream_must_be_denied");
   assert.equal(fGuard.other_listener.denied,true,"F_other_listener_must_be_denied");assert.equal(fGuard.fork.denied,true,"F_fork_must_be_denied");counterexamples.forwarder=fGuard;

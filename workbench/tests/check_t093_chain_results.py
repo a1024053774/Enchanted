@@ -58,6 +58,13 @@ def main():
             good=good and counter.get('missing_record',{}).get('counts',{}).get('counts_match') is False
             good=good and facts.get('cleanup',{}).get('cleanup_failures')==[] and facts.get('cleanup',{}).get('primary_failure') is None
             parent=counter.get('parent_home_write',{});f=counter.get('forwarder',{});cli=counter.get('cli',{});helpers=counter.get('protected_helpers',[])
+            for boundary in (counter.get('home_read_boundary_C',{}),f.get('home_read_boundary',{})):
+                target=boundary.get('target')
+                good=good and isinstance(target,str) and Path(target).name=='AGENTS.md' and home in Path(target).parents
+                metadata=boundary.get('metadata',[])
+                good=good and len(metadata)==2 and {v.get('path') for v in metadata}=={str(home),str(Path(target).parent) if isinstance(target,str) else None} and all(v.get('is_directory') is True for v in metadata)
+                good=good and boundary.get('entry_resolved') is True and boundary.get('content',{}).get('denied') is True and boundary.get('content',{}).get('bytes_read')==0 and boundary.get('ancestor_directory_entries',{}).get('denied') is True
+                good=good and boundary.get('content',{}).get('code') in ('EPERM','EACCES') and boundary.get('ancestor_directory_entries',{}).get('code') in ('EPERM','EACCES')
             home_guards=[parent,f.get('real_home_write',{}),cli.get('real_home_write',{}),*[v.get('real_home_write',{}) for v in helpers]]
             good=good and len(helpers)==3 and all(g.get('denied') is True and g.get('created') is False and isinstance(g.get('errno'),int) and abs(g['errno']) in (1,13) for g in home_guards)
             good=good and f.get('outside_records_write',{}).get('denied') is True and f.get('other_listener',{}).get('denied') is True and f.get('fork',{}).get('denied') is True

@@ -77,13 +77,23 @@ def outside_home(path, home):
     return resolved
 
 
+def home_read_barrier(home, readable):
+    q = lambda value: json.dumps(str(value), ensure_ascii=False)
+    exceptions = ' '.join('(' + kind + ' ' + q(path) + ')' for kind, path in readable)
+    rule = '(deny file-read* (require-all (subpath ' + q(home) + ')(require-not (require-any ' + exceptions + '))))'
+    # Node realpath walks the ancestors of each permitted entry/dependency.
+    # Exact metadata exceptions do not permit directory enumeration or data.
+    ancestors = sorted({parent for _, path in readable for parent in Path(path).parents}, key=str)
+    rule += '(allow file-read-metadata ' + ' '.join('(literal ' + q(path) + ')' for path in ancestors) + ')'
+    return rule
+
+
 def policies(session):
     q = lambda value: json.dumps(str(value), ensure_ascii=False)
     home, private = session["real_home"], session["private_root"]
     source = SOURCE.parent.resolve()
-    exceptions = ' '.join('(subpath ' + q(value) + ')' for value in (source, (source / 'node_modules').resolve()))
-    exceptions += '(literal ' + q(Path(NODE).resolve()) + ')(literal ' + q(Path(session["manifest"]["executable"]).resolve()) + ')'
-    read_barrier = '(deny file-read* (require-all (subpath ' + q(home) + ')(require-not (require-any ' + exceptions + '))))'
+    read_barrier = home_read_barrier(home, [('subpath', source), ('subpath', (source / 'node_modules').resolve()),
+                                          ('literal', Path(NODE).resolve()), ('literal', Path(session['manifest']['executable']).resolve())])
     source_barrier = ''
     if session["credential_home"] != home:
         source_barrier = '(deny file-read* file-write* (subpath ' + q(session["credential_home"]) + '))'
@@ -395,7 +405,7 @@ def main():
         audit=outside_home(args.audit,home)
         q=lambda value:json.dumps(str(value),ensure_ascii=False)
         policy='(version 1)(allow default)(deny file-write* (subpath '+q(home)+'))(deny network*)(deny mach-lookup (global-name-regex #".*[Ss]ecurity.*"))'
-        policy+='(deny file-read* (require-all (subpath '+q(home)+')(require-not (subpath '+q(SOURCE.parent.resolve())+'))))'
+        policy+=home_read_barrier(home,[('subpath',SOURCE.parent.resolve())])
         command=[NODE,str(SOURCE/'claudeLoginCheck.ts'),*(['--preflight'] if args.preflight else []),str(audit)]
         os.chdir(audit)
         os.execve('/usr/bin/sandbox-exec',['sandbox-exec','-p',policy,*command],{'PATH':'/usr/bin:/bin','LANG':'C','TMPDIR':'/private/tmp'})

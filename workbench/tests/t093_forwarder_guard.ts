@@ -5,6 +5,8 @@ import { randomUUID } from "node:crypto";
 import { createConnection, createServer } from "node:net";
 import { spawnSync } from "node:child_process";
 import { runForwarder } from "../src/claudeForwarderProcess.ts";
+import { observeHomeReadBoundary } from "./t093_home_read_boundary.ts";
+import { fileURLToPath } from "node:url";
 const sessionPath = process.argv[2], session = JSON.parse(readFileSync(sessionPath,"utf8"));
 const fixture = JSON.parse(readFileSync(join(session.private_root,"fixture.json"),"utf8"));
 const directory = session.forwarder_directory;
@@ -25,6 +27,7 @@ function attempt(home:string) {
   value.absent_after=!existsSync(path);return value;
 }
 const home=attempt(session.real_home), outside=attempt(fixture.root);
+const homeReadBoundary=observeHomeReadBoundary(session.real_home,fixture.read_boundary_target,fileURLToPath(import.meta.url));
 const until=Date.now()+15000;
 while(!existsSync(join(fixture.root,"U/ready.json"))) {if(Date.now()>until)throw new Error("upstream_start_deadline");await new Promise(r=>setTimeout(r,30));}
 const unconfigured=await new Promise<any>(resolve=>{
@@ -35,5 +38,5 @@ const unconfigured=await new Promise<any>(resolve=>{
 });
 const otherBind=await new Promise<any>(resolve=>{const server=createServer();server.once("error",error=>resolve({denied:["EPERM","EACCES"].includes((error as any).code),code:(error as any).code}));server.listen(fixture.bind_probe_port,"127.0.0.1",()=>server.close(()=>resolve({denied:false,code:null})));});
 const fork=spawnSync("/usr/bin/true",[],{stdio:"ignore"});
-save("guards.json",{pid:process.pid,ppid:process.ppid,pgrp:boot.pgrp,profile:"F",real_home_write:home,outside_records_write:outside,unconfigured_upstream:unconfigured,other_listener:otherBind,fork:{denied:["EPERM","EACCES"].includes((fork.error as any)?.code),code:(fork.error as any)?.code??null}});
+save("guards.json",{pid:process.pid,ppid:process.ppid,pgrp:boot.pgrp,profile:"F",real_home_write:home,home_read_boundary:homeReadBoundary,outside_records_write:outside,unconfigured_upstream:unconfigured,other_listener:otherBind,fork:{denied:["EPERM","EACCES"].includes((fork.error as any)?.code),code:(fork.error as any)?.code??null}});
 await runForwarder(sessionPath);

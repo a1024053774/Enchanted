@@ -358,10 +358,10 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：平级 profile 的 OS 边界已由主控 #84 实测成立；U 后清单收尾已修正，
-产品也已接入这套设计，完整新链与反例仍待沙箱外运行。不能用旧完整链的 PASS 代替本候选。
+当前为 INCOMPLETE：主控 #92 的独立 profile 探针已 PASS，但完整链在 Node 读取源码祖先目录
+元数据时失败。本候选补充精确祖先目录的元数据权限，完整新链与反例仍待沙箱外复验。
 当前版本、进程清单、复验命令与限制见
-[交接请求 06](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-06.md)。
+[交接请求 07](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-07.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
@@ -398,6 +398,9 @@ CLI executable 使用规范实际路径，避免版本符号链接与进程身�
 | D 基线及清单／隔离根清理 helper | 原始 auth 读取前由一次短 D 进程采基线；长期 D 独立施加相同 profile。无出站、无 Security、无 fork，只写私有根及自己的收据目录。HOME 只读目录/stat，不读正文（源码除外）；快照仅留私有根，C 输出差异后由 D 删除整个根 |
 
 R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没有不受保护的长期监督进程。
+为供 Node 解析真实路径，C、F 与外部 V 仅允许查询既有源码／依赖／可执行文件祖先目录的
+`file-read-metadata`，以精确 literal 列出，包含真实 HOME；不允许枚举这些目录或读取其他文件正文，
+也没有增加写入权限。完整链在 C、F 下用源码根的公开 AGENTS.md 验证正文读取仍被拒。
 短脱离 helper 各自以对应 profile 的 true 结束，实际 PID 与退出码单列。各后台进程有覆盖
 前置检查、服务与收尾的硬期限。D 在失败／根进程退出时清理本次登记的组与私有根；
 清理不确定会记录失败，不能补作 PASS。已有可写 HOME FD 在应用 profile 前关闭；日志不得重定向进真实 HOME。
@@ -451,7 +454,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-其余五个独立场景、预期业务失败及独立结果核对器见交接请求 06。
+其余五个独立场景、预期业务失败及独立结果核对器见交接请求 07。
 所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
 结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
 

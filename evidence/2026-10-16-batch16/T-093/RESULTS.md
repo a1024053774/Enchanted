@@ -228,3 +228,34 @@ red-02 用同一最终测试重新拒绝旧实现，未靠删除失败或仅绿�
 
 最终局部汇总为 freeze-checks-10.json：43 个脚本／源码语法检查、UTF-8、diff、修改范围和旧 profile AST 核对通过，地图 0 problems／0 stale。
 freeze-checks-09.json 保留文档范围检查的错误基线诊断；10 改用上次冻结版本比较，本次没有改动 README 正常登录节以外的内容。
+
+## 主控 #92：原探针通过、产品 Node 路径红态
+
+[parallel-profile-02.json](parallel-profile-02.json) 是候选 47286b7bda7d6497a1c62a067308b18ea3fc1f7a 的外部 PASS：
+U 同进程收后清单及关闭已确认，cleanup_failures=[]，collection_complete=true，临时根已删除。
+这份原件与旧失败 parallel-profile-01.json 同时保留，不覆盖或把旧失败改称通过。
+
+同一候选六个产品场景均在 prepared_services 后退出 1，未生成结果 JSON。
+六份日志中 Node 26.5.0 都在 realpathSync → lstat /Users/luckye 时遇到 EPERM，未进入主模块；
+五项变异的预定业务断言均未到达，核对器 FileNotFoundError 也不是业务拒绝。
+只读日志摘要为 product-chain-04-startup-red.json；主控事后核对无残留进程和 HOME 新文件，worker 未执行外部 ps。
+
+本次选择用户授权的 (a)，新增 home_read_barrier：保留原 file-read* 屏障和既有源码／可执行文件内容例外，
+只用 literal 给这些允许路径的祖先目录增加 file-read-metadata，含真实 HOME；不对整个 HOME 子树开放元数据。
+C、F 和外部事实 V 共用，D 规则不动。HOME 的所有写入仍被禁止；网络、fork、Security 等边界均未放宽。
+
+新反例在完整链实际 C／F 下观察 HOME／源码祖先元数据与入口 realpath 正例，同时要求源码根公开 AGENTS.md
+的正文读取被拒、读取字节为 0，其祖先目录也不能枚举。只用既有公开文件，不读 auth／用户配置，不写真实 HOME。
+独立结果核对器新增相同外部条件，保留原六场状态、计数、扫描、清理和身份断言。
+
+漏检原因：本地检查没有施加 OS profile；原 PROBE-PARALLEL 的 C 和模拟 CLI 是 Python，
+F 的 Node 没有产品 F 的 HOME 内容屏障，因此没有发生受限 Node 的源码祖先路径解析。
+原探针 PASS 的证明范围是它实际检查的边界和收尾，不能证明产品 Node 可启动；新检查放入实际产品链。
+
+metadata-local-red-01 用旧冻结源码命中缺少祖先元数据规则；metadata-local-green-01 的三项局部检查通过。
+其中还验证记录器在合成 HOME 无屏障时会读取一个公开哨兵字节、报告读取成功，并被业务断言拒绝，未把“被拒”写死。
+这些仅证明构造／记录器与外部 V 共用规则；worker 没有运行 OS profile，实际元数据放行及正文拒绝仍待外验。
+局部复验 cleanup-local-09、review-regressions-green-04、once-local-07、facts-local-07 通过。
+
+新完整命令见 REVIEW-REQUEST-T093-07.md；使用新的 chain-05 路径，先 none，成功才继续五项变异与独立核对。
+整票 INCOMPLETE；没有真实供应商 CLI／真实 auth／真实上游／模型回合，没有新的独立验收通过结论。
