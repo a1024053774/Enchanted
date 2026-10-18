@@ -51,6 +51,10 @@ async function exercise(source) {
   async function request(state, input, identity) {
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
+    if (['pane_layout_open', 'pane_layout_close'].includes(input.command)) {
+      assert.equal(identity.kind, 'operator', 'Layout persistence requires the operator identity');
+      return { ok: true };
+    }
     if (input.command === 'workbench_snapshot') return { ok: true, task: { task_id: 'task-one', current_attempt: { attempt_id: 'attempt-one' } },
       launch: { task: 'task-one', ...records[input.launch] }, pane: { lifecycle: 'running', failed: null } };
     if (input.command === 'window_open') {

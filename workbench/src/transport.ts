@@ -1,6 +1,6 @@
 import { createConnection } from "node:net";
 import { spawn } from "node:child_process";
-import { closeSync, existsSync, mkdirSync, openSync, realpathSync } from "node:fs";
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, unlinkSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -43,7 +43,27 @@ export async function startDaemon(root: string, options: Record<string, unknown>
   statePath(root);
   mkdirSync(root, { recursive: true, mode: 0o700 });
   root = realpathSync(root);
-  if (existsSync(socketPath(root))) throw new Error("socket exists; query its owner, do not replace it");
+  const pidFile = join(root, "daemon.pid"), socket = socketPath(root);
+  if (existsSync(pidFile) || existsSync(socket)) {
+    const previous = existsSync(pidFile) ? readFileSync(pidFile, "utf8") : "";
+    if (!/^[1-9]\d*\n?$/.test(previous) || Number(previous) <= 1) throw new Error("daemon owner unknown; endpoint preserved");
+    try { process.kill(Number(previous), 0); throw new Error("daemon owner is still alive; endpoint preserved"); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
+    if (existsSync(socket)) {
+      if (!lstatSync(socket).isSocket()) throw new Error("daemon endpoint is not a socket; preserved");
+      await new Promise<void>((resolve, reject) => {
+        const probe = createConnection(socket);
+        probe.once("connect", () => { probe.destroy(); reject(new Error("daemon endpoint is live; preserved")); });
+        probe.once("error", error => error.code === "ECONNREFUSED" ? resolve() : reject(error));
+        probe.setTimeout(1000, () => probe.destroy(new Error("daemon endpoint state unknown; preserved")));
+      });
+    }
+    // Recheck after the asynchronous socket probe. Concurrent starters cannot
+    // remove another epoch's PID/socket once this dead epoch has been removed.
+    if (readFileSync(pidFile, "utf8") !== previous) throw new Error("daemon owner changed; endpoint preserved");
+    if (existsSync(socket)) unlinkSync(socket);
+    unlinkSync(pidFile);
+  }
   const credential = createOperatorCredential(root);
   const stdout = openSync(join(root, "daemon.stdout.log"), "a", 0o600);
   const stderr = openSync(join(root, "daemon.stderr.log"), "a", 0o600);

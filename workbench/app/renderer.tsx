@@ -19,6 +19,7 @@ type Snapshot = {
     verification: { state: string } | null; integration_intent: { state: string } | null };
   launch: { id: string; thread: string; attempt: string | null; role: string; preset: string | null; cli_version: string; model_requested: string } | null;
   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
+    restoration?: { status: string; error: string | null; details: string | null } | null;
     interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
 };
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
@@ -172,6 +173,8 @@ function SessionPane({ paneKey, onStatus }: { paneKey: string; onStatus: (key: s
         {error && <div className="connection-error" role="alert"><span>{error}</span><button onClick={() => reconnect.current()}>重新连接</button></div>}
         {inputError && <div className="connection-error" role="alert">{inputError}</div>}
         {releaseError && <div className="connection-error" role="alert">{releaseError}</div>}
+        {pane?.restoration?.status === 'failed' && <div className="connection-error" role="alert">未恢复：{pane.restoration.error}。启动记录已保留。</div>}
+        {pane?.restoration?.status === 'pending' && <div className="connection-error" role="status">正在恢复原生会话…</div>}
         <div className="pane-header"><strong>{role}</strong><span>{snapshot?.launch?.cli_version ?? '读取中'}</span>
           <span className="readonly">{inputEnabled ? '可输入' : '只读'}</span>
           <span className="input-target">{inputTarget ? `正在输入：${role}` : historical ? '历史 attempt · 只读' : '终端未聚焦'}</span>

@@ -34,6 +34,12 @@ function requireCurrentPane(task: string, launch: string, result: any) {
   }
 }
 
+function requireSavedPane(task: string, launch: string, result: any) {
+  if (result.ok && result.task?.task_id === task && result.launch?.task === task && result.launch?.id === launch &&
+      ['failed', 'pending'].includes(result.pane?.restoration?.status)) return;
+  requireCurrentPane(task, launch, result);
+}
+
 function target(event: Electron.IpcMainInvokeEvent, key: string) {
   const context = windows.get(event.sender.id);
   if (!context || event.sender !== context.window.webContents || event.senderFrame !== event.sender.mainFrame) {
@@ -76,13 +82,18 @@ function registerHandlers() {
     const result = await request(context.options.state, { command: 'workbench_snapshot', task: context.options.task,
       ...(pane.launch ? { launch: pane.launch } : {}) });
     if (!result.ok) throw new Error(result.error);
-    if (context.panes.size > 1) requireCurrentPane(context.options.task, pane.launch!, result);
+    if (context.panes.size > 1) requireSavedPane(context.options.task, pane.launch!, result);
     if (pane.launch && result.launch?.id !== pane.launch) throw new Error('Pane launch changed');
-    if (result.launch) pane.launch = result.launch.id;
+    if (result.launch && !pane.launch) {
+      const opened = await request(context.options.state, { command: 'pane_layout_open', task: context.options.task,
+        launch: result.launch.id, position: [...context.panes.keys()].indexOf(pane.key) }, context.operator);
+      if (!opened.ok) throw new Error(opened.error);
+      pane.launch = result.launch.id;
+    }
     const writable = result.pane?.lifecycle === 'running' && !result.pane.failed &&
       Boolean(result.launch && (result.launch.role === 'controller' && result.launch.attempt === null ||
         result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
-    if (result.launch && !pane.identity && !context.closing) {
+    if (writable && result.launch && !pane.identity && !context.closing) {
       // Concurrent snapshot readers share one credential request, including a failed outcome.
       // Closing waits for this request before revoking a credential it may have issued.
       pane.opening ??= request(context.options.state, { command: 'window_open', task: context.options.task, launch: pane.launch }, context.operator)
@@ -127,7 +138,15 @@ function registerHandlers() {
 
 export async function run(options: Options) {
   if (!isAbsolute(options.state) || !isAbsolute(options.userData) || !options.task) throw new Error('Absolute data paths and a task are required');
-  const launches = options.launch === undefined ? [undefined] : typeof options.launch === 'string' ? [options.launch] : [...options.launch];
+  let saved = false;
+  let launches: (string | undefined)[];
+  if (options.launch === undefined) {
+    const layout = await request(options.state, { command: 'pane_layout', task: options.task });
+    if (!layout.ok) throw new Error(layout.error);
+    launches = layout.panes.map((pane: { launch: string }) => pane.launch);
+    saved = launches.length > 0;
+    if (!saved) launches = [undefined];
+  } else launches = typeof options.launch === 'string' ? [options.launch] : [...options.launch];
   if (!launches.length || launches.some(launch => launch !== undefined && (typeof launch !== 'string' || !launch)) ||
       new Set(launches).size !== launches.length) throw new Error('Distinct nonempty pane launches are required');
   const operator = readOperatorCredential(options.state);
@@ -137,10 +156,10 @@ export async function run(options: Options) {
     const ranks = new Map<string, number>();
     for (const launch of launches) {
       const value = await request(options.state, { command: 'workbench_snapshot', task: options.task, launch });
-      requireCurrentPane(options.task, launch!, value);
+      (saved ? requireSavedPane : requireCurrentPane)(options.task, launch!, value);
       ranks.set(launch!, value.launch.role === 'worker' ? 2 : value.launch.preset === 'ideation' ? 0 : 1);
     }
-    launches.sort((a, b) => ranks.get(a!)! - ranks.get(b!)!);
+    if (!saved) launches.sort((a, b) => ranks.get(a!)! - ranks.get(b!)!);
   }
   if (appUserData && appUserData !== options.userData) throw new Error('Windows in one process must share application user-data');
   if (!appUserData) {
@@ -166,6 +185,13 @@ export async function run(options: Options) {
   const senderId = window.webContents.id;
   windows.set(senderId, context);
   registerHandlers();
+  // Persist creation before exposing the window. A crash must not depend on a
+  // shutdown hook. Reopening an existing failed pane preserves its diagnosis.
+  if (!saved) for (const [position, pane] of panes.entries()) {
+    if (!pane.launch) continue;
+    const opened = await request(options.state, { command: 'pane_layout_open', task: options.task, launch: pane.launch, position }, operator);
+    if (!opened.ok) { window.destroy(); throw new Error(opened.error); }
+  }
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.on('close', event => {
@@ -179,6 +205,10 @@ export async function run(options: Options) {
       for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Window input outcome remains unconfirmed:', String(outcome.reason));
       for (const value of context.panes.values()) {
         try {
+          if (value.launch) {
+            const closed = await request(options.state, { command: 'pane_layout_close', task: options.task, launch: value.launch }, operator);
+            if (!closed.ok) throw new Error(closed.error);
+          }
           if (value.identity) {
             const result = await request(options.state, { command: 'window_close' }, value.identity);
             if (!result.ok) throw new Error(result.error);
