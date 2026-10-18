@@ -287,9 +287,17 @@ setup-diagnostics-red-04 用旧驱动拒绝五项要求；setup-diagnostics-gree
 
 七个历史根仍有合成认证源，见 retained-fixtures-05.json；不原样归档凭据，选择在保留结果／清单后整根删除。
 新 cleanup_t093_retained_fixture.py 只接受已知任务结构、当前 UID、确认已清理的私有 HOME 和已消失的记录 PID／组；未知或活动现场拒绝。
-它不读认证正文，只删除依赖链接本身，不沿链接删除实际依赖；单次 X 禁 HOME 写入、网络／Security／fork。
+它不读认证正文，只删除依赖链接本身，不沿链接删除实际依赖；初版单次 X 禁 HOME 写入、网络／Security／fork，审查修正后的停机核对与当前 X 权限见下段。
 retained-structure-local-01 的初版不识别变异源码副本，结果保留；02 只读识别全部七根，但进程探测为模拟，未实际删除。
 retained-cleanup-local-02 的五个合成场景通过；实际清理收据仍待主控执行，不声称已删。
 
 新沙箱外命令、七根逐项清理及 chain-06 复验见 REVIEW-REQUEST-T093-08.md。所有旧结果和审查原文不改。
 地图与局部检查见新的 freeze 摘要；没有真实模型／供应商 CLI／真实认证／真实上游回合，整票 INCOMPLETE。
+
+驱动冻结 28276275d96e97d3ac861600530831a5f2d84f91 的只读审查为 FAIL，原文 SETUP-REVIEW-01.md：
+R/G 异常与脱敏反例未发现新增问题，但初始目录也可能仍由 R/G 使用，不能仅凭形态删除。
+修正后清理入口只接受 retained-cleanup-scope-05.json 中本 worktree 的七根；每个根都必须取得当前 R/G 停机核对，列表缺失、不完整、匹配到进程时拒绝。
+以一条 /bin/ps 子进程做已授权的只读核对，只有任务 PID／组／状态进入收据，完整参数不落盘；X 为此允许 fork，子进程继承禁 HOME 写入／网络／Security，产品 F/U/D 的 fork 禁令不动。
+收据把核对范围绑定具体根与 worktree，原有已启动服务的 PID／组和 D 清理收据仍逐项要求。
+cleanup-quiescence-red-01 在旧冻结源码复现活动初始根被删除；green-01 的同一断言拒绝删除，并核对合成的相对 R、G、空匹配／不完整进程列表。
+retained-cleanup-local-03 继续通过五个合成清理场景；这些进程核对为模拟，当前仍没有实际删除七根或取得完整链 OS 绿态，也没有新的独立验收通过结论。

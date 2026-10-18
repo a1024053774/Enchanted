@@ -26,7 +26,7 @@ for kind in ('initial','unconfirmed','closed','active','code'):
    receipt=root/'state/login-audits/12345678-1234-1234-1234-123456789012/metadata/removed.json'
    receipt.parent.mkdir(parents=True);receipt.write_text('{"isolated_home_removed":true,"cleanup_failures":[]}')
   def inactive(*args):raise ProcessLookupError()
-  with patch.object(mod.os,'kill',side_effect=None if kind=='active' else inactive),patch.object(mod.os,'killpg',side_effect=inactive),patch.object(mod,'SOURCE',linked/'workbench/src/session.py' if kind=='code' else mod.SOURCE):
+  with patch.object(mod.os,'kill',side_effect=None if kind=='active' else inactive),patch.object(mod.os,'killpg',side_effect=inactive),patch.object(mod,'SOURCE',linked/'workbench/src/session.py' if kind=='code' else mod.SOURCE),patch.object(mod,'setup_quiescence',return_value={'complete':True,'matching_processes':[],'scope':'mocked unit evidence'}):
    if kind in ('unconfirmed','active'):
     expected='post_service_fixture_without_cleanup_receipt' if kind=='unconfirmed' else 'recorded_process_or_group_still_exists'
     try:mod.remove(root)

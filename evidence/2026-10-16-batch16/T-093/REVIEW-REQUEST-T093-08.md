@@ -4,6 +4,10 @@
 task T-093 / attempt a1 / ready_rev 1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 以最后 FROZEN 完整 SHA 运行，不代替受管 submit、独立验收或集成。
 
+驱动候选 28276275d96e97d3ac861600530831a5f2d84f91 的只读审查原文为
+[SETUP-REVIEW-01.md](SETUP-REVIEW-01.md)：FAIL，发现初始目录形态不能证明 R/G 已停机。
+本次已补清理前的停机核对及限定的七根范围；原 FAIL 保留，不冒称修正版已取得独立 OS 通过。
+
 ## 原因的证据边界
 
 主控 #94：候选 2d4eba04b42ae7dd83f0f190ff99a08aabb9a0b4 的实际外部 V 入口 rc 0，
@@ -38,11 +42,14 @@ setup-diagnostics-red-04 对旧冻结驱动的五项预定检查失败；setup-d
 最新 R 目录共 3 个文件／296 字节，含合成认证源；此前六个 Node 入口失败目录也仍保留合成认证源。
 不把这些根原样放进 evidence、Git 或外置归档。失败结果、原日志的诊断摘要和目录清单已保留，选择删除整个运行夹具。
 
-cleanup_t093_retained_fixture.py 每次只处理明确的一个根：
+cleanup_t093_retained_fixture.py 每次只处理明确的一个根，入口只接受 retained-cleanup-scope-05.json 列出的本 worktree 七根，后续新目录不自动加入：
 检查 canonical 路径、UID、已知目录／文件结构，不读取认证正文；启动过服务的夹具必须有确认私有 HOME 已删除、无清理错误的 D 收据，所有记录 PID／组信号 0 均须为 ESRCH。
+所有目录（含初始目录）删除前还要核对当前全部 T-093 R 入口及本 worktree 的 G 命令均已消失。
+核对覆盖绝对／相对 R 入口；只要匹配进程仍在、进程列表不完整或不可解析，就拒绝删除。清理收据把核对结果绑定所选根与 source_repo。
 未知文件、未确认清理、PID／组仍存在或身份已复用时拒绝删除，不能强行忽略。
 变异源码的 node_modules 只允许指向本 worktree 依赖的既有链接，删除时只 unlink，不沿链接删除目标。
-整个删除进程单次施加 X：禁写真实 HOME、禁网络／Security／fork；没有后台监督进程。
+整个删除进程单次施加 X：禁写真实 HOME、禁网络／Security；为做已授权的只读核对，X 允许派生一条 /bin/ps 子进程，子进程继承相同 profile 并独立进程组。
+这沿用主控 #66 的沙箱外只读 ps 核对授权；-ww 防止参数截断，只有匹配任务进程的 PID／组／状态公开，完整参数只在内存中解析、不写盘。产品 F/U/D 的 fork 禁令和其他权限均未改变，没有无保护的后台监督进程。
 
 以下每条分别执行，输出必须是新路径。任何 INCOMPLETE 均保留对应根和收据，停止该根处理：
 
@@ -58,7 +65,8 @@ python3 -I -S -B workbench/tests/cleanup_t093_retained_fixture.py --root /privat
 
 期望 rc 0、status=PASS、root_removed=true；收据保留删除前文件数／字节数及凭据文件曾存在的布尔值。
 worker 只读检查过七个目录结构，进程探测由 mock 替代；没有删除它们，也没有证明实际 PID 目前仍未复用。
-retained-cleanup-local-02 的五项合成检查覆盖初始／已清理目录整根删除、未确认／活动进程拒绝、依赖链接目标保留；不冒充 X 的 OS 证据。
+retained-cleanup-local-04 的五项合成检查覆盖初始／已清理目录整根删除、未确认／活动进程拒绝、依赖链接目标保留。
+cleanup-quiescence-red-01 用旧候选复现活动初始目录仍被删除，green-02 要求删除前拒绝；另用合成 ps 输出核对相对 R、G、完整空匹配和不完整列表。均不冒充 X 的 OS 证据。
 
 ## 完整链沙箱外复验
 

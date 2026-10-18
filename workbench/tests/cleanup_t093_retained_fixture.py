@@ -6,13 +6,54 @@ import os
 from pathlib import Path
 import pwd
 import re
+import shlex
 import shutil
 import stat
+import subprocess
 import sys
 
 SOURCE=Path(__file__).resolve().parents[1]/'src/claudeLoginSession.py'
 spec=importlib.util.spec_from_file_location('cleanup_runtime',SOURCE)
 runtime=importlib.util.module_from_spec(spec);spec.loader.exec_module(runtime)
+
+def require_cleanup_scope(root):
+    manifest=SOURCE.parents[2]/'evidence/2026-10-16-batch16/T-093/retained-cleanup-scope-05.json'
+    value=json.loads(manifest.read_text())
+    if value.get('source_repo')!=str(SOURCE.parents[2].resolve()) or str(root) not in value.get('roots',[]):
+        raise ValueError('fixture_not_in_reviewed_cleanup_scope')
+
+class ActiveSetupProcesses(ValueError):
+    def __init__(self,proof):
+        super().__init__('active_setup_processes_prevent_fixture_deletion')
+        self.proof=proof
+
+def setup_quiescence(root):
+    source=str(SOURCE.parents[2].resolve())
+    entry=str(SOURCE.parents[1]/'tests/run_t093_login_chain.py')
+    child=subprocess.Popen(['/bin/ps','-ww','-axo','pid=,pgid=,stat=,command='],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,encoding='utf-8',errors='replace',start_new_session=True)
+    try:out,_=child.communicate(timeout=5)
+    except subprocess.TimeoutExpired as error:
+        child.kill();child.communicate()
+        raise ValueError('setup_process_inventory_timeout') from error
+    if child.returncode:raise ValueError('setup_process_inventory_unavailable')
+    own_seen=False;matches=[]
+    # Raw process arguments stay in memory. Only scoped R/G PID/group/state
+    # observations enter the receipt; no other arguments are printed/saved.
+    for line in out.splitlines():
+        fields=line.split(None,3)
+        if len(fields)!=4 or not fields[0].isdigit() or not fields[1].isdigit():continue
+        pid,group,state,command=int(fields[0]),int(fields[1]),fields[2],fields[3]
+        if pid==os.getpid():own_seen=True
+        if source not in command and Path(entry).name not in command:continue
+        try:arguments=shlex.split(command)
+        except ValueError:raise ValueError('task_process_arguments_unparseable') from None
+        role='R' if any(Path(value).name==Path(entry).name for value in arguments) else 'G' if any(value in ('git','/usr/bin/git') for value in arguments) and any(arguments[i]=='-C' and arguments[i+1]==source for i in range(len(arguments)-1)) else None
+        if role:matches.append({'role':role,'pid':pid,'pgrp':group,'state':state})
+    if not own_seen:raise ValueError('setup_process_inventory_incomplete')
+    proof={'root':str(Path(root).resolve()),'source':source,'scope':'all T093 R entries and this worktree G commands; no raw argv retained','complete':True,
+           'inspector':{'pid':child.pid,'pgrp':child.pid,'profile':'X inherited','exit':child.returncode},'matching_processes':matches}
+    if matches:raise ActiveSetupProcesses(proof)
+    return proof
 
 def inspect(root):
     root=Path(root)
@@ -62,10 +103,11 @@ def inspect(root):
 
 def remove(root):
     items=inspect(root)
+    proof=setup_quiescence(root)
     files=[value for value in items if not value['directory']]
     receipt={'status':'INCOMPLETE','root':str(root),'scope':'one recognized inactive fixture; only process/cleanup metadata read, no credential body; no archive',
              'files_before':len(files),'bytes_before':sum(value['bytes'] for value in files),
-             'credential_file_present':any(value['relative']=='source-home/.claude/.credentials.json' for value in files)}
+             'credential_file_present':any(value['relative']=='source-home/.claude/.credentials.json' for value in files),'setup_quiescence':proof}
     try:shutil.rmtree(root)
     except OSError as error:receipt.update(error_type=type(error).__name__,errno=error.errno)
     receipt['root_removed']=not os.path.lexists(root)
@@ -79,15 +121,18 @@ def main():
     parser.add_argument('--protected',action='store_true',help=argparse.SUPPRESS)
     args=parser.parse_args();runtime.require_safe_python();runtime.validate_bootstrap()
     if args.output.parent!=Path('/private/tmp') or args.output.resolve()!=args.output or os.path.lexists(args.output):parser.error('new canonical output directly under /private/tmp required')
+    require_cleanup_scope(args.root)
     if not args.protected:
         home=Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
-        policy='(version 1)(allow default)(deny file-write* (subpath '+json.dumps(str(home))+'))(deny network*)(deny mach-lookup (global-name-regex #".*[Ss]ecurity.*"))(deny process-fork)'
+        # The sole ps child inherits X; product F/U/D fork bans are unchanged.
+        policy='(version 1)(allow default)(deny file-write* (subpath '+json.dumps(str(home))+'))(deny network*)(deny mach-lookup (global-name-regex #".*[Ss]ecurity.*"))'
         os.chdir('/private/tmp')
         os.execve('/usr/bin/sandbox-exec',['sandbox-exec','-p',policy,'/usr/bin/python3','-I','-S','-B',str(Path(__file__).resolve()),'--protected','--root',str(args.root),'--output',str(args.output)],{'PATH':'/usr/bin:/bin','LANG':'C'})
     try:receipt=remove(args.root)
     except Exception as error:
         reason=str(error) if isinstance(error,ValueError) and re.fullmatch(r'[a-z_]{1,120}',str(error)) else 'retained_fixture_inspection_failed'
         receipt={'status':'INCOMPLETE','root':str(args.root),'root_removed':False,'reason':reason,'error_type':type(error).__name__}
+        if isinstance(error,ActiveSetupProcesses):receipt['setup_quiescence']=error.proof
     runtime.save(args.output,receipt)
     print(json.dumps({'status':receipt['status'],'root_removed':receipt['root_removed']}))
     return 0 if receipt['status']=='PASS' else 2
