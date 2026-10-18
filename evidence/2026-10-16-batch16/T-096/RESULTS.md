@@ -1,5 +1,38 @@
 # T-096-1 当前交付记录
 
+2026-10-18，主控 #112／#17 交回 `empty-reopen-b-01`：**PASS（新候选实跑）；INCOMPLETE（独立审查 02 与门禁验收）**。主控报告 rc 0、cleanup true、两个主控均由其逐屏批准初始化、模型 0。本 worker 只读核对摘要和下列原件，没有重新启动应用或执行独立审查。当前审查入口为 `REVIEW-REQUEST-T096-02.md`；01 及其 NO_GO 结论原样保留。
+
+新实跑绑定产品版本 `d61876fe29916ccf577da7b9b912cf305d9fdd9d`，31 项检查全为 PASS，fake POST／模型回合为 0，cleanup_complete／writers_absent 均 true，diagnostics 为空、handoff 为 null。第二个 Electron 41135 与第三个 Electron 41338 均有正常退出请求和退出确认。归档清单记录 1,237 文件／568,773,593 字节，comparison=true、excluded={}；原件在 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/empty-reopen-b-01/`，隔离夹具原目录为 `/private/tmp/t078-2-t096-bic07nr4`，凭据在正常收尾后移除。worker 未重做全树归档比较，文件数与字节数引用主控所交清单。
+
+只读核对 `empty-layout-before-reopen.json` 与 `empty-layout-after-reopen.json` 均为 saved=true、panes=[]；`empty-reopened-view.json` 的 DOM／pane_keys 均空、只读 bridge 正常，且显示“当前任务没有打开的窗格。”。两个主控的 resumed-argv 与原记录逐字段相等（仅 session 选择器替换），各自历史 nonce 可见；完整 gate-before／gate-after task 相等；fake-api-requests 原件为空。12 个初始化写键按两个 launch 各六键记录，批准来源为主控本次明确报告；逐屏批准与就绪原件交 reviewer 独立核对。摘要内 59 个非零子命令均是 `/bin/ps` 的 rc 1 且 stdout／stderr 为空，属于进程已退出探针，不能与主控报告的 runner rc 0 混淆。核对摘要见 `empty-reopen-b-01.readback.json`。
+
+`11b32303bebf276d20026a6e718719d15f5d4068` → `d61876fe29916ccf577da7b9b912cf305d9fdd9d` 的产品变更仅为以下四个文件（`git diff 11b32303b d61876fe2 -- workbench/src workbench/app`）：
+
+| 产品文件 | 改动与影响 |
+| --- | --- |
+| `workbench/src/store.ts` | 增加 hasPaneLayout，按该任务的打开／关闭布局事件判断是否保存过；不增加状态表，不改变 openPanes 的打开集／位置／原生会话投影，不写启动记录或 attempt。 |
+| `workbench/src/daemon.ts` | 仅在 pane_layout 只读响应中增加 saved 字段；原 panes、recovering 及其他命令的处理不变。 |
+| `workbench/app/main.ts` | 用后端 saved 判断是否走默认窗格选择；允许已保存布局含零个窗格，显式空 launch 列表仍拒绝。非空布局的 key、身份、输入／输出与关闭处理不变；未保存时仍默认选择。 |
+| `workbench/app/preload.ts` | 允许空 pane key 数组通过并暴露空列表；非数组、无效 key、重复 key 的拒绝和所有 IPC 方法不变。renderer 已有空状态，未改 renderer。 |
+
+`panes.ts`、`paneRecovery.ts`、`transport.ts`、`claudeLaunch.ts`、`workbench/src/gates/` 与 renderer 在上述两版之间无差异：主控续接的 argv、版本探针、session 校验、失败隔离、worker 不启动与 attempt 保护、死端点处理均未修改。另改 README 的空集说明、三个合同测试及本票 runner／证据；这些属于说明和验证材料，不额外计作产品文件。本次重新冻结只添加实跑证据和文档，产品仍与 d61876fe2 相同。
+
+前七场的状态始终绑定各自原始 revision，不改名成新候选实跑。下表中的“仍适用”只指明确未改的行为和原始事实；本轮新增／受影响的布局行为由 empty-reopen-b-01 在 d61876fe2 上重新证明。
+
+| 前七场 | 对新候选仍适用的证据与边界 | 需要新证明的部分及本轮结果 |
+| --- | --- | --- |
+| `red-b-05` | 仍是 main `fbba0002481941ea566d395bc9caa01d790b6689` 的真实已知坏反例：死端点阻断第二轮启动，未观察第二轮空窗口。transport 未改，因此它继续作为历史红态；不是新候选的绿态。 | 新候选能从同类崩溃后启动后台及恢复非空布局，现由 empty-reopen-b-01 的 epoch 2 与两主控恢复重新证明。红态本身不需要被改写或借空集运行“转绿”。 |
+| `tracer-b-05` | 原单主控的实际 argv、原 session／历史 nonce、launch 不变以及显式关闭事件仍是未改恢复／写入路径的历史证据。该场虽关闭最后一格，没有再开窗口，不能证明空集保持。 | 自动打开非空保存集经过已改 main／daemon，旧场不能单独替新路径背书；empty-reopen-b-01 重新覆盖该共享路径，并覆盖关闭最后一格后重开。新版本没有重跑“单主控”这一具体布局，不能冒称单格场景已复跑。 |
+| `three-b-01` | 原两主控参数／历史、worker 未恢复、receiver 未重启、完整 task／attempt 不变的事实保留；其恢复和门禁实现未改。旧三格 UI 的结论仍绑定旧 revision。 | 非空保存集、三格主控／worker 绑定经过已改布局读取与 preload，已由 empty-reopen-b-01 在新候选重跑；两个主控实际参数／历史、worker 只读未恢复、attempt 不变及最后一格空集重开均有新实跑证据。 |
+| `no-argv-b-02` | 缺 argv 的 restore_argv_missing 拒绝、保留未恢复窗格、无成功事件仍适用于未改的 panes／paneRecovery 与失败显示逻辑；原件继续有效。 | 已改布局选择的非空／空集公共路径由 empty-reopen-b-01 证明；本轮没有再次注入缺 argv。新实跑不是这条故障的新版本复跑，故障条件下完整组合只保留原版实跑与本轮局部合同证据。 |
+| `version-b-02` | CLI 版本不符拒绝、保留未恢复窗格、无成功事件及正常退出原件保留；版本探针和退出 helper 未改。version-b-01 的旧瞬态竞态缺口也原样保留。 | 布局和 preload 的新行为由 empty-reopen-b-01 重新证明；本轮正常退出有新回执，但没有注入版本不符，也未重现旧瞬态，不能把它当作新版本的 version 故障复跑。 |
+| `no-session-b-01` | 缺原生 session 时 restore_session_missing 拒绝、不新建会话的原始事实仍适用于未改校验路径；不把该场“未找到原文件”补称为真的执行过改名。 | empty-reopen-b-01 覆盖新布局路径，并证明有效 session 的续接；它没有注入 session 缺失，不能代替该故障组合在新版本上的真实复跑。 |
+| `isolation-b-01` | 一个主控缺 argv 失败、另一主控继续、worker 未恢复、完整 task／attempt 不变仍是未改失败隔离路径的历史证据。 | 新实跑重新证明非空三格读取、两个有效主控恢复、worker 失败窗格显示及清空重开；没有注入“一个主控失败、另一个成功”，不能将它等同于新版本完整失败隔离场景。 |
+
+因此，七场原件没有作废；未改路径的证据仍可供独立审查逐层核对。空集语义、saved 字段贯通、零 pane key 的真实 preload／renderer、三格保存集在新候选上的实际读取和清空重开，必须以 empty-reopen-b-01 的新原件为据。三个拒绝及一个主控失败隔离没有在 d61876fe2 重新实跑，是否需要补跑由独立审查 02 核对上述差异和证据后给出结论；worker 不把局部复用上调为整票 PASS。新候选仍待独立审查、门禁 submit／验收／集成。
+
+以下保留主控 #110／#16 修复交付时的阶段记录（当时尚未收到 empty-reopen-b-01）：
+
 2026-10-18，主控 #110／#16 派发的独立审查修复：**PASS（局部合同）；INCOMPLETE（新候选整体验收）**。上一冻结候选 `11b32303bebf276d20026a6e718719d15f5d4068` 被独立审查 01 判为 NO_GO：明确关闭最后一格后，重开又选择当前 worker。七场原生实跑证据仍成立，但没有覆盖空集边界，也不替这次产品改动背书。reviewer 的 `independent-review-01.md`、`REVIEW-OUTSIDE-01.sh` 原文一并提交；它们始终针对旧候选，脚本预期仍为 NO_GO／退出 1。
 
 本会话身份：task T-096、attempt a1、session `f1635b4b-e7a1-4d4c-9789-94069e6de12e`、native session `01a14f20-ba1c-7362-843e-307ae25f8975`、launch `launch-a336907aa67c4d9799f9a24cb71860f7`；Codex CLI 0.163.0，gpt-6.1-sol／xhigh，启动 argv 请求 fast，实际供应 tier 未核对。合同仍为 ready_rev 1 加用户裁定 B；未沿用前一进程身份。
