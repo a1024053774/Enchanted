@@ -1,7 +1,9 @@
 # T-093 去掉 setuid ps 的前台查询交接 12
 
 **INCOMPLETE：方案 b 已实现，局部红绿／SDK ABI 通过；同 C profile 的 primary、green 和正式六场仍待主控运行。**
-候选绑定最后一行 `T-093 FROZEN <完整 SHA>`。task T-093 / attempt a1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
+候选绑定最后一行 `T-093 FROZEN <完整 SHA>`。
+最终实现冻结为 7a5adebfcda47b10f28b8c51ecfc49dd7a490720；限定复核 [PROCESS-OBSERVER-REVIEW-02.md](PROCESS-OBSERVER-REVIEW-02.md) 认定 alias 的 L1 缺口已关闭，无新增阻断项，但整链仍为 INCOMPLETE。最终冻结相对此实现只补审查原件和文字，实际命令使用最后 FROZEN 的 SHA。
+task T-093 / attempt a1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 冻结不代替 submit、独立验收或集成。本票没有真实 CLI、auth、上游或模型回合。
 
 ## 具体失败调用与选择

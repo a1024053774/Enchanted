@@ -430,3 +430,8 @@ process-alias-mutant-01 将目标改为每次 query 再解析 alias，启动后 
 version-boundary-green-01 的原版本／并发断言与 conflict-panes-green-03 的原四项业务断言继续通过。新增版本夹具只提供 realpath 的 IO 边界，未削弱版本比较。
 首次 alias 夹具用了不符合旧假 API 合同的根前缀，被 isolated_controller_root_required 拒绝、无 JSON；修正为该入口既有 t078-2 前缀后，使用同一最终夹具重新取得红绿，未改产品边界。
 以上仍不证明真实 C 的 libproc 权限或完整链成功；新 primary 命令不变，等待主控执行。
+
+实现冻结 7a5adebfcda47b10f28b8c51ecfc49dd7a490720 的一次限定复核为 INCOMPLETE，原文 PROCESS-OBSERVER-REVIEW-02.md。
+审查者独立跑 alias 2 项、observer 11 项、version 8 项及其变异检查，认定前一 P1 的 L1 缺口已关闭，无新增阻断项。
+小原件另存 alias-review-green-01、observer-review-green-02、version-review-green-01。实现此后未改，最终只补文本证据。
+真实 C 下 libproc 与完整 primary／green／六场仍未执行，不能把局部结论上调；主控按请求 12 先跑 primary-03。
