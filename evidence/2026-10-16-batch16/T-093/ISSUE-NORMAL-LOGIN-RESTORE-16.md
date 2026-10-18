@@ -2,6 +2,7 @@
 
 **NO_GO（该恢复路径）；整体候选不得据此宣称可集成。待主控按 #122 重开 T-096 并裁定处理范围。**
 这是 worker 在限定审查结束后追加的给定边界检查，不是 NETWORK-RESTORE-REVIEW-01 的独立 finding，也不是已执行真实 CLI／OS 后观察到的泄漏。
+后续一次针对性独立复核已用全新 SQLite／native session 记录确认相同 P1，原文见 [NETWORK-RESTORE-REVIEW-02.md](NETWORK-RESTORE-REVIEW-02.md)。仍为给定进程边界证据；缺 session 的负例也会先执行版本命令。
 
 ## 观察
 
@@ -16,6 +17,16 @@
 只将 ideation 的记录标记为 isolated normal login，给定普通 daemon 上下文（无外层 session），其余版本、session、canonical identity 均合法。
 在 recover 返回后，PTY spy 已记录该正常登录记录的启动；断言 normal_login_restore_must_not_spawn_without_outer_profile 失败，true !== false，rc 2。
 没有启动真实 CLI、普通 daemon、OS profile、网络或 auth，也没有把 syscall 的真实权限当作已测量。这个信号证明实际恢复路由缺少前置条件，不能冒称已观察到真实 HOME 写入。
+
+独立反例的小型原件已按原字保存为 normal-independent-review-16.mjs／json；不保存其 SQLite／整套夹具。脚本固定审查时的源路径和版本标签，最终归档候选的产品源与 8771ba58d 相同。重放必须先复制到全新临时目录，避免在 evidence 旁边创建夹具：
+
+```sh
+probe_dir="$(mktemp -d /private/tmp/t093-r16-review-replay-XXXXXX)"
+cp evidence/2026-10-16-batch16/T-093/normal-independent-review-16.mjs "$probe_dir/normal-independent.mjs"
+node --experimental-vm-modules "$probe_dir/normal-independent.mjs"
+```
+
+预期 rc 2、FAIL，normal-surviving-session 到达版本／PTY，而 fake-control 正常恢复。缺 session 的正常登录对照仍到版本边界后才失败。以上均为替身调用，不是外置 OS 演练；失败夹具保留在该临时目录，不作为整票通过证据。
 
 ## 建议与未授权部分
 

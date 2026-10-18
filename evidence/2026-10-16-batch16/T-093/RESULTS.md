@@ -4,13 +4,14 @@
 受管 session 67f986cc-92e4-4089-9c22-802a1143b645，原生 session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 工具 codex-cli 0.163.0，模型配置 gpt-6.1-sol / xhigh；配置不证明实际供应商 tier。
 
-**整票 INCOMPLETE：实现及下列无模型运行检查 PASS，最终冻结候选的独立审查、门禁验收与集成尚未完成。**
+**整票 NO_GO：普通 daemon 恢复正常登录记录缺受保护上下文前置条件，处理范围待主控裁定；其他局部 PASS 不解除此阻点。新 OS 与 T-096 原生七场仍未运行，门禁验收与集成尚未完成。**
 不修改 ticket 验收框，不把 Git 提交当作 Gate submit 或 integration 收据。
 
 最新交接为 [第二轮独立审查请求 15](REVIEW-REQUEST-T093-15.md)。主控 #117 已回传 chain-08 counts／V 单场 PASS；它与 chain-07 的其余五场、rehearsal-04 的预期结果均符合要求，但分别绑定下文列出的两个候选，不存在新候选六场统一重跑的记录。T-096 跨票恢复检查仍未完成。以下各“当前／最新”文字均保留为其对应阶段的历史记录。
 
 最新交接改为 [修订候选请求 16](REVIEW-REQUEST-T093-16.md)：第二轮审查报告 independent-review-02.md 保持原文；主控 #121/#122 修订 F 为 OS 仅限 TCP 443、应用层锁主机，**OS 层不再按主机限制**。main 已合入，恢复运行时身份及新网络逻辑的局部检查通过；新 OS 与 T-096 原生七场仍 INCOMPLETE，旧链路 PASS 不替本候选背书。
 当前新增阻塞为 **NO_GO**：普通 daemon 直接恢复正常登录记录时未保证原 R/F/D/C 权限上下文，给定边界已复现，见 ISSUE-NORMAL-LOGIN-RESTORE-16.md；处理范围待主控裁定。其他局部 PASS 不解除此集成阻点。
+一次针对性独立复核 [NETWORK-RESTORE-REVIEW-02.md](NETWORK-RESTORE-REVIEW-02.md) 已关闭 8771ba58d 的 Bash 脚本问题，但以全新 SQLite／native session 独立确认同一正常登录恢复 P1，结论 FAIL。缺 session 的对照仍会先执行版本命令，因此不能靠清理通常成功来保证安全。该检查只使用给定 subprocess／PTY 边界，没有运行真实 CLI／OS，也没有声称观察到实际越权写入。最后归档提交只保存报告和状态；网络／恢复产品源仍为 e1177a02d 的同一版本。
 
 更新：独立审查 01 对第一次冻结候选 1d4c58b4a 给出 **NO_GO（验收文件缺口）**，报告原文保留。
 下文首次交付的 PASS 均是当时运行证据，不提升为新候选的独立审查通过。当前仅修正验收输入与审查驱动的失败保存，产品源码未改；新外部复验与新独立审查仍待完成，见末节。

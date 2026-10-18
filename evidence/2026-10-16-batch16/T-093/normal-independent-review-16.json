@@ -1,0 +1,51 @@
+{
+  "status": "FAIL",
+  "candidate": "8771ba58d71a3fc025b09e32c45096b39858572e",
+  "scope": "actual recover, real fresh SQLite/native files, ordinary context; all subprocess/PTY boundaries supplied; no OS/CLI/auth/network",
+  "contract": "normal-login restore requires protected context before any CLI or PTY boundary",
+  "results": [
+    {
+      "name": "normal-surviving-session",
+      "authentication": "isolated normal login",
+      "sessionExists": true,
+      "outer_session": false,
+      "calls": [
+        "cli-version",
+        "pty-spawn",
+        "given-process-snapshot"
+      ],
+      "starts": 1,
+      "restoration": "pane_restored",
+      "error": null,
+      "history_unchanged": true
+    },
+    {
+      "name": "normal-missing-session",
+      "authentication": "isolated normal login",
+      "sessionExists": false,
+      "outer_session": false,
+      "calls": [
+        "cli-version"
+      ],
+      "starts": 0,
+      "restoration": "pane_restore_failed",
+      "error": "restore_session_missing",
+      "history_unchanged": true
+    },
+    {
+      "name": "fake-control",
+      "authentication": "isolated fake API only",
+      "sessionExists": true,
+      "outer_session": false,
+      "calls": [
+        "cli-version",
+        "pty-spawn",
+        "given-process-snapshot"
+      ],
+      "starts": 1,
+      "restoration": "pane_restored",
+      "error": null,
+      "history_unchanged": true
+    }
+  ]
+}

@@ -5,6 +5,8 @@
 候选绑定最后 `T-093 FROZEN <完整 SHA>`。本次基线为主控完成的合并 64c6456de2b7c0111628defce442d999a26734db，包含 main 0e92f78ec6824265cdfcbb9387ba4b454d7eee7f（含 T-096 fd5c93e6e）；无冲突。task T-093 / attempt a1；worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 不 push、不 rebase、不改门禁／地图或验收状态；Git 冻结不代替 submit、验收或集成。本票不启动真实模型，仍须用户合入后另说开工。
 首轮限定审查 [NETWORK-RESTORE-REVIEW-01.md](NETWORK-RESTORE-REVIEW-01.md) 对 e1177a02d 报 FAIL，确认交接脚本在 Bash 3.2 的 verify-six 空数组错误。现改用位置参数；outside-wrapper-red-01／green-01 用实际系统 Bash、exec 参数哨兵验证七分支，不调用 Python／OS profile，V 六场要求未变。
+一次针对性复核 [NETWORK-RESTORE-REVIEW-02.md](NETWORK-RESTORE-REVIEW-02.md) 对 8771ba58d 报 FAIL：原 Bash P2 已关闭，但独立新建 SQLite／native session 的实际 recover 再次证明普通上下文能执行正常登录版本命令并启动 PTY。该 P1 尚未修正；冻结后的归档提交只加入报告和状态，不改变产品／V。下列命令交付供主控保留，不能据其局部通过解除恢复路径的 NO_GO。
+最终冻结检查为 [freeze-checks-33.json](freeze-checks-33.json)：地图 0 problems／0 stale，主控第二轮审查原件未改；不补称新 OS 或原生恢复已运行。恢复范围裁定未回，尚无 submit／验收／集成收据。
 
 ## 事实、授权与边界变化
 
