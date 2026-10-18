@@ -2,7 +2,7 @@
 id: T-098
 title: pane 里 shell 就绪后再等一个可设置的启动延时才输入命令（软件设置里的下拉框）
 type: build
-status: closed
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
