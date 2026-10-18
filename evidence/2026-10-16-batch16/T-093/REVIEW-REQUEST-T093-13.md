@@ -3,6 +3,7 @@
 **INCOMPLETE：夹具 oracle 已修复，局部精确比对／IPC／状态回归通过；新 OS primary、green、六场及跨票恢复集成回归待执行。**
 候选绑定最后 `T-093 FROZEN <完整 SHA>`。task T-093 / attempt a1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 本次不改产品源码、profile、门禁或假 CLI；不运行真实 CLI、认证、上游或模型。
+实现冻结 ed2e57d0ad43c533612549db90132761f684feab 的限定独立审查见 [MANAGED-PROMPT-REVIEW-01.md](MANAGED-PROMPT-REVIEW-01.md)。局部精确 oracle 与反例通过；总状态 INCOMPLETE。审查后仅补文本证据并更正下表的方法名，运行代码未改。
 
 ## 原因与精确合同
 
@@ -47,7 +48,7 @@ JSON 编码／缩进不同但解码结构相同可以通过；content 内部字�
 | panes.ts:877、882 caller/controller | 原生 Stop 请求和执行前重查；controller_relay、T-093 完整链 |
 | panes.ts:894 caller/worker | 受管 worker 活动身份；pane_runtime／旧门禁套件 |
 | panes.ts:901 readThread | worker 存活／结束／替换；conflict_panes／runtime |
-| T-096 restoreOpenPanes 的 processInfo（其冻结来源约 265 行） | 恢复后是否真正得到原 CLI；完整 argv、旧记录、版本、session、兄弟隔离回归 |
+| T-096 recover(daemon) 的 openPanes 循环内 processInfo（其冻结来源约 265 行） | 恢复后是否真正得到原 CLI；完整 argv、旧记录、版本、session、兄弟隔离回归 |
 
 T-091 的六条 IPC 合同不变：snapshot、input、composition-start、release-queue、focus-observation、output。
 每个进程只注册一次，全窗格按 sender＋pane key 分流；各 pane 独立 window_id／sequence／输出游标；iframe／跨窗 key、错 task／旧 launch、重复 launch 均拒绝，拒绝前不发凭据；关闭竞态不影响别窗。

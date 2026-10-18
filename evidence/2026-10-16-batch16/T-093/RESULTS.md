@@ -461,3 +461,8 @@ T-078 runtime 11 项与 controller relay 22 项通过；它们的 liveness 是 s
 已写 ISSUE-T096-INTEGRATION.md，交执行主控在受管集成候选处理；不能删旧记录正例、改变原 argv、绕过版本／session 或固定 leader 成功。
 没有改另一票的 attempt／文件，当前分支也没有 T-096 实现，故该回归未跑；其纯合同与原生重启命令、材料和审批边界已写入请求 13。
 在新 primary／green／六场和跨票恢复回归完成前，不给出全 pane 非退化或集成 GO。旧审查原文与既有失败全部保留。
+
+实现冻结 ed2e57d0ad43c533612549db90132761f684feab 的限定独立审查为 INCOMPLETE，原文 MANAGED-PROMPT-REVIEW-01.md。
+审查者独立运行上游精确结构 13 项、实际 dispatch/store→PTY 四项、T-091 IPC 11 项及其历史反例；内容单项／包含两种变异被业务断言拒绝。
+未发现 oracle 独立性或认证／计数／清理断言弱化；仅更正请求 13 的 T-096 方法标签为 recover(daemon) 内 openPanes 循环，不修改受审运行代码。
+新 OS primary04／green04／六场及跨票恢复仍待执行，保持 INCOMPLETE。地图终检 0 problems、0 stale；冻结核对见 freeze-checks-26.json。
