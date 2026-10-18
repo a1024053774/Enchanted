@@ -1,6 +1,6 @@
 # T-094-1：启动失败诊断（2026-10-17）
 
-状态：INCOMPLETE。已按主控 #63 的裁定实现 1500 毫秒稳定窗口，修正后的同一套受控夹具在旧候选上取得两项红态、新候选上 9 项全部通过；busy-02 的 10 次真实复现与独立审查待主控进行。受保护旧验收另有采样次数和固定 CLI 版本预期冲突，已保留失败证据，不能称为全部验收通过。busy-01 捕获的是 conda 初始化，先前 Git 提示符推测已撤回。
+状态：INCOMPLETE。busy-02 已复核为 10 次真实启动全部成功，且每次 start 前有至少 1500ms 稳定采样。按 main `c06a73179` 中的用户裁定与主控 #78，两个获准修订的验收文件已改为检查行为，新候选 14 个用例全部通过；旧 `617863704` 的稳定窗口和超时 argv 检查为红，错误版本变异体也为红。但旧 `617863704` 已正确实现启动时读取版本，其修订后的版本检查实际通过，无法满足“这一项旧实现也必须失败”的字面要求，交主控裁定，不制造无关失败。独立审查和本轮原件归档仍待完成。
 
 绑定：task T-094 / attempt a1 / worker s16-t094；启动记录 `launch-efca9e180a594c2e98ec594874eaf253`；session `1f06c59c-a447-47e4-8075-9a7571db35d3`；规格 T-094 ready_rev 1；基线 `61786370428c3ec5f894ea60acccf2695d54c2dc`。任务书未给 fence、门禁 state 或 submit 参数，worker 不推测这些身份。
 
@@ -76,13 +76,36 @@ busy-01 数据已回传，8 次中 6 次成功、2 次失败；捕获的是 cond
 
 交付检查：Python / 内嵌代理与 shell 脚本语法通过，文本为 UTF-8、无 BOM、LF。完整 diff 的空白检查指出 `stable-clock-probe-01.txt` 首行原始 Python 版本输出自带尾随空格；为保留原件未清洗。排除这一原始输出文件后，其余变更的 `git diff --check` 通过；不将完整空白检查记作通过。
 
-新增真实复现：主控运行 `sh evidence/2026-10-16-batch16/T-094/outside-busy-02.sh`，标签 `busy-02`，10 次独立首屏启动、0 个模型回合，每次只清理自建 pane。脚本保留每次启动次数和错误身份，并用原始 CLI 采样时间独立核对成功 start 前最后一段 shell 独占采样至少 1500 毫秒。所有输出直接写外置盘；失败仍按失败计数，不以脚本 rc 0 表示每次启动都成功。当前尚未运行，不宣称真实场景已通过。
+真实复现：主控已运行 `outside-busy-02.sh`，标签 `busy-02`，测试实现为 `acf747d948be03df6ea91bb852bdfa545e938ee0`。worker 复核原始 JSONL、CLI 调用时间及每次 close：10 次独立首屏启动均 rc 0，每次 start 前最后一段 shell 独占采样至少 1500 毫秒，10 个自建 pane 的 close 均 rc 0，0 个模型回合。见 `busy-02-summary.json` 与 `busy-02.archive.json`。这是本轮真实复现结果，不作为长期可靠性或收益改善的证明。
 
-### 验收文件与范围外问题（交主控处理）
+### 原有验收冲突及范围外问题
 
-- `acceptance/test_launcher_shell_ready_e2e.py:111–112` 写死恰好 5 次 process-info；新判据正确增加采样，启动成功后该断言失败。原文件未改，失败保留在 `stable-legacy-delayed-01.txt`，原件位于上述 stable-details 的 `legacy-delayed/`。
-- `acceptance/test_herdr_traceability_e2e.py:110–113` 固定期待 CLI 版本 0.162.1；当前实际 0.163.0，真实提交已生成九项尾注，但该版本断言失败，见 `stable-trailers-01.txt` 与 stable-details 的 `trailers/`。未伪装 CLI 版本或改验收文件来制造通过。
+- 旧 `test_launcher_shell_ready_e2e.py` 写死恰好 5 次 process-info，历史失败保留在 `stable-legacy-delayed-01.txt`。主控 #78 获用户授权后已修订该断言，见下一节；其余既有用例与断言保留。
+- 旧 `test_herdr_traceability_e2e.py` 固定期待 CLI 版本 0.162.1，历史失败保留在 `stable-trailers-01.txt`。主控 #78 获用户授权后已改为独立观察启动时版本输出；未伪装真实 CLI 版本。
 - 根 README 的既有“原生门禁入口”段落仍指向 Synara fork，与 `acceptance/entry/a2a_gates.py` 实际转交本仓库 workbench CLI 的事实不符。本轮仅按授权新增启动器稳定窗口与局限说明；门禁文档更正超出本票范围，留给主控另行处理。
+
+## 主控 #78：仅修订获准的两个验收断言
+
+授权来源：用户裁定见 main `c06a73179:.project-map/tickets/T-094-launch-worker-intermittent-start-failure.md` 的“裁定”节及 `20261018T004018Z-ideation-answer-001`。本轮 acceptance/ 只修改 `test_launcher_shell_ready_e2e.py` 和 `test_herdr_traceability_e2e.py`，没有修改生产启动器或其他 acceptance 文件。
+
+稳定窗口断言：保留原有 unknown 状态、前台子进程、不同 pgid、shell PID 被其他程序替换的夹具输入；新增独立 Unix 纳秒事件记录，检查初始化子进程确实出现、start 前最后一段连续采样全部只有 shell 且持续至少 1500ms。保留 split / process-info / start 的顺序与单次 start 约束，去掉精确查询次数。另加持续前台子进程的超时用例，核对独立随机 argv 同时出现在启动记录错误和终端报错里；原有超时、挂起查询、错误、身份不符和不重试断言不变。
+
+版本断言：边界记录器转交启动器实际发起的同一次 `codex --version`，独立保存其返回码和 stdout，再与 prepared 启动记录的 `cli_version`、提交尾注中的 A2A-Tool 分别比较。预期值不从启动记录本身取得，也不固定某个版本号。原有固定假 CLI 输出 0.162.1 仍是夹具输入，真实 CLI 输出本轮为 0.163.0，两者都经实际调用回执核对。启动器从起点就会执行 --version，本轮没有为此改生产路径。
+
+没有放宽其他断言：`revised-assertion-scope-01.json` 保存 AST 核对结果；两个目标以外的原方法保持一致，稳定窗口测试中从 managed_env 开始的全部原断言保持一致，提交尾注核对仅改变 A2A-Tool 预期来源，剩余方法体保持一致。
+
+统一重放命令：`python3 -B evidence/2026-10-16-batch16/T-094/run-revised-acceptance.py`。脚本在 /tmp 建立从 `61786370428c3ec5f894ea60acccf2695d54c2dc` 提取的 scripts 副本和错误版本变异体，只运行真实 Git、显式 Herdr 替身和 codex --version，不启动真实 Herdr 或模型。每条确切命令、退出码与耗时见 `revised-acceptance-summary-01.json`；完整 stdout/stderr、夹具和本轮修订测试源码快照在 `/tmp/t094-revised-acceptance-01`。脚本返回 1，状态为 INCOMPLETE，因为下表版本旧实现红态要求未满足。
+
+| 检查 | 旧 617863704 | 新候选 | 解释 |
+| --- | --- | --- | --- |
+| 初始化子进程与连续 1500ms shell 独占 | 红：仅 72.493ms 就 start | 通过 | 同一修订断言拒绝旧提前放行 |
+| 超时报出前台 argv | 红：缺少 shell_foreground | 通过 | 同一修订断言拒绝旧诊断缺失 |
+| 启动版本等于实际 --version 输出 | **通过** | 通过 | 旧脚本第 65 行原本就正确读取输出 |
+| 实际执行 --version、却把记录版本加上错误后缀 | 变异体红 | 不适用 | 断言因 cli_version 不等于独立回执而拒绝，不是设置或其他错误 |
+
+新候选共 14 个用例全部通过：LauncherContract 7 项（含新超时 argv 用例）、原 Contract 7 项（含提交、amend/rebase/merge、版本、原生身份替换、打分与损坏拒收）。两项旧 shell 红态、版本旧实现正例及错误版本反例共另 4 步，合计 18 步全部保留。用户要求版本旧实现必须红与代码事实不符，本 worker 不擅自把它判红，也不自行将变异体替代认作该要求已获批准；需主控裁定是否接受“旧版本正例 + 错误记录版本反例”的证据组合。
+
+本轮无需沙箱外模型复验。请主控运行 `sh evidence/2026-10-16-batch16/T-094/archive-revised-acceptance.sh`，把完整本地原件归档到外置盘并生成清单；该脚本不会将 INCOMPLETE 上调为 PASS。独立 reviewer 应依据新修订断言、原始回执和已知坏实现结果审查最终候选。
 
 ## 主控 #59 回传原件的核对
 
@@ -105,7 +128,7 @@ green-01 第 2 次的 `herdr_stderr` 包含 `agent target pane wF:p5D is not an 
 - `python3 -B scripts/test_launch_worker_failure.py --launcher evidence/2026-10-16-batch16/T-094/launch-worker.parent --report .../contract-final-red-01.json -v`：旧实现拒绝不了诊断/分类缺陷；失败日志保留。
 - `python3 -B scripts/test_launch_worker_failure.py --report .../contract-final-green-01.json -v`：6 个场景全部通过。夹具显式替换 Herdr/Codex，不连接 socket，不证明真实 Herdr 时序。pane id 每次使用新的随机输入；每次仅一次 start；所有场景均断言入口不关闭 pane。
 - `python3 -B acceptance/test_launcher_shell_ready_e2e.py --artifacts /tmp/t094-existing-launcher-contract-01`：6 个场景全部通过，用时 70.800 秒，结果见 `existing-contract-01.txt`。验收文件未修改；原始夹具与命令日志已归档，见 `existing-contract-01.archive.json`（15 文件 / 103147 字节）。边界测试完整输出见 `contract-details-01.archive.json`（5 文件 / 178556 字节）；历史摘要中的 pending 路径是归档前的记录，原件没有覆盖。
-- `project_map.py status --root .`：前轮结果见 `project-map-status-02.txt` 至 `project-map-status-04.txt`；主控 #63 本轮结果另存 `project-map-status-05.txt`。
+- `project_map.py status --root .`：主控 #63 结果为 `project-map-status-05.txt`；主控 #78 本轮结果另存 `project-map-status-06.txt`。
 
 历史 `outside-green.sh` / busy-01 原件全部保留。本轮稳定窗口使用 `outside-busy-02.sh` 取得真实证据；后续重放须换用新的 label 和归档目录，避免覆盖历史原件。
 
