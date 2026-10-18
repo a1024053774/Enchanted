@@ -9,7 +9,7 @@ test "$(git -C "$repo" rev-parse HEAD)" = "$candidate"
 git -C "$repo" diff --quiet HEAD -- workbench/src workbench/tests
 /usr/bin/python3 -I -S -B -c 'import os,sys; sys.exit(0 if os.path.ismount("/Volumes/WD-Elements") else 2)'
 test ! -e "$repo/evidence/2026-10-16-batch16/T-096/$label.run.json"
-output=/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-093/$label
+output=/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/$label
 test ! -e "$output"
 extra=();panes=1
 case "$mode" in

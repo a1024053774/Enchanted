@@ -4,7 +4,33 @@
 受管 session 67f986cc-92e4-4089-9c22-802a1143b645，原生 session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 工具 codex-cli 0.163.0，模型配置 gpt-6.1-sol / xhigh；配置不证明实际供应商 tier。
 
-**整票 INCOMPLETE：主控 #125 已裁定正常登录不自动恢复，版本／PTY 前的明确拒绝已取得局部红绿；新 OS 与 T-096 原生七场仍未运行，门禁验收与集成尚未完成。**
+**整票 INCOMPLETE：实现与所列验证 PASS；第三轮独立审查、门禁验收与集成尚未完成。** 主控 #127 已在 57c3bfb634b6908be968fcb88090293ed5d4dd65 完成请求 18 的 OS 编译、primary／green／V、chain-11 六场／V，以及 T-096 原生七场。最新交接为 [第三轮审查请求 19](REVIEW-REQUEST-T093-19.md)。本轮产品 src／tests 不变，只修交接脚本输出路径并追加只读复核、摘要与文档；真实模型回合仍未获准。
+
+## 主控 #127 的外部结果与独立事实复核
+
+[r18-os-and-chain11-summary-19-02.json](r18-os-and-chain11-summary-19-02.json) 保存原始路径、四项生产／测试编译、八场完整运行／预定失败、两份真实 V 收据及 none 的逻辑转发记录和上游收据。生产出站固定 443；测试为同函数生成的 18443，其他权限不变。每场 cleanup=[]、fixture_removed=true、writer 逐项确认；主失败均符合预定，凭据扫描 0、真实 CLI／真实上游／真实 auth 读取／真实模型 0。8 场 HOME 清单差异均为 0，但 pass_condition=false，依据用户裁定 A，仍以 OS 禁写和反例为条件。
+
+T096-REGRESSION-16.sh 原先错误地把 output 指向外置盘 T-093，第一场在 mounted_external_output_required 处退出、未启动窗格。**实际通过的七场由执行主控直接调用原 run_restart.py**，只把 output 改到 T-096，以 t093-r18b-* 为标签；其余 mode、panes、fault、check-close／empty、版本 2.1.302、等待 600 秒及逐屏批准沿原合同。现在脚本仅修正该路径；[旧脚本红态](t096-wrapper-red-19.json)／[修正绿态](t096-wrapper-green-19.json) 用系统 Bash 的给定 Git／mount／exec 核对七种完整 argv，没有再启动真实 runner。不能把主控的直接运行写成修正后脚本的原生运行。
+
+[t096-business-recheck-19-06.json](t096-business-recheck-19-06.json) 是 worker 独立于原 runner 的只读事实重算，不是第三轮独立审查：读取每场 run.json、保存的原生 argv／processInfo／恢复事件／窗口 JSON／task，以及停止归档的最终布局。所有历史记录与 worker attempt 比较均成立；model_turns=fake_posts=0、cleanup_complete=true。原件清单为 [t096-readonly-inputs-19.json](t096-readonly-inputs-19.json)，14 份 T-096 原件保持只读和未跟踪，不纳入本 worker 的路径外提交。
+
+| 原生场次 | 逐场业务观察 | 结果 |
+| --- | --- | --- |
+| tracer | ideation 同 session、完整事件／内核 argv、规范前台身份与历史 nonce；历史 launch 不变；显式关闭持久化 | PASS（15 项原记录检查） |
+| three | 两主控独立恢复；worker 未恢复、无成功事件、receiver 未重启，attempt 不变 | PASS（26 项） |
+| no-argv | restore_argv_missing；未恢复／只读、无成功事件 | PASS（9 项） |
+| version | restore_version_mismatch；未恢复／只读、无成功事件 | PASS（9 项） |
+| no-session | restore_session_missing；未恢复／只读、无成功事件 | PASS（9 项） |
+| isolation | ideation 缺 argv 拒绝；executor 继续完整恢复；worker 与 attempt 不变 | PASS（20 项） |
+| empty-reopen | 两主控恢复后显式关闭全部；saved=true、panes／keys=[]，无重新授权／task 改动；最终归档开窗集为空 | PASS（31 项） |
+
+同一事实核对还拒绝七个仅改内存观察的反例：缩短内核 argv、改 attempt、改故障码、删历史 nonce、空窗增加 key、空窗后改 task、归档出现额外 open 事件；原件从未改写。它们验证事实核对器，不声称重跑了故障或修改了产品。
+
+为核对最终布局，仅复制已停止的合成 fixture 的 DB＋WAL 到一次性私有目录，在副本以 mode=rw、PRAGMA query_only=ON 查询窗格开关事件，显式关闭后整目录删除；不打开原件作 SQLite 写入、不 checkpoint 原件、不读 auth 表。[SQLite 文档](https://www.sqlite.org/wal.html#the_wal_file) 说明 WAL 属于持久状态。自建探针发现本机 immutable 读法看不到仅在 WAL 的事务（readonly-WAL-probe-19），临时副本读法通过（readonly-WAL-clone-probe-19）；native -02／-03 和 -04 的工具取样／读取错误均保留说明，不能算原生回归失败。最终 -06 七场全部通过，源文件尺寸／mtime 保持不变；这是读取方法修正，未放宽业务断言。
+
+本轮补跑的局部回归：T-091 IPC 19／版本 8、T-078 runtime 11／relay 22、observer 11／alias 2 均 PASS。它们使用给定进程／PTY／Electron 边界；实际 C 单层 profile 中的 libproc 正例来自 r18 完整链，真实原生多窗格／恢复来自上述七场，不能把局部测试扩大成所有 T-078 原生材料已回放。
+
+以下请求 18 及更早段落保留为各阶段的历史记录；其中“待运行／当前／最新”均只属于当时版本。
 最新交接为 [请求 18](REVIEW-REQUEST-T093-18.md)。主控 #126 回传 7bba61000 的生产 443 profile compile PASS，primary／green 在 U bind 阶段以 errno 13 失败；主控确认本机 IPNExtension/Tailscale 已占用 *:443。旧失败摘要 [os-r17-failure-summary-18.json](os-r17-failure-summary-18.json) 保留，不把 errno 13 自身外推为占用的独立证明；worker 没有查询或操作该服务。
 当前生产入口仍明确固定 443；无模型链默认 18443，可显式配置，生产和测试均调用同一 prepare／policies，只有 port 参数不同。preflight／结束事实报告实际端口；OS 仍不按主机限制，主机锁定仍由应用完成，无 fallback。U 的关闭收据移入 finally，绑定失败也提供零／部分监听关闭数，主错误不被关闭错误覆盖。C 仍须核对完整收据及 ESRCH，V 仍拒绝端口不符／未关闭／错误拥有者。局部红绿与反例见请求 18；当前候选的新 OS 链和原生七场尚未运行，整票 INCOMPLETE。
 限定独立审查 [PORT-STARTUP-REVIEW-18.md](PORT-STARTUP-REVIEW-18.md) 对 e5b8329e4 报 INCOMPLETE，L0/L1 局部 PASS、无 finding。新端口 39524／新 nonce 验证生产入口固定 443、同函数仅换端口、Bash 参数、U 零／部分监听及关闭错误、C 严格收据与 ESRCH、应用层主机锁；硬写 443、跳过 close、EPERM 当退出、删主机检查均被独立业务断言拒绝。最终归档仅加报告／摘要和清单，运行源码／测试／脚本未变；OS／完整链／native7／真实 V 入口未运行，不上调整票状态。

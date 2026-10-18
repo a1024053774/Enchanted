@@ -1,5 +1,7 @@
 # T-093 可配置测试端口与 U 启动失败收尾
 
+主控 #127 已在 57c3bfb63 完成本请求的 OS 运行与 T-096 七场（后者直接调用 runner，修正 output 为其要求的 T-096 目录）。最新逐场事实与第三轮审查入口为 [请求 19](REVIEW-REQUEST-T093-19.md)。以下保留原派发命令／当时状态；重复运行不得覆盖 r18／chain-11 或 t093-r18b 的原件。
+
 **INCOMPLETE：局部红绿通过；本候选的 OS 编译、完整无模型链和 T-096 原生七场待主控沙箱外运行。** task T-093 / attempt a1，worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645；基线 7bba61000d8ae5b643135b58111768a403a5d04c。最终候选绑定末行 `T-093 FROZEN <完整 SHA>`，不 push、不 rebase；冻结不代替 submit／验收／集成。
 
 限定独立审查 [PORT-STARTUP-REVIEW-18.md](PORT-STARTUP-REVIEW-18.md) 对代码候选 e5b8329e4f7d0c8104b7e666c346531357612372 报 INCOMPLETE，L0/L1 局部 PASS、无 finding；新端口 39524／nonce、生产解析器、共享函数、Bash argv、U 关闭、C 收据／退出和应用主机锁均取得独立行为证据。OS／完整链／native7 仍待运行。最终归档候选只加报告与文本清单，产品／测试／脚本与审查对象相同；见 freeze-checks-37.json。

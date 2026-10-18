@@ -1,6 +1,6 @@
 # a2a 门禁、编排后台与工作台
 
-T-096 恢复已合入 main；与 T-093 libproc 组合的原生恢复回归仍待执行。Electron 创建或显式关闭窗格时，把 launch 与位置追加到
+T-096 恢复已合入 main；与 T-093 libproc 组合的七场原生恢复回归已由执行主控在 57c3bfb63 上运行通过，第三轮独立审查与门禁仍待完成。Electron 创建或显式关闭窗格时，把 launch 与位置追加到
 现有 SQLite 事件流；退出应用只断开视图，保留打开集。未传 `--launch` 时读取该任务
 保存的窗格集，并沿用位置。只有从未保存过布局才选择当前窗格；明确关闭最后一格后，
 保存集为空，重开仍显示空视图。后台只自动恢复假 API 的主控窗格：按原启动记录构造完整续接 argv，
@@ -371,10 +371,10 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：第二轮审查确认非 loopback F profile 无法编译及恢复身份不兼容。现已按修订裁定改为 OS 限 TCP 443、应用层锁配置主机，并合入 main 修复恢复运行时身份；局部红绿通过，新 OS 与原生恢复回归仍待主控。
+当前整票 INCOMPLETE，等待第三轮独立审查与门禁：生产／测试端口编译、完整无模型链及六场变异核对、T-096 七场原生恢复均已在 57c3bfb63 通过。本轮未改产品源码；T-096 回归由主控直接调用原 runner，交接脚本的错误输出路径现已改为其要求的外置盘 T-096 目录，不能把这七场记成修正后脚本的新原生运行。
 主控 #125 进一步限定：正常登录记录一律保留为“未恢复”，需经正常登录入口重新启动；假 API 恢复合同不变。该拒绝已用独立旧探针及实际 recover 局部合同取得红绿，不代表原生 OS／恢复验收已完成。
 夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
-最新修正、OS 验证与恢复回归命令见 [交接请求 18](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-18.md)；
+最新证据、逐场复核及第三轮审查范围见 [审查请求 19](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-19.md)；旧 OS 命令保留在请求 18，重复运行必须另选全新输出名。
 共享调用点与 T-091／T-078／T-096 回归命令仍见 [请求 13](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-13.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
@@ -481,7 +481,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-旧残留已由主控清理。旧演练与 chain-07/08 仅属于各自候选；请求 16 的生产 443 profile 编译已在 7bba61000 通过，primary／green 因假 U 不能监听本地 443 而失败。当前须按请求 18 用同一生成器的测试端口重新验证，不沿用旧链路 PASS。
+旧残留已由主控清理。旧演练与 chain-07/08 仅属于各自候选；请求 16 的生产 443 profile 编译通过，primary／green 因假 U 不能监听 443 而失败。请求 18 随后在 57c3bfb63 以同一生成器的 18443 测试端口通过编译、完整链与六场核对；最新原件／限制见请求 19。
 演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
 正式六场的预期业务断言与命令在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
 
@@ -492,7 +492,7 @@ C/F 对认证源的拒读拒写不变。D 先读回 C 已 fsync 的 cleanup_pend
 最终 all_exited 必须与每条最终 group／child 退出记录一致；`node workbench/tests/test_t093_writer_exit.mjs 新输出.json` 检查先前 ESRCH 后最终 EPERM 的时序，任一未确认行禁止删除。
 所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
 结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
-processInfo 影响所有 pane：窗口输入、放行／中断、反馈和 hook／Stop 身份重查。合并后 T-091 IPC、T-078 及 T-096 纯恢复合同回归通过；T-096 原生 tracer、three、四个故障及 empty-reopen 仍待逐屏批准实跑，失败交主控重开 T-096，不能沿用旧 PASS。
+processInfo 影响所有 pane：窗口输入、放行／中断、反馈和 hook／Stop 身份重查。T-091 IPC／版本、T-078 runtime／relay 和 observer／alias 已补本轮局部回归；T-096 原生七场由主控逐屏批准后直接调用原 runner，均 PASS，模型与 fake POST 为 0。详细业务复核与原件位置见请求 19；局部替身不等于额外的原生 T-078 材料回放或全 pane 生产验证。
 
 ## Electron 窗口
 
@@ -628,7 +628,7 @@ start_offset、next_offset、total_bytes；每块最多 65536 字节，从同一
 新窗口从 0 补回，已有窗口收到 xterm 的解析完成回调才推进游标；缺失、缩短或错序
 明确报错，不跳过字节。关掉 Electron 只断开视图，后台和窗格由独立进程托管。
 
-后台重启会追加 `pane_recovered`。主控窗格按启动记录的原 argv 重建 PTY 并续接原会话（T-096，用户裁定 B）；
+后台重启会追加 `pane_recovered`。假 API 主控窗格按启动记录的原 argv 重建 PTY 并续接原会话（T-096，用户裁定 B）；正常登录主控明确保留为“未恢复”，需从正常登录入口重新启动，不在 recover 重建受保护生命周期。
 worker 窗格只作历史查询并显示“未恢复”，不重建 PTY、令牌、队列，也不改它的 attempt。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
 窗格退出回调会最后增量读取已绑定的原生会话文件，再记录 pane_exit；主动停止和后台
 停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、

@@ -1,0 +1,32 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "Preserved reader-development diagnostics; not native/product failures",
+  "events": [
+    {
+      "artifact": "receipt-summary-diagnostic-19.json",
+      "reason": "OS collector initially assumed drop mutant ledger/model_requests=2; expected actual 1 with upstream 2, corrected."
+    },
+    {
+      "artifact": "t096-business-recheck-19-02.json",
+      "reason": "Tried to read pane_layout as saved CLI stdout, but original runner uses direct Unix socket; final code reads stopped layout event archive."
+    },
+    {
+      "artifact": "t096-business-recheck-19-03.json",
+      "reason": "Rejected WAL presence before reading it; final reader preserves complete DB+WAL on a disposable copy."
+    },
+    {
+      "artifact": "readonly-WAL-probe-19.json",
+      "reason": "Owned synthetic probe showed immutable=1 did not observe a WAL-only table; no original was opened by this probe."
+    },
+    {
+      "missing_output": "t096-business-recheck-19-04.json",
+      "exit": 1,
+      "reason": "mode=ro on a copied WAL-mode database with no sidecar failed before result publication; sqlite-copy-diagnostic-19.json preserves source-type/mode diagnosis."
+    },
+    {
+      "artifact": "t096-business-recheck-19-06.json",
+      "reason": "Final one-path reader: private DB+WAL copy, mode=rw with query_only=ON; explicit close before removal. Seven native cases and seven in-memory counterexamples PASS."
+    }
+  ],
+  "originals": "T096 run/archive/external originals never modified; no live PID/CLI/auth/OS/model operations."
+}

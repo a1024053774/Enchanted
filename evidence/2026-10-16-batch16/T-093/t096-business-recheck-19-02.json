@@ -1,0 +1,93 @@
+{
+  "status": "INCOMPLETE",
+  "candidate": "57c3bfb634b6908be968fcb88090293ed5d4dd65",
+  "source": "controller #127 direct run_restart.py invocations; wrapper not used",
+  "scope": "Read-only business recount of controller-run native T096 receipts; no processes.",
+  "cases": [
+    {
+      "case": "tracer",
+      "status": "INCOMPLETE",
+      "error_type": "AssertionError",
+      "error": "required_saved_business_command_missing"
+    },
+    {
+      "case": "three",
+      "status": "INCOMPLETE",
+      "error_type": "AssertionError",
+      "error": "required_saved_business_command_missing"
+    },
+    {
+      "case": "no-argv",
+      "status": "INCOMPLETE",
+      "error_type": "AssertionError",
+      "error": "required_saved_business_command_missing"
+    },
+    {
+      "case": "version",
+      "status": "INCOMPLETE",
+      "error_type": "AssertionError",
+      "error": "required_saved_business_command_missing"
+    },
+    {
+      "case": "no-session",
+      "status": "INCOMPLETE",
+      "error_type": "AssertionError",
+      "error": "required_saved_business_command_missing"
+    },
+    {
+      "case": "isolation",
+      "status": "INCOMPLETE",
+      "error_type": "AssertionError",
+      "error": "required_saved_business_command_missing"
+    },
+    {
+      "case": "empty-reopen",
+      "status": "INCOMPLETE",
+      "error_type": "AssertionError",
+      "error": "required_saved_business_command_missing"
+    }
+  ],
+  "counterexamples": [
+    {
+      "mutation": "native_argv",
+      "case": "tracer",
+      "rejected": true,
+      "business_failure": "native_argv_every_field"
+    },
+    {
+      "mutation": "attempt",
+      "case": "three",
+      "rejected": true,
+      "business_failure": "worker_attempt_must_not_change"
+    },
+    {
+      "mutation": "fault",
+      "case": "version",
+      "rejected": true,
+      "business_failure": "fault_must_refuse_exact_error_before_success"
+    },
+    {
+      "mutation": "history",
+      "case": "tracer",
+      "rejected": true,
+      "business_failure": "independent_native_history_must_be_visible"
+    },
+    {
+      "mutation": "empty",
+      "case": "empty-reopen",
+      "rejected": true,
+      "business_failure": "empty_reopen_must_have_no_panes_or_keys"
+    },
+    {
+      "mutation": "empty_task",
+      "case": "empty-reopen",
+      "rejected": true,
+      "business_failure": "empty_reopen_raw_task_must_not_change"
+    }
+  ],
+  "limitations": [
+    "Saved facts only; no new PID/CLI/OS/network/auth operations.",
+    "History is fixture-seeded, not vendor/model-generated.",
+    "Original T096 run/archive/external files are read only and remain outside this delivery."
+  ]
+}
