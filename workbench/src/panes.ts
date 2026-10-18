@@ -1,5 +1,5 @@
 import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
@@ -22,6 +22,31 @@ const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
 const shellCommand = (argv: string[]) => argv.map(quote).join(" ");
 function check(value: unknown, error: string, details?: unknown): asserts value {
   if (!value) throw new Refusal(error, details);
+}
+function requireFakeControllerRestore(record: Record<string, any>) {
+  const env = record.env && typeof record.env === "object" && !Array.isArray(record.env) ? record.env : {};
+  // T-093: a missing authentication field must not downgrade a protected
+  // launch. Any surviving normal-login marker requires a fresh protected start.
+  const normal = record.authentication === "isolated normal login" ||
+    typeof record.role_card_revision === "string" && record.role_card_revision.startsWith("T-093/normal-login/") ||
+    record.login_audit_directory !== undefined || record.login_preflight_file !== undefined ||
+    record.hook_authorization === "T-093/controller-start" || env.A2A_PROFILE_PROCESS_LOG !== undefined ||
+    [env.HOME, env.CLAUDE_CONFIG_DIR].some(value => typeof value === "string" && value.startsWith("/private/tmp/a2a-claude-login-")) ||
+    typeof env.NODE_OPTIONS === "string" && env.NODE_OPTIONS.includes("claudeLoginProcessTrace");
+  check(!normal, "normal_login_restore_requires_protected_start");
+  // T-096's existing P1 contract is positive evidence, including for legacy
+  // records without authentication. Unknown profiles never execute a CLI here.
+  const base = typeof env.ANTHROPIC_BASE_URL === "string" && /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})$/.exec(env.ANTHROPIC_BASE_URL);
+  const temporary = (value: unknown) => typeof value === "string" && value.startsWith("/private/tmp/") &&
+    !value.includes("\0") && resolve(value) === value;
+  check(record.role === "controller" && record.cli === "Claude Code" && ["ideation", "executor"].includes(record.preset) &&
+    (record.authentication === undefined || record.authentication === "isolated fake API only") &&
+    record.role_card_revision === "T-078-2/P1" && record.shell === "/bin/zsh" &&
+    env.ANTHROPIC_AUTH_TOKEN === "a2a-fixture-key-not-a-secret" && base && Number(base[1]) <= 65535 &&
+    new URL(env.ANTHROPIC_BASE_URL).origin === env.ANTHROPIC_BASE_URL &&
+    temporary(env.HOME) && temporary(env.CLAUDE_CONFIG_DIR) && env.NODE_OPTIONS === undefined &&
+    env.ANTHROPIC_API_KEY === undefined && env.CLAUDE_CODE_OAUTH_TOKEN === undefined,
+    "restore_record_unrecognized");
 }
 export function spawnHelper() {
   const lib = dirname(require.resolve("node-pty"));
@@ -238,11 +263,7 @@ export class Panes implements GateRuntime {
         // T-096 decision B: worker/reviewer attempts retain their gate-owned
         // runtime binding. Restoration must neither spawn nor mutate an attempt.
         check(record.attempt === null, "restore_managed_attempt_requires_reclaim");
-        check(record.role === "controller" && record.cli === "Claude Code" &&
-          ["ideation", "executor"].includes(record.preset), "restore_controller_required");
-        // T-093: normal-login restoration cannot reconstruct R/F/D/C here.
-        // Require a fresh protected start until that lifecycle has its own ticket.
-        check(record.authentication !== "isolated normal login", "normal_login_restore_requires_protected_start");
+        requireFakeControllerRestore(record);
         const previous = this.store.lastEvent(record.id, ["pane_started", "pane_restored"]);
         if (Number.isSafeInteger(previous?.data.shell_pid) && previous!.data.shell_pid > 1) {
           try {

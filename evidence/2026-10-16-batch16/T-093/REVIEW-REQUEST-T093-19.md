@@ -1,5 +1,7 @@
 # T-093 第三轮独立审查请求
 
+第三轮已对 788d75f4a 给出 NO_GO，原文 independent-review-03.md 不改。主控 #129 要求恢复默认拒绝，仅白名单假 API 合同可继续；当前修正与新 T-096 七场命令见 [请求 20](REVIEW-REQUEST-T093-20.md)。以下保留原请求／旧版本状态，不作为新候选恢复通过。
+
 **READY-FOR-REVIEW；整票状态 INCOMPLETE，待第三轮独立审查及唯一门禁验收／集成。** 本请求提交给执行主控安排全新只读 reviewer，不用 worker 的事实复核代替独立审查。task T-093 / attempt a1；worker s16-t093；session 67f986cc-92e4-4089-9c22-802a1143b645、native 01a14ae2-a3df-7731-a7b0-1b679b3bce95、launch-45148b6732394eccab3b21224b238513；执行配置 codex-cli 0.163.0／gpt-6.1-sol／xhigh，不把配置当作供应商实际 tier 证明。
 
 冻结候选为本轮末行 `T-093 READY-FOR-REVIEW <完整 SHA>`。运行证据绑定 57c3bfb634b6908be968fcb88090293ed5d4dd65，本轮 **workbench/src 与 workbench/tests 未变**；T096-REGRESSION-16.sh 仅改一行 output 前缀 T-093→T-096，与主控实际通过的直接命令一致。其余新增均为证据核对／文档。旧 source/worker 候选与旧 FAIL 报告不改、不代替新审查；不 push、不 rebase、不改门禁／地图／验收文件或全局配置。本票不跑真实模型，合入后仍须用户另说开工。

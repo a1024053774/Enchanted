@@ -1,0 +1,94 @@
+{
+  "status": "PASS",
+  "scope": "actual Panes.recover/store/native file; supplied subprocess and PTY; no CLI/auth/OS execution",
+  "cases": [
+    {
+      "label": "normal",
+      "operations": [],
+      "event": "pane_restore_failed",
+      "error": "normal_login_restore_requires_protected_start",
+      "history_unchanged": true,
+      "cli_calls": 0,
+      "pty_calls": 0,
+      "contract_pass": true
+    },
+    {
+      "label": "normal-auth-missing",
+      "operations": [],
+      "event": "pane_restore_failed",
+      "error": "normal_login_restore_requires_protected_start",
+      "history_unchanged": true,
+      "cli_calls": 0,
+      "pty_calls": 0,
+      "contract_pass": true
+    },
+    {
+      "label": "fake",
+      "operations": [
+        {
+          "label": "fake",
+          "kind": "cli-version",
+          "argv": [
+            "/usr/bin/true",
+            "--version"
+          ]
+        },
+        {
+          "label": "fake",
+          "kind": "pty-spawn",
+          "shell": "/bin/zsh",
+          "argv": [
+            "-f",
+            "-i",
+            "-c",
+            "'/usr/bin/true' '--resume' 'bc246802-19d3-46dd-be6c-6bd36c18ca19' '--model' 'sentinel-45ae9ce8-49b8-457d-852e-0723c5328909' '--settings' '{\"hooks\":{},\"sentinel\":\"a b\"}'; exec /bin/zsh -f -i"
+          ]
+        },
+        {
+          "label": "fake",
+          "kind": "process-query"
+        }
+      ],
+      "event": "pane_restored",
+      "error": null,
+      "history_unchanged": true,
+      "cli_calls": 1,
+      "pty_calls": 1,
+      "contract_pass": true
+    },
+    {
+      "label": "legacy-fake",
+      "operations": [
+        {
+          "label": "legacy-fake",
+          "kind": "cli-version",
+          "argv": [
+            "/usr/bin/true",
+            "--version"
+          ]
+        },
+        {
+          "label": "legacy-fake",
+          "kind": "pty-spawn",
+          "shell": "/bin/zsh",
+          "argv": [
+            "-f",
+            "-i",
+            "-c",
+            "'/usr/bin/true' '--resume' '794d6d8e-af4a-4bf8-9a51-e5cb877aec7b' '--model' 'sentinel-a8338131-06f0-40d9-bce8-dab5ecdcd71d' '--settings' '{\"hooks\":{},\"sentinel\":\"a b\"}'; exec /bin/zsh -f -i"
+          ]
+        },
+        {
+          "label": "legacy-fake",
+          "kind": "process-query"
+        }
+      ],
+      "event": "pane_restored",
+      "error": null,
+      "history_unchanged": true,
+      "cli_calls": 1,
+      "pty_calls": 1,
+      "contract_pass": true
+    }
+  ]
+}
