@@ -500,8 +500,8 @@ start_offset、next_offset、total_bytes；每块最多 65536 字节，从同一
 新窗口从 0 补回，已有窗口收到 xterm 的解析完成回调才推进游标；缺失、缩短或错序
 明确报错，不跳过字节。关掉 Electron 只断开视图，后台和窗格由独立进程托管。
 
-后台重启会追加 `pane_recovered`，原窗格只作历史查询，不重建 PTY、令牌、队列或
-worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
+后台重启会追加 `pane_recovered`。主控窗格按启动记录的原 argv 重建 PTY 并续接原会话（T-096，用户裁定 B）；
+worker 窗格只作历史查询并显示“未恢复”，不重建 PTY、令牌、队列，也不改它的 attempt。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
 窗格退出回调会最后增量读取已绑定的原生会话文件，再记录 pane_exit；主动停止和后台
 停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、
 截断、解析失败或未完成的一行记为 native_final_read_failed，保留读到的位置，窗格
@@ -512,7 +512,8 @@ worker。已有 pane_exit 可证明停止时执行显示“已中断”；没有
 `test_stopped_readback.py` 重放三个停止后直读原库失败的夹具。
 门禁状态原值保留，因此“门禁已认领”和“执行已中断”可以同时出现。原 verify/integrate
 命令显式重放才执行恢复，启动或读取窗口不能把未知结果改成通过。
-崩溃残留的 socket/PID 文件阻止启动；产品不会按 PID 猜测所有者并自动接管。
+崩溃残留的 socket/PID 文件：能证明所有者已退出、端点已死的，允许重启（T-096）；所有者存活或未知、端点仍活着的，
+仍然阻止启动，产品不会按 PID 猜测所有者并自动接管。
 
 默认产品路径为 `~/Library/Application Support/a2a-orchestrator`；本卡测试只用显式
 `--state /tmp/...`，不创建默认路径，不接触正式 `a2a-workbench` 目录。
