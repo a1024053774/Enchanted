@@ -2,6 +2,7 @@
 
 **INCOMPLETE：局部红绿与严格反例通过；新 counts 单场及 V 独立核对待主控在沙箱外运行。**
 候选绑定最终 `T-093 FROZEN <完整 SHA>`。task T-093 / attempt a1，worker s16-t093；session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
+最终实现冻结 ae54aac378d7e646b8677e1763cf604ef8a182c4，限定复核 [UPSTREAM-SHUTDOWN-REVIEW-02.md](UPSTREAM-SHUTDOWN-REVIEW-02.md) 确认原 P1 的 L1 缺口关闭；实际 OS/V 仍为 INCOMPLETE。此后只补文本证据，运行代码未改。命令仍使用最后 FROZEN 的完整 SHA。
 
 主控 #116 已在 079842e8b 完成 primary04、green04、演练核对及正式六场。primary 命中预定主动失败，两条完整 JSON 均匹配；green 和演练核对通过。正式 none 通过，五个变异均命中预定业务断言，但 counts 收尾有一项未确认，因此原六场核对仍为 INCOMPLETE。
 原件摘要见 chain-07-validation-summary.json，原独立结论 chain-07-check.json、rehearsal-04-check.json；原失败不覆盖。
