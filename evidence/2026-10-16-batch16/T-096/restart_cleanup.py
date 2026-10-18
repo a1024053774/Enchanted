@@ -17,6 +17,14 @@ import uuid
 
 
 
+def dead_endpoint_rejection(exit_code, reply, *, epoch, credential_exists):
+    # This exact structured refusal is observed on the frozen baseline before
+    # credential creation/spawn. Timeouts and other startup errors stay unknown.
+    return (epoch==2 and exit_code==1 and reply.get('ok') is False and
+        reply.get('error')=='daemon_call_failed' and
+        reply.get('details')=='Error: socket exists; query its owner, do not replace it' and not credential_exists)
+
+
 def probe_process(pid, *, run=None):
     if not isinstance(pid,int) or isinstance(pid,bool) or pid<=0:
         raise RuntimeError('positive process PID required')

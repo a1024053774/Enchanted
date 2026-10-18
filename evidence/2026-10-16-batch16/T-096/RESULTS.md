@@ -1,10 +1,22 @@
 # T-096-1 当前交付记录
 
-**INCOMPLETE**：`-01` 残留已由主控收尾、归档，收尾操作 PASS；`red-b-02` 与 `tracer-b-02` 均在第一轮后台故障注入阶段失败，尚未到达重启读回。修复后的 `-03` 及 `-02` 只读归档命令待主控运行。原失败摘要保持不变。
+**INCOMPLETE**：`-02` 归档已由主控执行 PASS；`red-b-03` 是 main 死端点阻止重启的真实缺陷证据，但原运行预期未声明、收尾不全，原摘要仍保留 INCOMPLETE。`tracer-b-03` 已进入第二轮并核对实际 argv，历史 nonce 未出现；原件显示仍在主题引导屏。`-04` 先经原生逐屏批准完成隔离 profile，再重试同一严格历史断言，不据局部检查宣布恢复通过。
 
 当前范围以主控 #89 转达和 main `8cf91b26e` 的 T-096“裁定”节为准：只恢复两个主控；worker 保留为“未恢复”，不启动 CLI、不重绑定、不改 attempt。不修改 `workbench/src/gates/`。主控 #88 允许先完成不依赖门禁裁定的路径。
 
 主控没有跨重启的固定 PID 绑定：`Panes.controllerLaunch()` 返回的身份不含 PID；`caller()` 在单次请求内固定当次 leader（`panes.ts` 的 controller 分支），daemon 的 `assertCurrent()` 核对当次前台进程；`core.ts:340` 的 `registerController()` 只核对 task/project/spec_rev。worker 的旧 PID 绑定留在 `core.ts:2485`，没有改动。
+
+2026-10-18 主控 #93 的实跑、原件诊断与最小探针：
+
+- `archive-failed-02.run.json` **PASS**：red-b-02 83 文件／3,921,063 字节，tracer-b-02 82 文件／2,898,979 字节；只读归档、comparison true，明确排除死 socket 与 operator 私密文件。两份 `*-archive-failed-02.archive.json` 和现有摘要一起提交。
+- `diagnosis-03.json` 保存原件诊断。red-b-03 的 command-47 返回 `ok:false, error:daemon_call_failed, details:"Error: socket exists; query its owner, do not replace it"`；未创建 operator-2 或第二轮收据，原 daemon.pid 仍指向 26509。调用在 main 的 transport 检查 socket 存在处，早于新凭据／进程创建，是本票重启路径应修的真实红态。主控事后确认七 PID 退出，本 worker 未执行实时 PID／socket 探测。
+- red-b-03 的实际 argv 再次未带旧可选 `--expect-red`；旧 runner 因而按恢复成功场景运行，先前预清理端点的另一分支还会掩盖此缺陷。现在改成必填 `--expect red|restore`，不预清理端点。只有显式 red 模式、已观察到的精确拒绝、无新凭据、全部原 PID 退出以及 socket 确认死亡才接纳该红态；观测行为记 NO_GO，探针自身成功为 PASS，未知启动失败不接纳。
+- tracer-b-03 实际到达 epoch 2，实际 PID、task／role／launch、原记录与内核 argv 核对 PASS，cleanup true、fake POST 0。`ideation.resumed-view.json` 中仍显示 `Choose the text style...`；隔离 `.claude.json` 的 hasCompletedOnboarding／theme 未设置，debug 明确记录 workspace trust not accepted。第二轮约 9 秒的窗口读回末尾仍是主题引导阶段；不能把缺 nonce 归为单纯读屏太早，也不能据此判定原生 JSONL 语法或 --resume 目标错了。
+- 官方 [CLI 参考](https://code.claude.com/docs/en/cli-reference) 说明 --resume 按 ID 恢复；实际 2.1.302 是否载入本夹具仍须原生内容读回证明。当前不改变合成历史格式、不扩大 nonce 等待、不放宽 nonce 断言。
+- REALITY GATE: INCOMPLETE。GOAL：证明已初始化的隔离 CLI 用原参数恢复原历史；NON-GOALS：不真实登录、不写全局配置、不伪造 onboarding/trust 状态、不改门禁。OBSERVED：theme 引导尚未完成；UNKNOWN：引导完成后此 JSONL 是否被 CLI 接纳、历史如何显示。PROBE：执行主控运行 tracer-b-04，经现有逐屏批准入口完成初始化；继续同一 nonce／实际 argv／0 POST 断言。任何新引导拒绝或无 nonce 保存原件并停止该候选；OWNER：执行主控实跑，本 worker 提供脚本。DECISION CONSEQUENCE：先补最小原生探针，不以假想格式修复替代实际证据。
+- 新 `startup_controls.py` 绑定 launch／session／目录／原始屏幕和批准依据，沿用 pane_screen_key。trust 后须另读原生就绪屏并批准一次空队列 pane_release，避免按键刚送达即杀后台。runner 限时等待 trust-Enter 及其后的 initial_release，不自行按键；两个事件只是测试前置条件，不是恢复结论。过程文件在外置盘，每屏批准新建，不复用其他场景。
+- `red-startup-contract-06.json` **PASS**：替代边界验证精确红态与未知失败隔离、预期必填、基线端点不被预清理、批准模板不产生动作、单次绑定按键、空队列就绪放行、等待期限／零模型预算、主题屏不能替代历史；把 nonce 断言改为恒真或原候选不接纳真实红态均被拒绝。`-02` 的 source 变量缺失为局部夹具适配失败，保留记录。
+- `restart-cleanup-contract-09.json` **PASS**：已验证红态可确认退出并归档、保留死端点／私密源文件；不把未知启动当作已退出。`archive-03-contract-04.json` **PASS**：固定 red-b-03 只读归档入口、失败交接对象与既有 -02 用例保持约束；`runner-materials-startup-02.json` **PASS**。archive 局部 `-03` 的存活 PID 替身仍写死 -02 PID，属于测试适配失败，已修正并保留失败记录。均未执行真实 `-04` 或旧 red-b-03 归档。
 
 2026-10-18 主控 #91 的实跑、原件核对与退出探针修复：
 
@@ -38,7 +50,7 @@
 
 `static-checks-b-01.json` 的语法、编码、修改范围和项目地图检查 **PASS**（0 problems、0 stale living docs）。Claude 启动版本与 driver 选择局部回归分别见 `t091-version-regression-b-01.json`、`driver-selection-b-01.json`，均 PASS，适用范围仍为替代边界。
 
-尚未完成：两个 `-02` 夹具的真实只读归档、`-03` 的真实单格与三格重启、三个独立故障和失败隔离、真实 CLI 历史读回、完整 GUI 回归、独立审查、门禁 submit。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
+尚未完成：red-b-03 的真实只读归档、`-04` 的真实单格与三格重启及原生历史验证、三个独立故障和失败隔离、真实 CLI 历史读回、完整 GUI 回归、独立审查、门禁 submit。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
 
 下列为第一轮 WIP 的原始局部证据，保留其适用范围：
 

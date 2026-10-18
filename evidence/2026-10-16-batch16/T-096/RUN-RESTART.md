@@ -1,22 +1,20 @@
 # T-096：执行主控真实重启验证
 
-状态：**INCOMPLETE**。`-01` 两场的残留已由主控收尾并归档，收尾结果 PASS；`red-b-02`、`tracer-b-02` 仍在第一次后台故障注入阶段失败，没有到达重启读回。下一步先只读核对并归档 `-02`，再用 `-03` 新标签重跑。
+状态：**INCOMPLETE**。`-02` 归档已由主控执行 PASS；`red-b-03` 记录了 main 的死端点启动拒绝，但旧 runner 未接纳此类红态、未归档。`tracer-b-03` 已到 epoch 2，严格历史 nonce 断言失败；原件显示 CLI 停在首次主题引导屏，尚无原生历史加载成功的证据。先归档 red-b-03，再跑显式选择预期结果的 `-04`。
 
-候选先冻结成提交；运行使用新 label、外置盘输出目录和构建槽，不覆盖旧运行。执行主控确认没有另一场隔离 Electron 验证同时运行；脚本只操作自己的 PID。原 `cleanup_failed_01.py` 已执行完成，不再作为当前步骤重跑；记录为 `cleanup-failed-01.run.json` 和两份 `*-cleanup-failed-01.archive.json`。
+候选先冻结成提交；新 label／外置盘输出／构建槽不覆盖旧运行。`--expect red|restore` 现在必填，漏传会在资源启动之前退出。red 模式保留死端点去测试真实重启，不预先删除端点掩盖缺陷；仅识别原件中明确的、发生在新凭据和进程创建之前的拒绝。超时、其他报错或新 epoch 身份不明仍为 INCOMPLETE。
 
-本次固定归档命令（无新 daemon／CLI／Electron，无信号、停止命令或源目录写入）：
+固定旧场景的只读归档（无新 CLI／agent、信号或源目录写入）：
 
 ```sh
-python3 evidence/2026-10-16-batch16/T-096/archive_failed_02.py --label archive-failed-02 --approval-ref '执行主控 T-096 #8：只读核对并归档 red-b-02、tracer-b-02'
+python3 evidence/2026-10-16-batch16/T-096/archive_failed_02.py --case red-b-03 --label archive-red-b-03 --approval-ref '执行主控 T-096 #10：只读核对并归档 red-b-03'
 ```
 
-它只接受 `/private/tmp/t078-2-t096-dkri52ul` 和 `/private/tmp/t078-2-t096-j4p4ocqz`，并把原摘要／ownership.jsonl 与主控给定的 14 个 PID 核对。所有 PID 须不存在，端点须缺失或为原 daemon 的死端点；Unix socket 探测只接受 ECONNREFUSED，其他状态均停止。复制前后再次核对；存活 PID、活动／未知端点、后续 epoch 或已有归档均拒绝，不接管、不覆盖。
+该 case 只接受 `/private/tmp/t078-2-t096-7sh2mwtq` 的七个原 PID。`--case 02-pair` 是已完成的两场 `-02` 归档入口，不要重跑已有归档。归档保留全部原件；只排除不能复制的死 socket 与私密 operator 凭据，清单列明范围，其余文件核对数量／字节／路径和 symlink 原始目标。活动或未知端点、存活 PID、后续 epoch、已有归档均拒绝。
 
-源目录所有内容保留不变。死 `state/control.sock` 不能作为普通文件复制，私有 `operator-1.json` 不得进入证据，因此只排除这两个明确路径，在 preflight／清单记录其元数据和理由；凭据内容不读取。其余文件复制到原外置盘 run 的 `fixture/`，逐项比较路径、文件数、字节数与 symlink 原始目标文本；源目录对应部分也须在复制后保持不变。清单的 comparison_scope 明确不含排除项，不冒称连同私密凭据及 socket 的整树完全相同。
+restore 模式先完成真正的原生引导：runner 输出一条 `WAITING_FOR_STARTUP_APPROVAL` 和 context 路径，在声明期限内等执行主控逐屏批准。原 `workbench/README.md` 要求“启动、每屏明确按键、continue、cleanup 分别审批”；本流程没有预先批准 Enter，也不写 hasCompletedOnboarding 或 trust 内部标志。按键只走现有 `pane_screen_key`，一次批准一个原始屏幕。
 
-runner 的进程探针统一为单次已记录读回：rc 1 且 stdout／stderr 均为空时返回“已退出”；非空诊断、其他退出码、错误格式仍报错。身份检查与发信号之间若发生 ProcessLookupError，同样记为已退出，不重试信号；权限错误仍抛出。非阻塞 stdout、计划内退出、逐阶段收尾及未知启动的 handoff 沿用已验证路径。所有新发现的写入者在故障注入前追加落盘身份。
-
-每场预算及收尾规则写在 `run_restart.py` 开头。真实 Claude 版本配置为 2.1.302；不传模型提示词、不输入终端按键、不登录。三格为两个真实 Claude 主控，加一个受控 C receiver 替代 Codex 的 worker。杀掉本场 Electron、daemon、shell 与 CLI 后，第二次 Electron 不传 launch；窗格必须从保存集回来。worker 不启动第二个进程，其门禁 attempt 必须与重启前读回相等。
+每场预算及收尾规则写在 `run_restart.py` 开头。真实 Claude 版本配置为 2.1.302；不传模型提示词、不登录。restore 首轮每个主控至多六个逐屏批准的初始化键，以及一次空队列的就绪放行；red 不发键。三格为两个真实 Claude 主控，加一个受控 C receiver 替代 Codex 的 worker。杀掉本场 Electron、daemon、shell 与 CLI 后，第二次 Electron 不传 launch；窗格必须从保存集回来。worker 不启动第二个进程，其门禁 attempt 必须与重启前读回相等。
 
 脚本通过 `controller_start` 创建启动记录；缺 argv 和错误版本在停止后的隔离 `launch_records` 中注入，不修改门禁拥有的 tasks/attempts；缺 session 保存原件后使目标不可用。恢复仍经过生产 daemon 入口，失败窗格须在真实 Electron 中只读显示“未恢复”，不能出现 `pane_restored` 事件。
 
@@ -27,18 +25,51 @@ runner 的进程探针统一为单次已记录读回：rc 1 且 stdout／stderr 
 先跑 main 红态和候选单格 Tracer bullet；单格成立后再跑三格和故障。示例：
 
 ```sh
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/red-b-03 --label red-b-03 --approval-ref T-096-main-red --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect-red
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/tracer-b-03 --label tracer-b-03 --approval-ref T-096-controller-tracer --claude CLAUDE --claude-version 2.1.302 --panes 1 --check-close
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/three-b-01 --label three-b-01 --approval-ref T-096-controller-three --claude CLAUDE --claude-version 2.1.302 --panes 3 --check-close
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/red-b-04 --label red-b-04 --approval-ref T-096-main-red --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect red
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/tracer-b-04 --label tracer-b-04 --approval-ref T-096-controller-tracer --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --check-close
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/three-b-01 --label three-b-01 --approval-ref T-096-controller-three --claude CLAUDE --claude-version 2.1.302 --panes 3 --expect restore --startup-wait-seconds 600 --check-close
 ```
+
+单格 tracer 命令会先停在引导等待。让该命令保持运行，在另一个主控终端读取打印出的 context（例如外置盘 `tracer-b-04/ideation.startup.json`），执行：
+
+```sh
+python3 evidence/2026-10-16-batch16/T-096/startup_controls.py capture --context /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/tracer-b-04/ideation.startup.json --name theme-auto-01
+```
+
+capture 输出 `.screen.json`、仅供查看的 `.txt`、原始 `.raw` 和批准模板。执行主控读取实际屏幕，将模板另存为本次批准文件；逐字填入 approved_by=`executor`、本次 approval_ref、具体 basis，以及本屏的 key／purpose／selected_label。模板默认均为空，不产生批准。只有核对过当前原始屏幕后才能执行：
+
+```sh
+python3 evidence/2026-10-16-batch16/T-096/startup_controls.py key --screen SCREEN_JSON --approval-file 本次已填写的批准文件.json
+```
+
+每按一键重新 capture，使用新 name／新批准文件。现有门禁允许的初始化顺序如下；本表是操作清单，不能替代当前屏幕批准：
+
+| 次序 | purpose | key | selected_label |
+| --- | --- | --- | --- |
+| 1 | onboarding-theme | ArrowUp | Auto (match terminal) |
+| 2 | onboarding-theme | ArrowDown | Dark mode |
+| 3 | onboarding-theme | Enter | Dark mode |
+| 4 | onboarding-notice | Enter | Press Enter to continue… |
+| 5 | workspace-trust | ArrowDown | Yes, I trust this folder |
+| 6 | workspace-trust | Enter | Yes, I trust this folder |
+
+遇到不同文字、拒绝、登录或其他未批准屏幕，保存原始字节，停止按键，不换 purpose 或标志来绕过。runner 到期会收尾并报 INCOMPLETE。
+
+trust-Enter 后重新 capture（例如 name=`prompt-ready-01`），实际看到原生输入提示符且没有待处理引导后，填写另一份就绪批准：保留该模板中的 launch／session／directory／screen_id／screen_file，填写 approved_by=`executor`、本次 approval_ref 和具体 basis，并新增 action=`startup-ready`。key／purpose／selected_label 保持空。这一步沿用现有 `pane_release`，要求队列、active、writing 和用户草稿均为空，原始屏幕仍与批准相同；不写入终端键或模型提示词。执行：
+
+```sh
+python3 evidence/2026-10-16-batch16/T-096/startup_controls.py ready --screen 就绪屏幕.screen.json --approval-file 本次就绪批准.json
+```
+
+runner 必须同时读到 trust-Enter 写入事件和其后的 initial_release 才继续故障注入。这只是测试前置条件，最终仍要求实际进程 argv 逐字段相同、Electron 终端出现同一历史 nonce、fake POST 0。三格时 ideation 完成后依次等待 executor 的 context；每个 profile 各自批准，不能复用另一场批准。
 
 三个故障各用独立场景；最后一场同时验证一个主控失败、另一个主控继续恢复，worker 仍未恢复、attempt 不变：
 
 ```sh
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/no-argv-b-01 --label no-argv-b-01 --approval-ref T-096-no-argv --claude CLAUDE --claude-version 2.1.302 --panes 1 --fault missing-argv
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/version-b-01 --label version-b-01 --approval-ref T-096-version --claude CLAUDE --claude-version 2.1.302 --panes 1 --fault version-mismatch
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/no-session-b-01 --label no-session-b-01 --approval-ref T-096-no-session --claude CLAUDE --claude-version 2.1.302 --panes 1 --fault missing-session
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/isolation-b-01 --label isolation-b-01 --approval-ref T-096-isolation --claude CLAUDE --claude-version 2.1.302 --panes 3 --fault missing-argv
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/no-argv-b-01 --label no-argv-b-01 --approval-ref T-096-no-argv --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --fault missing-argv
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/version-b-01 --label version-b-01 --approval-ref T-096-version --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --fault version-mismatch
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/no-session-b-01 --label no-session-b-01 --approval-ref T-096-no-session --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --fault missing-session
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/isolation-b-01 --label isolation-b-01 --approval-ref T-096-isolation --claude CLAUDE --claude-version 2.1.302 --panes 3 --expect restore --startup-wait-seconds 600 --fault missing-argv
 ```
 
 输出与收尾：原始命令、argv、三份 snapshot、门禁 task 前后读回、API 请求和 Electron 事件保存在外置盘。仓库只写 `<label>.run.json` 摘要和 `<label>.archive.json` 清单。退出和身份无法核对时不归档，保留现场，按摘要中的 PID/路径由执行主控处理。正常结束时核对全部登记写入者退出，先删除本场临时 operator 凭据（不归档凭据内容），再复制夹具并比较文件数、字节数；其余原件保留。

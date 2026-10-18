@@ -65,7 +65,7 @@ def crash(source):
     return item
 
 
-def final_cleanup(source,unconfirmed=None):
+def final_cleanup(source,unconfirmed=None,expected_red=False):
     main=next(n for n in ast.parse(source).body if isinstance(n,ast.FunctionDef) and n.name=='main')
     final=next(n for n in main.body if isinstance(n,ast.Try)).finalbody
     item=observer(); actions=[]; stopped=False
@@ -89,12 +89,27 @@ def final_cleanup(source,unconfirmed=None):
         finish_cleanup=support.finish_cleanup,archive_fixture=lambda *args:dict(bytes=9,files=1,comparison=True),
         write_json=lambda *args:None,HERE=fixture,output=fixture,source=fixture,summary=fixture/'summary.json',
         api=None,requests=[],commands=[],sys=sys,json=json,shlex=__import__('shlex'))
+    if expected_red:
+        stopped=True
+        (fixture/'state').mkdir(); (fixture/'state/control.sock').write_bytes(b'dead IPC fixture'); (fixture/'operator-1.json').write_bytes(b'private fixture')
+        ns['daemon_live']=False
+        endpoints={'control.sock':{'state':'stale_socket'}}
+        ns['result']['expected_red']=dict(daemon=201,endpoints=endpoints)
+        ns['endpoint_state']=lambda *a:endpoints
+        def copy_view(root,destination,excluded):
+            assert set(excluded)=={'state/control.sock','operator-1.json'}
+            assert (root/'operator-1.json').exists() and (root/'state/control.sock').exists()
+            return dict(bytes=9,files=1,comparison=True)
+        ns['copy_view']=copy_view
     if unconfirmed=='electron': ns.update(observer=None,observer_start_unconfirmed=True)
     if unconfirmed=='daemon': ns.update(daemon_start_unconfirmed=True)
     tree=ast.fix_missing_locations(ast.Module(body=[Globals().visit(n) for n in final],type_ignores=[]))
     with contextlib.redirect_stdout(io.StringIO()): exec(compile(tree,'runner-finally','exec'),ns)
     if unconfirmed:
         assert 'daemon_stop' not in actions and not ns['result']['cleanup_complete'] and ns['result']['handoff'], 'Unconfirmed spawn must be handed back, never declared absent'
+        return
+    if expected_red:
+        assert 'daemon_stop' not in actions and ns['result']['cleanup_complete'] and (fixture/'operator-1.json').exists() and (fixture/'state/control.sock').exists(), 'Verified expected red must archive without changing its dead source endpoints'
         return
     assert 'daemon_stop' in actions, 'Confirmed dead Electron plus a layout diagnostic must still stop the daemon'
     assert ns['result']['cleanup_complete'], 'All absent writers must be archived after safe stop'
@@ -110,7 +125,8 @@ try:
     assert len(report.get('known_bad',{}))==2, 'Both reported defects must reject the known-bad runner'
     current=(FOLDER/'run_restart.py').read_text(encoding='utf-8')
     crash(current); final_cleanup(current)
-    final_cleanup(current,'electron'); final_cleanup(current,'daemon')
+    final_cleanup(current,'electron'); final_cleanup(current,'daemon'); final_cleanup(current,expected_red=True)
+    report['checks'].append('expected_red_archives_without_source_changes')
     report['checks'].append('unconfirmed_spawn_handoff')
     report['checks']+=['none_stdout_crash_fixed','finally_stops_daemon_after_layout_error','failed_run_stays_incomplete']
     for values,expected,eof in [([None],b'',False),([b'late bytes',None],b'late bytes',False),([b'tail',b''],b'tail',True),([BlockingIOError()],b'',False)]:

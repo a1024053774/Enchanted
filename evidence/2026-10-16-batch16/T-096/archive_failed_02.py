@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""CONTROLLER ONLY — archive exactly the two failed -02 fixtures from #91.
+"""CONTROLLER ONLY — archive only the fixed failed fixtures selected by --case.
 
 No CLI/daemon/Electron/model starts, signals, daemon_stop, keys or source writes.
 Read-only ps: <=56 PID queries (5s each); <=6 Unix endpoint probes (2s each).
-Require all 14 fixed, journal-bound PIDs absent. rc1 plus empty stdout/stderr
+Require all selected fixed, journal-bound PIDs absent. rc1 plus empty stdout/stderr
 means absent; all other errors stop. A live or unknown endpoint also stops.
 Copy the stopped fixture view and compare file counts/bytes/path entries; retain
 ALL original files. Dead control.sock cannot be copied as a regular file, and
@@ -35,6 +35,8 @@ TARGETS=[
     dict(label='red-b-02',fixture='/private/tmp/t078-2-t096-dkri52ul',daemon=15789,pids=[15789,15840,15841,15853,15864,15857,15858]),
     dict(label='tracer-b-02',fixture='/private/tmp/t078-2-t096-j4p4ocqz',daemon=16015,pids=[16015,16098,16099,16115,16200,16199,16208]),
 ]
+
+RED03=dict(label='red-b-03',fixture='/private/tmp/t078-2-t096-7sh2mwtq',daemon=26509,pids=[26509,26605,26607,26727,26759,26750,26751])
 
 
 def endpoint_state(fixture,daemon):
@@ -93,6 +95,7 @@ def copy_view(fixture,destination,excluded):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--case',choices=['02-pair','red-b-03'],required=True)
     parser.add_argument('--label',required=True); parser.add_argument('--approval-ref',required=True)
     args=parser.parse_args()
     if not args.label or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-_' for c in args.label): raise RuntimeError('invalid archive label')
@@ -100,7 +103,8 @@ def main():
     summary=HERE/(args.label+'.run.json')
     if summary.exists(): raise RuntimeError('choose a new archive label')
     output=BASE/args.label; output.mkdir(parents=True,exist_ok=False)
-    result=dict(status='INCOMPLETE',argv=sys.argv,approval_ref=args.approval_ref,targets=[],process_reads=0,model_turns=0,keys=[],source_writes=0)
+    selected=TARGETS if args.case=='02-pair' else [RED03]
+    result=dict(status='INCOMPLETE',argv=sys.argv,approval_ref=args.approval_ref,case=args.case,targets=[],process_reads=0,model_turns=0,keys=[],source_writes=0)
     plans=[]
     def require_absent(target):
         for pid in target['pids']:
@@ -108,7 +112,7 @@ def main():
             if result['process_reads']>56: raise RuntimeError('PID read budget exceeded')
             if probe_process(pid) is not None: raise RuntimeError('registered PID is present; no archive: '+str(pid))
     try:
-        for target in TARGETS:
+        for target in selected:
             fixture=Path(target['fixture']); folder=BASE/target['label']
             original=json.loads((HERE/(target['label']+'.run.json')).read_text(encoding='utf-8'))
             journal=[json.loads(line)['owner'] for line in (folder/'ownership.jsonl').read_text(encoding='utf-8').splitlines()]
@@ -147,7 +151,7 @@ def main():
         result['status']='PASS'
     except BaseException as error:
         result['error']=str(error); result['traceback']=traceback.format_exc()
-        result['handoff']=dict(reason=str(error),targets=TARGETS,ownership=str(output),policy='No source mutation, signal, stop request or overwrite; controller reconciliation required')
+        result['handoff']=dict(reason=str(error),targets=selected,ownership=str(output),policy='No source mutation, signal, stop request or overwrite; controller reconciliation required')
     finally:
         try: write_json(summary,result)
         except BaseException as error:

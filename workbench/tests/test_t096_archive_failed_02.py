@@ -25,8 +25,8 @@ def module(text):
     exec(compile(text,value.__file__,'exec'),value.__dict__); return value
 
 
-def exercise(text,scenario):
-    product=module(text); real_targets=product.TARGETS
+def exercise(text,scenario,case='02-pair'):
+    product=module(text); real_targets=product.TARGETS if case=='02-pair' else [product.RED03]
     home=Path(tempfile.mkdtemp(prefix='t096-archive-02-unit-',dir='/private/tmp'))
     product.HERE=home/'reports'; product.HERE.mkdir(); product.BASE=home/'evidence'; product.BASE.mkdir()
     targets=[]; originals={}; controls=set(); connect_calls=[]
@@ -46,11 +46,12 @@ def exercise(text,scenario):
         (folder/'ownership.jsonl').write_text(''.join(json.dumps(dict(owner=owner))+'\n' for owner in ownerlist),encoding='utf-8')
         for path in [fixture/'repo/value.txt',fixture/'state/daemon.pid',control,credential]: originals[path]=path.read_bytes()
     if scenario=='later-epoch': (Path(targets[0]['fixture'])/'operator-2.json').write_bytes(b'unread new epoch')
-    product.TARGETS=targets
+    if case=='02-pair': product.TARGETS=targets
+    else: product.RED03=targets[0]
     reads=[]
     def probe(pid):
         reads.append(pid)
-        if scenario=='live-pid' and pid==15840: return dict(pid=pid,started='still live',command='still live')
+        if scenario=='live-pid' and pid==(15840 if case=='02-pair' else 26605): return dict(pid=pid,started='still live',command='still live')
         return None
     product.probe_process=probe
     real_lstat=Path.lstat
@@ -68,12 +69,12 @@ def exercise(text,scenario):
             if scenario=='live-endpoint': return 0
             if scenario=='unknown-endpoint': return errno.EACCES
             return errno.ECONNREFUSED
-    with patch.object(product.os.path,'ismount',return_value=True),patch.object(product.socket,'socket',return_value=Client()),patch.object(Path,'lstat',lstat),patch.object(sys,'argv',['archive_failed_02.py','--label','archive-test','--approval-ref','local supplied probes']):
+    with patch.object(product.os.path,'ismount',return_value=True),patch.object(product.socket,'socket',return_value=Client()),patch.object(Path,'lstat',lstat),patch.object(sys,'argv',['archive_failed_02.py','--case',case,'--label','archive-test','--approval-ref','local supplied probes']):
         with contextlib.redirect_stdout(io.StringIO()): rc=product.main()
     if scenario=='normal':
         assert rc==0, 'Absent writer fixture must archive successfully'
         report=json.loads((product.HERE/'archive-test.run.json').read_text(encoding='utf-8'))
-        assert report['source_writes']==0 and report['process_reads']==42
+        assert report['source_writes']==0 and report['process_reads']==21*len(targets)
         for item in report['targets']:
             assert item['files']==3 and item['bytes']==25, 'Archive must contain independent fixture payload and literal symlink bytes only'
             copied=product.BASE/item['label']/'fixture'
@@ -84,10 +85,12 @@ def exercise(text,scenario):
             assert set(manifest['excluded'])=={'operator-1.json','state/control.sock'} and manifest['comparison']
     else:
         assert rc==1 and not any((product.BASE/t['label']/'fixture').exists() for t in targets), 'Live/unknown/later run must remain unarchived'
+        report=json.loads((product.HERE/'archive-test.run.json').read_text(encoding='utf-8'))
+        assert report['handoff']['targets']==targets, 'Handoff must name only the selected failed run'
     assert all(path.read_bytes()==value for path,value in originals.items()), 'Every original file and old summary must remain unchanged'
     assert len(reads)<=56
 
-report=dict(status='INCOMPLETE',scope='actual archive entry, temporary real file copies; supplied PID/socket probes; no actual -02 fixture action',checks=[])
+report=dict(status='INCOMPLETE',scope='actual archive entry, temporary real file copies; supplied PID/socket probes; no actual -02/-03 fixture action',checks=[])
 try:
     actual=module(source)
     assert {t['fixture']:set(t['pids']) for t in actual.TARGETS}=={
@@ -96,13 +99,15 @@ try:
     assert 'os.kill(' not in source and '.unlink(' not in source and 'operator_request(' not in source
     for scenario in ['normal','live-pid','live-endpoint','unknown-endpoint','later-epoch']:
         exercise(source,scenario); report['checks'].append(scenario)
+    assert actual.RED03['fixture']=='/private/tmp/t078-2-t096-7sh2mwtq' and set(actual.RED03['pids'])=={26509,26605,26607,26727,26759,26750,26751}
+    exercise(source,'normal','red-b-03'); exercise(source,'live-pid','red-b-03'); report['checks'].append('red03_fixed_case_and_handoff')
     mutant=source.replace('symlinks=True,ignore=ignore','symlinks=True,ignore=lambda directory,names:[]')
     assert mutant!=source
     try: exercise(mutant,'normal')
     except AssertionError as error:
         report['mutant']=dict(rejected=str(error).startswith('Absent writer fixture'),error=str(error))
     assert report['mutant']['rejected'], 'Copying excluded paths must fail independent count/byte contract'
-    report['checks']+=['fourteen_fixed_pids','no_source_mutation','private_and_ipc_excluded','counts_and_bytes','literal_symlink_copy','original_failure_preserved']
+    report['checks']+=['fixed_pid_sets','no_source_mutation','private_and_ipc_excluded','counts_and_bytes','literal_symlink_copy','original_failure_preserved']
     report['status']='PASS'
 except BaseException as error: report['error']=str(error); report['traceback']=__import__('traceback').format_exc()
 with Path(sys.argv[1]).open('x',encoding='utf-8') as output: output.write(json.dumps(report,ensure_ascii=False,indent=2)+'\n')

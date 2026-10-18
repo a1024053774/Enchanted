@@ -10,12 +10,18 @@ Inventory BEFORE running:
   Each Claude start probes --version. <=4 interactive Claude starts, <=4 probes,
   one clang, two daemon epochs, two sequential Electron instances, isolated Git.
   Fake API binds loopback once; every POST is recorded/rejected. POST budget 0.
-  Keys/paste/focus/release: ZERO. Only daemon terminal-protocol replies. Theme,
-  trust, login and permission screens are observed; never automatically answered.
+  No model prompt/paste/focus. Restore mode waits up to the declared
+  startup deadline for principal-approved native UI initialization. At most SIX
+  separately approved startup keys plus one empty-queue readiness pane_release
+  per controller through existing entries; no automatic key/default Enter/login.
+  capture/key/ready commands are in startup_controls.py.
+  Red mode sends no startup keys; native terminal-protocol replies are unchanged.
   After crash, a documented synthetic historical user/assistant pair is seeded
   into the exact recorded native session. It is NOT a model-produced transcript.
   Resume must display its unique history nonce; merely seeing a PID cannot pass.
-  If onboarding blocks that readback: INCOMPLETE, preserve screens, no extra keys.
+  No native history nonce means INCOMPLETE, regardless of startup receipts.
+  --expect red|restore is mandatory. Red mode accepts only verified pre-spawn
+  dead-endpoint refusal or the historical-pane assertion; other errors stay unknown.
   Fault injection (--fault): only stopped fixture launch_records/native files;
   never tasks/attempts/gates. Missing argv/version/session each has its own run;
   --panes 3 --fault missing-argv also proves a failed sibling does not block others.
@@ -26,12 +32,17 @@ Inventory BEFORE running:
   click after readbacks; no terminal keys or prompt submission. No screenshot.
   Standard build/new slot and all raw output on mounted external disk; bounded
   command/observer output, one short terminal summary. No auth.json/global writes.
+  Startup polling is bounded by --startup-wait-seconds (1..600), once per two
+  seconds; <=300 read-only event calls per controller. Up to two bounded wait
+  notices plus the final summary are printed.
   Every identified writer is journaled before the crash; cleanup sends an
   authenticated daemon_stop directly to the existing socket (no CLI subprocess).
   Cleanup: owned Electron normal quit only after ready, daemon_stop and PID
   absence. If ownership/startup/cleanup is unknown: stop, retain the live fixture,
-  no archive. Ephemeral operator credentials are removed after all writers exit
-  and before any archive; credential contents never enter evidence. Stopped fixtures copied with file-count/byte comparison, retained.
+  no archive. Normal cleanup removes private operator credentials after exit.
+  Expected-red dead endpoints and credentials are retained in the source and
+  explicitly excluded from the verified archive copy. Credential contents never
+  enter evidence. Stopped fixtures copied with file-count/byte comparison, retained.
 """
 import argparse
 import json
@@ -57,7 +68,8 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(HERE.parent / 'T-091'))
 from run_red import Observer, archive_fixture, write_json
 from owned_electron import normal_quit
-from restart_cleanup import native_argv, operator_request, close_observer, finish_cleanup, probe_process
+from archive_failed_02 import endpoint_state, copy_view
+from restart_cleanup import native_argv, operator_request, close_observer, finish_cleanup, probe_process, dead_endpoint_rejection
 
 
 
@@ -69,9 +81,12 @@ def main():
         parser.add_argument('--'+key, required=True)
     parser.add_argument('--panes', type=int, choices=[1, 3], default=1)
     parser.add_argument('--fault', choices=['none', 'missing-argv', 'version-mismatch', 'missing-session'], default='none')
-    parser.add_argument('--expect-red', action='store_true')
+    parser.add_argument('--expect',choices=['red','restore'],required=True)
+    parser.add_argument('--startup-wait-seconds',type=int,default=300)
     parser.add_argument('--check-close', action='store_true')
     args = parser.parse_args()
+    args.expect_red=args.expect=='red'
+    if not 1<=args.startup_wait_seconds<=600: raise RuntimeError('startup wait must be 1..600 seconds')
     if args.expect_red and args.fault != 'none': raise RuntimeError('red_requires_unmodified_fixture')
     if not re.fullmatch('[a-z0-9_-]+', args.label): raise RuntimeError('invalid_label')
     if args.claude_version != '2.1.302': raise RuntimeError('this_fixture_requires_configured_2.1.302')
@@ -93,7 +108,7 @@ def main():
         GIT_COMMITTER_NAME='T096 fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
     node = shutil.which('node', path=env.get('PATH'))
     cli = [node, str(source/'workbench/src/gates/cli.ts'), '--state', str(fixture/'state')]
-    result = dict(status='INCOMPLETE', argv=sys.argv, approval_ref=args.approval_ref, fixture=str(fixture),
+    result = dict(status='INCOMPLETE', argv=sys.argv, approval_ref=args.approval_ref, fixture=str(fixture),expectation=args.expect,
         model_turns=0, fake_posts=0, keys=[], checks=[], cleanup_complete=False, process_reads=0,
         history_source='synthetic fixture pair seeded after crash; no vendor/model-generated history')
     observer = None
@@ -187,13 +202,50 @@ def main():
         nonlocal daemon_live, daemon_start_unconfirmed
         env['A2A_OPERATOR_CREDENTIAL']=str(fixture/f'operator-{epoch}.json')
         daemon_start_unconfirmed=True
-        p=call('daemon_start',launch_config=fixture/'launch.json')
+        response=run([*cli,'daemon_start','--launch-config',fixture/'launch.json'],allow_failure=True)
+        start_command_id=commands[-1]['id']
+        p=json.loads(response.stdout)
+        if response.returncode!=0 or p.get('ok') is not True:
+            credential=Path(env['A2A_OPERATOR_CREDENTIAL'])
+            if args.expect_red and dead_endpoint_rejection(response.returncode,p,epoch=epoch,credential_exists=credential.exists()):
+                if any(alive(owner) for owner in owned): raise RuntimeError('baseline refusal has an active registered writer')
+                first=next(o for o in owned if o['pid']==result['daemon_start_receipt']['pid'])
+                endpoints=endpoint_state(fixture,first['pid'])
+                if endpoints['control.sock']['state']!='stale_socket': raise RuntimeError('baseline refusal has no verified dead socket')
+                result['observed_behavior']='NO_GO'
+                result['expected_red']=dict(kind='dead_endpoint_blocks_daemon_restart',command=start_command_id,response=p,daemon=first['pid'],endpoints=endpoints)
+                daemon_start_unconfirmed=False; daemon_live=False
+                return None
+            raise RuntimeError('daemon_start failed; outcome unconfirmed: '+str(p.get('error'))+' '+str(p.get('details')))
         result['daemon_start_receipt']=dict(epoch=epoch,pid=p['pid'],state=str(fixture/'state'))
         write_json(output/f'daemon-start-{epoch}.json',result['daemon_start_receipt'])
         daemon_live=True
         owner=register(identify(p['pid']),'daemon')
         daemon_start_unconfirmed=False
         return owner
+
+    def wait_for_profile(record):
+        context=output/(record['preset']+'.startup.json')
+        write_json(context,dict(schema=1,fixture=str(fixture),state=str(fixture/'state'),task=record['task'],launch=record['id'],
+            session=record['session'],thread=record['thread'],preset=record['preset'],operator_credential=env['A2A_OPERATOR_CREDENTIAL'],
+            output=str(output),source=str(source)))
+        print(json.dumps(dict(event='WAITING_FOR_STARTUP_APPROVAL',context=str(context),timeout_seconds=args.startup_wait_seconds)),flush=True)
+        deadline=time.monotonic()+args.startup_wait_seconds
+        while time.monotonic()<deadline:
+            events=operator_request(fixture/'state','orchestration_events',Path(env['A2A_OPERATOR_CREDENTIAL']))['events']
+            keys=[e for e in events if e['launch']==record['id'] and e['type']=='controller_screen_key_written']
+            result['keys']=[key for key in result['keys'] if key['launch']!=record['id']]+[dict(launch=record['id'],seq=e['seq'],key=e['data']['key'],purpose=e['data']['purpose'],screen_id=e['data']['screen_id']) for e in keys]
+            result.setdefault('startup_key_cutoff',{})[record['id']]=events[-1]['seq'] if events else None
+            if any(r['method']=='POST' for r in requests): raise RuntimeError('model request during startup; zero budget')
+            trust=next((e for e in reversed(keys) if e['data'].get('purpose')=='workspace-trust' and e['data'].get('key')=='Enter'),None)
+            ready=next((e for e in reversed(events) if e['launch']==record['id'] and e['type']=='executor_action' and e['data'].get('action')=='initial_release'),None)
+            if trust and ready and ready['seq']>trust['seq']:
+                write_json(output/(record['preset']+'.startup-keys.json'),keys)
+                # These receipts prove approved startup keys and a principal
+                # readiness decision, not that resume succeeded. The original strict native-history oracle follows.
+                return
+            time.sleep(2)
+        raise TimeoutError('startup approvals incomplete; no crash or history assertion attempted')
 
     def inspect_window():
         view=observer.call('inspect-all')
@@ -306,7 +358,7 @@ def main():
             folder=fixture/'roles'/preset
             for name in ['home','claude','tmp','shell','requests','hooks','user-data']: (folder/name).mkdir(parents=True)
             (folder/'claude/settings.json').write_text('{"theme":"dark"}\n',encoding='utf-8')
-            (folder/'role.md').write_text('停在隔离首屏，不输入、不调用模型或工具。\n',encoding='utf-8')
+            (folder/'role.md').write_text('只等待执行主控逐屏批准的启动按键；不提交提示、不调用模型或工具。\n',encoding='utf-8')
             manifest=dict(schema=1,root=str(fixture),state=str(fixture/'state'),task='t096-fixture',preset=preset,
                 launch=str(uuid.uuid4()),session=str(uuid.uuid4()),thread=str(uuid.uuid4()),executable=str(args.claude.absolute()),version=args.claude_version,
                 role_file=str(folder/'role.md'),code_revision=result['revision'],source_snapshot=str(source),api_url=api_url,turn_limit=1)
@@ -318,6 +370,7 @@ def main():
             check(preset+'_initial_native_argv',actual_argv==record['argv'])
             write_json(output/(preset+'.initial-argv.json'),actual_argv)
             write_json(output/(preset+'.before.json'),dict(record=record,process=info))
+            if not args.expect_red: wait_for_profile(record)
         worker=None
         if args.panes==3:
             attempt=call('dispatch',task='t096-fixture',runtime_mode='workspace-write')['attempt']
@@ -353,73 +406,71 @@ def main():
                     database.execute('UPDATE launch_records SET data=? WHERE id=?',(json.dumps(record),record['id']))
                     database.execute("CREATE TRIGGER launch_records_no_update BEFORE UPDATE ON launch_records BEGIN SELECT RAISE(ABORT,'append only'); END")
             write_json(output/'synthetic-history.json',[dict(launch=launch,**history) for launch,history in histories.items()])
-        else:
-            # Baseline cannot reopen its dead socket. Preserve then remove ONLY
-            # these verified-dead fixture endpoint files to observe its UI state.
-            write_json(output/'baseline-endpoint.json',dict(pid=(fixture/'state/daemon.pid').read_text(encoding='utf-8'),socket=str(fixture/'state/control.sock')))
-            for name in ['control.sock','daemon.pid']:
-                path=fixture/'state'/name
-                if path.exists(): path.unlink()
         daemon=start_daemon(2)
-        if not args.expect_red: wait(lambda:not call('pane_layout',task='t096-fixture')['recovering'],'recovery completion')
-        second=open_window(2); write_json(output/'after-view.json',second)
-        gate_after=call('status',task='t096-fixture')['task']; write_json(output/'gate-after.json',gate_after)
-        check('worker_attempt_unchanged',gate_after['current_attempt']==task_before['current_attempt'])
-        for index,record in enumerate(controllers):
-            after=call('workbench_snapshot',task='t096-fixture',launch=record['id'])
-            write_json(output/(record['preset']+'.after.json'),after)
-            if args.expect_red:
-                check('expected_red_historical_no_resume',after['pane'].get('historical') is True and after['pane']['lifecycle']!='running')
-                continue
-            restoration=after['pane']['restoration']
-            expected_error={'missing-argv':'restore_argv_missing','version-mismatch':'restore_version_mismatch','missing-session':'restore_session_missing'}.get(args.fault)
-            if index==0 and expected_error:
-                check('fault_refused_without_success',restoration['status']=='failed' and restoration['error']==expected_error and after['pane'].get('historical') is True)
-                view=next(p for p in second['panes'] if p['launch']==record['id'])
-                check('fault_visible_readonly','未恢复' in view['text'] and not view['input_enabled'])
+        if daemon is None:
+            check('expected_red_dead_endpoint',bool(result.get('expected_red')))
+            result['status']='PASS'
+        else:
+            if not args.expect_red: wait(lambda:not call('pane_layout',task='t096-fixture')['recovering'],'recovery completion')
+            second=open_window(2); write_json(output/'after-view.json',second)
+            gate_after=call('status',task='t096-fixture')['task']; write_json(output/'gate-after.json',gate_after)
+            check('worker_attempt_unchanged',gate_after['current_attempt']==task_before['current_attempt'])
+            for index,record in enumerate(controllers):
+                after=call('workbench_snapshot',task='t096-fixture',launch=record['id'])
+                write_json(output/(record['preset']+'.after.json'),after)
+                if args.expect_red:
+                    check('expected_red_historical_no_resume',after['pane'].get('historical') is True and after['pane']['lifecycle']!='running')
+                    result['observed_behavior']='NO_GO'
+                    continue
+                restoration=after['pane']['restoration']
+                expected_error={'missing-argv':'restore_argv_missing','version-mismatch':'restore_version_mismatch','missing-session':'restore_session_missing'}.get(args.fault)
+                if index==0 and expected_error:
+                    check('fault_refused_without_success',restoration['status']=='failed' and restoration['error']==expected_error and after['pane'].get('historical') is True)
+                    view=next(p for p in second['panes'] if p['launch']==record['id'])
+                    check('fault_visible_readonly','未恢复' in view['text'] and not view['input_enabled'])
+                    events=call('orchestration_events')['events']
+                    check('failed_pane_never_recorded_restored',not any(e['type']=='pane_restored' and e['launch']==record['id'] for e in events))
+                    continue
+                check(record['preset']+'_restored',restoration['status']=='restored')
+                info=call('pane_process_info',thread=record['thread'])
+                check(record['preset']+'_identity',info.get('leader') and not info.get('failed') and info['native_session']==record['session'])
+                [register(identify(info[k]),k) for k in ['shell_pid','leader']]
                 events=call('orchestration_events')['events']
-                check('failed_pane_never_recorded_restored',not any(e['type']=='pane_restored' and e['launch']==record['id'] for e in events))
-                continue
-            check(record['preset']+'_restored',restoration['status']=='restored')
-            info=call('pane_process_info',thread=record['thread'])
-            check(record['preset']+'_identity',info.get('leader') and not info.get('failed') and info['native_session']==record['session'])
-            [register(identify(info[k]),k) for k in ['shell_pid','leader']]
-            events=call('orchestration_events')['events']
-            restored=[e for e in events if e['type']=='pane_restored' and e['launch']==record['id']]
-            expected_argv=[record['argv'][0],'--resume',*record['argv'][2:]]
-            check(record['preset']+'_argv_every_field',restored[-1]['data']['argv']==expected_argv)
-            observed_argv=native_argv(info['leader'])
-            write_json(output/(record['preset']+'.resumed-argv.json'),observed_argv)
-            check(record['preset']+'_native_argv_every_field',observed_argv==expected_argv)
-            check(record['preset']+'_launch_unchanged',call('launch_show',launch=record['id'])['launch']==record)
-            view=next(p for p in second['panes'] if p['launch']==record['id'])
-            check(record['preset']+'_binding',view['role']=='controller' and view['preset']==record['preset'] and view['task']==record['task'])
-            # Actual CLI must show independently supplied history. An onboarding
-            # screen, missing transcript or process-only success is INCOMPLETE.
-            for unused in range(8):
-                if histories[record['id']]['nonce'] in view['terminal']: break
-                time.sleep(.5)
-                refreshed=observer.call('inspect-all')
-                view=next(p for p in refreshed['panes'] if p['launch']==record['id'])
-            write_json(output/(record['preset']+'.resumed-view.json'),view)
-            check(record['preset']+'_native_history_visible',histories[record['id']]['nonce'] in view['terminal'])
-        if worker and not args.expect_red:
-            after=call('workbench_snapshot',task='t096-fixture',launch=worker['id'])
-            view=next(p for p in second['panes'] if p['launch']==worker['id'])
-            check('worker_unrestored_visible',after['pane']['restoration']['error']=='restore_managed_attempt_requires_reclaim' and '未恢复' in view['text'] and not view['input_enabled'])
-            events=call('orchestration_events')['events']
-            check('worker_never_restored',not any(e['type']=='pane_restored' and e['launch']==worker['id'] for e in events))
-            check('worker_receiver_not_restarted',len(list((fixture/'codex-home').glob('receiver-*.json')))==1)
-        if args.check_close and not args.expect_red:
-            target=second['panes'][-1]
-            observer.call('close-pane',pane_key=target['pane_key'])
-            wait(lambda:len(observer.call('inspect-all')['panes'])==args.panes-1,'explicit pane close reflected in renderer',timeout=4)
-            layout=call('pane_layout',task='t096-fixture')['panes']
-            check('explicit_close_persisted',all(p['launch']!=target['launch'] for p in layout) and len(layout)==args.panes-1)
-            check('close_does_not_mutate_attempt',call('status',task='t096-fixture')['task']['current_attempt']==task_before['current_attempt'])
-        check('zero_fake_posts',not any(r['method']=='POST' for r in requests))
-        if not args.expect_red: expected_layout=call('pane_layout',task='t096-fixture')['panes']
-        result['status']='PASS'
+                restored=[e for e in events if e['type']=='pane_restored' and e['launch']==record['id']]
+                expected_argv=[record['argv'][0],'--resume',*record['argv'][2:]]
+                check(record['preset']+'_argv_every_field',restored[-1]['data']['argv']==expected_argv)
+                observed_argv=native_argv(info['leader'])
+                write_json(output/(record['preset']+'.resumed-argv.json'),observed_argv)
+                check(record['preset']+'_native_argv_every_field',observed_argv==expected_argv)
+                check(record['preset']+'_launch_unchanged',call('launch_show',launch=record['id'])['launch']==record)
+                view=next(p for p in second['panes'] if p['launch']==record['id'])
+                check(record['preset']+'_binding',view['role']=='controller' and view['preset']==record['preset'] and view['task']==record['task'])
+                # Actual CLI must show independently supplied history. An onboarding
+                # screen, missing transcript or process-only success is INCOMPLETE.
+                for unused in range(8):
+                    if histories[record['id']]['nonce'] in view['terminal']: break
+                    time.sleep(.5)
+                    refreshed=observer.call('inspect-all')
+                    view=next(p for p in refreshed['panes'] if p['launch']==record['id'])
+                write_json(output/(record['preset']+'.resumed-view.json'),view)
+                check(record['preset']+'_native_history_visible',histories[record['id']]['nonce'] in view['terminal'])
+            if worker and not args.expect_red:
+                after=call('workbench_snapshot',task='t096-fixture',launch=worker['id'])
+                view=next(p for p in second['panes'] if p['launch']==worker['id'])
+                check('worker_unrestored_visible',after['pane']['restoration']['error']=='restore_managed_attempt_requires_reclaim' and '未恢复' in view['text'] and not view['input_enabled'])
+                events=call('orchestration_events')['events']
+                check('worker_never_restored',not any(e['type']=='pane_restored' and e['launch']==worker['id'] for e in events))
+                check('worker_receiver_not_restarted',len(list((fixture/'codex-home').glob('receiver-*.json')))==1)
+            if args.check_close and not args.expect_red:
+                target=second['panes'][-1]
+                observer.call('close-pane',pane_key=target['pane_key'])
+                wait(lambda:len(observer.call('inspect-all')['panes'])==args.panes-1,'explicit pane close reflected in renderer',timeout=4)
+                layout=call('pane_layout',task='t096-fixture')['panes']
+                check('explicit_close_persisted',all(p['launch']!=target['launch'] for p in layout) and len(layout)==args.panes-1)
+                check('close_does_not_mutate_attempt',call('status',task='t096-fixture')['task']['current_attempt']==task_before['current_attempt'])
+            check('zero_fake_posts',not any(r['method']=='POST' for r in requests))
+            if not args.expect_red: expected_layout=call('pane_layout',task='t096-fixture')['panes']
+            result['status']='PASS'
     except BaseException as error:
         result['error']=str(error); result['traceback']=traceback.format_exc()
     finally:
@@ -452,16 +503,25 @@ def main():
         def confirm_writers():
             if daemon_start_unconfirmed: raise RuntimeError('unconfirmed daemon start cannot be treated as absent')
             wait(lambda:all(not alive(o) for o in owned),'all registered writers absent',timeout=5)
-            if (fixture/'state/daemon.pid').exists() or (fixture/'state/control.sock').exists():
+            if result.get('expected_red'):
+                expected=result['expected_red']
+                if endpoint_state(fixture,expected['daemon'])!=expected['endpoints']: raise RuntimeError('expected-red endpoint changed; preserve fixture')
+            elif (fixture/'state/daemon.pid').exists() or (fixture/'state/control.sock').exists():
                 raise RuntimeError('daemon endpoint remains; fixture retained')
 
         def archive_stopped():
-            for epoch in [1,2]:
-                credential=fixture/f'operator-{epoch}.json'
-                if credential.is_symlink(): raise RuntimeError('unexpected credential link; preserve fixture')
-                if credential.exists(): credential.unlink()
-            stats=archive_fixture(fixture,output/'fixture')
-            write_json(HERE/(args.label+'.archive.json'),dict(original=str(fixture),archive=str(output/'fixture'),bytes=stats['bytes'],files=stats['files'],comparison=stats['comparison'],replay=shlex.join(sys.argv)))
+            excluded={}
+            if result.get('expected_red'):
+                excluded={'state/control.sock':dict(reason='verified dead IPC; original retained'),'operator-1.json':dict(reason='private credential; original retained')}
+                stats=copy_view(fixture,output/'fixture',excluded)
+            else:
+                for epoch in [1,2]:
+                    credential=fixture/f'operator-{epoch}.json'
+                    if credential.is_symlink(): raise RuntimeError('unexpected credential link; preserve fixture')
+                    if credential.exists(): credential.unlink()
+                stats=archive_fixture(fixture,output/'fixture')
+            write_json(HERE/(args.label+'.archive.json'),dict(original=str(fixture),archive=str(output/'fixture'),bytes=stats['bytes'],files=stats['files'],comparison=stats['comparison'],excluded=excluded,
+                comparison_scope='source fixture excluding listed dead IPC and private credential paths' if excluded else 'stopped source fixture after private credential removal',replay=shlex.join(sys.argv)))
 
         cleanup=finish_cleanup(close_electron=close_electron,stop_daemon=stop_backend,confirm_writers=confirm_writers,archive=archive_stopped)
         result['cleanup']=cleanup; result['cleanup_complete']=cleanup['cleanup_complete']
