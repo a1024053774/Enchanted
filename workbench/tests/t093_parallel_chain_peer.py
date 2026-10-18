@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import select
+import shutil
 import signal
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -46,10 +47,34 @@ def main():
     directory = Path(session['metadata_directory']) if role == 'D' else Path(session['forwarder_directory']) if role == 'F' else root / 'U'
     security = checks.mach_denials()
     fork = checks.fork_denied()
-    runtime.save(directory / ('python-guards.json' if role == 'F' else 'guards.json'), {**own, 'real_home_write': guard, 'security': security, 'fork': fork})
+    guards={**own, 'real_home_write': guard, 'security': security, 'fork': fork}
+    if role=='D':
+        denied={'denied':False,'bytes_read':0}
+        try:
+            descriptor=os.open(root/'source-home/.claude/.credentials.json',os.O_RDONLY|os.O_NOFOLLOW)
+            os.close(descriptor)
+        except OSError as error:denied.update(denied=error.errno in (errno.EPERM,errno.EACCES),errno=error.errno)
+        guards['source_content_read']=denied
+    runtime.save(directory / ('python-guards.json' if role == 'F' else 'guards.json'), guards)
     # The real cleanup owner must run even when a boundary assertion will
     # fail. C judges these observations before dispatching any fixture turn.
-    if role == 'D': return runtime.metadata_service(session)
+    if role == 'D':
+        code=runtime.metadata_service(session)
+        runtime.arm_deadline(session['deadline']+30)
+        source=root/'source-home';directory=Path(session['metadata_directory'])
+        # The C driver must durably publish its primary checkpoint before
+        # this independent owner removes the C-protected authentication source.
+        while not (directory/'source-cleanup-permit.json').exists():time.sleep(.03)
+        permit=runtime.read(directory/'source-cleanup-permit.json')
+        checkpoint=runtime.read(fixture['output'])
+        if permit.get('output')!=fixture['output'] or permit.get('candidate')!=fixture['candidate'] or checkpoint.get('candidate')!=fixture['candidate'] or checkpoint.get('fixture_root')!=str(root) or checkpoint.get('phase')!='cleanup_pending':
+            raise ValueError('source_cleanup_requires_durable_checkpoint')
+        result={**own,'profile':'D test source cleanup','source_home':str(source),'removed':False,'credential_body_read':False,'checkpoint_sequence':checkpoint.get('checkpoint_sequence')}
+        if source.parent!=root or root.parent!=Path('/private/tmp') or not root.name.startswith('t093-chain-') or source.is_symlink() or Path(session['credential_home'])!=source:raise ValueError('synthetic_source_scope_required')
+        try:shutil.rmtree(source);result['removed']=not source.exists()
+        except OSError as error:result.update(error_type=type(error).__name__,errno=error.errno,path=error.filename)
+        runtime.save(directory/'source-home-removed.json',result)
+        return code if result['removed'] else 2
     if not guard['denied'] or not checks.security_denied(security) or not fork['denied']:
         return 2
     if role == 'F':

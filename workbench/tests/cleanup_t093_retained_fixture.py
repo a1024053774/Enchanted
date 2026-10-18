@@ -43,10 +43,12 @@ def legacy_ps_diagnostic():
     except Exception as error:return error_details(error,context)
 
 def require_cleanup_scope(root):
-    manifest=SOURCE.parents[2]/'evidence/2026-10-16-batch16/T-093/retained-cleanup-scope-05.json'
-    value=json.loads(manifest.read_text())
-    if value.get('source_repo')!=str(SOURCE.parents[2].resolve()) or str(root) not in value.get('roots',[]):
-        raise ValueError('fixture_not_in_reviewed_cleanup_scope')
+    directory=SOURCE.parents[2]/'evidence/2026-10-16-batch16/T-093'
+    for name in ('retained-cleanup-scope-05.json','retained-cleanup-scope-06.json'):
+        value=json.loads((directory/name).read_text())
+        if value.get('source_repo')==str(SOURCE.parents[2].resolve()) and str(root) in value.get('roots',[]):
+            return value.get('shape','initial_or_closed')
+    raise ValueError('fixture_not_in_reviewed_cleanup_scope')
 
 class ActiveSetupProcesses(ValueError):
     def __init__(self,proof):
@@ -65,6 +67,7 @@ def setup_quiescence(root,context=None):
     if info.st_mode & (stat.S_ISUID|stat.S_ISGID):raise ValueError('privileged_process_observer_refused')
     literal=lambda value:''.join('\\'+char if char in '.^$[]()|*+?{}\\' else char for char in value)
     patterns={'R':r'(^|[[:space:]/])run_t093_login_chain[.]py([[:space:]]|$)',
+              'C':r'(^|[[:space:]/])test_t093_login_chain[.]ts([[:space:]]|$)',
               'G':r'(^|[[:space:]/])git([[:space:]]|$).*[-]C[[:space:]]+'+literal(source)+r'([[:space:]]|$)'}
     inspectors=[]
     def query(role):
@@ -85,15 +88,15 @@ def setup_quiescence(root,context=None):
         if (child.returncode==0)!=bool(result):raise ValueError('setup_process_inventory_incomplete')
         inspectors.append({'role':role,'pid':child.pid,'pgrp':child.pid,'profile':'X inherited','exit':child.returncode,'matches':len(result)})
         return result
-    # A harmless Python child carries both argument markers. Matching it is
-    # required before an empty query may be accepted as stopped R/G evidence.
+    # A harmless Python child carries all three argument markers. Matching it is
+    # required before an empty query may be accepted as stopped R/G/C evidence.
     mark(context,'observer_control_exec','/usr/bin/python3')
     def control_deadline():
         signal.signal(signal.SIGALRM,signal.SIG_DFL);signal.alarm(20)
-    control=subprocess.Popen(['/usr/bin/python3','-I','-S','-B','-c','import time; time.sleep(20)',entry,'/usr/bin/git','-C',source],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True,preexec_fn=control_deadline)
+    control=subprocess.Popen(['/usr/bin/python3','-I','-S','-B','-c','import time; time.sleep(20)',entry,'test_t093_login_chain.ts','/usr/bin/git','-C',source],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True,preexec_fn=control_deadline)
     primary=None
     try:
-        observed={role:query(role) for role in ('R','G')}
+        observed={role:query(role) for role in ('R','G','C')}
         if any(control.pid not in values for values in observed.values()):raise ValueError('setup_process_positive_control_not_seen')
     except BaseException as error:primary=error;raise
     finally:
@@ -108,16 +111,16 @@ def setup_quiescence(root,context=None):
             if primary is None:
                 mark(context,'observer_control_cleanup','/usr/bin/python3',pid=control.pid)
                 raise
-    remaining={role:query(role) for role in ('R','G')}
+    remaining={role:query(role) for role in ('R','G','C')}
     matches=[]
-    for role in ('R','G'):
+    for role in ('R','G','C'):
         for pid in sorted((observed[role]-{control.pid})|remaining[role]):
             mark(context,'process_group_probe',pid=pid)
             try:group=os.getpgid(pid)
             except ProcessLookupError:group=None
             matches.append({'role':role,'pid':pid,'pgrp':group,'state':'observed_present'})
-    proof={'root':str(Path(root).resolve()),'source':source,'scope':'current UID T093 R entries and worktree G commands; pgrep returns PID only','complete':True,
-           'observer':{'path':str(binary),**observer},'inspectors':inspectors,'positive_control':{'pid':control.pid,'pgrp':control.pid,'profile':'X inherited','R_seen':True,'G_seen':True,'exit_confirmed':True},'matching_processes':matches,'permission_changes':[]}
+    proof={'root':str(Path(root).resolve()),'source':source,'scope':'current UID T093 R/C entries and worktree G commands; pgrep returns PID only','complete':True,
+           'observer':{'path':str(binary),**observer},'inspectors':inspectors,'positive_control':{'pid':control.pid,'pgrp':control.pid,'profile':'X inherited','R_seen':True,'G_seen':True,'C_seen':True,'exit_confirmed':True},'matching_processes':matches,'permission_changes':[]}
     if matches:raise ActiveSetupProcesses(proof)
     return proof
 
@@ -137,6 +140,11 @@ def inspect(root,context=None):
     extra_file=lambda name:bool(re.fullmatch(audit_pattern+r'/(?:C-processes\.jsonl|forwarder/python-guards\.json|metadata/(?:guards|ready|removed)\.json)',name))
     code_directory=lambda name:name in ('code','code/workbench','code/workbench/src','code/workbench/tests','code/workbench/bin') or name.startswith('code/workbench/src/')
     code_file=lambda name:name.startswith(('code/workbench/src/','code/workbench/tests/')) or name in ('code/workbench/package.json','code/workbench/bin/inbox')
+    if context.get('shape')=='source_only':
+        directories={'source-home','source-home/.claude'}
+        files={'source-home/private-sentinel','source-home/.claude/.credentials.json'}
+        optional=set()
+        extra_directory=extra_file=code_directory=code_file=lambda name:False
     seen=set();items=[]
     def walk_error(error):mark(context,'scandir',error.filename);raise error
     for base,dirs,names in os.walk(root,followlinks=False,onerror=walk_error):
@@ -209,14 +217,14 @@ def main():
     parser.add_argument('--inspect-only',action='store_true')
     args=parser.parse_args();runtime.require_safe_python();runtime.validate_bootstrap()
     if args.output.parent!=Path('/private/tmp') or args.output.resolve()!=args.output or os.path.lexists(args.output):parser.error('new canonical output directly under /private/tmp required')
-    require_cleanup_scope(args.root)
+    shape=require_cleanup_scope(args.root)
     if not args.protected:
         home=Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
         # All observer/control children inherit X; F/U/D fork bans are unchanged.
         policy='(version 1)(allow default)(deny file-write* (subpath '+json.dumps(str(home))+'))(deny network*)(deny mach-lookup (global-name-regex #".*[Ss]ecurity.*"))'
         os.chdir('/private/tmp')
         os.execve('/usr/bin/sandbox-exec',['sandbox-exec','-p',policy,'/usr/bin/python3','-I','-S','-B',str(Path(__file__).resolve()),'--protected','--root',str(args.root),'--output',str(args.output),*(['--inspect-only'] if args.inspect_only else [])],{'PATH':'/usr/bin:/bin','LANG':'C'})
-    context={}
+    context={'shape':shape}
     legacy=legacy_ps_diagnostic() if args.inspect_only else None
     try:receipt=remove(args.root,args.inspect_only,context)
     except Exception as error:

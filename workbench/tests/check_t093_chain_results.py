@@ -13,10 +13,47 @@ EXPECTED = {'none':None,'home-references-empty':'home_path_injection_must_be_rep
  'scanner-zero':'credential_injection_must_be_detected','counts-always-match':'missing_raw_request_must_be_detected',
  'drop-first-record':'forwarder_record_count_must_match_upstream','empty-credential-cases':'credential_injection_cases_must_not_be_empty'}
 
+def cleanup_proof(value, path, expected_primary):
+    errors=[]
+    def require(condition, name):
+        if not condition:errors.append(name)
+    proof=value.get('writer_exit',{})
+    require(proof.get('all_exited') is True and proof.get('daemon_closed') is True,'writers_not_confirmed_exited')
+    groups=proof.get('groups',[]);children=proof.get('children',[])
+    require({v.get('role') for v in groups}=={'F','D','U','S','M','G0','G1','G2'} and all(v.get('exited') is True for v in groups),'owned_groups_not_confirmed_exited')
+    require(bool(children) and all(v.get('exited') is True for v in children),'registered_children_not_confirmed_exited')
+    reporter=proof.get('reporter_pid')
+    if not isinstance(reporter,int) or reporter<=1:errors.append('invalid_reporter_identity')
+    else:
+        try:os.kill(reporter,0)
+        except ProcessLookupError:pass
+        except OSError:errors.append('reporter_exit_unavailable')
+        else:errors.append('reporter_still_running')
+    root=value.get('fixture_root')
+    require(isinstance(root,str) and Path(root).parent==Path('/private/tmp') and Path(root).name.startswith('t093-chain-'),'invalid_fixture_root')
+    if isinstance(root,str):
+        try:Path(root).lstat()
+        except FileNotFoundError:pass
+        except OSError:errors.append('fixture_absence_unavailable')
+        else:errors.append('fixture_still_present')
+    try:history=[json.loads(line) for line in Path(str(path)+'.events.jsonl').read_text().splitlines()]
+    except (OSError,ValueError):history=[]
+    require(bool(history) and [v.get('sequence') for v in history]==list(range(1,len(history)+1)),'checkpoint_history_missing_or_incomplete')
+    pending=[v for v in history if v.get('phase')=='cleanup_pending']
+    require(bool(pending) and all(v.get('primary_failure')==expected_primary for v in pending),'primary_not_preserved_before_cleanup')
+    require(bool(history) and history[-1].get('phase')=='complete' and history[-1].get('primary_failure')==expected_primary and history[-1].get('fixture_removed') is True and history[-1].get('sequence')==value.get('checkpoint_sequence'),'final_checkpoint_mismatch')
+    owner=value.get('source_home_cleanup',{})
+    require(owner.get('profile')=='D test source cleanup' and owner.get('removed') is True and owner.get('credential_body_read') is False and isinstance(root,str) and owner.get('source_home')==str(Path(root)/'source-home'),'independent_source_cleanup_unconfirmed')
+    require(any(v.get('sequence')==owner.get('checkpoint_sequence') and v.get('phase')=='cleanup_pending' and v.get('primary_failure')==expected_primary for v in history),'source_cleanup_without_primary_checkpoint')
+    guards=value.get('service_receipts',{}).get('D_guards',{}).get('source_content_read',{})
+    require(guards.get('denied') is True and guards.get('bytes_read')==0 and guards.get('errno') in (1,13),'D_source_credential_content_not_denied')
+    return errors
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--guarded',action='store_true',help=argparse.SUPPRESS)
     parser.add_argument('--candidate',required=True)
+    parser.add_argument('--rehearsal',action='store_true')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('results',type=Path,nargs='+')
     args=parser.parse_args()
@@ -33,15 +70,22 @@ def main():
         policy='(version 1)(allow default)(deny file-write* (subpath '+json.dumps(str(home))+'))(deny network*)(deny mach-lookup (global-name-regex #".*[Ss]ecurity.*"))'
         os.execve('/usr/bin/sandbox-exec',['sandbox-exec','-p',policy,'/usr/bin/python3','-I','-S','-B',str(Path(__file__).resolve()),'--guarded',*sys.argv[1:]],{'PATH':'/usr/bin:/bin','LANG':'C'})
     if args.output.exists() or home in args.output.resolve().parents:parser.error('select a new output outside real HOME')
+    expected_cases={'primary':'rehearsal_primary_probe','green':None} if args.rehearsal else EXPECTED
     cases=[];seen=set()
     for path in args.results:
-        value=json.loads(path.read_text());kind=value.get('mutation');expected=EXPECTED.get(kind,'unknown')
-        good=kind in EXPECTED and kind not in seen and value.get('candidate')==args.candidate
+        value=json.loads(path.read_text());kind=value.get('rehearsal') if args.rehearsal else value.get('mutation');expected=expected_cases.get(kind,'unknown')
+        good=kind in expected_cases and kind not in seen and value.get('candidate')==args.candidate
         seen.add(kind)
         good=good and value.get('primary_failure')==expected and value.get('status')==('PASS' if expected is None else 'INCOMPLETE')
         good=good and value.get('cleanup_failures')==[] and value.get('fixture_removed') is True
         good=good and all(value.get(k)==0 for k in ('real_model_turns','real_cli_starts','real_upstream_requests','real_auth_reads','git_index_credential_hits'))
-        if kind=='none':
+        cleanup_errors=cleanup_proof(value,path,expected)
+        good=good and not cleanup_errors
+        if args.rehearsal:
+            good=good and value.get('mutation')=='none' and value.get('upstream_requests')==2
+            good=good and len(value.get('checks',[]))>=4 and len(value.get('counterexamples',{}).get('credential_injections',[]))==6
+        else:good=good and value.get('rehearsal')=='none'
+        if kind in ('none','green'):
             raw=value.get('forwarder_raw_records',[]);requests=[r for r in raw if r.get('kind')=='request'];outcomes=[r for r in raw if r.get('kind')=='outcome']
             receipts=value.get('independent_upstream_receipts',[]);facts=value.get('facts',{});counter=value.get('counterexamples',{})
             good=good and [r.get('sequence') for r in requests]==[1,2] and [r.get('status') for r in outcomes]==[400,200]
@@ -78,9 +122,9 @@ def main():
             observed=facts.get('processes',{}).get('D',{}).get('home_probe_paths',[])
             good=good and len(expected_paths)==8 and len(observed)==8 and set(expected_paths)=={v.get('path') for v in observed} and all(v.get('absent') is True for v in observed)
             good=good and all(isinstance(p,str) and Path(p).parent==home and Path(p).name.startswith('.a2a-t093-deny-') for p in expected_paths)
-        cases.append({'case':kind if kind in EXPECTED else 'unknown','pass':bool(good),'expected_primary':expected if kind in EXPECTED else None,'primary_matched':value.get('primary_failure')==expected})
-    result={'status':'PASS' if seen==set(EXPECTED) and all(c['pass'] for c in cases) else 'INCOMPLETE','candidate':args.candidate,'cases':cases,
-            'scope':'Independent fixture verdict only. No authorization to start a model turn.','profile':'V; no HOME writes, network or Security'}
+        cases.append({'case':kind if kind in expected_cases else 'unknown','pass':bool(good),'expected_primary':expected if kind in expected_cases else None,'primary_matched':value.get('primary_failure')==expected,'cleanup_errors':cleanup_errors})
+    result={'status':'PASS' if seen==set(expected_cases) and all(c['pass'] for c in cases) else 'INCOMPLETE','candidate':args.candidate,'cases':cases,
+            'rehearsal':args.rehearsal,'scope':'Independent fixture verdict only. No authorization to start a model turn.','profile':'V; no HOME writes, network or Security'}
     with args.output.open('x') as stream:json.dump(result,stream,indent=2);stream.write('\n')
     print(json.dumps({'status':result['status'],'cases':len(cases)}));return 0 if result['status']=='PASS' else 2
 

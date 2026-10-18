@@ -34,6 +34,9 @@ def run_git(source, profile, arguments, context, input_text=None, timeout=15):
     except BaseException as error:
         if isinstance(error,subprocess.TimeoutExpired):
             detail.update(stdout=(error.output or b'').decode(errors='replace'),stderr=(error.stderr or b'').decode(errors='replace'))
+        if context.get('output'):
+            # Publish the original failure before terminating the owned writer.
+            write_setup_failure(context,error,cleanup=False)
         # This Popen owns a new process group. Preserve the original failure;
         # termination/reaping problems are secondary cleanup observations.
         if child.poll() is None:
@@ -56,7 +59,7 @@ def run_git(source, profile, arguments, context, input_text=None, timeout=15):
     finally:detail['elapsed_seconds']=round(time.monotonic()-started,3)
 
 
-def write_setup_failure(context, error):
+def write_setup_failure(context, error, cleanup=True):
     variants=set()
     for value in context.get('secrets',[]):
         encoded=base64.b64encode(value.encode()).decode()
@@ -66,12 +69,7 @@ def write_setup_failure(context, error):
         for secret in sorted(variants,key=len,reverse=True):value=re.sub(re.escape(secret),'<CREDENTIAL>',value,flags=re.IGNORECASE)
         return value
     root=Path(context['fixture_root']) if context.get('fixture_root') else None
-    cleanup=list(context.get('cleanup_failures',[]))
-    source_removed=True
-    if root:
-        try:shutil.rmtree(root/'source-home/.claude')
-        except FileNotFoundError:pass
-        except OSError:source_removed=False;cleanup.append('source_credential_cleanup_failed')
+    secondary=list(context.get('cleanup_failures',[]))
     frames=[];trace=error.__traceback__
     while trace:
         frames.append({'file':Path(trace.tb_frame.f_code.co_filename).name,'function':trace.tb_frame.f_code.co_name,'line':trace.tb_lineno});trace=trace.tb_next
@@ -85,19 +83,43 @@ def write_setup_failure(context, error):
             value=text(git[field]);git[field]=value[:4000];git[field+'_truncated']=len(value)>4000
     report={'status':'INCOMPLETE','phase':'R','setup_stage':context.get('setup_stage','unknown'),'candidate':context.get('candidate'),'mutation':context.get('mutation'),
             'primary_failure':'protected_chain_setup_failed','error_summary':summary,'last_git':git,
-            'cleanup_failures':['setup_did_not_reach_C',*cleanup],'fixture_root':str(root) if root else None,'fixture_removed':not root or not root.exists(),
-            'source_credentials_removed':source_removed,'real_model_turns':0,'real_cli_starts':0,'real_upstream_requests':0,'real_auth_reads':0,
+            'cleanup_failures':['setup_did_not_reach_C',*secondary],'fixture_root':str(root) if root else None,'fixture_removed':not root or not root.exists(),
+            'source_credentials_removed':False,'cleanup_pending':True,'real_model_turns':0,'real_cli_starts':0,'real_upstream_requests':0,'real_auth_reads':0,
             'diagnostic_scan_scope':'generated setup credentials and raw/JSON/URL/base64 variants; no original auth read'}
     if context.get('private_root'):report['isolated_home']=context['private_root']
-    encoded=json.dumps(report,ensure_ascii=True)
-    if any(re.search(re.escape(secret),encoded,re.IGNORECASE) for secret in variants):
-        summary['message']='setup_error_text_withheld_by_credential_scan';git.pop('stdout',None);git.pop('stderr',None);report['diagnostic_text_withheld']=True
-        encoded=json.dumps(report,ensure_ascii=True)
-    if any(re.search(re.escape(secret),encoded,re.IGNORECASE) for secret in variants):raise ValueError('setup_diagnostic_credential_scan_failed')
     target=Path(context['output']).resolve()
     if Path('/private/tmp') not in target.parents:raise ValueError('setup_report_must_be_outside_HOME')
-    fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
-    with os.fdopen(fd,'w',encoding='utf-8') as stream:stream.write(encoded+'\n')
+    def publish():
+        encoded=json.dumps(report,ensure_ascii=True)
+        for secret in sorted(variants,key=len,reverse=True):encoded=re.sub(re.escape(secret),'<CREDENTIAL>',encoded,flags=re.IGNORECASE)
+        if any(re.search(re.escape(secret),encoded,re.IGNORECASE) for secret in variants):raise ValueError('setup_diagnostic_credential_scan_failed')
+        temporary=target.with_name(target.name+'.pending-'+uuid.uuid4().hex)
+        fd=os.open(temporary,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+        with os.fdopen(fd,'w',encoding='utf-8') as stream:
+            stream.write(encoded+'\n');stream.flush();os.fsync(stream.fileno())
+        try:
+            identity=context.get('report_identity')
+            if identity:
+                current=target.lstat()
+                if (current.st_dev,current.st_ino)!=identity:raise ValueError('setup_report_owner_changed')
+                os.replace(temporary,target)
+            else:os.link(temporary,target)
+        finally:
+            if temporary.exists():temporary.unlink()
+        current=target.lstat();context['report_identity']=(current.st_dev,current.st_ino)
+    # No generated credential directory is touched before this durable report.
+    publish()
+    if cleanup:
+        source_removed=True
+        if root:
+            try:shutil.rmtree(root/'source-home/.claude')
+            except FileNotFoundError:pass
+            except OSError as secondary_error:
+                source_removed=False
+                report['cleanup_failures'].append('source_credential_cleanup_failed')
+                report['cleanup_error']={'type':type(secondary_error).__name__,'errno':secondary_error.errno,'path':secondary_error.filename}
+        report.update(source_credentials_removed=source_removed,cleanup_pending=False)
+        publish()
     return report
 
 
@@ -106,7 +128,7 @@ def snapshot(source, root, mutation):
     target=root/'code'; work=target/'workbench'; work.mkdir(parents=True)
     shutil.copytree(source/'workbench/src',work/'src',ignore=shutil.ignore_patterns('__pycache__'))
     (work/'tests').mkdir(); (work/'bin').mkdir()
-    for name in ('test_t093_login_chain.ts','t093_fake_claude.c','t093_fake_login_peer.py','t093_parallel_chain_peer.py','t093_forwarder_guard.ts','t093_home_read_boundary.ts','probe_t093_parent_sandbox.py','probe_t093_parallel_profiles.py'):
+    for name in ('test_t093_login_chain.ts','t093_chain_evidence.ts','t093_fake_claude.c','t093_fake_login_peer.py','t093_parallel_chain_peer.py','t093_forwarder_guard.ts','t093_home_read_boundary.ts','probe_t093_parent_sandbox.py','probe_t093_parallel_profiles.py'):
         shutil.copyfile(source/'workbench/tests'/name,work/'tests'/name)
     shutil.copyfile(source/'workbench/bin/inbox',work/'bin/inbox')
     shutil.copyfile(source/'workbench/package.json',work/'package.json')
@@ -143,6 +165,7 @@ def main(context):
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--source-revision',required=True)
     parser.add_argument('--mutation',choices=('none','home-references-empty','scanner-zero','counts-always-match','drop-first-record','empty-credential-cases'),default='none')
+    parser.add_argument('--rehearsal',choices=('none','primary','green'),default='none')
     args=parser.parse_args();source=Path(__file__).resolve().parents[2]
     context.update(output=str(args.output),candidate=args.source_revision,mutation=args.mutation,setup_stage='bootstrap',processes=[],cleanup_failures=[])
     load_module(source/'workbench/src/claudeLoginSession.py').validate_bootstrap()
@@ -191,10 +214,19 @@ def main(context):
     manifest={'schema':1,'root':str(root),'state':str(root/'state'),'task':'t093-chain','preset':'ideation','launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),'executable':str(root/'fake-claude'),'version':'2.1.302','role_file':str(root/'roles/ideation/role.md'),'code_revision':args.source_revision,'source_snapshot':str(code_source),'authentication':'normal-login','credential_source':'file','upstream_url':f'http://127.0.0.1:{u}','turn_limit':3}
     context['setup_stage']='prepare_session'
     session=runtime.prepare(manifest,root/'repo',p,'127.0.0.1',180,root/'source-home')
+    baseline_profile=session['profiles']['D']
+    source_barrier='(deny file-read* file-write* (subpath '+json.dumps(str(root/'source-home'))+'))'
+    assert session['profiles']['D'].count(source_barrier)==1
+    # Only the test D owner may unlink the generated source HOME. It still
+    # cannot read its regular file bodies or write the actual account HOME.
+    session['profiles']['D']=session['profiles']['D'].replace(source_barrier,'')+'(allow file-write-unlink (subpath '+json.dumps(str(root/'source-home'))+'))(deny file-read-data (require-all (subpath '+json.dumps(str(root/'source-home'))+')(require-not (vnode-type DIRECTORY))))'
+    # prepare published this private file once; replace our own preparation
+    # data before starting any consumer. No original auth is read again.
+    (Path(session['private_root'])/'session.json').write_text(json.dumps(session)+'\n')
     context['private_root']=session['private_root']
     private=Path(session['private_root'])
     context['setup_stage']='build_fixture'
-    fixture={'root':str(root),'source':str(code_source),'candidate':args.source_revision,'output':str(output),'mutation':args.mutation,'upstream_port':u,'other_port':other,'bind_probe_port':bind,'git_index_hits':0,'G_processes':processes,'G_profile':g,'read_boundary_target':str(read_target),
+    fixture={'root':str(root),'source':str(code_source),'candidate':args.source_revision,'output':str(output),'mutation':args.mutation,'rehearsal':args.rehearsal,'upstream_port':u,'other_port':other,'bind_probe_port':bind,'git_index_hits':0,'G_processes':processes,'G_profile':g,'read_boundary_target':str(read_target),
              'inbox_sentinel':'t093-independent-'+uuid.uuid4().hex,'prompt':'无模型链路哨兵 '+uuid.uuid4().hex+'；请读取本角色收件箱并在 Stop 转交。'}
     peer=code_source/'workbench/tests/t093_parallel_chain_peer.py'
     command=lambda role:['/usr/bin/python3','-I','-S','-B',str(peer),'--session',str(private/'session.json'),'--role',role]
@@ -202,7 +234,7 @@ def main(context):
     common=session['profiles']['F']
     # U has two explicit test listeners and no outbound. It has its own record
     # directory. No CLI process can reach either listener directly.
-    profiles={'U':runtime.policies(session)['F'].split('(allow network-bind')[0].replace(q(session['forwarder_directory']),q(root/'U'))+'(allow network-bind network-inbound (local tcp4 "localhost:'+str(u)+'"))(allow network-bind network-inbound (local tcp4 "localhost:'+str(other)+'"))',
+    profiles={'D_baseline':baseline_profile,'U':runtime.policies(session)['F'].split('(allow network-bind')[0].replace(q(session['forwarder_directory']),q(root/'U'))+'(allow network-bind network-inbound (local tcp4 "localhost:'+str(u)+'"))(allow network-bind network-inbound (local tcp4 "localhost:'+str(other)+'"))',
               'S':session['profiles']['C']+'(deny file-write* (subpath '+q(root/'synthetic-home')+'))','M':session['profiles']['C']}
     fixture['test_profiles']=profiles
     runtime.save(private/'fixture.json',fixture)

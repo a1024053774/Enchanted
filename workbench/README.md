@@ -358,10 +358,10 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：外部 V 事实入口已通过；主控 #97 的七根清理均遇到 PermissionError。
-本候选改用非特权观察器并补上具体操作／路径／errno，先只检查再清理；完整链和反例仍待复验。
-当前版本、进程清单、复验命令与限制见
-[交接请求 09](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-09.md)。
+当前为 INCOMPLETE：外部 V 与旧七根清理已通过；新完整链的根删除错误曾掩盖主失败。
+本候选改为先保存脱敏原异常，再由独立 D 删除合成认证源；确认写入者退出后才删剩余根。
+局部反例已通过，同 OS profile 的失败／绿态演练与正式六场等待主控沙箱外执行，见
+[交接请求 10](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-10.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
@@ -454,7 +454,13 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-其余五个独立场景、预期业务失败及独立结果核对器见交接请求 08；先执行交接请求 09 的清理检查。
+先按交接请求 10 清理唯一残留，再运行 REHEARSE-CHAIN-01.sh 的 primary／green 两场，并由独立核对器确认。
+演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
+两场通过后才执行正式六场，预期业务断言与命令均在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
+
+测试长期 D 仅比产品 D 多本次合成 source-home 的 file-write-unlink，仍禁读其普通文件正文；原始基线 D 规则另列为 D_baseline。
+C/F 对认证源的拒读拒写不变。D 先读回 C 已 fsync 的 cleanup_pending 检查点，才删合成源；正式产品不删除用户认证源。
+结果 JSON 在测试收尾前先发布，清理错误单列；`.events.jsonl` 保存各阶段主失败／清理状态，V 独立核对删除收据、退出记录与最终报告进程退出。
 所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
 结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
 

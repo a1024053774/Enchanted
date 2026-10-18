@@ -328,3 +328,33 @@ cleanup-observer-red-01 拒绝旧观察器，cleanup-quiescence-green-05 用模�
 它指出原错误单元测试主要直接调用 helper；随后补 cleanup-cli-red-01／green-01，实际调用 main 和独占 JSON writer，只模拟失败操作／bootstrap。
 旧实现的最终失败收据缺少 operation/path/errno，被同一业务断言拒绝；当前文件错误与观察器错误两个最终 JSON 均具备准确字段。
 这仍是 L1 模拟，不能声称已复现真实受保护 exec 或实际文件权限；清理实现自审查后未变。地图与最终局部状态见 freeze-checks-16.json。
+
+## 主控 #98／#100：先保留主失败，再交清理拥有者
+
+**本候选 INCOMPLETE。** 主控已确认旧七根全部删除成功，inspect-only 的旧 ps 在 X 下直接捕获 PermissionError、errno 1、/bin/ps、4755；新观察器实际通过。
+原件摘要与七份清理结果保存在 chain-06-cleanup-red.json。随后候选 bc87c71fc 的 none 在 prepared_services 后遭 ENOTEMPTY，未写 JSON；后五场未跑。
+新根 /private/tmp/t093-chain-e189ndt0 只剩 source-home（含合成认证）。worker 仅列元数据，不读认证正文、不删除它。
+
+根因是测试 C 保留了对合成认证源的拒读拒写，却试图删除其父根；删除异常又覆盖了已捕获的业务失败。
+主控 #100 同意这条判断并要求独立清理拥有者。原业务错误已丢失，不能从收尾错误推断它是什么。
+新流程先持久化原错误的类型／消息／code／errno／path／stack，后续清理错误另列；结果采用独占首次发布、拥有者核对后的原子更新和 fsync，检查点摘要另存 events。
+R 的 Git 终止／生成认证目录删除之前也先保存原异常，修正同一类先清理后留证据的问题。
+
+独立长期 D 先执行原 metadata_service，再等待 C 的清理许可；许可必须能读回同一候选／夹具的 cleanup_pending 检查点。
+测试 D 只增加本次合成 source-home 的 file-write-unlink，可枚举目录，普通文件正文仍拒读；用 open 反例记录被拒及 0 字节。
+C/F 与真实 HOME、网络、Security、fork 边界均不变。原始基线 helper 仍用未扩展 D，结果另列 D_baseline 的完整规则。
+D 删合成源并提交带所见检查点序号的收据后退出。C 再确认 U 关闭、daemon 关闭、F/D/U/S/M/G 组与登记子进程退出，最后同步删剩余根。
+无法确认写入者就不删根；ENOTEMPTY 等删除错误记录为次要清理失败，不能取代原主失败。报告 PID 最后由外部 V 确认退出。
+正式产品不删除用户认证源；本次修改仅在测试／清理／核对与文档范围内，产品 src 未改变。
+
+局部红绿为 chain-publication-red-02／green-04：同一检查在 bc87 的真实旧清理尾部命中 primary_JSON_must_exist_before_any_cleanup，当前发布器通过主失败、ENOTEMPTY、存活写入者、次要收尾错误与已有证据不覆盖五项检查。
+setup-publication-red-01／green-02 对 R 命中 R_primary_JSON_must_exist_before_source_cleanup，修复后同时核对先落盘再终止 Git。
+chain-cleanup-oracle-green-01 用独立给定的收据拒绝活动写入者、主失败丢失、源未删、正文可读、先删源、无历史与报告仍在运行七种反例。
+cleanup-quiescence-green-07 增加 C 的活动／正对照；retained-cleanup-local-07 拒绝 source-only 多余项并验证固定结构删除。
+这些均为本地合成文件与模拟进程，只证明局部逻辑，不证明 OS 权限或完整链已通过。
+
+主控 #100 明确 Codex 会话本身是一层 sandbox，不能在其中嵌套本次 profile；此前本地可用性检查 exit 71，后续升级被拒，本轮不再尝试。
+按其要求交付沙箱外 REHEARSE-CHAIN-01.sh：先让同一原 R/G/C 链在两次 hook／Stop 后主动抛 rehearsal_primary_probe，核对主失败和完整清理，再跑绿态。
+两场及独立核对全部符合预期后才运行正式六场；新命令、实际进程 profile 表和停止条件见 REVIEW-REQUEST-T093-10.md。
+唯一新残留用 CLEANUP-CHAIN-06.sh 清理，精确范围在 retained-cleanup-scope-06.json；不读认证正文、不 chmod，R/G/C 未停或形态不符均拒绝。
+所有旧审查报告保持原文，旧 PASS 不替本候选的 OS 演练／六场复验背书。真实供应商 CLI、真实 auth、真实上游与模型本轮均未运行。

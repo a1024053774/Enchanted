@@ -34,7 +34,7 @@ def active_initial():
 def inventory():
  assert hasattr(mod,'error_details'),'unprivileged_observer_with_positive_control_required'
  root=Path('/private/tmp/t093-chain-bound-unit')
- cases=[('inactive',None),('active_R','R'),('active_G','G'),('control_missing','missing'),('query_error','error')]
+ cases=[('inactive',None),('active_R','R'),('active_G','G'),('active_C','C'),('control_missing','missing'),('query_error','error')]
  observed=[]
  for name,role in cases:
   class Control:
@@ -50,7 +50,7 @@ def inventory():
     assert callable(options['preexec_fn']),'control_deadline_must_start_before_exec'
     return control
    assert argv[:5]==['/usr/bin/pgrep','-a','-f','-U',str(os.getuid())]
-   query_role='R' if 'run_t093_login_chain' in argv[-1] else 'G'
+   query_role='R' if 'run_t093_login_chain' in argv[-1] else 'C' if 'test_t093_login_chain' in argv[-1] else 'G'
    values=set()
    if control.poll() is None and role!='missing':values.add(control.pid)
    if role==query_role:values.add(440501)
@@ -62,9 +62,9 @@ def inventory():
   with patch.object(mod.subprocess,'Popen',side_effect=popen),patch.object(mod.os,'killpg',side_effect=absent),patch.object(mod.os,'getpgid',return_value=440500):
    try:value=mod.setup_quiescence(root)
    except mod.ActiveSetupProcesses as error:
-    assert role in ('R','G') and error.proof['root']==str(root) and error.proof['matching_processes'][0]['role']==role
+    assert role in ('R','G','C') and error.proof['root']==str(root) and error.proof['matching_processes'][0]['role']==role
    except ValueError as error:assert role in ('missing','error') and str(error)==('setup_process_positive_control_not_seen' if role=='missing' else 'setup_process_inventory_unavailable')
-   else:assert role is None and value['root']==str(root) and value['complete'] and value['matching_processes']==[] and value['positive_control']['R_seen'] and value['positive_control']['G_seen']
+   else:assert role is None and value['root']==str(root) and value['complete'] and value['matching_processes']==[] and value['positive_control']['R_seen'] and value['positive_control']['G_seen'] and value['positive_control']['C_seen']
    assert control.returncode==-9,'observer_control_must_be_reaped_before_return'
    assert all(argv[0] in ('/usr/bin/python3','/usr/bin/pgrep') for argv in commands)
   observed.append(name)

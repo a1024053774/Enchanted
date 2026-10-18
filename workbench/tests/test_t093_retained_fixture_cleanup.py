@@ -10,7 +10,7 @@ from unittest.mock import patch
 p=Path(__file__).with_name('cleanup_t093_retained_fixture.py').resolve()
 spec=importlib.util.spec_from_file_location('cleanup',p);mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 output=Path(sys.argv[1]);assert not output.exists();checks=[]
-for kind in ('initial','unconfirmed','closed','active','code','inspect'):
+for kind in ('initial','unconfirmed','closed','active','code','inspect','source_only','source_extra'):
  root=Path(tempfile.mkdtemp(prefix='t093-chain-cleanup-unit-',dir='/private/tmp'))
  linked=Path(tempfile.mkdtemp(prefix='t093-linked-dependency-unit-',dir='/private/tmp'))
  try:
@@ -26,7 +26,16 @@ for kind in ('initial','unconfirmed','closed','active','code','inspect'):
    receipt=root/'state/login-audits/12345678-1234-1234-1234-123456789012/metadata/removed.json'
    receipt.parent.mkdir(parents=True);receipt.write_text('{"isolated_home_removed":true,"cleanup_failures":[]}')
   def inactive(*args):raise ProcessLookupError()
+  if kind.startswith('source_'):
+   for item in list(root.iterdir()):
+    if item.name!='source-home':shutil.rmtree(item)
+   if kind=='source_extra':(root/'unexpected').write_text('keep')
   with patch.object(mod.os,'kill',side_effect=None if kind=='active' else inactive),patch.object(mod.os,'killpg',side_effect=inactive),patch.object(mod,'SOURCE',linked/'workbench/src/session.py' if kind=='code' else mod.SOURCE),patch.object(mod,'setup_quiescence',return_value={'complete':True,'matching_processes':[],'scope':'mocked unit evidence'}):
+   if kind.startswith('source_'):
+    try:receipt=mod.remove(root,context={'shape':'source_only'})
+    except ValueError as error:assert kind=='source_extra' and str(error)=='unrecognized_fixture_entries_refused'
+    else:assert kind=='source_only' and receipt['root_removed'] and receipt['credential_file_present']
+    checks.append({'case':kind,'strict_source_shape':True});continue
    if kind in ('unconfirmed','active'):
     expected='post_service_fixture_without_cleanup_receipt' if kind=='unconfirmed' else 'recorded_process_or_group_still_exists'
     try:mod.remove(root)

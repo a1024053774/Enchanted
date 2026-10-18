@@ -26,6 +26,8 @@ def record(name,action):
 
 def timeout():
  calls=[]
+ directory=tempfile.TemporaryDirectory(prefix='t093-G-checkpoint-unit-',dir='/private/tmp')
+ checkpoint=Path(directory.name)/'result.json'
  class Child:
   pid=440301
   returncode=None
@@ -39,7 +41,8 @@ def timeout():
   calls.append(('signal',int(kind)))
   if kind==0:raise ProcessLookupError()
   assert group==child.pid
- context={'setup_stage':'git_credential_scan','processes':[],'cleanup_failures':[]}
+  assert checkpoint.is_file() and json.loads(checkpoint.read_text())['primary_failure']=='protected_chain_setup_failed','R_primary_JSON_must_exist_before_Git_termination'
+ context={'setup_stage':'git_credential_scan','processes':[],'cleanup_failures':[],'output':str(checkpoint)}
  if hasattr(driver,'run_git'):
   with patch.object(driver.subprocess,'Popen',return_value=child),patch.object(driver.os,'killpg',side_effect=kill):
    try:driver.run_git(Path('/private/tmp/source'),'synthetic G',['grep'],context,timeout=90)
@@ -55,6 +58,7 @@ def timeout():
    except subprocess.TimeoutExpired:pass
  assert ('signal',int(signal.SIGKILL)) in calls and len([v for v in calls if v[0]=='wait'])==2,'timed_out_Git_child_must_be_terminated_and_reaped'
  assert context['last_git']['stderr']=='original timeout stderr','Git_timeout_stderr_must_be_preserved'
+ directory.cleanup()
  return {'original_timeout_preserved':True,'owned_child_terminated_and_reaped':True,'actual_process_signals':0}
 
 def budget():
@@ -78,7 +82,14 @@ def diagnostics():
   context={'setup_stage':'git_credential_scan','fixture_root':str(fixture),'output':str(root/'result.json'),'candidate':'a'*40,'mutation':'none','secrets':[secret],
            'processes':[],'cleanup_failures':[],'last_git':{'operation':'git_credential_scan','returncode':2,'stderr':'denied '+' '.join(independent_variants),'stdout':'original stdout'}}
   error=OSError(1,'original failure '+secret)
-  result=driver.write_setup_failure(context,error)
+  original_remove=driver.shutil.rmtree
+  def remove_after_checkpoint(path):
+   assert (root/'result.json').is_file(),'R_primary_JSON_must_exist_before_source_cleanup'
+   checkpoint=json.loads((root/'result.json').read_text())
+   assert checkpoint['primary_failure']=='protected_chain_setup_failed' and checkpoint['error_summary']['errno']==1,'R_primary_error_must_precede_cleanup'
+   original_remove(path)
+  with patch.object(driver.shutil,'rmtree',side_effect=remove_after_checkpoint):
+   result=driver.write_setup_failure(context,error)
   raw=(root/'result.json').read_text();saved=json.loads(raw)
   assert saved['setup_stage']=='git_credential_scan' and saved['error_summary']['type']=='PermissionError','R_failure_must_identify_stage_and_original_type'
   assert 'original failure' in saved['error_summary']['message'] and saved['error_summary']['errno']==1,'R_failure_must_preserve_sanitized_original_message'

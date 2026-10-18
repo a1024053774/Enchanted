@@ -1,0 +1,42 @@
+{
+  "status": "FAIL",
+  "scope": "synthetic exception/child fixtures; no OS profile, real Git, auth or model",
+  "checks": [
+    {
+      "check": "owned Git timeout cleanup",
+      "status": "FAIL",
+      "business_failure": "R_primary_JSON_must_exist_before_Git_termination"
+    },
+    {
+      "check": "bounded scan covers observed duration",
+      "status": "PASS",
+      "detail": {
+        "scan_budget_seconds": 90,
+        "scan_call_count": 1,
+        "no_retry": true
+      }
+    },
+    {
+      "check": "original R error and no credential leakage",
+      "status": "FAIL",
+      "business_failure": "R_primary_JSON_must_exist_before_source_cleanup"
+    },
+    {
+      "check": "cleanup failure remains secondary",
+      "status": "PASS",
+      "detail": {
+        "original_timeout_seconds": 90,
+        "secondary_reap_failure_reported": true
+      }
+    },
+    {
+      "check": "actual main stage context",
+      "status": "PASS",
+      "detail": {
+        "actual_main_reached_git_scan": true,
+        "protected_services_or_auth_reads": 0,
+        "generated_credential_directory_removed": true
+      }
+    }
+  ]
+}
