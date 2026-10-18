@@ -7,6 +7,8 @@
 **整票 INCOMPLETE：实现及下列无模型运行检查 PASS，最终冻结候选的独立审查、门禁验收与集成尚未完成。**
 不修改 ticket 验收框，不把 Git 提交当作 Gate submit 或 integration 收据。
 
+最新交接为 [第二轮独立审查请求 15](REVIEW-REQUEST-T093-15.md)。主控 #117 已回传 chain-08 counts／V 单场 PASS；它与 chain-07 的其余五场、rehearsal-04 的预期结果均符合要求，但分别绑定下文列出的两个候选，不存在新候选六场统一重跑的记录。T-096 跨票恢复检查仍未完成。以下各“当前／最新”文字均保留为其对应阶段的历史记录。
+
 更新：独立审查 01 对第一次冻结候选 1d4c58b4a 给出 **NO_GO（验收文件缺口）**，报告原文保留。
 下文首次交付的 PASS 均是当时运行证据，不提升为新候选的独立审查通过。当前仅修正验收输入与审查驱动的失败保存，产品源码未改；新外部复验与新独立审查仍待完成，见末节。
 
@@ -488,3 +490,30 @@ V 新增显式 --counts-only，用原有全部每场断言核对这一场，默�
 实现冻结 ae54aac378d7e646b8677e1763cf604ef8a182c4 的一次限定复核为 INCOMPLETE，原文 UPSTREAM-SHUTDOWN-REVIEW-02.md；审查者以原独立时序七项确认原 P1 的 L1 缺口关闭。
 仅删 group 条件、仅删 child 条件的两个变异都被最终未确认时禁止删除的业务断言拒绝。摘要 shutdown-independent-review-green-01.json、原命令 upstream-shutdown-review-02-commands.json 保留。
 受审实现此后未改，最终仅补文本证据；地图终检 0 problems、0 stale。实际 counts／V 和 T-096 跨票检查仍为 INCOMPLETE，不宣布整票通过。
+
+## 主控 #117：三组证据清单与第二轮独立审查交接
+
+**整票 INCOMPLETE；所列无模型场景的预期结果已取得。** 主控 #117 对 fb39d14f14588bb2634f110b2a5a13d6187b4513 的 counts 回传 rc 2，主失败 missing_raw_request_must_be_detected，cleanup_failures=[]、fixture_removed=true；V 的 counts-only 核对 rc 0／PASS，cases 1。
+原件读回与主控结果一致，最终 groups／children 全部 exited=true，隔离根与合成源已删除。真实供应商 CLI、真实 auth、真实上游、真实模型均为 0。此状态覆盖上段当时“counts／V 未运行”的历史记录，不改写旧失败。
+
+摘要为 [chain-07](chain-07-summary-15.json)、[chain-08](chain-08-summary-15.json)、[rehearsal-04](rehearsal-04-summary-15.json)，原路径／字节数／候选／checkpoint 清单为 VALIDATION-MANIFEST-15.json，独立 V 原文保留为各自 check.json。
+chain-07 原核对仍 INCOMPLETE，counts 的旧清理错误仍在；chain-08 只补新候选 counts 的证据，不将两代结果篡改成同一代 V PASS。原临时报告未删除，未复制 auth、整个夹具、sqlite 或二进制，也没有虚构外置盘归档。
+
+### 079842e8b 到 fb39d14f1 的准确差异
+
+git diff 确认产品 workbench/src、app、hooks 和依赖配置完全未变，故正常登录、profile、转发器、事实逻辑、Panes.processInfo/libproc 均为相同产品代码。
+测试链的变化限定在 finally 收尾：gone 的 EPERM 保持未确认、原期限内仅 ESRCH 确认；最终 all_exited 另须满足每条 groups/children.exited。后一项来自独立审查发现，不可省略成“整个区间只改 gone”。
+此外，独立 V 增加显式 --counts-only，仅改本次选择集合、沿用全部每场断言，默认仍须六场；新增相应时序／范围测试、README 与文本证据。finally 之前的触发、注入和业务断言未改。
+这不是新产品版本的六场通过证明；最终文档冻结与 fb39d14f1 的产品及运行测试代码也保持相同，具体差异与状态记录在 freeze-checks-30.json。
+
+| 场景 | 原实跑与结论 | 对新候选仍成立的部分／未重跑边界 |
+| --- | --- | --- |
+| none | chain-07／079842e8b，rc 0，V pass=true；2 请求、400→200、原件对账、两次 hook／Stop、哨兵一次、清理完整 | 产品、假 CLI、独立 U 和正常业务断言均未变，仍是同一产品行为的有效实跑证据；chain-08 也走过这些正常阶段再触发计数反例。没有把 none 标为 fb39 的新全场实跑 |
+| home-references-empty | chain-07／079842e8b，home_path_injection_must_be_reported；V pass=true、清理完整 | HOME 引用函数、argv 注入及其精确断言未变，仍证明忽略 HOME 引用会被抓住；该早失败路径的新收尾没有单独 OS 重跑 |
+| scanner-zero | chain-07／079842e8b，credential_injection_must_be_detected；V pass=true、清理完整 | 扫描器、六变体及实际注入／命中断言未变，仍证明扫描恒零会被业务断言拒绝；不扩大为真实凭据全 Git 历史检查，也不称新早失败收尾实跑 |
+| drop-first-record | chain-07／079842e8b，forwarder_record_count_must_match_upstream；V pass=true、清理完整 | F record 注入点、独立 U 收据和计数断言未变，仍证明首条漏记被对账抓住；finally 之外的比较没有放宽，新早失败收尾未单跑 |
+| empty-credential-cases | chain-07／079842e8b，credential_injection_cases_must_not_be_empty；V pass=true、清理完整 | 空集合前置业务断言及全部注入必须执行的断言未变，仍证明不是靠 ENOENT 退出；新早失败收尾仅有原实跑、局部新时序和共同收尾代码证据，不冒称已重跑 |
+| counts-always-match | chain-07 旧主失败正确但有清理错误，原 V pass=false；chain-08／fb39d14f1 同主失败、清理完整、V pass=true | 以新一场关闭该收尾缺口；仍只接受 ESRCH，最终每条退出明细须确认。旧失败保留，不用新结果覆盖旧候选状态 |
+
+rehearsal-04 的 primary／green 与 V PASS 继续绑定 079842e8b。主失败先落盘、完整派发 JSON、hook／Stop 和产品不变量未变；新 finally 的变化另由 chain-08 OS 实跑及 UPSTREAM-SHUTDOWN-REVIEW-02 的局部时序／删条件变异证明。没有重跑新候选两场演练。
+独立审查应核对上述证据延续范围，不能只看组合场景均符合预期就宣布同一新版本全套通过。下一步由主控安排新的只读第二轮审查；本轮只整理既有文本，不再启动链路、OS 查询、auth 或模型。

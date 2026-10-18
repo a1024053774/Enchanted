@@ -358,9 +358,9 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：primary04／green04 及演练独立核对已通过；正式六场主失败均符合预期，但 counts 的关闭确认遇到 EPERM，使六场核对未通过。
+当前为 INCOMPLETE：primary04／green04 及演练独立核对通过；chain-07 的五场与 chain-08 counts 单场均符合预期，后者已完成严格关闭确认及独立核对。两组分别绑定两个候选，最终独立审查与门禁仍未完成。
 夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
-新的 counts 单场及独立核对命令见 [交接请求 14](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-14.md)；
+最新证据清单及第二轮独立审查范围见 [交接请求 15](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-15.md)；
 共享调用点与 T-091／T-078／T-096 回归命令仍见 [请求 13](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-13.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
@@ -462,7 +462,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-旧残留已由主控清理。演练已确认完整派发 JSON 与两次 hook／Stop；本次按请求 14 只复验 counts 收尾和独立核对。
+旧残留已由主控清理。演练已确认完整派发 JSON 与两次 hook／Stop；counts 收尾复验和独立核对已完成，按请求 15 进入第二轮独立审查。
 演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
 正式六场的预期业务断言与命令在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
 
