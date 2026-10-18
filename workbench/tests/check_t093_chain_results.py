@@ -100,6 +100,10 @@ def main():
             good=good and value.get('mutation')=='none' and value.get('upstream_requests')==2
             good=good and len(value.get('checks',[]))>=4 and len(value.get('counterexamples',{}).get('credential_injections',[]))==6
         else:good=good and value.get('rehearsal')=='none'
+        for receipt in value.get('independent_upstream_receipts',[]):
+            shape=receipt.get('structure',{})
+            good=good and all(shape.get(key) is True for key in ('json_valid','body_keys_exact','first_message_keys_exact','role_exact','content_exact'))
+            good=good and shape.get('message_count')==1 and shape.get('content_type')=='str' and shape.get('unwrapped_content_exact') is False
         observed=value.get('counterexamples',{}).get('foreground_process_query',{})
         good=good and observed.get('observer',{}).get('method')=='macOS libproc' and observed.get('observer',{}).get('root_pid')==observed.get('shell_pid')
         good=good and any(row.get('pid')==observed.get('leader') and row.get('pid')==row.get('pgid')==row.get('tpgid') and isinstance(row.get('command'),str) and Path(row['command']).name=='fake-claude' for row in observed.get('processes',[]))

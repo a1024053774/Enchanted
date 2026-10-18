@@ -435,3 +435,29 @@ version-boundary-green-01 的原版本／并发断言与 conflict-panes-green-03
 审查者独立跑 alias 2 项、observer 11 项、version 8 项及其变异检查，认定前一 P1 的 L1 缺口已关闭，无新增阻断项。
 小原件另存 alias-review-green-01、observer-review-green-02、version-review-green-01。实现此后未改，最终只补文本证据。
 真实 C 下 libproc 与完整 primary／green／六场仍未执行，不能把局部结论上调；主控按请求 12 先跑 primary-03。
+
+## 主控 #111：提示正文与完整派发信封混淆
+
+**INCOMPLETE。** cb1208a0f 的真实 C/libproc 身份已通过，独立上游和原件均为两条请求，认证匹配、状态 400／200、收尾完整；primary 因旧 prompt_matches_fixture=false 而未到主动失败，green 未跑。
+rehearsal-03-primary-summary.json 保存原错误和实际前台记录；不改其状态。
+
+根因在旧 U oracle：它把 messages[0].content 与未包装的 fixture.prompt 比较。
+规范 native-cli-orchestration:88、125 及既有 T-078 固定字节合同要求派发有“⟦主控 #序号⟧”。store.register 生成标记＋换行，drain 逐字粘贴，假 CLI 只移除终端包装并把原内容作为 user message。
+原请求正文没有保留，不补称直接读回；数据流、hook 接受记录、真实 dispatch 局部检查和字节数共同定位：原轮两条 body 都为 247 字节，完整信封的默认 JSON 也是 247，未包装版本为 218。
+没有修改假 CLI、编码、system 或产品文本来迎合旧 oracle。
+
+现在 R 按外部规范和随机输入、fresh DB 的 #1 独立生成 expected_request_body，既不读取生产 dispatch 返回值来设预期，也不复制上游输出。
+C 先核对第一条序号／完整文本，U 对整个解码 JSON 精确相等；字段、数组位置、数量、role 和 content 都不能忽略。
+JSON 表达编码或缩进可不同，content 的内部空白、CRLF／LF、末尾换行、Unicode 字符不归一化；额外 system／消息／键均拒绝。
+U 只公开结构标志、类型和长度，不写头、正文或凭据；原认证／计数／顺序／清理断言保留，错误分类改为明确的 managed_request_body_must_match_exactly。
+upstream-prompt-red-02 在旧真实 Handler 上拒绝合同正例，green-02 的 13 项通过；内容单项与包含两种错误修法均被同一测试拒绝。
+managed-prompt-green-01 的实际 dispatch/store/PTY sink 四项通过，精确字节与独立预期一致。均为 L1，未启动真实网络、CLI、auth 或模型。
+
+共享影响按主控要求扩大到全部调用点审计，完整 13 个当前直接调用及 T-096 恢复入口列在请求 13；本轮产品 src 相对 cb1208a0f 没有修改。
+T-091 的六 IPC／paneKey、sender、iframe／跨窗隔离、独立身份序号与输出游标等 11 项及两种旧候选反例通过；版本合同 8 项与变异通过。
+T-078 runtime 11 项与 controller relay 22 项通过；它们的 liveness 是 spy，不冒称真实进程边界。原件以 t091-*／t078-*regression 保存。
+
+只读核对 exec/t096@d61876fe29916ccf577da7b9b912cf305d9fdd9d 后确认跨票集成前置项：恢复入口直接用旧 record，而旧记录没有 T-093 新规范身份元数据；T-096 纯测试仍提供 ps 文本替身。
+已写 ISSUE-T096-INTEGRATION.md，交执行主控在受管集成候选处理；不能删旧记录正例、改变原 argv、绕过版本／session 或固定 leader 成功。
+没有改另一票的 attempt／文件，当前分支也没有 T-096 实现，故该回归未跑；其纯合同与原生重启命令、材料和审批边界已写入请求 13。
+在新 primary／green／六场和跨票恢复回归完成前，不给出全 pane 非退化或集成 GO。旧审查原文与既有失败全部保留。

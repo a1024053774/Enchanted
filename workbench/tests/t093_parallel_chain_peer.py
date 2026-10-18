@@ -27,6 +27,24 @@ class LocalServer(HTTPServer):
         TCPServer.server_bind(self)
         self.server_name = 'local-fixture'; self.server_port = self.server_address[1]
 
+def inspect_request(body,expected,raw_prompt):
+    try:payload=json.loads(body)
+    except (ValueError,UnicodeError):return {'messages_present':False,'prompt_matches_fixture':False,'structure':{'json_valid':False,'body_bytes':len(body)}}
+    messages=payload.get('messages') if isinstance(payload,dict) else None
+    first=messages[0] if isinstance(messages,list) and messages and isinstance(messages[0],dict) else {}
+    content=first.get('content');expected_content=expected['messages'][0]['content']
+    valid=len(body)<=1024*1024 and isinstance(messages,list)
+    return {'messages_present':valid,'prompt_matches_fixture':valid and payload==expected,
+            'structure':{'json_valid':True,'body_keys_exact':isinstance(payload,dict) and payload.keys()==expected.keys(),
+                         'message_count':len(messages) if isinstance(messages,list) else None,
+                         'first_message_keys_exact':first.keys()==expected['messages'][0].keys(),
+                         'role_exact':first.get('role')==expected['messages'][0]['role'],
+                         'content_type':type(content).__name__,'content_exact':content==expected_content,
+                         'unwrapped_content_exact':content==raw_prompt,
+                         'content_codepoints':len(content) if isinstance(content,str) else None,
+                         'expected_content_codepoints':len(expected_content),'body_bytes':len(body),
+                         'expected_body_bytes':len(json.dumps(expected).encode('utf-8'))}}
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -89,11 +107,11 @@ def main():
             count = sum(row.get('kind') == 'request' for row in rows)
             size = int(self.headers.get('content-length', '0'))
             body = self.rfile.read(min(size, 1024 * 1024 + 1))
-            valid = size <= 1024 * 1024 and isinstance(json.loads(body).get('messages'), list)
+            inspected=inspect_request(body,fixture['expected_request_body'],fixture['prompt'])
             status = 400 if sequence == 1 else 200
             received.append({'sequence': sequence, 'method': self.command, 'path': self.path,
                              'bearer_matches_copy': self.headers.get('authorization') == 'Bearer ' + token,
-                             'messages_present': valid, 'prompt_matches_fixture': valid and json.loads(body)['messages'][0].get('content') == fixture['prompt'], 'recorded_before_receipt': count == sequence,
+                             **inspected,'recorded_before_receipt': count == sequence,
                              'ledger_request_count_at_receipt': count, 'status': status})
             # The receipt is independent of the forwarding implementation. A
             # missing row is reported by C's business assertion, not hidden by

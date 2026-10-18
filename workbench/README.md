@@ -358,10 +358,10 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：已确认 release 的 EPERM 来自旧 processInfo 启动 setuid-root /bin/ps。
-本候选选择方案 b，改由继承 C 的非 setuid Python/helper 通过 macOS libproc 查询本 PTY 进程树，全部 CLI 权限不变。
-局部身份核对与 SDK ABI 检查通过；同 profile 的新 primary 演练待主控运行，见
-[交接请求 12](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-12.md)。
+当前为 INCOMPLETE：C/libproc 已在 primary-03 的真实身份核对中通过，计数到两条、收尾完整；该轮停在测试 oracle 的提示比对。
+新夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
+新 primary、共享调用点与 T-091／T-078／T-096 回归命令见
+[交接请求 13](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-13.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
@@ -462,7 +462,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-旧唯一残留已由主控清理。先按交接请求 12 使用新输出重跑 REHEARSE-CHAIN-01.sh 的 primary，验证内核查询身份与两次 hook／Stop；达到预期后才继续 green／独立核对。
+旧唯一残留已由主控清理。先按交接请求 13 使用新输出重跑 REHEARSE-CHAIN-01.sh 的 primary，验证完整派发 JSON 与两次 hook／Stop；达到预期后才继续 green／独立核对。
 演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
 两场通过后才执行正式六场，预期业务断言与命令均在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
 
@@ -471,6 +471,7 @@ C/F 对认证源的拒读拒写不变。D 先读回 C 已 fsync 的 cleanup_pend
 结果 JSON 在测试收尾前先发布，清理错误单列；`.events.jsonl` 保存各阶段主失败／清理状态，V 将退出记录绑定原登记身份，并用信号 0 独立核对每个 PID／组与最终报告进程退出。
 所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
 结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
+processInfo 影响所有 pane：窗口输入、放行／中断、反馈和 hook／Stop 身份重查。T-091 IPC 与 T-078 局部回归已执行；T-096 不在本 worktree，集成前必须核对恢复运行的规范身份与旧记录合同，不能沿用其旧 PASS，详见请求 13。
 
 ## Electron 窗口
 

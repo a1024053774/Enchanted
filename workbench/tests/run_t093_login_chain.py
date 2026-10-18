@@ -236,6 +236,9 @@ def main(context):
     context['setup_stage']='build_fixture'
     fixture={'root':str(root),'source':str(code_source),'candidate':args.source_revision,'output':str(output),'mutation':args.mutation,'rehearsal':args.rehearsal,'upstream_port':u,'other_port':other,'bind_probe_port':bind,'git_index_hits':0,'G_processes':processes,'G_profile':g,'read_boundary_target':str(read_target),
              'inbox_sentinel':'t093-independent-'+uuid.uuid4().hex,'prompt':'无模型链路哨兵 '+uuid.uuid4().hex+'；请读取本角色收件箱并在 Stop 转交。'}
+    # External oracle: the native-CLI spec dispatch adds the managed marker.
+    # This fresh database's first dispatch is #1. Do not copy production output.
+    fixture['expected_request_body']={'messages':[{'role':'user','content':'⟦主控 #1⟧\n'+fixture['prompt']}]}
     peer=code_source/'workbench/tests/t093_parallel_chain_peer.py'
     command=lambda role:['/usr/bin/python3','-I','-S','-B',str(peer),'--session',str(private/'session.json'),'--role',role]
     q=lambda value:json.dumps(str(value))
