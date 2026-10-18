@@ -81,16 +81,19 @@ def main():
         expected = ["waiting_controller_answer"] if panel else ["working", "idle", "unknown"]
         matches_recorded = all(observed[key] == capture["observed_projection"][key]
                                for key in ("state", "reason", "raw_state", "conflicts"))
+        identity = observed.get("identity")
         identity_correct = (observed["worker"] == inputs["worker"] and observed["launch"] == inputs["launch"]
-                            and observed["identity"]["native_session"] == inputs["native_session"])
+                            and isinstance(identity, dict) and identity.get("native_session") == inputs["native_session"])
         calls = [json.loads(line) for line in (case / "calls.jsonl").read_text(encoding="utf-8").splitlines()]
-        read_only = len(calls) == 4 and all(call[:2] in (["agent", "get"], ["agent", "read"]) for call in calls)
+        read_only = bool(calls) and all(call[:2] in (["agent", "get"], ["agent", "read"]) for call in calls)
         results.append(dict(label=label, expected=expected, actual=observed["state"], reason=observed["reason"],
                             raw_state=observed["raw_state"], returncode=result.returncode,
                             conflicts=observed["conflicts"], identity_correct=identity_correct,
                             matches_recorded=matches_recorded, read_only=read_only,
+                            identity_output_available=isinstance(identity, dict), read_sequence_complete=len(calls) == 4,
                             meets_contract=observed["state"] in expected and identity_correct,
-                            command=argv, raw_output=str(case / "stdout.json"), native_bytes=cutoff))
+                            command=argv, raw_output=str(case / "stdout.json"), native_bytes=cutoff,
+                            native_bytes_origin=capture.get("native_bytes_origin", "original projection")))
     replay_ok = all(row["identity_correct"] and row["read_only"] and row["returncode"] in (0, 2) for row in results)
     accepted = all(row["meets_contract"] for row in results)
     files = [path for path in directory.rglob("*") if path.is_file()]
@@ -105,7 +108,7 @@ def main():
                   adaptations=["Recreate only the archived launch native_store path in a temporary SQLite index.",
                                "Replay captured Herdr replies through an explicit fake executable; do not contact the closed live pane.",
                                "Keep launch, worker, pane, native UUID, cwd and exact native prefix bytes unchanged."],
-                  limitation="Captured get/read surfaces precede live projections; this replay does not reconstruct their unrecorded internal reads.")
+                  limitation="Captured get/read surfaces precede live projections; this replay does not reconstruct their unrecorded internal reads. native_bytes_origin 标为最终归档时，原 unknown 投影没有记录字节截止点，不能声称重建了原始截止点。")
     with args.report.open("x", encoding="utf-8") as stream:
         json.dump(report, stream, ensure_ascii=False, indent=2)
         stream.write("\n")

@@ -23,3 +23,7 @@ red 折叠原件只有 Working、没有上述锚点，按新规则为 unknown，
 三个历史 run 的实际投影和 NO_GO 结果保持不变。skip 后原生没有可关联的解决事件，即便出现同 turn sleep 返回或继续执行，也只能证明屏幕不再显示面板，不能证明已解决；继续 unknown 并留冲突。`accepted:true` 始终只是回执。
 
 主控 #120 转达用户选 B，main `0e92f78ec6824265cdfcbb9387ba4b454d7eee7f` 的 T-095“裁定”明确：红态改为修前读取没有独立等待状态；回落改为离开等待，skip 后 unknown 算满足，但仍不证明问题已解决。第 4 回合三个 skip 后阶段因此满足新回落标准，旧合同的 NO_GO 记录保留。只追加第 5 个根提示回合验证操作者提交 A 的路径，之后不得再追加；答完仍停在等待即失败。该裁定不改变上述产品识别、原生绑定或冲突保护。
+
+第 5 回合已执行完，预算 5/5、剩余 0。默认折叠两屏无锚点，按规则 unknown；展开正判等待；提交 A 后即时/30秒/60秒为 unknown，均离开等待。无锚点说明该样本未正判，不说明锚点必定只会迟到或永不出现，属于生产覆盖限制，不能用第4回合的通过上调。
+
+与 skip 不同，第5回合日志有 send_user_message_question_reply 的 JSON，questionItemId 明确关联同一 request_user_input_async / call_id / 问题索引，且有 ANSWER_RECEIVED 和 task_complete。当前原生解析器尚未处理这种应答格式，返回 native_user_response_uncorrelated；答后三项未输出完整 identity。产品未据新原件修改。具体事件、状态条件与完整投影的区别见 RESULTS.md，不把 accepted 或 turn 完成单独当作问题解决。

@@ -21,7 +21,7 @@ def inventory(root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--manifest", choices=("native-offline-evidence.archive.json", "green-replay.archive.json", "ui-repair.archive.json", "independent-readback.archive.json", "anchor-repair.archive.json", "anchor-live-readback.archive.json", "answered-preparation.archive.json"),
+    parser.add_argument("--manifest", choices=("native-offline-evidence.archive.json", "green-replay.archive.json", "ui-repair.archive.json", "independent-readback.archive.json", "anchor-repair.archive.json", "anchor-live-readback.archive.json", "answered-preparation.archive.json", "answered-readback.archive.json"),
                         default="native-offline-evidence.archive.json")
     args = parser.parse_args()
     manifest = json.loads(Path(__file__).with_name(args.manifest).read_text(encoding="utf-8"))
