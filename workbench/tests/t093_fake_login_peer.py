@@ -9,6 +9,14 @@ import sys
 import urllib.error
 import urllib.request
 import uuid
+import errno
+import importlib.util
+
+def record(pid, role, ppid=None):
+    with open(os.environ['A2A_PROFILE_PROCESS_LOG'], 'a') as stream:
+        stream.write(json.dumps({'pid':pid,'ppid':os.getpid() if ppid is None else ppid,'role':role,'profile':'C inherited'})+'\n')
+
+record(os.getpid(), 'fixture peer', os.getppid())
 
 root = Path(__file__).resolve().parent
 turn = int(sys.argv[2])
@@ -16,25 +24,31 @@ if turn == 0:
     # A forked child inherits the CLI sandbox. Neither a source HOME read/write
     # nor a connection to the fake upstream's separate port may bypass it.
     sentinel = root / "source-home/private-sentinel"
+    source_guard = {}
     for mode in ("r", "a"):
         try:
             with sentinel.open(mode):
                 pass
         except PermissionError:
+            source_guard[mode] = True
             continue
-        raise SystemExit(21)
+        source_guard[mode] = False
     port = int((root / "upstream-port").read_text())
     try:
         connection = socket.create_connection(("127.0.0.1", port), timeout=1)
-    except OSError:
-        pass
+    except OSError as error:
+        bypass = {'denied':error.errno in (errno.EPERM, errno.EACCES),'errno':error.errno}
     else:
         connection.close()
-        raise SystemExit(22)
+        bypass = {'denied':False,'errno':None}
+    spec=importlib.util.spec_from_file_location('guards',root/'probe_helpers.py')
+    guards=importlib.util.module_from_spec(spec);spec.loader.exec_module(guards)
+    home_guard=guards.attempt(Path((root/'host-home').read_text()))
     state = json.loads((Path(os.environ["CLAUDE_CONFIG_DIR"]) / ".claude.json").read_bytes())
-    if state != {"hasCompletedOnboarding": True, "projects": {str(Path.cwd()): {"hasTrustDialogAccepted": True}}}:
-        raise SystemExit(23)
-    print("fixture-sandbox-child-protection-PASS", flush=True)
+    matches = state == {"hasCompletedOnboarding": True, "projects": {str(Path.cwd()): {"hasTrustDialogAccepted": True}}}
+    (root/'cli-guards.json').write_text(json.dumps({'pid':os.getpid(),'ppid':os.getppid(),'profile':'C inherited','real_home_write':home_guard,'upstream_bypass':bypass,'source_home':source_guard,'config_matches':matches}))
+    good=all(source_guard.values()) and bypass['denied'] and home_guard['denied'] and matches
+    print("fixture-sandbox-child-protection-"+('PASS' if good else 'FAIL'), flush=True)
     raise SystemExit(0)
 
 settings = json.loads(os.environ["T093_FIXTURE_SETTINGS"])
@@ -43,13 +57,17 @@ prompt_id = str(uuid.uuid4())
 
 
 def run(argv, value=None):
-    child = subprocess.run(argv, input=json.dumps(value) if value is not None else None,
-                           text=True, capture_output=True, timeout=12)
+    child = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    record(child.pid, 'native hook or inbox command')
+    try:
+        stdout,stderr=child.communicate(input=json.dumps(value) if value is not None else None,timeout=12)
+    except subprocess.TimeoutExpired:
+        child.kill();child.communicate();raise SystemExit(24)
     if child.returncode:
         # Status classes only; no raw terminal, hook body, auth or account data.
         print("fixture-native-command-failed", child.returncode, flush=True)
         raise SystemExit(24)
-    return child.stdout
+    return stdout
 
 
 def hook(name, **extra):

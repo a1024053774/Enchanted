@@ -358,91 +358,100 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-用户裁定 A（main c06a73179）将 HOME 验收改为“OS 强制禁写真实 HOME 加拒写反例”；
-清单差异照实报告，不再作通过条件。父层 H 已实测拒写，但嵌套 C exit 71，不能按嵌套方案实现。
-目前尚不能宣称旧 CLI 隔离方式已满足所有父／辅助进程要求，整票 INCOMPLETE。
-主控 #83 已明确独立 F：只写自己的记录目录、单监听端口、只连配置上游、禁 Security／fork；
-C 只连接 F。权限已定，新 OS 组合尚待沙箱外实测，产品仍未改成该方案。
-当前计划、每个进程的 profile 与探针命令见
-[平级 profile 核对](../evidence/2026-10-16-batch16/T-093/PARALLEL-PROFILES-PLAN-02.md)和
-[请求 05](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-05.md)。
-不要把旧完整链 PASS 当作新方案的验收，也不再重复已失败的嵌套探针。
-上游 URL 解析已按配置值选择 HTTPS 地址／端口，保留本地 HTTP 假上游及凭据、路径、query 等校验；
-这项纯解析修正已取得红绿证据，新进程保护和完整链仍待实测。
+当前为 INCOMPLETE：平级 profile 的 OS 边界已由主控 #84 实测成立；U 后清单收尾已修正，
+产品也已接入这套设计，完整新链与反例仍待沙箱外运行。不能用旧完整链的 PASS 代替本候选。
+当前版本、进程清单、复验命令与限制见
+[交接请求 06](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-06.md)。
 
-仍使用同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留
-UserPromptSubmit、PermissionRequest、Stop 和队列转交。manifest 在既有身份、角色卡、
-代码版本及目录字段之外，设置 `authentication: "normal-login"`、`version: "2.1.302"`、
-`credential_source: "macos-keychain"`（或明确选 `"file"`），以及 `upstream_url`。
-上游只接受 `https://api.anthropic.com` 或测试用 `http://127.0.0.1:实际端口`；
-正常模式的本地监听端口由后台分配，无须提供 `api_url`。默认假 API profile 的合同不变。
-root 必须是规范绝对路径，state 为 root/state；角色目录仍为 root/roles/ideation 或 executor，
-包含 home、claude、tmp、shell、requests、hooks、user-data 及 role.md。
-正常模式的 task.repo 可以是独立的规范工作区路径。
+仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
+UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
+manifest 在既有字段外设置 `authentication: "normal-login"`、`version: "2.1.302"`、
+明确的 `credential_source: "macos-keychain"` 或 `"file"`，以及唯一的 `upstream_url`。
+URL 可以是配置的 HTTPS 地址／端口，或测试用的 `http://127.0.0.1:端口`；没有默认上游或 fallback。
 
-后台先在新建的 `/private/tmp/a2a-claude-login-*` 环境里核对版本，再只读取得登录对象。
-钥匙串只读取 `Claude Code-credentials` 和明确的 `~/Library/Keychains/login.keychain-db`；
-文件来源只读 `~/.claude/.credentials.json`，没有自动切换来源或枚举其他条目。
-只复制 claudeAiOauth，凭据文件权限 0600；不复制设置、历史或其他认证对象。
-需要 macOS 的 sandbox-exec、security、/usr/bin/python3。源路径不跟随符号链接。
-版本或准备失败只返回固定错误类别，不把 auth status、security 的原始输出写入事件。
-
-隔离配置新建 `hasCompletedOnboarding: true` 和唯一当前规范工作区的
-`projects[路径].hasTrustDialogAccepted: true`。这两个是 **2.1.302 内部状态**，
-更换版本必须重新探针核对。CLI 的信任语义涵盖该工作区子目录，不设置其他项目或全局信任。
-onboarding 预检会直接访问 api.anthropic.com/api/hello 与 platform.claude.com/v1/oauth/hello，
-不经过 BASE_URL；不能遗漏计数。正常模式预先生成状态，并把可见预检失败单列为
-`onboarding.preflight_observed`。CLI 及其子进程只能连接本地转发端口和精确 daemon Unix socket，
-直接外连被系统 profile 阻断。因此转发记录不能证明“尝试过的全部网络请求”，
-事实报告明确保留这个观察边界；它记录到的是转发器接收的全部 HTTP 请求。
-
-为运行原生 hook，产品 profile 保留派生／执行子进程能力；子进程继承同一 sandbox。
-真实 HOME 默认禁止读写，仅给 CLI/Node 可执行文件、当前 workbench 源码与依赖、
-工作区、state 和角色目录开必要例外；其中写入例外仅为工作区、state、角色目录。
-真实 .claude、.claude.json、.claude.json.backup 和 Library/Keychains 仍明确禁止读写，
-Security Mach 服务也禁止。启动记录保留这些真实 HOME 路径引用，事实脚本逐项列出字段及次数，
-不将“引用存在”解释为已读写，也不自动忽略引用。
-
-转发器在连接上游前逐条落盘并 fsync；请求体与认证头不落盘。
-`state/login-audits/<launch>/requests.jsonl` 保留序号、方法、路径（无 query）、
-正文长度、bearer 是否匹配副本，以及每次响应或错误结果。400 后的 CLI 重试计入新请求；
-转发器自身不重试、不跟随重定向。日志写入失败时不再转发新请求。
-终端只持久化已去凭据的字节；原值以及 JSON、URL、base64 变体都参与替换与扫描，
-跨输出片段的未完成凭据前缀暂不公开；OSC/DCS 控制负载不进入公开 trace，
-终端协议处理仍使用内存里的原始流。debug、配置和会话历史留在隔离 HOME 根目录内。
-CLI 退出后清理其剩余进程组，关闭转发器，收集事实，再删除整个隔离根。
-退出或采集失败不补造 PASS；中断／崩溃导致的未确认清理仍须人工核对。
-
-会话正常结束后运行只读事实命令：
+正常登录使用独立的受保护 daemon。先准备已有合同要求的角色目录、task 和 manifest，再由操作者启动：
 
 ```sh
-node workbench/src/claudeLoginCheck.ts /绝对路径/state/login-audits/LAUNCH
+python3 workbench/src/claudeLoginSession.py --manifest /绝对路径/manifest.json \
+  --repo /真实HOME以外的工作区 --forward-port 本地固定端口 \
+  --upstream-address 配置上游的固定IPv4 --lifetime-seconds 600
 ```
 
-它重新数原始请求记录，并与会话结束时保存的入口计数对账；输出启动参数／环境中的真实 HOME
-引用、凭据扫描命中数、隔离根删除结果及真实 HOME 清单差异。
-扫描范围是该次 state，扫描时间是结束时；此命令不重读认证源，也不冒称做了新的凭据扫描。
-前后清单只读 .claude、.claude.json、.claude.json.backup、Library/Keychains 的目录及 lstat 元数据，
-不读正文、不跟随链接、不比较 atime、不使用校验值，其余 HOME 路径显式排除。
-所有差异照实列出，不推断因果；其他会话的并发写入也保留，待主控裁定。
-按裁定 A，有无这些差异均不决定通过；报告以 pass_condition=false 和裁定来源明确标注，
-其他子进程失败、凭据命中、计数失配及清理等条件不因此放宽。
-脚本退出码只表示能否读完报告，不自动批准或拒绝模型调用。
+本票不运行上述真实登录命令或真实模型回合。root、root/state、repo 和全部运行数据必须在
+OS 账号真实 HOME 以外；严格禁写 HOME 因而也禁止写其中的项目工作区。角色目录仍是
+root/roles/ideation 或 executor，包含 home、claude、tmp、shell、requests、hooks、user-data 与 role.md。
+CLI executable 使用规范实际路径，避免版本符号链接与进程身份不一致；Git 元数据也须在真实 HOME 外。
+启动器直接 exec 进入 C 中的现有 daemon 入口，并在 C 中创建本次 root/operator.json；
+后续操作继续走原入口。后台与 PTY 生命周期不依赖前端窗口。
 
-无模型验证使用合成登录对象、编译的确定性假 CLI、真实 PTY/daemon/hook/Stop 和本地假上游：
+`upstream-address` 是 URL 的显式 IPv4 网络地址，由操作者配置。F 仅连接该地址与 URL 的端口；
+不查询 DNS、不轮换地址，TLS 使用 URL 的原始主机名验证证书。HTTP 假上游必须匹配 127.0.0.1；
+不支持 IPv6。绿态只配置本地假上游，真实域名的 DNS／TLS 与真实模型仍未实测。
+
+| 进程／阶段 | profile 与权限 |
+| --- | --- |
+| R 凭据准备 | 在业务沙箱之外精确读一次。文件来源只读 ~/.claude/.credentials.json；钥匙串只查 Claude Code-credentials 和指定 login.keychain-db，不枚举、不换来源。仅复制 claudeAiOauth 到私有 /private/tmp/a2a-claude-login-*，文件 0600 |
+| C 根 daemon、PTY、zsh、CLI、原生 hook／tool、ps、事实子进程 | 最外层只施加一次 C，后代继承；禁写整个真实 HOME，保留 HOME 读取屏障，只例外读取 CLI／Node、workbench 源码及依赖；TCP 只到 F 的固定本地端口，Unix socket 仅本次 control.sock；禁止 Security，保留 fork／exec |
+| F 独立进程 | 在 C 启动前独立施加 F，脱离调用者进程组并 reparent；只写自己的 forwarder 记录目录、只监听固定 P、只连接配置上游地址及端口；禁止其他网络、Security 与 fork |
+| D 基线及清单／隔离根清理 helper | 原始 auth 读取前由一次短 D 进程采基线；长期 D 独立施加相同 profile。无出站、无 Security、无 fork，只写私有根及自己的收据目录。HOME 只读目录/stat，不读正文（源码除外）；快照仅留私有根，C 输出差异后由 D 删除整个根 |
+
+R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没有不受保护的长期监督进程。
+短脱离 helper 各自以对应 profile 的 true 结束，实际 PID 与退出码单列。各后台进程有覆盖
+前置检查、服务与收尾的硬期限。D 在失败／根进程退出时清理本次登记的组与私有根；
+清理不确定会记录失败，不能补作 PASS。已有可写 HOME FD 在应用 profile 前关闭；日志不得重定向进真实 HOME。
+
+版本检查、auth status、交互 CLI 均直接继承 C，不再调用内层 sandbox-exec。
+未通过启动器的正常登录请求返回 normal_login_outer_profile_required；不会退回未受保护模式。
+默认假 API profile 的合同保持原样。
+
+隔离配置只新建 `hasCompletedOnboarding: true` 和当前规范工作区的
+`projects[路径].hasTrustDialogAccepted: true`。它们是 **2.1.302 内部状态**，换版本须重新核对。
+onboarding 预检会直连 api.anthropic.com/api/hello 与 platform.claude.com/v1/oauth/hello，
+不经过 BASE_URL；正常模式必须用上述状态避免触发。事实记录生成状态是否完整，并用终端和
+私有 debug 日志分类 `onboarding.preflight_observed`；沉默的被拒连接尝试未测量，不冒称已统计。
+C 的 OS 规则阻止直连上游；转发原件证明的是 F 实际接收的全部 HTTP 请求，包含失败与重试。
+
+F 复用原转发器，先逐条写盘并 fsync 再连接上游。请求体与认证头不落盘，方法、路径等元数据
+也参与凭据脱敏；保留序号、方法、无 query 路径、长度、bearer 匹配布尔值及每次响应／错误。
+原件在 `state/login-audits/<launch>/forwarder/journal/requests.jsonl`，F 自身不重试或跟随重定向。
+CLI 的 400 后重试算新请求；记录失败时停止转发新请求。终端仍只持久化去凭据字节，
+原值及 JSON／URL／base64 变体都扫描；跨片段前缀暂不公开，OSC/DCS 负载不进入 trace。
+配置、debug、原生历史与凭据副本随整个隔离根删除。C 的管理临时目录另在 audit/C-tmp，
+避免结束后的事实子进程重建已删除的隔离根。
+
+操作者在发送模型提示前，使用独立 V profile 的只读事实入口：
 
 ```sh
-python3 workbench/tests/run_t093_login_chain.py --output /绝对路径/新的摘要.json
+python3 workbench/src/claudeLoginSession.py --stage facts --preflight --audit /绝对路径/state/login-audits/LAUNCH
 ```
 
-需由主控在沙箱外运行，后台进程脱离调用者进程组；不执行供应商 CLI，不读真实认证源。
-daemon 使用合成源 HOME；外层脚本另对主控实际 HOME 的同一四个范围做前后元数据清单，
-保存为摘要同名前缀的 `.host-home.json`；完整清单只在内存比较，摘要保存前后条目数与全部差异，
-不推断归属，不保存整个 HOME 原始目录树。
-探针事实与正式链路验证分别报告，旧探针 PASS 不替代产品候选的验收。
-完整链、各反例、版本边界及可重数的独立转发原件见
-[T-093 结果](../evidence/2026-10-16-batch16/T-093/RESULTS.md)。保留的原件只含请求元数据与结果，
-可用同一事实命令重数完整版本及漏记副本；它们与完整链的临时夹具属于不同运行。
+preflight 标明 before_cli_input、当时的入口计数与扫描结果，结束后 HOME 对比仍是 pending；
+后续重新读取会重数当前原件，保存的入口计数／扫描时间仍是历史事实。它不批准模型输入。
+正常结束后用同一入口去掉 `--preflight`。C 内部子进程使用 `node workbench/src/claudeLoginCheck.ts [--preflight] AUDIT`，
+继承 C，不再嵌套 V。外部入口关闭额外 FD、禁写真实 HOME、禁网络和 Security，并保留 HOME 读取屏障。
+
+当前事实 schema 为 2，只读该版本的 ledger；旧 schema-1 证据须用其绑定的旧代码重放。
+命令重新数请求并与结束计数对账，报告真实 HOME 路径引用、结束时的 state 凭据扫描、
+原件计数、前后清单差异、进程/profile 来源和隔离根删除收据。不会重新读取原始 auth，
+退出码只表示读写／解析是否成功，不自动批准或拒绝模型调用。
+
+元数据只列 .claude、.claude.json、.claude.json.backup、Library/Keychains，
+不读正文、不跟随链接、不比较 atime，不用校验值；其他 HOME 范围排除。
+目录在 stat 后消失会显式标 missing；权限错误仍作为采集失败报告。
+差异全部报告、不推断因果。按用户裁定 A（main c06a73179），清单有无差异均不决定通过，
+以 pass_condition=false 标明。凭据、计数、身份与清理断言不因此放宽。
+
+无模型验证只用合成登录、编译假 CLI、真实 PTY／daemon／hook／Stop 和受保护的本地假上游。
+主控在沙箱外执行，每次使用新输出路径，不请求提权：
+
+```sh
+bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
+  /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
+```
+
+其余五个独立场景、预期业务失败及独立结果核对器见交接请求 06。
+所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
+结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
 
 ## Electron 窗口
 

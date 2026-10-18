@@ -23,6 +23,9 @@ import subprocess
 import sys
 import tempfile
 import time
+import select
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import TCPServer
 
 SCRIPT = Path(__file__).resolve()
 spec = importlib.util.spec_from_file_location("parent_probe", SCRIPT.with_name("probe_t093_parent_sandbox.py"))
@@ -52,10 +55,15 @@ def profile(role, home, root, ports):
 
 
 def save(path, data):
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(fd, "w") as stream:
-        json.dump(data, stream, ensure_ascii=True, indent=2)
-        stream.write("\n")
+    temporary = path.with_name(path.name + '.pending-' + secrets.token_hex(12))
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(fd, "w") as stream:
+            json.dump(data, stream, ensure_ascii=True, indent=2)
+            stream.write("\n"); stream.flush(); os.fsync(stream.fileno())
+        os.link(temporary,path,follow_symlinks=False)
+    finally:
+        temporary.unlink()
 
 
 def read(path):
@@ -145,6 +153,8 @@ def worker(options, role):
     save(directory / "preflight.json", result)
     if not all(required):
         return 2
+    if role == "U":
+        return upstream_server(options)
     # exec preserves PID, process group and this exact OS profile. No fork.
     os.execve(options["node"], [options["node"], str(SCRIPT.with_name("t093_profile_endpoint.mjs")),
                               str(root / "options.json"), role], {"PATH": "/usr/bin:/bin", "LANG": "C"})
@@ -160,13 +170,58 @@ def local_inventory(options):
 
 def upstream_after(options):
     root = Path(options["root"])
-    result = {"pid": os.getpid(), "ppid": os.getppid(), "pgrp": os.getpgrp(), "profile": "U (exec inherited)",
+    result = {"pid": os.getpid(), "ppid": os.getppid(), "pgrp": os.getpgrp(), "profile": "U (same Python process)",
               "inventory": local_inventory(options), "cli_attempt_paths_absent": []}
     for item in read(root / "C-attempts.json"):
         path = Path(item["path"])
         assert path.parent == Path(options["real_home"]) and path.name.startswith(".a2a-t093-deny-"), "invalid_probe_stat_path"
         result["cli_attempt_paths_absent"].append({"path": str(path), "absent": not os.path.lexists(path)})
     save(root / "U/inventory-after.json", result)
+    return 0
+
+
+class LocalHTTPServer(HTTPServer):
+    def server_bind(self):
+        TCPServer.server_bind(self)
+        self.server_name = "local-probe"
+        self.server_port = self.server_address[1]
+
+
+def upstream_server(options):
+    root = Path(options["root"])
+    received = 0
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            nonlocal received
+            if self.path != "/t093-connection-probe" or self.headers.get("authorization"):
+                self.send_error(400); return
+            received += 1
+            self.send_response(200)
+            self.send_header("Content-Length", "14")
+            self.end_headers()
+            self.wfile.write(b"local-probe-ok")
+        def log_message(self, *args):
+            pass
+    servers = []
+    try:
+        for port in (options["upstream_port"], options["other_port"]):
+            server = LocalHTTPServer(("127.0.0.1", port), Handler)
+            server.timeout = 1
+            servers.append(server)
+        save(root / "U/ready.json", {"pid": os.getpid(), "ppid": os.getppid(), "role": "U", "profile": "U",
+                                    "ports": [options["upstream_port"], options["other_port"]]})
+        while not (root / "U/stop").exists() and time.time() * 1000 < options["deadline_ms"]:
+            readable, _, _ = select.select(servers, [], [], 0.05)
+            for server in readable:
+                server.handle_request()
+    finally:
+        for server in servers:
+            server.server_close()
+    # A closed acknowledgement includes metadata completion. No Node -> Python
+    # exec, extra process, permission expansion or silent metadata fallback.
+    upstream_after(options)
+    save(root / "U/closed.json", {"received": received, "forwarded": 0,
+                                 "deadline_reached": time.time() * 1000 >= options["deadline_ms"]})
     return 0
 
 
@@ -205,7 +260,7 @@ def controller(options):
             ready = wait_file(root / role / "ready.json")
             assert ready["pid"] == preflight["pid"] and ready["ppid"] == 1, "endpoint_must_be_a_separate_protected_process"
         before = wait_file(root / "U/inventory-before.json")
-        result["inventory_process"] = {"pid": result["U_preflight"]["pid"], "profile": "U; before Node exec and after Node exec"}
+        result["inventory_process"] = {"pid": result["U_preflight"]["pid"], "profile": "U; same Python process before/after service"}
         assert result["F_preflight"]["unconfigured_upstream"]["denied"], "forwarder_unconfigured_upstream_must_be_denied"
         assert result["F_preflight"]["outside_records_write"]["denied"], "forwarder_write_must_stay_in_records"
         result["forwarder_other_listener"] = wait_file(root / "F/bind-probe.json")
@@ -269,7 +324,7 @@ def controller(options):
                 save(root / role / "stop", {})
                 ready = root / role / "ready.json"
                 if ready.exists():
-                    result[role + "_closed"] = wait_file(root / role / "closed.json", 3)
+                    result[role + "_closed"] = wait_file(root / role / "closed.json", 15 if role == "U" else 3)
                     if role == "U":
                         collected = wait_file(root / "U/inventory-after.json", 8)
                         after = collected["inventory"]

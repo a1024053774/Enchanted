@@ -1,119 +1,158 @@
-// Run only through run_t093_login_chain.py, outside the caller's sandbox.
-// Real daemon, PTY, process identity, native hook CLI and Stop relay. The sole
-// provider is a compiled deterministic fixture. No vendor process is spawned.
+// Sole runtime entry: run_t093_login_chain.py outside the caller sandbox.
+// The daemon, PTY fixture, native hook/inbox clients and fact child inherit C.
 import assert from "node:assert/strict";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { constants, closeSync, copyFileSync, existsSync, fstatSync, lstatSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { createServer } from "node:http";
 import { serve } from "../src/daemon.ts";
 import { A2AGates } from "../src/gates/core.ts";
 import { createOperatorCredential, readOperatorCredential } from "../src/credentials.ts";
 import { request } from "../src/transport.ts";
-import { credentialHits, countForwarderRecords } from "../src/claudeLoginFacts.ts";
+import { credentialHits, countForwarderRecords, homeReferences, redactCredentials, scanCredentialFiles } from "../src/claudeLoginFacts.ts";
+import { recordLoginProcess } from "../src/claudeLoginProcessTrace.ts";
 
-const output = resolve(process.argv[2]); assert(!existsSync(output), "preserve earlier evidence");
-const root = realpathSync(mkdtempSync("/private/tmp/t093-chain-")), state = join(root, "state");
-const originalHome = process.env.HOME;
-const sourceHome = join(root, "source-home"), token = "synthetic-login-only-" + randomUUID();
-const exec = promisify(execFile), checks: string[] = [];
-let panes: any, gates: any, failure: string | null = null, daemonStarted = false, launch: any, facts: any;
-let upstreamReceived = 0;
-let candidate = "unknown";
-const upstream = createServer((req, res) => {
-  assert.equal(req.method, "POST"); assert.equal(req.url, "/v1/messages");
-  assert.equal(req.headers.authorization, "Bearer " + token);
-  const ledger = join(state, "login-audits", launch.id, "requests.jsonl");
-  const requests = readFileSync(ledger, "utf8").split("\n").filter(Boolean).map(JSON.parse).filter(row => row.kind === "request");
-  assert.equal(requests.length, upstreamReceived + 1, "ledger must exist before receipt");
-  let body = ""; req.on("data", bytes => body += bytes); req.on("end", () => {
-    assert(Array.isArray(JSON.parse(body).messages)); upstreamReceived++;
-    res.writeHead(upstreamReceived === 1 ? 400 : 200, { "content-type": "application/json" }).end("{}");
-  });
-});
-async function wait(test: () => boolean, name: string, timeout = 20_000) {
-  const until = Date.now() + timeout;
-  while (!test()) { if (Date.now() > until) throw new Error(name); await new Promise(resolve => setTimeout(resolve, 30)); }
-}
+const load=(path:string)=>JSON.parse(readFileSync(path,"utf8"));
+const session=load(process.env.A2A_CLAUDE_LOGIN_SESSION!), privateRoot=session.private_root;
+const fixture=load(join(privateRoot,"fixture.json")), root=fixture.root, state=join(root,"state"), output=fixture.output;
+assert(!existsSync(output),"preserve earlier evidence");
+const services=load(join(privateRoot,"services.json")), testServices=load(join(privateRoot,"test-services.json"));
+const {claudeAiOauth:oauth}=load(join(privateRoot,"home/.claude/.credentials.json"));
+const token=oauth.accessToken, secrets=[token,oauth.refreshToken];
+const exec=promisify(execFile), checks:string[]=[], cleanupFailures:string[]=[];
+const run=(file:string,args:string[],options:object={})=>{const value=exec(file,args,{cwd:join(root,"repo"),timeout:30000,maxBuffer:1024*1024,...options});recordLoginProcess("test helper: "+file.split("/").at(-1),(value as any).child.pid);return value;};
+async function wait(test:()=>boolean,name:string,timeout=25000){const until=Date.now()+timeout;while(!test()){if(Date.now()>until)throw new Error(name);await new Promise(r=>setTimeout(r,30));}}
+async function file(path:string){await wait(()=>existsSync(path),"fixture_file_deadline");return load(path);}
+let panes:any, launch:any, facts:any, daemonStarted=false, failure:string|null=null, receipts:any[]=[], rawRecords:any[]=[], counterexamples:any={};
+let removed=false;
+let stage="wait_services", childExit:number|null=null;
+const audit=session.audit_directory, ledger=join(audit,"forwarder/journal/requests.jsonl");
+const injectionCases = [
+  {name:"raw",value:token}, {name:"json",value:JSON.stringify(token).slice(1,-1)},
+  {name:"url",value:encodeURIComponent(token).replace(/[!'()*]/g,c=>"%"+c.charCodeAt(0).toString(16).toUpperCase())},
+  {name:"base64",value:Buffer.from(token).toString("base64")},
+  {name:"base64_unpadded",value:Buffer.from(token).toString("base64").replace(/=+$/,"")},
+  {name:"base64url",value:Buffer.from(token).toString("base64url")},
+]; // injection cases end
+const safe=(value:unknown)=>assert.equal(credentialHits(JSON.stringify(value),secrets),0,"credentials_must_not_enter_public_evidence");
 try {
-  candidate = (await exec("git", ["rev-parse", "HEAD"])).stdout.trim();
-  for (const name of ["state", "repo", "source-home/.claude"]) mkdirSync(join(root, name), { recursive: true, mode: 0o700 });
-  for (const name of ["home", "claude", "tmp", "shell", "requests", "hooks", "user-data"]) mkdirSync(join(root, "roles/ideation", name), { recursive: true, mode: 0o700 });
-  writeFileSync(join(root, "roles/ideation/role.md"), "确定性正常登录链路测试。\n");
-  writeFileSync(join(sourceHome, ".claude/.credentials.json"), JSON.stringify({ claudeAiOauth: { accessToken: token, refreshToken: "synthetic-refresh-" + randomUUID(), expiresAt: Date.now() + 600_000 } }), { mode: 0o600 });
-  writeFileSync(join(sourceHome, "private-sentinel"), "protected fixture home\n", { mode: 0o600 });
-  const executable = join(root, "fake-claude");
-  await exec("/usr/bin/clang", ["-O0", "-Wall", "-Werror", resolve("workbench/tests/t093_fake_claude.c"), "-o", executable], { timeout: 30_000 });
-  copyFileSync(resolve("workbench/tests/t093_fake_login_peer.py"), join(root, "fake-login-peer.py"));
-  await new Promise<void>(resolve => upstream.listen(0, "127.0.0.1", resolve));
-  const upstreamPort = (upstream.address() as any).port;
-  writeFileSync(join(root, "upstream-port"), String(upstreamPort));
-  process.env.HOME = sourceHome;
-  process.env.A2A_OPERATOR_CREDENTIAL = join(root, "operator.json");
-  createOperatorCredential(state); const operator = readOperatorCredential(state)!;
-  await serve(state, {}, (directory, value) => { panes = value; gates = new A2AGates(directory, value); return gates; });
-  daemonStarted = true;
-  const task: any = { task_id: "t093-chain", project_id: "t093-fixture", repo: join(root, "repo"), spec_rev: 1,
-    base_commit: "a".repeat(40), state: "registered", current_attempt: null };
-  panes.store.db.prepare("INSERT INTO tasks VALUES (?,?)").run(task.task_id, JSON.stringify(task));
-  panes.store.db.prepare("INSERT INTO inbox_records VALUES (?,?)").run("t093-independent-sentinel", JSON.stringify({ schema: 1,
-    id: "t093-independent-sentinel", kind: "report", from: "executor", to: "ideation", body: "独立 Stop 转交哨兵", reply_to: null, refs: [], created_at: new Date().toISOString() }));
-  const manifest = { schema: 1, root, state, task: task.task_id, preset: "ideation", launch: randomUUID(), session: randomUUID(), thread: randomUUID(),
-    executable, version: "2.1.302", role_file: join(root, "roles/ideation/role.md"), code_revision: candidate, source_snapshot: root,
-    authentication: "normal-login", credential_source: "file", upstream_url: `http://127.0.0.1:${upstreamPort}`, turn_limit: 3 };
-  const started = await request(state, { command: "controller_start", task: task.task_id, manifest }, operator);
-  assert.equal(started.ok, true, "controller_start failed: " + started.error + " stage=" + started.details?.stage); launch = started.launch;
-  const trace = join(state, "traces", launch.id, "pty.raw");
-  await wait(() => readFileSync(trace, "utf8").includes("fixture-ready"), "fixture startup deadline");
-  assert(readFileSync(trace, "utf8").includes("fixture-sandbox-child-protection-PASS"));
-  checks.push("controller_start; sandboxed child cannot read/write source HOME or connect to another port");
-  const released = await request(state, { command: "pane_release", thread: launch.thread, reason: "deterministic fixture ready" }, operator);
-  assert.equal(released.ok, true);
-  const dispatched = await request(state, { command: "pane_dispatch", thread: launch.thread, body: "请通过原生 inbox list 读取当前角色收件箱并在 Stop 转交。" }, operator);
-  assert.equal(dispatched.ok, true);
-  await wait(() => readFileSync(trace, "utf8").includes("fixture-turn-2-complete"), "two hook/Stop cycles deadline");
-  assert.equal(upstreamReceived, 2);
-  const results = panes.store.db.prepare("SELECT data FROM relay_results").all().map((row: any) => JSON.parse(row.data));
-  assert.equal(results.length, 1); assert.equal(results[0].ok, true);
-  assert.deepEqual(results[0].entries.map((entry: any) => entry.entry.id), ["t093-independent-sentinel"]);
-  assert.equal(panes.status(launch.thread).state, "idle");
-  checks.push("actual UserPromptSubmit and Stop transfer queued native inbox request exactly once; feedback completes");
-  assert.equal(credentialHits(JSON.stringify(panes.store.read()), [token]), 0);
-  const stopped = await request(state, { command: "daemon_stop" }, operator); assert.equal(stopped.ok, true);
-  await wait(() => !existsSync(join(state, "daemon.pid")), "daemon shutdown deadline"); daemonStarted = false;
-  const audit = join(state, "login-audits", launch.id);
-  facts = JSON.parse(readFileSync(join(audit, "facts.json"), "utf8"));
-  assert.equal(facts.counts.counts_match, true); assert.equal(facts.counts.model_requests, 2);
-  assert.equal(facts.forwarder.forwarded, upstreamReceived); assert.equal(facts.credential_scan.hits, 0);
-  assert.equal(facts.isolated_home_removed, true); assert.equal(existsSync(launch.env.HOME), false);
-  assert(Array.isArray(facts.inventory.changed), "inventory differences must be reported");
-  assert.equal(facts.inventory.pass_condition, false); assert.equal(facts.onboarding.preflight_observed, false);
-  const checked = await exec(process.execPath, [resolve("workbench/src/claudeLoginCheck.ts"), audit]);
-  assert.equal(JSON.parse(checked.stdout).counts.model_requests, upstreamReceived);
-  checks.push("fact command recounts all attempts; private HOME removed; inventory reported; credential scan zero");
-  const ledger = join(audit, "requests.jsonl");
-  const rows = readFileSync(ledger, "utf8").split("\n");
-  writeFileSync(ledger, rows.filter(line => !line.includes('"kind":"request","sequence":2')).join("\n"));
-  assert.equal(countForwarderRecords(ledger, upstreamReceived).counts_match, false);
-  checks.push("end-to-end missing raw request row is detected");
-} catch (error) { failure = error instanceof Error ? error.message : "chain_failed"; }
-finally {
-  if (daemonStarted) {
-    try { await request(state, { command: "daemon_stop" }, readOperatorCredential(state)); await wait(() => !existsSync(join(state, "daemon.pid")), "cleanup deadline"); }
-    catch { failure = "daemon_cleanup_unconfirmed"; }
+  assert.equal(process.pid,session.c_root_pid);
+  await file(join(session.metadata_directory,"ready.json"));
+  stage="compile";
+  await run("/usr/bin/clang",["-O0","-Wall","-Werror",join(fixture.source,"workbench/tests/t093_fake_claude.c"),"-o",session.manifest.executable]);
+  copyFileSync(join(fixture.source,"workbench/tests/t093_fake_login_peer.py"),join(root,"fake-login-peer.py"));
+  copyFileSync(join(fixture.source,"workbench/tests/probe_t093_parent_sandbox.py"),join(root,"probe_helpers.py"));
+  const parentGuard:any={path:join(session.real_home,".a2a-t093-deny-"+randomUUID().replaceAll("-","")),exclusive_create:true,created:false,deleted:false,denied:false};
+  try{const fd=openSync(parentGuard.path,constants.O_WRONLY|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600);parentGuard.created=true;let own;try{own=fstatSync(fd);}finally{closeSync(fd);}const now=lstatSync(parentGuard.path);assert(own.ino===now.ino&&own.dev===now.dev,"exclusive_guard_file_owner_must_match");unlinkSync(parentGuard.path);parentGuard.deleted=true;}
+  catch(error:any){parentGuard.errno=error.errno;parentGuard.denied=!parentGuard.created&&["EPERM","EACCES"].includes(error.code);}
+  assert.equal(parentGuard.denied,true,"C_parent_home_write_must_be_denied");counterexamples.parent_home_write=parentGuard;
+  createOperatorCredential(state);const operator=readOperatorCredential(state)!;
+  await serve(state,{},(directory,value)=>{panes=value;return new A2AGates(directory,value);});daemonStarted=true;
+  const task:any={task_id:"t093-chain",project_id:"t093-fixture",repo:join(root,"repo"),spec_rev:1,base_commit:"a".repeat(40),state:"registered",current_attempt:null};
+  panes.store.db.prepare("INSERT INTO tasks VALUES (?,?)").run(task.task_id,JSON.stringify(task));
+  panes.store.db.prepare("INSERT INTO inbox_records VALUES (?,?)").run(fixture.inbox_sentinel,JSON.stringify({schema:1,id:fixture.inbox_sentinel,kind:"report",from:"executor",to:"ideation",body:"独立 Stop 转交哨兵",reply_to:null,refs:[],created_at:new Date().toISOString()}));
+  stage="controller_start";
+  const started=await request(state,{command:"controller_start",task:task.task_id,manifest:session.manifest},operator);
+  assert.equal(started.ok,true,"controller_start_must_succeed: "+started.error);launch=started.launch;
+  const preflight=load(join(audit,"preflight.json"));
+  assert.equal(preflight.phase,"before_cli_input");assert.equal(preflight.counts.model_requests,0);assert.equal(preflight.counts.counts_match,true);
+  assert.equal(preflight.credential_scan.hits,0);assert.equal(preflight.credential_scan.launch_record_hits,0);assert.equal(preflight.inventory.comparison_pending,true);
+  const initialFacts=JSON.parse((await run(process.execPath,[join(fixture.source,"workbench/src/claudeLoginCheck.ts"),"--preflight",audit])).stdout);
+  assert.equal(initialFacts.counts.model_requests,0);assert.equal(initialFacts.inventory.before_phase,"before_original_auth_read");
+  counterexamples.preflight=initialFacts;
+  const trace=join(state,"traces",launch.id,"pty.raw");
+  stage="boundaries";
+  await wait(()=>readFileSync(trace,"utf8").includes("fixture-ready"),"fixture_startup_deadline");
+  assert.equal(launch.shell_argv.at(-1).includes("sandbox-exec"),false,"CLI_must_inherit_outer_C");
+  checks.push("controller_start; single inherited C; original source HOME inaccessible");
+  const cliGuard=load(join(root,"cli-guards.json"));
+  assert.equal(cliGuard.real_home_write.denied,true,"CLI_child_home_write_must_be_denied");
+  assert.equal(cliGuard.upstream_bypass.denied,true,"CLI_upstream_bypass_must_be_denied");counterexamples.cli=cliGuard;
+  assert.deepEqual(cliGuard.source_home,{r:true,a:true},"source_home_read_and_write_must_be_denied");assert.equal(cliGuard.config_matches,true,"minimal_onboarding_and_trust_state_must_match");
+  const fGuard=await file(join(session.forwarder_directory,"guards.json"));
+  assert.equal(fGuard.real_home_write.denied,true,"F_home_write_must_be_denied");
+  assert.equal(fGuard.outside_records_write.denied,true,"F_write_must_stay_in_records");
+  assert.equal(fGuard.unconfigured_upstream.denied,true,"F_unconfigured_upstream_must_be_denied");
+  assert.equal(fGuard.other_listener.denied,true,"F_other_listener_must_be_denied");assert.equal(fGuard.fork.denied,true,"F_fork_must_be_denied");counterexamples.forwarder=fGuard;
+  const pythonGuards=[];
+  for(const path of [join(session.forwarder_directory,"python-guards.json"),join(session.metadata_directory,"guards.json"),join(root,"U/guards.json")]){
+    const value=await file(path);assert(value.real_home_write.denied);assert(value.fork.denied);assert.deepEqual(Object.values(value.security),[1100,1100]);pythonGuards.push(value);
   }
-  upstream.closeAllConnections(); await new Promise<void>(resolve => upstream.close(() => resolve()));
-  if (launch?.env?.HOME) assert.equal(existsSync(launch.env.HOME), false, "private HOME cleanup must finish");
-  if (originalHome === undefined) delete process.env.HOME; else process.env.HOME = originalHome;
-  const result = { status: failure ? "INCOMPLETE" : "PASS", task: "T-093", candidate, node_version: process.version, checks, failure,
-    upstream_requests: upstreamReceived, real_upstream_requests: 0, real_cli_starts: 0,
-    auth_source: "synthetic fixture HOME only", facts, fixture_removed: false };
-  // Private source, generated executable, sqlite and raw PTY stay out of evidence.
-  // Preserve the failure class and completed checks in the new summary file.
-  rmSync(root, { recursive: true }); result.fixture_removed = !existsSync(root);
-  writeFileSync(output, JSON.stringify(result, null, 2) + "\n", { flag: "wx", mode: 0o600 });
-  console.log(JSON.stringify({ status: result.status, checks: checks.length, failure, upstream_requests: upstreamReceived }));
-  process.exitCode = failure ? 2 : 0;
+  counterexamples.protected_helpers=pythonGuards;
+  const baseline=await file(join(root,"S/result.json")),mutant=await file(join(root,"M/result.json"));
+  assert.equal(baseline.primary_failure,null,"synthetic_home_control_must_pass");
+  assert.equal(mutant.primary_failure,"home_write_must_be_denied","removed_guard_must_fail_business_assertion");
+  assert(mutant.synthetic_write.created&&mutant.synthetic_write.deleted&&mutant.synthetic_write.absent_after);
+  assert(baseline.real_home_write.denied&&mutant.real_home_write.denied);
+  counterexamples.synthetic_guard={baseline,mutant,mutant_rejected:true,limit:"Only synthetic HOME deny rule removed; actual HOME deny remains."};
+  const probes=[parentGuard.path,cliGuard.real_home_write.path,fGuard.real_home_write.path,...pythonGuards.map(v=>v.real_home_write.path),baseline.real_home_write.path,mutant.real_home_write.path];
+  writeFileSync(join(privateRoot,"home-probes.json"),JSON.stringify(probes),{mode:0o600,flag:"wx"});
+  checks.push("actual HOME writes denied; F peer/listener/fork/write boundaries; CLI direct upstream denied; synthetic missing guard rejected and deleted");
+  stage="turns";
+  assert((await request(state,{command:"pane_release",thread:launch.thread,reason:"deterministic fixture ready"},operator)).ok);
+  assert((await request(state,{command:"pane_dispatch",thread:launch.thread,body:fixture.prompt},operator)).ok);
+  await wait(()=>readFileSync(trace,"utf8").includes("fixture-turn-2-complete"),"two_hook_Stop_cycles_deadline");
+  receipts=load(join(root,"U/received.json"));rawRecords=readFileSync(ledger,"utf8").split("\n").filter(Boolean).map(JSON.parse);
+  assert.equal(receipts.length,2,"independent_upstream_must_receive_two_attempts");
+  assert.equal(rawRecords.filter(row=>row.kind==="request").length,receipts.length,"forwarder_record_count_must_match_upstream");
+  assert(receipts.every(v=>v.recorded_before_receipt),"durable_records_must_precede_upstream");
+  assert(receipts.every(v=>v.bearer_matches_copy&&v.messages_present&&v.prompt_matches_fixture&&v.method==="POST"&&v.path==="/v1/messages"));
+  assert.deepEqual(rawRecords.filter(row=>row.kind==="outcome").map(v=>v.status),[400,200]);
+  const results=panes.store.db.prepare("SELECT data FROM relay_results").all().map((r:any)=>JSON.parse(r.data));
+  assert.equal(results.length,1);assert.equal(results[0].ok,true);assert.deepEqual(results[0].entries.map((v:any)=>v.entry.id),[fixture.inbox_sentinel]);assert.equal(panes.status(launch.thread).state,"idle");
+  checks.push("two attempts journaled before independent upstream; 400 retry counted; native hook/Stop inbox sentinel delivered once");
+  stage="counterexamples";
+  const extra=launch.argv.length, injected={...launch,argv:[...launch.argv,session.real_home+"/t093-path-counterexample"]};
+  const refs=homeReferences(injected,session.real_home);
+  counterexamples.home_references=refs;assert(refs.some(v=>v.field===`launch.argv[${extra}]`&&v.occurrences===1),"home_path_injection_must_be_reported");
+  counterexamples.credential_injection_case_count=injectionCases.length;
+  assert(injectionCases.length>0,"credential_injection_cases_must_not_be_empty");
+  const leaked=join(state,"synthetic-credential-injection"),injections:any[]=[];
+  counterexamples.credential_injections=injections;
+  for(const sample of injectionCases){writeFileSync(leaked,sample.value,{mode:0o600});assert.equal(readFileSync(leaked,"utf8"),sample.value,"credential_injection_must_execute");const found=scanCredentialFiles(state,secrets);injections.push({variant:sample.name,hits:found.hits});assert(found.hits>0,"credential_injection_must_be_detected");}
+  assert.equal(injections.length,injectionCases.length,"all_credential_injections_must_execute");rmSync(leaked);assert.equal(scanCredentialFiles(state,secrets).hits,0);counterexamples.credential_injections=injections;
+  checks.push("actual launch record HOME injection reported; independent raw/JSON/URL/base64 injections detected and removed");
+  stage="finalization";
+  assert((await request(state,{command:"daemon_stop"},operator)).ok);
+  await wait(()=>!existsSync(join(state,"daemon.pid")),"daemon_shutdown_deadline");daemonStarted=false;
+  facts=load(join(audit,"facts.json"));
+  assert.equal(facts.counts.counts_match,true,"final_counts_must_match");assert.equal(facts.counts.model_requests,receipts.length);assert.equal(facts.forwarder.forwarded,receipts.length);assert.equal(facts.credential_scan.hits,0);
+  assert.equal(facts.isolated_home_removed,true);assert.equal(existsSync(privateRoot),false);
+  assert.equal(facts.inventory.pass_condition,false);assert.equal(facts.inventory.collection_complete,true);assert(Array.isArray(facts.inventory.changed));assert.equal(facts.onboarding.preflight_observed,false);assert.equal(facts.auth_original_reads,1);
+  assert.equal(facts.onboarding.state_intact,true);
+  assert(facts.processes.D.home_probe_paths.length===probes.length&&facts.processes.D.home_probe_paths.every((v:any)=>v.absent),"independent_real_home_probe_files_must_be_absent");
+  assert.equal(facts.cleanup.primary_failure,null);assert.deepEqual(facts.cleanup.cleanup_failures,[]);
+  const checked=JSON.parse((await run(process.execPath,[join(fixture.source,"workbench/src/claudeLoginCheck.ts"),audit])).stdout);assert.equal(checked.counts.model_requests,receipts.length);
+  checks.push("fact child inherits C; raw recount agrees; entire private HOME removed; independent post inventory complete and informational; scan zero");
+  stage="missing_record";
+  const original=readFileSync(ledger,"utf8"),missing=rawRecords.filter(row=>!(row.kind==="request"&&row.sequence===2));writeFileSync(ledger,missing.map(v=>JSON.stringify(v)).join("\n")+"\n");
+  const missingCounts=countForwarderRecords(ledger,receipts.length);counterexamples.missing_record={counts:missingCounts,raw_records:missing};assert.equal(missingCounts.counts_match,false,"missing_raw_request_must_be_detected");
+  const reread=JSON.parse((await run(process.execPath,[join(fixture.source,"workbench/src/claudeLoginCheck.ts"),audit])).stdout);assert.equal(reread.counts.counts_match,false,"fact_child_must_report_missing_raw_request");
+  counterexamples.missing_record={counts:missingCounts,raw_records:missing};writeFileSync(ledger,original);
+  checks.push("missing raw request detected by both recount and actual fact command");
+}catch(error){const message=error instanceof Error?error.message.split("\n",1)[0].split(":",1)[0]:"chain_failed";failure=/^[A-Za-z0-9_]{1,120}$/.test(message)?message:"chain_operation_failed";childExit=typeof (error as any)?.code==="number"?(error as any).code:null;}
+finally{
+  const leak=join(state,"synthetic-credential-injection");if(existsSync(leak))rmSync(leak);
+  if(daemonStarted){try{await request(state,{command:"daemon_stop"},readOperatorCredential(state));await wait(()=>!existsSync(join(state,"daemon.pid")),"cleanup_daemon_deadline");}catch{cleanupFailures.push("daemon_cleanup_unconfirmed");}}
+  if(existsSync(privateRoot)){try{const abort=join(session.metadata_directory,"abort");if(!existsSync(abort))writeFileSync(abort,"\n",{flag:"wx",mode:0o600});await file(join(session.metadata_directory,"removed.json"));}catch{cleanupFailures.push("session_abort_cleanup_unconfirmed");}}
+  try{writeFileSync(join(root,"U/stop"),"\n",{flag:"wx",mode:0o600});await file(join(root,"U/closed.json"));}catch{cleanupFailures.push("upstream_shutdown_unconfirmed");}
+  for(const value of Object.values(testServices) as any[]){try{process.kill(-value.pgrp,"SIGKILL");}catch(error:any){if(error.code!=="ESRCH")cleanupFailures.push("test_group_cleanup_failed");}try{await wait(()=>{try{process.kill(-value.pgrp,0);return false;}catch(e:any){return e.code==="ESRCH";}},"test_group_exit_deadline",5000);}catch{cleanupFailures.push("test_group_exit_unconfirmed");}}
+  if(existsSync(privateRoot))cleanupFailures.push("private_home_cleanup_unconfirmed");
+  if(!facts&&existsSync(join(audit,"facts.json")))facts=load(join(audit,"facts.json"));
+  const processLog=existsSync(join(audit,"C-processes.jsonl"))?readFileSync(join(audit,"C-processes.jsonl"),"utf8").split("\n").filter(Boolean).map(JSON.parse):[];
+  const result:any={status:failure||cleanupFailures.length?"INCOMPLETE":"PASS",task:"T-093",candidate:fixture.candidate,mutation:fixture.mutation,checks,primary_failure:failure,cleanup_failures:cleanupFailures,upstream_requests:receipts.length,independent_upstream_receipts:receipts,real_upstream_requests:0,real_cli_starts:0,real_model_turns:0,auth_source:"synthetic file only; one original read in independent preparation",git_index_credential_hits:fixture.git_index_hits,facts,forwarder_raw_records:rawRecords,counterexamples,processes:{C:processLog,F:services.F,D:services.D,...testServices,G:fixture.G_processes},profiles:{...session.profiles,...fixture.test_profiles,G:fixture.G_profile},fixture_removed:false};
+  result.processes.baseline=session.initial_inventory_process;
+  result.real_auth_reads=0;result.node_version=process.version;result.scope="compiled deterministic fixture, not the vendor CLI";
+  result.failure_stage=failure?stage:null;result.child_exit=childExit;
+  result.service_receipts={};
+  for(const [name,path] of Object.entries({F:join(session.forwarder_directory,"closed.json"),D:join(session.metadata_directory,"closed.json"),cleanup:join(session.metadata_directory,"removed.json"),F_guards:join(session.forwarder_directory,"guards.json"),F_python_guards:join(session.forwarder_directory,"python-guards.json"),D_guards:join(session.metadata_directory,"guards.json"),U_guards:join(root,"U/guards.json")}))if(existsSync(path))result.service_receipts[name]=load(path);
+  try{safe(result);assert.equal(scanCredentialFiles(state,secrets).hits,0,"final_state_must_be_credential_free");}catch{result.status="INCOMPLETE";result.primary_failure??="public_credential_scan_failed";}
+  rmSync(root,{recursive:true});removed=!existsSync(root);result.fixture_removed=removed;
+  const encoded=redactCredentials(JSON.stringify(result,null,2),secrets)+"\n";
+  // Independent writer checks remain active even in the empty-injection-case
+  // mutation. No raw credentials, assertion diffs or header bodies escape.
+  for(const value of secrets)for(const secret of [value,JSON.stringify(value).slice(1,-1),encodeURIComponent(value),Buffer.from(value).toString("base64"),Buffer.from(value).toString("base64url")])assert(!encoded.includes(secret),"public_writer_must_remove_credentials");
+  writeFileSync(output,encoded,{flag:"wx",mode:0o600});
+  console.log(redactCredentials(JSON.stringify({status:result.status,checks:checks.length,primary_failure:result.primary_failure,cleanup_failures:cleanupFailures,upstream_requests:receipts.length}),secrets));process.exitCode=result.status==="PASS"?0:2;
 }

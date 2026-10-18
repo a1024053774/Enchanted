@@ -29,7 +29,7 @@ if not re.fullmatch(r"[0-9a-f]{40}", CANDIDATE) or sys.argv[3] not in ("", "--ch
 # keep it from reporting a new-contract PASS. Check-only remains a developer
 # syntax/failure-classification check, never application/OS evidence.
 if not CHECK_ONLY:
-    raise SystemExit("INCOMPLETE: The parallel profiles need OS verification. See REVIEW-REQUEST-T093-05.md.")
+    raise SystemExit("INCOMPLETE: This runner is retired. Use EVIDENCE-RECHECK-03.sh.")
 NODE = "/opt/homebrew/bin/node"
 OUT = Path(tempfile.mkdtemp(prefix="t093-evidence-02-", dir="/private/tmp"))
 print("输出目录：" + str(OUT), flush=True)

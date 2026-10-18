@@ -2,9 +2,9 @@ import { createServer, request as httpRequest, type IncomingMessage, type Server
 import { request as httpsRequest } from "node:https";
 import { closeSync, constants, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, writeSync } from "node:fs";
 import { join } from "node:path";
-import type { Socket } from "node:net";
+import { isIP, type Socket } from "node:net";
 import { Refusal } from "./gates/core.ts";
-import { credentialHits } from "./claudeLoginFacts.ts";
+import { credentialHits, redactCredentials } from "./claudeLoginFacts.ts";
 
 const hop = new Set(["host", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade"]);
 export function upstreamUrl(value: string) {
@@ -20,6 +20,7 @@ export class ClaudeForwarder {
   readonly #token: string;
   readonly #secrets: readonly string[];
   readonly #upstream: URL;
+  readonly #address: string;
   readonly #server = createServer((req, res) => this.receive(req, res));
   readonly #sockets = new Set<Socket>();
   readonly #active = new Set<() => void>();
@@ -29,20 +30,23 @@ export class ClaudeForwarder {
   #received = 0;
   #forwarded = 0;
   #failure: string | null = null;
-  private constructor(options: { directory: string; upstream_url: string; access_token: string; secrets: readonly string[] }) {
+  private constructor(options: { directory: string; upstream_url: string; upstream_address: string; port: number; access_token: string; secrets: readonly string[] }) {
     this.directory = options.directory; this.#upstream = upstreamUrl(options.upstream_url);
+    this.#address = options.upstream_address;
     this.#token = options.access_token; this.#secrets = options.secrets;
     mkdirSync(this.directory, { mode: 0o700 });
     this.ledger = join(this.directory, "requests.jsonl");
     this.#fd = openSync(this.ledger, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_APPEND | constants.O_NOFOLLOW, 0o600);
     this.#server.on("connection", socket => { this.#sockets.add(socket); socket.on("close", () => this.#sockets.delete(socket)); });
   }
-  static async start(options: { directory: string; upstream_url: string; access_token: string; secrets: readonly string[] }) {
+  static async start(options: { directory: string; upstream_url: string; upstream_address: string; port: number; access_token: string; secrets: readonly string[] }) {
+    if (!Number.isInteger(options.port) || options.port < 0 || options.port > 65535 || isIP(options.upstream_address) !== 4)
+      throw new Refusal("explicit_forwarder_port_and_address_required");
     const value = new ClaudeForwarder(options);
     try {
       await new Promise<void>((resolve, reject) => {
         value.#server.once("error", reject);
-        value.#server.listen(0, "127.0.0.1", () => { value.#server.off("error", reject); resolve(); });
+        value.#server.listen(options.port, "127.0.0.1", () => { value.#server.off("error", reject); resolve(); });
       });
       const address = value.#server.address();
       if (!address || typeof address === "string") throw new Refusal("forwarder_not_bound");
@@ -55,7 +59,11 @@ export class ClaudeForwarder {
   private record(value: Record<string, unknown>) {
     const disk = lstatSync(this.ledger), owned = fstatSync(this.#fd);
     if (disk.isSymbolicLink() || disk.ino !== owned.ino || disk.dev !== owned.dev) throw new Refusal("forwarder_journal_replaced");
-    const bytes = Buffer.from(JSON.stringify({ at: new Date().toISOString(), ...value }) + "\n");
+    const safe = Object.fromEntries(Object.entries({ at: new Date().toISOString(), ...value }).map(([key, item]) =>
+      [key, typeof item === "string" ? redactCredentials(item, this.#secrets) :
+        typeof item === "number" && credentialHits(String(item), this.#secrets) ? "<CREDENTIAL>" : item]));
+    const bytes = Buffer.from(JSON.stringify(safe) + "\n");
+    if (credentialHits(bytes.toString("utf8"), this.#secrets)) throw new Refusal("forwarder_metadata_redaction_failed");
     let offset = 0;
     while (offset < bytes.length) offset += writeSync(this.#fd, bytes, offset, bytes.length - offset);
     fsyncSync(this.#fd);
@@ -89,7 +97,8 @@ export class ClaudeForwarder {
     const send = this.#upstream.protocol === "https:" ? httpsRequest : httpRequest;
     // Journal request and fsync are complete before this network boundary.
     this.#forwarded++;
-    try { upstream = send(this.#upstream, { method: req.method, path: req.url, headers }, response => {
+    try { upstream = send(this.#upstream, { method: req.method, path: req.url, headers, family: 4, autoSelectFamily: false, agent: false,
+      lookup: (_hostname, _options, callback) => callback(null, this.#address, 4) }, response => {
       res.writeHead(response.statusCode!, Object.fromEntries(Object.entries(response.headers).filter(([key]) => !hop.has(key))));
       response.on("end", () => settle(response.statusCode!, null));
       response.on("error", () => { settle(response.statusCode!, "upstream_response_error"); res.destroy(); });

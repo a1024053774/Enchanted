@@ -1,63 +1,27 @@
-"""L1 classification contract from decision A; no child process or HOME read."""
-import contextlib
-import io
+"""The schema-2 fact command reports changes and mismatches without model grants."""
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
-from types import SimpleNamespace
-from unittest.mock import patch
 
-output = Path(sys.argv[1])
-if output.exists():
-    raise SystemExit("preserve earlier evidence")
-script = Path(__file__).with_name("run_t093_login_chain.py").resolve()
-candidate = script.read_text()
-legacy = subprocess.run(["git", "show", "7fbc5d9ef:workbench/tests/run_t093_login_chain.py"],
-                        capture_output=True, text=True, check=True).stdout
-before = {".claude/concurrent.jsonl": {"bytes": 1, "mtime_ns": 1}}
-different = {".claude/concurrent.jsonl": {"bytes": 2, "mtime_ns": 2}}
-
-
-def exercise(source, root, label, child_exit, after):
-    path = root / (label + ".json")
-    values = iter([before, after])
-    child = SimpleNamespace(wait=lambda **kwargs: child_exit, pid=-1)
-    with patch.object(sys, "argv", [str(script), "--output", str(path)]), \
-         patch("subprocess.run", side_effect=lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=json.dumps(next(values)))), \
-         patch("subprocess.Popen", return_value=child), contextlib.redirect_stdout(io.StringIO()):
-        try:
-            exec(compile(source, str(script), "exec"), {"__name__": "__main__", "__file__": str(script)})
-        except SystemExit as result:
-            code = result.code
-    report = json.loads(path.with_name(path.stem + ".host-home.json").read_text())
-    return code, report
-
-
-checks = []
-with tempfile.TemporaryDirectory(prefix="t093-inventory-policy-", dir="/private/tmp") as temporary:
-    root = Path(temporary)
-    for child_exit in (0, 2):
-        for changed in (False, True):
-            code, report = exercise(candidate, root, f"current-{child_exit}-{changed}", child_exit, different if changed else before)
-            expected_status = "PASS" if child_exit == 0 else "INCOMPLETE"
-            ok = code == child_exit and report["status"] == expected_status
-            ok = ok and report["changed"] == ([".claude/concurrent.jsonl"] if changed else [])
-            if changed:
-                ok = ok and report["differences"][0]["before"] == before[".claude/concurrent.jsonl"]
-                ok = ok and report["differences"][0]["after"] == different[".claude/concurrent.jsonl"]
-            checks.append({"child_exit": child_exit, "inventory_changed": changed,
-                           "exit_code": code, "reported_status": report["status"],
-                           "status": "PASS" if ok else "INCOMPLETE"})
-    code, report = exercise(legacy, root, "legacy-changed", 0, different)
-    legacy_rejected = code == 2 and report["status"] == "INCOMPLETE" and report["changed"] == [".claude/concurrent.jsonl"]
-value = {"status": "PASS" if all(row["status"] == "PASS" for row in checks) and legacy_rejected else "INCOMPLETE",
-         "decision": "main c06a73179 T-093 decision A; inventory differences are informational",
-         "checks": checks, "legacy_zero_difference_gate_rejected": legacy_rejected,
-         "scope": "actual wrapper classification with supplied metadata and child exit; no real child/HOME/OS-sandbox evidence"}
-with output.open("x") as stream:
-    json.dump(value, stream, ensure_ascii=False, indent=2)
-    stream.write("\n")
-print(json.dumps({"status": value["status"], "checks": len(checks), "legacy_rejected": legacy_rejected}))
-raise SystemExit(0 if value["status"] == "PASS" else 2)
+output=Path(sys.argv[1]);assert not output.exists();checks=[]
+with tempfile.TemporaryDirectory(prefix='t093-facts-unit-',dir='/private/tmp') as temporary:
+ root=Path(temporary);(root/'forwarder/journal').mkdir(parents=True)
+ for changed in (False,True):
+  for missing in (False,True):
+   facts={'schema':2,'ledger':'forwarder/journal/requests.jsonl','forwarder':{'received':2},'inventory':{'changed':['.claude/concurrent.jsonl'] if changed else [],'pass_condition':False},'counts':{}}
+   (root/'facts.json').write_text(json.dumps(facts))
+   records=[{'kind':'request','sequence':1,'method':'POST','path':'/v1/messages'}]
+   if not missing:records.append({'kind':'request','sequence':2,'method':'POST','path':'/v1/messages'})
+   (root/'forwarder/journal/requests.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in records))
+   run=subprocess.run(['/opt/homebrew/bin/node',str(Path(__file__).resolve().parents[1]/'src/claudeLoginCheck.ts'),str(root)],capture_output=True,text=True,timeout=10)
+   assert run.returncode==0,'fact_command_must_not_grant_or_reject_model_permission'
+   value=json.loads(run.stdout);assert value['inventory']==facts['inventory'];assert value['counts']['counts_match'] is (not missing)
+   checks.append({'inventory_changed':changed,'missing_record':missing,'fact_exit':run.returncode,'counts_match':value['counts']['counts_match']})
+ facts['phase']='before_cli_input';(root/'preflight.json').write_text(json.dumps(facts))
+ run=subprocess.run(['/opt/homebrew/bin/node',str(Path(__file__).resolve().parents[1]/'src/claudeLoginCheck.ts'),'--preflight',str(root)],capture_output=True,text=True,timeout=10)
+ assert run.returncode==0 and json.loads(run.stdout)['phase']=='before_cli_input'
+ checks.append({'preflight_mode':True,'fact_exit':run.returncode})
+with output.open('x') as stream:json.dump({'status':'PASS','scope':'read-only fact command on supplied synthetic metadata/ledger; no OS sandbox claim','checks':checks},stream,indent=2);stream.write('\n')
+print(json.dumps({'status':'PASS','checks':len(checks)}))

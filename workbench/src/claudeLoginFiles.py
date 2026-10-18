@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import signal
 import subprocess
 import sys
 import time
@@ -22,7 +23,12 @@ def inventory(home):
         result[relative] = {"mode": info.st_mode, "bytes": info.st_size,
                             "mtime_ns": info.st_mtime_ns, "inode": info.st_ino}
         if stat.S_ISDIR(info.st_mode):
-            directory = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            try:
+                directory = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            except FileNotFoundError:
+                result[relative]["missing"] = True
+                result[relative]["observation"] = "vanished_before_enumeration"
+                return
             try:
                 for child in sorted(os.listdir(directory)):
                     visit(child, directory, relative + "/" + child)
@@ -95,6 +101,8 @@ def read_auth(home, source):
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGALRM, signal.SIG_DFL)
+    signal.alarm(20)
     try:
         request = json.load(sys.stdin)
         result = inventory(request["home"]) if request["operation"] == "inventory" else read_auth(request["home"], request["source"])

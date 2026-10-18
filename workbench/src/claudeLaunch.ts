@@ -15,7 +15,7 @@ export interface ClaudeLaunchInput {
 }
 export interface ClaudeLoginIsolation {
   homeRoot: string; home: string; config: string; tmp: string; shell: string; debug: string;
-  api_url: string; sandbox_profile: string; audit_directory: string;
+  api_url: string; audit_directory: string;
 }
 const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
 const requireValue = (v: unknown, code: string) => { if (!v) throw new Refusal(code); };
@@ -76,7 +76,11 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
     A2A_PRESET: input.preset, A2A_LAUNCH: input.launch, A2A_STATE: state, A2A_NATIVE_SESSION: input.session,
     A2A_SPEC_REV: String(task.spec_rev),
     A2A_REQUEST_DIR: rolePaths.requests, A2A_HOOK_TRACE_DIR: rolePaths.hooks };
-  if (normal) { delete env.ANTHROPIC_AUTH_TOKEN; delete env.A2A_HOOK_TRACE_DIR; }
+  if (normal) {
+    delete env.ANTHROPIC_AUTH_TOKEN; delete env.A2A_HOOK_TRACE_DIR;
+    env.NODE_OPTIONS = process.env.NODE_OPTIONS!;
+    env.A2A_PROFILE_PROCESS_LOG = process.env.A2A_PROFILE_PROCESS_LOG!;
+  }
   requireValue(env.HOME === rolePaths.home && env.CLAUDE_CONFIG_DIR === rolePaths.config && env.A2A_USER_DATA === rolePaths.userData,
     "isolated_controller_home_required");
   return { id: input.launch, project: task.project_id, task: task.task_id, attempt: null, session: input.session, fence: null,
@@ -85,11 +89,11 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
     node_executable: process.execPath, node_version: process.version,
     argv, settings, env, worktree: repo,
     shell: "/bin/zsh", shell_argv: ["-f", "-i", "-c", normal ?
-      "exec " + ["/usr/bin/sandbox-exec", "-p", isolation!.sandbox_profile, ...argv].map(quote).join(" ") :
+      "exec " + argv.map(quote).join(" ") :
       argv.map(quote).join(" ") + "; exec /bin/zsh -f -i"],
     role_card: input.role_file, role_card_revision: normal ? "T-093/normal-login/2.1.302" : "T-078-2/P1", role_text: roleText,
     code_revision: input.code_revision, source_snapshot: input.source_snapshot, base_commit: task.base_commit, model_requested: "claude-haiku-5-5", effort_requested: "low",
     authentication: normal ? "isolated normal login" : "isolated fake API only", turn_limit: turnLimit,
-    ...(normal ? { login_audit_directory: isolation!.audit_directory } : {}),
+    ...(normal ? { login_audit_directory: isolation!.audit_directory, login_preflight_file: join(isolation!.audit_directory, "preflight.json") } : {}),
     hook_authorization: normal ? "T-093/controller-start" : "controller-decision-04/P1", execution_state: "started" };
 }

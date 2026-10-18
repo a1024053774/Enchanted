@@ -99,8 +99,9 @@ export class Panes implements GateRuntime {
       if (version !== expectedVersion) throw new Refusal("controller_version_mismatch", { expected: expectedVersion, observed: version });
       record.cli_version = version;
       record.version_probe = { argv: login?.versionProbe.argv ?? [input.executable, "--version"], stdout: probe.stdout, stderr: probe.stderr };
-      // The probe awaits a child process; keep this ownership check next to the
-      // synchronous registration so two concurrent starts cannot claim one preset.
+      if (login) await login.preflight(record);
+      // Version and preflight await other work. Keep the ownership check next
+      // to synchronous registration so concurrent starts cannot claim one preset.
       check(![...this.panes.values()].some(p => !p.stopped && p.record.preset === input.preset), "controller_already_started");
       const token = randomUUID();
       this.store.launch(record);
@@ -115,6 +116,7 @@ export class Panes implements GateRuntime {
         queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
         userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
         terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set(), login };
+      login?.recordChild(terminal.pid, "PTY helper -> zsh -> CLI");
       this.panes.set(record.thread, pane);
       this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
       terminal.onData((data: string) => {
@@ -393,7 +395,9 @@ export class Panes implements GateRuntime {
   }
   async processInfo(thread: string) {
     const pane = this.get(thread);
-    const output = (await exec("/bin/ps", ["-axo", "pid=,ppid=,pgid=,tpgid=,comm="])).stdout;
+    const operation = exec("/bin/ps", ["-axo", "pid=,ppid=,pgid=,tpgid=,comm="]);
+    pane.login?.recordChild((operation as any).child.pid, "ps");
+    const output = (await operation).stdout;
     const rows = output.trim().split("\n").map((line) => {
       const m = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+)\s+(.+)$/.exec(line);
       check(m, "invalid_process_row", line);

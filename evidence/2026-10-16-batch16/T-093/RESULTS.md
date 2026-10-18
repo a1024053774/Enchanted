@@ -16,6 +16,8 @@
 
 当前状态（主控 #83）：F 网络边界已明确，授权阻点已解决。新增平级 profile 边界探针，等待主控在沙箱外实测新组合；产品隔离／转发生命周期尚未改造，整票 INCOMPLETE。最新入口为 REVIEW-REQUEST-T093-05.md，精确命令脚本为 PROBE-PARALLEL-01.sh。初次探针只读审查指出两处 P1，原文保留，已通过权限码数据反例和跨 exec 计时／删计时变异修正。另有上游 URL 配置解析的单行产品修正，纯解析红绿见 upstream-config-red-01.json／upstream-config-green-01.json。本轮未执行新 OS 沙箱探针、读 auth、查询 Security 服务、启动供应商 CLI 或模型。
 
+最新状态（主控 #84）：[parallel-profile-01.json](parallel-profile-01.json) 中各 OS 边界均成立，只有 U 后清单收尾失败，原件仍为 INCOMPLETE。现已去掉该 Node→Python 回 exec，在同一 Python 进程采后清单后再确认关闭；旧 profile() 规则未改。产品已接入独立 R 准备、F 转发、D 清单／清理与单层 C；完整新链和五项变异待沙箱外运行，整票仍 INCOMPLETE。当前交接为 REVIEW-REQUEST-T093-06.md／EVIDENCE-RECHECK-03.sh。以上“尚未改造”文字属于此前快照。
+
 ## 变更与版本
 
 起点 main 为 61786370428c3ec5f894ea60acccf2695d54c2dc。
@@ -168,3 +170,27 @@ python3 -I -S -B workbench/tests/probe_t093_parent_sandbox.py --output /private/
 [SINGLE-PROFILE-DESIGN-01.md](SINGLE-PROFILE-DESIGN-01.md) 列明最小建议：R 精确凭据准备，C 单层业务树，另一个平级 F 负责先记后转／上游网络；所有阶段仍禁写 HOME，F/C 禁 Security，CLI 不增加直连上游能力。
 本设计尚待明确批准，产品未按它修改；[请求 04](REVIEW-REQUEST-T093-04.md) 将该决定交主控／构思主控。
 本轮没有新的必须沙箱外运行的命令，不以进一步 probe 代替权限裁定；原审查报告不改。
+
+## 产品平级 profile 候选 06：实现完成，外验待运行
+
+主控 #84 的旧外验确认：C/F/U/S/M/CLI 子进程禁写真实 HOME、F 越界出站／监听被拒、C 直连假上游被拒、F/U fork 与 Security 被拒、本地配置正例及合成删规则变异均成立。U_closed 已保存，但后清单未得，因此保留原 rc 2、primary_failure=null 及两项 cleanup_failures；不提升为 PASS。主控事后 ps 无残留的转述与 JSON 的观察范围分开。
+
+U 现在用同一个 Python 进程完成前清单、假服务与后清单，后清单成功后才确认 closed；没有改变旧探针 profile() 的 AST。局部测试先重建提前确认的变异，再证明 U_closed_must_include_post_inventory 能拒绝它。JSON ready/closed/stop 在内容完整后原子发布。
+
+产品入口 claudeLoginSession.py 在链外精确读一次原始 auth，只复制 OAuth，生成唯一隔离 HOME 与最小版本绑定状态；启动平级 F/D 后同 PID exec C 中的原 daemon。C 及 hook/Stop 的控制路径保持原样；版本、status、PTY、事实子进程均继承 C。F 的唯一地址／端口由 URL＋显式固定 IPv4 配置，禁 DNS／fallback／其他出站／Security／fork；D 无网络／Security／fork，只收四范围目录/stat，原始清单留在私有根。HOME 禁写覆盖整个 OS 账号 HOME，不用 HOME 环境变量替代，也没有 repo/state/roles 的 HOME 写入例外。
+
+并发 start 的准备会话采用一次性独占消费，落后者不能取得或清理胜者资源。D 区分正常结束、主动取消和根进程失联，对本次登记的 PID/组核对后清理，未确认就保留 INCOMPLETE。C 管理 tmp 与 CLI 私有根分开，结束后的事实命令不应重建已删除的隔离根。当前事实 schema 为 2，原件位置是 forwarder/journal/requests.jsonl。
+
+凭据元数据字段的额外缺口有独立局部红绿：journal-red-01.json 中方法／数值暴露 2 个合成值，journal-green-01.json 为 0 且 JSON 可解析。修正在 F 的写盘边界，不落认证头或请求体。该检查没有监听或请求上游。
+
+局部通过证据：cleanup-local-05.json（U 关闭、提前确认变异、一次合成读取、路径边界、D 正常／取消清理及身份丢失时不发信号；D 的信号为模拟）、once-local-03.json（并发只消费一次、不清理胜者）、facts-local-03.json（四种清单差异／漏记组合不自动授予模型许可）、launch-local-05.json（原 hook/Stop 与单层启动构造）、url-local-03.json（配置解析）、private-files-local-02.json（OAuth 范围／链接／有效期）、oracles-local-02.json（Mach 明确拒绝及跨 exec 截止）。这些不替代新产品 OS 绿态。
+
+最终局部快照补为 cleanup-local-07.json、once-local-05.json、facts-local-05.json、private-files-local-03.json：原始 auth 前的短 D 基线、一次性消费与输入前事实均已接入；新增显式 --preflight 事实模式。局部测试模拟基线子进程／服务计数，未执行新的 OS profile。实际全链必须由主控复验；不据此升级状态。
+
+inventory-race-red-01／green-01 另复现并修正目录在 stat 后、枚举前消失的收尾风险；明确记录 missing／vanished_before_enumeration，保留已见元数据。PermissionError 仍传播，未放宽观测失败。它不证明原 U 一定是这个原因。
+
+完整外验脚本已经准备，命令及逐进程 profile 表在 REVIEW-REQUEST-T093-06.md。绿态使用随机 prompt／inbox 哨兵、真实 PTY/daemon/native hook/Stop、编译假 CLI、独立受保护假上游。逐条对账 F 原件与独立 U 收据；覆盖原三个反例、八个真实 HOME 拒写路径、合成缺失规则的实际创建／立即删除、F 越界连接及 C 绕过 F。五项变异分别破坏路径报告、扫描、计数、首条记账与注入列表，要求各自业务断言失败；清理另列。所有反例只用本地假上游。
+
+probe-10 三条边界仍保留：两个内部状态只对 2.1.302 有事实支持，换版本须重核；onboarding 的两个 hello 直连官方域名，不经过 BASE_URL，必须避免触发并报告终端／私有 debug 的可见信号；400 后的每次重试都算新请求。沉默的被拒网络尝试未测量，不能用转发原件冒称全网络审计。
+
+本候选没有运行真实供应商 CLI、读取真实登录、连接真实接口或产生模型回合。完整新产品 OS 运行、真实域名 DNS/TLS 和独立验收均未取得；不使用旧 PASS、局部模拟或进程标签冒称这些结论。全部原审查与失败保持原文，Git／提交仅冻结候选，不代替受管交付门禁。

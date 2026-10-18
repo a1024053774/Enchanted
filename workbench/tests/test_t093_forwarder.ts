@@ -40,7 +40,7 @@ await new Promise<void>(resolve => upstream.listen(0, "127.0.0.1", resolve));
 try {
   assert(fixtureVariants.length > 0, "credential injection cases must not be empty");
   relay = await ClaudeForwarder.start({ directory: join(root, "ledger"), upstream_url: `http://127.0.0.1:${(upstream.address() as any).port}`,
-    access_token: token, secrets: [token] });
+    upstream_address: "127.0.0.1", port: 0, access_token: token, secrets: [token] });
   for (const expected of [400, 200]) {
     const response = await fetch(relay.url + "/v1/messages", { method: "POST", headers: { authorization: "Bearer " + token },
       body: JSON.stringify({ messages: [{ role: "user", content: "independent fixture prompt" }] }) });

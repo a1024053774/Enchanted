@@ -1,6 +1,7 @@
 // OS-boundary fixture only. No authentication, vendor CLI or model protocol.
 import { createServer, get } from "node:http";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, linkSync, unlinkSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
 const options = JSON.parse(readFileSync(process.argv[2], "utf8"));
@@ -8,7 +9,9 @@ const role = process.argv[3], directory = join(options.root, role);
 const servers = [], sockets = new Set();
 let received = 0, forwarded = 0, closing = false;
 function save(name, value) {
-  writeFileSync(join(directory, name), JSON.stringify(value) + "\n", { flag: "wx", mode: 0o600 });
+  const temporary=join(directory,name+".pending-"+randomUUID());
+  writeFileSync(temporary,JSON.stringify(value)+"\n",{flag:"wx",mode:0o600});
+  try{linkSync(temporary,join(directory,name));}finally{unlinkSync(temporary);}
 }
 function listen(port, receive) {
   const server = createServer(receive);
@@ -20,17 +23,7 @@ function listen(port, receive) {
   });
 }
 try {
-  if (role === "U") {
-    for (const port of [options.upstream_port, options.other_port]) {
-      await listen(port, (request, response) => {
-        if (request.url !== "/t093-connection-probe" || request.method !== "GET" || request.headers.authorization) {
-          response.writeHead(400).end(); return;
-        }
-        received++;
-        response.writeHead(200, { "content-type": "text/plain" }).end("local-probe-ok");
-      });
-    }
-  } else if (role === "F") {
+  if (role === "F") {
     await listen(options.forward_port, (request, response) => {
       if (request.url !== "/t093-connection-probe" || request.method !== "GET" || request.headers.authorization) {
         response.writeHead(400).end(); return;
@@ -54,15 +47,13 @@ try {
     save("bind-probe.json", bind);
   } else throw new Error("invalid_role");
   save("ready.json", { pid: process.pid, ppid: process.ppid, role, profile: role,
-    ports: role === "F" ? [options.forward_port] : [options.upstream_port, options.other_port] });
+    ports: [options.forward_port] });
   const timer = setInterval(async () => {
     if (closing || (!existsSync(join(directory, "stop")) && Date.now() < options.deadline_ms)) return;
     closing = true; clearInterval(timer);
     for (const socket of sockets) socket.destroy();
     await Promise.all(servers.map(server => new Promise(resolve => server.close(resolve))));
     save("closed.json", { received, forwarded, deadline_reached: Date.now() >= options.deadline_ms });
-    if (role === "U") process.execve("/usr/bin/python3", ["/usr/bin/python3", "-I", "-S", "-B", options.python_probe,
-      "--stage", "U-after", "--options", join(options.root, "options.json")], { PATH: "/usr/bin:/bin", LANG: "C" });
   }, 30);
 } catch (error) {
   // Never persist arbitrary error text or a terminal stream.

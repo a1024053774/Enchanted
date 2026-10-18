@@ -24,7 +24,7 @@ try {
     api_url: "http://127.0.0.1:23101", turn_limit: 3 };
   const isolation: any = { homeRoot: privateRoot, home: join(privateRoot, "home"), config: join(privateRoot, "home/.claude"),
     tmp: join(privateRoot, "tmp"), shell: join(privateRoot, "shell"), debug: join(privateRoot, "debug.log"),
-    api_url: "http://127.0.0.1:23102", sandbox_profile: "(version 1)(allow default)", audit_directory: join(root, "audit") };
+    api_url: "http://127.0.0.1:23102", audit_directory: join(root, "audit") };
   const normal = { ...common, authentication: "normal-login", credential_source: "file", upstream_url: "http://127.0.0.1:23103" };
   const check = (name: string, run: () => void) => {
     try { run(); checks.push({ name, status: "PASS" }); }
@@ -47,7 +47,7 @@ try {
       assert(entries[0].hooks[0].command.includes(normal.launch));
     }
     assert.equal(profile.turn_limit, 3);
-    assert(profile.shell_argv.at(-1).includes("sandbox-exec"));
+    assert.equal(profile.shell_argv.at(-1).includes("sandbox-exec"), false, "CLI inherits the single outer profile");
     assert.equal(profile.shell_argv.at(-1).includes("; exec /bin/zsh"), false);
   });
   check("normal_login_version_change_requires_new_probe", () => {
