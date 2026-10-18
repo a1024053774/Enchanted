@@ -1,10 +1,29 @@
 # T-096-1 当前交付记录
 
-**INCOMPLETE**：主控已完成真实进程树红／绿对照，当前修复四场 PASS，red-b-04 已归档 PASS。下一步依次运行 red-b-05／tracer-b-05，参数和逐屏批准流程不变。真实历史续接仍未证明；进程树演练的通过不替代原生重启验收。
+**INCOMPLETE**：真实 main 红态、单格／三格恢复与历史 nonce、缺 argv、缺 session、失败隔离均已由主控实跑 PASS，fake POST 0。version-b-01 八项业务检查通过，但收尾未完成；固定收尾与 version-b-02 命令见 `RUN-VERSION.md`。完整验收仍待该重跑、独立审查与门禁交付。
 
 当前范围以主控 #89 转达和 main `8cf91b26e` 的 T-096“裁定”节为准：只恢复两个主控；worker 保留为“未恢复”，不启动 CLI、不重绑定、不改 attempt。不修改 `workbench/src/gates/`。主控 #88 允许先完成不依赖门禁裁定的路径。
 
 主控没有跨重启的固定 PID 绑定：`Panes.controllerLaunch()` 返回的身份不含 PID；`caller()` 在单次请求内固定当次 leader（`panes.ts` 的 controller 分支），daemon 的 `assertCurrent()` 核对当次前台进程；`core.ts:340` 的 `registerController()` 只核对 task/project/spec_rev。worker 的旧 PID 绑定留在 `core.ts:2485`，没有改动。
+
+2026-10-18 主控 #104／#14 的原生验收结果与 version 收尾：
+
+| 场景 | 原摘要 | 检查项 | 收尾／归档 |
+| --- | --- | --- | --- |
+| red-b-05 | PASS | 4 | true；84 文件／3,920,891 字节 |
+| tracer-b-05 | PASS | 15，含 ideation_native_history_visible | true；650 文件／285,439,776 字节 |
+| three-b-01 | PASS | 26，含两主控原生历史、worker 未恢复 | true；1,236 文件／568,770,930 字节 |
+| no-argv-b-01 | INCOMPLETE | 初始化未完成，不算 argv 反例 | true；45 文件／1,424,491 字节 |
+| no-argv-b-02 | PASS | 9 | true；653 文件／287,513,046 字节 |
+| no-session-b-01 | PASS | 9 | true；649 文件／199,808,749 字节 |
+| isolation-b-01 | PASS | 20 | true；1,239 文件／572,856,163 字节 |
+| version-b-01 | INCOMPLETE | 8 项业务检查全部 PASS | false；原现场保留，待固定收尾 |
+
+以上全部 fake POST 0；七份归档 comparison 均 true，原件保留，run.json 和 archive.json 一并提交。no-argv 首场的按键被拒绝由主控报告为操作者过早截屏；保留原失败，不改记通过，使用 -02 的独立重跑证明 argv 反例。原始 three／isolation 的完整 gate-before／gate-after task（包括 current_attempt 的身份、state、runtime_identity）逐字段相等。
+
+version 第二个 Electron 79678 的最后两次已保存 ps 与 journal 的 PID／lstart／command 完全相等；全部业务检查在退出前完成。window-2/stages.jsonl 记录正常 ready、读回、will_quit／quit，退出码 0，无 fatal；因此不支持“版本不符导致提前退出”。正常退出 helper 的请求前／请求后均会核对身份，但旧版没有保存拒绝那一次 ps 或已接受的退出请求回执，无法严格证明没有 PID 复用。现有证据支持退出过程核对竞态，具体缺失处保留为未知。原始 stderr 也有只读未恢复窗格的 focus-observation 拒绝，未发现它触发 Electron fatal／退出的证据，本轮不据此修改产品。
+
+修复仅在已接受 NSRunningApplication.terminate 后遇到精确的身份核对错误时，等待本 runner 的 Popen 子进程退出并独立确认 PID 不存在，最多 3 秒；不重发请求、不收留复用 PID。请求前拒绝、未接受、持续存活、超时、其他错误仍交回；非零退出保留诊断。摘要新增 electron_quit_events，报错时也保存阶段回执。`version-cleanup-contract-03.json` **PASS**：实际旧 normal_quit 循环在替代 AppKit／ps 边界下重现，旧 `f2b96001d` 被接受退出后误拒绝的反例拒绝；固定收尾入口的身份、完整 argv、活 Electron／未知夹具写入者、子进程、二次核对、停止回执丢失、私密排除与原件保留均核对，跳过身份比较的变异被拒绝。既有收尾和 argv 语法回归 `restart-cleanup-version-01.json`、`runner-materials-version-01.json` 均 PASS；不作真实 AppKit 或固定夹具已收尾的证明。
 
 2026-10-18 主控 #99／#13 的真实进程树结果读回：
 
@@ -67,7 +86,7 @@
 
 `static-checks-b-01.json` 的语法、编码、修改范围和项目地图检查 **PASS**（0 problems、0 stale living docs）。Claude 启动版本与 driver 选择局部回归分别见 `t091-version-regression-b-01.json`、`driver-selection-b-01.json`，均 PASS，适用范围仍为替代边界。
 
-尚未完成：red-b-05／tracer-b-05 的真实单格重启与原生历史验证、三格重启、三个独立故障和失败隔离、完整 GUI 回归、独立审查、门禁 submit。旧失败场景归档与真实进程树演练已完成。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
+尚未完成：version-b-01 固定收尾、version-b-02 完整重跑、独立审查、门禁 submit；其他实跑通过的范围见本页最新记录。原门禁重绑定阻塞已由裁定 B 移出本票；不再等待它实施。
 
 下列为第一轮 WIP 的原始局部证据，保留其适用范围：
 

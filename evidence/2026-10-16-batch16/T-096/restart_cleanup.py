@@ -110,7 +110,26 @@ def close_observer(observer, *, expected_crash, read_process, normal_quit):
         if not observer.ready_confirmed:
             raise RuntimeError('electron startup unconfirmed; preserve fixture for controller')
         outcome['quit_events'] = []
-        normal_quit(owner, observe=outcome['quit_events'].append, child=observer.process)
+        def observe(event):
+            outcome['quit_events'].append(event)
+            # Keep the phase receipt even if the quit helper subsequently raises.
+            observer.quit_events = list(outcome['quit_events'])
+        try:
+            normal_quit(owner, observe=observe, child=observer.process)
+        except RuntimeError as error:
+            accepted=any(event.get('normal_quit',{}).get('pid')==owner['pid'] and
+                event['normal_quit'].get('method')=='NSRunningApplication.terminate' and
+                event['normal_quit'].get('requested') is True for event in outcome['quit_events'])
+            if str(error)!='electron_pid_start_or_command_changed' or not accepted:
+                raise
+            # After an accepted normal quit, argv can disappear before ps drops
+            # the PID. Wait/reap our own Popen child; never send another request.
+            # A reused PID still fails the independent absence check below.
+            observer.process.wait(timeout=3)
+            if read_process(owner['pid']) is not None:
+                raise RuntimeError('electron PID remains after accepted quit; preserve fixture for controller') from error
+            outcome['quit_events'].append(dict(pid=owner['pid'],exit_confirmed=True,phase='accepted_quit_exit_readback',original_error=str(error)))
+            observer.quit_events=list(outcome['quit_events'])
     observer.process.poll()
     if read_process(owner['pid']) is not None or observer.process.returncode is None:
         raise RuntimeError('electron exit unconfirmed; preserve fixture for controller')

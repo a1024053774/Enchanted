@@ -1,6 +1,6 @@
 # T-096：执行主控真实重启验证
 
-状态：**INCOMPLETE**。主控 #99／#13 已完成真实进程树对照：旧候选按预期失败，当前修复四场 PASS，全部独立收尾完成；red-b-04 已归档 PASS。下一步按该消息授权依次运行 red-b-05、tracer-b-05。runner 参数和逐屏批准流程不变，只换 label、output 与对应 context 路径；同一时刻最多一个 Electron。tracer-b-03 的 nonce 失败仍未解决，不能用进程树 PASS 替代原生历史续接证据。
+状态：**INCOMPLETE**。主控 #104／#14 实跑中，red-b-05、tracer-b-05、three-b-01、no-argv-b-02、no-session-b-01、isolation-b-01 均 PASS，包含真实原生历史 nonce。version-b-01 八项业务检查通过，但 Electron 收尾失败；先按 [RUN-VERSION.md](RUN-VERSION.md) 收尾其固定夹具，再运行 version-b-02。不要重跑已有标签／输出目录；同一时刻最多一个 Electron。以下命令保留作流程说明，当前下一步以 RUN-VERSION 为准。
 
 候选先冻结成提交；新 label／外置盘输出／构建槽不覆盖旧运行。`--expect red|restore` 现在必填，漏传会在资源启动之前退出。red 模式保留死端点去测试真实重启，不预先删除端点掩盖缺陷；仅识别原件中明确的、发生在新凭据和进程创建之前的拒绝。超时、其他报错或新 epoch 身份不明仍为 INCOMPLETE。
 
@@ -61,7 +61,7 @@ runner 必须同时读到 trust-Enter 写入事件和其后的 initial_release �
 
 ```sh
 python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/no-argv-b-01 --label no-argv-b-01 --approval-ref T-096-no-argv --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --fault missing-argv
-python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/version-b-01 --label version-b-01 --approval-ref T-096-version --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --fault version-mismatch
+python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/version-b-02 --label version-b-02 --approval-ref T-096-version --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --fault version-mismatch
 python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/no-session-b-01 --label no-session-b-01 --approval-ref T-096-no-session --claude CLAUDE --claude-version 2.1.302 --panes 1 --expect restore --startup-wait-seconds 600 --fault missing-session
 python3 evidence/2026-10-16-batch16/T-096/run_restart.py --source /Users/luckye/Documents/Code/a2a-wt-t096 --output /Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/isolation-b-01 --label isolation-b-01 --approval-ref T-096-isolation --claude CLAUDE --claude-version 2.1.302 --panes 3 --expect restore --startup-wait-seconds 600 --fault missing-argv
 ```

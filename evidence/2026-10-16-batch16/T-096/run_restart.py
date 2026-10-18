@@ -498,7 +498,10 @@ def main():
             if observer is None:
                 if observer_start_unconfirmed: raise RuntimeError('Electron constructor/start outcome unconfirmed; see start-intent and receipt')
                 return dict(exited=True,diagnostics=[])
-            closed=close_observer(observer,expected_crash=observer_expected_crash,read_process=identify,normal_quit=normal_quit)
+            try:
+                closed=close_observer(observer,expected_crash=observer_expected_crash,read_process=identify,normal_quit=normal_quit)
+            finally:
+                result['electron_quit_events']=getattr(observer,'quit_events',[])
             observer=None; observer_start_unconfirmed=False
             if expected_layout is not None:
                 try: check('application_exit_preserves_panes',call('pane_layout',task='t096-fixture')['panes']==expected_layout)
