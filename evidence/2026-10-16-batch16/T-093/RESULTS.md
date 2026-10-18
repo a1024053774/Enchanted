@@ -301,3 +301,24 @@ R/G 异常与脱敏反例未发现新增问题，但初始目录也可能仍由 
 收据把核对范围绑定具体根与 worktree，原有已启动服务的 PID／组和 D 清理收据仍逐项要求。
 cleanup-quiescence-red-01 在旧冻结源码复现活动初始根被删除；green-01 的同一断言拒绝删除，并核对合成的相对 R、G、空匹配／不完整进程列表。
 retained-cleanup-local-03 继续通过五个合成清理场景；这些进程核对为模拟，当前仍没有实际删除七根或取得完整链 OS 绿态，也没有新的独立验收通过结论。
+
+## 主控 #97：清理 PermissionError
+
+请求 08 的七根清理实际都返回 PermissionError／INCOMPLETE，原结果缺少路径和 errno；完整链 -06 没有继续运行。
+cleanup-05-inspection.json 保留七份原结果和只读元数据：495 项均无 0000、异主、flags 或特殊文件，七根 0700、UID 501 与 worker 相同，ls -ldeO 未见 ACL。
+认证正文未读，保留根未改动。/bin/ps 为 root-owned 4755，/usr/bin/pgrep 为无 setuid/setgid 的 0755。
+初始目录也失败，指向共同的受保护 ps 启动；原次错误位置尚未恢复，不能仅凭模式推断当作实捕异常。
+
+默认清理观察器改为非特权 pgrep，限定当前 UID，只收 PID；不复制二进制、不 chmod，也不放宽 X 或产品 profile。
+对照 Python 仅睡眠并携带 R/G 标记，不运行实际 R/G；查询须看到它，终止回收并确认组消失后再查真实 R/G。
+看不到对照、非预期退出码、输出不合法或回收未确认均拒绝删除；对照 exec 前即设 20 秒硬期限。
+
+失败会记录具体 operation／path／errno，或无文件目标时的 PID；包含可取得的 mode／uid／flags／类型。
+遍历错误显式上报，rmtree 回调记录完整路径与原始 os_filename，根缺失核对的权限错误不冒称删除成功，次要错误不覆盖主错误。
+新增 --inspect-only 不删除；同一 X 下会单独记录旧 ps 的执行错误，然后用新观察器核对。
+只处理既有七个固定根，permission_changes=[]；无需也没有实施 chmod。
+
+局部 cleanup-errors-red-03 在旧冻结版本上六项失败，green-03 通过六项诊断；FIFO 用合成文件验证不打开。
+cleanup-observer-red-01 拒绝旧观察器，cleanup-quiescence-green-05 用模拟结果核对 R/G 正对照及失败／不可见对照拒绝；retained-cleanup-local-06 通过含只检查不删除的六个合成场景。
+这些不证明新观察器在 X 下已运行。本次仍没有读取真实认证、启动供应商 CLI／真实上游／模型，也没有删除现有七根。
+先执行 REVIEW-REQUEST-T093-09.md 的一根只检查命令，成功后才逐根清理、继续请求 08 的 chain-06。整票 INCOMPLETE。

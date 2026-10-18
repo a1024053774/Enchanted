@@ -358,10 +358,10 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 ## 正常登录 profile（T-093）
 
-当前为 INCOMPLETE：主控 #94 已确认外部 V 事实入口启动通过；完整链尚未越过 R 的 Git 检查。
-本候选为完整索引扫描单独设置有界时限，并补齐失败阶段及脱敏原始错误；完整链和反例仍待复验。
+当前为 INCOMPLETE：外部 V 事实入口已通过；主控 #97 的七根清理均遇到 PermissionError。
+本候选改用非特权观察器并补上具体操作／路径／errno，先只检查再清理；完整链和反例仍待复验。
 当前版本、进程清单、复验命令与限制见
-[交接请求 08](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-08.md)。
+[交接请求 09](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-09.md)。
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
@@ -454,7 +454,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
   /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
 ```
 
-其余五个独立场景、预期业务失败及独立结果核对器见交接请求 08。
+其余五个独立场景、预期业务失败及独立结果核对器见交接请求 08；先执行交接请求 09 的清理检查。
 所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
 结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
 

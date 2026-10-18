@@ -32,27 +32,43 @@ def active_initial():
   if root.exists():shutil.rmtree(root)
 
 def inventory():
- assert hasattr(mod,'setup_quiescence'),'cleanup_must_collect_root_bound_setup_quiescence'
- source=str(mod.SOURCE.parents[2].resolve());root=Path('/private/tmp/t093-chain-bound-unit')
- own=f'{os.getpid()} {os.getpgrp()} S /usr/bin/python3 cleanup_t093_retained_fixture.py\n'
- cases=[('inactive',own+'440601 440601 R /bin/ps -axo pid=,pgid=,stat=,command=\n',None),
-        ('relative_R',own+'440501 440500 S /usr/bin/python3 workbench/tests/run_t093_login_chain.py --output /private/tmp/output.json\n','R'),
-        ('G',own+'440502 440502 S /usr/bin/git --no-optional-locks -C '+source+' grep --cached\n','G'),
-        ('incomplete','', 'incomplete')]
+ assert hasattr(mod,'error_details'),'unprivileged_observer_with_positive_control_required'
+ root=Path('/private/tmp/t093-chain-bound-unit')
+ cases=[('inactive',None),('active_R','R'),('active_G','G'),('control_missing','missing'),('query_error','error')]
  observed=[]
- for name,body,role in cases:
-  class Child:
-   pid=440601;returncode=0
-   def communicate(self,timeout=None):return body,''
-  with patch.object(mod.subprocess,'Popen',return_value=Child()) as popen:
+ for name,role in cases:
+  class Control:
+   pid=440701;returncode=None
+   def poll(self):return self.returncode
+   def kill(self):self.returncode=-9
+   def communicate(self,timeout=None):return None,None
+  control=Control();commands=[]
+  def popen(argv,**options):
+   commands.append(argv)
+   assert options['start_new_session'] is True
+   if argv[0]=='/usr/bin/python3':
+    assert callable(options['preexec_fn']),'control_deadline_must_start_before_exec'
+    return control
+   assert argv[:5]==['/usr/bin/pgrep','-a','-f','-U',str(os.getuid())]
+   query_role='R' if 'run_t093_login_chain' in argv[-1] else 'G'
+   values=set()
+   if control.poll() is None and role!='missing':values.add(control.pid)
+   if role==query_role:values.add(440501)
+   class Query:
+    pid=440800+len(commands);returncode=3 if role=='error' else 0 if values else 1
+    def communicate(self,timeout=None):return ''.join(str(pid)+'\n' for pid in sorted(values)),'synthetic error' if role=='error' else ''
+   return Query()
+  def absent(*args):raise ProcessLookupError()
+  with patch.object(mod.subprocess,'Popen',side_effect=popen),patch.object(mod.os,'killpg',side_effect=absent),patch.object(mod.os,'getpgid',return_value=440500):
    try:value=mod.setup_quiescence(root)
    except mod.ActiveSetupProcesses as error:
     assert role in ('R','G') and error.proof['root']==str(root) and error.proof['matching_processes'][0]['role']==role
-   except ValueError as error:assert role=='incomplete' and str(error)=='setup_process_inventory_incomplete'
-   else:assert role is None and value['root']==str(root) and value['complete'] and value['matching_processes']==[]
-   assert popen.call_args.args[0]==['/bin/ps','-ww','-axo','pid=,pgid=,stat=,command='] and popen.call_args.kwargs['start_new_session'] is True
+   except ValueError as error:assert role in ('missing','error') and str(error)==('setup_process_positive_control_not_seen' if role=='missing' else 'setup_process_inventory_unavailable')
+   else:assert role is None and value['root']==str(root) and value['complete'] and value['matching_processes']==[] and value['positive_control']['R_seen'] and value['positive_control']['G_seen']
+   assert control.returncode==-9,'observer_control_must_be_reaped_before_return'
+   assert all(argv[0] in ('/usr/bin/python3','/usr/bin/pgrep') for argv in commands)
   observed.append(name)
- return {'synthetic_inventory_cases':observed,'raw_argv_saved':False,'actual_ps_commands':0}
+ return {'synthetic_inventory_cases':observed,'raw_argv_saved':False,'actual_process_commands':0,'setuid_observer_used':False}
 
 record('initial fixture with active setup',active_initial)
 record('bound scoped process inventory',inventory)

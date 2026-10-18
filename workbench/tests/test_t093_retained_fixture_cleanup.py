@@ -10,14 +10,14 @@ from unittest.mock import patch
 p=Path(__file__).with_name('cleanup_t093_retained_fixture.py').resolve()
 spec=importlib.util.spec_from_file_location('cleanup',p);mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 output=Path(sys.argv[1]);assert not output.exists();checks=[]
-for kind in ('initial','unconfirmed','closed','active','code'):
+for kind in ('initial','unconfirmed','closed','active','code','inspect'):
  root=Path(tempfile.mkdtemp(prefix='t093-chain-cleanup-unit-',dir='/private/tmp'))
  linked=Path(tempfile.mkdtemp(prefix='t093-linked-dependency-unit-',dir='/private/tmp'))
  try:
   for name in ('U','S','M','state','repo','synthetic-home','source-home/.claude'):(root/name).mkdir(parents=True)
   for name in ('home','claude','tmp','shell','requests','hooks','user-data'):(root/'roles/ideation'/name).mkdir(parents=True)
   for name in ('roles/ideation/role.md','source-home/private-sentinel','source-home/.claude/.credentials.json'):(root/name).write_text('synthetic only')
-  if kind not in ('initial','code'):(root/'U/ready.json').write_text('{"pid":440401,"pgrp":440402}')
+  if kind not in ('initial','code','inspect'):(root/'U/ready.json').write_text('{"pid":440401,"pgrp":440402}')
   if kind=='code':
    (root/'code/workbench/src').mkdir(parents=True);(root/'code/workbench/src/example.ts').write_text('synthetic source')
    (linked/'workbench/node_modules').mkdir(parents=True);(linked/'workbench/node_modules/keep').write_text('retained dependency')
@@ -33,6 +33,8 @@ for kind in ('initial','unconfirmed','closed','active','code'):
     except ValueError as error:assert str(error)==expected
     else:raise AssertionError('unsafe_fixture_must_not_be_deleted')
     assert (root/'source-home/.claude/.credentials.json').exists();checks.append({'case':kind,'refused_before_deletion':True})
+   elif kind=='inspect':
+    receipt=mod.remove(root,inspect_only=True);assert receipt['status']=='PASS' and not receipt['root_removed'] and not receipt['deletion_attempted'] and root.exists();checks.append({'case':kind,'no_deletion_attempted':True})
    else:
     receipt=mod.remove(root);assert receipt['status']=='PASS' and receipt['root_removed'] and receipt['credential_file_present'];checks.append({'case':kind,'whole_root_removed':True})
     if kind=='code':assert (linked/'workbench/node_modules/keep').read_text()=='retained dependency','fixture_link_deletion_must_not_follow_dependency_target'
