@@ -367,3 +367,8 @@ V 现把组／子进程身份与原登记记录绑定，并独立用信号 0 核
 prepare-failure-red-03 在旧产品源码上拒绝原异常落盘顺序及覆盖；green-03 覆盖实际 prepare＋测试发布器和真实 R main 的类型收据／次要清理错误。
 chain-cleanup-oracle-red-03 拒绝旧核对器，green-04 的 12 项检查包括谎报退出、身份错配及漏子进程。
 两项均是无 auth／无 OS 执行的合成检查；新沙箱外演练、固定残留删除与正式六场仍待主控，整票保持 INCOMPLETE。
+
+修正实现冻结 965560422036ae4382036a9e68758abe0fd74baf 的一次限定复核为 INCOMPLETE，原文 CLEANUP-PUBLICATION-REVIEW-02.md。
+审查者独立执行 prepare 3 项与 oracle 12 项合成检查均通过，认定前两项 P1 的 L1 缺口已关闭；实际 OS 边界仍未测。
+原始小报告另存 prepare-review-green-01.json、oracle-review-green-01.json。实现自该冻结后未改；后续只补文本证据。
+按请求 10 先清理 e189ndt0，再做同 profile 的两场演练，通过独立核对后才做正式六场；旧候选通过不沿用。

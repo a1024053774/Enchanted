@@ -4,6 +4,8 @@
 候选绑定 worker 最后一行 `T-093 FROZEN <完整 SHA>`。task T-093 / attempt a1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 不代替 submit、独立验收或集成；不授权真实 CLI、认证读取、真实上游或模型回合。
 
+修正实现冻结为 965560422036ae4382036a9e68758abe0fd74baf；限定只读复核为 INCOMPLETE，原文 [CLEANUP-PUBLICATION-REVIEW-02.md](CLEANUP-PUBLICATION-REVIEW-02.md)。前两项 P1 的 L1 缺口已关闭，3 项准备失败与 12 项独立核对反例通过；OS 演练尚未执行。最终冻结提交相对此实现只增加本轮审查原件、文本摘要与核对结果，运行命令仍绑定最后 FROZEN 的完整 SHA。
+
 主控 #98 已确认旧七根全部清理成功；新 none 却在 `rmSync` 遇到 ENOTEMPTY，未保存原业务异常。
 [chain-06-cleanup-red.json](chain-06-cleanup-red.json) 保留主控结果及残留元数据，不读取认证正文。
 主控 #100 同意：C 拒读拒写合成认证源，因而不能删除包含它的父根。认证源必须由独立清理拥有者收尾。
