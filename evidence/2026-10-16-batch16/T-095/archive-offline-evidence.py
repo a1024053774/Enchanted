@@ -21,8 +21,10 @@ def inventory(root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--manifest", choices=("native-offline-evidence.archive.json", "green-replay.archive.json"),
+                        default="native-offline-evidence.archive.json")
     args = parser.parse_args()
-    manifest = json.loads(Path(__file__).with_name("native-offline-evidence.archive.json").read_text(encoding="utf-8"))
+    manifest = json.loads(Path(__file__).with_name(args.manifest).read_text(encoding="utf-8"))
     source, target = Path(manifest["original"]), Path(manifest["archive"])
     if not args.apply:
         print(json.dumps({key: manifest[key] for key in ("status", "original", "archive", "files", "bytes", "mode")}, ensure_ascii=False))
