@@ -10,6 +10,7 @@
 最新交接为 [第二轮独立审查请求 15](REVIEW-REQUEST-T093-15.md)。主控 #117 已回传 chain-08 counts／V 单场 PASS；它与 chain-07 的其余五场、rehearsal-04 的预期结果均符合要求，但分别绑定下文列出的两个候选，不存在新候选六场统一重跑的记录。T-096 跨票恢复检查仍未完成。以下各“当前／最新”文字均保留为其对应阶段的历史记录。
 
 最新交接改为 [修订候选请求 16](REVIEW-REQUEST-T093-16.md)：第二轮审查报告 independent-review-02.md 保持原文；主控 #121/#122 修订 F 为 OS 仅限 TCP 443、应用层锁主机，**OS 层不再按主机限制**。main 已合入，恢复运行时身份及新网络逻辑的局部检查通过；新 OS 与 T-096 原生七场仍 INCOMPLETE，旧链路 PASS 不替本候选背书。
+当前新增阻塞为 **NO_GO**：普通 daemon 直接恢复正常登录记录时未保证原 R/F/D/C 权限上下文，给定边界已复现，见 ISSUE-NORMAL-LOGIN-RESTORE-16.md；处理范围待主控裁定。其他局部 PASS 不解除此集成阻点。
 
 更新：独立审查 01 对第一次冻结候选 1d4c58b4a 给出 **NO_GO（验收文件缺口）**，报告原文保留。
 下文首次交付的 PASS 均是当时运行证据，不提升为新候选的独立审查通过。当前仅修正验收输入与审查驱动的失败保存，产品源码未改；新外部复验与新独立审查仍待完成，见末节。
@@ -538,3 +539,7 @@ test_t096_restore 的两个旧记录正例、已有身份匹配、身份改变�
 新 OS 入口为 T093-OS-16.sh：先只编译，再 primary／green／V 与正式六场。新链实际 F 负例检查非 443 端口，应用目标反例在 C 内用真实 handler＋传输替身验证；两个层次分别留证。旧 probe_t093_parallel_profiles.py 的 standalone 入口与旧 OS 结果属于原 localhost/端口方案，不作为新 F 权限证明。
 T096-REGRESSION-16.sh 提供 tracer、three、missing-argv、version-mismatch、missing-session、isolation、empty-reopen；仅主控沙箱外运行，初始化仍逐屏批准，脚本不自动按键／登录或预置内部状态。任何失败保留现场，交主控按裁定重开 T-096，worker 不自行修改另一票验收或自动重试。
 本轮没有真实 auth 读取、真实供应商 CLI、实际 OS profile、真实上游或模型回合。合并／修复局部通过不等于七场原生恢复或新网络权限已验收。报告复制遇旧同名文件时独占创建拒绝，旧件未覆盖，新件改用 r16 名称，见 evidence-copy-collision-16.json。
+
+首轮限定审查 e1177a02d 为 FAIL，原文 NETWORK-RESTORE-REVIEW-01.md：网络与恢复身份的限定检查未发现违约，但交接 verify-six 在系统 Bash 3.2 因空 flags 数组而不能启动 V。现只改位置参数转发，实际 Bash＋exec 哨兵的七分支红绿为 outside-wrapper-red-01／green-01；没有把 shell 失败算作 V 业务拒绝。
+审查结束后 worker 追加实际 recover 的正常登录标记输入，复现另一个组合问题：普通 daemon 可直接派生正常登录记录的 CLI，未恢复原 R/F/D/C 上下文。给定边界失败为 normal-restore-boundary-01，未真实启动 CLI／OS，没有实际 HOME 写入或泄漏主张。
+见 ISSUE-NORMAL-LOGIN-RESTORE-16.md，已交主控按 #122 重开 T-096 并裁定本票是否先明确拒绝该恢复；未自行实现完整恢复设计。该路径 NO_GO，当前不能给整体集成 GO；原七场假 API 回归不能覆盖它。网络／规范身份修复和脚本修正的其他验证继续按各自范围报告。

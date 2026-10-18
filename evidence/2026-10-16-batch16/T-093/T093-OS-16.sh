@@ -13,7 +13,8 @@ case "$mode" in
   exec /usr/bin/python3 -I -S -B "$repo/workbench/tests/run_t093_login_chain.py" --source-revision "$candidate" --output "$output" --mutation "$mode";;
  verify-six|verify-rehearsal|verify-counts)
   shift 4
-  flags=();case "$mode" in verify-rehearsal) flags=(--rehearsal);;verify-counts) flags=(--counts-only);;esac
-  exec /usr/bin/python3 -I -S -B "$repo/workbench/tests/check_t093_chain_results.py" --candidate "$candidate" "${flags[@]}" --output "$output" "$@";;
+  set -- --output "$output" "$@"
+  case "$mode" in verify-rehearsal) set -- --rehearsal "$@";;verify-counts) set -- --counts-only "$@";;esac
+  exec /usr/bin/python3 -I -S -B "$repo/workbench/tests/check_t093_chain_results.py" --candidate "$candidate" "$@";;
  *) echo 'unknown T093 OS verification mode' >&2;exit 2;;
 esac

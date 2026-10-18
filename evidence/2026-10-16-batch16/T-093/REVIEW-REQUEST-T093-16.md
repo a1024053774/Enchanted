@@ -1,8 +1,10 @@
 # T-093 修订网络边界与 main 恢复兼容交接 16
 
-**INCOMPLETE：产品修正及局部红绿完成；新 OS profile／无模型链、T-096 原生七场和最终验收待执行。**
+**NO_GO（组合恢复边界待裁定）；网络／规范身份修正及局部红绿完成，新 OS profile／无模型链、T-096 原生七场尚未执行。**
+新增阻塞：[普通 daemon 恢复正常登录记录的 profile 缺口](ISSUE-NORMAL-LOGIN-RESTORE-16.md) 已以实际 recover＋给定边界复现，源代码缺原受保护上下文检查。主控范围裁定待回；该路径 NO_GO，不给整体集成结论。下面七场是假 API 恢复，不覆盖该缺口。
 候选绑定最后 `T-093 FROZEN <完整 SHA>`。本次基线为主控完成的合并 64c6456de2b7c0111628defce442d999a26734db，包含 main 0e92f78ec6824265cdfcbb9387ba4b454d7eee7f（含 T-096 fd5c93e6e）；无冲突。task T-093 / attempt a1；worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 不 push、不 rebase、不改门禁／地图或验收状态；Git 冻结不代替 submit、验收或集成。本票不启动真实模型，仍须用户合入后另说开工。
+首轮限定审查 [NETWORK-RESTORE-REVIEW-01.md](NETWORK-RESTORE-REVIEW-01.md) 对 e1177a02d 报 FAIL，确认交接脚本在 Bash 3.2 的 verify-six 空数组错误。现改用位置参数；outside-wrapper-red-01／green-01 用实际系统 Bash、exec 参数哨兵验证七分支，不调用 Python／OS profile，V 六场要求未变。
 
 ## 事实、授权与边界变化
 
