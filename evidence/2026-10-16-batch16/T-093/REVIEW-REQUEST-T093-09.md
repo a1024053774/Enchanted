@@ -4,6 +4,11 @@
 task T-093 / attempt a1，worker s16-t093；受管 session 67f986cc-92e4-4089-9c22-802a1143b645，native session 01a14ae2-a3df-7731-a7b0-1b679b3bce95，launch launch-45148b6732394eccab3b21224b238513。
 候选绑定最后 FROZEN 完整 SHA；冻结不代替 submit、独立验收或集成。
 
+实现冻结 d355efac68c74ca8af7fe9bd8fea5a98f1968e9c 的只读审查为 INCOMPLETE，原文
+[CLEANUP-OBSERVER-REVIEW-01.md](CLEANUP-OBSERVER-REVIEW-01.md)。13 个纯内存探针未发现本次边界内的已证实违约，实际 OS 能力仍未知。
+审查后清理实现保持不变；另补实际 main 的模拟失败收据检查，cleanup-cli-red-01 用旧实现缺失的 operation/path/errno 命中业务断言，green-01 通过。
+它覆盖实际 JSON 写入路径，仍用模拟操作替代权限边界，不替代下列沙箱外检查。
+
 ## 已确认与未知
 
 主控 #97：请求 08 的七个清理均 rc 2、PermissionError、root_removed=false；后续完整链 -06 未执行。

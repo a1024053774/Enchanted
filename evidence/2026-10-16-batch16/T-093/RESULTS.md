@@ -322,3 +322,9 @@ cleanup-05-inspection.json 保留七份原结果和只读元数据：495 项均�
 cleanup-observer-red-01 拒绝旧观察器，cleanup-quiescence-green-05 用模拟结果核对 R/G 正对照及失败／不可见对照拒绝；retained-cleanup-local-06 通过含只检查不删除的六个合成场景。
 这些不证明新观察器在 X 下已运行。本次仍没有读取真实认证、启动供应商 CLI／真实上游／模型，也没有删除现有七根。
 先执行 REVIEW-REQUEST-T093-09.md 的一根只检查命令，成功后才逐根清理、继续请求 08 的 chain-06。整票 INCOMPLETE。
+
+清理实现冻结 d355efac68c74ca8af7fe9bd8fea5a98f1968e9c 的只读审查为 INCOMPLETE，原文 CLEANUP-OBSERVER-REVIEW-01.md：
+13 个纯内存反例未发现本次范围内的已证实违约，但没有新 X／观察器／实际删除证据。
+它指出原错误单元测试主要直接调用 helper；随后补 cleanup-cli-red-01／green-01，实际调用 main 和独占 JSON writer，只模拟失败操作／bootstrap。
+旧实现的最终失败收据缺少 operation/path/errno，被同一业务断言拒绝；当前文件错误与观察器错误两个最终 JSON 均具备准确字段。
+这仍是 L1 模拟，不能声称已复现真实受保护 exec 或实际文件权限；清理实现自审查后未变。地图与最终局部状态见 freeze-checks-16.json。
