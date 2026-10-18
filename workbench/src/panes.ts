@@ -46,7 +46,7 @@ function requireFakeControllerRestore(record: Record<string, any>) {
     (record.authentication === undefined || record.authentication === "isolated fake API only") &&
     record.role_card_revision === "T-078-2/P1" && record.shell === "/bin/zsh" &&
     Array.isArray(shell) && shell.length === 4 && shell[0] === "-f" && shell[1] === "-i" && shell[2] === "-c" &&
-    typeof command === "string" && command.startsWith("'") && command.endsWith("; exec /bin/zsh -f -i") &&
+    typeof command === "string" &&
     env.ANTHROPIC_AUTH_TOKEN === "a2a-fixture-key-not-a-secret" && base && Number(base[1]) <= 65535 &&
     new URL(env.ANTHROPIC_BASE_URL).origin === env.ANTHROPIC_BASE_URL &&
     temporary(env.HOME) && temporary(env.CLAUDE_CONFIG_DIR) && env.NODE_OPTIONS === undefined &&
@@ -269,6 +269,8 @@ export class Panes implements GateRuntime {
         // runtime binding. Restoration must neither spawn nor mutate an attempt.
         check(record.attempt === null, "restore_managed_attempt_requires_reclaim");
         requireFakeControllerRestore(record);
+        const argv = resumeArgv(record, opened.native_session);
+        check(record.shell_argv[3] === shellCommand(record.argv) + "; exec /bin/zsh -f -i", "restore_record_unrecognized");
         const previous = this.store.lastEvent(record.id, ["pane_started", "pane_restored"]);
         if (Number.isSafeInteger(previous?.data.shell_pid) && previous!.data.shell_pid > 1) {
           try {
@@ -278,7 +280,6 @@ export class Panes implements GateRuntime {
             if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
           }
         }
-        const argv = resumeArgv(record, opened.native_session);
         check(opened.resume_argv && argv.length === opened.resume_argv.length &&
           argv.every((arg, index) => arg === opened.resume_argv![index]), "restore_argv_changed");
         const taskRow = this.store.db.prepare("SELECT data FROM tasks WHERE id=?").get(record.task);

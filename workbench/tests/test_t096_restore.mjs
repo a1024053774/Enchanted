@@ -91,7 +91,7 @@ async function exercise(source, identity = 'legacy', observations) {
       'normal-role-only', 'normal-audit-only', 'normal-preflight-only', 'normal-hook-only', 'normal-log-only', 'normal-home-only', 'normal-loader-only', 'normal-shell-only'];
     const unknownLabels = ['unrecognized', 'unrecognized-no-revision', 'unrecognized-no-token', 'unrecognized-no-url',
       'unrecognized-auth', 'unrecognized-home', 'unrecognized-api-key', 'unrecognized-options', 'unrecognized-url-origin',
-      'unrecognized-role', 'unrecognized-cli', 'unrecognized-preset', 'unrecognized-shell-missing', 'unrecognized-shell-command'];
+      'unrecognized-role', 'unrecognized-cli', 'unrecognized-preset', 'unrecognized-shell-missing', 'unrecognized-shell-command', 'unrecognized-shell-mismatched-argv'];
     const labels = ['missing-argv', 'version-mismatch', 'ideation', 'missing-session', 'executor', 'worker',
       'fake-explicit', ...normalLabels, ...unknownLabels, 'closed'];
     for (const [position, label] of labels.entries()) {
@@ -113,6 +113,7 @@ async function exercise(source, identity = 'legacy', observations) {
       if(label==='normal-shell-only')record.shell_argv[3]='exec '+quotedArgv;
       if(label==='unrecognized-shell-missing')delete record.shell_argv;
       if(label==='unrecognized-shell-command')record.shell_argv[3]='synthetic unrecognized command';
+      if(label==='unrecognized-shell-mismatched-argv')record.shell_argv[3]="'/private/tmp/unrecognized-"+randomUUID()+"' 'different-input'; exec /bin/zsh -f -i";
       if (['normal-login','normal-login-missing-session','normal-auth-missing'].includes(label)) {
         record.role_card_revision='T-093/normal-login/2.1.302';
         record.login_audit_directory=join(root,label,'login-audit');record.login_preflight_file=join(root,label,'preflight.json');

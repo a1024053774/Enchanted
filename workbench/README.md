@@ -7,7 +7,7 @@ T-096 恢复已合入 main；57c3bfb63 的七场原生恢复回归曾通过。�
 Claude 仅把 `--session-id` 换为 `--resume`；其余参数与隔离假 API 环境取原记录。
 恢复在原版本／session 核对之后、PTY 启动之前建立规范 executable_path；旧历史记录不变，只给运行时副本补齐。已有规范身份与当前目标不同则拒绝，不改变 argv 或硬设 leader。
 已知限制：正常登录的主控记录不自动续接。recover 在任何 CLI 命令前检查现存正常登录标记，不只依赖 authentication；任一正常登录标记存在即保留为“未恢复”，返回 `normal_login_restore_requires_protected_start`。请经正常登录入口重新启动；不执行版本命令、不启动 PTY、不读 auth。
-仅当 P1 角色版本、公开假 token、规范 loopback base URL、隔离目录及既有假 API shell 启动形式同时匹配，且没有正常登录标记时才进入原恢复核对。正常登录以 exec 开头的启动形式也属于拒绝标记；shell 字段缺失或不属于既有假 API 形式的记录归为无法识别。合法旧记录可省略 authentication；无法正面识别的记录返回 `restore_record_unrecognized`，不猜测配置或执行 CLI。状态接口保留明确错误及正常登录的中文重启提示，现有界面显示“未恢复”与错误码。完整重建 R/F/D/C 生命周期另票处理，见 [请求 20](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-20.md)。
+仅当 P1 角色版本、公开假 token、规范 loopback base URL、隔离目录及既有假 API shell 启动形式与完整原 argv 的逐字对应同时匹配，且没有正常登录标记时才进入原恢复核对。正常登录以 exec 开头的启动形式也属于拒绝标记；shell 字段缺失或不属于既有假 API 形式的记录归为无法识别。合法旧记录可省略 authentication；无法正面识别的记录返回 `restore_record_unrecognized`，不猜测配置或执行 CLI。状态接口保留明确错误及正常登录的中文重启提示，现有界面显示“未恢复”与错误码。完整重建 R/F/D/C 生命周期另票处理，见 [请求 20](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-20.md)。
 缺 argv、版本不符、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
 恢复不发送提示词或放行旧队列。按 T-096 的 2026-10-18 裁定 B，worker 窗格保留并显示
 “未恢复”，不启动 CLI、不重绑定、不改变 attempt；后续由执行主控按中断恢复流程处理。
