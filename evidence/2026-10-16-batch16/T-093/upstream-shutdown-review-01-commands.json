@@ -1,0 +1,21 @@
+{
+  "candidate": "74b7db2bd200ec7e206831facff565baee6ce7cd",
+  "baseline": "079842e8b6808fa95a7e6f2efbd5fce2c8d1e0ac",
+  "cwd": "/Users/luckye/Documents/Code/a2a-wt-t093",
+  "scope": "Read-only frozen candidate review; all runtime PID probes supplied, no actual process query, service, network, authentication or model access",
+  "commands": [
+    {"command": "node workbench/tests/test_t093_upstream_shutdown.ts /private/tmp/t093-r14-review-2vd0XE/shutdown.json", "rc": 0, "status": "PASS", "checks": 7},
+    {"command": "python3 -B workbench/tests/test_t093_counts_result_selection.py /private/tmp/t093-r14-review-2vd0XE/selection.json", "rc": 0, "status": "PASS", "checks": 10},
+    {"command": "node workbench/tests/test_t093_chain_publication.ts /private/tmp/t093-r14-review-2vd0XE/publication.json", "rc": 0, "status": "PASS", "checks": 5},
+    {"command": "python3 -B workbench/tests/test_t093_chain_cleanup_oracle.py /private/tmp/t093-r14-review-2vd0XE/cleanup-oracle.json", "rc": 0, "status": "PASS", "checks": 12},
+    {"command": "node /private/tmp/t093-r14-review-2vd0XE/independent-shutdown.mjs", "rc": 2, "status": "FAIL", "checks": 7, "failed_business_checks": ["barrier final group recheck denied", "barrier final child recheck denied"]},
+    {"command": "node workbench/tests/test_t093_upstream_shutdown.ts /private/tmp/t093-r14-review-2vd0XE/eperm-as-exited.json /private/tmp/t093-r14-review-2vd0XE/eperm-as-exited.ts", "rc": 2, "status": "FAIL", "interpretation": "EPERM-as-exited mutant rejected on business assertions"},
+    {"command": "node workbench/tests/test_t093_upstream_shutdown.ts /private/tmp/t093-r14-review-2vd0XE/never-confirms.json /private/tmp/t093-r14-review-2vd0XE/never-confirms.ts", "rc": 2, "status": "FAIL", "interpretation": "Never-confirm-exit mutant rejected on business assertions"},
+    {"command": "node workbench/tests/test_t093_upstream_shutdown.ts /private/tmp/t093-r14-review-2vd0XE/baseline.json /private/tmp/t093-r14-review-2vd0XE/baseline-callback.ts", "rc": 2, "status": "FAIL", "interpretation": "Baseline callback rejected on business assertions"},
+    {"command": "git rev-parse HEAD", "rc": 0, "output": "74b7db2bd200ec7e206831facff565baee6ce7cd"},
+    {"command": "git diff --exit-code 74b7db2bd200ec7e206831facff565baee6ce7cd --", "rc": 0, "output": ""},
+    {"command": "python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .", "rc": 0, "output_summary": "Problems (0); Stale living docs (0)"}
+  ],
+  "replay_independent": "node /private/tmp/t093-r14-review-2vd0XE/independent-shutdown.mjs /private/tmp/t093-r14-review-2vd0XE/independent-shutdown-replay-NEW.json",
+  "limitations": ["Actual OS counts/V rerun NOT_RUN", "T-096 cross-ticket recovery checks NOT_RUN", "Earlier artifacts and untracked repository files preserved"]
+}

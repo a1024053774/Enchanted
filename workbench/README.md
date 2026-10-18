@@ -470,6 +470,7 @@ bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
 C/F 对认证源的拒读拒写不变。D 先读回 C 已 fsync 的 cleanup_pending 检查点，才删合成源；正式产品不删除用户认证源。
 结果 JSON 在测试收尾前先发布，清理错误单列；`.events.jsonl` 保存各阶段主失败／清理状态，V 将退出记录绑定原登记身份，并用信号 0 独立核对每个 PID／组与最终报告进程退出。
 测试链必须读到上游端点关闭收据，并在原期限内以 ESRCH 确认进程组消失；EPERM 仅表示未确认。`node workbench/tests/test_t093_upstream_shutdown.ts 新输出.json` 检查收据先于退出的窗口，拒绝把 EPERM 当退出、持续权限拒绝、存活或缺收据。
+最终 all_exited 必须与每条最终 group／child 退出记录一致；`node workbench/tests/test_t093_writer_exit.mjs 新输出.json` 检查先前 ESRCH 后最终 EPERM 的时序，任一未确认行禁止删除。
 所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
 结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
 processInfo 影响所有 pane：窗口输入、放行／中断、反馈和 hook／Stop 身份重查。T-091 IPC 与 T-078 局部回归已执行；T-096 不在本 worktree，集成前必须核对恢复运行的规范身份与旧记录合同，不能沿用其旧 PASS，详见请求 13。

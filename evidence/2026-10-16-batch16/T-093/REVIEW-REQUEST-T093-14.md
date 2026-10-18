@@ -18,6 +18,7 @@ counts 变异仅把 counts_match 改为 true，不改请求、stop、进程或 p
 修复只在测试链的 gone 谓词把 EPERM 表示为“尚未确认”，继续原有有界等待。ESRCH 仍是唯一退出证明；正常 kill(0) 返回和 EPERM 都返回 false；其他错误仍抛出。
 U 仍必须先读关闭收据，再在原 5000ms 期限内确认组不存在。D 收尾及最终全部 writer 屏障使用相同谓词，原期限和删除前确认不变。
 持续 EPERM 或仍活着会到期限失败、保留清理错误，未确认 writer 时禁止删除。主失败仍先落盘，清理错误另外列出。
+最终 all_exited 还必须同时满足最后采集的每个 groups/children.exited，不能仅沿用此前 quiet() 的结果。即使早前两次 ESRCH，只要最终逐项查询为 EPERM，汇总即 false、禁止删除。
 没有新增重启、终止信号、非保护查询、profile 权限或成功降级；产品源码、门禁、网络与 auth 规则未改。
 
 ## 局部证据与限制
@@ -26,6 +27,7 @@ U 仍必须先读关闭收据，再在原 5000ms 期限内确认组不存在。D
 - upstream-shutdown-mutant-01 把 EPERM 当已退出，被退出业务断言拒绝；不允许仅凭收据或权限拒绝通过。
 - counts-selection-red-01／green-01 验证新的 `--counts-only` 范围。V 复用原有每场全部断言，只要求集合为 counts 一场；默认仍要求六场。错候选／错场景／重复／错主失败／清理失败／查询权限未知／存活 writer 都拒绝；不能和 rehearsal 混用。
 - chain-publication-green-07 五项、chain-cleanup-oracle-green-05 十二项和 upstream-prompt-green-03 十三项通过。
+- 首轮冻结 74b7db2bd 的独立审查 FAIL，原文 UPSTREAM-SHUTDOWN-REVIEW-01.md；它以最终 group／child 的 ESRCH→ESRCH→EPERM 时序复现汇总未约束明细的 P1。现已将汇总绑定全部最终明细，writer-exit-red-01／green-01 的同一实际 D／writer 回调七项由两项失败转为全通过；原失败不改写。
 
 上述是 L1：执行实际 C 回调、finishChain、V main，但用外部给定 signal 时序／收据。不运行真实进程查询、嵌套 sandbox、CLI、auth、网络或模型，不能代替本机新 counts 入口。
 首轮提取器把 return 交给顶层 TS parser，尚未进入业务检查；harness-01 单列保留，不计红态。修正提取器后才取得 red-02，再改行为。
@@ -34,6 +36,7 @@ U 仍必须先读关闭收据，再在原 5000ms 期限内确认组不存在。D
 
 ```sh
 node workbench/tests/test_t093_upstream_shutdown.ts /private/tmp/t093-r14-shutdown.json
+node workbench/tests/test_t093_writer_exit.mjs /private/tmp/t093-r14-writer-exit.json
 python3 -B workbench/tests/test_t093_counts_result_selection.py /private/tmp/t093-r14-selection.json
 node workbench/tests/test_t093_chain_publication.ts /private/tmp/t093-r14-publication.json
 python3 -B workbench/tests/test_t093_chain_cleanup_oracle.py /private/tmp/t093-r14-cleanup-oracle.json

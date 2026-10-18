@@ -196,7 +196,7 @@ finally{
     const quiet=()=>groups.every(value=>gone(value.pgrp,true))&&children.every(pid=>gone(pid));
     await wait(quiet,"all_registered_writers_exit_unconfirmed",8000);
     const proof={all_exited:!daemonStarted&&!existsSync(privateRoot)&&result.source_home_cleanup?.removed===true&&quiet(),groups:groups.map(value=>({...value,exited:gone(value.pgrp,true)})),children:children.map(pid=>({pid,exited:gone(pid)})),daemon_closed:!existsSync(join(state,"daemon.pid")),reporter_pid:process.pid,reporter_scope:"after seal only synchronous fixture removal and external report publication; caller verifies reporter exit"};
-    proof.all_exited=proof.all_exited&&proof.daemon_closed;return proof;
+    proof.all_exited=proof.all_exited&&proof.daemon_closed&&proof.groups.every(value=>value.exited)&&proof.children.every(value=>value.exited);return proof;
   },()=>{rmSync(root,{recursive:true});removed=!existsSync(root);return removed;});
   console.log(JSON.stringify({status:result.status,primary_failure:result.primary_failure,cleanup_failures:result.cleanup_failures,fixture_removed:result.fixture_removed}));
   process.exit(result.status==="PASS"?0:2);

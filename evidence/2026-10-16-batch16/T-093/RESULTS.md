@@ -480,3 +480,7 @@ upstream-shutdown-red-02 在旧真实回调上拒绝提前失败；green-01 的�
 V 新增显式 --counts-only，用原有全部每场断言核对这一场，默认六场要求不变；十项局部检查包括权限未知和活 writer 拒绝。另有发布五项、独立清理十二项及精确 JSON 十三项回归通过。
 以上仅 L1，不运行实际进程／profile、auth、CLI、网络或模型。首轮测试提取器的 parser 错误单列 harness-01，不计业务红态。
 按主控要求仅交 chain-08-counts 与 counts-check 两条沙箱外命令，见 REVIEW-REQUEST-T093-14.md；实际复验和既有 T-096 跨票集成仍为 INCOMPLETE。
+
+首轮冻结 74b7db2bd 的独立审查为 FAIL，原文 UPSTREAM-SHUTDOWN-REVIEW-01.md。审查者用最终 group／child 的 ESRCH→ESRCH→EPERM 时序复现：明细未确认但 all_exited 仍 true，可能放行删除。
+修复让汇总同时约束已采集的全部 groups/children.exited；任一最终未确认行均禁止删除，不增加等待或权限。独立原件摘要 shutdown-independent-red-01、命令 upstream-shutdown-review-01-commands 保留。
+审查者的实际 D／writer 回调夹具已成为 test_t093_writer_exit.mjs；writer-exit-red-01 在首轮冻结有两项业务失败，green-01 同样七项全部通过。新 OS counts／V 仍未运行。
