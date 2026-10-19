@@ -70,6 +70,7 @@ export async function startDaemon(root: string, options: Record<string, unknown>
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_")) delete env[key];
   env.A2A_OPERATOR_CREDENTIAL = credential;
+  if (process.versions.electron) env.ELECTRON_RUN_AS_NODE = "1";
   const child = spawn(process.execPath, [fileURLToPath(new URL("./daemon.ts", import.meta.url)), root, JSON.stringify(options)], {
     detached: true, stdio: ["ignore", stdout, stderr, "ipc"], env,
   });

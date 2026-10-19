@@ -13,7 +13,7 @@ async function run(source, scenario) {
   const root = '/fixture/state', pid = root + '/daemon.pid', socket = root + '/control.sock';
   const files = new Map(scenario === 'clean' ? [] : [[socket, 'socket'], ...(scenario === 'unknown' ? [] : [[pid, '1234\n']])]);
   const removed = []; let spawned = 0, credentials = 0;
-  const context = vm.createContext({ Buffer, URL, setTimeout, clearTimeout, process: { execPath: '/fixture/node', env: {}, kill() {
+  const context = vm.createContext({ Buffer, URL, setTimeout, clearTimeout, process: { execPath: '/fixture/node', versions: {}, env: {}, kill() {
     if (scenario === 'alive') return;
     throw Object.assign(new Error('fixture process absent'), { code: 'ESRCH' });
   } } });
