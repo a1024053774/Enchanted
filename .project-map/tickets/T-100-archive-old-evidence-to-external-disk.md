@@ -8,7 +8,7 @@ claimed_by:
 supersedes:
 ready: yes
 ready_by: ideation
-ready_rev: 1
+ready_rev: 2
 ---
 
 ## What to build
@@ -27,6 +27,10 @@ ready_rev: 1
 4. 每个目录：复制 → 核对文件数与字节数一致 → 一致才删原目录；不一致保留原目录并报 INCOMPLETE。逐目录处理，一个失败不影响已完成的，不删任何核对失败的。
 5. `.runtime/`、`workbench/node_modules`、`../a2a-wt-t093` 与用户缓存不在本票范围。
 6. 先出清单（目录、大小、是否有引用）再动手；清单与结果写进本票的 Resolution。
+
+## 裁定（2026-10-18，执行主控盘点后）
+
+盘点显示按原规则只能释放约 0.91 GiB。用户选项逐字：「A 只放宽类别：所有大于 5 MiB 的文件都归档」。即类别扩到 batch16 之前旧批次里**所有大于 5 MiB 的文件**（普通 JSON、日志等），被现存测试或脚本读取的输入仍保留原处，不改引用方（选项 C 未选）。预计再释放约 0.9 GiB，合计约 1.8 GiB。已入库部分要合入 main 后才真正释放。
 
 ## Acceptance
 
