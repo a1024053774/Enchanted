@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "scope": "真实 Electron npm 包的路径选择 API；只解析路径，不执行 Electron，不证明 UI",
+  "argv": [
+    "node",
+    "-e",
+    "const fs = require('node:fs');\nconst path = require('node:path');\nconst [dist, ...modules] = process.argv.slice(1);\nconst expected = path.join(dist, 'Electron.app/Contents/MacOS/Electron');\nconst selected = modules.map(file => {\n  const value = require(file);\n  if (fs.realpathSync(value) !== fs.realpathSync(expected)) throw new Error('Runtime selection mismatch: ' + file);\n  fs.accessSync(value, fs.constants.X_OK);\n  return {module:file, selected:value};\n});\nconsole.log(JSON.stringify({selected, expected, override:process.env.ELECTRON_OVERRIDE_DIST_PATH, electron_executed:false}));",
+    "/Users/luckye/Documents/Code/a2a-wt-t103/workbench/node_modules/electron/dist",
+    "/private/tmp/t103-electron-route-13-5nfu2pt8/index.js",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/baseline-20261019T052842Z/workbench/node_modules/electron/index.js",
+    "/Users/luckye/Documents/Code/a2a-wt-t103/workbench/node_modules/electron/index.js"
+  ],
+  "exit": 0,
+  "result": {
+    "selected": [
+      {
+        "module": "/private/tmp/t103-electron-route-13-5nfu2pt8/index.js",
+        "selected": "/Users/luckye/Documents/Code/a2a-wt-t103/workbench/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+      },
+      {
+        "module": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/baseline-20261019T052842Z/workbench/node_modules/electron/index.js",
+        "selected": "/Users/luckye/Documents/Code/a2a-wt-t103/workbench/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+      },
+      {
+        "module": "/Users/luckye/Documents/Code/a2a-wt-t103/workbench/node_modules/electron/index.js",
+        "selected": "/Users/luckye/Documents/Code/a2a-wt-t103/workbench/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+      }
+    ],
+    "expected": "/Users/luckye/Documents/Code/a2a-wt-t103/workbench/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+    "override": "/Users/luckye/Documents/Code/a2a-wt-t103/workbench/node_modules/electron/dist",
+    "electron_executed": false
+  },
+  "stderr": "",
+  "fresh_baseline_fixture": "/private/tmp/t103-electron-route-13-5nfu2pt8",
+  "fresh_fixture_dist_exists": false,
+  "versions": {
+    "candidate": "43.4.1",
+    "baseline": "43.4.1",
+    "dist": "43.4.1"
+  },
+  "storage_note": "现有 worktree node_modules 为内置盘原有安装，本次不搬动；新基线与其 npm 依赖仍在外置盘。"
+}

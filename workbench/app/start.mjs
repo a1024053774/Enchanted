@@ -6,7 +6,8 @@ import { parseArgs } from 'node:util';
 
 const { values } = parseArgs({ options: Object.fromEntries(
   ['build', 'state', 'task', 'launch', 'user-data'].map((key) => [key, { type: 'string', ...(key === 'launch' ? { multiple: true } : {}) }])) });
-if (!values.build || !values.task) throw new Error('--build DIST --task ID are required');
+if (!values.build) throw new Error('--build DIST is required');
+if (values.launch && !values.task) throw new Error('--launch requires --task');
 const build = JSON.parse(readFileSync(join(resolve(values.build), 'build.json'), 'utf8'));
 const executable = createRequire(import.meta.url)('electron');
 const argv = [build.main];

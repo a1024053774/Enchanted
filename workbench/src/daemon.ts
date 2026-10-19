@@ -66,7 +66,8 @@ export async function serve(
   const daemon = randomUUID();
   type WindowBinding = { id: string; token: string; task: string | null; launch: string; sequence: number; requests: Set<string> };
   const windows = new Map<string, WindowBinding>();
-  const readOnly = new Set(["daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
+  const catalogCommands = new Set(["projects_list", "tasks_list"]);
+  const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
     "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "anonymous"; window?: WindowBinding } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
@@ -119,6 +120,8 @@ export async function serve(
     if (authority.kind === "window" && !["window_input", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       throw new Refusal("window_command_forbidden");
     }
+    if (input.command === "projects_list") return { ok: true, projects: gates.listProjects() };
+    if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
         if (input.project !== record.project) throw new Refusal("launch_project_mismatch");
@@ -423,19 +426,20 @@ export async function serve(
       try {
         envelope = JSON.parse(buffer.slice(0, end));
         const authority = authenticate(envelope.identity);
-        const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
+        const catalogRead = catalogCommands.has(envelope.input?.command);
+        const viewing = catalogRead || ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
         if (!viewing) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
         result = await handle(envelope, authority);
         if (result.ok && ["controller_start", "pane_release", "window_release", "signal"].includes(envelope.input.command)) {
           await settleInboxFeedback();
         }
-        if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
+        if (!catalogRead && (!viewing || !result.ok)) store.event("request_result", { id: envelope.id, command: envelope.input.command,
           ok: result.ok, error: result.error, details: result.details });
       } catch (error) {
         const processQuery = (error as { process_query?: unknown })?.process_query;
         result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error),
           ...(processQuery ? { diagnostics: { process_query: processQuery } } : {}) };
-        try { store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result }); }
+        try { if (!catalogCommands.has(envelope?.input?.command)) store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result }); }
         catch (recordError) {
           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
           result = { ok: false, error: "event_write_failed", details: String(recordError) };

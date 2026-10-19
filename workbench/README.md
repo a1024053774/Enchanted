@@ -343,6 +343,24 @@ npm ls --depth=0
 `node_modules` 是本目录中的普通目录。依赖锁定 `effect@4.0.0-beta.25`；来源预览包
 改为 npm 官方包是执行主控的决定，记录见本批证据 `controller-decision-01.md`。
 
+Electron 43.4.1 的 npm 包已没有 postinstall 下载；npm ci 成功不代表其二进制已安装。
+启动测试前显式运行已安装包的 `install.js`，把 `electron_config_cache` 指向外置盘，
+并核对 `path.txt`、`dist/version` 与可执行文件。T-103 的
+[独立安装脚本](../evidence/2026-10-19-batch17/T-103/RUN-OUTSIDE-04-ELECTRON.sh)
+接受 workbench 绝对路径与新的外置盘记录目录，保存版本、命令、权限检查与磁盘占用；
+只对内置盘的 Electron 安装目录使用，不改变 package.json、锁文件或全局 npm 配置。
+
+本机已知限制（2026-10-19）：Electron 43.4.1 放在 USB 外置盘（APFS、Owners Disabled）
+执行时，连不加载产品的版本探针也可能挂起。相同版本在内置盘能立即返回；这是当前
+环境的执行限制，不外推为所有 APFS 或 USB 磁盘的问题。Electron 二进制一律从内置盘
+执行，外置盘仍用于基线源码与依赖、构建槽、npm 缓存和 Electron 下载缓存。
+测试基线可用 Electron 包已有的 `ELECTRON_OVERRIDE_DIST_PATH` 显式指定同版本内置盘
+dist；平台路径元数据须完整，不能依赖外置盘上的 Electron.app。T-103 的红态、绿态
+共用一个内置盘二进制，并核对实际进程回报的路径与版本。
+
+T-102 打包时把最终 `.app` 安装到内置盘 `/Applications` 后运行；这个安装位置不受
+上述外置盘执行限制影响。外置盘可保留打包产物与缓存，验证时不直接运行盘上的 `.app`。
+
 另锁定官方 `node-pty@1.1.0`。本次 darwin-arm64 预编译包使用 `--ignore-scripts` 安装时，
 `prebuilds/darwin-arm64/spawn-helper` 曾缺执行位，已由执行主控手工改为 755。
 后台启动核对 node-pty 实际选择的 helper 是否可执行；失败直接报错，不自动 chmod 或重装。
@@ -586,10 +604,27 @@ P1 与首个候选的四项输入合同已经通过；其余失败方式和当�
 
 ```sh
 npm --prefix workbench run build -- --slot local-01
+# 不指定任务时，先选择已有项目下的任务
+node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --user-data /绝对路径/ui
 node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
 # 同一任务三格（身份取自已有启动记录）
 node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --launch 构思主控launch --launch 执行主控launch --launch 当前workerlaunch --user-data /绝对路径/ui
 ```
+
+左侧按项目列出当前门禁库中的任务，显示任务编号、标题与门禁状态。点击任务切换
+会话视图；切换只断开旧视图的输入凭据，不关闭后台会话或改动保存的窗格布局。
+“刷新列表”重新读取库，已移除的任务不再显示；所选任务被移除时返回选择页。
+空库显示创建任务的提示，界面不提供创建或删除操作。项目来自现有任务的
+`project_id`，不另存项目目录。命令行也可只读查询，不要求 `--task`：
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state projects_list
+node workbench/src/gates/cli.ts --state /绝对路径/state tasks_list --project 项目编号
+```
+
+两条列表命令不写库或请求事件；未知项目返回空列表。`--launch` 仍要求同时指定
+`--task`，其任务内多窗格选择方式不变。preload 的 `paneKeys` 保留启动时的窗格集；
+当前视图由 `selection` 和 `selectTask` 的返回值提供，切换后旧 key 不再可用。
 
 Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main
 进程中读取，并用于领取窄的窗口输入凭据，不传给 preload 或 renderer。
