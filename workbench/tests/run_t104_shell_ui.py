@@ -58,9 +58,11 @@ def main():
            'tests/test_t104_shell_e2e.py',
            'tests/test_t091_pane_ipc.mjs','tests/test_electron_e2e.py']
     report['source_files']=['workbench/'+name for name in names]
-    for name in names:
-        dest=out/'source-snapshot/workbench'/name;dest.parent.mkdir(parents=True,exist_ok=True)
-        shutil.copyfile(source/'workbench'/name,dest)
+    report['source_files'] += ['evidence/2026-10-19-batch17/T-104/'+name for name in
+        ['RUN-SUITE.py','RUN-OUTSIDE-01-BACKEND.sh','RUN-OUTSIDE-06-UI.sh','RUN-OUTSIDE-08-REVIEW-FIX.sh']]
+    for name in report['source_files']:
+        dest=out/'source-snapshot'/name;dest.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(source/name,dest)
     (out/'candidate.diff').write_bytes(subprocess.check_output(['git','diff','HEAD','--','workbench'],cwd=source))
     windows=[];active=None;daemon_pid=None;credential=None;epoch=0;pids=set()
     nonce='T104-'+uuid.uuid4().hex
@@ -117,6 +119,11 @@ def main():
         return value
 
     def check(name):report['checks'].append(dict(name=name,status='PASS'))
+
+    def shell_inventory():
+        with sqlite3.connect(f'file:{state / "state.sqlite3"}?mode=ro',uri=True) as db:
+            return dict(launches=[row[0] for row in db.execute("SELECT id FROM launch_records WHERE json_extract(data,'$.role')='shell' ORDER BY id")],
+                        created=[row[0] for row in db.execute("SELECT launch FROM orchestration_events WHERE type='shell_created' ORDER BY seq")])
 
     try:
         checkpoint='baseline setup';start(baseline)
@@ -193,10 +200,16 @@ def main():
             capture(green,'green','green-project-shell');green.close()
             assert not absent(second_pid);assert call('daemon_status')['pid']==daemon_pid
             check('项目内跨任务保留同一终端，跨项目隔离；关界面不结束终端或后台')
-            checkpoint='restart';stop();until(lambda:absent(second_pid),'后台停止未结束终端');start(source)
+            checkpoint='restart'
+            before_restart=shell_inventory()
+            assert set(before_restart['launches'])=={shell['launch'],second['launch']} and len(before_restart['created'])==2
+            stop();until(lambda:absent(second_pid),'后台停止未结束终端');start(source)
+            after_restart=shell_inventory();report['restart_inventory']=dict(before=before_restart,after=after_restart)
+            assert after_restart==before_restart,'后台重启新增了 shell launch 或创建事件'
             reopened=window(source,green_build,'reopened','alpha-0')
             ended=reopened.wait(lambda v:any(p.get('launch')==second['launch'] and p['lifecycle']=='ended' for p in v['panes']))
             ended_shell=next(p for p in ended['panes'] if p.get('launch')==second['launch'])
+            assert {p['launch'] for p in ended['panes'] if p.get('role')=='shell'}=={second['launch']}
             assert not ended_shell['input'] and '已结束' in ended_shell['text'] and not ended_shell['alerts']
             historical_agent=next(p for p in ended['panes'] if p.get('launch')=='fixture-agent')
             assert not historical_agent['input'] and '未恢复' in historical_agent['text']
@@ -204,6 +217,10 @@ def main():
             capture(reopened,'reopened','green-ended');reopened.close();check('真实界面重开后原 shell 显示已结束，只读且不自动拉起')
             checkpoint='privacy';events=call('orchestration_events')['events']
             assert nonce not in json.dumps(events,ensure_ascii=False),'shell 输入正文进入事件流'
+            private_commands={'window_input','window_composition','window_observation','window_release'}
+            assert not any(e['type'] in ['request_received','request_result','request_rejected'] and
+                (e['data'].get('command') or e['data'].get('input',{}).get('command')) in private_commands
+                for e in events),'shell 逐次请求元数据进入通用日志'
             with sqlite3.connect(state/'state.sqlite3') as db:
                 assert db.execute('SELECT count(*) FROM user_inputs').fetchone()[0]==0
                 assert db.execute('SELECT count(*) FROM user_input_ingress').fetchone()[0]==0
@@ -212,8 +229,10 @@ def main():
                 mine=[e for e in events if e.get('launch')==launch]
                 assert sum(e['type']=='shell_created' for e in mine)==1 and sum(e['type']=='shell_closed' for e in mine)==1
                 assert not any(e['type'].startswith('pane_restore') for e in mine)
+                assert not any(e['type'] in ['window_request_admitted','terminal_composition_started','terminal_input_empty',
+                    'terminal_input_write_intent','terminal_input_written','terminal_focus_intercepted','turn_submit_intent'] for e in mine), 'shell 逐次输入事件进入事件流'
             save(out/'events.json',events);check('创建关闭事件齐全；nonce 不进事件流、agent 输入或人工介入；无自动恢复事件')
-        for name in names:assert (source/'workbench'/name).read_bytes()==(out/'source-snapshot/workbench'/name).read_bytes(),'运行期间源码变化：'+name
+        for name in report['source_files']:assert (source/name).read_bytes()==(out/'source-snapshot'/name).read_bytes(),'运行期间源码变化：'+name
         report['status']='PASS'
     except Exception as error:report.update(error=repr(error),traceback=traceback.format_exc(),checkpoint=checkpoint)
     finally:

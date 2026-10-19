@@ -1,0 +1,85 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py",
+    "--archive",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/known-bad",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt-t104/evidence/2026-10-19-batch17/T-104/review-fix-02-backend/known-bad.json",
+    "--revision",
+    "cc18d93dbbcf2ee641dc92befe68e5b0609b4807"
+  ],
+  "source": "/private/tmp/t104-uh46utpm/source",
+  "revision": "cc18d93dbbcf2ee641dc92befe68e5b0609b4807",
+  "mutant": null,
+  "fixture": "/private/tmp/t104-uh46utpm",
+  "checks": [],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-uh46utpm/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-uh46utpm/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":79001,\"root\":\"/private/tmp/t104-uh46utpm/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-uh46utpm/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-uh46utpm/state",
+        "shell_start",
+        "--project",
+        "t104-alpha",
+        "--cwd",
+        "/private/tmp/t104-uh46utpm/项目 alpha space"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "usage: --state ABS_DIR COMMAND --task ID ...\nTypeError [ERR_PARSE_ARGS_UNKNOWN_OPTION]: Unknown option '--cwd'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--cwd\"\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-uh46utpm/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-uh46utpm/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":79001,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "cleanup": [
+    {
+      "pid": 79001,
+      "exit": 0,
+      "output": "79001 ?Es  (node)\n"
+    },
+    {
+      "pid": 79001,
+      "exit": 1,
+      "output": ""
+    }
+  ],
+  "daemons": [
+    79001
+  ],
+  "error": "shell_start: usage: --state ABS_DIR COMMAND --task ID ...\nTypeError [ERR_PARSE_ARGS_UNKNOWN_OPTION]: Unknown option '--cwd'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--cwd\"\n",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py\", line 203, in main\n    first = open_shell('t104-alpha', cwd)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py\", line 171, in open_shell\n    record = run_cli('shell_start', '--project', project, '--cwd', str(directory))['launch']\n  File \"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py\", line 108, in run_cli\n    assert run.returncode == 0 if ok else run.returncode != 0, f'{command}: {run.stderr or run.stdout}'\nAssertionError: shell_start: usage: --state ABS_DIR COMMAND --task ID ...\nTypeError [ERR_PARSE_ARGS_UNKNOWN_OPTION]: Unknown option '--cwd'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--cwd\"\n\n",
+  "checkpoint": "shell_start",
+  "cleanup_complete": true,
+  "archive": {
+    "original": "/private/tmp/t104-uh46utpm",
+    "archive": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/known-bad",
+    "files": 45,
+    "bytes": 715429,
+    "replay": "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py --archive /Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/known-bad --summary /Users/luckye/Documents/Code/a2a-wt-t104/evidence/2026-10-19-batch17/T-104/review-fix-02-backend/known-bad.json --revision cc18d93dbbcf2ee641dc92befe68e5b0609b4807"
+  }
+}

@@ -64,8 +64,21 @@ export async function serve(
     }
   };
   const daemon = randomUUID();
-  type WindowBinding = { id: string; token: string; task: string | null; launch: string; sequence: number; requests: Set<string> };
+  type WindowBinding = { id: string; token: string; role: string; task: string | null; launch: string; sequence: number; requests: Set<string> };
   const windows = new Map<string, WindowBinding>();
+  const shellInputCommands = new Set(["window_input", "window_composition", "window_observation", "window_release"]);
+  const isShellInput = (envelope: any) => {
+    if (!shellInputCommands.has(envelope.input?.command) || envelope.identity?.kind !== "window" ||
+        typeof envelope.identity.window !== "string") return false;
+    const window = windows.get(envelope.identity.window);
+    if (window) return window.role === "shell";
+    // A closed/restarted shell window must not leak rejected key timings either.
+    // Resolve only daemon-issued window IDs, never a client-supplied role.
+    const previous = store.db.prepare(`SELECT json_extract(l.data,'$.role') AS role FROM orchestration_events e
+      JOIN launch_records l ON l.id=e.launch WHERE e.type='window_opened'
+      AND json_extract(e.data,'$.window_id')=? LIMIT 1`).get(envelope.identity.window);
+    return previous?.role === "shell";
+  };
   const catalogCommands = new Set(["projects_list", "tasks_list"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
     "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
@@ -151,7 +164,7 @@ export async function serve(
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const record = panes.launchRecord(input.launch);
       assertScope(record);
-      const window = { id: randomUUID(), token: randomUUID(), task: record.task, launch: record.id, sequence: 0, requests: new Set<string>() };
+      const window = { id: randomUUID(), token: randomUUID(), role: record.role, task: record.task, launch: record.id, sequence: 0, requests: new Set<string>() };
       windows.set(window.id, window);
       store.event("window_opened", { window_id: window.id, actor: "user" }, record as any);
       return { ok: true, identity: { kind: "window", window: window.id, token: window.token } };
@@ -173,7 +186,7 @@ export async function serve(
       // cannot be replayed, and later completions cannot move the sequence back.
       window.requests.add(input.request_id);
       window.sequence = input.sequence;
-      store.event("window_request_admitted", { ...receipt, command: input.command }, record as any);
+      if (record.role !== "shell") store.event("window_request_admitted", { ...receipt, command: input.command }, record as any);
       const encoding = input.encoding ?? "utf8";
       if (input.command === "window_input" && (!["utf8", "binary"].includes(encoding) || typeof input.data !== "string" ||
           (encoding === "binary" ? input.data.length : Buffer.byteLength(input.data, "utf8")) > 1024 * 1024 ||
@@ -429,23 +442,25 @@ export async function serve(
       activeRequests++;
       let envelope: any;
       let result: any;
+      let shellInput = false;
       try {
         envelope = JSON.parse(buffer.slice(0, end));
+        shellInput = isShellInput(envelope);
         const authority = authenticate(envelope.identity);
         const catalogRead = catalogCommands.has(envelope.input?.command);
         const viewing = catalogRead || ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
-        if (!viewing) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
+        if (!viewing && !shellInput) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
         result = await handle(envelope, authority);
         if (result.ok && ["controller_start", "pane_release", "window_release", "signal"].includes(envelope.input.command)) {
           await settleInboxFeedback();
         }
-        if (!catalogRead && (!viewing || !result.ok)) store.event("request_result", { id: envelope.id, command: envelope.input.command,
+        if (!catalogRead && !shellInput && (!viewing || !result.ok)) store.event("request_result", { id: envelope.id, command: envelope.input.command,
           ok: result.ok, error: result.error, details: result.details });
       } catch (error) {
         const processQuery = (error as { process_query?: unknown })?.process_query;
         result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error),
           ...(processQuery ? { diagnostics: { process_query: processQuery } } : {}) };
-        try { if (!catalogCommands.has(envelope?.input?.command)) store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result }); }
+        try { if (!shellInput && !catalogCommands.has(envelope?.input?.command)) store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result }); }
         catch (recordError) {
           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
           result = { ok: false, error: "event_write_failed", details: String(recordError) };

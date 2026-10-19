@@ -93,7 +93,9 @@ node workbench/src/gates/cli.ts --state /绝对路径/state shell_close --launch
 
 窗口接线复用现有 transport：`window_open` 和 `workbench_snapshot` 带 `project`、`launch`；
 输入沿用窗口凭据、sequence、request_id 和 `window_input`，不调用 agent 输入记录器，
-不产生人工介入。窗口请求日志只保存命令及回执标识，不保存输入载荷，拒绝路径也一样。
+不产生人工介入。普通终端的输入、组合与控制序列观察不写逐次接收事件或通用请求日志，
+凭据、序号与防重放核对留在内存；已关闭或重启前的已知 shell 窗口被拒时也不记按键时间。
+agent 窗格的输入、人工介入和门禁事实仍按原路径记录。布局与进程诊断事件继续保留。
 `shell_created` 与 `shell_closed` 追加到现有事件流，事件数据注明 `role: shell`。
 终端输出仍保存在既有 PTY trace，可能包含 shell 回显。
 

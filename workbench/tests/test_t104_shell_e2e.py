@@ -1,7 +1,7 @@
 """真实 CLI/daemon/socket/zsh 合同；无 Electron、供应商 CLI 或模型。
 
 仅操作自建的隔离 HOME、数据库和进程。--revision 在隔离源码上运行同一
-场景，--leaky-mutant 故意恢复请求载荷日志，验证隐私断言能拒绝已知坏行为。
+场景；--mutant 注入正文日志、逐次输入事件或自动重启错误，验证独立断言。
 原始现场归档到调用者指定的外置盘目录；摘要文件不覆盖。
 """
 import argparse
@@ -42,8 +42,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--archive', type=Path, required=True)
     parser.add_argument('--summary', type=Path, required=True)
-    parser.add_argument('--revision')
-    parser.add_argument('--leaky-mutant', action='store_true')
+    target = parser.add_mutually_exclusive_group()
+    target.add_argument('--revision')
+    target.add_argument('--mutant', choices=['privacy', 'input-events', 'restart'])
     args = parser.parse_args()
     assert os.path.ismount('/Volumes/WD-Elements'), '外置盘未挂载，不运行或归档'
     assert str(args.archive.resolve()).startswith('/Volumes/WD-Elements/'), '归档必须在外置盘'
@@ -60,7 +61,7 @@ def main():
     other_cwd = fixture / 'beta'
     other_cwd.mkdir()
     source = ROOT
-    if args.revision or args.leaky_mutant:
+    if args.revision or args.mutant:
         source = fixture / 'source'
         if args.revision:
             files = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', args.revision,
@@ -71,10 +72,19 @@ def main():
                 target.write_bytes(subprocess.check_output(['git', 'show', f'{args.revision}:{name}'], cwd=ROOT))
         else:
             shutil.copytree(ROOT / 'workbench/src', source / 'workbench/src')
-            daemon = source / 'workbench/src/daemon.ts'
-            text = daemon.read_text(encoding='utf-8')
-            assert 'input: eventInput(envelope.input)' in text
-            daemon.write_text(text.replace('input: eventInput(envelope.input)', 'input: envelope.input'), encoding='utf-8')
+            path = source / ('workbench/src/panes.ts' if args.mutant == 'restart' else 'workbench/src/daemon.ts')
+            text = path.read_text(encoding='utf-8')
+            if args.mutant == 'privacy':
+                old = 'shellInput = isShellInput(envelope);'
+                new = old + '\n        if (shellInput) store.event("request_received", { id: envelope.id, input: envelope.input });'
+            elif args.mutant == 'input-events':
+                old = 'if (record.role !== "shell") store.event("window_request_admitted", { ...receipt, command: input.command }, record as any);'
+                new = 'store.event("window_request_admitted", { ...receipt, command: input.command }, record as any);'
+            else:
+                old = "// A user's terminal is never resumed or turned into an agent session."
+                new = old + '\n        this.startShell(record.project, record.worktree);'
+            assert text.count(old) == 1, '变异定位必须唯一'
+            path.write_text(text.replace(old, new), encoding='utf-8')
         # This is an isolated source fixture, never a build-output directory.
         (source / 'workbench/node_modules').symlink_to(ROOT / 'workbench/node_modules', target_is_directory=True)
     cli = source / 'workbench/src/gates/cli.ts'
@@ -82,13 +92,14 @@ def main():
     env = {key: os.environ[key] for key in ['PATH', 'LANG', 'LC_ALL', 'TMPDIR'] if key in os.environ}
     env.update(HOME=str(home), SHELL='/bin/zsh', TERM='xterm-256color')
     report = dict(status='INCOMPLETE', argv=sys.argv, source=str(source), revision=args.revision,
-                  mutant=args.leaky_mutant, fixture=str(fixture), checks=[], commands=[], cleanup=[])
+                  mutant=args.mutant, fixture=str(fixture), checks=[], commands=[], cleanup=[])
     nonce = 'private-' + uuid.uuid4().hex
     shells = []
     windows = []
     processes = set()
     running = False
     checkpoint = 'setup'
+    private_requests = set()
 
     def run_cli(command, *arguments, ok=True):
         argv = ['node', str(cli), '--state', str(state), command, *arguments]
@@ -102,6 +113,8 @@ def main():
             connection.settimeout(15)
             connection.connect(str(state / 'control.sock'))
             payload = dict(id=str(uuid.uuid4()), input=dict(command=command, **data), identity=identity)
+            if command in ['window_input', 'window_composition', 'window_observation', 'window_release']:
+                private_requests.add(payload['id'])
             connection.sendall((json.dumps(payload) + '\n').encode())
             response = b''
             while b'\n' not in response:
@@ -119,6 +132,12 @@ def main():
 
     def operator():
         return json.loads(credential.read_text(encoding='utf-8'))
+
+    def shell_inventory():
+        with sqlite3.connect(f'file:{state / "state.sqlite3"}?mode=ro', uri=True) as db:
+            return dict(launches=[row[0] for row in db.execute(
+                "SELECT id FROM launch_records WHERE json_extract(data,'$.role')='shell' ORDER BY id")],
+                created=[row[0] for row in db.execute("SELECT launch FROM orchestration_events WHERE type='shell_created' ORDER BY seq")])
 
     def start(number):
         nonlocal credential, running
@@ -205,6 +224,13 @@ def main():
         assert send(first, nonce, encoding='invalid')['error'] == 'invalid_terminal_input'
         assert request('window_input', dict(first['identity'], token='invalid'), data=nonce)['error'] == 'invalid_window_identity'
         first['seq'] += 1
+        composition_id = str(uuid.uuid4())
+        composition = dict(sequence=first['seq'], request_id=composition_id)
+        assert request('window_composition', first['identity'], **composition)['ok']
+        assert request('window_composition', first['identity'], **composition)['error'] == 'invalid_window_sequence'
+        assert request('window_composition', first['identity'], sequence=first['seq']+1,
+                       request_id=composition_id)['error'] == 'window_request_reused'
+        first['seq'] += 1
         observation = request('window_observation', first['identity'], sequence=first['seq'], request_id=str(uuid.uuid4()),
                               type='focus-mode-intercept', raw_sequence='\x1b[?1004h'+nonce)
         assert observation['ok'] and observation['written'] is False, '终端控制观察不得使普通 shell 输入失败'
@@ -228,13 +254,20 @@ def main():
         checkpoint = 'restart'
         second_pid = request('pane_status', thread=second['record']['thread'])['shell_pid']
         processes.add(second_pid)
+        before_restart = shell_inventory()
+        assert set(before_restart['launches']) == {first['record']['id'], second['record']['id']}
+        assert len(before_restart['created']) == 2
         stop()
         wait_for(lambda: process_state(second_pid), 'daemon 停止后 shell 没退出')
         start(2)
+        after_restart = shell_inventory()
+        report['restart_inventory'] = dict(before=before_restart, after=after_restart)
+        assert after_restart == before_restart, '后台重启新增了 shell launch 或创建事件'
         snapshot = request('workbench_snapshot', launch=second['record']['id'], project='t104-beta')
         assert snapshot['ok'] and snapshot['task'] is None and snapshot['pane']['lifecycle'] == 'ended'
         assert snapshot['pane']['shell_pid'] is None and snapshot['pane']['historical'] is True
-        assert request('pane_layout', project='t104-beta')['panes'][0]['launch'] == second['record']['id']
+        assert [p['launch'] for p in request('pane_layout', project='t104-beta')['panes']] == [second['record']['id']]
+        assert request('pane_layout', project='t104-alpha')['panes'] == []
         assert send(second, nonce)['error'] == 'invalid_window_identity'
         report['checks'].append('后台重启保留打开集，shell 结束且不续接，旧窗口身份失效')
         checkpoint = 'privacy'
@@ -246,6 +279,10 @@ def main():
             assert len([e for e in owned if e['type'] == 'shell_created' and e['data']['role'] == 'shell']) == 1
             assert len([e for e in owned if e['type'] == 'shell_closed' and e['data']['role'] == 'shell']) == 1
             assert not any(e['type'] in ['pane_restore_pending', 'dispatch_queued', 'terminal_input_write_intent'] for e in owned)
+            assert not any(e['type'] in ['window_request_admitted', 'terminal_composition_started', 'terminal_input_empty',
+                'terminal_input_written', 'terminal_focus_intercepted', 'turn_submit_intent'] for e in owned), 'shell 逐次输入事件进入事件流'
+        assert not any(e['type'] in ['request_received', 'request_result', 'request_rejected'] and
+                       e['data'].get('id') in private_requests for e in events), 'shell 逐次请求元数据进入通用日志'
         with sqlite3.connect(state / 'state.sqlite3') as db:
             assert db.execute('SELECT count(*) FROM user_inputs').fetchone()[0] == 0
             assert db.execute('SELECT count(*) FROM user_input_ingress').fetchone()[0] == 0
