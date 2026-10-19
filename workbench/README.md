@@ -75,6 +75,34 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
 随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
 
+## 普通终端（T-104 第一段）
+
+后台支持属于项目的普通 zsh 窗格，不绑定任务或 attempt，不走受管任务认领与交付。
+在已有后台上用同一管理凭据创建、查询和关闭：
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state shell_start --project 项目号 --cwd /绝对路径/项目目录
+node workbench/src/gates/cli.ts --state /绝对路径/state pane_layout --project 项目号
+node workbench/src/gates/cli.ts --state /绝对路径/state shell_close --launch 启动记录号
+```
+
+项目号沿用后台标识格式（英文字母、数字、`_`、`.`、`-`），cwd 必须是已有绝对目录，
+可以选择任务 worktree。后台启动 `/bin/zsh -l -i`，读取该 HOME 的登录与交互配置；
+只注入 `A2A_PROJECT`，不传模型参数或 agent 身份，不修改全局 shell 配置。
+启动记录的 `role` 为 `shell`，task、attempt、session、fence、spec_rev 均为空。
+
+窗口接线复用现有 transport：`window_open` 和 `workbench_snapshot` 带 `project`、`launch`；
+输入沿用窗口凭据、sequence、request_id 和 `window_input`，不调用 agent 输入记录器，
+不产生人工介入。窗口请求日志只保存命令及回执标识，不保存输入载荷，拒绝路径也一样。
+`shell_created` 与 `shell_closed` 追加到现有事件流，事件数据注明 `role: shell`。
+终端输出仍保存在既有 PTY trace，可能包含 shell 回显。
+
+显式 `shell_close` 或 shell 的 `pane_layout_close` 会结束该终端，核对关闭前观察到的
+shell 和子进程退出后才确认关闭。`window_close` 只撤销视图凭据，不结束终端。
+关闭 Electron 的既有行为仍为断开视图。后台重启保留普通终端的打开集，但不自动拉起
+zsh；历史快照返回 `lifecycle: ended`。退出无法核对时保留 unknown／明确错误，不伪称结束。
+界面的“新建终端”入口与“已结束”显示属于 T-104 第二段，尚未接线或验证。
+
 启动前显式设置 `A2A_OPERATOR_CREDENTIAL`，指向本次启动专用、尚不存在的绝对文件路径。
 启动者创建 0600 凭据文件，后续管理 CLI 与 Electron 从同一环境变量读取；后台按凭据
 认定执行主控身份，不按 `--from` 或 `--role` 自报。每次后台启动使用新凭据，旧文件不覆盖。

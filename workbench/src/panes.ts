@@ -1,4 +1,4 @@
-import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync } from "node:fs";
+import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -82,8 +82,8 @@ export type EmptyInputDeclaration = {
   interruption: number; input_generation: number;
 };
 type Pane = {
-  record: Record<string, any> & { id: string; task: string; attempt: string | null };
-  token: string; task: A2ATask; attempt: A2AAttempt | null; pty: any;
+  record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
+  token: string; task: A2ATask | null; attempt: A2AAttempt | null; pty: any;
   state: "unknown" | "idle" | "busy"; stopped: boolean; archived: boolean;
   failed: string | null; leader: number | null; native: string | null; turn: string | null;
   nativeEnded: boolean;
@@ -100,6 +100,8 @@ type Pane = {
   permission?: { prompt_id: string; submission: string } | null;
   login?: ClaudeLogin;
   loginCleanup?: Promise<void>;
+  closing?: boolean;
+  shellChildren?: number[];
 };
 
 export class Panes implements GateRuntime {
@@ -113,6 +115,61 @@ export class Panes implements GateRuntime {
     this.onEventWriteFailed = onEventWriteFailed;
   }
   ensureProject = async (_project: string, _repo: string) => {};
+  startShell(project: string, cwd: string) {
+    check(typeof project === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(project), "invalid_project");
+    check(typeof cwd === "string" && isAbsolute(cwd) && statSync(cwd).isDirectory(), "invalid_shell_cwd");
+    const worktree = realpathSync(cwd), launch = randomUUID(), thread = randomUUID();
+    const environment = { ...process.env };
+    for (const key of Object.keys(environment)) {
+      if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_") || key === "CODEX_THREAD_ID") delete environment[key];
+    }
+    environment.A2A_PROJECT = project;
+    const record = { id: launch, project, task: null, attempt: null, session: null, fence: null,
+      spec_rev: null, thread, role: "shell", created_at: new Date().toISOString(),
+      shell: "/bin/zsh", shell_argv: ["-l", "-i"], worktree, env: { A2A_PROJECT: project } };
+    this.store.launch(record);
+    const trace = join(this.root, "traces", launch, "pty.raw");
+    mkdirSync(dirname(trace), { recursive: true, mode: 0o700 });
+    appendFileSync(trace, "", { flag: "wx", mode: 0o600 });
+    const terminal = require("node-pty").spawn(record.shell, record.shell_argv, {
+      name: "xterm-256color", cols: 160, rows: 45, cwd: worktree, env: environment, encoding: "utf8",
+    });
+    const pane: Pane = { record, token: "", task: null, attempt: null, pty: terminal, state: "unknown",
+      stopped: false, archived: false, failed: null, leader: null, native: null, turn: null,
+      nativeEnded: false, active: null, queue: [], writing: false, stopInProgress: false,
+      writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, sending: null,
+      inputGeneration: 0, interruption: null, offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
+    this.panes.set(thread, pane);
+    terminal.onData((data: string) => {
+      try { appendFileSync(trace, data); }
+      catch (error) { this.recordFailure(pane, "trace_write_failed", error); }
+    });
+    terminal.onExit((event: unknown) => {
+      pane.stopped = true;
+      try { this.store.event("shell_closed", { role: "shell", reason: "process_exit", event, shell_pid: terminal.pid }, record); }
+      catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
+    });
+    this.store.event("shell_created", { role: "shell", cwd: worktree, shell_pid: terminal.pid }, record);
+    this.rememberOpen(launch, this.store.openPanes(undefined, project).length);
+    return record;
+  }
+  async shellInput(launch: string, data: string, encoding: "utf8" | "binary", assertCurrent: () => Promise<void>) {
+    const pane = this.byLaunch(launch);
+    check(pane.record.role === "shell", "shell_required");
+    await this.serializeWrite(pane, async () => {
+      await assertCurrent();
+      check(!pane.failed && !pane.stopped && !pane.archived && !pane.closing, "pane_unavailable");
+      pane.pty.write(encoding === "binary" ? Buffer.from(data, "latin1") : data);
+    });
+  }
+  async closeShell(launch: string) {
+    const record = this.launchRecord(launch);
+    check(record.role === "shell", "shell_required");
+    const pane = this.panes.get(record.thread);
+    if (pane) await this.terminate(pane, "shell_close");
+    else check(this.store.lastEvent(launch, ["shell_closed"]), "shell_exit_unconfirmed");
+    this.forgetOpen(launch);
+  }
   async startController(task: A2ATask, input: ClaudeLaunchInput) {
     let login: ClaudeLogin | undefined;
     try {
@@ -254,6 +311,23 @@ export class Panes implements GateRuntime {
   }
   async recover(daemon: string) {
     for (const record of this.store.launches()) {
+      if (record.role === "shell") {
+        // A user's terminal is never resumed or turned into an agent session.
+        if (!this.store.lastEvent(record.id, ["shell_closed"])) {
+          const start = this.store.lastEvent(record.id, ["shell_created"]);
+          const pid = start?.data.shell_pid;
+          try {
+            if (Number.isSafeInteger(pid) && pid > 1) {
+              const result = await exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pid)], { timeout: 5000 });
+              check(JSON.parse(result.stdout).rows.length === 0, "shell_exit_unconfirmed");
+            }
+            this.store.event("shell_closed", { role: "shell", reason: "daemon_restart", shell_pid: pid ?? null }, record as any);
+          } catch (error) {
+            this.store.event("shell_exit_unconfirmed", { role: "shell", shell_pid: pid ?? null, error: String(error) }, record as any);
+          }
+        }
+        continue;
+      }
       if (record.execution_state === "prepared") continue;
       if (this.store.lastEvent(record.id, ["pane_recovered", "pane_archived"])) continue;
       const exit = this.store.lastEvent(record.id, ["pane_exit"]);
@@ -264,6 +338,7 @@ export class Panes implements GateRuntime {
     }
     for (const opened of this.store.openPanes()) {
       const record = this.launchRecord(opened.launch);
+      if (record.role === "shell") continue;
       this.store.event("pane_restore_pending", { daemon, position: opened.position }, record as any);
       try {
         // T-096 decision B: worker/reviewer attempts retain their gate-owned
@@ -555,6 +630,9 @@ export class Panes implements GateRuntime {
       }
       const owned = rows.filter((row) => descendants.has(row.pid));
       check(owned.length === rows.length && (!rows.length || rows.some(row=>row.pid===pane.pty.pid)), "invalid_process_tree");
+      if (pane.record.role === "shell") return { shell_pid: pane.pty.pid, leader: null,
+        native_session: null, session_ended: pane.stopped, observer: { method: observed.method, root_pid: observed.root_pid },
+        processes: owned, failed: pane.failed };
       const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.executable_path);
       const leader = leaders.length === 1 ? leaders[0]!.pid : null;
       const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
@@ -590,6 +668,7 @@ export class Panes implements GateRuntime {
 
   scan(pane: Pane, final = false) {
     if (pane.stopped) return;
+    if (pane.record.role === "shell") return;
     if (pane.record.cli === "Claude Code") return;
     const home = pane.record.env.CODEX_HOME as string;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
@@ -734,6 +813,7 @@ export class Panes implements GateRuntime {
     } finally { pane.pendingInputs--; }
   }
   async dispatch(pane: Pane, text: string, source: DispatchSource = "executor", inbox?: { id: string; sender: string }, context?: { kind: string; rejection_id: string }) {
+    check(pane.record.role !== "shell", "agent_pane_required");
     const previous = inbox ? this.store.inboxDispatch(inbox.id) : undefined;
     if (previous) {
       check(previous.launch === pane.record.id && previous.sender === inbox!.sender &&
@@ -920,13 +1000,20 @@ export class Panes implements GateRuntime {
     if (pane) {
       this.scan(pane);
       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
-        lifecycle: pane.archived ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
+        lifecycle: pane.archived || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,
         turn: pane.turn, writing: pane.writing, user_draft: pane.userDraft, interrupted: pane.interrupted,
         input_generation: pane.inputGeneration, interruption: pane.interruption,
         queued: pane.queue.map((item) => item.id), failed: pane.failed, stopped: pane.stopped, restoration };
     }
     check(record, "unknown_pane");
+    if (record.role === "shell") {
+      const closed = this.store.lastEvent(record.id, ["shell_closed"]);
+      return { thread, launch: record.id, state: "unknown", lifecycle: closed ? "ended" : "unknown",
+        shell_pid: null, state_source: "shell_history", active: null, native_session: null, turn: null,
+        writing: false, queued: [], failed: closed ? null : "shell_exit_unconfirmed", stopped: Boolean(closed),
+        historical: true, restoration: null };
+    }
     const archived = this.store.lastEvent(record.id, ["pane_archived"]);
     const recovered = this.store.lastEvent(record.id, ["pane_recovered"]);
     return { thread, launch: record.id, state: "unknown", lifecycle: record.execution_state === "prepared" ? "not_started" : archived ? "ended" : recovered?.data.lifecycle ?? "unknown",
@@ -1008,6 +1095,7 @@ export class Panes implements GateRuntime {
   }
   authenticate(identity: any) {
     const pane = this.byLaunch(identity.launch);
+    check(pane.record.role !== "shell", "agent_pane_required");
     check(identity.token === pane.token, "invalid_launch_identity");
     return pane;
   }
@@ -1080,7 +1168,16 @@ export class Panes implements GateRuntime {
     this.store.event("pane_archived", {}, pane.record); pane.archived = true;
   };
   async terminate(pane: Pane, reason: string) {
-    if (pane.stopped) { await pane.loginCleanup; return; }
+    if (pane.record.role === "shell") {
+      pane.closing = true;
+      await Promise.allSettled([pane.writes]);
+      if (!pane.stopped) pane.shellChildren = (await this.processInfo(pane.record.thread)).processes.map(row => row.pid);
+    }
+    if (pane.stopped) {
+      await pane.loginCleanup;
+      if (pane.record.role === "shell") await this.confirmShellExit(pane);
+      return;
+    }
     this.store.event("pane_stop_intent", { reason, shell_pid: pane.pty.pid }, pane.record);
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Refusal("pane_stop_unconfirmed")), 5000);
@@ -1088,6 +1185,29 @@ export class Panes implements GateRuntime {
       pane.pty.kill("SIGHUP");
     });
     await pane.loginCleanup;
+    if (pane.record.role === "shell") await this.confirmShellExit(pane);
+  }
+  async confirmShellExit(pane: Pane) {
+    const pids = pane.shellChildren ?? [pane.pty.pid];
+    const deadline = Date.now() + 5000;
+    let alive: number[];
+    do {
+      const observations = await Promise.all(pids.map(async pid => {
+        const result = await exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pid)], { timeout: 5000 });
+        const snapshot = JSON.parse(result.stdout);
+        check(snapshot.root_pid === pid && Array.isArray(snapshot.rows), "invalid_process_snapshot");
+        return snapshot.rows.length ? pid : null;
+      }));
+      alive = observations.filter((pid): pid is number => pid !== null);
+      if (!alive.length) {
+        this.store.event("shell_exit_confirmed", { role: "shell", pids }, pane.record);
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } while (Date.now() < deadline);
+    pane.failed = "shell_children_alive";
+    this.store.event("shell_exit_unconfirmed", { role: "shell", pids: alive }, pane.record);
+    throw new Refusal("shell_children_alive", { pids: alive });
   }
   async shutdown() { for (const pane of this.panes.values()) await this.terminate(pane, "daemon_shutdown_interruption"); }
 }

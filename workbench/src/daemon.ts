@@ -11,6 +11,15 @@ import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/quali
 import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 
+// Window payloads can contain shell passwords, even when identity/validation
+// fails. Agent input still has its existing dedicated recorder below.
+function eventInput(input: any) {
+  if (typeof input?.command === "string" && input.command.startsWith("window_")) {
+    return { command: input.command, sequence: input.sequence, request_id: input.request_id };
+  }
+  return input;
+}
+
 export async function serve(
   root: string,
   config: LaunchConfig,
@@ -55,7 +64,7 @@ export async function serve(
     }
   };
   const daemon = randomUUID();
-  type WindowBinding = { id: string; token: string; task: string; launch: string; sequence: number; requests: Set<string> };
+  type WindowBinding = { id: string; token: string; task: string | null; launch: string; sequence: number; requests: Set<string> };
   const windows = new Map<string, WindowBinding>();
   const readOnly = new Set(["daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
     "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
@@ -110,19 +119,35 @@ export async function serve(
     if (authority.kind === "window" && !["window_input", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       throw new Refusal("window_command_forbidden");
     }
-    if (input.command === "pane_layout") return { ok: true, recovering, saved: store.hasPaneLayout(input.task), panes: store.openPanes(input.task) };
+    const assertScope = (record: Record<string, any>) => {
+      if (record.role === "shell") {
+        if (input.project !== record.project) throw new Refusal("launch_project_mismatch");
+      } else if (record.task !== input.task) throw new Refusal("launch_task_mismatch");
+    };
+    if (input.command === "shell_start") {
+      if (authority.kind !== "operator") throw new Refusal("operator_required");
+      return { ok: true, launch: panes.startShell(input.project, input.cwd) };
+    }
+    if (input.command === "shell_close") {
+      if (authority.kind !== "operator") throw new Refusal("operator_required");
+      await panes.closeShell(input.launch);
+      return { ok: true };
+    }
+    if (input.command === "pane_layout") return { ok: true, recovering,
+      saved: store.hasPaneLayout(input.task, input.project), panes: store.openPanes(input.task, input.project) };
     if (["pane_layout_open", "pane_layout_close"].includes(input.command)) {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const record = panes.launchRecord(input.launch);
-      if (record.task !== input.task) throw new Refusal("launch_task_mismatch");
+      assertScope(record);
       if (input.command === "pane_layout_open") panes.rememberOpen(input.launch, input.position);
+      else if (record.role === "shell") await panes.closeShell(input.launch);
       else panes.forgetOpen(input.launch);
       return { ok: true };
     }
     if (input.command === "window_open") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const record = panes.launchRecord(input.launch);
-      if (record.task !== input.task) throw new Refusal("launch_task_mismatch");
+      assertScope(record);
       const window = { id: randomUUID(), token: randomUUID(), task: record.task, launch: record.id, sequence: 0, requests: new Set<string>() };
       windows.set(window.id, window);
       store.event("window_opened", { window_id: window.id, actor: "user" }, record as any);
@@ -146,6 +171,18 @@ export async function serve(
       window.requests.add(input.request_id);
       window.sequence = input.sequence;
       store.event("window_request_admitted", { ...receipt, command: input.command }, record as any);
+      const encoding = input.encoding ?? "utf8";
+      if (input.command === "window_input" && (!["utf8", "binary"].includes(encoding) || typeof input.data !== "string" ||
+          (encoding === "binary" ? input.data.length : Buffer.byteLength(input.data, "utf8")) > 1024 * 1024 ||
+          (encoding === "binary" && [...input.data].some(char => char.charCodeAt(0) > 255)))) throw new Refusal("invalid_terminal_input");
+      if (record.role === "shell") {
+        if (input.command === "window_composition") return { ok: true, observed: true, written: false };
+        if (input.command !== "window_input") throw new Refusal("shell_input_only");
+        await panes.shellInput(record.id, input.data, encoding, async () => {
+          if (windows.get(window.id) !== window) throw new Refusal("invalid_window_identity");
+        });
+        return { ok: true, written: input.data.length > 0, request_id: receipt.request_id };
+      }
       if (input.command === "window_observation") {
         if (input.type !== "focus-mode-intercept" || typeof input.raw_sequence !== "string" || input.raw_sequence.length > 4096) {
           throw new Refusal("invalid_window_observation");
@@ -197,10 +234,6 @@ export async function serve(
         }, assertInterrupted);
         return { ok: true, released: true, request_id: receipt.request_id };
       }
-      const encoding = input.encoding ?? "utf8";
-      if (!["utf8", "binary"].includes(encoding) || typeof input.data !== "string" ||
-          (encoding === "binary" ? input.data.length : Buffer.byteLength(input.data, "utf8")) > 1024 * 1024 ||
-          (encoding === "binary" && [...input.data].some(char => char.charCodeAt(0) > 255))) throw new Refusal("invalid_terminal_input");
       if (input.data.length === 0) {
         store.event("terminal_input_empty", { ...receipt, byte_length: 0 }, record as any);
         return { ok: true, observed: true, written: false };
@@ -248,6 +281,13 @@ export async function serve(
     if (input.command === "orchestration_events") return { ok: true, events: store.read(input.task) };
     if (input.command === "pane_output") return { ok: true, ...panes.output(input.launch, input.offset, input.max_bytes) };
     if (input.command === "workbench_snapshot") {
+      if (input.launch) {
+        const shell = panes.launchRecord(input.launch);
+        if (shell.role === "shell") {
+          assertScope(shell);
+          return { ok: true, daemon, recovering, task: null, launch: shell, pane: panes.status(shell.thread), user_input_observer: null };
+        }
+      }
       const result = await gates.call({ command: "status", task: input.task });
       if (!result.ok || !result.task) return result;
       const record = input.launch ? panes.launchRecord(input.launch) :
@@ -384,7 +424,7 @@ export async function serve(
         envelope = JSON.parse(buffer.slice(0, end));
         const authority = authenticate(envelope.identity);
         const viewing = ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
-        if (!viewing) store.event("request_received", { id: envelope.id, input: envelope.input, source: authority.source });
+        if (!viewing) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
         result = await handle(envelope, authority);
         if (result.ok && ["controller_start", "pane_release", "window_release", "signal"].includes(envelope.input.command)) {
           await settleInboxFeedback();
@@ -395,7 +435,7 @@ export async function serve(
         const processQuery = (error as { process_query?: unknown })?.process_query;
         result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error),
           ...(processQuery ? { diagnostics: { process_query: processQuery } } : {}) };
-        try { store.event("request_rejected", { id: envelope?.id, input: envelope?.input, result }); }
+        try { store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result }); }
         catch (recordError) {
           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
           result = { ok: false, error: "event_write_failed", details: String(recordError) };
