@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--stage', choices=['preflight', 'window'], required=True)
-    parser.add_argument('--ipc-contract', choices=['legacy', 'picker', 'shell', 'panes'], default='panes')
+    parser.add_argument('--ipc-contract', choices=['legacy', 'picker', 'shell', 'panes', 'creation', 'sidebar'], default='sidebar')
     parser.add_argument('--runtime-source', type=Path,
                         help='Internal-disk source containing the Electron runtime and observation driver')
     args = parser.parse_args()
@@ -178,12 +178,16 @@ def main():
                 assert value['state'] == 'unknown' and value['offset'] == 0
                 expected_bridge = {'beginComposition', 'closePane', 'input', 'observeFocus', 'output',
                                    'paneKeys', 'releaseQueue', 'snapshot'}
-                if args.ipc_contract in ('picker', 'shell', 'panes'):
+                if args.ipc_contract in ('picker', 'shell', 'panes', 'creation', 'sidebar'):
                     expected_bridge |= {'projects', 'tasks', 'selection', 'selectTask'}
-                if args.ipc_contract in ('shell', 'panes'):
+                if args.ipc_contract in ('shell', 'panes', 'creation', 'sidebar'):
                     expected_bridge |= {'newTerminal'}
-                if args.ipc_contract == 'panes':
+                if args.ipc_contract in ('panes', 'creation', 'sidebar'):
                     expected_bridge |= {'paneAction', 'resize'}
+                if args.ipc_contract in ('creation', 'sidebar'):
+                    expected_bridge |= {'creationRepository', 'creationSubmit', 'creationCancel'}
+                if args.ipc_contract == 'sidebar':
+                    expected_bridge |= {'sidebar', 'selectAgent', 'notificationSetting'}
                 assert set(value['bridge']) == expected_bridge, (value['bridge'], sorted(expected_bridge))
                 assert len(value['bridge']) == len(expected_bridge), 'Public bridge names must not repeat'
                 assert value['node'] == 'undefined'

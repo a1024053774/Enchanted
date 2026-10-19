@@ -1,0 +1,348 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-107",
+  "attempt": "a1",
+  "model_calls": 0,
+  "argv": [
+    "workbench/tests/run_t107_sidebar.py",
+    "--source",
+    "/Users/luckye/Documents/Code/a2a-wt-t107",
+    "--dependencies",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules",
+    "--electron-dist",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist",
+    "--summary",
+    "evidence/2026-10-19-batch17/T-107/electron-02-summary.json"
+  ],
+  "baseline": "0967cd465ce20c01b0a6ee29b2931ecbf4032caf",
+  "checks": [
+    {
+      "name": "真实 Electron 已知坏基线",
+      "status": "PASS",
+      "observed": "无侧栏 IPC、agent 树与 Git 摘要，符合预期红态"
+    },
+    {
+      "name": "项目与 agent 层级、角色、attempt、Git 与三种历史状态",
+      "status": "PASS",
+      "git_status": "## main...origin/main [ahead 1]\n"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":40541,\"root\":\"/private/tmp/t107-real-x1vdyklo/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":false,\"panes\":[],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":40541,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-x1vdyklo/repo-one"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-x1vdyklo/repo-one/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) def110b] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-x1vdyklo/repo-two"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-x1vdyklo/repo-two/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-two",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-two",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) def110b] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "def110b6cacbf9dda3995899904dc1007e345f38\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "config",
+        "remote.origin.url",
+        "/private/tmp/t107-real-x1vdyklo/unused-origin"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "config",
+        "remote.origin.fetch",
+        "+refs/heads/*:refs/remotes/origin/*"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "update-ref",
+        "refs/remotes/origin/main",
+        "def110b6cacbf9dda3995899904dc1007e345f38"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "branch",
+        "--set-upstream-to=origin/main",
+        "main"
+      ],
+      "exit": 0,
+      "stdout": "branch 'main' set up to track 'origin/main'.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-am",
+        "fixture ahead"
+      ],
+      "exit": 0,
+      "stdout": "[main 10e5595] fixture ahead\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x1vdyklo/repo-one",
+        "status",
+        "-sb"
+      ],
+      "exit": 0,
+      "stdout": "## main...origin/main [ahead 1]\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":40740,\"root\":\"/private/tmp/t107-real-x1vdyklo/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/baseline/workbench/app/build.mjs",
+        "--slot",
+        "t107-red-25237239"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-red-25237239/dist\",\"main\":\"/private/tmp/a2a-build-t107-red-25237239/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-red-25237239/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-red-25237239/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-red-25237239/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-red-25237239/tmp\",\"source\":\"/private/tmp/t107-real-x1vdyklo/baseline/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":40740,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":41179,\"root\":\"/private/tmp/t107-real-x1vdyklo/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/candidate/workbench/app/build.mjs",
+        "--slot",
+        "t107-green-3e19be3b"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-green-3e19be3b/dist\",\"main\":\"/private/tmp/a2a-build-t107-green-3e19be3b/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-green-3e19be3b/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-green-3e19be3b/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-green-3e19be3b/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-green-3e19be3b/tmp\",\"source\":\"/private/tmp/t107-real-x1vdyklo/candidate/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x1vdyklo/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x1vdyklo/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":41179,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "limitations": [
+    "等待用户回答、等待主控回答的真实信号缺口未解决；七状态验收 INCOMPLETE。",
+    "现有 worker 派发无具体父 launch 绑定，worker/reviewer 在未归属的任务下；完整层级验收 INCOMPLETE。",
+    "真实系统通知未触发；转换和开关只由 IPC 合同验证。"
+  ],
+  "error": "AssertionError({'id': 5, 'ok': False, 'error': 'Error: Script failed to execute, this normally means an error was thrown. Check the renderer console for the error.'})",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/run_t107_sidebar.py\", line 190, in main\n    green.call('agent', target=launch)\n  File \"/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/run_t103_picker.py\", line 85, in call\n    assert value.get('id') == self.sequence and value.get('ok') is True, value\nAssertionError: {'id': 5, 'ok': False, 'error': 'Error: Script failed to execute, this normally means an error was thrown. Check the renderer console for the error.'}\n",
+  "cleanup_complete": true,
+  "retained_fixture": "/private/tmp/t107-real-x1vdyklo",
+  "retained_builds": [
+    "/private/tmp/a2a-build-t107-red-25237239",
+    "/private/tmp/a2a-build-t107-green-3e19be3b"
+  ]
+}

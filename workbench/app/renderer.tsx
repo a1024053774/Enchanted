@@ -1,7 +1,7 @@
 // Codex dark theme seed from Synara 49cae984f, apps/web/src/theme/theme.seed.generated.ts.
 // Copyright (c) 2026 T3 Tools Inc. and Emanuele Di Pietro. MIT; see ../LICENSE.synara.
 import { createRoot } from 'react-dom/client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -26,10 +26,18 @@ type Snapshot = {
 };
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
 type TaskItem = { task_id: string; project_id: string; title: string; state: string };
-type ProjectItem = { project_id: string };
+type ProjectItem = { project_id: string; repo: string | null; tasks: TaskItem[]; state: string; state_label: string;
+  git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
+type AgentItem = { id: string; project: string; task: string | null; attempt: string | null; parent: string | null;
+  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string };
+type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; gaps: string[]; notifications: boolean };
+const statusIcons: Record<string, string> = { running: '●', waiting_user_answer: '◐', waiting_controller_answer: '◑', idle: '○', ended: '✓', unrestored: '◌', unknown: '?' };
+function StatusIcon({ state }: { state: string }) { return <span className="status-icon" aria-hidden="true">{statusIcons[state] ?? '?'}</span>; }
+
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 type Selection = { task: Snapshot['task'] | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
+  sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   creationRepository(): Promise<{ repo: string; branch: string; card: Record<string, any> } | null>;
@@ -56,11 +64,12 @@ const restoreErrors: Record<string, string> = {
 
 type PaneStatus = { snapshot: Snapshot | null; error: string | null; connecting: boolean };
 
-function SessionPane({ paneKey, name, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; name?: string; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
+function SessionPane({ paneKey, name, focusRequest, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; name?: string; focusRequest: number; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
   const mount = useRef<HTMLDivElement>(null);
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
   const [terminal, setTerminal] = useState<Terminal | null>(null);
+  useEffect(() => { if (focusRequest && terminal) terminal.focus(); }, [focusRequest, terminal]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(true);
@@ -391,7 +400,17 @@ function Workbench() {
   const [directorySource, setDirectorySource] = useState('home');
   const [selectedTask, setSelectedTask] = useState<Snapshot['task'] | null>(null);
   useEffect(() => { if (!selectedTask && directorySource === 'project') setDirectorySource('home'); }, [selectedTask, directorySource]);
-  const [projects, setProjects] = useState<(ProjectItem & { tasks: TaskItem[] })[]>([]);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [agents, setAgents] = useState<AgentItem[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [gaps, setGaps] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState(true);
+  const [focusedAgent, setFocusedAgent] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState({ key: '', version: 0 });
+  const sidebarRead = useRef(false);
+  const applySidebar = useCallback((value: Sidebar) => {
+    setProjects(value.projects); setAgents(value.agents); setGaps(value.gaps); setNotifications(value.notifications);
+  }, []);
   const [loading, setLoading] = useState(true);
   const [navigating, setNavigating] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -400,23 +419,35 @@ function Workbench() {
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const [creationProject, setCreationProject] = useState<string | null>(null);
   const applySelection = useCallback((value: Selection) => {
-    setSelectedTask(value.task); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); setStatuses({});
+    setSelectedTask(value.task); setSelectedProject(value.task?.project_id ?? null); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); setStatuses({});
   }, []);
   const refresh = useCallback(async () => {
     setLoading(true); setCatalogError(null);
     try {
-      const [rows, current] = await Promise.all([window.a2a.projects(), window.a2a.selection()]);
-      const catalog = await Promise.all(rows.map(async row => ({ ...row, tasks: await window.a2a.tasks(row.project_id) })));
+      const [sidebar, current] = await Promise.all([window.a2a.sidebar(), window.a2a.selection()]);
+      const catalog = sidebar.projects;
+      applySidebar(sidebar);
       if (current.task && !catalog.some(project => project.tasks.some(task => task.task_id === current.task!.task_id))) {
         applySelection(await window.a2a.selectTask(null));
       } else {
-        setSelectedTask(current.task); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
+        setSelectedTask(current.task); setSelectedProject(current.task?.project_id ?? null); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
       }
       setProjects(catalog);
     } catch (error) { setCatalogError('读取项目与任务失败：' + String(error)); }
     finally { setLoading(false); }
-  }, [applySelection]);
+  }, [applySelection, applySidebar]);
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    let mounted = true;
+    const timer = setInterval(async () => {
+      if (sidebarRead.current) return;
+      sidebarRead.current = true;
+      try { const value = await window.a2a.sidebar(); if (mounted) { applySidebar(value); setCatalogError(null); } }
+      catch (error) { if (mounted) { setCatalogError('侧栏状态未知：' + String(error)); setAgents(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知' }))); setProjects(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知', git: { branch: null, upstream: null, ahead: null, behind: null, error: '读取未确认' } }))); } }
+      finally { sidebarRead.current = false; }
+    }, 3000);
+    return () => { mounted = false; clearInterval(timer); };
+  }, [applySidebar]);
   const selectTask = async (task: string | null) => {
     if (navigating || loading || creating || task === (selectedTask?.task_id ?? null)) return;
     setNavigating(true); setNavigationError(null);
@@ -442,6 +473,37 @@ function Workbench() {
   const onStatus = useCallback((key: string, status: PaneStatus) => {
     setStatuses(previous => ({ ...previous, [key]: status }));
   }, []);
+  const selectAgent = async (agent: AgentItem) => {
+    if (navigating || loading || creating) return;
+    setNavigating(true); setNavigationError(null);
+    try {
+      const value = await window.a2a.selectAgent(agent.id);
+      applySelection(value); setFocusedAgent(agent.id);
+      setFocusRequest(previous => ({ key: value.focusKey, version: previous.version + 1 }));
+    } catch (error) { setNavigationError('聚焦会话失败：' + String(error)); }
+    finally { setNavigating(false); }
+  };
+  const projectAgents = agents.filter(agent => agent.project === selectedProject);
+  const renderAgents = (rows: AgentItem[], level: number): ReactNode => <ul className="agent-branches">
+    {rows.map(agent => <li key={agent.id}>
+      <button className="agent-row" data-agent-launch={agent.id} data-agent-parent={agent.parent ?? ''} data-agent-level={level}
+        data-agent-state={agent.state} aria-current={focusedAgent === agent.id ? 'true' : undefined}
+        disabled={loading || navigating || creating} onClick={() => void selectAgent(agent)}>
+        <span className="agent-role"><StatusIcon state={agent.state} />{agent.role_label}</span>
+        <span className="agent-state">{agent.state_label}</span>
+        <span className="agent-meta">{agent.task ?? '任务未知'} · {agent.attempt ? 'attempt ' + agent.attempt : '无 attempt'} · {agent.cli}</span>
+      </button>
+      {(() => {
+        const children = projectAgents.filter(child => child.parent === agent.id);
+        const controllers = children.filter(child => child.role === 'controller');
+        const tasks = [...new Set(children.filter(child => child.role !== 'controller').map(child => child.task))];
+        return <>{controllers.length > 0 && renderAgents(controllers, level + 1)}{tasks.map(task => <div className="agent-task-group" key={task ?? 'unknown'}>
+          <div className="agent-task-label">任务 {task ?? '未知'}</div>
+          {renderAgents(children.filter(child => child.task === task && child.role !== 'controller'), level + 1)}
+        </div>)}</>;
+      })()}
+    </li>)}
+  </ul>;
   const states = Object.values(statuses);
   const task = states.find(value => value.snapshot)?.snapshot?.task ?? selectedTask;
   const error = states.some(value => value.error);
@@ -449,27 +511,43 @@ function Workbench() {
   return <div className="workbench">
     <aside className="sidebar">
       <div className="brand">a2a <span>工作台</span></div>
-      <div className="catalog-heading"><span className="nav-label">项目与任务</span>
+      <div className="catalog-heading"><span className="nav-label">项目目录</span>
         <button disabled={loading || navigating || creating} onClick={() => void refresh()}>刷新列表</button></div>
-      <div className="catalog-status" role="status">{loading ? '正在读取列表…' : catalogError ? '列表未更新' : `${projects.length} 个项目`}</div>
-      <button className="create-project" disabled={loading || navigating || creating} onClick={() => setCreationProject('')}>新建项目与任务</button>
+      <button className="create-project" disabled={loading || navigating || creating} onClick={() => setCreationProject('')}>新增项目目录</button>
       {catalogError && <p className="catalog-error" role="alert">{catalogError}</p>}
-      <button className="free-terminals" aria-current={!selectedTask ? "page" : undefined} disabled={loading || navigating || creating} onClick={() => void selectTask(null)}>独立终端</button>
-      <nav className="project-list" aria-label="项目与任务" aria-busy={loading}>
-        {projects.map(project => <details className="project-group" key={project.project_id} open>
-          <summary className="project-name" data-project-id={project.project_id}>{project.project_id}</summary>
-          <button className="create-task" disabled={loading || navigating || creating} onClick={() => setCreationProject(project.project_id)}>新建任务</button>
-          <ul>{project.tasks.map(item => <li key={item.task_id}>
-            <button className="task-row" data-task-option={item.task_id} disabled={loading || navigating || creating}
-              aria-current={task?.task_id === item.task_id ? 'page' : undefined} onClick={() => void selectTask(item.task_id)}>
-              <span className="task-title">{item.title}</span>
-              <span className="task-meta"><span>{item.task_id}</span><span>{gateNames[item.state] ?? item.state}</span></span>
-            </button>
-          </li>)}</ul>
-          {!project.tasks.length && <p className="catalog-status">这个项目还没有任务。</p>}
-        </details>)}
-        {!loading && !catalogError && !projects.length && <p className="catalog-status">还没有项目。新建首个任务后，项目会一起出现在这里；也可以先打开独立终端。</p>}
+      <nav className="project-list" aria-label="项目目录" aria-busy={loading}>
+        {projects.map(project => <button className="project-row" key={project.project_id} data-project-id={project.project_id}
+          data-project-state={project.state} aria-current={selectedProject === project.project_id ? 'page' : undefined}
+          disabled={loading || navigating || creating} onClick={() => { setSelectedProject(project.project_id); if (project.tasks[0]) void selectTask(project.tasks[0].task_id); }}>
+          <span className="project-title"><StatusIcon state={project.state} />{project.project_id}</span>
+          <span className="project-git">{project.git.branch === '(detached)' ? '分离 HEAD' : project.git.branch ?? '分支未知'} · {project.git.error ? project.git.error : project.git.upstream
+            ? `领先 ${project.git.ahead} / 落后 ${project.git.behind}` : '未设置上游'}</span>
+          <span className="project-state">{project.state_label}</span>
+          <span className="project-repo">{project.repo ?? '目录未知'}</span>
+        </button>)}
+        {!loading && !projects.length && <p className="catalog-status">还没有项目。新增项目目录并注册首个任务后，项目会出现在这里。</p>}
       </nav>
+      <div className="catalog-heading agent-heading"><span className="nav-label">agent 会话</span></div>
+      <nav className="agent-list" aria-label="agent 层级">
+        {renderAgents(projectAgents.filter(agent => !agent.parent && agent.role === 'controller' && agent.preset === 'ideation'), 0)}
+        {projectAgents.some(agent => !agent.parent && !(agent.role === 'controller' && agent.preset === 'ideation')) && <div className="unassigned-agents">
+          <div className="agent-task-label">未归属</div>
+          {renderAgents(projectAgents.filter(agent => !agent.parent && agent.role === 'controller' && agent.preset !== 'ideation'), 0)}
+          {[...new Set(projectAgents.filter(agent => !agent.parent && agent.role !== 'controller').map(agent => agent.task))].map(task => <div className="agent-task-group" key={task ?? 'unknown'}>
+            <div className="agent-task-label">任务 {task ?? '未知'}</div>
+            {renderAgents(projectAgents.filter(agent => !agent.parent && agent.role !== 'controller' && agent.task === task), 0)}
+          </div>)}
+        </div>}
+        {!projectAgents.length && <p className="catalog-status">{selectedProject ? '这个项目还没有 agent 启动记录。' : '选择项目，查看已有会话。'}</p>}
+      </nav>
+      <button className="free-terminals" aria-current={!selectedTask && !selectedProject ? 'page' : undefined} disabled={loading || navigating || creating} onClick={() => { setSelectedProject(null); void selectTask(null); }}>独立终端</button>
+      <details className="sidebar-settings"><summary>图例与设置</summary>
+        <div className="status-legend">{Object.entries({ running: '运行中', waiting_user_answer: '等待用户回答', waiting_controller_answer: '等待主控回答', idle: '空闲', ended: '已结束', unrestored: '未恢复', unknown: '未知' }).map(([state, label]) => <span key={state}><StatusIcon state={state} />{label}</span>)}</div>
+        <label><input type="checkbox" checked={notifications} onChange={event => {
+          void window.a2a.notificationSetting(event.target.checked).then(setNotifications).catch(error => setCatalogError('通知设置未保存：' + String(error)));
+        }} />等待用户回答时通知</label>
+        {gaps.map(gap => <p key={gap}>{gap}</p>)}
+      </details>
       <div className="sidebar-footer">原生 CLI · 本地编排</div>
     </aside>
     <main>
@@ -477,6 +555,13 @@ function Workbench() {
         <div><div className="eyebrow">{task ? `${task.project_id} / ${task.task_id}` : '终端工作区'}</div><h1>{task?.title ?? (loading ? '正在读取项目' : '独立终端')}</h1></div>
         <span className={'connection ' + (error || catalogError ? 'warning' : '')}>{navigating ? '正在切换任务' : loading ? '正在读取后台' : catalogError ? '列表未更新' : error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
       </header>
+      {selectedProject && <nav className="task-strip" aria-label="项目任务">
+        <button className="create-task" disabled={loading || navigating || creating} onClick={() => setCreationProject(selectedProject)}>新建任务</button>
+        {projects.find(project => project.project_id === selectedProject)?.tasks.map(item => <button key={item.task_id} className="task-row" data-task-option={item.task_id}
+          disabled={loading || navigating || creating} aria-current={task?.task_id === item.task_id ? 'page' : undefined} onClick={() => void selectTask(item.task_id)}>
+          <span className="task-title">{item.title}</span><span className="task-meta">{item.task_id} · {gateNames[item.state] ?? item.state}</span>
+        </button>)}
+      </nav>}
       {navigationError && <div className="connection-error" role="alert">{navigationError}</div>}
       <div className="pane-toolbar">
         <span role="status">{creating ? '正在创建终端…' : '新建或分屏，打开你自己的 zsh'}</span>
@@ -490,7 +575,7 @@ function Workbench() {
         {!navigating && paneKeys.map(key => {
           const rect = zoom === key ? { x: 0, y: 0, w: 100, h: 100 } : paneRects(layout)[key] ?? { x: 0, y: 0, w: 100, h: 100 };
           return <div className="pane-slot" key={key} hidden={Boolean(zoom && zoom !== key)} style={{ left: rect.x + '%', top: rect.y + '%', width: rect.w + '%', height: rect.h + '%' }}>
-            <SessionPane paneKey={key} name={names[key]} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
+            <SessionPane paneKey={key} name={names[key]} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
               onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
           </div>;
         })}

@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync, existsSync, readFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +15,7 @@ type PaneBinding = {
   key: string; launch?: string; project?: string | null; identity?: Record<string, unknown>; opening?: Promise<void>;
   sequence: number; inputQueue: Promise<unknown>; pendingRelease: Promise<any> | null;
   closing?: boolean;
+  viewOnly?: boolean;
 };
 type WindowBinding = {
   window: BrowserWindow; options: Options; operator: NonNullable<ReturnType<typeof readOperatorCredential>>;
@@ -28,6 +29,18 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const windows = new Map<number, WindowBinding>();
 let handlersRegistered = false;
 let appUserData: string | undefined;
+const observedAgentStates = new Map<string, string>();
+
+function notificationSetting(context: WindowBinding, enabled?: boolean) {
+  const file = join(context.options.userData, 'sidebar-settings.json');
+  if (enabled !== undefined) writeFileSync(file, JSON.stringify({ notifications: enabled }) + '\n', { mode: 0o600 });
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).notifications === true : true;
+}
+
+function requireAgentView(task: string, launch: string, result: any) {
+  if (!result.ok || result.task?.task_id !== task || result.launch?.task !== task || result.launch?.id !== launch ||
+      !['controller', 'worker', 'reviewer', 'monitor'].includes(result.launch.role)) throw new Error('Agent task or launch mismatch');
+}
 
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 function replaceLeaf(tree: Layout | null, key: string, replacement: Layout | null): Layout | null {
@@ -42,9 +55,9 @@ function mapLayout(tree: Layout | null, convert: (key: string) => string | null)
   return first && second ? { ...tree, first, second } : first ?? second;
 }
 function serializedArrangement(context: WindowBinding, tree = context.layout, names = context.names) {
-  return { tree: mapLayout(tree, key => context.panes.get(key)?.launch ?? null),
+  return { tree: mapLayout(tree, key => context.panes.get(key)?.viewOnly ? null : context.panes.get(key)?.launch ?? null),
     names: Object.fromEntries(Object.entries(names).flatMap(([key, name]) => {
-      const id = context.panes.get(key)?.launch; return id ? [[id, name]] : [];
+      const pane = context.panes.get(key), id = pane?.launch; return id && !pane.viewOnly ? [[id, name]] : [];
     })) };
 }
 async function saveArrangement(context: WindowBinding) {
@@ -122,6 +135,53 @@ function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Rec
 function registerHandlers() {
   if (handlersRegistered) return;
   handlersRegistered = true;
+  ipcMain.handle('a2a:notification-setting', (event, enabled?: boolean) => {
+    const context = windowTarget(event);
+    if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('Invalid notification setting');
+    return notificationSetting(context, enabled);
+  });
+  ipcMain.handle('a2a:sidebar', async event => {
+    const context = windowTarget(event);
+    const result = await request(context.options.state, { command: 'sidebar_snapshot' });
+    if (!result.ok) throw new Error(result.error);
+    const enabled = notificationSetting(context);
+    for (const agent of result.agents) {
+      const key = context.options.state + ':' + agent.id;
+      const previous = observedAgentStates.get(key);
+      observedAgentStates.set(key, agent.state);
+      if (enabled && agent.state === 'waiting_user_answer' && previous !== agent.state) {
+        const { Notification } = await import('electron');
+        if (Notification.isSupported()) new Notification({ title: '等待用户回答',
+          body: `${agent.project} · ${agent.role_label} · ${agent.task ?? '未归属任务'}` }).show();
+      }
+    }
+    return { ...result, notifications: enabled };
+  });
+  ipcMain.handle('a2a:select-agent', async (event, launch: string) => {
+    const context = windowTarget(event);
+    if (typeof launch !== 'string' || !launch) throw new Error('Invalid agent launch');
+    if (context.closing || context.switching || context.creating || [...context.panes.values()].some(p => p.closing)) throw new Error('Task view is changing');
+    const select = async () => {
+      const catalog = await request(context.options.state, { command: 'sidebar_snapshot' });
+      if (!catalog.ok) throw new Error(catalog.error);
+      const agent = catalog.agents.find((row: any) => row.id === launch);
+      if (!agent?.task || !catalog.projects.some((p: any) => p.project_id === agent.project && p.tasks.some((t: any) => t.task_id === agent.task))) throw new Error('Unknown agent launch');
+      const snapshot = await request(context.options.state, { command: 'workbench_snapshot', task: agent.task, launch });
+      requireAgentView(agent.task, launch, snapshot);
+      if (context.options.task !== agent.task) await changeTask(context, agent.task);
+      let pane = [...context.panes.values()].find(p => p.launch === launch);
+      if (!pane) {
+        // A sidebar click may inspect an ended or old attempt. This transient
+        // view never gets an input credential or changes the saved pane layout.
+        pane = { key: randomUUID(), launch, viewOnly: true, sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null };
+        context.panes.set(pane.key, pane);
+        context.layout = context.layout ? { direction: 'right', first: context.layout, second: pane.key } : pane.key;
+      }
+      return { ...selection(context), focusKey: pane.key };
+    };
+    context.switching = select();
+    try { return await context.switching; } finally { context.switching = undefined; }
+  });
   ipcMain.handle('a2a:projects', async event => {
     const context = windowTarget(event);
     const result = await request(context.options.state, { command: 'projects_list' });
@@ -277,24 +337,7 @@ function registerHandlers() {
     if (task !== null && (typeof task !== 'string' || !task)) throw new Error('Invalid task');
     if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) throw new Error('Task view is changing');
     if (task === (context.options.task ?? null)) return selection(context);
-    const change = async () => {
-      const options = { ...context.options, task: task ?? undefined, launch: undefined };
-      // Validate the destination before detaching the current view. Switching
-      // never closes a saved pane or stops a background session.
-      const prepared = await prepareSelection(options);
-      if (context.closing) throw new Error('Window is closing');
-      for (const pane of context.panes.values()) pane.closing = true;
-      try {
-        await detachPanes(context);
-        if (context.closing) throw new Error('Window is closing');
-        context.options = options;
-        context.task = prepared.task;
-        context.layout = prepared.layout; context.names = prepared.names;
-        context.panes = new Map(prepared.panes.map(pane => [pane.key, pane]));
-        return selection(context);
-      } finally { for (const pane of context.panes.values()) pane.closing = false; }
-    };
-    context.switching = change();
+    context.switching = changeTask(context, task);
     try { return await context.switching; }
     finally { context.switching = undefined; }
   });
@@ -307,7 +350,8 @@ function registerHandlers() {
     if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
     if (!result.ok) throw new Error(result.error);
     if (pane.project !== undefined) requireShellPane(pane.project, pane.launch!, result);
-    else if ([...context.panes.values()].filter(value => value.project === undefined).length > 1) requireSavedPane(task, pane.launch!, result);
+    else if (pane.viewOnly) requireAgentView(task, pane.launch!, result);
+    else if ([...context.panes.values()].filter(value => value.project === undefined && !value.viewOnly).length > 1) requireSavedPane(task, pane.launch!, result);
     if (pane.launch && result.launch?.id !== pane.launch) throw new Error('Pane launch changed');
     if (result.launch && !pane.launch) {
       const opened = await request(context.options.state, { command: 'pane_layout_open', task,
@@ -316,7 +360,7 @@ function registerHandlers() {
       pane.launch = result.launch.id;
     }
     if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
-    const writable = !result.recovering && !pane.closing && result.pane?.lifecycle === 'running' && !result.pane.failed &&
+    const writable = !pane.viewOnly && !result.recovering && !pane.closing && result.pane?.lifecycle === 'running' && !result.pane.failed &&
       result.pane?.restoration?.status !== 'pending' &&
       Boolean(result.launch && (pane.project !== undefined && result.launch.role === 'shell' ||
         result.launch.role === 'controller' && result.launch.attempt === null ||
@@ -374,7 +418,7 @@ function registerHandlers() {
     for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Pane input outcome remains unconfirmed:', String(outcome.reason));
     const nextLayout = replaceLeaf(context.layout, key, null), nextNames = { ...context.names };
     delete nextNames[key];
-    if (pane.launch) {
+    if (pane.launch && !pane.viewOnly) {
       const closed = await request(context.options.state, { command: 'pane_layout_close',
         ...(pane.project !== undefined ? { project: pane.project } : { task: context.options.task }),
         launch: pane.launch, layout_task: context.options.task, arrangement: serializedArrangement(context, nextLayout, nextNames) }, context.operator);
@@ -393,6 +437,23 @@ function registerHandlers() {
 
 function selection(context: WindowBinding) {
   return { task: context.task, paneKeys: [...context.panes.keys()], layout: context.layout, names: context.names };
+}
+
+async function changeTask(context: WindowBinding, task: string | null) {
+  const options = { ...context.options, task: task ?? undefined, launch: undefined };
+  // Validate before detaching. Original admission rules still apply to saved
+  // panes; transient sidebar inspection is separately read-only.
+  const prepared = await prepareSelection(options);
+  if (context.closing) throw new Error('Window is closing');
+  for (const pane of context.panes.values()) pane.closing = true;
+  try {
+    await detachPanes(context);
+    if (context.closing) throw new Error('Window is closing');
+    context.options = options; context.task = prepared.task;
+    context.layout = prepared.layout; context.names = prepared.names;
+    context.panes = new Map(prepared.panes.map(pane => [pane.key, pane]));
+    return selection(context);
+  } finally { for (const pane of context.panes.values()) pane.closing = false; }
 }
 
 function restoreArrangement(panes: PaneBinding[], saved: any) {
