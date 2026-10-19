@@ -2,7 +2,7 @@
 id: T-101
 title: 瘦身 Git 历史并发布初版到 GitHub（origin main）
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -45,3 +45,18 @@ ready_rev: 1
 执行主控 needs-decision（收件箱 `20261019T082941Z-executor-needs-decision-001`）：413 处命中，379 测试假值、5 文档占位、28 标识符误报，未确认真实密钥；H005 在一份 Codex 原生会话记录的加密字段里，无法判断；仓库跟踪 23 份 rollout-*.jsonl（含对话正文）。用户选项逐字："B 豁免包括 H005,保留会话记录"，选项原文："同样豁免,H005 也豁免,23 份会话记录留在公开历史里。对话正文会被公开,且 H005 是不明内容。"
 
 据此：假值、占位、误报、H005 都按对象哈希加 offset 精确豁免，23 份会话记录保留在历史里；豁免清单与 H005 的位置存证据。其余停下条件不变。用户知情选择公开这些对话正文，Resolution 里要写明。
+
+## Resolution
+
+2026-10-19，执行主控。PASS（按用户裁定 B：不瘦身，直接发布）。
+
+- 用户逐字："T101 选 B,推完把已有 GitHub 备份的不需要的大文件清理掉"。T-097 的瘦身方案按这次裁定不执行，历史没有改写。
+- 发布：origin main 从 a96a040d3 快进到 e6b87da61，没有 force，只推了 main；推前推后都用 gh api 核对过远端。仓库仍为 private，可见性没有改。
+- 开源必需件：根目录中文 README.md、GPL-3.0 LICENSE；workbench/LICENSE.synara 保留。
+- 凭据扫描：对完整历史共 89,545 个对象做固定模式扫描，484 处命中，全部在用户批准的精确 object+offset 豁免内（credential-exemptions-01.json），未豁免 0 处。
+  - 413 处来自 triage-01，用户选 B，包括 H005；
+  - 71 处来自 triage-02，全部是公开测试假值，用户回复“加”。
+  - 合并后新增的对象另行核对，3 处命中都在豁免内。
+  - 局限：固定模式扫描不能证明不存在加密或编码过的秘密。
+- 按用户裁定 B，公开历史里包含 23 份 Codex 原生会话记录（rollout-*.jsonl）的正文。
+- 瘦身试跑（trial-20261019-01）的备份和候选在外置盘上，已不再需要，清理范围待用户确认。
