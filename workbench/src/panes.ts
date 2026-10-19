@@ -115,18 +115,18 @@ export class Panes implements GateRuntime {
     this.onEventWriteFailed = onEventWriteFailed;
   }
   ensureProject = async (_project: string, _repo: string) => {};
-  startShell(project: string, cwd: string) {
-    check(typeof project === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(project), "invalid_project");
+  startShell(project: string | null, cwd: string) {
+    check(project === null || typeof project === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(project), "invalid_project");
     check(typeof cwd === "string" && isAbsolute(cwd) && statSync(cwd).isDirectory(), "invalid_shell_cwd");
     const worktree = realpathSync(cwd), launch = randomUUID(), thread = randomUUID();
     const environment = { ...process.env };
     for (const key of Object.keys(environment)) {
       if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_") || key === "CODEX_THREAD_ID") delete environment[key];
     }
-    environment.A2A_PROJECT = project;
+    if (project !== null) environment.A2A_PROJECT = project;
     const record = { id: launch, project, task: null, attempt: null, session: null, fence: null,
       spec_rev: null, thread, role: "shell", created_at: new Date().toISOString(),
-      shell: "/bin/zsh", shell_argv: ["-l", "-i"], worktree, env: { A2A_PROJECT: project } };
+      shell: "/bin/zsh", shell_argv: ["-l", "-i"], worktree, env: project === null ? {} : { A2A_PROJECT: project } };
     this.store.launch(record);
     const trace = join(this.root, "traces", launch, "pty.raw");
     mkdirSync(dirname(trace), { recursive: true, mode: 0o700 });
@@ -150,7 +150,7 @@ export class Panes implements GateRuntime {
       catch (error) { this.recordFailure(pane, "shell_close_write_failed", error); }
     });
     this.store.event("shell_created", { role: "shell", cwd: worktree, shell_pid: terminal.pid }, record);
-    this.rememberOpen(launch, this.store.openPanes(undefined, project).length);
+    this.rememberOpen(launch, this.store.openPanes(undefined, project ?? undefined).length);
     return record;
   }
   async shellInput(launch: string, data: string, encoding: "utf8" | "binary", assertCurrent: () => Promise<void>) {

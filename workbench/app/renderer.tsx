@@ -3,6 +3,7 @@
 import { createRoot } from 'react-dom/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
@@ -26,13 +27,16 @@ type Snapshot = {
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
 type TaskItem = { task_id: string; project_id: string; title: string; state: string };
 type ProjectItem = { project_id: string };
-type Selection = { task: Snapshot['task'] | null; paneKeys: string[] };
+type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
+type Selection = { task: Snapshot['task'] | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
-  newTerminal(): Promise<Selection>;
+  newTerminal(source?: string): Promise<Selection>;
+  paneAction(key: string, action: { type: string; direction?: string; name?: string }): Promise<Selection>;
+  resize(key: string, cols: number, rows: number): Promise<void>;
   snapshot(key: string): Promise<Snapshot>; output(key: string, offset: number): Promise<Chunk>;
-  closePane(key: string): Promise<{ ok: boolean }>;
+  closePane(key: string): Promise<Selection & { ok: boolean }>;
   input(key: string, data: string, encoding?: 'utf8' | 'binary'): Promise<void>; beginComposition(key: string): Promise<void>;
   releaseQueue(key: string, declaration: EmptyInputDeclaration): Promise<{ ok: boolean; error?: string }>;
   observeFocus(key: string, rawSequence: string): Promise<void> } } }
@@ -48,7 +52,7 @@ const restoreErrors: Record<string, string> = {
 
 type PaneStatus = { snapshot: Snapshot | null; error: string | null; connecting: boolean };
 
-function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string) => void }) {
+function SessionPane({ paneKey, name, zoomed, onZoom, onAction, onStatus, onClose }: { paneKey: string; name?: string; zoomed: boolean; onZoom: () => void; onAction: (key: string, action: { type: string; direction?: string; name?: string }) => Promise<void>; onStatus: (key: string, status: PaneStatus) => void; onClose: (key: string, value: Selection) => void }) {
   const mount = useRef<HTMLDivElement>(null);
   const reconnect = useRef<() => void>(() => {});
   const releaseQueue = useRef<() => void>(() => {});
@@ -63,6 +67,29 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
   const [releaseError, setReleaseError] = useState<string | null>(null);
   const [keyboardFocused, setKeyboardFocused] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [forwardRightClick, setForwardRightClick] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [acting, setActing] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const renameInput = useRef<HTMLInputElement>(null);
+  const dismissMenu = () => { setMenu(null); menuButton.current?.focus(); };
+  useEffect(() => {
+    if (!menu) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const dismiss = (event: MouseEvent) => { if (!menuRef.current?.contains(event.target as Node)) setMenu(null); };
+    document.addEventListener('mousedown', dismiss);
+    return () => document.removeEventListener('mousedown', dismiss);
+  }, [menu]);
+  useEffect(() => { if (renaming) { renameInput.current?.focus(); renameInput.current?.select(); } }, [renaming]);
+  const act = async (action: { type: string; direction?: string; name?: string }) => {
+    setMenu(null); setActing(true); setCloseError(null);
+    try { await onAction(paneKey, action); setRenaming(false); }
+    catch (error) { setCloseError('窗格操作未确认：' + String(error)); }
+    finally { setActing(false); menuButton.current?.focus(); }
+  };
   const [closeError, setCloseError] = useState<string | null>(null);
   useEffect(() => { onStatus(paneKey, { snapshot, error, connecting }); }, [paneKey, snapshot, error, connecting, onStatus]);
 
@@ -81,7 +108,19 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
       cursorInactiveStyle: 'none', screenReaderMode: true, scrollback: 10000, fontSize: 11, lineHeight: 1,
       fontFamily: '"SF Mono", "SFMono-Regular", Menlo, monospace',
       theme: { background: '#111111', foreground: '#fcfcfc', selectionBackground: '#0169cc66' } });
+    const fit = new FitAddon(); term.loadAddon(fit);
     term.open(mount.current!);
+    let writable = false, dimensions = '';
+    const resize = () => {
+      if (!mount.current?.clientWidth || !mount.current?.clientHeight) return;
+      fit.fit();
+      const next = `${term.cols}:${term.rows}`;
+      if (writable && dimensions !== next) {
+        dimensions = next;
+        void window.a2a.resize(paneKey, term.cols, term.rows).catch(failInput);
+      }
+    };
+    const observer = new ResizeObserver(resize); observer.observe(mount.current!);
     const failInput = (failure: unknown) => {
       inputFailed = true; term.options.disableStdin = true;
       if (mounted) setInputError(`输入尚未确认，已停止发送：${String(failure)}`);
@@ -132,6 +171,7 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
             if (boundLaunch && value.launch?.id !== boundLaunch) throw new Error('窗格身份改变，已停止读取');
             if (value.launch) boundLaunch = value.launch.id;
             term.options.disableStdin = inputFailed || !value.input_enabled;
+            writable = value.input_enabled; resize();
             const p = value.pane;
             releaseBasis = settled && pendingInput === 0 && version === inputVersion && value.input_enabled && value.window_id &&
               value.launch && p?.interrupted && Number.isSafeInteger(p.interruption) && Number.isSafeInteger(p.input_generation)
@@ -167,7 +207,7 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
       term.textarea!.removeEventListener('compositionstart', beginComposition);
       term.textarea!.removeEventListener('focus', focused);
       term.textarea!.removeEventListener('blur', blurred);
-      term.dispose();
+      observer.disconnect(); term.dispose();
     };
   }, [paneKey]);
   const task = snapshot?.task;
@@ -176,10 +216,22 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
   const shell = snapshot?.launch?.role === 'shell';
   const role = snapshot?.launch?.role === 'controller'
     ? snapshot.launch.preset === 'ideation' ? '构思主控' : snapshot.launch.preset === 'executor' ? '执行主控' : '主控 · 角色未确认'
-    : shell ? '普通终端' : snapshot?.launch?.role === 'worker' ? '受管 worker' : snapshot?.launch?.role ?? '窗格';
+    : shell ? '普通终端' : snapshot?.launch?.role === 'worker' ? '受管 worker' : snapshot?.launch?.role === 'reviewer' ? '独立审查' : snapshot?.launch?.role ?? '窗格';
   const inputEnabled = Boolean(snapshot?.input_enabled && !inputError && !error);
   const inputTarget = keyboardFocused && inputEnabled;
-  return <section className={'pane' + (inputTarget ? ' pane-focused' : '')} aria-label={role + '交互终端'}
+  const closePane = () => {
+    setMenu(null); setClosing(true); setCloseError(null);
+    void window.a2a.closePane(paneKey).then(value => onClose(paneKey, value)).catch(error => {
+      setCloseError('关闭窗格未确认：' + String(error)); setClosing(false);
+    });
+  };
+  const openMenu = (x: number, y: number) => setMenu({ x: Math.max(4, Math.min(x, window.innerWidth - 218)), y: Math.max(4, Math.min(y, window.innerHeight - 280)) });
+  return <section onContextMenu={event => {
+        if (forwardRightClick && (event.target as HTMLElement).closest('.terminal-mount')) { event.preventDefault(); return; }
+        event.preventDefault(); event.stopPropagation(); openMenu(event.clientX, event.clientY);
+      }} onMouseDownCapture={event => {
+        if (event.button === 2 && !forwardRightClick && (event.target as HTMLElement).closest('.terminal-mount')) event.stopPropagation();
+      }} className={'pane' + (inputTarget ? ' pane-focused' : '')} aria-label={role + '交互终端'}
         data-pane-key={paneKey} data-task-id={task?.task_id} data-window-id={snapshot?.window_id}
         data-role={snapshot?.launch?.role} data-preset={snapshot?.launch?.preset ?? ''}
         data-attempt-id={snapshot?.launch?.attempt ?? ''} data-keyboard-focused={keyboardFocused}
@@ -192,36 +244,66 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
         {pane?.restoration?.status === 'failed' && <div className="connection-error" role="alert">未恢复：{restoreErrors[pane.restoration.error ?? ''] ?? pane.restoration.error}。启动记录已保留。</div>}
         {closeError && <div className="connection-error" role="alert">{closeError}</div>}
         {pane?.restoration?.status === 'pending' && <div className="connection-error" role="status">正在恢复原生会话…</div>}
-        <div className="pane-header"><strong>{role}</strong><span>{shell ? 'zsh' : snapshot?.launch?.cli_version ?? '读取中'}</span>
+        <div className="pane-header"><strong title={name ?? role}>{name ?? role}</strong>
+          {name && <span>{role}</span>}
+          <button ref={menuButton} className="pane-menu-trigger" aria-label="窗格菜单" aria-haspopup="menu" aria-expanded={Boolean(menu)} disabled={acting || closing}
+            onClick={event => { if (menu) dismissMenu(); else { const rect = event.currentTarget.getBoundingClientRect(); openMenu(rect.left, rect.bottom); } }}>⋯</button><span>{shell ? 'zsh' : snapshot?.launch?.cli_version ?? '读取中'}</span>
           <span className="readonly">{inputEnabled ? '可输入' : '只读'}</span>
           <span className="input-target">{inputTarget ? `正在输入：${role}` : shell && pane?.lifecycle === 'ended' ? '终端已结束 · 只读' : historical ? '历史 attempt · 只读' : '终端未聚焦'}</span>
           <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : shell
             ? lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
           <button disabled={!inputEnabled} onClick={() => terminal?.focus()}>进入终端</button>
-          <button disabled={closing} onClick={() => {
-            setClosing(true); setCloseError(null);
-            void window.a2a.closePane(paneKey).then(() => onClose(paneKey)).catch(error => {
-              setCloseError('关闭窗格未确认：' + String(error)); setClosing(false);
-            });
-          }}>关闭窗格</button>
-          {!shell && <button disabled={!snapshot?.input_enabled || !pane?.interrupted || !declarationReady || releasing || Boolean(inputError || error)}
+          <button disabled={closing || acting} onClick={closePane}>关闭窗格</button>
+          {!shell && snapshot?.launch?.role !== 'reviewer' && <button disabled={!snapshot?.input_enabled || !pane?.interrupted || !declarationReady || releasing || Boolean(inputError || error)}
             onClick={() => releaseQueue.current()}>输入框已空，放行</button>}
           <span className="pane-identity">{snapshot?.launch ?
-            shell ? `${snapshot.launch.project} · ${snapshot.launch.worktree ?? ''}` :
+            shell ? `${snapshot.launch.project ?? '独立终端'} · ${snapshot.launch.worktree ?? ''}` :
               `${snapshot.launch.role}${snapshot.launch.preset ? '/' + snapshot.launch.preset : ''} · task ${task?.task_id} · launch ${snapshot.launch.id}${snapshot.launch.attempt ? ' · attempt ' + snapshot.launch.attempt : ''}`
             : '尚未启动窗格'}</span>
         </div>
+        {menu && <div ref={menuRef} className="pane-menu" role="menu" aria-label="窗格操作" style={{ left: menu.x, top: menu.y }} onKeyDown={event => {
+          const items = [...menuRef.current!.querySelectorAll<HTMLButtonElement>('button')];
+          const index = items.indexOf(document.activeElement as HTMLButtonElement);
+          if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+            event.preventDefault();
+            items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+          } else if (event.key === 'Escape' || event.key === 'Tab') { if (event.key === 'Escape') event.preventDefault(); dismissMenu(); }
+        }}>
+          <button role="menuitem" onClick={() => { setDraftName(name ?? role); setRenaming(true); setMenu(null); }}>重命名窗格</button>
+          <button role="menuitem" onClick={() => void act({ type: 'split', direction: 'right' })}>向右分屏</button>
+          <button role="menuitem" onClick={() => void act({ type: 'split', direction: 'down' })}>向下分屏</button>
+          <button role="menuitem" onClick={() => { onZoom(); dismissMenu(); }}>{zoomed ? '还原' : '放大'}</button>
+          <button role="menuitemcheckbox" aria-checked={forwardRightClick} onClick={() => { setForwardRightClick(value => !value); dismissMenu(); }}>{forwardRightClick ? '✓ ' : ''}把右键发给窗格</button>
+          <button role="menuitem" disabled={closing} onClick={closePane}>关闭窗格</button>
+        </div>}
+        {renaming && <form className="pane-rename" onSubmit={event => { event.preventDefault(); void act({ type: 'rename', name: draftName }); }}>
+          <label>窗格名称 <input ref={renameInput} maxLength={100} value={draftName} onChange={event => setDraftName(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setRenaming(false); menuButton.current?.focus(); } }} /></label>
+          <button disabled={acting || !draftName.trim()}>保存名称</button><button type="button" onClick={() => { setRenaming(false); menuButton.current?.focus(); }}>取消</button>
+        </form>}
         <div className="terminal-scroll" data-output-offset={offset}><div className="terminal-mount" ref={mount} /></div>
         <TerminalScrollToBottom terminal={terminal} />
-        <div className="pane-footer"><span>{shell ? '项目终端 · zsh' : pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'
-          : snapshot?.launch?.role === 'worker' ? '在此窗格输入会记录为人工介入' : '在此窗格输入会记录为用户输入'}</span><span data-lifecycle={pane?.lifecycle ?? 'unknown'}>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>
+        <div className="pane-footer"><span>{shell ? '普通终端 · zsh' : pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'
+          : snapshot?.launch?.role === 'reviewer' ? '独立审查 · 只读' : snapshot?.launch?.role === 'worker' ? '在此窗格输入会记录为人工介入' : '在此窗格输入会记录为用户输入'}</span><span data-lifecycle={pane?.lifecycle ?? 'unknown'}>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>
       </section>;
+}
+
+function paneRects(tree: Layout | null, x = 0, y = 0, w = 100, h = 100): Record<string, { x: number; y: number; w: number; h: number }> {
+  if (!tree) return {};
+  if (typeof tree === 'string') return { [tree]: { x, y, w, h } };
+  return tree.direction === 'right'
+    ? { ...paneRects(tree.first, x, y, w / 2, h), ...paneRects(tree.second, x + w / 2, y, w / 2, h) }
+    : { ...paneRects(tree.first, x, y, w, h / 2), ...paneRects(tree.second, x, y + h / 2, w, h / 2) };
 }
 
 function Workbench() {
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
   const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
+  const [layout, setLayout] = useState<Layout | null>(null);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [zoom, setZoom] = useState<string | null>(null);
+  const [directorySource, setDirectorySource] = useState('home');
   const [selectedTask, setSelectedTask] = useState<Snapshot['task'] | null>(null);
+  useEffect(() => { if (!selectedTask && directorySource === 'project') setDirectorySource('home'); }, [selectedTask, directorySource]);
   const [projects, setProjects] = useState<(ProjectItem & { tasks: TaskItem[] })[]>([]);
   const [loading, setLoading] = useState(true);
   const [navigating, setNavigating] = useState(false);
@@ -230,7 +312,7 @@ function Workbench() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const applySelection = useCallback((value: Selection) => {
-    setSelectedTask(value.task); setPaneKeys(value.paneKeys); setStatuses({});
+    setSelectedTask(value.task); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); setStatuses({});
   }, []);
   const refresh = useCallback(async () => {
     setLoading(true); setCatalogError(null);
@@ -240,32 +322,33 @@ function Workbench() {
       if (current.task && !catalog.some(project => project.tasks.some(task => task.task_id === current.task!.task_id))) {
         applySelection(await window.a2a.selectTask(null));
       } else {
-        setSelectedTask(current.task); setPaneKeys(current.paneKeys);
+        setSelectedTask(current.task); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
       }
       setProjects(catalog);
     } catch (error) { setCatalogError('读取项目与任务失败：' + String(error)); }
     finally { setLoading(false); }
   }, [applySelection]);
   useEffect(() => { void refresh(); }, [refresh]);
-  const selectTask = async (task: string) => {
-    if (navigating || loading || creating || task === selectedTask?.task_id) return;
+  const selectTask = async (task: string | null) => {
+    if (navigating || loading || creating || task === (selectedTask?.task_id ?? null)) return;
     setNavigating(true); setNavigationError(null);
     try { applySelection(await window.a2a.selectTask(task)); }
     catch (error) { setNavigationError('切换任务失败：' + String(error)); }
     finally { setNavigating(false); }
   };
   const newTerminal = async () => {
-    if (creating || navigating || loading || !selectedTask) return;
+    if (creating || navigating || loading) return;
     setCreating(true); setTerminalError(null);
     try {
-      const value = await window.a2a.newTerminal();
-      setSelectedTask(value.task); setPaneKeys(value.paneKeys);
+      const value = await window.a2a.newTerminal(directorySource);
+      setSelectedTask(value.task); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null);
       setStatuses(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => value.paneKeys.includes(key))));
     } catch (error) { setTerminalError('新建终端未确认：' + String(error)); }
     finally { setCreating(false); }
   };
-  const onClose = useCallback((key: string) => {
-    setPaneKeys(previous => previous.filter(value => value !== key));
+  const onClose = useCallback((key: string, value: Selection) => {
+    setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names);
+    setZoom(value => value === key ? null : value);
     setStatuses(previous => { const next = { ...previous }; delete next[key]; return next; });
   }, []);
   const onStatus = useCallback((key: string, status: PaneStatus) => {
@@ -282,6 +365,7 @@ function Workbench() {
         <button disabled={loading || navigating || creating} onClick={() => void refresh()}>刷新列表</button></div>
       <div className="catalog-status" role="status">{loading ? '正在读取列表…' : catalogError ? '列表未更新' : `${projects.length} 个项目`}</div>
       {catalogError && <p className="catalog-error" role="alert">{catalogError}</p>}
+      <button className="free-terminals" aria-current={!selectedTask ? "page" : undefined} disabled={loading || navigating || creating} onClick={() => void selectTask(null)}>独立终端</button>
       <nav className="project-list" aria-label="项目与任务" aria-busy={loading}>
         {projects.map(project => <details className="project-group" key={project.project_id} open>
           <summary className="project-name" data-project-id={project.project_id}>{project.project_id}</summary>
@@ -294,26 +378,35 @@ function Workbench() {
           </li>)}</ul>
           {!project.tasks.length && <p className="catalog-status">这个项目还没有任务。</p>}
         </details>)}
-        {!loading && !catalogError && !projects.length && <p className="catalog-status">还没有项目。请先通过编排后台创建项目中的任务，再刷新列表。</p>}
+        {!loading && !catalogError && !projects.length && <p className="catalog-status">还没有项目。你可以先打开独立终端。</p>}
       </nav>
       <div className="sidebar-footer">原生 CLI · 本地编排</div>
     </aside>
     <main>
       <header className="task-header">
-        <div><div className="eyebrow">{task ? `${task.project_id} / ${task.task_id}` : '项目 / 任务'}</div><h1>{task?.title ?? (loading ? '正在读取项目' : '选择任务')}</h1></div>
+        <div><div className="eyebrow">{task ? `${task.project_id} / ${task.task_id}` : '终端工作区'}</div><h1>{task?.title ?? (loading ? '正在读取项目' : '独立终端')}</h1></div>
         <span className={'connection ' + (error || catalogError ? 'warning' : '')}>{navigating ? '正在切换任务' : loading ? '正在读取后台' : catalogError ? '列表未更新' : error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
       </header>
       {navigationError && <div className="connection-error" role="alert">{navigationError}</div>}
       <div className="pane-toolbar">
-        <span role="status">{creating ? '正在创建终端…' : task ? '终端在项目目录中打开' : '选择任务后，可在项目目录打开终端'}</span>
-        <button disabled={!selectedTask || loading || navigating || creating} onClick={() => void newTerminal()}>新建终端</button>
+        <span role="status">{creating ? '正在创建终端…' : '新建或分屏，打开你自己的 zsh'}</span>
+        <label className="directory-choice">工作目录 <select aria-label="终端工作目录" value={directorySource} onChange={event => setDirectorySource(event.target.value)}>
+          <option value="home">家目录</option>{selectedTask && <option value="project">项目目录</option>}<option value="choose">选择目录…</option>
+        </select></label>
+        <button disabled={loading || navigating || creating} onClick={() => void newTerminal()}>新建终端</button>
       </div>
       {terminalError && <div className="connection-error" role="alert">{terminalError}</div>}
-      <div className={'pane-grid' + (paneKeys.length > 1 ? ' multi' : '') + (states.some(value => value.snapshot?.launch?.role === 'shell') ? ' with-shell' : '')} aria-label="任务会话">
-        {!navigating && paneKeys.map(key => <SessionPane key={key} paneKey={key} onStatus={onStatus} onClose={onClose} />)}
+      <div className="pane-grid pane-layout" aria-label="终端窗格">
+        {!navigating && paneKeys.map(key => {
+          const rect = zoom === key ? { x: 0, y: 0, w: 100, h: 100 } : paneRects(layout)[key] ?? { x: 0, y: 0, w: 100, h: 100 };
+          return <div className="pane-slot" key={key} hidden={Boolean(zoom && zoom !== key)} style={{ left: rect.x + '%', top: rect.y + '%', width: rect.w + '%', height: rect.h + '%' }}>
+            <SessionPane paneKey={key} name={names[key]} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
+              onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
+          </div>;
+        })}
         {navigating ? <p className="selection-hint" role="status">正在切换任务…</p> : !task && !paneKeys.length
-          ? <div className="selection-hint"><h2>{!loading && !catalogError && !projects.length ? '还没有项目' : '从左侧选择任务'}</h2>
-            <p>{!loading && !catalogError && !projects.length ? '请先通过编排后台创建项目中的任务，再刷新列表。' : '选择项目下的任务，查看它的会话和门禁状态。'}</p></div>
+          ? <div className="selection-hint"><h2>{!loading && !catalogError && !projects.length ? '打开第一个终端' : '打开终端或选择任务'}</h2>
+            <p>{!loading && !catalogError && !projects.length ? '点击“新建终端”，无需先创建项目。' : '选择项目下的任务，查看它的会话和门禁状态。'}</p></div>
           : !paneKeys.length && <p className="selection-hint">当前任务没有打开的窗格。</p>}
       </div>
       {task && <section className="gate" aria-label="门禁状态">
