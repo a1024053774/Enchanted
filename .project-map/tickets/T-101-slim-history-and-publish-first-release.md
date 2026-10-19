@@ -39,3 +39,9 @@ ready_rev: 1
 执行主控 needs-decision：远端 origin main 已有旧历史 a96a040d3（private，2026-10-11 推送），改写后 push 需 force。用户选项逐字："A force 覆盖远端 (Recommended)"，选项原文："用 --force-with-lease 把瘦身后的历史覆盖到 origin main。远端旧历史不再可见(GitHub 上仍可能短期缓存)。仓库是你自己的 private 仓库,最直接,仓库地址不变。"
 
 据此：允许对 `origin` 的 main 用 `--force-with-lease=main:a96a040d3`（锁定远端当前值，远端若已变则停下上报）。仍只推 main 一次；其余停下条件不变。
+
+## 裁定（2026-10-19，凭据扫描）
+
+执行主控 needs-decision（收件箱 `20261019T082941Z-executor-needs-decision-001`）：413 处命中，379 测试假值、5 文档占位、28 标识符误报，未确认真实密钥；H005 在一份 Codex 原生会话记录的加密字段里，无法判断；仓库跟踪 23 份 rollout-*.jsonl（含对话正文）。用户选项逐字："B 豁免包括 H005,保留会话记录"，选项原文："同样豁免,H005 也豁免,23 份会话记录留在公开历史里。对话正文会被公开,且 H005 是不明内容。"
+
+据此：假值、占位、误报、H005 都按对象哈希加 offset 精确豁免，23 份会话记录保留在历史里；豁免清单与 H005 的位置存证据。其余停下条件不变。用户知情选择公开这些对话正文，Resolution 里要写明。
