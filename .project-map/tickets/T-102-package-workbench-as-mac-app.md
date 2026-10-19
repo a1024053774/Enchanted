@@ -3,7 +3,7 @@ id: T-102
 title: 工作台打包成可双击的 macOS 应用并安装到 /Applications
 type: build
 status: open
-blocked_by: []
+blocked_by: [T-103, T-104]
 claimed_by:
 supersedes:
 ready: yes
@@ -36,3 +36,9 @@ ready_rev: 1
 ## 不做
 
 - 不做自动更新、公证、安装器、跨平台。不动门禁语义。
+
+## 裁定（2026-10-19）
+
+执行主控 needs-decision 报告缺项目/任务选择页与普通 zsh 窗格。用户选项逐字："A 先补功能再打包"，选项原文："先做项目/任务选择页和普通 zsh 窗格两个切片，再打包。体验的包更完整，但你要等更久。"
+
+据此新开 [T-103](T-103-workbench-project-task-picker.md)、[T-104](T-104-workbench-plain-shell-pane.md)，本票 `blocked_by` 二者；二者合入后再做打包，并在本票内接上"界面自启后台"（`transport.ts:73` 已有脱离进程组的后台启动器，界面调用它）。
