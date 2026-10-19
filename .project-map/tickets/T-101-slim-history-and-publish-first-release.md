@@ -33,3 +33,9 @@ ready_rev: 1
 
 - push 已由 T-097 的用户决定授权，范围仅限上面一次。
 - 与 T-102（打包）并行；本票不碰 `workbench/` 源码，只可能碰仓库根的 LICENSE、README。
+
+## 裁定（2026-10-19，force push）
+
+执行主控 needs-decision：远端 origin main 已有旧历史 a96a040d3（private，2026-10-11 推送），改写后 push 需 force。用户选项逐字："A force 覆盖远端 (Recommended)"，选项原文："用 --force-with-lease 把瘦身后的历史覆盖到 origin main。远端旧历史不再可见(GitHub 上仍可能短期缓存)。仓库是你自己的 private 仓库,最直接,仓库地址不变。"
+
+据此：允许对 `origin` 的 main 用 `--force-with-lease=main:a96a040d3`（锁定远端当前值，远端若已变则停下上报）。仍只推 main 一次；其余停下条件不变。
