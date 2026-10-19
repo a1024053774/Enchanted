@@ -180,6 +180,12 @@ export async function serve(
           (encoding === "binary" && [...input.data].some(char => char.charCodeAt(0) > 255)))) throw new Refusal("invalid_terminal_input");
       if (record.role === "shell") {
         if (input.command === "window_composition") return { ok: true, observed: true, written: false };
+        if (input.command === "window_observation") {
+          if (input.type !== "focus-mode-intercept" || typeof input.raw_sequence !== "string" || input.raw_sequence.length > 4096) {
+            throw new Refusal("invalid_window_observation");
+          }
+          return { ok: true, observed: true, written: false };
+        }
         if (input.command !== "window_input") throw new Refusal("shell_input_only");
         await panes.shellInput(record.id, input.data, encoding, async () => {
           if (windows.get(window.id) !== window) throw new Refusal("invalid_window_identity");

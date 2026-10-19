@@ -16,8 +16,9 @@ type Snapshot = {
   window_id?: string;
   task: { task_id: string; title: string; project_id: string; repo: string; state: string;
     current_attempt: { attempt_id: string; state: string } | null; candidate_commit: string | null;
-    verification: { state: string } | null; integration_intent: { state: string } | null };
-  launch: { id: string; thread: string; attempt: string | null; role: string; preset: string | null; cli_version: string; model_requested: string } | null;
+    verification: { state: string } | null; integration_intent: { state: string } | null } | null;
+  launch: { id: string; project: string; worktree?: string; thread: string; attempt: string | null; role: string;
+    preset: string | null; cli_version: string; model_requested: string } | null;
   pane: { launch: string; state: string; lifecycle: string; state_source: string; historical?: boolean; failed: string | null;
     restoration?: { status: string; error: string | null; details: string | null } | null;
     interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
@@ -29,6 +30,7 @@ type Selection = { task: Snapshot['task'] | null; paneKeys: string[] };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
+  newTerminal(): Promise<Selection>;
   snapshot(key: string): Promise<Snapshot>; output(key: string, offset: number): Promise<Chunk>;
   closePane(key: string): Promise<{ ok: boolean }>;
   input(key: string, data: string, encoding?: 'utf8' | 'binary'): Promise<void>; beginComposition(key: string): Promise<void>;
@@ -171,9 +173,10 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
   const task = snapshot?.task;
   const pane = snapshot?.pane;
   const historical = Boolean(snapshot?.launch?.attempt && task?.current_attempt?.attempt_id !== snapshot.launch.attempt);
+  const shell = snapshot?.launch?.role === 'shell';
   const role = snapshot?.launch?.role === 'controller'
     ? snapshot.launch.preset === 'ideation' ? '构思主控' : snapshot.launch.preset === 'executor' ? '执行主控' : '主控 · 角色未确认'
-    : snapshot?.launch?.role === 'worker' ? '受管 worker' : snapshot?.launch?.role ?? '窗格';
+    : shell ? '普通终端' : snapshot?.launch?.role === 'worker' ? '受管 worker' : snapshot?.launch?.role ?? '窗格';
   const inputEnabled = Boolean(snapshot?.input_enabled && !inputError && !error);
   const inputTarget = keyboardFocused && inputEnabled;
   return <section className={'pane' + (inputTarget ? ' pane-focused' : '')} aria-label={role + '交互终端'}
@@ -189,10 +192,11 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
         {pane?.restoration?.status === 'failed' && <div className="connection-error" role="alert">未恢复：{restoreErrors[pane.restoration.error ?? ''] ?? pane.restoration.error}。启动记录已保留。</div>}
         {closeError && <div className="connection-error" role="alert">{closeError}</div>}
         {pane?.restoration?.status === 'pending' && <div className="connection-error" role="status">正在恢复原生会话…</div>}
-        <div className="pane-header"><strong>{role}</strong><span>{snapshot?.launch?.cli_version ?? '读取中'}</span>
+        <div className="pane-header"><strong>{role}</strong><span>{shell ? 'zsh' : snapshot?.launch?.cli_version ?? '读取中'}</span>
           <span className="readonly">{inputEnabled ? '可输入' : '只读'}</span>
-          <span className="input-target">{inputTarget ? `正在输入：${role}` : historical ? '历史 attempt · 只读' : '终端未聚焦'}</span>
-          <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
+          <span className="input-target">{inputTarget ? `正在输入：${role}` : shell && pane?.lifecycle === 'ended' ? '终端已结束 · 只读' : historical ? '历史 attempt · 只读' : '终端未聚焦'}</span>
+          <span className="pane-state" data-state={error ? 'unknown' : pane?.state ?? 'unknown'}>{error ? '未知' : shell
+            ? lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知' : activityNames[pane?.state ?? 'unknown'] ?? '未知'}</span>
           <button disabled={!inputEnabled} onClick={() => terminal?.focus()}>进入终端</button>
           <button disabled={closing} onClick={() => {
             setClosing(true); setCloseError(null);
@@ -200,15 +204,16 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
               setCloseError('关闭窗格未确认：' + String(error)); setClosing(false);
             });
           }}>关闭窗格</button>
-          <button disabled={!snapshot?.input_enabled || !pane?.interrupted || !declarationReady || releasing || Boolean(inputError || error)}
-            onClick={() => releaseQueue.current()}>输入框已空，放行</button>
+          {!shell && <button disabled={!snapshot?.input_enabled || !pane?.interrupted || !declarationReady || releasing || Boolean(inputError || error)}
+            onClick={() => releaseQueue.current()}>输入框已空，放行</button>}
           <span className="pane-identity">{snapshot?.launch ?
-            `${snapshot.launch.role}${snapshot.launch.preset ? '/' + snapshot.launch.preset : ''} · task ${task?.task_id} · launch ${snapshot.launch.id}${snapshot.launch.attempt ? ' · attempt ' + snapshot.launch.attempt : ''}`
+            shell ? `${snapshot.launch.project} · ${snapshot.launch.worktree ?? ''}` :
+              `${snapshot.launch.role}${snapshot.launch.preset ? '/' + snapshot.launch.preset : ''} · task ${task?.task_id} · launch ${snapshot.launch.id}${snapshot.launch.attempt ? ' · attempt ' + snapshot.launch.attempt : ''}`
             : '尚未启动窗格'}</span>
         </div>
         <div className="terminal-scroll" data-output-offset={offset}><div className="terminal-mount" ref={mount} /></div>
         <TerminalScrollToBottom terminal={terminal} />
-        <div className="pane-footer"><span>{pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'
+        <div className="pane-footer"><span>{shell ? '项目终端 · zsh' : pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'
           : snapshot?.launch?.role === 'worker' ? '在此窗格输入会记录为人工介入' : '在此窗格输入会记录为用户输入'}</span><span data-lifecycle={pane?.lifecycle ?? 'unknown'}>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>
       </section>;
 }
@@ -220,6 +225,8 @@ function Workbench() {
   const [projects, setProjects] = useState<(ProjectItem & { tasks: TaskItem[] })[]>([]);
   const [loading, setLoading] = useState(true);
   const [navigating, setNavigating] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [terminalError, setTerminalError] = useState<string | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const applySelection = useCallback((value: Selection) => {
@@ -241,11 +248,21 @@ function Workbench() {
   }, [applySelection]);
   useEffect(() => { void refresh(); }, [refresh]);
   const selectTask = async (task: string) => {
-    if (navigating || loading || task === selectedTask?.task_id) return;
+    if (navigating || loading || creating || task === selectedTask?.task_id) return;
     setNavigating(true); setNavigationError(null);
     try { applySelection(await window.a2a.selectTask(task)); }
     catch (error) { setNavigationError('切换任务失败：' + String(error)); }
     finally { setNavigating(false); }
+  };
+  const newTerminal = async () => {
+    if (creating || navigating || loading || !selectedTask) return;
+    setCreating(true); setTerminalError(null);
+    try {
+      const value = await window.a2a.newTerminal();
+      setSelectedTask(value.task); setPaneKeys(value.paneKeys);
+      setStatuses(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => value.paneKeys.includes(key))));
+    } catch (error) { setTerminalError('新建终端未确认：' + String(error)); }
+    finally { setCreating(false); }
   };
   const onClose = useCallback((key: string) => {
     setPaneKeys(previous => previous.filter(value => value !== key));
@@ -262,14 +279,14 @@ function Workbench() {
     <aside className="sidebar">
       <div className="brand">a2a <span>工作台</span></div>
       <div className="catalog-heading"><span className="nav-label">项目与任务</span>
-        <button disabled={loading || navigating} onClick={() => void refresh()}>刷新列表</button></div>
+        <button disabled={loading || navigating || creating} onClick={() => void refresh()}>刷新列表</button></div>
       <div className="catalog-status" role="status">{loading ? '正在读取列表…' : catalogError ? '列表未更新' : `${projects.length} 个项目`}</div>
       {catalogError && <p className="catalog-error" role="alert">{catalogError}</p>}
       <nav className="project-list" aria-label="项目与任务" aria-busy={loading}>
         {projects.map(project => <details className="project-group" key={project.project_id} open>
           <summary className="project-name" data-project-id={project.project_id}>{project.project_id}</summary>
           <ul>{project.tasks.map(item => <li key={item.task_id}>
-            <button className="task-row" data-task-option={item.task_id} disabled={loading || navigating}
+            <button className="task-row" data-task-option={item.task_id} disabled={loading || navigating || creating}
               aria-current={task?.task_id === item.task_id ? 'page' : undefined} onClick={() => void selectTask(item.task_id)}>
               <span className="task-title">{item.title}</span>
               <span className="task-meta"><span>{item.task_id}</span><span>{gateNames[item.state] ?? item.state}</span></span>
@@ -287,7 +304,12 @@ function Workbench() {
         <span className={'connection ' + (error || catalogError ? 'warning' : '')}>{navigating ? '正在切换任务' : loading ? '正在读取后台' : catalogError ? '列表未更新' : error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
       </header>
       {navigationError && <div className="connection-error" role="alert">{navigationError}</div>}
-      <div className={'pane-grid' + (paneKeys.length > 1 ? ' multi' : '')} aria-label="任务会话">
+      <div className="pane-toolbar">
+        <span role="status">{creating ? '正在创建终端…' : task ? '终端在项目目录中打开' : '选择任务后，可在项目目录打开终端'}</span>
+        <button disabled={!selectedTask || loading || navigating || creating} onClick={() => void newTerminal()}>新建终端</button>
+      </div>
+      {terminalError && <div className="connection-error" role="alert">{terminalError}</div>}
+      <div className={'pane-grid' + (paneKeys.length > 1 ? ' multi' : '') + (states.some(value => value.snapshot?.launch?.role === 'shell') ? ' with-shell' : '')} aria-label="任务会话">
         {!navigating && paneKeys.map(key => <SessionPane key={key} paneKey={key} onStatus={onStatus} onClose={onClose} />)}
         {navigating ? <p className="selection-hint" role="status">正在切换任务…</p> : !task && !paneKeys.length
           ? <div className="selection-hint"><h2>{!loading && !catalogError && !projects.length ? '还没有项目' : '从左侧选择任务'}</h2>

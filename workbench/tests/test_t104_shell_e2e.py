@@ -204,6 +204,10 @@ def main():
         wait_for(lambda: nonce in output_lines(first), '输入没有送到真实 PTY')
         assert send(first, nonce, encoding='invalid')['error'] == 'invalid_terminal_input'
         assert request('window_input', dict(first['identity'], token='invalid'), data=nonce)['error'] == 'invalid_window_identity'
+        first['seq'] += 1
+        observation = request('window_observation', first['identity'], sequence=first['seq'], request_id=str(uuid.uuid4()),
+                              type='focus-mode-intercept', raw_sequence='\x1b[?1004h'+nonce)
+        assert observation['ok'] and observation['written'] is False, '终端控制观察不得使普通 shell 输入失败'
         checkpoint = 'close_children'
         assert send(first, "/bin/sleep 300 &\r")['ok']
         time.sleep(.1)
