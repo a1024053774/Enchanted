@@ -204,8 +204,11 @@ def main():
         checkpoint = 'shell_io'
         second = open_shell('t104-beta', other_cwd)
         marker = 'stdout-' + uuid.uuid4().hex
-        assert send(first, f"printf '\\n%s\\n' '{marker}'; pwd; print -r -- LOGIN=$options[login],INTERACTIVE=$options[interactive],RC=$T104_LOGIN_RC; /usr/bin/env | /usr/bin/grep '^A2A_'\r")['ok']
-        lines = wait_for(lambda: (lambda rows: rows if str(cwd) in rows and 'LOGIN=on,INTERACTIVE=on,RC=loaded' in rows else None)(output_lines(first)), 'zsh 未执行 pwd 或登录配置')
+        completion = 'complete-' + uuid.uuid4().hex
+        assert send(first, f"printf '\\n%s\\n' '{marker}'; pwd; print -r -- LOGIN=$options[login],INTERACTIVE=$options[interactive],RC=$T104_LOGIN_RC; /usr/bin/env | /usr/bin/grep '^A2A_'; printf '\\n%s\\n' '{completion}'\r")['ok']
+        lines = wait_for(lambda: (lambda rows: rows if completion in rows else None)(output_lines(first)), 'zsh 环境读回未完成')
+        assert str(cwd) in lines
+        assert 'LOGIN=on,INTERACTIVE=on,RC=loaded' in lines
         assert marker in lines
         assert [line for line in lines if line.startswith('A2A_')] == ['A2A_PROJECT=t104-alpha']
         assert request('pane_layout', project='t104-alpha')['panes'][0]['launch'] == first['record']['id']

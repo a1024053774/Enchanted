@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "scope": "解析与等待的确定性重放；真实后台连续两次重跑尚未运行",
+  "base": "45c127b5af03bfdc50802579bda50b88a98dc2c7",
+  "checks": [
+    "旧谓词在738字节真实前缀提前满足",
+    "新谓词等待env之后的标记",
+    "命令回显不算完成",
+    "不完整标记不算完成",
+    "完整读回通过原精确断言",
+    "额外A2A变量仍被原断言拒绝"
+  ],
+  "candidate_diff": "diff --git a/workbench/tests/test_t104_shell_e2e.py b/workbench/tests/test_t104_shell_e2e.py\nindex c7fa5ba6c..dabac9609 100644\n--- a/workbench/tests/test_t104_shell_e2e.py\n+++ b/workbench/tests/test_t104_shell_e2e.py\n@@ -204,8 +204,11 @@ def main():\n         checkpoint = 'shell_io'\n         second = open_shell('t104-beta', other_cwd)\n         marker = 'stdout-' + uuid.uuid4().hex\n-        assert send(first, f\"printf '\\\\n%s\\\\n' '{marker}'; pwd; print -r -- LOGIN=$options[login],INTERACTIVE=$options[interactive],RC=$T104_LOGIN_RC; /usr/bin/env | /usr/bin/grep '^A2A_'\\r\")['ok']\n-        lines = wait_for(lambda: (lambda rows: rows if str(cwd) in rows and 'LOGIN=on,INTERACTIVE=on,RC=loaded' in rows else None)(output_lines(first)), 'zsh 未执行 pwd 或登录配置')\n+        completion = 'complete-' + uuid.uuid4().hex\n+        assert send(first, f\"printf '\\\\n%s\\\\n' '{marker}'; pwd; print -r -- LOGIN=$options[login],INTERACTIVE=$options[interactive],RC=$T104_LOGIN_RC; /usr/bin/env | /usr/bin/grep '^A2A_'; printf '\\\\n%s\\\\n' '{completion}'\\r\")['ok']\n+        lines = wait_for(lambda: (lambda rows: rows if completion in rows else None)(output_lines(first)), 'zsh 环境读回未完成')\n+        assert str(cwd) in lines\n+        assert 'LOGIN=on,INTERACTIVE=on,RC=loaded' in lines\n         assert marker in lines\n         assert [line for line in lines if line.startswith('A2A_')] == ['A2A_PROJECT=t104-alpha']\n         assert request('pane_layout', project='t104-alpha')['panes'][0]['launch'] == first['record']['id']\n"
+}
