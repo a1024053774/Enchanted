@@ -1,95 +1,66 @@
 # a2a
 
-a2a 研究怎样让多 agent 协作不依赖模型持续记住操作手册。
+a2a 是面向 macOS 的多 agent 协作工作台。它在交互终端里运行 Claude Code 和 Codex，按“项目 → 任务 → agent 会话”组织工作，由常驻编排后台托管终端、门禁和记录。关闭工作台窗口后，后台与 agent 可以继续运行。
 
-第三阶段（2026-10-10 起）：各家原生 CLI 以交互终端运行，a2a 只做编排、门禁与记录；工作台是本仓库里的轻量 Electron 应用，按“项目 → 任务 → agent 会话”组织，借用 Synara 的前端组件与样式。Synara 的 fork（[`a1024053774/synara`](https://github.com/a1024053774/synara)）只作组件来源，不再跟进上游；门禁会从 fork 抽进工作台的编排后台，抽出之前仍以下面的 fork 入口为准。目标与切换条件见 [intent.md](intent.md)，设计见 [spec](.project-map/specs/native-cli-orchestration-2026-10-10.md)。
+项目研究怎样让协作流程不依赖模型持续记住操作手册：任务卡定义边界与完成条件；认领、交付、验收、集成与回收经过同一门禁；交付绑定 attempt、session、fence、规格版本与完整提交号。模型自述完成不能代替验收。门禁是同一用户下可信协作者的流程约束，worktree 和会话身份不构成安全沙箱。
 
-旧运行源码与 Rust 构建入口已删除，历史实现保存在 Git 历史和日期证据中。第二阶段基于 fork 的工作台（启动器与专用数据目录见 fork 的 `a2a/WORKBENCH.md`）不再发展；第一次经门禁的真实派发由 T-046 在其上跑通（2026-10-09）。用户认为新工作台可用之前，日常派发仍经 Herdr（见 AGENTS.md）。
+## 当前状态
 
-文档入口：[项目地图](.project-map/MAP.md)、[术语表](CONTEXT.md)、[项目规则](AGENTS.md)、[开发发现](findings/README.md)。
+这是开发中的初版。工作台使用 Electron、React、xterm.js 和 node-pty；门禁核心位于本仓库的 `workbench/src/gates/`，命令行入口为 `workbench/src/gates/cli.ts`。前端复用了 Synara 的组件与样式，保留其 MIT 许可声明。
 
-主控分为构思主控与执行主控（2026-10-09 起）：分工、用户输入记录和问题上报的设计见 [spec](.project-map/specs/controller-split-user-input-2026-10-09.md)。本文里无前缀的“主控”指执行主控。
+当前只面向 macOS，首批 CLI 为 Claude Code 与 Codex。多个窗格、用户输入记录、问题面板、主控收件箱和恢复流程各有自己的验证边界；完整双主控协作、正常登录恢复与日常使用切换仍有未完成项。日常派发目前继续使用 Herdr，切换条件以 [intent.md](intent.md) 和[项目地图](.project-map/MAP.md)为准。已发布代码不代表用户已确认工作台“可用”，也不代表已证明长期可靠性、吞吐或成本收益。
 
-## 原生门禁入口
+详细入口与限制见 [工作台说明](workbench/README.md)。正常登录主控不会在后台重启时自动续接，worker 窗格也不会自动恢复执行；它们保留为“未恢复”，由执行主控按恢复流程处理。
 
-门禁核心位于相邻 checkout `../synara/packages/a2a-gates/`。需要已安装依赖的 fork 和挂载的 `/Volumes/WD-Elements`；Bun、Node、缓存与构建统一经 fork 的 `a2a/scripts/bun`。缺盘时入口报错，不回退到内置盘。构建与环境约束见 [T-034](.project-map/tickets/T-034-synara-fork-builds.md)。
+## 环境与安装依赖
 
-本仓库的 `acceptance/entry/a2a_gates.py` 原样转交 CLI 参数，用 `os.execv` 进入 fork 的原生 CLI，不包含门禁业务逻辑。所有业务状态变更仍由同一门禁核心负责。冻结契约见 [受管交付](.project-map/specs/managed-delivery-2026-10-06.md)、[恢复](.project-map/specs/recovery-2026-10-06.md) 和 [自动运行](.project-map/specs/supervised-run-2026-10-06.md)。
+需要 Git、Python 3、Node.js `>=26.5.0 <27` 和 npm。使用对应 CLI 时，另需本机已安装并可登录的官方 Claude Code 或 Codex。版本与依赖以 [package.json](workbench/package.json) 和锁文件为准。
 
-这是同一用户下可信协作者的流程门禁。worktree、随机 session 和 oracle 快照不是安全沙箱。门禁不更新用户工作分支，也不 push。
-
-## 本地交付与恢复
-
-从 a2a 仓库调用 `python3 acceptance/entry/a2a_gates.py --state ABS_DIR COMMAND ...`。state、repo、oracle、instructions 必须是绝对路径，commit 使用完整 SHA。成功输出 `ok=true`，退出 0；业务拒绝输出 `ok=false,error`，退出 1；语法错误退出 2。
+依赖缓存、Electron 下载、构建缓存和产物放在真实挂载的 `/Volumes/WD-Elements`。未挂载时安装与构建报错，不回退到内置盘。源码和工作台数据目录放内置盘。安装依赖：
 
 ```sh
-python3 acceptance/entry/a2a_gates.py --state /absolute/state create \
-  --task example --repo /absolute/git-repo --base FULL_BASE_SHA \
-  --oracle /absolute/oracle.py --instructions /absolute/instructions.txt
-python3 acceptance/entry/a2a_gates.py --state /absolute/state claim \
-  --task example --owner worker
-python3 acceptance/entry/a2a_gates.py --state /absolute/state submit \
-  --task example --attempt ATTEMPT_ID --session SESSION_ID --fence FENCE \
-  --spec-rev SPEC_REV --commit FULL_CANDIDATE_SHA
-python3 acceptance/entry/a2a_gates.py --state /absolute/state verify \
-  --task example --attempt ATTEMPT_ID
-python3 acceptance/entry/a2a_gates.py --state /absolute/state integrate \
-  --task example --attempt ATTEMPT_ID
-python3 acceptance/entry/a2a_gates.py --state /absolute/state status --task example
-python3 acceptance/entry/a2a_gates.py --state /absolute/state events --task example
+cd workbench
+python3 -c 'import os; assert os.path.ismount("/Volumes/WD-Elements"), "外置盘未挂载"'
+electron_config_cache=/Volumes/WD-Elements/a2a-electron-cache npm ci --cache /Volumes/WD-Elements/a2a-t075-npm-cache
+npm ls --depth=0
+cd ..
 ```
 
-`create` 冻结 oracle 和 instructions；受管集成引用为 `refs/a2a/integration`。后续任务以该引用的完整提交号作为 base。`claim` 原子分配 attempt、session_id、fence、spec_rev，并创建独立 detached worktree。worker 只在返回的 workspace 中工作和提交，保持 worktree 干净，再交付 claim 返回的精确身份。
+## 构建与运行
 
-`submit` 只进入 submitted，不代表通过。旧身份、脏 worktree、HEAD 不匹配或替换已冻结候选会被拒绝。`verify` 在新的 detached worktree 中完整执行冻结的独立 oracle，退出 0 才进入 verified。`integrate` 记录 intent 后用 Git CAS 更新受管引用；成功后独立回读确认，重复调用不再写引用。
-
-验收、集成与回收共用任务操作锁。竞争调用返回 `operation_busy`；进程退出释放锁不代表验收成功。中断后再次调用原 `verify` / `integrate`：验收使用新的 verification 和 worktree 重跑，集成只恢复原 intent。受管引用变成第三值或被删除时返回 `needs_reconciliation`，保留现场，由主控核对。旧输出、退出码和未知结果不会补写成成功。
-
-`verify`、`integrate` 的 `--attempt` 在事务边界核对当前身份，accepted 的幂等返回也先核对。撤销和规格修订保留历史、候选与 worktree：
+从仓库根目录构建；每次使用新的 `--slot` 名称，已有槽不会被覆盖：
 
 ```sh
-python3 acceptance/entry/a2a_gates.py --state /absolute/state revoke \
-  --task example --reason 'retry after diagnosis'
-python3 acceptance/entry/a2a_gates.py --state /absolute/state revise \
-  --task example --spec-rev 2
+npm --prefix workbench run build -- --slot local-01
 ```
 
-真实验收条件改变仍需主控决定；accepted 或尚未核对的 integration intent 不能撤销。
+输出位于 `/Volumes/WD-Elements/a2a-workbench/local-01/dist`。不要移动共享 checkout 的构建目录，也不要在构建输出中放指向源码或依赖的链接。
 
-## 工作台派发与自动运行
-
-带原生 agent 会话的 `dispatch`、`run`、`reclaim` 经运行中的 Synara 服务调用，使用该服务自己的门禁状态目录。不能把本地 `--state` 调用当作已经接入原生 thread 服务。CLI 的 HTTP 传输示例（服务 URL、owner 凭据和 task 必须来自主控核对的当前实例）：
+启动交互 agent 前，需要按[工作台说明](workbench/README.md)准备隔离状态目录、启动配置与任务卡，并通过门禁创建任务、启动会话。后台命令入口如下；`launch.json` 的字段与权限要求见该说明：
 
 ```sh
-../synara/a2a/scripts/bun ../synara/packages/a2a-gates/src/cli.ts \
-  http://127.0.0.1:PORT \
-  '{"command":"run","task":"example","runtimeMode":"approval-required","wait_seconds":300}'
+node workbench/src/gates/cli.ts --state /绝对路径/state daemon_start --launch-config /绝对路径/launch.json
+node workbench/src/gates/cli.ts --state /绝对路径/state status --task 任务编号
 ```
 
-调用时环境中须有 `A2A_GATE_BEARER`。MCP 的 `a2a_submit` 与 HTTP、CLI 一样汇入同一门禁核心；受管 worker 通过 MCP 显式交付。主控使用的专用工作台启动器和 CLI 包装见 T-040 其余部分的交付。
-
-`run` 自动分派，等待其原 attempt 的显式 submit，再验收、集成、停止并归档自己的 agent 会话。必须显式给出正整数 `wait_seconds`；它只约束投递后等待 submit 的阶段，不是整个 run 的总期限。空闲、结束或模型自述不会交付。活跃 run 互斥；旧 run 不会接管替换 attempt。权限等待、身份冲突、未知外部副作用会暂停并保留现场，不自动回答或重发。
-
-原生运行身份核对 thread、turn 与 worktree。回收带指定 attempt 时只处理该任务绑定的历史会话，不能撤销或回收新执行者。成功收据要求 task 为 accepted 且自己的会话已回收；收据记录协调结果，不替代业务验收。受管会话中的人工输入记录为人工介入；记录故障可从 status/events 和界面核对，并阻止进一步状态变更。
-
-## Herdr worker 启动
-
-Herdr 期从主控 shell 使用 `scripts/launch-worker` 启动受管 worker。启动前检查本次 pane 的前台进程组：只有 shell 本身、没有前台子进程的采样必须连续稳定 1500 毫秒，采样启动间隔目标为 100 毫秒；查询本身耗时较长时，实际间隔会相应增加。任一采样不满足条件就重新计算稳定窗口，总期限仍为 30 秒，不随重计时延长。
-
-稳定窗口是就绪判据，不保证 shell 初始化已经完成：初始化中途若空闲超过 1500 毫秒，或子进程只在相邻采样之间运行，仍可能误判。超时会记录最后一次成功采样的前台 argv，报错并保留 pane；后续 `agent_pane_busy` 同样保存诊断、退出并留给主控处理，不重试启动。不向 pane 写回执命令，不修改用户的 zsh 配置或 Herdr。
-
-## 隔离验收与证据
-
-三个套件分别保持交付 8、恢复 9、编排 18 项。真实 CLI、Git、SQLite、独立分页 oracle 保留；编排的原生 thread 服务是外部替身，不能证明真实 provider、模型、实际服务 tier 或长期收益。
-
-在 fork `d3b5bcc61cc212572f38e01139e1b9af2196b820` 与外置盘挂载时，从 a2a 根目录执行下面的记录入口。每次 label 必须全新；命令、版本、完整输出、trace 与临时 Git/worktree 现场保存在独立目录，不覆盖旧记录。
+窗口连接已有后台和任务。启动环境须已持有该后台对应的 `A2A_OPERATOR_CREDENTIAL`，不要将凭据写入仓库、命令记录或截图。下面命令只读取已有构建，不自动启动后台或 agent：
 
 ```sh
-python3 -B evidence/2026-10-08-batch4/T-040-A/run-check.py UNIQUE_DELIVERY candidate delivery
-python3 -B evidence/2026-10-08-batch4/T-040-A/run-check.py UNIQUE_RECOVERY candidate recovery
-python3 -B evidence/2026-10-08-batch4/T-040-A/run-check.py UNIQUE_RUN candidate run
+node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
 ```
 
-`acceptance/test_coop_e2e.py` 默认选择原生门禁入口；恢复的中断注入仍核对本次创建的 Popen PID、原生 CLI 路径、state 和 task。直接调用恢复 suite 时，环境中的 `COOP_NATIVE_ENTRY` 须为 fork 内 `packages/a2a-gates/src/cli.ts` 的绝对路径。编排 suite 默认使用 `acceptance/entry/native-entry.py` 的受控 thread 边界；同目录的 TypeScript 转接器只把外部 thread 服务替换为夹具。
+可重复传入 `--launch 启动记录号` 选择同一任务的多个会话。验证时使用自己新建的隔离状态和 UI 目录，避免操作日常数据。a2a 不写用户的 `~/.claude` 或 `~/.codex` 全局配置；会话权限与钩子经启动参数传入。
 
-本次删除前后结果与不存在入口的反例见 [T-040 A](evidence/2026-10-08-batch4/T-040-A/RESULTS.md)。原生移植记录见 [T-036](evidence/2026-10-07-synara-batch1/T-036/RESULTS.md)、[T-037](evidence/2026-10-07-synara-batch2/T-037/RESULTS.md)；真实模型闭环见 [T-039](evidence/2026-10-07-synara-batch2/T-039/RESULTS.md)。各证据只证明其绑定的代码版本和范围。
+## 文档与证据
+
+- [项目地图](.project-map/MAP.md)：当前决定、ticket、规格与文档索引。
+- [intent.md](intent.md)：当前阶段目标、非目标和切换条件。
+- [CONTEXT.md](CONTEXT.md)：统一术语。
+- [AGENTS.md](AGENTS.md)：仓库协作与验收规则。
+- [工作台说明](workbench/README.md)：命令、配置、恢复与已知限制。
+
+仓库保存文本摘要、命令脚本、小输入与 `*.archive.json` 清单。原始 run/fixtures、大文件和数据库归档在 `/Volumes/WD-Elements/a2a-evidence/`，这些本机原始证据不随 Git 克隆分发；缺少外置盘时，不能据此宣称完成了原始证据重放。历史瘦身产生的旧→新提交映射在实际改写后写入 `records/`，用于查阅旧报告、提交尾注和启动记录引用；映射表不自动改写含旧哈希的命令。
+
+## 许可
+
+项目以 [GNU GPL 第 3 版](LICENSE)发布。Synara 复用部分保留 [MIT 版权与许可声明](workbench/LICENSE.synara)。
