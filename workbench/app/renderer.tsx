@@ -32,6 +32,10 @@ type Selection = { task: Snapshot['task'] | null; paneKeys: string[]; layout: La
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
+  creationRepository(): Promise<{ repo: string; branch: string; card: Record<string, any> } | null>;
+  creationSubmit(input: { task: string; project: string; title: string; branch: string; card: string }): Promise<{
+    ok: boolean; task?: { task_id: string }; error?: string; details?: unknown; stage?: string; persisted: boolean }>;
+  creationCancel(): Promise<{ ok: boolean; persisted: boolean }>;
   newTerminal(source?: string): Promise<Selection>;
   paneAction(key: string, action: { type: string; direction?: string; name?: string }): Promise<Selection>;
   resize(key: string, cols: number, rows: number): Promise<void>;
@@ -295,6 +299,83 @@ function paneRects(tree: Layout | null, x = 0, y = 0, w = 100, h = 100): Record<
     : { ...paneRects(tree.first, x, y, w, h / 2), ...paneRects(tree.second, x, y + h / 2, w, h / 2) };
 }
 
+function CreationForm({ project, onClose, onCreated }: { project: string; onClose: () => void; onCreated: (task: string) => Promise<void> }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [projectName, setProjectName] = useState(project);
+  const [repo, setRepo] = useState('');
+  const [taskId, setTaskId] = useState('');
+  const [branch, setBranch] = useState('');
+  const [title, setTitle] = useState('');
+  const [goal, setGoal] = useState('');
+  const [command, setCommand] = useState('');
+  const [remaining, setRemaining] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [persisted, setPersisted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { dialog.current?.showModal(); }, []);
+  const choose = async () => {
+    setBusy(true); setError(null);
+    try {
+      const value = await window.a2a.creationRepository();
+      if (!value) return;
+      setRepo(value.repo); setBranch(value.branch); setTaskId(value.card.id);
+      const { goal: _goal, completion_conditions: _commands, ...fields } = value.card;
+      setRemaining(JSON.stringify({ ...fields, non_goals: ['不修改目标以外的功能'], paths: { allow: ['.'], deny: ['.git/'] },
+        oracle_paths: ['tests/'], executor: { cli: 'Codex', model: 'gpt-6.1-sol', effort: 'xhigh' } }, null, 2));
+    } catch (failure) { setError('选择仓库失败：' + String(failure)); }
+    finally { setBusy(false); }
+  };
+  const close = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await window.a2a.creationCancel(); onClose(); }
+    catch (failure) { setError('关闭表单未确认：' + String(failure)); setBusy(false); }
+  };
+  const submit = async () => {
+    if (busy || persisted) return;
+    setBusy(true); setError(null);
+    try {
+      const fields = JSON.parse(remaining);
+      const card = { ...fields, goal, completion_conditions: [{ argv: JSON.parse(command) }] };
+      const result = await window.a2a.creationSubmit({ task: typeof card.id === 'string' ? card.id : taskId,
+        project: projectName, title, branch, card: JSON.stringify(card) });
+      setPersisted(result.persisted);
+      if (!result.ok) {
+        setError(`门禁拒收或注册未确认（${result.stage}）：${result.error}\n${JSON.stringify(result.details ?? null, null, 2)}`);
+        return;
+      }
+      await onCreated(result.task!.task_id);
+    } catch (failure) { setError('表单未提交或结果未确认：' + String(failure)); }
+    finally { setBusy(false); }
+  };
+  return <dialog ref={dialog} className="creation-dialog" aria-labelledby="creation-title" onCancel={event => { event.preventDefault(); void close(); }}>
+    <form className="creation-form" onSubmit={event => { event.preventDefault(); void submit(); }} aria-busy={busy}>
+      <h2 id="creation-title">新建项目与任务</h2>
+      <p>项目随首个任务一起注册，成功后出现在左侧列表。取消草稿不会创建项目或任务。不启动主控，不调用模型。</p>
+      <fieldset disabled={busy || persisted}>
+        <legend>项目</legend>
+        <label>项目名字（项目号）<input data-creation-field="project" required maxLength={128} pattern="[A-Za-z0-9](?:[A-Za-z0-9_.]|-){0,127}" value={projectName} onChange={event => setProjectName(event.target.value)} placeholder="my-project" /></label>
+        <small>名字用作列表中的项目号；以英文字母或数字开头，可含点、下划线和短横线，最多 128 字符。</small>
+        <div className="repository-choice"><button type="button" onClick={() => void choose()}>选择仓库目录…</button><output data-creation-repo>{repo || '请选择已有 Git 仓库的根目录'}</output></div>
+        <label>工作分支<input data-creation-field="branch" required pattern="refs/heads/.+" value={branch} onChange={event => setBranch(event.target.value)} placeholder="refs/heads/main" /></label>
+      </fieldset>
+      <fieldset disabled={busy || persisted}>
+        <legend>任务</legend>
+        <label>标题<input data-creation-field="title" required maxLength={240} value={title} onChange={event => setTitle(event.target.value)} /></label>
+        <label>目标<textarea data-creation-field="goal" required rows={2} value={goal} onChange={event => setGoal(event.target.value)} /></label>
+        <label>完成条件命令<textarea data-creation-field="command" required rows={2} value={command} onChange={event => setCommand(event.target.value)} placeholder={'["python3", "tests/check.py"]'} /></label>
+        <small>填写一条 JSON 参数数组，命令须可执行；注册时只校验格式，验收时才运行。</small>
+        <label>其余任务卡字段（JSON，可修改）<textarea data-creation-field="card" required rows={15} spellCheck={false} value={remaining} onChange={event => setRemaining(event.target.value)} /></label>
+        <small>默认允许修改整个仓库，验收文件为 tests/；请按实际任务修改 paths 和 oracle_paths。source 无 ticket 时为 null；base_commit、writer 由门禁在认领时填写，注册时须为 null。</small>
+      </fieldset>
+      {error && <pre className="creation-error" role="alert">{error}</pre>}
+      {persisted && <p role="status">注册已开始，任务卡可能已经保存。已保存的记录会保留，请核对门禁状态；本表单不会自动重试。</p>}
+      <div className="creation-actions"><button type="button" disabled={busy} onClick={() => void close()}>{persisted ? '关闭表单（保留已保存记录）' : '取消'}</button>
+        <button disabled={busy || persisted || !repo}>{busy ? '正在处理…' : '确认并注册任务'}</button></div>
+    </form>
+  </dialog>;
+}
+
 function Workbench() {
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
   const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
@@ -311,6 +392,7 @@ function Workbench() {
   const [terminalError, setTerminalError] = useState<string | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [navigationError, setNavigationError] = useState<string | null>(null);
+  const [creationProject, setCreationProject] = useState<string | null>(null);
   const applySelection = useCallback((value: Selection) => {
     setSelectedTask(value.task); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); setStatuses({});
   }, []);
@@ -364,11 +446,13 @@ function Workbench() {
       <div className="catalog-heading"><span className="nav-label">项目与任务</span>
         <button disabled={loading || navigating || creating} onClick={() => void refresh()}>刷新列表</button></div>
       <div className="catalog-status" role="status">{loading ? '正在读取列表…' : catalogError ? '列表未更新' : `${projects.length} 个项目`}</div>
+      <button className="create-project" disabled={loading || navigating || creating} onClick={() => setCreationProject('')}>新建项目与任务</button>
       {catalogError && <p className="catalog-error" role="alert">{catalogError}</p>}
       <button className="free-terminals" aria-current={!selectedTask ? "page" : undefined} disabled={loading || navigating || creating} onClick={() => void selectTask(null)}>独立终端</button>
       <nav className="project-list" aria-label="项目与任务" aria-busy={loading}>
         {projects.map(project => <details className="project-group" key={project.project_id} open>
           <summary className="project-name" data-project-id={project.project_id}>{project.project_id}</summary>
+          <button className="create-task" disabled={loading || navigating || creating} onClick={() => setCreationProject(project.project_id)}>新建任务</button>
           <ul>{project.tasks.map(item => <li key={item.task_id}>
             <button className="task-row" data-task-option={item.task_id} disabled={loading || navigating || creating}
               aria-current={task?.task_id === item.task_id ? 'page' : undefined} onClick={() => void selectTask(item.task_id)}>
@@ -378,7 +462,7 @@ function Workbench() {
           </li>)}</ul>
           {!project.tasks.length && <p className="catalog-status">这个项目还没有任务。</p>}
         </details>)}
-        {!loading && !catalogError && !projects.length && <p className="catalog-status">还没有项目。你可以先打开独立终端。</p>}
+        {!loading && !catalogError && !projects.length && <p className="catalog-status">还没有项目。新建首个任务后，项目会一起出现在这里；也可以先打开独立终端。</p>}
       </nav>
       <div className="sidebar-footer">原生 CLI · 本地编排</div>
     </aside>
@@ -417,6 +501,11 @@ function Workbench() {
           <div><dt>集成</dt><dd>{task?.integration_intent?.state ?? '尚未开始'}</dd></div></dl>
       </section>}
     </main>
+    {creationProject !== null && <CreationForm project={creationProject} onClose={() => setCreationProject(null)} onCreated={async task => {
+      setCreationProject(null); await refresh();
+      try { applySelection(await window.a2a.selectTask(task)); }
+      catch (failure) { setNavigationError('任务已注册，切换失败：' + String(failure)); }
+    }} />}
   </div>;
 }
 createRoot(document.getElementById('root')!).render(<Workbench />);

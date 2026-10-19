@@ -30,7 +30,7 @@ const electron={app,BrowserWindow:Window,ipcMain:{handle:(name,fn)=>handlers.set
 const ctx=vm.createContext({process,console,Buffer});
 const module=new vm.SourceTextModule(stripTypeScriptTypes(readFileSync(source,'utf8')),{context:ctx,initializeImportMeta:m=>m.url=new URL('../app/main.ts',import.meta.url).href});
 await module.link(async spec=>{
-  const exports=spec==='electron'?electron:spec==='../src/transport.ts'?{request}:spec==='../src/credentials.ts'?{readOperatorCredential:()=>({kind:'operator'})}:spec==='node:fs'?{mkdirSync(){}}:await import(spec);
+  const exports=spec==='electron'?electron:spec==='../src/transport.ts'?{request}:spec==='../src/credentials.ts'?{readOperatorCredential:()=>({kind:'operator'})}:spec==='node:fs'?{...await import('node:fs'),mkdirSync(){}}:await import(spec);
   return new vm.SyntheticModule(Object.keys(exports),function(){for(const [k,v]of Object.entries(exports))this.setExport(k,v);},{context:ctx});
 });
 await module.evaluate();
