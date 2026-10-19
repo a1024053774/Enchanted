@@ -340,32 +340,28 @@ K 按该 attempt 已记录的审查意图递增，同 C 的有效审查复用不
 
 ```sh
 cd workbench
-python3 -c 'import os; assert os.path.ismount("/Volumes/WD-Elements"), "外置盘未挂载"'
-electron_config_cache=/Volumes/WD-Elements/a2a-electron-cache npm ci --cache /Volumes/WD-Elements/a2a-t075-npm-cache
+npm ci
 npm ls --depth=0
 ```
 
-缓存由本目录 `.npmrc` 指向外置盘；安装前检查挂载与缓存位置，失败就退出。
+本目录 `.npmrc` 把 npm 缓存放在内置盘 `~/Library/Caches/a2a-workbench/npm`。
 `node_modules` 是本目录中的普通目录。依赖锁定 `effect@4.0.0-beta.25`；来源预览包
 改为 npm 官方包是执行主控的决定，记录见本批证据 `controller-decision-01.md`。
 
 Electron 43.4.1 的 npm 包已没有 postinstall 下载；npm ci 成功不代表其二进制已安装。
-启动测试前显式运行已安装包的 `install.js`，把 `electron_config_cache` 指向外置盘，
-并核对 `path.txt`、`dist/version` 与可执行文件。T-103 的
-[独立安装脚本](../evidence/2026-10-19-batch17/T-103/RUN-OUTSIDE-04-ELECTRON.sh)
-接受 workbench 绝对路径与新的外置盘记录目录，保存版本、命令、权限检查与磁盘占用；
-只对内置盘的 Electron 安装目录使用，不改变 package.json、锁文件或全局 npm 配置。
+开发启动前显式运行 `node node_modules/electron/install.js`，使用默认的内置盘
+`~/Library/Caches/electron` 下载缓存，并核对 `path.txt`、`dist/version` 与可执行文件。
+打包时 Packager 自己下载 Electron，无需先安装开发用二进制。
 
 本机已知限制（2026-10-19）：Electron 43.4.1 放在 USB 外置盘（APFS、Owners Disabled）
 执行时，连不加载产品的版本探针也可能挂起。相同版本在内置盘能立即返回；这是当前
 环境的执行限制，不外推为所有 APFS 或 USB 磁盘的问题。Electron 二进制一律从内置盘
-执行，外置盘仍用于基线源码与依赖、构建槽、npm 缓存和 Electron 下载缓存。
+执行；当前构建与缓存也全部使用内置盘。
 测试基线可用 Electron 包已有的 `ELECTRON_OVERRIDE_DIST_PATH` 显式指定同版本内置盘
 dist；平台路径元数据须完整，不能依赖外置盘上的 Electron.app。T-103 的红态、绿态
 共用一个内置盘二进制，并核对实际进程回报的路径与版本。
 
-打包产物先安装到内置盘 `/Applications/a2a.app` 再运行；外置盘保留产物与缓存，
-不直接运行盘上的 `.app`。
+打包产物可由调用方另行安装到 `/Applications/a2a.app`。
 
 另锁定官方 `node-pty@1.1.0`。本次 darwin-arm64 预编译包使用 `--ignore-scripts` 安装时，
 `prebuilds/darwin-arm64/spawn-helper` 曾缺执行位，已由执行主控手工改为 755。
@@ -381,11 +377,14 @@ cd workbench
 npm run package:mac -- --slot mac-新的编号
 ```
 
-构建要求 `/Volumes/WD-Elements` 真实挂载；npm 缓存、Electron 下载、头文件、Vite 缓存、
-临时文件与 `.app` 均放外置盘。已有槽不复用，失败现场保留。后台源码、钩子与唯一门禁
-CLI 保持原路径；node-pty 针对 Electron 43.4.1 从源码重建，打包时把新 helper 设为 755。
+构建目录为 `os.tmpdir()/a2a-build-<槽名>`，不依赖外置盘。npm 与 Electron 缓存位置见上文，
+可复用的 Electron 头文件放在 `~/Library/Caches/a2a-workbench/electron-gyp`。
+UI 构建、stage、重建与临时文件集中在本次构建目录的 `work/`；打包、签名核对成功后
+自动清理 `work/`，目录里只保留 `a2a.app`。已有槽不复用，失败时保留现场。
+后台源码、钩子与唯一门禁 CLI 保持原路径；node-pty 针对 Electron 43.4.1 从源码重建，
+打包时把新 helper 设为 755。
 Packager 裁剪构建依赖，并以 ad-hoc 签名；不公证、不启用 hardened runtime、不使用 ASAR。
-输出最后一行及槽内 `package.json` 给出 `.app` 路径、体积、重建命令和签名方式。
+输出最后一行给出 `.app` 路径、体积、重建命令和签名方式，不额外写构建报告。
 
 安装到 `/Applications/a2a.app` 后双击即可。界面自动调用现有 detached 启动器，以同一
 Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外置盘或外部 Node。
@@ -401,11 +400,7 @@ Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外
 
 隔离体验可用 `open /Applications/a2a.app --args --state /绝对路径/state --user-data /绝对路径/ui`。
 标准 `--remote-debugging-port` 只供显式调试使用；正常双击不开启端口，应用没有默认端口
-或自动开启代码。T-102 验收脚本显式使用随机 loopback 端口观察真实界面，关闭界面后随之退出。
-测试没有替应用启动后台，不调用模型，不写用户全局配置。
-
-本轮安装与真实入口复现命令见
-[T-102 / a2 记录](../evidence/2026-10-19-batch17/T-102/RESULTS-a2.md)。
+或自动开启代码，显式调试的端口随界面退出。
 
 ## 运行时边界
 
@@ -642,15 +637,15 @@ UserPromptSubmit 对活动注入与实际 prompt 逐字核对，拼接或中间�
 保持顺序交给 xterm。每次拦截记原始序列。CLI 因此收不到工作台窗口的焦点变化。
 P1 与首个候选的四项输入合同已经通过；其余失败方式和当前扩展后的候选仍待复验。
 
-构建必须在外置盘真实挂载后进行，每次使用一个尚未存在的构建槽：
+开发构建每次使用一个尚未存在的临时构建槽，命令输出 JSON 中的 `out` 为启动路径：
 
 ```sh
 npm --prefix workbench run build -- --slot local-01
 # 不指定任务时，先选择已有项目下的任务
-node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --user-data /绝对路径/ui
-node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
+node workbench/app/start.mjs --build /构建输出中的out路径 --state /绝对路径/state --user-data /绝对路径/ui
+node workbench/app/start.mjs --build /构建输出中的out路径 --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
 # 同一任务三格（身份取自已有启动记录）
-node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --launch 构思主控launch --launch 执行主控launch --launch 当前workerlaunch --user-data /绝对路径/ui
+node workbench/app/start.mjs --build /构建输出中的out路径 --state /绝对路径/state --task 任务编号 --launch 构思主控launch --launch 执行主控launch --launch 当前workerlaunch --user-data /绝对路径/ui
 ```
 
 左侧按项目列出当前门禁库中的任务，显示任务编号、标题与门禁状态。点击任务切换
@@ -671,9 +666,9 @@ node workbench/src/gates/cli.ts --state /绝对路径/state tasks_list --project
 Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main
 进程中读取，并用于领取窄的窗口输入凭据，不传给 preload 或 renderer。
 
-缓存、构建临时目录和 dist 都在外置盘；没有内置盘回退。`A2A_BUILD_VOLUME` 可指定
-验收用的检查路径，普通目录和符号链接不能通过挂载检查。已有构建槽不会覆盖；不要在
-输出目录中放源码或依赖链接。启动只读取已有构建产物，不自动构建、装包或启动后台。
+Vite 缓存、临时目录和 dist 都在 `os.tmpdir()/a2a-build-<槽名>` 中；独立开发构建的产物
+保留供 `start.mjs` 使用。打包命令只清理自己创建的中间产物。已有槽不会覆盖；不要在
+输出目录中放源码或依赖链接。开发启动只读取已有构建产物，不自动构建、装包或启动后台。
 
 默认后台目录为 `~/Library/Application Support/a2a-orchestrator`，默认 Electron 数据位于其
 `ui/` 子目录。验证时同时显式指定后台与 UI 的 `/tmp` 隔离目录。
