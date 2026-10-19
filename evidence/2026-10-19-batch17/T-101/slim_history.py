@@ -144,6 +144,34 @@ def backup(run):
     print('PASS 备份与对象数核对；原件未修改，副本不得清理')
 
 
+def trial_backup(run):
+    """活跃开发期只固定已提交 refs；不是供替换使用的完整原仓库备份。"""
+    require(git(SOURCE, 'symbolic-ref', 'HEAD').strip() == b'refs/heads/main', '主仓库须停在 main')
+    require(not run.exists(), 'run 已存在；改用新 run id')
+    run.mkdir(parents=True)
+    before = stable_snapshot(SOURCE)
+    git(SOURCE, 'bundle', 'create', str(run / 'all.bundle'), '--all')
+    git(SOURCE, 'bundle', 'verify', str(run / 'all.bundle'))
+    heads = [line.split() for line in git(run, 'bundle', 'list-heads', str(run / 'all.bundle')).decode().splitlines()]
+    git(run, 'clone', '--mirror', '--no-local', str(run / 'all.bundle'), str(run / 'repository'))
+    frozen = run / 'repository'
+    # bundle 中具名 refs 是本次真正固定的边界；不把复制期间的 live refs 当作快照。
+    expected_refs = sorted(ref + ' ' + oid for oid, ref in heads if ref.startswith('refs/'))
+    require(refs(frozen) == expected_refs, 'bundle 与试跑副本 refs 不符')
+    git(frozen, 'symbolic-ref', 'HEAD', 'refs/heads/main')
+    snapshot = {'refs': refs(frozen), 'head': git(frozen, 'rev-parse', 'HEAD').decode().strip(),
+                'worktrees': before['worktrees'], 'worktrees_scope': '仅观察，未复制或冻结这些工作区'}
+    after = stable_snapshot(SOURCE)
+    save(run / 'snapshot.json', snapshot)
+    save(run / 'trial-observations.json', {'status': 'INCOMPLETE', 'before': before, 'after': after,
+                                         'live_changed': before != after,
+                                         'note': '允许 live refs、dirty 日志和活跃 worktree 前进；只处理 bundle 固定的提交'})
+    save(run / 'backup.json', {'status': 'INCOMPLETE', 'mode': 'trial', 'snapshot': snapshot,
+                              'objects': object_count(frozen), 'copies': {},
+                              'note': '仅已提交 refs 的 bundle 与独立 mirror；不复制 dirty 文件/完整目录，不满足正式备份验收。禁止 04/05/06。'})
+    print('INCOMPLETE 试跑提交快照已固定；未触碰 dirty 原件，不能用于正式替换')
+
+
 def history_versions(repo):
     """raw diff 包含每个历史路径的每个 blob 版本；不只取 rev-list 的首个路径名。"""
     process = subprocess.Popen(['git', '-C', str(repo), 'log', '--all', '--root', '-m', '--format=',
@@ -208,7 +236,7 @@ def summary(path):
 
 def plan(run):
     backup_info = read(run / 'backup.json')
-    require(backup_info['status'] == 'PASS', '备份未通过')
+    require(backup_info['status'] == 'PASS' or backup_info.get('mode') == 'trial', '备份未通过')
     repo = run / 'repository'
     versions = history_versions(repo)
     object_sizes = sizes(repo, {oid for row in versions.values() for oid in row})
@@ -426,22 +454,29 @@ def scan(repo, report):
 
 
 def old_hash_commands(work, mapping):
+    from migrate_hashes import eligible, replace_literals
     hits = []
-    for path in work.rglob('*'):
-        if path.is_file() and not path.is_symlink() and '.git' not in path.parts and path.suffix in ('.py', '.ts', '.mjs', '.js', '.sh'):
-            for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
-                if 'git' not in line or ('show' not in line and 'checkout' not in line):
-                    continue
-                for token in re.findall(r'(?<![0-9a-f])[0-9a-f]{7,40}(?![0-9a-f])', line):
-                    values = [new for old, new in mapping.items() if old.startswith(token)]
-                    if len(values) == 1 and not values[0].startswith(token):
-                        hits.append({'path': path.relative_to(work).as_posix(), 'line': number, 'old': token, 'new': values[0]})
+    for name in git(work, 'ls-files', '-z').split(b'\0'):
+        if not name:
+            continue
+        path = name.decode('utf-8')
+        if eligible(path):
+            raw = (work / path).read_bytes()
+            _, edits = replace_literals(raw, mapping)
+            for edit in edits:
+                hits.append({'path': path, 'line': raw[:edit['offset']].count(b'\n') + 1,
+                             'old': edit['old_literal'], 'new': edit['new_commit']})
     return hits
 
 
 def verify(run):
+    require(read(run / 'backup.json').get('mode') != 'trial', '试跑 run 不能进入 04；正式全员静止后用新 run 重做完整备份')
+    from migrate_hashes import eligible, read_mapping, replace_literals
     work = run / 'prepared'
     require(not git(work, 'status', '--porcelain'), '候选尚有未提交文件；先审查并提交')
+    migration = read(run / 'hash-migration.json')
+    require(migration['status'] == 'PASS', '03b 哈希迁移与同套件对照未通过')
+    mapping = read_mapping(run / 'candidate.git/filter-repo/commit-map')
     data = read(run / 'plan.json')
     versions = history_versions(work)
     require(not (data['remove'].keys() & versions.keys()), '归档路径仍存在保留历史中')
@@ -452,11 +487,16 @@ def verify(run):
             require(path in new, '保留输入/摘要缺失：' + path)
             if not path.endswith('.md'):
                 require(old[path] == new[path], '保留输入内容改变：' + path)
-    # 所有非 evidence 的代码/验收输入必须保持原 blob，避免过滤范围泄漏。
+    # 除主控 #7 授权的机械哈希迁移，所有代码/验收输入仍必须保持原 blob。
     for path, row in old.items():
         if not path.startswith(('evidence/', 'records/')) and not path.endswith('.md'):
-            require(new.get(path) == row, '源码/输入被意外改写：' + path)
-    mapping = dict(line.split() for line in (run / 'candidate.git/filter-repo/commit-map').read_text().splitlines()[1:])
+            if eligible(path) and new.get(path) != row:
+                require(path in new and new[path]['mode'] == row['mode'], '迁移不能改变调用方类型/模式：' + path)
+                expected, edits = replace_literals(git(run / 'repository', 'cat-file', 'blob', row['oid']), mapping)
+                require(edits and git(work, 'cat-file', 'blob', new[path]['oid']) == expected,
+                        '源码差异超出哈希字面量迁移：' + path)
+            else:
+                require(new.get(path) == row, '源码/输入被意外改写：' + path)
     require(len(mapping) >= 5 and all(int(v, 16) for v in mapping.values()), '映射缺失或提交被删除')
     random_sample = random.SystemRandom().sample(sorted(mapping), 5)
     for oid in random_sample:
@@ -466,7 +506,7 @@ def verify(run):
     parallel = []
     for line in read(run / 'snapshot.json')['refs']:
         ref, old_oid = line.split()
-        if ref in ('refs/heads/exec/t101', 'refs/heads/exec/t102'):
+        if ref.startswith('refs/heads/exec/'):
             require(old_oid in mapping and new_refs.get(ref) == mapping[old_oid], '并行分支未按映射表保留：' + ref)
             parallel.append({'ref': ref, 'old': old_oid, 'new': mapping[old_oid]})
     save(run / 'parallel-ref-map.json', parallel)
@@ -504,12 +544,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('phase', choices=['backup', 'plan', 'rewrite', 'verify'])
     parser.add_argument('run_id')
+    parser.add_argument('--trial', action='store_true', help='仅 backup：固定已提交 refs，允许 live 开发，不生成正式备份')
     args = parser.parse_args()
     require(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,63}', args.run_id), 'run id 不合法')
     mounted(VOLUME)
     no_links(BASE / args.run_id)
     no_links(ARCHIVES / args.run_id)
-    globals()[args.phase](BASE / args.run_id)
+    require(not args.trial or args.phase == 'backup', '--trial 只用于 01 backup')
+    (trial_backup if args.trial else globals()[args.phase])(BASE / args.run_id)
 
 
 if __name__ == '__main__':

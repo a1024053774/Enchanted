@@ -14,6 +14,7 @@ from slim_history import (ARCHIVES, BASE, HERE, REMOTE, SOURCE, VOLUME, mounted,
 
 
 def clean_gate(run):
+    require(read(run / 'backup.json').get('mode') != 'trial', '试跑 run 禁止替换或发布；正式运行必须重做完整备份')
     verified = read(run / 'verified.json')
     work = run / 'prepared'
     require(verified['status'] == 'PASS' and verified['head'] == git(work, 'rev-parse', 'HEAD').decode().strip()
@@ -34,7 +35,8 @@ def install(run):
     staged = subprocess.run(['git', '-C', str(SOURCE), 'diff', '--cached', '--quiet'], capture_output=True)
     require(staged.returncode == 0, '主仓库有已暂存内容；停止，不重置人工暂存状态')
     # 并行交付必须先经原门禁集成；不能由替换脚本替代门禁或 cherry-pick 新提交。
-    for branch in ('exec/t101', 'exec/t102'):
+    branches = {row['branch'] for row in snapshot['worktrees'].values() if row['branch'].startswith('refs/heads/exec/')}
+    for branch in sorted(branches):
         result = subprocess.run(['git', '-C', str(SOURCE), 'merge-base', '--is-ancestor', branch, 'main'], capture_output=True)
         require(result.returncode == 0, branch + ' 尚未集成 main；停止，不丢弃并行提交')
     work = run / 'prepared'
