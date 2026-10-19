@@ -34,8 +34,8 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   creationRepository(): Promise<{ repo: string; branch: string; card: Record<string, any> } | null>;
   creationSubmit(input: { task: string; project: string; title: string; branch: string; card: string }): Promise<{
-    ok: boolean; task?: { task_id: string }; error?: string; details?: unknown; stage?: string; persisted: boolean }>;
-  creationCancel(): Promise<{ ok: boolean; persisted: boolean }>;
+    ok: boolean; task?: { task_id: string }; error?: string; details?: unknown; stage?: string; persisted: boolean | 'unknown' }>;
+  creationCancel(): Promise<{ ok: boolean; persisted: boolean | 'unknown' }>;
   newTerminal(source?: string): Promise<Selection>;
   paneAction(key: string, action: { type: string; direction?: string; name?: string }): Promise<Selection>;
   resize(key: string, cols: number, rows: number): Promise<void>;
@@ -310,7 +310,7 @@ function CreationForm({ project, onClose, onCreated }: { project: string; onClos
   const [command, setCommand] = useState('');
   const [remaining, setRemaining] = useState('');
   const [busy, setBusy] = useState(false);
-  const [persisted, setPersisted] = useState(false);
+  const [persisted, setPersisted] = useState<boolean | 'unknown'>(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { dialog.current?.showModal(); }, []);
   const choose = async () => {
@@ -326,7 +326,7 @@ function CreationForm({ project, onClose, onCreated }: { project: string; onClos
     finally { setBusy(false); }
   };
   const close = async () => {
-    if (busy) return;
+    if (busy || persisted === 'unknown') return;
     setBusy(true);
     try { await window.a2a.creationCancel(); onClose(); }
     catch (failure) { setError('关闭表单未确认：' + String(failure)); setBusy(false); }
@@ -334,9 +334,11 @@ function CreationForm({ project, onClose, onCreated }: { project: string; onClos
   const submit = async () => {
     if (busy || persisted) return;
     setBusy(true); setError(null);
+    let submitted = false;
     try {
       const fields = JSON.parse(remaining);
       const card = { ...fields, goal, completion_conditions: [{ argv: JSON.parse(command) }] };
+      submitted = true;
       const result = await window.a2a.creationSubmit({ task: typeof card.id === 'string' ? card.id : taskId,
         project: projectName, title, branch, card: JSON.stringify(card) });
       setPersisted(result.persisted);
@@ -345,21 +347,24 @@ function CreationForm({ project, onClose, onCreated }: { project: string; onClos
         return;
       }
       await onCreated(result.task!.task_id);
-    } catch (failure) { setError('表单未提交或结果未确认：' + String(failure)); }
+    } catch (failure) {
+      if (submitted) setPersisted('unknown');
+      setError('表单未提交或结果未确认：' + String(failure));
+    }
     finally { setBusy(false); }
   };
   return <dialog ref={dialog} className="creation-dialog" aria-labelledby="creation-title" onCancel={event => { event.preventDefault(); void close(); }}>
     <form className="creation-form" onSubmit={event => { event.preventDefault(); void submit(); }} aria-busy={busy}>
       <h2 id="creation-title">新建项目与任务</h2>
       <p>项目随首个任务一起注册，成功后出现在左侧列表。取消草稿不会创建项目或任务。不启动主控，不调用模型。</p>
-      <fieldset disabled={busy || persisted}>
+      <fieldset disabled={busy || Boolean(persisted)}>
         <legend>项目</legend>
         <label>项目名字（项目号）<input data-creation-field="project" required maxLength={128} pattern="[A-Za-z0-9](?:[A-Za-z0-9_.]|-){0,127}" value={projectName} onChange={event => setProjectName(event.target.value)} placeholder="my-project" /></label>
         <small>名字用作列表中的项目号；以英文字母或数字开头，可含点、下划线和短横线，最多 128 字符。</small>
         <div className="repository-choice"><button type="button" onClick={() => void choose()}>选择仓库目录…</button><output data-creation-repo>{repo || '请选择已有 Git 仓库的根目录'}</output></div>
         <label>工作分支<input data-creation-field="branch" required pattern="refs/heads/.+" value={branch} onChange={event => setBranch(event.target.value)} placeholder="refs/heads/main" /></label>
       </fieldset>
-      <fieldset disabled={busy || persisted}>
+      <fieldset disabled={busy || Boolean(persisted)}>
         <legend>任务</legend>
         <label>标题<input data-creation-field="title" required maxLength={240} value={title} onChange={event => setTitle(event.target.value)} /></label>
         <label>目标<textarea data-creation-field="goal" required rows={2} value={goal} onChange={event => setGoal(event.target.value)} /></label>
@@ -369,9 +374,10 @@ function CreationForm({ project, onClose, onCreated }: { project: string; onClos
         <small>默认允许修改整个仓库，验收文件为 tests/；请按实际任务修改 paths 和 oracle_paths。source 无 ticket 时为 null；base_commit、writer 由门禁在认领时填写，注册时须为 null。</small>
       </fieldset>
       {error && <pre className="creation-error" role="alert">{error}</pre>}
-      {persisted && <p role="status">注册已开始，任务卡可能已经保存。已保存的记录会保留，请核对门禁状态；本表单不会自动重试。</p>}
-      <div className="creation-actions"><button type="button" disabled={busy} onClick={() => void close()}>{persisted ? '关闭表单（保留已保存记录）' : '取消'}</button>
-        <button disabled={busy || persisted || !repo}>{busy ? '正在处理…' : '确认并注册任务'}</button></div>
+      {persisted === 'unknown' ? <p role="status">保存或注册结果未知，只读核实未能确认。暂不能取消或重试，请由主控核对门禁记录。</p>
+        : persisted && <p role="status">已核实任务卡已保存，当前注册未成功。关闭表单会保留记录；本表单不会自动重试。</p>}
+      <div className="creation-actions"><button type="button" disabled={busy || persisted === 'unknown'} onClick={() => void close()}>{persisted === 'unknown' ? '结果未知，暂不能取消' : persisted ? '关闭表单（保留已保存记录）' : '取消'}</button>
+        <button disabled={busy || Boolean(persisted) || !repo}>{busy ? '正在处理…' : '确认并注册任务'}</button></div>
     </form>
   </dialog>;
 }
