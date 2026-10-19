@@ -3,7 +3,7 @@
 set -euo pipefail
 cd /Users/luckye/Documents/Code/a2a-wt-t105
 python3 - "$@" <<'PY'
-import datetime,json,os,pathlib,shutil,subprocess,sys,tarfile,tempfile
+import datetime,json,os,pathlib,shutil,subprocess,sys,tempfile
 source=pathlib.Path.cwd()
 label=sys.argv[1] if len(sys.argv)>1 else datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
 assert __import__('re').fullmatch(r'[A-Za-z0-9_-]+',label)
@@ -22,7 +22,7 @@ try:
  shutil.copytree(source/'workbench',candidate/'workbench',ignore=shutil.ignore_patterns('node_modules','__pycache__'))
  archive=root/'baseline.tar'
  with archive.open('wb') as out:subprocess.run(['git','archive','37c8a9e77','workbench'],cwd=source,stdout=out,check=True)
- with tarfile.open(archive) as data:data.extractall(baseline,filter='data')
+ subprocess.run(['/usr/bin/tar','-xf',str(archive),'-C',str(baseline)],check=True)
  subprocess.run(['npm','ci','--ignore-scripts','--cache',str(root/'npm-cache')],cwd=candidate/'workbench',env=env,check=True)
  shutil.copytree(candidate/'workbench/node_modules',baseline/'workbench/node_modules',symlinks=True)
  for tree in [candidate,baseline]:
