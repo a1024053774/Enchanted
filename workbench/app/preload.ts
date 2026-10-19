@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   tasks: (project: string) => ipcRenderer.invoke('a2a:tasks', project),
   selection: () => ipcRenderer.invoke('a2a:selection'),
   selectTask: (task: string | null) => ipcRenderer.invoke('a2a:select-task', task),
+  newTerminal: () => ipcRenderer.invoke('a2a:new-terminal'),
   snapshot: (key: string) => ipcRenderer.invoke('a2a:snapshot', key),
   closePane: (key: string) => ipcRenderer.invoke('a2a:close-pane', key),
   output: (key: string, offset: number) => ipcRenderer.invoke('a2a:output', key, offset),

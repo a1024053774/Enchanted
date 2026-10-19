@@ -11,20 +11,21 @@ export class OrchestrationStore {
   constructor(root: string) {
     this.db = new DatabaseSync(join(root, "state.sqlite3"));
     this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
-      CREATE TABLE IF NOT EXISTS launch_records (id TEXT PRIMARY KEY, task TEXT NOT NULL, attempt TEXT, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS launch_records (id TEXT PRIMARY KEY, task TEXT, attempt TEXT, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS dispatch_records (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL, launch TEXT NOT NULL, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS orchestration_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, time TEXT NOT NULL, type TEXT NOT NULL, launch TEXT, task TEXT, attempt TEXT, data TEXT NOT NULL);`);
     const oldAttempt = this.db.prepare("PRAGMA table_info(launch_records)").all().find(row => row.name === "attempt");
-    if (oldAttempt?.notnull) {
+    const oldTask = this.db.prepare("PRAGMA table_info(launch_records)").all().find(row => row.name === "task");
+    if (oldAttempt?.notnull || oldTask?.notnull) {
       this.db.exec("BEGIN IMMEDIATE");
       try {
-        this.db.exec(`CREATE TABLE launch_records_nullable (id TEXT PRIMARY KEY, task TEXT NOT NULL, attempt TEXT, data TEXT NOT NULL);
+        this.db.exec(`CREATE TABLE launch_records_nullable (id TEXT PRIMARY KEY, task TEXT, attempt TEXT, data TEXT NOT NULL);
           INSERT INTO launch_records_nullable SELECT id,task,attempt,data FROM launch_records ORDER BY rowid;
           DROP TABLE launch_records;
           ALTER TABLE launch_records_nullable RENAME TO launch_records;
           CREATE TRIGGER launch_records_no_update BEFORE UPDATE ON launch_records BEGIN SELECT RAISE(ABORT,'append only'); END;
           CREATE TRIGGER launch_records_no_delete BEFORE DELETE ON launch_records BEGIN SELECT RAISE(ABORT,'append only'); END;`);
-        this.event("launch_schema_migrated", { change: "controller_attempt_nullable" });
+        this.event("launch_schema_migrated", { change: "shell_task_and_attempt_nullable" });
         this.db.exec("COMMIT");
       } finally { if (this.db.isTransaction) this.db.exec("ROLLBACK"); }
     }
@@ -34,7 +35,7 @@ export class OrchestrationStore {
     }
     this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS dispatch_inbox_entry ON dispatch_records(json_extract(data,'$.inbox_entry')) WHERE json_extract(data,'$.inbox_entry') IS NOT NULL");
   }
-  event(type: string, data: unknown, binding?: { id: string; task: string; attempt?: string | null }) {
+  event(type: string, data: unknown, binding?: { id: string; task: string | null; attempt?: string | null }) {
     return Number(this.db.prepare("INSERT INTO orchestration_events(time,type,launch,task,attempt,data) VALUES (?,?,?,?,?,?)")
       .run(new Date().toISOString(), type, binding?.id ?? null, binding?.task ?? null, binding?.attempt ?? null, JSON.stringify(data)).lastInsertRowid);
   }
@@ -55,22 +56,25 @@ export class OrchestrationStore {
   }
   // The open set is a projection of the existing append-only event stream.
   // Launch/profile records remain the sole source of launch configuration.
-  hasPaneLayout(task?: string) {
-    return Boolean(this.db.prepare(`SELECT 1 FROM orchestration_events
-      WHERE type IN ('pane_layout_opened','pane_layout_closed')${task ? " AND task=?" : ""} LIMIT 1`)
-      .get(...(task ? [task] : [])));
+  hasPaneLayout(task?: string, project?: string) {
+    return Boolean(this.db.prepare(`SELECT 1 FROM orchestration_events e
+      LEFT JOIN launch_records l ON l.id=e.launch
+      WHERE e.type IN ('pane_layout_opened','pane_layout_closed')${task ? " AND e.task=?" : ""}
+      ${project ? " AND json_extract(l.data,'$.project')=?" : ""} LIMIT 1`)
+      .get(...(task ? [task] : []), ...(project ? [project] : [])));
   }
-  openPanes(task?: string) {
-    const opened = new Map<string, { launch: string; task: string; position: number; native_session: string | null; resume_argv: string[] | null }>();
+  openPanes(task?: string, project?: string) {
+    const opened = new Map<string, { launch: string; task: string | null; position: number; native_session: string | null; resume_argv: string[] | null }>();
     const rows = this.db.prepare(`SELECT type,launch,task,data FROM orchestration_events
       WHERE type IN ('pane_layout_opened','pane_layout_closed','pane_native_session') ORDER BY seq`).all();
     for (const row of rows) {
       const id = String(row.launch), data = JSON.parse(String(row.data));
       if (row.type === "pane_layout_closed") opened.delete(id);
-      else if (row.type === "pane_layout_opened") opened.set(id, { launch: id, task: String(row.task), ...data });
+      else if (row.type === "pane_layout_opened") opened.set(id, { launch: id, task: row.task === null ? null : String(row.task), ...data });
       else if (opened.has(id)) Object.assign(opened.get(id)!, data);
     }
-    return [...opened.values()].filter(p => !task || p.task === task).sort((a, b) => a.position - b.position);
+    return [...opened.values()].filter(p => (!task || p.task === task) &&
+      (!project || this.launchRecord(p.launch)?.project === project)).sort((a, b) => a.position - b.position);
   }
   lastEvent(launch: string, types: string[]) {
     const row = this.db.prepare(`SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (${types.map(() => "?").join(",")}) ORDER BY seq DESC LIMIT 1`)

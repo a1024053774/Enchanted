@@ -1,0 +1,238 @@
+{
+  "status": "PASS",
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py",
+    "--archive",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/candidate",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt-t104/evidence/2026-10-19-batch17/T-104/review-fix-02-backend/candidate.json"
+  ],
+  "source": "/Users/luckye/Documents/Code/a2a-wt-t104",
+  "revision": null,
+  "mutant": null,
+  "fixture": "/private/tmp/t104-zwmgpdz7",
+  "checks": [
+    "真实 zsh 登录、交互、echo/pwd、项目环境和项目隔离",
+    "匿名、窗口越权、跨项目、agent 派发与身份均拒绝",
+    "显式关闭结束 shell、前台子进程和后台子进程，其他项目保持运行",
+    "后台重启保留打开集，shell 结束且不续接，旧窗口身份失效",
+    "创建/关闭事件存在；成功、拒绝、过期身份输入均无正文记录；无 agent 输入或人工介入"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-zwmgpdz7/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":79880,\"root\":\"/private/tmp/t104-zwmgpdz7/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-zwmgpdz7/state",
+        "shell_start",
+        "--project",
+        "t104-alpha",
+        "--cwd",
+        "/private/tmp/t104-zwmgpdz7/项目 alpha space"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"74399bb3-f093-408a-8e2d-a0655b05db67\",\"project\":\"t104-alpha\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"8f4f9240-0204-416e-93cc-6fa741d9cf20\",\"role\":\"shell\",\"created_at\":\"2026-10-19T08:18:29.131Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t104-zwmgpdz7/项目 alpha space\",\"env\":{\"A2A_PROJECT\":\"t104-alpha\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-zwmgpdz7/state",
+        "shell_start",
+        "--project",
+        "t104-beta",
+        "--cwd",
+        "/private/tmp/t104-zwmgpdz7/beta"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"0a5adf26-dc52-4172-84cf-ba7d0fd0fd95\",\"project\":\"t104-beta\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"d775888f-b199-4cde-bd0a-680fa1588390\",\"role\":\"shell\",\"created_at\":\"2026-10-19T08:18:29.282Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t104-zwmgpdz7/beta\",\"env\":{\"A2A_PROJECT\":\"t104-beta\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-zwmgpdz7/state",
+        "shell_close",
+        "--launch",
+        "74399bb3-f093-408a-8e2d-a0655b05db67"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-zwmgpdz7/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":79880,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-zwmgpdz7/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80239,\"root\":\"/private/tmp/t104-zwmgpdz7/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-zwmgpdz7/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80239,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "cleanup": [
+    {
+      "pid": 79957,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80043,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80018,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 79880,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 79993,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80239,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 79993,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80018,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80043,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 79957,
+      "exit": 1,
+      "output": ""
+    }
+  ],
+  "daemons": [
+    79880,
+    80239
+  ],
+  "process_tree": {
+    "ok": true,
+    "shell_pid": 79957,
+    "leader": null,
+    "native_session": null,
+    "session_ended": false,
+    "observer": {
+      "method": "macOS libproc",
+      "root_pid": 79957
+    },
+    "processes": [
+      {
+        "pid": 79957,
+        "ppid": 79880,
+        "pgid": 79957,
+        "tpgid": 80043,
+        "command": "/bin/zsh"
+      },
+      {
+        "pid": 80043,
+        "ppid": 79957,
+        "pgid": 80043,
+        "tpgid": 80043,
+        "command": "/bin/sleep"
+      },
+      {
+        "pid": 80018,
+        "ppid": 79957,
+        "pgid": 80018,
+        "tpgid": 80043,
+        "command": "/bin/sleep"
+      }
+    ],
+    "failed": null
+  },
+  "restart_inventory": {
+    "before": {
+      "launches": [
+        "0a5adf26-dc52-4172-84cf-ba7d0fd0fd95",
+        "74399bb3-f093-408a-8e2d-a0655b05db67"
+      ],
+      "created": [
+        "74399bb3-f093-408a-8e2d-a0655b05db67",
+        "0a5adf26-dc52-4172-84cf-ba7d0fd0fd95"
+      ]
+    },
+    "after": {
+      "launches": [
+        "0a5adf26-dc52-4172-84cf-ba7d0fd0fd95",
+        "74399bb3-f093-408a-8e2d-a0655b05db67"
+      ],
+      "created": [
+        "74399bb3-f093-408a-8e2d-a0655b05db67",
+        "0a5adf26-dc52-4172-84cf-ba7d0fd0fd95"
+      ]
+    }
+  },
+  "cleanup_complete": true,
+  "archive": {
+    "original": "/private/tmp/t104-zwmgpdz7",
+    "archive": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/candidate",
+    "files": 13,
+    "bytes": 405363,
+    "replay": "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py --archive /Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/candidate --summary /Users/luckye/Documents/Code/a2a-wt-t104/evidence/2026-10-19-batch17/T-104/review-fix-02-backend/candidate.json"
+  }
+}

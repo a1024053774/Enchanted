@@ -16,11 +16,14 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   daemon_start: { required: [], optional: ["launch-config"] },
   daemon_status: { required: [] },
   daemon_stop: { required: [] },
+  shell_start: { required: ["project", "cwd"] },
+  shell_close: { required: ["launch"] },
+  pane_layout: { required: [], optional: ["task", "project"] },
   projects_list: { required: [] },
   tasks_list: { required: ["project"] },
   pane_status: { required: ["thread"] },
   pane_output: { required: ["launch", "offset"], optional: ["max-bytes"] },
-  workbench_snapshot: { required: [], optional: ["launch"] },
+  workbench_snapshot: { required: [], optional: ["launch", "task", "project"] },
   pane_process_info: { required: ["thread"] },
   pane_release: { required: ["thread", "reason"] },
   pane_dispatch: { required: ["thread", "body-file"] },
@@ -89,6 +92,7 @@ export async function main(argv = process.argv.slice(2)) {
       "task",
       "repo",
       "project",
+      "cwd",
       "title",
       "thread",
       "role",
@@ -134,8 +138,8 @@ export async function main(argv = process.argv.slice(2)) {
     const command = positionals[0] ?? "";
     const contract = commands[command];
     const noTask = command.startsWith("inbox_") || command === "stop" ||
-      command.startsWith("daemon_") || command.startsWith("pane_") ||
-      ["signal", "launch_show", "orchestration_events", "scores_validate", "projects_list", "tasks_list"].includes(command);
+      command.startsWith("daemon_") || command.startsWith("pane_") || command.startsWith("shell_") ||
+      ["signal", "launch_show", "orchestration_events", "scores_validate", "workbench_snapshot", "projects_list", "tasks_list"].includes(command);
     if (!contract || positionals.length !== 1 || (!noTask && !values.task))
       throw new Error("command and task required");
     const allowed = [

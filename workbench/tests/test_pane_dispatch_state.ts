@@ -3,10 +3,11 @@
 // Failures: unknown/busy write, registration after bytes, duplicate/stale Stop,
 // auxiliary identity unlocking, or writing after a durable recorder failure.
 import assert from "node:assert/strict";
+import childProcess from "node:child_process";
+import { promisify } from "node:util";
 import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
-import { createRequire } from "node:module";
-const { Panes } = await import(process.env.A2A_PANE_MODULE ?? "../src/panes.ts");
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { OrchestrationStore } from "../src/store.ts";
 
 const require = createRequire(import.meta.url);
@@ -14,6 +15,23 @@ const output = process.argv[2]!; mkdirSync(output);
 const root = mkdtempSync("/tmp/a2a-pane-state-");
 const home = join(root, "isolated"); mkdirSync(join(home, "sessions"), { recursive: true });
 const executable = join(root, "version"); writeFileSync(executable, '#!/bin/sh\nprintf "codex-cli 0.162.1\\n"\n'); chmodSync(executable, 0o755);
+// The PTY below owns synthetic PID 123. Supply its process-observer boundary as
+// well; querying a real machine's PID 123 is unrelated to this state contract.
+const realExec = promisify(childProcess.execFile);
+const suppliedExec = Object.assign(() => { throw new Error("callback exec is not used by this fixture"); }, {
+  [promisify.custom]: async (file: string, args: string[], options: any) => {
+    if (file !== "/usr/bin/python3") return realExec(file, args, options);
+    assert.equal(args[4], "123");
+    assert(args[3]!.endsWith("/processSnapshot.py"));
+    return { stdout: JSON.stringify({ schema: 1, root_pid: 123, method: "macOS libproc", rows: [
+      { pid: 123, ppid: 1, pgid: 123, tpgid: 124, command: "/bin/zsh" },
+      { pid: 124, ppid: 123, pgid: 124, tpgid: 124, command: executable },
+    ] }), stderr: "" };
+  },
+});
+childProcess.execFile = suppliedExec as any;
+syncBuiltinESMExports();
+const { Panes } = await import(process.env.A2A_PANE_MODULE ?? "../src/panes.ts");
 const role = join(root, "role.txt"); writeFileSync(role, "test role");
 const store = new OrchestrationStore(root);
 const writes: { data: string; registrations: number; submitIntents: number }[] = [];

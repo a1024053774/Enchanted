@@ -1,0 +1,242 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py",
+    "--archive",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/privacy-mutant",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt-t104/evidence/2026-10-19-batch17/T-104/review-fix-02-backend/privacy-mutant.json",
+    "--mutant",
+    "privacy"
+  ],
+  "source": "/private/tmp/t104-rmvhr5kx/source",
+  "revision": null,
+  "mutant": "privacy",
+  "fixture": "/private/tmp/t104-rmvhr5kx",
+  "checks": [
+    "真实 zsh 登录、交互、echo/pwd、项目环境和项目隔离",
+    "匿名、窗口越权、跨项目、agent 派发与身份均拒绝",
+    "显式关闭结束 shell、前台子进程和后台子进程，其他项目保持运行",
+    "后台重启保留打开集，shell 结束且不续接，旧窗口身份失效"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-rmvhr5kx/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-rmvhr5kx/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80372,\"root\":\"/private/tmp/t104-rmvhr5kx/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-rmvhr5kx/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-rmvhr5kx/state",
+        "shell_start",
+        "--project",
+        "t104-alpha",
+        "--cwd",
+        "/private/tmp/t104-rmvhr5kx/项目 alpha space"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"31aa3aae-9730-4f49-9dad-6db4808c88df\",\"project\":\"t104-alpha\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"0f3690cc-10bc-4986-8be5-bc9430a4caa9\",\"role\":\"shell\",\"created_at\":\"2026-10-19T08:18:31.753Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t104-rmvhr5kx/项目 alpha space\",\"env\":{\"A2A_PROJECT\":\"t104-alpha\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-rmvhr5kx/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-rmvhr5kx/state",
+        "shell_start",
+        "--project",
+        "t104-beta",
+        "--cwd",
+        "/private/tmp/t104-rmvhr5kx/beta"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"5f096cb0-8830-43df-98c0-4837ed7f78a8\",\"project\":\"t104-beta\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"bf9a9757-6fa1-4803-846f-8b8ceac1b5fb\",\"role\":\"shell\",\"created_at\":\"2026-10-19T08:18:31.929Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t104-rmvhr5kx/beta\",\"env\":{\"A2A_PROJECT\":\"t104-beta\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-rmvhr5kx/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-rmvhr5kx/state",
+        "shell_close",
+        "--launch",
+        "31aa3aae-9730-4f49-9dad-6db4808c88df"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-rmvhr5kx/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-rmvhr5kx/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80372,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-rmvhr5kx/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-rmvhr5kx/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80716,\"root\":\"/private/tmp/t104-rmvhr5kx/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-rmvhr5kx/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-rmvhr5kx/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":80716,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "cleanup": [
+    {
+      "pid": 80455,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80521,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80497,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80372,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80483,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80716,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80521,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80483,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80497,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 80455,
+      "exit": 1,
+      "output": ""
+    }
+  ],
+  "daemons": [
+    80372,
+    80716
+  ],
+  "process_tree": {
+    "ok": true,
+    "shell_pid": 80455,
+    "leader": null,
+    "native_session": null,
+    "session_ended": false,
+    "observer": {
+      "method": "macOS libproc",
+      "root_pid": 80455
+    },
+    "processes": [
+      {
+        "pid": 80455,
+        "ppid": 80372,
+        "pgid": 80455,
+        "tpgid": 80521,
+        "command": "/bin/zsh"
+      },
+      {
+        "pid": 80521,
+        "ppid": 80455,
+        "pgid": 80521,
+        "tpgid": 80521,
+        "command": "/bin/sleep"
+      },
+      {
+        "pid": 80497,
+        "ppid": 80455,
+        "pgid": 80497,
+        "tpgid": 80521,
+        "command": "/bin/sleep"
+      }
+    ],
+    "failed": null
+  },
+  "restart_inventory": {
+    "before": {
+      "launches": [
+        "31aa3aae-9730-4f49-9dad-6db4808c88df",
+        "5f096cb0-8830-43df-98c0-4837ed7f78a8"
+      ],
+      "created": [
+        "31aa3aae-9730-4f49-9dad-6db4808c88df",
+        "5f096cb0-8830-43df-98c0-4837ed7f78a8"
+      ]
+    },
+    "after": {
+      "launches": [
+        "31aa3aae-9730-4f49-9dad-6db4808c88df",
+        "5f096cb0-8830-43df-98c0-4837ed7f78a8"
+      ],
+      "created": [
+        "31aa3aae-9730-4f49-9dad-6db4808c88df",
+        "5f096cb0-8830-43df-98c0-4837ed7f78a8"
+      ]
+    }
+  },
+  "error": "shell 输入内容泄漏进事件流",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py\", line 275, in main\n    assert nonce not in json.dumps(events, ensure_ascii=False), 'shell 输入内容泄漏进事件流'\nAssertionError: shell 输入内容泄漏进事件流\n",
+  "checkpoint": "privacy",
+  "cleanup_complete": true,
+  "archive": {
+    "original": "/private/tmp/t104-rmvhr5kx",
+    "archive": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/privacy-mutant",
+    "files": 48,
+    "bytes": 787507,
+    "replay": "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py --archive /Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-02-backend/privacy-mutant --summary /Users/luckye/Documents/Code/a2a-wt-t104/evidence/2026-10-19-batch17/T-104/review-fix-02-backend/privacy-mutant.json --mutant privacy"
+  }
+}

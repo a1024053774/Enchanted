@@ -11,14 +11,14 @@ import type { EmptyInputDeclaration } from '../src/panes.ts';
 
 type Options = { state: string; task?: string; launch?: string | string[]; userData: string };
 type PaneBinding = {
-  key: string; launch?: string; identity?: Record<string, unknown>; opening?: Promise<void>;
+  key: string; launch?: string; project?: string; identity?: Record<string, unknown>; opening?: Promise<void>;
   sequence: number; inputQueue: Promise<unknown>; pendingRelease: Promise<any> | null;
   closing?: boolean;
 };
 type WindowBinding = {
   window: BrowserWindow; options: Options; operator: NonNullable<ReturnType<typeof readOperatorCredential>>;
   panes: Map<string, PaneBinding>; closing: boolean; closed: boolean;
-  task: any; switching?: Promise<unknown>;
+  task: any; switching?: Promise<unknown>; creating?: Promise<unknown>;
 };
 const directory = dirname(fileURLToPath(import.meta.url));
 const windows = new Map<number, WindowBinding>();
@@ -40,6 +40,15 @@ function requireSavedPane(task: string, launch: string, result: any) {
   if (result.ok && result.task?.task_id === task && result.launch?.task === task && result.launch?.id === launch &&
       ['failed', 'pending'].includes(result.pane?.restoration?.status)) return;
   requireCurrentPane(task, launch, result);
+}
+
+function requireShellPane(project: string, launch: string, result: any) {
+  if (!result.ok) throw new Error(result.error);
+  const record = result.launch;
+  if (typeof launch !== 'string' || !launch || result.task !== null || record?.id !== launch || record.role !== 'shell' || record.project !== project ||
+      record.task !== null || record.attempt !== null || record.session !== null || record.fence !== null) {
+    throw new Error('Shell project or launch mismatch');
+  }
 }
 
 function windowTarget(event: Electron.IpcMainInvokeEvent) {
@@ -97,10 +106,37 @@ function registerHandlers() {
     return result.tasks;
   });
   ipcMain.handle('a2a:selection', event => selection(windowTarget(event)));
+  ipcMain.handle('a2a:new-terminal', async event => {
+    const context = windowTarget(event);
+    if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) {
+      throw new Error('Task view is changing');
+    }
+    if (!context.options.task || !context.task) throw new Error('请先选择任务');
+    const create = async () => {
+      const current = await request(context.options.state, { command: 'workbench_snapshot', task: context.options.task });
+      if (!current.ok) throw new Error(current.error);
+      if (context.closing || current.task?.task_id !== context.options.task || current.task.project_id !== context.task.project_id ||
+          typeof current.task.repo !== 'string' || !isAbsolute(current.task.repo)) throw new Error('项目目录无法核对');
+      const result = await request(context.options.state, { command: 'shell_start',
+        project: current.task.project_id, cwd: current.task.repo }, context.operator);
+      requireShellPane(current.task.project_id, result.launch?.id, { ...result, task: null });
+      const pane: PaneBinding = { key: randomUUID(), launch: result.launch.id, project: result.launch.project,
+        sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null };
+      for (const [key, existing] of context.panes) {
+        if (!existing.launch && !existing.identity && !existing.opening && !current.launch) context.panes.delete(key);
+      }
+      context.panes.set(pane.key, pane);
+      context.task = current.task;
+      return selection(context);
+    };
+    context.creating = create();
+    try { return await context.creating; }
+    finally { context.creating = undefined; }
+  });
   ipcMain.handle('a2a:select-task', async (event, task: string | null) => {
     const context = windowTarget(event);
     if (task !== null && (typeof task !== 'string' || !task)) throw new Error('Invalid task');
-    if (context.closing || context.switching || [...context.panes.values()].some(pane => pane.closing)) throw new Error('Task view is changing');
+    if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) throw new Error('Task view is changing');
     if (task === (context.options.task ?? null)) return selection(context);
     const change = async () => {
       const options = { ...context.options, task: task ?? undefined, launch: undefined };
@@ -125,11 +161,13 @@ function registerHandlers() {
   ipcMain.handle('a2a:snapshot', async (event, key: string) => {
     const { context, pane } = target(event, key);
     const task = context.options.task!;
-    const result = await request(context.options.state, { command: 'workbench_snapshot', task,
+    const scope = pane.project ? { project: pane.project } : { task };
+    const result = await request(context.options.state, { command: 'workbench_snapshot', ...scope,
       ...(pane.launch ? { launch: pane.launch } : {}) });
     if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
     if (!result.ok) throw new Error(result.error);
-    if (context.panes.size > 1) requireSavedPane(task, pane.launch!, result);
+    if (pane.project) requireShellPane(pane.project, pane.launch!, result);
+    else if ([...context.panes.values()].filter(value => !value.project).length > 1) requireSavedPane(task, pane.launch!, result);
     if (pane.launch && result.launch?.id !== pane.launch) throw new Error('Pane launch changed');
     if (result.launch && !pane.launch) {
       const opened = await request(context.options.state, { command: 'pane_layout_open', task,
@@ -140,12 +178,13 @@ function registerHandlers() {
     if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
     const writable = !result.recovering && !pane.closing && result.pane?.lifecycle === 'running' && !result.pane.failed &&
       result.pane?.restoration?.status !== 'pending' &&
-      Boolean(result.launch && (result.launch.role === 'controller' && result.launch.attempt === null ||
+      Boolean(result.launch && (pane.project && result.launch.role === 'shell' ||
+        result.launch.role === 'controller' && result.launch.attempt === null ||
         result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
     if (writable && result.launch && !pane.identity && !context.closing) {
       // Concurrent snapshot readers share one credential request, including a failed outcome.
       // Closing waits for this request before revoking a credential it may have issued.
-      pane.opening ??= request(context.options.state, { command: 'window_open', task, launch: pane.launch }, context.operator)
+      pane.opening ??= request(context.options.state, { command: 'window_open', ...scope, launch: pane.launch }, context.operator)
         .then(opened => {
           if (!opened.ok) throw new Error(opened.error);
           pane.identity = opened.identity;
@@ -189,7 +228,8 @@ function registerHandlers() {
     const outcomes = await Promise.allSettled([pane.inputQueue, pane.pendingRelease, pane.opening]);
     for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Pane input outcome remains unconfirmed:', String(outcome.reason));
     if (pane.launch) {
-      const closed = await request(context.options.state, { command: 'pane_layout_close', task: context.options.task,
+      const closed = await request(context.options.state, { command: 'pane_layout_close',
+        ...(pane.project ? { project: pane.project } : { task: context.options.task }),
         launch: pane.launch }, context.operator);
       if (!closed.ok) { pane.closing = false; throw new Error(closed.error); }
     }
@@ -249,8 +289,17 @@ async function prepareSelection(options: Options) {
     }
     if (!saved) launches.sort((a, b) => ranks.get(a!)! - ranks.get(b!)!);
   }
-  const panes: PaneBinding[] = launches.map(launch => ({ key: randomUUID(), launch, sequence: 0,
+  let panes: PaneBinding[] = launches.map(launch => ({ key: randomUUID(), launch, sequence: 0,
     inputQueue: Promise.resolve(), pendingRelease: null }));
+  const shells = await request(options.state, { command: 'pane_layout', project: snapshot.task.project_id });
+  if (!shells.ok) throw new Error(shells.error);
+  for (const opened of shells.panes.filter((pane: { task: string | null }) => pane.task === null)) {
+    const value = await request(options.state, { command: 'workbench_snapshot', project: snapshot.task.project_id, launch: opened.launch });
+    requireShellPane(snapshot.task.project_id, opened.launch, value);
+    panes.push({ key: randomUUID(), launch: opened.launch, project: snapshot.task.project_id,
+      sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
+  }
+  if (panes.some(pane => pane.project) && !snapshot.launch) panes = panes.filter(pane => pane.launch !== undefined);
   return { task: snapshot.task, saved, panes };
 }
 
@@ -285,7 +334,8 @@ export async function run(options: Options) {
   // shutdown hook. Reopening an existing failed pane preserves its diagnosis.
   if (!saved) for (const [position, pane] of panes.entries()) {
     if (!pane.launch) continue;
-    const opened = await request(options.state, { command: 'pane_layout_open', task: options.task, launch: pane.launch, position }, operator);
+    const opened = await request(options.state, { command: 'pane_layout_open',
+      ...(pane.project ? { project: pane.project } : { task: options.task }), launch: pane.launch, position }, operator);
     if (!opened.ok) { window.destroy(); throw new Error(opened.error); }
   }
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -297,6 +347,7 @@ export async function run(options: Options) {
     context.closing = true;
     void (async () => {
       if (context.switching) await Promise.allSettled([context.switching]);
+      if (context.creating) await Promise.allSettled([context.creating]);
       try { await detachPanes(context); }
       catch (error) { console.error('Window credential revocation was not confirmed:', String(error)); }
       context.closed = true;
