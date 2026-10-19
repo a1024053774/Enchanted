@@ -2,7 +2,7 @@
 id: T-097
 title: 发布前瘦身 Git 历史（决定：范围、工具、备份、顺序）
 type: decide
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -32,3 +32,19 @@ supersedes:
 ## 说明
 
 - 改写历史是不可逆本地操作且影响全部提交哈希，属 T-004 停止条件；任何落地前须用户逐项批准。**未就绪**，不在当前反馈阶段做。
+
+## Resolution
+
+2026-10-19 用户决定瘦身并发布，顺序改为先瘦身再 push；细节见下节，执行见 T-101。
+
+## 决定（2026-10-19，用户逐字，会话"a2a-构思主控"）
+
+用户说："推,瘦身,顺序改了,发布完我再使用"。顺序改为：先瘦身，再 push 发布初版，发布之后用户才使用并反馈。取代上文"使用反馈之后才发布"。push 由此条授权（范围：`origin` 的 main，一次初版发布）。
+
+用户把下列细节交构思主控定（用户未逐条确认，执行主控在票里照此执行，若有硬冲突再上报）：
+
+1. 范围：从全部提交里移出 T-088 的归档类别（run/fixtures 目录、`*.tar.gz`、`*.bin`、sqlite、监视器日志、被忽略的 `*-artifacts/`）以及 evidence/ 下所有大于 5 MiB 的文件。文本摘要（RESULTS.md、审查报告、controller-decision、命令脚本、run.json 摘要）与被测试、门禁、脚本读取的小输入保留。
+2. 工具与可逆性：`git filter-repo` 未安装；先用 `brew install git-filter-repo`（或 pip 安装）并读其文档。备份先行：完整 `git bundle` 与原仓库目录整体复制到外置盘 `/Volumes/WD-Elements/a2a-backup-pre-slim/`，核对对象数一致；改写只在副本里做，核对通过后才替换；原仓库只读保留到用户说可删。
+3. 被移出内容去向：搬到外置盘 `/Volumes/WD-Elements/a2a-evidence/` 并在仓库留 `*.archive.json` 清单（沿用 T-088 格式）；引用它们的 ticket/报告链接指向清单，不悬空。
+4. 哈希映射：改写产生的旧→新提交哈希映射表存入仓库（`records/`），ticket、证据、门禁尾注和 launch 记录里的哈希能据此对应。
+5. 时机：现在。T-101 执行。
