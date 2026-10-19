@@ -176,7 +176,12 @@ function registerHandlers() {
     if (draft.persisted) throw new Error('Registration has already started; do not replay it');
     const keys = ['task', 'project', 'title', 'branch', 'card'];
     if (!input || typeof input !== 'object' || Object.keys(input).length !== keys.length ||
-        !keys.every(key => typeof input[key] === 'string') || !input.title.trim() || input.title.length > 240) throw new Error('Invalid creation fields');
+        !keys.every(key => Object.hasOwn(input, key))) throw new Error('Invalid creation fields');
+    const invalidField = keys.find(key => typeof input[key] !== 'string') ??
+      (!input.title.trim() || input.title.length > 240 ? 'title' : undefined);
+    if (invalidField) return { ok: false, error: 'Invalid creation fields', stage: 'preflight', persisted: false,
+      details: { field: invalidField, reason: invalidField === 'title'
+        ? '标题须为包含非空白字符的文本，且不超过 240 个字符。' : '表单字段须为文本。' } };
     const submit = async () => {
       const temporary = mkdtempSync(join(tmpdir(), 'a2a-task-card-'));
       const card = join(temporary, 'card.json');

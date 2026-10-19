@@ -96,6 +96,19 @@ try {
   const input = { task: card.id, project: 'sentinel-project', title: '独立标题<边界>',
     branch: 'refs/heads/main', card: JSON.stringify(card) };
   await assert.rejects(() => invoke('submit', { ...input, repo: '/renderer/injected' }));
+  const beforePreflight = commands.length;
+  for (const invalid of [{ title: '   ' }, { title: '\t\n\u00a0' }, { title: '长'.repeat(241) }, { title: 42 }, { branch: null }]) {
+    const refused = await invoke('submit', { ...input, ...invalid });
+    assert.equal(refused.ok, false, 'Invalid form fields must be refused');
+    assert.equal(refused.persisted, false, 'Known preflight refusal must preserve an editable and cancellable draft');
+    assert.equal(refused.stage, 'preflight');
+    assert.equal(refused.details.field, Object.keys(invalid)[0]);
+    assert.ok(refused.details.reason.length > 0, 'Show the input refusal reason');
+    assert.equal(commands.length, beforePreflight, 'Main input refusal must precede every gate call');
+    assert.equal(saved.length, 0); assert.equal(tasks.length, 0);
+  }
+  assert.equal((await invoke('cancel')).persisted, false, 'A rejected draft can be cancelled');
+  draft = await invoke('repository');
   gateFailure = 'validate';
   const denied = await invoke('submit', input);
   assert.equal(denied.ok, false); assert.equal(denied.error, 'invalid_task_card');
@@ -124,6 +137,7 @@ try {
   const closed = await invoke('cancel'); assert.equal(closed.persisted, true);
   report.checks = ['main_owned_repository', 'operator_commands_only', 'foreign_frame_window_and_extra_path_rejected',
     'window_scoped_draft', 'cancel_and_native_picker_cancel_do_not_register', 'validation_refusal_keeps_details_before_save',
+    'preflight_reason_without_gate_calls_or_writes', 'preflight_keeps_cancel_and_corrected_submission_available',
     'save_refusal_does_not_create', 'confirmation_serialized', 'exact_card_and_metadata_forwarded',
     'temporary_files_removed', 'partial_registration_visible_and_not_replayed'];
   report.status = 'PASS';

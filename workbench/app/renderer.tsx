@@ -343,7 +343,7 @@ function CreationForm({ project, onClose, onCreated }: { project: string; onClos
         project: projectName, title, branch, card: JSON.stringify(card) });
       setPersisted(result.persisted);
       if (!result.ok) {
-        setError(`门禁拒收或注册未确认（${result.stage}）：${result.error}\n${JSON.stringify(result.details ?? null, null, 2)}`);
+        setError(`${result.stage === 'preflight' ? '表单未提交' : '门禁拒收或注册未确认'}（${result.stage}）：${result.error}\n${JSON.stringify(result.details ?? null, null, 2)}`);
         return;
       }
       await onCreated(result.task!.task_id);
