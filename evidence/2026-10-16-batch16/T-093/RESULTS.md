@@ -6,6 +6,20 @@
 
 **整票 INCOMPLETE：第三轮独审的旧候选 NO_GO 已保留；本轮恢复白名单局部红绿通过，新候选 T-096 原生七场、后续独审／门禁尚未完成。** 最新交接为 [请求 20](REVIEW-REQUEST-T093-20.md)，依据主控 #129 延续 #125 的保守裁定。真实模型回合仍不跑。
 
+## 主控 #139：r21 两场的 renderer 就绪判定
+
+**整票 INCOMPLETE，诊断为 runner 缺陷。** 主控在 0be3d3ff2 上回传 r21 的 tracer／three／no-argv／version／no-session 五场 PASS、cleanup=true；本轮不重跑这五场。isolation 和 empty-reopen 的 KeyError: 'launch' 来自 runner 过早接受初始化 DOM 帧，不是“未恢复窗格可以没有身份”的合同。T-096 裁定 B 要求 worker 未恢复但保留窗格身份；主控缺 argv 同样须保留身份并显示未恢复。第三窗口合法空集则是 panes=[]，不是三个无身份占位格。
+
+只读对照 [r21-two-case-diagnosis-22.json](r21-two-case-diagnosis-22.json)：isolation 的三个 DOM pane（构思、执行、worker）都没有 launch；snapshot 中分别是 restore_argv_missing／restored／restore_managed_attempt_requires_reclaim。empty-reopen 的构思 DOM 已就绪，执行与 worker 尚无 launch；其 window-2 的 observer-protocol 原件第 2 次 inspect 已出现三格完整身份。runner 却缓存第一次的 second，后续循环仍从旧帧查找。r18b 同名两场的 after-view 均已有三格完整 DOM 身份，包括两个只读的失败窗格。app、renderer、driver、run_restart.py 在 57c3bfb63 与 0be3d3ff2 间逐字相同，没有产品 UI 改动。
+
+根因是 driver 在返回 IPC 回复前已更新 latestSnapshots，随后 inspect 又把该 map 的值附到早先读取的 DOM 上；snapshot 已到达不代表 React 已提交 DOM。原 inspect_window 只检查格数及 snapshot 存在，因而把这种混合帧当成就绪。修复只收紧 evidence/T-096/run_restart.py 的 inspect_window：DOM 身份及 input_enabled 必须与同格 snapshot 对齐，否则继续原有的有界等待。4 秒、64 次 observer RPC 预算、全部下游业务断言和归档核对均未改，没有改成忽略无 launch 的格，也未从 snapshot 补造 DOM 观察。该 runner 的最小修复依据主控 #139 明确授权；不改 r18b/r21 运行原件或任何旧 fixture。
+
+[红态](renderer-readiness-red-22.json) 用 git show 导出的 r18b 旧候选 runner，配合同名旧／新原件的最小只读观察输入，命中两场原始未完成帧和身份／状态／持续占位反例。没有导入整个 runner 或启动 CLI／helper／GUI／模型。[绿态](renderer-readiness-green-22.json) 同一 24 项通过：r18b 两个已渲染正例、r21 后续完整帧继续接受；缺身份、错绑定、状态不同仍不接受；持续占位仍在原期限超时；已保存空窗规则及失败窗格只读断言不放宽。只证明 runner 逻辑，不能替两场原生重跑背书。本轮依“不调用模型”没有新开模型审查。
+
+isolation 的 cleanup=false 是独立未决问题：只读清单当前显示源与归档差异仅为 state.sqlite3（499712／479232 字节）和 WAL（0／4120032 字节）；其他文件数／目录数／链接及目标文字一致。没有足够证据确定复制时何者变化，不能把当前差异推断成 root cause，也不把归档检查改成忽略 SQLite。原测试目录与外置副本不改不删、13 PID 已退出只引用主控核对；本轮没有发信号或重新查询 PID。新两场仍须严格 cleanup=true，否则保留新现场并停止。
+
+只重跑两场的命令和新标签见 [请求 22](REVIEW-REQUEST-T093-22.md)。产品源码及 app 与 0be3d3ff2 相同；原五场 PASS 仍绑定原候选。最终 native 验收、独审及门禁尚未完成；不将离线绿态上调成整票 PASS。
+
 ## 主控 #132：helper 失败诊断（基线 19c297315）
 
 **整票 INCOMPLETE。** r20 七场仅由主控完成 tracer／three 两场 PASS、cleanup=true；no-argv 在初始化被中断，后四场未跑。本轮没有重跑，旧候选两场不替新候选背书。原始 fixture／T-096 外置输出／日志保留，独立审查报告原文不改。只读诊断摘要 [r20-no-argv-diagnosis-21.json](r20-no-argv-diagnosis-21.json) 的根因仍 unknown：事件 105 是 helper 输出 JSON 解析失败，缺少当次输出和退出信息，内存压力只有相关迹象，不能补称因果。

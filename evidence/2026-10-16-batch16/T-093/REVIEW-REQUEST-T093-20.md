@@ -2,6 +2,10 @@
 
 **INCOMPLETE：局部红绿通过，新候选 T-096 原生七场与后续独立审查／门禁待完成。** task T-093 / attempt a1，worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645；基线 788d75f4a75a861a7beb23f3f0ac97a6ecc70938。最终候选绑定本轮末行 `T-093 FROZEN <完整 SHA>`。不 push、不 rebase、不改 gates／acceptance／地图或全局配置；不跑真实模型。
 
+## 最新交接：主控 #139
+
+r21 已由主控完成五场 PASS；isolation／empty-reopen 因 runner 读取未完成 DOM 帧而 KeyError。最新最小修复与**仅这两场**的重跑命令见 [请求 22](REVIEW-REQUEST-T093-22.md)。下面的七场命令保留为旧请求记录，本轮不要重跑其余五场。isolation 旧现场归档不一致另列，比较规则和原件均不改。
+
 ## 本轮更新：主控 #130／#132
 
 基线为 19c2973157b31e5f6c51320e6dcc77e53e0bce7d。主控回传 r20-tracer／three 为 PASS、cleanup=true；r20-no-argv 在初始化第五屏的身份查询失败，随后后台被资源不足中断，后四场未跑。旧原件和夹具不改、不删除。只读诊断为 unknown，不能据此认定环境或产品缺陷；见 r20-no-argv-diagnosis-21.json：事件 105 的原始错误为 SyntaxError: Unexpected end of JSON input，此前同一 pane 查询成功 10 次，恢复事件为 0，第五键未写入。此结论不因本次补诊断而改变。
