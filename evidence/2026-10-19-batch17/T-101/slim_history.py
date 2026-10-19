@@ -19,6 +19,8 @@ BASE = VOLUME / 'a2a-backup-pre-slim'
 ARCHIVES = VOLUME / 'a2a-evidence/2026-10-19-batch17/T-101'
 HERE = Path(__file__).resolve().parent
 REL = Path('evidence/2026-10-19-batch17/T-101')
+EXEMPTIONS_PATH = HERE / 'credential-exemptions-01.json'
+PUBLIC_SESSIONS_PATH = HERE / 'public-native-sessions-01.json'
 LIMIT = 5 * 1024 * 1024
 REMOTE = 'a96a040d3d87e43e7fc882da9e574bed2dbcd2d4'
 
@@ -234,11 +236,29 @@ def summary(path):
                 ('run', 'check', 'test', 'prepare', 'verify', 'outside', 'replay', 'probe', 'record', 'readback'))))
 
 
+def public_native_sessions():
+    data = read(PUBLIC_SESSIONS_PATH)
+    rows = data['sessions']
+    require(data['required_count'] == len(rows) == 23, '用户裁定的原生会话保留清单必须恰好含 23 个路径')
+    result = {}
+    for row in rows:
+        path = row['path']
+        require(path.startswith('evidence/') and '..' not in PurePosixPath(path).parts
+                and PurePosixPath(path).name.startswith('rollout-') and path.endswith('.jsonl'), '原生会话保留路径无效')
+        require(path not in result and row['versions'] and all(re.fullmatch('[0-9a-f]{40}', oid) for oid in row['versions']),
+                '原生会话保留清单重复或缺版本')
+        result[path] = set(row['versions'])
+    return result
+
+
 def plan(run):
     backup_info = read(run / 'backup.json')
     require(backup_info['status'] == 'PASS' or backup_info.get('mode') == 'trial', '备份未通过')
     repo = run / 'repository'
     versions = history_versions(repo)
+    public_sessions = public_native_sessions()
+    require(all(path in versions and required <= set(versions[path]) for path, required in public_sessions.items()),
+            '原始快照缺少用户裁定保留的会话路径/版本；停止，不补称已保留')
     object_sizes = sizes(repo, {oid for row in versions.values() for oid in row})
     markers = {str(PurePosixPath(p).parent) for p in versions if p.endswith('/run.json')}
     # 不把票根本身当整批 run。下层实际运行目录仍按标记分类。
@@ -252,6 +272,9 @@ def plan(run):
                              and p.endswith(('.py', '.ts', '.mjs', '.js', '.sh')))
     removed, kept, review = {}, {}, []
     for path, blobs in versions.items():
+        if path in public_sessions:
+            kept[path] = 'user-decision-B-public-native-session-body'
+            continue
         size = max(object_sizes[oid] for oid in blobs)
         group = category(path, markers)
         if not group and not (path.startswith('evidence/') and size > LIMIT):
@@ -269,7 +292,8 @@ def plan(run):
     # constructed BASE / name 引用无法靠静态字面量证明；主控必须审查 plan 后再运行 rewrite。
     require(removed, '未找到可归档路径；拒绝空改写')
     save(run / 'plan.json', {'remove': removed, 'keep': kept, 'possible_inputs_to_review': review,
-                             'sizes': object_sizes, 'source_refs': backup_info['snapshot']['refs']})
+                             'sizes': object_sizes, 'source_refs': backup_info['snapshot']['refs'],
+                             'retained_native_sessions': {path: versions[path] for path in public_sessions}})
     (run / 'remove.txt').write_text(''.join('literal:' + p + '\n' for p in sorted(removed)), encoding='utf-8')
     save(run / 'plan-summary.json', {'status': 'INCOMPLETE', 'removed_paths': len(removed),
                                     'kept_paths': len(kept), 'possible_inputs': len(review),
@@ -369,6 +393,11 @@ def rewrite_links(work, removed, manifests):
 
 def rewrite(run):
     data = read(run / 'plan.json')
+    required_sessions = public_native_sessions()
+    retained = data['retained_native_sessions']
+    require(set(retained) == set(required_sessions) and not (set(retained) & set(data['remove']))
+            and all(ids <= set(retained[path]) for path, ids in required_sessions.items()),
+            '旧清单或错误清单试图移出用户 B 保留的 23 份原生会话；新 run 重做 02')
     same_count(read(run / 'backup.json')['objects'], object_count(run / 'repository'))
     require(refs(run / 'repository') == data['source_refs'], '备份 refs 与清单不一致')
     manifests = archive(run, data)
@@ -383,7 +412,10 @@ def rewrite(run):
     save(run / 'filter.json', {'argv': command, 'exit': result.returncode,
                               'output_omitted': '不记录 fast-export 或可能含凭据的正文'})
     require(result.returncode == 0, 'filter-repo 失败；保留现场，不用 --force 重试')
-    scan(candidate, run / 'retained-initial-credential-scan.json')
+    actual_versions = history_versions(candidate)
+    require(all(set(ids) <= set(actual_versions.get(path, [])) for path, ids in retained.items()),
+            '改写后原生会话的历史版本缺失；停止')
+    scan_result = scan(candidate, run / 'retained-initial-credential-scan.json')
     work = run / 'prepared'
     git(candidate, 'worktree', 'add', str(work), 'main')
     for path, content in manifests.items():
@@ -399,6 +431,8 @@ def rewrite(run):
     save(work / REL / f'{run.name}-summary.json', {
         'status': 'INCOMPLETE', 'backup': str(run), 'archive_root': str(ARCHIVES / run.name),
         'removed_paths': len(data['remove']), 'retained_paths': len(data['keep']),
+        'public_native_sessions': len(retained),
+        'credential_scan': {key: scan_result[key] for key in ('hit_count', 'exempted_hit_count', 'unexempted_hit_count')},
         'linked_worktrees': read(run / 'snapshot.json')['worktrees'],
         'next': '审查生成的差异，处理旧哈希直接执行引用，提交后运行 verify；未替换，未 push'})
     print('INCOMPLETE 候选已准备：' + str(work) + '；先审查并提交生成文件，再运行 verify')
@@ -419,7 +453,25 @@ def scan_bytes(data):
             for match in re.finditer(rule, data)]
 
 
-def scan(repo, report):
+def credential_exemptions(path):
+    data = read(path)
+    require(data.get('schema') == 1 and data.get('approved_entry_count') == len(data['entries']), '凭据豁免清单格式/数量无效')
+    entries = set()
+    for row in data['entries']:
+        require(set(row) == {'object', 'offset'} and re.fullmatch('[0-9a-f]{40}', row['object'])
+                and type(row['offset']) is int and row['offset'] >= 0, '豁免只能是完整对象哈希和非负 offset')
+        identity = (row['object'], row['offset'])
+        require(identity not in entries, '凭据豁免定位重复')
+        entries.add(identity)
+    return entries
+
+
+class CredentialScanRejected(ValueError):
+    pass
+
+
+def scan(repo, report, exemptions_path=EXEMPTIONS_PATH):
+    exemptions = credential_exemptions(exemptions_path)
     versions = history_versions(repo)
     names = defaultdict(list)
     hits = []
@@ -447,10 +499,19 @@ def scan(repo, report):
                 hits.append(dict(hit, object=oid, paths=names.get(oid, ['git-' + header[1]])))
     process.stdin.close()
     require(process.wait() == 0, '凭据扫描进程失败')
-    save(report, {'status': 'PASS' if not hits else 'NO_GO', 'scope': '所有 refs 可达 blob、commit、tag；所有历史路径',
-                  'objects_scanned': count, 'hits': hits, 'hit_count': len(hits),
-                  'limitations': '固定模式扫描，不能证明不存在加密、未知格式或任意编码的秘密；不自动豁免假 token。'})
-    require(not hits, '凭据扫描命中；只报告位置/类型，停止并上报，不替换或 push')
+    for hit in hits:
+        hit['exempted'] = (hit.get('object'), hit.get('offset')) in exemptions
+    exempted = sum(hit['exempted'] for hit in hits)
+    unexempted = len(hits) - exempted
+    result = {'status': 'PASS' if unexempted == 0 else 'NO_GO',
+              'scope': '所有 refs 可达 blob、commit、tag；所有历史路径', 'objects_scanned': count,
+              'hits': hits, 'hit_count': len(hits), 'exempted_hit_count': exempted, 'unexempted_hit_count': unexempted,
+              'exemptions': {'path': str(exemptions_path), 'entries': len(exemptions), 'identity': ['object', 'offset']},
+              'limitations': '扫描模式不变；只豁免用户批准的精确对象/offset。对象或位置变化即为未豁免命中。固定模式不能证明不存在未知格式秘密。'}
+    save(report, result)
+    if unexempted:
+        raise CredentialScanRejected('凭据扫描命中未豁免位置；只报告位置/类型，停止并上报，不替换或 push')
+    return result
 
 
 def old_hash_commands(work, mapping):
@@ -497,6 +558,12 @@ def verify(run):
                         '源码差异超出哈希字面量迁移：' + path)
             else:
                 require(new.get(path) == row, '源码/输入被意外改写：' + path)
+    retained = data['retained_native_sessions']
+    required_sessions = public_native_sessions()
+    require(set(retained) == set(required_sessions)
+            and all(ids <= set(retained[path]) for path, ids in required_sessions.items())
+            and all(set(ids) <= set(versions.get(path, [])) for path, ids in retained.items()),
+            '23 份原生会话正文的路径/历史版本未完整保留')
     require(len(mapping) >= 5 and all(int(v, 16) for v in mapping.values()), '映射缺失或提交被删除')
     random_sample = random.SystemRandom().sample(sorted(mapping), 5)
     for oid in random_sample:

@@ -20,7 +20,8 @@ def clean_gate(run):
     require(verified['status'] == 'PASS' and verified['head'] == git(work, 'rev-parse', 'HEAD').decode().strip()
             and verified['refs'] == refs(work) and not git(work, 'status', '--porcelain'),
             '核对后候选改变；不能替换或发布')
-    require(read(run / 'credential-scan.json')['hit_count'] == 0, '扫描未通过')
+    scan_result = read(run / 'credential-scan.json')
+    require(scan_result['status'] == 'PASS' and scan_result.get('unexempted_hit_count') == 0, '扫描未通过或缺少未豁免命中核对')
     same_count(read(run / 'backup.json')['objects'], object_count(run / 'repository'))
     return verified
 
