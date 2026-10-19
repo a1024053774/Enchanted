@@ -1,0 +1,88 @@
+{
+  "status": "PASS",
+  "task": "T-093",
+  "attempt": "a1",
+  "fix_candidate": "c34d71a975b59a0db8c1e97bb40c0f7a94e629d1",
+  "previous_frozen": "1d4c58b4a83b754b4dda4b2ee4887627e2941358",
+  "unchanged_production_and_chain_paths": [
+    "workbench/src/",
+    "acceptance/",
+    ".project-map/",
+    "AGENTS.md",
+    "CONTEXT.md",
+    "workbench/tests/test_t093_login_chain.ts",
+    "workbench/tests/run_t093_login_chain.py",
+    "workbench/tests/t093_fake_claude.c",
+    "workbench/tests/t093_fake_login_peer.py"
+  ],
+  "credential_guards": [
+    {
+      "name": "empty_credential_variants",
+      "exit_code": 1,
+      "status": "PASS",
+      "expected_business_assertion": "credential injection must be detected",
+      "business_assertion_observed": true,
+      "fixture_missing_error": false
+    },
+    {
+      "name": "empty_injection_cases",
+      "exit_code": 1,
+      "status": "PASS",
+      "expected_business_assertion": "credential injection cases must not be empty",
+      "business_assertion_observed": true,
+      "fixture_missing_error": false
+    },
+    {
+      "name": "skip_injection_loop",
+      "exit_code": 1,
+      "status": "PASS",
+      "expected_business_assertion": "credential injection must execute at least one case",
+      "business_assertion_observed": true,
+      "fixture_missing_error": false
+    },
+    {
+      "name": "omit_injection_write",
+      "exit_code": 1,
+      "status": "PASS",
+      "expected_business_assertion": "credential injection file must exist",
+      "business_assertion_observed": true,
+      "fixture_missing_error": false
+    }
+  ],
+  "counterfactual_checks": 12,
+  "driver_check_only": {
+    "status": "PASS",
+    "legacy_cleanup_mask_rejected": true,
+    "primary": "primary_business_probe",
+    "cleanup_failures": [
+      {
+        "phase": "fixture_remove",
+        "error": "secondary_cleanup_probe"
+      }
+    ],
+    "real_cli_starts": 0,
+    "scope": "exact generated driver; forced failures before setup; no PTY/auth/ps"
+  },
+  "outside_full_recheck": "INCOMPLETE: not run in worker sandbox",
+  "project_map_exit": 0,
+  "project_map_output": "Problems (0):\nStale living docs (0):\nFrontier (7):\n  - T-010 [task] Account for descendant agent sessions and model settings\n  - T-011 [task] Check monitor coverage and finding disposition\n  - T-012 [task] Define research deliverables and handoff evidence\n  - T-013 [task] Make fixture governance scope explicit\n  - T-014 [task] Check evidence capture and artifact packaging before model runs\n  - T-093 [build] 正常登录启动方式落地：隔离 HOME 加登录凭据、本地转发层调用计数、事实核对脚本\n  - T-094 [build] 缺陷：launch-worker 在稀疏 worktree 里间歇启动失败（herdr agent start 退出 1，无错误身份）\n",
+  "diff_check_exit": 0,
+  "utf8_checks": [
+    "evidence/2026-10-16-batch16/T-093/RESULTS.md",
+    "evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-02.md",
+    "evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-02.sh"
+  ],
+  "independent_review_01": "original NO_GO preserved; no edits",
+  "final_expected_changes": [
+    "RESULTS.md",
+    "REVIEW-REQUEST-T093-02.md",
+    "evidence-recheck-local-02.json",
+    "freeze-checks-03.json",
+    "independent-review-01.md",
+    "EVIDENCE-RECHECK-02.sh"
+  ],
+  "overall": "INCOMPLETE: outside recheck and new independent review/gate pending",
+  "script_verdict_change_after_local_check": "omit-first must match both independent_upstream_assertion and ledger must exist before receipt; generated driver unchanged",
+  "generated_driver_unchanged_from_local_check": true,
+  "independent_review_original_preservation": "exact text compared with captured original before staging"
+}

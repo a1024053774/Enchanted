@@ -1,25 +1,58 @@
 import { accessSync, appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
 import type { A2AInboxEntry } from "./contracts/a2aInbox.ts";
 import { claudeLaunch, type ClaudeLaunchInput } from "./claudeLaunch.ts";
+import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 import { resumeArgv, nativeSessionFile } from "./paneRecovery.ts";
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
 const cli = fileURLToPath(new URL("./gates/cli.ts", import.meta.url));
+const processQuery = fileURLToPath(new URL("./processSnapshot.py", import.meta.url));
 const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
 const shellCommand = (argv: string[]) => argv.map(quote).join(" ");
 function check(value: unknown, error: string, details?: unknown): asserts value {
   if (!value) throw new Refusal(error, details);
+}
+function requireFakeControllerRestore(record: Record<string, any>) {
+  const env = record.env && typeof record.env === "object" && !Array.isArray(record.env) ? record.env : {};
+  const shell = record.shell_argv;
+  const command = Array.isArray(shell) ? shell[3] : undefined;
+  // T-093: a missing authentication field must not downgrade a protected
+  // launch. Any surviving normal-login marker requires a fresh protected start.
+  const normal = record.authentication === "isolated normal login" ||
+    typeof record.role_card_revision === "string" && record.role_card_revision.startsWith("T-093/normal-login/") ||
+    record.login_audit_directory !== undefined || record.login_preflight_file !== undefined ||
+    record.hook_authorization === "T-093/controller-start" || env.A2A_PROFILE_PROCESS_LOG !== undefined ||
+    [env.HOME, env.CLAUDE_CONFIG_DIR].some(value => typeof value === "string" && value.startsWith("/private/tmp/a2a-claude-login-")) ||
+    typeof env.NODE_OPTIONS === "string" && env.NODE_OPTIONS.includes("claudeLoginProcessTrace") ||
+    typeof command === "string" && /^exec(?:\s|$)/.test(command);
+  check(!normal, "normal_login_restore_requires_protected_start");
+  // T-096's existing P1 contract is positive evidence, including for legacy
+  // records without authentication. Unknown profiles never execute a CLI here.
+  const base = typeof env.ANTHROPIC_BASE_URL === "string" && /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})$/.exec(env.ANTHROPIC_BASE_URL);
+  const temporary = (value: unknown) => typeof value === "string" && value.startsWith("/private/tmp/") &&
+    !value.includes("\0") && resolve(value) === value;
+  check(record.role === "controller" && record.cli === "Claude Code" && ["ideation", "executor"].includes(record.preset) &&
+    (record.authentication === undefined || record.authentication === "isolated fake API only") &&
+    record.role_card_revision === "T-078-2/P1" && record.shell === "/bin/zsh" &&
+    Array.isArray(shell) && shell.length === 4 && shell[0] === "-f" && shell[1] === "-i" && shell[2] === "-c" &&
+    typeof command === "string" &&
+    env.ANTHROPIC_AUTH_TOKEN === "a2a-fixture-key-not-a-secret" && base && Number(base[1]) <= 65535 &&
+    new URL(env.ANTHROPIC_BASE_URL).origin === env.ANTHROPIC_BASE_URL &&
+    temporary(env.HOME) && temporary(env.CLAUDE_CONFIG_DIR) && env.NODE_OPTIONS === undefined &&
+    env.ANTHROPIC_API_KEY === undefined && env.CLAUDE_CODE_OAUTH_TOKEN === undefined,
+    "restore_record_unrecognized");
 }
 export function spawnHelper() {
   const lib = dirname(require.resolve("node-pty"));
@@ -65,6 +98,8 @@ type Pane = {
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   permission?: { prompt_id: string; submission: string } | null;
+  login?: ClaudeLogin;
+  loginCleanup?: Promise<void>;
 };
 
 export class Panes implements GateRuntime {
@@ -78,15 +113,17 @@ export class Panes implements GateRuntime {
     this.onEventWriteFailed = onEventWriteFailed;
   }
   ensureProject = async (_project: string, _repo: string) => {};
-  startController(task: A2ATask, input: ClaudeLaunchInput) {
-    check(new URL(input.api_url).port !== "0", "messages_api_not_bound");
-    const record = { ...claudeLaunch(task, input), created_at: new Date().toISOString(),
+  async startController(task: A2ATask, input: ClaudeLaunchInput) {
+    let login: ClaudeLogin | undefined;
+    try {
+    if (input.authentication === "normal-login") login = await ClaudeLogin.prepare(input, task.repo);
+    else check(new URL(input.api_url!).port !== "0", "messages_api_not_bound");
+    const record = { ...claudeLaunch(task, input, login?.isolation), created_at: new Date().toISOString(), executable_path: "",
       cli_version: "unknown", version_probe: null as { argv: string[]; stdout: string; stderr: string } | null };
-    return (async () => {
       const expectedVersion = record.cli_version_expected;
       let probe;
       try {
-        probe = await exec(input.executable, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
+        probe = login?.versionProbe ?? await exec(input.executable, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
       } catch (error) {
         const failure = error as NodeJS.ErrnoException;
         throw new Refusal(failure.code === "ENOENT" ? "controller_executable_missing" : "controller_version_probe_failed",
@@ -94,10 +131,14 @@ export class Panes implements GateRuntime {
       }
       const version = probe.stdout.trim();
       if (version !== expectedVersion) throw new Refusal("controller_version_mismatch", { expected: expectedVersion, observed: version });
+      // Keep the actual argv (which may use a valid alias), but bind the live
+      // identity to the canonical executable now, before starting the PTY.
+      record.executable_path = realpathSync(input.executable);
       record.cli_version = version;
-      record.version_probe = { argv: [input.executable, "--version"], stdout: probe.stdout, stderr: probe.stderr };
-      // The probe awaits a child process; keep this ownership check next to the
-      // synchronous registration so two concurrent starts cannot claim one preset.
+      record.version_probe = { argv: login?.versionProbe.argv ?? [input.executable, "--version"], stdout: probe.stdout, stderr: probe.stderr };
+      if (login) await login.preflight(record);
+      // Version and preflight await other work. Keep the ownership check next
+      // to synchronous registration so concurrent starts cannot claim one preset.
       check(![...this.panes.values()].some(p => !p.stopped && p.record.preset === input.preset), "controller_already_started");
       const token = randomUUID();
       this.store.launch(record);
@@ -111,20 +152,39 @@ export class Panes implements GateRuntime {
         archived: false, failed: null, leader: null, native: record.session, turn: null, nativeEnded: false, active: null,
         queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
         userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
-        terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
+        terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set(), login };
+      login?.recordChild(terminal.pid, "PTY helper -> zsh -> CLI");
       this.panes.set(record.thread, pane);
       this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
       terminal.onData((data: string) => {
-        try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
+        try { if (login) login.observe(data, trace); else appendFileSync(trace, data); this.terminalProtocol(pane, data); }
         catch (error) { this.recordFailure(pane, "controller_terminal_failed", error); }
       });
       terminal.onExit((event: unknown) => {
         pane.stopped = true; pane.state = "unknown";
         try { this.store.event("pane_exit", event, record); }
         catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+        if (login) {
+          // The normal profile execs the CLI in this PTY's process group.
+          // Remove any remaining hook/tool children before deleting its HOME.
+          pane.loginCleanup = (async () => {
+            try { process.kill(-terminal.pid, "SIGKILL"); }
+            catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw new Refusal("login_group_cleanup_failed"); }
+            const until = Date.now() + 5000;
+            for (;;) {
+              try { process.kill(-terminal.pid, 0); }
+              catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") break; throw new Refusal("login_group_cleanup_failed"); }
+              if (Date.now() >= until) throw new Refusal("login_group_exit_unconfirmed");
+              await new Promise(resolve => setTimeout(resolve, 25));
+            }
+            await login.finish(record);
+          })().catch(() => {
+            this.recordFailure(pane, "login_fact_collection_failed", new Refusal("login_fact_collection_failed"));
+          });
+        }
       });
       return record;
-    })();
+    } catch (error) { await login?.discard(); throw error; }
   }
   // T-078-1/#49: prepare argv and its durable record only. Actual Claude launch,
   // auth, hooks and completion matching await decision 20261011T101958Z. This
@@ -209,8 +269,9 @@ export class Panes implements GateRuntime {
         // T-096 decision B: worker/reviewer attempts retain their gate-owned
         // runtime binding. Restoration must neither spawn nor mutate an attempt.
         check(record.attempt === null, "restore_managed_attempt_requires_reclaim");
-        check(record.role === "controller" && record.cli === "Claude Code" &&
-          ["ideation", "executor"].includes(record.preset), "restore_controller_required");
+        requireFakeControllerRestore(record);
+        const argv = resumeArgv(record, opened.native_session);
+        check(record.shell_argv[3] === shellCommand(record.argv) + "; exec /bin/zsh -f -i", "restore_record_unrecognized");
         const previous = this.store.lastEvent(record.id, ["pane_started", "pane_restored"]);
         if (Number.isSafeInteger(previous?.data.shell_pid) && previous!.data.shell_pid > 1) {
           try {
@@ -220,7 +281,6 @@ export class Panes implements GateRuntime {
             if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
           }
         }
-        const argv = resumeArgv(record, opened.native_session);
         check(opened.resume_argv && argv.length === opened.resume_argv.length &&
           argv.every((arg, index) => arg === opened.resume_argv![index]), "restore_argv_changed");
         const taskRow = this.store.db.prepare("SELECT data FROM tasks WHERE id=?").get(record.task);
@@ -232,6 +292,11 @@ export class Panes implements GateRuntime {
           expected: record.cli_version, observed: probe.stdout.trim() });
         const nativeFile = nativeSessionFile(record, opened.native_session!);
         check(record.shell === "/bin/zsh" && record.env && isAbsolute(record.worktree), "restore_launch_invalid");
+        const executablePath = realpathSync(argv[0]!);
+        check(record.executable_path === undefined || record.executable_path === executablePath, "restore_executable_changed");
+        // Legacy launch history is immutable. Bind this restored runtime only,
+        // after the original version/session checks and before creating a PTY.
+        const runtimeRecord = { ...record, executable_path: executablePath };
         const token = randomUUID();
         const trace = join(this.root, "traces", record.id, "pty.raw");
         check(existsSync(trace), "trace_unavailable");
@@ -240,7 +305,7 @@ export class Panes implements GateRuntime {
           name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
           env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
         });
-        const pane: Pane = { record: record as Pane["record"], token, task, attempt: null, pty: terminal,
+        const pane: Pane = { record: runtimeRecord as Pane["record"], token, task, attempt: null, pty: terminal,
           state: "unknown", stopped: false, archived: false, failed: null, leader: null,
           native: opened.native_session, nativeFile, turn: null, nativeEnded: false, active: null,
           queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
@@ -280,7 +345,9 @@ export class Panes implements GateRuntime {
           catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
         }
         this.store.event("pane_restore_failed", { daemon, error: error instanceof Refusal ? error.code : "restore_failed",
-          details: String(error), cleanup, native_session: opened.native_session }, record as any);
+          details: error instanceof Refusal && error.code === "normal_login_restore_requires_protected_start" ?
+            "正常登录会话不自动续接，请经正常登录入口重新启动。" : String(error),
+          cleanup, native_session: opened.native_session }, record as any);
       }
     }
   }
@@ -389,7 +456,7 @@ export class Panes implements GateRuntime {
       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
         review_home_was_empty: true } : {}),
-      created_at: new Date().toISOString(), cli_version: version, argv, request_dir: requestDirectory,
+      created_at: new Date().toISOString(), cli_version: version, argv, executable_path: codex, request_dir: requestDirectory,
       model_requested: model, effort_requested: effort, service_tier_requested: "default",
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
@@ -468,35 +535,59 @@ export class Panes implements GateRuntime {
   }
   async processInfo(thread: string) {
     const pane = this.get(thread);
-    const output = (await exec("/bin/ps", ["-axo", "pid=,ppid=,pgid=,tpgid=,comm="])).stdout;
-    const rows = output.trim().split("\n").map((line) => {
-      const m = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+)\s+(.+)$/.exec(line);
-      check(m, "invalid_process_row", line);
-      return { pid: Number(m[1]), ppid: Number(m[2]), pgid: Number(m[3]), tpgid: Number(m[4]), command: m[5]! };
-    });
-    const descendants = new Set<number>([pane.pty.pid]);
-    for (let changed = true; changed;) {
-      changed = false;
-      for (const row of rows) if (descendants.has(row.ppid) && !descendants.has(row.pid)) { descendants.add(row.pid); changed = true; }
+    const started = performance.now();
+    let operation: ReturnType<typeof exec> | undefined;
+    let completed = false, stdout = "", stderr = "";
+    try {
+      operation = exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pane.pty.pid)], { timeout: 5000, maxBuffer: 4 * 1024 * 1024, encoding: "utf8" });
+      pane.login?.recordChild((operation as any).child.pid, "libproc process observer");
+      const captured = await operation;
+      completed = true; stdout = captured.stdout; stderr = captured.stderr;
+      const observed = JSON.parse(stdout);
+      check(observed.schema === 1 && observed.root_pid === pane.pty.pid && observed.method === "macOS libproc" && Array.isArray(observed.rows), "invalid_process_snapshot");
+      const rows = observed.rows as {pid:number;ppid:number;pgid:number;tpgid:number;command:string}[];
+      const positive = (value: unknown) => Number.isSafeInteger(value) && (value as number) > 0;
+      check(rows.length <= 4096 && rows.every(row=>row && positive(row.pid) && Number.isSafeInteger(row.ppid) && row.ppid>=0 && positive(row.pgid) && Number.isSafeInteger(row.tpgid) && row.tpgid>=-1 && typeof row.command === "string" && isAbsolute(row.command) && !row.command.includes("\0")) && new Set(rows.map(row=>row.pid)).size === rows.length, "invalid_process_row");
+      const descendants = new Set<number>([pane.pty.pid]);
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const row of rows) if (descendants.has(row.ppid) && !descendants.has(row.pid)) { descendants.add(row.pid); changed = true; }
+      }
+      const owned = rows.filter((row) => descendants.has(row.pid));
+      check(owned.length === rows.length && (!rows.length || rows.some(row=>row.pid===pane.pty.pid)), "invalid_process_tree");
+      const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.executable_path);
+      const leader = leaders.length === 1 ? leaders[0]!.pid : null;
+      const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
+      if (pane.record.cli !== "Claude Code" && !pane.nativeEnded && !pane.failed && pane.leader !== null && pane.native !== null &&
+        leader === null && shellAlone && pane.state === "idle" && !pane.active && !pane.writing && !pane.queue.length) {
+        this.store.event("native_session_ended", { shell_pid: pane.pty.pid, leader_pid: pane.leader,
+          native_session: pane.native, processes: owned }, pane.record);
+        pane.nativeEnded = true;
+      }
+      if (pane.nativeEnded && !shellAlone) pane.failed = "process_after_session_end";
+      else if (!pane.nativeEnded && pane.leader !== null && leader !== pane.leader) pane.failed =
+        pane.record.cli === "Claude Code" ? "claude_leader_replaced_or_exited" : "codex_leader_replaced_or_exited";
+      if (pane.leader === null && leader !== null) pane.leader = leader;
+      this.scan(pane);
+      return { shell_pid: pane.pty.pid, leader, native_session: pane.native, session_ended: pane.nativeEnded,
+        observer: { method: observed.method, root_pid: observed.root_pid },
+        processes: owned, failed: pane.failed };
+    } catch (error) {
+      const failure = error as Error & { code?: string | number; signal?: string; killed?: boolean; stdout?: string; stderr?: string };
+      const child = (operation as any)?.child;
+      Object.assign(failure, { process_query: {
+        root_pid: pane.pty.pid, helper_pid: child?.pid ?? null,
+        stdout: completed ? stdout : failure.stdout ?? stdout,
+        stderr: completed ? stderr : failure.stderr ?? stderr,
+        exit_code: child?.exitCode ?? (completed ? 0 : typeof failure.code === "number" ? failure.code : null),
+        signal: child?.signalCode ?? failure.signal ?? null, killed: child?.killed ?? failure.killed ?? false,
+        error_code: !completed && typeof failure.code === "string" ? failure.code : null,
+        elapsed_ms: performance.now() - started,
+      } });
+      throw failure;
     }
-    const owned = rows.filter((row) => descendants.has(row.pid));
-    const leaders = owned.filter((row) => row.pid === row.pgid && row.pgid === row.tpgid && row.command === pane.record.argv[0]);
-    const leader = leaders.length === 1 ? leaders[0]!.pid : null;
-    const shellAlone = owned.length === 1 && owned[0]!.pid === pane.pty.pid;
-    if (pane.record.cli !== "Claude Code" && !pane.nativeEnded && !pane.failed && pane.leader !== null && pane.native !== null &&
-      leader === null && shellAlone && pane.state === "idle" && !pane.active && !pane.writing && !pane.queue.length) {
-      this.store.event("native_session_ended", { shell_pid: pane.pty.pid, leader_pid: pane.leader,
-        native_session: pane.native, processes: owned }, pane.record);
-      pane.nativeEnded = true;
-    }
-    if (pane.nativeEnded && !shellAlone) pane.failed = "process_after_session_end";
-    else if (!pane.nativeEnded && pane.leader !== null && leader !== pane.leader) pane.failed =
-      pane.record.cli === "Claude Code" ? "claude_leader_replaced_or_exited" : "codex_leader_replaced_or_exited";
-    if (pane.leader === null && leader !== null) pane.leader = leader;
-    this.scan(pane);
-    return { shell_pid: pane.pty.pid, leader, native_session: pane.native, session_ended: pane.nativeEnded,
-      processes: owned, failed: pane.failed };
   }
+
   scan(pane: Pane, final = false) {
     if (pane.stopped) return;
     if (pane.record.cli === "Claude Code") return;
@@ -989,13 +1080,14 @@ export class Panes implements GateRuntime {
     this.store.event("pane_archived", {}, pane.record); pane.archived = true;
   };
   async terminate(pane: Pane, reason: string) {
-    if (pane.stopped) return;
+    if (pane.stopped) { await pane.loginCleanup; return; }
     this.store.event("pane_stop_intent", { reason, shell_pid: pane.pty.pid }, pane.record);
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Refusal("pane_stop_unconfirmed")), 5000);
       pane.pty.onExit(() => { clearTimeout(timer); resolve(); });
       pane.pty.kill("SIGHUP");
     });
+    await pane.loginCleanup;
   }
   async shutdown() { for (const pane of this.panes.values()) await this.terminate(pane, "daemon_shutdown_interruption"); }
 }

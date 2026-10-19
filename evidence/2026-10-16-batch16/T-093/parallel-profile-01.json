@@ -1,0 +1,350 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "OS-boundary probe only; not product-chain acceptance",
+  "task": "T-093",
+  "source_revision": "1243d810a72cde3bf76c0595901c6443dcf665e9",
+  "profiles": {
+    "C": "(version 1)(allow default)(deny file-write* (subpath \"/Users/luckye\"))(deny network*)(deny mach-lookup (global-name-regex #\".*[Ss]ecurity.*\"))(deny file-read* (require-all (subpath \"/Users/luckye\")(require-not (require-any (subpath \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench\")(literal \"/opt/homebrew/Cellar/node/26.5.0/bin/node\")))))(allow network-outbound (remote tcp4 \"localhost:50865\"))",
+    "F": "(version 1)(allow default)(deny file-write* (subpath \"/Users/luckye\"))(deny network*)(deny mach-lookup (global-name-regex #\".*[Ss]ecurity.*\"))(deny process-fork)(deny file-write*)(allow file-write* (subpath \"/private/tmp/t093-parallel-probe-4lw2pa8d/F\"))(allow network-bind network-inbound (local tcp4 \"localhost:50865\"))(allow network-outbound (remote tcp4 \"localhost:55134\"))",
+    "U": "(version 1)(allow default)(deny file-write* (subpath \"/Users/luckye\"))(deny network*)(deny mach-lookup (global-name-regex #\".*[Ss]ecurity.*\"))(deny process-fork)(deny file-write*)(allow file-write* (subpath \"/private/tmp/t093-parallel-probe-4lw2pa8d/U\"))(allow network-bind network-inbound (local tcp4 \"localhost:55134\"))(allow network-bind network-inbound (local tcp4 \"localhost:56572\"))",
+    "S": "(version 1)(allow default)(deny file-write* (subpath \"/Users/luckye\"))(deny network*)(deny mach-lookup (global-name-regex #\".*[Ss]ecurity.*\"))(deny file-write* (subpath \"/private/tmp/t093-parallel-probe-4lw2pa8d/synthetic-home\"))",
+    "M": "(version 1)(allow default)(deny file-write* (subpath \"/Users/luckye\"))(deny network*)(deny mach-lookup (global-name-regex #\".*[Ss]ecurity.*\"))"
+  },
+  "ports": {
+    "forward_port": 50865,
+    "upstream_port": 55134,
+    "other_port": 56572,
+    "bind_probe_port": 64175
+  },
+  "real_cli_starts": 0,
+  "auth_reads": 0,
+  "real_model_turns": 0,
+  "real_upstream_requests": 0,
+  "processes": [
+    {
+      "role": "probe parent after exec",
+      "pid": 17581,
+      "ppid": 17573,
+      "pgrp": 17581,
+      "profile": "C"
+    },
+    {
+      "role": "U",
+      "pid": 17635,
+      "ppid": 1,
+      "pgrp": 17634,
+      "profile": "U"
+    },
+    {
+      "role": "F",
+      "pid": 17638,
+      "ppid": 1,
+      "pgrp": 17637,
+      "profile": "F"
+    },
+    {
+      "role": "synthetic CLI-chain child",
+      "pid": 17694,
+      "ppid": 17581,
+      "pgrp": 17581,
+      "profile": "C inherited"
+    },
+    {
+      "role": "S",
+      "pid": 17641,
+      "ppid": 1,
+      "pgrp": 17640,
+      "profile": "S"
+    },
+    {
+      "role": "M",
+      "pid": 17643,
+      "ppid": 1,
+      "pgrp": 17642,
+      "profile": "M"
+    }
+  ],
+  "bootstrap_processes": [
+    {
+      "role": "initial argument, FD and temporary-root preparation",
+      "pid": 17581,
+      "profile": "pre-exec bootstrap; no auth, network or real HOME writes"
+    },
+    {
+      "role": "U detachment helper then true",
+      "pid": 17634,
+      "profile": "U; standalone apply; exited before C",
+      "exit": 0
+    },
+    {
+      "role": "F detachment helper then true",
+      "pid": 17637,
+      "profile": "F; standalone apply; exited before C",
+      "exit": 0
+    },
+    {
+      "role": "S detachment helper then true",
+      "pid": 17640,
+      "profile": "S; standalone apply; exited before C",
+      "exit": 0
+    },
+    {
+      "role": "M detachment helper then true",
+      "pid": 17642,
+      "profile": "M; standalone apply; exited before C",
+      "exit": 0
+    }
+  ],
+  "primary_failure": null,
+  "cleanup_failures": [
+    {
+      "role": "U",
+      "message": "endpoint_shutdown_unconfirmed"
+    },
+    {
+      "message": "after_inventory_unavailable"
+    }
+  ],
+  "inventory": {
+    "pass_condition": false,
+    "acceptance_basis": "User decision A; metadata differences are informational.",
+    "scope": [
+      ".claude",
+      ".claude.json",
+      ".claude.json.backup",
+      "Library/Keychains"
+    ],
+    "excludes": [
+      "atime",
+      "contents",
+      "symlink targets",
+      "other HOME paths"
+    ],
+    "collection_complete": false
+  },
+  "mutation_limit": "The removed deny rule targets synthetic HOME only. The actual HOME deny rule remains in every profile.",
+  "parent_write": {
+    "path": "/Users/luckye/.a2a-t093-deny-b03ecf7e05c24ed4a8baa1d70823fbd3",
+    "exclusive_create": true,
+    "preexisting": false,
+    "denied": true,
+    "created": false,
+    "deleted": false,
+    "absent_after": true,
+    "errno": 1
+  },
+  "U_preflight": {
+    "pid": 17635,
+    "ppid": 1,
+    "pgrp": 17634,
+    "role": "U",
+    "profile": "U",
+    "real_home_write": {
+      "path": "/Users/luckye/.a2a-t093-deny-8c99d0620ab14f3eb5f79b642f938fc6",
+      "exclusive_create": true,
+      "preexisting": false,
+      "denied": true,
+      "created": false,
+      "deleted": false,
+      "absent_after": true,
+      "errno": 1
+    },
+    "primary_failure": null,
+    "security_lookup": {
+      "com.apple.securityd": 1100,
+      "com.apple.SecurityServer": 1100
+    },
+    "fork": {
+      "denied": true,
+      "errno": 1,
+      "child_pid": null
+    }
+  },
+  "F_preflight": {
+    "pid": 17638,
+    "ppid": 1,
+    "pgrp": 17637,
+    "role": "F",
+    "profile": "F",
+    "real_home_write": {
+      "path": "/Users/luckye/.a2a-t093-deny-edf68ce422ab474485fade949a01757f",
+      "exclusive_create": true,
+      "preexisting": false,
+      "denied": true,
+      "created": false,
+      "deleted": false,
+      "absent_after": true,
+      "errno": 1
+    },
+    "primary_failure": null,
+    "security_lookup": {
+      "com.apple.securityd": 1100,
+      "com.apple.SecurityServer": 1100
+    },
+    "fork": {
+      "denied": true,
+      "errno": 1,
+      "child_pid": null
+    },
+    "unconfigured_upstream": {
+      "denied": true,
+      "errno": 1
+    },
+    "outside_records_write": {
+      "path": "/private/tmp/t093-parallel-probe-4lw2pa8d/.a2a-t093-deny-f72e4a3d89ac4b62944ae494e90a81de",
+      "exclusive_create": true,
+      "preexisting": false,
+      "denied": true,
+      "created": false,
+      "deleted": false,
+      "absent_after": true,
+      "errno": 1
+    }
+  },
+  "inventory_process": {
+    "pid": 17635,
+    "profile": "U; before Node exec and after Node exec"
+  },
+  "forwarder_other_listener": {
+    "denied": true,
+    "code": "EPERM"
+  },
+  "upstream_bypass": {
+    "denied": true,
+    "errno": 1
+  },
+  "cli_child": {
+    "role": "synthetic CLI-chain child",
+    "pid": 17694,
+    "ppid": 17581,
+    "pgrp": 17581,
+    "profile": "C inherited",
+    "real_home_write": {
+      "path": "/Users/luckye/.a2a-t093-deny-aabf407449134876b1cada4d9d43d244",
+      "exclusive_create": true,
+      "preexisting": false,
+      "denied": true,
+      "created": false,
+      "deleted": false,
+      "absent_after": true,
+      "errno": 1
+    },
+    "upstream_bypass": {
+      "denied": true,
+      "errno": 1
+    }
+  },
+  "configured_local_path_completed": true,
+  "synthetic_S": {
+    "pid": 17641,
+    "ppid": 1,
+    "pgrp": 17640,
+    "role": "S",
+    "profile": "S",
+    "real_home_write": {
+      "path": "/Users/luckye/.a2a-t093-deny-e736f0b418c54b14a919b2126d9e4947",
+      "exclusive_create": true,
+      "preexisting": false,
+      "denied": true,
+      "created": false,
+      "deleted": false,
+      "absent_after": true,
+      "errno": 1
+    },
+    "primary_failure": null,
+    "security_lookup": {
+      "com.apple.securityd": 1100,
+      "com.apple.SecurityServer": 1100
+    },
+    "synthetic_write": {
+      "path": "/private/tmp/t093-parallel-probe-4lw2pa8d/synthetic-home/.a2a-t093-deny-a50436fbf293441882b8a3cce9c1858b",
+      "exclusive_create": true,
+      "preexisting": false,
+      "denied": true,
+      "created": false,
+      "deleted": false,
+      "absent_after": true,
+      "errno": 1
+    }
+  },
+  "synthetic_M": {
+    "pid": 17643,
+    "ppid": 1,
+    "pgrp": 17642,
+    "role": "M",
+    "profile": "M",
+    "real_home_write": {
+      "path": "/Users/luckye/.a2a-t093-deny-fab2b2bb2fe243fb9848c2c45e29f4c4",
+      "exclusive_create": true,
+      "preexisting": false,
+      "denied": true,
+      "created": false,
+      "deleted": false,
+      "absent_after": true,
+      "errno": 1
+    },
+    "primary_failure": {
+      "kind": "AssertionError",
+      "message": "home_write_must_be_denied"
+    },
+    "security_lookup": {
+      "com.apple.securityd": 1100,
+      "com.apple.SecurityServer": 1100
+    },
+    "synthetic_write": {
+      "path": "/private/tmp/t093-parallel-probe-4lw2pa8d/synthetic-home/.a2a-t093-deny-e5a78766e61847e5ad554d5db6942690",
+      "exclusive_create": true,
+      "preexisting": false,
+      "denied": false,
+      "created": true,
+      "deleted": true,
+      "absent_after": true
+    }
+  },
+  "synthetic_mutant_rejected": true,
+  "startup_diagnostics": {
+    "F": {
+      "bytes": 0,
+      "lines": 0,
+      "sandbox_exec_error": false,
+      "operation_not_permitted": false,
+      "profile_parse_error": false,
+      "invalid_network_address": false
+    },
+    "U": {
+      "bytes": 0,
+      "lines": 0,
+      "sandbox_exec_error": false,
+      "operation_not_permitted": false,
+      "profile_parse_error": false,
+      "invalid_network_address": false
+    },
+    "S": {
+      "bytes": 0,
+      "lines": 0,
+      "sandbox_exec_error": false,
+      "operation_not_permitted": false,
+      "profile_parse_error": false,
+      "invalid_network_address": false
+    },
+    "M": {
+      "bytes": 0,
+      "lines": 0,
+      "sandbox_exec_error": false,
+      "operation_not_permitted": false,
+      "profile_parse_error": false,
+      "invalid_network_address": false
+    }
+  },
+  "F_closed": {
+    "received": 1,
+    "forwarded": 1,
+    "deadline_reached": false
+  },
+  "U_closed": {
+    "received": 1,
+    "forwarded": 0,
+    "deadline_reached": false
+  },
+  "probe_root_removed": true
+}

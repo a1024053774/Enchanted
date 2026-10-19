@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "scope": "synthetic exception/child fixtures; no OS profile, real Git, auth or model",
+  "checks": [
+    {
+      "check": "owned Git timeout cleanup",
+      "status": "PASS",
+      "detail": {
+        "original_timeout_preserved": true,
+        "owned_child_terminated_and_reaped": true,
+        "actual_process_signals": 0
+      }
+    },
+    {
+      "check": "bounded scan covers observed duration",
+      "status": "PASS",
+      "detail": {
+        "scan_budget_seconds": 90,
+        "scan_call_count": 1,
+        "no_retry": true
+      }
+    },
+    {
+      "check": "original R error and no credential leakage",
+      "status": "PASS",
+      "detail": {
+        "original_message_retained": true,
+        "synthetic_credentials_removed": true,
+        "noncredential_fixture_preserved": true,
+        "public_secret_hits": 0
+      }
+    },
+    {
+      "check": "cleanup failure remains secondary",
+      "status": "PASS",
+      "detail": {
+        "original_timeout_seconds": 90,
+        "secondary_reap_failure_reported": true
+      }
+    }
+  ]
+}

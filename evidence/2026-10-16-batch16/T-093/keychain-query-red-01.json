@@ -1,0 +1,14 @@
+{
+  "task": "T-093",
+  "candidate": "1d81ac724004aee61c654795a096f545d1a0e8d2",
+  "status": "INCOMPLETE",
+  "command": "python3 workbench/tests/test_t093_probe_safety.py ProbeSafety.test_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards",
+  "exit_code": 1,
+  "classification": "synthetic_counterfactual",
+  "expected": "在同一只读 profile 和隔离环境中，精确服务查询指定单一钥匙串；只复制 claudeAiOauth。",
+  "observed": "AssertionError: 'login_credential_not_found' is not None",
+  "independent_boundary_evidence": "probe-01.json 为真实入口红态；主控 #58 提供同一精确服务在无 profile 的真实环境中查询返回 0。该反差尚未证明是 HOME 还是其他上下文导致。",
+  "limitations": "合成 capture 只证明选定命令、参数、环境和复制行为；不证明 macOS Keychain 边界。",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0
+}

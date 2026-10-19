@@ -1,0 +1,20 @@
+{
+  "task": "T-093",
+  "attempt": "a1",
+  "base_revision": "850c955a783a880cd2cf3ceb3b31bf2f97957025",
+  "status": "INCOMPLETE",
+  "kind": "contract test",
+  "command": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "workbench/tests/test_t093_probe_safety.py",
+    "ProbeSafety.test_workspace_trust_state_contains_only_this_private_cwd",
+    "ProbeSafety.test_workspace_trust_option_requires_onboarding_state_preparation",
+    "ProbeSafety.test_pretrusted_route_answers_protocol_but_sends_no_startup_keys"
+  ],
+  "exit_code": 1,
+  "expected_failure_observed": true,
+  "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 3, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+  "stderr": "test_workspace_trust_state_contains_only_this_private_cwd (__main__.ProbeSafety) ... FAIL\ntest_workspace_trust_option_requires_onboarding_state_preparation (__main__.ProbeSafety) ... FAIL\ntest_pretrusted_route_answers_protocol_but_sends_no_startup_keys (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_workspace_trust_state_contains_only_this_private_cwd (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 38, in test_workspace_trust_state_contains_only_this_private_cwd\n    result = probe.prepare_onboarding_state(root, trust_isolated_cwd=True)\nTypeError: prepare_onboarding_state() got an unexpected keyword argument 'trust_isolated_cwd'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 40, in test_workspace_trust_state_contains_only_this_private_cwd\n    self.fail(\"尚未支持显式生成隔离 cwd 信任状态。\")\nAssertionError: 尚未支持显式生成隔离 cwd 信任状态。\n\n======================================================================\nFAIL: test_workspace_trust_option_requires_onboarding_state_preparation (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 65, in test_workspace_trust_option_requires_onboarding_state_preparation\n    self.assertEqual(str(stopped.exception), \"onboarding_state_required_for_cwd_trust\")\nAssertionError: 'private_setup_attempted' != 'onboarding_state_required_for_cwd_trust'\n- private_setup_attempted\n+ onboarding_state_required_for_cwd_trust\n\n\n======================================================================\nFAIL: test_pretrusted_route_answers_protocol_but_sends_no_startup_keys (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 87, in test_pretrusted_route_answers_protocol_but_sends_no_startup_keys\n    probe.route(str(peer), \"synthetic-profile\", env, str(root / \"cwd\"), root, report, [],\nTypeError: route() got an unexpected keyword argument 'startup_controls_enabled'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 90, in test_pretrusted_route_answers_protocol_but_sends_no_startup_keys\n    self.fail(\"尚未提供禁止业务按键的探针模式。\")\nAssertionError: 尚未提供禁止业务按键的探针模式。\n\n----------------------------------------------------------------------\nRan 3 tests in 0.004s\n\nFAILED (failures=3)\n",
+  "real_cli_starts": 0,
+  "real_auth_reads": 0
+}

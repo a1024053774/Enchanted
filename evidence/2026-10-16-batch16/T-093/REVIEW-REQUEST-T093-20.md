@@ -1,0 +1,98 @@
+# T-093 请求 20：恢复白名单与 helper 失败诊断
+
+**INCOMPLETE：局部红绿通过，新候选 T-096 原生七场与后续独立审查／门禁待完成。** task T-093 / attempt a1，worker s16-t093，session 67f986cc-92e4-4089-9c22-802a1143b645；基线 788d75f4a75a861a7beb23f3f0ac97a6ecc70938。最终候选绑定本轮末行 `T-093 FROZEN <完整 SHA>`。不 push、不 rebase、不改 gates／acceptance／地图或全局配置；不跑真实模型。
+
+## 最新交接：主控 #139
+
+r21 已由主控完成五场 PASS；isolation／empty-reopen 因 runner 读取未完成 DOM 帧而 KeyError。最新最小修复与**仅这两场**的重跑命令见 [请求 22](REVIEW-REQUEST-T093-22.md)。下面的七场命令保留为旧请求记录，本轮不要重跑其余五场。isolation 旧现场归档不一致另列，比较规则和原件均不改。
+
+## 本轮更新：主控 #130／#132
+
+基线为 19c2973157b31e5f6c51320e6dcc77e53e0bce7d。主控回传 r20-tracer／three 为 PASS、cleanup=true；r20-no-argv 在初始化第五屏的身份查询失败，随后后台被资源不足中断，后四场未跑。旧原件和夹具不改、不删除。只读诊断为 unknown，不能据此认定环境或产品缺陷；见 r20-no-argv-diagnosis-21.json：事件 105 的原始错误为 SyntaxError: Unexpected end of JSON input，此前同一 pane 查询成功 10 次，恢复事件为 0，第五键未写入。此结论不因本次补诊断而改变。
+
+依主控 #132，本轮仅给 processInfo 异常补诊断，并由原 daemon catch 同时写入回复及 request_rejected.result.diagnostics.process_query。字段为 stdout、stderr、exit_code、signal、killed、error_code、root_pid、helper_pid、elapsed_ms。耗时来自单调时钟；spawn 未成功时 PID／退出码／信号可为 null，错误码单列，不伪造退出。stdout／stderr 保存现有 maxBuffer 内捕获的原内容；helper 只读进程身份，不读 argv、环境或 auth。没有新增文件日志或外部上报。
+
+抛出的是原错误，类型、原 details 和错误码不变：JSON 解析／helper 执行异常仍为 orchestration_failed，既有 invalid_process_snapshot／invalid_process_row 等 Refusal 仍用原码。未知身份仍立即停止，一次请求只执行一次 helper，不重试、不用缓存或其他查询回落、不放行终端写入。没有改恢复白名单、版本／session／leader 条件、profile、网络、转发器或门禁。
+
+helper-diagnostics-red-21-02.json 在基线入口取得业务红态：9 类失败都因“诊断未到达 daemon 回复”被拒，原失败码和健康正例成立。helper-diagnostics-green-21-02.json 同一 10 场全通过，使用实际 Panes／daemon handler 和真实 SQLite，但 helper、连接、时钟为给定边界。除逐项输出／退出／信号／精确耗时，还比较事件库与返回结果相等，验证每请求一次调用、失败不释放／零终端写入。observer 11 项、alias 2 项、恢复合同、T-091 IPC 局部回归均通过。它们不证明真实内存压力或原始丢输出的原因。
+
+本轮 worker 未运行任何真实 CLI、helper/libproc、daemon/socket、auth 或模型。下方 t093-r21-* 七场只交命令，**何时运行由用户决定，不自动执行**。全部新候选原生结果、独立审查／门禁仍待完成；旧 r20 的两场 PASS 只绑定旧候选。
+
+限定独立审查 HELPER-DIAGNOSTICS-REVIEW-21.md 对 a4fdee0b8ebf7b60ec26ceea32515ee0ef694832 报 L0/L1 PASS：新输入 15/15、旧基线 10 个失败输入均命中诊断缺失业务断言。真实新建并重开的 SQLite 核对回复／事件相同；原错误、停止与生命周期不变。其夹具 run-01 的跨 VM 比较假红保留，修正后另存 run-02。最终归档仅加报告／文本，源码和测试不再改；新候选原生七场及整票独审／门禁仍待完成。
+
+局部绿态重放（全新输出；无真实 helper／服务）：
+
+```sh
+node --experimental-vm-modules workbench/tests/test_t093_process_diagnostics.mjs /private/tmp/新的helper诊断绿态.json
+```
+
+基线红态可在新临时目录取 git show 19c297315 的 panes.ts、daemon.ts，再作为该测试第三、第四参数；预期 rc 2，9 项业务断言失败，健康项通过。不得执行真实 helper 来补称本轮红绿。
+
+以下恢复白名单的红绿段落保留为请求 20 原阶段记录；新增诊断不改其准入逻辑。
+
+## 原问题与裁定
+
+主控 #129 转交 [independent-review-03.md](independent-review-03.md)，结论 NO_GO。报告与 REVIEW-OUTSIDE-04.sh 按原字保留。P1：单看 authentication，正常登录缺该字段就进入普通恢复；真实 claudeLaunch 生成记录的给定边界探针观察到版本 1／PTY 1／pane_restored。第三轮对网络两层、运行身份、libproc、原件／凭据及限制披露的其他结论按其原范围保留。
+
+本次依主控裁定改为白名单、默认拒绝：只恢复能正面认定的 T-096 假 API 主控，合法旧记录可无 authentication；正常登录及无法识别记录均在任何 CLI 前保持未恢复，不重建 R/F/D/C、不扩大 T-096。
+
+## 机械识别与不变部分
+
+白名单来自实际 fd5c93e6e／当前 claudeLaunch 记录，而不是以“不是 normal”作准入：controller／Claude Code／既有 preset、zsh，P1 role_card_revision、既有四项 shell argv／回到 zsh 的命令与完整原 argv 逐字对应，公开假 token、规范 loopback http origin／合法显式端口、规范 /private/tmp HOME／config 同时匹配。认证字段只能缺省或为 isolated fake API only；未知认证、NODE_OPTIONS、API_KEY／OAuth token 不进入此合同。判定只读内存字段和纯路径／URL，不读 auth、文件或钥匙串。
+
+任何已知正常登录标记优先拒绝：authentication、T-093/normal-login/ role revision、login audit/preflight、T-093 hook 授权、profile process log、a2a-claude-login 私有 HOME/config、已知 trace loader、以 exec 开头的正常登录 shell 形式。返回 normal_login_restore_requires_protected_start 和原中文重启指引。其余不满足白名单者返回 restore_record_unrecognized；旧窗格／位置与历史记录保留。允许的假 API 才继续原 argv／task／版本／session／shell／规范执行路径／实际前台 leader 检查。worker attempt reclaim 规则不变。
+
+没有增加恢复 fallback、默认 argv、固定 leader、版本或 session 绕过。恢复白名单阶段仅 panes.ts 与恢复测试改变；本轮另改 daemon 的诊断透传与诊断测试，controller_start、hook／Stop、转发器、OS profile、事实脚本、processSnapshot 不改。
+
+## 红绿与反例
+
+- restore-whitelist-red-20.json／red-command：精确 git-show 788d75f4a 与 reviewer 候选源码逐字相同；同探针实际生成输入只删除 auth，观察版本 1／PTY 1／pane_restored，rc 2。scratch 和输入路径迁移到新根，不改旧现场。
+- reviewer-replay-green-20.json 是首次白名单候选的历史绿态。该原探针的 fake 子例将 shell 命令写成 synthetic recorded original argv，不满足最终正面 shell 合同，故不再以其为最终 fake 正例；原文／原输入保留不改。
+- restore-contract-red-20-02.json：扩展合同在 788d75f4a 上命中 Normal-login restore must stop before version, identity and PTY boundaries；文件为 INCOMPLETE／rc 1，保留原字作为业务红态。
+- restore-contract-green-20-05.json：11 个正常登录／部分标记、15 个未知、2 个无 auth 的旧假 API、1 个显式假 API、1 个 worker 有逐项调用数／错误／历史观察；另保留缺 argv／错误版本／缺 session、失败兄弟隔离、保存位置／空集、完整实际 shell argv、规范身份三模式与 worker attempt 不变。两个旧缺 executable_path／auth 正例未删除，补齐真实 P1 合同元数据。
+- 第一次限定独立复核 RESTORE-ALLOWLIST-REVIEW-20-01.md 对 116985ec9 报 FAIL：29 场中仅保留正常登录 shell exec 形式的混合输入到达了版本／PTY。原文及 restore-independent-red-20-01.json 保留；扩展 test_t096_restore 在该候选上以同类业务断言失败，见 restore-contract-shell-red-20.json。现补该标记，并要求已知 fake shell 形式；缺失／未知 shell 默认拒绝。原 argv、版本和 session 的后续核对不变。
+- 唯一针对性复核 RESTORE-ALLOWLIST-REVIEW-20-02.md 对 1db51d21d 仍 FAIL：未知命令保留单引号开头／zsh 后缀，仍获准。原报告和独立结果保留。最终要求完整命令逐字等于原 argv 引用后的 fake 命令，核对在旧 PID 查询／版本／PTY 前；resumeArgv 的缺 argv／session 诊断保留。restore-contract-command-red-20.json 在该旧候选命中业务红态，最终 green-20-05 通过。
+- worker 重放原字 REVIEWER-SHELL-PROBE-20.mjs（只迁移输出目录，不改案例／oracle）：旧 1db51d21d 为 18/19，最终工作树为 19/19，见 shell-oracle-worker-red-20.json／green 及其 .command.json。实际 launcher 成对输入、中文／引号／nonce 与两类 fake 正例保留。这不是第三次本地独审；最终新候选尚未获独立 PASS，两份旧 FAIL 不改。
+- 复原单 auth guard、分别删 P1 revision／公开假 token／loopback URL 证据、截实际 argv、删已有身份一致性、固定 leader、历史 worker 坏实现均被对应业务断言拒绝。没有用集合为空或环境崩溃冒充检出。
+- T-091 IPC 19 项、T-096 daemon 7 项局部回归通过；均无真实 CLI／OS 查询，不代替新七场。旧 r18b 原生 PASS 只绑定旧恢复入口。
+
+可重放历史红态及最终合同（输出须全新，不执行真实 CLI）：
+
+```sh
+python3 -B evidence/2026-10-16-batch16/T-093/REPLAY-RESTORE-PROBE-20.py --revision 788d75f4a75a861a7beb23f3f0ac97a6ecc70938 --output /private/tmp/新的白名单红态.json
+node --experimental-vm-modules workbench/tests/test_t096_restore.mjs /private/tmp/新的恢复合同.json
+python3 -B evidence/2026-10-16-batch16/T-093/REPLAY-SHELL-PROBE-20.py --revision 1db51d21d19e462e54360cb6d53f0c04026bf18b --output /private/tmp/新的命令红态.json
+python3 -B evidence/2026-10-16-batch16/T-093/REPLAY-SHELL-PROBE-20.py --output /private/tmp/新的命令绿态.json
+```
+
+四项依次预期 rc 2／FAIL、rc 0／PASS、rc 1／FAIL、rc 0／PASS。REVIEWER-RESTORE-PROBE-20.mjs 和 generated-normal-record-review03-20.json 是 reviewer 原文／合成输入的原字副本；helper 只把 scratch／模块依赖 URL 和输入目录前缀迁移到新根。真实 auth 读取、模型、CLI／PTY 实际执行和 OS profile 操作均为 0，所有调用来自给定边界。
+
+## 主控沙箱外：新候选七场
+
+下面使用已修正 T096-REGRESSION-16.sh，output 始终是 `/Volumes/WD-Elements/a2a-evidence/2026-10-16-batch16/T-096/<label>`，原件写本次全新 run/archive 摘要，不覆盖 r18b。源码 HEAD 必须等于完整候选、src/tests 清洁、外置盘挂载且输出新；不回退内置盘。CLI 路径取已核对的 2.1.302，仍由执行主控逐屏批准六键及 startup-ready；模型／fake POST 预算 0。
+
+```sh
+repo=/Users/luckye/Documents/Code/a2a-wt-t093
+candidate=替换为本轮完整冻结SHA
+cli=/Users/luckye/.local/share/claude/versions/2.1.302
+approval=主控本轮逐屏初始化批准记录位置
+resume="$repo/evidence/2026-10-16-batch16/T-093/T096-REGRESSION-16.sh"
+bash "$resume" tracer "$repo" "$candidate" "$cli" "$approval" t093-r21-tracer-01
+```
+
+先核对 tracer rc 0／PASS、同原 session／历史 nonce、完整事件与内核 argv、规范身份、原 launch 不变、关闭持久化、model_turns=fake_posts=0、cleanup_complete=true。任一失败保留现场即停，不继续后场、不自动补按键；按主控原裁定交回处理。
+
+tracer 通过后逐场运行，出现失败同样停：
+
+```sh
+bash "$resume" three "$repo" "$candidate" "$cli" "$approval" t093-r21-three-01
+bash "$resume" missing-argv "$repo" "$candidate" "$cli" "$approval" t093-r21-no-argv-01
+bash "$resume" version-mismatch "$repo" "$candidate" "$cli" "$approval" t093-r21-version-01
+bash "$resume" missing-session "$repo" "$candidate" "$cli" "$approval" t093-r21-no-session-01
+bash "$resume" isolation "$repo" "$candidate" "$cli" "$approval" t093-r21-isolation-01
+bash "$resume" empty-reopen "$repo" "$candidate" "$cli" "$approval" t093-r21-empty-reopen-01
+```
+
+three 须两主控恢复、worker 未恢复／receiver 未重启／无成功事件且 attempt 不变；三个单故障仍为 restore_argv_missing／restore_version_mismatch／restore_session_missing、保留未恢复／只读；isolation 中 executor 仍正常恢复；empty-reopen 第三窗口 panes／keys=[]、saved=true，不重新授权 worker 或改 task。全部 rc 0／PASS、cleanup=true、模型与 fake POST 0。原生旧记录缺字段正例仍由 L1 合同覆盖，不冒称这七场新生成原生记录就是它。
+
+其余两层网络／HOME 用户裁定 A／probe-10 的三边界／libproc 全 pane 影响与 T-091/T-078 范围仍见请求 19 和第三轮原文；本次不把其余 PASS 扩大成真实上游或模型验证。新七场回传后，由执行主控安排后续独立审查与唯一门禁；此冻结不代替 submit／验收／集成。

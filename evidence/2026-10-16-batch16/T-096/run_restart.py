@@ -276,6 +276,14 @@ def main():
         view=observer.call('inspect-all')
         count=args.panes if expected_panes is None else expected_panes
         ready=len(view['panes'])==count and all(p.get('snapshot') for p in view['panes'])
+        # The driver records IPC replies before React commits their DOM. Wait
+        # for the displayed identity too; failed panes still retain a launch.
+        for pane in view['panes']:
+            snapshot=pane.get('snapshot') or {}; launch=snapshot.get('launch') or {}
+            displayed=dict(pane_key=snapshot.get('pane_key'),launch=launch.get('id'),
+                task=(snapshot.get('task') or {}).get('task_id'),role=launch.get('role'),
+                preset=launch.get('preset') or '',thread=launch.get('thread'),input_enabled=snapshot.get('input_enabled'))
+            ready=ready and bool(launch.get('id')) and bool(snapshot.get('pane_key')) and all(pane.get(key)==value for key,value in displayed.items())
         if count==0: ready=ready and view['pane_keys']==[] and '当前任务没有打开的窗格。' in view['text']
         return view if ready else None
 

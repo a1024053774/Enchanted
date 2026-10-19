@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "scope": "local construction/recorder only; no OS profile/auth/actual HOME content read",
+  "checks": [
+    {
+      "check": "exact ancestor metadata only",
+      "status": "PASS",
+      "detail": {
+        "roles": [
+          "C",
+          "F"
+        ],
+        "exact_metadata_paths": [
+          "/",
+          "/Users",
+          "/Users/fixture-user",
+          "/Users/fixture-user/.local",
+          "/Users/fixture-user/.local/claude",
+          "/Users/fixture-user/project",
+          "/opt"
+        ],
+        "no_new_write_or_data_allowance": true
+      }
+    },
+    {
+      "check": "external facts uses same rule",
+      "status": "PASS",
+      "detail": {
+        "stage": "external facts V",
+        "metadata_rule_present": true,
+        "HOME_write_and_data_barriers_present": true
+      }
+    },
+    {
+      "check": "missing restriction recorder",
+      "status": "PASS",
+      "detail": {
+        "synthetic_unprotected_file_read": true,
+        "synthetic_directory_enumeration": true,
+        "business_failure": "actual_HOME_content_read_must_remain_denied",
+        "actual_HOME_reads": 0
+      }
+    }
+  ]
+}

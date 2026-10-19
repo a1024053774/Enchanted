@@ -1,10 +1,13 @@
 # a2a 门禁、编排后台与工作台
 
-T-096 恢复候选尚未验收：Electron 创建或显式关闭窗格时，把 launch 与位置追加到
+T-096 恢复已合入 main；57c3bfb63 的七场原生恢复回归曾通过。第三轮审查随后发现正常登录记录缺认证字段会绕过拒绝，现已改为假 API 合同白名单；新候选七场原生回归仍须重跑。Electron 创建或显式关闭窗格时，把 launch 与位置追加到
 现有 SQLite 事件流；退出应用只断开视图，保留打开集。未传 `--launch` 时读取该任务
 保存的窗格集，并沿用位置。只有从未保存过布局才选择当前窗格；明确关闭最后一格后，
-保存集为空，重开仍显示空视图。后台只自动恢复主控窗格：按原启动记录构造完整续接 argv，
-Claude 仅把 `--session-id` 换为 `--resume`；其余参数与 profile 环境取原记录。
+保存集为空，重开仍显示空视图。后台只自动恢复假 API 的主控窗格：按原启动记录构造完整续接 argv，
+Claude 仅把 `--session-id` 换为 `--resume`；其余参数与隔离假 API 环境取原记录。
+恢复在原版本／session 核对之后、PTY 启动之前建立规范 executable_path；旧历史记录不变，只给运行时副本补齐。已有规范身份与当前目标不同则拒绝，不改变 argv 或硬设 leader。
+已知限制：正常登录的主控记录不自动续接。recover 在任何 CLI 命令前检查现存正常登录标记，不只依赖 authentication；任一正常登录标记存在即保留为“未恢复”，返回 `normal_login_restore_requires_protected_start`。请经正常登录入口重新启动；不执行版本命令、不启动 PTY、不读 auth。
+仅当 P1 角色版本、公开假 token、规范 loopback base URL、隔离目录及既有假 API shell 启动形式与完整原 argv 的逐字对应同时匹配，且没有正常登录标记时才进入原恢复核对。正常登录以 exec 开头的启动形式也属于拒绝标记；shell 字段缺失或不属于既有假 API 形式的记录归为无法识别。合法旧记录可省略 authentication；无法正面识别的记录返回 `restore_record_unrecognized`，不猜测配置或执行 CLI。状态接口保留明确错误及正常登录的中文重启提示，现有界面显示“未恢复”与错误码。完整重建 R/F/D/C 生命周期另票处理，见 [请求 20](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-20.md)。
 缺 argv、版本不符、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
 恢复不发送提示词或放行旧队列。按 T-096 的 2026-10-18 裁定 B，worker 窗格保留并显示
 “未恢复”，不启动 CLI、不重绑定、不改变 attempt；后续由执行主控按中断恢复流程处理。
@@ -12,8 +15,9 @@ Claude 仅把 `--session-id` 换为 `--resume`；其余参数与 profile 环境�
 [运行说明](../evidence/2026-10-16-batch16/T-096/RUN-RESTART.md)。
 
 T-078-2 P1 已接入 `controller_start --task ID --manifest /绝对路径/manifest.json`。
-当前仅支持隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token、loopback Messages API 的探针，
-根提交预算须在 manifest 预声明为 1～6 根，不支持真登录或日常主控运行。启动需逐次批准；单角色
+T-078 的假 API profile 使用隔离 HOME／CLAUDE_CONFIG_DIR、公开假 Bearer token 和 loopback Messages API。
+T-093 另加正常登录 profile，配置与事实核对见下节；真实模型回合仍须用户在合入后另说开工。
+根提交预算须在 manifest 预声明为 1～6 根，尚不宣称可用于日常主控。假 API 启动需逐次批准；单角色
 收件箱候选及当前绿态审批流程见 [SLICE-1-GREEN-3](../evidence/2026-10-11-batch13/T-078/SLICE-1-GREEN-3.md)。
 隔离 settings.json 仅设置 `theme: dark`，移除 IS_DEMO，并设置文档化的
 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，禁用标题侧模型请求和终端状态报告。
@@ -366,6 +370,132 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的 2.1.302 启动与版本反例已由
 green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记录。
 
+## 正常登录 profile（T-093）
+
+当前整票 INCOMPLETE：第三轮独审对 788d75f4a 报 NO_GO，P1 为缺 authentication 的正常登录记录被恢复。恢复白名单局部红绿通过；r20 仅两场原生 PASS，no-argv 初始化中断，根因 unknown。本轮补 helper 失败诊断及红绿，不放宽身份条件；新候选 t093-r21-* 七场何时运行由用户决定，尚未重跑。网络两层、运行时身份、libproc 等其余审查结论仍按报告的范围保留，不替新恢复入口背书。
+主控 #125 进一步限定：正常登录记录一律保留为“未恢复”，需经正常登录入口重新启动；假 API 恢复合同不变。该拒绝已用独立旧探针及实际 recover 局部合同取得红绿，不代表原生 OS／恢复验收已完成。
+夹具按派发合同独立构造完整标记文本，对整个请求 JSON 精确比较，不使用包含或内容归一化。
+最新修正与七场重跑命令见 [请求 20](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-20.md)；请求 19／18 保留旧审查与运行来源，重复运行必须另选全新输出名。
+共享调用点与 T-091／T-078／T-096 回归命令仍见 [请求 13](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-13.md)。
+
+仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
+UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
+manifest 在既有字段外设置 `authentication: "normal-login"`、`version: "2.1.302"`、
+明确的 `credential_source: "macos-keychain"` 或 `"file"`，以及唯一的 `upstream_url`。
+生产正常登录入口的上游端口固定为 443，使用配置的 HTTPS 地址，没有端口覆盖选项或 fallback。
+无模型测试链使用可配置的非特权端口，默认 `http://127.0.0.1:18443`，不占用用户的 443。生产入口显式向 `prepare` 传 443；测试入口传测试端口，两者均由同一个 `claudeLoginSession.policies(session)` 读取 upstream_port 生成 F profile，只改变端口参数。
+测试脚本的 `T093_TEST_UPSTREAM_PORT` 同时传给链路、编译检查与独立核对器；端口冲突时保留失败，不切换端口、不复用或关闭别人的监听。
+
+正常登录使用独立的受保护 daemon。先准备已有合同要求的角色目录、task 和 manifest，再由操作者启动：
+
+```sh
+python3 -I -S -B workbench/src/claudeLoginSession.py --manifest /绝对路径/manifest.json \
+  --repo /真实HOME以外的工作区 --forward-port 本地固定端口 \
+  --upstream-address 配置上游的固定IPv4 --lifetime-seconds 600
+```
+
+本票不运行上述真实登录命令或真实模型回合。root、root/state、repo 和全部运行数据必须在
+OS 账号真实 HOME 以外；严格禁写 HOME 因而也禁止写其中的项目工作区。角色目录仍是
+root/roles/ideation 或 executor，包含 home、claude、tmp、shell、requests、hooks、user-data 与 role.md。
+CLI executable 使用规范实际路径，避免版本符号链接与进程身份不一致；Git 元数据也须在真实 HOME 外。
+启动器直接 exec 进入 C 中的现有 daemon 入口，并在 C 中创建本次 root/operator.json；
+后续操作继续走原入口。后台与 PTY 生命周期不依赖前端窗口。
+正式 Python 入口必须使用 `-I -S -B`，关闭环境／site 启动和字节码缓存；入口会核对三项标志，
+并在其他导入前关闭字节码写入。普通 Python 启动不在支持范围内，其解释器启动早于脚本检查。
+准备函数失败时先让 R 保存主错误，再删除私有准备根；清理错误不替换原异常。真实入口在 state 下
+独占保存 login-preparation-failure-UUID.json 和单独的 .cleanup.json，只记录类型／errno，不公开错误原文。
+
+`upstream-address` 是 URL 的显式 IPv4 网络地址，由操作者配置。**OS 层不再按主机限制**，F 的 OS 出站规则为 TCP `*:443`；其他出站端口不允许。
+应用层捕获配置主机，在 transport 前及 lookup 边界核对；不匹配即拒绝并记 upstream_host_mismatch。入站 Host 不决定目标，F 不跟随重定向。
+正常请求固定连接配置的 IPv4，不查询 DNS、不轮换地址，TLS 使用 URL 的原始主机名验证证书。HTTP 假上游必须匹配 127.0.0.1；
+不支持 IPv6。绿态只配置本地假上游，真实域名的 DNS／TLS 与真实模型仍未实测。
+
+| 进程／阶段 | profile 与权限 |
+| --- | --- |
+| R 凭据准备 | 在业务沙箱之外精确读一次。文件来源只读 ~/.claude/.credentials.json；钥匙串只查 Claude Code-credentials 和指定 login.keychain-db，不枚举、不换来源。仅复制 claudeAiOauth 到私有 /private/tmp/a2a-claude-login-*，文件 0600 |
+| C 根 daemon、PTY、zsh、CLI、原生 hook／tool、进程查询 helper、事实子进程 | 最外层只施加一次 C，后代继承；禁写整个真实 HOME，保留 HOME 读取屏障，只例外读取 CLI／Node、workbench 源码及依赖；TCP 只到 F 的固定本地端口，Unix socket 仅本次 control.sock；禁止 Security，保留 fork／exec |
+| F 独立进程 | 在 C 启动前独立施加 F，脱离调用者进程组并 reparent；只写自己的 forwarder 记录目录、只监听固定 P；OS 允许任意主机的 TCP 443，配置主机／IPv4 由应用层锁定；禁止其他出站端口、Security 与 fork |
+| D 基线及清单／隔离根清理 helper | 原始 auth 读取前由一次短 D 进程采基线；长期 D 独立施加相同 profile。无出站、无 Security、无 fork，只写私有根及自己的收据目录。HOME 只读目录/stat，不读正文（源码除外）；快照仅留私有根，C 输出差异后由 D 删除整个根 |
+
+R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没有不受保护的长期监督进程。
+为供 Node 解析真实路径，C、F 与外部 V 仅允许查询既有源码／依赖／可执行文件祖先目录的
+`file-read-metadata`，以精确 literal 列出，包含真实 HOME；不允许枚举这些目录或读取其他文件正文，
+也没有增加写入权限。完整链在 C、F 下用源码根的公开 AGENTS.md 验证正文读取仍被拒。
+短脱离 helper 各自以对应 profile 的 true 结束，实际 PID 与退出码单列。各后台进程有覆盖
+前置检查、服务与收尾的硬期限。D 在失败／根进程退出时清理本次登记的组与私有根；
+清理不确定会记录失败，不能补作 PASS。已有可写 HOME FD 在应用 profile 前关闭；日志不得重定向进真实 HOME。
+
+前台身份核对统一调用 `/usr/bin/python3 -I -S -B workbench/src/processSnapshot.py PTY_PID`，5 秒期限。
+它在同一 C 内调用系统 libproc，只枚举该 PTY 的后代，读取 PID／PPID／PGID、TTY 前台组和可执行文件路径，不读 argv、环境或认证。
+查询前后复核进程出生时间及身份；权限拒绝、短数据、截断、身份变化或不连通的树均拒绝，不改用 ps 或无保护查询。
+查询异常保留原错误码／details，daemon 回复和 request_rejected 事件另带 diagnostics.process_query：helper 的 stdout、stderr、exit_code／signal、killed、error_code、root_pid／helper_pid、单调 elapsed_ms。spawn 未成功或状态未知时用 null；捕获范围仍受原 maxBuffer 限制。身份核对失败仍立即停止，不重试、不回落、不放行终端写入。
+已观察到的退出／僵尸不作为活 leader；多次内核读取不宣称原子快照，原有 hook／Stop 的身份重查保留。
+前台组条件不变；真实启动边界另外记录规范 executable_path 与内核路径比较，实际 argv 原样保留。alias 启动后改指另一目标不能接管原身份，helper 的实际 PID 也登记在 C 的进程记录里。
+
+版本检查、auth status、交互 CLI 均直接继承 C，不再调用内层 sandbox-exec。
+未通过启动器的正常登录请求返回 normal_login_outer_profile_required；不会退回未受保护模式。
+默认假 API profile 的合同保持原样。
+
+隔离配置只新建 `hasCompletedOnboarding: true` 和当前规范工作区的
+`projects[路径].hasTrustDialogAccepted: true`。它们是 **2.1.302 内部状态**，换版本须重新核对。
+onboarding 预检会直连 api.anthropic.com/api/hello 与 platform.claude.com/v1/oauth/hello，
+不经过 BASE_URL；正常模式必须用上述状态避免触发。事实记录生成状态是否完整，并用终端和
+私有 debug 日志分类 `onboarding.preflight_observed`；沉默的被拒连接尝试未测量，不冒称已统计。
+C 的 OS 规则阻止直连上游；转发原件证明的是 F 实际接收的全部 HTTP 请求，包含失败与重试。
+
+F 复用原转发器，先逐条写盘并 fsync 再连接上游。请求体与认证头不落盘，方法、路径等元数据
+也参与凭据脱敏；保留序号、方法、无 query 路径、长度、bearer 匹配布尔值及每次响应／错误。
+原件在 `state/login-audits/<launch>/forwarder/journal/requests.jsonl`，F 自身不重试或跟随重定向。
+CLI 的 400 后重试算新请求；记录失败时停止转发新请求。终端仍只持久化去凭据字节，
+原值及 JSON／URL／base64 变体都扫描；跨片段前缀暂不公开，OSC/DCS 负载不进入 trace。
+配置、debug、原生历史与凭据副本随整个隔离根删除。C 的管理临时目录另在 audit/C-tmp，
+避免结束后的事实子进程重建已删除的隔离根。
+
+操作者在发送模型提示前，使用独立 V profile 的只读事实入口：
+
+```sh
+python3 -I -S -B workbench/src/claudeLoginSession.py --stage facts --preflight --audit /绝对路径/state/login-audits/LAUNCH
+```
+
+preflight 标明 before_cli_input、当时的入口计数与扫描结果，结束后 HOME 对比仍是 pending；
+preflight 与结束事实的 network_boundary 明确报告 os_host_filter=false、实际 os_remote_ports 和 application_host_lock=true。生产为 [443]，无模型测试为所配置的测试端口；这不是逐连接网络审计。
+测试 U 在零监听、部分监听或正常退出时均写关闭收据，记录成功创建／关闭的监听器数和独立关闭错误。C 必须核对收据的 PID／进程组、全部端点关闭和 ESRCH 才确认收尾；启动失败本身不代替退出证明。
+后续重新读取会重数当前原件，保存的入口计数／扫描时间仍是历史事实。它不批准模型输入。
+正常结束后用同一入口去掉 `--preflight`。C 内部子进程使用 `node workbench/src/claudeLoginCheck.ts [--preflight] AUDIT`，
+继承 C，不再嵌套 V。外部入口关闭额外 FD、禁写真实 HOME、禁网络和 Security，并保留 HOME 读取屏障。
+
+当前事实 schema 为 2，只读该版本的 ledger；旧 schema-1 证据须用其绑定的旧代码重放。
+命令重新数请求并与结束计数对账，报告真实 HOME 路径引用、结束时的 state 凭据扫描、
+原件计数、前后清单差异、进程/profile 来源和隔离根删除收据。不会重新读取原始 auth，
+退出码只表示读写／解析是否成功，不自动批准或拒绝模型调用。
+
+元数据只列 .claude、.claude.json、.claude.json.backup、Library/Keychains，
+不读正文、不跟随链接、不比较 atime，不用校验值；其他 HOME 范围排除。
+目录在 stat 后消失会显式标 missing；权限错误仍作为采集失败报告。
+差异全部报告、不推断因果。按用户裁定 A（main c06a73179），清单有无差异均不决定通过，
+以 pass_condition=false 标明。凭据、计数、身份与清理断言不因此放宽。
+
+无模型验证只用合成登录、编译假 CLI、真实 PTY／daemon／hook／Stop 和受保护的本地假上游。
+主控在沙箱外执行，每次使用新输出路径，不请求提权：
+
+```sh
+bash evidence/2026-10-16-batch16/T-093/EVIDENCE-RECHECK-03.sh \
+  /绝对路径/a2a-wt-t093 完整冻结SHA /private/tmp/新的摘要.json none
+```
+
+旧残留已由主控清理。旧演练与 chain-07/08 仅属于各自候选；请求 16 的生产 443 profile 编译通过，primary／green 因假 U 不能监听 443 而失败。请求 18 随后在 57c3bfb63 以同一生成器的 18443 测试端口通过编译、完整链与六场核对；最新原件／限制见请求 19。
+演练使用同一 R/G/C 入口和实际 OS profile，只配置合成 auth／假上游；primary 主动失败用于验证清理不能覆盖原异常。
+正式六场的预期业务断言与命令在交接请求 10。worker 的 Codex 沙箱不能嵌套相同 profile，因而不在本会话尝试。
+
+测试长期 D 仅比产品 D 多本次合成 source-home 的 file-write-unlink，仍禁读其普通文件正文；原始基线 D 规则另列为 D_baseline。
+C/F 对认证源的拒读拒写不变。D 先读回 C 已 fsync 的 cleanup_pending 检查点，才删合成源；正式产品不删除用户认证源。
+结果 JSON 在测试收尾前先发布，清理错误单列；`.events.jsonl` 保存各阶段主失败／清理状态，V 将退出记录绑定原登记身份，并用信号 0 独立核对每个 PID／组与最终报告进程退出。
+测试链必须读到上游端点关闭收据，并在原期限内以 ESRCH 确认进程组消失；EPERM 仅表示未确认。`node workbench/tests/test_t093_upstream_shutdown.ts 新输出.json` 检查收据先于退出的窗口，拒绝把 EPERM 当退出、持续权限拒绝、存活或缺收据。
+最终 all_exited 必须与每条最终 group／child 退出记录一致；`node workbench/tests/test_t093_writer_exit.mjs 新输出.json` 检查先前 ESRCH 后最终 EPERM 的时序，任一未确认行禁止删除。
+所有实际 PID、进程组和对应 profile 会写入结果；原始合成凭据、二进制、sqlite 与临时源码不进证据或 Git。
+结果只保留文本事实、原件小记录、反例和清理状态，历史报告与失败不覆盖。
+processInfo 影响所有 pane：窗口输入、放行／中断、反馈和 hook／Stop 身份重查。T-091 IPC／版本、T-078 runtime／relay 和 observer／alias 已补本轮局部回归；T-096 原生七场由主控逐屏批准后直接调用原 runner，均 PASS，模型与 fake POST 为 0。详细业务复核与原件位置见请求 19；局部替身不等于额外的原生 T-078 材料回放或全 pane 生产验证。
+
 ## Electron 窗口
 
 T-091 单格 Tracer bullet 已取得真实输入输出读回；当前候选沿同一条通路支持一个任务内的
@@ -500,7 +630,7 @@ start_offset、next_offset、total_bytes；每块最多 65536 字节，从同一
 新窗口从 0 补回，已有窗口收到 xterm 的解析完成回调才推进游标；缺失、缩短或错序
 明确报错，不跳过字节。关掉 Electron 只断开视图，后台和窗格由独立进程托管。
 
-后台重启会追加 `pane_recovered`。主控窗格按启动记录的原 argv 重建 PTY 并续接原会话（T-096，用户裁定 B）；
+后台重启会追加 `pane_recovered`。假 API 主控窗格按启动记录的原 argv 重建 PTY 并续接原会话（T-096，用户裁定 B）；正常登录主控明确保留为“未恢复”，需从正常登录入口重新启动，不在 recover 重建受保护生命周期。
 worker 窗格只作历史查询并显示“未恢复”，不重建 PTY、令牌、队列，也不改它的 attempt。已有 pane_exit 可证明停止时执行显示“已中断”；没有结束证据显示“未知”。
 窗格退出回调会最后增量读取已绑定的原生会话文件，再记录 pane_exit；主动停止和后台
 停止也经过这条路径，不依赖 Stop hook。完整记录追加进库和 native.jsonl；文件缺失、

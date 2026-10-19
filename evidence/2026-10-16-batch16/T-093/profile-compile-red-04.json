@@ -1,0 +1,21 @@
+{
+  "task": "T-093",
+  "candidate": "f8c1fb7015274bcc729c4ef5bb6eebc307795ca5",
+  "status": "INCOMPLETE",
+  "command": "python3 workbench/tests/test_t093_probe_safety.py ProbeSafety.test_bound_profile_compiles_without_applying_it",
+  "exit_code": 1,
+  "failure": "AssertionError: False is not true : 带端口的 profile 必须通过本机编译器。",
+  "real_boundary": "本机 /usr/lib/libsandbox.1.dylib 的 sandbox_compile_string；不调用 sandbox_apply，不执行目标。",
+  "observations": [
+    {"case": "no_port", "compiled": true},
+    {"case": "remote_ip_numeric_host", "compiled": false},
+    {"case": "remote_tcp_numeric_host", "compiled": false},
+    {"case": "remote_tcp4_localhost", "compiled": true}
+  ],
+  "compiler_diagnostic_for_numeric_host": "host must be * or localhost in network address",
+  "privacy": "编译输入仅含固定 /private/tmp 合成路径与 /usr/bin/true；未创建这些路径，未读取真实 HOME 或凭据。",
+  "sandbox_applied": false,
+  "real_cli_starts": 0,
+  "real_credential_reads": 0,
+  "limitations": "语法编译是实际系统边界证据；带端口 profile 下真正启动 CLI 与运行时拦截仍待主控实跑。"
+}

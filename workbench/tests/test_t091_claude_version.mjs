@@ -41,12 +41,12 @@ async function load(source, paneSource) {
   const start = code.search(/\n  (?:async )?startController\(/);
   const end = code.indexOf('\n  // T-078-1/#49', start);
   assert.ok(start >= 0 && end > start);
-  const Fixture = new Function('claudeLaunch', 'check', 'exec', 'Refusal', 'randomUUID', 'mkdirSync', 'dirname', 'join', 'appendFileSync', 'require',
+  const Fixture = new Function('claudeLaunch', 'check', 'exec', 'Refusal', 'randomUUID', 'mkdirSync', 'dirname', 'join', 'appendFileSync', 'require', 'realpathSync',
     'return class Fixture { root = "/private/tmp/t078-2-version-sentinel/state"; panes = new Map(); store = {launch() {}, event() {}};' + code.slice(start, end) + '}')(
       module.namespace.claudeLaunch, (value, code) => { if (!value) throw new Refusal(code); },
       async (...args) => { probes.push(args); if (failure) throw Object.assign(new Error('fixture exec failure'), { code: failure }); return { stdout: output, stderr: '' }; },
       Refusal, () => 'fixture-token', () => {}, path.dirname, path.join, () => {},
-      () => ({ spawn: () => ({ pid: 91, onData() {}, onExit() {} }) }));
+      () => ({ spawn: () => ({ pid: 91, onData() {}, onExit() {} }) }), value => value);
   const root = '/private/tmp/t078-2-version-sentinel';
   const task = { task_id: 'task-sentinel', project_id: 'project-sentinel', repo: root + '/repo', spec_rev: 4 };
   const input = { schema: 1, root, state: root + '/state', task: task.task_id, preset: 'ideation',

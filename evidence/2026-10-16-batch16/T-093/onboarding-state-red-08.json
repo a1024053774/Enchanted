@@ -1,0 +1,20 @@
+{
+  "task": "T-093",
+  "attempt": "a1",
+  "base_revision": "e5da995988d49409ed8931013197475cb0d8af3e",
+  "status": "INCOMPLETE",
+  "kind": "contract test",
+  "claim": "Fresh private config contains exactly one onboarding field before any CLI or credential access; opt-in only",
+  "command": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "workbench/tests/test_t093_probe_safety.py",
+    "ProbeSafety.test_onboarding_state_is_one_new_field_in_private_config",
+    "ProbeSafety.test_onboarding_state_precedes_cli_and_auth_only_when_requested"
+  ],
+  "exit_code": 1,
+  "expected_failure_observed": true,
+  "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 2, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+  "stderr": "test_onboarding_state_is_one_new_field_in_private_config (__main__.ProbeSafety) ... FAIL\ntest_onboarding_state_precedes_cli_and_auth_only_when_requested (__main__.ProbeSafety) ... \n======================================================================\nFAIL: test_onboarding_state_is_one_new_field_in_private_config (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 33, in test_onboarding_state_is_one_new_field_in_private_config\n    self.assertTrue(callable(getattr(probe, \"prepare_onboarding_state\", None)))\nAssertionError: False is not true\n\n======================================================================\nFAIL: test_onboarding_state_precedes_cli_and_auth_only_when_requested (__main__.ProbeSafety) (prepare=True)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t093_probe_safety.py\", line 83, in test_onboarding_state_precedes_cli_and_auth_only_when_requested\n    self.assertEqual(report[\"stop_reason\"], \"precredential_bound_profile_cli_version_failed\")\nAssertionError: 'unexpected_probe_error' != 'precredential_bound_profile_cli_version_failed'\n- unexpected_probe_error\n+ precredential_bound_profile_cli_version_failed\n\n\n----------------------------------------------------------------------\nRan 2 tests in 0.012s\n\nFAILED (failures=2)\n",
+  "vendor_cli_executed": false,
+  "real_auth_read": false
+}

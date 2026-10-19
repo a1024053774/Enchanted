@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "scope": "actual main/preload modules with supplied Electron/transport/filesystem boundaries; no GUI or backend proof",
+  "argv": [
+    "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+    "/Users/luckye/Documents/Code/a2a-wt-t093/workbench/tests/test_t091_pane_ipc.mjs",
+    "evidence/2026-10-16-batch16/T-093/t091-ipc-regression-20-02.json"
+  ],
+  "known_bad": "6974c2aad1233133264b7448e1277cd19fa0b6ba",
+  "checks": [
+    "unregistered_key_rejected",
+    "keyed_handlers_once",
+    "per_window_keys_and_sequences",
+    "iframe_and_other_window_denied",
+    "bound_output",
+    "nullable_controller_and_historical_worker",
+    "keyed_preload",
+    "close_drains_identity_and_keeps_other_window",
+    "three_panes_independent_credentials_sequences_output",
+    "foreign_task_and_old_launch_rejected_before_window",
+    "duplicate_launch_rejected",
+    "app_close_preserves_layout",
+    "explicit_close_removes_one",
+    "saved_order_and_failed_sibling_render",
+    "failed_worker_no_input_credential",
+    "never_saved_default_selection",
+    "final_close_stays_empty_on_repeated_reopen",
+    "empty_preload_and_no_credentials",
+    "explicit_selection_reopens"
+  ],
+  "model_turns": 0,
+  "known_bad_result": {
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Unregistered pane key was accepted"
+  },
+  "single_pane_counterexample": {
+    "revision": "7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86",
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Three selected launches must create three pane keys in one window\n\n1 !== 3\n"
+  },
+  "close_mutant": {
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Explicit pane close must persist removal\n\ntrue !== false\n"
+  },
+  "empty_layout_known_bad": {
+    "revision": "11b32303bebf276d20026a6e718719d15f5d4068",
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Explicitly closed final pane must stay absent when app reopens\n\n1 !== 0\n"
+  }
+}

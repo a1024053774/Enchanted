@@ -1,0 +1,17 @@
+{
+  "task": "T-093",
+  "status": "INCOMPLETE",
+  "classification": "abandoned_controlling_tty_experiment",
+  "command": "python3 workbench/tests/test_t093_probe_safety.py ProbeSafety.test_route_drains_output_from_a_child_that_already_exited ProbeSafety.test_route_peer_needs_terminal_reply_and_records_external_prompt",
+  "exit_code": 1,
+  "observed": [
+    "强制 TIOCSCTTY/tcsetpgrp 的尝试导致一个合成子进程启动失败。",
+    "另一个场景在终止本夹具进程组时遭到 PermissionError；该轮不算通过。",
+    "后续只读 /bin/ps 核对被当前沙箱拒绝，未取得残留进程事实。",
+    "沙箱外核对请求被主控拒绝并中断；不称为核对已执行成功。"
+  ],
+  "decision": "撤回强制控制终端改动，保留原 start_new_session 启动；诊断仍记录实际前台组状态。只读核对改为脚本交主控运行。",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0,
+  "test_process_cleanup_status": "UNKNOWN_PENDING_CONTROLLER_CHECK"
+}

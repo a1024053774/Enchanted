@@ -15,10 +15,16 @@ let processRows = "101 1 101 102 /bin/zsh\n102 101 102 102 /fixture/codex\n";
 const externalCalls: unknown[] = [];
 const fakeExec = Object.assign(() => { throw new Error("Unconfigured callback-style process execution"); }, {
   [promisify.custom]: async (file: string, args: string[]) => {
-    assert.equal(file, "/bin/ps");
-    assert.deepEqual(args, ["-axo", "pid=,ppid=,pgid=,tpgid=,comm="]);
+    assert.equal(file, "/usr/bin/python3");
+    assert.deepEqual(args.slice(0,3), ["-I", "-S", "-B"]);
+    assert.equal(args[3], join(product,"workbench/src/processSnapshot.py"));
+    assert.equal(args[4], "101");
     externalCalls.push({ file, args, stdout: processRows });
-    return { stdout: processRows, stderr: "" };
+    const rows=processRows.trim().split("\n").map(line=>{
+      const [pid,ppid,pgid,tpgid,command]=line.split(" ");
+      return {pid:Number(pid),ppid:Number(ppid),pgid:Number(pgid),tpgid:Number(tpgid),command};
+    });
+    return { stdout: JSON.stringify({schema:1,root_pid:101,method:"macOS libproc",rows}), stderr: "" };
   },
 });
 childProcess.execFile = fakeExec as any;
@@ -38,11 +44,13 @@ function fixture(name: string) {
   const store = new OrchestrationStore(state);
   const writes: string[] = [];
   const pane: any = { record: { id: name, task: "conflict-task", attempt: "attempt-1", role: "worker",
-    env: { CODEX_HOME: home }, argv: ["/fixture/codex"] },
+    env: { CODEX_HOME: home }, argv: ["/fixture/codex"], executable_path: "/fixture/codex" },
     token: "fixture-token", task: {}, attempt: { workspace, thread_id: "thread-1" },
     pty: { pid: 101, write: (text: string) => writes.push(text) }, state: "idle", stopped: false, archived: false,
     failed: null, leader: 102, native: "native-1", turn: "turn-1", nativeEnded: false,
     active: null, queue: [], writing: false, stopInProgress: false, offsets: new Map(),
+    writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, sending: null,
+    inputGeneration: 0, interruption: null,
     model: "unknown", effort: "unknown", terminalBuffer: "" };
   const panes = new Panes(state, store, { codex_home: home, turn_limit: 4 }, (reason: string) => { throw new Error(reason); });
   panes.panes.set("thread-1", pane);

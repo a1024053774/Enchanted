@@ -1,0 +1,92 @@
+{
+  "task": "T-093",
+  "status": "PASS",
+  "scope": "合成凭据辅助逻辑与单点变异；不证明真实 CLI、钥匙串、OS 沙箱或产品通路",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0,
+  "records": [
+    {
+      "case": "baseline",
+      "exit_code": 0,
+      "stdout": "{\"status\": \"PASS\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 8, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) ... ok\ntest_bound_profile_compiles_without_applying_it (__main__.ProbeSafety) ... ok\ntest_bound_profile_failure_stops_before_credential_read (__main__.ProbeSafety) ... ok\ntest_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety) ... ok\ntest_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards (__main__.ProbeSafety) ... ok\ntest_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety) ... ok\ntest_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety) ... ok\ntest_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 4.327s\n\nOK\n"
+    },
+    {
+      "case": "scanner_omits_secrets",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_scanner_detects_sentinel_and_encoded_forms (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-s174qwll/test_t093_probe_safety.py\", line 183, in test_scanner_detects_sentinel_and_encoded_forms\n    self.assertGreater(probe.secret_hits(\"before \" + value + \" after\", [sentinel]), 0)\nAssertionError: 0 not greater than 0\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "sink_accepts_wrong_bearer",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-dyndasxd/test_t093_probe_safety.py\", line 250, in test_real_sink_separates_matching_and_wrong_bearer_without_leak\n    self.assertEqual([row[\"bearer_matches_copied_login\"] for row in observed], [True, False, False, True, True])\nAssertionError: Lists differ: [True, True, True, True, True] != [True, False, False, True, True]\n\nFirst differing element 1:\nTrue\nFalse\n\n- [True, True, True, True, True]\n+ [True, False, False, True, True]\n\n----------------------------------------------------------------------\nRan 1 test in 1.645s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "inventory_omits_scope",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_inventory_detects_metadata_change_without_following_symlink (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-l5du8qd3/test_t093_probe_safety.py\", line 200, in test_inventory_detects_metadata_change_without_following_symlink\n    self.assertIn(\"Library\", before)\nAssertionError: 'Library' not found in {}\n\n----------------------------------------------------------------------\nRan 1 test in 0.015s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "timeout_reported_as_success",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_capture_stops_a_process_that_ignores_sigterm (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-oyd4g2z_/test_t093_probe_safety.py\", line 211, in test_capture_stops_a_process_that_ignores_sigterm\n    probe.capture([sys.executable, \"-c\", \"import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(30)\"],\nAssertionError: StopProbe not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.398s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "sink_reloads_writable_credential",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_real_sink_separates_matching_and_wrong_bearer_without_leak (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-8jg1bht_/test_t093_probe_safety.py\", line 250, in test_real_sink_separates_matching_and_wrong_bearer_without_leak\n    self.assertEqual([row[\"bearer_matches_copied_login\"] for row in observed], [True, False, False, True, True])\nAssertionError: Lists differ: [True, True, False, False, False] != [True, False, False, True, True]\n\nFirst differing element 1:\nTrue\nFalse\n\n- [True, True, False, False, False]\n+ [True, False, False, True, True]\n\n----------------------------------------------------------------------\nRan 1 test in 2.547s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "keychain_uses_isolated_default_search_scope",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-luw77g9d/test_t093_probe_safety.py\", line 171, in test_exact_keychain_query_uses_one_explicit_keychain_with_unchanged_guards\n    self.assertIsNone(stopped, \"精确服务在指定钥匙串可见，不应因隔离 HOME 的默认搜索遗漏而判缺失。\")\nAssertionError: 'login_credential_not_visible_in_reviewed_scope' is not None : 精确服务在指定钥匙串可见，不应因隔离 HOME 的默认搜索遗漏而判缺失。\n\n----------------------------------------------------------------------\nRan 1 test in 0.009s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "auth_diagnostic_leaks_stdout",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) ... \n======================================================================\nFAIL: test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) (code=0, prefix='json_object', must_stop=False)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-sk9xzvtd/test_t093_probe_safety.py\", line 129, in test_auth_status_keeps_only_safe_structure_and_stops_on_non_json\n    self.assertFalse(value in saved, \"摘要不得包含被禁止的字段或合成原文。\")\nAssertionError: True is not false : 摘要不得包含被禁止的字段或合成原文。\n\n======================================================================\nFAIL: test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) (code=0, prefix='warning', must_stop=True)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-sk9xzvtd/test_t093_probe_safety.py\", line 129, in test_auth_status_keeps_only_safe_structure_and_stops_on_non_json\n    self.assertFalse(value in saved, \"摘要不得包含被禁止的字段或合成原文。\")\nAssertionError: True is not false : 摘要不得包含被禁止的字段或合成原文。\n\n======================================================================\nFAIL: test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) (code=1, prefix='json_object', must_stop=True)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-sk9xzvtd/test_t093_probe_safety.py\", line 129, in test_auth_status_keeps_only_safe_structure_and_stops_on_non_json\n    self.assertFalse(value in saved, \"摘要不得包含被禁止的字段或合成原文。\")\nAssertionError: True is not false : 摘要不得包含被禁止的字段或合成原文。\n\n----------------------------------------------------------------------\nRan 1 test in 0.006s\n\nFAILED (failures=3)\n"
+    },
+    {
+      "case": "auth_accepts_json_after_warning",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) ... \n======================================================================\nFAIL: test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) (code=0, prefix='warning', must_stop=True)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-8t197mfu/test_t093_probe_safety.py\", line 125, in test_auth_status_keeps_only_safe_structure_and_stops_on_non_json\n    self.assertEqual(stopped is not None, must_stop)\nAssertionError: False != True\n\n----------------------------------------------------------------------\nRan 1 test in 0.007s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "auth_ignores_exit_code",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) ... \n======================================================================\nFAIL: test_auth_status_keeps_only_safe_structure_and_stops_on_non_json (__main__.ProbeSafety) (code=1, prefix='json_object', must_stop=True)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-a87r5ioj/test_t093_probe_safety.py\", line 125, in test_auth_status_keeps_only_safe_structure_and_stops_on_non_json\n    self.assertEqual(stopped is not None, must_stop)\nAssertionError: False != True\n\n----------------------------------------------------------------------\nRan 1 test in 0.007s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "profile_uses_rejected_numeric_host",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_bound_profile_compiles_without_applying_it (__main__.ProbeSafety) ... FAIL\n\n======================================================================\nFAIL: test_bound_profile_compiles_without_applying_it (__main__.ProbeSafety)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-4f148jqg/test_t093_probe_safety.py\", line 78, in test_bound_profile_compiles_without_applying_it\n    self.assertTrue(bool(compiled), \"带端口的 profile 必须通过本机编译器。\")\nAssertionError: False is not true : 带端口的 profile 必须通过本机编译器。\n\n----------------------------------------------------------------------\nRan 1 test in 0.016s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "case": "profile_failure_gate_is_skipped",
+      "exit_code": 1,
+      "rejected_by_assertion": true,
+      "stdout": "{\"status\": \"INCOMPLETE\", \"scope\": \"synthetic probe helper checks only\", \"checks\": 1, \"real_cli_starts\": 0, \"real_credential_reads\": 0}\n",
+      "stderr": "test_bound_profile_failure_stops_before_credential_read (__main__.ProbeSafety) ... \n======================================================================\nFAIL: test_bound_profile_failure_stops_before_credential_read (__main__.ProbeSafety) (code=65)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-hci9atou/test_t093_probe_safety.py\", line 59, in test_bound_profile_failure_stops_before_credential_read\n    self.assertEqual(saved[\"stop_reason\"], \"precredential_bound_profile_cli_version_failed\")\nAssertionError: 'unexpected_post_version_capture' != 'precredential_bound_profile_cli_version_failed'\n- unexpected_post_version_capture\n+ precredential_bound_profile_cli_version_failed\n\n\n======================================================================\nFAIL: test_bound_profile_failure_stops_before_credential_read (__main__.ProbeSafety) (code=0)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/t093-probe-mutant-hci9atou/test_t093_probe_safety.py\", line 59, in test_bound_profile_failure_stops_before_credential_read\n    self.assertEqual(saved[\"stop_reason\"], \"precredential_bound_profile_cli_version_failed\")\nAssertionError: 'unexpected_post_version_capture' != 'precredential_bound_profile_cli_version_failed'\n- unexpected_post_version_capture\n+ precredential_bound_profile_cli_version_failed\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.037s\n\nFAILED (failures=2)\n"
+    }
+  ]
+}

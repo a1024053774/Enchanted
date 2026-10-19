@@ -9,7 +9,7 @@ import { RequestRelay, isPendingInboxResult } from "./relay.ts";
 import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
 import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
 import { randomUUID } from "node:crypto";
-import { readOperatorCredential } from "./credentials.ts";
+import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 
 export async function serve(
   root: string,
@@ -392,7 +392,9 @@ export async function serve(
         if (!viewing || !result.ok) store.event("request_result", { id: envelope.id, command: envelope.input.command,
           ok: result.ok, error: result.error, details: result.details });
       } catch (error) {
-        result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error) };
+        const processQuery = (error as { process_query?: unknown })?.process_query;
+        result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error),
+          ...(processQuery ? { diagnostics: { process_query: processQuery } } : {}) };
         try { store.event("request_rejected", { id: envelope?.id, input: envelope?.input, result }); }
         catch (recordError) {
           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
@@ -432,6 +434,14 @@ export async function serve(
 }
 
 if (import.meta.main) {
-  try { await serve(process.argv[2]!, JSON.parse(process.argv[3] ?? "{}")); }
+  try {
+    if (process.env.A2A_CLAUDE_LOGIN_SESSION) {
+      const session = JSON.parse(readFileSync(process.env.A2A_CLAUDE_LOGIN_SESSION, "utf8"));
+      if (session.c_root_pid !== process.pid || session.manifest.state !== process.argv[2]) throw new Error("prepared_login_daemon_mismatch");
+      process.env.A2A_OPERATOR_CREDENTIAL = join(session.manifest.root, "operator.json");
+      createOperatorCredential(session.manifest.state);
+    }
+    await serve(process.argv[2]!, JSON.parse(process.argv[3] ?? "{}"));
+  }
   catch (error) { console.error(error); process.exit(1); }
 }

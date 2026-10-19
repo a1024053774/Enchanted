@@ -1,0 +1,118 @@
+{
+  "status": "FAIL",
+  "scope": "actual C shutdown callback and finishChain with supplied signal/receipt timing; no OS queries/services/auth",
+  "checks": [
+    {
+      "name": "receipt_before_exit_permission_window",
+      "status": "PASS",
+      "observations": [
+        "EPERM",
+        "EPERM",
+        "ESRCH"
+      ],
+      "elapsed": 2000,
+      "cleanup_failures": []
+    },
+    {
+      "name": "receipt_before_exit_alive_window",
+      "status": "PASS",
+      "observations": [
+        "alive",
+        "ESRCH"
+      ],
+      "elapsed": 1000,
+      "cleanup_failures": []
+    },
+    {
+      "name": "already_exited",
+      "status": "PASS",
+      "observations": [
+        "ESRCH"
+      ],
+      "elapsed": 0,
+      "cleanup_failures": []
+    },
+    {
+      "name": "never_listened",
+      "status": "PASS",
+      "observations": [
+        "ESRCH"
+      ],
+      "elapsed": 0,
+      "cleanup_failures": []
+    },
+    {
+      "name": "partial_start_closed",
+      "status": "PASS",
+      "observations": [
+        "ESRCH"
+      ],
+      "elapsed": 0,
+      "cleanup_failures": []
+    },
+    {
+      "name": "failed_close_receipt",
+      "status": "FAIL",
+      "business_failure": "unconfirmed_shutdown_must_fail",
+      "observations": [
+        "ESRCH"
+      ]
+    },
+    {
+      "name": "permanent_permission_denial",
+      "status": "PASS",
+      "observations": [
+        "EPERM",
+        "EPERM",
+        "EPERM",
+        "EPERM",
+        "EPERM",
+        "EPERM"
+      ],
+      "elapsed": 6000,
+      "cleanup_failures": [
+        "upstream_shutdown_unconfirmed",
+        "fixture_remove_skipped_live_or_unconfirmed_writer"
+      ]
+    },
+    {
+      "name": "group_still_alive",
+      "status": "PASS",
+      "observations": [
+        "alive",
+        "alive",
+        "alive",
+        "alive",
+        "alive",
+        "alive"
+      ],
+      "elapsed": 6000,
+      "cleanup_failures": [
+        "upstream_shutdown_unconfirmed",
+        "fixture_remove_skipped_live_or_unconfirmed_writer"
+      ]
+    },
+    {
+      "name": "missing_endpoint_receipt",
+      "status": "PASS",
+      "observations": [],
+      "elapsed": 0,
+      "cleanup_failures": [
+        "upstream_shutdown_unconfirmed",
+        "fixture_remove_skipped_live_or_unconfirmed_writer"
+      ]
+    },
+    {
+      "name": "unexpected_query_error",
+      "status": "PASS",
+      "observations": [
+        "EINVAL"
+      ],
+      "elapsed": 0,
+      "cleanup_failures": [
+        "upstream_shutdown_unconfirmed",
+        "fixture_remove_skipped_live_or_unconfirmed_writer"
+      ]
+    }
+  ]
+}

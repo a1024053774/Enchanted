@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "scope": "synthetic local logic only; no Security query, OS profile, true HOME write or network; D signals mocked",
+  "checks": [
+    "same Python process collects after inventory before acknowledging close; failure does not acknowledge",
+    "early closed acknowledgement mutant rejected by business assertion",
+    "one synthetic auth read; only OAuth copied; generated minimal state; explicit peer/port, no DNS or nested profile",
+    "invalid launch path rejected before auth; audit parent symlink rejected before public writes",
+    "D removes the whole private root after normal ack or explicit cancellation; only owned groups targeted; reporting C root survives cancellation"
+  ],
+  "D_cleanup_cases": [
+    {
+      "cancelled": false,
+      "identity_lost": false,
+      "returncode": 0,
+      "removed": true,
+      "groups_targeted": [
+        440001
+      ]
+    },
+    {
+      "cancelled": true,
+      "identity_lost": false,
+      "returncode": 2,
+      "removed": true,
+      "groups_targeted": [
+        440001,
+        440002
+      ]
+    },
+    {
+      "cancelled": false,
+      "identity_lost": true,
+      "returncode": 2,
+      "removed": false,
+      "groups_targeted": []
+    }
+  ],
+  "early_ack_mutant": {
+    "observed": {
+      "closed": true,
+      "after": false
+    },
+    "business_failure": "U_closed_must_include_post_inventory"
+  }
+}

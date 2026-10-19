@@ -1,0 +1,69 @@
+{
+  "status": "PASS",
+  "scope": "real SQLite/native files; supplied process boundaries; not GUI/CLI end-to-end evidence",
+  "checks": [
+    "two_controllers_resume",
+    "three_refusals_isolate_siblings",
+    "worker_unrestored_no_pty",
+    "attempt_unchanged",
+    "argv_every_field_equal",
+    "actual_pty_argv_every_field_equal",
+    "launch_immutable",
+    "saved_positions",
+    "explicit_close_excluded",
+    "zero_input_writes",
+    "saved_empty_persists_in_sqlite",
+    "never_saved_and_native_only_distinct",
+    "layout_saved_state_scoped_to_task",
+    "runtime_canonical_identity",
+    "version_identity_spawn_order"
+  ],
+  "model_turns": 0,
+  "known_bad": {
+    "revision": "a8fbc72bdf88de661f25ffce8d9ac9dff3f3c4f6",
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Managed worker must remain unrestored pending explicit reclaim\n+ actual - expected\n\n+ null\n- 'restore_managed_attempt_requires_reclaim'\n"
+  },
+  "identity_matching": [
+    "two_controllers_resume",
+    "three_refusals_isolate_siblings",
+    "worker_unrestored_no_pty",
+    "attempt_unchanged",
+    "argv_every_field_equal",
+    "actual_pty_argv_every_field_equal",
+    "launch_immutable",
+    "saved_positions",
+    "explicit_close_excluded",
+    "zero_input_writes",
+    "saved_empty_persists_in_sqlite",
+    "never_saved_and_native_only_distinct",
+    "layout_saved_state_scoped_to_task",
+    "runtime_canonical_identity",
+    "version_identity_spawn_order"
+  ],
+  "identity_changed": [
+    "replacement_refused_sibling_restored",
+    "three_refusals_isolate_siblings",
+    "worker_unrestored_no_pty",
+    "attempt_unchanged",
+    "argv_every_field_equal",
+    "actual_pty_argv_every_field_equal",
+    "launch_immutable",
+    "saved_positions",
+    "explicit_close_excluded",
+    "zero_input_writes",
+    "saved_empty_persists_in_sqlite",
+    "never_saved_and_native_only_distinct",
+    "layout_saved_state_scoped_to_task",
+    "runtime_canonical_identity",
+    "version_identity_spawn_order"
+  ],
+  "spawn_argv_mutant": {
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Actual PTY command must carry every independently supplied argv field\n+ actual - expected\n\n+ \"'/fixture/claude' '--resume' 'ada71cff-dd97-4bc4-9661-aef39007c3bb'; exec /bin/zsh -f -i\"\n- `'/fixture/claude' '--resume' 'ada71cff-dd97-4bc4-9661-aef39007c3bb' '--model' 'sentinel-ideation' '--effort' 'low' '--settings' '{\"hooks\":{},\"sentinel\":\"a b\\\\\"c\"}'; exec /bin/zsh -f -i`\n"
+  },
+  "identity_guard_mutant": {
+    "rejected": true,
+    "error": "AssertionError [ERR_ASSERTION]: Changed executable identity must be refused before PTY spawn\n\n2 !== 1\n"
+  }
+}

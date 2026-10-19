@@ -1,0 +1,16 @@
+{
+  "task": "T-093",
+  "candidate": "447ab5780161862e1752bbfe0ff360386061910d",
+  "status": "INCOMPLETE",
+  "command": "python3 workbench/tests/test_t093_probe_safety.py ProbeSafety.test_auth_status_keeps_only_safe_structure_and_stops_on_non_json",
+  "exit_code": 1,
+  "classification": "synthetic_diagnostic_contract_red",
+  "assertion_failures": 5,
+  "unexpected_type_errors": 1,
+  "expected": "成功和失败均记录退出码与安全输出结构；不保存邮箱、凭据或原始文本；非 JSON、数组和非零退出均停止。",
+  "observed": "五个子场景以 AssertionError 报告 status_with_base_url_output 缺失；JSON 数组子场景另有 AttributeError，不将该错误本身计作有效断言红态。",
+  "real_boundary_evidence": "主控 #61 的 probe-02 已复现 auth_status_not_json，且无 BASE_URL 的隔离 HOME 登录状态四项均通过。原 stdout/stderr 未保存，无法追溯实际非 JSON 原因。",
+  "limitations": "本地只验证安全诊断合同，不证明实际 CLI 的警告、错误或自定义地址能力。",
+  "real_cli_starts": 0,
+  "real_credential_reads": 0
+}
