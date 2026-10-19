@@ -1,0 +1,377 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-107",
+  "attempt": "a1",
+  "model_calls": 0,
+  "argv": [
+    "workbench/tests/run_t107_sidebar.py",
+    "--source",
+    "/Users/luckye/Documents/Code/a2a-wt-t107",
+    "--dependencies",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules",
+    "--electron-dist",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist",
+    "--summary",
+    "evidence/2026-10-19-batch17/T-107/electron-04-summary.json"
+  ],
+  "baseline": "0967cd465ce20c01b0a6ee29b2931ecbf4032caf",
+  "checks": [
+    {
+      "name": "真实 Electron 已知坏基线",
+      "status": "PASS",
+      "observed": "无侧栏 IPC、agent 树与 Git 摘要，符合预期红态"
+    },
+    {
+      "name": "实际 daemon：根／辅助会话隔离、未消费日志下全部表与 trace 零写入",
+      "status": "PASS"
+    },
+    {
+      "name": "真实 Electron 侧栏 IPC：所有 SQLite 表、schema 和 trace 原值不变",
+      "status": "PASS"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":11381,\"root\":\"/private/tmp/t107-real-x31etvva/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":false,\"panes\":[],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":11381,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-x31etvva/repo-one"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-x31etvva/repo-one/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) 0d7bd6f] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-x31etvva/repo-two"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-x31etvva/repo-two/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-two",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-two",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) 0d7bd6f] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "0d7bd6fff54645e6a565e452043b9e013b45d067\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "config",
+        "remote.origin.url",
+        "/private/tmp/t107-real-x31etvva/unused-origin"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "config",
+        "remote.origin.fetch",
+        "+refs/heads/*:refs/remotes/origin/*"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "update-ref",
+        "refs/remotes/origin/main",
+        "0d7bd6fff54645e6a565e452043b9e013b45d067"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "branch",
+        "--set-upstream-to=origin/main",
+        "main"
+      ],
+      "exit": 0,
+      "stdout": "branch 'main' set up to track 'origin/main'.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-am",
+        "fixture ahead"
+      ],
+      "exit": 0,
+      "stdout": "[main fc9b3da] fixture ahead\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-x31etvva/repo-one",
+        "status",
+        "-sb"
+      ],
+      "exit": 0,
+      "stdout": "## main...origin/main [ahead 1]\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":11413,\"root\":\"/private/tmp/t107-real-x31etvva/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/baseline/workbench/app/build.mjs",
+        "--slot",
+        "t107-red-6e240ff1"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-red-6e240ff1/dist\",\"main\":\"/private/tmp/a2a-build-t107-red-6e240ff1/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-red-6e240ff1/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-red-6e240ff1/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-red-6e240ff1/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-red-6e240ff1/tmp\",\"source\":\"/private/tmp/t107-real-x31etvva/baseline/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":11413,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-real-x31etvva/daemon-identity.json",
+        "/private/tmp/t107-real-x31etvva/candidate",
+        "identity"
+      ],
+      "exit": 0,
+      "stdout": "{\"status\":\"PASS\",\"mode\":\"identity\",\"source\":\"/private/tmp/t107-real-x31etvva/candidate\",\"root\":\"/private/tmp/t107-daemon-read-Bdcld9\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"observed\":\"unknown\",\"cleanup_complete\":true}\n",
+      "stderr": "(node:11510) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:11510) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n"
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-real-x31etvva/daemon-readonly.json",
+        "/private/tmp/t107-real-x31etvva/candidate",
+        "readonly"
+      ],
+      "exit": 0,
+      "stdout": "{\"status\":\"PASS\",\"mode\":\"readonly\",\"source\":\"/private/tmp/t107-real-x31etvva/candidate\",\"root\":\"/private/tmp/t107-daemon-read-TbMw99\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"observed\":\"unknown\",\"databases\":[\"locks/t.sqlite3\",\"membership.sqlite3\",\"state.sqlite3\"],\"trace_files\":[\"traces/launch/pty.raw\"],\"cleanup_complete\":true}\n",
+      "stderr": "(node:11559) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:11559) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":11657,\"root\":\"/private/tmp/t107-real-x31etvva/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/candidate/workbench/app/build.mjs",
+        "--slot",
+        "t107-green-10df8d7f"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-green-10df8d7f/dist\",\"main\":\"/private/tmp/a2a-build-t107-green-10df8d7f/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-green-10df8d7f/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-green-10df8d7f/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-green-10df8d7f/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-green-10df8d7f/tmp\",\"source\":\"/private/tmp/t107-real-x31etvva/candidate/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-x31etvva/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-x31etvva/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":11657,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "limitations": [
+    "等待用户回答、等待主控回答的真实信号缺口未解决；七状态验收 INCOMPLETE。",
+    "现有 worker 派发无具体父 launch 绑定，worker/reviewer 在未归属的任务下；完整层级验收 INCOMPLETE。",
+    "真实系统通知未触发；转换和开关只由 IPC 合同验证。"
+  ],
+  "error": "AssertionError(['未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。'])",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/run_t107_sidebar.py\", line 186, in main\n    assert not view['alerts'], view['alerts']\nAssertionError: ['未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']\n",
+  "cleanup_complete": true,
+  "retained_fixture": "/private/tmp/t107-real-x31etvva",
+  "retained_builds": [
+    "/private/tmp/a2a-build-t107-red-6e240ff1",
+    "/private/tmp/a2a-build-t107-green-10df8d7f"
+  ]
+}

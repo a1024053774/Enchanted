@@ -17,7 +17,8 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
     text: document.body.innerText, bridge: Object.keys(window.a2a), node: typeof window.require,
     projects: [...document.querySelectorAll('[data-project-id]')].map(n=>({id:n.dataset.projectId,text:n.innerText,state:n.dataset.projectState,selected:n.getAttribute('aria-current'),disabled:n.disabled})),
     agents: [...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,parent:n.dataset.agentParent,level:Number(n.dataset.agentLevel),state:n.dataset.agentState,text:n.innerText,x:n.getBoundingClientRect().x, overflow:n.scrollWidth>n.clientWidth,disabled:n.disabled})),
-    panes: [...document.querySelectorAll('section.pane')].map(n=>({key:n.dataset.paneKey,launch:n.dataset.launchId,input:n.dataset.inputEnabled})),
+    panes: [...document.querySelectorAll('section.pane')].map(n=>({key:n.dataset.paneKey,launch:n.dataset.launchId,input:n.dataset.inputEnabled,
+      alerts:[...n.querySelectorAll('[role=alert]')].map(a=>a.textContent)})),
     focusedLaunch: document.activeElement?.closest('section.pane')?.dataset.launchId,
     task: document.querySelector('.task-header .eyebrow')?.textContent,
     alerts:[...document.querySelectorAll('[role=alert]')].map(n=>n.textContent),
@@ -32,6 +33,7 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
       try {
         let value;
         if (request.command === 'inspect') value = await inspect();
+        else if (request.command === 'sidebar') value = await window.webContents.executeJavaScript('window.a2a.sidebar()');
         else if (['project', 'agent'].includes(request.command)) {
           const attribute = request.command === 'project' ? 'data-project-id' : 'data-agent-launch';
           value = await window.webContents.executeJavaScript(`(()=>{

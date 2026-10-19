@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { basename } from 'node:path';
 import type { OrchestrationStore } from './store.ts';
 
 export type AgentState = 'running' | 'waiting_user_answer' | 'waiting_controller_answer' | 'idle' | 'ended' | 'unrestored' | 'unknown';
@@ -18,24 +19,41 @@ export function agentState(pane: any, events: any[]): AgentState {
   if (pane?.lifecycle === 'ended') return 'ended';
   if (!pane || pane.historical || pane.failed || pane.interrupted || pane.lifecycle !== 'running') return 'unknown';
   const pending = new Set<string>();
+  const files = new Map<string, { root: boolean; turn: string | null }>();
+  let uncertainQuestion = false;
   let permission = false;
   for (const event of events) {
     if (event.type === 'permission_wait') permission = true;
-    if (['turn_start_signal', 'pane_idle'].includes(event.type)) permission = false;
+    if (event.type === 'turn_start_signal' && event.data?.session_id === pane.native_session ||
+        event.type === 'pane_idle' && event.data?.stop?.session_id === pane.native_session) permission = false;
     const record = event.data?.record, payload = record?.payload;
+    if (event.type !== 'native_record') continue;
+    const file = event.data?.file;
+    if (record?.type === 'session_meta' && typeof file === 'string') {
+      files.set(file, { root: Boolean(pane.native_session && payload?.source === 'cli' &&
+        payload.id === pane.native_session && basename(file) === pane.native_session + '.jsonl'), turn: null });
+    }
+    const origin = files.get(file);
+    if (record?.type === 'event_msg' && payload?.type === 'task_started' && origin?.root && typeof payload.turn_id === 'string') {
+      origin.turn = payload.turn_id;
+    }
     if (record?.type === 'response_item' && payload?.type === 'function_call' &&
-        ['request_user_input', 'request_user_input_async'].includes(payload.name)) pending.add(payload.call_id);
-    // Async acceptance is not an answer. Without a verified answer format this
-    // call remains unknown; T-095's Herdr screen corroboration is unavailable.
-    // A response alone is not a verified answer (e.g. async accepted:true).
-    // Leave this state unknown until a later native turn supersedes it.
-    if (record?.type === 'event_msg' && payload?.type === 'task_started') pending.clear();
+        ['request_user_input', 'request_user_input_async'].includes(payload.name)) {
+      if (origin?.root && origin.turn === pane.turn &&
+          (!payload.internal_chat_message_metadata_passthrough || payload.internal_chat_message_metadata_passthrough.turn_id === origin.turn)) pending.add(payload.call_id);
+      else if (!origin || origin.root) uncertainQuestion = true;
+    }
+    // Neither a new turn nor an async accepted:true proves an answer. Keep
+    // unresolved/uncorrelated questions unknown until answer evidence exists.
   }
-  if (permission || pending.size) return 'unknown';
+  if (permission || pending.size || uncertainQuestion) return 'unknown';
   if (pane.state === 'idle' && !pane.active && !pane.writing) return 'idle';
+  const roots = [...files.values()].filter(origin => origin.root);
+  const rootTurnObserved = roots.length === 1 && roots[0].turn === pane.turn;
+  if (roots.length > 1) return 'unknown';
   const submission = events.findLast(event => event.type === 'turn_submitted' && event.data?.id === pane.active?.id);
   if (pane.state === 'busy' && pane.active && !pane.writing && pane.native_session &&
-      (pane.active.nativeTurn && pane.turn === pane.active.nativeTurn || submission && events.some(event =>
+      (rootTurnObserved && pane.active.nativeTurn && pane.turn === pane.active.nativeTurn || submission && events.some(event =>
         event.seq > submission.seq && event.type === 'turn_start_signal' && event.data?.session_id === pane.native_session))) return 'running';
   return 'unknown';
 }
@@ -71,12 +89,13 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     JOIN relay_requests q ON q.key=r.key
     WHERE json_extract(r.data,'$.ok')=1 AND json_extract(q.input,'$.command')='inbox_send'
       AND json_extract(q.input,'$.kind')='assign' ORDER BY d.seq`).all();
-  // status() uses the existing native reader. Read events afterwards so a newly
-  // observed question cannot be missed while promoting the same read to running.
+  // status() is a pure snapshot. Native collection belongs to PTY/hook/process
+  // observation; a sidebar query consumes only already persisted facts.
   const statuses = new Map(launches.map(record => [record.id, panes.status(record.thread)]));
   const events = store.db.prepare(`SELECT seq,type,launch,data FROM orchestration_events
     WHERE type IN ('permission_wait','turn_start_signal','turn_submitted','pane_idle')
-      OR type='native_record' AND json_extract(data,'$.record.payload.type') IN ('function_call','task_started')
+      OR type='native_record' AND (json_extract(data,'$.record.type')='session_meta'
+        OR json_extract(data,'$.record.payload.type') IN ('function_call','task_started'))
     ORDER BY seq`).all().map(row => ({ ...row, data: JSON.parse(String(row.data)) }));
   const agents = launches.map(record => {
     // A role address or an ordinary reply is not delegation. Correlate the

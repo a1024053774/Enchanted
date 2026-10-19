@@ -734,8 +734,10 @@ node workbench/src/gates/cli.ts --state /绝对路径/state sidebar_snapshot
 两条列表命令不写库或请求事件；未知项目返回空列表。`--launch` 仍要求同时指定
 `--task`，其任务内多窗格选择方式不变。preload 的 `paneKeys` 保留启动时的窗格集；
 当前视图由 `selection`、`selectTask` 和 `selectAgent` 的返回值提供，切换后旧 key 不再可用。
-`sidebar_snapshot` 使用原有窗格状态读取路径，可采集已有原生记录；不写额外的查询事件，
-不改变门禁、attempt 或操作锁。T-107 真实 Electron 复验脚本与未完成项见
+`sidebar_snapshot` 只读已经保存的事实和纯窗格状态快照，不扫描原生日志、不写表或 trace。
+原生记录在已有终端输出、hook、进程观察和退出采集职责中读取；不改变门禁、attempt 或操作锁。
+问题事件须与已验证的根原生会话文件、回合对应；辅助会话或来源不明的开始事件不能
+清除根问题。尚未核实回答时保留未知，不以新回合推断已经回答。T-107 真实 Electron 复验脚本与未完成项见
 [交付摘要](../evidence/2026-10-19-batch17/T-107/RESULTS.md)。
 
 Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main

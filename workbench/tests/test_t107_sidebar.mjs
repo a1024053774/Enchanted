@@ -4,8 +4,8 @@
 // edges, cycles, absent upstream invented as zero, and Git read failure hidden.
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
-import { join, resolve } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { join, resolve, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { OrchestrationStore } from '../src/store.ts';
 const { agentState, aggregate, sidebarSnapshot } = await import(process.argv[3] ? pathToFileURL(resolve(process.argv[3])).href : new URL('../src/sidebar.ts', import.meta.url).href);
@@ -62,7 +62,14 @@ try {
     call: async input => ({ ok: true, task: tasks.find(row => row.task_id === input.task) }) };
   const live = { lifecycle: 'running', state: 'unknown', active: null };
   const panes = { status: () => live };
-  let value = await sidebarSnapshot(gates, store, panes);
+  const persistence = () => JSON.parse(execFileSync('python3', ['-B', join(dirname(fileURLToPath(import.meta.url)), 't107_persistence.py'), state], { encoding: 'utf8' }));
+  const read = async () => {
+    const before = persistence();
+    const value = await sidebarSnapshot(gates, store, panes);
+    assert.deepEqual(persistence(), before, 'Sidebar read changed persisted tables or traces');
+    return value;
+  };
+  let value = await read();
   assert.equal(value.projects.length, 2);
   const first = value.projects.find(row => row.project_id === 'first-project');
   assert.equal(first.git.branch, 'main'); assert.equal(first.git.ahead, 1, 'Git ahead must match the independent divergent fixture'); assert.equal(first.git.behind, 1);
@@ -77,14 +84,19 @@ try {
   report.checks.push('two_projects_real_git_divergence_and_absent_upstream', 'authenticated_relay_assign_edge_and_task_attempts', 'role_address_and_cross_project_sender_do_not_infer_parent', 'missing_signal_stays_unknown');
   const another = { ...records[0], id: 'another-idea', thread: 'another-idea-thread' };
   store.launch(another); assign('conflict', another, records[1]);
-  value = await sidebarSnapshot(gates, store, panes);
+  value = await read();
   assert.equal(value.agents.find(row => row.id === 'exec').parent, null);
   const active = { ...live, state: 'busy', native_session: 'native', turn: 'turn', active: { id: 'submission', nativeTurn: 'turn' } };
-  assert.equal(agentState(active, []), 'running');
-  assert.equal(agentState({ ...active, interrupted: true }, []), 'unknown');
-  assert.equal(agentState({ ...active, turn: 'other' }, []), 'unknown');
-  assert.equal(agentState({ ...active, failed: 'failed' }, []), 'unknown');
-  assert.equal(agentState({ ...active, historical: true }, []), 'unknown');
+  const rootEvents = [
+    { type: 'native_record', data: { file: 'sessions/native.jsonl', record: { type: 'session_meta', payload: { id: 'native', source: 'cli' } } } },
+    { type: 'native_record', data: { file: 'sessions/native.jsonl', record: { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn' } } } },
+  ];
+  assert.equal(agentState(active, rootEvents), 'running');
+  assert.equal(agentState(active, []), 'unknown', 'Unproven native origin cannot prove running');
+  assert.equal(agentState({ ...active, interrupted: true }, rootEvents), 'unknown');
+  assert.equal(agentState({ ...active, turn: 'other' }, rootEvents), 'unknown');
+  assert.equal(agentState({ ...active, failed: 'failed' }, rootEvents), 'unknown');
+  assert.equal(agentState({ ...active, historical: true }, rootEvents), 'unknown');
   assert.equal(agentState(active, [{ type: 'permission_wait' }]), 'unknown');
   assert.equal(agentState({ ...live, state: 'busy' }, []), 'unknown');
   assert.equal(agentState({ ...live, state: 'idle' }, []), 'idle');
@@ -92,6 +104,13 @@ try {
   assert.equal(agentState({ ...live, restoration: { status: 'failed' } }, []), 'unrestored');
   const question = { type: 'native_record', data: { record: { type: 'response_item', payload: { type: 'function_call', name: 'request_user_input', call_id: 'q' } } } };
   assert.equal(agentState(active, [question]), 'unknown');
+  const rootQuestion = { ...question, data: { ...question.data, file: 'sessions/native.jsonl' } };
+  const auxiliary = [
+    { type: 'native_record', data: { file: 'sessions/helper.jsonl', record: { type: 'session_meta', payload: { id: 'helper', source: { subagent: {} } } } } },
+    { type: 'native_record', data: { file: 'sessions/helper.jsonl', record: { type: 'event_msg', payload: { type: 'task_started', turn_id: 'helper-turn' } } } },
+  ];
+  assert.equal(agentState(active, [...rootEvents, rootQuestion, ...auxiliary]), 'unknown', 'Auxiliary native start must not release the root question');
+  assert.equal(agentState(active, [...rootEvents, rootQuestion, { type: 'native_record', data: { record: { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn' } } } }]), 'unknown');
   assert.equal(agentState({ ...active, active: { id: 'new', nativeTurn: null } }, [
     { seq: 1, type: 'turn_start_signal', data: { session_id: 'native' } },
     { seq: 2, type: 'turn_submitted', data: { id: 'new' } },

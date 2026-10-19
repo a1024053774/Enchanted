@@ -553,6 +553,8 @@ export class Panes implements GateRuntime {
       try {
         appendFileSync(join(this.root, "traces", launch, "pty.raw"), data);
       } catch (error) { this.recordFailure(pane, "trace_write_failed", error); return; }
+      try { this.scan(pane); }
+      catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
       try { this.terminalProtocol(pane, data); }
       catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
     });
@@ -998,7 +1000,6 @@ export class Panes implements GateRuntime {
       restore.type === "pane_restore_failed" ? "failed" : "pending", error: restore.data.error ?? null, details: restore.data.details ?? null };
     const pane = this.panes.get(thread);
     if (pane) {
-      this.scan(pane);
       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
         lifecycle: pane.archived || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,

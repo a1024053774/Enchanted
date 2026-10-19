@@ -18,6 +18,23 @@ import time
 import traceback
 import uuid
 from run_t103_picker import Window
+from t107_persistence import persistence
+
+
+def assert_fixture_restoration(view):
+    # These deliberately incomplete controller records and managed attempts
+    # must fail the existing T-096 restoration rules. Require exact pane-local
+    # diagnostics, read-only input, and no additional global/connection alerts.
+    controller = '未恢复：restore_record_unrecognized。启动记录已保留。'
+    managed = '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。'
+    expected = {'agent-' + str(i): controller if i < 2 else managed for i in range(5)}
+    panes = {pane.get('launch'): pane for pane in view['panes']}
+    assert len(panes) == len(view['panes']), 'Duplicate historical launch views'
+    for launch, message in expected.items():
+        assert launch in panes, 'Expected historical pane has not loaded: ' + launch
+        assert panes[launch]['input'] == 'false', 'Historical restoration failure must remain read-only: ' + launch
+        assert panes[launch]['alerts'] == [message], ('Unexpected restoration diagnostic', launch, panes[launch]['alerts'])
+    assert sorted(view['alerts']) == sorted(expected.values()), ('Unexpected or missing page alerts', view['alerts'])
 
 
 def main():
@@ -165,13 +182,26 @@ def main():
         report['checks'].append(dict(name='真实 Electron 已知坏基线', status='PASS', observed='无侧栏 IPC、agent 树与 Git 摘要，符合预期红态'))
         red.close()
         stop()
+        for mode in ['identity', 'readonly']:
+            probe = root / ('daemon-' + mode + '.json')
+            run(['node', '--experimental-vm-modules', source / 'workbench/tests/test_t107_daemon_readonly.mjs', probe, candidate, mode])
+            result = json.loads(probe.read_text(encoding='utf-8'))
+            assert result['status'] == 'PASS' and result['cleanup_complete'], result
+        report['checks'].append(dict(name='实际 daemon：根／辅助会话隔离、未消费日志下全部表与 trace 零写入', status='PASS'))
         start(candidate)
         green_build = build(candidate, 'green')
         green = window(candidate, green_build, 'green')
         green.wait(lambda row: len(row['projects']) == 2 and 'sidebar' in row['bridge'] and not any(project['disabled'] for project in row['projects']))
         green.call('project', target='project-0')
-        view = green.wait(lambda row: len(row['agents']) == 7 and 'task-0' in row['task'] and not any(agent['disabled'] for agent in row['agents']))
-        assert not view['alerts'], view['alerts']
+        expected_panes = {'agent-' + str(i) for i in range(5)}
+        view = green.wait(lambda row: len(row['agents']) == 7 and 'task-0' in row['task'] and not any(agent['disabled'] for agent in row['agents'])
+                          and {pane.get('launch') for pane in row['panes']} == expected_panes)
+        before_sidebar = persistence(state)
+        green.call('sidebar')
+        green.call('sidebar')
+        assert persistence(state) == before_sidebar, 'Sidebar read changed persisted tables or traces'
+        report['checks'].append(dict(name='真实 Electron 侧栏 IPC：所有 SQLite 表、schema 和 trace 原值不变', status='PASS'))
+        assert_fixture_restoration(view)
         nodes = {row['id']: row for row in view['agents']}
         assert [nodes['agent-' + str(i)]['level'] for i in range(5)] == [0, 1, 0, 0, 0]
         assert nodes['agent-0']['x'] < nodes['agent-1']['x']
@@ -188,7 +218,10 @@ def main():
         for index in range(7):
             launch = 'agent-' + str(index)
             green.call('agent', target=launch)
-            view = green.wait(lambda row: row.get('focusedLaunch') == launch and not any(agent['disabled'] for agent in row['agents']))
+            expected_panes.add(launch)
+            view = green.wait(lambda row: row.get('focusedLaunch') == launch and not any(agent['disabled'] for agent in row['agents'])
+                              and {pane.get('launch') for pane in row['panes']} == expected_panes)
+            assert_fixture_restoration(view)
             assert not next(p for p in view['panes'] if p.get('launch') == launch)['input'] == 'true'
         assert green.call('bridge', target='not-a-launch')['rejected']
         report['checks'].append(dict(name='点击逐个聚焦原窗格与临时历史窗格，均只读，未知身份拒收', status='PASS'))
