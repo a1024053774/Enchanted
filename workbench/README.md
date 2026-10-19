@@ -364,12 +364,48 @@ Electron 43.4.1 的 npm 包已没有 postinstall 下载；npm ci 成功不代表
 dist；平台路径元数据须完整，不能依赖外置盘上的 Electron.app。T-103 的红态、绿态
 共用一个内置盘二进制，并核对实际进程回报的路径与版本。
 
-T-102 打包时把最终 `.app` 安装到内置盘 `/Applications` 后运行；这个安装位置不受
-上述外置盘执行限制影响。外置盘可保留打包产物与缓存，验证时不直接运行盘上的 `.app`。
+打包产物先安装到内置盘 `/Applications/a2a.app` 再运行；外置盘保留产物与缓存，
+不直接运行盘上的 `.app`。
 
 另锁定官方 `node-pty@1.1.0`。本次 darwin-arm64 预编译包使用 `--ignore-scripts` 安装时，
 `prebuilds/darwin-arm64/spawn-helper` 曾缺执行位，已由执行主控手工改为 755。
 后台启动核对 node-pty 实际选择的 helper 是否可执行；失败直接报错，不自动 chmod 或重装。
+
+### macOS 应用
+
+本机 arm64 打包使用 Node 26.5、`@electron/packager@20.0.4` 与 `node-gyp@12.1.0`。
+准备本目录依赖后，为每次构建指定新的槽名：
+
+```sh
+cd workbench
+npm run package:mac -- --slot mac-新的编号
+```
+
+构建要求 `/Volumes/WD-Elements` 真实挂载；npm 缓存、Electron 下载、头文件、Vite 缓存、
+临时文件与 `.app` 均放外置盘。已有槽不复用，失败现场保留。后台源码、钩子与唯一门禁
+CLI 保持原路径；node-pty 针对 Electron 43.4.1 从源码重建，打包时把新 helper 设为 755。
+Packager 裁剪构建依赖，并以 ad-hoc 签名；不公证、不启用 hardened runtime、不使用 ASAR。
+输出最后一行及槽内 `package.json` 给出 `.app` 路径、体积、重建命令和签名方式。
+
+安装到 `/Applications/a2a.app` 后双击即可。界面自动调用现有 detached 启动器，以同一
+Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外置盘或外部 Node。
+数据默认仍在 `~/Library/Application Support/a2a-orchestrator`，界面数据在其 `ui/`。
+缺省 task 进入选择页；已有项目与任务由原门禁 CLI 创建，选择后可新建普通 zsh 终端。
+退出界面不结束后台或终端，再次打开会重连；普通终端在后台停止后仍按原合同显示已结束。
+
+应用启动者创建独有的 0600 `desktop-operator-<UUID>.json`，私有连接描述文件
+`desktop-connection.json` 只保存凭据路径，不保存 token。重连用原凭据接受后台核对；
+端点不存在才尝试启动，死 PID／socket 处理仍由 transport 完成。拒绝、超时或所有者未知
+明确报错，不重试或接管。旧凭据文件保留；不要把它们加入证据或 Git。若同一数据目录
+已有手工启动、但没有桌面连接描述的后台，应用会拒绝接管，须由原启动者按原入口收尾。
+
+隔离体验可用 `open /Applications/a2a.app --args --state /绝对路径/state --user-data /绝对路径/ui`。
+标准 `--remote-debugging-port` 只供显式调试使用；正常双击不开启端口，应用没有默认端口
+或自动开启代码。T-102 验收脚本显式使用随机 loopback 端口观察真实界面，关闭界面后随之退出。
+测试没有替应用启动后台，不调用模型，不写用户全局配置。
+
+本轮安装与真实入口复现命令见
+[T-102 / a2 记录](../evidence/2026-10-19-batch17/T-102/RESULTS-a2.md)。
 
 ## 运行时边界
 
