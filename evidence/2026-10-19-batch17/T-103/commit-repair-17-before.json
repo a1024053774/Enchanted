@@ -1,0 +1,96 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "Controller #17 commit repair, before edit; no tests rerun",
+  "head": "cc18d93dbbcf2ee641dc92befe68e5b0609b4807",
+  "staged_paths": [
+    "workbench/README.md",
+    "workbench/app/main.ts",
+    "workbench/app/preload.ts",
+    "workbench/app/renderer.tsx",
+    "workbench/app/start.mjs",
+    "workbench/app/style.css",
+    "workbench/src/daemon.ts",
+    "workbench/src/gates/cli.ts",
+    "workbench/src/gates/core.ts",
+    "workbench/tests/run_t103_picker.py",
+    "workbench/tests/t103_picker_driver.mjs",
+    "workbench/tests/test_electron_e2e.py",
+    "workbench/tests/test_t091_pane_ipc.mjs",
+    "workbench/tests/test_t103_driver_startup.mjs",
+    "workbench/tests/test_t103_keyboard_entry.mjs"
+  ],
+  "contracts_summary": "contracts-20261019T065323Z-summary.json",
+  "contracts_status": "PASS",
+  "contract_checks": [
+    {
+      "name": "baseline-ipc",
+      "status": "PASS",
+      "exit": 0
+    },
+    {
+      "name": "baseline-window",
+      "status": "PASS",
+      "exit": 0
+    },
+    {
+      "name": "candidate-ipc",
+      "status": "PASS",
+      "exit": 0
+    },
+    {
+      "name": "candidate-window",
+      "status": "PASS",
+      "exit": 0
+    }
+  ],
+  "mutant_results_expected": {
+    "baseline-ipc": {
+      "known_bad_result": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Unregistered pane key was accepted"
+      },
+      "single_pane_counterexample": {
+        "revision": "7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86",
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Three selected launches must create three pane keys in one window\n\n1 !== 3\n"
+      },
+      "close_mutant": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Explicit pane close must persist removal\n\ntrue !== false\n"
+      },
+      "empty_layout_known_bad": {
+        "revision": "11b32303bebf276d20026a6e718719d15f5d4068",
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Explicitly closed final pane must stay absent when app reopens\n\n1 !== 0\n"
+      }
+    },
+    "candidate-ipc": {
+      "known_bad_result": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Unregistered pane key was accepted"
+      },
+      "single_pane_counterexample": {
+        "revision": "7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86",
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Three selected launches must create three pane keys in one window\n\n1 !== 3\n"
+      },
+      "close_mutant": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Explicit pane close must persist removal\n\ntrue !== false\n"
+      },
+      "empty_layout_known_bad": {
+        "revision": "11b32303bebf276d20026a6e718719d15f5d4068",
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Explicitly closed final pane must stay absent when app reopens\n\n1 !== 0\n"
+      },
+      "window_key_mutant": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Got unwanted rejection: Projects must work without a pane key\nActual message: \"Unknown pane key\""
+      }
+    }
+  },
+  "original_commit_script_equal_frozen_copy": true,
+  "frozen_commit_script": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/contracts-20261019T065323Z/source-snapshot/evidence/2026-10-19-batch17/T-103/RUN-OUTSIDE-03-COMMIT.sh",
+  "failure": "git add refused evidence outside sparse cone after staging 15 workbench files; no commit created",
+  "authorized_repair": "Controller #17: git add --sparse; commit only using the same PASS reports, no test rerun"
+}

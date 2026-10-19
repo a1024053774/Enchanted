@@ -9,15 +9,16 @@ import { readOperatorCredential } from '../src/credentials.ts';
 import { randomUUID } from 'node:crypto';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
 
-type Options = { state: string; task: string; launch?: string | string[]; userData: string };
+type Options = { state: string; task?: string; launch?: string | string[]; userData: string };
 type PaneBinding = {
-  key: string; launch?: string; identity?: Record<string, unknown>; opening?: Promise<void>;
+  key: string; launch?: string; project?: string; identity?: Record<string, unknown>; opening?: Promise<void>;
   sequence: number; inputQueue: Promise<unknown>; pendingRelease: Promise<any> | null;
   closing?: boolean;
 };
 type WindowBinding = {
   window: BrowserWindow; options: Options; operator: NonNullable<ReturnType<typeof readOperatorCredential>>;
   panes: Map<string, PaneBinding>; closing: boolean; closed: boolean;
+  task: any; switching?: Promise<unknown>; creating?: Promise<unknown>;
 };
 const directory = dirname(fileURLToPath(import.meta.url));
 const windows = new Map<number, WindowBinding>();
@@ -41,11 +42,25 @@ function requireSavedPane(task: string, launch: string, result: any) {
   requireCurrentPane(task, launch, result);
 }
 
-function target(event: Electron.IpcMainInvokeEvent, key: string) {
+function requireShellPane(project: string, launch: string, result: any) {
+  if (!result.ok) throw new Error(result.error);
+  const record = result.launch;
+  if (typeof launch !== 'string' || !launch || result.task !== null || record?.id !== launch || record.role !== 'shell' || record.project !== project ||
+      record.task !== null || record.attempt !== null || record.session !== null || record.fence !== null) {
+    throw new Error('Shell project or launch mismatch');
+  }
+}
+
+function windowTarget(event: Electron.IpcMainInvokeEvent) {
   const context = windows.get(event.sender.id);
   if (!context || event.sender !== context.window.webContents || event.senderFrame !== event.sender.mainFrame) {
     throw new Error('Unknown window');
   }
+  return context;
+}
+function target(event: Electron.IpcMainInvokeEvent, key: string) {
+  const context = windowTarget(event);
+  if (context.switching || context.closing) throw new Error('Task view is changing');
   const pane = typeof key === 'string' ? context.panes.get(key) : undefined;
   if (!pane) throw new Error('Unknown pane key');
   return { context, pane };
@@ -78,27 +93,98 @@ function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Rec
 function registerHandlers() {
   if (handlersRegistered) return;
   handlersRegistered = true;
+  ipcMain.handle('a2a:projects', async event => {
+    const context = windowTarget(event);
+    const result = await request(context.options.state, { command: 'projects_list' });
+    if (!result.ok) throw new Error(result.error);
+    return result.projects;
+  });
+  ipcMain.handle('a2a:tasks', async (event, project: string) => {
+    const context = windowTarget(event);
+    const result = await request(context.options.state, { command: 'tasks_list', project });
+    if (!result.ok) throw new Error(result.error);
+    return result.tasks;
+  });
+  ipcMain.handle('a2a:selection', event => selection(windowTarget(event)));
+  ipcMain.handle('a2a:new-terminal', async event => {
+    const context = windowTarget(event);
+    if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) {
+      throw new Error('Task view is changing');
+    }
+    if (!context.options.task || !context.task) throw new Error('请先选择任务');
+    const create = async () => {
+      const current = await request(context.options.state, { command: 'workbench_snapshot', task: context.options.task });
+      if (!current.ok) throw new Error(current.error);
+      if (context.closing || current.task?.task_id !== context.options.task || current.task.project_id !== context.task.project_id ||
+          typeof current.task.repo !== 'string' || !isAbsolute(current.task.repo)) throw new Error('项目目录无法核对');
+      const result = await request(context.options.state, { command: 'shell_start',
+        project: current.task.project_id, cwd: current.task.repo }, context.operator);
+      requireShellPane(current.task.project_id, result.launch?.id, { ...result, task: null });
+      const pane: PaneBinding = { key: randomUUID(), launch: result.launch.id, project: result.launch.project,
+        sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null };
+      for (const [key, existing] of context.panes) {
+        if (!existing.launch && !existing.identity && !existing.opening && !current.launch) context.panes.delete(key);
+      }
+      context.panes.set(pane.key, pane);
+      context.task = current.task;
+      return selection(context);
+    };
+    context.creating = create();
+    try { return await context.creating; }
+    finally { context.creating = undefined; }
+  });
+  ipcMain.handle('a2a:select-task', async (event, task: string | null) => {
+    const context = windowTarget(event);
+    if (task !== null && (typeof task !== 'string' || !task)) throw new Error('Invalid task');
+    if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) throw new Error('Task view is changing');
+    if (task === (context.options.task ?? null)) return selection(context);
+    const change = async () => {
+      const options = { ...context.options, task: task ?? undefined, launch: undefined };
+      // Validate the destination before detaching the current view. Switching
+      // never closes a saved pane or stops a background session.
+      const prepared = await prepareSelection(options);
+      if (context.closing) throw new Error('Window is closing');
+      for (const pane of context.panes.values()) pane.closing = true;
+      try {
+        await detachPanes(context);
+        if (context.closing) throw new Error('Window is closing');
+        context.options = options;
+        context.task = prepared.task;
+        context.panes = new Map(prepared.panes.map(pane => [pane.key, pane]));
+        return selection(context);
+      } finally { for (const pane of context.panes.values()) pane.closing = false; }
+    };
+    context.switching = change();
+    try { return await context.switching; }
+    finally { context.switching = undefined; }
+  });
   ipcMain.handle('a2a:snapshot', async (event, key: string) => {
     const { context, pane } = target(event, key);
-    const result = await request(context.options.state, { command: 'workbench_snapshot', task: context.options.task,
+    const task = context.options.task!;
+    const scope = pane.project ? { project: pane.project } : { task };
+    const result = await request(context.options.state, { command: 'workbench_snapshot', ...scope,
       ...(pane.launch ? { launch: pane.launch } : {}) });
+    if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
     if (!result.ok) throw new Error(result.error);
-    if (context.panes.size > 1) requireSavedPane(context.options.task, pane.launch!, result);
+    if (pane.project) requireShellPane(pane.project, pane.launch!, result);
+    else if ([...context.panes.values()].filter(value => !value.project).length > 1) requireSavedPane(task, pane.launch!, result);
     if (pane.launch && result.launch?.id !== pane.launch) throw new Error('Pane launch changed');
     if (result.launch && !pane.launch) {
-      const opened = await request(context.options.state, { command: 'pane_layout_open', task: context.options.task,
+      const opened = await request(context.options.state, { command: 'pane_layout_open', task,
         launch: result.launch.id, position: [...context.panes.keys()].indexOf(pane.key) }, context.operator);
       if (!opened.ok) throw new Error(opened.error);
       pane.launch = result.launch.id;
     }
+    if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
     const writable = !result.recovering && !pane.closing && result.pane?.lifecycle === 'running' && !result.pane.failed &&
       result.pane?.restoration?.status !== 'pending' &&
-      Boolean(result.launch && (result.launch.role === 'controller' && result.launch.attempt === null ||
+      Boolean(result.launch && (pane.project && result.launch.role === 'shell' ||
+        result.launch.role === 'controller' && result.launch.attempt === null ||
         result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
     if (writable && result.launch && !pane.identity && !context.closing) {
       // Concurrent snapshot readers share one credential request, including a failed outcome.
       // Closing waits for this request before revoking a credential it may have issued.
-      pane.opening ??= request(context.options.state, { command: 'window_open', task: context.options.task, launch: pane.launch }, context.operator)
+      pane.opening ??= request(context.options.state, { command: 'window_open', ...scope, launch: pane.launch }, context.operator)
         .then(opened => {
           if (!opened.ok) throw new Error(opened.error);
           pane.identity = opened.identity;
@@ -142,7 +228,8 @@ function registerHandlers() {
     const outcomes = await Promise.allSettled([pane.inputQueue, pane.pendingRelease, pane.opening]);
     for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Pane input outcome remains unconfirmed:', String(outcome.reason));
     if (pane.launch) {
-      const closed = await request(context.options.state, { command: 'pane_layout_close', task: context.options.task,
+      const closed = await request(context.options.state, { command: 'pane_layout_close',
+        ...(pane.project ? { project: pane.project } : { task: context.options.task }),
         launch: pane.launch }, context.operator);
       if (!closed.ok) { pane.closing = false; throw new Error(closed.error); }
     }
@@ -156,8 +243,31 @@ function registerHandlers() {
   app.on('window-all-closed', () => app.quit());
 }
 
-export async function run(options: Options) {
-  if (!isAbsolute(options.state) || !isAbsolute(options.userData) || !options.task) throw new Error('Absolute data paths and a task are required');
+function selection(context: WindowBinding) {
+  return { task: context.task, paneKeys: [...context.panes.keys()] };
+}
+
+async function detachPanes(context: WindowBinding) {
+  const outcomes = await Promise.allSettled([...context.panes.values()].flatMap(pane =>
+    [pane.inputQueue, pane.pendingRelease, pane.opening]));
+  for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Window input outcome remains unconfirmed:', String(outcome.reason));
+  const revocations = await Promise.allSettled([...context.panes.values()].filter(pane => pane.identity).map(async pane => {
+    const result = await request(context.options.state, { command: 'window_close' }, pane.identity);
+    if (!result.ok) throw new Error(result.error);
+    pane.identity = undefined;
+    pane.opening = undefined;
+  }));
+  const failed = revocations.filter(result => result.status === 'rejected');
+  if (failed.length) throw new AggregateError(failed.map(result => result.reason), 'Window credential revocation was not confirmed');
+}
+
+async function prepareSelection(options: Options) {
+  if (!options.task) {
+    if (options.launch !== undefined) throw new Error('--launch requires --task');
+    return { task: null, saved: true, panes: [] as PaneBinding[] };
+  }
+  const snapshot = await request(options.state, { command: 'workbench_snapshot', task: options.task });
+  if (!snapshot.ok) throw new Error(snapshot.error);
   let saved = false;
   let launches: (string | undefined)[];
   if (options.launch === undefined) {
@@ -169,8 +279,6 @@ export async function run(options: Options) {
   } else launches = typeof options.launch === 'string' ? [options.launch] : [...options.launch];
   if ((!launches.length && !saved) || launches.some(launch => launch !== undefined && (typeof launch !== 'string' || !launch)) ||
       new Set(launches).size !== launches.length) throw new Error('Distinct nonempty pane launches are required');
-  const operator = readOperatorCredential(options.state);
-  if (!operator) throw new Error('operator_credential_required');
   if (launches.length > 1) {
     // Reject the complete selection before creating a window or input credential.
     const ranks = new Map<string, number>();
@@ -181,6 +289,25 @@ export async function run(options: Options) {
     }
     if (!saved) launches.sort((a, b) => ranks.get(a!)! - ranks.get(b!)!);
   }
+  let panes: PaneBinding[] = launches.map(launch => ({ key: randomUUID(), launch, sequence: 0,
+    inputQueue: Promise.resolve(), pendingRelease: null }));
+  const shells = await request(options.state, { command: 'pane_layout', project: snapshot.task.project_id });
+  if (!shells.ok) throw new Error(shells.error);
+  for (const opened of shells.panes.filter((pane: { task: string | null }) => pane.task === null)) {
+    const value = await request(options.state, { command: 'workbench_snapshot', project: snapshot.task.project_id, launch: opened.launch });
+    requireShellPane(snapshot.task.project_id, opened.launch, value);
+    panes.push({ key: randomUUID(), launch: opened.launch, project: snapshot.task.project_id,
+      sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
+  }
+  if (panes.some(pane => pane.project) && !snapshot.launch) panes = panes.filter(pane => pane.launch !== undefined);
+  return { task: snapshot.task, saved, panes };
+}
+
+export async function run(options: Options) {
+  if (!isAbsolute(options.state) || !isAbsolute(options.userData)) throw new Error('Absolute data paths are required');
+  const { task, saved, panes } = await prepareSelection(options);
+  const operator = readOperatorCredential(options.state);
+  if (!operator) throw new Error('operator_credential_required');
   if (appUserData && appUserData !== options.userData) throw new Error('Windows in one process must share application user-data');
   if (!appUserData) {
     appUserData = options.userData;
@@ -194,14 +321,12 @@ export async function run(options: Options) {
     app.setPath('crashDumps', join(options.userData, 'crashes'));
   }
   await app.whenReady();
-  const panes: PaneBinding[] = launches.map(launch => ({ key: randomUUID(), launch, sequence: 0,
-    inputQueue: Promise.resolve(), pendingRelease: null }));
   const window = new BrowserWindow({ width: 1440, height: 900, minWidth: 900, minHeight: 650,
     title: 'a2a 工作台', backgroundColor: '#111111',
     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,
       contextIsolation: true, sandbox: true, backgroundThrottling: false,
       additionalArguments: ['--a2a-pane-keys=' + JSON.stringify(panes.map(pane => pane.key))] } });
-  const context: WindowBinding = { window, options, operator, panes: new Map(panes.map(pane => [pane.key, pane])), closing: false, closed: false };
+  const context: WindowBinding = { window, options, operator, task, panes: new Map(panes.map(pane => [pane.key, pane])), closing: false, closed: false };
   const senderId = window.webContents.id;
   windows.set(senderId, context);
   registerHandlers();
@@ -209,7 +334,8 @@ export async function run(options: Options) {
   // shutdown hook. Reopening an existing failed pane preserves its diagnosis.
   if (!saved) for (const [position, pane] of panes.entries()) {
     if (!pane.launch) continue;
-    const opened = await request(options.state, { command: 'pane_layout_open', task: options.task, launch: pane.launch, position }, operator);
+    const opened = await request(options.state, { command: 'pane_layout_open',
+      ...(pane.project ? { project: pane.project } : { task: options.task }), launch: pane.launch, position }, operator);
     if (!opened.ok) { window.destroy(); throw new Error(opened.error); }
   }
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -220,17 +346,10 @@ export async function run(options: Options) {
     if (context.closing) return;
     context.closing = true;
     void (async () => {
-      const outcomes = await Promise.allSettled([...context.panes.values()].flatMap(value =>
-        [value.inputQueue, value.pendingRelease, value.opening]));
-      for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Window input outcome remains unconfirmed:', String(outcome.reason));
-      for (const value of context.panes.values()) {
-        try {
-          if (value.identity) {
-            const result = await request(options.state, { command: 'window_close' }, value.identity);
-            if (!result.ok) throw new Error(result.error);
-          }
-        } catch (error) { console.error('Window credential revocation was not confirmed:', String(error)); }
-      }
+      if (context.switching) await Promise.allSettled([context.switching]);
+      if (context.creating) await Promise.allSettled([context.creating]);
+      try { await detachPanes(context); }
+      catch (error) { console.error('Window credential revocation was not confirmed:', String(error)); }
       context.closed = true;
       window.destroy();
     })();

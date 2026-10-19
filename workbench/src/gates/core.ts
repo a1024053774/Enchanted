@@ -320,6 +320,18 @@ export class A2AGates {
       members: [],
     });
   }
+  // The task table owns project membership. Do not enumerate historical launch
+  // or membership records: they can outlive a task.
+  listProjects() {
+    return this.db.prepare("SELECT DISTINCT json_extract(data,'$.project_id') AS project_id FROM tasks ORDER BY project_id")
+      .all().map(row => ({ project_id: String(row.project_id) }));
+  }
+  listTasks(project: string) {
+    id(project);
+    return this.db.prepare(`SELECT id AS task_id, json_extract(data,'$.project_id') AS project_id,
+      COALESCE(json_extract(data,'$.title'),id) AS title, json_extract(data,'$.state') AS state
+      FROM tasks WHERE json_extract(data,'$.project_id')=? ORDER BY id`).all(project);
+  }
   private member(task: A2ATask, thread: string, role: A2AAttachment["role"], endedAt?: string) {
     const membership = this.taskMembership(task);
     const previous = membership.members.find((member) => member.threadId === thread);

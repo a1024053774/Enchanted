@@ -75,6 +75,40 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
 随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
 
+## 普通终端
+
+后台支持属于项目的普通 zsh 窗格，不绑定任务或 attempt，不走受管任务认领与交付。
+在已有后台上用同一管理凭据创建、查询和关闭：
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state shell_start --project 项目号 --cwd /绝对路径/项目目录
+node workbench/src/gates/cli.ts --state /绝对路径/state pane_layout --project 项目号
+node workbench/src/gates/cli.ts --state /绝对路径/state shell_close --launch 启动记录号
+```
+
+项目号沿用后台标识格式（英文字母、数字、`_`、`.`、`-`），cwd 必须是已有绝对目录，
+可以选择任务 worktree。后台启动 `/bin/zsh -l -i`，读取该 HOME 的登录与交互配置；
+只注入 `A2A_PROJECT`，不传模型参数或 agent 身份，不修改全局 shell 配置。
+启动记录的 `role` 为 `shell`，task、attempt、session、fence、spec_rev 均为空。
+
+窗口接线复用现有 transport：`window_open` 和 `workbench_snapshot` 带 `project`、`launch`；
+输入沿用窗口凭据、sequence、request_id 和 `window_input`，不调用 agent 输入记录器，
+不产生人工介入。普通终端的输入、组合与控制序列观察不写逐次接收事件或通用请求日志，
+凭据、序号与防重放核对留在内存；已关闭或重启前的已知 shell 窗口被拒时也不记按键时间。
+agent 窗格的输入、人工介入和门禁事实仍按原路径记录。布局与进程诊断事件继续保留。
+`shell_created` 与 `shell_closed` 追加到现有事件流，事件数据注明 `role: shell`。
+终端输出仍保存在既有 PTY trace，可能包含 shell 回显。
+
+显式 `shell_close` 或 shell 的 `pane_layout_close` 会结束该终端，核对关闭前观察到的
+shell 和子进程退出后才确认关闭。`window_close` 只撤销视图凭据，不结束终端。
+关闭 Electron 的既有行为仍为断开视图。后台重启保留普通终端的打开集，但不自动拉起
+zsh；历史快照返回 `lifecycle: ended`。退出无法核对时保留 unknown／明确错误，不伪称结束。
+在界面左侧选择任务后，窗格栏的“新建终端”会在该任务所属项目的目录打开 zsh。
+普通终端标为“普通终端 · zsh”，与 agent 会话并存，不显示 worker 的人工介入提示或队列放行按钮。
+同项目的任务共用项目终端打开集；切到其他项目时只断开视图，不结束原终端。
+重新打开界面会显示项目保存的终端；后台重启后的旧终端显示“已结束”，输入禁用。
+新建、关闭或切换失败时保留错误，不自动重放创建请求。真实 Electron 验证见 T-104 本批证据。
+
 启动前显式设置 `A2A_OPERATOR_CREDENTIAL`，指向本次启动专用、尚不存在的绝对文件路径。
 启动者创建 0600 凭据文件，后续管理 CLI 与 Electron 从同一环境变量读取；后台按凭据
 认定执行主控身份，不按 `--from` 或 `--role` 自报。每次后台启动使用新凭据，旧文件不覆盖。
@@ -314,6 +348,24 @@ npm ls --depth=0
 缓存由本目录 `.npmrc` 指向外置盘；安装前检查挂载与缓存位置，失败就退出。
 `node_modules` 是本目录中的普通目录。依赖锁定 `effect@4.0.0-beta.25`；来源预览包
 改为 npm 官方包是执行主控的决定，记录见本批证据 `controller-decision-01.md`。
+
+Electron 43.4.1 的 npm 包已没有 postinstall 下载；npm ci 成功不代表其二进制已安装。
+启动测试前显式运行已安装包的 `install.js`，把 `electron_config_cache` 指向外置盘，
+并核对 `path.txt`、`dist/version` 与可执行文件。T-103 的
+[独立安装脚本](../evidence/2026-10-19-batch17/T-103/RUN-OUTSIDE-04-ELECTRON.sh)
+接受 workbench 绝对路径与新的外置盘记录目录，保存版本、命令、权限检查与磁盘占用；
+只对内置盘的 Electron 安装目录使用，不改变 package.json、锁文件或全局 npm 配置。
+
+本机已知限制（2026-10-19）：Electron 43.4.1 放在 USB 外置盘（APFS、Owners Disabled）
+执行时，连不加载产品的版本探针也可能挂起。相同版本在内置盘能立即返回；这是当前
+环境的执行限制，不外推为所有 APFS 或 USB 磁盘的问题。Electron 二进制一律从内置盘
+执行，外置盘仍用于基线源码与依赖、构建槽、npm 缓存和 Electron 下载缓存。
+测试基线可用 Electron 包已有的 `ELECTRON_OVERRIDE_DIST_PATH` 显式指定同版本内置盘
+dist；平台路径元数据须完整，不能依赖外置盘上的 Electron.app。T-103 的红态、绿态
+共用一个内置盘二进制，并核对实际进程回报的路径与版本。
+
+T-102 打包时把最终 `.app` 安装到内置盘 `/Applications` 后运行；这个安装位置不受
+上述外置盘执行限制影响。外置盘可保留打包产物与缓存，验证时不直接运行盘上的 `.app`。
 
 另锁定官方 `node-pty@1.1.0`。本次 darwin-arm64 预编译包使用 `--ignore-scripts` 安装时，
 `prebuilds/darwin-arm64/spawn-helper` 曾缺执行位，已由执行主控手工改为 755。
@@ -558,10 +610,27 @@ P1 与首个候选的四项输入合同已经通过；其余失败方式和当�
 
 ```sh
 npm --prefix workbench run build -- --slot local-01
+# 不指定任务时，先选择已有项目下的任务
+node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --user-data /绝对路径/ui
 node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --user-data /绝对路径/ui
 # 同一任务三格（身份取自已有启动记录）
 node workbench/app/start.mjs --build /Volumes/WD-Elements/a2a-workbench/local-01/dist --state /绝对路径/state --task 任务编号 --launch 构思主控launch --launch 执行主控launch --launch 当前workerlaunch --user-data /绝对路径/ui
 ```
+
+左侧按项目列出当前门禁库中的任务，显示任务编号、标题与门禁状态。点击任务切换
+会话视图；切换只断开旧视图的输入凭据，不关闭后台会话或改动保存的窗格布局。
+“刷新列表”重新读取库，已移除的任务不再显示；所选任务被移除时返回选择页。
+空库显示创建任务的提示，界面不提供创建或删除操作。项目来自现有任务的
+`project_id`，不另存项目目录。命令行也可只读查询，不要求 `--task`：
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state projects_list
+node workbench/src/gates/cli.ts --state /绝对路径/state tasks_list --project 项目编号
+```
+
+两条列表命令不写库或请求事件；未知项目返回空列表。`--launch` 仍要求同时指定
+`--task`，其任务内多窗格选择方式不变。preload 的 `paneKeys` 保留启动时的窗格集；
+当前视图由 `selection` 和 `selectTask` 的返回值提供，切换后旧 key 不再可用。
 
 Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main
 进程中读取，并用于领取窄的窗口输入凭据，不传给 preload 或 renderer。

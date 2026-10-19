@@ -1,0 +1,242 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py",
+    "--archive",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-01-backend/input-events-mutant",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt-t104/evidence/2026-10-19-batch17/T-104/review-fix-01-backend/input-events-mutant.json",
+    "--mutant",
+    "input-events"
+  ],
+  "source": "/private/tmp/t104-65vrcb27/source",
+  "revision": null,
+  "mutant": "input-events",
+  "fixture": "/private/tmp/t104-65vrcb27",
+  "checks": [
+    "真实 zsh 登录、交互、echo/pwd、项目环境和项目隔离",
+    "匿名、窗口越权、跨项目、agent 派发与身份均拒绝",
+    "显式关闭结束 shell、前台子进程和后台子进程，其他项目保持运行",
+    "后台重启保留打开集，shell 结束且不续接，旧窗口身份失效"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-65vrcb27/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-65vrcb27/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":50263,\"root\":\"/private/tmp/t104-65vrcb27/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-65vrcb27/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-65vrcb27/state",
+        "shell_start",
+        "--project",
+        "t104-alpha",
+        "--cwd",
+        "/private/tmp/t104-65vrcb27/项目 alpha space"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"e02b17a9-f2b1-48db-b30c-4e07231ec1e3\",\"project\":\"t104-alpha\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"ae5a42d1-c40a-402f-aec4-525e63cb0e50\",\"role\":\"shell\",\"created_at\":\"2026-10-19T08:14:15.665Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t104-65vrcb27/项目 alpha space\",\"env\":{\"A2A_PROJECT\":\"t104-alpha\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-65vrcb27/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-65vrcb27/state",
+        "shell_start",
+        "--project",
+        "t104-beta",
+        "--cwd",
+        "/private/tmp/t104-65vrcb27/beta"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"launch\":{\"id\":\"49f09913-a49e-41d0-89b0-8fc7ae6ae4bc\",\"project\":\"t104-beta\",\"task\":null,\"attempt\":null,\"session\":null,\"fence\":null,\"spec_rev\":null,\"thread\":\"93d41182-cb24-4a16-a31d-199f4cba103d\",\"role\":\"shell\",\"created_at\":\"2026-10-19T08:14:15.838Z\",\"shell\":\"/bin/zsh\",\"shell_argv\":[\"-l\",\"-i\"],\"worktree\":\"/private/tmp/t104-65vrcb27/beta\",\"env\":{\"A2A_PROJECT\":\"t104-beta\"}}}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-65vrcb27/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-65vrcb27/state",
+        "shell_close",
+        "--launch",
+        "e02b17a9-f2b1-48db-b30c-4e07231ec1e3"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-65vrcb27/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-65vrcb27/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":50263,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-65vrcb27/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-65vrcb27/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":50368,\"root\":\"/private/tmp/t104-65vrcb27/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t104-65vrcb27/source/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t104-65vrcb27/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":50368,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "cleanup": [
+    {
+      "pid": 50273,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50323,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50321,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50263,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50278,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50368,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50273,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50321,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50323,
+      "exit": 1,
+      "output": ""
+    },
+    {
+      "pid": 50278,
+      "exit": 1,
+      "output": ""
+    }
+  ],
+  "daemons": [
+    50263,
+    50368
+  ],
+  "process_tree": {
+    "ok": true,
+    "shell_pid": 50273,
+    "leader": null,
+    "native_session": null,
+    "session_ended": false,
+    "observer": {
+      "method": "macOS libproc",
+      "root_pid": 50273
+    },
+    "processes": [
+      {
+        "pid": 50273,
+        "ppid": 50263,
+        "pgid": 50273,
+        "tpgid": 50323,
+        "command": "/bin/zsh"
+      },
+      {
+        "pid": 50323,
+        "ppid": 50273,
+        "pgid": 50323,
+        "tpgid": 50323,
+        "command": "/bin/sleep"
+      },
+      {
+        "pid": 50321,
+        "ppid": 50273,
+        "pgid": 50321,
+        "tpgid": 50323,
+        "command": "/bin/sleep"
+      }
+    ],
+    "failed": null
+  },
+  "restart_inventory": {
+    "before": {
+      "launches": [
+        "49f09913-a49e-41d0-89b0-8fc7ae6ae4bc",
+        "e02b17a9-f2b1-48db-b30c-4e07231ec1e3"
+      ],
+      "created": [
+        "e02b17a9-f2b1-48db-b30c-4e07231ec1e3",
+        "49f09913-a49e-41d0-89b0-8fc7ae6ae4bc"
+      ]
+    },
+    "after": {
+      "launches": [
+        "49f09913-a49e-41d0-89b0-8fc7ae6ae4bc",
+        "e02b17a9-f2b1-48db-b30c-4e07231ec1e3"
+      ],
+      "created": [
+        "e02b17a9-f2b1-48db-b30c-4e07231ec1e3",
+        "49f09913-a49e-41d0-89b0-8fc7ae6ae4bc"
+      ]
+    }
+  },
+  "error": "shell 逐次输入事件进入事件流",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py\", line 282, in main\n    assert not any(e['type'] in ['window_request_admitted', 'terminal_composition_started', 'terminal_input_empty',\nAssertionError: shell 逐次输入事件进入事件流\n",
+  "checkpoint": "privacy",
+  "cleanup_complete": true,
+  "archive": {
+    "original": "/private/tmp/t104-65vrcb27",
+    "archive": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-01-backend/input-events-mutant",
+    "files": 48,
+    "bytes": 786494,
+    "replay": "/Users/luckye/Documents/Code/a2a-wt-t104/workbench/tests/test_t104_shell_e2e.py --archive /Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-104/review-fix-01-backend/input-events-mutant --summary /Users/luckye/Documents/Code/a2a-wt-t104/evidence/2026-10-19-batch17/T-104/review-fix-01-backend/input-events-mutant.json --mutant input-events"
+  }
+}
