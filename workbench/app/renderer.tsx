@@ -23,13 +23,18 @@ type Snapshot = {
     interrupted?: boolean; interruption?: number | null; input_generation?: number; active?: { dispatch: string } | null } | null;
 };
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
+type TaskItem = { task_id: string; project_id: string; title: string; state: string };
+type ProjectItem = { project_id: string };
+type Selection = { task: Snapshot['task'] | null; paneKeys: string[] };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
+  projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
+  selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   snapshot(key: string): Promise<Snapshot>; output(key: string, offset: number): Promise<Chunk>;
   closePane(key: string): Promise<{ ok: boolean }>;
   input(key: string, data: string, encoding?: 'utf8' | 'binary'): Promise<void>; beginComposition(key: string): Promise<void>;
   releaseQueue(key: string, declaration: EmptyInputDeclaration): Promise<{ ok: boolean; error?: string }>;
   observeFocus(key: string, rawSequence: string): Promise<void> } } }
-const gateNames: Record<string, string> = { ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
+const gateNames: Record<string, string> = { creating: '创建中', ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
   verifying: '验收中', verified: '验收通过', integrating: '集成中', accepted: '已集成', paused: '已暂停', revoked: '已撤销' };
 const activityNames: Record<string, string> = { unknown: '未知', idle: '空闲', busy: '忙' };
 const lifecycleNames: Record<string, string> = { running: '运行中', interrupted: '已中断', unknown: '未知', ended: '已结束', not_started: '未启动' };
@@ -211,6 +216,37 @@ function SessionPane({ paneKey, onStatus, onClose }: { paneKey: string; onStatus
 function Workbench() {
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
   const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
+  const [selectedTask, setSelectedTask] = useState<Snapshot['task'] | null>(null);
+  const [projects, setProjects] = useState<(ProjectItem & { tasks: TaskItem[] })[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [navigating, setNavigating] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
+  const applySelection = useCallback((value: Selection) => {
+    setSelectedTask(value.task); setPaneKeys(value.paneKeys); setStatuses({});
+  }, []);
+  const refresh = useCallback(async () => {
+    setLoading(true); setCatalogError(null);
+    try {
+      const [rows, current] = await Promise.all([window.a2a.projects(), window.a2a.selection()]);
+      const catalog = await Promise.all(rows.map(async row => ({ ...row, tasks: await window.a2a.tasks(row.project_id) })));
+      if (current.task && !catalog.some(project => project.tasks.some(task => task.task_id === current.task!.task_id))) {
+        applySelection(await window.a2a.selectTask(null));
+      } else {
+        setSelectedTask(current.task); setPaneKeys(current.paneKeys);
+      }
+      setProjects(catalog);
+    } catch (error) { setCatalogError('读取项目与任务失败：' + String(error)); }
+    finally { setLoading(false); }
+  }, [applySelection]);
+  useEffect(() => { void refresh(); }, [refresh]);
+  const selectTask = async (task: string) => {
+    if (navigating || loading || task === selectedTask?.task_id) return;
+    setNavigating(true); setNavigationError(null);
+    try { applySelection(await window.a2a.selectTask(task)); }
+    catch (error) { setNavigationError('切换任务失败：' + String(error)); }
+    finally { setNavigating(false); }
+  };
   const onClose = useCallback((key: string) => {
     setPaneKeys(previous => previous.filter(value => value !== key));
     setStatuses(previous => { const next = { ...previous }; delete next[key]; return next; });
@@ -219,33 +255,52 @@ function Workbench() {
     setStatuses(previous => ({ ...previous, [key]: status }));
   }, []);
   const states = Object.values(statuses);
-  const task = states.find(value => value.snapshot)?.snapshot?.task;
+  const task = states.find(value => value.snapshot)?.snapshot?.task ?? selectedTask;
   const error = states.some(value => value.error);
   const connecting = states.length < paneKeys.length || states.some(value => value.connecting);
   return <div className="workbench">
     <aside className="sidebar">
       <div className="brand">a2a <span>工作台</span></div>
-      <div className="nav-label">项目</div>
-      <div className="project-name">{task?.project_id ?? '读取中'}</div>
-      <div className="task-row" aria-current="page"><span className="nav-dot" /><span>{task?.title ?? '正在连接后台'}</span></div>
+      <div className="catalog-heading"><span className="nav-label">项目与任务</span>
+        <button disabled={loading || navigating} onClick={() => void refresh()}>刷新列表</button></div>
+      <div className="catalog-status" role="status">{loading ? '正在读取列表…' : catalogError ? '列表未更新' : `${projects.length} 个项目`}</div>
+      {catalogError && <p className="catalog-error" role="alert">{catalogError}</p>}
+      <nav className="project-list" aria-label="项目与任务" aria-busy={loading}>
+        {projects.map(project => <details className="project-group" key={project.project_id} open>
+          <summary className="project-name" data-project-id={project.project_id}>{project.project_id}</summary>
+          <ul>{project.tasks.map(item => <li key={item.task_id}>
+            <button className="task-row" data-task-option={item.task_id} disabled={loading || navigating}
+              aria-current={task?.task_id === item.task_id ? 'page' : undefined} onClick={() => void selectTask(item.task_id)}>
+              <span className="task-title">{item.title}</span>
+              <span className="task-meta"><span>{item.task_id}</span><span>{gateNames[item.state] ?? item.state}</span></span>
+            </button>
+          </li>)}</ul>
+          {!project.tasks.length && <p className="catalog-status">这个项目还没有任务。</p>}
+        </details>)}
+        {!loading && !catalogError && !projects.length && <p className="catalog-status">还没有项目。请先通过编排后台创建项目中的任务，再刷新列表。</p>}
+      </nav>
       <div className="sidebar-footer">原生 CLI · 本地编排</div>
     </aside>
     <main>
       <header className="task-header">
-        <div><div className="eyebrow">{task?.task_id ?? '任务'}</div><h1>{task?.title ?? '正在读取任务'}</h1></div>
-        <span className={'connection ' + (error ? 'warning' : '')}>{error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
+        <div><div className="eyebrow">{task ? `${task.project_id} / ${task.task_id}` : '项目 / 任务'}</div><h1>{task?.title ?? (loading ? '正在读取项目' : '选择任务')}</h1></div>
+        <span className={'connection ' + (error || catalogError ? 'warning' : '')}>{navigating ? '正在切换任务' : loading ? '正在读取后台' : catalogError ? '列表未更新' : error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
       </header>
+      {navigationError && <div className="connection-error" role="alert">{navigationError}</div>}
       <div className={'pane-grid' + (paneKeys.length > 1 ? ' multi' : '')} aria-label="任务会话">
-        {paneKeys.map(key => <SessionPane key={key} paneKey={key} onStatus={onStatus} onClose={onClose} />)}
-        {!paneKeys.length && <p>当前任务没有打开的窗格。</p>}
+        {!navigating && paneKeys.map(key => <SessionPane key={key} paneKey={key} onStatus={onStatus} onClose={onClose} />)}
+        {navigating ? <p className="selection-hint" role="status">正在切换任务…</p> : !task && !paneKeys.length
+          ? <div className="selection-hint"><h2>{!loading && !catalogError && !projects.length ? '还没有项目' : '从左侧选择任务'}</h2>
+            <p>{!loading && !catalogError && !projects.length ? '请先通过编排后台创建项目中的任务，再刷新列表。' : '选择项目下的任务，查看它的会话和门禁状态。'}</p></div>
+          : !paneKeys.length && <p className="selection-hint">当前任务没有打开的窗格。</p>}
       </div>
-      <section className="gate" aria-label="门禁状态">
+      {task && <section className="gate" aria-label="门禁状态">
         <div><span className="eyebrow">当前任务门禁</span><strong data-gate-state={task?.state ?? 'unknown'}>{gateNames[task?.state ?? ''] ?? '未知'}</strong></div>
         <dl><div><dt>执行尝试</dt><dd>{task?.current_attempt?.attempt_id.slice(0, 8) ?? '尚未认领'}</dd></div>
           <div><dt>候选提交</dt><dd>{task?.candidate_commit?.slice(0, 10) ?? '尚未交付'}</dd></div>
           <div><dt>验收</dt><dd>{task?.verification?.state ?? '尚未开始'}</dd></div>
           <div><dt>集成</dt><dd>{task?.integration_intent?.state ?? '尚未开始'}</dd></div></dl>
-      </section>
+      </section>}
     </main>
   </div>;
 }

@@ -16,6 +16,8 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   daemon_start: { required: [], optional: ["launch-config"] },
   daemon_status: { required: [] },
   daemon_stop: { required: [] },
+  projects_list: { required: [] },
+  tasks_list: { required: ["project"] },
   pane_status: { required: ["thread"] },
   pane_output: { required: ["launch", "offset"], optional: ["max-bytes"] },
   workbench_snapshot: { required: [], optional: ["launch"] },
@@ -133,7 +135,7 @@ export async function main(argv = process.argv.slice(2)) {
     const contract = commands[command];
     const noTask = command.startsWith("inbox_") || command === "stop" ||
       command.startsWith("daemon_") || command.startsWith("pane_") ||
-      ["signal", "launch_show", "orchestration_events", "scores_validate"].includes(command);
+      ["signal", "launch_show", "orchestration_events", "scores_validate", "projects_list", "tasks_list"].includes(command);
     if (!contract || positionals.length !== 1 || (!noTask && !values.task))
       throw new Error("command and task required");
     const allowed = [

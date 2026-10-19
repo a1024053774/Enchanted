@@ -1,0 +1,130 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-103",
+  "attempt": "a1",
+  "controller_message": 15,
+  "run": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T062714Z",
+  "real_checks": [
+    {
+      "name": "已知坏版本：真实 start.mjs 无 task 入口退出 1",
+      "status": "PASS"
+    },
+    {
+      "name": "已知坏版本：同一真实 Electron 无 task 入口按预期拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "已知坏版本：固定任务可读取，项目与任务列表缺失",
+      "status": "PASS"
+    },
+    {
+      "name": "真实命令列表与夹具一致，空项目及无效项目反例，库与 WAL 全字节不变",
+      "status": "PASS"
+    },
+    {
+      "name": "真实 Electron 无 task 进入选择页，IPC 列表与两项目四任务一致",
+      "status": "PASS"
+    },
+    {
+      "name": "跨项目往返与键盘切换，真实终端内容随任务变化，旧 key 与不存在任务被拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "隔离库移除所选任务后刷新消失、清空窗格；历史归属记录不使其复活",
+      "status": "PASS"
+    }
+  ],
+  "real_error": "KeyError('task')",
+  "explicit_expected": {
+    "task": "task-1-0-6498e9",
+    "trace": "只读历史输出 task-1-0-6498e9 / 90a82aa5",
+    "launch": "fixture-9d0bb6fe013e4a0dbbda52d1b4767f32",
+    "title": "项目1的任务0 · 6498e9",
+    "panes": 1
+  },
+  "first_explicit_observation": {
+    "time": "2026-10-19T06:28:57.304Z",
+    "pid": 89306,
+    "app_ready": true,
+    "response": {
+      "id": 1,
+      "value": {
+        "text": "a2a 工作台\n项目与任务\n刷新列表\n正在读取列表…\n原生 CLI · 本地编排\n项目 / 任务\n正在读取项目\n正在读取后台\n窗格\n读取中\n只读\n终端未聚焦\n未知\n进入终端\n关闭窗格\n输入框已空，放行\n尚未启动窗格\n \n在此窗格输入会记录为用户输入\n执行：未知",
+        "heading": "正在读取项目",
+        "projects": [],
+        "tasks": [],
+        "panes": [
+          {
+            "key": "53d80b00-9edb-4e0e-a1fb-f4cb46875c3f",
+            "input": "false",
+            "offset": 0,
+            "terminal": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+          }
+        ],
+        "alerts": [],
+        "node": "undefined",
+        "bridge": [
+          "paneKeys",
+          "projects",
+          "tasks",
+          "selection",
+          "selectTask",
+          "snapshot",
+          "closePane",
+          "output",
+          "input",
+          "beginComposition",
+          "releaseQueue",
+          "observeFocus"
+        ],
+        "busy": "true"
+      }
+    }
+  },
+  "diagnosis": {
+    "observed": "First inspect is busy=true with mounted pane key, no task/launch identity yet, offset 0, no alerts; runner immediately closed the window after KeyError",
+    "code_path": "SessionPane starts snapshot=null and awaits a2a.snapshot; data-task-id is derived from snapshot.task, so an initial mounted section has no task attribute. Driver JSON omits its undefined task field.",
+    "classification": "Test polling defect: missing task during initial loading must be false, not an exception. This run did not establish eventual explicit-task readiness or a product defect.",
+    "correction": "Use .get(task) at both task/trace wait sites; loading stays false, exact task and trace remain required. Explicit startup also checks independent expected title and launch. Existing 20-second wait unchanged."
+  },
+  "local_counterfactual": "predicate-loading-15.json replays actual observations through frozen faulty and current lambda code; no live Electron evidence",
+  "candidate_files_changed_since_run": [
+    "workbench/tests/run_t103_picker.py"
+  ],
+  "product_and_driver_unchanged": true,
+  "cleanup": {
+    "run_cleanup_error": null,
+    "fixture_archive": {
+      "original": "/private/tmp/a2at103-0ruek3ns",
+      "archive": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T062714Z/fixtures",
+      "files": 252,
+      "bytes": 5837979
+    },
+    "prior_77499": {
+      "source": "controller #15",
+      "reported": "08: ps 查不到 77499",
+      "status": "PASS",
+      "scope": "Reported PID absence only; no independent worker live query or signal"
+    }
+  },
+  "screenshots": [
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T062714Z/green-no-task/green-narrow.png",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T062714Z/green-no-task/green-picker.png",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T062714Z/green-no-task/green-removed.png",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T062714Z/green-no-task/green-switched.png",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T062714Z/red-fixed-task/red-missing-list.png"
+  ],
+  "new_screenshots_visually_reviewed": [
+    "green-switched.png",
+    "green-narrow.png",
+    "green-removed.png"
+  ],
+  "remaining": [
+    "Real explicit-task startup including screenshot",
+    "Real empty-state check including screenshot",
+    "Controller adjudication of gate-removal wording",
+    "Sparse project_map missing files",
+    "Commit with hook trailers and independent review"
+  ],
+  "replay": "bash evidence/2026-10-19-batch17/T-103/RUN-OUTSIDE-02-E2E.sh"
+}

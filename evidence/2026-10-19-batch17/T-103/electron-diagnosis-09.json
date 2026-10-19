@@ -1,0 +1,59 @@
+{
+  "observed_at": "2026-10-19T05:13:24.042733+00:00",
+  "scope": "只读包元数据与文件存在性，不执行安装或 Electron",
+  "argv": [
+    "node",
+    "-e",
+    "const fs=require('node:fs');\nconst paths=['/Users/luckye/Documents/Code/a2a-wt-t103/workbench','/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/baseline-20261019T050726Z/workbench','/Users/luckye/Documents/Code/a2a/workbench'];\nconsole.log(JSON.stringify({npm:JSON.parse(fs.readFileSync('/opt/homebrew/lib/node_modules/npm/package.json','utf8')).version,packages:paths.map(root=>{const pkg=JSON.parse(fs.readFileSync(root+'/node_modules/electron/package.json','utf8'));const lock=JSON.parse(fs.readFileSync(root+'/package-lock.json','utf8')).packages['node_modules/electron'];return {root,version:pkg.version,scripts:pkg.scripts??null,bin:pkg.bin,lock_has_install_script:lock.hasInstallScript??false,path_txt:fs.existsSync(root+'/node_modules/electron/path.txt'),dist:fs.existsSync(root+'/node_modules/electron/dist')};})}));"
+  ],
+  "exit": 0,
+  "stdout": {
+    "npm": "12.0.1",
+    "packages": [
+      {
+        "root": "/Users/luckye/Documents/Code/a2a-wt-t103/workbench",
+        "version": "43.4.1",
+        "scripts": null,
+        "bin": {
+          "electron": "cli.js",
+          "install-electron": "install.js"
+        },
+        "lock_has_install_script": false,
+        "path_txt": false,
+        "dist": false
+      },
+      {
+        "root": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/baseline-20261019T050726Z/workbench",
+        "version": "43.4.1",
+        "scripts": null,
+        "bin": {
+          "electron": "cli.js",
+          "install-electron": "install.js"
+        },
+        "lock_has_install_script": false,
+        "path_txt": false,
+        "dist": false
+      },
+      {
+        "root": "/Users/luckye/Documents/Code/a2a/workbench",
+        "version": "43.4.1",
+        "scripts": null,
+        "bin": {
+          "electron": "cli.js",
+          "install-electron": "install.js"
+        },
+        "lock_has_install_script": false,
+        "path_txt": true,
+        "dist": true
+      }
+    ]
+  },
+  "stderr": "",
+  "sources": [
+    "https://www.electronjs.org/docs/latest/breaking-changes#behavior-changed-electron-no-longer-downloads-itself-via-postinstall-script",
+    "https://github.com/electron/electron/blob/v43.4.1/npm/package.json",
+    "https://github.com/electron/electron/blob/v43.4.1/npm/install.js",
+    "https://docs.npmjs.com/cli/v12/using-npm/scripts/"
+  ],
+  "conclusion": "Electron 43.4.1 没有 postinstall；npm ci 不下载二进制是包的安装约定，不能归因于 npm 12 的 allowScripts 拦截"
+}

@@ -1,0 +1,79 @@
+{
+  "observed_at": "2026-10-19T05:28:04.393065+00:00",
+  "scope": "日志、夹具 SQLite 只读查询、源码与历史对照；不启动 GUI、不发信号、不改 xattr",
+  "run": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T051645Z",
+  "completed_checks": [
+    {
+      "name": "已知坏版本：真实 start.mjs 无 task 入口退出 1",
+      "status": "PASS"
+    },
+    {
+      "name": "已知坏版本：同一真实 Electron 无 task 入口按预期拒绝",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [],
+  "driver_log": "{\"stage\":\"start\",\"electron\":\"43.4.1\",\"node\":\"24.18.1\",\"task\":\"task-0-0-e6ddc9\"}\n",
+  "latest_backend_events": [
+    {
+      "seq": 25,
+      "type": "request_result",
+      "data": {
+        "id": "f3d6e005-e7ab-451f-8c13-7358025895a9",
+        "command": "pane_layout",
+        "ok": true
+      }
+    },
+    {
+      "seq": 24,
+      "type": "request_received",
+      "data": {
+        "id": "f3d6e005-e7ab-451f-8c13-7358025895a9",
+        "input": {
+          "command": "pane_layout",
+          "task": "task-0-0-e6ddc9"
+        },
+        "source": "anonymous"
+      }
+    }
+  ],
+  "fixture_tasks": [
+    {
+      "id": "task-0-0-e6ddc9",
+      "project": "project-0-e6ddc9",
+      "title": "项目0的任务0 · e6ddc9",
+      "state": "ready"
+    },
+    {
+      "id": "task-0-1-e6ddc9",
+      "project": "project-0-e6ddc9",
+      "title": "校对<标签>与长中文任务标题是否完整显示 · 0-e6ddc9",
+      "state": "ready"
+    },
+    {
+      "id": "task-1-0-e6ddc9",
+      "project": "project-1-e6ddc9",
+      "title": "项目1的任务0 · e6ddc9",
+      "state": "ready"
+    },
+    {
+      "id": "task-1-1-e6ddc9",
+      "project": "project-1-e6ddc9",
+      "title": "校对<标签>与长中文任务标题是否完整显示 · 1-e6ddc9",
+      "state": "ready"
+    }
+  ],
+  "fixture_daemon_pid_record": "83691",
+  "controller_observation": {
+    "source": "主控 #10",
+    "electron_pid": 85822,
+    "ppid": 85798,
+    "stat": "S",
+    "children": [],
+    "worker_rechecked_live_process": false
+  },
+  "inference": "驱动在入口模块求值期间 await run；run 等待 app.whenReady，造成启动等待环。真实修复绿态待重跑",
+  "location_limit": "外置盘已执行驱动及无 task 拒绝；尚无外置盘渲染成功证据，不能完全排除位置因素",
+  "historical_control": "git show HEAD:evidence/2026-10-10-batch12/T-075/card-4/outside-checks-05/ready-bisect/results.json",
+  "signals_sent_by_worker": []
+}

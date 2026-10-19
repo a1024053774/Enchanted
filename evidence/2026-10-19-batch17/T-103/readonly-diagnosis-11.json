@@ -1,0 +1,60 @@
+{
+  "observed_at": "2026-10-19T05:40:57.033278+00:00",
+  "scope": "只读日志、产品构建与两份安装元数据；未执行对照或处置脚本",
+  "baseline_expected": "run 首条 guard 在第一次 await 和 app.whenReady 前拒绝缺 task；裸 main.catch 直接 app.exit(1)",
+  "stages_at_cutoff": [
+    {
+      "time": "2026-10-19T05:30:50.445Z",
+      "pid": 75497,
+      "app_ready": false,
+      "stage": "start",
+      "electron": "43.4.1",
+      "node": "24.18.1",
+      "task": null
+    },
+    {
+      "time": "2026-10-19T05:30:53.362Z",
+      "pid": 75497,
+      "app_ready": false,
+      "stage": "product-imported"
+    },
+    {
+      "time": "2026-10-19T05:30:53.537Z",
+      "pid": 75497,
+      "app_ready": false,
+      "stage": "driver-registered"
+    },
+    {
+      "time": "2026-10-19T05:30:53.537Z",
+      "pid": 75497,
+      "app_ready": false,
+      "stage": "startup-failed",
+      "error": "Error: Absolute data paths and a task are required"
+    },
+    {
+      "time": "2026-10-19T05:31:36.039Z",
+      "pid": 75497,
+      "app_ready": true,
+      "stage": "app-ready"
+    }
+  ],
+  "stderr_at_cutoff": "(node:75497) UnhandledPromiseRejectionWarning: Error: write EPIPE\n    at afterWriteDispatched (node:internal/stream_base_commons:159:15)\n    at writeGeneric (node:internal/stream_base_commons:150:3)\n    at Socket._writeGeneric (node:net:1026:11)\n    at Socket._write (node:net:1038:8)\n    at writeOrBuffer (node:internal/streams/writable:570:12)\n    at _write (node:internal/streams/writable:499:10)\n    at Writable.write (node:internal/streams/writable:508:10)\n    at file:///Users/luckye/Documents/Code/a2a-wt-t103/workbench/tests/t103_picker_driver.mjs:14:72\n    at new Promise (<anonymous>)\n    at reply (file:///Users/luckye/Documents/Code/a2a-wt-t103/workbench/tests/t103_picker_driver.mjs:14:24)\n(Use `Electron --trace-warnings ...` to show where the warning was created)\n(node:75497) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To terminate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 2)\n[75497:1019/013148.311438:ERROR:content/browser/network_service_instance_impl.cc:721] Network service crashed or was terminated, restarting service.\n",
+  "interpretation": "缺 task 的拒绝已发生；驱动 failed() 在 await reply 后才 app.exit，EPIPE 会跳过后续退出。不能据此宣称 app.exit 本身失效，待四组对照。",
+  "versions": [
+    {
+      "root": "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron",
+      "package": "43.4.1",
+      "dist": "43.4.1",
+      "path_txt": "Electron.app/Contents/MacOS/Electron",
+      "runtime_probe": "待主控运行 06 核对"
+    },
+    {
+      "root": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/baseline-20261019T052842Z/workbench/node_modules/electron",
+      "package": "43.4.1",
+      "dist": "43.4.1",
+      "path_txt": "Electron.app/Contents/MacOS/Electron",
+      "runtime_probe": "待主控运行 06 核对"
+    }
+  ],
+  "worker_signals_sent": []
+}

@@ -1,0 +1,104 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-103",
+  "attempt": "a1",
+  "controller_message": 14,
+  "run": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T060557Z",
+  "known_bad_driver": "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T060557Z/source-snapshot/workbench/tests/t103_picker_driver.mjs",
+  "oracle_source": ".project-map/tickets/T-103-workbench-project-task-picker.md: Acceptance requires task-specific pane content after selection; expected task and trace come from fixture inputs",
+  "completed_real_checks": [
+    {
+      "name": "已知坏版本：真实 start.mjs 无 task 入口退出 1",
+      "status": "PASS"
+    },
+    {
+      "name": "已知坏版本：同一真实 Electron 无 task 入口按预期拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "已知坏版本：固定任务可读取，项目与任务列表缺失",
+      "status": "PASS"
+    },
+    {
+      "name": "真实命令列表与夹具一致，空项目及无效项目反例，库与 WAL 全字节不变",
+      "status": "PASS"
+    },
+    {
+      "name": "真实 Electron 无 task 进入选择页，IPC 列表与两项目四任务一致",
+      "status": "PASS"
+    }
+  ],
+  "selection_requests": [
+    {
+      "time": "2026-10-19T06:07:56.187Z",
+      "pid": 78084,
+      "app_ready": true,
+      "request": {
+        "id": 3,
+        "command": "select",
+        "task": "task-0-0-c0095b"
+      }
+    },
+    {
+      "time": "2026-10-19T06:07:58.420Z",
+      "pid": 78084,
+      "app_ready": true,
+      "request": {
+        "id": 8,
+        "command": "keyboard-select",
+        "task": "task-1-0-c0095b"
+      }
+    }
+  ],
+  "first_selection": {
+    "status": "PASS",
+    "response_id": 7,
+    "task": "task-0-0-c0095b",
+    "trace": "只读历史输出 task-0-0-c0095b / 11b1c76d"
+  },
+  "failed_condition": {
+    "step": "second selection, native keyboard",
+    "response_id": 8,
+    "expected_task": "task-1-0-c0095b",
+    "expected_trace": "只读历史输出 task-1-0-c0095b / 6b6dc879",
+    "expected_panes": 1,
+    "observed_task": "task-0-0-c0095b",
+    "observed_selected": [
+      "task-0-0-c0095b"
+    ],
+    "observed_input": "false",
+    "busy": "false",
+    "alerts": [],
+    "driver_reply": {
+      "sent": true
+    }
+  },
+  "diagnosis": {
+    "observed": "Saved driver emits only Enter keyDown/keyUp; native CR char input is absent",
+    "inference": "Input injection is incomplete, so the observation does not establish a product switching defect. Real browser rerun remains required.",
+    "correction": "Keep task-specific pane and trace predicate; validate actual keyboard focus, then emit Enter down, CR char 13, Enter up. No click fallback or deadline increase."
+  },
+  "local_check": "keyboard-entry-14.json rejects the saved faulty driver and validates candidate injection plus wrong-focus/target negatives; not real browser evidence",
+  "unchanged_product_files": [
+    "workbench/README.md",
+    "workbench/app/main.ts",
+    "workbench/app/preload.ts",
+    "workbench/app/renderer.tsx",
+    "workbench/app/start.mjs",
+    "workbench/app/style.css",
+    "workbench/src/daemon.ts",
+    "workbench/src/gates/cli.ts",
+    "workbench/src/gates/core.ts"
+  ],
+  "screenshots_reviewed": [
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T060557Z/red-fixed-task/red-missing-list.png",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/run-20261019T060557Z/green-no-task/green-picker.png"
+  ],
+  "cleanup": {
+    "electron": "Controller #14 reports no remaining Electron processes",
+    "prior_run_error": "AssertionError('77499 /opt/homebrew/Cellar/node/26.5.0/bin/node /Volumes/WD-Elements/a2a-evidence/2026-10-19-batch17/T-103/baseline-20261019T060557Z/workbench/src/daemon.ts /private/tmp/a2at103-stani09q/red-state {}\\n')",
+    "interpretation": "The old daemon check ran immediately after pid-file removal; PID 77499 was still visible. Its later exit was not proved by this result.",
+    "correction": "Wait for both pid-file removal and actual process absence within the existing 10-second stop deadline; no new signal or gate semantics change"
+  },
+  "replay": "bash evidence/2026-10-19-batch17/T-103/RUN-OUTSIDE-02-E2E.sh"
+}
