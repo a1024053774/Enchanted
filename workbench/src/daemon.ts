@@ -121,6 +121,33 @@ export async function serve(
     if (existsSync(socket)) unlinkSync(socket);
     unlinkSync(join(root, "daemon.pid"));
   };
+  const validateArrangement = async (input: any, task = input.task, project = input.project) => {
+    const arrangement = input.arrangement, ids = new Set<string>();
+    const opened = new Set(store.openPanes().map(p => p.launch));
+    const taskStatus = task ? await gates.call({ command: "status", task: task }) : null;
+    if (task && !taskStatus?.ok) throw new Refusal("unknown_task");
+    const visit = (node: any, depth = 0) => {
+      if (depth > 64) throw new Refusal("invalid_pane_arrangement");
+      if (typeof node === "string") {
+        const record = panes.launchRecord(node);
+        if (ids.has(node) || !opened.has(node) ||
+            (task ? record.task !== task && !(record.role === "shell" && record.project === taskStatus?.task?.project_id) :
+              project ? record.role !== "shell" || record.project !== project : record.role !== "shell" || record.project !== null)) {
+          throw new Refusal("invalid_pane_arrangement");
+        }
+        ids.add(node); return;
+      }
+      if (!node || !["right", "down"].includes(node.direction)) throw new Refusal("invalid_pane_arrangement");
+      visit(node.first, depth + 1); visit(node.second, depth + 1);
+    };
+    if (!arrangement || typeof arrangement !== "object") throw new Refusal("invalid_pane_arrangement");
+    if (arrangement.tree !== null) visit(arrangement.tree);
+    if (!arrangement.names || typeof arrangement.names !== "object" || Array.isArray(arrangement.names) ||
+        Object.entries(arrangement.names).some(([id, name]) => !ids.has(id) || typeof name !== "string" || !name.trim() || name.length > 100)) {
+      throw new Refusal("invalid_pane_name");
+    }
+    return { scope: task ? `task:${task}` : project ? `project:${project}` : "free", arrangement };
+  };
   const handle = async (envelope: any, authority: ReturnType<typeof authenticate>) => {
     const input = envelope.input;
     if (!input || typeof input.command !== "string") throw new Refusal("invalid_request");
@@ -130,34 +157,46 @@ export async function serve(
     if (authority.kind === "launch") {
       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
     }
-    if (authority.kind === "window" && !["window_input", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
+    if (authority.kind === "window" && !["window_input", "window_resize", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       throw new Refusal("window_command_forbidden");
     }
     if (input.command === "projects_list") return { ok: true, projects: gates.listProjects() };
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
-        if (input.project !== record.project) throw new Refusal("launch_project_mismatch");
+        if ((input.project ?? null) !== record.project) throw new Refusal("launch_project_mismatch");
       } else if (record.task !== input.task) throw new Refusal("launch_task_mismatch");
     };
     if (input.command === "shell_start") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
-      return { ok: true, launch: panes.startShell(input.project, input.cwd) };
+      return { ok: true, launch: panes.startShell(input.project ?? null, input.cwd) };
     }
     if (input.command === "shell_close") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       await panes.closeShell(input.launch);
       return { ok: true };
     }
+    const layoutScope = input.task ? `task:${input.task}` : input.project ? `project:${input.project}` : "free";
     if (input.command === "pane_layout") return { ok: true, recovering,
-      saved: store.hasPaneLayout(input.task, input.project), panes: store.openPanes(input.task, input.project) };
+      saved: store.hasPaneLayout(input.task, input.project),
+      panes: store.openPanes(input.task, input.project).filter(p => !input.free || panes.launchRecord(p.launch).project === null),
+      arrangement: store.paneArrangement(layoutScope) };
+    if (input.command === "pane_layout_save") {
+      if (authority.kind !== "operator") throw new Refusal("operator_required");
+      const saved = await validateArrangement(input);
+      store.event("pane_arrangement_saved", saved);
+      return { ok: true };
+    }
     if (["pane_layout_open", "pane_layout_close"].includes(input.command)) {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const record = panes.launchRecord(input.launch);
       assertScope(record);
+      const saved = input.command === "pane_layout_close" && input.arrangement !== undefined
+        ? await validateArrangement(input, input.layout_task, input.layout_task ? undefined : input.project) : null;
       if (input.command === "pane_layout_open") panes.rememberOpen(input.launch, input.position);
       else if (record.role === "shell") await panes.closeShell(input.launch);
       else panes.forgetOpen(input.launch);
+      if (saved) store.event("pane_arrangement_saved", saved);
       return { ok: true };
     }
     if (input.command === "window_open") {
@@ -169,7 +208,7 @@ export async function serve(
       store.event("window_opened", { window_id: window.id, actor: "user" }, record as any);
       return { ok: true, identity: { kind: "window", window: window.id, token: window.token } };
     }
-    if (["window_input", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
+    if (["window_input", "window_resize", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       const window = authority.window;
       if (!window) throw new Refusal("window_identity_required");
       const record = panes.launchRecord(window.launch);
@@ -191,6 +230,13 @@ export async function serve(
       if (input.command === "window_input" && (!["utf8", "binary"].includes(encoding) || typeof input.data !== "string" ||
           (encoding === "binary" ? input.data.length : Buffer.byteLength(input.data, "utf8")) > 1024 * 1024 ||
           (encoding === "binary" && [...input.data].some(char => char.charCodeAt(0) > 255)))) throw new Refusal("invalid_terminal_input");
+      if (input.command === "window_resize") {
+        if (!Number.isInteger(input.cols) || input.cols < 2 || input.cols > 1000 || !Number.isInteger(input.rows) || input.rows < 1 || input.rows > 1000) throw new Refusal("invalid_terminal_size");
+        const pane = panes.byLaunch(record.id);
+        if (pane.stopped || pane.archived || pane.failed || pane.closing) throw new Refusal("pane_unavailable");
+        pane.pty.resize(input.cols, input.rows);
+        return { ok: true };
+      }
       if (record.role === "shell") {
         if (input.command === "window_composition") return { ok: true, observed: true, written: false };
         if (input.command === "window_observation") {

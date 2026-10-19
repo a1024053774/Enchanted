@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--stage', choices=['preflight', 'window'], required=True)
-    parser.add_argument('--ipc-contract', choices=['legacy', 'picker', 'shell'], default='shell')
+    parser.add_argument('--ipc-contract', choices=['legacy', 'picker', 'shell', 'panes'], default='panes')
     parser.add_argument('--runtime-source', type=Path,
                         help='Internal-disk source containing the Electron runtime and observation driver')
     args = parser.parse_args()
@@ -178,10 +178,12 @@ def main():
                 assert value['state'] == 'unknown' and value['offset'] == 0
                 expected_bridge = {'beginComposition', 'closePane', 'input', 'observeFocus', 'output',
                                    'paneKeys', 'releaseQueue', 'snapshot'}
-                if args.ipc_contract in ('picker', 'shell'):
+                if args.ipc_contract in ('picker', 'shell', 'panes'):
                     expected_bridge |= {'projects', 'tasks', 'selection', 'selectTask'}
-                if args.ipc_contract == 'shell':
+                if args.ipc_contract in ('shell', 'panes'):
                     expected_bridge |= {'newTerminal'}
+                if args.ipc_contract == 'panes':
+                    expected_bridge |= {'paneAction', 'resize'}
                 assert set(value['bridge']) == expected_bridge, (value['bridge'], sorted(expected_bridge))
                 assert len(value['bridge']) == len(expected_bridge), 'Public bridge names must not repeat'
                 assert value['node'] == 'undefined'

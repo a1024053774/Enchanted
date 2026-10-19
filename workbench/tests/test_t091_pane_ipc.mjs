@@ -18,9 +18,9 @@ import assert from 'node:assert/strict';
 const out = process.argv[2];
 if (!out) throw new Error('New JSON report path required');
 const { values } = parseArgs({ args: process.argv.slice(3), options: {
-  source: { type: 'string' }, contract: { type: 'string', default: 'shell' },
+  source: { type: 'string' }, contract: { type: 'string', default: 'panes' },
 } });
-assert.ok(['legacy', 'picker', 'shell'].includes(values.contract), 'Select an explicit known IPC contract');
+assert.ok(['legacy', 'picker', 'shell', 'panes'].includes(values.contract), 'Select an explicit known IPC contract');
 const sourceURL = values.source ? pathToFileURL(resolve(values.source) + '/') : new URL('../../', import.meta.url);
 const mainURL = new URL('workbench/app/main.ts', sourceURL);
 const preloadURL = new URL('workbench/app/preload.ts', sourceURL);
@@ -33,14 +33,16 @@ const legacyBridge = ['paneKeys', 'snapshot', 'closePane', 'output', 'input', 'b
 const pickerBridge = [...legacyBridge, 'projects', 'tasks', 'selection', 'selectTask'];
 const shellWindowHandlers = [...windowHandlers, 'a2a:new-terminal'];
 const shellBridge = [...pickerBridge, 'newTerminal'];
+const panesHandlers = ['a2a:pane-action', 'a2a:resize'];
+const panesBridge = ['paneAction', 'resize'];
 const badRevision = '6974c2aad1233133264b7448e1277cd19fa0b6ba';
 const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with supplied Electron/transport/filesystem boundaries; no GUI or backend proof',
   argv: process.argv, contract: values.contract, source: fileURLToPath(sourceURL), known_bad: badRevision, checks: [], model_turns: 0 };
 
-async function exercise(source, withRecovery = false, withCatalog = false, preloadSource = legacyPreload, withShell = false) {
-  const keyedHandlers = withRecovery ? recoveredPaneHandlers : paneHandlers;
+async function exercise(source, withRecovery = false, withCatalog = false, preloadSource = legacyPreload, withShell = false, withPanes = false) {
+  const keyedHandlers = [...(withRecovery ? recoveredPaneHandlers : paneHandlers), ...(withPanes ? panesHandlers : [])];
   const expectedHandlers = [...keyedHandlers, ...(withShell ? shellWindowHandlers : withCatalog ? windowHandlers : [])];
-  const expectedBridge = withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge;
+  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : [])];
   const fixtureProject = 'catalog-project-sentinel';
   const fixtureSummary = { task_id: 'task-one', project_id: fixtureProject, title: '独立任务标题', state: 'claimed' };
   const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one' } };
@@ -69,6 +71,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     registrations.push(name); handlers.set(name, handler);
   }, removeHandler(name) { handlers.delete(name); } };
   const records = {
+    reviewer: { id: 'reviewer', thread: 'thread-reviewer', role: 'reviewer', preset: null, attempt: 'attempt-one' },
     worker: { id: 'worker', thread: 'thread-worker', role: 'worker', preset: null, attempt: 'attempt-one' },
     controller: { id: 'controller', thread: 'thread-controller', role: 'controller', preset: 'executor', attempt: null },
     ideation: { id: 'ideation', thread: 'thread-ideation', role: 'controller', preset: 'ideation', attempt: null },
@@ -85,28 +88,30 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
       : { ok: true, tasks: input.project === fixtureProject ? [fixtureSummary] : [] };
     if (input.command === 'shell_start') {
       assert.equal(identity.kind, 'operator');
-      assert.equal(input.project, fixtureProject, 'Terminal project must come from the selected task');
-      assert.equal(input.cwd, '/fixture/project-repo', 'Terminal cwd must come from the selected task');
+      assert.ok(input.project === fixtureProject || withPanes && input.project === null, 'Terminal project must come from the selected task or be unassigned');
+      assert.equal(input.cwd, input.project === null ? (await import('node:os')).homedir() : '/fixture/project-repo', 'Terminal cwd must come from the selected directory source');
       const id = 'fixture-shell-' + ++shellNumber;
-      records[id] = { id, thread: 'thread-' + id, role: 'shell', project: fixtureProject,
+      records[id] = { id, thread: 'thread-' + id, role: 'shell', project: input.project, worktree: input.cwd,
         task: null, attempt: null, session: null, fence: null };
       shellLayout.set(id, { launch: id, task: null, position: shellLayout.size });
       return { ok: true, launch: records[id] };
     }
+    if (input.command === 'pane_layout_save') return { ok: true };
+    if (input.command === 'pane_layout' && input.free) return { ok: true, saved: true, panes: [...shellLayout.values()].filter(p => records[p.launch].project === null) };
     if (input.command === 'pane_layout') return input.project ? { ok: true, saved: true, panes: [...shellLayout.values()] }
       : { ok: true, saved: layoutSaved, panes: [...layout.values()].sort((a, b) => a.position - b.position) };
     if (['pane_layout_open', 'pane_layout_close'].includes(input.command)) {
       assert.equal(identity.kind, 'operator', 'Layout persistence requires the operator identity');
       layoutSaved = true;
-      if (input.project) {
-        assert.equal(input.project, fixtureProject);
+      if (input.project !== undefined) {
+        assert.ok(input.project === fixtureProject || withPanes && input.project === null);
         if (input.command === 'pane_layout_open') shellLayout.set(input.launch, { launch: input.launch, task: null, position: input.position });
         else shellLayout.delete(input.launch);
       } else if (input.command === 'pane_layout_open') layout.set(input.launch, { launch: input.launch, position: input.position });
       else layout.delete(input.launch);
       return { ok: true };
     }
-    if (input.command === 'workbench_snapshot' && input.project) return {
+    if (input.command === 'workbench_snapshot' && (input.project || withPanes && records[input.launch]?.role === 'shell')) return {
       ok: true, task: null, launch: records[input.launch], pane: { lifecycle: 'running', failed: null } };
     if (input.command === 'workbench_snapshot') return input.task !== fixtureTask.task_id ? { ok: false, error: 'unknown_task' }
       : { ok: true, task: fixtureTask, launch: { task: 'task-one', ...records[input.launch ?? 'worker'] },
@@ -126,7 +131,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   }
   let bridge, rendererEvent;
   const fakeProcess = { argv: ['node', fileURLToPath(import.meta.url)] };
-  const electron = { app, BrowserWindow: Window, ipcMain,
+  const electron = { app, BrowserWindow: Window, ipcMain, dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
     contextBridge: { exposeInMainWorld(_name, value) { bridge = value; } },
     ipcRenderer: { invoke: (name, ...args) => Promise.resolve().then(() => handlers.get(name)(rendererEvent, ...args)) } };
   const context = vm.createContext({ process: fakeProcess, console, Buffer });
@@ -180,7 +185,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   assert.equal(new Set(registrations).size, registrations.length, 'IPC handler registration must not repeat');
   const trailing = { 'a2a:snapshot': [], 'a2a:input': ['must-not-arrive'], 'a2a:composition-start': [],
     'a2a:release-queue': [{ window_id: first.window_id }], 'a2a:focus-observation': ['\x1b[?1004h'],
-    'a2a:output': [0], 'a2a:close-pane': [] };
+    'a2a:output': [0], 'a2a:close-pane': [], 'a2a:pane-action': [{ type: 'rename', name: '测试' }], 'a2a:resize': [80, 24] };
   const validArguments = Object.fromEntries(keyedHandlers.map(channel => [channel, [aKey, ...trailing[channel]]]));
   Object.assign(validArguments, { 'a2a:projects': [], 'a2a:tasks': [fixtureProject], 'a2a:selection': [], 'a2a:select-task': ['task-one'], 'a2a:new-terminal': [] });
   const beforeDenied = requests.length;
@@ -256,6 +261,16 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     assert.equal(credentialNumber, beforeCredentials, 'Invalid third pane must not receive a credential');
   }
   await assert.rejects(() => run({ ...options, launch: ['worker', 'worker'] }));
+  if (withPanes) {
+    const reviewed = await run({ ...options, launch: ['controller', 'reviewer'] });
+    const reviewKeys = JSON.parse(reviewed.options.webPreferences.additionalArguments[0].slice('--a2a-pane-keys='.length));
+    const results = await Promise.all(reviewKeys.map(k => invoke(reviewed, 'a2a:snapshot', k)));
+    const index = results.findIndex(r => r.launch.role === 'reviewer');
+    assert.ok(index >= 0, 'Reviewer must coexist with other agent panes');
+    assert.equal(results[index].input_enabled, false, 'Reviewer pane must remain read-only');
+    await invoke(reviewed, 'a2a:pane-action', reviewKeys[index], { type: 'rename', name: '独立审查' });
+    assert.equal((await invoke(reviewed, 'a2a:selection')).names[reviewKeys[index]], '独立审查');
+  }
   if (withRecovery) {
     const sibling = threeSnapshots[1].window_id;
     await invoke(three, 'a2a:close-pane', threeKeys[0]);
@@ -350,8 +365,15 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     if (withShell) {
       await bridge.selectTask(null);
       const beforeNoTask = requests.length;
-      await assert.rejects(() => bridge.newTerminal(), /请先选择任务/);
-      assert.equal(requests.length, beforeNoTask, 'No task must not create a terminal');
+      if (withPanes) {
+        const free = await bridge.newTerminal();
+        const freeKey = free.paneKeys[0];
+        assert.equal((await bridge.snapshot(freeKey)).launch.project, null);
+        await bridge.closePane(freeKey);
+      } else {
+        await assert.rejects(() => bridge.newTerminal(), /请先选择任务/);
+        assert.equal(requests.length, beforeNoTask, 'No task must not create a terminal');
+      }
       const selectedAgain = await bridge.selectTask('task-one');
       const pending = bridge.newTerminal();
       await assert.rejects(() => bridge.newTerminal(), /Task view is changing/);
@@ -398,11 +420,12 @@ try {
   assert.ok(missingPanes, 'Single-pane tracer must fail the simultaneous pane-count assertion');
   const candidate = readFileSync(mainURL, 'utf8');
   const candidatePreload = readFileSync(preloadURL, 'utf8');
-  const withShell = values.contract === 'shell';
+  const withPanes = values.contract === 'panes';
+  const withShell = ['shell', 'panes'].includes(values.contract);
   const withCatalog = values.contract !== 'legacy';
   const mutant = candidate.replace("command: 'pane_layout_close'", "command: 'pane_layout_open'");
   assert.notEqual(mutant, candidate);
-  try { await exercise(mutant, true, withCatalog, candidatePreload, withShell); }
+  try { await exercise(mutant, true, withCatalog, candidatePreload, withShell, withPanes); }
   catch (error) { report.close_mutant = { rejected: error instanceof assert.AssertionError && error.message.startsWith('Explicit pane close must persist removal'), error: String(error) }; }
   assert.equal(report.close_mutant?.rejected, true, 'Close-without-removal mutant must fail the saved-layout assertion');
   const emptyBadRevision = '11b32303bebf276d20026a6e718719d15f5d4068';
@@ -413,17 +436,17 @@ try {
     const windowMutant = candidate.replace("ipcMain.handle('a2a:projects', async event => {\n    const context = windowTarget(event);",
       "ipcMain.handle('a2a:projects', async (event, key: string) => {\n    const { context } = target(event, key);");
     assert.notEqual(windowMutant, candidate, 'Window-level pane-key mutation must change the selected implementation');
-    try { await exercise(windowMutant, true, true, candidatePreload, withShell); }
+    try { await exercise(windowMutant, true, true, candidatePreload, withShell, withPanes); }
     catch (error) { report.window_key_mutant = { rejected: error instanceof assert.AssertionError && error.message.includes('Projects must work without a pane key'), error: String(error) }; }
     assert.equal(report.window_key_mutant?.rejected, true, 'A window list handler requiring a pane key must fail its no-key contract');
   }
-  report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell);
+  report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell, withPanes);
   report.checks.push('app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential',
     'never_saved_default_selection', 'final_close_stays_empty_on_repeated_reopen', 'empty_preload_and_no_credentials', 'explicit_selection_reopens');
-  if (withCatalog) report.checks.push(withShell ? 'explicit_12_handler_and_13_bridge_names' : 'explicit_11_handler_and_12_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',
+  if (withCatalog) report.checks.push(withPanes ? 'explicit_14_handler_and_15_bridge_names' : withShell ? 'explicit_12_handler_and_13_bridge_names' : 'explicit_11_handler_and_12_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',
     'projects_without_pane_key', 'tasks_project_argument_and_backend_refusals', 'window_selection_without_transport',
     'select_task_null_and_id_preserve_rejected_destination');
-  if (withShell) report.checks.push('new_terminal_requires_task_and_serializes_creation', 'shell_project_cwd_and_identity', 'shell_keyed_input_and_close');
+  if (withShell) report.checks.push(withPanes ? 'new_terminal_without_task_and_serializes_creation' : 'new_terminal_requires_task_and_serializes_creation', 'shell_project_cwd_and_identity', 'shell_keyed_input_and_close');
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.stack = error.stack; }
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });

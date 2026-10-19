@@ -16,7 +16,7 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   daemon_start: { required: [], optional: ["launch-config"] },
   daemon_status: { required: [] },
   daemon_stop: { required: [] },
-  shell_start: { required: ["project", "cwd"] },
+  shell_start: { required: ["cwd"], optional: ["project"] },
   shell_close: { required: ["launch"] },
   pane_layout: { required: [], optional: ["task", "project"] },
   projects_list: { required: [] },

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
@@ -11,13 +11,14 @@ import type { EmptyInputDeclaration } from '../src/panes.ts';
 
 type Options = { state: string; task?: string; launch?: string | string[]; userData: string };
 type PaneBinding = {
-  key: string; launch?: string; project?: string; identity?: Record<string, unknown>; opening?: Promise<void>;
+  key: string; launch?: string; project?: string | null; identity?: Record<string, unknown>; opening?: Promise<void>;
   sequence: number; inputQueue: Promise<unknown>; pendingRelease: Promise<any> | null;
   closing?: boolean;
 };
 type WindowBinding = {
   window: BrowserWindow; options: Options; operator: NonNullable<ReturnType<typeof readOperatorCredential>>;
   panes: Map<string, PaneBinding>; closing: boolean; closed: boolean;
+  layout: Layout | null; names: Record<string, string>;
   task: any; switching?: Promise<unknown>; creating?: Promise<unknown>;
 };
 const directory = dirname(fileURLToPath(import.meta.url));
@@ -25,13 +26,38 @@ const windows = new Map<number, WindowBinding>();
 let handlersRegistered = false;
 let appUserData: string | undefined;
 
+type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
+function replaceLeaf(tree: Layout | null, key: string, replacement: Layout | null): Layout | null {
+  if (tree === null || typeof tree === 'string') return tree === key ? replacement : tree;
+  const first = replaceLeaf(tree.first, key, replacement), second = replaceLeaf(tree.second, key, replacement);
+  return first && second ? { ...tree, first, second } : first ?? second;
+}
+function mapLayout(tree: Layout | null, convert: (key: string) => string | null): Layout | null {
+  if (tree === null) return null;
+  if (typeof tree === 'string') return convert(tree);
+  const first = mapLayout(tree.first, convert), second = mapLayout(tree.second, convert);
+  return first && second ? { ...tree, first, second } : first ?? second;
+}
+function serializedArrangement(context: WindowBinding, tree = context.layout, names = context.names) {
+  return { tree: mapLayout(tree, key => context.panes.get(key)?.launch ?? null),
+    names: Object.fromEntries(Object.entries(names).flatMap(([key, name]) => {
+      const id = context.panes.get(key)?.launch; return id ? [[id, name]] : [];
+    })) };
+}
+async function saveArrangement(context: WindowBinding) {
+  const result = await request(context.options.state, { command: 'pane_layout_save', task: context.options.task,
+    arrangement: serializedArrangement(context) }, context.operator);
+  if (!result.ok) throw new Error(result.error);
+}
+
 function requireCurrentPane(task: string, launch: string, result: any) {
   if (!result.ok) throw new Error(result.error);
   const record = result.launch;
   if (result.task?.task_id !== task || record?.task !== task || record?.id !== launch) throw new Error('Pane task or launch mismatch');
   if (result.pane?.lifecycle !== 'running' || result.pane.failed || result.pane.historical ||
       !(record.role === 'controller' && record.attempt === null && ['ideation', 'executor'].includes(record.preset) ||
-        record.role === 'worker' && record.attempt !== null && result.task.current_attempt?.attempt_id === record.attempt)) {
+        record.role === 'worker' && record.attempt !== null && result.task.current_attempt?.attempt_id === record.attempt ||
+        record.role === 'reviewer' && record.attempt !== null)) {
     throw new Error('Pane is not a current running session');
   }
 }
@@ -42,7 +68,7 @@ function requireSavedPane(task: string, launch: string, result: any) {
   requireCurrentPane(task, launch, result);
 }
 
-function requireShellPane(project: string, launch: string, result: any) {
+function requireShellPane(project: string | null, launch: string, result: any) {
   if (!result.ok) throw new Error(result.error);
   const record = result.launch;
   if (typeof launch !== 'string' || !launch || result.task !== null || record?.id !== launch || record.role !== 'shell' || record.project !== project ||
@@ -106,32 +132,27 @@ function registerHandlers() {
     return result.tasks;
   });
   ipcMain.handle('a2a:selection', event => selection(windowTarget(event)));
-  ipcMain.handle('a2a:new-terminal', async event => {
+  ipcMain.handle('a2a:new-terminal', async (event, source: string = 'default') => {
     const context = windowTarget(event);
-    if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) {
-      throw new Error('Task view is changing');
+    if (!['default', 'home', 'project', 'choose'].includes(source)) throw new Error('Invalid terminal directory source');
+    return createTerminal(context, source);
+  });
+  ipcMain.handle('a2a:pane-action', async (event, key: string, action: { type: string; direction?: string; name?: string }) => {
+    const { context, pane } = target(event, key);
+    if (context.creating || [...context.panes.values()].some(p => p.closing)) throw new Error('Task view is changing');
+    if (!action || typeof action !== 'object') throw new Error('Invalid pane action');
+    if (action.type === 'split') {
+      if (!['right', 'down'].includes(action.direction!)) throw new Error('Invalid split direction');
+      return createTerminal(context, 'split', pane, action.direction as 'right' | 'down');
     }
-    if (!context.options.task || !context.task) throw new Error('请先选择任务');
-    const create = async () => {
-      const current = await request(context.options.state, { command: 'workbench_snapshot', task: context.options.task });
-      if (!current.ok) throw new Error(current.error);
-      if (context.closing || current.task?.task_id !== context.options.task || current.task.project_id !== context.task.project_id ||
-          typeof current.task.repo !== 'string' || !isAbsolute(current.task.repo)) throw new Error('项目目录无法核对');
-      const result = await request(context.options.state, { command: 'shell_start',
-        project: current.task.project_id, cwd: current.task.repo }, context.operator);
-      requireShellPane(current.task.project_id, result.launch?.id, { ...result, task: null });
-      const pane: PaneBinding = { key: randomUUID(), launch: result.launch.id, project: result.launch.project,
-        sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null };
-      for (const [key, existing] of context.panes) {
-        if (!existing.launch && !existing.identity && !existing.opening && !current.launch) context.panes.delete(key);
-      }
-      context.panes.set(pane.key, pane);
-      context.task = current.task;
-      return selection(context);
-    };
-    context.creating = create();
-    try { return await context.creating; }
+    if (action.type !== 'rename' || typeof action.name !== 'string' || !action.name.trim() || action.name.length > 100) throw new Error('Invalid pane name');
+    const previous = context.names[key];
+    context.names[key] = action.name.trim();
+    context.creating = saveArrangement(context);
+    try { await context.creating; }
+    catch (error) { if (previous === undefined) delete context.names[key]; else context.names[key] = previous; throw error; }
     finally { context.creating = undefined; }
+    return selection(context);
   });
   ipcMain.handle('a2a:select-task', async (event, task: string | null) => {
     const context = windowTarget(event);
@@ -150,6 +171,7 @@ function registerHandlers() {
         if (context.closing) throw new Error('Window is closing');
         context.options = options;
         context.task = prepared.task;
+        context.layout = prepared.layout; context.names = prepared.names;
         context.panes = new Map(prepared.panes.map(pane => [pane.key, pane]));
         return selection(context);
       } finally { for (const pane of context.panes.values()) pane.closing = false; }
@@ -161,13 +183,13 @@ function registerHandlers() {
   ipcMain.handle('a2a:snapshot', async (event, key: string) => {
     const { context, pane } = target(event, key);
     const task = context.options.task!;
-    const scope = pane.project ? { project: pane.project } : { task };
+    const scope = pane.project !== undefined ? { project: pane.project } : { task };
     const result = await request(context.options.state, { command: 'workbench_snapshot', ...scope,
       ...(pane.launch ? { launch: pane.launch } : {}) });
     if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
     if (!result.ok) throw new Error(result.error);
-    if (pane.project) requireShellPane(pane.project, pane.launch!, result);
-    else if ([...context.panes.values()].filter(value => !value.project).length > 1) requireSavedPane(task, pane.launch!, result);
+    if (pane.project !== undefined) requireShellPane(pane.project, pane.launch!, result);
+    else if ([...context.panes.values()].filter(value => value.project === undefined).length > 1) requireSavedPane(task, pane.launch!, result);
     if (pane.launch && result.launch?.id !== pane.launch) throw new Error('Pane launch changed');
     if (result.launch && !pane.launch) {
       const opened = await request(context.options.state, { command: 'pane_layout_open', task,
@@ -178,9 +200,9 @@ function registerHandlers() {
     if (context.switching || pane.closing || context.panes.get(key) !== pane) throw new Error('Task view changed');
     const writable = !result.recovering && !pane.closing && result.pane?.lifecycle === 'running' && !result.pane.failed &&
       result.pane?.restoration?.status !== 'pending' &&
-      Boolean(result.launch && (pane.project && result.launch.role === 'shell' ||
+      Boolean(result.launch && (pane.project !== undefined && result.launch.role === 'shell' ||
         result.launch.role === 'controller' && result.launch.attempt === null ||
-        result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
+        result.launch.role === 'worker' && result.launch.attempt !== null && result.task.current_attempt?.attempt_id === result.launch.attempt));
     if (writable && result.launch && !pane.identity && !context.closing) {
       // Concurrent snapshot readers share one credential request, including a failed outcome.
       // Closing waits for this request before revoking a credential it may have issued.
@@ -193,6 +215,11 @@ function registerHandlers() {
     }
     return { ...result, pane_key: pane.key, window_id: pane.identity?.window,
       input_enabled: Boolean(writable && pane.identity && !context.closing) };
+  });
+  ipcMain.handle('a2a:resize', (event, key: string, cols: number, rows: number) => {
+    const { context, pane } = target(event, key);
+    if (!Number.isInteger(cols) || cols < 2 || cols > 1000 || !Number.isInteger(rows) || rows < 1 || rows > 1000) throw new Error('Invalid terminal size');
+    return sendWindowCommand(context, pane, { command: 'window_resize', cols, rows });
   });
   ipcMain.handle('a2a:input', (event, key: string, data: string, encoding: 'utf8' | 'binary' = 'utf8') => {
     const { context, pane } = target(event, key);
@@ -223,14 +250,16 @@ function registerHandlers() {
   });
   ipcMain.handle('a2a:close-pane', async (event, key: string) => {
     const { context, pane } = target(event, key);
-    if (pane.closing || context.closing) throw new Error('Pane is closing');
+    if (pane.closing || context.closing || context.creating) throw new Error('Pane is closing');
     pane.closing = true;
     const outcomes = await Promise.allSettled([pane.inputQueue, pane.pendingRelease, pane.opening]);
     for (const outcome of outcomes) if (outcome.status === 'rejected') console.error('Pane input outcome remains unconfirmed:', String(outcome.reason));
+    const nextLayout = replaceLeaf(context.layout, key, null), nextNames = { ...context.names };
+    delete nextNames[key];
     if (pane.launch) {
       const closed = await request(context.options.state, { command: 'pane_layout_close',
-        ...(pane.project ? { project: pane.project } : { task: context.options.task }),
-        launch: pane.launch }, context.operator);
+        ...(pane.project !== undefined ? { project: pane.project } : { task: context.options.task }),
+        launch: pane.launch, layout_task: context.options.task, arrangement: serializedArrangement(context, nextLayout, nextNames) }, context.operator);
       if (!closed.ok) { pane.closing = false; throw new Error(closed.error); }
     }
     if (pane.identity) {
@@ -238,13 +267,63 @@ function registerHandlers() {
       if (!closed.ok) throw new Error(closed.error);
     }
     context.panes.delete(key);
-    return { ok: true };
+    context.layout = nextLayout; context.names = nextNames;
+    return { ok: true, ...selection(context) };
   });
   app.on('window-all-closed', () => app.quit());
 }
 
 function selection(context: WindowBinding) {
-  return { task: context.task, paneKeys: [...context.panes.keys()] };
+  return { task: context.task, paneKeys: [...context.panes.keys()], layout: context.layout, names: context.names };
+}
+
+function restoreArrangement(panes: PaneBinding[], saved: any) {
+  const names: Record<string, string> = {}, included = new Set<string>();
+  let layout = mapLayout(saved?.tree ?? null, id => {
+    const pane = panes.find(p => p.launch === id);
+    if (!pane || included.has(pane.key)) return null;
+    included.add(pane.key); return pane.key;
+  });
+  for (const pane of panes) {
+    if (!included.has(pane.key)) layout = layout ? { direction: 'right', first: layout, second: pane.key } : pane.key;
+    if (saved?.names?.[pane.launch!]) names[pane.key] = saved.names[pane.launch!];
+  }
+  return { layout, names };
+}
+async function createTerminal(context: WindowBinding, source: string, relative?: PaneBinding, direction: 'right' | 'down' = 'right') {
+  if (context.closing || context.switching || context.creating || [...context.panes.values()].some(p => p.closing)) throw new Error('Task view is changing');
+  const create = async () => {
+    let project: string | null = context.task?.project_id ?? null;
+    let cwd = source === 'home' || !context.task ? homedir() : context.task.repo;
+    if (source === 'project' && !context.task) throw new Error('请先选择项目中的任务');
+    if (source === 'choose') {
+      const picked = await dialog.showOpenDialog(context.window, { title: '选择终端目录', defaultPath: cwd, properties: ['openDirectory'] });
+      if (picked.canceled) return selection(context);
+      cwd = picked.filePaths[0];
+    }
+    if (relative?.project !== undefined) {
+      project = relative.project;
+      const value = await request(context.options.state, { command: 'workbench_snapshot', project, launch: relative.launch });
+      requireShellPane(project, relative.launch!, value); cwd = value.launch.worktree;
+    }
+    if (context.closing) throw new Error('Window is closing');
+    const result = await request(context.options.state, { command: 'shell_start', project, cwd }, context.operator);
+    requireShellPane(project, result.launch?.id, { ...result, task: null });
+    const pane: PaneBinding = { key: randomUUID(), launch: result.launch.id, project, sequence: 0,
+      inputQueue: Promise.resolve(), pendingRelease: null };
+    for (const [key, existing] of context.panes) {
+      if (!existing.launch && !existing.identity && !existing.opening && !relative) {
+        context.panes.delete(key); context.layout = replaceLeaf(context.layout, key, null);
+      }
+    }
+    context.panes.set(pane.key, pane);
+    context.layout = relative ? replaceLeaf(context.layout, relative.key, { direction, first: relative.key, second: pane.key }) :
+      context.layout ? { direction: 'right', first: context.layout, second: pane.key } : pane.key;
+    await saveArrangement(context);
+    return selection(context);
+  };
+  context.creating = create();
+  try { return await context.creating; } finally { context.creating = undefined; }
 }
 
 async function detachPanes(context: WindowBinding) {
@@ -264,17 +343,26 @@ async function detachPanes(context: WindowBinding) {
 async function prepareSelection(options: Options) {
   if (!options.task) {
     if (options.launch !== undefined) throw new Error('--launch requires --task');
-    return { task: null, saved: true, panes: [] as PaneBinding[] };
+    const saved = await request(options.state, { command: 'pane_layout', free: true });
+    if (!saved.ok) throw new Error(saved.error);
+    const panes: PaneBinding[] = [];
+    for (const opened of saved.panes) {
+      const value = await request(options.state, { command: 'workbench_snapshot', project: null, launch: opened.launch });
+      requireShellPane(null, opened.launch, value);
+      panes.push({ key: randomUUID(), launch: opened.launch, project: null, sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
+    }
+    return { task: null, saved: true, panes, ...restoreArrangement(panes, saved.arrangement) };
   }
   const snapshot = await request(options.state, { command: 'workbench_snapshot', task: options.task });
   if (!snapshot.ok) throw new Error(snapshot.error);
   let saved = false;
+  let arrangement: any = null;
   let launches: (string | undefined)[];
   if (options.launch === undefined) {
     const layout = await request(options.state, { command: 'pane_layout', task: options.task });
     if (!layout.ok) throw new Error(layout.error);
     launches = layout.panes.map((pane: { launch: string }) => pane.launch);
-    saved = layout.saved;
+    saved = layout.saved; arrangement = layout.arrangement;
     if (!saved) launches = [undefined];
   } else launches = typeof options.launch === 'string' ? [options.launch] : [...options.launch];
   if ((!launches.length && !saved) || launches.some(launch => launch !== undefined && (typeof launch !== 'string' || !launch)) ||
@@ -285,7 +373,7 @@ async function prepareSelection(options: Options) {
     for (const launch of launches) {
       const value = await request(options.state, { command: 'workbench_snapshot', task: options.task, launch });
       (saved ? requireSavedPane : requireCurrentPane)(options.task, launch!, value);
-      ranks.set(launch!, value.launch.role === 'worker' ? 2 : value.launch.preset === 'ideation' ? 0 : 1);
+      ranks.set(launch!, ['worker', 'reviewer'].includes(value.launch.role) ? 2 : value.launch.preset === 'ideation' ? 0 : 1);
     }
     if (!saved) launches.sort((a, b) => ranks.get(a!)! - ranks.get(b!)!);
   }
@@ -300,12 +388,12 @@ async function prepareSelection(options: Options) {
       sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
   }
   if (panes.some(pane => pane.project) && !snapshot.launch) panes = panes.filter(pane => pane.launch !== undefined);
-  return { task: snapshot.task, saved, panes };
+  return { task: snapshot.task, saved, panes, ...restoreArrangement(panes, arrangement) };
 }
 
 export async function run(options: Options) {
   if (!isAbsolute(options.state) || !isAbsolute(options.userData)) throw new Error('Absolute data paths are required');
-  const { task, saved, panes } = await prepareSelection(options);
+  const { task, saved, panes, layout, names } = await prepareSelection(options);
   const operator = readOperatorCredential(options.state);
   if (!operator) throw new Error('operator_credential_required');
   if (appUserData && appUserData !== options.userData) throw new Error('Windows in one process must share application user-data');
@@ -326,7 +414,7 @@ export async function run(options: Options) {
     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,
       contextIsolation: true, sandbox: true, backgroundThrottling: false,
       additionalArguments: ['--a2a-pane-keys=' + JSON.stringify(panes.map(pane => pane.key))] } });
-  const context: WindowBinding = { window, options, operator, task, panes: new Map(panes.map(pane => [pane.key, pane])), closing: false, closed: false };
+  const context: WindowBinding = { window, options, operator, task, layout, names, panes: new Map(panes.map(pane => [pane.key, pane])), closing: false, closed: false };
   const senderId = window.webContents.id;
   windows.set(senderId, context);
   registerHandlers();
@@ -335,7 +423,7 @@ export async function run(options: Options) {
   if (!saved) for (const [position, pane] of panes.entries()) {
     if (!pane.launch) continue;
     const opened = await request(options.state, { command: 'pane_layout_open',
-      ...(pane.project ? { project: pane.project } : { task: options.task }), launch: pane.launch, position }, operator);
+      ...(pane.project !== undefined ? { project: pane.project } : { task: options.task }), launch: pane.launch, position }, operator);
     if (!opened.ok) { window.destroy(); throw new Error(opened.error); }
   }
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

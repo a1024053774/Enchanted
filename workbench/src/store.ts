@@ -76,6 +76,11 @@ export class OrchestrationStore {
     return [...opened.values()].filter(p => (!task || p.task === task) &&
       (!project || this.launchRecord(p.launch)?.project === project)).sort((a, b) => a.position - b.position);
   }
+  paneArrangement(scope: string) {
+    const row = this.db.prepare(`SELECT data FROM orchestration_events
+      WHERE type='pane_arrangement_saved' AND json_extract(data,'$.scope')=? ORDER BY seq DESC LIMIT 1`).get(scope);
+    return row ? JSON.parse(String(row.data)).arrangement : null;
+  }
   lastEvent(launch: string, types: string[]) {
     const row = this.db.prepare(`SELECT seq,time,type,data FROM orchestration_events WHERE launch=? AND type IN (${types.map(() => "?").join(",")}) ORDER BY seq DESC LIMIT 1`)
       .get(launch, ...types);
