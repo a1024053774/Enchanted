@@ -27,6 +27,9 @@ def main():
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--stage', choices=['preflight', 'window'], required=True)
+    parser.add_argument('--ipc-contract', choices=['legacy', 'picker'], default='picker')
+    parser.add_argument('--runtime-source', type=Path,
+                        help='Internal-disk source containing the Electron runtime and observation driver')
     args = parser.parse_args()
     source = args.source.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
@@ -58,7 +61,9 @@ def main():
     window = None
     window_attempted = False
     build_manifest = None
+    runtime_source = args.runtime_source.resolve() if args.runtime_source else source
     verdict = {'status': 'INCOMPLETE', 'stage': args.stage, 'source': str(source),
+               'ipc_contract': args.ipc_contract, 'runtime_source': str(runtime_source),
                'fixture': str(fixture), 'task': task, 'project': project, 'title': title,
                'model_turns': 0, 'electron_started': False, 'checks': checks}
 
@@ -164,15 +169,19 @@ def main():
         if args.stage == 'window' and all(item['status'] == 'PASS' for item in checks):
             from electron_client import ElectronClient
             window_attempted = True
-            window = ElectronClient(source, Path(build_manifest['out']), state, task,
+            window = ElectronClient(runtime_source, Path(build_manifest['out']), state, task,
                                     fixture / 'ui', output / 'window', env)
             verdict['electron_started'] = True
             def window_contract():
                 value = window.wait(lambda item: title in item['text'] and item['gate'] == 'claimed')
                 assert project in value['text'] and '只读' in value['text']
                 assert value['state'] == 'unknown' and value['offset'] == 0
-                assert sorted(value['bridge']) == ['beginComposition', 'closePane', 'input', 'observeFocus', 'output',
-                                                  'paneKeys', 'releaseQueue', 'snapshot']
+                expected_bridge = {'beginComposition', 'closePane', 'input', 'observeFocus', 'output',
+                                   'paneKeys', 'releaseQueue', 'snapshot'}
+                if args.ipc_contract == 'picker':
+                    expected_bridge |= {'projects', 'tasks', 'selection', 'selectTask'}
+                assert set(value['bridge']) == expected_bridge, (value['bridge'], sorted(expected_bridge))
+                assert len(value['bridge']) == len(expected_bridge), 'Public bridge names must not repeat'
                 assert value['node'] == 'undefined'
                 window.call('readonly-input')
                 window.call('capture', name='claimed-no-pane')
