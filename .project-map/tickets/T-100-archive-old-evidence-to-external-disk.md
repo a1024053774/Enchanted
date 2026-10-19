@@ -2,13 +2,10 @@
 id: T-100
 title: 旧批次证据大块归档到外置盘（含已入库部分），核对一致后删原目录
 type: build
-status: open
+status: out-of-scope
 blocked_by: []
 claimed_by:
 supersedes:
-ready: yes
-ready_by: ideation
-ready_rev: 2
 ---
 
 ## What to build
@@ -46,3 +43,7 @@ ready_rev: 2
 
 - 不可逆（删原目录，工作区内）：由用户上述两条裁定授权；git 历史保留这些文件，已入库部分可由 git 取回。
 - 与 T-093 并行：本票只动 `evidence/` 旧批次，不碰 T-093 的文件。
+
+## 取消（2026-10-19）
+
+用户逐字（会话"a2a-构思主控"）："没必要归档了,T100 不做"。本票不做；已归档到外置盘的部分（若有）与已删目录由执行主控照实报告，不再继续。
