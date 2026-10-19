@@ -18,9 +18,9 @@ import assert from 'node:assert/strict';
 const out = process.argv[2];
 if (!out) throw new Error('New JSON report path required');
 const { values } = parseArgs({ args: process.argv.slice(3), options: {
-  source: { type: 'string' }, contract: { type: 'string', default: 'panes' },
+  source: { type: 'string' }, contract: { type: 'string', default: 'creation' },
 } });
-assert.ok(['legacy', 'picker', 'shell', 'panes'].includes(values.contract), 'Select an explicit known IPC contract');
+assert.ok(['legacy', 'picker', 'shell', 'panes', 'creation'].includes(values.contract), 'Select an explicit known IPC contract');
 const sourceURL = values.source ? pathToFileURL(resolve(values.source) + '/') : new URL('../../', import.meta.url);
 const mainURL = new URL('workbench/app/main.ts', sourceURL);
 const preloadURL = new URL('workbench/app/preload.ts', sourceURL);
@@ -35,14 +35,16 @@ const shellWindowHandlers = [...windowHandlers, 'a2a:new-terminal'];
 const shellBridge = [...pickerBridge, 'newTerminal'];
 const panesHandlers = ['a2a:pane-action', 'a2a:resize'];
 const panesBridge = ['paneAction', 'resize'];
+const creationHandlers = ['a2a:creation-repository', 'a2a:creation-submit', 'a2a:creation-cancel'];
+const creationBridge = ['creationRepository', 'creationSubmit', 'creationCancel'];
 const badRevision = '6974c2aad1233133264b7448e1277cd19fa0b6ba';
 const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with supplied Electron/transport/filesystem boundaries; no GUI or backend proof',
   argv: process.argv, contract: values.contract, source: fileURLToPath(sourceURL), known_bad: badRevision, checks: [], model_turns: 0 };
 
-async function exercise(source, withRecovery = false, withCatalog = false, preloadSource = legacyPreload, withShell = false, withPanes = false) {
+async function exercise(source, withRecovery = false, withCatalog = false, preloadSource = legacyPreload, withShell = false, withPanes = false, withCreation = false) {
   const keyedHandlers = [...(withRecovery ? recoveredPaneHandlers : paneHandlers), ...(withPanes ? panesHandlers : [])];
-  const expectedHandlers = [...keyedHandlers, ...(withShell ? shellWindowHandlers : withCatalog ? windowHandlers : [])];
-  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : [])];
+  const expectedHandlers = [...keyedHandlers, ...(withShell ? shellWindowHandlers : withCatalog ? windowHandlers : []), ...(withCreation ? creationHandlers : [])];
+  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : []), ...(withCreation ? creationBridge : [])];
   const fixtureProject = 'catalog-project-sentinel';
   const fixtureSummary = { task_id: 'task-one', project_id: fixtureProject, title: '独立任务标题', state: 'claimed' };
   const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one' } };
@@ -142,7 +144,8 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     await module.link(async specifier => {
       let exports;
       if (specifier === 'electron') exports = electron;
-      else if (specifier === 'node:fs') exports = { mkdirSync() {} };
+      else if (specifier === 'node:fs') exports = { ...await import('node:fs'), mkdirSync() {} };
+      else if (specifier === 'node:child_process') exports = { execFile() { throw new Error('Unexpected process call in pane IPC contract'); } };
       else if (specifier === '../src/transport.ts') exports = { request };
       else if (specifier === '../src/credentials.ts') exports = { readOperatorCredential: () => ({ kind: 'operator', token: 'fixture' }) };
       else if (['node:path', 'node:os', 'node:url', 'node:util', 'node:crypto'].includes(specifier)) exports = await import(specifier);
@@ -188,6 +191,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     'a2a:output': [0], 'a2a:close-pane': [], 'a2a:pane-action': [{ type: 'rename', name: '测试' }], 'a2a:resize': [80, 24] };
   const validArguments = Object.fromEntries(keyedHandlers.map(channel => [channel, [aKey, ...trailing[channel]]]));
   Object.assign(validArguments, { 'a2a:projects': [], 'a2a:tasks': [fixtureProject], 'a2a:selection': [], 'a2a:select-task': ['task-one'], 'a2a:new-terminal': [] });
+  Object.assign(validArguments, { 'a2a:creation-repository': [], 'a2a:creation-submit': [{}], 'a2a:creation-cancel': [] });
   const beforeDenied = requests.length;
   for (const channel of keyedHandlers) {
     await assert.rejects(() => invoke(a, channel, bKey, ...trailing[channel]));
@@ -420,12 +424,13 @@ try {
   assert.ok(missingPanes, 'Single-pane tracer must fail the simultaneous pane-count assertion');
   const candidate = readFileSync(mainURL, 'utf8');
   const candidatePreload = readFileSync(preloadURL, 'utf8');
-  const withPanes = values.contract === 'panes';
-  const withShell = ['shell', 'panes'].includes(values.contract);
+  const withCreation = values.contract === 'creation';
+  const withPanes = ['panes', 'creation'].includes(values.contract);
+  const withShell = ['shell', 'panes', 'creation'].includes(values.contract);
   const withCatalog = values.contract !== 'legacy';
   const mutant = candidate.replace("command: 'pane_layout_close'", "command: 'pane_layout_open'");
   assert.notEqual(mutant, candidate);
-  try { await exercise(mutant, true, withCatalog, candidatePreload, withShell, withPanes); }
+  try { await exercise(mutant, true, withCatalog, candidatePreload, withShell, withPanes, withCreation); }
   catch (error) { report.close_mutant = { rejected: error instanceof assert.AssertionError && error.message.startsWith('Explicit pane close must persist removal'), error: String(error) }; }
   assert.equal(report.close_mutant?.rejected, true, 'Close-without-removal mutant must fail the saved-layout assertion');
   const emptyBadRevision = '11b32303bebf276d20026a6e718719d15f5d4068';
@@ -436,14 +441,14 @@ try {
     const windowMutant = candidate.replace("ipcMain.handle('a2a:projects', async event => {\n    const context = windowTarget(event);",
       "ipcMain.handle('a2a:projects', async (event, key: string) => {\n    const { context } = target(event, key);");
     assert.notEqual(windowMutant, candidate, 'Window-level pane-key mutation must change the selected implementation');
-    try { await exercise(windowMutant, true, true, candidatePreload, withShell, withPanes); }
+    try { await exercise(windowMutant, true, true, candidatePreload, withShell, withPanes, withCreation); }
     catch (error) { report.window_key_mutant = { rejected: error instanceof assert.AssertionError && error.message.includes('Projects must work without a pane key'), error: String(error) }; }
     assert.equal(report.window_key_mutant?.rejected, true, 'A window list handler requiring a pane key must fail its no-key contract');
   }
-  report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell, withPanes);
+  report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell, withPanes, withCreation);
   report.checks.push('app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential',
     'never_saved_default_selection', 'final_close_stays_empty_on_repeated_reopen', 'empty_preload_and_no_credentials', 'explicit_selection_reopens');
-  if (withCatalog) report.checks.push(withPanes ? 'explicit_14_handler_and_15_bridge_names' : withShell ? 'explicit_12_handler_and_13_bridge_names' : 'explicit_11_handler_and_12_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',
+  if (withCatalog) report.checks.push(withCreation ? 'explicit_17_handler_and_18_bridge_names' : withPanes ? 'explicit_14_handler_and_15_bridge_names' : withShell ? 'explicit_12_handler_and_13_bridge_names' : 'explicit_11_handler_and_12_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',
     'projects_without_pane_key', 'tasks_project_argument_and_backend_refusals', 'window_selection_without_transport',
     'select_task_null_and_id_preserve_rejected_destination');
   if (withShell) report.checks.push(withPanes ? 'new_terminal_without_task_and_serializes_creation' : 'new_terminal_requires_task_and_serializes_creation', 'shell_project_cwd_and_identity', 'shell_keyed_input_and_close');

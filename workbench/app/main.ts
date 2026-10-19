@@ -1,9 +1,10 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
+import { parseArgs, promisify, isDeepStrictEqual } from 'node:util';
+import { execFile } from 'node:child_process';
 import { request } from '../src/transport.ts';
 import { readOperatorCredential } from '../src/credentials.ts';
 import { randomUUID } from 'node:crypto';
@@ -20,7 +21,9 @@ type WindowBinding = {
   panes: Map<string, PaneBinding>; closing: boolean; closed: boolean;
   layout: Layout | null; names: Record<string, string>;
   task: any; switching?: Promise<unknown>; creating?: Promise<unknown>;
+  creation?: { repo: string; persisted: boolean | 'unknown' };
 };
+const execute = promisify(execFile);
 const directory = dirname(fileURLToPath(import.meta.url));
 const windows = new Map<number, WindowBinding>();
 let handlersRegistered = false;
@@ -132,6 +135,121 @@ function registerHandlers() {
     return result.tasks;
   });
   ipcMain.handle('a2a:selection', event => selection(windowTarget(event)));
+  ipcMain.handle('a2a:creation-repository', async (event, ...args: unknown[]) => {
+    const context = windowTarget(event);
+    if (args.length) throw new Error('Repository path must be chosen by the native dialog');
+    if (context.closing || context.switching || context.creating) throw new Error('Task view is changing');
+    if (context.creation?.persisted) throw new Error('Registration has already started; close the previous form first');
+    const choose = async () => {
+      const picked = await dialog.showOpenDialog(context.window, { title: '选择 Git 仓库根目录',
+        defaultPath: context.creation?.repo ?? context.task?.repo ?? homedir(), properties: ['openDirectory'] });
+      if (picked.canceled) return null;
+      const repo = realpathSync(picked.filePaths[0]);
+      const top = await execute('git', ['-C', repo, 'rev-parse', '--show-toplevel']);
+      if (realpathSync(top.stdout.trim()) !== repo) throw new Error('请选择 Git 仓库根目录');
+      const branch = (await execute('git', ['-C', repo, 'symbolic-ref', '--quiet', 'HEAD'])).stdout.trim();
+      if (context.closing) throw new Error('Window is closing');
+      const task = 'task-' + randomUUID();
+      const result = await request(context.options.state, { command: 'card_template', task, repo }, context.operator);
+      if (!result.ok) throw new Error(result.error + ': ' + JSON.stringify(result.details ?? null));
+      context.creation = { repo, persisted: false };
+      return { repo, branch, card: result.card };
+    };
+    context.creating = choose();
+    try { return await context.creating; } finally { context.creating = undefined; }
+  });
+  ipcMain.handle('a2a:creation-cancel', (event, ...args: unknown[]) => {
+    const context = windowTarget(event);
+    if (args.length) throw new Error('Invalid cancellation arguments');
+    if (context.closing || context.switching || context.creating) throw new Error('Task view is changing');
+    if (context.creation?.persisted === 'unknown') throw new Error('Registration outcome unknown; cancellation is forbidden');
+    // No gate writes occur before confirmation. After a partial confirmation,
+    // closing this form only forgets its UI state; append-only records survive.
+    const persisted = context.creation?.persisted ?? false;
+    context.creation = undefined;
+    return { ok: true, persisted };
+  });
+  ipcMain.handle('a2a:creation-submit', async (event, input: Record<string, string>) => {
+    const context = windowTarget(event), draft = context.creation;
+    if (context.closing || context.switching || context.creating) throw new Error('Task view is changing');
+    if (!draft) throw new Error('请先通过目录对话框选择仓库');
+    if (draft.persisted) throw new Error('Registration has already started; do not replay it');
+    const keys = ['task', 'project', 'title', 'branch', 'card'];
+    if (!input || typeof input !== 'object' || Object.keys(input).length !== keys.length ||
+        !keys.every(key => Object.hasOwn(input, key))) throw new Error('Invalid creation fields');
+    const invalidField = keys.find(key => typeof input[key] !== 'string') ??
+      (!input.title.trim() || input.title.length > 240 ? 'title' : undefined);
+    if (invalidField) return { ok: false, error: 'Invalid creation fields', stage: 'preflight', persisted: false,
+      details: { field: invalidField, reason: invalidField === 'title'
+        ? '标题须为包含非空白字符的文本，且不超过 240 个字符。' : '表单字段须为文本。' } };
+    const submit = async () => {
+      const temporary = mkdtempSync(join(tmpdir(), 'a2a-task-card-'));
+      const card = join(temporary, 'card.json');
+      let stage = 'card_validate';
+      let validatedCard: unknown;
+      let cardVersion = 1; // This form saves with expected_version=0.
+      const failure = async (result: any) => {
+        // These gate refusals occur before the business commit. All other
+        // errors, including daemon result-event failures, require readback.
+        const beforeCommit = stage === 'card_save'
+          ? ['invalid_task_card', 'invalid_card_version', 'card_version_conflict']
+          : ['project_branch_conflict', 'invalid_work_branch', 'invalid_repo', 'invalid_title'];
+        if (stage === 'card_validate' || beforeCommit.includes(result.error)) {
+          draft.persisted = stage === 'create';
+          return { ...result, stage, persisted: draft.persisted };
+        }
+        draft.persisted = 'unknown';
+        const command = stage === 'card_save' ? 'card_show' : 'status';
+        let observed: any;
+        try {
+          observed = await request(context.options.state, { command, task: input.task,
+            ...(command === 'card_show' ? { card_version: cardVersion } : {}) }, context.operator);
+        } catch (error) { observed = { ok: false, error: 'readback_failed', details: String(error) }; }
+        const task = observed.task;
+        const matches = observed.ok && (command === 'card_show'
+          ? isDeepStrictEqual(observed.card, validatedCard)
+          : task?.task_id === input.task && task.repo === draft.repo && task.project_id === input.project &&
+            task.title === input.title && task.integration_ref === input.branch && task.card_version === cardVersion &&
+            task.state === 'ready' && isDeepStrictEqual(task.card, validatedCard));
+        const details = { failure: result.details ?? null, readback: { command,
+          outcome: matches ? command === 'card_show' ? 'card_saved' : 'registered' : 'unknown',
+          error: observed.error ?? null, details: observed.details ?? null } };
+        if (matches) {
+          draft.persisted = true;
+          if (command === 'status') {
+            context.creation = undefined;
+            return { ok: true, task, stage, persisted: true, reconciled: true, details };
+          }
+        }
+        // Absence, a mismatching record, or a failed read cannot establish
+        // that an uncertain mutation never committed. Do not enable replay.
+        return { ...result, details, stage, persisted: draft.persisted };
+      };
+      try {
+        writeFileSync(card, input.card, { flag: 'wx', mode: 0o600 });
+        const validated = await request(context.options.state, { command: stage, task: input.task, card }, context.operator);
+        if (!validated.ok) return { ...validated, stage, persisted: false };
+        validatedCard = validated.card;
+        stage = 'card_save';
+        // From this point a lost response can conceal a durable write. Never
+        // silently retry or label the result as a cancelled draft.
+        draft.persisted = true;
+        const saved = await request(context.options.state, { command: stage, task: input.task, card, expected_version: 0 }, context.operator);
+        if (!saved.ok) return await failure(saved);
+        cardVersion = saved.card_version;
+        stage = 'create';
+        const created = await request(context.options.state, { command: stage, task: input.task,
+          repo: draft.repo, project: input.project, title: input.title, branch: input.branch, card_version: saved.card_version }, context.operator);
+        if (!created.ok) return await failure(created);
+        context.creation = undefined;
+        return { ...created, stage, persisted: true };
+      } catch (error) {
+        return await failure({ ok: false, error: 'creation_call_failed', details: String(error) });
+      } finally { rmSync(temporary, { recursive: true, force: true }); }
+    };
+    context.creating = submit();
+    try { return await context.creating; } finally { context.creating = undefined; }
+  });
   ipcMain.handle('a2a:new-terminal', async (event, source: string = 'default') => {
     const context = windowTarget(event);
     if (!['default', 'home', 'project', 'choose'].includes(source)) throw new Error('Invalid terminal directory source');
