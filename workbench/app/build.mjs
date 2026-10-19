@@ -1,20 +1,12 @@
-import { lstatSync, statSync, realpathSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const { values } = parseArgs({ options: { slot: { type: 'string', default: 'local' } } });
-const volume = resolve(process.env.A2A_BUILD_VOLUME ?? '/Volumes/WD-Elements');
-// This runs before importing Vite or creating any cache/output directory.
-if (!lstatSync(volume).isDirectory() || realpathSync(volume) !== volume ||
-    statSync(volume).dev === statSync(dirname(volume)).dev) {
-  throw new Error('构建要求真实挂载的外置盘；不回退到内置盘。');
-}
 if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(values.slot)) throw new Error('Invalid build slot');
-const base = join(volume, 'a2a-workbench');
-mkdirSync(base, { recursive: true });
-if (lstatSync(base).isSymbolicLink() || realpathSync(base) !== base) throw new Error('Build base must not contain links');
-const slot = join(base, values.slot);
+const slot = join(tmpdir(), 'a2a-build-' + values.slot);
 mkdirSync(slot); // Existing slots are preserved. A new build needs a new name.
 const cacheDir = join(slot, 'vite-cache');
 const temporary = join(slot, 'tmp');
