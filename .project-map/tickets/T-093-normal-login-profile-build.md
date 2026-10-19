@@ -2,7 +2,7 @@
 id: T-093
 title: 正常登录启动方式落地：隔离 HOME 加登录凭据、本地转发层调用计数、事实核对脚本
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -48,3 +48,24 @@ ready_rev: 1
 
 据此 Acceptance 中"真实 HOME 前后清单无差异"改为：OS 沙箱强制禁写真实 HOME，并有一个试图写真实 HOME 被拒的反例；前后清单照实报告，不作通过条件。
 
+
+## 真实回合授权（2026-10-19）
+
+用户逐字（会话"a2a-构思主控"）："跑 T-093,需要多少回合就跑多少回合,这个你来决定,不能让这个卡住,然后 093 做完就差不多了"。用户把回合数委托给构思主控；构思主控的决定见 inbox 的 assign 条目。本条取代上文"总上限 3、合入后另说开工"。
+
+## Resolution（2026-10-19，执行主控）
+
+PASS。exec/t093 已以 `--no-ff` 合入 main（fb7eb0092），没有 push。
+
+- 独立审查：01 NO_GO、02 INCOMPLETE、03 NO_GO，04 PASS（reviewer s16-t093-r4，审查候选 9373a9d44，报告见 `evidence/2026-10-16-batch16/T-093/independent-review-04.md`）。审查列出的可选 OS 补证 REVIEW-OUTSIDE-05.sh，执行主控已在沙箱外运行，结果 PASS。
+- 原生七场（T-096 恢复回归，模型回合 0，假接口请求 0）：
+  - r21 在 0be3d3ff2 上：tracer、three、no-argv、version、no-session，五场 PASS。
+  - r21 的 isolation、empty-reopen 两场 INCOMPLETE：原因是测试脚本读到了较早的帧，报 KeyError 'launch'。原件保留，isolation 的旧归档不一致也保留。
+  - 只修测试脚本的就绪判定（#139，产品没改）后，r22 在 9373a9d44 上重跑这两场，均 PASS。
+- 合入后，main 上的 `workbench/tests/test_t096_restore.mjs` 结果 PASS；`project_map.py status` 0 problems。
+- 已知限制按报告如实保留：
+  - OS 层不按主机限制，只放行 *:443，上游主机由应用层锁定。
+  - 正常登录的主控记录不恢复，采用白名单、默认拒绝。
+  - 依赖 Claude Code 2.1.302 的内部状态；onboarding 预检直连官方地址；400 之后会重试。
+  - r20 helper 输出被截断的根因，以及 r21 旧归档不一致的触发时点，都仍是 unknown。
+- 打分：score-5ee1b1bc885e4f7bbda3d56b469e5ffa。
