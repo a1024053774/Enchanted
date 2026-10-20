@@ -24,7 +24,11 @@
   }
 
   // ---------- 预设数据（全部虚构） ----------
+  // 出厂默认与 workbench/src/executionSettings.ts 的 factoryExecution 相同。
+  const executionLabels = { worker: 'Worker', reviewer: '审查员', monitor: '监视器', ideation: '构思主控', executor: '执行主控' };
+  const codexFactory = { model: 'gpt-6.1-sol', effort: 'high', fast: false }, claudeFactory = { model: 'claude-haiku-5-5', effort: 'low', fast: false };
   const initialData = () => ({
+    execution: { worker: { ...codexFactory }, reviewer: { ...codexFactory }, monitor: { ...codexFactory }, ideation: { ...claudeFactory }, executor: { ...claudeFactory } },
     projects: [
       { id: 'inkwell', repo: '~/work/inkwell', git: { branch: 'main', upstream: true, ahead: 2, behind: 0 }, tasks: [
         { id: 'T-12', title: '导出页支持按标签筛选', state: 'claimed', attempt: '7d41c0aa', stage: 'implementation' },
@@ -101,7 +105,7 @@
     timers.forEach(clearTimeout); timers = [];
     data = initialData();
     ui = { project: 'inkwell', task: 'T-12', page: 'terminal', focusedAgent: null, focusedPane: null, collapsed: new Set(),
-      notifications: true, dockBadges: true, menu: null, renaming: null, zoom: null, directory: 'home', settingsOpen: false,
+      notifications: true, dockBadges: true, menu: null, renaming: null, zoom: null, directory: 'home', settingsOpen: false, execRole: 'worker', execDraft: null, execMessage: '',
       flowOpen: {}, flowExpanded: {}, drafts: {} };
     panes = {}; layouts = {}; paneSeq = 0;
     const agentPane = launch => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'agent', launch, lines: (lines[launch] || [['dim', '（演示没有为这个会话预设输出）']]).slice(), forward: false }; return key; };
@@ -194,6 +198,7 @@
       </nav>
       <button class="free-terminals" data-action="free" data-fk="free" ${!ui.project && !ui.task ? 'aria-current="page"' : ''}>独立终端</button>
       <details class="sidebar-settings" data-action-toggle="settings" ${ui.settingsOpen ? 'open' : ''}><summary data-fk="settings">图例与设置</summary>
+        ${executionSettings()}
         <div class="status-legend">${Object.entries(stateLabels).map(([state, label]) => `<span>${icon(state)}${label}</span>`).join('')}</div>
         <fieldset class="notification-settings"><legend>应用内通知</legend>
           <label><input type="checkbox" data-setting="notifications" data-fk="setting:notifications" ${ui.notifications ? 'checked' : ''}>等待用户回答时提醒</label>
@@ -202,6 +207,22 @@
       </details>
       <div class="sidebar-footer">原生 CLI · 本地编排</div>
     </aside>`;
+  }
+
+  // 会话模型设置（ExecutionSettings.tsx）：按角色保存，下次启动生效。
+  function executionSettings() {
+    const draft = ui.execDraft ?? data.execution[ui.execRole];
+    return `<form class="execution-settings" aria-label="会话模型设置" data-execution>
+      <strong>会话模型</strong>
+      <label>角色<select data-exec-role data-fk="exec:role">${Object.entries(executionLabels).map(([key, label]) =>
+        `<option value="${key}" ${ui.execRole === key ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+      <label>模型<input data-exec-field="model" data-fk="exec:model" required value="${esc(draft.model)}"></label>
+      <label>思考强度<input data-exec-field="effort" data-fk="exec:effort" required value="${esc(draft.effort)}"></label>
+      <label class="execution-fast"><input type="checkbox" data-exec-field="fast" data-fk="exec:fast" ${draft.fast ? 'checked' : ''}>Fast</label>
+      <p>填写当前 CLI 支持的模型和强度。主控派发时可覆盖；正在运行的会话保持原设置。</p>
+      <button data-fk="exec:save">保存角色设置</button>
+      ${ui.execMessage ? `<p role="status">${esc(ui.execMessage)}</p>` : ''}
+    </form>`;
   }
 
   // ---------- 窗格 ----------
@@ -512,6 +533,10 @@
     event.preventDefault();
     const form = event.target;
     if (form.dataset.questionId) answer(form.dataset.questionId);
+    else if (form.hasAttribute('data-execution')) {
+      data.execution[ui.execRole] = { ...(ui.execDraft ?? data.execution[ui.execRole]) };
+      ui.execDraft = null; ui.execMessage = '已保存，下次启动生效'; render();
+    }
     else if (form.dataset.rename) {
       const key = form.dataset.rename;
       if (!ui.renameDraft.trim()) return;
@@ -525,6 +550,8 @@
       ui.drafts[el.dataset.answer] = el.value;
       el.closest('form').querySelectorAll('[aria-pressed]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.option === el.value)));
       el.closest('form').querySelector(':scope > button').disabled = !el.value.trim();
+    } else if (el.dataset.execField && el.type !== 'checkbox') {
+      ui.execDraft = { ...(ui.execDraft ?? data.execution[ui.execRole]), [el.dataset.execField]: el.value };
     } else if (el.dataset.renameInput) {
       ui.renameDraft = el.value;
       el.closest('form').querySelector('button:not([type])').disabled = !el.value.trim();
@@ -534,6 +561,8 @@
   root.addEventListener('change', event => {
     const el = event.target;
     if (el.dataset.setting) { ui[el.dataset.setting] = el.checked; render(); }
+    else if (el.hasAttribute('data-exec-role')) { ui.execRole = el.value; ui.execDraft = null; ui.execMessage = ''; render(); }
+    else if (el.dataset.execField === 'fast') ui.execDraft = { ...(ui.execDraft ?? data.execution[ui.execRole]), fast: el.checked };
     else if (el.hasAttribute('data-directory')) ui.directory = el.value;
   });
   root.addEventListener('toggle', event => { if (event.target.matches('.sidebar-settings')) ui.settingsOpen = event.target.open; }, true);
