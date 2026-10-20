@@ -1,30 +1,41 @@
-// Diagnostic only: call the actual reviewer launch constructor with a supplied
-// PTY, record its complete argv, and run the installed binary's version check.
-// This does not claim that a native reviewer session ran.
+// Run the production daemon and reviewer constructor with their real PTY/hooks.
+// The fixture owns task objects; this is a launch/sandbox test, not gate delivery.
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-const [sourcePath, root, binary, revision] = process.argv.slice(2);
-const source = pathToFileURL(resolve(sourcePath) + '/');
+const manifest = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const source = pathToFileURL(resolve(manifest.source) + '/');
+const { serve } = await import(new URL('src/daemon.ts', source));
+const { A2AGates } = await import(new URL('src/gates/core.ts', source));
 const { OrchestrationStore } = await import(new URL('src/store.ts', source));
-const { Panes } = await import(new URL('src/panes.ts', source));
-const pty = createRequire(new URL('src/panes.ts', source))('node-pty');
-const spawn = pty.spawn;
-pty.spawn = () => ({ pid: 99999, onData() {}, onExit() {}, write() {} });
-for (const directory of ['worker-home', 'reviewer-home', 'candidate']) mkdirSync(join(root, directory));
-const role = join(root, 'role.md');
-writeFileSync(role, '权限诊断夹具。不调用模型。\n');
-const store = new OrchestrationStore(root);
-const report = { revision, supplied_pty: true, model_calls: 0 };
+const { createOperatorCredential } = await import(new URL('src/credentials.ts', source));
+const { request } = await import(new URL('src/transport.ts', source));
+const root = manifest.root, state = join(root, 'state');
+mkdirSync(state);
+process.env.A2A_OPERATOR_CREDENTIAL = join(root, 'operator.json');
+createOperatorCredential(state);
+const config = { codex_bin: manifest.binary, codex_home: join(root, 'worker-home'),
+  role_card: join(root, 'role.md'), role_card_revision: 'T112/permission-native',
+  code_revision: manifest.revision, hook_authorization: 'T112 isolated local API only', turn_limit: 1,
+  reviewers: [{ codex_home: join(root, 'reviewer-home'), role_card: join(root, 'role.md'),
+    role_card_revision: 'T112/permission-native', hook_authorization: 'T112 isolated local API only' }] };
+let panes;
+await serve(state, config, (directory, instance) => { panes = instance; return new A2AGates(directory, instance); });
+const until = async (read, predicate, description) => {
+  const end = Date.now() + 45000;
+  for (;;) {
+    const value = await read();
+    if (predicate(value)) return value;
+    assert.ok(Date.now() < end, description + ': ' + JSON.stringify(value));
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+};
 try {
-  if (store.saveExecutionSettings) store.saveExecutionSettings('reviewer', { effort: 'low' });
-  const config = { codex_bin: binary, codex_home: join(root, 'worker-home'), role_card: role,
-    role_card_revision: 'T112/permission-diagnostic', code_revision: revision,
-    hook_authorization: 'T112 local diagnostic only', turn_limit: 1,
-    reviewers: [{ codex_home: join(root, 'reviewer-home'), role_card: role,
-      role_card_revision: 'T112/permission-diagnostic', hook_authorization: 'T112 local diagnostic only' }] };
+  await until(() => request(state, { command: 'pane_layout' }), row => !row.recovering, 'Daemon recovery');
+  const settings = new OrchestrationStore(state);
+  try { if (settings.saveExecutionSettings) settings.saveExecutionSettings('reviewer', { effort: 'low' }); }
+  finally { settings.close(); }
   const task = { task_id: 'T112', project_id: 'fixture', spec_rev: 1,
     card: { executor: { cli: 'Codex', model: 'gpt-6.1-sol', effort: 'xhigh' } } };
   const attempt = { runtime_mode: 'workspace-write', workspace: root, attempt_id: 'a1',
@@ -32,16 +43,13 @@ try {
   const review = { attempt, session_id: 'review-session', thread_id: 'review',
     candidate_workspace: join(root, 'candidate'), review_id: 'review-id',
     verification_id: 'verification-id', workspace: root };
-  await new Panes(root, store, config, () => {}).createReview(task, review, '权限诊断。');
-  const records = store.launches();
-  assert.equal(records.length, 1);
-  report.launch = records[0];
+  await panes.createReview(task, review, '执行本地固定 shell 探针，不提交或验收。');
+  writeFileSync(join(root, 'launch.json'), JSON.stringify(panes.get('review').record, null, 2) + '\n', { flag: 'wx' });
+  const identity = await until(() => panes.processInfo('review'), row => row.leader && row.native_session, 'Native reviewer identity');
+  writeFileSync(join(root, 'identity.json'), JSON.stringify(identity, null, 2) + '\n', { flag: 'wx' });
+  await panes.release('review', 'T112 explicitly authorized local fake API sandbox probe');
+  writeFileSync(join(root, 'released.json'), JSON.stringify({ released: true }) + '\n', { flag: 'wx' });
 } catch (error) {
-  report.error = { name: error.constructor.name, message: error.message, code: error.code, details: error.details };
-} finally {
-  const requests = store.launches().map(row => row.request_dir).filter(Boolean);
-  store.close(); pty.spawn = spawn;
-  for (const directory of requests) rmSync(directory, { recursive: true });
+  writeFileSync(join(root, 'host-error.json'), JSON.stringify({ error: String(error), stack: error.stack }) + '\n', { flag: 'wx' });
+  // Keep the real server available for identity-bound shutdown after a failure.
 }
-writeFileSync(join(root, 'record.json'), JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
-console.log(JSON.stringify(report));
