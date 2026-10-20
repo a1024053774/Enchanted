@@ -13,6 +13,8 @@ import type { FlowSnapshot } from '../src/flow.ts';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
 import { createFocusSafeWriter, ownTerminalQueries } from './terminalOutput.mjs';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
+import { AppNotifications, NotificationSettings } from './AppNotifications';
+import type { AppNotice } from './notificationCenter.ts';
 import { QuestionsPanel } from './QuestionsPanel';
 import type { NativeQuestion } from '../src/questions.ts';
 
@@ -38,7 +40,7 @@ type ProjectItem = { project_id: string; repo: string | null; tasks: TaskItem[];
 type AgentItem = { id: string; project: string; task: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
-type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; gaps: string[]; notifications: boolean };
+type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
 const statusIcons: Record<string, string> = { running: '●', waiting_user_answer: '◐', waiting_controller_answer: '◑', idle: '○', ended: '✓', unrestored: '◌', unknown: '?' };
 function StatusIcon({ state }: { state: string }) { return <span className="status-icon" aria-hidden="true">{statusIcons[state] ?? '?'}</span>; }
 
@@ -46,7 +48,7 @@ type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Lay
 type Selection = { task: Snapshot['task'] | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   executionSettings(change?: ExecutionSelection & { role: ExecutionRole }): Promise<Record<ExecutionRole, ExecutionSelection>>;
-  flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean): Promise<boolean>;
+  flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   creationRepository(): Promise<{ repo: string; branch: string; card: Record<string, any> } | null>;
@@ -417,12 +419,15 @@ function Workbench() {
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [gaps, setGaps] = useState<string[]>([]);
   const [notifications, setNotifications] = useState(true);
+  const [dockBadges, setDockBadges] = useState(true);
+  const [notices, setNotices] = useState<AppNotice[]>([]);
   const [focusedAgent, setFocusedAgent] = useState<string | null>(null);
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
   const [focusRequest, setFocusRequest] = useState({ key: '', version: 0 });
   const sidebarRead = useRef(false);
   const applySidebar = useCallback((value: Sidebar) => {
     setProjects(value.projects); setAgents(value.agents); setGaps(value.gaps); setNotifications(value.notifications);
+    setDockBadges(value.dockBadges); setNotices(value.notices);
   }, []);
   const [loading, setLoading] = useState(true);
   const [navigating, setNavigating] = useState(false);
@@ -437,13 +442,13 @@ function Workbench() {
   const refresh = useCallback(async () => {
     setLoading(true); setCatalogError(null);
     try {
-      const [sidebar, current] = await Promise.all([window.a2a.sidebar(), window.a2a.selection()]);
+      const current = await window.a2a.selection();
+      setSelectedTask(current.task); setSelectedProject(current.task?.project_id ?? null); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
+      const sidebar = await window.a2a.sidebar();
       const catalog = sidebar.projects;
       applySidebar(sidebar);
       if (current.task && !catalog.some(project => project.tasks.some(task => task.task_id === current.task!.task_id))) {
         applySelection(await window.a2a.selectTask(null));
-      } else {
-        setSelectedTask(current.task); setSelectedProject(current.task?.project_id ?? null); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
       }
       setProjects(catalog);
     } catch (error) { setCatalogError('读取项目与任务失败：' + String(error)); }
@@ -456,7 +461,7 @@ function Workbench() {
       if (sidebarRead.current) return;
       sidebarRead.current = true;
       try { const value = await window.a2a.sidebar(); if (mounted) { applySidebar(value); setCatalogError(null); } }
-      catch (error) { if (mounted) { setCatalogError('侧栏状态未知：' + String(error)); setAgents(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知' }))); setProjects(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知', git: { branch: null, upstream: null, ahead: null, behind: null, error: '读取未确认' } }))); } }
+      catch (error) { if (mounted) { setNotices([]); setCatalogError('侧栏状态未知：' + String(error)); setAgents(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知' }))); setProjects(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知', git: { branch: null, upstream: null, ahead: null, behind: null, error: '读取未确认' } }))); } }
       finally { sidebarRead.current = false; }
     }, 3000);
     return () => { mounted = false; clearInterval(timer); };
@@ -491,7 +496,7 @@ function Workbench() {
     setNavigating(true); setNavigationError(null);
     try {
       const value = await window.a2a.selectAgent(agent.id);
-      applySelection(value); setFocusedAgent(agent.id);
+      applySelection(value); setFocusedAgent(agent.id); setPage('terminal');
       setFocusRequest(previous => ({ key: value.focusKey, version: previous.version + 1 }));
     } catch (error) { setNavigationError('聚焦会话失败：' + String(error)); }
     finally { setNavigating(false); }
@@ -569,13 +574,19 @@ function Workbench() {
       <details className="sidebar-settings"><summary>图例与设置</summary>
         <ExecutionSettings />
         <div className="status-legend">{Object.entries({ running: '运行中', waiting_user_answer: '等待用户回答', waiting_controller_answer: '等待主控回答', idle: '空闲', ended: '已结束', unrestored: '未恢复', unknown: '未知' }).map(([state, label]) => <span key={state}><StatusIcon state={state} />{label}</span>)}</div>
-        <label><input type="checkbox" checked={notifications} onChange={event => {
-          void window.a2a.notificationSetting(event.target.checked).then(setNotifications).catch(error => setCatalogError('通知设置未保存：' + String(error)));
-        }} />等待用户回答时通知</label>
+        <NotificationSettings notifications={notifications} dockBadges={dockBadges} onChange={(enabled, preference) => {
+          void window.a2a.notificationSetting(enabled, preference).then(value => {
+            if (preference === 'notifications') { setNotifications(value); if (!value) setNotices([]); }
+            else setDockBadges(value);
+          }).catch(error => setCatalogError('通知设置未保存：' + String(error)));
+        }} />
         {gaps.map(gap => <p key={gap}>{gap}</p>)}
       </details>
       <div className="sidebar-footer">原生 CLI · 本地编排</div>
     </aside>
+    <AppNotifications notices={notices} disabled={loading || navigating || creating} onSelect={launch => {
+      const agent = agents.find(row => row.id === launch); if (agent) void selectAgent(agent);
+    }} />
     <main>
       <nav className="workspace-pages" aria-label="工作区页面">
         <button aria-current={page === 'terminal' ? 'page' : undefined} onClick={() => setPage('terminal')}>终端</button>

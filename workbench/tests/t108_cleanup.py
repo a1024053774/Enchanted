@@ -23,24 +23,33 @@ def observe(pid):
 
 
 def stop_owned(owner):
+    signals, exit_states = [], []
     def current():
         found = observe(owner['pid'])
-        if found is None or found['stat'].startswith('Z'):
+        if found is None:
             return None
-        for key in ['pid', 'pgid', 'started', 'command']:
+        for key in ['pid', 'pgid', 'started']:
             if found[key] != owner[key]:
                 raise RuntimeError('Process identity changed; refuse signal: ' + json.dumps(found))
+        # macOS can replace command text while the same process is exiting.
+        # E is an additional flag (e.g. ?E); Z is the zombie state. Wait only.
+        if any(flag in found['stat'] for flag in ('E', 'Z')):
+            if found['stat'] not in exit_states:
+                exit_states.append(found['stat'])
+        elif found['command'] != owner['command']:
+            raise RuntimeError('Process identity changed; refuse signal: ' + json.dumps(found))
         return found
-    signals = []
     for sig in [signal.SIGTERM, signal.SIGKILL]:
-        if current() is None:
-            return {'pid': owner['pid'], 'status': 'exited', 'signals': signals}
-        os.kill(owner['pid'], sig)  # Exact verified PID; never a shared process group.
-        signals.append(sig.name)
+        found = current()
+        if found is None:
+            return {'pid': owner['pid'], 'status': 'exited', 'signals': signals, 'exit_states': exit_states}
+        if not any(flag in found['stat'] for flag in ('E', 'Z')):
+            os.kill(owner['pid'], sig)  # Exact verified PID; never a shared process group.
+            signals.append(sig.name)
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
             if current() is None:
-                return {'pid': owner['pid'], 'status': 'exited', 'signals': signals}
+                return {'pid': owner['pid'], 'status': 'exited', 'signals': signals, 'exit_states': exit_states}
             time.sleep(.05)
     raise RuntimeError('Verified test process remains alive: ' + str(owner['pid']))
 

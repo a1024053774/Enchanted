@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "scope": "production workbench/app and workbench/src; tests and dependencies excluded",
+  "commands": [
+    {
+      "argv": [
+        "rg",
+        "-n",
+        "new\\s+(window\\.)?Notification\\b|Notification\\.(isSupported|requestPermission)|\\bNotification\\s*[,}]|requestAuthorization|NSUserNotificationCenter|UNUserNotificationCenter",
+        "workbench/app",
+        "workbench/src"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rg",
+        "-n",
+        "setBadgeCount|app\\.dock\\.setBadge",
+        "workbench/app"
+      ],
+      "exit": 0,
+      "stdout": "workbench/app/main.ts:45:  app.setBadgeCount(BrowserWindow.getFocusedWindow() ? 0 : [...counts.values()].reduce((sum, count) => sum + count, 0));\n",
+      "stderr": ""
+    }
+  ]
+}

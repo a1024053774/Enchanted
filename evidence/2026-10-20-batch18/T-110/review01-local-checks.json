@@ -1,0 +1,84 @@
+{
+  "status": "PASS",
+  "scope": "local build, syntax, source search and regressions; not real Electron disconnect proof",
+  "build": {
+    "argv": [
+      "node",
+      "workbench/app/build.mjs",
+      "--slot",
+      "t110-review01-local"
+    ],
+    "exit": 0,
+    "manifest": {
+      "schema": 1,
+      "out": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-review01-local/dist",
+      "main": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-review01-local/dist/main.mjs",
+      "preload": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-review01-local/dist/preload.cjs",
+      "renderer": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-review01-local/dist/renderer/index.html",
+      "cacheDir": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-review01-local/vite-cache",
+      "temporary": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-review01-local/tmp",
+      "source": "/Users/luckye/Documents/Code/a2a-wt-t110/workbench/app"
+    },
+    "cleanup": "temporary build and caches removed"
+  },
+  "checks": [
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "workbench/tests/t108_questions_driver.mjs"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "zsh",
+        "-n",
+        "evidence/2026-10-20-batch18/T-110/RUN-OUTSIDE-NO-MODEL.sh"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "zsh",
+        "-n",
+        "evidence/2026-10-20-batch18/T-110/RUN-OUTSIDE-ARCHIVE.sh"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rg",
+        "-n",
+        "new\\s+(window\\.)?Notification\\b|Notification\\.(isSupported|requestPermission)|\\bNotification\\s*[,}]|requestAuthorization|NSUserNotificationCenter|UNUserNotificationCenter|showNotification|registerForAPNSNotifications",
+        "workbench/app",
+        "workbench/src",
+        "workbench/hooks"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "questions": {
+    "status": "PASS",
+    "hook_failure_cases": 429,
+    "answer_lifecycle_cases": 14
+  }
+}

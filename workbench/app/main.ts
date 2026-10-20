@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync, existsSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { request } from '../src/transport.ts';
 import { readOperatorCredential } from '../src/credentials.ts';
 import { randomUUID } from 'node:crypto';
+import { NotificationCenter, type NotificationPreference } from './notificationCenter.ts';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
 
 type Options = { state: string; task?: string; launch?: string | string[]; userData: string };
@@ -29,12 +30,20 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const windows = new Map<number, WindowBinding>();
 let handlersRegistered = false;
 let appUserData: string | undefined;
-const observedAgentStates = new Map<string, string>();
-
-function notificationSetting(context: WindowBinding, enabled?: boolean) {
-  const file = join(context.options.userData, 'sidebar-settings.json');
-  if (enabled !== undefined) writeFileSync(file, JSON.stringify({ notifications: enabled }) + '\n', { mode: 0o600 });
-  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).notifications === true : true;
+const notificationCenters = new Map<string, NotificationCenter>();
+function notificationCenter(context: WindowBinding) {
+  const key = JSON.stringify([context.options.state, context.options.userData]);
+  let center = notificationCenters.get(key);
+  if (!center) { center = new NotificationCenter(context.options.userData); notificationCenters.set(key, center); }
+  return center;
+}
+function updateDockBadge() {
+  // Multiple desktop windows observe the same catalog; count it only once.
+  const counts = new Map<string, number>();
+  for (const context of windows.values()) counts.set(context.options.state,
+    Math.max(counts.get(context.options.state) ?? 0, notificationCenter(context).badgeCount()));
+  const count = BrowserWindow.getFocusedWindow() ? 0 : [...counts.values()].reduce((sum, count) => sum + count, 0);
+  app.dock.setBadge(count ? String(count) : '');
 }
 
 function requireAgentView(task: string, launch: string, result: any) {
@@ -111,7 +120,9 @@ function target(event: Electron.IpcMainInvokeEvent, key: string) {
 function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Record<string, unknown>) {
   if (!pane.identity || context.closing || pane.closing) throw new Error('Window is not available for input');
   if (input.command === 'window_release' && pane.pendingRelease) throw new Error('Queue release is already pending');
-  const command = { ...input, sequence: ++pane.sequence, request_id: randomUUID() };
+  // A failed connection sends nothing and must not consume a daemon sequence.
+  // Once connected, an unknown outcome still consumes it; commands are never replayed.
+  const command = { ...input, request_id: randomUUID() };
   const receive = (result: any) => {
     if (input.command === 'window_release' && !result.ok &&
         ['empty_input_declaration_required', 'empty_input_declaration_stale', 'pane_not_interrupted'].includes(result.error)) return result;
@@ -121,14 +132,14 @@ function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Rec
   if (input.command === 'window_release') {
     // Panes owns PTY write order; later input can invalidate a pending declaration.
     let response: Promise<any>;
-    pane.inputQueue = pane.inputQueue.then(() => { response = request(context.options.state, command, pane.identity); });
+    pane.inputQueue = pane.inputQueue.then(() => { response = request(context.options.state, command, pane.identity, () => ++pane.sequence); });
     const result = pane.inputQueue.then(() => response).then(receive);
     pane.pendingRelease = result;
     const finished = () => { if (pane.pendingRelease === result) pane.pendingRelease = null; };
     void result.then(finished, finished);
     return result;
   }
-  const result = pane.inputQueue.then(() => request(context.options.state, command, pane.identity)).then(receive);
+  const result = pane.inputQueue.then(() => request(context.options.state, command, pane.identity, () => ++pane.sequence)).then(receive);
   pane.inputQueue = result.then(() => undefined, () => undefined);
   return result;
 }
@@ -136,6 +147,8 @@ function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Rec
 function registerHandlers() {
   if (handlersRegistered) return;
   handlersRegistered = true;
+  app.on('browser-window-focus', updateDockBadge);
+  app.on('browser-window-blur', updateDockBadge);
   ipcMain.handle('a2a:execution-settings', async (event, change?: { role: string; model: string; effort: string; fast: boolean }) => {
     const context = windowTarget(event);
     if (change !== undefined && (!change || typeof change !== 'object' || Array.isArray(change) ||
@@ -148,10 +161,13 @@ function registerHandlers() {
     if (!result.ok) throw new Error(result.error);
     return result.settings;
   });
-  ipcMain.handle('a2a:notification-setting', (event, enabled?: boolean) => {
+  ipcMain.handle('a2a:notification-setting', (event, enabled?: boolean, preference: NotificationPreference = 'notifications') => {
     const context = windowTarget(event);
     if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('Invalid notification setting');
-    return notificationSetting(context, enabled);
+    if (!['notifications', 'dockBadges'].includes(preference)) throw new Error('Invalid notification preference');
+    const value = notificationCenter(context).setting(enabled, preference);
+    updateDockBadge();
+    return value;
   });
   ipcMain.handle('a2a:flow', async event => {
     const context = windowTarget(event);
@@ -161,20 +177,23 @@ function registerHandlers() {
   });
   ipcMain.handle('a2a:sidebar', async event => {
     const context = windowTarget(event);
-    const result = await request(context.options.state, { command: 'sidebar_snapshot' });
-    if (!result.ok) throw new Error(result.error);
-    const enabled = notificationSetting(context);
-    for (const agent of result.agents) {
-      const key = context.options.state + ':' + agent.id;
-      const previous = observedAgentStates.get(key);
-      observedAgentStates.set(key, agent.state);
-      if (enabled && agent.state === 'waiting_user_answer' && previous !== agent.state) {
-        const { Notification } = await import('electron');
-        if (Notification.isSupported()) new Notification({ title: '等待用户回答',
-          body: `${agent.project} · ${agent.role_label} · ${agent.task ?? '未归属任务'}` }).show();
+    let result: Awaited<ReturnType<typeof request>>;
+    try {
+      result = await request(context.options.state, { command: 'sidebar_snapshot' });
+      if (!result.ok) throw new Error(result.error);
+    } catch (error) {
+      // A failed read removes the basis for this catalog's current reminders.
+      // Keep seen question IDs; reconnecting cannot emit the same reminder again.
+      for (const sibling of windows.values()) {
+        if (sibling.options.state === context.options.state) notificationCenter(sibling).invalidate();
       }
+      updateDockBadge();
+      throw error;
     }
-    return { ...result, notifications: enabled };
+    const notices = notificationCenter(context).observe(result.agents);
+    updateDockBadge();
+    return { ...result, notices, notifications: notificationCenter(context).setting(),
+      dockBadges: notificationCenter(context).setting(undefined, 'dockBadges') };
   });
   ipcMain.handle('a2a:select-agent', async (event, launch: string) => {
     const context = windowTarget(event);
@@ -648,7 +667,7 @@ export async function run(options: Options) {
       window.destroy();
     })();
   });
-  window.on('closed', () => { windows.delete(senderId); });
+  window.on('closed', () => { windows.delete(senderId); updateDockBadge(); });
   await window.loadFile(join(directory, 'renderer/index.html'));
   return window;
 }
