@@ -53,15 +53,18 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   const fixtureProject = 'catalog-project-sentinel';
   const fixtureSummary = { task_id: 'task-one', project_id: fixtureProject, title: '独立任务标题', state: 'claimed' };
   const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one' } };
-  const notificationCalls = [], settingsFiles = new Map(), sidebarStates = new Map();
+  const notificationCalls = [], badgeCalls = [], settingsFiles = new Map(), sidebarStates = new Map();
+  let questionId = 'question-one', focusedWindow = null, sidebarFailure = null;
+  const disconnectedError = new Error('t110-socket-unavailable');
   const layout = new Map(), restorations = new Map();
   const shellLayout = new Map();
   let shellNumber = 0;
   let layoutSaved = false;
   const handlers = new Map(), registrations = [], requests = [], liveCredentials = new Map();
   let windowNumber = 0, credentialNumber = 0, openingResolve;
-  const app = Object.assign(new EventEmitter(), { setPath() {}, whenReady: async () => {}, quit() {} });
+  const app = Object.assign(new EventEmitter(), { setPath() {}, whenReady: async () => {}, quit() {}, setBadgeCount(value) { badgeCalls.push(value); }, dock: { setBadge(value) { badgeCalls.push(value === '' ? 0 : Number(value)); } } });
   class Window extends EventEmitter {
+    static getFocusedWindow() { return focusedWindow; }
     constructor(options) {
       super(); this.options = options; this.id = ++windowNumber; this.destroyed = false;
       this.webContents = Object.assign(new EventEmitter(), { mainFrame: {}, setWindowOpenHandler() {} });
@@ -87,16 +90,19 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     historical: { id: 'historical', thread: 'thread-old', role: 'worker', preset: null, attempt: 'attempt-old' },
     opening: { id: 'opening', thread: 'thread-opening', role: 'worker', preset: null, attempt: 'attempt-one' },
   };
-  async function request(state, input, identity) {
+  async function request(state, input, identity, nextSequence) {
+    if (nextSequence) input = { ...input, sequence: nextSequence() };
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
     if (input.command === 'flow_snapshot') return { ok: true, lanes: [{task:'T-flow-sentinel', title:'随输入变化', stage:'review'}], unassigned:[{id:'orphan-sentinel'}] };
+    if (input.command === 'sidebar_snapshot' && sidebarFailure === 'transport') throw disconnectedError;
+    if (input.command === 'sidebar_snapshot' && sidebarFailure === 'refused') return { ok: false, error: 't110-sidebar-unavailable' };
     if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{project_id: fixtureProject, tasks: [fixtureSummary]}],
       agents: Object.values(records).filter(row => row.role !== 'shell').map(row => ({ ...row, project: fixtureProject, task: 'task-one',
         parent: row.id === 'controller' ? 'ideation' : row.id === 'worker' ? 'controller' : null,
         descendants: { count: row.id === 'ideation' ? 2 : row.id === 'controller' ? 1 : 0, state: 'waiting_user_answer',
           state_label: '等待用户回答', counts: [{ state: 'waiting_user_answer', label: '等待用户回答', count: 1 }] },
-        state: sidebarStates.get(row.id) ?? 'unknown', role_label: row.role })) };
+        state: sidebarStates.get(row.id) ?? 'unknown', question_id: row.id === 'worker' ? questionId : null, role_label: row.role })) };
     if (input.command === 'projects_list') return { ok: true, projects: [{ project_id: fixtureProject }] };
     if (input.command === 'tasks_list') return input.project === '../invalid'
       ? { ok: false, error: 'invalid_id' }
@@ -150,6 +156,17 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     contextBridge: { exposeInMainWorld(_name, value) { bridge = value; } },
     ipcRenderer: { invoke: (name, ...args) => Promise.resolve().then(() => handlers.get(name)(rendererEvent, ...args)) } };
   const context = vm.createContext({ process: fakeProcess, console, Buffer });
+  let notificationModule;
+  async function linkedNotificationModule(url) {
+    if (notificationModule) return notificationModule;
+    notificationModule = new vm.SourceTextModule(stripTypeScriptTypes(readFileSync(url, 'utf8'), { mode: 'strip' }), {context});
+    await notificationModule.link(async spec => {
+      const exports = spec === 'node:fs' ? { existsSync: path => settingsFiles.has(path),
+        readFileSync: path => settingsFiles.get(path), writeFileSync: (path,value) => settingsFiles.set(path,value) } : await import(spec);
+      return new vm.SyntheticModule(Object.keys(exports), function() { for (const [k,v] of Object.entries(exports)) this.setExport(k,v); }, {context});
+    });
+    return notificationModule;
+  }
   async function load(text, url) {
     const module = new vm.SourceTextModule(stripTypeScriptTypes(text, { mode: 'strip' }), {
       context, identifier: url.href, importModuleDynamically: async spec => {
@@ -167,6 +184,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
         writeFileSync: (path, value) => settingsFiles.set(path, value),
         readFileSync: path => settingsFiles.get(path) };
       else if (specifier === 'node:child_process') exports = { execFile() { throw new Error('Unexpected process call in pane IPC contract'); } };
+      else if (specifier === './notificationCenter.ts') return await linkedNotificationModule(new URL(specifier, mainURL));
       else if (specifier === '../src/transport.ts') exports = { request };
       else if (specifier === '../src/credentials.ts') exports = { readOperatorCredential: () => ({ kind: 'operator', token: 'fixture' }) };
       else if (['node:path', 'node:os', 'node:url', 'node:util', 'node:crypto'].includes(specifier)) exports = await import(specifier);
@@ -287,20 +305,62 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     assert.equal(requests.filter(row => row.command === 'pane_layout_close').length, removals, 'Transient close must not change saved layout');
     assert.equal(await bridge.notificationSetting(), true);
     sidebarStates.set('worker', 'waiting_user_answer');
-    await bridge.sidebar(); await bridge.sidebar();
-    assert.equal(notificationCalls.length, 1, 'Only entering waiting-user emits one notification');
-    sidebarStates.set('worker', 'running'); await bridge.sidebar();
-    sidebarStates.set('worker', 'idle'); await bridge.sidebar();
-    sidebarStates.set('worker', 'waiting_controller_answer'); await bridge.sidebar();
-    assert.equal(notificationCalls.length, 1, 'Other states do not notify');
+    const notice = await bridge.sidebar();
+    assert.equal(notice.notices?.length, 1, 'Only entering waiting-user emits one notification');
+    assert.equal(notice.notices[0].id, 'question-one');
+    assert.equal(notice.notices[0].launch, 'worker');
+    assert.equal((await bridge.sidebar()).notices.length, 1, 'Repeated reads keep a single notification');
+    assert.equal(notificationCalls.length, 0, 'System notification API must never be called');
+    assert.equal(badgeCalls.at(-1), 1, 'Background Dock badge counts pending user questions');
+    focusedWindow = a; app.emit('browser-window-focus');
+    assert.equal(badgeCalls.at(-1), 0, 'Foreground clears Dock badge');
+    focusedWindow = null; app.emit('browser-window-blur');
+    assert.equal(badgeCalls.at(-1), 1, 'Background restores Dock count');
+    assert.equal(await bridge.notificationSetting(false, 'dockBadges'), false);
+    assert.equal(badgeCalls.at(-1), 0, 'Dock setting clears badge immediately');
+    await bridge.notificationSetting(true, 'dockBadges');
+    assert.equal(badgeCalls.at(-1), 1);
+    for (const state of ['running','idle','waiting_controller_answer','unknown','ended']) {
+      sidebarStates.set('worker', state);
+      assert.equal((await bridge.sidebar()).notices.length, 0, 'Other states do not notify');
+      assert.equal(badgeCalls.at(-1), 0);
+    }
+    sidebarStates.set('worker', 'waiting_user_answer');
+    assert.equal((await bridge.sidebar()).notices.length, 0, 'The same question never notifies twice');
+    questionId = 'question-two';
+    assert.equal((await bridge.sidebar()).notices.length, 1, 'A different question while waiting notifies once');
     assert.equal(await bridge.notificationSetting(false), false);
-    sidebarStates.set('worker', 'waiting_user_answer'); await bridge.sidebar();
-    assert.equal(notificationCalls.length, 1, 'Disabled notifications stay silent');
-    await bridge.notificationSetting(true); await bridge.sidebar();
-    assert.equal(notificationCalls.length, 1, 'Enabling while already waiting is not a new transition');
-    sidebarStates.set('worker', 'idle'); await bridge.sidebar();
-    sidebarStates.set('worker', 'waiting_user_answer'); await bridge.sidebar();
-    assert.equal(notificationCalls.length, 2, 'A later entry notifies once');
+    assert.equal((await bridge.sidebar()).notices.length, 0, 'Disabled notifications stay silent');
+    questionId = 'question-disabled';
+    await bridge.sidebar();
+    await bridge.notificationSetting(true);
+    assert.equal((await bridge.sidebar()).notices.length, 0, 'Enabling while already waiting is not a new question');
+    questionId = null;
+    assert.equal((await bridge.sidebar()).notices.length, 0, 'Missing question identity cannot notify');
+    questionId = 'question-three';
+    assert.equal((await bridge.sidebar()).notices.length, 1);
+    await assert.rejects(() => bridge.notificationSetting(true, 'foreign'));
+    await assert.rejects(() => bridge.notificationSetting('yes', 'dockBadges'));
+    for (const failure of ['transport', 'refused']) {
+      questionId = 'disconnect-question-' + failure;
+      assert.equal((await bridge.sidebar()).notices.length, 1);
+      assert.equal(badgeCalls.at(-1), 1, 'Disconnect probe starts with a trusted pending question');
+      sidebarFailure = failure;
+      const beforeFailure = requests.length;
+      if (failure === 'transport') await assert.rejects(() => bridge.sidebar(), error => error === disconnectedError,
+        'Transport failure must reach the caller unchanged');
+      else await assert.rejects(() => bridge.sidebar(), /t110-sidebar-unavailable/);
+      assert.equal(requests.length, beforeFailure + 1, 'A failed sidebar read must not retry');
+      assert.equal(badgeCalls.at(-1), 0, 'Disconnected unknown state must clear Dock badge');
+      app.emit('browser-window-blur');
+      assert.equal(badgeCalls.at(-1), 0, 'Focus changes must not restore an untrusted count');
+      sidebarFailure = null;
+      assert.equal((await bridge.sidebar()).notices.length, 0, 'Reconnect preserves question deduplication');
+      assert.equal(badgeCalls.at(-1), 1, 'A fresh verified read may restore the pending count');
+      assert.equal((await invoke(b, 'a2a:sidebar')).notices.length, 0, 'Sibling window shares the invalidated notice state');
+    }
+
+
   }
   await bridge.beginComposition(aKey);
   await bridge.observeFocus(aKey, '\x1b[?1004h');
@@ -519,6 +579,7 @@ try {
   const withPanes = ['panes', 'creation', 'sidebar','questions','flow','questions-flow'].includes(values.contract);
   const withShell = ['shell', 'panes', 'creation', 'sidebar','questions','flow','questions-flow'].includes(values.contract);
   const withCatalog = values.contract !== 'legacy';
+  report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell, withPanes, withCreation);
   const mutant = candidate.replace("command: 'pane_layout_close'", "command: 'pane_layout_open'");
   assert.notEqual(mutant, candidate);
   try { await exercise(mutant, true, withCatalog, candidatePreload, withShell, withPanes, withCreation); }
@@ -538,7 +599,7 @@ try {
   }
   if (['sidebar','questions','flow','questions-flow'].includes(values.contract)) {
     for (const [name, mutantSource, expected] of [
-      ['notification', candidate.replace('previous !== agent.state', 'false'), 'Only entering waiting-user emits one notification'],
+      ['notification', candidate.replace('notificationCenter(context).observe(result.agents)', '[]'), 'Only entering waiting-user emits one notification'],
       ['history_credentials', candidate.replace('launch, viewOnly: true', 'launch, viewOnly: false'), 'Transient controller view must not issue an input credential'],
     ]) {
       assert.notEqual(mutantSource, candidate);
@@ -548,7 +609,6 @@ try {
       assert.equal(rejected, true, name + ' mutant must fail its focused assertion');
     }
   }
-  report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell, withPanes, withCreation);
   report.checks.push('app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential',
     'never_saved_default_selection', 'final_close_stays_empty_on_repeated_reopen', 'empty_preload_and_no_credentials', 'explicit_selection_reopens');
   if (withCatalog) report.checks.push(['sidebar','questions','flow','questions-flow'].includes(values.contract) ? values.contract === 'questions-flow' ? 'explicit_22_handler_and_23_bridge_names' : ['flow','questions'].includes(values.contract) ? 'explicit_21_handler_and_22_bridge_names' : 'explicit_20_handler_and_21_bridge_names' : withCreation ? 'explicit_17_handler_and_18_bridge_names' : withPanes ? 'explicit_14_handler_and_15_bridge_names' : withShell ? 'explicit_12_handler_and_13_bridge_names' : 'explicit_11_handler_and_12_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',

@@ -116,12 +116,16 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
           input.project === parent.project && input.task === parent.task && input.preset === parent.preset &&
           result.entry?.kind === 'assign' && result.entry.from === parent.preset && result.entry.to === recipient) senders.add(parent.id);
     }
-    const state = agentState(statuses.get(record.id), events.filter(event => event.launch === record.id), record.worktree);
+    const launchEvents = events.filter(event => event.launch === record.id);
+    const state = agentState(statuses.get(record.id), launchEvents, record.worktree);
+    const question_id = state === 'waiting_user_answer'
+      ? projectQuestions(launchEvents).find(question => question.status === 'waiting' &&
+        question.submission === statuses.get(record.id)?.active?.id)?.id ?? null : null;
     return { id: record.id, project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,
       role: record.role, preset: record.preset ?? null, role_label: roleLabel(record),
       cli: record.cli === 'Claude Code' || record.cli_version?.startsWith('Claude Code') ? 'claude' :
         record.cli_version?.startsWith('codex-cli ') ? 'codex' : '未知',
-      parent: senders.size === 1 ? [...senders][0] : null, state, state_label: stateLabels[state] };
+      parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state] };
   });
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
@@ -160,7 +164,6 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       { branch: null, upstream: null, ahead: null, behind: null, error: '项目目录不唯一' }, state, state_label: stateLabels[state] };
   }));
   return { projects, agents: treeAgents, gaps: [
-    '等待用户回答：工作台现有信号不能可靠区分，当前显示未知；未新增采集。',
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
   ] };
