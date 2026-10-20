@@ -41,13 +41,23 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
             const n=[...document.querySelectorAll('button[${attribute}]')].find(n=>n.getAttribute('${attribute}')===${JSON.stringify(request.target)});
             if(!n||n.disabled) throw new Error('Unavailable sidebar target'); n.click(); return {clicked:true}; })()`);
         } else if (['toggle', 'toggle-keyboard'].includes(request.command)) {
+          if (request.command === 'toggle-keyboard') window.focus();
           value = await window.webContents.executeJavaScript(`(()=>{
             const n=[...document.querySelectorAll('button[data-agent-toggle]')].find(n=>n.dataset.agentToggle===${JSON.stringify(request.target)});
-            if(!n) throw new Error('Unavailable disclosure');
-            ${request.command === 'toggle' ? 'n.click()' : 'n.focus()'}; return {ready:true}; })()`);
+            if(!n||n.disabled||!n.getClientRects().length) throw new Error('Unavailable disclosure');
+            ${request.command === 'toggle' ? 'n.click()' : 'n.focus()'};
+            return {target:document.activeElement?.dataset.agentToggle,documentFocused:document.hasFocus(),expanded:n.getAttribute('aria-expanded')==='true'}; })()`);
           if (request.command === 'toggle-keyboard') {
+            const focus = { ...value, windowFocused: window.isFocused(), contentsFocused: window.webContents.isFocused() };
+            log({ stage: 'disclosure-keyboard-target', target: request.target, focus });
+            if (focus.target !== request.target || !focus.documentFocused || !focus.windowFocused || !focus.contentsFocused) {
+              throw new Error('Disclosure button does not have keyboard focus');
+            }
             window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+            // Match T-103: native HTML button activation requires the CR char.
+            window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
             window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+            value = { attempted: true, target: request.target, focus };
           }
         } else if (request.command === 'resize') { window.setSize(request.width, request.height); value = { resized: true }; }
         else if (request.command === 'notifications') value = await window.webContents.executeJavaScript(`(()=>{

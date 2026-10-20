@@ -1,0 +1,421 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-109",
+  "attempt": "a1",
+  "model_calls": 0,
+  "baseline": "6411bdff8482ba47da207efa6a295a12666222aa",
+  "checks": [
+    {
+      "name": "真实 CLI 派发及 PTY 启动追加父 launch，旧启动记录原字节不变",
+      "status": "PASS"
+    },
+    {
+      "name": "真实 Electron 原版本忽略新记录中的父 launch，worker 留在未归属",
+      "status": "PASS"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain",
+        "--untracked-files=all",
+        "--",
+        "workbench/src",
+        "workbench/app",
+        "scripts",
+        "workbench/tests",
+        "workbench/package.json",
+        "workbench/package-lock.json"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "cc",
+        "-O2",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/tests/t096_resume_receiver.c",
+        "-o",
+        "/private/tmp/t109-real-s30elzd2/receiver"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "daemon_start",
+        "--launch-config",
+        "/private/tmp/t109-real-s30elzd2/launch.json"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "pane_layout"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t109-real-s30elzd2/repo-0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t109-real-s30elzd2/repo-0",
+        "add",
+        "."
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t109-real-s30elzd2/repo-0",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "T109 fixture"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "card_template",
+        "--task",
+        "task-0",
+        "--repo",
+        "/private/tmp/t109-real-s30elzd2/repo-0",
+        "--project",
+        "project-0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "card_save",
+        "--task",
+        "task-0",
+        "--card",
+        "/private/tmp/t109-real-s30elzd2/card-0.json",
+        "--expected-version",
+        "0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "create",
+        "--task",
+        "task-0",
+        "--repo",
+        "/private/tmp/t109-real-s30elzd2/repo-0",
+        "--project",
+        "project-0",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t109-real-s30elzd2/repo-1"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t109-real-s30elzd2/repo-1",
+        "add",
+        "."
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t109-real-s30elzd2/repo-1",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "T109 fixture"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "card_template",
+        "--task",
+        "task-1",
+        "--repo",
+        "/private/tmp/t109-real-s30elzd2/repo-1",
+        "--project",
+        "project-1"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "card_save",
+        "--task",
+        "task-1",
+        "--card",
+        "/private/tmp/t109-real-s30elzd2/card-1.json",
+        "--expected-version",
+        "0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "create",
+        "--task",
+        "task-1",
+        "--repo",
+        "/private/tmp/t109-real-s30elzd2/repo-1",
+        "--project",
+        "project-1",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "controller_prepare",
+        "--task",
+        "task-0",
+        "--preset",
+        "ideation"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "controller_prepare",
+        "--task",
+        "task-0",
+        "--preset",
+        "executor",
+        "--parent-launch",
+        "f6948d4d-673c-4098-bdcb-bbeed6d2f3fe"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "dispatch",
+        "--task",
+        "task-0",
+        "--runtime-mode",
+        "workspace-write",
+        "--parent-launch",
+        "c8c147e7-3401-44e1-a9ad-20e2de429752"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "pane_status",
+        "--thread",
+        "623a579b-a533-4293-a8a7-60d14caac606"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "launch_show",
+        "--launch",
+        "ac7566e9-5486-46d9-978d-19ef2972f91d"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "daemon_stop"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t109-real-s30elzd2/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "daemon_start"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t109-real-s30elzd2/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "pane_layout"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t109-real-s30elzd2/baseline/workbench/app/build.mjs",
+        "--slot",
+        "t109-red-cbcc17b0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t109-real-s30elzd2/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "daemon_stop"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "daemon_start"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "pane_layout"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/app/build.mjs",
+        "--slot",
+        "t109-green-dacfb97a"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-s30elzd2/state",
+        "daemon_stop"
+      ],
+      "exit": 0
+    }
+  ],
+  "limitations": [
+    "CLI 为本地 C 接收器；不证明模型行为或原生提问信号。"
+  ],
+  "source_head": "681fc0da59fe9a89252bdfae837fdd69598534bd",
+  "source_changes": [],
+  "candidate_revision": "681fc0da59fe9a89252bdfae837fdd69598534bd",
+  "error": "AssertionError({'expected': None, 'UI condition not reached': {'text': 'a2a 工作台\\n项目目录\\n刷新列表\\n新增项目目录\\n?\\nproject-0\\nmain · 未设置上游\\n未知\\n/private/tmp/t109-real-s30elzd2/repo-0\\n?\\nproject-1\\nmain · 未设置上游\\n未知\\n/private/tmp/t109-real-s30elzd2/repo-1\\nagent 会话\\n▾\\n◌\\n构思主控\\n未恢复\\ntask-0 · 无 attempt · claude\\n▸\\n◌\\n执行主控\\n未恢复\\ntask-0 · 无 attempt · claude\\n?子会话 4 · 未恢复 3 · 未知 1\\n未归属\\n任务 task-0\\n?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex\\n?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex\\n独立终端\\n图例与设置\\n原生 CLI · 本地编排\\nproject-0 / task-0\\ntask-0\\n后台已连接\\n新建任务\\ntask-0\\ntask-0 · 已认领\\n新建或分屏，打开你自己的 zsh\\n工作目录 \\n家目录\\n项目目录\\n选择目录…\\n新建终端\\n未恢复：restore_record_unrecognized。启动记录已保留。\\n构思主控\\n⋯\\nunknown\\n只读\\n终端未聚焦\\n未知\\n进入终端\\n关闭窗格\\n输入框已空，放行\\ncontroller/ideation · task task-0 · launch f6948d4d-673c-4098-bdcb-bbeed6d2f3fe\\n\\xa0\\n \\n在此窗格输入会记录为用户输入\\n执行：未启动\\n未恢复：restore_record_unrecognized。启动记录已保留。\\n执行主控\\n⋯\\nunknown\\n只读\\n终端未聚焦\\n未知\\n进入终端\\n关闭窗格\\n输入框已空，放行\\ncontroller/executor · task task-0 · launch c8c147e7-3401-44e1-a9ad-20e2de429752\\n\\xa0\\n \\n在此窗格输入会记录为用户输入\\n执行：未启动\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n受管 worker\\n⋯\\ncodex-cli 0.162.1\\n只读\\n终端未聚焦\\n未知\\n进入终端\\n关闭窗格\\n输入框已空，放行\\nworker · task task-0 · launch ac7566e9-5486-46d9-978d-19ef2972f91d · attempt 42af3498-63c0-4811-9b2a-25e050a0a1af\\nT096_RECEIVER_RE\\nADY\\n   zsh:1: warnin\\ng: 1 jobs SIGHUP\\ned\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\nT096_RECEIVER_READY zsh:1: warning: 1 jobs SIGHUPed\\nT096_RECEIVER_RE\\nADY\\n   zsh:1: warnin\\ng: 1 jobs SIGHUP\\ned\\n   \\n在此窗格输入会记录为人工介入\\n执行：已中断\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n受管 worker\\n⋯\\ncodex-cli 0.163.0\\n只读\\n历史 attempt · 只读\\n未知\\n进入终端\\n关闭窗格\\n输入框已空，放行\\nworker · task task-0 · launch second-worker · attempt a-sentinel\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n \\n在此窗格输入会记录为人工介入\\n执行：未知\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n独立审查\\n⋯\\ncodex-cli 0.163.0\\n只读\\n历史 attempt · 只读\\n未知\\n进入终端\\n关闭窗格\\nreviewer · task task-0 · launch reviewer · attempt a-sentinel\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n \\n独立审查 · 只读\\n执行：未知\\n当前任务门禁\\n已认领\\n执行尝试\\n42af3498\\n候选提交\\n尚未交付\\n验收\\n尚未开始\\n集成\\n尚未开始', 'bridge': ['paneKeys', 'projects', 'sidebar', 'selectAgent', 'notificationSetting', 'tasks', 'selection', 'creationRepository', 'creationSubmit', 'creationCancel', 'selectTask', 'newTerminal', 'paneAction', 'resize', 'snapshot', 'closePane', 'output', 'input', 'beginComposition', 'releaseQueue', 'observeFocus'], 'node': 'undefined', 'projects': [{'id': 'project-0', 'text': '?\\nproject-0\\nmain · 未设置上游\\n未知\\n/private/tmp/t109-real-s30elzd2/repo-0', 'state': 'unknown', 'selected': 'page', 'disabled': False}, {'id': 'project-1', 'text': '?\\nproject-1\\nmain · 未设置上游\\n未知\\n/private/tmp/t109-real-s30elzd2/repo-1', 'state': 'unknown', 'selected': None, 'disabled': False}], 'agents': [{'id': 'f6948d4d-673c-4098-bdcb-bbeed6d2f3fe', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': '◌\\n构思主控\\n未恢复\\ntask-0 · 无 attempt · claude', 'x': 34, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'parent': 'f6948d4d-673c-4098-bdcb-bbeed6d2f3fe', 'level': 1, 'state': 'unrestored', 'text': '◌\\n执行主控\\n未恢复\\ntask-0 · 无 attempt · claude\\n?子会话 4 · 未恢复 3 · 未知 1', 'x': 53, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'ac7566e9-5486-46d9-978d-19ef2972f91d', 'parent': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'level': 2, 'state': 'unrestored', 'text': '◌worker未恢复task-0 · attempt 42af3498-63c0-4811-9b2a-25e050a0a1af · codex', 'x': 0, 'overflow': False, 'disabled': False, 'visible': False}, {'id': 'second-worker', 'parent': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'level': 2, 'state': 'unrestored', 'text': '◌worker未恢复task-0 · attempt a-sentinel · codex', 'x': 0, 'overflow': False, 'disabled': False, 'visible': False}, {'id': 'reviewer', 'parent': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'level': 2, 'state': 'unrestored', 'text': '◌审查员未恢复task-0 · attempt a-sentinel · codex', 'x': 0, 'overflow': False, 'disabled': False, 'visible': False}, {'id': 'monitor', 'parent': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'level': 2, 'state': 'unknown', 'text': '?监视器未知task-0 · attempt a-sentinel · codex', 'x': 0, 'overflow': False, 'disabled': False, 'visible': False}, {'id': 'legacy', 'parent': '', 'level': 0, 'state': 'unknown', 'text': '?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex', 'x': 53, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'missing', 'parent': '', 'level': 0, 'state': 'unknown', 'text': '?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex', 'x': 53, 'overflow': False, 'disabled': False, 'visible': True}], 'summaries': [{'id': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'text': '?子会话 4 · 未恢复 3 · 未知 1', 'visible': True}], 'panes': [{'key': 'c62cd6bd-936f-4ab3-93fe-a0566c7973f2', 'launch': 'f6948d4d-673c-4098-bdcb-bbeed6d2f3fe', 'input': 'false', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。']}, {'key': '61306676-a5ff-4eca-ba3f-64017cf6de38', 'launch': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'input': 'false', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。']}, {'key': 'b207cb44-7094-453b-9365-f4fd885b7ad0', 'launch': 'ac7566e9-5486-46d9-978d-19ef2972f91d', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}, {'key': 'c9ff2d88-d88c-462b-861d-a9a7e6822319', 'launch': 'second-worker', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}, {'key': '3e1e9ba7-808b-4dbc-87d8-aaafb543c2f6', 'launch': 'reviewer', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}], 'task': 'project-0 / task-0', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。'], 'notificationChecked': True, 'unassigned': '未归属\\n任务 task-0\\n?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex\\n?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex'}})",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t109/workbench/tests/run_t109_hierarchy.py\", line 194, in main\n    green.wait(lambda row: next(a for a in row['agents'] if a['id'] == worker['id'])['visible'])\n  File \"/Users/luckye/Documents/Code/a2a-wt-t109/workbench/tests/run_t103_picker.py\", line 95, in wait\n    raise AssertionError({'expected': expected, 'UI condition not reached': value})\nAssertionError: {'expected': None, 'UI condition not reached': {'text': 'a2a 工作台\\n项目目录\\n刷新列表\\n新增项目目录\\n?\\nproject-0\\nmain · 未设置上游\\n未知\\n/private/tmp/t109-real-s30elzd2/repo-0\\n?\\nproject-1\\nmain · 未设置上游\\n未知\\n/private/tmp/t109-real-s30elzd2/repo-1\\nagent 会话\\n▾\\n◌\\n构思主控\\n未恢复\\ntask-0 · 无 attempt · claude\\n▸\\n◌\\n执行主控\\n未恢复\\ntask-0 · 无 attempt · claude\\n?子会话 4 · 未恢复 3 · 未知 1\\n未归属\\n任务 task-0\\n?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex\\n?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex\\n独立终端\\n图例与设置\\n原生 CLI · 本地编排\\nproject-0 / task-0\\ntask-0\\n后台已连接\\n新建任务\\ntask-0\\ntask-0 · 已认领\\n新建或分屏，打开你自己的 zsh\\n工作目录 \\n家目录\\n项目目录\\n选择目录…\\n新建终端\\n未恢复：restore_record_unrecognized。启动记录已保留。\\n构思主控\\n⋯\\nunknown\\n只读\\n终端未聚焦\\n未知\\n进入终端\\n关闭窗格\\n输入框已空，放行\\ncontroller/ideation · task task-0 · launch f6948d4d-673c-4098-bdcb-bbeed6d2f3fe\\n\\xa0\\n \\n在此窗格输入会记录为用户输入\\n执行：未启动\\n未恢复：restore_record_unrecognized。启动记录已保留。\\n执行主控\\n⋯\\nunknown\\n只读\\n终端未聚焦\\n未知\\n进入终端\\n关闭窗格\\n输入框已空，放行\\ncontroller/executor · task task-0 · launch c8c147e7-3401-44e1-a9ad-20e2de429752\\n\\xa0\\n \\n在此窗格输入会记录为用户输入\\n执行：未启动\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n受管 worker\\n⋯\\ncodex-cli 0.162.1\\n只读\\n终端未聚焦\\n未知\\n进入终端\\n关闭窗格\\n输入框已空，放行\\nworker · task task-0 · launch ac7566e9-5486-46d9-978d-19ef2972f91d · attempt 42af3498-63c0-4811-9b2a-25e050a0a1af\\nT096_RECEIVER_RE\\nADY\\n   zsh:1: warnin\\ng: 1 jobs SIGHUP\\ned\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\nT096_RECEIVER_READY zsh:1: warning: 1 jobs SIGHUPed\\nT096_RECEIVER_RE\\nADY\\n   zsh:1: warnin\\ng: 1 jobs SIGHUP\\ned\\n   \\n在此窗格输入会记录为人工介入\\n执行：已中断\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n受管 worker\\n⋯\\ncodex-cli 0.163.0\\n只读\\n历史 attempt · 只读\\n未知\\n进入终端\\n关闭窗格\\n输入框已空，放行\\nworker · task task-0 · launch second-worker · attempt a-sentinel\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n \\n在此窗格输入会记录为人工介入\\n执行：未知\\n未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。\\n独立审查\\n⋯\\ncodex-cli 0.163.0\\n只读\\n历史 attempt · 只读\\n未知\\n进入终端\\n关闭窗格\\nreviewer · task task-0 · launch reviewer · attempt a-sentinel\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n\\xa0\\n \\n独立审查 · 只读\\n执行：未知\\n当前任务门禁\\n已认领\\n执行尝试\\n42af3498\\n候选提交\\n尚未交付\\n验收\\n尚未开始\\n集成\\n尚未开始', 'bridge': ['paneKeys', 'projects', 'sidebar', 'selectAgent', 'notificationSetting', 'tasks', 'selection', 'creationRepository', 'creationSubmit', 'creationCancel', 'selectTask', 'newTerminal', 'paneAction', 'resize', 'snapshot', 'closePane', 'output', 'input', 'beginComposition', 'releaseQueue', 'observeFocus'], 'node': 'undefined', 'projects': [{'id': 'project-0', 'text': '?\\nproject-0\\nmain · 未设置上游\\n未知\\n/private/tmp/t109-real-s30elzd2/repo-0', 'state': 'unknown', 'selected': 'page', 'disabled': False}, {'id': 'project-1', 'text': '?\\nproject-1\\nmain · 未设置上游\\n未知\\n/private/tmp/t109-real-s30elzd2/repo-1', 'state': 'unknown', 'selected': None, 'disabled': False}], 'agents': [{'id': 'f6948d4d-673c-4098-bdcb-bbeed6d2f3fe', 'parent': '', 'level': 0, 'state': 'unrestored', 'text': '◌\\n构思主控\\n未恢复\\ntask-0 · 无 attempt · claude', 'x': 34, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'parent': 'f6948d4d-673c-4098-bdcb-bbeed6d2f3fe', 'level': 1, 'state': 'unrestored', 'text': '◌\\n执行主控\\n未恢复\\ntask-0 · 无 attempt · claude\\n?子会话 4 · 未恢复 3 · 未知 1', 'x': 53, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'ac7566e9-5486-46d9-978d-19ef2972f91d', 'parent': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'level': 2, 'state': 'unrestored', 'text': '◌worker未恢复task-0 · attempt 42af3498-63c0-4811-9b2a-25e050a0a1af · codex', 'x': 0, 'overflow': False, 'disabled': False, 'visible': False}, {'id': 'second-worker', 'parent': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'level': 2, 'state': 'unrestored', 'text': '◌worker未恢复task-0 · attempt a-sentinel · codex', 'x': 0, 'overflow': False, 'disabled': False, 'visible': False}, {'id': 'reviewer', 'parent': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'level': 2, 'state': 'unrestored', 'text': '◌审查员未恢复task-0 · attempt a-sentinel · codex', 'x': 0, 'overflow': False, 'disabled': False, 'visible': False}, {'id': 'monitor', 'parent': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'level': 2, 'state': 'unknown', 'text': '?监视器未知task-0 · attempt a-sentinel · codex', 'x': 0, 'overflow': False, 'disabled': False, 'visible': False}, {'id': 'legacy', 'parent': '', 'level': 0, 'state': 'unknown', 'text': '?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex', 'x': 53, 'overflow': False, 'disabled': False, 'visible': True}, {'id': 'missing', 'parent': '', 'level': 0, 'state': 'unknown', 'text': '?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex', 'x': 53, 'overflow': False, 'disabled': False, 'visible': True}], 'summaries': [{'id': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'text': '?子会话 4 · 未恢复 3 · 未知 1', 'visible': True}], 'panes': [{'key': 'c62cd6bd-936f-4ab3-93fe-a0566c7973f2', 'launch': 'f6948d4d-673c-4098-bdcb-bbeed6d2f3fe', 'input': 'false', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。']}, {'key': '61306676-a5ff-4eca-ba3f-64017cf6de38', 'launch': 'c8c147e7-3401-44e1-a9ad-20e2de429752', 'input': 'false', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。']}, {'key': 'b207cb44-7094-453b-9365-f4fd885b7ad0', 'launch': 'ac7566e9-5486-46d9-978d-19ef2972f91d', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}, {'key': 'c9ff2d88-d88c-462b-861d-a9a7e6822319', 'launch': 'second-worker', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}, {'key': '3e1e9ba7-808b-4dbc-87d8-aaafb543c2f6', 'launch': 'reviewer', 'input': 'false', 'alerts': ['未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。']}], 'task': 'project-0 / task-0', 'alerts': ['未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：restore_record_unrecognized。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。', '未恢复：受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领。启动记录已保留。'], 'notificationChecked': True, 'unassigned': '未归属\\n任务 task-0\\n?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex\\n?\\nworker\\n未知\\ntask-0 · attempt a-sentinel · codex'}}\n",
+  "cleanup_complete": true,
+  "retained_fixture": "/private/tmp/t109-real-s30elzd2",
+  "retained_builds": [
+    "/private/tmp/a2a-build-t109-red-cbcc17b0",
+    "/private/tmp/a2a-build-t109-green-dacfb97a"
+  ]
+}

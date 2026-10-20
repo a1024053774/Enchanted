@@ -190,8 +190,11 @@ def main():
         summary = next(row for row in collapsed['summaries'] if row['id'] == executor['id'])
         assert '子会话 4' in summary['text'] and summary['visible']
         assert '未恢复 3' in summary['text'] and '未知 1' in summary['text'], summary
-        green.call('toggle-keyboard', target=executor['id'])
-        green.wait(lambda row: next(a for a in row['agents'] if a['id'] == worker['id'])['visible'])
+        keyboard = green.call('toggle-keyboard', target=executor['id'])
+        assert keyboard['attempted'] and keyboard['target'] == executor['id']
+        assert keyboard['focus']['expanded'] is False, 'Keyboard journey must begin on the collapsed executor'
+        green.wait(lambda row: next(a for a in row['agents'] if a['id'] == worker['id'])['visible'],
+                   expected='Enter activates the focused executor disclosure; its recorded worker becomes visible')
         green.call('toggle', target=idea['id'])
         collapsed = green.wait(lambda row: next(a for a in row['agents'] if a['id'] == executor['id'])['visible'] is False)
         summary = next(row for row in collapsed['summaries'] if row['id'] == idea['id'])
