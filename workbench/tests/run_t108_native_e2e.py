@@ -16,9 +16,10 @@ def main():
     p.add_argument('--notifications', action='store_true')
     p.add_argument('--disable-notifications', action='store_true')
     p.add_argument('--source-revision')
+    p.add_argument('--fixture-parent', type=Path)
     args=p.parse_args(); source=Path(__file__).resolve().parents[2]
     assert not args.summary.exists()
-    root=Path(tempfile.mkdtemp(prefix='t078-2-t108-',dir='/private/tmp')).resolve()
+    root=Path(tempfile.mkdtemp(prefix='t110-native-turn-' if args.notifications else 't078-2-t108-',dir=args.fixture_parent or '/private/tmp')).resolve()
     repo=root/'repo';repo.mkdir();state=root/'state';state.mkdir()
     role=root/'roles/ideation'
     for name in ['home','claude','tmp','shell','requests','hooks','user-data']:(role/name).mkdir(parents=True)

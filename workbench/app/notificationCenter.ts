@@ -37,5 +37,7 @@ export class NotificationCenter {
     return [...this.active.values()];
   }
 
+  invalidate(): void { this.active.clear(); this.waiting = 0; }
+
   badgeCount(): number { return this.setting(undefined, 'dockBadges') ? this.waiting : 0; }
 }

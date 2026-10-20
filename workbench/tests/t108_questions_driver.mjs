@@ -1,6 +1,6 @@
 // Real Electron DOM/IPC. Only inspect, fixture prompt and answer controls.
 import { app } from 'electron';
-import { readFileSync, appendFileSync } from 'node:fs';
+import { readFileSync, appendFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
@@ -35,11 +35,16 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
         focused_agent:document.querySelector('[data-agent-launch][aria-current=true]')?.dataset.agentLaunch,
         focused_launch:document.activeElement?.closest('section.pane')?.dataset.launchId,
         terminal_hidden:document.querySelector('.terminal-page').hidden,
+        sidebar_error:document.querySelector('.catalog-error')?.textContent,
         notification_settings:Object.fromEntries([...document.querySelectorAll('[data-notification-setting]')].map(n=>[n.dataset.notificationSetting,n.checked])),
         alerts:[...document.querySelectorAll('[role=alert]')].map(n=>n.textContent)
       })`);
       else if(request.command==='watch-notices') value=await window.webContents.executeJavaScript(`(()=>{window.t110NoticeAdditions=0;new MutationObserver(rows=>{for(const row of rows) for(const n of row.addedNodes) if(n.nodeType===1)window.t110NoticeAdditions+=(n.matches('[data-notice-id]')?1:0)+n.querySelectorAll('[data-notice-id]').length;}).observe(document.querySelector('.app-notifications'),{childList:true,subtree:true});return true;})()`);
       else if(request.command==='notification-setting') value=await window.webContents.executeJavaScript(`(()=>{const n=document.querySelector('[data-notification-setting='+${JSON.stringify(request.preference)}+']');if(!n)throw new Error('Setting control missing');document.querySelector('.sidebar-settings').open=true;if(n.checked!==${Boolean(request.enabled)})n.click();return true;})()`);
+      else if(request.command==='reload-window'){await new Promise(resolve=>{window.webContents.once('did-finish-load',resolve);window.webContents.reload();});value=true;}
+      else if(request.command==='refresh-list')value=await window.webContents.executeJavaScript(`(()=>{const n=[...document.querySelectorAll('button')].find(n=>n.textContent==='刷新列表');if(!n||n.disabled)throw new Error('Refresh control unavailable');n.click();return true;})()`);
+      else if(request.command==='disconnect-sidebar'){renameSync(join(values.state,'control.sock'),join(values.state,'control.sock.t110-off'));value=true;}
+      else if(request.command==='reconnect-sidebar'){renameSync(join(values.state,'control.sock.t110-off'),join(values.state,'control.sock'));value=true;}
       else if(request.command==='background'){app.hide();value=true;}
       else if(request.command==='foreground'){window.show();app.focus({steal:true});window.focus();value=true;}
       else if(request.command==='flow-page')value=await window.webContents.executeJavaScript(`(()=>{document.querySelector('[data-flow-tab]').click();return true;})()`);

@@ -18,11 +18,12 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--summary', type=Path, required=True)
     p.add_argument('--electron-dist', type=Path, required=True)
+    p.add_argument('--baseline', default='c5ac40c0b4cf60c30407af1a00953a297eb55005')
     args = p.parse_args()
     source = Path(__file__).resolve().parents[2]
     output = args.summary.resolve()
     assert not output.exists(), 'Use a fresh summary path'
-    root = Path(tempfile.mkdtemp(prefix='t110-native-', dir='/private/tmp')).resolve()
+    root = Path(tempfile.mkdtemp(prefix='t078-2-t110-', dir='/private/tmp')).resolve()
     env = dict(os.environ, LC_ALL='C', PYTHONDONTWRITEBYTECODE='1')
     for key in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE'):
         env.pop(key, None)
@@ -42,14 +43,22 @@ def main():
         helper.chmod(0o755)
         component = copy / 'workbench/app/AppNotifications.tsx'
         original = component.read_text(encoding='utf-8')
+        candidate = {name: (copy / name).read_bytes() for name in ['workbench/app/main.ts', 'workbench/app/notificationCenter.ts']}
+        baseline = {name: subprocess.check_output(['git', 'show', args.baseline + ':' + name], cwd=source, env=env) for name in candidate}
+        report['disconnect_baseline'] = args.baseline
+        fixtures = root / 'fixtures'
+        fixtures.mkdir()
         marker = 'notices.map(notice =>'
         assert original.count(marker) == 1
-        for label, disabled, mutant in [('red-hidden-notices', False, True), ('green', False, False), ('disabled', True, False)]:
+        for label, disabled, mutant in [('red-hidden-notices', False, True), ('red-disconnected-badge', False, False), ('green', False, False), ('disabled', True, False)]:
             component.write_text(original.replace(marker, 'notices.slice(0, 0).map(notice =>') if mutant else original, encoding='utf-8')
+            for name, content in (baseline if label == 'red-disconnected-badge' else candidate).items():
+                (copy / name).write_bytes(content)
             summary = root / (label + '.json')
             command = ['/usr/bin/python3', '-B', str(copy / 'workbench/tests/run_t108_native_e2e.py'),
                        '--summary', str(summary), '--electron-dist', str(args.electron_dist.resolve()),
-                       '--source-revision', revision, '--notifications'] + (['--disable-notifications'] if disabled else [])
+                       '--source-revision', args.baseline if label == 'red-disconnected-badge' else revision,
+                       '--fixture-parent', str(fixtures), '--notifications'] + (['--disable-notifications'] if disabled else [])
             with (root / (label + '.log')).open('x', encoding='utf-8') as log:
                 result = subprocess.run(command, cwd=copy, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=240)
             report['commands'].append(dict(argv=command, exit=result.returncode))
@@ -60,6 +69,12 @@ def main():
                 assert 'One in-app waiting-user notification' in value.get('error', ''), value
                 assert not value.get('window_cleanup_error') and not value.get('daemon_cleanup_error') and not value.get('process_cleanup_errors'), value
                 report['red_business_rejected'] = True
+            elif label == 'red-disconnected-badge':
+                assert result.returncode == 1 and value['status'] == 'INCOMPLETE'
+                assert 'Disconnected unknown state must clear Dock badge' in value.get('error', ''), value
+                assert value['disconnect_observation']['badge'] == 1, value
+                assert not any(value.get(key) for key in ['window_cleanup_error', 'daemon_cleanup_error', 'process_cleanup_errors']), value
+                report['disconnect_red_business_rejected'] = True
             else:
                 assert result.returncode == 0 and value['status'] == 'PASS', value
         report['status'] = 'PASS'

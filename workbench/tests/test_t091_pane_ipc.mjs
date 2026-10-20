@@ -54,7 +54,8 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   const fixtureSummary = { task_id: 'task-one', project_id: fixtureProject, title: '独立任务标题', state: 'claimed' };
   const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one' } };
   const notificationCalls = [], badgeCalls = [], settingsFiles = new Map(), sidebarStates = new Map();
-  let questionId = 'question-one', focusedWindow = null;
+  let questionId = 'question-one', focusedWindow = null, sidebarFailure = null;
+  const disconnectedError = new Error('t110-socket-unavailable');
   const layout = new Map(), restorations = new Map();
   const shellLayout = new Map();
   let shellNumber = 0;
@@ -93,6 +94,8 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
     if (input.command === 'flow_snapshot') return { ok: true, lanes: [{task:'T-flow-sentinel', title:'随输入变化', stage:'review'}], unassigned:[{id:'orphan-sentinel'}] };
+    if (input.command === 'sidebar_snapshot' && sidebarFailure === 'transport') throw disconnectedError;
+    if (input.command === 'sidebar_snapshot' && sidebarFailure === 'refused') return { ok: false, error: 't110-sidebar-unavailable' };
     if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{project_id: fixtureProject, tasks: [fixtureSummary]}],
       agents: Object.values(records).filter(row => row.role !== 'shell').map(row => ({ ...row, project: fixtureProject, task: 'task-one',
         parent: row.id === 'controller' ? 'ideation' : row.id === 'worker' ? 'controller' : null,
@@ -337,6 +340,25 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     assert.equal((await bridge.sidebar()).notices.length, 1);
     await assert.rejects(() => bridge.notificationSetting(true, 'foreign'));
     await assert.rejects(() => bridge.notificationSetting('yes', 'dockBadges'));
+    for (const failure of ['transport', 'refused']) {
+      questionId = 'disconnect-question-' + failure;
+      assert.equal((await bridge.sidebar()).notices.length, 1);
+      assert.equal(badgeCalls.at(-1), 1, 'Disconnect probe starts with a trusted pending question');
+      sidebarFailure = failure;
+      const beforeFailure = requests.length;
+      if (failure === 'transport') await assert.rejects(() => bridge.sidebar(), error => error === disconnectedError,
+        'Transport failure must reach the caller unchanged');
+      else await assert.rejects(() => bridge.sidebar(), /t110-sidebar-unavailable/);
+      assert.equal(requests.length, beforeFailure + 1, 'A failed sidebar read must not retry');
+      assert.equal(badgeCalls.at(-1), 0, 'Disconnected unknown state must clear Dock badge');
+      app.emit('browser-window-blur');
+      assert.equal(badgeCalls.at(-1), 0, 'Focus changes must not restore an untrusted count');
+      sidebarFailure = null;
+      assert.equal((await bridge.sidebar()).notices.length, 0, 'Reconnect preserves question deduplication');
+      assert.equal(badgeCalls.at(-1), 1, 'A fresh verified read may restore the pending count');
+      assert.equal((await invoke(b, 'a2a:sidebar')).notices.length, 0, 'Sibling window shares the invalidated notice state');
+    }
+
 
   }
   await bridge.beginComposition(aKey);

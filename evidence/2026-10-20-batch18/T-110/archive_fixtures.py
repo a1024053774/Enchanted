@@ -40,7 +40,8 @@ try:
     for summary in args.summary:
         collect(json.loads(summary.read_text(encoding='utf-8')))
     assert roots, 'No referenced fixtures'
-    allowed = ('t110-native-', 't078-2-t108-', 't108-hook-failure-', 't108-answer-lifecycle-', 't108-question-contract-')
+    roots = {root for root in roots if not any(parent in roots for parent in root.parents)}
+    allowed = ('t110-native-', 't078-2-t108-', 't078-2-t110-', 't108-hook-failure-', 't108-answer-lifecycle-', 't108-question-contract-')
     for root in sorted(roots):
         assert root.parent == Path('/private/tmp') and root.name.startswith(allowed) and root.is_dir(), str(root)
         # Native CLI-created links are evidence, never instructions to copy

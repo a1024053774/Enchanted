@@ -56,6 +56,59 @@ def waiting(window, disabled, report):
                              't110_notification_click_focuses_bound_pane_from_flow', 't110_background_dock_count_and_setting'])
 
 
+    window.call('refresh-list')
+    time.sleep(3.2)
+    refreshed = window.call('inspect')
+    assert len(refreshed['notices']) == 1 and refreshed['notices'][0]['id'] == notice['id'] and refreshed['notice_additions'] == 1, 'List refresh must not add another reminder'
+    window.call('reload-window')
+    window.wait(lambda v: len(v['notices']) == 1 and v['notices'][0]['id'] == notice['id'], 'Reload preserves the same pending question entry')
+    window.call('watch-notices')
+    time.sleep(6.2)
+    stable = window.call('inspect')
+    assert len(stable['notices']) == 1 and stable['notice_additions'] == 0, 'Polling after reload must not append reminders'
+    report['checks'].append('t110_refresh_reload_keeps_one_question')
+
+    # Rename only this fixture's socket; the real daemon and CLI keep running.
+    window.call('background')
+    window.wait(lambda v: v['badge'] == 1, 'Disconnect starts with a verified waiting badge')
+    window.call('disconnect-sidebar')
+    try:
+        disconnected = window.wait(lambda v: not v['notices'] and v['agents'] and all(a['state'] == 'unknown' for a in v['agents']),
+                                   'Disconnected sidebar becomes unknown')
+        report['disconnect_observation'] = {key: disconnected[key] for key in ['badge', 'notices', 'agents', 'sidebar_error']}
+        assert disconnected['badge'] == 0, 'Disconnected unknown state must clear Dock badge'
+        assert disconnected['sidebar_error'], 'The failed read must remain visible to the caller'
+        window.call('foreground')
+        window.call('background')
+        assert window.call('inspect')['badge'] == 0, 'Focus changes must not restore an untrusted badge'
+        window.call('refresh-list')
+        window.wait(lambda v: v['sidebar_error'] and not v['notices'] and v['badge'] == 0, 'Refresh during disconnection stays unknown')
+        window.call('reload-window')
+        window.wait(lambda v: v['sidebar_error'] and not v['notices'] and v['badge'] == 0, 'Reload during disconnection stays unknown')
+    finally:
+        window.call('reconnect-sidebar')
+        window.call('foreground')
+    recovered = window.wait(lambda v: any(a['state'] == 'waiting_user_answer' for a in v['agents']) and
+                            any(q['id'] == notice['id'] for q in v['questions']), 'Same native question returns after reconnect')
+    assert recovered['notices'] == [], 'Reconnect must not repeat the same question'
+    window.call('refresh-list')
+    time.sleep(3.2)
+    assert window.call('inspect')['notices'] == [], 'Refresh after reconnect must not repeat the same question'
+    window.call('reload-window')
+    window.wait(lambda v: any(a['state'] == 'waiting_user_answer' for a in v['agents']) and
+                any(q['id'] == notice['id'] for q in v['questions']), 'Reload after reconnect preserves the same native question')
+    window.call('watch-notices')
+    time.sleep(6.2)
+    stable = window.call('inspect')
+    assert stable['notices'] == [] and stable['notice_additions'] == 0, 'Reload after reconnect must not emit another reminder'
+    window.call('background')
+    window.wait(lambda v: v['badge'] == 1, 'Fresh verified read restores only the waiting count')
+    assert window.call('inspect')['notices'] == []
+    window.call('foreground')
+    window.wait(lambda v: v['badge'] == 0, 'Foreground after reconnect clears badge')
+    report['checks'].append('t110_real_disconnect_clears_badge_refresh_reload_reconnect_deduplicates')
+
+
 def after_answer(window, disabled, report):
     view = window.wait(lambda v: not v['notices'] and not v['questions'] and all(a['state'] != 'waiting_user_answer' for a in v['agents']),
                        'Answered question removes notification and waiting highlight')

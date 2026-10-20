@@ -163,8 +163,19 @@ function registerHandlers() {
   });
   ipcMain.handle('a2a:sidebar', async event => {
     const context = windowTarget(event);
-    const result = await request(context.options.state, { command: 'sidebar_snapshot' });
-    if (!result.ok) throw new Error(result.error);
+    let result: Awaited<ReturnType<typeof request>>;
+    try {
+      result = await request(context.options.state, { command: 'sidebar_snapshot' });
+      if (!result.ok) throw new Error(result.error);
+    } catch (error) {
+      // A failed read removes the basis for this catalog's current reminders.
+      // Keep seen question IDs; reconnecting cannot emit the same reminder again.
+      for (const sibling of windows.values()) {
+        if (sibling.options.state === context.options.state) notificationCenter(sibling).invalidate();
+      }
+      updateDockBadge();
+      throw error;
+    }
     const notices = notificationCenter(context).observe(result.agents);
     updateDockBadge();
     return { ...result, notices, notifications: notificationCenter(context).setting(),
