@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import time
@@ -37,7 +38,16 @@ def stop_owned(owner):
             if found['stat'] not in exit_states:
                 exit_states.append(found['stat'])
         elif found['command'] != owner['command']:
-            raise RuntimeError('Process identity changed; refuse signal: ' + json.dumps(found))
+            # Claude can set its process title to just "(version)" while still
+            # running, including after its parent exits. The three identity
+            # fields above must match before this title change is considered.
+            executable = Path(owner['command'].split(None, 1)[0])
+            claude_title = re.fullmatch(r'\([0-9]+\.[0-9]+\.[0-9]+\)', found['command'])
+            claude_owner = executable.name == 'claude' or (
+                executable.parent.name == 'versions' and executable.parent.parent.name == 'claude'
+                and found['command'] == '(' + executable.name + ')')
+            if not (claude_owner and claude_title):
+                raise RuntimeError('Process identity changed; refuse signal: ' + json.dumps(found))
         return found
     for sig in [signal.SIGTERM, signal.SIGKILL]:
         found = current()

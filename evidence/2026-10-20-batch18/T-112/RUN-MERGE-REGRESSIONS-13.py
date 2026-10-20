@@ -13,7 +13,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--source', type=Path, required=True)
 parser.add_argument('--electron-dist', type=Path, required=True)
 parser.add_argument('--summary', type=Path, required=True)
+parser.add_argument('--run-id', default='01')
 args = parser.parse_args()
+assert len(args.run_id) == 2 and args.run_id.isdigit(), 'Use a two-digit fresh run ID'
 source, summary = args.source.resolve(), args.summary.resolve()
 assert not summary.exists()
 evidence = summary.parent
@@ -42,6 +44,7 @@ try:
     report['source_head'] = run(['git', 'rev-parse', 'HEAD']).strip()
     assert not run(['git', 'status', '--porcelain', '--', 'workbench', 'scripts/launch-worker']).strip(), 'Commit merged product before regressions'
     tests = [
+        ('cleanup', ['/usr/bin/python3', '-B', 'workbench/tests/test_t110_cleanup.py', '--summary']),
         ('ipc', ['node', '--experimental-vm-modules', 'workbench/tests/test_t091_pane_ipc.mjs']),
         ('questions', ['node', 'workbench/tests/test_t108_questions.mjs']),
         ('window-sequence', ['node', '--experimental-vm-modules', 'workbench/tests/test_t110_window_sequence.mjs']),
@@ -49,7 +52,7 @@ try:
         ('execution', ['node', 'workbench/tests/test_t112_execution.mjs']),
     ]
     for name, command in tests:
-        output = evidence / ('outside-merge-' + name + '-01.json')
+        output = evidence / ('outside-merge-' + name + '-' + args.run_id + '.json')
         assert not output.exists()
         run([*command, output])
         result = json.loads(output.read_text())
@@ -68,7 +71,7 @@ try:
         ('t110-native', ['/usr/bin/python3', '-B', 'workbench/tests/run_t110_notifications.py', '--electron-dist', args.electron_dist]),
         ('t112-native', ['/usr/bin/python3', '-B', 'workbench/tests/run_t112_native.py', '--source', source, '--electron-dist', args.electron_dist]),
     ]:
-        output = evidence / ('outside-merge-' + name + '-01.json')
+        output = evidence / ('outside-merge-' + name + '-' + args.run_id + '.json')
         assert not output.exists()
         run([*command, '--summary', output], timeout=2400)
         result = json.loads(output.read_text())

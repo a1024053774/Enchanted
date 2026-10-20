@@ -1,8 +1,18 @@
 # T-112 / a1 交付记录
 
-状态：**INCOMPLETE**。NATIVE-07 已 PASS，独立审查产品范围已 PASS；本轮 #58 已在私有 Git 副本完成 merge main 的三处冲突解决与六项本地回归。真实 exec/t112 合并提交及合并后两套原生入口待主控运行脚本；稀疏地图问题仍待 main 上核对。
+状态：**INCOMPLETE**。exec/t112 已由主控完成 main 合并（363c4944e），合并后五项合同 PASS；T-110 原生首例因运行态 Claude 标题变化导致清理失败，T-112 原生入口尚未执行。本轮 #59 已修测试清理器并取得合同红绿，完整回归待 REGRESSION-02；地图仍待 main 上核对。
 
-首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 的检索修订已由主控提交为 `21389ed18f823ec37a34e09fff176ecf60ac9859`；#52 的启动夹具修复已由主控提交为 `d86126abe06ba845df036bddbeb922543c0542cb`；#53 的诊断/问题记录已由主控提交为 `8edb06659`；#54 的验收调整已由主控提交为 `4bdf0721c5f80fa848d07500ec60327723eac898`；本轮 #58 准备 main 合并及回归脚本；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 的检索修订已由主控提交为 `21389ed18f823ec37a34e09fff176ecf60ac9859`；#52 的启动夹具修复已由主控提交为 `d86126abe06ba845df036bddbeb922543c0542cb`；#53 的诊断/问题记录已由主控提交为 `8edb06659`；#54 的验收调整已由主控提交为 `4bdf0721c5f80fa848d07500ec60327723eac898`；#58 的 main 合并已由主控完成为 `363c4944e33a7b6717a55392a16a4cae364cbdda`，父提交为 4bdf0721c 与 1267805a2；本轮 #59 修测试清理器，待 COMMIT-13 提交；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+
+## #59 运行态 Claude 自设标题的清理修复
+
+- 主控已修复其 T-113 启动记录缺 launcher_commit 导致的钩子拒绝，并完成 363c4944e 合并。outside-merge-main-01.json 的首次失败原件保留，不伪称该脚本当时成功；实际合并提交与双亲已存在。合并前的回归摘要已由主控改名为 outside-merge-regressions-01-before-merge-commit.json，后一次 REGRESSION-01 的五项合同 PASS；T-110 首例 red-hidden-notices 的清理却因同一 Claude PID 96848 的 command 变为 (2.1.304)、stat=R 而失败，不能算有效业务红态，T-112 入口尚未到达。
+- 按主控 #59 的明确范围，在本合并分支修 workbench/tests/t108_cleanup.py 及 test_t110_cleanup.py，不改产品。清理仍先核对 pid、pgid、started，任一变化立即拒绝发信号。之后仅允许原已登记 Claude 可执行文件的进程变为完整 (数字.数字.数字) 标题：claude 别名路径可接受该标题；版本目录中的 Claude 二进制还须与标题版本一致。无关 owner、任意新 command、畸形标题和版本路径不符均继续拒绝。
+- R 等运行态仍只向核对过的单个 PID 发 TERM，必要时 KILL；不向共享进程组发信号。每次等待重新核对三身份字段，只有 observe 返回 None 才报 exited；E/Z 仍仅等待、不发信号，持续存活仍超时失败。ppid 变为 1 不替代上述身份检查。
+- **合同红绿 PASS**：cleanup-live-title-red-02.json 在修前准确拒绝新例 live_claude_title_alias（身份不变、R、(2.1.304)），没有发出应有的 TERM；修后 cleanup-live-title-green-01.json 的 33 例全部 PASS。保存并每次重放 363c4944e 的运行态已知坏对照，以及既有 92bc882 的 E 状态已知坏对照。覆盖别名/固定版本路径、TERM 后才改标题、三字段在信号前或等待中变化、无关命令、E/Z、不消失不能报成功和检查错误。首个 red-01 只是新已知坏判定缺少失败诊断字段，已保留为测试设置失败，不计作有效红态。
+- 这些合同执行真实 stop_owned，ps/时钟/信号边界由测试提供，不会向实际进程发信号；真实恢复仍须 REGRESSION-02。旧失败夹具和其身份记录保持原样，未在沙箱内绕过检查或不明清理。按主控归类，此为 T-110 测试代码缺陷，非 T-112 产品权限扩大。
+- RUN-MERGE-REGRESSIONS-13.py 增加两位 run-id，旧入口默认 01；新 REGRESSION-02 显式选 02，为 cleanup 合同、五项既有合同、T-110/T-112 原生入口分别使用新输出名。未覆盖或删除上一轮结果。Python 3.9、zsh 与 diff 静态检查见 cleanup-live-title-static-01.json。
+- 本轮不重复已在 363c4944e 上通过且未改产品的 IPC、T-108、window_sequence、reconnect_view、execution 或构建；完整外部回归脚本仍会重跑这些项目及两套原生入口。地图仍为稀疏 checkout 既有 8 个缺失链接、0 stale，见 project-map-rev14-final.txt。
 
 ## #58 合并 main：冲突解决与本地验证
 
@@ -129,7 +139,7 @@ Tracer bullet：设置表单 → IPC → SQLite → 派发 → argv。Deep modul
 | 原生 high 红态 | PASS，outside-native-02.json 的 baseline_high / baseline_real_dispatch_high_refused，真实 daemon 门禁返回 worker_executor_mismatch。 |
 | 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败；03 查询通过但 reviewer 权限探针失败；outside-reviewer-diag-01.json 的旧式模拟在 CLI 参数解析阶段失败；reviewer-diag-02 在首轮放行前身份等待处失败，API 请求数为 0。reviewer-diag-03 进入 API 后因错误的顶层 tools 假设失败。reviewer-diag-04 的原生权限 good/bad 对照已 PASS；native-04 在首步检索因缺少 rg 失败；native-05 在 factory 首轮失败；native-06 的 factory/UI/override 均 PASS，仅 invalid 等待启动失败超时；#53 已实测 CLI 接受该值；#54 用户已裁定原样透传，native-07 已由主控运行 PASS；#58 合并候选待外部回归。 |
 | reviewer 首轮启动顺序 | PASS，reviewer-startup-green-01.json；修前红态见 reviewer-startup-red-02.json。实际 driver 源码执行，边界由测试提供，非原生权限证据。 |
-| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev13-final.txt。 |
+| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev14-final.txt。 |
 
 ```sh
 python3 -B workbench/tests/test_t112_archive.py --summary evidence/2026-10-20-batch18/T-112/baseline-extraction-final-03.json
@@ -143,14 +153,14 @@ python3 -B workbench/tests/test_t112_closed_fixture.py --summary evidence/2026-1
 
 这些摘要路径已存在，不可覆盖；需要重跑时另取文件名。用完的本票旧夹具已按主控 #39 清理，见 completed-fixtures-cleanup-02.json；其他任务和仍运行的进程目录不在清理范围。
 
-## 主控合并提交与合并后回归命令
+## 主控提交与合并后回归命令
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-MERGE-MAIN-01.sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-MERGE-REGRESSION-01.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-13.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-MERGE-REGRESSION-02.sh
 ```
 
-第一条在 exec/t112 上执行 merge main 并生成合并提交，摘要写 outside-merge-main-01.json。第二条先跑五个合同与构建，再跑 T-110 no-model 等价入口和 T-112 NATIVE；汇总写 outside-merge-regressions-01.json，各项分别写 outside-merge-*-01.json，其中两套真实入口为 outside-merge-t110-native-01.json / outside-merge-t112-native-01.json。所有结果均要求新文件名，不覆盖旧证据。Electron 默认取主仓库内置盘 dist，可用 T112_ELECTRON_DIST 指定另一内置盘目录。
+无需再执行 merge 脚本。第二条先跑清理合同、五项既有合同与构建，再依次跑 T-110 no-model 等价入口和 T-112 NATIVE；汇总写 outside-merge-regressions-02.json，其余摘要统一为 outside-merge-*-02.json，其中真实入口是 outside-merge-t110-native-02.json / outside-merge-t112-native-02.json。文件均要求不存在，不覆盖旧证据。Electron 仍取内置盘 dist，可用 T112_ELECTRON_DIST 指定另一内置盘目录。
 
 ## 已交接事项
 
