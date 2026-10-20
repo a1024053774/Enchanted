@@ -6,6 +6,8 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
+import { FlowPage } from './FlowPage';
+import type { FlowSnapshot } from '../src/flow.ts';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
 import { createFocusSafeWriter, ownTerminalQueries } from './terminalOutput.mjs';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
@@ -32,7 +34,8 @@ type TaskItem = { task_id: string; project_id: string; title: string; state: str
 type ProjectItem = { project_id: string; repo: string | null; tasks: TaskItem[]; state: string; state_label: string;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; attempt: string | null; parent: string | null;
-  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string };
+  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string;
+  descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; gaps: string[]; notifications: boolean };
 const statusIcons: Record<string, string> = { running: '●', waiting_user_answer: '◐', waiting_controller_answer: '◑', idle: '○', ended: '✓', unrestored: '◌', unknown: '?' };
 function StatusIcon({ state }: { state: string }) { return <span className="status-icon" aria-hidden="true">{statusIcons[state] ?? '?'}</span>; }
@@ -40,7 +43,7 @@ function StatusIcon({ state }: { state: string }) { return <span className="stat
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 type Selection = { task: Snapshot['task'] | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
-  sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean): Promise<boolean>;
+  flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   creationRepository(): Promise<{ repo: string; branch: string; card: Record<string, any> } | null>;
@@ -397,6 +400,7 @@ function CreationForm({ project, onClose, onCreated }: { project: string; onClos
 }
 
 function Workbench() {
+  const [page, setPage] = useState<'terminal' | 'flow'>('terminal');
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
   const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -411,6 +415,7 @@ function Workbench() {
   const [gaps, setGaps] = useState<string[]>([]);
   const [notifications, setNotifications] = useState(true);
   const [focusedAgent, setFocusedAgent] = useState<string | null>(null);
+  const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
   const [focusRequest, setFocusRequest] = useState({ key: '', version: 0 });
   const sidebarRead = useRef(false);
   const applySidebar = useCallback((value: Sidebar) => {
@@ -491,14 +496,26 @@ function Workbench() {
   const projectAgents = agents.filter(agent => agent.project === selectedProject);
   const renderAgents = (rows: AgentItem[], level: number): ReactNode => <ul className="agent-branches">
     {rows.map(agent => <li key={agent.id}>
+      <div className="agent-line">
+      {agent.descendants.count > 0 ? <button className="agent-toggle" data-agent-toggle={agent.id}
+        aria-expanded={!collapsedAgents.has(agent.id)} aria-controls={'agent-children-' + agent.id}
+        aria-label={(collapsedAgents.has(agent.id) ? '展开' : '折叠') + agent.role_label + '的子会话'}
+        onClick={() => setCollapsedAgents(previous => { const next = new Set(previous); if (next.has(agent.id)) next.delete(agent.id); else next.add(agent.id); return next; })}>
+        <span aria-hidden="true">{collapsedAgents.has(agent.id) ? '▸' : '▾'}</span>
+      </button> : <span className="agent-toggle-space" aria-hidden="true" />}
       <button className="agent-row" data-agent-launch={agent.id} data-agent-parent={agent.parent ?? ''} data-agent-level={level}
         data-agent-state={agent.state} aria-current={focusedAgent === agent.id ? 'true' : undefined}
+        data-descendant-state={collapsedAgents.has(agent.id) ? agent.descendants.state : undefined}
         disabled={loading || navigating || creating} onClick={() => void selectAgent(agent)}>
         <span className="agent-role"><StatusIcon state={agent.state} />{agent.role_label}</span>
         <span className="agent-state">{agent.state_label}</span>
         <span className="agent-meta">{agent.task ?? '任务未知'} · {agent.attempt ? 'attempt ' + agent.attempt : '无 attempt'} · {agent.cli}</span>
+        {collapsedAgents.has(agent.id) && <span className="agent-subtree" data-agent-summary={agent.id}>
+          <StatusIcon state={agent.descendants.state} />子会话 {agent.descendants.count} · {agent.descendants.counts.map(item => `${item.label} ${item.count}`).join(' · ')}
+        </span>}
       </button>
-      {(() => {
+      </div>
+      <div id={'agent-children-' + agent.id} hidden={collapsedAgents.has(agent.id)}>{(() => {
         const children = projectAgents.filter(child => child.parent === agent.id);
         const controllers = children.filter(child => child.role === 'controller');
         const tasks = [...new Set(children.filter(child => child.role !== 'controller').map(child => child.task))];
@@ -506,7 +523,7 @@ function Workbench() {
           <div className="agent-task-label">任务 {task ?? '未知'}</div>
           {renderAgents(children.filter(child => child.task === task && child.role !== 'controller'), level + 1)}
         </div>)}</>;
-      })()}
+      })()}</div>
     </li>)}
   </ul>;
   const states = Object.values(statuses);
@@ -556,6 +573,12 @@ function Workbench() {
       <div className="sidebar-footer">原生 CLI · 本地编排</div>
     </aside>
     <main>
+      <nav className="workspace-pages" aria-label="工作区页面">
+        <button aria-current={page === 'terminal' ? 'page' : undefined} onClick={() => setPage('terminal')}>终端</button>
+        <button data-flow-tab aria-current={page === 'flow' ? 'page' : undefined} onClick={() => setPage('flow')}>流程</button>
+      </nav>
+      {page === 'flow' && <FlowPage />}
+      <div className="terminal-page" hidden={page !== 'terminal'}>
       <header className="task-header">
         <div><div className="eyebrow">{task ? `${task.project_id} / ${task.task_id}` : '终端工作区'}</div><h1>{task?.title ?? (loading ? '正在读取项目' : '独立终端')}</h1></div>
         <span className={'connection ' + (error || catalogError ? 'warning' : '')}>{navigating ? '正在切换任务' : loading ? '正在读取后台' : catalogError ? '列表未更新' : error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
@@ -596,6 +619,7 @@ function Workbench() {
           <div><dt>验收</dt><dd>{task?.verification?.state ?? '尚未开始'}</dd></div>
           <div><dt>集成</dt><dd>{task?.integration_intent?.state ?? '尚未开始'}</dd></div></dl>
       </section>}
+      </div>
     </main>
     {creationProject !== null && <CreationForm project={creationProject} onClose={() => setCreationProject(null)} onCreated={async task => {
       setCreationProject(null); await refresh();

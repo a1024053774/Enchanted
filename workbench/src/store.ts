@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 export type DispatchSource = "executor" | "gate" | "inbox";
 export type DispatchItem = { id: string; seq: number; source: DispatchSource; text: string; registered_at: string;
-  inbox_entry?: string; sender?: string; context?: { kind: string; rejection_id: string } };
+  inbox_entry?: string; sender?: string; parent_launch?: string | null; context?: { kind: string; rejection_id: string } };
 
 // The gate owns its existing tables. All new orchestration records share its file.
 export class OrchestrationStore {
@@ -98,7 +98,7 @@ export class OrchestrationStore {
     const row = this.db.prepare("SELECT * FROM dispatch_records WHERE id=?").get(id);
     return row ? { ...this.dispatchItem(row), launch: String(row.launch) } : undefined;
   }
-  register(launch: string, text: string, source: DispatchSource = "executor", context?: { kind: string; rejection_id: string }, inbox?: { id: string; sender: string }): DispatchItem {
+  register(launch: string, text: string, source: DispatchSource = "executor", context?: { kind: string; rejection_id: string }, inbox?: { id: string; sender: string }, parentLaunch?: string | null): DispatchItem {
     const id = randomUUID();
     const registered_at = new Date().toISOString();
     // Claude's UserPromptSubmit payload removes terminal line breaks from a
@@ -106,9 +106,9 @@ export class OrchestrationStore {
     // canonical form while preserving all internal whitespace exactly.
     const canonicalText = text.replace(/[\r\n]+$/, "");
     const seq = Number(this.db.prepare("INSERT INTO dispatch_records(id,launch,data) VALUES (?,?,?)")
-      .run(id, launch, JSON.stringify({ text: canonicalText, registered_at, source, ...(context ? { context } : {}),
+      .run(id, launch, JSON.stringify({ text: canonicalText, registered_at, source, parent_launch: parentLaunch ?? null, ...(context ? { context } : {}),
         ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender } : {}) })).lastInsertRowid);
-    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${canonicalText}`, registered_at, ...(context ? { context } : {}),
+    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${canonicalText}`, registered_at, parent_launch: parentLaunch ?? null, ...(context ? { context } : {}),
       ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender } : {}) };
   }
   read(task?: string) {

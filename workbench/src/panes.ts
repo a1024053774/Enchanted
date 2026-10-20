@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { questionHookBinding, questionFromHook, projectQuestions, nativeAnswerKeys, type QuestionBinding } from './questions.ts';
 import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
@@ -106,6 +107,9 @@ type Pane = {
 };
 
 export class Panes implements GateRuntime {
+  // Bound by the authenticated controller request, isolated across awaits.
+  // This is ancestry metadata only; gate authority still uses SubmitCaller.
+  readonly parentLaunch = new AsyncLocalStorage<string | null>();
   readonly root: string;
   readonly store: OrchestrationStore;
   readonly config: LaunchConfig;
@@ -176,7 +180,8 @@ export class Panes implements GateRuntime {
     try {
     if (input.authentication === "normal-login") login = await ClaudeLogin.prepare(input, task.repo);
     else check(new URL(input.api_url!).port !== "0", "messages_api_not_bound");
-    const record = { ...claudeLaunch(task, input, login?.isolation), created_at: new Date().toISOString(), executable_path: "",
+    const record = { ...claudeLaunch(task, input, login?.isolation), parent_launch: input.parent_launch ?? null,
+      created_at: new Date().toISOString(), executable_path: "",
       cli_version: "unknown", version_probe: null as { argv: string[]; stdout: string; stderr: string } | null };
       const expectedVersion = record.cli_version_expected;
       let probe;
@@ -247,7 +252,7 @@ export class Panes implements GateRuntime {
   // T-078-1/#49: prepare argv and its durable record only. Actual Claude launch,
   // auth, hooks and completion matching await decision 20261011T101958Z. This
   // method neither creates a live pane nor issues a launch capability.
-  prepareControllerLaunch(task: A2ATask, preset: string) {
+  prepareControllerLaunch(task: A2ATask, preset: string, parentLaunch?: string) {
     check(preset === "ideation" || preset === "executor", "invalid_controller_preset");
     const c = this.config.controllers?.[preset];
     const nonempty = (value: unknown): value is string => typeof value === "string" && Boolean(value.trim()) && !value.includes("\0");
@@ -264,7 +269,7 @@ export class Panes implements GateRuntime {
     const roleCard = realpathSync(c.role_card);
     const argv = [c.executable, "--session-id", session, "--model", c.model, "--effort", c.effort, "--settings", settingsText];
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: null,
-      session, fence: null, spec_rev: task.spec_rev, thread, role: "controller", preset,
+      session, fence: null, spec_rev: task.spec_rev, thread, role: "controller", preset, parent_launch: parentLaunch ?? null,
       execution_state: "prepared", validation: "待真实 Claude 复核", created_at: new Date().toISOString(),
       cli: "Claude Code", cli_version: "unknown", argv, settings,
       model_requested: c.model, effort_requested: c.effort,
@@ -528,7 +533,7 @@ export class Panes implements GateRuntime {
     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
-      role, sandbox: "workspace-write",
+      role, sandbox: "workspace-write", parent_launch: this.parentLaunch.getStore() ?? null,
       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
         review_home_was_empty: true } : {}),
@@ -824,7 +829,7 @@ export class Panes implements GateRuntime {
     }
     check(!pane.failed && !pane.stopped, "pane_unavailable");
     check(typeof text === "string" && text.trim() && !/[\x00\x1b]/.test(text), "invalid_dispatch_text");
-    const item = this.store.register(pane.record.id, text, source, context, inbox);
+    const item = this.store.register(pane.record.id, text, source, context, inbox, this.parentLaunch.getStore());
     pane.queue.push(item);
     this.store.event("dispatch_queued", item, pane.record);
     await this.drain(pane);

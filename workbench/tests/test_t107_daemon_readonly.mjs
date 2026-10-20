@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 
 const [output, sourceArg = '.', mode = 'readonly'] = process.argv.slice(2);
-if (!output || fs.existsSync(output) || !['identity', 'readonly', 'filename', 'rollout'].includes(mode)) throw new Error('New output and identity/readonly/filename/rollout mode required');
+if (!output || fs.existsSync(output) || !['identity', 'readonly', 'filename', 'rollout', 'flow'].includes(mode)) throw new Error('New output and identity/readonly/filename/rollout/flow mode required');
 const source = resolve(sourceArg), root = fs.mkdtempSync('/private/tmp/t107-daemon-read-');
 const tree = join(root, 'runtime'), state = join(root, 'state'), repo = join(root, 'repo');
 const report = { status: 'INCOMPLETE', mode, source, root, model_calls: 0,
@@ -21,7 +21,11 @@ const previousCredential = process.env.A2A_OPERATOR_CREDENTIAL;
 let pane, host, request, operator, started = false;
 try {
   fs.cpSync(join(source, 'workbench/src'), join(tree, 'src'), { recursive: true });
-  fs.symlinkSync(process.env.T107_DEPENDENCIES ?? '/Users/luckye/Documents/Code/a2a/workbench/node_modules', join(tree, 'node_modules'), 'dir');
+  fs.cpSync(process.env.T107_DEPENDENCIES ?? fileURLToPath(new URL('../node_modules', import.meta.url)), join(tree, 'node_modules'),
+    { recursive: true, dereference: true });
+  // npm --ignore-scripts leaves this pinned darwin-arm64 helper at 0644.
+  // Prepare only the private test copy; product startup must still refuse it.
+  fs.chmodSync(join(tree, 'node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper'), 0o755);
   fs.mkdirSync(state); fs.mkdirSync(repo);
   execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'init', '-b', 'main', repo], { env: { ...process.env, LC_ALL: 'C' } });
   const { Panes, spawnHelper } = await import(pathToFileURL(join(tree, 'src/panes.ts')));
@@ -76,9 +80,9 @@ try {
   }
   const saved = () => JSON.parse(execFileSync('python3', ['-B', join(dirname(fileURLToPath(import.meta.url)), 't107_persistence.py'), state], { encoding: 'utf8' }));
   const read = async () => {
-    const result = await request(state, { command: 'sidebar_snapshot' });
+    const result = await request(state, { command: mode === 'flow' ? 'flow_snapshot' : 'sidebar_snapshot' });
     assert.equal(result.ok, true, 'Sidebar must return a business result');
-    return result.agents.find(row => row.id === 'launch').state;
+    return (mode === 'flow' ? result.unassigned : result.agents).find(row => row.id === 'launch').state;
   };
   if (filenameCase) {
     host.scan(pane);

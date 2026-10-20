@@ -11,6 +11,7 @@ import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/quali
 import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 import { sidebarSnapshot } from './sidebar.ts';
+import { flowSnapshot } from './flow.ts';
 
 // Window payloads can contain shell passwords, even when identity/validation
 // fails. Agent input still has its existing dedicated recorder below.
@@ -80,7 +81,7 @@ export async function serve(
       AND json_extract(e.data,'$.window_id')=? LIMIT 1`).get(envelope.identity.window);
     return previous?.role === "shell";
   };
-  const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot"]);
+  const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
     "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "anonymous"; window?: WindowBinding } => {
@@ -163,6 +164,7 @@ export async function serve(
     }
     if (input.command === "projects_list") return { ok: true, projects: gates.listProjects() };
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
+    if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes) };
     if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes) };
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
@@ -337,7 +339,7 @@ export async function serve(
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const status = await gates.call({ command: "status", task: input.task });
       if (!status.ok || !status.task) return status;
-      return { ok: true, prepared: panes.prepareControllerLaunch(status.task, input.preset) };
+      return { ok: true, prepared: panes.prepareControllerLaunch(status.task, input.preset, input.parent_launch) };
     }
     if (input.command === "controller_start") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
@@ -384,7 +386,8 @@ export async function serve(
       return {ok:true,...await panes.screenKey(input.thread,input,authority.source)};
     }
     if (input.command === "pane_release") return { ok: true, ...await panes.release(input.thread, input.reason) };
-    if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.dispatch(panes.get(input.thread), input.body) };
+    if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.parentLaunch.run(
+      authority.kind === "operator" ? input.parent_launch ?? null : null, () => panes.dispatch(panes.get(input.thread), input.body)) };
     if (input.command === "signal") {
       if (!identity || identity.launch !== input.launch) throw new Refusal("signal_identity_required");
       let completedReview: { task: string; id: string } | undefined;
@@ -444,7 +447,7 @@ export async function serve(
                   attempt.fence !== command.fence || result.task?.spec_rev !== command.spec_rev) throw new Refusal("stale_attempt");
               return result;
             }
-            return await gates.call(command, caller);
+            return await panes.parentLaunch.run(controller ? pane.record.id : null, () => gates.call(command, caller));
           });
           if (!receipt.replayed && !isPendingInboxResult(receipt.result)) receipts.push(receipt);
           if (pane.record.role === "reviewer" && !receipt.replayed) {
@@ -478,7 +481,9 @@ export async function serve(
     }
     const actor = authority.kind === "operator" ? { address: "executor",
       assertActive: async () => { if (stopping) throw new Refusal("daemon_stopping"); } } : undefined;
-    return await gates.call(input, undefined, actor);
+    const { parent_launch, ...gateInput } = input;
+    return await panes.parentLaunch.run(authority.kind === "operator" ? parent_launch ?? null : null,
+      () => gates.call(gateInput, undefined, actor));
   };
   const server = createServer((connection) => {
     connection.setEncoding("utf8");

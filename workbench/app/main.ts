@@ -140,6 +140,12 @@ function registerHandlers() {
     if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('Invalid notification setting');
     return notificationSetting(context, enabled);
   });
+  ipcMain.handle('a2a:flow', async event => {
+    const context = windowTarget(event);
+    const result = await request(context.options.state, { command: 'flow_snapshot' });
+    if (!result.ok) throw new Error(result.error);
+    return { lanes: result.lanes, unassigned: result.unassigned };
+  });
   ipcMain.handle('a2a:sidebar', async event => {
     const context = windowTarget(event);
     const result = await request(context.options.state, { command: 'sidebar_snapshot' });

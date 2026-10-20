@@ -1,0 +1,88 @@
+{
+  "status": "PASS",
+  "task": "T-109",
+  "attempt": "a1",
+  "source_revision": "681fc0da59fe9a89252bdfae837fdd69598534bd",
+  "cases": [
+    {
+      "name": "old",
+      "command": [
+        "node",
+        "workbench/tests/test_t109_keyboard_entry.mjs",
+        "/private/tmp/t109-keyboard-proof-s849ifve/old.json",
+        "/private/tmp/t109-keyboard-proof-s849ifve/old.mjs"
+      ],
+      "exit": 1,
+      "expected_exit": 1,
+      "summary": {
+        "status": "INCOMPLETE",
+        "source": "/private/tmp/t109-keyboard-proof-s849ifve/old.mjs",
+        "model_calls": 0,
+        "scope": "Actual driver branch, supplied Electron focus; GUI effect requires external E2E",
+        "checks": [],
+        "error": "AssertionError [ERR_ASSERTION]: Disclosure keyboard injection must deliver Enter/CR/Enter with focus\n+ actual - expected\n\n  [\n    {\n+     focused: false,\n-     focused: true,\n      keyCode: 'Enter',\n      type: 'keyDown'\n    },\n    {\n+     focused: false,\n-     focused: true,\n-     keyCode: '\\r',\n-     type: 'char'\n-   },\n-   {\n-     focused: true,\n      keyCode: 'Enter',\n      type: 'keyUp'\n    }\n  ]\n"
+      }
+    },
+    {
+      "name": "candidate",
+      "command": [
+        "node",
+        "workbench/tests/test_t109_keyboard_entry.mjs",
+        "/private/tmp/t109-keyboard-proof-s849ifve/candidate.json",
+        "workbench/tests/t107_sidebar_driver.mjs"
+      ],
+      "exit": 0,
+      "expected_exit": 0,
+      "summary": {
+        "status": "PASS",
+        "source": "workbench/tests/t107_sidebar_driver.mjs",
+        "model_calls": 0,
+        "scope": "Actual driver branch, supplied Electron focus; GUI effect requires external E2E",
+        "checks": [
+          "native_button_enter_cr_sequence",
+          "window_contents_document_and_exact_target_required",
+          "bad_focus_never_sends_native_input"
+        ]
+      }
+    },
+    {
+      "name": "no-char",
+      "command": [
+        "node",
+        "workbench/tests/test_t109_keyboard_entry.mjs",
+        "/private/tmp/t109-keyboard-proof-s849ifve/no-char.json",
+        "/private/tmp/t109-keyboard-proof-s849ifve/no-char.mjs"
+      ],
+      "exit": 1,
+      "expected_exit": 1,
+      "summary": {
+        "status": "INCOMPLETE",
+        "source": "/private/tmp/t109-keyboard-proof-s849ifve/no-char.mjs",
+        "model_calls": 0,
+        "scope": "Actual driver branch, supplied Electron focus; GUI effect requires external E2E",
+        "checks": [],
+        "error": "AssertionError [ERR_ASSERTION]: Disclosure keyboard injection must deliver Enter/CR/Enter with focus\n+ actual - expected\n... Skipped lines\n\n  [\n    {\n      focused: true,\n      keyCode: 'Enter',\n      type: 'keyDown'\n...\n      focused: true,\n-     keyCode: '\\r',\n-     type: 'char'\n-   },\n-   {\n-     focused: true,\n      keyCode: 'Enter',\n      type: 'keyUp'\n    }\n  ]\n"
+      }
+    },
+    {
+      "name": "no-focus-guard",
+      "command": [
+        "node",
+        "workbench/tests/test_t109_keyboard_entry.mjs",
+        "/private/tmp/t109-keyboard-proof-s849ifve/no-focus-guard.json",
+        "/private/tmp/t109-keyboard-proof-s849ifve/no-focus-guard.mjs"
+      ],
+      "exit": 1,
+      "expected_exit": 1,
+      "summary": {
+        "status": "INCOMPLETE",
+        "source": "/private/tmp/t109-keyboard-proof-s849ifve/no-focus-guard.mjs",
+        "model_calls": 0,
+        "scope": "Actual driver branch, supplied Electron focus; GUI effect requires external E2E",
+        "checks": [],
+        "error": "AssertionError [ERR_ASSERTION]: Missing expected rejection."
+      }
+    }
+  ],
+  "retained_fixture": "/private/tmp/t109-keyboard-proof-s849ifve"
+}
