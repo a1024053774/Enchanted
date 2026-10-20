@@ -39,6 +39,18 @@ try {
     assert.equal(Object.hasOwn(profile.env, "ANTHROPIC_AUTH_TOKEN"), false);
     assert.equal(Object.hasOwn(profile.env, "ANTHROPIC_API_KEY"), false);
   });
+  check("claude_native_factory_defaults_and_overrides", () => {
+    const profile = claudeLaunch(task, common);
+    assert.equal(profile.argv[profile.argv.indexOf('--model') + 1], 'claude-haiku-5-5');
+    assert.equal(profile.argv[profile.argv.indexOf('--effort') + 1], 'low');
+    assert.equal(profile.settings.fastMode, false);
+    const overridden = claudeLaunch(task, { ...common, execution: { model: 'opus', effort: 'high', fast: true } });
+    assert.equal(overridden.argv[overridden.argv.indexOf('--model') + 1], 'opus');
+    assert.equal(overridden.argv[overridden.argv.indexOf('--effort') + 1], 'high');
+    assert.equal(overridden.settings.fastMode, true);
+    assert.ok(overridden.argv.includes('--permission-mode'));
+    assert.equal(overridden.argv[overridden.argv.indexOf('--permission-mode') + 1], 'manual');
+  });
   check("normal_login_keeps_existing_hook_and_stop_contract", () => {
     const profile = (claudeLaunch as any)(task, normal, isolation);
     assert.deepEqual(Object.keys(profile.settings.hooks), ["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse", "PostToolUseFailure"]);

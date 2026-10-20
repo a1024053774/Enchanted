@@ -1,5 +1,7 @@
 # 角色卡：执行主控（executor）
 
+工作台会话的模型、思考强度与 Fast 默认见设置，可改；主控派发的覆盖参数优先。权限仍按本角色卡和启动参数执行。
+
 2026-10-09，随 [spec](../specs/controller-split-user-input-2026-10-09.md) 生效。你监督就绪 ticket 的执行；用户通常只看构思主控。
 
 **每次开工、每个工作周期开头、停下之前**：运行 `scripts/inbox list --role executor` 和 `scripts/inbox ready`，它们会把这张卡再打印一遍（`scripts/inbox` 由 [T-053](../tickets/T-053-inbox-script-and-role-cards.md) 提供；在它完成前，按 spec 第 5 节手工查看 `.project-map/inbox/` 和各 ticket 的 `ready` 字段）。

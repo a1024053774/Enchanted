@@ -1,7 +1,8 @@
 """Actual cleanup helper; supplied ps observations, clock and signal boundary.
 
 Failures: E/Z command truncation rejected, exit declared before disappearance,
-signals sent to E/Z, PID reuse accepted, live command mismatch accepted, inspection
+signals sent to E/Z, Claude's live version title rejected, PID reuse accepted,
+unrelated live command mismatch accepted, inspection
 errors swallowed, or a persistent exit/live state reported as successful cleanup.
 No process is spawned or signalled by these cases. Python 3.9.
 """
@@ -16,8 +17,11 @@ from unittest.mock import patch
 
 
 BASELINE = '92bc8820800bf7990cacfb3bcb4cddcfe4b48217'
+LIVE_TITLE_BASELINE = '363c4944e33a7b6717a55392a16a4cae364cbdda'
 OWNER = dict(pid=73428, pgid=73428, ppid=73400,
              started='Tue Oct 20 10:28:50 2026', stat='S+', command='fixture-cli --session-id original')
+CLAUDE_OWNER = dict(OWNER, command='/Users/luckye/.local/bin/claude --session-id original')
+VERSIONED_CLAUDE_OWNER = dict(OWNER, command='/Users/luckye/.local/share/claude/versions/2.1.304 --session-id original')
 
 
 def load(source):
@@ -32,7 +36,7 @@ def exercise(module):
     def state(stat='S+', **changes):
         return dict(OWNER, **dict(stat=stat, **changes))
 
-    def case(name, observations, expected_signals=(), refusal=None):
+    def case(name, observations, expected_signals=(), refusal=None, owner=OWNER):
         pending, reads, signals, clock = list(observations), [], [], [0.0]
 
         def observe(pid):
@@ -55,10 +59,10 @@ def exercise(module):
                 patch.object(module.time, 'monotonic', lambda: clock[0]), patch.object(module.time, 'sleep', sleep):
             receipt, error = None, None
             try:
-                receipt = module.stop_owned(dict(OWNER))
+                receipt = module.stop_owned(dict(owner))
             except RuntimeError as failure:
                 error = str(failure)
-        assert signals == list(expected_signals), (name, 'Unexpected cleanup signals', signals)
+        assert signals == list(expected_signals), (name, 'Unexpected cleanup signals', signals, error)
         if refusal:
             assert error and refusal in error, (name, 'Expected cleanup refusal', error, receipt)
         else:
@@ -79,6 +83,28 @@ def exercise(module):
                                        state('Z+', ppid=1, command='<defunct>'), None])
     case('term_then_exiting_then_zombie', [state(), state('?E', ppid=1, command='(2.1.304)'),
                                           state('Z', ppid=1, command='<defunct>'), None], [signal.SIGTERM])
+    for owner in (CLAUDE_OWNER, VERSIONED_CLAUDE_OWNER):
+        kind = 'alias' if owner is CLAUDE_OWNER else 'versioned'
+        case('live_claude_title_' + kind, [state('R', ppid=1, command='(2.1.304)'), None],
+             [signal.SIGTERM], owner=owner)
+    case('claude_retitles_after_term', [dict(CLAUDE_OWNER), state('R', ppid=1, command='(2.1.304)'), None],
+         [signal.SIGTERM], owner=CLAUDE_OWNER)
+    case('live_claude_title_persistent_still_fails', [state('R', command='(2.1.304)')],
+         [signal.SIGTERM, signal.SIGKILL], refusal='Verified test process remains alive', owner=CLAUDE_OWNER)
+    for key, value in [('pid', OWNER['pid'] + 1), ('pgid', OWNER['pgid'] + 1), ('started', 'another-start-time')]:
+        case('reused_' + key + '_live_claude_title', [state('R', command='(2.1.304)', **{key: value})],
+             refusal='Process identity changed', owner=CLAUDE_OWNER)
+        case('changed_' + key + '_after_claude_term', [state('R', command='(2.1.304)'),
+             state('R', command='(2.1.304)', **{key: value})], [signal.SIGTERM],
+             refusal='Process identity changed', owner=CLAUDE_OWNER)
+    case('version_title_does_not_authorize_unrelated_owner', [state('R', command='(2.1.304)')],
+         refusal='Process identity changed')
+    case('claude_arbitrary_live_command_still_refused', [state('R', command='another-program')],
+         refusal='Process identity changed', owner=CLAUDE_OWNER)
+    case('claude_malformed_title_still_refused', [state('R', command='(not-a-version)')],
+         refusal='Process identity changed', owner=CLAUDE_OWNER)
+    case('versioned_claude_different_title_still_refused', [state('R', command='(2.1.305)')],
+         refusal='Process identity changed', owner=VERSIONED_CLAUDE_OWNER)
     for stat in ['?E', 'Z']:
         for key, value in [('pid', OWNER['pid'] + 1), ('pgid', OWNER['pgid'] + 1), ('started', 'another-start-time')]:
             case('reused_' + key + '_' + stat, [state(stat, **{key: value})], refusal='Process identity changed')
@@ -122,6 +148,13 @@ def main():
                 rejected='Owned exiting process must be awaited' in str(error) and 'Process identity changed' in str(error),
                 error=str(error))
         assert report.get('known_bad', {}).get('rejected'), 'Baseline must reject the observed E-state command change'
+        previous = subprocess.check_output(['git', 'show', LIVE_TITLE_BASELINE + ':workbench/tests/t108_cleanup.py'], cwd=source, env=env, text=True)
+        try:
+            exercise(load(previous))
+        except AssertionError as error:
+            report['live_title_known_bad'] = dict(revision=LIVE_TITLE_BASELINE,
+                rejected='live_claude_title_alias' in str(error) and 'Process identity changed' in str(error), error=str(error))
+        assert report.get('live_title_known_bad', {}).get('rejected'), 'Merged baseline must reject the observed running Claude title'
         report['cases'] = exercise(load((source / 'workbench/tests/t108_cleanup.py').read_text(encoding='utf-8')))
         report['status'] = 'PASS'
     except Exception as error:

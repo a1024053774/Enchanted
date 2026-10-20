@@ -173,6 +173,15 @@ def main():
             try:report['failure_view']=windows[-1].call('inspect')
             except Exception as diagnostic:report['failure_view_error']=str(diagnostic)
     finally:
+        # Carry the native focus/badge timeline into the summary, including on
+        # business failure. stdout and the fixture remain independent raw logs.
+        focus_log = root / 'window/focus-timeline.jsonl'
+        if focus_log.exists():
+            try:
+                report['native_focus_timeline'] = [json.loads(line) for line in focus_log.read_text(encoding='utf-8').splitlines()]
+            except Exception as error:
+                report['status'] = 'INCOMPLETE'
+                report['focus_diagnostic_error'] = str(error)
         if started:
             try:
                 observed=events()

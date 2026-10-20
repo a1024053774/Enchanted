@@ -1,0 +1,55 @@
+{
+  "status": "INCOMPLETE",
+  "claim": "foreground badge failure cause remains unresolved; no merge loss in main.ts",
+  "source_head": "22783a1ee5156ae9b67219ad961837ad574cd580",
+  "comparisons": [
+    {
+      "argv": [
+        "git",
+        "diff",
+        "aea89b9d5",
+        "HEAD",
+        "--",
+        "workbench/app/main.ts"
+      ],
+      "exit": 0,
+      "stdout": "diff --git a/workbench/app/main.ts b/workbench/app/main.ts\nindex a74097c07..9bfb5483d 100644\n--- a/workbench/app/main.ts\n+++ b/workbench/app/main.ts\n@@ -149,6 +149,18 @@ function registerHandlers() {\n   handlersRegistered = true;\n   app.on('browser-window-focus', updateDockBadge);\n   app.on('browser-window-blur', updateDockBadge);\n+  ipcMain.handle('a2a:execution-settings', async (event, change?: { role: string; model: string; effort: string; fast: boolean }) => {\n+    const context = windowTarget(event);\n+    if (change !== undefined && (!change || typeof change !== 'object' || Array.isArray(change) ||\n+      Object.keys(change).sort().join(',') !== 'effort,fast,model,role' ||\n+      !['worker', 'reviewer', 'monitor', 'ideation', 'executor'].includes(change.role) ||\n+      ![change.model, change.effort].every(value => typeof value === 'string' && value.trim() && !/[\\0\\r\\n]/.test(value)) ||\n+      typeof change.fast !== 'boolean')) throw new Error('Invalid execution settings');\n+    const result = await request(context.options.state, change === undefined ? { command: 'execution_settings' } :\n+      { command: 'execution_settings_save', ...change }, context.operator);\n+    if (!result.ok) throw new Error(result.error);\n+    return result.settings;\n+  });\n   ipcMain.handle('a2a:notification-setting', (event, enabled?: boolean, preference: NotificationPreference = 'notifications') => {\n     const context = windowTarget(event);\n     if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('Invalid notification setting');\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "1267805a2",
+        "HEAD",
+        "--",
+        "workbench/app/main.ts"
+      ],
+      "exit": 0,
+      "stdout": "diff --git a/workbench/app/main.ts b/workbench/app/main.ts\nindex a74097c07..9bfb5483d 100644\n--- a/workbench/app/main.ts\n+++ b/workbench/app/main.ts\n@@ -149,6 +149,18 @@ function registerHandlers() {\n   handlersRegistered = true;\n   app.on('browser-window-focus', updateDockBadge);\n   app.on('browser-window-blur', updateDockBadge);\n+  ipcMain.handle('a2a:execution-settings', async (event, change?: { role: string; model: string; effort: string; fast: boolean }) => {\n+    const context = windowTarget(event);\n+    if (change !== undefined && (!change || typeof change !== 'object' || Array.isArray(change) ||\n+      Object.keys(change).sort().join(',') !== 'effort,fast,model,role' ||\n+      !['worker', 'reviewer', 'monitor', 'ideation', 'executor'].includes(change.role) ||\n+      ![change.model, change.effort].every(value => typeof value === 'string' && value.trim() && !/[\\0\\r\\n]/.test(value)) ||\n+      typeof change.fast !== 'boolean')) throw new Error('Invalid execution settings');\n+    const result = await request(context.options.state, change === undefined ? { command: 'execution_settings' } :\n+      { command: 'execution_settings_save', ...change }, context.operator);\n+    if (!result.ok) throw new Error(result.error);\n+    return result.settings;\n+  });\n   ipcMain.handle('a2a:notification-setting', (event, enabled?: boolean, preference: NotificationPreference = 'notifications') => {\n     const context = windowTarget(event);\n     if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('Invalid notification setting');\n",
+      "stderr": ""
+    }
+  ],
+  "observed": {
+    "source": "outside-merge-t110-native-03-executor-rerun.json",
+    "case": "green",
+    "badge": 1,
+    "native_focus_recorded": false,
+    "event_timeline_recorded": false,
+    "selected_project": "T108-project",
+    "sidebar_error": null,
+    "checks": [
+      "t110_idle_silent_before_prompt",
+      "t110_sidebar_project_and_agent_highlight_with_notice",
+      "t110_question_identity_and_one_dom_addition",
+      "t110_notification_click_focuses_bound_pane_from_flow",
+      "t110_background_dock_count_and_setting",
+      "t110_refresh_reload_keeps_one_question"
+    ]
+  },
+  "limitations": [
+    "No native focus state/event timeline was captured in original run",
+    "Load at failure is controller observation; causality is unproven",
+    "Real Electron rerun requires outside-sandbox controller execution"
+  ]
+}

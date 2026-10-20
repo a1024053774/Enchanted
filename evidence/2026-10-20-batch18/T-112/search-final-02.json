@@ -1,0 +1,32 @@
+[
+  {
+    "argv": [
+      "rg",
+      "-n",
+      "worker_executor_mismatch|xhigh|gpt-6\\.1-sol|gpt-6-astra",
+      "workbench/src",
+      "scripts",
+      ".project-map/roles",
+      "workbench/README.md"
+    ],
+    "exit": 0,
+    "stdout": "workbench/README.md:188:执行器为 Codex / gpt-6.1-sol / xhigh。请按实际任务修改允许路径和验收文件；后续认领仍要求\nworkbench/README.md:289:按用户2026-10-13的决定，Codex会话使用gpt-6.1-sol、xhigh及普通速度，\nworkbench/README.md:481:出厂选择为 `gpt-6.1-sol` / `high` / Fast 关闭；逐字段优先级为派发覆盖参数 > 角色设置 > 出厂默认。\nworkbench/README.md:486:node workbench/src/gates/cli.ts --state /绝对路径/state execution_settings_save --role worker --model gpt-6.1-sol --effort high --fast false\nworkbench/README.md:487:node workbench/src/gates/cli.ts --state /绝对路径/state dispatch --task T-112-1 --runtime-mode workspace-write --model gpt-6.1-sol --effort xhigh --fast true\nscripts/launch-worker:44:    parser.add_argument(\"--model\", default=\"gpt-6.1-sol\")\nscripts/test_agent_status.py:55:            \"  GPT-6.1-Sol xhigh fast · /fixture · synthetic contract\\n\"\nscripts/test_agent_status.py:96:                    role=\"worker\", cli=\"codex\", cli_version=\"codex-cli 0.163.0\", model=\"gpt-6.1-sol\",\nscripts/test_agent_status.py:97:                    effort=\"xhigh\", service_tier_requested=\"fast\", cwd=str(root), project_commit=\"synthetic-baseline\",\nworkbench/src/executionSettings.ts:5:export const factoryExecution: Readonly<ExecutionSelection> = Object.freeze({ model: 'gpt-6.1-sol', effort: 'high', fast: false });\nworkbench/src/panes.ts:511:    check(task.card.executor.cli === \"Codex\", \"worker_executor_mismatch\");\nworkbench/src/contracts/modelOptions.ts:14:  \"xhigh\",\nworkbench/src/contracts/modelOptions.ts:28:  \"xhigh\",\nworkbench/src/contracts/modelOptions.ts:33:// grok-build keeps none/low/medium/high, Grok 4.5 drops none, Grok 4.6 adds xhigh.\nworkbench/src/contracts/modelOptions.ts:34:export const GROK_REASONING_EFFORT_OPTIONS = [\"none\", \"low\", \"medium\", \"high\", \"xhigh\"] as const;\nworkbench/src/contracts/modelOptions.ts:104:  codex: \"gpt-6-astra\",\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "rg",
+      "-n",
+      "Schema.Literals.*(EFFORT|THINKING)|choices=.*(effort|model)|(?:model|effort).*(===|!==|includes)",
+      "workbench/src",
+      "scripts",
+      "--glob",
+      "!test*",
+      "--glob",
+      "!run_t*"
+    ],
+    "exit": 0,
+    "stdout": "workbench/src/claudeLoginFacts.ts:116:    model_requests: requests.filter(row => row.method === \"POST\" && row.path === \"/v1/messages\").length,\nworkbench/src/executionSettings.ts:13:    else if ((key === 'model' || key === 'effort') && typeof item === 'string' && item.trim() && !/[\\0\\r\\n]/.test(item)) result[key] = item;\nworkbench/src/gates/core.ts:1439:      await this.runtime!.createThread(task, attempt, { ...(args.model === undefined ? {} : { model: args.model }),\nworkbench/src/gates/core.ts:1440:        ...(args.effort === undefined ? {} : { effort: args.effort }), ...(args.fast === undefined ? {} : { fast: args.fast }) });\nworkbench/src/gates/core.ts:2041:          else if (trailers.model![0] !== \"unknown\" && trailers.model![0] !== attempt.delivery.model) error = \"trailer_identity_mismatch\";\nworkbench/src/gates/core.ts:2042:          else if (trailers.effort![0] !== attempt.delivery.effort) error = \"trailer_identity_mismatch\";\nworkbench/src/gates/core.ts:3661:            facts.model !== \"unknown\" && facts.effort !== \"unknown\", \"delivery_facts_unknown\");\nworkbench/src/contracts/modelSelection.ts:147:  return typeof input.model === \"string\" ? inferProviderFromModel(input.model) : undefined;\nworkbench/src/contracts/modelSelection.ts:278:            typeof raw.model === \"string\" && raw.model.trim().length > 0\nworkbench/src/daemon.ts:170:      const selection = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));\nworkbench/src/daemon.ts:349:      const selection = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));\nworkbench/src/daemon.ts:357:      const overrides = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));\nworkbench/src/contracts/modelOptions.ts:65:  thinkingLevel: Schema.optional(Schema.Literals(PI_THINKING_LEVEL_OPTIONS)),\nworkbench/src/contracts/modelOptions.ts:69:  thinkingLevel: Schema.optional(Schema.Literals(OMP_THINKING_LEVEL_OPTIONS)),\nworkbench/src/contracts/modelOptions.ts:82:  reasoningEffort: Schema.optional(Schema.Literals(GROK_REASONING_EFFORT_OPTIONS)),\n",
+    "stderr": ""
+  }
+]

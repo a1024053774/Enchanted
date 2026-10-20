@@ -7,6 +7,8 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
 import { FlowPage } from './FlowPage';
+import { ExecutionSettings } from './ExecutionSettings';
+import type { ExecutionRole, ExecutionSelection } from '../src/executionSettings.ts';
 import type { FlowSnapshot } from '../src/flow.ts';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
 import { createFocusSafeWriter, ownTerminalQueries } from './terminalOutput.mjs';
@@ -45,6 +47,7 @@ function StatusIcon({ state }: { state: string }) { return <span className="stat
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 type Selection = { task: Snapshot['task'] | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
+  executionSettings(change?: ExecutionSelection & { role: ExecutionRole }): Promise<Record<ExecutionRole, ExecutionSelection>>;
   flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
@@ -569,6 +572,7 @@ function Workbench() {
       </nav>
       <button className="free-terminals" aria-current={!selectedTask && !selectedProject ? 'page' : undefined} disabled={loading || navigating || creating} onClick={() => { setSelectedProject(null); void selectTask(null); }}>独立终端</button>
       <details className="sidebar-settings"><summary>图例与设置</summary>
+        <ExecutionSettings />
         <div className="status-legend">{Object.entries({ running: '运行中', waiting_user_answer: '等待用户回答', waiting_controller_answer: '等待主控回答', idle: '空闲', ended: '已结束', unrestored: '未恢复', unknown: '未知' }).map(([state, label]) => <span key={state}><StatusIcon state={state} />{label}</span>)}</div>
         <NotificationSettings notifications={notifications} dockBadges={dockBadges} onChange={(enabled, preference) => {
           void window.a2a.notificationSetting(enabled, preference).then(value => {

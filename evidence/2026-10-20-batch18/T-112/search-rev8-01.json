@@ -1,0 +1,56 @@
+{
+  "status": "RECORDED",
+  "source": "/Users/luckye/Documents/Code/a2a-wt-t112",
+  "commands": [
+    {
+      "argv": [
+        "rg",
+        "--hidden",
+        "-n",
+        "-i",
+        "worker_executor_mismatch|(?:effort|model|reasoning)[^\\n]{0,120}(?:===|!==|choices|includes|Literals)|(?:choices|Literals)[^\\n]{0,120}(?:EFFORT|MODEL|THINKING)",
+        ".",
+        "--glob",
+        "!.git",
+        "--glob",
+        "!**/node_modules/**",
+        "--glob",
+        "!evidence/**",
+        "--glob",
+        "!**/package-lock.json"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t112",
+      "exit": 0,
+      "stdout": "./workbench/src/claudeLoginFacts.ts:116:    model_requests: requests.filter(row => row.method === \"POST\" && row.path === \"/v1/messages\").length,\n./workbench/src/panes.ts:511:    check(task.card.executor.cli === \"Codex\", \"worker_executor_mismatch\");\n./workbench/src/executionSettings.ts:18:    else if ((key === 'model' || key === 'effort') && typeof item === 'string' && item.trim() && !/[\\0\\r\\n]/.test(item)) result[key] = item;\n./workbench/src/contracts/modelSelection.ts:96:    lowerModel.includes(\"claude\") ||\n./workbench/src/contracts/modelSelection.ts:97:    lowerModel.includes(\"sonnet\") ||\n./workbench/src/contracts/modelSelection.ts:98:    lowerModel.includes(\"opus\") ||\n./workbench/src/contracts/modelSelection.ts:99:    lowerModel.includes(\"haiku\")\n./workbench/src/contracts/modelSelection.ts:103:  if (lowerModel.includes(\"gemini\")) {\n./workbench/src/contracts/modelSelection.ts:106:  if (lowerModel.includes(\"grok\")) {\n./workbench/src/contracts/modelSelection.ts:109:  if (lowerModel.includes(\"devin\")) {\n./workbench/src/contracts/modelSelection.ts:112:  if (lowerModel.includes(\"opencode\") || lowerModel.includes(\"open_code\")) {\n./workbench/src/contracts/modelSelection.ts:115:  if (lowerModel.includes(\"kilo\")) {\n./workbench/src/contracts/modelSelection.ts:118:  if (lowerModel.includes(\"cursor\")) {\n./workbench/src/contracts/modelSelection.ts:121:  if (lowerModel.startsWith(\"pi/\") || lowerModel.includes(\"/pi/\")) {\n./workbench/src/contracts/modelSelection.ts:147:  return typeof input.model === \"string\" ? inferProviderFromModel(input.model) : undefined;\n./workbench/src/contracts/modelSelection.ts:278:            typeof raw.model === \"string\" && raw.model.trim().length > 0\n./workbench/src/daemon.ts:170:      const selection = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));\n./workbench/src/daemon.ts:349:      const selection = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));\n./workbench/src/daemon.ts:357:      const overrides = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));\n./workbench/app/main.ts:144:      ![change.model, change.effort].every(value => typeof value === 'string' && value.trim() && !/[\\0\\r\\n]/.test(value)) ||\n./workbench/src/contracts/modelOptions.ts:65:  thinkingLevel: Schema.optional(Schema.Literals(PI_THINKING_LEVEL_OPTIONS)),\n./workbench/src/contracts/modelOptions.ts:69:  thinkingLevel: Schema.optional(Schema.Literals(OMP_THINKING_LEVEL_OPTIONS)),\n./workbench/src/contracts/modelOptions.ts:82:  reasoningEffort: Schema.optional(Schema.Literals(GROK_REASONING_EFFORT_OPTIONS)),\n./.project-map/inbox/20261011T191834Z-worker:s13-t076-2-issue-001.md:26:- event 93=`review_lifecycle_failed`，phase=create，error=`Error: worker_executor_mismatch`。\n./workbench/src/gates/core.ts:1439:      await this.runtime!.createThread(task, attempt, { ...(args.model === undefined ? {} : { model: args.model }),\n./workbench/src/gates/core.ts:1440:        ...(args.effort === undefined ? {} : { effort: args.effort }), ...(args.fast === undefined ? {} : { fast: args.fast }) });\n./workbench/src/gates/core.ts:2041:          else if (trailers.model![0] !== \"unknown\" && trailers.model![0] !== attempt.delivery.model) error = \"trailer_identity_mismatch\";\n./workbench/src/gates/core.ts:2042:          else if (trailers.effort![0] !== attempt.delivery.effort) error = \"trailer_identity_mismatch\";\n./workbench/src/gates/core.ts:3661:            facts.model !== \"unknown\" && facts.effort !== \"unknown\", \"delivery_facts_unknown\");\n./workbench/tests/test_t112_execution.mjs:66:  assert.ok(worker.argv.includes('model_reasoning_effort=\"high\"')); assert.ok(worker.argv.includes('service_tier=\"default\"'));\n./.project-map/inbox/20261020T061048Z-worker:s18-t108-issue-001.md:16:workbench/src/panes.ts:500 的 worker_executor_mismatch 仍要求 effort === \"xhigh\"，而当前 AGENTS.md 明确要求所有 Codex 会话 gpt-6.1-sol high、普通速度。workbench/README.md:465 同样仍写 xhigh。\n./workbench/tests/t081_capability_audit.ts:36:    env.A2A_MODEL_REQUESTED === \"gpt-6.1-sol\" && env.A2A_EFFORT_REQUESTED === \"xhigh\" &&\n./workbench/tests/test_t084_trailer_record.py:56:    'model': '          else if (trailers.model![0] !== \"unknown\" && trailers.model![0] !== attempt.delivery.model) error = \"trailer_identity_mismatch\";\\n',\n./workbench/tests/test_t084_trailer_record.py:57:    'effort': '          else if (trailers.effort![0] !== attempt.delivery.effort) error = \"trailer_identity_mismatch\";\\n',\n./workbench/tests/test_t084_trailer_record.py:506:                 '          else if (trailers.effort![0] !== \"unknown\" && trailers.effort![0] !== attempt.delivery.effort) error = \"trailer_identity_mismatch\";\\n'),\n./workbench/tests/test_t084_trailer_record.py:510:                 '          else if (trailers.model![0] !== \"unknown\" && trailers.model![0] !== task.card.executor.model) error = \"trailer_identity_mismatch\";\\n'),\n./workbench/tests/test_t084_trailer_record.py:514:                 '          else if (trailers.effort![0] !== task.card.executor.effort) error = \"trailer_identity_mismatch\";\\n'),\n./workbench/tests/daemon_acceptance_host.ts:32:  if (typeof spec.model !== \"string\" || spec.model === \"\" || typeof spec.effort !== \"string\" || spec.effort === \"\") {\n./workbench/tests/run_t112_native.py:182:                assert not value['ok'] and value['error'] == 'worker_executor_mismatch', value\n./workbench/tests/quality_real_host.ts:30:    env.A2A_MODEL_REQUESTED === \"gpt-6.1-sol\" && env.A2A_EFFORT_REQUESTED === \"xhigh\" && gitOK &&\n./.project-map/tickets/T-112-launch-model-effort-configurable.md:16:来源：执行主控缺陷上报 `worker:s18-t108-issue-001`（`workbench/src/panes.ts:500` 的 `worker_executor_mismatch` 要求 `effort === \"xhigh\"`，README:465 同写），与用户 2026-10-19 定的 high 冲突。\n./.project-map/tickets/T-112-launch-model-effort-configurable.md:18:用户逐字（2026-10-20，会话\"a2a-构思主控\"）：\"worker_executor_mismatch 还要求 effort 必须是 xhigh,这个不要写死,用户可以自行修改,也可以在和主控聊天时,主控来选择,而不是写死 effort\"\n./.project-map/tickets/T-112-launch-model-effort-configurable.md:22:1. **去掉写死**：门禁与 `panes.ts` 不再按固定 effort 拒绝启动；`worker_executor_mismatch` 不再检查 effort 取值（身份、版本、路径等其余检查不变）。\n./.project-map/tickets/T-112-launch-model-effort-configurable.md:31:- [ ] 红态：当前 `effort: high` 的受管 worker 派发被 `worker_executor_mismatch` 拒绝（真实入口复现）。绿态：high、xhigh、其他文档化取值都能启动，启动记录里的 argv 与所选一致。\n./workbench/tests/prepare_t081_mutants.py:43:        '          else if (trailers.model![0] !== \"unknown\" && trailers.model![0] !== attempt.delivery.model) error = \"trailer_identity_mismatch\";',\n./workbench/tests/prepare_t081_mutants.py:46:        '          else if (trailers.effort![0] !== attempt.delivery.effort) error = \"trailer_identity_mismatch\";',\n./.project-map/inbox/20261020T061900Z-ideation-assign-001.md:13:用户逐字（2026-10-20，会话\"a2a-构思主控\"）：\"worker_executor_mismatch 还要求 effort 必须是 xhigh,这个不要写死,用户可以自行修改,也可以在和主控聊天时,主控来选择,而不是写死 effort\"。已写 T-112 并标就绪，取代你计划自建的“xhigh 改 high”缺陷票：去掉写死，设置里可改，主控派发可覆盖，门禁只记录不按固定值拒绝；模型与 Fast 同理处理，reviewer 只读权限不变。T-108、T-109 合入后做，或有空闲名额就并行（最多 3 个 Codex）。\n./.project-map/inbox/20261020T061506Z-executor-report-001.md:21:另：s18-t108 上报了一个缺陷（worker:s18-t108-issue-001）。workbench/src/panes.ts:500 的 worker_executor_mismatch 仍要求 effort === \"xhigh\"，README:465 也还写着 xhigh，和用户 2026-10-19 定的“以后都用 6.1 sol high”冲突，这会让生产 dispatch 无法按规则启动 high 的受管 worker。我会按 T-004 的边界自建一张缺陷票（ready_by executor）来修，等 T-108、T-109 合入后再做。\n./workbench/tests/test_t112_counterfactuals.py:21:     'effort: Schema.optional(Schema.Literals([\"low\", \"medium\", \"high\", \"xhigh\", \"max\"]))', 'future-effort-sentinel'),\n./workbench/tests/test_t112_counterfactuals.py:26:    ('old_executor_restriction', 'panes.ts', 'check(task.card.executor.cli === \"Codex\", \"worker_executor_mismatch\");',\n./workbench/tests/test_t112_counterfactuals.py:27:     'check(task.card.executor.cli === \"Codex\" && model === \"gpt-6.1-sol\" && effort === \"xhigh\", \"worker_executor_mismatch\");', 'worker_executor_mismatch'),\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rg",
+        "-n",
+        "choices|effort|model",
+        "scripts/launch-worker"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t112",
+      "exit": 0,
+      "stdout": "44:    parser.add_argument(\"--model\", default=\"gpt-6.1-sol\")\n45:    parser.add_argument(\"--effort\", default=\"high\")\n46:    parser.add_argument(\"--direction\", choices=(\"right\", \"down\"), default=\"down\")\n49:    parser.add_argument(\"--service-tier\", choices=(\"default\", \"fast\"), default=\"default\")\n57:    if not args.model or \"\\n\" in args.model:\n71:            \"-m\", args.model, \"-c\", \"model_reasoning_effort=\" + json.dumps(args.effort),\n82:               model=args.model, effort=args.effort, service_tier_requested=args.service_tier, argv=argv,\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rg",
+        "--hidden",
+        "-n",
+        "xhigh|默认见设置|默认见角色设置",
+        "workbench/README.md",
+        ".project-map/roles",
+        "AGENTS.md"
+      ],
+      "cwd": "/Users/luckye/Documents/Code/a2a-wt-t112",
+      "exit": 0,
+      "stdout": "AGENTS.md:67:- worker 使用 `gpt-6.1-sol` high reasoning、普通速度（不传 Fast），只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。2026-10-19 起所有 Codex 会话只用 `gpt-6.1-sol` high（用户：\"好了,以后都用 6.1 sol high\"）；此前 2026-10-13 的 xhigh 规定由此取代，仍不用 `gpt-6-astra`、不用 Fast。\nworkbench/README.md:188:执行器 CLI 为 Codex；任务卡中的模型和强度是记录字段，实际启动默认见设置，可改。请按实际任务修改允许路径和验收文件；后续认领仍要求\nworkbench/README.md:289:Codex 会话的模型、强度与 Fast 默认见角色设置，可在派发时覆盖。\nworkbench/README.md:477:workspace-write、模型和思考强度默认见设置（可改）、显式 service tier（出厂普通速度，覆盖全局 priority）、关闭更新检查。\nworkbench/README.md:489:node workbench/src/gates/cli.ts --state /绝对路径/state dispatch --task T-112-1 --runtime-mode workspace-write --model gpt-6.1-sol --effort xhigh --fast true\n.project-map/roles/worker.md:3:工作台会话的模型、思考强度与 Fast 默认见设置，可改；主控派发的覆盖参数优先。权限仍按本角色卡和启动参数执行。\n.project-map/roles/monitor.md:3:工作台会话的模型、思考强度与 Fast 默认见设置，可改；主控派发的覆盖参数优先。权限仍按本角色卡和启动参数执行。\n.project-map/roles/ideation.md:3:工作台会话的模型、思考强度与 Fast 默认见设置，可改；主控派发的覆盖参数优先。权限仍按本角色卡和启动参数执行。\n.project-map/roles/executor.md:3:工作台会话的模型、思考强度与 Fast 默认见设置，可改；主控派发的覆盖参数优先。权限仍按本角色卡和启动参数执行。\n.project-map/roles/reviewer.md:3:工作台会话的模型、思考强度与 Fast 默认见设置，可改；主控派发的覆盖参数优先。权限仍按本角色卡和启动参数执行。\n",
+      "stderr": ""
+    }
+  ],
+  "limitation": "Text matches require source inspection; historical decisions and identity comparisons are not fixed-value rejection policies"
+}

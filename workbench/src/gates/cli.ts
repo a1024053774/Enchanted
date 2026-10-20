@@ -16,6 +16,8 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   daemon_start: { required: [], optional: ["launch-config"] },
   daemon_status: { required: [] },
   daemon_stop: { required: [] },
+  execution_settings: { required: [] },
+  execution_settings_save: { required: ['role'], optional: ['model', 'effort', 'fast'] },
   shell_start: { required: ["cwd"], optional: ["project"] },
   shell_close: { required: ["launch"] },
   pane_layout: { required: [], optional: ["task", "project"] },
@@ -31,20 +33,20 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   pane_screen_key: { required: ["thread", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref"] },
   signal: { required: ["launch"] },
   launch_show: { required: ["launch"] },
-  controller_prepare: { required: ["preset"], optional: ["parent-launch"] },
-  controller_start: { required: ["manifest"] },
+  controller_prepare: { required: ["preset"], optional: ["parent-launch", "model", "effort", "fast"] },
+  controller_start: { required: ["manifest"], optional: ["model", "effort", "fast"] },
   orchestration_events: { required: [], optional: ["task"] },
   card_template: { required: ["repo"], optional: ["ticket", "project"] },
   card_validate: { required: ["card"] },
   card_save: { required: ["card", "expected-version"] },
   card_show: { required: ["card-version"] },
   create: { required: ["repo", "branch", "card-version"], optional: ["project", "title"] },
-  dispatch: { required: ["runtime-mode"], optional: ["overlap-reason", "parent-launch"] },
+  dispatch: { required: ["runtime-mode"], optional: ["overlap-reason", "parent-launch", "model", "effort", "fast"] },
   attach: {
     required: ["role", "model-selection", "instructions", "runtime-mode"],
     optional: ["preset"],
   },
-  run: { required: ["runtime-mode", "wait-seconds"], optional: ["overlap-reason", "parent-launch"] },
+  run: { required: ["runtime-mode", "wait-seconds"], optional: ["overlap-reason", "parent-launch", "model", "effort", "fast"] },
   claim: { required: ["owner"], optional: ["overlap-reason"] },
   revoke: { required: ["reason"] },
   revise: { required: ["spec-rev"], optional: ["card-version"] },
@@ -129,7 +131,7 @@ export async function main(argv = process.argv.slice(2)) {
       "stop-id",
       "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref",
       "score-file", "review-file",
-      "file", "parent-launch",
+      "file", "parent-launch", "model", "effort", "fast",
     ];
     const { values, positionals } = parseArgs({
       args: argv,
@@ -139,7 +141,7 @@ export async function main(argv = process.argv.slice(2)) {
     const command = positionals[0] ?? "";
     const contract = commands[command];
     const noTask = command.startsWith("inbox_") || command === "stop" ||
-      command.startsWith("daemon_") || command.startsWith("pane_") || command.startsWith("shell_") ||
+      command.startsWith("daemon_") || command.startsWith("pane_") || command.startsWith("shell_") || command.startsWith("execution_settings") ||
       ["signal", "launch_show", "orchestration_events", "scores_validate", "workbench_snapshot", "projects_list", "tasks_list", "sidebar_snapshot"].includes(command);
     if (!contract || positionals.length !== 1 || (!noTask && !values.task))
       throw new Error("command and task required");
@@ -174,9 +176,9 @@ export async function main(argv = process.argv.slice(2)) {
       else if (key === "authorization-ref") request.authorization_ref = value;
       else if (key === "screen-id") request.screen_id = value;
       else if (key === "selected-label") request.selected_label = value;
-      else if (key === "blocking") {
+      else if (key === "blocking" || key === "fast") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
-        request.blocking = value === "true";
+        request[key] = value === "true";
       } else if (["reply-to", "bundle-id", "stop-id", "request-id", "score-file", "overlap-reason", "parent-launch"].includes(key))
         request[key.replaceAll("-", "_")] = value;
       else request[key === "runtime-mode" ? "runtimeMode" : key] = value;

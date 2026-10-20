@@ -1,5 +1,7 @@
 # 角色卡：worker
 
+工作台会话的模型、思考强度与 Fast 默认见设置，可改；主控派发的覆盖参数优先。权限仍按本角色卡和启动参数执行。
+
 2026-10-09，随 [spec](../specs/controller-split-user-input-2026-10-09.md) 生效。你是干净上下文的执行 agent，只做分配给你的 task/attempt。
 
 **做**
