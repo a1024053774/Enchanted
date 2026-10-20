@@ -41,7 +41,7 @@ try {
   });
   check("normal_login_keeps_existing_hook_and_stop_contract", () => {
     const profile = (claudeLaunch as any)(task, normal, isolation);
-    assert.deepEqual(Object.keys(profile.settings.hooks), ["UserPromptSubmit", "Stop", "PermissionRequest"]);
+    assert.deepEqual(Object.keys(profile.settings.hooks), ["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse", "PostToolUseFailure"]);
     for (const entries of Object.values(profile.settings.hooks) as any[]) {
       assert(entries[0].hooks[0].command.includes(" signal --launch ") || entries[0].hooks[0].command.includes("'signal' '--launch'"));
       assert(entries[0].hooks[0].command.includes(normal.launch));
@@ -50,9 +50,13 @@ try {
     assert.equal(profile.shell_argv.at(-1).includes("sandbox-exec"), false, "CLI inherits the single outer profile");
     assert.equal(profile.shell_argv.at(-1).includes("; exec /bin/zsh"), false);
   });
-  check("normal_login_version_change_requires_new_probe", () => {
-    assert.throws(() => (claudeLaunch as any)(task, { ...normal, version: "2.1.303" }, isolation),
-      (e: any) => e.code === "normal_login_version_requires_probe");
+  check("normal_login_records_current_version_without_release_lock", () => {
+    const profile = (claudeLaunch as any)(task, { ...normal, version: "2.1.304" }, isolation);
+    assert.equal(profile.cli_version_expected, "2.1.304 (Claude Code)");
+    assert.equal(profile.role_card_revision, "T-093/normal-login/2.1.304");
+    for (const version of ["", "unknown", "2.1", "2.1.304\n"]) {
+      assert.throws(() => (claudeLaunch as any)(task, { ...normal, version }, isolation));
+    }
   });
   check("fixture_entry_still_refuses_real_api_address", () => {
     assert.throws(() => claudeLaunch(task, { ...common, api_url: "https://api.anthropic.com" }),

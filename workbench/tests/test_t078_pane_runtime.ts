@@ -46,7 +46,7 @@ function fixture() {
   const native=join(home,'sessions','rollout-unit-native.jsonl');
   writeFileSync(native,JSON.stringify({type:'session_meta',payload:{id:'unit-native',source:'cli',cwd:root}})+'\n'+
     JSON.stringify({type:'event_msg',payload:{type:'task_started',turn_id:'turn-0'}})+'\n');
-  const signal=(turn:string)=>panes.signal(record.id,JSON.stringify({session_id:'unit-native',hook_event_name:'Stop',turn_id:turn}),new Date().toISOString());
+  const signal=(turn:string)=>panes.signal(record.id,JSON.stringify({session_id:'unit-native',cwd:root,transcript_path:native,hook_event_name:'Stop',turn_id:turn}),new Date().toISOString());
   let inputCount=0;
   const action=async(actionName:string)=>{
     const id='user-action-'+(++inputCount);

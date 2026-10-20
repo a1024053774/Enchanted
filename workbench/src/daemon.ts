@@ -159,7 +159,7 @@ export async function serve(
     if (authority.kind === "launch") {
       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
     }
-    if (authority.kind === "window" && !["window_input", "window_resize", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
+    if (authority.kind === "window" && !["window_input", "window_answer", "window_resize", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       throw new Refusal("window_command_forbidden");
     }
     if (input.command === "projects_list") return { ok: true, projects: gates.listProjects() };
@@ -212,7 +212,7 @@ export async function serve(
       store.event("window_opened", { window_id: window.id, actor: "user" }, record as any);
       return { ok: true, identity: { kind: "window", window: window.id, token: window.token } };
     }
-    if (["window_input", "window_resize", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
+    if (["window_input", "window_answer", "window_resize", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       const window = authority.window;
       if (!window) throw new Refusal("window_identity_required");
       const record = panes.launchRecord(window.launch);
@@ -275,12 +275,12 @@ export async function serve(
         if (windows.get(window.id) !== window) throw new Refusal("invalid_window_identity");
         if (gates.userInputObserverStatus()?.state === "failed") throw new Refusal("user_input_observer_failed");
       };
-      const recordInput = async (text: string, content?: Record<string, unknown>) => {
+      const recordInput = async (text: string, content?: Record<string, unknown>, question?: string) => {
         try {
-          gates.appendUserInput({ id: randomUUID(), schema: 1, form: content ? "action" : "message", text,
+          gates.appendUserInput({ id: randomUUID(), schema: 1, form: question ? "answer" : content ? "action" : "message", text,
             target: { project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,
-              turn: panes.get(record.thread).turn, message: null, request: null },
-            channel: "terminal-window", reply_to: null, certainty: "observed", created_at: receipt.received_at,
+              turn: panes.get(record.thread).turn, message: null, request: question ?? null },
+            channel: "terminal-window", reply_to: question ?? null, certainty: "observed", created_at: receipt.received_at,
             source_ref: { command_id: receipt.request_id, source_sequence: receipt.sequence, window_id: receipt.window_id },
             ...(content ? { content } : {}) }, `window:${receipt.window_id}:${receipt.request_id}`);
         } catch (error) {
@@ -288,6 +288,12 @@ export async function serve(
           throw error;
         }
       };
+      if (input.command === 'window_answer') {
+        if (typeof input.question !== 'string' || !input.question || !Array.isArray(input.answers)) throw new Refusal('invalid_question_answer');
+        const answer = await panes.answerQuestion(window.launch, input.question, input.answers,
+          (text, question) => recordInput(text, undefined, question), assertCurrent);
+        return { ok: true, written: true, confirmed: answer.confirmed, request_id: receipt.request_id };
+      }
       if (input.command === "window_composition") {
         await panes.beginComposition(window.launch, receipt, assertCurrent);
         return { ok: true, observed: true, written: false };
@@ -370,7 +376,8 @@ export async function serve(
         session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,
         role: record.role, preset: record.preset ?? null, cli_version: record.cli_version, model_requested: record.model_requested,
         effort_requested: record.effort_requested, created_at: record.created_at } : null;
-      return { ok: true, daemon, recovering, task: result.task, launch, pane, user_input_observer: result.user_input_observer };
+      return { ok: true, daemon, recovering, task: result.task, launch, pane,
+        questions: record ? panes.questions(record.id) : [], user_input_observer: result.user_input_observer };
     }
     if (input.command === "pane_status") return { ok: true, ...panes.status(input.thread) };
     if (input.command === "pane_process_info") return { ok: true, ...await panes.processInfo(input.thread) };

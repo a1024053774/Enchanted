@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   closePane: (key: string) => ipcRenderer.invoke('a2a:close-pane', key),
   output: (key: string, offset: number) => ipcRenderer.invoke('a2a:output', key, offset),
   input: (key: string, data: string, encoding: 'utf8' | 'binary' = 'utf8') => ipcRenderer.invoke('a2a:input', key, data, encoding),
+  answer: (key: string, question: string, answers: string[]) => ipcRenderer.invoke('a2a:answer', key, question, answers),
   beginComposition: (key: string) => ipcRenderer.invoke('a2a:composition-start', key),
   releaseQueue: (key: string, declaration: EmptyInputDeclaration) => ipcRenderer.invoke('a2a:release-queue', key, declaration),
   observeFocus: (key: string, rawSequence: string) => ipcRenderer.invoke('a2a:focus-observation', key, rawSequence),

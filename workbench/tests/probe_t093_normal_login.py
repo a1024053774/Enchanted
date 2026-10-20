@@ -27,7 +27,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 SCOPES = (".claude", ".claude.json", ".claude.json.backup", "Library/Keychains")
 SERVICE = "Claude Code-credentials"
-VERSION = "2.1.302 (Claude Code)"
 PROMPT = "T-093 本地假上游探针。请求只到本机，不执行工具。"
 CHILDREN = []
 TERMINAL_OUTPUT = Path("/private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/4cb6cda5-1e37-4e3e-8ff5-2755a799eb7c/scratchpad/t093-terminal-09.txt")
@@ -725,7 +724,7 @@ def run(args):
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     root = Path(tempfile.mkdtemp(prefix="t093-probe-", dir="/private/tmp")).resolve()
     report = {"task": "T-093", "attempt": "a1", "scope": "前置探针；不替代产品验收",
-              "status": "INCOMPLETE", "real_upstream_requests": 0,
+              "status": "INCOMPLETE", "real_upstream_requests": 0, "model_calls": 0, "vendor_calls": 0,
               "captured_output_secret_hits": 0, "inventory_scope": list(SCOPES),
               "inventory_excludes": ["atime", "文件正文", "符号链接指向的内容", "其余 HOME 路径"]}
     before, secrets = None, []
@@ -778,8 +777,9 @@ else:
                 bound_env = {**env, "ANTHROPIC_BASE_URL": f"http://127.0.0.1:{allowed_port}"}
                 code, stdout, stderr = capture(guarded(bound_profile, [str(executable), "--version"]), env=bound_env, cwd=cwd)
                 report["precredential_bound_profile_probe"] = {
-                    "exit_code": code, "version_matches": stdout.strip() == VERSION.encode(),
-                    "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
+                    "exit_code": code, "version_matches": bool(re.fullmatch(rb"[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)", stdout.strip())),
+                    "stdout": output_shape(stdout), "stderr": output_shape(stderr),
+                    "observed_version": stdout.decode("utf-8", "strict").strip()}
                 require(code == 0 and report["precredential_bound_profile_probe"]["version_matches"],
                         "precredential_bound_profile_cli_version_failed")
                 bound_check = check_script + '\nwith socket.create_connection(("127.0.0.1", int(sys.argv[4])), timeout=2):\n    pass\n'
@@ -794,13 +794,14 @@ else:
                 require(code == 0, "precredential_bound_profile_guards_failed")
         finally:
             blocked.close()
+        observed_version = report["precredential_bound_profile_probe"]["observed_version"]
         for command, label in ((["--version"], "version"), (["--help"], "help"),
                                (["auth", "--help"], "auth_help"), (["auth", "status", "--help"], "status_help")):
             code, stdout, _ = capture(guarded(profile, [str(executable), *command]), env=env, cwd=cwd)
             require(code == 0, "cli_help_or_version_failed")
             text = stdout.decode("utf-8", "strict")
             if label == "version":
-                require(text.strip() == VERSION, "cli_version_mismatch")
+                require(text.strip() == observed_version, "cli_version_mismatch")
                 report["cli_version"] = text.strip()
             elif label == "help":
                 for flag in ("--model", "--effort", "--permission-mode", "--tools", "--strict-mcp-config", "--disable-slash-commands"):
@@ -828,7 +829,7 @@ else:
         # BASE_URL 与端口规则同时改变；先区分沙箱/启动错误和状态输出错误。
         code, stdout, stderr = capture(guarded(profile, [str(executable), "--version"]), env=env, cwd=cwd)
         report["captured_output_secret_hits"] += secret_hits((stdout + stderr).decode("utf-8", "replace"), secrets)
-        report["bound_profile_probe"] = {"exit_code": code, "version_matches": stdout.strip() == VERSION.encode(),
+        report["bound_profile_probe"] = {"exit_code": code, "version_matches": stdout.strip() == observed_version.encode(),
                                           "stdout": output_shape(stdout), "stderr": output_shape(stderr)}
         require(code == 0 and report["bound_profile_probe"]["version_matches"], "bound_profile_cli_version_failed")
         # 同一 profile 到真实假上游端口的 TCP 正例，不发送 HTTP 或任何凭据。
@@ -889,7 +890,7 @@ else:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", action="store_true")
-    parser.add_argument("--claude", default=str(Path.home() / ".local/share/claude/versions/2.1.302"))
+    parser.add_argument("--claude", default=str(Path.home() / ".local/bin/claude"))
     parser.add_argument("--output")
     parser.add_argument("--terminal-output", help="仅允许主控指定的 probe-09 脱敏终端临时文件；不覆盖。")
     parser.add_argument("--prepare-onboarding-state", action="store_true", help="probe-08：只在隔离配置中新建一个 onboarding 完成字段。")

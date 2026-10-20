@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { codexSessionOrigin } from './paneRecovery.ts';
 import type { OrchestrationStore } from './store.ts';
+import { questionState, projectQuestions } from './questions.ts';
 
 export type AgentState = 'running' | 'waiting_user_answer' | 'waiting_controller_answer' | 'idle' | 'ended' | 'unrestored' | 'unknown';
 export const stateLabels: Record<AgentState, string> = {
@@ -18,6 +19,9 @@ export function agentState(pane: any, events: any[], worktree: string | undefine
   if (pane?.restoration && ['failed', 'pending'].includes(pane.restoration.status)) return 'unrestored';
   if (pane?.lifecycle === 'ended') return 'ended';
   if (!pane || pane.historical || pane.failed || pane.interrupted || pane.lifecycle !== 'running') return 'unknown';
+  const waiting = questionState(pane, events);
+  if (waiting) return waiting;
+  const resolvedQuestions = new Set(projectQuestions(events).filter(q => ['answered', 'cancelled'].includes(q.status)).map(q => q.tool_use_id));
   const pending = new Set<string>();
   const files = new Map<string, { kind: ReturnType<typeof codexSessionOrigin>; turn: string | null }>();
   let uncertainQuestion = false;
@@ -39,7 +43,9 @@ export function agentState(pane: any, events: any[], worktree: string | undefine
     if (record?.type === 'response_item' && payload?.type === 'function_call' &&
         ['request_user_input', 'request_user_input_async'].includes(payload.name)) {
       if (origin?.kind === 'root' && origin.turn === pane.turn &&
-          (!payload.internal_chat_message_metadata_passthrough || payload.internal_chat_message_metadata_passthrough.turn_id === origin.turn)) pending.add(payload.call_id);
+          (!payload.internal_chat_message_metadata_passthrough || payload.internal_chat_message_metadata_passthrough.turn_id === origin.turn)) {
+        if (!resolvedQuestions.has(payload.call_id)) pending.add(payload.call_id);
+      }
       else if (origin?.kind !== 'auxiliary') uncertainQuestion = true;
     }
     // Neither a new turn nor an async accepted:true proves an answer. Keep
@@ -92,7 +98,8 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   // observation; a sidebar query consumes only already persisted facts.
   const statuses = new Map(launches.map(record => [record.id, panes.status(record.thread)]));
   const events = store.db.prepare(`SELECT seq,type,launch,data FROM orchestration_events
-    WHERE type IN ('permission_wait','turn_start_signal','turn_submitted','pane_idle')
+    WHERE type IN ('permission_wait','permission_control_written','turn_start_signal','turn_submitted','pane_idle',
+      'native_question_opened','native_question_resolved','native_question_answer_intent','native_question_unverified')
       OR type='native_record' AND (json_extract(data,'$.record.type')='session_meta'
         OR json_extract(data,'$.record.payload.type') IN ('function_call','task_started'))
     ORDER BY seq`).all().map(row => ({ ...row, data: JSON.parse(String(row.data)) }));

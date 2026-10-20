@@ -128,8 +128,9 @@ function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Rec
     void result.then(finished, finished);
     return result;
   }
-  pane.inputQueue = pane.inputQueue.then(() => request(context.options.state, command, pane.identity)).then(receive);
-  return pane.inputQueue;
+  const result = pane.inputQueue.then(() => request(context.options.state, command, pane.identity)).then(receive);
+  pane.inputQueue = result.then(() => undefined, () => undefined);
+  return result;
 }
 
 function registerHandlers() {
@@ -395,6 +396,14 @@ function registerHandlers() {
         (encoding === 'binary' ? data.length : Buffer.byteLength(data, 'utf8')) > 1024 * 1024 ||
         (encoding === 'binary' && [...data].some(char => char.charCodeAt(0) > 255))) throw new Error('Invalid terminal input');
     return sendWindowCommand(context, pane, { command: 'window_input', data, encoding });
+  });
+  ipcMain.handle('a2a:answer', (event, key: string, question: string, answers: string[]) => {
+    const { context, pane } = target(event, key);
+    if (typeof question !== 'string' || !question || question.length > 256 || !Array.isArray(answers) ||
+        answers.length < 1 || answers.length > 4 || answers.some(answer => typeof answer !== 'string' || !answer.trim() || answer.length > 4000)) {
+      throw new Error('Invalid question answer');
+    }
+    return sendWindowCommand(context, pane, { command: 'window_answer', question, answers });
   });
   ipcMain.handle('a2a:composition-start', (event, key: string) => {
     const { context, pane } = target(event, key);

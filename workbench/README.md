@@ -525,7 +525,7 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
-manifest 在既有字段外设置 `authentication: "normal-login"`、`version: "2.1.302"`、
+manifest 在既有字段外设置 `authentication: "normal-login"`、从本次 CLI `--version` 读取的 `version`、
 明确的 `credential_source: "macos-keychain"` 或 `"file"`，以及唯一的 `upstream_url`。
 生产正常登录入口的上游端口固定为 443，使用配置的 HTTPS 地址，没有端口覆盖选项或 fallback。
 无模型测试链使用可配置的非特权端口，默认 `http://127.0.0.1:18443`，不占用用户的 443。生产入口显式向 `prepare` 传 443；测试入口传测试端口，两者均由同一个 `claudeLoginSession.policies(session)` 读取 upstream_port 生成 F profile，只改变端口参数。
@@ -582,7 +582,7 @@ R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没�
 默认假 API profile 的合同保持原样。
 
 隔离配置只新建 `hasCompletedOnboarding: true` 和当前规范工作区的
-`projects[路径].hasTrustDialogAccepted: true`。它们是 **2.1.302 内部状态**，换版本须重新核对。
+`projects[路径].hasTrustDialogAccepted: true`。它们是版本敏感的内部状态，换版本须用无模型探针重新核对。T-108 不再按发行号锁定版本；启动时在受保护环境再次读取并核对 manifest 中本次观测值，记录实际 cli_version 与 internal_state_version。当前 2.1.304 的外部探针仍待运行，不能把局部合同通过当作内部状态已确认。
 onboarding 预检会直连 api.anthropic.com/api/hello 与 platform.claude.com/v1/oauth/hello，
 不经过 BASE_URL；正常模式必须用上述状态避免触发。事实记录生成状态是否完整，并用终端和
 私有 debug 日志分类 `onboarding.preflight_observed`；沉默的被拒连接尝试未测量，不冒称已统计。
@@ -738,8 +738,34 @@ Herdr 期的 `scripts/launch-worker` 与 `scripts/dispatch` 接受 `--parent-lau
 
 图例列出运行中、等待用户回答、等待主控回答、空闲、已结束、未恢复、未知。
 状态只采用当前原生回合与后台事实；缺失、冲突、权限等待和中断不推为运行中或空闲。
-工作台现有信号不能可靠区分两种“等待回答”：T-095 依赖 Herdr 屏幕互证，工作台不调用
-Herdr，因此这些情形目前显示未知。没有新增信号采集或模型调用。
+T-108 通过每会话启动参数加入 PreToolUse／PostToolUse hook，按根会话、当前回合与
+工具调用 ID 关联 Claude Code 的 AskUserQuestion 和 Codex 的 request_user_input。
+字段、归属或阻塞状态不能确认时显示未知；异步提问不作为阻塞等待。所有 hook 在分流前
+核对根来源、当前回合与公共关联字段，再忽略合法的无关工具。当前根事件缺字段或响应
+解析失败时，用已认证 launch 绑定 session、submission、turn，追加未知事实并拒绝；
+无法取得原生 turn 时明确记为 null。显示状态、问题作答资格、逐键写入与 Stop 完成
+共同读取当前 submission 的可信度，后续工具不能清除未知。异常 Stop 不完成回合、
+触发交付或解除锁；明确的过期回合、异 session 和子 agent 保留拒绝或忽略语义。
+
+Claude 的同一 AskUserQuestion 自身发出的 PermissionRequest 仍属于该提问：须匹配
+当前唯一待答问题的 session、prompt／turn、submission。tool_input 必须仅包含完整且
+与保存内容完全相同的 questions；额外参数、缺失内容、只有名称或旧 ID 都不能证明
+同一问题。原生事件不提供 tool_use_id 时不要求它，提供时也必须一致。合法的同问题
+请求仍可作答；其他工具的权限请求优先使旧问题不可答。
+公共关联字段缺失或无法核实也使问题未知，不能新增 answer 或继续写 PTY。侧栏只读
+已有事件，不采集原生日志、不追加事实。
+
+`node workbench/tests/test_t108_questions.mjs <新摘要路径>` 每次都会运行 `t108_hook_failure_contracts.mjs` 的异常矩阵，覆盖提问前、待答中、作答记录与逐键写入期间的失败降级；未知后不得再向 PTY 发送问题按键。矩阵逐项删除公共关联字段，核对同问题自身权限请求仍可作答、Bash 权限请求阻断，以及只有名称／旧 ID、夹带其他参数或内容不符时的拒绝。旧 prompt、异会话、子 agent 和完整无关工具均有对照，防止异常事实污染当前有效问题。
+同一完成条件还会运行 `t108_answer_lifecycle_contracts.mjs`：原生确认在剩余选择键之前到达时，须证明当前 session／submission／turn 的同一问题确认了本次答案，才停止余键并成功返回；确认晚到则继续等待原生事实。身份撤销、输入变化和未知仍拒绝。单次拒绝只返回给原调用者，后台及 Electron 的写入链继续独立核对下一条请求；实际 PTY 写入结果未知会保存失败状态，连已排队的后续字节也不能写出。
+当前窗格的问题条目展示文本与选项，单选或自由答复经绑定窗口凭据写回同一 PTY；
+对应用户输入的 form 为 answer，reply_to 与 target.request 指向该问题。受管 worker
+仍核对当前 attempt／session／fence，并保留人工介入记录。重复、过期、只读或已撤销凭据
+的答复被拒；答复写出后等待原生 PostToolUse 确认，不直接清除等待状态。
+Claude Code 2.1.304、Codex 0.163.0 的本地假 API 探针已核对单选与自由答复；多选写回
+尚未验证，保持只读。完整 Electron 无模型入口现在还核对首个 window_answer 的最终回执，
+并在匹配 Stop 后向原 PTY 粘贴随机标记（不按 Enter），核对写入与回显；本轮新候选的完整入口待主控重跑。
+真实模型回合原件与本次候选分开记录，不能用历史或无模型结果代替当前候选验收。脚本与当前结果见
+[T-108 交付摘要](../evidence/2026-10-20-batch18/T-108/RESULTS.md)。
 项目行优先显示等待用户回答，其次等待主控回答、运行中；存在未知且无上述状态时保留未知。
 “图例与设置”中的通知开关保存在本应用 user-data 下。通知逻辑仅在进入“等待用户回答”时
 发送一次；当前尚无可靠的真实状态来源，所以实际系统通知仍未验收。

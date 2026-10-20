@@ -61,7 +61,7 @@ with tempfile.TemporaryDirectory(prefix='t093-session-unit-',dir='/private/tmp')
  for name in ('state','repo','source-home/.claude'):(root/name).mkdir(parents=True)
  oauth={'accessToken':'synthetic-session-unit-token','expiresAt':(time.time()+600)*1000}
  (root/'source-home/.claude/.credentials.json').write_text(json.dumps({'claudeAiOauth':oauth,'unrelated':'do-not-copy'}))
- manifest={'authentication':'normal-login','version':'2.1.302','credential_source':'file','upstream_url':'https://configured.invalid/','root':str(root),'state':str(root/'state'),'launch':str(uuid.uuid4()),'executable':'/usr/bin/true'}
+ manifest={'authentication':'normal-login','version':'2.1.304','credential_source':'file','upstream_url':'https://configured.invalid/','root':str(root),'state':str(root/'state'),'launch':str(uuid.uuid4()),'executable':'/usr/bin/true'}
  order=[];original_auth=runtime.read_auth
  def baseline(value):order.append('baseline');return {},{'profile':'D simulated in unit'}
  def copied(*args):order.append('auth');return original_auth(*args)

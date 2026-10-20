@@ -125,8 +125,8 @@ def policies(session):
 
 def prepare(manifest, repo, forward_port, upstream_address, lifetime, credential_home=None, *, on_failure, upstream_port=443):
     home = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
-    if manifest.get("authentication") != "normal-login" or manifest.get("version") != "2.1.302":
-        raise ValueError("normal_login_version_requires_probe")
+    if manifest.get("authentication") != "normal-login" or not isinstance(manifest.get("version"), str) or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", manifest["version"]):
+        raise ValueError("normal_login_version_required")
     if manifest.get("credential_source") not in ("file", "macos-keychain"):
         raise ValueError("login_credential_source_required")
     if not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', str(manifest.get('launch',''))):

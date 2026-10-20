@@ -25,7 +25,7 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
   const normal = input.authentication === "normal-login";
   requireValue(input.authentication === undefined || normal, "invalid_controller_authentication");
   if (normal) {
-    requireValue(input.version === "2.1.302", "normal_login_version_requires_probe");
+    requireValue(typeof input.version === "string" && input.version.trim() === input.version && /^\d+\.\d+\.\d+$/.test(input.version), "normal_login_version_required");
     requireValue(isolation && ["file", "macos-keychain"].includes(input.credential_source ?? ""), "normal_login_isolation_required");
   }
   requireValue(input.schema === 1 && ["ideation", "executor"].includes(input.preset) && input.task === task.task_id, "invalid_controller_launch");
@@ -63,12 +63,12 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
   requireValue(url.protocol === "http:" && url.hostname === "127.0.0.1" && url.port && url.pathname === "/" && !url.username && !url.password && !url.search && !url.hash, "local_messages_api_required");
   const cli = fileURLToPath(new URL("./gates/cli.ts", import.meta.url));
   const signal = [process.execPath, cli, "--state", state, "signal", "--launch", input.launch].map(quote).join(" ");
-  const settings = { hooks: Object.fromEntries(["UserPromptSubmit", "Stop", "PermissionRequest"].map(name =>
+  const settings = { hooks: Object.fromEntries(["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse", "PostToolUseFailure"].map(name =>
     [name, [{ hooks: [{ type: "command", command: signal, timeout: 3 }] }]])) };
   const roleText = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(input.role_file));
   const argv = [input.executable, "--session-id", input.session, "--model", "claude-haiku-5-5", "--effort", "low",
     "--permission-mode", "manual", "--settings", JSON.stringify(settings), "--append-system-prompt", roleText,
-    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--tools", "Bash,Read", "--disable-slash-commands", "--debug-file", rolePaths.debug];
+    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--tools", "Bash,Read,AskUserQuestion", "--disable-slash-commands", "--debug-file", rolePaths.debug];
   const env: Record<string, string> = { PATH: "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin", SHELL: "/bin/zsh", TERM: "xterm-256color",
     COLORTERM: "truecolor", LANG: "en_US.UTF-8", LC_CTYPE: "UTF-8", TMPDIR: rolePaths.tmp, ZDOTDIR: rolePaths.shell,
     HOME: rolePaths.home, CLAUDE_CONFIG_DIR: rolePaths.config, A2A_USER_DATA: rolePaths.userData, CLAUDE_CODE_DISABLE_TERMINAL_TITLE: "1",
@@ -92,7 +92,7 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
     shell: "/bin/zsh", shell_argv: ["-f", "-i", "-c", normal ?
       "exec " + argv.map(quote).join(" ") :
       argv.map(quote).join(" ") + "; exec /bin/zsh -f -i"],
-    role_card: input.role_file, role_card_revision: normal ? "T-093/normal-login/2.1.302" : "T-078-2/P1", role_text: roleText,
+    role_card: input.role_file, role_card_revision: normal ? `T-093/normal-login/${input.version}` : "T-078-2/P1", role_text: roleText,
     code_revision: input.code_revision, source_snapshot: input.source_snapshot, base_commit: task.base_commit, model_requested: "claude-haiku-5-5", effort_requested: "low",
     authentication: normal ? "isolated normal login" : "isolated fake API only", turn_limit: turnLimit,
     ...(normal ? { login_audit_directory: isolation!.audit_directory, login_preflight_file: join(isolation!.audit_directory, "preflight.json") } : {}),
