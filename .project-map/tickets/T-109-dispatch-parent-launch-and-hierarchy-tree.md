@@ -2,7 +2,7 @@
 id: T-109
 title: 派发时记录父 launch，agent 树按层级清晰展示
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,6 +21,27 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 红态：派发后启动记录无父 launch，树里 worker 不在主控下面。绿态：真实派发一次（或用已记录的真实派发回放），启动记录里有父 launch，树里层级正确。
-- [ ] 反例：无父记录的旧会话进"未归属"；父 launch 指向不存在的会话时不崩溃、显示未归属。
-- [ ] 不改门禁语义与派发入口语义；`project_map.py status` 0 问题。
+- [x] 红态：派发后启动记录无父 launch，树里 worker 不在主控下面。绿态：真实派发一次（或用已记录的真实派发回放），启动记录里有父 launch，树里层级正确。
+- [x] 反例：无父记录的旧会话进"未归属"；父 launch 指向不存在的会话时不崩溃、显示未归属。
+- [x] 不改门禁语义与派发入口语义；`project_map.py status` 0 问题。
+
+## Resolution
+
+2026-10-20，执行主控。PASS。exec/t109 以 `--no-ff` 合入 main，没有 push。
+
+- 实现（worker s18-t109，681fc0da5 → a13908c04）：
+  - 派发 worker、reviewer、monitor 时，把父 launch 只追加写进启动记录和派发记录；构思主控 → 执行主控的关系也有记录。
+  - 侧栏是竖向缩进的 agent 树，可以折叠；折叠后父项显示后代状态汇总，有等待用户回答的最醒目。
+  - 层级只来自保存的事实：旧记录没有父字段、或父 launch 缺失的，进“未归属”，不回填猜测，也不按标题推断。
+- 用户 2026-10-20 的补充（逐字）："我们做缩进列表,然后在侧栏的话,竖着展示,然后这个横着的流程视图做一个单独的展示页面,展示现在系统流程."。横向流程页另立为 T-111。
+- 真实 Electron：RUN-OUTSIDE-04 PASS，覆盖：
+  - 真实 CLI 派发追加父 launch，旧记录原字节不变；
+  - 已知坏版本红态；
+  - 三级缩进、旧记录或缺失父项、标题不变性、折叠汇总、键盘展开、聚焦、窄窗；
+  - sidebar IPC 所有表、schema、trace 零写入。
+  另有真实 Tab 导航补验 PASS。
+- 独立审查：
+  - 01 NO_GO（F1：验收拦不住按任务标题推断父项，产品本身没问题）；
+  - 02 PASS。审查附的 REVIEW-OUTSIDE-02 已在沙箱外运行，PASS：好候选通过，三个变异被拒，daemon 只读，真实 Tab 导航通过。
+- 驱动修复过三次（焦点、CR 字符、激活测试应用），都没有改产品或放宽断言，第一轮审查已核实。
+- 合入后 main 上 test_t091_pane_ipc.mjs PASS。
