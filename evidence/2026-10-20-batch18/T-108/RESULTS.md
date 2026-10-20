@@ -1,3 +1,36 @@
+# T-108 / a1：第五轮早确认与写入链缺陷已修复；局部 PASS，整票 INCOMPLETE
+
+2026-10-20，执行主控 #32。父候选 f533fd16e608cb73f666246700206fe28e21503c，仍在 exec/t108。修复未提交，待主控执行 RUN-OUTSIDE-COMMIT-07.sh；本报告不冒报 SHA。新增模型回合、模型调用和供应商调用均为 0。
+
+F1-05 的两处根因已分别修复。同一问题的原生 PostToolUse 在逐键写入结束前到达时，answerQuestion 会核对 answer_intent 之后的原生确认，要求 session、submission、turn、question 及答案内容均匹配；身份、当前回合可信度、输入代数和窗格生命周期仍逐次核对。正向确认成立才停止余键、成功返回，并记录 confirmed 和实际键数。合法的匹配 Stop 若已使同一回合 idle，也可成功收尾；未知、撤权、内容变化、不同答案或新输入不走成功分支。没有把 question_input_changed 一律兜底为成功。
+
+后台 serializeWrite 与 Electron 主进程 sendWindowCommand 分别保留原调用者的错误回执，只让用于排队的 Promise 恢复可执行状态。下一次操作重新核对身份与运行状态。主进程有同类堵流缺陷，本次先用其实际函数取得业务红态，再做最小修正。实际 PTY 写入结果未知仍保存 pane.failed；队列入口拒绝后续操作，连已在队列中等待的输入也不能写出。shellInput 作为共享队列的另一写入口，补齐物理写异常的失败事实并重抛，避免解除 Promise 堵塞后漏过真正未知。无重发、重试、新 PTY 或平行 API。
+
+**先红后绿：** 修产品前运行独立审查的原复现，rc=1，原生已 answered，首答与下一条 userInput 都因 question_input_changed 拒绝，PTY 只有两键；摘要 /private/tmp/t108-review05-early-original-red.json。新默认测试在修前也取得业务红态。最终 replay_review05_red.py 用 git archive 冻结 f533fd16e 的产品、普通复制依赖，只叠加本次测试：429 项旧 hook 合同通过，早确认、早确认后 Stop 及普通记录拒绝后三项重点断言失败，后续输入均未写出；旧 main.ts 也被“被拒请求不得污染下一条请求”的断言拒绝。最终红态证明 /private/tmp/t108-review05-red-final-proof.json，测试原始退出码均为 1。导入、初始化或依赖错误不计红态。
+
+**局部 PASS：** 默认 test_t108_questions.mjs 的 429 项 hook 合同与 14 项作答生命周期合同全部通过。生命周期包括确认早到、晚到、最后一键期间到达、确认后匹配 Stop、不同答案、确认后撤权／改输入／未知、发送期间失效、记录拒绝、实际 PTY 未知、排队中的未知写入，以及 shell 的拒绝与未知对照。正常路径只记一条 answer，早确认仅写两键，剩余 Enter 不再写入，下一条输入可用，重复作答仍拒绝；物理结果未知不写后续字节。
+
+无模型入口的漏检也已修复。驱动仍通过真实 DOM 提交，随后只读 SQLite，将第一个 window_answer 的传输 ID 与窗口 request_id／sequence、当前 launch 准入及最终 request_result 关联；只看到 clicked、题目消失或 answered 不再算通过。该检查实际回查主控提供的 /private/tmp/t078-2-t108-350ywzx4，拒绝了原六项 PASS 中首答失败的记录，摘要 /private/tmp/t108-review05-original-receipt-red.json。run_t108_native_e2e.py 再独立核对首答回执，并在匹配 Stop 后向同一窗格粘贴随机标记、不按 Enter，要求准确的写入意图、写入完成事件及原 PTY trace 的新回显，同时保持假 API 两个根请求（一次输入与一次工具续接）。这是精确字节传输检查，不从屏幕文字推断问题语义。
+
+RUN-OUTSIDE-RECHECK-05.sh 已运行，rc=0，完整局部产物在 /private/tmp/t108-review05-recheck-BPz1VG：组合 IPC、原拒绝检查、侧栏、T-109 层级、T-111 流程、Claude Stop、输入顺序／中断、Codex 原件回放、正常 AskUserQuestion 自身 PermissionRequest 原件回放及实际 daemon/socket 的只读零写入和身份冲突均 PASS。随后新增主进程同类修复，又单独运行最终 driver（9 项）和组合 IPC，均 PASS；构建 PASS，成功临时构建目录已清理，日志保留。Python 3.9 语法检查通过。设计扫描器只定位物理写失败后记录并重抛及证据报告边界；这不构成独立审查 PASS。
+
+本轮 sidebar.ts、renderer.tsx 均无修改。main.ts 仅第 131–133 行调整输入链错误传播；panes.ts、questions.ts 与 daemon.ts 承担原作答生命周期和回执接线。T-109 树与 T-111 流程未改。旧红态重放脚本仅补复制新导入的生命周期测试文件，防止旧证明因缺测试模块而中断。README 已同步语义与本轮完整入口待跑状态。
+
+**INCOMPLETE：** 新候选的已安装 CLI／Electron 无模型完整入口尚待主控运行，独立审查也未开始；本次局部 PASS 不替代这两项。project_map status 仍 rc=1，8 个既有稀疏检出缺失链接、0 stale，原文在 project-map-review05-final.txt。未新增真实模型回合、凭据读取、全局配置写入、截图、submit 或 push。原失败现场及审查材料保留。
+
+主控执行命令（摘要路径必须新建）：
+
+```sh
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-COMMIT-07.sh
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-NO-MODEL.sh /private/tmp/t108-native-e2e-review05-01.json
+# 如需重跑局部合同与冻结父候选红态：
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-RECHECK-05.sh
+```
+
+精确局部摘要为 review05-fix-local.summary.json。以下保留历史记录；旧完整入口的六项 PASS 已被第五轮首答回执审计纠正，不能作为本候选通过结论。
+
+---
+
 # T-108 / a1：第四轮权限证明缺口已修复；局部 PASS，整票 INCOMPLETE
 
 2026-10-20，执行主控 #30。父候选 f3a4a5416213e912076437cfd8ce6f69a0e3091f，仍在 exec/t108。修复 SHA 待主控执行 RUN-OUTSIDE-COMMIT-06.sh 后生成；未冒报提交。新增模型／供应商调用均为 0，没有新增真实模型回合。

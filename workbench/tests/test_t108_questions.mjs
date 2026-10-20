@@ -7,6 +7,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { OrchestrationStore } from '../src/store.ts';
 import { Panes } from '../src/panes.ts';
 import { agentState } from '../src/sidebar.ts';
+import { answerLifecycleContracts } from './t108_answer_lifecycle_contracts.mjs';
 import { hookFailureContracts } from './t108_hook_failure_contracts.mjs';
 
 const output=process.argv[2];
@@ -30,6 +31,8 @@ const report={status:'INCOMPLETE',scope:'real signal/SQLite; supplied PTY and ru
 try {
   report.failure_cases=await hookFailureContracts();
   assert.ok(report.failure_cases.every(c=>c.status==='PASS'),report.failure_cases.filter(c=>c.status!=='PASS').map(c=>c.name).join(', '));
+  report.answer_lifecycle_cases=await answerLifecycleContracts();
+  assert.ok(report.answer_lifecycle_cases.every(c=>c.status==='PASS'),report.answer_lifecycle_cases.filter(c=>c.status!=='PASS').map(c=>c.name).join(', '));
   store.event('turn_submitted',{id:'submission'},record);
   await signal('UserPromptSubmit',{prompt:dispatch.text});
   assert.equal(state(),'running');
@@ -80,7 +83,6 @@ try {
   await assert.rejects(panes.answerQuestion('launch',question.id,['北区'],async()=>{},async()=>{throw new Error('revoked');}));
   assert.equal(writes.length,0);
   // A refused identity must not poison a subsequent valid write.
-  pane.writes=Promise.resolve();
   await panes.answerQuestion('launch',question.id,['北区'],async(text,id)=>inputs.push({text,id}),async()=>{});
   assert.equal(inputs.length,1);assert.equal(inputs[0].id,question.id);
   assert.ok(writes.length>0,'Answer must reach the bound PTY');
@@ -117,7 +119,7 @@ try {
   await assert.rejects(codexSignal('PreToolUse',{tool_name:undefined}));
   assert.equal(codexState(),'unknown','Missing Codex tool_name must also remain unknown');
   report.checks.push('codex_worker_waits_for_controller','codex_confirmed_answer_releases_native_marker');
-  pane.active={id:'second',dispatch:dispatch.id,at:'2026-10-20T00:00:00Z',nativeTurn:null};pane.claudePromptId='second-prompt';pane.state='busy';pane.writes=Promise.resolve();
+  pane.active={id:'second',dispatch:dispatch.id,at:'2026-10-20T00:00:00Z',nativeTurn:null};pane.claudePromptId='second-prompt';pane.state='busy';
   await assert.rejects(signal('PreToolUse',{prompt_id:'second-prompt',tool_use_id:'missing-fields',tool_input:{}}));
   assert.equal(state(),'unknown','Missing question fields must remain unknown');
   await assert.rejects(signal('PreToolUse',{prompt_id:'second-prompt',agent_id:'child',tool_use_id:'child',tool_input:{questions}}));
@@ -129,7 +131,6 @@ try {
   const beforeWrites=writes.length;
   await assert.rejects(panes.answerQuestion('launch',secondQuestion.id,['北区'],async()=>{},async()=>{}));
   assert.equal(writes.length,beforeWrites,'Changed native selection must reject automated keys');
-  pane.writes=Promise.resolve();
   await signal('PostToolUseFailure',{prompt_id:'second-prompt',tool_use_id:'second-call',tool_input:{questions},is_interrupt:true,error:'cancelled'});
   assert.equal(panes.questions('launch').find(q=>q.id===secondQuestion.id).status,'cancelled');
   report.checks.push('missing_fields_unknown','subagent_rejected','changed_input_no_write','native_cancel_resolves_question');

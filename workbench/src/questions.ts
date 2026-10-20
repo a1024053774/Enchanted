@@ -150,6 +150,20 @@ export function questionState(pane: any, events: any[]): 'waiting_user_answer' |
   return question.target === 'controller' ? 'waiting_controller_answer' : 'waiting_user_answer';
 }
 
+// A terminal write is not confirmation. Only a later native resolution of
+// this exact bound question and these exact answers can finish an in-flight
+// answer without sending the remaining selection keys.
+export function questionAnswerConfirmed(question: NativeQuestion, answers: string[], events: any[], after: number): boolean {
+  const resolved = events.findLast(event => event.seq > after && event.type === 'native_question_resolved' &&
+    event.data.question === question.id && event.data.session_id === question.session_id &&
+    event.data.submission === question.submission && event.data.turn === question.turn);
+  if (resolved?.data.status !== 'answered') return false;
+  const response = typeof resolved.data.response === 'string' ? JSON.parse(resolved.data.response) : resolved.data.response;
+  return question.questions.every((item, index) => question.cli === 'claude' ? response?.answers?.[item.question] === answers[index] :
+    Array.isArray(response?.answers?.[item.id!]?.answers) && response.answers[item.id!].answers.length === 1 &&
+      response.answers[item.id!].answers[0] === answers[index]);
+}
+
 export function nativeAnswerKeys(question: NativeQuestion, answers: string[]): string[] {
   requireField(question.blocking, 'question_answer_protocol_unverified');
   requireField(Array.isArray(answers) && answers.length === question.questions.length &&

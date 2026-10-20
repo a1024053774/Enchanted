@@ -128,8 +128,9 @@ function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Rec
     void result.then(finished, finished);
     return result;
   }
-  pane.inputQueue = pane.inputQueue.then(() => request(context.options.state, command, pane.identity)).then(receive);
-  return pane.inputQueue;
+  const result = pane.inputQueue.then(() => request(context.options.state, command, pane.identity)).then(receive);
+  pane.inputQueue = result.then(() => undefined, () => undefined);
+  return result;
 }
 
 function registerHandlers() {

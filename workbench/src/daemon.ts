@@ -290,9 +290,9 @@ export async function serve(
       };
       if (input.command === 'window_answer') {
         if (typeof input.question !== 'string' || !input.question || !Array.isArray(input.answers)) throw new Refusal('invalid_question_answer');
-        await panes.answerQuestion(window.launch, input.question, input.answers,
+        const answer = await panes.answerQuestion(window.launch, input.question, input.answers,
           (text, question) => recordInput(text, undefined, question), assertCurrent);
-        return { ok: true, written: true, confirmed: false, request_id: receipt.request_id };
+        return { ok: true, written: true, confirmed: answer.confirmed, request_id: receipt.request_id };
       }
       if (input.command === "window_composition") {
         await panes.beginComposition(window.launch, receipt, assertCurrent);

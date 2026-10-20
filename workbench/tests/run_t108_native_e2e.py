@@ -74,7 +74,7 @@ def main():
         raise AssertionError(message)
     def events():
         with sqlite3.connect('file:'+str(state/'state.sqlite3')+'?mode=ro',uri=True) as db:
-            return [{'type':t,'data':json.loads(d)} for t,d in db.execute('SELECT type,data FROM orchestration_events ORDER BY seq')]
+            return [{'seq':seq,'launch':launch,'type':t,'data':json.loads(d)} for seq,launch,t,d in db.execute('SELECT seq,launch,type,data FROM orchestration_events ORDER BY seq')]
     try:
         run(['git','init','-b','main',repo]);(repo/'fixture').write_text('isolated\n',encoding='utf-8')
         run(['git','-C',repo,'add','.']);run(['git','-C',repo,'commit','-m','fixture'])
@@ -108,7 +108,12 @@ def main():
         assert '选择部署区域？' in view['questions'][0]['text'] and '东区' in view['questions'][0]['text'] and '西区' in view['questions'][0]['text']
         qid=view['questions'][0]['id'];assert qid==manifest['launch']+':toolu_e2e_sentinel'
         sidebar=call('sidebar_snapshot');assert sidebar['agents'][0]['state']=='waiting_user_answer'
-        window.call('answer')
+        receipt=window.call('answer');report['first_answer_receipt']=receipt
+        assert receipt['clicked'] and receipt['final_receipt']['ok'] is True
+        first_answer=[e for e in events() if e['type']=='request_received' and e['data'].get('input',{}).get('command')=='window_answer']
+        assert len(first_answer)==1 and first_answer[0]['data']['id']==receipt['transport_id']
+        terminal=[e for e in events() if e['type'] in ['request_result','request_rejected'] and e['data']['id']==receipt['transport_id']]
+        assert len(terminal)==1 and terminal[0]['type']=='request_result' and terminal[0]['data']['ok'] is True
         until(lambda:any(e['type']=='native_question_resolved' and e['data']['status']=='answered' for e in events()),'Native confirmed answer')
         window.wait(lambda v:not v['questions'],'Question removed after native answer')
         until(lambda:call('workbench_snapshot','--task','T108-fixture','--launch',manifest['launch'])['pane']['state']=='idle','Expected matched Stop to return pane to idle after answer')
@@ -124,6 +129,21 @@ def main():
         final=[row['message'] for row in native if row.get('type')=='assistant' and row.get('message',{}).get('stop_reason')=='end_turn']
         assert len(final)==1 and ''.join(block.get('text','') for block in final[0]['content'])=='已收到答复。'
         report['native_final_text']='已收到答复。'
+        # Paste a fresh nonce without Enter. Observe exact bytes and echo on the
+        # same launch trace; no additional root prompt or model call is allowed.
+        trace=state/'traces'/manifest['launch']/'pty.raw';offset=trace.stat().st_size
+        marker='t108-followup-'+uuid.uuid4().hex
+        report['followup_input']={'marker':marker,'launch':manifest['launch'],'trace':str(trace),'offset':offset,'submitted':False}
+        followup=window.call('followup',text=marker);assert followup['ok'] is True
+        report['followup_input']['request_id']=followup['request_id']
+        written=until(lambda:[e for e in events() if e['type']=='terminal_input_written' and e['data'].get('request_id')==followup['request_id']],
+                      'Next input did not reach the original PTY')
+        intent=[e for e in events() if e['type']=='terminal_input_write_intent' and e['data'].get('request_id')==followup['request_id']]
+        assert len(written)==len(intent)==1 and intent[0]['data']['data']=='\x1b[200~'+marker+'\x1b[201~'
+        assert written[0]['launch']==intent[0]['launch']==manifest['launch']
+        assert written[0]['seq']>receipt['terminal_seq']
+        until(lambda:marker.encode() in trace.read_bytes()[offset:],'Same PTY did not echo the next input nonce')
+        report['followup_input'].update(written_seq=written[0]['seq'],echoed=True)
         assert window.call('duplicate',question=qid)['rejected']
         with sqlite3.connect('file:'+str(state/'state.sqlite3')+'?mode=ro',uri=True) as db:
             inputs=[json.loads(row[0]) for row in db.execute('SELECT data FROM user_inputs')]
@@ -131,7 +151,8 @@ def main():
         assert answers[0]['target']['thread']==manifest['thread'] and '西区' in answers[0]['text']
         assert len(root_calls)==2, 'One root turn, one tool continuation; no extra root input'
         report['checks']=['controller_start_installed_cli','electron_question_options_wait_state','dom_answer_to_original_pty',
-                          'native_posttool_answer_and_matched_stop','answer_user_input_links_question','duplicate_refused']
+                          'native_posttool_answer_and_matched_stop','answer_user_input_links_question','duplicate_refused',
+                          'first_window_answer_final_receipt_ok','same_pty_followup_input_written_and_echoed']
         report['hooks']=[json.loads(e['data']['raw_stdin']) for e in events() if e['type']=='hook_received']
         report['status']='PASS'
     except Exception as error:report.update(error=str(error),traceback=traceback.format_exc())

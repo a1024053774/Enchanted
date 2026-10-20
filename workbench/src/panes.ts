@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { validateHookEnvelope, questionFromHook, questionPermission, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
+import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
 import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
@@ -164,7 +164,8 @@ export class Panes implements GateRuntime {
     await this.serializeWrite(pane, async () => {
       await assertCurrent();
       check(!pane.failed && !pane.stopped && !pane.archived && !pane.closing, "pane_unavailable");
-      pane.pty.write(encoding === "binary" ? Buffer.from(data, "latin1") : data);
+      try { pane.pty.write(encoding === "binary" ? Buffer.from(data, "latin1") : data); }
+      catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
     });
   }
   async closeShell(launch: string) {
@@ -755,10 +756,14 @@ export class Panes implements GateRuntime {
       undefined, { kind: "quality-repair", rejection_id: repair.id });
   }
   private serializeWrite(pane: Pane, operation: () => Promise<void>): Promise<void> {
-    const result = pane.writes.then(operation);
-    // A failed operation stops this stream. Replaying an unknown write is not
-    // safe, and a later write must not silently skip that failed operation.
-    pane.writes = result;
+    const result = pane.writes.then(async () => {
+      check(!pane.failed && !pane.stopped && !pane.archived && !pane.closing, "pane_unavailable");
+      await operation();
+    });
+    // Return the original rejection to its caller, but release the queue slot.
+    // Unknown physical writes persist pane.failed; the next operation checks
+    // that state instead of inheriting an unrelated request's rejected Promise.
+    pane.writes = result.then(() => undefined, () => undefined);
     return result;
   }
   async beginComposition(launch: string, receipt: Record<string, unknown>, assertCurrent: () => Promise<void>) {
@@ -1182,6 +1187,7 @@ export class Panes implements GateRuntime {
     const question = this.questions(launch).find(q => q.id === id);
     check(question && question.status === 'waiting', 'question_not_pending');
     const keys = nativeAnswerKeys(question, answers);
+    let confirmed = false;
     await this.serializeWrite(pane, async () => {
       await assertCurrent();
       const current = this.questions(launch).find(q => q.id === id);
@@ -1192,21 +1198,44 @@ export class Panes implements GateRuntime {
         'question_input_changed');
       await record(question.questions.map((q, i) => `问题 ${i + 1}：${q.question}\n用户答复：${answers[i]}`).join('\n'), id);
       check(trusted(), 'current_turn_untrusted');
-      this.store.event('native_question_answer_intent', { question: id, answers }, pane.record);
-      for (const key of keys) {
+      const intent = this.store.event('native_question_answer_intent', { question: id, answers }, pane.record);
+      let keysWritten = 0;
+      const checkpoint = async () => {
         await assertCurrent();
-        check(trusted() && this.questions(launch).find(q => q.id === id)?.status === 'sending' &&
-          !pane.stopped && !pane.failed && pane.active?.id === question.submission &&
-          pane.inputGeneration === question.input_generation, 'question_input_changed');
-        try { pane.pty.write(key); }
-        catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }
-        this.store.event('native_question_answer_key_written', { question: id, key }, pane.record);
+        const events = this.store.read().filter(event => event.launch === launch);
+        const current = projectQuestions(events).find(q => q.id === id);
+        check(currentTurnTrust({ native: question.session_id, active: { id: question.submission } }, events) === 'verified' &&
+          !pane.failed && !pane.stopped && !pane.archived && !pane.interrupted && pane.native === question.session_id &&
+          pane.inputGeneration === question.input_generation && !pane.userDraft, 'question_input_changed');
+        const sameTurn = pane.active?.id === question.submission &&
+          (question.cli === 'claude' ? pane.claudePromptId === question.turn : pane.turn === question.turn);
+        if (current?.status === 'answered' && questionAnswerConfirmed(question, answers, events, intent)) {
+          const completed = !pane.active && events.some(event => event.type === 'pane_idle' &&
+            event.data.submission === question.submission && event.data.stop?.session_id === question.session_id &&
+            (question.cli === 'claude' ? event.data.stop.prompt_id === question.turn : event.data.stop.turn_id === question.turn));
+          check(sameTurn || completed, 'question_input_changed');
+          confirmed = true;
+          return true;
+        }
+        check(current?.status === 'sending' && sameTurn, 'question_input_changed');
+        return false;
+      };
+      for (const key of keys) {
+        if (await checkpoint()) break;
+        try {
+          pane.pty.write(key);
+          keysWritten++;
+          this.store.event('native_question_answer_key_written', { question: id, key }, pane.record);
+        } catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }
         // Interactive selection/review transitions consume distinct key events.
         await new Promise(resolve => setTimeout(resolve, 75));
       }
-      this.store.event('native_question_answer_written', { question: id }, pane.record);
+      if (!confirmed) await checkpoint();
+      this.store.event('native_question_answer_written', { question: id, confirmed, keys_written: keysWritten }, pane.record);
     });
+    return { confirmed };
   }
+
   controllerLaunch = (thread: string) => {
     const pane = this.panes.get(thread);
     if (!pane || pane.record.role !== "controller" || pane.record.cli !== "Claude Code" || pane.stopped || pane.archived || pane.failed) return;

@@ -756,12 +756,14 @@ Claude 的同一 AskUserQuestion 自身发出的 PermissionRequest 仍属于该�
 已有事件，不采集原生日志、不追加事实。
 
 `node workbench/tests/test_t108_questions.mjs <新摘要路径>` 每次都会运行 `t108_hook_failure_contracts.mjs` 的异常矩阵，覆盖提问前、待答中、作答记录与逐键写入期间的失败降级；未知后不得再向 PTY 发送问题按键。矩阵逐项删除公共关联字段，核对同问题自身权限请求仍可作答、Bash 权限请求阻断，以及只有名称／旧 ID、夹带其他参数或内容不符时的拒绝。旧 prompt、异会话、子 agent 和完整无关工具均有对照，防止异常事实污染当前有效问题。
+同一完成条件还会运行 `t108_answer_lifecycle_contracts.mjs`：原生确认在剩余选择键之前到达时，须证明当前 session／submission／turn 的同一问题确认了本次答案，才停止余键并成功返回；确认晚到则继续等待原生事实。身份撤销、输入变化和未知仍拒绝。单次拒绝只返回给原调用者，后台及 Electron 的写入链继续独立核对下一条请求；实际 PTY 写入结果未知会保存失败状态，连已排队的后续字节也不能写出。
 当前窗格的问题条目展示文本与选项，单选或自由答复经绑定窗口凭据写回同一 PTY；
 对应用户输入的 form 为 answer，reply_to 与 target.request 指向该问题。受管 worker
 仍核对当前 attempt／session／fence，并保留人工介入记录。重复、过期、只读或已撤销凭据
 的答复被拒；答复写出后等待原生 PostToolUse 确认，不直接清除等待状态。
 Claude Code 2.1.304、Codex 0.163.0 的本地假 API 探针已核对单选与自由答复；多选写回
-尚未验证，保持只读。完整 Electron 无模型入口已通过问题展示、写回、匹配 Stop 和 answer 关联；
+尚未验证，保持只读。完整 Electron 无模型入口现在还核对首个 window_answer 的最终回执，
+并在匹配 Stop 后向原 PTY 粘贴随机标记（不按 Enter），核对写入与回显；本轮新候选的完整入口待主控重跑。
 真实模型回合原件与本次候选分开记录，不能用历史或无模型结果代替当前候选验收。脚本与当前结果见
 [T-108 交付摘要](../evidence/2026-10-20-batch18/T-108/RESULTS.md)。
 项目行优先显示等待用户回答，其次等待主控回答、运行中；存在未知且无上述状态时保留未知。

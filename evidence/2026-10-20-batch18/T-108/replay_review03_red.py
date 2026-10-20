@@ -34,7 +34,7 @@ try:
     workbench = root / 'workbench'
     shutil.copytree(source / 'workbench/node_modules', workbench / 'node_modules', symlinks=False)
     (workbench / 'tests').mkdir()
-    for name in ('test_t108_questions.mjs', 't108_hook_failure_contracts.mjs'):
+    for name in ('test_t108_questions.mjs', 't108_hook_failure_contracts.mjs', 't108_answer_lifecycle_contracts.mjs'):
         shutil.copy2(source / 'workbench/tests' / name, workbench / 'tests' / name)
     command = ['node', str(workbench / 'tests/test_t108_questions.mjs'), str(root / 'red.json')]
     with (root / 'red.log').open('x', encoding='utf-8') as log:
