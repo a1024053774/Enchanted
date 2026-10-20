@@ -119,7 +119,8 @@ def main():
             card_file = root / ('card-' + str(index) + '.json')
             card_file.write_text(json.dumps(card, ensure_ascii=False), encoding='utf-8')
             assert call('card_save', '--task', task, '--card', card_file, '--expected-version', '0')['ok']
-            assert call('create', '--task', task, '--repo', repo, '--project', 'project-' + str(index), '--branch', 'refs/heads/main', '--card-version', '1')['ok']
+            assert call('create', '--task', task, '--repo', repo, '--project', 'project-' + str(index), '--branch', 'refs/heads/main',
+                        '--title', '执行主控派发的 worker' if index == 0 else '构思主控与审查员的任务', '--card-version', '1')['ok']
         idea = call('controller_prepare', '--task', 'task-0', '--preset', 'ideation')['prepared']
         executor = call('controller_prepare', '--task', 'task-0', '--preset', 'executor', '--parent-launch', idea['id'])['prepared']
         with sqlite3.connect(state / 'state.sqlite3') as db:
@@ -181,6 +182,32 @@ def main():
         assert nodes[idea['id']]['x'] < nodes[executor['id']]['x'] < nodes[worker['id']]['x']
         assert nodes['legacy']['parent'] == '' and nodes['missing']['parent'] == ''
         assert 'a-sentinel' in nodes['reviewer']['text'] and '审查员' in nodes['reviewer']['text']
+        snapshot = green.call('sidebar')
+        def ancestry(value):
+            return {agent['id']: dict(parent=agent['parent'], descendants=agent['descendants']) for agent in value['agents']}
+        original_ancestry = ancestry(snapshot)
+        assert next(task for project in snapshot['projects'] for task in project['tasks'] if task['task_id'] == 'task-0')['title'] == '执行主控派发的 worker'
+        for title in ['与主控无关的独立任务', '执行主控派发的 worker，构思主控参与审查']:
+            # Only this isolated fixture's task titles change. Dispatch/launch
+            # records and every other persisted value must remain byte-equal.
+            before_title_change = persistence(state)
+            with sqlite3.connect(state / 'state.sqlite3') as db:
+                for task_id, data in list(db.execute('SELECT id,data FROM tasks ORDER BY id')):
+                    task = json.loads(data)
+                    db.execute('UPDATE tasks SET data=? WHERE id=?', (json.dumps(dict(task, title=title)), task_id))
+            after_title_change = persistence(state)
+            for saved in [before_title_change, after_title_change]:
+                for row in saved['databases']['state.sqlite3']['tables']['tasks']:
+                    task = json.loads(row[1])
+                    del task['title']
+                    row[1] = task
+            assert after_title_change == before_title_change, 'Task title fixture change modified ancestry facts or another persisted value'
+            renamed = green.call('sidebar')
+            assert all(task['title'] == title for project in renamed['projects'] for task in project['tasks'])
+            assert ancestry(renamed) == original_ancestry, 'Changing only task titles must preserve every parent and descendant summary'
+            renamed_agents = {agent['id']: agent for agent in renamed['agents']}
+            assert renamed_agents['legacy']['parent'] is None and renamed_agents['missing']['parent'] is None
+        report['title_invariance'] = dict(status='PASS', scope='actual sidebar IPC and saved task titles; all other persisted values unchanged')
         before = persistence(state)
         green.call('sidebar')
         green.call('sidebar')
@@ -206,7 +233,7 @@ def main():
         green.call('resize', width=900, height=700)
         view = green.wait(lambda row: not any(a['disabled'] for a in row['agents']))
         assert not any(a['overflow'] for a in view['agents'] if a['visible'])
-        report['checks'].append(dict(name='真实 Electron 三级缩进、旧记录/缺失父项、折叠汇总、键盘展开、聚焦和窄窗', status='PASS'))
+        report['checks'].append(dict(name='真实 Electron 三级缩进、旧记录/缺失父项、标题不变性、折叠汇总、键盘展开、聚焦和窄窗', status='PASS'))
         report['checks'].append(dict(name='真实 Electron sidebar IPC 全表/schema/trace 零写入', status='PASS'))
         green.close()
         stop()

@@ -62,6 +62,21 @@ try:
     value = json.loads((root / 'parent-conflict.json').read_text(encoding='utf-8'))
     assert result.returncode == 1 and 'Conflicting explicit parent and authenticated successful assign must remain unassigned' in value.get('error', ''), value
     report['checks'].append(dict(name='conflicting-parent-mutant', command=command, exit=result.returncode, rejected_for=value['error']))
+    title_mutant = root / 'workbench/title-mutant'
+    shutil.copytree(source / 'workbench/src', title_mutant)
+    projection = title_mutant / 'sidebar.ts'
+    text = projection.read_text(encoding='utf-8')
+    marker = "    if (typeof record.parent_launch === 'string') senders.add(record.parent_launch);"
+    assert text.count(marker) == 1
+    # Reproduce independent review F1 exactly; this intentionally wrong branch
+    # exists only in the private mutant, never in production source.
+    wrong_title_branch = "\n    else if (record.role === 'worker' && gates.listTasks(record.project).find(task => task.task_id === record.task)?.title?.includes('执行主控')) senders.add(launches.find(row => row.preset === 'executor').id);"
+    projection.write_text(text.replace(marker, marker + wrong_title_branch), encoding='utf-8')
+    command = ['node', 'workbench/tests/test_t109_hierarchy.mjs', str(root / 'task-title.json'), str(projection)]
+    result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=60)
+    value = json.loads((root / 'task-title.json').read_text(encoding='utf-8'))
+    assert result.returncode == 1 and 'Task titles must not supply parent launch facts for legacy sessions' in value.get('error', ''), value
+    report['checks'].append(dict(name='task-title-parent-inference-mutant', command=command, exit=result.returncode, rejected_for=value['error']))
     report['status'] = 'PASS'
 except Exception as error:
     report['error'] = repr(error)
