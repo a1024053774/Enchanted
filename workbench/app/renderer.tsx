@@ -29,7 +29,8 @@ type TaskItem = { task_id: string; project_id: string; title: string; state: str
 type ProjectItem = { project_id: string; repo: string | null; tasks: TaskItem[]; state: string; state_label: string;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; attempt: string | null; parent: string | null;
-  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string };
+  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string;
+  descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; gaps: string[]; notifications: boolean };
 const statusIcons: Record<string, string> = { running: '●', waiting_user_answer: '◐', waiting_controller_answer: '◑', idle: '○', ended: '✓', unrestored: '◌', unknown: '?' };
 function StatusIcon({ state }: { state: string }) { return <span className="status-icon" aria-hidden="true">{statusIcons[state] ?? '?'}</span>; }
@@ -406,6 +407,7 @@ function Workbench() {
   const [gaps, setGaps] = useState<string[]>([]);
   const [notifications, setNotifications] = useState(true);
   const [focusedAgent, setFocusedAgent] = useState<string | null>(null);
+  const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
   const [focusRequest, setFocusRequest] = useState({ key: '', version: 0 });
   const sidebarRead = useRef(false);
   const applySidebar = useCallback((value: Sidebar) => {
@@ -486,14 +488,26 @@ function Workbench() {
   const projectAgents = agents.filter(agent => agent.project === selectedProject);
   const renderAgents = (rows: AgentItem[], level: number): ReactNode => <ul className="agent-branches">
     {rows.map(agent => <li key={agent.id}>
+      <div className="agent-line">
+      {agent.descendants.count > 0 ? <button className="agent-toggle" data-agent-toggle={agent.id}
+        aria-expanded={!collapsedAgents.has(agent.id)} aria-controls={'agent-children-' + agent.id}
+        aria-label={(collapsedAgents.has(agent.id) ? '展开' : '折叠') + agent.role_label + '的子会话'}
+        onClick={() => setCollapsedAgents(previous => { const next = new Set(previous); if (next.has(agent.id)) next.delete(agent.id); else next.add(agent.id); return next; })}>
+        <span aria-hidden="true">{collapsedAgents.has(agent.id) ? '▸' : '▾'}</span>
+      </button> : <span className="agent-toggle-space" aria-hidden="true" />}
       <button className="agent-row" data-agent-launch={agent.id} data-agent-parent={agent.parent ?? ''} data-agent-level={level}
         data-agent-state={agent.state} aria-current={focusedAgent === agent.id ? 'true' : undefined}
+        data-descendant-state={collapsedAgents.has(agent.id) ? agent.descendants.state : undefined}
         disabled={loading || navigating || creating} onClick={() => void selectAgent(agent)}>
         <span className="agent-role"><StatusIcon state={agent.state} />{agent.role_label}</span>
         <span className="agent-state">{agent.state_label}</span>
         <span className="agent-meta">{agent.task ?? '任务未知'} · {agent.attempt ? 'attempt ' + agent.attempt : '无 attempt'} · {agent.cli}</span>
+        {collapsedAgents.has(agent.id) && <span className="agent-subtree" data-agent-summary={agent.id}>
+          <StatusIcon state={agent.descendants.state} />子会话 {agent.descendants.count} · {agent.descendants.counts.map(item => `${item.label} ${item.count}`).join(' · ')}
+        </span>}
       </button>
-      {(() => {
+      </div>
+      <div id={'agent-children-' + agent.id} hidden={collapsedAgents.has(agent.id)}>{(() => {
         const children = projectAgents.filter(child => child.parent === agent.id);
         const controllers = children.filter(child => child.role === 'controller');
         const tasks = [...new Set(children.filter(child => child.role !== 'controller').map(child => child.task))];
@@ -501,7 +515,7 @@ function Workbench() {
           <div className="agent-task-label">任务 {task ?? '未知'}</div>
           {renderAgents(children.filter(child => child.task === task && child.role !== 'controller'), level + 1)}
         </div>)}</>;
-      })()}
+      })()}</div>
     </li>)}
   </ul>;
   const states = Object.values(statuses);

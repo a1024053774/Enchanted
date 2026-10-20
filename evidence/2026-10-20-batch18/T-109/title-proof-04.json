@@ -1,0 +1,128 @@
+{
+  "status": "PASS",
+  "scope": "F1 formal contract only; new Electron/title and Tab reruns are pending",
+  "task": "T-109",
+  "attempt": "a1",
+  "base_revision": "0034e35ada8242c857156794c1f4996c44b9225c",
+  "model_calls": 0,
+  "sequence": [
+    {
+      "name": "independent_reviewer_title_mutant",
+      "command": "env -u GIT_DIR -u GIT_WORK_TREE LC_ALL=C node workbench/tests/test_t109_hierarchy.mjs /private/tmp/t109-title-mutant-red-04.json /private/tmp/t109-review01-l8gy_g04/candidate/workbench/review-mutant-task-title02/sidebar.ts",
+      "exit": 1,
+      "summary": {
+        "status": "INCOMPLETE",
+        "model_calls": 0,
+        "source": "/private/tmp/t109-review01-l8gy_g04/candidate/workbench/review-mutant-task-title02/sidebar.ts",
+        "checks": [
+          "explicit_three_levels_and_all_child_roles",
+          "legacy_missing_cross_project_self_wrong_role_and_cycles_unassigned",
+          "read_is_zero_write"
+        ],
+        "retained_fixture": "/private/tmp/t109-contract-tytBUO",
+        "error": "AssertionError [ERR_ASSERTION]: Task titles must not supply parent launch facts for legacy sessions\n\n'exec' !== null\n",
+        "stack": "AssertionError [ERR_ASSERTION]: Task titles must not supply parent launch facts for legacy sessions\n\n'exec' !== null\n\n    at file:///Users/luckye/Documents/Code/a2a-wt-t109/workbench/tests/test_t109_hierarchy.mjs:85:12"
+      }
+    },
+    {
+      "name": "unchanged_candidate_algorithm",
+      "command": "env -u GIT_DIR -u GIT_WORK_TREE LC_ALL=C node workbench/tests/test_t109_hierarchy.mjs /private/tmp/t109-title-candidate-green-04b.json",
+      "exit": 0,
+      "summary": {
+        "status": "PASS",
+        "model_calls": 0,
+        "source": "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/sidebar.ts",
+        "checks": [
+          "explicit_three_levels_and_all_child_roles",
+          "legacy_missing_cross_project_self_wrong_role_and_cycles_unassigned",
+          "read_is_zero_write",
+          "saved_task_title_lures_do_not_assign_legacy_or_missing_parent",
+          "title_only_change_preserves_all_parents_and_descendant_summaries",
+          "ordinary_later_reply_does_not_reparent",
+          "explicit_parent_conflicting_with_successful_assign_is_unassigned",
+          "descendant_summary_counts_all_levels",
+          "concurrent_dispatch_parent_isolation_and_no_later_leak"
+        ],
+        "retained_fixture": "/private/tmp/t109-contract-UHxiyJ"
+      }
+    },
+    {
+      "name": "permanent_counterfactuals",
+      "command": "env -u GIT_DIR -u GIT_WORK_TREE LC_ALL=C python3 -B workbench/tests/test_t109_counterfactuals.py --summary /private/tmp/t109-counterfactuals-04.json",
+      "exit": 0,
+      "summary": {
+        "status": "PASS",
+        "baseline": "6411bdff8482ba47da207efa6a295a12666222aa",
+        "model_calls": 0,
+        "checks": [
+          {
+            "name": "launch",
+            "command": [
+              "python3",
+              "workbench/tests/test_t109_dispatch.py",
+              "--source",
+              "/private/tmp/t109-red-yssx777t",
+              "--summary",
+              "/private/tmp/t109-red-yssx777t/launch.json"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError('Launch command dropped parent launch')"
+          },
+          {
+            "name": "hierarchy",
+            "command": [
+              "node",
+              "workbench/tests/test_t109_hierarchy.mjs",
+              "/private/tmp/t109-red-yssx777t/hierarchy.json",
+              "/private/tmp/t109-red-yssx777t/workbench/src/sidebar.ts"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError [ERR_ASSERTION]: Explicit executor parent launch must be projected\n\nnull !== 'idea'\n"
+          },
+          {
+            "name": "sidebar-write-mutant",
+            "command": [
+              "node",
+              "--experimental-vm-modules",
+              "workbench/tests/test_t107_daemon_readonly.mjs",
+              "/private/tmp/t109-red-yssx777t/write.json",
+              "/private/tmp/t109-red-yssx777t/write-mutant",
+              "readonly"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError [ERR_ASSERTION]: Sidebar read changed persisted tables or traces\n+ actual - expected\n... Skipped lines\n\n  {\n    databases: {\n      'locks/t.sqlite3': {\n        schema: [],\n        tables: {}\n...\n            ],\n+           [\n+             4,\n+             '2026-10-20T06:27:35.536Z',\n+             'sidebar_read',\n+             null,\n+             null,\n+             null,\n+             '{\"source\":\"write-mutant\"}'\n+           ],\n+           [\n+             5,\n+             '2026-10-20T06:27:35.547Z',\n+             'sidebar_read',\n+             null,\n+             null,\n+             null,\n+             '{\"source\":\"write-mutant\"}'\n+           ]\n          ],\n          relay_requests: [],\n          relay_results: [],\n          role_permission_changes: [],\n          role_permissions: [],\n...\n              'orchestration_events',\n+             5\n-             3\n            ]\n          ],\n          task_card_snapshots: [],\n          task_card_versions: [],\n          tasks: [\n"
+          },
+          {
+            "name": "conflicting-parent-mutant",
+            "command": [
+              "node",
+              "workbench/tests/test_t109_hierarchy.mjs",
+              "/private/tmp/t109-red-yssx777t/parent-conflict.json",
+              "/private/tmp/t109-red-yssx777t/workbench/parent-mutant/sidebar.ts"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError [ERR_ASSERTION]: Conflicting explicit parent and authenticated successful assign must remain unassigned\n\n'exec' !== null\n"
+          },
+          {
+            "name": "task-title-parent-inference-mutant",
+            "command": [
+              "node",
+              "workbench/tests/test_t109_hierarchy.mjs",
+              "/private/tmp/t109-red-yssx777t/task-title.json",
+              "/private/tmp/t109-red-yssx777t/workbench/title-mutant/sidebar.ts"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError [ERR_ASSERTION]: Task titles must not supply parent launch facts for legacy sessions\n\n'exec' !== null\n"
+          }
+        ],
+        "retained_fixture": "/private/tmp/t109-red-yssx777t"
+      }
+    }
+  ],
+  "limitations": [
+    "No production changes",
+    "Actual saved-title and renderer checks await outside-04",
+    "Actual native Tab replay awaits outside-tab-04",
+    "Independent review verdict for prior candidate remains NO_GO until final candidate re-reviewed"
+  ]
+}

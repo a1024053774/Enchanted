@@ -21,7 +21,8 @@ const previousCredential = process.env.A2A_OPERATOR_CREDENTIAL;
 let pane, host, request, operator, started = false;
 try {
   fs.cpSync(join(source, 'workbench/src'), join(tree, 'src'), { recursive: true });
-  fs.symlinkSync(process.env.T107_DEPENDENCIES ?? '/Users/luckye/Documents/Code/a2a/workbench/node_modules', join(tree, 'node_modules'), 'dir');
+  fs.cpSync(process.env.T107_DEPENDENCIES ?? fileURLToPath(new URL('../node_modules', import.meta.url)), join(tree, 'node_modules'),
+    { recursive: true, dereference: true });
   fs.mkdirSync(state); fs.mkdirSync(repo);
   execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'init', '-b', 'main', repo], { env: { ...process.env, LC_ALL: 'C' } });
   const { Panes, spawnHelper } = await import(pathToFileURL(join(tree, 'src/panes.ts')));

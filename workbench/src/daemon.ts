@@ -331,7 +331,7 @@ export async function serve(
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const status = await gates.call({ command: "status", task: input.task });
       if (!status.ok || !status.task) return status;
-      return { ok: true, prepared: panes.prepareControllerLaunch(status.task, input.preset) };
+      return { ok: true, prepared: panes.prepareControllerLaunch(status.task, input.preset, input.parent_launch) };
     }
     if (input.command === "controller_start") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
@@ -377,7 +377,8 @@ export async function serve(
       return {ok:true,...await panes.screenKey(input.thread,input,authority.source)};
     }
     if (input.command === "pane_release") return { ok: true, ...await panes.release(input.thread, input.reason) };
-    if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.dispatch(panes.get(input.thread), input.body) };
+    if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.parentLaunch.run(
+      authority.kind === "operator" ? input.parent_launch ?? null : null, () => panes.dispatch(panes.get(input.thread), input.body)) };
     if (input.command === "signal") {
       if (!identity || identity.launch !== input.launch) throw new Refusal("signal_identity_required");
       let completedReview: { task: string; id: string } | undefined;
@@ -437,7 +438,7 @@ export async function serve(
                   attempt.fence !== command.fence || result.task?.spec_rev !== command.spec_rev) throw new Refusal("stale_attempt");
               return result;
             }
-            return await gates.call(command, caller);
+            return await panes.parentLaunch.run(controller ? pane.record.id : null, () => gates.call(command, caller));
           });
           if (!receipt.replayed && !isPendingInboxResult(receipt.result)) receipts.push(receipt);
           if (pane.record.role === "reviewer" && !receipt.replayed) {
@@ -471,7 +472,9 @@ export async function serve(
     }
     const actor = authority.kind === "operator" ? { address: "executor",
       assertActive: async () => { if (stopping) throw new Refusal("daemon_stopping"); } } : undefined;
-    return await gates.call(input, undefined, actor);
+    const { parent_launch, ...gateInput } = input;
+    return await panes.parentLaunch.run(authority.kind === "operator" ? parent_launch ?? null : null,
+      () => gates.call(gateInput, undefined, actor));
   };
   const server = createServer((connection) => {
     connection.setEncoding("utf8");

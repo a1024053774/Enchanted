@@ -27,11 +27,11 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   workbench_snapshot: { required: [], optional: ["launch", "task", "project"] },
   pane_process_info: { required: ["thread"] },
   pane_release: { required: ["thread", "reason"] },
-  pane_dispatch: { required: ["thread", "body-file"] },
+  pane_dispatch: { required: ["thread", "body-file"], optional: ["parent-launch"] },
   pane_screen_key: { required: ["thread", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref"] },
   signal: { required: ["launch"] },
   launch_show: { required: ["launch"] },
-  controller_prepare: { required: ["preset"] },
+  controller_prepare: { required: ["preset"], optional: ["parent-launch"] },
   controller_start: { required: ["manifest"] },
   orchestration_events: { required: [], optional: ["task"] },
   card_template: { required: ["repo"], optional: ["ticket", "project"] },
@@ -39,17 +39,17 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   card_save: { required: ["card", "expected-version"] },
   card_show: { required: ["card-version"] },
   create: { required: ["repo", "branch", "card-version"], optional: ["project", "title"] },
-  dispatch: { required: ["runtime-mode"], optional: ["overlap-reason"] },
+  dispatch: { required: ["runtime-mode"], optional: ["overlap-reason", "parent-launch"] },
   attach: {
     required: ["role", "model-selection", "instructions", "runtime-mode"],
     optional: ["preset"],
   },
-  run: { required: ["runtime-mode", "wait-seconds"], optional: ["overlap-reason"] },
+  run: { required: ["runtime-mode", "wait-seconds"], optional: ["overlap-reason", "parent-launch"] },
   claim: { required: ["owner"], optional: ["overlap-reason"] },
   revoke: { required: ["reason"] },
   revise: { required: ["spec-rev"], optional: ["card-version"] },
   submit: { required: ["attempt", "session", "fence", "spec-rev", "commit"], optional: ["request-id"] },
-  verify: { required: [], optional: ["attempt"] },
+  verify: { required: [], optional: ["attempt", "parent-launch"] },
   integrate: { required: [], optional: ["attempt", "score-file"] },
   abandon: { required: ["attempt"], optional: ["score-file"] },
   scores_validate: { required: ["file"] },
@@ -129,7 +129,7 @@ export async function main(argv = process.argv.slice(2)) {
       "stop-id",
       "launch-config", "launch", "body-file", "request-id", "offset", "max-bytes", "manifest", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref",
       "score-file", "review-file",
-      "file",
+      "file", "parent-launch",
     ];
     const { values, positionals } = parseArgs({
       args: argv,
@@ -177,7 +177,7 @@ export async function main(argv = process.argv.slice(2)) {
       else if (key === "blocking") {
         if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
         request.blocking = value === "true";
-      } else if (["reply-to", "bundle-id", "stop-id", "request-id", "score-file", "overlap-reason"].includes(key))
+      } else if (["reply-to", "bundle-id", "stop-id", "request-id", "score-file", "overlap-reason", "parent-launch"].includes(key))
         request[key.replaceAll("-", "_")] = value;
       else request[key === "runtime-mode" ? "runtimeMode" : key] = value;
     }

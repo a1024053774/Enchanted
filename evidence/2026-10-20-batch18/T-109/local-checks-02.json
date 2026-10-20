@@ -1,0 +1,112 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-109",
+  "attempt": "a1",
+  "note": "冻结审查后只补测试与交付文档，生产代码未改；待最终正式验收。",
+  "checks": [
+    {
+      "name": "expanded_hierarchy",
+      "summary": {
+        "status": "PASS",
+        "model_calls": 0,
+        "source": "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/sidebar.ts",
+        "checks": [
+          "explicit_three_levels_and_all_child_roles",
+          "legacy_missing_cross_project_self_wrong_role_and_cycles_unassigned",
+          "read_is_zero_write",
+          "ordinary_later_reply_does_not_reparent",
+          "explicit_parent_conflicting_with_successful_assign_is_unassigned",
+          "descendant_summary_counts_all_levels",
+          "concurrent_dispatch_parent_isolation_and_no_later_leak"
+        ],
+        "retained_fixture": "/private/tmp/t109-contract-4HJu39"
+      }
+    },
+    {
+      "name": "expanded_counterfactuals",
+      "summary": {
+        "status": "PASS",
+        "baseline": "6411bdff8482ba47da207efa6a295a12666222aa",
+        "model_calls": 0,
+        "checks": [
+          {
+            "name": "launch",
+            "command": [
+              "python3",
+              "workbench/tests/test_t109_dispatch.py",
+              "--source",
+              "/private/tmp/t109-red-si6_1uwy",
+              "--summary",
+              "/private/tmp/t109-red-si6_1uwy/launch.json"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError('Launch command dropped parent launch')"
+          },
+          {
+            "name": "hierarchy",
+            "command": [
+              "node",
+              "workbench/tests/test_t109_hierarchy.mjs",
+              "/private/tmp/t109-red-si6_1uwy/hierarchy.json",
+              "/private/tmp/t109-red-si6_1uwy/workbench/src/sidebar.ts"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError [ERR_ASSERTION]: Explicit executor parent launch must be projected\n\nnull !== 'idea'\n"
+          },
+          {
+            "name": "sidebar-write-mutant",
+            "command": [
+              "node",
+              "--experimental-vm-modules",
+              "workbench/tests/test_t107_daemon_readonly.mjs",
+              "/private/tmp/t109-red-si6_1uwy/write.json",
+              "/private/tmp/t109-red-si6_1uwy/write-mutant",
+              "readonly"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError [ERR_ASSERTION]: Sidebar read changed persisted tables or traces\n+ actual - expected\n... Skipped lines\n\n  {\n    databases: {\n      'locks/t.sqlite3': {\n        schema: [],\n        tables: {}\n...\n            ],\n+           [\n+             4,\n+             '2026-10-20T05:50:57.806Z',\n+             'sidebar_read',\n+             null,\n+             null,\n+             null,\n+             '{\"source\":\"write-mutant\"}'\n+           ],\n+           [\n+             5,\n+             '2026-10-20T05:50:57.816Z',\n+             'sidebar_read',\n+             null,\n+             null,\n+             null,\n+             '{\"source\":\"write-mutant\"}'\n+           ]\n          ],\n          relay_requests: [],\n          relay_results: [],\n          role_permission_changes: [],\n          role_permissions: [],\n...\n              'orchestration_events',\n+             5\n-             3\n            ]\n          ],\n          task_card_snapshots: [],\n          task_card_versions: [],\n          tasks: [\n"
+          },
+          {
+            "name": "conflicting-parent-mutant",
+            "command": [
+              "node",
+              "workbench/tests/test_t109_hierarchy.mjs",
+              "/private/tmp/t109-red-si6_1uwy/parent-conflict.json",
+              "/private/tmp/t109-red-si6_1uwy/workbench/parent-mutant/sidebar.ts"
+            ],
+            "exit": 1,
+            "rejected_for": "AssertionError [ERR_ASSERTION]: Conflicting explicit parent and authenticated successful assign must remain unassigned\n\n'exec' !== null\n"
+          }
+        ],
+        "retained_fixture": "/private/tmp/t109-red-si6_1uwy"
+      }
+    }
+  ],
+  "preserved_test_failure": {
+    "summary": {
+      "status": "INCOMPLETE",
+      "model_calls": 0,
+      "source": "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/sidebar.ts",
+      "checks": [
+        "explicit_three_levels_and_all_child_roles",
+        "legacy_missing_cross_project_self_wrong_role_and_cycles_unassigned",
+        "read_is_zero_write",
+        "ordinary_later_reply_does_not_reparent",
+        "explicit_parent_conflicting_with_successful_assign_is_unassigned"
+      ],
+      "retained_fixture": "/private/tmp/t109-contract-fnZpM1",
+      "error": "AssertionError [ERR_ASSERTION]: Concurrent caller ancestry must remain request-local and never leak to later operator input\n+ actual - expected\n\n  [\n    [\n+     'worker',\n+     null\n+   ],\n+   [\n+     'review',\n+     null\n+   ],\n+   [\n      'second',\n      'caller-two'\n    ],\n    [\n      'first',\n",
+      "stack": "AssertionError [ERR_ASSERTION]: Concurrent caller ancestry must remain request-local and never leak to later operator input\n+ actual - expected\n\n  [\n    [\n+     'worker',\n+     null\n+   ],\n+   [\n+     'review',\n+     null\n+   ],\n+   [\n      'second',\n      'caller-two'\n    ],\n    [\n      'first',\n\n    at file:///Users/luckye/Documents/Code/a2a-wt-t109/workbench/tests/test_t109_hierarchy.mjs:84:10"
+    },
+    "reason": "新关联夹具加入两条派发后，并发用例错误地比较了全部派发表；仅将该断言查询限制到其 first/second 夹具身份，原并发预期未改。"
+  },
+  "pending": [
+    "Git commit outside sandbox",
+    "real PTY and Electron script",
+    "native authenticated relay path",
+    "actual reviewer/monitor creation path",
+    "waiting signal UI with T-108",
+    "formal independent review of final candidate",
+    "project-map status in complete checkout"
+  ]
+}

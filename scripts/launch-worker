@@ -38,6 +38,7 @@ def main():
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--cwd", type=Path, required=True)
     parser.add_argument("--agent", required=True)
+    parser.add_argument("--parent-launch", type=token, default=os.environ.get("A2A_LAUNCH"))
     for name in ("project", "task", "attempt", "session"):
         parser.add_argument("--" + name, required=True, type=token)
     parser.add_argument("--model", default="gpt-6.1-sol")
@@ -77,7 +78,7 @@ def main():
     lockfile = root / "records/.launches.lock"
     row = dict(schema=1, phase="prepared", launch_id=launch_id, created_at=utc_now(),
                project=args.project, task=args.task, attempt=args.attempt, session=args.session,
-               role="worker", cli="codex", cli_version=output(["codex", "--version"]),
+               role="worker", parent_launch=args.parent_launch, cli="codex", cli_version=output(["codex", "--version"]),
                model=args.model, effort=args.effort, service_tier_requested=args.service_tier, argv=argv,
                resumes_native_session=args.resume,
                cwd=str(cwd), project_commit=output(["git", "rev-parse", "HEAD"], cwd),

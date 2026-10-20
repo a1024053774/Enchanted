@@ -16,7 +16,8 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
   const inspect = () => window.webContents.executeJavaScript(`({
     text: document.body.innerText, bridge: Object.keys(window.a2a), node: typeof window.require,
     projects: [...document.querySelectorAll('[data-project-id]')].map(n=>({id:n.dataset.projectId,text:n.innerText,state:n.dataset.projectState,selected:n.getAttribute('aria-current'),disabled:n.disabled})),
-    agents: [...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,parent:n.dataset.agentParent,level:Number(n.dataset.agentLevel),state:n.dataset.agentState,text:n.innerText,x:n.getBoundingClientRect().x, overflow:n.scrollWidth>n.clientWidth,disabled:n.disabled})),
+    agents: [...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,parent:n.dataset.agentParent,level:Number(n.dataset.agentLevel),state:n.dataset.agentState,text:n.innerText,x:n.getBoundingClientRect().x, overflow:n.scrollWidth>n.clientWidth,disabled:n.disabled,visible:n.getClientRects().length>0})),
+    summaries: [...document.querySelectorAll('[data-agent-summary]')].map(n=>({id:n.dataset.agentSummary,text:n.innerText,visible:n.getClientRects().length>0})),
     panes: [...document.querySelectorAll('section.pane')].map(n=>({key:n.dataset.paneKey,launch:n.dataset.launchId,input:n.dataset.inputEnabled,
       alerts:[...n.querySelectorAll('[role=alert]')].map(a=>a.textContent)})),
     focusedLaunch: document.activeElement?.closest('section.pane')?.dataset.launchId,
@@ -39,6 +40,43 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
           value = await window.webContents.executeJavaScript(`(()=>{
             const n=[...document.querySelectorAll('button[${attribute}]')].find(n=>n.getAttribute('${attribute}')===${JSON.stringify(request.target)});
             if(!n||n.disabled) throw new Error('Unavailable sidebar target'); n.click(); return {clicked:true}; })()`);
+        } else if (['toggle', 'toggle-keyboard'].includes(request.command)) {
+          if (request.command === 'toggle-keyboard') {
+            // A background macOS app can retain activeElement without owning
+            // native keyboard focus. Activate this test app once, then observe
+            // the window event before selecting the DOM keyboard target.
+            await new Promise((resolve, reject) => {
+              const focused = () => { clearTimeout(timer); window.removeListener('focus', focused); resolve(); };
+              const timer = setTimeout(() => {
+                window.removeListener('focus', focused);
+                log({ stage: 'disclosure-native-focus-timeout', target: request.target,
+                  windowFocused: window.isFocused(), contentsFocused: window.webContents.isFocused() });
+                reject(new Error('Disclosure button does not have keyboard focus: test window activation timed out'));
+              }, 3000);
+              window.once('focus', focused);
+              app.focus({ steal: true });
+              window.focus();
+              if (window.isFocused()) focused();
+            });
+          }
+          value = await window.webContents.executeJavaScript(`(()=>{
+            const n=[...document.querySelectorAll('button[data-agent-toggle]')].find(n=>n.dataset.agentToggle===${JSON.stringify(request.target)});
+            if(!n||n.disabled||!n.getClientRects().length) throw new Error('Unavailable disclosure');
+            ${request.command === 'toggle' ? 'n.click()' : 'n.focus()'};
+            return {target:document.activeElement?.dataset.agentToggle,documentFocused:document.hasFocus(),
+              tabIndex:n.tabIndex,expanded:n.getAttribute('aria-expanded')==='true'}; })()`);
+          if (request.command === 'toggle-keyboard') {
+            const focus = { ...value, windowFocused: window.isFocused(), contentsFocused: window.webContents.isFocused() };
+            log({ stage: 'disclosure-keyboard-target', target: request.target, focus });
+            if (focus.target !== request.target || focus.tabIndex < 0 || !focus.documentFocused || !focus.windowFocused || !focus.contentsFocused) {
+              throw new Error('Disclosure button does not have keyboard focus');
+            }
+            window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+            // Match T-103: native HTML button activation requires the CR char.
+            window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
+            window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+            value = { attempted: true, target: request.target, focus };
+          }
         } else if (request.command === 'resize') { window.setSize(request.width, request.height); value = { resized: true }; }
         else if (request.command === 'notifications') value = await window.webContents.executeJavaScript(`(()=>{
           const details=document.querySelector('.sidebar-settings'); details.open=true;

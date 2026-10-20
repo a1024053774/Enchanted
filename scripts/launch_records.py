@@ -19,6 +19,8 @@ def validate_launches(rows):
             elif not isinstance(value, str) or not value:
                 raise ValueError("启动记录字段损坏：" + key)
         token(row["launch_id"])
+        if row.get("parent_launch") is not None:
+            token(row["parent_launch"])
         if not isinstance(row.get("native_session"), str) or not row["native_session"]:
             raise ValueError("启动记录原生会话损坏")
         previous = latest.get(row["launch_id"])
@@ -26,7 +28,7 @@ def validate_launches(rows):
             if previous is not None or row["native_session"] != "unknown":
                 raise ValueError("启动记录重复或初始原生会话损坏")
         else:
-            if previous is None or any(row[key] != previous[key] for key in FIELDS):
+            if previous is None or any(row[key] != previous[key] for key in FIELDS) or row.get("parent_launch") != previous.get("parent_launch"):
                 raise ValueError("启动记录身份或配置被改变")
             expected = "started" if row["phase"] == "native-session" else "prepared"
             if previous["phase"] != expected:
