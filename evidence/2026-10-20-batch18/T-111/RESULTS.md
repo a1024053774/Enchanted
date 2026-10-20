@@ -1,6 +1,6 @@
 # T-111 / a1：系统流程页
 
-状态：**INCOMPLETE**。尚未提交（沙箱拒绝创建共享 Git 元数据中的 index.lock）；功能已实现；本轮沙箱内合同、反事实和构建通过。真实 Electron 红／绿态、真实 daemon/socket 的零写入及写入变异检查尚未运行，不能作为最终验收通过。未调用模型，未 push。
+状态：**INCOMPLETE**。功能候选已由执行主控提交为 `862ca16709ec5936de8c769ce62dc4b0401dad22`。首次沙箱外运行因测试副本的 spawn-helper 缺执行位失败；本轮只修复测试准备，尚未提交。真实 Electron 红／绿态、daemon 零写入及写入变异检查仍待重跑，不作为验收通过。未调用模型，未 push。
 
 ## 候选与范围
 
@@ -87,3 +87,23 @@ zsh /Users/luckye/Documents/Code/a2a-wt-t111/evidence/2026-10-20-batch18/T-111/R
 ```
 
 脚本核对分支、起点、空暂存区，使用明确文件清单和 `git add --sparse`。先提交当前 INCOMPLETE 候选以固定完整代码版本，再运行真实验证并交独立审查；本轮验证报告会绑定该提交。验证结果与本记录的状态更新可由主控后续提交。若候选变化或检查失败，不沿用本轮绿态。
+
+## 第 21 轮反馈：测试副本 helper 执行位
+
+执行主控已运行 COMMIT-01（rc 0），提交为 `862ca16709ec5936de8c769ce62dc4b0401dad22`。RUN-OUTSIDE-01 返回 rc 1、INCOMPLETE；失败报告保留在 `daemon-outside-01.json`，现场保留在 `/private/tmp/t107-daemon-read-JL2XUA`。错误是复制的 `runtime/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper` 为 0644，产品按原约定拒绝。它是测试准备失败，不是流程页业务红态。
+
+修复范围：
+
+- `test_t107_daemon_readonly.mjs`：依赖复制完成后，仅把该临时 runtime 中固定版本的 darwin-arm64 helper 设为 0755。零写入／native offset 的所有原断言不变。
+- `run_t111_flow.py`：原先直接从 source 启动 daemon，同样会遇到 helper 0644；改为在该次测试根内普通复制 src 与依赖，只修改副本 helper 执行位，并从副本启动 daemon。Electron 仍验证原候选构建；无链接、无模型调用。
+- 产品 `spawnHelper()` 继续核对执行位并拒绝失败；原 worktree 依赖未 chmod，仍为 0644。
+
+局部准备检查 PASS，见 `helper-preparation-02.json`：从真实测试脚本执行副本 chmod 行，再由 node-pty 的实际 native loader 定位 helper，确认副本可执行且为 0755、原文件前后均为 0644。该检查不证明 socket、daemon 或 Electron。Node 语法、Python 3.9 语法、zsh 语法和 diff 检查 PASS。
+
+新重跑命令（新报告名，保留 01）：
+
+```sh
+zsh /Users/luckye/Documents/Code/a2a-wt-t111/evidence/2026-10-20-batch18/T-111/RUN-OUTSIDE-02.sh
+```
+
+如需先固定此次测试准备修复的代码版本，可由执行主控运行 `RUN-OUTSIDE-COMMIT-02.sh`；脚本只暂存这两个测试文件与 T-111 的证据，仍由原钩子自动追加尾注。

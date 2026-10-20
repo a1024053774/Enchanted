@@ -23,6 +23,9 @@ try {
   fs.cpSync(join(source, 'workbench/src'), join(tree, 'src'), { recursive: true });
   fs.cpSync(process.env.T107_DEPENDENCIES ?? fileURLToPath(new URL('../node_modules', import.meta.url)), join(tree, 'node_modules'),
     { recursive: true, dereference: true });
+  // npm --ignore-scripts leaves this pinned darwin-arm64 helper at 0644.
+  // Prepare only the private test copy; product startup must still refuse it.
+  fs.chmodSync(join(tree, 'node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper'), 0o755);
   fs.mkdirSync(state); fs.mkdirSync(repo);
   execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'init', '-b', 'main', repo], { env: { ...process.env, LC_ALL: 'C' } });
   const { Panes, spawnHelper } = await import(pathToFileURL(join(tree, 'src/panes.ts')));

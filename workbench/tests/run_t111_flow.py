@@ -30,6 +30,7 @@ def main():
     assert not output.exists(), 'Fresh summary required'
     root = Path(tempfile.mkdtemp(prefix='t111-real-', dir='/private/tmp'))
     state = root / 'state'
+    runtime = root / 'runtime'
     home = root / 'home'
     home.mkdir()
     dist = args.electron_dist.resolve(strict=True)
@@ -55,7 +56,7 @@ def main():
         return result
 
     def call(command, *fields):
-        result = json.loads(run(['node', source / 'workbench/src/gates/cli.ts', '--state', state, command, *fields]).stdout)
+        result = json.loads(run(['node', runtime / 'workbench/src/gates/cli.ts', '--state', state, command, *fields]).stdout)
         assert result['ok'], result
         return result
 
@@ -140,6 +141,11 @@ def main():
         report['source_head'] = revision
         report['source_changes'] = run(['git', 'status', '--porcelain', '--untracked-files=all', '--', 'workbench']).stdout.splitlines()
         report['candidate_revision'] = revision if not report['source_changes'] else None
+        # A private runtime also isolates dependency permissions from the source.
+        shutil.copytree(source / 'workbench/src', runtime / 'workbench/src')
+        shutil.copytree(source / 'workbench/node_modules', runtime / 'workbench/node_modules', symlinks=False)
+        helper = runtime / 'workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper'
+        helper.chmod(0o755)
         start()
         stop()
         seed()
