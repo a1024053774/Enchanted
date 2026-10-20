@@ -12,10 +12,24 @@ const shots = args.shots ?? null;
 const chromePath = args.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 if (shots) mkdirSync(shots, { recursive: true });
 
-const profile = mkdtempSync('/private/tmp/t113-chrome-');
-const chrome = spawn(chromePath, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
-  '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// 每个视口用一个新的 Chrome 进程和临时 profile。同一进程里先跑桌面再跑手机时，手机一轮反复在中途停住：
+// CDP 调用超时，Debugger.pause 也停不下来（渲染进程没有在执行 JS）；手机单独跑则稳定通过。根因未查明，见 flaky-runs.txt。
+let profile, chrome;
+function launchChrome() {
+  profile = mkdtempSync('/private/tmp/t113-chrome-');
+  chrome = spawn(chromePath, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
+    '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
+}
+async function stopChrome() {
+  if (!chrome) return;
+  const exited = new Promise(resolve => chrome.exitCode !== null ? resolve() : chrome.once('exit', resolve));
+  chrome.kill('SIGTERM');
+  await Promise.race([exited, sleep(10000)]);
+  rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  chrome = null;
+}
 
 async function devtoolsPort() {
   const file = join(profile, 'DevToolsActivePort');
@@ -113,9 +127,11 @@ function check(viewport, name, ok, detail = '') { results.push({ viewport, name,
 const scenarios = (await import(args.scenarios ?? './scenarios.mjs')).default;
 
 try {
-  const port = await devtoolsPort();
   for (const [viewport, metrics] of Object.entries(viewports)) {
     if (args.viewport && args.viewport !== viewport) continue;
+    await stopChrome();
+    launchChrome();
+    const port = await devtoolsPort();
     const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
     const ws = new WebSocket(target.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
@@ -140,10 +156,7 @@ try {
     ws.close();
   }
 } finally {
-  const exited = new Promise(resolve => chrome.exitCode !== null ? resolve() : chrome.once('exit', resolve));
-  chrome.kill('SIGTERM');
-  await Promise.race([exited, sleep(10000)]);
-  rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  await stopChrome();
 }
 
 let failed = 0;

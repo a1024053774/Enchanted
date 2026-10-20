@@ -67,10 +67,14 @@
     questions: [
       { id: 'q-1', launch: 'launch-41c7', target: 'user', cli: 'claude', status: 'waiting', question: '导出时，已归档的条目默认要不要包含在内？',
         options: [{ label: '不包含', description: '与列表页的默认筛选一致' }, { label: '包含', description: '导出更完整，但和列表页看到的不一样' }],
-        reply: ['● 收到：默认不包含已归档条目。', '● 已写进 T-12 任务卡的目标，ready_rev 加 1，通知执行主控。'] },
+        replies: { '不包含': ['● 收到：默认不包含已归档条目。', '● 已写进 T-12 任务卡的目标，ready_rev 加 1，通知执行主控。'],
+          '包含': ['● 收到：默认包含已归档条目，导出结果会和列表页不同。', '● 已写进 T-12 任务卡的目标，ready_rev 加 1，通知执行主控。'] },
+        freeReply: ['● 收到你的答复，按上面这行原文继续。'] },
       { id: 'q-2', launch: 'launch-e7b4', target: 'controller', cli: 'codex', status: 'waiting', question: '旧版 0.8 的配置文件还需要能迁移吗？',
         options: [{ label: '不再支持', description: '删除迁移代码，在更新说明里写明' }, { label: '保留一个版本', description: '下个版本再删' }],
-        reply: ['› 按答复继续：删除 0.8 迁移代码，更新说明里写明。'] },
+        replies: { '不再支持': ['› 按答复继续：删除 0.8 迁移代码，更新说明里写明。'],
+          '保留一个版本': ['› 按答复继续：保留 0.8 迁移代码到下个版本，更新说明里写明下个版本删除。'] },
+        freeReply: ['› 收到答复，按上面这行原文继续。'] },
     ],
   });
 
@@ -106,7 +110,7 @@
     data = initialData();
     ui = { project: 'inkwell', task: 'T-12', page: 'terminal', focusedAgent: null, focusedPane: null, collapsed: new Set(),
       notifications: true, dockBadges: true, menu: null, renaming: null, zoom: null, directory: 'home', settingsOpen: false, execRole: 'worker', execDraft: null, execMessage: '',
-      flowOpen: {}, flowExpanded: {}, drafts: {} };
+      flowOpen: {}, flowExpanded: {}, drafts: {}, noticeSeen: new Set(), noticeActive: new Map() };
     panes = {}; layouts = {}; paneSeq = 0;
     const agentPane = launch => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'agent', launch, lines: (lines[launch] || [['dim', '（演示没有为这个会话预设输出）']]).slice(), forward: false }; return key; };
     const shellPane = (cwd, label) => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'shell', cwd, lines: shellLines(cwd), forward: false, project: label }; return key; };
@@ -137,7 +141,19 @@
   };
   const descendants = id => data.agents.filter(child => child.parent === id).flatMap(child => [child, ...descendants(child.id)]);
   const openQuestions = launch => data.questions.filter(question => question.launch === launch && !['answered', 'cancelled'].includes(question.status));
-  const notices = () => ui.notifications ? data.agents.filter(agent => agent.state === 'waiting_user_answer') : [];
+  // 与 workbench/app/notificationCenter.ts 的 observe 相同：按问题记“已提醒过”，关闭期间看到的问题在重新开启后也不重放。
+  const waitingQuestions = () => data.questions.filter(question => !['answered', 'cancelled'].includes(question.status)
+    && findAgent(question.launch).state === 'waiting_user_answer');
+  function notices() {
+    const pending = new Map(waitingQuestions().map(question => [question.id, findAgent(question.launch)]));
+    for (const id of [...ui.noticeActive.keys()]) if (!pending.has(id)) ui.noticeActive.delete(id);
+    for (const [id, agent] of pending) {
+      if (ui.notifications && !ui.noticeSeen.has(id)) ui.noticeActive.set(id, agent);
+      ui.noticeSeen.add(id);
+    }
+    if (!ui.notifications) ui.noticeActive.clear();
+    return [...ui.noticeActive.values()];
+  }
 
   // ---------- 侧栏 ----------
   function projectRow(project) {
@@ -391,7 +407,7 @@
     const scrolls = {};
     root.querySelectorAll('[data-sk]').forEach(el => { scrolls[el.dataset.sk] = [el.scrollTop, el.scrollLeft]; });
     const pending = notices();
-    const waiting = data.agents.filter(agent => agent.state === 'waiting_user_answer').length;
+    const waiting = waitingQuestions().length;
     root.innerHTML = `<div class="wb-titlebar"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><span>a2a 工作台（演示）</span>
         <output data-dock aria-label="Dock 角标">${ui.dockBadges && waiting ? `Dock 角标 <b>${waiting}</b>` : ''}</output></div>
       <div class="workbench">${sidebar()}
@@ -452,7 +468,8 @@
       question.status = 'answered';
       const agent = findAgent(question.launch);
       agent.state = 'running';
-      if (paneKey && panes[paneKey]) panes[paneKey].lines.push(['info', '› ' + value], ...question.reply.map(text => ['', text]));
+      const reply = question.replies[value] ?? question.freeReply; // 自由答复只确认收到原文，不套用任何预设决定
+      if (paneKey && panes[paneKey]) panes[paneKey].lines.push(['info', '› ' + value], ...reply.map(text => ['', text]));
       ui.note = `${roleLabel(agent)}已收到答复，状态回到“运行中”。`;
       render();
     }, 900));
@@ -560,7 +577,11 @@
 
   root.addEventListener('change', event => {
     const el = event.target;
-    if (el.dataset.setting) { ui[el.dataset.setting] = el.checked; render(); }
+    if (el.dataset.setting) {
+      ui[el.dataset.setting] = el.checked;
+      if (el.dataset.setting === 'notifications' && !el.checked) ui.noticeActive.clear();
+      render();
+    }
     else if (el.hasAttribute('data-exec-role')) { ui.execRole = el.value; ui.execDraft = null; ui.execMessage = ''; render(); }
     else if (el.dataset.execField === 'fast') ui.execDraft = { ...(ui.execDraft ?? data.execution[ui.execRole]), fast: el.checked };
     else if (el.hasAttribute('data-directory')) ui.directory = el.value;

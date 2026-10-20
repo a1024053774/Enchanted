@@ -32,5 +32,7 @@ mutate dock-follows-notifications 03 '${ui.dockBadges && waiting ?' '${ui.dockBa
 mutate flow-more-off-by-one 05 'list.slice(0, 4)' 'list.slice(0, 5)'
 mutate split-replaces-pane 04 "{ direction: target.dataset.direction, first: paneKey, second: next }" "next"
 mutate execution-save-ignored 10 "      data.execution[ui.execRole] = { ...(ui.execDraft ?? data.execution[ui.execRole]) };" "      void 0;"
+mutate reply-ignores-choice 03b "question.replies[value] ?? question.freeReply;" "Object.values(question.replies)[0];"
+mutate notice-replays-after-reenable 03b "if (ui.notifications && !ui.noticeSeen.has(id))" "if (ui.notifications)"
 rm -rf "$work"
 exit $result

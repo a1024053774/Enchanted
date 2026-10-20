@@ -102,6 +102,41 @@ export default [
     check('图例列出七种状态', await count(page, '.status-legend > span') === 7);
   } },
 
+  { name: '03b 非默认选项、自由答复、通知开关往返', async run({ page, url, viewport, check, sleep }) {
+    // 预期：终端宣称的决定必须与用户所选一致（真实 QuestionsPanel 把所选答案原样送入窗格）；
+    // 自由答复只确认收到原文；通知按 notificationCenter.ts：关闭时清空、保留已提醒记录，重新开启不重放，Dock 待答数与开关分离。
+    const send = async (question, launch, option) => {
+      await page.load(url);
+      await press(page, viewport, `[data-agent-launch="${launch}"]`);
+      await press(page, viewport, `[data-question-id="${question}"] [data-option="${option}"]`);
+      await press(page, viewport, `[data-question-id="${question}"] > button`);
+      await sleep(1300);
+      return text(page, paneOf(launch) + ' .terminal-lines');
+    };
+    const included = await send('q-1', 'launch-41c7', '包含');
+    check('选“包含”后写回所选答案', included.includes('› 包含'));
+    check('选“包含”后终端说的是包含', included.includes('默认包含已归档条目') && !included.includes('默认不包含已归档条目'), included.slice(-120));
+    const kept = await send('q-2', 'launch-e7b4', '保留一个版本');
+    check('选“保留一个版本”后终端说的是保留', kept.includes('保留 0.8 迁移代码') && !kept.includes('删除 0.8 迁移代码'), kept.slice(-120));
+    await page.load(url);
+    await press(page, viewport, '[data-agent-launch="launch-e7b4"]');
+    await press(page, viewport, '[data-question-id="q-2"] input');
+    await page.type('先问维护者再定');
+    await press(page, viewport, '[data-question-id="q-2"] > button');
+    await sleep(1300);
+    const free = await text(page, paneOf('launch-e7b4') + ' .terminal-lines');
+    check('自由答复原文写回终端', free.includes('› 先问维护者再定'));
+    check('自由答复只确认收到，不套用预设决定', free.includes('收到答复，按上面这行原文继续') && !free.includes('删除 0.8 迁移代码') && !free.includes('保留 0.8 迁移代码'), free.slice(-120));
+    await page.load(url);
+    await press(page, viewport, '.sidebar-settings summary');
+    await press(page, viewport, '[data-setting="notifications"]');
+    check('关闭通知后通知清空', await count(page, '[data-notice-launch]') === 0);
+    await press(page, viewport, '[data-setting="notifications"]');
+    check('重新开启后不重放同一问题', await count(page, '[data-notice-launch]') === 0);
+    check('Dock 待答数不受通知开关影响', (await text(page, '[data-dock] b')) === '1');
+    check('侧栏仍标为等待用户回答', await attr(page, '[data-agent-launch="launch-41c7"]', 'data-agent-state') === 'waiting_user_answer');
+  } },
+
   { name: '04 窗格菜单：分屏、放大、重命名、转发右键、关闭', async run({ page, url, viewport, check }) {
     await page.load(url);
     const worker = paneOf('launch-a3f9');
