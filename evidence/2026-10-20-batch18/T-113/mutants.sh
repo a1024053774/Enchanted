@@ -9,13 +9,14 @@ result=0
 mutate() { # 名称 场景前缀 python 替换（旧串 新串）
   name=$1 only=$2 old=$3 new=$4
   rm -rf "$work/site" && cp -R docs "$work/site"
-  python3 - "$work/site/assets/demo.js" "$old" "$new" <<'PY'
+  if ! python3 - "$work/site/assets/demo.js" "$old" "$new" <<'PY'
 import sys
 path, old, new = sys.argv[1:]
 text = open(path, encoding='utf-8').read()
 assert text.count(old) == 1, 'mutation anchor not unique'
 open(path, 'w', encoding='utf-8').write(text.replace(old, new))
 PY
+  then echo "RUN ERROR     ${name}（变异锚点不存在或不唯一，没有运行）"; result=1; return; fi
   python3 -m http.server $port --bind 127.0.0.1 --directory "$work/site" >/dev/null 2>&1 & server=$!
   i=0; until curl -fs -o /dev/null "http://127.0.0.1:$port/" || [ $i -ge 50 ]; do sleep 0.1; i=$((i+1)); done
   if node "$here/check_demo.mjs" --url "http://127.0.0.1:$port/" --only "$only" > "$work/$name.txt" 2>&1; then
@@ -32,7 +33,8 @@ mutate dock-follows-notifications 03 '${ui.dockBadges && waiting ?' '${ui.dockBa
 mutate flow-more-off-by-one 05 'list.slice(0, 4)' 'list.slice(0, 5)'
 mutate split-replaces-pane 04 "{ direction: target.dataset.direction, first: paneKey, second: next }" "next"
 mutate execution-save-ignored 10 "      data.execution[ui.execRole] = { ...(ui.execDraft ?? data.execution[ui.execRole]) };" "      void 0;"
-mutate reply-ignores-choice 03b "question.replies[value] ?? question.freeReply;" "Object.values(question.replies)[0];"
+mutate reply-ignores-choice 03b "Object.hasOwn(question.replies, value) ? question.replies[value] : question.freeReply;" "Object.values(question.replies)[0];"
 mutate notice-replays-after-reenable 03b "if (ui.notifications && !ui.noticeSeen.has(id))" "if (ui.notifications)"
+mutate reply-prototype-lookup 03c "Object.hasOwn(question.replies, value) ? question.replies[value] : question.freeReply;" "question.replies[value] ?? question.freeReply;"
 rm -rf "$work"
 exit $result

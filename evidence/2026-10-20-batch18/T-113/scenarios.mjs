@@ -137,6 +137,25 @@ export default [
     check('侧栏仍标为等待用户回答', await attr(page, '[data-agent-launch="launch-41c7"]', 'data-agent-state') === 'waiting_user_answer');
   } },
 
+  { name: '03c 与原型属性同名的自由答复', async run({ page, url, viewport, check, sleep }) {
+    // 审查 02 的 R02-F1：这些都是普通字符串，必须走自由答复——写回原文、只确认收到、状态回落，不抛错。
+    const cases = [['q-1', 'launch-41c7', '收到你的答复，按上面这行原文继续'], ['q-2', 'launch-e7b4', '收到答复，按上面这行原文继续']];
+    for (const [question, launch, receipt] of cases) for (const word of ['constructor', '__proto__', 'toString']) {
+      const before = page.problems.length;
+      await page.load(url);
+      await press(page, viewport, `[data-agent-launch="${launch}"]`);
+      await press(page, viewport, `[data-question-id="${question}"] input`);
+      await page.type(word);
+      await press(page, viewport, `[data-question-id="${question}"] > button`);
+      await sleep(1300);
+      const lines = await text(page, paneOf(launch) + ' .terminal-lines');
+      check(`${question} 输入 ${word}：写回原文并只确认收到`, lines.endsWith(`› ${word} ${receipt.startsWith('收到你') ? '● ' : '› '}${receipt}。`), lines.slice(-80));
+      check(`${question} 输入 ${word}：提问面板关闭、状态回到运行中`, await count(page, `[data-question-id="${question}"]`) === 0
+        && await attr(page, `[data-agent-launch="${launch}"]`, 'data-agent-state') === 'running');
+      check(`${question} 输入 ${word}：没有页面异常`, page.problems.length === before, page.problems.slice(before).join(' | '));
+    }
+  } },
+
   { name: '04 窗格菜单：分屏、放大、重命名、转发右键、关闭', async run({ page, url, viewport, check }) {
     await page.load(url);
     const worker = paneOf('launch-a3f9');

@@ -468,7 +468,9 @@
       question.status = 'answered';
       const agent = findAgent(question.launch);
       agent.state = 'running';
-      const reply = question.replies[value] ?? question.freeReply; // 自由答复只确认收到原文，不套用任何预设决定
+      // 只有对象自身的预设选项键才算命中：constructor、__proto__ 之类的文本是普通自由答复，不能取到原型成员。
+      // 自由答复只确认收到原文，不套用任何预设决定。
+      const reply = Object.hasOwn(question.replies, value) ? question.replies[value] : question.freeReply;
       if (paneKey && panes[paneKey]) panes[paneKey].lines.push(['info', '› ' + value], ...reply.map(text => ['', text]));
       ui.note = `${roleLabel(agent)}已收到答复，状态回到“运行中”。`;
       render();
