@@ -99,6 +99,7 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
         def log_message(self, *_args): pass
 
         def do_GET(self):
+            result.setdefault('api_get_paths', []).append(self.path)
             assert self.path in ('/v1/models', '/models'), self.path
             body = json.dumps({'object': 'list', 'data': [{'id': 'gpt-6.1-sol', 'object': 'model', 'owned_by': 'fixture'}]}).encode()
             self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers(); self.wfile.write(body)
@@ -154,7 +155,7 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
         process = subprocess.Popen(argv, env=local_env, stdout=logs[0], stderr=logs[1], start_new_session=True)
         owner = observe(process.pid); assert owner and str(case / 'manifest.json') in owner['command']; owners.append(owner)
         end = time.monotonic() + 90
-        while not result.get('tool_outputs'):
+        while not (result.get('tool_outputs') and (case / 'identity.json').exists()):
             assert not api_errors, api_errors
             assert process.poll() is None, 'Reviewer host exited before native tool output'
             assert not (case / 'host-error.json').exists(), (case / 'host-error.json').read_text() if (case / 'host-error.json').exists() else ''
@@ -250,6 +251,19 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
         for stream in logs: stream.close()
         result['host_logs'] = {name: (case / ('host.' + name)).read_text(encoding='utf-8')[-5000:] for name in ('stdout', 'stderr')}
         result['terminal_tails'] = [file.read_bytes()[-4000:].decode('utf-8', errors='replace') for file in (case / 'state/traces').glob('*/pty.raw')]
+        result['startup_evidence'] = {name: json.loads((case / name).read_text(encoding='utf-8'))
+                                      for name in ('launch.json', 'pre-release.json', 'released.json', 'identity.json', 'post-identity.json', 'host-error.json') if (case / name).exists()}
+        home = case / 'reviewer-home'
+        result['sessions_directory_exists_after_shutdown'] = (home / 'sessions').is_dir()
+        result['isolated_home_files_after_shutdown'] = []
+        for file in sorted(home.rglob('*')):
+            if file.is_symlink():
+                result['isolated_home_files_after_shutdown'].append({'path': str(file.relative_to(home)), 'symlink': True})
+            elif file.is_file():
+                entry = {'path': str(file.relative_to(home)), 'bytes': file.stat().st_size}
+                if file.suffix == '.jsonl':
+                    with file.open(encoding='utf-8') as stream: entry['first_line'] = stream.readline(4096).rstrip('\n')
+                result['isolated_home_files_after_shutdown'].append(entry)
         result['final_file_readback'] = {'candidate': writable.read_text(encoding='utf-8') if writable.exists() else None,
                                          'protected': protected.read_text(encoding='utf-8')}
         if not result.get('cleanup_errors') and (case / 'state/state.sqlite3').is_file():

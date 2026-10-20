@@ -250,10 +250,12 @@ def main():
                 report['cases'].append(dict(label='invalid_effort', status='PASS', dispatch=value, launch=record, failure=[r for r in rows if r['type'] == 'launch_failed'], cli_error=trace[-3000:]))
             else:
                 assert value['ok'], value
-                info = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and row.get('native_session'), 'real native CLI identity')
-                native = observe(info['leader']); assert native and str(args.codex.resolve()) in native['command']; owners.append(native)
+                foreground = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and not row.get('failed'), 'foreground native CLI process')
+                native = observe(foreground['leader']); assert native and str(args.codex.resolve()) in native['command']; owners.append(native)
                 before = len(requests)
                 released = call('pane_release', '--thread', record['thread'], '--reason', 'T112 local fake API verification'); assert released['ok'], released
+                info = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and row.get('native_session') and not row.get('failed'), 'native CLI identity after first input')
+                assert info['leader'] == foreground['leader'], 'Native CLI leader changed during first input'
                 until(lambda: len(requests), lambda count: count > before, 'local fake API turn')
                 until(events, lambda rows: any(row['type'] == 'pane_idle' for row in rows), 'native matched Stop', 45)
                 request = requests[before]

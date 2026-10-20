@@ -1,0 +1,140 @@
+{
+  "status": "PASS",
+  "model_calls": 0,
+  "scope": "actual driver with supplied startup boundaries; no native sandbox",
+  "cases": [
+    {
+      "mode": "session-after-release",
+      "calls": [
+        "create",
+        "identity-before-release",
+        "release",
+        "identity-after-release"
+      ],
+      "files": {
+        "/private/tmp/T112-startup-sentinel/launch.json": {
+          "role": "reviewer"
+        },
+        "/private/tmp/T112-startup-sentinel/pre-release.json": {
+          "foreground": {
+            "leader": 42,
+            "native_session": null,
+            "failed": null
+          },
+          "sessions": {
+            "directory": "/private/tmp/T112-startup-sentinel/reviewer-home/sessions",
+            "exists": false,
+            "files": []
+          }
+        },
+        "/private/tmp/T112-startup-sentinel/released.json": {
+          "released": true
+        },
+        "/private/tmp/T112-startup-sentinel/identity.json": {
+          "leader": 42,
+          "native_session": "native-sentinel",
+          "failed": null
+        },
+        "/private/tmp/T112-startup-sentinel/post-identity.json": {
+          "directory": "/private/tmp/T112-startup-sentinel/reviewer-home/sessions",
+          "exists": false,
+          "files": []
+        }
+      },
+      "root": "/private/tmp/T112-startup-sentinel"
+    },
+    {
+      "mode": "no-leader",
+      "calls": [
+        "create",
+        "identity-before-release",
+        "identity-before-release",
+        "identity-before-release",
+        "identity-before-release",
+        "identity-before-release"
+      ],
+      "files": {
+        "/private/tmp/T112-startup-sentinel/launch.json": {
+          "role": "reviewer"
+        },
+        "/private/tmp/T112-startup-sentinel/host-error.json": {
+          "error": "AssertionError [ERR_ASSERTION]: Foreground reviewer process: {\"leader\":null,\"native_session\":null,\"failed\":null}",
+          "stack": "AssertionError [ERR_ASSERTION]: Foreground reviewer process: {\"leader\":null,\"native_session\":null,\"failed\":null}\n    at until (file:///Users/luckye/Documents/Code/a2a-wt-t112/workbench/tests/t112_reviewer_record.mjs:39:12)\n    at async file:///Users/luckye/Documents/Code/a2a-wt-t112/workbench/tests/t112_reviewer_record.mjs:59:22"
+        }
+      },
+      "root": "/private/tmp/T112-startup-sentinel"
+    },
+    {
+      "mode": "no-session",
+      "calls": [
+        "create",
+        "identity-before-release",
+        "release",
+        "identity-after-release",
+        "identity-after-release",
+        "identity-after-release",
+        "identity-after-release",
+        "identity-after-release"
+      ],
+      "files": {
+        "/private/tmp/T112-startup-sentinel/launch.json": {
+          "role": "reviewer"
+        },
+        "/private/tmp/T112-startup-sentinel/pre-release.json": {
+          "foreground": {
+            "leader": 42,
+            "native_session": null,
+            "failed": null
+          },
+          "sessions": {
+            "directory": "/private/tmp/T112-startup-sentinel/reviewer-home/sessions",
+            "exists": false,
+            "files": []
+          }
+        },
+        "/private/tmp/T112-startup-sentinel/released.json": {
+          "released": true
+        },
+        "/private/tmp/T112-startup-sentinel/host-error.json": {
+          "error": "AssertionError [ERR_ASSERTION]: Native reviewer identity after first input: {\"leader\":42,\"native_session\":null,\"failed\":null}",
+          "stack": "AssertionError [ERR_ASSERTION]: Native reviewer identity after first input: {\"leader\":42,\"native_session\":null,\"failed\":null}\n    at until (file:///Users/luckye/Documents/Code/a2a-wt-t112/workbench/tests/t112_reviewer_record.mjs:39:12)\n    at async file:///Users/luckye/Documents/Code/a2a-wt-t112/workbench/tests/t112_reviewer_record.mjs:63:20"
+        }
+      },
+      "root": "/private/tmp/T112-startup-sentinel"
+    },
+    {
+      "mode": "changed-leader",
+      "calls": [
+        "create",
+        "identity-before-release",
+        "release",
+        "identity-after-release"
+      ],
+      "files": {
+        "/private/tmp/T112-startup-sentinel/launch.json": {
+          "role": "reviewer"
+        },
+        "/private/tmp/T112-startup-sentinel/pre-release.json": {
+          "foreground": {
+            "leader": 42,
+            "native_session": null,
+            "failed": null
+          },
+          "sessions": {
+            "directory": "/private/tmp/T112-startup-sentinel/reviewer-home/sessions",
+            "exists": false,
+            "files": []
+          }
+        },
+        "/private/tmp/T112-startup-sentinel/released.json": {
+          "released": true
+        },
+        "/private/tmp/T112-startup-sentinel/host-error.json": {
+          "error": "AssertionError [ERR_ASSERTION]: Reviewer leader changed during first input\n\n43 !== 42\n",
+          "stack": "AssertionError [ERR_ASSERTION]: Reviewer leader changed during first input\n\n43 !== 42\n\n    at file:///Users/luckye/Documents/Code/a2a-wt-t112/workbench/tests/t112_reviewer_record.mjs:64:10"
+        }
+      },
+      "root": "/private/tmp/T112-startup-sentinel"
+    }
+  ]
+}

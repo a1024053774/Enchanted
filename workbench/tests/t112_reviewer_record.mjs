@@ -1,7 +1,7 @@
 // Run the production daemon and reviewer constructor with their real PTY/hooks.
 // The fixture owns task objects; this is a launch/sandbox test, not gate delivery.
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const manifest = JSON.parse(readFileSync(process.argv[2], 'utf8'));
@@ -12,6 +12,15 @@ const { OrchestrationStore } = await import(new URL('src/store.ts', source));
 const { createOperatorCredential } = await import(new URL('src/credentials.ts', source));
 const { request } = await import(new URL('src/transport.ts', source));
 const root = manifest.root, state = join(root, 'state');
+const sessionInventory = () => {
+  const directory = join(root, 'reviewer-home', 'sessions');
+  const walk = path => readdirSync(path, { withFileTypes: true }).flatMap(entry => {
+    const file = join(path, entry.name);
+    return entry.isDirectory() ? walk(file) : entry.isFile() ? [{ path: file, bytes: statSync(file).size,
+      ...(entry.name.endsWith('.jsonl') ? { first_line: readFileSync(file, 'utf8').split('\n', 1)[0].slice(0, 4096) } : {}) }] : [];
+  });
+  return { directory, exists: existsSync(directory), files: existsSync(directory) ? walk(directory) : [] };
+};
 mkdirSync(state);
 process.env.A2A_OPERATOR_CREDENTIAL = join(root, 'operator.json');
 createOperatorCredential(state);
@@ -45,10 +54,16 @@ try {
     verification_id: 'verification-id', workspace: root };
   await panes.createReview(task, review, '执行本地固定 shell 探针，不提交或验收。');
   writeFileSync(join(root, 'launch.json'), JSON.stringify(panes.get('review').record, null, 2) + '\n', { flag: 'wx' });
-  const identity = await until(() => panes.processInfo('review'), row => row.leader && row.native_session, 'Native reviewer identity');
-  writeFileSync(join(root, 'identity.json'), JSON.stringify(identity, null, 2) + '\n', { flag: 'wx' });
+  // Initial release requires the foreground CLI, as production Panes.release
+  // does. A new rollout/session may not exist until that first input is sent.
+  const foreground = await until(() => panes.processInfo('review'), row => row.leader && !row.failed, 'Foreground reviewer process');
+  writeFileSync(join(root, 'pre-release.json'), JSON.stringify({ foreground, sessions: sessionInventory() }, null, 2) + '\n', { flag: 'wx' });
   await panes.release('review', 'T112 explicitly authorized local fake API sandbox probe');
   writeFileSync(join(root, 'released.json'), JSON.stringify({ released: true }) + '\n', { flag: 'wx' });
+  const identity = await until(() => panes.processInfo('review'), row => row.leader && row.native_session && !row.failed, 'Native reviewer identity after first input');
+  assert.equal(identity.leader, foreground.leader, 'Reviewer leader changed during first input');
+  writeFileSync(join(root, 'identity.json'), JSON.stringify(identity, null, 2) + '\n', { flag: 'wx' });
+  writeFileSync(join(root, 'post-identity.json'), JSON.stringify(sessionInventory(), null, 2) + '\n', { flag: 'wx' });
 } catch (error) {
   writeFileSync(join(root, 'host-error.json'), JSON.stringify({ error: String(error), stack: error.stack }) + '\n', { flag: 'wx' });
   // Keep the real server available for identity-bound shutdown after a failure.
