@@ -1,8 +1,16 @@
 # T-112 / a1 交付记录
 
-状态：**INCOMPLETE**。角色设置和派发覆盖已实现，本地合同检查 PASS；真实 reviewer 的副本外路径保护与坏配置对照已 PASS，完整 daemon + CLI + Electron 验收待 NATIVE-05。
+状态：**INCOMPLETE**。角色设置和派发覆盖已实现，本地合同检查 PASS；真实 reviewer 的副本外路径保护与坏配置对照已 PASS，完整 daemon + CLI + Electron 验收待 NATIVE-06。
 
-首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 仅修检索工具依赖，待 COMMIT-09 提交；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 的检索修订已由主控提交为 `21389ed18f823ec37a34e09fff176ecf60ac9859`；本轮 #52 的 worker 启动夹具修复待 COMMIT-10 提交；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+
+## #52 worker 首轮启动夹具修复
+
+- outside-native-05.json 保留：检索、baseline high 拒绝、changed-effort reviewer good/bad 已通过；factory 在等待原生身份时失败。该失败中的 pane_release 已成功返回 busy，且发生在身份等待之前，因此不是旧的“先等身份再放行”循环。worker 假 API 的 user/title 请求数均为 0、api_errors 为空；终端尾部含 Trust and continue，随后为空输入框。这与首轮 Enter 被信任提示消耗相符，不能冒充首轮回合已运行。
+- start() 原来只信任夹具祖先 root；现改为每例自己创建的具体 Git repo，沿用 T-108 Codex 夹具的精确信任配置，供其 linked worktree 解析仓库信任。只修改 /private/tmp 隔离 CODEX_HOME；不改产品权限，不写用户配置，不额外按键、不重发首轮输入。
+- factory、ui-settings、override 继续共用同一个 launch()：前台领导进程核对 → pane_release 一次 → 等本地 API 收到 user 首轮 → 保存模型/强度及请求序号 → 核对非空原生身份及同一领导进程 → 匹配原生 Stop。保存放行前的进程信息、隔离配置、放行回执和首轮请求选择，即使后续身份等待失败也保留已到达阶段。未放宽身份或 API 断言；不支持 effort 的启动失败分支不变。
+- 针对性检查 PASS：CHECK-WORKER-STARTUP-10.py 执行真实 start() 源码直到 daemon 边界，分别检查三个用例只配置其明确的 Git repo 信任。修前三个用例均不满足（worker-startup-trust-red-01.json），修后全部满足（worker-startup-trust-green-01.json）。这是夹具配置回归，不代表真实 CLI 首轮已通过；仍须 NATIVE-06 取得首轮 API、同进程原生身份与 Stop。
+- 本轮仅改上述 runner、针对性检查及本票报告/脚本；T-108 与 IPC 产品路径未变，保留最近 rev7 的 PASS，不重复执行。地图仍为稀疏 checkout 原有 8 个缺失链接、0 stale，见 project-map-rev10-final.txt。全票状态维持 INCOMPLETE，待完整原生运行与主控独立审查。
 
 ## #51 检索移除 ripgrep 依赖
 
@@ -91,9 +99,9 @@ Tracer bullet：设置表单 → IPC → SQLite → 派发 → argv。Deep modul
 | 已关闭夹具跨运行时读取 | PASS，closed-fixture-green-01.json；相同 Node 合同生产者、Python 消费者，3 条边界检查。修前在相同查询处失败，见 closed-fixture-red-01.json。 |
 | reviewer 假 API 工具流预检 | PASS，reviewer-stream-final-04.json、request-replay-final-05.json；以实际 0.162.1 请求声明为输入，拒绝缺失增量/改写调用变异。code-mode-protocol-final-03.json 取得真实 CLI 纯文本工具回执，仅协议证据，非原生权限证据。 |
 | 原生 high 红态 | PASS，outside-native-02.json 的 baseline_high / baseline_real_dispatch_high_refused，真实 daemon 门禁返回 worker_executor_mismatch。 |
-| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败；03 查询通过但 reviewer 权限探针失败；outside-reviewer-diag-01.json 的旧式模拟在 CLI 参数解析阶段失败；reviewer-diag-02 在首轮放行前身份等待处失败，API 请求数为 0。reviewer-diag-03 进入 API 后因错误的顶层 tools 假设失败。reviewer-diag-04 的原生权限 good/bad 对照已 PASS；native-04 在首步检索因缺少 rg 失败，完整 Electron/派发后续待 native-05。 |
+| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败；03 查询通过但 reviewer 权限探针失败；outside-reviewer-diag-01.json 的旧式模拟在 CLI 参数解析阶段失败；reviewer-diag-02 在首轮放行前身份等待处失败，API 请求数为 0。reviewer-diag-03 进入 API 后因错误的顶层 tools 假设失败。reviewer-diag-04 的原生权限 good/bad 对照已 PASS；native-04 在首步检索因缺少 rg 失败；native-05 通过检索、baseline 和 reviewer 后在 factory 首轮失败，后续待 native-06。 |
 | reviewer 首轮启动顺序 | PASS，reviewer-startup-green-01.json；修前红态见 reviewer-startup-red-02.json。实际 driver 源码执行，边界由测试提供，非原生权限证据。 |
-| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev9-final.txt。 |
+| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev10-final.txt。 |
 
 ```sh
 python3 -B workbench/tests/test_t112_archive.py --summary evidence/2026-10-20-batch18/T-112/baseline-extraction-final-03.json
@@ -110,11 +118,11 @@ python3 -B workbench/tests/test_t112_closed_fixture.py --summary evidence/2026-1
 ## 主控重跑命令
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-09.sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-NATIVE-05.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-10.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-NATIVE-06.sh
 ```
 
-先提交再运行，使 source_head/code_revision 绑定完整提交。NATIVE-05 依次运行全仓检索、真实 baseline high 红态、changed-effort reviewer good/bad、出厂 worker、真实 Electron 设置后派发、主控覆盖与 CLI 不支持值反例；结果写 outside-native-05.json，旧结果不覆盖。只使用本地无凭据假 API，Electron 必须从内置盘运行。可用 T112_ELECTRON_DIST 指向内置盘上现有 Electron dist；默认是主控仓库的内置盘 Electron。构建和依赖测试副本在本票临时根目录/内置盘构建目录，spawn-helper 执行位只改私有副本；结束后直接清理已确认退出的自有夹具，不归档到外置盘。
+先提交再运行，使 source_head/code_revision 绑定完整提交。NATIVE-06 依次运行全仓检索、真实 baseline high 红态、changed-effort reviewer good/bad、出厂 worker、真实 Electron 设置后派发、主控覆盖与 CLI 不支持值反例；结果写 outside-native-06.json，旧结果不覆盖。只使用本地无凭据假 API，Electron 必须从内置盘运行。可用 T112_ELECTRON_DIST 指向内置盘上现有 Electron dist；默认是主控仓库的内置盘 Electron。构建和依赖测试副本在本票临时根目录/内置盘构建目录，spawn-helper 执行位只改私有副本；结束后直接清理已确认退出的自有夹具，不归档到外置盘。
 
 ## 已交接事项
 

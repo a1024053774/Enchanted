@@ -155,7 +155,9 @@ def main():
             (home / 'config.toml').write_text('model_provider = "t112_fixture"\ncli_auth_credentials_store = "file"\n'
                 '[model_providers.t112_fixture]\nname = "T112 local fixture"\nbase_url = "http://127.0.0.1:' + str(server.server_port) + '/v1"\n'
                 'wire_api = "responses"\nrequires_openai_auth = false\n'
-                '[projects.' + json.dumps(str(root)) + ']\ntrust_level = "trusted"\n', encoding='utf-8')
+                # Codex resolves a Git worktree's trust against its repository;
+                # trusting the unrelated fixture ancestor left a startup dialog.
+                '[projects.' + json.dumps(str(repo)) + ']\ntrust_level = "trusted"\n', encoding='utf-8')
             config = case / 'launch.json'
             config.write_text(json.dumps(dict(codex_bin=str(args.codex.resolve()), codex_home=str(home), role_card=str(role),
                 role_card_revision='T112/a1', code_revision=report['source_head'], hook_authorization='T112 explicit local fake API fixture', turn_limit=1)), encoding='utf-8')
@@ -207,12 +209,18 @@ def main():
                 foreground = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and not row.get('failed'), 'foreground native CLI process')
                 native = observe(foreground['leader']); assert native and str(args.codex.resolve()) in native['command']; owners.append(native)
                 before = len(requests)
+                case_result['pre_release'] = dict(process_info=foreground, api_requests=before,
+                    isolated_config=(Path(record['env']['CODEX_HOME']) / 'config.toml').read_text(encoding='utf-8'))
                 released = call('pane_release', '--thread', record['thread'], '--reason', 'T112 local fake API verification'); assert released['ok'], released
+                case_result['release'] = released
+                until(lambda: len(requests), lambda count: count > before, 'first user request received by local fake API')
+                assert not api_errors, api_errors
+                request = requests[before]
+                case_result['first_api_request'] = dict(index=before, thread_source=request_source(request),
+                    model=request['model'], reasoning=request.get('reasoning'), service_tier=request.get('service_tier'))
                 info = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and row.get('native_session') and not row.get('failed'), 'native CLI identity after first input')
                 assert info['leader'] == foreground['leader'], 'Native CLI leader changed during first input'
-                until(lambda: len(requests), lambda count: count > before, 'local fake API turn')
                 until(events, lambda rows: any(row['type'] == 'pane_idle' for row in rows), 'native matched Stop', 45)
-                request = requests[before]
                 assert request['model'] == expected['model'] and request.get('reasoning', {}).get('effort') == expected['effort'], request
                 case_result.update(status='PASS', native_identity=info, native_process=native,
                     request={'model': request['model'], 'reasoning': request.get('reasoning'), 'service_tier': request.get('service_tier')})
