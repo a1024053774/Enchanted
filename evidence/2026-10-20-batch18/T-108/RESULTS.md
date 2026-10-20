@@ -1,3 +1,36 @@
+# T-108 / a1：第四轮权限证明缺口已修复；局部 PASS，整票 INCOMPLETE
+
+2026-10-20，执行主控 #30。父候选 f3a4a5416213e912076437cfd8ce6f69a0e3091f，仍在 exec/t108。修复 SHA 待主控执行 RUN-OUTSIDE-COMMIT-06.sh 后生成；未冒报提交。新增模型／供应商调用均为 0，没有新增真实模型回合。
+
+F1-04 的根因是把“可选证据不存在”当作正向匹配。本次只收紧 questions.ts 的 questionPermission：必须提供完整且与保存内容完全一致的 tool_input.questions，tool_input 只能包含 questions；未知额外参数不被归一化丢弃。问题及选项内的额外字段也会因完整结构不一致而被拒绝。session、prompt／turn、submission、唯一待答问题及可选 ID 的既有核对保留；CLI 不提供 ID 的正常路径不要求它。失败仍走已有的当前回合未知事实处理，同步撤销显示状态与作答资格，没有新增异常兜底、重试、屏幕判断或门禁路径。
+
+本次边界来自主控 #30 的明确收紧：“同问题例外必须有正向证明，也就是 tool_input.questions 存在，且问题内容与保存的问题完全一致”。因此把此前 permission_self_no_content 从正例改成阻断反例；full、matching_id、sending 正例保留，并实际通过。不是降低断言，也没有一律阻断合法的同问题权限请求。
+
+**先红后绿：** 修前 f3a4a5416 上复现原审查 forged-name 输入，观察到 waiting_user_answer、answer 新增 1、PTY 按键 3，业务断言 unknown 失败，产物 /private/tmp/t108-review04-forged-original-red.json。加入正式矩阵后，修前 9 项业务失败；用 replay_review04_red.py 从冻结 f3a4a5416 的 git archive 重建产品、只叠加最终测试，再次取得 429 项中 9 项失败的红态。不存在导入、初始化或依赖故障冒充业务红态。
+
+**当前默认完成条件：429 项全部 PASS。** 正式反例包含只有名称、空参数、command 参数、先收到完整 PreToolUse(Bash) 后伪装为 AskUserQuestion、复制旧 ID 后仍带 command／空参数、错误 parallel-permission ID、完整 questions 同时夹带 command／file_path，以及问题／选项内夹带额外字段。每种新增伪造形状配明确旧回合、异 session、子 agent 对照；非当前事件不得污染当前题目，当前无法核实事件必须 unknown、问题不可答、answer／PTY 零新增、active 保留、无完成／transfer。完整 Bash parallel-ID 权限请求也保持阻断。
+
+正常原件回放 PASS：原生 PermissionRequest 没有 tool_use_id，但 questions 完整相同，问题仍为 waiting_user_answer；作答关联记录 1、PTY 边界写键 3，PostToolUse 确认后 answered，匹配 Stop 后 idle。原件来自 /private/tmp/t108-native-e2e-03.json；本次没有启动 CLI／Electron，不冒充新候选的完整入口验收。
+
+RUN-OUTSIDE-RECHECK-04.sh 已实际运行，rc=0，产物在 **/private/tmp/t108-review04-recheck-FQOpGT**：正常原件回放、组合 IPC／原拒绝检查、侧栏、T-109 层级、T-111 流程、Codex 回放、Claude Stop／异 session、队列／输入顺序、实际 daemon/socket 零写入与身份冲突合同均 PASS。该整组运行时矩阵为 424 项；之后补入审查表中的精确 parallel-ID 对照，未改产品，并单独重跑最终默认矩阵与冻结父候选红态，均为 429 项，摘要分别是 /private/tmp/t108-review04-green-final.json 和 /private/tmp/t108-review04-red-final-proof.json。构建 PASS，成功临时构建目录已清理、日志保留。设计扫描器仅定位到红态证据脚本的报告异常边界；该边界保存错误并退出非零，不是产品兜底，也不是独立审查结论。
+
+相对 f3a4a5416，产品只改 questions.ts；sidebar.ts、renderer.tsx、panes.ts 均无修改。README 已同步严格的正向证明条件。map status 仍 rc=1，8 个既有稀疏检出缺失链接、0 stale，原文在 project-map-review04-final.txt。原始失败现场和前四轮审查材料均保留，没有归档或删除失败证据。
+
+主控重跑命令（摘要路径须为新文件，下面无模型入口摘要尚未创建）：
+
+```sh
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-COMMIT-06.sh
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-NO-MODEL.sh /private/tmp/t108-native-e2e-review04-01.json
+# 需要复跑局部合同：
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-RECHECK-04.sh
+```
+
+**INCOMPLETE：** 新提交对应的已安装 CLI／Electron 无模型完整入口与独立审查尚待主控运行。正常原件回放和父候选完整入口的 PASS 不能替代它们。未新增真实模型、凭据读取、全局配置写入、符号链接、submit、push、截图或第二门禁。精确证据路径和边界见 review04-fix-local.summary.json。
+
+以下保留第三轮及更早阶段记录；其中较宽的可选内容条件已由 #30 的正向证明要求取代。
+
+---
+
 # T-108 / a1：第三轮结构修复与主控 #28 裁定已实现；局部 PASS，整票 INCOMPLETE
 
 2026-10-20。基于合并 main 后的 d42e8b3fa7b174f052ef43c17a81e68230ee968e。修复提交尚待主控执行 RUN-OUTSIDE-COMMIT-05.sh，不能冒报 SHA。新增模型／供应商调用均为 0；没有运行真实模型回合。

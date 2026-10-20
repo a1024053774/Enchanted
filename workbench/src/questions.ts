@@ -102,8 +102,8 @@ export function questionFromHook(pane: any, value: any, binding: QuestionBinding
 
 // #28: Claude emits PermissionRequest as part of AskUserQuestion itself.
 // Other tools remain permission waits. A claimed question must match the
-// current unique pending question, including every optional identity/content
-// field actually supplied by the CLI. No text or screen inference is used.
+// current unique pending question with complete, identical question content.
+// Optional IDs are compared when supplied. No text or screen inference is used.
 export function questionPermission(pane: any, value: any, questions: NativeQuestion[]): NativeQuestion | null {
   if (pane.record.cli !== 'Claude Code' || value.tool_name !== 'AskUserQuestion') return null;
   const pending = questions.filter(q => q.cli === 'claude' && ['waiting', 'sending'].includes(q.status) &&
@@ -113,11 +113,13 @@ export function questionPermission(pane: any, value: any, questions: NativeQuest
   const question = pending[0];
   requireField(!Object.hasOwn(value, 'turn_id') || value.turn_id === question.turn, 'question_permission_mismatch');
   requireField(!Object.hasOwn(value, 'tool_use_id') || value.tool_use_id === question.tool_use_id, 'question_permission_mismatch');
-  if (Object.hasOwn(value.tool_input, 'questions')) {
-    const observed = questionFromHook(pane, { ...value, tool_use_id: question.tool_use_id }, question)!;
-    // The event store omits undefined optional fields when persisting JSON.
-    requireField(isDeepStrictEqual(JSON.parse(JSON.stringify(observed.questions)), question.questions), 'question_permission_mismatch');
-  }
+  // #30: only complete question content is positive proof. The verified
+  // permission input shape contains questions alone; unknown extra parameters
+  // (at any level) cannot be silently discarded by normalizing another tool.
+  requireField(Object.keys(value.tool_input).length === 1 && Object.hasOwn(value.tool_input, 'questions'),
+    'question_permission_content_required');
+  requireField(isDeepStrictEqual(JSON.parse(JSON.stringify(value.tool_input.questions)), question.questions),
+    'question_permission_mismatch');
   return question;
 }
 

@@ -748,12 +748,14 @@ T-108 通过每会话启动参数加入 PreToolUse／PostToolUse hook，按根�
 触发交付或解除锁；明确的过期回合、异 session 和子 agent 保留拒绝或忽略语义。
 
 Claude 的同一 AskUserQuestion 自身发出的 PermissionRequest 仍属于该提问：须匹配
-当前唯一待答问题的 session、prompt／turn、submission，事件提供的 tool_use_id 和
-问题内容也必须一致。此时问题仍可作答；其他工具的权限请求优先使旧问题不可答。
+当前唯一待答问题的 session、prompt／turn、submission。tool_input 必须仅包含完整且
+与保存内容完全相同的 questions；额外参数、缺失内容、只有名称或旧 ID 都不能证明
+同一问题。原生事件不提供 tool_use_id 时不要求它，提供时也必须一致。合法的同问题
+请求仍可作答；其他工具的权限请求优先使旧问题不可答。
 公共关联字段缺失或无法核实也使问题未知，不能新增 answer 或继续写 PTY。侧栏只读
 已有事件，不采集原生日志、不追加事实。
 
-`node workbench/tests/test_t108_questions.mjs <新摘要路径>` 每次都会运行 `t108_hook_failure_contracts.mjs` 的异常矩阵，覆盖提问前、待答中、作答记录与逐键写入期间的失败降级；未知后不得再向 PTY 发送问题按键。矩阵逐项删除公共关联字段，核对同问题自身权限请求仍可作答、Bash 权限请求阻断，以及 ID／内容不符时的拒绝。旧 prompt、异会话、子 agent 和完整无关工具均有对照，防止异常事实污染当前有效问题。
+`node workbench/tests/test_t108_questions.mjs <新摘要路径>` 每次都会运行 `t108_hook_failure_contracts.mjs` 的异常矩阵，覆盖提问前、待答中、作答记录与逐键写入期间的失败降级；未知后不得再向 PTY 发送问题按键。矩阵逐项删除公共关联字段，核对同问题自身权限请求仍可作答、Bash 权限请求阻断，以及只有名称／旧 ID、夹带其他参数或内容不符时的拒绝。旧 prompt、异会话、子 agent 和完整无关工具均有对照，防止异常事实污染当前有效问题。
 当前窗格的问题条目展示文本与选项，单选或自由答复经绑定窗口凭据写回同一 PTY；
 对应用户输入的 form 为 answer，reply_to 与 target.request 指向该问题。受管 worker
 仍核对当前 attempt／session／fence，并保留人工介入记录。重复、过期、只读或已撤销凭据

@@ -40,14 +40,24 @@ export async function hookFailureContracts() {
     {name:'pending_unrecognized_hook',pending:true,event:'Notification',extra:{}},
     {name:'pending_unverified_response',pending:true,event:'PostToolUse',extra:{tool_response:null}});
   scenarios.push({name:'permission_after_pending_question',pending:true,event:'PermissionRequest',extra:{},permission:true});
+  scenarios.push({name:'permission_bash_parallel_id',pending:true,event:'PermissionRequest',extra:{tool_use_id:'parallel-permission'},permission:true});
   // #28: a PermissionRequest for the very same AskUserQuestion remains
   // answerable; every independent or unverifiable request revokes the old one.
-  for (const mode of ['full','matching_id','no_content','sending']) scenarios.push({
+  for (const mode of ['full','matching_id','sending']) scenarios.push({
     name:'permission_self_'+mode,pending:true,event:'PermissionRequest',self:true,mode,extra:{}});
-  for (const mode of ['wrong_id','wrong_text','wrong_option','wrong_header','wrong_turn','null_id','invalid_content']) scenarios.push({
+  for (const mode of ['wrong_id','wrong_text','wrong_option','wrong_header','wrong_turn','null_id','invalid_content','no_content']) scenarios.push({
     name:'permission_self_'+mode,pending:true,event:'PermissionRequest',selfMismatch:true,mode,extra:{}});
   for (const field of ['cwd','transcript_path','prompt_id','session_id']) scenarios.push({
     name:'permission_self_missing_'+field,pending:true,event:'PermissionRequest',selfMismatch:true,extra:{[field]:undefined}});
+  // #30 / review-04: a declared tool name or copied ID is not proof.
+  // Each forged shape has explicit old/foreign/child isolation controls.
+  for (const mode of ['only_name','command','command_after_bash','copied_id_command','copied_id_empty','wrong_id_command',
+    'matching_questions_command','matching_questions_other_parameter','unknown_question_field','unknown_option_field']) {
+    for (const control of ['current','old','foreign','child']) scenarios.push({
+      name:`permission_forged_${mode}_${control}`,pending:true,event:'PermissionRequest',selfMismatch:true,mode,
+      ...(control==='current'?{}:{control}),extra:control==='old'?{prompt_id:'old'}:
+        control==='foreign'?{session_id:'foreign'}:control==='child'?{agent_id:'child'}:{}});
+  }
   for (const scene of scenarios) {
     const codex=scene.cli==='Codex', turnField=codex?'turn_id':'prompt_id';
     const waiting=codex?'waiting_controller_answer':'waiting_user_answer';
@@ -110,6 +120,17 @@ export async function hookFailureContracts() {
         if(scene.mode==='wrong_option')scene.extra.tool_input.questions[0].options[0].label='别的选项';
         if(scene.mode==='wrong_header')scene.extra.tool_input.questions[0].header='别的问题头';
         if(scene.mode==='invalid_content')scene.extra.tool_input.questions=null;
+        if(scene.mode==='only_name')scene.extra.tool_input=undefined;
+        if(['command','command_after_bash','copied_id_command','wrong_id_command'].includes(scene.mode))scene.extra.tool_input={command:'printf sentinel'};
+        if(scene.mode==='wrong_id_command')scene.extra.tool_use_id='parallel-permission';
+        if(scene.mode==='copied_id_empty')scene.extra.tool_input={};
+        if(['copied_id_command','copied_id_empty'].includes(scene.mode))scene.extra.tool_use_id='toolu_sentinel';
+        if(scene.mode==='matching_questions_command')scene.extra.tool_input.command='printf sentinel';
+        if(scene.mode==='matching_questions_other_parameter')scene.extra.tool_input.file_path=root+'/sentinel';
+        if(scene.mode==='unknown_question_field')scene.extra.tool_input.questions[0].command='printf sentinel';
+        if(scene.mode==='unknown_option_field')scene.extra.tool_input.questions[0].options[0].command='printf sentinel';
+        if(scene.mode==='command_after_bash')await signal('PreToolUse',{tool_name:'Bash',tool_use_id:'parallel-permission',tool_input:{command:'printf sentinel'}});
+
       }
       const before=store.read().length;
       if(scene.self) {
