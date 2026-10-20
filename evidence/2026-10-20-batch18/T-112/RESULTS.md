@@ -1,8 +1,15 @@
 # T-112 / a1 交付记录
 
-状态：**INCOMPLETE**。角色设置和派发覆盖已实现，本地合同检查 PASS；真实 reviewer 的副本外路径保护与坏配置对照已 PASS，完整 daemon + CLI + Electron 验收待 NATIVE-04。
+状态：**INCOMPLETE**。角色设置和派发覆盖已实现，本地合同检查 PASS；真实 reviewer 的副本外路径保护与坏配置对照已 PASS，完整 daemon + CLI + Electron 验收待 NATIVE-05。
 
-首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。本轮按 #50 将已通过的真实 reviewer 探针接入完整原生 runner，尚待 COMMIT-08 提交；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 仅修检索工具依赖，待 COMMIT-09 提交；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+
+## #51 检索移除 ripgrep 依赖
+
+- outside-native-04.json 在第一步因沙箱外 PATH 没有 rg 而失败，尚未执行原生用例。这是设置失败，不算业务红态；旧结果保留。
+- SEARCH-REPO-08.py 改用 git grep -n -E，保持三组查询、大小写规则和排除项；ERE 使用普通分组和逐行的点号表达原正则含义。范围为当前稀疏 worktree 中存在的受控文件，包含隐藏路径，排除 Git 元数据、node_modules、evidence 和 package-lock.json；不搜索未受控文件。search-rev9-01.json 保存实际 argv、cwd、退出码和完整输出，没有安装工具或创建包装/链接。
+- 针对性验证 **PASS**：PATH=/usr/bin:/bin 下修前缺少 rg 的失败已复现（search-path-red-01.json），修后同一路径约束下命令退出 0（search-path-green-01.json）。三组结果分别为 51、7、10 行；忽略排序、开头 ./ 与单文件查询新增的文件名前缀后，行号和正文均与修前原文完全相同（search-parity-rev9-01.json）。首轮比较器未处理该文件名前缀而报 INCOMPLETE，原摘要保留，未改写成 PASS。
+- 本轮只修改本票证据目录中的检索脚本、报告和重跑脚本，不改产品或其余原生验收步骤；T-108 / IPC 最近有效回归仍为 rev7 的 PASS，不重复执行。完整原生验收及随后独立审查仍未完成。
 
 ## #50 完整原生验收接线
 
@@ -84,9 +91,9 @@ Tracer bullet：设置表单 → IPC → SQLite → 派发 → argv。Deep modul
 | 已关闭夹具跨运行时读取 | PASS，closed-fixture-green-01.json；相同 Node 合同生产者、Python 消费者，3 条边界检查。修前在相同查询处失败，见 closed-fixture-red-01.json。 |
 | reviewer 假 API 工具流预检 | PASS，reviewer-stream-final-04.json、request-replay-final-05.json；以实际 0.162.1 请求声明为输入，拒绝缺失增量/改写调用变异。code-mode-protocol-final-03.json 取得真实 CLI 纯文本工具回执，仅协议证据，非原生权限证据。 |
 | 原生 high 红态 | PASS，outside-native-02.json 的 baseline_high / baseline_real_dispatch_high_refused，真实 daemon 门禁返回 worker_executor_mismatch。 |
-| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败；03 查询通过但 reviewer 权限探针失败；outside-reviewer-diag-01.json 的旧式模拟在 CLI 参数解析阶段失败；reviewer-diag-02 在首轮放行前身份等待处失败，API 请求数为 0。reviewer-diag-03 进入 API 后因错误的顶层 tools 假设失败。reviewer-diag-04 的原生权限 good/bad 对照已 PASS；完整 Electron/派发后续仍待 native-04。 |
+| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败；03 查询通过但 reviewer 权限探针失败；outside-reviewer-diag-01.json 的旧式模拟在 CLI 参数解析阶段失败；reviewer-diag-02 在首轮放行前身份等待处失败，API 请求数为 0。reviewer-diag-03 进入 API 后因错误的顶层 tools 假设失败。reviewer-diag-04 的原生权限 good/bad 对照已 PASS；native-04 在首步检索因缺少 rg 失败，完整 Electron/派发后续待 native-05。 |
 | reviewer 首轮启动顺序 | PASS，reviewer-startup-green-01.json；修前红态见 reviewer-startup-red-02.json。实际 driver 源码执行，边界由测试提供，非原生权限证据。 |
-| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev8-final.txt。 |
+| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev9-final.txt。 |
 
 ```sh
 python3 -B workbench/tests/test_t112_archive.py --summary evidence/2026-10-20-batch18/T-112/baseline-extraction-final-03.json
@@ -103,11 +110,11 @@ python3 -B workbench/tests/test_t112_closed_fixture.py --summary evidence/2026-1
 ## 主控重跑命令
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-08.sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-NATIVE-04.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-09.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-NATIVE-05.sh
 ```
 
-先提交再运行，使 source_head/code_revision 绑定完整提交。NATIVE-04 依次运行全仓检索、真实 baseline high 红态、changed-effort reviewer good/bad、出厂 worker、真实 Electron 设置后派发、主控覆盖与 CLI 不支持值反例；结果写 outside-native-04.json，旧结果不覆盖。只使用本地无凭据假 API，Electron 必须从内置盘运行。可用 T112_ELECTRON_DIST 指向内置盘上现有 Electron dist；默认是主控仓库的内置盘 Electron。构建和依赖测试副本在本票临时根目录/内置盘构建目录，spawn-helper 执行位只改私有副本；结束后直接清理已确认退出的自有夹具，不归档到外置盘。
+先提交再运行，使 source_head/code_revision 绑定完整提交。NATIVE-05 依次运行全仓检索、真实 baseline high 红态、changed-effort reviewer good/bad、出厂 worker、真实 Electron 设置后派发、主控覆盖与 CLI 不支持值反例；结果写 outside-native-05.json，旧结果不覆盖。只使用本地无凭据假 API，Electron 必须从内置盘运行。可用 T112_ELECTRON_DIST 指向内置盘上现有 Electron dist；默认是主控仓库的内置盘 Electron。构建和依赖测试副本在本票临时根目录/内置盘构建目录，spawn-helper 执行位只改私有副本；结束后直接清理已确认退出的自有夹具，不归档到外置盘。
 
 ## 已交接事项
 
