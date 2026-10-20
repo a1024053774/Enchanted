@@ -34,6 +34,13 @@ def main():
         revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source, env=env, text=True).strip()
         report['source_head'] = revision
         report['source_changes'] = subprocess.check_output(['git', 'status', '--short'], cwd=source, env=env, text=True).splitlines()
+        cleanup_summary = root / 'cleanup-contract.json'
+        command = ['/usr/bin/python3', '-B', str(source / 'workbench/tests/test_t110_cleanup.py'), '--summary', str(cleanup_summary)]
+        with (root / 'cleanup-contract.log').open('x', encoding='utf-8') as log:
+            result = subprocess.run(command, cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=30)
+        report['commands'].append(dict(argv=command, exit=result.returncode))
+        report['cleanup_contract'] = json.loads(cleanup_summary.read_text(encoding='utf-8'))
+        assert result.returncode == 0 and report['cleanup_contract']['status'] == 'PASS', report['cleanup_contract']
         copy = root / 'candidate'
         copy.mkdir()
         shutil.copytree(source / 'workbench', copy / 'workbench', symlinks=False,
