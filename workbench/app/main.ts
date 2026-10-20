@@ -136,6 +136,18 @@ function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Rec
 function registerHandlers() {
   if (handlersRegistered) return;
   handlersRegistered = true;
+  ipcMain.handle('a2a:execution-settings', async (event, change?: { role: string; model: string; effort: string; fast: boolean }) => {
+    const context = windowTarget(event);
+    if (change !== undefined && (!change || typeof change !== 'object' || Array.isArray(change) ||
+      Object.keys(change).sort().join(',') !== 'effort,fast,model,role' ||
+      !['worker', 'reviewer', 'monitor', 'ideation', 'executor'].includes(change.role) ||
+      ![change.model, change.effort].every(value => typeof value === 'string' && value.trim() && !/[\0\r\n]/.test(value)) ||
+      typeof change.fast !== 'boolean')) throw new Error('Invalid execution settings');
+    const result = await request(context.options.state, change === undefined ? { command: 'execution_settings' } :
+      { command: 'execution_settings_save', ...change }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result.settings;
+  });
   ipcMain.handle('a2a:notification-setting', (event, enabled?: boolean) => {
     const context = windowTarget(event);
     if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('Invalid notification setting');

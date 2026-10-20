@@ -92,7 +92,7 @@ function pathInside(root: string, target: string): boolean {
 export interface GateRuntime {
   controllerLaunch?(thread: string): { id: string; thread: string; task: string; project: string; preset: "ideation" | "executor"; session: string; spec_rev: number } | undefined;
   ensureProject(project: string, repo: string): Promise<void>;
-  createThread(task: A2ATask, attempt: A2AAttempt): Promise<void>;
+  createThread(task: A2ATask, attempt: A2AAttempt, overrides?: { model?: string; effort?: string; fast?: boolean }): Promise<void>;
   startThread(task: A2ATask, attempt: A2AAttempt, prompt: string): Promise<void>;
   readThread(thread: string): Promise<{
     workspace: string;
@@ -1409,7 +1409,7 @@ export class A2AGates {
         attempt,
         task,
         ...(args.command === "dispatch"
-          ? { model: task.card.executor.model, reasoning_effort: task.card.executor.effort, requested_service_tier: "default" }
+          ? { launch_overrides: { model: args.model, effort: args.effort, fast: args.fast } }
           : {}),
       });
       if (run) {
@@ -1436,7 +1436,8 @@ export class A2AGates {
     }
     if (args.command === "dispatch") {
       this.checkUserInputObserver();
-      await this.runtime!.createThread(task, attempt);
+      await this.runtime!.createThread(task, attempt, { ...(args.model === undefined ? {} : { model: args.model }),
+        ...(args.effort === undefined ? {} : { effort: args.effort }), ...(args.fast === undefined ? {} : { fast: args.fast }) });
       this.member(task, attempt.thread_id, "worker");
       this.membership.bindPreset(attempt.thread_id, "worker");
       const live = await this.runtime!.readThread(attempt.thread_id);
@@ -2611,7 +2612,8 @@ export class A2AGates {
       };
       this.saveRun(run, "run_started");
       const dispatch = await this.request(
-        { command: "dispatch", task: args.task, runtimeMode: args.runtimeMode, overlap_reason: args.overlap_reason },
+        { command: "dispatch", task: args.task, runtimeMode: args.runtimeMode, overlap_reason: args.overlap_reason,
+          model: args.model, effort: args.effort, fast: args.fast },
         undefined,
         run,
       );

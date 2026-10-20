@@ -3,6 +3,7 @@ import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { A2ATask } from "./contracts/a2aGates.ts";
 import { Refusal } from "./gates/core.ts";
+import { factoryExecution, executionOverrides, type ExecutionOverrides } from './executionSettings.ts';
 
 export interface ClaudeLaunchInput {
   schema: 1; root: string; state: string; task: string; preset: "ideation" | "executor";
@@ -13,6 +14,7 @@ export interface ClaudeLaunchInput {
   upstream_url?: string;
   turn_limit?: number;
   parent_launch?: string;
+  execution?: ExecutionOverrides;
 }
 export interface ClaudeLoginIsolation {
   homeRoot: string; home: string; config: string; tmp: string; shell: string; debug: string;
@@ -66,8 +68,10 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
   const settings = { hooks: Object.fromEntries(["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse", "PostToolUseFailure"].map(name =>
     [name, [{ hooks: [{ type: "command", command: signal, timeout: 3 }] }]])) };
   const roleText = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(input.role_file));
-  const argv = [input.executable, "--session-id", input.session, "--model", "claude-haiku-5-5", "--effort", "low",
-    "--permission-mode", "manual", "--settings", JSON.stringify(settings), "--append-system-prompt", roleText,
+  const selection = { ...factoryExecution, ...executionOverrides(input.execution ?? {}) };
+  const launchSettings = { ...settings, fastMode: selection.fast };
+  const argv = [input.executable, "--session-id", input.session, "--model", selection.model, "--effort", selection.effort,
+    "--permission-mode", "manual", "--settings", JSON.stringify(launchSettings), "--append-system-prompt", roleText,
     "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--tools", "Bash,Read,AskUserQuestion", "--disable-slash-commands", "--debug-file", rolePaths.debug];
   const env: Record<string, string> = { PATH: "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin", SHELL: "/bin/zsh", TERM: "xterm-256color",
     COLORTERM: "truecolor", LANG: "en_US.UTF-8", LC_CTYPE: "UTF-8", TMPDIR: rolePaths.tmp, ZDOTDIR: rolePaths.shell,
@@ -88,12 +92,13 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
     spec_rev: task.spec_rev, thread: input.thread, role: "controller", preset: input.preset, cli: "Claude Code",
     cli_version_expected: `${input.version} (Claude Code)`,
     node_executable: process.execPath, node_version: process.version,
-    argv, settings, env, worktree: repo,
+    argv, settings: launchSettings, env, worktree: repo,
     shell: "/bin/zsh", shell_argv: ["-f", "-i", "-c", normal ?
       "exec " + argv.map(quote).join(" ") :
-      argv.map(quote).join(" ") + "; exec /bin/zsh -f -i"],
+      argv.map(quote).join(" ") + "; a2a_cli_status=$?; if (( a2a_cli_status != 0 )); then exit $a2a_cli_status; fi; exec /bin/zsh -f -i"],
     role_card: input.role_file, role_card_revision: normal ? `T-093/normal-login/${input.version}` : "T-078-2/P1", role_text: roleText,
-    code_revision: input.code_revision, source_snapshot: input.source_snapshot, base_commit: task.base_commit, model_requested: "claude-haiku-5-5", effort_requested: "low",
+    code_revision: input.code_revision, source_snapshot: input.source_snapshot, base_commit: task.base_commit,
+    model_requested: selection.model, effort_requested: selection.effort, service_tier_requested: selection.fast ? 'fast' : 'default',
     authentication: normal ? "isolated normal login" : "isolated fake API only", turn_limit: turnLimit,
     ...(normal ? { login_audit_directory: isolation!.audit_directory, login_preflight_file: join(isolation!.audit_directory, "preflight.json") } : {}),
     hook_authorization: normal ? "T-093/controller-start" : "controller-decision-04/P1", execution_state: "started" };

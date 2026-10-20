@@ -474,7 +474,34 @@ worker名额释放及新attempt的原生记录归属由T-077联验；此卡保�
 真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
 路径、隔离 `codex_home`、角色卡及版本、代码版本、hook 授权引用和回合上限。
 `dispatch --runtime-mode workspace-write` 始终启动交互 zsh 中的 Codex：`-a never`、
-workspace-write、任务卡指定模型（当前统一 gpt-6.1-sol）、xhigh、显式 `-c service_tier="default"`（普通速度，覆盖全局 priority）、关闭更新检查。
+workspace-write、模型和思考强度默认见设置（可改）、显式 service tier（出厂普通速度，覆盖全局 priority）、关闭更新检查。
+
+模型、思考强度与 Fast 按角色（worker、reviewer、monitor、构思主控 ideation、执行主控 executor）
+保存在 a2a 自己的 SQLite 库。侧栏“图例与设置 → 会话模型”保存后，只影响下次启动。
+出厂选择为 `gpt-6.1-sol` / `high` / Fast 关闭；逐字段优先级为派发覆盖参数 > 角色设置 > 出厂默认。
+任务卡的 executor 仍记录任务信息和 CLI 身份，模型/强度字段不再作为启动选择或固定值门禁。
+
+```sh
+node workbench/src/gates/cli.ts --state /绝对路径/state execution_settings
+node workbench/src/gates/cli.ts --state /绝对路径/state execution_settings_save --role worker --model gpt-6.1-sol --effort high --fast false
+node workbench/src/gates/cli.ts --state /绝对路径/state dispatch --task T-112-1 --runtime-mode workspace-write --model gpt-6.1-sol --effort xhigh --fast true
+```
+
+`run --wait-seconds N` 同样支持 `--model`、`--effort`、`--fast true|false`。
+`controller_prepare`、`controller_start` 也支持这些覆盖参数；后者的 manifest 可写
+`"execution":{"model":"opus","effort":"high","fast":false}`，命令行字段优先。
+`launch-config.controllers` 中旧 model/effort 字段不参与选择；CLI 路径、权限和身份配置仍由 launch config/manifest 提供。
+当前 worker/reviewer 启动入口仍为 Codex，两个主控仍为 Claude Code；本设置不切换 CLI。
+启动 Claude 主控前，须将该角色设置为 Claude 支持的模型名，或在启动时显式覆盖。
+monitor 的设置已保存，真实 monitor 启动入口仍未实现，不能据此宣称已能启动。
+
+模型与强度为文本输入，不维护 a2a 枚举。取值以已安装 CLI 的 `codex --help`、`claude --help` 和
+[Codex 配置文档](https://learn.chatgpt.com/docs/config-file/config-reference)、
+[Claude 模型配置文档](https://code.claude.com/docs/en/model-config)为准；不支持的值原样交给 CLI 报错。
+原生 CLI 在会话建立前非零退出会记录 `launch_failed`，原始错误留在该 launch 的终端记录中，不替换成默认值。
+完整 argv 和请求模型/强度/tier 继续入库；这些请求值不证明供应商实际执行层级。
+reviewer 继续使用独立 home 和可写候选副本，原审查 worktree 只读；网络/tmp/身份权限边界不因模型设置改变。
+
 网络及托管网络代理关闭，不设置 socket 放行名单。三个 hook 向同一 CLI 的 `signal`
 送原始 stdin；Stop 另外读取显式请求文件。启动参数、环境白名单、请求模型与实际回合模型分开记录。
 

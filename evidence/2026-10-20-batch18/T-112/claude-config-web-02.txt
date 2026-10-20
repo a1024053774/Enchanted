@@ -1,0 +1,90 @@
+Model configuration - Claude Code Docs (https://code.claude.com/docs/en/model-config)
+citeturn3view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://code.claude.com/docs/en/model-config","lineno":null}); Total lines: 971
+--------------------------------------------------------------------------------
+Speed up responses with fast mode - Claude Code Docs (https://code.claude.com/docs/en/fast-mode)
+citeturn3view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://code.claude.com/docs/en/fast-mode","lineno":null}); Total lines: 254
+--------------------------------------------------------------------------------
+Model configuration - Claude Code Docs (https://code.claude.com/docs/en/model-config)
+citeturn3view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"https://code.claude.com/docs/en/model-config","pattern":"effortLevel"}); Total lines: 971
+L570: If you set a level the active model does not support, Claude Code falls back to the highest supported level at or below the one you set. For example, `xhigh` runs as `high` on Opus 4.6. Your organization or your own settings can also cap the levels a model offers; see cite22†Organization effort limits . Claude Code resolves the session’s effort level in this order, taking the first that applies:
+L571:   1. An explicit choice: the cite133†`CLAUDE_CODE_EFFORT_LEVEL` environment variable, launching with `--effort`, or `/effort` in the session (cite134†a non-interactive `/effort` has narrower effect )
+L572:   2. Your settings: the level you saved for the model or an cite135†`effortLevel` key, with the precedence between them and across settings files stated at cite136†`modelSettings` L573:   3. The model’s default effort: `high` on every model that supports effort, except that Opus 5.5, Sonnet 5.5, and Haiku 5.5 default to `medium`, Opus 4.7 defaults to `xhigh`, and, when your organization sets a default effort level for its cite21†organization default model , that level is the default when you run that model
+L574: After an automatic model fallback, see cite28†Effort level after a fallback for the level that applies. Opus 5.5 starts at `medium` unless one of the sources above sets a level for it, and a top-level `effortLevel` in your user settings file doesn’t count for Opus 5.5.
+L575: That key is the older form `/effort` wrote before Claude Code saved levels per model: it keeps applying where it applied before, on Opus 5, Fable 5.1, and earlier models, while Opus 5.5 and models released after it start at their own default until you choose a level for them with `/effort` or the `/model` picker. A top-level `effortLevel` in project, local, or managed settings, or one passed with `--settings`, applies to every model.
+L576: When you set `low`, `medium`, `high`, or `xhigh` in an interactive session on your machine, you choose how long it lasts by how you confirm it:
+L577:   * `Enter` in the `/effort` slider or the `/model` picker, or a level typed after `/effort`: save the level as your default and apply it in later sessions
+L578:   * `s` in the `/effort` slider or the `/model` picker: apply the level to this session only. Requires Claude Code v2.1.257 or later
+L579: Claude Code saves the level per model, under the cite136†`modelSettings` key in your user settings, so each model keeps its own saved level. `max` is the deepest reasoning level. Unless you set it through the `CLAUDE_CODE_EFFORT_LEVEL` environment variable, Claude Code applies `max` to the current session only.
+L580: A level you pick from the effort control on a phone or browser connected through cite137†Remote Control applies to that session only.
+L581: When you set a level with `/effort` in a cite75†`-p` run , Claude Code applies it to that session only and doesn’t save it as your default. The `/effort` slider also has an Ultracode toggle. Ultracode is a Claude Code setting rather than a model effort level: with it on, Claude orchestrates cite138†dynamic workflows for substantive tasks, at whichever effort level the session runs at. For where it can be set persistently, see the cite139†`ultracode` setting.
+L582: Turning ultracode on or off with `/effort` or the `ultracode` setting leaves the effort level unchanged. The `--effort ultracode` flag and the Agent SDK `effortLevel: "ultracode"` value turn it on and also set the level to `xhigh`. Picking a level in the `/effort` slider or the `/model` picker leaves ultracode as it was. You can turn on ultracode through any of the following:
+L583:   * `/effort`: run `/effort ultracode` to turn it on for the current session or `/effort ultracode off` to turn it off. In the `/effort` slider, press `Tab` to flip the Ultracode toggle, then `Enter` to apply it
+L584:   * `--effort` flag: launch with `claude --effort ultracode`, which starts the session at `xhigh` effort with ultracode on
+L585:   * `ultracode` setting: set cite139†`"ultracode": true` in a settings file, with `--settings`, or in an Agent SDK control request. An cite140†`applyFlagSettings()` request also accepts `effortLevel: "ultracode"`, which turns it on and sets the effort level to `xhigh`
+L586: The `/effort ultracode off` form, the slider toggle, and keeping ultracode on at effort levels other than `xhigh` require Claude Code v2.1.284 or later. Before v2.1.284, turning on ultracode set the session to `xhigh` effort, picking another level turned it off, and an effort cap below `xhigh` made it unavailable. Passing `ultracode` to the `--effort` flag or the Agent SDK `effortLevel` value requires Claude Code v2.1.203 or later.
+L587: Before v2.1.203, `--effort ultracode` printed `Unknown --effort value 'ultracode'` and the session started at the default effort. The persisted `effortLevel` setting and the `CLAUDE_CODE_EFFORT_LEVEL` environment variable don’t accept `ultracode`. If `CLAUDE_CODE_EFFORT_LEVEL` or an cite22†effort cap sets the session’s level, ultracode stays on at that level. Ultracode is unavailable when:
+L588:   * cite141†Workflows are turned off L589:   * The model doesn’t support `xhigh` effort
+L590: In those cases `--effort ultracode` starts the session with ultracode off, at the highest effort level the model and any cap allow, up to `xhigh`.
+L591: ####
+L592: 
+L593: cite34†​ L594: 
+L595: Choose an effort level
+L596: 
+L597: Each level trades token spend against capability. The default suits most coding tasks; adjust when you want a different balance.
+L598: Level  | When to use it
+L599: --- | ---
+L600: `low`  | Quick exchanges where you review each result, such as brainstorming, a first sketch, or a small change like a rename
+L601: `medium`  | The default on Opus 5.5, Sonnet 5.5, and Haiku 5.5. On Opus 5.5 and Sonnet 5.5, it fits day-to-day engineering work with a clear scope, such as implementing a new feature. On models with a higher default, reduces token usage for cost-sensitive work that can trade off some intelligence
+L602: `high`  | Work where verification matters or edge cases are likely, such as fixing a bug in an existing codebase. The default on every model except Opus 5.5, Sonnet 5.5, Haiku 5.5, and Opus 4.7
+L603: `xhigh`  | Deeper reasoning at higher token spend. The default on Opus 4.7
+L604: `max`  | Hard problems you want Claude to work through without you, such as finding security vulnerabilities. `max` may show diminishing returns and is prone to overthinking, so test before adopting it broadly
+L605: `ultracode`  | A Claude Code setting rather than a level: plans a cite138†dynamic workflow for each substantive task at any effort level
+L606: In tests on Opus 5.5 and Fable 5.1, Claude at a higher level tested more edge cases and verified more of its work before answering. It also made more choices on its own. At a lower level, Claude returned a starting point sooner, which fits work where you review each result and steer the next step. To see the same tasks run at each level, read cite142†Using Claude Code: Spending your effort†claude.dev on the blog.
+L607: The effort scale is calibrated per model, so the same level name does not represent the same underlying value across models. Opus 5.5 cite33†defaults to `medium` , one level below Opus 5’s default of `high`. In Anthropic’s testing, Opus 5.5 at `medium` matches or exceeds Opus 5 at `high` on coding and knowledge-work evaluations. At a given level, Opus 5.5 tends to think more per turn than Opus 5. When you move from Opus 5 to Opus 5.5, start at `medium` rather than carrying over the level you used on Opus 5.
+L608: To test levels against your own work, see cite143†Calibrate effort†platform.claude.com in the Opus 5.5 prompting guide.
+L609: ####
+L610: 
+L611: cite35†​ L612: 
+L613: Use ultrathink for one-off deep reasoning
+L614: 
+L615: Include `ultrathink` anywhere in your prompt to request deeper reasoning on that turn without changing your session effort setting. Claude Code recognizes the keyword and adds an in-context instruction. The effort level sent to the API is unchanged. Claude Code passes other phrases such as “think”, “think hard”, and “think more” through as ordinary prompt text and doesn’t recognize them as keywords.
+L623:   * `/effort`: run `/effort` with no arguments to open an interactive slider, `/effort` followed by a level name to set it directly, or `/effort auto` to clear your saved level for the active model. You can run it while Claude is working, and once you confirm the cite144†cache warning , if Claude Code shows one, Claude Code applies the new level to the next request in the turn
+L624:   * In `/model`: use left/right arrow keys to adjust the effort slider when selecting a model
+L625:   * `--effort` flag: pass a level name to set it for a single session when launching Claude Code
+L626:   * Environment variable: set `CLAUDE_CODE_EFFORT_LEVEL` to a level name or `auto`
+L627:   * Settings: set a per-model level in cite136†`modelSettings` , or set cite135†`effortLevel` to `low`, `medium`, `high`, or `xhigh` as the default for models without one. `max` isn’t accepted as a level in either key, and `ultracode` has its own cite139†`ultracode` key
+L628:   * From a connected device: in a cite137†Remote Control session, pick a level from the effort control on your phone or in your browser. The level applies to the current session only. Requires Claude Code v2.1.234 or later
+L629:   * Skill and subagent frontmatter: set `effort` in a cite145†skill or cite146†subagent markdown file to override the effort level when that skill or subagent runs
+L630: Frontmatter effort applies when that skill or subagent is active, overriding the session level but not the environment variable. A cite121†`maxEffortLevel` or cite22†organization effort cap still limits the level the skill or subagent runs at. If you set `effortLevel` in cite92†managed settings , Claude Code applies it at the settings step of the cite33†effort resolution order , and users can still change the level with `/effort` or `--effort`. To keep users at or below a level, set cite121†`maxEffortLevel` .
+--------------------------------------------------------------------------------
+Speed up responses with fast mode - Claude Code Docs (https://code.claude.com/docs/en/fast-mode)
+citeturn3view3 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"https://code.claude.com/docs/en/fast-mode","pattern":"fastMode"}); Total lines: 254
+L43: Fast mode is supported on Opus 5.5, Opus 5, and Opus 4.8. It is not available on Sonnet, Haiku, or other models. Opus 4.7 doesn’t support fast mode, so switching to it turns fast mode off. Fast mode for Opus 4.7 was deprecated on June 25, 2026, and removed on July 24, 2026. What to know:
+L44:   * Use `/fast` to toggle on fast mode in the Claude Code CLI. The cite6†VS Code extension offers a Toggle fast mode command when the selected model supports fast mode. Claude Code saves that toggle to your cite7†`fastMode` setting .
+L45:   * Fast mode pricing per MTok input/output is $8/$40 on Opus 5.5 and $10/$50 on Opus 5 and Opus 4.8.
+L46:   * Available to Claude Code users on subscription plans (Pro/Max/Team/Enterprise) and on Claude Console. Team and Enterprise organizations need an Owner to enable it first, and Console organizations need access provisioned first, both described under cite8†Requirements .
+L47:   * For Claude Code users on subscription plans (Pro/Max/Team/Enterprise), fast mode is available via usage credits only and not included in the subscription rate limits.
+L48: ##
+L49: 
+L50: cite7†​ L51: 
+L52: Toggle fast mode
+L53: 
+L54: In the CLI, toggle fast mode in either of these ways:
+L55:   * Run `/fast`, press Space to toggle on or off, then press Enter to confirm
+L56:   * Set `"fastMode": true` in your cite9†user settings file L57: By default, fast mode you turn on in an interactive session persists across sessions. You can configure fast mode to reset each session. See cite10†require per-session opt-in for details. Outside a cite11†cloud session , in cite12†non-interactive mode with the `-p` flag, `/fast` works only in a session launched with fast mode in its cite13†`--settings` value, for example `claude -p --settings '{"fastMode": true}'`; the toggle then applies to that session only and isn’t saved as your default.
+L58: The `-p` form requires Claude Code v2.1.205 or later. Elsewhere in non-interactive mode, the command reports that fast mode isn’t available. You can run `/fast` while Claude is working, and Claude Code toggles fast mode without waiting for the turn to end. Claude Code finishes the running turn at its original speed, so the speed change takes effect from your next turn.
+L59: If your current model doesn’t support fast mode, turning it on also switches your model, and Claude Code uses the new model from its next request in that turn. For the best cost efficiency, enable fast mode at the start of a session rather than switching mid-conversation. See cite14†understand the cost tradeoff for details. When you enable fast mode:
+L60:   * If your current model doesn’t support fast mode, Claude Code switches to Opus
+L61:   * You’ll see a confirmation message: “Fast mode ON”
+L62:   * A small `↯` icon appears next to the prompt while fast mode is active
+L63:   * Run `/fast` again at any time to check whether fast mode is on or off
+L64: Opus 5.5 is the fast mode default in Claude Code v2.1.280 and later. Before v2.1.280, fast mode defaulted to Opus 5 from v2.1.219, and to Opus 4.8 on v2.1.154 through v2.1.218. When you disable fast mode with `/fast` again, you remain on Opus. To switch to a different model, use `/model`.
+L65: ###
+L66: 
+L67: cite15†​ L68: 
+L69: Switch models while fast mode is on
+L70: 
+L71: Fast mode follows your model switches in both directions:
+L152:   * Fast mode not enabled: if fast mode hasn’t been enabled for your organization, turning fast mode on with `/fast` shows “Fast mode has been disabled by your organization.”
+L153:   * Fast mode turned off by managed settings: if your organization deploys cite37†managed settings that set cite38†`fastMode: false` , turning fast mode on with `/fast` shows the same “Fast mode has been disabled by your organization” message.
+

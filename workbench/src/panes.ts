@@ -16,6 +16,7 @@ import { claudeLaunch, type ClaudeLaunchInput } from "./claudeLaunch.ts";
 import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
 import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName } from "./paneRecovery.ts";
+import type { ExecutionOverrides } from './executionSettings.ts';
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -65,7 +66,7 @@ export function spawnHelper() {
 }
 export interface LaunchConfig {
   controllers?: Partial<Record<"ideation" | "executor", {
-    executable: string; model: string; effort: string; settings: Record<string, unknown>;
+    executable: string; settings: Record<string, unknown>;
     role_card: string; role_card_revision: string;
   }>>;
   codex_bin?: string;
@@ -181,7 +182,8 @@ export class Panes implements GateRuntime {
     try {
     if (input.authentication === "normal-login") login = await ClaudeLogin.prepare(input, task.repo);
     else check(new URL(input.api_url!).port !== "0", "messages_api_not_bound");
-    const record = { ...claudeLaunch(task, input, login?.isolation), parent_launch: input.parent_launch ?? null,
+    const selection = this.store.executionSelection(input.preset, input.execution ?? {});
+    const record = { ...claudeLaunch(task, { ...input, execution: selection }, login?.isolation), parent_launch: input.parent_launch ?? null,
       created_at: new Date().toISOString(), executable_path: "",
       cli_version: "unknown", version_probe: null as { argv: string[]; stdout: string; stderr: string } | null };
       const expectedVersion = record.cli_version_expected;
@@ -226,6 +228,8 @@ export class Panes implements GateRuntime {
       });
       terminal.onExit((event: unknown) => {
         pane.stopped = true; pane.state = "unknown";
+        if (!pane.claudePromptId && !pane.closing && (event as { exitCode?: number }).exitCode !== 0)
+          this.recordFailure(pane, 'launch_failed', new Error('native_cli_exit'), { event });
         try { this.store.event("pane_exit", event, record); }
         catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
         if (login) {
@@ -253,11 +257,11 @@ export class Panes implements GateRuntime {
   // T-078-1/#49: prepare argv and its durable record only. Actual Claude launch,
   // auth, hooks and completion matching await decision 20261011T101958Z. This
   // method neither creates a live pane nor issues a launch capability.
-  prepareControllerLaunch(task: A2ATask, preset: string, parentLaunch?: string) {
+  prepareControllerLaunch(task: A2ATask, preset: string, parentLaunch?: string, overrides: ExecutionOverrides = {}) {
     check(preset === "ideation" || preset === "executor", "invalid_controller_preset");
     const c = this.config.controllers?.[preset];
     const nonempty = (value: unknown): value is string => typeof value === "string" && Boolean(value.trim()) && !value.includes("\0");
-    check(c && nonempty(c.executable) && isAbsolute(c.executable) && nonempty(c.model) && nonempty(c.effort) &&
+    check(c && nonempty(c.executable) && isAbsolute(c.executable) &&
       nonempty(c.role_card) && isAbsolute(c.role_card) && nonempty(c.role_card_revision) && nonempty(this.config.code_revision),
       "controller_launch_config_required");
     check(c.settings && typeof c.settings === "object" && !Array.isArray(c.settings) &&
@@ -268,12 +272,14 @@ export class Panes implements GateRuntime {
     const settings = JSON.parse(settingsText);
     const session = randomUUID(), launch = randomUUID(), thread = randomUUID();
     const roleCard = realpathSync(c.role_card);
-    const argv = [c.executable, "--session-id", session, "--model", c.model, "--effort", c.effort, "--settings", settingsText];
+    const selection = this.store.executionSelection(preset, overrides);
+    settings.fastMode = selection.fast;
+    const argv = [c.executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--settings", JSON.stringify(settings)];
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: null,
       session, fence: null, spec_rev: task.spec_rev, thread, role: "controller", preset, parent_launch: parentLaunch ?? null,
       execution_state: "prepared", validation: "待真实 Claude 复核", created_at: new Date().toISOString(),
       cli: "Claude Code", cli_version: "unknown", argv, settings,
-      model_requested: c.model, effort_requested: c.effort,
+      model_requested: selection.model, effort_requested: selection.effort, service_tier_requested: selection.fast ? 'fast' : 'default',
       code_revision: this.config.code_revision, source_snapshot: this.config.source_snapshot ?? null,
       role_card: roleCard, role_card_revision: c.role_card_revision,
       role_text: new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(roleCard)),
@@ -462,11 +468,11 @@ export class Panes implements GateRuntime {
         total_bytes: stat.size, data_base64: bytes.toString("base64") };
     } finally { closeSync(fd); }
   }
-  async createThread(task: A2ATask, attempt: A2AAttempt) {
+  async createThread(task: A2ATask, attempt: A2AAttempt, overrides: ExecutionOverrides = {}) {
     check([...this.panes.values()].filter((pane) => pane.record.role === "worker")
       .every((pane) => pane.stopped && pane.archived), "single_worker_slice");
     check(attempt.runtime_mode === "workspace-write", "worker_requires_workspace_write");
-    await this.createPane(task, attempt, this.config);
+    await this.createPane(task, attempt, this.config, undefined, overrides);
   }
   async createReview(task: A2ATask, review: A2AReview, prompt: string) {
     const index = this.store.launches().filter((record) => record.role === "reviewer").length;
@@ -482,7 +488,7 @@ export class Panes implements GateRuntime {
     const pane = this.get(review.thread_id);
     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
   }
-  private async createPane(task: A2ATask, attempt: A2AAttempt, c: LaunchConfig, review?: A2AReview) {
+  private async createPane(task: A2ATask, attempt: A2AAttempt, c: LaunchConfig, review?: A2AReview, overrides: ExecutionOverrides = {}) {
     const role = review ? "reviewer" : "worker";
     check(c.codex_bin && c.codex_home && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
     check(Number.isInteger(c.turn_limit) && c.turn_limit! > 0 && c.turn_limit! <= 10, "invalid_turn_limit");
@@ -501,8 +507,8 @@ export class Panes implements GateRuntime {
     const requestDirectory = realpathSync(mkdtempSync("/tmp/a2a-requests-"));
     const signalCommand = shellCommand([process.execPath, cli, "--state", this.root, "signal", "--launch", launch]);
     const hook = `[{hooks=[{type="command",command=${JSON.stringify(signalCommand)},timeout=10}]}]`;
-    const model = task.card.executor.model, effort = task.card.executor.effort;
-    check(task.card.executor.cli === "Codex" && ["gpt-6-astra", "gpt-6.1-sol"].includes(model) && effort === "xhigh", "worker_executor_mismatch");
+    const { model, effort, fast } = this.store.executionSelection(role, overrides);
+    check(task.card.executor.cli === "Codex", "worker_executor_mismatch");
     const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
     const sandboxMode = "workspace-write";
     const networkAccess = "false";
@@ -511,7 +517,7 @@ export class Panes implements GateRuntime {
     const excludeTmpdir = review ? "true" : "false";
     const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
-      "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", 'service_tier="default"',
+      "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
       "-c", `sandbox_workspace_write.network_access=${networkAccess}`, "-c", `features.network_proxy=${networkProxy}`,
       ...(review ? ["-c", `sandbox_workspace_write.exclude_slash_tmp=${excludeSlashTmp}`,
@@ -530,7 +536,7 @@ export class Panes implements GateRuntime {
     if (review) environment.A2A_REVIEW = review.review_id;
     else Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
       GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)) });
-    const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; exec /bin/zsh -f -i"];
+    const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; a2a_cli_status=$?; if (( a2a_cli_status != 0 )); then exit $a2a_cli_status; fi; exec /bin/zsh -f -i"];
     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
@@ -539,7 +545,7 @@ export class Panes implements GateRuntime {
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
         review_home_was_empty: true } : {}),
       created_at: new Date().toISOString(), cli_version: version, argv, executable_path: codex, request_dir: requestDirectory,
-      model_requested: model, effort_requested: effort, service_tier_requested: "default",
+      model_requested: model, effort_requested: effort, service_tier_requested: fast ? 'fast' : 'default',
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
       role_text: readFileSync(c.role_card, "utf8"), base_commit: attempt.base_commit, worktree: launchWorkspace,
@@ -567,6 +573,7 @@ export class Panes implements GateRuntime {
     });
     terminal.onExit((event: unknown) => {
       // The CLI can flush rollout records while exiting without emitting Stop.
+      const startupFailed = !pane.native && !pane.closing && (event as { exitCode?: number }).exitCode !== 0;
       // Read after exit, before publishing the terminal lifecycle transition.
       try {
         this.scan(pane, true);
@@ -577,6 +584,7 @@ export class Panes implements GateRuntime {
           offsets: [...pane.offsets].map(([file, offset]) => ({ file: relative(home, file), offset })),
           details: error instanceof Refusal ? error.details : null });
       }
+      if (startupFailed) this.recordFailure(pane, 'launch_failed', new Error('native_cli_exit'), { event });
       pane.stopped = true; pane.state = "unknown";
       try { this.store.event("pane_exit", event, record); }
       catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }

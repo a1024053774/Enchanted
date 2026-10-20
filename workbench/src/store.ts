@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { executionRoles, executionRole, executionOverrides, factoryExecution, type ExecutionRole, type ExecutionOverrides, type ExecutionSelection } from './executionSettings.ts';
 export type DispatchSource = "executor" | "gate" | "inbox";
 export type DispatchItem = { id: string; seq: number; source: DispatchSource; text: string; registered_at: string;
   inbox_entry?: string; sender?: string; parent_launch?: string | null; context?: { kind: string; rejection_id: string } };
@@ -8,6 +9,20 @@ export type DispatchItem = { id: string; seq: number; source: DispatchSource; te
 // The gate owns its existing tables. All new orchestration records share its file.
 export class OrchestrationStore {
   readonly db: DatabaseSync;
+  executionSelection(role: ExecutionRole, overrides: ExecutionOverrides = {}): ExecutionSelection {
+    executionRole(role);
+    const row = this.db.prepare("SELECT data FROM orchestration_events WHERE type='execution_settings_saved' AND json_extract(data,'$.role')=? ORDER BY seq DESC LIMIT 1").get(role);
+    const saved = row ? executionOverrides(JSON.parse(String(row.data)).selection) : {};
+    return { ...factoryExecution, ...saved, ...executionOverrides(overrides) };
+  }
+  executionSettings() {
+    return Object.fromEntries(executionRoles.map(role => [role, this.executionSelection(role)])) as Record<ExecutionRole, ExecutionSelection>;
+  }
+  saveExecutionSettings(role: ExecutionRole, selection: ExecutionOverrides) {
+    const effective = this.executionSelection(executionRole(role), selection);
+    this.event('execution_settings_saved', { role, selection: effective });
+    return this.executionSettings();
+  }
   constructor(root: string) {
     this.db = new DatabaseSync(join(root, "state.sqlite3"));
     this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;

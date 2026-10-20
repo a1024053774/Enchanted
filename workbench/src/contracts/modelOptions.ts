@@ -5,18 +5,6 @@
 
 import { Schema } from "effect";
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
-export const CLAUDE_API_EFFORT_OPTIONS = ["low", "medium", "high", "xhigh", "max"] as const;
-export type ClaudeApiEffort = (typeof CLAUDE_API_EFFORT_OPTIONS)[number];
-export const CLAUDE_PROMPT_MODE_OPTIONS = ["ultrathink"] as const;
-export type ClaudePromptMode = (typeof CLAUDE_PROMPT_MODE_OPTIONS)[number];
-export const CLAUDE_CODE_MODE_OPTIONS = ["ultracode"] as const;
-export type ClaudeCodeMode = (typeof CLAUDE_CODE_MODE_OPTIONS)[number];
-export const CLAUDE_CODE_EFFORT_OPTIONS = [
-  ...CLAUDE_API_EFFORT_OPTIONS,
-  ...CLAUDE_PROMPT_MODE_OPTIONS,
-  ...CLAUDE_CODE_MODE_OPTIONS,
-] as const;
-export type ClaudeCodeEffort = (typeof CLAUDE_CODE_EFFORT_OPTIONS)[number];
 export const PI_THINKING_LEVEL_OPTIONS = [
   "off",
   "minimal",
@@ -54,7 +42,7 @@ export type CodexModelOptions = typeof CodexModelOptions.Type;
 
 export const ClaudeModelOptions = Schema.Struct({
   thinking: Schema.optional(Schema.Boolean),
-  effort: Schema.optional(Schema.Literals(CLAUDE_CODE_EFFORT_OPTIONS)),
+  effort: Schema.optional(TrimmedNonEmptyString),
   fastMode: Schema.optional(Schema.Boolean),
   autoCompactWindow: Schema.optional(Schema.String),
   // Legacy persisted field. Normalization migrates this to autoCompactWindow.
