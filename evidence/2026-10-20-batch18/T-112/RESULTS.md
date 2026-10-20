@@ -1,8 +1,17 @@
 # T-112 / a1 交付记录
 
-状态：**INCOMPLETE**。exec/t112 已由主控完成 main 合并（363c4944e），合并后五项合同 PASS；T-110 原生首例因运行态 Claude 标题变化导致清理失败，T-112 原生入口尚未执行。本轮 #59 已修测试清理器并取得合同红绿，完整回归待 REGRESSION-02；地图仍待 main 上核对。
+状态：**INCOMPLETE**。当前提交 22783a1ee；合并后 cleanup、execution、IPC、questions、reconnect_view、window_sequence 六项合同通过。REGRESSION-02 在 T-110 红态的 daemon 启动期限处中止；主控单独重跑后四个红态有效，green 在重连后前台角标清零处失败。已排除 main.ts 合并时丢失 T-110 逻辑；原记录缺少原生焦点时间线，尚不能确认负载或事件顺序原因。本轮只加观测，待 REGRESSION-03；T-112 合并后原生及 main 地图核对仍未完成。
 
-首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 的检索修订已由主控提交为 `21389ed18f823ec37a34e09fff176ecf60ac9859`；#52 的启动夹具修复已由主控提交为 `d86126abe06ba845df036bddbeb922543c0542cb`；#53 的诊断/问题记录已由主控提交为 `8edb06659`；#54 的验收调整已由主控提交为 `4bdf0721c5f80fa848d07500ec60327723eac898`；#58 的 main 合并已由主控完成为 `363c4944e33a7b6717a55392a16a4cae364cbdda`，父提交为 4bdf0721c 与 1267805a2；本轮 #59 修测试清理器，待 COMMIT-13 提交；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 的检索修订已由主控提交为 `21389ed18f823ec37a34e09fff176ecf60ac9859`；#52 的启动夹具修复已由主控提交为 `d86126abe06ba845df036bddbeb922543c0542cb`；#53 的诊断/问题记录已由主控提交为 `8edb06659`；#54 的验收调整已由主控提交为 `4bdf0721c5f80fa848d07500ec60327723eac898`；#58 的 main 合并已由主控完成为 `363c4944e33a7b6717a55392a16a4cae364cbdda`，父提交为 4bdf0721c 与 1267805a2；主控已通过 COMMIT-13 提交清理器修复为 22783a1ee；本轮 #60 仅补原生焦点诊断，待 COMMIT-14；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+
+## #60 重连后前台角标失败：先补足运行态证据
+
+- 主控报告 COMMIT-13 为 22783a1ee。outside-merge-regressions-02.json 中六项合同 PASS；T-110 red-reconnect-view 的 daemon_start 达到期限（PID 6279、当时负载约 13），这不是业务红态。主控另跑的 outside-merge-t110-native-03-executor-rerun.json 中四个业务红态均被拒，green 的 Foreground after reconnect clears badge 期限后实际 badge=1，sidebar 无错误、原项目和等待问题仍在。所有原件保留。
+- **合并遗漏已排除**：git diff aea89b9d5 HEAD -- workbench/app/main.ts 和对 1267805a2 的同项 diff 都只有 T-112 execution-settings IPC 的增加；updateDockBadge、browser-window-focus/blur 注册及其调用完整保留。命令、完整差异和失败状态摘要见 foreground-diagnosis-01.json。这排除了所指 main.ts 合并丢失，尚不证明负载是根因。
+- 原 failure_view 没有原生 window.isFocused、BrowserWindow.getFocusedWindow、app.isHidden 或事件时间线，不能把角标 1 判为产品没有处理已取得的前台焦点，也不能判为焦点请求未生效。本轮不改产品、不延长期限、不加重试、不改 foreground/background 动作、不放宽任何断言。
+- t108_questions_driver.mjs 仅观测 app 的 focus/blur、activate、did-become-active/did-resign-active，及窗口 focus/blur/show/hide/minimize/restore。每条带 UTC 与进程单调时钟、实际 Dock 角标、窗口焦点、当前 focused window id、隐藏/可见/最小化状态；前后台、重载和断连/重连命令记录调用前后状态，inspect 仅在状态变化时记日志。inspect 新增 native_focus，不替代既有 DOM 断言。
+- run_t108_native_e2e.py 在清理前把 focus-timeline.jsonl 读入 native_focus_timeline，成功和业务失败均携带，因此完整 REGRESSION-03 的 T-110 子报告中能直接查看时间线。原始 stdout 和时间线仍在本次私有夹具里；观测读取异常会保留诊断并将状态记为 INCOMPLETE，同时继续既有清理。新增观察不会主动聚焦或重算角标。
+- 静态检查见 foreground-diagnostic-static-01.json：Python 3.9 语法、Node 语法、zsh、diff，以及全部原 Python assert、场景文件和 foreground/background 语句均未改变。没有把这些静态检查算作真实焦点或业务绿态。COMMIT-14 后运行 REGRESSION-03，输出使用新名字 *-03.json，不覆盖带 executor-rerun 后缀的现有原件；入口仍包括 T-110 与 T-112，不调用真实模型。地图仍为稀疏 checkout 已知 8 个缺失链接、0 stale，见 project-map-rev15-final.txt。
 
 ## #59 运行态 Claude 自设标题的清理修复
 
@@ -156,8 +165,8 @@ python3 -B workbench/tests/test_t112_closed_fixture.py --summary evidence/2026-1
 ## 主控提交与合并后回归命令
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-13.sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-MERGE-REGRESSION-02.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-14.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-MERGE-REGRESSION-03.sh
 ```
 
 无需再执行 merge 脚本。第二条先跑清理合同、五项既有合同与构建，再依次跑 T-110 no-model 等价入口和 T-112 NATIVE；汇总写 outside-merge-regressions-02.json，其余摘要统一为 outside-merge-*-02.json，其中真实入口是 outside-merge-t110-native-02.json / outside-merge-t112-native-02.json。文件均要求不存在，不覆盖旧证据。Electron 仍取内置盘 dist，可用 T112_ELECTRON_DIST 指定另一内置盘目录。
