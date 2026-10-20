@@ -9,8 +9,11 @@ import './style.css';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
 import { createFocusSafeWriter, ownTerminalQueries } from './terminalOutput.mjs';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
+import { QuestionsPanel } from './QuestionsPanel';
+import type { NativeQuestion } from '../src/questions.ts';
 
 type Snapshot = {
+  questions?: NativeQuestion[];
   daemon: string;
   pane_key: string;
   input_enabled: boolean;
@@ -50,6 +53,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   snapshot(key: string): Promise<Snapshot>; output(key: string, offset: number): Promise<Chunk>;
   closePane(key: string): Promise<Selection & { ok: boolean }>;
   input(key: string, data: string, encoding?: 'utf8' | 'binary'): Promise<void>; beginComposition(key: string): Promise<void>;
+  answer(key: string, question: string, answers: string[]): Promise<unknown>;
   releaseQueue(key: string, declaration: EmptyInputDeclaration): Promise<{ ok: boolean; error?: string }>;
   observeFocus(key: string, rawSequence: string): Promise<void> } } }
 const gateNames: Record<string, string> = { creating: '创建中', ready: '待认领', preparing: '准备中', claimed: '已认领', submitted: '已交付',
@@ -293,6 +297,7 @@ function SessionPane({ paneKey, name, focusRequest, zoomed, onZoom, onAction, on
           <label>窗格名称 <input ref={renameInput} maxLength={100} value={draftName} onChange={event => setDraftName(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setRenaming(false); menuButton.current?.focus(); } }} /></label>
           <button disabled={acting || !draftName.trim()}>保存名称</button><button type="button" onClick={() => { setRenaming(false); menuButton.current?.focus(); }}>取消</button>
         </form>}
+        <QuestionsPanel questions={snapshot?.questions ?? []} enabled={inputEnabled} send={(question, answers) => window.a2a.answer(paneKey, question, answers)} />
         <div className="terminal-scroll" data-output-offset={offset}><div className="terminal-mount" ref={mount} /></div>
         <TerminalScrollToBottom terminal={terminal} />
         <div className="pane-footer"><span>{shell ? '普通终端 · zsh' : pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'

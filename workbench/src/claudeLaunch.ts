@@ -62,12 +62,12 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
   requireValue(url.protocol === "http:" && url.hostname === "127.0.0.1" && url.port && url.pathname === "/" && !url.username && !url.password && !url.search && !url.hash, "local_messages_api_required");
   const cli = fileURLToPath(new URL("./gates/cli.ts", import.meta.url));
   const signal = [process.execPath, cli, "--state", state, "signal", "--launch", input.launch].map(quote).join(" ");
-  const settings = { hooks: Object.fromEntries(["UserPromptSubmit", "Stop", "PermissionRequest"].map(name =>
+  const settings = { hooks: Object.fromEntries(["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse", "PostToolUseFailure"].map(name =>
     [name, [{ hooks: [{ type: "command", command: signal, timeout: 3 }] }]])) };
   const roleText = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(input.role_file));
   const argv = [input.executable, "--session-id", input.session, "--model", "claude-haiku-5-5", "--effort", "low",
     "--permission-mode", "manual", "--settings", JSON.stringify(settings), "--append-system-prompt", roleText,
-    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--tools", "Bash,Read", "--disable-slash-commands", "--debug-file", rolePaths.debug];
+    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--tools", "Bash,Read,AskUserQuestion", "--disable-slash-commands", "--debug-file", rolePaths.debug];
   const env: Record<string, string> = { PATH: "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin", SHELL: "/bin/zsh", TERM: "xterm-256color",
     COLORTERM: "truecolor", LANG: "en_US.UTF-8", LC_CTYPE: "UTF-8", TMPDIR: rolePaths.tmp, ZDOTDIR: rolePaths.shell,
     HOME: rolePaths.home, CLAUDE_CONFIG_DIR: rolePaths.config, A2A_USER_DATA: rolePaths.userData, CLAUDE_CODE_DISABLE_TERMINAL_TITLE: "1",

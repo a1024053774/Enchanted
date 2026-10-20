@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { questionTool, questionFromHook, projectQuestions, nativeAnswerKeys } from './questions.ts';
 import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
@@ -509,7 +510,7 @@ export class Panes implements GateRuntime {
       "-c", `sandbox_workspace_write.network_access=${networkAccess}`, "-c", `features.network_proxy=${networkProxy}`,
       ...(review ? ["-c", `sandbox_workspace_write.exclude_slash_tmp=${excludeSlashTmp}`,
         "-c", `sandbox_workspace_write.exclude_tmpdir_env_var=${excludeTmpdir}`] : [])];
-    for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest"]) argv.push("-c", `hooks.${event}=${hook}`);
+    for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"]) argv.push("-c", `hooks.${event}=${hook}`);
     argv.push("--dangerously-bypass-hook-trust");
     Object.assign(environment, {
       SHELL: "/bin/zsh", TERM: "xterm-256color", COLORTERM: "truecolor",
@@ -1027,6 +1028,30 @@ export class Panes implements GateRuntime {
     this.store.event("hook_received", { raw_stdin: raw, received_at }, pane.record);
     const value = JSON.parse(raw); this.scan(pane);
     check(value.session_id === pane.native, "hook_native_session_mismatch");
+    if (['PreToolUse', 'PostToolUse', 'PostToolUseFailure'].includes(value.hook_event_name)) {
+      if (!questionTool(value.tool_name)) return;
+      let question;
+      try { question = questionFromHook(pane, value); }
+      catch (error) {
+        this.store.event('native_question_unverified', { reason: String(error), tool_use_id: value.tool_use_id }, pane.record);
+        throw error;
+      }
+      const previous = this.questions(launch).find(q => q.id === question.id);
+      if (value.hook_event_name === 'PreToolUse') {
+        check(!previous, 'question_hook_reused');
+        this.store.event('native_question_opened', question, pane.record);
+      } else {
+        check(previous && previous.submission === question.submission && previous.turn === question.turn &&
+          ['waiting', 'sending'].includes(previous.status), 'question_not_pending');
+        const response = typeof value.tool_response === 'string' ? JSON.parse(value.tool_response) : value.tool_response;
+        const answered = value.hook_event_name === 'PostToolUse' && previous.blocking && previous.questions.every(q =>
+          previous.cli === 'claude' ? typeof response?.answers?.[q.question] === 'string' :
+            Array.isArray(response?.answers?.[q.id!]?.answers) && response.answers[q.id!].answers.length > 0);
+        const status = answered ? 'answered' : value.hook_event_name === 'PostToolUseFailure' ? 'cancelled' : 'unknown';
+        this.store.event('native_question_resolved', { question: question.id, status, response: value.tool_response ?? null }, pane.record);
+      }
+      return;
+    }
     if (pane.record.cli === "Claude Code") {
       // 08e recorded prompt_id on UPS and Stop; it identifies the actual CLI prompt.
       check(Number.isInteger(pane.record.turn_limit) && pane.record.turn_limit >= 1 && pane.record.turn_limit <= 6, "claude_turn_correlation_unverified");
@@ -1098,6 +1123,38 @@ export class Panes implements GateRuntime {
     check(pane.record.role !== "shell", "agent_pane_required");
     check(identity.token === pane.token, "invalid_launch_identity");
     return pane;
+  }
+  questions(launch: string) {
+    return projectQuestions(this.store.read().filter(event => event.launch === launch));
+  }
+  async answerQuestion(launch: string, id: string, answers: string[],
+    record: (text: string, question: string) => Promise<void>, assertCurrent: () => Promise<void>) {
+    const pane = this.byLaunch(launch);
+    const question = this.questions(launch).find(q => q.id === id);
+    check(question && question.status === 'waiting', 'question_not_pending');
+    const keys = nativeAnswerKeys(question, answers);
+    await this.serializeWrite(pane, async () => {
+      await assertCurrent();
+      const current = this.questions(launch).find(q => q.id === id);
+      check(current?.status === 'waiting' && !pane.failed && !pane.stopped && !pane.archived && !pane.interrupted &&
+        pane.active?.id === question.submission && pane.native === question.session_id &&
+        (question.cli === 'claude' ? pane.claudePromptId === question.turn : pane.turn === question.turn) &&
+        pane.inputGeneration === question.input_generation && !pane.userDraft,
+        'question_input_changed');
+      await record(question.questions.map((q, i) => `问题 ${i + 1}：${q.question}\n用户答复：${answers[i]}`).join('\n'), id);
+      this.store.event('native_question_answer_intent', { question: id, answers }, pane.record);
+      for (const key of keys) {
+        await assertCurrent();
+        check(!pane.stopped && !pane.failed && pane.active?.id === question.submission &&
+          pane.inputGeneration === question.input_generation, 'question_input_changed');
+        try { pane.pty.write(key); }
+        catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }
+        this.store.event('native_question_answer_key_written', { question: id, key }, pane.record);
+        // Interactive selection/review transitions consume distinct key events.
+        await new Promise(resolve => setTimeout(resolve, 75));
+      }
+      this.store.event('native_question_answer_written', { question: id }, pane.record);
+    });
   }
   controllerLaunch = (thread: string) => {
     const pane = this.panes.get(thread);

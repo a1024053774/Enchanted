@@ -18,9 +18,9 @@ import assert from 'node:assert/strict';
 const out = process.argv[2];
 if (!out) throw new Error('New JSON report path required');
 const { values } = parseArgs({ args: process.argv.slice(3), options: {
-  source: { type: 'string' }, contract: { type: 'string', default: 'sidebar' },
+  source: { type: 'string' }, contract: { type: 'string', default: 'questions' },
 } });
-assert.ok(['legacy', 'picker', 'shell', 'panes', 'creation', 'sidebar'].includes(values.contract), 'Select an explicit known IPC contract');
+assert.ok(['legacy', 'picker', 'shell', 'panes', 'creation', 'sidebar', 'questions'].includes(values.contract), 'Select an explicit known IPC contract');
 const sourceURL = values.source ? pathToFileURL(resolve(values.source) + '/') : new URL('../../', import.meta.url);
 const mainURL = new URL('workbench/app/main.ts', sourceURL);
 const preloadURL = new URL('workbench/app/preload.ts', sourceURL);
@@ -44,10 +44,11 @@ const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with 
   argv: process.argv, contract: values.contract, source: fileURLToPath(sourceURL), known_bad: badRevision, checks: [], model_turns: 0 };
 
 async function exercise(source, withRecovery = false, withCatalog = false, preloadSource = legacyPreload, withShell = false, withPanes = false, withCreation = false) {
-  const keyedHandlers = [...(withRecovery ? recoveredPaneHandlers : paneHandlers), ...(withPanes ? panesHandlers : [])];
-  const withSidebar = withCreation && values.contract === 'sidebar';
+  const withQuestions = withCreation && values.contract === 'questions';
+  const keyedHandlers = [...(withRecovery ? recoveredPaneHandlers : paneHandlers), ...(withPanes ? panesHandlers : []), ...(withQuestions ? ['a2a:answer'] : [])];
+  const withSidebar = withCreation && ['sidebar','questions'].includes(values.contract);
   const expectedHandlers = [...keyedHandlers, ...(withShell ? shellWindowHandlers : withCatalog ? windowHandlers : []), ...(withCreation ? creationHandlers : []), ...(withSidebar ? sidebarHandlers : [])];
-  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : []), ...(withCreation ? creationBridge : []), ...(withSidebar ? sidebarBridge : [])];
+  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : []), ...(withCreation ? creationBridge : []), ...(withSidebar ? sidebarBridge : []), ...(withQuestions ? ['answer'] : [])];
   const fixtureProject = 'catalog-project-sentinel';
   const fixtureSummary = { task_id: 'task-one', project_id: fixtureProject, title: '独立任务标题', state: 'claimed' };
   const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one' } };
@@ -202,7 +203,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   assert.equal(new Set(registrations).size, registrations.length, 'IPC handler registration must not repeat');
   const trailing = { 'a2a:snapshot': [], 'a2a:input': ['must-not-arrive'], 'a2a:composition-start': [],
     'a2a:release-queue': [{ window_id: first.window_id }], 'a2a:focus-observation': ['\x1b[?1004h'],
-    'a2a:output': [0], 'a2a:close-pane': [], 'a2a:pane-action': [{ type: 'rename', name: '测试' }], 'a2a:resize': [80, 24] };
+    'a2a:output': [0], 'a2a:close-pane': [], 'a2a:pane-action': [{ type: 'rename', name: '测试' }], 'a2a:resize': [80, 24], 'a2a:answer': ['question-sentinel', ['独立答复']] };
   const validArguments = Object.fromEntries(keyedHandlers.map(channel => [channel, [aKey, ...trailing[channel]]]));
   Object.assign(validArguments, { 'a2a:projects': [], 'a2a:tasks': [fixtureProject], 'a2a:selection': [], 'a2a:select-task': ['task-one'], 'a2a:new-terminal': [] });
   Object.assign(validArguments, { 'a2a:creation-repository': [], 'a2a:creation-submit': [{}], 'a2a:creation-cancel': [], 'a2a:sidebar': [], 'a2a:select-agent': ['worker'], 'a2a:notification-setting': [false] });
@@ -232,6 +233,17 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   assert.equal(bridge.paneKeys[0], aKey); assert.ok(Object.isFrozen(bridge.paneKeys));
   assert.equal((await bridge.snapshot(aKey)).window_id, first.window_id);
   await assert.rejects(() => bridge.snapshot(bKey));
+  if (withQuestions) {
+    const before = requests.length;
+    await assert.rejects(() => bridge.answer(bKey, 'question-sentinel', ['独立答复']));
+    await assert.rejects(() => bridge.answer(aKey, '', ['独立答复']));
+    await assert.rejects(() => bridge.answer(aKey, 'question-sentinel', []));
+    assert.equal(requests.length, before, 'Denied answers must not reach the transport');
+    await bridge.answer(aKey, 'question-sentinel', ['独立答复']);
+    const sent = requests.at(-1);
+    assert.equal(sent.command, 'window_answer'); assert.equal(sent.target, 'worker');
+    assert.deepEqual(sent.input.answers, ['独立答复']); assert.equal(sent.input.question, 'question-sentinel');
+  }
   if (withSidebar) {
     assert.ok((await bridge.sidebar()).agents.some(row => row.id === 'worker'));
     await assert.rejects(() => bridge.selectAgent('absent'));
@@ -476,7 +488,7 @@ try {
     report.single_pane_counterexample = { revision: '7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86', rejected: missingPanes, error: String(error) };
   }
   assert.ok(missingPanes, 'Single-pane tracer must fail the simultaneous pane-count assertion');
-  if (values.contract === 'sidebar') {
+  if (['sidebar','questions'].includes(values.contract)) {
     const revision = '0967cd465ce20c01b0a6ee29b2931ecbf4032caf';
     try { await exercise(execFileSync('git', ['show', revision + ':workbench/app/main.ts'], { encoding: 'utf8' }), true, true,
       execFileSync('git', ['show', revision + ':workbench/app/preload.ts'], { encoding: 'utf8' }), true, true, true); }
@@ -485,9 +497,9 @@ try {
   }
   const candidate = readFileSync(mainURL, 'utf8');
   const candidatePreload = readFileSync(preloadURL, 'utf8');
-  const withCreation = ['creation', 'sidebar'].includes(values.contract);
-  const withPanes = ['panes', 'creation', 'sidebar'].includes(values.contract);
-  const withShell = ['shell', 'panes', 'creation', 'sidebar'].includes(values.contract);
+  const withCreation = ['creation', 'sidebar','questions'].includes(values.contract);
+  const withPanes = ['panes', 'creation', 'sidebar','questions'].includes(values.contract);
+  const withShell = ['shell', 'panes', 'creation', 'sidebar','questions'].includes(values.contract);
   const withCatalog = values.contract !== 'legacy';
   const mutant = candidate.replace("command: 'pane_layout_close'", "command: 'pane_layout_open'");
   assert.notEqual(mutant, candidate);
@@ -506,7 +518,7 @@ try {
     catch (error) { report.window_key_mutant = { rejected: error instanceof assert.AssertionError && error.message.includes('Projects must work without a pane key'), error: String(error) }; }
     assert.equal(report.window_key_mutant?.rejected, true, 'A window list handler requiring a pane key must fail its no-key contract');
   }
-  if (values.contract === 'sidebar') {
+  if (['sidebar','questions'].includes(values.contract)) {
     for (const [name, mutantSource, expected] of [
       ['notification', candidate.replace('previous !== agent.state', 'false'), 'Only entering waiting-user emits one notification'],
       ['history_credentials', candidate.replace('launch, viewOnly: true', 'launch, viewOnly: false'), 'Transient controller view must not issue an input credential'],
