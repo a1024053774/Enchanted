@@ -41,16 +41,34 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
             const n=[...document.querySelectorAll('button[${attribute}]')].find(n=>n.getAttribute('${attribute}')===${JSON.stringify(request.target)});
             if(!n||n.disabled) throw new Error('Unavailable sidebar target'); n.click(); return {clicked:true}; })()`);
         } else if (['toggle', 'toggle-keyboard'].includes(request.command)) {
-          if (request.command === 'toggle-keyboard') window.focus();
+          if (request.command === 'toggle-keyboard') {
+            // A background macOS app can retain activeElement without owning
+            // native keyboard focus. Activate this test app once, then observe
+            // the window event before selecting the DOM keyboard target.
+            await new Promise((resolve, reject) => {
+              const focused = () => { clearTimeout(timer); window.removeListener('focus', focused); resolve(); };
+              const timer = setTimeout(() => {
+                window.removeListener('focus', focused);
+                log({ stage: 'disclosure-native-focus-timeout', target: request.target,
+                  windowFocused: window.isFocused(), contentsFocused: window.webContents.isFocused() });
+                reject(new Error('Disclosure button does not have keyboard focus: test window activation timed out'));
+              }, 3000);
+              window.once('focus', focused);
+              app.focus({ steal: true });
+              window.focus();
+              if (window.isFocused()) focused();
+            });
+          }
           value = await window.webContents.executeJavaScript(`(()=>{
             const n=[...document.querySelectorAll('button[data-agent-toggle]')].find(n=>n.dataset.agentToggle===${JSON.stringify(request.target)});
             if(!n||n.disabled||!n.getClientRects().length) throw new Error('Unavailable disclosure');
             ${request.command === 'toggle' ? 'n.click()' : 'n.focus()'};
-            return {target:document.activeElement?.dataset.agentToggle,documentFocused:document.hasFocus(),expanded:n.getAttribute('aria-expanded')==='true'}; })()`);
+            return {target:document.activeElement?.dataset.agentToggle,documentFocused:document.hasFocus(),
+              tabIndex:n.tabIndex,expanded:n.getAttribute('aria-expanded')==='true'}; })()`);
           if (request.command === 'toggle-keyboard') {
             const focus = { ...value, windowFocused: window.isFocused(), contentsFocused: window.webContents.isFocused() };
             log({ stage: 'disclosure-keyboard-target', target: request.target, focus });
-            if (focus.target !== request.target || !focus.documentFocused || !focus.windowFocused || !focus.contentsFocused) {
+            if (focus.target !== request.target || focus.tabIndex < 0 || !focus.documentFocused || !focus.windowFocused || !focus.contentsFocused) {
               throw new Error('Disclosure button does not have keyboard focus');
             }
             window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });

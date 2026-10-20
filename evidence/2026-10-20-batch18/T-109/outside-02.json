@@ -1,0 +1,421 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-109",
+  "attempt": "a1",
+  "model_calls": 0,
+  "baseline": "6411bdff8482ba47da207efa6a295a12666222aa",
+  "checks": [
+    {
+      "name": "真实 CLI 派发及 PTY 启动追加父 launch，旧启动记录原字节不变",
+      "status": "PASS"
+    },
+    {
+      "name": "真实 Electron 原版本忽略新记录中的父 launch，worker 留在未归属",
+      "status": "PASS"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain",
+        "--untracked-files=all",
+        "--",
+        "workbench/src",
+        "workbench/app",
+        "scripts",
+        "workbench/tests",
+        "workbench/package.json",
+        "workbench/package-lock.json"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "cc",
+        "-O2",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/tests/t096_resume_receiver.c",
+        "-o",
+        "/private/tmp/t109-real-i5xsd6vn/receiver"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "daemon_start",
+        "--launch-config",
+        "/private/tmp/t109-real-i5xsd6vn/launch.json"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "pane_layout"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t109-real-i5xsd6vn/repo-0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t109-real-i5xsd6vn/repo-0",
+        "add",
+        "."
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t109-real-i5xsd6vn/repo-0",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "T109 fixture"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "card_template",
+        "--task",
+        "task-0",
+        "--repo",
+        "/private/tmp/t109-real-i5xsd6vn/repo-0",
+        "--project",
+        "project-0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "card_save",
+        "--task",
+        "task-0",
+        "--card",
+        "/private/tmp/t109-real-i5xsd6vn/card-0.json",
+        "--expected-version",
+        "0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "create",
+        "--task",
+        "task-0",
+        "--repo",
+        "/private/tmp/t109-real-i5xsd6vn/repo-0",
+        "--project",
+        "project-0",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t109-real-i5xsd6vn/repo-1"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t109-real-i5xsd6vn/repo-1",
+        "add",
+        "."
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t109-real-i5xsd6vn/repo-1",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "T109 fixture"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "card_template",
+        "--task",
+        "task-1",
+        "--repo",
+        "/private/tmp/t109-real-i5xsd6vn/repo-1",
+        "--project",
+        "project-1"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "card_save",
+        "--task",
+        "task-1",
+        "--card",
+        "/private/tmp/t109-real-i5xsd6vn/card-1.json",
+        "--expected-version",
+        "0"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "create",
+        "--task",
+        "task-1",
+        "--repo",
+        "/private/tmp/t109-real-i5xsd6vn/repo-1",
+        "--project",
+        "project-1",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "controller_prepare",
+        "--task",
+        "task-0",
+        "--preset",
+        "ideation"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "controller_prepare",
+        "--task",
+        "task-0",
+        "--preset",
+        "executor",
+        "--parent-launch",
+        "5ca77bbc-6140-4009-a9b2-57cd35af18d2"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "dispatch",
+        "--task",
+        "task-0",
+        "--runtime-mode",
+        "workspace-write",
+        "--parent-launch",
+        "90d5264c-041e-4d99-ba88-280deaba98fc"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "pane_status",
+        "--thread",
+        "88bc7799-07ff-474d-8c90-998340f6474b"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "launch_show",
+        "--launch",
+        "147e7640-a8b4-4c9a-99fd-745f41c44b38"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "daemon_stop"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t109-real-i5xsd6vn/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "daemon_start"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t109-real-i5xsd6vn/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "pane_layout"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t109-real-i5xsd6vn/baseline/workbench/app/build.mjs",
+        "--slot",
+        "t109-red-11db803a"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t109-real-i5xsd6vn/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "daemon_stop"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "daemon_start"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "pane_layout"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/app/build.mjs",
+        "--slot",
+        "t109-green-ae733335"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t109/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t109-real-i5xsd6vn/state",
+        "daemon_stop"
+      ],
+      "exit": 0
+    }
+  ],
+  "limitations": [
+    "CLI 为本地 C 接收器；不证明模型行为或原生提问信号。"
+  ],
+  "source_head": "a88604853e266649b72aad9401b6390961d866c6",
+  "source_changes": [],
+  "candidate_revision": "a88604853e266649b72aad9401b6390961d866c6",
+  "error": "AssertionError({'id': 11, 'ok': False, 'error': 'Error: Disclosure button does not have keyboard focus'})",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a-wt-t109/workbench/tests/run_t109_hierarchy.py\", line 193, in main\n    keyboard = green.call('toggle-keyboard', target=executor['id'])\n  File \"/Users/luckye/Documents/Code/a2a-wt-t109/workbench/tests/run_t103_picker.py\", line 85, in call\n    assert value.get('id') == self.sequence and value.get('ok') is True, value\nAssertionError: {'id': 11, 'ok': False, 'error': 'Error: Disclosure button does not have keyboard focus'}\n",
+  "cleanup_complete": true,
+  "retained_fixture": "/private/tmp/t109-real-i5xsd6vn",
+  "retained_builds": [
+    "/private/tmp/a2a-build-t109-red-11db803a",
+    "/private/tmp/a2a-build-t109-green-ae733335"
+  ]
+}
