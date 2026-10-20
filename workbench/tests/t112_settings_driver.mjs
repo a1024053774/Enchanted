@@ -20,6 +20,12 @@ void run({ state: values.state, userData: values['user-data'] }).then(window => 
       if (request.command === 'inspect') value = await window.webContents.executeJavaScript(`(async () => ({
         ready: !!document.querySelector('.execution-settings input:not(:disabled)'),
         message: document.querySelector('.execution-settings [role=status]')?.textContent,
+        form: {
+          role: document.querySelector('.execution-settings select')?.value,
+          model: document.querySelectorAll('.execution-settings input:not([type=checkbox])')[0]?.value,
+          effort: document.querySelectorAll('.execution-settings input:not([type=checkbox])')[1]?.value,
+          fast: document.querySelector('.execution-settings input[type=checkbox]')?.checked,
+        },
         settings: await window.a2a.executionSettings()
       }))()`);
       else if (request.command === 'save') value = await window.webContents.executeJavaScript(`(async () => {

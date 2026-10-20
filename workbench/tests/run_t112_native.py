@@ -1,16 +1,12 @@
 """真实 daemon/CLI/PTY/Electron；仅本地固定 Responses API，不调用模型。Python 3.9。"""
 import argparse
 from contextlib import closing
-import io
 import json
 import os
 from pathlib import Path
-from pathlib import PurePosixPath
-import posixpath
 import shutil
 import sqlite3
 import subprocess
-import tarfile
 import tempfile
 import threading
 import time
@@ -19,6 +15,8 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from run_t103_picker import Window
 from t108_cleanup import observe, stop_owned
+from t112_archive import extract_baseline
+from diagnose_t112_reviewer import BINARY, run_reviewer_case
 from t112_native_api import request_source, message_events
 
 
@@ -33,68 +31,6 @@ def closed_fixture_launches(root):
         return [json.loads(row[0]) for row in db.execute('SELECT data FROM launch_records')]
 
 
-def extract_baseline(archive, destination):
-    """Preserve Git links; reject escape, link-parent writes, cycles and special files."""
-    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-        members = {}
-        for member in tar.getmembers():
-            path = PurePosixPath(member.name)
-            if (path.is_absolute() or not path.parts or path.parts[0] != 'workbench'
-                    or '..' in path.parts or '\0' in member.name or path in members
-                    or not (member.isdir() or member.isfile() or member.issym() or member.islnk())):
-                raise ValueError('unsafe_archive_member: ' + member.name)
-            members[path] = member
-        for path in members:
-            for parent in path.parents:
-                if parent in members and not members[parent].isdir():
-                    raise ValueError('archive_parent_not_directory: ' + str(parent))
-
-        def target(path, seen=()):
-            if path in seen:
-                raise ValueError('archive_link_cycle: ' + str(path))
-            member = members.get(path)
-            if member is None:
-                raise ValueError('archive_link_target_missing: ' + str(path))
-            if not (member.issym() or member.islnk()):
-                return path
-            link = PurePosixPath(member.linkname)
-            if link.is_absolute() or '\0' in member.linkname:
-                raise ValueError('unsafe_archive_link: ' + member.name)
-            relative = path.parent / link if member.issym() else link
-            resolved = PurePosixPath(posixpath.normpath(str(relative)))
-            if not resolved.parts or resolved.parts[0] != 'workbench' or '..' in resolved.parts:
-                raise ValueError('archive_link_escape: ' + member.name)
-            return target(resolved, (*seen, path))
-
-        # Validate the full graph before writing anything. No extraction can
-        # traverse a symlink parent, even when a later tar member replaces it.
-        resolved = {}
-        for path, member in members.items():
-            if member.issym() or member.islnk():
-                resolved[path] = target(path)
-                if member.islnk() and not members[resolved[path]].isfile():
-                    raise ValueError('archive_hardlink_not_file: ' + member.name)
-        if destination.exists() or destination.is_symlink():
-            raise ValueError('archive_destination_exists')
-        destination.mkdir(parents=True)
-        for path, member in members.items():
-            output = destination / str(path)
-            if member.isdir():
-                output.mkdir(parents=True, exist_ok=True)
-            elif member.isfile():
-                output.parent.mkdir(parents=True, exist_ok=True)
-                output.write_bytes(tar.extractfile(member).read())
-                output.chmod(member.mode & 0o777)
-        for path, member in members.items():
-            output = destination / str(path)
-            if member.issym():
-                output.parent.mkdir(parents=True, exist_ok=True)
-                output.symlink_to(member.linkname)
-            elif member.islnk():
-                output.parent.mkdir(parents=True, exist_ok=True)
-                os.link(destination / str(resolved[path]), output)
-
-
 def main():
     parser = argparse.ArgumentParser()
     for key in ('source', 'electron-dist', 'summary'):
@@ -106,14 +42,16 @@ def main():
     assert not summary.exists(), 'Preserve earlier evidence; choose a fresh summary'
     root = Path(tempfile.mkdtemp(prefix='t112-native-', dir='/private/tmp')).resolve()
     report = dict(status='INCOMPLETE', task='T-112', attempt='a1', baseline=args.baseline, fixture=str(root),
-                  model_calls=0, vendor_calls=0, commands=[], cases=[], checks=[], cleanup=[])
+                  model_calls_by_fixture=0, vendor_egress_observed=None,
+                  egress_limitation='No system-wide egress monitor; fixture endpoints are credential-free loopback only',
+                  commands=[], cases=[], checks=[], cleanup=[])
     env = {key: value for key, value in os.environ.items() if not key.startswith(('A2A_', 'GIT_', 'CODEX_', 'CLAUDE_', 'ANTHROPIC_', 'OPENAI_'))}
     for key in ('NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE'):
         env.pop(key, None)
     manager = root / 'manager-home'; manager.mkdir()
     env.update(HOME=str(manager), LC_ALL='C', PYTHONDONTWRITEBYTECODE='1', GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
                GIT_AUTHOR_NAME='T112 fixture', GIT_AUTHOR_EMAIL='t112@example.invalid', GIT_COMMITTER_NAME='T112 fixture', GIT_COMMITTER_EMAIL='t112@example.invalid')
-    requests, title_requests, windows, builds, owners = [], [], [], [], []
+    requests, title_requests, api_errors, windows, builds, owners = [], [], [], [], [], []
     active = None
     server = None
 
@@ -154,33 +92,42 @@ def main():
             self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers(); self.wfile.write(payload)
 
         def do_POST(self):
-            raw = self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8')
-            assert self.path in ('/v1/responses', '/responses'), self.path
-            with (root / 'fake-api-requests.jsonl').open('a', encoding='utf-8') as stream:
-                stream.write(json.dumps({'path': self.path, 'raw_body': raw}, ensure_ascii=False) + '\n')
-            body = json.loads(raw)
-            kind = request_source(body)
-            if kind == 'thread_title':
-                title_requests.append(body)
-                assert len(title_requests) <= 12, 'Unexpected extra title inputs'
-                reply = json.dumps({'title': 'T112 local fixture'})
-            else:
-                assert kind == 'user', 'Unexpected native thread source: ' + kind
-                requests.append(body)
-                assert len(requests) <= 12, 'Unexpected extra inputs'
-                reply = 'T112_LOCAL_FIXED_RESPONSE'
-            self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.end_headers()
-            for sequence, (name, payload) in enumerate(message_events(reply, body['model'])):
-                self.wfile.write(('event: ' + name + '\ndata: ' + json.dumps(dict(type=name, sequence_number=sequence, **payload)) + '\n\n').encode())
-            self.wfile.flush()
+            try:
+                raw = self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8')
+                assert self.path in ('/v1/responses', '/responses'), self.path
+                with (root / 'fake-api-requests.jsonl').open('a', encoding='utf-8') as stream:
+                    stream.write(json.dumps({'path': self.path, 'raw_body': raw}, ensure_ascii=False) + '\n')
+                body = json.loads(raw)
+                kind = request_source(body)
+                if kind == 'thread_title':
+                    title_requests.append(body)
+                    assert len(title_requests) <= 12, 'Unexpected extra title inputs'
+                    reply = json.dumps({'title': 'T112 local fixture'})
+                else:
+                    assert kind == 'user', 'Unexpected native thread source: ' + kind
+                    requests.append(body)
+                    assert len(requests) <= 12, 'Unexpected extra inputs'
+                    reply = 'T112_LOCAL_FIXED_RESPONSE'
+                self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.end_headers()
+                for sequence, (name, payload) in enumerate(message_events(reply, body['model'])):
+                    self.wfile.write(('event: ' + name + '\ndata: ' + json.dumps(dict(type=name, sequence_number=sequence, **payload)) + '\n\n').encode())
+                self.wfile.flush()
+            except Exception as error:
+                api_errors.append({'path': self.path, 'error': str(error)})
+                self.send_error(500)
 
     try:
         report['source_head'] = run(['git', 'rev-parse', 'HEAD']).strip()
         report['source_changes'] = run(['git', 'status', '--porcelain', '--untracked-files=all', '--',
             'workbench/src', 'workbench/app', 'workbench/tests', 'scripts/launch-worker']).splitlines()
         assert not report['source_changes'], 'Commit the candidate with RUN-OUTSIDE-COMMIT-01.sh before native acceptance'
+        search_summary = root / 'repository-search.json'
+        run(['python3', '-B', source / 'evidence/2026-10-20-batch18/T-112/SEARCH-REPO-08.py', '--source', source, '--summary', search_summary])
+        report['repository_search'] = json.loads(search_summary.read_text(encoding='utf-8'))
+        report['checks'].append('repository_model_effort_search_recorded')
         assert run([args.codex, '--version']).strip() == 'codex-cli 0.162.1'
         server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        server.daemon_threads = False
         threading.Thread(target=server.serve_forever, daemon=True).start()
         # Private copies only. Controlled internal Git links stay unchanged;
         # no new links into another checkout and no chmod in a shared checkout.
@@ -229,6 +176,7 @@ def main():
             return case
 
         def launch(expected, fields=(), invalid=False):
+            requests_before_dispatch = len(requests)
             value = call('dispatch', '--task', 'T112-fixture', '--runtime-mode', 'workspace-write', *fields)
             if active['label'] == 'red':
                 assert not value['ok'] and value['error'] == 'worker_executor_mismatch', value
@@ -237,6 +185,8 @@ def main():
             with sqlite3.connect('file:' + str(active['state'] / 'state.sqlite3') + '?mode=ro', uri=True) as db:
                 records = [json.loads(row[0]) for row in db.execute('SELECT data FROM launch_records')]
             record = next(row for row in records if row['role'] == 'worker')
+            case_result = dict(label=active['label'], status='INCOMPLETE', launch=record, expected=expected)
+            report['cases'].append(case_result)
             assert record['model_requested'] == expected['model'] and record['effort_requested'] == expected['effort'], record
             assert record['argv'][record['argv'].index('-m') + 1] == expected['model']
             assert 'model_reasoning_effort=' + json.dumps(expected['effort']) in record['argv']
@@ -247,8 +197,11 @@ def main():
             if invalid:
                 rows = until(events, lambda rows: any(row['type'] == 'launch_failed' for row in rows), 'CLI rejects unsupported effort')
                 trace = (active['state'] / 'traces' / record['id'] / 'pty.raw').read_text(errors='replace')
+                assert len(requests) == requests_before_dispatch, 'Unsupported effort must not silently start a different model turn'
+                failures = [row for row in rows if row['type'] == 'launch_failed']
+                assert all(row['data']['context']['event']['exitCode'] != 0 for row in failures), failures
                 assert 'unsupported-t112' in trace and ('invalid' in trace.lower() or 'unknown' in trace.lower()), trace
-                report['cases'].append(dict(label='invalid_effort', status='PASS', dispatch=value, launch=record, failure=[r for r in rows if r['type'] == 'launch_failed'], cli_error=trace[-3000:]))
+                case_result.update(label='invalid_effort', status='PASS', dispatch=value, failure=failures, cli_error=trace[-3000:])
             else:
                 assert value['ok'], value
                 foreground = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and not row.get('failed'), 'foreground native CLI process')
@@ -261,50 +214,47 @@ def main():
                 until(events, lambda rows: any(row['type'] == 'pane_idle' for row in rows), 'native matched Stop', 45)
                 request = requests[before]
                 assert request['model'] == expected['model'] and request.get('reasoning', {}).get('effort') == expected['effort'], request
-                report['cases'].append(dict(label=active['label'], status='PASS', launch=record, native_identity=info,
-                    request={'model': request['model'], 'reasoning': request.get('reasoning'), 'service_tier': request.get('service_tier')}))
+                case_result.update(status='PASS', native_identity=info, native_process=native,
+                    request={'model': request['model'], 'reasoning': request.get('reasoning'), 'service_tier': request.get('service_tier')})
 
         start(baseline, 'red'); launch(None); stop()
         report['checks'].append('baseline_real_dispatch_high_refused')
-        # Native sandbox counterexample uses the actual reviewer argv produced
-        # by Panes at a changed effort. The contract supplies PTY only; the
-        # following subprocess enforces the real macOS write boundary.
-        env['T112_FIXTURE_PREFIX'] = str(root / 'review-policy-')
-        policy_file = root / 'policy-contract.json'
-        run(['node', candidate / 'workbench/tests/test_t112_execution.mjs', policy_file])
-        policy = json.loads(policy_file.read_text())
-        policy_root = Path(policy['fixture'])
-        review = next(row for row in closed_fixture_launches(policy_root) if row['role'] == 'reviewer')
-        assert review['effort_requested'] == 'low'
-        prefix = [str(args.codex), 'sandbox', '--permission-profile', ':workspace', '--cd', review['worktree']]
-        for index, argument in enumerate(review['argv']):
-            if argument == '-c' and not review['argv'][index + 1].startswith('hooks.'):
-                prefix += ['-c', review['argv'][index + 1]]
-        protected = policy_root / 'protected.txt'; protected.write_text('unchanged\n', encoding='utf-8')
-        writable = Path(review['worktree']) / 'candidate-probe.txt'
-        probe = 'from pathlib import Path; Path(' + repr(str(writable)) + ').write_text("candidate-only"); Path(' + repr(str(protected)) + ').write_text("forbidden")'
-        command = prefix + ['--', '/usr/bin/python3', '-I', '-S', '-B', '-c', probe]
-        result = subprocess.run(command, cwd=review['worktree'], env={**env, 'CODEX_HOME': review['env']['CODEX_HOME']}, capture_output=True, text=True, timeout=30)
-        report['commands'].append(dict(argv=command, exit=result.returncode, stdout=result.stdout, stderr=result.stderr))
-        assert writable.read_text() == 'candidate-only', 'Sandbox setup failure cannot count as read-only evidence'
-        assert result.returncode != 0 and protected.read_text() == 'unchanged\n' and 'PermissionError' in result.stderr
-        report['checks'].append('changed_reviewer_effort_native_sandbox_denies_protected_write_allows_candidate_copy')
-        start(candidate, 'factory'); launch(dict(model='gpt-6.1-sol', effort='high', fast=False)); stop()
+        # Same real reviewer constructor, PTY, hooks and native receipt used by
+        # REVIEWER-DIAG-04. Change effort to low; mutate only the parent write root.
+        assert args.codex.resolve() == BINARY, 'Reviewer and worker must use the same pinned binary'
+        good = run_reviewer_case(source, candidate, root / 'reviewer-changed-effort-good', report['source_head'], env, report)
+        assert good['candidate_write'] and good['boundary_oracle_passed'] and not good['unsafe_write_observed'], 'Changed-effort reviewer must preserve the external file'
+        bad = run_reviewer_case(source, candidate, root / 'reviewer-changed-effort-bad', report['source_head'], env, report, bad=True)
+        assert bad['candidate_write'] and bad['unsafe_write_observed'] and not bad['boundary_oracle_passed'], 'The same oracle must reject the parent-writable configuration'
+        for case in (good, bad):
+            assert case['launch']['effort_requested'] == 'low'
+            assert not case.get('cleanup_errors') and case['cleanup'] and all(row['status'] == 'exited' for row in case['cleanup']), 'Reviewer cleanup must finish before the next case'
+        report['checks'].append('changed_reviewer_effort_native_sandbox_good_and_bad_control')
+        start(candidate, 'factory')
+        report['factory_settings'] = call('execution_settings')['settings']
+        assert report['factory_settings']['worker'] == dict(model='gpt-6.1-sol', effort='high', fast=False)
+        launch(dict(model='gpt-6.1-sol', effort='high', fast=False)); stop()
         case = start(candidate, 'ui-settings')
         built = json.loads(run(['node', candidate / 'workbench/app/build.mjs', '--slot', 't112-' + uuid.uuid4().hex[:8]]).splitlines()[-1]); builds.append(Path(built['out']).parent)
         window = Window(candidate, candidate / 'workbench/tests/t112_settings_driver.mjs', Path(built['out']), active['state'], case / 'ui', case / 'window', env,
                         windows, dict(executable=str(binary), dist=str(dist), version='43.4.1'), through_start=False)
-        window.wait(lambda row: row['ready'])
+        initial_view = window.wait(lambda row: row['ready'])
+        report['ui_settings'] = dict(argv=window.argv, native_electron=window.ready, before=initial_view)
+        assert initial_view['settings']['worker'] == dict(model='gpt-6.1-sol', effort='high', fast=False)
         window.call('save', role='worker', model='gpt-6.1-sol', effort='low', fast=False)
         view = window.wait(lambda row: row.get('message') == '已保存，下次启动生效')
-        assert view['settings']['worker']['effort'] == 'low', view
+        report['ui_settings']['after'] = view
+        assert view['settings']['worker']['effort'] == view['form']['effort'] == 'low', view
         window.close(); launch(dict(model='gpt-6.1-sol', effort='low', fast=False)); stop()
         report['checks'].append('real_dom_save_changes_next_native_dispatch')
         start(candidate, 'override')
-        assert call('execution_settings_save', '--role', 'worker', '--effort', 'medium')['ok']
+        assert call('execution_settings_save', '--role', 'worker', '--model', 't112-saved-unselected-model', '--effort', 'medium', '--fast', 'false')['ok']
+        report['override_saved_settings'] = call('execution_settings')['settings']['worker']
+        assert report['override_saved_settings'] == dict(model='t112-saved-unselected-model', effort='medium', fast=False)
         launch(dict(model='gpt-6.1-sol', effort='xhigh', fast=True), ('--model', 'gpt-6.1-sol', '--effort', 'xhigh', '--fast', 'true')); stop()
         start(candidate, 'invalid'); launch(dict(model='gpt-6.1-sol', effort='unsupported-t112', fast=False), ('--effort', 'unsupported-t112'), True); stop()
         report['checks'].extend(['high_xhigh_low_reach_native_cli', 'override_beats_saved_medium', 'fast_argv_explicit', 'invalid_effort_native_error_and_launch_failure'])
+        assert not api_errors, api_errors
         report['status'] = 'PASS'
     except Exception as error:
         report.update(error=str(error), traceback=traceback.format_exc())
@@ -326,6 +276,13 @@ def main():
                 report['status'] = 'INCOMPLETE'; report.setdefault('cleanup_errors', []).append(str(error))
         if server:
             server.shutdown(); server.server_close()
+        report['api_errors'] = api_errors
+        if api_errors:
+            report['status'] = 'INCOMPLETE'
+        for case in report['cases']:
+            if 'bad_parent_writable' in case and (case.get('cleanup_errors') or not case.get('cleanup') or any(row['status'] != 'exited' for row in case['cleanup'])):
+                report['status'] = 'INCOMPLETE'
+                report.setdefault('cleanup_errors', []).append({'case': case['label'], 'reason': 'reviewer_cleanup_not_confirmed'})
         for build in builds:
             shutil.rmtree(build)
         report['fake_api_requests'] = len(requests)

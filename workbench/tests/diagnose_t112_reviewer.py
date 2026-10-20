@@ -17,7 +17,7 @@ import time
 import traceback
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from run_t112_native import extract_baseline
+from t112_archive import extract_baseline
 from t108_cleanup import observe, stop_owned
 from t112_native_api import request_source, request_tools, shell_item, tool_events, message_events, assert_native_call
 
