@@ -250,6 +250,35 @@ export default [
     await page.send('Emulation.setEmulatedMedia', { features: [] });
   } },
 
+  { name: '10 会话模型设置（T-112）', async run({ page, url, viewport, check }) {
+    // 预期取自 T-112 Resolution：Codex 角色出厂默认 gpt-6.1-sol high、不传 Fast；两个主控 claude-haiku-5-5 low；保存后下次启动生效。
+    await page.load(url);
+    await press(page, viewport, '.sidebar-settings summary');
+    const value = field => page.eval(`document.querySelector('[data-exec-field="${field}"]').${field === 'fast' ? 'checked' : 'value'}`);
+    const pickRole = role => page.eval(`(() => { const s = document.querySelector('[data-exec-role]'); s.value = ${q(role)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    check('设置里有“会话模型”区块', (await text(page, '.execution-settings strong')) === '会话模型');
+    check('角色选项与真实应用一致', (await page.eval(`[...document.querySelectorAll('[data-exec-role] option')].map(o => o.textContent).join('|')`)) === 'Worker|审查员|监视器|构思主控|执行主控');
+    check('Worker 出厂默认 gpt-6.1-sol / high / 不传 Fast', await value('model') === 'gpt-6.1-sol' && await value('effort') === 'high' && await value('fast') === false);
+    await pickRole('ideation');
+    check('构思主控出厂默认 claude-haiku-5-5 / low', await value('model') === 'claude-haiku-5-5' && await value('effort') === 'low');
+    await page.eval(`document.querySelector('[data-exec-field="effort"]').select()`);
+    await press(page, viewport, '[data-exec-field="effort"]');
+    await page.eval(`document.querySelector('[data-exec-field="effort"]').select()`);
+    await page.type('xhigh');
+    await press(page, viewport, '[data-fk="exec:save"]');
+    check('保存后提示下次启动生效', (await text(page, '.execution-settings [role="status"]')) === '已保存，下次启动生效');
+    await pickRole('worker');
+    check('切换角色后提示清空、Worker 不受影响', await count(page, '.execution-settings [role="status"]') === 0 && await value('effort') === 'high');
+    await pickRole('ideation');
+    check('构思主控保留新保存的 xhigh', await value('effort') === 'xhigh');
+    await page.eval(`document.querySelector('[data-exec-field="effort"]').select()`);
+    await page.type('max');
+    await pickRole('worker'); await pickRole('ideation');
+    check('没保存就切换角色，改动不生效', await value('effort') === 'xhigh');
+    check('页面无横向滚动', await noPageScrollX(page));
+    await page.shot(`${viewport}-10-execution-settings`);
+  } },
+
   { name: '09 禁用 JavaScript 时内容可读', async run({ page, url, viewport, check }) {
     await page.send('Emulation.setScriptExecutionDisabled', { value: true });
     try {

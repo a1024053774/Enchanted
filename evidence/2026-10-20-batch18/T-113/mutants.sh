@@ -31,5 +31,6 @@ mutate answer-keeps-waiting 03 "      agent.state = 'running';" "      agent.sta
 mutate dock-follows-notifications 03 '${ui.dockBadges && waiting ?' '${ui.dockBadges && pending.length ?'
 mutate flow-more-off-by-one 05 'list.slice(0, 4)' 'list.slice(0, 5)'
 mutate split-replaces-pane 04 "{ direction: target.dataset.direction, first: paneKey, second: next }" "next"
+mutate execution-save-ignored 10 "      data.execution[ui.execRole] = { ...(ui.execDraft ?? data.execution[ui.execRole]) };" "      void 0;"
 rm -rf "$work"
 exit $result
