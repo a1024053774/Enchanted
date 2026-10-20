@@ -33,6 +33,8 @@ try:
          'agent.attempt === task.current_attempt?.attempt_id &&', 'orphan'),
         ('old-attempt', 'agent.attempt === task.current_attempt?.attempt_id && agent.parent &&', 'agent.parent &&', 'old'),
         ('ignore-events', "case 'claimed': stage = 'implementation'", "case 'claimed': stage = 'review'", 'implementation'),
+        ('truncate-returns', "event.type === 'delivery_rejected')", "event.type === 'delivery_rejected').slice(0, 1)",
+         'Ticket rejection facts must accumulate across attempts'),
     ]:
         tree = root / name
         shutil.copytree(source / 'workbench/src', tree / 'workbench/src')

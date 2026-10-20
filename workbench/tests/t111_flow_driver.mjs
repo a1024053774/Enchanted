@@ -19,6 +19,8 @@ void run({state:values.state,userData:values['user-data']}).then(async window=>{
       columns:[...n.querySelectorAll('[data-flow-column]')].map(c=>({stage:c.dataset.flowColumn,current:c.getAttribute('aria-current'),x:c.getBoundingClientRect().x,y:c.getBoundingClientRect().y,width:c.getBoundingClientRect().width,
         agents:[...c.querySelectorAll('[data-flow-agent]')].map(a=>a.dataset.flowAgent)})),
       monitors:[...n.querySelectorAll('.flow-monitors [data-flow-agent]')].map(a=>a.dataset.flowAgent),
+      returnLabel:n.querySelector('.flow-returns')?.getAttribute('aria-label'),returnText:n.querySelector('.flow-returns')?.innerText,
+      returnLinesVisible:[...n.querySelectorAll('[data-flow-return]')].map(a=>a.getClientRects().length>0&&a.getBoundingClientRect().width>0&&a.getBoundingClientRect().height>0),
       returns:[...n.querySelectorAll('[data-flow-return]')].map(a=>({from:a.dataset.flowReturn,count:Number(a.dataset.returnCount)}))})),
     unassigned:[...document.querySelectorAll('.flow-unassigned [data-flow-agent]')].map(a=>a.dataset.flowAgent),
     more:[...document.querySelectorAll('[data-flow-more]')].map(n=>({id:n.dataset.flowMore,text:n.innerText,expanded:n.getAttribute('aria-expanded')})),

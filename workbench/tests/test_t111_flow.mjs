@@ -45,6 +45,32 @@ try {
   const retry = projectFlow(tasks, agents, rejected).lanes[1];
   assert.equal(retry.stage, 'implementation'); assert.equal(retry.returns.length, 1); assert.equal(retry.returns[0].from, 'review');
   assert.equal(projectFlow(tasks, agents, [...events, {task:'T-A',attempt:'old',type:'delivery_rejected',details:{repair:{check:'completion'}}}]).lanes[0].returns.length, 1, 'Ticket return count includes recorded earlier attempts');
+  // One ticket: an earlier mechanical rejection and two current review
+  // rejections. Each review result accompanies, rather than adds, one return.
+  const multiRejected = [
+    {task:'T-B',attempt:'previous-b',type:'claimed',details:{}},
+    {task:'T-B',attempt:'previous-b',type:'submitted',details:{}},
+    {task:'T-B',attempt:'previous-b',type:'verification_result',details:{verification:{verification_id:'v-old',state:'failed'}}},
+    {task:'T-B',attempt:'previous-b',type:'delivery_rejected',details:{repair:{verification_id:'v-old',check:'completion',count:1}}},
+    ...events,
+    {task:'T-B',attempt:'b',type:'review_result',details:{review:{state:'needs_fix'}}},
+    {task:'T-B',attempt:'b',type:'delivery_rejected',details:{repair:{verification_id:'v-b1',check:'independent_review',count:1}}},
+    {task:'T-B',attempt:'b',type:'submitted',details:{}},
+    {task:'T-B',attempt:'b',type:'verification_result',details:{verification:{verification_id:'v-b2',state:'passed'}}},
+    {task:'T-B',attempt:'b',type:'review_result',details:{review:{state:'needs_fix'}}},
+    {task:'T-B',attempt:'b',type:'delivery_rejected',details:{repair:{verification_id:'v-b2',check:'independent_review',count:2}}},
+  ];
+  const multi = projectFlow(tasks, agents, multiRejected).lanes[1];
+  assert.equal(multi.returns.length, 3, 'Ticket rejection facts must accumulate across attempts');
+  assert.deepEqual(multi.returns.map(item=>item.from), ['checks','review','review'], 'Return origins must match the three gate rejection facts');
+  assert.equal(multi.stage, 'implementation');
+  const currentOnly = projectFlow(tasks, agents, multiRejected.filter(event=>event.attempt !== 'previous-b')).lanes[1];
+  assert.equal(currentOnly.returns.length, 2, 'Earlier attempt contributes one additional return');
+  assert.deepEqual(currentOnly.returns.map(item=>item.from), ['review','review']);
+  assert.deepEqual(projectFlow(tasks, agents, multiRejected.filter(event=>event.type !== 'review_result')).lanes[1].returns,
+    multi.returns, 'Review results must not add or remove rejection facts');
+  assert.equal(projectFlow(tasks, agents, multiRejected.filter(event=>event.type !== 'delivery_rejected')).lanes[1].returns.length,
+    0, 'Review results alone must not count as returns');
   assert.equal(projectFlow(tasks, agents, [{task:'T-A',attempt:'a',type:'rejected',details:{}}]).lanes[0].stage, null);
   assert.equal(projectFlow([], [], []).lanes.length, 0);
   const withoutAttempt = projectFlow([{task_id:'T-no-attempt',project_id:'p'}],

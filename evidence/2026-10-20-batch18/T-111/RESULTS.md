@@ -1,6 +1,6 @@
 # T-111 / a1：系统流程页
 
-状态：**INCOMPLETE**。功能候选已由执行主控提交为 `862ca16709ec5936de8c769ce62dc4b0401dad22`。首次沙箱外运行因测试副本的 spawn-helper 缺执行位失败；本轮只修复测试准备，尚未提交。真实 Electron 红／绿态、daemon 零写入及写入变异检查仍待重跑，不作为验收通过。未调用模型，未 push。
+状态：**INCOMPLETE**。功能候选与测试准备修复已提交至 `43717b803a6f3db84cf3420921fd277aa7d13c1a`，主控运行的 outside-02 三项报告均 PASS；独立审查 01 因 F1（计数验收漏检）判 NO_GO。本轮只补验收，不改产品；沙箱内候选与截断变异检查通过，真实 Electron 新断言及独立复审待运行，本轮修复尚未提交。
 
 ## 候选与范围
 
@@ -107,3 +107,30 @@ zsh /Users/luckye/Documents/Code/a2a-wt-t111/evidence/2026-10-20-batch18/T-111/R
 ```
 
 如需先固定此次测试准备修复的代码版本，可由执行主控运行 `RUN-OUTSIDE-COMMIT-02.sh`；脚本只暂存这两个测试文件与 T-111 的证据，仍由原钩子自动追加尾注。
+
+## 第 23 轮反馈：F1 多次打回计数验收缺口
+
+独立审查 `independent-review-01.md` 判 NO_GO：正确产品通过独立输入，但旧合同接受 `.slice(0, 1)` 截断打回事实的错误实现。本轮只修改四个测试文件，`workbench/src` 和 `workbench/app` 的 diff 为空；没有修改独立报告、审查脚本或产品代码。
+
+已保留修复前信号 `count-oracle-red-03.json`：在反事实套件中新增截断变异后，旧合同仍返回 PASS，套件按预期报错。它是 F1 的重现，不把依赖或启动错误当作变异拒绝。
+
+合同现在给同一张 T-B 票输入三条规范 `delivery_rejected`：旧 attempt `previous-b` 的机械检查打回一次，当前 attempt `b` 的独立审查打回两次（两次审查结果都伴随各自打回事实，中间有重新交付与机械检查通过事件）。独立预期写在测试里：总数 3，来源顺序 checks/review/review；去掉旧 attempt 后为 2 且均为 review；去掉 `review_result` 不改变打回记录；只剩 `review_result` 而没有 `delivery_rejected` 时为 0。当前 attempt 的阶段仍回到实现，不受旧 attempt 阶段干扰。
+
+真实 Electron 夹具使用同一语义的三次打回，最终重新交付并检查通过，保持当前独立审查阶段。新增实际 DOM 与 IPC 断言：票头和折回图总数为“打回 3 次”；两条可见折回线分别显示“机械检查打回 1 次”和“审查打回 2 次”；data-return-count 为 1/2；实际 IPC 原始 returns 为三条，来源 checks/review/review。既有其他泳道、状态、折叠、空态、窄窗和零写入断言保留。
+
+沙箱内结果：
+
+- `count-contract-green-03.json`：候选 PASS。
+- `count-oracle-green-03.json`：反事实套件 PASS，截断变异明确以 `Ticket rejection facts must accumulate across attempts`、`1 !== 3` 失败；其余已知坏版本与变异继续被拒。
+- Node、Python 3.9 语法及 diff 检查 PASS。没有重建或修改产品。
+
+由主控在沙箱外先固定修复提交，再运行新编号脚本：
+
+```sh
+zsh /Users/luckye/Documents/Code/a2a-wt-t111/evidence/2026-10-20-batch18/T-111/RUN-OUTSIDE-COMMIT-03.sh
+zsh /Users/luckye/Documents/Code/a2a-wt-t111/evidence/2026-10-20-batch18/T-111/RUN-OUTSIDE-03.sh
+```
+
+真实 Electron 新断言尚未运行，不沿用 outside-02 的 PASS 替新验收背书。旧失败与主控／独立证据均原样保留。
+
+审查脚本边界：`REVIEW-OUTSIDE-01.sh` 的 revision 固定为 `43717b803`，且预期旧合同及旧 Electron 接受截断变异，所以直接运行仍审旧版本并报告 NO_GO。这份独立脚本未由 worker 改动；要为新提交背书，需 reviewer 按新候选更新版本绑定和变异预期。主控可继续运行原脚本收集旧候选证据，但不能将其算作新候选独立通过。

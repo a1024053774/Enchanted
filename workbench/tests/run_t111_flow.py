@@ -105,6 +105,11 @@ def main():
                 if parent is not None:
                     record['parent_launch'] = parent
                 db.execute('INSERT INTO launch_records VALUES (?,?,?,?)', (name, task, attempt, json.dumps(record)))
+            # The same ticket has an earlier attempt's mechanical rejection.
+            event('T-B', 'previous-b', 'claimed', {})
+            event('T-B', 'previous-b', 'submitted', {})
+            event('T-B', 'previous-b', 'verification_result', dict(verification=dict(verification_id='v-old', state='failed')))
+            event('T-B', 'previous-b', 'delivery_rejected', dict(repair=dict(verification_id='v-old', check='completion', count=1)))
             for name, attempt in [('T-A', 'a'), ('T-B', 'b'), ('T-C', 'c'), ('T-D', 'd')]:
                 task = dict(task_id=name, project_id='fixture-project', repo=str(repo), title='独立标题 ' + name,
                             spec_rev=1, state='claimed', current_attempt=dict(attempt_id=attempt))
@@ -126,6 +131,10 @@ def main():
             event('T-B', 'b', 'verification_result', dict(verification=dict(state='passed')))
             event('T-B', 'b', 'review_result', dict(review=dict(state='needs_fix')))
             event('T-B', 'b', 'delivery_rejected', dict(repair=dict(check='independent_review', count=1)))
+            event('T-B', 'b', 'submitted', {})
+            event('T-B', 'b', 'verification_result', dict(verification=dict(verification_id='v-b2', state='passed')))
+            event('T-B', 'b', 'review_result', dict(review=dict(state='needs_fix')))
+            event('T-B', 'b', 'delivery_rejected', dict(repair=dict(verification_id='v-b2', check='independent_review', count=2)))
             event('T-B', 'b', 'submitted', {})
             event('T-B', 'b', 'verification_result', dict(verification=dict(state='passed')))
             event('T-D', 'd', 'integrated', {})
@@ -176,7 +185,16 @@ def main():
         assert lanes['T-A']['columns'][0]['agents'] == ['worker-1', 'worker-2']
         assert lanes['T-A']['monitors'] == ['monitor']
         assert lanes['T-B']['columns'][3]['agents'] == ['reviewer']
-        assert lanes['T-B']['returns'] == [{'from': 'review', 'count': 1}]
+        assert '打回 3 次' in lanes['T-B']['text'], 'Ticket header must display all three rejection facts'
+        assert lanes['T-B']['returnLabel'] == '打回 3 次', 'Return diagram must label the total across attempts'
+        assert lanes['T-B']['returns'] == [{'from': 'checks', 'count': 1}, {'from': 'review', 'count': 2}], 'Return lines must preserve the mechanical/review counts'
+        assert '机械检查打回 1 次' in lanes['T-B']['returnText'] and '审查打回 2 次' in lanes['T-B']['returnText']
+        assert lanes['T-B']['returnLinesVisible'] == [True, True], 'Both source return lines must be visible'
+        projected = next(lane for lane in green.call('flow')['lanes'] if lane['task'] == 'T-B')
+        assert len(projected['returns']) == 3, 'Actual IPC must accumulate rejection facts across attempts'
+        assert [item['from'] for item in projected['returns']] == ['checks', 'review', 'review']
+        report['multi_return_observed'] = dict(total=3, origins=['checks', 'review', 'review'],
+                                             label=lanes['T-B']['returnLabel'], lines=lanes['T-B']['returns'])
         assert lanes['T-A']['returns'] == []
         assert not lanes['T-D']['expanded'] and lanes['T-D']['stage'] == 'integration'
         assert {'orphan','missing-parent','old-attempt'}.issubset(set(view['unassigned']) | {a['id'] for a in green.call('flow')['unassigned']})
@@ -199,7 +217,7 @@ def main():
         green.call('flow')
         green.call('flow')
         assert persistence(state) == before, 'Actual flow IPC changed tables/schema/traces'
-        report['checks'].append(dict(name='两票并行、阶段、角色胶囊、监视器、单次打回、未归属、折叠展开与窄窗横滚', status='PASS'))
+        report['checks'].append(dict(name='两票并行、阶段、角色胶囊、监视器、跨 attempt 三次打回及来源计数、未归属、折叠展开与窄窗横滚', status='PASS'))
         report['checks'].append(dict(name='真实 flow IPC 所有表/schema/trace 原值不变', status='PASS'))
         green.close()
         stop()
