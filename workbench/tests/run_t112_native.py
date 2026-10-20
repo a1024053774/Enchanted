@@ -42,6 +42,8 @@ def main():
     assert not summary.exists(), 'Preserve earlier evidence; choose a fresh summary'
     root = Path(tempfile.mkdtemp(prefix='t112-native-', dir='/private/tmp')).resolve()
     report = dict(status='INCOMPLETE', task='T-112', attempt='a1', baseline=args.baseline, fixture=str(root),
+                  acceptance_revision='bc4306abdaca2e3cd08cd4f2b05b78a10c5215db',
+                  acceptance_ruling='改验收，原样传递即可 (Recommended)',
                   model_calls_by_fixture=0, vendor_egress_observed=None,
                   egress_limitation='No system-wide egress monitor; fixture endpoints are credential-free loopback only',
                   commands=[], cases=[], checks=[], cleanup=[])
@@ -177,8 +179,7 @@ def main():
             assert call('create', '--task', card['id'], '--repo', repo, '--branch', 'refs/heads/main', '--card-version', '1', '--project', 'T112-project')['ok']
             return case
 
-        def launch(expected, fields=(), invalid=False):
-            requests_before_dispatch = len(requests)
+        def launch(expected, fields=()):
             value = call('dispatch', '--task', 'T112-fixture', '--runtime-mode', 'workspace-write', *fields)
             if active['label'] == 'red':
                 assert not value['ok'] and value['error'] == 'worker_executor_mismatch', value
@@ -196,34 +197,27 @@ def main():
             def events():
                 with sqlite3.connect('file:' + str(active['state'] / 'state.sqlite3') + '?mode=ro', uri=True) as db:
                     return [{'type': t, 'data': json.loads(d)} for t, d in db.execute('SELECT type,data FROM orchestration_events ORDER BY seq')]
-            if invalid:
-                rows = until(events, lambda rows: any(row['type'] == 'launch_failed' for row in rows), 'CLI rejects unsupported effort')
-                trace = (active['state'] / 'traces' / record['id'] / 'pty.raw').read_text(errors='replace')
-                assert len(requests) == requests_before_dispatch, 'Unsupported effort must not silently start a different model turn'
-                failures = [row for row in rows if row['type'] == 'launch_failed']
-                assert all(row['data']['context']['event']['exitCode'] != 0 for row in failures), failures
-                assert 'unsupported-t112' in trace and ('invalid' in trace.lower() or 'unknown' in trace.lower()), trace
-                case_result.update(label='invalid_effort', status='PASS', dispatch=value, failure=failures, cli_error=trace[-3000:])
-            else:
-                assert value['ok'], value
-                foreground = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and not row.get('failed'), 'foreground native CLI process')
-                native = observe(foreground['leader']); assert native and str(args.codex.resolve()) in native['command']; owners.append(native)
-                before = len(requests)
-                case_result['pre_release'] = dict(process_info=foreground, api_requests=before,
-                    isolated_config=(Path(record['env']['CODEX_HOME']) / 'config.toml').read_text(encoding='utf-8'))
-                released = call('pane_release', '--thread', record['thread'], '--reason', 'T112 local fake API verification'); assert released['ok'], released
-                case_result['release'] = released
-                until(lambda: len(requests), lambda count: count > before, 'first user request received by local fake API')
-                assert not api_errors, api_errors
-                request = requests[before]
-                case_result['first_api_request'] = dict(index=before, thread_source=request_source(request),
-                    model=request['model'], reasoning=request.get('reasoning'), service_tier=request.get('service_tier'))
-                info = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and row.get('native_session') and not row.get('failed'), 'native CLI identity after first input')
-                assert info['leader'] == foreground['leader'], 'Native CLI leader changed during first input'
-                until(events, lambda rows: any(row['type'] == 'pane_idle' for row in rows), 'native matched Stop', 45)
-                assert request['model'] == expected['model'] and request.get('reasoning', {}).get('effort') == expected['effort'], request
-                case_result.update(status='PASS', native_identity=info, native_process=native,
-                    request={'model': request['model'], 'reasoning': request.get('reasoning'), 'service_tier': request.get('service_tier')})
+            assert value['ok'], value
+            case_result['dispatch'] = value
+            foreground = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and not row.get('failed'), 'foreground native CLI process')
+            native = observe(foreground['leader']); assert native and str(args.codex.resolve()) in native['command']; owners.append(native)
+            before = len(requests)
+            case_result['pre_release'] = dict(process_info=foreground, api_requests=before,
+                isolated_config=(Path(record['env']['CODEX_HOME']) / 'config.toml').read_text(encoding='utf-8'))
+            released = call('pane_release', '--thread', record['thread'], '--reason', 'T112 local fake API verification'); assert released['ok'], released
+            case_result['release'] = released
+            until(lambda: len(requests), lambda count: count > before, 'first user request received by local fake API')
+            assert not api_errors, api_errors
+            request = requests[before]
+            case_result['first_api_request'] = dict(index=before, thread_source=request_source(request),
+                model=request['model'], reasoning=request.get('reasoning'), service_tier=request.get('service_tier'))
+            info = until(lambda: call('pane_process_info', '--thread', record['thread']), lambda row: row.get('leader') and row.get('native_session') and not row.get('failed'), 'native CLI identity after first input')
+            assert info['leader'] == foreground['leader'], 'Native CLI leader changed during first input'
+            until(events, lambda rows: any(row['type'] == 'pane_idle' for row in rows), 'native matched Stop', 45)
+            assert request['model'] == expected['model'] and request.get('reasoning', {}).get('effort') == expected['effort'], request
+            assert not any(row['type'] == 'launch_failed' for row in events()), 'a2a must not reject the supplied value'
+            case_result.update(status='PASS', native_identity=info, native_process=native,
+                request={'model': request['model'], 'reasoning': request.get('reasoning'), 'service_tier': request.get('service_tier')})
 
         start(baseline, 'red'); launch(None); stop()
         report['checks'].append('baseline_real_dispatch_high_refused')
@@ -260,8 +254,8 @@ def main():
         report['override_saved_settings'] = call('execution_settings')['settings']['worker']
         assert report['override_saved_settings'] == dict(model='t112-saved-unselected-model', effort='medium', fast=False)
         launch(dict(model='gpt-6.1-sol', effort='xhigh', fast=True), ('--model', 'gpt-6.1-sol', '--effort', 'xhigh', '--fast', 'true')); stop()
-        start(candidate, 'invalid'); launch(dict(model='gpt-6.1-sol', effort='unsupported-t112', fast=False), ('--effort', 'unsupported-t112'), True); stop()
-        report['checks'].extend(['high_xhigh_low_reach_native_cli', 'override_beats_saved_medium', 'fast_argv_explicit', 'invalid_effort_native_error_and_launch_failure'])
+        start(candidate, 'invalid'); launch(dict(model='gpt-6.1-sol', effort='unsupported-t112', fast=False), ('--effort', 'unsupported-t112')); stop()
+        report['checks'].extend(['high_xhigh_low_reach_native_cli', 'override_beats_saved_medium', 'fast_argv_explicit', 'unknown_effort_unchanged_in_launch_argv_record_and_first_request'])
         assert not api_errors, api_errors
         report['status'] = 'PASS'
     except Exception as error:
