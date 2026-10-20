@@ -6,6 +6,8 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
+import { FlowPage } from './FlowPage';
+import type { FlowSnapshot } from '../src/flow.ts';
 import { TerminalScrollToBottom } from './TerminalScrollToBottom';
 import { createFocusSafeWriter, ownTerminalQueries } from './terminalOutput.mjs';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
@@ -38,7 +40,7 @@ function StatusIcon({ state }: { state: string }) { return <span className="stat
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 type Selection = { task: Snapshot['task'] | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
-  sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean): Promise<boolean>;
+  flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   creationRepository(): Promise<{ repo: string; branch: string; card: Record<string, any> } | null>;
@@ -393,6 +395,7 @@ function CreationForm({ project, onClose, onCreated }: { project: string; onClos
 }
 
 function Workbench() {
+  const [page, setPage] = useState<'terminal' | 'flow'>('terminal');
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
   const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -565,6 +568,12 @@ function Workbench() {
       <div className="sidebar-footer">原生 CLI · 本地编排</div>
     </aside>
     <main>
+      <nav className="workspace-pages" aria-label="工作区页面">
+        <button aria-current={page === 'terminal' ? 'page' : undefined} onClick={() => setPage('terminal')}>终端</button>
+        <button data-flow-tab aria-current={page === 'flow' ? 'page' : undefined} onClick={() => setPage('flow')}>流程</button>
+      </nav>
+      {page === 'flow' && <FlowPage />}
+      <div className="terminal-page" hidden={page !== 'terminal'}>
       <header className="task-header">
         <div><div className="eyebrow">{task ? `${task.project_id} / ${task.task_id}` : '终端工作区'}</div><h1>{task?.title ?? (loading ? '正在读取项目' : '独立终端')}</h1></div>
         <span className={'connection ' + (error || catalogError ? 'warning' : '')}>{navigating ? '正在切换任务' : loading ? '正在读取后台' : catalogError ? '列表未更新' : error ? '窗格未连接 · 上次记录' : connecting ? '正在连接' : '后台已连接'}</span>
@@ -605,6 +614,7 @@ function Workbench() {
           <div><dt>验收</dt><dd>{task?.verification?.state ?? '尚未开始'}</dd></div>
           <div><dt>集成</dt><dd>{task?.integration_intent?.state ?? '尚未开始'}</dd></div></dl>
       </section>}
+      </div>
     </main>
     {creationProject !== null && <CreationForm project={creationProject} onClose={() => setCreationProject(null)} onCreated={async task => {
       setCreationProject(null); await refresh();
