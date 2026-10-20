@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 import { sidebarSnapshot } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
+import { executionRole, executionOverrides } from './executionSettings.ts';
 
 // Window payloads can contain shell passwords, even when identity/validation
 // fails. Agent input still has its existing dedicated recorder below.
@@ -83,7 +84,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "anonymous"; window?: WindowBinding } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
     if (identity.kind === "operator") {
@@ -163,6 +164,12 @@ export async function serve(
       throw new Refusal("window_command_forbidden");
     }
     if (input.command === "projects_list") return { ok: true, projects: gates.listProjects() };
+    if (input.command === 'execution_settings') return { ok: true, settings: store.executionSettings() };
+    if (input.command === 'execution_settings_save') {
+      if (authority.kind !== 'operator') throw new Refusal('operator_required');
+      const selection = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));
+      return { ok: true, settings: store.saveExecutionSettings(executionRole(input.role), executionOverrides(selection)) };
+    }
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
     if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes) };
     if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes) };
@@ -339,14 +346,17 @@ export async function serve(
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const status = await gates.call({ command: "status", task: input.task });
       if (!status.ok || !status.task) return status;
-      return { ok: true, prepared: panes.prepareControllerLaunch(status.task, input.preset, input.parent_launch) };
+      const selection = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));
+      return { ok: true, prepared: panes.prepareControllerLaunch(status.task, input.preset, input.parent_launch, executionOverrides(selection)) };
     }
     if (input.command === "controller_start") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       const status = await gates.call({ command: "status", task: input.task });
       if (!status.ok || !status.task) return status;
       if (input.manifest?.state !== root) throw new Refusal("controller_state_mismatch");
-      const launch = await panes.startController(status.task, input.manifest);
+      const overrides = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));
+      const launch = await panes.startController(status.task, { ...input.manifest,
+        execution: executionOverrides({ ...input.manifest.execution, ...overrides }) });
       gates.registerController(launch.thread);
       await gates.resumeControllerInbox(launch.thread);
       return { ok: true, launch };

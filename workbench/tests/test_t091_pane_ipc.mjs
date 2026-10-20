@@ -43,13 +43,13 @@ const badRevision = '6974c2aad1233133264b7448e1277cd19fa0b6ba';
 const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with supplied Electron/transport/filesystem boundaries; no GUI or backend proof',
   argv: process.argv, contract: values.contract, source: fileURLToPath(sourceURL), known_bad: badRevision, checks: [], model_turns: 0 };
 
-async function exercise(source, withRecovery = false, withCatalog = false, preloadSource = legacyPreload, withShell = false, withPanes = false, withCreation = false) {
+async function exercise(source, withRecovery = false, withCatalog = false, preloadSource = legacyPreload, withShell = false, withPanes = false, withCreation = false, withExecution = false) {
   const withFlow = withCreation && ['flow','questions-flow'].includes(values.contract);
   const withQuestions = withCreation && ['questions', 'questions-flow'].includes(values.contract);
   const keyedHandlers = [...(withRecovery ? recoveredPaneHandlers : paneHandlers), ...(withPanes ? panesHandlers : []), ...(withQuestions ? ['a2a:answer'] : [])];
   const withSidebar = withCreation && ['sidebar','questions','flow','questions-flow'].includes(values.contract);
-  const expectedHandlers = [...keyedHandlers, ...(withShell ? shellWindowHandlers : withCatalog ? windowHandlers : []), ...(withCreation ? creationHandlers : []), ...(withSidebar ? sidebarHandlers : []), ...(withFlow ? ['a2a:flow'] : [])];
-  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : []), ...(withCreation ? creationBridge : []), ...(withSidebar ? sidebarBridge : []), ...(withQuestions ? ['answer'] : []), ...(withFlow ? ['flow'] : [])];
+  const expectedHandlers = [...keyedHandlers, ...(withShell ? shellWindowHandlers : withCatalog ? windowHandlers : []), ...(withCreation ? creationHandlers : []), ...(withSidebar ? sidebarHandlers : []), ...(withFlow ? ['a2a:flow'] : []), ...(withExecution ? ['a2a:execution-settings'] : [])];
+  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : []), ...(withCreation ? creationBridge : []), ...(withSidebar ? sidebarBridge : []), ...(withQuestions ? ['answer'] : []), ...(withFlow ? ['flow'] : []), ...(withExecution ? ['executionSettings'] : [])];
   const fixtureProject = 'catalog-project-sentinel';
   const fixtureSummary = { task_id: 'task-one', project_id: fixtureProject, title: '独立任务标题', state: 'claimed' };
   const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one' } };
@@ -94,6 +94,11 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     if (nextSequence) input = { ...input, sequence: nextSequence() };
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
+    if (input.command === 'execution_settings') return { ok: true, settings: { worker: { model: 'gpt-6.1-sol', effort: 'high', fast: false } } };
+    if (input.command === 'execution_settings_save') {
+      assert.equal(identity.kind, 'operator');
+      return { ok: true, settings: { [input.role]: { model: input.model, effort: input.effort, fast: input.fast } } };
+    }
     if (input.command === 'flow_snapshot') return { ok: true, lanes: [{task:'T-flow-sentinel', title:'随输入变化', stage:'review'}], unassigned:[{id:'orphan-sentinel'}] };
     if (input.command === 'sidebar_snapshot' && sidebarFailure === 'transport') throw disconnectedError;
     if (input.command === 'sidebar_snapshot' && sidebarFailure === 'refused') return { ok: false, error: 't110-sidebar-unavailable' };
@@ -230,7 +235,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     'a2a:output': [0], 'a2a:close-pane': [], 'a2a:pane-action': [{ type: 'rename', name: '测试' }], 'a2a:resize': [80, 24], 'a2a:answer': ['question-sentinel', ['独立答复']] };
   const validArguments = Object.fromEntries(keyedHandlers.map(channel => [channel, [aKey, ...trailing[channel]]]));
   Object.assign(validArguments, { 'a2a:projects': [], 'a2a:tasks': [fixtureProject], 'a2a:selection': [], 'a2a:select-task': ['task-one'], 'a2a:new-terminal': [] });
-  Object.assign(validArguments, { 'a2a:creation-repository': [], 'a2a:creation-submit': [{}], 'a2a:creation-cancel': [], 'a2a:flow': [], 'a2a:sidebar': [], 'a2a:select-agent': ['worker'], 'a2a:notification-setting': [false] });
+  Object.assign(validArguments, { 'a2a:creation-repository': [], 'a2a:creation-submit': [{}], 'a2a:creation-cancel': [], 'a2a:flow': [], 'a2a:sidebar': [], 'a2a:select-agent': ['worker'], 'a2a:notification-setting': [false], 'a2a:execution-settings': [] });
   const beforeDenied = requests.length;
   for (const channel of keyedHandlers) {
     await assert.rejects(() => invoke(a, channel, bKey, ...trailing[channel]));
@@ -267,6 +272,20 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     const sent = requests.at(-1);
     assert.equal(sent.command, 'window_answer'); assert.equal(sent.target, 'worker');
     assert.deepEqual(sent.input.answers, ['独立答复']); assert.equal(sent.input.question, 'question-sentinel');
+  }
+  if (withExecution) {
+    const before = requests.length;
+    for (const change of [null, [], {}, {role:'admin', model:'custom', effort:'ultra', fast:false},
+      {role:'worker', model:'custom', effort:'ultra', fast:'yes'},
+      {role:'worker', model:'custom', effort:'ultra', fast:false, sandbox:'danger-full-access'}])
+      await assert.rejects(() => bridge.executionSettings(change));
+    assert.equal(requests.length, before, 'Invalid execution settings must not reach transport');
+    assert.equal((await bridge.executionSettings()).worker.effort, 'high');
+    const saved = await bridge.executionSettings({role:'reviewer', model:'custom-model-sentinel', effort:'ultra-sentinel', fast:true});
+    assert.equal(saved.reviewer.model, 'custom-model-sentinel', 'Model selection must reach backend unchanged');
+    assert.equal(saved.reviewer.effort, 'ultra-sentinel', 'Effort selection must reach backend unchanged');
+    assert.equal(saved.reviewer.fast, true, 'Fast selection must reach backend unchanged');
+    assert.deepEqual(requests.at(-1).input, {command:'execution_settings_save', role:'reviewer', model:'custom-model-sentinel', effort:'ultra-sentinel', fast:true});
   }
   if (withSidebar) {
     if (withFlow) {
@@ -579,10 +598,10 @@ try {
   const withPanes = ['panes', 'creation', 'sidebar','questions','flow','questions-flow'].includes(values.contract);
   const withShell = ['shell', 'panes', 'creation', 'sidebar','questions','flow','questions-flow'].includes(values.contract);
   const withCatalog = values.contract !== 'legacy';
-  report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell, withPanes, withCreation);
+  report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell, withPanes, withCreation, true);
   const mutant = candidate.replace("command: 'pane_layout_close'", "command: 'pane_layout_open'");
   assert.notEqual(mutant, candidate);
-  try { await exercise(mutant, true, withCatalog, candidatePreload, withShell, withPanes, withCreation); }
+  try { await exercise(mutant, true, withCatalog, candidatePreload, withShell, withPanes, withCreation, true); }
   catch (error) { report.close_mutant = { rejected: error instanceof assert.AssertionError && error.message.startsWith('Explicit pane close must persist removal'), error: String(error) }; }
   assert.equal(report.close_mutant?.rejected, true, 'Close-without-removal mutant must fail the saved-layout assertion');
   const emptyBadRevision = '11b32303bebf276d20026a6e718719d15f5d4068';
@@ -593,7 +612,7 @@ try {
     const windowMutant = candidate.replace("ipcMain.handle('a2a:projects', async event => {\n    const context = windowTarget(event);",
       "ipcMain.handle('a2a:projects', async (event, key: string) => {\n    const { context } = target(event, key);");
     assert.notEqual(windowMutant, candidate, 'Window-level pane-key mutation must change the selected implementation');
-    try { await exercise(windowMutant, true, true, candidatePreload, withShell, withPanes, withCreation); }
+    try { await exercise(windowMutant, true, true, candidatePreload, withShell, withPanes, withCreation, true); }
     catch (error) { report.window_key_mutant = { rejected: error instanceof assert.AssertionError && error.message.includes('Projects must work without a pane key'), error: String(error) }; }
     assert.equal(report.window_key_mutant?.rejected, true, 'A window list handler requiring a pane key must fail its no-key contract');
   }
@@ -604,14 +623,14 @@ try {
     ]) {
       assert.notEqual(mutantSource, candidate);
       let rejected = false;
-      try { await exercise(mutantSource, true, true, candidatePreload, true, true, true); }
+      try { await exercise(mutantSource, true, true, candidatePreload, true, true, true, true); }
       catch (error) { rejected = error instanceof assert.AssertionError && error.message.startsWith(expected); report[name + '_mutant'] = { rejected, error: String(error) }; }
       assert.equal(rejected, true, name + ' mutant must fail its focused assertion');
     }
   }
-  report.checks.push('app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential',
+  report.checks.push('execution_settings_exact_roundtrip_and_invalid_payload_rejected', 'app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential',
     'never_saved_default_selection', 'final_close_stays_empty_on_repeated_reopen', 'empty_preload_and_no_credentials', 'explicit_selection_reopens');
-  if (withCatalog) report.checks.push(['sidebar','questions','flow','questions-flow'].includes(values.contract) ? values.contract === 'questions-flow' ? 'explicit_22_handler_and_23_bridge_names' : ['flow','questions'].includes(values.contract) ? 'explicit_21_handler_and_22_bridge_names' : 'explicit_20_handler_and_21_bridge_names' : withCreation ? 'explicit_17_handler_and_18_bridge_names' : withPanes ? 'explicit_14_handler_and_15_bridge_names' : withShell ? 'explicit_12_handler_and_13_bridge_names' : 'explicit_11_handler_and_12_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',
+  if (withCatalog) report.checks.push(['sidebar','questions','flow','questions-flow'].includes(values.contract) ? values.contract === 'questions-flow' ? 'explicit_23_handler_and_24_bridge_names' : ['flow','questions'].includes(values.contract) ? 'explicit_22_handler_and_23_bridge_names' : 'explicit_21_handler_and_22_bridge_names' : withCreation ? 'explicit_18_handler_and_19_bridge_names' : withPanes ? 'explicit_15_handler_and_16_bridge_names' : withShell ? 'explicit_13_handler_and_14_bridge_names' : 'explicit_12_handler_and_13_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',
     'projects_without_pane_key', 'tasks_project_argument_and_backend_refusals', 'window_selection_without_transport',
     'select_task_null_and_id_preserve_rejected_destination');
   if (withShell) report.checks.push(withPanes ? 'new_terminal_without_task_and_serializes_creation' : 'new_terminal_requires_task_and_serializes_creation', 'shell_project_cwd_and_identity', 'shell_keyed_input_and_close');

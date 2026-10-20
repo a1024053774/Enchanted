@@ -1,5 +1,5 @@
 // Real Electron DOM/IPC. Only inspect, fixture prompt and answer controls.
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import { readFileSync, appendFileSync, renameSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -15,6 +15,23 @@ const { run }=await import(pathToFileURL(build.main));
 const reply=value=>process.stdout.write(JSON.stringify(value)+'\n');
 void run({state:values.state,task:values.task,launch:manifest.launch,userData:values['user-data']}).then(window=>{
   const rendererConsole=[];
+  // Observation only: do not focus, recompute a badge, or retry an action here.
+  const focusState=()=>({badge:Number(app.dock.getBadge() || '0'),hidden:app.isHidden(),
+    destroyed:window.isDestroyed(),focused:!window.isDestroyed()&&window.isFocused(),
+    focused_window:BrowserWindow.getFocusedWindow()?.id??null,
+    visible:!window.isDestroyed()&&window.isVisible(),minimized:!window.isDestroyed()&&window.isMinimized()});
+  const recordFocus=(event,detail={})=>{
+    const state=focusState();
+    appendFileSync(join(values.output,'focus-timeline.jsonl'),JSON.stringify({
+      at:new Date().toISOString(),monotonic_ms:performance.now(),event,...detail,...state})+'\n');
+    return state;
+  };
+  for(const event of ['browser-window-focus','browser-window-blur','activate','did-become-active','did-resign-active'])
+    app.on(event,()=>recordFocus('app:'+event));
+  for(const event of ['focus','blur','show','hide','minimize','restore'])
+    window.on(event,()=>recordFocus('window:'+event));
+  recordFocus('driver:ready');
+  let previousFocus;
   let disconnectedSocket = null;
   window.webContents.on('console-message', details => {
     const entry={level:details.level,message:details.message,line:details.lineNumber,source:details.sourceId};
@@ -25,6 +42,8 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
   createInterface({input:process.stdin}).on('line',line=>{queue=queue.then(async()=>{
     const request=JSON.parse(line);
     try {
+      if(['foreground','background','reload-window','disconnect-sidebar','reconnect-sidebar'].includes(request.command))
+        recordFocus('command:before',{command:request.command,request_id:request.id});
       let value;
       if(request.command==='inspect') value=await window.webContents.executeJavaScript(`({
         text:document.body.innerText, panes:[...document.querySelectorAll('section.pane')].map(n=>({key:n.dataset.paneKey,launch:n.dataset.launchId,input:n.dataset.inputEnabled})),
@@ -97,7 +116,14 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
         catch(error){return {rejected:true,error:String(error)};} })()`);
       else if(request.command==='close'){reply({id:request.id,ok:true});window.close();return;}
       else throw new Error('Unknown driver command');
-      if(request.command==='inspect') value.badge=Number(app.dock.getBadge() || '0');
+      if(request.command==='inspect') {
+        value.native_focus=focusState();
+        value.badge=value.native_focus.badge;
+        const currentFocus=JSON.stringify(value.native_focus);
+        if(currentFocus!==previousFocus){recordFocus('inspect:changed',{request_id:request.id});previousFocus=currentFocus;}
+      }
+      if(['foreground','background','reload-window','disconnect-sidebar','reconnect-sidebar'].includes(request.command))
+        recordFocus('command:after',{command:request.command,request_id:request.id});
       reply({id:request.id,ok:true,value});
     }catch(error){reply({id:request.id,ok:false,error:String(error),stack:error?.stack,renderer_console:rendererConsole.slice(-20)});}
   }).catch(error=>{reply({fatal:String(error)});app.exit(1);});});
