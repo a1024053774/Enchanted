@@ -2,7 +2,20 @@
 
 状态：**INCOMPLETE**。角色设置和派发覆盖已实现，本地合同检查 PASS；真实 daemon + CLI + 本地假 API + Electron + 原生沙箱验证仍待主控重跑。
 
-首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订已提交为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，分支 `exec/t112`。本轮处理主控 #40 报告的原生 runner 数据库查询失败，尚待 COMMIT-03 提交。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，分支 `exec/t112`。本轮处理主控 #42 要求的 reviewer 权限调查，尚待 COMMIT-04 提交诊断脚本；尚未修改原生 runner 的沙箱探针或断言。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+
+## #42 权限调查：尚未解除
+
+REALITY GATE: INCOMPLETE。目标是区分本票引入的权限回归、起点已有问题与探针构造错误。未扩大 reviewer 权限，未改原断言，不能以文档推断替代原生边界验证。
+
+- **observed**：outside-native-03.json 的数据库读取通过；随后 profile 探针 exit=0，protected.txt 被写，原断言失败。该探针选择 --permission-profile :workspace，实际 reviewer 构造器选择 --sandbox workspace-write，两者并不相同。
+- **measured**：reviewer-metadata-01.json 从起点 e3102389e 和候选 3ebbc9a3b 的实际 Panes.createReview 构造器分别取得完整启动记录。起点 effort=xhigh，候选按设置为 low；二者的沙箱均为 workspace-write，network_access=false、network_proxy=false、exclude_slash_tmp=true、exclude_tmpdir_env_var=true 均保持一致。该检查提供 PTY 替身，仅执行真实 CLI 版本探测，不声称运行了真实 reviewer 会话。
+- **measured**：同一证据保存了两个已装 CLI 的 --version、--help、sandbox --help 原文。产品路径绑定 0.162.1，探针也是 0.162.1；把候选的 reviewer 启动器改传已装 0.163.0，启动前被原版本门禁以 codex_version_mismatch 拒绝。未放宽版本门禁；外层 Herdr/Codex 会话版本不等于本工作台的受管 CLI 版本。
+- **inferred**：OpenAI Docs 的 [Permissions](https://learn.chatgpt.com/docs/permissions) 说明 profile 不与旧 sandbox 配置组合，内置 :workspace 允许写系统临时目录；[配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)说明旧 exclude_slash_tmp/exclude_tmpdir_env_var 控制临时目录可写范围。因此旧 profile 探针不能直接代表 reviewer 的旧式沙箱。protected.txt 位于 /private/tmp 下，文档差异足以解释此次异常，但尚未证明本机运行效果。
+- **unknown / PROBE**：需在沙箱外运行 REVIEWER-DIAG-01。脚本用隔离 Git 快照、依赖和 home 对照起点与候选，每版分别执行旧 profile 探针、按记录 sandbox_mode 选择的旧式探针、故意增加父目录 writable_roots 的坏配置；另保存 0.163.0 二进制的旧式探针对照。每次同时读回候选与保护文件，要求坏配置确实写入保护文件且被原业务断言拒绝；候选目录都不能写时只算设置失败。
+- **停止条件**：若起点和候选的旧式探针都越界写入，则上报涉及权限的 blocking issue，交主控转用户；若仅候选越界则修本票回归；若两者旧式探针均保护成功且旧 profile 探针越界，再修原生 runner 的探针构造，并保留坏配置反例。当前尚未确认属于哪一种，不提前下安全结论。
+
+当前沙箱内执行 codex sandbox 会报 sandbox_apply: Operation not permitted；因此只做了无需应用 seatbelt 的元数据对照。诊断脚本只写自己创建的临时夹具，完成后删除，不启动模型或连接供应商。结果将写 outside-reviewer-diag-01.json，旧失败摘要保留。
 
 ## 本轮修复
 
@@ -36,8 +49,8 @@ Tracer bullet：设置表单 → IPC → SQLite → 派发 → argv。Deep modul
 | T-108 回归 | PASS，t108-rev2-04.json；未修改该测试。 |
 | 已关闭夹具跨运行时读取 | PASS，closed-fixture-green-01.json；相同 Node 合同生产者、Python 消费者，3 条边界检查。修前在相同查询处失败，见 closed-fixture-red-01.json。 |
 | 原生 high 红态 | PASS，outside-native-02.json 的 baseline_high / baseline_real_dispatch_high_refused，真实 daemon 门禁返回 worker_executor_mismatch。 |
-| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败，尚无原生绿态。修后须执行 NATIVE-03。 |
-| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；见 project-map-rev3-final.txt。 |
+| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败；03 查询通过但 reviewer 权限探针失败，正在按 #42 调查。尚无原生绿态。 |
+| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev4-final.txt。 |
 
 ```sh
 python3 -B workbench/tests/test_t112_archive.py --summary evidence/2026-10-20-batch18/T-112/baseline-extraction-final-03.json
@@ -54,11 +67,11 @@ python3 -B workbench/tests/test_t112_closed_fixture.py --summary evidence/2026-1
 ## 主控重跑命令
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-03.sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-NATIVE-03.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-04.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-REVIEWER-DIAG-01.sh
 ```
 
-先提交再运行，使 code_revision 绑定完整提交。新的原生结果写 outside-native-03.json，不覆盖 01、02。Electron 默认取主 checkout 内置盘的 43.4.1，可用 T112_ELECTRON_DIST 指定同版本目录。只使用私有 Git 快照、依赖、repo/state/home 和本地固定 Responses API；不调用模型、不截屏。仅在私有依赖副本修改 spawn-helper 执行位。后台 detached，收尾核对本次拥有的进程；无需挂载外置盘。原生结果落地后由主控纳入后续证据提交。
+先提交再运行，使 code_revision 绑定完整提交。本次先运行独立权限诊断，不重跑尚未修正的全链路探针；结果写 outside-reviewer-diag-01.json，不覆盖 native-01、02、03。诊断不需要 Electron 或 API。待原生边界归因完成后，按结论修复或上报，再提供全链路重跑脚本。仅在私有依赖副本修改 spawn-helper 执行位，无需挂载外置盘。
 
 ## 已交接事项
 
