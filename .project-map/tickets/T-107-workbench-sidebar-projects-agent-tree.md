@@ -61,3 +61,7 @@ INCOMPLETE。代码已合入 main（d28afcb88），票不关闭。用户 2026-10
   3. 真实系统通知没有触发过（依赖第 1 项）。
 - 提交身份：worker 是用户手动切换到 gpt-6.1-sol high 的 Codex 会话，没有 A2A 启动绑定，所以由执行主控代为提交，提交说明里照实写明。
 - 已在内置盘重新打包，并替换 /Applications/a2a.app。
+
+## 缺口去向（2026-10-20）
+
+执行主控已合入 d28afcb88，状态 INCOMPLETE。三个缺口：窗格缺结构化的"等待用户回答/等待主控回答"信号 → [T-108](T-108-native-question-signals-via-hooks.md)；派发时记录父 launch、层级展示 → [T-109](T-109-dispatch-parent-launch-and-hierarchy-tree.md)；通知验收 → [T-110](T-110-in-app-notification-for-waiting-user.md)，且用户决定**只做应用内通知、不调用系统通知**，取代上文第 5 条的系统通知。
