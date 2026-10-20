@@ -13,7 +13,7 @@ import type { A2AInboxEntry } from "./contracts/a2aInbox.ts";
 import { claudeLaunch, type ClaudeLaunchInput } from "./claudeLaunch.ts";
 import { ClaudeLogin } from "./claudeLogin.ts";
 import { noticeText, SECURITY_NOTICE_TEXT } from "./claudeNotice.ts";
-import { resumeArgv, nativeSessionFile } from "./paneRecovery.ts";
+import { resumeArgv, nativeSessionFile, codexSessionOrigin, codexSessionFileName } from "./paneRecovery.ts";
 
 const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -553,6 +553,8 @@ export class Panes implements GateRuntime {
       try {
         appendFileSync(join(this.root, "traces", launch, "pty.raw"), data);
       } catch (error) { this.recordFailure(pane, "trace_write_failed", error); return; }
+      try { this.scan(pane); }
+      catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
       try { this.terminalProtocol(pane, data); }
       catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
     });
@@ -673,19 +675,18 @@ export class Panes implements GateRuntime {
     const home = pane.record.env.CODEX_HOME as string;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
-    const files = final ? [...pane.offsets.keys()].filter((file) => pane.native && file.endsWith(pane.native + ".jsonl")) :
+    const files = final ? [...pane.offsets.keys()].filter((file) => codexSessionFileName(file, pane.native)) :
       pane.nativeFile ? [pane.nativeFile] : walk(join(home, "sessions"));
     if (final) check(pane.native && files.length === 1, "native_bound_log_unavailable", { native_session: pane.native, files });
     for (const file of files) {
       const bytes = readFileSync(file);
       // An isolated home can retain an earlier attempt's rollout. Only logs
       // belonging to this worktree contribute records or native identity.
-      if (!final) {
-        const end = bytes.indexOf(10);
-        if (end < 0) continue;
-        const metadata = JSON.parse(bytes.subarray(0, end).toString("utf8"));
-        if (metadata.type !== "session_meta" || metadata.payload?.cwd !== pane.attempt.workspace) continue;
-      }
+      const metadataEnd = bytes.indexOf(10);
+      if (metadataEnd < 0 && !final) continue;
+      const metadata = JSON.parse(bytes.subarray(0, metadataEnd < 0 ? bytes.length : metadataEnd).toString("utf8"));
+      if (!final && (metadata.type !== "session_meta" || metadata.payload?.cwd !== pane.attempt.workspace)) continue;
+      const rootFile = codexSessionOrigin(file, metadata, metadata.payload?.id, pane.attempt.workspace) === "root";
       let offset = pane.offsets.get(file) ?? 0;
       check(bytes.length >= offset, "native_log_truncated", { file: relative(home, file), offset, bytes: bytes.length });
       let end: number;
@@ -693,14 +694,14 @@ export class Panes implements GateRuntime {
         const raw = bytes.subarray(offset, end).toString("utf8"), event = JSON.parse(raw);
         this.store.event("native_record", { file: relative(home, file), offset, record: event }, pane.record);
         appendFileSync(join(this.root, "traces", pane.record.id, "native.jsonl"), raw + "\n");
-        if (event.type === "session_meta" && event.payload.source === "cli") {
+        if (event.type === "session_meta" && event.payload.source === "cli" && rootFile) {
           check(!pane.native || pane.native === event.payload.id, "ambiguous_native_session");
           if (!pane.native) this.store.event("pane_native_session", { native_session: event.payload.id,
             resume_argv: resumeArgv(pane.record, event.payload.id) }, pane.record);
           pane.native = event.payload.id;
         }
         // Only the root CLI file contributes identity or model facts.
-        if (pane.native && file.endsWith(pane.native + ".jsonl")) {
+        if (rootFile && pane.native === metadata.payload.id) {
           if (event.type === "turn_context" && event.payload.turn_id === pane.turn) {
             pane.model = event.payload.model ?? "unknown";
             pane.effort = event.payload.effort ?? event.payload.reasoning_effort ?? "unknown";
@@ -998,7 +999,6 @@ export class Panes implements GateRuntime {
       restore.type === "pane_restore_failed" ? "failed" : "pending", error: restore.data.error ?? null, details: restore.data.details ?? null };
     const pane = this.panes.get(thread);
     if (pane) {
-      this.scan(pane);
       return { thread, launch: pane.record.id, state: pane.failed || pane.stopped ? "unknown" : pane.state,
         lifecycle: pane.archived || pane.record.role === "shell" && pane.stopped ? "ended" : pane.stopped ? "interrupted" : "running", shell_pid: pane.pty.pid,
         state_source: pane.failed ? "runtime_failure" : "host_events", active: pane.active, native_session: pane.native,

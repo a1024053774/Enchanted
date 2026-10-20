@@ -1,0 +1,350 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-107",
+  "attempt": "a1",
+  "model_calls": 0,
+  "argv": [
+    "workbench/tests/run_t107_sidebar.py",
+    "--source",
+    "/Users/luckye/Documents/Code/a2a-wt-t107",
+    "--dependencies",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules",
+    "--electron-dist",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist",
+    "--summary",
+    "evidence/2026-10-19-batch17/T-107/electron-03-summary.json"
+  ],
+  "baseline": "0967cd465ce20c01b0a6ee29b2931ecbf4032caf",
+  "checks": [
+    {
+      "name": "真实 Electron 已知坏基线",
+      "status": "PASS",
+      "observed": "无侧栏 IPC、agent 树与 Git 摘要，符合预期红态"
+    },
+    {
+      "name": "项目与 agent 层级、角色、attempt、Git 与三种历史状态",
+      "status": "PASS",
+      "git_status": "## main...origin/main [ahead 1]\n"
+    },
+    {
+      "name": "点击逐个聚焦原窗格与临时历史窗格，均只读，未知身份拒收",
+      "status": "PASS"
+    },
+    {
+      "name": "窄窗不溢出、跨项目往返、通知设置重开保留、任务原值与用户输入零写入",
+      "status": "PASS"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":56837,\"root\":\"/private/tmp/t107-real-6bndlof4/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":false,\"panes\":[],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":56837,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-6bndlof4/repo-one"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-6bndlof4/repo-one/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) 04e2c92] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-6bndlof4/repo-two"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-6bndlof4/repo-two/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-two",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-two",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) 04e2c92] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "04e2c928516f96af571ac7bac84e6865b7af9c59\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "config",
+        "remote.origin.url",
+        "/private/tmp/t107-real-6bndlof4/unused-origin"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "config",
+        "remote.origin.fetch",
+        "+refs/heads/*:refs/remotes/origin/*"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "update-ref",
+        "refs/remotes/origin/main",
+        "04e2c928516f96af571ac7bac84e6865b7af9c59"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "branch",
+        "--set-upstream-to=origin/main",
+        "main"
+      ],
+      "exit": 0,
+      "stdout": "branch 'main' set up to track 'origin/main'.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-am",
+        "fixture ahead"
+      ],
+      "exit": 0,
+      "stdout": "[main 15663b1] fixture ahead\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-6bndlof4/repo-one",
+        "status",
+        "-sb"
+      ],
+      "exit": 0,
+      "stdout": "## main...origin/main [ahead 1]\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":57044,\"root\":\"/private/tmp/t107-real-6bndlof4/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/baseline/workbench/app/build.mjs",
+        "--slot",
+        "t107-red-f06741d2"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-red-f06741d2/dist\",\"main\":\"/private/tmp/a2a-build-t107-red-f06741d2/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-red-f06741d2/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-red-f06741d2/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-red-f06741d2/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-red-f06741d2/tmp\",\"source\":\"/private/tmp/t107-real-6bndlof4/baseline/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":57044,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":57385,\"root\":\"/private/tmp/t107-real-6bndlof4/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/candidate/workbench/app/build.mjs",
+        "--slot",
+        "t107-green-a6d414fe"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-green-a6d414fe/dist\",\"main\":\"/private/tmp/a2a-build-t107-green-a6d414fe/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-green-a6d414fe/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-green-a6d414fe/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-green-a6d414fe/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-green-a6d414fe/tmp\",\"source\":\"/private/tmp/t107-real-6bndlof4/candidate/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-6bndlof4/candidate/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-6bndlof4/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":57385,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "limitations": [
+    "等待用户回答、等待主控回答的真实信号缺口未解决；七状态验收 INCOMPLETE。",
+    "现有 worker 派发无具体父 launch 绑定，worker/reviewer 在未归属的任务下；完整层级验收 INCOMPLETE。",
+    "真实系统通知未触发；转换和开关只由 IPC 合同验证。"
+  ],
+  "implemented_slice_status": "PASS",
+  "cleanup_complete": true
+}

@@ -1,0 +1,186 @@
+{
+  "status": "PASS",
+  "baseline": "3c3f2e9e189ddf37eeec4091266c8701a2dde33f",
+  "source": "/Users/luckye/Documents/Code/a2a-wt-t107",
+  "root": "/private/tmp/t107-review-fixes-yxdy7x7k",
+  "model_calls": 0,
+  "cases": [
+    {
+      "name": "old-identity",
+      "command": [
+        "node",
+        "--experimental-vm-modules",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/old-identity.json",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/baseline",
+        "identity"
+      ],
+      "exit": 1,
+      "expected_error": "Auxiliary native start must not release the root question",
+      "pass_evidence": true,
+      "escaped_old_oracle": false,
+      "observed": {
+        "status": "INCOMPLETE",
+        "scope": "actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model",
+        "mode": "identity",
+        "root": "/private/tmp/t107-daemon-read-myOJeK",
+        "observed": "running",
+        "cleanup_complete": true
+      },
+      "business_assertion": "AssertionError [ERR_ASSERTION]: Auxiliary native start must not release the root question"
+    },
+    {
+      "name": "fixed-identity",
+      "command": [
+        "node",
+        "--experimental-vm-modules",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/fixed-identity.json",
+        "/Users/luckye/Documents/Code/a2a-wt-t107",
+        "identity"
+      ],
+      "exit": 0,
+      "expected_error": null,
+      "pass_evidence": true,
+      "escaped_old_oracle": false,
+      "observed": {
+        "status": "PASS",
+        "scope": "actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model",
+        "mode": "identity",
+        "root": "/private/tmp/t107-daemon-read-Of6EBE",
+        "observed": "unknown",
+        "cleanup_complete": true
+      }
+    },
+    {
+      "name": "old-readonly",
+      "command": [
+        "node",
+        "--experimental-vm-modules",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/old-readonly.json",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/baseline",
+        "readonly"
+      ],
+      "exit": 1,
+      "expected_error": "Sidebar read changed persisted tables or traces",
+      "pass_evidence": true,
+      "escaped_old_oracle": false,
+      "observed": {
+        "status": "INCOMPLETE",
+        "scope": "actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model",
+        "mode": "readonly",
+        "root": "/private/tmp/t107-daemon-read-O3g8vk",
+        "observed": "unknown",
+        "cleanup_complete": true
+      },
+      "business_assertion": "AssertionError [ERR_ASSERTION]: Sidebar read changed persisted tables or traces"
+    },
+    {
+      "name": "fixed-readonly",
+      "command": [
+        "node",
+        "--experimental-vm-modules",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/fixed-readonly.json",
+        "/Users/luckye/Documents/Code/a2a-wt-t107",
+        "readonly"
+      ],
+      "exit": 0,
+      "expected_error": null,
+      "pass_evidence": true,
+      "escaped_old_oracle": false,
+      "observed": {
+        "status": "PASS",
+        "scope": "actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model",
+        "mode": "readonly",
+        "root": "/private/tmp/t107-daemon-read-y61VtO",
+        "observed": "unknown",
+        "cleanup_complete": true,
+        "databases": [
+          "locks/t.sqlite3",
+          "membership.sqlite3",
+          "state.sqlite3"
+        ],
+        "trace_files": [
+          "traces/launch/pty.raw"
+        ]
+      }
+    },
+    {
+      "name": "old-oracle-write-escaped",
+      "command": [
+        "node",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/baseline/workbench/tests/test_t107_sidebar.mjs",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/old-oracle-write-escaped.json",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/old-write-sidebar.ts"
+      ],
+      "exit": 0,
+      "expected_error": null,
+      "pass_evidence": true,
+      "escaped_old_oracle": true,
+      "observed": {
+        "status": "PASS",
+        "scope": "real Git/SQLite; controlled status inputs; no Electron or model proof"
+      }
+    },
+    {
+      "name": "new-oracle-write-rejected",
+      "command": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_sidebar.mjs",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/new-oracle-write-rejected.json",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/write-mutant/workbench/src/sidebar.ts"
+      ],
+      "exit": 1,
+      "expected_error": "Sidebar read changed persisted tables or traces",
+      "pass_evidence": true,
+      "escaped_old_oracle": false,
+      "observed": {
+        "status": "INCOMPLETE",
+        "scope": "real Git/SQLite; controlled status inputs; no Electron or model proof"
+      },
+      "business_assertion": "AssertionError [ERR_ASSERTION]: Sidebar read changed persisted tables or traces"
+    },
+    {
+      "name": "daemon-write-rejected",
+      "command": [
+        "node",
+        "--experimental-vm-modules",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/daemon-write-rejected.json",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/write-mutant",
+        "readonly"
+      ],
+      "exit": 1,
+      "expected_error": "Sidebar read changed persisted tables or traces",
+      "pass_evidence": true,
+      "escaped_old_oracle": false,
+      "observed": {
+        "status": "INCOMPLETE",
+        "scope": "actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model",
+        "mode": "readonly",
+        "root": "/private/tmp/t107-daemon-read-jHXNC6",
+        "observed": "unknown",
+        "cleanup_complete": true
+      },
+      "business_assertion": "AssertionError [ERR_ASSERTION]: Sidebar read changed persisted tables or traces"
+    },
+    {
+      "name": "fixed-projection",
+      "command": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a-wt-t107/workbench/tests/test_t107_sidebar.mjs",
+        "/private/tmp/t107-review-fixes-yxdy7x7k/fixed-projection.json"
+      ],
+      "exit": 0,
+      "expected_error": null,
+      "pass_evidence": true,
+      "escaped_old_oracle": false,
+      "observed": {
+        "status": "PASS",
+        "scope": "real Git/SQLite; controlled status inputs; no Electron or model proof"
+      }
+    }
+  ]
+}

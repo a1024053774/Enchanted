@@ -18,9 +18,9 @@ import assert from 'node:assert/strict';
 const out = process.argv[2];
 if (!out) throw new Error('New JSON report path required');
 const { values } = parseArgs({ args: process.argv.slice(3), options: {
-  source: { type: 'string' }, contract: { type: 'string', default: 'creation' },
+  source: { type: 'string' }, contract: { type: 'string', default: 'sidebar' },
 } });
-assert.ok(['legacy', 'picker', 'shell', 'panes', 'creation'].includes(values.contract), 'Select an explicit known IPC contract');
+assert.ok(['legacy', 'picker', 'shell', 'panes', 'creation', 'sidebar'].includes(values.contract), 'Select an explicit known IPC contract');
 const sourceURL = values.source ? pathToFileURL(resolve(values.source) + '/') : new URL('../../', import.meta.url);
 const mainURL = new URL('workbench/app/main.ts', sourceURL);
 const preloadURL = new URL('workbench/app/preload.ts', sourceURL);
@@ -36,6 +36,8 @@ const shellBridge = [...pickerBridge, 'newTerminal'];
 const panesHandlers = ['a2a:pane-action', 'a2a:resize'];
 const panesBridge = ['paneAction', 'resize'];
 const creationHandlers = ['a2a:creation-repository', 'a2a:creation-submit', 'a2a:creation-cancel'];
+const sidebarHandlers = ['a2a:sidebar', 'a2a:select-agent', 'a2a:notification-setting'];
+const sidebarBridge = ['sidebar', 'selectAgent', 'notificationSetting'];
 const creationBridge = ['creationRepository', 'creationSubmit', 'creationCancel'];
 const badRevision = '6974c2aad1233133264b7448e1277cd19fa0b6ba';
 const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with supplied Electron/transport/filesystem boundaries; no GUI or backend proof',
@@ -43,11 +45,13 @@ const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with 
 
 async function exercise(source, withRecovery = false, withCatalog = false, preloadSource = legacyPreload, withShell = false, withPanes = false, withCreation = false) {
   const keyedHandlers = [...(withRecovery ? recoveredPaneHandlers : paneHandlers), ...(withPanes ? panesHandlers : [])];
-  const expectedHandlers = [...keyedHandlers, ...(withShell ? shellWindowHandlers : withCatalog ? windowHandlers : []), ...(withCreation ? creationHandlers : [])];
-  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : []), ...(withCreation ? creationBridge : [])];
+  const withSidebar = withCreation && values.contract === 'sidebar';
+  const expectedHandlers = [...keyedHandlers, ...(withShell ? shellWindowHandlers : withCatalog ? windowHandlers : []), ...(withCreation ? creationHandlers : []), ...(withSidebar ? sidebarHandlers : [])];
+  const expectedBridge = [...(withShell ? shellBridge : withCatalog ? pickerBridge : legacyBridge), ...(withPanes ? panesBridge : []), ...(withCreation ? creationBridge : []), ...(withSidebar ? sidebarBridge : [])];
   const fixtureProject = 'catalog-project-sentinel';
   const fixtureSummary = { task_id: 'task-one', project_id: fixtureProject, title: '独立任务标题', state: 'claimed' };
   const fixtureTask = { ...fixtureSummary, repo: '/fixture/project-repo', current_attempt: { attempt_id: 'attempt-one' } };
+  const notificationCalls = [], settingsFiles = new Map(), sidebarStates = new Map();
   const layout = new Map(), restorations = new Map();
   const shellLayout = new Map();
   let shellNumber = 0;
@@ -84,6 +88,8 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   async function request(state, input, identity) {
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
+    if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{project_id: fixtureProject, tasks: [fixtureSummary]}],
+      agents: Object.values(records).filter(row => row.role !== 'shell').map(row => ({ ...row, project: fixtureProject, task: 'task-one', state: sidebarStates.get(row.id) ?? 'unknown', role_label: row.role })) };
     if (input.command === 'projects_list') return { ok: true, projects: [{ project_id: fixtureProject }] };
     if (input.command === 'tasks_list') return input.project === '../invalid'
       ? { ok: false, error: 'invalid_id' }
@@ -139,12 +145,20 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   const context = vm.createContext({ process: fakeProcess, console, Buffer });
   async function load(text, url) {
     const module = new vm.SourceTextModule(stripTypeScriptTypes(text, { mode: 'strip' }), {
-      context, identifier: url.href, initializeImportMeta(meta) { meta.url = url.href; },
+      context, identifier: url.href, importModuleDynamically: async spec => {
+        assert.equal(spec, 'electron');
+        class Notification { static isSupported() { return true; } constructor(value) { this.value = value; } show() { notificationCalls.push(this.value); } }
+        const child = new vm.SyntheticModule(['Notification'], function () { this.setExport('Notification', Notification); }, { context });
+        await child.link(() => {}); await child.evaluate(); return child;
+      }, initializeImportMeta(meta) { meta.url = url.href; },
     });
     await module.link(async specifier => {
       let exports;
       if (specifier === 'electron') exports = electron;
-      else if (specifier === 'node:fs') exports = { ...await import('node:fs'), mkdirSync() {} };
+      else if (specifier === 'node:fs') exports = { ...await import('node:fs'), mkdirSync() {},
+        existsSync: path => settingsFiles.has(path),
+        writeFileSync: (path, value) => settingsFiles.set(path, value),
+        readFileSync: path => settingsFiles.get(path) };
       else if (specifier === 'node:child_process') exports = { execFile() { throw new Error('Unexpected process call in pane IPC contract'); } };
       else if (specifier === '../src/transport.ts') exports = { request };
       else if (specifier === '../src/credentials.ts') exports = { readOperatorCredential: () => ({ kind: 'operator', token: 'fixture' }) };
@@ -191,7 +205,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     'a2a:output': [0], 'a2a:close-pane': [], 'a2a:pane-action': [{ type: 'rename', name: '测试' }], 'a2a:resize': [80, 24] };
   const validArguments = Object.fromEntries(keyedHandlers.map(channel => [channel, [aKey, ...trailing[channel]]]));
   Object.assign(validArguments, { 'a2a:projects': [], 'a2a:tasks': [fixtureProject], 'a2a:selection': [], 'a2a:select-task': ['task-one'], 'a2a:new-terminal': [] });
-  Object.assign(validArguments, { 'a2a:creation-repository': [], 'a2a:creation-submit': [{}], 'a2a:creation-cancel': [] });
+  Object.assign(validArguments, { 'a2a:creation-repository': [], 'a2a:creation-submit': [{}], 'a2a:creation-cancel': [], 'a2a:sidebar': [], 'a2a:select-agent': ['worker'], 'a2a:notification-setting': [false] });
   const beforeDenied = requests.length;
   for (const channel of keyedHandlers) {
     await assert.rejects(() => invoke(a, channel, bKey, ...trailing[channel]));
@@ -218,6 +232,46 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   assert.equal(bridge.paneKeys[0], aKey); assert.ok(Object.isFrozen(bridge.paneKeys));
   assert.equal((await bridge.snapshot(aKey)).window_id, first.window_id);
   await assert.rejects(() => bridge.snapshot(bKey));
+  if (withSidebar) {
+    assert.ok((await bridge.sidebar()).agents.some(row => row.id === 'worker'));
+    await assert.rejects(() => bridge.selectAgent('absent'));
+    await assert.rejects(() => bridge.selectAgent('../invalid'));
+    await assert.rejects(() => bridge.notificationSetting('yes'));
+    const before = credentialNumber;
+    const originalSelection = await bridge.selection();
+    const focused = await bridge.selectAgent('worker');
+    assert.equal(focused.focusKey, aKey);
+    const readonly = await bridge.selectAgent('reviewer');
+    assert.notEqual(readonly.focusKey, aKey);
+    assert.equal((await bridge.snapshot(readonly.focusKey)).input_enabled, false);
+    await assert.rejects(() => bridge.input(readonly.focusKey, 'no credential'));
+    assert.equal(credentialNumber, before, 'Sidebar inspection must not grant input');
+    await assert.rejects(() => bridge.selectAgent('foreign'), /mismatch/);
+    assert.equal((await bridge.selection()).task.task_id, originalSelection.task.task_id);
+    const controllerView = await bridge.selectAgent('ideation');
+    assert.equal((await bridge.snapshot(controllerView.focusKey)).input_enabled, false, 'Transient controller view must not issue an input credential');
+    assert.equal(credentialNumber, before, 'Transient view cannot acquire credentials');
+    await bridge.closePane(controllerView.focusKey);
+    const removals = requests.filter(row => row.command === 'pane_layout_close').length;
+    await bridge.closePane(readonly.focusKey);
+    assert.equal(requests.filter(row => row.command === 'pane_layout_close').length, removals, 'Transient close must not change saved layout');
+    assert.equal(await bridge.notificationSetting(), true);
+    sidebarStates.set('worker', 'waiting_user_answer');
+    await bridge.sidebar(); await bridge.sidebar();
+    assert.equal(notificationCalls.length, 1, 'Only entering waiting-user emits one notification');
+    sidebarStates.set('worker', 'running'); await bridge.sidebar();
+    sidebarStates.set('worker', 'idle'); await bridge.sidebar();
+    sidebarStates.set('worker', 'waiting_controller_answer'); await bridge.sidebar();
+    assert.equal(notificationCalls.length, 1, 'Other states do not notify');
+    assert.equal(await bridge.notificationSetting(false), false);
+    sidebarStates.set('worker', 'waiting_user_answer'); await bridge.sidebar();
+    assert.equal(notificationCalls.length, 1, 'Disabled notifications stay silent');
+    await bridge.notificationSetting(true); await bridge.sidebar();
+    assert.equal(notificationCalls.length, 1, 'Enabling while already waiting is not a new transition');
+    sidebarStates.set('worker', 'idle'); await bridge.sidebar();
+    sidebarStates.set('worker', 'waiting_user_answer'); await bridge.sidebar();
+    assert.equal(notificationCalls.length, 2, 'A later entry notifies once');
+  }
   await bridge.beginComposition(aKey);
   await bridge.observeFocus(aKey, '\x1b[?1004h');
   await bridge.releaseQueue(aKey, { window_id: first.window_id });
@@ -422,11 +476,18 @@ try {
     report.single_pane_counterexample = { revision: '7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86', rejected: missingPanes, error: String(error) };
   }
   assert.ok(missingPanes, 'Single-pane tracer must fail the simultaneous pane-count assertion');
+  if (values.contract === 'sidebar') {
+    const revision = '0967cd465ce20c01b0a6ee29b2931ecbf4032caf';
+    try { await exercise(execFileSync('git', ['show', revision + ':workbench/app/main.ts'], { encoding: 'utf8' }), true, true,
+      execFileSync('git', ['show', revision + ':workbench/app/preload.ts'], { encoding: 'utf8' }), true, true, true); }
+    catch (error) { report.sidebar_known_bad = { revision, rejected: error instanceof assert.AssertionError && error.message.startsWith('IPC handler names must match'), error: String(error) }; }
+    assert.equal(report.sidebar_known_bad?.rejected, true, 'Baseline must fail the new sidebar contract');
+  }
   const candidate = readFileSync(mainURL, 'utf8');
   const candidatePreload = readFileSync(preloadURL, 'utf8');
-  const withCreation = values.contract === 'creation';
-  const withPanes = ['panes', 'creation'].includes(values.contract);
-  const withShell = ['shell', 'panes', 'creation'].includes(values.contract);
+  const withCreation = ['creation', 'sidebar'].includes(values.contract);
+  const withPanes = ['panes', 'creation', 'sidebar'].includes(values.contract);
+  const withShell = ['shell', 'panes', 'creation', 'sidebar'].includes(values.contract);
   const withCatalog = values.contract !== 'legacy';
   const mutant = candidate.replace("command: 'pane_layout_close'", "command: 'pane_layout_open'");
   assert.notEqual(mutant, candidate);
@@ -445,13 +506,26 @@ try {
     catch (error) { report.window_key_mutant = { rejected: error instanceof assert.AssertionError && error.message.includes('Projects must work without a pane key'), error: String(error) }; }
     assert.equal(report.window_key_mutant?.rejected, true, 'A window list handler requiring a pane key must fail its no-key contract');
   }
+  if (values.contract === 'sidebar') {
+    for (const [name, mutantSource, expected] of [
+      ['notification', candidate.replace('previous !== agent.state', 'false'), 'Only entering waiting-user emits one notification'],
+      ['history_credentials', candidate.replace('launch, viewOnly: true', 'launch, viewOnly: false'), 'Transient controller view must not issue an input credential'],
+    ]) {
+      assert.notEqual(mutantSource, candidate);
+      let rejected = false;
+      try { await exercise(mutantSource, true, true, candidatePreload, true, true, true); }
+      catch (error) { rejected = error instanceof assert.AssertionError && error.message.startsWith(expected); report[name + '_mutant'] = { rejected, error: String(error) }; }
+      assert.equal(rejected, true, name + ' mutant must fail its focused assertion');
+    }
+  }
   report.checks = await exercise(candidate, true, withCatalog, candidatePreload, withShell, withPanes, withCreation);
   report.checks.push('app_close_preserves_layout', 'explicit_close_removes_one', 'saved_order_and_failed_sibling_render', 'failed_worker_no_input_credential',
     'never_saved_default_selection', 'final_close_stays_empty_on_repeated_reopen', 'empty_preload_and_no_credentials', 'explicit_selection_reopens');
-  if (withCatalog) report.checks.push(withCreation ? 'explicit_17_handler_and_18_bridge_names' : withPanes ? 'explicit_14_handler_and_15_bridge_names' : withShell ? 'explicit_12_handler_and_13_bridge_names' : 'explicit_11_handler_and_12_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',
+  if (withCatalog) report.checks.push(values.contract === 'sidebar' ? 'explicit_20_handler_and_21_bridge_names' : withCreation ? 'explicit_17_handler_and_18_bridge_names' : withPanes ? 'explicit_14_handler_and_15_bridge_names' : withShell ? 'explicit_12_handler_and_13_bridge_names' : 'explicit_11_handler_and_12_bridge_names', 'iframe_and_unknown_window_rejected_for_all_handlers',
     'projects_without_pane_key', 'tasks_project_argument_and_backend_refusals', 'window_selection_without_transport',
     'select_task_null_and_id_preserve_rejected_destination');
   if (withShell) report.checks.push(withPanes ? 'new_terminal_without_task_and_serializes_creation' : 'new_terminal_requires_task_and_serializes_creation', 'shell_project_cwd_and_identity', 'shell_keyed_input_and_close');
+  if (values.contract === 'sidebar') report.checks.push('sidebar_unknown_launch_and_foreign_task_denied', 'sidebar_focus_and_transient_history_readonly', 'notification_edges_and_disable');
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.stack = error.stack; }
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });

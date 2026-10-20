@@ -9,6 +9,9 @@ if (!Array.isArray(paneKeys) || paneKeys.some(key => typeof key !== 'string' || 
 contextBridge.exposeInMainWorld('a2a', Object.freeze({
   paneKeys: Object.freeze(paneKeys),
   projects: () => ipcRenderer.invoke('a2a:projects'),
+  sidebar: () => ipcRenderer.invoke('a2a:sidebar'),
+  selectAgent: (launch: string) => ipcRenderer.invoke('a2a:select-agent', launch),
+  notificationSetting: (enabled?: boolean) => ipcRenderer.invoke('a2a:notification-setting', enabled),
   tasks: (project: string) => ipcRenderer.invoke('a2a:tasks', project),
   selection: () => ipcRenderer.invoke('a2a:selection'),
   creationRepository: () => ipcRenderer.invoke('a2a:creation-repository'),
