@@ -6,7 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import { questionFromHook, projectQuestions, nativeAnswerKeys } from './questions.ts';
+import { questionHookBinding, questionFromHook, projectQuestions, nativeAnswerKeys, type QuestionBinding } from './questions.ts';
 import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
@@ -1028,28 +1028,34 @@ export class Panes implements GateRuntime {
     this.store.event("hook_received", { raw_stdin: raw, received_at }, pane.record);
     const value = JSON.parse(raw); this.scan(pane);
     check(value.session_id === pane.native, "hook_native_session_mismatch");
+    const unverified = (error: unknown, binding?: QuestionBinding) => {
+      const pending = binding && this.questions(launch).filter(q => q.session_id === binding.session_id &&
+        q.submission === binding.submission && q.turn === binding.turn && ['waiting', 'sending'].includes(q.status));
+      const question = pending?.find(q => q.tool_use_id === value.tool_use_id) ?? (pending?.length === 1 ? pending[0] : null);
+      this.store.event('native_question_unverified', { reason: String(error), hook_event_name: value.hook_event_name,
+        tool_use_id: value.tool_use_id, ...binding, question: question?.id ?? null }, pane.record);
+    };
     if (['PreToolUse', 'PostToolUse', 'PostToolUseFailure'].includes(value.hook_event_name)) {
-      let question;
-      try { question = questionFromHook(pane, value); }
-      catch (error) {
-        this.store.event('native_question_unverified', { reason: String(error), tool_use_id: value.tool_use_id }, pane.record);
-        throw error;
-      }
-      if (!question) return;
-      const previous = this.questions(launch).find(q => q.id === question.id);
-      if (value.hook_event_name === 'PreToolUse') {
-        check(!previous, 'question_hook_reused');
-        this.store.event('native_question_opened', question, pane.record);
-      } else {
-        check(previous && previous.submission === question.submission && previous.turn === question.turn &&
-          ['waiting', 'sending'].includes(previous.status), 'question_not_pending');
-        const response = typeof value.tool_response === 'string' ? JSON.parse(value.tool_response) : value.tool_response;
-        const answered = value.hook_event_name === 'PostToolUse' && previous.blocking && previous.questions.every(q =>
-          previous.cli === 'claude' ? typeof response?.answers?.[q.question] === 'string' :
-            Array.isArray(response?.answers?.[q.id!]?.answers) && response.answers[q.id!].answers.length > 0);
-        const status = answered ? 'answered' : value.hook_event_name === 'PostToolUseFailure' ? 'cancelled' : 'unknown';
-        this.store.event('native_question_resolved', { question: question.id, status, response: value.tool_response ?? null }, pane.record);
-      }
+      let binding: QuestionBinding | undefined;
+      try {
+        binding = questionHookBinding(pane, value);
+        const question = questionFromHook(pane, value, binding);
+        if (!question) return;
+        const previous = this.questions(launch).find(q => q.id === question.id);
+        if (value.hook_event_name === 'PreToolUse') {
+          check(!previous, 'question_hook_reused');
+          this.store.event('native_question_opened', question, pane.record);
+        } else {
+          check(previous && previous.submission === question.submission && previous.turn === question.turn &&
+            ['waiting', 'sending'].includes(previous.status), 'question_not_pending');
+          const response = typeof value.tool_response === 'string' ? JSON.parse(value.tool_response) : value.tool_response;
+          const answered = value.hook_event_name === 'PostToolUse' && previous.blocking && previous.questions.every(q =>
+            previous.cli === 'claude' ? typeof response?.answers?.[q.question] === 'string' :
+              Array.isArray(response?.answers?.[q.id!]?.answers) && response.answers[q.id!].answers.length > 0);
+          const status = answered ? 'answered' : value.hook_event_name === 'PostToolUseFailure' ? 'cancelled' : 'unknown';
+          this.store.event('native_question_resolved', { ...binding, question: question.id, status, response: value.tool_response ?? null }, pane.record);
+        }
+      } catch (error) { unverified(error, binding); throw error; }
       return;
     }
     if (pane.record.cli === "Claude Code") {
@@ -1081,8 +1087,14 @@ export class Panes implements GateRuntime {
       check(value.hook_event_name === "Stop", "unsupported_hook");
       this.store.event("turn_end_signal", value, pane.record);
       const active = pane.active;
-      const matched = Boolean(active && pane.claudePromptId && value.prompt_id===pane.claudePromptId && !pane.failed && !pane.stopInProgress &&
-        value.stop_hook_active === false && Date.parse(received_at) >= Date.parse(active.at));
+      const current = Boolean(active && pane.claudePromptId && value.prompt_id===pane.claudePromptId && !pane.failed && !pane.stopInProgress &&
+        !value.agent_id && Date.parse(received_at) >= Date.parse(active.at));
+      if (current && typeof value.stop_hook_active !== 'boolean') {
+        const error = new Refusal('stop_hook_active_required');
+        unverified(error, { session_id: pane.native!, submission: active!.id, turn: pane.claudePromptId! });
+        throw error;
+      }
+      const matched = current && value.stop_hook_active === false;
       if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
       pane.stopInProgress = true;
       try {
@@ -1145,7 +1157,8 @@ export class Panes implements GateRuntime {
       this.store.event('native_question_answer_intent', { question: id, answers }, pane.record);
       for (const key of keys) {
         await assertCurrent();
-        check(!pane.stopped && !pane.failed && pane.active?.id === question.submission &&
+        check(this.questions(launch).find(q => q.id === id)?.status === 'sending' &&
+          !pane.stopped && !pane.failed && pane.active?.id === question.submission &&
           pane.inputGeneration === question.input_generation, 'question_input_changed');
         try { pane.pty.write(key); }
         catch (error) { this.recordFailure(pane, 'question_answer_write_unknown', error, { question: id }); throw error; }

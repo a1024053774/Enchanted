@@ -719,7 +719,9 @@ Git 事实来自该目录的 `git status --porcelain=v2 --branch`，不执行 fe
 状态只采用当前原生回合与后台事实；缺失、冲突、权限等待和中断不推为运行中或空闲。
 T-108 通过每会话启动参数加入 PreToolUse／PostToolUse hook，按根会话、当前回合与
 工具调用 ID 关联 Claude Code 的 AskUserQuestion 和 Codex 的 request_user_input。
-字段、归属或阻塞状态不能确认时显示未知；异步提问不作为阻塞等待。工具 hook 先核对根来源、当前回合与工具公共字段，再忽略合法的无关工具；缺少工具名或工具输入时追加未知事实并拒绝该事件。侧栏仍只读已有事件。
+字段、归属或阻塞状态不能确认时显示未知；异步提问不作为阻塞等待。工具 hook 先核对根来源、当前回合与工具公共字段，再忽略合法的无关工具；当前根工具事件缺字段或响应解析失败时，追加与问题、submission、turn 绑定的未知事实并拒绝事件，同时撤销该问题的作答资格。当前 Claude Stop 缺少合法的 stop_hook_active 时也记录未知并拒绝，不完成回合或触发交付；合法的过期 Stop 保留原有未匹配处理。侧栏仍只读已有事件。
+
+`node workbench/tests/test_t108_questions.mjs <新摘要路径>` 每次都会运行 `t108_hook_failure_contracts.mjs` 的异常矩阵，覆盖提问前、待答中、作答记录与逐键写入期间的失败降级；未知后不得再向 PTY 发送问题按键。旧 prompt、异会话、子 agent 和完整无关工具均有对照，防止异常事实污染当前有效问题。
 当前窗格的问题条目展示文本与选项，单选或自由答复经绑定窗口凭据写回同一 PTY；
 对应用户输入的 form 为 answer，reply_to 与 target.request 指向该问题。受管 worker
 仍核对当前 attempt／session／fence，并保留人工介入记录。重复、过期、只读或已撤销凭据

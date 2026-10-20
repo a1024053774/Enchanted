@@ -9,17 +9,23 @@ export type NativeQuestion = {
 };
 const requireField = (value: unknown, error: string) => { if (!value) throw new Refusal(error); };
 const questionTool = (name: string) => ['AskUserQuestion', 'request_user_input', 'request_user_input_async'].includes(name);
+export type QuestionBinding = Pick<NativeQuestion, 'session_id' | 'submission' | 'turn'>;
 
-// Called for tool events at authenticated hook ingress; null means a valid,
-// unrelated tool. A child inherits hook credentials, so session_id alone
-// cannot establish root ownership.
-export function questionFromHook(pane: any, value: any): NativeQuestion | null {
+// A child inherits hook credentials: validate root identity before a malformed
+// payload can revoke the current question's state or answer eligibility.
+export function questionHookBinding(pane: any, value: any): QuestionBinding {
   const claude = pane.record.cli === 'Claude Code';
   requireField(!value.agent_id && value.cwd === pane.record.worktree && typeof value.transcript_path === 'string' &&
     (claude ? basename(value.transcript_path) === `${pane.native}.jsonl` : value.transcript_path === pane.nativeFile), 'question_origin_unverified');
   requireField(pane.active && !pane.failed && !pane.stopped && !pane.interrupted &&
     (claude ? pane.claudePromptId && value.prompt_id === pane.claudePromptId :
       pane.active.nativeTurn && value.turn_id === pane.active.nativeTurn && pane.turn === value.turn_id), 'question_turn_mismatch');
+  return { session_id: pane.native, submission: pane.active.id, turn: claude ? pane.claudePromptId : pane.turn };
+}
+
+// The caller has verified this binding. Null means a complete unrelated tool.
+export function questionFromHook(pane: any, value: any, binding: QuestionBinding): NativeQuestion | null {
+  const claude = pane.record.cli === 'Claude Code';
   requireField(typeof value.tool_use_id === 'string' && value.tool_use_id.length > 0, 'question_tool_id_required');
   // A missing name cannot establish that this is an unrelated tool. Validate
   // the common envelope before classifying; ingress records and rejects gaps.
@@ -43,8 +49,7 @@ export function questionFromHook(pane: any, value: any): NativeQuestion | null {
   });
   requireField(new Set(normalized.map((q: any) => q.question)).size === normalized.length, 'question_text_ambiguous');
   return { id: `${pane.record.id}:${value.tool_use_id}`, cli: claude ? 'claude' : 'codex',
-    target: pane.record.role === 'worker' ? 'controller' : 'user', session_id: pane.native,
-    turn: claude ? pane.claudePromptId : pane.turn, submission: pane.active.id, tool_use_id: value.tool_use_id,
+    target: pane.record.role === 'worker' ? 'controller' : 'user', ...binding, tool_use_id: value.tool_use_id,
     input_generation: pane.inputGeneration, blocking: value.tool_name !== 'request_user_input_async', questions: normalized, status: 'waiting' };
 }
 
@@ -53,17 +58,30 @@ export function projectQuestions(events: any[]): NativeQuestion[] {
   const questions = new Map<string, NativeQuestion>();
   for (const event of events) {
     if (event.type === 'native_question_opened') questions.set(event.data.id, { ...event.data, status: 'waiting' });
+    if (event.type === 'native_question_unverified') {
+      for (const question of questions.values()) {
+        if (['waiting', 'sending'].includes(question.status) && event.data.session_id === question.session_id &&
+          event.data.submission === question.submission && event.data.turn === question.turn &&
+          (!event.data.question || event.data.question === question.id)) question.status = 'unknown';
+      }
+    }
     const question = questions.get(event.data?.question);
     if (!question) continue;
-    if (event.type === 'native_question_answer_intent') question.status = 'sending';
+    if (event.type === 'native_question_answer_intent' && question.status === 'waiting') question.status = 'sending';
     if (event.type === 'native_question_resolved') question.status = event.data.status;
   }
   return [...questions.values()];
 }
 
 export function questionState(pane: any, events: any[]): 'waiting_user_answer' | 'waiting_controller_answer' | 'unknown' | null {
-  const questions = projectQuestions(events).filter(q => !['answered', 'cancelled'].includes(q.status));
-  if (!questions.length) return events.findLast(e => ['native_question_unverified','native_question_opened','native_question_resolved'].includes(e.type))?.type === 'native_question_unverified' ? 'unknown' : null;
+  const questions = projectQuestions(events).filter(q => !['answered', 'cancelled'].includes(q.status) &&
+    (!pane.active || q.submission === pane.active.id));
+  if (!questions.length) {
+    const latest = pane.active && events.findLast(e =>
+      ['native_question_unverified','native_question_opened','native_question_resolved'].includes(e.type) &&
+      e.data.session_id === pane.native_session && e.data.submission === pane.active.id);
+    return latest?.type === 'native_question_unverified' ? 'unknown' : null;
+  }
   if (questions.length !== 1) return 'unknown';
   const question = questions[0];
   if (!question.blocking || question.status !== 'waiting' || question.session_id !== pane.native_session || question.submission !== pane.active?.id) return 'unknown';

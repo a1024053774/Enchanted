@@ -7,6 +7,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { OrchestrationStore } from '../src/store.ts';
 import { Panes } from '../src/panes.ts';
 import { agentState } from '../src/sidebar.ts';
+import { hookFailureContracts } from './t108_hook_failure_contracts.mjs';
 
 const output=process.argv[2];
 const root=mkdtempSync('/private/tmp/t108-question-contract-');
@@ -27,6 +28,8 @@ const signal=(event,extra={})=>panes.signal('launch',JSON.stringify({...base,hoo
 const state=()=>agentState({...panes.status('thread'),lifecycle:'running'},store.read(),root);
 const report={status:'INCOMPLETE',scope:'real signal/SQLite; supplied PTY and runtime identity',model_turns:0,model_calls:0,vendor_calls:0,checks:[]};
 try {
+  report.failure_cases=await hookFailureContracts();
+  assert.ok(report.failure_cases.every(c=>c.status==='PASS'),report.failure_cases.filter(c=>c.status!=='PASS').map(c=>c.name).join(', '));
   store.event('turn_submitted',{id:'submission'},record);
   await signal('UserPromptSubmit',{prompt:dispatch.text});
   assert.equal(state(),'running');

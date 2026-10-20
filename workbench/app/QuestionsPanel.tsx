@@ -18,7 +18,7 @@ function Question({ question, enabled, send }: { question: NativeQuestion; enabl
     event.preventDefault(); setSending(true); setError('');
     void send(question.id, answers).then(() => setSubmitted(true), reason => setError(String(reason))).finally(() => setSending(false));
   }}>
-    <div className="question-heading"><strong>{!question.blocking ? '异步提问 · 阻塞状态未知' : question.target === 'controller' ? '等待主控回答' : '等待用户回答'}</strong>
+    <div className="question-heading"><strong>{question.status === 'unknown' ? '问题状态未知' : !question.blocking ? '异步提问 · 阻塞状态未知' : question.target === 'controller' ? '等待主控回答' : '等待用户回答'}</strong>
       <span>{question.cli === 'claude' ? 'Claude Code' : 'Codex'} · 当前窗格</span></div>
     {question.questions.map((item, index) => <fieldset key={index} disabled={!writable}>
       <legend>{item.question}</legend>
@@ -29,7 +29,7 @@ function Question({ question, enabled, send }: { question: NativeQuestion; enabl
         setAnswers(values => values.map((v, i) => i === index ? event.target.value : v))} /></label>
     </fieldset>)}
     {!supported && <p>此类提问的写回方式尚未验证，请在原生窗格作答。</p>}
-    {question.status !== 'waiting' || submitted ? <p role="status">{question.status === 'sending' || submitted ? '答复已送入窗格，等待原生确认。' : '问题状态未知，请核对原生窗格。'}</p> : null}
+    {question.status !== 'waiting' || submitted ? <p role="status">{question.status === 'sending' || submitted && question.status !== 'unknown' ? '答复已送入窗格，等待原生确认。' : '问题状态未知，请核对原生窗格。'}</p> : null}
     {error && <p role="alert">{error}</p>}
     <button disabled={!writable || answers.some(value => !value.trim())}>发送答复到窗格</button>
   </form>;
