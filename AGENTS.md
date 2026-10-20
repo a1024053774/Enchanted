@@ -36,7 +36,7 @@
 - 不得移动、替换或链接共享 checkout 的构建输出目录（如 `apps/server/dist`），也不得在构建输出目录中放指向源码或依赖的链接：构建工具清理输出时会沿链接删除源码与依赖（2026-10-08 T-042 复验事故，误删 6,186 个受控文件）。需要新构建时用产品的标准构建命令。
 - 测试中启动的后台服务（如编排后台、Synara 服务端）必须脱离调用者的进程组（例如 start_new_session），否则命令调用结束时会被一并回收。
 - 不从零自建 GPUI 界面，不基于 Zed 二次开发。
-- Enchanted 已于 2026-10-06 做 git 快照并冻结；其功能在 a2a 门禁进入工作台之后再并入，不在 Enchanted 仓库继续开发。
+- Enchanted（旧本地项目 `~/Documents/Code/Enchanted`，无 remote）已于 2026-10-06 做 git 快照并冻结，保持原样不再开发。2026-10-20 用户决定：本仓库改名 `Enchanted` 并公开，对外产品名 Enchanted，a2a 是其编排内核（用户："把仓库改个名字公开吧，改名叫 Enchanted，……把那个归档吧，规划成我们这个 a2a 仓库的未来 feature"）；旧 Enchanted 的功能只作为路线图里的未来 feature，在本仓库规划，不回头在旧目录开发。改名、公开、Pages、Release 由 T-114 执行；改名完成前仓库与文档里的 `a2a` 名称不变，完成后再统一术语。
 
 ## 每次 session 的开始与结束
 
@@ -64,9 +64,9 @@
 ## 主控、worker 和 monitor
 
 - 主控由用户指定：2026-10-06 起由 Claude Code 担任（此前为 `gpt-6-astra` max reasoning）；2026-10-09 起分为构思主控与执行主控，二者都由 Claude Code 担任。执行主控在已批准范围内经 Herdr 分派任务（用户认为工作台可用后改为经工作台门禁）、读取当前状态、回收不再需要的 worker，并汇总证据。
-- worker 使用 `gpt-6.1-sol` high reasoning、普通速度（不传 Fast），只处理分配的 task/attempt；不得自行扩大范围或接管其他任务。2026-10-19 起所有 Codex 会话只用 `gpt-6.1-sol` high（用户："好了,以后都用 6.1 sol high"）；此前 2026-10-13 的 xhigh 规定由此取代，仍不用 `gpt-6-astra`、不用 Fast。
-- reviewer 默认与 worker 同为 Codex 同一个模型，每次交付新开干净会话，只读；不得 submit 或集成。
-- monitor 使用 `gpt-6.1-sol` high reasoning，只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
+- worker、reviewer、monitor 的模型与思考强度不写死：出厂默认是 Codex `gpt-6.1-sol` high、普通速度（不传 Fast），由工作台设置按角色保存，用户可随时改，主控派发时也可按用户在聊天里的要求覆盖（T-112，用户 2026-10-20："这个不要写死,用户可以自行修改,也可以在和主控聊天时,主控来选择,而不是写死 effort"）；门禁只记录完整启动 argv，不按固定值拒绝。worker 只处理分配的 task/attempt，不得自行扩大范围或接管其他任务。2026-10-19 用户定默认为 `gpt-6.1-sol` high（"好了,以后都用 6.1 sol high"），不用 `gpt-6-astra`。本期 T-113 页面由 Claude 模型做是用户指定的一次例外。
+- reviewer 默认与 worker 使用同一个模型（取设置），每次交付新开干净会话，只读；不得 submit 或集成。
+- monitor 默认 `gpt-6.1-sol` high reasoning（取设置），只读观察、记录和报警；不得 claim、submit、integration 或宣布成功。
 - 主控不能绕过 claim、submit、acceptance、integration 门禁，也不能用终端 `idle`/`done` 或模型自报替代业务验收。
 - 主控可以自主进行日常分派、状态检查、策略内重试和回收。
 - 新建 worker 必须保存完整启动 argv（含模型与思考强度）；不把请求配置当作供应商实际 tier 的证明。
