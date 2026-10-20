@@ -1,0 +1,175 @@
+{
+  "status": "PASS",
+  "scope": "F1 targeted local regression checks; not independent acceptance",
+  "candidate_parent": "afcc78b0d856680491f0e99410b7ff9acec54dab",
+  "model_calls": 0,
+  "vendor_calls": 0,
+  "red": {
+    "status": "INCOMPLETE",
+    "scope": "real signal/SQLite; supplied PTY and runtime identity",
+    "model_turns": 0,
+    "model_calls": 0,
+    "vendor_calls": 0,
+    "checks": [],
+    "error": "AssertionError [ERR_ASSERTION]: Hook with missing tool_name must not promote the session to running\n+ actual - expected\n\n+ 'running'\n- 'unknown'\n",
+    "stack": "AssertionError [ERR_ASSERTION]: Hook with missing tool_name must not promote the session to running\n+ actual - expected\n\n+ 'running'\n- 'unknown'\n\n    at file:///Users/luckye/Documents/Code/a2a-wt-t108/workbench/tests/test_t108_questions.mjs:47:12",
+    "retained_fixture": "/private/tmp/t108-question-contract-x4e3GF"
+  },
+  "green": {
+    "status": "PASS",
+    "scope": "real signal/SQLite; supplied PTY and runtime identity",
+    "model_turns": 0,
+    "model_calls": 0,
+    "vendor_calls": 0,
+    "checks": [
+      "valid_unrelated_tools_ignored",
+      "missing_tool_name_unknown_and_rejected",
+      "malformed_tool_envelope_unknown",
+      "root_question_and_native_answer",
+      "stale_hook_is_rejected",
+      "revoked_identity_no_write",
+      "duplicate_answer_rejected",
+      "answer_keeps_root_submission",
+      "write_waits_for_native_confirmation",
+      "codex_worker_waits_for_controller",
+      "codex_confirmed_answer_releases_native_marker",
+      "missing_fields_unknown",
+      "subagent_rejected",
+      "changed_input_no_write",
+      "native_cancel_resolves_question"
+    ],
+    "retained_fixture": "/private/tmp/t108-question-contract-OD39Vg"
+  },
+  "broader": {
+    "codex": {
+      "status": "PASS",
+      "model_calls": 0,
+      "vendor_calls": 0,
+      "samples": "evidence/2026-10-20-batch18/T-108/native-hook-samples.json",
+      "scope": "recorded CLI hooks from loopback fake API; supplied runtime identity and PTY",
+      "fixture": "/private/tmp/t108-hook-replay-W7sgkd",
+      "checks": [
+        "recorded_question_and_options",
+        "waiting_controller_answer",
+        "answer_keys_and_link",
+        "recorded_native_confirmation",
+        "duplicate_refused"
+      ]
+    },
+    "ipc": {
+      "status": "PASS",
+      "scope": "actual main/preload modules with supplied Electron/transport/filesystem boundaries; no GUI or backend proof",
+      "argv": [
+        "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+        "/Users/luckye/Documents/Code/a2a-wt-t108/workbench/tests/test_t091_pane_ipc.mjs",
+        "/private/tmp/t108-f1-ipc-01.json"
+      ],
+      "contract": "questions",
+      "source": "/Users/luckye/Documents/Code/a2a-wt-t108/",
+      "known_bad": "6974c2aad1233133264b7448e1277cd19fa0b6ba",
+      "checks": [
+        "unregistered_key_rejected",
+        "keyed_handlers_once",
+        "per_window_keys_and_sequences",
+        "iframe_and_other_window_denied",
+        "bound_output",
+        "nullable_controller_and_historical_worker",
+        "keyed_preload",
+        "close_drains_identity_and_keeps_other_window",
+        "three_panes_independent_credentials_sequences_output",
+        "foreign_task_and_old_launch_rejected_before_window",
+        "duplicate_launch_rejected",
+        "app_close_preserves_layout",
+        "explicit_close_removes_one",
+        "saved_order_and_failed_sibling_render",
+        "failed_worker_no_input_credential",
+        "never_saved_default_selection",
+        "final_close_stays_empty_on_repeated_reopen",
+        "empty_preload_and_no_credentials",
+        "explicit_selection_reopens",
+        "explicit_17_handler_and_18_bridge_names",
+        "iframe_and_unknown_window_rejected_for_all_handlers",
+        "projects_without_pane_key",
+        "tasks_project_argument_and_backend_refusals",
+        "window_selection_without_transport",
+        "select_task_null_and_id_preserve_rejected_destination",
+        "new_terminal_without_task_and_serializes_creation",
+        "shell_project_cwd_and_identity",
+        "shell_keyed_input_and_close"
+      ],
+      "model_turns": 0,
+      "known_bad_result": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Unregistered pane key was accepted"
+      },
+      "single_pane_counterexample": {
+        "revision": "7e1c68ad432f281e05c2ac58c1fc3fe2fe079d86",
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Three selected launches must create three pane keys in one window\n\n1 !== 3\n"
+      },
+      "sidebar_known_bad": {
+        "revision": "0967cd465ce20c01b0a6ee29b2931ecbf4032caf",
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: IPC handler names must match the selected contract\n+ actual - expected\n... Skipped lines\n\n  [\n-   'a2a:answer',\n    'a2a:close-pane',\n    'a2a:composition-start',\n    'a2a:creation-cancel',\n    'a2a:creation-repository',\n    'a2a:creation-submit',\n...\n    'a2a:new-terminal',\n-   'a2a:notification-setting',\n    'a2a:output',\n    'a2a:pane-action',\n    'a2a:projects',\n    'a2a:release-queue',\n    'a2a:resize',\n-   'a2a:select-agent',\n    'a2a:select-task',\n    'a2a:selection',\n-   'a2a:sidebar',\n    'a2a:snapshot',\n    'a2a:tasks'\n  ]\n"
+      },
+      "close_mutant": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Explicit pane close must persist removal\n\ntrue !== false\n"
+      },
+      "empty_layout_known_bad": {
+        "revision": "11b32303bebf276d20026a6e718719d15f5d4068",
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Explicitly closed final pane must stay absent when app reopens\n\n1 !== 0\n"
+      },
+      "window_key_mutant": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Got unwanted rejection: Projects must work without a pane key\nActual message: \"Unknown pane key\""
+      },
+      "notification_mutant": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Only entering waiting-user emits one notification\n\n0 !== 1\n"
+      },
+      "history_credentials_mutant": {
+        "rejected": true,
+        "error": "AssertionError [ERR_ASSERTION]: Transient controller view must not issue an input credential\n\ntrue !== false\n"
+      }
+    },
+    "sidebar": {
+      "status": "PASS",
+      "scope": "real Git/SQLite; controlled status inputs; no Electron or model proof",
+      "model_calls": 0,
+      "checks": [
+        "two_projects_real_git_divergence_and_absent_upstream",
+        "authenticated_relay_assign_edge_and_task_attempts",
+        "role_address_and_cross_project_sender_do_not_infer_parent",
+        "missing_signal_stays_unknown",
+        "rollout_filename_and_same_submission_hook_do_not_release_question",
+        "unverified_question_origin_stays_unknown",
+        "verified_auxiliary_question_is_isolated",
+        "ambiguous_sender_remains_unassigned",
+        "current_native_turn_required",
+        "permission_and_questions_stay_unknown",
+        "known_idle_ended_unrestored",
+        "aggregate_keeps_unknown_and_wait_priority"
+      ]
+    },
+    "readonly": {
+      "status": "PASS",
+      "mode": "readonly",
+      "source": "/Users/luckye/Documents/Code/a2a-wt-t108",
+      "root": "/private/tmp/t107-daemon-read-qm2T1k",
+      "model_calls": 0,
+      "scope": "actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model",
+      "observed": "unknown",
+      "databases": [
+        "locks/t.sqlite3",
+        "membership.sqlite3",
+        "state.sqlite3"
+      ],
+      "trace_files": [
+        "traces/launch/pty.raw"
+      ],
+      "cleanup_complete": true
+    }
+  }
+}

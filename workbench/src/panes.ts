@@ -6,7 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import { questionTool, questionFromHook, projectQuestions, nativeAnswerKeys } from './questions.ts';
+import { questionFromHook, projectQuestions, nativeAnswerKeys } from './questions.ts';
 import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
@@ -1029,13 +1029,13 @@ export class Panes implements GateRuntime {
     const value = JSON.parse(raw); this.scan(pane);
     check(value.session_id === pane.native, "hook_native_session_mismatch");
     if (['PreToolUse', 'PostToolUse', 'PostToolUseFailure'].includes(value.hook_event_name)) {
-      if (!questionTool(value.tool_name)) return;
       let question;
       try { question = questionFromHook(pane, value); }
       catch (error) {
         this.store.event('native_question_unverified', { reason: String(error), tool_use_id: value.tool_use_id }, pane.record);
         throw error;
       }
+      if (!question) return;
       const previous = this.questions(launch).find(q => q.id === question.id);
       if (value.hook_event_name === 'PreToolUse') {
         check(!previous, 'question_hook_reused');

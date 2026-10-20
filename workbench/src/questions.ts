@@ -8,11 +8,12 @@ export type NativeQuestion = {
   status: 'waiting' | 'sending' | 'answered' | 'cancelled' | 'unknown';
 };
 const requireField = (value: unknown, error: string) => { if (!value) throw new Refusal(error); };
-export const questionTool = (name: string) => ['AskUserQuestion', 'request_user_input', 'request_user_input_async'].includes(name);
+const questionTool = (name: string) => ['AskUserQuestion', 'request_user_input', 'request_user_input_async'].includes(name);
 
-// Called only at authenticated hook ingress. A child inherits hook credentials;
-// session_id alone therefore cannot establish root ownership.
-export function questionFromHook(pane: any, value: any): NativeQuestion {
+// Called for tool events at authenticated hook ingress; null means a valid,
+// unrelated tool. A child inherits hook credentials, so session_id alone
+// cannot establish root ownership.
+export function questionFromHook(pane: any, value: any): NativeQuestion | null {
   const claude = pane.record.cli === 'Claude Code';
   requireField(!value.agent_id && value.cwd === pane.record.worktree && typeof value.transcript_path === 'string' &&
     (claude ? basename(value.transcript_path) === `${pane.native}.jsonl` : value.transcript_path === pane.nativeFile), 'question_origin_unverified');
@@ -20,6 +21,11 @@ export function questionFromHook(pane: any, value: any): NativeQuestion {
     (claude ? pane.claudePromptId && value.prompt_id === pane.claudePromptId :
       pane.active.nativeTurn && value.turn_id === pane.active.nativeTurn && pane.turn === value.turn_id), 'question_turn_mismatch');
   requireField(typeof value.tool_use_id === 'string' && value.tool_use_id.length > 0, 'question_tool_id_required');
+  // A missing name cannot establish that this is an unrelated tool. Validate
+  // the common envelope before classifying; ingress records and rejects gaps.
+  requireField(typeof value.tool_name === 'string' && value.tool_name.trim().length > 0, 'question_tool_name_required');
+  requireField(value.tool_input && typeof value.tool_input === 'object' && !Array.isArray(value.tool_input), 'question_tool_input_required');
+  if (!questionTool(value.tool_name)) return null;
   const questions = value.tool_input?.questions;
   requireField(Array.isArray(questions) && questions.length >= 1 && questions.length <= 4, 'question_fields_missing');
   const normalized = questions.map((q: any) => {

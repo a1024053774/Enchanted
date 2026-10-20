@@ -25,17 +25,47 @@ const questions=[{question:'选择发布区域？',header:'区域',options:[{lab
 const base={session_id:'native',prompt_id:'prompt',cwd:root,transcript_path:root+'/native.jsonl',tool_name:'AskUserQuestion',tool_use_id:'toolu_sentinel'};
 const signal=(event,extra={})=>panes.signal('launch',JSON.stringify({...base,hook_event_name:event,...extra}),new Date().toISOString());
 const state=()=>agentState({...panes.status('thread'),lifecycle:'running'},store.read(),root);
-const report={status:'INCOMPLETE',scope:'real signal/SQLite; supplied PTY and runtime identity',model_turns:0,checks:[]};
+const report={status:'INCOMPLETE',scope:'real signal/SQLite; supplied PTY and runtime identity',model_turns:0,model_calls:0,vendor_calls:0,checks:[]};
 try {
   store.event('turn_submitted',{id:'submission'},record);
   await signal('UserPromptSubmit',{prompt:dispatch.text});
   assert.equal(state(),'running');
+  const unverified=()=>store.read().filter(e=>e.type==='native_question_unverified').length;
+  for (const event of ['PreToolUse','PostToolUse','PostToolUseFailure']) {
+    const before=unverified();
+    await signal(event,{tool_name:'Read',tool_input:{file_path:root+'/sentinel'}});
+    assert.equal(state(),'running','A valid unrelated tool must remain ignored');
+    assert.equal(unverified(),before);
+    assert.equal(panes.questions('launch').length,0);
+  }
+  // Independent review F1: valid root identity and payload, absent tool_name.
+  // Observe projection before checking rejection, so the old candidate fails
+  // on the user-visible running != unknown defect rather than a harness error.
+  for (const event of ['PreToolUse','PostToolUse','PostToolUseFailure']) {
+    const before=unverified();let refusal;
+    try { await signal(event,{tool_name:undefined,tool_input:{questions}}); } catch(error) { refusal=error; }
+    assert.equal(state(),'unknown','Hook with missing tool_name must not promote the session to running');
+    assert.ok(refusal,'Malformed tool hook must be rejected');
+    assert.match(String(refusal),/question_tool_name_required/);
+    assert.equal(unverified(),before+1,'Malformed tool hook must append a projectable unknown fact');
+    assert.equal(panes.questions('launch').length,0);
+  }
+  for (const fields of [{tool_name:''},{tool_name:' '},{tool_name:null},{tool_name:7},{tool_use_id:undefined},
+    {tool_name:'Read',tool_input:undefined},{tool_name:'Read',tool_input:null},{tool_name:'Read',tool_input:[]}]) {
+    const before=unverified();
+    await assert.rejects(signal('PreToolUse',{tool_input:{questions},...fields}));
+    assert.equal(state(),'unknown');assert.equal(unverified(),before+1);
+  }
+  report.checks.push('valid_unrelated_tools_ignored','missing_tool_name_unknown_and_rejected','malformed_tool_envelope_unknown');
   await signal('PreToolUse',{tool_input:{questions}});
   assert.equal(state(),'waiting_user_answer','Structured root question must expose waiting_user_answer');
   const question=panes.questions('launch').find(q=>q.status==='waiting');
   assert.deepEqual(question.questions,questions);
   await assert.rejects(signal('PreToolUse',{prompt_id:'other',tool_input:{questions}}));
   assert.equal(state(),'waiting_user_answer','A stale hook cannot clear the root question');
+  await assert.rejects(signal('PreToolUse',{prompt_id:'other',tool_name:undefined,tool_input:{questions}}));
+  await assert.rejects(signal('PreToolUse',{session_id:'other',tool_name:undefined,tool_input:{questions}}));
+  assert.equal(state(),'waiting_user_answer','Malformed stale or foreign hooks cannot replace the current question');
   await assert.rejects(panes.answerQuestion('launch',question.id,['北区'],async()=>{},async()=>{throw new Error('revoked');}));
   assert.equal(writes.length,0);
   // A refused identity must not poison a subsequent valid write.
@@ -71,6 +101,10 @@ try {
   await codexSignal('PreToolUse');assert.equal(codexState(),'waiting_controller_answer');
   await codexSignal('PostToolUse',{tool_response:JSON.stringify({answers:{'sentinel-id':{answers:['北区']}}})});
   assert.equal(codexState(),'running','Confirmed Codex answer must release the native-log pending marker');
+  await codexSignal('PreToolUse',{tool_name:'exec_command',tool_input:{cmd:'pwd'}});
+  assert.equal(codexState(),'running','Valid unrelated Codex tool remains ignored');
+  await assert.rejects(codexSignal('PreToolUse',{tool_name:undefined}));
+  assert.equal(codexState(),'unknown','Missing Codex tool_name must also remain unknown');
   report.checks.push('codex_worker_waits_for_controller','codex_confirmed_answer_releases_native_marker');
   pane.active={id:'second',dispatch:dispatch.id,at:'2026-10-20T00:00:00Z',nativeTurn:null};pane.claudePromptId='second-prompt';pane.state='busy';pane.writes=Promise.resolve();
   await assert.rejects(signal('PreToolUse',{prompt_id:'second-prompt',tool_use_id:'missing-fields',tool_input:{}}));
