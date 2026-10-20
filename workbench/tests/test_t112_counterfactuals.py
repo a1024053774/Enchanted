@@ -19,8 +19,8 @@ for dependency in ('effect', 'fast-check', 'pure-rand', 'node-pty'):
 mutations = [
     ('claude_effort_filtered', 'contracts/modelOptions.ts', 'effort: Schema.optional(TrimmedNonEmptyString)',
      'effort: Schema.optional(Schema.Literals(["low", "medium", "high", "xhigh", "max"]))', 'future-effort-sentinel'),
-    ('saved_beats_override', 'store.ts', '...factoryExecution, ...saved, ...executionOverrides(overrides)',
-     '...factoryExecution, ...executionOverrides(overrides), ...saved', 'Expected values to be strictly deep-equal'),
+    ('saved_beats_override', 'store.ts', '...factoryExecution[role], ...saved, ...executionOverrides(overrides)',
+     '...factoryExecution[role], ...executionOverrides(overrides), ...saved', 'Expected values to be strictly deep-equal'),
     ('reviewer_inherits_worker', 'panes.ts', 'this.store.executionSelection(role, overrides)',
      "this.store.executionSelection('worker', overrides)", 'strictly equal'),
     ('old_executor_restriction', 'panes.ts', 'check(task.card.executor.cli === "Codex", "worker_executor_mismatch");',
@@ -41,6 +41,8 @@ for name, file, old, new, signal in mutations:
     rejected = result.returncode == 1 and row.get('status') == 'INCOMPLETE' and signal in row.get('error', '')
     report['cases'].append(dict(name=name, rejected=rejected, command=command, exit=result.returncode, error=row.get('error'), stderr=result.stderr))
 report['status'] = 'PASS' if all(row['rejected'] for row in report['cases']) else 'INCOMPLETE'
+shutil.rmtree(root)
+report['fixture_removed'] = not root.exists()
 a.summary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(report, ensure_ascii=False))
 raise SystemExit(0 if report['status'] == 'PASS' else 1)

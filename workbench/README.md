@@ -185,7 +185,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 `["python3", "tests/check.py"]`，不经过 shell 展开；注册时只校验，不运行完成条件。
 其余任务卡字段均以 JSON 展示并可修改：默认允许整个仓库（`paths.allow: ["."]`）、
 禁止 `.git/`，验收文件为 `tests/`，非目标为“不修改目标以外的功能”，复杂度 M，
-执行器为 Codex / gpt-6.1-sol / xhigh。请按实际任务修改允许路径和验收文件；后续认领仍要求
+执行器 CLI 为 Codex；任务卡中的模型和强度是记录字段，实际启动默认见设置，可改。请按实际任务修改允许路径和验收文件；后续认领仍要求
 验收文件在起点已受控。`source` 无 ticket 时为 null，`base_commit`、`writer` 注册时为 null，
 由门禁在认领时填写。此次不启动主控，不调用模型，也不代替用户判断任务卡是否合理。
 
@@ -286,9 +286,9 @@ reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含
 `review_reclaimed` 完成记录。结束核对与副本、审查 worktree 清理全部完成后才写该记录；
 完成前集成明确拒收，不前移项目工作分支。
 
-按用户2026-10-13的决定，Codex会话使用gpt-6.1-sol、xhigh及普通速度，
-worker/reviewer的argv显式传`-c service_tier="default"`，派发事件与启动记录写requested tier为`default`。
-显式覆盖也用于隔离CODEX_HOME，用户全局priority设置保持不变。
+Codex 会话的模型、强度与 Fast 默认见角色设置，可在派发时覆盖。
+worker/reviewer 的 argv 显式传 service_tier，启动记录保存实际选择的 requested tier。
+出厂普通速度传 `-c service_tier="default"`，也用于隔离 CODEX_HOME；用户全局 priority 设置保持不变。
 记录仅表示请求设置，不代表供应商实际执行tier；其他沙箱、hook及身份检查不变。
 
 reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选模板由门禁派发。
@@ -478,7 +478,9 @@ workspace-write、模型和思考强度默认见设置（可改）、显式 serv
 
 模型、思考强度与 Fast 按角色（worker、reviewer、monitor、构思主控 ideation、执行主控 executor）
 保存在 a2a 自己的 SQLite 库。侧栏“图例与设置 → 会话模型”保存后，只影响下次启动。
-出厂选择为 `gpt-6.1-sol` / `high` / Fast 关闭；逐字段优先级为派发覆盖参数 > 角色设置 > 出厂默认。
+worker、reviewer、monitor 出厂选择为 Codex `gpt-6.1-sol` / `high` / Fast 关闭。
+两个主控沿用 Claude 入口的出厂选择 `claude-haiku-5-5` / `low` / Fast 关闭。
+逐字段优先级为派发覆盖参数 > 角色设置 > 对应角色的出厂默认。
 任务卡的 executor 仍记录任务信息和 CLI 身份，模型/强度字段不再作为启动选择或固定值门禁。
 
 ```sh
@@ -492,7 +494,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/state dispatch --task T-11
 `"execution":{"model":"opus","effort":"high","fast":false}`，命令行字段优先。
 `launch-config.controllers` 中旧 model/effort 字段不参与选择；CLI 路径、权限和身份配置仍由 launch config/manifest 提供。
 当前 worker/reviewer 启动入口仍为 Codex，两个主控仍为 Claude Code；本设置不切换 CLI。
-启动 Claude 主控前，须将该角色设置为 Claude 支持的模型名，或在启动时显式覆盖。
+Claude 主控的设置只转换为 Claude 的 `--model`、`--effort` 和 settings.fastMode；不传 Codex 的配置参数。
 monitor 的设置已保存，真实 monitor 启动入口仍未实现，不能据此宣称已能启动。
 
 模型与强度为文本输入，不维护 a2a 枚举。取值以已安装 CLI 的 `codex --help`、`claude --help` 和

@@ -2,7 +2,12 @@ export const executionRoles = ['worker', 'reviewer', 'monitor', 'ideation', 'exe
 export type ExecutionRole = typeof executionRoles[number];
 export type ExecutionSelection = { model: string; effort: string; fast: boolean };
 export type ExecutionOverrides = Partial<ExecutionSelection>;
-export const factoryExecution: Readonly<ExecutionSelection> = Object.freeze({ model: 'gpt-6.1-sol', effort: 'high', fast: false });
+const codexFactory = Object.freeze({ model: 'gpt-6.1-sol', effort: 'high', fast: false });
+const claudeFactory = Object.freeze({ model: 'claude-haiku-5-5', effort: 'low', fast: false });
+export const factoryExecution: Readonly<Record<ExecutionRole, Readonly<ExecutionSelection>>> = Object.freeze({
+  worker: codexFactory, reviewer: codexFactory, monitor: codexFactory,
+  ideation: claudeFactory, executor: claudeFactory,
+});
 
 // Check transport shape only. The native CLI owns supported model/effort values.
 export function executionOverrides(value: unknown): ExecutionOverrides {

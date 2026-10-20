@@ -1,76 +1,65 @@
 # T-112 / a1 交付记录
 
-状态：**INCOMPLETE**。实现及本地合同检查已完成；真实 daemon + 原生 CLI + 本地假 API、Electron 设置保存和 macOS 沙箱反例仍须执行主控运行外部脚本。本记录不替代独立验收，不宣称可集成。
+状态：**INCOMPLETE**。角色设置和派发覆盖已实现，本地合同检查 PASS；真实 daemon + CLI + 本地假 API + Electron + 原生沙箱验证仍待主控重跑。
 
-起点：`e3102389eda8952ea92cae4b373e14eaff898314`，分支 `exec/t112`。不调用模型、不 push、不修改全局 CLI 配置、不走 submit。提交尾注由现有会话钩子生成。
+首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`，分支 `exec/t112`。本轮是主控 #39 要求的修订，尚待外部提交脚本提交。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
 
-## 实现
+## 本轮修复
 
-- 五个角色的模型、思考强度、Fast 写入 a2a 自己的 SQLite 追加式事件，不另建设置文件或平行库。逐字段优先级：派发覆盖 > 角色设置 > 出厂 `gpt-6.1-sol / high / Fast=false`。
-- `dispatch`、`run --wait-seconds N` 新增 `--model`、`--effort`、`--fast true|false`，参数穿过真实门禁到 Panes。主控 prepare/start 也支持覆盖；manifest 的 execution 低于命令行覆盖。
-- worker_executor_mismatch 保留 Codex CLI 身份检查，删除模型名单与 xhigh 检查。旧 Claude 合同的 effort 枚举也已移除。未知非空取值不改成默认值，交给 CLI。
-- 原生 CLI 在会话建立前非零退出时记录 launch_failed。保留成功退出后的既有 zsh 行为；失败退出不再被 zsh 掩盖。原始错误保留于 launch 的 PTY 记录。
-- reviewer 使用自己的设置；独立 home、候选副本、网络/tmp 限制、没有 worker Git hook 环境等原权限合同不变。模型/强度/tier 与完整 argv 一致记录，未把请求值当实际供应商 tier。
-- Herdr 期 scripts/launch-worker 保留默认值，移除 effort 的 argparse choices；不引入从工作台数据库读取设置的第二启动路径。
+- **安全解包**：outside-native-01.json 是设置阶段失败，cases/checks 为空，不能算业务红态。已核对起点 e3102389e 的 `git archive`：workbench/hooks 下有 26 个受控符号链接，目标均为同目录 hook.py，没有硬链接。新逻辑先校验完整成员与链接图，再写文件；保留内部符号链接与硬链接，拒绝绝对路径、成员路径穿越、越界/缺失目标、循环链接、链接父目录写入、重复成员和特殊文件。起点与候选均按 Git 快照处理，不把链接解引用成普通文件。
+- **Claude 默认值**：按主控 #39 的范围内裁定，worker/reviewer/monitor 出厂为 Codex `gpt-6.1-sol / high / Fast=false`；ideation/executor 沿用现有 Claude 入口 `claude-haiku-5-5 / low / Fast=false`。已有显式设置保留；覆盖 > 设置 > 对应角色出厂值。Claude 只接收 --model、--effort 和 settings.fastMode，不接收 Codex 配置参数。未增加 Codex 主控或 monitor 运行时。
+- **临时夹具**：已删除额外的旧清理脚本；完成的本地夹具直接删除，仅保留文本摘要。原生 runner 也会在本次进程收尾完成后删除自己的临时目录，失败的终端尾部诊断保存进 JSON；若进程清理未确认，则保留仍在使用的目录并明确报告。
+- **T-108**：主控已确认上次临时根目录消失来自其磁盘清理操作，不是产品缺陷。旧失败 t108-final-02.json 保留；本轮按要求重新执行，结果见 t108-rev2-04.json。
 
-Tracer bullet：设置表单 → IPC → SQLite → 派发 → argv 已接通；真实外部边界仍待复验。Deep modules：复用现有 OrchestrationStore、门禁和启动器。Ubiquitous language：沿用五个现有角色名，不新增角色别名。
+## 功能与权限
 
-## 按验收核对
+五角色设置写入 a2a 自己的 SQLite 追加式事件。dispatch 和 run --wait-seconds 支持 --model、--effort、--fast true|false；controller_prepare/start 也支持覆盖。完整 argv 和请求模型/强度/tier 一致记录，不把请求配置当供应商实际执行层级。
 
-| 要求 | 状态与证据 |
+worker_executor_mismatch 保留 Codex 身份检查，删除固定模型名单与 xhigh 检查。旧 Claude 合同不再按 effort 枚举拒绝。未知非空取值交给 CLI；会话建立前的非零退出记录 launch_failed，不被后续 zsh 掩盖。
+
+reviewer 保持 T-076 的 workspace-write 候选副本沙箱：原审查 worktree 只读，独立 home，网络/tmp 限制与无 worker Git hook 环境不变。模型/强度设置不改变权限。Herdr 期 launch-worker 保留默认值，移除 effort choices。
+
+Tracer bullet：设置表单 → IPC → SQLite → 派发 → argv。Deep modules：复用现有 store、门禁和启动器。Ubiquitous language：沿用现有五个角色名。
+
+## 本轮检查
+
+| 检查 | 结果与摘要 |
 | --- | --- |
-| 修前 high 红态 | 聚焦红态 PASS：focused-red-02.json，公开 Panes.createThread、已装 0.162.1 的真实版本探测，确实因 worker_executor_mismatch 拒绝。**完整真实派发红态 INCOMPLETE**，须运行外部脚本先测起点。focused-red-01 是依赖缺失的设置失败，不算业务红态。 |
-| high/xhigh/其他文档取值启动，argv 一致 | 合同 PASS：execution-final-05.json。真实 CLI 启动及假 API 请求核对 **INCOMPLETE**；脚本覆盖 high、xhigh、low 和 Fast。 |
-| 角色设置持久化、覆盖优先级、出厂值 | SQLite 重开、五角色默认、角色隔离、逐字段覆盖 PASS；真实 Electron 表单保存后下一次派发 **INCOMPLETE**，已编入脚本。 |
-| 不支持值由 CLI 报错并记启动失败 | 不过滤 sentinel、保留 argv、启动失败事件合同 PASS；真实 CLI 解析错误 **INCOMPLETE**，已编入脚本。 |
-| reviewer 权限不受强度影响 | 候选副本 argv、网络/tmp、home、无 worker hooks 的合同 PASS；原生 sandbox 拒绝写受保护文件并允许写候选副本 **INCOMPLETE**，已编入脚本。不是 --sandbox read-only，不能把原合同错误改写为这个参数。 |
-| 全仓固定值检索 | search-final-02.json 保存命令与原文输出。有效 managed 启动不再按 model/effort 固定值拒绝；身份/尾注与实际交付匹配检查继续保留。旧 provider 合同还有 Pi/OMP/Grok 自己的枚举和 provider 默认值；当前原生工作台没有这些运行时，未扩展到其他供应商。 |
-| README、角色卡 | PASS：README 写明设置/覆盖命令及 CLI 边界；五张角色卡写明默认见设置、可改；AGENTS.md 未改。 |
-| project_map status 0 问题 | **INCOMPLETE**：稀疏 checkout 从开场起就有 8 个缺失文件链接问题，0 stale；已上报，不能擅改地图或补关 ticket。 |
-
-## 已运行检查
-
-以下命令的输出文件均保留；测试使用独立 sentinel 和需求中的期望值，不读取生产默认常量充当答案。
+| 实际 Git 快照解包 | PASS，baseline-extraction-final-03.json：保留 26 个真实 hook 链接，内部相对链接/硬链接成功，12 类非法输入写入前拒绝；恢复旧“拒绝全部链接”行为会失败。 |
+| Claude 默认值红态 | controller-defaults-red-01.json：修前将 Codex 默认送给 Claude 的错误被独立默认值断言拒绝。 |
+| 角色设置与 argv | PASS，execution-rev2-final-07.json：五角色默认、SQLite 重开、覆盖优先级、角色隔离、权限字段拒绝、reviewer 原参数、实际 zsh 退出码及启动失败事件。 |
+| 已知坏变异 | PASS，mutants-rev2-05.json：旧 Claude 枚举、错误优先级、reviewer 误用 worker、固定 worker 门禁、惰性字符串掩盖启动失败均被拒绝。 |
+| Claude 启动构造 | PASS，claude-profile-rev2-02.json：默认 Haiku/low、覆盖 Opus/high/Fast 及原权限参数，原隔离/钩子/版本/地址拒绝检查保留。 |
+| IPC 合同 | PASS，ipc-rev2-06.json；保留原拒绝检查及新增设置 channel 的 iframe、未知窗口、非法字段拒绝。 |
+| 构建 | PASS，build-rev2-final-03.json；临时构建目录已清理。 |
+| T-108 回归 | PASS，t108-rev2-04.json；未修改该测试。 |
+| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；修后须执行 NATIVE-02，尚无红绿结论。 |
+| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；见 project-map-rev2-final.txt。 |
 
 ```sh
-node workbench/tests/test_t112_execution.mjs evidence/2026-10-20-batch18/T-112/execution-final-05.json
-python3 -B workbench/tests/test_t112_counterfactuals.py --summary evidence/2026-10-20-batch18/T-112/mutants-final-04.json
-python3 -B workbench/tests/test_t112_herdr.py --summary evidence/2026-10-20-batch18/T-112/herdr-01.json
-node --experimental-vm-modules workbench/tests/test_t091_pane_ipc.mjs evidence/2026-10-20-batch18/T-112/ipc-final-05.json
-node workbench/tests/test_t108_questions.mjs evidence/2026-10-20-batch18/T-112/t108-final-03.json
-node workbench/tests/test_t093_launch_profile.ts evidence/2026-10-20-batch18/T-112/claude-profile-01.json
-node workbench/app/build.mjs --slot t112-final-02
+python3 -B workbench/tests/test_t112_archive.py --summary evidence/2026-10-20-batch18/T-112/baseline-extraction-final-03.json
+node workbench/tests/test_t112_execution.mjs evidence/2026-10-20-batch18/T-112/execution-rev2-final-07.json
+python3 -B workbench/tests/test_t112_counterfactuals.py --summary evidence/2026-10-20-batch18/T-112/mutants-rev2-05.json
+node workbench/tests/test_t093_launch_profile.ts evidence/2026-10-20-batch18/T-112/claude-profile-rev2-02.json
+node --experimental-vm-modules workbench/tests/test_t091_pane_ipc.mjs evidence/2026-10-20-batch18/T-112/ipc-rev2-06.json
+node workbench/tests/test_t108_questions.mjs evidence/2026-10-20-batch18/T-112/t108-rev2-04.json
 ```
 
-以上最终运行均 PASS。5 个已知坏变异分别证明：拒绝旧 Claude effort 枚举、错误覆盖优先级、reviewer 误用 worker 设置、旧 worker 固定模型/强度门禁、启动失败被 shell 掩盖。IPC 原有拒绝检查未删减，新增设置 channel 的 iframe/未知窗口/非法 role/权限字段拒绝与精确透传；最终为 23 handlers / 24 bridge 字段。
+这些摘要路径已存在，不可覆盖；需要重跑时另取文件名。用完的本票旧夹具已按主控 #39 清理，见 completed-fixtures-cleanup-02.json；其他任务和仍运行的进程目录不在清理范围。
 
-首次变异设置阶段发生 ENOSPC，业务变异未执行；已保留 mutants-setup-failure-01.json，仅清理本票可重建依赖缓存并改为共用一份私有测试依赖。首次最终 T-108 复跑发生活跃夹具根目录 ENOENT，保留 t108-final-02.json 并上报；其后 t108-final-03.json PASS，不把前次失败删除或算成业务红态。构建 stdout/stderr 在 build-final-02.json，成功后的临时构建目录已清理。
-
-CLI 帮助和版本原文：cli-help-01.json。PATH 当前是 Codex 0.163.0，门禁固定版本仍是 0.162.1；真实脚本显式使用已安装的 `/Users/luckye/.codex/packages/app-server-daemon/releases/0.162.1-aarch64-apple-darwin/bin/codex`，没有放松版本检查。配置文档来源/读取结果在 cli-config-docs-01.json、claude-config-web-02.txt；Claude 文档的 urllib 读取失败已保留，另经官方网页工具读取。产品使用自由文本，不从文档快照生成固定枚举。
-
-## 主控需要运行
+## 主控重跑命令
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-ARCHIVE-LOCAL-01.sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-01.sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-NATIVE-01.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-02.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-NATIVE-02.sh
 ```
 
-默认使用主 checkout 已有的 Electron 43.4.1 内置盘运行时；可用 T112_ELECTRON_DIST 指定同版本目录。脚本先测冻结起点的 high 拒绝，再测候选。只使用隔离 repo/state/home、本地固定 Responses API、私有源码和依赖副本；只在该副本修改 spawn-helper 执行位，不建链接，不调用模型，不截屏。后台 detached；结束时核对并清理本次拥有的进程。原始夹具归档到外置盘，核对文件数与字节数后清理原目录；盘未挂载就报归档失败，不回退内置盘。失败后保留 summary，重跑须另取 summary 文件名，不能覆盖原失败。
+先提交再运行，使 code_revision 绑定完整提交。新的原生结果写 outside-native-02.json，不覆盖 01。Electron 默认取主 checkout 内置盘的 43.4.1，可用 T112_ELECTRON_DIST 指定同版本目录。只使用私有 Git 快照、依赖、repo/state/home 和本地固定 Responses API；不调用模型、不截屏。仅在私有依赖副本修改 spawn-helper 执行位。后台 detached，收尾核对本次拥有的进程；无需挂载外置盘。原生结果落地后由主控纳入后续证据提交。
 
-## 范围外问题及交接
+## 已交接事项
 
-- inbox `20261020T124548Z-worker:t112-a1-issue-001`：地图缺失文件；AGENTS.md:67、69 仍要求固定模型/强度、不用 Fast，须主控转交维护。本票新要求覆盖旧固定值，但 worker 不改治理文件。
-- 同条 issue：当前两个主控是真实 Claude 入口，monitor 尚无真实 attached runtime。五角色设置已保存，**没有新增 Codex 主控或 monitor 启动器**。出厂模型名按任务要求统一保存；启动现有 Claude 主控前须选择其支持的模型或传覆盖。这个默认值与现有 Claude 入口的可用性冲突须主控确认，不能宣称开箱即用。
-- inbox `20261020T130602Z-worker:t112-a1-issue-001`：T-108 活跃夹具缺失，原因未知。后续复跑 PASS，仍保留失败现场记录。
-- 与 T-110 的接线范围：renderer.tsx 第 10–11 行 import、第 48 行 bridge 类型、第 570 行组件；main.ts 第 139 行起新增独立 settings IPC；preload.ts 新增一个 bridge 方法。sidebar.ts、原通知区块和原样式文件未改。设置组件/CSS 分别在 ExecutionSettings.tsx、execution-settings.css。
-
-本票保持 INCOMPLETE，待真实外部检查、默认值冲突处置与完整 checkout 的地图检查完成。
-
-本地提交：INCOMPLETE。git add --sparse 被沙箱拒绝创建本 worktree 的 index.lock（git-add-sandbox-01.json）。按派发要求未申请升级，已生成 RUN-OUTSIDE-COMMIT-01.sh；主控先运行该脚本即可在 exec/t112 上提交。脚本恢复本 worker 的原启动/原生会话环境，沿用钩子自动加尾注，没有手写 A2A-*，不 push。
-
-独立审查发现并已修外部 runner：门禁拒绝用 JSON + exit 1，旧 run() 误当设置失败，红态场景无法到达自己的断言。现仅对 CLI call 接受退出 0/1，仍由每个场景核对 ok/error；exit 2 用法错误仍拒绝。实际 runner 函数与真实退出 1/2 子进程合同见 runner-refusal-contract-01.json。尚无修后的完整原生运行证据，不把此修复写成外部验收通过。
-
-独立审查：independent-review-01.md 对冻结副本的结论原样为 FAIL。两个发现已在后继候选修复：P1 的 exit-1 处理见上述 runner 合同；P2 不再按 shell 源码片段判定，而是实际执行记录下来的 zsh + 私有失败 CLI，确认退出码 23 后记录启动失败事件。含惰性字符串、实际掩盖失败的变异被新断言以 0 != 23 拒绝，见 execution-final-05.json、mutants-final-04.json。没有把冻结候选的旧审查改成修后 PASS；最终独立审查仍交执行主控。
-
-外部步骤按上方顺序：先归档本地临时夹具，再提交候选，最后运行真实验证，使 launch 的 code_revision 绑定完整提交。native runner 会拒绝未提交的源码/测试；原生验证结果落地后还需由主控纳入后续证据提交。归档脚本如实列出已不存在的旧夹具，不补造归档。
+- AGENTS.md:67、69 的固定模型/强度说法由执行主控转交构思主控；worker 未修改治理文件。
+- 原生 reviewer 的网络/tmp/原 worktree 边界仍须外部实际验证，不能用合同测试代替。
+- 首轮独立冻结审查 independent-review-01.md 原结论 FAIL 保留。其 runner exit-1 和 shell 源码断言问题已修；后继候选尚待执行主控的新会话独立审查，不引用旧审查作通过依据。
+- 全仓检索与 CLI 帮助原文仍在 search-final-02.json、cli-help-01.json 等原摘要中。当前模型/effort 不作固定值门禁；其他供应商的旧 provider 合同不在本票新增运行时范围。
+- T-110 接线边界未扩大：renderer.tsx 原第 10–11 行 import、第 48 行 bridge 类型、第 570 行组件；main.ts 新增独立 settings IPC，preload.ts 增加一个 bridge 方法；sidebar.ts、原通知区块和原样式文件未改。

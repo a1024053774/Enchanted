@@ -68,7 +68,7 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
   const settings = { hooks: Object.fromEntries(["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse", "PostToolUseFailure"].map(name =>
     [name, [{ hooks: [{ type: "command", command: signal, timeout: 3 }] }]])) };
   const roleText = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(input.role_file));
-  const selection = { ...factoryExecution, ...executionOverrides(input.execution ?? {}) };
+  const selection = { ...factoryExecution[input.preset], ...executionOverrides(input.execution ?? {}) };
   const launchSettings = { ...settings, fastMode: selection.fast };
   const argv = [input.executable, "--session-id", input.session, "--model", selection.model, "--effort", selection.effort,
     "--permission-mode", "manual", "--settings", JSON.stringify(launchSettings), "--append-system-prompt", roleText,

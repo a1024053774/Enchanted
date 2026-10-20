@@ -13,7 +13,7 @@ export class OrchestrationStore {
     executionRole(role);
     const row = this.db.prepare("SELECT data FROM orchestration_events WHERE type='execution_settings_saved' AND json_extract(data,'$.role')=? ORDER BY seq DESC LIMIT 1").get(role);
     const saved = row ? executionOverrides(JSON.parse(String(row.data)).selection) : {};
-    return { ...factoryExecution, ...saved, ...executionOverrides(overrides) };
+    return { ...factoryExecution[role], ...saved, ...executionOverrides(overrides) };
   }
   executionSettings() {
     return Object.fromEntries(executionRoles.map(role => [role, this.executionSelection(role)])) as Record<ExecutionRole, ExecutionSelection>;

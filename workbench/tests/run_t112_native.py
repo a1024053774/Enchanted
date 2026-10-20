@@ -4,6 +4,8 @@ import io
 import json
 import os
 from pathlib import Path
+from pathlib import PurePosixPath
+import posixpath
 import shutil
 import sqlite3
 import subprocess
@@ -16,6 +18,68 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from run_t103_picker import Window
 from t108_cleanup import observe, stop_owned
+
+
+def extract_baseline(archive, destination):
+    """Preserve Git links; reject escape, link-parent writes, cycles and special files."""
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        members = {}
+        for member in tar.getmembers():
+            path = PurePosixPath(member.name)
+            if (path.is_absolute() or not path.parts or path.parts[0] != 'workbench'
+                    or '..' in path.parts or '\0' in member.name or path in members
+                    or not (member.isdir() or member.isfile() or member.issym() or member.islnk())):
+                raise ValueError('unsafe_archive_member: ' + member.name)
+            members[path] = member
+        for path in members:
+            for parent in path.parents:
+                if parent in members and not members[parent].isdir():
+                    raise ValueError('archive_parent_not_directory: ' + str(parent))
+
+        def target(path, seen=()):
+            if path in seen:
+                raise ValueError('archive_link_cycle: ' + str(path))
+            member = members.get(path)
+            if member is None:
+                raise ValueError('archive_link_target_missing: ' + str(path))
+            if not (member.issym() or member.islnk()):
+                return path
+            link = PurePosixPath(member.linkname)
+            if link.is_absolute() or '\0' in member.linkname:
+                raise ValueError('unsafe_archive_link: ' + member.name)
+            relative = path.parent / link if member.issym() else link
+            resolved = PurePosixPath(posixpath.normpath(str(relative)))
+            if not resolved.parts or resolved.parts[0] != 'workbench' or '..' in resolved.parts:
+                raise ValueError('archive_link_escape: ' + member.name)
+            return target(resolved, (*seen, path))
+
+        # Validate the full graph before writing anything. No extraction can
+        # traverse a symlink parent, even when a later tar member replaces it.
+        resolved = {}
+        for path, member in members.items():
+            if member.issym() or member.islnk():
+                resolved[path] = target(path)
+                if member.islnk() and not members[resolved[path]].isfile():
+                    raise ValueError('archive_hardlink_not_file: ' + member.name)
+        if destination.exists() or destination.is_symlink():
+            raise ValueError('archive_destination_exists')
+        destination.mkdir(parents=True)
+        for path, member in members.items():
+            output = destination / str(path)
+            if member.isdir():
+                output.mkdir(parents=True, exist_ok=True)
+            elif member.isfile():
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_bytes(tar.extractfile(member).read())
+                output.chmod(member.mode & 0o777)
+        for path, member in members.items():
+            output = destination / str(path)
+            if member.issym():
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.symlink_to(member.linkname)
+            elif member.islnk():
+                output.parent.mkdir(parents=True, exist_ok=True)
+                os.link(destination / str(resolved[path]), output)
 
 
 def main():
@@ -105,18 +169,15 @@ def main():
         assert run([args.codex, '--version']).strip() == 'codex-cli 0.162.1'
         server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        # Private copies only. No links and no chmod in any shared checkout.
+        # Private copies only. Controlled internal Git links stay unchanged;
+        # no new links into another checkout and no chmod in a shared checkout.
         candidate, baseline = root / 'candidate', root / 'baseline'
-        shutil.copytree(source / 'workbench', candidate / 'workbench', ignore=shutil.ignore_patterns('node_modules'))
-        archive = subprocess.check_output(['git', 'archive', args.baseline, 'workbench'], cwd=source, env=env)
-        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-            for member in tar.getmembers():
-                assert not member.issym() and not member.islnk() and not Path(member.name).is_absolute() and '..' not in Path(member.name).parts
-                if member.isdir():
-                    (baseline / member.name).mkdir(parents=True, exist_ok=True)
-                elif member.isfile():
-                    target = baseline / member.name; target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(tar.extractfile(member).read()); target.chmod(member.mode)
+        report['snapshot_commands'] = []
+        for revision, tree in [(report['source_head'], candidate), (args.baseline, baseline)]:
+            command = ['git', 'archive', revision, 'workbench']
+            archive = subprocess.check_output(command, cwd=source, env=env)
+            extract_baseline(archive, tree)
+            report['snapshot_commands'].append(dict(argv=command, destination=str(tree)))
         shutil.copytree(source / 'workbench/node_modules', root / 'node_modules', symlinks=False,
                         ignore=shutil.ignore_patterns('.bin', 'win32-*', 'linux-*'))
         (root / 'node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper').chmod(0o755)
@@ -254,21 +315,17 @@ def main():
         for build in builds:
             shutil.rmtree(build)
         report['fake_api_requests'] = len(requests)
-        # Preserve raw fixtures outside Git; never fall back when the archive disk is absent.
-        try:
-            disk = Path('/Volumes/WD-Elements'); assert disk.is_mount(), 'Evidence archive disk is not mounted'
-            target = disk / 'a2a-evidence/2026-10-20-batch18/T-112' / root.name
-            target.parent.mkdir(parents=True, exist_ok=True); assert not target.exists()
-            before = [p for p in root.rglob('*') if p.is_file()]
-            count, size = len(before), sum(p.stat().st_size for p in before)
-            shutil.copytree(root, target)
-            after = [p for p in target.rglob('*') if p.is_file()]
-            assert len(after) == count and sum(p.stat().st_size for p in after) == size
-            manifest = dict(original=str(root), archive=str(target), files=count, bytes=size, replay=report['commands'])
-            summary.with_suffix('.archive.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-            shutil.rmtree(root)
-        except Exception as error:
-            report['status'] = 'INCOMPLETE'; report['archive_error'] = str(error)
+        if report['status'] != 'PASS':
+            report['terminal_diagnostics'] = [dict(path=str(file), tail=file.read_bytes()[-3000:].decode('utf-8', errors='replace'))
+                for file in root.glob('*/state/traces/*/pty.raw')]
+        if not report.get('cleanup_errors'):
+            try:
+                shutil.rmtree(root)
+                report['fixture_removed'] = not root.exists()
+            except OSError as error:
+                report['status'] = 'INCOMPLETE'; report['cleanup_errors'] = [str(error)]
+        else:
+            report['fixture_retained_reason'] = 'owned_process_cleanup_incomplete'
         summary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         print(json.dumps({'status': report['status'], 'summary': str(summary)}, ensure_ascii=False))
     return 0 if report['status'] == 'PASS' else 1
