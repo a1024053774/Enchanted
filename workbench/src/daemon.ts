@@ -11,6 +11,7 @@ import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/quali
 import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 import { sidebarSnapshot } from './sidebar.ts';
+import { flowSnapshot } from './flow.ts';
 
 // Window payloads can contain shell passwords, even when identity/validation
 // fails. Agent input still has its existing dedicated recorder below.
@@ -80,7 +81,7 @@ export async function serve(
       AND json_extract(e.data,'$.window_id')=? LIMIT 1`).get(envelope.identity.window);
     return previous?.role === "shell";
   };
-  const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot"]);
+  const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
     "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "anonymous"; window?: WindowBinding } => {
@@ -163,6 +164,7 @@ export async function serve(
     }
     if (input.command === "projects_list") return { ok: true, projects: gates.listProjects() };
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
+    if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes) };
     if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes) };
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
