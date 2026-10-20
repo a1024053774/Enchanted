@@ -60,3 +60,45 @@ restore_record_unrecognized，三个 restore_managed_attempt_requires_reclaim；
 核对，原焦点、状态、层级、Git 与持久化断言保留。缺窗格、错提示、缺提示、可写历史、
 额外连接错误和缺全页提示六个反例均被业务断言拒绝，见 restoration-oracle-summary.json。
 旧现场保留；真实重跑命令的标签改为 electron-05，审查者脚本未修改。
+
+
+## 第二轮审查 F4：rollout 根文件归属
+
+本轮修复与本地回归 **PASS**；新候选真实 Electron 与独立复审为 **INCOMPLETE**。
+已冻结的旧候选 `f563fd5182feebfd16bee9063714e278536ddc6b` 中，同一 submission 的
+启动钩子之后，精确文件名的未答根问题为 unknown，rollout 前缀的同一问题却为 running。
+新增的实际 daemon/socket sentinel 在修改产品前按业务断言取得此红态，清理完成；
+原始现场 `/private/tmp/t107-daemon-read-gxcOlV` 保留。
+
+归属校验统一放在现有 paneRecovery 模块，恢复定位、原生采集和侧栏读取共用。
+文件名接受既有的 session 后缀合同，同时核对 metadata 的 ID、CLI 来源和工作目录。
+归属结果区分根、已核实的辅助会话和未知；不能核实的问题保持未知，文件名不匹配
+不再被当作辅助会话证据。侧栏仍只读保存的事件，不扫描原生日志、不写库或 trace。
+采集器的 ambiguous_native_session 拒绝保留，并有冲突会话反例核对。
+
+最终红／绿重放在 `/tmp/t107-f4-regressions-03.json`，现场
+`/private/tmp/t107-review-fixes-obzcig2f`，12 项全部得到预期结果：F1／F2 旧候选失败、
+新候选通过；F4 仅变换文件名时旧候选 rollout 失败，两种名称在修复后都为 unknown；
+F3 写库变异仍被新投影和实际 daemon 的持久化业务断言拒绝，旧 oracle 仍放过该变异。
+F4 两种名称均包含同一 submission 的启动钩子，并要求提问前为 running、提问后为 unknown；
+读取前后的所有表、schema、trace 和游标相同。恢复定位器也须接受这两种名称。
+
+原有三项投影变异、main/preload IPC 合同与 T-096 恢复合同均 PASS。新增投影反例覆盖
+文件名、metadata ID、来源、辅助父会话和工作目录未核实的问题；明确绑定的辅助问题
+不会改变根会话状态。摘要见 `f4-fixes-summary.json`。
+
+首次投影运行因共享归属模块引入既有 effect 依赖、而稀疏 checkout 未安装依赖，尚未进入
+断言；该运行不计红态。重放脚本和变异脚本使用独立临时源码与内置盘既有依赖，修正后
+完成全部断言。既有原件和审查者的报告／脚本均保留，未修改。
+
+真实 Electron 待主控执行：
+
+```sh
+bash evidence/2026-10-19-batch17/T-107/RUN-OUTSIDE-01-ELECTRON.sh electron-06
+```
+
+脚本已串入 F4 两种文件名的实际 daemon sentinel；原 Electron 已知坏基线、侧栏 IPC
+零写入、五条准确恢复拒绝、焦点、层级、Git 和只读断言保留。此运行不调用模型，
+不要求原生对话框操作，不截图。整票原有状态信号、worker 父绑定和真实通知缺口不变。
+
+本轮地图复查为既有 8 个稀疏检出缺文件问题、0 stale，详见 project-map-f4-status.txt。

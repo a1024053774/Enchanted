@@ -8,7 +8,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { join, resolve, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { OrchestrationStore } from '../src/store.ts';
-const { agentState, aggregate, sidebarSnapshot } = await import(process.argv[3] ? pathToFileURL(resolve(process.argv[3])).href : new URL('../src/sidebar.ts', import.meta.url).href);
+const { agentState: projectAgentState, aggregate, sidebarSnapshot } = await import(process.argv[3] ? pathToFileURL(resolve(process.argv[3])).href : new URL('../src/sidebar.ts', import.meta.url).href);
 
 const output = process.argv[2];
 if (!output) throw new Error('New report path required');
@@ -18,7 +18,9 @@ let store;
 try {
   const git = (repo, ...argv) => execFileSync('git', ['-C', repo, '-c', 'core.hooksPath=/dev/null',
     '-c', 'user.name=T107 fixture', '-c', 'user.email=t107@example.invalid', ...argv], { encoding: 'utf8' });
-  const repo = join(root, 'first'); mkdirSync(repo); git(repo, 'init', '-b', 'main');
+  const repo = join(root, 'first');
+  const agentState = (pane, events) => projectAgentState(pane, events, repo);
+  mkdirSync(repo); git(repo, 'init', '-b', 'main');
   writeFileSync(join(repo, 'file'), 'base'); git(repo, 'add', '.'); git(repo, 'commit', '-m', 'base');
   const base = git(repo, 'rev-parse', 'HEAD').trim();
   git(repo, 'config', 'remote.origin.url', join(root, 'unused-origin'));
@@ -88,7 +90,7 @@ try {
   assert.equal(value.agents.find(row => row.id === 'exec').parent, null);
   const active = { ...live, state: 'busy', native_session: 'native', turn: 'turn', active: { id: 'submission', nativeTurn: 'turn' } };
   const rootEvents = [
-    { type: 'native_record', data: { file: 'sessions/native.jsonl', record: { type: 'session_meta', payload: { id: 'native', source: 'cli' } } } },
+    { type: 'native_record', data: { file: 'sessions/native.jsonl', record: { type: 'session_meta', payload: { id: 'native', source: 'cli', cwd: repo } } } },
     { type: 'native_record', data: { file: 'sessions/native.jsonl', record: { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn' } } } },
   ];
   assert.equal(agentState(active, rootEvents), 'running');
@@ -105,10 +107,47 @@ try {
   const question = { type: 'native_record', data: { record: { type: 'response_item', payload: { type: 'function_call', name: 'request_user_input', call_id: 'q' } } } };
   assert.equal(agentState(active, [question]), 'unknown');
   const rootQuestion = { ...question, data: { ...question.data, file: 'sessions/native.jsonl' } };
+  const sameSubmission = [
+    { seq: 1, type: 'turn_submitted', data: { id: 'submission' } },
+    { seq: 2, type: 'turn_start_signal', data: { session_id: 'native' } },
+  ];
+  for (const file of ['sessions/native.jsonl', 'sessions/rollout-2026-10-19T12-00-00-native.jsonl']) {
+    const renamed = [...rootEvents, rootQuestion].map(event => ({ ...event, data: { ...event.data, file } }));
+    assert.equal(agentState(active, [...renamed, ...sameSubmission]), 'unknown',
+      'Unanswered root question must stay unknown under either native filename');
+  }
+  for (const [file, payload] of [
+    ['sessions/unverified.jsonl', { id: 'native', source: 'cli', cwd: repo }],
+    ['sessions/other.jsonl', { id: 'other', source: 'cli', cwd: repo }],
+    ['sessions/helper.jsonl', { id: 'helper', source: { subagent: {} }, cwd: repo }],
+    ['sessions/helper.jsonl', { id: 'helper', source: { subagent: { parent_thread_id: 'other' } }, cwd: repo }],
+    ['sessions/native.jsonl', { id: 'native', source: 'unknown', cwd: repo }],
+  ]) {
+    const unverified = [
+      { type: 'native_record', data: { file, record: { type: 'session_meta', payload } } },
+      { ...question, data: { ...question.data, file } },
+    ];
+    assert.equal(agentState(active, [...rootEvents, ...sameSubmission, ...unverified]), 'unknown',
+      'Unverified question origin cannot prove auxiliary membership');
+  }
   const auxiliary = [
-    { type: 'native_record', data: { file: 'sessions/helper.jsonl', record: { type: 'session_meta', payload: { id: 'helper', source: { subagent: {} } } } } },
+    { type: 'native_record', data: { file: 'sessions/helper.jsonl', record: { type: 'session_meta', payload: { id: 'helper', source: { subagent: {} }, cwd: repo } } } },
     { type: 'native_record', data: { file: 'sessions/helper.jsonl', record: { type: 'event_msg', payload: { type: 'task_started', turn_id: 'helper-turn' } } } },
   ];
+  const verifiedAuxiliary = [
+    { type: 'native_record', data: { file: 'sessions/helper.jsonl', record: { type: 'session_meta',
+      payload: { id: 'helper', source: { subagent: { parent_thread_id: 'native' } }, cwd: repo } } } },
+    { ...question, data: { ...question.data, file: 'sessions/helper.jsonl' } },
+  ];
+  assert.equal(agentState(active, [...rootEvents, ...sameSubmission, ...verifiedAuxiliary]), 'running',
+    'Verified auxiliary question must not become a root question');
+  const foreignWorkspace = { ...rootEvents[0], data: { ...rootEvents[0].data, record: {
+    ...rootEvents[0].data.record, payload: { ...rootEvents[0].data.record.payload, cwd: second },
+  } } };
+  assert.equal(agentState(active, [foreignWorkspace, rootQuestion, ...sameSubmission]), 'unknown',
+    'Unverified workspace cannot prove auxiliary membership');
+  report.checks.push('rollout_filename_and_same_submission_hook_do_not_release_question', 'unverified_question_origin_stays_unknown',
+    'verified_auxiliary_question_is_isolated');
   assert.equal(agentState(active, [...rootEvents, rootQuestion, ...auxiliary]), 'unknown', 'Auxiliary native start must not release the root question');
   assert.equal(agentState(active, [...rootEvents, rootQuestion, { type: 'native_record', data: { record: { type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn' } } } }]), 'unknown');
   assert.equal(agentState({ ...active, active: { id: 'new', nativeTurn: null } }, [

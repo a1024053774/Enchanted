@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { basename } from 'node:path';
+import { codexSessionOrigin } from './paneRecovery.ts';
 import type { OrchestrationStore } from './store.ts';
 
 export type AgentState = 'running' | 'waiting_user_answer' | 'waiting_controller_answer' | 'idle' | 'ended' | 'unrestored' | 'unknown';
@@ -14,12 +14,12 @@ export const roleLabel = (record: any): string => record.role === 'controller'
 
 // busy includes permissions, interruptions and a submitted but unobserved turn.
 // Only an active, correlated native turn is positive execution evidence.
-export function agentState(pane: any, events: any[]): AgentState {
+export function agentState(pane: any, events: any[], worktree: string | undefined): AgentState {
   if (pane?.restoration && ['failed', 'pending'].includes(pane.restoration.status)) return 'unrestored';
   if (pane?.lifecycle === 'ended') return 'ended';
   if (!pane || pane.historical || pane.failed || pane.interrupted || pane.lifecycle !== 'running') return 'unknown';
   const pending = new Set<string>();
-  const files = new Map<string, { root: boolean; turn: string | null }>();
+  const files = new Map<string, { kind: ReturnType<typeof codexSessionOrigin>; turn: string | null }>();
   let uncertainQuestion = false;
   let permission = false;
   for (const event of events) {
@@ -30,25 +30,24 @@ export function agentState(pane: any, events: any[]): AgentState {
     if (event.type !== 'native_record') continue;
     const file = event.data?.file;
     if (record?.type === 'session_meta' && typeof file === 'string') {
-      files.set(file, { root: Boolean(pane.native_session && payload?.source === 'cli' &&
-        payload.id === pane.native_session && basename(file) === pane.native_session + '.jsonl'), turn: null });
+      files.set(file, { kind: codexSessionOrigin(file, record, pane.native_session, worktree), turn: null });
     }
     const origin = files.get(file);
-    if (record?.type === 'event_msg' && payload?.type === 'task_started' && origin?.root && typeof payload.turn_id === 'string') {
+    if (record?.type === 'event_msg' && payload?.type === 'task_started' && origin?.kind === 'root' && typeof payload.turn_id === 'string') {
       origin.turn = payload.turn_id;
     }
     if (record?.type === 'response_item' && payload?.type === 'function_call' &&
         ['request_user_input', 'request_user_input_async'].includes(payload.name)) {
-      if (origin?.root && origin.turn === pane.turn &&
+      if (origin?.kind === 'root' && origin.turn === pane.turn &&
           (!payload.internal_chat_message_metadata_passthrough || payload.internal_chat_message_metadata_passthrough.turn_id === origin.turn)) pending.add(payload.call_id);
-      else if (!origin || origin.root) uncertainQuestion = true;
+      else if (origin?.kind !== 'auxiliary') uncertainQuestion = true;
     }
     // Neither a new turn nor an async accepted:true proves an answer. Keep
     // unresolved/uncorrelated questions unknown until answer evidence exists.
   }
   if (permission || pending.size || uncertainQuestion) return 'unknown';
   if (pane.state === 'idle' && !pane.active && !pane.writing) return 'idle';
-  const roots = [...files.values()].filter(origin => origin.root);
+  const roots = [...files.values()].filter(origin => origin.kind === 'root');
   const rootTurnObserved = roots.length === 1 && roots[0].turn === pane.turn;
   if (roots.length > 1) return 'unknown';
   const submission = events.findLast(event => event.type === 'turn_submitted' && event.data?.id === pane.active?.id);
@@ -109,7 +108,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
           input.project === parent.project && input.task === parent.task && input.preset === parent.preset &&
           result.entry?.kind === 'assign' && result.entry.from === parent.preset && result.entry.to === recipient) senders.add(parent.id);
     }
-    const state = agentState(statuses.get(record.id), events.filter(event => event.launch === record.id));
+    const state = agentState(statuses.get(record.id), events.filter(event => event.launch === record.id), record.worktree);
     return { id: record.id, project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,
       role: record.role, preset: record.preset ?? null, role_label: roleLabel(record),
       cli: record.cli === 'Claude Code' || record.cli_version?.startsWith('Claude Code') ? 'claude' :

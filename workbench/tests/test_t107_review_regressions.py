@@ -1,4 +1,4 @@
-"""Replay F1/F2 against the frozen bad candidate and reject F3 on fixed code."""
+"""Replay frozen F1/F2/F4 defects and reject the F3 write mutant."""
 import argparse
 import io
 import json
@@ -17,6 +17,7 @@ source, output = args.source.resolve(), args.summary.resolve()
 assert not output.exists()
 root = Path(tempfile.mkdtemp(prefix='t107-review-fixes-', dir='/private/tmp'))
 env = dict(os.environ, LC_ALL='C', PYTHONDONTWRITEBYTECODE='1')
+(root / 'node_modules').symlink_to(env.get('T107_DEPENDENCIES', '/Users/luckye/Documents/Code/a2a/workbench/node_modules'), target_is_directory=True)
 revision = '3c3f2e9e189ddf37eeec4091266c8701a2dde33f'
 report = dict(status='INCOMPLETE', baseline=revision, source=str(source), root=str(root), model_calls=0, cases=[])
 
@@ -47,6 +48,17 @@ try:
                           ('readonly', 'Sidebar read changed persisted tables or traces')]:
         run('old-' + mode, ['node', '--experimental-vm-modules', daemon_test, 'REPORT', baseline, mode], failure)
         run('fixed-' + mode, ['node', '--experimental-vm-modules', daemon_test, 'REPORT', source, mode])
+    f4_revision = 'f563fd5182feebfd16bee9063714e278536ddc6b'
+    f4_baseline = root / 'f4-baseline'
+    f4_baseline.mkdir()
+    archive = subprocess.check_output(['git', 'archive', f4_revision, 'workbench'], cwd=source)
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        tar.extractall(f4_baseline)
+    report['f4_baseline'] = f4_revision
+    for mode in ['filename', 'rollout']:
+        run('old-f4-' + mode, ['node', '--experimental-vm-modules', daemon_test, 'REPORT', f4_baseline, mode],
+            'Unanswered root question must stay unknown under either native filename' if mode == 'rollout' else None)
+        run('fixed-f4-' + mode, ['node', '--experimental-vm-modules', daemon_test, 'REPORT', source, mode])
     mutant = root / 'write-mutant'
     shutil.copytree(source / 'workbench/src', mutant / 'workbench/src')
     module = mutant / 'workbench/src/sidebar.ts'
@@ -65,7 +77,9 @@ try:
         'Sidebar read changed persisted tables or traces')
     run('daemon-write-rejected', ['node', '--experimental-vm-modules', daemon_test, 'REPORT', mutant, 'readonly'],
         'Sidebar read changed persisted tables or traces')
-    run('fixed-projection', ['node', source / 'workbench/tests/test_t107_sidebar.mjs', 'REPORT'])
+    projection = root / 'fixed-projection'
+    shutil.copytree(source / 'workbench/src', projection)
+    run('fixed-projection', ['node', source / 'workbench/tests/test_t107_sidebar.mjs', 'REPORT', projection / 'sidebar.ts'])
     report['status'] = 'PASS'
 except Exception as error:
     report['error'] = repr(error)

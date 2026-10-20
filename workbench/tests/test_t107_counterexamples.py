@@ -1,5 +1,7 @@
 """Run the same independent projection oracle against three single faults."""
 import json
+import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -9,6 +11,7 @@ output = Path(sys.argv[1])
 assert not output.exists()
 source = Path(__file__).resolve().parents[1]
 root = Path(tempfile.mkdtemp(prefix='t107-counterexamples-', dir='/private/tmp'))
+(root / 'node_modules').symlink_to(os.environ.get('T107_DEPENDENCIES', '/Users/luckye/Documents/Code/a2a/workbench/node_modules'), target_is_directory=True)
 original = (source / 'src/sidebar.ts').read_text(encoding='utf-8')
 mutations = [
     ('unknown_promoted', "  return 'unknown';\n}\n\nexport function aggregate", "  return 'running';\n}\n\nexport function aggregate", 'Missing signal must remain unknown'),
@@ -18,7 +21,9 @@ mutations = [
 report = dict(status='INCOMPLETE', model_calls=0, cases=[], retained_root=str(root))
 for name, old, new, expected in mutations:
     assert original.count(old) == 1
-    module = root / (name + '.ts')
+    directory = root / name
+    shutil.copytree(source / 'src', directory)
+    module = directory / 'sidebar.ts'
     module.write_text(original.replace(old, new), encoding='utf-8')
     result_path = root / (name + '.json')
     command = ['node', str(source / 'tests/test_t107_sidebar.mjs'), str(result_path), str(module)]

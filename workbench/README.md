@@ -736,8 +736,11 @@ node workbench/src/gates/cli.ts --state /绝对路径/state sidebar_snapshot
 当前视图由 `selection`、`selectTask` 和 `selectAgent` 的返回值提供，切换后旧 key 不再可用。
 `sidebar_snapshot` 只读已经保存的事实和纯窗格状态快照，不扫描原生日志、不写表或 trace。
 原生记录在已有终端输出、hook、进程观察和退出采集职责中读取；不改变门禁、attempt 或操作锁。
-问题事件须与已验证的根原生会话文件、回合对应；辅助会话或来源不明的开始事件不能
-清除根问题。尚未核实回答时保留未知，不以新回合推断已经回答。T-107 真实 Electron 复验脚本与未完成项见
+问题事件须与已验证的根原生会话文件、回合对应。恢复、采集与侧栏共用文件名和 metadata
+归属校验，支持 `<session>.jsonl` 与 `rollout-…-<session>.jsonl`。只有 metadata 的会话 ID、
+CLI 来源、工作目录与文件名一致才确认为根；辅助会话还须有明确的根会话绑定。
+来源未核实的问题保持未知；辅助会话或来源不明的开始事件不能清除根问题。
+尚未核实回答时保留未知，不以新回合推断已经回答。T-107 真实 Electron 复验脚本与未完成项见
 [交付摘要](../evidence/2026-10-19-batch17/T-107/RESULTS.md)。
 
 Electron 的启动环境须带该后台对应的 `A2A_OPERATOR_CREDENTIAL`；它只在 main

@@ -182,7 +182,7 @@ def main():
         report['checks'].append(dict(name='真实 Electron 已知坏基线', status='PASS', observed='无侧栏 IPC、agent 树与 Git 摘要，符合预期红态'))
         red.close()
         stop()
-        for mode in ['identity', 'readonly']:
+        for mode in ['identity', 'readonly', 'filename', 'rollout']:
             probe = root / ('daemon-' + mode + '.json')
             run(['node', '--experimental-vm-modules', source / 'workbench/tests/test_t107_daemon_readonly.mjs', probe, candidate, mode])
             result = json.loads(probe.read_text(encoding='utf-8'))

@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 
 const [output, sourceArg = '.', mode = 'readonly'] = process.argv.slice(2);
-if (!output || fs.existsSync(output) || !['identity', 'readonly'].includes(mode)) throw new Error('New output and identity/readonly mode required');
+if (!output || fs.existsSync(output) || !['identity', 'readonly', 'filename', 'rollout'].includes(mode)) throw new Error('New output and identity/readonly/filename/rollout mode required');
 const source = resolve(sourceArg), root = fs.mkdtempSync('/private/tmp/t107-daemon-read-');
 const tree = join(root, 'runtime'), state = join(root, 'state'), repo = join(root, 'repo');
 const report = { status: 'INCOMPLETE', mode, source, root, model_calls: 0,
@@ -25,6 +25,7 @@ try {
   fs.mkdirSync(state); fs.mkdirSync(repo);
   execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'init', '-b', 'main', repo], { env: { ...process.env, LC_ALL: 'C' } });
   const { Panes, spawnHelper } = await import(pathToFileURL(join(tree, 'src/panes.ts')));
+  const { nativeSessionFile } = await import(pathToFileURL(join(tree, 'src/paneRecovery.ts')));
   const { A2AGates } = await import(pathToFileURL(join(tree, 'src/gates/core.ts')));
   const credentials = await import(pathToFileURL(join(tree, 'src/credentials.ts')));
   ({ request } = await import(pathToFileURL(join(tree, 'src/transport.ts'))));
@@ -37,8 +38,9 @@ try {
   const start = turn_id => ({ type: 'event_msg', payload: { type: 'task_started', turn_id } });
   const question = { type: 'response_item', payload: { type: 'function_call', name: 'request_user_input', call_id: 'question-1',
     internal_chat_message_metadata_passthrough: { turn_id: 'root-turn' } } };
-  const rootLog = join(logs, 'root-session.jsonl');
-  fs.writeFileSync(rootLog, [meta('root-session'), start('root-turn'), question].map(JSON.stringify).join('\n') + '\n');
+  const filenameCase = ['filename', 'rollout'].includes(mode);
+  const rootLog = join(logs, mode === 'rollout' ? 'rollout-2026-10-19T12-00-00-root-session.jsonl' : 'root-session.jsonl');
+  fs.writeFileSync(rootLog, [meta('root-session'), start('root-turn'), ...filenameCase ? [] : [question]].map(JSON.stringify).join('\n') + '\n');
   class SeededPanes extends Panes {
     constructor(...args) {
       super(...args); host = this;
@@ -78,7 +80,25 @@ try {
     assert.equal(result.ok, true, 'Sidebar must return a business result');
     return result.agents.find(row => row.id === 'launch').state;
   };
-  if (mode === 'identity') {
+  if (filenameCase) {
+    host.scan(pane);
+    host.store.event('turn_submitted', { id: 'submission' }, pane.record);
+    host.store.event('turn_start_signal', { session_id: 'root-session' }, pane.record);
+    report.before_question = await read();
+    assert.equal(report.before_question, 'running', 'Same submission hook must prove the active turn before a question');
+    fs.appendFileSync(rootLog, JSON.stringify(question) + '\n');
+    host.scan(pane);
+    const before = saved(), offsets = [...pane.offsets];
+    report.observed = await read();
+    assert.equal(report.observed, 'unknown', 'Unanswered root question must stay unknown under either native filename');
+    assert.deepEqual(saved(), before, 'Sidebar read changed persisted tables or traces');
+    assert.deepEqual([...pane.offsets], offsets, 'Sidebar read consumed native bytes');
+    // The recovery locator must accept the same recorded root file and ignore
+    // unrelated files before parsing; this checks its existing naming contract.
+    fs.writeFileSync(join(logs, 'unrelated.jsonl'), 'unrelated malformed sentinel\n');
+    assert.equal(nativeSessionFile(pane.record, 'root-session'), rootLog);
+    report.filename = rootLog;
+  } else if (mode === 'identity') {
     host.scan(pane); // Collection is explicit and outside the read boundary.
     assert.equal(await read(), 'unknown');
     fs.writeFileSync(join(logs, 'zz-helper.jsonl'), [meta('helper', { subagent: { parent_thread_id: 'root-session' } }), start('helper-turn')].map(JSON.stringify).join('\n') + '\n');
@@ -89,6 +109,10 @@ try {
     // Missing file/session attribution must not release it either.
     host.store.event('native_record', { record: start('root-turn') }, pane.record);
     assert.equal(await read(), 'unknown', 'Unknown native origin must not release the root question');
+    fs.writeFileSync(join(logs, 'other-session.jsonl'), [meta('other-session'), start('other-turn')].map(JSON.stringify).join('\n') + '\n');
+    assert.throws(() => host.scan(pane), error => error.code === 'ambiguous_native_session',
+      'Conflicting CLI session must retain the collector refusal');
+    assert.equal(pane.native, 'root-session'); assert.equal(pane.turn, 'root-turn');
   } else {
     // Fresh native bytes remain unconsumed. Any scan or direct store.event in
     // the actual handler is rejected by exact table/trace values, not a crash.
