@@ -8,7 +8,7 @@ const output = process.argv[2]!; mkdirSync(output);
 const root = mkdtempSync("/tmp/t78-claude-state-");
 const store = new OrchestrationStore(root), panes = new Panes(root, store, {}, () => {});
 const record = { id: "claude-launch", thread: "claude-thread", task: "task", attempt: null,
-  session: "native-session", cli: "Claude Code", turn_limit: 1 };
+  session: "native-session", worktree: root, cli: "Claude Code", turn_limit: 1 };
 store.launch(record);
 const item = store.register(record.id, "独立输入 P1_NONCE");
 const pane: any = { record, task: {}, attempt: null, token: "test-only", native: record.session,
@@ -22,6 +22,7 @@ async function test(name: string, run: () => Promise<void>) {
   catch (error) { checks.push({ name, status: "INCOMPLETE", error: String(error) }); }
 }
 const signal = (event: string, extra = {}) => panes.signal(record.id, JSON.stringify({ session_id: record.session,
+  cwd:root,transcript_path:join(root,"native-session.jsonl"),
   prompt_id:"00000000-0000-4000-8000-000000000001",hook_event_name: event, ...extra }), "2026-10-11T00:01:00Z");
 await test("controller_runtime_entry_exists", async () => assert.equal(typeof (panes as any).startController, "function"));
 await test("real_hook_shape_matches_one_registered_submission", async () => {

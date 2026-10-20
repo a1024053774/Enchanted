@@ -60,6 +60,14 @@ try {
     assert.equal(state(),'unknown');assert.equal(unverified(),before+1);
   }
   report.checks.push('valid_unrelated_tools_ignored','missing_tool_name_unknown_and_rejected','malformed_tool_envelope_unknown');
+  await signal('PreToolUse',{tool_input:{questions},tool_use_id:'quarantined'});
+  assert.equal(state(),'unknown','A new tool cannot repair an untrusted submission');
+  await assert.rejects(panes.answerQuestion('launch','launch:quarantined',['北区'],async()=>{},async()=>{}));
+  pane.active={...pane.active,id:'verified-submission'};pane.claudePromptId=null;
+  store.event('turn_submitted',{id:'verified-submission'},record);
+  // Old unresolved entries are retained; the new submission is independent.
+  await signal('UserPromptSubmit',{prompt:dispatch.text,prompt_id:'verified-prompt'});
+  base.prompt_id='verified-prompt';
   await signal('PreToolUse',{tool_input:{questions}});
   assert.equal(state(),'waiting_user_answer','Structured root question must expose waiting_user_answer');
   const question=panes.questions('launch').find(q=>q.status==='waiting');
@@ -76,15 +84,15 @@ try {
   await panes.answerQuestion('launch',question.id,['北区'],async(text,id)=>inputs.push({text,id}),async()=>{});
   assert.equal(inputs.length,1);assert.equal(inputs[0].id,question.id);
   assert.ok(writes.length>0,'Answer must reach the bound PTY');
-  assert.equal(pane.active.id,'submission','Native question answer cannot replace the active root submission');
-  assert.equal(pane.claudePromptId,'prompt');
+  assert.equal(pane.active.id,'verified-submission','Native question answer cannot replace the active root submission');
+  assert.equal(pane.claudePromptId,'verified-prompt');
   assert.notEqual(state(),'running','PTY write does not prove the native tool accepted an answer');
   await assert.rejects(panes.answerQuestion('launch',question.id,['北区'],async()=>{},async()=>{}));
   assert.equal(inputs.length,1,'Duplicate answer must not create another user input');
   await signal('PostToolUse',{tool_input:{questions,answers:{'选择发布区域？':'北区'}},tool_response:{questions,answers:{'选择发布区域？':'北区'}}});
   assert.equal(state(),'running');
   await signal('Stop',{stop_hook_active:false});assert.equal(pane.state,'idle');
-  assert.equal(panes.questions('launch')[0].status,'answered');
+  assert.equal(panes.questions('launch').find(q=>q.id===question.id).status,'answered');
   report.checks.push('root_question_and_native_answer', 'stale_hook_is_rejected', 'revoked_identity_no_write',
     'duplicate_answer_rejected', 'answer_keeps_root_submission', 'write_waits_for_native_confirmation');
   const codexRecord={...record,id:'codex-launch',thread:'codex-thread',role:'worker',attempt:'attempt',cli:'Codex',env:{CODEX_HOME:root},worktree:root};
@@ -95,7 +103,7 @@ try {
     {type:'event_msg',payload:{type:'task_started',turn_id:'turn'}},
     {type:'response_item',payload:{type:'function_call',name:'request_user_input',call_id:'codex-call'}}].map(JSON.stringify).join('\n')+'\n');
   const codexPane={...pane,record:codexRecord,attempt:{workspace:root},state:'busy',active:{id:'codex-submission',nativeTurn:'turn'},
-    native:'native',nativeFile,turn:'turn',inputGeneration:0,offsets:new Map(),writes:Promise.resolve()};
+    native:'native',nativeFile:undefined,turn:'turn',inputGeneration:0,offsets:new Map(),writes:Promise.resolve()};
   panes.panes.set(codexRecord.thread,codexPane);
   const codexSignal=(event,extra={})=>panes.signal(codexRecord.id,JSON.stringify({session_id:'native',turn_id:'turn',cwd:root,
     transcript_path:nativeFile,tool_name:'request_user_input',tool_use_id:'codex-call',hook_event_name:event,
@@ -113,7 +121,8 @@ try {
   await assert.rejects(signal('PreToolUse',{prompt_id:'second-prompt',tool_use_id:'missing-fields',tool_input:{}}));
   assert.equal(state(),'unknown','Missing question fields must remain unknown');
   await assert.rejects(signal('PreToolUse',{prompt_id:'second-prompt',agent_id:'child',tool_use_id:'child',tool_input:{questions}}));
-  assert.equal(panes.questions('launch').length,1,'Subagent hook must not register a root question');
+  assert.equal(panes.questions('launch').length,2,'Subagent hook must not register a root question');
+  pane.active={...pane.active,id:'third'};pane.claudePromptId='second-prompt';
   await signal('PreToolUse',{prompt_id:'second-prompt',tool_use_id:'second-call',tool_input:{questions}});
   const secondQuestion=panes.questions('launch').find(q=>q.tool_use_id==='second-call');
   pane.inputGeneration++;

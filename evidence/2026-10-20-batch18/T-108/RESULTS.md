@@ -1,3 +1,58 @@
+# T-108 / a1：第三轮结构修复与主控 #28 裁定已实现；局部 PASS，整票 INCOMPLETE
+
+2026-10-20。基于合并 main 后的 d42e8b3fa7b174f052ef43c17a81e68230ee968e。修复提交尚待主控执行 RUN-OUTSIDE-COMMIT-05.sh，不能冒报 SHA。新增模型／供应商调用均为 0；没有运行真实模型回合。
+
+主控 #28 对 blocking issue 20261020T081754Z-worker:s18-t108-issue-001 的裁定已落实：同一 AskUserQuestion 自身的 PermissionRequest 仍属于该提问。它必须匹配当前唯一 waiting／sending 问题的 session、submission、prompt／原生 turn；可用的 tool_use_id、turn_id 和问题内容也须一致。内容用现有问题结构归一化后，与 SQLite 保存的 JSON 表示逐字段比较，不依赖屏幕、正则或关键词。已验证的同问题事件追加 native_question_permission，保留正常题目与原生 Enter 的当前根交互绑定，不产生独立 permission_wait。它不能清除已有未知或其他权限等待。
+
+Bash 等其他工具权限请求继续优先使旧问题未知且不可答；缺工具名、公共关联字段缺失、ID／内容冲突与无法核实的同名请求，由已认证 launch 绑定未知事实并拒绝。问题投影、侧栏、answer 准入、每次异步后的按键写入以及 Stop 完成共同读取 currentTurnTrust。所有旧身份、过期回合与子 agent 拒绝／忽略检查保留；受管 worker 的 gate／attempt／fence 核对没有改动。
+
+默认 test_t108_questions.mjs 的机械合同共 **388 项，全部 PASS**。新增同问题权限事件的完整字段、匹配 ID、未提供可选内容及发送期间正例；错误调用 ID、内容、选项、题头、turn、非法内容与公共字段缺失均阻断。其他权限请求的每个缺字段及对照仍同时检查显示未知、问题不可答、answer 零新增／仅保留失效前已开始的记录、PTY 零后续写入、active 保留、无完成／转交／解锁。
+
+修前合并候选 d42e8b3fa 叠加最终合同后，388 项中 **286 项被业务断言拒绝**；原始输出 rc=1，已由 replay_review03_red.py 复现并保存。关键反例包括 PostToolUse 缺 cwd／transcript_path、Stop 缺 prompt_id，以及已有问题后出现 Bash PermissionRequest：旧候选仍显示 waiting_user_answer，而要求是 unknown。修前不是本次逐项补丁的实现，也没有用导入或初始化错误充当红态。
+
+正常原件对照也已 PASS：/private/tmp/t108-native-e2e-03.json 中的真实 CLI hook，回放后依次 running → waiting_user_answer → waiting_user_answer；界面作答使用的 answer 路径新增 1 条关联记录、向 PTY 边界写 3 次按键，原生 PostToolUse 后问题 answered，匹配 Stop 后 idle。此前一律阻断的未提交版本在相同原件上得到 unknown != waiting_user_answer 的红态（/private/tmp/t108-permission28-same-red.json）。本次回放没有启动 CLI／Electron，不冒充新的完整入口验收。
+
+完整局部重跑脚本 RUN-OUTSIDE-RECHECK-03.sh 已实际运行，rc=0，全部摘要在 **/private/tmp/t108-review03-recheck-gnnzaR**。除 388 项与正常原件回放，还通过了组合 IPC（22 handler、23 bridge，含 answer／flow／层级及原有反例）、侧栏只读、T-109 层级、T-111 流程、Codex 原件回放、Claude Stop／异 session 合同、队列／中断／输入顺序合同，以及实际 daemon/socket 的零写入和异会话冲突合同。构建 PASS，成功临时构建目录已删除，日志保留。精确摘要和边界见 review03-fix-local.summary.json。
+
+相对 d42e8b3fa，共享文件只做 sidebar.ts 第 101 行只读事件查询接线，纳入 permission_control_written；renderer.tsx 无修改。main 中 T-109 的树及 T-111 流程功能保留。README 已更新公共字段／统一可信度及 #28 的权限区分。此前探针、失败、BLOCKED 记录与第三轮审查文件均保留，worker 不自行关闭 blocking issue。
+
+待主控执行（每次摘要路径必须新建，下面路径尚未使用）：
+
+```sh
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-COMMIT-05.sh
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-NO-MODEL.sh /private/tmp/t108-native-e2e-review03-01.json
+# 需要复跑局部合同时：
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-RECHECK-03.sh
+```
+
+**INCOMPLETE：** 当前提交对应的新 CLI／Electron 无模型完整入口、独立审查尚待主控运行；历史六项 PASS 不替本候选背书。地图 0 问题条件仍有 8 个既有稀疏检出缺失链接，未改地图来消掉它们。原始运行与失败夹具保留在 /tmp，未放入 Git、未归档或删除。没有新增全局配置写入、符号链接、门禁入口、截图、submit 或 push。
+
+以下为 #28 裁定前及更早阶段的保留记录；其中 BLOCKED 和运行状态仅属于当时阶段。
+
+---
+
+# T-108 / a1：第三轮结构修复已保存，权限语义待裁定（BLOCKED）
+
+2026-10-20，执行主控 #27 后的进度。main 已按 git merge 合入，HEAD 为 d42e8b3fa7b174f052ef43c17a81e68230ee968e。当前修复全部未提交，没有把半成品提交为候选。新增模型／供应商调用均为 0。
+
+当前回合可信度已集中到 questions.ts：身份明确的旧回合、异 session 和子 agent 先排除；公共关联字段在事件分流前校验；拒绝与解析失败由已认证 launch 的 session／submission／turn 追加未知事实。原生 turn 尚不可知时明确记为 null，不把 submission ID 冒充原生 turn。问题投影、侧栏状态、作答准入、每次异步后的 PTY 写入及 Stop 完成前都读取同一份可信度。未知持续约束该 submission；正常无关工具不能清除它。合法 PermissionRequest 优先使旧问题不可答；仅记录原生权限控制输入可清除权限等待，不能清除未知事实。
+
+默认 test_t108_questions.mjs 的矩阵已扩大到 **373 项，当前全部 PASS**：Claude 与 Codex 各种 hook 的 cwd、transcript_path、prompt_id／turn_id、session_id 和适用的工具字段逐项缺失，配完整当前、明确旧回合、异 session、子 agent 对照；还有运行中缺字段的 Stop、非法响应／JSON、PermissionRequest、记录与逐键写入期间的失效。每个拒绝场景同时检查未知、问题不可答、answer 零新增或仅保留失效前已开始记录的输入、PTY 零后续写入、active 保留、无完成／转交／解锁。完整 PermissionRequest 对照也运行全部阻断断言。
+
+**修前业务红态已取得。** 可重建的冻结合并候选 d42e8b3fa，叠加最终测试，不修改产品：373 项中 271 项被业务断言拒绝，没有导入、初始化或依赖故障冒充红态。关键四例均仍显示 waiting_user_answer：PostToolUse 缺 cwd、缺 transcript_path，Stop 缺 prompt_id，以及正常 PermissionRequest 到达已有问题之后。重建命令与摘要见 replay_review03_red.py、/private/tmp/t108-review03-red-repro-01.json。
+
+组合 IPC（保留 answer／flow／层级和原拒绝检查）、侧栏只读、T-109 层级、T-111 流程、实际 daemon/socket 的零写入与异会话冲突合同、Codex 原件回放、Claude 正常 Stop／异 session 拒绝、队列／中断／迟到 Stop 及输入顺序合同均 PASS。相关旧合成夹具只补齐公共字段，没有删断言。Codex 新启动的 hook 来源复用已有严格 nativeSessionFile 定位器；恢复已有定位结果可直接核对。collector 的扫描范围、辅助来源及异会话拒绝语义保持原样。构建 PASS，工作者创建的成功临时构建目录已清理，输出日志保留。所有摘要路径见 review03-progress.summary.json。
+
+**仍 BLOCKED：正常提问原件与一律权限阻断冲突。** 旧完整入口六项 PASS 的 /private/tmp/t108-native-e2e-03.json，真实 hook 顺序本身就包含 PreToolUse(AskUserQuestion) → PermissionRequest(AskUserQuestion)。本轮用原件回放实际 signal／SQLite／作答路径，得到等待用户回答 → 未知，answer 新增 0、PTY 写入 0。这符合 #26 一律阻断的要求，却挡住了原有“从工作台界面作答写回”的正常路径。观察摘要 /private/tmp/t108-review03-permission-conflict-02.json 不作为新完整入口 PASS。已追加 blocking issue 20261020T081754Z-worker:s18-t108-issue-001；详细事实及最小裁定见 permission-semantics-issue.md。
+
+请主控裁定：同一 AskUserQuestion 自身的 PermissionRequest 是否属于这个原生提问；其他工具权限请求仍优先阻断旧问题。若一律阻断，需要明确原有界面作答验收如何满足。未自行加入例外，未重跑真实模型，未新跑 Electron，未宣称独立审查通过，未交修复提交脚本。RUN-OUTSIDE-RECHECK-03.sh 可重跑局部合同和上述冲突观察，不执行提交；脚本只做语法验证，组成命令已分别执行，不把整份脚本说成已跑。
+
+相对 d42e8b3fa 的共享文件接线：sidebar.ts 仅第 101 行，把 permission_control_written 纳入只读事件查询；renderer.tsx 无修改。T-109 树与 T-111 流程保留。地图状态仍 rc=1，8 个既有稀疏检出缺失链接、0 stale，见 project-map-review03-progress.txt。原始失败现场保留在 /tmp，未放进 Git；未归档或删除这些现场。
+
+以下保留此前阶段记录；其中运行与批准状态仅属于各自阶段，不代表当前未提交实现通过。
+
+---
+
 # T-108 / a1：无模型完整入口 PASS，整票 INCOMPLETE
 
 分支 exec/t108，起点 6411bdff8482ba47da207efa6a295a12666222aa。未运行任何真实模型回合，model_calls=0、vendor_calls=0。CLI 原生交互探针只连接本地假 API，未使用正常登录。

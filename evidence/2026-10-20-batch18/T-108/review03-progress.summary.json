@@ -1,0 +1,169 @@
+{
+  "status": "BLOCKED",
+  "task": "T-108",
+  "attempt": "a1",
+  "branch": "exec/t108",
+  "merge_commit": "d42e8b3fa7b174f052ef43c17a81e68230ee968e",
+  "fix_committed": false,
+  "scope": "Third review structural fix saved; blanket PermissionRequest rule conflicts with recorded normal app-answer entry",
+  "model_calls": 0,
+  "vendor_calls": 0,
+  "blocking_issue": "20261020T081754Z-worker:s18-t108-issue-001",
+  "checks": {
+    "questions": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-progress-final.json",
+      "cases": 373,
+      "checks": [
+        "valid_unrelated_tools_ignored",
+        "missing_tool_name_unknown_and_rejected",
+        "malformed_tool_envelope_unknown",
+        "root_question_and_native_answer",
+        "stale_hook_is_rejected",
+        "revoked_identity_no_write",
+        "duplicate_answer_rejected",
+        "answer_keeps_root_submission",
+        "write_waits_for_native_confirmation",
+        "codex_worker_waits_for_controller",
+        "codex_confirmed_answer_releases_native_marker",
+        "missing_fields_unknown",
+        "subagent_rejected",
+        "changed_input_no_write",
+        "native_cancel_resolves_question"
+      ]
+    },
+    "known_bad": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-red-repro-01.json",
+      "cases": 373,
+      "rejected": 271,
+      "fixture": "/private/tmp/t108-review03-red-replay-9fhi6ryb",
+      "focused": [
+        {
+          "name": "matrix_Claude Code_PostToolUse_cwd_missing",
+          "observed": "waiting_user_answer",
+          "error": "AssertionError [ERR_ASSERTION]: matrix_Claude Code_PostToolUse_cwd_missing: malformed current hook must revoke positive state\n+ actual - expected\n\n+ 'waiting_user_answer'\n- 'unknown'\n"
+        },
+        {
+          "name": "matrix_Claude Code_PostToolUse_transcript_path_missing",
+          "observed": "waiting_user_answer",
+          "error": "AssertionError [ERR_ASSERTION]: matrix_Claude Code_PostToolUse_transcript_path_missing: malformed current hook must revoke positive state\n+ actual - expected\n\n+ 'waiting_user_answer'\n- 'unknown'\n"
+        },
+        {
+          "name": "matrix_Claude Code_Stop_prompt_id_missing",
+          "observed": "waiting_user_answer",
+          "error": "AssertionError [ERR_ASSERTION]: matrix_Claude Code_Stop_prompt_id_missing: malformed current hook must revoke positive state\n+ actual - expected\n\n+ 'waiting_user_answer'\n- 'unknown'\n"
+        },
+        {
+          "name": "permission_after_pending_question",
+          "observed": "waiting_user_answer",
+          "error": "AssertionError [ERR_ASSERTION]: permission_after_pending_question: malformed current hook must revoke positive state\n+ actual - expected\n\n+ 'waiting_user_answer'\n- 'unknown'\n"
+        }
+      ]
+    },
+    "permission_conflict": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-permission-conflict-02.json",
+      "states": [
+        {
+          "event": "UserPromptSubmit",
+          "state": "running",
+          "questions": []
+        },
+        {
+          "event": "PreToolUse",
+          "tool": "AskUserQuestion",
+          "state": "waiting_user_answer",
+          "questions": [
+            {
+              "id": "original-replay:toolu_e2e_sentinel",
+              "status": "waiting"
+            }
+          ]
+        },
+        {
+          "event": "PermissionRequest",
+          "tool": "AskUserQuestion",
+          "state": "unknown",
+          "questions": [
+            {
+              "id": "original-replay:toolu_e2e_sentinel",
+              "status": "unknown"
+            }
+          ]
+        }
+      ],
+      "answer_records": 0,
+      "pty_writes": 0
+    },
+    "ipc": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-ipc-01.json"
+    },
+    "sidebar": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-sidebar-01.json"
+    },
+    "hierarchy": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-hierarchy-01.json"
+    },
+    "flow": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-flow-01.json"
+    },
+    "readonly": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-readonly-final.json"
+    },
+    "identity": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-identity-final-02.json"
+    },
+    "codex": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-codex-final.json"
+    },
+    "signals": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-signals-02/results.json"
+    },
+    "runtime": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-runtime-final/results.json"
+    },
+    "managed_prompt": {
+      "status": "PASS",
+      "path": "/private/tmp/t108-review03-managed-prompt-01"
+    }
+  },
+  "builds": [
+    {
+      "status": "PASS",
+      "log": "/private/tmp/t108-review03-build-01.log",
+      "removed_successful_build_directory": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t108-review03-01"
+    },
+    {
+      "status": "PASS",
+      "log": "/private/tmp/t108-review03-build-final.log",
+      "removed_successful_build_directory": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t108-review03-final"
+    },
+    {
+      "status": "PASS",
+      "log": "/private/tmp/t108-review03-build-progress.log",
+      "removed_successful_build_directory": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t108-review03-progress"
+    }
+  ],
+  "limitations": [
+    "No new CLI/Electron complete-entry acceptance or real model turn",
+    "Independent acceptance of this uncommitted change has not run",
+    "Raw test fixtures retained under /private/tmp; no archive or deletion of failure evidence",
+    "project_map status rc=1: eight existing sparse-checkout broken links, zero stale living docs"
+  ],
+  "wiring_vs_merge_parent": {
+    "workbench/src/sidebar.ts": [
+      101
+    ],
+    "workbench/app/renderer.tsx": []
+  }
+}

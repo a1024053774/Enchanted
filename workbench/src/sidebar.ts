@@ -98,7 +98,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   // observation; a sidebar query consumes only already persisted facts.
   const statuses = new Map(launches.map(record => [record.id, panes.status(record.thread)]));
   const events = store.db.prepare(`SELECT seq,type,launch,data FROM orchestration_events
-    WHERE type IN ('permission_wait','turn_start_signal','turn_submitted','pane_idle',
+    WHERE type IN ('permission_wait','permission_control_written','turn_start_signal','turn_submitted','pane_idle',
       'native_question_opened','native_question_resolved','native_question_answer_intent','native_question_unverified')
       OR type='native_record' AND (json_extract(data,'$.record.type')='session_meta'
         OR json_extract(data,'$.record.payload.type') IN ('function_call','task_started'))

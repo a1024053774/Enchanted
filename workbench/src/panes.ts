@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { questionHookBinding, questionFromHook, projectQuestions, nativeAnswerKeys, type QuestionBinding } from './questions.ts';
+import { validateHookEnvelope, questionFromHook, questionPermission, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
 import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
@@ -810,7 +810,7 @@ export class Panes implements GateRuntime {
       try {
         pane.pty.write(binary ? bytes : data);
         const written = this.store.event("terminal_input_written", { ...receipt, encoding, byte_length: bytes.length }, pane.record);
-        if (permissionControl) this.store.event("permission_control_written", { ...receipt, prompt_id: pane.claudePromptId, submission: pane.active!.id }, pane.record);
+        if (permissionControl) this.store.event("permission_control_written", { ...receipt, ...currentTurnBinding(pane), prompt_id: pane.claudePromptId }, pane.record);
         if(!binary && data==="\x1b") { pane.interruption = written; this.retireClaudeSubmission(pane,"user-esc"); }
       } catch (error) {
         this.recordFailure(pane, "terminal_input_write_unknown", error, receipt);
@@ -1031,20 +1031,33 @@ export class Panes implements GateRuntime {
     transfer?: (pane: Pane, stop: any, matched: boolean) => Promise<void>) {
     const pane = this.byLaunch(launch);
     this.store.event("hook_received", { raw_stdin: raw, received_at }, pane.record);
-    const value = JSON.parse(raw); this.scan(pane);
-    check(value.session_id === pane.native, "hook_native_session_mismatch");
-    const unverified = (error: unknown, binding?: QuestionBinding) => {
+    let value: any;
+    let binding = currentTurnBinding(pane);
+    const fact = () => {
       const pending = binding && this.questions(launch).filter(q => q.session_id === binding.session_id &&
-        q.submission === binding.submission && q.turn === binding.turn && ['waiting', 'sending'].includes(q.status));
-      const question = pending?.find(q => q.tool_use_id === value.tool_use_id) ?? (pending?.length === 1 ? pending[0] : null);
-      this.store.event('native_question_unverified', { reason: String(error), hook_event_name: value.hook_event_name,
-        tool_use_id: value.tool_use_id, ...binding, question: question?.id ?? null }, pane.record);
+        q.submission === binding.submission && ['waiting', 'sending'].includes(q.status));
+      const question = pending?.find(q => q.tool_use_id === value?.tool_use_id) ?? (pending?.length === 1 ? pending[0] : null);
+      return { ...binding, question: question?.id ?? null };
     };
-    if (['PreToolUse', 'PostToolUse', 'PostToolUseFailure'].includes(value.hook_event_name)) {
-      let binding: QuestionBinding | undefined;
-      try {
-        binding = questionHookBinding(pane, value);
-        const question = questionFromHook(pane, value, binding);
+    let excluded = false;
+    try {
+      value = JSON.parse(raw);
+      check(value && typeof value === 'object' && !Array.isArray(value), 'hook_object_required');
+      excluded = noncurrentHook(pane, value, received_at);
+      // Keep unmatched Stop semantics. All other noncurrent hooks are refused
+      // before common-field validation and cannot poison the current launch.
+      if (excluded) {
+        check(value.session_id === pane.native || !value.session_id, 'hook_native_session_mismatch');
+        if (value.hook_event_name === 'Stop') { this.store.event('stop_not_matched', value, pane.record); return; }
+        throw new Refusal('hook_origin_or_turn_mismatch');
+      }
+      check(Number.isFinite(Date.parse(received_at)), 'hook_received_at_required');
+      this.scan(pane);
+      binding = currentTurnBinding(pane);
+      validateHookEnvelope(pane, value);
+      if (['PreToolUse', 'PostToolUse', 'PostToolUseFailure'].includes(value.hook_event_name)) {
+        check(binding?.turn, 'question_turn_mismatch');
+        const question = questionFromHook(pane, value, { ...binding, turn: binding.turn });
         if (!question) return;
         const previous = this.questions(launch).find(q => q.id === question.id);
         if (value.hook_event_name === 'PreToolUse') {
@@ -1057,83 +1070,100 @@ export class Panes implements GateRuntime {
           const answered = value.hook_event_name === 'PostToolUse' && previous.blocking && previous.questions.every(q =>
             previous.cli === 'claude' ? typeof response?.answers?.[q.question] === 'string' :
               Array.isArray(response?.answers?.[q.id!]?.answers) && response.answers[q.id!].answers.length > 0);
-          const status = answered ? 'answered' : value.hook_event_name === 'PostToolUseFailure' ? 'cancelled' : 'unknown';
+          check(answered || value.hook_event_name === 'PostToolUseFailure', 'question_response_unverified');
+          const status = answered ? 'answered' : 'cancelled';
           this.store.event('native_question_resolved', { ...binding, question: question.id, status, response: value.tool_response ?? null }, pane.record);
         }
-      } catch (error) { unverified(error, binding); throw error; }
-      return;
-    }
-    if (pane.record.cli === "Claude Code") {
-      // 08e recorded prompt_id on UPS and Stop; it identifies the actual CLI prompt.
-      check(Number.isInteger(pane.record.turn_limit) && pane.record.turn_limit >= 1 && pane.record.turn_limit <= 6, "claude_turn_correlation_unverified");
-      if (value.hook_event_name === "PermissionRequest") {
-        check(pane.active && pane.claudePromptId && value.prompt_id === pane.claudePromptId, "permission_prompt_mismatch");
-        pane.permission = { prompt_id: value.prompt_id, submission: pane.active.id };
-        this.store.event("permission_wait", value, pane.record); pane.state = "busy"; return;
+        return;
       }
-      if (value.hook_event_name === "UserPromptSubmit") {
-        const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
-        check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
-        check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
-        if (item && value.prompt !== item.text) {
-          const reason = "登记注入与实际提交正文不一致；已阻断，请处理草稿后再决定。";
-          this.store.event("injected_prompt_blocked", { prompt: value.prompt, prompt_id: value.prompt_id,
-            dispatch: item.id, submission: pane.active!.id, expected_prompt: item.text, reason }, pane.record);
-          pane.state = "busy";
-          return { decision: "block" as const, reason };
+      if (pane.record.cli === "Claude Code") {
+        // 08e recorded prompt_id on UPS and Stop; it identifies the actual CLI prompt.
+        check(Number.isInteger(pane.record.turn_limit) && pane.record.turn_limit >= 1 && pane.record.turn_limit <= 6, "claude_turn_correlation_unverified");
+        if (value.hook_event_name === "PermissionRequest") {
+          check(pane.active && pane.claudePromptId && value.prompt_id === pane.claudePromptId, "permission_prompt_mismatch");
+          const question = questionPermission(pane, value, this.questions(launch));
+          // Native Enter still belongs to this root interaction. The same
+          // question's permission event does not create a permission wait.
+          pane.permission = { prompt_id: value.prompt_id, submission: pane.active.id };
+          if (question) {
+            this.store.event('native_question_permission', { ...binding, question: question.id }, pane.record);
+            return;
+          }
+          this.store.event("permission_wait", { ...value, ...fact() }, pane.record); pane.state = "busy"; return;
         }
-        // Source comes from the current structured submission, never text markers.
-        // Hand-typed submissions and retired injections cannot trigger this guard.
-        if (!item) { this.store.event("user_prompt_unregistered", value, pane.record); if (!pane.active) return; }
-        check(pane.state === "busy" && !pane.claudePromptId, "claude_submission_unmatched");
-        pane.permission = null;
-        pane.claudePromptIds.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record); return;
+        if (value.hook_event_name === "UserPromptSubmit") {
+          const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
+          check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
+          check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
+          if (item && value.prompt !== item.text) {
+            const reason = "登记注入与实际提交正文不一致；已阻断，请处理草稿后再决定。";
+            this.store.event("injected_prompt_blocked", { prompt: value.prompt, prompt_id: value.prompt_id,
+              dispatch: item.id, submission: pane.active!.id, expected_prompt: item.text, reason }, pane.record);
+            this.store.event('native_question_unverified', { ...fact(), reason: 'injected_prompt_blocked', hook_event_name: value.hook_event_name }, pane.record);
+            pane.state = "busy";
+            return { decision: "block" as const, reason };
+          }
+          // Source comes from the current structured submission, never text markers.
+          // Hand-typed submissions and retired injections cannot trigger this guard.
+          if (!item) { this.store.event("user_prompt_unregistered", value, pane.record); if (!pane.active) return; }
+          check(pane.state === "busy" && !pane.claudePromptId, "claude_submission_unmatched");
+          pane.permission = null;
+          pane.claudePromptIds.add(value.prompt_id);pane.claudePromptId=value.prompt_id;this.store.event("turn_start_signal", value, pane.record); return;
+        }
+        check(value.hook_event_name === "Stop", "unsupported_hook");
+        this.store.event("turn_end_signal", value, pane.record);
+        const active = pane.active;
+        const current = Boolean(active && pane.claudePromptId && value.prompt_id===pane.claudePromptId && !pane.failed && !pane.stopInProgress &&
+          !value.agent_id && Date.parse(received_at) >= Date.parse(active.at));
+        if (current && typeof value.stop_hook_active !== 'boolean') {
+          const error = new Refusal('stop_hook_active_required');
+          throw error;
+        }
+        const matched = current && value.stop_hook_active === false;
+        if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
+        check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
+        pane.stopInProgress = true;
+        try {
+          if (transfer) await transfer(pane, value, true);
+          check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
+          if(pane.active!==active || pane.claudePromptId!==value.prompt_id){this.store.event("stop_not_matched",{...value,stage:"after_transfer"},pane.record);return;}
+          pane.active = null; pane.claudePromptId = null; pane.permission = null; pane.state = pane.interrupted ? "busy" : "idle";
+          this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
+        } catch (error) {
+          this.recordFailure(pane, "stop_transfer_failed", error); throw error;
+        } finally { pane.stopInProgress = false; }
+        return;
       }
+      if (value.hook_event_name === "PermissionRequest") {
+        pane.failed = "unexpected_permission_request"; pane.state = "unknown";
+        this.store.event("permission_wait", { ...value, ...fact() }, pane.record);
+        return;
+      }
+      if (value.hook_event_name === "UserPromptSubmit") { this.store.event("turn_start_signal", value, pane.record); return; }
       check(value.hook_event_name === "Stop", "unsupported_hook");
       this.store.event("turn_end_signal", value, pane.record);
       const active = pane.active;
-      const current = Boolean(active && pane.claudePromptId && value.prompt_id===pane.claudePromptId && !pane.failed && !pane.stopInProgress &&
-        !value.agent_id && Date.parse(received_at) >= Date.parse(active.at));
-      if (current && typeof value.stop_hook_active !== 'boolean') {
-        const error = new Refusal('stop_hook_active_required');
-        unverified(error, { session_id: pane.native!, submission: active!.id, turn: pane.claudePromptId! });
-        throw error;
-      }
-      const matched = current && value.stop_hook_active === false;
-      if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
-      pane.stopInProgress = true;
+      const matched = Boolean(!pane.failed && !pane.stopInProgress && active?.nativeTurn && value.turn_id === active.nativeTurn && Date.parse(received_at) >= Date.parse(active.at));
+      // The Stop handler transfers explicit files while the submitted turn still
+      // owns its gate caller identity. A Stop alone never performs a gate command.
+      if (active) check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
+      if (matched) pane.stopInProgress = true;
       try {
-        if (transfer) await transfer(pane, value, true);
-        if(pane.active!==active || pane.claudePromptId!==value.prompt_id){this.store.event("stop_not_matched",{...value,stage:"after_transfer"},pane.record);return;}
-        pane.active = null; pane.claudePromptId = null; pane.permission = null; pane.state = pane.interrupted ? "busy" : "idle";
-        this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, stop: value }, pane.record);
+        if (transfer) await transfer(pane, value, matched);
+        if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
+        check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
+        pane.active = null; pane.state = pane.failed ? "unknown" : pane.interrupted ? "busy" : "idle";
+        this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value }, pane.record);
       } catch (error) {
-        this.recordFailure(pane, "stop_transfer_failed", error); throw error;
-      } finally { pane.stopInProgress = false; }
-      return;
-    }
-    if (value.hook_event_name === "PermissionRequest") {
-      pane.failed = "unexpected_permission_request"; pane.state = "unknown";
-      this.store.event("permission_wait", value, pane.record);
-      return;
-    }
-    if (value.hook_event_name === "UserPromptSubmit") { this.store.event("turn_start_signal", value, pane.record); return; }
-    check(value.hook_event_name === "Stop", "unsupported_hook");
-    this.store.event("turn_end_signal", value, pane.record);
-    const active = pane.active;
-    const matched = Boolean(!pane.failed && !pane.stopInProgress && active?.nativeTurn && value.turn_id === active.nativeTurn && Date.parse(received_at) >= Date.parse(active.at));
-    // The Stop handler transfers explicit files while the submitted turn still
-    // owns its gate caller identity. A Stop alone never performs a gate command.
-    if (matched) pane.stopInProgress = true;
-    try {
-      if (transfer) await transfer(pane, value, matched);
-      if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
-      pane.active = null; pane.state = pane.failed ? "unknown" : pane.interrupted ? "busy" : "idle";
-      this.store.event(pane.state === "idle" ? "pane_idle" : "pane_completion_held", { submission: active!.id, state: pane.state, stop: value }, pane.record);
+        if (matched) this.recordFailure(pane, "stop_transfer_failed", error);
+        throw error;
+      } finally { if (matched) pane.stopInProgress = false; }
     } catch (error) {
-      if (matched) this.recordFailure(pane, "stop_transfer_failed", error);
+      if (!excluded && binding) this.store.event('native_question_unverified', {
+        reason: String(error), hook_event_name: value?.hook_event_name, tool_use_id: value?.tool_use_id, ...fact(),
+      }, pane.record);
       throw error;
-    } finally { if (matched) pane.stopInProgress = false; }
+    }
   }
   authenticate(identity: any) {
     const pane = this.byLaunch(identity.launch);
@@ -1147,22 +1177,25 @@ export class Panes implements GateRuntime {
   async answerQuestion(launch: string, id: string, answers: string[],
     record: (text: string, question: string) => Promise<void>, assertCurrent: () => Promise<void>) {
     const pane = this.byLaunch(launch);
+    const trusted = () => currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified';
+    check(trusted(), 'current_turn_untrusted');
     const question = this.questions(launch).find(q => q.id === id);
     check(question && question.status === 'waiting', 'question_not_pending');
     const keys = nativeAnswerKeys(question, answers);
     await this.serializeWrite(pane, async () => {
       await assertCurrent();
       const current = this.questions(launch).find(q => q.id === id);
-      check(current?.status === 'waiting' && !pane.failed && !pane.stopped && !pane.archived && !pane.interrupted &&
+      check(trusted() && current?.status === 'waiting' && !pane.failed && !pane.stopped && !pane.archived && !pane.interrupted &&
         pane.active?.id === question.submission && pane.native === question.session_id &&
         (question.cli === 'claude' ? pane.claudePromptId === question.turn : pane.turn === question.turn) &&
         pane.inputGeneration === question.input_generation && !pane.userDraft,
         'question_input_changed');
       await record(question.questions.map((q, i) => `问题 ${i + 1}：${q.question}\n用户答复：${answers[i]}`).join('\n'), id);
+      check(trusted(), 'current_turn_untrusted');
       this.store.event('native_question_answer_intent', { question: id, answers }, pane.record);
       for (const key of keys) {
         await assertCurrent();
-        check(this.questions(launch).find(q => q.id === id)?.status === 'sending' &&
+        check(trusted() && this.questions(launch).find(q => q.id === id)?.status === 'sending' &&
           !pane.stopped && !pane.failed && pane.active?.id === question.submission &&
           pane.inputGeneration === question.input_generation, 'question_input_changed');
         try { pane.pty.write(key); }

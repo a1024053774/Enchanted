@@ -740,16 +740,27 @@ Herdr 期的 `scripts/launch-worker` 与 `scripts/dispatch` 接受 `--parent-lau
 状态只采用当前原生回合与后台事实；缺失、冲突、权限等待和中断不推为运行中或空闲。
 T-108 通过每会话启动参数加入 PreToolUse／PostToolUse hook，按根会话、当前回合与
 工具调用 ID 关联 Claude Code 的 AskUserQuestion 和 Codex 的 request_user_input。
-字段、归属或阻塞状态不能确认时显示未知；异步提问不作为阻塞等待。工具 hook 先核对根来源、当前回合与工具公共字段，再忽略合法的无关工具；当前根工具事件缺字段或响应解析失败时，追加与问题、submission、turn 绑定的未知事实并拒绝事件，同时撤销该问题的作答资格。当前 Claude Stop 缺少合法的 stop_hook_active 时也记录未知并拒绝，不完成回合或触发交付；合法的过期 Stop 保留原有未匹配处理。侧栏仍只读已有事件。
+字段、归属或阻塞状态不能确认时显示未知；异步提问不作为阻塞等待。所有 hook 在分流前
+核对根来源、当前回合与公共关联字段，再忽略合法的无关工具。当前根事件缺字段或响应
+解析失败时，用已认证 launch 绑定 session、submission、turn，追加未知事实并拒绝；
+无法取得原生 turn 时明确记为 null。显示状态、问题作答资格、逐键写入与 Stop 完成
+共同读取当前 submission 的可信度，后续工具不能清除未知。异常 Stop 不完成回合、
+触发交付或解除锁；明确的过期回合、异 session 和子 agent 保留拒绝或忽略语义。
 
-`node workbench/tests/test_t108_questions.mjs <新摘要路径>` 每次都会运行 `t108_hook_failure_contracts.mjs` 的异常矩阵，覆盖提问前、待答中、作答记录与逐键写入期间的失败降级；未知后不得再向 PTY 发送问题按键。旧 prompt、异会话、子 agent 和完整无关工具均有对照，防止异常事实污染当前有效问题。
+Claude 的同一 AskUserQuestion 自身发出的 PermissionRequest 仍属于该提问：须匹配
+当前唯一待答问题的 session、prompt／turn、submission，事件提供的 tool_use_id 和
+问题内容也必须一致。此时问题仍可作答；其他工具的权限请求优先使旧问题不可答。
+公共关联字段缺失或无法核实也使问题未知，不能新增 answer 或继续写 PTY。侧栏只读
+已有事件，不采集原生日志、不追加事实。
+
+`node workbench/tests/test_t108_questions.mjs <新摘要路径>` 每次都会运行 `t108_hook_failure_contracts.mjs` 的异常矩阵，覆盖提问前、待答中、作答记录与逐键写入期间的失败降级；未知后不得再向 PTY 发送问题按键。矩阵逐项删除公共关联字段，核对同问题自身权限请求仍可作答、Bash 权限请求阻断，以及 ID／内容不符时的拒绝。旧 prompt、异会话、子 agent 和完整无关工具均有对照，防止异常事实污染当前有效问题。
 当前窗格的问题条目展示文本与选项，单选或自由答复经绑定窗口凭据写回同一 PTY；
 对应用户输入的 form 为 answer，reply_to 与 target.request 指向该问题。受管 worker
 仍核对当前 attempt／session／fence，并保留人工介入记录。重复、过期、只读或已撤销凭据
 的答复被拒；答复写出后等待原生 PostToolUse 确认，不直接清除等待状态。
 Claude Code 2.1.304、Codex 0.163.0 的本地假 API 探针已核对单选与自由答复；多选写回
 尚未验证，保持只读。完整 Electron 无模型入口已通过问题展示、写回、匹配 Stop 和 answer 关联；
-正常登录的真实模型回合尚待批准与运行，不能用无模型结果代替。脚本与当前结果见
+真实模型回合原件与本次候选分开记录，不能用历史或无模型结果代替当前候选验收。脚本与当前结果见
 [T-108 交付摘要](../evidence/2026-10-20-batch18/T-108/RESULTS.md)。
 项目行优先显示等待用户回答，其次等待主控回答、运行中；存在未知且无上述状态时保留未知。
 “图例与设置”中的通知开关保存在本应用 user-data 下。通知逻辑仅在进入“等待用户回答”时
