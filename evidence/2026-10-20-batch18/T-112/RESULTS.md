@@ -1,8 +1,16 @@
 # T-112 / a1 交付记录
 
-状态：**INCOMPLETE**。角色设置和派发覆盖已实现，本地合同检查 PASS；真实 reviewer 的副本外路径保护与坏配置对照已 PASS，完整 daemon + CLI + Electron 验收待 NATIVE-06。
+状态：**BLOCKED**。角色设置、真实 reviewer 权限对照、factory、Electron 设置后派发及 override 已通过；仅 invalid-effort 验收与 CLI 实测冲突，已按 #53 的第三种分支上报，待主控裁定。
 
-首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 的检索修订已由主控提交为 `21389ed18f823ec37a34e09fff176ecf60ac9859`；本轮 #52 的 worker 启动夹具修复待 COMMIT-10 提交；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+首个交付已由主控提交：`44f163011434d6509974c48e4051437feb3acc73`；#39 修订为 `ee5bf995734d27701b8c3dd91511324bef9d2ed5`，#40 数据库读取修订为 `3ebbc9a3bbff48eb01ae2e606cac51a03c9f1a99`，#42 诊断为 `ee1fce36d5e757d1ae664b11696bdfe9d13a3cb4`，#44 真实会话探针为 `d60c3ea06a73e8ac6af790b8ad703b23ba387e36`，分支 `exec/t112`。#46 启动顺序修订已由主控提交为 `5695229777f01f5685f89e0a24cd1cb809ee8476`。该修复已由主控提交为 `8a6d3f6fed955f2ec1e196a1c3afae55e7e420fd`。#50 的完整原生接线已由主控提交为 `859ce7048ac263759c0c187874fc563290477ecd`；#51 的检索修订已由主控提交为 `21389ed18f823ec37a34e09fff176ecf60ac9859`；#52 的启动夹具修复已由主控提交为 `d86126abe06ba845df036bddbeb922543c0542cb`；本轮 #53 只新增诊断、证据和问题报告，待 COMMIT-11 提交；未改产品权限、候选写入或原生工具回执的要求。不调用模型、不 push、不改全局 CLI 配置、不走 submit；尾注继续由会话钩子生成。
+
+## #53 CLI 接受未知 effort：待验收裁定
+
+- outside-native-06.json 绑定 d86126abe：factory、ui-settings、override 均 PASS，real_dom_save_changes_next_native_dispatch 已通过；检索、baseline high 红态和 changed-effort reviewer good/bad 也已通过。仅 invalid 分支仍 INCOMPLETE：该分支没有放行首轮，启动后等 launch_failed 超时，不能证明首轮请求会报错。
+- **实测结论 PASS（诊断，不是全票验收）**：真实交互 codex-cli 0.162.1 接受 model_reasoning_effort="unsupported-t112"，首轮请求的 reasoning.effort 原样为 unsupported-t112，原生 turn_context.effort 也相同。本地无凭据 API 返回固定文本后，CLI 显示文本并写入 task_complete；收尾前进程仍活着。没有启动参数错误，也没有静默换成别的值。探针主动收尾的 exit=-15 不能记为启动失败。
+- invalid-effort-cli-200-01.json 保存版本命令原文、完整 argv、隔离配置、完整 PTY 原文（合并 stdout/stderr）、HTTP 请求原文和原生日志。模型调用为 0；未请求真实供应商，不能据此断言真实 API 是否拒绝这个值。也未用人为构造的 HTTP 400 替代真实供应商语义。
+- 已按问题流程上报 **blocking issue 20261020T152634Z-worker:s18-t112-issue-001**，正文见 ISSUE-INVALID-EFFORT-11.md。按主控 #53 的第三种分支，交主控判断验收处理方式；不新增 a2a 枚举、不改产品、不放宽 invalid 断言、不把全票写成 PASS。完整原生 runner 暂不重跑，因为其相同断言仍会失败；可用下面的有界诊断命令重证 CLI 行为。
+- 本轮只新增本票证据/诊断脚本及该 issue，没有改 workbench 产品或测试源码。T-108 / IPC 最近有效回归仍为 rev7 PASS；地图仍为原有 8 个稀疏缺失链接、0 stale，见 project-map-rev11-final.txt。
 
 ## #52 worker 首轮启动夹具修复
 
@@ -99,9 +107,9 @@ Tracer bullet：设置表单 → IPC → SQLite → 派发 → argv。Deep modul
 | 已关闭夹具跨运行时读取 | PASS，closed-fixture-green-01.json；相同 Node 合同生产者、Python 消费者，3 条边界检查。修前在相同查询处失败，见 closed-fixture-red-01.json。 |
 | reviewer 假 API 工具流预检 | PASS，reviewer-stream-final-04.json、request-replay-final-05.json；以实际 0.162.1 请求声明为输入，拒绝缺失增量/改写调用变异。code-mode-protocol-final-03.json 取得真实 CLI 纯文本工具回执，仅协议证据，非原生权限证据。 |
 | 原生 high 红态 | PASS，outside-native-02.json 的 baseline_high / baseline_real_dispatch_high_refused，真实 daemon 门禁返回 worker_executor_mismatch。 |
-| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败；03 查询通过但 reviewer 权限探针失败；outside-reviewer-diag-01.json 的旧式模拟在 CLI 参数解析阶段失败；reviewer-diag-02 在首轮放行前身份等待处失败，API 请求数为 0。reviewer-diag-03 进入 API 后因错误的顶层 tools 假设失败。reviewer-diag-04 的原生权限 good/bad 对照已 PASS；native-04 在首步检索因缺少 rg 失败；native-05 通过检索、baseline 和 reviewer 后在 factory 首轮失败，后续待 native-06。 |
+| 原生全链路 | INCOMPLETE，outside-native-01.json 在解包前置条件失败；02 在已关闭夹具查询处失败；03 查询通过但 reviewer 权限探针失败；outside-reviewer-diag-01.json 的旧式模拟在 CLI 参数解析阶段失败；reviewer-diag-02 在首轮放行前身份等待处失败，API 请求数为 0。reviewer-diag-03 进入 API 后因错误的顶层 tools 假设失败。reviewer-diag-04 的原生权限 good/bad 对照已 PASS；native-04 在首步检索因缺少 rg 失败；native-05 在 factory 首轮失败；native-06 的 factory/UI/override 均 PASS，仅 invalid 等待启动失败超时；#53 已实测 CLI 接受该值，待验收裁定。 |
 | reviewer 首轮启动顺序 | PASS，reviewer-startup-green-01.json；修前红态见 reviewer-startup-red-02.json。实际 driver 源码执行，边界由测试提供，非原生权限证据。 |
-| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev10-final.txt。 |
+| 地图检查 | INCOMPLETE：稀疏 checkout 原有 8 个缺失文件链接问题，0 stale；本轮结果见 project-map-rev11-final.txt。 |
 
 ```sh
 python3 -B workbench/tests/test_t112_archive.py --summary evidence/2026-10-20-batch18/T-112/baseline-extraction-final-03.json
@@ -115,14 +123,14 @@ python3 -B workbench/tests/test_t112_closed_fixture.py --summary evidence/2026-1
 
 这些摘要路径已存在，不可覆盖；需要重跑时另取文件名。用完的本票旧夹具已按主控 #39 清理，见 completed-fixtures-cleanup-02.json；其他任务和仍运行的进程目录不在清理范围。
 
-## 主控重跑命令
+## 主控提交与诊断重跑命令
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-10.sh
-zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-NATIVE-06.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-COMMIT-11.sh
+zsh evidence/2026-10-20-batch18/T-112/RUN-OUTSIDE-INVALID-EFFORT-01.sh
 ```
 
-先提交再运行，使 source_head/code_revision 绑定完整提交。NATIVE-06 依次运行全仓检索、真实 baseline high 红态、changed-effort reviewer good/bad、出厂 worker、真实 Electron 设置后派发、主控覆盖与 CLI 不支持值反例；结果写 outside-native-06.json，旧结果不覆盖。只使用本地无凭据假 API，Electron 必须从内置盘运行。可用 T112_ELECTRON_DIST 指向内置盘上现有 Electron dist；默认是主控仓库的内置盘 Electron。构建和依赖测试副本在本票临时根目录/内置盘构建目录，spawn-helper 执行位只改私有副本；结束后直接清理已确认退出的自有夹具，不归档到外置盘。
+诊断结果写 outside-invalid-effort-01.json，不覆盖本地已完成的 invalid-effort-cli-200-01.json。该脚本只启动固定 0.162.1 交互 CLI 和无凭据 loopback API，不执行工具，不调用真实模型，完成后按其 Popen 子进程身份回收进程并直接删除自有临时目录；完整原始输出保存在 JSON。原生全链路不提供相同失败条件的重复命令，待主控对上述 issue 的验收裁定后再处理。
 
 ## 已交接事项
 
