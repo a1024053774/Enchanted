@@ -19,6 +19,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from run_t103_picker import Window
 from t108_cleanup import observe, stop_owned
+from t112_native_api import request_source, message_events
 
 
 def closed_fixture_launches(root):
@@ -112,7 +113,7 @@ def main():
     manager = root / 'manager-home'; manager.mkdir()
     env.update(HOME=str(manager), LC_ALL='C', PYTHONDONTWRITEBYTECODE='1', GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
                GIT_AUTHOR_NAME='T112 fixture', GIT_AUTHOR_EMAIL='t112@example.invalid', GIT_COMMITTER_NAME='T112 fixture', GIT_COMMITTER_EMAIL='t112@example.invalid')
-    requests, windows, builds, owners = [], [], [], []
+    requests, title_requests, windows, builds, owners = [], [], [], [], []
     active = None
     server = None
 
@@ -153,24 +154,24 @@ def main():
             self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers(); self.wfile.write(payload)
 
         def do_POST(self):
-            body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+            raw = self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8')
             assert self.path in ('/v1/responses', '/responses'), self.path
-            requests.append(body)
             with (root / 'fake-api-requests.jsonl').open('a', encoding='utf-8') as stream:
-                stream.write(json.dumps(body, ensure_ascii=False) + '\n')
-            assert len(requests) <= 12, 'Unexpected extra inputs'
+                stream.write(json.dumps({'path': self.path, 'raw_body': raw}, ensure_ascii=False) + '\n')
+            body = json.loads(raw)
+            kind = request_source(body)
+            if kind == 'thread_title':
+                title_requests.append(body)
+                assert len(title_requests) <= 12, 'Unexpected extra title inputs'
+                reply = json.dumps({'title': 'T112 local fixture'})
+            else:
+                assert kind == 'user', 'Unexpected native thread source: ' + kind
+                requests.append(body)
+                assert len(requests) <= 12, 'Unexpected extra inputs'
+                reply = 'T112_LOCAL_FIXED_RESPONSE'
             self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.end_headers()
-            item = {'id': 'msg_fixture', 'type': 'message', 'role': 'assistant', 'status': 'completed',
-                    'content': [{'type': 'output_text', 'text': 'T112_LOCAL_FIXED_RESPONSE', 'annotations': []}]}
-            response = {'id': 'resp_' + uuid.uuid4().hex, 'object': 'response', 'status': 'completed', 'model': body['model'],
-                        'output': [item], 'usage': {'input_tokens': 10, 'output_tokens': 5, 'total_tokens': 15}}
-            events = [('response.created', {'response': dict(response, status='in_progress', output=[])}),
-                      ('response.output_item.added', {'output_index': 0, 'item': dict(item, status='in_progress', content=[])}),
-                      ('response.content_part.added', {'item_id': item['id'], 'output_index': 0, 'content_index': 0, 'part': {'type': 'output_text', 'text': '', 'annotations': []}}),
-                      ('response.output_text.delta', {'item_id': item['id'], 'output_index': 0, 'content_index': 0, 'delta': 'T112_LOCAL_FIXED_RESPONSE'}),
-                      ('response.output_item.done', {'output_index': 0, 'item': item}), ('response.completed', {'response': response})]
-            for name, payload in events:
-                self.wfile.write(('event: ' + name + '\ndata: ' + json.dumps(dict(type=name, **payload)) + '\n\n').encode())
+            for sequence, (name, payload) in enumerate(message_events(reply, body['model'])):
+                self.wfile.write(('event: ' + name + '\ndata: ' + json.dumps(dict(type=name, sequence_number=sequence, **payload)) + '\n\n').encode())
             self.wfile.flush()
 
     try:
@@ -328,6 +329,7 @@ def main():
         for build in builds:
             shutil.rmtree(build)
         report['fake_api_requests'] = len(requests)
+        report['fake_title_requests'] = len(title_requests)
         if report['status'] != 'PASS':
             report['terminal_diagnostics'] = [dict(path=str(file), tail=file.read_bytes()[-3000:].decode('utf-8', errors='replace'))
                 for file in root.glob('*/state/traces/*/pty.raw')]

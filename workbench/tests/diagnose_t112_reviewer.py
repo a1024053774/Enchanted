@@ -19,62 +19,11 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from run_t112_native import extract_baseline
 from t108_cleanup import observe, stop_owned
+from t112_native_api import request_source, request_tools, shell_item, tool_events, message_events, assert_native_call
 
 
 BINARY = Path('/Users/luckye/.codex/packages/app-server-daemon/releases/0.162.1-aarch64-apple-darwin/bin/codex')
 BASELINE = 'e3102389eda8952ea92cae4b373e14eaff898314'
-
-
-def shell_item(tools, command, cwd):
-    """Use the CLI's advertised shell tool; never return a made-up tool name."""
-    flattened = []
-    for tool in tools:
-        if tool['type'] == 'namespace':
-            flattened.extend((child, tool['name']) for child in tool['tools'])
-        else:
-            flattened.append((tool, None))
-    for tool, namespace in flattened:
-        name = tool.get('name')
-        if tool['type'] == 'function' and name in ('exec_command', 'shell_command'):
-            field = 'cmd' if name == 'exec_command' else 'command'
-            args = {field: command, 'workdir': str(cwd)}
-            if name == 'exec_command': args['yield_time_ms'] = 10000
-            item = dict(type='function_call', name=name, arguments=json.dumps(args))
-            break
-        if tool['type'] == 'custom' and name == 'exec':
-            code = 'text(await tools.exec_command(' + json.dumps({'cmd': command, 'workdir': str(cwd), 'yield_time_ms': 10000}) + '));'
-            item = dict(type='custom_tool_call', name=name, input=code)
-            break
-    else:
-        raise AssertionError('CLI did not advertise a supported shell tool: ' + json.dumps(tools))
-    item.update(id='fc_' + uuid.uuid4().hex, call_id='call_t112_' + uuid.uuid4().hex)
-    if namespace:
-        item['namespace'] = namespace
-    return item
-
-
-def tool_events(item, model):
-    response = dict(id='resp_' + uuid.uuid4().hex, object='response', status='completed', model=model,
-                    output=[item], usage={'input_tokens': 10, 'output_tokens': 5, 'total_tokens': 15})
-    field = 'input' if item['type'] == 'custom_tool_call' else 'arguments'
-    stem = 'response.custom_tool_call_input' if field == 'input' else 'response.function_call_arguments'
-    return [('response.created', {'response': dict(response, status='in_progress', output=[])}),
-            ('response.output_item.added', {'output_index': 0, 'item': dict(item, **{field: ''}, status='in_progress')}),
-            (stem + '.delta', {'output_index': 0, 'item_id': item['id'], 'delta': item[field]}),
-            (stem + '.done', {'output_index': 0, 'item_id': item['id'], field: item[field]}),
-            ('response.output_item.done', {'output_index': 0, 'item': dict(item, status='completed')}),
-            ('response.completed', {'response': response})]
-
-
-def assert_native_call(emitted, native_records):
-    calls = [row for row in native_records if row.get('type') == emitted['type'] and row.get('call_id') == emitted['call_id']]
-    assert len(calls) == 1, 'Expected one matching persisted native call'
-    actual = calls[0]
-    assert actual['name'] == emitted['name'], 'Native tool name changed'
-    if emitted['type'] == 'function_call':
-        assert json.loads(actual['arguments']) == json.loads(emitted['arguments']), 'Native command or cwd changed'
-    else:
-        assert actual['input'] == emitted['input'], 'Native code input changed'
 
 
 def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
@@ -88,7 +37,7 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
     candidate_value, forbidden_value = 'candidate-only-' + nonce, 'forbidden-' + nonce
     python = 'from pathlib import Path; Path(' + repr(str(writable)) + ').write_text(' + repr(candidate_value) + '); Path(' + repr(str(protected)) + ').write_text(' + repr(forbidden_value) + ')'
     command = shlex.join(['/usr/bin/python3', '-I', '-S', '-B', '-c', python])
-    requests, api_errors = [], []
+    requests, root_requests, title_requests, api_errors = [], [], [], []
     done = threading.Event()
     result = dict(label=case.name, revision=revision, bad_parent_writable=bad,
                   expected_writes={'candidate': candidate_value, 'protected': forbidden_value})
@@ -108,10 +57,28 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
             nonlocal emitted
             try:
                 assert self.path in ('/v1/responses', '/responses'), self.path
-                body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+                raw = self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8')
+                entry = {'method': 'POST', 'path': self.path, 'content_type': self.headers.get('Content-Type'),
+                         'content_encoding': self.headers.get('Content-Encoding'), 'raw_body': raw}
+                result.setdefault('api_requests_raw', []).append(entry)
+                with (case / 'api-requests.jsonl').open('a', encoding='utf-8') as stream:
+                    stream.write(json.dumps(entry, ensure_ascii=False) + '\n')
+                body = json.loads(raw)
                 requests.append(body)
-                result.setdefault('api_selections', []).append({key: body.get(key) for key in ('model', 'reasoning', 'service_tier')})
-                assert len(requests) <= 2, 'Unexpected additional API request'
+                kind = request_source(body)
+                result.setdefault('api_selections', []).append({'thread_source': kind, **{key: body.get(key) for key in ('model', 'reasoning', 'service_tier')}})
+                assert len(requests) <= 3, 'Unexpected additional API request'
+                if kind == 'thread_title':
+                    title_requests.append(body)
+                    assert len(title_requests) == 1, 'Unexpected repeated title request'
+                    self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.end_headers()
+                    for sequence, (name, payload) in enumerate(message_events(json.dumps({'title': 'T112 local probe'}), body['model'])):
+                        self.wfile.write(('event: ' + name + '\ndata: ' + json.dumps(dict(type=name, sequence_number=sequence, **payload)) + '\n\n').encode())
+                    self.wfile.flush()
+                    return
+                assert kind == 'user', 'Unexpected native thread source: ' + kind
+                root_requests.append(body)
+                assert len(root_requests) <= 2, 'Unexpected additional root request'
                 if emitted is not None:
                     outputs = [row for row in body.get('input', []) if row.get('call_id') == emitted['call_id'] and
                                row.get('type') in ('function_call_output', 'custom_tool_call_output')]
@@ -122,8 +89,9 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
                     # valid review or run the Stop/delivery part of another task.
                     done.wait(90)
                     return
-                emitted = shell_item(body['tools'], command, case / 'candidate')
-                result['advertised_tools'] = body['tools']
+                declared = request_tools(body)
+                emitted = shell_item(declared, command, case / 'candidate')
+                result['advertised_tools'] = declared
                 result['emitted_tool_call'] = emitted
                 self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.end_headers()
                 for sequence, (name, payload) in enumerate(tool_events(emitted, body['model'])):
@@ -134,6 +102,7 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
                 self.send_error(500)
 
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    server.daemon_threads = False  # server_close joins every recorder before counters are finalized.
     threading.Thread(target=server.serve_forever, daemon=True).start()
     config = ('model_provider = "t112_fixture"\ncli_auth_credentials_store = "file"\n'
               '[model_providers.t112_fixture]\nname = "T112 local fixture"\nbase_url = "http://127.0.0.1:' + str(server.server_port) + '/v1"\n'
@@ -168,7 +137,7 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
         expected_effort = 'xhigh' if revision == BASELINE else 'low'
         assert result['launch']['effort_requested'] == expected_effort
         assert 'model_reasoning_effort=' + json.dumps(expected_effort) in recorded
-        assert all(row['model'] == 'gpt-6.1-sol' and row['reasoning']['effort'] == expected_effort for row in result['api_selections'])
+        assert all(row['model'] == 'gpt-6.1-sol' and row['reasoning']['effort'] == expected_effort for row in result['api_selections'] if row['thread_source'] == 'user')
         for flag, expected in [('-C', str(case / 'candidate')), ('-a', 'never'), ('--sandbox', 'workspace-write'), ('-m', 'gpt-6.1-sol')]:
             assert recorded[recorded.index(flag) + 1] == expected, (flag, recorded)
         for setting in ('sandbox_workspace_write.network_access=false', 'features.network_proxy=false',
@@ -178,8 +147,14 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
         assert '--dangerously-bypass-hook-trust' in recorded
         assert all(any(argument.startswith('hooks.' + event + '=') for argument in recorded)
                    for event in ('UserPromptSubmit', 'Stop', 'PermissionRequest', 'PreToolUse', 'PostToolUse'))
-        logs_native = list((case / 'reviewer-home/sessions').rglob('*.jsonl'))
-        assert len(logs_native) == 1, logs_native
+        discovered = list((case / 'reviewer-home/sessions').rglob('*.jsonl'))
+        logs_native = []
+        for file in discovered:
+            with file.open(encoding='utf-8') as stream: first = json.loads(stream.readline())
+            if first['type'] == 'session_meta' and first['payload'].get('id') == result['native_identity']['native_session'] and first['payload'].get('cwd') == str(case / 'candidate'):
+                logs_native.append(file)
+        result['native_rollouts'] = {'all': list(map(str, discovered)), 'matched': list(map(str, logs_native))}
+        assert len(logs_native) == 1, result['native_rollouts']
         # The tool receipt can reach the API while the rollout writer is still
         # flushing. Read complete lines and wait for the matching native output.
         end = time.monotonic() + 10
@@ -214,8 +189,6 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
             assert result['unsafe_write_observed'] and not result['boundary_oracle_passed'], 'The oracle must reject the parent-writable mutant'
         result['status'] = 'OBSERVED'
     finally:
-        result['api_requests'] = len(requests)
-        result['api_errors'] = api_errors
         # Capture descendants before shutdown, then bind every signal to the
         # observed PID/start time/command. No shared process group is signalled.
         if process and process.poll() is None:
@@ -248,6 +221,10 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
             try: process.wait(timeout=10)
             except subprocess.TimeoutExpired as error: result.setdefault('cleanup_errors', []).append(str(error))
         done.set(); server.shutdown(); server.server_close()
+        result['api_requests'] = len(requests)
+        result['root_api_requests'] = len(root_requests)
+        result['title_api_requests'] = len(title_requests)
+        result['api_errors'] = api_errors
         for stream in logs: stream.close()
         result['host_logs'] = {name: (case / ('host.' + name)).read_text(encoding='utf-8')[-5000:] for name in ('stdout', 'stderr')}
         result['terminal_tails'] = [file.read_bytes()[-4000:].decode('utf-8', errors='replace') for file in (case / 'state/traces').glob('*/pty.raw')]
@@ -274,6 +251,7 @@ def run_reviewer_case(source, tree, case, revision, env, report, bad=False):
                 target = Path(directory)
                 assert target.parent == Path('/private/tmp') and target.name.startswith('a2a-requests-')
                 shutil.rmtree(target)
+    assert not api_errors, api_errors
     return result
 
 
