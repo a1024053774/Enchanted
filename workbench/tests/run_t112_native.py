@@ -1,5 +1,6 @@
 """真实 daemon/CLI/PTY/Electron；仅本地固定 Responses API，不调用模型。Python 3.9。"""
 import argparse
+from contextlib import closing
 import io
 import json
 import os
@@ -18,6 +19,17 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from run_t103_picker import Window
 from t108_cleanup import observe, stop_owned
+
+
+def closed_fixture_launches(root):
+    # The Node producer has exited and closed every connection. Its final
+    # checkpoint removes WAL/SHM; immutable avoids recreating those side files
+    # during Python's read-only open. Never use this for the live daemon store.
+    database = root / 'state.sqlite3'
+    assert database.is_file(), 'Closed fixture database is missing'
+    assert not any(Path(str(database) + suffix).exists() for suffix in ('-wal', '-shm')), 'Closed fixture still has WAL/SHM'
+    with closing(sqlite3.connect(database.as_uri() + '?mode=ro&immutable=1', uri=True)) as db:
+        return [json.loads(row[0]) for row in db.execute('SELECT data FROM launch_records')]
 
 
 def extract_baseline(archive, destination):
@@ -259,8 +271,7 @@ def main():
         run(['node', candidate / 'workbench/tests/test_t112_execution.mjs', policy_file])
         policy = json.loads(policy_file.read_text())
         policy_root = Path(policy['fixture'])
-        with sqlite3.connect('file:' + str(policy_root / 'state.sqlite3') + '?mode=ro', uri=True) as db:
-            review = next(json.loads(row[0]) for row in db.execute('SELECT data FROM launch_records') if json.loads(row[0])['role'] == 'reviewer')
+        review = next(row for row in closed_fixture_launches(policy_root) if row['role'] == 'reviewer')
         assert review['effort_requested'] == 'low'
         prefix = [str(args.codex), 'sandbox', '--permission-profile', ':workspace', '--cd', review['worktree']]
         for index, argument in enumerate(review['argv']):
