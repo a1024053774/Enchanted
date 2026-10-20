@@ -31,6 +31,7 @@ def waiting(window, disabled, report):
     notice = view['notices'][0]
     agent = next(a for a in view['agents'] if a['id'] == notice['launch'])
     project = next(p for p in view['projects'] if p['id'] == agent['project'])
+    original_project = agent['project']
     assert agent['state'] == project['state'] == 'waiting_user_answer'
     assert agent['background'] == project['background'] == 'rgba(230, 180, 80, 0.12)', view
     assert agent['background'] != report['before_highlight']['agents'][agent['id']], view
@@ -71,7 +72,8 @@ def waiting(window, disabled, report):
     # Rename only this fixture's socket; the real daemon and CLI keep running.
     window.call('background')
     window.wait(lambda v: v['badge'] == 1, 'Disconnect starts with a verified waiting badge')
-    window.call('disconnect-sidebar')
+    original_pane = next(pane['key'] for pane in view['panes'] if pane['launch'] == notice['launch'])
+    socket_identity = window.call('disconnect-sidebar')
     try:
         disconnected = window.wait(lambda v: not v['notices'] and v['agents'] and all(a['state'] == 'unknown' for a in v['agents']),
                                    'Disconnected sidebar becomes unknown')
@@ -86,8 +88,17 @@ def waiting(window, disabled, report):
         window.call('reload-window')
         window.wait(lambda v: v['sidebar_error'] and not v['notices'] and v['badge'] == 0, 'Reload during disconnection stays unknown')
     finally:
-        window.call('reconnect-sidebar')
+        restored = window.call('reconnect-sidebar')
+        report['reconnect_observation'] = restored
         window.call('foreground')
+    assert restored['socket'] == socket_identity, 'Restore the original live daemon endpoint'
+    backend_agent = next(agent for agent in restored['sidebar']['agents'] if agent['id'] == notice['launch'])
+    assert backend_agent['state'] == 'waiting_user_answer' and backend_agent['question_id'] == notice['id'], 'Backend must confirm the same native question after reconnect'
+    assert restored['selection']['task']['project_id'] == original_project, 'Keep the original local project binding'
+    assert original_pane in restored['selection']['paneKeys'], 'Keep the original pane binding'
+    window.wait(lambda v: v['selected_project'] == original_project and any(a['id'] == notice['launch'] for a in v['agents']),
+                'Reload keeps the selected project after reconnect')
+    window.call('reconnect-pane', pane=original_pane)
     recovered = window.wait(lambda v: any(a['state'] == 'waiting_user_answer' for a in v['agents']) and
                             any(q['id'] == notice['id'] for q in v['questions']), 'Same native question returns after reconnect')
     assert recovered['notices'] == [], 'Reconnect must not repeat the same question'

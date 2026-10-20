@@ -43,21 +43,25 @@ def main():
         helper.chmod(0o755)
         component = copy / 'workbench/app/AppNotifications.tsx'
         original = component.read_text(encoding='utf-8')
-        candidate = {name: (copy / name).read_bytes() for name in ['workbench/app/main.ts', 'workbench/app/notificationCenter.ts']}
+        candidate = {name: (copy / name).read_bytes() for name in ['workbench/app/main.ts', 'workbench/app/notificationCenter.ts', 'workbench/app/renderer.tsx']}
         baseline = {name: subprocess.check_output(['git', 'show', args.baseline + ':' + name], cwd=source, env=env) for name in candidate}
         report['disconnect_baseline'] = args.baseline
+        reconnect_revision = 'e1c7b5c275eaca7e342da44cb2582cf81f56ca17'
+        reconnect_baseline = {name: subprocess.check_output(['git', 'show', reconnect_revision + ':' + name], cwd=source, env=env) for name in candidate}
+        report['reconnect_baseline'] = reconnect_revision
         fixtures = root / 'fixtures'
         fixtures.mkdir()
         marker = 'notices.map(notice =>'
         assert original.count(marker) == 1
-        for label, disabled, mutant in [('red-hidden-notices', False, True), ('red-disconnected-badge', False, False), ('green', False, False), ('disabled', True, False)]:
+        for label, disabled, mutant in [('red-hidden-notices', False, True), ('red-disconnected-badge', False, False), ('red-reconnect-view', False, False), ('green', False, False), ('disabled', True, False)]:
             component.write_text(original.replace(marker, 'notices.slice(0, 0).map(notice =>') if mutant else original, encoding='utf-8')
-            for name, content in (baseline if label == 'red-disconnected-badge' else candidate).items():
+            product = baseline if label == 'red-disconnected-badge' else reconnect_baseline if label == 'red-reconnect-view' else candidate
+            for name, content in product.items():
                 (copy / name).write_bytes(content)
             summary = root / (label + '.json')
             command = ['/usr/bin/python3', '-B', str(copy / 'workbench/tests/run_t108_native_e2e.py'),
                        '--summary', str(summary), '--electron-dist', str(args.electron_dist.resolve()),
-                       '--source-revision', args.baseline if label == 'red-disconnected-badge' else revision,
+                       '--source-revision', args.baseline if label == 'red-disconnected-badge' else reconnect_revision if label == 'red-reconnect-view' else revision,
                        '--fixture-parent', str(fixtures), '--notifications'] + (['--disable-notifications'] if disabled else [])
             with (root / (label + '.log')).open('x', encoding='utf-8') as log:
                 result = subprocess.run(command, cwd=copy, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=240)
@@ -75,6 +79,13 @@ def main():
                 assert value['disconnect_observation']['badge'] == 1, value
                 assert not any(value.get(key) for key in ['window_cleanup_error', 'daemon_cleanup_error', 'process_cleanup_errors']), value
                 report['disconnect_red_business_rejected'] = True
+            elif label == 'red-reconnect-view':
+                assert result.returncode == 1 and value['status'] == 'INCOMPLETE'
+                assert 'Reload keeps the selected project after reconnect' in value.get('error', ''), value
+                observed = value['reconnect_observation']
+                assert any(agent['state'] == 'waiting_user_answer' for agent in observed['sidebar']['agents']), value
+                assert not any(value.get(key) for key in ['window_cleanup_error', 'daemon_cleanup_error', 'process_cleanup_errors']), value
+                report['reconnect_red_business_rejected'] = True
             else:
                 assert result.returncode == 0 and value['status'] == 'PASS', value
         report['status'] = 'PASS'

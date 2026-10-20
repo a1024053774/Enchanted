@@ -8,7 +8,7 @@ unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE
 LABEL=${1:?Pass a fresh archive label}
 MANIFEST=${2:?Pass a fresh manifest ending in .archive.json}
 shift 2
-SUMMARIES=(--summary evidence/2026-10-20-batch18/T-110/review01-questions-green.json)
+SUMMARIES=(--summary evidence/2026-10-20-batch18/T-110/reconnect-questions-green.json)
 for summary in "$@"; do SUMMARIES+=(--summary "$summary"); done
 /usr/bin/python3 -B evidence/2026-10-20-batch18/T-110/archive_fixtures.py \
   --label "$LABEL" --manifest "$MANIFEST" "${SUMMARIES[@]}"

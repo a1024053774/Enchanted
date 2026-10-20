@@ -1,6 +1,6 @@
 // Real Electron DOM/IPC. Only inspect, fixture prompt and answer controls.
 import { app } from 'electron';
-import { readFileSync, appendFileSync, renameSync } from 'node:fs';
+import { readFileSync, appendFileSync, renameSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
@@ -15,6 +15,7 @@ const { run }=await import(pathToFileURL(build.main));
 const reply=value=>process.stdout.write(JSON.stringify(value)+'\n');
 void run({state:values.state,task:values.task,launch:manifest.launch,userData:values['user-data']}).then(window=>{
   const rendererConsole=[];
+  let disconnectedSocket = null;
   window.webContents.on('console-message', details => {
     const entry={level:details.level,message:details.message,line:details.lineNumber,source:details.sourceId};
     rendererConsole.push(entry);appendFileSync(join(values.output,'renderer-console.jsonl'),JSON.stringify(entry)+'\n');
@@ -32,6 +33,7 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
         notice_additions:window.t110NoticeAdditions??0,
         agents:[...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,project:document.querySelector('[data-project-id][aria-current=page]')?.dataset.projectId??null,state:n.dataset.agentState,background:getComputedStyle(n).backgroundColor})),
         projects:[...document.querySelectorAll('[data-project-id]')].map(n=>({id:n.dataset.projectId,state:n.dataset.projectState,background:getComputedStyle(n).backgroundColor})),
+        selected_project:document.querySelector('[data-project-id][aria-current=page]')?.dataset.projectId??null,
         focused_agent:document.querySelector('[data-agent-launch][aria-current=true]')?.dataset.agentLaunch??null,
         focused_launch:document.activeElement?.closest('section.pane')?.dataset.launchId??null,
         terminal_hidden:document.querySelector('.terminal-page')?.hidden??null,
@@ -43,8 +45,26 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
       else if(request.command==='notification-setting') value=await window.webContents.executeJavaScript(`(()=>{const n=document.querySelector('[data-notification-setting='+${JSON.stringify(request.preference)}+']');if(!n)throw new Error('Setting control missing');document.querySelector('.sidebar-settings').open=true;if(n.checked!==${Boolean(request.enabled)})n.click();return true;})()`);
       else if(request.command==='reload-window'){await new Promise(resolve=>{window.webContents.once('did-finish-load',resolve);window.webContents.reload();});value=true;}
       else if(request.command==='refresh-list')value=await window.webContents.executeJavaScript(`(()=>{const n=[...document.querySelectorAll('button')].find(n=>n.textContent==='刷新列表');if(!n||n.disabled)throw new Error('Refresh control unavailable');n.click();return true;})()`);
-      else if(request.command==='disconnect-sidebar'){renameSync(join(values.state,'control.sock'),join(values.state,'control.sock.t110-off'));value=true;}
-      else if(request.command==='reconnect-sidebar'){renameSync(join(values.state,'control.sock.t110-off'),join(values.state,'control.sock'));value=true;}
+      else if(request.command==='disconnect-sidebar'){
+        const socket=join(values.state,'control.sock'), info=statSync(socket);
+        if(!info.isSocket()||disconnectedSocket)throw new Error('Expected the fixture live socket');
+        disconnectedSocket={ino:info.ino,pid:readFileSync(join(values.state,'daemon.pid'),'utf8').trim()};
+        renameSync(socket,join(values.state,'control.sock.t110-off'));value=disconnectedSocket;
+      }
+      else if(request.command==='reconnect-sidebar'){
+        const socket=join(values.state,'control.sock');
+        renameSync(join(values.state,'control.sock.t110-off'),socket);
+        const info=statSync(socket),pid=readFileSync(join(values.state,'daemon.pid'),'utf8').trim();
+        if(!info.isSocket()||info.ino!==disconnectedSocket.ino||pid!==disconnectedSocket.pid)throw new Error('Fixture daemon or socket identity changed');
+        value={socket:{ino:info.ino,pid},...await window.webContents.executeJavaScript(`(async()=>({sidebar:await window.a2a.sidebar(),selection:await window.a2a.selection()}))()`)};
+        disconnectedSocket=null;
+      }
+      else if(request.command==='reconnect-pane')value=await window.webContents.executeJavaScript(`(()=>{
+        const pane=[...document.querySelectorAll('section.pane')].find(n=>n.dataset.paneKey===${JSON.stringify(request.pane)});
+        if(!pane)throw new Error('Original pane binding missing');
+        const button=[...pane.querySelectorAll('.connection-error button')].find(n=>n.textContent==='重新连接');
+        if(!button||button.disabled)throw new Error('Reconnect control unavailable');button.click();return true;
+      })()`);
       else if(request.command==='background'){app.hide();value=true;}
       else if(request.command==='foreground'){window.show();app.focus({steal:true});window.focus();value=true;}
       else if(request.command==='flow-page')value=await window.webContents.executeJavaScript(`(()=>{document.querySelector('[data-flow-tab]').click();return true;})()`);

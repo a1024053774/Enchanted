@@ -439,13 +439,13 @@ function Workbench() {
   const refresh = useCallback(async () => {
     setLoading(true); setCatalogError(null);
     try {
-      const [sidebar, current] = await Promise.all([window.a2a.sidebar(), window.a2a.selection()]);
+      const current = await window.a2a.selection();
+      setSelectedTask(current.task); setSelectedProject(current.task?.project_id ?? null); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
+      const sidebar = await window.a2a.sidebar();
       const catalog = sidebar.projects;
       applySidebar(sidebar);
       if (current.task && !catalog.some(project => project.tasks.some(task => task.task_id === current.task!.task_id))) {
         applySelection(await window.a2a.selectTask(null));
-      } else {
-        setSelectedTask(current.task); setSelectedProject(current.task?.project_id ?? null); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
       }
       setProjects(catalog);
     } catch (error) { setCatalogError('读取项目与任务失败：' + String(error)); }
