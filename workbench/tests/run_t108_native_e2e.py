@@ -13,6 +13,9 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument('--summary',type=Path,required=True)
     p.add_argument('--electron-dist',type=Path,required=True)
+    p.add_argument('--notifications', action='store_true')
+    p.add_argument('--disable-notifications', action='store_true')
+    p.add_argument('--source-revision')
     args=p.parse_args(); source=Path(__file__).resolve().parents[2]
     assert not args.summary.exists()
     root=Path(tempfile.mkdtemp(prefix='t078-2-t108-',dir='/private/tmp')).resolve()
@@ -78,7 +81,7 @@ def main():
     try:
         run(['git','init','-b','main',repo]);(repo/'fixture').write_text('isolated\n',encoding='utf-8')
         run(['git','-C',repo,'add','.']);run(['git','-C',repo,'commit','-m','fixture'])
-        revision=run(['git','rev-parse','HEAD']).strip()
+        revision=args.source_revision or run(['git','rev-parse','HEAD']).strip()
         card={'id':'T108-fixture','source':None,'goal':'原生提问验收','non_goals':['交付与集成'],
               'paths':{'allow':['.'],'deny':[]},'oracle_paths':['fixture'],
               'completion_conditions':[{'argv':['/usr/bin/false']}],'red_commands':[],'task_type':'后端逻辑','repair_target':None,
@@ -103,11 +106,16 @@ def main():
         window=Window(source,source/'workbench/tests/t108_questions_driver.mjs',Path(build['out']),state,root/'ui',root/'window',env,windows,
                       {'executable':str(binary),'dist':str(dist),'version':'43.4.1'},task='T108-fixture',through_start=False)
         window.wait(lambda v:v['panes'] and v['panes'][0]['input']=='true','Writable native pane')
+        if args.notifications:
+            from t110_notifications_scenario import before_prompt, waiting, after_answer
+            report['task']='T-110'
+            before_prompt(window,args.disable_notifications,report)
         window.call('prompt')
         view=window.wait(lambda v:v['questions'] and '等待用户回答' in v['questions'][0]['text'],'Question and state in Electron')
         assert '选择部署区域？' in view['questions'][0]['text'] and '东区' in view['questions'][0]['text'] and '西区' in view['questions'][0]['text']
         qid=view['questions'][0]['id'];assert qid==manifest['launch']+':toolu_e2e_sentinel'
         sidebar=call('sidebar_snapshot');assert sidebar['agents'][0]['state']=='waiting_user_answer'
+        if args.notifications: waiting(window,args.disable_notifications,report)
         receipt=window.call('answer');report['first_answer_receipt']=receipt
         assert receipt['clicked'] and receipt['final_receipt']['ok'] is True
         first_answer=[e for e in events() if e['type']=='request_received' and e['data'].get('input',{}).get('command')=='window_answer']
@@ -116,6 +124,7 @@ def main():
         assert len(terminal)==1 and terminal[0]['type']=='request_result' and terminal[0]['data']['ok'] is True
         until(lambda:any(e['type']=='native_question_resolved' and e['data']['status']=='answered' for e in events()),'Native confirmed answer')
         window.wait(lambda v:not v['questions'],'Question removed after native answer')
+        if args.notifications: after_answer(window,args.disable_notifications,report)
         until(lambda:call('workbench_snapshot','--task','T108-fixture','--launch',manifest['launch'])['pane']['state']=='idle','Expected matched Stop to return pane to idle after answer')
         completed=events()
         hooks=[json.loads(e['data']['raw_stdin']) for e in completed if e['type']=='hook_received']
@@ -150,7 +159,7 @@ def main():
         answers=[row for row in inputs if row['form']=='answer'];assert len(answers)==1 and answers[0]['reply_to']==qid and answers[0]['target']['request']==qid
         assert answers[0]['target']['thread']==manifest['thread'] and '西区' in answers[0]['text']
         assert len(root_calls)==2, 'One root turn, one tool continuation; no extra root input'
-        report['checks']=['controller_start_installed_cli','electron_question_options_wait_state','dom_answer_to_original_pty',
+        report['checks']+=['controller_start_installed_cli','electron_question_options_wait_state','dom_answer_to_original_pty',
                           'native_posttool_answer_and_matched_stop','answer_user_input_links_question','duplicate_refused',
                           'first_window_answer_final_receipt_ok','same_pty_followup_input_written_and_echoed']
         report['hooks']=[json.loads(e['data']['raw_stdin']) for e in events() if e['type']=='hook_received']

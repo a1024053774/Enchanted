@@ -28,8 +28,22 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
       if(request.command==='inspect') value=await window.webContents.executeJavaScript(`({
         text:document.body.innerText, panes:[...document.querySelectorAll('section.pane')].map(n=>({key:n.dataset.paneKey,launch:n.dataset.launchId,input:n.dataset.inputEnabled})),
         questions:[...document.querySelectorAll('[data-question-id]')].map(n=>({id:n.dataset.questionId,text:n.innerText})),
+        notices:[...document.querySelectorAll('[data-notice-id]')].map(n=>({id:n.dataset.noticeId,launch:n.dataset.noticeLaunch,text:n.innerText})),
+        notice_additions:window.t110NoticeAdditions??0,
+        agents:[...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,project:document.querySelector('[data-project-id][aria-current=page]')?.dataset.projectId,state:n.dataset.agentState,background:getComputedStyle(n).backgroundColor})),
+        projects:[...document.querySelectorAll('[data-project-id]')].map(n=>({id:n.dataset.projectId,state:n.dataset.projectState,background:getComputedStyle(n).backgroundColor})),
+        focused_agent:document.querySelector('[data-agent-launch][aria-current=true]')?.dataset.agentLaunch,
+        focused_launch:document.activeElement?.closest('section.pane')?.dataset.launchId,
+        terminal_hidden:document.querySelector('.terminal-page').hidden,
+        notification_settings:Object.fromEntries([...document.querySelectorAll('[data-notification-setting]')].map(n=>[n.dataset.notificationSetting,n.checked])),
         alerts:[...document.querySelectorAll('[role=alert]')].map(n=>n.textContent)
       })`);
+      else if(request.command==='watch-notices') value=await window.webContents.executeJavaScript(`(()=>{window.t110NoticeAdditions=0;new MutationObserver(rows=>{for(const row of rows) for(const n of row.addedNodes) if(n.nodeType===1)window.t110NoticeAdditions+=(n.matches('[data-notice-id]')?1:0)+n.querySelectorAll('[data-notice-id]').length;}).observe(document.querySelector('.app-notifications'),{childList:true,subtree:true});return true;})()`);
+      else if(request.command==='notification-setting') value=await window.webContents.executeJavaScript(`(()=>{const n=document.querySelector('[data-notification-setting='+${JSON.stringify(request.preference)}+']');if(!n)throw new Error('Setting control missing');document.querySelector('.sidebar-settings').open=true;if(n.checked!==${Boolean(request.enabled)})n.click();return true;})()`);
+      else if(request.command==='background'){app.hide();value=true;}
+      else if(request.command==='foreground'){window.show();app.focus({steal:true});window.focus();value=true;}
+      else if(request.command==='flow-page')value=await window.webContents.executeJavaScript(`(()=>{document.querySelector('[data-flow-tab]').click();return true;})()`);
+      else if(request.command==='click-notice')value=await window.webContents.executeJavaScript(`(()=>{const n=document.querySelector('[data-notice-id]');if(!n||n.disabled)throw new Error('Notice unavailable');n.click();return true;})()`);
       else if(request.command==='prompt') value=await window.webContents.executeJavaScript(`(async()=>{
         const key=document.querySelector('section.pane').dataset.paneKey;
         await window.a2a.input(key,${JSON.stringify('\x1b[200~Please ask the region question.\x1b[201~')});
@@ -54,6 +68,7 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
         catch(error){return {rejected:true,error:String(error)};} })()`);
       else if(request.command==='close'){reply({id:request.id,ok:true});window.close();return;}
       else throw new Error('Unknown driver command');
+      if(request.command==='inspect') value.badge=Number(app.dock.getBadge() || '0');
       reply({id:request.id,ok:true,value});
     }catch(error){reply({id:request.id,ok:false,error:String(error),stack:error?.stack,renderer_console:rendererConsole.slice(-20)});}
   }).catch(error=>{reply({fatal:String(error)});app.exit(1);});});
