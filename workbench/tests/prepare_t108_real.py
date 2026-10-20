@@ -6,6 +6,7 @@ Run only after the controller approves the separate real-turn plan.
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import socket
 import subprocess
@@ -31,7 +32,9 @@ env.update(HOME=str(root/'manager-home'),LC_ALL='C',GIT_CONFIG_NOSYSTEM='1',GIT_
            GIT_AUTHOR_NAME='T108 fixture',GIT_AUTHOR_EMAIL='fixture@example.invalid',
            GIT_COMMITTER_NAME='T108 fixture',GIT_COMMITTER_EMAIL='fixture@example.invalid')
 probe=subprocess.run([str(executable),'--version'],env=env,capture_output=True,text=True,check=True,timeout=10)
-assert probe.stdout.strip()=='2.1.302 (Claude Code)', 'T-093 requires verified 2.1.302; do not substitute 2.1.304'
+version=re.fullmatch(r'([0-9]+\.[0-9]+\.[0-9]+) \(Claude Code\)',probe.stdout.strip())
+assert version is not None, 'Installed CLI version could not be read'
+version=version.group(1)
 assert subprocess.run(['git','rev-parse','HEAD'],cwd=source,env=env,capture_output=True,text=True,check=True).stdout.strip()==args.revision
 role=root/'roles/ideation'
 for name in ['home','claude','tmp','shell','requests','hooks','user-data']:(role/name).mkdir(parents=True,mode=0o700)
@@ -47,7 +50,7 @@ card={'id':'T108-real','source':None,'goal':'核验原生提问并作答','non_g
       'executor':{'cli':'Codex','model':'gpt-6.1-sol','effort':'high'},'base_commit':None,'writer':None}
 manifest={'schema':1,'root':str(root),'state':str(root/'state'),'task':'T108-real','preset':'ideation',
           'launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),
-          'executable':str(executable),'version':'2.1.302','role_file':str(role/'role.md'),
+          'executable':str(executable),'version':version,'role_file':str(role/'role.md'),
           'code_revision':args.revision,'source_snapshot':str(source),'authentication':'normal-login',
           'credential_source':'macos-keychain','upstream_url':'https://api.anthropic.com','turn_limit':1}
 for name,value in [('card.json',card),('manifest.json',manifest)]:

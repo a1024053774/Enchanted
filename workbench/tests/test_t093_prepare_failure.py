@@ -17,7 +17,7 @@ output=Path(sys.argv[1]);assert not output.exists();checks=[]
 for secondary in (False,True):
  with tempfile.TemporaryDirectory(prefix='t093-prepare-checkpoint-unit-',dir='/private/tmp') as temporary:
   root=Path(temporary);(root/'repo').mkdir();(root/'state').mkdir();target=root/'result.json'
-  manifest={'authentication':'normal-login','version':'2.1.302','credential_source':'file','upstream_url':'http://127.0.0.1:443','root':str(root),'state':str(root/'state'),'launch':str(uuid.uuid4()),'executable':'/usr/bin/true'}
+  manifest={'authentication':'normal-login','version':'2.1.304','credential_source':'file','upstream_url':'http://127.0.0.1:443','root':str(root),'state':str(root/'state'),'launch':str(uuid.uuid4()),'executable':'/usr/bin/true'}
   context={'output':str(target),'candidate':'a'*40,'mutation':'none','setup_stage':'prepare_session','cleanup_failures':[]}
   observed=[];private=[];original_remove=runtime.shutil.rmtree
   def publish(error,path,pending,cleanup_error):
@@ -45,7 +45,7 @@ for secondary in (False,True):
     if path.exists():original_remove(path)
 with tempfile.TemporaryDirectory(prefix='t093-production-R-unit-',dir='/private/tmp') as temporary:
  root=Path(temporary);(root/'repo').mkdir();(root/'state').mkdir()
- manifest={'authentication':'normal-login','version':'2.1.302','credential_source':'file','upstream_url':'http://127.0.0.1:443','root':str(root),'state':str(root/'state'),'launch':str(uuid.uuid4()),'executable':'/usr/bin/true'}
+ manifest={'authentication':'normal-login','version':'2.1.304','credential_source':'file','upstream_url':'http://127.0.0.1:443','root':str(root),'state':str(root/'state'),'launch':str(uuid.uuid4()),'executable':'/usr/bin/true'}
  (root/'manifest.json').write_text(json.dumps(manifest));private=[]
  def cleanup(path,*args,**kwargs):
   private.append(Path(path));reports=list((root/'state').glob('login-preparation-failure-*.json'))

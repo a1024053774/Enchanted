@@ -27,7 +27,7 @@ for address,port in [('127.0.0.1',443),('203.0.113.31',443),('127.0.0.1',18443),
  except AssertionError as error:checks.append({'case':address,'port':port,'status':'FAIL','business_failure':str(error)})
 for url,address in [('https://configured.fixture.invalid:444','203.0.113.31'),('http://127.0.0.1:8080','127.0.0.1'),('https://configured.fixture.invalid:0','203.0.113.31')]:
  with tempfile.TemporaryDirectory(prefix='t093-port-unit-',dir='/private/tmp') as temporary:
-  root=Path(temporary);manifest={'authentication':'normal-login','version':'2.1.302','credential_source':'file','launch':'11111111-1111-4111-8111-111111111111','executable':str(Path('/usr/bin/true').resolve()),'upstream_url':url,'root':str(root),'state':str(root/'state')}
+  root=Path(temporary);manifest={'authentication':'normal-login','version':'2.1.304','credential_source':'file','launch':'11111111-1111-4111-8111-111111111111','executable':str(Path('/usr/bin/true').resolve()),'upstream_url':url,'root':str(root),'state':str(root/'state')}
   try:
    with patch.object(mod,'read_auth',side_effect=AssertionError('auth_read_forbidden')),patch.object(mod,'collect_baseline',side_effect=AssertionError('OS_process_forbidden')):
     try:mod.prepare(manifest,root/'repo',54111,address,60,root/'source-home',on_failure=lambda *_args:None)
@@ -38,7 +38,7 @@ for url,address in [('https://configured.fixture.invalid:444','203.0.113.31'),('
 class BaselineReached(Exception):pass
 for target,accepted in [(18443,True),(18444,False)]:
  with tempfile.TemporaryDirectory(prefix='t093-test-port-unit-',dir='/private/tmp') as temporary:
-  root=Path(temporary);manifest={'authentication':'normal-login','version':'2.1.302','credential_source':'file','launch':'11111111-1111-4111-8111-111111111111','executable':str(Path('/usr/bin/true').resolve()),'upstream_url':f'http://127.0.0.1:{target}','root':str(root),'state':str(root/'state')}
+  root=Path(temporary);manifest={'authentication':'normal-login','version':'2.1.304','credential_source':'file','launch':'11111111-1111-4111-8111-111111111111','executable':str(Path('/usr/bin/true').resolve()),'upstream_url':f'http://127.0.0.1:{target}','root':str(root),'state':str(root/'state')}
   try:
    with patch.object(mod,'read_auth',side_effect=AssertionError('auth_read_forbidden')),patch.object(mod,'collect_baseline',side_effect=BaselineReached):
     try:mod.prepare(manifest,root/'repo',54111,'127.0.0.1',60,root/'source-home',on_failure=lambda *_args:None,upstream_port=18443)

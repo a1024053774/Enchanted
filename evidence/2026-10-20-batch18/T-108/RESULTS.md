@@ -74,3 +74,39 @@ Codex 当前 CLI hook 原件回放 `/private/tmp/t108-codex-hook-replay-green-01
 合并冲突位置见 [CONFLICT-LINES.md](CONFLICT-LINES.md)：sidebar.ts 5、22–24、46–48、101–102；renderer.tsx 12–13、16、56、300。未改侧栏树结构或树渲染。
 
 另有起点已有的 Codex xhigh 强制规则与当前 high 规定冲突，已报 triage 20261020T061048Z-worker:s18-t108-issue-001。本票不修该规则、不绕过门禁开真实 worker。
+
+## 主控 #13：记录当前版本，真实运行待外部执行
+
+首个候选已由主控提交为 **16b412964**。用户逐字：“跑真实回合,版本不重要,以后肯定要经常更新 cli 版本的”。主控据此批准 Claude haiku 5.5 low 的 1 个根回合，T-093 正常登录；失败不补发、不自动重跑；Codex 原件回放新增 0 根。effort 冲突由主控另票处理，本修订未改 panes.ts。
+
+三处发行号锁已去除：claudeLaunch.ts 与 claudeLoginSession.py 校验本次版本记录的结构，claudeLogin.ts 在受保护环境读取 --version 并与本次 manifest 观测值核对，拒绝运行期间版本变化；不再要求等于 2.1.302。准备工具自动读实际安装版本；启动记录的 cli_version、role_card_revision 与最终 facts 的 cli_version／internal_state_version 跟随该次版本。保留私有 session/manifest 等值、auth_original_reads=1、版本失败、当前身份、隔离 HOME、网络与凭据清理检查。
+
+没有静默认定 2.1.304 的内部状态仍可用。现有 T-093 onboarding/auth 探针改为读取并核对当前版本，其余安全检查、未知屏幕停止、禁止业务按键及清单差异判定均保留；外部探针尚未运行。真实脚本要求探针 PASS、清理成功、无凭据泄漏且版本仍一致，再走原保护入口；只发送一次根输入并沿用已通过的 Electron 问题/作答路径。实际登录与模型执行尚未发生。
+
+本地验证（全部无真实凭据读取、无供应商模型调用）：
+
+| 信号 | 结果 |
+| --- | --- |
+| test_t093_launch_profile.ts，修前 16b412964 产品源码 | /private/tmp/t108-version-profile-red-01.json：因 normal_login_version_requires_probe 精确失败；不是其他入口故障 |
+| 同一版本构造合同，修后 | /private/tmp/t108-version-profile-green-01.json：PASS，4 项；动态 2.1.304、非法版本拒绝与原 hook 合同 |
+| test_t093_session_once.ts | /private/tmp/t108-version-once-green-01.json：PASS，4 项；实际构造使用 2.1.304 替身，严格一次消费未变 |
+| test_t096_restore.mjs | /private/tmp/t108-version-restore-green-01.json：PASS；样本改为记录 2.1.304，保存版本不一致仍拒绝，正常登录恢复仍拒绝，原变异继续拒绝 |
+| test_t091_claude_version.mjs | /private/tmp/t108-version-refusals-01.json：PASS；缺 CLI、探针失败、版本不一致、并发身份拒绝及原变异保留 |
+| test_t093_probe_safety.py | 22 项 PASS；仅合成探针辅助检查，不是实际 CLI／OS 探针 |
+| test_t093_prepare_failure.py | /private/tmp/t108-version-prepare-failure-01.json：PASS，3 项 |
+| test_t093_forwarder_port_policy.py | /private/tmp/t108-version-port-policy-01.json：PASS，10 项 |
+| test_t093_session_cleanup.py | /private/tmp/t108-version-session-cleanup-01.json：PASS，5 项 |
+| Codex 原件回放 | /private/tmp/t108-version-codex-replay-01.json：PASS，新增真实根回合 0 |
+
+相关命令均为 `LC_ALL=C node [--experimental-vm-modules] workbench/tests/<上表脚本> <摘要路径>` 或 `LC_ALL=C python3 -B workbench/tests/<上表脚本> [摘要路径]`。Python 3.9 AST、zsh 语法与 git diff --check 通过。
+
+按顺序交主控执行（尚未执行修订提交，不能冒报 SHA）：
+
+```sh
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-COMMIT-02.sh
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-VERSION-PROBE-01.sh /private/tmp/t108-version-probe-01.json
+# 仅上一步 PASS 后：
+zsh evidence/2026-10-20-batch18/T-108/RUN-OUTSIDE-REAL-01.sh /private/tmp/t108-version-probe-01.json /private/tmp/t108-real-01.summary.json
+```
+
+外部版本探针与真实回合均待运行，整体仍 **INCOMPLETE**。新真实脚本仅做语法和调用合同核对，未取得 OS／CLI／供应商边界的新绿态；不复用旧 T-093 或无模型 PASS 代替。

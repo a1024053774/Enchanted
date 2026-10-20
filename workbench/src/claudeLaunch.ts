@@ -24,7 +24,7 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
   const normal = input.authentication === "normal-login";
   requireValue(input.authentication === undefined || normal, "invalid_controller_authentication");
   if (normal) {
-    requireValue(input.version === "2.1.302", "normal_login_version_requires_probe");
+    requireValue(typeof input.version === "string" && input.version.trim() === input.version && /^\d+\.\d+\.\d+$/.test(input.version), "normal_login_version_required");
     requireValue(isolation && ["file", "macos-keychain"].includes(input.credential_source ?? ""), "normal_login_isolation_required");
   }
   requireValue(input.schema === 1 && ["ideation", "executor"].includes(input.preset) && input.task === task.task_id, "invalid_controller_launch");
@@ -91,7 +91,7 @@ export function claudeLaunch(task: A2ATask, input: ClaudeLaunchInput, isolation?
     shell: "/bin/zsh", shell_argv: ["-f", "-i", "-c", normal ?
       "exec " + argv.map(quote).join(" ") :
       argv.map(quote).join(" ") + "; exec /bin/zsh -f -i"],
-    role_card: input.role_file, role_card_revision: normal ? "T-093/normal-login/2.1.302" : "T-078-2/P1", role_text: roleText,
+    role_card: input.role_file, role_card_revision: normal ? `T-093/normal-login/${input.version}` : "T-078-2/P1", role_text: roleText,
     code_revision: input.code_revision, source_snapshot: input.source_snapshot, base_commit: task.base_commit, model_requested: "claude-haiku-5-5", effort_requested: "low",
     authentication: normal ? "isolated normal login" : "isolated fake API only", turn_limit: turnLimit,
     ...(normal ? { login_audit_directory: isolation!.audit_directory, login_preflight_file: join(isolation!.audit_directory, "preflight.json") } : {}),

@@ -514,7 +514,7 @@ green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记
 
 仍经同一个 `controller_start --task ID --manifest /绝对路径/manifest.json`，保留原生
 UserPromptSubmit、PermissionRequest、Stop、身份核对与队列转交，不增加门禁或策略引擎。
-manifest 在既有字段外设置 `authentication: "normal-login"`、`version: "2.1.302"`、
+manifest 在既有字段外设置 `authentication: "normal-login"`、从本次 CLI `--version` 读取的 `version`、
 明确的 `credential_source: "macos-keychain"` 或 `"file"`，以及唯一的 `upstream_url`。
 生产正常登录入口的上游端口固定为 443，使用配置的 HTTPS 地址，没有端口覆盖选项或 fallback。
 无模型测试链使用可配置的非特权端口，默认 `http://127.0.0.1:18443`，不占用用户的 443。生产入口显式向 `prepare` 传 443；测试入口传测试端口，两者均由同一个 `claudeLoginSession.policies(session)` 读取 upstream_port 生成 F profile，只改变端口参数。
@@ -571,7 +571,7 @@ R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没�
 默认假 API profile 的合同保持原样。
 
 隔离配置只新建 `hasCompletedOnboarding: true` 和当前规范工作区的
-`projects[路径].hasTrustDialogAccepted: true`。它们是 **2.1.302 内部状态**，换版本须重新核对。
+`projects[路径].hasTrustDialogAccepted: true`。它们是版本敏感的内部状态，换版本须用无模型探针重新核对。T-108 不再按发行号锁定版本；启动时在受保护环境再次读取并核对 manifest 中本次观测值，记录实际 cli_version 与 internal_state_version。当前 2.1.304 的外部探针仍待运行，不能把局部合同通过当作内部状态已确认。
 onboarding 预检会直连 api.anthropic.com/api/hello 与 platform.claude.com/v1/oauth/hello，
 不经过 BASE_URL；正常模式必须用上述状态避免触发。事实记录生成状态是否完整，并用终端和
 私有 debug 日志分类 `onboarding.preflight_observed`；沉默的被拒连接尝试未测量，不冒称已统计。

@@ -44,7 +44,7 @@ export class ClaudeLogin {
       NODE_OPTIONS: process.env.NODE_OPTIONS!, A2A_PROFILE_PROCESS_LOG: process.env.A2A_PROFILE_PROCESS_LOG! };
   }
   static async prepare(input: ClaudeLaunchInput, repo: string) {
-    if (input.version !== "2.1.302") throw new Refusal("normal_login_version_requires_probe");
+    if (typeof input.version !== "string" || input.version.trim() !== input.version || !/^\d+\.\d+\.\d+$/.test(input.version)) throw new Refusal("normal_login_version_required");
     const path = process.env.A2A_CLAUDE_LOGIN_SESSION;
     if (!path) throw new Refusal("normal_login_outer_profile_required");
     const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
@@ -80,7 +80,7 @@ export class ClaudeLogin {
     const version = exec(this.#input.executable, ["--version"], { env: this.#env, cwd: s.repo, timeout: 10000, maxBuffer: 65536 });
     recordLoginProcess("version", (version as any).child.pid);
     const checked = await version;
-    if (checked.stdout.trim() !== "2.1.302 (Claude Code)") throw new Refusal("controller_version_mismatch");
+    if (checked.stdout.trim() !== `${this.#input.version} (Claude Code)`) throw new Refusal("controller_version_mismatch");
     this.versionProbe = { argv: [this.#input.executable, "--version"], stdout: checked.stdout, stderr: "" };
     const status = exec(this.#input.executable, ["auth", "status", "--json"], { env: this.#env, cwd: s.repo, timeout: 10000, maxBuffer: 65536 });
     recordLoginProcess("auth status", (status as any).child.pid);
@@ -153,7 +153,7 @@ export class ClaudeLogin {
         network_boundary: { os_host_filter: false, os_remote_ports: [s.upstream_port], application_host_lock: true },
         session: this.#input.session, thread: this.#input.thread, preset: this.#input.preset,
         code_revision: this.#input.code_revision, source_snapshot: this.#input.source_snapshot,
-        spec_rev: (record as Record<string, unknown>).spec_rev, cli_version: "2.1.302", ledger, counts,
+        spec_rev: (record as Record<string, unknown>).spec_rev, cli_version: this.#input.version, ledger, counts,
         forwarder: { received: this.#closed.received, forwarded: this.#closed.forwarded, journal_failure: this.#closed.journal_failure },
         launch_home_references: homeReferences(record, this.realHome),
         inventory: { pass_condition: false, acceptance_basis: "User decision A; main c06a73179 T-093 decision section", collection_complete: metadata.collection_complete,
@@ -162,7 +162,7 @@ export class ClaudeLogin {
           after_entries: Object.keys(after).length, changed, differences: changed.map(path => ({ path, before: this.#before[path] ?? null, after: after[path] ?? null })),
           attribution: "No causal attribution; concurrent sessions may write these paths." },
         credential_scan: { ...scan, scope: this.#input.state, timing: "session finalization" },
-        onboarding: { generated: true, state_intact: stateIntact, trusted_project: s.repo, internal_state_version: "2.1.302",
+        onboarding: { generated: true, state_intact: stateIntact, trusted_project: s.repo, internal_state_version: this.#input.version,
           preflight_observed: preflightObserved(this.#raw + "\n" + debug), signal_sources: ["terminal", "private debug log"],
           silent_denied_attempts: "Not measured; C denies direct upstream connections.", direct_network_blocked: true },
         profiles: s.profiles, processes: { C: process.pid, baseline: s.initial_inventory_process, F: this.#closed, D: metadata }, auth_original_reads: s.auth_original_reads,

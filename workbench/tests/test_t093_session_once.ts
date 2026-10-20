@@ -10,8 +10,8 @@ const upstreamPort=Number(process.argv[3]??443);
 try{
  for(const path of ['repo','state','audit','F','D'])mkdirSync(join(root,path));
  for(const path of ['home/.claude','tmp','shell','metadata'])mkdirSync(join(privateRoot,path),{recursive:true});
- const exe=join(root,'version-status');writeFileSync(exe,"#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then printf '2.1.302 (Claude Code)\\n'; else printf '{\"loggedIn\":true}\\n'; fi\n",{mode:0o700});
- const input:any={schema:1,authentication:'normal-login',version:'2.1.302',launch:randomUUID(),task:'unit',state:join(root,'state'),executable:exe};
+ const exe=join(root,'version-status');writeFileSync(exe,"#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then printf '2.1.304 (Claude Code)\\n'; else printf '{\"loggedIn\":true}\\n'; fi\n",{mode:0o700});
+ const input:any={schema:1,authentication:'normal-login',version:'2.1.304',launch:randomUUID(),task:'unit',state:join(root,'state'),executable:exe};
  const session={schema:1,c_root_pid:process.pid,repo:join(root,'repo'),deadline:Date.now()/1000+60,auth_original_reads:1,manifest:input,private_root:privateRoot,real_home:'/synthetic-home',forward_port:52101,upstream_port:upstreamPort,audit_directory:join(root,'audit'),forwarder_directory:join(root,'F'),metadata_directory:join(root,'D'),profiles:{C:'not-applied-in-this-unit'}};
  const save=(path:string,value:unknown)=>writeFileSync(path,JSON.stringify(value),{mode:0o600});
  save(join(privateRoot,'session.json'),session);save(join(privateRoot,'services.json'),{F:{pid:100001,bootstrap_exit:0},D:{pid:100002,bootstrap_exit:0}});

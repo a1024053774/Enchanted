@@ -59,7 +59,7 @@ async function exercise(source, identity = 'legacy', observations) {
           if (executable.startsWith('/fixture/')) {
             probing = options.env.CLAUDE_CONFIG_DIR.split('/').at(-1); operations.push({ kind: 'version', label: probing });
           }
-          if (executable === '/fixture/claude') callback(null, '2.1.302 (Claude Code)\n', '');
+          if (executable === '/fixture/claude') callback(null, '2.1.304 (Claude Code)\n', '');
           else if (executable === '/fixture/wrong-version') callback(null, '9.9.9 (Claude Code)\n', '');
           else if (executable === '/fixture/codex') callback(null, 'codex-cli 0.162.1\n', '');
           else if (executable === '/usr/bin/python3') {
@@ -103,7 +103,7 @@ async function exercise(source, identity = 'legacy', observations) {
       const record = { id: 'launch-' + label, project: 'project', task: 'task', attempt: worker ? 'attempt-worker' : null,
         role: worker ? 'worker' : 'controller', preset: label === 'executor' ? 'executor' : 'ideation',
         session, thread: 'thread-' + label, spec_rev: 1, cli: worker ? 'Codex' : 'Claude Code',
-        cli_version: worker ? 'codex-cli 0.162.1' : '2.1.302 (Claude Code)',
+        cli_version: worker ? 'codex-cli 0.162.1' : '2.1.304 (Claude Code)',
         ...(label === 'fake-explicit' ? { authentication: 'isolated fake API only' } : {}), role_card_revision: 'T-078-2/P1',
         ...(label === 'missing-argv' ? {} : { argv }), shell: '/bin/zsh',
         env: { CLAUDE_CONFIG_DIR: config, CODEX_HOME: config, HOME: root, TEST_EXECUTABLE: executable,
@@ -115,12 +115,12 @@ async function exercise(source, identity = 'legacy', observations) {
       if(label==='unrecognized-shell-command')record.shell_argv[3]='synthetic unrecognized command';
       if(label==='unrecognized-shell-mismatched-argv')record.shell_argv[3]="'/private/tmp/unrecognized-"+randomUUID()+"' 'different-input'; exec /bin/zsh -f -i";
       if (['normal-login','normal-login-missing-session','normal-auth-missing'].includes(label)) {
-        record.role_card_revision='T-093/normal-login/2.1.302';
+        record.role_card_revision='T-093/normal-login/2.1.304';
         record.login_audit_directory=join(root,label,'login-audit');record.login_preflight_file=join(root,label,'preflight.json');
         record.env.A2A_PROFILE_PROCESS_LOG=join(root,label,'C-processes.jsonl');delete record.env.ANTHROPIC_AUTH_TOKEN;
         if(label!=='normal-auth-missing')record.authentication='isolated normal login';
       }
-      if(label==='normal-role-only')record.role_card_revision='T-093/normal-login/2.1.302';
+      if(label==='normal-role-only')record.role_card_revision='T-093/normal-login/2.1.304';
       if(label==='normal-audit-only')record.login_audit_directory=join(root,label,'audit');
       if(label==='normal-preflight-only')record.login_preflight_file=join(root,label,'preflight.json');
       if(label==='normal-hook-only')record.hook_authorization='T-093/controller-start';
