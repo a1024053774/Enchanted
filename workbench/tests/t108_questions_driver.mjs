@@ -30,12 +30,12 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
         questions:[...document.querySelectorAll('[data-question-id]')].map(n=>({id:n.dataset.questionId,text:n.innerText})),
         notices:[...document.querySelectorAll('[data-notice-id]')].map(n=>({id:n.dataset.noticeId,launch:n.dataset.noticeLaunch,text:n.innerText})),
         notice_additions:window.t110NoticeAdditions??0,
-        agents:[...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,project:document.querySelector('[data-project-id][aria-current=page]')?.dataset.projectId,state:n.dataset.agentState,background:getComputedStyle(n).backgroundColor})),
+        agents:[...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,project:document.querySelector('[data-project-id][aria-current=page]')?.dataset.projectId??null,state:n.dataset.agentState,background:getComputedStyle(n).backgroundColor})),
         projects:[...document.querySelectorAll('[data-project-id]')].map(n=>({id:n.dataset.projectId,state:n.dataset.projectState,background:getComputedStyle(n).backgroundColor})),
-        focused_agent:document.querySelector('[data-agent-launch][aria-current=true]')?.dataset.agentLaunch,
-        focused_launch:document.activeElement?.closest('section.pane')?.dataset.launchId,
-        terminal_hidden:document.querySelector('.terminal-page').hidden,
-        sidebar_error:document.querySelector('.catalog-error')?.textContent,
+        focused_agent:document.querySelector('[data-agent-launch][aria-current=true]')?.dataset.agentLaunch??null,
+        focused_launch:document.activeElement?.closest('section.pane')?.dataset.launchId??null,
+        terminal_hidden:document.querySelector('.terminal-page')?.hidden??null,
+        sidebar_error:document.querySelector('.catalog-error')?.textContent??null,
         notification_settings:Object.fromEntries([...document.querySelectorAll('[data-notification-setting]')].map(n=>[n.dataset.notificationSetting,n.checked])),
         alerts:[...document.querySelectorAll('[role=alert]')].map(n=>n.textContent)
       })`);

@@ -1,15 +1,15 @@
 # T-110 / a1
 
-状态：INCOMPLETE。第一轮独立审查对 `c5ac40c0b4cf60c30407af1a00953a297eb55005` 判 NO_GO；其断连缺陷 F1 已修改，本地红／绿对照通过。扩展的真实 Electron 断连与恢复场景、最终提交及独立复审仍待主控完成，旧候选正常场景的 PASS 不替新修复背书。
+状态：INCOMPLETE。F1 修复已提交 `4455b51c8b55be979c8e7419fb500b517dd6f89e`。第四轮真实入口的两个红态均按预期被拒；green 在刷新过渡期间因快照遗漏 sidebar_error 字段抛 KeyError，属于夹具失败。现已修复快照序列化，本地修前红／修后绿通过；完整真实入口及独立复审仍待主控，不能上调为整体 PASS。
 
-范围只含 T-110。分支 `exec/t110`，当前修复起点 `c5ac40c0b4cf60c30407af1a00953a297eb55005`，初始实现起点 `e3102389eda8952ea92cae4b373e14eaff898314`。任务 T-110，attempt a1；worker launch `launch-d008aad4e92d4bbc86a75109c7625d0f`，session `08655309-afa5-40e1-90b5-70da288741da`。不修改 panes.ts、CLI 启动参数、模型设置、门禁或全局配置，不调用模型、不 push；尾注由已有钩子生成。
+范围只含 T-110。分支 `exec/t110`，本轮夹具修复起点 `4455b51c8b55be979c8e7419fb500b517dd6f89e`，初始实现起点 `e3102389eda8952ea92cae4b373e14eaff898314`。任务 T-110，attempt a1；worker launch `launch-d008aad4e92d4bbc86a75109c7625d0f`，session `08655309-afa5-40e1-90b5-70da288741da`。不修改 panes.ts、CLI 启动参数、模型设置、门禁或全局配置，不调用模型、不 push；尾注由已有钩子生成。
 
 ## 行为与验收
 
 - PASS（合同及原候选真实正常入口）：信号只取 T-108 已核实的 `waiting_user_answer` 及问题 ID；未知、权限等待、等待主控回答、运行和空闲不提醒。项目／会话高亮、应用内通知、点击聚焦及原 PTY 作答共用现有入口。
 - PASS（合同及原候选真实正常入口）：按问题 ID 去重；问题回答、取消、结束或未知时移除。通知和 Dock 设置独立保存，关闭再开启不补发已观察的问题。同一问题在本次应用进程只提醒一次。
 - PASS（本地红／绿）：F1 的修前 `review01-disconnect-red.json` 在“断连后角标应清零”失败，实际 1、期望 0；修后 `review01-disconnect-green.json` PASS。传输异常与后台 `ok:false` 均使同一状态目录的中心失效，清除 active／waiting，保留 seen，重算 Dock；原始错误继续返回，失败不重试，也不伪造成功快照。
-- INCOMPLETE（新真实入口）：已把刷新、renderer 重载、真实 socket 断连、断连中刷新／重载、恢复后去重与继续作答并入自己的入口；脚本另用修前 c5ac40c0b 的 main／center 取得同一断连断言红态。该扩展尚待主控运行，不能以本地传输边界探针代替。
+- INCOMPLETE（新真实入口）：第四轮两个坏候选均取得业务红态；green 首次断连观察到 badge 0、通知为空及会话未知，随后在刷新过渡期间因快照缺字段抛 KeyError。夹具已修正，业务断言未放宽；后续刷新／重载／恢复和完整作答仍待同一入口复跑。
 - PASS（检索）：生产 app／src／hooks 中没有 Electron／Web Notification、APNS 或通知授权请求调用，当前检索在 `review01-local-checks.json`；仅有 `app.dock.setBadge` 写应用角标标签。
 - INCOMPLETE（治理）：稀疏检出使地图检查报 8 个缺失链接／文件、0 stale，已上报 `20261020T124545Z-worker:s18-t110-issue-001`。完整 checkout 的 status 与独立复审由主控完成，worker 不改地图，不把自查算作独立审查。
 
@@ -26,22 +26,22 @@ Dock 权限的准确边界：**当前固定版本 Electron 43.4.1 的 `setBadge`
 
 ## 接线位置
 
-本轮只在 `main.ts` 164–182 行处理 sidebar 读取失败，在 `notificationCenter.ts` 40 行增加失效方法；不再改 sidebar、renderer 或设置区块。原实现的最小接线是 `sidebar.ts` 119–128 行问题 ID、`renderer.tsx` 14–15 行 import、41／48 行类型、419–427 行状态、461 行失败清除、497 行切回终端、573–585 行独立设置区块与通知组件；`style.css` 135 行保证待答高亮优先级。通知与设置实现保留在新模块／组件内。
+F1 修复在 `main.ts` 164–182 行处理 sidebar 读取失败，在 `notificationCenter.ts` 40 行增加失效方法。本轮只改测试驱动 33–39 行的可选字段序列化；生产代码、业务断言、sidebar、renderer 和设置区块均未改。原实现的最小接线是 `sidebar.ts` 119–128 行问题 ID、`renderer.tsx` 14–15 行 import、41／48 行类型、419–427 行状态、461 行失败清除、497 行切回终端、573–585 行独立设置区块与通知组件；`style.css` 135 行保证待答高亮优先级。通知与设置实现保留在新模块／组件内。
 
 ## 主控运行命令
 
 扩展真实入口（新路径，不覆盖已有结果）：
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-110/RUN-OUTSIDE-NO-MODEL.sh /private/tmp/t110-outside-04.json
+zsh evidence/2026-10-20-batch18/T-110/RUN-OUTSIDE-NO-MODEL.sh /private/tmp/t110-outside-05.json
 ```
 
 四个运行：隐藏通知坏变异、c5ac40c0b 断连坏候选、修后完整正常闭环、修后禁用通知。使用本地假 API、真实已安装 Claude、Electron 与原 PTY，不调用模型或供应商，不保存截图。spawn-helper 执行位只在私有依赖副本修改；Electron 从内置盘运行。细节见 `FOLLOWUP-REVIEW01.md`。
 
-沙箱外提交脚本绑定本 worker 身份及既有钩子，检查分支与 c5ac40c0b 起点，使用 `git add --sparse`。本沙箱的 worktree Git 元数据不可写，未申请升级：
+沙箱外提交脚本绑定本 worker 身份及既有钩子，检查分支与 4455b51c8 起点，使用 `git add --sparse`。本沙箱的 worktree Git 元数据不可写，未申请升级：
 
 ```sh
-zsh evidence/2026-10-20-batch18/T-110/RUN-OUTSIDE-COMMIT-02.sh
+zsh evidence/2026-10-20-batch18/T-110/RUN-OUTSIDE-COMMIT-03.sh
 ```
 
 归档本轮夹具（外置盘缺失即失败；只核对文件数和字节数，不计算校验值，不删除本地原件）：
@@ -53,3 +53,5 @@ zsh evidence/2026-10-20-batch18/T-110/RUN-OUTSIDE-ARCHIVE.sh review01-01 evidenc
 原生 CLI 在隔离 home 自行产生的链接只记录为文字，不复制外部目标、不创建链接。新原生夹具归并在本轮私有根目录内后统一归档；失败现场保留。旧运行缺失的原件不伪造归档成功。
 
 额外问题：旧 `REVIEW-OUTSIDE-01.sh` 的真实入口夹具路径预计不满足既有 `/private/tmp/t078-2-` 根校验（静态发现，未当作业务红态）；已上报 `20261020T133157Z-worker:s18-t110-issue-001`，未改独立审查原件。
+
+本轮快照证据：`snapshot-red-01.json` → `snapshot-green-01.json` 验证实际驱动表达式的 JSON 传输契约；真实错误文本仍须出现，断连后无通知、无角标和恢复去重的断言均未放宽。第四轮范围与修复原因见 `FOLLOWUP-SNAPSHOT.md`、`outside-04-summary.json`。
