@@ -71,3 +71,9 @@ PASS。exec/t093 已以 `--no-ff` 合入 main（fb7eb0092），没有 push。
   - 依赖 Claude Code 2.1.302 的内部状态；onboarding 预检直连官方地址；400 之后会重试。
   - r20 helper 输出被截断的根因，以及 r21 旧归档不一致的触发时点，都仍是 unknown。
 - 打分：score-5ee1b1bc885e4f7bbda3d56b469e5ffa。
+
+## 裁定（2026-10-20，不再锁定 Claude CLI 版本）
+
+用户逐字（2026-10-20，执行主控会话，AskUserQuestion 的其他答复，经执行主控转述 `20261020T061506Z-executor-report-001`）："跑真实回合,版本不重要,以后肯定要经常更新 cli 版本的"。
+
+T-093 原把 Claude Code 锁在 2.1.302（三处），本机已自动升到 2.1.304，旧二进制不在。验收条件改为：入口读取并记录实际版本，不再按精确版本拒绝；版本敏感的假设在当前版本上重新探针确认。实施在 [T-108](T-108-native-question-signals-via-hooks.md) 里做，T-093 的其他隔离与凭据条件不变。
