@@ -2,7 +2,7 @@
 id: T-111
 title: 工作台“流程”页：横向展示每张票的阶段，以及各阶段里在干活的 agent 角色
 type: build
-status: open
+status: closed
 blocked_by: [T-109]
 claimed_by:
 supersedes:
@@ -30,10 +30,29 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 红态：当前没有流程页。绿态：真实 Electron，夹具里有 ≥2 张并行的票，一张在实现阶段（2 个 worker）、一张在审查阶段（1 个 reviewer），泳道、阶段、胶囊与门禁事件和启动记录一致。
-- [ ] 反例：打回一次的票有折回线且次数等于门禁事件里的打回次数；无父记录的 agent 进"未归属"；agent 超过 4 个折叠且可展开；无任何票时显示空状态。
-- [ ] 与参考图对照截图入证据（说明哪些对齐、哪些有意不同）；`project_map.py status` 0 问题。
+- [x] 红态：当前没有流程页。绿态：真实 Electron，夹具里有 ≥2 张并行的票，一张在实现阶段（2 个 worker）、一张在审查阶段（1 个 reviewer），泳道、阶段、胶囊与门禁事件和启动记录一致。
+- [x] 反例：打回一次的票有折回线且次数等于门禁事件里的打回次数；无父记录的 agent 进"未归属"；agent 超过 4 个折叠且可展开；无任何票时显示空状态。
+- [x] 与参考图对照截图入证据（说明哪些对齐、哪些有意不同）；`project_map.py status` 0 问题。
 
 ## 不做
 
 不做在流程页里派发、操作或改状态；不做历史回放时间轴；不改门禁语义。
+
+## Resolution
+
+2026-10-20，执行主控。PASS。exec/t111 以 `--no-ff` 合入 main，没有 push。
+
+- 实现（worker s18-t111，862ca1670 → 5b060015b）：
+  - 主区新增“流程”标签，只读。
+  - 一张票一条横向泳道；阶段取门禁事件；打回次数按 delivery_rejected 跨 attempt 累计，review_result 不重复计数。
+  - agent 胶囊只按 T-109 的父 launch 和非空的当前 attempt 绑定；超过 4 个折叠；已集成的票默认折叠；窄窗口横向滚动。
+- 真实 Electron RUN-OUTSIDE-03：PASS。覆盖：
+  - 起点没有流程页（红态）；
+  - 两票并行、阶段、角色胶囊、监视器、跨 attempt 三次打回及来源计数、未归属、折叠展开、窄窗横滚；
+  - flow IPC 所有表、schema、trace 零写入；
+  - 没有票时显示空状态。
+- 独立审查：
+  - 01 NO_GO（F1：验收拦不住“非零打回一律显示 1”，产品本身没问题）；
+  - 02 INCOMPLETE，唯一未完成项是沙箱外复验。执行主控运行了 REVIEW-OUTSIDE-02：PASS。好候选的合同、IPC、两次打回输入、流程与侧栏只读、Electron 都通过；计数变异（合同、独立探针、Electron 三处）、缺 attempt 变异和写库变异都被拒绝。
+- 参考图对照用文字记录在 RESULTS.md；按用户“证据截图什么的都不要了”的裁定，不交截图。
+- 合入后 main 上 test_t091_pane_ipc.mjs PASS。
