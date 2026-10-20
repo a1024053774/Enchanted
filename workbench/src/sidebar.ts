@@ -70,7 +70,7 @@ const execute = promisify(execFile);
 export async function gitFacts(repo: string) {
   try {
     const { stdout } = await execute('git', ['-C', repo, 'status', '--porcelain=v2', '--branch', '--untracked-files=no'],
-      { timeout: 3000, maxBuffer: 65536, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } });
+      { timeout: 3000, maxBuffer: 65536, env: { ...process.env, LC_ALL: 'C', GIT_OPTIONAL_LOCKS: '0' } });
     const lines = stdout.split('\n');
     const field = (key: string) => lines.find(line => line.startsWith('# branch.' + key + ' '))?.slice(('# branch.' + key + ' ').length);
     const branch = field('head'), upstream = field('upstream'), ab = field('ab')?.match(/^\+([0-9]+) -([0-9]+)$/);
@@ -100,6 +100,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     // A role address or an ordinary reply is not delegation. Correlate the
     // authenticated sender launch, successful assign and actual dispatch target.
     const senders = new Set<string>();
+    if (typeof record.parent_launch === 'string') senders.add(record.parent_launch);
     for (const assignment of assignments.filter(row => row.launch === record.id)) {
       const parent = launches.find(row => row.id === assignment.parent);
       const input = JSON.parse(String(assignment.input)), result = JSON.parse(String(assignment.result));
@@ -115,18 +116,29 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
         record.cli_version?.startsWith('codex-cli ') ? 'codex' : '未知',
       parent: senders.size === 1 ? [...senders][0] : null, state, state_label: stateLabels[state] };
   });
+  const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
     const parent = agents.find(row => row.id === agent.parent);
-    const allowed = parent?.preset === 'ideation' && agent.preset === 'executor' ||
-      parent?.preset === 'executor' && ['worker', 'reviewer', 'monitor'].includes(agent.role);
+    const allowed = parent?.project === agent.project && parent.role === 'controller' &&
+      (parent.preset === 'ideation' && agent.role === 'controller' && agent.preset === 'executor' ||
+       parent.preset === 'executor' && ['worker', 'reviewer', 'monitor'].includes(agent.role));
     if (!allowed) agent.parent = null;
     const visited = new Set([agent.id]);
-    let cursor = agent.parent;
+    let cursor = recordedParents.get(agent.id);
     while (cursor) {
       if (visited.has(cursor)) { agent.parent = null; break; }
-      visited.add(cursor); cursor = agents.find(row => row.id === cursor)?.parent ?? null;
+      visited.add(cursor); cursor = recordedParents.get(cursor) ?? null;
     }
   }
+  const descendants = (id: string): typeof agents => agents.filter(child => child.parent === id)
+    .flatMap(child => [child, ...descendants(child.id)]);
+  const treeAgents = agents.map(agent => {
+    const children = descendants(agent.id);
+    const state = aggregate(children.map(child => child.state));
+    return { ...agent, descendants: { count: children.length, state, state_label: stateLabels[state],
+      counts: Object.keys(stateLabels).filter(key => children.some(child => child.state === key))
+        .map(key => ({ state: key, label: stateLabels[key as AgentState], count: children.filter(child => child.state === key).length })) } };
+  });
   const projects = await Promise.all(gates.listProjects().map(async (project: any) => {
     const tasks = gates.listTasks(project.project_id);
     const repos = new Set<string>();
@@ -140,9 +152,9 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     return { ...project, repo, tasks, git: repo ? await gitFacts(repo) :
       { branch: null, upstream: null, ahead: null, behind: null, error: '项目目录不唯一' }, state, state_label: stateLabels[state] };
   }));
-  return { projects, agents, gaps: [
+  return { projects, agents: treeAgents, gaps: [
     '等待用户回答：工作台现有信号不能可靠区分，当前显示未知；未新增采集。',
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
-    '派发未保存具体父会话绑定时显示未归属；当前 worker 派发缺少该绑定。',
+    '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
   ] };
 }

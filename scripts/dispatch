@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Record controller-origin text, then invoke Herdr exactly once."""
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -25,7 +26,7 @@ def validate(rows):
             if sequence not in prepared or sequence in completed or type(row["exit_code"]) is not int:
                 raise ValueError("派发结果重复或没有预备记录")
             original = prepared[sequence]
-            if any(row[key] != original[key] for key in ("agent", "role", "text", "role_card_attached")):
+            if any(row[key] != original[key] for key in ("agent", "role", "text", "role_card_attached")) or row.get("parent_launch") != original.get("parent_launch"):
                 raise ValueError("派发结果与预备记录不符")
             completed.add(sequence)
     return prepared
@@ -36,6 +37,7 @@ def main():
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--batch", required=True, type=token)
     parser.add_argument("--agent", required=True)
+    parser.add_argument("--parent-launch", type=token, default=os.environ.get("A2A_LAUNCH"))
     parser.add_argument("--role", required=True, choices=("worker", "reviewer", "monitor"))
     body = parser.add_mutually_exclusive_group(required=True)
     body.add_argument("--body")
@@ -68,7 +70,7 @@ def main():
         if args.timeout is not None:
             argv.extend(["--timeout", str(args.timeout)])
         row = dict(schema=1, phase="prepared", sequence=sequence, created_at=utc_now(),
-                   agent=args.agent, role=args.role, text=sent, role_card_attached=first,
+                   agent=args.agent, role=args.role, text=sent, role_card_attached=first, parent_launch=args.parent_launch,
                    argv=argv, exit_code=None)
         append_record(logfile, row)
     # Inherit stdout/stderr: Herdr's bytes and error wording pass through.

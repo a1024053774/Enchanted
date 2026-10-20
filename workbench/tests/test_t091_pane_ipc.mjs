@@ -89,7 +89,11 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
     if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{project_id: fixtureProject, tasks: [fixtureSummary]}],
-      agents: Object.values(records).filter(row => row.role !== 'shell').map(row => ({ ...row, project: fixtureProject, task: 'task-one', state: sidebarStates.get(row.id) ?? 'unknown', role_label: row.role })) };
+      agents: Object.values(records).filter(row => row.role !== 'shell').map(row => ({ ...row, project: fixtureProject, task: 'task-one',
+        parent: row.id === 'controller' ? 'ideation' : row.id === 'worker' ? 'controller' : null,
+        descendants: { count: row.id === 'ideation' ? 2 : row.id === 'controller' ? 1 : 0, state: 'waiting_user_answer',
+          state_label: '等待用户回答', counts: [{ state: 'waiting_user_answer', label: '等待用户回答', count: 1 }] },
+        state: sidebarStates.get(row.id) ?? 'unknown', role_label: row.role })) };
     if (input.command === 'projects_list') return { ok: true, projects: [{ project_id: fixtureProject }] };
     if (input.command === 'tasks_list') return input.project === '../invalid'
       ? { ok: false, error: 'invalid_id' }
@@ -233,7 +237,12 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   assert.equal((await bridge.snapshot(aKey)).window_id, first.window_id);
   await assert.rejects(() => bridge.snapshot(bKey));
   if (withSidebar) {
-    assert.ok((await bridge.sidebar()).agents.some(row => row.id === 'worker'));
+    const hierarchy = (await bridge.sidebar()).agents;
+    assert.equal(hierarchy.find(row => row.id === 'worker').parent, 'controller');
+    assert.equal(hierarchy.find(row => row.id === 'controller').parent, 'ideation');
+    assert.equal(hierarchy.find(row => row.id === 'ideation').descendants.count, 2);
+    assert.equal(hierarchy.find(row => row.id === 'controller').descendants.state, 'waiting_user_answer');
+    assert.equal(hierarchy.find(row => row.id === 'controller').descendants.counts[0].label, '等待用户回答');
     await assert.rejects(() => bridge.selectAgent('absent'));
     await assert.rejects(() => bridge.selectAgent('../invalid'));
     await assert.rejects(() => bridge.notificationSetting('yes'));
@@ -525,7 +534,8 @@ try {
     'projects_without_pane_key', 'tasks_project_argument_and_backend_refusals', 'window_selection_without_transport',
     'select_task_null_and_id_preserve_rejected_destination');
   if (withShell) report.checks.push(withPanes ? 'new_terminal_without_task_and_serializes_creation' : 'new_terminal_requires_task_and_serializes_creation', 'shell_project_cwd_and_identity', 'shell_keyed_input_and_close');
-  if (values.contract === 'sidebar') report.checks.push('sidebar_unknown_launch_and_foreign_task_denied', 'sidebar_focus_and_transient_history_readonly', 'notification_edges_and_disable');
+  if (values.contract === 'sidebar') report.checks.push('sidebar_unknown_launch_and_foreign_task_denied', 'sidebar_focus_and_transient_history_readonly',
+    'hierarchy_parent_and_descendant_summary_roundtrip', 'notification_edges_and_disable');
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.stack = error.stack; }
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });

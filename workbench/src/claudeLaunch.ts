@@ -12,6 +12,7 @@ export interface ClaudeLaunchInput {
   credential_source?: "file" | "macos-keychain";
   upstream_url?: string;
   turn_limit?: number;
+  parent_launch?: string;
 }
 export interface ClaudeLoginIsolation {
   homeRoot: string; home: string; config: string; tmp: string; shell: string; debug: string;

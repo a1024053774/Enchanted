@@ -16,7 +16,8 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
   const inspect = () => window.webContents.executeJavaScript(`({
     text: document.body.innerText, bridge: Object.keys(window.a2a), node: typeof window.require,
     projects: [...document.querySelectorAll('[data-project-id]')].map(n=>({id:n.dataset.projectId,text:n.innerText,state:n.dataset.projectState,selected:n.getAttribute('aria-current'),disabled:n.disabled})),
-    agents: [...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,parent:n.dataset.agentParent,level:Number(n.dataset.agentLevel),state:n.dataset.agentState,text:n.innerText,x:n.getBoundingClientRect().x, overflow:n.scrollWidth>n.clientWidth,disabled:n.disabled})),
+    agents: [...document.querySelectorAll('[data-agent-launch]')].map(n=>({id:n.dataset.agentLaunch,parent:n.dataset.agentParent,level:Number(n.dataset.agentLevel),state:n.dataset.agentState,text:n.innerText,x:n.getBoundingClientRect().x, overflow:n.scrollWidth>n.clientWidth,disabled:n.disabled,visible:n.getClientRects().length>0})),
+    summaries: [...document.querySelectorAll('[data-agent-summary]')].map(n=>({id:n.dataset.agentSummary,text:n.innerText,visible:n.getClientRects().length>0})),
     panes: [...document.querySelectorAll('section.pane')].map(n=>({key:n.dataset.paneKey,launch:n.dataset.launchId,input:n.dataset.inputEnabled,
       alerts:[...n.querySelectorAll('[role=alert]')].map(a=>a.textContent)})),
     focusedLaunch: document.activeElement?.closest('section.pane')?.dataset.launchId,
@@ -39,6 +40,15 @@ void run({ state: values.state, task: values.task, userData: values['user-data']
           value = await window.webContents.executeJavaScript(`(()=>{
             const n=[...document.querySelectorAll('button[${attribute}]')].find(n=>n.getAttribute('${attribute}')===${JSON.stringify(request.target)});
             if(!n||n.disabled) throw new Error('Unavailable sidebar target'); n.click(); return {clicked:true}; })()`);
+        } else if (['toggle', 'toggle-keyboard'].includes(request.command)) {
+          value = await window.webContents.executeJavaScript(`(()=>{
+            const n=[...document.querySelectorAll('button[data-agent-toggle]')].find(n=>n.dataset.agentToggle===${JSON.stringify(request.target)});
+            if(!n) throw new Error('Unavailable disclosure');
+            ${request.command === 'toggle' ? 'n.click()' : 'n.focus()'}; return {ready:true}; })()`);
+          if (request.command === 'toggle-keyboard') {
+            window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+            window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+          }
         } else if (request.command === 'resize') { window.setSize(request.width, request.height); value = { resized: true }; }
         else if (request.command === 'notifications') value = await window.webContents.executeJavaScript(`(()=>{
           const details=document.querySelector('.sidebar-settings'); details.open=true;
