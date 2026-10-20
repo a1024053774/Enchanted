@@ -1,0 +1,99 @@
+{
+  "status": "PASS",
+  "scope": "local queue/transport, IPC, T-108, syntax and build; native parent comparison and Electron suite pending",
+  "commands": [
+    {
+      "argv": [
+        "zsh",
+        "-n",
+        "evidence/2026-10-20-batch18/T-110/RUN-OUTSIDE-RECEIPT-COMPARE.sh"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "workbench/tests/test_t110_window_sequence.mjs"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rg",
+        "-n",
+        "new\\s+(?:[A-Za-z_$][\\w$]*\\.)?Notification\\s*\\(|Notification\\.(?:requestPermission|isSupported)|requestAuthorization|NSUserNotification|UNUserNotificationCenter|remote\\.Notification|web-push|node-notifier",
+        "workbench/app",
+        "workbench/src",
+        "workbench/hooks"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rg",
+        "-n",
+        "app\\.dock\\.setBadge",
+        "workbench/app/main.ts"
+      ],
+      "exit": 0,
+      "stdout": "46:  app.dock.setBadge(count ? String(count) : '');\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "workbench/app/build.mjs",
+        "--slot",
+        "t110-receipt-local"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/dist\",\"main\":\"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/dist/main.mjs\",\"preload\":\"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/dist/preload.cjs\",\"renderer\":\"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/dist/renderer/index.html\",\"cacheDir\":\"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/vite-cache\",\"temporary\":\"/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/tmp\",\"source\":\"/Users/luckye/Documents/Code/a2a-wt-t110/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    }
+  ],
+  "python39_syntax": "PASS",
+  "system_notification_api_search": "zero matches; rg exit 1",
+  "build_manifest": {
+    "schema": 1,
+    "out": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/dist",
+    "main": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/dist/main.mjs",
+    "preload": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/dist/preload.cjs",
+    "renderer": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/dist/renderer/index.html",
+    "cacheDir": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/vite-cache",
+    "temporary": "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t110-receipt-local/tmp",
+    "source": "/Users/luckye/Documents/Code/a2a-wt-t110/workbench/app"
+  },
+  "temporary_build_removed": true,
+  "receipt-sequence-contract-01.json": {
+    "status": "PASS",
+    "hook_cases": 0,
+    "answer_lifecycle_cases": 0
+  },
+  "receipt-ipc-01.json": {
+    "status": "PASS",
+    "hook_cases": 0,
+    "answer_lifecycle_cases": 0
+  },
+  "receipt-questions-01.json": {
+    "status": "PASS",
+    "hook_cases": 429,
+    "answer_lifecycle_cases": 14
+  }
+}

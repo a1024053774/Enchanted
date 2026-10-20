@@ -15,7 +15,8 @@ export function socketPath(root: string) {
   if (Buffer.byteLength(socket) > 103) throw new Error("Unix socket path exceeds 103 bytes");
   return socket;
 }
-export function request(root: string, input: Record<string, unknown>, identity?: Record<string, unknown>): Promise<any> {
+// Window callers allocate their sequence at send time, after a successful connection.
+export function request(root: string, input: Record<string, unknown>, identity?: Record<string, unknown>, nextSequence?: () => number): Promise<any> {
   return new Promise((resolve, reject) => {
     const socket = createConnection(socketPath(root));
     let buffer = "";
@@ -27,7 +28,8 @@ export function request(root: string, input: Record<string, unknown>, identity?:
       ? Math.min(2_147_483_647, Math.max(120_000, wait * 1000 + 120_000)) : 120_000;
     socket.setTimeout(deadline, () => socket.destroy(new Error("daemon request deadline; outcome unknown")));
     socket.on("error", reject);
-    socket.on("connect", () => socket.write(JSON.stringify({ id: randomUUID(), input, identity }) + "\n"));
+    socket.on("connect", () => socket.write(JSON.stringify({ id: randomUUID(),
+      input: nextSequence ? { ...input, sequence: nextSequence() } : input, identity }) + "\n"));
     socket.on("data", (chunk) => {
       buffer += chunk;
       const end = buffer.indexOf("\n");

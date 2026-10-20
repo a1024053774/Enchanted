@@ -120,7 +120,9 @@ function target(event: Electron.IpcMainInvokeEvent, key: string) {
 function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Record<string, unknown>) {
   if (!pane.identity || context.closing || pane.closing) throw new Error('Window is not available for input');
   if (input.command === 'window_release' && pane.pendingRelease) throw new Error('Queue release is already pending');
-  const command = { ...input, sequence: ++pane.sequence, request_id: randomUUID() };
+  // A failed connection sends nothing and must not consume a daemon sequence.
+  // Once connected, an unknown outcome still consumes it; commands are never replayed.
+  const command = { ...input, request_id: randomUUID() };
   const receive = (result: any) => {
     if (input.command === 'window_release' && !result.ok &&
         ['empty_input_declaration_required', 'empty_input_declaration_stale', 'pane_not_interrupted'].includes(result.error)) return result;
@@ -130,14 +132,14 @@ function sendWindowCommand(context: WindowBinding, pane: PaneBinding, input: Rec
   if (input.command === 'window_release') {
     // Panes owns PTY write order; later input can invalidate a pending declaration.
     let response: Promise<any>;
-    pane.inputQueue = pane.inputQueue.then(() => { response = request(context.options.state, command, pane.identity); });
+    pane.inputQueue = pane.inputQueue.then(() => { response = request(context.options.state, command, pane.identity, () => ++pane.sequence); });
     const result = pane.inputQueue.then(() => response).then(receive);
     pane.pendingRelease = result;
     const finished = () => { if (pane.pendingRelease === result) pane.pendingRelease = null; };
     void result.then(finished, finished);
     return result;
   }
-  const result = pane.inputQueue.then(() => request(context.options.state, command, pane.identity)).then(receive);
+  const result = pane.inputQueue.then(() => request(context.options.state, command, pane.identity, () => ++pane.sequence)).then(receive);
   pane.inputQueue = result.then(() => undefined, () => undefined);
   return result;
 }

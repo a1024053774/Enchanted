@@ -15,6 +15,7 @@ def main():
     p.add_argument('--electron-dist',type=Path,required=True)
     p.add_argument('--notifications', action='store_true')
     p.add_argument('--disable-notifications', action='store_true')
+    p.add_argument('--receipt-comparison-refresh', action='store_true')
     p.add_argument('--source-revision')
     p.add_argument('--fixture-parent', type=Path)
     args=p.parse_args(); source=Path(__file__).resolve().parents[2]
@@ -116,7 +117,8 @@ def main():
         assert '选择部署区域？' in view['questions'][0]['text'] and '东区' in view['questions'][0]['text'] and '西区' in view['questions'][0]['text']
         qid=view['questions'][0]['id'];assert qid==manifest['launch']+':toolu_e2e_sentinel'
         sidebar=call('sidebar_snapshot');assert sidebar['agents'][0]['state']=='waiting_user_answer'
-        if args.notifications: waiting(window,args.disable_notifications,report)
+        if args.notifications: waiting(window,args.disable_notifications,report,args.receipt_comparison_refresh)
+        report['answer_attempted'] = True
         receipt=window.call('answer');report['first_answer_receipt']=receipt
         assert receipt['clicked'] and receipt['final_receipt']['ok'] is True
         first_answer=[e for e in events() if e['type']=='request_received' and e['data'].get('input',{}).get('command')=='window_answer']
@@ -165,13 +167,19 @@ def main():
                           'first_window_answer_final_receipt_ok','same_pty_followup_input_written_and_echoed']
         report['hooks']=[json.loads(e['data']['raw_stdin']) for e in events() if e['type']=='hook_received']
         report['status']='PASS'
-    except Exception as error:report.update(error=str(error),traceback=traceback.format_exc())
+    except Exception as error:
+        report.update(error=str(error),traceback=traceback.format_exc())
+        if windows:
+            try:report['failure_view']=windows[-1].call('inspect')
+            except Exception as diagnostic:report['failure_view_error']=str(diagnostic)
     finally:
         if started:
             try:
                 observed=events()
                 report['hooks']=[json.loads(e['data']['raw_stdin']) for e in observed if e['type']=='hook_received']
                 report['turn_events']=[e for e in observed if e['type'] in ['turn_start_signal','turn_end_signal','stop_not_matched','pane_idle','native_question_resolved']]
+                report['window_events']=[e for e in observed if e['type'] in ['window_opened','window_request_admitted','request_rejected'] or
+                    e['type']=='request_received' and e['data'].get('input',{}).get('command')=='window_answer']
             except Exception as error:report['event_diagnostic_error']=str(error)
         for window in windows:
             try:window.close()

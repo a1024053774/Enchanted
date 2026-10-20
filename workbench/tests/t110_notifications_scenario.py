@@ -13,7 +13,7 @@ def before_prompt(window, disabled, report):
     report['checks'].append('t110_idle_silent_before_prompt')
 
 
-def waiting(window, disabled, report):
+def waiting(window, disabled, report, receipt_comparison_refresh=False):
     view = window.wait(lambda v: any(a['state'] == 'waiting_user_answer' for a in v['agents']), 'Sidebar waiting state')
     if disabled:
         # More than two production polling periods, while the genuine question waits.
@@ -80,6 +80,11 @@ def waiting(window, disabled, report):
         report['disconnect_observation'] = {key: disconnected[key] for key in ['badge', 'notices', 'agents', 'sidebar_error']}
         assert disconnected['badge'] == 0, 'Disconnected unknown state must clear Dock badge'
         assert disconnected['sidebar_error'], 'The failed read must remain visible to the caller'
+        # Use the existing preload/main resize entry while the endpoint is
+        # absent; do not rely on ResizeObserver timing to exercise this fault.
+        resize = window.call('offline-resize', pane=original_pane)
+        report['disconnected_resize'] = resize
+        assert resize['rejected'] and 'ENOENT' in resize['error'], 'Offline resize must preserve its original transport failure'
         window.call('foreground')
         window.call('background')
         assert window.call('inspect')['badge'] == 0, 'Focus changes must not restore an untrusted badge'
@@ -96,9 +101,19 @@ def waiting(window, disabled, report):
     assert backend_agent['state'] == 'waiting_user_answer' and backend_agent['question_id'] == notice['id'], 'Backend must confirm the same native question after reconnect'
     assert restored['selection']['task']['project_id'] == original_project, 'Keep the original local project binding'
     assert original_pane in restored['selection']['paneKeys'], 'Keep the original pane binding'
+    if receipt_comparison_refresh:
+        # Both comparison versions take this same visible action. The primary
+        # suite still requires selection recovery without this extra refresh.
+        window.call('refresh-list')
+        report['receipt_comparison_refresh'] = True
     window.wait(lambda v: v['selected_project'] == original_project and any(a['id'] == notice['launch'] for a in v['agents']),
                 'Reload keeps the selected project after reconnect')
-    window.call('reconnect-pane', pane=original_pane)
+    if receipt_comparison_refresh:
+        # A successful refresh can mount e1's pane for the first time, so both
+        # comparison versions use the same visible reload to resume pane reads.
+        window.call('reload-window')
+    else:
+        window.call('reconnect-pane', pane=original_pane)
     recovered = window.wait(lambda v: any(a['state'] == 'waiting_user_answer' for a in v['agents']) and
                             any(q['id'] == notice['id'] for q in v['questions']), 'Same native question returns after reconnect')
     assert recovered['notices'] == [], 'Reconnect must not repeat the same question'

@@ -59,6 +59,10 @@ void run({state:values.state,task:values.task,launch:manifest.launch,userData:va
         value={socket:{ino:info.ino,pid},...await window.webContents.executeJavaScript(`(async()=>({sidebar:await window.a2a.sidebar(),selection:await window.a2a.selection()}))()`)};
         disconnectedSocket=null;
       }
+      else if(request.command==='offline-resize')value=await window.webContents.executeJavaScript(`(async()=>{
+        try{await window.a2a.resize(${JSON.stringify(request.pane)},120,40);return {rejected:false};}
+        catch(error){return {rejected:true,error:String(error)};}
+      })()`);
       else if(request.command==='reconnect-pane')value=await window.webContents.executeJavaScript(`(()=>{
         const pane=[...document.querySelectorAll('section.pane')].find(n=>n.dataset.paneKey===${JSON.stringify(request.pane)});
         if(!pane)throw new Error('Original pane binding missing');

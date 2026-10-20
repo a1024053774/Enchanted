@@ -90,7 +90,8 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     historical: { id: 'historical', thread: 'thread-old', role: 'worker', preset: null, attempt: 'attempt-old' },
     opening: { id: 'opening', thread: 'thread-opening', role: 'worker', preset: null, attempt: 'attempt-one' },
   };
-  async function request(state, input, identity) {
+  async function request(state, input, identity, nextSequence) {
+    if (nextSequence) input = { ...input, sequence: nextSequence() };
     const item = { command: input.command, input: structuredClone(input), window: identity?.window ?? null };
     requests.push(item);
     if (input.command === 'flow_snapshot') return { ok: true, lanes: [{task:'T-flow-sentinel', title:'随输入变化', stage:'review'}], unassigned:[{id:'orphan-sentinel'}] };
