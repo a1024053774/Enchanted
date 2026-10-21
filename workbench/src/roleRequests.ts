@@ -85,8 +85,13 @@ export class RoleRequests {
     // A grant nobody confirms in time is ended by an event, timed on this process's
     // monotonic clock rather than the wall clock.
     if (approved) setTimeout(() => {
-      const granted = this.all().find(row => row.id === roleRequest!.id);
-      if (granted?.state === "granted") this.store.event("role_request_ended", { role_request: granted.id, reason: "not_confirmed" }, { id: granted.launch, task: null });
+      try {
+        const granted = this.all().find(row => row.id === roleRequest!.id);
+        if (granted?.state === "granted") this.store.event("role_request_ended", { role_request: granted.id, reason: "not_confirmed" }, { id: granted.launch, task: null });
+      } catch (error) {
+        // Keep serving; the grant then stays without authority until its terminal closes.
+        console.error(JSON.stringify({ error: "role_request_expiry_failed", role_request: roleRequest!.id, reason: String(error) }));
+      }
     }, confirmWindowMs).unref();
     return this.all().find(row => row.id === roleRequest!.id)!;
   }

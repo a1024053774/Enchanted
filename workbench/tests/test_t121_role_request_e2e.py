@@ -42,7 +42,7 @@ def main():
     # Known-bad: a killed asker leaves its request approvable; the user's own ZDOTDIR is dropped.
     target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped', 'refusal-unrecorded', 'task-widens-scope',
                                                  'drafts-unowned', 'foreign-owned-save', 'approved-not-ended', 'grant-has-authority',
-                                                 'rivals-left-pending', 'expiry-unrecorded'])
+                                                 'rivals-left-pending', 'expiry-unrecorded', 'stale-notice'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t121-', dir='/private/tmp')).resolve()
@@ -114,6 +114,9 @@ def main():
         elif args.mutant == 'expiry-unrecorded':
             path = source / 'workbench/src/roleRequests.ts'
             old, new = 'if (granted?.state === "granted") this.store.event(', 'if (false) this.store.event('
+        elif args.mutant == 'stale-notice':
+            path = source / 'workbench/src/sidebar.ts'
+            old, new = ' &&\n    !current.some(later => later.launch === row.launch && Date.parse(later.requested_at) > Date.parse(row.requested_at)))', ')'
         elif args.mutant == 'refusal-unrecorded':
             path = source / 'workbench/src/daemon.ts'
             old, new = 'store.event("request_rejected", ', 'void ('
@@ -451,6 +454,7 @@ def main():
         unconfirmed = dict(answer=granted['role_request']['state'], role=request('terminal_whoami', terminal_b)['role'],
                            call=request('status', terminal_b, task='own-1').get('error'),
                            sidebar=[agent['id'] for agent in request('sidebar_snapshot')['agents'] if agent['id'] == b['launch']],
+                           shown_as_granted=[row['id'] for row in request('sidebar_snapshot').get('granted_role_requests') or []],
                            rival_pending=len(pending_of(d)), rival_decide=request('role_request_decide', operator,
                                role_request=pending_of(d)[0]['id'], approved=True).get('error') if pending_of(d) else 'rival_already_settled')
         time.sleep(16)
@@ -461,6 +465,7 @@ def main():
                            rival_still_pending=len(pending_of(d)))
         report['unconfirmed_grant'] = unconfirmed
         check('grant_needs_confirmation', unconfirmed == dict(answer='granted', role=None, call='approved_role_required', sidebar=[],
+              shown_as_granted=[first['id']],
               rival_pending=1, rival_decide='role_taken', expired=['not_confirmed'], late_confirm='request_not_granted',
               notice=[first['id']], rival_still_pending=1), unconfirmed)
         # The role is free again: b asks once more, d is granted and confirms; b's request is then settled.
@@ -469,6 +474,8 @@ def main():
         while not pending_of(b):
             assert time.monotonic() < deadline, 'b 的新申请没有出现'
             time.sleep(.2)
+        stale_notice = [row['id'] for row in request('sidebar_snapshot').get('unconfirmed_role_requests') or []]
+        check('void_notice_cleared_when_terminal_asks_again', stale_notice == [], stale_notice)
         [second] = pending_of(d)
         assert request('role_request_decide', operator, role_request=second['id'], approved=True)['ok']
         winner = answer(ask_d)

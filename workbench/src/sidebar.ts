@@ -192,10 +192,14 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       cli: row.cli, requested_at: row.requested_at, terminal_cwd: terminal?.worktree ?? null, terminal_opened_at: terminal?.created_at ?? null };
   };
   const pendingRequests = current.filter(row => row.state === 'pending').map(requestView);
-  // A grant whose asker never confirmed: tell the user their approval did not take effect.
-  const unconfirmed = current.filter(row => row.state === 'ended' && row.ended_reason === 'not_confirmed' &&
-    Date.now() - Date.parse(row.decided_at!) < 5 * 60_000).map(requestView);
-  return { projects, agents: treeAgents, role_requests: pendingRequests, unconfirmed_role_requests: unconfirmed, gaps: [
+  const grantedRequests = current.filter(row => row.state === 'granted').map(requestView);
+  // A grant that never took effect (not confirmed, or its asker left): tell the user, until
+  // that terminal asks again or five minutes pass.
+  const unconfirmed = current.filter(row => row.state === 'ended' && row.decided_at !== null &&
+    ['not_confirmed', 'asker_gone'].includes(row.ended_reason ?? '') && Date.now() - Date.parse(row.decided_at) < 5 * 60_000 &&
+    !current.some(later => later.launch === row.launch && Date.parse(later.requested_at) > Date.parse(row.requested_at)))
+    .map(row => ({ ...requestView(row), decided_at: row.decided_at }));
+  return { projects, agents: treeAgents, role_requests: pendingRequests, granted_role_requests: grantedRequests, unconfirmed_role_requests: unconfirmed, gaps: [
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
     '经角色申请成为主控的项目终端没有结构化回合信号，状态显示未知。',

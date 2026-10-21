@@ -1,7 +1,7 @@
 // Codex dark theme seed from Synara 49cae984f, apps/web/src/theme/theme.seed.generated.ts.
 // Copyright (c) 2026 T3 Tools Inc. and Emanuele Di Pietro. MIT; see ../LICENSE.synara.
 import { createRoot } from 'react-dom/client';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -43,7 +43,8 @@ type AgentItem = { id: string; project: string; task: string | null; attempt: st
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
   terminal_cwd: string | null; terminal_opened_at: string | null };
-type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; role_requests: RoleRequest[]; unconfirmed_role_requests: RoleRequest[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
+type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; role_requests: RoleRequest[]; granted_role_requests: RoleRequest[];
+  unconfirmed_role_requests: (RoleRequest & { decided_at: string })[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
 const glyphs: Record<string, ReactNode> = {
   running: <circle className="glyph-spin" cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="26 10" />,
   waiting_user_answer: <><circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" strokeWidth="1.6" /><circle cx="8" cy="8" r="2.8" fill="currentColor" /></>,
@@ -426,11 +427,12 @@ function Workbench() {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [agents, setAgents] = useState<AgentItem[]>([]);
   const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
-  const [unconfirmedRequests, setUnconfirmedRequests] = useState<RoleRequest[]>([]);
+  const [unconfirmedRequests, setUnconfirmedRequests] = useState<(RoleRequest & { decided_at: string })[]>([]);
+  const [grantedRequests, setGrantedRequests] = useState<RoleRequest[]>([]);
   // The list moving under the pointer must not turn a click into a decision on another request.
   const [requestsSettling, setRequestsSettling] = useState(false);
   const requestIds = roleRequests.map(roleRequest => roleRequest.id).join(',');
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!requestIds) return;
     setRequestsSettling(true);
     const timer = setTimeout(() => setRequestsSettling(false), 1000);
@@ -460,7 +462,7 @@ function Workbench() {
     try { localStorage.setItem(themeKey, theme); } catch { /* Per-viewer convenience only. */ }
   }, [theme]);
   const applySidebar = useCallback((value: Sidebar) => {
-    setProjects(value.projects); setAgents(value.agents); setRoleRequests(value.role_requests ?? []); setUnconfirmedRequests(value.unconfirmed_role_requests ?? []); setGaps(value.gaps); setNotifications(value.notifications);
+    setProjects(value.projects); setAgents(value.agents); setRoleRequests(value.role_requests ?? []); setUnconfirmedRequests(value.unconfirmed_role_requests ?? []); setGrantedRequests(value.granted_role_requests ?? []); setGaps(value.gaps); setNotifications(value.notifications);
     setDockBadges(value.dockBadges); setNotices(value.notices); setNow(Date.now());
   }, []);
   const [loading, setLoading] = useState(true);
@@ -747,9 +749,12 @@ function Workbench() {
           <span className="task-title">{item.title}</span><span className="task-meta">{gateNames[item.state] ?? item.state}</span>
         </button>)}
       </nav>}
-      {(roleRequests.length > 0 || unconfirmedRequests.length > 0) && <div className="role-requests" aria-label="角色申请">
+      {(roleRequests.length > 0 || unconfirmedRequests.length > 0 || grantedRequests.length > 0) && <div className="role-requests" aria-label="角色申请">
         {unconfirmedRequests.map(roleRequest => <div className="role-request" key={roleRequest.id} data-role-request-unconfirmed={roleRequest.id} role="status">
-          <p><strong>{roleRequest.project}</strong> 里批准的{roleRequest.role_label}没有生效：{roleRequest.cli ?? 'agent'} 在 15 秒内没有确认收到（可能已被中断）。需要时让它重新申请。</p>
+          <p><strong>{roleRequest.project}</strong> 里 {new Date(roleRequest.decided_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} 批准的{roleRequest.role_label}没有生效：{roleRequest.cli ?? 'agent'} 没有确认收到（可能已被中断）。需要时让它重新申请。</p>
+        </div>)}
+        {grantedRequests.map(roleRequest => <div className="role-request" key={roleRequest.id} data-role-request-granted={roleRequest.id} role="status">
+          <p><strong>{roleRequest.project}</strong> 的{roleRequest.role_label}已批准，等待 {roleRequest.cli ?? 'agent'} 确认（15 秒内不确认则作废，同角色的其他申请届时仍可批准）。</p>
         </div>)}
         {roleRequests.map((roleRequest, index) => {
           const key = Object.entries(launches).find(([, launch]) => launch === roleRequest.launch)?.[0];
