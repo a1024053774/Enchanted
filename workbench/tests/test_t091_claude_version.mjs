@@ -1,7 +1,9 @@
 // Actual builder and managed startup method, with IO boundaries supplied.
-// Failures: configured CLI rejected, absent executable hidden, version mismatch
-// accepted, repeated/missing probes, observed version lost, updater disabled.
+// Failures: configured CLI rejected, absent executable hidden, an updated CLI
+// refused (T-118: native CLIs update themselves, the version is only recorded),
+// repeated/missing probes, observed version lost, updater disabled.
 // No native CLI, daemon, PTY, Electron or model is started.
+// Run: node --experimental-vm-modules workbench/tests/test_t091_claude_version.mjs <new report path>
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -9,10 +11,12 @@ import { execFileSync } from 'node:child_process';
 import { stripTypeScriptTypes } from 'node:module';
 import * as path from 'node:path';
 import * as url from 'node:url';
+import * as executionSettings from '../src/executionSettings.ts';
 
 const sourceURL = new URL('../src/claudeLaunch.ts', import.meta.url);
 const panesURL = new URL('../src/panes.ts', import.meta.url);
-const revision = '5d096caa2d690fe172ba8487226e8b16cf95950a';
+// Parent of T-118, which still refused any version other than the configured one.
+const revision = process.env.T118_KNOWN_BAD ?? '3070bbe1a01c449c922d6d1c778594f7d7889827';
 const report = { status: 'INCOMPLETE', scope: 'Actual builder and managed startup method with supplied IO; no real CLI or startup proof', argv: process.argv };
 async function load(source, paneSource) {
   const probes = [];
@@ -26,6 +30,7 @@ async function load(source, paneSource) {
     const exports = specifier === 'node:fs' ? { realpathSync: value => value, readFileSync: () => Buffer.from('fixture role') }
       : specifier === 'node:path' ? path : specifier === 'node:url' ? url
       : specifier === './gates/core.ts' ? { Refusal }
+      : specifier === './executionSettings.ts' ? executionSettings
       : specifier === 'node:util' ? { promisify: fn => fn }
       : specifier === 'node:child_process' ? { execFile: async (...args) => {
         probes.push(args); if (failure) throw Object.assign(new Error('fixture exec failure'), { code: failure });
@@ -41,9 +46,9 @@ async function load(source, paneSource) {
   const start = code.search(/\n  (?:async )?startController\(/);
   const end = code.indexOf('\n  // T-078-1/#49', start);
   assert.ok(start >= 0 && end > start);
-  const Fixture = new Function('claudeLaunch', 'check', 'exec', 'Refusal', 'randomUUID', 'mkdirSync', 'dirname', 'join', 'appendFileSync', 'require', 'realpathSync',
-    'return class Fixture { root = "/private/tmp/t078-2-version-sentinel/state"; panes = new Map(); store = {launch() {}, event() {}};' + code.slice(start, end) + '}')(
-      module.namespace.claudeLaunch, (value, code) => { if (!value) throw new Refusal(code); },
+  const Fixture = new Function('factoryExecution', 'claudeLaunch', 'check', 'exec', 'Refusal', 'randomUUID', 'mkdirSync', 'dirname', 'join', 'appendFileSync', 'require', 'realpathSync',
+    'return class Fixture { root = "/private/tmp/t078-2-version-sentinel/state"; panes = new Map(); store = {launch() {}, event() {}, executionSelection: (role, value) => ({ ...this.factory[role], ...value })}; factory = factoryExecution;' + code.slice(start, end) + '}')(
+      executionSettings.factoryExecution, module.namespace.claudeLaunch, (value, code) => { if (!value) throw new Refusal(code); },
       async (...args) => { probes.push(args); if (failure) throw Object.assign(new Error('fixture exec failure'), { code: failure }); return { stdout: output, stderr: '' }; },
       Refusal, () => 'fixture-token', () => {}, path.dirname, path.join, () => {},
       () => ({ spawn: () => ({ pid: 91, onData() {}, onExit() {} }) }), value => value);
@@ -73,30 +78,30 @@ async function exercise(source, panes) {
   await assert.rejects(fixture.run, error => error.code === 'controller_executable_missing');
   fixture.fail('EACCES');
   await assert.rejects(fixture.run, error => error.code === 'controller_version_probe_failed');
-  fixture.fail(undefined); fixture.output('2.1.301 (Claude Code)\n');
-  await assert.rejects(fixture.run, error => error.code === 'controller_version_mismatch', 'Configured version mismatch must be rejected');
-  fixture.output('2.1.302 (Claude Code)\n'); fixture.input.version = '9.8.7';
-  await assert.rejects(fixture.run, error => error.code === 'controller_version_mismatch');
-  fixture.input.version = '2.1.302';
+  fixture.fail(undefined); fixture.output('2.1.399 (Claude Code)\n');
+  const updated = await fixture.run().catch(error => assert.fail('Updated CLI version must be accepted: ' + error.code));
+  assert.equal(updated.cli_version, '2.1.399 (Claude Code)', 'The observed, not the configured, version is recorded');
+  assert.equal(updated.version_probe.stdout, '2.1.399 (Claude Code)\n');
+  fixture.output('2.1.302 (Claude Code)\n');
   const concurrent = await fixture.concurrent();
   assert.equal(concurrent.filter(value => value.status === 'fulfilled').length, 1);
   assert.equal(concurrent.find(value => value.status === 'rejected').reason.code, 'controller_already_started');
   return ['configured_executable_and_single_probe', 'observed_version_persisted', 'missing_executable_code',
-    'probe_failure_code', 'mismatch_refused', 'configured_version_changes_expectation', 'updater_unchanged', 'concurrent_preset_claim_is_unique'];
+    'probe_failure_code', 'updated_version_accepted_and_recorded', 'updater_unchanged', 'concurrent_preset_claim_is_unique'];
 }
 try {
   try { await exercise(execFileSync('git', ['show', revision + ':workbench/src/claudeLaunch.ts'], { encoding: 'utf8' }),
     execFileSync('git', ['show', revision + ':workbench/src/panes.ts'], { encoding: 'utf8' })); }
-  catch (error) { report.known_bad = { revision, rejected: error.message === 'controller_launch_config_required', error: String(error) }; }
+  catch (error) { report.known_bad = { revision, rejected: error instanceof assert.AssertionError && error.message.includes('Updated CLI version must be accepted'), error: String(error) }; }
   assert.ok(report.known_bad?.rejected);
   const source = readFileSync(sourceURL, 'utf8');
   const panes = readFileSync(panesURL, 'utf8');
   report.checks = await exercise(source, panes);
-  const marker = 'if (version !== expectedVersion) throw new Refusal("controller_version_mismatch", { expected: expectedVersion, observed: version });';
-  assert.equal(panes.split(marker).length, 2, 'Exactly one production version check to remove');
-  try { await exercise(source, panes.replace(marker, '// MUTANT: omit version comparison.')); }
-  catch (error) { report.mutant = { rejected: error instanceof assert.AssertionError && error.message.includes('Configured version mismatch must be rejected'), error: String(error) }; }
-  assert.ok(report.mutant?.rejected, 'The removed version check must fail the mismatch assertion');
+  const marker = '      const version = probe.stdout.trim();\n';
+  assert.equal(panes.split(marker).length, 2, 'Exactly one place to reintroduce a version comparison');
+  try { await exercise(source, panes.replace(marker, marker + '      if (version !== expectedVersion) throw new Refusal("controller_version_mismatch");\n')); }
+  catch (error) { report.mutant = { rejected: error instanceof assert.AssertionError && error.message.includes('Updated CLI version must be accepted'), error: String(error) }; }
+  assert.ok(report.mutant?.rejected, 'A reintroduced version comparison must fail the update assertion');
   report.status = 'PASS';
 } catch (error) { report.error = String(error); }
 writeFileSync(process.argv[2], JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });

@@ -1,5 +1,6 @@
 // Real SQLite/native files; supplied subprocess and PTY boundaries only.
-// Failure list: lost open set/order; config drift; argv/version/session refusal;
+// Failure list: lost open set/order; config drift; argv/session refusal; an
+// updated CLI refused instead of restored with its new version recorded (T-118);
 // one failure aborting siblings; worker resumed or attempt mutated; closed pane
 // resurrected; success before process identity; history/queued prompts replayed.
 // Normal-login records (with or without native session) must fail before any
@@ -48,7 +49,7 @@ async function exercise(source, identity = 'legacy', observations) {
       else if (specifier === 'node:fs') {
         const real = await import('node:fs');
         exports = { ...real, realpathSync(path) {
-          if (['/fixture/claude', '/fixture/wrong-version', '/fixture/codex'].includes(path)) {
+          if (['/fixture/claude', '/fixture/updated', '/fixture/codex'].includes(path)) {
             operations.push({ kind: 'canonical', label: probing }); return canonical(path);
           }
           return real.realpathSync(path);
@@ -60,7 +61,7 @@ async function exercise(source, identity = 'legacy', observations) {
             probing = options.env.CLAUDE_CONFIG_DIR.split('/').at(-1); operations.push({ kind: 'version', label: probing });
           }
           if (executable === '/fixture/claude') callback(null, '2.1.304 (Claude Code)\n', '');
-          else if (executable === '/fixture/wrong-version') callback(null, '9.9.9 (Claude Code)\n', '');
+          else if (executable === '/fixture/updated') callback(null, '9.9.9 (Claude Code)\n', '');
           else if (executable === '/fixture/codex') callback(null, 'codex-cli 0.162.1\n', '');
           else if (executable === '/usr/bin/python3') {
             assert.deepEqual([...args.slice(0, 3)], ['-I', '-S', '-B']);
@@ -92,11 +93,11 @@ async function exercise(source, identity = 'legacy', observations) {
     const unknownLabels = ['unrecognized', 'unrecognized-no-revision', 'unrecognized-no-token', 'unrecognized-no-url',
       'unrecognized-auth', 'unrecognized-home', 'unrecognized-api-key', 'unrecognized-options', 'unrecognized-url-origin',
       'unrecognized-role', 'unrecognized-cli', 'unrecognized-preset', 'unrecognized-shell-missing', 'unrecognized-shell-command', 'unrecognized-shell-mismatched-argv'];
-    const labels = ['missing-argv', 'version-mismatch', 'ideation', 'missing-session', 'executor', 'worker',
+    const labels = ['missing-argv', 'updated-cli', 'ideation', 'missing-session', 'executor', 'worker',
       'fake-explicit', ...normalLabels, ...unknownLabels, 'closed'];
     for (const [position, label] of labels.entries()) {
       const session = randomUUID(), config = join(root, label), worker = label === 'worker';
-      const executable = worker ? '/fixture/codex' : label === 'version-mismatch' ? '/fixture/wrong-version' : '/fixture/claude';
+      const executable = worker ? '/fixture/codex' : label === 'updated-cli' ? '/fixture/updated' : '/fixture/claude';
       const argv = worker ? [executable, '--sandbox', 'workspace-write', '-m', 'sentinel-worker', '-c', 'service_tier="default"'] :
         [executable, '--session-id', session, '--model', 'sentinel-' + label, '--effort', 'low', '--settings', '{"hooks":{},"sentinel":"a b\\\"c"}'];
       const resume = worker ? [...argv, 'resume', session] : [executable, '--resume', ...argv.slice(2)];
@@ -180,11 +181,14 @@ async function exercise(source, identity = 'legacy', observations) {
       assert.equal(panes.panes.has(record.thread),false);assert.equal(store.lastEvent(record.id,['pane_restored']),null);
       assert.deepEqual(store.launchRecord(record.id),record,'Unrecognized launch history must remain immutable');
     }
-    const valid = identity === 'changed' ? ['executor','fake-explicit'] : ['ideation', 'executor','fake-explicit'];
+    const valid = identity === 'changed' ? ['updated-cli','executor','fake-explicit'] : ['updated-cli','ideation', 'executor','fake-explicit'];
     assert.equal(starts.length, valid.length, identity === 'changed' ? 'Changed executable identity must be refused before PTY spawn' : 'Exactly the valid controllers must resume despite failed siblings');
     for (const label of valid) {
       const record = records.find(r => r.id === 'launch-' + label);
       const event = store.lastEvent(record.id, ['pane_restored', 'pane_restore_failed']);
+      if (label === 'updated-cli') assert.equal(event.type, 'pane_restored', 'Updated CLI must restore: ' + JSON.stringify(event.data));
+      if (label === 'updated-cli') assert.equal(event.data.version_probe.stdout, '9.9.9 (Claude Code)\n', 'Restore records the observed CLI version');
+      if (label === 'updated-cli') assert.equal(panes.get(record.thread).record.cli_version, '9.9.9 (Claude Code)', 'Restored runtime shows the installed CLI version');
       assert.equal(event.type, 'pane_restored', 'Legacy recorded controller must restore with valid version/session/kernel identity: ' + JSON.stringify(event.data));
       assert.deepEqual(event.data.argv, expected.get(record.id), 'Every resume argv token must equal the independently specified input');
       const spawned = starts.find(start => start.args[3].includes(record.session));
@@ -198,7 +202,7 @@ async function exercise(source, identity = 'legacy', observations) {
       assert.equal(panes.status(record.thread).restoration.status, 'restored');
       assert.equal(panes.get(record.thread).attempt, null, 'Controller must not adopt the task worker attempt');
     }
-    for (const [label, code] of [['missing-argv', 'restore_argv_missing'], ['version-mismatch', 'restore_version_mismatch'], ['missing-session', 'restore_session_missing']]) {
+    for (const [label, code] of [['missing-argv', 'restore_argv_missing'], ['missing-session', 'restore_session_missing']]) {
       const record = records.find(r => r.id === 'launch-' + label);
       assert.equal(panes.status(record.thread).restoration.error, code);
       assert.equal(store.lastEvent(record.id, ['pane_restored']), null, 'A failed pane must not have a success receipt');
@@ -225,7 +229,7 @@ async function exercise(source, identity = 'legacy', observations) {
       observations.push({case:label,version_calls:ops.filter(row=>row.kind==='version').length,pty_calls:ops.filter(row=>row.kind==='spawn').length,
         event:event.type,error:event.data.error??null,history_unchanged:JSON.stringify(store.launchRecord(record.id))===JSON.stringify(record)});
     }
-    return [identity === 'changed' ? 'replacement_refused_sibling_restored' : 'legacy_pair_and_explicit_fake_resume', 'three_refusals_isolate_siblings', 'worker_unrestored_no_pty', 'attempt_unchanged',
+    return [identity === 'changed' ? 'replacement_refused_sibling_restored' : 'legacy_pair_and_explicit_fake_resume', 'refusals_isolate_siblings', 'updated_cli_restored_with_observed_version', 'worker_unrestored_no_pty', 'attempt_unchanged',
       'argv_every_field_equal', 'actual_pty_argv_every_field_equal', 'launch_immutable', 'saved_positions', 'explicit_close_excluded', 'zero_input_writes',
       'saved_empty_persists_in_sqlite', 'never_saved_and_native_only_distinct', 'layout_saved_state_scoped_to_task', 'runtime_canonical_identity', 'version_identity_spawn_order',
       'normal_login_zero_cli_or_pty', 'normal_login_unrestored_restart_hint', 'normal_login_history_immutable', 'normal_login_missing_session_also_refused',

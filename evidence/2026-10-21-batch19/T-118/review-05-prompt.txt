@@ -1,0 +1,5 @@
+你是新开的只读独立审查者。不要修改任何文件，不要提交。用中文回答。
+T-118 第五轮审查。第四轮报告 evidence/2026-10-21-batch19/T-118/review-04.log（NO_GO，1 条：关闭超过 10 秒时崩溃重载留下失效窗格）。当前完整改动 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/t118-05.diff。
+本轮改动：renderer 的 3 秒定时刷新在不忙时向主进程读取 selection，窗格集合不同就采用主进程的（根因修法：主进程拥有窗格集合）；恢复结束前等两个动画帧再显示（ui-test-09 出现过 1 个可见中间帧）。GUI 证据：evidence/2026-10-21-batch19/T-118/ui-green-11-run*.json（run1 是驱动提前停止采样，已改驱动），evidence/2026-10-21-batch19/T-118/ui-resync-red-ui-test-09.json（没有重新同步的构建，同一步骤失败）。
+请核对第四轮那条是否解决、本轮有无新问题（定时同步会不会覆盖用户正在进行的操作、与关闭回执竞争、焦点或缩放状态被打乱），以及整体候选是否还有 P1/P2 正确性缺陷。说明哪些边界只有代码检查。
+输出：结论 PASS / INCOMPLETE / NO_GO，按严重程度列发现（文件:行、失败场景）。

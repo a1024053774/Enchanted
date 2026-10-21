@@ -101,7 +101,7 @@ const activityNames: Record<string, string> = { unknown: '未知', idle: '空闲
 const lifecycleNames: Record<string, string> = { running: '运行中', interrupted: '已中断', unknown: '未知', ended: '已结束', not_started: '未启动' };
 const restoreErrors: Record<string, string> = {
   restore_managed_attempt_requires_reclaim: '受管 worker 未续接；请由执行主控按中断恢复流程回收后重新认领',
-  restore_argv_missing: '启动记录缺少完整参数', restore_version_mismatch: 'CLI 版本与启动记录不符',
+  restore_argv_missing: '启动记录缺少完整参数',
   restore_session_missing: '原生会话不存在',
 };
 
@@ -116,6 +116,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(true);
+  const [restoring, setRestoring] = useState(true);
   const [offset, setOffset] = useState(0);
   const [inputError, setInputError] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
@@ -150,7 +151,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
   useEffect(() => { onStatus(paneKey, { snapshot, error, connecting }); }, [paneKey, snapshot, error, connecting, onStatus]);
 
   useEffect(() => {
-    let mounted = true, running = false, cursor = 0, total = 0;
+    let mounted = true, running = false, cursor = 0, total = 0, hidden = true;
     let boundLaunch: string | null = null;
     let inputFailed = false, releasePending = false;
     let inputVersion = 0, pendingInput = 0;
@@ -218,6 +219,8 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
     async function read() {
       if (running || !mounted) return;
       running = true; setConnecting(true); setError(null);
+      // First attach and every reconnect replay their backlog hidden until the live end.
+      setRestoring(true); hidden = true;
       let nextSnapshot = 0;
       try {
         while (mounted) {
@@ -227,6 +230,8 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
             if (!mounted) break;
             if (value.pane_key !== paneKey) throw new Error('窗格路由改变，已停止读取');
             if (boundLaunch && value.launch?.id !== boundLaunch) throw new Error('窗格身份改变，已停止读取');
+            // A placeholder that gains its launch replays that launch's backlog hidden too.
+            if (value.launch && !boundLaunch) { setRestoring(true); hidden = true; }
             if (value.launch) boundLaunch = value.launch.id;
             term.options.disableStdin = inputFailed || !value.input_enabled;
             writable = value.input_enabled; resize();
@@ -239,7 +244,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
             setSnapshot(value); setConnecting(false);
             nextSnapshot = Date.now() + 1000;
           }
-          if (!boundLaunch) { await delay(); continue; }
+          if (!boundLaunch) { setRestoring(false); await delay(); continue; }
           const chunk = await window.a2a.output(paneKey, cursor);
           if (!mounted) break;
           const bytes = Uint8Array.from(atob(chunk.data_base64), (char) => char.charCodeAt(0));
@@ -251,11 +256,17 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
             cursor = chunk.next_offset;
             if (mounted) setOffset(cursor);
           }
-          if (cursor === total) await delay();
+          // Earlier output is replayed hidden; the pane shows once it reaches the live end.
+          if (cursor === total) {
+            // Reveal only after xterm has painted the caught-up screen, never its previous paint.
+            if (hidden) { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); hidden = false; }
+            if (mounted) setRestoring(false);
+            await delay();
+          }
         }
       } catch (failure) {
         term.options.disableStdin = true;
-        if (mounted) { setError(String(failure)); setConnecting(false); }
+        if (mounted) { setError(String(failure)); setConnecting(false); setRestoring(false); }
       } finally { running = false; }
     }
     reconnect.current = () => { void read(); };
@@ -347,7 +358,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
           <button disabled={acting || !draftName.trim()}>保存名称</button><button type="button" onClick={() => { setRenaming(false); menuButton.current?.focus(); }}>取消</button>
         </form>}
         <QuestionsPanel questions={snapshot?.questions ?? []} enabled={inputEnabled} send={(question, answers) => window.a2a.answer(paneKey, question, answers)} />
-        <div className="terminal-scroll" data-output-offset={offset}><div className="terminal-mount" ref={mount} /></div>
+        <div className="terminal-scroll" data-output-offset={offset} data-restoring={restoring}>{restoring && <div className="terminal-restoring" role="status">正在恢复终端内容…</div>}<div className="terminal-mount" ref={mount} /></div>
         <TerminalScrollToBottom terminal={terminal} />
         {!shell && <div className="pane-footer"><span>{pane?.interrupted ? '请自行保留、修改或清空草稿；看到输入框空了再声明放行。'
           : snapshot?.launch?.role === 'reviewer' ? '独立审查 · 只读' : snapshot?.launch?.role === 'worker' ? '在此窗格输入会记录为人工介入' : '在此窗格输入会记录为用户输入'}</span><span>执行：{lifecycleNames[pane?.lifecycle ?? 'unknown'] ?? '未知'}</span></div>}
@@ -443,6 +454,8 @@ function Workbench() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const busy = loading || navigating || creating;
+  const busyRef = useRef(busy); busyRef.current = busy;
+  const paneKeysRef = useRef(paneKeys); paneKeysRef.current = paneKeys;
   const applySelection = useCallback((value: Selection) => {
     setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); setStatuses({});
   }, []);
@@ -465,7 +478,20 @@ function Workbench() {
     const timer = setInterval(async () => {
       if (sidebarRead.current) return;
       sidebarRead.current = true;
-      try { const value = await window.a2a.sidebar(); if (mounted) { applySidebar(value); setCatalogError(null); } }
+      try {
+        const value = await window.a2a.sidebar(); if (mounted) { applySidebar(value); setCatalogError(null); }
+        // The main process owns the pane set. A change this renderer never saw the reply
+        // for (e.g. a close that finished after a crash reload) is picked up here.
+        if (!busyRef.current) {
+          const current = await window.a2a.selection();
+          if (mounted && !busyRef.current && current.paneKeys.join('\0') !== paneKeysRef.current.join('\0')) {
+            const live = new Set(current.paneKeys);
+            setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
+            setZoom(key => key !== null && live.has(key) ? key : null);
+            setStatuses(rows => Object.fromEntries(Object.entries(rows).filter(([key]) => live.has(key))));
+          }
+        }
+      }
       catch (error) { if (mounted) { setNotices([]); setCatalogError('侧栏状态未知：' + String(error)); setAgents(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知' }))); setProjects(rows => rows.map(row => ({ ...row, state: 'unknown', state_label: '未知', git: { branch: null, upstream: null, ahead: null, behind: null, error: '读取未确认' } }))); } }
       finally { sidebarRead.current = false; }
     }, 3000);

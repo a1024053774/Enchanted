@@ -107,6 +107,15 @@ type Pane = {
   shellChildren?: number[];
 };
 
+
+// Runtime variables a running Claude Code or Codex session sets for its own child
+// processes (observed in their shells, 2026-10-21). Inherited by a user's terminal,
+// they make a CLI started there act as a child session (Claude stops saving it).
+// User configuration such as CLAUDE_CODE_OAUTH_TOKEN or CLAUDE_CODE_USE_BEDROCK is kept.
+const agentSessionMarkers = new Set(["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_CHILD_SESSION",
+  "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_PLUGIN_DIRS",
+  "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN", "CLAUDE_CODE_SSE_PORT", "CLAUDE_PID", "CLAUDE_EFFORT",
+  "CODEX_THREAD_ID", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED"]);
 export class Panes implements GateRuntime {
   // Bound by the authenticated controller request, isolated across awaits.
   // This is ancestry metadata only; gate authority still uses SubmitCaller.
@@ -127,7 +136,7 @@ export class Panes implements GateRuntime {
     const worktree = realpathSync(cwd), launch = randomUUID(), thread = randomUUID();
     const environment = { ...process.env };
     for (const key of Object.keys(environment)) {
-      if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_") || key === "CODEX_THREAD_ID") delete environment[key];
+      if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_") || agentSessionMarkers.has(key)) delete environment[key];
     }
     if (project !== null) environment.A2A_PROJECT = project;
     const record = { id: launch, project, task: null, attempt: null, session: null, fence: null,
@@ -196,7 +205,6 @@ export class Panes implements GateRuntime {
           { executable: input.executable, expected: expectedVersion, cause: failure.code, message: failure.message });
       }
       const version = probe.stdout.trim();
-      if (version !== expectedVersion) throw new Refusal("controller_version_mismatch", { expected: expectedVersion, observed: version });
       // Keep the actual argv (which may use a valid alias), but bind the live
       // identity to the canonical executable now, before starting the PTY.
       record.executable_path = realpathSync(input.executable);
@@ -375,16 +383,15 @@ export class Panes implements GateRuntime {
         const task = taskRow && JSON.parse(String(taskRow.data));
         check(task && task.project_id === record.project && task.spec_rev === record.spec_rev, "restore_task_stale");
         check(typeof record.cli_version === "string" && record.cli_version !== "unknown", "restore_version_missing");
+        // Native CLIs update themselves; the restored runtime records its own probe.
         const probe = await exec(argv[0]!, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
-        check(probe.stdout.trim() === record.cli_version, "restore_version_mismatch", {
-          expected: record.cli_version, observed: probe.stdout.trim() });
         const nativeFile = nativeSessionFile(record, opened.native_session!);
         check(record.shell === "/bin/zsh" && record.env && isAbsolute(record.worktree), "restore_launch_invalid");
         const executablePath = realpathSync(argv[0]!);
         check(record.executable_path === undefined || record.executable_path === executablePath, "restore_executable_changed");
         // Legacy launch history is immutable. Bind this restored runtime only,
-        // after the original version/session checks and before creating a PTY.
-        const runtimeRecord = { ...record, executable_path: executablePath };
+        // after the session checks and before creating a PTY; it carries the CLI version now installed.
+        const runtimeRecord = { ...record, executable_path: executablePath, cli_version: probe.stdout.trim() };
         const token = randomUUID();
         const trace = join(this.root, "traces", record.id, "pty.raw");
         check(existsSync(trace), "trace_unavailable");
@@ -500,8 +507,8 @@ export class Panes implements GateRuntime {
       if (process.env[key]) environment[key] = process.env[key]!;
     }
     environment.CODEX_HOME = home;
+    // Record the installed version; native CLIs are expected to update (user decision 2026-10-21).
     const version = (await exec(codex, ["--version"], { env: environment })).stdout.trim();
-    check(version === "codex-cli 0.162.1", "codex_version_mismatch", { version });
     const helper = spawnHelper();
     const launch = randomUUID(), token = randomUUID();
     const requestDirectory = realpathSync(mkdtempSync("/tmp/a2a-requests-"));

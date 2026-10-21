@@ -79,12 +79,14 @@ try {
   report.checks.push('worker_selected_argv', 'reviewer_own_selection', 'reviewer_candidate_copy_sandbox_unchanged', 'reviewer_no_worker_git_hooks');
   // Unsupported values must cross a2a unchanged; only native startup may reject.
   const failingCLI = join(root, 'failing-cli');
-  writeFileSync(failingCLI, '#!/bin/zsh\nif [[ $1 == --version ]]; then print "codex-cli 0.162.1"; exit 0; fi\nprint -u2 "native startup sentinel"\nexit 23\n');
+  writeFileSync(failingCLI, '#!/bin/zsh\nif [[ $1 == --version ]]; then print "codex-cli 0.163.0"; exit 0; fi\nprint -u2 "native startup sentinel"\nexit 23\n');
   chmodSync(failingCLI, 0o755);
   const other = new Panes(root, store, { ...config, codex_bin: failingCLI }, () => {});
   await other.createThread(task, { ...attempt, thread_id: 'invalid-effort' }, { effort: 'unsupported-sentinel' });
   const invalid = store.threadLaunch('invalid-effort');
   assert.ok(invalid.argv.includes('model_reasoning_effort="unsupported-sentinel"'));
+  // T-118: a newer native CLI is launched and its own version recorded, never refused.
+  assert.equal(invalid.cli_version, 'codex-cli 0.163.0');
   // Execute the exact recorded zsh command with a private CLI that exits 23.
   // Closing stdin also makes a broken fallback shell exit 0 instead of hang.
   let nativeExit = 0;
@@ -96,7 +98,7 @@ try {
   terminals.at(-1).exit({ exitCode: nativeExit });
   assert.ok(store.read().some(row => row.launch === invalid.id && row.type === 'launch_failed'));
   assert.match(other.get('invalid-effort').failed, /launch_failed/);
-  report.checks.push('unsupported_effort_not_coerced', 'native_startup_failure_recorded');
+  report.checks.push('updated_codex_version_recorded', 'unsupported_effort_not_coerced', 'native_startup_failure_recorded');
   report.status = 'PASS';
 } catch (error) { report.error = String(error); report.stack = error.stack; }
 finally {

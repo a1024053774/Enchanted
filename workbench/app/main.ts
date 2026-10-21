@@ -601,6 +601,25 @@ export async function run(options: Options) {
     })();
   });
   window.on('closed', () => { windows.delete(senderId); updateDockBadge(); });
+  // A renderer killed from outside (e.g. SIGTERM to its process group) leaves an
+  // empty window; the panes live in the daemon, so a reload reattaches them.
+  // One reload per crash; a renderer that dies again within 10s of a reload is left
+  // as is (logged) rather than reloaded in a loop.
+  let reloadedAt = 0;
+  window.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Renderer gone:', details.reason, details.exitCode);
+    if (Date.now() - reloadedAt < 10000) { console.error('Renderer gone again right after a reload; not reloading'); return; }
+    void (async () => {
+      // Let a pending project switch, terminal creation or pane close settle so the new renderer reads the final pane set.
+      await Promise.allSettled([context.switching, context.creating]);
+      // A failed close can leave its flag set; reload after 10s rather than stay blank.
+      for (const deadline = Date.now() + 10000; Date.now() < deadline && [...context.panes.values()].some(pane => pane.closing);)
+        await new Promise(resolve => setTimeout(resolve, 100));
+      if (context.closing || context.closed || window.isDestroyed()) return;
+      reloadedAt = Date.now();
+      window.webContents.reload();
+    })();
+  });
   await window.loadFile(join(directory, 'renderer/index.html'));
   return window;
 }

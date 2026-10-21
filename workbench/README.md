@@ -18,10 +18,10 @@ T-096 恢复已合入 main；57c3bfb63 的七场原生恢复回归曾通过。�
 保存的窗格集，并沿用位置。只有从未保存过布局才选择当前窗格；明确关闭最后一格后，
 保存集为空，重开仍显示空视图。后台只自动恢复假 API 的主控窗格：按原启动记录构造完整续接 argv，
 Claude 仅把 `--session-id` 换为 `--resume`；其余参数与隔离假 API 环境取原记录。
-恢复在原版本／session 核对之后、PTY 启动之前建立规范 executable_path；旧历史记录不变，只给运行时副本补齐。已有规范身份与当前目标不同则拒绝，不改变 argv 或硬设 leader。
+恢复在 session 核对之后、PTY 启动之前建立规范 executable_path，并记下当前安装的 CLI 版本（不与原版本比较，T-118）；旧历史记录不变，只给运行时副本补齐。已有规范身份与当前目标不同则拒绝，不改变 argv 或硬设 leader。
 已知限制：正常登录的主控记录不自动续接。recover 在任何 CLI 命令前检查现存正常登录标记，不只依赖 authentication；任一正常登录标记存在即保留为“未恢复”，返回 `normal_login_restore_requires_protected_start`。请经正常登录入口重新启动；不执行版本命令、不启动 PTY、不读 auth。
 仅当 P1 角色版本、公开假 token、规范 loopback base URL、隔离目录及既有假 API shell 启动形式与完整原 argv 的逐字对应同时匹配，且没有正常登录标记时才进入原恢复核对。正常登录以 exec 开头的启动形式也属于拒绝标记；shell 字段缺失或不属于既有假 API 形式的记录归为无法识别。合法旧记录可省略 authentication；无法正面识别的记录返回 `restore_record_unrecognized`，不猜测配置或执行 CLI。状态接口保留明确错误及正常登录的中文重启提示，现有界面显示“未恢复”与错误码。完整重建 R/F/D/C 生命周期另票处理，见 [请求 20](../evidence/2026-10-16-batch16/T-093/REVIEW-REQUEST-T093-20.md)。
-缺 argv、版本不符、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
+缺 argv、原生会话文件不存在时保留该窗格并显示“未恢复”，其余窗格继续恢复。
 恢复不发送提示词或放行旧队列。按 T-096 的 2026-10-18 裁定 B，worker 窗格保留并显示
 “未恢复”，不启动 CLI、不重绑定、不改变 attempt；后续由执行主控按中断恢复流程处理。
 真实 Electron／daemon／CLI 验证入口与已知限制见
@@ -527,12 +527,12 @@ permissions；认证环境另待用户决定，不能把凭据放入 settings。
 “未启动”，明确标记“待真实 Claude 复核”。静态构造／存储的通过不替代真实启动验证。
 
 受控假 API 主控的实际入口为 `controller_start --task ID --manifest /绝对路径/manifest.json`。
-现有 manifest 的 `executable` 为明确的 CLI 绝对路径，`version` 为预期版本（例如 `2.1.302`）。
-后台在该角色的隔离环境中执行一次 `--version`，要求完整输出为 `<version> (Claude Code)`，
-通过后才登记启动记录并启动 PTY。记录保留实际版本和探测的 argv／stdout／stderr。
-路径不存在返回 `controller_executable_missing`，探测失败返回 `controller_version_probe_failed`，
-版本不符返回 `controller_version_mismatch`；不自动查找或改用其他版本，不修改全局设置，
-不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的 2.1.302 启动与版本反例已由
+现有 manifest 的 `executable` 为明确的 CLI 绝对路径，`version` 为配置时的版本（例如 `2.1.302`），只作记录。
+后台在该角色的隔离环境中执行一次 `--version`，记下实际输出后登记启动记录并启动 PTY；
+记录保留实际版本和探测的 argv／stdout／stderr。版本不同不拒绝（2026-10-21 用户裁定：
+原生 CLI 会自行更新，不限制版本，T-118）；Codex worker 与恢复同样只记录、不比较版本。
+路径不存在返回 `controller_executable_missing`，探测失败返回 `controller_version_probe_failed`；
+不自动查找或改用其他可执行文件，不修改全局设置，不关闭自动更新。静态配置构造仍不启动 CLI；T-091 的 2.1.302 启动与版本反例已由
 green-02 取得真实 PASS，证据仅绑定其冻结候选，见下方结果记录。
 
 ## 正常登录 profile（T-093）
@@ -602,7 +602,7 @@ R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没�
 默认假 API profile 的合同保持原样。
 
 隔离配置只新建 `hasCompletedOnboarding: true` 和当前规范工作区的
-`projects[路径].hasTrustDialogAccepted: true`。它们是版本敏感的内部状态，换版本须用无模型探针重新核对。T-108 不再按发行号锁定版本；启动时在受保护环境再次读取并核对 manifest 中本次观测值，记录实际 cli_version 与 internal_state_version。当前 2.1.304 的外部探针仍待运行，不能把局部合同通过当作内部状态已确认。
+`projects[路径].hasTrustDialogAccepted: true`。它们是版本敏感的内部状态，换版本须用无模型探针重新核对。T-108 不再按发行号锁定版本；T-118 起启动时只在受保护环境读取实际版本，不与 manifest 比较；事实记录实际 cli_version、manifest 的 configured_cli_version 与 internal_state_version。当前 2.1.304 的外部探针仍待运行，不能把局部合同通过当作内部状态已确认。
 onboarding 预检会直连 api.anthropic.com/api/hello 与 platform.claude.com/v1/oauth/hello，
 不经过 BASE_URL；正常模式必须用上述状态避免触发。事实记录生成状态是否完整，并用终端和
 私有 debug 日志分类 `onboarding.preflight_observed`；沉默的被拒连接尝试未测量，不冒称已统计。

@@ -418,7 +418,9 @@ export async function serve(
       const pane = record ? panes.status(record.thread) : null;
       const launch = record ? { id: record.id, project: record.project, task: record.task, attempt: record.attempt,
         session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,
-        role: record.role, preset: record.preset ?? null, cli_version: record.cli_version, model_requested: record.model_requested,
+        role: record.role, preset: record.preset ?? null,
+        // A restored pane runs the CLI installed now; history keeps the launch-time version.
+        cli_version: panes.panes.get(record.thread)?.record.cli_version ?? record.cli_version, model_requested: record.model_requested,
         effort_requested: record.effort_requested, created_at: record.created_at } : null;
       return { ok: true, daemon, recovering, task: result.task, launch, pane,
         questions: record ? panes.questions(record.id) : [], user_input_observer: result.user_input_observer };

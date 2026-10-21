@@ -101,7 +101,9 @@ finally:
    report['login_facts']=facts
    assert facts['counts']['counts_match'] and facts['auth_original_reads']==1 and facts['isolated_home_removed'] and facts['credential_scan']['hits']==0
    assert facts['onboarding']['state_intact'] and not facts['onboarding']['preflight_observed']
-   assert facts['cli_version']==manifest['version'] and facts['onboarding']['internal_state_version']==manifest['version']
+   # T-118: the audit carries the installed CLI's own --version output; the manifest value is only the configured one.
+   observed=subprocess.run([manifest['executable'],'--version'],capture_output=True,text=True,timeout=10).stdout.strip()
+   assert facts['cli_version']==observed and facts['configured_cli_version']==manifest['version'] and facts['onboarding']['internal_state_version']==manifest['version']
    for role in ['F','D']:
     pid=facts['processes'][role]['pid'];until(lambda:observe(pid) is None,'Login helper exit '+role,10)
   except Exception as error:report['status']='INCOMPLETE';report['facts_or_cleanup_error']=str(error)

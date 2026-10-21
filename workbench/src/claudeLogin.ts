@@ -80,7 +80,6 @@ export class ClaudeLogin {
     const version = exec(this.#input.executable, ["--version"], { env: this.#env, cwd: s.repo, timeout: 10000, maxBuffer: 65536 });
     recordLoginProcess("version", (version as any).child.pid);
     const checked = await version;
-    if (checked.stdout.trim() !== `${this.#input.version} (Claude Code)`) throw new Refusal("controller_version_mismatch");
     this.versionProbe = { argv: [this.#input.executable, "--version"], stdout: checked.stdout, stderr: "" };
     const status = exec(this.#input.executable, ["auth", "status", "--json"], { env: this.#env, cwd: s.repo, timeout: 10000, maxBuffer: 65536 });
     recordLoginProcess("auth status", (status as any).child.pid);
@@ -153,7 +152,7 @@ export class ClaudeLogin {
         network_boundary: { os_host_filter: false, os_remote_ports: [s.upstream_port], application_host_lock: true },
         session: this.#input.session, thread: this.#input.thread, preset: this.#input.preset,
         code_revision: this.#input.code_revision, source_snapshot: this.#input.source_snapshot,
-        spec_rev: (record as Record<string, unknown>).spec_rev, cli_version: this.#input.version, ledger, counts,
+        spec_rev: (record as Record<string, unknown>).spec_rev, cli_version: this.versionProbe?.stdout.trim() ?? null, configured_cli_version: this.#input.version, ledger, counts,
         forwarder: { received: this.#closed.received, forwarded: this.#closed.forwarded, journal_failure: this.#closed.journal_failure },
         launch_home_references: homeReferences(record, this.realHome),
         inventory: { pass_condition: false, acceptance_basis: "User decision A; main c06a73179 T-093 decision section", collection_complete: metadata.collection_complete,
