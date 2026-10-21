@@ -94,3 +94,10 @@ PY
 
 原始大文件和逐次日志保留在 `/private/tmp/t115-repeat-01`；只把失败摘要、完整时间线和最终
 命令/环境摘要带入仓库，不复制 fixtures。
+
+## 地图状态
+
+`project_map.py status --root .` 当前报 8 个问题，均为该稀疏 worktree 已存在的未检出链接
+（`findings/*` 与 `.grilling/a2a-gui-client.md`）；stale living docs 为 0。T-115 仍在 frontier。
+本节不把这些已知稀疏缺口写成 0 问题，票面的最终 0 问题门禁仍需在完整 checkout 或 T-115
+后续执行完成后核对。
