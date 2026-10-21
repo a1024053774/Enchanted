@@ -3,19 +3,19 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync,
 import { basename, isAbsolute, join } from "node:path";
 import { A2AGates, Refusal } from "./gates/core.ts";
 import { A2AGateRequest } from "./contracts/a2aGates.ts";
-
-type Asker = { gone?: () => void };
 import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
 import { RequestRelay, isPendingInboxResult } from "./relay.ts";
 import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
+
+type Asker = { gone?: () => void };
 import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
 import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
-import { RoleRequests, type RoleRequest } from './roleRequests.ts';
+import { RoleRequests, confirmWindowMs, type RoleRequest } from './roleRequests.ts';
 import { executionRole, executionOverrides } from './executionSettings.ts';
 
 // Window payloads can contain shell passwords, even when identity/validation
@@ -194,23 +194,29 @@ export async function serve(
       const requested = roleRequests.request(terminal, input.role, input.cli);
       const state = () => roleRequests.all().find(row => row.id === requested.id)!;
       // The connection closing (any signal, including SIGKILL) settles the request at
-      // once: a pending one is withdrawn, and an approval the asker never received ends.
+      // once: a pending one is withdrawn, and a grant the asker never received ends.
       asker.gone = () => {
         const current = state();
         if (current.state === "pending") roleRequests.withdraw(terminal.id, requested.id, "asker_gone");
-        else if (current.state === "approved") roleRequests.end(terminal.id, "asker_gone");
+        else if (current.state === "granted") roleRequests.end(terminal.id, "asker_gone");
       };
       try {
         const deadline = Date.now() + input.wait_seconds * 1000;
         for (;;) {
           const current = state();
-          if (current.state === "approved") return { ok: true, role_request: current };
+          // The asker confirms with role_request_confirm; until then the grant has no authority.
+          if (current.state === "granted") return { ok: true, role_request: current, confirm_within_ms: confirmWindowMs };
           if (current.state !== "pending") return { ok: false, error: current.ended_reason ?? "request_" + current.state, role_request: current };
           const reason = stopping ? "daemon_stopping" : Date.now() >= deadline ? "request_wait_timeout" : null;
           if (reason) return { ok: false, error: reason, role_request: roleRequests.withdraw(terminal.id, requested.id, reason) };
           await new Promise(resolve => setTimeout(resolve, 200));
         }
       } finally { asker.gone = undefined; }
+    }
+    if (input.command === "role_request_confirm") {
+      const confirmed = roleRequests.confirm(terminal.id, input.role_request);
+      if (!confirmed) throw new Refusal("request_not_granted");
+      return { ok: true, role_request: confirmed };
     }
     if (input.command === "role_release") {
       const ended = roleRequests.end(terminal.id, "released");
@@ -644,7 +650,14 @@ export async function serve(
     let buffer = "", handled = false;
     // A role request waits on its connection; the asker going away settles it.
     const asker: Asker = {};
-    connection.once("close", () => { asker.gone?.(); });
+    connection.once("close", () => {
+      // Same handling as a request whose event write fails: record it, keep serving.
+      try { asker.gone?.(); }
+      catch (error) {
+        gates.setUserInputObserverStatus("failed", { reason: String(error) });
+        console.error(JSON.stringify({ error: "role_request_settle_failed", reason: String(error) }));
+      }
+    });
     connection.on("error", (error) => {
       store.event("client_connection_error", { error: String(error) });
     });

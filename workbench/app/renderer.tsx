@@ -737,11 +737,15 @@ function Workbench() {
         </button>)}
       </nav>}
       {roleRequests.length > 0 && <div className="role-requests" aria-label="角色申请">
-        {roleRequests.map(roleRequest => {
+        {roleRequests.map((roleRequest, index) => {
           const key = Object.entries(launches).find(([, launch]) => launch === roleRequest.launch)?.[0];
+          const rivals = roleRequests.filter(other => other.id !== roleRequest.id && other.project === roleRequest.project && other.role === roleRequest.role).length;
+          const place = key ? (names[key] ? `终端「${names[key]}」` : `第 ${paneKeys.indexOf(key) + 1} 个窗格`) : '一个终端';
           return <div className="role-request" key={roleRequest.id} data-role-request={roleRequest.id} role="alert">
-            <p><strong>{roleRequest.project}</strong> 的{key && names[key] ? `终端「${names[key]}」` : '一个终端'}里的 {roleRequest.cli ?? 'agent'} 申请成为<strong>{roleRequest.role_label}</strong>
-              {!key && <span className="role-request-hint">（这个终端不在当前视图）</span>}</p>
+            <span className="role-request-number" aria-label={`申请 ${index + 1}`}>{index + 1}</span>
+            <p><strong>{roleRequest.project}</strong> 的{place}里的 {roleRequest.cli ?? 'agent'} 申请成为<strong>{roleRequest.role_label}</strong>
+              {!key && <span className="role-request-hint">（这个终端不在当前视图）</span>}
+              {rivals > 0 && <span className="role-request-hint">。同一角色另有 {rivals} 个申请，批准其中一个，其余自动拒绝</span>}</p>
             <button className="text-button" disabled={deciding !== null} onClick={() => void decideRoleRequest(roleRequest, false)}>拒绝</button>
             <button className="primary-button" disabled={deciding !== null} onClick={() => void decideRoleRequest(roleRequest, true)}>批准</button>
           </div>;
@@ -755,6 +759,8 @@ function Workbench() {
           const rect = zoom === key ? { x: 0, y: 0, w: 100, h: 100 } : paneRects(layout)[key] ?? { x: 0, y: 0, w: 100, h: 100 };
           return <div className="pane-slot" key={key} hidden={Boolean(zoom && zoom !== key)} data-role-request-pending={roleRequests.some(roleRequest => roleRequest.launch === launches[key]) || undefined} data-edge-right={rect.x + rect.w < 99.9} data-edge-bottom={rect.y + rect.h < 99.9}
             style={{ left: rect.x + '%', top: rect.y + '%', width: rect.w + '%', height: rect.h + '%' }}>
+            {roleRequests.map((roleRequest, index) => roleRequest.launch === launches[key] &&
+              <span className="role-request-tag" key={roleRequest.id}>申请 {index + 1} · {roleRequest.role_label}</span>)}
             <SessionPane paneKey={key} name={names[key]} home={home} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
               onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
           </div>;

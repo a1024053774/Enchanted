@@ -61,6 +61,9 @@ try {
     if (!approved && await evaluate(`!!document.querySelector('.role-request')`)) {
       log.banner_text = await evaluate(`document.querySelector('.role-request p').innerText`);
       log.banner_pane_highlighted = await evaluate(`!!document.querySelector('.pane-slot[data-role-request-pending="true"]')`);
+      log.banner_number = await evaluate(`document.querySelector('.role-request-number')?.innerText ?? null`);
+      log.pane_tag = await evaluate(`document.querySelector('.pane-slot[data-role-request-pending="true"] .role-request-tag')?.innerText ?? null`);
+      if (log.pane_tag !== `申请 ${log.banner_number} · 执行主控`) log.failures.push('pane tag does not match the banner number');
       await shot('04-roleRequest-banner');
       await evaluate(`[...document.querySelectorAll('.role-request button')].find(b=>b.textContent.trim()==='批准').click()`);
       approved = true; act('clicked 批准'); log.checks.push('role_request_banner_shown');

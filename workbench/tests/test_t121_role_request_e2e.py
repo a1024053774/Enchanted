@@ -41,7 +41,8 @@ def main():
     # Known-bad: history follows macOS /etc/zshrc into Enchanted's ZDOTDIR.
     # Known-bad: a killed asker leaves its request approvable; the user's own ZDOTDIR is dropped.
     target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped', 'refusal-unrecorded', 'task-widens-scope',
-                                                 'drafts-unowned'])
+                                                 'drafts-unowned', 'foreign-owned-save', 'approved-not-ended', 'grant-has-authority',
+                                                 'rivals-left-pending'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t121-', dir='/private/tmp')).resolve()
@@ -88,15 +89,28 @@ def main():
             old, new = '[[ $HISTFILE == $A2A_TERMINAL_ZDOTDIR/.zsh_history ]] && HISTFILE=$ZDOTDIR/.zsh_history\n', ''
         elif args.mutant == 'no-withdraw':
             path = source / 'workbench/src/daemon.ts'
-            old, new = 'connection.once("close", () => { asker.gone?.(); });', ''
+            old, new = 'try { asker.gone?.(); }', 'try { }'
         elif args.mutant == 'task-widens-scope':
             # The first candidate's rule: any command with a task of this project passes.
             path = source / 'workbench/src/daemon.ts'
             old, new = '} else if (taskCommands.has(input.command)) {', '} else if (input.task !== undefined) {'
         elif args.mutant == 'drafts-unowned':
-            # The second candidate's rule: any not-yet-created task id is open to card_* and create.
+            # Drop the ownership check of card_show and create (card_save keeps its own checks).
             path = source / 'workbench/src/daemon.ts'
             old, new = 'if (draftOwner(input.task) !== roleRequest.project) throw new Refusal("card_draft_not_owned");', ''
+        elif args.mutant == 'foreign-owned-save':
+            path = source / 'workbench/src/daemon.ts'
+            old, new = 'if (owner !== undefined && owner !== roleRequest.project) throw new Refusal("card_draft_not_owned");', ''
+        elif args.mutant == 'approved-not-ended':
+            path = source / 'workbench/src/daemon.ts'
+            old, new = 'else if (current.state === "granted") roleRequests.end(terminal.id, "asker_gone");', ''
+        elif args.mutant == 'grant-has-authority':
+            path = source / 'workbench/src/roleRequests.ts'
+            old, new = 'return roleRequest?.state === "approved" ? roleRequest : undefined;', \
+                'return roleRequest?.state === "approved" || roleRequest?.state === "granted" ? roleRequest : undefined;'
+        elif args.mutant == 'rivals-left-pending':
+            path = source / 'workbench/src/roleRequests.ts'
+            old, new = 'this.store.event("role_request_decided", { role_request: other.id, approved: false, reason: "role_given_to_other" }', 'void ({ role_request: other.id }'
         elif args.mutant == 'refusal-unrecorded':
             path = source / 'workbench/src/daemon.ts'
             old, new = 'store.event("request_rejected", ', 'void ('
@@ -141,9 +155,9 @@ def main():
 
     terminals = {}
 
-    def open_terminal(name):
-        launch = run_cli('shell_start', '--project', 'proj', '--cwd', str(cwd))['launch']
-        opened = request('window_open', operator, launch=launch['id'], project='proj')
+    def open_terminal(name, project='proj', directory=None):
+        launch = run_cli('shell_start', '--project', project, '--cwd', str(directory or cwd))['launch']
+        opened = request('window_open', operator, launch=launch['id'], project=project)
         assert opened['ok'], opened
         terminals[name] = dict(launch=launch['id'], identity=opened['identity'], sequence=0)
         return terminals[name]
@@ -163,6 +177,22 @@ def main():
 
     def result_file(name):
         return json.loads((out / name).read_text(encoding='utf-8'))
+
+    def ask(identity, role):
+        asker = socket.socket(socket.AF_UNIX)
+        asker.connect(str(state / 'control.sock'))
+        asker.sendall((json.dumps(dict(id=str(uuid.uuid4()), input=dict(command='role_request', role=role, wait_seconds=60),
+                                       identity=identity)) + '\n').encode())
+        return asker
+
+    def answer(asker):
+        response = b''
+        while b'\n' not in response:
+            part = asker.recv(65536)
+            assert part, '申请连接在回执前断开'
+            response += part
+        asker.close()
+        return json.loads(response.split(b'\n', 1)[0])
 
     def wait_pending(project_role, timeout=20):
         deadline = time.monotonic() + timeout
@@ -220,7 +250,7 @@ def main():
         by_terminal = request('role_request_decide', dict(kind='terminal', launch=a['launch'], token=token_a), role_request=pending['id'], approved=True)
         check('pending_terminal_cannot_decide', by_terminal.get('error') == 'approved_role_required', by_terminal)
         decided = request('role_request_decide', operator, role_request=pending['id'], approved=True)
-        assert decided['ok'] and decided['role_request']['state'] == 'approved', decided
+        assert decided['ok'] and decided['role_request']['state'] == 'granted', decided
         deadline = time.monotonic() + 15
         while not (out / 'a-request.exit').exists():
             assert time.monotonic() < deadline, 'a2a request 没有在批准后返回'
@@ -301,6 +331,21 @@ def main():
         check('other_project_draft_refused', drafts == dict(card_show='card_draft_not_owned', card_save_next='card_draft_not_owned',
               card_save_first='card_version_conflict', create='card_draft_not_owned') and
               request('create', operator, task='other-2', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)['ok'], drafts)
+        # A draft another project's terminal saved first stays that project's.
+        o = open_terminal('o', 'other', other_repo)
+        type_line(o, f'print -r -- $A2A_TERMINAL_TOKEN > {out}/o-token.txt', 'T121-O-TOKEN')
+        terminal_o = dict(kind='terminal', launch=o['launch'], token=(out / 'o-token.txt').read_text(encoding='utf-8').strip())
+        asker = ask(terminal_o, 'executor')
+        [waiting_o] = wait_pending(('other', 'executor'))
+        assert request('role_request_decide', operator, role_request=waiting_o['id'], approved=True)['ok']
+        assert answer(asker)['ok'] and request('role_request_confirm', terminal_o, role_request=waiting_o['id'])['ok']
+        assert request('card_save', terminal_o, task='oth-3', card=card('oth-3'), expected_version=0)['ok']
+        squatted = {label: request(command, terminal_a, task='oth-3', **data).get('error') for label, command, data in [
+            ('card_save_next', 'card_save', dict(card=card('oth-3'), expected_version=1)),
+            ('card_show', 'card_show', dict(card_version=1))]}
+        report['other_terminal_draft_errors'] = squatted
+        check('other_terminal_draft_refused', set(squatted.values()) == {'card_draft_not_owned'} and
+              request('card_show', terminal_o, task='oth-3', card_version=1)['ok'], squatted)
         no_runtime = {command: request(command, terminal_a, task='own-1').get('error') for command in ('answer_issue', 'answer_issues', 'attach', 'run')}
         check('user_answer_and_run_commands_not_for_terminals', set(no_runtime.values()) == {'role_command_not_scoped'}, no_runtime)
         code = type_line(a, f"a2a call '{{\"command\":\"status\",\"task\":\"no-such-task\"}}' > {out}/a-task.json", 'T121-TASK')
@@ -364,6 +409,65 @@ def main():
             late_decisions.append(request('role_request_decide', operator, role_request=waiting['id'], approved=True).get('error'))
         check('closed_asker_cannot_be_approved', late_decisions == ['request_not_pending'] * 3 and
               request('terminal_whoami', terminal_b)['role'] is None, late_decisions)
+        # Approved, then the asker dies before reading the answer: the role ends with it.
+        unreceived = []
+        for _ in range(3):
+            asker = socket.socket(socket.AF_UNIX)
+            asker.connect(str(state / 'control.sock'))
+            asker.sendall((json.dumps(dict(id=str(uuid.uuid4()), input=dict(command='role_request', role='ideation', wait_seconds=60),
+                                           identity=terminal_b)) + '\n').encode())
+            [waiting] = wait_pending(('proj', 'ideation'))
+            assert request('role_request_decide', operator, role_request=waiting['id'], approved=True)['ok']
+            asker.close()
+            deadline = time.monotonic() + 5
+            while request('terminal_whoami', terminal_b)['role'] is not None and time.monotonic() < deadline:
+                time.sleep(.1)
+            row = [r for r in request('terminal_whoami', terminal_b)['role_requests'] if r['id'] == waiting['id']][0]
+            unreceived.append((row['state'], row['ended_reason']))
+        check('unreceived_approval_ends', unreceived == [('ended', 'asker_gone')] * 3, unreceived)
+        # The user's approval grants the role; only the asker's confirmation makes it take effect.
+        asker = ask(terminal_b, 'ideation')
+        [waiting] = wait_pending(('proj', 'ideation'))
+        assert request('role_request_decide', operator, role_request=waiting['id'], approved=True)['ok']
+        granted = answer(asker)
+        unconfirmed = dict(answer=granted['role_request']['state'], role=request('terminal_whoami', terminal_b)['role'],
+                           call=request('status', terminal_b, task='own-1').get('error'),
+                           sidebar=[agent['id'] for agent in request('sidebar_snapshot')['agents'] if agent['id'] == b['launch']])
+        time.sleep(16)
+        late_confirm = request('role_request_confirm', terminal_b, role_request=waiting['id'])
+        unconfirmed['expired'] = [r['ended_reason'] for r in request('terminal_whoami', terminal_b)['role_requests'] if r['id'] == waiting['id']]
+        unconfirmed['late_confirm'] = late_confirm.get('error')
+        report['unconfirmed_grant'] = unconfirmed
+        check('grant_needs_confirmation', unconfirmed == dict(answer='granted', role=None, call='approved_role_required', sidebar=[],
+              expired=['not_confirmed'], late_confirm='request_not_granted'), unconfirmed)
+        # Two terminals ask for the same role: granting one settles the other.
+        d = open_terminal('d')
+        type_line(d, f'print -r -- $A2A_TERMINAL_TOKEN > {out}/d-token.txt', 'T121-D-TOKEN')
+        terminal_d = dict(kind='terminal', launch=d['launch'], token=(out / 'd-token.txt').read_text(encoding='utf-8').strip())
+        ask_b, ask_d = ask(terminal_b, 'ideation'), None
+        wait_pending(('proj', 'ideation'))
+        ask_d = ask(terminal_d, 'ideation')
+        deadline = time.monotonic() + 15
+        while len([row for row in request('sidebar_snapshot').get('role_requests') or [] if (row['project'], row['role']) == ('proj', 'ideation')]) < 2:
+            assert time.monotonic() < deadline, '第二个申请没有出现'
+            time.sleep(.2)
+        first = [row for row in request('sidebar_snapshot')['role_requests'] if row['launch'] == b['launch']][0]
+        assert request('role_request_decide', operator, role_request=first['id'], approved=True)['ok']
+        winner = answer(ask_b)
+        confirmed = request('role_request_confirm', terminal_b, role_request=first['id'])
+        ask_d.settimeout(5)
+        try:
+            rival = answer(ask_d).get('error')
+        except socket.timeout:
+            rival = 'still_waiting'
+            ask_d.close()
+        conflict = dict(rival=rival, winner=winner['role_request']['state'], confirmed=confirmed['ok'],
+                        pending=[row['id'] for row in request('sidebar_snapshot').get('role_requests') or []],
+                        b_role=request('terminal_whoami', terminal_b)['role'], d_role=request('terminal_whoami', terminal_d)['role'])
+        report['same_role_conflict'] = conflict
+        check('granting_one_settles_rivals', conflict == dict(rival='role_given_to_other', winner='granted', confirmed=True, pending=[],
+              b_role='ideation', d_role=None), conflict)
+        assert request('role_release', terminal_b)['ok']
 
         # 8: closing the terminal ends its role.
         closed = request('shell_close', operator, launch=a['launch'])
@@ -403,8 +507,22 @@ def main():
         events = request('orchestration_events')['events']
         kinds = [event['type'] for event in events if event['type'].startswith('role_')]
         report['role_request_events'] = kinds
-        check('role_requests_recorded_append_only', kinds.count('role_requested') == 7 and kinds.count('role_request_decided') == 3 and
-              kinds.count('role_request_ended') == 4, kinds)
+        # Append-only: every later event refers to an earlier request, at most once per kind,
+        # and a confirmation follows an approving decision.
+        seen, ok = {}, True
+        for event in sorted((e for e in events if e['type'].startswith('role_')), key=lambda e: e['seq']):
+            rid = event['data']['role_request']
+            if event['type'] == 'role_requested':
+                ok = ok and rid not in seen
+                seen[rid] = []
+                continue
+            ok = ok and rid in seen and event['type'] not in seen[rid]
+            if event['type'] == 'role_request_confirmed':
+                ok = ok and 'approved' in seen.get(rid, [])
+            seen.setdefault(rid, []).append(event['type'])
+            if event['type'] == 'role_request_decided' and event['data']['approved']:
+                seen[rid].append('approved')
+        check('role_requests_recorded_append_only', ok and len(seen) >= 10 and kinds.count('role_request_confirmed') == 3, kinds)
         stray = sorted(str(path) for path in (source / 'workbench/terminal').rglob('*') if path.name.startswith('.zsh_history'))
         check('nothing_written_into_app_resources', not stray, stray)
         report['status'] = 'PASS'

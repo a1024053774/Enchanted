@@ -38,7 +38,10 @@ async function main(argv: string[]) {
     process.stderr.write(`申请成为${rest[0] === "executor" ? "执行主控" : rest[0] === "ideation" ? "构思主控" : rest[0]}，等用户在 Enchanted 里批准…\n`);
     // The daemon holds this call until the user decides. If this process stops
     // waiting for any reason, the daemon sees the connection close and withdraws it.
-    return finish(await send({ command: "role_request", role: rest[0], cli, wait_seconds: 600 }));
+    const answered = await send({ command: "role_request", role: rest[0], cli, wait_seconds: 600 });
+    if (!answered.ok) return finish(answered);
+    // The user granted the role; confirming it here is what makes it take effect.
+    return finish(await send({ command: "role_request_confirm", role_request: answered.role_request.id }));
   }
   if (command === "call" && rest.length === 1) {
     let input: unknown;
