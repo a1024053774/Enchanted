@@ -3,7 +3,7 @@
 Only loopback fixture API; never credentials, vendor calls or screenshots.
 Use a new summary path. Runtime fixtures remain in /tmp, summary records commands.
 """
-import argparse, json, os, shutil, sqlite3, subprocess, sys, tempfile, threading, time, traceback, uuid
+import argparse, json, os, re, shutil, sqlite3, subprocess, sys, tempfile, threading, time, traceback, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from run_t103_picker import Window
@@ -94,9 +94,15 @@ def main():
         assert daemon_owner is not None and str(state) in daemon_owner['command'] and str(source/'workbench/src/daemon.ts') in daemon_owner['command']
         call('card_save','--task','T108-fixture','--card',root/'card.json','--expected-version','0')
         call('create','--task','T108-fixture','--repo',repo,'--branch','refs/heads/main','--card-version','1','--project','T108-project')
+        claude='/Users/luckye/.local/bin/claude'
+        version_probe=run([claude,'--version']).strip()
+        version_match=re.fullmatch(r'([0-9]+\.[0-9]+\.[0-9]+) \(Claude Code\)',version_probe)
+        assert version_match is not None,version_probe
+        claude_version=version_match.group(1)
+        report['cli_version']=claude_version
         manifest={'schema':1,'root':str(root),'state':str(state),'task':'T108-fixture','preset':'ideation',
                   'launch':str(uuid.uuid4()),'session':str(uuid.uuid4()),'thread':str(uuid.uuid4()),
-                  'executable':'/Users/luckye/.local/bin/claude','version':'2.1.304','role_file':str(role/'role.md'),
+                  'executable':claude,'version':claude_version,'role_file':str(role/'role.md'),
                   'code_revision':revision,'source_snapshot':str(source),'api_url':'http://127.0.0.1:'+str(server.server_port),'turn_limit':1}
         (root/'manifest.json').write_text(json.dumps(manifest),encoding='utf-8')
         call('controller_start','--task','T108-fixture','--manifest',root/'manifest.json')

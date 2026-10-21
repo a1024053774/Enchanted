@@ -82,7 +82,10 @@ def main():
                 continue
             command = owner['command']
             if kind == 'native':
-                assert command.startswith(('claude ', '/Users/luckye/.local/share/claude/versions/2.1.304 ')), command
+                version = manifest['version']
+                assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version), version
+                versioned = '/Users/luckye/.local/share/claude/versions/' + version
+                assert command.startswith(('claude ', versioned + ' ')), command
                 assert '--session-id '+manifest['session'] in command, command
                 assert '--debug-file '+str(root/'roles/ideation/claude-debug.log') in command, command
             else:
