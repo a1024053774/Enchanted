@@ -40,12 +40,13 @@ def main():
     # Known-bad: a pending roleRequest already grants the role's authority.
     # Known-bad: history follows macOS /etc/zshrc into Enchanted's ZDOTDIR.
     # Known-bad: a killed asker leaves its request approvable; the user's own ZDOTDIR is dropped.
-    target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped'])
+    target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped', 'refusal-unrecorded', 'task-widens-scope'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t121-', dir='/private/tmp')).resolve()
-    state, home, cwd, out = fixture / 'state', fixture / 'home', fixture / 'project', fixture / 'out'
-    for path in (state, home, cwd, out, home / 'userbin'):
+    state, home, cwd, out = fixture / 'state', fixture / 'home', fixture / 'proj', fixture / 'out'
+    other_repo = fixture / 'other'
+    for path in (state, home, cwd, out, home / 'userbin', other_repo):
         path.mkdir()
     # The user's own startup files: .zshrc puts its own bin first, like a real setup.
     user_files = {'.zshenv': 'export T121_ZSHENV=loaded\n[[ -f $HOME/use-xdg ]] && ZDOTDIR=$HOME/.config/zsh\n',
@@ -85,8 +86,15 @@ def main():
             path = source / 'workbench/terminal/zdotdir/.zshrc'
             old, new = '[[ $HISTFILE == $A2A_TERMINAL_ZDOTDIR/.zsh_history ]] && HISTFILE=$ZDOTDIR/.zsh_history\n', ''
         elif args.mutant == 'no-withdraw':
-            path = source / 'workbench/src/terminalCli.ts'
-            old, new = 'process.once(signal, ', 'void (signal, '
+            path = source / 'workbench/src/daemon.ts'
+            old, new = 'const reason = asker.gone ? "asker_gone" :', 'const reason = false ? "asker_gone" :'
+        elif args.mutant == 'task-widens-scope':
+            # The first candidate's rule: any command with a task of this project passes.
+            path = source / 'workbench/src/daemon.ts'
+            old, new = '} else if (taskCommands.has(input.command)) {', '} else if (input.task !== undefined) {'
+        elif args.mutant == 'refusal-unrecorded':
+            path = source / 'workbench/src/daemon.ts'
+            old, new = 'store.event("request_rejected", ', 'void ('
         else:
             path = source / 'workbench/terminal/zdotdir/.zlogin'
             old, new = ' || $A2A_USER_ZDOTDIR != $HOME', ''
@@ -230,6 +238,52 @@ def main():
             unscoped[name] = result_file(f'a-unscoped-{name}.json').get('error')
         report['unscoped_errors'] = unscoped
         check('commands_without_project_refused', set(unscoped.values()) == {'role_command_not_scoped'}, unscoped)
+
+        # 5b: tasks. The terminal controller prepares and creates a task in its own opened project; a task
+        # field never widens inbox or stop, and another project's task and repo stay out of reach.
+        git_env = dict(env, GIT_AUTHOR_NAME='t121', GIT_AUTHOR_EMAIL='t121@example.invalid',
+                       GIT_COMMITTER_NAME='t121', GIT_COMMITTER_EMAIL='t121@example.invalid')
+        for repo in (cwd, other_repo):
+            subprocess.run(['git', 'init', '-q', '-b', 'main', str(repo)], check=True, env=git_env)
+            (repo / 'check.py').write_text('print("ok")\n', encoding='utf-8')
+            subprocess.run(['git', '-C', str(repo), 'add', 'check.py'], check=True, env=git_env)
+            subprocess.run(['git', '-C', str(repo), 'commit', '-q', '-m', 'init'], check=True, env=git_env)
+            assert request('project_open', operator, repo=str(repo))['ok']
+        terminal_a = dict(kind='terminal', launch=a['launch'], token=token_a)
+
+        def card(task):
+            path = out / f'{task}.card.json'
+            path.write_text(json.dumps(dict(id=task, source=None, goal='T-121 夹具任务', non_goals=['无'],
+                paths=dict(allow=['check.py'], deny=[]), oracle_paths=['check.py'],
+                completion_conditions=[dict(argv=['python3', 'check.py'])], red_commands=[], task_type='测试',
+                repair_target=None, complexity='S', executor=dict(cli='Codex', model='m', effort='high'),
+                base_commit=None, writer=None), ensure_ascii=False), encoding='utf-8')
+            return str(path)
+
+        def create(identity, task, project, repo):
+            saved = request('card_save', identity, task=task, card=card(task), expected_version=0)
+            if not saved['ok']:
+                return saved
+            return request('create', identity, task=task, project=project, repo=str(repo), branch='refs/heads/main', card_version=1)
+
+        assert create(operator, 'other-1', 'other', other_repo)['ok']
+        own = create(terminal_a, 'own-1', 'proj', cwd)
+        check('terminal_controller_creates_task_in_own_project', own['ok'] and request('status', terminal_a, task='own-1')['ok'], own)
+        wrong_repo = create(terminal_a, 'own-2', 'proj', other_repo)
+        foreign = {label: request(command, terminal_a, **data).get('error') for label, command, data in [
+            ('create_in_other_project', 'create', dict(task='own-3', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)),
+            ('status_of_other_task', 'status', dict(task='other-1')),
+            ('card_save_on_other_task', 'card_save', dict(task='other-1', card=card('other-1'), expected_version=1))]}
+        foreign['create_with_other_repo'] = wrong_repo.get('error')
+        report['foreign_errors'] = foreign
+        check('other_project_task_and_repo_refused', foreign == dict(create_in_other_project='role_project_mismatch',
+              status_of_other_task='role_project_mismatch', card_save_on_other_task='role_project_mismatch',
+              create_with_other_repo='project_repo_mismatch'), foreign)
+        widened = {name: request(name, terminal_a, task='own-1', **data).get('error') for name, data in [
+            ('inbox_list', {}), ('inbox_ack', dict(id='x')), ('inbox_send', dict(to='executor', kind='note', body='x')),
+            ('stop', dict(thread='x', stop_id='x'))]}
+        report['task_field_errors'] = widened
+        check('task_field_does_not_widen_scope', set(widened.values()) == {'role_command_not_scoped'}, widened)
         code = type_line(a, f"a2a call '{{\"command\":\"status\",\"task\":\"no-such-task\"}}' > {out}/a-task.json", 'T121-TASK')
         check('unknown_task_refused_before_gate', code == 1 and result_file('a-task.json')['ok'] is False, result_file('a-task.json'))
         code = type_line(a, f'a2a request ideation > {out}/a-second.json', 'T121-SECOND')
@@ -258,6 +312,13 @@ def main():
         rejected = [event for event in request('orchestration_events')['events'] if event['type'] == 'role_request_decided'
                     and event['data']['role_request'] == pending_b['id']]
         check('rejection_recorded', len(rejected) == 1 and rejected[0]['data']['approved'] is False and rejected[0]['launch'] == b['launch'], rejected)
+        # Controller commands refused for want of a role are recorded with the terminal that sent them.
+        events = request('orchestration_events')['events']
+        senders = {event['data']['id']: event['data']['source'] for event in events if event['type'] == 'request_received'}
+        refused = [(senders.get(event['data']['id']), event['data']['input']['command']) for event in events
+                   if event['type'] == 'request_rejected' and event['data']['result']['error'] == 'approved_role_required']
+        check('role_refusals_recorded', refused.count(('terminal:' + a['launch'], 'inbox_list')) >= 2 and
+              ('terminal:' + b['launch'], 'inbox_list') in refused, refused)
 
         # 7: forged or borrowed identities.
         forged = request('inbox_list', dict(kind='terminal', launch=a['launch'], token='0' * 64))
@@ -279,10 +340,10 @@ def main():
         check('role_free_again_after_close', pending_b2['launch'] == b['launch'])
         assert request('role_request_decide', operator, role_request=pending_b2['id'], approved=False)['ok']
 
-        # 9: the asker stops waiting (a tool timeout kills it): the request is withdrawn.
+        # 9: the asker stops waiting and cannot clean up (a tool timeout SIGKILLs it): the daemon withdraws the request.
         type_line(b, f'a2a request executor 2>/dev/null > {out}/b-killed.json & A2APID=$!', 'T121-B-SENT3')
         [pending_b3] = wait_pending(('proj', 'executor'))
-        type_line(b, 'kill -TERM $A2APID; wait $A2APID', 'T121-B-KILLED')
+        type_line(b, 'kill -KILL $A2APID; wait $A2APID', 'T121-B-KILLED')
         deadline = time.monotonic() + 15
         while [row for row in request('sidebar_snapshot').get('role_requests') or [] if row['id'] == pending_b3['id']]:
             assert time.monotonic() < deadline, '被杀的申请没有撤回'
@@ -291,7 +352,7 @@ def main():
         withdrawn = [event for event in request('orchestration_events')['events'] if event['type'] == 'role_request_ended'
                      and event['data']['role_request'] == pending_b3['id']]
         check('killed_request_withdrawn_and_not_approvable', late.get('error') == 'request_not_pending' and
-              len(withdrawn) == 1 and withdrawn[0]['data']['reason'] == 'withdrawn', [late, withdrawn])
+              len(withdrawn) == 1 and withdrawn[0]['data']['reason'] == 'asker_gone', [late, withdrawn])
 
         # 4 (XDG): the user's .zshenv sets ZDOTDIR; it must stay set after startup.
         (home / 'use-xdg').write_text('', encoding='utf-8')

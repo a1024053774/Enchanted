@@ -99,8 +99,9 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 `terminal/bin` 里有三个命令：
 
 - `a2a`：本终端的编排命令。`a2a help` 列出用法；`a2a whoami` 报项目与身份；`a2a request executor|ideation`
-  申请成为执行主控或构思主控，并等用户在界面批准或拒绝（最多 10 分钟；超时或被 SIGINT/SIGTERM/SIGHUP 中断时
-  以 `role_request_withdraw` 撤回仍待批准的申请）；`a2a release` 放弃身份；`a2a call '<JSON>'` 以已批准的身份调用门禁命令。
+  申请成为执行主控或构思主控，并等用户在界面批准或拒绝（最多 10 分钟）。后台在这次调用的连接上等待决定；
+  调用方被中断、被杀（含 SIGKILL）或等待超时，连接关闭或到期时后台撤回仍待批准的申请，结束原因记为
+  `asker_gone`、`request_wait_timeout` 或 `daemon_stopping`；`a2a release` 放弃身份；`a2a call '<JSON>'` 以已批准的身份调用门禁命令。
 - `claude`、`codex`：同名包装。在 PATH 里跳过自己找到用户真正的 CLI，原样转发参数，只多加一个按会话生效的参数：
   Claude 加 `--plugin-dir`（`terminal/plugin/enchanted-a2a`，含 a2a skill），Codex 加 `-c developer_instructions=…`
   指向 `a2a help`（用户用 `-c developer_instructions=…` 传了，或自己的 Codex 配置文件里设了这一项时不加）。挂法的实测依据见 T-120。
@@ -113,14 +114,16 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 - 只有项目终端能申请；一个终端同时只有一个角色；同一项目的同一角色同时只给一个终端。
 - 待批准、被拒绝、已结束的申请没有任何权限；主控命令返回 `approved_role_required`。
 - 已批准的终端以该角色为门禁调用者（`address` 为 `ideation` 或 `executor`），沿用门禁的全部检查，只能调用
-  能在这一层核对项目的命令：带 task 且该任务属于本项目，或带本项目 `project` 的 `inbox_ready`、`create`。
-  其他项目返回 `role_project_mismatch`。收件箱条目与 stop 还没有项目字段，终端角色调用它们返回
-  `role_command_not_scoped`；主控之间的收件箱通信留给后续票，届时先给条目加上项目。
+  按命令名在这一层核对项目：门禁的任务命令须带属于本项目的 task；还不存在的 task 只能用于准备新任务的
+  `card_*` 与 `create`，`create` 的 `project` 须为本项目、`repo` 须为本项目打开的目录；`inbox_ready` 须带本项目
+  `project`。其他项目返回 `role_project_mismatch`。收件箱的其他命令与 stop 还没有项目字段、也不看 task 字段，
+  终端角色调用它们一律返回 `role_command_not_scoped`；主控之间的收件箱通信留给后续票，届时先给条目加上项目。
 - 终端关闭或后台重启后身份结束，侧栏随之移除。
 - 侧栏把已批准的终端显示为对应主控（“项目终端”）。它没有结构化回合信号，状态显示“未知”。
 
 验证：`python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
-`--revision`、`--mutant pending-authority|history-in-zdotdir|no-withdraw|zdotdir-dropped` 为已知坏实现）。
+`--revision`、`--mutant pending-authority|history-in-zdotdir|no-withdraw|zdotdir-dropped|refusal-unrecorded|task-widens-scope`
+为已知坏实现）。
 
 ## 普通终端
 

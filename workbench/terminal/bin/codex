@@ -8,4 +8,4 @@ for argument in "$@"; do
   case $argument in developer_instructions=*|--config=developer_instructions=*) exec "$real" "$@" ;; esac
 done
 grep -q '^[[:space:]]*developer_instructions[[:space:]]*=' "${CODEX_HOME:-$HOME/.codex}/config.toml" 2>/dev/null && exec "$real" "$@"
-exec "$real" -c "developer_instructions='这是 Enchanted 工作台的终端。用户让你担任主控、派发 worker、与其他 agent 通信时，先运行 a2a help，按它说明的命令操作；没有经过用户在界面批准的身份，不能使用主控命令。'" "$@"
+exec "$real" -c "developer_instructions='这是 Enchanted 工作台的终端。用户让你担任主控、派发 worker、与其他 agent 通信时，先运行 a2a help，按它说明的命令操作；没有经过用户在界面批准的身份，不能使用主控命令。a2a request 会等用户批准最多 10 分钟，运行它时把命令超时设为 600 秒以上，否则命令被杀，申请随之撤回。'" "$@"

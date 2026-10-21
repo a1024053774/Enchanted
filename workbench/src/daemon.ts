@@ -2,6 +2,7 @@ import { createServer } from "node:net";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
 import { A2AGates, Refusal } from "./gates/core.ts";
+import { A2AGateRequest } from "./contracts/a2aGates.ts";
 import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
@@ -160,21 +161,41 @@ export async function serve(
   };
   // T-121: a CLI the user started in a project terminal. Its own identity commands
   // always work; everything else is a gate command under the role the user approved,
-  // limited to commands whose project can be checked here. Inbox entries and stop
-  // carry no project yet, so a terminal role cannot reach them (another project's
-  // controller would see, acknowledge or stop that project's work).
-  const projectCommands = new Set(["inbox_ready", "create"]);
-  const terminalCommand = async (input: Record<string, any>, terminal: { id: string; project: string | null; task: string | null }) => {
+  // limited by command name to those whose project can be checked here: task commands
+  // on a task of this project, the commands that prepare a new task, and inbox_ready
+  // for this project. Inbox entries and stop carry no project yet and ignore a task
+  // field, so a terminal role cannot reach them (it would see, acknowledge or stop
+  // another project's work).
+  const taskCommands = new Set<string>(A2AGateRequest.fields.command.literals);
+  const newTaskCommands = new Set(["card_template", "card_validate", "card_save", "card_show", "create"]);
+  const terminalCommand = async (input: Record<string, any>, terminal: { id: string; project: string | null; task: string | null },
+    asker: { gone: boolean }) => {
     if (input.command === "terminal_whoami") {
       const held = roleRequests.approved(terminal.id);
       return { ok: true, terminal: terminal.id, project: terminal.project, role: held?.role ?? null,
         role_requests: roleRequests.all().filter(roleRequest => roleRequest.launch === terminal.id) };
     }
-    if (input.command === "role_request") return { ok: true, role_request: roleRequests.request(terminal, input.role, input.cli) };
-    if (input.command === "role_request_withdraw") {
-      const ended = roleRequests.withdraw(terminal.id, input.role_request);
-      if (!ended) throw new Refusal("request_not_pending");
-      return { ok: true, role_request: ended };
+    if (input.command === "role_request") {
+      const requested = roleRequests.request(terminal, input.role, input.cli);
+      if (input.wait_seconds === undefined) return { ok: true, role_request: requested };
+      if (!Number.isSafeInteger(input.wait_seconds) || input.wait_seconds < 1 || input.wait_seconds > 600) {
+        roleRequests.withdraw(terminal.id, requested.id, "invalid_wait_seconds");
+        throw new Refusal("invalid_wait_seconds");
+      }
+      // The daemon, not the asker, withdraws a request nobody waits for any more: a
+      // killed asker (any signal) drops this connection, which ends the wait here.
+      const deadline = Date.now() + input.wait_seconds * 1000;
+      for (;;) {
+        const current = roleRequests.all().find(row => row.id === requested.id)!;
+        if (current.state === "approved") return { ok: true, role_request: current };
+        if (current.state !== "pending") return { ok: false, error: "request_" + current.state, role_request: current };
+        const reason = asker.gone ? "asker_gone" : stopping ? "daemon_stopping" : Date.now() >= deadline ? "request_wait_timeout" : null;
+        if (reason) {
+          const withdrawn = roleRequests.withdraw(terminal.id, requested.id, reason)!;
+          return { ok: false, error: reason, role_request: withdrawn };
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
     }
     if (input.command === "role_release") {
       const ended = roleRequests.end(terminal.id, "released");
@@ -183,12 +204,18 @@ export async function serve(
     }
     const roleRequest: RoleRequest | undefined = roleRequests.approved(terminal.id);
     if (!roleRequest) throw new Refusal("approved_role_required");
-    if (input.task !== undefined) {
-      const status = await gates.call({ command: "status", task: input.task });
-      if (!status.ok) throw new Refusal(status.error ?? "unknown_task");
-      if (status.task.project_id !== roleRequest.project) throw new Refusal("role_project_mismatch");
-    } else if (projectCommands.has(input.command)) {
+    if (input.command === "inbox_ready") {
       if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
+    } else if (taskCommands.has(input.command)) {
+      if (typeof input.task !== "string") throw new Refusal("task_required");
+      const status = await gates.call({ command: "status", task: input.task });
+      if (status.ok) {
+        if (status.task.project_id !== roleRequest.project) throw new Refusal("role_project_mismatch");
+      } else if (status.error !== "unknown_task" || !newTaskCommands.has(input.command)) throw new Refusal(status.error ?? "unknown_task");
+      if (input.command === "create") {
+        if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
+        if (!store.openedProjects().some(project => project.project_id === roleRequest.project)) throw new Refusal("project_not_opened");
+      }
     } else throw new Refusal("role_command_not_scoped");
     if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     const { parent_launch: _parent, ...gateInput } = input;
@@ -207,7 +234,7 @@ export async function serve(
     if (opened && !(typeof command.repo === 'string' && existsSync(command.repo) && realpathSync(command.repo) === opened.repo))
       throw new Refusal('project_repo_mismatch');
   };
-  const handle = async (envelope: any, authority: ReturnType<typeof authenticate>) => {
+  const handle = async (envelope: any, authority: ReturnType<typeof authenticate>, asker: { gone: boolean }) => {
     const input = envelope.input;
     if (!input || typeof input.command !== "string") throw new Refusal("invalid_request");
     const identity = envelope.identity;
@@ -216,7 +243,7 @@ export async function serve(
     if (authority.kind === "launch") {
       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
     }
-    if (authority.kind === "terminal") return await terminalCommand(input, authority.terminal!);
+    if (authority.kind === "terminal") return await terminalCommand(input, authority.terminal!, asker);
     if (authority.kind === "window" && !["window_input", "window_answer", "window_resize", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       throw new Refusal("window_command_forbidden");
     }
@@ -589,6 +616,9 @@ export async function serve(
   const server = createServer((connection) => {
     connection.setEncoding("utf8");
     let buffer = "", handled = false;
+    // A role request waits on its connection; the asker going away ends that wait.
+    const asker = { gone: false };
+    connection.once("close", () => { asker.gone = true; });
     connection.on("error", (error) => {
       store.event("client_connection_error", { error: String(error) });
     });
@@ -611,7 +641,7 @@ export async function serve(
         const catalogRead = catalogCommands.has(envelope.input?.command);
         const viewing = catalogRead || ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
         if (!viewing && !shellInput) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
-        result = await handle(envelope, authority);
+        result = await handle(envelope, authority, asker);
         if (result.ok && ["controller_start", "pane_release", "window_release", "signal"].includes(envelope.input.command)) {
           await settleInboxFeedback();
         }

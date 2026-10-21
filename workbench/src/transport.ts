@@ -23,7 +23,7 @@ export function request(root: string, input: Record<string, unknown>, identity?:
     let finished = false;
     socket.setEncoding("utf8");
     // A deadline is a failed/unknown call, never permission to replay a mutation.
-    const wait = input.command === "run" ? input.wait_seconds : undefined;
+    const wait = input.command === "run" || input.command === "role_request" ? input.wait_seconds : undefined;
     const deadline = typeof wait === "number" && Number.isSafeInteger(wait) && wait > 0
       ? Math.min(2_147_483_647, Math.max(120_000, wait * 1000 + 120_000)) : 120_000;
     socket.setTimeout(deadline, () => socket.destroy(new Error("daemon request deadline; outcome unknown")));

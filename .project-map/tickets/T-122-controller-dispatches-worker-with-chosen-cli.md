@@ -24,6 +24,10 @@ T-121 独立审查指出、属于本票的两点（evidence/2026-10-21-batch19/T
 - 经角色申请成为主控的项目终端不是已登记的会话线程，发给它的收件箱条目会停在 `role_session_missing`，收不到唤醒。
 - 终端发起的门禁调用没有父 launch，它派出的 worker 在侧栏里会显示为“未归属”。本票要把派发关系记到这个终端上。
 
+T-121 第 5 轮界面验收发现、属于本票的一点（evidence/2026-10-21-batch19/T-121/ui-05/ui-driver.json 的 final_screen）：
+
+- 刚在工作台打开、还没有任务的项目，`inbox_ready` 返回 `unknown_project`。原因：门禁只经已有任务的 `project_id` 找项目仓库（`workbench/src/gates/core.ts` 的 `inboxCall`），不认工作台的 `project_open` 登记。主控在新项目里第一步就会卡住；本票要让门禁按已打开项目找到仓库。
+
 ## Acceptance
 
 - [ ] 真实入口：打包测试版里，T-121 经角色申请批准的真实 Claude Code 执行主控派发一个 Claude Code（Sonnet 5.5、medium）worker 到夹具仓库，经交付、独立审查、集成到夹具工作分支。截图、后台库事件读回、Git 引用读回、重现命令留证。

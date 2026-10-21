@@ -86,10 +86,10 @@ export class RoleRequests {
     return this.all().find(row => row.id === roleRequest.id)!;
   }
   // A request whose asker stopped waiting must not be approved later behind its back.
-  withdraw(launch: string, id: unknown) {
+  withdraw(launch: string, id: string, reason: string) {
     const roleRequest = this.current(launch);
     if (!roleRequest || roleRequest.id !== id || roleRequest.state !== "pending") return undefined;
-    this.store.event("role_request_ended", { role_request: roleRequest.id, reason: "withdrawn" }, { id: launch, task: null });
+    this.store.event("role_request_ended", { role_request: roleRequest.id, reason }, { id: launch, task: null });
     return this.all().find(row => row.id === roleRequest.id)!;
   }
   private holder(project: string, role: RequestRole) {
