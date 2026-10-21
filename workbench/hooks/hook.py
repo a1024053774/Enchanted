@@ -10,9 +10,9 @@ import sys
 def latest_turn_facts(env):
     home = env.get('CODEX_HOME')
     if not home:
-        # A Claude Code worker: its transcript records no per-turn effort, so the
-        # launch's requested effort is the only effort known.
-        return 'unknown', env['A2A_EFFORT_REQUESTED'] if env.get('A2A_NATIVE_SESSION') else 'unknown'
+        # A Claude Code worker: model and effort are observed only at its Stop hook,
+        # after this commit; the requested values are not turn facts.
+        return 'unknown', 'unknown'
     native = env['CODEX_THREAD_ID']
     sessions = Path(home).resolve() / 'sessions'
     files = [path for path in sessions.rglob('*.jsonl') if path.name.endswith(native + '.jsonl')]

@@ -1,0 +1,14 @@
+exit=0
+main=3d9ae175f3ee0409b6519ec49758c86758f115b5 init=3d9ae175f3ee0409b6519ec49758c86758f115b5
+T-1=probe T-2=3d9ae175f3ee0409b6519ec49758c86758f115b5
+stolen-branch:   stolen
+ls: /private/tmp/t122-probe04-deny/other/x.txt: No such file or directory
+1) COMMIT_OK (exit 0)
+2) exit 128: `update_ref` on `refs/heads/main` failed, "Operation not permitted" appending to `repo/.git/logs/refs/heads/main`
+3) exit 128: `update_ref` on `refs/heads/a2a/T-2-a1` failed, same "Operation not permitted"
+4) NEW_BRANCH (exit 0)
+5) exit 1: write to `/private/tmp/t122-probe04-deny/other/x.txt` blocked with "operation not permitted"
+6) TMPDIR_WRITTEN (exit 0); TMPDIR=/tmp/claude-501
+7) exit 128: `pack-refs` failed, "Operation not permitted" replacing `repo/.git/packed-refs`
+
+Side effects: step 1 created a commit on the current branch (`a2a/T-1-a1`) that adds `hello.txt`, and step 4 created a branch named `stolen` at HEAD. Step 6 left `$TMPDIR/t122probe`. I haven't undone any of these.

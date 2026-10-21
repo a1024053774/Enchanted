@@ -2039,12 +2039,15 @@ export class A2AGates {
           required.some((key) => trailers[key]?.length !== 1 || !trailers[key]![0])) error = "invalid_trailers";
         else if (trailers.attempt![0] !== attempt.attempt_id || trailers.session![0] !== attempt.session_id || trailers.role![0] !== "worker")
           error = "trailer_identity_mismatch";
-        // Delivery is the launch record copied at submit. Model may be the literal unknown; tool, effort and launch may not.
+        // Delivery is the launch record copied at submit. Model may be the literal unknown; tool and launch may not,
+        // nor effort except for a Claude Code delivery.
         else if (attempt.delivery) {
           if (trailers.launch![0] !== attempt.delivery.launch_id) error = "trailer_identity_mismatch";
           else if (trailers.tool![0] !== attempt.delivery.cli) error = "trailer_identity_mismatch";
           else if (trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model) error = "trailer_identity_mismatch";
-          else if (trailers.effort![0] !== attempt.delivery.effort) error = "trailer_identity_mismatch";
+          // A Claude session's effort is observed only at its Stop hook, after the commit (T-122).
+          else if (trailers.effort![0] !== attempt.delivery.effort &&
+            !(trailers.effort![0] === "unknown" && String(attempt.delivery.cli).endsWith("(Claude Code)"))) error = "trailer_identity_mismatch";
         } else error = "trailer_launch_record_missing";
       }
       this.event(task.task_id, "trailer_check", { commit, trailers, verification_id: v.verification_id,
@@ -2176,20 +2179,27 @@ export class A2AGates {
     const sandbox = Array.isArray(argv) ? argv.indexOf("--sandbox") : -1;
     const cwd = Array.isArray(argv) ? argv.indexOf("-C") : -1;
     const config = (key: string) => Array.isArray(argv) && argv.includes(key);
-    const flag = (name: string) => Array.isArray(argv) && argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined;
-    const claude = task.card.executor.cli === "Claude Code";
-    // A Claude reviewer (D24: same CLI as the worker) never asks, loads none of the user's
-    // settings, and writes only its candidate copy, with the shell sandbox writing nowhere else.
+    const claude = this.boundCard(review.attempt).executor.cli === "Claude Code";
+    // A Claude reviewer (D24: same CLI as the worker) never asks, loads no settings files or MCP
+    // servers, and writes only its candidate copy, the shell sandbox writing nowhere else. The argv
+    // is checked as a whole: fixed flags in fixed places, and settings with exactly these fields.
     let settings: any = null;
-    try { settings = claude ? JSON.parse(String(flag("--settings"))) : null; } catch { settings = null; }
+    try { settings = claude ? JSON.parse(String(argv?.[13])) : null; } catch { settings = null; }
+    const hookEvents = ["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"];
+    const signal = settings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     const boundary = claude
-      ? launch?.cli === "Claude Code" && flag("--permission-mode") === "dontAsk" && flag("--setting-sources") === "local" &&
-        config("--strict-mcp-config") && flag("--session-id") === launch.native_session && settings !== null &&
+      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 14 &&
+        JSON.stringify([argv[1], argv[3], argv[5], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12]]) ===
+          JSON.stringify(["--session-id", "--model", "--effort", "--permission-mode", "dontAsk", "--setting-sources", "", "--strict-mcp-config", "--settings"]) &&
+        argv[2] === launch.native_session && settings !== null && typeof settings === "object" &&
+        JSON.stringify(Object.keys(settings).sort()) === JSON.stringify(["fastMode", "hooks", "permissions", "sandbox"]) &&
+        typeof settings.fastMode === "boolean" &&
         JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", `Edit(/${realpathSync(review.candidate_workspace)}/**)`] }) &&
-        settings.sandbox?.enabled === true && settings.sandbox.allowUnsandboxedCommands === false &&
-        JSON.stringify(settings.sandbox.filesystem) === JSON.stringify({ allowWrite: [] }) &&
-        live.workspace === review.candidate_workspace &&
-        !argv.some((arg) => ["--resume", "--continue", "-r", "-c", "--fork-session"].includes(String(arg)))
+        JSON.stringify(settings.sandbox) === JSON.stringify({ enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, filesystem: { allowWrite: [] } }) &&
+        typeof signal === "string" && signal.includes(`'signal' '--launch' '${launch.id}'`) &&
+        JSON.stringify(Object.keys(settings.hooks)) === JSON.stringify(hookEvents) &&
+        hookEvents.every(event => JSON.stringify(settings.hooks[event]) === JSON.stringify([{ hooks: [{ type: "command", command: signal, timeout: 10 }] }])) &&
+        live.workspace === review.candidate_workspace
       : launch?.cli !== "Claude Code" && live.workspace === review.candidate_workspace && cwd >= 0 && argv[cwd + 1] === review.candidate_workspace &&
         sandbox >= 0 && argv[sandbox + 1] === "workspace-write" &&
         config("sandbox_workspace_write.network_access=false") && config("features.network_proxy=false") &&
@@ -3624,7 +3634,7 @@ export class A2AGates {
             !live.error &&
               live.workspace === attempt.workspace &&
               // The task card names the worker's CLI.
-              live.provider === (task.card.executor.cli === "Claude Code" ? "claude" : "codex") &&
+              live.provider === (this.boundCard(attempt).executor.cli === "Claude Code" ? "claude" : "codex") &&
               live.running &&
               !live.blocked &&
               attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null &&

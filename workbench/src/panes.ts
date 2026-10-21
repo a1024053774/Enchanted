@@ -91,23 +91,41 @@ export type EmptyInputDeclaration = {
   statement: "用户声明输入框已空"; launch: string; window_id: string;
   interruption: number; input_generation: number;
 };
-// Claude Code worker and reviewer launch (T-122, evidence/2026-10-21-batch19/T-122/probe-01..03):
+// Claude Code worker and reviewer launch (T-122, evidence/2026-10-21-batch19/T-122/probe-01..04):
 // never asks for approval, file tools write only where `writable` allows, shell commands run in
-// Claude's sandbox and write only there, and the user's own settings, hooks and MCP servers are
-// not loaded. A worker writes its worktree, the request directory and the repository's Git
-// metadata; a reviewer writes only its one-off candidate copy (its working directory).
+// Claude's sandbox, and no settings file is loaded (`--setting-sources ""`: with `local`, a linked
+// worktree also loads the main checkout's .claude/settings.local.json, probe-04), nor MCP servers.
+// A worker writes its worktree and the request directory. In a linked worktree Claude's sandbox
+// itself makes the repository's whole .git writable (probe-04), so `shellDenied` takes back every
+// existing ref except the attempt's branch, packed-refs, HEAD and the other worktrees; a new ref
+// name stays creatable and does not reach integration. A reviewer writes only its one-off
+// candidate copy (its working directory). Both can still write Claude's $TMPDIR: denying it
+// breaks every shell command (probe-04).
 async function claudeArgv(executable: string, signal: string, session: string,
-  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[]) {
+  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], shellDenied: string[] = []) {
   const hook = [{ hooks: [{ type: "command", command: signal, timeout: 10 }] }];
   const settings = {
     permissions: { allow: ["Bash", "Read", "Glob", "Grep", ...writable.map(path => `Edit(/${path}/**)`)] },
     sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
-      filesystem: { allowWrite: shellWritable } },
+      filesystem: { allowWrite: shellWritable, ...(shellDenied.length ? { denyWrite: shellDenied } : {}) } },
     hooks: Object.fromEntries(["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event => [event, hook])),
     fastMode: selection.fast,
   };
   return [executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--permission-mode", "dontAsk",
-    "--setting-sources", "local", "--strict-mcp-config", "--settings", JSON.stringify(settings)];
+    "--setting-sources", "", "--strict-mcp-config", "--settings", JSON.stringify(settings)];
+}
+const CLAUDE_STARTUP_DEADLINE_MS = 120_000;
+// The repository Git paths a Claude worker's shell must not write (see claudeArgv).
+async function workerGitDenied(worktree: string) {
+  const git = async (...args: string[]) => (await exec("git", ["-C", worktree, ...args])).stdout.trim();
+  const common = realpathSync(await git("rev-parse", "--path-format=absolute", "--git-common-dir"));
+  const own = realpathSync(await git("rev-parse", "--path-format=absolute", "--git-dir"));
+  const branch = await git("symbolic-ref", "HEAD");
+  const refs = (await git("for-each-ref", "--format=%(refname)")).split("\n").filter(ref => ref && ref !== branch);
+  const worktrees = existsSync(join(common, "worktrees")) ? readdirSync(join(common, "worktrees")).map(name => join(common, "worktrees", name)) : [];
+  return [...refs.flatMap(ref => [join(common, ref), join(common, "logs", ref)]),
+    ...["packed-refs", "HEAD", "logs/HEAD", "refs/a2a", "refs/tags", "refs/remotes"].map(path => join(common, path)),
+    ...worktrees.filter(path => path !== own)];
 }
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
@@ -124,7 +142,7 @@ type Pane = {
   terminalBuffer: string;
   nativeFile?: string;
   // Claude worker start-up: the folder-trust screen as read so far, and whether it was answered.
-  startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number;
+  startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number; started?: boolean;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   permission?: { prompt_id: string; submission: string } | null;
@@ -564,7 +582,11 @@ export class Panes implements GateRuntime {
     // In the packaged app process.execPath is Electron; it acts as Node only with this variable.
     const signalCommand = "ELECTRON_RUN_AS_NODE=1 " + shellCommand([process.execPath, cli, "--state", this.root, "signal", "--launch", launch]);
     const hook = `[{hooks=[{type="command",command=${JSON.stringify(signalCommand)},timeout=10}]}]`;
-    const { model, effort, fast } = this.store.executionSelection(role, overrides);
+    // Role settings hold one selection per role; a Claude Code card's own model and effort are its
+    // defaults, since the factory worker selection is a Codex model (review finding 3).
+    const { model, effort, fast } = this.store.executionSelection(role, claude && !review
+      ? { ...(task.card.executor.model.trim() ? { model: task.card.executor.model } : {}),
+          ...(task.card.executor.effort.trim() ? { effort: task.card.executor.effort } : {}), ...overrides } : overrides);
     const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
     const nativeSession = claude ? randomUUID() : null;
     const sandboxMode = "workspace-write";
@@ -572,10 +594,9 @@ export class Panes implements GateRuntime {
     const networkProxy = "false";
     const excludeSlashTmp = review ? "true" : "false";
     const excludeTmpdir = review ? "true" : "false";
-    const gitMetadata = claude && !review ? realpathSync((await exec("git", ["-C", launchWorkspace, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim()) : null;
     const argv = claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
       review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory],
-      review ? [] : [gitMetadata!, requestDirectory]) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
+      review ? [] : [requestDirectory], review ? [] : await workerGitDenied(launchWorkspace)) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
@@ -627,6 +648,12 @@ export class Panes implements GateRuntime {
       ...(claude ? { claudePromptId: null, claudePromptIds: new Set<string>(), startupScreen: "", trustAnswered: false } : {}) };
     this.panes.set(attempt.thread_id, pane);
     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
+    // A Claude session that never reports its start (an unrecognised screen, a CLI that changed)
+    // is a failure to show, not a pane that waits forever with its task queued.
+    if (claude) setTimeout(() => {
+      if (!pane.started && !pane.stopped && !pane.failed)
+        this.recordFailure(pane, "worker_startup_unrecognised", new Error("session_start_missing"), { screen: pane.startupScreen });
+    }, CLAUDE_STARTUP_DEADLINE_MS).unref();
     terminal.onData((data: string) => {
       try {
         appendFileSync(join(this.root, "traces", launch, "pty.raw"), data);
@@ -661,7 +688,8 @@ export class Panes implements GateRuntime {
   // worker, only before it has received any task, and record that. An unrecognised
   // screen is left alone; the worker then never reports ready and no task is sent.
   confirmWorkerTrust(pane: Pane, data: string) {
-    if (pane.active || pane.state !== "unknown") return;
+    // Only during start-up: never once the session has started, even if it later returns to unknown.
+    if (pane.started || pane.active || pane.state !== "unknown") return;
     // Keep reading while the answer is in progress: it checks the redrawn selection.
     pane.startupOutputAt = Date.now();
     pane.startupScreen = (pane.startupScreen! + data.replace(/\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "").replace(/\s+/g, "")).slice(-4096);
@@ -700,9 +728,14 @@ export class Panes implements GateRuntime {
     const lines = readFileSync(stop.transcript_path, "utf8").split("\n");
     for (let index = lines.length - 1; index >= 0; index--) {
       if (!lines[index]!.trim()) continue;
-      const entry = JSON.parse(lines[index]!);
+      // The last line can still be half written; a line that does not parse is not a fact.
+      let entry: any;
+      try { entry = JSON.parse(lines[index]!); } catch { continue; }
       if (entry.type === "user" && entry.promptId !== undefined && entry.promptId !== stop.prompt_id) break;
-      if (entry.type === "assistant" && typeof entry.message?.model === "string") { pane.model = entry.message.model; break; }
+      // "<synthetic>" marks a reply Claude Code wrote itself (an API error or an interruption).
+      if (entry.type === "assistant" && typeof entry.message?.model === "string" && entry.message.model !== "<synthetic>") {
+        pane.model = entry.message.model; break;
+      }
     }
     this.store.event("native_turn_facts", { prompt_id: stop.prompt_id, model: pane.model, effort: pane.effort }, pane.record);
   }
@@ -1185,6 +1218,7 @@ export class Panes implements GateRuntime {
       if (pane.record.cli === "Claude Code" && pane.record.role !== "controller" && value.hook_event_name === "SessionStart") {
         check(value.session_id === pane.native && value.cwd === pane.record.worktree && value.source === "startup", "session_start_mismatch");
         check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
+        pane.started = true;
         this.store.event("native_session_started", { native_session: value.session_id, trust_confirmed: Boolean(pane.trustAnswered) }, pane.record);
         // The daemon drains the pane after every accepted signal, so the queued task goes next.
         pane.state = "idle";

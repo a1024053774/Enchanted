@@ -1,0 +1,16 @@
+exit=0
+main=9dae85cb1fda85c0d57966fa1ee3a14adfb4f6be init=1fe46b816b1e6e3ffce50b9fa749449cbea1877c
+T-1=probe T-2=9dae85cb1fda85c0d57966fa1ee3a14adfb4f6be
+stolen-branch:   stolen
+ls: /private/tmp/t122-probe04-nogit/other/x.txt: No such file or directory
+1) 1
+2) 1
+3) 1
+4) 1
+5) 1
+6) 1
+7) 1
+
+Each command's own output printed its success marker (COMMIT_OK, MAIN_MOVED, OTHER_BRANCH_MOVED, NEW_BRANCH, PACKED), and steps 5 and 6 failed on the sandbox write. Every call also logged `operation not permitted` writing to `/tmp/claude-501/cwd-*`, so the reported 1s come from that cwd-tracking write, not from the commands themselves. Steps 5 and 6 failed for real: `/private/tmp/t122-probe04-nogit/other/x.txt` and `$TMPDIR/t122probe` were both blocked. `TMPDIR=/tmp/claude-501`.
+
+The successful steps changed the repo: `hello.txt` is committed on `a2a/T-1-a1`, `main` and `a2a/T-2-a1` point at that commit, a `stolen` branch was created, and refs were packed.

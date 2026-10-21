@@ -3,15 +3,16 @@
 
 失败方式（先列再写）：
 1. 任务卡写 Claude Code，后台仍只会起 Codex（`worker_executor_mismatch`），或者起了却不带权限参数。
-2. worker 加载了用户自己的设置、钩子或 MCP；没有 `dontAsk`，越界写入弹批准而不是被拒。
-3. worker 能写出 worktree：文件工具写外面没被拒，或者拒绝没留下记录。
+2. worker 加载了用户自己的设置、钩子或 MCP（含主仓库的 .claude/settings.local.json）；没有 `dontAsk`，越界写入弹批准而不是被拒。
+3. worker 能写出 worktree：文件工具或 shell 写外面没被拒，拒绝没留下记录；shell 能移动项目工作分支（审查 01 第 1 条）。
 4. 新 worktree 的信任对话框没人按，worker 卡住；或者在收到任务后还会被代按。
 5. 第一条任务在 CLI 就绪前送出（丢失），或者永远不送出（没人做初次放行）。
 6. 提交钩子拿不到 Claude 的原生会话，提交失败或尾注与启动记录不符；门禁只认 Codex 的线程身份。
 7. Stop 钩子没把交付请求转给门禁，或者转交时调用者身份核对失败。
 8. 终端主控派出的 worker 没记上派发它的终端，侧栏显示为“未归属”。
 9. 刚打开、还没有任务的项目，`inbox_ready` 返回 `unknown_project`。
-10. Claude worker 的交付起不了审查（审查只认 Codex 的预建 home），或审查者换了 CLI/模型、能写候选 worktree、不在一次性副本里跑变异。
+10. Claude worker 的交付起不了审查（审查只认 Codex 的预建 home），或审查者换了 CLI/模型、能写候选 worktree 或请求目录、不在一次性副本里跑变异。
+12. 交付记的模型是请求值而不是这一回合实际回复的模型；任务卡写 Claude 而派发不带模型时用了 Codex 的出厂模型（审查 01 第 3 条）。
 11. 审查通过后，打分与集成走不到项目工作分支。
 --revision 在该版本的隔离源码上跑同一场景（修前应失败）；--mutant 跑已知坏实现。
 """
@@ -32,6 +33,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parents[2]
 TOKEN = 'a2a-fixture-key-not-a-secret'
+# The fixture API answers as a model other than the one requested, so the observed model is told apart.
+SERVED_MODEL = 'claude-haiku-5-5-t122-served'
 
 
 def main():
@@ -41,6 +44,7 @@ def main():
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
     target.add_argument('--mutant', choices=['trust-unanswered', 'no-initial-release', 'user-settings-loaded',
+                                             'submit-provider-codex', 'requested-model-as-fact', 'card-model-ignored', 'git-deny-missing',
                                              'codex-provider-only', 'no-terminal-parent', 'inbox-tasks-only',
                                              'reviewer-codex-only', 'reviewer-shell-writable'])
     args = parser.parse_args()
@@ -51,6 +55,12 @@ def main():
         path.mkdir()
     # A Claude Code that has been set up once; the fixture HOME holds no login and no trust entries.
     (home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
+    # The user's own Claude settings and the main checkout's local settings each install a hook
+    # that leaves a marker; neither may run in a worker or reviewer.
+    hook = lambda name: {'hooks': {event: [{'hooks': [{'type': 'command', 'command': f'touch {out}/{name}-$PPID'}]}]
+                                   for event in ('SessionStart', 'PreToolUse', 'Stop')}}
+    (home / '.claude').mkdir()
+    (home / '.claude/settings.json').write_text(json.dumps(hook('user-hook-ran')), encoding='utf-8')
     source = ROOT
     if args.revision or args.mutant:
         source = fixture / 'source'
@@ -72,12 +82,16 @@ def main():
             path, old, new = {
                 'trust-unanswered': ('src/panes.ts', 'if (claude && pane.state === "unknown") this.confirmWorkerTrust(pane, data);', ''),
                 'no-initial-release': ('src/panes.ts', '        pane.state = "idle";\n        return;', '        return;'),
-                'user-settings-loaded': ('src/panes.ts', '"--setting-sources", "local", "--strict-mcp-config", ', ''),
+                'user-settings-loaded': ('src/panes.ts', '"--setting-sources", "", "--strict-mcp-config", ', '"--setting-sources", "local", "--strict-mcp-config", '),
+                'submit-provider-codex': ('src/gates/core.ts', 'live.provider === (this.boundCard(attempt).executor.cli === "Claude Code" ? "claude" : "codex") &&', 'live.provider === "codex" &&'),
+                'requested-model-as-fact': ('src/panes.ts', 'pane.model = entry.message.model; break;', 'pane.model = pane.record.model_requested; break;'),
+                'git-deny-missing': ('src/panes.ts', 'review ? [] : await workerGitDenied(launchWorkspace)', '[]'),
+                'card-model-ignored': ('src/panes.ts', 'this.store.executionSelection(role, claude && !review', 'this.store.executionSelection(role, false'),
                 'codex-provider-only': ('src/gates/core.ts', '["codex", "claude"].includes(live.provider) &&', 'live.provider === "codex" &&'),
                 'no-terminal-parent': ('src/daemon.ts', 'await panes.parentLaunch.run(terminal.id, () => gates.call(', 'await panes.parentLaunch.run(null, () => gates.call('),
                 'inbox-tasks-only': ('src/gates/core.ts', 'if (opened) repos.add(opened);', ''),
                 'reviewer-codex-only': ('src/panes.ts', '    if (task.card.executor.cli === "Claude Code") {\n      // D24', '    if (false) {\n      // D24'),
-                'reviewer-shell-writable': ('src/panes.ts', 'review ? [] : [gitMetadata!, requestDirectory]', 'review ? [requestDirectory] : [gitMetadata!, requestDirectory]'),
+                'reviewer-shell-writable': ('src/panes.ts', 'review ? [] : [requestDirectory], review ? []', 'review ? [requestDirectory] : [requestDirectory], review ? []'),
             }[args.mutant]
             path = source / 'workbench' / path
             text = path.read_text(encoding='utf-8')
@@ -108,6 +122,8 @@ def main():
                 ('Bash', dict(command='rm hello.txt; python3 check.py; echo "mutation-1 rc=$?"', description='mutation 1')),
                 ('Bash', dict(command='mkdir hello.txt; python3 check.py; echo "mutation-2 rc=$?"', description='mutation 2')),
                 ('Write', dict(file_path=f'{review_worktree}/reviewer-note.txt', content='reviewer must not write here\n')),
+                ('Bash', dict(command=f'echo x > {review_worktree}/shell-note.txt; echo "wt rc=$?"; echo x > "$A2A_REQUEST_DIR/forged.json"; echo "req rc=$?"',
+                              description='shell writes')),
             ], json.dumps(shape, ensure_ascii=False)
         submit = re.search(r'显式交付：\n(.+)\n', text)
         assert submit, '派发提示里没有交付命令'
@@ -115,8 +131,10 @@ def main():
         return 'worker', [
             ('Write', dict(file_path=f'{cwd}/hello.txt', content='hello from the T-122 fixture\n')),
             ('Write', dict(file_path=f'{outside}/escape.txt', content='must not be written\n')),
+            ('Bash', dict(command=f'echo x > {outside}/bash-escape.txt; echo "outside rc=$?"', description='shell write outside')),
             ('Bash', dict(command='git add hello.txt', description='stage')),
             ('Bash', dict(command='git commit -q -m "T-122 fixture change"', description='commit')),
+            ('Bash', dict(command='git update-ref refs/heads/main HEAD; echo "update-ref rc=$?"', description='move main')),
             ('Bash', dict(command=line, description='submit')),
         ], '已提交并交付。'
 
@@ -162,7 +180,7 @@ def main():
                 self.wfile.write(('event: ' + kind + '\ndata: ' + json.dumps({'type': kind, **value}) + '\n\n').encode())
                 self.wfile.flush()
             emit('message_start', {'message': {'id': f'msg_t122_{api["requests"]}', 'type': 'message', 'role': 'assistant',
-                                               'model': body.get('model'), 'content': [], 'stop_reason': None,
+                                               'model': SERVED_MODEL, 'content': [], 'stop_reason': None,
                                                'usage': {'input_tokens': 128, 'output_tokens': 0}}})
             if action:
                 emit('content_block_start', {'index': 0, 'content_block': {'type': 'tool_use', 'id': f'toolu_t122_{api["main"]}', 'name': action[0], 'input': {}}})
@@ -238,6 +256,9 @@ def main():
         (repo / 'check.py').write_text('import pathlib, sys\nsys.exit(0 if pathlib.Path("hello.txt").is_file() else 1)\n', encoding='utf-8')
         subprocess.run(['git', '-C', str(repo), 'add', 'README.md', 'check.py'], check=True, env=env)
         subprocess.run(['git', '-C', str(repo), 'commit', '-q', '-m', 'init'], check=True, env=env)
+        (repo / '.claude').mkdir()
+        (repo / '.claude/settings.local.json').write_text(json.dumps(hook('project-local-hook-ran')), encoding='utf-8')
+        main_before = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'refs/heads/main'], text=True).strip()
         assert request('project_open', operator, repo=str(repo))['ok']
 
         # A project terminal whose CLI the user approved as the executor controller.
@@ -275,7 +296,8 @@ def main():
         assert saved['ok'], saved
         created = request('create', terminal, task='T-1', project='demo', repo=str(repo), branch='refs/heads/main', card_version=1)
         assert created['ok'], created
-        dispatched = request('dispatch', terminal, task='T-1', runtimeMode='workspace-write', model='claude-haiku-5-5', effort='low')
+        # No model or effort: the Claude Code card's own executor fields are the defaults.
+        dispatched = request('dispatch', terminal, task='T-1', runtimeMode='workspace-write')
         report['dispatch'] = {key: dispatched.get(key) for key in ('ok', 'error')}
         check('dispatch_starts_claude_worker', dispatched.get('ok'), dispatched)
         attempt = dispatched['attempt']
@@ -286,7 +308,7 @@ def main():
         flag = lambda name: argv[argv.index(name) + 1] if name in argv else None
         check('worker_launch_is_bounded_claude',
               worker.get('cli') == 'Claude Code' and flag('--permission-mode') == 'dontAsk' and
-              flag('--setting-sources') == 'local' and '--strict-mcp-config' in argv and
+              flag('--model') == 'claude-haiku-5-5' and flag('--effort') == 'low' and '--strict-mcp-config' in argv and
               flag('--session-id') == worker.get('native_session') and
               settings['sandbox']['enabled'] is True and settings['sandbox']['allowUnsandboxedCommands'] is False, report['worker'])
         check('worker_belongs_to_terminal_controller', worker.get('parent_launch') == launch, worker.get('parent_launch'))
@@ -309,12 +331,24 @@ def main():
         report['api'] = dict(requests=api['requests'], main=api['main'], models=sorted(map(str, api['models'])), results=api['results'])
         outside_result = api['results']['worker'][1] if len(api['results']['worker']) > 1 else None
         check('outside_write_refused', not (outside / 'escape.txt').exists() and outside_result and outside_result['is_error'], outside_result)
+        worker_results = api['results']['worker']
+        check('shell_write_outside_refused', not (outside / 'bash-escape.txt').exists() and len(worker_results) > 2 and
+              'outside rc=1' in worker_results[2]['text'], worker_results[2:3])
+        main_now = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'refs/heads/main'], text=True).strip()
+        check('shell_cannot_move_working_branch', main_now == main_before and len(worker_results) > 5 and
+              'update-ref rc=0' not in worker_results[5]['text'], dict(main_before=main_before, main_now=main_now, result=worker_results[5:6]))
+        markers = sorted(path.name for path in out.iterdir() if path.name.startswith(('user-hook-ran', 'project-local-hook-ran')))
+        check('no_user_or_project_settings_loaded', not markers, markers)
         commit = task.get('candidate_commit') or task['current_attempt'].get('delivery', {}).get('commit')
         message = subprocess.check_output(['git', '-C', str(repo), 'log', '-1', '--format=%B', commit], text=True)
         trailers = dict(re.findall(r'^A2A-([A-Za-z-]+): (.+)$', message, re.M))
         report['trailers'] = trailers
+        # At commit time a Claude session's model and effort are not yet observed: both trailers say unknown.
         check('commit_carries_claude_identity', trailers.get('Native-Session') == worker.get('native_session') and
-              trailers.get('Launch') == worker_launch and trailers.get('Effort') == 'low', trailers)
+              trailers.get('Launch') == worker_launch and trailers.get('Model') == 'unknown' and trailers.get('Effort') == 'unknown', trailers)
+        delivery = task['current_attempt'].get('delivery') or {}
+        report['delivery'] = {key: delivery.get(key) for key in ('model', 'effort', 'cli')}
+        check('delivery_records_observed_model', delivery.get('model') == SERVED_MODEL and delivery.get('effort') == 'low', report['delivery'])
         check('delivery_reached_gate', task['state'] == 'submitted', task['state'])
 
         # 10, 11: verification starts a fresh read-only Claude reviewer on the worker's model; it
@@ -339,8 +373,9 @@ def main():
         check('reviewer_mutations_ran_in_copy', len(review_results) >= 2 and 'mutation-1 rc=1' in review_results[0]['text'] and
               'mutation-2 rc=1' in review_results[1]['text'], review_results)
         # The review worktree is removed when the reviewer is reclaimed; the denial is the tool result.
-        check('reviewer_cannot_write_review_worktree', len(review_results) >= 3 and review_results[2]['is_error'] and
-              'denied' in review_results[2]['text'], review_results[2:])
+        check('reviewer_cannot_write_review_worktree', len(review_results) >= 4 and review_results[2]['is_error'] and
+              'denied' in review_results[2]['text'] and 'wt rc=1' in review_results[3]['text'] and 'req rc=1' in review_results[3]['text'],
+              review_results[2:])
         check('review_passed', review['state'] == 'passed' and task['state'] == 'verified', report['reviewer'])
         score = out / 'score.json'
         score.write_text(json.dumps(dict(result='通过', boundary_discipline=3, boundary_reason='只改了 hello.txt',
