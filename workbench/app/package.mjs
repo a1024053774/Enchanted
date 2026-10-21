@@ -30,14 +30,16 @@ const ui = JSON.parse(build.trim().split('\n').at(-1));
 const stage = join(work, 'app');
 mkdirSync(stage);
 cpSync(ui.out, join(stage, 'ui'), { recursive: true });
-for (const name of ['src', 'hooks', 'bin', 'terminal', 'LICENSE.synara']) cpSync(join(source, name), join(stage, name), { recursive: true });
+for (const name of ['src', 'hooks', 'bin', 'terminal', 'roles', 'LICENSE.synara']) cpSync(join(source, name), join(stage, name), { recursive: true });
 cpSync(join(source, 'app/desktop.mjs'), join(stage, 'desktop.mjs'));
 // Keep the existing dependency tree and let Packager prune declared build/UI
 // dependencies. Runtime code and the only gate CLI keep their original paths.
 cpSync(join(source, 'node_modules'), join(stage, 'node_modules'), { recursive: true, verbatimSymlinks: true });
 const runtime = { effect: manifest.dependencies.effect, 'node-pty': manifest.dependencies['node-pty'] };
 writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'a2a', productName: variant.name, version: manifest.version, type: 'module', main: 'desktop.mjs',
-  a2a: { state: variant.state },
+  // The source revision the worker launch records name (T-122).
+  a2a: { state: variant.state, revision: execFileSync('git', ['-C', source, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() +
+    (execFileSync('git', ['-C', source, 'status', '--porcelain', '--', '.'], { encoding: 'utf8' }).trim() ? '+dirty' : '') },
   dependencies: runtime, devDependencies: { ...Object.fromEntries(Object.entries(manifest.dependencies).filter(([key]) => !(key in runtime))), ...manifest.devDependencies } }, null, 2) + '\n');
 const electron = manifest.dependencies.electron;
 // Rebuild only the staged native module; keep reusable headers in the local cache.

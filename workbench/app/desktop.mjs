@@ -2,11 +2,27 @@ import { app, BrowserWindow, dialog } from 'electron';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { parseArgs } from 'node:util';
+import { parseArgs, promisify } from 'node:util';
+import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { startDaemon, request } from './src/transport.ts';
 import { readOperatorCredential } from './src/credentials.ts';
 import { run } from './ui/main.mjs';
+
+// What the backend needs to start workers (T-122). The user's own claude is found the
+// way their terminal finds it, through their login shell; without it no Claude worker starts.
+async function workerLaunchConfig(packaged) {
+  let claude = null;
+  try {
+    const { stdout } = await promisify(execFile)('/bin/zsh', ['-lic', 'command -v claude'], { timeout: 15000 });
+    claude = stdout.trim().split('\n').pop() || null;
+  } catch (error) { console.error(JSON.stringify({ warning: 'claude_not_found', reason: String(error) })); }
+  const revision = packaged.a2a?.revision ?? 'unknown';
+  return { ...(claude?.startsWith('/') ? { claude_bin: claude } : {}), role_card: join(app.getAppPath(), 'roles/worker.md'),
+    role_card_revision: revision, reviewer_role_card: join(app.getAppPath(), 'roles/reviewer.md'), reviewer_role_card_revision: revision,
+    code_revision: revision, turn_limit: 6,
+    hook_authorization: 'Enchanted product launch: worker hooks are passed only through each session\'s launch arguments (T-071, T-122)' };
+}
 
 async function start() {
   const { values } = parseArgs({ args: process.argv.slice(1), options: Object.fromEntries(
@@ -44,7 +60,7 @@ async function start() {
   }
   if (!connected) {
     process.env.A2A_OPERATOR_CREDENTIAL = join(state, `desktop-operator-${randomUUID()}.json`);
-    await startDaemon(state, {});
+    await startDaemon(state, await workerLaunchConfig(packaged));
     const pending = join(state, `desktop-connection-${randomUUID()}.json`);
     writeFileSync(pending, JSON.stringify({ credential: process.env.A2A_OPERATOR_CREDENTIAL }) + '\n', { flag: 'wx', mode: 0o600 });
     renameSync(pending, connection);

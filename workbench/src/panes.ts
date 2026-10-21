@@ -75,6 +75,9 @@ export interface LaunchConfig {
   }>>;
   codex_bin?: string;
   codex_home?: string;
+  claude_bin?: string;
+  // The reviewer role card for Claude Code reviewers, which need no pre-made home.
+  reviewer_role_card?: string; reviewer_role_card_revision?: string;
   role_card?: string;
   role_card_revision?: string;
   code_revision?: string;
@@ -88,6 +91,24 @@ export type EmptyInputDeclaration = {
   statement: "用户声明输入框已空"; launch: string; window_id: string;
   interruption: number; input_generation: number;
 };
+// Claude Code worker and reviewer launch (T-122, evidence/2026-10-21-batch19/T-122/probe-01..03):
+// never asks for approval, file tools write only where `writable` allows, shell commands run in
+// Claude's sandbox and write only there, and the user's own settings, hooks and MCP servers are
+// not loaded. A worker writes its worktree, the request directory and the repository's Git
+// metadata; a reviewer writes only its one-off candidate copy (its working directory).
+async function claudeArgv(executable: string, signal: string, session: string,
+  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[]) {
+  const hook = [{ hooks: [{ type: "command", command: signal, timeout: 10 }] }];
+  const settings = {
+    permissions: { allow: ["Bash", "Read", "Glob", "Grep", ...writable.map(path => `Edit(/${path}/**)`)] },
+    sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
+      filesystem: { allowWrite: shellWritable } },
+    hooks: Object.fromEntries(["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event => [event, hook])),
+    fastMode: selection.fast,
+  };
+  return [executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--permission-mode", "dontAsk",
+    "--setting-sources", "local", "--strict-mcp-config", "--settings", JSON.stringify(settings)];
+}
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
   token: string; task: A2ATask | null; attempt: A2AAttempt | null; pty: any;
@@ -102,6 +123,8 @@ type Pane = {
   offsets: Map<string, number>; model: string; effort: string;
   terminalBuffer: string;
   nativeFile?: string;
+  // Claude worker start-up: the folder-trust screen as read so far, and whether it was answered.
+  startupScreen?: string; trustAnswered?: boolean; startupOutputAt?: number;
   claudePromptId?: string | null;
   claudePromptIds?: Set<string>;
   permission?: { prompt_id: string; submission: string } | null;
@@ -493,6 +516,20 @@ export class Panes implements GateRuntime {
     await this.createPane(task, attempt, this.config, undefined, overrides);
   }
   async createReview(task: A2ATask, review: A2AReview, prompt: string) {
+    const attempt = { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
+      workspace: review.candidate_workspace, runtime_identity: null, turn_id: null };
+    if (task.card.executor.cli === "Claude Code") {
+      // D24: the reviewer defaults to the worker's CLI and model; it runs with the worker launch's selection.
+      const worker = this.launchRecord(review.attempt.runtime_identity!.launch);
+      check(this.config.reviewer_role_card && this.config.reviewer_role_card_revision, "review_launch_config_required");
+      await this.createPane(task, attempt, { ...this.config, role_card: this.config.reviewer_role_card,
+        role_card_revision: this.config.reviewer_role_card_revision }, review,
+        { model: worker.model_requested, effort: worker.effort_requested, fast: worker.service_tier_requested === "fast" });
+    } else await this.createCodexReview(task, review, attempt);
+    const pane = this.get(review.thread_id);
+    await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
+  }
+  private async createCodexReview(task: A2ATask, review: A2AReview, attempt: A2AAttempt) {
     const index = this.store.launches().filter((record) => record.role === "reviewer").length;
     const approved = this.config.reviewers?.[index];
     check(approved, "review_launch_config_required");
@@ -500,48 +537,55 @@ export class Panes implements GateRuntime {
     check(home !== realpathSync(this.config.codex_home!) &&
       !this.store.launches().some((record) => record.env.CODEX_HOME === home), "review_home_reused");
     check(!existsSync(join(home, "sessions")) || readdirSync(join(home, "sessions")).length === 0, "review_home_not_empty");
-    const attempt = { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
-      workspace: review.candidate_workspace, runtime_identity: null, turn_id: null };
     await this.createPane(task, attempt, { ...this.config, ...approved }, review);
-    const pane = this.get(review.thread_id);
-    await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
   }
   private async createPane(task: A2ATask, attempt: A2AAttempt, c: LaunchConfig, review?: A2AReview, overrides: ExecutionOverrides = {}) {
     const role = review ? "reviewer" : "worker";
-    check(c.codex_bin && c.codex_home && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
-    check(Number.isInteger(c.turn_limit) && c.turn_limit! > 0 && c.turn_limit! <= 10, "invalid_turn_limit");
-    const codex = realpathSync(c.codex_bin), home = realpathSync(c.codex_home);
-    check(home !== join(process.env.HOME ?? "", ".codex"), "isolated_codex_home_required");
+    // The task card names the worker's CLI; its reviewer runs on the same CLI (D24).
+    const claude = task.card.executor.cli === "Claude Code";
+    check((claude ? c.claude_bin : c.codex_bin && c.codex_home) && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
+    check(Number.isInteger(c.turn_limit) && c.turn_limit! > 0 && c.turn_limit! <= (claude ? 6 : 10), "invalid_turn_limit");
+    const executable = realpathSync(claude ? c.claude_bin! : c.codex_bin!);
+    const home = claude ? null : realpathSync(c.codex_home!);
+    if (!claude) check(home !== join(process.env.HOME ?? "", ".codex"), "isolated_codex_home_required");
     const environment: Record<string, string> = {};
     for (const key of ["PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "USER", "LOGNAME",
-      "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"]) {
+      "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
+      // A Claude worker reaches the API the way the daemon's user does (login, or a gateway URL and token).
+      ...(claude ? ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"] : [])]) {
       if (process.env[key]) environment[key] = process.env[key]!;
     }
-    environment.CODEX_HOME = home;
+    if (home) environment.CODEX_HOME = home;
     // Record the installed version; native CLIs are expected to update (user decision 2026-10-21).
-    const version = (await exec(codex, ["--version"], { env: environment })).stdout.trim();
+    const version = (await exec(executable, ["--version"], { env: environment })).stdout.trim();
     const helper = spawnHelper();
     const launch = randomUUID(), token = randomUUID();
     const requestDirectory = realpathSync(mkdtempSync("/tmp/a2a-requests-"));
-    const signalCommand = shellCommand([process.execPath, cli, "--state", this.root, "signal", "--launch", launch]);
+    // In the packaged app process.execPath is Electron; it acts as Node only with this variable.
+    const signalCommand = "ELECTRON_RUN_AS_NODE=1 " + shellCommand([process.execPath, cli, "--state", this.root, "signal", "--launch", launch]);
     const hook = `[{hooks=[{type="command",command=${JSON.stringify(signalCommand)},timeout=10}]}]`;
     const { model, effort, fast } = this.store.executionSelection(role, overrides);
-    check(task.card.executor.cli === "Codex", "worker_executor_mismatch");
     const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
+    const nativeSession = claude ? randomUUID() : null;
     const sandboxMode = "workspace-write";
     const networkAccess = "false";
     const networkProxy = "false";
     const excludeSlashTmp = review ? "true" : "false";
     const excludeTmpdir = review ? "true" : "false";
-    const argv = [codex, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
+    const gitMetadata = claude && !review ? realpathSync((await exec("git", ["-C", launchWorkspace, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim()) : null;
+    const argv = claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
+      review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory],
+      review ? [] : [gitMetadata!, requestDirectory]) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
       "-c", `sandbox_workspace_write.network_access=${networkAccess}`, "-c", `features.network_proxy=${networkProxy}`,
       ...(review ? ["-c", `sandbox_workspace_write.exclude_slash_tmp=${excludeSlashTmp}`,
         "-c", `sandbox_workspace_write.exclude_tmpdir_env_var=${excludeTmpdir}`] : [])];
-    for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"]) argv.push("-c", `hooks.${event}=${hook}`);
-    argv.push("--dangerously-bypass-hook-trust");
+    if (!claude) {
+      for (const event of ["UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"]) argv.push("-c", `hooks.${event}=${hook}`);
+      argv.push("--dangerously-bypass-hook-trust");
+    }
     Object.assign(environment, {
       SHELL: "/bin/zsh", TERM: "xterm-256color", COLORTERM: "truecolor",
       A2A_PROJECT: task.project_id, A2A_TASK: task.task_id, A2A_ATTEMPT: attempt.attempt_id,
@@ -550,6 +594,7 @@ export class Panes implements GateRuntime {
       A2A_REQUEST_DIR: requestDirectory,
       A2A_FENCE: String(attempt.fence), A2A_SPEC_REV: String(attempt.spec_rev),
       A2A_TOOL: version, A2A_MODEL_REQUESTED: model, A2A_EFFORT_REQUESTED: effort,
+      ...(claude ? { A2A_NATIVE_SESSION: nativeSession! } : {}),
     });
     if (review) environment.A2A_REVIEW = review.review_id;
     else Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
@@ -559,10 +604,11 @@ export class Panes implements GateRuntime {
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
       role, sandbox: "workspace-write", parent_launch: this.parentLaunch.getStore() ?? null,
+      cli: claude ? "Claude Code" : "Codex", ...(claude ? { native_session: nativeSession } : {}),
       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
-        review_home_was_empty: true } : {}),
-      created_at: new Date().toISOString(), cli_version: version, argv, executable_path: codex, request_dir: requestDirectory,
+        ...(claude ? {} : { review_home_was_empty: true }) } : {}),
+      created_at: new Date().toISOString(), cli_version: version, argv, executable_path: executable, request_dir: requestDirectory,
       model_requested: model, effort_requested: effort, service_tier_requested: fast ? 'fast' : 'default',
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
       code_revision: c.code_revision, source_snapshot: c.source_snapshot ?? null, role_card: c.role_card, role_card_revision: c.role_card_revision,
@@ -575,9 +621,10 @@ export class Panes implements GateRuntime {
       name: "xterm-256color", cols: 160, rows: 45, cwd: attempt.workspace, env: environment, encoding: "utf8",
     });
     const pane: Pane = { record, token, task, attempt, pty: terminal, state: "unknown", stopped: false,
-      archived: false, failed: null, leader: null, native: null, turn: null, nativeEnded: false, active: null,
+      archived: false, failed: null, leader: null, native: nativeSession, turn: null, nativeEnded: false, active: null,
       queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
-      offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "" };
+      offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "",
+      ...(claude ? { claudePromptId: null, claudePromptIds: new Set<string>(), startupScreen: "", trustAnswered: false } : {}) };
     this.panes.set(attempt.thread_id, pane);
     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
     terminal.onData((data: string) => {
@@ -586,6 +633,7 @@ export class Panes implements GateRuntime {
       } catch (error) { this.recordFailure(pane, "trace_write_failed", error); return; }
       try { this.scan(pane); }
       catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+      if (claude && pane.state === "unknown") this.confirmWorkerTrust(pane, data);
       try { this.terminalProtocol(pane, data); }
       catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
     });
@@ -595,11 +643,11 @@ export class Panes implements GateRuntime {
       // Read after exit, before publishing the terminal lifecycle transition.
       try {
         this.scan(pane, true);
-        this.store.event("native_final_read", { native_session: pane.native,
+        if (home) this.store.event("native_final_read", { native_session: pane.native,
           offsets: [...pane.offsets].map(([file, offset]) => ({ file: relative(home, file), offset })) }, record);
       } catch (error) {
         this.recordFailure(pane, "native_final_read_failed", error, { native_session: pane.native,
-          offsets: [...pane.offsets].map(([file, offset]) => ({ file: relative(home, file), offset })),
+          offsets: [...pane.offsets].map(([file, offset]) => ({ file: relative(home!, file), offset })),
           details: error instanceof Refusal ? error.details : null });
       }
       if (startupFailed) this.recordFailure(pane, 'launch_failed', new Error('native_cli_exit'), { event });
@@ -607,6 +655,56 @@ export class Panes implements GateRuntime {
       try { this.store.event("pane_exit", event, record); }
       catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
     });
+  }
+  // A Claude worker starts in a worktree a2a created, outside any folder the user trusted,
+  // so Claude asks whether to trust it. User decision 2026-10-21: answer it for the
+  // worker, only before it has received any task, and record that. An unrecognised
+  // screen is left alone; the worker then never reports ready and no task is sent.
+  confirmWorkerTrust(pane: Pane, data: string) {
+    if (pane.active || pane.state !== "unknown") return;
+    // Keep reading while the answer is in progress: it checks the redrawn selection.
+    pane.startupOutputAt = Date.now();
+    pane.startupScreen = (pane.startupScreen! + data.replace(/\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "").replace(/\s+/g, "")).slice(-4096);
+    if (pane.trustAnswered || !pane.startupScreen.includes("Yes,Itrustthisfolder")) return;
+    pane.trustAnswered = true;
+    const screen = pane.startupScreen;
+    // Writes go through the pane's write queue, but the wait does not hold it: Claude's
+    // terminal capability queries must still be answered meanwhile, or it redraws the dialog.
+    const press = (key: string) => this.serializeWrite(pane, async () => { pane.pty.write(key); });
+    const selected = () => {
+      const yes = pane.startupScreen!.lastIndexOf("❯Yes,Itrustthisfolder"), no = pane.startupScreen!.lastIndexOf("❯No,exit");
+      return yes > no;
+    };
+    void (async () => {
+      this.store.event("worker_trust_confirm_intent", { worktree: pane.record.worktree, screen }, pane.record);
+      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      // Claude draws the dialog before it finishes starting and then redraws it with the
+      // default choice; act once its output has been quiet for a moment.
+      for (const until = Date.now() + 5000; Date.now() - pane.startupOutputAt! < 800 && Date.now() < until;) await sleep(100);
+      pane.startupScreen = "";
+      // The default choice is "No, exit". Enter goes only while the trust choice is the last one drawn.
+      for (let tries = 1; !selected(); tries++) {
+        if (tries > 3) throw new Refusal("trust_choice_not_selected");
+        await press("\x1b[B");
+        await sleep(600);
+      }
+      await press("\r");
+      this.store.event("worker_trust_confirmed", { worktree: pane.record.worktree }, pane.record);
+    })().catch(error => this.recordFailure(pane, "worker_trust_failed", error, { screen: pane.startupScreen }));
+  }
+  // A Claude turn's observed facts: the effort its Stop hook reports, and the model of the
+  // turn's last reply in its transcript (the API's answer, not the requested model).
+  claudeTurnFacts(pane: Pane, stop: any) {
+    pane.effort = typeof stop.effort?.level === "string" && stop.effort.level ? stop.effort.level : "unknown";
+    pane.model = "unknown";
+    const lines = readFileSync(stop.transcript_path, "utf8").split("\n");
+    for (let index = lines.length - 1; index >= 0; index--) {
+      if (!lines[index]!.trim()) continue;
+      const entry = JSON.parse(lines[index]!);
+      if (entry.type === "user" && entry.promptId !== undefined && entry.promptId !== stop.prompt_id) break;
+      if (entry.type === "assistant" && typeof entry.message?.model === "string") { pane.model = entry.message.model; break; }
+    }
+    this.store.event("native_turn_facts", { prompt_id: stop.prompt_id, model: pane.model, effort: pane.effort }, pane.record);
   }
   recordFailure(pane: Pane, type: string, error: unknown, context?: unknown) {
     pane.failed = `${type}: ${String(error)}`; pane.state = "unknown";
@@ -1083,6 +1181,15 @@ export class Panes implements GateRuntime {
         throw new Refusal('hook_origin_or_turn_mismatch');
       }
       check(Number.isFinite(Date.parse(received_at)), 'hook_received_at_required');
+      // A Claude worker's session start is its ready signal: release the first task to it.
+      if (pane.record.cli === "Claude Code" && pane.record.role !== "controller" && value.hook_event_name === "SessionStart") {
+        check(value.session_id === pane.native && value.cwd === pane.record.worktree && value.source === "startup", "session_start_mismatch");
+        check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
+        this.store.event("native_session_started", { native_session: value.session_id, trust_confirmed: Boolean(pane.trustAnswered) }, pane.record);
+        // The daemon drains the pane after every accepted signal, so the queued task goes next.
+        pane.state = "idle";
+        return;
+      }
       this.scan(pane);
       binding = currentTurnBinding(pane);
       validateHookEnvelope(pane, value);
@@ -1153,6 +1260,7 @@ export class Panes implements GateRuntime {
         const matched = current && value.stop_hook_active === false;
         if (!matched) { this.store.event("stop_not_matched", value, pane.record); return; }
         check(currentTurnTrust(pane, this.store.read().filter(e => e.launch === launch)) === 'verified', 'current_turn_untrusted');
+        if (pane.record.role !== "controller") this.claudeTurnFacts(pane, value);
         pane.stopInProgress = true;
         try {
           if (transfer) await transfer(pane, value, true);
@@ -1311,6 +1419,16 @@ export class Panes implements GateRuntime {
     }
     check(pane.attempt, "worker_attempt_required");
     const attempt = pane.attempt;
+    if (pane.record.cli === "Claude Code") {
+      // Claude's turn is the prompt the daemon submitted; its session id is fixed at launch.
+      const turn = identity.prompt_id;
+      check(turn && pane.claudePromptId === turn && pane.native === identity.native_session, "native_identity_required");
+      return { thread: attempt.thread_id, turn, address: `${pane.record.role}:${attempt.thread_id}`,
+        assertActive: async () => {
+          const info = await this.processInfo(attempt.thread_id);
+          check(info.leader && !info.failed && pane.state === "busy" && pane.claudePromptId === turn, "worker_not_active");
+        } };
+    }
     this.scan(pane);
     check(pane.turn && pane.native === identity.native_session, "native_identity_required");
     const turn = pane.turn;
@@ -1324,7 +1442,8 @@ export class Panes implements GateRuntime {
     const pane = this.get(thread);
     check(pane.attempt, "worker_attempt_required");
     if (!pane.stopped) await this.processInfo(thread);
-    return { workspace: pane.attempt.workspace, provider: "codex", turn: pane.turn,
+    return { workspace: pane.attempt.workspace, provider: pane.record.cli === "Claude Code" ? "claude" : "codex",
+      turn: pane.record.cli === "Claude Code" ? pane.claudePromptId ?? null : pane.turn,
       runtime_identity: { launch: pane.record.id, thread, shell_pid: pane.pty.pid,
         leader_pid: pane.leader, native_session: pane.native },
       running: (pane.state !== "idle" || pane.writing) && !pane.stopped && !pane.nativeEnded,

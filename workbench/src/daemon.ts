@@ -42,6 +42,7 @@ export async function serve(
   const store = new OrchestrationStore(root);
   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
   const gates = createGates(root, panes);
+  gates.openedProjectRepo = project => store.openedProjects().find(opened => opened.project_id === project)?.repo;
   const relay = new RequestRelay(store);
   const roleRequests = new RoleRequests(store, launch => panes.terminalAlive(launch));
   const feedbackText = (receipts: unknown[]) =>
@@ -248,11 +249,12 @@ export async function serve(
     if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     const { parent_launch: _parent, ...gateInput } = input;
     assertOpenedRepo(gateInput);
-    const result = await gates.call(gateInput, undefined, { address: roleRequest.role, project: roleRequest.project,
+    // Workers this call starts belong to the terminal that holds the role.
+    const result = await panes.parentLaunch.run(terminal.id, () => gates.call(gateInput, undefined, { address: roleRequest.role, project: roleRequest.project,
       assertActive: async () => {
         if (stopping) throw new Refusal("daemon_stopping");
         if (roleRequests.approved(terminal.id)?.id !== roleRequest.id) throw new Refusal("role_request_ended");
-      } });
+      } }));
     // The gate's version check lets exactly one first save succeed; its project owns the draft.
     if (result.ok && input.command === "card_save" && input.expected_version === 0 && draftOwner(input.task) === undefined)
       store.event("card_draft_owned", { task: input.task, project: roleRequest.project }, { id: terminal.id, task: null });

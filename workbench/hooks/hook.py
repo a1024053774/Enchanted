@@ -8,9 +8,12 @@ import sys
 
 
 def latest_turn_facts(env):
-    home, native = env.get('CODEX_HOME'), env['CODEX_THREAD_ID']
+    home = env.get('CODEX_HOME')
     if not home:
-        return 'unknown', 'unknown'
+        # A Claude Code worker: its transcript records no per-turn effort, so the
+        # launch's requested effort is the only effort known.
+        return 'unknown', env['A2A_EFFORT_REQUESTED'] if env.get('A2A_NATIVE_SESSION') else 'unknown'
+    native = env['CODEX_THREAD_ID']
     sessions = Path(home).resolve() / 'sessions'
     files = [path for path in sessions.rglob('*.jsonl') if path.name.endswith(native + '.jsonl')]
     if not files:
@@ -48,7 +51,7 @@ def add_trailers():
     trailers = {'A2A-Task': env['A2A_TASK'], 'A2A-Attempt': env['A2A_ATTEMPT'],
                 'A2A-Session': env['A2A_SESSION'], 'A2A-Role': env['A2A_ROLE'],
                 'A2A-Tool': env['A2A_TOOL'], 'A2A-Model': 'unknown',
-                'A2A-Effort': 'unknown', 'A2A-Native-Session': env['CODEX_THREAD_ID'],
+                'A2A-Effort': 'unknown', 'A2A-Native-Session': env.get('CODEX_THREAD_ID') or env['A2A_NATIVE_SESSION'],
                 'A2A-Launch': env['A2A_LAUNCH']}
     # Validate before any edit. Requested launch settings are not observed turn facts.
     for key, content in trailers.items():
@@ -82,10 +85,15 @@ def forward():
     # Run the repository's existing hook without writing its config.
     name = Path(sys.argv[0]).name
     original_env = dict(os.environ)
-    if original_env.get('GIT_CONFIG_COUNT') != '1' or original_env.get('GIT_CONFIG_KEY_0') != 'core.hooksPath':
+    # Entry 0 is the session's hooks path. Claude Code's shell sandbox appends safe.directory
+    # entries for the worktree and repository (T-122 probe); nothing else may follow, since a
+    # later entry would override the hooks path.
+    count = original_env.get('GIT_CONFIG_COUNT', '')
+    if not count.isdigit() or int(count) < 1 or original_env.get('GIT_CONFIG_KEY_0') != 'core.hooksPath' or \
+            any(original_env.get(f'GIT_CONFIG_KEY_{index}') != 'safe.directory' for index in range(1, int(count))):
         raise ValueError('会话 Git 配置改变')
-    for key in ('GIT_CONFIG_COUNT', 'GIT_CONFIG_KEY_0', 'GIT_CONFIG_VALUE_0'):
-        original_env.pop(key)
+    for key in ('GIT_CONFIG_COUNT', *(f'GIT_CONFIG_{part}_{index}' for index in range(int(count)) for part in ('KEY', 'VALUE'))):
+        original_env.pop(key, None)
     original = Path(subprocess.check_output(['git', 'rev-parse', '--git-path', 'hooks/' + name],
                                           env=original_env, text=True).strip()).resolve()
     if original == Path(__file__).resolve():

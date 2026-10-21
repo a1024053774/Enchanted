@@ -373,6 +373,9 @@ export class A2AGates {
       ? { ...status, ...(status.failure ? { failure: { ...status.failure } } : {}) }
       : undefined;
   }
+  // The host's opened-project list: a project opened in the workbench has a repository
+  // before it has any task.
+  openedProjectRepo: (project: string) => string | undefined = () => undefined;
   setUserInputObserverStatus(
     state: A2AUserInputObserver["state"],
     failure?: A2AUserInputObserver["failure"],
@@ -1462,7 +1465,9 @@ export class A2AGates {
     const submitCommand = [...entry, "submit", "--task", taskId, "--attempt", attempt.attempt_id,
       "--session", attempt.session_id, "--fence", String(attempt.fence), "--spec-rev", String(attempt.spec_rev),
       "--commit", "FULL_COMMIT_SHA"].map((part) => "'" + part.replaceAll("'", "'\\''") + "'").join(" ");
-    const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\n受管身份：${JSON.stringify(submit)}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。两条 Git 前缀 allow 规则只授权对应命令；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\n${submitCommand}\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。`;
+    // In the packaged app process.execPath is Electron; it acts as Node only with this variable.
+    const submitLine = "ELECTRON_RUN_AS_NODE=1 " + submitCommand;
+    const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\n受管身份：${JSON.stringify(submit)}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。${this.boundCard(attempt).executor.cli === "Claude Code" ? "Git 命令在 Claude 的 shell 沙箱里执行" : "两条 Git 前缀 allow 规则只授权对应命令"}；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\n${submitLine}\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。`;
     const dispatchPrompt = conflict ? `${prompt}\n\n${this.conflictPrompt(task, conflict)}\n原 worker 会话已结束。请在本次新 attempt 的 worktree 内整理，使用本次身份提交；旧 C 只作参考，不照搬其旧 attempt 尾注。` : prompt;
     this.event(taskId, "prompt_intent", { thread: attempt.thread_id, prompt: dispatchPrompt });
     this.checkUserInputObserver();
@@ -2171,18 +2176,32 @@ export class A2AGates {
     const sandbox = Array.isArray(argv) ? argv.indexOf("--sandbox") : -1;
     const cwd = Array.isArray(argv) ? argv.indexOf("-C") : -1;
     const config = (key: string) => Array.isArray(argv) && argv.includes(key);
+    const flag = (name: string) => Array.isArray(argv) && argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined;
+    const claude = task.card.executor.cli === "Claude Code";
+    // A Claude reviewer (D24: same CLI as the worker) never asks, loads none of the user's
+    // settings, and writes only its candidate copy, with the shell sandbox writing nowhere else.
+    let settings: any = null;
+    try { settings = claude ? JSON.parse(String(flag("--settings"))) : null; } catch { settings = null; }
+    const boundary = claude
+      ? launch?.cli === "Claude Code" && flag("--permission-mode") === "dontAsk" && flag("--setting-sources") === "local" &&
+        config("--strict-mcp-config") && flag("--session-id") === launch.native_session && settings !== null &&
+        JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", `Edit(/${realpathSync(review.candidate_workspace)}/**)`] }) &&
+        settings.sandbox?.enabled === true && settings.sandbox.allowUnsandboxedCommands === false &&
+        JSON.stringify(settings.sandbox.filesystem) === JSON.stringify({ allowWrite: [] }) &&
+        live.workspace === review.candidate_workspace &&
+        !argv.some((arg) => ["--resume", "--continue", "-r", "-c", "--fork-session"].includes(String(arg)))
+      : launch?.cli !== "Claude Code" && live.workspace === review.candidate_workspace && cwd >= 0 && argv[cwd + 1] === review.candidate_workspace &&
+        sandbox >= 0 && argv[sandbox + 1] === "workspace-write" &&
+        config("sandbox_workspace_write.network_access=false") && config("features.network_proxy=false") &&
+        config("sandbox_workspace_write.exclude_slash_tmp=true") &&
+        config("sandbox_workspace_write.exclude_tmpdir_env_var=true") &&
+        launch.review_home_was_empty === true &&
+        !argv.some((arg) => ["resume", "fork", "--resume", "--fork"].includes(String(arg)));
     requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
       launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
       launch.thread === review.thread_id && launch.attempt === review.attempt.attempt_id &&
-      launch.sandbox === "workspace-write" && launch.worktree === review.candidate_workspace &&
-      live.workspace === review.candidate_workspace && cwd >= 0 && argv[cwd + 1] === review.candidate_workspace &&
-      sandbox >= 0 && argv[sandbox + 1] === "workspace-write" &&
-      config("sandbox_workspace_write.network_access=false") && config("features.network_proxy=false") &&
-      config("sandbox_workspace_write.exclude_slash_tmp=true") &&
-      config("sandbox_workspace_write.exclude_tmpdir_env_var=true") &&
-      launch.review_home_was_empty === true &&
-      !Object.keys(launch.env ?? {}).some((key) => key.startsWith("GIT_CONFIG_")) &&
-      !argv.some((arg) => ["resume", "fork", "--resume", "--fork"].includes(String(arg))),
+      launch.sandbox === "workspace-write" && launch.worktree === review.candidate_workspace && boundary &&
+      !Object.keys(launch.env ?? {}).some((key) => key.startsWith("GIT_CONFIG_")),
       "review_launch_boundary", { launch, live: { workspace: live.workspace, runtime_identity: live.runtime_identity } });
     return launch;
   }
@@ -2498,7 +2517,7 @@ export class A2AGates {
     const identity = this.runtimeIdentity(attempt, live), bound = attempt.runtime_identity;
     requireGate(
       live.workspace === attempt.workspace &&
-        live.provider === "codex" &&
+        ["codex", "claude"].includes(live.provider) &&
         bound && identity.launch === bound.launch && identity.thread === bound.thread && identity.shell_pid === bound.shell_pid &&
         (bound.leader_pid === null || identity.leader_pid === bound.leader_pid) &&
         (bound.native_session === null || identity.native_session === bound.native_session),
@@ -2921,6 +2940,8 @@ export class A2AGates {
       const repos = new Set(this.db.prepare("SELECT data FROM tasks").all()
         .map(row => JSON.parse(String(row.data)) as A2ATask)
         .filter(task => task.project_id === args.project).map(task => task.repo));
+      const opened = this.openedProjectRepo(args.project);
+      if (opened) repos.add(opened);
       requireGate(repos.size === 1, repos.size ? "ambiguous_project" : "unknown_project");
       const result = readyTickets([...repos][0]!);
       return { ok: result.diagnostics.length === 0, ...result,
@@ -3569,6 +3590,10 @@ export class A2AGates {
         const reused = this.db.prepare("SELECT 1 FROM orchestration_events WHERE type='native_record' AND launch!=? AND json_extract(data,'$.record.type')='session_meta' AND json_extract(data,'$.record.payload.id')=? LIMIT 1")
           .get(review.launch_id!, live.runtime_identity.native_session);
         requireGate(!reused, "review_native_session_reused");
+        // Claude sessions leave no rollout record; the launch records hold each session id instead.
+        const sameSession = this.db.prepare("SELECT 1 FROM launch_records WHERE id!=? AND json_extract(data,'$.native_session')=? LIMIT 1")
+          .get(review.launch_id!, live.runtime_identity.native_session);
+        requireGate(!sameSession, "review_native_session_reused");
         const verdict = reviewVerdict(args.verdict, args.findings);
         const evidence = reviewEvidence(args.review_requirements, args.report);
         requireGate(evidence.review_requirements.mutation_checks.workspace === review.candidate_workspace,
@@ -3598,7 +3623,8 @@ export class A2AGates {
           requireGate(
             !live.error &&
               live.workspace === attempt.workspace &&
-              live.provider === "codex" &&
+              // The task card names the worker's CLI.
+              live.provider === (task.card.executor.cli === "Claude Code" ? "claude" : "codex") &&
               live.running &&
               !live.blocked &&
               attempt.runtime_identity!.leader_pid !== null && attempt.runtime_identity!.native_session !== null &&
