@@ -2,7 +2,7 @@
 id: T-099
 title: 工作台起 Claude 主控时预置隔离配置，跳过初始化屏（主题、安全须知、信任目录）
 type: build
-status: open
+status: superseded
 blocked_by: []
 claimed_by:
 supersedes:
@@ -29,3 +29,7 @@ supersedes:
 ## 说明
 
 - 构思主控建票，**未标就绪**；用户表示非必需，等用户说开工再做。依赖 T-093 合入后的隔离配置结构，建议在其后。
+
+## Resolution
+
+2026-10-21 由 [T-119](T-119-herdr-style-terminals-claimed-roles.md) 取代：主控改为用户在普通终端里用自己的配置启动 CLI，应用不再启动主控，也就不需要为它预置隔离配置。未实现。

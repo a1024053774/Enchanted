@@ -13,6 +13,8 @@
 契约见 [managed-delivery](specs/managed-delivery-2026-10-06.md)、[recovery](specs/recovery-2026-10-06.md)、[supervised-run](specs/supervised-run-2026-10-06.md)。
 这些证据只对 Herdr 运行时成立，切换后需重跑。原研究稿与 [初始设计](specs/herdr-a2a.md) 是保留的日期记录。
 
+2026-10-21：主控与 worker 的建立方式改为 Herdr 式，见 [T-119](tickets/T-119-herdr-style-terminals-claimed-roles.md) 与 [spec](specs/herdr-style-claimed-roles-2026-10-21.md)。
+
 ## Notes
 
 - [开发发现目录](../findings/README.md)：集中相关报告，分别记录 GPT 模型行为、分工协调、工程与证据处理。
@@ -57,6 +59,7 @@
 - [T-088 证据体量：大块归档到外置盘](tickets/T-088-evidence-archive-policy.md): 2026-10-16 起新批次只留文本摘要与 `*.archive.json` 清单，run/fixtures 目录、gz、sqlite、监视器日志归档到 `/Volumes/WD-Elements/a2a-evidence/`；不带校验值；缺盘报错；已提交历史不改写；落地见 T-089
 - [T-097 发布前瘦身 Git 历史](tickets/T-097-slim-git-history-before-release.md): 2026-10-19 用户定"先瘦身再发布，发布后才使用"；范围 T-088 类别加 evidence/ 下大于 5 MiB 的文件，外置盘备份与归档，哈希映射表入仓库；push origin main 一次已授权；执行见 T-101
 - [T-092 正常登录启动方式](tickets/T-092-normal-login-profile.md): 2026-10-17 决定：隔离 HOME 加只复制登录凭据、本地转发层逐条计数、脚本只核对事实放行由用户定、现有登录总上限 3 回合先做小复核；落地见 T-093（未就绪）
+- [T-119 像 Herdr 一样的终端，认领身份加权限](tickets/T-119-herdr-style-terminals-claimed-roles.md): 用户自己在项目终端启动任意 CLI；agent 经 `a2a` 命令与自动挂上的 skill 申请角色，界面批准后生效并绑定项目；worker 由后台按主控选的 CLI 带权限参数启动（取代 D19 的 worker 只用 Codex）；规格见 [spec](specs/herdr-style-claimed-roles-2026-10-21.md)
 - 输入法验证：2026-10-17 用户决定本轮不做，日后使用中发现问题再修（逐字："输入法先不做，我到时候使用的时候若发现了再修"）；T-078 的 Resolution 已记为未验证
 - T-098 pane 启动延时：2026-10-18 关闭未实现——用户把 `~/.zshrc` 的 oh-my-zsh 更新模式改为 reminder 消除已知提问源，不再加延时设置；一般缺陷（前台只剩 shell≠等命令）仍在，靠启动后核对回显
 
@@ -68,13 +71,15 @@
 - 用户输入的抽取、含义标注与 Enchanted 消费：以后再说（用户 2026-10-09）；两个主控进入工作台后，Herdr 期做法（收件箱文件、`scripts/inbox`、`scripts/dispatch`、`scripts/session-copy`）的停用与删除，在切换 ticket 里切片
 - 第三阶段 S0～S7 尚未切票：切片建议见 [spec 第 12 节](specs/native-cli-orchestration-2026-10-10.md#12-切片建议)，构思主控先切 S0、S1
 
+- T-119 之后待切：主控之间、worker 与主控之间经 `a2a` 通信；在界面上编辑每个角色的边界与权限默认值（T-121、T-122 关闭后再切）
+
 ## Out of scope
 
 - 生产发布、对外 push 和重启用户 Herdr server；本轮只做本地实现与隔离验收
 - 将 F01 主控 GPT 提前结束回合归为分工协调缺陷并据此改造协调层；用户已明确将其归为模型行为，记录保留在 findings。
 - Rewriting the dated research draft | reason: it is the project's initial research record.
 - 基于 Zed 二次开发、从零自建 GPUI 界面 | reason: 见 intent.md 的范围（最初由 T-030 记录）；T-025、T-028 以 out-of-scope 关闭。
-- 第三阶段之外：额度感知调度与水位监控、token/成本/缓存监控、无头模式、改动量上限、前端录屏、风险分档、多审查与影子审查、OCR、定期安全扫描、Claude Code 与 Codex 以外的 CLI、Windows/Linux、多机与远程、Enchanted 功能、跟进 Synara 上游 | reason: 见 intent.md 的范围与 T-069～T-072。
+- 第三阶段之外：额度感知调度与水位监控、token/成本/缓存监控、无头模式、改动量上限、前端录屏、风险分档、多审查与影子审查、OCR、定期安全扫描、Claude Code 与 Codex 以外的 CLI（T-119 起按需另开票）、Windows/Linux、多机与远程、Enchanted 功能、跟进 Synara 上游 | reason: 见 intent.md 的范围与 T-069～T-072。
 
 ## Living docs
 
