@@ -65,6 +65,9 @@ try {
       log.pane_tag = await evaluate(`document.querySelector('.pane-slot[data-role-request-pending="true"] .role-request-tag')?.innerText ?? null`);
       if (log.pane_tag !== `申请 ${log.banner_number} · 执行主控`) log.failures.push('pane tag does not match the banner number');
       await shot('04-roleRequest-banner');
+      // The buttons stay disabled for a moment after the request list changes.
+      for (let i = 0; i < 50 && await evaluate(`[...document.querySelectorAll('.role-request button')].find(b=>b.textContent.trim()==='批准')?.disabled !== false`); i++)
+        await new Promise(resolve => setTimeout(resolve, 100));
       await evaluate(`[...document.querySelectorAll('.role-request button')].find(b=>b.textContent.trim()==='批准').click()`);
       approved = true; act('clicked 批准'); log.checks.push('role_request_banner_shown');
       await until(`[...document.querySelectorAll('[data-agent-launch] .agent-role')].some(n=>n.textContent==='执行主控')`, 'sidebar shows 执行主控', 15000);

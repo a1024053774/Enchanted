@@ -185,9 +185,17 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     return { ...project, git: project.repo ? await gitFacts(project.repo) :
       { branch: null, upstream: null, ahead: null, behind: null, error: '项目目录不唯一' }, state, state_label: stateLabels[state] };
   }));
-  const pendingRequests = current.filter(row => row.state === 'pending').map(row => ({ id: row.id, launch: row.launch,
-    project: row.project, role: row.role, role_label: roleLabel({ role: 'controller', preset: row.role }), cli: row.cli, requested_at: row.requested_at }));
-  return { projects, agents: treeAgents, role_requests: pendingRequests, gaps: [
+  // The terminal's directory and opening time tell two requests apart when their panes are out of view.
+  const requestView = (row: typeof current[number]) => {
+    const terminal = store.launchRecord(row.launch);
+    return { id: row.id, launch: row.launch, project: row.project, role: row.role, role_label: roleLabel({ role: 'controller', preset: row.role }),
+      cli: row.cli, requested_at: row.requested_at, terminal_cwd: terminal?.worktree ?? null, terminal_opened_at: terminal?.created_at ?? null };
+  };
+  const pendingRequests = current.filter(row => row.state === 'pending').map(requestView);
+  // A grant whose asker never confirmed: tell the user their approval did not take effect.
+  const unconfirmed = current.filter(row => row.state === 'ended' && row.ended_reason === 'not_confirmed' &&
+    Date.now() - Date.parse(row.decided_at!) < 5 * 60_000).map(requestView);
+  return { projects, agents: treeAgents, role_requests: pendingRequests, unconfirmed_role_requests: unconfirmed, gaps: [
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
     '经角色申请成为主控的项目终端没有结构化回合信号，状态显示未知。',

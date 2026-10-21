@@ -47,14 +47,10 @@ export class RoleRequests {
       if (row.type === "role_request_confirmed" && roleRequest.state === "granted") roleRequest.state = "approved";
       if (row.type === "role_request_ended") { roleRequest.state = "ended"; roleRequest.ended_reason = data.reason; }
     }
-    // A closed terminal or a restarted daemon ends every role request it held; a grant
-    // nobody confirmed in time never takes effect.
-    const now = Date.now();
+    // A closed terminal or a restarted daemon ends every role request it held.
     for (const roleRequest of roleRequests.values()) {
       if (["pending", "granted", "approved"].includes(roleRequest.state) && !this.alive(roleRequest.launch)) {
         roleRequest.state = "ended"; roleRequest.ended_reason = "terminal_gone";
-      } else if (roleRequest.state === "granted" && now - Date.parse(roleRequest.decided_at!) > confirmWindowMs) {
-        roleRequest.state = "ended"; roleRequest.ended_reason = "not_confirmed";
       }
     }
     return [...roleRequests.values()];
@@ -86,15 +82,22 @@ export class RoleRequests {
     // Approval is checked again here: another terminal may hold the role by now.
     if (approved) refuse(!this.holder(roleRequest!.project, roleRequest!.role), "role_taken");
     this.store.event("role_request_decided", { role_request: roleRequest!.id, approved }, { id: roleRequest!.launch, task: null });
-    // One terminal per role and project: granting it settles every other request for it.
-    if (approved) for (const other of this.all().filter(row => row.state === "pending" && row.project === roleRequest!.project && row.role === roleRequest!.role))
-      this.store.event("role_request_decided", { role_request: other.id, approved: false, reason: "role_given_to_other" }, { id: other.launch, task: null });
+    // A grant nobody confirms in time is ended by an event, timed on this process's
+    // monotonic clock rather than the wall clock.
+    if (approved) setTimeout(() => {
+      const granted = this.all().find(row => row.id === roleRequest!.id);
+      if (granted?.state === "granted") this.store.event("role_request_ended", { role_request: granted.id, reason: "not_confirmed" }, { id: granted.launch, task: null });
+    }, confirmWindowMs).unref();
     return this.all().find(row => row.id === roleRequest!.id)!;
   }
   confirm(launch: string, id: string) {
     const roleRequest = this.current(launch);
     if (!roleRequest || roleRequest.id !== id || roleRequest.state !== "granted") return undefined;
     this.store.event("role_request_confirmed", { role_request: roleRequest.id }, { id: launch, task: null });
+    // One terminal per role and project: the role taking effect settles every other
+    // request for it. Until then they stay pending, so an unconfirmed grant loses nobody's request.
+    for (const other of this.all().filter(row => row.state === "pending" && row.project === roleRequest.project && row.role === roleRequest.role))
+      this.store.event("role_request_decided", { role_request: other.id, approved: false, reason: "role_given_to_other" }, { id: other.launch, task: null });
     return this.all().find(row => row.id === roleRequest.id)!;
   }
   end(launch: string, reason: string) {

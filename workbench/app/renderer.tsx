@@ -41,8 +41,9 @@ type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; 
 type AgentItem = { id: string; project: string; task: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; terminal?: boolean;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
-type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string };
-type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; role_requests: RoleRequest[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
+type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
+  terminal_cwd: string | null; terminal_opened_at: string | null };
+type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; role_requests: RoleRequest[]; unconfirmed_role_requests: RoleRequest[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
 const glyphs: Record<string, ReactNode> = {
   running: <circle className="glyph-spin" cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="26 10" />,
   waiting_user_answer: <><circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" strokeWidth="1.6" /><circle cx="8" cy="8" r="2.8" fill="currentColor" /></>,
@@ -425,6 +426,16 @@ function Workbench() {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [agents, setAgents] = useState<AgentItem[]>([]);
   const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
+  const [unconfirmedRequests, setUnconfirmedRequests] = useState<RoleRequest[]>([]);
+  // The list moving under the pointer must not turn a click into a decision on another request.
+  const [requestsSettling, setRequestsSettling] = useState(false);
+  const requestIds = roleRequests.map(roleRequest => roleRequest.id).join(',');
+  useEffect(() => {
+    if (!requestIds) return;
+    setRequestsSettling(true);
+    const timer = setTimeout(() => setRequestsSettling(false), 1000);
+    return () => clearTimeout(timer);
+  }, [requestIds]);
   const [launches, setLaunches] = useState<Record<string, string>>({});
   const [deciding, setDeciding] = useState<string | null>(null);
   const [roleRequestError, setRoleRequestError] = useState<string | null>(null);
@@ -449,7 +460,7 @@ function Workbench() {
     try { localStorage.setItem(themeKey, theme); } catch { /* Per-viewer convenience only. */ }
   }, [theme]);
   const applySidebar = useCallback((value: Sidebar) => {
-    setProjects(value.projects); setAgents(value.agents); setRoleRequests(value.role_requests ?? []); setGaps(value.gaps); setNotifications(value.notifications);
+    setProjects(value.projects); setAgents(value.agents); setRoleRequests(value.role_requests ?? []); setUnconfirmedRequests(value.unconfirmed_role_requests ?? []); setGaps(value.gaps); setNotifications(value.notifications);
     setDockBadges(value.dockBadges); setNotices(value.notices); setNow(Date.now());
   }, []);
   const [loading, setLoading] = useState(true);
@@ -736,18 +747,23 @@ function Workbench() {
           <span className="task-title">{item.title}</span><span className="task-meta">{gateNames[item.state] ?? item.state}</span>
         </button>)}
       </nav>}
-      {roleRequests.length > 0 && <div className="role-requests" aria-label="角色申请">
+      {(roleRequests.length > 0 || unconfirmedRequests.length > 0) && <div className="role-requests" aria-label="角色申请">
+        {unconfirmedRequests.map(roleRequest => <div className="role-request" key={roleRequest.id} data-role-request-unconfirmed={roleRequest.id} role="status">
+          <p><strong>{roleRequest.project}</strong> 里批准的{roleRequest.role_label}没有生效：{roleRequest.cli ?? 'agent'} 在 15 秒内没有确认收到（可能已被中断）。需要时让它重新申请。</p>
+        </div>)}
         {roleRequests.map((roleRequest, index) => {
           const key = Object.entries(launches).find(([, launch]) => launch === roleRequest.launch)?.[0];
           const rivals = roleRequests.filter(other => other.id !== roleRequest.id && other.project === roleRequest.project && other.role === roleRequest.role).length;
-          const place = key ? (names[key] ? `终端「${names[key]}」` : `第 ${paneKeys.indexOf(key) + 1} 个窗格`) : '一个终端';
+          const opened = roleRequest.terminal_opened_at ? new Date(roleRequest.terminal_opened_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : null;
+          const place = key ? (names[key] ? `终端「${names[key]}」` : `第 ${paneKeys.indexOf(key) + 1} 个窗格`)
+            : `${opened ? opened + ' 打开的' : ''}终端（${tilde(roleRequest.terminal_cwd ?? '', home) || '目录未知'}）`;
           return <div className="role-request" key={roleRequest.id} data-role-request={roleRequest.id} role="alert">
             <span className="role-request-number" aria-label={`申请 ${index + 1}`}>{index + 1}</span>
             <p><strong>{roleRequest.project}</strong> 的{place}里的 {roleRequest.cli ?? 'agent'} 申请成为<strong>{roleRequest.role_label}</strong>
-              {!key && <span className="role-request-hint">（这个终端不在当前视图）</span>}
-              {rivals > 0 && <span className="role-request-hint">。同一角色另有 {rivals} 个申请，批准其中一个，其余自动拒绝</span>}</p>
-            <button className="text-button" disabled={deciding !== null} onClick={() => void decideRoleRequest(roleRequest, false)}>拒绝</button>
-            <button className="primary-button" disabled={deciding !== null} onClick={() => void decideRoleRequest(roleRequest, true)}>批准</button>
+              {!key && <span className="role-request-hint">，不在当前视图</span>}
+              {rivals > 0 && <span className="role-request-hint">。同一角色另有 {rivals} 个申请：批准其中一个，它确认生效后其余自动拒绝</span>}</p>
+            <button className="text-button" disabled={deciding !== null || requestsSettling} onClick={() => void decideRoleRequest(roleRequest, false)}>拒绝</button>
+            <button className="primary-button" disabled={deciding !== null || requestsSettling} onClick={() => void decideRoleRequest(roleRequest, true)}>批准</button>
           </div>;
         })}
         {roleRequestError && <p className="catalog-error" role="alert">{roleRequestError}</p>}

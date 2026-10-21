@@ -42,7 +42,7 @@ def main():
     # Known-bad: a killed asker leaves its request approvable; the user's own ZDOTDIR is dropped.
     target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped', 'refusal-unrecorded', 'task-widens-scope',
                                                  'drafts-unowned', 'foreign-owned-save', 'approved-not-ended', 'grant-has-authority',
-                                                 'rivals-left-pending'])
+                                                 'rivals-left-pending', 'expiry-unrecorded'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t121-', dir='/private/tmp')).resolve()
@@ -111,6 +111,9 @@ def main():
         elif args.mutant == 'rivals-left-pending':
             path = source / 'workbench/src/roleRequests.ts'
             old, new = 'this.store.event("role_request_decided", { role_request: other.id, approved: false, reason: "role_given_to_other" }', 'void ({ role_request: other.id }'
+        elif args.mutant == 'expiry-unrecorded':
+            path = source / 'workbench/src/roleRequests.ts'
+            old, new = 'if (granted?.state === "granted") this.store.event(', 'if (false) this.store.event('
         elif args.mutant == 'refusal-unrecorded':
             path = source / 'workbench/src/daemon.ts'
             old, new = 'store.event("request_rejected", ', 'void ('
@@ -426,48 +429,64 @@ def main():
             unreceived.append((row['state'], row['ended_reason']))
         check('unreceived_approval_ends', unreceived == [('ended', 'asker_gone')] * 3, unreceived)
         # The user's approval grants the role; only the asker's confirmation makes it take effect.
-        asker = ask(terminal_b, 'ideation')
-        [waiting] = wait_pending(('proj', 'ideation'))
-        assert request('role_request_decide', operator, role_request=waiting['id'], approved=True)['ok']
-        granted = answer(asker)
-        unconfirmed = dict(answer=granted['role_request']['state'], role=request('terminal_whoami', terminal_b)['role'],
-                           call=request('status', terminal_b, task='own-1').get('error'),
-                           sidebar=[agent['id'] for agent in request('sidebar_snapshot')['agents'] if agent['id'] == b['launch']])
-        time.sleep(16)
-        late_confirm = request('role_request_confirm', terminal_b, role_request=waiting['id'])
-        unconfirmed['expired'] = [r['ended_reason'] for r in request('terminal_whoami', terminal_b)['role_requests'] if r['id'] == waiting['id']]
-        unconfirmed['late_confirm'] = late_confirm.get('error')
-        report['unconfirmed_grant'] = unconfirmed
-        check('grant_needs_confirmation', unconfirmed == dict(answer='granted', role=None, call='approved_role_required', sidebar=[],
-              expired=['not_confirmed'], late_confirm='request_not_granted'), unconfirmed)
-        # Two terminals ask for the same role: granting one settles the other.
+        # Two terminals ask for the same role. Granting one leaves the other pending until the
+        # grant is confirmed; an unconfirmed grant expires (recorded) and the role is free again.
         d = open_terminal('d')
         type_line(d, f'print -r -- $A2A_TERMINAL_TOKEN > {out}/d-token.txt', 'T121-D-TOKEN')
         terminal_d = dict(kind='terminal', launch=d['launch'], token=(out / 'd-token.txt').read_text(encoding='utf-8').strip())
-        ask_b, ask_d = ask(terminal_b, 'ideation'), None
+
+        def pending_of(terminal):
+            return [row for row in request('sidebar_snapshot').get('role_requests') or [] if row['launch'] == terminal['launch']]
+
+        ask_b = ask(terminal_b, 'ideation')
         wait_pending(('proj', 'ideation'))
         ask_d = ask(terminal_d, 'ideation')
         deadline = time.monotonic() + 15
-        while len([row for row in request('sidebar_snapshot').get('role_requests') or [] if (row['project'], row['role']) == ('proj', 'ideation')]) < 2:
+        while not pending_of(d):
             assert time.monotonic() < deadline, '第二个申请没有出现'
             time.sleep(.2)
-        first = [row for row in request('sidebar_snapshot')['role_requests'] if row['launch'] == b['launch']][0]
+        [first] = pending_of(b)
         assert request('role_request_decide', operator, role_request=first['id'], approved=True)['ok']
-        winner = answer(ask_b)
-        confirmed = request('role_request_confirm', terminal_b, role_request=first['id'])
-        ask_d.settimeout(5)
+        granted = answer(ask_b)
+        unconfirmed = dict(answer=granted['role_request']['state'], role=request('terminal_whoami', terminal_b)['role'],
+                           call=request('status', terminal_b, task='own-1').get('error'),
+                           sidebar=[agent['id'] for agent in request('sidebar_snapshot')['agents'] if agent['id'] == b['launch']],
+                           rival_pending=len(pending_of(d)), rival_decide=request('role_request_decide', operator,
+                               role_request=pending_of(d)[0]['id'], approved=True).get('error') if pending_of(d) else 'rival_already_settled')
+        time.sleep(16)
+        expired = [event['data']['reason'] for event in request('orchestration_events')['events']
+                   if event['type'] == 'role_request_ended' and event['data']['role_request'] == first['id']]
+        unconfirmed.update(expired=expired, late_confirm=request('role_request_confirm', terminal_b, role_request=first['id']).get('error'),
+                           notice=[row['id'] for row in request('sidebar_snapshot').get('unconfirmed_role_requests') or []],
+                           rival_still_pending=len(pending_of(d)))
+        report['unconfirmed_grant'] = unconfirmed
+        check('grant_needs_confirmation', unconfirmed == dict(answer='granted', role=None, call='approved_role_required', sidebar=[],
+              rival_pending=1, rival_decide='role_taken', expired=['not_confirmed'], late_confirm='request_not_granted',
+              notice=[first['id']], rival_still_pending=1), unconfirmed)
+        # The role is free again: b asks once more, d is granted and confirms; b's request is then settled.
+        ask_b = ask(terminal_b, 'ideation')
+        deadline = time.monotonic() + 15
+        while not pending_of(b):
+            assert time.monotonic() < deadline, 'b 的新申请没有出现'
+            time.sleep(.2)
+        [second] = pending_of(d)
+        assert request('role_request_decide', operator, role_request=second['id'], approved=True)['ok']
+        winner = answer(ask_d)
+        before_confirm = len(pending_of(b))
+        confirmed = request('role_request_confirm', terminal_d, role_request=second['id'])
+        ask_b.settimeout(5)
         try:
-            rival = answer(ask_d).get('error')
+            rival = answer(ask_b).get('error')
         except socket.timeout:
             rival = 'still_waiting'
-            ask_d.close()
-        conflict = dict(rival=rival, winner=winner['role_request']['state'], confirmed=confirmed['ok'],
+            ask_b.close()
+        conflict = dict(winner=winner['role_request']['state'], before_confirm=before_confirm, confirmed=confirmed['ok'], rival=rival,
                         pending=[row['id'] for row in request('sidebar_snapshot').get('role_requests') or []],
                         b_role=request('terminal_whoami', terminal_b)['role'], d_role=request('terminal_whoami', terminal_d)['role'])
         report['same_role_conflict'] = conflict
-        check('granting_one_settles_rivals', conflict == dict(rival='role_given_to_other', winner='granted', confirmed=True, pending=[],
-              b_role='ideation', d_role=None), conflict)
-        assert request('role_release', terminal_b)['ok']
+        check('confirmed_grant_settles_rivals', conflict == dict(winner='granted', before_confirm=1, confirmed=True, rival='role_given_to_other',
+              pending=[], b_role=None, d_role='ideation'), conflict)
+        assert request('role_release', terminal_d)['ok']
 
         # 8: closing the terminal ends its role.
         closed = request('shell_close', operator, launch=a['launch'])
