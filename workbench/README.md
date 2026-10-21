@@ -102,7 +102,10 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
   申请成为执行主控或构思主控，并等用户在界面批准或拒绝（最多 10 分钟）。`role_request` 必须带 `wait_seconds`（1～600），
   申请只在调用方于这次连接上等待时存在：连接一关闭（被中断、被杀，含 SIGKILL），后台立即撤回仍待批准的申请；
   等待到期或后台停止时同样撤回。用户点批准只是“授予”（granted），没有权限；`a2a request` 收到授予后立即发
-  `role_request_confirm`，确认后才生效（approved）。授予后连接关闭、或 15 秒内没有确认，这次授予作废。结束原因记为
+  `role_request_confirm`，确认后才生效（approved）。授予后连接关闭、或 15 秒内没有确认，这次授予作废（后台定时写
+  `role_request_ended`，界面提示“批准没有生效”）。残余窗口：确认生效后、`a2a request` 打印结果前进程被杀，角色仍有效而
+  agent 没看到输出；确认表示“这个终端认了”，同一终端里的其他进程也能代发。没有回执的协议无法消除这一段，`a2a whoami`
+  随时可查实际身份。结束原因记为
   `asker_gone`、`request_wait_timeout`、`daemon_stopping` 或 `not_confirmed`；`a2a release` 放弃身份；`a2a call '<JSON>'` 以已批准的身份调用门禁命令。
 - `claude`、`codex`：同名包装。在 PATH 里跳过自己找到用户真正的 CLI，原样转发参数，只多加一个按会话生效的参数：
   Claude 加 `--plugin-dir`（`terminal/plugin/enchanted-a2a`，含 a2a skill），Codex 加 `-c developer_instructions=…`
@@ -110,12 +113,13 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 
 终端身份是终端本身：后台为每个普通终端生成令牌，只放在该终端的环境（`A2A_TERMINAL`、`A2A_TERMINAL_TOKEN`）
 和后台内存里，不写进启动记录。角色申请是只追加的事件（`role_requested`、`role_request_decided`、
-`role_request_confirmed`、`role_request_ended`），状态由事件、终端是否存活与确认时限推出。界面在终端区上方逐条
+`role_request_confirmed`、`role_request_ended`），状态由事件和终端是否存活推出。界面在终端区上方逐条
 列出待批准的申请并编号，申请的窗格加框并显示同号标签（“申请 1 · 执行主控”）；同一角色有多个申请时提示批准一个、
-其余自动拒绝。批准或拒绝走管理凭据的 `role_request_decide`。规则：
+确认生效后其余自动拒绝；不在当前视图的终端显示其工作目录与打开时间。批准或拒绝走管理凭据的 `role_request_decide`。规则：
 
-- 只有项目终端能申请；一个终端同时只有一个角色；同一项目的同一角色同时只给一个终端。批准其中一个申请时，
-  同项目同角色的其他待批准申请记为拒绝（原因 `role_given_to_other`），它们的 `a2a request` 随即返回。
+- 只有项目终端能申请；一个终端同时只有一个角色；同一项目的同一角色同时只给一个终端。授予期间同项目同角色的其他
+  申请保持待批准（再批准返回 `role_taken`）；授予确认生效时它们记为拒绝（原因 `role_given_to_other`），各自的
+  `a2a request` 随即返回；授予没确认而作废时它们仍可批准。界面在申请列表变化后一秒内不接受批准或拒绝。
 - 待批准、已授予未确认、被拒绝、已结束的申请没有任何权限；主控命令返回 `approved_role_required`。
 - 已批准的终端以该角色为门禁调用者（`address` 为 `ideation` 或 `executor`），沿用门禁的全部检查，只能调用
   按命令名在这一层核对项目：门禁的任务命令须带属于本项目的 task；还不存在的 task 只能用于准备新任务的
