@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, nativeTheme } from 'electron';
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
@@ -634,6 +634,12 @@ export async function run(options: Options) {
     app.setPath('crashDumps', join(options.userData, 'crashes'));
   }
   await app.whenReady();
+  if (windows.size === 0) {
+    const updateDockIcon = () => app.dock.setIcon(join(directory, 'brand',
+      nativeTheme.shouldUseDarkColors ? 'logo-on-dark.png' : 'logo-on-light.png'));
+    updateDockIcon();
+    nativeTheme.on('updated', updateDockIcon);
+  }
   const window = new BrowserWindow({ width: 1440, height: 900, minWidth: 900, minHeight: 650,
     title: 'Enchanted', backgroundColor: '#111111',
     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,

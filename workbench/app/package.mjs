@@ -43,8 +43,20 @@ const helper = join(native, 'spawn-helper');
 chmodSync(helper, 0o755);
 accessSync(helper, constants.X_OK);
 const { packager } = await import('@electron/packager');
+const iconset = join(work, 'Enchanted.iconset');
+mkdirSync(iconset);
+for (const size of [16, 32, 128, 256, 512]) {
+  for (const scale of [1, 2]) {
+    execFileSync('/usr/bin/sips', ['-z', String(size * scale), String(size * scale),
+      join(source, '../docs/assets/brand/logo-on-light.png'), '--out',
+      join(iconset, `icon_${size}x${size}${scale === 2 ? '@2x' : ''}.png`)], { stdio: 'ignore' });
+  }
+}
+const icon = join(work, 'Enchanted.icns');
+execFileSync('/usr/bin/iconutil', ['-c', 'icns', '-o', icon, iconset]);
 const paths = await packager({ dir: stage, name: 'Enchanted', executableName: 'Enchanted', platform: 'darwin', arch: 'arm64',
   electronVersion: electron, out: join(work, 'package'), tmpdir: temporary, overwrite: false, asar: false,
+  icon,
   appBundleId: 'org.a2a.workbench', appCategoryType: 'public.app-category.developer-tools',
   download: { cacheRoot: process.env.electron_config_cache },
   osxSign: { identity: '-', identityValidation: false, preAutoEntitlements: false, preEmbedProvisioningProfile: false,

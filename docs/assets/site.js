@@ -7,7 +7,17 @@
   const names = { system: '跟随系统', light: '浅色', dark: '深色' };
   const order = ['system', 'light', 'dark'];
   let current = document.documentElement.dataset.theme || 'system';
-  const show = () => { toggle.textContent = '主题：' + names[current]; };
+  const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+  const updateIcon = () => {
+    const dark = current === 'dark' || (current === 'system' && systemTheme.matches);
+    document.querySelectorAll('link[rel="icon"]').forEach(icon => icon.remove());
+    const icon = document.createElement('link');
+    icon.rel = 'icon'; icon.type = 'image/png';
+    icon.href = './assets/brand/logo-on-' + (dark ? 'dark' : 'light') + '.png';
+    document.head.append(icon);
+  };
+  const show = () => { toggle.textContent = '主题：' + names[current]; updateIcon(); };
+  systemTheme.addEventListener('change', updateIcon);
   show();
   toggle.addEventListener('click', () => {
     current = order[(order.indexOf(current) + 1) % order.length];

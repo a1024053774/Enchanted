@@ -34,7 +34,15 @@ p { margin: 0 0 14px; }
 .skip:focus { left: 16px; top: 12px; background: var(--raised); padding: 6px 10px; z-index: 10; }
 
 .site-header { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; align-items: center; max-width: 1240px; margin: 0 auto; padding: 14px 16px; }
-.wordmark { color: var(--ink); font-weight: 650; font-size: 18px; text-decoration: none; letter-spacing: -.02em; }
+.wordmark { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 650; font-size: 18px; text-decoration: none; letter-spacing: -.02em; }
+.wordmark img { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
+.wordmark .logo-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .wordmark .logo-light { display: none; }
+  :root:not([data-theme="light"]) .wordmark .logo-dark { display: block; }
+}
+:root[data-theme="dark"] .wordmark .logo-light { display: none; }
+:root[data-theme="dark"] .wordmark .logo-dark { display: block; }
 .wordmark small { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; letter-spacing: 0; }
 .site-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; font-size: 14px; }
 .site-nav a { color: var(--muted); text-decoration: none; }

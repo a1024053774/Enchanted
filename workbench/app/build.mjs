@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, copyFileSync, cpSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +30,7 @@ for (const [entry, format, fileName] of [['main.ts', 'es', 'main.mjs'], ['preloa
   } });
 }
 copyFileSync(join(appRoot, '../LICENSE.synara'), join(out, 'LICENSE.synara'));
+cpSync(join(appRoot, '../../docs/assets/brand'), join(out, 'brand'), { recursive: true });
 const manifest = { schema: 1, out, main: join(out, 'main.mjs'), preload: join(out, 'preload.cjs'),
   renderer: join(out, 'renderer/index.html'), cacheDir, temporary, source: appRoot };
 writeFileSync(join(out, 'build.json'), JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx' });

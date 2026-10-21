@@ -1,5 +1,10 @@
 # Enchanted
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/logo-on-dark.png">
+  <img src="docs/assets/brand/logo-on-light.png" alt="Enchanted 标志" width="160" height="160">
+</picture>
+
 Enchanted 是面向 macOS 的多 agent 协作工作台，a2a 是它的编排内核。它在交互终端里运行 Claude Code 和 Codex，按“项目 → 任务 → agent 会话”组织工作，由常驻编排后台托管终端、门禁和记录。关闭工作台窗口后，后台与 agent 可以继续运行。
 
 [产品页与可点击演示](https://a1024053774.github.io/Enchanted/) · [GitHub Releases 下载](https://github.com/a1024053774/Enchanted/releases)

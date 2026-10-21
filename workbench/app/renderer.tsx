@@ -6,6 +6,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
+import brandLogo from '../../docs/assets/brand/logo-on-dark.png';
 import { FlowPage } from './FlowPage';
 import { ExecutionSettings } from './ExecutionSettings';
 import type { ExecutionRole, ExecutionSelection } from '../src/executionSettings.ts';
@@ -540,7 +541,7 @@ function Workbench() {
   const connecting = states.length < paneKeys.length || states.some(value => value.connecting);
   return <div className="workbench">
     <aside className="sidebar">
-      <div className="brand">Enchanted <span>a2a 内核</span></div>
+      <div className="brand"><img src={brandLogo} alt="" />Enchanted <span>a2a 内核</span></div>
       <div className="catalog-heading"><span className="nav-label">项目目录</span>
         <button disabled={loading || navigating || creating} onClick={() => void refresh()}>刷新列表</button></div>
       <button className="create-project" disabled={loading || navigating || creating} onClick={() => setCreationProject('')}>新增项目目录</button>

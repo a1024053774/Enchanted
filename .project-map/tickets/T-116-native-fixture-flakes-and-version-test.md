@@ -6,12 +6,14 @@ status: open
 blocked_by: []
 claimed_by:
 supersedes:
-ready: yes
+ready: no
 ready_by: executor
 ready_rev: 1
 ---
 
 ## What to build
+
+2026-10-21 用户裁定：本票搁置，不继续 Claude 版本检查相关工作。原始发现与验收条件保留作为历史现场，不代表当前执行授权；重新启动本票须先确认范围。
 
 来源：T-115 的 repeat-02 与独立审查 01（evidence/2026-10-20-batch18/T-115/）。这是执行主控在已批准范围内自建的缺陷级票（T-004）。
 

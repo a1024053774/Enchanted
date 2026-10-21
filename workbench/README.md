@@ -445,6 +445,8 @@ npm run package:mac -- --slot mac-新的编号
 UI 构建、stage、重建与临时文件集中在本次构建目录的 `work/`；打包、签名核对成功后
 自动清理 `work/`，目录里只保留 `Enchanted.app`。已有槽不复用，失败时保留现场。
 显示名和主可执行文件名为 Enchanted，helper 为 `Enchanted Helper*.app`；bundle id 仍为 `org.a2a.workbench`。
+品牌原图在 `docs/assets/brand/`：深色标记用于浅底，白色标记用于深底。打包时生成 macOS `.icns`；
+运行时 Dock 图标随系统外观切换，工作台侧栏沿用现有深色界面并显示白色标记。
 后台源码、钩子与唯一门禁 CLI 保持原路径；node-pty 针对 Electron 43.4.1 从源码重建，
 打包时把新 helper 设为 755。
 Packager 裁剪构建依赖，并以 ad-hoc 签名；不公证、不启用 hardened runtime、不使用 ASAR。
