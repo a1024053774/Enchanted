@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   flow: () => ipcRenderer.invoke('a2a:flow'),
   sidebar: () => ipcRenderer.invoke('a2a:sidebar'),
   selectAgent: (launch: string) => ipcRenderer.invoke('a2a:select-agent', launch),
+  decideRoleRequest: (roleRequest: string, approved: boolean) => ipcRenderer.invoke('a2a:decide-role-request', roleRequest, approved),
   notificationSetting: (enabled?: boolean, preference?: 'notifications' | 'dockBadges') => ipcRenderer.invoke('a2a:notification-setting', enabled, preference),
   tasks: (project: string) => ipcRenderer.invoke('a2a:tasks', project),
   selection: () => ipcRenderer.invoke('a2a:selection'),

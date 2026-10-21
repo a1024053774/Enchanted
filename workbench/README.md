@@ -88,6 +88,38 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 关闭时拒收新请求，自动 run 在等待及门禁边界停止推进；已开始的门禁操作与回执写入先收尾，
 随后停止自建窗格、保存退出事件、关闭数据库。停止不替代 reclaim，也不把失败或未知结果改成通过。
 
+## 项目终端里的 a2a 与角色申请
+
+普通终端以 Enchanted 的 `ZDOTDIR` 引导启动 zsh（`workbench/terminal/zdotdir/`）：依次加载用户自己的
+`.zshenv`、`.zprofile`、`.zshrc`、`.zlogin`，然后把 `workbench/terminal/bin` 放到 PATH 最前面，最后把
+`ZDOTDIR` 恢复成用户原来的值。macOS `/etc/zshrc` 按 `ZDOTDIR` 推出的 `HISTFILE` 改回用户自己的目录。
+不改用户的任何文件，不写 `~/.claude`、`~/.codex`，也不往项目仓库写文件。终端环境里去掉打包版后台的
+`ELECTRON_RUN_AS_NODE`。
+
+`terminal/bin` 里有三个命令：
+
+- `a2a`：本终端的编排命令。`a2a help` 列出用法；`a2a whoami` 报项目与身份；`a2a request executor|ideation`
+  申请成为执行主控或构思主控，并等用户在界面批准或拒绝（最多 10 分钟）；`a2a release` 放弃身份；
+  `a2a call '<JSON>'` 以已批准的身份调用门禁命令。
+- `claude`、`codex`：同名包装。在 PATH 里跳过自己找到用户真正的 CLI，原样转发参数，只多加一个按会话生效的参数：
+  Claude 加 `--plugin-dir`（`terminal/plugin/enchanted-a2a`，含 a2a skill），Codex 加 `-c developer_instructions=…`
+  指向 `a2a help`（用户自己传了 `developer_instructions` 时不加）。挂法的实测依据见 T-120。
+
+终端身份是终端本身：后台为每个普通终端生成令牌，只放在该终端的环境（`A2A_TERMINAL`、`A2A_TERMINAL_TOKEN`）
+和后台内存里，不写进启动记录。角色申请是只追加的事件（`role_requested`、`role_request_decided`、
+`role_request_ended`），状态由事件和终端是否存活推出。界面在终端区上方列出待批准的申请，申请的窗格加框；
+批准或拒绝走管理凭据的 `role_request_decide`。规则：
+
+- 只有项目终端能申请；一个终端同时只有一个角色；同一项目的同一角色同时只给一个终端。
+- 待批准、被拒绝、已结束的申请没有任何权限；主控命令返回 `approved_role_required`。
+- 已批准的终端以该角色为门禁调用者（`address` 为 `ideation` 或 `executor`，限定本项目），沿用门禁的全部检查；
+  调用其他项目返回 `role_project_mismatch`。
+- 终端关闭或后台重启后身份结束，侧栏随之移除。
+- 侧栏把已批准的终端显示为对应主控（“项目终端”）。它没有结构化回合信号，状态显示“未知”。
+
+验证：`python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
+`--revision`、`--mutant pending-authority|history-in-zdotdir` 为已知坏实现）。
+
 ## 普通终端
 
 后台支持独立于项目或属于项目的普通 zsh 窗格，不绑定任务或 attempt，不走受管任务认领与交付。
@@ -185,7 +217,7 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 用户打开的项目以登记目录为仓库，否则要求各任务的仓库一致。
 
 任务详情不在界面填写。用户在项目终端里启动 claude 或 codex、告诉它身份是主控并发送要做的事；
-主控经下面的门禁 CLI 注册任务卡，任务随后出现在项目的任务栏和侧栏会话树中。
+主控经角色申请（见“项目终端里的 a2a 与角色申请”）取得身份后，经门禁注册任务卡，任务随后出现在项目的任务栏和侧栏会话树中。
 
 使用同一个 CLI 生成模板，填写目标、非目标、路径、验收文件、argv 完成条件等字段后校验并保存：
 

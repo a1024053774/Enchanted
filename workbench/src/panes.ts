@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
@@ -22,6 +22,10 @@ const exec = promisify(execFile);
 const require = createRequire(import.meta.url);
 const cli = fileURLToPath(new URL("./gates/cli.ts", import.meta.url));
 const processQuery = fileURLToPath(new URL("./processSnapshot.py", import.meta.url));
+// T-120: ordinary terminals start zsh through Enchanted's ZDOTDIR bootstrap, which
+// loads the user's own startup files and then puts the a2a command and CLI shims first.
+const terminalResources = fileURLToPath(new URL("../terminal/", import.meta.url));
+const terminalCli = fileURLToPath(new URL("./terminalCli.ts", import.meta.url));
 const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
 const shellCommand = (argv: string[]) => argv.map(quote).join(" ");
 function check(value: unknown, error: string, details?: unknown): asserts value {
@@ -138,7 +142,14 @@ export class Panes implements GateRuntime {
     for (const key of Object.keys(environment)) {
       if (key.startsWith("A2A_") || key.startsWith("GIT_CONFIG_") || agentSessionMarkers.has(key)) delete environment[key];
     }
+    // The packaged daemon itself runs Electron as Node; the user's shell must not.
+    delete environment.ELECTRON_RUN_AS_NODE;
     if (project !== null) environment.A2A_PROJECT = project;
+    const token = randomBytes(32).toString("hex");
+    if (environment.ZDOTDIR !== undefined) Object.assign(environment, { A2A_USER_ZDOTDIR: environment.ZDOTDIR, A2A_USER_ZDOTDIR_SET: "1" });
+    Object.assign(environment, { ZDOTDIR: join(terminalResources, "zdotdir"), A2A_TERMINAL_ZDOTDIR: join(terminalResources, "zdotdir"),
+      A2A_TERMINAL_BIN: join(terminalResources, "bin"), A2A_TERMINAL_PLUGIN: join(terminalResources, "plugin/enchanted-a2a"),
+      A2A_TERMINAL_CLI: terminalCli, A2A_NODE: process.execPath, A2A_STATE: this.root, A2A_TERMINAL: launch, A2A_TERMINAL_TOKEN: token });
     const record = { id: launch, project, task: null, attempt: null, session: null, fence: null,
       spec_rev: null, thread, role: "shell", created_at: new Date().toISOString(),
       shell: "/bin/zsh", shell_argv: ["-l", "-i"], worktree, env: project === null ? {} : { A2A_PROJECT: project } };
@@ -149,7 +160,7 @@ export class Panes implements GateRuntime {
     const terminal = require("node-pty").spawn(record.shell, record.shell_argv, {
       name: "xterm-256color", cols: 160, rows: 45, cwd: worktree, env: environment, encoding: "utf8",
     });
-    const pane: Pane = { record, token: "", task: null, attempt: null, pty: terminal, state: "unknown",
+    const pane: Pane = { record, token, task: null, attempt: null, pty: terminal, state: "unknown",
       stopped: false, archived: false, failed: null, leader: null, native: null, turn: null,
       nativeEnded: false, active: null, queue: [], writing: false, stopInProgress: false,
       writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, sending: null,
@@ -1190,6 +1201,17 @@ export class Panes implements GateRuntime {
     check(pane.record.role !== "shell", "agent_pane_required");
     check(identity.token === pane.token, "invalid_launch_identity");
     return pane;
+  }
+  // A terminal identity is the terminal itself, alive in this daemon process.
+  authenticateTerminal(identity: any) {
+    const pane = typeof identity.launch === "string" ? this.panes.get(this.store.launchRecord(identity.launch)?.thread) : undefined;
+    check(pane && pane.record.role === "shell" && pane.record.id === identity.launch && typeof identity.token === "string" &&
+      identity.token.length === pane.token.length && identity.token === pane.token, "invalid_terminal_identity");
+    return pane!;
+  }
+  terminalAlive(launch: string) {
+    const pane = this.panes.get(this.store.launchRecord(launch)?.thread);
+    return Boolean(pane && pane.record.role === "shell" && !pane.stopped && !pane.closing && !pane.archived);
   }
   questions(launch: string) {
     return projectQuestions(this.store.read().filter(event => event.launch === launch));

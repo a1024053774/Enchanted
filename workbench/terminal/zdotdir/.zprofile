@@ -1,0 +1,3 @@
+ZDOTDIR=$A2A_USER_ZDOTDIR
+[[ -f $ZDOTDIR/.zprofile ]] && source $ZDOTDIR/.zprofile
+ZDOTDIR=$A2A_TERMINAL_ZDOTDIR

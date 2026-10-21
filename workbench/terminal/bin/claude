@@ -1,0 +1,6 @@
+#!/bin/sh
+# Enchanted shim (T-120): run the user's own claude with Enchanted's a2a plugin for
+# this session only; the user's arguments pass through unchanged.
+. "$(dirname "$0")/real-cli.sh"
+real=$(a2a_real_cli claude) || exit 127
+exec "$real" --plugin-dir "$A2A_TERMINAL_PLUGIN" "$@"

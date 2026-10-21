@@ -1,0 +1,9 @@
+#!/bin/sh
+# Enchanted shim (T-120): run the user's own codex with a short developer instruction
+# that points to `a2a help`, unless the user passes developer_instructions themselves.
+. "$(dirname "$0")/real-cli.sh"
+real=$(a2a_real_cli codex) || exit 127
+for argument in "$@"; do
+  case $argument in *developer_instructions*) exec "$real" "$@" ;; esac
+done
+exec "$real" -c "developer_instructions='这是 Enchanted 工作台的终端。用户让你担任主控、派发 worker、与其他 agent 通信时，先运行 a2a help，按它说明的命令操作；没有经过用户在界面批准的身份，不能使用主控命令。'" "$@"

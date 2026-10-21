@@ -1,0 +1,278 @@
+"""T-121：项目终端里认领主控。真实 CLI 入口、后台、socket、zsh（经 ZDOTDIR 引导）与 `a2a` 命令；
+用夹具 claude 记录包装命令转发的参数，不调用模型。
+
+失败方式（先列再写）：
+1. 终端里没有 `a2a`，或者用户的 .zshrc 把自己的目录排到前面，包装命令被跳过。
+2. 包装命令丢了用户参数，或者没加 --plugin-dir。
+3. 打包版后台的 ELECTRON_RUN_AS_NODE 传进用户的 shell。
+4. 用户的启动文件没加载（.zshenv/.zshrc 里的变量不在），或者被改写了。
+5. 没认领、被拒绝、已结束的终端还能用主控命令。
+6. 两个终端同时拿到同一项目的同一角色；一个终端申请两个角色。
+7. 伪造或借用别的终端的令牌能冒充。
+8. 终端关闭后身份仍在，侧栏仍显示主控。
+--revision 在该版本的隔离源码上跑同一场景（修前应失败）。
+"""
+import argparse
+import base64
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--summary', type=Path, required=True)
+    target = parser.add_mutually_exclusive_group()
+    target.add_argument('--revision')
+    # Known-bad: a pending roleRequest already grants the role's authority.
+    # Known-bad: history follows macOS /etc/zshrc into Enchanted's ZDOTDIR.
+    target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir'])
+    args = parser.parse_args()
+    assert not args.summary.exists(), '保留既有证据，改用新路径'
+    fixture = Path(tempfile.mkdtemp(prefix='t121-', dir='/private/tmp')).resolve()
+    state, home, cwd, out = fixture / 'state', fixture / 'home', fixture / 'project', fixture / 'out'
+    for path in (state, home, cwd, out, home / 'userbin'):
+        path.mkdir()
+    # The user's own startup files: .zshrc puts its own bin first, like a real setup.
+    user_files = {'.zshenv': 'export T121_ZSHENV=loaded\n',
+                  '.zshrc': "PS1='T121% '\npath=($HOME/userbin $path)\nexport T121_ZSHRC=loaded\n"}
+    for name, text in user_files.items():
+        (home / name).write_text(text, encoding='utf-8')
+    fake = home / 'userbin/claude'
+    fake.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$T121_ARGV"\n', encoding='utf-8')
+    fake.chmod(0o755)
+    source = ROOT
+    if args.revision:
+        source = fixture / 'source'
+        for name in subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', args.revision, 'workbench/src', 'workbench/terminal'],
+                                            cwd=ROOT, text=True).splitlines():
+            target = source / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(subprocess.check_output(['git', 'show', f'{args.revision}:{name}'], cwd=ROOT))
+            if name.startswith('workbench/terminal/bin/'):
+                target.chmod(0o755)
+        (source / 'workbench/node_modules').symlink_to(ROOT / 'workbench/node_modules', target_is_directory=True)
+    env = {key: os.environ[key] for key in ['PATH', 'LANG', 'TMPDIR'] if key in os.environ}
+    env.update(HOME=str(home), SHELL='/bin/zsh', TERM='xterm-256color', ELECTRON_RUN_AS_NODE='1',
+               T121_ARGV=str(out / 'claude-argv.txt'), A2A_OPERATOR_CREDENTIAL=str(fixture / 'operator.json'))
+    env.pop('ZDOTDIR', None)
+    if args.mutant:
+        source = fixture / 'source'
+        for name in ('src', 'terminal'):
+            shutil.copytree(ROOT / 'workbench' / name, source / 'workbench' / name, symlinks=True)
+        (source / 'workbench/node_modules').symlink_to(ROOT / 'workbench/node_modules', target_is_directory=True)
+        if args.mutant == 'pending-authority':
+            path = source / 'workbench/src/daemon.ts'
+            old, new = ('const roleRequest: RoleRequest | undefined = roleRequests.approved(terminal.id);',
+                        'const roleRequest: RoleRequest | undefined = roleRequests.current(terminal.id);')
+        else:
+            path = source / 'workbench/terminal/zdotdir/.zshrc'
+            old, new = '[[ $HISTFILE == $A2A_TERMINAL_ZDOTDIR/.zsh_history ]] && HISTFILE=$ZDOTDIR/.zsh_history\n', ''
+        text = path.read_text(encoding='utf-8')
+        assert text.count(old) == 1, '变异定位必须唯一'
+        path.write_text(text.replace(old, new), encoding='utf-8')
+    cli = source / 'workbench/src/gates/cli.ts'
+    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, fixture=str(fixture), checks=[])
+    running = False
+
+    def check(name, condition, detail=None):
+        assert condition, f'{name}: {detail}'
+        report['checks'].append(name)
+
+    def run_cli(*arguments):
+        run = subprocess.run(['node', str(cli), '--state', str(state), *arguments], env=env,
+                             capture_output=True, text=True, timeout=30)
+        assert run.returncode == 0, f'{arguments[0]}: {run.stderr or run.stdout}'
+        return json.loads(run.stdout)
+
+    def request(command, identity=None, **data):
+        with socket.socket(socket.AF_UNIX) as connection:
+            connection.settimeout(30)
+            connection.connect(str(state / 'control.sock'))
+            payload = dict(id=str(uuid.uuid4()), input=dict(command=command, **data), identity=identity)
+            connection.sendall((json.dumps(payload) + '\n').encode())
+            response = b''
+            while b'\n' not in response:
+                part = connection.recv(65536)
+                assert part, 'daemon 在回执前断开'
+                response += part
+        return json.loads(response.split(b'\n', 1)[0])
+
+    def output(launch):
+        result = request('pane_output', launch=launch, offset=0)
+        assert result['ok'], result
+        text = base64.b64decode(result['data_base64']).decode('utf-8', 'replace')
+        return re.sub(r'\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))', '', text)
+
+    terminals = {}
+
+    def open_terminal(name):
+        launch = run_cli('shell_start', '--project', 'proj', '--cwd', str(cwd))['launch']
+        opened = request('window_open', operator, launch=launch['id'], project='proj')
+        assert opened['ok'], opened
+        terminals[name] = dict(launch=launch['id'], identity=opened['identity'], sequence=0)
+        return terminals[name]
+
+    def type_line(terminal, line, marker, timeout=30):
+        terminal['sequence'] += 1
+        sent = request('window_input', terminal['identity'], sequence=terminal['sequence'],
+                       request_id=str(uuid.uuid4()), data=f'{line}; print -r -- "{marker}=$?"\r')
+        assert sent['ok'], sent
+        deadline = time.monotonic() + timeout
+        while True:
+            found = re.search(rf'^{marker}=(\d+)\r?$', output(terminal['launch']), re.M)
+            if found:
+                return int(found.group(1))
+            assert time.monotonic() < deadline, f'终端没有输出 {marker}'
+            time.sleep(.1)
+
+    def result_file(name):
+        return json.loads((out / name).read_text(encoding='utf-8'))
+
+    def wait_pending(project_role, timeout=20):
+        deadline = time.monotonic() + timeout
+        while True:
+            roleRequests = request('sidebar_snapshot').get('role_requests') or []
+            match = [roleRequest for roleRequest in roleRequests if (roleRequest['project'], roleRequest['role']) == project_role]
+            if match:
+                return match
+            assert time.monotonic() < deadline, f'后台没有出现待批准的申请 {project_role}'
+            time.sleep(.2)
+
+    try:
+        run_cli('daemon_start')
+        running = True
+        deadline = time.monotonic() + 10
+        while request('pane_layout').get('recovering') is not False:
+            assert time.monotonic() < deadline, '后台恢复未结束'
+            time.sleep(.05)
+        operator = json.loads((fixture / 'operator.json').read_text(encoding='utf-8'))
+        a = open_terminal('a')
+
+        # 1-4: the terminal environment.
+        type_line(a, f'print -r -- "${{path[1]}}|${{ELECTRON_RUN_AS_NODE-<unset>}}|${{T121_ZSHENV-}}|${{T121_ZSHRC-}}|${{ZDOTDIR-<unset>}}|${{HISTFILE-<unset>}}|$A2A_TERMINAL_TOKEN" > {out}/env.txt', 'T121-ENV')
+        first, run_as_node, zshenv, zshrc, zdotdir, histfile, token_a = (out / 'env.txt').read_text(encoding='utf-8').strip().split('|')
+        report['terminal_env'] = dict(path_first=first, electron_run_as_node=run_as_node, zshenv=zshenv, zshrc=zshrc, zdotdir=zdotdir, histfile=histfile)
+        check('a2a_command_first_on_path', first.endswith('/workbench/terminal/bin') and (Path(first) / 'a2a').exists(), first)
+        check('electron_run_as_node_removed', run_as_node == '<unset>', run_as_node)
+        check('user_startup_files_loaded', zshenv == 'loaded' and zshrc == 'loaded', (zshenv, zshrc))
+        check('zdotdir_restored_after_startup', zdotdir == '<unset>', zdotdir)
+        # macOS /etc/zshrc derives HISTFILE from ZDOTDIR; it must name the user's own history file.
+        check('history_goes_to_user_home', histfile == f'{home}/.zsh_history', histfile)
+        check('user_startup_files_unchanged', all((home / name).read_text(encoding='utf-8') == text for name, text in user_files.items()))
+        assert type_line(a, "claude --model 'x y' -p hello", 'T121-SHIM') == 0
+        forwarded = (out / 'claude-argv.txt').read_text(encoding='utf-8').splitlines()
+        report['claude_argv'] = forwarded
+        check('claude_shim_adds_plugin_and_keeps_arguments', forwarded[:1] == ['--plugin-dir'] and
+              forwarded[1].endswith('/workbench/terminal/plugin/enchanted-a2a') and forwarded[2:] == ['--model', 'x y', '-p', 'hello'], forwarded)
+
+        # 5: no identity yet.
+        code = type_line(a, f"a2a call '{{\"command\":\"inbox_list\"}}' > {out}/a-no-role.json", 'T121-NO-ROLE')
+        check('controller_command_refused_without_role', code == 1 and result_file('a-no-role.json')['error'] == 'approved_role_required',
+              result_file('a-no-role.json'))
+        assert type_line(a, f'a2a whoami > {out}/a-whoami-0.json', 'T121-WHO0') == 0
+        check('whoami_reports_project_without_role', result_file('a-whoami-0.json')['project'] == 'proj' and result_file('a-whoami-0.json')['role'] is None)
+
+        # RoleRequest and approve: the roleRequest command waits for the user's decision.
+        type_line(a, f'(a2a request executor > {out}/a-request.json 2>/dev/null; print $? > {out}/a-request.exit) &!', 'T121-REQUEST-SENT')
+        [pending] = wait_pending(('proj', 'executor'))
+        check('pending_request_names_terminal_and_role', pending['launch'] == a['launch'] and pending['role_label'] == '执行主控', pending)
+        code = type_line(a, f"a2a call '{{\"command\":\"inbox_list\"}}' > {out}/a-pending.json", 'T121-PENDING')
+        check('pending_request_has_no_authority', code == 1 and result_file('a-pending.json')['error'] == 'approved_role_required')
+        refused = request('role_request_decide', a['identity'], role_request=pending['id'], approved=True)
+        check('window_identity_cannot_approve', refused['ok'] is False, refused)
+        decided = request('role_request_decide', operator, role_request=pending['id'], approved=True)
+        assert decided['ok'] and decided['role_request']['state'] == 'approved', decided
+        deadline = time.monotonic() + 15
+        while not (out / 'a-request.exit').exists():
+            assert time.monotonic() < deadline, 'a2a request 没有在批准后返回'
+            time.sleep(.1)
+        check('request_command_returns_after_approval', (out / 'a-request.exit').read_text().strip() == '0' and
+              result_file('a-request.json')['role_request']['state'] == 'approved')
+        assert type_line(a, f'a2a whoami > {out}/a-whoami-1.json', 'T121-WHO1') == 0
+        check('whoami_reports_approved_role', result_file('a-whoami-1.json')['role'] == 'executor')
+        code = type_line(a, f"a2a call '{{\"command\":\"inbox_list\"}}' > {out}/a-approved.json", 'T121-APPROVED')
+        check('approved_controller_command_reaches_gate', code == 0 and result_file('a-approved.json')['ok'] is True and
+              isinstance(result_file('a-approved.json')['entries'], list), result_file('a-approved.json'))
+        code = type_line(a, f"a2a call '{{\"command\":\"inbox_list\",\"project\":\"other\"}}' > {out}/a-other.json", 'T121-OTHER')
+        check('approved_role_limited_to_its_project', code == 1 and result_file('a-other.json')['error'] == 'role_project_mismatch')
+        code = type_line(a, f'a2a request ideation > {out}/a-second.json', 'T121-SECOND')
+        check('one_role_per_terminal', code == 1 and result_file('a-second.json')['error'] == 'role_already_held')
+        sidebar = request('sidebar_snapshot')
+        rows = [agent for agent in sidebar['agents'] if agent['id'] == a['launch']]
+        check('sidebar_shows_requested_controller', len(rows) == 1 and rows[0]['role_label'] == '执行主控' and rows[0]['terminal'] is True, rows)
+
+        # 6: a second terminal in the same project.
+        b = open_terminal('b')
+        code = type_line(b, f'a2a request executor > {out}/b-taken.json', 'T121-TAKEN')
+        check('role_held_by_one_terminal_per_project', code == 1 and result_file('b-taken.json')['error'] == 'role_taken')
+        type_line(b, f'(a2a request ideation > {out}/b-request.json 2>/dev/null; print $? > {out}/b-request.exit) &!', 'T121-B-SENT')
+        [pending_b] = wait_pending(('proj', 'ideation'))
+        assert request('role_request_decide', operator, role_request=pending_b['id'], approved=False)['ok']
+        deadline = time.monotonic() + 15
+        while not (out / 'b-request.exit').exists():
+            assert time.monotonic() < deadline, 'a2a request 没有在拒绝后返回'
+            time.sleep(.1)
+        check('rejected_request_returns_failure', (out / 'b-request.exit').read_text().strip() == '1' and
+              result_file('b-request.json')['error'] == 'request_rejected')
+        code = type_line(b, f"a2a call '{{\"command\":\"inbox_list\"}}' > {out}/b-rejected.json", 'T121-B-REJECTED')
+        check('rejected_terminal_has_no_authority', code == 1 and result_file('b-rejected.json')['error'] == 'approved_role_required')
+        again = request('role_request_decide', operator, role_request=pending_b['id'], approved=True)
+        check('decided_request_cannot_be_redecided', again['ok'] is False and again['error'] == 'request_not_pending', again)
+
+        # 7: forged or borrowed identities.
+        forged = request('inbox_list', dict(kind='terminal', launch=a['launch'], token='0' * 64))
+        borrowed = request('inbox_list', dict(kind='terminal', launch=b['launch'], token=token_a))
+        check('forged_and_borrowed_tokens_refused', forged.get('ok') is False and borrowed.get('ok') is False and
+              'invalid_terminal_identity' in json.dumps([forged, borrowed]), [forged, borrowed])
+        anonymous = request('role_request', None, role='executor')
+        check('anonymous_request_refused', anonymous['ok'] is False, anonymous)
+
+        # 8: closing the terminal ends its role.
+        closed = request('shell_close', operator, launch=a['launch'])
+        assert closed['ok'], closed
+        borrowed_after = request('inbox_list', dict(kind='terminal', launch=a['launch'], token=token_a))
+        check('closed_terminal_identity_refused', borrowed_after['ok'] is False, borrowed_after)
+        sidebar = request('sidebar_snapshot')
+        check('sidebar_drops_closed_controller', not [agent for agent in sidebar['agents'] if agent['id'] == a['launch']])
+        type_line(b, f'(a2a request executor > {out}/b-request2.json 2>/dev/null; print $? > {out}/b-request2.exit) &!', 'T121-B-SENT2')
+        [pending_b2] = wait_pending(('proj', 'executor'))
+        check('role_free_again_after_close', pending_b2['launch'] == b['launch'])
+        assert request('role_request_decide', operator, role_request=pending_b2['id'], approved=False)['ok']
+        events = request('orchestration_events')['events']
+        kinds = [event['type'] for event in events if event['type'].startswith('role_')]
+        report['role_request_events'] = kinds
+        check('role_requests_recorded_append_only', kinds.count('role_requested') == 3 and kinds.count('role_request_decided') == 3)
+        stray = sorted(str(path) for path in (source / 'workbench/terminal').rglob('*') if path.name.startswith('.zsh_history'))
+        check('nothing_written_into_app_resources', not stray, stray)
+        report['status'] = 'PASS'
+    except Exception as error:
+        report['error'] = f'{type(error).__name__}: {error}'
+    finally:
+        if running:
+            try:
+                run_cli('daemon_stop')
+                deadline = time.monotonic() + 10
+                while (state / 'control.sock').exists() and time.monotonic() < deadline:
+                    time.sleep(.05)
+            except Exception as error:
+                report['cleanup_error'] = str(error)
+        args.summary.parent.mkdir(parents=True, exist_ok=True)
+        args.summary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        shutil.rmtree(fixture, ignore_errors=True)
+    print(json.dumps(report, ensure_ascii=False))
+    return 0 if report['status'] == 'PASS' else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { codexSessionOrigin } from './paneRecovery.ts';
 import type { OrchestrationStore } from './store.ts';
 import { questionState, projectQuestions } from './questions.ts';
+import type { RoleRequests } from './roleRequests.ts';
 
 export type AgentState = 'running' | 'waiting_user_answer' | 'waiting_controller_answer' | 'idle' | 'ended' | 'unrestored' | 'unknown';
 export const stateLabels: Record<AgentState, string> = {
@@ -105,7 +106,7 @@ export async function projectCatalog(gates: any, store: OrchestrationStore) {
   }));
 }
 
-export async function sidebarSnapshot(gates: any, store: OrchestrationStore, panes: any) {
+export async function sidebarSnapshot(gates: any, store: OrchestrationStore, panes: any, roleRequests?: RoleRequests) {
   const launches = store.launches().filter(record => record.role !== 'shell');
   const assignments = store.db.prepare(`SELECT d.launch,q.launch AS parent,q.input,r.data AS result
     FROM dispatch_records d JOIN relay_results r ON json_extract(r.data,'$.entry.id')=json_extract(d.data,'$.inbox_entry')
@@ -146,6 +147,16 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
       created_at: record.created_at ?? null };
   });
+  // T-121: a terminal whose CLI the user approved as a controller. It has no task
+  // and no structured turn signals yet, so its state stays unknown.
+  const current = roleRequests?.all() ?? [];
+  for (const roleRequest of current.filter(row => row.state === 'approved')) {
+    const record = store.launchRecord(roleRequest.launch);
+    if (!record) continue;
+    agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, attempt: null, thread: record.thread,
+      role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli,
+      parent: null, state: 'unknown', question_id: null, state_label: stateLabels.unknown, created_at: roleRequest.decided_at, terminal: true } as any);
+  }
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
     const parent = agents.find(row => row.id === agent.parent);
@@ -174,8 +185,11 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     return { ...project, git: project.repo ? await gitFacts(project.repo) :
       { branch: null, upstream: null, ahead: null, behind: null, error: '项目目录不唯一' }, state, state_label: stateLabels[state] };
   }));
-  return { projects, agents: treeAgents, gaps: [
+  const pendingRequests = current.filter(row => row.state === 'pending').map(row => ({ id: row.id, launch: row.launch,
+    project: row.project, role: row.role, role_label: roleLabel({ role: 'controller', preset: row.role }), cli: row.cli, requested_at: row.requested_at }));
+  return { projects, agents: treeAgents, role_requests: pendingRequests, gaps: [
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
+    '在普通终端里认领的主控没有结构化回合信号，状态显示未知。',
   ] };
 }

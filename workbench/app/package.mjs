@@ -30,7 +30,7 @@ const ui = JSON.parse(build.trim().split('\n').at(-1));
 const stage = join(work, 'app');
 mkdirSync(stage);
 cpSync(ui.out, join(stage, 'ui'), { recursive: true });
-for (const name of ['src', 'hooks', 'bin', 'LICENSE.synara']) cpSync(join(source, name), join(stage, name), { recursive: true });
+for (const name of ['src', 'hooks', 'bin', 'terminal', 'LICENSE.synara']) cpSync(join(source, name), join(stage, name), { recursive: true });
 cpSync(join(source, 'app/desktop.mjs'), join(stage, 'desktop.mjs'));
 // Keep the existing dependency tree and let Packager prune declared build/UI
 // dependencies. Runtime code and the only gate CLI keep their original paths.

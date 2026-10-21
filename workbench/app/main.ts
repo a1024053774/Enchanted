@@ -206,6 +206,13 @@ function registerHandlers() {
       const catalog = await request(context.options.state, { command: 'sidebar_snapshot' });
       if (!catalog.ok) throw new Error(catalog.error);
       const agent = catalog.agents.find((row: any) => row.id === launch);
+      if (agent?.terminal) {
+        // A claimed controller is the user's own terminal in the project view.
+        if (context.task || context.project?.project_id !== agent.project) await changeView(context, { project: agent.project });
+        const pane = [...context.panes.values()].find(p => p.launch === launch);
+        if (!pane) throw new Error('This terminal is not open in this window');
+        return { ...selection(context), focusKey: pane.key };
+      }
       if (!agent?.task || !catalog.projects.some((p: any) => p.project_id === agent.project && p.tasks.some((t: any) => t.task_id === agent.task))) throw new Error('Unknown agent launch');
       const snapshot = await request(context.options.state, { command: 'workbench_snapshot', task: agent.task, launch });
       requireAgentView(agent.task, launch, snapshot);
@@ -222,6 +229,13 @@ function registerHandlers() {
     };
     context.switching = select();
     try { return await context.switching; } finally { context.switching = undefined; }
+  });
+  ipcMain.handle('a2a:decide-role-request', async (event, roleRequest: unknown, approved: unknown) => {
+    const context = windowTarget(event);
+    if (typeof roleRequest !== 'string' || !roleRequest || typeof approved !== 'boolean') throw new Error('Invalid role request decision');
+    const result = await request(context.options.state, { command: 'role_request_decide', role_request: roleRequest, approved }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result.role_request;
   });
   ipcMain.handle('a2a:projects', async event => {
     const context = windowTarget(event);
@@ -403,7 +417,8 @@ function registerHandlers() {
 }
 
 function selection(context: WindowBinding) {
-  return { task: context.task, project: context.task ? { project_id: context.task.project_id, repo: context.task.repo } : context.project, paneKeys: [...context.panes.keys()], layout: context.layout, names: context.names };
+  return { task: context.task, project: context.task ? { project_id: context.task.project_id, repo: context.task.repo } : context.project, paneKeys: [...context.panes.keys()], layout: context.layout, names: context.names,
+    launches: Object.fromEntries([...context.panes.values()].filter(pane => pane.launch).map(pane => [pane.key, pane.launch!])) };
 }
 
 async function changeView(context: WindowBinding, view: { task?: string; project?: string }) {

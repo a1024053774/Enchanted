@@ -39,9 +39,10 @@ type Theme = 'system' | 'light' | 'dark';
 type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; attempt: string | null; parent: string | null;
-  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null;
+  role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; terminal?: boolean;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
-type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
+type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string; requested_at: string };
+type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; role_requests: RoleRequest[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
 const glyphs: Record<string, ReactNode> = {
   running: <circle className="glyph-spin" cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="26 10" />,
   waiting_user_answer: <><circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" strokeWidth="1.6" /><circle cx="8" cy="8" r="2.8" fill="currentColor" /></>,
@@ -78,10 +79,10 @@ const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 type Layout = string | { direction: 'right' | 'down'; first: Layout; second: Layout };
 type ProjectView = { project_id: string; repo: string | null };
-type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string> };
+type Selection = { task: Snapshot['task'] | null; project: ProjectView | null; paneKeys: string[]; layout: Layout | null; names: Record<string, string>; launches?: Record<string, string> };
 declare global { interface Window { a2a: { readonly paneKeys: readonly string[]; readonly home: string;
   executionSettings(change?: ExecutionSelection & { role: ExecutionRole }): Promise<Record<ExecutionRole, ExecutionSelection>>;
-  flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
+  flow(): Promise<FlowSnapshot>; sidebar(): Promise<Sidebar>; selectAgent(launch: string): Promise<Selection & { focusKey: string }>; decideRoleRequest(roleRequest: string, approved: boolean): Promise<unknown>; notificationSetting(enabled?: boolean, preference?: 'notifications' | 'dockBadges'): Promise<boolean>;
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   openProject(): Promise<Selection | null>; removeProject(project: string): Promise<Selection>;
@@ -423,6 +424,10 @@ function Workbench() {
   const [viewProject, setViewProject] = useState<ProjectView | null>(null);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [agents, setAgents] = useState<AgentItem[]>([]);
+  const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
+  const [launches, setLaunches] = useState<Record<string, string>>({});
+  const [deciding, setDeciding] = useState<string | null>(null);
+  const [roleRequestError, setRoleRequestError] = useState<string | null>(null);
   const [gaps, setGaps] = useState<string[]>([]);
   const [notifications, setNotifications] = useState(true);
   const [dockBadges, setDockBadges] = useState(true);
@@ -444,7 +449,7 @@ function Workbench() {
     try { localStorage.setItem(themeKey, theme); } catch { /* Per-viewer convenience only. */ }
   }, [theme]);
   const applySidebar = useCallback((value: Sidebar) => {
-    setProjects(value.projects); setAgents(value.agents); setGaps(value.gaps); setNotifications(value.notifications);
+    setProjects(value.projects); setAgents(value.agents); setRoleRequests(value.role_requests ?? []); setGaps(value.gaps); setNotifications(value.notifications);
     setDockBadges(value.dockBadges); setNotices(value.notices); setNow(Date.now());
   }, []);
   const [loading, setLoading] = useState(true);
@@ -457,13 +462,13 @@ function Workbench() {
   const busyRef = useRef(busy); busyRef.current = busy;
   const paneKeysRef = useRef(paneKeys); paneKeysRef.current = paneKeys;
   const applySelection = useCallback((value: Selection) => {
-    setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); setStatuses({});
+    setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); setStatuses({});
   }, []);
   const refresh = useCallback(async () => {
     setLoading(true); setCatalogError(null);
     try {
       const current = await window.a2a.selection();
-      setSelectedTask(current.task); setViewProject(current.project); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
+      setSelectedTask(current.task); setViewProject(current.project); setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names); setLaunches(current.launches ?? {});
       const sidebar = await window.a2a.sidebar();
       applySidebar(sidebar);
       if (current.task && !sidebar.projects.some(project => project.tasks.some(task => task.task_id === current.task!.task_id))) {
@@ -486,7 +491,7 @@ function Workbench() {
           const current = await window.a2a.selection();
           if (mounted && !busyRef.current && current.paneKeys.join('\0') !== paneKeysRef.current.join('\0')) {
             const live = new Set(current.paneKeys);
-            setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names);
+            setPaneKeys(current.paneKeys); setLayout(current.layout); setNames(current.names); setLaunches(current.launches ?? {});
             setZoom(key => key !== null && live.has(key) ? key : null);
             setStatuses(rows => Object.fromEntries(Object.entries(rows).filter(([key]) => live.has(key))));
           }
@@ -539,7 +544,7 @@ function Workbench() {
     setCreating(true); setTerminalError(null); setPage('terminal');
     try {
       const value = await window.a2a.newTerminal();
-      setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null);
+      setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null);
       setStatuses(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => value.paneKeys.includes(key))));
       const added = value.paneKeys.find(key => !paneKeys.includes(key));
       if (added) setFocusRequest(previous => ({ key: added, version: previous.version + 1 }));
@@ -565,7 +570,7 @@ function Workbench() {
     return () => window.removeEventListener('mousedown', dismiss);
   }, [projectMenu]);
   const onClose = useCallback((key: string, value: Selection) => {
-    setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names);
+    setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {});
     setZoom(value => value === key ? null : value);
     setStatuses(previous => { const next = { ...previous }; delete next[key]; return next; });
   }, []);
@@ -581,6 +586,12 @@ function Workbench() {
       setFocusRequest(previous => ({ key: value.focusKey, version: previous.version + 1 }));
     } catch (error) { setNavigationError('聚焦会话失败：' + String(error)); }
     finally { setNavigating(false); }
+  };
+  const decideRoleRequest = async (roleRequest: RoleRequest, approved: boolean) => {
+    setDeciding(roleRequest.id); setRoleRequestError(null);
+    try { await window.a2a.decideRoleRequest(roleRequest.id, approved); applySidebar(await window.a2a.sidebar()); }
+    catch (error) { setRoleRequestError((approved ? '批准' : '拒绝') + '没有生效：' + String(error)); }
+    finally { setDeciding(null); }
   };
   const toggleAgent = (id: string) => setCollapsedAgents(previous => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const renderAgents = (rows: AgentItem[], level: number, scope: AgentItem[]): ReactNode => <ul className="agent-branches">
@@ -599,7 +610,7 @@ function Workbench() {
           disabled={busy} onClick={() => void selectAgent(agent)}>
           <span className="agent-main">
             <span className="agent-role">{agent.role_label}</span>
-            <span className="agent-meta">{agent.task ?? '任务未知'} · {agent.cli}</span>
+            <span className="agent-meta">{agent.terminal ? '项目终端' : agent.task ?? '任务未知'} · {agent.cli}</span>
             <span className="sr-only agent-state">{agent.state_label}</span>
           </span>
           <span className="row-time">{since(agent.created_at, now)}</span>
@@ -723,15 +734,27 @@ function Workbench() {
           <span className="task-title">{item.title}</span><span className="task-meta">{gateNames[item.state] ?? item.state}</span>
         </button>)}
       </nav>}
+      {roleRequests.length > 0 && <div className="role-requests" aria-label="身份申请">
+        {roleRequests.map(roleRequest => {
+          const key = Object.entries(launches).find(([, launch]) => launch === roleRequest.launch)?.[0];
+          return <div className="role-request" key={roleRequest.id} data-role-request={roleRequest.id} role="alert">
+            <p><strong>{roleRequest.project}</strong> 的{key && names[key] ? `终端「${names[key]}」` : '一个终端'}里的 {roleRequest.cli === '未知' ? 'agent' : roleRequest.cli} 申请成为<strong>{roleRequest.role_label}</strong>
+              {!key && <span className="role-request-hint">（这个终端不在当前视图）</span>}</p>
+            <button className="text-button" disabled={deciding !== null} onClick={() => void decideRoleRequest(roleRequest, false)}>拒绝</button>
+            <button className="primary-button" disabled={deciding !== null} onClick={() => void decideRoleRequest(roleRequest, true)}>批准</button>
+          </div>;
+        })}
+        {roleRequestError && <p className="catalog-error" role="alert">{roleRequestError}</p>}
+      </div>}
       {navigationError && <div className="connection-error" role="alert">{navigationError}</div>}
       {terminalError && <div className="connection-error" role="alert">{terminalError}</div>}
       <div className="pane-grid pane-layout" aria-label="终端窗格">
         {!navigating && paneKeys.map(key => {
           const rect = zoom === key ? { x: 0, y: 0, w: 100, h: 100 } : paneRects(layout)[key] ?? { x: 0, y: 0, w: 100, h: 100 };
-          return <div className="pane-slot" key={key} hidden={Boolean(zoom && zoom !== key)} data-edge-right={rect.x + rect.w < 99.9} data-edge-bottom={rect.y + rect.h < 99.9}
+          return <div className="pane-slot" key={key} hidden={Boolean(zoom && zoom !== key)} data-role-request-pending={roleRequests.some(roleRequest => roleRequest.launch === launches[key]) || undefined} data-edge-right={rect.x + rect.w < 99.9} data-edge-bottom={rect.y + rect.h < 99.9}
             style={{ left: rect.x + '%', top: rect.y + '%', width: rect.w + '%', height: rect.h + '%' }}>
             <SessionPane paneKey={key} name={names[key]} home={home} focusRequest={focusRequest.key === key ? focusRequest.version : 0} zoomed={zoom === key} onZoom={() => setZoom(value => value === key ? null : key)}
-              onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
+              onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
           </div>;
         })}
         {navigating ? <p className="selection-hint" role="status">正在切换…</p> : !paneKeys.length &&

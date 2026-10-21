@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
+import { RoleRequests, type RoleRequest } from './roleRequests.ts';
 import { executionRole, executionOverrides } from './executionSettings.ts';
 
 // Window payloads can contain shell passwords, even when identity/validation
@@ -39,6 +40,7 @@ export async function serve(
   const panes = new Panes(root, store, config, (reason) => gates.setUserInputObserverStatus("failed", { reason }));
   const gates = createGates(root, panes);
   const relay = new RequestRelay(store);
+  const roleRequests = new RoleRequests(store, launch => panes.terminalAlive(launch));
   const feedbackText = (receipts: unknown[]) =>
     "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2);
   const settleInboxFeedback = async () => {
@@ -85,7 +87,8 @@ export async function serve(
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
     "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings"]);
-  const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "anonymous"; window?: WindowBinding } => {
+  const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
+      window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
     if (identity.kind === "operator") {
       if (identity.token !== operator.token || identity.epoch !== operator.epoch || identity.state !== root) throw new Refusal("invalid_operator_identity");
@@ -95,6 +98,10 @@ export async function serve(
       const window = windows.get(identity.window);
       if (!window || identity.token !== window.token) throw new Refusal("invalid_window_identity");
       return { source: "user", kind: "window", window };
+    }
+    if (identity.kind === "terminal") {
+      const terminal = panes.authenticateTerminal(identity).record;
+      return { source: "terminal:" + terminal.id, kind: "terminal", terminal };
     }
     const pane = panes.authenticate(identity);
     return { source: pane.record.role === "controller" ? pane.record.preset :
@@ -151,6 +158,43 @@ export async function serve(
     }
     return { scope: task ? `task:${task}` : project ? `project:${project}` : "free", arrangement };
   };
+  // T-121: a CLI the user started in a project terminal. Its own identity commands
+  // always work; everything else is a gate command under the role the user approved.
+  const terminalCommand = async (input: Record<string, any>, terminal: { id: string; project: string | null; task: string | null }) => {
+    if (input.command === "terminal_whoami") {
+      const held = roleRequests.approved(terminal.id);
+      return { ok: true, terminal: terminal.id, project: terminal.project, role: held?.role ?? null,
+        role_requests: roleRequests.all().filter(roleRequest => roleRequest.launch === terminal.id) };
+    }
+    if (input.command === "role_request") return { ok: true, role_request: roleRequests.request(terminal, input.role, input.cli) };
+    if (input.command === "role_release") {
+      const ended = roleRequests.end(terminal.id, "released");
+      if (!ended) throw new Refusal("no_role");
+      return { ok: true, role_request: ended };
+    }
+    const roleRequest: RoleRequest | undefined = roleRequests.approved(terminal.id);
+    if (!roleRequest) throw new Refusal("approved_role_required");
+    if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
+    if (input.task !== undefined) {
+      const status = await gates.call({ command: "status", task: input.task });
+      if (status.ok && status.task.project_id !== roleRequest.project) throw new Refusal("role_project_mismatch");
+    }
+    const { parent_launch: _parent, ...gateInput } = input;
+    assertOpenedRepo(gateInput);
+    return await gates.call(gateInput, undefined, { address: roleRequest.role, project: roleRequest.project,
+      assertActive: async () => {
+        if (stopping) throw new Refusal("daemon_stopping");
+        if (roleRequests.approved(terminal.id)?.id !== roleRequest.id) throw new Refusal("role_request_ended");
+      } });
+  };
+  // An opened directory owns its project id: a task may join that project
+  // only in the same repository, or the project's terminals and tasks diverge.
+  const assertOpenedRepo = (command: Record<string, any>) => {
+    if (command.command !== 'create') return;
+    const opened = store.openedProjects().find(project => project.project_id === command.project);
+    if (opened && !(typeof command.repo === 'string' && existsSync(command.repo) && realpathSync(command.repo) === opened.repo))
+      throw new Refusal('project_repo_mismatch');
+  };
   const handle = async (envelope: any, authority: ReturnType<typeof authenticate>) => {
     const input = envelope.input;
     if (!input || typeof input.command !== "string") throw new Refusal("invalid_request");
@@ -160,6 +204,7 @@ export async function serve(
     if (authority.kind === "launch") {
       if (input.command !== "signal") throw new Refusal("worker_requests_require_stop");
     }
+    if (authority.kind === "terminal") return await terminalCommand(input, authority.terminal!);
     if (authority.kind === "window" && !["window_input", "window_answer", "window_resize", "window_composition", "window_release", "window_observation", "window_close"].includes(input.command)) {
       throw new Refusal("window_command_forbidden");
     }
@@ -172,15 +217,7 @@ export async function serve(
     }
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
     if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes) };
-    if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes) };
-    // An opened directory owns its project id: a task may join that project
-    // only in the same repository, or the project's terminals and tasks diverge.
-    const assertOpenedRepo = (command: Record<string, any>) => {
-      if (command.command !== 'create') return;
-      const opened = store.openedProjects().find(project => project.project_id === command.project);
-      if (opened && !(typeof command.repo === 'string' && existsSync(command.repo) && realpathSync(command.repo) === opened.repo))
-        throw new Refusal('project_repo_mismatch');
-    };
+    if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes, roleRequests) };
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
         if ((input.project ?? null) !== record.project) throw new Refusal("launch_project_mismatch");
@@ -211,6 +248,10 @@ export async function serve(
       if (gates.listTasks(input.project).length) throw new Refusal('project_has_tasks');
       store.event('project_removed', { project_id: input.project });
       return { ok: true };
+    }
+    if (input.command === "role_request_decide") {
+      if (authority.kind !== "operator") throw new Refusal("operator_required");
+      return { ok: true, role_request: roleRequests.decide(input.role_request, input.approved) };
     }
     if (input.command === "shell_start") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
