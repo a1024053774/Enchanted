@@ -5,6 +5,7 @@
 - **执行主控（executor controller）**：监督执行的主控：执行就绪 ticket，派发、盯进度、审查、验收/集成/回收（全经门禁），没有可执行的就绪 ticket 时才停并写完成报告。它自己不写代码，写代码的是 worker（执行 agent）。
 - **Worker（执行 agent）**：在已分配的 task/attempt 范围内实现代码或分析，不拥有其他任务的权限。
 - **Monitor（监控 agent）**：只读观察者，记录运行事件并标记异常；不能认领、提交、集成或宣布成功。
+- **Enchanted / a2a**：Enchanted 是对外产品名与 GitHub 仓库名；a2a 是其编排内核（门禁、编排后台、提交尾注）。2026-10-21 改名公开后统一使用；本地目录、bundle id、数据目录仍叫 a2a。
 - **工作台（workbench）**：a2a 自己的轻量桌面应用（Electron），放在本仓库，借用 Synara 的前端组件与样式；按“项目 → 任务 → agent 会话”组织，连接编排后台显示窗格、面板与指标。2026-10-10 起取代基于 Synara fork 的工作台；切换完成后取代 Herdr 的日常使用。
 - **编排后台（orchestration daemon）**：工作台的常驻后台进程，托管窗格，负责派发与唤醒、门禁、任务卡、收件箱与复盘调度，记录都存在这里；界面关掉不影响它。
 - **窗格（pane）**：承载一个 shell 及其中 agent CLI 的终端区域；工作台的窗格由编排后台托管，Herdr 期指 Herdr 的 pane。

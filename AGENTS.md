@@ -36,7 +36,7 @@
 - 不得移动、替换或链接共享 checkout 的构建输出目录（如 `apps/server/dist`），也不得在构建输出目录中放指向源码或依赖的链接：构建工具清理输出时会沿链接删除源码与依赖（2026-10-08 T-042 复验事故，误删 6,186 个受控文件）。需要新构建时用产品的标准构建命令。
 - 测试中启动的后台服务（如编排后台、Synara 服务端）必须脱离调用者的进程组（例如 start_new_session），否则命令调用结束时会被一并回收。
 - 不从零自建 GPUI 界面，不基于 Zed 二次开发。
-- Enchanted（旧本地项目 `~/Documents/Code/Enchanted`，无 remote）已于 2026-10-06 做 git 快照并冻结，保持原样不再开发。2026-10-20 用户决定：本仓库改名 `Enchanted` 并公开，对外产品名 Enchanted，a2a 是其编排内核（用户："把仓库改个名字公开吧，改名叫 Enchanted，……把那个归档吧，规划成我们这个 a2a 仓库的未来 feature"）；旧 Enchanted 的功能只作为路线图里的未来 feature，在本仓库规划，不回头在旧目录开发。改名、公开、Pages、Release 由 T-114 执行；改名完成前仓库与文档里的 `a2a` 名称不变，完成后再统一术语。
+- Enchanted（旧本地项目 `~/Documents/Code/Enchanted`，无 remote）已于 2026-10-06 做 git 快照并冻结，保持原样不再开发。2026-10-20 用户决定：本仓库改名 `Enchanted` 并公开，对外产品名 Enchanted，a2a 是其编排内核（用户："把仓库改个名字公开吧，改名叫 Enchanted，……把那个归档吧，规划成我们这个 a2a 仓库的未来 feature"）；旧 Enchanted 的功能只作为路线图里的未来 feature，在本仓库规划，不回头在旧目录开发。T-114 已于 2026-10-21 完成改名、公开、Pages、Release。统一术语：**Enchanted** 是产品与 GitHub 仓库名（`a1024053774/Enchanted`），**a2a** 是其编排内核（门禁、编排后台、`A2A-*` 提交尾注、`.project-map` 流程）；本地目录名、bundle id、数据目录保持 `a2a`，不改。
 
 ## 每次 session 的开始与结束
 
