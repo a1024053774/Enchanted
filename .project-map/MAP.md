@@ -60,6 +60,7 @@
 - [T-097 发布前瘦身 Git 历史](tickets/T-097-slim-git-history-before-release.md): 2026-10-19 用户定"先瘦身再发布，发布后才使用"；范围 T-088 类别加 evidence/ 下大于 5 MiB 的文件，外置盘备份与归档，哈希映射表入仓库；push origin main 一次已授权；执行见 T-101
 - [T-092 正常登录启动方式](tickets/T-092-normal-login-profile.md): 2026-10-17 决定：隔离 HOME 加只复制登录凭据、本地转发层逐条计数、脚本只核对事实放行由用户定、现有登录总上限 3 回合先做小复核；落地见 T-093（未就绪）
 - [T-119 像 Herdr 一样的终端，认领身份加权限](tickets/T-119-herdr-style-terminals-claimed-roles.md): 用户自己在项目终端启动任意 CLI；agent 经 `a2a` 命令与自动挂上的 skill 申请角色，界面批准后生效并绑定项目；worker 由后台按主控选的 CLI 带权限参数启动（取代 D19 的 worker 只用 Codex）；规格见 [spec](specs/herdr-style-claimed-roles-2026-10-21.md)
+- [T-120 不改全局配置挂上 a2a 使用说明](tickets/T-120-mount-a2a-skill-without-global-config.md): 环境变量会被用户设置盖掉；改为在终端里用 ZDOTDIR 引导，放同名的 `claude`、`codex` 包装命令，分别加 `--plugin-dir` 和 `-c developer_instructions`；`a2a help` 作为退路
 - 输入法验证：2026-10-17 用户决定本轮不做，日后使用中发现问题再修（逐字："输入法先不做，我到时候使用的时候若发现了再修"）；T-078 的 Resolution 已记为未验证
 - T-098 pane 启动延时：2026-10-18 关闭未实现——用户把 `~/.zshrc` 的 oh-my-zsh 更新模式改为 reminder 消除已知提问源，不再加延时设置；一般缺陷（前台只剩 shell≠等命令）仍在，靠启动后核对回显
 
