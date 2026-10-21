@@ -34,7 +34,12 @@ try {
   main.paused = null;
   await main.send('Debugger.resume');
   await until(() => main.paused, 'Desktop debugger pause missing');
-  await main.evaluate(`process.argv = process.argv.filter(arg => !arg.startsWith('--inspect-brk')); true`);
+  const changed = await main.send('Debugger.evaluateOnCallFrame', {
+    callFrameId: main.paused.callFrames[0].callFrameId,
+    expression: `process.argv = process.argv.filter(arg => !arg.startsWith('--inspect-brk')); true`,
+    returnByValue: true,
+  });
+  assert.ok(!changed.exceptionDetails, JSON.stringify(changed.exceptionDetails));
   await main.send('Debugger.removeBreakpoint', { breakpointId: breakpoint.breakpointId });
   await main.send('Debugger.resume');
   const port = await until(() => {

@@ -26,7 +26,8 @@ try:
     with (work / 'source.tar').open('wb') as target:
         subprocess.run(['git', 'archive', revision, 'workbench', 'docs'], cwd=root, stdout=target, check=True)
     with tarfile.open(work / 'source.tar') as archive:
-        archive.extractall(source, filter='data')
+        assert all(not member.name.startswith('/') and '..' not in Path(member.name).parts for member in archive)
+        archive.extractall(source)
     for argv in [
         ['npm', 'ci', '--ignore-scripts', '--cache', str(work / 'npm-cache')],
         ['npm', 'run', 'package:mac', '--', '--slot', 't117-' + label],
