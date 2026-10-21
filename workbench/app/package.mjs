@@ -30,7 +30,7 @@ cpSync(join(source, 'app/desktop.mjs'), join(stage, 'desktop.mjs'));
 // dependencies. Runtime code and the only gate CLI keep their original paths.
 cpSync(join(source, 'node_modules'), join(stage, 'node_modules'), { recursive: true, verbatimSymlinks: true });
 const runtime = { effect: manifest.dependencies.effect, 'node-pty': manifest.dependencies['node-pty'] };
-writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'a2a', version: manifest.version, type: 'module', main: 'desktop.mjs',
+writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'a2a', productName: 'Enchanted', version: manifest.version, type: 'module', main: 'desktop.mjs',
   dependencies: runtime, devDependencies: { ...Object.fromEntries(Object.entries(manifest.dependencies).filter(([key]) => !(key in runtime))), ...manifest.devDependencies } }, null, 2) + '\n');
 const electron = manifest.dependencies.electron;
 // Rebuild only the staged native module; keep reusable headers in the local cache.
@@ -46,6 +46,16 @@ const { packager } = await import('@electron/packager');
 const paths = await packager({ dir: stage, name: 'a2a', executableName: 'a2a', platform: 'darwin', arch: 'arm64',
   electronVersion: electron, out: join(work, 'package'), tmpdir: temporary, overwrite: false, asar: false,
   appBundleId: 'org.a2a.workbench', appCategoryType: 'public.app-category.developer-tools',
+  // Packager 20 overwrites extendInfo names with the executable name. Its
+  // resource hook runs after that rewrite and before signing; [] enables it
+  // without extra files. Remove this hook when Packager supports separate names.
+  extraResource: [],
+  afterCopyExtraResources: [async ({ buildPath }) => {
+    const plist = join(buildPath, 'a2a.app/Contents/Info.plist');
+    for (const key of ['CFBundleName', 'CFBundleDisplayName']) {
+      execFileSync('/usr/bin/plutil', ['-replace', key, '-string', 'Enchanted', plist]);
+    }
+  }],
   download: { cacheRoot: process.env.electron_config_cache },
   osxSign: { identity: '-', identityValidation: false, preAutoEntitlements: false, preEmbedProvisioningProfile: false,
     optionsForFile: () => ({ hardenedRuntime: false, signatureFlags: '0', timestamp: 'none' }) },
@@ -64,7 +74,7 @@ for (const target of [app, join(app, 'Contents/Frameworks/Electron Framework.fra
   }
   signatures.push({ target, flags, signature: 'adhoc' });
 }
-const finalApp = join(slot, 'a2a.app');
+const finalApp = join(slot, 'Enchanted.app');
 renameSync(app, finalApp);
 rmSync(work, { recursive: true });
 const result = { schema: 1, app: finalApp, electron, arch: 'arm64', signing: 'ad-hoc; no notarization; hardenedRuntime=false',

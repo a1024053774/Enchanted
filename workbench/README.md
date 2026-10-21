@@ -8,8 +8,10 @@
 会话放“未归属”，不读窗格文字推断。胶囊使用启动记录号标识会话，并沿用侧栏的结构化状态。
 每组超过四个会话可展开，已集成的票默认折叠；窄窗中横向滚动查看阶段。
 `flow_snapshot` 和 Electron 的 `a2a:flow` 只读取，不采集原生日志、不写表或 trace。
-本轮真实 Electron、daemon 零写入与写入变异反例的复验脚本见
-[T-111 验证记录](../evidence/2026-10-20-batch18/T-111/RESULTS.md)，尚未取得沙箱外运行结果。
+T-111 的真实 Electron 沙箱外复验 RUN-OUTSIDE-03 与独立审查复验 REVIEW-OUTSIDE-02
+均已通过，覆盖并行票、阶段与角色、跨 attempt 打回计数、折叠展开、窄窗和空状态；
+流程与侧栏只读检查通过，计数、缺 attempt 和写库变异均被拒绝。结果与验证范围见
+[T-111 Resolution](../.project-map/tickets/T-111-workbench-flow-view-page.md#resolution)。
 
 T-096 恢复已合入 main；57c3bfb63 的七场原生恢复回归曾通过。第三轮审查随后发现正常登录记录缺认证字段会绕过拒绝，现已改为假 API 合同白名单；新候选七场原生回归仍须重跑。Electron 创建或显式关闭窗格时，把 launch 与位置追加到
 现有 SQLite 事件流；退出应用只断开视图，保留打开集。窗格的分屏树与名字也写入同一事件流。未传 `--launch` 时读取该任务
@@ -422,7 +424,7 @@ Electron 43.4.1 的 npm 包已没有 postinstall 下载；npm ci 成功不代表
 dist；平台路径元数据须完整，不能依赖外置盘上的 Electron.app。T-103 的红态、绿态
 共用一个内置盘二进制，并核对实际进程回报的路径与版本。
 
-打包产物可由调用方另行安装到 `/Applications/a2a.app`。
+打包产物可由调用方另行安装到 `/Applications/Enchanted.app`。
 
 另锁定官方 `node-pty@1.1.0`。本次 darwin-arm64 预编译包使用 `--ignore-scripts` 安装时，
 `prebuilds/darwin-arm64/spawn-helper` 曾缺执行位，已由执行主控手工改为 755。
@@ -441,13 +443,14 @@ npm run package:mac -- --slot mac-新的编号
 构建目录为 `os.tmpdir()/a2a-build-<槽名>`，不依赖外置盘。npm 与 Electron 缓存位置见上文，
 可复用的 Electron 头文件放在 `~/Library/Caches/a2a-workbench/electron-gyp`。
 UI 构建、stage、重建与临时文件集中在本次构建目录的 `work/`；打包、签名核对成功后
-自动清理 `work/`，目录里只保留 `a2a.app`。已有槽不复用，失败时保留现场。
+自动清理 `work/`，目录里只保留 `Enchanted.app`。已有槽不复用，失败时保留现场。
+显示名为 Enchanted；bundle id 仍为 `org.a2a.workbench`，内部可执行文件和 helper 名称保持 `a2a`。
 后台源码、钩子与唯一门禁 CLI 保持原路径；node-pty 针对 Electron 43.4.1 从源码重建，
 打包时把新 helper 设为 755。
 Packager 裁剪构建依赖，并以 ad-hoc 签名；不公证、不启用 hardened runtime、不使用 ASAR。
 输出最后一行给出 `.app` 路径、体积、重建命令和签名方式，不额外写构建报告。
 
-安装到 `/Applications/a2a.app` 后双击即可。界面自动调用现有 detached 启动器，以同一
+安装到 `/Applications/Enchanted.app` 后双击即可。界面自动调用现有 detached 启动器，以同一
 Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外置盘或外部 Node。
 数据默认仍在 `~/Library/Application Support/a2a-orchestrator`，界面数据在其 `ui/`。
 缺省 task 进入选择页；项目与任务可从界面表单或原门禁 CLI 注册，两者调用同一门禁命令。
@@ -460,7 +463,7 @@ Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外
 明确报错，不重试或接管。旧凭据文件保留；不要把它们加入证据或 Git。若同一数据目录
 已有手工启动、但没有桌面连接描述的后台，应用会拒绝接管，须由原启动者按原入口收尾。
 
-隔离体验可用 `open /Applications/a2a.app --args --state /绝对路径/state --user-data /绝对路径/ui`。
+隔离体验可用 `open /Applications/Enchanted.app --args --state /绝对路径/state --user-data /绝对路径/ui`。
 标准 `--remote-debugging-port` 只供显式调试使用；正常双击不开启端口，应用没有默认端口
 或自动开启代码，显式调试的端口随界面退出。
 
