@@ -101,3 +101,21 @@ PY
 （`findings/*` 与 `.grilling/a2a-gui-client.md`）；stale living docs 为 0。T-115 仍在 frontier。
 本节不把这些已知稀疏缺口写成 0 问题，票面的最终 0 问题门禁仍需在完整 checkout 或 T-115
 后续执行完成后核对。
+
+## 执行主控运行结果（2026-10-21）
+
+候选 691235cad，命令 `zsh evidence/2026-10-20-batch18/T-115/RUN-OUTSIDE-REPEAT-01.sh /private/tmp/t115-repeat-02`，在沙箱外运行。摘要见 `repeat-02-summary.json`。
+
+- 前三次运行无效，原因都不在产品：
+  - repeat-01 第一次：脚本的 TASK_ROOT 多上了一层目录，已在 9e996e020 修正；
+  - repeat-01 第二次：工作区有未提交改动，脚本拒绝运行，已在 f084fca56 提交；
+  - repeat-01 第三次：10 次全部报 controller_version_mismatch。Claude CLI 已自动升级到 2.1.306，夹具却写死了 2.1.304。691235cad 改为运行时读取已安装的版本，门禁的版本一致性检查不变。
+- repeat-02：10 个 CPU 忙循环；启动后负载约 9.6，结束时约 45。
+  - 目标失败“Foreground after reconnect clears badge”：0/10，没有复现。
+  - 7 次完整 PASS：四个红态都被拒，green 和 disabled 都 PASS。
+  - 3 次因为别的原因中止，都与目标无关：
+    - attempt-01：一个红态运行结束时，Electron 窗口清理在 10 秒内没有完成（window_cleanup_error），整次中止；
+    - attempt-05、attempt-06：t110_notifications_scenario.py:37 读 `before_highlight['agents'][agent_id]` 抛 KeyError。高负载下，这个 agent 在“高亮前快照”之后才出现在侧栏里，这是测试的快照时机问题。
+- 失败时间线：所有记录到的前台事件都是先 did-become-active（badge=1），约 5 ms 后 browser-window-focus 让 badge=0，与 T-112 审查 02 记录的成功路径一致。没有观察到“持续 focused=true 而 badge=1”。
+
+结论：INCOMPLETE。在约 10～45 的负载下跑 10 次，目标失败没有复现，所以没有归因，也没有改产品或断言。另外记下两类高负载下的测试夹具不稳定（窗口清理超时、高亮前快照缺少 agent），作为后续测试改进项。
