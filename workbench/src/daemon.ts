@@ -159,7 +159,11 @@ export async function serve(
     return { scope: task ? `task:${task}` : project ? `project:${project}` : "free", arrangement };
   };
   // T-121: a CLI the user started in a project terminal. Its own identity commands
-  // always work; everything else is a gate command under the role the user approved.
+  // always work; everything else is a gate command under the role the user approved,
+  // limited to commands whose project can be checked here. Inbox entries and stop
+  // carry no project yet, so a terminal role cannot reach them (another project's
+  // controller would see, acknowledge or stop that project's work).
+  const projectCommands = new Set(["inbox_ready", "create"]);
   const terminalCommand = async (input: Record<string, any>, terminal: { id: string; project: string | null; task: string | null }) => {
     if (input.command === "terminal_whoami") {
       const held = roleRequests.approved(terminal.id);
@@ -167,6 +171,11 @@ export async function serve(
         role_requests: roleRequests.all().filter(roleRequest => roleRequest.launch === terminal.id) };
     }
     if (input.command === "role_request") return { ok: true, role_request: roleRequests.request(terminal, input.role, input.cli) };
+    if (input.command === "role_request_withdraw") {
+      const ended = roleRequests.withdraw(terminal.id, input.role_request);
+      if (!ended) throw new Refusal("request_not_pending");
+      return { ok: true, role_request: ended };
+    }
     if (input.command === "role_release") {
       const ended = roleRequests.end(terminal.id, "released");
       if (!ended) throw new Refusal("no_role");
@@ -174,11 +183,14 @@ export async function serve(
     }
     const roleRequest: RoleRequest | undefined = roleRequests.approved(terminal.id);
     if (!roleRequest) throw new Refusal("approved_role_required");
-    if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     if (input.task !== undefined) {
       const status = await gates.call({ command: "status", task: input.task });
-      if (status.ok && status.task.project_id !== roleRequest.project) throw new Refusal("role_project_mismatch");
-    }
+      if (!status.ok) throw new Refusal(status.error ?? "unknown_task");
+      if (status.task.project_id !== roleRequest.project) throw new Refusal("role_project_mismatch");
+    } else if (projectCommands.has(input.command)) {
+      if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
+    } else throw new Refusal("role_command_not_scoped");
+    if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     const { parent_launch: _parent, ...gateInput } = input;
     assertOpenedRepo(gateInput);
     return await gates.call(gateInput, undefined, { address: roleRequest.role, project: roleRequest.project,
@@ -216,7 +228,7 @@ export async function serve(
       return { ok: true, settings: store.saveExecutionSettings(executionRole(input.role), executionOverrides(selection)) };
     }
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
-    if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes) };
+    if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes, roleRequests) };
     if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes, roleRequests) };
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {

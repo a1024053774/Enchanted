@@ -69,13 +69,20 @@ try {
       log.checks.push('sidebar_shows_executor'); await shot('05-sidebar-executor');
       continue;
     }
-    if (approved && /executor|执行主控/.test(text.split('\n').slice(-25).join('\n')) && /\b(ok|approved|已批准|批准)/i.test(text)) {
-      await sleep(15000); break;
+    // Claude prints "<verb> for Ns" when its turn ends.
+    if (approved && /\b[A-Z][a-z]+ed for \d+[ms]/.test(text)) {
+      await sleep(1500); await shot('06-turn-finished');
+      // Read the identity back the way the user would: Claude's "!" shell mode in the same terminal.
+      await type('!'); await sleep(400); await type('a2a whoami'); await sleep(300); await enter(); act('typed !a2a whoami');
+      await until(`(document.querySelector('section.pane .xterm-rows')?.innerText??'').includes('"role": "executor"')`, 'whoami shows executor', 30000);
+      log.whoami_screen = (await screen()).split('\n').filter(line => /"(role|project|terminal)"/.test(line));
+      log.checks.push('whoami_reports_executor'); await sleep(1000); await shot('07-whoami');
+      break;
     }
   }
   if (!asked) log.failures.push('claude never became ready for input');
   if (!approved) log.failures.push('no roleRequest banner appeared');
-  log.final_screen = await screen(); await shot('06-terminal-after');
+  log.final_screen = await screen(); await shot('08-terminal-after');
 } catch (error) { log.failures.push(String(error)); try { log.final_screen = await screen(); await shot('99-failure'); } catch {} }
 log.finished = new Date().toISOString();
 writeFileSync(`${out}/ui-driver.json`, JSON.stringify(log, null, 2) + '\n');

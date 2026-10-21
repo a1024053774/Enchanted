@@ -106,7 +106,7 @@ export async function projectCatalog(gates: any, store: OrchestrationStore) {
   }));
 }
 
-export async function sidebarSnapshot(gates: any, store: OrchestrationStore, panes: any, roleRequests?: RoleRequests) {
+export async function sidebarSnapshot(gates: any, store: OrchestrationStore, panes: any, roleRequests: RoleRequests) {
   const launches = store.launches().filter(record => record.role !== 'shell');
   const assignments = store.db.prepare(`SELECT d.launch,q.launch AS parent,q.input,r.data AS result
     FROM dispatch_records d JOIN relay_results r ON json_extract(r.data,'$.entry.id')=json_extract(d.data,'$.inbox_entry')
@@ -149,12 +149,12 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   });
   // T-121: a terminal whose CLI the user approved as a controller. It has no task
   // and no structured turn signals yet, so its state stays unknown.
-  const current = roleRequests?.all() ?? [];
+  const current = roleRequests.all();
   for (const roleRequest of current.filter(row => row.state === 'approved')) {
     const record = store.launchRecord(roleRequest.launch);
     if (!record) continue;
     agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, attempt: null, thread: record.thread,
-      role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli,
+      role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
       parent: null, state: 'unknown', question_id: null, state_label: stateLabels.unknown, created_at: roleRequest.decided_at, terminal: true } as any);
   }
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
@@ -190,6 +190,6 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   return { projects, agents: treeAgents, role_requests: pendingRequests, gaps: [
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
-    '在普通终端里认领的主控没有结构化回合信号，状态显示未知。',
+    '经角色申请成为主控的项目终端没有结构化回合信号，状态显示未知。',
   ] };
 }

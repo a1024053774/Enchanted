@@ -10,7 +10,7 @@ export const requestRoles = ["ideation", "executor"] as const;
 export type RequestRole = typeof requestRoles[number];
 export type RequestState = "pending" | "approved" | "rejected" | "ended";
 // cli is what the calling process reported about itself: shown to the user, never trusted.
-export type RoleRequest = { id: string; launch: string; project: string; role: RequestRole; state: RequestState; cli: string;
+export type RoleRequest = { id: string; launch: string; project: string; role: RequestRole; state: RequestState; cli: string | null;
   requested_at: string; decided_at: string | null; ended_reason: string | null };
 
 const refuse = (condition: unknown, code: string) => { if (!condition) throw new Refusal(code); };
@@ -42,7 +42,7 @@ export class RoleRequests {
       }
       if (row.type === "role_request_ended") { roleRequest.state = "ended"; roleRequest.ended_reason = data.reason; }
     }
-    // A closed terminal or a restarted daemon ends every roleRequest it held.
+    // A closed terminal or a restarted daemon ends every role request it held.
     for (const roleRequest of roleRequests.values()) {
       if ((roleRequest.state === "pending" || roleRequest.state === "approved") && !this.alive(roleRequest.launch)) {
         roleRequest.state = "ended"; roleRequest.ended_reason = "terminal_gone";
@@ -66,7 +66,7 @@ export class RoleRequests {
     refuse(!this.holder(terminal.project!, role as RequestRole), "role_taken");
     const roleRequest = randomUUID();
     this.store.event("role_requested", { role_request: roleRequest, role, project: terminal.project,
-      cli: cli === "claude" || cli === "codex" ? cli : "未知" }, terminal);
+      cli: cli === "claude" || cli === "codex" ? cli : null }, terminal);
     return this.all().find(row => row.id === roleRequest)!;
   }
   decide(id: unknown, approved: unknown) {
@@ -83,6 +83,13 @@ export class RoleRequests {
     const roleRequest = this.current(launch);
     if (!roleRequest) return undefined;
     this.store.event("role_request_ended", { role_request: roleRequest.id, reason }, { id: launch, task: null });
+    return this.all().find(row => row.id === roleRequest.id)!;
+  }
+  // A request whose asker stopped waiting must not be approved later behind its back.
+  withdraw(launch: string, id: unknown) {
+    const roleRequest = this.current(launch);
+    if (!roleRequest || roleRequest.id !== id || roleRequest.state !== "pending") return undefined;
+    this.store.event("role_request_ended", { role_request: roleRequest.id, reason: "withdrawn" }, { id: launch, task: null });
     return this.all().find(row => row.id === roleRequest.id)!;
   }
   private holder(project: string, role: RequestRole) {

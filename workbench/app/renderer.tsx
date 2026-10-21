@@ -41,7 +41,7 @@ type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; 
 type AgentItem = { id: string; project: string; task: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; terminal?: boolean;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
-type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string; requested_at: string };
+type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string };
 type Sidebar = { projects: ProjectItem[]; agents: AgentItem[]; role_requests: RoleRequest[]; gaps: string[]; notifications: boolean; dockBadges: boolean; notices: AppNotice[] };
 const glyphs: Record<string, ReactNode> = {
   running: <circle className="glyph-spin" cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="26 10" />,
@@ -589,8 +589,10 @@ function Workbench() {
   };
   const decideRoleRequest = async (roleRequest: RoleRequest, approved: boolean) => {
     setDeciding(roleRequest.id); setRoleRequestError(null);
-    try { await window.a2a.decideRoleRequest(roleRequest.id, approved); applySidebar(await window.a2a.sidebar()); }
+    try { await window.a2a.decideRoleRequest(roleRequest.id, approved); }
     catch (error) { setRoleRequestError((approved ? '批准' : '拒绝') + '没有生效：' + String(error)); }
+    // Refresh either way: a failed decision may mean the request is already gone.
+    try { applySidebar(await window.a2a.sidebar()); } catch (error) { setCatalogError('列表未更新：' + String(error)); }
     finally { setDeciding(null); }
   };
   const toggleAgent = (id: string) => setCollapsedAgents(previous => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -734,11 +736,11 @@ function Workbench() {
           <span className="task-title">{item.title}</span><span className="task-meta">{gateNames[item.state] ?? item.state}</span>
         </button>)}
       </nav>}
-      {roleRequests.length > 0 && <div className="role-requests" aria-label="身份申请">
+      {roleRequests.length > 0 && <div className="role-requests" aria-label="角色申请">
         {roleRequests.map(roleRequest => {
           const key = Object.entries(launches).find(([, launch]) => launch === roleRequest.launch)?.[0];
           return <div className="role-request" key={roleRequest.id} data-role-request={roleRequest.id} role="alert">
-            <p><strong>{roleRequest.project}</strong> 的{key && names[key] ? `终端「${names[key]}」` : '一个终端'}里的 {roleRequest.cli === '未知' ? 'agent' : roleRequest.cli} 申请成为<strong>{roleRequest.role_label}</strong>
+            <p><strong>{roleRequest.project}</strong> 的{key && names[key] ? `终端「${names[key]}」` : '一个终端'}里的 {roleRequest.cli ?? 'agent'} 申请成为<strong>{roleRequest.role_label}</strong>
               {!key && <span className="role-request-hint">（这个终端不在当前视图）</span>}</p>
             <button className="text-button" disabled={deciding !== null} onClick={() => void decideRoleRequest(roleRequest, false)}>拒绝</button>
             <button className="primary-button" disabled={deciding !== null} onClick={() => void decideRoleRequest(roleRequest, true)}>批准</button>

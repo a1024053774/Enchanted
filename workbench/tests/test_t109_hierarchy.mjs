@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { OrchestrationStore } from '../src/store.ts';
 import { Panes } from '../src/panes.ts';
+import { RoleRequests } from '../src/roleRequests.ts';
 
 const [output, source = resolve('workbench/src/sidebar.ts')] = process.argv.slice(2);
 if (!output) throw new Error('A new summary path is required');
@@ -54,7 +55,7 @@ try {
   const persistence = () => JSON.parse(execFileSync('python3', ['-B', 'workbench/tests/t107_persistence.py', state], { encoding: 'utf8' }));
   let before = persistence();
   const read = async () => {
-    const snapshot = await sidebarSnapshot(gates, store, panes);
+    const snapshot = await sidebarSnapshot(gates, store, panes, new RoleRequests(store, () => false));
     assert.deepEqual(persistence(), before, 'Hierarchy query must never change tables, schema or trace');
     return Object.fromEntries(snapshot.agents.map(row => [row.id, row]));
   };

@@ -207,7 +207,7 @@ function registerHandlers() {
       if (!catalog.ok) throw new Error(catalog.error);
       const agent = catalog.agents.find((row: any) => row.id === launch);
       if (agent?.terminal) {
-        // A claimed controller is the user's own terminal in the project view.
+        // A controller from a role request is the user's own terminal in the project view.
         if (context.task || context.project?.project_id !== agent.project) await changeView(context, { project: agent.project });
         const pane = [...context.panes.values()].find(p => p.launch === launch);
         if (!pane) throw new Error('This terminal is not open in this window');

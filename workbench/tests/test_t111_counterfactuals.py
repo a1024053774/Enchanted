@@ -55,7 +55,7 @@ try:
         shutil.copytree(source / 'workbench/src',tree / 'workbench/src')
         path = tree / 'workbench/src/flow.ts'
         original = path.read_text(encoding='utf-8')
-        marker = '  const sidebar = await sidebarSnapshot(gates, store, panes);'
+        marker = '  const sidebar = await sidebarSnapshot(gates, store, panes, roleRequests);'
         assert original.count(marker) == 1
         path.write_text(original.replace(marker,"  store.event('flow_read_mutant', {});\n"+marker),encoding='utf-8')
         command = ['node','--experimental-vm-modules',str(source / 'workbench/tests/test_t107_daemon_readonly.mjs'),str(root / 'write.json'),str(tree),'flow']

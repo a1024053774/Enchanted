@@ -1,4 +1,5 @@
 import { sidebarSnapshot } from './sidebar.ts';
+import type { RoleRequests } from './roleRequests.ts';
 import type { OrchestrationStore } from './store.ts';
 
 import type { FlowStage } from './flowStages.ts';
@@ -46,8 +47,8 @@ export function projectFlow(tasks: any[], agents: FlowAgent[], events: GateEvent
 }
 export type FlowSnapshot = ReturnType<typeof projectFlow>;
 
-export async function flowSnapshot(gates: any, store: OrchestrationStore, panes: any): Promise<FlowSnapshot> {
-  const sidebar = await sidebarSnapshot(gates, store, panes);
+export async function flowSnapshot(gates: any, store: OrchestrationStore, panes: any, roleRequests: RoleRequests): Promise<FlowSnapshot> {
+  const sidebar = await sidebarSnapshot(gates, store, panes, roleRequests);
   const tasks = gates.db.prepare('SELECT data FROM tasks ORDER BY id').all().map((row: any) => JSON.parse(String(row.data)));
   const events = gates.db.prepare('SELECT task,attempt,type,details FROM events ORDER BY seq').all()
     .map((row: any) => ({ ...row, details: JSON.parse(String(row.details)) }));

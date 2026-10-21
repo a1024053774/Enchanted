@@ -8,6 +8,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { join, resolve, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { OrchestrationStore } from '../src/store.ts';
+import { RoleRequests } from '../src/roleRequests.ts';
 const { agentState: projectAgentState, aggregate, sidebarSnapshot } = await import(process.argv[3] ? pathToFileURL(resolve(process.argv[3])).href : new URL('../src/sidebar.ts', import.meta.url).href);
 
 const output = process.argv[2];
@@ -67,7 +68,7 @@ try {
   const persistence = () => JSON.parse(execFileSync('python3', ['-B', join(dirname(fileURLToPath(import.meta.url)), 't107_persistence.py'), state], { encoding: 'utf8' }));
   const read = async () => {
     const before = persistence();
-    const value = await sidebarSnapshot(gates, store, panes);
+    const value = await sidebarSnapshot(gates, store, panes, new RoleRequests(store, () => false));
     assert.deepEqual(persistence(), before, 'Sidebar read changed persisted tables or traces');
     return value;
   };
