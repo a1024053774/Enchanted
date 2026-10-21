@@ -21,6 +21,8 @@ const refuse = (condition: unknown, code: string) => { if (!condition) throw new
 export class RoleRequests {
   private store: OrchestrationStore;
   private alive: (launch: string) => boolean;
+  // Grants whose expiry event could not be written; see decide().
+  private expired = new Set<string>();
   constructor(store: OrchestrationStore, alive: (launch: string) => boolean) {
     this.store = store;
     this.alive = alive;
@@ -89,7 +91,9 @@ export class RoleRequests {
         const granted = this.all().find(row => row.id === roleRequest!.id);
         if (granted?.state === "granted") this.store.event("role_request_ended", { role_request: granted.id, reason: "not_confirmed" }, { id: granted.launch, task: null });
       } catch (error) {
-        // Keep serving; the grant then stays without authority until its terminal closes.
+        // Keep serving. The ended event is missing, so remember the expiry here: a late
+        // confirmation must still be refused.
+        this.expired.add(roleRequest!.id);
         console.error(JSON.stringify({ error: "role_request_expiry_failed", role_request: roleRequest!.id, reason: String(error) }));
       }
     }, confirmWindowMs).unref();
@@ -97,7 +101,7 @@ export class RoleRequests {
   }
   confirm(launch: string, id: string) {
     const roleRequest = this.current(launch);
-    if (!roleRequest || roleRequest.id !== id || roleRequest.state !== "granted") return undefined;
+    if (!roleRequest || roleRequest.id !== id || roleRequest.state !== "granted" || this.expired.has(id)) return undefined;
     this.store.event("role_request_confirmed", { role_request: roleRequest.id }, { id: launch, task: null });
     // One terminal per role and project: the role taking effect settles every other
     // request for it. Until then they stay pending, so an unconfirmed grant loses nobody's request.

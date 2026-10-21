@@ -759,6 +759,8 @@ function Workbench() {
         {roleRequests.map((roleRequest, index) => {
           const key = Object.entries(launches).find(([, launch]) => launch === roleRequest.launch)?.[0];
           const rivals = roleRequests.filter(other => other.id !== roleRequest.id && other.project === roleRequest.project && other.role === roleRequest.role).length;
+          // While another terminal's grant for this role awaits confirmation, this one cannot be approved yet.
+          const roleTaken = grantedRequests.some(granted => granted.project === roleRequest.project && granted.role === roleRequest.role);
           const opened = roleRequest.terminal_opened_at ? new Date(roleRequest.terminal_opened_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : null;
           const place = key ? (names[key] ? `终端「${names[key]}」` : `第 ${paneKeys.indexOf(key) + 1} 个窗格`)
             : `${opened ? opened + ' 打开的' : ''}终端（${tilde(roleRequest.terminal_cwd ?? '', home) || '目录未知'}）`;
@@ -766,9 +768,10 @@ function Workbench() {
             <span className="role-request-number" aria-label={`申请 ${index + 1}`}>{index + 1}</span>
             <p><strong>{roleRequest.project}</strong> 的{place}里的 {roleRequest.cli ?? 'agent'} 申请成为<strong>{roleRequest.role_label}</strong>
               {!key && <span className="role-request-hint">，不在当前视图</span>}
+              {roleTaken && <span className="role-request-hint">。这个角色已批准给另一个终端，正在等它确认</span>}
               {rivals > 0 && <span className="role-request-hint">。同一角色另有 {rivals} 个申请：批准其中一个，它确认生效后其余自动拒绝</span>}</p>
             <button className="text-button" disabled={deciding !== null || requestsSettling} onClick={() => void decideRoleRequest(roleRequest, false)}>拒绝</button>
-            <button className="primary-button" disabled={deciding !== null || requestsSettling} onClick={() => void decideRoleRequest(roleRequest, true)}>批准</button>
+            <button className="primary-button" disabled={deciding !== null || requestsSettling || roleTaken} onClick={() => void decideRoleRequest(roleRequest, true)}>批准</button>
           </div>;
         })}
         {roleRequestError && <p className="catalog-error" role="alert">{roleRequestError}</p>}

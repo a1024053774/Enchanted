@@ -195,9 +195,10 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   const grantedRequests = current.filter(row => row.state === 'granted').map(requestView);
   // A grant that never took effect (not confirmed, or its asker left): tell the user, until
   // that terminal asks again or five minutes pass.
-  const unconfirmed = current.filter(row => row.state === 'ended' && row.decided_at !== null &&
+  // `current` is in event order, so "asked again" is any later row from the same terminal.
+  const unconfirmed = current.filter((row, index) => row.state === 'ended' && row.decided_at !== null &&
     ['not_confirmed', 'asker_gone'].includes(row.ended_reason ?? '') && Date.now() - Date.parse(row.decided_at) < 5 * 60_000 &&
-    !current.some(later => later.launch === row.launch && Date.parse(later.requested_at) > Date.parse(row.requested_at)))
+    !current.slice(index + 1).some(later => later.launch === row.launch))
     .map(row => ({ ...requestView(row), decided_at: row.decided_at }));
   return { projects, agents: treeAgents, role_requests: pendingRequests, granted_role_requests: grantedRequests, unconfirmed_role_requests: unconfirmed, gaps: [
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',

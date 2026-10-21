@@ -42,7 +42,7 @@ def main():
     # Known-bad: a killed asker leaves its request approvable; the user's own ZDOTDIR is dropped.
     target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped', 'refusal-unrecorded', 'task-widens-scope',
                                                  'drafts-unowned', 'foreign-owned-save', 'approved-not-ended', 'grant-has-authority',
-                                                 'rivals-left-pending', 'expiry-unrecorded', 'stale-notice'])
+                                                 'rivals-left-pending', 'expiry-unrecorded', 'stale-notice', 'asker-gone-unnoticed'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t121-', dir='/private/tmp')).resolve()
@@ -114,9 +114,12 @@ def main():
         elif args.mutant == 'expiry-unrecorded':
             path = source / 'workbench/src/roleRequests.ts'
             old, new = 'if (granted?.state === "granted") this.store.event(', 'if (false) this.store.event('
+        elif args.mutant == 'asker-gone-unnoticed':
+            path = source / 'workbench/src/sidebar.ts'
+            old, new = "['not_confirmed', 'asker_gone'].includes", "['not_confirmed'].includes"
         elif args.mutant == 'stale-notice':
             path = source / 'workbench/src/sidebar.ts'
-            old, new = ' &&\n    !current.some(later => later.launch === row.launch && Date.parse(later.requested_at) > Date.parse(row.requested_at)))', ')'
+            old, new = ' &&\n    !current.slice(index + 1).some(later => later.launch === row.launch))', ')'
         elif args.mutant == 'refusal-unrecorded':
             path = source / 'workbench/src/daemon.ts'
             old, new = 'store.event("request_rejected", ', 'void ('
@@ -431,6 +434,9 @@ def main():
             row = [r for r in request('terminal_whoami', terminal_b)['role_requests'] if r['id'] == waiting['id']][0]
             unreceived.append((row['state'], row['ended_reason']))
         check('unreceived_approval_ends', unreceived == [('ended', 'asker_gone')] * 3, unreceived)
+        # The user approved but the asker left: the approval is reported as not having taken effect.
+        notice = [row['id'] for row in request('sidebar_snapshot').get('unconfirmed_role_requests') or []]
+        check('void_grant_noticed_when_asker_left', notice == [waiting['id']], notice)
         # The user's approval grants the role; only the asker's confirmation makes it take effect.
         # Two terminals ask for the same role. Granting one leaves the other pending until the
         # grant is confirmed; an unconfirmed grant expires (recorded) and the role is free again.
