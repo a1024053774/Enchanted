@@ -2,9 +2,9 @@
 id: T-117
 title: 用户新 Logo 接入应用、GitHub 与 Pages，重新打包发布
 type: build
-status: open
+status: closed
 blocked_by: []
-claimed_by: codex-direct
+claimed_by:
 supersedes:
 ready: yes
 ready_by: executor
@@ -32,14 +32,16 @@ ready_rev: 1
 - [x] 标准打包入口生成 0.1.1，含自定义 icns；codesign 通过；真实启动并验证侧栏和 Dock 外观切换；安装到 `/Applications/Enchanted.app`，不改 bundle id 与用户数据位置。
 - [x] GitHub 首页、Pages 部署与新 Release 在线读回；下载产物与本地字节数一致；发布前扫描没有未豁免凭据。
 - [x] 清理本次成功构建的依赖、中间产物；大块运行证据归档外置盘；`project_map.py status` 无问题、无 stale living doc。
-- [ ] 收尾发现的资源归属修正：仅复制 `workbench` 的现有隔离构建不再依赖 `docs`；标准入口重新打包，并与已发布运行时核对。
+- [x] 收尾发现的资源归属修正：仅复制 `workbench` 的现有隔离构建不再依赖 `docs`；标准入口重新打包，并与已发布运行时核对。
 
 ## Resolution
 
-2026-10-21，INCOMPLETE：Logo 与 0.1.1 发布已经通过，收尾发现应用对 `docs/` 的新依赖破坏仅复制 `workbench` 的隔离构建，正在修正。完整记录见 [RESULTS.md](../../evidence/2026-10-21-batch19/T-117/RESULTS.md)。
+2026-10-21，PASS。完整记录见 [RESULTS.md](../../evidence/2026-10-21-batch19/T-117/RESULTS.md)。
 
-生产源码构建版本 `22d65191515fd00426b9a985cd31f06c842d8516`，Release `v0.1.1` 目标 `2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816`；两者之间仅验收脚本与证据变化，生产源码一致。之后收尾只改票据和证据。原始 PNG 原样保留，应用侧栏与原生 Dock、Pages 页头与 favicon、GitHub README 深浅图均已接通。真实浏览器 Pages 12 组、GitHub 2 组通过，原演示 327/327；已安装应用、原图内容、解码后的 `.icns`、签名与回下载字节数检查通过，错误原图与错误图标反例被拒。
+已发布包的源码构建版本 `22d65191515fd00426b9a985cd31f06c842d8516`，Release `v0.1.1` 目标 `2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816`；两者之间仅验收脚本与证据变化，生产源码一致。收尾资源归属修正为 `aaba2b586574f6bd6e65049bab0509c5b2a2b418`：原图放回 `workbench/app/brand/`，Pages 保留静态发布副本，既有隔离夹具不再依赖 docs。仅含 workbench 的副本经标准入口打包和真实启动通过，81 个自有运行时/UI 等文件及图标与已发布包逐字节相同；临时 build.json 来源路径及重建的第三方依赖不在该等同主张内，因此保留原 Release，不改写 tag 或旧资产。
+
+原始 PNG 原样保留，应用侧栏与原生 Dock、Pages 页头与 favicon、GitHub README 深浅图均已接通。真实浏览器 Pages 12 组、GitHub 2 组通过，原演示 327/327；已安装应用、原图内容、解码后的 `.icns`、签名与回下载字节数检查通过，错误原图与错误图标反例被拒。
 
 已安装 `/Applications/Enchanted.app`，安装包 `~/Downloads/Enchanted-0.1.1-macos-arm64.zip`（147,868,092 字节）。原用户数据目录与后台 PID 保留，数据表只有正常开启／关闭窗口增加的 orchestration_events 行数变化。原图、截图、日志、运行现场、第一次构建失败与旧安装包在外置盘，清单入仓库；本次成功构建临时依赖与产物副本已清理。
 
-独立审查 01 当时为 INCOMPLETE，未发现产品回归；两个验收脚本 P2 已补内容核对和拒绝反例，未做二轮独立审查，不上调原报告。未公证、未做手机真机验证，未采集 Dock 最终像素；GitHub 更新的是 README 品牌与 Release，不是账户头像。T-115 不变，T-116 按用户要求搁置。
+独立审查 01 当时为 INCOMPLETE，未发现产品回归；两个验收脚本 P2 已补内容核对和拒绝反例，不上调原报告。收尾资源归属修正的新会话审查 02 为 PASS，仅对该候选与范围成立。未公证、未做手机真机验证，未采集 Dock 最终像素；GitHub 更新的是 README 品牌与 Release，不是账户头像。T-115 不变，T-116 按用户要求搁置。

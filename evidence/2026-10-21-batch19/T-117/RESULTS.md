@@ -1,6 +1,6 @@
 # T-117 新 Logo 与 0.1.1 发布
 
-状态：INCOMPLETE。Logo 与发布已验证；收尾发现的隔离构建资源依赖正在修正。2026-10-21，当前 Codex 按用户“允许”的逐次授权直接执行，跳过 Herdr 派发；没有创建 worker 或伪造门禁身份。
+状态：PASS。Logo、发布和收尾的隔离构建修正均已验证。2026-10-21，当前 Codex 按用户“允许”的逐次授权直接执行，跳过 Herdr 派发；没有创建 worker 或伪造门禁身份。
 
 ## 交付
 
@@ -27,10 +27,15 @@
 | 原有产品页演示回归 | 327/327 PASS | `demo-regression.log` |
 | 已部署 Pages，同样的 12 组场景与附件内容核对 | 12 组 PASS | `online-site/` |
 | GitHub 实际渲染的 README，深浅图片完成加载且内容匹配附件 | 2 组 PASS | `github-readme-02/` |
+| 收尾：父版本在仅含 workbench 的隔离副本中构建 | 预期拒绝，找不到 docs 素材 | `isolated-build-red.json/.log` |
+| 收尾：候选仅归档 workbench，标准入口重新打包并真实启动 | PASS | `build-03.json`、`isolated-app-03/` |
+| 重建与已发布应用的 81 个仓库运行时／UI 等文件及图标 | 逐字节相同，比较范围与排除项有明细 | `runtime-equivalence-03.json` |
 | 发布前全 refs 凭据扫描 | 90,563 对象，520 个已有精确豁免，未豁免 0 | `credential-scan-01.json` |
 | 扫描后新增对象 | 9 对象，未豁免 0 | `credential-delta-02.json` |
 
-独立只读审查报告保存在 `independent-review-01.md`，当时结论为 INCOMPLETE，不上调。它未发现产品回归，独立核对了原图和实际 `.icns`；指出的两项 P2 均为验收脚本内容核对不足。本次已补成外部原图输入与 `.icns` 解码比较，并取得上述两个拒绝反例。没有做第二轮独立审查。
+独立只读审查报告保存在 `independent-review-01.md`，当时结论为 INCOMPLETE，不上调。它未发现产品回归，独立核对了原图和实际 `.icns`；指出的两项 P2 均为验收脚本内容核对不足。本次已补成外部原图输入与 `.icns` 解码比较，并取得上述两个拒绝反例。收尾资源归属修正另经新会话审查，`independent-review-02.md` 为 PASS，范围限该修正，不追认旧审查的未知项。
+
+资源归属修正版本为 `aaba2b586574f6bd6e65049bab0509c5b2a2b418`。在缺少 `docs` 的副本中重跑标准打包入口并真实启动通过，修正没有变更测试夹具。独立审查又逐字节核对了重建包与已安装的发布包：81 个自有运行时/UI/hook/bin 等文件及 `.icns` 相同。比较排除了 `ui/build.json` 的临时来源路径和从相同锁文件重建的第三方依赖，不声称整个 `.app` 字节相同。因已发布的产品代码、UI 和图标没有变化，保留原 `v0.1.1` Release 和安装包，没有改写 tag 或覆盖旧资产。
 
 初期探针的未知调试参数、启动暂停时求值、CSP 阻止 `fetch(file:)`，以及 GitHub 切主题过程中调用 `decode()` 的竞态，都是验证工具问题。原件分别保留在早期应用运行、`green-app/`、`github-readme/` 中，不将其冒称为 Logo 缺陷红态。GitHub 探针现等待所选图片完成加载后再核对，不改产品代码、不放宽内容断言。
 
