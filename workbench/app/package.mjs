@@ -43,25 +43,15 @@ const helper = join(native, 'spawn-helper');
 chmodSync(helper, 0o755);
 accessSync(helper, constants.X_OK);
 const { packager } = await import('@electron/packager');
-const paths = await packager({ dir: stage, name: 'a2a', executableName: 'a2a', platform: 'darwin', arch: 'arm64',
+const paths = await packager({ dir: stage, name: 'Enchanted', executableName: 'Enchanted', platform: 'darwin', arch: 'arm64',
   electronVersion: electron, out: join(work, 'package'), tmpdir: temporary, overwrite: false, asar: false,
   appBundleId: 'org.a2a.workbench', appCategoryType: 'public.app-category.developer-tools',
-  // Packager 20 overwrites extendInfo names with the executable name. Its
-  // resource hook runs after that rewrite and before signing; [] enables it
-  // without extra files. Remove this hook when Packager supports separate names.
-  extraResource: [],
-  afterCopyExtraResources: [async ({ buildPath }) => {
-    const plist = join(buildPath, 'a2a.app/Contents/Info.plist');
-    for (const key of ['CFBundleName', 'CFBundleDisplayName']) {
-      execFileSync('/usr/bin/plutil', ['-replace', key, '-string', 'Enchanted', plist]);
-    }
-  }],
   download: { cacheRoot: process.env.electron_config_cache },
   osxSign: { identity: '-', identityValidation: false, preAutoEntitlements: false, preEmbedProvisioningProfile: false,
     optionsForFile: () => ({ hardenedRuntime: false, signatureFlags: '0', timestamp: 'none' }) },
 });
 if (paths.length !== 1) throw new Error('Expected exactly one packaged application');
-const app = join(paths[0], 'a2a.app');
+const app = join(paths[0], 'Enchanted.app');
 execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', app], { stdio: 'inherit' });
 const signatures = [];
 for (const target of [app, join(app, 'Contents/Frameworks/Electron Framework.framework'),
