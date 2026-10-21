@@ -1,6 +1,6 @@
 # T-117 新 Logo 与 0.1.1 发布
 
-状态：PASS。2026-10-21，当前 Codex 按用户“允许”的逐次授权直接执行，跳过 Herdr 派发；没有创建 worker 或伪造门禁身份。
+状态：INCOMPLETE。Logo 与发布已验证；收尾发现的隔离构建资源依赖正在修正。2026-10-21，当前 Codex 按用户“允许”的逐次授权直接执行，跳过 Herdr 派发；没有创建 worker 或伪造门禁身份。
 
 ## 交付
 
@@ -10,7 +10,7 @@
 - 安装到 `/Applications/Enchanted.app`，默认数据目录启动时可见新 Logo。bundle id 与数据位置保持不变，原后台 PID 71203 未停止或替换，数据表行数检查见 `run-summary.json`。
 - 发布 GitHub Release `v0.1.1`，保留 `v0.1.0`。安装包为 `~/Downloads/Enchanted-0.1.1-macos-arm64.zip`，147,868,092 字节；从 Release 回下载的字节数一致。
 
-生产源码构建版本为 `22d65191515fd00426b9a985cd31f06c842d8516`，Release 目标为 `2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816`；两者之间仅修改验收脚本与证据记录，生产源码相同。后续收尾提交同样只更新证据和票据。
+已发布包的源码构建版本为 `22d65191515fd00426b9a985cd31f06c842d8516`，Release 目标为 `2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816`；两者之间仅修改验收脚本与证据记录，生产源码相同。收尾另行修正应用素材归属：应用使用 `workbench/app/brand/`，Pages 保留静态发布副本，不再要求隔离工作台副本含 `docs/`。
 
 ## 验证
 

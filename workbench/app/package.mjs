@@ -48,7 +48,7 @@ mkdirSync(iconset);
 for (const size of [16, 32, 128, 256, 512]) {
   for (const scale of [1, 2]) {
     execFileSync('/usr/bin/sips', ['-z', String(size * scale), String(size * scale),
-      join(source, '../docs/assets/brand/logo-on-light.png'), '--out',
+      join(source, 'app/brand/logo-on-light.png'), '--out',
       join(iconset, `icon_${size}x${size}${scale === 2 ? '@2x' : ''}.png`)], { stdio: 'ignore' });
   }
 }

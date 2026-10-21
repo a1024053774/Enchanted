@@ -2,9 +2,9 @@
 id: T-117
 title: 用户新 Logo 接入应用、GitHub 与 Pages，重新打包发布
 type: build
-status: closed
+status: open
 blocked_by: []
-claimed_by:
+claimed_by: codex-direct
 supersedes:
 ready: yes
 ready_by: executor
@@ -32,10 +32,11 @@ ready_rev: 1
 - [x] 标准打包入口生成 0.1.1，含自定义 icns；codesign 通过；真实启动并验证侧栏和 Dock 外观切换；安装到 `/Applications/Enchanted.app`，不改 bundle id 与用户数据位置。
 - [x] GitHub 首页、Pages 部署与新 Release 在线读回；下载产物与本地字节数一致；发布前扫描没有未豁免凭据。
 - [x] 清理本次成功构建的依赖、中间产物；大块运行证据归档外置盘；`project_map.py status` 无问题、无 stale living doc。
+- [ ] 收尾发现的资源归属修正：仅复制 `workbench` 的现有隔离构建不再依赖 `docs`；标准入口重新打包，并与已发布运行时核对。
 
 ## Resolution
 
-2026-10-21，PASS。完整记录见 [RESULTS.md](../../evidence/2026-10-21-batch19/T-117/RESULTS.md)。
+2026-10-21，INCOMPLETE：Logo 与 0.1.1 发布已经通过，收尾发现应用对 `docs/` 的新依赖破坏仅复制 `workbench` 的隔离构建，正在修正。完整记录见 [RESULTS.md](../../evidence/2026-10-21-batch19/T-117/RESULTS.md)。
 
 生产源码构建版本 `22d65191515fd00426b9a985cd31f06c842d8516`，Release `v0.1.1` 目标 `2754c6bf8dfd90ed3c30f3f4532c2c2de6b94816`；两者之间仅验收脚本与证据变化，生产源码一致。之后收尾只改票据和证据。原始 PNG 原样保留，应用侧栏与原生 Dock、Pages 页头与 favicon、GitHub README 深浅图均已接通。真实浏览器 Pages 12 组、GitHub 2 组通过，原演示 327/327；已安装应用、原图内容、解码后的 `.icns`、签名与回下载字节数检查通过，错误原图与错误图标反例被拒。
 

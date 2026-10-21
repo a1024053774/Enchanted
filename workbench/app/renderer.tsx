@@ -6,7 +6,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import './style.css';
-import brandLogo from '../../docs/assets/brand/logo-on-dark.png';
+import brandLogo from './brand/logo-on-dark.png';
 import { FlowPage } from './FlowPage';
 import { ExecutionSettings } from './ExecutionSettings';
 import type { ExecutionRole, ExecutionSelection } from '../src/executionSettings.ts';

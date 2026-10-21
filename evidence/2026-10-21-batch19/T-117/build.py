@@ -18,13 +18,14 @@ assert proof.is_dir() and proof.stat().st_dev != Path('/Volumes').stat().st_dev
 report_path = proof / ('build-' + label + '.json')
 assert not report_path.exists()
 revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
-record = {'status': 'INCOMPLETE', 'revision': revision, 'source': str(source), 'commands': []}
+record = {'status': 'INCOMPLETE', 'revision': revision, 'source': str(source),
+          'source_scope': ['workbench'], 'commands': []}
 env = dict(os.environ, TMPDIR='/private/tmp', TMP='/private/tmp', TEMP='/private/tmp')
 for key in ['ELECTRON_RUN_AS_NODE', 'ELECTRON_OVERRIDE_DIST_PATH', 'NODE_OPTIONS', 'NODE_PATH']:
     env.pop(key, None)
 try:
     with (work / 'source.tar').open('wb') as target:
-        subprocess.run(['git', 'archive', revision, 'workbench', 'docs'], cwd=root, stdout=target, check=True)
+        subprocess.run(['git', 'archive', revision, 'workbench'], cwd=root, stdout=target, check=True)
     with tarfile.open(work / 'source.tar') as archive:
         assert all(not member.name.startswith('/') and '..' not in Path(member.name).parts for member in archive)
         archive.extractall(source)
