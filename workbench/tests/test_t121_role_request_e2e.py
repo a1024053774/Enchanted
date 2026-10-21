@@ -40,7 +40,8 @@ def main():
     # Known-bad: a pending roleRequest already grants the role's authority.
     # Known-bad: history follows macOS /etc/zshrc into Enchanted's ZDOTDIR.
     # Known-bad: a killed asker leaves its request approvable; the user's own ZDOTDIR is dropped.
-    target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped', 'refusal-unrecorded', 'task-widens-scope'])
+    target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped', 'refusal-unrecorded', 'task-widens-scope',
+                                                 'drafts-unowned'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t121-', dir='/private/tmp')).resolve()
@@ -87,11 +88,15 @@ def main():
             old, new = '[[ $HISTFILE == $A2A_TERMINAL_ZDOTDIR/.zsh_history ]] && HISTFILE=$ZDOTDIR/.zsh_history\n', ''
         elif args.mutant == 'no-withdraw':
             path = source / 'workbench/src/daemon.ts'
-            old, new = 'const reason = asker.gone ? "asker_gone" :', 'const reason = false ? "asker_gone" :'
+            old, new = 'connection.once("close", () => { asker.gone?.(); });', ''
         elif args.mutant == 'task-widens-scope':
             # The first candidate's rule: any command with a task of this project passes.
             path = source / 'workbench/src/daemon.ts'
             old, new = '} else if (taskCommands.has(input.command)) {', '} else if (input.task !== undefined) {'
+        elif args.mutant == 'drafts-unowned':
+            # The second candidate's rule: any not-yet-created task id is open to card_* and create.
+            path = source / 'workbench/src/daemon.ts'
+            old, new = 'if (draftOwner(input.task) !== roleRequest.project) throw new Refusal("card_draft_not_owned");', ''
         elif args.mutant == 'refusal-unrecorded':
             path = source / 'workbench/src/daemon.ts'
             old, new = 'store.event("request_rejected", ', 'void ('
@@ -270,6 +275,7 @@ def main():
         own = create(terminal_a, 'own-1', 'proj', cwd)
         check('terminal_controller_creates_task_in_own_project', own['ok'] and request('status', terminal_a, task='own-1')['ok'], own)
         wrong_repo = create(terminal_a, 'own-2', 'proj', other_repo)
+        assert request('card_save', terminal_a, task='own-3', card=card('own-3'), expected_version=0)['ok']
         foreign = {label: request(command, terminal_a, **data).get('error') for label, command, data in [
             ('create_in_other_project', 'create', dict(task='own-3', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)),
             ('status_of_other_task', 'status', dict(task='other-1')),
@@ -284,6 +290,19 @@ def main():
             ('stop', dict(thread='x', stop_id='x'))]}
         report['task_field_errors'] = widened
         check('task_field_does_not_widen_scope', set(widened.values()) == {'role_command_not_scoped'}, widened)
+        # A draft another project saved for a task it has not created yet stays that project's.
+        assert request('card_save', operator, task='other-2', card=card('other-2'), expected_version=0)['ok']
+        drafts = {label: request(command, terminal_a, task='other-2', **data).get('error') for label, command, data in [
+            ('card_show', 'card_show', dict(card_version=1)),
+            ('card_save_next', 'card_save', dict(card=card('other-2'), expected_version=1)),
+            ('card_save_first', 'card_save', dict(card=card('other-2'), expected_version=0)),
+            ('create', 'create', dict(project='proj', repo=str(cwd), branch='refs/heads/main', card_version=1))]}
+        report['draft_errors'] = drafts
+        check('other_project_draft_refused', drafts == dict(card_show='card_draft_not_owned', card_save_next='card_draft_not_owned',
+              card_save_first='card_version_conflict', create='card_draft_not_owned') and
+              request('create', operator, task='other-2', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)['ok'], drafts)
+        no_runtime = {command: request(command, terminal_a, task='own-1').get('error') for command in ('answer_issue', 'answer_issues', 'attach', 'run')}
+        check('user_answer_and_run_commands_not_for_terminals', set(no_runtime.values()) == {'role_command_not_scoped'}, no_runtime)
         code = type_line(a, f"a2a call '{{\"command\":\"status\",\"task\":\"no-such-task\"}}' > {out}/a-task.json", 'T121-TASK')
         check('unknown_task_refused_before_gate', code == 1 and result_file('a-task.json')['ok'] is False, result_file('a-task.json'))
         code = type_line(a, f'a2a request ideation > {out}/a-second.json', 'T121-SECOND')
@@ -325,8 +344,26 @@ def main():
         borrowed = request('inbox_list', dict(kind='terminal', launch=b['launch'], token=token_a))
         check('forged_and_borrowed_tokens_refused', forged.get('ok') is False and borrowed.get('ok') is False and
               'invalid_terminal_identity' in json.dumps([forged, borrowed]), [forged, borrowed])
-        anonymous = request('role_request', None, role='executor')
+        anonymous = request('role_request', None, role='executor', wait_seconds=5)
         check('anonymous_request_refused', anonymous['ok'] is False, anonymous)
+
+        # 7b: a request exists only while its asker waits on the connection.
+        type_line(b, f'print -r -- $A2A_TERMINAL_TOKEN > {out}/b-token.txt', 'T121-B-TOKEN')
+        terminal_b = dict(kind='terminal', launch=b['launch'], token=(out / 'b-token.txt').read_text(encoding='utf-8').strip())
+        unwaited = request('role_request', terminal_b, role='ideation')
+        check('request_without_wait_refused', unwaited.get('error') == 'invalid_wait_seconds' and
+              not [row for row in request('sidebar_snapshot').get('role_requests') or [] if row['launch'] == b['launch']], unwaited)
+        late_decisions = []
+        for _ in range(3):
+            asker = socket.socket(socket.AF_UNIX)
+            asker.connect(str(state / 'control.sock'))
+            asker.sendall((json.dumps(dict(id=str(uuid.uuid4()), input=dict(command='role_request', role='ideation', wait_seconds=60),
+                                           identity=terminal_b)) + '\n').encode())
+            [waiting] = wait_pending(('proj', 'ideation'))
+            asker.close()
+            late_decisions.append(request('role_request_decide', operator, role_request=waiting['id'], approved=True).get('error'))
+        check('closed_asker_cannot_be_approved', late_decisions == ['request_not_pending'] * 3 and
+              request('terminal_whoami', terminal_b)['role'] is None, late_decisions)
 
         # 8: closing the terminal ends its role.
         closed = request('shell_close', operator, launch=a['launch'])
@@ -366,8 +403,8 @@ def main():
         events = request('orchestration_events')['events']
         kinds = [event['type'] for event in events if event['type'].startswith('role_')]
         report['role_request_events'] = kinds
-        check('role_requests_recorded_append_only', kinds.count('role_requested') == 4 and kinds.count('role_request_decided') == 3 and
-              kinds.count('role_request_ended') == 1, kinds)
+        check('role_requests_recorded_append_only', kinds.count('role_requested') == 7 and kinds.count('role_request_decided') == 3 and
+              kinds.count('role_request_ended') == 4, kinds)
         stray = sorted(str(path) for path in (source / 'workbench/terminal').rglob('*') if path.name.startswith('.zsh_history'))
         check('nothing_written_into_app_resources', not stray, stray)
         report['status'] = 'PASS'

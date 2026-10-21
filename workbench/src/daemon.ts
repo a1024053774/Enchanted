@@ -3,6 +3,8 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync,
 import { basename, isAbsolute, join } from "node:path";
 import { A2AGates, Refusal } from "./gates/core.ts";
 import { A2AGateRequest } from "./contracts/a2aGates.ts";
+
+type Asker = { gone?: () => void };
 import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
 import { socketPath } from "./transport.ts";
@@ -166,36 +168,49 @@ export async function serve(
   // for this project. Inbox entries and stop carry no project yet and ignore a task
   // field, so a terminal role cannot reach them (it would see, acknowledge or stop
   // another project's work).
-  const taskCommands = new Set<string>(A2AGateRequest.fields.command.literals);
-  const newTaskCommands = new Set(["card_template", "card_validate", "card_save", "card_show", "create"]);
+  // answer_issue(s) record their text as the user's input, and attach and run act
+  // after the role may have ended; a terminal role does not get them.
+  const taskCommands = new Set<string>(A2AGateRequest.fields.command.literals.filter(command =>
+    !["answer_issue", "answer_issues", "attach", "run"].includes(command)));
+  // A task id that does not exist yet has no project. Card drafts saved under it
+  // belong to the project whose terminal saved its first version; card_show and
+  // create on a draft need that ownership, card_template and card_validate are stateless.
+  const draftOwner = (task: string): string | undefined => {
+    const row = store.db.prepare(`SELECT data FROM orchestration_events WHERE type='card_draft_owned'
+      AND json_extract(data,'$.task')=? ORDER BY seq LIMIT 1`).get(task);
+    return row ? JSON.parse(String(row.data)).project : undefined;
+  };
   const terminalCommand = async (input: Record<string, any>, terminal: { id: string; project: string | null; task: string | null },
-    asker: { gone: boolean }) => {
+    asker: Asker) => {
     if (input.command === "terminal_whoami") {
       const held = roleRequests.approved(terminal.id);
       return { ok: true, terminal: terminal.id, project: terminal.project, role: held?.role ?? null,
         role_requests: roleRequests.all().filter(roleRequest => roleRequest.launch === terminal.id) };
     }
     if (input.command === "role_request") {
+      // A request lives only while its asker waits on this connection, so it can
+      // never be approved after the agent stopped listening.
+      if (!Number.isSafeInteger(input.wait_seconds) || input.wait_seconds < 1 || input.wait_seconds > 600) throw new Refusal("invalid_wait_seconds");
       const requested = roleRequests.request(terminal, input.role, input.cli);
-      if (input.wait_seconds === undefined) return { ok: true, role_request: requested };
-      if (!Number.isSafeInteger(input.wait_seconds) || input.wait_seconds < 1 || input.wait_seconds > 600) {
-        roleRequests.withdraw(terminal.id, requested.id, "invalid_wait_seconds");
-        throw new Refusal("invalid_wait_seconds");
-      }
-      // The daemon, not the asker, withdraws a request nobody waits for any more: a
-      // killed asker (any signal) drops this connection, which ends the wait here.
-      const deadline = Date.now() + input.wait_seconds * 1000;
-      for (;;) {
-        const current = roleRequests.all().find(row => row.id === requested.id)!;
-        if (current.state === "approved") return { ok: true, role_request: current };
-        if (current.state !== "pending") return { ok: false, error: "request_" + current.state, role_request: current };
-        const reason = asker.gone ? "asker_gone" : stopping ? "daemon_stopping" : Date.now() >= deadline ? "request_wait_timeout" : null;
-        if (reason) {
-          const withdrawn = roleRequests.withdraw(terminal.id, requested.id, reason)!;
-          return { ok: false, error: reason, role_request: withdrawn };
+      const state = () => roleRequests.all().find(row => row.id === requested.id)!;
+      // The connection closing (any signal, including SIGKILL) settles the request at
+      // once: a pending one is withdrawn, and an approval the asker never received ends.
+      asker.gone = () => {
+        const current = state();
+        if (current.state === "pending") roleRequests.withdraw(terminal.id, requested.id, "asker_gone");
+        else if (current.state === "approved") roleRequests.end(terminal.id, "asker_gone");
+      };
+      try {
+        const deadline = Date.now() + input.wait_seconds * 1000;
+        for (;;) {
+          const current = state();
+          if (current.state === "approved") return { ok: true, role_request: current };
+          if (current.state !== "pending") return { ok: false, error: current.ended_reason ?? "request_" + current.state, role_request: current };
+          const reason = stopping ? "daemon_stopping" : Date.now() >= deadline ? "request_wait_timeout" : null;
+          if (reason) return { ok: false, error: reason, role_request: roleRequests.withdraw(terminal.id, requested.id, reason) };
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
+      } finally { asker.gone = undefined; }
     }
     if (input.command === "role_release") {
       const ended = roleRequests.end(terminal.id, "released");
@@ -211,7 +226,14 @@ export async function serve(
       const status = await gates.call({ command: "status", task: input.task });
       if (status.ok) {
         if (status.task.project_id !== roleRequest.project) throw new Refusal("role_project_mismatch");
-      } else if (status.error !== "unknown_task" || !newTaskCommands.has(input.command)) throw new Refusal(status.error ?? "unknown_task");
+      } else if (status.error !== "unknown_task") throw new Refusal(status.error ?? "unknown_task");
+      else if (["card_show", "create"].includes(input.command)) {
+        if (draftOwner(input.task) !== roleRequest.project) throw new Refusal("card_draft_not_owned");
+      } else if (input.command === "card_save") {
+        const owner = draftOwner(input.task);
+        if (owner !== undefined && owner !== roleRequest.project) throw new Refusal("card_draft_not_owned");
+        if (owner === undefined && input.expected_version !== 0) throw new Refusal("card_draft_not_owned");
+      } else if (!["card_template", "card_validate"].includes(input.command)) throw new Refusal("unknown_task");
       if (input.command === "create") {
         if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
         if (!store.openedProjects().some(project => project.project_id === roleRequest.project)) throw new Refusal("project_not_opened");
@@ -220,11 +242,15 @@ export async function serve(
     if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     const { parent_launch: _parent, ...gateInput } = input;
     assertOpenedRepo(gateInput);
-    return await gates.call(gateInput, undefined, { address: roleRequest.role, project: roleRequest.project,
+    const result = await gates.call(gateInput, undefined, { address: roleRequest.role, project: roleRequest.project,
       assertActive: async () => {
         if (stopping) throw new Refusal("daemon_stopping");
         if (roleRequests.approved(terminal.id)?.id !== roleRequest.id) throw new Refusal("role_request_ended");
       } });
+    // The gate's version check lets exactly one first save succeed; its project owns the draft.
+    if (result.ok && input.command === "card_save" && input.expected_version === 0 && draftOwner(input.task) === undefined)
+      store.event("card_draft_owned", { task: input.task, project: roleRequest.project }, { id: terminal.id, task: null });
+    return result;
   };
   // An opened directory owns its project id: a task may join that project
   // only in the same repository, or the project's terminals and tasks diverge.
@@ -234,7 +260,7 @@ export async function serve(
     if (opened && !(typeof command.repo === 'string' && existsSync(command.repo) && realpathSync(command.repo) === opened.repo))
       throw new Refusal('project_repo_mismatch');
   };
-  const handle = async (envelope: any, authority: ReturnType<typeof authenticate>, asker: { gone: boolean }) => {
+  const handle = async (envelope: any, authority: ReturnType<typeof authenticate>, asker: Asker) => {
     const input = envelope.input;
     if (!input || typeof input.command !== "string") throw new Refusal("invalid_request");
     const identity = envelope.identity;
@@ -616,9 +642,9 @@ export async function serve(
   const server = createServer((connection) => {
     connection.setEncoding("utf8");
     let buffer = "", handled = false;
-    // A role request waits on its connection; the asker going away ends that wait.
-    const asker = { gone: false };
-    connection.once("close", () => { asker.gone = true; });
+    // A role request waits on its connection; the asker going away settles it.
+    const asker: Asker = {};
+    connection.once("close", () => { asker.gone?.(); });
     connection.on("error", (error) => {
       store.event("client_connection_error", { error: String(error) });
     });
