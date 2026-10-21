@@ -91,6 +91,18 @@ export class OrchestrationStore {
     return [...opened.values()].filter(p => (!task || p.task === task) &&
       (!project || this.launchRecord(p.launch)?.project === project)).sort((a, b) => a.position - b.position);
   }
+  // Directories the user opened as projects. Gate tasks still own task
+  // membership; a removed directory only leaves this list.
+  openedProjects() {
+    const opened = new Map<string, { project_id: string; repo: string }>();
+    for (const row of this.db.prepare(`SELECT type,data FROM orchestration_events
+      WHERE type IN ('project_opened','project_removed') ORDER BY seq`).all()) {
+      const data = JSON.parse(String(row.data));
+      if (row.type === 'project_opened') opened.set(data.project_id, { project_id: data.project_id, repo: data.repo });
+      else opened.delete(data.project_id);
+    }
+    return [...opened.values()];
+  }
   paneArrangement(scope: string) {
     const row = this.db.prepare(`SELECT data FROM orchestration_events
       WHERE type='pane_arrangement_saved' AND json_extract(data,'$.scope')=? ORDER BY seq DESC LIMIT 1`).get(scope);

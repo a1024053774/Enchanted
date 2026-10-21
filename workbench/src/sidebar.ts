@@ -87,6 +87,24 @@ export async function gitFacts(repo: string) {
   }
 }
 
+// A project is a directory the user opened, or a gate project that has tasks.
+// An opened directory names the project's repo; otherwise the tasks must agree.
+export async function projectCatalog(gates: any, store: OrchestrationStore) {
+  const opened = new Map(store.openedProjects().map(project => [project.project_id, project.repo]));
+  const ids = [...new Set([...gates.listProjects().map((project: any) => String(project.project_id)), ...opened.keys()])].sort();
+  return Promise.all(ids.map(async project_id => {
+    const tasks = gates.listTasks(project_id);
+    const repos = new Set<string>();
+    for (const task of tasks) {
+      const result = await gates.call({ command: 'status', task: task.task_id });
+      if (!result.ok) throw new Error('Task catalog changed: ' + task.task_id);
+      repos.add(result.task.repo);
+    }
+    const repo = opened.get(project_id) ?? (repos.size === 1 ? [...repos][0] : null);
+    return { project_id, repo, tasks, opened: opened.has(project_id) };
+  }));
+}
+
 export async function sidebarSnapshot(gates: any, store: OrchestrationStore, panes: any) {
   const launches = store.launches().filter(record => record.role !== 'shell');
   const assignments = store.db.prepare(`SELECT d.launch,q.launch AS parent,q.input,r.data AS result
@@ -125,7 +143,8 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       role: record.role, preset: record.preset ?? null, role_label: roleLabel(record),
       cli: record.cli === 'Claude Code' || record.cli_version?.startsWith('Claude Code') ? 'claude' :
         record.cli_version?.startsWith('codex-cli ') ? 'codex' : '未知',
-      parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state] };
+      parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
+      created_at: record.created_at ?? null };
   });
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
@@ -150,17 +169,9 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       counts: Object.keys(stateLabels).filter(key => children.some(child => child.state === key))
         .map(key => ({ state: key, label: stateLabels[key as AgentState], count: children.filter(child => child.state === key).length })) } };
   });
-  const projects = await Promise.all(gates.listProjects().map(async (project: any) => {
-    const tasks = gates.listTasks(project.project_id);
-    const repos = new Set<string>();
-    for (const task of tasks) {
-      const result = await gates.call({ command: 'status', task: task.task_id });
-      if (!result.ok) throw new Error('Task catalog changed: ' + task.task_id);
-      repos.add(result.task.repo);
-    }
-    const repo = repos.size === 1 ? [...repos][0] : null;
+  const projects = await Promise.all((await projectCatalog(gates, store)).map(async project => {
     const state = aggregate(agents.filter(agent => agent.project === project.project_id).map(agent => agent.state));
-    return { ...project, repo, tasks, git: repo ? await gitFacts(repo) :
+    return { ...project, git: project.repo ? await gitFacts(project.repo) :
       { branch: null, upstream: null, ahead: null, behind: null, error: '项目目录不唯一' }, state, state_label: stateLabels[state] };
   }));
   return { projects, agents: treeAgents, gaps: [

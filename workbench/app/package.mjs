@@ -6,7 +6,13 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { parseArgs } from 'node:util';
 
-const { values } = parseArgs({ options: { slot: { type: 'string' } } });
+const { values } = parseArgs({ options: { slot: { type: 'string' }, variant: { type: 'string', default: 'release' } } });
+// A test variant installs beside the release app: its own name, bundle id and
+// data directory, so it never shares a daemon or instance lock with it.
+const variants = { release: { name: 'Enchanted', bundle: 'org.a2a.workbench', state: 'a2a-orchestrator' },
+  test: { name: 'Enchanted Test', bundle: 'org.a2a.workbench.test', state: 'a2a-orchestrator-test' } };
+const variant = variants[values.variant];
+if (!variant) throw new Error('--variant must be release or test');
 if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('本机打包只支持 macOS arm64');
 if (!values.slot || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(values.slot)) throw new Error('A new --slot NAME is required');
 const slot = join(tmpdir(), 'a2a-build-' + values.slot);
@@ -30,7 +36,8 @@ cpSync(join(source, 'app/desktop.mjs'), join(stage, 'desktop.mjs'));
 // dependencies. Runtime code and the only gate CLI keep their original paths.
 cpSync(join(source, 'node_modules'), join(stage, 'node_modules'), { recursive: true, verbatimSymlinks: true });
 const runtime = { effect: manifest.dependencies.effect, 'node-pty': manifest.dependencies['node-pty'] };
-writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'a2a', productName: 'Enchanted', version: manifest.version, type: 'module', main: 'desktop.mjs',
+writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'a2a', productName: variant.name, version: manifest.version, type: 'module', main: 'desktop.mjs',
+  a2a: { state: variant.state },
   dependencies: runtime, devDependencies: { ...Object.fromEntries(Object.entries(manifest.dependencies).filter(([key]) => !(key in runtime))), ...manifest.devDependencies } }, null, 2) + '\n');
 const electron = manifest.dependencies.electron;
 // Rebuild only the staged native module; keep reusable headers in the local cache.
@@ -54,16 +61,16 @@ for (const size of [16, 32, 128, 256, 512]) {
 }
 const icon = join(work, 'Enchanted.icns');
 execFileSync('/usr/bin/iconutil', ['-c', 'icns', '-o', icon, iconset]);
-const paths = await packager({ dir: stage, name: 'Enchanted', executableName: 'Enchanted', platform: 'darwin', arch: 'arm64',
+const paths = await packager({ dir: stage, name: variant.name, executableName: variant.name, platform: 'darwin', arch: 'arm64',
   electronVersion: electron, out: join(work, 'package'), tmpdir: temporary, overwrite: false, asar: false,
   icon,
-  appBundleId: 'org.a2a.workbench', appCategoryType: 'public.app-category.developer-tools',
+  appBundleId: variant.bundle, appCategoryType: 'public.app-category.developer-tools',
   download: { cacheRoot: process.env.electron_config_cache },
   osxSign: { identity: '-', identityValidation: false, preAutoEntitlements: false, preEmbedProvisioningProfile: false,
     optionsForFile: () => ({ hardenedRuntime: false, signatureFlags: '0', timestamp: 'none' }) },
 });
 if (paths.length !== 1) throw new Error('Expected exactly one packaged application');
-const app = join(paths[0], 'Enchanted.app');
+const app = join(paths[0], variant.name + '.app');
 execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', app], { stdio: 'inherit' });
 const signatures = [];
 for (const target of [app, join(app, 'Contents/Frameworks/Electron Framework.framework'),
@@ -76,7 +83,7 @@ for (const target of [app, join(app, 'Contents/Frameworks/Electron Framework.fra
   }
   signatures.push({ target, flags, signature: 'adhoc' });
 }
-const finalApp = join(slot, 'Enchanted.app');
+const finalApp = join(slot, variant.name + '.app');
 renameSync(app, finalApp);
 rmSync(work, { recursive: true });
 const result = { schema: 1, app: finalApp, electron, arch: 'arm64', signing: 'ad-hoc; no notarization; hardenedRuntime=false',

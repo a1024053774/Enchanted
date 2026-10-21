@@ -1,17 +1,16 @@
 import { app, BrowserWindow, ipcMain, dialog, nativeTheme } from 'electron';
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs, promisify, isDeepStrictEqual } from 'node:util';
-import { execFile } from 'node:child_process';
+import { parseArgs } from 'node:util';
 import { request } from '../src/transport.ts';
 import { readOperatorCredential } from '../src/credentials.ts';
 import { randomUUID } from 'node:crypto';
 import { NotificationCenter, type NotificationPreference } from './notificationCenter.ts';
 import type { EmptyInputDeclaration } from '../src/panes.ts';
 
-type Options = { state: string; task?: string; launch?: string | string[]; userData: string };
+type Options = { state: string; task?: string; project?: string; launch?: string | string[]; userData: string };
 type PaneBinding = {
   key: string; launch?: string; project?: string | null; identity?: Record<string, unknown>; opening?: Promise<void>;
   sequence: number; inputQueue: Promise<unknown>; pendingRelease: Promise<any> | null;
@@ -22,10 +21,9 @@ type WindowBinding = {
   window: BrowserWindow; options: Options; operator: NonNullable<ReturnType<typeof readOperatorCredential>>;
   panes: Map<string, PaneBinding>; closing: boolean; closed: boolean;
   layout: Layout | null; names: Record<string, string>;
-  task: any; switching?: Promise<unknown>; creating?: Promise<unknown>;
-  creation?: { repo: string; persisted: boolean | 'unknown' };
+  task: any; project: { project_id: string; repo: string | null } | null;
+  switching?: Promise<unknown>; creating?: Promise<unknown>;
 };
-const execute = promisify(execFile);
 const directory = dirname(fileURLToPath(import.meta.url));
 const windows = new Map<number, WindowBinding>();
 let handlersRegistered = false;
@@ -71,7 +69,7 @@ function serializedArrangement(context: WindowBinding, tree = context.layout, na
 }
 async function saveArrangement(context: WindowBinding) {
   const result = await request(context.options.state, { command: 'pane_layout_save', task: context.options.task,
-    arrangement: serializedArrangement(context) }, context.operator);
+    project: context.options.task ? undefined : context.options.project, arrangement: serializedArrangement(context) }, context.operator);
   if (!result.ok) throw new Error(result.error);
 }
 
@@ -161,6 +159,11 @@ function registerHandlers() {
     if (!result.ok) throw new Error(result.error);
     return result.settings;
   });
+  ipcMain.handle('a2a:theme', (event, theme: unknown) => {
+    windowTarget(event);
+    if (!['system', 'light', 'dark'].includes(theme as string)) throw new Error('Invalid theme');
+    nativeTheme.themeSource = theme as 'system' | 'light' | 'dark';
+  });
   ipcMain.handle('a2a:notification-setting', (event, enabled?: boolean, preference: NotificationPreference = 'notifications') => {
     const context = windowTarget(event);
     if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('Invalid notification setting');
@@ -206,7 +209,7 @@ function registerHandlers() {
       if (!agent?.task || !catalog.projects.some((p: any) => p.project_id === agent.project && p.tasks.some((t: any) => t.task_id === agent.task))) throw new Error('Unknown agent launch');
       const snapshot = await request(context.options.state, { command: 'workbench_snapshot', task: agent.task, launch });
       requireAgentView(agent.task, launch, snapshot);
-      if (context.options.task !== agent.task) await changeTask(context, agent.task);
+      if (context.options.task !== agent.task) await changeView(context, { task: agent.task });
       let pane = [...context.panes.values()].find(p => p.launch === launch);
       if (!pane) {
         // A sidebar click may inspect an ended or old attempt. This transient
@@ -233,125 +236,43 @@ function registerHandlers() {
     return result.tasks;
   });
   ipcMain.handle('a2a:selection', event => selection(windowTarget(event)));
-  ipcMain.handle('a2a:creation-repository', async (event, ...args: unknown[]) => {
+  ipcMain.handle('a2a:open-project', async (event, ...args: unknown[]) => {
     const context = windowTarget(event);
-    if (args.length) throw new Error('Repository path must be chosen by the native dialog');
-    if (context.closing || context.switching || context.creating) throw new Error('Task view is changing');
-    if (context.creation?.persisted) throw new Error('Registration has already started; close the previous form first');
-    const choose = async () => {
-      const picked = await dialog.showOpenDialog(context.window, { title: '选择 Git 仓库根目录',
-        defaultPath: context.creation?.repo ?? context.task?.repo ?? homedir(), properties: ['openDirectory'] });
-      if (picked.canceled) return null;
-      const repo = realpathSync(picked.filePaths[0]);
-      const top = await execute('git', ['-C', repo, 'rev-parse', '--show-toplevel']);
-      if (realpathSync(top.stdout.trim()) !== repo) throw new Error('请选择 Git 仓库根目录');
-      const branch = (await execute('git', ['-C', repo, 'symbolic-ref', '--quiet', 'HEAD'])).stdout.trim();
-      if (context.closing) throw new Error('Window is closing');
-      const task = 'task-' + randomUUID();
-      const result = await request(context.options.state, { command: 'card_template', task, repo }, context.operator);
-      if (!result.ok) throw new Error(result.error + ': ' + JSON.stringify(result.details ?? null));
-      context.creation = { repo, persisted: false };
-      return { repo, branch, card: result.card };
-    };
-    context.creating = choose();
-    try { return await context.creating; } finally { context.creating = undefined; }
+    if (args.length) throw new Error('Project directory must be chosen by the native dialog');
+    if (context.closing || context.switching || context.creating || [...context.panes.values()].some(p => p.closing)) throw new Error('Task view is changing');
+    const picked = await dialog.showOpenDialog(context.window, { title: '打开项目目录', buttonLabel: '打开',
+      defaultPath: context.project?.repo ?? context.task?.repo ?? homedir(), properties: ['openDirectory', 'createDirectory'] });
+    if (picked.canceled) return null;
+    const opened = await request(context.options.state, { command: 'project_open', repo: picked.filePaths[0] }, context.operator);
+    if (!opened.ok) throw new Error(opened.error);
+    context.switching = changeView(context, { project: opened.project });
+    try { return await context.switching; } finally { context.switching = undefined; }
   });
-  ipcMain.handle('a2a:creation-cancel', (event, ...args: unknown[]) => {
+  ipcMain.handle('a2a:remove-project', async (event, project: string) => {
     const context = windowTarget(event);
-    if (args.length) throw new Error('Invalid cancellation arguments');
+    if (typeof project !== 'string' || !project) throw new Error('Invalid project');
     if (context.closing || context.switching || context.creating) throw new Error('Task view is changing');
-    if (context.creation?.persisted === 'unknown') throw new Error('Registration outcome unknown; cancellation is forbidden');
-    // No gate writes occur before confirmation. After a partial confirmation,
-    // closing this form only forgets its UI state; append-only records survive.
-    const persisted = context.creation?.persisted ?? false;
-    context.creation = undefined;
-    return { ok: true, persisted };
+    const removed = await request(context.options.state, { command: 'project_remove', project }, context.operator);
+    if (!removed.ok) throw new Error(removed.error);
+    if (context.options.project === project && !context.options.task) {
+      context.switching = changeView(context, {});
+      try { await context.switching; } finally { context.switching = undefined; }
+    }
+    return selection(context);
   });
-  ipcMain.handle('a2a:creation-submit', async (event, input: Record<string, string>) => {
-    const context = windowTarget(event), draft = context.creation;
-    if (context.closing || context.switching || context.creating) throw new Error('Task view is changing');
-    if (!draft) throw new Error('请先通过目录对话框选择仓库');
-    if (draft.persisted) throw new Error('Registration has already started; do not replay it');
-    const keys = ['task', 'project', 'title', 'branch', 'card'];
-    if (!input || typeof input !== 'object' || Object.keys(input).length !== keys.length ||
-        !keys.every(key => Object.hasOwn(input, key))) throw new Error('Invalid creation fields');
-    const invalidField = keys.find(key => typeof input[key] !== 'string') ??
-      (!input.title.trim() || input.title.length > 240 ? 'title' : undefined);
-    if (invalidField) return { ok: false, error: 'Invalid creation fields', stage: 'preflight', persisted: false,
-      details: { field: invalidField, reason: invalidField === 'title'
-        ? '标题须为包含非空白字符的文本，且不超过 240 个字符。' : '表单字段须为文本。' } };
-    const submit = async () => {
-      const temporary = mkdtempSync(join(tmpdir(), 'a2a-task-card-'));
-      const card = join(temporary, 'card.json');
-      let stage = 'card_validate';
-      let validatedCard: unknown;
-      let cardVersion = 1; // This form saves with expected_version=0.
-      const failure = async (result: any) => {
-        // These gate refusals occur before the business commit. All other
-        // errors, including daemon result-event failures, require readback.
-        const beforeCommit = stage === 'card_save'
-          ? ['invalid_task_card', 'invalid_card_version', 'card_version_conflict']
-          : ['project_branch_conflict', 'invalid_work_branch', 'invalid_repo', 'invalid_title'];
-        if (stage === 'card_validate' || beforeCommit.includes(result.error)) {
-          draft.persisted = stage === 'create';
-          return { ...result, stage, persisted: draft.persisted };
-        }
-        draft.persisted = 'unknown';
-        const command = stage === 'card_save' ? 'card_show' : 'status';
-        let observed: any;
-        try {
-          observed = await request(context.options.state, { command, task: input.task,
-            ...(command === 'card_show' ? { card_version: cardVersion } : {}) }, context.operator);
-        } catch (error) { observed = { ok: false, error: 'readback_failed', details: String(error) }; }
-        const task = observed.task;
-        const matches = observed.ok && (command === 'card_show'
-          ? isDeepStrictEqual(observed.card, validatedCard)
-          : task?.task_id === input.task && task.repo === draft.repo && task.project_id === input.project &&
-            task.title === input.title && task.integration_ref === input.branch && task.card_version === cardVersion &&
-            task.state === 'ready' && isDeepStrictEqual(task.card, validatedCard));
-        const details = { failure: result.details ?? null, readback: { command,
-          outcome: matches ? command === 'card_show' ? 'card_saved' : 'registered' : 'unknown',
-          error: observed.error ?? null, details: observed.details ?? null } };
-        if (matches) {
-          draft.persisted = true;
-          if (command === 'status') {
-            context.creation = undefined;
-            return { ok: true, task, stage, persisted: true, reconciled: true, details };
-          }
-        }
-        // Absence, a mismatching record, or a failed read cannot establish
-        // that an uncertain mutation never committed. Do not enable replay.
-        return { ...result, details, stage, persisted: draft.persisted };
-      };
-      try {
-        writeFileSync(card, input.card, { flag: 'wx', mode: 0o600 });
-        const validated = await request(context.options.state, { command: stage, task: input.task, card }, context.operator);
-        if (!validated.ok) return { ...validated, stage, persisted: false };
-        validatedCard = validated.card;
-        stage = 'card_save';
-        // From this point a lost response can conceal a durable write. Never
-        // silently retry or label the result as a cancelled draft.
-        draft.persisted = true;
-        const saved = await request(context.options.state, { command: stage, task: input.task, card, expected_version: 0 }, context.operator);
-        if (!saved.ok) return await failure(saved);
-        cardVersion = saved.card_version;
-        stage = 'create';
-        const created = await request(context.options.state, { command: stage, task: input.task,
-          repo: draft.repo, project: input.project, title: input.title, branch: input.branch, card_version: saved.card_version }, context.operator);
-        if (!created.ok) return await failure(created);
-        context.creation = undefined;
-        return { ...created, stage, persisted: true };
-      } catch (error) {
-        return await failure({ ok: false, error: 'creation_call_failed', details: String(error) });
-      } finally { rmSync(temporary, { recursive: true, force: true }); }
-    };
-    context.creating = submit();
-    try { return await context.creating; } finally { context.creating = undefined; }
-  });
-  ipcMain.handle('a2a:new-terminal', async (event, source: string = 'default') => {
+  ipcMain.handle('a2a:select-project', async (event, project: string | null) => {
     const context = windowTarget(event);
-    if (!['default', 'home', 'project', 'choose'].includes(source)) throw new Error('Invalid terminal directory source');
-    return createTerminal(context, source);
+    if (project !== null && (typeof project !== 'string' || !project)) throw new Error('Invalid project');
+    if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) throw new Error('Task view is changing');
+    if (!context.options.task && (context.options.project ?? null) === project) return selection(context);
+    context.switching = changeView(context, project === null ? {} : { project });
+    try { return await context.switching; }
+    finally { context.switching = undefined; }
+  });
+  ipcMain.handle('a2a:new-terminal', async (event, ...args: unknown[]) => {
+    const context = windowTarget(event);
+    if (args.length) throw new Error('Invalid terminal arguments');
+    return createTerminal(context);
   });
   ipcMain.handle('a2a:pane-action', async (event, key: string, action: { type: string; direction?: string; name?: string }) => {
     const { context, pane } = target(event, key);
@@ -359,7 +280,7 @@ function registerHandlers() {
     if (!action || typeof action !== 'object') throw new Error('Invalid pane action');
     if (action.type === 'split') {
       if (!['right', 'down'].includes(action.direction!)) throw new Error('Invalid split direction');
-      return createTerminal(context, 'split', pane, action.direction as 'right' | 'down');
+      return createTerminal(context, pane, action.direction as 'right' | 'down');
     }
     if (action.type !== 'rename' || typeof action.name !== 'string' || !action.name.trim() || action.name.length > 100) throw new Error('Invalid pane name');
     const previous = context.names[key];
@@ -375,7 +296,7 @@ function registerHandlers() {
     if (task !== null && (typeof task !== 'string' || !task)) throw new Error('Invalid task');
     if (context.closing || context.switching || context.creating || [...context.panes.values()].some(pane => pane.closing)) throw new Error('Task view is changing');
     if (task === (context.options.task ?? null)) return selection(context);
-    context.switching = changeTask(context, task);
+    context.switching = changeView(context, task === null ? {} : { task });
     try { return await context.switching; }
     finally { context.switching = undefined; }
   });
@@ -482,11 +403,11 @@ function registerHandlers() {
 }
 
 function selection(context: WindowBinding) {
-  return { task: context.task, paneKeys: [...context.panes.keys()], layout: context.layout, names: context.names };
+  return { task: context.task, project: context.task ? { project_id: context.task.project_id, repo: context.task.repo } : context.project, paneKeys: [...context.panes.keys()], layout: context.layout, names: context.names };
 }
 
-async function changeTask(context: WindowBinding, task: string | null) {
-  const options = { ...context.options, task: task ?? undefined, launch: undefined };
+async function changeView(context: WindowBinding, view: { task?: string; project?: string }) {
+  const options = { ...context.options, task: view.task, project: view.project, launch: undefined };
   // Validate before detaching. Original admission rules still apply to saved
   // panes; transient sidebar inspection is separately read-only.
   const prepared = await prepareSelection(options);
@@ -495,7 +416,7 @@ async function changeTask(context: WindowBinding, task: string | null) {
   try {
     await detachPanes(context);
     if (context.closing) throw new Error('Window is closing');
-    context.options = options; context.task = prepared.task;
+    context.options = options; context.task = prepared.task; context.project = prepared.project;
     context.layout = prepared.layout; context.names = prepared.names;
     context.panes = new Map(prepared.panes.map(pane => [pane.key, pane]));
     return selection(context);
@@ -515,17 +436,13 @@ function restoreArrangement(panes: PaneBinding[], saved: any) {
   }
   return { layout, names };
 }
-async function createTerminal(context: WindowBinding, source: string, relative?: PaneBinding, direction: 'right' | 'down' = 'right') {
+// New terminals start in the selected project's directory, or home when no
+// project is selected. A split keeps the directory of the pane it splits.
+async function createTerminal(context: WindowBinding, relative?: PaneBinding, direction: 'right' | 'down' = 'right') {
   if (context.closing || context.switching || context.creating || [...context.panes.values()].some(p => p.closing)) throw new Error('Task view is changing');
   const create = async () => {
-    let project: string | null = context.task?.project_id ?? null;
-    let cwd = source === 'home' || !context.task ? homedir() : context.task.repo;
-    if (source === 'project' && !context.task) throw new Error('请先选择项目中的任务');
-    if (source === 'choose') {
-      const picked = await dialog.showOpenDialog(context.window, { title: '选择终端目录', defaultPath: cwd, properties: ['openDirectory'] });
-      if (picked.canceled) return selection(context);
-      cwd = picked.filePaths[0];
-    }
+    let project: string | null = context.task?.project_id ?? context.project?.project_id ?? null;
+    let cwd = context.task?.repo ?? context.project?.repo ?? homedir();
     if (relative?.project !== undefined) {
       project = relative.project;
       const value = await request(context.options.state, { command: 'workbench_snapshot', project, launch: relative.launch });
@@ -568,15 +485,24 @@ async function detachPanes(context: WindowBinding) {
 async function prepareSelection(options: Options) {
   if (!options.task) {
     if (options.launch !== undefined) throw new Error('--launch requires --task');
-    const saved = await request(options.state, { command: 'pane_layout', free: true });
+    const project = options.project ?? null;
+    let catalogEntry: { project_id: string; repo: string | null } | null = null;
+    if (project !== null) {
+      const catalog = await request(options.state, { command: 'sidebar_snapshot' });
+      if (!catalog.ok) throw new Error(catalog.error);
+      const row = catalog.projects.find((p: any) => p.project_id === project);
+      if (!row) throw new Error('unknown_project');
+      catalogEntry = { project_id: row.project_id, repo: row.repo };
+    }
+    const saved = await request(options.state, { command: 'pane_layout', ...(project === null ? { free: true } : { project }) });
     if (!saved.ok) throw new Error(saved.error);
     const panes: PaneBinding[] = [];
-    for (const opened of saved.panes) {
-      const value = await request(options.state, { command: 'workbench_snapshot', project: null, launch: opened.launch });
-      requireShellPane(null, opened.launch, value);
-      panes.push({ key: randomUUID(), launch: opened.launch, project: null, sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
+    for (const opened of saved.panes.filter((pane: { task: string | null }) => pane.task === null)) {
+      const value = await request(options.state, { command: 'workbench_snapshot', project, launch: opened.launch });
+      requireShellPane(project, opened.launch, value);
+      panes.push({ key: randomUUID(), launch: opened.launch, project, sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
     }
-    return { task: null, saved: true, panes, ...restoreArrangement(panes, saved.arrangement) };
+    return { task: null, project: catalogEntry, saved: true, panes, ...restoreArrangement(panes, saved.arrangement) };
   }
   const snapshot = await request(options.state, { command: 'workbench_snapshot', task: options.task });
   if (!snapshot.ok) throw new Error(snapshot.error);
@@ -613,12 +539,12 @@ async function prepareSelection(options: Options) {
       sequence: 0, inputQueue: Promise.resolve(), pendingRelease: null });
   }
   if (panes.some(pane => pane.project) && !snapshot.launch) panes = panes.filter(pane => pane.launch !== undefined);
-  return { task: snapshot.task, saved, panes, ...restoreArrangement(panes, arrangement) };
+  return { task: snapshot.task, project: null, saved, panes, ...restoreArrangement(panes, arrangement) };
 }
 
 export async function run(options: Options) {
   if (!isAbsolute(options.state) || !isAbsolute(options.userData)) throw new Error('Absolute data paths are required');
-  const { task, saved, panes, layout, names } = await prepareSelection(options);
+  const { task, project, saved, panes, layout, names } = await prepareSelection(options);
   const operator = readOperatorCredential(options.state);
   if (!operator) throw new Error('operator_credential_required');
   if (appUserData && appUserData !== options.userData) throw new Error('Windows in one process must share application user-data');
@@ -641,11 +567,12 @@ export async function run(options: Options) {
     nativeTheme.on('updated', updateDockIcon);
   }
   const window = new BrowserWindow({ width: 1440, height: 900, minWidth: 900, minHeight: 650,
-    title: 'Enchanted', backgroundColor: '#111111',
+    title: 'Enchanted', backgroundColor: '#00000000', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 20 },
+    vibrancy: 'sidebar', visualEffectState: 'active',
     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,
       contextIsolation: true, sandbox: true, backgroundThrottling: false,
-      additionalArguments: ['--a2a-pane-keys=' + JSON.stringify(panes.map(pane => pane.key))] } });
-  const context: WindowBinding = { window, options, operator, task, layout, names, panes: new Map(panes.map(pane => [pane.key, pane])), closing: false, closed: false };
+      additionalArguments: ['--a2a-pane-keys=' + JSON.stringify(panes.map(pane => pane.key)), '--a2a-home=' + homedir()] } });
+  const context: WindowBinding = { window, options, operator, task, project, layout, names, panes: new Map(panes.map(pane => [pane.key, pane])), closing: false, closed: false };
   const senderId = window.webContents.id;
   windows.set(senderId, context);
   registerHandlers();

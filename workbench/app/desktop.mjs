@@ -12,7 +12,8 @@ async function start() {
   const { values } = parseArgs({ args: process.argv.slice(1), options: Object.fromEntries(
     ['state', 'task', 'launch', 'user-data', 'remote-debugging-port'].map(key => [key, { type: 'string', ...(key === 'launch' ? { multiple: true } : {}) }])) });
   if (values.launch && !values.task) throw new Error('--launch requires --task');
-  let state = values.state ?? join(homedir(), 'Library/Application Support/a2a-orchestrator');
+  const packaged = JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8'));
+  let state = values.state ?? join(homedir(), 'Library/Application Support', packaged.a2a?.state ?? 'a2a-orchestrator');
   mkdirSync(state, { recursive: true, mode: 0o700 });
   state = realpathSync(state);
   const userData = values['user-data'] ?? join(state, 'ui');

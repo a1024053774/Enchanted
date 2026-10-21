@@ -19,6 +19,8 @@ Enchanted 是面向 macOS 的多 agent 协作工作台，a2a 是它的编排内�
 
 当前只支持 macOS arm64（Apple Silicon），CLI 只支持 Claude Code 与 Codex。多个窗格、用户输入记录、问题面板、主控收件箱和恢复流程各有自己的验证边界；完整双主控协作、正常登录恢复与日常使用切换仍有未完成项。项目作者的日常派发目前继续使用 Herdr，切换条件以 [intent.md](intent.md) 和[项目地图](.project-map/MAP.md)为准。这是开发中的初版，不作可靠性、吞吐或成本承诺；发布代码不代表用户已确认工作台“可用”。
 
+日常用法：点侧栏顶部的“+”打开一个目录，它就成了项目；在项目里新建或分屏出的终端直接从项目目录启动。任务卡由主控写、经门禁派发，界面里不再有新建任务的表单；经门禁派发的 agent 会话按项目出现在侧栏里，带启动时间和状态图标。目标用法是在项目终端里启动 Claude Code 或 Codex、告诉它它是主控，但普通终端目前没有门禁身份，这样启动的主控还不能写任务卡和派发，需要接上受管主控的启动与登记。外观、通知和主控派发新会话时用的模型，在侧栏顶部齿轮打开的设置里调整。界面有浅色与深色两套，可以跟随系统。
+
 详细入口与限制见 [工作台说明](workbench/README.md)。正常登录主控不会在后台重启时自动续接，worker 窗格也不会自动恢复执行；它们保留为“未恢复”，由执行主控按恢复流程处理。
 
 ## 下载与安装
@@ -54,7 +56,7 @@ cd ..
 npm --prefix workbench run package:mac -- --slot mac-01
 ```
 
-成功后最后一行给出 `Enchanted.app` 的绝对路径，产物位于 `os.tmpdir()/a2a-build-mac-01/Enchanted.app`，签名为 ad-hoc，未公证。安装后清理本次临时目录；失败现场先保留。
+成功后最后一行给出 `Enchanted.app` 的绝对路径，产物位于 `os.tmpdir()/a2a-build-mac-01/Enchanted.app`，签名为 ad-hoc，未公证。要在正式版运行时另装一份试用，加 `--variant test`：产物名为 `Enchanted Test.app`，bundle id 与数据目录都和正式版分开（`org.a2a.workbench.test`、`a2a-orchestrator-test`）。安装后清理本次临时目录；失败现场先保留。
 
 ### 开发构建与运行
 

@@ -35,10 +35,11 @@ const shellWindowHandlers = [...windowHandlers, 'a2a:new-terminal'];
 const shellBridge = [...pickerBridge, 'newTerminal'];
 const panesHandlers = ['a2a:pane-action', 'a2a:resize'];
 const panesBridge = ['paneAction', 'resize'];
-const creationHandlers = ['a2a:creation-repository', 'a2a:creation-submit', 'a2a:creation-cancel'];
+// 2026-10-21: the task-card form was replaced by opening a directory as a project.
+const creationHandlers = ['a2a:open-project', 'a2a:remove-project', 'a2a:select-project', 'a2a:theme'];
 const sidebarHandlers = ['a2a:sidebar', 'a2a:select-agent', 'a2a:notification-setting'];
 const sidebarBridge = ['sidebar', 'selectAgent', 'notificationSetting'];
-const creationBridge = ['creationRepository', 'creationSubmit', 'creationCancel'];
+const creationBridge = ['openProject', 'removeProject', 'selectProject', 'theme', 'home'];
 const badRevision = '6974c2aad1233133264b7448e1277cd19fa0b6ba';
 const report = { status: 'INCOMPLETE', scope: 'actual main/preload modules with supplied Electron/transport/filesystem boundaries; no GUI or backend proof',
   argv: process.argv, contract: values.contract, source: fileURLToPath(sourceURL), known_bad: badRevision, checks: [], model_turns: 0 };
@@ -62,7 +63,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   let layoutSaved = false;
   const handlers = new Map(), registrations = [], requests = [], liveCredentials = new Map();
   let windowNumber = 0, credentialNumber = 0, openingResolve;
-  const app = Object.assign(new EventEmitter(), { setPath() {}, whenReady: async () => {}, quit() {}, setBadgeCount(value) { badgeCalls.push(value); }, dock: { setBadge(value) { badgeCalls.push(value === '' ? 0 : Number(value)); } } });
+  const app = Object.assign(new EventEmitter(), { setPath() {}, whenReady: async () => {}, quit() {}, setBadgeCount(value) { badgeCalls.push(value); }, dock: { setIcon() {}, setBadge(value) { badgeCalls.push(value === '' ? 0 : Number(value)); } } });
   class Window extends EventEmitter {
     static getFocusedWindow() { return focusedWindow; }
     constructor(options) {
@@ -158,6 +159,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
   let bridge, rendererEvent;
   const fakeProcess = { argv: ['node', fileURLToPath(import.meta.url)] };
   const electron = { app, BrowserWindow: Window, ipcMain, dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
+    nativeTheme: Object.assign(new EventEmitter(), { shouldUseDarkColors: false, themeSource: 'system' }),
     contextBridge: { exposeInMainWorld(_name, value) { bridge = value; } },
     ipcRenderer: { invoke: (name, ...args) => Promise.resolve().then(() => handlers.get(name)(rendererEvent, ...args)) } };
   const context = vm.createContext({ process: fakeProcess, console, Buffer });
@@ -235,7 +237,7 @@ async function exercise(source, withRecovery = false, withCatalog = false, prelo
     'a2a:output': [0], 'a2a:close-pane': [], 'a2a:pane-action': [{ type: 'rename', name: '测试' }], 'a2a:resize': [80, 24], 'a2a:answer': ['question-sentinel', ['独立答复']] };
   const validArguments = Object.fromEntries(keyedHandlers.map(channel => [channel, [aKey, ...trailing[channel]]]));
   Object.assign(validArguments, { 'a2a:projects': [], 'a2a:tasks': [fixtureProject], 'a2a:selection': [], 'a2a:select-task': ['task-one'], 'a2a:new-terminal': [] });
-  Object.assign(validArguments, { 'a2a:creation-repository': [], 'a2a:creation-submit': [{}], 'a2a:creation-cancel': [], 'a2a:flow': [], 'a2a:sidebar': [], 'a2a:select-agent': ['worker'], 'a2a:notification-setting': [false], 'a2a:execution-settings': [] });
+  Object.assign(validArguments, { 'a2a:open-project': [], 'a2a:remove-project': [fixtureProject], 'a2a:select-project': [null], 'a2a:theme': ['light'], 'a2a:flow': [], 'a2a:sidebar': [], 'a2a:select-agent': ['worker'], 'a2a:notification-setting': [false], 'a2a:execution-settings': [] });
   const beforeDenied = requests.length;
   for (const channel of keyedHandlers) {
     await assert.rejects(() => invoke(a, channel, bKey, ...trailing[channel]));

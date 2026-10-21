@@ -1,6 +1,6 @@
 import { createServer } from "node:net";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 import { A2AGates, Refusal } from "./gates/core.ts";
 import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
@@ -10,7 +10,7 @@ import { writeReviewRequest, writeControllerContext } from "./relayFiles.ts";
 import { reviewRequest, scoreRecords, QualityProtocolError } from "./gates/qualityProtocol.ts";
 import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
-import { sidebarSnapshot } from './sidebar.ts';
+import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
 import { executionRole, executionOverrides } from './executionSettings.ts';
 
@@ -173,11 +173,45 @@ export async function serve(
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
     if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes) };
     if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes) };
+    // An opened directory owns its project id: a task may join that project
+    // only in the same repository, or the project's terminals and tasks diverge.
+    const assertOpenedRepo = (command: Record<string, any>) => {
+      if (command.command !== 'create') return;
+      const opened = store.openedProjects().find(project => project.project_id === command.project);
+      if (opened && !(typeof command.repo === 'string' && existsSync(command.repo) && realpathSync(command.repo) === opened.repo))
+        throw new Refusal('project_repo_mismatch');
+    };
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
         if ((input.project ?? null) !== record.project) throw new Refusal("launch_project_mismatch");
       } else if (record.task !== input.task) throw new Refusal("launch_task_mismatch");
     };
+    if (input.command === 'project_open') {
+      if (authority.kind !== 'operator') throw new Refusal('operator_required');
+      if (typeof input.repo !== 'string' || !isAbsolute(input.repo) || !statSync(input.repo).isDirectory()) throw new Refusal('invalid_project_directory');
+      const repo = realpathSync(input.repo), catalog = await projectCatalog(gates, store);
+      // Everything after the await runs synchronously, so a concurrent open
+      // sees this registration; reread the opened list instead of the snapshot.
+      const opened = store.openedProjects();
+      const existing = opened.find(project => project.repo === repo) ?? catalog.find(project => project.repo === repo);
+      if (existing) return { ok: true, project: existing.project_id, repo, created: false };
+      const taken = new Set([...catalog.map(row => row.project_id), ...opened.map(row => row.project_id),
+        ...gates.listProjects().map((row: any) => String(row.project_id))]);
+      // The directory name becomes the project id; gate ids allow [A-Za-z0-9_.-].
+      const base = basename(repo).replace(/[^A-Za-z0-9_.-]+/g, '-').replace(/^[^A-Za-z0-9]+/, '').slice(0, 120) || 'project';
+      let project = base;
+      for (let n = 2; taken.has(project); n++) project = `${base}-${n}`;
+      store.event('project_opened', { project_id: project, repo });
+      return { ok: true, project, repo, created: true };
+    }
+    if (input.command === 'project_remove') {
+      if (authority.kind !== 'operator') throw new Refusal('operator_required');
+      if (!store.openedProjects().some(project => project.project_id === input.project)) throw new Refusal('unknown_project');
+      if (store.openPanes(undefined, input.project).length) throw new Refusal('project_has_open_panes');
+      if (gates.listTasks(input.project).length) throw new Refusal('project_has_tasks');
+      store.event('project_removed', { project_id: input.project });
+      return { ok: true };
+    }
     if (input.command === "shell_start") {
       if (authority.kind !== "operator") throw new Refusal("operator_required");
       return { ok: true, launch: panes.startShell(input.project ?? null, input.cwd) };
@@ -457,6 +491,7 @@ export async function serve(
                   attempt.fence !== command.fence || result.task?.spec_rev !== command.spec_rev) throw new Refusal("stale_attempt");
               return result;
             }
+            assertOpenedRepo(command);
             return await panes.parentLaunch.run(controller ? pane.record.id : null, () => gates.call(command, caller));
           });
           if (!receipt.replayed && !isPendingInboxResult(receipt.result)) receipts.push(receipt);
@@ -492,6 +527,7 @@ export async function serve(
     const actor = authority.kind === "operator" ? { address: "executor",
       assertActive: async () => { if (stopping) throw new Refusal("daemon_stopping"); } } : undefined;
     const { parent_launch, ...gateInput } = input;
+    assertOpenedRepo(gateInput);
     return await panes.parentLaunch.run(authority.kind === "operator" ? parent_launch ?? null : null,
       () => gates.call(gateInput, undefined, actor));
   };
