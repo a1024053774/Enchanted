@@ -55,6 +55,7 @@ export class CDP {
 }
 
 async function checkSite(url, output) {
+  const originals = { light: readFileSync(process.argv[4]), dark: readFileSync(process.argv[5]) };
   mkdirSync(output); // Preserve all earlier runs.
   const report = { status: 'INCOMPLETE', url, checks: [], argv: process.argv };
   const profile = join(output, 'chrome-profile');
@@ -62,6 +63,7 @@ async function checkSite(url, output) {
     ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profile,
       '--no-first-run', '--no-default-browser-check', 'about:blank'], { detached: true, stdio: 'ignore' });
   let page;
+  const checkedAssets = new Set();
   try {
     const port = await until(() => existsSync(join(profile, 'DevToolsActivePort')) &&
       readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0], 'Chrome did not start');
@@ -90,6 +92,12 @@ async function checkSite(url, output) {
           assert.equal(result.images.length, 1, 'Exactly one header logo must be visible');
           assert.ok(result.images[0].src.endsWith(`/assets/brand/logo-on-${theme}.png`), `Wrong logo: ${JSON.stringify(result)}`);
           assert.ok(result.images[0].width > 0);
+          if (!checkedAssets.has(result.images[0].src)) {
+            const image = await fetch(result.images[0].src);
+            assert.ok(image.ok);
+            assert.ok(Buffer.from(await image.arrayBuffer()).equals(originals[theme]), 'Loaded logo must match the external original input');
+            checkedAssets.add(result.images[0].src);
+          }
           assert.ok(result.favicon?.endsWith(`/assets/brand/logo-on-${theme}.png`), 'Favicon must follow actual selected theme');
           assert.equal(result.overflow, false, 'Page must fit viewport');
           assert.equal(result.demo.length, 1);

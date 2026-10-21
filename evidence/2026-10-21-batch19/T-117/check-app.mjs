@@ -11,6 +11,7 @@ mkdirSync(out);
 const state = join(out, 'state'), ui = join(out, 'ui');
 const executable = join(app, 'Contents/MacOS/Enchanted');
 const resources = join(app, 'Contents/Resources/app');
+const originals = { light: resolve(process.argv[4]), dark: resolve(process.argv[5]) };
 const log = join(out, 'app.log');
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
   !key.startsWith('A2A_') && !key.startsWith('GIT_CONFIG_') && !key.startsWith('ELECTRON_') &&
@@ -55,7 +56,7 @@ try {
     await image.decode(); return { width: image.naturalWidth, src: image.currentSrc }; })()`);
   assert.ok(logo?.width > 0, 'The actual packaged sidebar must display the supplied logo');
   assert.ok(fileURLToPath(logo.src).startsWith(resources + '/ui/renderer/'));
-  assert.deepEqual(readFileSync(fileURLToPath(logo.src)), readFileSync(resolve('docs/assets/brand/logo-on-dark.png')), 'Sidebar logo must preserve original PNG bytes');
+  assert.deepEqual(readFileSync(fileURLToPath(logo.src)), readFileSync(originals.dark), 'Sidebar logo must preserve external original PNG bytes');
   report.checks.push('Packaged sidebar displays the supplied white PNG, byte for byte');
   await page.capture(join(out, 'sidebar.png'));
   electron = 'globalThis.__t117electron';
@@ -73,7 +74,7 @@ try {
     await main.evaluate(`${electron}.nativeTheme.themeSource = ${JSON.stringify(theme)}; true`);
     const path = await until(() => main.evaluate(`globalThis.__t117icons.findLast(path => path.endsWith('logo-on-${theme}.png')) || null`), 'Native theme did not update Dock icon');
     assert.equal(path, join(resources, 'ui/brand', `logo-on-${theme}.png`));
-    assert.deepEqual(readFileSync(path), readFileSync(resolve(`docs/assets/brand/logo-on-${theme}.png`)));
+    assert.deepEqual(readFileSync(path), readFileSync(originals[theme]));
     report.checks.push({ nativeTheme: theme, dockIcon: path, passedThroughToNativeSetIcon: true });
     await main.evaluate('globalThis.__t117icons = []; true');
   }
@@ -81,8 +82,16 @@ try {
   report.bundle = JSON.parse(execFileSync('/usr/bin/plutil', ['-convert', 'json', '-o', '-', join(app, 'Contents/Info.plist')], { encoding: 'utf8' }));
   assert.equal(report.bundle.CFBundleShortVersionString, '0.1.1');
   assert.equal(report.bundle.CFBundleIdentifier, 'org.a2a.workbench');
-  const icon = join(app, 'Contents/Resources', report.bundle.CFBundleIconFile);
+  const icon = process.argv[6] ? resolve(process.argv[6]) : join(app, 'Contents/Resources', report.bundle.CFBundleIconFile);
   assert.ok(existsSync(icon) && readFileSync(icon).subarray(0, 4).toString() === 'icns');
+  const decoded = join(out, 'decoded.iconset'), expected = join(out, 'expected-icon.png');
+  execFileSync('/usr/bin/iconutil', ['-c', 'iconset', '-o', decoded, icon]);
+  execFileSync('/usr/bin/sips', ['-z', '1024', '1024', originals.light, '--out', expected], { stdio: 'ignore' });
+  const actual = join(decoded, 'icon_512x512@2x.png');
+  assert.ok(existsSync(actual), 'The icon must contain the 1024-pixel representation');
+  const correct = await main.evaluate(`${electron}.nativeImage.createFromPath(${JSON.stringify(actual)}).toBitmap().equals(
+    ${electron}.nativeImage.createFromPath(${JSON.stringify(expected)}).toBitmap())`);
+  assert.equal(correct, true, 'Decoded macOS icon must match the resized external original');
   report.icon = icon;
   execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);
   report.accepted = true;
