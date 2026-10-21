@@ -635,7 +635,7 @@ export async function run(options: Options) {
   }
   await app.whenReady();
   const window = new BrowserWindow({ width: 1440, height: 900, minWidth: 900, minHeight: 650,
-    title: 'a2a 工作台', backgroundColor: '#111111',
+    title: 'Enchanted', backgroundColor: '#111111',
     webPreferences: { preload: join(directory, 'preload.cjs'), nodeIntegration: false,
       contextIsolation: true, sandbox: true, backgroundThrottling: false,
       additionalArguments: ['--a2a-pane-keys=' + JSON.stringify(panes.map(pane => pane.key))] } });

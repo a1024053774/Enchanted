@@ -1,7 +1,7 @@
 #!/bin/bash
 # 主控在沙箱外运行；只打包并检查清理结果，不安装、不启动 GUI、不生成证据文件。
 set -euo pipefail
-cd /Users/luckye/Documents/Code/a2a-wt-t102/workbench
+cd "$(dirname "$0")/.."
 python3 - "$@" <<'PY'
 import datetime, json, os, pathlib, re, subprocess, sys
 
@@ -18,10 +18,10 @@ print(p.stdout,end='');print(p.stderr,end='',file=sys.stderr)
 assert p.returncode==0, '打包失败，保留本次临时构建目录'
 result=json.loads(p.stdout.strip().splitlines()[-1])
 root=pathlib.Path('/private/tmp')/('a2a-build-'+slot)
-app=root/'a2a.app'
+app=root/'Enchanted.app'
 assert pathlib.Path(result['app'])==app and app.is_dir()
-assert sorted(p.name for p in root.iterdir())==['a2a.app'], '构建目录仍有中间产物'
+assert sorted(p.name for p in root.iterdir())==['Enchanted.app'], '构建目录仍有中间产物'
 subprocess.run(['/usr/bin/codesign','--verify','--deep','--strict',str(app)],check=True)
-print(f'PASS: {root} 中只剩 a2a.app；签名校验通过。')
+print(f'PASS: {root} 中只剩 Enchanted.app；签名校验通过。')
 print(f'APP: {app}')
 PY

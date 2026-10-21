@@ -200,7 +200,7 @@
     const roots = rows.filter(agent => !agent.parent && agent.role === 'controller' && agent.preset === 'ideation');
     const orphans = rows.filter(agent => !agent.parent && !(agent.role === 'controller' && agent.preset === 'ideation'));
     return `<aside class="sidebar">
-      <div class="brand">a2a <span>工作台</span></div>
+      <div class="brand">Enchanted <span>a2a 内核</span></div>
       <div class="catalog-heading"><span class="nav-label">项目目录</span><button data-action="note" data-note="演示数据是固定的，刷新不会变化。" data-fk="refresh">刷新列表</button></div>
       <button class="create-project" data-action="note" data-note="真实应用会打开 macOS 的目录选择框，再填表单注册首个任务；演示里不打开。" data-fk="create-project">新增项目目录</button>
       <nav class="project-list" aria-label="项目目录" data-sk="projects">${data.projects.map(projectRow).join('')}</nav>
@@ -408,7 +408,7 @@
     root.querySelectorAll('[data-sk]').forEach(el => { scrolls[el.dataset.sk] = [el.scrollTop, el.scrollLeft]; });
     const pending = notices();
     const waiting = waitingQuestions().length;
-    root.innerHTML = `<div class="wb-titlebar"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><span>a2a 工作台（演示）</span>
+    root.innerHTML = `<div class="wb-titlebar"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><span>Enchanted（演示）</span>
         <output data-dock aria-label="Dock 角标">${ui.dockBadges && waiting ? `Dock 角标 <b>${waiting}</b>` : ''}</output></div>
       <div class="workbench">${sidebar()}
         <main>

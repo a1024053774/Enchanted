@@ -13,7 +13,7 @@ assert.notEqual(statSync('/Volumes/WD-Elements').dev, statSync('/Volumes').dev);
 mkdirSync(out); // Caller chooses a new run. Failures remain available.
 const fixture = mkdtempSync('/private/tmp/a2at102-');
 const state = join(fixture, 'state'), userData = join(fixture, 'ui');
-const app = '/Applications/a2a.app', executable = join(app, 'Contents/MacOS/a2a');
+const app = '/Applications/Enchanted.app', executable = join(app, 'Contents/MacOS/Enchanted');
 const resources = join(app, 'Contents/Resources/app');
 const report = { task: 'T-102', attempt: 'a2', status: 'INCOMPLETE', argv: process.argv,
   app, fixture, checks: [], commands: [], screenshots: [], model_calls: 0 };

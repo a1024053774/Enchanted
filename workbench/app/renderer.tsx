@@ -540,7 +540,7 @@ function Workbench() {
   const connecting = states.length < paneKeys.length || states.some(value => value.connecting);
   return <div className="workbench">
     <aside className="sidebar">
-      <div className="brand">a2a <span>工作台</span></div>
+      <div className="brand">Enchanted <span>a2a 内核</span></div>
       <div className="catalog-heading"><span className="nav-label">项目目录</span>
         <button disabled={loading || navigating || creating} onClick={() => void refresh()}>刷新列表</button></div>
       <button className="create-project" disabled={loading || navigating || creating} onClick={() => setCreationProject('')}>新增项目目录</button>

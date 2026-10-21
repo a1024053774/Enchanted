@@ -54,6 +54,6 @@ async function start() {
 // Module evaluation must finish before run() waits for Electron's ready event.
 void start().catch(error => {
   console.error(error);
-  dialog.showErrorBox('a2a 启动失败', String(error));
+  dialog.showErrorBox('Enchanted 启动失败', String(error));
   app.exit(1);
 });

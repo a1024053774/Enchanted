@@ -1,0 +1,46 @@
+T-114 / a1 / #71 全仓旧名称引用检查
+基线：488ffe3e98ad2ac11d53ad6709ee2cd780477ba2
+index 命令读取完整受控文件，包括稀疏 checkout 未检出的文件；rg 命令核对修改后的当前执行路径。
+
+COMMAND: ['git', 'grep', '--cached', '-l', '-E', 'MacOS/a2a|a2a Helper|a2a\\.app']
+EXIT: 0
+.project-map/inbox/20261019T044703Z-executor-needs-decision-001.md
+.project-map/inbox/20261019T101458Z-executor-report-001.md
+.project-map/inbox/20261019T110900Z-executor-needs-decision-001.md
+.project-map/inbox/20261019T142704Z-executor-report-001.md
+.project-map/inbox/20261020T052452Z-executor-report-001.md
+.project-map/inbox/20261020T124908Z-executor-report-001.md
+.project-map/inbox/20261020T145922Z-executor-report-001.md
+.project-map/tickets/T-102-package-workbench-as-mac-app.md
+.project-map/tickets/T-105-workbench-free-terminals-split-panes.md
+.project-map/tickets/T-106-workbench-create-project-task-from-ui.md
+.project-map/tickets/T-107-workbench-sidebar-projects-agent-tree.md
+.project-map/tickets/T-114-enchanted-release-and-go-public.md
+evidence/2026-10-19-batch17/T-102/PROBE-BASELINE.py
+evidence/2026-10-19-batch17/T-102/RESULTS-a2.md
+evidence/2026-10-19-batch17/T-102/RESULTS.md
+evidence/2026-10-19-batch17/T-102/RUN-OUTSIDE-04-INSTALL.sh
+evidence/2026-10-19-batch17/T-102/RUN-OUTSIDE-05-E2E.sh
+evidence/2026-10-19-batch17/T-102/a2-build-02-summary.json
+evidence/2026-10-19-batch17/T-102/a2-e2e-01-summary.json
+evidence/2026-10-19-batch17/T-102/baseline-01.json
+evidence/2026-10-19-batch17/T-102/install-20261019T085846.823773Z.json
+evidence/2026-10-19-batch17/T-102/signature-diagnosis-02.json
+evidence/2026-10-20-batch18/T-114/RUN-OUTSIDE-BUILD-01.sh
+evidence/2026-10-20-batch18/T-114/WORKER-RESULTS.md
+workbench/app/RUN-OUTSIDE-LOCAL-PACKAGE.sh
+workbench/app/package.mjs
+workbench/tests/run_t102_packaged.mjs
+
+COMMAND: ['git', 'grep', '--cached', '-n', '-E', 'MacOS/a2a|a2a Helper|a2a\\.app', '--', 'workbench', 'scripts', 'acceptance', 'README.md', 'docs']
+EXIT: 0
+workbench/app/RUN-OUTSIDE-LOCAL-PACKAGE.sh:21:app=root/'a2a.app'
+workbench/app/RUN-OUTSIDE-LOCAL-PACKAGE.sh:23:assert sorted(p.name for p in root.iterdir())==['a2a.app'], '构建目录仍有中间产物'
+workbench/app/RUN-OUTSIDE-LOCAL-PACKAGE.sh:25:print(f'PASS: {root} 中只剩 a2a.app；签名校验通过。')
+workbench/app/package.mjs:54:    const plist = join(buildPath, 'a2a.app/Contents/Info.plist');
+workbench/app/package.mjs:64:const app = join(paths[0], 'a2a.app');
+workbench/tests/run_t102_packaged.mjs:16:const app = '/Applications/a2a.app', executable = join(app, 'Contents/MacOS/a2a');
+
+COMMAND: ['rg', '-n', '--glob', '!package-lock.json', 'MacOS/a2a|a2a Helper|a2a\\.app', 'workbench', 'scripts', 'acceptance', 'README.md', 'docs']
+EXIT: 1
+(无命中)
