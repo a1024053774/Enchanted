@@ -76,7 +76,7 @@ try {
       continue;
     }
     // Claude prints "<verb> for Ns" when its turn ends.
-    if (approved && /\b[A-Z][a-z]+ed for \d+[ms]/.test(text)) {
+    if (approved && /\p{Lu}\p{Ll}+ed for \d+[ms]/u.test(text)) {
       await sleep(1500); await shot('06-turn-finished');
       // Read the identity back the way the user would: Claude's "!" shell mode in the same terminal.
       await type('!'); await sleep(400); await type('a2a whoami'); await sleep(300); await enter(); act('typed !a2a whoami');
@@ -88,6 +88,7 @@ try {
   }
   if (!asked) log.failures.push('claude never became ready for input');
   if (!approved) log.failures.push('no roleRequest banner appeared');
+  if (approved && !log.checks.includes('whoami_reports_executor')) log.failures.push('whoami was never checked (turn end not seen)');
   log.final_screen = await screen(); await shot('08-terminal-after');
 } catch (error) { log.failures.push(String(error)); try { log.final_screen = await screen(); await shot('99-failure'); } catch {} }
 log.finished = new Date().toISOString();
