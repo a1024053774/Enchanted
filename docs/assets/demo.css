@@ -1,0 +1,208 @@
+/* 演示窗口的样式：取自 workbench/app 的 style.css、flow.css、questions.css、notifications.css，
+   只把选择器限定在 .wb 下，固定定位改为相对演示窗口定位。
+   Those files adapt Synara 49cae984f: apps/web/src/index.css and theme/theme.seed.generated.ts.
+   Copyright (c) 2026 T3 Tools Inc. and Emanuele Di Pietro. MIT; see workbench/LICENSE.synara. */
+.wb { --surface: #111111; --ink: #fcfcfc; --accent: #0169cc; --border: rgba(252,252,252,.12); --muted: rgba(252,252,252,.55); --radius: 10px; --panel: #161616;
+  color-scheme: dark; position: relative; display: flex; flex-direction: column; height: 760px; min-width: 1000px; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--surface); color: var(--ink); font-size: 13px; line-height: normal;
+  border: 1px solid #2a2a2a; border-radius: var(--radius); box-shadow: 0 24px 60px -30px #000c; text-align: left; }
+.wb *, .wb *::before, .wb *::after { box-sizing: border-box; }
+.wb h1, .wb h2, .wb h3, .wb p { letter-spacing: normal; }
+.wb button { font: inherit; color: inherit; background: #262626; border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; cursor: pointer; touch-action: manipulation; }
+.wb button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wb button:disabled { opacity: .45; cursor: default; }
+@media (hover: hover) and (pointer: fine) { .wb button:hover:not(:disabled) { background: #333; } .wb .agent-row:hover:not(:disabled), .wb .project-row:hover:not(:disabled) { background: #fcfcfc0a; } }
+.wb button:active:not(:disabled) { background: #3a3a3a; }
+
+/* macOS 窗口外框（演示用，真实应用由系统绘制） */
+.wb-titlebar { flex: 0 0 34px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--border); background: #181818; color: var(--muted); font-size: 12px; }
+.wb-titlebar i { width: 12px; height: 12px; border-radius: 50%; background: #3a3a3a; }
+.wb-titlebar i:nth-child(1) { background: #ff5f57; } .wb-titlebar i:nth-child(2) { background: #febc2e; } .wb-titlebar i:nth-child(3) { background: #28c840; }
+.wb-titlebar span { margin: 0 auto; }
+.wb-titlebar output { min-width: 96px; text-align: right; }
+.wb-titlebar output b { display: inline-block; min-width: 18px; padding: 1px 5px; border-radius: 9px; background: #e5484d; color: #fff; font-weight: 600; font-size: 11px; text-align: center; }
+
+.wb .workbench { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.wb .sidebar { width: 300px; flex: 0 0 300px; border-right: 1px solid var(--border); padding: 20px 12px 12px; display: flex; flex-direction: column; min-height: 0; }
+.wb .brand { font-size: 22px; font-weight: 650; letter-spacing: -.6px; padding: 0 8px 22px; }
+.wb .brand span { font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; margin-left: 8px; }
+.wb .nav-label, .wb .eyebrow { display: block; color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+.wb .nav-label { padding-left: 12px; }
+.wb .catalog-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wb .catalog-heading .nav-label { margin: 0; }
+.wb .catalog-heading button { padding: 5px 7px; font-size: 11px; }
+.wb .catalog-status { color: var(--muted); padding: 8px 12px; margin: 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.wb .create-project { margin: 4px 0 8px; }
+.wb .project-list { flex: 0 1 34%; min-height: 80px; overflow-y: auto; margin-top: 8px; }
+.wb .project-row { display: flex; flex-direction: column; gap: 4px; text-align: left; width: 100%; padding: 9px 8px; margin: 0 0 4px; background: transparent; border-color: transparent; }
+.wb .project-row[aria-current="page"], .wb .agent-row[aria-current="true"] { background: #fcfcfc0d; border-color: #0169cc; }
+.wb .project-title, .wb .agent-role { display: flex; align-items: baseline; gap: 7px; font-weight: 550; overflow-wrap: anywhere; }
+.wb .status-icon { width: 14px; flex: 0 0 14px; text-align: center; font-family: Menlo, monospace; }
+.wb .project-git, .wb .project-repo, .wb .agent-meta { display: block; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; line-height: 1.5; }
+.wb .project-repo { font-size: 10px; }
+.wb .project-state, .wb .agent-state { font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.wb .project-row[data-project-state="waiting_user_answer"], .wb .agent-row[data-agent-state="waiting_user_answer"] { border-color: #e6b450; background: #e6b4501f; color: #ffe0a3; }
+.wb [data-project-state="waiting_controller_answer"] .status-icon, .wb [data-agent-state="waiting_controller_answer"] .status-icon { color: #e6b450; }
+.wb [data-project-state="running"] .status-icon, .wb [data-agent-state="running"] .status-icon { color: #6cb6ff; }
+.wb .agent-heading { padding: 14px 0 8px; border-top: 1px solid var(--border); margin-top: 10px; }
+.wb .agent-list { flex: 1; min-height: 80px; overflow-y: auto; }
+.wb .agent-branches { list-style: none; padding: 0; margin: 0; }
+.wb .agent-branches .agent-branches, .wb .agent-task-group { margin-left: 10px; padding-left: 8px; border-left: 1px solid var(--border); }
+.wb .agent-task-group .agent-branches { border: 0; margin: 0; padding: 0; }
+.wb .agent-row { display: flex; flex-direction: column; gap: 3px; width: 100%; background: transparent; text-align: left; padding: 7px 6px; border-color: transparent; margin: 2px 0; }
+.wb .agent-line { display: flex; align-items: flex-start; min-width: 0; }
+.wb .agent-line .agent-row { min-width: 0; flex: 1; }
+.wb .agent-toggle, .wb .agent-toggle-space { flex: 0 0 22px; width: 22px; }
+.wb .agent-toggle { padding: 8px 0; margin-top: 2px; background: transparent; border-color: transparent; color: var(--muted); }
+.wb .agent-subtree { font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.wb .agent-subtree .status-icon { margin-right: 5px; }
+.wb .agent-row[data-descendant-state="waiting_user_answer"] { border-color: #e6b450; background: #e6b4501f; color: #ffe0a3; }
+.wb .agent-row[data-descendant-state="waiting_controller_answer"] .agent-subtree { color: #e6b450; }
+.wb .agent-task-label { padding: 6px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.wb .free-terminals { margin: 12px 0 4px; text-align: left; }
+.wb .free-terminals[aria-current="page"] { border-left: 2px solid var(--accent); }
+.wb .sidebar-settings { font-size: 11px; border-top: 1px solid var(--border); padding: 9px 6px 0; max-height: 34%; overflow-y: auto; }
+.wb .sidebar-settings summary { cursor: pointer; }
+.wb .sidebar-settings summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wb .status-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; }
+.wb .status-legend span { display: inline-flex; gap: 4px; }
+.wb .notification-settings { margin: 12px 0; border: 1px solid #414141; border-radius: 4px; padding: 8px; }
+.wb .notification-settings legend { padding: 0 4px; }
+.wb .notification-settings label { display: flex; align-items: start; gap: 6px; margin: 8px 0; }
+.wb .notification-settings input:focus-visible { outline: 2px solid #e6b450; outline-offset: 2px; }
+.wb .sidebar-footer { color: var(--muted); font-size: 11px; padding: 10px 6px 0; }
+
+.wb main { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.wb .workspace-pages { display: flex; gap: 6px; padding: 8px 24px; border-bottom: 1px solid var(--border); }
+.wb .workspace-pages button { background: transparent; border-color: transparent; }
+.wb .workspace-pages button[aria-current="page"] { background: #262626; border-color: var(--border); }
+.wb .terminal-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.wb .terminal-page[hidden] { display: none; }
+.wb .task-header { flex-shrink: 0; min-height: 64px; padding: 10px 24px; display: flex; align-items: center; gap: 24px; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.wb h1 { font-size: 20px; font-weight: 550; letter-spacing: -.4px; margin: 0; overflow-wrap: anywhere; }
+.wb .connection { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.wb .task-strip { display: flex; overflow-x: auto; gap: 6px; flex-shrink: 0; padding: 6px 12px; border-bottom: 1px solid var(--border); max-height: 140px; }
+.wb .task-row { min-width: 150px; max-width: 300px; flex-shrink: 0; padding: 5px 8px; text-align: left; background: transparent; border: 1px solid transparent; border-left: 2px solid transparent; border-radius: 0 6px 6px 0; display: flex; flex-direction: column; gap: 5px; line-height: 1.5; }
+.wb .task-row[aria-current="page"] { background: rgba(252,252,252,.06); border-left-color: var(--accent); }
+.wb .task-title { overflow-wrap: anywhere; }
+.wb .task-meta { color: var(--muted); font-size: 11px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.wb .create-task { margin: 0; flex-shrink: 0; padding: 4px 8px; font-size: 12px; }
+.wb .pane-toolbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 20px; border-bottom: 1px solid var(--border); }
+.wb .pane-toolbar span { color: var(--muted); font-size: 11px; }
+.wb .pane-toolbar button { padding: 4px 10px; }
+.wb .directory-choice { margin-left: auto; font-size: 11px; color: var(--muted); }
+.wb select, .wb .pane-rename input { font: inherit; color: var(--ink); background: #262626; border: 1px solid var(--border); border-radius: 4px; padding: 4px; }
+.wb select:focus-visible, .wb .pane-rename input:focus-visible { outline: 2px solid var(--accent); }
+.wb .pane-layout { position: relative; flex: 1; min-height: 0; min-width: 0; }
+.wb .pane-slot { position: absolute; padding: 1px; }
+.wb .pane-slot[hidden] { display: none; }
+.wb .pane { position: relative; height: 100%; min-height: 0; min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--border); overflow: hidden; }
+.wb .pane-focused { box-shadow: inset 0 0 0 2px var(--accent); }
+.wb .pane-header { flex-shrink: 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; padding: 6px 10px; }
+.wb .pane-header strong { font-size: 12px; font-weight: 500; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb .pane-header > span { color: var(--muted); font-size: 11px; }
+.wb .pane-header button { padding: 3px 6px; font-size: 11px; }
+.wb .readonly { border: 1px solid var(--border); border-radius: 4px; font-size: 10px; color: var(--muted); padding: 2px 6px; }
+.wb .pane-identity { flex-basis: 100%; color: var(--muted); font-size: 11px; font-family: "SF Mono", "SFMono-Regular", Menlo, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb .input-target { color: var(--muted); font-size: 11px; }
+.wb .pane-focused .input-target { color: var(--ink); }
+.wb .pane-header .pane-state { margin-left: auto; font-size: 12px; color: var(--ink); }
+.wb .connection-error { padding: 8px 12px; color: #e6b450; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; font-size: 12px; }
+.wb .terminal-scroll { flex: 1; min-height: 0; padding: 8px 10px; overflow: auto; }
+.wb .terminal-lines { margin: 0; font: 11px/1.45 "SF Mono", "SFMono-Regular", Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+.wb .terminal-lines .dim { color: var(--muted); }
+.wb .terminal-lines .ok { color: #78c98d; }
+.wb .terminal-lines .info { color: #6cb6ff; }
+.wb .terminal-lines .warn { color: #e6b450; }
+.wb .pane-footer { flex-shrink: 0; color: var(--muted); font-size: 10px; padding: 4px 10px 6px; display: flex; justify-content: space-between; gap: 8px; }
+.wb .pane-menu { position: absolute; z-index: 20; width: 210px; padding: 5px; background: #262626; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px #0008; }
+.wb .pane-menu button { display: block; width: 100%; border: 0; border-radius: 4px; padding: 9px 12px; text-align: left; background: transparent; }
+.wb .pane-menu button:focus { background: #0169cc; outline: none; }
+.wb .pane-rename { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.wb .pane-rename button { padding: 3px 8px; font-size: 11px; }
+.wb .selection-hint { position: absolute; inset: 0; display: grid; place-content: center; padding: 24px; color: var(--muted); line-height: 1.8; text-align: center; margin: 0; }
+.wb .selection-hint h2 { color: var(--ink); font-size: 18px; font-weight: 500; margin: 0; }
+.wb .selection-hint p { margin: 0; }
+.wb .gate { flex-shrink: 0; border-top: 1px solid var(--border); padding: 10px 24px; display: flex; gap: 32px; align-items: center; }
+.wb .gate strong { font-size: 15px; font-weight: 500; }
+.wb .gate dl { flex: 1; margin: 0; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 28px; }
+.wb .gate dt { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+.wb .gate dd { margin: 0; font-size: 12px; font-family: "SF Mono", "SFMono-Regular", Menlo, monospace; }
+
+/* 原生提问（questions.css） */
+.wb .questions-panel { flex: none; max-height: 55%; overflow: auto; }
+.wb .questions-panel:empty { display: none; }
+.wb .native-question { padding: 10px 14px; border-bottom: 1px solid var(--border); border-left: 3px solid #e6b450; background: var(--panel); font-size: 12px; }
+.wb .question-heading { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.wb .question-heading span, .wb .native-question p { color: var(--muted); margin: 4px 0; }
+.wb .native-question fieldset { border: 0; margin: 9px 0; padding: 0; min-width: 0; }
+.wb .native-question legend { white-space: pre-wrap; overflow-wrap: anywhere; padding: 0 0 6px; }
+.wb .question-options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.wb .question-options button { text-align: left; white-space: normal; }
+.wb .question-options button[aria-pressed="true"] { border-color: #e6b450; }
+.wb .question-options small { display: block; color: var(--muted); margin-top: 3px; }
+.wb .native-question label { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.wb .native-question input[type="text"] { flex: 1; min-width: 100px; font: inherit; color: var(--ink); background: #111; border: 1px solid var(--border); border-radius: 4px; padding: 5px; }
+.wb .native-question :focus-visible { outline: 2px solid #e6b450; outline-offset: 2px; }
+.wb .native-question > button { margin-top: 4px; }
+
+/* 应用内通知（notifications.css） */
+.wb .app-notifications { position: absolute; right: 20px; top: 46px; z-index: 30; display: grid; gap: 8px; width: 300px; max-height: 42%; overflow-y: auto; }
+.wb .app-notifications:empty { display: none; }
+.wb .app-notifications button { display: grid; gap: 5px; width: 100%; text-align: left; padding: 12px 14px; background: #30291b; border: 1px solid #e6b450; border-radius: 6px; color: #ffe0a3; overflow-wrap: anywhere; }
+.wb .app-notifications button span { font-size: 12px; }
+.wb .app-notifications button:focus-visible { outline: 2px solid #ffe0a3; outline-offset: -4px; }
+@media (hover: hover) and (pointer: fine) { .wb .app-notifications button:hover { background: #3b321f; } }
+
+/* 流程页（flow.css） */
+.wb .flow-page { flex: 1; min-height: 0; overflow: auto; padding: 18px 24px; }
+.wb .flow-intro h2 { font-size: 20px; margin: 0 0 8px; }
+.wb .flow-intro p, .wb .flow-unassigned p, .wb .flow-legend { color: var(--muted); line-height: 1.7; margin: 6px 0; }
+.wb .flow-scroll { overflow-x: auto; padding-bottom: 16px; margin-top: 18px; }
+.wb .flow-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.wb .flow-lane { border-top: 1px solid var(--border); padding: 16px 0 24px; min-width: 1150px; }
+.wb .flow-lane-heading { display: flex; gap: 20px; align-items: baseline; padding-bottom: 12px; }
+.wb .flow-lane-heading button { background: transparent; text-align: left; max-width: 650px; overflow-wrap: anywhere; font-weight: 600; }
+.wb .flow-lane-heading > span { color: var(--muted); }
+.wb .flow-stages { display: grid; grid-template-columns: repeat(5, 230px); position: relative; padding-top: 66px; }
+.wb .flow-stage { min-width: 0; }
+.wb .flow-stage h3 { font-size: 14px; font-weight: 550; margin: 16px 0; }
+.wb .flow-stage.complete h3 { color: var(--muted); }
+.wb .flow-stage.current h3 { color: #79b9f6; }
+.wb .flow-track { height: 16px; position: relative; display: flex; align-items: center; }
+.wb .flow-track::before { content: ''; position: absolute; left: 10px; right: 0; height: 1px; background: #666; }
+.wb .flow-stage:last-child .flow-track::before { display: none; }
+.wb .flow-track i { position: relative; width: 16px; height: 16px; background: var(--surface); border: 2px solid #929292; border-radius: 50%; }
+.wb .flow-stage.current .flow-track i { border-color: #79b9f6; box-shadow: 0 0 0 4px #0169cc26; }
+.wb .flow-track > span { position: absolute; right: 18px; padding: 0 6px; background: var(--surface); color: #929292; font-size: 20px; }
+.wb .flow-agents { display: flex; flex-direction: column; gap: 8px; padding-right: 16px; }
+.wb .flow-agent { display: flex; align-items: center; gap: 9px; background: #242424; border: 1px solid var(--border); border-radius: 24px; padding: 9px 12px; min-width: 0; }
+.wb .flow-dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 12px; }
+.wb .flow-agent > span:last-child { min-width: 0; }
+.wb .flow-agent strong { display: block; font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.wb .flow-agent small { display: block; color: #b6b6b6; line-height: 1.6; overflow-wrap: anywhere; }
+.wb .flow-agent[data-flow-state="waiting_user_answer"] { border-color: #e6b450; }
+.wb .flow-more { border-radius: 22px; text-align: left; }
+.wb .flow-monitors { display: flex; align-items: baseline; gap: 20px; color: var(--muted); }
+.wb .flow-monitors .flow-agents { max-width: 600px; }
+.wb .flow-returns { position: absolute; top: 0; left: 7px; right: 0; height: 66px; pointer-events: none; }
+.wb .flow-return { position: absolute; bottom: 0; left: 0; border: 1px solid #b99663; border-bottom: 0; border-radius: 14px 14px 0 0; height: 32px; }
+.wb .flow-return::before { content: '↓'; position: absolute; bottom: -10px; left: -5px; color: #dbb57e; }
+.wb .flow-return span { position: absolute; top: -17px; left: 16px; background: var(--surface); color: #dbb57e; padding: 0 6px; font-size: 12px; white-space: nowrap; }
+.wb .flow-return.from-checks { width: 460px; }
+.wb .flow-return.from-review { width: 690px; height: 60px; }
+.wb .flow-unassigned { margin-top: 20px; max-width: 700px; }
+.wb .flow-unassigned h3 { font-size: 14px; margin: 0; }
+.wb .flow-unassigned .flow-agents { max-width: 360px; }
+
+.wb .wb-note { position: absolute; left: 312px; bottom: 10px; z-index: 25; margin: 0; max-width: 520px; padding: 6px 10px; border-radius: 6px; background: #262626; border: 1px solid var(--border); color: var(--ink); font-size: 12px; line-height: 1.6; }
+.wb .wb-note:empty { display: none; }
+/* 会话模型设置（execution-settings.css） */
+.wb .execution-settings { display: grid; gap: 8px; margin-block: 12px; padding-block: 12px; border-block: 1px solid var(--border, #353535); }
+.wb .execution-settings label { display: grid; gap: 4px; }
+.wb .execution-settings input, .wb .execution-settings select { min-width: 0; width: 100%; padding: 6px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--border, #555); border-radius: 4px; }
+.wb .execution-settings .execution-fast { display: flex; align-items: center; }
+.wb .execution-settings input[type=checkbox] { width: auto; }
+.wb .execution-settings p { margin: 0; font-size: 12px; overflow-wrap: anywhere; color: inherit; }
+.wb .execution-settings :focus-visible { outline: 2px solid var(--accent, #87bdf8); outline-offset: 2px; }
+.wb .execution-settings select option { background: #262626; }
