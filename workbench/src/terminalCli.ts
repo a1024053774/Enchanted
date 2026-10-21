@@ -11,6 +11,9 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
                               新任务的 card_* 与 create（project 为本项目、repo 为本项目目录），
                               以及本项目的 inbox_ready，例如
                               a2a call '{"command":"inbox_ready","project":"<项目>"}'
+                              派 worker：card_template → card_save → create → dispatch
+                              （runtimeMode 为 workspace-write，带 model 与 effort）→ status
+                              → submitted 后 verify → verified 后带 score_file 的 integrate
   a2a help                    显示这段说明
 
 只有用户本人要求时才申请身份；被拒绝或超时就停下告诉用户。申请命令被中断、被杀或超时，后台都会撤回申请。`;

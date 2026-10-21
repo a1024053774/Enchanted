@@ -132,7 +132,13 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 - 终端关闭或后台重启后身份结束，侧栏随之移除。
 - 侧栏把已批准的终端显示为对应主控（“项目终端”）。它没有结构化回合信号，状态显示“未知”。
 
-验证：`python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
+执行主控派 worker 的步骤写在 a2a skill 与 `a2a help`：`card_template` → `card_save` → `create` → `dispatch`
+（`runtimeMode` 为 `workspace-write`，带 `model`、`effort`）→ `status` → `submitted` 后 `verify` → `verified` 后带
+`score_file` 的 `integrate`。刚打开、还没有任务的项目，`inbox_ready` 按已打开项目找到仓库（T-122）。
+
+验证：`python3 workbench/tests/test_t122_claude_worker_e2e.py --summary 新路径.json`（真实后台、终端主控、门禁与
+安装的 Claude Code，模型为本地脚本化接口；`--revision`、`--mutant trust-unanswered|no-initial-release|user-settings-loaded|codex-provider-only|no-terminal-parent|inbox-tasks-only|reviewer-codex-only|reviewer-shell-writable`
+为已知坏实现）。`python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
 `--revision`、`--mutant pending-authority|history-in-zdotdir|no-withdraw|zdotdir-dropped|refusal-unrecorded|task-widens-scope`
 为已知坏实现）。
 
@@ -504,8 +510,26 @@ Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外
 
 ## 运行时边界
 
-`GateRuntime` 由 `panes.ts` 实现每个后台实例一个 Codex worker 及每次交付新开的 reviewer 窗格；
-没有 Claude 或普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
+`GateRuntime` 由 `panes.ts` 实现每个后台实例一个 worker 及每次交付新开的 reviewer 窗格；
+worker 的 CLI 取任务卡 `executor.cli`（Claude Code 或 Codex，T-122），reviewer 默认与 worker 同 CLI 同模型（D24）。
+没有普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
+
+Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`03`）：`--session-id`、
+`--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources local` 与 `--strict-mcp-config`（不加载用户
+自己的设置、钩子与 MCP，登录照常），`--settings` 只允许 `Bash`、`Read`、`Glob`、`Grep` 与 worktree、请求目录内的
+`Edit`，shell 沙箱禁止沙箱外命令、只可写主仓库 Git 元数据与请求目录；回合信号经 SessionStart、UserPromptSubmit、
+Stop、PermissionRequest、PreToolUse、PostToolUse 钩子传入。Claude reviewer 只可写门禁给的一次性候选副本，
+shell 沙箱不另开可写目录；门禁的 `reviewLaunch` 核对这组参数。新 worktree 启动时 Claude 会问是否信任该文件夹：
+按用户裁定，后台只在会话还没收到任何任务时代按“Yes, I trust this folder”，记 `worker_trust_confirm_intent`、
+`worker_trust_confirmed`（选项没选中则 `worker_trust_failed`，不按 Enter）；a2a 不写 `~/.claude.json`。
+SessionStart（`source` 为 startup、会话号与 cwd 相符）是初次放行，之后才送第一条任务。交付时的模型取会话记录里
+该回合最后一条回复的模型，强度取 Stop 钩子报告的值（`native_turn_facts`）；提交钩子的 `A2A-Native-Session` 尾注
+取 `--session-id`。Claude 的 shell 沙箱会在 `GIT_CONFIG_*` 末尾追加 `safe.directory` 条目，提交钩子只接受这一种追加。
+门禁在 submit 时按任务卡 CLI 核对 provider。终端主控发起的门禁调用以该终端为父 launch，派出的会话在侧栏挂在它下面。
+
+打包的工作台以产品启动配置起后台（`workbench/app/desktop.mjs`）：经用户的登录 shell 找到 `claude`，角色卡为
+打包的 `roles/worker.md` 与 `roles/reviewer.md`，版本为打包时的源码提交。产品配置还没有 Codex worker 的隔离
+home，打包版里派 Codex worker 会被拒绝（`launch_config_required`）。
 worker名额释放及新attempt的原生记录归属由T-077联验；此卡保留S1的single_worker_slice约束。
 旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
 
@@ -532,7 +556,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/state dispatch --task T-11
 `controller_prepare`、`controller_start` 也支持这些覆盖参数；后者的 manifest 可写
 `"execution":{"model":"opus","effort":"high","fast":false}`，命令行字段优先。
 `launch-config.controllers` 中旧 model/effort 字段不参与选择；CLI 路径、权限和身份配置仍由 launch config/manifest 提供。
-当前 worker/reviewer 启动入口仍为 Codex，两个主控仍为 Claude Code；本设置不切换 CLI。
+本设置不切换 CLI：worker 与 reviewer 的 CLI 取任务卡，主控是用户在终端里自己启动的 CLI。
 Claude 主控的设置只转换为 Claude 的 `--model`、`--effort` 和 settings.fastMode；不传 Codex 的配置参数。
 monitor 的设置已保存，真实 monitor 启动入口仍未实现，不能据此宣称已能启动。
 
