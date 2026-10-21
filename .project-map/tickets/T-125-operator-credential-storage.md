@@ -2,7 +2,7 @@
 id: T-125
 title: 操作员凭据的持久化位置：终端里的 agent 拿不到批准权
 type: decide
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -31,4 +31,6 @@ B。用户说“钥匙串也没必要”时，可能没有掌握“文件放哪�
 
 ## Decision
 
-（待用户决定）
+2026-10-21 用户选 A（逐字：“T-121 选 A”，指本票的选项 A）。凭据文件移到 `~/Library/Application Support/Enchanted/` 下的 0600 文件；终端改用只接受终端身份的专用 socket，终端环境里不再出现后台数据目录。已知并接受的边界：挡住顺着路径读取与按说明误用，挡不住有意搜索磁盘的 agent。
+
+落地见 [T-126](T-126-operator-credential-out-of-terminal-reach.md)。
