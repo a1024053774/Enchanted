@@ -137,7 +137,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 `score_file` 的 `integrate`。刚打开、还没有任务的项目，`inbox_ready` 按已打开项目找到仓库（T-122）。
 
 验证：`python3 workbench/tests/test_t122_claude_worker_e2e.py --summary 新路径.json`（真实后台、终端主控、门禁与
-安装的 Claude Code，模型为本地脚本化接口；`--revision`、`--mutant trust-unanswered|no-initial-release|user-settings-loaded|codex-provider-only|no-terminal-parent|inbox-tasks-only|reviewer-codex-only|reviewer-shell-writable`
+安装的 Claude Code，模型为本地脚本化接口；`--revision`、`--mutant trust-unanswered|no-initial-release|user-settings-loaded|submit-provider-codex|requested-model-as-fact|card-model-ignored|git-deny-missing|codex-provider-only|no-terminal-parent|inbox-tasks-only|reviewer-codex-only|reviewer-shell-writable`
 为已知坏实现）。`python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
 `--revision`、`--mutant pending-authority|history-in-zdotdir|no-withdraw|zdotdir-dropped|refusal-unrecorded|task-widens-scope`
 为已知坏实现）。
@@ -514,17 +514,23 @@ Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外
 worker 的 CLI 取任务卡 `executor.cli`（Claude Code 或 Codex，T-122），reviewer 默认与 worker 同 CLI 同模型（D24）。
 没有普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
 
-Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`03`）：`--session-id`、
-`--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources local` 与 `--strict-mcp-config`（不加载用户
-自己的设置、钩子与 MCP，登录照常），`--settings` 只允许 `Bash`、`Read`、`Glob`、`Grep` 与 worktree、请求目录内的
-`Edit`，shell 沙箱禁止沙箱外命令、只可写主仓库 Git 元数据与请求目录；回合信号经 SessionStart、UserPromptSubmit、
+Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`04`）：`--session-id`、
+`--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources ""` 与 `--strict-mcp-config`（不加载任何设置
+文件与 MCP，登录照常；`local` 会连主 checkout 的 `.claude/settings.local.json` 一起加载），`--settings` 只允许 `Bash`、
+`Read`、`Glob`、`Grep` 与 worktree、请求目录内的 `Edit`，shell 沙箱禁止沙箱外命令、另可写请求目录。linked worktree 里
+Claude 的沙箱自己把主仓库整个 `.git` 设为可写，所以 `denyWrite` 收回除本 attempt 分支外的每个已有 ref 与 reflog、
+`packed-refs`、`HEAD`、`refs/a2a`、`refs/tags`、`refs/remotes` 与其他 worktree；新分支名仍可创建（不影响集成），
+Claude 的 `$TMPDIR` 仍可写（收回会让每条 shell 命令失败）。任务卡写 Claude Code 时，派发不带的模型与强度取卡上的 executor；回合信号经 SessionStart、UserPromptSubmit、
 Stop、PermissionRequest、PreToolUse、PostToolUse 钩子传入。Claude reviewer 只可写门禁给的一次性候选副本，
 shell 沙箱不另开可写目录；门禁的 `reviewLaunch` 核对这组参数。新 worktree 启动时 Claude 会问是否信任该文件夹：
 按用户裁定，后台只在会话还没收到任何任务时代按“Yes, I trust this folder”，记 `worker_trust_confirm_intent`、
 `worker_trust_confirmed`（选项没选中则 `worker_trust_failed`，不按 Enter）；a2a 不写 `~/.claude.json`。
-SessionStart（`source` 为 startup、会话号与 cwd 相符）是初次放行，之后才送第一条任务。交付时的模型取会话记录里
-该回合最后一条回复的模型，强度取 Stop 钩子报告的值（`native_turn_facts`）；提交钩子的 `A2A-Native-Session` 尾注
-取 `--session-id`。Claude 的 shell 沙箱会在 `GIT_CONFIG_*` 末尾追加 `safe.directory` 条目，提交钩子只接受这一种追加。
+SessionStart（`source` 为 startup、会话号与 cwd 相符）是初次放行，之后才送第一条任务，并永久关闭代按；120 秒内没有
+SessionStart 记 `worker_startup_unrecognised`。交付时的模型取会话记录里该回合最后一条非 `<synthetic>` 回复的模型
+（跳过半写入的行），强度取 Stop 钩子报告的值（`native_turn_facts`）；提交钩子的 `A2A-Native-Session` 尾注取
+`--session-id`，Model 与 Effort 尾注为 `unknown`（提交时还没有观测值，门禁对 Claude 交付接受 Effort 为 unknown）。
+Claude reviewer 的整串 argv 由门禁逐位核对，settings 只能含 permissions、sandbox、六个钩子与 fastMode；
+它的模型、强度、Fast 取 worker 启动记录，reviewer 角色设置对它暂不生效。Claude 的 shell 沙箱会在 `GIT_CONFIG_*` 末尾追加 `safe.directory` 条目，提交钩子只接受这一种追加。
 门禁在 submit 时按任务卡 CLI 核对 provider。终端主控发起的门禁调用以该终端为父 launch，派出的会话在侧栏挂在它下面。
 
 打包的工作台以产品启动配置起后台（`workbench/app/desktop.mjs`）：经用户的登录 shell 找到 `claude`，角色卡为
