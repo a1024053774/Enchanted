@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=${0:A:h}
-TASK_ROOT=${SCRIPT_DIR:h:h:h:h}
+TASK_ROOT=${SCRIPT_DIR:h:h:h}
 OUT_ROOT=${1:?Pass a fresh absolute /private/tmp output directory}
 ELECTRON_DIST=/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist
 
