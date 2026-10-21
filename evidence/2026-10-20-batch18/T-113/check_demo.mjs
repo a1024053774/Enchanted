@@ -129,19 +129,22 @@ const scenarios = (await import(args.scenarios ?? './scenarios.mjs')).default;
 try {
   for (const [viewport, metrics] of Object.entries(viewports)) {
     if (args.viewport && args.viewport !== viewport) continue;
-    await stopChrome();
-    launchChrome();
-    const port = await devtoolsPort();
-    const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
-    const ws = new WebSocket(target.webSocketDebuggerUrl);
-    await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
-    const page = new Page(ws);
-    await page.send('Page.enable'); await page.send('Runtime.enable'); await page.send('Log.enable'); await page.send('Performance.enable');
-    await page.send('Emulation.setDeviceMetricsOverride', metrics);
-    if (metrics.mobile) await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
     for (const scenario of scenarios) {
       if (args.only && !scenario.name.startsWith(args.only)) continue;
       if (scenario.viewports && !scenario.viewports.includes(viewport)) continue;
+      // 每个场景一个新的 Chrome 进程，场景之间互不影响。无头 Chrome 的触摸模拟里，“轻点聚焦输入框、随后重绘移除它”
+      // 在同一进程里累计约 11 次后，渲染进程会停住：JS 不再执行，Debugger.pause 也停不下来。平凡页面和鼠标聚焦都不出现这个现象。
+      // 不共用进程时，停住不会连累后面的场景；场景自身停住时照常报 FAIL。证据见 RESULTS.md 的“运行稳定性”。
+      await stopChrome();
+      launchChrome();
+      const port = await devtoolsPort();
+      const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
+      const ws = new WebSocket(target.webSocketDebuggerUrl);
+      await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
+      const page = new Page(ws);
+      await page.send('Page.enable'); await page.send('Runtime.enable'); await page.send('Log.enable'); await page.send('Performance.enable');
+      await page.send('Emulation.setDeviceMetricsOverride', metrics);
+      if (metrics.mobile) await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
       const before = page.problems.length;
       console.error(`… [${viewport}] ${scenario.name}`);
       try { await scenario.run({ page, url, viewport, check: (name, ok, detail) => check(viewport, `${scenario.name}: ${name}`, ok, detail), sleep }); }
@@ -152,8 +155,8 @@ try {
         const pick = name => values.find(item => item.name === name)?.value;
         console.error(`   nodes=${pick('Nodes')} heap=${Math.round((pick('JSHeapUsedSize') ?? 0) / 1e6)}MB listeners=${pick('JSEventListeners')}`);
       }
+      ws.close();
     }
-    ws.close();
   }
 } finally {
   await stopChrome();
