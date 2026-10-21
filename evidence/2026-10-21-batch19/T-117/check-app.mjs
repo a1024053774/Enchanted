@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CDP, sleep, until } from './check-branding.mjs';
 
 const app = resolve(process.argv[2]), out = resolve(process.argv[3]);
@@ -51,9 +52,10 @@ try {
   page = await CDP.connect(target.webSocketDebuggerUrl);
   await until(() => page.evaluate('!!document.querySelector(".brand")'), 'Brand missing');
   const logo = await page.evaluate(`(async () => { const image = document.querySelector('.brand img'); if (!image) return null;
-    await image.decode(); return { width: image.naturalWidth, data: Array.from(new Uint8Array(await (await fetch(image.src)).arrayBuffer())) }; })()`);
+    await image.decode(); return { width: image.naturalWidth, src: image.currentSrc }; })()`);
   assert.ok(logo?.width > 0, 'The actual packaged sidebar must display the supplied logo');
-  assert.deepEqual(Buffer.from(logo.data), readFileSync(resolve('docs/assets/brand/logo-on-dark.png')), 'Sidebar logo must preserve original PNG bytes');
+  assert.ok(fileURLToPath(logo.src).startsWith(resources + '/ui/renderer/'));
+  assert.deepEqual(readFileSync(fileURLToPath(logo.src)), readFileSync(resolve('docs/assets/brand/logo-on-dark.png')), 'Sidebar logo must preserve original PNG bytes');
   report.checks.push('Packaged sidebar displays the supplied white PNG, byte for byte');
   await page.capture(join(out, 'sidebar.png'));
   electron = 'globalThis.__t117electron';
