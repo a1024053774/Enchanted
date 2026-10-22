@@ -2,7 +2,7 @@
 id: T-122
 title: 主控用 a2a 派发 worker，可选 CLI；worker 与 reviewer 启动即定身份，自动挂到侧栏
 type: build
-status: open
+status: closed
 blocked_by: [T-121]
 claimed_by:
 supersedes:
@@ -39,9 +39,13 @@ T-121 第 5 轮界面验收发现、属于本票的一点（evidence/2026-10-21-
 
 ## Acceptance
 
-- [ ] 真实入口：打包测试版里，T-121 经角色申请批准的真实 Claude Code 执行主控派发一个 Claude Code（Sonnet 5.5、medium）worker 到夹具仓库，经交付、独立审查、集成到夹具工作分支。截图、后台库事件读回、Git 引用读回、重现命令留证。
-- [ ] 同一流程派发 Codex worker 仍然可用（回归）。
-- [ ] 侧栏自动显示：worker 在派发它的主控下面，reviewer 在任务下面，角色、CLI、模型来自启动记录。
-- [ ] Claude Code worker 的权限是强制的：越过任务卡路径的写入被拒并留下记录；启动 argv 完整记入启动记录。
-- [ ] 没有已批准角色的会话、worker 自己都不能派发；修前版本（任务卡执行者只能是 Codex）跑同一入口失败。
-- [ ] `project_map.py status` 0 问题。
+- [x] 真实入口：打包测试版里，T-121 经角色申请批准的真实 Claude Code 执行主控派发一个 Claude Code（Sonnet 5.5、medium）worker 到夹具仓库，经交付、独立审查、集成到夹具工作分支。截图、后台库事件读回、Git 引用读回、重现命令留证。
+- [x] 同一流程派发 Codex worker 仍然可用（回归）。
+- [x] 侧栏自动显示：worker 在派发它的主控下面，reviewer 在任务下面，角色、CLI、模型来自启动记录。
+- [x] Claude Code worker 的权限是强制的：越过任务卡路径的写入被拒并留下记录；启动 argv 完整记入启动记录。
+- [x] 没有已批准角色的会话、worker 自己都不能派发；修前版本（任务卡执行者只能是 Codex）跑同一入口失败。
+- [x] `project_map.py status` 0 问题。
+
+## Resolution
+
+2026-10-22 PASS，最终候选 9b0898ccd。真实入口 `gui-07`（Haiku 5.5，用户裁定）走完派发、交付、独立审查、集成到 main；Codex 回归 `regress-t112-native-11` 与 e2e `e2e-green-15` 都在 9b0898ccd 上通过。各轮失败原因、变异矩阵、限制见 [RESULTS.md](../../evidence/2026-10-21-batch19/T-122/RESULTS.md)。
