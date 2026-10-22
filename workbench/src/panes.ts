@@ -118,6 +118,13 @@ async function claudeArgv(executable: string, signal: string, session: string,
     "--setting-sources", "", "--strict-mcp-config", "--settings", JSON.stringify(settings)];
 }
 const CLAUDE_STARTUP_DEADLINE_MS = 120_000;
+// The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
+// own pasted_content markers (seen with the user's login, T-122 GUI round 01); anything else
+// is compared as it is.
+function claudeSubmittedText(prompt: unknown) {
+  const wrapped = typeof prompt === "string" ? /^\n\n<pasted_content id="([0-9A-Za-z]+)">\n([\s\S]*)\n<\/pasted_content id="\1">\n$/.exec(prompt) : null;
+  return wrapped ? wrapped[2] : prompt;
+}
 // The Git paths a Claude worker's sandboxed shell must not write (see claudeArgv).
 async function workerGitDenied(worktree: string) {
   // Claude's sandbox already refuses writes to the worktree's own .git file (T-122 e2e red and
@@ -1265,7 +1272,7 @@ export class Panes implements GateRuntime {
           const item = pane.active && this.store.dispatchRecord(pane.active.dispatch);
           check(typeof value.prompt_id==="string" && value.prompt_id.length>0 && value.prompt_id.length<=128,"claude_prompt_id_required");
           check(pane.claudePromptIds && !pane.claudePromptIds.has(value.prompt_id),"claude_prompt_id_reused");
-          if (item && value.prompt !== item.text) {
+          if (item && claudeSubmittedText(value.prompt) !== item.text) {
             const reason = "登记注入与实际提交正文不一致；已阻断，请处理草稿后再决定。";
             this.store.event("injected_prompt_blocked", { prompt: value.prompt, prompt_id: value.prompt_id,
               dispatch: item.id, submission: pane.active!.id, expected_prompt: item.text, reason }, pane.record);
