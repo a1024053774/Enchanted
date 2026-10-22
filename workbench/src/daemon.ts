@@ -1,5 +1,5 @@
 import { createServer } from "node:net";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { A2AGates, Refusal, type TerminalController } from "./gates/core.ts";
@@ -725,13 +725,19 @@ export async function serve(
   // A private directory with a random name: its path says nothing about the daemon's data directory.
   const terminalDirectory = mkdtempSync(join(tmpdir(), "enchanted-"));
   const terminalSocket = join(terminalDirectory, "terminal.sock");
-  if (Buffer.byteLength(terminalSocket) > 103) throw new Error("terminal socket path exceeds 103 bytes");
-  await new Promise<void>((resolve, reject) => { terminalServer.once("error", reject); terminalServer.listen(terminalSocket, resolve); });
-  chmodSync(terminalSocket, 0o600);
-  panes.terminalSocket = terminalSocket;
-  await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socket, resolve); });
-  chmodSync(socket, 0o600);
-  writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
+  try {
+    if (Buffer.byteLength(terminalSocket) > 103) throw new Error("terminal socket path exceeds 103 bytes");
+    await new Promise<void>((resolve, reject) => { terminalServer.once("error", reject); terminalServer.listen(terminalSocket, resolve); });
+    chmodSync(terminalSocket, 0o600);
+    panes.terminalSocket = terminalSocket;
+    await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socket, resolve); });
+    chmodSync(socket, 0o600);
+    writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    // Nothing in the data directory names this directory, so no later start could remove it.
+    rmSync(terminalDirectory, { recursive: true, force: true });
+    throw error;
+  }
   gates.recoverReviews();
   recovery = panes.recover(daemon).finally(() => { recovering = false; });
   void recovery.catch(error => gates.setUserInputObserverStatus("failed", { reason: String(error) }));
