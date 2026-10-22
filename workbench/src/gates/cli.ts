@@ -42,8 +42,8 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   create: { required: ["repo", "branch", "card-version"], optional: ["project", "title"] },
   dispatch: { required: ["runtime-mode"], optional: ["overlap-reason", "parent-launch", "model", "effort", "fast"] },
   attach: {
-    required: ["role", "model-selection", "instructions", "runtime-mode"],
-    optional: ["preset"],
+    required: ["role", "instructions"],
+    optional: ["preset", "cli", "model", "effort", "fast"],
   },
   run: { required: ["runtime-mode", "wait-seconds"], optional: ["overlap-reason", "parent-launch", "model", "effort", "fast"] },
   claim: { required: ["owner"], optional: ["overlap-reason"] },
@@ -98,7 +98,7 @@ export async function main(argv = process.argv.slice(2)) {
       "title",
       "thread",
       "role",
-      "model-selection",
+      "cli",
       "runtime-mode",
       "wait-seconds",
       "branch", "card", "ticket", "card-version", "expected-version",
@@ -167,8 +167,7 @@ export async function main(argv = process.argv.slice(2)) {
         )
           throw new Error("integer required: " + key);
         request[key.replaceAll("-", "_")] = Number(value);
-      } else if (key === "model-selection") request.modelSelection = JSON.parse(value!);
-      else if (key === "answers") request.answers = JSON.parse(value!);
+      } else if (key === "answers") request.answers = JSON.parse(value!);
       else if (key === "refs") request.refs = JSON.parse(value!);
       else if (key === "manifest") request.manifest = JSON.parse(readFileSync(value!, "utf8"));
       else if (key === "screen-file") request.screen_base64 = readFileSync(value!).toString("base64");

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isAbsolute } from "node:path";
 import { Refusal } from "./gates/core.ts";
 import type { OrchestrationStore } from "./store.ts";
 
@@ -12,8 +13,10 @@ export const requestRoles = ["ideation", "executor"] as const;
 export type RequestRole = typeof requestRoles[number];
 export type RequestState = "pending" | "granted" | "approved" | "rejected" | "ended";
 export const confirmWindowMs = 15_000;
-// cli is what the calling process reported about itself: shown to the user, never trusted.
+// cli, native_session and native_home are what the calling process reported about itself (its CLI's
+// environment): shown to the user and used only to read that session's usage-limit records (T-124), never trusted.
 export type RoleRequest = { id: string; launch: string; project: string; role: RequestRole; state: RequestState; cli: string | null;
+  native_session: string | null; native_home: string | null;
   requested_at: string; decided_at: string | null; ended_reason: string | null };
 
 const refuse = (condition: unknown, code: string) => { if (!condition) throw new Refusal(code); };
@@ -36,7 +39,7 @@ export class RoleRequests {
       const data = JSON.parse(String(row.data));
       if (row.type === "role_requested") {
         roleRequests.set(data.role_request, { id: data.role_request, launch: String(row.launch), project: data.project, role: data.role, cli: data.cli,
-          state: "pending", requested_at: String(row.time), decided_at: null, ended_reason: null });
+          native_session: data.native_session ?? null, native_home: data.native_home ?? null, state: "pending", requested_at: String(row.time), decided_at: null, ended_reason: null });
         continue;
       }
       const roleRequest = roleRequests.get(data.role_request);
@@ -64,7 +67,8 @@ export class RoleRequests {
     const roleRequest = this.current(launch);
     return roleRequest?.state === "approved" ? roleRequest : undefined;
   }
-  request(terminal: { id: string; project: string | null; task: string | null }, role: unknown, cli: unknown) {
+  request(terminal: { id: string; project: string | null; task: string | null }, role: unknown, cli: unknown,
+    native?: { session?: unknown; home?: unknown }) {
     refuse(requestRoles.includes(role as RequestRole), "invalid_role");
     refuse(terminal.project, "project_terminal_required");
     refuse(this.alive(terminal.id), "terminal_gone");
@@ -72,8 +76,11 @@ export class RoleRequests {
     refuse(!held, held?.state === "pending" ? "request_already_pending" : "role_already_held");
     refuse(!this.holder(terminal.project!, role as RequestRole), "role_taken");
     const roleRequest = randomUUID();
-    this.store.event("role_requested", { role_request: roleRequest, role, project: terminal.project,
-      cli: cli === "claude" || cli === "codex" ? cli : null }, terminal);
+    const reported = cli === "claude" || cli === "codex" ? cli : null;
+    const session = typeof native?.session === "string" && /^[0-9A-Za-z][0-9A-Za-z-]{7,63}$/.test(native.session) ? native.session : null;
+    const home = typeof native?.home === "string" && isAbsolute(native.home) ? native.home : null;
+    this.store.event("role_requested", { role_request: roleRequest, role, project: terminal.project, cli: reported,
+      native_session: reported && session && home ? session : null, native_home: reported && session && home ? home : null }, terminal);
     return this.all().find(row => row.id === roleRequest)!;
   }
   decide(id: unknown, approved: unknown) {

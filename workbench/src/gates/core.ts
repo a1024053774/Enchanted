@@ -58,6 +58,8 @@ export class Refusal extends Error {
     this.details = details;
   }
 }
+// The native provider an attached session runs on: its own CLI.
+const attachmentProvider = (attachment: A2AAttachment) => attachment.cli === "Claude Code" ? "claude" : "codex";
 function requireGate(value: unknown, code: string, details?: unknown): asserts value {
   if (!value) throw new Refusal(code, details);
 }
@@ -113,15 +115,25 @@ export interface GateRuntime {
   sessionFacts?(thread: string): Promise<{ launch: Record<string, any>; model: string; effort: string }>;
   sendGateFeedback?(thread: string, messageId: string, message: string): Promise<void>;
   createAttachedThread?(task: A2ATask, attachment: A2AAttachment, prompt: string): Promise<void>;
-  sendUserAnswer?(thread: string, messageId: string, message: string): Promise<void>;
+  sendAnswer?(thread: string, messageId: string, message: string, origin: "user" | "controller"): Promise<void>;
   wakeThread?(thread: string, entry: A2AInboxEntry): Promise<{ state: "queued" | "delivered" | "unknown"; message: string }>;
   readWakeDelivery?(thread: string, message: string): Promise<{ state: "queued" | "delivered" | "unknown"; at: string }>;
   interruptThread?(thread: string): Promise<void>;
+}
+// A controller the user approved in a project terminal (T-121). Its words are the
+// controller's, never the user's (T-124), and work it started outlives the role.
+export interface TerminalController {
+  launch: string;
+  role_request: string;
+  role: string;
+  // "ended": released, terminal closed or daemon restarted; "quota_exhausted": its CLI hit a usage limit.
+  state(): "active" | "ended" | "quota_exhausted";
 }
 export interface GateActor {
   assertActive(): Promise<void>;
   address?: string;
   project?: string;
+  controller?: TerminalController;
 }
 type ScoreProvenance = Pick<NonNullable<A2AAttempt["delivery"]>, "launch_id" | "cli" | "model" | "effort" | "number">;
 // A role/transport credential is not a native thread or turn identity.
@@ -680,8 +692,8 @@ export class A2AGates {
       const live = await this.runtime.readThread(caller.thread);
       requireGate(
         !live.error &&
-          live.workspace === (attempt?.workspace ?? task.repo) &&
-          live.provider === (binding.attachment?.modelSelection.provider ?? "codex") &&
+          live.workspace === (attempt?.workspace ?? binding.attachment?.workspace ?? task.repo) &&
+          live.provider === this.threadProvider(binding.attachment, attempt) &&
           !live.archived &&
           live.running &&
           !live.blocked &&
@@ -808,7 +820,10 @@ export class A2AGates {
       ...(delivery ? { delivery } : {}),
     };
   }
-  private async answerIssues(args: A2AGateRequest): Promise<A2AGateResult> {
+  private async answerIssues(args: A2AGateRequest, actor?: GateActor): Promise<A2AGateResult> {
+    // A terminal controller's answer is the controller's: it is not user input and no human
+    // intervention (T-124). Every other caller of this command is the user's UI.
+    const controller = actor?.controller;
     const replies =
       args.command === "answer_issue" ? [{ issue: args.issue, answer: args.answer }] : args.answers;
     requireGate(
@@ -827,7 +842,7 @@ export class A2AGates {
       );
       return { issue: view.issue, answer: reply.answer.trimEnd() };
     });
-    requireGate(this.runtime?.sendUserAnswer, "native_runtime_required");
+    requireGate(this.runtime?.sendAnswer, "native_runtime_required");
     const grouped = new Map<string, typeof rows>();
     for (const row of rows) {
       const key = args.mode === "individual" ? row.issue.id : row.issue.thread_id;
@@ -853,7 +868,7 @@ export class A2AGates {
         .map(({ issue, answer }) => {
           const chars = Array.from(issue.body);
           const body = chars.length > 600 ? chars.slice(0, 599).join("") + "…" : issue.body;
-          return `问题 ${issue.number}：${issue.title}\n${body ? body + "\n" : ""}用户答复：${answer}`;
+          return `问题 ${issue.number}：${issue.title}\n${body ? body + "\n" : ""}${controller ? "主控答复" : "用户答复"}：${answer}`;
         })
         .join("\n\n");
       return {
@@ -880,6 +895,28 @@ export class A2AGates {
       for (const group of groups)
         for (const { issue, answer } of group.replies) {
           const inputId = randomUUID();
+          if (controller) {
+            const record: A2AIssueRecord = {
+              ...issue,
+              id: inputId,
+              kind: "answer",
+              from: controller.role,
+              to: issue.from,
+              reply_to: issue.id,
+              created_at: createdAt,
+              body: answer,
+              message_id: group.messageId,
+              bundle_id: group.bundleId,
+              refs: [...issue.refs, `issue:${issue.id}`, `controller-launch:${controller.launch}`,
+                `role-request:${controller.role_request}`, `message:${group.messageId}`],
+            };
+            this.appendIssue(record);
+            this.event(issue.task_id, "controller_answer", { issue_id: issue.id, answer_id: record.id,
+              message_id: group.messageId, launch: controller.launch, role_request: controller.role_request,
+              role: controller.role, text: group.message }, issue.attempt_id);
+            group.answers.push(record);
+            continue;
+          }
           const record: A2AIssueRecord = {
             ...issue,
             id: inputId,
@@ -958,7 +995,7 @@ export class A2AGates {
         (binding?.attachment && group.replies[0]!.issue.attempt_id === null)
       ) {
         try {
-          await this.runtime.sendUserAnswer(group.thread, group.messageId, group.message);
+          await this.runtime.sendAnswer(group.thread, group.messageId, group.message, controller ? "controller" : "user");
           action = "delivered";
           for (const view of group.notices)
             this.event(
@@ -1066,6 +1103,13 @@ export class A2AGates {
     this.db.prepare("INSERT INTO task_card_snapshots(id,task,version,attempt,data) VALUES (?,?,?,?,?)")
       .run(snapshot, task, version, attempt, JSON.stringify(card));
     return snapshot;
+  }
+  // An attached session runs on its own CLI; a task's worker (and its reviewer) on the CLI its card names.
+  // Every thread used to be taken for Codex, so a Claude Code worker's issue was refused and a run could
+  // not reclaim it (T-124 e2e dev runs 01 and 11).
+  private threadProvider(attachment: A2AAttachment | undefined, attempt: A2AAttempt | null | undefined) {
+    if (attachment) return attachmentProvider(attachment);
+    return attempt && this.boundCard(attempt).executor.cli === "Claude Code" ? "claude" : "codex";
   }
   private boundCard(attempt: A2AAttempt): TaskCard {
     const row = this.db.prepare("SELECT data FROM task_card_snapshots WHERE id=? AND task=? AND attempt=?")
@@ -2630,7 +2674,7 @@ export class A2AGates {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
-  private async run(args: A2AGateRequest): Promise<A2AGateResult> {
+  private async run(args: A2AGateRequest, controller?: TerminalController): Promise<A2AGateResult> {
     requireGate(Number.isSafeInteger(args.wait_seconds) && args.wait_seconds! > 0, "invalid_wait");
     requireGate(args.runtimeMode, "runtime_mode_required");
     requireGate(this.runtime, "runtime_required");
@@ -2658,6 +2702,7 @@ export class A2AGates {
         wait_seconds: args.wait_seconds!,
         phase: "dispatching",
         outcome: "running",
+        ...(controller ? { initiator: { launch: controller.launch, role_request: controller.role_request, role: controller.role } } : {}),
       };
       this.saveRun(run, "run_started");
       const dispatch = await this.request(
@@ -2709,6 +2754,20 @@ export class A2AGates {
             requireGate(after.repair && (after.repair.failure as { error?: string })?.error === verified.error,
               verified.error ?? "gate_failure", verified.details);
           }
+          continue;
+        }
+        // Integration waits for the controller's score. A terminal controller whose role ended or whose
+        // CLI is out of quota cannot give one; the user chose that the run then integrates through the
+        // same gate checks with the score recorded as missing and why (T-124).
+        const initiatorState = task.state === "verified" && !task.repair ? controller?.state() : undefined;
+        if (initiatorState && initiatorState !== "active") {
+          run.initiator_unavailable = { state: initiatorState, at: new Date().toISOString() };
+          this.saveRun(run, "run_phase");
+          this.event(args.task, "run_initiator_ended", { run_id: run.run_id, ...run.initiator, ...run.initiator_unavailable }, run.attempt_id!);
+          run.phase = "integrating";
+          this.saveRun(run, "run_phase");
+          const integrated = await this.request({ command: "integrate", task: args.task, attempt: run.attempt_id! }, undefined, run);
+          requireGate(integrated.ok || this.load(args.task).state === "accepted", integrated.error ?? "gate_failure", integrated.details);
           continue;
         }
         const phase = task.repair ? "waiting_repair" : task.state === "reviewing" ? "reviewing" :
@@ -3199,8 +3258,8 @@ export class A2AGates {
       requireGate(
         !live.archived &&
           !live.error &&
-          live.workspace === (target.attempt?.workspace ?? target.task.repo) &&
-          live.provider === (target.attachment?.modelSelection.provider ?? "codex"),
+          live.workspace === (target.attempt?.workspace ?? target.attachment?.workspace ?? target.task.repo) &&
+          live.provider === this.threadProvider(target.attachment, target.attempt),
         "identity_conflict",
       );
       await actor.assertActive();
@@ -3292,7 +3351,7 @@ export class A2AGates {
           );
       }
       this.checkUserInputObserver();
-      if (args.command === "run") return await this.run(args);
+      if (args.command === "run") return await this.run(args, actor?.controller);
       // A separate SQLite write transaction is the OS-released task operation lock.
       // Keep the inode, never unlink it. Main-state reads remain available during an oracle.
       lock = this.operationLock(taskId);
@@ -3324,7 +3383,7 @@ export class A2AGates {
         return await this.disposeIssue(args, caller, actor?.address);
       }
       if (args.command === "answer_issue" || args.command === "answer_issues")
-        return await this.answerIssues(args);
+        return await this.answerIssues(args, actor);
       if (args.command === "card_template") {
         inputPath(args.repo, true);
         return { ok: true, card: taskCardTemplate(taskId, args.ticket) };
@@ -3412,27 +3471,26 @@ export class A2AGates {
       requireGate(task.card_snapshot_id && task.integration_ref, "task_card_registration_required");
       if (args.command === "attach") {
         requireGate(this.runtime?.createAttachedThread, "runtime_required");
-        requireGate(
-          args.role && args.modelSelection && args.runtimeMode,
-          "attachment_arguments_required",
-        );
+        // An attached session watches a task read-only (a monitor). Code is written only by a managed
+        // worker through dispatch, a reviewer is started by the gate, and a controller is a terminal.
+        requireGate(args.role === "monitor", "attach_role_unsupported");
         const prompt = readFileSync(inputPath(args.instructions), "utf8");
         requireGate(prompt.trim(), "invalid_text");
-        const preset = args.preset ?? (args.role !== "controller" ? args.role : undefined);
-        if (preset)
-          requireGate(
-            args.role === (preset === "ideation" || preset === "executor" ? "controller" : preset),
-            "preset_role_mismatch",
-          );
+        requireGate(args.preset === undefined || args.preset === "monitor", "preset_role_mismatch");
+        const thread = randomUUID();
         const attachment: A2AAttachment = {
           task_id: taskId,
-          thread_id: randomUUID(),
-          role: args.role,
-          ...(preset ? { preset } : {}),
-          modelSelection: args.modelSelection,
-          runtime_mode: args.runtimeMode,
+          thread_id: thread,
+          role: "monitor",
+          preset: "monitor",
+          cli: args.cli ?? "Codex",
+          workspace: join(this.root, "monitors", thread),
+          ...(args.model !== undefined ? { model: args.model } : {}),
+          ...(args.effort !== undefined ? { effort: args.effort } : {}),
+          ...(args.fast !== undefined ? { fast: args.fast } : {}),
           state: "creating",
         };
+        const preset = attachment.preset;
         this.saveAttachment(attachment);
         if (preset) this.membership.bindPreset(attachment.thread_id, preset);
         await this.runtime.createAttachedThread(task, attachment, prompt);
@@ -3457,7 +3515,7 @@ export class A2AGates {
         }
         const live = await this.runtime.readThread(thread);
         requireGate(
-          live.workspace === task.repo && live.provider === attachment.modelSelection.provider,
+          live.workspace === (attachment.workspace ?? task.repo) && live.provider === attachmentProvider(attachment),
           "identity_conflict",
         );
         this.checkErrorReclaim(live);
@@ -3472,7 +3530,7 @@ export class A2AGates {
           const stopped = await this.runtime.readThread(thread);
           requireGate(
             stopped.workspace === task.repo &&
-              stopped.provider === attachment.modelSelection.provider &&
+              stopped.provider === attachmentProvider(attachment) &&
               stopped.stopped,
             "stop_unconfirmed",
           );
@@ -3481,7 +3539,7 @@ export class A2AGates {
         }
         requireGate(
           archived.workspace === task.repo &&
-            archived.provider === attachment.modelSelection.provider &&
+            archived.provider === attachmentProvider(attachment) &&
             archived.stopped &&
             archived.archived,
           "reclaim_unconfirmed",
@@ -3766,7 +3824,10 @@ export class A2AGates {
       }
       if (args.command === "verify") return await this.verifyCandidate(task, attempt);
       if (args.command === "integrate") {
-        const score = this.scoreData(args.score_file);
+        // Only a run whose terminal controller is gone integrates without a score (see run()).
+        const score = run?.initiator_unavailable && args.score_file === undefined
+          ? { result: "未评分", reason: run.initiator_unavailable.state === "ended" ? "主控身份已结束" : "主控额度用完" }
+          : this.scoreData(args.score_file);
         if (task.state === "accepted") {
           requireGate(JSON.stringify(score) === JSON.stringify(task.integration_intent?.score?.data), "score_replay_mismatch");
           if (!attempt.thread_id) await this.cleanupAttempt(task, attempt);
@@ -3896,7 +3957,7 @@ export class A2AGates {
       requireGate(this.runtime && attempt.thread_id, "no_bound_thread");
       const live = await this.runtime.readThread(attempt.thread_id);
       requireGate(
-        live.workspace === attempt.workspace && live.provider === "codex",
+        live.workspace === attempt.workspace && live.provider === this.threadProvider(undefined, attempt),
         "identity_conflict",
       );
       this.checkThread(attempt, live);

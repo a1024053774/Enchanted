@@ -8,7 +8,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { validateHookEnvelope, questionFromHook, questionPermission, questionAnswerConfirmed, projectQuestions, nativeAnswerKeys, currentTurnBinding, noncurrentHook, currentTurnTrust } from './questions.ts';
-import type { A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
+import type { A2AAttachment, A2AAttempt, A2ATask, A2AReview, A2ARepair } from "./contracts/a2aGates.ts";
 import { Refusal, type GateRuntime, type SubmitCaller } from "./gates/core.ts";
 import { OrchestrationStore, type DispatchSource } from "./store.ts";
 import type { A2AInboxEntry } from "./contracts/a2aInbox.ts";
@@ -78,6 +78,8 @@ export interface LaunchConfig {
   claude_bin?: string;
   // The reviewer role card. A reviewer runs on the worker's CLI (D24) in the same home.
   reviewer_role_card?: string; reviewer_role_card_revision?: string;
+  // The role card of a read-only monitor a controller attaches to a task (T-124).
+  monitor_role_card?: string; monitor_role_card_revision?: string;
   role_card?: string;
   role_card_revision?: string;
   code_revision?: string;
@@ -558,10 +560,29 @@ export class Panes implements GateRuntime {
     const pane = this.get(review.thread_id);
     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
   }
-  private async createPane(task: A2ATask, attempt: A2AAttempt, c: LaunchConfig, review?: A2AReview, overrides: ExecutionOverrides = {}) {
-    const role = review ? "reviewer" : "worker";
-    // The task card names the worker's CLI; its reviewer runs on the same CLI (D24).
-    const claude = task.card.executor.cli === "Claude Code";
+  // A read-only monitor a controller attaches to a task (T-124): it belongs to no attempt, opens the
+  // task's repository read-only, runs on the CLI the controller chose with the monitor role settings,
+  // and lives on after the controller's role ends.
+  createAttachedThread = async (task: A2ATask, attachment: A2AAttachment, prompt: string) => {
+    check(attachment.role === "monitor", "attach_role_unsupported");
+    check(this.config.monitor_role_card && this.config.monitor_role_card_revision, "monitor_launch_config_required");
+    check(typeof attachment.workspace === "string" && isAbsolute(attachment.workspace), "monitor_workspace_required");
+    mkdirSync(attachment.workspace, { recursive: true, mode: 0o700 });
+    const attempt = { task_id: task.task_id, attempt_id: null, session_id: attachment.thread_id, fence: 0, spec_rev: task.spec_rev,
+      thread_id: attachment.thread_id, runtime_mode: "workspace-write", turn_id: null, workspace: realpathSync(attachment.workspace), base_commit: null,
+      runtime_identity: null } as unknown as A2AAttempt;
+    await this.createPane(task, attempt, { ...this.config, role_card: this.config.monitor_role_card,
+      role_card_revision: this.config.monitor_role_card_revision }, undefined,
+      { ...(attachment.model !== undefined ? { model: attachment.model } : {}), ...(attachment.effort !== undefined ? { effort: attachment.effort } : {}),
+        ...(attachment.fast !== undefined ? { fast: attachment.fast } : {}) }, attachment);
+    const pane = this.get(attachment.thread_id);
+    await this.dispatch(pane, `${pane.record.role_text}\n\n项目目录（只读）：${realpathSync(task.repo)}\n\n${prompt}`);
+  };
+  private async createPane(task: A2ATask, attempt: A2AAttempt, c: LaunchConfig, review?: A2AReview, overrides: ExecutionOverrides = {},
+    monitor?: A2AAttachment) {
+    const role = review ? "reviewer" : monitor ? "monitor" : "worker";
+    // The task card names the worker's CLI; its reviewer runs on the same CLI (D24). A monitor runs on its own.
+    const claude = monitor ? monitor.cli === "Claude Code" : task.card.executor.cli === "Claude Code";
     check((claude ? c.claude_bin : c.codex_bin && c.codex_home) && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
     check(Number.isInteger(c.turn_limit) && c.turn_limit! > 0 && c.turn_limit! <= (claude ? 6 : 10), "invalid_turn_limit");
     const executable = realpathSync(claude ? c.claude_bin! : c.codex_bin!);
@@ -585,12 +606,12 @@ export class Panes implements GateRuntime {
     const hook = `[{hooks=[{type="command",command=${JSON.stringify(signalCommand)},timeout=10}]}]`;
     // Role settings hold one selection per role; a Claude Code card's own model and effort are its
     // defaults, since the factory worker selection is a Codex model (review finding 3).
-    const { model, effort, fast } = this.store.executionSelection(role, claude && !review
+    const { model, effort, fast } = this.store.executionSelection(role, claude && !review && !monitor
       ? { ...(task.card.executor.model.trim() ? { model: task.card.executor.model } : {}),
           ...(task.card.executor.effort.trim() ? { effort: task.card.executor.effort } : {}), ...overrides } : overrides);
     const launchWorkspace = review ? review.candidate_workspace : attempt.workspace;
     const nativeSession = claude ? randomUUID() : null;
-    const sandboxMode = "workspace-write";
+    const sandboxMode = monitor ? "read-only" : "workspace-write";
     const networkAccess = "false";
     const networkProxy = "false";
     const excludeSlashTmp = review ? "true" : "false";
@@ -599,10 +620,10 @@ export class Panes implements GateRuntime {
     // policies stay off, since the worker can edit them and its reviewer starts in a copy of its
     // work; the home's rules, hooks and skills still apply (T-127 probe-01 runs 4 and 5). Codex
     // then asks "Open restricted" once, which saves nothing; openCodexRestricted answers it.
-    const trustRoot = claude ? null : review ? realpathSync(launchWorkspace) : await repositoryRoot(launchWorkspace);
+    const trustRoot = claude ? null : review || monitor ? realpathSync(launchWorkspace) : await repositoryRoot(launchWorkspace);
     const argv = claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
-      review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory],
-      review ? [] : [requestDirectory], review ? [] : await workerGitDenied(launchWorkspace)) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
+      monitor ? [] : review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory],
+      review || monitor ? [] : [requestDirectory], review || monitor ? [] : await workerGitDenied(launchWorkspace)) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
       "-a", "never", "--sandbox", sandboxMode, "-m", model,
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
@@ -633,13 +654,13 @@ export class Panes implements GateRuntime {
       mkdirSync(temporary, { mode: 0o700 });
       Object.assign(environment, { TMPDIR: temporary + "/", TMPPREFIX: join(temporary, "zsh") });
     }
-    if (!review) Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
+    if (!review && !monitor) Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
       GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)) });
     const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; a2a_cli_status=$?; if (( a2a_cli_status != 0 )); then exit $a2a_cli_status; fi; exec /bin/zsh -f -i"];
     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
-      role, sandbox: "workspace-write", parent_launch: this.parentLaunch.getStore() ?? null,
+      role, sandbox: sandboxMode, parent_launch: this.parentLaunch.getStore() ?? null,
       cli: claude ? "Claude Code" : "Codex", ...(claude ? { native_session: nativeSession } : {}),
       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
         review_workspace: review.workspace, candidate_workspace: review.candidate_workspace } : {}),
@@ -947,6 +968,14 @@ export class Panes implements GateRuntime {
     check(live.leader && !live.failed && !live.session_ended && pane.native, "conflict_session_unknown", live);
     const item = await this.dispatch(pane, message, "gate");
     this.store.event("gate_feedback_registered", { message_id: messageId, dispatch: item.id }, pane.record);
+  };
+  // An answer to an issue the worker raised: the user's from the UI, or a terminal controller's (T-124).
+  // A pane that has ended cannot take it; the gate forwards the answer to the executor instead.
+  sendAnswer = async (thread: string, messageId: string, message: string, origin: "user" | "controller") => {
+    const pane = this.get(thread);
+    if (pane.stopped || pane.archived || pane.nativeEnded) throw new Refusal("session_ended");
+    const item = await this.dispatch(pane, message, origin === "user" ? "user" : "executor");
+    this.store.event("answer_registered", { message_id: messageId, dispatch: item.id, origin }, pane.record);
   };
   async sessionFacts(thread: string) {
     const info = this.launchInfo(this.get(thread).record.id);

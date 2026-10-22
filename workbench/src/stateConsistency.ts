@@ -9,7 +9,8 @@ const copy = (value: any) => structuredClone(value);
 const passive = new Set(["card_saved", "command_intent", "command_result", "prompt_intent", "run_observed",
   "submission_metrics", "path_check", "trailer_check", "reclaim_intent", "attachment_reclaim_intent", "rejected",
   "git_transaction_input", "git_transaction_response", "integration_worktree_advanced",
-  "score_recorded", "review_reclaim_intent", "review_reclaimed", "review_after_termination", "issue_issue", "red_not_applicable", "rules_not_applicable"]);
+  "score_recorded", "review_reclaim_intent", "review_reclaimed", "review_after_termination", "issue_issue", "red_not_applicable", "rules_not_applicable",
+  "controller_answer", "run_initiator_ended"]);
 
 function differences(expected: any, observed: any, path = ""): any[] {
   if (expected === observed) return [];

@@ -125,9 +125,8 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
   按命令名在这一层核对项目：门禁的任务命令须带属于本项目的 task；还不存在的 task 只能用于准备新任务的
   `card_*` 与 `create`。这类 task 的卡草稿归首次保存它的终端项目（`card_draft_owned` 事件，首存须
   `expected_version` 为 0 且成功）；`card_show`、后续 `card_save` 与 `create` 须是本项目的草稿，否则返回
-  `card_draft_not_owned`；`create` 的 `project` 须为本项目、`repo` 须为本项目打开的目录。`answer_issue(s)`
-  会把文字记成用户输入，`attach`、`run` 会在身份结束后继续执行，终端角色不能调用；`inbox_ready` 须带本项目
-  `project`。其他项目返回 `role_project_mismatch`。收件箱的其他命令与 stop 还没有项目字段、也不看 task 字段，
+  `card_draft_not_owned`；`create` 的 `project` 须为本项目、`repo` 须为本项目打开的目录。`answer_issue(s)`、
+  `attach`、`run` 也是任务命令（T-124，见下文）；`inbox_ready` 须带本项目 `project`。其他项目返回 `role_project_mismatch`。收件箱的其他命令与 stop 还没有项目字段、也不看 task 字段，
   终端角色调用它们一律返回 `role_command_not_scoped`；主控之间的收件箱通信留给后续票，届时先给条目加上项目。
 - 终端关闭或后台重启后身份结束，侧栏随之移除。
 - 侧栏把已批准的终端显示为对应主控（“项目终端”）。它没有结构化回合信号，状态显示“未知”。
@@ -136,9 +135,40 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 （`runtimeMode` 为 `workspace-write`，带 `model`、`effort`）→ `status` → `submitted` 后 `verify` → `verified` 后带
 `score_file` 的 `integrate`。刚打开、还没有任务的项目，`inbox_ready` 按已打开项目找到仓库（T-122）。
 
+终端主控还能做三件事（T-124）：
+
+- 回答 worker 用 `issue` 上报的问题（`answer_issue`、`answer_issues`）。门禁按调用者记录：终端主控的回答记为
+  该主控的回答（`from` 为角色，refs 带 `controller-launch:`、`role-request:`，事件 `controller_answer`），不进
+  `user_inputs`，不算人工介入；worker 看到的是 ⟦主控 #n⟧ 与“主控答复”。界面（管理凭据）的回答仍是用户输入，
+  worker 看到 ⟦用户 #n⟧ 与“用户答复”。
+- `run` 自动走完派发、验收、审查。审查通过后仍等主控带分 `integrate`；发起它的主控身份已结束（release、终端关闭）
+  或额度用完时，run 写 `run_initiator_ended`，自己经门禁集成，评分记为 `{"result":"未评分","reason":"主控身份已结束"}`
+  或 `"主控额度用完"`。身份结束后这个终端的 `dispatch`、`run`、`attach` 返回 `approved_role_required` 并记入
+  `request_rejected`；已派出的 worker、run 与 monitor 继续。后台重启时进程内的 run 停下（supervised-run 规格），
+  monitor 不恢复。
+- `attach`（`role` 只能是 `monitor`）在任务下起一个只读观察会话：CLI 取 `cli`（默认 Codex），模型与强度取
+  monitor 的执行设置或调用参数；Codex 以 `--sandbox read-only` 运行，Claude Code 没有可写目录、没有 Edit 规则；
+  工作目录是数据目录下它自己的空目录 `monitors/<thread>`（项目目录写在提示里）。启动记录写全 argv，`parent_launch`
+  为发起的终端，侧栏挂在该主控下。角色卡 `workbench/roles/monitor.md`。
+
+主控额度：`a2a request` 从 CLI 自己的环境带上会话 id 与 home（Claude Code：`CLAUDE_CODE_SESSION_ID`、
+`CLAUDE_CONFIG_DIR` 或 `~/.claude`；Codex：`CODEX_THREAD_ID`、`CODEX_HOME` 或 `~/.codex`）。后台每 5 秒只读这一个
+会话日志里批准之后的记录：Claude Code 的 API 错误记录 `quotaLimits.status` 为 `rejected`，或 Codex 回合以
+`usage_limit_exceeded` 结束，即记 `controller_quota_exhausted`，侧栏快照的 `controller_quota` 列出它，工作台右上角
+显示“主控额度用完 · 已派出的工作继续 · 约 HH:MM 恢复”；之后有正常回复即记 `controller_quota_restored`，通知消失。
+通知开关与“等待用户回答”共用。
+
+worker 自己的原生提问（Claude Code 的 AskUserQuestion、Codex 的 request_user_input）在现有配置下发不出来：
+Claude Code 的 `dontAsk` 直接拒绝 AskUserQuestion，Codex 默认模式下 request_user_input 不可用（T-124 发现）。
+worker 要问只能经 `issue`。
+
 验证：`python3 workbench/tests/test_t122_claude_worker_e2e.py --summary 新路径.json`（真实后台、终端主控、门禁与
 安装的 Claude Code，模型为本地脚本化接口；`--revision`、`--mutant trust-unanswered|no-initial-release|user-settings-loaded|submit-provider-codex|requested-model-as-fact|card-model-ignored|git-deny-missing|codex-provider-only|no-terminal-parent|inbox-tasks-only|reviewer-codex-only|reviewer-shell-writable`
-为已知坏实现）。`python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
+为已知坏实现）。`python3 workbench/tests/test_t124_controller_e2e.py --summary 新路径.json`（同样的真实入口：
+主控回答问题、`run` 在 release 并关闭终端后未评分集成、`attach` monitor、额度通知；`--end quota`、
+`--monitor-cli codex` 为变体，`--revision`、`--mutant` 为已知坏实现，命令见 `evidence/2026-10-22-batch20/T-124/e2e/commands.sh`）。
+`node workbench/tests/test_t124_quota_notice.mjs 新路径.json` 核对工作台通知。
+`python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
 `--revision`、`--mutant pending-authority|history-in-zdotdir|no-withdraw|zdotdir-dropped|refusal-unrecorded|task-widens-scope`
 为已知坏实现）。
 
@@ -707,6 +737,9 @@ R 只有固定参数／FD／临时目录准备及一次原始 auth 读取；没�
 前台身份核对统一调用 `/usr/bin/python3 -I -S -B workbench/src/processSnapshot.py PTY_PID`，5 秒期限。
 它在同一 C 内调用系统 libproc，只枚举该 PTY 的后代，读取 PID／PPID／PGID、TTY 前台组和可执行文件路径，不读 argv、环境或认证。
 查询前后复核进程出生时间及身份；权限拒绝、短数据、截断、身份变化或不连通的树均拒绝，不改用 ps 或无保护查询。
+例外（T-124）：树里属于别的用户的进程（Claude Code 运行的 setuid-root `/bin/ps`）读完整信息被拒时，改读
+`PROC_PIDT_SHORTBSDINFO`，记为 `privileged`、带 `uid`，前台组记 -1（不能被认作 CLI 主进程），身份按 PID／PPID／PGID／uid
+复核；本用户的进程被拒仍按原规则失败（`proc_pidinfo_denied_same_user`）。错误输出带出失败的 `pid`。
 查询异常保留原错误码／details，daemon 回复和 request_rejected 事件另带 diagnostics.process_query：helper 的 stdout、stderr、exit_code／signal、killed、error_code、root_pid／helper_pid、单调 elapsed_ms。spawn 未成功或状态未知时用 null；捕获范围仍受原 maxBuffer 限制。身份核对失败仍立即停止，不重试、不回落、不放行终端写入。
 已观察到的退出／僵尸不作为活 leader；多次内核读取不宣称原子快照，原有 hook／Stop 的身份重查保留。
 前台组条件不变；真实启动边界另外记录规范 executable_path 与内核路径比较，实际 argv 原样保留。alias 启动后改指另一目标不能接管原身份，helper 的实际 PID 也登记在 C 的进程记录里。

@@ -4,6 +4,7 @@ sys.dont_write_bytecode = True
 import ctypes as C
 import errno
 import json
+import os
 
 # Public SDK: sys/proc_info.h struct proc_bsdinfo, PROC_PIDTBSDINFO=3.
 # proc_listpids returns bytes; PROC_PPID_ONLY=6 limits each query to one parent.
@@ -14,12 +15,19 @@ class BSDInfo(C.Structure):
         ('pgid',C.c_uint32),('jobc',C.c_uint32),('tty',C.c_uint32),('tpgid',C.c_uint32),
         ('nice',C.c_int32),('start_sec',C.c_uint64),('start_usec',C.c_uint64)]
 
+# sys/proc_info.h struct proc_bsdshortinfo, PROC_PIDT_SHORTBSDINFO=13. macOS answers it for a process
+# another user owns, where PROC_PIDTBSDINFO is denied: a setuid-root /bin/ps that Claude Code runs in its
+# own process tree (T-124 e2e dev run 10). It carries no foreground group and no start time.
+class ShortInfo(C.Structure):
+    _fields_ = [(name,C.c_uint32) for name in ('pid','ppid','pgid','status')]+[('comm',C.c_char*16)]+[
+        (name,C.c_uint32) for name in ('flags','uid','gid','ruid','rgid','svuid','svgid','rfu')]
+
 MAX_PROCESSES=4096
 
 class QueryError(RuntimeError):
-    def __init__(self,operation,number=None):
+    def __init__(self,operation,number=None,pid=None,changed=None):
         super().__init__(operation)
-        self.operation=operation;self.errno=number
+        self.operation=operation;self.errno=number;self.pid=pid;self.changed=changed
 
 class ProcReader:
     def __init__(self,library):
@@ -37,10 +45,23 @@ class ProcReader:
         size=self.library.proc_pidinfo(pid,3,0,C.byref(info),C.sizeof(info))
         number=C.get_errno()
         if size==0 and number==errno.ESRCH:return None
-        if size!=C.sizeof(info):raise QueryError('proc_pidinfo_failed_or_short',number)
+        if size==0 and number==errno.EPERM:info=self.privileged(pid)
+        elif size!=C.sizeof(info):raise QueryError('proc_pidinfo_failed_or_short',number,pid)
+        if info is None:return None
         if info.pid!=pid:raise QueryError('proc_pidinfo_identity_mismatch')
         if info.status==5 or info.flags&4:return None  # SZOMB / PROC_FLAG_INEXIT.
         if info.status not in (1,2,3,4):raise QueryError('proc_pidinfo_invalid_state')
+        return info
+
+    # A denial is accepted only for a process running as another user; a denied process of our own
+    # user still fails the query.
+    def privileged(self,pid):
+        info=ShortInfo();C.set_errno(0)
+        size=self.library.proc_pidinfo(pid,13,0,C.byref(info),C.sizeof(info))
+        number=C.get_errno()
+        if size==0 and number==errno.ESRCH:return None
+        if size!=C.sizeof(info):raise QueryError('proc_pidinfo_failed_or_short',number,pid)
+        if info.uid==os.geteuid():raise QueryError('proc_pidinfo_denied_same_user',errno.EPERM,pid)
         return info
 
     def read(self,pid):
@@ -52,13 +73,17 @@ class ProcReader:
         if size<=0 or size>=C.sizeof(path):raise QueryError('proc_pidpath_failed_or_truncated',number)
         after=self.bsd(pid)
         if after is None:return None
-        identity=lambda value:(value.pid,value.ppid,value.pgid,value.tpgid,value.start_sec,value.start_usec)
-        if identity(before)!=identity(after):raise QueryError('process_identity_changed_during_query')
+        identity=lambda value:((value.pid,value.ppid,value.pgid,value.uid) if isinstance(value,ShortInfo) else
+                               (value.pid,value.ppid,value.pgid,value.tpgid,value.start_sec,value.start_usec))
+        if identity(before)!=identity(after):raise QueryError('process_identity_changed_during_query',None,pid,['read',identity(before),identity(after)])
         current=identity(after)
-        if pid in self.identities and self.identities[pid]!=current:raise QueryError('process_identity_changed_during_query')
+        if pid in self.identities and self.identities[pid]!=current:raise QueryError('process_identity_changed_during_query',None,pid,['reread',self.identities[pid],current])
         self.identities[pid]=current
         command=path.value.decode('utf-8',errors='strict')
         if not command.startswith('/'):raise QueryError('absolute_executable_path_required')
+        if isinstance(after,ShortInfo):
+            # Its foreground group is not readable: tpgid -1 never names it the CLI's leader.
+            return {'pid':pid,'ppid':after.ppid,'pgid':after.pgid,'tpgid':-1,'command':command,'privileged':True,'uid':after.uid}
         return {'pid':pid,'ppid':after.ppid,'pgid':after.pgid,'tpgid':C.c_int32(after.tpgid).value,'command':command}
 
     def children(self,pid):
@@ -91,7 +116,7 @@ def snapshot(root_pid,reader):
         if fresh is None:
             if row['pid']==root_pid:return []
             continue
-        if fresh!=row:raise QueryError('process_identity_changed_during_query')
+        if fresh!=row:raise QueryError('process_identity_changed_during_query',None,row['pid'],['row',row,fresh])
         current.append(fresh)
     return current
 
@@ -106,5 +131,5 @@ def main():
 if __name__=='__main__':
     try:main()
     except Exception as error:
-        sys.stderr.write(json.dumps({'error':'process_query_failed','operation':getattr(error,'operation',type(error).__name__),'errno':getattr(error,'errno',None)})+'\n')
+        sys.stderr.write(json.dumps({'error':'process_query_failed','operation':getattr(error,'operation',type(error).__name__),'errno':getattr(error,'errno',None),'pid':getattr(error,'pid',None),'changed':getattr(error,'changed',None)})+'\n')
         raise SystemExit(2)

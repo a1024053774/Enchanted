@@ -20,7 +20,8 @@ export function resumeArgv(record: Record<string, any>, native: string | null): 
       argv.lastIndexOf("--session-id") === selector && !argv.includes("--resume"), "restore_session_selector_invalid");
     argv[selector] = "--resume";
   } else {
-    requireValue(record.role === "worker" || record.role === "reviewer", "restore_cli_unsupported");
+    // A Codex monitor (T-124) binds its session the same way; the argv is recorded when the session is bound.
+    requireValue(["worker", "reviewer", "monitor"].includes(record.role), "restore_cli_unsupported");
     requireValue(!argv.includes("resume"), "restore_session_selector_invalid");
     argv.push("resume", native);
   }

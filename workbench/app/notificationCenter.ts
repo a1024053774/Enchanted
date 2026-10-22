@@ -1,7 +1,10 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export type AppNotice = { id: string; launch: string; project: string; role: string; task: string | null };
+// question: an agent waits for the user's answer. quota: a terminal controller's CLI hit its usage limit (T-124).
+export type AppNotice = { id: string; kind: 'question' | 'quota'; launch: string; project: string; role: string; task: string | null;
+  resets_at?: string | null };
+export type QuotaRow = { role_request: string; launch: string; project: string; role_label: string; resets_at: string | null; since: string };
 export type NotificationPreference = 'notifications' | 'dockBadges';
 
 // Consume the admitted sidebar state. Question trust belongs to T-108, never
@@ -23,14 +26,20 @@ export class NotificationCenter {
     return settings[preference] === undefined ? true : settings[preference] === true;
   }
 
-  observe(agents: { id: string; state: string; question_id?: string | null; project: string; role_label: string; task: string | null }[]): AppNotice[] {
-    const pending = new Map(agents.filter(agent => agent.state === 'waiting_user_answer' && agent.question_id)
-      .map(agent => [agent.question_id!, agent]));
-    this.waiting = pending.size;
+  observe(agents: { id: string; state: string; question_id?: string | null; project: string; role_label: string; task: string | null }[],
+    quota: QuotaRow[] = []): AppNotice[] {
+    const questions = agents.filter(agent => agent.state === 'waiting_user_answer' && agent.question_id);
+    this.waiting = questions.length;
+    const pending = new Map<string, AppNotice>([
+      ...questions.map(agent => [agent.question_id!, { id: agent.question_id!, kind: 'question', launch: agent.id, project: agent.project,
+        role: agent.role_label, task: agent.task }] as const),
+      // One notice per time a controller runs out; a later run-out after recovery is a new notice.
+      ...quota.map(row => [`quota:${row.role_request}:${row.since}`, { id: `quota:${row.role_request}:${row.since}`, kind: 'quota',
+        launch: row.launch, project: row.project, role: row.role_label, task: null, resets_at: row.resets_at }] as const)]);
     for (const id of this.active.keys()) if (!pending.has(id)) this.active.delete(id);
     const enabled = this.setting();
-    for (const [id, agent] of pending) {
-      if (enabled && !this.seen.has(id)) this.active.set(id, { id, launch: agent.id, project: agent.project, role: agent.role_label, task: agent.task });
+    for (const [id, notice] of pending) {
+      if (enabled && !this.seen.has(id)) this.active.set(id, notice);
       this.seen.add(id); // Disabled observations must not replay when re-enabled.
     }
     if (!enabled) this.active.clear();

@@ -16,6 +16,9 @@ description: 在 Enchanted 工作台的终端里，用户让你担任主控（�
    3. `{"command":"dispatch","task":"<任务>","runtimeMode":"workspace-write","model":"<模型>","effort":"<强度>"}`：后台新开窗格启动 worker，它出现在侧栏你的下面。
    4. 用 `{"command":"status","task":"<任务>"}` 看进度，不要直接往 worker 的窗格里打字。`state` 变成 `submitted` 后发 `{"command":"verify","task":"<任务>"}`：门禁跑机械检查，再新开一个只读审查会话。
    5. `state` 变成 `verified`（审查结论“可合并”）后，把打分写成 JSON 文件：`{"result":"通过","boundary_discipline":0-3,"boundary_reason":"…","engineering_taste":0-3,"engineering_reason":"…","notes":"…"}`，再发 `{"command":"integrate","task":"<任务>","score_file":"<打分文件路径>"}` 集成到工作分支。门禁拒绝时读它给的 `error`，不要绕开。
-5. 不再担任时运行 `a2a release`。
+   6. 也可以用一条 `{"command":"run","task":"<任务>","runtimeMode":"workspace-write","wait_seconds":3600,"model":"<模型>","effort":"<强度>"}` 自动走完派发、验收、审查；它会一直等到任务结束才返回，运行时把 Bash 工具的超时设得足够长，或放到后台运行。审查通过后仍由你按上一步打分集成；你的身份结束或额度用完时，run 自己经门禁集成，评分记为“未评分”。
+5. 回答 worker 用 `issue` 上报的问题：`{"command":"issues","task":"<任务>"}` 看问题，`{"command":"answer_issue","task":"<任务>","issue":"<问题 id>","answer":"…"}` 回答。答案记为你（主控）的回答，不算用户说的话。涉及范围、验收条件、权限、不可逆操作的问题，先问用户再答。
+6. 需要一个只读的观察会话时：`{"command":"attach","task":"<任务>","role":"monitor","instructions":"<说明文件路径>"}`，可加 `cli`（`Codex` 或 `Claude Code`）、`model`、`effort`。它出现在侧栏你的下面，只读，不改文件。
+7. 不再担任时运行 `a2a release`。已经派出的 worker、run 与 monitor 不受影响，会继续做完；你的身份结束后这个终端不能再派新的活。
 
 没有批准的身份时，门禁会拒绝主控命令；不要绕开 `a2a` 直接改后台的数据目录。

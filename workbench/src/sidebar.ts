@@ -4,6 +4,7 @@ import { codexSessionOrigin } from './paneRecovery.ts';
 import type { OrchestrationStore } from './store.ts';
 import { questionState, projectQuestions } from './questions.ts';
 import type { RoleRequests } from './roleRequests.ts';
+import type { QuotaState } from './controllerQuota.ts';
 
 export type AgentState = 'running' | 'waiting_user_answer' | 'waiting_controller_answer' | 'idle' | 'ended' | 'unrestored' | 'unknown';
 export const stateLabels: Record<AgentState, string> = {
@@ -106,7 +107,7 @@ export async function projectCatalog(gates: any, store: OrchestrationStore) {
   }));
 }
 
-export async function sidebarSnapshot(gates: any, store: OrchestrationStore, panes: any, roleRequests: RoleRequests) {
+export async function sidebarSnapshot(gates: any, store: OrchestrationStore, panes: any, roleRequests: RoleRequests, quota: QuotaState[] = []) {
   const launches = store.launches().filter(record => record.role !== 'shell');
   const assignments = store.db.prepare(`SELECT d.launch,q.launch AS parent,q.input,r.data AS result
     FROM dispatch_records d JOIN relay_results r ON json_extract(r.data,'$.entry.id')=json_extract(d.data,'$.inbox_entry')
@@ -200,7 +201,9 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     ['not_confirmed', 'asker_gone'].includes(row.ended_reason ?? '') && Date.now() - Date.parse(row.decided_at) < 5 * 60_000 &&
     !current.slice(index + 1).some(later => later.launch === row.launch))
     .map(row => ({ ...requestView(row), decided_at: row.decided_at }));
-  return { projects, agents: treeAgents, role_requests: pendingRequests, granted_role_requests: grantedRequests, unconfirmed_role_requests: unconfirmed, gaps: [
+  // Approved controllers whose CLI hit its usage limit: the workbench announces them (T-124).
+  const controllerQuota = quota.map(row => ({ ...row, role_label: roleLabel({ role: 'controller', preset: row.role }) }));
+  return { projects, agents: treeAgents, controller_quota: controllerQuota, role_requests: pendingRequests, granted_role_requests: grantedRequests, unconfirmed_role_requests: unconfirmed, gaps: [
     '等待主控回答：T-095 需要 Herdr 屏幕与状态互证；本工作台不调用 Herdr，当前显示未知。',
     '未保存父 launch、父会话缺失或关系冲突时显示未归属；不回填旧会话。',
     '经角色申请成为主控的项目终端没有结构化回合信号，状态显示未知。',

@@ -193,7 +193,7 @@ function registerHandlers() {
       updateDockBadge();
       throw error;
     }
-    const notices = notificationCenter(context).observe(result.agents);
+    const notices = notificationCenter(context).observe(result.agents, result.controller_quota);
     updateDockBadge();
     return { ...result, notices, notifications: notificationCenter(context).setting(),
       dockBadges: notificationCenter(context).setting(undefined, 'dockBadges') };

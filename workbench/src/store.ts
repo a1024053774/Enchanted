@@ -2,7 +2,10 @@ import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { executionRoles, executionRole, executionOverrides, factoryExecution, type ExecutionRole, type ExecutionOverrides, type ExecutionSelection } from './executionSettings.ts';
-export type DispatchSource = "executor" | "gate" | "inbox";
+// "user": the user's own answer from the UI, labelled as theirs in the pane (T-124).
+export type DispatchSource = "executor" | "gate" | "inbox" | "user";
+// The sender a worker sees on each dispatched message; a user's answer is labelled as the user's (T-124).
+const dispatchLabel = (source: DispatchSource) => source === "gate" ? "门禁" : source === "user" ? "用户" : "主控";
 export type DispatchItem = { id: string; seq: number; source: DispatchSource; text: string; registered_at: string;
   inbox_entry?: string; sender?: string; parent_launch?: string | null; context?: { kind: string; rejection_id: string } };
 
@@ -115,7 +118,7 @@ export class OrchestrationStore {
   }
   private dispatchItem(row: any): DispatchItem {
     const data = JSON.parse(String(row.data));
-    return { ...data, id: String(row.id), seq: Number(row.seq), text: `⟦${data.source === "gate" ? "门禁" : "主控"} #${row.seq}⟧\n${data.text}` };
+    return { ...data, id: String(row.id), seq: Number(row.seq), text: `⟦${dispatchLabel(data.source)} #${row.seq}⟧\n${data.text}` };
   }
   inboxDispatch(entry: string): (DispatchItem & { launch: string }) | undefined {
     const row = this.db.prepare("SELECT * FROM dispatch_records WHERE json_extract(data,'$.inbox_entry')=?").get(entry);
@@ -135,7 +138,7 @@ export class OrchestrationStore {
     const seq = Number(this.db.prepare("INSERT INTO dispatch_records(id,launch,data) VALUES (?,?,?)")
       .run(id, launch, JSON.stringify({ text: canonicalText, registered_at, source, parent_launch: parentLaunch ?? null, ...(context ? { context } : {}),
         ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender } : {}) })).lastInsertRowid);
-    return { id, seq, source, text: `⟦${source === "gate" ? "门禁" : "主控"} #${seq}⟧\n${canonicalText}`, registered_at, parent_launch: parentLaunch ?? null, ...(context ? { context } : {}),
+    return { id, seq, source, text: `⟦${dispatchLabel(source)} #${seq}⟧\n${canonicalText}`, registered_at, parent_launch: parentLaunch ?? null, ...(context ? { context } : {}),
       ...(inbox ? { inbox_entry: inbox.id, sender: inbox.sender } : {}) };
   }
   read(task?: string) {

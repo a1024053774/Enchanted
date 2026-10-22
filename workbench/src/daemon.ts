@@ -1,7 +1,8 @@
 import { createServer } from "node:net";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
-import { A2AGates, Refusal } from "./gates/core.ts";
+import { A2AGates, Refusal, type TerminalController } from "./gates/core.ts";
+import { ControllerQuota, type QuotaState } from "./controllerQuota.ts";
 import { A2AGateRequest } from "./contracts/a2aGates.ts";
 import { OrchestrationStore } from "./store.ts";
 import { Panes, spawnHelper, type LaunchConfig } from "./panes.ts";
@@ -45,6 +46,16 @@ export async function serve(
   gates.openedProjectRepo = project => store.openedProjects().find(opened => opened.project_id === project)?.repo;
   const relay = new RequestRelay(store);
   const roleRequests = new RoleRequests(store, launch => panes.terminalAlive(launch));
+  // A terminal controller's usage limit, read from its own session log (T-124).
+  const quota = new ControllerQuota(store);
+  const quotaTimer = setInterval(() => {
+    try { quota.tick(roleRequests.all().filter(roleRequest => roleRequest.state === "approved")); }
+    catch (error) { console.error(JSON.stringify({ error: "controller_quota_failed", reason: String(error) })); }
+  }, 5000);
+  quotaTimer.unref();
+  const terminalController = (launch: string, roleRequest: RoleRequest): TerminalController => ({
+    launch, role_request: roleRequest.id, role: roleRequest.role,
+    state: () => roleRequests.approved(launch)?.id !== roleRequest.id ? "ended" : quota.exhausted(roleRequest.id) ? "quota_exhausted" : "active" });
   const feedbackText = (receipts: unknown[]) =>
     "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2);
   const settleInboxFeedback = async () => {
@@ -123,6 +134,7 @@ export async function serve(
   };
   const shutdown = async () => {
     stopping = true;
+    clearInterval(quotaTimer);
     // Requests and deferred receipt writes retain their stores until their
     // final results are durable. run observes beginShutdown at safe boundaries.
     if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });
@@ -169,10 +181,9 @@ export async function serve(
   // for this project. Inbox entries and stop carry no project yet and ignore a task
   // field, so a terminal role cannot reach them (it would see, acknowledge or stop
   // another project's work).
-  // answer_issue(s) record their text as the user's input, and attach and run act
-  // after the role may have ended; a terminal role does not get them.
-  const taskCommands = new Set<string>(A2AGateRequest.fields.command.literals.filter(command =>
-    !["answer_issue", "answer_issues", "attach", "run"].includes(command)));
+  // The gate records a terminal controller's answers as the controller's, and run and attach
+  // carry its identity so the work they started outlives the role (T-124).
+  const taskCommands = new Set<string>(A2AGateRequest.fields.command.literals);
   // A task id that does not exist yet has no project. Card drafts saved under it
   // belong to the project whose terminal saved its first version; card_show and
   // create on a draft need that ownership, card_template and card_validate are stateless.
@@ -192,7 +203,7 @@ export async function serve(
       // A request lives only while its asker waits on this connection, so it can
       // never be approved after the agent stopped listening.
       if (!Number.isSafeInteger(input.wait_seconds) || input.wait_seconds < 1 || input.wait_seconds > 600) throw new Refusal("invalid_wait_seconds");
-      const requested = roleRequests.request(terminal, input.role, input.cli);
+      const requested = roleRequests.request(terminal, input.role, input.cli, { session: input.native_session, home: input.native_home });
       const state = () => roleRequests.all().find(row => row.id === requested.id)!;
       // The connection closing (any signal, including SIGKILL) settles the request at
       // once: a pending one is withdrawn, and a grant the asker never received ends.
@@ -254,7 +265,7 @@ export async function serve(
       assertActive: async () => {
         if (stopping) throw new Refusal("daemon_stopping");
         if (roleRequests.approved(terminal.id)?.id !== roleRequest.id) throw new Refusal("role_request_ended");
-      } }));
+      }, controller: terminalController(terminal.id, roleRequest) }));
     // The gate's version check lets exactly one first save succeed; its project owns the draft.
     if (result.ok && input.command === "card_save" && input.expected_version === 0 && draftOwner(input.task) === undefined)
       store.event("card_draft_owned", { task: input.task, project: roleRequest.project }, { id: terminal.id, task: null });
@@ -290,7 +301,7 @@ export async function serve(
     }
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
     if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes, roleRequests) };
-    if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes, roleRequests) };
+    if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes, roleRequests, quota.current()) };
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
         if ((input.project ?? null) !== record.project) throw new Refusal("launch_project_mismatch");

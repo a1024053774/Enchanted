@@ -620,7 +620,7 @@ try {
   }
   if (['sidebar','questions','flow','questions-flow'].includes(values.contract)) {
     for (const [name, mutantSource, expected] of [
-      ['notification', candidate.replace('notificationCenter(context).observe(result.agents)', '[]'), 'Only entering waiting-user emits one notification'],
+      ['notification', candidate.replace('notificationCenter(context).observe(result.agents, result.controller_quota)', '[]'), 'Only entering waiting-user emits one notification'],
       ['history_credentials', candidate.replace('launch, viewOnly: true', 'launch, viewOnly: false'), 'Transient controller view must not issue an input credential'],
     ]) {
       assert.notEqual(mutantSource, candidate);

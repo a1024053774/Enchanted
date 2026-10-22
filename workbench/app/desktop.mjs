@@ -25,6 +25,7 @@ async function workerLaunchConfig(packaged) {
   return { ...(claude ? { claude_bin: claude } : {}),
     ...(codex ? { codex_bin: codex, codex_home: join(homedir(), '.codex') } : {}), role_card: join(app.getAppPath(), 'roles/worker.md'),
     role_card_revision: revision, reviewer_role_card: join(app.getAppPath(), 'roles/reviewer.md'), reviewer_role_card_revision: revision,
+    monitor_role_card: join(app.getAppPath(), 'roles/monitor.md'), monitor_role_card_revision: revision,
     code_revision: revision, turn_limit: 6,
     hook_authorization: 'Enchanted product launch: worker hooks are passed only through each session\'s launch arguments (T-071, T-122)' };
 }

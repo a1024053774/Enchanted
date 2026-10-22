@@ -19,8 +19,15 @@ class Call:
 def library(kind):
  calls={'info':0,'path':0,'children':0}
  def info(pid,flavor,arg,buffer,size):
-  calls['info']+=1;assert flavor==3
-  if kind=='denied_info':C.set_errno(errno.EPERM);return 0
+  calls['info']+=1;assert flavor in (3,13)
+  if flavor==13:
+   # The short read after a denial: another user's process (privileged) or our own (denied_info).
+   assert kind in ('denied_info','privileged','privileged_short','privileged_gone')
+   if kind=='privileged_short':return size-1
+   if kind=='privileged_gone':C.set_errno(errno.ESRCH);return 0
+   value=mod.ShortInfo();value.status=2;value.pid=pid;value.ppid=21;value.pgid=22;value.uid=0 if kind=='privileged' else mod.os.geteuid()
+   C.memmove(buffer,C.byref(value),size);return size
+  if kind in ('denied_info','privileged','privileged_short','privileged_gone'):C.set_errno(errno.EPERM);return 0
   if kind=='gone':C.set_errno(errno.ESRCH);return 0
   if kind=='short_info':return size-1
   value=mod.BSDInfo();value.status=2;value.pid=pid;value.ppid=21;value.pgid=22;value.tpgid=0xffffffff if kind=='no_tty' else 22;value.start_sec=120;value.start_usec=7
@@ -45,15 +52,16 @@ def library(kind):
   return 0
  value=types.SimpleNamespace(proc_pidinfo=Call(info),proc_pidpath=Call(path),proc_listpids=Call(children))
  return value,calls
-for kind in ('healthy','no_tty','gone','zombie','exiting','invalid_state','denied_info','short_info','wrong_pid','reused_pid','reused_later','denied_path','denied_children','full_children','odd_children','duplicate_children'):
+for kind in ('healthy','no_tty','gone','zombie','exiting','privileged','privileged_gone','invalid_state','denied_info','privileged_short','short_info','wrong_pid','reused_pid','reused_later','denied_path','denied_children','full_children','odd_children','duplicate_children'):
  lib,calls=library(kind);reader=mod.ProcReader(lib);error=None;row=None
  try:
   row=reader.read(22);children=reader.children(22)
   if kind=='reused_later':reader.read(22)
  except mod.QueryError as value:error=value
- if kind in ('healthy','no_tty','gone','zombie','exiting'):
+ if kind in ('healthy','no_tty','gone','zombie','exiting','privileged','privileged_gone'):
   assert error is None
-  if kind in ('gone','zombie','exiting'):assert row is None
+  if kind in ('gone','zombie','exiting','privileged_gone'):assert row is None
+  elif kind=='privileged':assert row=={'pid':22,'ppid':21,'pgid':22,'tpgid':-1,'command':'/fixture/agent','privileged':True,'uid':0},row
   else:assert row=={'pid':22,'ppid':21,'pgid':22,'tpgid':-1 if kind=='no_tty' else 22,'command':'/fixture/agent'}
  else:assert error is not None,'bad_native_observation_must_fail: '+kind
  checks.append({'case':kind,'rejected':error is not None,'error':getattr(error,'operation',None)})
@@ -82,6 +90,8 @@ fields={'pid':'pbi_pid','ppid':'pbi_ppid','pgid':'pbi_pgid','tpgid':'e_tpgid','s
 text='#include <stddef.h>\n#include <sys/proc.h>\n#include <sys/proc_info.h>\n_Static_assert(SZOMB==5 && PROC_FLAG_INEXIT==4,"exit flags");\n'
 text+='_Static_assert(sizeof(struct proc_bsdinfo)=='+str(C.sizeof(mod.BSDInfo))+',"BSD size");\n'
 for local,native in fields.items():text+='_Static_assert(offsetof(struct proc_bsdinfo,'+native+')=='+str(getattr(mod.BSDInfo,local).offset)+',"BSD offset");\n'
+text+='_Static_assert(PROC_PIDT_SHORTBSDINFO==13 && sizeof(struct proc_bsdshortinfo)=='+str(C.sizeof(mod.ShortInfo))+',"short size");\n'
+for local in ('pid','ppid','pgid','status','flags','uid'):text+='_Static_assert(offsetof(struct proc_bsdshortinfo,pbsi_'+local+')=='+str(getattr(mod.ShortInfo,local).offset)+',"short offset");\n'
 result=subprocess.run(['/usr/bin/clang','-fsyntax-only','-x','c','-'],input=text,text=True,capture_output=True)
 assert result.returncode==0,'SDK_BSDInfo_ABI_must_match: '+result.stderr
 checks.append({'case':'public_SDK_ABI','sizeof':C.sizeof(mod.BSDInfo),'compile_exit':result.returncode,'observer_executions':0})

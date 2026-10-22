@@ -5,7 +5,6 @@
 
 import { Schema } from "effect";
 import type { TaskCard, ProjectQuality } from "../gates/taskCards.ts";
-import { ModelSelection } from "./modelSelection.ts";
 import { A2AMemberRole } from "./a2aMembership.ts";
 import {
   A2ASessionPreset,
@@ -54,7 +53,7 @@ export const A2AGateRequest = Schema.Struct({
   thread: Schema.optional(Schema.String),
   role: Schema.optional(A2AMemberRole),
   preset: Schema.optional(A2ASessionPreset),
-  modelSelection: Schema.optional(ModelSelection),
+  cli: Schema.optional(Schema.Literals(["Codex", "Claude Code"])),
   model: Schema.optional(Schema.String),
   effort: Schema.optional(Schema.String),
   fast: Schema.optional(Schema.Boolean),
@@ -279,8 +278,15 @@ export interface A2AAttachment {
   task_id: string;
   thread_id: string;
   role: typeof A2AMemberRole.Type;
-  modelSelection: typeof ModelSelection.Type;
-  runtime_mode: "approval-required" | "full-access" | "workspace-write";
+  // Workbench attachments are read-only monitors (T-124); the model selection comes from
+  // the monitor role settings, overridden by what the controller asked for.
+  cli: "Codex" | "Claude Code";
+  // Its own empty working directory: a monitor in the repository root would share that folder with
+  // a Codex controller the user runs there, and their session logs could not be told apart.
+  workspace?: string;
+  model?: string;
+  effort?: string;
+  fast?: boolean;
   state: "creating" | "active" | "ended";
   ended_at?: string;
   preset?: A2ASessionPreset;
@@ -300,6 +306,10 @@ export interface A2ARun {
   error?: string;
   details?: unknown;
   cleanup_failure?: unknown;
+  // The terminal controller that started this run (T-124), and when its role was found
+  // ended or out of quota; the run then integrates without the controller's score.
+  initiator?: { launch: string; role_request: string; role: string };
+  initiator_unavailable?: { state: "ended" | "quota_exhausted"; at: string };
 }
 
 export interface A2AUserInputObserver {

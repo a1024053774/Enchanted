@@ -355,8 +355,11 @@ def main():
         report['other_terminal_draft_errors'] = squatted
         check('other_terminal_draft_refused', set(squatted.values()) == {'card_draft_not_owned'} and
               request('card_show', terminal_o, task='oth-3', card_version=1)['ok'], squatted)
-        no_runtime = {command: request(command, terminal_a, task='own-1').get('error') for command in ('answer_issue', 'answer_issues', 'attach', 'run')}
-        check('user_answer_and_run_commands_not_for_terminals', set(no_runtime.values()) == {'role_command_not_scoped'}, no_runtime)
+        # Opened to terminal controllers by T-124: no longer refused as unscoped; each is still refused, for its missing arguments.
+        opened = {command: request(command, terminal_a, task='own-1') for command in ('answer_issue', 'answer_issues', 'attach', 'run')}
+        report['opened_commands'] = {command: result.get('error') for command, result in opened.items()}
+        check('answer_and_run_commands_open_to_terminals', all(not result['ok'] and result.get('error') not in (None, 'role_command_not_scoped')
+                                                             for result in opened.values()), report['opened_commands'])
         code = type_line(a, f"a2a call '{{\"command\":\"status\",\"task\":\"no-such-task\"}}' > {out}/a-task.json", 'T121-TASK')
         check('unknown_task_refused_before_gate', code == 1 and result_file('a-task.json')['ok'] is False, result_file('a-task.json'))
         code = type_line(a, f'a2a request ideation > {out}/a-second.json', 'T121-SECOND')

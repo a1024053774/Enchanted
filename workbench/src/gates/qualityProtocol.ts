@@ -97,7 +97,12 @@ export function scoreRecords(raw: string): Record<string, any>[] {
     const checks = row.schema === 1 ? v1Checks : v2Checks;
     if (row.source === "user") exact(row.data, ["boundary_discipline", "boundary_reason", "engineering_taste", "engineering_reason", "notes"], field + ".user_data");
     try {
-      executorScore(row.source === "user" ? { result: "通过", ...row.data } : row.data,
+      // A run integrated after its terminal controller was gone records no score, and why (T-124).
+      // Only the gate writes this form; executorScore still refuses it in a score file.
+      if (row.source === "executor" && row.data?.result === "未评分") {
+        exact(row.data, ["result", "reason"], "score");
+        requireValue(["主控身份已结束", "主控额度用完"].includes(row.data.reason), "score.reason");
+      } else executorScore(row.source === "user" ? { result: "通过", ...row.data } : row.data,
         row.source === "user" || row.data?.result === "通过" ? "integrate" : "abandon");
     } catch (error) {
       if (error instanceof QualityProtocolError) throw new QualityProtocolError(field + "." + error.field);
