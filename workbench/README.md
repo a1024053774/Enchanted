@@ -455,6 +455,9 @@ K 按该 attempt 已记录的审查意图递增，同 C 的有效审查复用不
 每次审查另有 `<state>/review-copies/<review_id>` 一次性候选副本；它不登记为 Git worktree，且不含 `.git`。
 审查结论入库后，确认原 reviewer 已停止且归档，再核对候选提交、审查目录、worker 目录（相对审查开始时的快照）与共享引用未变，
 删除候选副本，最后删除审查目录及 Git worktree 登记。
+同一仓库里别的任务可以同时在跑（T-131），所以共享引用的核对放过两类改动：别的任务自己的引用（它的 attempt 分支、
+`refs/a2a/attempts/<任务>/`、`refs/a2a/verifications/<任务>/`）；工作分支经门禁记下的集成，从审查开始时的值一路推进到当前值。
+其余引用有任何改动都拒绝。已知边界：审查期间用户自己往工作分支提交，仍按引用被改拒收（T-131 之前就是这样）。
 清理事件单独追加，不改写 `review_result` 的审查对象，因此目录删除不改变 R8 沿用结论的身份绑定。
 脏目录、未知 HEAD、退出未确认或清理结果未知时保留可核对的现场，沿用审查生命周期的暂停和问题上报语义。
 
@@ -609,7 +612,7 @@ Claude reviewer 的整串 argv 由门禁逐位核对，settings 只能含 permis
 打包的 `roles/worker.md` 与 `roles/reviewer.md`，版本为打包时的源码提交。登录 shell 里找得到 `codex` 时，
 产品配置同时给出它和用户自己的 `~/.codex`（T-127，用户裁定“直接用我的~/.codex”）；找不到就不配 Codex，
 派 Codex worker 会被拒绝（`launch_config_required`）。
-worker名额释放及新attempt的原生记录归属由T-077联验；此卡保留S1的single_worker_slice约束。
+后台同时可以跑多个 worker（T-131 去掉了 S1 的 `single_worker_slice` 限制），不设并发上限；同一项目里允许路径有交集的派发，仍须主控给出 `overlap-reason`。
 旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
 
 真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
