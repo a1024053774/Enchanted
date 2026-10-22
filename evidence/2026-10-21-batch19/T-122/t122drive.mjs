@@ -52,7 +52,7 @@ try {
   await until(`(document.querySelector('section.pane .xterm-rows')?.innerText??'').includes('demo')`, 'shell prompt', 30000); await sleep(2000);
   await focus(); await send('Page.bringToFront');
   await type(`claude --model ${model}`); await enter(); act('typed claude command', `claude --model ${model}`);
-  let asked = false, approved = false, dispatched = false, prompts = 0, nudges = 0, quietSince = null, workerSeen = false, reviewerSeen = false;
+  let lastText = '', asked = false, approved = false, dispatched = false, prompts = 0, nudges = 0, quietSince = null, workerSeen = false, reviewerSeen = false;
   const end = Date.now() + 25 * 60_000;
   while (Date.now() < end) {
     await sleep(1000);
@@ -89,15 +89,22 @@ try {
     const current = await taskState();
     if (current !== log.states.at(-1)) { log.states.push(current); act('task state', current); }
     if (current === 'accepted') { await sleep(3000); await shot('08-accepted'); log.checks.push('task_accepted'); break; }
-    // Idle: Claude shows "esc to interrupt" while it works; quiet for 8 s with no prompt means the turn ended.
-    if (approved && !/esc to interrupt/.test(text)) {
+    // Idle: Claude 2.1.307 shows a spinner line such as "✻ Spinning… (1m 19s · ↓ 7.3k tokens)" while it works,
+    // not always "esc to interrupt" (gui-04 nudged a working controller every 10 s and quit 40 s after dispatch).
+    // A turn has ended when neither shows and the screen stays unchanged; after dispatch the controller may wait
+    // on the worker and reviewer, so it gets 60 s of quiet per nudge.
+    const busy = /esc to interrupt|\(\d+(m \d+)?s · /.test(text);
+    // The user's status line ticks a countdown, so digits are left out of the comparison.
+    const still = text.replace(/\d+/g, '');
+    if (approved && !busy && still === lastText) {
       quietSince ??= Date.now();
-      if (Date.now() - quietSince < 8000) continue;
+      if (Date.now() - quietSince < (dispatched ? 60000 : 8000)) continue;
       quietSince = null;
       if (!dispatched) { await shot('05b-controller-ready'); await focus(); await type(dispatchText); await sleep(500); await enter(); dispatched = true; act('typed dispatch request', dispatchText); continue; }
       if (nudges < 4) { nudges++; await focus(); await type('继续，直到 T-1 集成到 main。'); await sleep(400); await enter(); act('typed nudge', String(nudges)); continue; }
       log.failures.push('controller stopped before integration'); break;
     } else quietSince = null;
+    lastText = text.replace(/\d+/g, '');
   }
   if (!approved) log.failures.push('no roleRequest banner appeared');
   if (!log.checks.includes('task_accepted')) log.failures.push('task not accepted: ' + JSON.stringify(log.states));
