@@ -20,6 +20,7 @@
 --revision 在该版本源码上跑（修前没有这两页与命令）；--mutant 跑已知坏实现。
 """
 import argparse
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
@@ -47,7 +48,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['intervention-unmarked', 'requested-as-observed', 'intervention-ignored', 'error-shown-as-empty'])
+    target.add_argument('--mutant', choices=['intervention-unmarked', 'requested-as-observed', 'intervention-ignored', 'error-shown-as-empty', 'range-by-created-only'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[])
@@ -58,6 +59,9 @@ def main():
         'requested-as-observed': [('src/metrics.ts', "model: facts ? [...facts.models].join(' / ') : 'unknown',", "model: record.model_requested ?? 'unknown',")],
         # T-134: a delivery somebody intervened in counted as first-time.
         'intervention-ignored': [('src/metrics.ts', 'score.facts.delivery_rounds === 1 && score.facts.human_interventions === 0 &&', 'score.facts.delivery_rounds === 1 &&')],
+        # Review 01: a session counted only when it started in the range.
+        'range-by-created-only': [('src/metrics.ts', ".filter(record => (!range.project || record.project === range.project) && (inTime(record.created_at) || observed.has(record.id)))",
+                                   ".filter(record => (!range.project || record.project === range.project) && inTime(record.created_at))")],
         # A failed read shown as no data.
         'error-shown-as-empty': [('app/MetricsPage.tsx', "(reason: unknown) => { if (mounted) setError('指标读取失败：' + String(reason)); }",
                                   "(reason: unknown) => { if (mounted) setMetrics({ model_use: { sessions: [], by_model: [] }, first_time: { integrated: 0, first_time: 0, rate: null, rejections: {} }, attention: [], scores: [] }); }")],
@@ -137,6 +141,8 @@ def main():
 
     def t2_inputs(dispatched):
         # The user answers the worker's issue through the desktop's issue entry, then types in the worker's pane.
+        # From here on is the range of the range check: T-2's worker started before it and has turns after it.
+        report['t_mid'] = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
         views = fixture.wait('T-2 问题进门禁', lambda: fixture.request('issues', fixture.operator, task='T-2')['issues'], 60)
         answered = fixture.request('answer_issue', fixture.operator, task='T-2', issue=views[0]['issue']['id'], answer=ANSWER)
         assert answered.get('ok'), answered
@@ -160,7 +166,7 @@ def main():
         for task, name in FILES.items():
             fixture.card(task, name, f'check_{task}.py', TYPES[task])
         run_task('T-1')
-        run_task('T-2', t2_inputs)
+        t2_worker = run_task('T-2', t2_inputs)['attempt']['runtime_identity']['launch']
         run_task('T-3')
 
         # T-134: the daemon's read command against the hand-computed values.
@@ -182,6 +188,11 @@ def main():
         check('model_use_by_model_and_task_type', by_model == {(SERVED_MODEL, '文档'): 4, (SERVED_MODEL, '测试'): 2, ('unknown', '项目级'): 1}, by_model)
         scores = {row['task_type']: (row['model'], row['attempts'], row['results'], row['boundary_discipline'], row['engineering_taste']) for row in metrics['scores']}
         check('scores_by_executor_and_task_type', scores == {'文档': (SERVED_MODEL, 2, {'通过': 2}, 2.5, 2), '测试': (SERVED_MODEL, 1, {'通过': 1}, 3, 2)}, scores)
+        later = fixture.request('metrics', fixture.operator, project='demo', since=report['t_mid'])
+        whole = next(s for s in sessions if s['launch'] == t2_worker)
+        part = [s for s in later['model_use']['sessions'] if s['launch'] == t2_worker]
+        report['range_check'] = dict(whole_turns=whole['turns'], part=part)
+        check('range_counts_turns_in_range', len(part) == 1 and 1 <= part[0]['turns'] < whole['turns'], report['range_check'])
         empty = fixture.request('metrics', fixture.operator, project='demo', since='2099-01-01T00:00:00.000Z')
         check('no_data_is_null_not_zero', empty.get('ok') and empty['first_time']['rate'] is None and not empty['attention'] and not empty['scores']
               and not empty['model_use']['sessions'], empty)

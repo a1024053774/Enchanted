@@ -8,12 +8,13 @@ const json = (value: unknown) => JSON.parse(String(value));
 const roleNames: Record<string, string> = { worker: 'worker', reviewer: '审查员', monitor: '监视器', ideation: '构思主控', executor: '执行主控' };
 
 export function metricsSnapshot(db: DatabaseSync, range: MetricsRange = {}) {
-  const inRange = (time: string, project: string | null | undefined) =>
-    (!range.project || project === range.project) && (!range.since || time >= range.since) && (!range.until || time < range.until);
+  const inTime = (time: string) => (!range.since || time >= range.since) && (!range.until || time < range.until);
+  const inRange = (time: string, project: string | null | undefined) => (!range.project || project === range.project) && inTime(time);
   const taskTypes = new Map<string, string>();
   for (const row of db.prepare('SELECT id, data FROM tasks').all()) taskTypes.set(String(row.id), json(row.data).card?.task_type ?? '未知');
 
-  // 1. Model use: every session the daemon recorded, with the model and effort its turns were observed with.
+  // 1. Model use: every session the daemon recorded, with the model and effort its turns were observed with. A session
+  // counts when it started or had turns in the range, and only its turns in the range are counted (review 01).
   const observed = new Map<string, { models: Set<string>; efforts: Set<string>; turns: number }>();
   const observe = (launch: string, model: unknown, effort: unknown) => {
     const entry = observed.get(launch) ?? { models: new Set(), efforts: new Set(), turns: 0 };
@@ -22,12 +23,14 @@ export function metricsSnapshot(db: DatabaseSync, range: MetricsRange = {}) {
     entry.turns++;
     observed.set(launch, entry);
   };
-  for (const row of db.prepare("SELECT launch, data FROM orchestration_events WHERE type='native_turn_facts' ORDER BY seq").all()) {
+  for (const row of db.prepare("SELECT time, launch, data FROM orchestration_events WHERE type='native_turn_facts' ORDER BY seq").all()) {
+    if (!inTime(String(row.time))) continue;
     const data = json(row.data);
     observe(String(row.launch), data.model, data.effort);
   }
   // A Codex turn's facts are in its rollout's turn_context record.
-  for (const row of db.prepare("SELECT launch, data FROM orchestration_events WHERE type='native_record' AND json_extract(data,'$.record.type')='turn_context' ORDER BY seq").all()) {
+  for (const row of db.prepare("SELECT time, launch, data FROM orchestration_events WHERE type='native_record' AND json_extract(data,'$.record.type')='turn_context' ORDER BY seq").all()) {
+    if (!inTime(String(row.time))) continue;
     const payload = json(row.data).record?.payload ?? {};
     observe(String(row.launch), payload.model, payload.effort ?? payload.reasoning_effort);
   }
@@ -41,7 +44,7 @@ export function metricsSnapshot(db: DatabaseSync, range: MetricsRange = {}) {
   }
   const sessions = db.prepare('SELECT data FROM launch_records ORDER BY rowid').all().map(row => json(row.data))
     .filter(record => record.role !== 'shell' || controllers.has(record.id))
-    .filter(record => inRange(record.created_at, record.project))
+    .filter(record => (!range.project || record.project === range.project) && (inTime(record.created_at) || observed.has(record.id)))
     .map(record => {
       const facts = observed.get(record.id);
       const controller = controllers.get(record.id);

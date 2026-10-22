@@ -78,9 +78,10 @@ export function MetricsPage({ project }: { project: string | null }) {
       </section>
       <section className="metric-section" data-metric="attention">
         <h3>你的注意力消耗</h3>
+        <p className="record-body">每个集成的任务一行，数的是这个任务全部 attempt 的累计。</p>
         {!metrics.attention.length ? none : <table className="record-table">
           <thead><tr><th>集成的任务</th><th>任务类型</th><th>答题</th><th>审批</th><th>介入</th><th>叫停</th></tr></thead>
-          <tbody>{metrics.attention.map(row => <tr key={row.attempt} data-task={row.task}>
+          <tbody>{metrics.attention.map(row => <tr key={row.task} data-task={row.task}>
             <td>{short(row.task)}</td><td>{row.task_type}</td><td>{row.answers}</td><td>{row.approvals}</td><td>{row.interventions}</td><td>{row.stops}</td></tr>)}</tbody>
         </table>}
       </section>
