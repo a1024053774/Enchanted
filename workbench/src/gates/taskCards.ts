@@ -29,9 +29,10 @@ function check(value: unknown, field: string, message: string): asserts value {
   if (!value) throw new TaskCardError(field, message);
 }
 function object(value: any, fields: string[], field: string) {
-  check(value && typeof value === "object" && !Array.isArray(value), field, "Object required.");
+  // Reasons name the expected fields: a controller only sees the refusal (T-122 gui-02 guessed shapes six times).
+  check(value && typeof value === "object" && !Array.isArray(value), field, `Object with fields ${fields.join(", ")} required.`);
   check(Object.keys(value).length === fields.length && fields.every((key) => Object.hasOwn(value, key)),
-    field, "Fields do not match the task card schema.");
+    field, `Fields must be exactly: ${fields.join(", ")}.`);
 }
 function nonempty(value: unknown, field: string): asserts value is string {
   check(typeof value === "string" && value.trim() && !value.includes("\0"), field, "Nonempty text required.");
@@ -43,7 +44,7 @@ function strings(value: unknown, field: string, minimum = 0): asserts value is s
 
 export function commandArgv(value: unknown, field: string): string[] {
   check(Array.isArray(value) && value.length > 0 &&
-    value.every((arg) => typeof arg === "string" && !arg.includes("\0")), field, "Command argv required.");
+    value.every((arg) => typeof arg === "string" && !arg.includes("\0")), field, 'Command argv required: a nonempty string array such as ["python3", "check.py"].');
   const argv = [...value] as string[];
   nonempty(argv[0], field);
   check(argv.every((arg) => !arg.includes("{worktree}") || arg === "{worktree}"), field,
@@ -149,7 +150,8 @@ export function validateTaskCard(input: unknown, id: string): TaskCard {
       "oracle_paths", "Exact repository file paths or directory prefixes are required.");
   }
   for (const key of ["completion_conditions", "red_commands"] as const) {
-    check(Array.isArray(card[key]) && (key === "red_commands" || card[key].length > 0), key, "Command array required.");
+    check(Array.isArray(card[key]) && (key === "red_commands" || card[key].length > 0), key, key === "red_commands"
+      ? 'Array of {"argv": [...], "test_paths": [...]} required.' : 'Nonempty array of {"argv": ["program", "arg", ...]} required.');
     for (const [i, command] of card[key].entries()) {
       const field = `${key}[${i}]`;
       object(command, key === "red_commands" ? ["argv", "test_paths"] : ["argv"], field);

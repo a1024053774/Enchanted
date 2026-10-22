@@ -282,6 +282,15 @@ class TaskCardsCLI(unittest.TestCase):
             with self.subTest(index=index):
                 self.card_file.write_text(json.dumps(card), encoding='utf-8')
                 self.cli('card_save', '--card', self.card_file, '--expected-version', '0', ok=False, error='invalid_task_card')
+        # T-122 gui-02: a controller sees only the refusal, so it must name the argv field the entry needs.
+        for value in (['python3 check.py'], [{'id': 'C1', 'text': 'python3 check.py exits 0'}],
+                      [{'command': 'python3 check.py'}], [{'argv': 'python3 check.py'}]):
+            with self.subTest(completion_conditions=value):
+                card = copy.deepcopy(self.card)
+                card['completion_conditions'] = value
+                self.card_file.write_text(json.dumps(card), encoding='utf-8')
+                refused = self.cli('card_save', '--card', self.card_file, '--expected-version', '0', ok=False, error='invalid_task_card')
+                self.assertIn('argv', refused['details']['reason'], refused)
         self.save_card()
         self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1')
         # Registration precedes the writer identity and the real claim baseline.

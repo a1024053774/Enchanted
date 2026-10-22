@@ -523,8 +523,8 @@ Claude 的沙箱自己把主仓库整个 `.git` 设为可写，所以 `denyWrite
 一行也在沙箱外，各段提交照样带尾注）。混入任何其他命令的拼接、`git -c`、环境变量前缀、重定向都留在沙箱里，`cd` 与
 `export` 不带到下一条命令（probe-05、审查 03）。沙箱外的提交只执行 a2a 的尾注钩子（`hooks/hook.py`），不执行项目
 自己的 Git 钩子：husky、lefthook、pre-commit 或 `.git/hooks` 里调用项目代码的钩子，执行的是 worker 可改的代码（审查 03
-实测能写出 worktree、移动 main；用户裁定不跑）。门禁在交付时把跳过的钩子记为 `project_hooks_skipped`，Claude 与 Codex
-worker 相同；用户自己在终端里提交不受影响。沙箱外的提交仍会执行用户 `~/.gitconfig` 里的 filter。Claude 的 `$TMPDIR` 仍可写（收回会让每条 shell 命令失败）。任务卡写 Claude Code 时，派发不带的模型与强度取卡上的 executor；回合信号经 SessionStart、UserPromptSubmit、
+实测能写出 worktree、移动 main；用户裁定不跑）。门禁在交付时把跳过的钩子记为 `project_hooks_skipped`（hooks 路径不是目录时，如 `core.hooksPath=/dev/null`，与 Git 一样视为没有钩子），Claude 与 Codex
+worker 相同；用户自己在终端里提交不受影响。沙箱外的提交仍会执行用户 `~/.gitconfig` 里的 filter。Claude 的 `$TMPDIR` 仍可写（收回会让每条 shell 命令失败）。任务卡写 Claude Code 时，派发不带的模型与强度取卡上的 executor（卡的拒绝原因写出期望字段，如完成条件每项为 `{"argv": [...]}`：主控只看得到拒绝，T-122 gui-02 的主控因此猜了六种形状）；回合信号经 SessionStart、UserPromptSubmit、
 Stop、PermissionRequest、PreToolUse、PostToolUse 钩子传入。Claude reviewer 只可写门禁给的一次性候选副本，
 shell 沙箱不另开可写目录；门禁的 `reviewLaunch` 核对这组参数。新 worktree 启动时 Claude 会问是否信任该文件夹：
 按用户裁定，后台只在会话还没收到任何任务时代按“Yes, I trust this folder”，记 `worker_trust_confirm_intent`、
@@ -798,6 +798,7 @@ input_id。粘贴去掉协议包裹后保存文本；终端控制键记 action�
 
 后台登记注入正文时仅移除末尾 CR/LF，与已观察到的 Claude 提交形式一致；保留中间文字与空白。
 UserPromptSubmit 对活动注入与实际 prompt 逐字核对，拼接或中间差异仍阻断，不自动重发。
+真实登录的 Claude 会把长粘贴包成 `\n\n<pasted_content id="X">\n正文\n</pasted_content id="X">\n`（T-122 gui-01 实测）；首尾 id 相同、包内正文与登记正文逐字一致时视为同一提交，其余形式照旧逐字核对（`panes.ts` 的 `claudeSubmittedText`）。
 
 设备查询应答由后台处理，前端用公开 parser 接管查询，避免自动应答混入用户输入。
 按 T-078 执行主控决定 03，前端拦截 DECSET/DECRST 1004；混合序列中的其他模式

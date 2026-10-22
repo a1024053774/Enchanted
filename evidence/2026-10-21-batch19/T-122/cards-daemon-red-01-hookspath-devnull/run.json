@@ -1,0 +1,932 @@
+{
+  "status": "INCOMPLETE",
+  "command": [
+    "test_daemon_gates_e2e.py",
+    "--output",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-21-batch19/T-122/cards-daemon-green-01"
+  ],
+  "tests_run": 1,
+  "failures": 1,
+  "errors": 0,
+  "failure_text": [
+    "Traceback (most recent call last):\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/test_task_cards_e2e.py\", line 312, in test_card_validation_versions_and_claim_snapshot\n    self.submit(a, c)\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/test_task_cards_e2e.py\", line 135, in submit\n    return self.cli('submit', *args, ok=ok, error=error)\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/test_daemon_gates_e2e.py\", line 79, in cli\n    result = super().cli(command, *args, **kwargs)\n  File \"/Users/luckye/Documents/Code/a2a/workbench/tests/test_task_cards_e2e.py\", line 85, in cli\n    self.assertEqual(p.returncode, 0 if ok else 1, COMMANDS[-1])\nAssertionError: 1 != 0 : {'test': '__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot', 'argv': ['node', '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts', '--state', '/tmp/a2adc-fjcktrau/c-6nyxfzdl/state', 'submit', '--task', 'fixture-20261022-1', '--attempt', '424fca2d-b449-4974-8921-2d70f1b34fc4', '--session', '59b64a3f-8776-4fbd-9a91-38bdb900b3aa', '--fence', '1', '--spec-rev', '1', '--commit', '0d6f4c952c7fd4941c9430aa3a2586cbab67da48'], 'cwd': '/tmp/a2adc-fjcktrau/c-6nyxfzdl', 'exit': 1, 'stdout': '{\"ok\":false,\"error\":\"local_io_failed\",\"details\":\"Error: ENOTDIR: not a directory, scandir \\'/dev/null\\'\",\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\\n', 'stderr': ''}\n"
+  ],
+  "error_text": [],
+  "commands": [
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo",
+        "init",
+        "-b",
+        "main"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "已初始化空的 Git 仓库于 /private/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo/.git/\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo",
+        "add",
+        "."
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo",
+        "commit",
+        "-m",
+        "Independent baseline"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "[main（根提交） 2375ffd] Independent baseline\n 3 files changed, 4 insertions(+)\n create mode 100644 acceptance/criterion.py\n create mode 100644 host.txt\n create mode 100644 src/value.txt\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "2375ffd5584a0d687a1cc6bdd9bd53ddb558e55e\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"card\",\"reason\":\"Fields must be exactly: id, source, goal, non_goals, paths, oracle_paths, completion_conditions, red_commands, task_type, repair_target, complexity, executor, base_commit, writer.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"non_goals\",\"reason\":\"Array has too few entries.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"completion_conditions\",\"reason\":\"Nonempty array of {\\\"argv\\\": [\\\"program\\\", \\\"arg\\\", ...]} required.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"completion_conditions[0]\",\"reason\":\"Command argv required: a nonempty string array such as [\\\"python3\\\", \\\"check.py\\\"].\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"completion_conditions[0]\",\"reason\":\"Executable is unavailable.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"completion_conditions[0]\",\"reason\":\"The worktree token must occupy one complete argument.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"task_type\",\"reason\":\"Unknown task type.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"complexity\",\"reason\":\"Complexity must be S, M or L.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"executor.cli\",\"reason\":\"CLI must be Claude Code or Codex.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"paths.allow\",\"reason\":\"Array has too few entries.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"paths.allow\",\"reason\":\"Invalid repository path.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"repair_target\",\"reason\":\"Nonempty text required.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"completion_conditions[0]\",\"reason\":\"Object with fields argv required.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"completion_conditions[0]\",\"reason\":\"Fields must be exactly: argv.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"completion_conditions[0]\",\"reason\":\"Fields must be exactly: argv.\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"invalid_task_card\",\"details\":{\"field\":\"completion_conditions[0]\",\"reason\":\"Command argv required: a nonempty string array such as [\\\"python3\\\", \\\"check.py\\\"].\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "0"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"card\":{\"id\":\"fixture-20261022-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\"],\"deny\":[\"src/private/\"]},\"oracle_paths\":[\"acceptance/criterion.py\"],\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6-astra\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"card_version\":1,\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "create",
+        "--task",
+        "fixture-20261022-1",
+        "--repo",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo",
+        "--branch",
+        "refs/heads/main",
+        "--card-version",
+        "1",
+        "--project",
+        "fixture"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"task\":{\"task_id\":\"fixture-20261022-1\",\"title\":\"fixture-20261022-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"591ff826-6f3f-48ca-9ac5-6ac24e813c63\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261022-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\"],\"deny\":[\"src/private/\"]},\"oracle_paths\":[\"acceptance/criterion.py\"],\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6-astra\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"2375ffd5584a0d687a1cc6bdd9bd53ddb558e55e\",\"state\":\"ready\",\"spec_rev\":1,\"fence\":0,\"current_attempt\":null,\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"2375ffd5584a0d687a1cc6bdd9bd53ddb558e55e\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]}},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo",
+        "add",
+        "host.txt"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo",
+        "commit",
+        "-m",
+        "New claim baseline"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "[main c41dc81] New claim baseline\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "c41dc81a450ba367c008a1db38c10933d15ef6ff\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "claim",
+        "--task",
+        "fixture-20261022-1",
+        "--owner",
+        "independent-check"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"attempt\":{\"task_id\":\"fixture-20261022-1\",\"attempt_id\":\"424fca2d-b449-4974-8921-2d70f1b34fc4\",\"session_id\":\"59b64a3f-8776-4fbd-9a91-38bdb900b3aa\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"\",\"runtime_mode\":\"approval-required\",\"turn_id\":null,\"runtime_identity\":null,\"workspace\":\"/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/state/worktrees/fixture/fixture-20261022-1-a1\",\"base_commit\":\"c41dc81a450ba367c008a1db38c10933d15ef6ff\",\"card_snapshot_id\":\"8d771071-91ff-4489-906b-90a9456aa7e2\",\"reclaimed\":false,\"owner\":\"independent-check\",\"state\":\"claimed\"},\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "status",
+        "--task",
+        "fixture-20261022-1"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"task\":{\"task_id\":\"fixture-20261022-1\",\"title\":\"fixture-20261022-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"591ff826-6f3f-48ca-9ac5-6ac24e813c63\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261022-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\"],\"deny\":[\"src/private/\"]},\"oracle_paths\":[\"acceptance/criterion.py\"],\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6-astra\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"2375ffd5584a0d687a1cc6bdd9bd53ddb558e55e\",\"state\":\"claimed\",\"spec_rev\":1,\"fence\":1,\"current_attempt\":{\"task_id\":\"fixture-20261022-1\",\"attempt_id\":\"424fca2d-b449-4974-8921-2d70f1b34fc4\",\"session_id\":\"59b64a3f-8776-4fbd-9a91-38bdb900b3aa\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"\",\"runtime_mode\":\"approval-required\",\"turn_id\":null,\"runtime_identity\":null,\"workspace\":\"/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/state/worktrees/fixture/fixture-20261022-1-a1\",\"base_commit\":\"c41dc81a450ba367c008a1db38c10933d15ef6ff\",\"card_snapshot_id\":\"8d771071-91ff-4489-906b-90a9456aa7e2\",\"reclaimed\":false,\"owner\":\"independent-check\",\"state\":\"claimed\"},\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"2375ffd5584a0d687a1cc6bdd9bd53ddb558e55e\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]},\"repair\":null,\"review\":null},\"records\":[],\"issues\":[],\"user_inputs\":[],\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_save",
+        "--task",
+        "fixture-20261022-1",
+        "--card",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/card.json",
+        "--expected-version",
+        "1"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"card\":{\"id\":\"fixture-20261022-1\",\"source\":null,\"goal\":\"A new version must not change the registered contract\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\"],\"deny\":[\"src/private/\"]},\"oracle_paths\":[\"acceptance/criterion.py\"],\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-c\",\"import sys; sys.exit(23)\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6-astra\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"card_version\":2,\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "card_show",
+        "--task",
+        "fixture-20261022-1",
+        "--card-version",
+        "1"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"card\":{\"id\":\"fixture-20261022-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\"],\"deny\":[\"src/private/\"]},\"oracle_paths\":[\"acceptance/criterion.py\"],\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6-astra\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"card_version\":1,\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "status",
+        "--task",
+        "fixture-20261022-1"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"task\":{\"task_id\":\"fixture-20261022-1\",\"title\":\"fixture-20261022-1\",\"project_id\":\"fixture\",\"repo\":\"/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/repo\",\"integration_ref\":\"refs/heads/main\",\"card_snapshot_id\":\"591ff826-6f3f-48ca-9ac5-6ac24e813c63\",\"card_version\":1,\"card\":{\"id\":\"fixture-20261022-1\",\"source\":null,\"goal\":\"交付 src/value.txt 中的独立预期内容\",\"non_goals\":[\"不修改项目外的文件\"],\"paths\":{\"allow\":[\"src/\"],\"deny\":[\"src/private/\"]},\"oracle_paths\":[\"acceptance/criterion.py\"],\"completion_conditions\":[{\"argv\":[\"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9\",\"-I\",\"-B\",\"-c\",\"from pathlib import Path; import runpy; runpy.run_path('acceptance/criterion.py')\"]}],\"red_commands\":[],\"task_type\":\"后端逻辑\",\"repair_target\":null,\"complexity\":\"L\",\"executor\":{\"cli\":\"Codex\",\"model\":\"gpt-6-astra\",\"effort\":\"xhigh\"},\"base_commit\":null,\"writer\":null},\"base_commit\":\"2375ffd5584a0d687a1cc6bdd9bd53ddb558e55e\",\"state\":\"claimed\",\"spec_rev\":1,\"fence\":1,\"current_attempt\":{\"task_id\":\"fixture-20261022-1\",\"attempt_id\":\"424fca2d-b449-4974-8921-2d70f1b34fc4\",\"session_id\":\"59b64a3f-8776-4fbd-9a91-38bdb900b3aa\",\"fence\":1,\"spec_rev\":1,\"thread_id\":\"\",\"runtime_mode\":\"approval-required\",\"turn_id\":null,\"runtime_identity\":null,\"workspace\":\"/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/state/worktrees/fixture/fixture-20261022-1-a1\",\"base_commit\":\"c41dc81a450ba367c008a1db38c10933d15ef6ff\",\"card_snapshot_id\":\"8d771071-91ff-4489-906b-90a9456aa7e2\",\"reclaimed\":false,\"owner\":\"independent-check\",\"state\":\"claimed\"},\"candidate_commit\":null,\"verification\":null,\"integration_intent\":null,\"quality\":{\"source_commit\":\"2375ffd5584a0d687a1cc6bdd9bd53ddb558e55e\",\"path\":\".a2a/quality.json\",\"raw\":null,\"rule_checks\":[]},\"repair\":null,\"review\":null},\"records\":[],\"issues\":[],\"user_inputs\":[],\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/state/worktrees/fixture/fixture-20261022-1-a1",
+        "add",
+        "."
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/state/worktrees/fixture/fixture-20261022-1-a1",
+        "commit",
+        "-m",
+        "Independent fixture commit"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "[a2a/fixture-20261022-1-a1 0d6f4c9] Independent fixture commit\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/state/worktrees/fixture/fixture-20261022-1-a1",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "0d6f4c952c7fd4941c9430aa3a2586cbab67da48\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "submit",
+        "--task",
+        "fixture-20261022-1",
+        "--attempt",
+        "424fca2d-b449-4974-8921-2d70f1b34fc4",
+        "--session",
+        "59b64a3f-8776-4fbd-9a91-38bdb900b3aa",
+        "--fence",
+        "1",
+        "--spec-rev",
+        "1",
+        "--commit",
+        "0d6f4c952c7fd4941c9430aa3a2586cbab67da48"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 1,
+      "stdout": "{\"ok\":false,\"error\":\"local_io_failed\",\"details\":\"Error: ENOTDIR: not a directory, scandir '/dev/null'\",\"user_input_observer\":{\"state\":\"healthy\",\"updated_at\":\"2026-10-22T02:14:06.937Z\"}}\n",
+      "stderr": ""
+    },
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts",
+        "--state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "daemon_stop"
+      ],
+      "cwd": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":4477,\"stopping\":true}\n",
+      "stderr": ""
+    }
+  ],
+  "artifacts": [
+    {
+      "test": "__main__.DaemonCards.test_card_validation_versions_and_claim_snapshot",
+      "root": "/tmp/a2adc-fjcktrau/c-6nyxfzdl",
+      "task": "fixture-20261022-1",
+      "base": "2375ffd5584a0d687a1cc6bdd9bd53ddb558e55e",
+      "evidence_layer": "real daemon/Git; controlled external actors",
+      "host_argv": [
+        "node",
+        "/Users/luckye/Documents/Code/a2a/workbench/tests/daemon_acceptance_host.ts",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/state",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/worker-control",
+        "/tmp/a2adc-fjcktrau/c-6nyxfzdl/daemon-ready.json",
+        "/Users/luckye/Documents/Code/a2a/workbench/src/gates/core.ts",
+        "/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/quality-control"
+      ],
+      "quality_driver": "/private/tmp/a2adc-fjcktrau/c-6nyxfzdl/quality-control/driver.jsonl"
+    }
+  ]
+}

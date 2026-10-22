@@ -3732,7 +3732,8 @@ export class A2AGates {
         const hooksPath = await this.execute(taskId, ["git", "-C", attempt.workspace, "rev-parse", "--path-format=absolute", "--git-path", "hooks"], task.repo);
         requireGate(hooksPath.returncode === 0 && hooksPath.stdout, "git_failed", hooksPath);
         const hooksDir = hooksPath.stdout.trim();
-        const projectHooks = existsSync(hooksDir) ? readdirSync(hooksDir).filter((name) => !name.endsWith(".sample") &&
+        // Git runs no hooks from a hooks path that is not a directory (core.hooksPath=/dev/null disables them).
+        const projectHooks = existsSync(hooksDir) && statSync(hooksDir).isDirectory() ? readdirSync(hooksDir).filter((name) => !name.endsWith(".sample") &&
           existsSync(join(hooksDir, name)) && statSync(join(hooksDir, name)).isFile() && (statSync(join(hooksDir, name)).mode & 0o111) !== 0).sort() : [];
         if (projectHooks.length) this.event(taskId, "project_hooks_skipped", { commit, hooks_dir: hooksDir, hooks: projectHooks });
         if (reworkSubmission) {
