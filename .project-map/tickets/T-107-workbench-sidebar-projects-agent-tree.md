@@ -3,7 +3,7 @@ id: T-107
 title: 工作台侧栏：项目目录列表，以及带层级与运行状态的 agent 树
 type: build
 status: open
-blocked_by: [T-106]
+blocked_by: [T-106, T-131]
 claimed_by:
 supersedes:
 ready: yes
@@ -65,3 +65,7 @@ INCOMPLETE。代码已合入 main（d28afcb88），票不关闭。用户 2026-10
 ## 缺口去向（2026-10-20）
 
 执行主控已合入 d28afcb88，状态 INCOMPLETE。三个缺口：窗格缺结构化的"等待用户回答/等待主控回答"信号 → [T-108](T-108-native-question-signals-via-hooks.md)；派发时记录父 launch、层级展示 → [T-109](T-109-dispatch-parent-launch-and-hierarchy-tree.md)；通知验收 → [T-110](T-110-in-app-notification-for-waiting-user.md)，且用户决定**只做应用内通知、不调用系统通知**，取代上文第 5 条的系统通知。
+
+## 多 worker（2026-10-22）
+
+用户逐字：“107 吧多 worker 做出来”。验收要求同一项目 2 个 worker，而后台同时只允许一个 worker（`single_worker_slice`）；先做 [T-131](T-131-parallel-workers-one-project.md)，再按本票验收复验。

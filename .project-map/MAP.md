@@ -36,6 +36,7 @@
 - [T-004 Major-decision stop boundary](tickets/T-004-major-decision-stop-boundary.md): explicit escalation triggers; routine dispatch, status checking, policy-bounded retry, and reclaim remain autonomous
 - [T-005 First seam and baseline](tickets/T-005-first-seam-and-baseline.md): 固定本地源码、真实 Herdr 入口及已有红/绿证据的分页 oracle
 - [T-009 Audit recorded a2a work sessions](tickets/T-009-session-retrospective.md): 20 份 session 已扫描；F01 按用户更正另列为模型行为，T-012 仅保留研究交付范围
+- [T-010](tickets/T-010-descendant-session-accounting.md)、[T-011](tickets/T-011-monitor-closure.md)、[T-012](tickets/T-012-research-handoff.md)、[T-013](tickets/T-013-fixture-governance-scope.md)、[T-014](tickets/T-014-evidence-preflight.md) 早期调研票：2026-10-22 用户定关闭不做（“早期的调研票关掉”）
 - [T-015 Review the specified Claude Code collaboration session](tickets/T-015-claude-session-experience.md): 指定对话已回读并整理中文经验，报告只保留中文版本
 - [T-032 修订后的 M1 与层级要求](tickets/T-032-m1-revised.md): 项目 → 任务 → agent 会话（沿用）；M1 六项由 T-069 的切换条件取代（取代 T-016）
 - [T-030 工作台改为基于 Synara 的 fork](tickets/T-030-synara-fork-base.md): superseded by [T-069](tickets/T-069-third-stage-direction.md)（2026-10-10）
@@ -71,7 +72,7 @@
 - Numeric budget and risk thresholds
 - 持久邮箱、hook 与心跳的后续范围，根据首个闭环观察细化（主控之间的收件箱已由 T-052 定义，worker 侧邮箱与心跳仍待细化）
 - 用户输入的抽取、含义标注与 Enchanted 消费：以后再说（用户 2026-10-09）；两个主控进入工作台后，Herdr 期做法（收件箱文件、`scripts/inbox`、`scripts/dispatch`、`scripts/session-copy`）的停用与删除，在切换 ticket 里切片
-- 第三阶段 S0～S7 尚未切票：切片建议见 [spec 第 12 节](specs/native-cli-orchestration-2026-10-10.md#12-切片建议)，构思主控先切 S0、S1
+- 第三阶段 S7（切换）尚未切票：S0～S5 已切并关闭；S6 于 2026-10-22 切为 T-134（指标）、T-135（轨迹归档）、T-136（复盘），面板与记录视图补为 T-132、T-133，多 worker 为 T-131（用户 2026-10-22：“还缺的都做”）
 
 - T-119 之后待切：主控之间、worker 与主控之间经 `a2a` 通信；在界面上编辑每个角色的边界与权限默认值（T-121、T-122 关闭后再切）
 

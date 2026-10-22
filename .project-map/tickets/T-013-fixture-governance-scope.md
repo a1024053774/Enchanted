@@ -2,7 +2,7 @@
 id: T-013
 title: Make fixture governance scope explicit
 type: task
-status: open
+status: closed
 blocked_by: [T-009]
 claimed_by:
 supersedes:
@@ -25,4 +25,4 @@ supersedes:
 
 ## Resolution
 
-未执行。
+2026-10-22 关闭，不执行。用户逐字：“早期的调研票关掉”。本票针对 Herdr 期第一轮运行的复盘发现；第三阶段的工作台已用启动记录、门禁检查串与原始事件覆盖相应方向，不再单独研究。
