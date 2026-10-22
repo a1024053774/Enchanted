@@ -31,7 +31,14 @@ const shellCommand = (argv: string[]) => argv.map(quote).join(" ");
 function check(value: unknown, error: string, details?: unknown): asserts value {
   if (!value) throw new Refusal(error, details);
 }
-function requireFakeControllerRestore(record: Record<string, any>) {
+const MANAGED_SHELL_TAIL = "; a2a_cli_status=$?; if (( a2a_cli_status != 0 )); then exit $a2a_cli_status; fi; exec /bin/zsh -f -i";
+// The attempt-shaped binding a monitor pane carries (createAttachedThread); its workspace is its own directory.
+function monitorAttempt(record: Record<string, any>, task: A2ATask) {
+  return { task_id: task.task_id, attempt_id: null, session_id: record.thread, fence: 0, spec_rev: task.spec_rev,
+    thread_id: record.thread, runtime_mode: "workspace-write", turn_id: null, workspace: realpathSync(record.worktree), base_commit: null,
+    runtime_identity: null } as unknown as A2AAttempt;
+}
+function requireNotNormalLogin(record: Record<string, any>) {
   const env = record.env && typeof record.env === "object" && !Array.isArray(record.env) ? record.env : {};
   const shell = record.shell_argv;
   const command = Array.isArray(shell) ? shell[3] : undefined;
@@ -45,6 +52,20 @@ function requireFakeControllerRestore(record: Record<string, any>) {
     typeof env.NODE_OPTIONS === "string" && env.NODE_OPTIONS.includes("claudeLoginProcessTrace") ||
     typeof command === "string" && /^exec(?:\s|$)/.test(command);
   check(!normal, "normal_login_restore_requires_protected_start");
+}
+// A monitor this daemon started (createPane): read-only, started by a terminal controller, its shell in the managed form.
+function requireMonitorRestore(record: Record<string, any>) {
+  requireNotNormalLogin(record);
+  const shell = record.shell_argv;
+  check(record.role === "monitor" && ["Claude Code", "Codex"].includes(record.cli) && record.sandbox === "read-only" &&
+    typeof record.parent_launch === "string" && record.shell === "/bin/zsh" && Array.isArray(shell) && shell.length === 4 &&
+    shell[0] === "-f" && shell[1] === "-i" && shell[2] === "-c" && typeof shell[3] === "string", "restore_record_unrecognized");
+}
+function requireFakeControllerRestore(record: Record<string, any>) {
+  requireNotNormalLogin(record);
+  const env = record.env && typeof record.env === "object" && !Array.isArray(record.env) ? record.env : {};
+  const shell = record.shell_argv;
+  const command = Array.isArray(shell) ? shell[3] : undefined;
   // T-096's existing P1 contract is positive evidence, including for legacy
   // records without authentication. Unknown profiles never execute a CLI here.
   const base = typeof env.ANTHROPIC_BASE_URL === "string" && /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})$/.exec(env.ANTHROPIC_BASE_URL);
@@ -115,8 +136,9 @@ async function claudeArgv(executable: string, signal: string, session: string,
     hooks: Object.fromEntries(["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event => [event, hook])),
     fastMode: selection.fast,
   };
+  // dontAsk denies AskUserQuestion anyway; without the tool the model asks through `issue` (T-124 ruling 1a).
   return [executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--permission-mode", "dontAsk",
-    "--setting-sources", "", "--strict-mcp-config", "--settings", JSON.stringify(settings)];
+    "--setting-sources", "", "--strict-mcp-config", "--disallowedTools", "AskUserQuestion", "--settings", JSON.stringify(settings)];
 }
 const STARTUP_DEADLINE_MS = 120_000;
 // The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
@@ -143,6 +165,8 @@ type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
   token: string; task: A2ATask | null; attempt: A2AAttempt | null; pty: any;
   state: "unknown" | "idle" | "busy"; stopped: boolean; archived: boolean;
+  // restored: resumed by this daemon after a restart (T-096, T-124).
+  restored?: boolean;
   failed: string | null; leader: number | null; native: string | null; turn: string | null;
   nativeEnded: boolean;
   active: { id: string; dispatch: string; at: string; nativeTurn: string | null } | null;
@@ -425,89 +449,138 @@ export class Panes implements GateRuntime {
       const record = this.launchRecord(opened.launch);
       if (record.role === "shell") continue;
       this.store.event("pane_restore_pending", { daemon, position: opened.position }, record as any);
-      try {
-        // T-096 decision B: worker/reviewer attempts retain their gate-owned
-        // runtime binding. Restoration must neither spawn nor mutate an attempt.
-        check(record.attempt === null, "restore_managed_attempt_requires_reclaim");
-        requireFakeControllerRestore(record);
-        const argv = resumeArgv(record, opened.native_session);
-        check(record.shell_argv[3] === shellCommand(record.argv) + "; exec /bin/zsh -f -i", "restore_record_unrecognized");
-        const previous = this.store.lastEvent(record.id, ["pane_started", "pane_restored"]);
-        if (Number.isSafeInteger(previous?.data.shell_pid) && previous!.data.shell_pid > 1) {
-          try {
-            process.kill(previous!.data.shell_pid, 0);
-            throw new Refusal("restore_previous_process_alive");
-          } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
-          }
+      await this.restore(daemon, record, opened.native_session, opened.resume_argv, opened.position);
+    }
+    // A monitor (T-124) keeps watching after a restart whether or not a window shows it: its session resumes
+    // with the recorded argv like an open pane's. A worker or reviewer whose process went with the previous
+    // daemon is registered as stopped once both its recorded shell and CLI processes are confirmed gone, so the
+    // gate can reclaim its attempt (T-096 ruling B: reclaim, then a new attempt).
+    for (const record of this.store.launches()) {
+      if (!["monitor", "worker", "reviewer"].includes(record.role) || this.panes.has(record.thread)) continue;
+      if (!this.store.lastEvent(record.id, ["pane_started"]) || this.store.lastEvent(record.id, ["pane_archived"])) continue;
+      if (this.store.lastEvent(record.id, ["pane_recovered"])?.data.daemon !== daemon) continue;
+      if (record.role === "monitor") {
+        const bound = this.store.lastEvent(record.id, ["pane_native_session"]);
+        const native = record.cli === "Claude Code" ? record.native_session : bound?.data.native_session ?? null;
+        this.store.event("pane_restore_pending", { daemon, position: null }, record as any);
+        await this.restore(daemon, record, native, record.cli === "Claude Code" ? resumeArgv(record, native) : bound?.data.resume_argv ?? null, null);
+      } else await this.registerGone(record);
+    }
+  }
+  private async registerGone(record: any) {
+    try {
+      const shell = this.store.lastEvent(record.id, ["pane_started"])!.data.shell_pid;
+      const leader = this.store.lastEvent(record.id, ["pane_leader_observed"])?.data.leader_pid ?? null;
+      // A CLI still exiting after the SIGHUP the previous daemon sent gets up to 10 s, as a closing shell does.
+      const deadline = Date.now() + 10_000;
+      for (const pid of [shell, leader].filter(pid => pid !== null)) {
+        check(Number.isSafeInteger(pid) && pid > 1, "recorded_process_invalid");
+        for (;;) {
+          const result = await exec("/usr/bin/python3", ["-I", "-S", "-B", processQuery, String(pid)], { timeout: 5000 });
+          if (JSON.parse(result.stdout).rows.length === 0) break;
+          check(Date.now() < deadline, "previous_process_alive");
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
-        check(opened.resume_argv && argv.length === opened.resume_argv.length &&
-          argv.every((arg, index) => arg === opened.resume_argv![index]), "restore_argv_changed");
-        const taskRow = this.store.db.prepare("SELECT data FROM tasks WHERE id=?").get(record.task);
-        const task = taskRow && JSON.parse(String(taskRow.data));
-        check(task && task.project_id === record.project && task.spec_rev === record.spec_rev, "restore_task_stale");
-        check(typeof record.cli_version === "string" && record.cli_version !== "unknown", "restore_version_missing");
-        // Native CLIs update themselves; the restored runtime records its own probe.
-        const probe = await exec(argv[0]!, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
-        const nativeFile = nativeSessionFile(record, opened.native_session!);
-        check(record.shell === "/bin/zsh" && record.env && isAbsolute(record.worktree), "restore_launch_invalid");
-        const executablePath = realpathSync(argv[0]!);
-        check(record.executable_path === undefined || record.executable_path === executablePath, "restore_executable_changed");
-        // Legacy launch history is immutable. Bind this restored runtime only,
-        // after the session checks and before creating a PTY; it carries the CLI version now installed.
-        const runtimeRecord = { ...record, executable_path: executablePath, cli_version: probe.stdout.trim() };
-        const token = randomUUID();
-        const trace = join(this.root, "traces", record.id, "pty.raw");
-        check(existsSync(trace), "trace_unavailable");
-        const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; exec /bin/zsh -f -i"];
-        const terminal = require("node-pty").spawn(record.shell, shellArgv, {
-          name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
-          env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
-        });
-        const pane: Pane = { record: runtimeRecord as Pane["record"], token, task, attempt: null, pty: terminal,
-          state: "unknown", stopped: false, archived: false, failed: null, leader: null,
-          native: opened.native_session, nativeFile, turn: null, nativeEnded: false, active: null,
-          queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
-          userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
-          offsets: new Map([[nativeFile, readFileSync(nativeFile).length]]), model: "unknown", effort: "unknown",
-          terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() };
-        this.panes.set(record.thread, pane);
-        terminal.onData((data: string) => {
-          try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
-          catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
-        });
-        terminal.onExit((event: unknown) => {
-          pane.stopped = true; pane.state = "unknown";
-          try { this.store.event("pane_exit", event, pane.record); }
-          catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
-        });
-        // Creating a shell is not proof the recorded CLI resumed. Require the
-        // existing foreground executable/native-identity check before success.
-        const deadline = Date.now() + 10000;
-        let info: Awaited<ReturnType<Panes["processInfo"]>>;
-        do {
-          info = await this.processInfo(record.thread);
-          check(!info.failed && !pane.stopped, "restore_process_failed");
-          if (info.leader) break;
-          await new Promise(resolve => setTimeout(resolve, 50));
-        } while (Date.now() < deadline);
-        check(info.leader, "restore_process_missing");
-        this.store.event("pane_restored", { daemon, position: opened.position, argv,
-          shell_argv: shellArgv, shell_pid: terminal.pid, leader: info.leader,
-          native_session: opened.native_session, version_probe: { argv: [argv[0], "--version"], stdout: probe.stdout, stderr: probe.stderr } }, pane.record);
-      } catch (error) {
-        const pane = this.panes.get(record.thread);
-        let cleanup: string | null = null;
-        if (pane) {
-          pane.failed = "restore_failed";
-          try { await this.terminate(pane, "restore_failed"); }
-          catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
-        }
-        this.store.event("pane_restore_failed", { daemon, error: error instanceof Refusal ? error.code : "restore_failed",
-          details: error instanceof Refusal && error.code === "normal_login_restore_requires_protected_start" ?
-            "正常登录会话不自动续接，请经正常登录入口重新启动。" : String(error),
-          cleanup, native_session: opened.native_session }, record as any);
       }
+      const native = record.cli === "Claude Code" ? record.native_session : this.store.lastEvent(record.id, ["pane_native_session"])?.data.native_session ?? null;
+      const pane = { record, token: "", task: null, attempt: { workspace: record.worktree }, pty: { pid: shell }, state: "unknown",
+        stopped: true, archived: false, failed: null, leader, native, turn: null, nativeEnded: false, active: null, queue: [],
+        writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false,
+        inputGeneration: 0, interruption: null, sending: null, offsets: new Map(), model: "unknown", effort: "unknown",
+        terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set() } as unknown as Pane;
+      this.panes.set(record.thread, pane);
+      this.store.event("pane_gone_confirmed", { shell_pid: shell, leader_pid: leader, native_session: native }, record);
+    } catch (error) {
+      this.store.event("pane_gone_unconfirmed", { error: error instanceof Refusal ? error.code : String(error) }, record);
+    }
+  }
+  private async restore(daemon: string, record: any, native: string | null, expected: string[] | null, position: number | null) {
+    try {
+      // T-096 decision B: worker/reviewer attempts retain their gate-owned
+      // runtime binding. Restoration must neither spawn nor mutate an attempt.
+      check(record.attempt === null, "restore_managed_attempt_requires_reclaim");
+      if (record.role === "monitor") requireMonitorRestore(record); else requireFakeControllerRestore(record);
+      const argv = resumeArgv(record, native);
+      // A controller pane's shell runs a shell after its CLI; a monitor's, like a worker's, first exits on the CLI's failure.
+      const tail = record.role === "monitor" ? MANAGED_SHELL_TAIL : "; exec /bin/zsh -f -i";
+      check(record.shell_argv[3] === shellCommand(record.argv) + tail, "restore_record_unrecognized");
+      const previous = this.store.lastEvent(record.id, ["pane_started", "pane_restored"]);
+      if (Number.isSafeInteger(previous?.data.shell_pid) && previous!.data.shell_pid > 1) {
+        try {
+          process.kill(previous!.data.shell_pid, 0);
+          throw new Refusal("restore_previous_process_alive");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+        }
+      }
+      check(expected && argv.length === expected.length &&
+        argv.every((arg, index) => arg === expected![index]), "restore_argv_changed");
+      const taskRow = this.store.db.prepare("SELECT data FROM tasks WHERE id=?").get(record.task);
+      const task = taskRow && JSON.parse(String(taskRow.data));
+      check(task && task.project_id === record.project && task.spec_rev === record.spec_rev, "restore_task_stale");
+      check(typeof record.cli_version === "string" && record.cli_version !== "unknown", "restore_version_missing");
+      // Native CLIs update themselves; the restored runtime records its own probe.
+      const probe = await exec(argv[0]!, ["--version"], { env: record.env, timeout: 10000, maxBuffer: 65536 });
+      const nativeFile = nativeSessionFile(record, native!);
+      check(record.shell === "/bin/zsh" && record.env && isAbsolute(record.worktree), "restore_launch_invalid");
+      const executablePath = realpathSync(argv[0]!);
+      check(record.executable_path === undefined || record.executable_path === executablePath, "restore_executable_changed");
+      // Legacy launch history is immutable. Bind this restored runtime only,
+      // after the session checks and before creating a PTY; it carries the CLI version now installed.
+      const runtimeRecord = { ...record, executable_path: executablePath, cli_version: probe.stdout.trim() };
+      const token = randomUUID();
+      const trace = join(this.root, "traces", record.id, "pty.raw");
+      check(existsSync(trace), "trace_unavailable");
+      const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + tail];
+      const terminal = require("node-pty").spawn(record.shell, shellArgv, {
+        name: "xterm-256color", cols: 160, rows: 45, cwd: record.worktree,
+        env: { ...record.env, A2A_CAPABILITY: token }, encoding: "utf8",
+      });
+      const pane: Pane = { record: runtimeRecord as Pane["record"], token, task, attempt: record.role === "monitor" ? monitorAttempt(record, task) : null, pty: terminal,
+        state: "unknown", stopped: false, archived: false, failed: null, leader: null,
+        native: native, nativeFile, turn: null, nativeEnded: false, active: null,
+        queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0,
+        userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
+        offsets: new Map([[nativeFile, readFileSync(nativeFile).length]]), model: "unknown", effort: "unknown",
+        terminalBuffer: "", claudePromptId: null, claudePromptIds: new Set(), restored: true };
+      this.panes.set(record.thread, pane);
+      terminal.onData((data: string) => {
+        try { appendFileSync(trace, data); this.terminalProtocol(pane, data); }
+        catch (error) { this.recordFailure(pane, "restore_terminal_failed", error); }
+      });
+      terminal.onExit((event: unknown) => {
+        pane.stopped = true; pane.state = "unknown";
+        try { this.store.event("pane_exit", event, pane.record); }
+        catch (error) { this.recordFailure(pane, "pane_exit_write_failed", error); }
+      });
+      // Creating a shell is not proof the recorded CLI resumed. Require the
+      // existing foreground executable/native-identity check before success.
+      const deadline = Date.now() + 10000;
+      let info: Awaited<ReturnType<Panes["processInfo"]>>;
+      do {
+        info = await this.processInfo(record.thread);
+        check(!info.failed && !pane.stopped, "restore_process_failed");
+        if (info.leader) break;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } while (Date.now() < deadline);
+      check(info.leader, "restore_process_missing");
+      // A resumed Codex CLI waits at its prompt: the restore sends no input (Claude reports the same through SessionStart).
+      if (record.role === "monitor" && record.cli !== "Claude Code") pane.state = "idle";
+      this.store.event("pane_restored", { daemon, position, argv,
+        shell_argv: shellArgv, shell_pid: terminal.pid, leader: info.leader,
+        native_session: native, version_probe: { argv: [argv[0], "--version"], stdout: probe.stdout, stderr: probe.stderr } }, pane.record);
+    } catch (error) {
+      const pane = this.panes.get(record.thread);
+      let cleanup: string | null = null;
+      if (pane) {
+        pane.failed = "restore_failed";
+        try { await this.terminate(pane, "restore_failed"); }
+        catch (stopError) { cleanup = String(stopError); pane.failed = "restore_cleanup_unconfirmed"; }
+      }
+      this.store.event("pane_restore_failed", { daemon, error: error instanceof Refusal ? error.code : "restore_failed",
+        details: error instanceof Refusal && error.code === "normal_login_restore_requires_protected_start" ?
+          "正常登录会话不自动续接，请经正常登录入口重新启动。" : String(error),
+        cleanup, native_session: native }, record as any);
     }
   }
   launchInfo(id: string) {
@@ -656,7 +729,7 @@ export class Panes implements GateRuntime {
     }
     if (!review && !monitor) Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
       GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)) });
-    const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; a2a_cli_status=$?; if (( a2a_cli_status != 0 )); then exit $a2a_cli_status; fi; exec /bin/zsh -f -i"];
+    const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + MANAGED_SHELL_TAIL];
     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;
     const record = { id: launch, project: task.project_id, task: task.task_id, attempt: attempt.attempt_id,
       session: attempt.session_id, fence: attempt.fence, spec_rev: attempt.spec_rev, thread: attempt.thread_id,
@@ -880,7 +953,11 @@ export class Panes implements GateRuntime {
       if (pane.nativeEnded && !shellAlone) pane.failed = "process_after_session_end";
       else if (!pane.nativeEnded && pane.leader !== null && leader !== pane.leader) pane.failed =
         pane.record.cli === "Claude Code" ? "claude_leader_replaced_or_exited" : "codex_leader_replaced_or_exited";
-      if (pane.leader === null && leader !== null) pane.leader = leader;
+      if (pane.leader === null && leader !== null) {
+        pane.leader = leader;
+        // Kept so a restarted daemon can confirm this CLI process is gone (T-124).
+        this.store.event("pane_leader_observed", { shell_pid: pane.pty.pid, leader_pid: leader }, pane.record);
+      }
       this.scan(pane);
       return { shell_pid: pane.pty.pid, leader, native_session: pane.native, session_ended: pane.nativeEnded,
         observer: { method: observed.method, root_pid: observed.root_pid },
@@ -1299,7 +1376,8 @@ export class Panes implements GateRuntime {
       check(Number.isFinite(Date.parse(received_at)), 'hook_received_at_required');
       // A Claude worker's session start is its ready signal: release the first task to it.
       if (pane.record.cli === "Claude Code" && pane.record.role !== "controller" && value.hook_event_name === "SessionStart") {
-        check(value.session_id === pane.native && value.cwd === pane.record.worktree && value.source === "startup", "session_start_mismatch");
+        // A monitor resumed after a restart (T-124) starts its session again with source "resume".
+        check(value.session_id === pane.native && value.cwd === pane.record.worktree && value.source === (pane.restored ? "resume" : "startup"), "session_start_mismatch");
         check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
         pane.started = true;
         this.store.event("native_session_started", { native_session: value.session_id, trust_confirmed: Boolean(pane.trustAnswered) }, pane.record);
@@ -1314,6 +1392,12 @@ export class Panes implements GateRuntime {
         check(binding?.turn, 'question_turn_mismatch');
         const question = questionFromHook(pane, value, { ...binding, turn: binding.turn });
         if (!question) return;
+        // A worker, reviewer or monitor asks through `issue` (T-124 ruling 1a): nobody answers its native question,
+        // so it is recorded and not shown as waiting. Codex's request_user_input_async returns at once anyway.
+        if (pane.record.role !== "controller") {
+          if (value.hook_event_name === 'PreToolUse') this.store.event('native_question_ignored', { ...binding, question: question.id, tool: value.tool_name }, pane.record);
+          return;
+        }
         const previous = this.questions(launch).find(q => q.id === question.id);
         if (value.hook_event_name === 'PreToolUse') {
           check(!previous, 'question_hook_reused');
@@ -1569,7 +1653,8 @@ export class Panes implements GateRuntime {
   };
   stopThread = async (thread: string) => {
     const pane = this.get(thread);
-    check(pane.state === "idle", "worker_not_idle");
+    // A pane already stopped (its process gone, or confirmed gone across a restart) has nothing to stop.
+    check(pane.stopped || pane.state === "idle", "worker_not_idle");
     await this.terminate(pane, "gate_reclaim");
   };
   archiveThread = async (thread: string) => {

@@ -262,7 +262,8 @@ try {
     assert(rejected,'Each positive fake-profile field must be required before a CLI executes');
   }
   const mutant = candidate.replace('const shellArgv = ["-f", "-i", "-c", shellCommand(argv)',
-    'const shellArgv = ["-f", "-i", "-c", shellCommand([argv[0]!, "--resume", opened.native_session!])');
+    // T-124 moved restore into its own method, where the session is `native`.
+    'const shellArgv = ["-f", "-i", "-c", shellCommand([argv[0]!, "--resume", native!])');
   assert.notEqual(mutant, candidate);
   try { await exercise(mutant); }
   catch (error) { report.spawn_argv_mutant = { rejected: error instanceof assert.AssertionError && error.message.startsWith('Actual PTY command must carry every independently supplied argv field'), error: String(error) }; }

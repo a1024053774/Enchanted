@@ -107,7 +107,7 @@ def snapshot(root_pid,reader):
             seen.add(pid)
             row=reader.read(pid)
             if row is None:continue  # Observed exit/zombie; permission denial raises.
-            if row['ppid']!=parent:raise QueryError('process_parent_changed_during_query')
+            if row['ppid']!=parent:raise QueryError('process_parent_changed_during_query',None,pid)
             rows.append(row)
             if len(rows)>MAX_PROCESSES:raise QueryError('process_tree_limit_exceeded')
     current=[]
@@ -121,12 +121,25 @@ def snapshot(root_pid,reader):
     return current
 
 
+# A process below the root that changes while it is read (a child exec'ing or exiting between reads) is taken
+# again from scratch with a fresh reader, up to SNAPSHOT_ATTEMPTS times (T-124, user ruling "放宽"). The root
+# changing, and every other failure, still fails at once.
+SNAPSHOT_ATTEMPTS=3
+TRANSIENT=('process_identity_changed_during_query','process_parent_changed_during_query')
+def settled_snapshot(root_pid,make_reader):
+    for attempt in range(1,SNAPSHOT_ATTEMPTS+1):
+        try:return snapshot(root_pid,make_reader()),attempt
+        except QueryError as error:
+            if error.operation not in TRANSIENT or error.pid==root_pid or attempt==SNAPSHOT_ATTEMPTS:raise
+
+
 def main():
     if not(sys.flags.isolated and sys.flags.no_site and sys.flags.dont_write_bytecode):raise QueryError('python_isolated_no_site_no_bytecode_required')
     if sys.platform!='darwin':raise QueryError('macOS_process_query_required')
     if len(sys.argv)!=2 or not sys.argv[1].isdigit() or not 1<int(sys.argv[1])<2**31:raise QueryError('valid_root_pid_required')
-    pid=int(sys.argv[1]);reader=ProcReader(C.CDLL('/usr/lib/libproc.dylib',use_errno=True))
-    print(json.dumps({'schema':1,'root_pid':pid,'method':'macOS libproc','rows':snapshot(pid,reader)}))
+    pid=int(sys.argv[1]);library=C.CDLL('/usr/lib/libproc.dylib',use_errno=True)
+    rows,attempts=settled_snapshot(pid,lambda:ProcReader(library))
+    print(json.dumps({'schema':1,'root_pid':pid,'method':'macOS libproc','rows':rows,'attempts':attempts}))
 
 if __name__=='__main__':
     try:main()

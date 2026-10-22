@@ -250,6 +250,9 @@ export class A2AGates {
     mkdirSync(join(root, "locks"), { recursive: true });
   }
   beginShutdown() { this.shuttingDown = true; }
+  // Resumed runs are not requests; shutdown waits for them to record their pause.
+  private resuming = new Set<Promise<void>>();
+  async resumedRunsSettled() { await Promise.allSettled([...this.resuming]); }
   close() {
     this.membership.close();
     this.db.close();
@@ -2236,7 +2239,7 @@ export class A2AGates {
     // servers, and writes only its candidate copy, the shell sandbox writing nowhere else. The argv
     // is checked as a whole: fixed flags in fixed places, and settings with exactly these fields.
     let settings: any = null;
-    try { settings = claude ? JSON.parse(String(argv?.[13])) : null; } catch { settings = null; }
+    try { settings = claude ? JSON.parse(String(argv?.[15])) : null; } catch { settings = null; }
     const hookEvents = ["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"];
     const signal = settings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     // D24: same model, effort and Fast as the worker launch, and the worker's signal command with
@@ -2244,17 +2247,19 @@ export class A2AGates {
     // the Claude version, which may update between the two launches (T-118, review 03).
     const worker = claude ? this.launchRecord(review.attempt.runtime_identity?.launch) : null;
     let workerSettings: any = null;
-    try { workerSettings = worker ? JSON.parse(String(worker.argv?.[13])) : null; } catch { workerSettings = null; }
+    try { workerSettings = worker ? JSON.parse(String(worker.argv?.[15])) : null; } catch { workerSettings = null; }
     const workerSignal = workerSettings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     const boundary = claude
-      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 14 &&
+      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 16 &&
         worker?.cli === "Claude Code" && worker.role === "worker" && Array.isArray(worker.argv) &&
         argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&
         typeof workerSignal === "string" && workerSignal.endsWith(` '--launch' '${worker.id}'`) &&
         signal === workerSignal.slice(0, -`'${worker.id}'`.length) + `'${launch.id}'` &&
         settings?.fastMode === workerSettings.fastMode &&
-        JSON.stringify([argv[1], argv[3], argv[5], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12]]) ===
-          JSON.stringify(["--session-id", "--model", "--effort", "--permission-mode", "dontAsk", "--setting-sources", "", "--strict-mcp-config", "--settings"]) &&
+        // Without AskUserQuestion: a managed session asks through `issue` (T-124 ruling 1a).
+        JSON.stringify([argv[1], argv[3], argv[5], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12], argv[13], argv[14]]) ===
+          JSON.stringify(["--session-id", "--model", "--effort", "--permission-mode", "dontAsk", "--setting-sources", "", "--strict-mcp-config",
+            "--disallowedTools", "AskUserQuestion", "--settings"]) &&
         argv[2] === launch.native_session && settings !== null && typeof settings === "object" &&
         JSON.stringify(Object.keys(settings).sort()) === JSON.stringify(["fastMode", "hooks", "permissions", "sandbox"]) &&
         typeof settings.fastMode === "boolean" &&
@@ -2636,7 +2641,10 @@ export class A2AGates {
     this.checkThread(attempt, live);
     requireGate(!live.error, "run_external_unknown", live);
     requireGate(!live.blocked, "run_blocked", live);
-    requireGate(!live.archived && !live.stopped, "run_external_unknown", live);
+    // The worker's session is needed while it works or repairs; after it delivered, a stopped session (a restart
+    // took it, T-124) leaves verification, review and integration to go on.
+    const task = this.load(run.task_id);
+    requireGate(!live.archived && (!live.stopped || task.state !== "claimed" && !task.repair), "run_external_unknown", live);
     if (attempt.runtime_identity!.leader_pid === null && live.runtime_identity.leader_pid !== null ||
         attempt.runtime_identity!.native_session === null && live.runtime_identity.native_session !== null) {
       // Binding is an ordinary task mutation. Refuse a concurrent gate owner.
@@ -2702,149 +2710,215 @@ export class A2AGates {
         wait_seconds: args.wait_seconds!,
         phase: "dispatching",
         outcome: "running",
+        dispatch: { runtimeMode: args.runtimeMode!, overlap_reason: args.overlap_reason, model: args.model, effort: args.effort, fast: args.fast },
         ...(controller ? { initiator: { launch: controller.launch, role_request: controller.role_request, role: controller.role } } : {}),
       };
       this.saveRun(run, "run_started");
-      const dispatch = await this.request(
-        { command: "dispatch", task: args.task, runtimeMode: args.runtimeMode, overlap_reason: args.overlap_reason,
-          model: args.model, effort: args.effort, fast: args.fast },
-        undefined,
-        run,
-      );
-      requireGate(dispatch.ok, dispatch.error ?? "gate_failure", dispatch.details);
-      run.phase = "waiting_submit";
-      this.saveRun(run, "run_phase");
-      const deadline = performance.now() + args.wait_seconds! * 1000;
-      let previous = "";
-      for (;;) {
-        requireGate(!this.shuttingDown, "daemon_stopping");
-        const initial = this.load(args.task);
-        this.current(initial, run.attempt_id!);
-        if (["accepted", "abandoned", "upgraded"].includes(initial.state)) break;
-        requireGate(performance.now() < deadline, "run_deadline");
-        const live = await this.observeRun(run);
-        const task = this.load(args.task);
-        const change = JSON.stringify({
-          task_state: task.state,
-          turn: live.turn,
-          running: live.running,
-          blocked: live.blocked ?? false,
-        });
-        if (change !== previous) {
-          this.event(
-            args.task,
-            "run_observed",
-            { run_id: run.run_id, live, task_state: task.state },
-            run.attempt_id!,
-          );
-          previous = change;
-        }
-        requireGate(performance.now() < deadline, "run_deadline");
-        requireGate(!task.repair?.stopped, "quality_rejection_limit", task.repair);
-        requireGate(["claimed", "submitted", "reviewing", "verified", "integrating", "accepted", "abandoned", "upgraded"].includes(task.state), "run_state_changed", task.state);
-        if (["accepted", "abandoned", "upgraded"].includes(task.state)) break;
-        if (task.state === "submitted" && !task.repair) {
-          run.phase = "verifying";
-          this.saveRun(run, "run_phase");
-          const verified = await this.request({ command: "verify", task: args.task, attempt: run.attempt_id! });
-          const after = this.load(args.task);
-          this.current(after, run.attempt_id!);
-          if (!verified.ok) {
-            requireGate(!after.repair?.stopped, "quality_rejection_limit", after.repair);
-            requireGate(after.repair && (after.repair.failure as { error?: string })?.error === verified.error,
-              verified.error ?? "gate_failure", verified.details);
-          }
-          continue;
-        }
-        // Integration waits for the controller's score. A terminal controller whose role ended or whose
-        // CLI is out of quota cannot give one; the user chose that the run then integrates through the
-        // same gate checks with the score recorded as missing and why (T-124).
-        const initiatorState = task.state === "verified" && !task.repair ? controller?.state() : undefined;
-        if (initiatorState && initiatorState !== "active") {
-          run.initiator_unavailable = { state: initiatorState, at: new Date().toISOString() };
-          this.saveRun(run, "run_phase");
-          this.event(args.task, "run_initiator_ended", { run_id: run.run_id, ...run.initiator, ...run.initiator_unavailable }, run.attempt_id!);
-          run.phase = "integrating";
-          this.saveRun(run, "run_phase");
-          const integrated = await this.request({ command: "integrate", task: args.task, attempt: run.attempt_id! }, undefined, run);
-          requireGate(integrated.ok || this.load(args.task).state === "accepted", integrated.error ?? "gate_failure", integrated.details);
-          continue;
-        }
-        const phase = task.repair ? "waiting_repair" : task.state === "reviewing" ? "reviewing" :
-          task.state === "integrating" ? "integrating" : task.state === "verified" ? "waiting_executor" : "waiting_submit";
-        if (run.phase !== phase) { run.phase = phase; this.saveRun(run, "run_phase"); }
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.min(100, Math.max(0, deadline - performance.now()))),
-        );
-      }
-      run.phase = "reclaiming";
-      this.saveRun(run, "run_phase");
-      await this.waitForIdle(run);
-      requireGate(!this.shuttingDown, "daemon_stopping");
-      const cleanup = await this.request({
-        command: "reclaim",
-        task: args.task,
-        attempt: run.attempt_id!,
-      });
-      requireGate(cleanup.ok, "run_reclaim_failed", cleanup);
-      run.reclaimed = true;
-      requireGate(!this.shuttingDown, "daemon_stopping");
-      const finalState = this.load(args.task).state;
-      run.outcome = finalState === "accepted" ? "completed" : finalState;
-      run.ended = new Date().toISOString();
-      this.saveRun(run, "run_finished");
-      return { ok: true, task: this.load(args.task), run };
+      await this.runDispatch(run);
+      return await this.follow(run, controller, performance.now() + args.wait_seconds! * 1000);
     } catch (error) {
       if (!run) throw error;
-      const code =
-        error instanceof Refusal
-          ? error.code === "stale_attempt"
-            ? "run_superseded"
-            : error.code
-          : "run_external_unknown";
-      const details = error instanceof Refusal ? error.details : String(error);
-      if (
-        run.attempt_id &&
-        (code === "run_superseded" || code === "run_deadline" &&
-          !this.load(args.task).repair && !this.load(args.task).review)
-      ) {
-        try {
-          await this.waitForIdle(run);
-          requireGate(!this.shuttingDown, "daemon_stopping");
-          const cleanup = await this.request({
-            command: "reclaim",
-            task: args.task,
-            attempt: run.attempt_id,
-          });
-          requireGate(cleanup.ok, cleanup.error ?? "run_reclaim_failed", cleanup.details);
-          run.reclaimed = true;
-        } catch (cleanup) {
-          run.cleanup_failure =
-            cleanup instanceof Refusal
-              ? { error: cleanup.code, details: cleanup.details }
-              : String(cleanup);
+      return await this.runFailed(run, error);
+    } finally {
+      lock.close();
+    }
+  }
+
+  private async runDispatch(run: A2ARun) {
+    const dispatch = await this.request({ command: "dispatch", task: run.task_id, ...run.dispatch! }, undefined, run);
+    requireGate(dispatch.ok, dispatch.error ?? "gate_failure", dispatch.details);
+    run.phase = "waiting_submit";
+    this.saveRun(run, "run_phase");
+  }
+
+  // Follows the run's attempt to integration and reclaim; the caller holds the run lock.
+  private async follow(run: A2ARun, controller: TerminalController | undefined, deadline: number): Promise<A2AGateResult> {
+    let previous = "";
+    for (;;) {
+      requireGate(!this.shuttingDown, "daemon_stopping");
+      const initial = this.load(run.task_id);
+      this.current(initial, run.attempt_id!);
+      if (["accepted", "abandoned", "upgraded"].includes(initial.state)) break;
+      requireGate(performance.now() < deadline, "run_deadline");
+      const live = await this.observeRun(run);
+      const task = this.load(run.task_id);
+      const change = JSON.stringify({
+        task_state: task.state,
+        turn: live.turn,
+        running: live.running,
+        blocked: live.blocked ?? false,
+      });
+      if (change !== previous) {
+        this.event(
+          run.task_id,
+          "run_observed",
+          { run_id: run.run_id, live, task_state: task.state },
+          run.attempt_id!,
+        );
+        previous = change;
+      }
+      requireGate(performance.now() < deadline, "run_deadline");
+      requireGate(!task.repair?.stopped, "quality_rejection_limit", task.repair);
+      requireGate(["claimed", "submitted", "reviewing", "verified", "integrating", "accepted", "abandoned", "upgraded"].includes(task.state), "run_state_changed", task.state);
+      if (["accepted", "abandoned", "upgraded"].includes(task.state)) break;
+      if (task.state === "submitted" && !task.repair) {
+        run.phase = "verifying";
+        this.saveRun(run, "run_phase");
+        const verified = await this.request({ command: "verify", task: run.task_id, attempt: run.attempt_id! });
+        const after = this.load(run.task_id);
+        this.current(after, run.attempt_id!);
+        if (!verified.ok) {
+          requireGate(!after.repair?.stopped, "quality_rejection_limit", after.repair);
+          requireGate(after.repair && (after.repair.failure as { error?: string })?.error === verified.error,
+            verified.error ?? "gate_failure", verified.details);
         }
+        continue;
       }
-      run.error = code;
-      run.details = details;
-      run.outcome =
-        code === "run_deadline"
-          ? "deadline"
-          : code === "run_superseded"
-            ? "superseded"
-            : ["oracle_failed", "merge_failed"].includes(code)
-              ? "verification_failed"
-              : run.phase === "reclaiming"
-                ? "integrated_reclaim_failed"
-                : "paused";
-      run.ended = new Date().toISOString();
-      if (this.userInputObserver?.state === "failed") {
-        // The write that failed may also prevent a final receipt. Keep the last
-        // durable phase and expose the pause; never invent persisted evidence.
-        return { ok: false, error: code, details, run };
+      // Integration waits for the controller's score. A terminal controller whose role ended or whose
+      // CLI is out of quota cannot give one; the user chose that the run then integrates through the
+      // same gate checks with the score recorded as missing and why (T-124).
+      const initiatorState = task.state === "verified" && !task.repair ? controller?.state() : undefined;
+      if (initiatorState && initiatorState !== "active") {
+        if (!run.initiator_unavailable) {
+          run.initiator_unavailable = { state: initiatorState, at: new Date().toISOString() };
+          this.saveRun(run, "run_phase");
+          this.event(run.task_id, "run_initiator_ended", { run_id: run.run_id, ...run.initiator, ...run.initiator_unavailable }, run.attempt_id!);
+          run.phase = "integrating";
+          this.saveRun(run, "run_phase");
+        }
+        const integrated = await this.request({ command: "integrate", task: run.task_id, attempt: run.attempt_id! }, undefined, run);
+        // The review's cleanup may still hold the task right after verified; the run polls again as it does for every state.
+        if (!integrated.ok && integrated.error === "operation_busy") {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          continue;
+        }
+        requireGate(integrated.ok || this.load(run.task_id).state === "accepted", integrated.error ?? "gate_failure", integrated.details);
+        continue;
       }
-      this.saveRun(run, "run_finished");
-      return { ok: false, error: code, details, task: this.load(args.task), run };
+      const phase = task.repair ? "waiting_repair" : task.state === "reviewing" ? "reviewing" :
+        task.state === "integrating" ? "integrating" : task.state === "verified" ? "waiting_executor" : "waiting_submit";
+      if (run.phase !== phase) { run.phase = phase; this.saveRun(run, "run_phase"); }
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.min(100, Math.max(0, deadline - performance.now()))),
+      );
+    }
+    run.phase = "reclaiming";
+    this.saveRun(run, "run_phase");
+    await this.waitForIdle(run);
+    requireGate(!this.shuttingDown, "daemon_stopping");
+    const cleanup = await this.request({
+      command: "reclaim",
+      task: run.task_id,
+      attempt: run.attempt_id!,
+    });
+    requireGate(cleanup.ok, "run_reclaim_failed", cleanup);
+    run.reclaimed = true;
+    requireGate(!this.shuttingDown, "daemon_stopping");
+    const finalState = this.load(run.task_id).state;
+    run.outcome = finalState === "accepted" ? "completed" : finalState;
+    run.ended = new Date().toISOString();
+    this.saveRun(run, "run_finished");
+    return { ok: true, task: this.load(run.task_id), run };
+  }
+
+  private async runFailed(run: A2ARun, error: unknown): Promise<A2AGateResult> {
+    const code =
+      error instanceof Refusal
+        ? error.code === "stale_attempt"
+          ? "run_superseded"
+          : error.code
+        : "run_external_unknown";
+    const details = error instanceof Refusal ? error.details : String(error);
+    if (
+      run.attempt_id &&
+      (code === "run_superseded" || code === "run_deadline" &&
+        !this.load(run.task_id).repair && !this.load(run.task_id).review)
+    ) {
+      try {
+        await this.waitForIdle(run);
+        requireGate(!this.shuttingDown, "daemon_stopping");
+        const cleanup = await this.request({
+          command: "reclaim",
+          task: run.task_id,
+          attempt: run.attempt_id,
+        });
+        requireGate(cleanup.ok, cleanup.error ?? "run_reclaim_failed", cleanup.details);
+        run.reclaimed = true;
+      } catch (cleanup) {
+        run.cleanup_failure =
+          cleanup instanceof Refusal
+            ? { error: cleanup.code, details: cleanup.details }
+            : String(cleanup);
+      }
+    }
+    run.error = code;
+    run.details = details;
+    run.outcome =
+      code === "run_deadline"
+        ? "deadline"
+        : code === "run_superseded"
+          ? "superseded"
+          : ["oracle_failed", "merge_failed"].includes(code)
+            ? "verification_failed"
+            : run.phase === "reclaiming"
+              ? "integrated_reclaim_failed"
+              : "paused";
+    run.ended = new Date().toISOString();
+    if (this.userInputObserver?.state === "failed") {
+      // The write that failed may also prevent a final receipt. Keep the last
+      // durable phase and expose the pause; never invent persisted evidence.
+      return { ok: false, error: code, details, run };
+    }
+    this.saveRun(run, "run_finished");
+    return { ok: false, error: code, details, task: this.load(run.task_id), run };
+  }
+
+  // Called once the daemon's panes are recovered (T-124, user ruling "4. 这个要解决"). A run the previous daemon
+  // was following goes on with the same attempt when the attempt no longer needs its session (submitted,
+  // verified, integrating, done). When the restart took the worker's or the reviewer's session (claimed,
+  // reviewing, paused by the review's restart), the dead attempt is reclaimed through the gate and the run
+  // dispatches again with its recorded arguments: T-096 ruling B, reclaim then a new attempt. A run stopped
+  // before its dispatch was bound is not resumed. The deadline stays the one the run started with.
+  resumeRuns(controllerOf: (initiator: NonNullable<A2ARun["initiator"]>) => TerminalController) {
+    for (const row of this.db.prepare("SELECT data FROM runs ORDER BY rowid").all()) {
+      const run = JSON.parse(String(row.data)) as A2ARun;
+      if (!(run.outcome === "running" || run.outcome === "paused" && run.error === "daemon_stopping")) continue;
+      const resuming = this.resumeRun(run, run.initiator ? controllerOf(run.initiator) : undefined)
+        .catch(error => this.event(run.task_id, "run_resume_failed", { run_id: run.run_id, error: String(error) }, run.attempt_id ?? undefined))
+        .finally(() => this.resuming.delete(resuming));
+      this.resuming.add(resuming);
+    }
+  }
+
+  private async resumeRun(run: A2ARun, controller?: TerminalController) {
+    const lock = new DatabaseSync(join(this.root, "locks", `${run.task_id}.run.sqlite3`));
+    try {
+      lock.exec("PRAGMA busy_timeout=0; BEGIN IMMEDIATE");
+      const task = this.load(run.task_id);
+      const lost = task.current_attempt?.attempt_id === run.attempt_id && ["claimed", "reviewing", "paused"].includes(task.state);
+      const resume = { at: new Date().toISOString(), phase: run.phase, task_state: task.state, redispatched_from: lost ? run.attempt_id : null };
+      run.resumed = [...(run.resumed ?? []), resume];
+      delete run.error; delete run.details; delete run.ended;
+      run.outcome = "running";
+      if (!run.attempt_id || !run.dispatch && lost) {
+        run.outcome = "paused"; run.error = !run.attempt_id ? "run_interrupted_before_dispatch" : "run_dispatch_args_missing";
+        run.ended = resume.at;
+        this.saveRun(run, "run_finished");
+        return;
+      }
+      this.saveRun(run, "run_resumed");
+      try {
+        if (lost) {
+          const reclaimed = await this.request({ command: "reclaim", task: run.task_id, attempt: run.attempt_id });
+          requireGate(reclaimed.ok, reclaimed.error ?? "run_reclaim_failed", reclaimed.details);
+          run.phase = "dispatching";
+          await this.runDispatch(run);
+        }
+        const remaining = Date.parse(run.started) + run.wait_seconds * 1000 - Date.now();
+        await this.follow(run, controller, performance.now() + remaining);
+      } catch (error) {
+        await this.runFailed(run, error);
+      }
     } finally {
       lock.close();
     }
@@ -3513,9 +3587,11 @@ export class A2AGates {
           this.member(task, thread, attachment.role, attachment.ended_at);
           return { ok: true, task, attachment };
         }
+        // A monitor works in its own directory (T-124); other attachments in the repository.
+        const workspace = attachment.workspace ?? task.repo;
         const live = await this.runtime.readThread(thread);
         requireGate(
-          live.workspace === (attachment.workspace ?? task.repo) && live.provider === attachmentProvider(attachment),
+          live.workspace === workspace && live.provider === attachmentProvider(attachment),
           "identity_conflict",
         );
         this.checkErrorReclaim(live);
@@ -3529,7 +3605,7 @@ export class A2AGates {
           await this.runtime.stopThread(thread);
           const stopped = await this.runtime.readThread(thread);
           requireGate(
-            stopped.workspace === task.repo &&
+            stopped.workspace === workspace &&
               stopped.provider === attachmentProvider(attachment) &&
               stopped.stopped,
             "stop_unconfirmed",
@@ -3538,7 +3614,7 @@ export class A2AGates {
           archived = await this.runtime.readThread(thread);
         }
         requireGate(
-          archived.workspace === task.repo &&
+          archived.workspace === workspace &&
             archived.provider === attachmentProvider(attachment) &&
             archived.stopped &&
             archived.archived,

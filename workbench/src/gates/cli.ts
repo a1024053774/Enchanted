@@ -175,7 +175,7 @@ export async function main(argv = process.argv.slice(2)) {
       else if (key === "screen-id") request.screen_id = value;
       else if (key === "selected-label") request.selected_label = value;
       else if (key === "blocking" || key === "fast") {
-        if (value !== "true" && value !== "false") throw new Error("boolean required: blocking");
+        if (value !== "true" && value !== "false") throw new Error(`boolean required: ${key}`);
         request[key] = value === "true";
       } else if (["reply-to", "bundle-id", "stop-id", "request-id", "score-file", "overlap-reason", "parent-launch"].includes(key))
         request[key.replaceAll("-", "_")] = value;

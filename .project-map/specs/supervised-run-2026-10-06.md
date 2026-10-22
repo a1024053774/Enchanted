@@ -29,6 +29,7 @@ run 记录存同一 state 下并关联既有 task/attempt；它是协调执行�
 5. 若替换为别的 attempt，旧 run 必须停止推进。只可核对清理自己的历史 attempt，
    不能验收/集成新的 attempt，也不能因错误查询关闭新 worker。
 6. run 在自身进程中断后不自动重新投递；既有状态/证据保留，由已有核对入口恢复。
+   （2026-10-22 T-124 用户裁定 4 起：编排后台重启打断的 run 由后台启动时接着跑，worker 已退出的先回收再重新派发；见 `workbench/README.md`。其他中断仍按本条。）
    本轮不声称完整 run 进程自动恢复。
 
 为步骤 3/4 扩展原命令：verify / integrate / reclaim 接受可选 `--attempt ID`。

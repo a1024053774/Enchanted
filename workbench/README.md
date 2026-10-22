@@ -144,8 +144,12 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 - `run` 自动走完派发、验收、审查。审查通过后仍等主控带分 `integrate`；发起它的主控身份已结束（release、终端关闭）
   或额度用完时，run 写 `run_initiator_ended`，自己经门禁集成，评分记为 `{"result":"未评分","reason":"主控身份已结束"}`
   或 `"主控额度用完"`。身份结束后这个终端的 `dispatch`、`run`、`attach` 返回 `approved_role_required` 并记入
-  `request_rejected`；已派出的 worker、run 与 monitor 继续。后台重启时进程内的 run 停下（supervised-run 规格），
-  monitor 不恢复。
+  `request_rejected`；已派出的 worker、run 与 monitor 继续。
+- 后台重启（T-124 用户裁定 4）：启动时 outcome 为 running、或因后台停止而 paused 的 run 接着跑，截止时间不变，
+  每次续跑记入 run 的 `resumed`。原 attempt 的 worker 随后台结束、任务停在 claimed、reviewing 或 paused 的，先经门禁
+  `reclaim` 再按 run 保存的派发参数重新派发（T-096 裁定 B）；已通过审查的直接继续验收与集成；派发还没绑定 attempt 的不续跑。
+  这取代 supervised-run 规格第 6 条在后台重启时的规定。重启打断的 worker、reviewer 窗格在确认原 shell 与 CLI 进程已退出
+  （最多等 10 秒）后登记为已停止（`pane_gone_confirmed`）；monitor 按原启动记录恢复（`pane_restored`），之后可正常回收。
 - `attach`（`role` 只能是 `monitor`）在任务下起一个只读观察会话：CLI 取 `cli`（默认 Codex），模型与强度取
   monitor 的执行设置或调用参数；Codex 以 `--sandbox read-only` 运行，Claude Code 没有可写目录、没有 Edit 规则；
   工作目录是数据目录下它自己的空目录 `monitors/<thread>`（项目目录写在提示里）。启动记录写全 argv，`parent_launch`
@@ -156,17 +160,24 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 会话日志里批准之后的记录：Claude Code 的 API 错误记录 `quotaLimits.status` 为 `rejected`，或 Codex 回合以
 `usage_limit_exceeded` 结束，即记 `controller_quota_exhausted`，侧栏快照的 `controller_quota` 列出它，工作台右上角
 显示“主控额度用完 · 已派出的工作继续 · 约 HH:MM 恢复”；之后有正常回复即记 `controller_quota_restored`，通知消失。
+恢复时间：Claude Code 取 `quotaLimits.resetsAt`；Codex 取之前最近一条 `token_count` 的 `rate_limits`（`limit_id` 为
+`codex`）里已用满、最晚重置的窗口。空行跳过；不是 JSON 的行记一次 `controller_quota_unreadable`，后面的行照读。
 通知开关与“等待用户回答”共用。
 
-worker 自己的原生提问（Claude Code 的 AskUserQuestion、Codex 的 request_user_input）在现有配置下发不出来：
-Claude Code 的 `dontAsk` 直接拒绝 AskUserQuestion，Codex 默认模式下 request_user_input 不可用（T-124 发现）。
-worker 要问只能经 `issue`。
+worker 只经 `issue` 提问（T-124 用户裁定 1）：Claude Code 受管会话（worker、reviewer、monitor）启动参数带
+`--disallowedTools AskUserQuestion`，模型拿不到这个工具；Codex 默认模式下 request_user_input 不可用。非主控窗格
+仍出现的原生提问记 `native_question_ignored`，不登记为等主控回答。
+
+进程快照（`src/processSnapshot.py`）：根进程以外的进程在读取中身份或父进程变化，换新读取器重取整棵树，最多 3 次
+（T-124 用户裁定 2），输出带 `attempts`；根进程变化与其他错误仍立即失败，错误带 `pid` 与变化前后的值。
 
 验证：`python3 workbench/tests/test_t122_claude_worker_e2e.py --summary 新路径.json`（真实后台、终端主控、门禁与
 安装的 Claude Code，模型为本地脚本化接口；`--revision`、`--mutant trust-unanswered|no-initial-release|user-settings-loaded|submit-provider-codex|requested-model-as-fact|card-model-ignored|git-deny-missing|codex-provider-only|no-terminal-parent|inbox-tasks-only|reviewer-codex-only|reviewer-shell-writable`
 为已知坏实现）。`python3 workbench/tests/test_t124_controller_e2e.py --summary 新路径.json`（同样的真实入口：
 主控回答问题、`run` 在 release 并关闭终端后未评分集成、`attach` monitor、额度通知；`--end quota`、
-`--monitor-cli codex` 为变体，`--revision`、`--mutant` 为已知坏实现，命令见 `evidence/2026-10-22-batch20/T-124/e2e/commands.sh`）。
+`--monitor-cli codex`、`--controller-cli codex`、`--end quota|restart-working|restart-verified` 为变体，`--gui` 另在
+本源码构建的真实工作台窗口里核对额度通知并截图，`--revision`、`--mutant` 为已知坏实现，命令见
+`evidence/2026-10-22-batch20/T-124/candidate-2/e2e/commands.sh`）。
 `node workbench/tests/test_t124_quota_notice.mjs 新路径.json` 核对工作台通知。
 `python3 workbench/tests/test_t121_role_request_e2e.py --summary 新路径.json`（真实后台、zsh、`a2a`；
 `--revision`、`--mutant pending-authority|history-in-zdotdir|no-withdraw|zdotdir-dropped|refusal-unrecorded|task-widens-scope`

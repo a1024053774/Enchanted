@@ -53,9 +53,9 @@ export async function serve(
     catch (error) { console.error(JSON.stringify({ error: "controller_quota_failed", reason: String(error) })); }
   }, 5000);
   quotaTimer.unref();
-  const terminalController = (launch: string, roleRequest: RoleRequest): TerminalController => ({
-    launch, role_request: roleRequest.id, role: roleRequest.role,
-    state: () => roleRequests.approved(launch)?.id !== roleRequest.id ? "ended" : quota.exhausted(roleRequest.id) ? "quota_exhausted" : "active" });
+  const controllerOf = (initiator: { launch: string; role_request: string; role: string }): TerminalController => ({ ...initiator,
+    state: () => roleRequests.approved(initiator.launch)?.id !== initiator.role_request ? "ended" : quota.exhausted(initiator.role_request) ? "quota_exhausted" : "active" });
+  const terminalController = (launch: string, roleRequest: RoleRequest) => controllerOf({ launch, role_request: roleRequest.id, role: roleRequest.role });
   const feedbackText = (receipts: unknown[]) =>
     "本回合的异步请求处理结果如下。请仅确认收到并结束；不调用工具、不改文件、不新增请求。\n" + JSON.stringify(receipts, null, 2);
   const settleInboxFeedback = async () => {
@@ -139,6 +139,7 @@ export async function serve(
     // final results are durable. run observes beginShutdown at safe boundaries.
     if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });
     await recovery;
+    await gates.resumedRunsSettled();
     await panes.shutdown();
     store.event("daemon_stopped", { pid: process.pid });
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -733,9 +734,11 @@ export async function serve(
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socket, resolve); });
   chmodSync(socket, 0o600);
   writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });
+  gates.recoverReviews();
   recovery = panes.recover(daemon).finally(() => { recovering = false; });
   void recovery.catch(error => gates.setUserInputObserverStatus("failed", { reason: String(error) }));
-  gates.recoverReviews();
+  // Runs resume once the previous daemon's panes are restored or confirmed gone (T-124).
+  void recovery.then(() => gates.resumeRuns(controllerOf), () => undefined);
   store.event("daemon_started", { daemon, pid: process.pid, ppid: process.ppid, argv: process.argv, helper, node: process.version });
   process.send?.({ ok: true, pid: process.pid, root, helper });
 }

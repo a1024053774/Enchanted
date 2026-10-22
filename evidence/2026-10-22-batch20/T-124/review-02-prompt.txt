@@ -1,0 +1,8 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查本仓库提交 28a0550cc（父提交 b25d44045），完整代码差异（不含 evidence）在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-JwYg/28a0550cc.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-124-terminal-controller-answers-attach-run.md，结果报告是 evidence/2026-10-22-batch20/T-124/RESULTS.md。
+重点：
+1. 正确性：终端主控回答记为主控而非用户输入；run 在主控身份结束或额度用完后经门禁未评分集成，主控在时仍等主控打分；身份结束后新派发/run/attach 被拒；monitor 只读（Codex read-only 沙箱、Claude 无可写目录）；门禁锁、attempt 绑定、fence 不被绕过。
+2. 安全边界：workbench/src/processSnapshot.py 对别的用户进程的 PROC_PIDT_SHORTBSDINFO 回落是否会让伪造或被替换的进程通过身份核对。
+3. 测试是否独立：workbench/tests/test_t124_controller_e2e.py 的检查是否真能区分坏实现，是否有用实现自己的输出当答案的地方。
+4. RESULTS.md 是否有夸大或与证据不符之处。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。

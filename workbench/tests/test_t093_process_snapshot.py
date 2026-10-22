@@ -85,6 +85,30 @@ for kind in ('healthy_tree','gone_child','gone_root_final','wrong_parent','cycle
  except mod.QueryError:assert kind in ('wrong_parent','cycle','denied_tree')
  else:assert kind in ('healthy_tree','gone_child','gone_root_final') and [row['pid'] for row in result]==([] if kind=='gone_root_final' else [11,12] if kind=='gone_child' else [11,12,13])
  checks.append({'case':kind,'tree_contract':True})
+# T-124 ruling "放宽": failure modes listed first. A child that changes once is retaken (attempts 2); one that keeps
+# changing still fails after three attempts; the root changing fails at once; another failure is not retried; each
+# retry needs a fresh reader (a reused one keeps the stale identity and fails again).
+for kind,expect in (('child_changes_once',('ok',2)),('child_reparented_once',('ok',2)),('child_keeps_changing',('process_identity_changed_during_query',3)),
+                    ('root_changes',('process_identity_changed_during_query',1)),('denied_once',('proc_listpids_failed',1))):
+ made=[]
+ def make():
+  class Reader:
+   def __init__(self):self.number=len(made)+1
+   def read(self,pid):
+    value=dict(rows[pid])
+    if self.number==1 and kind=='child_reparented_once' and pid==13:value['ppid']=1
+    return value
+   def children(self,pid):
+    if kind=='denied_once' and self.number==1:raise mod.QueryError('proc_listpids_failed',1)
+    if pid==13 and (kind=='child_keeps_changing' or kind=='child_changes_once' and self.number==1):raise mod.QueryError('process_identity_changed_during_query',None,13)
+    if pid==11 and kind=='root_changes':raise mod.QueryError('process_identity_changed_during_query',None,11)
+    return {11:[12],12:[13],13:[]}[pid]
+  reader=Reader();made.append(reader);return reader
+ try:result,attempts=mod.settled_snapshot(11,make);outcome=('ok',attempts);assert [row['pid'] for row in result]==[11,12,13]
+ except mod.QueryError as error:outcome=(error.operation,len(made))
+ assert outcome==expect,(kind,outcome)
+ assert len({id(reader) for reader in made})==len(made)
+ checks.append({'case':kind,'outcome':list(outcome)})
 # Compile against the installed public SDK, without running a process observer.
 fields={'pid':'pbi_pid','ppid':'pbi_ppid','pgid':'pbi_pgid','tpgid':'e_tpgid','start_sec':'pbi_start_tvsec','start_usec':'pbi_start_tvusec'}
 text='#include <stddef.h>\n#include <sys/proc.h>\n#include <sys/proc_info.h>\n_Static_assert(SZOMB==5 && PROC_FLAG_INEXIT==4,"exit flags");\n'

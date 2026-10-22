@@ -48,7 +48,9 @@ export function codexSessionOrigin(file: unknown, metadata: any, native: unknown
 
 export function nativeSessionFile(record: Record<string, any>, native: string) {
   const claude = record.cli === "Claude Code";
-  const home = claude ? record.env?.CLAUDE_CONFIG_DIR : record.env?.CODEX_HOME;
+  // A managed Claude session (worker, reviewer, monitor) runs without CLAUDE_CONFIG_DIR: Claude then uses $HOME/.claude.
+  const home = claude ? record.env?.CLAUDE_CONFIG_DIR ?? (typeof record.env?.HOME === "string" ? join(record.env.HOME, ".claude") : undefined) :
+    record.env?.CODEX_HOME;
   requireValue(typeof home === "string" && isAbsolute(home), "restore_home_missing");
   const walk = (directory: string): string[] => !existsSync(directory) ? [] :
     readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(directory, entry.name)) :

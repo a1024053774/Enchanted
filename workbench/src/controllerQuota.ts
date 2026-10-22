@@ -7,14 +7,18 @@ import type { RoleRequest } from "./roleRequests.ts";
 // workbench, and the work it started carries on. The fact comes from the CLI's own
 // session log, never from screen text: Claude Code writes an API error record whose
 // quotaLimits.status is "rejected"; Codex ends the turn with codex_error_info
-// "usage_limit_exceeded". The session id and home are what the controller's `a2a request`
+// "usage_limit_exceeded", and the token_count before it carries the limit windows (rate_limits, limit_id
+// "codex"; a window at 100 % names when it resets). Both shapes were checked against the user's own logs on
+// 2026-10-22 (Claude: quotaLimits with resetsAt in seconds; Codex 0.163: task_complete error, token_count
+// rate_limits.primary/secondary.resets_at in seconds). The session id and home are what the controller's `a2a request`
 // reported from its CLI's environment (CLAUDE_CODE_SESSION_ID, CODEX_THREAD_ID); only
 // that one file is read, and only records written after the user approved the role.
 export type QuotaState = { role_request: string; launch: string; project: string; role: string; cli: string;
   limit: string | null; resets_at: string | null; since: string };
 
 // looked: when the file was last searched for; a missing file is searched again at most every 30 s.
-type Reading = { file: string | null; looked: number; offset: number; exhausted: QuotaState | null; failed: boolean };
+// windows: the Codex limit windows last reported in the log.
+type Reading = { file: string | null; looked: number; offset: number; exhausted: QuotaState | null; failed: boolean; windows: any[] };
 
 export class ControllerQuota {
   private readings = new Map<string, Reading>();
@@ -30,15 +34,18 @@ export class ControllerQuota {
     for (const id of this.readings.keys()) if (!live.has(id)) this.readings.delete(id);
     for (const roleRequest of approved) {
       if (!roleRequest.native_session || !roleRequest.native_home || !roleRequest.cli || !roleRequest.decided_at) continue;
-      const reading = this.readings.get(roleRequest.id) ?? { file: null, looked: 0, offset: 0, exhausted: null, failed: false };
+      const reading = this.readings.get(roleRequest.id) ?? { file: null, looked: 0, offset: 0, exhausted: null, failed: false, windows: [] };
       this.readings.set(roleRequest.id, reading);
       try { this.read(roleRequest, reading); }
-      catch (error) {
-        if (!reading.failed) this.store.event("controller_quota_unreadable", { role_request: roleRequest.id, reason: String(error) },
-          { id: roleRequest.launch, task: null });
-        reading.failed = true;
-      }
+      catch (error) { this.unreadable(roleRequest, reading, error); }
     }
+  }
+
+  // The log cannot be read or holds a line that is not JSON: recorded once per role; reading goes on.
+  private unreadable(roleRequest: RoleRequest, reading: Reading, error: unknown) {
+    if (!reading.failed) this.store.event("controller_quota_unreadable", { role_request: roleRequest.id, reason: String(error) },
+      { id: roleRequest.launch, task: null });
+    reading.failed = true;
   }
 
   private read(roleRequest: RoleRequest, reading: Reading) {
@@ -61,10 +68,15 @@ export class ControllerQuota {
     reading.offset += end + 1;
     const approvedAt = Date.parse(roleRequest.decided_at!);
     for (const line of bytes.subarray(0, end).toString("utf8").split("\n")) {
-      // Only complete lines are parsed; one that is not JSON fails the read and is recorded (controller_quota_unreadable).
-      const record = JSON.parse(line);
+      if (!line.trim()) continue;
+      // Only complete lines are parsed. One that is not JSON is recorded (controller_quota_unreadable, once per role)
+      // and the lines after it are still read: a quota record must not be lost behind it.
+      let record: any;
+      try { record = JSON.parse(line); }
+      catch (error) { this.unreadable(roleRequest, reading, error); continue; }
       if (!(Date.parse(record?.timestamp) >= approvedAt)) continue;
-      const fact = roleRequest.cli === "claude" ? claudeQuota(record) : codexQuota(record);
+      if (roleRequest.cli === "codex") reading.windows = codexWindows(record) ?? reading.windows;
+      const fact = roleRequest.cli === "claude" ? claudeQuota(record) : codexQuota(record, reading.windows);
       if (fact === "restored" && reading.exhausted) {
         this.store.event("controller_quota_restored", { role_request: roleRequest.id, at: record.timestamp }, { id: roleRequest.launch, task: null });
         reading.exhausted = null;
@@ -89,10 +101,20 @@ function claudeQuota(record: any): Fact {
   return record?.type === "assistant" && record.isApiErrorMessage !== true ? "restored" : null;
 }
 
-function codexQuota(record: any): Fact {
+function codexWindows(record: any): any[] | null {
+  const limits = record?.type === "event_msg" && record.payload?.type === "token_count" ? record.payload.rate_limits : null;
+  return limits?.limit_id === "codex" ? [limits.primary, limits.secondary].filter(window => window && typeof window === "object") : null;
+}
+
+// The limit that ran out is the full window resetting last; out of credits with no full window has no reset time.
+function codexQuota(record: any, windows: any[]): Fact {
   const payload = record?.type === "event_msg" && record.payload?.type === "task_complete" ? record.payload : null;
   if (!payload) return null;
-  return payload.error?.codex_error_info === "usage_limit_exceeded" ? { limit: null, resets_at: null } : payload.error ? null : "restored";
+  if (payload.error?.codex_error_info !== "usage_limit_exceeded") return payload.error ? null : "restored";
+  const full = windows.filter(window => Number(window.used_percent) >= 100 && Number(window.resets_at) > 0)
+    .sort((a, b) => Number(b.resets_at) - Number(a.resets_at))[0];
+  return { limit: full && Number.isFinite(Number(full.window_minutes)) ? `${full.window_minutes}_minutes` : null,
+    resets_at: full ? new Date(Number(full.resets_at) * 1000).toISOString() : null };
 }
 
 function sessionFile(roleRequest: RoleRequest): string | null {

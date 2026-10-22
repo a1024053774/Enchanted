@@ -1,0 +1,596 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "tests/test_t124_controller_e2e.py",
+    "--summary",
+    "../evidence/2026-10-22-batch20/T-124/candidate-2/e2e/mutant-10-reclaim-monitor-repo.json",
+    "--mutant",
+    "reclaim-monitor-repo"
+  ],
+  "revision": null,
+  "mutant": "reclaim-monitor-repo",
+  "end": "release",
+  "monitor_cli": "claude",
+  "fixture": "/private/tmp/t124-zqwbufmn",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "checks": [
+    "quota_exhausted_noticed",
+    "quota_events_recorded",
+    "torn_log_line_recorded_once",
+    "run_opened_to_terminal",
+    "attach_starts_monitor",
+    "monitor_nested_under_controller",
+    "monitor_launch_recorded_read_only",
+    "monitor_reads_but_cannot_write",
+    "controller_answers_issue",
+    "controller_answer_recorded_as_controller",
+    "controller_answer_not_user_input",
+    "controller_answer_not_intervention",
+    "controller_answer_event",
+    "user_answers_issue",
+    "user_answer_is_user_input",
+    "worker_sees_who_answered",
+    "run_waits_for_active_controller_score",
+    "release_from_terminal",
+    "new_work_refused_after_release",
+    "run_integrates_after_role_ends",
+    "integration_recorded_unscored",
+    "run_initiator_end_recorded",
+    "monitor_survives_role_and_terminal",
+    "managed_sessions_offer_no_native_question"
+  ],
+  "role_request": {
+    "id": "01c1d701-cdee-440d-a140-6bd159c44200",
+    "launch": "5283556d-0889-4545-a505-b6525f3085a9",
+    "project": "demo",
+    "role": "executor",
+    "cli": "claude",
+    "native_session": "c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b",
+    "native_home": "/private/tmp/t124-zqwbufmn/controller-claude",
+    "state": "approved",
+    "requested_at": "2026-10-22T11:21:01.152Z",
+    "decided_at": "2026-10-22T11:21:01.310Z",
+    "ended_reason": null
+  },
+  "quota_notice": [
+    {
+      "role_request": "01c1d701-cdee-440d-a140-6bd159c44200",
+      "launch": "5283556d-0889-4545-a505-b6525f3085a9",
+      "project": "demo",
+      "role": "executor",
+      "cli": "claude",
+      "limit": "five_hour",
+      "resets_at": "2026-10-22T12:21:01.000Z",
+      "since": "2026-10-22T11:21:02.516Z",
+      "role_label": "执行主控"
+    }
+  ],
+  "attach": {
+    "ok": true,
+    "error": null,
+    "details": null
+  },
+  "monitor": {
+    "role": "monitor",
+    "parent": "5283556d-0889-4545-a505-b6525f3085a9",
+    "cli": "Claude Code",
+    "argv": [
+      "/Users/luckye/.local/share/claude/versions/2.1.308",
+      "--session-id",
+      "eb5c277a-2945-4d06-a573-b63a0b10af72",
+      "--model",
+      "claude-haiku-5-5",
+      "--effort",
+      "low",
+      "--permission-mode",
+      "dontAsk",
+      "--setting-sources",
+      "",
+      "--strict-mcp-config",
+      "--disallowedTools",
+      "AskUserQuestion",
+      "--settings"
+    ],
+    "settings": {
+      "permissions": {
+        "allow": [
+          "Bash",
+          "Read",
+          "Glob",
+          "Grep"
+        ]
+      },
+      "sandbox": {
+        "enabled": true,
+        "autoAllowBashIfSandboxed": true,
+        "allowUnsandboxedCommands": false,
+        "filesystem": {
+          "allowWrite": []
+        }
+      },
+      "hooks": {
+        "SessionStart": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t124-zqwbufmn/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-zqwbufmn/state' 'signal' '--launch' 'e41aecbb-1703-4b2e-9dec-d82d68f0e392'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "UserPromptSubmit": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t124-zqwbufmn/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-zqwbufmn/state' 'signal' '--launch' 'e41aecbb-1703-4b2e-9dec-d82d68f0e392'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "Stop": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t124-zqwbufmn/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-zqwbufmn/state' 'signal' '--launch' 'e41aecbb-1703-4b2e-9dec-d82d68f0e392'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "PermissionRequest": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t124-zqwbufmn/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-zqwbufmn/state' 'signal' '--launch' 'e41aecbb-1703-4b2e-9dec-d82d68f0e392'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "PreToolUse": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t124-zqwbufmn/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-zqwbufmn/state' 'signal' '--launch' 'e41aecbb-1703-4b2e-9dec-d82d68f0e392'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "PostToolUse": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/private/tmp/t124-zqwbufmn/source/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-zqwbufmn/state' 'signal' '--launch' 'e41aecbb-1703-4b2e-9dec-d82d68f0e392'",
+                "timeout": 10
+              }
+            ]
+          }
+        ]
+      },
+      "fastMode": false
+    }
+  },
+  "monitor_results": [
+    {
+      "id": "toolu_t124_5",
+      "is_error": false,
+      "text": "init\nmonitor read rc=0\n(eval):1: operation not permitted: /private/tmp/t124-zqwbufmn/demo/monitor-note.txt\nmonitor write rc=1"
+    }
+  ],
+  "controller_answer": {
+    "ok": true,
+    "error": null,
+    "details": null
+  },
+  "controller_answer_record": {
+    "id": "e4e815ce-d840-4af8-bcec-dded4d9491c7",
+    "schema": 1,
+    "kind": "answer",
+    "from": "executor",
+    "to": "worker:62402fa9-f8bb-49fc-96b1-e836642df79e",
+    "reply_to": "abd38501-452b-4a1c-a7fe-566310a416e4",
+    "refs": [
+      "task:T-1",
+      "attempt:1f554267-9913-459e-b166-23711b73ff04",
+      "thread:62402fa9-f8bb-49fc-96b1-e836642df79e",
+      "turn:af9f8ab0-15a1-4ee9-9efe-34c88d3e8739",
+      "issue:abd38501-452b-4a1c-a7fe-566310a416e4",
+      "controller-launch:5283556d-0889-4545-a505-b6525f3085a9",
+      "role-request:01c1d701-cdee-440d-a140-6bd159c44200",
+      "message:bdb7611b-d1ac-4ffd-96f4-6958c0608c4d"
+    ],
+    "created_at": "2026-10-22T11:21:13.659Z",
+    "body": "写一行 hello 即可。",
+    "task_id": "T-1",
+    "attempt_id": "1f554267-9913-459e-b166-23711b73ff04",
+    "thread_id": "62402fa9-f8bb-49fc-96b1-e836642df79e",
+    "turn_id": "af9f8ab0-15a1-4ee9-9efe-34c88d3e8739",
+    "number": 1,
+    "title": "hello.txt 写什么",
+    "blocking": false,
+    "issue_id": "abd38501-452b-4a1c-a7fe-566310a416e4",
+    "message_id": "bdb7611b-d1ac-4ffd-96f4-6958c0608c4d",
+    "bundle_id": "1998047a-25fb-411d-bf33-602bb9902d35"
+  },
+  "while_active": {
+    "state": "verified",
+    "early": [],
+    "run_returned": false,
+    "phase": null
+  },
+  "after_release": {
+    "refused": {
+      "dispatch": "approved_role_required",
+      "run": "approved_role_required",
+      "attach": "approved_role_required"
+    },
+    "rejected": [
+      "dispatch",
+      "run",
+      "attach"
+    ]
+  },
+  "run": {
+    "ok": true,
+    "error": null,
+    "details": null
+  },
+  "score_recorded": [
+    {
+      "schema": 2,
+      "score_id": "score-de699ff9-68d2-46d2-8f56-036950b17c77",
+      "created_at": "2026-10-22T11:21:24.572Z",
+      "source": "executor",
+      "launch_id": "38a9711e-6d07-46ff-ac8c-488296476533",
+      "project": "demo",
+      "task": "T-1",
+      "attempt": "1f554267-9913-459e-b166-23711b73ff04",
+      "cli": "2.1.308 (Claude Code)",
+      "model": "claude-haiku-5-5-t124-served",
+      "effort": "low",
+      "data": {
+        "result": "未评分",
+        "reason": "主控身份已结束"
+      },
+      "facts": {
+        "task_type": "测试",
+        "complexity": "S",
+        "delivery_rounds": 1,
+        "elapsed_seconds": 14,
+        "human_interventions": 1,
+        "rejections": {
+          "identity_version": 0,
+          "path_boundary": 0,
+          "oracle": 0,
+          "completion": 0,
+          "red_state": 0,
+          "rule_checks": 0,
+          "independent_review": 0,
+          "commit_trailers": 0
+        }
+      }
+    }
+  ],
+  "monitor_after": {
+    "state": "idle",
+    "task": "T-1",
+    "parent": null,
+    "parent_launch": "5283556d-0889-4545-a505-b6525f3085a9",
+    "stopped": []
+  },
+  "native_question_tools": {
+    "worker": [],
+    "monitor": [],
+    "reviewer": []
+  },
+  "monitor_reclaim": {
+    "ok": false,
+    "error": "identity_conflict",
+    "state": null,
+    "sidebar": "idle"
+  },
+  "error": "AssertionError: monitor_reclaimed: {'ok': False, 'error': 'identity_conflict', 'state': None, 'sidebar': 'idle'}",
+  "api_snapshot": {
+    "requests": 24,
+    "results": {
+      "worker": [
+        {
+          "id": "toolu_t124_2",
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"36e36484-e4e5-4ff9-84d0-d7648f02245d\",\"path\":\"/private/tmp/a2a-requests-4h8PSQ/36e36484-e4e5-4ff9-84d0-d7648f02245d.json\"}"
+        },
+        {
+          "id": "toolu_t124_10",
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"3f358c88-0458-42bb-96e6-5ab78da14269\",\"path\":\"/private/tmp/a2a-requests-4h8PSQ/3f358c88-0458-42bb-96e6-5ab78da14269.json\"}"
+        },
+        {
+          "id": "toolu_t124_15",
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t124-zqwbufmn/state/worktrees/demo/T-1-a1/hello.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "id": "toolu_t124_16",
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "id": "toolu_t124_17",
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "id": "toolu_t124_18",
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"4ba85f29-34fa-46b6-b5af-2a6339ad17d1\",\"path\":\"/private/tmp/a2a-requests-4h8PSQ/4ba85f29-34fa-46b6-b5af-2a6339ad17d1.json\"}"
+        }
+      ],
+      "reviewer": [
+        {
+          "id": "toolu_t124_23",
+          "is_error": false,
+          "text": "mutation-1 rc=1"
+        }
+      ],
+      "monitor": [
+        {
+          "id": "toolu_t124_5",
+          "is_error": false,
+          "text": "init\nmonitor read rc=0\n(eval):1: operation not permitted: /private/tmp/t124-zqwbufmn/demo/monitor-note.txt\nmonitor write rc=1"
+        }
+      ]
+    },
+    "error": null
+  },
+  "events_tail": [
+    {
+      "type": "hook_received",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "hook_received",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "turn_end_signal",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "native_turn_facts",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "relay_received",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "relay_processed",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "pane_idle",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "3bd63f19-864b-497e-9bc6-93abc08a9cd3"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "role_request_ended",
+      "launch": "5283556d-0889-4545-a505-b6525f3085a9"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_rejected",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_rejected",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_rejected",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "5283556d-0889-4545-a505-b6525f3085a9"
+    },
+    {
+      "type": "shell_closed",
+      "launch": "5283556d-0889-4545-a505-b6525f3085a9"
+    },
+    {
+      "type": "shell_exit_confirmed",
+      "launch": "5283556d-0889-4545-a505-b6525f3085a9"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "5283556d-0889-4545-a505-b6525f3085a9"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "38a9711e-6d07-46ff-ac8c-488296476533"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "38a9711e-6d07-46ff-ac8c-488296476533"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "38a9711e-6d07-46ff-ac8c-488296476533"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "38a9711e-6d07-46ff-ac8c-488296476533"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "pane_leader_observed",
+      "launch": "e41aecbb-1703-4b2e-9dec-d82d68f0e392"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    }
+  ]
+}

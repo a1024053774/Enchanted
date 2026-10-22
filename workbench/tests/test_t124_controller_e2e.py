@@ -53,13 +53,35 @@ MUTANTS = {
     'unscored-without-reason': ('src/gates/core.ts', '? { result: "未评分", reason: run.initiator_unavailable.state === "ended" ? "主控身份已结束" : "主控额度用完" }',
                                 '? { result: "未评分" }'),
     # Every thread without an attachment is taken for Codex, as before this ticket.
+    # The reclaim compares a monitor's working directory with the repository (review 02 finding 1).
+    'reclaim-monitor-repo': ('src/gates/core.ts', '        const workspace = attachment.workspace ?? task.repo;\n', '        const workspace = task.repo;\n'),
+    # A line in the controller's log that is not JSON hides the quota record after it (review 02 finding 2).
+    'quota-stops-at-bad-line': ('src/controllerQuota.ts', 'catch (error) { this.unreadable(roleRequest, reading, error); continue; }',
+                                'catch (error) { this.unreadable(roleRequest, reading, error); break; }'),
+    # After a restart the run the previous daemon followed is left paused (as before this ticket).
+    'runs-not-resumed': ('src/daemon.ts', '  void recovery.then(() => gates.resumeRuns(controllerOf), () => undefined);\n', ''),
+    # A worker that went with the previous daemon is never registered, so its attempt cannot be reclaimed.
+    'gone-not-registered': ('src/panes.ts', '      } else await this.registerGone(record);', '      }'),
+    # A monitor not shown in a window is not resumed after a restart.
+    'monitor-not-restored': ('src/panes.ts', "        await this.restore(daemon, record, native, record.cli === \"Claude Code\" ?", "        if (false) await this.restore(daemon, record, native, record.cli === \"Claude Code\" ?"),
+    # The resumed run follows the attempt the restart took instead of dispatching again.
+    'resume-without-redispatch': ('src/gates/core.ts', '        if (lost) {\n          const reclaimed', '        if (false) {\n          const reclaimed'),
     'issue-provider-codex': ('src/gates/core.ts', 'return attempt && this.boundCard(attempt).executor.cli === "Claude Code" ? "claude" : "codex";', 'return "codex";'),
-    # A process of another user in the worker's tree fails the snapshot, as before this ticket.
     # A Codex monitor's session cannot be bound (the resume argv refused its role), as before this ticket's fix.
     'codex-monitor-unbound': ('src/paneRecovery.ts', '["worker", "reviewer", "monitor"].includes(record.role)', '["worker", "reviewer"].includes(record.role)'),
+    # A process of another user in the worker's tree fails the snapshot, as before this ticket.
     'snapshot-denies-privileged': ('src/processSnapshot.py', "        if size==0 and number==errno.EPERM:info=self.privileged(pid)\n        elif size",
                                    "        if size"),
+    # A Claude worker keeps AskUserQuestion, which dontAsk then denies (before ruling 1a).
+    # Only the worker (the one launch with a shell-writable request folder) keeps the tool: the gate's reviewer
+    # boundary would otherwise refuse the reviewer first and the worker's own tool list would go unchecked.
+    'worker-asks-natively': ('src/panes.ts', '"--disallowedTools", "AskUserQuestion", ',
+                             '...(shellWritable.length ? [] : ["--disallowedTools", "AskUserQuestion"]), '),
+    # A Codex controller's limit windows are not read, so the notice has no reset time.
+    'codex-reset-unread': ('src/controllerQuota.ts', 'reading.windows = codexWindows(record) ?? reading.windows;', 'reading.windows = reading.windows;'),
     # The controller's session log is never read.
+    # The workbench shows a quota row as if it were a question (no quota text).
+    'notice-not-rendered': ('app/AppNotifications.tsx', "{notice.kind === 'quota' ? <>", "{false ? <>"),
     'quota-unread': ('src/daemon.ts', 'try { quota.tick(roleRequests.all()', 'try { if (Date.now() < 0) quota.tick(roleRequests.all()'),
     # A monitor shell may write the project.
     'monitor-writable': ('src/panes.ts', 'review || monitor ? [] : [requestDirectory]', 'monitor ? [realpathSync(task.repo)] : review ? [] : [requestDirectory]'),
@@ -70,8 +92,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--summary', type=Path, required=True)
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
-    parser.add_argument('--end', choices=['release', 'quota'], default='release')
+    parser.add_argument('--end', choices=['release', 'quota', 'restart-working', 'restart-verified'], default='release')
     parser.add_argument('--monitor-cli', choices=['claude', 'codex'], default='claude')
+    parser.add_argument('--controller-cli', choices=['claude', 'codex'], default='claude')
+    # Also show the quota notice in a real workbench window (built from the same source) and capture it.
+    parser.add_argument('--gui', action='store_true')
     parser.add_argument('--codex', default=os.path.realpath(shutil.which('codex') or str(Path.home() / '.local/bin/codex')))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
@@ -84,8 +109,9 @@ def main():
         path.mkdir()
     (home / '.claude.json').write_text(json.dumps({'hasCompletedOnboarding': True, 'theme': 'dark'}), encoding='utf-8')
     # The controller CLI's own home: only its session log is read, for the quota (failure 8).
-    controller_home = fixture / 'controller-claude'
-    transcript = controller_home / 'projects' / '-private-tmp-demo' / f'{CONTROLLER_SESSION}.jsonl'
+    controller_home = fixture / f'controller-{args.controller_cli}'
+    transcript = (controller_home / 'projects' / '-private-tmp-demo' / f'{CONTROLLER_SESSION}.jsonl' if args.controller_cli == 'claude' else
+                  controller_home / 'sessions' / '2026' / '10' / '22' / f'rollout-2026-10-22T08-00-00-{CONTROLLER_SESSION}.jsonl')
     transcript.parent.mkdir(parents=True)
     MONITOR_STEP = f'git -C {repo} log --format=%s -1; echo "monitor read rc=$?"; echo x > {repo}/monitor-note.txt; echo "monitor write rc=$?"'
     source = ROOT
@@ -106,8 +132,9 @@ def main():
             # The parent revision has no monitor card; the scenario still needs a file to name.
             (source / 'workbench/roles/monitor.md').exists() or shutil.copy(ROOT / 'workbench/roles/monitor.md', source / 'workbench/roles/monitor.md')
         else:
-            for name in ('src', 'terminal', 'hooks', 'roles'):
+            for name in ('src', 'terminal', 'hooks', 'roles', 'app'):
                 shutil.copytree(ROOT / 'workbench' / name, source / 'workbench' / name, symlinks=True)
+            shutil.copy(ROOT / 'workbench/LICENSE.synara', source / 'workbench/LICENSE.synara')
             path, old, new = MUTANTS[args.mutant]
             path = source / 'workbench' / path
             text = path.read_text(encoding='utf-8')
@@ -120,7 +147,7 @@ def main():
 
     # The model: a scripted Messages endpoint. Each conversation's role is told apart by its first prompt;
     # a worker's phase by the newest prompt it was given (the dispatch, the controller's answer, the user's answer).
-    api = dict(requests=0, results=dict(worker=[], reviewer=[], monitor=[]), error=None)
+    api = dict(requests=0, results=dict(worker=[], reviewer=[], monitor=[]), error=None, tools={})
 
     def texts(message):
         content = message['content']
@@ -201,6 +228,7 @@ def main():
                 except BaseException as error:
                     api['error'] = f'plan: {error}'
                     raise
+                api['tools'].setdefault(role, set()).update(names)
                 last = next((message['content'] for message in reversed(body['messages']) if message['role'] == 'user'), None)
                 if isinstance(last, list):
                     for part in last:
@@ -311,6 +339,16 @@ def main():
     def gate_events(operator, types):
         return [e for e in request('events', operator, task='T-1')['events'] if e['type'] in types]
 
+    def restart():
+        # A daemon restart: the previous daemon stops (its panes with it) and a new one recovers. Each start issues
+        # its own operator credential; the previous one is kept beside it.
+        run_cli('daemon_stop')
+        wait('后台停止', lambda: not (state / 'daemon.pid').exists(), 90)
+        (fixture / 'operator.json').rename(fixture / 'operator-before-restart.json')
+        run_cli('daemon_start', '--launch-config', str(fixture / 'launch-config.json'))
+        wait('后台恢复结束', lambda: request('pane_layout').get('recovering') is False, 90)
+        return json.loads((fixture / 'operator.json').read_text(encoding='utf-8'))
+
     def wait(label, predicate, timeout=90):
         deadline = time.monotonic() + timeout
         while True:
@@ -330,15 +368,31 @@ def main():
     def stamp(offset=0):
         return datetime.fromtimestamp(time.time() + offset, timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
 
-    def log_quota(rejected):
-        # The records Claude Code writes when the account's limit rejects a request, and when a reply works again.
-        record = (dict(type='assistant', isApiErrorMessage=True, timestamp=stamp(1), sessionId=CONTROLLER_SESSION,
-                       quotaLimits=dict(status='rejected', rateLimitType='five_hour', resetsAt=int(time.time()) + 3600),
-                       message=dict(role='assistant', content=[dict(type='text', text='usage limit reached')]))
-                  if rejected else dict(type='assistant', timestamp=stamp(1), sessionId=CONTROLLER_SESSION,
-                                        message=dict(role='assistant', content=[dict(type='text', text='ok')])))
+    written = {}
+
+    def log_quota(rejected, noise=False):
+        # noise: a blank line and a torn line ahead of the records, in the same write (review 02 finding 2).
+        lines = ['', '{"type": "assist'] if noise else []
+        if args.controller_cli == 'codex':
+            # The records Codex 0.163 writes (shape of the user's own rollout 2026-10-19T19-36-23, fields kept, values
+            # changed): the turn's token_count with the limit windows, then task_complete with or without the error.
+            reset = written['reset'] = int(time.time()) + 3600
+            limits = dict(limit_id='codex', limit_name=None, primary=dict(used_percent=100.0 if rejected else 12.0, window_minutes=300, resets_at=reset),
+                          secondary=dict(used_percent=45.0, window_minutes=10080, resets_at=reset + 86400), plan_type='team', rate_limit_reached_type=None)
+            done = dict(type='task_complete', turn_id=str(uuid.uuid4()), last_agent_message=None if rejected else 'ok')
+            if rejected:
+                done['error'] = dict(message='You have hit your usage limit.', codex_error_info='usage_limit_exceeded')
+            lines += [json.dumps(dict(timestamp=stamp(1), type='event_msg', payload=payload)) for payload in (dict(type='token_count', info=None, rate_limits=limits), done)]
+        else:
+            # The records Claude Code writes when the account's limit rejects a request, and when a reply works again.
+            record = (dict(type='assistant', isApiErrorMessage=True, timestamp=stamp(1), sessionId=CONTROLLER_SESSION,
+                           quotaLimits=dict(status='rejected', rateLimitType='five_hour', resetsAt=written.setdefault('reset', int(time.time()) + 3600)),
+                           message=dict(role='assistant', content=[dict(type='text', text='usage limit reached')]))
+                      if rejected else dict(type='assistant', timestamp=stamp(1), sessionId=CONTROLLER_SESSION,
+                                            message=dict(role='assistant', content=[dict(type='text', text='ok')])))
+            lines.append(json.dumps(record))
         with transcript.open('a', encoding='utf-8') as stream:
-            stream.write(json.dumps(record) + '\n')
+            stream.write('\n'.join(lines) + '\n')
 
     try:
         config = dict(claude_bin=args.claude, codex_bin=args.codex, codex_home=str(codex_home), role_card=str(source / 'workbench/roles/worker.md'), role_card_revision='t124-fixture',
@@ -375,7 +429,9 @@ def main():
 
         type_line(f'print -r -- $A2A_TERMINAL_TOKEN > {out}/token.txt', 'T124-TOKEN')
         terminal = dict(kind='terminal', launch=launch, token=(out / 'token.txt').read_text().strip())
-        type_line(f'(CLAUDECODE=1 CLAUDE_CODE_SESSION_ID={CONTROLLER_SESSION} CLAUDE_CONFIG_DIR={controller_home} '
+        native_env = (f'CLAUDECODE=1 CLAUDE_CODE_SESSION_ID={CONTROLLER_SESSION} CLAUDE_CONFIG_DIR={controller_home}' if args.controller_cli == 'claude' else
+                      f'CODEX_THREAD_ID={CONTROLLER_SESSION} CODEX_HOME={controller_home}')
+        type_line(f'({native_env} '
                   f'a2a request executor > {out}/request.json 2>/dev/null; print $? > {out}/request.exit) &!', 'T124-REQUEST-SENT')
         pending = wait('角色申请出现', lambda: request('sidebar_snapshot').get('role_requests'), 20)
         assert request('role_request_decide', operator, role_request=pending[0]['id'], approved=True)['ok']
@@ -385,15 +441,18 @@ def main():
         assert granted.get('ok'), granted
 
         # 8: the quota is read from the controller's own session log, and the notice goes once it works again.
-        log_quota(True)
+        log_quota(True, noise=True)
         exhausted = wait('额度用完通知', lambda: request('sidebar_snapshot').get('controller_quota'), 30)
         report['quota_notice'] = exhausted
         check('quota_exhausted_noticed', len(exhausted) == 1 and exhausted[0]['launch'] == launch and exhausted[0]['role_label'] == '执行主控' and
-              exhausted[0]['project'] == 'demo' and exhausted[0]['resets_at'], exhausted)
+              exhausted[0]['project'] == 'demo' and exhausted[0]['resets_at'] ==
+              datetime.fromtimestamp(written['reset'], timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'), exhausted)
         log_quota(False)
         wait('额度恢复', lambda: request('sidebar_snapshot').get('controller_quota') == [], 30)
         quota_events = [e['type'] for e in events({'controller_quota_exhausted', 'controller_quota_restored'})]
         check('quota_events_recorded', quota_events == ['controller_quota_exhausted', 'controller_quota_restored'], quota_events)
+        unreadable = events({'controller_quota_unreadable'})
+        check('torn_log_line_recorded_once', len(unreadable) == 1, [e['data'] for e in unreadable])
 
         card = out / 'card.json'
         card.write_text(json.dumps(dict(id='T-1', source=None, goal='在仓库根目录加 hello.txt', non_goals=['不改别的文件'],
@@ -403,6 +462,46 @@ def main():
         assert request('card_save', terminal, task='T-1', card=str(card), expected_version=0)['ok']
         assert request('create', terminal, task='T-1', project='demo', repo=str(repo), branch='refs/heads/main', card_version=1)['ok']
         user_inputs_before = len(request('issues', operator, task='T-1')['user_inputs'])
+
+        if args.gui:
+            # 8 in the workbench itself: the real window built from this source shows the notice and drops it again.
+            sys.path.insert(0, str(ROOT / 'workbench/tests'))
+            from electron_client import ElectronClient
+            built = json.loads(subprocess.check_output(['node', str(source / 'workbench/app/build.mjs'), '--slot', 't124-gui-' + uuid.uuid4().hex[:8]],
+                                                       text=True).splitlines()[-1])
+            # The daemon's environment runs Electron as Node; the window must run as Electron.
+            window_env = {key: value for key, value in env.items() if key != 'ELECTRON_RUN_AS_NODE'}
+            window = None
+            try:
+                window = ElectronClient(ROOT, Path(built['out']), state, 'T-1', fixture / 'ui', out / 'window', window_env)
+                def shown(predicate, label, timeout=40):
+                    deadline = time.monotonic() + timeout
+                    while True:
+                        view = window.call('inspect')
+                        if predicate(view['text']):
+                            return view['text']
+                        assert time.monotonic() < deadline, f'超时：{label}: {view["text"][-600:]}'
+                        time.sleep(1)
+                log_quota(True)
+                # Expected from the record written above, in this machine's time zone, as zh-CN shows hours and minutes.
+                reset = datetime.fromtimestamp(written['reset']).strftime('%H:%M')
+                text = shown(lambda value: '主控额度用完' in value, '窗口里的额度通知')
+                window.call('capture', name='quota-notice')
+                report['gui_notice'] = [line for line in text.splitlines() if '额度' in line or '恢复' in line]
+                check('gui_quota_notice_shown', '已派出的工作继续' in text and f'{reset} 恢复' in text and '执行主控' in text, report['gui_notice'])
+                log_quota(False)
+                shown(lambda value: '主控额度用完' not in value, '额度恢复后通知消失')
+                window.call('capture', name='quota-restored')
+                check('gui_quota_notice_cleared', True)
+            finally:
+                # The build is this run's own; it is removed once its Electron exit is confirmed, else kept and named.
+                if window:
+                    window.close()
+                if window and window.exit_confirmed:
+                    shutil.rmtree(Path(built['out']).parent)
+                else:
+                    report['preserved_build'] = built['out']
+            report['gui_captures'] = [str(out / 'window' / name) for name in ('quota-notice.png', 'quota-restored.png')]
 
         # 1: the controller starts a run; it returns only when the task ends.
         run_result = {}
@@ -454,86 +553,138 @@ def main():
         # 2, 3: the worker's first issue, answered by the controller.
         issue_one = wait('第一个问题', lambda: next((view for view in request('issues', terminal, task='T-1').get('issues', [])
                                                   if view['issue']['title'] == 'hello.txt 写什么'), None), 120)
-        answered = request('answer_issue', terminal, task='T-1', issue=issue_one['issue']['id'], answer='写一行 hello 即可。')
-        report['controller_answer'] = {key: answered.get(key) for key in ('ok', 'error', 'details')}
-        check('controller_answers_issue', answered.get('ok'), report['controller_answer'])
-        views = request('issues', operator, task='T-1')
-        record = next(view for view in views['issues'] if view['issue']['id'] == issue_one['issue']['id'])['answer']
-        report['controller_answer_record'] = record
-        check('controller_answer_recorded_as_controller', record['from'] == 'executor' and
-              f'controller-launch:{launch}' in record['refs'] and f"role-request:{granted['role_request']['id']}" in record['refs'] and
-              not record.get('input_id'), record)
-        check('controller_answer_not_user_input', len(views['user_inputs']) == user_inputs_before, views['user_inputs'])
-        check('controller_answer_not_intervention', not gate_events(operator, {'human_intervention'}), gate_events(operator, {'human_intervention'}))
-        check('controller_answer_event', [e['details']['launch'] for e in gate_events(operator, {'controller_answer'})] == [launch])
-
-        # 3: the second issue, answered by the user in the workbench, stays user input.
-        issue_two = wait('第二个问题', lambda: next((view for view in request('issues', operator, task='T-1').get('issues', [])
-                                                  if view['issue']['title'] == '要不要加末尾换行'), None), 120)
-        user_answer = request('answer_issue', operator, task='T-1', issue=issue_two['issue']['id'], answer='要。')
-        check('user_answers_issue', user_answer.get('ok'), user_answer)
-        views = request('issues', operator, task='T-1')
-        check('user_answer_is_user_input', len(views['user_inputs']) == user_inputs_before + 1 and
-              views['user_inputs'][-1]['text'] == '要。', views['user_inputs'])
-        def worker_texts():
-            # The newest worker request carries the whole conversation.
-            bodies = [json.loads(line) for line in (out / 'api.jsonl').read_text(encoding='utf-8').splitlines()]
-            body = [body for body in bodies if '显式交付' in '\n'.join(texts(body['messages'][0]))][-1]
-            return '\n'.join(text for message in body['messages'] if message['role'] == 'user' for text in texts(message))
-        wait('用户的答复到达 worker', lambda: '用户答复：要。' in worker_texts(), 60)
-        check('worker_sees_who_answered', '主控答复：写一行 hello 即可。' in worker_texts() and worker_texts().count('用户答复') == 1)
-
-        # 5: verified with the controller still in its role: the run waits for its score.
-        task = wait('审查通过', lambda: (lambda current: current if current['state'] in ('verified', 'accepted', 'failed', 'rework') else None)(
-            request('status', operator, task='T-1')['task']), 300)
-        time.sleep(4)
-        held = request('status', operator, task='T-1')['task']['state']
-        early = gate_events(operator, {'run_initiator_ended', 'score_recorded'})
-        phase = (request('status', operator, task='T-1').get('run') or {}).get('phase')
-        report['while_active'] = dict(state=held, early=[e['type'] for e in early], run_returned='value' in run_result, phase=phase)
-        check('run_waits_for_active_controller_score', task['state'] == 'verified' and held == 'verified' and not early and
-              'value' not in run_result, report['while_active'])
-
-        # 6, 7: the role ends while the run waits for its score. After a release this terminal can start no new
-        # work (each refusal recorded); then the terminal is closed. The run goes on to integrate through the gate.
-        if args.end == 'release':
-            check('release_from_terminal', type_line(f'a2a release > {out}/release.json', 'T124-RELEASE') == 0,
-                  (out / 'release.json').read_text(encoding='utf-8'))
-            refused = {command: request(command, terminal, task='T-1', **data).get('error') for command, data in (
-                ('dispatch', dict(runtimeMode='workspace-write')), ('run', dict(runtimeMode='workspace-write', wait_seconds=60)),
-                ('attach', dict(role='monitor', instructions=str(instructions))))}
-            rejected = [e['data']['input']['command'] for e in events({'request_rejected'})
-                        if e['data']['result'].get('error') == 'approved_role_required']
-            report['after_release'] = dict(refused=refused, rejected=rejected)
-            check('new_work_refused_after_release', set(refused.values()) == {'approved_role_required'} and
-                  {'dispatch', 'run', 'attach'} <= set(rejected), report['after_release'])
-            assert request('shell_close', operator, launch=launch)['ok']
+        # Ruling 1a: a managed session asks through `issue`; the tool list Claude Code sent to the model has no native
+        # question. The worker's list is checked here, before the gate's review (which also compares the worker's argv).
+        worker_offered = sorted(api['tools'].get('worker', {'(no worker request)'}) & {'AskUserQuestion', '(no worker request)'})
+        check('worker_offered_no_native_question', not worker_offered, worker_offered)
+        attempts = lambda: [e['details']['attempt']['attempt_id'] for e in gate_events(operator, {'dispatch_intent'})]
+        if args.end == 'restart-working':
+            # 10: a restart while the worker waits for its answer. The worker's process goes with the daemon; the
+            # run reclaims that attempt through the gate and dispatches again (T-096 ruling B), and the new worker
+            # asks again. The terminal and its role end with the restart, so the user answers in the workbench.
+            first = attempts()
+            operator = restart()
+            runner.join(60)
+            report['run_request_at_restart'] = run_result.get('value')
+            check('run_request_ends_with_daemon', not runner.is_alive() and (run_result.get('value') or {}).get('ok') is not True,
+                  report['run_request_at_restart'])
+            gone = [e['data'] for e in events({'pane_gone_confirmed', 'pane_gone_unconfirmed'}) if e['launch'] == worker_launch]
+            report['worker_gone'] = gone
+            check('previous_worker_confirmed_gone', len(gone) == 1 and gone[0].get('leader_pid'), gone)
+            again = wait('重新派出的 worker 再次提问', lambda: next((view for view in request('issues', operator, task='T-1').get('issues', [])
+                                                          if view['issue']['title'] == 'hello.txt 写什么' and view['issue']['id'] != issue_one['issue']['id']), None), 180)
+            assert request('answer_issue', operator, task='T-1', issue=again['issue']['id'], answer='写一行 hello 即可。')['ok']
             reason = '主控身份已结束'
         else:
-            log_quota(True)
-            reason = '主控额度用完'
-        runner.join(240)
-        report['run'] = {key: (run_result.get('value') or {}).get(key) for key in ('ok', 'error', 'details')}
-        report['run_outcome'] = ((run_result.get('value') or {}).get('run') or {}).get('outcome')
+            answered = request('answer_issue', terminal, task='T-1', issue=issue_one['issue']['id'], answer='写一行 hello 即可。')
+            report['controller_answer'] = {key: answered.get(key) for key in ('ok', 'error', 'details')}
+            check('controller_answers_issue', answered.get('ok'), report['controller_answer'])
+            views = request('issues', operator, task='T-1')
+            record = next(view for view in views['issues'] if view['issue']['id'] == issue_one['issue']['id'])['answer']
+            report['controller_answer_record'] = record
+            check('controller_answer_recorded_as_controller', record['from'] == 'executor' and
+                  f'controller-launch:{launch}' in record['refs'] and f"role-request:{granted['role_request']['id']}" in record['refs'] and
+                  not record.get('input_id'), record)
+            check('controller_answer_not_user_input', len(views['user_inputs']) == user_inputs_before, views['user_inputs'])
+            check('controller_answer_not_intervention', not gate_events(operator, {'human_intervention'}), gate_events(operator, {'human_intervention'}))
+            check('controller_answer_event', [e['details']['launch'] for e in gate_events(operator, {'controller_answer'})] == [launch])
+
+            # 3: the second issue, answered by the user in the workbench, stays user input.
+            issue_two = wait('第二个问题', lambda: next((view for view in request('issues', operator, task='T-1').get('issues', [])
+                                                      if view['issue']['title'] == '要不要加末尾换行'), None), 120)
+            user_answer = request('answer_issue', operator, task='T-1', issue=issue_two['issue']['id'], answer='要。')
+            check('user_answers_issue', user_answer.get('ok'), user_answer)
+            views = request('issues', operator, task='T-1')
+            check('user_answer_is_user_input', len(views['user_inputs']) == user_inputs_before + 1 and
+                  views['user_inputs'][-1]['text'] == '要。', views['user_inputs'])
+            def worker_texts():
+                # The newest worker request carries the whole conversation.
+                bodies = [json.loads(line) for line in (out / 'api.jsonl').read_text(encoding='utf-8').splitlines()]
+                body = [body for body in bodies if '显式交付' in '\n'.join(texts(body['messages'][0]))][-1]
+                return '\n'.join(text for message in body['messages'] if message['role'] == 'user' for text in texts(message))
+            wait('用户的答复到达 worker', lambda: '用户答复：要。' in worker_texts(), 60)
+            check('worker_sees_who_answered', '主控答复：写一行 hello 即可。' in worker_texts() and worker_texts().count('用户答复') == 1)
+
+            # 5: verified with the controller still in its role: the run waits for its score.
+            task = wait('审查通过', lambda: (lambda current: current if current['state'] in ('verified', 'accepted', 'failed', 'rework') else None)(
+                request('status', operator, task='T-1')['task']), 300)
+            time.sleep(4)
+            held = request('status', operator, task='T-1')['task']['state']
+            early = gate_events(operator, {'run_initiator_ended', 'score_recorded'})
+            phase = (request('status', operator, task='T-1').get('run') or {}).get('phase')
+            report['while_active'] = dict(state=held, early=[e['type'] for e in early], run_returned='value' in run_result, phase=phase)
+            check('run_waits_for_active_controller_score', task['state'] == 'verified' and held == 'verified' and not early and
+                  'value' not in run_result, report['while_active'])
+
+            # 6, 7: the role ends while the run waits for its score. After a release this terminal can start no new
+            # work (each refusal recorded); then the terminal is closed. The run goes on to integrate through the gate.
+            if args.end == 'release':
+                check('release_from_terminal', type_line(f'a2a release > {out}/release.json', 'T124-RELEASE') == 0,
+                      (out / 'release.json').read_text(encoding='utf-8'))
+                refused = {command: request(command, terminal, task='T-1', **data).get('error') for command, data in (
+                    ('dispatch', dict(runtimeMode='workspace-write')), ('run', dict(runtimeMode='workspace-write', wait_seconds=60)),
+                    ('attach', dict(role='monitor', instructions=str(instructions))))}
+                rejected = [e['data']['input']['command'] for e in events({'request_rejected'})
+                            if e['data']['result'].get('error') == 'approved_role_required']
+                report['after_release'] = dict(refused=refused, rejected=rejected)
+                check('new_work_refused_after_release', set(refused.values()) == {'approved_role_required'} and
+                      {'dispatch', 'run', 'attach'} <= set(rejected), report['after_release'])
+                assert request('shell_close', operator, launch=launch)['ok']
+                reason = '主控身份已结束'
+            elif args.end == 'quota':
+                log_quota(True)
+                reason = '主控额度用完'
+            else:
+                # A restart while the run waits for the score: the run goes on with the same attempt.
+                operator = restart()
+                reason = '主控身份已结束'
+
+        # The run ends integrated with the score recorded as missing and why, whichever way the role ended.
+        if args.end.startswith('restart'):
+            finished = wait('续跑的 run 结束', lambda: next((e['details'] for e in gate_events(operator, {'run_finished'})
+                                                       if e['details'].get('resumed')), None), 420)
+            report['run'] = {key: finished.get(key) for key in ('outcome', 'error', 'details', 'resumed')}
+            run_ok = finished['outcome'] == 'completed'
+        else:
+            runner.join(240)
+            report['run'] = {key: (run_result.get('value') or {}).get(key) for key in ('ok', 'error', 'details')}
+            run_ok = run_result.get('value', {}).get('ok')
         final = request('status', operator, task='T-1')['task']
         main_files = subprocess.check_output(['git', '-C', str(repo), 'ls-tree', '--name-only', 'refs/heads/main'], text=True).split()
-        check('run_integrates_after_role_ends', run_result.get('value', {}).get('ok') and final['state'] == 'accepted' and 'hello.txt' in main_files,
+        check('run_integrates_after_role_ends', run_ok and final['state'] == 'accepted' and 'hello.txt' in main_files,
               dict(run=report['run'], state=final['state'], files=main_files))
         scores = [e['details'] for e in gate_events(operator, {'score_recorded'})]
         report['score_recorded'] = scores
-        # The user's answer to issue 2 is the one human intervention; the controller's answer adds none.
+        # One user answer is the one human intervention; the controller's answer adds none.
         check('integration_recorded_unscored', len(scores) == 1 and scores[0]['source'] == 'executor' and
               scores[0]['data'] == {'result': '未评分', 'reason': reason} and scores[0]['facts']['human_interventions'] == 1, scores)
         ended = [e['details'] for e in gate_events(operator, {'run_initiator_ended'})]
         check('run_initiator_end_recorded', len(ended) == 1 and ended[0]['launch'] == launch and
-              ended[0]['state'] == ('ended' if args.end == 'release' else 'quota_exhausted'), ended)
+              ended[0]['state'] == ('quota_exhausted' if args.end == 'quota' else 'ended'), ended)
+        if args.end.startswith('restart'):
+            # Working: the attempt the restart took is reclaimed and one new attempt dispatched. Verified: no new attempt.
+            dispatched = attempts()
+            reclaimed = [e['details']['attempt']['attempt_id'] for e in gate_events(operator, {'reclaimed'})]
+            resumed = report['run']['resumed'] or []
+            report['resume'] = dict(dispatched=dispatched, reclaimed=reclaimed, resumed=resumed)
+            expected = first[0] if args.end == 'restart-working' else None
+            check('run_resumed_across_restart', len(resumed) == 1 and resumed[0]['redispatched_from'] == expected and
+                  len(dispatched) == (2 if args.end == 'restart-working' else 1) and dispatched[0] in reclaimed and dispatched[-1] in reclaimed,
+                  report['resume'])
 
         # 9: the monitor outlives the role and the terminal.
         if args.end == 'quota':
             assert request('shell_close', operator, launch=launch)['ok']
         time.sleep(2)
         row = next(r for r in request('sidebar_snapshot')['agents'] if r['id'] == monitor['id'])
-        stopped = [e['type'] for e in events({'pane_exit', 'pane_stopped', 'pane_archived'}) if e['launch'] == monitor['id']]
+        timeline = events()
+        restored = [index for index, e in enumerate(timeline) if e['type'] == 'pane_restored' and e['launch'] == monitor['id']]
+        if args.end.startswith('restart'):
+            # The monitor's session resumes with its recorded argv after the restart, though no window shows it.
+            failed = [e['data'] for e in timeline if e['type'] == 'pane_restore_failed' and e['launch'] == monitor['id']]
+            check('monitor_restored_after_restart', len(restored) == 1 and not failed, dict(restored=restored, failed=failed))
+        stopped = [e['type'] for e in timeline[(restored[-1] if restored else 0):] if e['launch'] == monitor['id'] and
+                   e['type'] in ('pane_exit', 'pane_stopped', 'pane_archived')]
         # The sidebar nests a session under a controller only while that controller holds its role; the
         # launch record keeps who started it.
         shown = request('launch_show', operator, launch=monitor['id'])
@@ -542,6 +693,18 @@ def main():
         report['monitor_after'] = dict(state=row['state'], task=row.get('task'), parent=row.get('parent'), parent_launch=record['parent_launch'], stopped=stopped)
         check('monitor_survives_role_and_terminal', not stopped and row['role'] == 'monitor' and row['state'] != 'exited' and
               row.get('task') == 'T-1' and record['parent_launch'] == launch, report['monitor_after'])
+        # The same for every managed session, now with the reviewer's list.
+        offered = {role: sorted(names & {'AskUserQuestion'}) for role, names in api['tools'].items()}
+        report['native_question_tools'] = offered
+        check('managed_sessions_offer_no_native_question', {'worker', 'reviewer'} <= set(offered) and not any(offered.values()), offered)
+        # Review 02 finding 1: a monitor (its own working directory) is reclaimed through the gate like any attachment.
+        thread = attached['attachment']['thread_id']
+        reclaimed = request('reclaim', operator, task='T-1', thread=thread)
+        after = next((r for r in request('sidebar_snapshot')['agents'] if r['id'] == monitor['id']), None)
+        report['monitor_reclaim'] = dict(ok=reclaimed.get('ok'), error=reclaimed.get('error'), state=(reclaimed.get('attachment') or {}).get('state'),
+                                         sidebar=after and after['state'])
+        check('monitor_reclaimed', reclaimed.get('ok') and reclaimed['attachment']['state'] == 'ended' and
+              any(e['type'] == 'attachment_reclaimed' for e in gate_events(operator, {'attachment_reclaimed'})), report['monitor_reclaim'])
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

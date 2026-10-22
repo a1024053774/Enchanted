@@ -1,0 +1,313 @@
+{
+  "status": "PASS",
+  "argv": [
+    "tests/test_t124_controller_e2e.py",
+    "--summary",
+    "../evidence/2026-10-22-batch20/T-124/candidate-2/e2e/green-07-codex-controller-gui.json",
+    "--controller-cli",
+    "codex",
+    "--gui"
+  ],
+  "revision": null,
+  "mutant": null,
+  "end": "release",
+  "monitor_cli": "claude",
+  "fixture": "/private/tmp/t124-gglmjp2f",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "checks": [
+    "quota_exhausted_noticed",
+    "quota_events_recorded",
+    "torn_log_line_recorded_once",
+    "gui_quota_notice_shown",
+    "gui_quota_notice_cleared",
+    "run_opened_to_terminal",
+    "attach_starts_monitor",
+    "monitor_nested_under_controller",
+    "monitor_launch_recorded_read_only",
+    "monitor_reads_but_cannot_write",
+    "controller_answers_issue",
+    "controller_answer_recorded_as_controller",
+    "controller_answer_not_user_input",
+    "controller_answer_not_intervention",
+    "controller_answer_event",
+    "user_answers_issue",
+    "user_answer_is_user_input",
+    "worker_sees_who_answered",
+    "run_waits_for_active_controller_score",
+    "release_from_terminal",
+    "new_work_refused_after_release",
+    "run_integrates_after_role_ends",
+    "integration_recorded_unscored",
+    "run_initiator_end_recorded",
+    "monitor_survives_role_and_terminal",
+    "managed_sessions_offer_no_native_question",
+    "monitor_reclaimed"
+  ],
+  "role_request": {
+    "id": "9baa67f3-537e-483a-860e-bd70b0d89a78",
+    "launch": "2aeddb4a-e43d-4655-8179-140bf2943e1f",
+    "project": "demo",
+    "role": "executor",
+    "cli": "codex",
+    "native_session": "c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b",
+    "native_home": "/private/tmp/t124-gglmjp2f/controller-codex",
+    "state": "approved",
+    "requested_at": "2026-10-22T11:10:05.544Z",
+    "decided_at": "2026-10-22T11:10:05.676Z",
+    "ended_reason": null
+  },
+  "quota_notice": [
+    {
+      "role_request": "9baa67f3-537e-483a-860e-bd70b0d89a78",
+      "launch": "2aeddb4a-e43d-4655-8179-140bf2943e1f",
+      "project": "demo",
+      "role": "executor",
+      "cli": "codex",
+      "limit": "300_minutes",
+      "resets_at": "2026-10-22T12:10:05.000Z",
+      "since": "2026-10-22T11:10:06.882Z",
+      "role_label": "执行主控"
+    }
+  ],
+  "gui_notice": [
+    "主控额度用完",
+    "已派出的工作继续 · 约 10/22 08:10 恢复"
+  ],
+  "gui_captures": [
+    "/private/tmp/t124-gglmjp2f/out/window/quota-notice.png",
+    "/private/tmp/t124-gglmjp2f/out/window/quota-restored.png"
+  ],
+  "attach": {
+    "ok": true,
+    "error": null,
+    "details": null
+  },
+  "monitor": {
+    "role": "monitor",
+    "parent": "2aeddb4a-e43d-4655-8179-140bf2943e1f",
+    "cli": "Claude Code",
+    "argv": [
+      "/Users/luckye/.local/share/claude/versions/2.1.308",
+      "--session-id",
+      "ff0e8d17-f27d-4cd1-8e0b-bdc7fb459af6",
+      "--model",
+      "claude-haiku-5-5",
+      "--effort",
+      "low",
+      "--permission-mode",
+      "dontAsk",
+      "--setting-sources",
+      "",
+      "--strict-mcp-config",
+      "--disallowedTools",
+      "AskUserQuestion",
+      "--settings"
+    ],
+    "settings": {
+      "permissions": {
+        "allow": [
+          "Bash",
+          "Read",
+          "Glob",
+          "Grep"
+        ]
+      },
+      "sandbox": {
+        "enabled": true,
+        "autoAllowBashIfSandboxed": true,
+        "allowUnsandboxedCommands": false,
+        "filesystem": {
+          "allowWrite": []
+        }
+      },
+      "hooks": {
+        "SessionStart": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-gglmjp2f/state' 'signal' '--launch' '2a027e13-97e2-4a06-9903-3058b088a676'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "UserPromptSubmit": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-gglmjp2f/state' 'signal' '--launch' '2a027e13-97e2-4a06-9903-3058b088a676'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "Stop": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-gglmjp2f/state' 'signal' '--launch' '2a027e13-97e2-4a06-9903-3058b088a676'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "PermissionRequest": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-gglmjp2f/state' 'signal' '--launch' '2a027e13-97e2-4a06-9903-3058b088a676'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "PreToolUse": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-gglmjp2f/state' 'signal' '--launch' '2a027e13-97e2-4a06-9903-3058b088a676'",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "PostToolUse": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "ELECTRON_RUN_AS_NODE=1 '/opt/homebrew/Cellar/node/26.5.0/bin/node' '/Users/luckye/Documents/Code/a2a/workbench/src/gates/cli.ts' '--state' '/private/tmp/t124-gglmjp2f/state' 'signal' '--launch' '2a027e13-97e2-4a06-9903-3058b088a676'",
+                "timeout": 10
+              }
+            ]
+          }
+        ]
+      },
+      "fastMode": false
+    }
+  },
+  "monitor_results": [
+    {
+      "id": "toolu_t124_5",
+      "is_error": false,
+      "text": "init\nmonitor read rc=0\n(eval):1: operation not permitted: /private/tmp/t124-gglmjp2f/demo/monitor-note.txt\nmonitor write rc=1"
+    }
+  ],
+  "controller_answer": {
+    "ok": true,
+    "error": null,
+    "details": null
+  },
+  "controller_answer_record": {
+    "id": "45d8453d-a06a-40b1-9cbd-d437442436f8",
+    "schema": 1,
+    "kind": "answer",
+    "from": "executor",
+    "to": "worker:b5e9c0fe-05b9-418f-bc38-62e03153c1a3",
+    "reply_to": "a58a7573-b2db-45ca-9fba-95c02ac4ce18",
+    "refs": [
+      "task:T-1",
+      "attempt:06b13cc0-08a1-44d1-b631-00db65db9d7b",
+      "thread:b5e9c0fe-05b9-418f-bc38-62e03153c1a3",
+      "turn:3afe204d-1edf-4147-a151-6ee61e368160",
+      "issue:a58a7573-b2db-45ca-9fba-95c02ac4ce18",
+      "controller-launch:2aeddb4a-e43d-4655-8179-140bf2943e1f",
+      "role-request:9baa67f3-537e-483a-860e-bd70b0d89a78",
+      "message:adc0a352-05f0-422b-a54d-816f6f726ec2"
+    ],
+    "created_at": "2026-10-22T11:10:29.529Z",
+    "body": "写一行 hello 即可。",
+    "task_id": "T-1",
+    "attempt_id": "06b13cc0-08a1-44d1-b631-00db65db9d7b",
+    "thread_id": "b5e9c0fe-05b9-418f-bc38-62e03153c1a3",
+    "turn_id": "3afe204d-1edf-4147-a151-6ee61e368160",
+    "number": 1,
+    "title": "hello.txt 写什么",
+    "blocking": false,
+    "issue_id": "a58a7573-b2db-45ca-9fba-95c02ac4ce18",
+    "message_id": "adc0a352-05f0-422b-a54d-816f6f726ec2",
+    "bundle_id": "2bc9b01d-44d1-4ede-abc4-6c9d65d4865b"
+  },
+  "while_active": {
+    "state": "verified",
+    "early": [],
+    "run_returned": false,
+    "phase": null
+  },
+  "after_release": {
+    "refused": {
+      "dispatch": "approved_role_required",
+      "run": "approved_role_required",
+      "attach": "approved_role_required"
+    },
+    "rejected": [
+      "dispatch",
+      "run",
+      "attach"
+    ]
+  },
+  "run": {
+    "ok": true,
+    "error": null,
+    "details": null
+  },
+  "score_recorded": [
+    {
+      "schema": 2,
+      "score_id": "score-0b593d39-6079-4eb6-8909-b1d88c22af79",
+      "created_at": "2026-10-22T11:10:40.601Z",
+      "source": "executor",
+      "launch_id": "e7ca4c14-034a-40c2-9327-1f85de31942d",
+      "project": "demo",
+      "task": "T-1",
+      "attempt": "06b13cc0-08a1-44d1-b631-00db65db9d7b",
+      "cli": "2.1.308 (Claude Code)",
+      "model": "claude-haiku-5-5-t124-served",
+      "effort": "low",
+      "data": {
+        "result": "未评分",
+        "reason": "主控身份已结束"
+      },
+      "facts": {
+        "task_type": "测试",
+        "complexity": "S",
+        "delivery_rounds": 1,
+        "elapsed_seconds": 14,
+        "human_interventions": 1,
+        "rejections": {
+          "identity_version": 0,
+          "path_boundary": 0,
+          "oracle": 0,
+          "completion": 0,
+          "red_state": 0,
+          "rule_checks": 0,
+          "independent_review": 0,
+          "commit_trailers": 0
+        }
+      }
+    }
+  ],
+  "monitor_after": {
+    "state": "idle",
+    "task": "T-1",
+    "parent": null,
+    "parent_launch": "2aeddb4a-e43d-4655-8179-140bf2943e1f",
+    "stopped": []
+  },
+  "native_question_tools": {
+    "worker": [],
+    "monitor": [],
+    "reviewer": []
+  },
+  "monitor_reclaim": {
+    "ok": true,
+    "error": null,
+    "state": "ended",
+    "sidebar": "ended"
+  }
+}

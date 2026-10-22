@@ -310,6 +310,10 @@ export interface A2ARun {
   // ended or out of quota; the run then integrates without the controller's score.
   initiator?: { launch: string; role_request: string; role: string };
   initiator_unavailable?: { state: "ended" | "quota_exhausted"; at: string };
+  // What the run dispatched with, so a run resumed after a daemon restart can dispatch again (T-124).
+  dispatch?: { runtimeMode: string; overlap_reason?: string; model?: string; effort?: string; fast?: boolean };
+  // Each daemon restart the run was resumed across.
+  resumed?: { at: string; phase: string; task_state: string; redispatched_from: string | null }[];
 }
 
 export interface A2AUserInputObserver {
