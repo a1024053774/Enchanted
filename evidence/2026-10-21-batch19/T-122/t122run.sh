@@ -8,7 +8,8 @@ F=$(mktemp -d /private/tmp/t122-ui-XXXX); mkdir -p $F/state $F/repos/demo $OUT
 R=$F/repos/demo
 git -C $R init -q -b main
 print 'demo' > $R/README.md
-print 'import pathlib, sys\nsys.exit(0 if pathlib.Path("hello.txt").is_file() else 1)' > $R/check.py
+# gui-05: the reviewer rightly refused an oracle that only checked the file exists; check the content.
+print 'import pathlib, sys\np = pathlib.Path("hello.txt")\nsys.exit(0 if p.is_file() and not p.is_symlink() and p.read_bytes() == b"hello\\n" else 1)' > $R/check.py
 git -C $R add README.md check.py && git -C $R commit -q -m init
 BIN="$APP/Contents/MacOS/${${APP:t}%.app}"
 LOG=$F/app.log python3 -c 'import os,subprocess,sys; subprocess.Popen(sys.argv[1:], stdout=open(os.environ["LOG"],"w"), stderr=subprocess.STDOUT, start_new_session=True)' \
