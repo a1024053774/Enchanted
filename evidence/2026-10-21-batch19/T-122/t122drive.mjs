@@ -5,6 +5,7 @@
 // a turn before the task is integrated, asks it to continue (at most 4 times). Every action is logged.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 const [port, out, model, state, source, repo] = process.argv.slice(2);
 process.env.A2A_OPERATOR_CREDENTIAL = JSON.parse(readFileSync(join(state, 'desktop-connection.json'), 'utf8')).credential;
 const { request } = await import(join(source, 'src/transport.ts'));
@@ -88,6 +89,8 @@ try {
     }
     const current = await taskState();
     if (current !== log.states.at(-1)) { log.states.push(current); act('task state', current); }
+    // gui-06: the controller invented T-1 from check.py before any dispatch request; that is a failure.
+    if (current && !dispatched && !log.failures.includes('task created before the dispatch request')) log.failures.push('task created before the dispatch request');
     if (current === 'accepted') { await sleep(3000); await shot('08-accepted'); log.checks.push('task_accepted'); break; }
     // Idle: Claude 2.1.307 shows a spinner line such as "✻ Spinning… (1m 19s · ↓ 7.3k tokens)" while it works,
     // not always "esc to interrupt" (gui-04 nudged a working controller every 10 s and quit 40 s after dispatch).
@@ -109,6 +112,9 @@ try {
   if (!approved) log.failures.push('no roleRequest banner appeared');
   if (!log.checks.includes('task_accepted')) log.failures.push('task not accepted: ' + JSON.stringify(log.states));
   if (!workerSeen) log.failures.push('worker never shown under the controller');
+  // Integration target is the user's main, not a branch the controller picked (gui-06 integrated into t-1-hello).
+  const mainFiles = execFileSync('git', ['-C', repo, 'ls-tree', '--name-only', 'main'], { encoding: 'utf8' }).split('\n');
+  if (mainFiles.includes('hello.txt')) log.checks.push('hello_on_main'); else log.failures.push('hello.txt not on main');
   log.prompts = prompts; log.nudges = nudges;
   log.final_screen = await screen(); await shot('09-terminal-after');
 } catch (error) { log.failures.push(String(error)); try { log.final_screen = await screen(); await shot('99-failure'); } catch {} }
