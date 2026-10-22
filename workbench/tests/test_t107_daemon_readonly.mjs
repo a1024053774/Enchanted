@@ -57,7 +57,7 @@ try {
       this.panes.set('thread', pane);
     }
   }
-  const daemonFile = join(tree, 'src/daemon.ts'), context = vm.createContext({ process, console, Buffer, setTimeout, clearTimeout });
+  const daemonFile = join(tree, 'src/daemon.ts'), context = vm.createContext({ process, console, Buffer, setTimeout, clearTimeout, setInterval, clearInterval });
   const module = new vm.SourceTextModule(stripTypeScriptTypes(fs.readFileSync(daemonFile, 'utf8')), {
     context, initializeImportMeta: meta => { meta.url = pathToFileURL(daemonFile).href; meta.main = false; } });
   await module.link(async spec => {
