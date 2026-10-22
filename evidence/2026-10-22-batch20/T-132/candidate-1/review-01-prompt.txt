@@ -1,0 +1,9 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查 T-132 候选：提交 dc4d2e257、07dc957c3（测试夹具）、ea68df9d9（README），父提交 85b212a60。改动在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-t132-De2E/full.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-132-*.md；结果报告是 evidence/2026-10-22-batch20/T-132/candidate-1/RESULTS.md；门禁的问题语义见 workbench/src/gates/core.ts 的 readIssues、raiseIssue、disposeIssue、answerIssues 与 request() 里 disposition 分支。
+重点：
+1. workbench/src/daemon.ts 把操作员发出的 disposition 记为 user：是否安全、是否符合“阻塞问题只有用户能关”的规则；操作员凭据在产品里还有谁持有（看 workbench/app/desktop.mjs、src/desktopCredentials.ts、T-126）；测试里用操作员凭据扮演 executor 的旧场景会不会被这条改动误伤。
+2. sidebar_snapshot 里逐任务读 issues 的开销与失败处理：一个任务读失败会不会让整个侧栏失败、这是否合适；只读命令是否写库。
+3. 界面（workbench/app/IssuesPage.tsx、main.ts、preload.ts、renderer.tsx）：状态、错误、并发操作、输入校验（IPC 参数）、可访问性；文案是否准确。
+4. 测试（workbench/tests/test_t132_issues_panel_e2e.py、scripted_claude.py、cdp.mjs、cdp_launch.cjs）是否独立于实现、变异能否区分坏实现、夹具清理；RESULTS.md 是否有夸大。
+5. 其他问题。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。
