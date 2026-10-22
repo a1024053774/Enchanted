@@ -20,6 +20,8 @@
 11. 审查通过后，打分与集成走不到项目工作分支。
 13. 门禁放过与 worker 启动记录不符的 Claude reviewer（模型、Fast 不同，钩子命令带前缀），或者因 Claude 可执行文件路径
     不同（版本更新）误拒合法 reviewer（审查 03 第 2、3 条）。--reviewer-case 改写源码副本里 reviewer 的启动方式。
+15. reviewer 的最终消息不合审查协议（--review-result malformed），或合协议却被门禁拒收（rejected）时，门禁记不下审查
+    协议失败：Stop 转交时 Claude 的调用者身份核对失败（`native_identity_required`），任务停在审查中（T-129）。
 --revision 在该版本的隔离源码上跑同一场景（修前应失败）；--mutant 跑已知坏实现。
 """
 import argparse
@@ -54,8 +56,10 @@ def main():
                                              'codex-provider-only', 'no-terminal-parent', 'inbox-tasks-only',
                                              'reviewer-codex-only', 'reviewer-shell-writable', 'git-excluded-broad',
                                              'gate-reviewer-model-unchecked', 'gate-reviewer-fast-unchecked', 'gate-reviewer-hook-includes',
-                                             'gate-reviewer-executable-compared'])
+                                             'gate-reviewer-executable-compared', 'protocol-failure-unbound', 'rejection-unbound'])
     parser.add_argument('--reviewer-case', choices=['model-differs', 'fast-differs', 'hook-prefixed', 'other-executable-path'])
+    # T-129: the scripted reviewer ends with a message the review protocol refuses, or one the gate refuses.
+    parser.add_argument('--review-result', choices=['malformed', 'rejected'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t122-', dir='/private/tmp')).resolve()
@@ -112,6 +116,11 @@ def main():
                 'gate-reviewer-fast-unchecked': ('src/gates/core.ts', '        settings?.fastMode === workerSettings.fastMode &&\n', ''),
                 'gate-reviewer-hook-includes': ('src/gates/core.ts', "signal === workerSignal.slice(0, -`'${worker.id}'`.length) + `'${launch.id}'` &&",
                                                 "typeof signal === 'string' && signal.includes(`'--launch' '${launch.id}'`) &&"),
+                # T-129: the protocol-failure and gate-rejection paths without the Claude prompt id (the defect).
+                'protocol-failure-unbound': ('src/daemon.ts', 'prompt_id: stop.prompt_id });\n            await gates.failReviewProtocol(',
+                                             '});\n            await gates.failReviewProtocol('),
+                'rejection-unbound': ('src/daemon.ts', 'prompt_id: stop.prompt_id });\n              await gates.failReviewProtocol(',
+                                      '});\n              await gates.failReviewProtocol('),
             }[args.mutant])
         # A reviewer launched unlike its worker (refused cases), or through another path to the same
         # Claude, as after an update (accepted).
@@ -131,7 +140,7 @@ def main():
             path.write_text(text.replace(old, new), encoding='utf-8')
         (source / 'workbench/node_modules').symlink_to(ROOT / 'workbench/node_modules', target_is_directory=True)
     cli = source / 'workbench/src/gates/cli.ts'
-    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, reviewer_case=args.reviewer_case, fixture=str(fixture),
+    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, reviewer_case=args.reviewer_case, review_result=args.review_result, fixture=str(fixture),
                   claude=args.claude, real_model_turns=0, checks=[])
 
     # The model: a scripted Messages endpoint. It answers each main-loop conversation (worker or
@@ -150,13 +159,16 @@ def main():
             shape.update(verdict='可合并', findings=[], report={'结论': '候选加了 hello.txt，满足任务卡。',
                 '完成条件与变异检查': '变异 1：删除 hello.txt，python3 check.py 退出 1；变异 2：hello.txt 换成目录，退出 1。'})
             review_worktree = state / 'worktrees/demo/T-1-a1-review-1'
+            if args.review_result == 'rejected':
+                shape['candidate_commit'] = '0' * 40  # well formed, but not the candidate under review
+            final = '审查完毕，可以合并。' if args.review_result == 'malformed' else json.dumps(shape, ensure_ascii=False)
             return 'reviewer', [
                 ('Bash', dict(command='rm hello.txt; python3 check.py; echo "mutation-1 rc=$?"', description='mutation 1')),
                 ('Bash', dict(command='mkdir hello.txt; python3 check.py; echo "mutation-2 rc=$?"', description='mutation 2')),
                 ('Write', dict(file_path=f'{review_worktree}/reviewer-note.txt', content='reviewer must not write here\n')),
                 ('Bash', dict(command=f'echo x > {review_worktree}/shell-note.txt; echo "wt rc=$?"; echo x > "$A2A_REQUEST_DIR/forged.json"; echo "req rc=$?"',
                               description='shell writes')),
-            ], json.dumps(shape, ensure_ascii=False)
+            ], final
         submit = re.search(r'显式交付：\n(.+)\n', text)
         assert submit, '派发提示里没有交付命令'
         line = submit.group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
@@ -441,9 +453,28 @@ def main():
             report['status'] = 'PASS'
             return
         assert verified.get('ok'), verified
-        task = wait('审查结束', lambda: (lambda current: current if current['state'] in ('verified', 'submitted', 'rework', 'failed') and
-                                          current.get('review', {}).get('state') not in (None, 'requested', 'running') else None)(
-                                              request('status', operator, task='T-1')['task']), 240)
+
+        def review_settled():
+            # A failed Stop transfer leaves the review running until it times out; report its cause at once.
+            failed = [row['data'] for row in events(['stop_transfer_failed'])]
+            assert not failed, f'stop_transfer_failed: {failed}'
+            current = request('status', operator, task='T-1')['task']
+            return current if current['state'] in ('verified', 'submitted', 'rework', 'failed', 'paused') and \
+                current.get('review', {}).get('state') not in (None, 'requested', 'running') else None
+        task = wait('审查结束', review_settled, 240)
+        if args.review_result:
+            # T-129: the gate records the protocol failure by its rule: the review becomes unknown, the task pauses,
+            # and a quality issue is raised.
+            gate_events = request('events', operator, task='T-1')['events']
+            failed = [e['details']['details'] for e in gate_events if e['type'] == 'review_protocol_failed']
+            report['review_protocol_failed'] = [dict(error=item.get('error'), receipt_ok=(item.get('receipt') or {}).get('result', {}).get('ok'))
+                                                for item in failed]
+            report['review_outcome'] = dict(task=task['state'], review=task['review']['state'])
+            expected = dict(error='review_json', receipt_ok=None) if args.review_result == 'malformed' else dict(error=None, receipt_ok=False)
+            check('review_protocol_failure_recorded', report['review_protocol_failed'] == [expected] and
+                  task['state'] == 'paused' and task['review']['state'] == 'unknown', [report['review_protocol_failed'], report['review_outcome']])
+            report['status'] = 'PASS'
+            return
         review = task['review']
         reviewer = request('launch_show', operator, launch=review['launch_id'])['launch']
         rargv = reviewer['argv']

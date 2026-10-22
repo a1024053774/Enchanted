@@ -554,7 +554,8 @@ export async function serve(
           try { request = reviewRequest(stop.last_assistant_message); }
           catch (error) {
             if (!(error instanceof QualityProtocolError)) throw error;
-            const caller = await panes.caller({ ...identity, native_session: stop.session_id });
+            // The same caller identity as the normal path: a Claude reviewer is checked by its prompt id (T-129).
+            const caller = await panes.caller({ ...identity, native_session: stop.session_id, prompt_id: stop.prompt_id });
             await gates.failReviewProtocol(pane.record.task, pane.record.review_id,
               { error: error.field, raw: stop.last_assistant_message, stop }, caller);
             pane.failed = "invalid_review_result";
@@ -609,7 +610,7 @@ export async function serve(
           if (pane.record.role === "reviewer" && !receipt.replayed) {
             if (receipt.result.ok) completedReview = { task: pane.record.task, id: pane.record.review_id };
             else {
-              const caller = await panes.caller({ ...identity, native_session: stop.session_id });
+              const caller = await panes.caller({ ...identity, native_session: stop.session_id, prompt_id: stop.prompt_id });
               await gates.failReviewProtocol(pane.record.task, pane.record.review_id, { receipt, stop }, caller);
               pane.failed = "review_rejected";
             }
