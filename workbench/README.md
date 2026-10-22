@@ -597,7 +597,9 @@ shell 沙箱不另开可写目录；门禁的 `reviewLaunch` 核对这组参数�
 SessionStart（`source` 为 startup、会话号与 cwd 相符）是初次放行，之后才送第一条任务，并永久关闭代按；120 秒内没有
 SessionStart 记 `worker_startup_unrecognised`。交付时的模型取会话记录里该回合最后一条非 `<synthetic>` 回复的模型
 （跳过半写入的行），强度取 Stop 钩子报告的值（`native_turn_facts`）；提交钩子的 `A2A-Native-Session` 尾注取
-`--session-id`，Model 与 Effort 尾注为 `unknown`（提交时还没有观测值，门禁对 Claude 交付接受 Effort 为 unknown）。
+`--session-id`；Model 与 Effort 尾注取同一份会话记录里最后一条非 `<synthetic>` 回复的模型与强度（T-130：在
+`CLAUDE_CONFIG_DIR` 或 `$HOME/.claude` 的 `projects/*/` 下按会话号找唯一记录；强度字段 `effort`、`perTurnEffort`
+写了哪个用哪个，两者不一致时拒绝提交；记录缺失或没有强度时写 `unknown`，门禁对 Claude 交付仍接受 Effort 为 unknown）。
 Claude reviewer 的整串 argv 由门禁逐位核对，settings 只能含 permissions、sandbox、六个钩子与 fastMode；
 模型、强度、Fast 必须与 worker 启动记录相同（可执行文件只记录：路径带 Claude 版本号，两次启动之间可能更新），钩子命令必须是 worker 的那条、只换 launch id；reviewer 角色设置对它暂不生效。
 已知限制：Claude 会话里 `/clear` 或自动压缩若换了会话号，后续钩子信号按 `unsupported_hook` 拒收（审查 01 第 10 条，本票未另测），后台不跟随新会话号，也不另记这次切换。Claude 的 shell 沙箱会在 `GIT_CONFIG_*` 末尾追加 `safe.directory` 条目，提交钩子只接受这一种追加。
