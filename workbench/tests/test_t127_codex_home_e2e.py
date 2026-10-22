@@ -10,9 +10,10 @@
 5. a2a 改写了用户 home 的 config.toml、rules 或 hooks.json。
 6. 共享 home 里别的会话（另一个目录）的原生记录被读进这个 worker；或者因为 home 里旧会话太多，找不到本会话。
 7. 交付到不了门禁，审查起不来（reviewer 不在同一 home、不在一次性副本里、副本没以 untrusted 打开），或审查通过后集成不到工作分支。
-9. reviewer 的沙箱排除 /tmp 与 $TMPDIR，shell 建不了临时文件（zsh here-document、Python tempfile），变异检查跑不起来。
 8. 门禁放过不合格的 Codex reviewer：untrusted 指向别的目录，原生会话的工作目录不是一次性副本，
    或者续接了 worker 的会话（启动记录写明 resume，或只在实际命令里 resume）。
+   在别处跑或根本没起来的 reviewer 不留记录，审查一直挂着。
+9. reviewer 的沙箱排除 /tmp 与 $TMPDIR，shell 建不了临时文件（zsh here-document、Python tempfile），变异检查跑不起来。
    --reviewer-case 改写源码副本里 reviewer 的启动方式。
 --revision 在该版本的隔离源码上跑同一场景（修前应失败）；--mutant 跑已知坏实现。
 """
@@ -46,7 +47,7 @@ def main():
     # Several mutants may be combined, e.g. a runtime fault together with the gate check that should catch it.
     target.add_argument('--mutant', nargs='+', choices=['restricted-unanswered', 'untrusted-config-missing', 'project-trusted',
                                              'gate-trust-unchecked', 'gate-folder-unchecked', 'scan-any-folder', 'scan-whole-home',
-                                             'reviewer-folder-unbound'])
+                                             'reviewer-folder-unbound', 'unbound-unrecorded'])
     # Earlier sessions already in the home; timings are compared across runs with different counts.
     parser.add_argument('--old-sessions', type=int, default=400)
     parser.add_argument('--reviewer-case', choices=['trust-other-folder', 'session-folder-differs', 'resume-worker-in-argv', 'resume-worker-hidden'])
@@ -90,6 +91,9 @@ def main():
                                      'pane.nativeFile ? [pane.nativeFile] : walk(join(home, "sessions"));')],
                 'scan-any-folder': [('src/panes.ts', 'if (!final && (metadata.type !== "session_meta" || metadata.payload?.cwd !== pane.attempt.workspace)) continue;',
                                      'if (!final && metadata.type !== "session_meta") continue;')],
+                # A Codex turn that never binds a session in its folder leaves no record (the pane before this check).
+                'unbound-unrecorded': [('src/panes.ts', 'if (!pane.native && !pane.stopped && !pane.failed)\n          this.recordFailure(pane, "native_session_unbound",',
+                                        'if (false)\n          this.recordFailure(pane, "native_session_unbound",')],
                 # The runtime binds a reviewer's session by the read-only review worktree instead of the candidate
                 # copy, leaving the gate's folder check to notice. Observed (round 05): the reviewer's Stop hook is
                 # refused earlier (question_origin_unverified), so the result never reaches that gate check.
@@ -407,6 +411,23 @@ def main():
             report['review'] = {key: current['review'].get(key) for key in ('state', 'error', 'details')}
             check('reviewer_elsewhere_never_bound_or_passed', not bound and current['review']['state'] != 'passed' and current['state'] != 'verified',
                   dict(bound=bound, review=report['review'], task=current['state']))
+            # What the daemon kept about the refused reviewer: every non-hook record naming its launch.
+            report['reviewer_records'] = [dict(type=e['type'], error=(e['data'].get('result') or {}).get('error'),
+                                               hook=json.loads(e['data'].get('input', {}).get('raw_stdin') or '{}').get('hook_event_name'),
+                                               cwd=json.loads(e['data'].get('input', {}).get('raw_stdin') or '{}').get('cwd'))
+                                          for e in events() if review_launch in json.dumps(e) and e['type'] not in ('hook_received', 'native_record')][-12:]
+            # Whether it ran elsewhere or never started, the pane records that no session bound in its folder
+            # within the startup deadline after its first turn (120 s from turn_submitted).
+            submitted = [e for e in events({'turn_submitted'}) if e['launch'] == review_launch]
+            unbound = lambda: [e for e in events({'native_session_unbound'}) if e['launch'] == review_launch]
+            deadline = time.monotonic() + 140
+            while submitted and not unbound() and time.monotonic() < deadline:
+                time.sleep(2)
+            report['reviewer_unbound'] = [e['data'] for e in unbound()]
+            check('reviewer_elsewhere_unbound_recorded', bool(submitted) and bool(unbound()), dict(submitted=len(submitted), unbound=report['reviewer_unbound']))
+            if report['reviewer_stop_seen']:
+                check('reviewer_elsewhere_refusal_recorded', any(r['type'] in ('request_rejected', 'stop_not_matched', 'native_question_unverified')
+                                                                 for r in report['reviewer_records']), report['reviewer_records'])
             report['status'] = 'PASS'
             return
         task = wait('审查结束', lambda: (lambda current: current if current['state'] in ('verified', 'submitted', 'rework', 'failed') and

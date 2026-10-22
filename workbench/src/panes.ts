@@ -1094,6 +1094,15 @@ export class Panes implements GateRuntime {
       this.store.event("turn_submit_intent", submission, pane.record);
       pane.pty.write("\r");
       this.store.event("turn_submitted", submission, pane.record);
+      // A submitted Codex turn writes its rollout at once. One that never names this pane's folder ran
+      // elsewhere or did not start (a hidden resume of a live session: "open in another app"); without
+      // this the pane and its review wait forever with no record (T-127 counterexamples).
+      if (pane.record.cli !== "Claude Code" && ["worker", "reviewer"].includes(pane.record.role) && !pane.native) setTimeout(() => {
+        try { this.scan(pane); } catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
+        if (!pane.native && !pane.stopped && !pane.failed)
+          this.recordFailure(pane, "native_session_unbound", new Error("no rollout in the launch folder after the first turn"),
+            { workspace: pane.attempt.workspace, submission: submission.id });
+      }, STARTUP_DEADLINE_MS).unref();
     });
     } catch (error) {
       pane.state = "unknown"; pane.failed = String(error);
