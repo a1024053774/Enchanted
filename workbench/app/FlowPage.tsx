@@ -23,7 +23,7 @@ function Lane({ lane }: { lane: FlowSnapshot['lanes'][number] }) {
   const current = flowStages.findIndex(stage => stage.id === lane.stage);
   return <article className="flow-lane" data-flow-task={lane.task} data-flow-stage={lane.stage ?? 'unknown'}>
     <header className="flow-lane-heading"><button data-flow-toggle={lane.task} aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <span aria-hidden="true">{open ? '⌄' : '›'}</span> {lane.task} · {lane.title}</button>
+      <span aria-hidden="true">{open ? '⌄' : '›'}</span> {lane.name} · {lane.title}</button>
       <span>{lane.project} · {lane.integrated ? '已集成' : current < 0 ? '阶段未知 · 核对门禁记录' : flowStages[current].label}
         {lane.returns.length > 0 && ` · 打回 ${lane.returns.length} 次`}</span></header>
     {open && <div className="flow-lane-body">

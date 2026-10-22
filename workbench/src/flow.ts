@@ -40,7 +40,7 @@ export function projectFlow(tasks: any[], agents: FlowAgent[], events: GateEvent
       agent.attempt === task.current_attempt?.attempt_id && agent.parent &&
       ['worker', 'reviewer', 'monitor'].includes(agent.role) && agent.state !== 'ended');
     bound.forEach(agent => assigned.add(agent.id));
-    return { task: task.task_id, project: task.project_id, title: task.title, attempt: task.current_attempt?.attempt_id ?? null,
+    return { task: task.task_id, name: task.name, project: task.project_id, title: task.title, attempt: task.current_attempt?.attempt_id ?? null,
       stage, integrated, returns, agents: bound.filter(agent => agent.role !== 'monitor'), monitors: bound.filter(agent => agent.role === 'monitor') };
   });
   return { lanes, unassigned: agents.filter(agent => !assigned.has(agent.id) && agent.state !== 'ended') };

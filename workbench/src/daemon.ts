@@ -185,14 +185,6 @@ export async function serve(
   // The gate records a terminal controller's answers as the controller's, and run and attach
   // carry its identity so the work they started outlives the role (T-124).
   const taskCommands = new Set<string>(A2AGateRequest.fields.command.literals);
-  // A task id that does not exist yet has no project. Card drafts saved under it
-  // belong to the project whose terminal saved its first version; card_show and
-  // create on a draft need that ownership, card_template and card_validate are stateless.
-  const draftOwner = (task: string): string | undefined => {
-    const row = store.db.prepare(`SELECT data FROM orchestration_events WHERE type='card_draft_owned'
-      AND json_extract(data,'$.task')=? ORDER BY seq LIMIT 1`).get(task);
-    return row ? JSON.parse(String(row.data)).project : undefined;
-  };
   const terminalCommand = async (input: Record<string, any>, terminal: { id: string; project: string | null; task: string | null },
     asker: Asker) => {
     if (input.command === "terminal_whoami") {
@@ -242,17 +234,8 @@ export async function serve(
       if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     } else if (taskCommands.has(input.command)) {
       if (typeof input.task !== "string") throw new Refusal("task_required");
-      const status = await gates.call({ command: "status", task: input.task });
-      if (status.ok) {
-        if (status.task.project_id !== roleRequest.project) throw new Refusal("role_project_mismatch");
-      } else if (status.error !== "unknown_task") throw new Refusal(status.error ?? "unknown_task");
-      else if (["card_show", "create"].includes(input.command)) {
-        if (draftOwner(input.task) !== roleRequest.project) throw new Refusal("card_draft_not_owned");
-      } else if (input.command === "card_save") {
-        const owner = draftOwner(input.task);
-        if (owner !== undefined && owner !== roleRequest.project) throw new Refusal("card_draft_not_owned");
-        if (owner === undefined && input.expected_version !== 0) throw new Refusal("card_draft_not_owned");
-      } else if (!["card_template", "card_validate"].includes(input.command)) throw new Refusal("unknown_task");
+      // T-123: the gate resolves the task in this role's project (GateActor.project): a bare name never reaches
+      // another project's task of the same name, and a full id of another project is refused (task_project_mismatch).
       if (input.command === "create") {
         if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
         if (!store.openedProjects().some(project => project.project_id === roleRequest.project)) throw new Refusal("project_not_opened");
@@ -267,9 +250,6 @@ export async function serve(
         if (stopping) throw new Refusal("daemon_stopping");
         if (roleRequests.approved(terminal.id)?.id !== roleRequest.id) throw new Refusal("role_request_ended");
       }, controller: terminalController(terminal.id, roleRequest) }));
-    // The gate's version check lets exactly one first save succeed; its project owns the draft.
-    if (result.ok && input.command === "card_save" && input.expected_version === 0 && draftOwner(input.task) === undefined)
-      store.event("card_draft_owned", { task: input.task, project: roleRequest.project }, { id: terminal.id, task: null });
     return result;
   };
   // An opened directory owns its project id: a task may join that project

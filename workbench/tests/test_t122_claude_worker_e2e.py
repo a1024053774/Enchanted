@@ -485,7 +485,7 @@ def main():
         report['sidebar_worker'] = row and {key: row[key] for key in ('role', 'cli', 'parent', 'state')}
         review_row = next((agent for agent in agents if agent['id'] == review['launch_id']), None)
         report['sidebar_reviewer'] = review_row and {key: review_row[key] for key in ('role', 'cli', 'task', 'parent', 'state')}
-        check('sidebar_reviewer_under_task', review_row and review_row['task'] == 'T-1' and review_row['role'] == 'reviewer' and
+        check('sidebar_reviewer_under_task', review_row and review_row['task'] == 'demo+T-1' and review_row['task_name'] == 'T-1' and review_row['role'] == 'reviewer' and
               review_row['cli'] == 'claude', report['sidebar_reviewer'])
         check('sidebar_worker_under_controller', row and row['parent'] == launch and row['cli'] == 'claude' and row['role'] == 'worker', report['sidebar_worker'])
         # 9: asked before the project has any task; asserted last so a pre-change revision fails at dispatch first.

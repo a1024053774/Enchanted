@@ -19,6 +19,8 @@ export class MembershipRefusal extends Error {
 /** Grouping and selected session presets. Attempt authority stays in A2AGates. */
 export class A2AMembership {
   private readonly db: DatabaseSync;
+  // The T-123 task id migration rewrites memberships in place, beside the gate's own library.
+  get database() { return this.db; }
 
   constructor(root: string) {
     mkdirSync(root, { recursive: true, mode: 0o700 });

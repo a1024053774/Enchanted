@@ -141,8 +141,9 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
     const question_id = state === 'waiting_user_answer'
       ? projectQuestions(launchEvents).find(question => question.status === 'waiting' &&
         question.submission === statuses.get(record.id)?.active?.id)?.id ?? null : null;
-    return { id: record.id, project: record.project, task: record.task, attempt: record.attempt, thread: record.thread,
-      role: record.role, preset: record.preset ?? null, role_label: roleLabel(record),
+    // T-123: `task` is the gate's id (`<project>+<name>`); `task_name` is what the sidebar shows.
+    return { id: record.id, project: record.project, task: record.task, task_name: record.task ? record.task.slice(record.task.indexOf('+') + 1) : null,
+      attempt: record.attempt, thread: record.thread, role: record.role, preset: record.preset ?? null, role_label: roleLabel(record),
       cli: record.cli === 'Claude Code' || record.cli_version?.startsWith('Claude Code') ? 'claude' :
         record.cli_version?.startsWith('codex-cli ') ? 'codex' : '未知',
       parent: senders.size === 1 ? [...senders][0] : null, state, question_id, state_label: stateLabels[state],
@@ -154,7 +155,7 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
   for (const roleRequest of current.filter(row => row.state === 'approved')) {
     const record = store.launchRecord(roleRequest.launch);
     if (!record) continue;
-    agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, attempt: null, thread: record.thread,
+    agents.push({ id: roleRequest.launch, project: roleRequest.project, task: null, task_name: null, attempt: null, thread: record.thread,
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
       parent: null, state: 'unknown', question_id: null, state_label: stateLabels.unknown, created_at: roleRequest.decided_at, terminal: true } as any);
   }

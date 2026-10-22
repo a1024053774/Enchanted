@@ -237,7 +237,9 @@ export interface A2AVerification {
 }
 
 export interface A2ATask {
+  // T-123: `<project>+<name>`; `name` is what the user and the task card call it.
   task_id: string;
+  name: string;
   title?: string;
   project_id: string;
   repo: string;

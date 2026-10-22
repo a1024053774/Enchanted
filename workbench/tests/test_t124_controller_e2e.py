@@ -181,7 +181,9 @@ def main():
         submit = re.search(r'显式交付：\n(.+)\n', first)
         assert submit, '派发提示里没有交付命令'
         prefix = submit.group(1).split(" 'submit' ", 1)[0]
-        issue = lambda title, body: (prefix + ' issue --task T-1 --title ' + json.dumps(title, ensure_ascii=False) +
+        # The task id the delivery line names (T-123: `<project>+<name>`), as a real worker copies it.
+        task_id = re.search(r"--task'? '?([^' ]+)", submit.group(1)).group(1)
+        issue = lambda title, body: (prefix + ' issue --task ' + task_id + ' --title ' + json.dumps(title, ensure_ascii=False) +
                                      ' --body ' + json.dumps(body, ensure_ascii=False))
         if phase == 'dispatch':
             steps = [('Bash', dict(command=issue('hello.txt 写什么', '任务卡没写内容，请主控决定。'), description='raise issue 1'))]
@@ -473,7 +475,7 @@ def main():
             window_env = {key: value for key, value in env.items() if key != 'ELECTRON_RUN_AS_NODE'}
             window = None
             try:
-                window = ElectronClient(ROOT, Path(built['out']), state, 'T-1', fixture / 'ui', out / 'window', window_env)
+                window = ElectronClient(ROOT, Path(built['out']), state, 'demo+T-1', fixture / 'ui', out / 'window', window_env)
                 def shown(predicate, label, timeout=40):
                     deadline = time.monotonic() + timeout
                     while True:
@@ -532,7 +534,7 @@ def main():
                                              if row['role'] == 'monitor'))
         margv = monitor['argv']
         nested = next(r for r in request('sidebar_snapshot')['agents'] if r['id'] == monitor['id'])
-        check('monitor_nested_under_controller', nested.get('parent') == launch and nested.get('task') == 'T-1', nested)
+        check('monitor_nested_under_controller', nested.get('parent') == launch and nested.get('task') == 'demo+T-1' and nested.get('task_name') == 'T-1', nested)
         if args.monitor_cli == 'claude':
             msettings = json.loads(margv[margv.index('--settings') + 1])
             report['monitor'] = dict(role=monitor['role'], parent=monitor['parent_launch'], cli=monitor['cli'], argv=margv[:-1], settings=msettings)
@@ -692,7 +694,7 @@ def main():
         record = shown['launch']
         report['monitor_after'] = dict(state=row['state'], task=row.get('task'), parent=row.get('parent'), parent_launch=record['parent_launch'], stopped=stopped)
         check('monitor_survives_role_and_terminal', not stopped and row['role'] == 'monitor' and row['state'] != 'exited' and
-              row.get('task') == 'T-1' and record['parent_launch'] == launch, report['monitor_after'])
+              row.get('task') == 'demo+T-1' and row.get('task_name') == 'T-1' and record['parent_launch'] == launch, report['monitor_after'])
         # The same for every managed session, now with the reviewer's list.
         offered = {role: sorted(names & {'AskUserQuestion'}) for role, names in api['tools'].items()}
         report['native_question_tools'] = offered

@@ -454,11 +454,13 @@ export class Panes implements GateRuntime {
     // A monitor (T-124) keeps watching after a restart whether or not a window shows it: its session resumes
     // with the recorded argv like an open pane's. A worker or reviewer whose process went with the previous
     // daemon is registered as stopped once both its recorded shell and CLI processes are confirmed gone, so the
-    // gate can reclaim its attempt (T-096 ruling B: reclaim, then a new attempt).
+    // gate can reclaim its attempt (T-096 ruling B: reclaim, then a new attempt). This holds after every later
+    // restart too, until the pane is archived: a record recovered by an earlier daemon is never live in this one
+    // (T-128: the second restart left the worker unknown to the gate, `unknown_pane`).
     for (const record of this.store.launches()) {
       if (!["monitor", "worker", "reviewer"].includes(record.role) || this.panes.has(record.thread)) continue;
       if (!this.store.lastEvent(record.id, ["pane_started"]) || this.store.lastEvent(record.id, ["pane_archived"])) continue;
-      if (this.store.lastEvent(record.id, ["pane_recovered"])?.data.daemon !== daemon) continue;
+      if (!this.store.lastEvent(record.id, ["pane_recovered"])) continue;
       if (record.role === "monitor") {
         const bound = this.store.lastEvent(record.id, ["pane_native_session"]);
         const native = record.cli === "Claude Code" ? record.native_session : bound?.data.native_session ?? null;

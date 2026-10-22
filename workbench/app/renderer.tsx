@@ -24,7 +24,7 @@ type Snapshot = {
   pane_key: string;
   input_enabled: boolean;
   window_id?: string;
-  task: { task_id: string; title: string; project_id: string; repo: string; state: string;
+  task: { task_id: string; name: string; title: string; project_id: string; repo: string; state: string;
     current_attempt: { attempt_id: string; state: string } | null; candidate_commit: string | null;
     verification: { state: string } | null; integration_intent: { state: string } | null } | null;
   launch: { id: string; project: string; worktree?: string; thread: string; attempt: string | null; role: string;
@@ -38,7 +38,7 @@ type TaskItem = { task_id: string; project_id: string; title: string; state: str
 type Theme = 'system' | 'light' | 'dark';
 type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
-type AgentItem = { id: string; project: string; task: string | null; attempt: string | null; parent: string | null;
+type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; terminal?: boolean;
   descendants: { count: number; state: string; state_label: string; counts: { state: string; label: string; count: number }[] } };
 type RoleRequest = { id: string; launch: string; project: string; role: string; role_label: string; cli: string | null; requested_at: string;
@@ -323,7 +323,7 @@ function SessionPane({ paneKey, name, home, focusRequest, zoomed, onZoom, onActi
           <span className="pane-identity" title={snapshot?.launch ? shell ? snapshot.launch.worktree ?? '' :
             `${snapshot.launch.role}${snapshot.launch.preset ? '/' + snapshot.launch.preset : ''} · task ${task?.task_id} · launch ${snapshot.launch.id}${snapshot.launch.attempt ? ' · attempt ' + snapshot.launch.attempt : ''}` : undefined}>{snapshot?.launch ?
             shell ? tilde(snapshot.launch.worktree, home) :
-              `${task?.task_id ?? ''}${snapshot.launch.attempt ? ' · attempt ' + snapshot.launch.attempt.slice(0, 8) : ''} · ${snapshot.launch.cli_version}`
+              `${task?.name ?? ''}${snapshot.launch.attempt ? ' · attempt ' + snapshot.launch.attempt.slice(0, 8) : ''} · ${snapshot.launch.cli_version}`
             : '尚未启动窗格'}</span>
           <span className="pane-badges" data-lifecycle={pane?.lifecycle ?? 'unknown'}>
             <span className="input-target">{inputTarget ? '正在输入' : shell && pane?.lifecycle === 'ended' ? '终端已结束 · 只读' : historical ? '历史 attempt · 只读' : ''}</span>
@@ -625,7 +625,7 @@ function Workbench() {
           disabled={busy} onClick={() => void selectAgent(agent)}>
           <span className="agent-main">
             <span className="agent-role">{agent.role_label}</span>
-            <span className="agent-meta">{agent.terminal ? '项目终端' : agent.task ?? '任务未知'} · {agent.cli}</span>
+            <span className="agent-meta">{agent.terminal ? '项目终端' : agent.task_name ?? '任务未知'} · {agent.cli}</span>
             <span className="sr-only agent-state">{agent.state_label}</span>
           </span>
           <span className="row-time">{since(agent.created_at, now)}</span>
@@ -731,7 +731,7 @@ function Workbench() {
         {sidebarHidden && <span className="header-toggle">{sidebarToggle}</span>}
         <div className="header-title">
           <h1>{task?.title ?? viewProject?.project_id ?? (loading ? '正在读取项目' : '独立终端')}</h1>
-          <span className="eyebrow" title={repo ?? undefined}>{task ? `${task.project_id} / ${task.task_id}` : repo ? tilde(repo, home) : '~'}</span>
+          <span className="eyebrow" title={repo ?? undefined}>{task ? `${task.project_id} / ${task.name}` : repo ? tilde(repo, home) : '~'}</span>
         </div>
         <nav className="workspace-pages" aria-label="工作区页面">
           <button aria-current={page === 'terminal' ? 'page' : undefined} onClick={() => setPage('terminal')}>终端</button>

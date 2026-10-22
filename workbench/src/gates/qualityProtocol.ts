@@ -1,5 +1,8 @@
 import type { A2AReviewFinding } from "../contracts/a2aGates.ts";
 
+// T-123: a task id is `<project>+<name>`, each part a gate id.
+export const taskIdPattern = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\+[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
+
 // Validation of explicit wire data only. No inference from prose or tool output.
 export class QualityProtocolError extends Error {
   readonly field: string;
@@ -50,7 +53,8 @@ export function reviewRequest(raw: unknown): Record<string, any> {
   exact(value, ["schema", "request_id", "command", "task", "attempt", "session", "fence", "spec_rev",
     "review_id", "candidate_commit", "verdict", "findings", "review_requirements", "report"], "review_request");
   requireValue(value.schema === 1 && value.command === "review_submit", "review_command");
-  for (const key of ["task", "attempt", "session", "review_id", "request_id"]) {
+  requireValue(typeof value.task === "string" && taskIdPattern.test(value.task), "task");
+  for (const key of ["attempt", "session", "review_id", "request_id"]) {
     requireValue(typeof value[key] === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(value[key]), key);
   }
   requireValue(value.request_id === "review-" + value.review_id, "request_id");

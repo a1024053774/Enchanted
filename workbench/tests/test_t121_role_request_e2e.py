@@ -41,7 +41,7 @@ def main():
     # Known-bad: history follows macOS /etc/zshrc into Enchanted's ZDOTDIR.
     # Known-bad: a killed asker leaves its request approvable; the user's own ZDOTDIR is dropped.
     target.add_argument('--mutant', choices=['pending-authority', 'history-in-zdotdir', 'no-withdraw', 'zdotdir-dropped', 'refusal-unrecorded', 'task-widens-scope',
-                                                 'drafts-unowned', 'foreign-owned-save', 'approved-not-ended', 'grant-has-authority',
+                                                 'foreign-key-unchecked', 'approved-not-ended', 'grant-has-authority',
                                                  'rivals-left-pending', 'expiry-unrecorded', 'stale-notice', 'asker-gone-unnoticed'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
@@ -94,13 +94,10 @@ def main():
             # The first candidate's rule: any command with a task of this project passes.
             path = source / 'workbench/src/daemon.ts'
             old, new = '} else if (taskCommands.has(input.command)) {', '} else if (input.task !== undefined) {'
-        elif args.mutant == 'drafts-unowned':
-            # Drop the ownership check of card_show and create (card_save keeps its own checks).
-            path = source / 'workbench/src/daemon.ts'
-            old, new = 'if (draftOwner(input.task) !== roleRequest.project) throw new Refusal("card_draft_not_owned");', ''
-        elif args.mutant == 'foreign-owned-save':
-            path = source / 'workbench/src/daemon.ts'
-            old, new = 'if (owner !== undefined && owner !== roleRequest.project) throw new Refusal("card_draft_not_owned");', ''
+        elif args.mutant == 'foreign-key-unchecked':
+            # T-123: a full task id of another project is no longer refused (it replaced draft ownership).
+            path = source / 'workbench/src/gates/core.ts'
+            old, new = 'requireGate(project === undefined || taskProject(full) === project, "task_project_mismatch", { task: full, project });', ''
         elif args.mutant == 'approved-not-ended':
             path = source / 'workbench/src/daemon.ts'
             old, new = 'else if (current.state === "granted") roleRequests.end(terminal.id, "asker_gone");', ''
@@ -305,7 +302,8 @@ def main():
             return str(path)
 
         def create(identity, task, project, repo):
-            saved = request('card_save', identity, task=task, card=card(task), expected_version=0)
+            # T-123: a task's id carries its project, so its card is saved under that project too.
+            saved = request('card_save', identity, task=task, project=project, card=card(task), expected_version=0)
             if not saved['ok']:
                 return saved
             return request('create', identity, task=task, project=project, repo=str(repo), branch='refs/heads/main', card_version=1)
@@ -317,30 +315,33 @@ def main():
         assert request('card_save', terminal_a, task='own-3', card=card('own-3'), expected_version=0)['ok']
         foreign = {label: request(command, terminal_a, **data).get('error') for label, command, data in [
             ('create_in_other_project', 'create', dict(task='own-3', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)),
-            ('status_of_other_task', 'status', dict(task='other-1')),
-            ('card_save_on_other_task', 'card_save', dict(task='other-1', card=card('other-1'), expected_version=1))]}
+            ('status_of_other_task', 'status', dict(task='other+other-1')),
+            ('card_save_on_other_task', 'card_save', dict(task='other+other-1', card=card('other-1'), expected_version=1))]}
         foreign['create_with_other_repo'] = wrong_repo.get('error')
         report['foreign_errors'] = foreign
         check('other_project_task_and_repo_refused', foreign == dict(create_in_other_project='role_project_mismatch',
-              status_of_other_task='role_project_mismatch', card_save_on_other_task='role_project_mismatch',
+              status_of_other_task='task_project_mismatch', card_save_on_other_task='task_project_mismatch',
               create_with_other_repo='project_repo_mismatch'), foreign)
         widened = {name: request(name, terminal_a, task='own-1', **data).get('error') for name, data in [
             ('inbox_list', {}), ('inbox_ack', dict(id='x')), ('inbox_send', dict(to='executor', kind='note', body='x')),
             ('stop', dict(thread='x', stop_id='x'))]}
         report['task_field_errors'] = widened
         check('task_field_does_not_widen_scope', set(widened.values()) == {'role_command_not_scoped'}, widened)
-        # A draft another project saved for a task it has not created yet stays that project's.
-        assert request('card_save', operator, task='other-2', card=card('other-2'), expected_version=0)['ok']
-        drafts = {label: request(command, terminal_a, task='other-2', **data).get('error') for label, command, data in [
+        # T-123: a draft another project saved is that project's by its id; the same name here is this project's own.
+        assert request('card_save', operator, task='other-2', project='other', card=card('other-2'), expected_version=0)['ok']
+        drafts = {label: request(command, terminal_a, task='other+other-2', **data).get('error') for label, command, data in [
             ('card_show', 'card_show', dict(card_version=1)),
             ('card_save_next', 'card_save', dict(card=card('other-2'), expected_version=1)),
             ('card_save_first', 'card_save', dict(card=card('other-2'), expected_version=0)),
             ('create', 'create', dict(project='proj', repo=str(cwd), branch='refs/heads/main', card_version=1))]}
         report['draft_errors'] = drafts
-        check('other_project_draft_refused', drafts == dict(card_show='card_draft_not_owned', card_save_next='card_draft_not_owned',
-              card_save_first='card_version_conflict', create='card_draft_not_owned') and
-              request('create', operator, task='other-2', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)['ok'], drafts)
-        # A draft another project's terminal saved first stays that project's.
+        own_same_name = request('card_save', terminal_a, task='other-2', card=card('other-2'), expected_version=0)
+        check('other_project_draft_refused', set(drafts.values()) == {'task_project_mismatch'} and own_same_name['ok'] and
+              request('card_show', terminal_a, task='other-2', card_version=1)['ok'] and
+              request('create', operator, task='other-2', project='other', repo=str(other_repo), branch='refs/heads/main', card_version=1)['ok'] and
+              request('status', operator, task='other+other-2')['task']['project_id'] == 'other',
+              dict(drafts=drafts, own_same_name=own_same_name.get('error')))
+        # A draft another project's terminal saved is reached only by its full id, which this terminal is refused.
         o = open_terminal('o', 'other', other_repo)
         type_line(o, f'print -r -- $A2A_TERMINAL_TOKEN > {out}/o-token.txt', 'T121-O-TOKEN')
         terminal_o = dict(kind='terminal', launch=o['launch'], token=(out / 'o-token.txt').read_text(encoding='utf-8').strip())
@@ -349,12 +350,13 @@ def main():
         assert request('role_request_decide', operator, role_request=waiting_o['id'], approved=True)['ok']
         assert answer(asker)['ok'] and request('role_request_confirm', terminal_o, role_request=waiting_o['id'])['ok']
         assert request('card_save', terminal_o, task='oth-3', card=card('oth-3'), expected_version=0)['ok']
-        squatted = {label: request(command, terminal_a, task='oth-3', **data).get('error') for label, command, data in [
+        squatted = {label: request(command, terminal_a, task='other+oth-3', **data).get('error') for label, command, data in [
             ('card_save_next', 'card_save', dict(card=card('oth-3'), expected_version=1)),
             ('card_show', 'card_show', dict(card_version=1))]}
         report['other_terminal_draft_errors'] = squatted
-        check('other_terminal_draft_refused', set(squatted.values()) == {'card_draft_not_owned'} and
-              request('card_show', terminal_o, task='oth-3', card_version=1)['ok'], squatted)
+        check('other_terminal_draft_refused', set(squatted.values()) == {'task_project_mismatch'} and
+              request('card_show', terminal_o, task='oth-3', card_version=1)['ok'] and
+              request('card_show', terminal_a, task='oth-3', card_version=1).get('ok') is not True, squatted)
         # Opened to terminal controllers by T-124: no longer refused as unscoped; each is still refused, for its missing arguments.
         opened = {command: request(command, terminal_a, task='own-1') for command in ('answer_issue', 'answer_issues', 'attach', 'run')}
         report['opened_commands'] = {command: result.get('error') for command, result in opened.items()}

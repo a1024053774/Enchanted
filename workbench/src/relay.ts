@@ -1,7 +1,7 @@
 import { Refusal } from "./gates/core.ts";
 import type { RelayFile } from "./relayFiles.ts";
 import { OrchestrationStore } from "./store.ts";
-import { reviewRequest } from "./gates/qualityProtocol.ts";
+import { reviewRequest, taskIdPattern } from "./gates/qualityProtocol.ts";
 import type { A2AInboxDelivery } from "./contracts/a2aInbox.ts";
 
 export function isPendingInboxResult(result: any): boolean {
@@ -123,8 +123,9 @@ export class RequestRelay {
       if ((controller && !["inbox_send", "inbox_list", "inbox_ack", "inbox_ready", "stop"].includes(input.command)) ||
           input.schema !== (controller ? 2 : 1) || !requestId || !extra || base.some((field) => !Object.hasOwn(input, field)) ||
           Object.keys(input).some((field) => ![...base, ...extra].includes(field)) ||
-          !(controller ? [input.task, input.session, input.launch, input.project, input.native_session, input.prompt_id] : [input.task, input.attempt, input.session])
+          !(controller ? [input.session, input.launch, input.project, input.native_session, input.prompt_id] : [input.attempt, input.session])
             .every((value) => typeof value === "string" && keyPattern.test(value)) ||
+          !(typeof input.task === "string" && taskIdPattern.test(input.task)) ||
           (!controller && !Number.isSafeInteger(input.fence)) || !Number.isSafeInteger(input.spec_rev) || input.spec_rev < 1) throw new Refusal("invalid_relay_request");
       const expected = controller ? { task: binding.task, session: binding.session, spec_rev: binding.spec_rev,
         launch: binding.id, project: binding.project, preset: binding.preset, native_session: binding.native_session, prompt_id: binding.prompt_id }

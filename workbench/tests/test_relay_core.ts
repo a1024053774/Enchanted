@@ -10,8 +10,8 @@ const { RequestRelay } = await import(process.env.A2A_RELAY_MODULE ?? "../src/re
 const output = process.argv[2]!; mkdirSync(output);
 const root = mkdtempSync("/tmp/a2a-relay-core-");
 const store = new OrchestrationStore(root); const relay = new RequestRelay(store);
-const binding = { id: "launch", task: "fixture", attempt: "attempt", session: "session", fence: 1, spec_rev: 1, role: "worker" as const };
-const base = { schema: 1, request_id: "delivery", command: "submit", task: "fixture", attempt: "attempt",
+const binding = { id: "launch", task: "fixture+fixture", attempt: "attempt", session: "session", fence: 1, spec_rev: 1, role: "worker" as const };
+const base = { schema: 1, request_id: "delivery", command: "submit", task: "fixture+fixture", attempt: "attempt",
   session: "session", fence: 1, spec_rev: 1, commit: "a".repeat(40) };
 const file = (value: any, name = "request.json") => ({ name, raw: JSON.stringify(value) });
 const effects: any[] = [];
@@ -52,7 +52,7 @@ try {
   assert.equal(replay.result.error, "relay_outcome_unknown");
   assert.equal(effects.length, 5, "an in-flight transfer must not execute again");
   complete({ ok: true }); await first;
-  const events = store.read("fixture");
+  const events = store.read("fixture+fixture");
   assert.ok(events.some((event) => event.type === "relay_replayed"));
   assert.ok(events.some((event) => event.type === "relay_rejected" && event.data.result.error === "relay_identity_mismatch"));
   assert.ok(events.some((event) => event.type === "relay_rejected" && event.data.result.error === "invalid_relay_request"));
@@ -61,6 +61,6 @@ try {
     assert.throws(() => store.db.exec(`DELETE FROM ${table}`), /append only/);
   }
 } catch (error) { failure = String(error); }
-writeFileSync(join(output, "results.json"), JSON.stringify({ root, failure, effects, events: store.read("fixture") }, null, 2) + "\n");
+writeFileSync(join(output, "results.json"), JSON.stringify({ root, failure, effects, events: store.read("fixture+fixture") }, null, 2) + "\n");
 store.close(); console.log(JSON.stringify({ root, failure, effect_count: effects.length }));
 process.exitCode = failure ? 1 : 0;

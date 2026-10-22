@@ -12,7 +12,7 @@
 - **Muster 引擎**：Herdr 0.9.3 的硬分叉，曾计划作为工作台后台；2026-10-07 冻结，2026-10-08 与 `coop.py` 一起从仓库删除（T-040），源码留在 git 历史与 `evidence/2026-10-08-batch4/T-040-A/retired-source.tar.gz`。
 - **门禁入口（gate entry）**：a2a 门禁对外唯一的调用入口；认领、交付、验收、集成与回收只经它，并保持操作锁语义。第三阶段抽进编排后台：2026-10-11 起门禁源码在本仓库 `workbench/src/gates/`（由 Node 运行，T-075-1），fork 中的 `packages/a2a-gates` 不再作入口；编排后台的命令行入口接上之前，本仓库验收经 `acceptance/entry/a2a_gates.py` 调用 `workbench/src/gates/cli.ts`。
 - **项目（Project）**：对应一个仓库目录的工作范围；在工作台中包含多个任务。
-- **Task（任务）**：项目中的一个工作单元；在工作台中是项目下的一个任务窗口（应用内区域，不要求独立系统窗口），可以包含多个 agent 会话。任务卡可以稍后再挂，挂上任务卡的任务称为受管任务，只有受管任务走 claim、submit、验收和集成门禁。任务与 agent 会话的归属由 a2a 保存（受管任务以门禁 task id 为身份）。Synara 原生的 ProjectTask、ProjectTaskAttempt、HubWorkItem 属于其 Hub 编排，不是这里的任务或 attempt，提及时用原名。
+- **Task（任务）**：项目中的一个工作单元；在工作台中是项目下的一个任务窗口（应用内区域，不要求独立系统窗口），可以包含多个 agent 会话。任务卡可以稍后再挂，挂上任务卡的任务称为受管任务，只有受管任务走 claim、submit、验收和集成门禁。任务与 agent 会话的归属由 a2a 保存（受管任务以门禁 task id 为身份）。门禁 task id 是 `<项目>+<任务名>`（T-123）：**任务名**是用户与主控称呼任务的名字，同一项目内唯一，不同项目可以同名；界面显示任务名。Synara 原生的 ProjectTask、ProjectTaskAttempt、HubWorkItem 属于其 Hub 编排，不是这里的任务或 attempt，提及时用原名。
 - **任务卡（task card）**：受管任务挂的结构化合同，也是发给 worker 的任务说明，写明目标、非目标、修改边界（允许、禁止）、完成条件、任务类型与复杂度；门禁按它检查交付。2026-10-10 起取代“验收合同”与 brief 的叫法。
 - **验收文件（oracle_paths）**：任务卡里列出的、完成条件所依赖的仓库内测试、脚本、夹具和配置；门禁保护它们，候选改到就拒收（2026-10-14，T-080）。不另叫“oracle”或“验收标准文件”。
 - **Agent 会话（agent session）**：任务中一个 agent 的一次运行，在窗格里以各家原生 CLI 的交互终端进行；一个任务可以有多个，供不同角色分工。它不同于原生会话。

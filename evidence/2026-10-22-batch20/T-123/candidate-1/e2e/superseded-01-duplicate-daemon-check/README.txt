@@ -1,0 +1,1 @@
+被取代：这一轮里 terminal-key-unchecked 与 T-121 foreign-key-unchecked 两个变异被门禁新加的 task_project_mismatch 拦下，只是错误码不同，不是有效红态；说明后台那条前缀检查与门禁重复，已删去后台那条。修前版本这一轮停在迁移阶段，没走到同名场景；新增 --scenario same-name 后重跑。其余结果是删检查前的候选，一并重跑。

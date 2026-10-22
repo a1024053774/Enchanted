@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';import {mkdirSync,mkdtempSync,writeFileS
 import {Panes} from '../src/panes.ts';import {OrchestrationStore} from '../src/store.ts';import {RequestRelay} from '../src/relay.ts';import {A2AGates} from '../src/gates/core.ts';
 const out=resolve(process.argv[2]);mkdirSync(out);const checks=[];
 function fixture(){const root=mkdtempSync('/tmp/t78-ctl-relay-'),store=new OrchestrationStore(root),panes=new Panes(root,store,{},()=>{}),gates=new A2AGates(root,panes),relay=new RequestRelay(store);
- const record:any={id:'controller-launch',thread:'controller-thread',task:'controller-task',project:'controller-project',preset:'ideation',session:'controller-session',spec_rev:1,role:'controller',cli:'Claude Code',attempt:null,turn_limit:2};
+ const record:any={id:'controller-launch',thread:'controller-thread',task:'controller-project+controller-task',project:'controller-project',preset:'ideation',session:'controller-session',spec_rev:1,role:'controller',cli:'Claude Code',attempt:null,turn_limit:2};
  const task={task_id:record.task,project_id:record.project,repo:root,spec_rev:1,state:'registered',current_attempt:null};store.db.prepare('INSERT INTO tasks VALUES (?,?)').run(task.task_id,JSON.stringify(task));store.launch(record);
  const active={id:'submission',dispatch:'dispatch',at:new Date().toISOString(),nativeTurn:null};
  const pane:any={record,task,attempt:null,token:'private',pty:{pid:11,write:()=>{}},state:'busy',native:record.session,claudePromptId:'prompt-1',active,stopInProgress:true,stopped:false,archived:false,failed:null,interrupted:false};
@@ -21,7 +21,7 @@ await test('actual-preset-scope-and-once-execution',async f=>{const a=await f.re
  const row=f.store.db.prepare('SELECT * FROM relay_requests').get();assert.equal(row.attempt,null);const parsed=JSON.parse(row.input);assert.equal('attempt' in parsed,false);assert.equal('fence' in parsed,false);
 });
 for(const key of ['launch','preset','project','task','session','native_session','spec_rev','prompt_id'])await test('reject-'+key,async f=>{
- const wrong={...f.request,[key]:key==='spec_rev'?2:'foreign'};const result=await f.relay.receive(f.binding,file(wrong),true,f.perform);assert.equal(result.result.ok,false);assert.equal(result.result.error,'relay_identity_mismatch');assert.equal(f.effects,0);
+ const wrong={...f.request,[key]:key==='spec_rev'?2:key==='task'?'foreign+foreign':'foreign'};const result=await f.relay.receive(f.binding,file(wrong),true,f.perform);assert.equal(result.result.ok,false);assert.equal(result.result.error,'relay_identity_mismatch');assert.equal(f.effects,0);
 });
 await test('old-Stop-does-not-admit',async f=>{const r=await f.relay.receive(f.binding,file(f.request),false,f.perform);assert.equal(r.result.error,'relay_requires_current_stop');assert.equal(f.effects,0);});
 await test('missing-context-and-fake-attempt-are-rejected',async f=>{const a={...f.request};delete a.prompt_id;assert.equal((await f.relay.receive(f.binding,file(a),true,f.perform)).result.error,'invalid_relay_request');

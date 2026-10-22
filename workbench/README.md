@@ -122,10 +122,9 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
   `a2a request` 随即返回；授予没确认而作废时它们仍可批准。界面在申请列表变化后一秒内不接受批准或拒绝；授予等待确认时，同角色其他申请的“批准”按钮禁用。
 - 待批准、已授予未确认、被拒绝、已结束的申请没有任何权限；主控命令返回 `approved_role_required`。
 - 已批准的终端以该角色为门禁调用者（`address` 为 `ideation` 或 `executor`），沿用门禁的全部检查，只能调用
-  按命令名在这一层核对项目：门禁的任务命令须带属于本项目的 task；还不存在的 task 只能用于准备新任务的
-  `card_*` 与 `create`。这类 task 的卡草稿归首次保存它的终端项目（`card_draft_owned` 事件，首存须
-  `expected_version` 为 0 且成功）；`card_show`、后续 `card_save` 与 `create` 须是本项目的草稿，否则返回
-  `card_draft_not_owned`；`create` 的 `project` 须为本项目、`repo` 须为本项目打开的目录。`answer_issue(s)`、
+  按命令名在这一层核对项目。任务 id 自带项目（T-123，见下文“任务 id”）：终端只写任务名时，门禁在本项目里解析，
+  另一个项目的同名任务和卡片碰不到；写完整 id 而项目不是本项目，门禁返回 `task_project_mismatch`。
+  `create` 的 `project` 须为本项目、`repo` 须为本项目打开的目录。`answer_issue(s)`、
   `attach`、`run` 也是任务命令（T-124，见下文）；`inbox_ready` 须带本项目 `project`。其他项目返回 `role_project_mismatch`。收件箱的其他命令与 stop 还没有项目字段、也不看 task 字段，
   终端角色调用它们一律返回 `role_command_not_scoped`；主控之间的收件箱通信留给后续票，届时先给条目加上项目。
 - 终端关闭或后台重启后身份结束，侧栏随之移除。
@@ -287,11 +286,19 @@ B 在 T-075 的旧候选上通过隔离真实 Codex 的显式交付、机械检�
 ```sh
 export A2A_OPERATOR_CREDENTIAL=/绝对路径/隔离目录/operator-本次启动.json
 node workbench/src/gates/cli.ts --state /绝对路径/state daemon_start
-node workbench/src/gates/cli.ts --state /绝对路径/state card_template --task T-080-1 --repo /绝对路径/repo --ticket /绝对路径/T-080.md
-node workbench/src/gates/cli.ts --state /绝对路径/state card_validate --task T-080-1 --card /绝对路径/card.json
-node workbench/src/gates/cli.ts --state /绝对路径/state card_save --task T-080-1 --card /绝对路径/card.json --expected-version 0
-node workbench/src/gates/cli.ts --state /绝对路径/state create --task T-080-1 --repo /绝对路径/repo --branch refs/heads/main --card-version 1
+node workbench/src/gates/cli.ts --state /绝对路径/state card_template --task a2a+T-080-1 --repo /绝对路径/repo --ticket /绝对路径/T-080.md
+node workbench/src/gates/cli.ts --state /绝对路径/state card_validate --task a2a+T-080-1 --card /绝对路径/card.json
+node workbench/src/gates/cli.ts --state /绝对路径/state card_save --task a2a+T-080-1 --card /绝对路径/card.json --expected-version 0
+node workbench/src/gates/cli.ts --state /绝对路径/state create --task a2a+T-080-1 --repo /绝对路径/repo --branch refs/heads/main --card-version 1
 ```
+
+任务 id（T-123）：门禁里任务的 id 是 `<项目>+<任务名>`，如 `a2a+T-080-1`，两段都只用门禁 id 字符
+（`A-Za-z0-9_.-`），所以 `+` 不会有歧义。不同项目可以有同名任务，卡片、事件、attempt 与尾注 `A2A-Task` 都按完整 id
+区分；worktree 与分支路径仍按项目目录加任务名。调用时可以只写任务名：项目终端在本项目里解析；管理凭据用 `--project`
+指明项目，不指明时任务名须恰好对应一个已有任务，否则返回 `task_ambiguous` 或 `unknown_task`；完整 id 旁另给不同的
+`project` 返回 `task_project_mismatch`。界面与侧栏显示任务名，侧栏行的 `task` 是完整 id、`task_name` 是任务名。
+旧库在新版后台启动时迁移一次：各表与成员资格里的旧 id 改为 `<原项目>+<原 id>`，行数不变；没有归属项目的卡草稿使迁移失败
+（`task_migration_unowned_drafts`），不猜测归属。
 
 模板含 14 个字段。CLI 值精确为 `Claude Code` 或 `Codex`；任务类型为规格中的八个值。
 完成条件格式为 `{"argv":["python3","acceptance/check.py","{worktree}"]}`，

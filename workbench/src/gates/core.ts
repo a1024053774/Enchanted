@@ -37,7 +37,7 @@ import { execFile as execProcessFile, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, pathIntersection, projectRules, type ProjectQuality, type TaskCard } from "./taskCards.ts";
 import { Schema } from "effect";
-import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError } from "./qualityProtocol.ts";
+import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError, taskIdPattern } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
 import { readyTickets } from "./readyTickets.ts";
 import {
@@ -67,6 +67,19 @@ function id(value: string | undefined): string {
   requireGate(value && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(value), "invalid_id");
   return value;
 }
+// T-123: a task's id is its project and its name, `<project>+<name>`. Both parts are gate ids, so
+// `+` never occurs inside either; the id is also a valid file name and git ref component. Every table,
+// lock and event keyed by task id is therefore per project. Callers may name a task by its name alone;
+// request() resolves it (resolveTask).
+function taskKey(project: string, name: string): string {
+  return `${id(project)}+${id(name)}`;
+}
+function key(value: string | undefined): string {
+  requireGate(value && taskIdPattern.test(value), "invalid_task_id");
+  return value;
+}
+const taskProject = (task: string) => task.slice(0, task.indexOf("+"));
+const taskName = (task: string) => task.slice(task.indexOf("+") + 1);
 function sha(value: string | undefined): string {
   requireGate(value && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value), "invalid_commit");
   return value;
@@ -197,6 +210,7 @@ export class A2AGates {
       CREATE TRIGGER IF NOT EXISTS events_no_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT,'append only'); END;
       CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT,'append only'); END;`);
     ensureRolePermissionTables(this.db);
+    this.migrateTaskIds();
     // T-055 registered one input per message. A reply bundle has one message
     // and several immutable inputs. Preserve every legacy row byte-for-byte
     // while removing only the obsolete message uniqueness constraint.
@@ -275,7 +289,7 @@ export class A2AGates {
   }
   /** The manual correction route shares the gate operation lock and revision CAS. */
   saveMembership(input: A2ATaskMembership): A2ATaskMembership {
-    const lock = this.operationLock(id(input.taskId));
+    const lock = this.operationLock(key(input.taskId));
     try {
       this.checkUserInputObserver();
       const row = this.db.prepare("SELECT data FROM tasks WHERE id=?").get(input.taskId);
@@ -1051,6 +1065,87 @@ export class A2AGates {
       );
     return Number(inserted.lastInsertRowid);
   }
+  // T-123 migration, once per library: every task id written before project-qualified ids becomes
+  // `<project>+<name>`. Rows are only updated, never added or removed, in every table of the library and in
+  // the membership store: columns named task (and tasks.id, memberships.id), and inside JSON columns every
+  // string field named task, task_id or taskId and every "task:<name>" reference. A card draft with no task
+  // takes the project whose terminal saved it (T-121's card_draft_owned); a draft with no owner stops the
+  // start, since its project cannot be known. Append-only triggers are lifted for the migration only. No row is
+  // added for it, so every table keeps its count; a migrated task's record keeps its old id as its name.
+  private migrateTaskIds() {
+    const renamed = new Map<string, string>();
+    for (const row of this.db.prepare("SELECT id, json_extract(data,'$.project_id') AS project FROM tasks WHERE instr(id,'+')=0").all())
+      renamed.set(String(row.id), taskKey(String(row.project), String(row.id)));
+    const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(row => String(row.name));
+    const owners = new Map<string, string>();
+    if (tables.includes("orchestration_events"))
+      for (const row of this.db.prepare("SELECT data FROM orchestration_events WHERE type='card_draft_owned' ORDER BY seq").all()) {
+        const owned = JSON.parse(String(row.data));
+        if (!owners.has(owned.task)) owners.set(owned.task, owned.project);
+      }
+    const drafts = this.db.prepare("SELECT DISTINCT task FROM task_card_versions WHERE instr(task,'+')=0").all().map(row => String(row.task))
+      .filter(task => !renamed.has(task));
+    const unowned = drafts.filter(task => !owners.has(task));
+    requireGate(!unowned.length, "task_migration_unowned_drafts", { tasks: unowned });
+    for (const task of drafts) renamed.set(task, taskKey(owners.get(task)!, task));
+    if (!renamed.size) return;
+    const rewrite = (value: any): any => {
+      if (Array.isArray(value)) return value.map(rewrite);
+      if (typeof value === "string") {
+        const reference = /^task:(.+)$/.exec(value);
+        return reference && renamed.has(reference[1]!) ? `task:${renamed.get(reference[1]!)}` : value;
+      }
+      if (!value || typeof value !== "object") return value;
+      return Object.fromEntries(Object.entries(value).map(([field, item]) =>
+        [field, ["task", "task_id", "taskId"].includes(field) && typeof item === "string" && renamed.has(item) ? renamed.get(item) : rewrite(item)]));
+    };
+    const migrate = (db: DatabaseSync, names: string[], keyed: Record<string, string>) => {
+      const triggers = db.prepare("SELECT name, sql FROM sqlite_master WHERE type='trigger'").all();
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        for (const trigger of triggers) db.exec(`DROP TRIGGER "${String(trigger.name)}"`);
+        for (const table of names) {
+          const columns = db.prepare(`PRAGMA table_info("${table}")`).all().map(column => String(column.name));
+          const plain = columns.filter(column => column === "task" || keyed[table] === column);
+          const json = columns.filter(column => column === "data" || column === "details");
+          if (!plain.length && !json.length) continue;
+          const select = db.prepare(`SELECT rowid AS row_id, ${[...plain, ...json].map(column => `"${column}"`).join(",")} FROM "${table}"`);
+          const update = db.prepare(`UPDATE "${table}" SET ${[...plain, ...json].map(column => `"${column}"=?`).join(",")} WHERE rowid=?`);
+          for (const row of select.all()) {
+            const values = plain.map(column => renamed.get(String(row[column])) ?? row[column]);
+            for (const column of json) {
+              const parsed = JSON.parse(String(row[column]));
+              const next = rewrite(parsed);
+              if (table === "tasks" && column === "data" && renamed.has(parsed.task_id)) next.name = parsed.task_id;
+              values.push(JSON.stringify(next));
+            }
+            update.run(...values, row.row_id);
+          }
+        }
+        for (const trigger of triggers) db.exec(String(trigger.sql));
+        db.exec("COMMIT");
+      } finally { if (db.isTransaction) db.exec("ROLLBACK"); }
+    };
+    migrate(this.db, tables, { tasks: "id" });
+    migrate(this.membership.database, ["memberships"], { memberships: "id" });
+  }
+  // A full id is taken as it is. A name is the task of that name in `project` (the request's, or a terminal
+  // role's); with no project it must name exactly one task. A task not created yet needs its project, except on
+  // a gate with no runtime (acceptance entry, unit fixtures), whose tasks have always been their own project.
+  private resolveTask(task: string, project: string | undefined): string {
+    if (task.includes("+")) {
+      // A full id names its project; a different project given beside it is a contradiction, not a choice.
+      const full = key(task);
+      requireGate(project === undefined || taskProject(full) === project, "task_project_mismatch", { task: full, project });
+      return full;
+    }
+    const name = id(task);
+    if (project !== undefined) return taskKey(project, name);
+    const matches = this.db.prepare("SELECT id FROM tasks WHERE substr(id, instr(id, '+') + 1)=? ORDER BY id").all(name).map(row => String(row.id));
+    if (!matches.length && !this.runtime) return taskKey(name, name);
+    requireGate(matches.length === 1, matches.length ? "task_ambiguous" : "unknown_task", { task: name, projects: matches.map(taskProject) });
+    return matches[0];
+  }
   private load(task: string): A2ATask {
     const row = this.db.prepare("SELECT data FROM tasks WHERE id=?").get(task);
     requireGate(row, "unknown_task");
@@ -1120,8 +1215,9 @@ export class A2AGates {
     requireGate(row, "stale_card_snapshot");
     return JSON.parse(String(row.data)) as TaskCard;
   }
+  // Worktrees sit under their project's directory and branches in their project's repository, so the name suffices.
   private attemptName(attempt: A2AAttempt) {
-    return `${attempt.task_id}-a${attempt.fence}`;
+    return `${taskName(attempt.task_id)}-a${attempt.fence}`;
   }
   private projectWorktrees(task: A2ATask) {
     return join(this.root, "worktrees", id(task.project_id));
@@ -3382,8 +3478,10 @@ export class A2AGates {
     let taskId: string | undefined;
     let lock: DatabaseSync | undefined;
     try {
-      const args = Schema.decodeUnknownSync(A2AGateRequest)(raw);
-      taskId = id(args.task);
+      const decoded = Schema.decodeUnknownSync(A2AGateRequest)(raw);
+      taskId = this.resolveTask(decoded.task, decoded.project ?? actor?.project);
+      // Everything below sees the full id, whichever form the caller used.
+      const args = { ...decoded, task: taskId };
       if (args.attempt !== undefined) id(args.attempt);
       if (args.session !== undefined) id(args.session);
       if (args.command === "status")
@@ -3460,7 +3558,7 @@ export class A2AGates {
         return await this.answerIssues(args, actor);
       if (args.command === "card_template") {
         inputPath(args.repo, true);
-        return { ok: true, card: taskCardTemplate(taskId, args.ticket) };
+        return { ok: true, card: taskCardTemplate(taskName(taskId), args.ticket) };
       }
       if (args.command === "card_show")
         return { ok: true, card: this.cardVersion(taskId, args.card_version), card_version: args.card_version };
@@ -3471,7 +3569,7 @@ export class A2AGates {
           if (error instanceof SyntaxError) throw new Refusal("invalid_task_card", { field: "card", reason: "Invalid JSON." });
           throw error;
         }
-        const card = validateTaskCard(source, taskId);
+        const card = validateTaskCard(source, taskName(taskId));
         if (args.command === "card_validate") return { ok: true, card,
           details: { rules: "13 个字段；非目标与允许路径非空；完成条件为 argv；任务类型八选一；CLI 为 Claude Code 或 Codex。" } };
         requireGate(Number.isSafeInteger(args.expected_version) && args.expected_version! >= 0, "invalid_card_version");
@@ -3490,7 +3588,7 @@ export class A2AGates {
       if (args.command === "create") {
         requireGate(!this.db.prepare("SELECT 1 FROM tasks WHERE id=?").get(taskId), "task_exists");
         const repo = inputPath(args.repo, true);
-        const card = validateTaskCard(this.cardVersion(taskId, args.card_version), taskId);
+        const card = validateTaskCard(this.cardVersion(taskId, args.card_version), taskName(taskId));
         const branch = text(args.branch);
         requireGate(branch.startsWith("refs/heads/"), "invalid_work_branch");
         await this.git(taskId, repo, ["check-ref-format", branch]);
@@ -3505,8 +3603,9 @@ export class A2AGates {
         requireGate(other.every((row) => JSON.parse(String(row.data)).integration_ref === branch), "project_branch_conflict");
         const task: A2ATask = {
           task_id: taskId,
-          title: text(args.title ?? taskId),
-          project_id: id(args.project ?? (this.runtime ? undefined : taskId)),
+          name: taskName(taskId),
+          title: text(args.title ?? taskName(taskId)),
+          project_id: taskProject(taskId),
           repo,
           integration_ref: branch,
           card_snapshot_id: "",
@@ -3643,7 +3742,7 @@ export class A2AGates {
             "stale_spec",
           );
         const revisedCard = args.command === "revise" && args.card_version !== undefined
-          ? validateTaskCard(this.cardVersion(taskId, args.card_version), taskId) : null;
+          ? validateTaskCard(this.cardVersion(taskId, args.card_version), taskName(taskId)) : null;
         // Retain the interrupted record under its old spec before revising.
         this.interruptVerification(task);
         if (args.command === "revise") {
