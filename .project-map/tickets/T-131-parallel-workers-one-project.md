@@ -33,7 +33,7 @@ ready_rev: 1
 
 2026-10-22 关闭，PASS。
 
-- 代码：`5d4fcd26c`（去掉 `single_worker_slice`）、`8f584d45c`（候选 1：审查的共享引用核对放过别的任务经门禁写的引用和工作分支的集成推进）、`c6921bf44`（候选 2：只认门禁给别的任务起的名字，attempt 序号不超过其 fence）、`d436fd390`（候选 3：认验收冲突保留的 `-candidate`/`-base`）；README `85b212a60`、`d436fd390`。
+- 代码：`8f584d45c`（候选 1：去掉 `single_worker_slice`；审查的共享引用核对放过别的任务经门禁写的引用和工作分支的集成推进）、`c6921bf44`（候选 2：只认门禁给别的任务起的名字，attempt 序号不超过其 fence）、`d436fd390`（候选 3：认验收冲突保留的 `-candidate`/`-base`）；README `5d4fcd26c`、`85b212a60`、`d436fd390`。
 - 证据：`evidence/2026-10-22-batch20/T-131/`。discovery 是去掉限制后第一次真实运行暴露的 `review_shared_refs_changed`；候选 3 的 green、retained-ref、两种外来引用反例 PASS，4 个变异与候选 2 上的红态失败，T-122 回归 23 项 PASS；修前 `03b2d66a3` 在第二次派发被拒（`single_worker_slice`），见候选 2。
 - 独立审查（agy gemini-3.8-flash-high）：review-01 PASS 附 P2（前缀放行过宽），review-02 INCOMPLETE（P1 冲突保留引用被误拒），review-03 PASS。
 - 已知边界（README）：审查期间用户自己往工作分支提交仍按引用被改拒收；同一仓库登记为两个项目且有同名任务时误拒。冲突保留引用的场景由测试按门禁命名写入，没有真造一次并发合并冲突。
