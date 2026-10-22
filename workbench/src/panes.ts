@@ -91,23 +91,26 @@ export type EmptyInputDeclaration = {
   statement: "用户声明输入框已空"; launch: string; window_id: string;
   interruption: number; input_generation: number;
 };
-// Claude Code worker and reviewer launch (T-122, evidence/2026-10-21-batch19/T-122/probe-01..04):
+// Claude Code worker and reviewer launch (T-122, evidence/2026-10-21-batch19/T-122/probe-01..05):
 // never asks for approval, file tools write only where `writable` allows, shell commands run in
 // Claude's sandbox, and no settings file is loaded (`--setting-sources ""`: with `local`, a linked
 // worktree also loads the main checkout's .claude/settings.local.json, probe-04), nor MCP servers.
 // A worker writes its worktree and the request directory. In a linked worktree Claude's sandbox
-// itself makes the repository's whole .git writable (probe-04), so `shellDenied` takes back every
-// existing ref except the attempt's branch, packed-refs, HEAD and the other worktrees; a new ref
-// name stays creatable and does not reach integration. A reviewer writes only its one-off
-// candidate copy (its working directory). Both can still write Claude's $TMPDIR: denying it
-// breaks every shell command (probe-04).
+// itself makes the repository's whole .git writable (probe-04); `gitDenied` takes back the whole
+// Git common dir, and only a standalone `git add` or `git commit`
+// runs outside the sandbox, as Codex's two prefix rules allow (user ruling 2026-10-21). Claude
+// keeps any compound command, `git -c`, env prefix or redirect inside the sandbox, and neither
+// `cd` nor `export` carries over to the next command (probe-05). A reviewer writes only its
+// one-off candidate copy (its working directory). Both can still write Claude's $TMPDIR: denying
+// it breaks every shell command (probe-04).
 async function claudeArgv(executable: string, signal: string, session: string,
-  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], shellDenied: string[] = []) {
+  selection: { model: string; effort: string; fast: boolean }, writable: string[], shellWritable: string[], gitDenied: string[] = []) {
   const hook = [{ hooks: [{ type: "command", command: signal, timeout: 10 }] }];
   const settings = {
     permissions: { allow: ["Bash", "Read", "Glob", "Grep", ...writable.map(path => `Edit(/${path}/**)`)] },
     sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
-      filesystem: { allowWrite: shellWritable, ...(shellDenied.length ? { denyWrite: shellDenied } : {}) } },
+      ...(gitDenied.length ? { excludedCommands: ["git add *", "git commit *"] } : {}),
+      filesystem: { allowWrite: shellWritable, ...(gitDenied.length ? { denyWrite: gitDenied } : {}) } },
     hooks: Object.fromEntries(["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"].map(event => [event, hook])),
     fastMode: selection.fast,
   };
@@ -115,17 +118,12 @@ async function claudeArgv(executable: string, signal: string, session: string,
     "--setting-sources", "", "--strict-mcp-config", "--settings", JSON.stringify(settings)];
 }
 const CLAUDE_STARTUP_DEADLINE_MS = 120_000;
-// The repository Git paths a Claude worker's shell must not write (see claudeArgv).
+// The Git paths a Claude worker's sandboxed shell must not write (see claudeArgv).
 async function workerGitDenied(worktree: string) {
-  const git = async (...args: string[]) => (await exec("git", ["-C", worktree, ...args])).stdout.trim();
-  const common = realpathSync(await git("rev-parse", "--path-format=absolute", "--git-common-dir"));
-  const own = realpathSync(await git("rev-parse", "--path-format=absolute", "--git-dir"));
-  const branch = await git("symbolic-ref", "HEAD");
-  const refs = (await git("for-each-ref", "--format=%(refname)")).split("\n").filter(ref => ref && ref !== branch);
-  const worktrees = existsSync(join(common, "worktrees")) ? readdirSync(join(common, "worktrees")).map(name => join(common, "worktrees", name)) : [];
-  return [...refs.flatMap(ref => [join(common, ref), join(common, "logs", ref)]),
-    ...["packed-refs", "HEAD", "logs/HEAD", "refs/a2a", "refs/tags", "refs/remotes"].map(path => join(common, path)),
-    ...worktrees.filter(path => path !== own)];
+  // Claude's sandbox already refuses writes to the worktree's own .git file (T-122 e2e red and
+  // mutant runs 07), so only the common dir is listed.
+  const common = (await exec("git", ["-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim();
+  return [realpathSync(common)];
 }
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };

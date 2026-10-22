@@ -36,7 +36,8 @@ def main():
     for key in ('source', 'electron-dist', 'summary'):
         parser.add_argument('--' + key, type=Path, required=True)
     parser.add_argument('--baseline', default='e3102389eda8952ea92cae4b373e14eaff898314')
-    parser.add_argument('--codex', type=Path, default=Path('/Users/luckye/.codex/packages/app-server-daemon/releases/0.162.1-aarch64-apple-darwin/bin/codex'))
+    # T-118: no CLI version is pinned; the run records the installed one's --version.
+    parser.add_argument('--codex', type=Path, default=Path(shutil.which('codex') or 'codex'))
     args = parser.parse_args()
     source, summary = args.source.resolve(), args.summary.resolve()
     assert not summary.exists(), 'Preserve earlier evidence; choose a fresh summary'
@@ -127,7 +128,7 @@ def main():
         run(['python3', '-B', source / 'evidence/2026-10-20-batch18/T-112/SEARCH-REPO-08.py', '--source', source, '--summary', search_summary])
         report['repository_search'] = json.loads(search_summary.read_text(encoding='utf-8'))
         report['checks'].append('repository_model_effort_search_recorded')
-        assert run([args.codex, '--version']).strip() == 'codex-cli 0.162.1'
+        report['codex_version'] = run([args.codex, '--version']).strip()
         server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         server.daemon_threads = False
         threading.Thread(target=server.serve_forever, daemon=True).start()

@@ -4,7 +4,9 @@
 失败方式（先列再写）：
 1. 任务卡写 Claude Code，后台仍只会起 Codex（`worker_executor_mismatch`），或者起了却不带权限参数。
 2. worker 加载了用户自己的设置、钩子或 MCP（含主仓库的 .claude/settings.local.json）；没有 `dontAsk`，越界写入弹批准而不是被拒。
-3. worker 能写出 worktree：文件工具或 shell 写外面没被拒，拒绝没留下记录；shell 能移动项目工作分支（审查 01 第 1 条）。
+3. worker 能写出 worktree：文件工具或 shell 写外面没被拒，拒绝没留下记录；shell 能移动项目工作分支（审查 01 第 1 条）；
+   shell 能写 Git 元数据：replace ref、对象、info/exclude、ref 锁、新分支、worktree 的 .git 文件，拼接命令或 `git -c`
+   借 git add/commit 的沙箱外通道执行，做出无尾注提交（审查 02 第 1～5 条）。
 4. 新 worktree 的信任对话框没人按，worker 卡住；或者在收到任务后还会被代按。
 5. 第一条任务在 CLI 就绪前送出（丢失），或者永远不送出（没人做初次放行）。
 6. 提交钩子拿不到 Claude 的原生会话，提交失败或尾注与启动记录不符；门禁只认 Codex 的线程身份。
@@ -46,7 +48,7 @@ def main():
     target.add_argument('--mutant', choices=['trust-unanswered', 'no-initial-release', 'user-settings-loaded',
                                              'submit-provider-codex', 'requested-model-as-fact', 'card-model-ignored', 'git-deny-missing',
                                              'codex-provider-only', 'no-terminal-parent', 'inbox-tasks-only',
-                                             'reviewer-codex-only', 'reviewer-shell-writable'])
+                                             'reviewer-codex-only', 'reviewer-shell-writable', 'git-excluded-broad'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t122-', dir='/private/tmp')).resolve()
@@ -92,6 +94,7 @@ def main():
                 'inbox-tasks-only': ('src/gates/core.ts', 'if (opened) repos.add(opened);', ''),
                 'reviewer-codex-only': ('src/panes.ts', '    if (task.card.executor.cli === "Claude Code") {\n      // D24', '    if (false) {\n      // D24'),
                 'reviewer-shell-writable': ('src/panes.ts', 'review ? [] : [requestDirectory], review ? []', 'review ? [requestDirectory] : [requestDirectory], review ? []'),
+                'git-excluded-broad': ('src/panes.ts', 'excludedCommands: ["git add *", "git commit *"]', 'excludedCommands: ["git *"]'),
             }[args.mutant]
             path = source / 'workbench' / path
             text = path.read_text(encoding='utf-8')
@@ -135,6 +138,16 @@ def main():
             ('Bash', dict(command='git add hello.txt', description='stage')),
             ('Bash', dict(command='git commit -q -m "T-122 fixture change"', description='commit')),
             ('Bash', dict(command='git update-ref refs/heads/main HEAD; echo "update-ref rc=$?"', description='move main')),
+            # Only a standalone git add / git commit leaves the sandbox: a chained command or `git -c` must not.
+            ('Bash', dict(command='git commit --allow-empty -q -m chained && git update-ref refs/heads/main HEAD', description='chained')),
+            ('Bash', dict(command='git -c core.hooksPath=/dev/null commit --allow-empty -q -m no-trailer', description='git -c commit')),
+            ('Bash', dict(command='G=$(git rev-parse --path-format=absolute --git-common-dir); '
+                          'git update-ref refs/replace/$(git rev-parse main) HEAD; echo "replace rc=$?"; '
+                          'o=$(git rev-parse main^{tree}); f=$G/objects/${o:0:2}/${o:2}; cp $f $f.n && mv -f $f.n $f; echo "object rc=$?"; '
+                          'mkdir -p $G/info && echo "*.hidden" >> $G/info/exclude; echo "exclude rc=$?"; '
+                          ': > $G/refs/heads/main.lock; echo "lock rc=$?"; '
+                          'git branch a2a/T-1-a2; echo "branch rc=$?"; '
+                          'echo "gitdir: /private/tmp" > .git; echo "dotgit rc=$?"', description='git metadata')),
             ('Bash', dict(command=line, description='submit')),
         ], '已提交并交付。'
 
@@ -170,7 +183,7 @@ def main():
                         if isinstance(part, dict) and part.get('type') == 'tool_result':
                             content = part.get('content')
                             text = content if isinstance(content, str) else ' '.join(item.get('text', '') for item in content or [] if isinstance(item, dict))
-                            api['results'][role].append(dict(id=part.get('tool_use_id'), is_error=bool(part.get('is_error')), text=text[:600]))
+                            api['results'][role].append(dict(id=part.get('tool_use_id'), is_error=bool(part.get('is_error')), text=text[:4000]))
                 step = sum(1 for message in messages if message['role'] == 'assistant' and isinstance(message['content'], list)
                            and any(isinstance(part, dict) and part.get('type') == 'tool_use' for part in message['content']))
                 action = steps[step] if step < len(steps) else None
@@ -322,6 +335,21 @@ def main():
         check('trust_answered_before_first_task', startup[:4] == ['worker_trust_confirm_intent', 'worker_trust_confirmed',
                                                                    'native_session_started', 'turn_submitted'], startup)
 
+        # 3: checked once the submit command has returned, before the delivery wait, since a left-over
+        # ref lock or a trailer-less HEAD keeps the delivery from reaching the gate.
+        worker_results = wait('交付命令返回', lambda: api['results']['worker'] if len(api['results']['worker']) > 9 else None, 180)
+        workspace = Path(attempt['workspace'])
+        common = Path(subprocess.check_output(['git', '-C', str(repo), 'rev-parse', '--path-format=absolute', '--git-common-dir'], text=True).strip())
+        refs = subprocess.check_output(['git', '-C', str(repo), 'for-each-ref', '--format=%(refname)'], text=True).split()
+        metadata = worker_results[8]['text'] if len(worker_results) > 8 else ''
+        report['git_metadata'] = dict(refs=refs, result=metadata, dotgit=(workspace / '.git').read_text(encoding='utf-8'),
+                                      exclude=(common / 'info/exclude').read_text(encoding='utf-8') if (common / 'info/exclude').exists() else None,
+                                      lock=(common / 'refs/heads/main.lock').exists())
+        check('git_metadata_closed_to_shell', len(worker_results) > 8 and
+              all(f'{label} rc=' in metadata and f'{label} rc=0' not in metadata for label in ('replace', 'object', 'exclude', 'lock', 'branch', 'dotgit')) and
+              not any(ref.startswith('refs/replace/') or ref == 'refs/heads/a2a/T-1-a2' for ref in refs) and
+              report['git_metadata']['dotgit'].startswith('gitdir: ' + str(common)) and not report['git_metadata']['lock'] and
+              '*.hidden' not in (report['git_metadata']['exclude'] or ''), report['git_metadata'])
         # 6, 7: the worker commits and submits; the Stop hook hands the request to the gate.
         def submitted():
             status = request('status', operator, task='T-1')
@@ -335,14 +363,19 @@ def main():
         check('shell_write_outside_refused', not (outside / 'bash-escape.txt').exists() and len(worker_results) > 2 and
               'outside rc=1' in worker_results[2]['text'], worker_results[2:3])
         main_now = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'refs/heads/main'], text=True).strip()
-        check('shell_cannot_move_working_branch', main_now == main_before and len(worker_results) > 5 and
-              'update-ref rc=0' not in worker_results[5]['text'], dict(main_before=main_before, main_now=main_now, result=worker_results[5:6]))
+        check('shell_cannot_move_working_branch', main_now == main_before and len(worker_results) > 7 and
+              'update-ref rc=0' not in worker_results[5]['text'] and worker_results[6]['is_error'] and worker_results[7]['is_error'],
+              dict(main_before=main_before, main_now=main_now, result=worker_results[5:8]))
         markers = sorted(path.name for path in out.iterdir() if path.name.startswith(('user-hook-ran', 'project-local-hook-ran')))
         check('no_user_or_project_settings_loaded', not markers, markers)
         commit = task.get('candidate_commit') or task['current_attempt'].get('delivery', {}).get('commit')
         message = subprocess.check_output(['git', '-C', str(repo), 'log', '-1', '--format=%B', commit], text=True)
         trailers = dict(re.findall(r'^A2A-([A-Za-z-]+): (.+)$', message, re.M))
         report['trailers'] = trailers
+        # The chained and `git -c` commits failed, so the attempt branch holds exactly the one trailered commit.
+        branch_log = subprocess.check_output(['git', '-C', str(repo), 'log', '--format=%H %s', f'{main_before}..{commit}'], text=True).splitlines()
+        report['branch_log'] = branch_log
+        check('only_the_trailered_commit', len(branch_log) == 1 and branch_log[0].startswith(commit), branch_log)
         # At commit time a Claude session's model and effort are not yet observed: both trailers say unknown.
         check('commit_carries_claude_identity', trailers.get('Native-Session') == worker.get('native_session') and
               trailers.get('Launch') == worker_launch and trailers.get('Model') == 'unknown' and trailers.get('Effort') == 'unknown', trailers)

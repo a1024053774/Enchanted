@@ -28,9 +28,9 @@ T-121 第 5 轮界面验收发现、属于本票的一点（evidence/2026-10-21-
 
 - 刚在工作台打开、还没有任务的项目，`inbox_ready` 返回 `unknown_project`。原因：门禁只经已有任务的 `project_id` 找项目仓库（`workbench/src/gates/core.ts` 的 `inboxCall`），不认工作台的 `project_open` 登记。主控在新项目里第一步就会卡住；本票要让门禁按已打开项目找到仓库。
 
-实现期间的事实与用户决定（2026-10-21，证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`probe-04`、独立审查 `review-01.md`）：
+实现期间的事实与用户决定（2026-10-21，证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`probe-05`、独立审查 `review-01.md`、`review-02.md`）：
 
-- 写入边界：Claude worker 以 `--permission-mode dontAsk` 启动，只允许 `Edit(//<worktree>/**)`、`Bash`、`Read`，开 shell 沙箱并禁止沙箱外命令；探针证实文件工具与 shell 都写不出 worktree。审查 01 发现 linked worktree 里 Claude 自己把主仓库整个 `.git` 设为可写，worker 能移动 `main`（probe-04 复现）；改为用 denyWrite 收回除本 attempt 分支外的已有 ref、packed-refs、HEAD 与其他 worktree。仍可新建分支名，`$TMPDIR` 仍可写（收回会让每条 shell 命令失败），记为限制。
+- 写入边界：Claude worker 以 `--permission-mode dontAsk` 启动，只允许 `Edit(//<worktree>/**)`、`Bash`、`Read`，开 shell 沙箱并禁止沙箱外命令；探针证实文件工具与 shell 都写不出 worktree。审查 01 发现 linked worktree 里 Claude 自己把主仓库整个 `.git` 设为可写，worker 能移动 `main`（probe-04 复现）；候选 2 改为用 denyWrite 逐项收回已有 ref；审查 02 证实逐项清单堵不住（replace ref、覆盖对象、`info/exclude`、ref 锁、启动后才建的分支、`git -c` 无尾注提交）。用户裁定“git add/commit 走沙箱外”：整个 Git common dir 对沙箱 deny（worktree 的 `.git` 文件 Claude 沙箱本身就拒写，e2e 07 的红态与变异实测），只有独立的 `git add`、`git commit` 列入 `sandbox.excludedCommands`；probe-05 证实拼接命令、`git -c`、环境变量前缀、重定向都留在沙箱里，`cd`、`export` 不跨命令。`$TMPDIR` 仍可写（收回会让每条 shell 命令失败），记为限制。
 - 不加载用户自己的 Claude 设置：用户的钩子（含 PreToolUse、PermissionRequest、Stop）会干扰权限与回合结束，worker 用 `--strict-mcp-config`，登录照常。设置来源原为 `local`；probe-04 证实 `local` 会加载主 checkout 的 `.claude/settings.local.json`，改为 `--setting-sources ""`，不加载任何设置文件。
 - 信任对话框：worktree 不在用户信任过的目录下，Claude 启动必弹“是否信任此文件夹”。用户选“后台代按确认 (Recommended)”：只对 a2a 新建的 worktree、worker 还没收到任务时，后台代按信任并记事件；a2a 不写 `~/.claude.json`。
 - 真实入口验收的 Claude worker 用 Haiku：用户选“Haiku (Recommended)”（此前用户原话：“然后真实的 claude 界面测试用 haiku 模型就行了”），与下方验收写的 Sonnet 不同，证据注明。

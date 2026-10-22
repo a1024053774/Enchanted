@@ -1467,7 +1467,7 @@ export class A2AGates {
       "--commit", "FULL_COMMIT_SHA"].map((part) => "'" + part.replaceAll("'", "'\\''") + "'").join(" ");
     // In the packaged app process.execPath is Electron; it acts as Node only with this variable.
     const submitLine = "ELECTRON_RUN_AS_NODE=1 " + submitCommand;
-    const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\n受管身份：${JSON.stringify(submit)}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。${this.boundCard(attempt).executor.cli === "Claude Code" ? "Git 命令在 Claude 的 shell 沙箱里执行" : "两条 Git 前缀 allow 规则只授权对应命令"}；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\n${submitLine}\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。`;
+    const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\n受管身份：${JSON.stringify(submit)}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。${this.boundCard(attempt).executor.cli === "Claude Code" ? "只有独立的 git add、git commit 在 Claude 的 shell 沙箱外执行，其余 Git 写操作在沙箱里会被拒" : "两条 Git 前缀 allow 规则只授权对应命令"}；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\n${submitLine}\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。`;
     const dispatchPrompt = conflict ? `${prompt}\n\n${this.conflictPrompt(task, conflict)}\n原 worker 会话已结束。请在本次新 attempt 的 worktree 内整理，使用本次身份提交；旧 C 只作参考，不照搬其旧 attempt 尾注。` : prompt;
     this.event(taskId, "prompt_intent", { thread: attempt.thread_id, prompt: dispatchPrompt });
     this.checkUserInputObserver();
@@ -2047,7 +2047,7 @@ export class A2AGates {
           else if (trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model) error = "trailer_identity_mismatch";
           // A Claude session's effort is observed only at its Stop hook, after the commit (T-122).
           else if (trailers.effort![0] !== attempt.delivery.effort &&
-            !(trailers.effort![0] === "unknown" && String(attempt.delivery.cli).endsWith("(Claude Code)"))) error = "trailer_identity_mismatch";
+            !(trailers.effort![0] === "unknown" && this.launchRecordCli(attempt.delivery.launch_id) === "Claude Code")) error = "trailer_identity_mismatch";
         } else error = "trailer_launch_record_missing";
       }
       this.event(task.task_id, "trailer_check", { commit, trailers, verification_id: v.verification_id,
@@ -2172,9 +2172,17 @@ export class A2AGates {
     walk(target);
   }
 
+  private launchRecord(id: unknown) {
+    const row = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(String(id));
+    return row ? JSON.parse(String(row.data)) : null;
+  }
+
+  private launchRecordCli(id: unknown) {
+    return this.launchRecord(id)?.cli ?? null;
+  }
+
   private reviewLaunch(task: A2ATask, review: A2AReview, live: Awaited<ReturnType<GateRuntime["readThread"]>>) {
-    const row = this.db.prepare("SELECT data FROM launch_records WHERE id=?").get(review.launch_id!);
-    const launch = row ? JSON.parse(String(row.data)) : null;
+    const launch = this.launchRecord(review.launch_id);
     const argv: unknown[] = launch?.argv;
     const sandbox = Array.isArray(argv) ? argv.indexOf("--sandbox") : -1;
     const cwd = Array.isArray(argv) ? argv.indexOf("-C") : -1;
@@ -2187,8 +2195,19 @@ export class A2AGates {
     try { settings = claude ? JSON.parse(String(argv?.[13])) : null; } catch { settings = null; }
     const hookEvents = ["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"];
     const signal = settings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
+    // D24: same executable, model, effort and Fast as the worker launch, and the worker's signal
+    // command with only the launch id changed.
+    const worker = claude ? this.launchRecord(review.attempt.runtime_identity?.launch) : null;
+    let workerSettings: any = null;
+    try { workerSettings = worker ? JSON.parse(String(worker.argv?.[13])) : null; } catch { workerSettings = null; }
+    const workerSignal = workerSettings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     const boundary = claude
       ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 14 &&
+        worker?.cli === "Claude Code" && worker.role === "worker" && Array.isArray(worker.argv) &&
+        argv[0] === worker.argv[0] && argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&
+        typeof workerSignal === "string" && workerSignal.endsWith(` '--launch' '${worker.id}'`) &&
+        signal === workerSignal.slice(0, -`'${worker.id}'`.length) + `'${launch.id}'` &&
+        settings?.fastMode === workerSettings.fastMode &&
         JSON.stringify([argv[1], argv[3], argv[5], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12]]) ===
           JSON.stringify(["--session-id", "--model", "--effort", "--permission-mode", "dontAsk", "--setting-sources", "", "--strict-mcp-config", "--settings"]) &&
         argv[2] === launch.native_session && settings !== null && typeof settings === "object" &&
@@ -2196,7 +2215,6 @@ export class A2AGates {
         typeof settings.fastMode === "boolean" &&
         JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", `Edit(/${realpathSync(review.candidate_workspace)}/**)`] }) &&
         JSON.stringify(settings.sandbox) === JSON.stringify({ enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, filesystem: { allowWrite: [] } }) &&
-        typeof signal === "string" && signal.includes(`'signal' '--launch' '${launch.id}'`) &&
         JSON.stringify(Object.keys(settings.hooks)) === JSON.stringify(hookEvents) &&
         hookEvents.every(event => JSON.stringify(settings.hooks[event]) === JSON.stringify([{ hooks: [{ type: "command", command: signal, timeout: 10 }] }])) &&
         live.workspace === review.candidate_workspace

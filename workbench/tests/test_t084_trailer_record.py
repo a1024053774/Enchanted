@@ -54,8 +54,11 @@ NEEDLES = {
     'launch': '          if (trailers.launch![0] !== attempt.delivery.launch_id) error = "trailer_identity_mismatch";\n',
     'tool': '          else if (trailers.tool![0] !== attempt.delivery.cli) error = "trailer_identity_mismatch";\n',
     'model': '          else if (trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model) error = "trailer_identity_mismatch";\n',
-    'effort': '          else if (trailers.effort![0] !== attempt.delivery.effort) error = "trailer_identity_mismatch";\n',
+    # Since T-122 the effort comparison spans two lines: a Claude Code launch may leave Effort unknown.
+    'effort': '          else if (trailers.effort![0] !== attempt.delivery.effort &&\n'
+              '            !(trailers.effort![0] === "unknown" && this.launchRecordCli(attempt.delivery.launch_id) === "Claude Code")) error = "trailer_identity_mismatch";\n',
 }
+CLAUDE_EFFORT_EXEMPTION = 'this.launchRecordCli(attempt.delivery.launch_id) === "Claude Code"'
 
 
 def git_env():
@@ -207,6 +210,8 @@ def run_cases(phase, core, out, modes):
     out.mkdir(parents=True, exist_ok=False)
     env = git_env()
     artifact = Path(tempfile.mkdtemp(prefix='t084-', dir='/tmp'))
+    # The daemon writes its bootstrap operator credential here; gate CLI calls read it (T-109 on).
+    env['A2A_OPERATOR_CREDENTIAL'] = str(artifact / 'operator.json')
     state = artifact / 's'
     state.mkdir()
     boundary = artifact / 'worker'
@@ -427,7 +432,7 @@ def row_plain_missing(row):
 
 def detection(kind, results):
     by_mode = {row['mode']: row for row in results}
-    if kind == 'effort-unknown-exemption':
+    if kind in ('effort-unknown-exemption', 'claude-effort-exemption-any-cli'):
         flipped = ['effort-unknown']
         still = [mode for mode in REJECTIONS if mode != 'effort-unknown']
         positives = ('match', 'unknown')
@@ -462,7 +467,7 @@ def detection_missing_record(results):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--phase', choices=['red', 'green', 'mutants', 'green-02', 'mutants-02', 'red-03', 'green-03', 'mutants-03', 'green-04', 'mutants-04'], required=True)
+    parser.add_argument('--phase', choices=['red', 'green', 'mutants', 'green-02', 'mutants-02', 'red-03', 'green-03', 'mutants-03', 'green-04', 'mutants-04', 'green-05', 'mutants-05'], required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     output = args.output.resolve()
@@ -472,7 +477,7 @@ def main():
         (output / 'red-03' / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         print(json.dumps({'status': summary['status'], 'phase': args.phase}, ensure_ascii=False))
         return 0 if summary['status'] == 'PASS' else 2 if summary['status'] == 'GAP' else 1
-    if args.phase in ('green-03', 'green-04'):
+    if args.phase in ('green-03', 'green-04', 'green-05'):
         summary = run_cases(args.phase, CORE, output / args.phase, [*REJECTIONS, *POSITIVES, *CLAIM_MODES])
         (output / args.phase / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         print(json.dumps({'status': summary['status'], 'phase': args.phase}, ensure_ascii=False))
@@ -498,7 +503,7 @@ def main():
         (output / 'green-02' / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         print(json.dumps({'status': summary['status'], 'phase': args.phase}, ensure_ascii=False))
         return 0 if summary['status'] == 'PASS' else 2 if summary['status'] == 'GAP' else 1
-    if args.phase in ('mutants-02', 'mutants-04'):
+    if args.phase in ('mutants-02', 'mutants-04', 'mutants-05'):
         green_modes = [*REJECTIONS, *POSITIVES]
         specs = [
             ('effort-unknown-exemption', (
@@ -514,7 +519,10 @@ def main():
                  '          else if (trailers.effort![0] !== task.card.executor.effort) error = "trailer_identity_mismatch";\n'),
             ), detection),
         ]
-        if args.phase == 'mutants-04':
+        if args.phase == 'mutants-05':
+            # T-122 review 02 N6: the Claude Code exemption must not reach a Codex delivery.
+            specs.append(('claude-effort-exemption-any-cli', ((CLAUDE_EFFORT_EXEMPTION, 'true'),), detection))
+        if args.phase in ('mutants-04', 'mutants-05'):
             specs.append(('delete-launch-record-rejection', (
                 ('} else error = "trailer_launch_record_missing";\n', '}\n'),
             ), detection_missing_record))
