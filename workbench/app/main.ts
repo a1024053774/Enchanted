@@ -278,6 +278,34 @@ function registerHandlers() {
     if (!result.ok) throw new Error(result.error);
     return result;
   });
+  ipcMain.handle('a2a:retrospectives', async (event, project: unknown) => {
+    const context = windowTarget(event);
+    if (typeof project !== 'string' || !project) throw new Error('Invalid project');
+    const result = await request(context.options.state, { command: 'retrospective_list', project }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return { schedule: result.schedule, runs: result.runs, suggestions: result.suggestions };
+  });
+  ipcMain.handle('a2a:retrospective-start', async (event, project: unknown, selection: any) => {
+    const context = windowTarget(event);
+    if (typeof project !== 'string' || !project || !selection || typeof selection !== 'object') throw new Error('Invalid retrospective');
+    const result = await request(context.options.state, { command: 'retrospective_start', project,
+      cli: selection.cli, model: selection.model, effort: selection.effort }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result.run;
+  });
+  ipcMain.handle('a2a:retrospective-schedule', async (event, change: any) => {
+    const context = windowTarget(event);
+    if (!change || typeof change !== 'object') throw new Error('Invalid schedule');
+    const result = await request(context.options.state, { ...change, command: 'retrospective_schedule_save' }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result.schedule;
+  });
+  ipcMain.handle('a2a:retrospective-decide', async (event, suggestion: unknown, approved: unknown) => {
+    const context = windowTarget(event);
+    if (typeof suggestion !== 'string' || typeof approved !== 'boolean') throw new Error('Invalid decision');
+    const result = await request(context.options.state, { command: 'retrospective_decide', suggestion, approved }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+  });
   ipcMain.handle('a2a:archive-usage', async event => {
     const context = windowTarget(event);
     const result = await request(context.options.state, { command: 'trajectory_archive' }, context.operator);

@@ -19,6 +19,7 @@ import { QuestionsPanel } from './QuestionsPanel';
 import { IssuesPage, type TaskIssues } from './IssuesPage';
 import { MetricsPage } from './MetricsPage';
 import { RecordsPage, type UserInputRecord } from './RecordsPage';
+import { RetrospectivePage } from './RetrospectivePage';
 import type { NativeQuestion } from '../src/questions.ts';
 
 type Snapshot = {
@@ -92,6 +93,8 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   issues(project: string): Promise<TaskIssues[]>; answerIssue(task: string, issue: string, answer: string): Promise<void>;
   disposeIssue(task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string): Promise<void>;
   archiveUsage(): Promise<{ sessions: number; bytes: number }>;
+  retrospectives(project: string): Promise<any>; startRetrospective(project: string, selection: { cli: string; model: string; effort: string }): Promise<unknown>;
+  saveRetrospectiveSchedule(change: Record<string, unknown>): Promise<unknown>; decideRetrospectiveSuggestion(suggestion: string, approved: boolean): Promise<void>;
   records(project: string): Promise<UserInputRecord[]>; metrics(project: string, since: string | null, until: string | null): Promise<any>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   openProject(): Promise<Selection | null>; removeProject(project: string): Promise<Selection>;
@@ -436,7 +439,7 @@ function SettingsDialog({ open, onClose, theme, onTheme, notifications, dockBadg
 }
 
 function Workbench() {
-  const [page, setPage] = useState<'terminal' | 'flow' | 'issues' | 'records' | 'metrics'>('terminal');
+  const [page, setPage] = useState<'terminal' | 'flow' | 'issues' | 'records' | 'metrics' | 'retrospective'>('terminal');
   const [statuses, setStatuses] = useState<Record<string, PaneStatus>>({});
   const [paneKeys, setPaneKeys] = useState([...window.a2a.paneKeys]);
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -764,14 +767,17 @@ function Workbench() {
               : issuesWaiting > 0 && <span className="tab-needs" aria-label={`${issuesWaiting} 个等你决定`}>{issuesWaiting}</span>}</button>
           <button data-records-tab aria-current={page === 'records' ? 'page' : undefined} onClick={() => setPage('records')}>记录</button>
           <button data-metrics-tab aria-current={page === 'metrics' ? 'page' : undefined} onClick={() => setPage('metrics')}>指标</button>
+          <button data-retrospective-tab aria-current={page === 'retrospective' ? 'page' : undefined} onClick={() => setPage('retrospective')}>复盘</button>
         </nav>
         <span className={'connection ' + (error || catalogError ? 'warning' : '')} role="status">{status}</span>
         <button className="primary-button" disabled={busy} title="新建终端（⌘T）" onClick={() => void newTerminal()}>新建终端</button>
       </header>
       {page === 'flow' && <FlowPage />}
-      {page === 'issues' && <IssuesPage project={selectedProject} />}
-      {page === 'records' && <RecordsPage project={selectedProject} />}
-      {page === 'metrics' && <MetricsPage project={selectedProject} />}
+      {/* Keyed by project: another project's page starts from "reading", never from this one's rows (T-132 review 02). */}
+      {page === 'issues' && <IssuesPage key={selectedProject ?? ''} project={selectedProject} />}
+      {page === 'records' && <RecordsPage key={selectedProject ?? ''} project={selectedProject} />}
+      {page === 'metrics' && <MetricsPage key={selectedProject ?? ''} project={selectedProject} />}
+      {page === 'retrospective' && <RetrospectivePage key={selectedProject ?? ''} project={selectedProject} />}
       <div className="terminal-page" hidden={page !== 'terminal'}>
       {project && project.tasks.length > 0 && <nav className="task-strip" aria-label="项目任务">
         <span className="task-strip-label">任务</span>

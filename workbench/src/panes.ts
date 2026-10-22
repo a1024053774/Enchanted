@@ -269,6 +269,11 @@ export class Panes implements GateRuntime {
       catch (error) { this.recordFailure(pane, "shell_input_write_unknown", error); throw error; }
     });
   }
+  // A command the daemon starts in a project terminal it opened itself (a retrospective, T-136); the user sees it
+  // there like their own and can keep using the terminal afterwards.
+  async runInShell(launch: string, argv: string[]) {
+    await this.shellInput(launch, shellCommand(argv) + "\r", "utf8", async () => {});
+  }
   async closeShell(launch: string) {
     const record = this.launchRecord(launch);
     check(record.role === "shell", "shell_required");

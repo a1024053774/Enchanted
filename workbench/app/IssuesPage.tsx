@@ -12,8 +12,6 @@ export function IssuesPage({ project }: { project: string | null }) {
   const [tasks, setTasks] = useState<TaskIssues[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
-  // A project switch starts from "reading"; a refresh after an action keeps the cards and their drafts.
-  useEffect(() => { setTasks(null); setError(null); }, [project]);
   useEffect(() => {
     if (!project) return;
     let mounted = true;

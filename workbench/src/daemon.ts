@@ -20,6 +20,7 @@ import { flowSnapshot } from './flow.ts';
 import { metricsSnapshot } from './metrics.ts';
 import { userInputRecords } from './userInputRecords.ts';
 import { TrajectoryArchive } from './trajectoryArchive.ts';
+import { Retrospectives, retrospectiveArgv, retrospectivePrompt } from './retrospective.ts';
 import { RoleRequests, confirmWindowMs, type RoleRequest } from './roleRequests.ts';
 import { executionRole, executionOverrides } from './executionSettings.ts';
 
@@ -66,6 +67,42 @@ export async function serve(
   };
   const archiveTimer = setInterval(() => archiveSweep(), 30_000);
   archiveTimer.unref();
+  // Retrospectives (T-136): started by the user or the weekly schedule, run in an ordinary project terminal the daemon
+  // opens; the schedule is checked and finished runs imported every minute (and on retrospective_tick, whose `now`
+  // a test may set).
+  const retrospectives = new Retrospectives(store.db, root);
+  const startRetrospective = async (project: string, selection: { cli: string; model: string; effort: string },
+    trigger: "manual" | "schedule", scheduledFor: string | null, now: Date, range?: { since?: string | null; until?: string | null }) => {
+    const opened = store.openedProjects().find(entry => entry.project_id === project);
+    if (!opened) throw new Refusal("unknown_project");
+    if (!["Claude Code", "Codex"].includes(selection.cli) || typeof selection.model !== "string" || !selection.model.trim() ||
+      typeof selection.effort !== "string" || !selection.effort.trim()) throw new Refusal("invalid_retrospective_selection");
+    const run = retrospectives.prepare(project, opened.repo, selection, trigger, scheduledFor, now, range);
+    const session = randomUUID();
+    const argv = retrospectiveArgv(run, config, retrospectivePrompt(run, root), session);
+    const shell = panes.startShell(project, opened.repo);
+    store.event("retrospective_started", { run: run.id, cli: run.cli, model: run.model, effort: run.effort, argv,
+      native_session: run.cli === "Claude Code" ? session : null,
+      native_home: run.cli === "Claude Code" ? process.env.CLAUDE_CONFIG_DIR ?? join(process.env.HOME ?? "", ".claude") : null,
+      package: run.package, out: run.out }, shell);
+    retrospectives.record(run.id, "started", { launch: shell.id, native_session: run.cli === "Claude Code" ? session : null });
+    await panes.runInShell(shell.id, argv);
+    return { ...run, launch: shell.id };
+  };
+  const retrospectiveTick = async (now: Date) => {
+    const started = [];
+    for (const project of store.openedProjects()) {
+      const slot = retrospectives.due(project.project_id, now);
+      if (!slot) continue;
+      const schedule = retrospectives.schedule();
+      started.push(await startRetrospective(project.project_id, schedule, "schedule", slot, now));
+    }
+    return { started, imported: retrospectives.importFinished() };
+  };
+  const retrospectiveTimer = setInterval(() => {
+    retrospectiveTick(new Date()).catch(error => store.event("retrospective_tick_failed", { error: String(error) }));
+  }, 60_000);
+  retrospectiveTimer.unref();
   const controllerOf = (initiator: { launch: string; role_request: string; role: string }): TerminalController => ({ ...initiator,
     state: () => roleRequests.approved(initiator.launch)?.id !== initiator.role_request ? "ended" : quota.exhausted(initiator.role_request) ? "quota_exhausted" : "active" });
   const terminalController = (launch: string, roleRequest: RoleRequest) => controllerOf({ launch, role_request: roleRequest.id, role: roleRequest.role });
@@ -114,7 +151,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records", "trajectory_archive"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records", "trajectory_archive", "retrospective_list"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
       window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
@@ -149,6 +186,7 @@ export async function serve(
     stopping = true;
     clearInterval(quotaTimer);
     clearInterval(archiveTimer);
+    clearInterval(retrospectiveTimer);
     // Requests and deferred receipt writes retain their stores until their
     // final results are durable. run observes beginShutdown at safe boundaries.
     if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });
@@ -299,6 +337,31 @@ export async function serve(
       return { ok: true, records: userInputRecords(store.db, input.project) };
     }
     if (input.command === 'trajectory_archive') return { ok: true, ...archive.usage() };
+    if (input.command === 'retrospective_list') {
+      if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');
+      return { ok: true, schedule: retrospectives.schedule(),
+        runs: retrospectives.runs(input.project).map(run => ({ ...run, events: retrospectives.events(run.id) })),
+        suggestions: retrospectives.suggestions(input.project) };
+    }
+    if (['retrospective_start', 'retrospective_schedule_save', 'retrospective_tick', 'retrospective_decide'].includes(input.command)) {
+      if (authority.kind !== 'operator') throw new Refusal('operator_required');
+      if (input.command === 'retrospective_start') return { ok: true, run: await startRetrospective(input.project,
+        { cli: input.cli, model: input.model, effort: input.effort }, 'manual', null, new Date(),
+        input.since !== undefined || input.until !== undefined ? { since: input.since ?? null, until: input.until ?? null } : undefined) };
+      if (input.command === 'retrospective_schedule_save') {
+        const change = Object.fromEntries(['enabled', 'weekday', 'hour', 'minute', 'cli', 'model', 'effort'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));
+        try { return { ok: true, schedule: retrospectives.saveSchedule(change) }; }
+        catch (error) { throw new Refusal(String((error as Error).message)); }
+      }
+      if (input.command === 'retrospective_tick') {
+        const now = input.now === undefined ? new Date() : new Date(input.now);
+        if (Number.isNaN(now.getTime())) throw new Refusal('invalid_now');
+        return { ok: true, ...await retrospectiveTick(now) };
+      }
+      if (typeof input.suggestion !== 'string' || typeof input.approved !== 'boolean') throw new Refusal('invalid_suggestion_decision');
+      try { return { ok: true, suggestion: retrospectives.decide(input.suggestion, input.approved) }; }
+      catch (error) { throw new Refusal(String((error as Error).message)); }
+    }
     if (input.command === 'metrics') {
       if ([input.project, input.since, input.until].some(value => value != null && typeof value !== 'string')) throw new Refusal('invalid_metrics_range');
       return { ok: true, ...metricsSnapshot(store.db, { project: input.project, since: input.since, until: input.until }) };

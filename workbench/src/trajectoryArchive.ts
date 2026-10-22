@@ -53,6 +53,13 @@ export class TrajectoryArchive {
         : request.cli === 'codex' ? this.codexRollout(request.native_home, request.native_session, Date.parse(request.time)) : null;
       if (path) sources.push({ launch: request.launch, path });
     }
+    // Retrospective sessions the daemon started in a project terminal (T-136).
+    for (const row of this.db.prepare("SELECT launch, data FROM orchestration_events WHERE type='retrospective_started' ORDER BY seq").all()) {
+      const data = JSON.parse(String(row.data));
+      if ((launch && String(row.launch) !== launch) || !data.native_session || !data.native_home) continue;
+      const path = this.claudeTranscript(data.native_home, data.native_session);
+      if (path) sources.push({ launch: String(row.launch), path });
+    }
     return sources;
   }
 
@@ -77,40 +84,50 @@ export class TrajectoryArchive {
 
   /** Copy what each source gained since the last increment, up to its last complete line. */
   sweep(launch?: string) {
+    // One source that cannot be read (permissions, removed meanwhile) must not hold up the others (T-135 review 01 P2):
+    // its failure is recorded once per distinct error and the next sweep tries it again.
     for (const source of this.sources(launch)) {
-      if (!existsSync(source.path)) continue;
-      const last = this.db.prepare('SELECT max(end) AS end FROM trajectory_archive WHERE launch=? AND source=?').get(source.launch, source.path);
-      const start = Number(last?.end ?? 0);
-      const fd = openSync(source.path, 'r');
-      let chunk: Buffer;
-      try {
-        const size = fstatSync(fd).size;
-        if (size < start) {
-          // A native file that shrank is not continued from a guessed offset; it is reported once and left.
-          const key = `${source.launch}\0${source.path}\0${size}`;
-          if (!this.reported.has(key)) { this.reported.add(key); this.event('trajectory_source_truncated', { source: source.path, archived: start, size }, source.launch); }
-          continue;
-        }
-        chunk = Buffer.alloc(size - start);
-        let read = 0;
-        while (read < chunk.length) {
-          const n = readSync(fd, chunk, read, chunk.length - read, start + read);
-          if (n === 0) break;
-          read += n;
-        }
-        chunk = chunk.subarray(0, read);
-      } finally { closeSync(fd); }
-      // A last line without its newline may still be being written; it waits for the next increment.
-      const complete = chunk.lastIndexOf(10) + 1;
-      if (!complete) continue;
-      const dir = join(this.dir, source.launch);
-      mkdirSync(dir, { recursive: true });
-      const file = join(dir, basename(source.path) + '.gz');
-      const member = gzipSync(chunk.subarray(0, complete));
-      appendFileSync(file, member);
-      this.db.prepare('INSERT INTO trajectory_archive(launch,source,start,end,file,stored_bytes,created_at) VALUES (?,?,?,?,?,?,?)')
-        .run(source.launch, source.path, start, start + complete, file, member.length, new Date().toISOString());
+      try { this.copy(source); }
+      catch (error) {
+        const key = `${source.launch}\0${source.path}\0${String(error)}`;
+        if (!this.reported.has(key)) { this.reported.add(key); this.event('trajectory_archive_failed', { source: source.path, error: String(error) }, source.launch); }
+      }
     }
+  }
+
+  private copy(source: Source) {
+    if (!existsSync(source.path)) return;
+    const last = this.db.prepare('SELECT max(end) AS end FROM trajectory_archive WHERE launch=? AND source=?').get(source.launch, source.path);
+    const start = Number(last?.end ?? 0);
+    const fd = openSync(source.path, 'r');
+    let chunk: Buffer;
+    try {
+      const size = fstatSync(fd).size;
+      if (size < start) {
+        // A native file that shrank is not continued from a guessed offset; it is reported once and left.
+        const key = `${source.launch}\0${source.path}\0${size}`;
+        if (!this.reported.has(key)) { this.reported.add(key); this.event('trajectory_source_truncated', { source: source.path, archived: start, size }, source.launch); }
+        return;
+      }
+      chunk = Buffer.alloc(size - start);
+      let read = 0;
+      while (read < chunk.length) {
+        const n = readSync(fd, chunk, read, chunk.length - read, start + read);
+        if (n === 0) break;
+        read += n;
+      }
+      chunk = chunk.subarray(0, read);
+    } finally { closeSync(fd); }
+    // A last line without its newline may still be being written; it waits for the next increment.
+    const complete = chunk.lastIndexOf(10) + 1;
+    if (!complete) return;
+    const dir = join(this.dir, source.launch);
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, basename(source.path) + '.gz');
+    const member = gzipSync(chunk.subarray(0, complete));
+    appendFileSync(file, member);
+    this.db.prepare('INSERT INTO trajectory_archive(launch,source,start,end,file,stored_bytes,created_at) VALUES (?,?,?,?,?,?,?)')
+      .run(source.launch, source.path, start, start + complete, file, member.length, new Date().toISOString());
   }
 
   /** What the archive holds: the sessions in the index and the bytes the archive directory takes on disk. */
