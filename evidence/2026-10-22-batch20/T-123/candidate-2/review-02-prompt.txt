@@ -1,0 +1,8 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查本仓库提交 a04c60a50（T-123 候选 2，父提交 f0188d772 是候选 1）。候选 2 相对候选 1 的差异在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-t123b-6Tec/a04c60a50.diff，T-123 全部改动（相对 4116c8b44，不含 evidence）在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-t123b-6Tec/full.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-123-project-scoped-task-and-card-ids.md 与 .project-map/tickets/T-128-recovery-after-second-restart.md；上一轮审查是 evidence/2026-10-22-batch20/T-123/candidate-1/review-01.md，执行主控对每条发现的处置是 evidence/2026-10-22-batch20/T-123/candidate-2/review-01-disposition.md；结果报告是 evidence/2026-10-22-batch20/T-123/candidate-2/RESULTS.md。
+重点：
+1. 上一轮七条发现的处置是否成立：修复是否正确完整；对第 6 条（历史 card_draft_owned 事件保留）与第 7 条（旧锁文件不清理）的不改理由是否站得住。
+2. 迁移的续迁（workbench/src/gates/core.ts 的 migrateTaskIds）：成员资格加入改名集合后，是否可能把任务库里已迁移的值再改一次、或在任务库与成员资格的项目不一致时产生冲突；再次启动是否幂等。
+3. 新增与修改的测试（workbench/tests/test_t123_migration_resume.ts、workbench/tests/test_t123_project_identity_e2e.py）是否独立于实现、新变异能否区分坏实现；RESULTS.md 是否有夸大或与证据不符之处。
+4. 全部改动里是否还有上一轮没发现的问题。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。

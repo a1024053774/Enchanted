@@ -2,7 +2,7 @@
 id: T-128
 title: 后台第二次重启后，被打断的 worker、reviewer 与 monitor 仍要登记或恢复
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -21,6 +21,10 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 后台连续重启两次后，交付过的任务仍能 `verify`、审查、集成（T-123 端到端的迁移场景）。
-- [ ] 去掉修复（只认这一次重启）的变异在同一场景失败于 `unknown_pane`。
-- [ ] T-124 的 restart-working、restart-verified 变体仍通过。
+- [x] 后台连续重启两次后，交付过的任务仍能 `verify`、审查、集成（T-123 端到端的迁移场景）。
+- [x] 去掉修复（只认这一次重启）的变异在同一场景失败于 `unknown_pane`。
+- [x] T-124 的 restart-working、restart-verified 变体仍通过。
+
+## Resolution
+
+2026-10-22 PASS，随 T-123 一起交付（候选 1 f0188d772，最终候选 a04c60a50）。`workbench/src/panes.ts` 的恢复循环现在处理每一个曾被恢复过、尚未归档的 worker、reviewer 与 monitor，不再只处理被这一次重启打断的。证据：T-123 端到端 `migrated_attempt_reclaimed`、`migrated_task_continues_to_integration` 绿态；变异 `gone-only-first-restart` 失败于 `unknown_pane`；T-124 的 restart-working、restart-verified 变体通过。见 [T-123 候选 2 RESULTS](../../evidence/2026-10-22-batch20/T-123/candidate-2/RESULTS.md)。
