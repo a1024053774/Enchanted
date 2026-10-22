@@ -11,7 +11,8 @@
 6. 第二个任务集成时工作分支已被第一个推进，门禁没有在新头上重新验收就推进，或者直接失败。
 8. 一个任务的审查进行时，另一个任务新建了自己的验收引用、或经门禁集成推进了工作分支，审查结束时的引用核对
    把它当成审查员改了仓库（`review_shared_refs_changed`）；反过来，不是门禁写的引用出现时（--foreign-ref plain），
-   或者在别的任务命名空间下出现门禁不会起的名字时（--foreign-ref other-task），照样拒绝。
+   或者在别的任务命名空间下出现门禁不会起的名字时（--foreign-ref other-task），照样拒绝；另一个任务验收冲突时门禁
+   保留的 `…/v<K>-candidate`、`…/v<K>-base` 引用（--retained-ref，用 update-ref 按门禁的命名写入，不是真造冲突）照样放行。
 7. 侧栏里两个 worker 没有都挂在派发它们的终端主控下。
 --revision 在该版本的隔离源码上跑同一场景（修前应在第二次派发失败）；--mutant 跑已知坏实现。
 """
@@ -46,6 +47,7 @@ def main():
     # A ref no gate operation wrote appears while T-2's review runs: the review boundary must refuse it.
     # other-task: a name under another task's attempt namespace that the gate never gives (review 01 P2).
     parser.add_argument('--foreign-ref', choices=['plain', 'other-task'])
+    parser.add_argument('--retained-ref', action='store_true')
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t131-', dir='/private/tmp')).resolve()
@@ -87,7 +89,7 @@ def main():
         path.write_text(text.replace(old, new), encoding='utf-8')
         (source / 'workbench/node_modules').symlink_to(ROOT / 'workbench/node_modules', target_is_directory=True)
     cli = source / 'workbench/src/gates/cli.ts'
-    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, foreign_ref=args.foreign_ref, fixture=str(fixture), claude=args.claude,
+    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, foreign_ref=args.foreign_ref, retained_ref=args.retained_ref, fixture=str(fixture), claude=args.claude,
                   real_model_turns=0, checks=[])
 
     # The model: a scripted Messages endpoint. Main-loop conversations are told apart by their working
@@ -366,6 +368,10 @@ def main():
             # A ref no gate operation wrote, appearing while T-2's review runs.
             ref = 'refs/heads/foreign' if args.foreign_ref == 'plain' else 'refs/a2a/attempts/demo+T-1/rogue'
             subprocess.run(['git', '-C', str(repo), 'update-ref', ref, main_before], check=True, env=env)
+        if args.retained_ref:
+            # The names the gate retains a conflicted verification under (core.ts verification_conflict), for T-1's attempt 1.
+            for suffix in ('candidate', 'base'):
+                subprocess.run(['git', '-C', str(repo), 'update-ref', f'refs/a2a/verifications/demo+T-1/a1/v1-{suffix}', main_before], check=True, env=env)
         release_t2_review.set()
         reviewed['T-2'] = wait('T-2 审查结束', lambda: review_settled('T-2'), 240)
         report['reviews'] = {task: dict(task_state=value['state'], review=value['review']['state'], launch=value['review']['launch_id'],

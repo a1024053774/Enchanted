@@ -2559,11 +2559,12 @@ export class A2AGates {
     const others = new Map(this.db.prepare("SELECT data FROM tasks").all()
       .map((row) => JSON.parse(String(row.data)) as A2ATask)
       .filter((other) => other.task_id !== task.task_id && other.repo === task.repo).map((other) => [other.task_id, other]));
-    // Only the names the gate gives a task's refs, for attempts it has already made (review 01 P2).
+    // Only the names the gate gives a task's refs, for attempts it has already made (review 01 P2); a conflicted
+    // verification retains its candidate and base under the verification's name plus -candidate / -base (review 02 P1).
     const attemptOf = (ref: string, other: A2ATask) => {
       const name = taskName(other.task_id);
       const found = ref.startsWith(`refs/a2a/attempts/${other.task_id}/`) ? /^a(\d+)$/.exec(ref.slice(`refs/a2a/attempts/${other.task_id}/`.length))
-        : ref.startsWith(`refs/a2a/verifications/${other.task_id}/`) ? /^a(\d+)\/v\d+$/.exec(ref.slice(`refs/a2a/verifications/${other.task_id}/`.length))
+        : ref.startsWith(`refs/a2a/verifications/${other.task_id}/`) ? /^a(\d+)\/v\d+(?:-candidate|-base)?$/.exec(ref.slice(`refs/a2a/verifications/${other.task_id}/`.length))
         : name !== taskName(task.task_id) && ref.startsWith(`refs/heads/a2a/${name}-`) ? /^a(\d+)$/.exec(ref.slice(`refs/heads/a2a/${name}-`.length)) : null;
       return found ? Number(found[1]) : null;
     };
