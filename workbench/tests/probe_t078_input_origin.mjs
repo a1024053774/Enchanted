@@ -140,6 +140,18 @@ async function run() {
       return row.interceptions.length === 1 && entry.raw_sequence === row.input.raw &&
         entry.window === 'p1-local-window' && Number.isInteger(entry.seq) && Number.isFinite(Date.parse(entry.at));
     }),{cases:focusObservations.map(row => ({name:row.input.name,interceptions:row.interceptions}))});
+    // Replaying a TUI's backlog: Claude Code and Codex redraw with synchronized-output and cursor modes;
+    // one recorded controller terminal (880 KB) held 15,960 of them (T-127 GUI round 01). The writer
+    // must not wait on xterm once per such mode, and a later non-focus mode still applies in order.
+    await phase('tui-replay');
+    const redraw = '\x1b[?2026h\x1b[?25l画面\x1b[?25h\x1b[?2026l'.repeat(4000) + '\x1b[?2004l';
+    const started = Date.now();
+    await write(redraw);
+    const replayMs = Date.now() - started;
+    const replayPasteMode = await evaluate('window.p1.bracketedPasteMode()');
+    await write('\x1b[?2004h');
+    check('回放16000个非焦点私有模式不逐个等待且顺序不变', replayMs < 2000 && replayPasteMode === false &&
+      !(await rows()).some(row => row.phase === 'tui-replay' && row.kind === 'focus-mode-intercept'), {replayMs, replayPasteMode});
     record.status='PASS';
   } finally {
     record.events=await rows(); save();

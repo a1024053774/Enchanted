@@ -32,7 +32,11 @@ export function createFocusSafeWriter(term, observe) {
       const frames = [];
       // This only finds write boundaries; it does not decide whether bytes
       // are a CSI inside the terminal parser. False matches remain unchanged.
-      for (const match of combined.matchAll(/(?:\x1b\[|\x9b)\?[0-9;:]*[hl]/g)) {
+      // Only a mode list naming 1004 needs its own frame: the handler above reads
+      // its raw bytes. Other private modes stay inside one write, since a TUI's
+      // redraws carry thousands of them (T-127: 78 s to replay 16,000 one by one).
+      for (const match of combined.matchAll(/(?:\x1b\[|\x9b)\?([0-9;:]*)[hl]/g)) {
+        if (!match[1].split(';').some(value => Number(value.split(':')[0]) === 1004)) continue;
         const end = match.index+match[0].length;
         if (end <= cursor) continue;
         frames.push({text:combined.slice(cursor,end),sequence:match[0]});

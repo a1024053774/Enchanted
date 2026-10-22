@@ -10,6 +10,7 @@
 5. a2a 改写了用户 home 的 config.toml、rules 或 hooks.json。
 6. 共享 home 里别的会话（另一个目录）的原生记录被读进这个 worker；或者因为 home 里旧会话太多，找不到本会话。
 7. 交付到不了门禁，审查起不来（reviewer 不在同一 home、不在一次性副本里、副本没以 untrusted 打开），或审查通过后集成不到工作分支。
+9. reviewer 的沙箱排除 /tmp 与 $TMPDIR，shell 建不了临时文件（zsh here-document、Python tempfile），变异检查跑不起来。
 8. 门禁放过不合格的 Codex reviewer：untrusted 指向别的目录，原生会话的工作目录不是一次性副本，
    或者续接了 worker 的会话（启动记录写明 resume，或只在实际命令里 resume）。
    --reviewer-case 改写源码副本里 reviewer 的启动方式。
@@ -152,6 +153,8 @@ def main():
                 'rm hello.txt; python3 check.py; echo "mutation-1 rc=$?"',
                 "printf 'bye\\n' > hello.txt; python3 check.py; echo \"mutation-2 rc=$?\"",
                 f'echo x > {review_worktree}/shell-note.txt; echo "wt rc=$?"; echo x > "$A2A_REQUEST_DIR/forged.json"; echo "req rc=$?"',
+                # A here-document needs a temporary file; a real reviewer wrote its mutations this way (T-127 GUI round 01).
+                "python3 - <<'PY'\nimport tempfile\nwith tempfile.NamedTemporaryFile() as f: print('heredoc-and-tempfile ok')\nPY",
             ], json.dumps(shape, ensure_ascii=False)
         submit = re.search(r'显式交付：\n(.+)\n', text)
         assert submit, '派发提示里没有交付命令'
@@ -429,6 +432,7 @@ def main():
               f'projects={{{json.dumps(os.path.realpath(candidate_copy))}={{trust_level="untrusted"}}}}' in rargv, report['reviewer'])
         routs = api['outputs']['reviewer']
         check('reviewer_mutations_ran_in_copy', len(routs) >= 2 and 'mutation-1 rc=1' in routs[0] and 'mutation-2 rc=1' in routs[1], routs)
+        check('reviewer_shell_has_temporary_files', len(routs) >= 4 and 'heredoc-and-tempfile ok' in routs[3], routs[3:4])
         check('reviewer_cannot_write_outside_copy', len(routs) >= 3 and 'wt rc=0' not in routs[2] and 'req rc=0' not in routs[2] and 'wt rc=' in routs[2], routs[2:])
         check('review_passed', review['state'] == 'passed' and task['state'] == 'verified', report['review'])
         score = out / 'score.json'

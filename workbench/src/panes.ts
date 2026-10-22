@@ -625,7 +625,15 @@ export class Panes implements GateRuntime {
       ...(claude ? { A2A_NATIVE_SESSION: nativeSession! } : {}),
     });
     if (review) environment.A2A_REVIEW = review.review_id;
-    else Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
+    if (review && !claude) {
+      // The reviewer's sandbox excludes /tmp and $TMPDIR, yet its shell needs temporary files (a zsh
+      // here-document, Python's tempfile); a real reviewer could not run its mutations (T-127 GUI round 01).
+      // They go inside its one-time candidate copy, which it may already write, so no write root is added.
+      const temporary = join(realpathSync(launchWorkspace), ".a2a-tmp");
+      mkdirSync(temporary, { mode: 0o700 });
+      Object.assign(environment, { TMPDIR: temporary + "/", TMPPREFIX: join(temporary, "zsh") });
+    }
+    if (!review) Object.assign(environment, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath",
       GIT_CONFIG_VALUE_0: fileURLToPath(new URL("../hooks/", import.meta.url)) });
     const shellArgv = ["-f", "-i", "-c", shellCommand(argv) + "; a2a_cli_status=$?; if (( a2a_cli_status != 0 )); then exit $a2a_cli_status; fi; exec /bin/zsh -f -i"];
     const { A2A_CAPABILITY: _secret, ...recordedEnvironment } = environment;

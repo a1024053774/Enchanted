@@ -318,7 +318,9 @@ Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改�
 加上原有的“不同于 worker、未被别的启动用过、不带 resume/fork”。
 reviewer 的 Git 审查 worktree 和候选提交保持不可写；门禁另建一次性 `candidate_workspace` 副本，
 reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含 `.git`，只允许在其中构造
-2～5 个变异。启动 argv 显式关闭网络代理并排除 `/tmp` 与 `$TMPDIR`，不安装 Git 尾注 hook，
+2～5 个变异。启动 argv 显式关闭网络代理并排除 `/tmp` 与 `$TMPDIR`，不安装 Git 尾注 hook。
+Codex reviewer 的 `TMPDIR`、`TMPPREFIX` 指向副本里的 `.a2a-tmp/`，shell 的 here-document 与 Python tempfile
+因此能用，不新增可写目录（T-127 GUI 01：真实 reviewer 写不了 here-document，变异检查没跑成）；
 会话 hook 仍只经启动 argv 传入。审查结束前门禁核对候选提交、审查 worktree、worker worktree
 和共享仓库引用未变（worker worktree 与审查开始时 `review_requested` 记下的 HEAD、分支和干净状态比较，不要求等于候选；T-090），随后删除候选副本；边界不符则作废结论并上报。
 报告入库不等于获得集成资格：`integrate` 在任务操作锁内核对本次 review 的
@@ -829,6 +831,8 @@ UserPromptSubmit 对活动注入与实际 prompt 逐字核对，拼接或中间�
 设备查询应答由后台处理，前端用公开 parser 接管查询，避免自动应答混入用户输入。
 按 T-078 执行主控决定 03，前端拦截 DECSET/DECRST 1004；混合序列中的其他模式
 保持顺序交给 xterm。每次拦截记原始序列。CLI 因此收不到工作台窗口的焦点变化。
+写入器只在含 1004 的模式序列处分段等待 xterm；其余私有模式（TUI 重绘时的光标、同步输出等）留在同一次写入里。
+此前每个这类序列都单独等一次，回放一个 880KB 的主控终端（约 16,000 个）要等很久，探针里 16,000 个要 78.5 秒，改后 6 毫秒（T-127）。
 P1 与首个候选的四项输入合同已经通过；其余失败方式和当前扩展后的候选仍待复验。
 
 开发构建每次使用一个尚未存在的临时构建槽，命令输出 JSON 中的 `out` 为启动路径：
