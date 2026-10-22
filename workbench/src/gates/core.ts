@@ -2559,10 +2559,18 @@ export class A2AGates {
     const others = new Map(this.db.prepare("SELECT data FROM tasks").all()
       .map((row) => JSON.parse(String(row.data)) as A2ATask)
       .filter((other) => other.task_id !== task.task_id && other.repo === task.repo).map((other) => [other.task_id, other]));
-    const branch = /^refs\/heads\/a2a\/(.+)-a\d+$/;
-    const otherOwns = (ref: string) => [...others.values()].some((other) =>
-      ref.startsWith(`refs/a2a/attempts/${other.task_id}/`) || ref.startsWith(`refs/a2a/verifications/${other.task_id}/`) ||
-      branch.exec(ref)?.[1] === taskName(other.task_id) && taskName(other.task_id) !== taskName(task.task_id));
+    // Only the names the gate gives a task's refs, for attempts it has already made (review 01 P2).
+    const attemptOf = (ref: string, other: A2ATask) => {
+      const name = taskName(other.task_id);
+      const found = ref.startsWith(`refs/a2a/attempts/${other.task_id}/`) ? /^a(\d+)$/.exec(ref.slice(`refs/a2a/attempts/${other.task_id}/`.length))
+        : ref.startsWith(`refs/a2a/verifications/${other.task_id}/`) ? /^a(\d+)\/v\d+$/.exec(ref.slice(`refs/a2a/verifications/${other.task_id}/`.length))
+        : name !== taskName(task.task_id) && ref.startsWith(`refs/heads/a2a/${name}-`) ? /^a(\d+)$/.exec(ref.slice(`refs/heads/a2a/${name}-`.length)) : null;
+      return found ? Number(found[1]) : null;
+    };
+    const otherOwns = (ref: string) => [...others.values()].some((other) => {
+      const fence = attemptOf(ref, other);
+      return fence !== null && fence >= 1 && fence <= other.fence;
+    });
     const started = this.db.prepare("SELECT seq FROM events WHERE task=? AND type='review_requested' AND json_extract(details,'$.review.review_id')=?")
       .get(task.task_id, review.review_id);
     let head = before.get(task.integration_ref);

@@ -10,7 +10,8 @@
 5. 两份审查同时进行时互相干扰，或者审查结论落到另一个任务上。
 6. 第二个任务集成时工作分支已被第一个推进，门禁没有在新头上重新验收就推进，或者直接失败。
 8. 一个任务的审查进行时，另一个任务新建了自己的验收引用、或经门禁集成推进了工作分支，审查结束时的引用核对
-   把它当成审查员改了仓库（`review_shared_refs_changed`）；反过来，不是门禁写的引用出现时（--foreign-ref）照样拒绝。
+   把它当成审查员改了仓库（`review_shared_refs_changed`）；反过来，不是门禁写的引用出现时（--foreign-ref plain），
+   或者在别的任务命名空间下出现门禁不会起的名字时（--foreign-ref other-task），照样拒绝。
 7. 侧栏里两个 worker 没有都挂在派发它们的终端主控下。
 --revision 在该版本的隔离源码上跑同一场景（修前应在第二次派发失败）；--mutant 跑已知坏实现。
 """
@@ -41,9 +42,10 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['strict-ref-equality', 'integration-chain-ignored', 'any-ref-accepted'])
+    target.add_argument('--mutant', choices=['strict-ref-equality', 'integration-chain-ignored', 'any-ref-accepted', 'other-namespace-prefix-only'])
     # A ref no gate operation wrote appears while T-2's review runs: the review boundary must refuse it.
-    parser.add_argument('--foreign-ref', action='store_true')
+    # other-task: a name under another task's attempt namespace that the gate never gives (review 01 P2).
+    parser.add_argument('--foreign-ref', choices=['plain', 'other-task'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t131-', dir='/private/tmp')).resolve()
@@ -75,6 +77,9 @@ def main():
             'strict-ref-equality': ('src/gates/core.ts', 'requireGate(this.reviewRefsUnchanged(task, review, refs),', 'requireGate(refs === review.shared_refs,'),
             'integration-chain-ignored': ('src/gates/core.ts', 'intent.G === head) head = intent.M;', 'intent.G === head) head = head;'),
             'any-ref-accepted': ('src/gates/core.ts', 'requireGate(this.reviewRefsUnchanged(task, review, refs),', 'requireGate(true,'),
+            # Candidate 1: any ref under another task's namespace was accepted.
+            'other-namespace-prefix-only': ('src/gates/core.ts', 'return fence !== null && fence >= 1 && fence <= other.fence;',
+                                            "return fence !== null || ref.startsWith(`refs/a2a/attempts/${other.task_id}/`);"),
         }[args.mutant]
         path = source / 'workbench' / path
         text = path.read_text(encoding='utf-8')
@@ -359,7 +364,8 @@ def main():
         t1_head = git('rev-parse', 'refs/heads/main')
         if args.foreign_ref:
             # A ref no gate operation wrote, appearing while T-2's review runs.
-            subprocess.run(['git', '-C', str(repo), 'update-ref', 'refs/heads/foreign', main_before], check=True, env=env)
+            ref = 'refs/heads/foreign' if args.foreign_ref == 'plain' else 'refs/a2a/attempts/demo+T-1/rogue'
+            subprocess.run(['git', '-C', str(repo), 'update-ref', ref, main_before], check=True, env=env)
         release_t2_review.set()
         reviewed['T-2'] = wait('T-2 审查结束', lambda: review_settled('T-2'), 240)
         report['reviews'] = {task: dict(task_state=value['state'], review=value['review']['state'], launch=value['review']['launch_id'],
