@@ -91,6 +91,7 @@ declare global { interface Window { a2a: { readonly paneKeys: readonly string[];
   projects(): Promise<ProjectItem[]>; tasks(project: string): Promise<TaskItem[]>;
   issues(project: string): Promise<TaskIssues[]>; answerIssue(task: string, issue: string, answer: string): Promise<void>;
   disposeIssue(task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string): Promise<void>;
+  archiveUsage(): Promise<{ sessions: number; bytes: number }>;
   records(project: string): Promise<UserInputRecord[]>; metrics(project: string, since: string | null, until: string | null): Promise<any>;
   selection(): Promise<Selection>; selectTask(task: string | null): Promise<Selection>;
   openProject(): Promise<Selection | null>; removeProject(project: string): Promise<Selection>;
@@ -388,6 +389,16 @@ function readTheme(): Theme {
   catch { return 'system'; }
 }
 
+function ArchiveUsage() {
+  const [usage, setUsage] = useState<{ sessions: number; bytes: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { window.a2a.archiveUsage().then(setUsage, reason => setError('归档占用读取失败：' + String(reason))); }, []);
+  if (error) return <p className="catalog-error" role="alert">{error}</p>;
+  if (!usage) return <p className="settings-note" role="status">正在读取…</p>;
+  const size = usage.bytes < 1024 * 1024 ? `${(usage.bytes / 1024).toFixed(1)} KB` : `${(usage.bytes / 1024 / 1024).toFixed(1)} MB`;
+  return <p className="settings-note" data-archive-sessions={usage.sessions} data-archive-bytes={usage.bytes}>{usage.sessions} 个会话，占用 {size}</p>;
+}
+
 function SettingsDialog({ open, onClose, theme, onTheme, notifications, dockBadges, onNotification, gaps }: {
   open: boolean; onClose: () => void; theme: Theme; onTheme: (theme: Theme) => void;
   notifications: boolean; dockBadges: boolean; onNotification: (enabled: boolean, preference: 'notifications' | 'dockBadges') => void; gaps: string[] }) {
@@ -413,6 +424,9 @@ function SettingsDialog({ open, onClose, theme, onTheme, notifications, dockBadg
       <section aria-labelledby="settings-models"><h3 id="settings-models">主控派发的默认模型</h3>
         <p className="settings-note">主控派发新会话时按角色取这里的模型和思考强度，主控也可以按你在对话里的要求临时改。只影响之后启动的会话；已经打开的终端、正在运行的会话，以及你在终端里自己启动的 claude / codex 都不受影响。</p>
         <ExecutionSettings /></section>
+      <section aria-labelledby="settings-archive"><h3 id="settings-archive">轨迹归档</h3>
+        <p className="settings-note">后台启动的会话和你批准过角色的终端主控，原生会话记录会增量复制、压缩到工作台数据目录，供复盘使用；CLI 自己清理记录后这里还在。不进 Git。</p>
+        {open && <ArchiveUsage />}</section>
       <section aria-labelledby="settings-legend"><h3 id="settings-legend">状态图标</h3>
         <ul className="status-legend">{Object.entries(stateNames).map(([state, label]) =>
           <li key={state} data-agent-state={state}><StatusIcon state={state} />{label}</li>)}</ul>

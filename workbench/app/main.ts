@@ -278,6 +278,12 @@ function registerHandlers() {
     if (!result.ok) throw new Error(result.error);
     return result;
   });
+  ipcMain.handle('a2a:archive-usage', async event => {
+    const context = windowTarget(event);
+    const result = await request(context.options.state, { command: 'trajectory_archive' }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return { sessions: result.sessions, bytes: result.bytes };
+  });
   ipcMain.handle('a2a:projects', async event => {
     const context = windowTarget(event);
     const result = await request(context.options.state, { command: 'projects_list' });

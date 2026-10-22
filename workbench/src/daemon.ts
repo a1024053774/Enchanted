@@ -19,6 +19,7 @@ import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
 import { metricsSnapshot } from './metrics.ts';
 import { userInputRecords } from './userInputRecords.ts';
+import { TrajectoryArchive } from './trajectoryArchive.ts';
 import { RoleRequests, confirmWindowMs, type RoleRequest } from './roleRequests.ts';
 import { executionRole, executionOverrides } from './executionSettings.ts';
 
@@ -56,6 +57,15 @@ export async function serve(
     catch (error) { console.error(JSON.stringify({ error: "controller_quota_failed", reason: String(error) })); }
   }, 5000);
   quotaTimer.unref();
+  // Trajectory archive (T-135): after every Claude turn of the session, and every 30 s for everything else. A failed
+  // increment is recorded and retried by the next sweep; it never fails the hook or the daemon.
+  const archive = new TrajectoryArchive(store.db, root, (type, data, launch) => store.event(type, data, { id: launch, task: null }));
+  const archiveSweep = (launch?: string) => {
+    try { archive.sweep(launch); }
+    catch (error) { store.event("trajectory_archive_failed", { error: String(error) }, launch ? { id: launch, task: null } : undefined); }
+  };
+  const archiveTimer = setInterval(() => archiveSweep(), 30_000);
+  archiveTimer.unref();
   const controllerOf = (initiator: { launch: string; role_request: string; role: string }): TerminalController => ({ ...initiator,
     state: () => roleRequests.approved(initiator.launch)?.id !== initiator.role_request ? "ended" : quota.exhausted(initiator.role_request) ? "quota_exhausted" : "active" });
   const terminalController = (launch: string, roleRequest: RoleRequest) => controllerOf({ launch, role_request: roleRequest.id, role: roleRequest.role });
@@ -104,7 +114,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records", "trajectory_archive"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
       window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
@@ -138,11 +148,13 @@ export async function serve(
   const shutdown = async () => {
     stopping = true;
     clearInterval(quotaTimer);
+    clearInterval(archiveTimer);
     // Requests and deferred receipt writes retain their stores until their
     // final results are durable. run observes beginShutdown at safe boundaries.
     if (activeRequests > 0) await new Promise<void>((resolve) => { requestsDrained = resolve; });
     await recovery;
     await gates.resumedRunsSettled();
+    archiveSweep();
     await panes.shutdown();
     store.event("daemon_stopped", { pid: process.pid });
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -286,6 +298,7 @@ export async function serve(
       if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');
       return { ok: true, records: userInputRecords(store.db, input.project) };
     }
+    if (input.command === 'trajectory_archive') return { ok: true, ...archive.usage() };
     if (input.command === 'metrics') {
       if ([input.project, input.since, input.until].some(value => value != null && typeof value !== 'string')) throw new Refusal('invalid_metrics_range');
       return { ok: true, ...metricsSnapshot(store.db, { project: input.project, since: input.since, until: input.until }) };
@@ -644,6 +657,7 @@ export async function serve(
         if (matched && receipts.length && ["worker", "controller"].includes(pane.record.role)) await panes.dispatch(pane, feedbackText(receipts), "gate");
       });
       const payload = JSON.parse(input.raw_stdin);
+      if (payload.hook_event_name === "Stop") archiveSweep(input.launch);
       if (payload.hook_event_name === "UserPromptSubmit" && !decision) {
         const pane = panes.authenticate(identity);
         if (pane.record.role === "controller" && pane.claudePromptId === payload.prompt_id) {

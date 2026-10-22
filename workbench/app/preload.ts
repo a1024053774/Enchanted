@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
     ipcRenderer.invoke('a2a:issue-dispose', task, issue, action, reason, basis),
   records: (project: string) => ipcRenderer.invoke('a2a:records', project),
   metrics: (project: string, since: string | null, until: string | null) => ipcRenderer.invoke('a2a:metrics', project, since, until),
+  archiveUsage: () => ipcRenderer.invoke('a2a:archive-usage'),
   selection: () => ipcRenderer.invoke('a2a:selection'),
   openProject: () => ipcRenderer.invoke('a2a:open-project'),
   removeProject: (project: string) => ipcRenderer.invoke('a2a:remove-project', project),
