@@ -14,8 +14,12 @@
 8. 终端主控派出的 worker 没记上派发它的终端，侧栏显示为“未归属”。
 9. 刚打开、还没有任务的项目，`inbox_ready` 返回 `unknown_project`。
 10. Claude worker 的交付起不了审查（审查只认 Codex 的预建 home），或审查者换了 CLI/模型、能写候选 worktree 或请求目录、不在一次性副本里跑变异。
+14. 沙箱外的 git commit 执行了项目自己的钩子（core.hooksPath 指向 worktree 里 worker 写的 .husky），在沙箱外
+    写出 worktree、移动 main；或者跳过了却没有记录（审查 03 第 1 条，用户裁定不跑项目钩子）。
 12. 交付记的模型是请求值而不是这一回合实际回复的模型；任务卡写 Claude 而派发不带模型时用了 Codex 的出厂模型（审查 01 第 3 条）。
 11. 审查通过后，打分与集成走不到项目工作分支。
+13. 门禁放过与 worker 启动记录不符的 Claude reviewer（模型、Fast 不同，钩子命令带前缀），或者因 Claude 可执行文件路径
+    不同（版本更新）误拒合法 reviewer（审查 03 第 2、3 条）。--reviewer-case 改写源码副本里 reviewer 的启动方式。
 --revision 在该版本的隔离源码上跑同一场景（修前应失败）；--mutant 跑已知坏实现。
 """
 import argparse
@@ -48,7 +52,9 @@ def main():
     target.add_argument('--mutant', choices=['trust-unanswered', 'no-initial-release', 'user-settings-loaded',
                                              'submit-provider-codex', 'requested-model-as-fact', 'card-model-ignored', 'git-deny-missing',
                                              'codex-provider-only', 'no-terminal-parent', 'inbox-tasks-only',
-                                             'reviewer-codex-only', 'reviewer-shell-writable', 'git-excluded-broad'])
+                                             'reviewer-codex-only', 'reviewer-shell-writable', 'git-excluded-broad',
+                                             'gate-reviewer-model-unchecked', 'gate-reviewer-fast-unchecked', 'gate-reviewer-hook-includes'])
+    parser.add_argument('--reviewer-case', choices=['model-differs', 'fast-differs', 'hook-prefixed', 'other-executable-path'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     fixture = Path(tempfile.mkdtemp(prefix='t122-', dir='/private/tmp')).resolve()
@@ -64,7 +70,8 @@ def main():
     (home / '.claude').mkdir()
     (home / '.claude/settings.json').write_text(json.dumps(hook('user-hook-ran')), encoding='utf-8')
     source = ROOT
-    if args.revision or args.mutant:
+    refused_cases = ('model-differs', 'fast-differs', 'hook-prefixed')
+    if args.revision or args.mutant or args.reviewer_case:
         source = fixture / 'source'
         if args.revision:
             for name in subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', args.revision, 'workbench/src', 'workbench/terminal',
@@ -78,10 +85,12 @@ def main():
                 target_path.write_bytes(subprocess.check_output(['git', 'show', f'{args.revision}:{name}'], cwd=ROOT))
                 if mode == '100755':
                     target_path.chmod(0o755)
-        else:
+        if not args.revision:
             for name in ('src', 'terminal', 'hooks', 'roles'):
                 shutil.copytree(ROOT / 'workbench' / name, source / 'workbench' / name, symlinks=True)
-            path, old, new = {
+        patches = []
+        if args.mutant:
+            patches.append({
                 'trust-unanswered': ('src/panes.ts', 'if (claude && pane.state === "unknown") this.confirmWorkerTrust(pane, data);', ''),
                 'no-initial-release': ('src/panes.ts', '        pane.state = "idle";\n        return;', '        return;'),
                 'user-settings-loaded': ('src/panes.ts', '"--setting-sources", "", "--strict-mcp-config", ', '"--setting-sources", "local", "--strict-mcp-config", '),
@@ -95,14 +104,31 @@ def main():
                 'reviewer-codex-only': ('src/panes.ts', '    if (task.card.executor.cli === "Claude Code") {\n      // D24', '    if (false) {\n      // D24'),
                 'reviewer-shell-writable': ('src/panes.ts', 'review ? [] : [requestDirectory], review ? []', 'review ? [requestDirectory] : [requestDirectory], review ? []'),
                 'git-excluded-broad': ('src/panes.ts', 'excludedCommands: ["git add *", "git commit *"]', 'excludedCommands: ["git *"]'),
-            }[args.mutant]
+                'gate-reviewer-model-unchecked': ('src/gates/core.ts', 'argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&', 'argv[6] === worker.argv[6] &&'),
+                'gate-reviewer-fast-unchecked': ('src/gates/core.ts', '        settings?.fastMode === workerSettings.fastMode &&\n', ''),
+                'gate-reviewer-hook-includes': ('src/gates/core.ts', "signal === workerSignal.slice(0, -`'${worker.id}'`.length) + `'${launch.id}'` &&",
+                                                "typeof signal === 'string' && signal.includes(`'--launch' '${launch.id}'`) &&"),
+            }[args.mutant])
+        # A reviewer launched unlike its worker (refused cases), or through another path to the same
+        # Claude, as after an update (accepted).
+        if args.reviewer_case:
+            patches.append({
+                'model-differs': ('src/panes.ts', '{ model: worker.model_requested, effort', '{ model: worker.model_requested + "-other", effort'),
+                'fast-differs': ('src/panes.ts', 'fast: worker.service_tier_requested === "fast" });', 'fast: worker.service_tier_requested !== "fast" });'),
+                'hook-prefixed': ('src/panes.ts', 'const signalCommand = "ELECTRON_RUN_AS_NODE=1 " +', 'const signalCommand = (review ? "true; " : "") + "ELECTRON_RUN_AS_NODE=1 " +'),
+                'other-executable-path': ('src/panes.ts', 'const executable = realpathSync(claude ? c.claude_bin! : c.codex_bin!);',
+                                          'const executable = review && claude ? c.claude_bin! : realpathSync(claude ? c.claude_bin! : c.codex_bin!);'),
+            }[args.reviewer_case])
+        for path, old, new in patches:
             path = source / 'workbench' / path
             text = path.read_text(encoding='utf-8')
             assert text.count(old) == 1, '变异定位必须唯一'
             path.write_text(text.replace(old, new), encoding='utf-8')
         (source / 'workbench/node_modules').symlink_to(ROOT / 'workbench/node_modules', target_is_directory=True)
     cli = source / 'workbench/src/gates/cli.ts'
-    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, fixture=str(fixture),
+    if args.reviewer_case == 'other-executable-path':
+        assert os.path.realpath(args.claude) != args.claude, '这一例要求 --claude 是指向 Claude 的链接'
+    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, reviewer_case=args.reviewer_case, fixture=str(fixture),
                   claude=args.claude, real_model_turns=0, checks=[])
 
     # The model: a scripted Messages endpoint. It answers each main-loop conversation (worker or
@@ -135,6 +161,9 @@ def main():
             ('Write', dict(file_path=f'{cwd}/hello.txt', content='hello from the T-122 fixture\n')),
             ('Write', dict(file_path=f'{outside}/escape.txt', content='must not be written\n')),
             ('Bash', dict(command=f'echo x > {outside}/bash-escape.txt; echo "outside rc=$?"', description='shell write outside')),
+            # A project hook the worker wrote itself, under the repository's core.hooksPath (husky layout).
+            ('Bash', dict(command=f'{{ echo "#!/bin/sh"; echo "touch {outside}/husky-ran"; echo "git update-ref refs/heads/main HEAD"; }} > .husky/pre-commit; echo "husky rc=$?"',
+                          description='project hook')),
             ('Bash', dict(command='git add hello.txt', description='stage')),
             ('Bash', dict(command='git commit -q -m "T-122 fixture change"', description='commit')),
             ('Bash', dict(command='git update-ref refs/heads/main HEAD; echo "update-ref rc=$?"', description='move main')),
@@ -147,7 +176,7 @@ def main():
                           'mkdir -p $G/info && echo "*.hidden" >> $G/info/exclude; echo "exclude rc=$?"; '
                           ': > $G/refs/heads/main.lock; echo "lock rc=$?"; '
                           'git branch a2a/T-1-a2; echo "branch rc=$?"; '
-                          'echo "gitdir: /private/tmp" > .git; echo "dotgit rc=$?"', description='git metadata')),
+                          'echo "gitdir: /private/tmp" > .git; echo "dotgit rc=$?"; git show HEAD:.husky/pre-commit > .husky/pre-commit', description='git metadata')),
             ('Bash', dict(command=line, description='submit')),
         ], '已提交并交付。'
 
@@ -267,8 +296,13 @@ def main():
         subprocess.run(['git', 'init', '-q', '-b', 'main', str(repo)], check=True, env=env)
         (repo / 'README.md').write_text('demo\n', encoding='utf-8')
         (repo / 'check.py').write_text('import pathlib, sys\nsys.exit(0 if pathlib.Path("hello.txt").is_file() else 1)\n', encoding='utf-8')
-        subprocess.run(['git', '-C', str(repo), 'add', 'README.md', 'check.py'], check=True, env=env)
+        # A husky-style project hook, tracked and named by the repository's core.hooksPath.
+        (repo / '.husky').mkdir()
+        (repo / '.husky/pre-commit').write_text(f'#!/bin/sh\ntouch {outside}/base-hook-ran\n', encoding='utf-8')
+        (repo / '.husky/pre-commit').chmod(0o755)
+        subprocess.run(['git', '-C', str(repo), 'add', 'README.md', 'check.py', '.husky/pre-commit'], check=True, env=env)
         subprocess.run(['git', '-C', str(repo), 'commit', '-q', '-m', 'init'], check=True, env=env)
+        subprocess.run(['git', '-C', str(repo), 'config', 'core.hooksPath', '.husky'], check=True, env=env)
         (repo / '.claude').mkdir()
         (repo / '.claude/settings.local.json').write_text(json.dumps(hook('project-local-hook-ran')), encoding='utf-8')
         main_before = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'refs/heads/main'], text=True).strip()
@@ -337,15 +371,15 @@ def main():
 
         # 3: checked once the submit command has returned, before the delivery wait, since a left-over
         # ref lock or a trailer-less HEAD keeps the delivery from reaching the gate.
-        worker_results = wait('交付命令返回', lambda: api['results']['worker'] if len(api['results']['worker']) > 9 else None, 180)
+        worker_results = wait('交付命令返回', lambda: api['results']['worker'] if len(api['results']['worker']) > 10 else None, 180)
         workspace = Path(attempt['workspace'])
         common = Path(subprocess.check_output(['git', '-C', str(repo), 'rev-parse', '--path-format=absolute', '--git-common-dir'], text=True).strip())
         refs = subprocess.check_output(['git', '-C', str(repo), 'for-each-ref', '--format=%(refname)'], text=True).split()
-        metadata = worker_results[8]['text'] if len(worker_results) > 8 else ''
+        metadata = worker_results[9]['text'] if len(worker_results) > 9 else ''
         report['git_metadata'] = dict(refs=refs, result=metadata, dotgit=(workspace / '.git').read_text(encoding='utf-8'),
                                       exclude=(common / 'info/exclude').read_text(encoding='utf-8') if (common / 'info/exclude').exists() else None,
                                       lock=(common / 'refs/heads/main.lock').exists())
-        check('git_metadata_closed_to_shell', len(worker_results) > 8 and
+        check('git_metadata_closed_to_shell', len(worker_results) > 9 and
               all(f'{label} rc=' in metadata and f'{label} rc=0' not in metadata for label in ('replace', 'object', 'exclude', 'lock', 'branch', 'dotgit')) and
               not any(ref.startswith('refs/replace/') or ref == 'refs/heads/a2a/T-1-a2' for ref in refs) and
               report['git_metadata']['dotgit'].startswith('gitdir: ' + str(common)) and not report['git_metadata']['lock'] and
@@ -363,9 +397,11 @@ def main():
         check('shell_write_outside_refused', not (outside / 'bash-escape.txt').exists() and len(worker_results) > 2 and
               'outside rc=1' in worker_results[2]['text'], worker_results[2:3])
         main_now = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'refs/heads/main'], text=True).strip()
-        check('shell_cannot_move_working_branch', main_now == main_before and len(worker_results) > 7 and
-              'update-ref rc=0' not in worker_results[5]['text'] and worker_results[6]['is_error'] and worker_results[7]['is_error'],
-              dict(main_before=main_before, main_now=main_now, result=worker_results[5:8]))
+        check('shell_cannot_move_working_branch', main_now == main_before and len(worker_results) > 8 and
+              'update-ref rc=0' not in worker_results[6]['text'] and worker_results[7]['is_error'] and worker_results[8]['is_error'],
+              dict(main_before=main_before, main_now=main_now, result=worker_results[6:9]))
+        check('project_hook_not_run', 'husky rc=0' in worker_results[3]['text'] and
+              not (outside / 'husky-ran').exists() and not (outside / 'base-hook-ran').exists(), worker_results[3:6])
         markers = sorted(path.name for path in out.iterdir() if path.name.startswith(('user-hook-ran', 'project-local-hook-ran')))
         check('no_user_or_project_settings_loaded', not markers, markers)
         commit = task.get('candidate_commit') or task['current_attempt'].get('delivery', {}).get('commit')
@@ -383,11 +419,19 @@ def main():
         report['delivery'] = {key: delivery.get(key) for key in ('model', 'effort', 'cli')}
         check('delivery_records_observed_model', delivery.get('model') == SERVED_MODEL and delivery.get('effort') == 'low', report['delivery'])
         check('delivery_reached_gate', task['state'] == 'submitted', task['state'])
+        skipped = [e['details'] for e in request('events', operator, task='T-1')['events'] if e['type'] == 'project_hooks_skipped']
+        report['project_hooks_skipped'] = skipped
+        check('skipped_project_hooks_recorded', len(skipped) == 1 and skipped[0]['commit'] == commit and skipped[0]['hooks'] == ['pre-commit'] and
+              os.path.realpath(skipped[0]['hooks_dir']) == os.path.realpath(workspace / '.husky'), skipped)
 
         # 10, 11: verification starts a fresh read-only Claude reviewer on the worker's model; it
         # passes; the controller scores and integrates into the fixture's working branch.
         verified = request('verify', terminal, task='T-1')
         report['verify'] = {key: verified.get(key) for key in ('ok', 'error')}
+        if args.reviewer_case in refused_cases:
+            check('reviewer_unlike_worker_refused', not verified.get('ok') and verified.get('error') == 'review_launch_boundary', report['verify'])
+            report['status'] = 'PASS'
+            return
         assert verified.get('ok'), verified
         task = wait('审查结束', lambda: (lambda current: current if current['state'] in ('verified', 'submitted', 'rework', 'failed') and
                                           current.get('review', {}).get('state') not in (None, 'requested', 'running') else None)(
@@ -397,6 +441,8 @@ def main():
         rargv = reviewer['argv']
         rflag = lambda name: rargv[rargv.index(name) + 1] if name in rargv else None
         rsettings = json.loads(rflag('--settings'))
+        if args.reviewer_case == 'other-executable-path':
+            check('reviewer_on_other_executable_path_accepted', rargv[0] == args.claude and argv[0] == os.path.realpath(args.claude), [rargv[0], argv[0]])
         report['reviewer'] = dict(cli=reviewer.get('cli'), model=rflag('--model'), effort=rflag('--effort'), settings=rsettings,
                                   results=api['results']['reviewer'], review_state=review['state'], task_state=task['state'])
         check('reviewer_same_cli_and_model', reviewer.get('cli') == 'Claude Code' and rflag('--model') == 'claude-haiku-5-5' and

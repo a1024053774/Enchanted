@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Add managed identity and the latest root native turn's observed facts."""
+"""prepare-commit-msg: add managed identity and the latest root native turn's observed facts."""
 import json
 import os
 from pathlib import Path
@@ -81,32 +81,12 @@ def add_trailers():
     subprocess.run([*argv, message], check=True)
 
 
-def forward():
-    # Run the repository's existing hook without writing its config.
-    name = Path(sys.argv[0]).name
-    original_env = dict(os.environ)
-    # Entry 0 is the session's hooks path. Claude Code's shell sandbox appends safe.directory
-    # entries for the worktree and repository (T-122 probe); nothing else may follow, since a
-    # later entry would override the hooks path.
-    count = original_env.get('GIT_CONFIG_COUNT', '')
-    if not count.isdigit() or int(count) < 1 or original_env.get('GIT_CONFIG_KEY_0') != 'core.hooksPath' or \
-            any(original_env.get(f'GIT_CONFIG_KEY_{index}') != 'safe.directory' for index in range(1, int(count))):
-        raise ValueError('会话 Git 配置改变')
-    for key in ('GIT_CONFIG_COUNT', *(f'GIT_CONFIG_{part}_{index}' for index in range(int(count)) for part in ('KEY', 'VALUE'))):
-        original_env.pop(key, None)
-    original = Path(subprocess.check_output(['git', 'rev-parse', '--git-path', 'hooks/' + name],
-                                          env=original_env, text=True).strip()).resolve()
-    if original == Path(__file__).resolve():
-        raise ValueError('原钩子递归')
-    if original.is_file() and os.access(original, os.X_OK):
-        subprocess.run([str(original), *sys.argv[1:]], check=True)
-
-
 if __name__ == '__main__':
     try:
-        if Path(sys.argv[0]).name == 'prepare-commit-msg':
-            add_trailers()
-        forward()
+        # The only hook: a managed session's commit runs outside its sandbox, so the project's own
+        # hooks, whose code the worker can edit, are not run (user ruling 2026-10-21, T-122
+        # review 03); the gate records which ones were skipped.
+        add_trailers()
     except (OSError, KeyError, ValueError, subprocess.CalledProcessError) as error:
         print('a2a 提交钩子拒绝：' + str(error), file=sys.stderr)
         sys.exit(1)

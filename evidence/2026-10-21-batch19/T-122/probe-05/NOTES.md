@@ -47,7 +47,9 @@ Write 与 Edit 改 worktree 的 `.git` 文件都被拒（Claude 自带的 `.git`
 
 
 探针通过，采用“git add/commit 走沙箱外”（`workbench/src/panes.ts` 的 `claudeArgv`、`workerGitDenied`）。剩余的沙箱外面：
-- 单独的 `git add`、`git commit` 以 worker 环境在沙箱外运行，会执行 a2a 的提交钩子和仓库原有钩子（`.git/hooks`，worker 不可写），以及用户自己 `~/.gitconfig` 定义的 filter（如 git-lfs），作用对象是 worktree 里的文件；
+- 单独的 `git add`、`git commit` 以 worker 环境在沙箱外运行，会执行 a2a 的提交钩子和仓库原有钩子，以及用户自己 `~/.gitconfig` 定义的 filter（如 git-lfs），作用对象是 worktree 里的文件；
+  - 更正（审查 03）：原写“仓库原有钩子在 `.git/hooks`，worker 不可写”不成立。`core.hooksPath` 可指向 worktree 内（husky），钩子也可调用 worktree 里的代码；审查 03 实测能写出 worktree、移动 main。候选 4 起受管提交不再执行项目钩子。
+  - 更正（审查 03）：只由 `git add`/`git commit` 拼成的一行同样在沙箱外运行；混入其他命令的才留在沙箱里。
 - `--amend` 只能改写本 attempt 分支。
 
 重现：`PROBE_ACTIONS=actions2.py zsh run.sh /private/tmp/<新目录> <仓库>/workbench/hooks/`（`PROBE_ACTIONS` 省略为第 1 批）。

@@ -519,9 +519,12 @@ Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/p
 文件与 MCP，登录照常；`local` 会连主 checkout 的 `.claude/settings.local.json` 一起加载），`--settings` 只允许 `Bash`、
 `Read`、`Glob`、`Grep` 与 worktree、请求目录内的 `Edit`，shell 沙箱禁止沙箱外命令、另可写请求目录。linked worktree 里
 Claude 的沙箱自己把主仓库整个 `.git` 设为可写，所以 `denyWrite` 收回整个 Git common dir（worktree 的 `.git` 文件 Claude 沙箱本身就拒写）；
-只有单独一条 `git add` 或 `git commit` 经 `sandbox.excludedCommands` 在沙箱外运行（同 Codex 的两条前缀规则）。拼接命令、
-`git -c`、环境变量前缀、重定向都留在沙箱里，`cd` 与 `export` 不带到下一条命令（probe-05）。沙箱外的提交仍执行 a2a 的
-提交钩子、仓库原有钩子与用户 `~/.gitconfig` 里的 filter。Claude 的 `$TMPDIR` 仍可写（收回会让每条 shell 命令失败）。任务卡写 Claude Code 时，派发不带的模型与强度取卡上的 executor；回合信号经 SessionStart、UserPromptSubmit、
+只有 `git add`、`git commit` 经 `sandbox.excludedCommands` 在沙箱外运行（同 Codex 的两条前缀规则；只由这两种命令拼成的
+一行也在沙箱外，各段提交照样带尾注）。混入任何其他命令的拼接、`git -c`、环境变量前缀、重定向都留在沙箱里，`cd` 与
+`export` 不带到下一条命令（probe-05、审查 03）。沙箱外的提交只执行 a2a 的尾注钩子（`hooks/hook.py`），不执行项目
+自己的 Git 钩子：husky、lefthook、pre-commit 或 `.git/hooks` 里调用项目代码的钩子，执行的是 worker 可改的代码（审查 03
+实测能写出 worktree、移动 main；用户裁定不跑）。门禁在交付时把跳过的钩子记为 `project_hooks_skipped`，Claude 与 Codex
+worker 相同；用户自己在终端里提交不受影响。沙箱外的提交仍会执行用户 `~/.gitconfig` 里的 filter。Claude 的 `$TMPDIR` 仍可写（收回会让每条 shell 命令失败）。任务卡写 Claude Code 时，派发不带的模型与强度取卡上的 executor；回合信号经 SessionStart、UserPromptSubmit、
 Stop、PermissionRequest、PreToolUse、PostToolUse 钩子传入。Claude reviewer 只可写门禁给的一次性候选副本，
 shell 沙箱不另开可写目录；门禁的 `reviewLaunch` 核对这组参数。新 worktree 启动时 Claude 会问是否信任该文件夹：
 按用户裁定，后台只在会话还没收到任何任务时代按“Yes, I trust this folder”，记 `worker_trust_confirm_intent`、
@@ -531,7 +534,7 @@ SessionStart 记 `worker_startup_unrecognised`。交付时的模型取会话记�
 （跳过半写入的行），强度取 Stop 钩子报告的值（`native_turn_facts`）；提交钩子的 `A2A-Native-Session` 尾注取
 `--session-id`，Model 与 Effort 尾注为 `unknown`（提交时还没有观测值，门禁对 Claude 交付接受 Effort 为 unknown）。
 Claude reviewer 的整串 argv 由门禁逐位核对，settings 只能含 permissions、sandbox、六个钩子与 fastMode；
-可执行文件、模型、强度、Fast 必须与 worker 启动记录相同，钩子命令必须是 worker 的那条、只换 launch id；reviewer 角色设置对它暂不生效。
+模型、强度、Fast 必须与 worker 启动记录相同（可执行文件只记录：路径带 Claude 版本号，两次启动之间可能更新），钩子命令必须是 worker 的那条、只换 launch id；reviewer 角色设置对它暂不生效。
 已知限制：Claude 会话里 `/clear` 或自动压缩若换了会话号，后续钩子信号按 `unsupported_hook` 拒收（审查 01 第 10 条，本票未另测），后台不跟随新会话号，也不另记这次切换。Claude 的 shell 沙箱会在 `GIT_CONFIG_*` 末尾追加 `safe.directory` 条目，提交钩子只接受这一种追加。
 门禁在 submit 时按任务卡 CLI 核对 provider。终端主控发起的门禁调用以该终端为父 launch，派出的会话在侧栏挂在它下面。
 

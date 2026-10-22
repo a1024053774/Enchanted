@@ -1467,7 +1467,7 @@ export class A2AGates {
       "--commit", "FULL_COMMIT_SHA"].map((part) => "'" + part.replaceAll("'", "'\\''") + "'").join(" ");
     // In the packaged app process.execPath is Electron; it acts as Node only with this variable.
     const submitLine = "ELECTRON_RUN_AS_NODE=1 " + submitCommand;
-    const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\n受管身份：${JSON.stringify(submit)}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。${this.boundCard(attempt).executor.cli === "Claude Code" ? "只有独立的 git add、git commit 在 Claude 的 shell 沙箱外执行，其余 Git 写操作在沙箱里会被拒" : "两条 Git 前缀 allow 规则只授权对应命令"}；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\n${submitLine}\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。`;
+    const prompt = `${JSON.stringify(this.boundCard(attempt), null, 2)}\n\n受管身份：${JSON.stringify(submit)}\nGit 写操作：把执行工具的工作目录设为本 attempt 的 worktree。git add <路径> 和 git commit … 必须各自作为一条独立的工具命令执行；不要与 cd、检查命令或彼此用 &&、分号、管道、换行、变量赋值或重定向拼接。git status、git diff、测试和 git rev-parse 另行执行。${this.boundCard(attempt).executor.cli === "Claude Code" ? "只有独立的 git add、git commit 在 Claude 的 shell 沙箱外执行，其余 Git 写操作在沙箱里会被拒" : "两条 Git 前缀 allow 规则只授权对应命令"}；git mv、git rm、git restore、git stash、git reset 等其他 Git 写操作会被拒，改用普通 mv、rm 后 git add <路径>，恢复文件用 git show HEAD:<路径> > <路径>；若独立执行仍被沙箱拒绝，上报问题并结束，不重试或修改权限。\n完成并 Git 提交后，把 FULL_COMMIT_SHA 换成完整提交号，运行以下 CLI 显式交付：\n${submitLine}\n本会话的 CLI 会将 submit、status、issue 请求写到 A2A_REQUEST_DIR 指向的本 attempt 专用 /tmp 目录；不直接连接 socket。queued=true 只表示已排队，不是门禁通过。最后结束回合，让 Stop hook 读取并转交；没有请求文件就不交付。请求文件不得进入 Git 提交。查状态用同一入口 status --task，问题上报用 issue --task --title --body。不要修改合同、验收程序或沙箱权限。`;
     const dispatchPrompt = conflict ? `${prompt}\n\n${this.conflictPrompt(task, conflict)}\n原 worker 会话已结束。请在本次新 attempt 的 worktree 内整理，使用本次身份提交；旧 C 只作参考，不照搬其旧 attempt 尾注。` : prompt;
     this.event(taskId, "prompt_intent", { thread: attempt.thread_id, prompt: dispatchPrompt });
     this.checkUserInputObserver();
@@ -2195,8 +2195,9 @@ export class A2AGates {
     try { settings = claude ? JSON.parse(String(argv?.[13])) : null; } catch { settings = null; }
     const hookEvents = ["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"];
     const signal = settings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
-    // D24: same executable, model, effort and Fast as the worker launch, and the worker's signal
-    // command with only the launch id changed.
+    // D24: same model, effort and Fast as the worker launch, and the worker's signal command with
+    // only the launch id changed. The executable is recorded, not compared: its real path names
+    // the Claude version, which may update between the two launches (T-118, review 03).
     const worker = claude ? this.launchRecord(review.attempt.runtime_identity?.launch) : null;
     let workerSettings: any = null;
     try { workerSettings = worker ? JSON.parse(String(worker.argv?.[13])) : null; } catch { workerSettings = null; }
@@ -2204,7 +2205,7 @@ export class A2AGates {
     const boundary = claude
       ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 14 &&
         worker?.cli === "Claude Code" && worker.role === "worker" && Array.isArray(worker.argv) &&
-        argv[0] === worker.argv[0] && argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&
+        argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&
         typeof workerSignal === "string" && workerSignal.endsWith(` '--launch' '${worker.id}'`) &&
         signal === workerSignal.slice(0, -`'${worker.id}'`.length) + `'${launch.id}'` &&
         settings?.fastMode === workerSettings.fastMode &&
@@ -3726,6 +3727,14 @@ export class A2AGates {
           added: rows.reduce((sum, row) => sum + (row[0] === "-" ? 0 : Number(row[0])), 0),
           deleted: rows.reduce((sum, row) => sum + (row[1] === "-" ? 0 : Number(row[1])), 0),
           binary_files: rows.filter((row) => row[0] === "-").length });
+        // A managed session's commits run only a2a's trailer hook (hooks/hook.py), never the
+        // project's own hooks; record the ones this delivery skipped (T-122 review 03).
+        const hooksPath = await this.execute(taskId, ["git", "-C", attempt.workspace, "rev-parse", "--path-format=absolute", "--git-path", "hooks"], task.repo);
+        requireGate(hooksPath.returncode === 0 && hooksPath.stdout, "git_failed", hooksPath);
+        const hooksDir = hooksPath.stdout.trim();
+        const projectHooks = existsSync(hooksDir) ? readdirSync(hooksDir).filter((name) => !name.endsWith(".sample") &&
+          existsSync(join(hooksDir, name)) && statSync(join(hooksDir, name)).isFile() && (statSync(join(hooksDir, name)).mode & 0o111) !== 0).sort() : [];
+        if (projectHooks.length) this.event(taskId, "project_hooks_skipped", { commit, hooks_dir: hooksDir, hooks: projectHooks });
         if (reworkSubmission) {
           attempt.rework!.state = "submitted";
           attempt.rework!.base_commit = submissionBase;
