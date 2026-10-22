@@ -297,7 +297,7 @@ node workbench/src/gates/cli.ts --state /绝对路径/state create --task a2a+T-
 区分；worktree 与分支路径仍按项目目录加任务名。调用时可以只写任务名：项目终端在本项目里解析；管理凭据用 `--project`
 指明项目，不指明时任务名须恰好对应一个已有任务，否则返回 `task_ambiguous` 或 `unknown_task`；完整 id 旁另给不同的
 `project` 返回 `task_project_mismatch`。界面与侧栏显示任务名，侧栏行的 `task` 是完整 id、`task_name` 是任务名。
-旧库在新版后台启动时迁移一次：各表与成员资格里的旧 id 改为 `<原项目>+<原 id>`，行数不变；没有归属项目的卡草稿使迁移失败
+旧库在新版后台启动时迁移一次：各表（含 JSON 列里的 task 引用）与成员资格里的旧 id 改为 `<原项目>+<原 id>`，行数不变；两个库分开提交，中途中断的迁移在下次启动时接着做完；已有的 `card_draft_owned` 事件原样保留，只用来给草稿定项目；没有归属项目的卡草稿使迁移失败
 （`task_migration_unowned_drafts`），不猜测归属。
 
 模板含 14 个字段。CLI 值精确为 `Claude Code` 或 `Codex`；任务类型为规格中的八个值。

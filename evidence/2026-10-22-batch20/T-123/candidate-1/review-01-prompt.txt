@@ -1,0 +1,10 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查本仓库提交 f0188d772（父提交 4116c8b44，T-123 候选 1，含 T-128 修复），完整代码差异（不含 evidence）在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-t123-5st7/f0188d772.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-123-project-scoped-task-and-card-ids.md（含“实现方案（2026-10-22，执行主控）”一节）与 .project-map/tickets/T-128-recovery-after-second-restart.md，结果报告是 evidence/2026-10-22-batch20/T-123/candidate-1/RESULTS.md。
+重点：
+1. 任务解析（workbench/src/gates/core.ts 的 taskKey、resolveTask，request() 入口把 args.task 换成完整 id）：终端主控能否经任何命令触及另一个项目的任务或卡片；管理凭据裸名的歧义处理；完整 id 与 project 矛盾时是否一律拒绝；删去 daemon.ts 的前缀检查后是否留下缺口（例如 create、run、attach、answer_issue 等命令，或 project 字段缺省时）。
+2. 旧库迁移（core.ts 的 migrateTaskIds）：是否漏改某些表、列或 JSON 字段（含 membership 库、locks 目录、task:<名> 引用）；能否在半途失败后留下不一致的库；重复运行是否幂等；触发器重建是否完整；无归属草稿的处理是否合理。
+3. 任务 id 字符集的统一（qualityProtocol.ts 的 taskIdPattern，relay.ts、core.ts 的使用）：是否还有地方按旧字符集校验 task 而会拒绝新 id（hooks、terminal CLI、侧栏、界面、inbox 等）。
+4. T-128（panes.ts 恢复循环）：放宽条件后是否会把仍在运行或已归档的记录错当成已停止，或重复恢复 monitor。
+5. 界面（app/renderer.tsx、app/FlowPage.tsx、src/flow.ts、src/sidebar.ts）：显示任务名是否会让两个项目的同名任务混淆选择或路由。
+6. 测试是否独立：workbench/tests/test_t123_project_identity_e2e.py 的检查与变异是否真能区分坏实现，对 T-121/T-122/T-124 测试的修改是否削弱了原有断言；RESULTS.md 是否有夸大或与证据不符之处。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。

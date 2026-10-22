@@ -520,7 +520,7 @@ export async function serve(
       if (!result.ok || !result.task) return result;
       const record = input.launch ? panes.launchRecord(input.launch) :
         result.task.current_attempt?.thread_id ? store.threadLaunch(result.task.current_attempt.thread_id) : undefined;
-      if (record && record.task !== input.task) throw new Refusal("launch_task_mismatch");
+      if (record && record.task !== result.task.task_id) throw new Refusal("launch_task_mismatch");
       const pane = record ? panes.status(record.thread) : null;
       const launch = record ? { id: record.id, project: record.project, task: record.task, attempt: record.attempt,
         session: record.session, fence: record.fence, spec_rev: record.spec_rev, thread: record.thread,

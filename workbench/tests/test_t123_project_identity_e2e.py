@@ -47,6 +47,13 @@ MUTANTS = {
     # A full id with a different project is resolved by the id alone.
     'full-id-ignores-project': ('src/gates/core.ts',
                                 'requireGate(project === undefined || taskProject(full) === project, "task_project_mismatch", { task: full, project });', ''),
+    # Drafts without a task keep their old ids: card_draft_owned is read but not applied.
+    'migration-ignores-drafts': ('src/gates/core.ts', 'for (const task of drafts) renamed.set(task, taskKey(owners.get(task)!, task));', ''),
+    # The CLI refuses --project beside a task again.
+    'cli-refuses-project': ('src/gates/cli.ts', '...(!noTask ? ["task", "project"] : []),', '...(!noTask ? ["task"] : []),'),
+    # The snapshot compares the launch with the name as given, not the resolved id.
+    'snapshot-raw-name': ('src/daemon.ts', 'if (record && record.task !== result.task.task_id) throw new Refusal("launch_task_mismatch");',
+                          'if (record && record.task !== input.task) throw new Refusal("launch_task_mismatch");'),
     # The migration leaves the events of old tasks under their old ids.
     'migration-skips-events': ('src/gates/core.ts', 'const plain = columns.filter(column => column === "task" || keyed[table] === column);',
                                'const plain = columns.filter(column => (column === "task" && table !== "events") || keyed[table] === column);'),
@@ -256,7 +263,7 @@ def main():
         return card
 
     def controller(operator, project, repo):
-        launch = run_cli(source, 'shell_start', '--project', project, '--cwd', str(repo))['launch']['id']
+        launch = run_cli(running, 'shell_start', '--project', project, '--cwd', str(repo))['launch']['id']
         window = request('window_open', operator, launch=launch, project=project)
         assert window['ok'], window
         token = out / f'token-{project}.txt'
@@ -311,6 +318,10 @@ def main():
             assert saved['ok'], saved
             created = request('create', operator, task='T-0', project='legacy', repo=str(legacy_repo), branch='refs/heads/main', card_version=1)
             assert created['ok'], created
+            # A draft the old revision's terminal saved without creating its task: card_draft_owned names its project.
+            old_terminal = controller(operator, 'legacy', legacy_repo)
+            drafted = request('card_save', old_terminal, task='T-D', card=str(card_file('legacy-draft', '旧终端的草稿', 'T-D')), expected_version=0)
+            assert drafted['ok'], drafted
             # The old task is dispatched and delivered, so the library holds an attempt, a launch and its events.
             dispatched = request('dispatch', operator, task='T-0', runtimeMode='workspace-write')
             assert dispatched['ok'], dispatched
@@ -318,20 +329,30 @@ def main():
             stop()
             old = library()
             report['before_migration'] = old
+            check('legacy_library_has_owned_draft', old['owned'] == 1 and sorted(old['cards']) == ['T-0', 'T-D'], dict(owned=old['owned'], cards=old['cards']))
 
             operator = start(source)
             status = request('status', operator, task='T-0')
             report['legacy_status'] = {key: status.get(key) for key in ('ok', 'error')} | ({'task_id': status['task']['task_id'], 'project': status['task']['project_id']}
                                                                                            if status.get('ok') else {})
             check('legacy_task_readable_by_name', status.get('ok') and status['task']['project_id'] == 'legacy', report['legacy_status'])
+            # The window's snapshot takes a bare name too, and binds the migrated attempt's launch to the full id.
+            snapshot = request('workbench_snapshot', operator, task='T-0')
+            report['legacy_snapshot'] = {key: snapshot.get(key) for key in ('ok', 'error')} | ({'task_id': snapshot['task']['task_id']} if snapshot.get('task') else {})
+            check('snapshot_by_bare_name', snapshot.get('ok') and snapshot['task']['task_id'] == 'legacy+T-0' and
+                  (snapshot.get('launch') or {}).get('task') == 'legacy+T-0', report['legacy_snapshot'])
+            draft = request('card_show', operator, task='legacy+T-D', card_version=1)
+            check('legacy_draft_in_its_project', draft.get('ok') and draft['card']['goal'] == '旧终端的草稿', {key: draft.get(key) for key in ('ok', 'error')})
             stop()
             new = library()
             report['after_migration'] = new
             check('migration_keeps_counts', all(new['counts'][table] >= old['counts'][table] for table in old['counts']) and
                   {table: new['counts'][table] for table in KEPT} == {table: old['counts'][table] for table in KEPT},
                   dict(before=old['counts'], after=new['counts']))
-            check('legacy_task_in_its_project', [row[0] for row in new['tasks']] == ['legacy+T-0'] and new['cards'] == ['legacy+T-0'] and
-                  new['event_tasks'] == ['legacy+T-0'] and new['tasks'][0][1]['project_id'] == 'legacy', new)
+            # The ownership records are history: kept as they were (the counts above), never consulted again.
+            check('legacy_task_in_its_project', [row[0] for row in new['tasks']] == ['legacy+T-0'] and sorted(new['cards']) == ['legacy+T-0', 'legacy+T-D'] and
+                  new['owned'] == old['owned'] and
+                  new['event_tasks'] == ['legacy+T-0', 'legacy+T-D'] and new['tasks'][0][1]['project_id'] == 'legacy', new)
             operator = start(source)
             # The old attempt's worker went with the old daemon: the migrated attempt is reclaimed through the gate
             # (its launch record, pane and events under the new id), then the task is dispatched and delivered again.
@@ -397,6 +418,11 @@ def main():
         ambiguous = request('status', operator, task=TASK)
         report['ambiguous'] = {key: ambiguous.get(key) for key in ('ok', 'error', 'details')}
         check('bare_name_ambiguous_for_operator', not ambiguous.get('ok') and ambiguous.get('error') == 'task_ambiguous', report['ambiguous'])
+        # The operator's CLI names the project beside a bare name.
+        by_cli = subprocess.run(['node', str(source / 'workbench/src/gates/cli.ts'), '--state', str(state), 'status', '--task', TASK, '--project', 'beta'],
+                                env=env, capture_output=True, text=True, timeout=60)
+        report['cli_project'] = dict(code=by_cli.returncode, out=by_cli.stdout[-300:], err=by_cli.stderr[-300:])
+        check('cli_bare_name_with_project', by_cli.returncode == 0 and json.loads(by_cli.stdout)['task']['task_id'] == keys['beta'], report['cli_project'])
         # A full id with a different project beside it is refused, not resolved by either.
         contradicted = request('card_save', operator, task='alpha+T-8', project='beta', card=str(card_file('contradicted', '矛盾', 'T-8')), expected_version=0)
         report['contradicted'] = {key: contradicted.get(key) for key in ('ok', 'error')}
@@ -454,7 +480,8 @@ def main():
         stop()
         final = library()
         report['final_library'] = dict(counts=final['counts'], tasks=sorted(row[0] for row in final['tasks']), owned=final['owned'])
-        check('no_draft_ownership_records', final['owned'] == 0, final['owned'])
+        # No new ownership record: only the old revision's one, when the migration ran.
+        check('no_new_draft_ownership_records', final['owned'] == (1 if args.scenario == 'all' else 0), final['owned'])
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

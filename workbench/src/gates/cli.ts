@@ -146,7 +146,8 @@ export async function main(argv = process.argv.slice(2)) {
       throw new Error("command and task required");
     const allowed = [
       "state",
-      ...(!noTask ? ["task"] : []),
+      // T-123: beside a bare task name the operator names its project.
+      ...(!noTask ? ["task", "project"] : []),
       ...contract.required,
       ...(contract.optional ?? []),
     ];

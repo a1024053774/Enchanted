@@ -1,7 +1,5 @@
 import type { A2AReviewFinding } from "../contracts/a2aGates.ts";
-
-// T-123: a task id is `<project>+<name>`, each part a gate id.
-export const taskIdPattern = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\+[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
+import { taskIdPattern } from "../contracts/a2aMembership.ts";
 
 // Validation of explicit wire data only. No inference from prose or tool output.
 export class QualityProtocolError extends Error {

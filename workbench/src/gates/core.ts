@@ -11,6 +11,7 @@ import { DatabaseSync } from "node:sqlite";
 import {
   A2AGateRequest,
   A2AInboxRequest,
+  taskIdPattern,
   A2AStopRequest,
   type A2AInboxEntry,
   type A2AInboxDelivery,
@@ -37,7 +38,7 @@ import { execFile as execProcessFile, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { TaskCardError, taskCardTemplate, validateTaskCard, pathAllowed, pathIntersection, projectRules, type ProjectQuality, type TaskCard } from "./taskCards.ts";
 import { Schema } from "effect";
-import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError, taskIdPattern } from "./qualityProtocol.ts";
+import { executorScore, reviewVerdict, reviewEvidence, QualityProtocolError } from "./qualityProtocol.ts";
 import { A2AMembership } from "./membership.ts";
 import { readyTickets } from "./readyTickets.ts";
 import {
@@ -1076,6 +1077,10 @@ export class A2AGates {
     const renamed = new Map<string, string>();
     for (const row of this.db.prepare("SELECT id, json_extract(data,'$.project_id') AS project FROM tasks WHERE instr(id,'+')=0").all())
       renamed.set(String(row.id), taskKey(String(row.project), String(row.id)));
+    // The two libraries commit separately: a start interrupted between them finds the tasks migrated but not the
+    // memberships, which name their own project.
+    for (const row of this.membership.database.prepare("SELECT id, json_extract(data,'$.projectId') AS project FROM memberships WHERE instr(id,'+')=0").all())
+      if (!renamed.has(String(row.id))) renamed.set(String(row.id), taskKey(String(row.project), String(row.id)));
     const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(row => String(row.name));
     const owners = new Map<string, string>();
     if (tables.includes("orchestration_events"))
@@ -1107,7 +1112,7 @@ export class A2AGates {
         for (const table of names) {
           const columns = db.prepare(`PRAGMA table_info("${table}")`).all().map(column => String(column.name));
           const plain = columns.filter(column => column === "task" || keyed[table] === column);
-          const json = columns.filter(column => column === "data" || column === "details");
+          const json = columns.filter(column => column === "data" || column === "details" || column === "input");
           if (!plain.length && !json.length) continue;
           const select = db.prepare(`SELECT rowid AS row_id, ${[...plain, ...json].map(column => `"${column}"`).join(",")} FROM "${table}"`);
           const update = db.prepare(`UPDATE "${table}" SET ${[...plain, ...json].map(column => `"${column}"=?`).join(",")} WHERE rowid=?`);

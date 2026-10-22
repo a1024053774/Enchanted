@@ -1,7 +1,8 @@
 import { Refusal } from "./gates/core.ts";
 import type { RelayFile } from "./relayFiles.ts";
 import { OrchestrationStore } from "./store.ts";
-import { reviewRequest, taskIdPattern } from "./gates/qualityProtocol.ts";
+import { reviewRequest } from "./gates/qualityProtocol.ts";
+import { taskIdPattern } from "./contracts/a2aMembership.ts";
 import type { A2AInboxDelivery } from "./contracts/a2aInbox.ts";
 
 export function isPendingInboxResult(result: any): boolean {
