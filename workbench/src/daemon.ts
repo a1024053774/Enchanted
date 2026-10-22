@@ -286,7 +286,20 @@ export async function serve(
     }
     if (input.command === "tasks_list") return { ok: true, tasks: gates.listTasks(input.project) };
     if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes, roleRequests) };
-    if (input.command === 'sidebar_snapshot') return { ok: true, ...await sidebarSnapshot(gates, store, panes, roleRequests, quota.current()) };
+    if (input.command === 'sidebar_snapshot') {
+      const snapshot = await sidebarSnapshot(gates, store, panes, roleRequests, quota.current());
+      // Issue reports waiting for the user's decision, per project (T-132).
+      const projects = await Promise.all(snapshot.projects.map(async (project: any) => {
+        let waiting = 0;
+        for (const task of project.tasks) {
+          const result = await gates.call({ command: 'issues', task: task.task_id });
+          if (!result.ok) throw new Refusal(result.error ?? 'issues_unavailable');
+          waiting += (result.issues ?? []).filter((view: any) => view.state === '等你决定').length;
+        }
+        return { ...project, issues_waiting: waiting };
+      }));
+      return { ok: true, ...snapshot, projects };
+    }
     const assertScope = (record: Record<string, any>) => {
       if (record.role === "shell") {
         if ((input.project ?? null) !== record.project) throw new Refusal("launch_project_mismatch");
@@ -636,7 +649,9 @@ export async function serve(
       if (authority.kind === "launch" && identity.launch !== input.launch) throw new Refusal("stale_launch");
       return { ok: true, ...panes.launchInfo(input.launch) };
     }
-    const actor = authority.kind === "operator" ? { address: "executor",
+    // Since T-126 only the desktop app holds the operator credential, so an issue disposition it sends is the
+    // user's own (T-132): the gate lets only the user close a blocking issue.
+    const actor = authority.kind === "operator" ? { address: input.command === "disposition" ? "user" : "executor",
       assertActive: async () => { if (stopping) throw new Refusal("daemon_stopping"); } } : undefined;
     const { parent_launch, ...gateInput } = input;
     assertOpenedRepo(gateInput);

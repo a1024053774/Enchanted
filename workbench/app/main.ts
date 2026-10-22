@@ -237,6 +237,32 @@ function registerHandlers() {
     if (!result.ok) throw new Error(result.error);
     return result.role_request;
   });
+  // Issue reports of every task in a project (T-132). A failed read fails the whole list, never an empty one.
+  ipcMain.handle('a2a:issues', async (event, project: unknown) => {
+    const context = windowTarget(event);
+    if (typeof project !== 'string' || !project) throw new Error('Invalid project');
+    const listed = await request(context.options.state, { command: 'tasks_list', project });
+    if (!listed.ok) throw new Error(listed.error);
+    return await Promise.all(listed.tasks.map(async (task: any) => {
+      const result = await request(context.options.state, { command: 'issues', task: task.task_id }, context.operator);
+      if (!result.ok) throw new Error(result.error);
+      return { task: task.task_id, name: String(task.task_id).slice(String(task.task_id).indexOf('+') + 1), title: task.title, issues: result.issues };
+    }));
+  });
+  ipcMain.handle('a2a:issue-answer', async (event, task: unknown, issue: unknown, answer: unknown) => {
+    const context = windowTarget(event);
+    if (![task, issue, answer].every(value => typeof value === 'string' && value.trim())) throw new Error('Invalid answer');
+    const result = await request(context.options.state, { command: 'answer_issue', task, issue, answer }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+  });
+  ipcMain.handle('a2a:issue-dispose', async (event, task: unknown, issue: unknown, action: unknown, reason?: unknown, basis?: unknown) => {
+    const context = windowTarget(event);
+    if (![task, issue].every(value => typeof value === 'string' && value) || !['close', 'snooze'].includes(action as string) ||
+      [reason, basis].some(value => value !== undefined && typeof value !== 'string')) throw new Error('Invalid disposition');
+    const result = await request(context.options.state, { command: 'disposition', task, issue, action,
+      ...(reason !== undefined ? { reason } : {}), ...(basis !== undefined ? { basis } : {}) }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+  });
   ipcMain.handle('a2a:projects', async event => {
     const context = windowTarget(event);
     const result = await request(context.options.state, { command: 'projects_list' });

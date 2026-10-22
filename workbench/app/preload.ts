@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   decideRoleRequest: (roleRequest: string, approved: boolean) => ipcRenderer.invoke('a2a:decide-role-request', roleRequest, approved),
   notificationSetting: (enabled?: boolean, preference?: 'notifications' | 'dockBadges') => ipcRenderer.invoke('a2a:notification-setting', enabled, preference),
   tasks: (project: string) => ipcRenderer.invoke('a2a:tasks', project),
+  issues: (project: string) => ipcRenderer.invoke('a2a:issues', project),
+  answerIssue: (task: string, issue: string, answer: string) => ipcRenderer.invoke('a2a:issue-answer', task, issue, answer),
+  disposeIssue: (task: string, issue: string, action: 'close' | 'snooze', reason?: string, basis?: string) =>
+    ipcRenderer.invoke('a2a:issue-dispose', task, issue, action, reason, basis),
   selection: () => ipcRenderer.invoke('a2a:selection'),
   openProject: () => ipcRenderer.invoke('a2a:open-project'),
   removeProject: (project: string) => ipcRenderer.invoke('a2a:remove-project', project),
