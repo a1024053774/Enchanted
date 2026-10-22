@@ -559,7 +559,7 @@ Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外
 `~/Library/Application Support/Enchanted/`，测试版放在 `~/Library/Application Support/Enchanted Test/`，
 用 `--state` 指定数据目录时放在同级的 `<数据目录>-credentials/`；目录为 0700。重连用原凭据接受后台核对；
 端点不存在才尝试启动，死 PID／socket 处理仍由 transport 完成。拒绝、超时或所有者未知
-明确报错，不重试或接管。不要把凭据文件加入证据或 Git。若同一数据目录
+明确报错，不重试或接管。凭据目录里以前启动的凭据文件保留；不要把它们加入证据或 Git。若同一数据目录
 已有手工启动、但没有桌面连接描述的后台，应用会拒绝接管，须由原启动者按原入口收尾。
 
 T-126 之前的安装把描述文件和每次启动的凭据都放在数据目录里。应用启动时迁移：当前凭据复制到新位置（0600）并写新的
