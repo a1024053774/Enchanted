@@ -105,6 +105,7 @@ def main():
         'projects': {str(fixture.repo): {'hasTrustDialogAccepted': True}}}), encoding='utf-8')
     report['fixture'] = str(fixture.dir)
     electron = None
+    locked = []
 
     def check(name, condition, detail=None):
         assert condition, f'{name}: {detail}'
@@ -153,7 +154,7 @@ def main():
         run_task('T-1')
 
         # T-1's native records, made unreadable for now: archiving the retrospective session must not wait on them.
-        locked = [path for path in (fixture.home / '.claude/projects').rglob('*.jsonl')]
+        locked += [path for path in (fixture.home / '.claude/projects').rglob('*.jsonl')]
         for path in locked:
             path.chmod(0)
 
@@ -296,6 +297,9 @@ def main():
                 pass
         raise
     finally:
+        # Readable again even when the run stopped early, so the fixture can be archived.
+        for path in locked:
+            path.chmod(0o600)
         try:
             if electron:
                 electron.stop()
