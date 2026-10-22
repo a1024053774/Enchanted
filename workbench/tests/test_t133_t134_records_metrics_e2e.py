@@ -5,10 +5,10 @@
 - T-1（文档）：一次交付通过，没人插手。打分 边界 3、品味 3。
 - T-2（文档）：worker 先上报一条非阻塞问题，用户经桌面应用的问题入口答复；交付后用户在它的窗格里粘贴一段字并回车。
   打分 边界 2、品味 1。
-- T-3（修复）：第一次交付内容不对，完成条件不过，门禁打回（completion）；worker 改好重交后通过。打分 边界 3、品味 2。
+- T-3（测试）：第一次交付内容不对，完成条件不过，门禁打回（completion）；worker 改好重交后通过。打分 边界 3、品味 2。
 由此：集成 3 个，一次到位 1 个（T-2 有人介入，T-3 交付两轮且有打回），比例 0.333；打回 completion 1 次，其余 0；
 注意力：T-2 答题 1、介入 1（一次回车提交），其余为 0；worker 与审查员会话的模型是接口实际回的模型，不是卡上请求的；
-终端主控会话没有回合记录，模型记 unknown。打分汇总：文档 2 个 attempt，边界 2.5、品味 2；修复 1 个，边界 3、品味 2。
+终端主控会话没有回合记录，模型记 unknown。打分汇总：文档 2 个 attempt，边界 2.5、品味 2；测试 1 个，边界 3、品味 2。
 记录页的期望来自库里的 user_inputs 与门禁规则（落在受管 attempt 会话里的输入记为人工介入）。
 
 失败方式（先列再写）：
@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripted_claude import SERVED_MODEL, Electron, Fixture, gate_line, prompt_text, quote, working_directory  # noqa: E402
 
 FILES = {'T-1': 'a.txt', 'T-2': 'b.txt', 'T-3': 'c.txt'}
-TYPES = {'T-1': '文档', 'T-2': '文档', 'T-3': '修复'}
+TYPES = {'T-1': '文档', 'T-2': '文档', 'T-3': '测试'}
 SCORES = {'T-1': (3, 3), 'T-2': (2, 1), 'T-3': (3, 2)}
 ANSWER = '先按卡做，内容格式以后再说。'
 TYPED = 'T-133：请确认 b.txt 结尾有换行'
@@ -142,7 +142,7 @@ def main():
         assert answered.get('ok'), answered
         fixture.wait('答复送到 worker', lambda: any(ANSWER in json.dumps(b['messages'], ensure_ascii=False) for b in fixture.api.bodies if b['key'] == 'worker:T-2'), 120)
         worker = dispatched['attempt']['runtime_identity']['launch']
-        window = fixture.request('window_open', fixture.operator, launch=worker, project='demo')
+        window = fixture.request('window_open', fixture.operator, launch=worker, task=dispatched['attempt']['task_id'])
         assert window['ok'], window
         for sequence, data in enumerate(['\x1b[200~' + TYPED + '\x1b[201~', '\r'], 1):
             sent = fixture.request('window_input', window['identity'], sequence=sequence, request_id=str(uuid.uuid4()), data=data)
@@ -179,9 +179,9 @@ def main():
         check('model_use_is_observed_not_requested', len(managed) == 6 and all(s['model'] == SERVED_MODEL and s['requested_model'] == 'claude-haiku-5-5'
               and s['turns'] > 0 for s in managed) and len(controller) == 1 and controller[0]['model'] == 'unknown', sessions)
         by_model = {(row['model'], row['task_type']): row['sessions'] for row in metrics['model_use']['by_model']}
-        check('model_use_by_model_and_task_type', by_model == {(SERVED_MODEL, '文档'): 4, (SERVED_MODEL, '修复'): 2, ('unknown', '项目级'): 1}, by_model)
+        check('model_use_by_model_and_task_type', by_model == {(SERVED_MODEL, '文档'): 4, (SERVED_MODEL, '测试'): 2, ('unknown', '项目级'): 1}, by_model)
         scores = {row['task_type']: (row['model'], row['attempts'], row['results'], row['boundary_discipline'], row['engineering_taste']) for row in metrics['scores']}
-        check('scores_by_executor_and_task_type', scores == {'文档': (SERVED_MODEL, 2, {'通过': 2}, 2.5, 2), '修复': (SERVED_MODEL, 1, {'通过': 1}, 3, 2)}, scores)
+        check('scores_by_executor_and_task_type', scores == {'文档': (SERVED_MODEL, 2, {'通过': 2}, 2.5, 2), '测试': (SERVED_MODEL, 1, {'通过': 1}, 3, 2)}, scores)
         empty = fixture.request('metrics', fixture.operator, project='demo', since='2099-01-01T00:00:00.000Z')
         check('no_data_is_null_not_zero', empty.get('ok') and empty['first_time']['rate'] is None and not empty['attention'] and not empty['scores']
               and not empty['model_use']['sessions'], empty)
@@ -207,6 +207,8 @@ def main():
         check('records_page_matches_stored_inputs', [r['id'] for r in rows] == [i['id'] for i in stored], rows)
         check('interventions_marked_by_gate_rule', {r['id'] for r in rows if r['marked'] and r['badge']} == expected_marked and
               typed[0]['id'] in expected_marked and answer[0]['id'] in expected_marked, dict(rows=rows, expected=sorted(expected_marked)))
+        enter = [i for i in stored if i['text'] == '\r']
+        check('key_input_named', len(enter) == 1 and any(r['id'] == enter[0]['id'] and '（按键：回车）' in r['text'] for r in rows), rows)
         check('dispatch_text_not_recorded', not any('显式交付' in r['text'] or '审查这一次交付' in r['text'] for r in rows), rows)
         # The project terminal's own input (the fixture printed its token there) is not recorded: T-133's open gap.
         report['terminal_input_recorded'] = any('A2A_TERMINAL_TOKEN' in i['text'] for i in stored)
@@ -220,7 +222,7 @@ def main():
                                   "none:document.querySelectorAll('.metrics-page .metric-none').length})")
         report['metrics_page'] = shown
         check('metrics_page_shows_four_views', shown['rate'] == '0.333' and shown['sections'] == ['model-use', 'first-time', 'attention', 'scores'] and
-              sorted(shown['models']) == sorted([f'{SERVED_MODEL}|文档', f'{SERVED_MODEL}|修复', 'unknown|项目级']) and shown['none'] == 0, shown)
+              sorted(shown['models']) == sorted([f'{SERVED_MODEL}|文档', f'{SERVED_MODEL}|测试', 'unknown|项目级']) and shown['none'] == 0, shown)
         electron.evaluate(SET_VALUE + "set(document.querySelector('.metrics-page input[type=date]'),'2099-01-01');")
         electron.until('无数据', "document.querySelectorAll('.metrics-page .metric-none').length >= 4", 20)
         electron.screenshot(fixture.out / '03-metrics-no-data.png')

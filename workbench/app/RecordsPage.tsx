@@ -9,6 +9,10 @@ const channels: Record<string, string> = { 'terminal-window': '窗格键入', 'i
 const roles: Record<string, string> = { worker: 'worker', reviewer: '审查员', monitor: '监视器', ideation: '构思主控', executor: '执行主控', shell: '项目终端' };
 const time = (value: string) => new Date(value).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const short = (task: string | null) => task ? task.slice(task.indexOf('+') + 1) : '项目级';
+// A key the user pressed in a pane is recorded as its control character; show its name instead of nothing.
+const keys: Record<string, string> = { '\r': '回车', '\n': '换行', '\x1b': 'Esc', '\x7f': '退格', '\t': 'Tab', '\x03': 'Ctrl-C' };
+const content = (text: string) => keys[text] ? `（按键：${keys[text]}）` : /^[\x00-\x1f\x7f]+$/.test(text)
+  ? `（按键：${[...text].map(c => keys[c] ?? '0x' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ')}）` : text;
 
 export function RecordsPage({ project }: { project: string | null }) {
   const [records, setRecords] = useState<UserInputRecord[] | null>(null);
@@ -54,7 +58,7 @@ export function RecordsPage({ project }: { project: string | null }) {
           <td>{roles[record.role ?? ''] ?? record.role ?? '未知会话'}</td>
           <td>{forms[record.form] ?? record.form}{record.intervention !== null && <span className="record-badge record-intervention">人工介入</span>}</td>
           <td>{channels[record.channel] ?? record.channel}{record.certainty === 'inferred' ? '（推断）' : ''}</td>
-          <td className="record-text">{record.text}</td>
+          <td className="record-text">{content(record.text)}</td>
         </tr>)}</tbody>
       </table>
     </>}
