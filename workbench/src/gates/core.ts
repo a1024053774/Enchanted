@@ -2547,6 +2547,37 @@ export class A2AGates {
     } finally { lock.close(); }
   }
 
+  // Other tasks in the same repository keep working while this review runs (T-131): they move their
+  // own attempt branches and hidden refs, and advance the integration branch through recorded
+  // integrations. Any other ref change since the review started is refused.
+  private reviewRefsUnchanged(task: A2ATask, review: A2AReview, actual: string) {
+    const parse = (text: string) => new Map(text.split("\n").filter(Boolean).map((line) => {
+      const at = line.lastIndexOf("=");
+      return [line.slice(0, at), line.slice(at + 1)] as const;
+    }));
+    const before = parse(review.shared_refs), after = parse(actual);
+    const others = new Map(this.db.prepare("SELECT data FROM tasks").all()
+      .map((row) => JSON.parse(String(row.data)) as A2ATask)
+      .filter((other) => other.task_id !== task.task_id && other.repo === task.repo).map((other) => [other.task_id, other]));
+    const branch = /^refs\/heads\/a2a\/(.+)-a\d+$/;
+    const otherOwns = (ref: string) => [...others.values()].some((other) =>
+      ref.startsWith(`refs/a2a/attempts/${other.task_id}/`) || ref.startsWith(`refs/a2a/verifications/${other.task_id}/`) ||
+      branch.exec(ref)?.[1] === taskName(other.task_id) && taskName(other.task_id) !== taskName(task.task_id));
+    const started = this.db.prepare("SELECT seq FROM events WHERE task=? AND type='review_requested' AND json_extract(details,'$.review.review_id')=?")
+      .get(task.task_id, review.review_id);
+    let head = before.get(task.integration_ref);
+    if (started) {
+      for (const row of this.db.prepare("SELECT task, details FROM events WHERE seq>? AND type IN ('integrated','integrated_reconciled') ORDER BY seq")
+        .all(started.seq)) {
+        const details = JSON.parse(String(row.details));
+        const intent = details.intent ?? details;
+        if (others.has(String(row.task)) && intent.integration_ref === task.integration_ref && intent.G === head) head = intent.M;
+      }
+    }
+    return [...new Set([...before.keys(), ...after.keys()])].every((ref) => before.get(ref) === after.get(ref) || otherOwns(ref) ||
+      ref === task.integration_ref && after.get(ref) === head);
+  }
+
   private async checkReviewBoundary(task: A2ATask, review: A2AReview) {
     const expectedCopy = this.reviewCandidateWorkspace(review.review_id);
     requireGate(review.candidate_workspace === expectedCopy && existsSync(review.candidate_workspace) &&
@@ -2555,7 +2586,7 @@ export class A2AGates {
     requireGate(review.candidate_workspace !== review.workspace && review.candidate_workspace !== review.attempt.workspace,
       "review_candidate_copy_identity_unknown", { review, worker_workspace: review.attempt.workspace });
     const refs = await this.sharedRefs(task);
-    requireGate(refs === review.shared_refs, "review_shared_refs_changed", { expected: review.shared_refs, actual: refs });
+    requireGate(this.reviewRefsUnchanged(task, review, refs), "review_shared_refs_changed", { expected: review.shared_refs, actual: refs });
 
     const listed = await this.git(task.task_id, task.repo, ["worktree", "list", "--porcelain", "-z"]);
     requireGate(existsSync(review.workspace) && !lstatSync(review.workspace).isSymbolicLink() &&

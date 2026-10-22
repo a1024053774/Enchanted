@@ -618,8 +618,6 @@ export class Panes implements GateRuntime {
     } finally { closeSync(fd); }
   }
   async createThread(task: A2ATask, attempt: A2AAttempt, overrides: ExecutionOverrides = {}) {
-    check([...this.panes.values()].filter((pane) => pane.record.role === "worker")
-      .every((pane) => pane.stopped && pane.archived), "single_worker_slice");
     check(attempt.runtime_mode === "workspace-write", "worker_requires_workspace_write");
     await this.createPane(task, attempt, this.config, undefined, overrides);
   }
