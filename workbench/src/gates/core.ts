@@ -2193,7 +2193,7 @@ export class A2AGates {
           if (trailers.launch![0] !== attempt.delivery.launch_id) error = "trailer_identity_mismatch";
           else if (trailers.tool![0] !== attempt.delivery.cli) error = "trailer_identity_mismatch";
           else if (trailers.model![0] !== "unknown" && trailers.model![0] !== attempt.delivery.model) error = "trailer_identity_mismatch";
-          // A Claude session's effort is observed only at its Stop hook, after the commit (T-122).
+          // The commit hook reads a Claude turn's effort from its transcript; a line that records none gives unknown (T-130).
           else if (trailers.effort![0] !== attempt.delivery.effort &&
             !(trailers.effort![0] === "unknown" && this.launchRecordCli(attempt.delivery.launch_id) === "Claude Code")) error = "trailer_identity_mismatch";
         } else error = "trailer_launch_record_missing";

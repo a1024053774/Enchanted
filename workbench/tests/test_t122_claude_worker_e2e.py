@@ -16,7 +16,8 @@
 10. Claude worker 的交付起不了审查（审查只认 Codex 的预建 home），或审查者换了 CLI/模型、能写候选 worktree 或请求目录、不在一次性副本里跑变异。
 14. 沙箱外的 git commit 执行了项目自己的钩子（core.hooksPath 指向 worktree 里 worker 写的 .husky），在沙箱外
     写出 worktree、移动 main；或者跳过了却没有记录（审查 03 第 1 条，用户裁定不跑项目钩子）。
-12. 交付记的模型是请求值而不是这一回合实际回复的模型；任务卡写 Claude 而派发不带模型时用了 Codex 的出厂模型（审查 01 第 3 条）。
+12. 交付记的模型是请求值而不是这一回合实际回复的模型；任务卡写 Claude 而派发不带模型时用了 Codex 的出厂模型（审查 01 第 3 条）；
+    提交尾注的 A2A-Model、A2A-Effort 写 unknown 或请求值，而不是会话记录里实际的模型与强度（T-130）。
 11. 审查通过后，打分与集成走不到项目工作分支。
 13. 门禁放过与 worker 启动记录不符的 Claude reviewer（模型、Fast 不同，钩子命令带前缀），或者因 Claude 可执行文件路径
     不同（版本更新）误拒合法 reviewer（审查 03 第 2、3 条）。--reviewer-case 改写源码副本里 reviewer 的启动方式。
@@ -432,9 +433,9 @@ def main():
         branch_log = subprocess.check_output(['git', '-C', str(repo), 'log', '--format=%H %s', f'{main_before}..{commit}'], text=True).splitlines()
         report['branch_log'] = branch_log
         check('only_the_trailered_commit', len(branch_log) == 1 and branch_log[0].startswith(commit), branch_log)
-        # At commit time a Claude session's model and effort are not yet observed: both trailers say unknown.
+        # T-130: the trailers carry the model the API actually answered with (not the requested one) and the card's effort.
         check('commit_carries_claude_identity', trailers.get('Native-Session') == worker.get('native_session') and
-              trailers.get('Launch') == worker_launch and trailers.get('Model') == 'unknown' and trailers.get('Effort') == 'unknown', trailers)
+              trailers.get('Launch') == worker_launch and trailers.get('Model') == SERVED_MODEL and trailers.get('Effort') == 'low', trailers)
         delivery = task['current_attempt'].get('delivery') or {}
         report['delivery'] = {key: delivery.get(key) for key in ('model', 'effort', 'cli')}
         check('delivery_records_observed_model', delivery.get('model') == SERVED_MODEL and delivery.get('effort') == 'low', report['delivery'])

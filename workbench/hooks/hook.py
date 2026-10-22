@@ -7,12 +7,44 @@ import subprocess
 import sys
 
 
+def claude_turn_facts(env):
+    # A Claude Code worker (T-130): its transcript records, for every reply, the model that answered and the
+    # effort. The reply running this commit is already written, so the latest real reply is this turn's.
+    native = env['A2A_NATIVE_SESSION']
+    config = Path(env.get('CLAUDE_CONFIG_DIR') or Path(env['HOME']) / '.claude').resolve()
+    projects = config / 'projects'
+    files = list(projects.glob('*/' + native + '.jsonl')) if projects.is_dir() else []
+    if not files:
+        return 'unknown', 'unknown'
+    if len(files) != 1 or projects not in files[0].resolve().parents:
+        raise ValueError('原生会话记录不唯一或路径越界')
+    latest = None
+    with files[0].open('r', encoding='utf-8') as stream:
+        for line in stream:
+            if not line.endswith('\n'):
+                break  # An incomplete append cannot provide current-turn facts.
+            record = json.loads(line)
+            if not isinstance(record, dict) or record.get('type') != 'assistant':
+                continue
+            if record.get('sessionId') != native:
+                raise ValueError('原生记录不是本会话')
+            model = (record.get('message') or {}).get('model')
+            # "<synthetic>" marks a reply Claude Code wrote itself (an API error or an interruption).
+            if isinstance(model, str) and model and model != '<synthetic>':
+                latest = record
+    if latest is None:
+        return 'unknown', 'unknown'
+    # Claude Code versions write effort, perTurnEffort or both; where both are written they have always agreed.
+    efforts = {value for value in (latest.get('effort'), latest.get('perTurnEffort')) if value}
+    if len(efforts) > 1:
+        raise ValueError('原生记录的强度字段不一致')
+    return latest['message']['model'], efforts.pop() if efforts else 'unknown'
+
+
 def latest_turn_facts(env):
     home = env.get('CODEX_HOME')
     if not home:
-        # A Claude Code worker: model and effort are observed only at its Stop hook,
-        # after this commit; the requested values are not turn facts.
-        return 'unknown', 'unknown'
+        return claude_turn_facts(env)
     native = env['CODEX_THREAD_ID']
     sessions = Path(home).resolve() / 'sessions'
     files = [path for path in sessions.rglob('*.jsonl') if path.name.endswith(native + '.jsonl')]
