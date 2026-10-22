@@ -7,6 +7,7 @@ Claude 用用户自己的登录。项目目录放在用户自己的 Claude 早�
 """
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -36,8 +37,9 @@ def main():
         raise AssertionError('真实运行不该请求脚本化接口')
 
     fixture = Fixture('t136-real-', plan)
-    # The user's own environment: their HOME and Claude login, no scripted endpoint.
-    fixture.env.update(HOME=str(Path.home()))
+    # The user's own environment: their HOME and Claude login, no scripted endpoint. Claude finds its login in the
+    # macOS keychain under the user's account name, so USER and LOGNAME come along (run 01 said "Not logged in").
+    fixture.env.update(HOME=str(Path.home()), **{key: os.environ[key] for key in ('USER', 'LOGNAME') if key in os.environ})
     for key in ('ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN'):
         fixture.env.pop(key, None)
     args.repo.mkdir(parents=True)
