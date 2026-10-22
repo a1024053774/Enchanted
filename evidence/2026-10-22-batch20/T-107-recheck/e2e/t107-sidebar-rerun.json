@@ -1,0 +1,308 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-107",
+  "attempt": "a1",
+  "model_calls": 0,
+  "argv": [
+    "/private/tmp/a2a-t107-re/workbench/tests/run_t107_sidebar.py",
+    "--source",
+    "/private/tmp/a2a-t107-re",
+    "--dependencies",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules",
+    "--electron-dist",
+    "/Users/luckye/Documents/Code/a2a/workbench/node_modules/electron/dist",
+    "--summary",
+    "evidence/2026-10-22-batch20/T-107-recheck/e2e/t107-sidebar-rerun.json"
+  ],
+  "baseline": "0967cd465ce20c01b0a6ee29b2931ecbf4032caf",
+  "checks": [
+    {
+      "name": "真实 Electron 已知坏基线",
+      "status": "PASS",
+      "observed": "无侧栏 IPC、agent 树与 Git 摘要，符合预期红态"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-betctlek/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-betctlek/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":76787,\"root\":\"/private/tmp/t107-real-betctlek/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-betctlek/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-betctlek/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":false,\"panes\":[],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-betctlek/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-betctlek/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":76787,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-betctlek/repo-one"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-betctlek/repo-one/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) c7ff6cf] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "init",
+        "-b",
+        "main",
+        "/private/tmp/t107-real-betctlek/repo-two"
+      ],
+      "exit": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/t107-real-betctlek/repo-two/.git/\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-two",
+        "add",
+        "."
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-two",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-m",
+        "fixture base"
+      ],
+      "exit": 0,
+      "stdout": "[main (root-commit) c7ff6cf] fixture base\n 1 file changed, 1 insertion(+)\n create mode 100644 content\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "c7ff6cfebc2ff9fdd5a8c0f27beae8e1f69a30c7\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "config",
+        "remote.origin.url",
+        "/private/tmp/t107-real-betctlek/unused-origin"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "config",
+        "remote.origin.fetch",
+        "+refs/heads/*:refs/remotes/origin/*"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "update-ref",
+        "refs/remotes/origin/main",
+        "c7ff6cfebc2ff9fdd5a8c0f27beae8e1f69a30c7"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "branch",
+        "--set-upstream-to=origin/main",
+        "main"
+      ],
+      "exit": 0,
+      "stdout": "branch 'main' set up to track 'origin/main'.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "-am",
+        "fixture ahead"
+      ],
+      "exit": 0,
+      "stdout": "[main a0bed5a] fixture ahead\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/private/tmp/t107-real-betctlek/repo-one",
+        "status",
+        "-sb"
+      ],
+      "exit": 0,
+      "stdout": "## main...origin/main [ahead 1]\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-betctlek/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-betctlek/state",
+        "daemon_start"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":76820,\"root\":\"/private/tmp/t107-real-betctlek/state\",\"helper\":\"/Users/luckye/Documents/Code/a2a/workbench/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-betctlek/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-betctlek/state",
+        "pane_layout"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"recovering\":false,\"saved\":true,\"panes\":[{\"launch\":\"agent-0\",\"task\":\"task-0\",\"position\":0,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-1\",\"task\":\"task-0\",\"position\":1,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-2\",\"task\":\"task-0\",\"position\":2,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-3\",\"task\":\"task-0\",\"position\":3,\"native_session\":null,\"resume_argv\":null},{\"launch\":\"agent-4\",\"task\":\"task-0\",\"position\":4,\"native_session\":null,\"resume_argv\":null}],\"arrangement\":null}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-betctlek/baseline/workbench/app/build.mjs",
+        "--slot",
+        "t107-red-853ecf57"
+      ],
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"out\":\"/private/tmp/a2a-build-t107-red-853ecf57/dist\",\"main\":\"/private/tmp/a2a-build-t107-red-853ecf57/dist/main.mjs\",\"preload\":\"/private/tmp/a2a-build-t107-red-853ecf57/dist/preload.cjs\",\"renderer\":\"/private/tmp/a2a-build-t107-red-853ecf57/dist/renderer/index.html\",\"cacheDir\":\"/private/tmp/a2a-build-t107-red-853ecf57/vite-cache\",\"temporary\":\"/private/tmp/a2a-build-t107-red-853ecf57/tmp\",\"source\":\"/private/tmp/t107-real-betctlek/baseline/workbench/app\"}\n",
+      "stderr": "[plugin builtin:vite-reporter] \n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "argv": [
+        "node",
+        "/private/tmp/t107-real-betctlek/baseline/workbench/src/gates/cli.ts",
+        "--state",
+        "/private/tmp/t107-real-betctlek/state",
+        "daemon_stop"
+      ],
+      "exit": 0,
+      "stdout": "{\"ok\":true,\"pid\":76820,\"stopping\":true}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "/private/tmp/a2a-t107-re/workbench/tests/test_t107_daemon_readonly.mjs",
+        "/private/tmp/t107-real-betctlek/daemon-identity.json",
+        "/private/tmp/t107-real-betctlek/candidate",
+        "identity"
+      ],
+      "exit": 1,
+      "stdout": "{\"status\":\"INCOMPLETE\",\"mode\":\"identity\",\"source\":\"/private/tmp/t107-real-betctlek/candidate\",\"root\":\"/private/tmp/t107-daemon-read-rl6Guj\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"error\":\"ReferenceError: setInterval is not defined\",\"stack\":\"ReferenceError: setInterval is not defined\\n    at Module.serve (vm:module(0):56:22)\\n    at file:///private/tmp/a2a-t107-re/workbench/tests/test_t107_daemon_readonly.mjs:69:26\"}\n",
+      "stderr": "(node:76852) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:76852) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\n"
+    }
+  ],
+  "limitations": [
+    "等待用户回答、等待主控回答的真实信号缺口未解决；七状态验收 INCOMPLETE。",
+    "现有 worker 派发无具体父 launch 绑定，worker/reviewer 在未归属的任务下；完整层级验收 INCOMPLETE。",
+    "真实系统通知未触发；转换和开关只由 IPC 合同验证。"
+  ],
+  "error": "AssertionError({'argv': ['node', '--experimental-vm-modules', '/private/tmp/a2a-t107-re/workbench/tests/test_t107_daemon_readonly.mjs', '/private/tmp/t107-real-betctlek/daemon-identity.json', '/private/tmp/t107-real-betctlek/candidate', 'identity'], 'exit': 1, 'stdout': '{\"status\":\"INCOMPLETE\",\"mode\":\"identity\",\"source\":\"/private/tmp/t107-real-betctlek/candidate\",\"root\":\"/private/tmp/t107-daemon-read-rl6Guj\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"error\":\"ReferenceError: setInterval is not defined\",\"stack\":\"ReferenceError: setInterval is not defined\\\\n    at Module.serve (vm:module(0):56:22)\\\\n    at file:///private/tmp/a2a-t107-re/workbench/tests/test_t107_daemon_readonly.mjs:69:26\"}\\n', 'stderr': '(node:76852) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\\n(Use `node --trace-warnings ...` to show where the warning was created)\\n(node:76852) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\\n'})",
+  "traceback": "Traceback (most recent call last):\n  File \"/private/tmp/a2a-t107-re/workbench/tests/run_t107_sidebar.py\", line 187, in main\n    run(['node', '--experimental-vm-modules', source / 'workbench/tests/test_t107_daemon_readonly.mjs', probe, candidate, mode])\n  File \"/private/tmp/a2a-t107-re/workbench/tests/run_t107_sidebar.py\", line 75, in run\n    assert value.returncode == 0, report['commands'][-1]\nAssertionError: {'argv': ['node', '--experimental-vm-modules', '/private/tmp/a2a-t107-re/workbench/tests/test_t107_daemon_readonly.mjs', '/private/tmp/t107-real-betctlek/daemon-identity.json', '/private/tmp/t107-real-betctlek/candidate', 'identity'], 'exit': 1, 'stdout': '{\"status\":\"INCOMPLETE\",\"mode\":\"identity\",\"source\":\"/private/tmp/t107-real-betctlek/candidate\",\"root\":\"/private/tmp/t107-daemon-read-rl6Guj\",\"model_calls\":0,\"scope\":\"actual daemon/socket/Panes/collector/SQLite/traces; seeded PTY identity, no CLI or model\",\"error\":\"ReferenceError: setInterval is not defined\",\"stack\":\"ReferenceError: setInterval is not defined\\\\n    at Module.serve (vm:module(0):56:22)\\\\n    at file:///private/tmp/a2a-t107-re/workbench/tests/test_t107_daemon_readonly.mjs:69:26\"}\\n', 'stderr': '(node:76852) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time\\n(Use `node --trace-warnings ...` to show where the warning was created)\\n(node:76852) ExperimentalWarning: VM Modules is an experimental feature and might change at any time\\n'}\n",
+  "cleanup_complete": true,
+  "retained_fixture": "/private/tmp/t107-real-betctlek",
+  "retained_builds": [
+    "/private/tmp/a2a-build-t107-red-853ecf57"
+  ]
+}
