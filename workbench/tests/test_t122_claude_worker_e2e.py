@@ -92,7 +92,8 @@ def main():
         patches = []
         if args.mutant:
             patches.append({
-                'trust-unanswered': ('src/panes.ts', 'if (claude && pane.state === "unknown") this.confirmWorkerTrust(pane, data);', ''),
+                'trust-unanswered': ('src/panes.ts', 'if (pane.state === "unknown") (claude ? this.confirmWorkerTrust(pane, data) : this.openCodexRestricted(pane, data));',
+                                     'if (pane.state === "unknown" && !claude) this.openCodexRestricted(pane, data);'),
                 'no-initial-release': ('src/panes.ts', '        pane.state = "idle";\n        return;', '        return;'),
                 'user-settings-loaded': ('src/panes.ts', '"--setting-sources", "", "--strict-mcp-config", ', '"--setting-sources", "local", "--strict-mcp-config", '),
                 'submit-provider-codex': ('src/gates/core.ts', 'live.provider === (this.boundCard(attempt).executor.cli === "Claude Code" ? "claude" : "codex") &&', 'live.provider === "codex" &&'),

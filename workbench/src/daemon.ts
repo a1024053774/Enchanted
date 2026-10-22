@@ -545,7 +545,6 @@ export async function serve(
       if (authority.kind!=="operator") throw new Refusal("operator_required");
       return {ok:true,...await panes.screenKey(input.thread,input,authority.source)};
     }
-    if (input.command === "pane_release") return { ok: true, ...await panes.release(input.thread, input.reason) };
     if (input.command === "pane_dispatch") return { ok: true, dispatch: await panes.parentLaunch.run(
       authority.kind === "operator" ? input.parent_launch ?? null : null, () => panes.dispatch(panes.get(input.thread), input.body)) };
     if (input.command === "signal") {
@@ -683,7 +682,7 @@ export async function serve(
         const viewing = catalogRead || ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
         if (!viewing && !shellInput) store.event("request_received", { id: envelope.id, input: eventInput(envelope.input), source: authority.source });
         result = await handle(envelope, authority, asker);
-        if (result.ok && ["controller_start", "pane_release", "window_release", "signal"].includes(envelope.input.command)) {
+        if (result.ok && ["controller_start", "window_release", "signal"].includes(envelope.input.command)) {
           await settleInboxFeedback();
         }
         if (!catalogRead && !shellInput && (!viewing || !result.ok)) store.event("request_result", { id: envelope.id, command: envelope.input.command,

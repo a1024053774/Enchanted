@@ -9,16 +9,21 @@ import { startDaemon, request } from './src/transport.ts';
 import { readOperatorCredential } from './src/credentials.ts';
 import { run } from './ui/main.mjs';
 
-// What the backend needs to start workers (T-122). The user's own claude is found the
-// way their terminal finds it, through their login shell; without it no Claude worker starts.
-async function workerLaunchConfig(packaged) {
-  let claude = null;
+// What the backend needs to start workers (T-122). The user's own claude and codex are found
+// the way their terminal finds them, through their login shell; without one, no worker of that
+// CLI starts. Codex sessions run in the user's own ~/.codex (user ruling 2026-10-21, T-127).
+async function userExecutable(name) {
   try {
-    const { stdout } = await promisify(execFile)('/bin/zsh', ['-lic', 'command -v claude'], { timeout: 15000 });
-    claude = stdout.trim().split('\n').pop() || null;
-  } catch (error) { console.error(JSON.stringify({ warning: 'claude_not_found', reason: String(error) })); }
+    const { stdout } = await promisify(execFile)('/bin/zsh', ['-lic', `command -v ${name}`], { timeout: 15000 });
+    const found = stdout.trim().split('\n').pop() || '';
+    return found.startsWith('/') ? found : null;
+  } catch (error) { console.error(JSON.stringify({ warning: `${name}_not_found`, reason: String(error) })); return null; }
+}
+async function workerLaunchConfig(packaged) {
+  const [claude, codex] = await Promise.all([userExecutable('claude'), userExecutable('codex')]);
   const revision = packaged.a2a?.revision ?? 'unknown';
-  return { ...(claude?.startsWith('/') ? { claude_bin: claude } : {}), role_card: join(app.getAppPath(), 'roles/worker.md'),
+  return { ...(claude ? { claude_bin: claude } : {}),
+    ...(codex ? { codex_bin: codex, codex_home: join(homedir(), '.codex') } : {}), role_card: join(app.getAppPath(), 'roles/worker.md'),
     role_card_revision: revision, reviewer_role_card: join(app.getAppPath(), 'roles/reviewer.md'), reviewer_role_card_revision: revision,
     code_revision: revision, turn_limit: 6,
     hook_authorization: 'Enchanted product launch: worker hooks are passed only through each session\'s launch arguments (T-071, T-122)' };

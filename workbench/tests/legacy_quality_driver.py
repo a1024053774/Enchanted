@@ -10,24 +10,20 @@ import subprocess
 import time
 
 
-def prepare_review_control(root, count=8):
+def prepare_review_control(root):
     # Panes passes realpath(CODEX_HOME). Fix the fixture's configured spelling
     # before creation; keep the PTY boundary's exact home/shell checks intact.
     control = Path(root).resolve(strict=True) / 'quality-control'; control.mkdir()
-    home = control / 'unused-worker-home'; home.mkdir()
+    # Worker and reviewers share one Codex home (T-127).
+    home = control / 'codex-home'; home.mkdir()
     role = control / 'role.txt'; role.write_text('受控测试审查输入，无模型执行。\n', encoding='utf-8')
     executable = control / 'fixture-version'
     executable.write_text('#!/bin/sh\n[ "$#" = 1 ] && [ "$1" = --version ] || exit 93\nprintf "codex-cli 0.162.1\\n"\n', encoding='utf-8')
     executable.chmod(0o755)
-    reviewers = []
-    for index in range(count):
-        target = control / ('review-home-%d' % index); target.mkdir()
-        reviewers.append(dict(codex_home=str(target), role_card=str(role), role_card_revision='controlled-reviewer',
-                              hook_authorization='no-real-hooks-installed'))
     config = dict(codex_bin=str(executable), codex_home=str(home), role_card=str(role),
                   role_card_revision='controlled-fixture', code_revision='frozen-source',
                   hook_authorization='no-real-hooks-installed', turn_limit=10,
-                  turn_authorization='controlled-turns-only', reviewers=reviewers)
+                  turn_authorization='controlled-turns-only', reviewer_role_card=str(role), reviewer_role_card_revision='controlled-reviewer')
     (control / 'config.json').write_text(json.dumps(config) + '\n', encoding='utf-8')
     (control / 'process-facts.json').write_text('{}\n', encoding='utf-8')
     return control
@@ -82,8 +78,8 @@ class QualityDriver:
             raise RuntimeError('Expected a running independent reviewer: ' + json.dumps(current))
         record = json.loads((self.control / (review['launch_id'] + '.json')).read_text(encoding='utf-8'))
         if record['env']['A2A_ROLE'] != 'reviewer': raise RuntimeError('Reviewer role is not independent.')
-        self.command('pane_release', '--thread', review['thread_id'], '--reason', 'explicit controlled reviewer release')
-        deadline = time.monotonic() + 8
+        # The daemon answers the controlled "Open restricted" screen and releases the review prompt itself (T-127).
+        deadline = time.monotonic() + 15
         while True:
             pane = self.command('pane_status', '--thread', review['thread_id'])
             if pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1': break

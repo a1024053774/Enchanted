@@ -24,11 +24,11 @@ const sessionInventory = () => {
 mkdirSync(state);
 process.env.A2A_OPERATOR_CREDENTIAL = join(root, 'operator.json');
 createOperatorCredential(state);
-const config = { codex_bin: manifest.binary, codex_home: join(root, 'worker-home'),
+// Since T-127 a Codex reviewer runs in the worker's home; this reviewer-only fixture has one home.
+const config = { codex_bin: manifest.binary, codex_home: join(root, 'reviewer-home'),
   role_card: join(root, 'role.md'), role_card_revision: 'T112/permission-native',
-  code_revision: manifest.revision, hook_authorization: 'T112 isolated local API only', turn_limit: 1,
-  reviewers: [{ codex_home: join(root, 'reviewer-home'), role_card: join(root, 'role.md'),
-    role_card_revision: 'T112/permission-native', hook_authorization: 'T112 isolated local API only' }] };
+  reviewer_role_card: join(root, 'role.md'), reviewer_role_card_revision: 'T112/permission-native',
+  code_revision: manifest.revision, hook_authorization: 'T112 isolated local API only', turn_limit: 1 };
 let panes;
 await serve(state, config, (directory, instance) => { panes = instance; return new A2AGates(directory, instance); });
 const until = async (read, predicate, description) => {
@@ -54,11 +54,11 @@ try {
     verification_id: 'verification-id', workspace: root };
   await panes.createReview(task, review, '执行本地固定 shell 探针，不提交或验收。');
   writeFileSync(join(root, 'launch.json'), JSON.stringify(panes.get('review').record, null, 2) + '\n', { flag: 'wx' });
-  // Initial release requires the foreground CLI, as production Panes.release
-  // does. A new rollout/session may not exist until that first input is sent.
+  // A new rollout/session may not exist until the first input is sent. Since T-127 the daemon
+  // releases that input itself once it has answered Codex's "Open restricted" screen.
   const foreground = await until(() => panes.processInfo('review'), row => row.leader && !row.failed, 'Foreground reviewer process');
   writeFileSync(join(root, 'pre-release.json'), JSON.stringify({ foreground, sessions: sessionInventory() }, null, 2) + '\n', { flag: 'wx' });
-  await panes.release('review', 'T112 explicitly authorized local fake API sandbox probe');
+  await until(async () => panes.get('review').started, Boolean, 'Reviewer released after the restricted-folder screen');
   writeFileSync(join(root, 'released.json'), JSON.stringify({ released: true }) + '\n', { flag: 'wx' });
   const identity = await until(() => panes.processInfo('review'), row => row.leader && row.native_session && !row.failed, 'Native reviewer identity after first input');
   assert.equal(identity.leader, foreground.leader, 'Reviewer leader changed during first input');

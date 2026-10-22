@@ -14,7 +14,8 @@ export function installControlledPTY(source: string, control: string, config: an
   require.cache[ptyModule]!.exports = {
     ...original,
     spawn(shell: string, argv: string[], options: any) {
-      const homes = [config.codex_home, ...(config.reviewers ?? []).map((item: any) => item.codex_home)];
+      // Worker and reviewer share the one Codex home (T-127).
+      const homes = [config.codex_home];
       if (shell !== "/bin/zsh" || !homes.includes(options.env.CODEX_HOME)) {
         audit("runtime.jsonl", { method: "controlled-spawn-refused", shell,
           home: options.env.CODEX_HOME, configured_homes: homes, launch: options.env.A2A_LAUNCH });
@@ -28,11 +29,14 @@ export function installControlledPTY(source: string, control: string, config: an
       }
       const native = env.A2A_ROLE === "reviewer" && facts.next_reviewer_native
         ? facts.next_reviewer_native : "fixture-native-" + env.A2A_LAUNCH;
-      const log = join(env.CODEX_HOME, "sessions", "rollout-" + native + ".jsonl");
-      mkdirSync(join(env.CODEX_HOME, "sessions"), { recursive: true });
+      // Codex keeps rollouts under sessions/YYYY/MM/DD (local date); the daemon reads only those from the launch day on.
+      const now = new Date();
+      const day = join(env.CODEX_HOME, "sessions", String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0"));
+      const log = join(day, "rollout-" + native + ".jsonl");
+      mkdirSync(day, { recursive: true });
       writeFileSync(log, JSON.stringify({ type: "session_meta", payload: { source: "cli", id: native, cwd: options.cwd } }) + "\n", { flag: "wx" });
       const terminal = { pid: 31000 + terminals.length * 10, callbacks: [] as Function[], turns: 0,
-        exited: false, launch: env.A2A_LAUNCH, native, log, env };
+        exited: false, launch: env.A2A_LAUNCH, native, log, env, restrictedOpened: false };
       terminals.push(terminal);
       // All credentials here are newly generated test capabilities. There is no
       // copied auth file, user home, native model session or provider credential.
@@ -43,13 +47,21 @@ export function installControlledPTY(source: string, control: string, config: an
       audit("runtime.jsonl", { method: "spawn", launch: terminal.launch, native, real_codex_turns: 0 });
       return {
         pid: terminal.pid,
-        onData: () => {},
+        // Codex 0.163 opens an untrusted folder with this question (T-127 probe-01); the daemon answers it.
+        onData(callback: Function) {
+          setTimeout(() => callback("Do you trust the contents of this directory?\r\n\x1b[1m› 1. Open restricted\x1b[0m\r\n  2. Quit\r\n"), 20);
+        },
         onExit(callback: Function) { terminal.callbacks.push(callback); },
         write(data: string) {
           if (terminal.exited) throw new Error("Write after controlled terminal exit.");
           const registered = panes.store.db.prepare("SELECT seq,id,launch,data FROM dispatch_records ORDER BY seq").all();
           const intents = panes.store.db.prepare("SELECT seq,launch,data FROM orchestration_events WHERE type='turn_submit_intent' ORDER BY seq").all();
           audit("writes.jsonl", { launch: terminal.launch, data, registered, intents });
+          if (data === "\r" && !terminal.restrictedOpened) {
+            terminal.restrictedOpened = true;
+            audit("runtime.jsonl", { method: "restricted-opened", launch: terminal.launch });
+            return;
+          }
           if (data === "\r") {
             const turn = `fixture-turn-${++terminal.turns}`;
             appendFileSync(log, JSON.stringify({ type: "event_msg", payload: { type: "task_started", turn_id: turn } }) + "\n");

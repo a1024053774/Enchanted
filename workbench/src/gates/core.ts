@@ -2224,7 +2224,8 @@ export class A2AGates {
         config("sandbox_workspace_write.network_access=false") && config("features.network_proxy=false") &&
         config("sandbox_workspace_write.exclude_slash_tmp=true") &&
         config("sandbox_workspace_write.exclude_tmpdir_env_var=true") &&
-        launch.review_home_was_empty === true &&
+        // The candidate copy opens untrusted: its .codex files, which the worker could write, stay off (T-127).
+        config(`projects={${JSON.stringify(realpathSync(review.candidate_workspace))}={trust_level="untrusted"}}`) &&
         !argv.some((arg) => ["resume", "fork", "--resume", "--fork"].includes(String(arg)));
     requireGate(launch && launch.role === "reviewer" && launch.review_id === review.review_id &&
       launch.review_verification_id === review.verification_id && launch.session === review.session_id &&
@@ -3623,6 +3624,15 @@ export class A2AGates {
         const sameSession = this.db.prepare("SELECT 1 FROM launch_records WHERE id!=? AND json_extract(data,'$.native_session')=? LIMIT 1")
           .get(review.launch_id!, live.runtime_identity.native_session);
         requireGate(!sameSession, "review_native_session_reused");
+        // A Codex reviewer shares the user's home with every other session (T-127): the rollout
+        // metadata the daemon read for its session must name the one-time candidate copy.
+        if (launch.cli === "Codex") {
+          const meta = this.db.prepare("SELECT data FROM orchestration_events WHERE launch=? AND type='native_record' AND json_extract(data,'$.record.type')='session_meta' AND json_extract(data,'$.record.payload.id')=? ORDER BY seq LIMIT 1")
+            .get(review.launch_id!, live.runtime_identity.native_session);
+          const cwd = meta ? JSON.parse(String(meta.data)).record?.payload?.cwd : null;
+          requireGate(cwd === review.candidate_workspace, "review_native_session_folder",
+            { native_session: live.runtime_identity.native_session, cwd, candidate_workspace: review.candidate_workspace });
+        }
         const verdict = reviewVerdict(args.verdict, args.findings);
         const evidence = reviewEvidence(args.review_requirements, args.report);
         requireGate(evidence.review_requirements.mutation_checks.workspace === review.candidate_workspace,

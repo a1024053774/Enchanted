@@ -28,7 +28,6 @@ const commands: Record<string, { required: string[]; optional?: string[] }> = {
   pane_output: { required: ["launch", "offset"], optional: ["max-bytes"] },
   workbench_snapshot: { required: [], optional: ["launch", "task", "project"] },
   pane_process_info: { required: ["thread"] },
-  pane_release: { required: ["thread", "reason"] },
   pane_dispatch: { required: ["thread", "body-file"], optional: ["parent-launch"] },
   pane_screen_key: { required: ["thread", "key", "purpose", "screen-id", "screen-file", "selected-label", "authorization-ref"] },
   signal: { required: ["launch"] },

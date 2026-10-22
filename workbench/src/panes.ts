@@ -76,7 +76,7 @@ export interface LaunchConfig {
   codex_bin?: string;
   codex_home?: string;
   claude_bin?: string;
-  // The reviewer role card for Claude Code reviewers, which need no pre-made home.
+  // The reviewer role card. A reviewer runs on the worker's CLI (D24) in the same home.
   reviewer_role_card?: string; reviewer_role_card_revision?: string;
   role_card?: string;
   role_card_revision?: string;
@@ -85,7 +85,6 @@ export interface LaunchConfig {
   hook_authorization?: string;
   turn_limit?: number;
   turn_authorization?: string;
-  reviewers?: { codex_home: string; role_card: string; role_card_revision: string; hook_authorization: string }[];
 }
 export type EmptyInputDeclaration = {
   statement: "用户声明输入框已空"; launch: string; window_id: string;
@@ -117,7 +116,7 @@ async function claudeArgv(executable: string, signal: string, session: string,
   return [executable, "--session-id", session, "--model", selection.model, "--effort", selection.effort, "--permission-mode", "dontAsk",
     "--setting-sources", "", "--strict-mcp-config", "--settings", JSON.stringify(settings)];
 }
-const CLAUDE_STARTUP_DEADLINE_MS = 120_000;
+const STARTUP_DEADLINE_MS = 120_000;
 // The text a Claude prompt submitted. A long paste reaches UserPromptSubmit wrapped in Claude's
 // own pasted_content markers (seen with the user's login, T-122 GUI round 01); anything else
 // is compared as it is.
@@ -131,6 +130,12 @@ async function workerGitDenied(worktree: string) {
   // mutant runs 07), so only the common dir is listed.
   const common = (await exec("git", ["-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim();
   return [realpathSync(common)];
+}
+// The folder Codex resolves a linked worktree's trust against: its repository root
+// ("Trusting will apply to the repository root", T-127 probe-01 run 2).
+async function repositoryRoot(worktree: string) {
+  const common = (await exec("git", ["-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout.trim();
+  return realpathSync(dirname(common));
 }
 type Pane = {
   record: Record<string, any> & { id: string; task: string | null; attempt: string | null };
@@ -541,26 +546,17 @@ export class Panes implements GateRuntime {
   async createReview(task: A2ATask, review: A2AReview, prompt: string) {
     const attempt = { ...review.attempt, session_id: review.session_id, thread_id: review.thread_id,
       workspace: review.candidate_workspace, runtime_identity: null, turn_id: null };
+    check(this.config.reviewer_role_card && this.config.reviewer_role_card_revision, "review_launch_config_required");
+    const reviewConfig = { ...this.config, role_card: this.config.reviewer_role_card,
+      role_card_revision: this.config.reviewer_role_card_revision };
     if (task.card.executor.cli === "Claude Code") {
       // D24: the reviewer defaults to the worker's CLI and model; it runs with the worker launch's selection.
       const worker = this.launchRecord(review.attempt.runtime_identity!.launch);
-      check(this.config.reviewer_role_card && this.config.reviewer_role_card_revision, "review_launch_config_required");
-      await this.createPane(task, attempt, { ...this.config, role_card: this.config.reviewer_role_card,
-        role_card_revision: this.config.reviewer_role_card_revision }, review,
+      await this.createPane(task, attempt, reviewConfig, review,
         { model: worker.model_requested, effort: worker.effort_requested, fast: worker.service_tier_requested === "fast" });
-    } else await this.createCodexReview(task, review, attempt);
+    } else await this.createPane(task, attempt, reviewConfig, review);
     const pane = this.get(review.thread_id);
     await this.dispatch(pane, `${pane.record.role_text}\n\n${prompt}`);
-  }
-  private async createCodexReview(task: A2ATask, review: A2AReview, attempt: A2AAttempt) {
-    const index = this.store.launches().filter((record) => record.role === "reviewer").length;
-    const approved = this.config.reviewers?.[index];
-    check(approved, "review_launch_config_required");
-    const home = realpathSync(approved.codex_home);
-    check(home !== realpathSync(this.config.codex_home!) &&
-      !this.store.launches().some((record) => record.env.CODEX_HOME === home), "review_home_reused");
-    check(!existsSync(join(home, "sessions")) || readdirSync(join(home, "sessions")).length === 0, "review_home_not_empty");
-    await this.createPane(task, attempt, { ...this.config, ...approved }, review);
   }
   private async createPane(task: A2ATask, attempt: A2AAttempt, c: LaunchConfig, review?: A2AReview, overrides: ExecutionOverrides = {}) {
     const role = review ? "reviewer" : "worker";
@@ -569,8 +565,8 @@ export class Panes implements GateRuntime {
     check((claude ? c.claude_bin : c.codex_bin && c.codex_home) && c.role_card && c.hook_authorization && c.code_revision && c.role_card_revision, "launch_config_required");
     check(Number.isInteger(c.turn_limit) && c.turn_limit! > 0 && c.turn_limit! <= (claude ? 6 : 10), "invalid_turn_limit");
     const executable = realpathSync(claude ? c.claude_bin! : c.codex_bin!);
+    // A Codex worker and its reviewer run in the user's own Codex home (user ruling 2026-10-21, T-127).
     const home = claude ? null : realpathSync(c.codex_home!);
-    if (!claude) check(home !== join(process.env.HOME ?? "", ".codex"), "isolated_codex_home_required");
     const environment: Record<string, string> = {};
     for (const key of ["PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "USER", "LOGNAME",
       "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
@@ -599,6 +595,11 @@ export class Panes implements GateRuntime {
     const networkProxy = "false";
     const excludeSlashTmp = review ? "true" : "false";
     const excludeTmpdir = review ? "true" : "false";
+    // Codex opens the session's folder untrusted: the folder's own .codex config, hooks and exec
+    // policies stay off, since the worker can edit them and its reviewer starts in a copy of its
+    // work; the home's rules, hooks and skills still apply (T-127 probe-01 runs 4 and 5). Codex
+    // then asks "Open restricted" once, which saves nothing; openCodexRestricted answers it.
+    const trustRoot = claude ? null : review ? realpathSync(launchWorkspace) : await repositoryRoot(launchWorkspace);
     const argv = claude ? await claudeArgv(executable, signalCommand, nativeSession!, { model, effort, fast },
       review ? [realpathSync(launchWorkspace)] : [realpathSync(launchWorkspace), requestDirectory],
       review ? [] : [requestDirectory], review ? [] : await workerGitDenied(launchWorkspace)) : [executable, "--no-daemon", "--no-alt-screen", "-C", launchWorkspace,
@@ -606,6 +607,7 @@ export class Panes implements GateRuntime {
       "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "-c", `service_tier=${JSON.stringify(fast ? 'fast' : 'default')}`,
       "-c", "check_for_update_on_startup=false", "-c", "tui.notifications=false",
       "-c", `sandbox_workspace_write.network_access=${networkAccess}`, "-c", `features.network_proxy=${networkProxy}`,
+      "-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`,
       ...(review ? ["-c", `sandbox_workspace_write.exclude_slash_tmp=${excludeSlashTmp}`,
         "-c", `sandbox_workspace_write.exclude_tmpdir_env_var=${excludeTmpdir}`] : [])];
     if (!claude) {
@@ -632,8 +634,7 @@ export class Panes implements GateRuntime {
       role, sandbox: "workspace-write", parent_launch: this.parentLaunch.getStore() ?? null,
       cli: claude ? "Claude Code" : "Codex", ...(claude ? { native_session: nativeSession } : {}),
       ...(review ? { review_id: review.review_id, review_verification_id: review.verification_id,
-        review_workspace: review.workspace, candidate_workspace: review.candidate_workspace,
-        ...(claude ? {} : { review_home_was_empty: true }) } : {}),
+        review_workspace: review.workspace, candidate_workspace: review.candidate_workspace } : {}),
       created_at: new Date().toISOString(), cli_version: version, argv, executable_path: executable, request_dir: requestDirectory,
       model_requested: model, effort_requested: effort, service_tier_requested: fast ? 'fast' : 'default',
       turn_limit: c.turn_limit, turn_authorization: c.turn_authorization ?? null,
@@ -650,22 +651,23 @@ export class Panes implements GateRuntime {
       archived: false, failed: null, leader: null, native: nativeSession, turn: null, nativeEnded: false, active: null,
       queue: [], writing: false, stopInProgress: false, writes: Promise.resolve(), pendingInputs: 0, userDraft: false, interrupted: false, inputGeneration: 0, interruption: null, sending: null,
       offsets: new Map(), model: "unknown", effort: "unknown", terminalBuffer: "",
-      ...(claude ? { claudePromptId: null, claudePromptIds: new Set<string>(), startupScreen: "", trustAnswered: false } : {}) };
+      startupScreen: "", trustAnswered: false,
+      ...(claude ? { claudePromptId: null, claudePromptIds: new Set<string>() } : {}) };
     this.panes.set(attempt.thread_id, pane);
     this.store.event("pane_started", { shell_pid: terminal.pid, state: "unknown" }, record);
     // A Claude session that never reports its start (an unrecognised screen, a CLI that changed)
     // is a failure to show, not a pane that waits forever with its task queued.
-    if (claude) setTimeout(() => {
+    setTimeout(() => {
       if (!pane.started && !pane.stopped && !pane.failed)
-        this.recordFailure(pane, "worker_startup_unrecognised", new Error("session_start_missing"), { screen: pane.startupScreen });
-    }, CLAUDE_STARTUP_DEADLINE_MS).unref();
+        this.recordFailure(pane, "worker_startup_unrecognised", new Error(claude ? "session_start_missing" : "restricted_folder_screen_missing"), { screen: pane.startupScreen });
+    }, STARTUP_DEADLINE_MS).unref();
     terminal.onData((data: string) => {
       try {
         appendFileSync(join(this.root, "traces", launch, "pty.raw"), data);
       } catch (error) { this.recordFailure(pane, "trace_write_failed", error); return; }
       try { this.scan(pane); }
       catch (error) { this.recordFailure(pane, "native_read_failed", error); return; }
-      if (claude && pane.state === "unknown") this.confirmWorkerTrust(pane, data);
+      if (pane.state === "unknown") (claude ? this.confirmWorkerTrust(pane, data) : this.openCodexRestricted(pane, data));
       try { this.terminalProtocol(pane, data); }
       catch (error) { this.recordFailure(pane, "terminal_protocol_failed", error); }
     });
@@ -724,6 +726,39 @@ export class Panes implements GateRuntime {
       await press("\r");
       this.store.event("worker_trust_confirmed", { worktree: pane.record.worktree }, pane.record);
     })().catch(error => this.recordFailure(pane, "worker_trust_failed", error, { screen: pane.startupScreen }));
+  }
+  // A Codex session opens its folder untrusted (see createPane), so Codex first asks once whether to
+  // "Open restricted"; that choice saves nothing. Answer it, then release the first task: the
+  // session start hook only fires with the first prompt (T-127 probe-01 run 6), so the answered
+  // screen is the ready signal. Any other start-up screen, "Trust and continue" above all (that
+  // choice would be saved to the user's home), gets no key and fails the start-up.
+  openCodexRestricted(pane: Pane, data: string) {
+    if (pane.started || pane.active || pane.state !== "unknown" || pane.failed) return;
+    pane.startupOutputAt = Date.now();
+    pane.startupScreen = (pane.startupScreen! + data.replace(/\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "").replace(/\s+/g, "")).slice(-4096);
+    if (pane.startupScreen.includes("Trustandcontinue")) {
+      this.recordFailure(pane, "codex_folder_trust_requested", new Error("trust_choice_not_answered"), { screen: pane.startupScreen });
+      return;
+    }
+    if (pane.trustAnswered || !pane.startupScreen.includes("›1.Openrestricted")) return;
+    pane.trustAnswered = true;
+    const screen = pane.startupScreen;
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    // Act once the screen has been quiet for a moment, as for Claude's trust screen.
+    const quiet = async () => { for (const until = Date.now() + 5000; Date.now() - pane.startupOutputAt! < 800 && Date.now() < until;) await sleep(100); };
+    void (async () => {
+      this.store.event("codex_restricted_open_intent", { worktree: pane.record.worktree, screen }, pane.record);
+      await quiet();
+      await this.serializeWrite(pane, async () => { pane.pty.write("\r"); });
+      this.store.event("codex_restricted_opened", { worktree: pane.record.worktree }, pane.record);
+      await quiet();
+      const info = await this.processInfo(pane.record.thread);
+      check(info.leader && !info.failed, "foreground_codex_required", info);
+      if (pane.state !== "unknown" || pane.active || pane.failed || pane.stopped) return;
+      pane.started = true;
+      pane.state = "idle";
+      await this.drain(pane);
+    })().catch(error => this.recordFailure(pane, "codex_restricted_open_failed", error, { screen: pane.startupScreen }));
   }
   // A Claude turn's observed facts: the effort its Stop hook reports, and the model of the
   // turn's last reply in its transcript (the API's answer, not the requested model).
@@ -844,13 +879,20 @@ export class Panes implements GateRuntime {
     const home = pane.record.env.CODEX_HOME as string;
     const walk = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith(".jsonl") ? [join(dir, entry.name)] : []);
+    // The home is the user's own ~/.codex (T-127), whose sessions directory holds every earlier
+    // session under sessions/YYYY/MM/DD (local date). A session this launch started lives in a day
+    // directory from the launch's day on and was written since the launch; the rest is never read.
+    const since = Date.parse(pane.record.created_at);
+    const days: string[] = [];
+    for (const day = new Date(since); day.getTime() <= Date.now() + 86_400_000; day.setDate(day.getDate() + 1))
+      days.push(join(home, "sessions", String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, "0"), String(day.getDate()).padStart(2, "0")));
     const files = final ? [...pane.offsets.keys()].filter((file) => codexSessionFileName(file, pane.native)) :
-      pane.nativeFile ? [pane.nativeFile] : walk(join(home, "sessions"));
+      pane.nativeFile ? [pane.nativeFile] : [...new Set([...pane.offsets.keys(), ...days.flatMap(walk).filter((file) => statSync(file).mtimeMs >= since)])];
     if (final) check(pane.native && files.length === 1, "native_bound_log_unavailable", { native_session: pane.native, files });
     for (const file of files) {
       const bytes = readFileSync(file);
-      // An isolated home can retain an earlier attempt's rollout. Only logs
-      // belonging to this worktree contribute records or native identity.
+      // The home holds other sessions' rollouts. Only logs belonging to this
+      // worktree contribute records or native identity.
       const metadataEnd = bytes.indexOf(10);
       if (metadataEnd < 0 && !final) continue;
       const metadata = JSON.parse(bytes.subarray(0, metadataEnd < 0 ? bytes.length : metadataEnd).toString("utf8"));
@@ -1100,16 +1142,6 @@ export class Panes implements GateRuntime {
     if(pane.record.cli!=="Claude Code" || !pane.active)return;
     this.store.event("claude_submission_retired",{reason,submission:pane.active.id,dispatch:pane.active.dispatch,prompt_id:pane.claudePromptId},pane.record);
     pane.active=null;pane.claudePromptId=null;
-  }
-  async release(thread: string, reason: string) {
-    const pane = this.get(thread);
-    check(pane.state === "unknown" && !pane.active && !pane.failed, "initial_release_only");
-    const info = await this.processInfo(thread);
-    check(info.leader && !info.failed, pane.record.cli === "Claude Code" ? "foreground_claude_required" : "foreground_codex_required", info);
-    this.store.event("executor_action", { action: "initial_release", reason, source: "executor", process_info: info }, pane.record);
-    pane.state = "idle";
-    await this.drain(pane);
-    return this.status(thread);
   }
   async screenKey(thread: string, input: {key:string;purpose:string;screen_id:string;screen_base64:string;authorization_ref:string;selected_label:string}, source: string) {
     const pane=this.get(thread);

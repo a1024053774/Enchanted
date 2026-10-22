@@ -2,11 +2,11 @@
 // lost Fast selection, permission injection, reviewer using worker selection,
 // CLI startup error masked by a shell. PTY is supplied; this is not native E2E.
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, chmodSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, chmodSync, rmSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 const source = pathToFileURL(resolve(process.argv[3] ?? new URL('../', import.meta.url).pathname) + '/');
 const { OrchestrationStore } = await import(new URL('src/store.ts', source));
@@ -52,11 +52,12 @@ try {
   assert.throws(() => store.saveExecutionSettings('unknown', {}));
   report.checks.push('five_factory_defaults', 'restart_persists_role_settings', 'field_override_precedence', 'role_isolation', 'permission_fields_rejected');
   const home = join(root, 'home'); mkdirSync(home);
-  const reviewerHome = join(root, 'reviewer'); mkdirSync(reviewerHome);
+  // A worker always starts in a Git worktree; its repository root is the folder opened untrusted (T-127).
+  execFileSync('git', ['init', '-q', root]);
   const candidate = join(root, 'candidate'); mkdirSync(candidate);
   const config = { codex_bin: '/Users/luckye/.codex/packages/app-server-daemon/releases/0.162.1-aarch64-apple-darwin/bin/codex',
     codex_home: home, role_card: import.meta.filename, role_card_revision: 'T112/a1', code_revision: 'contract', hook_authorization: 'fixture', turn_limit: 1,
-    reviewers: [{ codex_home: reviewerHome, role_card: import.meta.filename, role_card_revision: 'T112/review', hook_authorization: 'fixture' }] };
+    reviewer_role_card: import.meta.filename, reviewer_role_card_revision: 'T112/review' };
   const task = { task_id: 'T112', project_id: 'fixture', spec_rev: 1, card: { executor: { cli: 'Codex', model: 'obsolete-card-model', effort: 'xhigh' } } };
   const attempt = { runtime_mode: 'workspace-write', workspace: root, attempt_id: 'a1', session_id: 'session', thread_id: 'worker', fence: 1, spec_rev: 1 };
   const panes = new Panes(root, store, config, () => {});
@@ -74,7 +75,9 @@ try {
   for (const flag of ['sandbox_workspace_write.network_access=false', 'features.network_proxy=false',
     'sandbox_workspace_write.exclude_slash_tmp=true', 'sandbox_workspace_write.exclude_tmpdir_env_var=true']) assert.ok(reviewer.argv.includes(flag));
   assert.ok(!Object.keys(reviewer.env).some(key => key.startsWith('GIT_CONFIG_')));
-  assert.notEqual(reviewer.env.CODEX_HOME, worker.env.CODEX_HOME);
+  // T-127 (user ruling 2026-10-21): the reviewer runs in the worker's Codex home, with its candidate copy opened untrusted.
+  assert.equal(reviewer.env.CODEX_HOME, worker.env.CODEX_HOME);
+  assert.ok(reviewer.argv.includes(`projects={${JSON.stringify(realpathSync(candidate))}={trust_level="untrusted"}}`));
   assert.equal(reviewer.env.A2A_ROLE, 'reviewer');
   report.checks.push('worker_selected_argv', 'reviewer_own_selection', 'reviewer_candidate_copy_sandbox_unchanged', 'reviewer_no_worker_git_hooks');
   // Unsupported values must cross a2a unchanged; only native startup may reject.

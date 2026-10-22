@@ -311,9 +311,11 @@ Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改�
 保存 issue 并暂停，不再注入修复消息。消息与 ACK 都不计为人工介入。
 
 机械通过后，后台为 C 创建 detached 审查目录和独立 thread/session/launch，
-不续接旧原生会话。`daemon_start --launch-config` 的 `reviewers` 数组按启动次序提供
-每个已批准 reviewer 的 `codex_home`、`role_card`、`role_card_revision`、`hook_authorization`。
-每项 home 必须独立、没有已有原生会话记录；没有该实例配置就明确拒绝，不沿用 worker home。
+不续接旧原生会话。reviewer 用 worker 的 CLI（D24），角色卡取 launch config 的 `reviewer_role_card`
+与 `reviewer_role_card_revision`，缺了就拒绝（`review_launch_config_required`）。Codex reviewer 与 worker
+在同一个 Codex home（用户自己的 `~/.codex`，T-127）；门禁按 argv 核对 reviewer 以 untrusted 打开候选副本，
+交结论时再核对后台读到的原生会话 `session_meta.cwd` 就是该副本（`review_native_session_folder`），
+加上原有的“不同于 worker、未被别的启动用过、不带 resume/fork”。
 reviewer 的 Git 审查 worktree 和候选提交保持不可写；门禁另建一次性 `candidate_workspace` 副本，
 reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含 `.git`，只允许在其中构造
 2～5 个变异。启动 argv 显式关闭网络代理并排除 `/tmp` 与 `$TMPDIR`，不安装 Git 尾注 hook，
@@ -325,7 +327,7 @@ reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含
 
 Codex 会话的模型、强度与 Fast 默认见角色设置，可在派发时覆盖。
 worker/reviewer 的 argv 显式传 service_tier，启动记录保存实际选择的 requested tier。
-出厂普通速度传 `-c service_tier="default"`，也用于隔离 CODEX_HOME；用户全局 priority 设置保持不变。
+出厂普通速度传 `-c service_tier="default"`，覆盖用户 home 里的全局 priority 设置，但不改写它。
 记录仅表示请求设置，不代表供应商实际执行tier；其他沙箱、hook及身份检查不变。
 
 reviewer 的最终消息必须是完整 `review_submit` JSON；身份和候选模板由门禁派发。
@@ -539,13 +541,14 @@ Claude reviewer 的整串 argv 由门禁逐位核对，settings 只能含 permis
 门禁在 submit 时按任务卡 CLI 核对 provider。终端主控发起的门禁调用以该终端为父 launch，派出的会话在侧栏挂在它下面。
 
 打包的工作台以产品启动配置起后台（`workbench/app/desktop.mjs`）：经用户的登录 shell 找到 `claude`，角色卡为
-打包的 `roles/worker.md` 与 `roles/reviewer.md`，版本为打包时的源码提交。产品配置还没有 Codex worker 的隔离
-home，打包版里派 Codex worker 会被拒绝（`launch_config_required`）。
+打包的 `roles/worker.md` 与 `roles/reviewer.md`，版本为打包时的源码提交。登录 shell 里找得到 `codex` 时，
+产品配置同时给出它和用户自己的 `~/.codex`（T-127，用户裁定“直接用我的~/.codex”）；找不到就不配 Codex，
+派 Codex worker 会被拒绝（`launch_config_required`）。
 worker名额释放及新attempt的原生记录归属由T-077联验；此卡保留S1的single_worker_slice约束。
 旧 `native-runtime.ts` 是隔离测试边界；它的旧证据不能证明新后台或真实窗格可用。
 
 真实启动需在 `daemon_start --launch-config /绝对路径/launch.json` 中给出固定 Codex
-路径、隔离 `codex_home`、角色卡及版本、代码版本、hook 授权引用和回合上限。
+路径、`codex_home`、角色卡及版本、代码版本、hook 授权引用和回合上限。
 `dispatch --runtime-mode workspace-write` 始终启动交互 zsh 中的 Codex：`-a never`、
 workspace-write、模型和思考强度默认见设置（可改）、显式 service tier（出厂普通速度，覆盖全局 priority）、关闭更新检查。
 
@@ -576,14 +579,16 @@ monitor 的设置已保存，真实 monitor 启动入口仍未实现，不能据
 [Claude 模型配置文档](https://code.claude.com/docs/en/model-config)为准；不支持的值原样交给 CLI 报错。
 原生 CLI 在会话建立前非零退出会记录 `launch_failed`，原始错误留在该 launch 的终端记录中，不替换成默认值。
 完整 argv 和请求模型/强度/tier 继续入库；这些请求值不证明供应商实际执行层级。
-reviewer 继续使用独立 home 和可写候选副本，原审查 worktree 只读；网络/tmp/身份权限边界不因模型设置改变。
+reviewer 与 worker 同一 home、只写候选副本，原审查 worktree 只读；网络/tmp/身份权限边界不因模型设置改变。
 
 网络及托管网络代理关闭，不设置 socket 放行名单。三个 hook 向同一 CLI 的 `signal`
 送原始 stdin；Stop 另外读取显式请求文件。启动参数、环境白名单、请求模型与实际回合模型分开记录。
 
-初态为“未知”。`pane_process_info --thread ID` 从 ps 核对前台领导进程；按本卡决定，
-执行主控再用 `pane_release --thread ID --reason 原因` 首次放行，记 executor action，
-不当作用户输入或人工介入。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
+初态为“未知”。Codex 会话以 untrusted 打开所在目录（见下文“用户的 Codex home”），启动时问一次
+“Open restricted”；后台等屏幕安静后按 Enter（记 `codex_restricted_open_intent`、`codex_restricted_opened`），
+再从 ps 核对前台领导进程，然后放行第一条派发。出现“Trust and continue”时不按键，记
+`codex_folder_trust_requested`；120 秒内没出现可识别的启动屏记 `worker_startup_unrecognised`。
+原先由执行主控调用的 `pane_release` 已删除。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
 只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
 Esc 后先由用户自行处理 CLI 草稿，看到输入框为空后点击“输入框已空，放行”。
 该 action 记为“用户声明输入框已空”，引用实际中断写入收据；后台不删除草稿，
@@ -593,6 +598,27 @@ UserPromptSubmit 只阻断当前登记注入的正文错配，输出 hook JSON b
 不按文本标记拦截手打提交，不裁剪、不重送，Stop 的提交匹配语义不变。
 09A-3R2 的实际隔离场景证据已有独立版本绑定；新候选的入口检查使用真实
 daemon/window socket 与 hook CLI、模拟 PTY 和 vendor 身份，不等于实际 Claude 复验。
+
+### 用户的 Codex home（T-127）
+
+Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`，产品里是用户自己的 `~/.codex`
+（用户 2026-10-21：“直接用我的~/.codex,因为这些 session 我还有用,别隔离”）。因此：
+
+- home 里的 rules、hooks.json、skills、provider 与登录都生效。用户的 allow 规则里有什么就放行什么，
+  例如 `git push origin HEAD`、`ssh win`；这些不经门禁，门禁只管认领、交付、验收、集成与回收（用户知情后选择“完全照用 ~/.codex”）。
+- a2a 不写 home 的 config.toml、rules、hooks.json；a2a 的钩子只经每会话的 `-c hooks.*` 传入，与 home 的钩子叠加。
+  Codex 自己会往 config.toml 写 `[tui]` 状态键，那不是 a2a 写的。
+- 每次启动传 `-c projects={"<目录>"={trust_level="untrusted"}}`：worker 是仓库根（Codex 按仓库根判断 linked worktree 的信任），
+  reviewer 是候选副本。目录自己的 `.codex/config.toml`、`.codex/hooks.json` 与 exec policy 因此不加载；
+  worker 能改这些文件，reviewer 的副本里也带着它们。“Open restricted”不保存信任，用户 home 不新增 `[projects]` 项。
+- 用户自己的会话也写在同一个 `sessions/` 下。后台只读启动当天起的日期目录里、启动后写过的文件，
+  且只认 `session_meta.cwd` 等于本会话工作目录的那一份。
+- 隔离 /tmp home 只用于验收夹具（AGENTS.md 的真实 Codex 验收规则），不再是产品要求；
+  `isolated_codex_home_required` 与 `reviewers` 预建 home 已删除。
+
+端到端测试：`python3 -B workbench/tests/test_t127_codex_home_e2e.py --summary <新路径>`。它在夹具 `$HOME/.codex`
+（带 rules、hooks.json、skill、400 个旧会话）里跑真实 Codex TUI，模型换成本地脚本化 Responses 接口；
+`--revision`、`--mutant`、`--reviewer-case` 见文件头。
 
 `daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
 
@@ -1025,13 +1051,13 @@ Stop 响应关闭后后台才排空反馈队列；响应成功或 paste_written 
 观察者应等待该反馈 dispatch 的 turn_submitted，并核对活动提交及写入收据。
 Claude 的 PermissionRequest 必须匹配当前 prompt／active；同窗口一次许可 Enter
 只记 control action/write，不增加根提交 intent 或替换原 active，普通 Enter 仍按用户提交记录。
-Git 尾注钩子从隔离 CODEX_HOME 中读取 CODEX_THREAD_ID 绑定的唯一根 CLI JSONL，
+Git 尾注钩子从会话的 CODEX_HOME 中读取 CODEX_THREAD_ID 绑定的唯一根 CLI JSONL，
 以最新 task_started 对应的 turn_context 取实际模型与强度；辅助会话不提供取值。
 当前回合缺上下文时写 unknown，不沿用上一回合或请求值。启动请求另存
 A2A_MODEL_REQUESTED/A2A_EFFORT_REQUESTED；实际沙箱读取与提交时序还须通过真实回合验收。
 
 运行时 agent 身份与交付回合分开：attempt 绑定 launch/thread、shell、原生会话和 Codex 领导者；
-首次输入前原生日志可以尚未出现，执行者核对有效前台领导者后通过 pane_release 放行首次派发；
+首次输入前原生日志可以尚未出现，后台答完 “Open restricted” 并核对有效前台领导者后放行首次派发；
 门禁只补首次可观测的原生会话，不用请求值补身份。
 run/reclaim 核对该身份，回执回合改变不会覆盖已提交的 turn_id。submit 仍要求当前活动
 caller/turn 和受管 session/fence/spec/attempt 一致。换领导者、换原生会话或缺已绑定事实

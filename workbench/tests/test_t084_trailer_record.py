@@ -219,7 +219,7 @@ def run_cases(phase, core, out, modes):
     (boundary / 'store.json').write_text(json.dumps({
         'threads': {}, 'next': 0, 'scenario': 'done-no-submit', 'prompts': [], 'closes': [], 'archived': {},
     }) + '\n', encoding='utf-8')
-    review = prepare_review_control(artifact, count=8)
+    review = prepare_review_control(artifact)
     logs = out / 'daemon'
     logs.mkdir()
     commands = []
