@@ -15,6 +15,7 @@ export class TrajectoryArchive {
   private db: DatabaseSync;
   private event: (type: string, data: unknown, launch: string) => void;
   private reported = new Set<string>();
+  private rolloutByCwd = new Map<string, string>();
   constructor(db: DatabaseSync, root: string, event: (type: string, data: unknown, launch: string) => void) {
     this.db = db; this.event = event;
     this.dir = join(root, 'archive');
@@ -54,10 +55,13 @@ export class TrajectoryArchive {
       if (path) sources.push({ launch: request.launch, path });
     }
     // Retrospective sessions the daemon started in a project terminal (T-136).
-    for (const row of this.db.prepare("SELECT launch, data FROM orchestration_events WHERE type='retrospective_started' ORDER BY seq").all()) {
+    // A Claude one is found by the session id it was started with; a Codex one, which picks its own id, by its working
+    // directory, the run's out folder, which no other session uses.
+    for (const row of this.db.prepare("SELECT time, launch, data FROM orchestration_events WHERE type='retrospective_started' ORDER BY seq").all()) {
       const data = JSON.parse(String(row.data));
-      if ((launch && String(row.launch) !== launch) || !data.native_session || !data.native_home) continue;
-      const path = this.claudeTranscript(data.native_home, data.native_session);
+      if ((launch && String(row.launch) !== launch) || !data.native_home) continue;
+      const path = data.cli === 'Claude Code' && data.native_session ? this.claudeTranscript(data.native_home, data.native_session)
+        : data.cli === 'Codex' && typeof data.out === 'string' ? this.codexRolloutIn(data.native_home, data.out, Date.parse(String(row.time))) : null;
       if (path) sources.push({ launch: String(row.launch), path });
     }
     return sources;
@@ -68,6 +72,26 @@ export class TrajectoryArchive {
     if (!existsSync(projects)) return null;
     for (const entry of readdirSync(projects, { withFileTypes: true }))
       if (entry.isDirectory() && existsSync(join(projects, entry.name, session + '.jsonl'))) return join(projects, entry.name, session + '.jsonl');
+    return null;
+  }
+
+  // The rollout whose first line (session_meta) names this working directory.
+  private codexRolloutIn(home: string, cwd: string, since: number) {
+    const known = this.rolloutByCwd.get(cwd);
+    if (known) return known;
+    for (const day = new Date(since - 86_400_000); day.getTime() <= Date.now() + 86_400_000; day.setDate(day.getDate() + 1)) {
+      const dir = join(home, 'sessions', String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
+      if (!existsSync(dir)) continue;
+      for (const name of readdirSync(dir).filter(name => name.startsWith('rollout-') && name.endsWith('.jsonl'))) {
+        const meta = firstLine(join(dir, name));
+        let parsed: any = null;
+        try { parsed = meta && JSON.parse(meta); } catch { continue; } // another session's file still being started
+        if (parsed?.type === 'session_meta' && parsed.payload?.cwd === cwd) {
+          this.rolloutByCwd.set(cwd, join(dir, name));
+          return join(dir, name);
+        }
+      }
+    }
     return null;
   }
 
@@ -137,4 +161,20 @@ export class TrajectoryArchive {
       ? readdirSync(path).reduce((sum, name) => sum + size(join(path, name)), 0) : statSync(path).size;
     return { sessions, bytes: size(this.dir), dir: this.dir };
   }
+}
+
+// The first line of a file, read in pieces (a Codex session_meta line carries the instructions and can be long).
+function firstLine(path: string) {
+  const fd = openSync(path, 'r');
+  try {
+    const parts: Buffer[] = [];
+    for (let position = 0; position < 16 * 1024 * 1024;) {
+      const chunk = Buffer.alloc(65536), n = readSync(fd, chunk, 0, chunk.length, position);
+      if (n === 0) return null;
+      const end = chunk.subarray(0, n).indexOf(10);
+      if (end >= 0) { parts.push(chunk.subarray(0, end)); return Buffer.concat(parts).toString('utf8'); }
+      parts.push(chunk.subarray(0, n)); position += n;
+    }
+    return null;
+  } finally { closeSync(fd); }
 }

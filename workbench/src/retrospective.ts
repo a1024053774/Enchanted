@@ -117,14 +117,19 @@ export class Retrospectives {
       const destination = existsSync(findings) && statSync(findings).isDirectory()
         ? join(findings, `${run.until.slice(0, 10)}-retrospective-${run.id.slice(0, 8)}.md`) : join(run.dir, 'report.md');
       copyFileSync(report, destination);
-      list.forEach((item: any, index: number) => {
-        const title = typeof item?.title === 'string' ? item.title.trim() : '';
-        if (!title) return;
-        const suggestion: Suggestion = { id: randomUUID(), run: run.id, project: run.project, number: index + 1, title,
-          body: typeof item.body === 'string' ? item.body : '', kind: typeof item.kind === 'string' ? item.kind : 'other', created_at: new Date().toISOString() };
-        this.db.prepare('INSERT INTO retrospective_suggestions(id,run,data) VALUES (?,?,?)').run(suggestion.id, run.id, JSON.stringify(suggestion));
-      });
-      this.record(run.id, 'imported', { report: destination, suggestions: list.length });
+      // The suggestions and the "imported" mark go in together, so a failure part-way leaves nothing to duplicate on the next try.
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        list.forEach((item: any, index: number) => {
+          const title = typeof item?.title === 'string' ? item.title.trim() : '';
+          if (!title) return;
+          const suggestion: Suggestion = { id: randomUUID(), run: run.id, project: run.project, number: index + 1, title,
+            body: typeof item.body === 'string' ? item.body : '', kind: typeof item.kind === 'string' ? item.kind : 'other', created_at: new Date().toISOString() };
+          this.db.prepare('INSERT INTO retrospective_suggestions(id,run,data) VALUES (?,?,?)').run(suggestion.id, run.id, JSON.stringify(suggestion));
+        });
+        this.record(run.id, 'imported', { report: destination, suggestions: list.length });
+        this.db.exec('COMMIT');
+      } catch (error) { this.db.exec('ROLLBACK'); throw error; }
       imported.push(run.id);
     }
     return imported;
@@ -164,7 +169,9 @@ export function retrospectivePackage(db: DatabaseSync, project: string, repo: st
     .filter(record => ids.has(record.task_id) && inRange(record.created_at));
   const launches = db.prepare('SELECT data FROM launch_records ORDER BY rowid').all().map(row => json(row.data))
     .filter(record => record.project === project);
-  const archive = db.prepare('SELECT launch, source, file, max(end) AS end FROM trajectory_archive GROUP BY launch, source').all()
+  // Sessions archived during the range, with what was archived by its end (T-136 review 01: not every session ever).
+  const archive = db.prepare('SELECT launch, source, file, max(end) AS end FROM trajectory_archive WHERE created_at < ? GROUP BY launch, source HAVING max(created_at) >= ?')
+    .all(until, since ?? '')
     .filter(row => launches.some(record => record.id === row.launch))
     .map(row => ({ launch: String(row.launch), role: launches.find(record => record.id === row.launch)?.role ?? null,
       native: String(row.source), archive: String(row.file), archived_bytes: Number(row.end) }));

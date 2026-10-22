@@ -89,10 +89,11 @@ export function RetrospectivePage({ project }: { project: string | null }) {
           <tbody>{[...listing.runs].reverse().map(run => {
             const imported = run.events.find(event => event.type === 'imported');
             const failed = !imported && run.events.find(event => event.type === 'import_failed');
-            return <tr key={run.id} data-run-id={run.id} data-run-state={imported ? 'done' : failed ? 'failed' : 'running'}>
+            const notStarted = run.events.find(event => event.type === 'start_failed');
+            return <tr key={run.id} data-run-id={run.id} data-run-state={imported ? 'done' : notStarted ? 'start-failed' : failed ? 'failed' : 'running'}>
               <td>{time(run.created_at)}</td><td>{run.trigger === 'schedule' ? '定期' : '手动'}</td>
               <td>{time(run.since)} – {time(run.until)}</td><td>{run.cli} · {run.model} · {run.effort}</td>
-              <td>{imported ? '已完成' : failed ? `导入失败（${failed.data.reason === 'suggestions_not_json' ? 'suggestions.json 不是合法 JSON' : 'suggestions.json 不是建议列表'}），修好后自动重试` : '进行中'}</td><td className="record-text">{imported?.data.report ?? '—'}</td></tr>;
+              <td>{imported ? '已完成' : notStarted ? `没能启动：${notStarted.data.error}` : failed ? `导入失败（${failed.data.reason === 'suggestions_not_json' ? 'suggestions.json 不是合法 JSON' : 'suggestions.json 不是建议列表'}），修好后自动重试` : '进行中'}</td><td className="record-text">{imported?.data.report ?? '—'}</td></tr>;
           })}</tbody>
         </table>}
       </section>

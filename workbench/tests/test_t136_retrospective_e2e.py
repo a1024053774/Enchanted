@@ -21,6 +21,7 @@ from pathlib import Path
 import re
 import shutil
 import sqlite3
+import subprocess
 import sys
 import uuid
 
@@ -43,7 +44,8 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['package-ignores-range', 'out-not-confined', 'schedule-fires-when-disabled', 'import-failure-silent', 'archive-source-not-isolated'])
+    target.add_argument('--mutant', choices=['package-ignores-range', 'out-not-confined', 'schedule-fires-when-disabled', 'import-failure-silent', 'archive-source-not-isolated',
+                                                  'archive-not-in-range', 'start-failure-silent'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[])
@@ -56,6 +58,11 @@ def main():
         'import-failure-silent': [('src/retrospective.ts', "this.record(run, 'import_failed', { reason, error });", 'void error;')],
         # T-135 review 01 P2: one unreadable source stops the whole sweep.
         'archive-source-not-isolated': [('src/trajectoryArchive.ts', '      try { this.copy(source); }\n', '      this.copy(source); try { /* mutant */ }\n')],
+        # Review 01 F1: every archived session ever, not those of the range.
+        'archive-not-in-range': [('src/retrospective.ts', "FROM trajectory_archive WHERE created_at < ? GROUP BY launch, source HAVING max(created_at) >= ?')\n    .all(until, since ?? '')",
+                                  "FROM trajectory_archive GROUP BY launch, source')\n    .all()")],
+        # Review 01 F2: a run whose terminal never opened, left "in progress".
+        'start-failure-silent': [('src/daemon.ts', 'retrospectives.record(run.id, "start_failed", { error: String(error) });', 'void error;')],
         'schedule-fires-when-disabled': [('src/retrospective.ts', '    if (!schedule.enabled) return null;\n', '')],
     }.get(args.mutant, [])
 
@@ -246,7 +253,16 @@ def main():
         assert second.get('ok'), second
         package2 = json.loads(Path(second['run']['package']).read_text(encoding='utf-8'))
         tasks2 = [t['task'] for t in package2['tasks']]
-        report['second_package'] = {k: package2[k] for k in ('since', 'until', 'tasks', 'issues', 'panel')}
+        report['second_package'] = {k: package2[k] for k in ('since', 'until', 'tasks', 'issues', 'panel', 'trajectory_archive')}
+        # Sessions archived during the second range, read straight from the index (T-136 review 01 F1).
+        with sqlite3.connect(f'file:{fixture.state / "state.sqlite3"}?mode=ro', uri=True) as connection:
+            archived_in_range = {row[0] for row in connection.execute('SELECT launch FROM trajectory_archive WHERE created_at >= ? AND created_at < ?',
+                                                                    (package2['since'], package2['until']))}
+            archived_before = {row[0] for row in connection.execute('SELECT launch FROM trajectory_archive WHERE created_at < ?', (package2['until'],))}
+        report['archive_range'] = dict(in_range=sorted(archived_in_range), any_before_until=sorted(archived_before))
+        check('second_package_archive_in_range', {a['launch'] for a in package2['trajectory_archive']} == archived_in_range and
+              archived_before - archived_in_range,
+              dict(package=[a['launch'] for a in package2['trajectory_archive']], in_range=sorted(archived_in_range)))
         check('second_package_only_in_range', second['run']['since'] == first['until'] and len(tasks2) == 1 and tasks2[0].endswith('+T-2') and
               package2['issues'] == [] and package2['panel'] == [] and
               not any(c['trailers'].get('Task', '').endswith('+T-1') for c in package2['commit_trailers']['commits']) and
@@ -286,6 +302,19 @@ def main():
         next_week = fixture.request('retrospective_tick', fixture.operator, now=(slot + timedelta(days=7, minutes=1)).astimezone(timezone.utc).isoformat())
         report['schedule']['next_week_after_off'] = len(next_week['started'])
         check('schedule_off_does_not_fire', listing()['schedule']['enabled'] is False and next_week['started'] == [], report['schedule'])
+        # 7: a run whose terminal cannot open (its project directory is gone) says so on the run (review 01 F2).
+        broken = fixture.dir / 'broken'
+        subprocess.run(['git', 'init', '-q', '-b', 'main', str(broken)], check=True, env=fixture.env)
+        (broken / 'README.md').write_text('broken\n', encoding='utf-8')
+        subprocess.run(['git', '-C', str(broken), 'add', '.'], check=True, env=fixture.env)
+        subprocess.run(['git', '-C', str(broken), 'commit', '-q', '-m', 'init'], check=True, env=fixture.env)
+        assert fixture.request('project_open', fixture.operator, repo=str(broken))['ok']
+        broken.rename(fixture.dir / 'broken-moved')
+        refused = fixture.request('retrospective_start', fixture.operator, project='broken', cli='Claude Code', model=MODEL, effort='low')
+        runs = fixture.request('retrospective_list', project='broken')['runs']
+        report['start_failure'] = dict(refused=refused, events=[[e['type'] for e in r['events']] for r in runs])
+        check('start_failure_recorded_on_run', not refused.get('ok') and len(runs) == 1 and
+              [e['type'] for e in runs[0]['events']] == ['start_failed'], report['start_failure'])
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

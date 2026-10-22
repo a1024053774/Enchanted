@@ -80,14 +80,22 @@ export async function serve(
     const run = retrospectives.prepare(project, opened.repo, selection, trigger, scheduledFor, now, range);
     const session = randomUUID();
     const argv = retrospectiveArgv(run, config, retrospectivePrompt(run, root), session);
-    const shell = panes.startShell(project, opened.repo);
-    store.event("retrospective_started", { run: run.id, cli: run.cli, model: run.model, effort: run.effort, argv,
-      native_session: run.cli === "Claude Code" ? session : null,
-      native_home: run.cli === "Claude Code" ? process.env.CLAUDE_CONFIG_DIR ?? join(process.env.HOME ?? "", ".claude") : null,
-      package: run.package, out: run.out }, shell);
-    retrospectives.record(run.id, "started", { launch: shell.id, native_session: run.cli === "Claude Code" ? session : null });
-    await panes.runInShell(shell.id, argv);
-    return { ...run, launch: shell.id };
+    // The run is recorded before its terminal opens, so its slot is taken; a start that fails says so on the run
+    // (T-136 review 01) instead of leaving it "in progress". It is not retried by itself: the user can start one.
+    try {
+      const shell = panes.startShell(project, opened.repo);
+      store.event("retrospective_started", { run: run.id, cli: run.cli, model: run.model, effort: run.effort, argv,
+        native_session: run.cli === "Claude Code" ? session : null,
+        native_home: run.cli === "Claude Code" ? process.env.CLAUDE_CONFIG_DIR ?? join(process.env.HOME ?? "", ".claude")
+          : process.env.CODEX_HOME ?? join(process.env.HOME ?? "", ".codex"),
+        package: run.package, out: run.out }, shell);
+      retrospectives.record(run.id, "started", { launch: shell.id, native_session: run.cli === "Claude Code" ? session : null });
+      await panes.runInShell(shell.id, argv);
+      return { ...run, launch: shell.id };
+    } catch (error) {
+      retrospectives.record(run.id, "start_failed", { error: String(error) });
+      throw error;
+    }
   };
   const retrospectiveTick = async (now: Date) => {
     const started = [];
@@ -95,7 +103,9 @@ export async function serve(
       const slot = retrospectives.due(project.project_id, now);
       if (!slot) continue;
       const schedule = retrospectives.schedule();
-      started.push(await startRetrospective(project.project_id, schedule, "schedule", slot, now));
+      // A project whose run fails to start has it recorded on the run; the others and the import still go ahead.
+      try { started.push(await startRetrospective(project.project_id, schedule, "schedule", slot, now)); }
+      catch (error) { store.event("retrospective_tick_failed", { project: project.project_id, error: String(error) }); }
     }
     return { started, imported: retrospectives.importFinished() };
   };
