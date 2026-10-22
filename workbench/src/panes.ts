@@ -206,6 +206,8 @@ export class Panes implements GateRuntime {
   readonly config: LaunchConfig;
   readonly panes = new Map<string, Pane>();
   readonly onEventWriteFailed: (reason: string) => void;
+  // The terminal-only socket the daemon opened (T-126); project terminals reach the daemon only through it.
+  terminalSocket: string | null = null;
   constructor(root: string, store: OrchestrationStore, config: LaunchConfig, onEventWriteFailed: (reason: string) => void) {
     this.root = root; this.store = store; this.config = config;
     this.onEventWriteFailed = onEventWriteFailed;
@@ -214,6 +216,7 @@ export class Panes implements GateRuntime {
   startShell(project: string | null, cwd: string) {
     check(project === null || typeof project === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(project), "invalid_project");
     check(typeof cwd === "string" && isAbsolute(cwd) && statSync(cwd).isDirectory(), "invalid_shell_cwd");
+    check(this.terminalSocket, "terminal_socket_unavailable");
     const worktree = realpathSync(cwd), launch = randomUUID(), thread = randomUUID();
     const environment = { ...process.env };
     for (const key of Object.keys(environment)) {
@@ -226,7 +229,7 @@ export class Panes implements GateRuntime {
     if (environment.ZDOTDIR !== undefined) Object.assign(environment, { A2A_USER_ZDOTDIR: environment.ZDOTDIR, A2A_USER_ZDOTDIR_SET: "1" });
     Object.assign(environment, { ZDOTDIR: join(terminalResources, "zdotdir"), A2A_TERMINAL_ZDOTDIR: join(terminalResources, "zdotdir"),
       A2A_TERMINAL_BIN: join(terminalResources, "bin"), A2A_TERMINAL_PLUGIN: join(terminalResources, "plugin/enchanted-a2a"),
-      A2A_TERMINAL_CLI: terminalCli, A2A_NODE: process.execPath, A2A_STATE: this.root, A2A_TERMINAL: launch, A2A_TERMINAL_TOKEN: token });
+      A2A_TERMINAL_CLI: terminalCli, A2A_NODE: process.execPath, A2A_TERMINAL_SOCKET: this.terminalSocket, A2A_TERMINAL: launch, A2A_TERMINAL_TOKEN: token });
     const record = { id: launch, project, task: null, attempt: null, session: null, fence: null,
       spec_rev: null, thread, role: "shell", created_at: new Date().toISOString(),
       shell: "/bin/zsh", shell_argv: ["-l", "-i"], worktree, env: project === null ? {} : { A2A_PROJECT: project } };

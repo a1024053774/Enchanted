@@ -1,4 +1,4 @@
-import { request } from "./transport.ts";
+import { requestAt } from "./transport.ts";
 
 // The `a2a` command inside an Enchanted project terminal (T-121). Its identity is
 // the terminal itself; controller commands need a role the user approved in the UI.
@@ -21,7 +21,8 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
 
 只有用户本人要求时才申请身份；被拒绝或超时就停下告诉用户。申请命令被中断、被杀或超时，后台都会撤回申请。`;
 
-const state = process.env.A2A_STATE, launch = process.env.A2A_TERMINAL, token = process.env.A2A_TERMINAL_TOKEN;
+// The terminal socket accepts only this identity (T-126); the daemon's data directory is not in the environment.
+const socket = process.env.A2A_TERMINAL_SOCKET, launch = process.env.A2A_TERMINAL, token = process.env.A2A_TERMINAL_TOKEN;
 const print = (value: unknown) => process.stdout.write(JSON.stringify(value, null, 2) + "\n");
 
 async function main(argv: string[]) {
@@ -30,12 +31,12 @@ async function main(argv: string[]) {
     process.stdout.write(usage + "\n");
     return 0;
   }
-  if (!state || !launch || !token) {
+  if (!socket || !launch || !token) {
     process.stderr.write("a2a：这个终端不是 Enchanted 打开的项目终端，没有终端身份。\n");
     return 2;
   }
   const identity = { kind: "terminal", launch, token };
-  const send = (input: Record<string, unknown>) => request(state, input, identity);
+  const send = (input: Record<string, unknown>) => requestAt(socket, input, identity);
   const finish = (result: any) => { print(result); return result.ok ? 0 : 1; };
   if (command === "whoami" && !rest.length) return finish(await send({ command: "terminal_whoami" }));
   if (command === "release" && !rest.length) return finish(await send({ command: "role_release" }));

@@ -1,5 +1,6 @@
 import { createServer } from "node:net";
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { A2AGates, Refusal, type TerminalController } from "./gates/core.ts";
 import { ControllerQuota, type QuotaState } from "./controllerQuota.ts";
@@ -143,7 +144,10 @@ export async function serve(
     await panes.shutdown();
     store.event("daemon_stopped", { pid: process.pid });
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await new Promise<void>((resolve, reject) => terminalServer.close((error) => error ? reject(error) : resolve()));
     gates.close(); store.close();
+    if (existsSync(terminalSocket)) unlinkSync(terminalSocket);
+    rmdirSync(terminalDirectory);
     // Only this server's successfully bound endpoint and PID record are removed.
     if (existsSync(socket)) unlinkSync(socket);
     unlinkSync(join(root, "daemon.pid"));
@@ -638,7 +642,9 @@ export async function serve(
     return await panes.parentLaunch.run(authority.kind === "operator" ? parent_launch ?? null : null,
       () => gates.call(gateInput, undefined, actor));
   };
-  const server = createServer((connection) => {
+  // Two sockets share one handler. The terminal socket (T-126) is the only one a project terminal is told about; it
+  // takes terminal identities only, so nothing a terminal can read lets it act as the operator or a window.
+  const serveConnection = (terminalOnly: boolean) => (connection: import("node:net").Socket) => {
     connection.setEncoding("utf8");
     let buffer = "", handled = false;
     // A role request waits on its connection; the asker going away settles it.
@@ -669,6 +675,8 @@ export async function serve(
       try {
         envelope = JSON.parse(buffer.slice(0, end));
         shellInput = isShellInput(envelope);
+        // Checked before authenticating, so this socket never tells whether another kind of identity is valid.
+        if (terminalOnly && envelope?.identity?.kind !== "terminal") throw new Refusal("terminal_socket_terminal_only");
         const authority = authenticate(envelope.identity);
         const catalogRead = catalogCommands.has(envelope.input?.command);
         const viewing = catalogRead || ["workbench_snapshot", "pane_output"].includes(envelope.input?.command);
@@ -683,7 +691,8 @@ export async function serve(
         const processQuery = (error as { process_query?: unknown })?.process_query;
         result = { ok: false, error: error instanceof Refusal ? error.code : "orchestration_failed", details: String(error),
           ...(processQuery ? { diagnostics: { process_query: processQuery } } : {}) };
-        try { if (!shellInput && !catalogCommands.has(envelope?.input?.command)) store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result }); }
+        try { if (!shellInput && !catalogCommands.has(envelope?.input?.command)) store.event("request_rejected", { id: envelope?.id, input: eventInput(envelope?.input), result,
+          ...(terminalOnly ? { socket: "terminal" } : {}) }); }
         catch (recordError) {
           gates.setUserInputObserverStatus("failed", { reason: String(recordError) });
           result = { ok: false, error: "event_write_failed", details: String(recordError) };
@@ -710,7 +719,16 @@ export async function serve(
         connection.once("close", () => shutdown().catch((error) => { console.error(error); process.exitCode = 1; }));
       }
     });
-  });
+  };
+  const server = createServer(serveConnection(false));
+  const terminalServer = createServer(serveConnection(true));
+  // A private directory with a random name: its path says nothing about the daemon's data directory.
+  const terminalDirectory = mkdtempSync(join(tmpdir(), "enchanted-"));
+  const terminalSocket = join(terminalDirectory, "terminal.sock");
+  if (Buffer.byteLength(terminalSocket) > 103) throw new Error("terminal socket path exceeds 103 bytes");
+  await new Promise<void>((resolve, reject) => { terminalServer.once("error", reject); terminalServer.listen(terminalSocket, resolve); });
+  chmodSync(terminalSocket, 0o600);
+  panes.terminalSocket = terminalSocket;
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socket, resolve); });
   chmodSync(socket, 0o600);
   writeFileSync(join(root, "daemon.pid"), String(process.pid) + "\n", { flag: "wx", mode: 0o600 });

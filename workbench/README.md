@@ -112,7 +112,11 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
   指向 `a2a help`（用户用 `-c developer_instructions=…` 传了，或自己的 Codex 配置文件里设了这一项时不加）。挂法的实测依据见 T-120。
 
 终端身份是终端本身：后台为每个普通终端生成令牌，只放在该终端的环境（`A2A_TERMINAL`、`A2A_TERMINAL_TOKEN`）
-和后台内存里，不写进启动记录。角色申请是只追加的事件（`role_requested`、`role_request_decided`、
+和后台内存里，不写进启动记录。终端经后台另开的专用 socket 连接（T-126，环境变量 `A2A_TERMINAL_SOCKET`）：
+它在系统临时目录下随机命名的 0700 目录里，路径不含后台数据目录；终端环境里没有 `A2A_STATE`，也没有数据目录或
+操作员凭据的路径。专用 socket 只接受终端身份，在核对身份之前就拒绝其他身份（`terminal_socket_terminal_only`），
+所以持有操作员凭据或窗口令牌也不能经它调用；每次拒绝记为 `request_rejected`，带 `socket: "terminal"`。
+原 `control.sock` 不变，界面与门禁 CLI 照旧使用。后台停止时删除专用 socket 与它的目录。角色申请是只追加的事件（`role_requested`、`role_request_decided`、
 `role_request_confirmed`、`role_request_ended`），状态由事件和终端是否存活推出。界面在终端区上方逐条
 列出待批准的申请并编号，申请的窗格加框并显示同号标签（“申请 1 · 执行主控”）；同一角色有多个申请时提示批准一个、
 确认生效后其余自动拒绝；不在当前视图的终端显示其工作目录与打开时间。批准或拒绝走管理凭据的 `role_request_decide`。规则：
@@ -551,10 +555,18 @@ Electron 的 `ELECTRON_RUN_AS_NODE=1` 模式运行编排后台；后台无需外
 退出界面不结束后台或终端，再次打开会重连；普通终端在后台停止后仍按原合同显示已结束。
 
 应用启动者创建独有的 0600 `desktop-operator-<UUID>.json`，私有连接描述文件
-`desktop-connection.json` 只保存凭据路径，不保存 token。重连用原凭据接受后台核对；
+`desktop-connection.json` 只保存凭据路径，不保存 token。两者都不在后台数据目录里（T-126）：正式版放在
+`~/Library/Application Support/Enchanted/`，测试版放在 `~/Library/Application Support/Enchanted Test/`，
+用 `--state` 指定数据目录时放在同级的 `<数据目录>-credentials/`；目录为 0700。重连用原凭据接受后台核对；
 端点不存在才尝试启动，死 PID／socket 处理仍由 transport 完成。拒绝、超时或所有者未知
-明确报错，不重试或接管。旧凭据文件保留；不要把它们加入证据或 Git。若同一数据目录
+明确报错，不重试或接管。不要把凭据文件加入证据或 Git。若同一数据目录
 已有手工启动、但没有桌面连接描述的后台，应用会拒绝接管，须由原启动者按原入口收尾。
+
+T-126 之前的安装把描述文件和每次启动的凭据都放在数据目录里。应用启动时迁移：当前凭据复制到新位置（0600）并写新的
+描述文件，然后删除数据目录里所有 `desktop-operator-*.json` 和旧描述文件；后台不必重启，迁移中途被打断时下次启动接着做完。
+已知边界：凭据仍是本用户可读的文件，终端只是不知道它在哪里。有意搜索磁盘的 agent 仍可能找到并读到它；
+同一用户的其他进程也可能读到后台进程的环境（其中有凭据路径）。受管 worker 与 controller 的环境仍有 `A2A_STATE`（它们经能力令牌调用，
+不在本票范围），但数据目录里已经没有操作员凭据。
 
 隔离体验可用 `open /Applications/Enchanted.app --args --state /绝对路径/state --user-data /绝对路径/ui`。
 标准 `--remote-debugging-port` 只供显式调试使用；正常双击不开启端口，应用没有默认端口

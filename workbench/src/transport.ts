@@ -17,8 +17,12 @@ export function socketPath(root: string) {
 }
 // Window callers allocate their sequence at send time, after a successful connection.
 export function request(root: string, input: Record<string, unknown>, identity?: Record<string, unknown>, nextSequence?: () => number): Promise<any> {
+  return requestAt(socketPath(root), input, identity, nextSequence);
+}
+// A project terminal knows only its own socket (T-126), not the daemon's data directory.
+export function requestAt(path: string, input: Record<string, unknown>, identity?: Record<string, unknown>, nextSequence?: () => number): Promise<any> {
   return new Promise((resolve, reject) => {
-    const socket = createConnection(socketPath(root));
+    const socket = createConnection(path);
     let buffer = "";
     let finished = false;
     socket.setEncoding("utf8");
