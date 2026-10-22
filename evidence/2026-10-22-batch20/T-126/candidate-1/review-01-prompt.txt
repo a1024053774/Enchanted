@@ -1,0 +1,9 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查本仓库提交 35cadc44b（T-126 候选 1，父提交 04d632694）。代码改动（只含 workbench）在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-t126-jkbX/candidate-1.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-126-*.md（来源 T-125）。结果报告是 evidence/2026-10-22-batch20/T-126/candidate-1/RESULTS.md；打包驱动是 evidence/2026-10-22-batch20/T-126/packaged/t126drive.mjs；README 改动在 workbench/README.md（搜 T-126）。
+重点：
+1. 专用 socket（workbench/src/daemon.ts 的 serveConnection、terminalServer）：是否还有路径让终端在专用 socket 上以操作员或窗口身份行事；拒绝是否在认证之前；启动、关闭、异常退出时 socket 与目录的创建和清理是否正确（例如 listen 失败、后台崩溃后残留）；panes.terminalSocket 未就绪时启动终端会怎样；后台重启后已有终端的 A2A_TERMINAL_SOCKET 是否失效、恢复路径是否受影响。
+2. 终端环境（workbench/src/panes.ts startShell）是否还有别的变量泄漏数据目录或凭据路径。
+3. 凭据位置与迁移（workbench/src/desktopCredentials.ts、workbench/app/desktop.mjs）：迁移顺序是否可能丢掉正在使用的凭据；中断后能否续做；描述文件校验；文件与目录权限；desktopConnection 抛错时应用的行为。
+4. 测试（workbench/tests/test_t126_desktop_credentials.ts、workbench/tests/test_t126_terminal_socket_e2e.py、打包驱动）是否独立于实现、变异能否区分坏实现；RESULTS.md 是否有夸大或与证据不符之处。
+5. 全部改动里的其他问题。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。

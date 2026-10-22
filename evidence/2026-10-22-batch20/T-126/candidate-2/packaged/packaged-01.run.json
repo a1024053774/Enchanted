@@ -1,0 +1,139 @@
+{
+  "status": "PASS",
+  "argv": [
+    "/opt/homebrew/Cellar/node/26.5.0/bin/node",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-22-batch20/T-126/packaged/t126drive.mjs",
+    "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T//a2a-build-t126-parent/Enchanted Test.app",
+    "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T//a2a-build-t126-new2/Enchanted Test.app",
+    "/Volumes/WD-Elements/a2a-evidence/2026-10-22-batch20/T-126/candidate-2/packaged-01",
+    "9361"
+  ],
+  "fixture": "/private/tmp/t126-ui-CSXf2K",
+  "checks": [
+    "parent_keeps_credential_in_data_directory",
+    "project_opened",
+    "parent_terminal_env_exposes_data_directory",
+    "parent_daemon_survives_ui_close",
+    "old_credential_files_removed",
+    "migrated_credential_private",
+    "migrated_credential_is_the_running_one",
+    "new_ui_reconnects_to_running_daemon",
+    "stop_parent_daemon",
+    "new_daemon_started_with_credential_outside_data_directory",
+    "terminal_env_has_no_data_directory_or_credential",
+    "terminal_socket_outside_data_directory",
+    "whoami_in_terminal",
+    "terminal_cannot_decide_with_what_it_sees",
+    "terminal_attempts_recorded",
+    "request_returns_after_ui_approval",
+    "whoami_reports_executor",
+    "daemon_and_terminal_survive_ui_close",
+    "reopen_keeps_persisted_credential",
+    "reopen_reconnects_same_daemon",
+    "whoami_after_reopen",
+    "stop_daemon",
+    "terminal_socket_removed_on_stop"
+  ],
+  "phases": {
+    "parent": {
+      "daemon": 65303,
+      "env": {
+        "a2a_keys": [
+          "A2A_NODE",
+          "A2A_PROJECT",
+          "A2A_STATE",
+          "A2A_TERMINAL",
+          "A2A_TERMINAL_BIN",
+          "A2A_TERMINAL_CLI",
+          "A2A_TERMINAL_PLUGIN",
+          "A2A_TERMINAL_TOKEN"
+        ],
+        "leaking": [
+          "A2A_STATE"
+        ],
+        "has_state": true
+      },
+      "old_files": 2
+    },
+    "migration": {
+      "data_directory_desktop_files": [],
+      "credential_dir_files": 2
+    },
+    "new": {
+      "daemon": 65501,
+      "env": {
+        "a2a_keys": [
+          "A2A_NODE",
+          "A2A_PROJECT",
+          "A2A_TERMINAL",
+          "A2A_TERMINAL_BIN",
+          "A2A_TERMINAL_CLI",
+          "A2A_TERMINAL_PLUGIN",
+          "A2A_TERMINAL_SOCKET",
+          "A2A_TERMINAL_TOKEN"
+        ],
+        "leaking": [],
+        "has_state": false
+      },
+      "terminal": "7b4b820c-1825-4651-b256-c9009b912ff9",
+      "attack": {
+        "none": "terminal_socket_terminal_only",
+        "own_terminal": "approved_role_required",
+        "forged_operator": "terminal_socket_terminal_only",
+        "forged_window": "terminal_socket_terminal_only"
+      },
+      "recorded": [
+        [
+          "terminal",
+          "terminal_socket_terminal_only"
+        ],
+        [
+          "terminal",
+          "approved_role_required"
+        ],
+        [
+          "terminal",
+          "terminal_socket_terminal_only"
+        ],
+        [
+          "terminal",
+          "terminal_socket_terminal_only"
+        ]
+      ]
+    }
+  },
+  "launches": [
+    [
+      "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t126-parent/Enchanted Test.app/Contents/MacOS/Enchanted Test",
+      "--state",
+      "/private/tmp/t126-ui-CSXf2K/state",
+      "--user-data",
+      "/private/tmp/t126-ui-CSXf2K/state/ui",
+      "--remote-debugging-port=9361"
+    ],
+    [
+      "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t126-new2/Enchanted Test.app/Contents/MacOS/Enchanted Test",
+      "--state",
+      "/private/tmp/t126-ui-CSXf2K/state",
+      "--user-data",
+      "/private/tmp/t126-ui-CSXf2K/state/ui",
+      "--remote-debugging-port=9361"
+    ],
+    [
+      "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t126-new2/Enchanted Test.app/Contents/MacOS/Enchanted Test",
+      "--state",
+      "/private/tmp/t126-ui-CSXf2K/state",
+      "--user-data",
+      "/private/tmp/t126-ui-CSXf2K/state/ui",
+      "--remote-debugging-port=9361"
+    ],
+    [
+      "/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/a2a-build-t126-new2/Enchanted Test.app/Contents/MacOS/Enchanted Test",
+      "--state",
+      "/private/tmp/t126-ui-CSXf2K/state",
+      "--user-data",
+      "/private/tmp/t126-ui-CSXf2K/state/ui",
+      "--remote-debugging-port=9361"
+    ]
+  ]
+}
