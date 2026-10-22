@@ -2,7 +2,7 @@
 id: T-127
 title: 产品里的 Codex worker 与 reviewer 直接用用户的 ~/.codex
 type: build
-status: open
+status: closed
 blocked_by: [T-122]
 claimed_by:
 supersedes:
@@ -35,8 +35,12 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实入口：打包测试版里，终端主控派一个 Codex worker，worker 与 reviewer 的会话都出现在用户 `~/.codex/sessions`，交付、审查、集成走通；a2a 不写 `~/.codex/config.toml`、`rules`、`hooks.json`。
-- [ ] 门禁拒绝：reviewer argv 带 resume/fork、会话号与 worker 相同或已被其他启动记录用过、cwd 不是候选副本，各一个反例，并留记录。
-- [ ] 修前版本（`isolated_codex_home_required`、预建空 home）在同一场景上失败。
-- [ ] 扫描只读本 launch 之后的会话文件：`~/.codex/sessions` 里有大量旧文件时，派发与交付的耗时不随旧文件数增长（用夹具 home 放入大量旧文件对照）。
-- [ ] README 写明：产品 Codex 会话加载用户的规则、钩子、skills，worker 可不经批准执行用户 allow 过的命令（含 `git push origin HEAD`），门禁管不到 push。
+- [x] 真实入口：打包测试版里，终端主控派一个 Codex worker，worker 与 reviewer 的会话都出现在用户 `~/.codex/sessions`，交付、审查、集成走通；a2a 不写 `~/.codex/config.toml`、`rules`、`hooks.json`。
+- [x] 门禁拒绝：reviewer argv 带 resume/fork、会话号与 worker 相同或已被其他启动记录用过、cwd 不是候选副本，各一个反例，并留记录。
+- [x] 修前版本（`isolated_codex_home_required`、预建空 home）在同一场景上失败。
+- [x] 扫描只读本 launch 之后的会话文件：`~/.codex/sessions` 里有大量旧文件时，派发与交付的耗时不随旧文件数增长（用夹具 home 放入大量旧文件对照）。
+- [x] README 写明：产品 Codex 会话加载用户的规则、钩子、skills，worker 可不经批准执行用户 allow 过的命令（含 `git push origin HEAD`），门禁管不到 push。
+
+## Resolution
+
+2026-10-22 PASS，最终候选 e161476d6。真实入口 `gui-02`（18e290411，用户的 `~/.codex`，主控 Haiku 5.5，Codex gpt-6.1-sol low）走完派发、交付、独立审查、集成到 main，worker 与 reviewer 的会话都在用户 `~/.codex/sessions`，a2a 没有改用户 home 的配置。候选 3 在 e161476d6 上经 e2e 与回归复验。门禁结果处的 cwd 与会话号核对端到端走不到（后台更早拒绝），以及期间修复的终端恢复慢（用户指出），见 [RESULTS.md](../../evidence/2026-10-22-batch20/T-127/RESULTS.md)。

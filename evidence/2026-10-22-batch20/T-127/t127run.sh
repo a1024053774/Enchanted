@@ -25,6 +25,7 @@ done
 # Files a2a must never write; the CLI's own ~/.claude.json and session transcripts are normal CLI use.
 config_facts() { for f in ~/.claude/settings.json ~/.claude/settings.local.json ~/.codex/config.toml ~/.codex/rules/default.rules ~/.codex/hooks.json; do stat -f '%N %z %m' $f 2>/dev/null || print "$f absent"; done }
 config_facts > $OUT/user-config-before.txt
+START=$(date +%s)
 # Codex itself may record TUI state in config.toml; the copy is kept outside the evidence (it holds the user's settings).
 cp ~/.codex/config.toml $F/codex-config-before.toml
 node $S/t127drive.mjs $PORT $OUT $MODEL $F/state $SRC $R; RC=$?
@@ -33,6 +34,13 @@ cmp -s $OUT/user-config-before.txt $OUT/user-config-after.txt && print same > $O
 # Only the changed lines' section names and keys go into the evidence; a trust entry for the fixture would name $F.
 diff $F/codex-config-before.toml ~/.codex/config.toml | grep -E '^[<>] *(\[|[A-Za-z_."-]+ *=)' | sed -E 's/=.*/= …/' > $OUT/codex-config-changed-keys.txt
 grep -c "$F" ~/.codex/config.toml > $OUT/codex-config-fixture-mentions.txt
+# The sessions this run left in the user's own ~/.codex: file name and the folder the session opened, nothing else.
+python3 -c 'import json,sys,pathlib
+for f in sorted(pathlib.Path.home().joinpath(".codex/sessions").rglob("*.jsonl")):
+    if f.stat().st_mtime < float(sys.argv[2]): continue
+    first = json.loads(f.open().readline() or "{}")
+    cwd = (first.get("payload") or {}).get("cwd", "")
+    if cwd.startswith(sys.argv[1]): print(f.name, cwd)' $F $START > $OUT/user-codex-sessions.txt
 git -C $R log --format='%H %s%n%(trailers:key=A2A-Native-Session,key=A2A-Launch,key=A2A-Role,key=A2A-Model,key=A2A-Effort)' main > $OUT/git-main-log.txt
 git -C $R ls-tree --name-only main > $OUT/git-main-files.txt
 node $S/readback.mts $F/state $SRC $OUT/readback.json

@@ -615,6 +615,9 @@ Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`
   worker 能改这些文件，reviewer 的副本里也带着它们。“Open restricted”不保存信任，用户 home 不新增 `[projects]` 项。
 - 用户自己的会话也写在同一个 `sessions/` 下。后台只读启动当天起的日期目录里、启动后写过的文件，
   且只认 `session_meta.cwd` 等于本会话工作目录的那一份。
+- worker 或 reviewer 第一个回合提交后 120 秒内，若本目录里仍没有它的会话记录（在别的目录跑了，
+  或隐藏的 resume 被 Codex 以 “open in another app” 拒绝），后台记 `native_session_unbound`，窗格转为失败，
+  不再让审查无声地一直挂着。门禁在审查结果处另核对会话号不复用、`session_meta.cwd` 是候选副本。
 - 隔离 /tmp home 只用于验收夹具（AGENTS.md 的真实 Codex 验收规则），不再是产品要求；
   `isolated_codex_home_required` 与 `reviewers` 预建 home 已删除。
 
