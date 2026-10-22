@@ -45,7 +45,7 @@ def main():
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
     target.add_argument('--mutant', choices=['package-ignores-range', 'out-not-confined', 'schedule-fires-when-disabled', 'import-failure-silent', 'archive-source-not-isolated',
-                                                  'archive-not-in-range', 'start-failure-silent'])
+                                                  'archive-not-in-range', 'start-failure-silent', 'since-after-failed-run'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, checks=[])
@@ -62,6 +62,9 @@ def main():
         'archive-not-in-range': [('src/retrospective.ts', "FROM trajectory_archive WHERE created_at < ? GROUP BY launch, source HAVING max(created_at) >= ?')\n    .all(until, since ?? '')",
                                   "FROM trajectory_archive GROUP BY launch, source')\n    .all()")],
         # Review 01 F2: a run whose terminal never opened, left "in progress".
+        # Review 02: the next run starts at the end of the failed one.
+        'since-after-failed-run': [('src/retrospective.ts', ".findLast(run => !this.events(run.id).some(event => event.type === 'start_failed'))?.until ?? null;",
+                                    ".at(-1)?.until ?? null;")],
         'start-failure-silent': [('src/daemon.ts', 'retrospectives.record(run.id, "start_failed", { error: String(error) });', 'void error;')],
         'schedule-fires-when-disabled': [('src/retrospective.ts', '    if (!schedule.enabled) return null;\n', '')],
     }.get(args.mutant, [])
@@ -315,6 +318,11 @@ def main():
         report['start_failure'] = dict(refused=refused, events=[[e['type'] for e in r['events']] for r in runs])
         check('start_failure_recorded_on_run', not refused.get('ok') and len(runs) == 1 and
               [e['type'] for e in runs[0]['events']] == ['start_failed'], report['start_failure'])
+        # Once the directory is back, the next run covers the failed one's range too: it starts where no run started (review 02).
+        (fixture.dir / 'broken-moved').rename(broken)
+        again = fixture.request('retrospective_start', fixture.operator, project='broken', cli='Claude Code', model=MODEL, effort='low')
+        report['start_failure']['retry'] = {k: again.get('run', {}).get(k) for k in ('since', 'until')} if again.get('ok') else again
+        check('retry_after_failed_start_keeps_range', again.get('ok') and again['run']['since'] is None, report['start_failure'])
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

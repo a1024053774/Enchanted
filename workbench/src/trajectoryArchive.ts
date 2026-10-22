@@ -83,9 +83,9 @@ export class TrajectoryArchive {
       const dir = join(home, 'sessions', String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
       if (!existsSync(dir)) continue;
       for (const name of readdirSync(dir).filter(name => name.startsWith('rollout-') && name.endsWith('.jsonl'))) {
-        const meta = firstLine(join(dir, name));
+        // Another session's file that vanished, cannot be opened, or is still being started is simply not this one.
         let parsed: any = null;
-        try { parsed = meta && JSON.parse(meta); } catch { continue; } // another session's file still being started
+        try { const meta = firstLine(join(dir, name)); parsed = meta && JSON.parse(meta); } catch { continue; }
         if (parsed?.type === 'session_meta' && parsed.payload?.cwd === cwd) {
           this.rolloutByCwd.set(cwd, join(dir, name));
           return join(dir, name);

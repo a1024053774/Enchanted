@@ -74,7 +74,9 @@ export class Retrospectives {
     const id = randomUUID();
     const dir = join(this.root, id), out = join(dir, 'out');
     mkdirSync(out, { recursive: true, mode: 0o700 });
-    const since = range.since !== undefined ? range.since : this.runs(project).at(-1)?.until ?? null;
+    // From the end of the last run that started: a run whose terminal never opened reviewed nothing (review 02).
+    const since = range.since !== undefined ? range.since
+      : this.runs(project).findLast(run => !this.events(run.id).some(event => event.type === 'start_failed'))?.until ?? null;
     const until = range.until ?? now.toISOString();
     const run: RetrospectiveRun = { id, project, repo, trigger, scheduled_for: scheduledFor, since, until, ...selection, dir,
       package: join(dir, 'package.json'), out, created_at: now.toISOString() };
