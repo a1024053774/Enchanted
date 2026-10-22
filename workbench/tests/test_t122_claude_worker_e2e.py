@@ -53,7 +53,8 @@ def main():
                                              'submit-provider-codex', 'requested-model-as-fact', 'card-model-ignored', 'git-deny-missing',
                                              'codex-provider-only', 'no-terminal-parent', 'inbox-tasks-only',
                                              'reviewer-codex-only', 'reviewer-shell-writable', 'git-excluded-broad',
-                                             'gate-reviewer-model-unchecked', 'gate-reviewer-fast-unchecked', 'gate-reviewer-hook-includes'])
+                                             'gate-reviewer-model-unchecked', 'gate-reviewer-fast-unchecked', 'gate-reviewer-hook-includes',
+                                             'gate-reviewer-executable-compared'])
     parser.add_argument('--reviewer-case', choices=['model-differs', 'fast-differs', 'hook-prefixed', 'other-executable-path'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
@@ -104,6 +105,8 @@ def main():
                 'reviewer-codex-only': ('src/panes.ts', '    if (task.card.executor.cli === "Claude Code") {\n      // D24', '    if (false) {\n      // D24'),
                 'reviewer-shell-writable': ('src/panes.ts', 'review ? [] : [requestDirectory], review ? []', 'review ? [requestDirectory] : [requestDirectory], review ? []'),
                 'git-excluded-broad': ('src/panes.ts', 'excludedCommands: ["git add *", "git commit *"]', 'excludedCommands: ["git *"]'),
+                'gate-reviewer-executable-compared': ('src/gates/core.ts', 'argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&',
+                                                      'argv[0] === worker.argv[0] && argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&'),
                 'gate-reviewer-model-unchecked': ('src/gates/core.ts', 'argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&', 'argv[6] === worker.argv[6] &&'),
                 'gate-reviewer-fast-unchecked': ('src/gates/core.ts', '        settings?.fastMode === workerSettings.fastMode &&\n', ''),
                 'gate-reviewer-hook-includes': ('src/gates/core.ts', "signal === workerSignal.slice(0, -`'${worker.id}'`.length) + `'${launch.id}'` &&",
@@ -116,8 +119,9 @@ def main():
                 'model-differs': ('src/panes.ts', '{ model: worker.model_requested, effort', '{ model: worker.model_requested + "-other", effort'),
                 'fast-differs': ('src/panes.ts', 'fast: worker.service_tier_requested === "fast" });', 'fast: worker.service_tier_requested !== "fast" });'),
                 'hook-prefixed': ('src/panes.ts', 'const signalCommand = "ELECTRON_RUN_AS_NODE=1 " +', 'const signalCommand = (review ? "true; " : "") + "ELECTRON_RUN_AS_NODE=1 " +'),
+                # As after an update: the same Claude under another real path (a hard link in the fixture).
                 'other-executable-path': ('src/panes.ts', 'const executable = realpathSync(claude ? c.claude_bin! : c.codex_bin!);',
-                                          'const executable = review && claude ? c.claude_bin! : realpathSync(claude ? c.claude_bin! : c.codex_bin!);'),
+                                          'const executable = realpathSync(review && claude ? process.env.T122_REVIEWER_CLAUDE! : claude ? c.claude_bin! : c.codex_bin!);'),
             }[args.reviewer_case])
         for path, old, new in patches:
             path = source / 'workbench' / path
@@ -126,8 +130,6 @@ def main():
             path.write_text(text.replace(old, new), encoding='utf-8')
         (source / 'workbench/node_modules').symlink_to(ROOT / 'workbench/node_modules', target_is_directory=True)
     cli = source / 'workbench/src/gates/cli.ts'
-    if args.reviewer_case == 'other-executable-path':
-        assert os.path.realpath(args.claude) != args.claude, '这一例要求 --claude 是指向 Claude 的链接'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, reviewer_case=args.reviewer_case, fixture=str(fixture),
                   claude=args.claude, real_model_turns=0, checks=[])
 
@@ -246,6 +248,11 @@ def main():
                GIT_AUTHOR_NAME='t122', GIT_AUTHOR_EMAIL='t122@example.invalid',
                GIT_COMMITTER_NAME='t122', GIT_COMMITTER_EMAIL='t122@example.invalid')
     env.pop('ZDOTDIR', None)
+    if args.reviewer_case == 'other-executable-path':
+        updated = fixture / 'claude-updated'
+        updated.mkdir()
+        os.link(os.path.realpath(args.claude), updated / 'claude')
+        env['T122_REVIEWER_CLAUDE'] = str(updated / 'claude')
     running = False
 
     def check(name, condition, detail=None):
@@ -442,7 +449,8 @@ def main():
         rflag = lambda name: rargv[rargv.index(name) + 1] if name in rargv else None
         rsettings = json.loads(rflag('--settings'))
         if args.reviewer_case == 'other-executable-path':
-            check('reviewer_on_other_executable_path_accepted', rargv[0] == args.claude and argv[0] == os.path.realpath(args.claude), [rargv[0], argv[0]])
+            check('reviewer_on_other_executable_path_accepted', rargv[0] == os.path.realpath(env['T122_REVIEWER_CLAUDE']) and
+                  argv[0] == os.path.realpath(args.claude) and rargv[0] != argv[0], [rargv[0], argv[0]])
         report['reviewer'] = dict(cli=reviewer.get('cli'), model=rflag('--model'), effort=rflag('--effort'), settings=rsettings,
                                   results=api['results']['reviewer'], review_state=review['state'], task_state=task['state'])
         check('reviewer_same_cli_and_model', reviewer.get('cli') == 'Claude Code' and rflag('--model') == 'claude-haiku-5-5' and
