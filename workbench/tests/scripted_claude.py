@@ -24,7 +24,7 @@ def source_tree(fixture, revision=None, patches=()):
     if not revision and not patches:
         return ROOT
     source = fixture / 'source'
-    parts = ['workbench/src', 'workbench/terminal', 'workbench/hooks', 'workbench/roles', 'workbench/app']
+    parts = ['workbench/src', 'workbench/terminal', 'workbench/hooks', 'workbench/roles', 'workbench/app', 'workbench/LICENSE.synara']
     if revision:
         for name in subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', revision, *parts], cwd=ROOT, text=True).splitlines():
             target = source / name
@@ -38,7 +38,10 @@ def source_tree(fixture, revision=None, patches=()):
                 target.chmod(0o755)
     else:
         for part in parts:
-            shutil.copytree(ROOT / part, source / part, symlinks=True)
+            if (ROOT / part).is_dir():
+                shutil.copytree(ROOT / part, source / part, symlinks=True)
+            else:
+                shutil.copy2(ROOT / part, source / part)
     for path, old, new in patches:
         path = source / 'workbench' / path
         text = path.read_text(encoding='utf-8')
@@ -266,7 +269,11 @@ class Electron:
         app = fixture.source / 'workbench/app'
         built = subprocess.run(['node', str(app / 'build.mjs'), '--slot', slot], cwd=fixture.source / 'workbench',
                                capture_output=True, text=True, timeout=600)
-        assert built.returncode == 0, built.stderr[-2000:]
+        if built.returncode != 0:
+            failed = Path(os.environ.get('TMPDIR', '/tmp')) / ('a2a-build-' + slot)
+            if failed.is_dir():
+                shutil.rmtree(failed)
+            raise AssertionError(built.stderr[-2000:])
         self.build = json.loads(built.stdout.strip().splitlines()[-1])
         self.slot = Path(self.build['out']).parent
         electron = subprocess.check_output(['node', '-p', "require('electron')"], cwd=ROOT / 'workbench', text=True).strip()
