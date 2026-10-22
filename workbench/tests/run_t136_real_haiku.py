@@ -2,7 +2,7 @@
 
 只跑复盘，不派 worker（真实 worker 要另配隔离登录，这次不需要）。后台、终端、界面都是真实的，HOME 是用户自己的，
 Claude 用用户自己的登录。项目目录放在用户自己的 Claude 早已信任过的路径（--repo，须不存在），a2a 不代答信任、
-不写用户配置；运行结束删掉这个目录。期望：会话只写自己的 out/，项目里除了导入的报告没有别的改动；报告进 findings/，
+不写用户配置；运行结束把这个目录移进夹具。期望：会话只写自己的 out/，项目里除了导入的报告没有别的改动；报告进 findings/，
 建议（若有）出现在页面。
 """
 import argparse
@@ -114,6 +114,9 @@ def main():
                 electron.stop()
         finally:
             fixture.stop()
+            # The project directory goes into the fixture (kept as evidence), so the trusted path is free again.
+            if args.repo.is_dir():
+                shutil.move(str(args.repo), str(fixture.dir / 'repo'))
             args.summary.parent.mkdir(parents=True, exist_ok=True)
             args.summary.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str) + '\n', encoding='utf-8')
 
