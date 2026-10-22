@@ -1,0 +1,349 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t131_parallel_workers_e2e.py",
+    "--mutant",
+    "integration-chain-ignored",
+    "--summary",
+    "evidence/2026-10-22-batch20/T-131/candidate-1/e2e/mutant-integration-chain-ignored.json"
+  ],
+  "revision": null,
+  "mutant": "integration-chain-ignored",
+  "foreign_ref": false,
+  "fixture": "/private/tmp/t131-5yf_i0pt",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "facfe5f5-4fb2-4aa4-923b-ff403c93f142",
+          "snapshot": "f2fd876d-5f84-4baa-9e97-f2a905c9ff61",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ]
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1792688036.705,
+    "worker:T-2": 1792688036.875
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "facfe5f5-4fb2-4aa4-923b-ff403c93f142",
+        "Session": "4b385b96-bcc3-484c-8f75-527bb63abf03",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "4459dc90-6728-461a-ba37-92afaa5cb1d8",
+        "Launch": "449df0f2-3818-4449-8cd2-e7ca7f93a08e"
+      },
+      "workspace": "/private/tmp/t131-5yf_i0pt/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "7681e09f-3bd4-493d-8c5b-af2535c020a6",
+        "Session": "68a80935-ae81-4226-92ac-f997e65edf76",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "e688449a-40d8-4332-9174-2e8e7968da57",
+        "Launch": "064eed3a-7a9e-4a8f-a92a-77c7d6adf8e6"
+      },
+      "workspace": "/private/tmp/t131-5yf_i0pt/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "2f5ef44f-3783-42ad-b451-e7005f3cb2a5",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "paused",
+      "review": "unknown",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "error": "AssertionError: both_reviews_passed_on_their_own_task: {'T-1': {'task_state': 'verified', 'review': 'passed', 'launch': '2f5ef44f-3783-42ad-b451-e7005f3cb2a5', 'mutation': 'mutation rc=1'}, 'T-2': {'task_state': 'paused', 'review': 'unknown', 'launch': '275f358e-5152-41be-aef6-162a5cfd938b', 'mutation': 'mutation rc=1'}}",
+  "api_snapshot": {
+    "requests": 22,
+    "main": 16,
+    "first_request": {
+      "worker:T-1": 1792688036.704565,
+      "worker:T-2": 1792688036.8748028,
+      "reviewer:T-1": 1792688043.0315158,
+      "reviewer:T-2": 1792688043.20897
+    },
+    "results": {
+      "worker:T-1": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-5yf_i0pt/state/worktrees/demo/T-1-a1/a.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"7f694d91-a684-4d1f-99b4-34fd38958d34\",\"path\":\"/private/tmp/a2a-requests-apMzQu/7f694d91-a684-4d1f-99b4-34fd38958d34.json\"}"
+        }
+      ],
+      "worker:T-2": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-5yf_i0pt/state/worktrees/demo/T-2-a1/b.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"575318e3-9199-4f69-beef-637743614d54\",\"path\":\"/private/tmp/a2a-requests-IdStX5/575318e3-9199-4f69-beef-637743614d54.json\"}"
+        }
+      ],
+      "reviewer:T-1": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ],
+      "reviewer:T-2": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ]
+    }
+  },
+  "events_tail": [
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "2f5ef44f-3783-42ad-b451-e7005f3cb2a5"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "2f5ef44f-3783-42ad-b451-e7005f3cb2a5"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "2f5ef44f-3783-42ad-b451-e7005f3cb2a5"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "2f5ef44f-3783-42ad-b451-e7005f3cb2a5"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "hook_received",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "turn_end_signal",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "native_turn_facts",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "relay_received",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "relay_processed",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "pane_idle",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "queue_stopped",
+      "launch": "275f358e-5152-41be-aef6-162a5cfd938b"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    }
+  ]
+}

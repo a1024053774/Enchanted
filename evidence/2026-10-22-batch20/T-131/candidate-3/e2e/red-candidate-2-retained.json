@@ -1,0 +1,351 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "workbench/tests/test_t131_parallel_workers_e2e.py",
+    "--retained-ref",
+    "--revision",
+    "ea68df9d9",
+    "--summary",
+    "evidence/2026-10-22-batch20/T-131/candidate-3/e2e/red-candidate-2-retained.json"
+  ],
+  "revision": "ea68df9d9",
+  "mutant": null,
+  "foreign_ref": null,
+  "retained_ref": true,
+  "fixture": "/private/tmp/t131-7zehez6d",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "6883ebb1-09aa-4333-a01e-fa26aac25eab",
+          "snapshot": "4d11477c-3242-4a57-9dfc-8e0d9e9b5ac1",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ]
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1792690492.799,
+    "worker:T-2": 1792690492.972
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "6883ebb1-09aa-4333-a01e-fa26aac25eab",
+        "Session": "babd8716-c110-48a9-ad6d-1a8594efc280",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "ade3f5df-0a02-4f63-bfa0-2bad69ba650f",
+        "Launch": "a2a3b043-4e0d-41e7-9f07-b59296ebebf0"
+      },
+      "workspace": "/private/tmp/t131-7zehez6d/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "672af495-7973-43c2-aa1a-6260a81ac1f1",
+        "Session": "4f4ebe4e-424d-4d0f-a02e-240c42b219f2",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "cb9edd2d-9b67-4d2e-9e3d-a06cf0345ed9",
+        "Launch": "378ea147-f01d-4d93-b630-1d1bd9d24c28"
+      },
+      "workspace": "/private/tmp/t131-7zehez6d/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "6e5112ff-f173-46d6-9ccf-51c6b28d35cb",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "paused",
+      "review": "unknown",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "error": "AssertionError: both_reviews_passed_on_their_own_task: {'T-1': {'task_state': 'verified', 'review': 'passed', 'launch': '6e5112ff-f173-46d6-9ccf-51c6b28d35cb', 'mutation': 'mutation rc=1'}, 'T-2': {'task_state': 'paused', 'review': 'unknown', 'launch': '0abbc44f-e197-4fbc-93fb-6f392b94cb45', 'mutation': 'mutation rc=1'}}",
+  "api_snapshot": {
+    "requests": 22,
+    "main": 16,
+    "first_request": {
+      "worker:T-1": 1792690492.7986948,
+      "worker:T-2": 1792690492.971906,
+      "reviewer:T-1": 1792690497.890487,
+      "reviewer:T-2": 1792690498.132391
+    },
+    "results": {
+      "worker:T-2": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-7zehez6d/state/worktrees/demo/T-2-a1/b.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"36a8e354-556a-4379-a913-5cb4444aa811\",\"path\":\"/private/tmp/a2a-requests-WfbaVS/36a8e354-556a-4379-a913-5cb4444aa811.json\"}"
+        }
+      ],
+      "worker:T-1": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-7zehez6d/state/worktrees/demo/T-1-a1/a.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"67d95da0-e109-4eed-8e80-e4872a23c348\",\"path\":\"/private/tmp/a2a-requests-HuN0K2/67d95da0-e109-4eed-8e80-e4872a23c348.json\"}"
+        }
+      ],
+      "reviewer:T-1": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ],
+      "reviewer:T-2": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ]
+    }
+  },
+  "events_tail": [
+    {
+      "type": "pane_layout_closed",
+      "launch": "6e5112ff-f173-46d6-9ccf-51c6b28d35cb"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "6e5112ff-f173-46d6-9ccf-51c6b28d35cb"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "hook_received",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "turn_end_signal",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "native_turn_facts",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "relay_received",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "relay_processed",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "pane_idle",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "queue_stopped",
+      "launch": "0abbc44f-e197-4fbc-93fb-6f392b94cb45"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    }
+  ]
+}

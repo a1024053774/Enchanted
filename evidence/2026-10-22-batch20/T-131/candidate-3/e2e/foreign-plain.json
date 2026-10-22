@@ -1,0 +1,134 @@
+{
+  "status": "PASS",
+  "argv": [
+    "/private/tmp/a2a-t131-c3/workbench/tests/test_t131_parallel_workers_e2e.py",
+    "--foreign-ref",
+    "plain",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-22-batch20/T-131/candidate-3/e2e/foreign-plain.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "foreign_ref": "plain",
+  "retained_ref": false,
+  "fixture": "/private/tmp/t131-heh3bzur",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates",
+    "foreign_ref_during_review_refused"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "9a663cb4-9fa7-40a5-bff3-2a84699f3f4f",
+          "snapshot": "c8dc9e1b-1429-4723-84b0-fc616c49c9aa",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ]
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1792690540.121,
+    "worker:T-2": 1792690540.302
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "9a663cb4-9fa7-40a5-bff3-2a84699f3f4f",
+        "Session": "d1503b88-90aa-4923-96a0-643dd8d8b74a",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "6049636b-68f1-4a34-bdc0-2cf10a199d4c",
+        "Launch": "e799b1ef-73bd-4636-a338-40a1af3a9bf5"
+      },
+      "workspace": "/private/tmp/t131-heh3bzur/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "f82248b6-91f4-475e-9f97-4dbbec9c521b",
+        "Session": "d48a185f-18b9-4885-939c-6e7a83d59890",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "73030b14-54e0-4ae6-9d97-152efa8c2e52",
+        "Launch": "e8086ade-43d7-450c-9aa8-e6462a7e205a"
+      },
+      "workspace": "/private/tmp/t131-heh3bzur/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "cff27e9e-b08c-43dc-8cb2-499917ba5eeb",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "paused",
+      "review": "unknown",
+      "launch": "69d1010b-880a-4635-9080-36861a8dcb16",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "review_lifecycle_failed": [
+    {
+      "phase": "reclaim",
+      "error": "review_shared_refs_changed"
+    }
+  ]
+}

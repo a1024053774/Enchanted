@@ -1,0 +1,8 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查本仓库提交 8f584d45c（T-131 候选 1，父提交 03b2d66a3）与 README 补充 5d4fcd26c。改动在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-t131-e6bA/full.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-131-*.md；结果报告是 evidence/2026-10-22-batch20/T-131/candidate-1/RESULTS.md；失败现场见 evidence/2026-10-22-batch20/T-131/discovery/。
+重点：
+1. 去掉 workbench/src/panes.ts 的 single_worker_slice 后，后台（workbench/src/daemon.ts、panes.ts、relay.ts、gates/core.ts）还有没有假定“同时只有一个 worker”的地方：按 pane、launch、attempt、task 的状态、锁、回执、恢复、注入队列、钩子信号路由、Stop 转交等，会不会串到另一个 worker。
+2. workbench/src/gates/core.ts 的 reviewRefsUnchanged 是否正确且没有放宽到不安全：哪些引用改动被放过（别的任务的命名空间、经门禁记录的集成链），能否被审查员或 worker 利用来伪造（例如造一个像别的任务分支的引用、任务名前缀碰撞如 T-1 与 T-10、跨项目同名任务、事件序号起点、integrated 与 integrated_reconciled 的 details 结构）；是否漏了别的门禁合法写引用的情况（例如新 attempt、清理、放弃、冲突回写）。
+3. 测试（workbench/tests/test_t131_parallel_workers_e2e.py）是否独立于实现、屏障是否真的证明并发、变异能否区分坏实现；RESULTS.md 是否有夸大。
+4. 其他问题。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。

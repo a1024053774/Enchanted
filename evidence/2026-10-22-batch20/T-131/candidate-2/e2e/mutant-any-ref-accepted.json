@@ -1,0 +1,352 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "/private/tmp/a2a-t131-c2/workbench/tests/test_t131_parallel_workers_e2e.py",
+    "--foreign-ref",
+    "plain",
+    "--mutant",
+    "any-ref-accepted",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-22-batch20/T-131/candidate-2/e2e/mutant-any-ref-accepted.json"
+  ],
+  "revision": null,
+  "mutant": "any-ref-accepted",
+  "foreign_ref": "plain",
+  "fixture": "/private/tmp/t131-ouq34g7l",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "652eca96-d776-4655-9f03-70e17bf054eb",
+          "snapshot": "f95c5a13-3ee6-4833-afa5-496892c3280c",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ]
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1792689853.502,
+    "worker:T-2": 1792689853.711
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "652eca96-d776-4655-9f03-70e17bf054eb",
+        "Session": "666fb310-122d-4465-83c0-1489307d4018",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "f6728d5e-c8f1-469f-b648-3ab3d98ccd0a",
+        "Launch": "fdfad924-1271-4402-a172-8f58fa00027c"
+      },
+      "workspace": "/private/tmp/t131-ouq34g7l/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "e6c500e0-7bf3-41e4-9067-ff65c1b12274",
+        "Session": "c9a7bfe5-9fa1-47aa-bf3a-8cf1f7847999",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "8c9cd64e-c2f8-4abe-8445-004308fbcae1",
+        "Launch": "156fae08-0e83-4e82-ab52-099506a2b1cf"
+      },
+      "workspace": "/private/tmp/t131-ouq34g7l/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "c82d7b7b-e32e-4710-afb8-4c045f72be52",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "review_lifecycle_failed": [],
+  "error": "AssertionError: foreign_ref_during_review_refused: []",
+  "api_snapshot": {
+    "requests": 22,
+    "main": 16,
+    "first_request": {
+      "worker:T-1": 1792689853.502135,
+      "worker:T-2": 1792689853.7114408,
+      "reviewer:T-1": 1792689859.5661771,
+      "reviewer:T-2": 1792689859.9414248
+    },
+    "results": {
+      "worker:T-1": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-ouq34g7l/state/worktrees/demo/T-1-a1/a.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"5c3ff8ec-0354-4186-a8a5-0f1fb4823b3b\",\"path\":\"/private/tmp/a2a-requests-yg4hfE/5c3ff8ec-0354-4186-a8a5-0f1fb4823b3b.json\"}"
+        }
+      ],
+      "worker:T-2": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-ouq34g7l/state/worktrees/demo/T-2-a1/b.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"32721735-ce92-484e-9785-328290b88103\",\"path\":\"/private/tmp/a2a-requests-P1qqdA/32721735-ce92-484e-9785-328290b88103.json\"}"
+        }
+      ],
+      "reviewer:T-1": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ],
+      "reviewer:T-2": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ]
+    }
+  },
+  "events_tail": [
+    {
+      "type": "pane_archived",
+      "launch": "c82d7b7b-e32e-4710-afb8-4c045f72be52"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "hook_received",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "turn_end_signal",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "native_turn_facts",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "relay_received",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "relay_processed",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "pane_idle",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "d490d825-4e7d-4541-81c7-3b7e95905b37"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    }
+  ]
+}

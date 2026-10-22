@@ -1,0 +1,353 @@
+{
+  "status": "INCOMPLETE",
+  "argv": [
+    "/private/tmp/a2a-t131-c3/workbench/tests/test_t131_parallel_workers_e2e.py",
+    "--foreign-ref",
+    "plain",
+    "--mutant",
+    "any-ref-accepted",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a/evidence/2026-10-22-batch20/T-131/candidate-3/e2e/mutant-any-ref-accepted.json"
+  ],
+  "revision": null,
+  "mutant": "any-ref-accepted",
+  "foreign_ref": "plain",
+  "retained_ref": false,
+  "fixture": "/private/tmp/t131-q6hvd5cp",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "9dd2b969-58d5-454a-87ff-f71a525645bd",
+          "snapshot": "31a8ad2e-decd-4ab6-8c71-011da13e4c15",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ]
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1792690611.256,
+    "worker:T-2": 1792690611.414
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "9dd2b969-58d5-454a-87ff-f71a525645bd",
+        "Session": "4e42e49f-dfce-47d4-a207-1e90428f53eb",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "21fb2444-361b-4af4-877b-1b9453f8f129",
+        "Launch": "447e68a8-d4cb-4788-9eaa-529b58932bc5"
+      },
+      "workspace": "/private/tmp/t131-q6hvd5cp/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "b6396427-eb57-490b-b970-47660808a737",
+        "Session": "a0219d86-a957-4f6b-b8fb-8d221171a791",
+        "Role": "worker",
+        "Tool": "2.1.308 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "34dd72f8-cfd1-436e-acab-9faaf61d8e56",
+        "Launch": "b4e736c6-9345-49b0-8c86-c7567a94896c"
+      },
+      "workspace": "/private/tmp/t131-q6hvd5cp/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "2c53b632-6425-4098-b4b1-6f6a6b4a1dae",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "review_lifecycle_failed": [],
+  "error": "AssertionError: foreign_ref_during_review_refused: []",
+  "api_snapshot": {
+    "requests": 22,
+    "main": 16,
+    "first_request": {
+      "worker:T-1": 1792690611.255734,
+      "worker:T-2": 1792690611.413583,
+      "reviewer:T-1": 1792690617.223192,
+      "reviewer:T-2": 1792690617.5021179
+    },
+    "results": {
+      "worker:T-1": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-q6hvd5cp/state/worktrees/demo/T-1-a1/a.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"e5dc8360-84cb-4901-ab92-c9ccd505aed3\",\"path\":\"/private/tmp/a2a-requests-LCBqWu/e5dc8360-84cb-4901-ab92-c9ccd505aed3.json\"}"
+        }
+      ],
+      "worker:T-2": [
+        {
+          "is_error": false,
+          "text": "File created successfully at: /private/tmp/t131-q6hvd5cp/state/worktrees/demo/T-2-a1/b.txt (file state is current in your context — no need to Read it back)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "is_error": false,
+          "text": "{\"ok\":true,\"queued\":true,\"delivered\":false,\"request_id\":\"b1bafaae-7649-43ef-98f5-1a1ece52eb6a\",\"path\":\"/private/tmp/a2a-requests-1udVHC/b1bafaae-7649-43ef-98f5-1a1ece52eb6a.json\"}"
+        }
+      ],
+      "reviewer:T-1": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ],
+      "reviewer:T-2": [
+        {
+          "is_error": false,
+          "text": "mutation rc=1"
+        }
+      ]
+    }
+  },
+  "events_tail": [
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "2c53b632-6425-4098-b4b1-6f6a6b4a1dae"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "2c53b632-6425-4098-b4b1-6f6a6b4a1dae"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "2c53b632-6425-4098-b4b1-6f6a6b4a1dae"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "2c53b632-6425-4098-b4b1-6f6a6b4a1dae"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "hook_received",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "turn_end_signal",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "native_turn_facts",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "relay_received",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "relay_processed",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "pane_idle",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "pane_stop_intent",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "pane_exit",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "pane_layout_closed",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "pane_archived",
+      "launch": "db413b5b-d44b-45a7-9d1e-212daaeec32e"
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    },
+    {
+      "type": "request_result",
+      "launch": null
+    },
+    {
+      "type": "request_received",
+      "launch": null
+    }
+  ]
+}
