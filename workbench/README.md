@@ -116,7 +116,8 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
 它在系统临时目录下随机命名的 0700 目录里，路径不含后台数据目录；终端环境里没有 `A2A_STATE`，也没有数据目录或
 操作员凭据的路径。专用 socket 只接受终端身份，在核对身份之前就拒绝其他身份（`terminal_socket_terminal_only`），
 所以持有操作员凭据或窗口令牌也不能经它调用；每次拒绝记为 `request_rejected`，带 `socket: "terminal"`。
-原 `control.sock` 不变，界面与门禁 CLI 照旧使用。后台停止时删除专用 socket 与它的目录。角色申请是只追加的事件（`role_requested`、`role_request_decided`、
+原 `control.sock` 不变，界面与门禁 CLI 照旧使用。后台停止时删除专用 socket 与它的目录；启动在监听或写 PID 时失败，
+也先删掉这个目录再报错（数据目录里没有记录指向它，以后的启动清不掉）。角色申请是只追加的事件（`role_requested`、`role_request_decided`、
 `role_request_confirmed`、`role_request_ended`），状态由事件和终端是否存活推出。界面在终端区上方逐条
 列出待批准的申请并编号，申请的窗格加框并显示同号标签（“申请 1 · 执行主控”）；同一角色有多个申请时提示批准一个、
 确认生效后其余自动拒绝；不在当前视图的终端显示其工作目录与打开时间。批准或拒绝走管理凭据的 `role_request_decide`。规则：
