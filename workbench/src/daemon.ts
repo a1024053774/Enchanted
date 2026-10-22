@@ -17,6 +17,8 @@ import { randomUUID } from "node:crypto";
 import { createOperatorCredential, readOperatorCredential } from "./credentials.ts";
 import { sidebarSnapshot, projectCatalog } from './sidebar.ts';
 import { flowSnapshot } from './flow.ts';
+import { metricsSnapshot } from './metrics.ts';
+import { userInputRecords } from './userInputRecords.ts';
 import { RoleRequests, confirmWindowMs, type RoleRequest } from './roleRequests.ts';
 import { executionRole, executionOverrides } from './executionSettings.ts';
 
@@ -102,7 +104,7 @@ export async function serve(
   };
   const catalogCommands = new Set(["projects_list", "tasks_list", "sidebar_snapshot", "flow_snapshot"]);
   const readOnly = new Set([...catalogCommands, "daemon_status", "orchestration_events", "pane_output", "workbench_snapshot",
-    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings"]);
+    "pane_layout", "pane_status", "pane_process_info", "launch_show", "status", "events", "issues", "card_show", "card_template", "card_validate", "execution_settings", "metrics", "user_input_records"]);
   const authenticate = (identity: any): { source: string; kind: "operator" | "window" | "launch" | "terminal" | "anonymous";
       window?: WindowBinding; terminal?: { id: string; project: string | null; task: string | null } } => {
     if (!identity) return { source: "anonymous", kind: "anonymous" };
@@ -279,6 +281,15 @@ export async function serve(
     }
     if (input.command === "projects_list") return { ok: true, projects: gates.listProjects() };
     if (input.command === 'execution_settings') return { ok: true, settings: store.executionSettings() };
+    // The records and metrics pages (T-133, T-134) read the gate's and the orchestration's records directly.
+    if (input.command === 'user_input_records') {
+      if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');
+      return { ok: true, records: userInputRecords(store.db, input.project) };
+    }
+    if (input.command === 'metrics') {
+      if ([input.project, input.since, input.until].some(value => value != null && typeof value !== 'string')) throw new Refusal('invalid_metrics_range');
+      return { ok: true, ...metricsSnapshot(store.db, { project: input.project, since: input.since, until: input.until }) };
+    }
     if (input.command === 'execution_settings_save') {
       if (authority.kind !== 'operator') throw new Refusal('operator_required');
       const selection = Object.fromEntries(['model', 'effort', 'fast'].filter(key => input[key] !== undefined).map(key => [key, input[key]]));

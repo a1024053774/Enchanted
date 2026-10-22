@@ -264,6 +264,20 @@ function registerHandlers() {
       ...(reason !== undefined ? { reason } : {}), ...(basis !== undefined ? { basis } : {}) }, context.operator);
     if (!result.ok) throw new Error(result.error);
   });
+  ipcMain.handle('a2a:records', async (event, project: unknown) => {
+    const context = windowTarget(event);
+    if (typeof project !== 'string' || !project) throw new Error('Invalid project');
+    const result = await request(context.options.state, { command: 'user_input_records', project }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result.records;
+  });
+  ipcMain.handle('a2a:metrics', async (event, project: unknown, since: unknown, until: unknown) => {
+    const context = windowTarget(event);
+    if (typeof project !== 'string' || !project || [since, until].some(value => value !== null && typeof value !== 'string')) throw new Error('Invalid metrics range');
+    const result = await request(context.options.state, { command: 'metrics', project, since, until }, context.operator);
+    if (!result.ok) throw new Error(result.error);
+    return result;
+  });
   ipcMain.handle('a2a:projects', async event => {
     const context = windowTarget(event);
     const result = await request(context.options.state, { command: 'projects_list' });
