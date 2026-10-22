@@ -1,0 +1,8 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查本仓库提交 b3bd8aa84（T-129 候选 1，父提交 400db6611）与其后的 README 补充 03965053。改动（只含 workbench）在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-t129-eN54/full.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-129-*.md；结果报告是 evidence/2026-10-22-batch20/T-129/candidate-1/RESULTS.md；真实运行脚本在 evidence/2026-10-22-batch20/T-129/real/。
+重点：
+1. 修复（workbench/src/daemon.ts reviewer 的两条失败路径）是否正确完整：是否还有别的调用点以缺字段的身份调用 panes.caller 或 gates.failReviewProtocol；对 Codex reviewer 是否有影响（panes.ts 的 caller 核对逻辑）；协议失败后任务状态（paused、审查 unknown）是否满足 ticket “任务回到可重审状态”的要求。
+2. 测试（workbench/tests/test_t122_claude_worker_e2e.py 的 --review-result 与两个变异）是否独立于实现、能否区分坏实现；期望值是否来自独立来源。
+3. RESULTS.md 是否有夸大或与证据不符之处；真实运行能否支持其结论。
+4. 其他问题。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。
