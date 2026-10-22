@@ -2,7 +2,7 @@
 id: T-124
 title: 终端主控能回答问题、接管会话、自动运行：回答记为主控的话，已派出的工作做完为止
 type: build
-status: open
+status: closed
 blocked_by: [T-122]
 claimed_by:
 supersedes:
@@ -63,7 +63,7 @@ T-121 暂时不让终端角色调用四个门禁命令，原因各不相同：
 
 ## Acceptance
 
-证据：`evidence/2026-10-22-batch20/T-124/RESULTS.md`（候选 1）与 `candidate-2/RESULTS.md`（候选 2）。候选 2 各项有绿态与反例，独立审查待做。
+证据：`evidence/2026-10-22-batch20/T-124/RESULTS.md`（候选 1）与 `candidate-2/RESULTS.md`（候选 2）。候选 2 各项有绿态与反例，独立审查 PASS。
 
 
 - [x] 终端主控回答 worker 的问题：worker 收到回答；库里记为该主控的回答，`user_inputs` 没有新增。
@@ -79,3 +79,7 @@ T-121 暂时不让终端角色调用四个门禁命令，原因各不相同：
 - [x] 终端主控 `attach` 在工作台里起一个挂在任务下的会话，侧栏可见、启动 argv 记入启动记录；主控身份结束后该会话照常运行。
 - [x] 修前版本（回答记成用户输入）跑同一场景失败。
 - [x] `project_map.py status` 0 问题。
+
+## Resolution
+
+2026-10-22 PASS，最终候选 374a7c924。终端主控回答记为主控的回答；主控身份结束或额度用完后，`run` 经门禁做到集成并记为未评分；`attach` 的 monitor 只读，可经门禁回收。按用户裁定：worker 只经 `issue` 提问，进程快照放宽，Claude Code 与 Codex 两种主控的额度通知都在真实窗口里核对，后台重启后 run 接着跑、monitor 恢复。各项都有真实入口的绿态与反例，见 [候选 2 RESULTS](../../evidence/2026-10-22-batch20/T-124/candidate-2/RESULTS.md)。独立审查：候选 1 由 agy（gemini-3.8-flash-high）审出四条，都已修复；候选 2 复审 PASS，无发现（`candidate-2/review-03.md`）。没有直接证据的一条：非主控窗格仍出现原生提问时记 `native_question_ignored`，这条路径没有被触发过。

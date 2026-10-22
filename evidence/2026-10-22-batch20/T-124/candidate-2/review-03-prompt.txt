@@ -1,0 +1,10 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查本仓库提交 374a7c924（父提交 28a0550cc，T-124 候选 2），完整代码差异（不含 evidence）在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-nh3g/374a7c924.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-124-terminal-controller-answers-attach-run.md（含“用户裁定（2026-10-22，候选 1 之后）”一节），结果报告是 evidence/2026-10-22-batch20/T-124/candidate-2/RESULTS.md，上一轮审查是 evidence/2026-10-22-batch20/T-124/review-02.md。
+重点：
+1. 后台重启续跑（workbench/src/gates/core.ts 的 resumeRuns / resumeRun，daemon.ts 的调用顺序与关停等待）：是否会重复派发、接管别的 attempt、绕过操作锁、fence、attempt 绑定或截止时间；回收再派发的条件是否正确。
+2. 窗格恢复（workbench/src/panes.ts 的 restore、registerGone、requireMonitorRestore）：monitor 恢复是否可能把非 monitor 记录或正常登录会话当成 monitor 恢复；确认进程退出的判断是否可靠。
+3. 进程快照放宽（workbench/src/processSnapshot.py 的 settled_snapshot）：是否会掩盖根进程被替换，或让重试拼出不一致的树。
+4. Codex 额度读取（workbench/src/controllerQuota.ts）：窗口选择、恢复判断与时间戳过滤是否正确。
+5. 上一轮四条发现是否确实修好。
+6. 测试是否独立：workbench/tests/test_t124_controller_e2e.py 新增的检查与变异是否真能区分坏实现，RESULTS.md 是否有夸大或与证据不符之处。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。
