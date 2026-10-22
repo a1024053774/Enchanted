@@ -288,12 +288,13 @@ export async function serve(
     if (input.command === 'flow_snapshot') return { ok: true, ...await flowSnapshot(gates, store, panes, roleRequests) };
     if (input.command === 'sidebar_snapshot') {
       const snapshot = await sidebarSnapshot(gates, store, panes, roleRequests, quota.current());
-      // Issue reports waiting for the user's decision, per project (T-132).
+      // Issue reports waiting for the user's decision, per project (T-132). A task whose issues cannot be read
+      // makes its project's count unknown (null) rather than failing the whole sidebar (review 01).
       const projects = await Promise.all(snapshot.projects.map(async (project: any) => {
-        let waiting = 0;
+        let waiting: number | null = 0;
         for (const task of project.tasks) {
           const result = await gates.call({ command: 'issues', task: task.task_id });
-          if (!result.ok) throw new Refusal(result.error ?? 'issues_unavailable');
+          if (!result.ok) { waiting = null; break; }
           waiting += (result.issues ?? []).filter((view: any) => view.state === '等你决定').length;
         }
         return { ...project, issues_waiting: waiting };

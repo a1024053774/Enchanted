@@ -37,7 +37,7 @@ type Snapshot = {
 type Chunk = { launch: string; start_offset: number; next_offset: number; total_bytes: number; data_base64: string };
 type TaskItem = { task_id: string; project_id: string; title: string; state: string };
 type Theme = 'system' | 'light' | 'dark';
-type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string; issues_waiting: number;
+type ProjectItem = { project_id: string; repo: string | null; opened?: boolean; tasks: TaskItem[]; state: string; state_label: string; issues_waiting: number | null;
   git: { branch: string | null; upstream: string | null; ahead: number | null; behind: number | null; error: string | null } };
 type AgentItem = { id: string; project: string; task: string | null; task_name: string | null; attempt: string | null; parent: string | null;
   role: string; preset: string | null; role_label: string; cli: string; state: string; state_label: string; created_at?: string | null; terminal?: boolean;
@@ -665,7 +665,7 @@ function Workbench() {
   const error = states.some(value => value.error);
   const connecting = states.length < paneKeys.length || states.some(value => value.connecting);
   const project = projects.find(row => row.project_id === selectedProject);
-  const issuesWaiting = project?.issues_waiting ?? 0;
+  const issuesWaiting = project ? project.issues_waiting : 0;
   const repo = task?.repo ?? viewProject?.repo ?? project?.repo ?? null;
   const home = window.a2a.home;
   const status = navigating ? '正在切换' : creating ? '正在打开终端' : loading ? '正在读取后台' : catalogError ? '列表未更新' : error ? '窗格未连接' : connecting && paneKeys.length ? '正在连接' : '后台已连接';
@@ -700,7 +700,8 @@ function Workbench() {
               <span className="project-title">{item.project_id}</span>
               <span className="project-count">{scope.length || ''}</span>
               {waiting > 0 && <span className="project-needs">{waiting} 个等你</span>}
-              {item.issues_waiting > 0 && <span className="project-needs" data-project-issues={item.issues_waiting}>{item.issues_waiting} 个问题</span>}
+              {item.issues_waiting === null ? <span className="project-needs" data-project-issues="unknown" title="这个项目的问题列表读取失败">问题数未知</span>
+                : item.issues_waiting > 0 && <span className="project-needs" data-project-issues={item.issues_waiting}>{item.issues_waiting} 个问题</span>}
               <span className="sr-only project-state">{item.state_label}</span>
             </button>
             {renderProjectAgents(scope)}
@@ -742,7 +743,8 @@ function Workbench() {
           <button aria-current={page === 'terminal' ? 'page' : undefined} onClick={() => setPage('terminal')}>终端</button>
           <button data-flow-tab aria-current={page === 'flow' ? 'page' : undefined} onClick={() => setPage('flow')}>流程</button>
           <button data-issues-tab aria-current={page === 'issues' ? 'page' : undefined} onClick={() => setPage('issues')}>
-            问题{issuesWaiting > 0 && <span className="tab-needs" aria-label={`${issuesWaiting} 个等你决定`}>{issuesWaiting}</span>}</button>
+            问题{issuesWaiting === null ? <span className="tab-needs" aria-label="问题数读取失败">?</span>
+              : issuesWaiting > 0 && <span className="tab-needs" aria-label={`${issuesWaiting} 个等你决定`}>{issuesWaiting}</span>}</button>
         </nav>
         <span className={'connection ' + (error || catalogError ? 'warning' : '')} role="status">{status}</span>
         <button className="primary-button" disabled={busy} title="新建终端（⌘T）" onClick={() => void newTerminal()}>新建终端</button>

@@ -258,7 +258,8 @@ function registerHandlers() {
   ipcMain.handle('a2a:issue-dispose', async (event, task: unknown, issue: unknown, action: unknown, reason?: unknown, basis?: unknown) => {
     const context = windowTarget(event);
     if (![task, issue].every(value => typeof value === 'string' && value) || !['close', 'snooze'].includes(action as string) ||
-      [reason, basis].some(value => value !== undefined && typeof value !== 'string')) throw new Error('Invalid disposition');
+      [reason, basis].some(value => value !== undefined && typeof value !== 'string') ||
+      (action === 'close' && ![reason, basis].every(value => typeof value === 'string' && value.trim()))) throw new Error('Invalid disposition');
     const result = await request(context.options.state, { command: 'disposition', task, issue, action,
       ...(reason !== undefined ? { reason } : {}), ...(basis !== undefined ? { basis } : {}) }, context.operator);
     if (!result.ok) throw new Error(result.error);

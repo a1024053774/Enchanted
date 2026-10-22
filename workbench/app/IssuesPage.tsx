@@ -12,8 +12,10 @@ export function IssuesPage({ project }: { project: string | null }) {
   const [tasks, setTasks] = useState<TaskIssues[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  // A project switch starts from "reading"; a refresh after an action keeps the cards and their drafts.
+  useEffect(() => { setTasks(null); setError(null); }, [project]);
   useEffect(() => {
-    if (!project) { setTasks([]); setError(null); return; }
+    if (!project) return;
     let mounted = true;
     const load = () => window.a2a.issues(project).then((value: TaskIssues[]) => {
       if (!mounted) return;
@@ -31,8 +33,8 @@ export function IssuesPage({ project }: { project: string | null }) {
     {error && <p className="catalog-error" role="alert">{error}</p>}
     {!project ? <p className="records-empty">先在左侧选一个项目。</p>
       : tasks === null && !error ? <p className="records-empty" role="status">正在读取…</p>
-      : tasks !== null && !rows.length ? <p className="records-empty">这个项目还没有问题上报。</p> : null}
-    {!error && rows.map(({ task, view }) => <Issue key={view.issue.id} task={task} view={view} changed={() => setVersion(value => value + 1)} />)}
+      : tasks !== null && !error && !rows.length ? <p className="records-empty">这个项目还没有问题上报。</p> : null}
+    {rows.map(({ task, view }) => <Issue key={view.issue.id} task={task} view={view} changed={() => setVersion(value => value + 1)} />)}
   </div>;
 }
 
