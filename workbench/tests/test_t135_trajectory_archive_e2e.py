@@ -106,8 +106,8 @@ def main():
         for sequence, data in enumerate(['\x1b[200~' + TYPED + '\x1b[201~', '\r'], 1):
             assert fixture.request('window_input', window['identity'], sequence=sequence, request_id=str(uuid.uuid4()), data=data)['ok']
             time.sleep(.5)
-        fixture.wait('第二回合结束', lambda: len(turn_ends()) >= 2, 120)
-        second = fixture.wait('第二段归档', lambda: (lambda r: r if r[-1]['end'] > end1 else None)(rows()), 30)
+        # The first turn may already have been followed by the gate's receipt turn, so wait for the user's own turn.
+        second = fixture.wait('第二回合归档', lambda: (lambda r: r if TYPED.encode() in archived(r[-1]) else None)(rows()), 150)
         transcript = source.read_bytes()
         end2 = second[-1]['end']
         report['second_rows'] = [{k: r[k] for k in ('start', 'end', 'stored_bytes')} for r in second]
