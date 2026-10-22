@@ -123,6 +123,9 @@ export function validateTaskCard(input: unknown, id: string): TaskCard {
     "task_type", "repair_target", "complexity", "executor", "base_commit", "writer"], "card");
   check(card.id === id, "id", "Card ID does not match the task.");
   if (card.source !== null) {
+    // T-122 gui-03: naming only the object fields sent a controller off to invent a ticket.
+    check(card.source && typeof card.source === "object" && !Array.isArray(card.source), "source",
+      "null when the task has no project-map ticket; otherwise an object with fields ticket, ready_rev.");
     object(card.source, ["ticket", "ready_rev"], "source");
     nonempty(card.source.ticket, "source.ticket");
     const source = ticketSource(card.source.ticket);

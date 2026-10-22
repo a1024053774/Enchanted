@@ -291,6 +291,12 @@ class TaskCardsCLI(unittest.TestCase):
                 self.card_file.write_text(json.dumps(card), encoding='utf-8')
                 refused = self.cli('card_save', '--card', self.card_file, '--expected-version', '0', ok=False, error='invalid_task_card')
                 self.assertIn('argv', refused['details']['reason'], refused)
+        # T-122 gui-03: a controller that wrote a string source must learn that null is allowed.
+        card = copy.deepcopy(self.card)
+        card['source'] = 'user request'
+        self.card_file.write_text(json.dumps(card), encoding='utf-8')
+        refused = self.cli('card_save', '--card', self.card_file, '--expected-version', '0', ok=False, error='invalid_task_card')
+        self.assertIn('null', refused['details']['reason'], refused)
         self.save_card()
         self.cli('create', '--repo', self.repo, '--branch', 'refs/heads/main', '--card-version', '1')
         # Registration precedes the writer identity and the real claim baseline.
