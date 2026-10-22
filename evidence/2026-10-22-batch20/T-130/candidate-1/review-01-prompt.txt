@@ -1,0 +1,8 @@
+你是独立审查者，只读，不修改任何文件、不运行会写文件的命令、不提交。
+不要运行任何 shell 命令（无头模式会拒绝）；只用读文件工具。审查本仓库提交 566e54b57（T-130 候选 1，父提交 04354734b）与 README 补充 619bb849。改动（只含 workbench，含期间关闭 T-129 的无关提交里的 README 一行）在 /private/tmp/claude-501/-Users-luckye-Documents-Code-a2a/193bb4d9-d8a5-4f5f-9e0a-4a1f8bbc5df3/scratchpad/agy-t130-tX2U/full.diff，改动后的文件即仓库当前文件。需求是 .project-map/tickets/T-130-*.md；结果报告是 evidence/2026-10-22-batch20/T-130/candidate-1/RESULTS.md。
+重点：
+1. 钩子（workbench/hooks/hook.py claude_turn_facts）是否正确：会话记录定位（配置目录、glob、唯一性、越界）、会话号核对、半行与 <synthetic> 处理、两种强度字段的取法；异常是否都会拒绝提交而不是写错值；对 Codex 分支是否有影响；钩子在沙箱外运行，读用户 ~/.claude 是否引入新风险。
+2. 与门禁 trailer_check（workbench/src/gates/core.ts）的配合：尾注实际值与交付记录（Stop 时的事实）不一致的可能（例如提交与交付不在同一回合、回合中换模型），会不会导致误拒合法交付；门禁仍允许 unknown 是否合理。
+3. 测试（workbench/tests/test_t130_hook_claude_facts.py、workbench/tests/test_t122_claude_worker_e2e.py 的尾注断言）是否独立于实现、变异能否区分坏实现；RESULTS.md 是否有夸大。
+4. 其他问题。
+用中文输出。每条发现给出：严重度（P0/P1/P2/P3）、文件与行号、具体失败场景、建议。没有发现就明确说没有。最后给出总体结论：PASS、INCOMPLETE 或 NO_GO。

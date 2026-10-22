@@ -2,7 +2,7 @@
 id: T-130
 title: Claude worker 的提交尾注写本回合实际的模型与强度，不再是 unknown
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by:
 supersedes:
@@ -32,7 +32,11 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] 真实入口（T-122 端到端，真实 Claude Code 加脚本化接口）：Claude worker 的提交尾注 `A2A-Model` 是接口实际回复的模型（不同于请求的模型），`A2A-Effort` 是任务卡的强度；门禁 `trailer_check` 通过。修前版本在同一检查上失败。
-- [ ] 钩子在隔离条件下按失败清单检查：半行、`<synthetic>`、别的会话的记录、记录不唯一、两种强度字段、强度字段不一致、记录缺失。每项都有已知坏实现的反例。
-- [ ] 真实运行一次（真实模型）：尾注是实际值，并与 `native_turn_facts` 一致。
-- [ ] T-122 正常流程、T-127（Codex 尾注）回归通过。
+- [x] 真实入口（T-122 端到端，真实 Claude Code 加脚本化接口）：Claude worker 的提交尾注 `A2A-Model` 是接口实际回复的模型（不同于请求的模型），`A2A-Effort` 是任务卡的强度；门禁 `trailer_check` 通过。修前版本在同一检查上失败。
+- [x] 钩子在隔离条件下按失败清单检查：半行、`<synthetic>`、别的会话的记录、记录不唯一、两种强度字段、强度字段不一致、记录缺失。每项都有已知坏实现的反例。
+- [x] 真实运行一次（真实模型）：尾注是实际值，并与 `native_turn_facts` 一致。
+- [x] T-122 正常流程、T-127（Codex 尾注）回归通过。
+
+## Resolution
+
+2026-10-22 PASS，候选 566e54b57（README 619bb849）。提交钩子的 Claude 分支按启动会话号在 `CLAUDE_CONFIG_DIR`（或 `$HOME/.claude`）的 `projects/*/` 下读唯一的会话记录，写最后一条非 `<synthetic>` 回复的模型与强度；记录不唯一、越界、会话号不符或两种强度字段不一致时拒绝提交，缺失时写 unknown。门禁规则不变。证据：钩子单元 12 项，修前钩子与 9 个变异各自失败；T-122 端到端（真实 Claude Code 加以另一模型名回复的脚本化接口）尾注为接口实际回复的模型与任务卡强度，门禁 `trailer_check` 通过并走到集成，修前版本失败；T-127、T-129 两场景回归通过；真实运行（sonnet 5.5 medium）尾注 `claude-sonnet-5-5 / medium` 与 `native_turn_facts` 一致。见 [RESULTS](../../evidence/2026-10-22-batch20/T-130/candidate-1/RESULTS.md)。独立审查 agy（gemini-3.8-flash-high）PASS，无发现（`candidate-1/review-01.md`）。已知边界：提交后、交付前若会话换了模型，尾注与交付记录不一致，门禁按既有规则拒收（与 Codex 相同）。
