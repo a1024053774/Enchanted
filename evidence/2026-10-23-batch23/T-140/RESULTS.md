@@ -10,6 +10,10 @@
 修订的固定候选 `3e8f2a5e6b036fb5d1bda455c91ce551b021f61a` 已经新的只读上下文审查：未发现确定的新设置失败，
 结论为 INCOMPLETE，等待原生复跑，见 [ACCEPTANCE-REVIEW-02.md](ACCEPTANCE-REVIEW-02.md)。本次后续提交只保存该审查记录。
 
+第三轮进展：RUN-OUTSIDE-02 在重开已关闭的 WAL 数据库时中止，后续原生场景均未运行。
+本轮改为在后台关闭前经现有只读命令采集设置事件与启动记录，并增加批次单项失败隔离和可信鼠标快速双击用例。
+请运行最新的 `RUN-OUTSIDE-03.sh`；本地执行器故障隔离自检通过，但新的原生场景仍为 INCOMPLETE。
+
 ## 改动
 
 - 项目行右键菜单增加“编辑项目”，显示主目录，支持目录选择器添加、列表移除与保存；沿用现有设置对话框样式。
@@ -59,6 +63,7 @@ git diff --check
 
 运行：`zsh evidence/2026-10-23-batch23/T-140/RUN-OUTSIDE-01.sh`。
 以上是首轮历史命令；本轮请运行 `zsh evidence/2026-10-23-batch23/T-140/RUN-OUTSIDE-02.sh`，原脚本与旧证据不覆盖。
+第二轮亦已成为历史命令；最新命令是 `zsh evidence/2026-10-23-batch23/T-140/RUN-OUTSIDE-03.sh`，前两轮保留不改。
 脚本每次创建新的 `outside-<时间>` 目录，保存每条命令、退出码、JSON 摘要、日志与截图，最后给出 `run.json` 路径。
 红态、变异必须在对应行为断言失败才算通过反事实检查，环境失败不算红态。
 
@@ -100,3 +105,40 @@ PYTHONDONTWRITEBYTECODE=1 python3 workbench/tests/test_t140_scripted_plan.py --s
 ```
 
 这两条也已加入 RUN-OUTSIDE。修复后的原生候选仍需执行主控运行和独立审查，整体验收仍为 INCOMPLETE。
+
+## 第三轮：WAL 收尾与真实用户双击
+
+执行主控提供的 `outside-02-20261023-063336-423334/` 保留原样。driver-green 通过；旧驱动再次在 T-RC 写入断言失败，
+但外层脚本重开 SQLite 时异常退出，没有生成整批 run.json，也没有运行修前红态、当前绿态、变异或回归；这些不能记作通过。
+
+夹具 `/private/tmp/t140-_gs12a1f/state/state.sqlite3` 没有被清理。现场库存在，WAL/SHM 旁文件均不存在。
+本地 SQLite 3.54.0 对原库及其新副本的 `mode=ro` 打开均复现 `OperationalError: unable to open database file`；
+普通打开可写副本并设置 `PRAGMA query_only=ON` 能读出原来的两次 `[X]`。见 `sqlite-diagnosis-03.json`。
+这符合 [SQLite WAL 只读打开的限制](https://sqlite.org/wal.html#read_only_databases)；不把它误记为夹具被删除，也不以 immutable 模式忽略可能尚未落盘的 WAL。
+另用新建的小库做了 DELETE/WAL、两种 URI 写法与 immutable 对照：DELETE 的只读打开成功，缺旁文件的 WAL 普通只读打开失败，
+已知无未提交写入的测试 WAL 库用 immutable 可读，见 `sqlite-uri-controls-03.json`。这将故障定位到 WAL 收尾读法，而非路径格式或目录被删。
+
+修复不再重开已停止后台的数据库：旧驱动只追加诊断采集，在其失败处理里、后台停止之前经 `orchestration_events` 保存设置事件；
+当前 e2e 也经 `orchestration_events` 与 `launch_show` 读取持久化启动记录。诊断失败会显式记为 INCOMPLETE，仍执行清理。
+RUN-OUTSIDE-03 在每个用例边界记录命令、退出码、业务错误及 `case_error`，不重试、不替换 oracle、不把失败变成 PASS；
+每项之后保存 run.json，继续后续用例。
+
+真实用户快速双击保存**不会通过旧驱动的同任务路径触发保存旧列表**。依据是：
+
+1. 旧错误是同一个 JavaScript 任务中先调用“移除”的 `.click()`，再调用“保存”的 `.click()`；保存函数仍绑定旧渲染。
+   它不是两次独立的浏览器用户输入。
+2. [React 的事件契约](https://react.dev/learn/queueing-a-series-of-state-updates)明确：不跨多次有意点击批处理；第一次点击禁用表单时，第二次不会再次提交。
+   当前保存处理函数首先 `setBusy(true)`，保存按钮的 `disabled={busy || !settings}` 与之对应。
+3. 单纯双击“保存”没有夹在两次保存之间的草稿编辑，本身也没有恢复旧目录列表的操作；它与旧驱动“先移除再存旧渲染”的触发条件不同。
+
+上述结论来自事件契约与当前代码，不冒称已做真实双击实测。本轮没有据此增加产品层补丁。
+为核对 Electron 的实际行为，当前原生 e2e 增加浏览器 `Input.dispatchMouseEvent`：真实移除点击后无人工延时地排队两次保存点击，
+记录 `isTrusted`、点击次数与点击时的草稿目录数，要求保存事件仍精确为 `[[X], []]`，之后两家新 worker 写 X 都失败。
+三个可信 pointerdown（一次移除、两次同坐标保存）也须从页面实际记录读回，避免只用脚本自报“发送了双击”当作证据。
+这条用例保留在测试中；若原生复跑失败，将按产品缺陷继续处理，不放宽断言。
+
+本地检查：`RUN-OUTSIDE-03.sh --self-test` 故意给出损坏 JSON、非对象 JSON、缺少摘要和缺少诊断四类错误，
+四项均显式 INCOMPLETE，最后的 sentinel 仍 PASS，证明批次没有提前中止。
+证据为 `runner-self-test-03.log` 与 `outside-03-20261023-064133-694294/run.json`（scope 仅为执行器故障隔离，self_test_status 为 PASS，不是原生验收）。
+驱动路由检查 `driver-green-03.json`、Python/Node/zsh 语法、`git diff --check` 均通过。
+RUN-OUTSIDE-03 的原生运行与快速双击实际结果尚未取得，整体验收仍为 INCOMPLETE。

@@ -9,6 +9,7 @@ Failure modes (written before implementation of the test):
 5. Launch records omit the actual extra-directory arguments; non-operator can change grants.
 6. Saved removal overwrites the add event; project-terminal launch parameters change.
 7. Driver clicks remove/save in one JavaScript task, before React commits the removal.
+8. Real, trusted rapid Save double-clicks submit an old list or duplicate saves.
 
 Expected values come from T-140, not production helpers. --revision runs the same contract on
 old sources; --mutant runs an intentionally broken source copy. Every summary path is new.
@@ -52,6 +53,16 @@ def main():
     def check(name, condition, detail=None):
         assert condition, f'{name}: {detail}'
         report['checks'].append(name)
+
+    def launch_records():
+        events = fixture.request('orchestration_events')
+        assert events.get('ok'), events
+        records = []
+        for launch in sorted({event['launch'] for event in events['events'] if event.get('launch')}):
+            result = fixture.request('launch_show', fixture.operator, launch=launch)
+            assert result.get('ok'), result
+            records.append(result['launch'])
+        return records
 
     def probe(cwd, key, result_name='result.json'):
         # Each path has its own result file: a denied/removed write cannot be hidden by an older file.
@@ -227,10 +238,21 @@ def main():
         edit()
         electron.until('saved X listed', f"!!document.querySelector('[data-extra-directory={json.dumps(str(x))}]')")
         electron.screenshot(fixture.out / '01-project-settings.png')
-        electron.evaluate("document.querySelector('[data-extra-directory] button').click()")
-        # A separate browser task observes the committed React state before clicking Save.
-        electron.until('X removed from draft', "document.querySelectorAll('.project-settings [data-extra-directory]').length === 0")
-        electron.evaluate("document.querySelector('[data-project-save]').click()")
+        # Input.dispatchMouseEvent generates browser input, including a rapid double Save.
+        # Unlike two HTMLElement.click() calls in one Runtime.evaluate task, React processes
+        # intentional events separately. Record isTrusted and the draft visible at each click.
+        clicked = subprocess.run(['node', str(Path(__file__).with_name('t140_cdp_click.mjs')), str(electron.port)],
+                                 capture_output=True, text=True, timeout=30)
+        assert clicked.returncode == 0, clicked.stderr
+        clicks = json.loads(clicked.stdout)
+        report['observed']['trusted_clicks'] = clicks
+        check('trusted_remove_and_double_save', clicks['save_clicks_dispatched'] == 2 and
+              len(clicks['pointerdowns']) == 3 and all(event['trusted'] for event in clicks['pointerdowns']) and
+              clicks['pointerdowns'][1]['x'] == clicks['pointerdowns'][2]['x'] and
+              clicks['pointerdowns'][1]['y'] == clicks['pointerdowns'][2]['y'] and
+              any(event['action'] == 'remove' and event['trusted'] for event in clicks['clicks']) and
+              any(event['action'] == 'save' and event['trusted'] for event in clicks['clicks']) and
+              all(event['draft'] == 0 for event in clicks['clicks'] if event['action'] == 'save'), clicks)
         electron.until('settings closed', "!document.querySelector('dialog.project-settings')")
         settings = [event['data'] for event in fixture.request('orchestration_events')['events'] if event['type'] == 'project_settings_saved']
         report['observed']['settings_after_remove'] = settings
@@ -241,10 +263,8 @@ def main():
         rows = fixture.request('orchestration_events')['events']
         settings = [event['data'] for event in rows if event['type'] == 'project_settings_saved']
         check('append_only_add_and_remove', [event['extra_directories'] for event in settings] == [[str(x)], []], settings)
-        # Launch records are persisted in the real SQLite store, independently of the renderer.
-        import sqlite3
-        with sqlite3.connect(fixture.state / 'state.sqlite3') as db:
-            launches = [json.loads(row[0]) for row in db.execute('SELECT data FROM launch_records ORDER BY rowid')]
+        # Read the daemon's persisted records before shutdown, without reopening a closed WAL DB.
+        launches = launch_records()
         report['observed']['launches'] = launches
         for task, (_, allowed) in tasks.items():
             launch = next(row for row in launches if row['task'] == 'demo+' + task and row['role'] == 'worker')
@@ -262,12 +282,13 @@ def main():
         report['codex_api'] = api
         if fixture:
             report['claude_api'] = fixture.api.snapshot()
-            # Keep the real launch parameters even if an early shell assertion rejects a mutant.
-            database = fixture.state / 'state.sqlite3'
-            if database.exists():
-                import sqlite3
-                with sqlite3.connect(f'file:{database}?mode=ro', uri=True) as db:
-                    report['observed']['launches'] = [json.loads(row[0]) for row in db.execute('SELECT data FROM launch_records ORDER BY rowid')]
+            # A diagnostic failure remains visible and must not prevent service cleanup.
+            if fixture.running:
+                try:
+                    report['observed']['launches'] = launch_records()
+                except (OSError, AssertionError, ValueError) as snapshot_error:
+                    report['status'] = 'INCOMPLETE'
+                    report['snapshot_error'] = f'{type(snapshot_error).__name__}: {snapshot_error}'
         try:
             if electron:
                 electron.stop()
