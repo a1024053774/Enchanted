@@ -1,3 +1,4 @@
+// 历史测试：只针对 5f7f9816eb9a996377c5b255695244d99c0259e7，当前 main 不跑
 // Shared controlled PTY/process boundary. No gate verdict or provider execution.
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
