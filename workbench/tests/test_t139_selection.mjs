@@ -30,7 +30,8 @@ try {
   const request = async (_state, input, identity) => {
     if (input.command === 'sidebar_snapshot') return { ok: true, projects: [{ project_id: 'demo', repo: '/fixture/demo', tasks }], agents };
     if (input.command === 'pane_layout') return { ok: true, saved: true, panes: input.project
-      ? [{ launch: 'project-shell', task: null }] : input.free ? [] : [...taskPanes].map(launch => ({ launch })), arrangement };
+      ? [{ launch: 'project-shell', task: null }, ...[...taskPanes].map(launch => ({ launch, task: 'demo+T-A' }))]
+      : input.free ? [] : [...taskPanes].map(launch => ({ launch, task: 'demo+T-A' })), arrangement };
     if (input.command === 'workbench_snapshot') {
       const launch = agents.find(a => a.id === (input.launch ?? 'worker-A'));
       return { ok: true, task: input.project ? null : tasks.find(t => t.task_id === input.task), launch,

@@ -5,6 +5,8 @@ run_dir=$(mktemp -d "$PWD/evidence/2026-10-23-batch23/T-139-T-143/outside-XXXXXX
 export PYTHONPYCACHEPREFIX=/private/tmp/a2a-t139-pycache
 test_file=workbench/tests/test_t139_t143_views_perf_e2e.py
 failed=0
+node --experimental-vm-modules workbench/tests/test_t139_selection.mjs "$run_dir/selection.json" > "$run_dir/selection.log" 2>&1 || failed=1
+node --experimental-vm-modules workbench/tests/test_t139_layout_store.mjs "$run_dir/layout-store.json" > "$run_dir/layout-store.log" 2>&1 || failed=1
 
 # Expected red must be a business assertion, with usable real Electron metrics.
 python3 "$test_file" --revision ebbae7bd0 --summary "$run_dir/baseline.json" > "$run_dir/baseline.log" 2>&1

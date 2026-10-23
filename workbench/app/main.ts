@@ -72,7 +72,8 @@ async function serializedArrangement(context: WindowBinding, tree = context.layo
   const saved = await request(context.options.state, { command: 'pane_layout',
     ...(context.options.task ? { task: context.options.task } : { project: context.options.project }) });
   if (!saved.ok) throw new Error(saved.error);
-  const full = restoreArrangement(saved.panes.map((pane: { launch: string }) => ({ key: pane.launch, launch: pane.launch })), saved.arrangement);
+  const opened = saved.panes.filter((pane: { task: string | null }) => context.options.task !== undefined || pane.task === null);
+  const full = restoreArrangement(opened.map((pane: { launch: string }) => ({ key: pane.launch, launch: pane.launch })), saved.arrangement);
   const kept = new Set<string>();
   mapLayout(selected.tree, id => { kept.add(id); return id; });
   for (const pane of context.panes.values()) if (pane.launch && !pane.viewOnly && !kept.has(pane.launch)) {

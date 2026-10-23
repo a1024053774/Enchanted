@@ -12,9 +12,10 @@
 | 检查 | 结果与证据 |
 | --- | --- |
 | 实际 main.ts 的修前合同检查 | NO_GO，`selection-red-03.json`：任务选择含 `project-shell`，正中缺陷。`-01`、`-02` 为夹具字段不完整的探索失败，不算红态 |
-| 相同入口的改后检查 | PASS，`layout-green-02.json`，10 项：原 8 项加单 agent 重命名/关闭保留兄弟窗格布局与名称 |
+| 相同入口的改后检查 | PASS，`selection-final-01.json`，10 项：原 8 项加单 agent 重命名/关闭保留兄弟窗格布局与名称 |
+| 真实 SQLite store 与后台原布局校验 | PASS，`store-layout-green-01.json`，10 项：任务及项目终端的单会话编辑、兄弟布局/名称、明确重开登记与范围隔离；仍不是 Electron 证据 |
 | Git/SQLite 侧栏投影回归 | PASS，`sidebar-projection-01.json`。受控状态信号，不代表真实 CLI/UI |
-| 标准构建 | PASS，`build-check-02.json`，命令 `node workbench/app/build.mjs --slot t139-view-check-02`；构建目录已清理 |
+| 标准构建 | PASS，`build-check-03.json`，命令 `node workbench/app/build.mjs --slot t139-view-check-03`；构建目录已清理 |
 | Python 与 zsh 脚本语法 | PASS，`PYTHONPYCACHEPREFIX=/private/tmp/a2a-t139-pycache python3 -m py_compile workbench/tests/test_t139_t143_views_perf_e2e.py`；`zsh -n evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-01.sh` |
 | 联合真实 Electron 修前运行 | INCOMPLETE，`baseline-02.json`：真实后台和两个 CLI 已启动，但 Electron 未开放 CDP 端口，ECONNREFUSED；无截图、无性能基线。`baseline-01.json` 是测试使用了错误夹具字段的探索失败 |
 | 两个真实 Electron 变异 | 未运行；联合 e2e 提供 `task-includes-project-terminal` 和 `duplicate-replay` |
@@ -39,6 +40,10 @@ node workbench/tests/test_t107_sidebar.mjs <新的summary路径>
 单 agent 重命名只改其名称，关闭只移除其叶子；明确重开当前 agent 时登记其打开状态。`layout-green-02.json` 通过两项对应检查。
 `layout-green-01.json` 是补丁位置错误导致的探索失败，已保留，不算通过。
 第一次只读独立检查见 `REVIEW-01.md`：INCOMPLETE；审查期间只提交了证据，但 HEAD 改变使其按冻结规则停止。
+一次有界复核见 `REVIEW-02.md`：FAIL，真实 store 的项目查询还含任务 agent，保存项目终端前缺少过滤。
+已按其反例保留 `test_t139_layout_store.mjs`；`store-layout-red-02.json` 在 9b07f2591 上准确失败，
+筛出 `task===null` 后 `store-layout-green-01.json` 通过。复核发现均已修复并有对应运行证据；没有新独立通过结论。
+复跑：`node --experimental-vm-modules workbench/tests/test_t139_layout_store.mjs <新的summary路径> [9b07f2591]`。
 
 ## T-143
 
