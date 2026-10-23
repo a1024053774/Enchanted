@@ -4,10 +4,13 @@
 不带参数时跑 check.mjs；带参数时只跑参数里的脚本（门禁每条命令限时 60 秒，分开跑）。每个检查脚本收到输出目录（argv[2]）与环境变量 PAGE_BASE，全部通过时以 0 退出。
 依赖：博客仓库里的 playwright-core 与本机 Playwright 的 Chromium（路径写在 check.mjs）。
 """
-import os, socket, subprocess, sys, tempfile, time, urllib.request
+import os, shutil, socket, subprocess, sys, tempfile, time, urllib.request
 from pathlib import Path
 
 root = Path.cwd()
+# 门禁后台从 Finder 启动，PATH 只有系统目录；node 按用户登录 shell 的 PATH 找。
+node = shutil.which('node') or subprocess.run(['/bin/zsh', '-lc', 'command -v node'], capture_output=True, text=True).stdout.strip()
+if not node: sys.exit('node not found in PATH or the login shell')
 checks = [root / arg for arg in sys.argv[1:]] or [Path(__file__).with_name('check.mjs')]
 with socket.socket() as s:
     s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]
@@ -22,7 +25,7 @@ try:
     failed = []
     for check in checks:
         target = out / check.stem
-        result = subprocess.run(['node', str(check), str(target)], env={**os.environ, 'PAGE_BASE': base}, capture_output=True, text=True)
+        result = subprocess.run([node, str(check), str(target)], env={**os.environ, 'PAGE_BASE': base}, capture_output=True, text=True)
         print(f'{check}: exit {result.returncode}, report {target}/report.json')
         if result.returncode != 0:
             failed.append(str(check)); print(result.stdout[-4000:], result.stderr[-4000:])
