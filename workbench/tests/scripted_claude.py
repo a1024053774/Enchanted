@@ -205,6 +205,7 @@ class Fixture:
         """Start the daemon, make the demo repository with the given files, open it, and approve a terminal controller."""
         config = dict(claude_bin=claude, role_card=str(self.source / 'workbench/roles/worker.md'), role_card_revision='fixture',
                       reviewer_role_card=str(self.source / 'workbench/roles/reviewer.md'), reviewer_role_card_revision='fixture',
+                      monitor_role_card=str(self.source / 'workbench/roles/monitor.md'), monitor_role_card_revision='fixture',
                       code_revision='fixture', hook_authorization='fixture: hooks only through launch arguments', turn_limit=6)
         (self.dir / 'launch-config.json').write_text(json.dumps(config), encoding='utf-8')
         self.run_cli('daemon_start', '--launch-config', str(self.dir / 'launch-config.json'))

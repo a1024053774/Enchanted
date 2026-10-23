@@ -187,7 +187,8 @@ def main():
         workers = {}
         for task in FILES:
             # T-3 is dispatched from the desktop's operator identity, with no controller: an unassigned session.
-            dispatched = fixture.request('dispatch', executor if task != 'T-3' else fixture.operator, task=task, runtimeMode='workspace-write')
+            dispatched = (fixture.request('dispatch', executor, task=task, runtimeMode='workspace-write') if task != 'T-3' else
+                          fixture.request('dispatch', fixture.operator, task='demo+T-3', runtimeMode='workspace-write'))
             assert dispatched.get('ok'), dispatched
             workers[task] = dispatched['attempt']['runtime_identity']['launch']
         instructions = fixture.out / 'monitor.txt'

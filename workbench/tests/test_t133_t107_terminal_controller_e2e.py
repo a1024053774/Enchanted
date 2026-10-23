@@ -222,13 +222,20 @@ def main():
         check('branch_line_matches_git', shown == f'{branch} · ↑{ahead} ↓{behind}' and (ahead, behind) == ('1', '0'), report['observed']['git'])
 
         # Review 01: a managed worker in the same run. The user answers its issue from the desktop and types in its pane.
-        fixture.terminal = fixture.operator
-        fixture.card('T-1', 'a.txt', 'check_T-1.py')
-        dispatched = fixture.request('dispatch', fixture.operator, task='T-1', runtimeMode='workspace-write')
+        # The operator has no project of its own, so it names the task by its full id.
+        card = fixture.out / 'T-1.json'
+        card.write_text(json.dumps(dict(id='T-1', source=None, goal='在仓库根目录加 a.txt', non_goals=['不改别的文件'], paths=dict(allow=['a.txt'], deny=[]),
+            oracle_paths=['check_T-1.py'], completion_conditions=[dict(argv=['python3', 'check_T-1.py'])], red_commands=[], task_type='测试', repair_target=None,
+            complexity='S', executor=dict(cli='Claude Code', model='claude-haiku-5-5', effort='low'), base_commit=None, writer=None), ensure_ascii=False), encoding='utf-8')
+        saved = fixture.request('card_save', fixture.operator, task='demo+T-1', card=str(card), expected_version=0)
+        assert saved.get('ok'), saved
+        created = fixture.request('create', fixture.operator, task='demo+T-1', project='demo', repo=str(fixture.repo), branch='refs/heads/main', card_version=1)
+        assert created.get('ok'), created
+        dispatched = fixture.request('dispatch', fixture.operator, task='demo+T-1', runtimeMode='workspace-write')
         assert dispatched.get('ok'), dispatched
-        views = fixture.wait('T-1 问题进门禁', lambda: fixture.request('issues', fixture.operator, task='T-1')['issues'], 120)
-        assert fixture.request('answer_issue', fixture.operator, task='T-1', issue=views[0]['issue']['id'], answer=ANSWER).get('ok')
-        fixture.wait('T-1 交付', lambda: fixture.request('status', fixture.operator, task='T-1')['task']['state'] == 'submitted', 180)
+        views = fixture.wait('T-1 问题进门禁', lambda: fixture.request('issues', fixture.operator, task='demo+T-1')['issues'], 120)
+        assert fixture.request('answer_issue', fixture.operator, task='demo+T-1', issue=views[0]['issue']['id'], answer=ANSWER).get('ok')
+        fixture.wait('T-1 交付', lambda: fixture.request('status', fixture.operator, task='demo+T-1')['task']['state'] == 'submitted', 180)
         worker = dispatched['attempt']['runtime_identity']['launch']
         pane = fixture.request('window_open', fixture.operator, launch=worker, task=dispatched['attempt']['task_id'])
         assert pane['ok'], pane
