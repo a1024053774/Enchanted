@@ -3,6 +3,11 @@
 状态：**INCOMPLETE**。worker：b23-t140；分支：`exec/t140`；起点：`ebbae7bd09cee3a8220b948029f9033dc2906c90`。
 这是待执行主控复跑、独立审查的候选，不是已验收结论。代码版本以本文件所在交付提交为准。
 
+最新进展：执行主控已运行 RUN-OUTSIDE-01。两家 worker 的添加授权、两家 reviewer/monitor 以及 T-131/T-137/T-127 回归在
+`bffd3ca125a4605580b1d52d754b93e471ea40e5` 上通过；移除场景被测试驱动的同回合连续点击阻断，旧 shell 变异也不成立。
+本轮只修复测试驱动与反事实判定，没有修改产品代码或放宽断言；当前候选待 `RUN-OUTSIDE-02.sh`。
+根因、现场数据和新命令见 [ROOT-CAUSE-02.md](ROOT-CAUSE-02.md)。
+
 ## 改动
 
 - 项目行右键菜单增加“编辑项目”，显示主目录，支持目录选择器添加、列表移除与保存；沿用现有设置对话框样式。
@@ -19,12 +24,12 @@
 | Electron renderer/main/preload 构建 | PASS | `build-01.log`、`build-02.log`；只证明能构建，不证明界面交互或视觉效果 |
 | 现有侧栏投影回归 | PASS | `sidebar-01.json`；真实 Git/SQLite、受控状态输入，无 Electron/模型证明 |
 | 测试驱动识别 reviewer 的独立副本路径 | PASS（驱动契约） | `driver-red-01.json` → `driver-green-01.json`；两家 reviewer、worker、monitor 的脚本路由，未替代原生运行 |
-| 两家真实 worker：X 可写、Y 不可写 | INCOMPLETE | 新 `test_t140_extra_dirs_e2e.py` 待沙箱外运行 |
-| 真实 reviewer 门禁与两家 monitor 的额外目录 | INCOMPLETE | 同一 e2e 已编写，未运行 |
+| 两家真实 worker：X 可写、Y 不可写 | INCOMPLETE（当前候选） | RUN-OUTSIDE-01 在 bffd3ca12 的此项已通过；新驱动待 RUN-OUTSIDE-02 |
+| 真实 reviewer 门禁与两家 monitor 的额外目录 | INCOMPLETE（当前候选） | RUN-OUTSIDE-01 在 bffd3ca12 的此项已通过；新驱动待 RUN-OUTSIDE-02 |
 | CDP 操作编辑对话框移除 X，之后两家新 worker 写 X 失败 | INCOMPLETE | 同一 e2e 已编写，未运行 |
-| 修前 e2e 红态 `--revision ebbae7bd0` | INCOMPLETE | 待跑；预期因无“编辑项目”菜单失败 |
-| 两个变异 | INCOMPLETE | `claude-without-shell-write` 与 `removed-directory-retained` 待跑；预期分别拒绝 T-C / T-RC 写入结果 |
-| T-131、T-137、T-127 原生回归 | INCOMPLETE | 均列入 RUN-OUTSIDE，未运行 |
+| 修前 e2e 红态 `--revision ebbae7bd0` | INCOMPLETE（当前驱动） | RUN-OUTSIDE-01 在“Edit Project menu”拒绝修前版本；新驱动待复跑 |
+| 两个变异 | INCOMPLETE | 改为 `claude-shell-deny-extra` 与 `removed-directory-retained`；旧 shell 变异未测到 shell 失败，旧移除变异与普通绿态同因失败，不作为敏感性证明 |
+| T-131、T-137、T-127 原生回归 | INCOMPLETE（当前交付） | RUN-OUTSIDE-01 三项通过；RUN-OUTSIDE-02 再跑以绑定新交付 |
 | Python 语法、zsh 语法、diff 空白检查 | PASS | `py_compile`、`zsh -n`、`git diff --check` 均退出 0 |
 
 存储契约的预期红态在实现前取得：旧实现返回 `undefined`，要求是 `['/fixture/X']`，断言在第 14 行失败。
@@ -51,6 +56,7 @@ git diff --check
 ## 沙箱外复跑
 
 运行：`zsh evidence/2026-10-23-batch23/T-140/RUN-OUTSIDE-01.sh`。
+以上是首轮历史命令；本轮请运行 `zsh evidence/2026-10-23-batch23/T-140/RUN-OUTSIDE-02.sh`，原脚本与旧证据不覆盖。
 脚本每次创建新的 `outside-<时间>` 目录，保存每条命令、退出码、JSON 摘要、日志与截图，最后给出 `run.json` 路径。
 红态、变异必须在对应行为断言失败才算通过反事实检查，环境失败不算红态。
 

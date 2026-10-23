@@ -8,6 +8,7 @@ Failure modes (written before implementation of the test):
 4. Reviewer launch validation rejects legitimate extra directories, or monitors miss them.
 5. Launch records omit the actual extra-directory arguments; non-operator can change grants.
 6. Saved removal overwrites the add event; project-terminal launch parameters change.
+7. Driver clicks remove/save in one JavaScript task, before React commits the removal.
 
 Expected values come from T-140, not production helpers. --revision runs the same contract on
 old sources; --mutant runs an intentionally broken source copy. Every summary path is new.
@@ -38,7 +39,7 @@ def main():
     parser.add_argument('--codex', default=shutil.which('codex'))
     target = parser.add_mutually_exclusive_group()
     target.add_argument('--revision')
-    target.add_argument('--mutant', choices=['claude-without-shell-write', 'removed-directory-retained'])
+    target.add_argument('--mutant', choices=['claude-shell-deny-extra', 'removed-directory-retained'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留既有证据，改用新路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, checks=[], observed={}, model_calls=0,
@@ -122,7 +123,11 @@ def main():
 
     try:
         patches = {
-            'claude-without-shell-write': [('src/panes.ts', 'filesystem: { allowWrite: shellWritable,', 'filesystem: { allowWrite: [],')],
+            # --add-dir and Edit allow also grant Bash writes. Explicitly deny only the worker's
+            # shell write to X, leaving file-tool grants and the reviewer launch unchanged.
+            'claude-shell-deny-extra': [('src/panes.ts',
+                'review || monitor ? [] : await workerGitDenied(launchWorkspace), extraDirectories)',
+                'review || monitor ? [] : [...await workerGitDenied(launchWorkspace), ...extraDirectories], extraDirectories)')],
             'removed-directory-retained': [('src/store.ts', "else if (opened.has(data.project_id)) opened.get(data.project_id)!.extra_directories = data.extra_directories;",
                                           "else if (opened.has(data.project_id) && data.extra_directories.length) opened.get(data.project_id)!.extra_directories = data.extra_directories;")],
         }.get(args.mutant, [])
@@ -193,9 +198,9 @@ def main():
             file = Path(attempt['workspace']) / f'result-{task}.json'
             fixture.wait(task + ' writes', lambda: file.exists(), 180)
             observed = json.loads(file.read_text())
+            report['observed'][task] = dict(attempt=attempt, result=observed)
             check(task + '_shell_boundary', observed == dict(x=tasks[task][1], y=False), observed)
             fixture.wait(task + ' submitted', lambda: fixture.request('status', fixture.operator, task=task)['task']['state'] == 'submitted', 180)
-            report['observed'][task] = dict(attempt=attempt, result=observed)
 
         for task in ('T-C', 'T-D'):
             create(task)
@@ -222,8 +227,14 @@ def main():
         edit()
         electron.until('saved X listed', f"!!document.querySelector('[data-extra-directory={json.dumps(str(x))}]')")
         electron.screenshot(fixture.out / '01-project-settings.png')
-        electron.evaluate("document.querySelector('[data-extra-directory] button').click(); document.querySelector('[data-project-save]').click()")
+        electron.evaluate("document.querySelector('[data-extra-directory] button').click()")
+        # A separate browser task observes the committed React state before clicking Save.
+        electron.until('X removed from draft', "document.querySelectorAll('.project-settings [data-extra-directory]').length === 0")
+        electron.evaluate("document.querySelector('[data-project-save]').click()")
         electron.until('settings closed', "!document.querySelector('dialog.project-settings')")
+        settings = [event['data'] for event in fixture.request('orchestration_events')['events'] if event['type'] == 'project_settings_saved']
+        report['observed']['settings_after_remove'] = settings
+        check('remove_saves_empty_directory_list', [event['extra_directories'] for event in settings] == [[str(x)], []], settings)
         for task in ('T-RC', 'T-RD'):
             create(task)
         check('claude_file_tool_removed', not (x / 'T-RC-file-tool.txt').exists())
@@ -251,6 +262,12 @@ def main():
         report['codex_api'] = api
         if fixture:
             report['claude_api'] = fixture.api.snapshot()
+            # Keep the real launch parameters even if an early shell assertion rejects a mutant.
+            database = fixture.state / 'state.sqlite3'
+            if database.exists():
+                import sqlite3
+                with sqlite3.connect(f'file:{database}?mode=ro', uri=True) as db:
+                    report['observed']['launches'] = [json.loads(row[0]) for row in db.execute('SELECT data FROM launch_records ORDER BY rowid')]
         try:
             if electron:
                 electron.stop()
