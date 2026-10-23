@@ -62,6 +62,7 @@
 | 脚本语法 | 实际 JS 表达式 node --check、Python 编译、zsh -n RUN-OUTSIDE-05.sh 通过 |
 | 撤依赖后的标准构建 | final-without-webgl-build-01.json PASS；临时构建目录已清理 |
 
+独立只读审查 T143-FINAL-METER-REVIEW-01.md 为 INCOMPLETE：数字重算、依赖移除、实际表达式与前置门禁核对通过；删掉 rendered/visible 条件的两个反例均被拒绝。
 隔离边界检查使用可控 DOM/xterm/input/rAF，未产生或冒充真实性能数据；真实新指标仍为 INCOMPLETE。
 沙箱 Electron CDP 的 ECONNREFUSED 限制未变，按公共约定由主控运行：
 
@@ -70,7 +71,7 @@ zsh evidence/2026-10-23-batch23/T-139-T-143/RUN-OUTSIDE-05.sh
 ```
 
 脚本写新的 outside-05 目录，先校验计时表达式，再跑单项候选。仅当候选 PASS 且新旧指标完整有效才继续：
-同一夹具/同一命令的 ebbae7bd0 基线、三个变异、原指定回归及 T-091 起点比较。
+同一夹具定义/同一命令的 ebbae7bd0 基线、三个变异、原指定回归及 T-091 起点比较。
 不重跑已撤掉的 WebGL；各单变量试验的数字以 RUN-OUTSIDE-04 及前述旧轮询证据为准。
 回传 PREFLIGHT.json、COMPARISON.json 后，worker 将补上新的基线/候选耗时与最终判定，不能提前宣称最终 PASS。
 
