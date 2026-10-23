@@ -6,10 +6,14 @@
 3. 只测默认读屏关闭，漏掉设置中可用的读屏开启状态。
 4. 绕过浏览器输入直接调用 a2a.input，或直接改 textarea.value 制造红态。
 5. Electron/后台未启动、没有可信 composition 事件，却误称已复现。
+6. 只修了固定的两字词；普通键入后第一次中间 IME 提交仍然错位。
+7. 只在 onData 发送前清空，导致 xterm 读不到提交文字；或组合中途被清空。
 
 原始输入仅由 CDP imeSetComposition/insertText/dispatchKeyEvent 注入。
 DOM 只用于导航、聚焦和观察，不赋值 textarea，不改 xterm 私有对象。
 --revision 指定生产版本；summary 独占创建，不覆盖证据。
+CDP 回传中 compositionend.isTrusted=false（开始、更新、输入为 true）。
+保留各事件原始标志；要求可信开始/更新/输入及实际结束，不注入补偿事件。
 """
 import argparse
 import json
@@ -45,11 +49,13 @@ finally:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--summary', type=Path, required=True)
-    parser.add_argument('--revision')
+    target = parser.add_mutually_exclusive_group()
+    target.add_argument('--revision')
+    target.add_argument('--mutant', choices=['retain-input'])
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，必须换新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
-    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision,
+    report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant, harness_version=2,
                   code_version=subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], cwd=ROOT, text=True).strip(),
                   runtime='real Electron/daemon/node-pty, native raw receiver; zero model calls',
                   checks=[], cases=[], defect_reproduced=False)
@@ -57,7 +63,10 @@ def main():
     try:
         def no_model(body):
             raise AssertionError('本测试不应调用模型')
-        fixture = Fixture('t138-', no_model, revision=args.revision)
+        patches = [('app/renderer.tsx',
+                    "if (!composing) clearInputTimer = setTimeout(() => { term.textarea!.value = ''; }, 0);",
+                    '/* T-138 mutant: retain submitted textarea contents. */')] if args.mutant else []
+        fixture = Fixture('t138-', no_model, revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
         fixture.start('/usr/bin/false', {'README.md': 'IME byte receiver fixture\n'})
         receiver = fixture.dir / 'receiver.py'
@@ -107,6 +116,11 @@ def main():
             cdp('Input.insertText', text=text)
             time.sleep(.5)
 
+        def type_ascii(text):
+            for letter in text:
+                cdp('Input.dispatchKeyEvent', type='char', key=letter, text=letter, unmodifiedText=letter)
+            time.sleep(.5)
+
         def sample(name, action, expected, mode):
             offset = received.stat().st_size
             before = state()
@@ -131,6 +145,9 @@ def main():
                 electron.until('设置打开', 'document.querySelector(".settings-dialog").open')
                 electron.evaluate('document.querySelector(\'[aria-labelledby="settings-terminal-accessibility"] input\').click()')
                 electron.evaluate('document.querySelector(\'[aria-label="关闭设置"]\').click()')
+            electron.until('读屏设置已应用',
+                           f'Boolean(document.querySelector({json.dumps(selector + " .xterm-accessibility")})) === {str(mode).lower()}')
+            report['checks'].append(dict(name='screen_reader_mode_applied', mode=mode, passed=True))
             electron.evaluate(f'document.querySelector({textarea}).focus()')
             key('Enter', 13)
             seed = sample('seed', lambda: compose('前面怪了'), '前面怪了', mode)
@@ -146,11 +163,22 @@ def main():
             key('ArrowLeft', 37)
             key('ArrowLeft', 37)
             sample('middle-after-enter', lambda: compose('打出'), '打出', mode)
+            key('Enter', 13)
+            ascii_seed = sample('ascii-seed', lambda: type_ascii('prefix-tail'), 'prefix-tail', mode)
+            assert ascii_seed['passed'], ascii_seed
+            key('ArrowLeft', 37)
+            key('ArrowLeft', 37)
+            sentinel = '新词' + uuid.uuid4().hex[:4]
+            sample('middle-sentinel-after-ascii', lambda: compose(sentinel), sentinel, mode)
             electron.screenshot(args.summary.with_name(args.summary.stem + f'-screen-reader-{mode}.png'))
-        report['checks'].append(dict(name='trusted_composition_events', passed=all(
-            any(event['type'] == 'compositionstart' and event['trusted'] for event in case['events']) and
-            any(event['type'] == 'compositionend' and event['trusted'] for event in case['events'])
-            for case in report['cases'] if case['name'] != 'enter')))
+        compositions = [case for case in report['cases'] if case['name'] not in ('enter', 'ascii-seed')]
+        report['checks'].append(dict(name='trusted_composition_input_and_observed_end', passed=all(
+            all(any(event['type'] == kind and event['trusted'] for event in case['events'])
+                for kind in ('compositionstart', 'compositionupdate', 'input')) and
+            any(event['type'] == 'compositionend' for event in case['events'])
+            for case in compositions), end_trusted=[
+                dict(name=case['name'], screen_reader=case['screen_reader'], trusted=event['trusted'])
+                for case in compositions for event in case['events'] if event['type'] == 'compositionend']))
         report['status'] = 'PASS' if all(case['passed'] for case in report['cases']) and all(c['passed'] for c in report['checks']) else 'NO_GO'
     except Exception as error:
         report.update(error=str(error), traceback=traceback.format_exc())

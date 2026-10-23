@@ -238,14 +238,28 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
     });
     ownTerminalQueries(term, () => {});
     const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
-    term.onData(data => admitInput(() => window.a2a.input(paneKey, data)));
+    let composing = false;
+    let clearInputTimer: ReturnType<typeof setTimeout> | undefined;
+    term.onData(data => {
+      admitInput(() => window.a2a.input(paneKey, data));
+      // xterm reads the committed composition before emitting onData. Clear only
+      // after that read and the browser's native textarea update have completed.
+      // Keeping old text lets screen-reader cursor movement shift the next IME
+      // insertion away from the end assumed by xterm's CompositionHelper.
+      clearTimeout(clearInputTimer);
+      if (!composing) clearInputTimer = setTimeout(() => { term.textarea!.value = ''; }, 0);
+    });
     term.onBinary(data => admitInput(() => window.a2a.input(paneKey, data, 'binary')));
     const beginComposition = () => {
+      composing = true;
+      clearTimeout(clearInputTimer);
       if (!inputFailed && !term.options.disableStdin) admitInput(() => window.a2a.beginComposition(paneKey));
     };
+    const endComposition = () => { composing = false; };
     const focused = () => setKeyboardFocused(true);
     const blurred = () => setKeyboardFocused(false);
     term.textarea!.addEventListener('compositionstart', beginComposition);
+    term.textarea!.addEventListener('compositionend', endComposition);
     term.textarea!.addEventListener('focus', focused);
     term.textarea!.addEventListener('blur', blurred);
     setTerminal(term);
@@ -318,7 +332,9 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
     return () => {
       mounted = false;
       wakeRead.current();
+      clearTimeout(clearInputTimer);
       term.textarea!.removeEventListener('compositionstart', beginComposition);
+      term.textarea!.removeEventListener('compositionend', endComposition);
       term.textarea!.removeEventListener('focus', focused);
       term.textarea!.removeEventListener('blur', blurred);
       darkQuery.removeEventListener('change', followScheme);
