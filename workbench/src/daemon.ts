@@ -482,6 +482,17 @@ export async function serve(
       store.event('project_opened', { project_id: project, repo });
       return { ok: true, project, repo, created: true };
     }
+    if (input.command === 'project_settings_save') {
+      if (authority.kind !== 'operator') throw new Refusal('operator_required');
+      const project = store.openedProjects().find(project => project.project_id === input.project);
+      if (!project) throw new Refusal('unknown_project');
+      if (!Array.isArray(input.extra_directories) || input.extra_directories.some((path: unknown) =>
+        typeof path !== 'string' || !isAbsolute(path) || !statSync(path).isDirectory())) throw new Refusal('invalid_extra_directory');
+      const directories = [...new Set<string>(input.extra_directories.map((path: string) => realpathSync(path)))];
+      if (directories.includes(project.repo)) throw new Refusal('extra_directory_is_project');
+      store.event('project_settings_saved', { project_id: project.project_id, extra_directories: directories });
+      return { ok: true, ...project, extra_directories: directories };
+    }
     if (input.command === 'project_remove') {
       if (authority.kind !== 'operator') throw new Refusal('operator_required');
       if (!store.openedProjects().some(project => project.project_id === input.project)) throw new Refusal('unknown_project');

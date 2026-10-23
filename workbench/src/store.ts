@@ -97,12 +97,13 @@ export class OrchestrationStore {
   // Directories the user opened as projects. Gate tasks still own task
   // membership; a removed directory only leaves this list.
   openedProjects() {
-    const opened = new Map<string, { project_id: string; repo: string }>();
+    const opened = new Map<string, { project_id: string; repo: string; extra_directories: string[] }>();
     for (const row of this.db.prepare(`SELECT type,data FROM orchestration_events
-      WHERE type IN ('project_opened','project_removed') ORDER BY seq`).all()) {
+      WHERE type IN ('project_opened','project_removed','project_settings_saved') ORDER BY seq`).all()) {
       const data = JSON.parse(String(row.data));
-      if (row.type === 'project_opened') opened.set(data.project_id, { project_id: data.project_id, repo: data.repo });
-      else opened.delete(data.project_id);
+      if (row.type === 'project_opened') opened.set(data.project_id, { project_id: data.project_id, repo: data.repo, extra_directories: [] });
+      else if (row.type === 'project_removed') opened.delete(data.project_id);
+      else if (opened.has(data.project_id)) opened.get(data.project_id)!.extra_directories = data.extra_directories;
     }
     return [...opened.values()];
   }

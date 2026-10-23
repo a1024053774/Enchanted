@@ -2350,8 +2350,12 @@ export class A2AGates {
     let workerSettings: any = null;
     try { workerSettings = worker ? JSON.parse(String(worker.argv?.[15])) : null; } catch { workerSettings = null; }
     const workerSignal = workerSettings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
+    const extraDirectories: string[] = launch?.extra_directories ?? [];
+    requireGate(Array.isArray(extraDirectories) && extraDirectories.every(path => typeof path === 'string' && isAbsolute(path)),
+      "review_extra_directories", { extraDirectories });
     const boundary = claude
-      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 16 &&
+      ? launch?.cli === "Claude Code" && Array.isArray(argv) && argv.length === 16 + 2 * extraDirectories.length &&
+        JSON.stringify(argv.slice(16)) === JSON.stringify(extraDirectories.flatMap(path => ['--add-dir', path])) &&
         worker?.cli === "Claude Code" && worker.role === "worker" && Array.isArray(worker.argv) &&
         argv[4] === worker.argv[4] && argv[6] === worker.argv[6] &&
         typeof workerSignal === "string" && workerSignal.endsWith(` '--launch' '${worker.id}'`) &&
@@ -2364,12 +2368,13 @@ export class A2AGates {
         argv[2] === launch.native_session && settings !== null && typeof settings === "object" &&
         JSON.stringify(Object.keys(settings).sort()) === JSON.stringify(["fastMode", "hooks", "permissions", "sandbox"]) &&
         typeof settings.fastMode === "boolean" &&
-        JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", `Edit(/${realpathSync(review.candidate_workspace)}/**)`] }) &&
-        JSON.stringify(settings.sandbox) === JSON.stringify({ enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, filesystem: { allowWrite: [] } }) &&
+        JSON.stringify(settings.permissions) === JSON.stringify({ allow: ["Bash", "Read", "Glob", "Grep", `Edit(/${realpathSync(review.candidate_workspace)}/**)`, ...extraDirectories.map(path => `Edit(/${path}/**)`)] }) &&
+        JSON.stringify(settings.sandbox) === JSON.stringify({ enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, filesystem: { allowWrite: extraDirectories } }) &&
         JSON.stringify(Object.keys(settings.hooks)) === JSON.stringify(hookEvents) &&
         hookEvents.every(event => JSON.stringify(settings.hooks[event]) === JSON.stringify([{ hooks: [{ type: "command", command: signal, timeout: 10 }] }])) &&
         live.workspace === review.candidate_workspace
       : launch?.cli !== "Claude Code" && live.workspace === review.candidate_workspace && cwd >= 0 && argv[cwd + 1] === review.candidate_workspace &&
+        JSON.stringify(argv.flatMap((arg, index) => arg === '--add-dir' ? [argv[index + 1]] : [])) === JSON.stringify(extraDirectories) &&
         sandbox >= 0 && argv[sandbox + 1] === "workspace-write" &&
         config("sandbox_workspace_write.network_access=false") && config("features.network_proxy=false") &&
         config("sandbox_workspace_write.exclude_slash_tmp=true") &&

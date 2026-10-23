@@ -1,0 +1,77 @@
+# T-140-1 / a1 交付记录
+
+状态：**INCOMPLETE**。worker：b23-t140；分支：`exec/t140`；起点：`ebbae7bd09cee3a8220b948029f9033dc2906c90`。
+这是待执行主控复跑、独立审查的候选，不是已验收结论。代码版本以本文件所在交付提交为准。
+
+## 改动
+
+- 项目行右键菜单增加“编辑项目”，显示主目录，支持目录选择器添加、列表移除与保存；沿用现有设置对话框样式。
+- 后台只接受操作员保存设置，目录解析为真实绝对路径并去重。`project_settings_saved` 追加到现有事件表；读回取最近保存的目录列表，删除/重开项目不继承旧授权。
+- worker、reviewer、monitor 在启动时读取该项目的额外目录。Claude 同时得到 `--add-dir`、文件工具写权限和沙箱 `filesystem.allowWrite`；Codex 得到 `--add-dir`。monitor 有额外目录时使用 workspace-write，工作目录仍是自己的观察目录，主项目不成为额外写根。恢复同一 monitor 会话保留原启动权限。
+- 完整启动记录保存 `extra_directories` 与实际 argv；角色提示带本会话目录列表。reviewer 的原生门禁仍逐项核对参数、沙箱与身份，允许的额外路径须与该次启动记录一致。
+- 界面、角色卡和 README 写明额外目录改动不进门禁审查与集成，worker 须列出改过的额外目录。用户项目终端启动路径未改。
+
+## 验收证据
+
+| 验收项 | 结果 | 证据与限制 |
+| --- | --- | --- |
+| 追加事件、读回、移除、跨项目隔离、重启读回 | PASS（存储契约） | `store-red.log` → `store-green.log`；真实 SQLite，未替代原生权限验收 |
+| Electron renderer/main/preload 构建 | PASS | `build-01.log`、`build-02.log`；只证明能构建，不证明界面交互或视觉效果 |
+| 现有侧栏投影回归 | PASS | `sidebar-01.json`；真实 Git/SQLite、受控状态输入，无 Electron/模型证明 |
+| 两家真实 worker：X 可写、Y 不可写 | INCOMPLETE | 新 `test_t140_extra_dirs_e2e.py` 待沙箱外运行 |
+| 真实 reviewer 门禁与两家 monitor 的额外目录 | INCOMPLETE | 同一 e2e 已编写，未运行 |
+| CDP 操作编辑对话框移除 X，之后两家新 worker 写 X 失败 | INCOMPLETE | 同一 e2e 已编写，未运行 |
+| 修前 e2e 红态 `--revision ebbae7bd0` | INCOMPLETE | 待跑；预期因无“编辑项目”菜单失败 |
+| 两个变异 | INCOMPLETE | `claude-without-shell-write` 与 `removed-directory-retained` 待跑；预期分别拒绝 T-C / T-RC 写入结果 |
+| T-131、T-137、T-127 原生回归 | INCOMPLETE | 均列入 RUN-OUTSIDE，未运行 |
+| Python 语法、zsh 语法、diff 空白检查 | PASS | `py_compile`、`zsh -n`、`git diff --check` 均退出 0 |
+
+存储契约的预期红态在实现前取得：旧实现返回 `undefined`，要求是 `['/fixture/X']`，断言在第 14 行失败。
+当时 HEAD 为任务起点。修复后相同命令通过，事件历史仍保留两次设置。
+
+本地命令（均在本 worktree 根目录）：
+
+```zsh
+node workbench/tests/test_t140_project_events.ts > evidence/2026-10-23-batch23/T-140/store-red.log 2>&1
+# 上一条在实现前运行，退出 1；实现后改用新的 store-green.log，退出 0。
+node workbench/tests/test_t140_project_events.ts > evidence/2026-10-23-batch23/T-140/store-green.log 2>&1
+node workbench/app/build.mjs --slot t140-check-01 > evidence/2026-10-23-batch23/T-140/build-01.log 2>&1
+node workbench/app/build.mjs --slot t140-check-02 > evidence/2026-10-23-batch23/T-140/build-02.log 2>&1
+node workbench/tests/test_t107_sidebar.mjs evidence/2026-10-23-batch23/T-140/sidebar-01.json
+PYTHONPYCACHEPREFIX=/tmp/t140-pycache python3 -m py_compile workbench/tests/test_t140_extra_dirs_e2e.py
+zsh -n evidence/2026-10-23-batch23/T-140/RUN-OUTSIDE-01.sh
+git diff --check
+```
+
+上述固定证据路径不能覆盖，复跑应另取新路径/slot。单独构建的临时缓存与输出已清理，保留日志及 `build-cleanup-*.json`。
+首次 `py_compile` 未设置缓存目录，被沙箱拒绝写用户 Python 缓存；改用 `/tmp/t140-pycache` 后通过。
+首次侧栏回归命令漏传报告路径，被脚本拒绝；按其接口传入新路径后通过。两者不算产品红态。
+
+## 沙箱外复跑
+
+运行：`zsh evidence/2026-10-23-batch23/T-140/RUN-OUTSIDE-01.sh`。
+脚本每次创建新的 `outside-<时间>` 目录，保存每条命令、退出码、JSON 摘要、日志与截图，最后给出 `run.json` 路径。
+红态、变异必须在对应行为断言失败才算通过反事实检查，环境失败不算红态。
+
+本地原生运行命令：
+
+```zsh
+PYTHONDONTWRITEBYTECODE=1 python3 workbench/tests/test_t140_extra_dirs_e2e.py --summary evidence/2026-10-23-batch23/T-140/native-sandbox-01.json
+```
+
+实际在创建 `/Users/Shared/t140-extra-*` 时被沙箱拒绝，退出 1，0 个模型请求；见 `native-sandbox-01.json`。
+按 COMMON.md 未申请越权。X/Y 用测试自建的 `/Users/Shared` 隔离目录，避免 Codex 原有临时目录写权限污染 Y 负例。
+真实 Codex CLI 使用 `/tmp` 下隔离 CODEX_HOME 与本地脚本化 Responses API，不复制 auth.json，不调用供应商模型；只设置夹具 provider 与 `git add`/`git commit` 两条规则，结束后删除整个测试 CODEX_HOME。
+Claude 使用真实 CLI、`claude-haiku-5-5` 与本地脚本化 Messages API。后台通过现有 detached 启动入口运行；Electron 独立进程组，从内置盘临时构建启动。
+初次添加通过真实后台操作员入口；移除通过 CDP 点击真实对话框。原生目录选择器的人工交互尚未验证，不能据此声称已通过。
+
+原始 fixtures、SQLite、traces 与外部 X/Y 夹具留给执行主控按 T-088 归档；本次没有把大块原始目录提交进仓库。
+
+## 已上报与待处理
+
+- 收件箱：`20261023T101123Z-worker:b23-t140-issue-001`，正文见 `ISSUE-temporary-write-roots.md`。
+  Codex 普通 worker 原有 `/tmp` / `$TMPDIR` 写权限仍在：若额外目录本来就在默认可写位置，移除登记不能撤销默认授权。
+  该事实目前来自源码，尚无原生复现；请执行主控与 T-141 协调。未擅自收紧临时目录或修改 T-141。
+  收件箱文件由规定的 `scripts/inbox send` 生成，留在本 worktree 的 `.project-map/inbox/`；未纳入交付提交，以免改动任务卡禁止路径。
+- 未修改 oracle_paths、地图、ticket、术语表或其他任务的实现。独立审查和原生验收尚未完成。
+- session 开始与本地检查后 `project_map.py status`：0 Problems、0 Stale living docs。交付前再保存一次结果。

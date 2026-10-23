@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld('a2a', Object.freeze({
   decideRetrospectiveSuggestion: (suggestion: string, approved: boolean) => ipcRenderer.invoke('a2a:retrospective-decide', suggestion, approved),
   selection: () => ipcRenderer.invoke('a2a:selection'),
   openProject: () => ipcRenderer.invoke('a2a:open-project'),
+  projectSettings: (project: string, directories?: string[]) => ipcRenderer.invoke('a2a:project-settings', project, directories),
+  pickExtraDirectory: () => ipcRenderer.invoke('a2a:pick-extra-directory'),
   removeProject: (project: string) => ipcRenderer.invoke('a2a:remove-project', project),
   selectProject: (project: string | null) => ipcRenderer.invoke('a2a:select-project', project),
   selectTask: (task: string | null) => ipcRenderer.invoke('a2a:select-task', task),
