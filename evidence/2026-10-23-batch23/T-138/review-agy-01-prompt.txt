@@ -1,0 +1,16 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-138：终端输入法在行中间插入时提交的文字错位。执行主控复现的事实：只在读屏模式（screen_reader=True）下出现——隐藏输入框里留着上一次的文字、光标跟到行中间，中间插入“打出”时 PTY 收到输入框末尾的“怪了”；读屏模式关闭（T-143 起的默认）时正确。修复：每次提交后，等 xterm 读完本次提交再清空隐藏输入框（composition 进行中不清），让下一次 composition 从空输入框末尾开始；不改 xterm 源码、不关读屏模式。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-138-r1/ 下：
+- candidate/：候选 102db97ea 只读副本；ticket：candidate/.project-map/tickets/T-138-ime-composition-position.md；任务卡、RESULTS、ASCII-ROOT-CAUSE-03.md：candidate/evidence/2026-10-23-batch23/T-138/。
+- full.diff：相对起点 b99f4869b 的 workbench/ 全部改动（renderer.tsx 与新 e2e）。
+- evidence/outside-01-…/：起点复现（读屏模式下错位）。
+- evidence/outside-03-…/：执行主控沙箱外第 3 轮：green PASS（两种模式、三次中间插入、回车后再插、ASCII 输入）；red（起点）与 mutant（还原修复）在读屏模式四处中间插入失败；T-139/T-143 PASS；T-091 与起点同样失败（已知过时）。第 2 轮失败是测试驱动 ASCII 只发 char 不发 keydown，已改为完整按键序列。
+
+请核对：
+1. 修复是否落在根因；setTimeout(0) 清空是否有竞态：快速连续输入、粘贴、组合中途失焦、IME 取消、同一 tick 多次 onData、读屏模式下 xterm 自己同步输入框内容时是否会丢字、重复或误清；非 IME 的普通键入是否受影响。
+2. 读屏模式下清空输入框是否破坏读屏阅读（屏幕阅读器依赖该输入框内容吗）；如有影响说明严重度。
+3. 测试是否独立于实现、是否覆盖两种模式；CDP 驱动是否接近真实 IME（compositionend 是否 trusted 等）；红态与变异是否落在所述缺陷上。
+4. 是否越出修改边界（只许 renderer.tsx 的终端输入与 composition 部分、tests 新文件、T-138 证据）；有无吞异常、fallback。
+5. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-138 REVIEW PASS`、`T-138 REVIEW INCOMPLETE` 或 `T-138 REVIEW NO_GO` 之一。
