@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "base": "36fc4491422d9ae3792da4d7a78e5d3014ecd585",
+  "scope": "Only four authorized worker predicates, related description, and four mutation-source entries changed; all other AST nodes including reviewer checks and timeouts unchanged",
+  "changes": [
+    {
+      "old": {
+        "name": "restricted_answered_before_first_task",
+        "predicate": "startup[:3] == ['codex_restricted_open_intent', 'codex_restricted_opened', 'turn_submitted']"
+      },
+      "new": {
+        "name": "trusted_worker_starts_directly",
+        "predicate": "startup == ['turn_submitted']"
+      }
+    },
+    {
+      "old": {
+        "name": "worker_folder_untrusted_in_argv",
+        "predicate": "f'projects={{{json.dumps(os.path.realpath(repo))}={{trust_level=\"untrusted\"}}}}' in argv"
+      },
+      "new": {
+        "name": "worker_trust_not_overridden",
+        "predicate": "not any((a.startswith('projects=') or a.startswith('projects.') for a in argv))"
+      }
+    },
+    {
+      "old": {
+        "name": "user_home_not_rewritten",
+        "predicate": "changed == [] and added is not None and all((h.startswith('[tui') for h in headers)) and ('[projects' not in config_after)"
+      },
+      "new": {
+        "name": "user_home_not_rewritten",
+        "predicate": "changed == [] and added is not None and all((h.startswith('[tui') for h in headers)) and ('[projects' not in (added or ''))"
+      }
+    },
+    {
+      "old": {
+        "name": "project_codex_hooks_not_run",
+        "predicate": "not any((name.startswith('project') for name in markers))"
+      },
+      "new": {
+        "name": "reviewer_project_codex_hooks_not_run",
+        "predicate": "not any((name.startswith('project') and name.endswith('-reviewer') for name in markers))"
+      }
+    }
+  ]
+}

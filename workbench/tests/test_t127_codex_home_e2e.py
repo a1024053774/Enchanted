@@ -3,9 +3,9 @@
 
 失败方式（先列再写）：
 1. 后台仍要求隔离 home（`isolated_codex_home_required`），或 reviewer 仍要预建 home（`review_launch_config_required`）。
-2. 会话所在目录被当作受信任：项目自己的 .codex 钩子（worker 能改、reviewer 的副本里也有）在 worker 或 reviewer 里运行。
+2. reviewer 的候选副本被当作受信任：项目自己的 .codex 钩子在 reviewer 里运行；worker 按用户配置加载项目设置。
 3. 受信任对话框被按下“Trust and continue”，信任写进用户 home 的 config.toml；或“Open restricted”没人按，worker 卡住，
-   第一条任务永远不送出。
+   第一条审查任务永远不送出。已信任的 worker 应直接收到首条任务。
 4. home 自己的规则、钩子、skill 没生效：git add / git commit 被沙箱拒、home 的钩子不触发、skill 不在请求里。
 5. a2a 改写了用户 home 的 config.toml、rules 或 hooks.json。
 6. 共享 home 里别的会话（另一个目录）的原生记录被读进这个 worker；或者因为 home 里旧会话太多，找不到本会话。
@@ -81,8 +81,9 @@ def main():
             table = {
                 'restricted-unanswered': [('src/panes.ts', 'if (pane.state === "unknown") (claude ? this.confirmWorkerTrust(pane, data) : this.openCodexRestricted(pane, data));',
                                            'if (pane.state === "unknown" && claude) this.confirmWorkerTrust(pane, data);')],
-                'untrusted-config-missing': [('src/panes.ts', '      "-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`,\n', '')],
-                'project-trusted': [('src/panes.ts', '={trust_level="untrusted"}}`,\n      ...(review', '={trust_level="trusted"}}`,\n      ...(review')],
+                'untrusted-config-missing': [('src/panes.ts', '      ...(review ? ["-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`] : []),\n', '')],
+                'project-trusted': [('src/panes.ts', '      ...(review ? ["-c", `projects={${JSON.stringify(trustRoot)}={trust_level="untrusted"}}`] : []),\n',
+                                                  '      ...(review ? ["-c", `projects={${JSON.stringify(trustRoot)}={trust_level="trusted"}}`] : []),\n')],
                 'gate-trust-unchecked': [('src/gates/core.ts', '        config(`projects={${JSON.stringify(realpathSync(review.candidate_workspace))}={trust_level="untrusted"}}`) &&\n', '')],
                 'gate-folder-unchecked': [('src/gates/core.ts', 'requireGate(cwd === review.candidate_workspace, "review_native_session_folder",',
                                            'requireGate(true, "review_native_session_folder",')],
@@ -95,13 +96,15 @@ def main():
                 'unbound-unrecorded': [('src/panes.ts', 'if (!pane.native && !pane.stopped && !pane.failed)\n          this.recordFailure(pane, "native_session_unbound",',
                                         'if (false)\n          this.recordFailure(pane, "native_session_unbound",')],
                 # The runtime binds a reviewer's session by the read-only review worktree instead of the candidate
-                # copy, leaving the gate's folder check to notice. Observed (round 05): the reviewer's Stop hook is
-                # refused earlier (question_origin_unverified), so the result never reaches that gate check.
+                # copy, leaving the gate's folder check to notice. Forge the in-memory origin too:
+                # scanner-only corruption is correctly rejected by the hook origin check before this gate.
                 'reviewer-folder-unbound': [
                     ('src/panes.ts', 'if (!final && (metadata.type !== "session_meta" || metadata.payload?.cwd !== pane.attempt.workspace)) continue;',
                      'if (!final && (metadata.type !== "session_meta" || metadata.payload?.cwd !== (pane.record.review_workspace ?? pane.attempt.workspace))) continue;'),
                     ('src/panes.ts', 'const rootFile = codexSessionOrigin(file, metadata, metadata.payload?.id, pane.attempt.workspace) === "root";',
-                     'const rootFile = codexSessionOrigin(file, metadata, metadata.payload?.id, pane.record.review_workspace ?? pane.attempt.workspace) === "root";')],
+                     'const rootFile = codexSessionOrigin(file, metadata, metadata.payload?.id, pane.record.review_workspace ?? pane.attempt.workspace) === "root";'),
+                    ('src/panes.ts', '    this.panes.set(attempt.thread_id, pane);',
+                     '    if (review) pane.record = { ...pane.record, worktree: review.workspace };\n    this.panes.set(attempt.thread_id, pane);')],
             }
             for name in args.mutant:
                 patches += table[name]
@@ -114,11 +117,11 @@ def main():
                 # starts) while its launch record and argv name the candidate copy.
                 'session-folder-differs': [('src/panes.ts', 'const terminal = require("node-pty").spawn("/bin/zsh", shellArgv, {',
                                             'if (review) shellArgv[3] = shellArgv[3].replace(quote("-C") + " " + quote(launchWorkspace), quote("-C") + " " + quote(review.workspace))\n'
-                                            '      .replace(JSON.stringify(trustRoot), JSON.stringify(await repositoryRoot(review.workspace)));\n'
+                                            '      .replace(JSON.stringify(trustRoot), JSON.stringify(realpathSync(task.repo)));\n'
                                             '    const terminal = require("node-pty").spawn("/bin/zsh", shellArgv, {')],
                 # The reviewer resumes the worker's own session, and its launch record says so.
-                'resume-worker-in-argv': [('src/panes.ts', 'review ? [] : await workerGitDenied(launchWorkspace)) : [executable, "--no-daemon",',
-                                           'review ? [] : await workerGitDenied(launchWorkspace)) : [executable, ...(review ? ["resume", review.attempt.runtime_identity!.native_session!] : []), "--no-daemon",')],
+                'resume-worker-in-argv': [('src/panes.ts', 'extraDirectories, mcpConfig) : [executable, "--no-daemon",',
+                                           'extraDirectories, mcpConfig) : [executable, ...(review ? ["resume", review.attempt.runtime_identity!.native_session!] : []), "--no-daemon",')],
                 # The same, but only the started command resumes; the launch record and argv look like a fresh session.
                 'resume-worker-hidden': [('src/panes.ts', 'const terminal = require("node-pty").spawn("/bin/zsh", shellArgv, {',
                                           'if (review) shellArgv[3] = shellArgv[3].replace(quote(executable) + " ", quote(executable) + " \'resume\' " + quote(review.attempt.runtime_identity!.native_session!) + " ");\n'
@@ -207,9 +210,11 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
     # The user's Codex home: their provider (here the fixture API), the two Git allow rules, a hook
-    # and a skill of their own, and many earlier sessions. Nothing in it trusts the fixture project.
+    # and a skill of their own, and many earlier sessions. Only this verified demo repo is trusted.
     (codex_home / 'rules').mkdir(parents=True)
-    (codex_home / 'config.toml').write_text('model_provider = "t127"\ncli_auth_credentials_store = "file"\n[model_providers.t127]\nname = "T127 fixture"\n'
+    (codex_home / 'config.toml').write_text('model_provider = "t127"\ncli_auth_credentials_store = "file"\n'
+        f'[projects.{json.dumps(str(repo.resolve()))}]\ntrust_level = "trusted"\n'
+        '[model_providers.t127]\nname = "T127 fixture"\n'
         f'base_url = "http://127.0.0.1:{server.server_port}/v1"\nwire_api = "responses"\nrequires_openai_auth = false\n', encoding='utf-8')
     (codex_home / 'rules/default.rules').write_text('prefix_rule(pattern=["git", "add"], decision="allow")\n'
                                                     'prefix_rule(pattern=["git", "commit"], decision="allow")\n', encoding='utf-8')
@@ -346,12 +351,12 @@ def main():
         report['worker'] = dict(cli=worker.get('cli'), codex_home=worker['env'].get('CODEX_HOME'), argv=[a for a in argv if not a.startswith('hooks.')])
         check('worker_runs_in_user_home', worker.get('cli') == 'Codex' and worker['env'].get('CODEX_HOME') == os.path.realpath(codex_home), report['worker'])
 
-        # 3: the restricted screen is answered once, then the task goes in.
+        # 3: the trusted worker receives its first task without a restricted prompt.
         wait('worker 第一条任务送达', lambda: api['bodies']['worker'] or failures(worker_launch), 150)
         check('worker_started', not failures(worker_launch), failures(worker_launch))
         startup = [e['type'] for e in events({'codex_restricted_open_intent', 'codex_restricted_opened', 'turn_submitted'}) if e['launch'] == worker_launch]
         report['startup'] = startup
-        check('restricted_answered_before_first_task', startup[:3] == ['codex_restricted_open_intent', 'codex_restricted_opened', 'turn_submitted'], startup)
+        check('trusted_worker_starts_directly', startup == ['turn_submitted'], startup)
         native = wait('worker 原生会话', lambda: [e for e in events({'pane_native_session'}) if e['launch'] == worker_launch], 60)
         report['native_session_after_dispatch_s'] = round(time.monotonic() - dispatched_at, 1)
         report['old_session_files'] = args.old_sessions
@@ -430,7 +435,7 @@ def main():
                                                                  for r in report['reviewer_records']), report['reviewer_records'])
             report['status'] = 'PASS'
             return
-        task = wait('审查结束', lambda: (lambda current: current if current['state'] in ('verified', 'submitted', 'rework', 'failed') and
+        task = wait('审查结束', lambda: (lambda current: current if current['state'] in ('verified', 'submitted', 'rework', 'failed', 'paused') and
                                           current.get('review', {}).get('state') not in (None, 'requested', 'running') else None)(
                                               request('status', operator, task='T-1')['task']), 240)
         review = task['review']
@@ -466,13 +471,14 @@ def main():
         main_files = subprocess.check_output(['git', '-C', str(repo), 'ls-tree', '--name-only', 'refs/heads/main'], text=True).split()
         check('integrated_into_working_branch', integrated.get('ok') and final['state'] == 'accepted' and 'hello.txt' in main_files, report['integrate'])
 
-        # 2, 4: markers. The home's hooks ran in both sessions; the project's .codex hooks in neither.
+        # 2, 4: home hooks run in both sessions. Project hooks follow the worker's user
+        # configuration, but must never run in the untrusted reviewer copy.
         markers = sorted(path.name for path in out.iterdir() if 'hook' in path.name)
         report['markers'] = markers
         check('home_hooks_ran', {'home-hook-UserPromptSubmit-worker', 'home-hook-Stop-worker',
                                  'home-hook-UserPromptSubmit-reviewer', 'home-hook-Stop-reviewer'} <= set(markers), markers)
-        check('project_codex_hooks_not_run', not any(name.startswith('project') for name in markers), markers)
-        # 3, 5: the user's home files are as they were, and no trust entry was saved.
+        check('reviewer_project_codex_hooks_not_run', not any(name.startswith('project') and name.endswith('-reviewer') for name in markers), markers)
+        # 3, 5: preserve the fixture's own trusted demo entry; a2a saves no new trust entry.
         # Codex itself records its TUI state in config.toml ([tui] screen_reader_detection_done and
         # model_availability_nux, T-127 probe-01); everything else must be byte for byte as before.
         changed = [name for name, data in home_before.items() if name != 'config.toml' and (codex_home / name).read_bytes() != data]
@@ -482,9 +488,9 @@ def main():
         headers = re.findall(r'^\[[^\]]+\]', added or '', re.M)
         report.update(home_changed=changed, config_added=added)
         check('user_home_not_rewritten', changed == [] and added is not None and all(h.startswith('[tui') for h in headers) and
-              '[projects' not in config_after, dict(changed=changed, added=added))
+              '[projects' not in (added or ''), dict(changed=changed, added=added))
         # Asserted last, so a launch without it is first judged by its behaviour above.
-        check('worker_folder_untrusted_in_argv', f'projects={{{json.dumps(os.path.realpath(repo))}={{trust_level="untrusted"}}}}' in argv, report['worker'])
+        check('worker_trust_not_overridden', not any(a.startswith('projects=') or a.startswith('projects.') for a in argv), report['worker'])
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

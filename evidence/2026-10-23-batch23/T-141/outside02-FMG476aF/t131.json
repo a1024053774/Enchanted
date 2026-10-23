@@ -1,0 +1,164 @@
+{
+  "status": "PASS",
+  "argv": [
+    "workbench/tests/test_t131_parallel_workers_e2e.py",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt-t141/evidence/2026-10-23-batch23/T-141/outside02-FMG476aF/t131.json"
+  ],
+  "revision": null,
+  "mutant": null,
+  "foreign_ref": null,
+  "retained_ref": false,
+  "fixture": "/private/tmp/t131-3wln9u7u",
+  "claude": "/Users/luckye/.local/bin/claude",
+  "real_model_turns": 0,
+  "checks": [
+    "dispatch_T-1_starts_worker",
+    "dispatch_T-2_starts_worker",
+    "overlapping_card_refused_without_reason",
+    "both_workers_ran_at_once",
+    "T-1_delivery_is_its_own",
+    "T-2_delivery_is_its_own",
+    "t2_review_still_running_when_t1_integrates",
+    "both_reviews_passed_on_their_own_task",
+    "second_integration_reverified_on_new_head",
+    "sidebar_both_workers_under_controller"
+  ],
+  "dispatch": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "overlap_dispatch": {
+    "ok": false,
+    "error": "path_overlap",
+    "details": {
+      "conflicts": [
+        {
+          "task": "demo+T-1",
+          "attempt": "d456fc79-3942-40c8-8a16-4862be634a29",
+          "snapshot": "79788d3e-1527-4392-a774-f5fd58a15b70",
+          "paths": [
+            "a.txt"
+          ]
+        }
+      ]
+    }
+  },
+  "first_request": {
+    "worker:T-1": 1792763765.867,
+    "worker:T-2": 1792763766.028
+  },
+  "deliveries": {
+    "T-1": {
+      "state": "submitted",
+      "files": [
+        "a.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-1",
+        "Attempt": "d456fc79-3942-40c8-8a16-4862be634a29",
+        "Session": "79f1d593-aced-483a-8d41-45d130b8437a",
+        "Role": "worker",
+        "Tool": "2.1.309 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "066b0de3-429a-4258-99cd-eafe413b66f6",
+        "Launch": "952c07da-7987-44ca-95e3-9378b94c079c"
+      },
+      "workspace": "/private/tmp/t131-3wln9u7u/state/worktrees/demo/T-1-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    },
+    "T-2": {
+      "state": "submitted",
+      "files": [
+        "b.txt"
+      ],
+      "trailers": {
+        "Task": "demo+T-2",
+        "Attempt": "61e575d6-9264-4d7a-a319-4a7da96c1d12",
+        "Session": "59f5cc1e-7396-4caf-a8a3-5cf71255e526",
+        "Role": "worker",
+        "Tool": "2.1.309 (Claude Code)",
+        "Model": "claude-haiku-5-5-t131-served",
+        "Effort": "low",
+        "Native-Session": "4c597e11-9cb8-4abb-9546-7ff6fda7fe80",
+        "Launch": "244993c7-8245-47dc-9d44-a3120fc7fc80"
+      },
+      "workspace": "/private/tmp/t131-3wln9u7u/state/worktrees/demo/T-2-a1",
+      "delivery_model": "claude-haiku-5-5-t131-served"
+    }
+  },
+  "verify": {
+    "T-1": {
+      "ok": true,
+      "error": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null
+    }
+  },
+  "integrate": {
+    "T-1": {
+      "ok": true,
+      "error": null,
+      "details": null
+    },
+    "T-2": {
+      "ok": true,
+      "error": null,
+      "details": null
+    }
+  },
+  "reviews": {
+    "T-1": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "b2d6944a-15a2-4974-bc61-07a1db24addb",
+      "mutation": "mutation rc=1"
+    },
+    "T-2": {
+      "task_state": "verified",
+      "review": "passed",
+      "launch": "ee669262-a000-4bbc-af2c-92af854b39b7",
+      "mutation": "mutation rc=1"
+    }
+  },
+  "main_files": [
+    "README.md",
+    "a.txt",
+    "b.txt",
+    "check_T-1.py",
+    "check_T-2.py"
+  ],
+  "finals": {
+    "T-1": "accepted",
+    "T-2": "accepted"
+  },
+  "revalidated": [
+    {
+      "expected": "eb85eebd49c967ceab8932dd5ee39dceb8f36761",
+      "actual": "af33c802991a5b1e34446fd4a7fa4045fb4c4775"
+    }
+  ],
+  "sidebar": {
+    "T-1": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "365948cc-51bd-4c39-9024-5ed8bb668efc",
+      "task": "demo+T-1"
+    },
+    "T-2": {
+      "role": "worker",
+      "cli": "claude",
+      "parent": "365948cc-51bd-4c39-9024-5ed8bb668efc",
+      "task": "demo+T-2"
+    }
+  }
+}

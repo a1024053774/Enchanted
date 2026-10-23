@@ -409,12 +409,14 @@ Git 事务先锁住 G，在实际检出目录用双树快进保护本地修改�
 机械通过后，后台为 C 创建 detached 审查目录和独立 thread/session/launch，
 不续接旧原生会话。reviewer 用 worker 的 CLI（D24），角色卡取 launch config 的 `reviewer_role_card`
 与 `reviewer_role_card_revision`，缺了就拒绝（`review_launch_config_required`）。Codex reviewer 与 worker
-在同一个 Codex home（用户自己的 `~/.codex`，T-127）；门禁按 argv 核对 reviewer 以 untrusted 打开候选副本，
+在同一个 Codex home（用户自己的 `~/.codex`，T-127）；reviewer 以每会话
+`-c projects={<candidate_workspace>={trust_level="untrusted"}}` 打开候选副本，避免候选中 worker 写的
+`.codex` 配置、hooks、exec policy 影响独立审查。门禁按 argv 核对这条目录信任覆盖、写入范围与 `-a never`，
 交结论时再核对后台读到的原生会话 `session_meta.cwd` 就是该副本（`review_native_session_folder`），
 加上原有的“不同于 worker、未被别的启动用过、不带 resume/fork”。
 reviewer 的 Git 审查 worktree 和候选提交保持不可写；门禁另建一次性 `candidate_workspace` 副本，
 reviewer 用 `--sandbox workspace-write -a never` 进入该副本，副本不含 `.git`，只允许在其中构造
-2～5 个变异。启动 argv 显式关闭网络代理并排除 `/tmp` 与 `$TMPDIR`，不安装 Git 尾注 hook。
+2～5 个变异。启动 argv 放开网络、沿用用户代理配置并排除 `/tmp` 与原 `$TMPDIR`，不安装 Git 尾注 hook。
 Codex reviewer 的 `TMPDIR`、`TMPPREFIX` 指向副本里的 `.a2a-tmp/`，shell 的 here-document 与 Python tempfile
 因此能用，不新增可写目录（T-127 GUI 01：真实 reviewer 写不了 here-document，变异检查没跑成）；
 会话 hook 仍只经启动 argv 传入。审查结束前门禁核对候选提交、审查 worktree、worker worktree
@@ -629,9 +631,17 @@ worker 的 CLI 取任务卡 `executor.cli`（Claude Code 或 Codex，T-122），
 没有普通 attach 会话。生产 CLI 没有直接开库的运行时替代入口。
 
 Claude Code worker 的启动参数（证据 `evidence/2026-10-21-batch19/T-122/probe-01`～`05`）：`--session-id`、
-`--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources ""` 与 `--strict-mcp-config`（不加载任何设置
-文件与 MCP，登录照常；`local` 会连主 checkout 的 `.claude/settings.local.json` 一起加载），`--settings` 只允许 `Bash`、
-`Read`、`Glob`、`Grep` 与 worktree、请求目录内的 `Edit`，shell 沙箱禁止沙箱外命令、另可写请求目录。linked worktree 里
+`--permission-mode dontAsk`（不弹批准，越界即拒）、`--setting-sources ""`（不加载设置文件；
+`local` 会连主 checkout 的 `.claude/settings.local.json` 一起加载）。此参数也会屏蔽用户 MCP；
+T-141 去掉 `--strict-mcp-config`，在 `$HOME/.claude.json` 顶层有 `mcpServers` 时，将该文件单独传给原生
+`--mcp-config`。它只加载 MCP，不合入用户设置中的文件权限规则；没有用户 MCP 时不加此参数。
+这里支持用户作用域 MCP，不加载项目 `.mcp.json`、项目局部 MCP 或插件设置。CLI 的 deferred MCP 工具由模型先经 `ToolSearch` 发现再调用。
+`--settings` 的 allow 规则允许 `Bash`、`Read`、`Glob`、`Grep`，以及 worktree、请求目录与项目额外目录内的 `Edit`。
+用户 MCP 通过每会话 `PreToolUse` hook 的 `^mcp__` 匹配器返回原生 `permissionDecision: allow`；
+该匹配器不匹配 Bash 或原生文件工具，CLI 自己的 deny/ask 规则仍适用。不使用无效的 `permissions.allow: ["mcp__*"]`：
+Claude CLI 不允许 allow 规则的 server 部分包含通配符，旧候选会在信任确认后停在 Settings Warning。
+shell 沙箱禁止沙箱外命令，另可写请求目录与项目额外目录。网络允许所有域名、Unix socket 和本地连接。MCP 工具由用户配置的服务执行，
+不在 Claude 的 Bash 文件沙箱内，服务本身的写入权限不由这些设置限制。linked worktree 里
 Claude 的沙箱自己把主仓库整个 `.git` 设为可写，所以 `denyWrite` 收回整个 Git common dir（worktree 的 `.git` 文件 Claude 沙箱本身就拒写）；
 只有 `git add`、`git commit` 经 `sandbox.excludedCommands` 在沙箱外运行（同 Codex 的两条前缀规则；只由这两种命令拼成的
 一行也在沙箱外，各段提交照样带尾注）。混入任何其他命令的拼接、`git -c`、环境变量前缀、重定向都留在沙箱里，`cd` 与
@@ -693,14 +703,20 @@ monitor 的设置已保存，真实 monitor 启动入口仍未实现，不能据
 [Claude 模型配置文档](https://code.claude.com/docs/en/model-config)为准；不支持的值原样交给 CLI 报错。
 原生 CLI 在会话建立前非零退出会记录 `launch_failed`，原始错误留在该 launch 的终端记录中，不替换成默认值。
 完整 argv 和请求模型/强度/tier 继续入库；这些请求值不证明供应商实际执行层级。
-reviewer 与 worker 同一 home、只写候选副本，原审查 worktree 只读；网络/tmp/身份权限边界不因模型设置改变。
+reviewer 与 worker 同一 home、只写候选副本与项目额外目录，原审查 worktree 只读；权限边界不因模型设置改变。
 
-网络及托管网络代理关闭，不设置 socket 放行名单。三个 hook 向同一 CLI 的 `signal`
+T-141 放开 Codex workspace-write 网络，不覆盖用户的托管代理、信任或工具配置。
+文件写入范围仍受沙箱限制：工作目录、worker 请求目录与项目额外目录；排除共享 `/tmp` 和原 `$TMPDIR`，
+worker 的 shell 临时目录放在请求目录里，reviewer/monitor 放在各自的一次性工作目录里。
+原生审批策略保留 `-a never`，被拒操作立即返回给 worker；worker 经 `issue` 上报，执行主控用 `answer_issue`
+答复，后台经原会话队列送回答案。答复不会扩大沙箱权限。会话 hook 向同一 CLI 的 `signal`
 送原始 stdin；Stop 另外读取显式请求文件。启动参数、环境白名单、请求模型与实际回合模型分开记录。
 
-初态为“未知”。Codex 会话以 untrusted 打开所在目录（见下文“用户的 Codex home”），启动时问一次
-“Open restricted”；后台等屏幕安静后按 Enter（记 `codex_restricted_open_intent`、`codex_restricted_opened`），
-再从 ps 核对前台领导进程，然后放行第一条派发。出现“Trust and continue”时不按键，记
+初态为“未知”。Codex worker 与 monitor 沿用用户的目录信任设置；reviewer 的候选副本单独以 untrusted 打开。
+已信任目录直接启动，untrusted 目录问一次
+“Open restricted”，后台等屏幕安静后按 Enter（记 `codex_restricted_open_intent`、`codex_restricted_opened`）。
+两者都等原生终端状态包 `OSC 7501;state=idle:app=codex`，再核对前台领导进程，记录 `codex_startup_ready` 并放行首条派发。
+该状态包只用于初次启动，之后仍须匹配 Stop。出现“Trust and continue”时不按键，记
 `codex_folder_trust_requested`；120 秒内没出现可识别的启动屏记 `worker_startup_unrecognised`。
 原先由执行主控调用的 `pane_release` 已删除。派发先登记、空闲时 bracketed paste 后单独 CR；CR 写出即忙，
 只有匹配主回合的 Stop 才返回空闲。不读屏，Esc 或缺 Stop 不自动放行。
@@ -722,9 +738,15 @@ Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`
   例如 `git push origin HEAD`、`ssh win`；这些不经门禁，门禁只管认领、交付、验收、集成与回收（用户知情后选择“完全照用 ~/.codex”）。
 - a2a 不写 home 的 config.toml、rules、hooks.json；a2a 的钩子只经每会话的 `-c hooks.*` 传入，与 home 的钩子叠加。
   Codex 自己会往 config.toml 写 `[tui]` 状态键，那不是 a2a 写的。
-- 每次启动传 `-c projects={"<目录>"={trust_level="untrusted"}}`：worker 是仓库根（Codex 按仓库根判断 linked worktree 的信任），
-  reviewer 是候选副本。目录自己的 `.codex/config.toml`、`.codex/hooks.json` 与 exec policy 因此不加载；
-  worker 能改这些文件，reviewer 的副本里也带着它们。“Open restricted”不保存信任，用户 home 不新增 `[projects]` 项。
+- T-141 的 worker 与 monitor 不传 `projects=...` 覆盖信任：项目 `.codex` 的加载由用户自己的配置和原生 CLI 决定。
+  reviewer 只对本次一次性候选副本保留 `-c projects={<candidate_workspace>={trust_level="untrusted"}}`；
+  候选里 worker 写入的 `.codex` 配置、hooks、exec policy 不得在独立审查中生效。门禁沿用 T-127 的精确目录核对。
+  `--sandbox`、写入根与临时目录排除仍由每会话启动参数约束；模型、强度、tier、更新检查与 a2a hook 继续按启动记录核对。
+- Codex CLI 0.163.0 的[无模型原生探针](../evidence/2026-10-23-batch23/T-141/probe-trust-inheritance-01/facts.json)确认：
+  放在其他目录的 Git worktree 继承主仓库信任；非 Git 目录继承已信任祖先目录；已信任父目录下新建的独立 Git 仓库不继承该信任。
+  用户自己信任一次项目仓库后，新 worker worktree 可继承信任；reviewer 不依赖父目录信任，每次以 untrusted 打开，
+  由后台选择不保存信任的 Open restricted。worker 或 monitor 尚无适用信任时仍上报，等用户在终端自行处理；
+  a2a 不代选 Trust and continue，不写用户配置。
 - 用户自己的会话也写在同一个 `sessions/` 下。后台只读启动当天起的日期目录里、启动后写过的文件，
   且只认 `session_meta.cwd` 等于本会话工作目录的那一份。
 - worker 或 reviewer 第一个回合提交后 120 秒内，若本目录里仍没有它的会话记录（在别的目录跑了，
@@ -733,9 +755,11 @@ Codex worker 与 reviewer 的 `CODEX_HOME` 就是 launch config 的 `codex_home`
 - 隔离 /tmp home 只用于验收夹具（AGENTS.md 的真实 Codex 验收规则），不再是产品要求；
   `isolated_codex_home_required` 与 `reviewers` 预建 home 已删除。
 
-端到端测试：`python3 -B workbench/tests/test_t127_codex_home_e2e.py --summary <新路径>`。它在夹具 `$HOME/.codex`
-（带 rules、hooks.json、skill、400 个旧会话）里跑真实 Codex TUI，模型换成本地脚本化 Responses 接口；
-`--revision`、`--mutant`、`--reviewer-case` 见文件头。
+当前验证入口：`python3 -B workbench/tests/test_t141_loosened_limits_e2e.py --summary <新路径>`。
+它在隔离 HOME 的用户 MCP 配置与 Codex home 中运行真实 CLI、后台和 Electron，模型为本地脚本化接口；
+`--revision` 与四个 `--mutant` 见文件头。当前验收状态见 [T-141 RESULTS](../evidence/2026-10-23-batch23/T-141/RESULTS.md)。
+`test_t127_codex_home_e2e.py` 继续核对共享 Codex home、一次性审查副本以 untrusted 打开、目录身份与审查隔离；
+它与 T-140/T-131/T-132 一起纳入回归，实际结果及受保护夹具的修改依据见 T-141 RESULTS。
 
 `daemon.ts` 导出 `serve(root, config, createGates?)`。第三个参数只供测试在代码里注入门禁对象（受控线程运行时或变异体），默认是 `new A2AGates(root, panes)`。产品的 `daemon_start` 不传这个参数，CLI 和环境变量也都没有对应的开关。交付 8、恢复 9、编排 18 这三套旧场景，经 `workbench/tests/run_daemon_acceptance.py` 在本后台入口上运行（T-075-5）。这个运行器为每个测试在短路径上显式启动并停止一个隔离后台，不改 `acceptance/` 中的任何断言。
 
