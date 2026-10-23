@@ -2,7 +2,7 @@
 id: T-116
 title: 原生测试夹具在高负载下不稳定，以及 T-112 合入后 test_t091_claude_version 失效
 type: build
-status: open
+status: out-of-scope
 blocked_by: []
 claimed_by:
 supersedes:
@@ -26,7 +26,15 @@ ready_rev: 1
 
 ## Acceptance
 
-- [ ] test_t091_claude_version.mjs 在 main 上 PASS，删掉 controller_version_mismatch 检查的变异仍然被拒。
+- [x] test_t091_claude_version.mjs 在 main 上 PASS，删掉 controller_version_mismatch 检查的变异仍然被拒。
 - [ ] 两类夹具不稳定都有修前红态（可以注入延迟），修后在 T-115 的负载条件下重复运行中不再出现。
 - [ ] 重复脚本的判定有用例覆盖（分类不完整时为 INCOMPLETE）。
 - [ ] `project_map.py status` 0 问题。
+
+## Resolution
+
+不再做（状态 out-of-scope），2026-10-23。验收条件没有达成，不记为 closed。用户 2026-10-23 逐字：“都关掉吧”（对“T-115、T-116 建议两张都关，不再投入”的回复）。
+
+1. `test_t091_claude_version.mjs`：已由 T-118 解决，不再是问题。T-118 去掉了版本比较，并改写了这个测试。2026-10-23 在 main（`23d4445a2`）上运行：PASS；把版本比较加回去的变异被拒绝（`Updated CLI version must be accepted: controller_version_mismatch`）。
+2. T-110 夹具在高负载下的两种不稳定：没有修。它们只是 T-115 的前置工作，随 T-115 一起关闭。`t110_notifications_scenario.py:37` 读高亮前快照的代码还在；以后再用 T-110 真实入口做负载测试时，要先处理这一处。
+3. 重复脚本判定太松的问题：没有修，同上。
