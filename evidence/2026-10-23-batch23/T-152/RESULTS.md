@@ -12,6 +12,7 @@
 4. 专用 `t152_review_host.ts`：仍调用共享 controlled PTY；仅在它第一次 Enter 打开隔离的 untrusted 文件夹后发 native ready。真实后台、CLI、门禁、Git/SQLite、Stop/relay 与结束回调均保留。测试新增 `start_host` 指向该 host，保留原有凭据、PID 和脱离进程组核对；未改共享 host 或 PTY 文件。
 5. 专用 `t152_real_review_submit.json`：逐字节复制 Git 中 `32ffb4e6d:evidence/2026-10-15-batch15/T-082/protocol-red-green-01/real-review-submit.json`。原小输入受控但稀疏 checkout 缺失；没有从当前产品模板生成期望，原 roundtrip 检查全部保留。
 6. 专用 `run_suite.py`：支持 `--summary` 新路径、`--revision`、`--mutant`；每次用 Git archive 创建临时产品副本，变异不写产品 checkout。只认指定 `ContractFailure` 为红态，harness_error、清理失败或错误 failure_id 一律 INCOMPLETE。保留原始现场，仓库只留小摘要；由主控按 T-088 归档。
+7. 冻结候选 `dbd82308a` 的独立只读审查发现两项夹具阻断（见 `acceptance-review-01.md`）：按 T-123 在局部 `configure_host` 将 gate/packet/trailer 的任务身份统一为 `fixture+短名`，卡片 id 仍为短名；按 T-127 用现行 `reviewer_role_card` 与 `reviewer_role_card_revision` 替代旧 `reviewers` 数组。未修改共享 QualityCase。修正后尚未取得运行证据，原审查不替修正后的候选背书。
 
 新增辅助文件只有上述 host 和 JSON 输入被本测试加载；`run_suite.py` 与 `RUN-OUTSIDE-01.sh` 是本票复跑入口。原 `run_t082_boundary.py` 被其他测试导入，不符合“只被它使用”的边界，未修改。范围外发现已经 `scripts/inbox` 上报 `20261023T190056Z-worker:b23-t152-issue-001`，正文见 [issue-legacy-runner.md](issue-legacy-runner.md)。该追加式 inbox 条目保留在工作区，未把 `.project-map/**` 纳入交付提交。
 

@@ -25,6 +25,15 @@ from test_quality_tracer_e2e import Tracer
 
 
 class ReviewBoundary(Tracer):
+    def configure_host(self, config):
+        # T-123: the card keeps its short name; every gate/packet/trailer uses
+        # the project-qualified identity, including card_save before create.
+        self.task = 'fixture+' + self.task
+        # T-127: one Codex home, fresh reviewer sessions and one role card.
+        config.pop('reviewers')
+        config['reviewer_role_card'] = config['role_card']
+        config['reviewer_role_card_revision'] = 'T-152/controlled-reviewer'
+
     def start_host(self):
         # Dedicated native-ready fixture; shared historical hosts remain intact.
         if self.host is not None and self.host.poll() is None:
