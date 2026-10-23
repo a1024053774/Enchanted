@@ -1,6 +1,6 @@
 # T-152-1 / a1 交付记录
 
-状态：**INCOMPLETE**。01、02 沙箱外运行均在业务断言前失败；02 已确认自动放行和证据采集问题解除，本轮补专用 PTY 的提交后输出。03 红态、绿态和回归待主控运行，不能据此验收或集成。产品代码未改。起点 `32ffb4e6dcc0472b20bbb64331a355621c9b73a9`，分支 `exec/t152`，worker `b23-t152`。
+状态：**INCOMPLETE**。01～03 均未取得有效业务红绿态；03 已定位旧 Stop 缺少来源字段。本轮按主控 #12 确认的 FLOW-AUDIT 一次性迁移 worker/ACK、reviewer 和 held-socket 三处输入，只准备 04 的单个全新正例。04 待主控运行，不能据此验收或集成。产品代码未改。起点 `32ffb4e6dcc0472b20bbb64331a355621c9b73a9`，分支 `exec/t152`，worker `b23-t152`。
 
 ## 逐条改动
 
@@ -24,9 +24,9 @@
 
 ## 主控沙箱外复跑
 
-下一轮运行：`zsh evidence/2026-10-23-batch23/T-152/RUN-OUTSIDE-03.sh`。01、02 脚本与证据均保留。
+下一轮仅运行：`zsh evidence/2026-10-23-batch23/T-152/RUN-OUTSIDE-04.sh`。01～03 脚本与证据均保留。04 的逐项正例读回及限制见 `REWORK-04.md`；本轮未写 05。
 
-它先运行四个有效检查变异，再运行四个非法启动变异，最后跑全部正常案例、T-090 直接继承方的 HEAD/branch/dirty 三例和既有 T-141 双 CLI reviewer 启动契约。摘要写入新的 `outside-03-XXXXXXXX/`，聚合 `SUMMARY.json`。结束核对、workspace、refs、假删除副本分别必须命中 `REVIEW-END-BEFORE-INTEGRATE`、`REVIEW-REQUIREMENTS-WORKSPACE`、`REVIEW-REFS-INVALIDATE`、`T082-COPY-REMOVED`；启动反例必须让三条拒收/暂停/上报断言全过。
+04 只运行 tracer_review_copy，并读回请求文件、匹配 Stop、relay_result、门禁回执回合、ACK 完成、review_result、review_reclaimed 与物理副本删除，摘要写入新的 `outside-04-XXXXXXXX/SUMMARY.json`。全套变异与 T-090/T-141 等 04 正例通过后再准备；它们的原定验收不变。
 
 ## 01 运行结果与第 2 轮改动
 
@@ -45,5 +45,11 @@
 主控 #9 实跑 02，绑定 `02fe808bd`。摘要 `outside-02-JpvDMYo4/SUMMARY.json`：T-141 reviewer PASS，另 10 项 INCOMPLETE、零业务断言，均在自动放行后等待原生 turn 超时；清理失败为 0。现场与时间线核对见 `REWORK-03.md`。
 
 专用 PTY 已在任务 Enter 时写 rollout，却没有发输出，因此真实后台没有及时触发 onData → scan。本轮只给非首个 Enter 后补异步普通文本输出，保留 wait_pane 与全部业务断言，不调 scan、不改门禁或共享 PTY。`node --check`、03 脚本 `zsh -n`、`git diff --check` PASS。尚无 03 端到端运行证据，状态 INCOMPLETE。
+
+## 03 结果、整链走查与第 4 轮
+
+03 主控实跑摘要 `outside-03-NM4823lV/SUMMARY.json` 绑定 `b3521197e`：T-141 reviewer PASS，另 10 项在 ACK 前 harness_error。首轮 turn 已绑定，但 Stop 被 question_origin_unverified 拒绝；relay 尚未执行。完整只读审计 `FLOW-AUDIT.md`（PLAN `a6a8e9c84`）区分了运行事实与静态下游契约，主控 #12 确认继续范围。03 的局部问题不能算业务 mutant 红态。
+
+第 4 轮统一三处 Stop 信封，信号错误即时带详情失败；保留共享基类和原业务断言。新增 04 单例脚本，按既定契约逐项读回，不以一个进程 exit=0 替代完整流程证据。具体改动见 `REWORK-04.md`；本轮本地检查结果见 `local-checks-04.json`。04 正例、held-socket 及完整红绿态均未运行，不宣称 PASS。
 
 局限：当前没有有效业务红态、绿态或 T-090/T-141 新回归通过证据；不声称真实原生 CLI 沙箱、网络访问或模型判断得到证明（原生 CLI/模型回合为 0）。不复用历史 PASS。最终验收、独立审查、submit/集成由执行主控门禁负责。

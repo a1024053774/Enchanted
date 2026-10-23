@@ -56,7 +56,10 @@ def main():
     parser.add_argument('--revision', default='HEAD')
     parser.add_argument('--mutant', choices=MUTANTS)
     parser.add_argument('--worker-regression', action='store_true')
+    parser.add_argument('--case', help='Run one named normal T-082 case in a fresh fixture')
     args = parser.parse_args()
+    if args.case and (args.mutant or args.worker_regression):
+        parser.error('--case cannot be combined with --mutant or --worker-regression')
     source = args.source.resolve()
     summary = args.summary.resolve()
     summary.parent.mkdir(parents=True, exist_ok=True)
@@ -84,6 +87,8 @@ def main():
             argv = [sys.executable, '-B', str(ROOT / 'workbench/tests' / name),
                     '--source', str(product), '--output', str(scratch / 'run')]
             failure_id = None
+            if args.case:
+                argv.extend(['--case', args.case])
             if args.mutant:
                 path, before, after, case, failure_id = MUTANTS[args.mutant]
                 target = product / 'workbench' / path

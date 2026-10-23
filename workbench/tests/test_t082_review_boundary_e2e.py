@@ -45,6 +45,33 @@ class ReviewBoundary(Tracer):
         self.wait_for(self.orchestration, lambda events: any(
             event['type'] == 'codex_startup_ready' and event['launch'] == self.launch for event in events))
 
+    @staticmethod
+    def stop_envelope(record, workspace, turn, message):
+        return {'session_id': record['native'], 'turn_id': turn, 'hook_event_name': 'Stop',
+                'cwd': str(workspace), 'transcript_path': record['log'],
+                'last_assistant_message': message}
+
+    def stop_turn(self, *, turn=None):
+        pane = self.gate('pane_status', '--thread', self.a['thread_id'], task=False)
+        stop = self.stop_envelope(self.native, self.a['workspace'], turn or pane['turn'],
+                                  'controlled worker finished')
+        reply = self.gate('signal', '--launch', self.launch, task=False,
+                          env=self.worker_env(), stdin=json.dumps(stop, ensure_ascii=False))
+        save(self.evidence / ('worker-stop-%04d.json' % len(self.commands)), {'stop': stop, 'reply': reply})
+        if not reply['ok']:
+            raise HarnessFailure('Worker/ACK Stop was rejected: ' + json.dumps(reply, ensure_ascii=False))
+        return reply
+
+    def send_review(self, review, record, packet=None, raw=None):
+        text = json.dumps(packet, ensure_ascii=False) if raw is None else raw
+        stop = self.stop_envelope(record, review['candidate_workspace'], 'fixture-turn-1', text)
+        reply = self.gate('signal', '--launch', record['launch'], task=False,
+                          env={**self.env, **record['env']}, stdin=json.dumps(stop, ensure_ascii=False))
+        save(self.evidence / ('reviewer-stop-%04d.json' % len(self.commands)), {'stop': stop, 'reply': reply})
+        if not reply['ok']:
+            raise HarnessFailure('Reviewer Stop was rejected: ' + json.dumps(reply, ensure_ascii=False))
+        return self.cli('status')['task']
+
     def start_host(self):
         # Dedicated native-ready fixture; shared historical hosts remain intact.
         if self.host is not None and self.host.poll() is None:
@@ -292,8 +319,8 @@ class ReviewBoundary(Tracer):
         outside = Path(review['workspace']) / 'external-before-end.txt'
         if dirty:
             outside.write_text('External change must be checked before integration.\n', encoding='utf-8')
-        stop = {'session_id': record['native'], 'turn_id': 'fixture-turn-1', 'hook_event_name': 'Stop',
-                'last_assistant_message': json.dumps(self.review_packet(review, candidate), ensure_ascii=False)}
+        stop = self.stop_envelope(record, review['candidate_workspace'], 'fixture-turn-1',
+                                  json.dumps(self.review_packet(review, candidate), ensure_ascii=False))
         message = {'id': str(uuid.uuid4()), 'input': {'command': 'signal', 'launch': record['launch'],
                    'raw_stdin': json.dumps(stop, ensure_ascii=False),
                    'received_at': datetime.datetime.now(datetime.timezone.utc).isoformat()},
