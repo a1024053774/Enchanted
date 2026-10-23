@@ -406,7 +406,9 @@ export async function serve(
     // T-137: the Reflect page's tree of every controller this project had and the sessions under it.
     if (input.command === 'reflect_tree') {
       if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');
-      return { ok: true, nodes: reflectTree(store.db, roleRequests.all(), input.project, record => panes.status(record.thread).lifecycle) };
+      const sidebar = await sidebarSnapshot(gates, store, panes, roleRequests);
+      return { ok: true, nodes: reflectTree(store.db, roleRequests.all(), input.project,
+        new Map(sidebar.agents.map(agent => [agent.id, agent.state]))) };
     }
     if (input.command === 'retrospective_list') {
       if (typeof input.project !== 'string' || !input.project) throw new Refusal('invalid_project');

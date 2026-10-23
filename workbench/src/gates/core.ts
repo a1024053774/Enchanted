@@ -2341,7 +2341,7 @@ export class A2AGates {
     // is checked as a whole: fixed flags in fixed places, and settings with exactly these fields.
     let settings: any = null;
     try { settings = claude ? JSON.parse(String(argv?.[15])) : null; } catch { settings = null; }
-    const hookEvents = ["SessionStart", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"];
+    const hookEvents = ["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop", "PermissionRequest", "PreToolUse", "PostToolUse"];
     const signal = settings?.hooks?.Stop?.[0]?.hooks?.[0]?.command;
     // D24: same model, effort and Fast as the worker launch, and the worker's signal command with
     // only the launch id changed. The executable is recorded, not compared: its real path names
