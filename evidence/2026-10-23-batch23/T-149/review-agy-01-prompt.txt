@@ -1,0 +1,16 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-149：用户裁定过时历史测试选 C——“删除不再有价值的，其余标历史”；构思主控转达的授权与判据见 user-decision.md：测试守护的契约已被现行且通过的测试覆盖、或契约已废弃的才删；仍是现行契约唯一守护者的不删，也不静默放过，交用户（needs-decision）。
+
+候选结论：13 个文件删 0、标历史 3（只在文件头加一行注释）、待决 10（不动）；新建 workbench/tests/HISTORICAL.md 索引。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-149-r1/ 下：
+- candidate/：候选只读副本；处置表 candidate/evidence/2026-10-23-batch23/T-149/DISPOSITION.md；RESULTS.md；ticket candidate/.project-map/tickets/T-149-retire-stale-historical-tests.md。
+- full.diff：workbench/ 的全部改动。
+
+请核对：
+1. 判据应用是否一致：抽查至少 4 个“待决”文件，确认它们列出的有效检查确实没有现行测试覆盖（在 candidate/workbench/tests 中搜索可能的替代）；若某个其实已被覆盖或契约已废弃、应删，指出。反过来，3 个“标历史”的是否可以直接删，或者其实仍守护现行契约。
+2. 标历史的 revision 是否有证据支撑（DISPOSITION 引用的 evidence 文件是否存在、内容是否匹配）。
+3. 改动是否只有注释与新索引，是否改了代码行、断言、import；标记是否破坏 shebang 或模块解析。
+4. HISTORICAL.md 是否准确，没有把待决测试说成已停用或已通过。
+5. 其他问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-149 REVIEW PASS`、`T-149 REVIEW INCOMPLETE` 或 `T-149 REVIEW NO_GO` 之一。
