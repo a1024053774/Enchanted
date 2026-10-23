@@ -1,0 +1,16 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-147：按用户裁定把受保护验收文件 workbench/tests/test_t121_role_request_e2e.py:515 的 `sidebar_drops_closed_controller` 从“关闭终端后侧栏里没有该主控”改为“关闭后该主控仍在侧栏、state 为 ended”。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-147-r1/ 下：
+- candidate/：候选 aa1a83aa0 只读副本；ticket：candidate/.project-map/tickets/T-147-t121-assertion-after-decision-b.md；任务卡与 RESULTS：candidate/evidence/2026-10-23-batch23/T-147/。
+- full.diff：相对起点 fda7d194d 的全部改动。
+- evidence/20261023T125315Z-ideation-answer-001.md（裁定 B，问题 3）与 evidence/20261023T153252Z-executor-report-001.md（用户在执行主控会话对 T-121 的选择，逐字“保留并标已结束 (Recommended)”）。
+- evidence/regression-04-NOTE.md：main 上 T-121 失败、T-146-3 前通过的证据。
+- evidence/outside-01/：执行主控沙箱外运行：候选 T-121 全绿；--revision 045e8cfb1（关闭主控会从侧栏消失的旧行为）在新断言失败。
+
+请核对：
+1. 改动是否只有授权那一处；其他检查名、断言、超时是否完全未动；是否改了产品代码。
+2. 新断言是否忠实表达裁定（关闭后条目存在且为 ended）；是否既能拒绝“删掉条目”的旧行为，也能拒绝“仍标运行中”等错误；是否有被意外放宽的地方（例如多个条目、身份仍有效）。
+3. 证据是否支持结论（候选绿、旧行为红在目标断言上）。
+4. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-147 REVIEW PASS`、`T-147 REVIEW INCOMPLETE` 或 `T-147 REVIEW NO_GO` 之一。
