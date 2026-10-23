@@ -143,6 +143,9 @@ finally {
     } catch (error) { report.status = 'INCOMPLETE'; report.cleanup_error = String(error); }
   }
   if (previousCredential === undefined) delete process.env.A2A_OPERATOR_CREDENTIAL; else process.env.A2A_OPERATOR_CREDENTIAL = previousCredential;
+  // The dependency copy is ~500 MB per run and was never removed (2026-10-22, the disk filled up); the rest of the run
+  // directory stays as its evidence.
+  fs.rmSync(join(tree, 'node_modules'), { recursive: true, force: true });
 }
 fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
 console.log(JSON.stringify(report)); process.exitCode = report.status === 'PASS' ? 0 : 1;
