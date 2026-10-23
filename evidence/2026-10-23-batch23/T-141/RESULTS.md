@@ -34,6 +34,12 @@
 
 `RUN-OUTSIDE-05.sh` 创建新 `outside05-*` 目录，共 29 场：原 T-141 全套及 t127/t140/t131/t132；新增本地 oracle 检查、worker 旧版强制 untrusted 的真实红态、全部 T-127 变异入口与四种 reviewer 隔离场景。组合反例覆盖删除 trust 门禁、删除原生目录门禁、丢失 unbound 记录。失效定位、无关前置失败和未到达目标断言均记 INCOMPLETE。restricted-unanswered 还须同时有原生 Open restricted 屏幕与 native_ready_signal_missing，单纯超时不算抓住。`scan-whole-home` 只记录功能与时间，不计入负例或性能收益证明；其余每场按独立预期分类。真实结果待回传，截图不提交。
 
+第五轮冻结候选 `29e4e69b6234cfbbe2107fdee9f5fdc22b845c6f` 经一次独立只读 behavioral-acceptance-review 得到 FAIL（原报告 `acceptance-review-05.md` 保留）：两个 trust 变异原先只匹配通用 `review_launch_boundary`，可能把无关 sandbox/身份/目录失败当作反例通过。
+
+后续修复只收紧证据分类，不改生产门禁或 T-127 的受保护断言：RUN05 从该失败夹具的只读 SQLite 读取 `review_requested` 与 `review_lifecycle_failed` 保存的实际 review、launch、live 输入，保存为新的 trust-input.json；`t141_review_trust_rejection.mjs` 用同一生产 `reviewLaunch` 复放，先确认实际 trust 缺失/改 trusted 且原记录被拒，再仅恢复正确的候选副本 untrusted 参数。只有其余输入不动就能通过同一门禁，才把这次拒绝计为 trust 反例。若还有其他边界错误、找不到输入或复放无法通过，保持 INCOMPLETE。
+
+`reviewer-specific-refusal-05.json` 本地 PASS：两种实际生产 builder 记录的 trust 反例均能通过这项单变量控制；同样的通用错误码再叠加无关 `launch.sandbox=read-only` 后，控制仍被拒、证据为 INCOMPLETE，不能计作 trust 反例。此结果只证明分类控制逻辑；真实失败输入的提取与完整变异执行仍待 RUN05，不把修复写成新候选已通过独立审查。
+
 ## 第四轮：仅审查副本保留 untrusted（历史）
 
 执行主控在本会话转述用户 2026-10-23 的逐字裁定“选 A”，来源为 `20261023T141957Z-executor-needs-decision-001` 的 executor report 回复：Codex reviewer 的一次性审查副本保持 untrusted，worker 与 monitor 沿用用户配置。这个例外保住独立审查：副本里由 worker 写入的 `.codex` 配置、hooks、exec policy 不生效。它不把用户 home 改为 untrusted，也不改变 worker/monitor 信任。

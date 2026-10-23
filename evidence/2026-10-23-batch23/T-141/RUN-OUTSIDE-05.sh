@@ -52,7 +52,7 @@ run t140 python3 -B workbench/tests/test_t140_extra_dirs_e2e.py --summary "$OUT/
 run t131 python3 -B workbench/tests/test_t131_parallel_workers_e2e.py --summary "$OUT/t131.json"
 run t132 python3 -B workbench/tests/test_t132_issues_panel_e2e.py --summary "$OUT/t132.json"
 python3 - "$OUT" <<'PYMATRIX'
-import json, pathlib, re, sys
+import json, pathlib, re, sqlite3, subprocess, sys
 root = pathlib.Path(sys.argv[1])
 rows = []
 expected = {'red': 'codex_no_network_denial_in_argv', 'network-closed': 'codex_no_network_denial_in_argv',
@@ -74,6 +74,7 @@ for name in cases:
     result = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
     code = int((root / (name + '.exit')).read_text())
     kind = 'behavioral_scenario'
+    trust_proof = None
     if name in expected:
         ok = code != 0 and expected[name] in result.get('error', '')
         kind = 'known_bad_rejected'
@@ -82,7 +83,33 @@ for name in cases:
         if name == 't127-gate-folder-unchecked':
             ok = ok and result.get('review', {}).get('state') == 'passed'
     elif name in ('t127-no-untrusted', 't127-trusted-copy'):
-        ok = code != 0 and result.get('verify', {}).get('error') == 'review_launch_boundary'
+        # The gate shares an error code across trust, sandbox, folder and identity
+        # failures. Replay its saved inputs; changing only trust must make it pass.
+        trust_proof = {'status': 'INCOMPLETE'}
+        if code != 0 and result.get('verify', {}).get('error') == 'review_launch_boundary':
+            try:
+                database = pathlib.Path(result['fixture']) / 'state/state.sqlite3'
+                with sqlite3.connect('file:' + str(database) + '?mode=ro', uri=True) as connection:
+                    saved = [(kind, json.loads(data)) for kind, data in connection.execute(
+                        "SELECT type,details FROM events WHERE type IN ('review_requested','review_lifecycle_failed') ORDER BY seq")]
+                failed = next(data for kind, data in reversed(saved) if kind == 'review_lifecycle_failed' and
+                              data.get('details', {}).get('error') == 'review_launch_boundary')
+                requested = next(data['review'] for kind, data in saved if kind == 'review_requested' and
+                                 data['review']['review_id'] == failed['review_id'])
+                facts = failed['details']['details']
+                context = dict(review=dict(requested, launch_id=facts['launch']['id']), launch=facts['launch'], live=facts['live'])
+                proof_input, proof_output = root / (name + '.trust-input.json'), root / (name + '.trust-proof.json')
+                with proof_input.open('x', encoding='utf-8') as stream:
+                    stream.write(json.dumps(context, ensure_ascii=False, indent=2)+'\n')
+                replay = subprocess.run(['node', 'workbench/tests/t141_review_trust_rejection.mjs', str(proof_input),
+                    'missing' if name == 't127-no-untrusted' else 'trusted', str(proof_output)], capture_output=True, text=True)
+                trust_proof = json.loads(proof_output.read_text(encoding='utf-8')) if proof_output.exists() else dict(
+                    status='INCOMPLETE', error=replay.stderr)
+                trust_proof['replay_exit_code'] = replay.returncode
+            except (OSError, sqlite3.Error, ValueError, KeyError, StopIteration) as error:
+                trust_proof = dict(status='INCOMPLETE', error=f'{type(error).__name__}: {error}')
+        ok = (trust_proof.get('status') == 'PASS' and trust_proof.get('restored_trust_only_launch_accepted') is True and
+              trust_proof.get('replay_exit_code') == 0)
         kind = 'known_bad_rejected'
     elif name == 't127-restricted-unanswered':
         # Require the native dialog as well as the startup failure. An unrelated
@@ -99,7 +126,7 @@ for name in cases:
         if name == 't127-scan-whole-home':
             kind = 'functional_variant_no_performance_claim'
     rows.append(dict(case=name, status='PASS' if ok else 'INCOMPLETE', evidence_kind=kind, exit_code=code,
-                     observed_status=result.get('status'), error=result.get('error'), fixture=result.get('fixture'),
+                     observed_status=result.get('status'), error=result.get('error'), fixture=result.get('fixture'), trust_rejection_proof=trust_proof,
                      external_fixture=result.get('external_fixture')))
 report = dict(status='PASS' if all(row['status']=='PASS' for row in rows) else 'INCOMPLETE', cases=rows,
               raw_evidence=str(root), archive_owner='executor; archive raw fixtures/logs under T-088 before cleanup')

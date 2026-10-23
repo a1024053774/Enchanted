@@ -7,6 +7,7 @@ import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { explainTrustRejection } from './t141_review_trust_rejection.mjs';
 const [output, source = '.'] = process.argv.slice(2);
 if (!output || existsSync(output)) throw new Error('Fresh summary path required');
 const report = { status: 'INCOMPLETE', checks: [] };
@@ -57,6 +58,18 @@ try {
     }, task, review, { workspace: candidate, runtime_identity: {} });
     assert.equal(validate(launch).id, launch.id);
     report.checks.push(cli + '_production_launch_accepted');
+    if (cli === 'Codex') {
+      for (const kind of ['missing', 'trusted']) {
+        const row = structuredClone(launch), index = row.argv.findIndex(arg => arg.startsWith('projects='));
+        if (kind === 'missing') row.argv.splice(index - 1, 2);
+        else row.argv[index] = `projects={${JSON.stringify(candidate)}={trust_level="trusted"}}`;
+        const input = { review, launch: row, live: { workspace: candidate, runtime_identity: {} } };
+        assert.equal(explainTrustRejection(input, kind).status, 'PASS');
+        row.sandbox = 'read-only';
+        assert.equal(explainTrustRejection(input, kind).status, 'INCOMPLETE', 'Same error code with unrelated sandbox failure is not trust evidence');
+        report.checks.push('Codex_' + kind + '_trust_rejection_specific_and_unrelated_failure_excluded');
+      }
+    }
     for (const [name, mutate] of [
       ['foreign_workspace', row => { row.worktree = repo; }],
       ['git_configuration', row => { row.env.GIT_CONFIG_COUNT = '1'; }],
