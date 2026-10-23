@@ -59,6 +59,12 @@ def main():
         raise RuntimeError('本票原生会话目录缺失')
     sources = [(p, DEST / p.name) for p in ROOTS]
     sources += [(p, DEST / 'native-claude' / p.name) for p in owned_native]
+    # CLI 把卡片、变异样本和诊断输出写在实例目录之外；这些也是本票原始证据。
+    for project, session in (
+            ('-private-tmp-t155-dogfood-lv2rm2nt-demo-repo', '29234bf2-1cbd-459a-88f4-4bb954bdb854'),
+            ('-private-tmp-t155-dogfood-ohzs-78v-demo-repo', '17627564-e241-4cc7-a0d7-07e6f8aa7d75')):
+        scratch = Path('/private/tmp/claude-501') / project / session / 'scratchpad'
+        sources.append((scratch, DEST / 'native-scratchpads' / session))
     # 全部预检后才开始复制；已有归档绝不覆盖。
     prepared = []
     for source, target in sources:

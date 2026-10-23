@@ -133,3 +133,12 @@ C10（图 49）：主控核对旧 attempt revoked（原因 spec revised）、命
 - 图 57 默认落在独立终端，侧栏会话树仍在；重新点击主控后图 58 可见 C13 最终输出，main 仍种子，T-101/T-102 暂停，T-103 已认领/未知。
 - 图 59 流程仍含两票独立审查、旧 attempt 未归属和 T-103 未知。图 60/AX 核对原 Reflect 已完成、8 条待决定建议；图 61 记录仍 17 条、人工介入 8 条。未点复盘或批准建议，未提交任何新模型提示。
 - 已通过异步问题界面请求主控 STOP --all，等停止确认后再独立读回数据库副本和归档。此时不能把归档或完整流程写成 PASS。
+
+## 主控 #20～#22 后：停止、读回与回合终核
+
+- #20 确认第二实例 UI/daemon 全停、目录保留。#21 记录立即检查仍有 4 个 Claude 和 4 个 gate CLI，十几秒后均退出；这里只引用主控观察，未在相同时间窗独立复核，不列新发现。
+- worker 内运行 readback_stopped.py 被沙箱拒绝 `/bin/ps`，尚未创建副本；随后提权请求被主控拒绝，由主控读过脚本后在沙箱外代执行 rc=0。#22 明确这次中断是主控拒绝提权，不是命令执行失败。
+- stopped-readback.json 为主控脚本产物；两份副本 integrity=ok。测试者只读副本确认两实例角色批准/确认事件存在，但 user_inputs 仅 2 / 17 条、均无批准；T-103 submit 被 worker_not_active 拒绝，仍 claimed；T-101/T-102 paused/a2 submitted，main 保持种子。
+- count_native_turns.py 在沙箱内只读专属 native JSONL，12 会话共 37 根回合：旧主控3、新主控10、workers19、reviewers4、Reflect1。包含中断原提示，排除技能展开/工具结果/中断占位符。managed 实际23，看板22漏 T-103 人工输入后的回合。全部原生 assistant model 为 Haiku，未新增模型调用。
+- 复制门禁读取的小卡和验收脚本 10 件到 fixture-inputs，共9912字节，原样逐字节核对；不是可信 oracle，也没有执行这些弱验收。完整原生 scratchpad（含变异样本与诊断）另加入外置归档脚本，避免临时目录失效后只剩引用。
+- 文档更新时一条过长 Python stdin 编辑命令被解释器以 Non-UTF-8 SyntaxError 拒绝，未执行正文；随后改用 apply_patch 分块落盘，最终 UTF-8/引用检查另记结果。这是文档处理过程，不是产品发现。

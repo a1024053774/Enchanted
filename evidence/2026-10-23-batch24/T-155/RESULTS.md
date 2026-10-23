@@ -1,6 +1,6 @@
 # T-155-1 / a1：真实使用运行记录
 
-状态：INCOMPLETE。模型执行已停在真实阻断：两票被独立审查输出协议暂停，一票在运行中人工介入后交付未知，无任何集成。两 worker 并行、问题答复、真实打回与修复重交、记录/指标/Reflect、同后台 UI 重开已实际走到；最终停止读回与归档尚待完成。不能以“报告写出”替代完整流程通过。
+状态：INCOMPLETE。模型执行已停在真实阻断：两票被独立审查输出协议暂停，一票在运行中人工介入后交付被拒、界面状态未知，无任何集成。两 worker 并行、问题答复、真实打回与修复重交、记录/指标/Reflect、同后台 UI 重开已实际走到；最终停止读回和 37 个根回合核对已完成，归档尚待完成。不能以“报告写出”替代完整流程通过。
 
 ## 版本与启动
 
@@ -23,7 +23,7 @@ bash evidence/2026-10-23-batch24/T-155/STOP-APP.sh /private/tmp/t155-dogfood-lv2
 bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-ohzs_78v
 ```
 
-以上停止与启动由主控沙箱外执行；旧实例停止后继续保留现场，不删除。原始 run 目录不纳入 Git，最终按 T-088 归档，当前尚未归档。
+以上停止与启动由主控沙箱外执行；旧实例停止后继续保留现场，不删除。原始 run 目录不纳入 Git，最终按 T-088 归档，状态以文末最终记录为准。
 
 ## 截图索引
 
@@ -83,7 +83,7 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 | 切换、分屏与滚动 | 已实际操作；侧栏能切换，但只读窗格出现输入错误，向右分屏未保留原 worker，图 33/34/41/50/51 |
 | 流程、记录、指标 | 已查看真实多任务状态；数据与未知/无数据的限制见图 32/35/45/56 与报告 |
 | Reflect | PASS（只指产物生成）：选择 Haiku，手动复盘实际写报告，页面已完成，8 条建议未批准/执行，图 43/46/47 |
-| 新实例复现一条发现 | 已重复观察：两个全新 root 的角色批准都未出现在输入记录；旧实例停止后的 DB 副本已核对，新实例停止读回待补 |
+| 新实例复现一条发现 | PASS（发生事实）：两个全新 root 的角色批准都未出现在输入记录；两实例停止读回均确认批准事件存在、输入记录缺少批准 |
 | UI 关闭再重开 | PASS（同后台 UI-only）：主控 #19 执行，旧 UI 83084 停止，新 UI 14775，daemon 仍 83082；图 57～61 核对持久状态。未测试 daemon 重启 |
 
 最终业务状态：
@@ -139,11 +139,24 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 | 60-reopened-reflect-persisted.png | Reflect 会话树与原有结果仍可访问；AX 同时核对已完成记录及 8 条待决定建议 |
 | 61-reopened-user-records.png | 全部筛选下仍为 17 条记录、8 条人工介入；未新增模型提示 |
 
-## 累计回合与权限口径（待停止后终核）
+## 累计回合与权限口径（停止后终核）
 
-两实例主控根提交 C1～C13 合计 13 次，含被 Esc 中断的回合；应用内 managed 为 5 个 worker 会话、4 个 reviewer，会话模型均在 Reflect/指标显示 Claude Haiku。最终看板记录 managed 22 回合，但遗漏主控计量，且 T-103 人工输入后的实际回复没有在该计数中反映。另有 1 次 Reflect。不能把消息编号、工具调用次数、配置上限或看板 22 当全局精确值。
+停止后只读统计本票专属原生 JSONL，共 12 个会话、37 个根回合，全部 assistant model 字段为 `claude-haiku-5-5`；预算核对 PASS（只指本口径 37 ≤ 60）。逐提示 UUID、时间及来源文件见 `native-turns.json`，脚本为 `count_native_turns.py`。不把消息编号、工具调用次数或配置上限当回合数。
 
-本阶段模型执行截止在 C13 回复后；后续不再新增应用内模型提示，预算仍为累计不超过 60。最终需要从已停止实例的原生记录补齐实际根回合，报告未计量范围；外层 Codex 的审查/写报告不算应用内回合。应用内没有 Codex worker。
+| 会话 | 实际根回合 | 计数说明 |
+| --- | --- | --- |
+| 旧实例主控 C1～C3 | 3 | 含 C2 被 Esc 中断的原提示 |
+| 新实例主控 C4～C13 | 10 | 含 C7 被 Esc 中断的原提示 |
+| T-101 a1 / a2 worker | 6 / 4 | 含回执、人工输入与面板答复 |
+| T-102 a1 / a2 worker | 5 / 2 | 含回执、提醒与面板答复 |
+| T-103 a1 worker | 2 | 初始指令及 Stop 期间的人工输入 |
+| 四个独立 reviewer | 4 | 每个 1 回合 |
+| Reflect | 1 | 手动复盘 |
+| 总计 | 37 | managed 实际 23，主控 13，Reflect 1 |
+
+计数取原生记录中有文本的根 `user` 消息；排除 `isMeta` 技能展开、纯工具结果、`interruptedMessageId` 中断占位符和 sidechain；没有发现额外子会话。被中断的原提示仍计一次。该口径是任务提示与回复构成的回合，不是供应商 API 调用数、token 或成本。看板最终 22 漏了 T-103 一次人工输入回复，主控为 0、Reflect 未计入；以看板估算全局预算不可用。
+
+本阶段模型执行截止在 C13 回复后；后续未新增应用内模型提示，预算累计不超过 60。最终已从停止后的原生记录补齐根回合；外层 Codex 的审查/写报告不算应用内回合。应用内没有 Codex worker。
 
 权限操作只有测试 repo 信任、两次主控角色批准、问题页答复、选择同目标卡修订及明确的交叠理由；没有系统隐私、登录或付款操作。没有批准 Reflect 的任何改进建议。Computer Use 的操作来源是测试 agent，产品记录名“用户输入”不意味着真人亲手操作。
 
@@ -158,10 +171,22 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 
 Computer Use 已确认同一隔离 renderer；生命周期日志 `logs/electron-c18cd8fc.json` 为新 Electron PID 14775，`logs/daemon_status-9840d5cc.json` 为保留的 daemon 83082。图 57～61 核对任务/角色/终端/记录/Reflect，T-103 的未知没有因重开被掩盖。默认页面落在独立终端，重新选择项目后可读原内容。未新增模型回合，也未测试 daemon 重启。
 
-已请求主控在沙箱外 `STOP-APP.sh /private/tmp/t155-dogfood-ohzs_78v --all`；停止后归档 raw run、只读核对数据库和本次 native session。原目录不删除。缺盘或无法确认退出时保留现场，不能写归档成功。报告独立审查在证据冻结后做，当前未做。
+主控 #20 确认已在沙箱外 `STOP-APP.sh /private/tmp/t155-dogfood-ohzs_78v --all`，UI 与 daemon 停止，目录保留。#21 补充：返回后立即 pgrep 仍见 4 个 Claude（1977、2097、3369、7382）与 4 个本实例 gate CLI，十几秒后再次检查均退出。此项只记录为主控事后观察，测试者未独立复核该时间窗，不列为新发现。
 
 阶段文本检查：报告 UTF-8 回读与 20 个本地引用存在性检查通过；project-map status 为 Problems 0、Stale living docs 0；产品 workbench 与基线无改动。默认 `git diff --check` 在原样保存的 AX 文本中报告 14 处 UI 字段自带尾随空白（分隔符与日期占位符），记录保留、不为消除告警改写原文。仅排除此原始 AX 文件后，手写报告与脚本的 diff check 退出 0；不把默认检查写成通过。
 
 ## 冻结阶段独立审查
 
 按 behavioral-acceptance-review，在干净只读上下文审查 `b6963c6c8b58263c5e8ce8d5fd9cbaa4fdcf1159`；原文保存于 `ACCEPTANCE-REVIEW.txt`。结果 INCOMPLETE：未发现报告失实或未标注限制，七条发现均有截图，模型行为与产品机制已区分；缺少最终停止读回、精确回合与归档，无法判定完整旅程通过。审查没有读取作者聊天或 SESSION-NOTES，没有启动应用、运行模型或访问外部临时实例。该审查只对冻结阶段结论有效，不为后续新增证据背书。
+
+## 停止后数据库终核
+
+主控 #22 读过脚本后，在沙箱外运行 `python3 evidence/2026-10-23-batch24/T-155/readback_stopped.py`，rc=0，输出 `{"instances": 2, "output": "/private/tmp/t155-final-readback"}`。脚本先检查 daemon.pid/control.sock 已消失和无带实例路径的进程，再复制 DB/WAL；只对副本转 DELETE、做 integrity_check，后以 mode=ro 查询，未修改原库。两副本均 integrity=ok、copied_wal=false。
+
+测试者在沙箱内首次执行因系统禁止 `/bin/ps` 未开始复制；随后提权弹窗被主控拒绝、由主控代执行，不是脚本业务失败。`stopped-readback.json` 为实际产物；测试者随后只读副本核对了以下事实：
+
+- F04：两实例 `role_request_decided` 与 `role_request_confirmed` 均存在；新实例 decided 的 approved=true，时间 21:08:21.376Z，随后 confirmed=21:08:21.452Z。输入记录旧实例 2 条 message，新实例 17 条（12 message、3 action、2 answer），均没有角色批准。
+- F01：新实例 events seq 299 / orchestration seq 860 在 21:14:48.746Z 拒绝同一 T-103 submit，错误 `worker_not_active`；当前仍 claimed、candidate=null。时间在人工输入记录 .583/.725Z 之后、原生提示 .865Z 之前；只据此确认交付被拒与时序，不宣称已定位竞态根因。
+- T-101/T-102 均 paused，当前 a2 submitted，候选与前述完整提交号一致；T-101 delivery.number=2。三票 integration_intent 均 null；main 保持种子 `13f052436fa25e8a88e7b154daa7cdb14a8c9023`。
+- events 中三次 `review_protocol_failed` 为 21:13:01.662Z、21:29:42.939Z、21:34:35.342Z，均含 review_json，与界面三次协议暂停一致。
+- `fixture-inputs/` 原样复制主控生成的 5 张小卡和 5 个验收脚本，共 9,912 字节，逐字节比对；provenance.json 记录原路径。这些是被门禁读取的输入和模型失误证据，不是本报告的可信 oracle；未运行或修订它们。
