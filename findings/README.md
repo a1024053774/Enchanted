@@ -18,6 +18,7 @@ T-012 已缩小为[研究阶段产物与移交证据](../.project-map/tickets/T-
 
 ## 相关资料
 
+- [Enchanted 多 agent 真实使用记录](2026-10-23-real-user-dogfood.md)：T-155 的隔离 Computer Use 实测、问题复现与 Herdr 对照；覆盖范围及未完成项以报告状态为准。
 - [框架、实现与操作说明](herdr-a2a-2026-10-06.zh-CN.md)：包含实际架构、使用步骤和第 10 节的 monitor 观察与利用记录。
 - [证据入口](evidence-index.md)：连接三份原始 monitor 报告、20 份 session 的扫描索引、关键选录和产品验收结果。
 - [复盘研究 ticket T-009](../.project-map/tickets/T-009-session-retrospective.md)：保存扫描范围、截止点及本次分类修订。

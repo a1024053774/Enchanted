@@ -1,6 +1,6 @@
 # T-155-1 / a1：真实使用运行记录
 
-状态：INCOMPLETE。截止于实例 1 派发失败后的准备脚本修订；完整多 agent 流程、审查与集成、困难场景和新实例复现均未完成。
+状态：INCOMPLETE。模型执行已停在真实阻断：两票被独立审查输出协议暂停，一票在运行中人工介入后交付未知，无任何集成。两 worker 并行、问题答复、真实打回与修复重交、记录/指标/Reflect 已实际走到；UI 重开、最终停止读回与归档尚待完成。不能以“报告写出”替代完整流程通过。
 
 ## 版本与启动
 
@@ -10,13 +10,13 @@
 - Computer Use 用完整路径 `/Users/luckye/Documents/Code/a2a-wt-t155/workbench/node_modules/electron/dist/Electron.app` 绑定。首屏 AX 中的 renderer URL 指向该实例构建目录，窗口标题 Enchanted。
 - Claude 启动命令：在界面项目终端中输入 `claude --model claude-haiku-5-5`；屏幕显示 Claude Code v2.1.309、Haiku 5.5、Claude Pro。
 
-## 当前结论
+## 实例 1 与启动准备缺陷
 
 项目打开、终端启动、执行主控申请与界面批准已走到。两个受管任务 T-A / T-B 已注册，但派发报 `launch_config_required`，没有 worker 窗格或启动记录。两任务仍显示准备中；流程页为阶段未知，任务页为空的只读窗格。
 
 事后只读核对发现本票启动脚本遗漏 `--launch-config`。正式桌面入口 `workbench/app/desktop.mjs` 会配置 CLI、角色卡、版本、hook 授权和回合上限；原脚本仅 daemon_start，默认空配置。这是测试准备缺陷，不能据此认定正式产品无法派发。原始实例和失败截图完整保留，没有修复、恢复或清理其 attempt。
 
-修订只补本票脚本的启动配置，按产品入口字段只配置 Claude、每会话 6 回合；不读取 Codex auth、不改用户配置。新准备实例 `/private/tmp/t155-dogfood-ohzs_78v`，配置字段、可执行路径、角色卡存在性及脚本语法检查通过。尚未启动，因此真实绿态仍为 INCOMPLETE。继续命令：
+修订只补本票脚本的启动配置，按产品入口字段只配置 Claude、每会话 6 回合；不读取 Codex auth、不改用户配置。新实例 `/private/tmp/t155-dogfood-ohzs_78v` 的启动已由主控消息 #18 确认，两个 worker 实际同时运行（图 26），因此启动配置修订取得了真实入口的前后对照；不代表整个多 agent 流程通过。以下为当时的重启命令，主控已执行：
 
 ```sh
 bash evidence/2026-10-23-batch24/T-155/STOP-APP.sh /private/tmp/t155-dogfood-lv2rm2nt --all
@@ -65,3 +65,90 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-oh
 两个 worker 真正并行、worker 问题页答复、受控打回与重交、worker 窗格人工介入、多窗格滚动切换、独立审查、集成、带结果的指标与 Reflect、UI REOPEN、新隔离实例复现、正式中文发现报告、最终证据归档和独立接受性审查均待后续运行。
 
 项目地图在本阶段交接前检查：Problems 0、Stale living docs 0。此结论只证明地图结构，不证明多 agent 能力通过。
+
+## 实例 2：真实运行与截止点
+
+主控消息 #18 确认旧实例 UI 与 daemon 全停、目录保留；新实例 Electron PID 83084、daemon PID 83082。每会话 Claude hooks 已由主控代批，引用批次 `evidence/2026-10-23-batch24/approvals.jsonl`；本 worker 不写该文件。没有系统隐私、登录、密码、付款或其他越界代批。
+
+通过 Computer Use 打开新 repo、启动同一 Claude 命令、仅信任该 repo、申请并批准执行主控。C5 让主控并行派发 T-101 库存汇总、T-102 补货单；C6 补 T-103 草稿演练。所有业务操作仍经屏幕与 app 内主控完成。事后源码/公开 README 与停止后的数据库副本只用于解释观察，未用于直接改业务状态。
+
+| 检查 | 结果与实际证据 |
+| --- | --- |
+| 两 worker 同时在跑 | PASS（本场景）：图 26 侧栏两项运行中，图 27 为真实 worker 输出 |
+| 问题上报与回复 | PASS（有人工提醒）：B 起初未按卡上报，提醒后问题页出现卡片；面板答复送入正确 worker 并确认，图 30/31 |
+| worker 人工输入 | PASS（本场景）：图 28 为完成后介入；图 37 是 Stop 忙碌期间介入，随后变未知，不能说结果正常 |
+| 真实打回及修复重交 | PASS（发生事实）：T-101 a1 被独审拒绝；a2 被 oracle_failed 拒绝后，在同 attempt 中提交第 2 个候选，图 52 |
+| 新独立审查 | 已实际运行 4 个干净审查会话；1 个需修复结果被接受，3 个 fenced JSON 被 review_json 暂停。没有可用于集成的审查通过 |
+| 集成、打分 | INCOMPLETE：没有任何任务 verified/accepted，没有 score_file、integrate 或 push |
+| 切换、分屏与滚动 | 已实际操作；侧栏能切换，但只读窗格出现输入错误，向右分屏未保留原 worker，图 33/34/41/50/51 |
+| 流程、记录、指标 | 已查看真实多任务状态；数据与未知/无数据的限制见图 32/35/45/56 与报告 |
+| Reflect | PASS（只指产物生成）：选择 Haiku，手动复盘实际写报告，页面已完成，8 条建议未批准/执行，图 43/46/47 |
+| 新实例复现一条发现 | 已重复观察：两个全新 root 的角色批准都未出现在输入记录；旧实例停止后的 DB 副本已核对，新实例停止读回待补 |
+| UI 关闭再重开 | INCOMPLETE：此刻尚待主控执行 UI-only REOPEN，不能把换新后台算成此场景通过 |
+
+最终业务状态：
+
+- T-101：a1 `cdb29d08-9752-491d-9da4-358ca1d2fba4` 经 revise 失效；a2 `38eb5051-8098-44bf-9cf9-cc3e855be20d`，fence/spec_rev/card_version 均为 2。首候选 b1064d9 被格式检查打回；修复后的当前候选 `ee215d7d8c0b0ba44234f6490ffa093304e5be35`，新机械验收通过；新 reviewer `478e9d92-17ce-47d8-b802-06dae3cde3ad` 输出可合并但协议无效。task 暂停，attempt submitted。
+- T-102：a1 `35b623e3-deeb-4c0c-b8d3-2dd97077481c` 经 revise 失效；a2 `bf538441-c264-4d52-a200-fc63a650cee1`，fence/spec_rev/card_version 均为 2。当前候选 78992b3，机械通过，reviewer `3f31cbf3-230a-4715-9c08-c3801e37930e` 协议无效。task 暂停，attempt submitted。
+- T-103：`bf95a30d-84ad-4521-a02a-8f5a2251b537`，task/attempt claimed，worker 分支有草稿提交 4c9ade9，但门禁无已接受候选或验收。未重发未知写入。
+- main 仍为种子提交 `13f0524...`。旧 worktree、审查目录、refs 和失败结果保留；没有 abandon/reclaim、清理、强制解除锁、直接改库或 push。两次 a2 重试用了主控先前提出、测试者明确选择的 overlap_reason；没有隐藏由旧 revoked attempt 引起的 path_overlap。
+
+## 实例 2 截图续表
+
+| 图 | 画面 / 证明范围 |
+| --- | --- |
+| 21-instance2-ready.png | renderer 来自新实例，空项目首屏 |
+| 22-instance2-trust.png | 只信任新测试 repo 的选项 |
+| 23-instance2-role-request.png | 编号角色申请与目标窗格 |
+| 24-role-confirmed-header.png | 侧栏执行主控、窗格头普通终端 |
+| 25-metrics-before-workers.png | 新 worker 已登记、原生模型尚未知的早期指标 |
+| 26-two-workers-running.png | 同时运行的两 worker 与项目任务卡总览 |
+| 27-worker-a-active.png | worker 实际写库存文档，数字与总计可见 |
+| 28-worker-manual-input.png | A 收到完成后的人工介入并保持提交不变 |
+| 29-controller-after-dispatch.png | 主控承认未把首版漏总计写入 A 卡 |
+| 30-worker-issue-answer-draft.png | worker 上报与问题答复输入 |
+| 31-issue-answer-received.png | B 终端收到答复并确认 |
+| 32-two-independent-reviews.png | 两票各自独立审查阶段 |
+| 33-reviewer-focus-error.png | 只读 reviewer 查看触发输入错误，终端重叠显示 |
+| 34-second-reviewer-readonly-error.png | 第二 reviewer 同样错误，显示变异测试发现 |
+| 35-records-human-interventions.png | 真实根提示、键入/回车、面板答复的记录 |
+| 36-review-problems-and-duplicate-numbers.png | 审查问题与 system 协议阻断，原文留存 |
+| 37-worker-c-busy-before-input.png | T-103 输入前确处于 Stop 忙碌阶段 |
+| 38-controller-review-stops.png | 主控报告两票弱验收及等待修订授权 |
+| 39-input-during-stop-unknown.png | T-103 回复 done 后交付仍未落地，状态未知/忙 |
+| 40-unknown-pane-menu.png | 未知窗格无明确恢复入口 |
+| 41-task-split-result.png | 向右分屏后变新普通终端，仍是旧任务上下文 |
+| 42-controller-recovery-progress.png | 主控再次长轮询未知状态的实际命令 |
+| 43-reflect-session-tree.png | 真实会话树、实际模型/未知主控、复盘 Haiku 设置 |
+| 44-controller-bounded-diagnosis.png | repair_submission_required、not_submitted 与 T103 无交付事实 |
+| 45-metrics-with-real-turns.png | managed 当时 14 回合，主控 0 |
+| 46-reflect-terminal.png | 复盘实际写中文 report.md，不是只有启动记录 |
+| 47-reflect-completed.png | 复盘已完成及报告路径、建议仍待决定 |
+| 48-revise-progress.png | revise 成功后自己的旧 attempt 仍造成 path_overlap |
+| 49-retry-queue-check.png | revoked 与队列核对后仍需人工确认旧 CLI 空闲 |
+| 50-revoked-worker-a-idle.png | 旧 A 历史只读、空闲、done，仍有输入失败横幅 |
+| 51-revoked-worker-b-idle.png | 旧 B 历史只读、空闲、done |
+| 52-worker-repair-new-candidate.png | A2 第 2 次交付已被门禁接受为 submitted |
+| 53-repaired-candidate-review-progress.png | 主控重验时任务已暂停，仍在等待循环 |
+| 54-mergeable-review-rejected-protocol.png | 新 reviewer 可合并的原文仍因 fenced JSON 被拒 |
+| 55-controller-end-state.png | C13 只读汇总，明确未集成、未清理和预算限制 |
+| 56-final-metrics-before-reopen.png | 9 个 managed 会话共记录 22 回合；完整文本另存 metrics-before-reopen.ax.txt |
+
+## 累计回合与权限口径（待停止后终核）
+
+两实例主控根提交 C1～C13 合计 13 次，含被 Esc 中断的回合；应用内 managed 为 5 个 worker 会话、4 个 reviewer，会话模型均在 Reflect/指标显示 Claude Haiku。最终看板记录 managed 22 回合，但遗漏主控计量，且 T-103 人工输入后的实际回复没有在该计数中反映。另有 1 次 Reflect。不能把消息编号、工具调用次数、配置上限或看板 22 当全局精确值。
+
+本阶段模型执行截止在 C13 回复后；后续不再新增应用内模型提示，预算仍为累计不超过 60。最终需要从已停止实例的原生记录补齐实际根回合，报告未计量范围；外层 Codex 的审查/写报告不算应用内回合。应用内没有 Codex worker。
+
+权限操作只有测试 repo 信任、两次主控角色批准、问题页答复、选择同目标卡修订及明确的交叠理由；没有系统隐私、登录或付款操作。没有批准 Reflect 的任何改进建议。Computer Use 的操作来源是测试 agent，产品记录名“用户输入”不意味着真人亲手操作。
+
+## 下一步交接
+
+主控按原任务卡在沙箱外只停 UI 再重开同一后台，不重新创建 root，不改任何 gate 状态：
+
+```sh
+bash evidence/2026-10-23-batch24/T-155/STOP-APP.sh /private/tmp/t155-dogfood-ohzs_78v
+bash evidence/2026-10-23-batch24/T-155/START-APP.sh /private/tmp/t155-dogfood-ohzs_78v
+```
+
+重开后只核对任务/角色/历史记录与未知状态的保留，再由主控 STOP --all；停止后归档 raw run、只读核对数据库和本次 native session。原目录不删除。缺盘或无法确认退出时保留现场，不能写归档成功。报告独立审查在证据冻结后做，当前未做。
