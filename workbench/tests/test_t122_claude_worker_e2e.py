@@ -1,3 +1,4 @@
+# 历史测试：只针对 01e0effd7c1ec9bdb982e593fc52c22fd0aceb77，当前 main 不跑；当前无人守护：Claude Git 元数据与拼接 git/-c/项目钩子攻击矩阵、审查 CLI/模型/Fast/钩子绑定、协议失败与门禁拒绝留据（证据与边界见 HISTORICAL.md）。
 """T-122：经角色申请批准的终端主控派发 Claude Code worker。真实后台、socket、终端、门禁，
 真实安装的 Claude Code（交互模式，在 node-pty 里），模型换成本地脚本化的 Messages 接口，不调用供应商。
 

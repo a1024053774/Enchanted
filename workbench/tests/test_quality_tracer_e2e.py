@@ -1,3 +1,4 @@
+# 历史测试：只针对 bb6c0ba352ff7cab1f470d2db055caac36387bab，当前 main 不跑；当前无人守护：评分必填与仅写一次、修复后重跑质量串、第三次拒绝暂停、严格审查 JSON、原生审查会话拒复用、交付回合事实绑定（证据与边界见 HISTORICAL.md）。
 """Controlled acceptance of T-076-2's first complete production slice.
 
 The fixture supplies reviewer JSON as an external actor, never as a gate result.

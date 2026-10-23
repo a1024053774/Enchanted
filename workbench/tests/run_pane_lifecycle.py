@@ -1,3 +1,4 @@
+# 历史测试：只针对 历史快照（无通过证据），当前 main 不跑；当前无人守护：整窗关闭期间 PTY 继续增长、重开逐字节回放、后台重启后原 attempt 中断事实、只读输入拒绝（原始 INCOMPLETE 记录见 HISTORICAL.md）。
 """One real Codex turn exercises the real PTY and Electron lifecycle.
 
 Only the controller runs this script outside the sandbox. A timeout or missing
