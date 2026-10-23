@@ -1,0 +1,17 @@
+# T-148 范围外：旧启动/权限契约仍写在历史断言中
+
+状态：INCOMPLETE。本次只获准修改夹具和注释，不改断言、检查名或超时。
+
+清点 `workbench/tests` 后发现以下当前源码中的旧观察条件：
+
+- `test_t112_execution.mjs:75`、`diagnose_t112_reviewer.py:143`：审查员 argv 必须含 `network_access=false` 和 `network_proxy=false`；与 T-141 的网络全开、继承用户 proxy 相冲突。
+- `test_quality_tracer_e2e.py:47`、`test_t082_review_boundary_e2e.py:32`：检查同样的关闭网络参数；前者另要求 reviewer 与 worker 使用不同 CODEX_HOME，已不符合 T-127。
+- `run_pane_lifecycle.py:359`、`run_worker_delivery.py:249`：原生 turn_context 仍要求网络关闭。
+- `test_t122_claude_worker_e2e.py:379`：要求 argv 包含 `--strict-mcp-config`；其 `user-settings-loaded` 变异定位也仍包含这个旧参数（103 行）。
+- `run_t112_native.py:213`（修改前 211 行）：worker 启动必须产生 `codex_restricted_opened`。T-141 worker 继承用户信任，正常启动无需这个事件；本次只更新旁边注释。
+- `t112_reviewer_record.mjs:62`：等待条件的检查名仍写为 `Reviewer released after the restricted-folder screen`；本次不改检查名，旁边注释说明还需要 native readiness。
+- `controlled_quality_pty.ts:51`：所有角色只收到 Open restricted 屏，后续没有 native idle 包；第一条 Enter 一律被当成打开受限目录。本夹具需要区分已信任 worker 与 untrusted reviewer，并在 native ready 后释放任务。它服务的历史质量测试还含上述过时断言，建议与这些断言一起另卡处理。
+
+另外，合并回归 NOTE 把 T-145 归因为“不再替 worker 选 Open restricted”。当前 `src/panes.ts:862` 仍允许选择不持久化的 Open restricted；阻止任务释放的直接原因是旧 receiver 未发送 native idle 包。`test_t141_startup_signal.mjs` 也明确保留“可选择受限打开，但只在 native idle 后释放”的检查。本次按真实新契约修复 receiver，不改产品或原 NOTE。
+
+建议：执行主控另卡决定历史测试是否迁移到现行契约，或明确其只针对指定历史 revision；不要改产品以迎合这些断言。同步将受管 CLI 契约变更后的夹具/断言扫描纳入相关回归入口，避免下一次再由合并后超时发现。本 worker 不创建/修改 ticket 或治理文件。
