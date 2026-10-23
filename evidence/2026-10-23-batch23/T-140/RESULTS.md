@@ -7,6 +7,8 @@
 `bffd3ca125a4605580b1d52d754b93e471ea40e5` 上通过；移除场景被测试驱动的同回合连续点击阻断，旧 shell 变异也不成立。
 本轮只修复测试驱动与反事实判定，没有修改产品代码或放宽断言；当前候选待 `RUN-OUTSIDE-02.sh`。
 根因、现场数据和新命令见 [ROOT-CAUSE-02.md](ROOT-CAUSE-02.md)。
+修订的固定候选 `3e8f2a5e6b036fb5d1bda455c91ce551b021f61a` 已经新的只读上下文审查：未发现确定的新设置失败，
+结论为 INCOMPLETE，等待原生复跑，见 [ACCEPTANCE-REVIEW-02.md](ACCEPTANCE-REVIEW-02.md)。本次后续提交只保存该审查记录。
 
 ## 改动
 
