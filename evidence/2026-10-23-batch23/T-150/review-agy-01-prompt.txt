@@ -1,0 +1,12 @@
+你是 a2a 项目的只读独立审查员（reviewer），审查 T-150：用户裁定把过时测试 workbench/tests/test_t091_pane_ipc.mjs 迁到现行契约，保留有效检查（跨窗 key、iframe、未知窗口拒收；拒绝错误凭据签发；窗口关闭与身份请求竞争中的迟到凭据撤销；空布局持久化），并在现行代码上取得红绿态。过时部分：旧“默认显示当前 worker”、全局 IPC/bridge 名单、旧 project/task/pane 选择模型（T-139 已改）。worker 的逐行清单在 ASSERTIONS.md。执行主控已复跑 RUN-LOCAL-01：绿态与 --revision 绿态退出 0，9 个变异各退出 1，T-139/T-110 回归 PASS。特别请核对：被删除的“无 task 不能创建终端”分支与 IPC 名单改为 38/40 个的依据是否成立；变异是否落在保留检查而不是新名单上。
+
+材料在 /Users/luckye/Documents/Code/a2a-review/T-150-r1/ 下：candidate/ 为候选 4aefa2b3a 只读副本（ticket 在 candidate/.project-map/tickets/，任务卡与 RESULTS 在 candidate/evidence/2026-10-23-batch23/T-150/）；full.diff 为相对起点 32ffb4e6d 的 workbench/ 全部改动；user-decision.md 为用户授权。
+
+请核对：
+1. 被改的断言是否确实过时：新期望是否来自现行规格/ticket/产品代码的独立依据，而不是抄产品当前输出；有没有借“迁移”放松仍有效的检查。
+2. ticket 列出的有效检查是否全部保留、没有被弱化、跳过或删掉。
+3. 红态是否落在保留的有效检查上（不是只落在被改的断言上），变异是否代表真实的坏实现。
+4. 是否越出修改边界（只许该测试文件、只被它使用的辅助文件、本票证据），是否改了产品代码。
+5. 其他正确性问题。
+
+这是交互会话。只用你自带的读文件/搜索工具，不要运行任何 shell 命令，不要写任何文件。输出中文报告：每条发现写文件与行号、严重度（P0–P3）、失败场景。审查完把完整报告作为你最后一条回复直接输出，最后一行只写 `T-150 REVIEW PASS`、`T-150 REVIEW INCOMPLETE` 或 `T-150 REVIEW NO_GO` 之一。
