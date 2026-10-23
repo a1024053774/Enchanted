@@ -14,6 +14,8 @@ root = Path.cwd()
 out = root / 'evidence/2026-10-23-batch23/T-140' / ('outside-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
 out.mkdir()
 cases = [
+    ('driver-red', 'workbench/tests/test_t140_scripted_plan.py', ['--revision', 'f41503eab'], 'unknown working directory'),
+    ('driver-green', 'workbench/tests/test_t140_scripted_plan.py', [], None),
     ('red', 'workbench/tests/test_t140_extra_dirs_e2e.py', ['--revision', 'ebbae7bd0'], 'Edit Project menu'),
     ('green', 'workbench/tests/test_t140_extra_dirs_e2e.py', [], None),
     ('mutant-shell', 'workbench/tests/test_t140_extra_dirs_e2e.py', ['--mutant', 'claude-without-shell-write'], 'T-C_shell_boundary'),

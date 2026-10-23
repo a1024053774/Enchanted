@@ -18,6 +18,7 @@
 | 追加事件、读回、移除、跨项目隔离、重启读回 | PASS（存储契约） | `store-red.log` → `store-green.log`；真实 SQLite，未替代原生权限验收 |
 | Electron renderer/main/preload 构建 | PASS | `build-01.log`、`build-02.log`；只证明能构建，不证明界面交互或视觉效果 |
 | 现有侧栏投影回归 | PASS | `sidebar-01.json`；真实 Git/SQLite、受控状态输入，无 Electron/模型证明 |
+| 测试驱动识别 reviewer 的独立副本路径 | PASS（驱动契约） | `driver-red-01.json` → `driver-green-01.json`；两家 reviewer、worker、monitor 的脚本路由，未替代原生运行 |
 | 两家真实 worker：X 可写、Y 不可写 | INCOMPLETE | 新 `test_t140_extra_dirs_e2e.py` 待沙箱外运行 |
 | 真实 reviewer 门禁与两家 monitor 的额外目录 | INCOMPLETE | 同一 e2e 已编写，未运行 |
 | CDP 操作编辑对话框移除 X，之后两家新 worker 写 X 失败 | INCOMPLETE | 同一 e2e 已编写，未运行 |
@@ -75,3 +76,19 @@ Claude 使用真实 CLI、`claude-haiku-5-5` 与本地脚本化 Messages API。�
   收件箱文件由规定的 `scripts/inbox send` 生成，留在本 worktree 的 `.project-map/inbox/`；未纳入交付提交，以免改动任务卡禁止路径。
 - 未修改 oracle_paths、地图、ticket、术语表或其他任务的实现。独立审查和原生验收尚未完成。
 - session 开始与本地检查后 `project_map.py status`：0 Problems、0 Stale living docs。交付前再保存一次结果。
+
+## 固定候选的只读审查与修复
+
+behavioral-acceptance-review skill 要求的新只读上下文审查了固定候选 `f41503eabd50c4c30f963ae6b5b8d8d45055838a`。
+结论是 **FAIL**：新 e2e 把 reviewer 的随机副本目录当作 worker 目录来识别任务，原生绿态跑到首个 reviewer 就会失败。
+完整审查保存在 `ACCEPTANCE-REVIEW-01.md`。该 FAIL 保留，不升级为 PASS。
+
+后续只修复测试驱动：reviewer 从门禁提示的绑定 `task` 字段识别任务；worker 继续按自己的 worktree 识别。
+新增驱动契约先在坏候选取得 `unknown working directory` 红态，再在当前脚本取得绿态：
+
+```zsh
+PYTHONDONTWRITEBYTECODE=1 python3 workbench/tests/test_t140_scripted_plan.py --revision f41503eab --summary evidence/2026-10-23-batch23/T-140/driver-red-01.json
+PYTHONDONTWRITEBYTECODE=1 python3 workbench/tests/test_t140_scripted_plan.py --summary evidence/2026-10-23-batch23/T-140/driver-green-01.json
+```
+
+这两条也已加入 RUN-OUTSIDE。修复后的原生候选仍需执行主控运行和独立审查，整体验收仍为 INCOMPLETE。

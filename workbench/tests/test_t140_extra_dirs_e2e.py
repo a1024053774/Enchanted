@@ -62,19 +62,21 @@ def main():
         return 'python3 -c ' + quote(code)
 
     def plan(cwd, text):
-        task = next((name for name in sorted(tasks, key=len, reverse=True) if f'/{name}-a1' in cwd), None)
         monitor = re.search(r'T140_MONITOR_(C|D)', text)
         if monitor:
             key = 'monitor-' + monitor.group(1)
             return key, [probe(cwd, key)], '观察完毕。'
-        assert task, f'unknown working directory: {cwd}'
         if '审查这一次交付' in text:
             shape, _ = json.JSONDecoder().raw_decode(text[text.rindex('{\n  "schema": 1'):])
+            task = shape['task'].removeprefix('demo+')
+            assert task in tasks, f'unknown review task: {shape["task"]}'
             shape.update(verdict='可合并', findings=[], report={'结论': '写入结果满足任务卡，额外目录改动不纳入集成。',
                 '完成条件与变异检查': '变异 1：把结果改为空对象，完成条件退出非零；变异 2：删除结果文件，完成条件退出非零。'})
             return 'review-' + task, [probe(cwd, 'review-' + task),
                                       f"printf '{{}}' > result-{task}.json; python3 check_{task}.py; echo \"mutation-1 rc=$?\"",
                                       f'rm result-{task}.json; python3 check_{task}.py; echo "mutation-2 rc=$?"'], json.dumps(shape, ensure_ascii=False)
+        task = next((name for name in sorted(tasks, key=len, reverse=True) if f'/{name}-a1' in cwd), None)
+        assert task, f'unknown working directory: {cwd}'
         submit = re.search(r'显式交付：\n(.+)\n', text).group(1).replace("'FULL_COMMIT_SHA'", '"$(git rev-parse HEAD)"')
         return task, [probe(cwd, task, f'result-{task}.json'), f'git add result-{task}.json',
                       'git commit -q -m ' + quote('T-140 ' + task), submit], ('已交付。改过的额外目录：' + str(x) if tasks[task][1] else '已交付。额外目录：无改动。')
