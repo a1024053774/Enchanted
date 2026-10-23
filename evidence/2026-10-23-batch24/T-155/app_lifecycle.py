@@ -66,6 +66,24 @@ def prepare():
               "node": str(Path(shutil.which("node")).resolve()),
               "build_slot": "t155-" + uuid.uuid4().hex[:12]}
     write_json(root / "instance.json", config)
+    claude = shutil.which("claude")
+    if not claude:
+        raise RuntimeError("Claude is absent from PATH; preserve the prepared instance")
+    # Same launch fields as desktop.mjs, restricted to the task's Claude-only run.
+    launch_config = {
+        "claude_bin": str(Path(claude).resolve(strict=True)),
+        "role_card": str(SOURCE / "workbench/roles/worker.md"),
+        "role_card_revision": BASELINE,
+        "reviewer_role_card": str(SOURCE / "workbench/roles/reviewer.md"),
+        "reviewer_role_card_revision": BASELINE,
+        "monitor_role_card": str(SOURCE / "workbench/roles/monitor.md"),
+        "monitor_role_card_revision": BASELINE,
+        "code_revision": BASELINE, "source_snapshot": str(SOURCE), "turn_limit": 6,
+        "hook_authorization": str(Path(__file__).parent / "card.md") +
+                              " — T-155 real managed workers; user dispatch #17; per-session Claude hooks only",
+        "turn_authorization": str(Path(__file__).parent / "card.md") + " — global real-turn budget 60",
+    }
+    write_json(root / "launch-config.json", launch_config)
     print("INSTANCE=" + str(root), flush=True)
     return root, config
 
@@ -96,6 +114,11 @@ def runtime_env(config):
 def gate(config, command):
     argv = [config["node"], str(SOURCE / "workbench/src/gates/cli.ts"),
             "--state", config["state"], command]
+    if command == "daemon_start":
+        launch_config = Path(config["root"]) / "launch-config.json"
+        if not launch_config.is_file():
+            raise RuntimeError("Worker launch configuration missing; preserve this instance and prepare a new one")
+        argv += ["--launch-config", str(launch_config)]
     result = subprocess.run(argv, env=runtime_env(config), capture_output=True, text=True, timeout=130)
     log = Path(config["root"]) / "logs" / (command + "-" + uuid.uuid4().hex[:8] + ".json")
     write_json(log, {"argv": argv, "returncode": result.returncode,

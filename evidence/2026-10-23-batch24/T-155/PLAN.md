@@ -1,6 +1,6 @@
 # T-155-1 / a1：启动交接
 
-状态：INCOMPLETE。本次只交付启动、停止和一次性仓库建法；尚未启动应用，也没有真实使用结论。
+状态：INCOMPLETE。实例 1 已由主控启动并完成角色申请，但因本票启动脚本缺少 worker 配置而停在首次派发；现已修订脚本，新实例尚待主控启动。没有完整真实使用通过结论。
 
 被测产品基线：`f3412fb4ae5cfa3c4983440eb26ea8c5b34b0697`。脚本启动前检查 `workbench/` 与该版本无受控差异。准备脚本的提交不会改产品。
 
@@ -19,7 +19,7 @@ bash evidence/2026-10-23-batch24/T-155/START-APP.sh
 1. 用 `mkdtemp` 在内置盘 `/private/tmp` 新建私有目录，创建独立 `state/`、`user-data/` 和操作员凭据 `operator.json`。不采用继承的 `A2A_*` 身份或凭据路径。
 2. 创建 `demo-repo/`，以 `main` 为初始分支，写入 README 与五项食材清单并提交；不配置 remote。种子提交屏蔽继承的 Git 钩子、签名和 worker 身份。
 3. 按产品标准 `app/build.mjs --slot <唯一槽名>` 构建，构建槽在本实例目录内，使用已有本地依赖，不安装或替换依赖。
-4. 经产品唯一 CLI 调用 `daemon_start --state <本实例>/state`；它以 detached 子进程启动后台。直接启动已安装的内置盘 Electron 二进制，显式传入 `--state`、`--user-data`，通过 `start_new_session=True` 脱离调用者进程组。
+4. 经产品唯一 CLI 调用 `--state <本实例>/state daemon_start --launch-config <本实例>/launch-config.json`；它以 detached 子进程启动后台。配置按 `desktop.mjs` 的 worker 启动字段提供本机 Claude 路径、worker/reviewer/monitor 角色卡及版本、产品版本、每会话 6 回合与本票授权引用；只配置 Claude，不配置 Codex 或读取 Codex auth。直接启动已安装的内置盘 Electron 二进制，显式传入 `--state`、`--user-data`，通过 `start_new_session=True` 脱离调用者进程组。
 
 启动脚本只管理生命周期；不会创建产品内项目、角色或任务。全部业务操作由 worker 看屏幕后用 Computer Use 完成。不使用测试 Electron driver、CDP、DOM 或数据库驱动流程。
 
@@ -67,4 +67,6 @@ python3 evidence/2026-10-23-batch24/T-155/app_lifecycle.py prepare
 
 运行证据将记录到 `RESULTS.md`，包括步骤截图索引、回合数、代批记录、REOPEN 与新实例复现。报告只记发现和建议，不改产品。系统隐私授权、登录、付款及任务卡列出的其他越界操作出现时停下报主控。
 
-本次交接只做 Python / shell 语法、帮助入口、种子仓库与路径检查，不启动 daemon、Electron 或模型。实际启动、停止与重开均待主控沙箱外验证；本轮任务整体保持 INCOMPLETE。
+首份准备提交遗漏 `--launch-config`，实例 1 在三个主控回合后停下：派发报 `launch_config_required`，没有 worker 启动，两个任务留在 preparing。现场与截图完整保留。这是本票启动脚本缺陷，不据此宣称正式产品无法启动 worker。修订脚本仅用于新实例，不修复旧 attempt，不改产品。
+
+修订后只做 Python / shell 语法、帮助入口、新种子仓库与启动配置字段检查，不自行启动 daemon、Electron 或模型。实际启动、停止与重开仍由主控沙箱外执行；本轮任务整体保持 INCOMPLETE。旧实例缺配置，不能用于继续派发；重新运行无参数 START，或先 prepare 再对新路径 START。
