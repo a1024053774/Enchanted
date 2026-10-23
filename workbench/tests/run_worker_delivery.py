@@ -34,6 +34,14 @@ cases=[
  ([{"name":"A","minutes":-1}],2,{"error":"invalid_minutes"}),
  ([{"name":"A","minutes":True}],2,{"error":"invalid_minutes"}),
  ([{"name":"  ","minutes":1}],2,{"error":"invalid_name"})]
+# Every row must contain a nonnegative integer minutes (bool is not one),
+# and a nonempty stripped string name. These inputs come from the fixture card.
+cases.append(([{"name":"A"}],2,{"error":"invalid_minutes"}))
+for minutes in (False,0.5,1.0,"5","",None,[],{}):
+ cases.append(([{"name":"A","minutes":minutes}],2,{"error":"invalid_minutes"}))
+cases.append(([{"minutes":1}],2,{"error":"invalid_name"}))
+for name in ("","　",None,True,False,0,1.5,[],{}):
+ cases.append(([{"name":name,"minutes":1}],2,{"error":"invalid_name"}))
 normalize=runpy.run_path(str(root/"src/normalize.py"))["normalize"]
 for payload,code,expected in cases:
  if code==0:
@@ -44,8 +52,9 @@ for payload,code,expected in cases:
   else: raise AssertionError("invalid input must raise ValueError")
  p=subprocess.run([sys.executable,"-B",str(root/"src/report.py")],input=json.dumps(payload,ensure_ascii=False),text=True,capture_output=True)
  assert p.returncode==code,(payload,p.returncode,p.stdout,p.stderr)
+ assert len(p.stdout.splitlines())==1,("exactly one JSON line",payload,p.stdout)
  assert json.loads(p.stdout)==expected,(payload,p.stdout,expected)
-print("independent normalization oracle: 5 cases passed")
+print("independent normalization oracle: %d cases passed" % len(cases))
 '''
 
 

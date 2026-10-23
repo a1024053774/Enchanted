@@ -43,3 +43,11 @@
 保留检查可能失败于：重复请求再次获得反馈；一批 Stop 发多条通知；通知未送入原生会话或重复送入；收据回合调用工具；交付模型/强度或尾注与真实 turn_context 不符；主分支 CAS 或合并父提交不符。
 变异只改 /tmp 源码副本：让 replay 再次获得回执，必须命中“一批 Stop 一次通知”或“最终 queue 为空”的保留检查。运行/启动/预算故障不能算变异被抓住。
 本次不新增共享辅助文件，不改共享基类。运行前清单属于静态诊断，真实绿态和变异红态由主控沙箱外运行取得。
+
+## 主控 #14 后的 oracle 补强
+
+02 的真实 reviewer 证明旧的五组用例不足：缺失 minutes 默认填 0、成功输出多行 JSON 的变异能同时通过外部 oracle 和 acceptance.py。原五组输入与原有函数结果、异常消息、退出码、错误 JSON 比较全部保留。
+
+按夹具卡“每项含 name 与非负整数 minutes（bool 不算整数）”补上缺失 minutes，False、浮点 0.5/1.0、字符串数字/空串、null、数组与对象 minutes；按“name 是字符串、去空白后不得为空”补上缺失 name、空串、全角空白及 null/bool/数字/数组/对象 name。所有非法输入同时检查 normalize 的 ValueError 消息和实际 report.py 的退出码 2、错误 JSON。成功及错误 stdout 都必须恰为一行；JSON 内容比较仍保留。两份 oracle 均从同一个 ORACLE 字符串生成，新增用例合计后为 24 组。
+
+没有扩展到合同未说明的非法顶层容器或无法解析的 stdin，也没有改 reviewer 提示词、mutation_checks 或交付断言。零模型反事实命令与结果见 RESULTS 的 oracle 补强一节。

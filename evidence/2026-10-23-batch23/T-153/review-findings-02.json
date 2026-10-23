@@ -1,0 +1,107 @@
+{
+  "source": "outside-02-18rhLiEc/green.json:error.review_not_accepted.review",
+  "review_id": "9ab3ae78-e877-4b2c-b9d4-cacb9dd14689",
+  "state": "needs_fix",
+  "candidate_commit": "7f3a77fb948fa4063892b919c1eea85385dba107",
+  "result": {
+    "verdict": "需修复",
+    "findings": [
+      {
+        "location": {
+          "path": "acceptance.py",
+          "line": 4
+        },
+        "failure_scenario": "未覆盖缺失 minutes 的输入。将 normalize 中 row.get(\"minutes\") 改为 row.get(\"minutes\", 0) 后，外部 oracle 和 acceptance.py 均退出 0，但输入 [{\"name\":\"A\"}] 被错误接受，CLI 退出 0；按合同应抛 ValueError(\"invalid_minutes\")，CLI 应退出 2。",
+        "suggestion": "由验收维护方同步补强外部 oracle 和 acceptance.py：增加缺失 minutes 的用例，同时检查 normalize 异常消息及 CLI 退出码、错误 JSON。补充浮点数、字符串、null 等 minutes 类型用例。保持本卡 worker 只修改两个源码文件的范围。"
+      },
+      {
+        "location": {
+          "path": "acceptance.py",
+          "line": 21
+        },
+        "failure_scenario": "仅通过 json.loads(stdout) 比较内容，无法验证只输出一行 JSON。将 report.py 的成功输出改为 indent=2 后，两份验收均退出 0；输入 [] 实际输出 4 行，违反任务卡。",
+        "suggestion": "由验收维护方在外部 oracle 和 acceptance.py 中增加 stdout 行数断言，要求成功及错误响应均只有一行 JSON，并确认该变异被拒绝。"
+      }
+    ],
+    "review_requirements": {
+      "completion_conditions_sufficiency": true,
+      "mutation_checks": {
+        "min": 2,
+        "max": 5,
+        "workspace": "/private/tmp/a2a-B-zoe_ikff/state/review-copies/9ab3ae78-e877-4b2c-b9d4-cacb9dd14689",
+        "report_section": "完成条件与变异检查"
+      }
+    },
+    "report": {
+      "审查结论": "候选源码未发现已复现的合同违例，但完成条件不足：5 个小变异中有 2 个明显错误实现通过全部验收，因此结论为需修复。",
+      "原候选验证": {
+        "完成条件": "外部 oracle 和 acceptance.py 均退出 0，各报告 5 cases passed；变异恢复后再次运行，结果相同。",
+        "独立边界检查": "通过 Python stdin 脚本执行 28 个独立用例，分别检查 normalize 和实际 report.py CLI，全部通过。覆盖乱序及 Unicode 名字、去空白合并、大整数、缺失字段、非法 minutes/name 类型及非法容器；同时检查退出码、精确结果、单行 stdout 和空 stderr。",
+        "范围限制": "一次性副本不含 Git 元数据，无法独立核实提交及请求转交流程；源码范围以提供的候选 diff 为依据。"
+      },
+      "完成条件与变异检查": {
+        "充分性": "不足。验收独立调用 normalize 和实际 CLI，能拒绝合并、bool 校验和排序错误，但不能拒绝缺失 minutes 默认填 0、多行 JSON 输出。",
+        "命令定义": {
+          "O": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 -I -B /private/tmp/a2a-B-zoe_ikff/oracle.py /private/tmp/a2a-B-zoe_ikff/state/review-copies/9ab3ae78-e877-4b2c-b9d4-cacb9dd14689",
+          "A": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 -I -B /private/tmp/a2a-B-zoe_ikff/state/review-copies/9ab3ae78-e877-4b2c-b9d4-cacb9dd14689/acceptance.py /private/tmp/a2a-B-zoe_ikff/state/review-copies/9ab3ae78-e877-4b2c-b9d4-cacb9dd14689",
+          "C": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 -B /private/tmp/a2a-B-zoe_ikff/state/review-copies/9ab3ae78-e877-4b2c-b9d4-cacb9dd14689/src/report.py"
+        },
+        "变异明细": [
+          {
+            "编号": "M1",
+            "改动": "src/normalize.py:16，将累加 totals[name] = totals.get(name, 0) + minutes 改为覆盖 totals[name] = minutes。",
+            "运行命令": [
+              "O",
+              "A"
+            ],
+            "结果": "均退出 1，在 normalize(payload)==expected 断言失败；成功拒绝。",
+            "反例": "运行 C，stdin 为 [{\"name\":\" A \",\"minutes\":70},{\"name\":\"A\",\"minutes\":55}]，错误输出合计 55，应为 125。"
+          },
+          {
+            "编号": "M2",
+            "改动": "src/normalize.py:13，删除 isinstance(minutes, bool) 的拒绝条件。",
+            "运行命令": [
+              "O",
+              "A"
+            ],
+            "结果": "均退出 1，报 invalid input must raise ValueError；成功拒绝。",
+            "反例": "运行 C，stdin 为 [{\"name\":\"A\",\"minutes\":true}]，错误退出 0 并将 minutes 计为 1。"
+          },
+          {
+            "编号": "M3",
+            "改动": "src/normalize.py:24，将 for name in sorted(totals) 改为 for name in totals。",
+            "运行命令": [
+              "O",
+              "A"
+            ],
+            "结果": "均退出 1，在 normalize(payload)==expected 断言失败；成功拒绝。",
+            "反例": "运行 C，stdin 为 [{\"name\":\"Z\",\"minutes\":1},{\"name\":\"A\",\"minutes\":2}]，输出顺序错误地为 Z、A。"
+          },
+          {
+            "编号": "M4",
+            "改动": "src/normalize.py:12，将 row.get(\"minutes\") 改为 row.get(\"minutes\", 0)。",
+            "运行命令": [
+              "O",
+              "A"
+            ],
+            "结果": "均退出 0，均报告 5 cases passed；错误实现存活。",
+            "反例": "运行 C，stdin 为 [{\"name\":\"A\"}]，错误退出 0，输出 minutes 为 0 的成功结果；应退出 2 并输出 invalid_minutes。"
+          },
+          {
+            "编号": "M5",
+            "改动": "src/report.py:14，给成功输出的 json.dumps 增加 indent=2。",
+            "运行命令": [
+              "O",
+              "A"
+            ],
+            "结果": "均退出 0，均报告 5 cases passed；错误实现存活。",
+            "反例": "运行 C，stdin 为 []，退出 0，stdout 实际为 4 行 JSON；合同要求只输出一行。"
+          }
+        ],
+        "副本恢复": "5 个变异逐个独立运行，每次恢复原源码；最终按原始字节核对两个源码文件，恢复一致。未修改验收文件，未提交、集成或写请求文件。"
+      }
+    },
+    "turn_id": "01a16a4e-7710-70e0-9689-ba6dbe9ab84d",
+    "received_at": "2026-10-23T19:50:15.202Z"
+  }
+}
