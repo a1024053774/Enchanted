@@ -6,9 +6,8 @@ import './records.css';
 // (ended ones included) with the score each worker's delivery got, then the retrospectives.
 type ReflectNode = { id: string; kind: 'terminal' | 'managed'; launch: string; role: string; role_label: string; task: string | null;
   attempt: string | null; cli: string | null; model: string | null; effort: string | null; started_at: string | null; ended_at: string | null;
-  state: string; parent: string | null; score: { data: { result: string; boundary_discipline?: number; boundary_reason?: string;
+  state: string; state_label: string; parent: string | null; score: { data: { result: string; boundary_discipline?: number; boundary_reason?: string;
     engineering_taste?: number; engineering_reason?: string; notes?: string } } | null };
-const states: Record<string, string> = { running: '运行中', ended: '已结束', interrupted: '已中断', not_started: '未启动', unknown: '未知' };
 const time = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 const short = (task: string | null) => task ? task.slice(task.indexOf('+') + 1) : null;
 const controller = (node: ReflectNode) => node.role === 'ideation' || node.role === 'executor';
@@ -34,7 +33,7 @@ function Branch({ nodes, all, level }: { nodes: ReflectNode[]; all: ReflectNode[
           <span className="record-meta">{node.kind === 'terminal' ? '项目终端' : short(node.task) ?? '项目级'}</span>
           <span className="record-meta">{[node.cli ?? 'CLI 未知', node.model ?? '模型未知', node.effort ?? '强度未知'].join(' · ')}</span>
           <span className="record-meta">{time(node.started_at)}{node.ended_at ? ` – ${time(node.ended_at)}` : ''}</span>
-          <span className="record-state" data-tone={node.state === 'running' ? 'needs' : 'quiet'}>{states[node.state] ?? node.state}</span>
+          <span className="record-state" data-tone={node.state === 'running' ? 'needs' : 'quiet'}>{node.state_label}</span>
         </div>
         {node.score && <Score score={node.score} />}
       </div>
