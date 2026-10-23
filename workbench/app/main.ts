@@ -61,15 +61,28 @@ function mapLayout(tree: Layout | null, convert: (key: string) => string | null)
   const first = mapLayout(tree.first, convert), second = mapLayout(tree.second, convert);
   return first && second ? { ...tree, first, second } : first ?? second;
 }
-function serializedArrangement(context: WindowBinding, tree = context.layout, names = context.names) {
-  return { tree: mapLayout(tree, key => context.panes.get(key)?.viewOnly ? null : context.panes.get(key)?.launch ?? null),
+async function serializedArrangement(context: WindowBinding, tree = context.layout, names = context.names) {
+  const selected = { tree: mapLayout(tree, key => context.panes.get(key)?.viewOnly ? null : context.panes.get(key)?.launch ?? null),
     names: Object.fromEntries(Object.entries(names).flatMap(([key, name]) => {
       const pane = context.panes.get(key), id = pane?.launch; return id && !pane.viewOnly ? [[id, name]] : [];
     })) };
+  if (!context.options.inspect) return selected;
+  // A single-agent view edits only its leaf, not the hidden siblings in the
+  // task/project arrangement. Reconstruct the saved open set before changing it.
+  const saved = await request(context.options.state, { command: 'pane_layout',
+    ...(context.options.task ? { task: context.options.task } : { project: context.options.project }) });
+  if (!saved.ok) throw new Error(saved.error);
+  const full = restoreArrangement(saved.panes.map((pane: { launch: string }) => ({ key: pane.launch, launch: pane.launch })), saved.arrangement);
+  const kept = new Set<string>();
+  mapLayout(selected.tree, id => { kept.add(id); return id; });
+  for (const pane of context.panes.values()) if (pane.launch && !pane.viewOnly && !kept.has(pane.launch)) {
+    full.layout = replaceLeaf(full.layout, pane.launch, null); delete full.names[pane.launch];
+  }
+  return { tree: full.layout, names: { ...full.names, ...selected.names } };
 }
 async function saveArrangement(context: WindowBinding) {
   const result = await request(context.options.state, { command: 'pane_layout_save', task: context.options.task,
-    project: context.options.task ? undefined : context.options.project, arrangement: serializedArrangement(context) }, context.operator);
+    project: context.options.task ? undefined : context.options.project, arrangement: await serializedArrangement(context) }, context.operator);
   if (!result.ok) throw new Error(result.error);
 }
 
@@ -479,7 +492,7 @@ function registerHandlers() {
     if (pane.launch && !pane.viewOnly) {
       const closed = await request(context.options.state, { command: 'pane_layout_close',
         ...(pane.project !== undefined ? { project: pane.project } : { task: context.options.task }),
-        launch: pane.launch, layout_task: context.options.task, arrangement: serializedArrangement(context, nextLayout, nextNames) }, context.operator);
+        launch: pane.launch, layout_task: context.options.task, arrangement: await serializedArrangement(context, nextLayout, nextNames) }, context.operator);
       if (!closed.ok) { pane.closing = false; throw new Error(closed.error); }
     }
     if (pane.identity) {
@@ -524,7 +537,7 @@ async function changeView(context: WindowBinding, view: { task?: string; project
   } finally { for (const pane of context.panes.values()) pane.closing = false; }
 }
 
-function restoreArrangement(panes: PaneBinding[], saved: any) {
+function restoreArrangement(panes: Pick<PaneBinding, 'key' | 'launch'>[], saved: any) {
   const names: Record<string, string> = {}, included = new Set<string>();
   let layout = mapLayout(saved?.tree ?? null, id => {
     const pane = panes.find(p => p.launch === id);
@@ -645,6 +658,11 @@ async function prepareSelection(options: Options) {
     // Agent inspection does not replace the task's saved arrangement.
     const layout = await request(options.state, { command: 'pane_layout', task: options.task });
     if (!layout.ok) throw new Error(layout.error);
+    if (!panes[0]!.viewOnly && !layout.panes.some((pane: { launch: string }) => pane.launch === options.launch)) {
+      const opened = await request(options.state, { command: 'pane_layout_open', task: options.task,
+        launch: options.launch, position: layout.panes.length }, readOperatorCredential(options.state)!);
+      if (!opened.ok) throw new Error(opened.error);
+    }
     arrangement = layout.arrangement; saved = true;
   }
   return { task: snapshot.task, project: null, saved, panes, ...restoreArrangement(panes, arrangement) };
