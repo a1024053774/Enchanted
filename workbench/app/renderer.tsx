@@ -556,11 +556,12 @@ function Workbench() {
     finally { setNavigating(false); }
   };
   const selectTask = (task: string | null) => {
-    if (task === (selectedTask?.task_id ?? null) && (task !== null || !viewProject)) return;
+    if (!focusedAgent && task === (selectedTask?.task_id ?? null) && (task !== null || !viewProject)) return;
+    setFocusedAgent(null);
     void navigate('切换任务', () => window.a2a.selectTask(task));
   };
   const selectProject = (project: string | null) => {
-    if (!selectedTask && project === (viewProject?.project_id ?? null)) { setPage('terminal'); return; }
+    if (!selectedTask && !focusedAgent && !paneKeys.length && project === (viewProject?.project_id ?? null)) { setPage('terminal'); return; }
     setFocusedAgent(null);
     void navigate('切换项目', () => window.a2a.selectProject(project));
   };
@@ -590,6 +591,7 @@ function Workbench() {
     setCreating(true); setTerminalError(null); setPage('terminal');
     try {
       const value = await window.a2a.newTerminal();
+      setFocusedAgent(null);
       setSelectedTask(value.task); setViewProject(value.project); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null);
       setStatuses(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => value.paneKeys.includes(key))));
       const added = value.paneKeys.find(key => !paneKeys.includes(key));
@@ -837,6 +839,14 @@ function Workbench() {
       {navigationError && <div className="connection-error" role="alert">{navigationError}</div>}
       {terminalError && <div className="connection-error" role="alert">{terminalError}</div>}
       <div className="pane-grid pane-layout" aria-label="终端窗格">
+        {!navigating && !task && viewProject && !paneKeys.length && <div className="project-task-grid" aria-label="项目任务分屏">
+          {project?.tasks.map(item => <button key={item.task_id} className="project-task-tile" data-task-tile={item.task_id}
+            disabled={busy} onClick={() => selectTask(item.task_id)}>
+            <span className="task-meta">{gateNames[item.state] ?? item.state}</span>
+            <strong>{item.title}</strong><span className="task-meta">{item.task_id}</span>
+            <span className="task-agents">{agents.filter(agent => agent.task === item.task_id).length} 个 agent<span aria-hidden="true"> ↗</span></span>
+          </button>)}
+        </div>}
         {!navigating && paneKeys.map(key => {
           const rect = zoom === key ? { x: 0, y: 0, w: 100, h: 100 } : paneRects(layout)[key] ?? { x: 0, y: 0, w: 100, h: 100 };
           return <div className="pane-slot" key={key} hidden={Boolean(zoom && zoom !== key)} data-role-request-pending={roleRequests.some(roleRequest => roleRequest.launch === launches[key]) || undefined} data-edge-right={rect.x + rect.w < 99.9} data-edge-bottom={rect.y + rect.h < 99.9}
@@ -847,7 +857,7 @@ function Workbench() {
               onAction={async (key, action) => { const value = await window.a2a.paneAction(key, action); setPaneKeys(value.paneKeys); setLayout(value.layout); setNames(value.names); setLaunches(value.launches ?? {}); setZoom(null); }} onStatus={onStatus} onClose={onClose} />
           </div>;
         })}
-        {navigating ? <p className="selection-hint" role="status">正在切换…</p> : !paneKeys.length &&
+        {navigating ? <p className="selection-hint" role="status">正在切换…</p> : !paneKeys.length && !(viewProject && !task && project?.tasks.length) &&
           <div className="selection-hint">
             <h2>{task ? '这个任务没有打开的窗格' : viewProject ? `在 ${viewProject.project_id} 里开一个终端` : '开一个终端'}</h2>
             <p>{task ? '从左侧点选这个任务下的会话，或新建终端。'

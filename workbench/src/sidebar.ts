@@ -175,6 +175,16 @@ export async function sidebarSnapshot(gates: any, store: OrchestrationStore, pan
       role: 'controller', preset: roleRequest.role, role_label: roleLabel({ role: 'controller', preset: roleRequest.role }), cli: roleRequest.cli ?? '未知',
       parent: roleRequest.parent_launch, state, question_id: null, state_label: stateLabels[state], created_at: roleRequest.decided_at, terminal: true } as any);
   }
+  // Ordinary project terminals have their own selectable view too. An approved
+  // terminal is already represented by its controller row above.
+  for (const record of store.launches().filter(record => record.role === 'shell' && record.project !== null &&
+    !agents.some(agent => agent.id === record.id))) {
+    const pane = panes.status(record.thread);
+    const state: AgentState = pane?.lifecycle === 'ended' ? 'ended' : pane?.lifecycle === 'running' ? 'running' : 'unknown';
+    agents.push({ id: record.id, project: record.project, task: null, task_name: null, attempt: null, thread: record.thread,
+      role: 'shell', preset: null, role_label: '普通终端', cli: 'zsh', parent: null, state, question_id: null,
+      state_label: stateLabels[state], created_at: record.created_at, terminal: true } as any);
+  }
   const recordedParents = new Map(agents.map(agent => [agent.id, agent.parent]));
   for (const agent of agents) {
     const parent = agents.find(row => row.id === agent.parent);
