@@ -127,6 +127,8 @@ node workbench/src/gates/cli.ts --state /绝对路径/隔离状态目录 status 
   agent 没看到输出；确认表示“这个终端认了”，同一终端里的其他进程也能代发。没有回执的协议无法消除这一段，`a2a whoami`
   随时可查实际身份。结束原因记为
   `asker_gone`、`request_wait_timeout`、`daemon_stopping` 或 `not_confirmed`；`a2a release` 放弃身份；`a2a call '<JSON>'` 以已批准的身份调用门禁命令。
+  已批准的主控可用 `a2a call terminal_open --cwd '<绝对目录>'`（或 JSON 命令 `terminal_open` 加 `cwd`）开本项目的普通终端。
+  目录须在项目主目录或额外目录内，按真实路径核对；回执的 `launch.id` 对应侧栏项目层的普通终端，点它进入，不归入任务。
 - `claude`、`codex`：同名包装。在 PATH 里跳过自己找到用户真正的 CLI，原样转发参数，只多加一个按会话生效的参数：
   Claude 加 `--plugin-dir`（`terminal/plugin/enchanted-a2a`，含 a2a skill），Codex 加 `-c developer_instructions=…`
   指向 `a2a help`（用户用 `-c developer_instructions=…` 传了，或自己的 Codex 配置文件里设了这一项时不加）。挂法的实测依据见 T-120。

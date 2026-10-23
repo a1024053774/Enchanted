@@ -7,6 +7,8 @@ const usage = `a2a：Enchanted 工作台的编排命令（在 Enchanted 的项�
   a2a whoami                  这个终端的项目与身份
   a2a request executor|ideation 申请成为执行主控或构思主控；等用户在界面批准，最多 10 分钟
   a2a release                 放弃当前身份；已派出的工作继续做完
+  a2a call terminal_open --cwd <绝对目录>
+                              在本项目开普通终端，返回 launch.id；目录须在项目主目录或额外目录内
   a2a call '<JSON>'           以已批准的身份调用本项目的门禁命令：本项目任务上的任务命令，
                               新任务的 card_* 与 create（project 为本项目、repo 为本项目目录），
                               以及本项目的 inbox_ready，例如
@@ -75,6 +77,9 @@ async function main(argv: string[]) {
       return 2;
     }
     return finish(await send(input as Record<string, unknown>));
+  }
+  if (command === "call" && rest.length === 3 && rest[0] === "terminal_open" && rest[1] === "--cwd") {
+    return finish(await send({ command: "terminal_open", cwd: rest[2] }));
   }
   process.stderr.write(usage + "\n");
   return 2;

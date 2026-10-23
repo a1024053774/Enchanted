@@ -352,6 +352,17 @@ export async function serve(
     }
     const roleRequest: RoleRequest | undefined = roleRequests.approved(terminal.id);
     if (!roleRequest) throw new Refusal("approved_role_required");
+    if (input.command === "terminal_open") {
+      if (input.project !== undefined && input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
+      const project = store.openedProjects().find(project => project.project_id === roleRequest.project);
+      if (!project) throw new Refusal("project_not_opened");
+      if (typeof input.cwd !== "string" || !isAbsolute(input.cwd) || !existsSync(input.cwd) || !statSync(input.cwd).isDirectory())
+        throw new Refusal("invalid_shell_cwd");
+      const cwd = realpathSync(input.cwd);
+      const withinProject = [project.repo, ...project.extra_directories].some(root => cwd === root || cwd.startsWith(root.endsWith('/') ? root : root + '/'));
+      if (!withinProject) throw new Refusal("terminal_cwd_outside_project");
+      return { ok: true, launch: panes.startShell(project.project_id, cwd) };
+    }
     if (input.command === "inbox_ready") {
       if (input.project !== roleRequest.project) throw new Refusal("role_project_mismatch");
     } else if (taskCommands.has(input.command)) {
