@@ -132,18 +132,22 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(true);
   const [restoring, setRestoring] = useState(true);
+  const [restoredVisibility, setRestoredVisibility] = useState(-1);
   const visibility = useRef({ active, version: 0 });
   if (visibility.current.active !== active) visibility.current = { active, version: visibility.current.version + 1 };
   const wakeRead = useRef<() => void>(() => {});
   useLayoutEffect(() => { if (active) { setRestoring(true); wakeRead.current(); } }, [active]);
   useEffect(() => { if (terminal) terminal.options.screenReaderMode = screenReader; }, [terminal, screenReader]);
   // The mount is hidden while its backlog replays (T-118) and a hidden element takes no focus, so a request made then
-  // waits for the reveal. Each request is served once, so a later reconnect does not take focus back.
+  // waits for this visibility's reveal. The previous visibility may still have restoring=false
+  // during activation; its value must not consume the new focus request before replay hides the mount.
+  // Each successful request is served once, so a later reconnect does not take focus back.
   const servedFocus = useRef(0);
   useEffect(() => {
-    if (!active || !focusRequest || !terminal || restoring || servedFocus.current === focusRequest) return;
-    servedFocus.current = focusRequest; terminal.focus();
-  }, [active, focusRequest, terminal, restoring]);
+    if (!active || !focusRequest || !terminal || restoring || restoredVisibility !== visibility.current.version || servedFocus.current === focusRequest) return;
+    terminal.focus();
+    if (document.activeElement === terminal.textarea) servedFocus.current = focusRequest;
+  }, [active, focusRequest, terminal, restoring, restoredVisibility]);
   const [offset, setOffset] = useState(0);
   const [inputError, setInputError] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
@@ -295,7 +299,9 @@ function SessionPane({ paneKey, active, screenReader, name, home, focusRequest, 
           if (cursor === total) {
             // Reveal only after xterm has painted the caught-up screen, never its previous paint.
             if (hidden) { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); hidden = false; }
-            if (mounted) setRestoring(false);
+            if (mounted && visibility.current.active && seenVisibility === visibility.current.version) {
+              setRestoredVisibility(seenVisibility); setRestoring(false);
+            }
             await delay();
           }
         }

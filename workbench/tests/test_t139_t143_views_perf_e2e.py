@@ -36,7 +36,7 @@ def main():
     args = parser.parse_args()
     assert not args.summary.exists(), '保留旧证据，请换新路径'
     args.summary.parent.mkdir(parents=True, exist_ok=True)
-    report = dict(status='INCOMPLETE', argv=sys.argv, measurement_version=2, harness_version=3, checks=[], failures=[], metrics={}, observed={})
+    report = dict(status='INCOMPLETE', argv=sys.argv, measurement_version=2, harness_version=4, checks=[], failures=[], metrics={}, observed={})
     report['code_version'] = subprocess.check_output(['git', 'rev-parse', args.revision or 'HEAD'], text=True).strip()
     patches = [('app/renderer.tsx', 'term.open(mount.current!);',
                 'term.open(mount.current!); (mount.current as any).__testTerminal = term;')]
@@ -150,6 +150,7 @@ def main():
         report['metrics']['scroll_fps_median'] = statistics.median(x['fps'] for x in fps)
         report['metrics']['scroll_p95_ms_median'] = statistics.median(x['p95_ms'] for x in fps)
         latencies = []
+        report['metrics']['switch_ms'] = latencies
         # Alternating sidebar clicks include IPC, snapshot, replay and reveal, but exclude CDP process startup.
         for launch in [workers['T-A'], fixture.terminal_launch] * 4:
             latencies.append(electron.evaluate(f"""new Promise((resolve,reject)=>{{const start=performance.now();
@@ -157,7 +158,13 @@ def main():
               const tick=()=>{{const p=document.querySelector('.pane[data-launch-id="{launch}"]');
                 if(p&&p.getClientRects().length&&p.dataset.inputEnabled==='true'&&p.querySelector('[data-restoring=false]')&&p.querySelector('textarea')===document.activeElement)
                   return requestAnimationFrame(()=>resolve(performance.now()-start));
-                if(performance.now()-start>12000)return reject(new Error('switch timeout')); requestAnimationFrame(tick)}};tick()}})""", timeout=20))
+                if(performance.now()-start>12000){{
+                  window.__switchProbe={{launch:{json.dumps(launch)},exists:!!p,visible:!!p?.getClientRects().length,
+                    inputEnabled:p?.dataset.inputEnabled??null,restoring:p?.querySelector('[data-restoring]')?.dataset.restoring??null,
+                    focused:p?.querySelector('textarea')===document.activeElement,
+                    activeTag:document.activeElement?.tagName,activeClass:String(document.activeElement?.className??""),
+                    errors:p?[...p.querySelectorAll('[role=alert]')].map(e=>e.textContent):[]}};
+                  return reject(new Error('switch timeout '+JSON.stringify(window.__switchProbe)))}} requestAnimationFrame(tick)}};tick()}})""", timeout=20))
         report['metrics']['switch_ms'] = latencies
         report['metrics']['switch_ms_median'] = statistics.median(latencies)
         shell_key = ready(fixture.terminal_launch)
@@ -261,6 +268,7 @@ def main():
         report['error'] = f'{type(error).__name__}: {error}'
         if electron:
             try:
+                report['observed']['switch_timeout'] = electron.evaluate('window.__switchProbe ?? null')
                 electron.screenshot(args.summary.parent / (args.summary.stem + '-failure.png'))
             except Exception as screenshot_error:
                 report['screenshot_error'] = str(screenshot_error)
