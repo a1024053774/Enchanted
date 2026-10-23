@@ -1,7 +1,7 @@
-// 只在启用 JavaScript 时出现的控件：主题切换、演示引导与重置。
+// 只在启用 JavaScript 时出现的控件：主题切换。导览的控件由 tour.js 显示。
 (() => {
   'use strict';
-  document.querySelectorAll('[data-tour], [data-demo-go="reset"], [data-theme-toggle]').forEach(el => { el.hidden = false; });
+  document.querySelectorAll('[data-theme-toggle]').forEach(el => { el.hidden = false; });
 
   const toggle = document.querySelector('[data-theme-toggle]');
   const names = { system: '跟随系统', light: '浅色', dark: '深色' };

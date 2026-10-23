@@ -1,6 +1,8 @@
 // Enchanted 产品页的工作台演示：全部是预设的虚构数据，不连后台、不调模型。
-// 结构与文案取自 workbench/app 的 renderer.tsx、FlowPage.tsx、QuestionsPanel.tsx、AppNotifications.tsx，
-// 状态优先级取自 workbench/src/sidebar.ts，阶段取自 workbench/src/flowStages.ts。
+// 结构与文案取自 workbench/app 的 renderer.tsx、FlowPage.tsx、QuestionsPanel.tsx、AppNotifications.tsx、
+// IssuesPage.tsx、RecordsPage.tsx、MetricsPage.tsx、ReflectPage.tsx、RetrospectiveSections.tsx，
+// 状态优先级取自 workbench/src/sidebar.ts，阶段取自 workbench/src/flowStages.ts，复盘默认值取自 workbench/src/retrospective.ts。
+// 页面上的分步导览经 window.EnchantedDemo.go(场景名) 切换演示状态，见 tour.js。
 (() => {
   'use strict';
   const root = document.getElementById('wb-demo');
@@ -62,24 +64,70 @@
         { id: 'T-1', title: '初始化命令行参数解析', state: 'ready', stage: null },
       ] },
     ],
-    // parent 只来自启动记录；没有父记录的会话进“未归属”。
+    // parent 只来自启动记录；没有父记录的会话进“未归属”。terminal 表示用户在项目终端里自己启动、经批准当上主控的会话。
     agents: [
-      { id: 'launch-41c7', age: '刚刚', project: 'inkwell', task: 'T-12', attempt: null, parent: null, role: 'controller', preset: 'ideation', cli: 'claude', state: 'waiting_user_answer' },
-      { id: 'launch-8e02', age: '12 分', project: 'inkwell', task: 'T-12', attempt: null, parent: 'launch-41c7', role: 'controller', preset: 'executor', cli: 'claude', state: 'running' },
+      { id: 'launch-41c7', age: '刚刚', project: 'inkwell', task: 'T-12', attempt: null, parent: null, role: 'controller', preset: 'ideation', terminal: true, cli: 'claude', state: 'waiting_user_answer' },
+      { id: 'launch-8e02', age: '12 分', project: 'inkwell', task: 'T-12', attempt: null, parent: 'launch-41c7', role: 'controller', preset: 'executor', terminal: true, cli: 'claude', state: 'running' },
       { id: 'launch-a3f9', age: '4 分', project: 'inkwell', task: 'T-12', attempt: 'a2', parent: 'launch-8e02', role: 'worker', cli: 'codex', state: 'running' },
       { id: 'launch-c611', age: '4 分', project: 'inkwell', task: 'T-12', attempt: 'a2', parent: 'launch-8e02', role: 'monitor', cli: 'codex', state: 'idle' },
       { id: 'launch-2a6e', age: '2 小时', project: 'inkwell', task: 'T-11', attempt: 'a1', parent: 'launch-8e02', role: 'worker', cli: 'codex', state: 'idle' },
       { id: 'launch-5d20', age: '6 分', project: 'inkwell', task: 'T-11', attempt: 'a1', parent: 'launch-8e02', role: 'reviewer', cli: 'codex', state: 'running' },
       { id: 'launch-e7b4', age: '1 分', project: 'inkwell', task: 'T-14', attempt: 'a1', parent: 'launch-8e02', role: 'worker', cli: 'codex', state: 'waiting_controller_answer' },
-      { id: 'launch-0b9d', age: '1 天', project: 'inkwell', task: 'T-09', attempt: 'a1', parent: null, role: 'worker', cli: 'codex', state: 'ended' },
-      { id: 'launch-62aa', age: '3 小时', project: 'tidepool', task: 'T-3', attempt: null, parent: null, role: 'controller', preset: 'ideation', cli: 'claude', state: 'running' },
-      { id: 'launch-93fe', age: '3 小时', project: 'tidepool', task: 'T-3', attempt: null, parent: 'launch-62aa', role: 'controller', preset: 'executor', cli: 'claude', state: 'unrestored' },
+      { id: 'launch-0b9d', age: '1 天', project: 'inkwell', task: 'T-09', attempt: 'a1', parent: 'launch-8e02', role: 'worker', cli: 'codex', state: 'ended' },
+      { id: 'launch-62aa', age: '3 小时', project: 'tidepool', task: 'T-3', attempt: null, parent: null, role: 'controller', preset: 'ideation', terminal: true, cli: 'claude', state: 'running' },
+      { id: 'launch-93fe', age: '3 小时', project: 'tidepool', task: 'T-3', attempt: null, parent: 'launch-62aa', role: 'controller', preset: 'executor', terminal: true, cli: 'claude', state: 'unrestored' },
       { id: 'launch-1d85', age: '3 小时', project: 'tidepool', task: 'T-3', attempt: 'a1', parent: 'launch-93fe', role: 'worker', cli: 'codex', state: 'unrestored' },
       { id: 'launch-f40c', age: '3 小时', project: 'tidepool', task: 'T-3', attempt: 'a1', parent: 'launch-93fe', role: 'reviewer', cli: 'codex', state: 'unknown' },
       ...['b1', 'b2', 'b3', 'b4', 'b5', 'b6'].map((suffix, index) => ({ id: 'launch-5e' + suffix, age: (20 + index * 7) + ' 分', project: 'tidepool', task: 'T-5', attempt: 'a1',
         parent: 'launch-93fe', role: 'worker', cli: 'codex', state: index === 2 ? 'idle' : 'running' })),
       { id: 'launch-7a31', age: '5 小时', project: 'tidepool', task: 'T-5', attempt: 'a1', parent: null, role: 'monitor', cli: 'codex', state: 'idle' },
+      { id: 'launch-3b10', age: '25 分', project: 'ledger-cli', task: 'T-1', attempt: null, parent: null, role: 'controller', preset: 'ideation', terminal: true, cli: 'claude', state: 'idle' },
     ],
+    // 项目终端里的 claude 经 `a2a request executor` 申请当执行主控，等你批准（renderer.tsx 的 role-requests）。
+    roleRequests: [{ id: 'rr-1', project: 'ledger-cli', cli: 'claude', role: 'executor', role_label: '执行主控', opened: '10:42', cwd: '~/work/ledger-cli', pane: 'request' }],
+    // 问题上报（IssuesPage.tsx）：只有 inkwell 有。
+    issues: [
+      { id: 'i-2', task: 'T-11', number: 2, title: '导入接口不校验未来时间戳', from: 'reviewer', blocking: true, state: '等你决定', created: '10/23 10:06',
+        body: '审查 a81d3c0f52 时发现：导入文件里晚于当前时间的时间戳会原样写入，列表排序会被打乱。这不在 T-11 的范围里，要不要另开一张票？', answer: null, disposition: null },
+      { id: 'i-1', task: 'T-12', number: 1, title: 'tests/export 有一个用例依赖本机时区', from: 'worker', blocking: false, state: '待判断', created: '10/23 09:58',
+        body: 'test_export_dates 在 UTC 以外的时区会失败。它不是本票的验收文件，我没有改它。', answer: null, disposition: null },
+      { id: 'i-0', task: 'T-09', number: 1, title: 'CSV 导出没有写 BOM', from: 'monitor', blocking: false, state: '已关闭', created: '10/22 16:20',
+        body: 'Excel 打开含中文的导出文件会乱码。', answer: null, disposition: { action: 'close', reason: '旧版也不写 BOM，用户文档里已说明用“导入数据”打开' } },
+    ],
+    // 用户输入记录（RecordsPage.tsx）：你亲手打的字、答复和审批；主控发出的文字不算。
+    records: [
+      { time: '10/23 09:12:05', task: null, role: '构思主控', form: '消息', channel: '主控终端提交', text: '导出页想加个按标签筛选' },
+      { time: '10/23 09:31:40', task: null, role: '项目终端', form: '批准', channel: '界面操作', text: '批准 inkwell 终端的 claude 成为执行主控' },
+      { time: '10/23 09:44:12', task: 'T-11', role: 'worker', form: '消息', channel: '窗格键入', text: '时区统一按 UTC 存，别用本地时间', intervention: true },
+      { time: '10/23 09:44:13', task: 'T-11', role: 'worker', form: '消息', channel: '窗格键入', text: '（按键：回车）', intervention: true },
+      { time: '10/23 10:15:27', task: null, role: '构思主控', form: '消息', channel: '主控终端提交', text: 'T-12 先做，T-14 放到下周' },
+    ],
+    // 指标（MetricsPage.tsx）：与上面的任务和会话对得上。
+    metrics: {
+      byModel: [['claude-haiku-5-5', '项目级', 2, 41], ['gpt-6.1-sol', '前端界面', 1, 14], ['unknown', '前端界面', 1, 3], ['gpt-6.1-sol', '后端逻辑', 2, 29],
+        ['gpt-6.1-sol', '重构', 1, 4], ['gpt-6.1-sol', '缺陷修复', 1, 9]],
+      firstTime: { integrated: 1, firstTime: 0, rejections: [['路径边界', 1], ['完成条件', 1], ['独立审查', 1]] },
+      attention: [['T-09', '缺陷修复', 1, 0, 1, 0]],
+      scores: [['codex', 'gpt-6.1-sol', 'high', '缺陷修复', 1, '通过 1', 3, 2]],
+    },
+    // Reflect（ReflectPage.tsx）：历来启动过的主控和它们下面的会话，已结束的也在。
+    reflect: [
+      { id: 'r-old', parent: null, role: '构思主控', where: '项目终端', run: 'claude · claude-haiku-5-5 · low', time: '10/22 14:03 – 10/22 18:40', state: '已结束' },
+      { id: 'r-41c7', parent: null, role: '构思主控', where: '项目终端', run: 'claude · claude-haiku-5-5 · low', time: '10/23 09:05', state: '运行中' },
+      { id: 'r-8e02', parent: 'r-41c7', role: '执行主控', where: '项目终端', run: 'claude · claude-haiku-5-5 · low', time: '10/23 09:31', state: '运行中' },
+      { id: 'r-0b9d', parent: 'r-8e02', role: 'worker', where: 'T-09', run: 'codex · gpt-6.1-sol · high', time: '10/22 15:10 – 10/22 16:52', state: '已结束',
+        score: { result: '通过', boundary: [3, ''], taste: [2, '改动集中，但复制了一段转义逻辑'] } },
+      { id: 'r-2a6e', parent: 'r-8e02', role: 'worker', where: 'T-11', run: 'codex · gpt-6.1-sol · high', time: '10/23 08:20', state: '运行中' },
+      { id: 'r-5d20', parent: 'r-8e02', role: '审查员', where: 'T-11', run: 'codex · gpt-6.1-sol · high', time: '10/23 10:01', state: '运行中' },
+      { id: 'r-a3f9', parent: 'r-8e02', role: 'worker', where: 'T-12', run: 'codex · gpt-6.1-sol · high', time: '10/23 10:11', state: '运行中' },
+    ],
+    // 复盘：默认每周一 09:00、Claude Code · claude-opus-5-5 · medium，开启前不跑（retrospective.ts）。
+    retro: { enabled: false, weekday: 1, time: '09:00', runner: 'Claude Code · claude-opus-5-5 · medium', runs: [
+        { start: '10/20 09:00', trigger: '手动', range: '最早 – 10/20 09:00', run: 'Claude Code · claude-opus-5-5 · medium', state: '已完成', report: 'findings/retrospective-2026-10-20.md' }],
+      suggestions: [
+        { id: 's-1', number: 1, title: '任务卡写明时区约定', kind: '写成 ticket', body: 'T-11 两次打回都和时区有关。建议在任务卡模板里加一栏“时间与时区约定”。', decision: null },
+        { id: 's-2', number: 2, title: 'worker 角色卡提醒先跑完成条件', kind: '改角色卡', body: '两次交付里有一次没先跑完成条件就提交。', decision: null },
+      ] },
     questions: [
       { id: 'q-1', launch: 'launch-41c7', target: 'user', cli: 'claude', status: 'waiting', question: '导出时，已归档的条目默认要不要包含在内？',
         options: [{ label: '不包含', description: '与列表页的默认筛选一致' }, { label: '包含', description: '导出更完整，但和列表页看到的不一样' }],
@@ -110,6 +158,8 @@
     'launch-e7b4': [['dim', '~/work/inkwell/.worktrees/T-14-a1 · codex'], ['', '› 读取任务卡 T-14'], ['', '› 发现 0.8 配置仍有迁移入口，任务卡没写要不要保留'], ['warn', '› 向主控提问，等待回答']],
     'launch-62aa': [['dim', '~/work/tidepool · claude'], ['', '● 整理 T-3 暂停的原因：执行主控重启后未恢复'], ['', '● 等执行主控按中断恢复流程回收后再派发']],
     'launch-93fe': [['dim', '~/work/tidepool · claude']],
+    'launch-3b10': [['dim', '~/work/ledger-cli · claude'], ['', '> 先把命令行参数解析拆成一张票'], ['', '● 已写好 T-1 的任务卡，标记就绪'],
+      ['', '● 这个项目还没有执行主控，T-1 暂时没人派发']],
     'launch-1d85': [['dim', '~/work/tidepool/.worktrees/T-3-a1 · codex']],
     'launch-f40c': [['dim', 'T-3-a1-review-1 · codex'], ['dim', '（当前回合状态无法核实，显示为未知）']],
   };
@@ -126,7 +176,8 @@
     data = initialData();
     ui = { project: 'inkwell', task: 'T-12', page: 'terminal', focusedAgent: null, focusedPane: null, collapsed: new Set(),
       notifications: true, dockBadges: true, menu: null, renaming: null, zoom: null, settingsOpen: false, theme: 'system', execRole: 'worker', execDraft: null, execMessage: '',
-      flowOpen: {}, flowExpanded: {}, drafts: {}, noticeSeen: new Set(), noticeActive: new Map() };
+      flowOpen: {}, flowExpanded: {}, drafts: {}, noticeSeen: new Set(), noticeActive: new Map(),
+      issueDrafts: {}, closing: null, closeDraft: { reason: '', basis: '' }, parentChoice: 'launch-3b10', recordTask: '', spot: null };
     panes = {}; layouts = {}; paneSeq = 0;
     const agentPane = launch => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'agent', launch, lines: (lines[launch] || [['dim', '（演示没有为这个会话预设输出）']]).slice(), forward: false }; return key; };
     const shellPane = (cwd, label) => { const key = 'p' + (++paneSeq); panes[key] = { kind: 'shell', cwd, lines: shellLines(cwd), forward: false, project: label }; return key; };
@@ -140,6 +191,12 @@
     layouts['ledger-cli/T-1'] = null;
     for (const project of data.projects) layouts[project.id] = null;
     layouts.inkwell = shellPane('~/work/inkwell', 'inkwell');
+    // ledger-cli：左边是已批准的构思主控，右边是正在申请执行主控的项目终端。
+    const requesting = shellPane('~/work/ledger-cli', 'ledger-cli');
+    panes[requesting].lines = [['', '~/work/ledger-cli % claude'], ['', '> 你来当这个项目的执行主控'], ['', '● a2a request executor'],
+      ['warn', '  已提交角色申请，等你在 Enchanted 里批准']];
+    panes[requesting].request = 'rr-1';
+    layouts['ledger-cli'] = { direction: 'right', first: agentPane('launch-3b10'), second: requesting };
     layouts.free = shellPane('~', null);
     root.removeAttribute('data-theme');
     ui.makeAgentPane = agentPane; ui.makeShellPane = shellPane;
@@ -158,7 +215,8 @@
     const agent = findAgent(pane.launch);
     return agent.role === 'controller' ? roleLabel(agent) : { worker: '受管 worker', reviewer: '独立审查', monitor: 'monitor' }[agent.role];
   };
-  const descendants = id => data.agents.filter(child => child.parent === id).flatMap(child => [child, ...descendants(child.id)]);
+  const issuesWaiting = project => project === 'inkwell' ? data.issues.filter(issue => issue.state === '等你决定').length : 0;
+  const descendants = id =>data.agents.filter(child => child.parent === id).flatMap(child => [child, ...descendants(child.id)]);
   const openQuestions = launch => data.questions.filter(question => question.launch === launch && !['answered', 'cancelled'].includes(question.status));
   // 与 workbench/app/notificationCenter.ts 的 observe 相同：按问题记“已提醒过”，关闭期间看到的问题在重新开启后也不重放。
   const waitingQuestions = () => data.questions.filter(question => !['answered', 'cancelled'].includes(question.status)
@@ -192,7 +250,7 @@
         <button class="agent-row" data-action="agent" data-agent-launch="${agent.id}" data-agent-level="${level}" data-agent-state="${agent.state}" data-fk="agent:${agent.id}"
           title="${roleLabel(agent)} · ${esc(agent.task)} · ${agent.attempt ? 'attempt ' + agent.attempt : '无 attempt'} · ${agent.cli}"
           ${ui.focusedAgent === agent.id ? 'aria-current="true"' : ''} ${collapsed ? `data-descendant-state="${summaryState}"` : ''}>
-          <span class="agent-main"><span class="agent-role">${roleLabel(agent)}</span><span class="agent-meta">${esc(agent.task)} · ${agent.cli}</span>
+          <span class="agent-main"><span class="agent-role">${roleLabel(agent)}</span><span class="agent-meta">${agent.terminal ? '项目终端' : esc(agent.task)} · ${agent.cli}</span>
             <span class="sr-only">${stateLabels[agent.state]}</span></span>
           <span class="row-time">${esc(agent.age)}</span>${icon(agent.state)}
           ${collapsed ? `<span class="agent-subtree" data-agent-summary="${agent.id}">子会话 ${children.length} · ${counts}</span>` : ''}
@@ -208,12 +266,15 @@
     const waiting = scope.filter(agent => agent.state === 'waiting_user_answer').length;
     const roots = scope.filter(agent => !agent.parent && agent.role === 'controller' && agent.preset === 'ideation');
     const orphans = scope.filter(agent => !agent.parent && !(agent.role === 'controller' && agent.preset === 'ideation'));
-    const git = project.git.upstream ? `领先 ${project.git.ahead} / 落后 ${project.git.behind}` : '未设置上游';
+    // 与 renderer.tsx 的 projectGit 相同的写法。
+    const git = `${project.git.branch}${project.git.upstream ? ` · ↑${project.git.ahead} ↓${project.git.behind}` : ' · 无上游'}`;
+    const issues = issuesWaiting(project.id);
     return `<section class="project-group">
       <button class="project-row" data-action="project" data-project-id="${esc(project.id)}" data-fk="project:${esc(project.id)}"
-        title="${esc(project.repo)}&#10;${esc(project.git.branch)} · ${git}" ${ui.project === project.id ? 'aria-current="page"' : ''}>
-        <span class="project-title">${esc(project.id)}</span><span class="project-count">${scope.length || ''}</span>
-        ${waiting ? `<span class="project-needs">${waiting} 个等你</span>` : ''}</button>
+        title="${esc(project.repo)}" ${ui.project === project.id ? 'aria-current="page"' : ''}>
+        <span class="project-heading"><span class="project-title">${esc(project.id)}</span><span class="project-git">${esc(git)}</span></span>
+        <span class="project-count">${scope.length || ''}</span>
+        ${waiting ? `<span class="project-needs">${waiting} 个等你</span>` : ''}${issues ? `<span class="project-needs">${issues} 个问题</span>` : ''}</button>
       ${agentBranches(roots, 0, scope)}
       ${orphans.length ? `<div class="unassigned-agents">${roots.length ? '<div class="agent-task-label">未归属</div>' : ''}${agentBranches(orphans, 0, scope)}</div>` : ''}
     </section>`;
@@ -347,10 +408,12 @@
       ${project ? `<nav class="task-strip" aria-label="项目任务" data-sk="tasks">
         ${project.tasks.map(item => `<button class="task-row" data-action="task" data-task-option="${item.id}" data-fk="task:${item.id}" ${task && task.id === item.id ? 'aria-current="page"' : ''}>
           <span class="task-title">${esc(item.title)}</span><span class="task-meta">${item.id} · ${gateNames[item.state]}</span></button>`).join('')}</nav>` : ''}
+      ${roleRequestsView()}
       <div class="pane-layout" aria-label="终端窗格">
         ${keys.map(key => {
           const rect = ui.zoom === key ? { x: 0, y: 0, w: 100, h: 100 } : rects[key];
-          return `<div class="pane-slot" data-edge-right="${rect.x + rect.w >= 99.9}" data-edge-bottom="${rect.y + rect.h >= 99.9}" ${ui.zoom && ui.zoom !== key ? 'hidden' : ''} style="left:${rect.x}%;top:${rect.y}%;width:${rect.w}%;height:${rect.h}%">${paneView(key, ui.focusedPane === key)}</div>`;
+          const request = data.roleRequests.find(item => item.id === panes[key].request && !item.decided);
+          return `<div class="pane-slot" ${request ? 'data-role-request-pending="true"' : ''} data-edge-right="${rect.x + rect.w >= 99.9}" data-edge-bottom="${rect.y + rect.h >= 99.9}" ${ui.zoom && ui.zoom !== key ? 'hidden' : ''} style="left:${rect.x}%;top:${rect.y}%;width:${rect.w}%;height:${rect.h}%">${request ? `<span class="role-request-tag">申请 1 · ${request.role_label}</span>` : ''}${paneView(key, ui.focusedPane === key)}</div>`;
         }).join('')}
         ${keys.length ? '' : `<div class="selection-hint"><h2>${task ? '这个任务还没有打开的窗格' : project ? '还没有打开的终端' : '独立终端'}</h2>
           <p>${project ? `新建的终端从 ${esc(project.repo)} 启动。经门禁派发的会话会按项目出现在左边。` : '这里的终端从家目录启动，不属于任何项目。'}</p>
@@ -412,6 +475,154 @@
     </section>`;
   }
 
+  // ---------- 角色申请（renderer.tsx 的 role-requests） ----------
+  function roleRequestsView() {
+    const pending = data.roleRequests.filter(request => !request.decided);
+    if (!pending.length) return '';
+    return `<div class="role-requests" aria-label="角色申请" data-sk="role-requests">${pending.map((request, index) => {
+      const here = ui.project === request.project;
+      const ideations = data.agents.filter(agent => agent.project === request.project && agent.role === 'controller' && agent.preset === 'ideation' && agent.state !== 'ended');
+      return `<div class="role-request" data-role-request="${request.id}" role="alert">
+        <span class="role-request-number" aria-label="申请 ${index + 1}">${index + 1}</span>
+        <p><strong>${esc(request.project)}</strong> 的${here ? '右侧窗格' : `${request.opened} 打开的终端（${esc(request.cwd)}）`}里的 ${request.cli} 申请成为<strong>${request.role_label}</strong>${here ? '' : '<span class="role-request-hint">，不在当前视图</span>'}</p>
+        ${ideations.length ? `<label class="role-request-parent">上级<select data-role-parent data-fk="rr-parent">${ideations.map(agent =>
+          `<option value="${agent.id}" ${ui.parentChoice === agent.id ? 'selected' : ''}>构思主控 · 项目终端 · ${agent.cli}</option>`).join('')}
+          <option value="" ${ui.parentChoice === '' ? 'selected' : ''}>不归属</option></select></label>` : ''}
+        <button class="text-button" data-action="rr-decide" data-request="${request.id}" data-approve="false" data-fk="rr-deny">拒绝</button>
+        <button class="primary-button" data-action="rr-decide" data-request="${request.id}" data-approve="true" data-fk="rr-approve">批准</button>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  // ---------- 问题、记录、指标、Reflect ----------
+  const emptyProject = () => `<p class="records-empty">先在左侧选一个项目。</p>`;
+  const roleNames = { worker: 'worker', reviewer: '审查员', monitor: '监视器' };
+  const dispositionNames = { close: '已关闭', snooze: '稍后再看' };
+  function issuesPage() {
+    const rows = ui.project === 'inkwell' ? [...data.issues].sort((a, b) => Number(b.state !== '已关闭') - Number(a.state !== '已关闭')) : [];
+    return `<div class="records-page issues-page" data-sk="page:issues">
+      <div class="records-intro"><h2>问题上报</h2>
+        <p>worker、审查员和监视器发现任务范围外的问题时报到这里。答复会写进上报它的会话；标了“阻塞”的只有你能关闭。关闭的问题保留记录。</p></div>
+      ${!ui.project ? emptyProject() : !rows.length ? '<p class="records-empty">这个项目还没有问题上报。</p>' : ''}
+      ${rows.map(issue => {
+        const settled = issue.state === '已关闭';
+        const draft = ui.issueDrafts[issue.id] ?? '';
+        return `<article class="record-card issue-card" data-issue-id="${issue.id}" data-issue-state="${issue.state}">
+          <header class="record-heading"><strong>${issue.task} · 问题 ${issue.number}：${esc(issue.title)}</strong>
+            <span class="record-state" ${issue.state === '等你决定' ? 'data-tone="needs"' : settled ? 'data-tone="quiet"' : ''}>${issue.state}</span>
+            ${issue.blocking ? '<span class="record-badge">阻塞</span>' : ''}</header>
+          <p class="record-meta">${roleNames[issue.from]} 上报 · ${issue.created}</p>
+          <p class="record-body">${esc(issue.body)}</p>
+          ${issue.answer ? `<p class="record-reply"><span>答复</span>${esc(issue.answer)}</p>` : ''}
+          ${issue.disposition ? `<p class="record-reply"><span>处置</span>${dispositionNames[issue.disposition.action]}${issue.disposition.reason ? '：' + esc(issue.disposition.reason) : ''}</p>` : ''}
+          ${!settled && !issue.answer ? `<form class="record-actions" data-issue-form="${issue.id}">
+            <label>答复<textarea rows="2" maxlength="4000" data-issue-answer="${issue.id}" data-fk="issue-answer:${issue.id}">${esc(draft)}</textarea></label>
+            <div class="record-buttons"><button class="primary-button" data-fk="issue-send:${issue.id}" ${draft.trim() ? '' : 'disabled'}>发送答复</button>
+              <button type="button" class="text-button" data-action="issue-snooze" data-issue="${issue.id}" data-fk="issue-snooze:${issue.id}">稍后再看</button>
+              <button type="button" class="text-button" data-action="issue-closing" data-issue="${issue.id}" data-fk="issue-closing:${issue.id}" aria-expanded="${ui.closing === issue.id}">关闭…</button></div>
+          </form>` : ''}
+          ${ui.closing === issue.id ? `<form class="record-actions" data-issue-close="${issue.id}">
+            ${issue.blocking ? '<p class="record-meta">标了“阻塞”的问题只有你能关闭。</p>' : ''}
+            <label>为什么关闭<input maxlength="1000" data-close-field="reason" data-fk="close-reason" value="${esc(ui.closeDraft.reason)}"></label>
+            <label>依据（看了什么）<input maxlength="1000" data-close-field="basis" data-fk="close-basis" value="${esc(ui.closeDraft.basis)}"></label>
+            <div class="record-buttons"><button class="primary-button" data-fk="close-confirm" ${ui.closeDraft.reason.trim() && ui.closeDraft.basis.trim() ? '' : 'disabled'}>确认关闭</button></div>
+          </form>` : ''}
+        </article>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function recordsPage() {
+    const all = ui.project === 'inkwell' ? data.records : [];
+    const tasks = [...new Set(all.map(record => record.task ?? ''))];
+    const rows = all.filter(record => !ui.recordTask || (record.task ?? '') === ui.recordTask);
+    return `<div class="records-page user-input-page" data-sk="page:records">
+      <div class="records-intro"><h2>用户输入记录</h2>
+        <p>你亲手打的字、在面板里的答复和审批都记在这里，主控和后台派发的文字不算。项目终端里只记你批准为主控的 Claude Code 或 Codex 收到的整条提示词，以及你对它提问的答复。落在受管 worker 会话里的输入记为人工介入。</p></div>
+      ${!ui.project ? emptyProject() : !all.length ? '<p class="records-empty">这个项目还没有用户输入记录。</p>' : `
+      <div class="record-filter"><label>任务 <select data-record-task data-fk="record-task"><option value="">全部</option>${tasks.map(task =>
+        `<option value="${task}" ${ui.recordTask === task ? 'selected' : ''}>${task || '项目级'}</option>`).join('')}</select></label>
+        <span class="record-meta">${rows.length} 条，其中人工介入 ${rows.filter(record => record.intervention).length} 条</span></div>
+      <table class="record-table"><thead><tr><th>时间</th><th>任务</th><th>会话</th><th>形态</th><th>来源</th><th>内容</th></tr></thead>
+        <tbody>${rows.map(record => `<tr ${record.intervention ? 'data-intervention="true"' : ''}><td>${record.time}</td><td>${record.task ?? '项目级'}</td><td>${record.role}</td>
+          <td>${record.form}${record.intervention ? '<span class="record-badge record-intervention">人工介入</span>' : ''}</td><td>${record.channel}</td>
+          <td class="record-text">${esc(record.text)}</td></tr>`).join('')}</tbody></table>`}
+    </div>`;
+  }
+
+  const table = (head, rows) => `<table class="record-table"><thead><tr>${head.map(cell => `<th>${cell}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  function metricsPage() {
+    const metrics = data.metrics, mine = ui.project === 'inkwell';
+    const none = '<span class="metric-none">无数据</span>';
+    const rate = metrics.firstTime.integrated ? Math.round(metrics.firstTime.firstTime / metrics.firstTime.integrated * 1000) / 10 : null;
+    return `<div class="records-page metrics-page" data-sk="page:metrics">
+      <div class="records-intro"><h2>指标</h2>
+        <p>每次打开都从记录现算，不另存计数。模型取会话里实际观察到的值；看不到的记为 unknown，单独成行。看板上的变化只算观察，不能当成改进的证明。</p></div>
+      ${!ui.project ? emptyProject() : `
+      <section class="metric-section" data-metric="model-use"><h3>模型使用</h3>
+        ${mine ? table(['模型', '任务类型', '会话数', '回合数'], metrics.byModel) : none}</section>
+      <section class="metric-section" data-metric="first-time"><h3>一次到位率</h3>
+        <p class="record-body">第一次交付就过完整门禁、全程没人介入，才算一次到位。</p>
+        ${mine && rate !== null ? `<p class="metric-figure">${rate}%<span class="record-meta">（集成 ${metrics.firstTime.integrated} 个，一次到位 ${metrics.firstTime.firstTime} 个）</span></p>` : none}
+        <h4>打回原因</h4>${mine ? table(['检查项', '打回次数'], metrics.firstTime.rejections) : none}</section>
+      <section class="metric-section" data-metric="attention"><h3>你的注意力消耗</h3>
+        <p class="record-body">每个集成的任务一行，数的是这个任务全部 attempt 的累计。</p>
+        ${mine ? table(['集成的任务', '任务类型', '答题', '审批', '介入', '叫停'], metrics.attention) : none}</section>
+      <section class="metric-section" data-metric="scores"><h3>打分汇总</h3>
+        ${mine ? table(['CLI', '模型', '强度', '任务类型', 'attempt 数', '结果', '边界纪律', '工程品味'], metrics.scores) : none}</section>`}
+    </div>`;
+  }
+
+  function reflectBranch(nodes, level) {
+    return `<ul class="reflect-branch">${nodes.map(node => {
+      const children = data.reflect.filter(child => child.parent === node.id);
+      return `<li><div class="reflect-node" data-reflect-node="${node.id}" style="padding-left:${level * 18}px">
+        <div class="reflect-line"><strong>${node.role}</strong><span class="record-meta">${node.where}</span><span class="record-meta">${node.run}</span>
+          <span class="record-meta">${node.time}</span><span class="record-state" data-tone="${node.state === '运行中' ? 'needs' : 'quiet'}">${node.state}</span></div>
+        ${node.score ? `<dl class="reflect-score"><div><dt>结果</dt><dd>${node.score.result}</dd></div>
+          <div><dt>边界纪律</dt><dd>${node.score.boundary[0]}${node.score.boundary[1] ? `（${esc(node.score.boundary[1])}）` : ''}</dd></div>
+          <div><dt>工程品味</dt><dd>${node.score.taste[0]}${node.score.taste[1] ? `（${esc(node.score.taste[1])}）` : ''}</dd></div></dl>` : ''}
+      </div>${children.length ? reflectBranch(children, level + 1) : ''}</li>`;
+    }).join('')}</ul>`;
+  }
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  function reflectPage() {
+    if (!ui.project) return `<div class="records-page reflect-page">${emptyProject()}</div>`;
+    const mine = ui.project === 'inkwell', retro = data.retro;
+    return `<div class="records-page reflect-page" data-sk="page:reflect">
+      <div class="records-intro"><h2>Reflect</h2>
+        <p>这个项目历来启动过的主控，和它们下面启动的执行主控、worker、审查员、监视器，已结束的也在。worker 上是主控给它那次交付的打分。</p></div>
+      <section class="metric-section reflect-tree"><h3>主控与会话</h3>
+        ${mine ? reflectBranch(data.reflect.filter(node => !node.parent), 0) : '<p class="metric-none">演示只为 inkwell 准备了会话树。</p>'}</section>
+      <div class="retrospective-page"><div class="records-intro"><h2>复盘</h2>
+        <p>复盘会话在一个普通项目终端里跑，只读代码和记录，只写自己的报告。报告存到项目的 findings/（没有这个目录就存在工作台数据目录）；改进建议列在下面，批准的先只记在这里。</p></div>
+        <section class="metric-section"><h3>立即复盘</h3>
+          <div class="record-filter"><label>CLI <select data-fk="retro-cli"><option>Claude Code</option><option>Codex</option></select></label>
+            <label>模型 <input value="claude-opus-5-5" data-fk="retro-model"></label><label>思考强度 <input value="medium" size="8" data-fk="retro-effort"></label>
+            <button class="primary-button" data-action="note" data-note="真实应用会在一个项目终端里启动复盘会话；演示不启动。" data-fk="retro-start">立即复盘</button></div>
+          <p class="record-meta">时间范围从这个项目上次复盘到现在。</p></section>
+        <section class="metric-section"><h3>定期复盘</h3>
+          <div class="record-filter"><label><input type="checkbox" data-retro-enabled data-fk="retro-enabled" ${retro.enabled ? 'checked' : ''}>开启</label>
+            <label>每 <select data-fk="retro-weekday">${weekdays.map((name, index) => `<option ${index === retro.weekday ? 'selected' : ''}>${name}</option>`).join('')}</select></label>
+            <label><input type="time" value="${retro.time}" data-fk="retro-time"></label></div>
+          <p class="record-meta">现在用 ${retro.runner}${retro.enabled ? '' : '（未开启）'}</p></section>
+        <section class="metric-section"><h3>改进建议</h3>
+          ${mine ? retro.suggestions.map(item => `<article class="record-card suggestion-card" data-suggestion-id="${item.id}">
+            <header class="record-heading"><strong>${item.number}. ${esc(item.title)}</strong>
+              <span class="record-state" data-tone="${item.decision ? 'quiet' : 'needs'}">${item.decision ? (item.decision.approved ? '已批准' : '不采纳') : '等你决定'}</span>
+              <span class="record-meta">${item.kind}</span></header>
+            <p class="record-body">${esc(item.body)}</p>
+            ${item.decision ? '' : `<div class="record-buttons"><button class="primary-button" data-action="suggestion" data-suggestion="${item.id}" data-approve="true" data-fk="sg-yes:${item.id}">批准</button>
+              <button class="text-button" data-action="suggestion" data-suggestion="${item.id}" data-approve="false" data-fk="sg-no:${item.id}">不采纳</button></div>`}
+          </article>`).join('') : '<p class="metric-none">还没有建议。</p>'}</section>
+        <section class="metric-section"><h3>复盘记录</h3>
+          ${mine ? table(['开始', '方式', '范围', '执行', '状态', '报告'], retro.runs.map(run => [run.start, run.trigger, run.range, run.run, run.state, run.report]))
+            : '<p class="metric-none">还没有复盘。</p>'}</section>
+      </div>
+    </div>`;
+  }
+
   // ---------- 整体渲染 ----------
   function render() {
     const active = document.activeElement && root.contains(document.activeElement) ? document.activeElement.getAttribute('data-fk') : null;
@@ -428,10 +639,14 @@
             <nav class="workspace-pages" aria-label="工作区页面">
               <button data-action="page" data-page="terminal" data-fk="page:terminal" ${ui.page === 'terminal' ? 'aria-current="page"' : ''}>终端</button>
               <button data-action="page" data-page="flow" data-flow-tab data-fk="page:flow" ${ui.page === 'flow' ? 'aria-current="page"' : ''}>流程</button>
+              <button data-action="page" data-page="issues" data-fk="page:issues" ${ui.page === 'issues' ? 'aria-current="page"' : ''}>问题${issuesWaiting(ui.project) ? `<span class="tab-needs" aria-label="${issuesWaiting(ui.project)} 个等你决定">${issuesWaiting(ui.project)}</span>` : ''}</button>
+              <button data-action="page" data-page="records" data-fk="page:records" ${ui.page === 'records' ? 'aria-current="page"' : ''}>记录</button>
+              <button data-action="page" data-page="metrics" data-fk="page:metrics" ${ui.page === 'metrics' ? 'aria-current="page"' : ''}>指标</button>
+              <button data-action="page" data-page="reflect" data-fk="page:reflect" ${ui.page === 'reflect' ? 'aria-current="page"' : ''}>Reflect</button>
             </nav>
             <span class="connection">演示数据<output data-dock aria-label="Dock 角标">${ui.dockBadges && waiting ? `<span class="dock-badge" title="Dock 角标">${waiting}</span>` : ''}</output></span>
             <button class="primary-button" data-action="new-terminal" data-fk="new-terminal">新建终端</button></header>
-          ${ui.page === 'flow' ? flowPage() : ''}
+          ${{ flow: flowPage, issues: issuesPage, records: recordsPage, metrics: metricsPage, reflect: reflectPage }[ui.page]?.() ?? ''}
           ${terminalPage()}
         </main>
       <aside class="app-notifications" aria-label="待回答通知" aria-live="polite">${pending.map(agent => `<button data-action="notice" data-notice-launch="${agent.id}" data-fk="notice:${agent.id}">
@@ -439,11 +654,13 @@
       ${menuView()}${settingsView()}
       <p class="wb-note" role="status" data-note-out>${esc(ui.note ?? '')}</p>`;
     root.querySelectorAll('[data-sk]').forEach(el => { const saved = scrolls[el.dataset.sk]; if (saved) { el.scrollTop = saved[0]; el.scrollLeft = saved[1]; } });
-    if (ui.menu) root.querySelector('.pane-menu button')?.focus();
-    else if (ui.settingsFresh) { root.querySelector('.segmented [aria-pressed="true"]')?.focus(); ui.settingsFresh = false; }
-    else if (ui.renaming && ui.renameFresh) { const input = root.querySelector('[data-rename-input]'); input?.focus(); input?.select(); ui.renameFresh = false; }
-    else if (ui.focusTarget) { root.querySelector(`[data-fk="${ui.focusTarget}"]`)?.focus(); ui.focusTarget = null; }
-    else if (active) root.querySelector(`[data-fk="${CSS.escape(active)}"]`)?.focus();
+    if (ui.menu) root.querySelector('.pane-menu button')?.focus({ preventScroll: true });
+    else if (ui.settingsFresh) { root.querySelector('.segmented [aria-pressed="true"]')?.focus({ preventScroll: true }); ui.settingsFresh = false; }
+    else if (ui.renaming && ui.renameFresh) { const input = root.querySelector('[data-rename-input]'); input?.focus({ preventScroll: true }); input?.select(); ui.renameFresh = false; }
+    else if (ui.focusTarget) { root.querySelector(`[data-fk="${ui.focusTarget}"]`)?.focus({ preventScroll: true }); ui.focusTarget = null; }
+    else if (active) root.querySelector(`[data-fk="${CSS.escape(active)}"]`)?.focus({ preventScroll: true });
+    // 导览高亮当前这一步讲到的区域；找不到就不高亮。
+    if (ui.spot) root.querySelectorAll(ui.spot).forEach(el => el.classList.add('wb-spot'));
     root.dataset.ready = 'true';
   }
 
@@ -460,8 +677,10 @@
     ui.focusedPane = paneKey;
   }
   function openMenu(pane, clientX, clientY) {
-    const box = root.getBoundingClientRect();
-    ui.menu = { pane, x: Math.max(4, Math.min(clientX - box.left, box.width - 218)), y: Math.max(4, Math.min(clientY - box.top, box.height - 280)) };
+    // 导览把窗口整体缩放显示；菜单坐标换回窗口自身的像素。
+    const box = root.getBoundingClientRect(), scale = box.width / root.offsetWidth || 1;
+    const x = (clientX - box.left) / scale, y = (clientY - box.top) / scale;
+    ui.menu = { pane, x: Math.max(4, Math.min(x, root.offsetWidth - 218)), y: Math.max(4, Math.min(y, root.offsetHeight - 280)) };
     ui.menuReturn = 'menu:' + pane;
   }
   function closeMenu() { if (!ui.menu) return; ui.focusTarget = ui.menuReturn; ui.menu = null; }
@@ -472,6 +691,27 @@
     if (ui.focusedPane === key) ui.focusedPane = null;
     ui.menu = null;
     delete panes[key];
+  }
+  // 你在演示里的答复、审批也记进“记录”页，和真实应用一样只记你亲手做的。
+  function record(task, role, form, channel, text) {
+    const now = new Date(), pad = value => String(value).padStart(2, '0');
+    data.records.push({ time: `${now.getMonth() + 1}/${now.getDate()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`, task, role, form, channel, text });
+  }
+  function decideRoleRequest(id, approve) {
+    const request = data.roleRequests.find(item => item.id === id);
+    request.decided = true;
+    const pane = Object.values(panes).find(item => item.request === id);
+    if (approve) {
+      const agent = { id: 'launch-c4e8', age: '刚刚', project: request.project, task: 'T-1', attempt: null, parent: ui.parentChoice || null, role: 'controller',
+        preset: 'executor', terminal: true, cli: request.cli, state: 'running' };
+      data.agents.push(agent);
+      if (pane) { pane.kind = 'agent'; pane.launch = agent.id; pane.lines.push(['ok', '  已批准：本终端现在是 ledger-cli 的执行主控'], ['', '› 读取就绪的 T-1，准备派发 worker']); }
+      ui.note = ui.parentChoice ? '已批准。执行主控出现在侧栏的构思主控下面。' : '已批准。执行主控没有上级，出现在侧栏的“未归属”里。';
+    } else {
+      if (pane) pane.lines.push(['dim', '  申请被拒绝']);
+      ui.note = '已拒绝。这个终端还是普通终端，不能用主控命令。';
+    }
+    if (request.project === 'inkwell') record(null, '项目终端', approve ? '批准' : '拒绝', '界面操作', `${approve ? '批准' : '拒绝'} ${request.project} 终端的 ${request.cli} 成为${request.role_label}`);
   }
   function answer(questionId) {
     const question = data.questions.find(item => item.id === questionId);
@@ -488,6 +728,7 @@
       // 自由答复只确认收到原文，不套用任何预设决定。
       const reply = Object.hasOwn(question.replies, value) ? question.replies[value] : question.freeReply;
       if (paneKey && panes[paneKey]) panes[paneKey].lines.push(['info', '› ' + value], ...reply.map(text => ['', text]));
+      if (agent.project === 'inkwell') record(agent.terminal ? null : agent.task, roleLabel(agent), '答复', '界面操作', value);
       ui.note = `${roleLabel(agent)}已收到答复，状态回到“运行中”。`;
       render();
     }, 900));
@@ -550,6 +791,19 @@
       case 'flow-toggle': ui.flowOpen[target.dataset.task] = target.getAttribute('aria-expanded') !== 'true'; break;
       case 'flow-more': ui.flowExpanded[target.dataset.group] = !ui.flowExpanded[target.dataset.group]; break;
       case 'note': ui.note = target.dataset.note; break;
+      case 'rr-decide': decideRoleRequest(target.dataset.request, target.dataset.approve === 'true'); break;
+      case 'issue-snooze': {
+        const issue = data.issues.find(item => item.id === target.dataset.issue);
+        issue.state = '稍后'; issue.disposition = { action: 'snooze' }; ui.closing = null;
+        break;
+      }
+      case 'issue-closing': ui.closing = ui.closing === target.dataset.issue ? null : target.dataset.issue; ui.closeDraft = { reason: '', basis: '' }; break;
+      case 'suggestion': {
+        const item = data.retro.suggestions.find(entry => entry.id === target.dataset.suggestion);
+        item.decision = { approved: target.dataset.approve === 'true' };
+        ui.note = item.decision.approved ? '已批准。建议先只记在这里，不会自动改文件，也不送给构思主控。' : '已标为不采纳。';
+        break;
+      }
       default: return;
     }
     render();
@@ -572,6 +826,20 @@
     event.preventDefault();
     const form = event.target;
     if (form.dataset.questionId) answer(form.dataset.questionId);
+    else if (form.dataset.issueForm) {
+      const issue = data.issues.find(item => item.id === form.dataset.issueForm);
+      const value = (ui.issueDrafts[issue.id] ?? '').trim();
+      if (!value) return;
+      issue.answer = value; issue.state = '已答复'; ui.closing = null;
+      record(issue.task, roleNames[issue.from], '答复', '问题面板', value);
+      ui.note = `答复已写进上报它的${roleNames[issue.from]}会话。`; render();
+    }
+    else if (form.dataset.issueClose) {
+      const issue = data.issues.find(item => item.id === form.dataset.issueClose);
+      if (!ui.closeDraft.reason.trim() || !ui.closeDraft.basis.trim()) return;
+      issue.state = '已关闭'; issue.disposition = { action: 'close', reason: ui.closeDraft.reason.trim() }; ui.closing = null;
+      record(issue.task, roleNames[issue.from], '操作', '问题面板', '关闭问题：' + ui.closeDraft.reason.trim()); render();
+    }
     else if (form.hasAttribute('data-execution')) {
       data.execution[ui.execRole] = { ...(ui.execDraft ?? data.execution[ui.execRole]) };
       ui.execDraft = null; ui.execMessage = '已保存，下次启动生效'; render();
@@ -589,6 +857,12 @@
       ui.drafts[el.dataset.answer] = el.value;
       el.closest('form').querySelectorAll('[aria-pressed]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.option === el.value)));
       el.closest('form').querySelector(':scope > button').disabled = !el.value.trim();
+    } else if (el.dataset.issueAnswer) {
+      ui.issueDrafts[el.dataset.issueAnswer] = el.value;
+      el.closest('form').querySelector('.primary-button').disabled = !el.value.trim();
+    } else if (el.dataset.closeField) {
+      ui.closeDraft[el.dataset.closeField] = el.value;
+      el.closest('form').querySelector('.primary-button').disabled = !(ui.closeDraft.reason.trim() && ui.closeDraft.basis.trim());
     } else if (el.dataset.execField && el.type !== 'checkbox') {
       ui.execDraft = { ...(ui.execDraft ?? data.execution[ui.execRole]), [el.dataset.execField]: el.value };
     } else if (el.dataset.renameInput) {
@@ -604,6 +878,12 @@
       if (el.dataset.setting === 'notifications' && !el.checked) ui.noticeActive.clear();
       render();
     }
+    else if (el.hasAttribute('data-role-parent')) ui.parentChoice = el.value;
+    else if (el.hasAttribute('data-record-task')) { ui.recordTask = el.value; render(); }
+    else if (el.hasAttribute('data-retro-enabled')) {
+      data.retro.enabled = el.checked;
+      ui.note = el.checked ? '已开启：每周一 09:00 自动复盘。' : '已关闭定期复盘。'; render();
+    }
     else if (el.hasAttribute('data-exec-role')) { ui.execRole = el.value; ui.execDraft = null; ui.execMessage = ''; render(); }
     else if (el.dataset.execField === 'fast') ui.execDraft = { ...(ui.execDraft ?? data.execution[ui.execRole]), fast: el.checked };
   });
@@ -614,7 +894,7 @@
       const index = items.indexOf(document.activeElement);
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault();
-        items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+        items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus({ preventScroll: true });
       } else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); closeMenu(); render(); }
     } else if (event.key === 'Escape' && ui.settingsOpen) {
       ui.settingsOpen = false; ui.focusTarget = 'settings'; render();
@@ -623,26 +903,35 @@
     }
   });
 
-  // 页面上的“分步引导”和“重置演示”按钮。
-  document.querySelectorAll('[data-demo-go]').forEach(button => button.addEventListener('click', () => {
-    const go = button.dataset.demoGo;
-    ui.menu = null; ui.note = null; ui.settingsOpen = false;
-    if (go === 'reset') { reset(); render(); ui.focusTarget = null; root.closest('.demo-canvas')?.scrollTo({ left: 0 }); return; }
-    if (go === 'question') { const waiting = data.agents.find(agent => agent.state === 'waiting_user_answer') ?? findAgent('launch-41c7'); selectAgent(waiting.id); }
-    if (go === 'menu' || go === 'terminal') ui.page = 'terminal';
-    if (go === 'flow') ui.page = 'flow';
-    if (go === 'settings') { ui.settingsOpen = true; ui.settingsFresh = true; }
-    const focus = { question: '[data-question-id] button[data-action="option"]', menu: '.pane-menu-trigger', flow: '[data-flow-tab]', sidebar: '.project-row', settings: '.segmented [aria-pressed="true"]' }[go];
+  // 页面导览的场景：只切换视图和高亮，不清掉你在演示里做过的操作；reset 才回到初始数据。
+  const scenes = {
+    sidebar: { project: 'inkwell', task: 'T-12', page: 'terminal', spot: '.project-list' },
+    role: { project: 'ledger-cli', task: null, page: 'terminal', spot: '.role-requests, .pane-slot[data-role-request-pending]' },
+    question: { agent: 'launch-41c7', spot: '.native-question, .app-notifications' },
+    terminal: { project: 'inkwell', task: 'T-11', page: 'terminal', spot: '.pane-layout, .gate' },
+    flow: { project: 'inkwell', page: 'flow', spot: '.flow-lane[data-flow-task="T-11"]' },
+    issues: { project: 'inkwell', page: 'issues', spot: '.issue-card[data-issue-id="i-2"]' },
+    records: { project: 'inkwell', page: 'records', spot: '.record-table' },
+    metrics: { project: 'inkwell', page: 'metrics', spot: '.metric-section[data-metric="first-time"]' },
+    reflect: { project: 'inkwell', page: 'reflect', spot: '.reflect-tree' },
+    settings: { settings: true, spot: '.execution-settings' },
+  };
+  function go(name) {
+    if (name === 'reset') { reset(); render(); return; }
+    const scene = scenes[name];
+    if (!scene) return;
+    Object.assign(ui, { menu: null, note: null, settingsOpen: false, renaming: null, zoom: null, spot: scene.spot });
+    if (scene.agent) selectAgent(scene.agent);
+    if ('project' in scene) Object.assign(ui, { project: scene.project, focusedAgent: null, focusedPane: null });
+    if ('task' in scene) ui.task = scene.task;
+    else if (scene.project && !findProject(scene.project).tasks.some(task => task.id === ui.task)) ui.task = null;
+    if (scene.page) ui.page = scene.page;
+    if (scene.settings) ui.settingsOpen = true;
     render();
-    const el = root.querySelector(focus);
-    if (el) {
-      const canvas = root.closest('.demo-canvas');
-      const offset = el.getBoundingClientRect().left - canvas.getBoundingClientRect().left + canvas.scrollLeft;
-      canvas.scrollTo({ left: Math.max(0, offset - 24) });
-      root.scrollIntoView({ block: 'nearest' });
-      el.focus({ preventScroll: true });
-    }
-  }));
+    // 每一步从页面顶部看起。
+    root.querySelectorAll('.records-page, .flow-page').forEach(el => { el.scrollTop = 0; });
+  }
+  window.EnchantedDemo = { go, scenes: Object.keys(scenes) };
 
   reset();
   render();

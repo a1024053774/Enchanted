@@ -20,7 +20,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; scroll-padding-top: 16px; }
+html { overflow-anchor: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; scroll-padding-top: 16px; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.8 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Segoe UI", system-ui, sans-serif; overflow-x: hidden; }
 a { color: var(--link); text-underline-offset: 3px; }
 a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -33,7 +33,7 @@ p { margin: 0 0 14px; }
 .skip { position: absolute; left: -9999px; }
 .skip:focus { left: 16px; top: 12px; background: var(--raised); padding: 6px 10px; z-index: 10; }
 
-.site-header { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; align-items: center; max-width: 1240px; margin: 0 auto; padding: 14px 16px; }
+.site-header { position: absolute; z-index: 5; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; align-items: center; max-width: 1240px; margin: 0 auto; padding: 14px 16px; }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 650; font-size: 18px; text-decoration: none; letter-spacing: -.02em; }
 .wordmark img { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
 .wordmark .logo-dark { display: none; }
@@ -51,81 +51,80 @@ p { margin: 0 0 14px; }
 
 .wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
 .prose > * { max-width: 760px; }
-section.block { padding: 56px 0; border-top: 1px solid var(--line); }
-
-.hero { padding: 56px 0 40px; }
-.hero h1 { font-size: clamp(44px, 9vw, 88px); font-weight: 650; letter-spacing: -.04em; margin: 0 0 18px; line-height: 1; }
-.hero .lede { font-size: clamp(19px, 2.6vw, 23px); line-height: 1.65; max-width: 780px; margin: 0 0 14px; }
-.hero .sub { color: var(--muted); max-width: 720px; }
-.actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+section.block { padding: 64px 0; border-top: 1px solid var(--line); }
 .button { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 18px; border-radius: 6px; border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-size: 15px; touch-action: manipulation; }
 .button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .button:active { transform: translateY(1px); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 0; }
 
-/* 门禁轨道：与工作台流程页的圆点、细线和 ››› 同一画法 */
-.track { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 44px 0 0; padding: 0; }
-.track li { position: relative; padding-right: 18px; }
-.track li::before { content: ''; position: absolute; left: 10px; right: 0; top: 7px; height: 1px; background: var(--line); }
-.track li:last-child::before { display: none; }
-.track i { position: relative; display: block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); background: var(--bg); }
-.track li:first-child i { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(1,105,204,.16); }
-.track .arrows { position: absolute; right: 18px; top: -7px; padding: 0 6px; background: var(--bg); color: var(--muted); font-size: 18px; }
-.track strong { display: block; margin: 12px 0 2px; font-weight: 600; }
-.track span:not(.arrows) { display: block; color: var(--muted); font-size: 14px; line-height: 1.6; }
+/* 首屏：一句话、三条原则、下载。 */
+.screen { position: relative; min-height: 100vh; min-height: 100svh; }
+.intro { display: flex; flex-direction: column; justify-content: center; padding: 96px 0 88px; }
+.intro h1 { font-size: clamp(52px, 10vw, 104px); font-weight: 650; letter-spacing: -.045em; margin: 0 0 22px; line-height: 1; }
+.intro .lede { font-size: clamp(20px, 2.8vw, 26px); line-height: 1.6; margin: 0 0 40px; max-width: 760px; }
+.principles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; max-width: 1040px; }
+.principles li { border-top: 1px solid var(--line); padding-top: 14px; }
+.principles strong { display: block; font-weight: 600; margin-bottom: 4px; }
+.principles span { color: var(--muted); font-size: 15px; line-height: 1.7; }
+.intro .meta { color: var(--muted); font-size: 14px; margin: 18px 0 0; }
+.scroll-cue { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: 13px; text-decoration: none; white-space: nowrap; }
+.scroll-cue i { font-style: normal; font-size: 18px; }
+@media (prefers-reduced-motion: no-preference) { .scroll-cue i { animation: cue 1.8s cubic-bezier(.16, 1, .3, 1) infinite; } }
+@keyframes cue { 0%, 100% { transform: translateY(0); opacity: .5; } 50% { transform: translateY(5px); opacity: 1; } }
 
-.demo-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
-.demo-head p { color: var(--muted); max-width: 720px; }
-.tour { list-style: none; counter-reset: tour; margin: 18px 0 20px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px 20px; }
-.tour li { counter-increment: tour; font-size: 14px; line-height: 1.65; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; align-content: start; }
-.tour li::before { content: counter(tour); color: var(--muted); font-family: "SF Mono", Menlo, monospace; }
-.tour button, .reset { justify-self: start; margin-top: 6px; font: inherit; font-size: 13px; color: var(--link); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; min-height: 32px; cursor: pointer; touch-action: manipulation; }
-.tour li > * { grid-column: 2; }
-.demo-canvas { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; padding: 4px 4px 16px; scrollbar-width: thin; }
-.demo-canvas:focus-visible { outline: 2px solid var(--accent); }
-.demo-hint { display: none; color: var(--muted); font-size: 14px; }
-.demo-caption { color: var(--muted); font-size: 14px; margin-top: 6px; }
-.demo-fallback { padding: 24px; color: rgba(252,252,252,.75); line-height: 1.8; max-width: 760px; }
-.demo-fallback ul { padding-left: 1.2em; }
-.wb:not([data-ready]) { height: auto; min-width: 0; }
+/* 第二屏：左边说明，右边演示窗口按舞台缩放。 */
+.tour { height: 100vh; height: 100dvh; display: grid; grid-template-columns: minmax(250px, 320px) minmax(0, 1fr); gap: 0 40px; padding: 28px max(16px, calc((100vw - 1400px) / 2)); border-top: 1px solid var(--line); overflow: hidden; }
+.tour-caption { align-self: center; display: flex; flex-direction: column; gap: 14px; }
+.tour-count { margin: 0; color: var(--muted); font: 13px/1 "SF Mono", Menlo, monospace; }
+.tour-steps { list-style: none; margin: 0; padding: 0; }
+.tour-steps li { padding: 0 0 14px; }
+.tour.is-live .tour-steps li { display: none; }
+.tour.is-live .tour-steps li.is-current { display: block; }
+@media (prefers-reduced-motion: no-preference) { .tour.is-live .tour-steps li.is-current { animation: step-in .32s cubic-bezier(.16, 1, .3, 1); } }
+@keyframes step-in { from { opacity: 0; transform: translateY(8px); } }
+.tour-steps h3 { font-size: 24px; margin: 0 0 10px; }
+.tour-steps p { color: var(--muted); font-size: 15px; line-height: 1.75; margin: 0 0 10px; }
+.tour-steps .try { color: var(--ink); font-size: 14px; }
+.tour-dots { display: flex; flex-wrap: wrap; gap: 4px; }
+.tour-dots button { width: 28px; height: 28px; padding: 0; border: 0; background: transparent; cursor: pointer; position: relative; touch-action: manipulation; }
+.tour-dots button::after { content: ''; position: absolute; left: 10px; top: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.tour-dots button[aria-current="step"]::after { background: var(--accent); transform: scale(1.25); }
+.tour-hint, .tour-hint-narrow { margin: 0; color: var(--muted); font-size: 13px; }
+.tour-hint-narrow { display: none; }
+.reset { align-self: start; font: inherit; font-size: 13px; color: var(--link); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; min-height: 32px; cursor: pointer; touch-action: manipulation; }
+.tour-stage { min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.tour-frame { position: relative; flex-shrink: 0; }
+.tour .wb { transform-origin: 0 0; }
+.tour .wb:not([data-ready]) { height: auto; min-width: 0; transform: none !important; }
+.demo-fallback { padding: 24px; color: var(--muted); line-height: 1.8; }
+.demo-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 
-.steps { list-style: none; counter-reset: step; padding: 0; margin: 20px 0 0; }
-.steps li { counter-increment: step; display: grid; grid-template-columns: 2.2em 1fr; padding: 14px 0; border-top: 1px solid var(--line); }
-.steps li::before { content: counter(step); font-family: "SF Mono", Menlo, monospace; color: var(--muted); }
-.steps strong { display: block; }
-.principles { margin: 28px 0 0; }
-.principles dt { font-weight: 600; margin-top: 18px; }
-.principles dd { margin: 4px 0 0; color: var(--muted); }
-
-.tree { list-style: none; margin: 18px 0 0; padding: 0; font-size: 15px; }
-.tree ul { list-style: none; margin: 0 0 0 10px; padding: 0 0 0 16px; border-left: 1px solid var(--line); }
-.tree li { padding: 8px 0 0; }
-.tree b { font-weight: 600; margin-right: 8px; }
-.tree span { color: var(--muted); }
-
-.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 48px; }
-.features ul, .plain { margin: 0; padding-left: 1.1em; }
-.features li, .plain li { margin: 0 0 10px; }
-.tag { display: inline-block; font-size: 12px; line-height: 1.5; padding: 0 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); margin-left: 6px; white-space: nowrap; vertical-align: 1px; }
-.tag.todo { color: var(--wait); background: var(--wait-bg); border-color: transparent; }
-.roadmap li { margin-bottom: 12px; }
+.columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 56px; }
+.columns h2 { font-size: 22px; margin-top: 0; }
+.columns h2 + p, .columns .plain + h2 { margin-top: 0; }
+.columns .plain + h2 { margin-top: 28px; }
+.plain { margin: 0 0 14px; padding-left: 1.1em; }
+.plain li { margin: 0 0 8px; }
 pre.cmd { background: var(--code-bg); border-radius: 6px; padding: 10px 12px; overflow-x: auto; font: 13px/1.6 "SF Mono", Menlo, monospace; }
-
 .site-footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; }
 
-@media (max-width: 760px) {
-  .track { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .track li { display: grid; grid-template-columns: 16px 1fr; gap: 0 14px; padding: 0 0 18px; }
-  .track li::before { left: 7px; right: auto; top: 18px; bottom: 0; width: 1px; height: auto; }
-  .track .arrows { display: none; }
-  .track strong { margin: -4px 0 0; }
-  .track span { grid-column: 2; }
-  .demo-hint { display: block; }
+@media (max-width: 900px) {
+  .principles { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .intro { padding-top: 120px; }
+  .scroll-cue { position: static; transform: none; margin-top: 32px; }
+  .tour { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .tour-caption { align-self: start; gap: 8px; }
+  .tour-steps h3 { font-size: 19px; margin-bottom: 4px; }
+  .tour-steps p { font-size: 14px; line-height: 1.6; margin-bottom: 4px; }
+  .tour-hint { display: none !important; }
+  .tour-hint-narrow { display: block; }
+  .reset { display: none; }
   section.block { padding: 44px 0; }
-  h2 { font-size: 23px; }
 }
 @media (hover: hover) and (pointer: fine) {
   .button:hover { border-color: var(--muted); }
   .button.primary:hover { background: #0b5db0; }
-  .tour button:hover, .reset:hover, .theme-toggle:hover { border-color: var(--muted); }
+  .reset:hover, .theme-toggle:hover { border-color: var(--muted); }
+  .tour-dots button:hover::after { background: var(--muted); }
 }
-@media (prefers-reduced-motion: no-preference) { .demo-canvas { scroll-behavior: smooth; } }
