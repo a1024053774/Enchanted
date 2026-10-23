@@ -96,13 +96,15 @@ def main():
                 'unbound-unrecorded': [('src/panes.ts', 'if (!pane.native && !pane.stopped && !pane.failed)\n          this.recordFailure(pane, "native_session_unbound",',
                                         'if (false)\n          this.recordFailure(pane, "native_session_unbound",')],
                 # The runtime binds a reviewer's session by the read-only review worktree instead of the candidate
-                # copy, leaving the gate's folder check to notice. Observed (round 05): the reviewer's Stop hook is
-                # refused earlier (question_origin_unverified), so the result never reaches that gate check.
+                # copy, leaving the gate's folder check to notice. Forge the in-memory origin too:
+                # scanner-only corruption is correctly rejected by the hook origin check before this gate.
                 'reviewer-folder-unbound': [
                     ('src/panes.ts', 'if (!final && (metadata.type !== "session_meta" || metadata.payload?.cwd !== pane.attempt.workspace)) continue;',
                      'if (!final && (metadata.type !== "session_meta" || metadata.payload?.cwd !== (pane.record.review_workspace ?? pane.attempt.workspace))) continue;'),
                     ('src/panes.ts', 'const rootFile = codexSessionOrigin(file, metadata, metadata.payload?.id, pane.attempt.workspace) === "root";',
-                     'const rootFile = codexSessionOrigin(file, metadata, metadata.payload?.id, pane.record.review_workspace ?? pane.attempt.workspace) === "root";')],
+                     'const rootFile = codexSessionOrigin(file, metadata, metadata.payload?.id, pane.record.review_workspace ?? pane.attempt.workspace) === "root";'),
+                    ('src/panes.ts', '    this.panes.set(attempt.thread_id, pane);',
+                     '    if (review) pane.record = { ...pane.record, worktree: review.workspace };\n    this.panes.set(attempt.thread_id, pane);')],
             }
             for name in args.mutant:
                 patches += table[name]
@@ -433,7 +435,7 @@ def main():
                                                                  for r in report['reviewer_records']), report['reviewer_records'])
             report['status'] = 'PASS'
             return
-        task = wait('审查结束', lambda: (lambda current: current if current['state'] in ('verified', 'submitted', 'rework', 'failed') and
+        task = wait('审查结束', lambda: (lambda current: current if current['state'] in ('verified', 'submitted', 'rework', 'failed', 'paused') and
                                           current.get('review', {}).get('state') not in (None, 'requested', 'running') else None)(
                                               request('status', operator, task='T-1')['task']), 240)
         review = task['review']

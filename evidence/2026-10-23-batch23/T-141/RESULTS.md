@@ -1,8 +1,8 @@
 # T-141-1 / a1 交付记录
 
-状态：**INCOMPLETE**。RUN-OUTSIDE-04 的 T-141 全套与 T-140/T-131/T-132 共 13 场均符合预期；T-127 在旧的 worker restricted 启动断言失败。本轮按用户“改这四条 worker 断言 (Recommended)”更新 T-127 的四处 worker 期望，修复四个失效的变异定位；本地断言反例与全部变异定位/语法检查 PASS。RUN-OUTSIDE-05 的真实 T-127 与审查隔离反例尚待外部运行，不把上轮或本地结果当本轮全票通过。
+状态：**INCOMPLETE**。RUN-OUTSIDE-05 共 29 场，25 场符合预期（含 T-127 绿态、worker 旧版红态、全部 T-141 红/变异和 T-140/T-131/T-132）；四场的诊断与现场保留。两个 trust 场景是静态 SQLite 读取失败，原始输入单变量复放已确认正确拒绝；两个目录场景被更早的 hook 来源检查正确挡住，旧的后层预期没有实际执行。本轮仅修证据读取、补齐隔离源码的故障注入和等待终态识别，原行为断言与超时不变。RUN-OUTSIDE-06 只跑这四场加 T-127 绿态，真实结果待回传。
 
-工作目录 `/Users/luckye/Documents/Code/a2a-wt-t141`，分支 `exec/t141`，起点 `3f8813b0e`。任务来源为 T-141 ready_rev 1；交付提交号以 `DELIVERED` 消息为准，真实运行脚本另保存当时的完整 Git 版本和工作区状态。未 push、未合并 main。受保护 oracle 中，T-140 仅改获准的隔离信任配置；T-127 另按本轮用户裁定修改四处 worker 期望及四个变异定位，其余检查与超时不变，详见下文；T-131、T-132 原样。未改地图、ticket、AGENTS.md、CONTEXT.md 或其他 worker 的源码。
+工作目录 `/Users/luckye/Documents/Code/a2a-wt-t141`，分支 `exec/t141`，起点 `3f8813b0e`。任务来源为 T-141 ready_rev 1；交付提交号以 `DELIVERED` 消息为准，真实运行脚本另保存当时的完整 Git 版本和工作区状态。未 push、未合并 main。受保护 oracle 中，T-140 仅改获准的隔离信任配置；T-127 另按本轮用户裁定修改四处 worker 期望及四个变异定位，第六轮另补齐同一个 reviewer 运行时变异并识别 paused 等待终态；所有行为断言、检查名及超时保持，详见下文；T-131、T-132 原样。未改地图、ticket、AGENTS.md、CONTEXT.md 或其他 worker 的源码。
 
 ## 候选行为
 
@@ -13,7 +13,30 @@
 - worker 角色卡说明原生审批拒绝后用 `issue` 上报、必要时结束回合等主控答复。沿用原有 `answer_issue` 与会话队列，没有新增通信接口或放宽门禁检查串。
 - reviewer 门禁只同步启动参数契约；会话/attempt 绑定、候选目录、原生身份、不同于 worker、禁止 resume/fork、写入范围与其余质量串保持原检查。
 
-## 第五轮：对齐获准的四处 worker 期望
+## 第六轮：四场的实际拒绝层与最小修复
+
+按执行主控要求，先读四场 JSON/完整 log、夹具任务状态/门禁事件/原生 hook 事件与变异源码，再写 `diagnosis-outside-05.md`（实施前假设与证据），之后才改测试。结构化摘录为 `outside05-four-cases-06.json`，原始 `outside05-jYDNPNbR/` 和所有夹具保持原样。该轮代码版本为 `7c58ba11c5dad6c2fef79e0b19ed8da0abd6145e`。
+
+| 场景 | 实际拒绝层 / 失败原因 | 本轮处理与未证明事项 |
+| --- | --- | --- |
+| t127-no-untrusted | 启动参数门禁 `review_launch_boundary` 已拒绝缺失 trust 的 reviewer；矩阵不是 proof=null，而是读取器报 SQLite OperationalError | 只对已结束、无非空 WAL 的夹具快照使用 `mode=ro&immutable=1`，不做 fallback。原路径及独立单文件副本的普通 ro 均失败，immutable 可读；更底层 SQLite sidecar 原因未证明。原 helper 用真实输入，仅补回 untrusted 即通过同一门禁，证明不是无关 sandbox/身份错误 |
+| t127-trusted-copy | 同一启动参数门禁已拒绝候选 trusted；同一静态读取失败 | 同上；helper 先核对实际参数确为 trusted，仅改成 untrusted 后同门禁通过，控制条件没有放宽 |
+| t127-folder-runtime-unbound | scanner 已被变异而绑定错误目录会话，但 hook 的 cwd 仍是 review Git worktree、内存 record.worktree 仍是 candidate。UPS/工具/Stop 共 10 次被 `question_origin_unverified` 拒绝，未进入 review_submit，review 仍 running | 是运行时故障注入不完整，让原本想测的后层 `review_native_session_folder` 不可达。补齐同一隔离变异：持久 launch 保存之后，仅伪造 pane 内存 record.worktree，使 scanner 与 hook 来源的假运行时一致。持久记录与 attempt workspace 仍指候选，生产来源检查不改。原有“review 不通过并有指定 native-session-folder 拒绝”的断言保留；真实后层执行待 RUN06 |
+| t127-gate-folder-unchecked | 关闭后层目录 guard 仍被上述早层挡住，故超时不能算抓住此变异 | 采用同一完整运行时故障注入，使删除后层 guard 的效果可见。仍要求坏实现真的产生 review.state=passed 且被原行为断言拒绝，才计反例通过；其他早拒/超时保持 INCOMPLETE |
+
+`36fc44914` 到第五轮候选的 workbench/src 没有差异；与 `c113e7120` 的 questions.ts、paneRecovery.ts 也无差异。旧 T-127 变异注释本来就记过更早的 question_origin_unverified。因此有证据说明早层拒绝机制不是本轮 review 参数形状引入的生产回退；没有据此声称已重跑旧版完整端到端，也没有把未到达的后层检查补称为通过。
+
+另一个等待缺口：真实 gate 拒绝 reviewer receipt 后，daemon 的 failReviewProtocol 将 task 设为 paused、review 设为 unknown；“审查结束”的等待谓词原来不接纳 paused。本轮仅增加该终态，240 秒期限不变；之后仍执行同一拒绝断言，普通绿态仍必须 review_passed，不把暂停当作审查通过。
+
+本地证据：`origin-replay-06.json` 对两份真实 Stop hook 复放：原持久记录的来源检查均拒绝；仅伪造内存 worktree 后 envelope 通过，持久 launch 原值不变。这只证明故障注入已覆盖前一层，不证明真实后层审查已完成。`t127-delta-06.json` 的 AST 比较确认所有 check 名称、断言表达式、其他变异与超时均不变，只有该 runtime 变异及 paused 等待终态变化。`t127-oracle-06.json` 的 14 个谓词输入与全部 13 个变异/场景定位、语法检查 PASS。
+
+`outside05-reclassification-06b.json` 用新矩阵重判保存的第五轮输入：T-127 绿态与两个实际 trust 拒绝得到 PASS（仍核对只修 trust 后同门禁通过及进程退出 0），两个旧超时仍 INCOMPLETE，未被粉饰。该文件明确区分 expected_boundary 与 observed_gate_result；早一份 `outside05-reclassification-06.json` 的 refusal_layer 是计划检查层，不能当作旧超时的实测拒绝层。
+
+运行 `zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-06.sh`，创建新的 outside06-* 目录，恰好 5 场：t127、t127-no-untrusted、t127-trusted-copy、t127-folder-runtime-unbound、t127-gate-folder-unchecked。保留两个目录场景的原断言和原负例分类，不放宽成“任意早拒就通过”。实际能否到达后层及关闭后层后的错误通过，须本轮原生运行验证；如果还有其他层拒绝，继续 INCOMPLETE，不延长超时。
+
+本轮冻结测试候选的一次独立只读 behavioral-acceptance-review 为 INCOMPLETE，报告 `acceptance-review-06.md`：有界检查未发现可达的验收违规，独立用实际 trust 输入及叠加的无关 sandbox 缺陷验证了单变量控制；新目录变异仍缺原生执行证据，不作 PASS 结论。最终本地语法、编码检查及范围记录为 `local-final-06.json`，project-map 状态见 `status-final-06.txt`（0 problems / 0 stale）。
+
+## 第五轮：对齐获准的四处 worker 期望（历史）
 
 执行主控在本会话转述用户 2026-10-23 的逐字选择“改这四条 worker 断言 (Recommended)”，记录为 `20261023T153252Z-executor-report-001`。授权仅把按“worker 强制 untrusted”写的四处改为 worker 沿用用户配置；reviewer 的副本 untrusted、精确目录门禁、候选配置/hooks/exec policy 不影响审查的规则保持。允许旧变异定位到当前源码形状，不改变其坏行为与审查断言，不改其他检查名或超时。本轮没有改生产源码。
 
@@ -134,7 +157,7 @@ python3 -B workbench/tests/t141_probe_codex_start.py --trust untrusted --open-re
 python3 -B workbench/tests/t141_probe_claude_mcp.py --summary <新摘要>
 PYTHONPYCACHEPREFIX=/tmp/t141-pycache python3 -m py_compile workbench/tests/test_t141_loosened_limits_e2e.py workbench/tests/t141_probe_codex_start.py
 zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-01.sh
-zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-05.sh
+zsh -n evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-06.sh
 git diff --check
 ```
 
@@ -142,7 +165,7 @@ git diff --check
 
 ## 待运行的真实入口与局限
 
-下一轮运行 `zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-05.sh`，创建新的 `outside05-*` 证据目录。先跑三个本地启动契约和无模型原生 MCP 加载探针，再跑修前版本、新候选、四个变异，以及 T-127 / T-140 / T-131 / T-132 回归和上述 T-127 隔离反例；T-127 四处授权期望及变异定位的范围如第五轮所列。脚本核对红态/变异必须失败在对应断言，环境失败不算抓住已知坏实现；矩阵输出保留实际状态与错误。RUN-OUTSIDE-01 与其结果不覆盖。
+下一轮运行 `zsh evidence/2026-10-23-batch23/T-141/RUN-OUTSIDE-06.sh`，创建新的 `outside06-*` 证据目录，只跑第六轮列出的五场。第五轮的其他 25 场已符合预期，本轮没有生产源码改动，不重复运行全套；两个目录场景的故障注入修复尚无原生运行结果。脚本仍要求在指定行为断言处抓住坏实现，环境失败、超时或无关早拒均不计通过。历轮结果均保留。
 
 新 e2e 使用真实后台、真实门禁、真实 Electron 和已安装的交互 Claude/Codex CLI；Messages/Responses 由本地脚本接口驱动，**不证明模型会自发理解或选择 issue 工作流**。它实际驱动原生审批拒绝，再驱动 issue，并核对问题面板、主控接口答复和 worker 继续交付；不以 answer_registered 事件替代送达。
 
@@ -152,13 +175,13 @@ MCP 放在测试专用 `$HOME/.claude.json` 的顶层 `mcpServers`，属于用�
 
 | 任务卡条件 | 当前结论 |
 | --- | --- |
-| Claude / Codex 公开地址 curl 成功 | outside-03 PASS；本轮新候选待重跑。仅公开 HTTPS，其他协议未验证 |
-| 用户 MCP 可调用 | outside-03 原生工具结果与服务回执 PASS；本轮新候选待复跑 |
-| 原生审批拒绝 → issue 面板 → 主控答复 → 原 worker 继续 | outside-03 PASS，丢答复变异被抓住；本轮新候选仍需完整复跑 |
-| 原生文件与 shell 越界拒绝、额外目录可写 | outside-03 green 与 T-140 PASS，放宽变异均被抓住；本轮新候选待复跑 |
-| 完整 argv、reviewer 不因新参数被拒 | outside-03 完整审查 PASS；本轮 reviewer-only untrusted 本地 builder/门禁 PASS，真实审查待复跑 |
-| 原始版本红态、至少两个变异 | outside-03 red 与四个变异全部按各自行为断言失败；本轮新候选待复跑 |
-| T-127 / T-140 / T-131 / T-132 回归 | outside-04 的 T-140/T-131/T-132 PASS，T-127 真实失败在旧 startup 断言；本轮按用户裁定对齐，真实全套与隔离反例待 outside-05 |
+| Claude / Codex 公开地址 curl 成功 | outside-05 green PASS。仅公开 HTTPS，其他协议未验证 |
+| 用户 MCP 可调用 | outside-05 green 的原生工具结果与服务回执 PASS |
+| 原生审批拒绝 → issue 面板 → 主控答复 → 原 worker 继续 | outside-05 green PASS，丢答复变异被指定行为检查抓住 |
+| 原生文件与 shell 越界拒绝、额外目录可写 | outside-05 green 与 T-140 PASS，放宽变异均被指定行为检查抓住 |
+| 完整 argv、reviewer 不因新参数被拒 | outside-05 green 与 T-127 绿态 PASS；T-127 剩余四个隔离场景见第六轮 |
+| 原始版本红态、至少两个变异 | outside-05 red 与 T-141 四个变异全部按各自行为检查失败 |
+| T-127 / T-140 / T-131 / T-132 回归 | outside-05 的四个绿态回归均 PASS；剩余四个隔离场景按第六轮诊断处理，目标五场待 outside-06 |
 
 临时目录：outside-02 的 Codex 原生共享临时根拒绝和 tempfile 可用符合要求，`shared-temp-writable` 被实际 `/tmp` 写入抓住。Claude 保留 CLI 原生的每用户临时目录：[官方沙箱文档](https://code.claude.com/docs/en/sandboxing#temporary-directories)说明其用于 sandbox shell 临时文件，T-122 既有探针也记录强行禁止会破坏 shell；本票不在没有独立原生证据时改写该机制。影响是原生 CLI 必需的临时区仍属例外，不能宣称只可写 worktree/请求目录/额外目录这三类路径。新测试分别记录 `/tmp`、原 `$TMPDIR`、实际 shell TMPDIR 与 tempfile 的结果；outside-02 green 中 Claude 的 `/tmp` 与原 `$TMPDIR` 写入均 false、实际 shell TMPDIR 为 `/tmp/claude-501`、tempfile true；新候选仍待复跑，不把历史探针当新候选通过。
 
