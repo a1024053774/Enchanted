@@ -1,0 +1,59 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-152-1",
+  "attempt": "a1",
+  "started_at": "2026-10-23T19:11:14.175756+00:00",
+  "command": [
+    "evidence/2026-10-23-batch23/T-152/run_suite.py",
+    "--revision",
+    "c4197a89b857a1d3a6d47ee17eaaf25b5c559ce1",
+    "--mutant",
+    "false-copy-removed",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt-t152/evidence/2026-10-23-batch23/T-152/outside-01-cudCk6ZY/false-copy-removed.json"
+  ],
+  "artifact_root": "/private/tmp/t152-z6f1l90h",
+  "mutant": "false-copy-removed",
+  "real_model_turns": 0,
+  "source_revision": "c4197a89b857a1d3a6d47ee17eaaf25b5c559ce1",
+  "test_worktree_revision": "c4197a89b857a1d3a6d47ee17eaaf25b5c559ce1",
+  "test_worktree_status": "?? .project-map/inbox/20261023T190056Z-worker:b23-t152-issue-001.md\n?? evidence/2026-10-23-batch23/T-152/outside-01-cudCk6ZY/\n",
+  "node_version": "v26.5.0",
+  "mutation": {
+    "path": "src/gates/core.ts",
+    "before": "    rmSync(review.candidate_workspace, { recursive: true, force: false });\n    requireGate(!existsSync(review.candidate_workspace), \"review_candidate_copy_unconfirmed\", binding);",
+    "after": "    // Deliberately retain the copy while recording successful cleanup."
+  },
+  "run_command": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "-B",
+    "/Users/luckye/Documents/Code/a2a-wt-t152/workbench/tests/test_t082_review_boundary_e2e.py",
+    "--source",
+    "/private/tmp/t152-z6f1l90h/source",
+    "--output",
+    "/private/tmp/t152-z6f1l90h/run",
+    "--case",
+    "tracer_review_copy"
+  ],
+  "exit_code": 1,
+  "run_report": "/private/tmp/t152-z6f1l90h/run/run.json",
+  "fixture_root": "/private/tmp/q76-kmuqjufp",
+  "evidence_layer": "real CLI/daemon/relay/gates/Git/SQLite; controlled PTY/process/native inputs",
+  "cases": [
+    {
+      "case": "tracer_review_copy",
+      "outcome": "harness_error",
+      "failure_id": null,
+      "error": "HarnessFailure(\"CLI usage or process failure is not business evidence: ['node', PosixPath('/private/tmp/t152-z6f1l90h/source/workbench/src/gates/cli.ts'), '--state', PosixPath('/private/tmp/q76-kmuqjufp/c-kd51d0ck/state'), 'pane_release']\")",
+      "cleanup_failures": [
+        {
+          "phase": "capture",
+          "error": "HarnessFailure('Unexpected non-regular request evidence.')"
+        }
+      ],
+      "assertions": []
+    }
+  ],
+  "expected_failure_id": "T082-COPY-REMOVED",
+  "ended_at": "2026-10-23T19:11:16.469317+00:00"
+}

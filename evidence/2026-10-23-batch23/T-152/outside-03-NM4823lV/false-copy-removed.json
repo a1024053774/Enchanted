@@ -1,0 +1,54 @@
+{
+  "status": "INCOMPLETE",
+  "task": "T-152-1",
+  "attempt": "a1",
+  "started_at": "2026-10-23T19:34:31.722758+00:00",
+  "command": [
+    "evidence/2026-10-23-batch23/T-152/run_suite.py",
+    "--revision",
+    "b3521197e7032219e2affc3481a31e9daae4bccb",
+    "--mutant",
+    "false-copy-removed",
+    "--summary",
+    "/Users/luckye/Documents/Code/a2a-wt-t152/evidence/2026-10-23-batch23/T-152/outside-03-NM4823lV/false-copy-removed.json"
+  ],
+  "artifact_root": "/private/tmp/t152-xm97t0o2",
+  "mutant": "false-copy-removed",
+  "real_model_turns": 0,
+  "source_revision": "b3521197e7032219e2affc3481a31e9daae4bccb",
+  "test_worktree_revision": "b3521197e7032219e2affc3481a31e9daae4bccb",
+  "test_worktree_status": "?? .project-map/inbox/20261023T190056Z-worker:b23-t152-issue-001.md\n?? evidence/2026-10-23-batch23/T-152/outside-03-NM4823lV/\n",
+  "node_version": "v26.5.0",
+  "mutation": {
+    "path": "src/gates/core.ts",
+    "before": "    rmSync(review.candidate_workspace, { recursive: true, force: false });\n    requireGate(!existsSync(review.candidate_workspace), \"review_candidate_copy_unconfirmed\", binding);",
+    "after": "    // Deliberately retain the copy while recording successful cleanup."
+  },
+  "run_command": [
+    "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "-B",
+    "/Users/luckye/Documents/Code/a2a-wt-t152/workbench/tests/test_t082_review_boundary_e2e.py",
+    "--source",
+    "/private/tmp/t152-xm97t0o2/source",
+    "--output",
+    "/private/tmp/t152-xm97t0o2/run",
+    "--case",
+    "tracer_review_copy"
+  ],
+  "exit_code": 1,
+  "run_report": "/private/tmp/t152-xm97t0o2/run/run.json",
+  "fixture_root": "/private/tmp/q76-4gbrin5c",
+  "evidence_layer": "real CLI/daemon/relay/gates/Git/SQLite; controlled PTY/process/native inputs",
+  "cases": [
+    {
+      "case": "tracer_review_copy",
+      "outcome": "harness_error",
+      "failure_id": null,
+      "error": "HarnessFailure('Controlled pane did not reach its expected boundary: {\"ok\": true, \"thread\": \"9d62dad7-164f-4893-9461-f5c4cf9697b1\", \"launch\": \"c3b4e0a1-8d74-4557-86b2-88256afe7be5\", \"state\": \"busy\", \"lifecycle\": \"running\", \"shell_pid\": 31000, \"state_source\": \"host_events\", \"active\": {\"id\": \"4e0aa559-2e59-404e-b89e-602c81869c5c\", \"dispatch\": \"72093898-593d-43f1-9b3e-9d8107abbc60\", \"at\": \"2026-10-23T19:34:33.970Z\", \"nativeTurn\": \"fixture-turn-1\"}, \"native_session\": \"fixture-native-c3b4e0a1-8d74-4557-86b2-88256afe7be5\", \"turn\": \"fixture-turn-1\", \"writing\": false, \"user_draft\": false, \"interrupted\": false, \"input_generation\": 0, \"interruption\": null, \"queued\": [], \"failed\": null, \"stopped\": false, \"restoration\": null}')",
+      "cleanup_failures": [],
+      "assertions": []
+    }
+  ],
+  "expected_failure_id": "T082-COPY-REMOVED",
+  "ended_at": "2026-10-23T19:34:40.126057+00:00"
+}

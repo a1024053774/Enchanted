@@ -2,19 +2,114 @@
 
 The host supplies only PTY/process observations. The gate remains responsible
 for the review request, candidate-copy lifecycle, launch policy, and refusal.
+
+Failure modes (T-152, current T-082/T-141 contract): wrong reviewer cwd or
+sandbox/tmp boundary; network forced off; missing completion/mutation request;
+copy not created/removed; changed shared refs or request workspace accepted;
+integration before end checks (held-socket dirty/clean controls); dirty review
+end accepted; complete report lost in the native Stop/relay/gate path.
 """
 import argparse
+from contextlib import closing
 import datetime
 import json
+import os
 from pathlib import Path
 import socket
+import sqlite3
+import subprocess
+import time
 import uuid
 
+import test_quality_chain_e2e as chain
 from test_quality_chain_e2e import HarnessFailure, run_cases, save
 from test_quality_tracer_e2e import Tracer
 
 
 class ReviewBoundary(Tracer):
+    def configure_host(self, config):
+        # T-123: the card keeps its short name; every gate/packet/trailer uses
+        # the project-qualified identity, including card_save before create.
+        self.task = 'fixture+' + self.task
+        # T-127: one Codex home, fresh reviewer sessions and one role card.
+        config.pop('reviewers')
+        config['reviewer_role_card'] = config['role_card']
+        config['reviewer_role_card_revision'] = 'T-152/controlled-reviewer'
+
+    def release_worker(self, attempt):
+        # T-127/T-141: native-ready admission drains the queued task itself.
+        self.a = attempt
+        self.launch = self.gate('pane_status', '--thread', attempt['thread_id'], task=False)['launch']
+        self.native = json.loads((self.control / (self.launch + '.json')).read_text(encoding='utf-8'))
+        self.wait_pane(lambda pane: pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1')
+        self.wait_for(self.orchestration, lambda events: any(
+            event['type'] == 'codex_startup_ready' and event['launch'] == self.launch for event in events))
+
+    @staticmethod
+    def stop_envelope(record, workspace, turn, message):
+        return {'session_id': record['native'], 'turn_id': turn, 'hook_event_name': 'Stop',
+                'cwd': str(workspace), 'transcript_path': record['log'],
+                'last_assistant_message': message}
+
+    def stop_turn(self, *, turn=None):
+        pane = self.gate('pane_status', '--thread', self.a['thread_id'], task=False)
+        stop = self.stop_envelope(self.native, self.a['workspace'], turn or pane['turn'],
+                                  'controlled worker finished')
+        reply = self.gate('signal', '--launch', self.launch, task=False,
+                          env=self.worker_env(), stdin=json.dumps(stop, ensure_ascii=False))
+        save(self.evidence / ('worker-stop-%04d.json' % len(self.commands)), {'stop': stop, 'reply': reply})
+        if not reply['ok']:
+            raise HarnessFailure('Worker/ACK Stop was rejected: ' + json.dumps(reply, ensure_ascii=False))
+        return reply
+
+    def send_review(self, review, record, packet=None, raw=None):
+        text = json.dumps(packet, ensure_ascii=False) if raw is None else raw
+        stop = self.stop_envelope(record, review['candidate_workspace'], 'fixture-turn-1', text)
+        reply = self.gate('signal', '--launch', record['launch'], task=False,
+                          env={**self.env, **record['env']}, stdin=json.dumps(stop, ensure_ascii=False))
+        save(self.evidence / ('reviewer-stop-%04d.json' % len(self.commands)), {'stop': stop, 'reply': reply})
+        if not reply['ok']:
+            raise HarnessFailure('Reviewer Stop was rejected: ' + json.dumps(reply, ensure_ascii=False))
+        return self.cli('status')['task']
+
+    def start_host(self):
+        # Dedicated native-ready fixture; shared historical hosts remain intact.
+        if self.host is not None and self.host.poll() is None:
+            raise HarnessFailure('The fixture already owns a live host.')
+        self.host_generation += 1
+        prefix = 'host-%02d' % self.host_generation
+        credential = self.root / ('operator-%02d.credential.json' % self.host_generation)
+        if credential.exists() or credential.is_symlink():
+            raise HarnessFailure('Owned host credential path is already occupied.')
+        self.env['A2A_OPERATOR_CREDENTIAL'] = str(credential)
+        self.operator_credentials.append(credential)
+        ready = self.root / (prefix + '.ready.json')
+        stdout = (self.evidence / (prefix + '.stdout.bin')).open('xb')
+        stderr = (self.evidence / (prefix + '.stderr.bin')).open('xb')
+        self.streams.extend([stdout, stderr])
+        argv = ['node', Path(__file__).with_name('t152_review_host.ts'),
+                chain.SOURCE, self.state, self.control, ready]
+        save(self.evidence / (prefix + '.start.json'), {'argv': list(map(str, argv)),
+             'cwd': str(self.root), 'start_new_session': True, 'real_codex_turns': 0})
+        self.host = subprocess.Popen(list(map(str, argv)), cwd=self.root, env=self.env,
+                                     stdout=stdout, stderr=stderr, start_new_session=True)
+        deadline = time.monotonic() + 10
+        while not ready.exists():
+            if self.host.poll() is not None or time.monotonic() >= deadline:
+                raise HarnessFailure('Controlled host startup failed; stderr=' + str(self.evidence / (prefix + '.stderr.bin')))
+            time.sleep(0.02)
+        self.ready = json.loads(ready.read_text(encoding='utf-8'))
+        if self.ready['pid'] != self.host.pid or self.ready['root'] != str(self.state):
+            raise HarnessFailure('Host readiness identity mismatch.')
+        if self.gate('daemon_status', task=False).get('pid') != self.host.pid:
+            raise HarnessFailure('CLI and owned host PID disagree.')
+        observed = self.process(['/bin/ps', '-p', str(self.host.pid), '-o', 'pid=,ppid=,pgid=,command='])
+        group = {'pid': self.host.pid, 'pgid': os.getpgid(self.host.pid), 'sid': os.getsid(self.host.pid),
+                 'caller_pgid': os.getpgrp(), 'ps_exit': observed.returncode, 'ps_stdout': observed.stdout}
+        save(self.evidence / (prefix + '.process.json'), group)
+        if observed.returncode or not (group['pid'] == group['pgid'] == group['sid']) or group['caller_pgid'] == group['pgid']:
+            raise HarnessFailure('Owned daemon is not detached from the invoking process group.')
+
     def start_review(self, candidate):
         reply = self.gate('verify', '--attempt', self.a['attempt_id'])
         self.check('T082-REVIEW-START', reply['ok'] and reply['task']['state'] == 'reviewing'
@@ -29,16 +124,103 @@ class ReviewBoundary(Tracer):
                    and details['argv'][details['argv'].index('--sandbox') + 1] == 'workspace-write'
                    and details['argv'][details['argv'].index('-C') + 1] == review['candidate_workspace']
                    and details['worktree'] == review['candidate_workspace']
-                   and 'sandbox_workspace_write.network_access=false' in details['argv']
-                   and 'features.network_proxy=false' in details['argv']
+                   and 'sandbox_workspace_write.network_access=true' in details['argv']
+                   and 'features.network_proxy=false' not in details['argv']
+                   and details['argv'][details['argv'].index('-a') + 1] == 'never'
+                   and f'projects={{{json.dumps(str(Path(review["candidate_workspace"]).resolve()))}={{trust_level="untrusted"}}}}' in details['argv']
                    and 'sandbox_workspace_write.exclude_slash_tmp=true' in details['argv']
                    and 'sandbox_workspace_write.exclude_tmpdir_env_var=true' in details['argv'],
-                   'reviewer starts in the writable candidate copy with the required network/tmp boundary', details)
-        self.gate('pane_release', '--thread', review['thread_id'], '--reason',
-                  'controlled fresh reviewer release', task=False)
+                   'T-141 reviewer: candidate-copy writes, open network, inherited proxy, never approval, untrusted copy and excluded shared tmp', details)
         self.wait_for(lambda: self.gate('pane_status', '--thread', review['thread_id'], task=False),
                       lambda pane: pane['state'] == 'busy' and pane['turn'] == 'fixture-turn-1')
+        self.wait_for(self.orchestration, lambda events: any(
+            event['type'] == 'codex_startup_ready' and event['launch'] == launch for event in events))
         return review, record
+
+    def close_fixture(self):
+        # This local copy preserves the shared lifecycle checks while capturing
+        # the current per-launch TMPDIR tree, which the old flat copier rejects.
+        failures = []
+        if self.host is not None and self.host.poll() is None:
+            try:
+                database = self.state / 'state.sqlite3'
+                if database.is_file():
+                    with closing(sqlite3.connect(database.as_uri() + '?mode=ro', uri=True)) as db:
+                        db.row_factory = sqlite3.Row
+                        db.execute('BEGIN')
+                        names = [row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")]
+                        tables = {name: [dict(row) for row in db.execute('SELECT * FROM "' + name.replace('"', '""') + '"')] for name in names}
+                        save(self.evidence / 'database-readback.json', {'phase': 'before-host-stop', 'tables': tables})
+                save(self.evidence / 'git-readback.json', {'refs': self.git('show-ref'),
+                     'worktrees': self.git('worktree', 'list', '--porcelain'),
+                     'status': self.git('status', '--porcelain=v1', '--untracked-files=all')})
+                for launch in self.rows('launch_records'):
+                    record = json.loads(launch['data'])
+                    source = Path(record['request_dir'])
+                    if (source.is_symlink() or not source.is_dir() or not source.name.startswith('a2a-requests-')
+                            or source.parent != Path('/tmp').resolve()):
+                        raise HarnessFailure('Unexpected controlled launch request directory.')
+                    destination = self.evidence / 'requests' / record['id']
+                    destination.mkdir(parents=True)
+                    self.capture_request_tree(source, destination)
+            except Exception as error:
+                failures.append({'phase': 'capture', 'error': repr(error)})
+            try:
+                status = self.gate('daemon_status', task=False)
+                if status.get('pid') != self.host.pid:
+                    raise HarnessFailure('Refuse to stop a different daemon PID.')
+                stopped = self.gate('daemon_stop', task=False)
+                if not stopped['ok']:
+                    raise HarnessFailure('Owned daemon_stop was refused.')
+                self.host.wait(timeout=12)
+                if self.host.returncode != 0:
+                    raise HarnessFailure('Owned host shutdown returned nonzero.')
+            except Exception as error:
+                failures.append({'phase': 'stop', 'error': repr(error), 'pid': self.host.pid})
+        if self.run_child is not None:
+            try:
+                self.run_child.wait(timeout=5)
+            except subprocess.TimeoutExpired as error:
+                failures.append({'phase': 'run-exit', 'error': repr(error), 'pid': self.run_child.pid})
+        for stream in self.streams:
+            stream.close()
+        removed_credentials = []
+        for credential in self.operator_credentials:
+            try:
+                if credential.is_symlink():
+                    raise HarnessFailure('Owned credential became a symlink.')
+                if not credential.exists():
+                    continue
+                if self.host is not None and self.host.poll() is None:
+                    raise HarnessFailure('Retain the credential while the owned host is live.')
+                if credential.parent != self.root or credential.stat().st_mode & 0o077:
+                    raise HarnessFailure('Owned credential path or mode changed.')
+                value = json.loads(credential.read_text(encoding='utf-8'))
+                if value.get('kind') != 'operator' or value.get('state') != str(self.state.resolve()):
+                    raise HarnessFailure('Owned credential state binding changed.')
+                credential.unlink()
+                removed_credentials.append(str(credential))
+            except Exception as error:
+                failures.append({'phase': 'credential-cleanup', 'path': str(credential), 'error': repr(error)})
+        save(self.evidence / 'cleanup.json', {'failures': failures,
+             'host_exit': self.host.poll() if self.host else None, 'preserved_fixture': str(getattr(self, 'root', '')),
+             'removed_operator_credentials': removed_credentials})
+        return failures
+
+    @staticmethod
+    def capture_request_tree(source, destination):
+        for item in source.iterdir():
+            if item.is_symlink():
+                raise HarnessFailure('Unexpected symlink in request evidence.')
+            target = destination / item.name
+            if item.is_dir():
+                target.mkdir()
+                ReviewBoundary.capture_request_tree(item, target)
+            elif item.is_file():
+                with target.open('xb') as stream:
+                    stream.write(item.read_bytes())
+            else:
+                raise HarnessFailure('Unexpected non-regular request evidence.')
 
     def tracer_review_copy(self):
         _, candidate = self.good_submission()
@@ -137,8 +319,8 @@ class ReviewBoundary(Tracer):
         outside = Path(review['workspace']) / 'external-before-end.txt'
         if dirty:
             outside.write_text('External change must be checked before integration.\n', encoding='utf-8')
-        stop = {'session_id': record['native'], 'turn_id': 'fixture-turn-1', 'hook_event_name': 'Stop',
-                'last_assistant_message': json.dumps(self.review_packet(review, candidate), ensure_ascii=False)}
+        stop = self.stop_envelope(record, review['candidate_workspace'], 'fixture-turn-1',
+                                  json.dumps(self.review_packet(review, candidate), ensure_ascii=False))
         message = {'id': str(uuid.uuid4()), 'input': {'command': 'signal', 'launch': record['launch'],
                    'raw_stdin': json.dumps(stop, ensure_ascii=False),
                    'received_at': datetime.datetime.now(datetime.timezone.utc).isoformat()},
@@ -169,14 +351,15 @@ class ReviewBoundary(Tracer):
                      'main_head': self.oid(), 'base': self.base, 'dirty': dirty,
                      'outside_change_exists': outside.exists(), 'events': self.events()}
             save(self.evidence / 'integration-before-end-check.json', proof)
+            self.check('REVIEW-END-BEFORE-INTEGRATE', not result.get('ok')
+                       and result.get('error') == 'review_end_check_required' and proof['main_head'] == self.base,
+                       'integration before the review end check must refuse and leave main unchanged', proof)
         finally:
             held.close()
         events = self.wait_for(self.events, lambda rows: any(
             e['type'] in ('review_reclaimed', 'review_lifecycle_failed') for e in rows))
         task = self.cli('status')['task']
         save(self.evidence / 'after-release.json', {'task': task, 'events': events, 'main_head': self.oid()})
-        self.check('REVIEW-END-BEFORE-INTEGRATE', not result.get('ok') and proof['main_head'] == self.base,
-                   'integration before the review end check must refuse and leave main unchanged', proof)
         if dirty:
             self.check('T082-DIRTY-END-INVALIDATE', task['state'] == 'paused'
                        and task['review']['state'] == 'unknown' and self.oid() == self.base
@@ -191,7 +374,7 @@ class ReviewBoundary(Tracer):
     def real_payload_report_roundtrip(self):
         _, candidate = self.good_submission()
         review, record = self.start_review(candidate)
-        captured = Path(__file__).resolve().parents[2] / 'evidence/2026-10-15-batch15/T-082/protocol-red-green-01/real-review-submit.json'
+        captured = Path(__file__).with_name('t152_real_review_submit.json')
         actual = json.loads(captured.read_text(encoding='utf-8'))
         packet = self.review_packet(review, candidate)
         packet['report'] = actual['report']
@@ -228,7 +411,9 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--case', choices=CASES, action='append')
     args = parser.parse_args()
-    return run_cases(args.source, args.output, args.case or CASES, ReviewBoundary,
+    # Launch refusal needs an explicitly mutated source; it is not a green case.
+    names = args.case or [name for name in CASES if name != 'launch_boundary_refused']
+    return run_cases(args.source, args.output, names, ReviewBoundary,
                      dialect='current', stop_on_failure=True)
 
 

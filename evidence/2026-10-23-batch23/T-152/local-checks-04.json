@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "scope": "isolated hook input validation, known-bad reporter rejection and syntax; no business red/green claim",
+  "artifact_root": "/private/tmp/t152-local04-u4vt4wwx",
+  "checks": [
+    {
+      "check": "real hook-envelope validation only; not signal/relay evidence",
+      "command": [
+        "node",
+        "/private/tmp/t152-local04-u4vt4wwx/hook-probe.mjs",
+        "/Users/luckye/Documents/Code/a2a-wt-t152/workbench/src/questions.ts",
+        "/private/tmp/t152-local04-u4vt4wwx/hook-probe.json"
+      ],
+      "exit_code": 0,
+      "stdout": "old Stop rejected; migrated Stop/ACK accepted; missing cwd and foreign log rejected\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "check": "workbench/tests/test_t082_review_boundary_e2e.py AST",
+      "passed": true
+    },
+    {
+      "check": "evidence/2026-10-23-batch23/T-152/run_suite.py AST",
+      "passed": true
+    },
+    {
+      "check": "04 reader rejects known-bad 03 flow",
+      "command": [
+        "/Library/Developer/CommandLineTools/usr/bin/python3",
+        "-B",
+        "/private/tmp/t152-local04-u4vt4wwx/readback04.py",
+        "/private/tmp/t152-local04-u4vt4wwx/readback-negative",
+        "b3521197e7032219e2affc3481a31e9daae4bccb",
+        "1"
+      ],
+      "exit_code": 1,
+      "status": "INCOMPLETE",
+      "error": "RuntimeError('reviewer launch: expected exactly one, got 0')",
+      "passed": true
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "workbench/tests/t152_review_host.ts"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "command": [
+        "zsh",
+        "-n",
+        "/Users/luckye/Documents/Code/a2a-wt-t152/evidence/2026-10-23-batch23/T-152/RUN-OUTSIDE-04.sh"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "passed": true
+    }
+  ]
+}
