@@ -193,9 +193,9 @@ def main():
         green = window(candidate, green_build, 'green')
         green.wait(lambda row: len(row['projects']) == 2 and 'sidebar' in row['bridge'] and not any(project['disabled'] for project in row['projects']))
         green.call('project', target='project-0')
-        expected_panes = {'agent-' + str(i) for i in range(5)}
-        view = green.wait(lambda row: len(row['agents']) == 7 and 'task-0' in row['task'] and not any(agent['disabled'] for agent in row['agents'])
-                          and {pane.get('launch') for pane in row['panes']} == expected_panes)
+        # Since the workspace pages, choosing a project opens no pane by itself; each pane opens from its sidebar row below.
+        expected_panes = set()
+        view = green.wait(lambda row: len(row['agents']) == 7 and 'task-0' in row['task'] and not any(agent['disabled'] for agent in row['agents']))
         before_sidebar = persistence(state)
         green.call('sidebar')
         green.call('sidebar')
@@ -212,8 +212,9 @@ def main():
         assert all(nodes['agent-' + str(i)]['state'] == 'unrestored' for i in range(5))
         assert 'attempt attempt-3' in nodes['agent-3']['text']
         project = next(row for row in view['projects'] if row['id'] == 'project-0')
-        assert 'main' in project['text'] and '领先 1 / 落后 0' in project['text'] and project['state'] == 'unknown'
-        assert '未设置上游' in next(row for row in view['projects'] if row['id'] == 'project-1')['text']
+        # The branch line under the project name (T-107 #5, user 2026-10-22 "显示出来吧"): branch · ↑ahead ↓behind, or 无上游.
+        assert 'main · ↑1 ↓0' in project['text'] and project['state'] == 'unknown'
+        assert 'main · 无上游' in next(row for row in view['projects'] if row['id'] == 'project-1')['text']
         report['checks'].append(dict(name='项目与 agent 层级、角色、attempt、Git 与三种历史状态', status='PASS', git_status=git_status))
         for index in range(7):
             launch = 'agent-' + str(index)
