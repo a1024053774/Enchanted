@@ -3,13 +3,13 @@
 失败方式（先列再写；期望来自 T-146 任务卡）：
 1. Reflect 将空闲会话的生命周期当作运行状态，与侧栏/流程不同。
 2. 关闭经角色申请的主控终端后，Reflect 仍显示运行中。
-3. 结束会话在 Reflect 被遗漏/未标结束，或侧栏/流程仍将它显示为运行中。
+3. 三处任一遗漏结束会话、未标“已结束”，或将已结束主控降为普通终端。
 4. 仍在执行一个真实 Bash 工具的 worker 被错误标成已结束/空闲。
 5. 修前版本或恢复 Reflect 旧状态算法的变异没有被拒绝。
 6. worker CLI 自然退出但 zsh 终端仍存活时，三处仍显示运行中/空闲。
 7. DOM 尚未收到一次轮询后的结果就读取，误将旧侧栏状态当作产品结果。
 
-按主控 #4 暂行规则：Reflect 保留结束会话；侧栏/流程允许不出现或显示 ended。
+按用户裁定 B：三处均保留结束会话并标“已结束”，主控保留角色与项目层身份。
 每阶段先保存页面观察，再断言；缺失项记录 MISSING，不冒充 ended。
 --revision 运行指定版本；--mutant reflect-lifecycle 恢复 Reflect 的旧计算。
 """
@@ -32,7 +32,7 @@ def main():
     parser.add_argument('--claude', default=shutil.which('claude') or str(Path.home() / '.local/bin/claude'))
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--revision')
-    mode.add_argument('--mutant', choices=['reflect-lifecycle'])
+    mode.add_argument('--mutant', choices=['reflect-lifecycle', 'flow-hide-ended', 'controller-becomes-shell'])
     args = parser.parse_args()
     assert not args.summary.exists(), '必须使用新证据路径'
     report = dict(status='INCOMPLETE', argv=sys.argv, revision=args.revision, mutant=args.mutant,
@@ -61,31 +61,38 @@ def main():
         report['checks'].append(name)
 
     def snapshot(label):
+        value = {}
+        report['observed'][label] = value
         # Refresh through page navigation, then read the DOM of all three views.
         electron.evaluate("document.querySelector('[data-reflect-tab]').click()")
         electron.until('Reflect 数据', "document.querySelectorAll('.reflect-node').length >= 3", 30)
         api_reflect = fixture.request('reflect_tree', project='demo')
+        value['api_reflect'] = api_reflect
         expected = {n['launch']: n['state'] for n in api_reflect['nodes']}
         # Synchronize transport only: API and DOM states are both checked against the independent contract below.
         electron.until('Reflect 轮询已刷新', "JSON.stringify(Object.fromEntries([...document.querySelectorAll('.reflect-node')].map(n=>[n.dataset.reflectLaunch,n.dataset.reflectState])))==="
                        + json.dumps(json.dumps(expected, separators=(',', ':'))), 30)
         reflect = electron.evaluate("[...document.querySelectorAll('.reflect-node')].map(n=>({launch:n.dataset.reflectLaunch,state:n.dataset.reflectState,label:n.querySelector('.record-state').textContent,text:n.innerText}))")
+        value['reflect'] = reflect
+        electron.screenshot(fixture.out / f'{label}-reflect.png')
         electron.evaluate("[...document.querySelectorAll('.task-header nav button')].find(b=>b.textContent==='流程').click()")
         electron.until('流程数据', "document.querySelectorAll('[data-flow-agent]').length > 0", 30)
         api_flow = fixture.request('flow_snapshot')
+        value['api_flow'] = api_flow
         agents = api_flow['unassigned'] + [a for lane in api_flow['lanes'] for a in lane['agents'] + lane['monitors']]
         expected_flow = {a['id']: a['state'] for a in agents}
         electron.until('流程轮询已刷新', "JSON.stringify(Object.fromEntries([...document.querySelectorAll('[data-flow-agent]')].map(n=>[n.dataset.flowAgent,n.dataset.flowState]).sort()))==="
                        + json.dumps(json.dumps(dict(sorted(expected_flow.items())), separators=(',', ':'))), 30)
         flow = electron.evaluate("[...document.querySelectorAll('[data-flow-agent]')].map(n=>({launch:n.dataset.flowAgent,state:n.dataset.flowState,label:[...n.querySelectorAll('small')].at(-1).textContent.trim(),text:n.innerText}))")
+        value['flow'] = flow
         api_sidebar = fixture.request('sidebar_snapshot')
+        value['api_sidebar'] = api_sidebar
+        value['sidebar_before_poll'] = electron.evaluate("[...document.querySelectorAll('[data-agent-launch]')].map(n=>({launch:n.dataset.agentLaunch,state:n.dataset.agentState,text:n.innerText}))")
         expected_sidebar = {a['id']: a['state'] for a in api_sidebar['agents']}
         electron.until('侧栏轮询已刷新', "JSON.stringify(Object.fromEntries([...document.querySelectorAll('[data-agent-launch]')].map(n=>[n.dataset.agentLaunch,n.dataset.agentState]).sort()))==="
                        + json.dumps(json.dumps(dict(sorted(expected_sidebar.items())), separators=(',', ':'))), 30)
-        sidebar = electron.evaluate("[...document.querySelectorAll('[data-agent-launch]')].map(n=>({launch:n.dataset.agentLaunch,state:n.dataset.agentState,label:n.querySelector('.agent-state').textContent,text:n.innerText}))")
-        value = dict(reflect=reflect, flow=flow, sidebar=sidebar,
-                     api_reflect=api_reflect, api_sidebar=api_sidebar, api_flow=api_flow)
-        report['observed'][label] = value
+        sidebar = electron.evaluate("[...document.querySelectorAll('[data-agent-launch]')].map(n=>({launch:n.dataset.agentLaunch,state:n.dataset.agentState,label:n.querySelector('.agent-state').textContent,text:n.innerText,role:n.querySelector('.agent-role').textContent,labelVisible:n.querySelector('.agent-state').getBoundingClientRect().width>10}))")
+        value['sidebar'] = sidebar
         electron.screenshot(fixture.out / f'{label}.png')
         return value
 
@@ -94,11 +101,19 @@ def main():
 
     try:
         patches = []
-        if args.mutant:
+        if args.mutant == 'reflect-lifecycle':
             patches = [('src/reflect.ts', "row.state === 'ended' ? 'ended' : sessionStates.get(row.launch) ?? 'unknown'",
                         "row.state === 'ended' ? 'ended' : 'running'"),
                        ('src/reflect.ts', "state: sessionStates.get(record.id) ?? 'unknown'",
                         "state: archived.has(record.id) ? 'ended' : 'running'")]
+        elif args.mutant == 'flow-hide-ended':
+            patches = [('src/flow.ts', "['worker', 'reviewer', 'monitor'].includes(agent.role));",
+                        "['worker', 'reviewer', 'monitor'].includes(agent.role) && agent.state !== 'ended');"),
+                       ('src/flow.ts', 'unassigned: agents.filter(agent => !assigned.has(agent.id))',
+                        "unassigned: agents.filter(agent => !assigned.has(agent.id) && agent.state !== 'ended')")]
+        elif args.mutant == 'controller-becomes-shell':
+            patches = [('src/sidebar.ts', "const held = current.filter(row => row.confirmed_at);",
+                        "const held = current.filter(row => row.state === 'approved');")]
         fixture = Fixture('t146-', plan, revision=args.revision, patches=patches)
         report['fixture'] = str(fixture.dir)
         release = fixture.out / 'release-live'
@@ -149,9 +164,11 @@ def main():
 
         report['native_exit_observation'] = fixture.wait('CLI 已退出且 zsh 仍存活', shell_without_cli, 40)
         native_exit = snapshot('02-after-cli-exit')
+        check('sidebar_exit_label_visible', next(row for row in native_exit['sidebar']
+              if row['launch'] == launches['T-done'])['labelVisible'], native_exit['sidebar'])
         for view in ('reflect', 'sidebar', 'flow'):
             actual = state(native_exit[view], launches['T-done'])
-            check(f'{view}_natural_cli_exit', actual == 'ended' if view == 'reflect' else actual in ('ended', 'MISSING'), native_exit[view])
+            check(f'{view}_natural_cli_exit', actual == 'ended', native_exit[view])
             if actual != 'MISSING':
                 check(f'{view}_natural_cli_exit_label', next(row['label'] for row in native_exit[view] if row['launch'] == launches['T-done']).endswith('已结束'), native_exit[view])
             check(f'{view}_other_worker_still_running', state(native_exit[view], launches['T-live']) == 'running', native_exit[view])
@@ -167,9 +184,18 @@ def main():
             check(f'{view}_running', state(after[view], launches['T-live']) == 'running', after[view])
             for name, launch in [('worker_ended', launches['T-done']), ('controller_ended', fixture.terminal_launch)]:
                 actual = state(after[view], launch)
-                check(f'{view}_{name}', actual == 'ended' if view == 'reflect' else actual in ('ended', 'MISSING'), after[view])
+                check(f'{view}_{name}', actual == 'ended', after[view])
                 if actual != 'MISSING':
                     check(f'{view}_{name}_label', next(row['label'] for row in after[view] if row['launch'] == launch).endswith('已结束'), after[view])
+        controller = next(row for row in after['api_sidebar']['agents'] if row['id'] == fixture.terminal_launch)
+        check('ended_controller_keeps_role_and_project', controller['role'] == 'controller' and
+              controller['preset'] == 'executor' and controller['task'] is None and controller['terminal'], controller)
+        check('ended_controller_not_ordinary_terminal', not any(row['id'] == fixture.terminal_launch
+              for row in after['api_sidebar']['terminals']), after['api_sidebar']['terminals'])
+        check('sidebar_controller_visible_role', next(row for row in after['sidebar']
+              if row['launch'] == fixture.terminal_launch)['role'] == '执行主控', after['sidebar'])
+        check('sidebar_controller_ended_label_visible', next(row for row in after['sidebar']
+              if row['launch'] == fixture.terminal_launch)['labelVisible'], after['sidebar'])
         report['status'] = 'PASS'
     except BaseException as error:
         report['error'] = f'{type(error).__name__}: {error}'

@@ -38,12 +38,12 @@ export function projectFlow(tasks: any[], agents: FlowAgent[], events: GateEvent
     const bound = agents.filter(agent => typeof task.current_attempt?.attempt_id === 'string' && task.current_attempt.attempt_id.length > 0 &&
       agent.project === task.project_id && agent.task === task.task_id &&
       agent.attempt === task.current_attempt?.attempt_id && agent.parent &&
-      ['worker', 'reviewer', 'monitor'].includes(agent.role) && agent.state !== 'ended');
+      ['worker', 'reviewer', 'monitor'].includes(agent.role));
     bound.forEach(agent => assigned.add(agent.id));
     return { task: task.task_id, name: task.name, project: task.project_id, title: task.title, attempt: task.current_attempt?.attempt_id ?? null,
       stage, integrated, returns, agents: bound.filter(agent => agent.role !== 'monitor'), monitors: bound.filter(agent => agent.role === 'monitor') };
   });
-  return { lanes, unassigned: agents.filter(agent => !assigned.has(agent.id) && agent.state !== 'ended') };
+  return { lanes, unassigned: agents.filter(agent => !assigned.has(agent.id)) };
 }
 export type FlowSnapshot = ReturnType<typeof projectFlow>;
 
