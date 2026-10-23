@@ -65,7 +65,7 @@ RUN-OUTSIDE-01 的同一夹具：两个真实 Claude CLI worker，模型请求 c
 WebGL2 canvas 确实启用且未报告 context loss。增加 inactive-input 变异，不能用只读快照代替输入拒绝。
 retention-harness-failure-01.txt 保留了关闭窗口检查初次遇到的测试边界缺方法错误；它不是业务红态。
 
-独立只读审查 T143-REVIEW-01.md 对冻结候选 8faf2a646 为 INCOMPLETE：检出读屏开关选择器指向标题、无法匹配复选框。已改为选择整个设置 section 下的 input；原报告保留。另补上保留集上限边界检查，并把 WebGL context loss 计数保存在窗口上，避免切换销毁节点后遗漏已发生的丢失。真实 Electron/GPU 检查仍待 RUN-OUTSIDE-02。
+独立只读审查 T143-REVIEW-01.md 对冻结候选 8faf2a646 为 INCOMPLETE：检出读屏开关选择器指向标题、无法匹配复选框。已改为选择整个设置 section 下的 input；原报告保留。另补上保留集上限边界检查，并把 WebGL context loss 计数保存在窗口上，避免切换销毁节点后遗漏已发生的丢失。独立有界复核 T143-REVIEW-02.md 确认选择器唯一匹配 checkbox，25 项 selection 再跑通过，P1 已解除。真实 Electron/GPU 检查仍待 RUN-OUTSIDE-02。
 
 下一步：主控在沙箱外运行，回传新目录与 COMPARISON.json。
 
